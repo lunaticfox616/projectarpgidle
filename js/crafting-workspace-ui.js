@@ -110,10 +110,10 @@ const craftingWorkspaceUi = (() => {
     function workspaceItemHtml() {
         const item=selected(), sources=new Set(item.stats.map(stat=>equipmentCrafting.getSource(stat)));
         return `<section id="forge-item-display" class="cl-item ${matches(item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(getEquipmentGridVisualAsset(item))}" alt="${esc(item.slot)}"></div>
-            <div><small>제작 중인 장비 · T${getItemCraftTier(item)}</small><h2>${esc(item.name)}</h2><span>${esc(item.baseName)} · 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
+            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}</h2><span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
             <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">홀씨 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
-            <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 · ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
-            <div class="cl-base">기본 옵션 · ${(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}`).join(' / ')}</div>${workspaceEncroachmentHtml(item)}
+            <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
+            <div class="cl-base">기본 옵션 &ensp; ${(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}`).join(' / ')}</div>${workspaceEncroachmentHtml(item)}
             ${extras}</section>`;
     }
 
@@ -124,21 +124,21 @@ const craftingWorkspaceUi = (() => {
         const retained=!choice&&rule.statId;
         const tiers=Array.from({length:(choice?.maxTier||0)+1},(_,i)=>i);
         return `<section class="cl-goal"><div class="cl-section-title"><span class="cl-goal-help"><button type="button" id="cl-goal-help" aria-describedby="cl-goal-tooltip">목표 옵션</button><span role="tooltip" id="cl-goal-tooltip">확률은 변경되지 않으며, 목표 옵션 출현 시 강조됩니다.</span></span></div><div class="cl-goal-fields">
-            <label>옵션<select id="cl-goal-stat"><option value="">목표 선택</option>${retained?`<option selected disabled value="${rule.statId}">${esc(getStatName(rule.statId))} · 현재 목표</option>`:''}${available.map(row=>`<option value="${row.id}" ${row.id===rule.statId?'selected':''}>${esc(row.name)}</option>`).join('')}</select></label>
+            <label>옵션<select id="cl-goal-stat"><option value="">목표 선택</option>${retained?`<option selected disabled value="${rule.statId}">${esc(getStatName(rule.statId))} (현재 목표)</option>`:''}${available.map(row=>`<option value="${row.id}" ${row.id===rule.statId?'selected':''}>${esc(row.name)}</option>`).join('')}</select></label>
             <label>최소 티어<select id="cl-goal-tier" ${!choice?'disabled':''}>${tiers.map(tier=>`<option value="${tier}" ${tier===rule.minTier?'selected':''}>${tier===0?'티어 무관':`T${tier} 이상`}</option>`).join('')}</select></label></div></section>`;
     }
 
     function workspaceEncroachmentHtml(item) {
         if(!item.encroached)return '';
         const stat=item.encroached.chosen;
-        if(item.encroached.liberated&&stat)return `<div class="cl-base">잠식 · ${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))}</div>`;
-        return '<div class="cl-base">잠식 · 미해방 <button type="button" onclick="liberateSelectedEncroachedItem()">해방</button></div>';
+        if(item.encroached.liberated&&stat)return `<div class="cl-base">잠식 ${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))}</div>`;
+        return '<div class="cl-base">잠식 미해방 <button type="button" onclick="liberateSelectedEncroachedItem()">해방</button></div>';
     }
 
     function workspaceMethodsHtml() {
         const spore=isSporeCraftEquipment(selected())&&(recipe.kind==='add'||recipe.kind==='reroll');
         return `<section class="cl-methods"><div class="cl-section-title">주 재화<div><button data-command="pins">변경</button><button id="cl-catalog-open" data-command="catalog">기타 재화</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
-            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 · ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(getExpertLevel('mycologist')>=10?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}
+            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(getExpertLevel('mycologist')>=10?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}
             </section>`;
     }
 
@@ -149,7 +149,7 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceCostText() {
-        const pieces=['소모 · 재화 1개'];
+        const pieces=['재화 1개 소모'];
         if(isSporeCraftEquipment(selected())&&['add','reroll'].includes(recipe.kind)&&mode!=='none') {
             const amount=getSporeCraftCost();
             pieces.push(['damage','chaos'].includes(mode)?`홀씨 3종 각 ${amount}`:`${({fire:'화염',cold:'냉기',light:'번개'})[mode]} 홀씨 ${amount}`);
@@ -172,7 +172,7 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceActionHtml(state,stopped) {
-        if(auto)return `<button data-command="stop" class="cl-primary cl-stop">자동 사용 중지 · ${runCount}/${limit}회</button>`;
+        if(auto)return `<button data-command="stop" class="cl-primary cl-stop">자동 사용 중지 ${runCount}/${limit}회</button>`;
         const button=stopped?'<button data-command="ack" class="cl-primary">목표 옵션 확인</button>':`<button data-command="craft" class="cl-primary" aria-label="${esc(ORB_DB[recipe.key].name)} 1회 사용" ${busy||!state.enabled?'disabled':''}>${busy?'사용 중…':'1회 사용'}</button>`;
         if(!['reroll','add','fossil'].includes(recipe.kind))return button;
         return button+workspaceAutoControlsHtml(state);

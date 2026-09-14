@@ -2014,7 +2014,7 @@ function switchTab(tabId) {
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
     lastActiveTabId = tabId;
     if (tabId === 'tab-social' && typeof renderSocialTab === 'function') renderSocialTab();
-    else if (typeof stopChatPolling === 'function') stopChatPolling();
+    else if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
     if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
@@ -7028,8 +7028,7 @@ function showGemTooltip(event, type, name, target = null) {
         }
         if (rawSkillTags.includes('spell')) {
             let spellLv = Math.max(1, info.finalLevel || 1);
-            let spellLog = Math.log2(spellLv);
-            let spellFlat = ((skill.spellFlatBase || 0) * 3) + Math.max(0, spellLv - 1) * (skill.spellFlatScale || 0) + ((skill.spellFlatBase || 0) * 0.8 * spellLog * spellLog);
+            let spellFlat = getGemSpellBaseDamage(skill, spellLv);
             html += `<div class="tooltip-line">주문 내장 피해 ${Math.floor(spellFlat)}</div>`;
         }
         if ((skill.hpDmgScale || 0) > 0) {
@@ -7096,12 +7095,14 @@ function showGemTooltip(event, type, name, target = null) {
         let gemBonusSources = info.gemBonusSources || stats.gemBonusSources;
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         const sources = [['패시브', gemBonusSources.passive], ['장비', gemBonusSources.gear], ['보상', gemBonusSources.reward],
-            ['재능', info.talentBonus], ['군주의 핵', info.bossCoreLevel], ['창공의 힘', info.skyCoreLevel],
+            ['재능', info.talentBonus], ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 힘', info.skyCoreLevel === 5 ? 1 : 0],
             ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
         levels.unshift(`젬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
         html += `<div class="tooltip-line">${levels.join(' · ')}</div>`;
     }
+    if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
+    if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 힘 공격·시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
     gemTooltipCache = { key: cacheKey, html: html, border: border, stats: stats };
     if (target) { target.innerHTML = html; return; }
@@ -7451,7 +7452,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
     html += `<div class="tooltip-line" style="color:var(--copy-muted);">베이스: ${item.baseName}${baseChainBadge}</div>`;
-    html += `<div class="tooltip-line" style="color:var(--copy-bright);">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} · 옵션 상한 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
+    html += `<div class="tooltip-line" style="color:var(--copy-bright);">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; 등급 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
         html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ 고유 효과: ${escapeHTML(item.uniqueEffect)}</span></div>`;
@@ -11487,8 +11488,6 @@ exposeUiRenderHelpersOnce();
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
-        { key:'honey', label:'벌꿀 고정', onclick:'applyEnchantedHoneyToSelectedItem()' },
-        { key:'stinger', label:'독벌침 부여', onclick:'applyVenomStingerToSelectedItem()' },
         { key:'baseUpgrade', label:'베이스 업그레이드', onclick:'upgradeSelectedItemBase()' }
     ];
     return defs.map(d => `<button onclick="${d.onclick}" ${v[d.key] ? '' : 'disabled'}>${d.label}</button>`).join('');

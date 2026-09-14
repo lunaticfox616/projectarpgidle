@@ -64,9 +64,9 @@ test('gem detail translates ailments and lists only applied level sources includ
         Object.assign(game.gemData['서리 폭발'],{level:5,bossCoreLevel:3,skyCoreLevel:2,awakened:true});updateStaticUI();
     });
     await card.click();
-    await expect(panel).toContainText('총 레벨 12');
-    await expect(panel).toContainText('군주의 핵 +3');
-    await expect(panel).toContainText('창공의 힘 +2');
+    await expect(panel).toContainText('총 레벨 7');
+    await expect(panel).toContainText('군주의 핵 피해 12% 증폭');
+    await expect(panel).toContainText('창공의 힘 공격·시전 속도 4% 증폭');
     await expect(panel).toContainText('각성 +2');
 });
 
@@ -105,22 +105,103 @@ test('gem growth shows a target prompt and reflects affordable upgrades immediat
     await actions.getByRole('button', { name: '공격 젬 장착하기', exact: true }).click();
     await expect(page.locator('#skill-tab-equip')).toBeVisible();
     await page.evaluate(() => { changeSkill('연속 베기'); switchSkillSubtab('skill-tab-enhance'); updateStaticUI(); });
-    const core = actions.getByRole('button', { name: /^군주의 핵 강화/ });
-    const sky = actions.getByRole('button', { name: /^창공의 힘 강화/ });
+    const core = page.locator('[data-forge-material="bossCore"]');
+    const sky = page.locator('[data-forge-material="skyEssence"]');
     const permanent = actions.getByRole('button', { name: /^응축 창공 영구 강화/ });
-    await expect(core).toBeDisabled(); await expect(sky).toBeDisabled(); await expect(permanent).toBeDisabled();
+    await expect(permanent).toBeDisabled();
+    await core.click();
+    const dialog = page.locator('#gem-core-forge-overlay');
+    await expect(dialog.locator('[data-forge-attempt]')).toBeDisabled();
+    await expect(dialog).toContainText('재료 부족');
+    await dialog.getByRole('button', { name: '젬 강화 닫기' }).click();
     await page.evaluate(() => { game.currencies.bossCore = 1; game.currencies.skyEssence = 1; updateStaticUI(); });
-    await expect(core).toBeEnabled(); await core.click();
+    await core.click(); await dialog.locator('[data-forge-attempt]').click();
     await expect.poll(() => page.evaluate(() => game.gemData['연속 베기'].bossCoreLevel)).toBe(1);
     expect(await page.evaluate(() => game.currencies.bossCore)).toBe(0);
     expect(await page.evaluate(() => game.gemData['연속 베기'].level)).toBe(5);
-    await expect(core).toBeDisabled(); await expect(sky).toBeEnabled(); await sky.click();
+    await expect(dialog).toContainText('강화 성공');
+    await dialog.getByRole('button', { name: '젬 강화 닫기' }).click();
+    await sky.click(); await dialog.locator('[data-forge-attempt]').click();
     await expect.poll(() => page.evaluate(() => game.gemData['연속 베기'].skyCoreLevel)).toBe(1);
     expect(await page.evaluate(() => game.currencies.skyEssence)).toBe(0);
-    await expect(sky).toBeDisabled();
+    await expect(dialog).toContainText('강화 성공');
+    await dialog.getByRole('button', { name: '젬 강화 닫기' }).click();
     await page.evaluate(() => { game.gemData['연속 베기'].bossCoreLevel = 5; game.currencies.bossCore = 100; updateStaticUI(); });
-    await expect(core).toBeDisabled();
-    await expect(core).toContainText('최대 단계');
+    await expect(core).toContainText('강화 완료');
+    await core.click(); await expect(dialog.locator('[data-forge-attempt]')).toBeDisabled();
+    await expect(dialog).toContainText('적용 중');
+});
+
+test('core forge has persistent pity, bounded feedback and usable mobile controls', async ({page}, info) => {
+    const errors=[];page.on('pageerror', error=>errors.push(error.message));
+    await openGems(page);
+    await page.evaluate(()=>{
+        changeSkill('연속 베기');game.gemData['연속 베기'].bossCoreLevel=4;
+        game.currencies.bossCore=100;game.currencies.skyEssence=100;
+        Math.random=()=>0.999999;switchSkillSubtab('skill-tab-enhance');updateStaticUI();
+    });
+    await page.locator('[data-forge-material="bossCore"]').click();
+    const dialog=page.locator('#gem-core-forge-overlay');
+    await expect(dialog.locator('.gem-forge-chance > strong')).toHaveText('10%');
+    await page.screenshot({path:info.outputPath('forge-ready.png')});
+    const attempt=dialog.locator('[data-forge-attempt]');
+    const pendingFailure=await attempt.evaluate(button=>{
+        button.click();
+        const overlay=document.getElementById('gem-core-forge-overlay');
+        overlay.querySelector('[data-forge-attempt]').click();
+        return {text:overlay.innerText,disabled:overlay.querySelector('[data-forge-attempt]').disabled,
+            chance:overlay.querySelector('.gem-forge-chance > strong').textContent,
+            owned:game.currencies.bossCore,failures:game.gemData['연속 베기'].bossCoreFailures};
+    });
+    expect(pendingFailure.disabled).toBe(true);
+    expect(pendingFailure.chance).toBe('10%');
+    expect(pendingFailure.text).toContain('보유 100개');
+    expect(pendingFailure.text).not.toContain('강화 실패');
+    expect(pendingFailure.owned).toBe(95);expect(pendingFailure.failures).toBe(1);
+    await expect(dialog).toContainText('강화 실패');
+    expect(await page.evaluate(()=>game.currencies.bossCore)).toBe(95);
+    await expect(dialog.locator('.gem-forge-chance > strong')).toHaveText('20%');
+    await page.screenshot({path:info.outputPath('forge-pity.png')});
+    await dialog.getByRole('button',{name:'젬 강화 닫기'}).click();
+    await page.locator('[data-forge-material="skyEssence"]').click();
+    await expect(dialog.locator('.gem-forge-chance > strong')).toHaveText('100%');
+    await dialog.locator('[data-forge-track="bossCore"]').click();
+    await expect(dialog.locator('.gem-forge-chance > strong')).toHaveText('20%');
+    await expect(dialog).toContainText('실패 시 성공률 +9.6%p');
+    for (const next of ['29.6%','38.6%','46.8%','54%','60%','65%','70%','75%','80%','85%','90%','95%','100%']) {
+        await attempt.click();await expect(dialog).toContainText('강화 실패');
+        await expect(dialog.locator('.gem-forge-chance > strong')).toHaveText(next);
+    }
+    const pendingSuccess=await attempt.evaluate(button=>{
+        button.click();
+        const overlay=document.getElementById('gem-core-forge-overlay');
+        return {text:overlay.innerText,level:overlay.querySelector('.gem-forge-level').textContent,
+            actualLevel:game.gemData['연속 베기'].bossCoreLevel};
+    });
+    expect(pendingSuccess.level).toBe('+4');expect(pendingSuccess.actualLevel).toBe(5);
+    expect(pendingSuccess.text).toContain('강화 중');
+    expect(pendingSuccess.text).not.toContain('최대 강화 달성');
+    expect(pendingSuccess.text).not.toContain('적용 중');
+    await expect(dialog).toContainText('최대 강화 달성');
+    await expect(dialog.locator('.gem-forge-level')).toHaveText('+5');
+    await expect(dialog.locator('.gem-forge-level-bonus')).toBeVisible();
+    await expect(dialog).toContainText('젬 레벨 +1 획득');
+    await expect(attempt).toBeDisabled();
+    expect(await page.evaluate(()=>game.currencies.bossCore)).toBe(25);
+    await page.screenshot({path:info.outputPath('forge-max.png')});
+    const buttonBox=await attempt.boundingBox();const viewport=page.viewportSize();
+    expect(buttonBox.x).toBeGreaterThanOrEqual(0);expect(buttonBox.y).toBeGreaterThanOrEqual(0);
+    expect(buttonBox.x+buttonBox.width).toBeLessThanOrEqual(viewport.width);
+    expect(buttonBox.y+buttonBox.height).toBeLessThanOrEqual(viewport.height);
+    await page.evaluate(()=>document.body.classList.add('light-mode'));
+    await expect(dialog.locator('[data-forge-close]')).toHaveCSS('color','rgb(48, 41, 31)');
+    await page.screenshot({path:info.outputPath('forge-light.png')});
+    await dialog.getByRole('button',{name:'젬 강화 닫기'}).click();
+    await page.locator('[data-forge-material="bossCore"]').click();
+    await expect(dialog).toContainText('젬 레벨 +1 적용 중');
+    await expect(dialog).not.toContainText('성공 확정');
+    await dialog.getByRole('button',{name:'젬 강화 닫기'}).click();
+    expect(errors).toEqual([]);
 });
 
 test('support shows actual tag targets, inspection does not spend resonance, and locked equipment stays blocked', async ({ page }, info) => {

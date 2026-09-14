@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { currencyUse } = require('./crafting-helpers');
 
 async function setup(page) {
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -27,6 +28,31 @@ async function settle(page) {
     });
 }
 test.afterEach(async({page})=>{expect(page.craftingErrors||[]).toEqual([]);});
+
+test('honey and stinger use the currency controls without duplicate item actions',async({page})=>{
+    await setup(page);
+    await page.evaluate(()=>{
+        const item=getSelectedCraftItem();
+        item.stats=['flatDmg','aspd','crit','critDmg'].map(id=>({id,statName:getStatName(id),val:10,tier:1}));
+        Object.assign(game.currencies,{enchantedHoney:2,venomStinger:2});
+        updateStaticUI();
+    });
+    await settle(page);
+    const actions=page.locator('#crafting-workspace .craft-actions');
+    await expect(actions.getByRole('button',{name:'벌꿀 고정',exact:true})).toHaveCount(0);
+    await expect(actions.getByRole('button',{name:'독벌침 부여',exact:true})).toHaveCount(0);
+    await expect(actions.getByRole('button',{name:'베이스 업그레이드',exact:true})).toBeVisible();
+    await (await currencyUse(page,'enchantedHoney')).click();
+    await settle(page);
+    expect(await page.evaluate(()=>game.currencies.enchantedHoney)).toBe(1);
+    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(stat=>stat.lockedByHoney).length)).toBe(1);
+    await expect(await currencyUse(page,'enchantedHoney')).toBeDisabled();
+    await (await currencyUse(page,'venomStinger')).click();
+    await settle(page);
+    expect(await page.evaluate(()=>game.currencies.venomStinger)).toBe(1);
+    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(stat=>stat.venomStingerBonus).length)).toBe(1);
+    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(stat=>stat.lockedByHoney).length)).toBe(1);
+});
 
 test('unified crafting catalog preserves discoveries and pin order without spending',async({page})=>{
     await setup(page);

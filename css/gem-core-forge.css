@@ -1,0 +1,95 @@
+.gem-core-tone { color: #e4ba79; }
+.gem-sky-tone { color: #8cd8ef; }
+.gem-core-section h3 { margin: 0 0 12px; font-size: 15px; color: #eee3cb; }
+#ui-gem-core-forge { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.gem-forge-track, .gem-forge-dialog { --forge-accent: #e4ba79; --forge-on-accent: #171914; --forge-muted: #b8ac99; --forge-line: #514635; --forge-bg: #151410; --forge-text: #f3eddf; }
+.gem-forge-track.sky, .gem-forge-dialog.sky { --forge-accent: #8cd8ef; --forge-line: #34505c; }
+button.gem-forge-track { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--forge-line); border-radius: 8px; background: linear-gradient(140deg, #211c14, #121311 70%); color: var(--forge-text); text-align: left; cursor: pointer; }
+button.gem-forge-track.sky { background: linear-gradient(140deg, #14252d, #111619 70%); }
+button.gem-forge-track:hover, button.gem-forge-track:focus-visible { border-color: var(--forge-accent); outline: 1px solid var(--forge-accent); outline-offset: 2px; }
+.gem-forge-track-head, .gem-forge-track-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.gem-forge-track-head strong { font-size: 15px; color: var(--forge-accent); }
+.gem-forge-track-head b { font-size: 23px; font-variant-numeric: tabular-nums; }
+.gem-forge-track-effect { color: var(--forge-text); font-size: 13px; }
+.gem-forge-track-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--forge-line); font-size: 12px; color: var(--forge-muted); }
+.gem-forge-track-foot b { color: var(--forge-accent); }
+.gem-forge-steps { display: flex; gap: 6px; }
+.gem-forge-steps span { flex: 1; padding: 4px 0; border: 1px solid var(--forge-line); border-radius: 3px; color: var(--forge-muted); text-align: center; font-size: 11px; }
+.gem-forge-steps span.filled { background: var(--forge-accent); color: var(--forge-on-accent); border-color: var(--forge-accent); font-weight: 700; }
+.gem-forge-cap { display: flex; flex-wrap: wrap; gap: 6px 10px; color: var(--forge-muted); font-size: 12px; }
+.gem-forge-cap b { color: var(--forge-accent); }
+.gem-forge-cap.complete { color: var(--forge-accent); }
+dialog.gem-forge-dialog { box-sizing: border-box; width: min(500px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); margin: auto; padding: 24px; overflow: auto; border: 1px solid var(--forge-line); border-radius: 14px; background: radial-gradient(ellipse at 50% 20%, #282319, var(--forge-bg) 62%); color: var(--forge-text); box-shadow: 0 24px 80px #0009, inset 0 1px 0 #e4ba791f; font-family: inherit; font-size: 14px; line-height: 1.45; }
+dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #162c36, var(--forge-bg) 62%); }
+.gem-forge-dialog::backdrop { background: #030507ce; }
+.gem-forge-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--forge-line); }
+.gem-forge-header small { font-size: 12px; color: var(--forge-muted); }
+.gem-forge-header h2 { margin: 2px 0 0; padding: 0; border: 0; font-size: 23px; letter-spacing: -.5px; color: var(--forge-accent); }
+.gem-forge-dialog button { font: inherit; cursor: pointer; }
+#gem-core-forge-overlay .gem-forge-header button { padding: 7px 12px; border: 1px solid var(--forge-line); border-radius: 5px; color: var(--forge-text) !important; background: transparent !important; }
+.gem-forge-materials { display: flex; gap: 6px; margin-top: 16px; }
+#gem-core-forge-overlay .gem-forge-materials button { flex: 1; padding: 9px; background: transparent !important; border: 1px solid transparent !important; border-radius: 5px; color: var(--forge-muted) !important; box-shadow: none !important; }
+#gem-core-forge-overlay .gem-forge-materials button[aria-pressed="true"] { background: color-mix(in srgb, var(--forge-accent) 10%, transparent) !important; color: var(--forge-accent) !important; border-color: var(--forge-line) !important; }
+.gem-forge-stage { position: relative; isolation: isolate; display: flex; align-items: center; flex-direction: column; padding: 20px 0 16px; }
+.gem-forge-stage .gem-forge-art { position: relative; width: 56px; height: 56px; display: inline-block; object-fit: contain; }
+.gem-forge-art img { width: 100%; height: 100%; object-fit: contain; }
+.gem-forge-stage > strong { margin-top: 10px; font-size: 16px; }
+.gem-forge-level { color: var(--forge-accent); font-size: 32px; line-height: 1.3; }
+.gem-forge-stage .gem-forge-steps { width: 190px; margin-top: 10px; }
+.gem-forge-halo { position: absolute; top: 10px; width: 76px; height: 76px; border-radius: 50%; border: 1px solid var(--forge-line); box-shadow: 0 0 30px #e4ba7912; z-index: -1; }
+.gem-forge-effects { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--forge-line); border-bottom: 1px solid var(--forge-line); }
+.gem-forge-effects > div { display: flex; flex-direction: column; gap: 5px; }
+.gem-forge-effects small { color: var(--forge-muted); }
+.gem-forge-effects strong { font-size: 13px; font-weight: 600; }
+.gem-forge-effects > div:last-child strong { color: var(--forge-accent); }
+.gem-forge-dialog > .gem-forge-cap { margin-top: 12px; }
+.gem-forge-cap > span { margin-left: auto; }
+.gem-forge-result { min-height: 52px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 10px 0; color: var(--forge-muted); font-size: 12px; }
+.gem-forge-result strong { font-size: 18px; color: var(--forge-accent); }
+.gem-forge-level-bonus { font-size: 21px; font-weight: 800; color: var(--forge-accent); }
+.gem-forge-dialog.mastered { border-color: var(--forge-accent); }
+.gem-forge-dialog.mastered .gem-forge-result > strong { font-size: 13px; color: var(--forge-muted); }
+.gem-forge-dialog.mastered.success .gem-forge-level-bonus { animation: gem-forge-reward 850ms ease-out both; }
+.gem-forge-dialog.mastered.success .gem-forge-halo { animation-duration: 850ms; }
+.gem-forge-result em { font-style: normal; color: #8cd8ef; margin-left: 8px; }
+.gem-forge-dialog.failure .gem-forge-result > strong { color: #d5b9a0; }
+.gem-forge-chance { display: flex; align-items: end; justify-content: space-between; gap: 8px; }
+.gem-forge-chance > span { display: flex; flex-direction: column; font-size: 12px; }
+.gem-forge-chance small { color: var(--forge-accent); margin-top: 3px; }
+.gem-forge-chance > strong { color: var(--forge-accent); font-size: 27px; font-variant-numeric: tabular-nums; }
+.gem-forge-chance-bar { height: 4px; margin-top: 6px; background: #ffffff12; border-radius: 3px; overflow: hidden; }
+.gem-forge-chance-bar > span { display: block; height: 100%; background: var(--forge-accent); }
+.gem-forge-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 18px; }
+.gem-forge-footer > div { display: flex; flex-direction: column; font-size: 12px; }
+.gem-forge-footer small { color: var(--forge-muted); }
+#gem-core-forge-overlay .gem-forge-footer > button { min-width: 150px; min-height: 46px; border: 1px solid var(--forge-accent) !important; border-radius: 6px; background: var(--forge-accent) !important; color: var(--forge-on-accent) !important; font-weight: 800; }
+.gem-forge-dialog button:disabled { opacity: .45; cursor: default; }
+.gem-forge-dialog button:focus-visible { outline: 2px solid var(--forge-accent); outline-offset: 3px; }
+.gem-forge-dialog.charging .gem-forge-art { animation: gem-forge-charge 450ms ease-in both; }
+.gem-forge-dialog.charging .gem-forge-halo { animation: gem-forge-focus 450ms ease-in both; }
+.gem-forge-dialog.success .gem-forge-art { animation: gem-forge-impact 500ms ease-out both; }
+.gem-forge-dialog.success .gem-forge-halo { animation: gem-forge-burst 650ms ease-out both; }
+@keyframes gem-forge-charge { to { transform: scale(.83); filter: brightness(1.7); } }
+@keyframes gem-forge-focus { to { transform: scale(.4); opacity: .35; } }
+@keyframes gem-forge-impact { 0% { transform: scale(.8); } 30% { transform: scale(1.16); } 100% { transform: scale(1); } }
+@keyframes gem-forge-burst { from { transform: scale(.55); opacity: 1; border-color: var(--forge-accent); } to { transform: scale(1.65); opacity: 0; border-color: var(--forge-accent); } }
+@keyframes gem-forge-reward { 0% { transform: scale(.92); opacity: .4; } 35% { transform: scale(1.06); text-shadow: 0 0 18px var(--forge-accent); } 100% { transform: scale(1); opacity: 1; text-shadow: none; } }
+body.light-mode .gem-forge-track, body.light-mode .gem-forge-dialog { --forge-accent: #775018; --forge-on-accent: #fff8e7; --forge-muted: #74634e; --forge-line: #c5b99f; --forge-bg: #f6f0e4; --forge-text: #30291f; background: var(--forge-bg); }
+body.light-mode .gem-forge-track.sky, body.light-mode .gem-forge-dialog.sky { --forge-accent: #226078; }
+body.light-mode .gem-core-tone { color: #775018; }
+body.light-mode .gem-sky-tone { color: #226078; }
+@media (max-width: 560px) {
+    #ui-gem-core-forge { gap: 8px; }
+    button.gem-forge-track { padding: 12px; }
+    .gem-forge-track-head strong { font-size: 13px; }
+    dialog.gem-forge-dialog { padding: 16px; }
+    .gem-forge-header h2 { font-size: 20px; }
+    .gem-forge-stage { padding: 14px 0 12px; }
+    .gem-forge-stage .gem-forge-art { width: 48px; height: 48px; }
+    .gem-forge-halo { top: 6px; width: 64px; height: 64px; }
+    .gem-forge-result { min-height: 46px; }
+    #gem-core-forge-overlay .gem-forge-footer > button { min-width: 130px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .gem-forge-dialog .gem-forge-art, .gem-forge-dialog .gem-forge-halo, .gem-forge-dialog .gem-forge-level-bonus { animation: none !important; }
+}

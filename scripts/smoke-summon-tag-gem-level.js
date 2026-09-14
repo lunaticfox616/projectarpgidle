@@ -44,8 +44,8 @@ assert.strictEqual(tagResult.fireBonus, tagResult.genericValue,
   'non-chaos summon gems must not receive chaos-only passive gem levels');
 assert.strictEqual(tagResult.voidLevel, 5 + tagResult.genericValue + tagResult.chaosValue,
   'summon combat level must use the same tag-matched passive bonus');
-assert.strictEqual(tagResult.materialLevel, 4 + tagResult.genericValue + 2 + 1 + 2,
-  'boss core, sky core, and awakening investments must affect the actual summon combat level');
+assert.strictEqual(tagResult.materialLevel, 4 + tagResult.genericValue + 2,
+  'partial core enhancements grant effects, while awakening still grants two summon levels');
 
 const masterSummonerResult = vm.runInContext(`(() => {
   game.currentZoneId = 0;

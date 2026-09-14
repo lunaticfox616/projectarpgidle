@@ -4,6 +4,7 @@ const vm = require('vm');
 
 const timers = new Map();
 let timerId = 0;
+const chatClasses = new Set();
 const queries = [];
 const now = Date.parse('2026-08-11T12:00:00Z');
 const context = {
@@ -22,7 +23,7 @@ const context = {
   localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
   document: {
     readyState: 'complete',
-    getElementById() { return null; },
+    getElementById(id) { return id === 'tab-social' ? { classList: { contains: value => chatClasses.has(value) } } : null; },
     createElement() { return { textContent: '', style: {} }; },
     head: { appendChild() {} },
     body: { appendChild() {}, classList: { contains() { return false; } } }
@@ -55,6 +56,23 @@ async function run() {
   assert.deepStrictEqual(Array.from(timers.values()).sort((a, b) => a - b), [4000, 30000], 'chat and presence should poll on separate schedules');
   context.stopChatPolling();
   assert.strictEqual(timers.size, 0, 'stopping chat should clear both polling timers');
+  context.syncSocialChatPolling();
+  assert.strictEqual(timers.size, 0, 'hidden chat must not start polling');
+  chatClasses.add('ui-community-dock');
+  context.syncSocialChatPolling();
+  assert.strictEqual(timers.size, 2, 'visible dock should resume receiving even without the active tab class');
+  const runningTimers = Array.from(timers.keys());
+  context.syncSocialChatPolling();
+  assert.deepStrictEqual(Array.from(timers.keys()), runningTimers, 'other tab changes must not restart or duplicate active polling');
+  chatClasses.clear();
+  context.syncSocialChatPolling();
+  assert.strictEqual(timers.size, 0, 'closing chat stops polling');
+  chatClasses.add('active');
+  context.syncSocialChatPolling();
+  assert.strictEqual(timers.size, 2, 'reopening the mobile chat resumes receiving');
+  context.cloudState.user = null;
+  context.syncSocialChatPolling();
+  assert.strictEqual(timers.size, 0, 'logout must stop polling even when the panel remains visible');
   console.log('smoke-social-chat-incremental passed');
 }
 

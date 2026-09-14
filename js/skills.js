@@ -5,6 +5,24 @@ window.GameModules.skills = {
   // TODO: move gem equip/enhance/support toggle handlers into here.
 };
 
+/**
+ * Adds combat XP to a normalized gem record. Overflow carries until the level-20 cap.
+ * @param {ReturnType<typeof normalizeGemRecord>} gem
+ * @param {number} amount Nonnegative integer combat XP.
+ * @returns {number} Levels gained; presentation and expert rewards belong to the caller.
+ */
+function gainGemExperience(gem, amount) {
+    if (amount <= 0 || gem.level >= 20) return 0;
+    const previousLevel = gem.level;
+    gem.exp += amount;
+    while (gem.level < 20 && gem.exp >= getGemReqExp(gem.level)) {
+        gem.exp -= getGemReqExp(gem.level);
+        gem.level++;
+    }
+    if (gem.level === 20) gem.exp = 0;
+    return gem.level - previousLevel;
+}
+
 function getGemResearchCollectionState() {
     let attackPool = Object.keys(SKILL_DB || {}).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
     let supportPool = Object.keys(SUPPORT_GEM_DB || {});
@@ -133,29 +151,6 @@ function selectGemEnhanceTargetSkill(name) {
     addLog(`💎 강화 대상 젬: [${name}]`, 'loot-magic');
     updateStaticUI();
 }
-
-function upgradeActiveGem(materialKey, amount) {
-    if (!contentProgression.isUnlocked('gemForge')) return;
-    if ((game.season || 1) < 2) return addLog('아직 루프 전용 젬 강화가 잠겨 있습니다.', 'attack-monster');
-    let active = getGemEnhanceTargetSkill();
-    game.gemData[active] = normalizeGemRecord(game.gemData[active]);
-    let gem = game.gemData[active];
-    if (!gem || !isEnhanceableAttackGem(active)) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
-    let isBossCore = materialKey === 'bossCore';
-    let levelKey = isBossCore ? 'bossCoreLevel' : 'skyCoreLevel';
-    let currentLevel = Number.isFinite(gem[levelKey]) ? gem[levelKey] : 0;
-    if (currentLevel >= 5) return addLog(isBossCore ? '군주의 핵 강화는 최대 5레벨입니다.' : '창공의 힘 강화는 최대 5레벨입니다.', 'attack-monster');
-    let need = currentLevel + 1;
-    if ((game.currencies[materialKey] || 0) < need) return addLog(`강화 재료가 부족합니다. (필요: ${need})`, 'attack-monster');
-    game.currencies[materialKey] -= need;
-    gem[levelKey] = currentLevel + 1;
-    let totalLevel = gem.level + (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
-    grantExpertExpByAction('gemEngraver', isBossCore ? 'boss_core_upgrade' : 'sky_core_upgrade');
-    if (isBossCore) addLog(`💎 [${active}] 군주의 핵 강화 ${gem.bossCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
-    else addLog(`☁️ [${active}] 창공의 힘 강화 ${gem.skyCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
-    updateStaticUI();
-}
-
 
 function upgradeActiveGemWithCondensedSkyPower() {
     if (!contentProgression.isUnlocked('gemForge')) return;
@@ -999,6 +994,23 @@ function canUseSkillWithCurrentEquipment(name) {
     return !skill || !skill.requiresShield || hasEquippedShield();
 }
 
+/** Add ten percent only to growth earned from reaching level 20 onward. */
+function getGemHighLevelGrowth(value, level19Value) {
+    return value + Math.max(0, value - level19Value) * 0.1;
+}
+
+/** Growth steps, not a displayed/effective gem level. Offset supports delayed cap growth. */
+function getGemLevelGrowthSteps(level, offset = 1) {
+    return getGemHighLevelGrowth(Math.max(0, level - offset), Math.max(0, 19 - offset));
+}
+
+/** Skill-owned flat damage only; equipment flat damage is added by the stat pipeline. */
+function getGemSpellBaseDamage(skill, level) {
+    const base = skill.spellFlatBase || 0, scale = skill.spellFlatScale || 0;
+    const logarithmicGrowth = getGemHighLevelGrowth(Math.log2(Math.max(1, level)) ** 2, Math.log2(19) ** 2);
+    return base * 3 + getGemLevelGrowthSteps(level) * scale + base * 0.8 * logarithmicGrowth;
+}
+
 function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     if (!canUseSkillWithCurrentEquipment(game.activeSkill)) {
@@ -1015,18 +1027,18 @@ function getActiveSkillStats(bonusLevel) {
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     if (skill.levelable) game.gemData[game.activeSkill] = gem;
     let permanentSkyBonus = usesGemProgression && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
-    let materialBonus = usesGemProgression ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    let materialBonus = usesGemProgression ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let awakenedGemLevelBonus = usesGemProgression ? getGemSkyEnhanceGemLevelBonus(game.activeSkill) : 0;
     let levelBonus = usesGemProgression ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus };
-    stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
-    stats.spd = stats.baseSpd + ((finalLevel - 1) * stats.spdScale);
-    if (stats.critScale) stats.crit = (stats.crit || 0) + (finalLevel * stats.critScale);
+    stats.dmg = stats.baseDmg + (getGemLevelGrowthSteps(finalLevel) * stats.dmgScale);
+    stats.spd = stats.baseSpd + (getGemLevelGrowthSteps(finalLevel) * stats.spdScale);
+    if (stats.critScale) stats.crit = (stats.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * stats.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
-    stats.dmg *= qualityMul;
-    stats.spd *= qualityMul;
+    stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
+    stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
     stats.arcanaGemDamagePct = skill.isGem ? getArcanaGemDamageBonusPct(game.activeSkill, game) : 0;
     if (usesGemProgression && gem.level >= 20) {
         if (game.activeSkill === '연속 베기') stats.spd *= 1.2;
@@ -1076,12 +1088,13 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 safeExposeGlobals({
-    hasEquippedShield, canUseSkillWithCurrentEquipment,
+    hasEquippedShield, canUseSkillWithCurrentEquipment, gainGemExperience,
+    getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage,
     getArcanaGemDamageFromStats, getArcanaGemDamageBonus, getArcanaGemDamageBonusPct
 });
 
 
-safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); if((game.equippedSummonSkills||[]).includes(name)) return addLog('장착 중 소환수 젬은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }

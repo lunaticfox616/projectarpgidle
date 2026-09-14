@@ -256,12 +256,12 @@
                 let activeSlots = isGem && typeof getSkyEnhancementSlotsForSkill === 'function' ? getSkyEnhancementSlotsForSkill(active) : [null, null, null, null, null];
                 let activeEnh = getSkyEnhancementForSkill(active);
                 let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;
-                let bossNeed = activeGem ? ((activeGem.bossCoreLevel || 0) + 1) : 1;
+
                 let gemExpertLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
                 let qualityDiscount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
                 let qualityNeed = activeGem ? Math.max(1, Math.floor((1 + Math.floor((activeGem.quality || 0) / 5)) * (1 - qualityDiscount))) : 1;
                 let awakenReady = !!(activeGem && !activeGem.awakened && (activeGem.level || 1) >= 20 && gemExpertLv >= 15);
-                let skyNeed = activeGem ? ((activeGem.skyCoreLevel || 0) + 1) : 1;
+
                 let engraveCap = activeGem ? (activeGem.skyEnhanceCap || 1) : 1;
                 let selectedSlot = typeof getSelectedGemEngraveSlot === 'function' ? getSelectedGemEngraveSlot() : 0;
                 if (selectedSlot >= engraveCap) selectedSlot = Math.max(0, engraveCap - 1);
@@ -285,9 +285,10 @@
                 renderGemEngraveSlots(activeSlots, engraveCap);
                 renderSupportGemProcessList(gemExpertLv);
                 let currentTotalGemLevel = Math.max(1, Math.floor((activePresentation && activePresentation.totalLevel) || 1));
+                gemCoreForgeUi.renderSection(isGem ? active : null);
                 const upgrades = [
-                    { title: '군주의 핵 강화', action: "upgradeActiveGem('bossCore', 1)", done: activeGem?.bossCoreLevel >= 5, ready: (game.currencies.bossCore || 0) >= bossNeed, details: `보유 ${game.currencies.bossCore || 0} / 필요 ${bossNeed}`, gain: 1 },
-                    { title: '창공의 힘 강화', action: "upgradeActiveGem('skyEssence', 1)", done: activeGem?.skyCoreLevel >= 5, ready: (game.currencies.skyEssence || 0) >= skyNeed, details: `보유 ${game.currencies.skyEssence || 0} / 필요 ${skyNeed}`, gain: 1 },
+
+
                     { title: '응축 창공 영구 강화', action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: `${game.skyTower.unlocked ? '루프 초기화 없음' : '창공의 탑 해금 필요'} · 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost}`, gain: 1 },
                     { title: '젬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: gemExpertLv >= 8 && (game.currencies.bossCore || 0) >= qualityNeed, details: `젬 각인사 Lv.8 · 군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed} · 피해·속도 배율 +0.5%` },
                     { title: '각성 젬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `각인사 Lv.15 · 기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }

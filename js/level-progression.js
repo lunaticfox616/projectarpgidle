@@ -16,6 +16,13 @@ const levelProgression = (() => {
         const bonus = enemy.isBoss || enemy.boss ? 2 : Number(!!(enemy.isElite || enemy.elite));
         return areaLevel(zone) + bonus;
     }
+    // Monster levels can exceed the player cap in deep realms; extend the reward table linearly.
+    function monsterExperience(level) {
+        const rewards = LEVEL_PROGRESSION.monsterExperience;
+        const index = Math.max(0, Math.floor(level) - 1);
+        if (index < rewards.length) return rewards[index];
+        return rewards[rewards.length - 1] + (index - rewards.length + 1) * LEVEL_PROGRESSION.monsterExperienceOverflowStep;
+    }
     function penalty(playerLevel, enemyLevel, kind) {
         const free = kind === 'experience' ? LEVEL_PROGRESSION.experienceGap : LEVEL_PROGRESSION.lootGap;
         const decay = kind === 'experience' ? LEVEL_PROGRESSION.experienceDecay : LEVEL_PROGRESSION.lootDecay;
@@ -79,7 +86,7 @@ const levelProgression = (() => {
     function combatZone(zone) {
         return Number.isFinite(zone.areaLevel) ? { ...zone, tier: interpolate(zone.areaLevel, true) } : zone;
     }
-    return Object.freeze({ tierLevel, areaLevel, monsterLevel, penalty, rewardMultiplier, loopExperienceMultiplier, filterCurrencyDrops,
+    return Object.freeze({ tierLevel, areaLevel, monsterLevel, monsterExperience, penalty, rewardMultiplier, loopExperienceMultiplier, filterCurrencyDrops,
         requirements, stampItem, affixCap, combatZone,
         maxDropTier: level => Math.max(1, Math.floor(interpolate(level, true))) });
 })();
