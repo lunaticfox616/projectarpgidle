@@ -9,7 +9,7 @@ test('treasure shows the minimum boss tier and preserves it when the player post
     await page.evaluate(()=>{
         clearInterval(gameTickHandle);gameTickHandle=null;
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
-        game.season=2;contentProgression.sync();game.currentZoneId=8;
+        game.season=2;contentProgression.sync();contentProgression.purchase('craft');game.currentZoneId=8;
         game.bountyHunt=bountyRuntime.restore(null);
         startEncounterRun();game.runProgress=37;
         const enemy=createEnemy(getZone(8),{at:20,count:1},0);game.enemies=[enemy];
@@ -27,10 +27,13 @@ test('treasure shows the minimum boss tier and preserves it when the player post
         bountyUi.renderHud();
     });
     const offer=page.locator('#ui-bounty-box button');
-    await expect(offer).toContainText('보물사냥 · 기준 T1');
+    await expect(offer).toHaveText('보물사냥');
     await offer.click();
     await expect(page.locator('#game-dialog-message')).toContainText('10마리 중 최저 보스 T1 기준 · 일반 재료 ×1');
     await expect(page.locator('.game-choice-option')).toHaveCount(3);
+    await expect(page.locator('#game-dialog-message')).not.toContainText('공통 추가 보물');
+    await expect(page.locator('.bounty-risk')).toHaveCount(3);
+    await expect(page.locator('.bounty-choice-reward')).toHaveCount(3);
     const targets=await page.locator('.game-choice-option').evaluateAll(buttons=>buttons.map(button=>button.dataset.choiceValue));
     expect(new Set(targets).size).toBe(3);
     await page.screenshot({path:testInfo.outputPath('bounty-minimum-tier.png')});

@@ -90,12 +90,12 @@ const bountyRuntime = (() => {
         return UNIQUE_DB.filter(item=>!item.ultraRare && !item.dropOnly && item.reqTier<=tier
             && item.slots[0]===slot && !item.name.includes('우로보로스'));
     }
-    function rollEventId(tier) {
+    function rollEventId(tier, chanceMultiplier=1) {
         const roll=Math.random(), config=BOUNTY_HUNT_CONFIG;
-        if (roll<config.goldenChance && available(TREASURE_EVENT_DB.golden_reliquary)) return 'golden_reliquary';
-        if (roll<config.goldenChance+config.fairyChance && available(TREASURE_EVENT_DB.fairy_hollow)) return 'fairy_hollow';
+        if (roll<config.goldenChance*chanceMultiplier && available(TREASURE_EVENT_DB.golden_reliquary)) return 'golden_reliquary';
+        if (roll<(config.goldenChance+config.fairyChance)*chanceMultiplier && available(TREASURE_EVENT_DB.fairy_hollow)) return 'fairy_hollow';
         const relics=['lost_weapon','lost_armor','lost_boots'].filter(id=>uniquePool(TREASURE_EVENT_DB[id].slot,tier).length>0);
-        if (roll<config.goldenChance+config.fairyChance+config.uniqueChance && relics.length) return rndChoice(relics);
+        if (roll<(config.goldenChance+config.fairyChance+config.uniqueChance)*chanceMultiplier && relics.length) return rndChoice(relics);
         return rndChoice(Object.keys(TREASURE_EVENT_DB).filter(id=>TREASURE_EVENT_DB[id].common && available(TREASURE_EVENT_DB[id])));
     }
     function fillTargetOffers(pending) {
@@ -176,12 +176,25 @@ const bountyRuntime = (() => {
         const pending=ensureState().pending;
         if (!pending || pending.status!=='offered' || !isUnlocked()) return false;
         if (!pending.offerIds.includes(targetId)) return false;
+        upgradeRiskTreasure(pending,targetId);
         pending.targetId=targetId;
         pending.offerIds=[];
         pending.status='queued';
         // Resume hunting without discarding this loop's already-earned completion records.
         game.pendingLoopReady=false;game.pendingLoopDecision=false;
         return true;
+    }
+    // Preserve previously rolled rare treasure. Upgrade only common treasure, once on acceptance.
+    function upgradeRiskTreasure(pending,targetId) {
+        const steps=BOUNTY_TARGET_DB[targetId].risk-1, config=BOUNTY_HUNT_CONFIG;
+        if (!steps || !TREASURE_EVENT_DB[pending.id].common) return;
+        const tier=ensureState().source?.itemTier || 1;
+        const rareChance=config.goldenChance+config.fairyChance+config.uniqueChance;
+        const id=rollEventId(tier,steps*config.riskRareStep/(1-rareChance));
+        const def=TREASURE_EVENT_DB[id];
+        if (def.common) return;
+        pending.item=def.slot ? normalizeItem(generateUniqueItem(tier,def.slot,rndChoice(uniquePool(def.slot,tier)).name)) : null;
+        pending.id=id;
     }
     function injectEncounterMarker(plan, zone) {
         const pending=ensureState().pending;
@@ -197,6 +210,8 @@ const bountyRuntime = (() => {
         if (!target || pending?.targetId!==targetId || pending.status!=='queued') return false;
         const mod={armorMul:1,evasionMul:1,drAdd:0,resAllAdd:0,resChaosAdd:0,damageMul:1,
             attackSpeedMul:1,penetrationAdd:0,critChanceAdd:0,regenMul:1,regenRateAdd:0,firstHitGuard:0,...target.modifiers};
+        mod.hpMul*=1+(target.risk-1)*BOUNTY_HUNT_CONFIG.riskHpStep;
+        mod.damageMul*=1+(target.risk-1)*BOUNTY_HUNT_CONFIG.riskDamageStep;
         enemy.maxHp=Math.max(1,Math.floor(enemy.maxHp*mod.hpMul));enemy.hp=enemy.maxHp;
         enemy.armor=Math.floor(enemy.armor*mod.armorMul);
         enemy.evasion=Math.floor(enemy.evasion*mod.evasionMul);
@@ -218,14 +233,20 @@ const bountyRuntime = (() => {
     }
     function grantTargetLoot(enemy, reward) {
         const growthCount=grantTargetGrowth(enemy,reward);
-        const count=(reward.equipmentCount || 0)+(growthCount<(reward.growthCount || 0) ? reward.fallbackEquipmentCount : 0);
+        const count=rollRiskAmount((reward.equipmentCount || 0)+(growthCount<(reward.growthCount || 0) ? reward.fallbackEquipmentCount : 0));
         for (let i=0;i<count;i++) {
             const item=generateEquipmentDrop(enemy,{minimumRarity:reward.minimumRarity,zone:ensureState().source?.zone});
             if (item) addItemToInventory(item,{guaranteedKeep:true});
         }
         for (const [key,amount] of Object.entries(reward.currencies || {})) {
-            if (contentProgression.canDropCurrency(key)) awardCurrency(key,rewardAmount({amount,common:true}));
+            if (contentProgression.canDropCurrency(key)) awardCurrency(key,rollRiskAmount(rewardAmount({amount,common:true})));
         }
+    }
+    function rollRiskAmount(amount) {
+        const target=BOUNTY_TARGET_DB[ensureState().pending.targetId];
+        const expected=amount*(1+(target.risk-1)*BOUNTY_HUNT_CONFIG.riskRewardStep);
+        const whole=Math.floor(expected), fraction=expected-whole;
+        return whole+Number(fraction>0 && Math.random()<fraction);
     }
     function completeTarget(enemy) {
         const pending=ensureState().pending;

@@ -205,4 +205,38 @@ assert.equal(run('game.bountyHunt.source.itemTier'),1,'unknown old boss tiers ca
 assert.equal(run('game.bountyHunt.completed'),5);
 for(let kill=0;kill<3;kill++) run('bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true})');
 assert.equal(run('bountyRuntime.openTreasure().item.itemTier'),1);
-console.log('smoke-bounty-hunt passed: treasure countdown, gates, rare events, unique slot, migration and single claim');
+// Risk preserves the target identity and minimum tier, scaling only difficulty and extra loot.
+for(const id of ['iron_collector','storm_smuggler','chaos_broker']) {
+ reset();runtime.riskTarget=id;
+ run(`contentProgression.purchase('craft');game.bountyHunt=bountyRuntime.restore({version:5,remaining:0,
+   pending:{id:'craft_stash',status:'offered',offerIds:[riskTarget]}});Math.random=()=>.99;
+   bountyRuntime.startHunt(riskTarget);
+   var riskEnemy={maxHp:1000,hp:1000,armor:10,evasion:10,dr:0,resF:0,resC:0,resL:0,resChaos:0,
+     damageMul:1,attackSpeedVar:1,penetration:0,critChance:0,expMul:1};
+   bountyRuntime.applyTargetToEnemy(riskEnemy,riskTarget);`);
+ const target=json('BOUNTY_TARGET_DB[riskTarget]');
+ assert.equal(run('riskEnemy.maxHp'),Math.floor(1000*target.modifiers.hpMul*(1+(target.risk-1)*.1)));
+ assert.equal(run('riskEnemy.damageMul'),target.modifiers.damageMul*(1+(target.risk-1)*.05));
+ const saved=json('game.bountyHunt.pending');
+ assert(!run('bountyRuntime.startHunt(riskTarget)'),'acceptance cannot reroll risk rewards');
+ assert.deepEqual(json('game.bountyHunt.pending'),saved);
+}
+for(const [id,expected] of [['iron_collector','craft_stash'],['chaos_broker','golden_reliquary']]) {
+ reset();runtime.riskTarget=id;
+ run(`contentProgression.purchase('craft');game.bountyHunt=bountyRuntime.restore({version:5,remaining:0,
+   pending:{id:'craft_stash',status:'offered',offerIds:[riskTarget]}});Math.random=()=>.0004;
+   bountyRuntime.startHunt(riskTarget);`);
+ assert.equal(run('game.bountyHunt.pending.id'),expected,'higher risk adds a rare upgrade chance');
+ const saved=json('game.bountyHunt.pending');
+ run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+ assert.deepEqual(json('game.bountyHunt.pending'),saved,'upgrade is saved before hunting');
+}
+reset();run(`contentProgression.purchase('craft');game.bountyHunt=bountyRuntime.restore({version:5,remaining:0,
+ pending:{id:'golden_reliquary',status:'offered',offerIds:['chaos_broker']}});
+ Math.random=()=>.99;bountyRuntime.startHunt('chaos_broker');`);
+assert.equal(run('game.bountyHunt.pending.id'),'golden_reliquary','rare treasure never downgrades');
+const dewBefore=run('game.currencies.formlessDew');
+run(`Math.random=()=>0;bountyRuntime.completeTarget({hp:0,isBountyTarget:true,bountyId:'chaos_broker'});`);
+assert.equal(run('game.currencies.formlessDew'),dewBefore+3,'fractional risk reward grants one extra material when rolled');
+assert(!run("bountyRuntime.completeTarget({hp:0,isBountyTarget:true,bountyId:'chaos_broker'})"),'risk reward cannot duplicate');
+console.log('smoke-bounty-hunt passed: countdown, gates, migration, single claim and risk scaling');

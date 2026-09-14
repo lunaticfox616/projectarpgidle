@@ -1784,7 +1784,8 @@ test('treasure HUD requires target combat, retains its bonus and pays it once', 
     const dialog = page.locator('#game-dialog-overlay');
     await expect(dialog).toHaveClass(/active/);
     await expect(dialog.locator('.game-choice-option')).toHaveCount(3);
-    await expect(dialog).toContainText('공통 추가 보물:');
+    await expect(dialog).not.toContainText('공통 추가 보물');
+    await expect(dialog.locator('.bounty-choice-reward')).toHaveCount(3);
     const reward = await page.locator('#game-dialog-message').innerText();
     await page.screenshot({path:testInfo.outputPath('treasure-event.png')});
     await dialog.getByRole('button', { name: '나중에', exact:true }).click();

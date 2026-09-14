@@ -192,10 +192,11 @@
         }
         if (dialog.type === 'choice') {
             return `<div class="game-choice-grid">${dialog.choices.map((choice, index) => {
-                let value = choice && typeof choice === 'object' ? choice.value : choice;
-                let label = choice && typeof choice === 'object' ? choice.label : choice;
-                let detail = choice && typeof choice === 'object' ? choice.detail : '';
-                return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeFeedbackHtml(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeFeedbackHtml(label)}</strong>${detail ? `<span>${escapeFeedbackHtml(detail)}</span>` : ''}</button>`;
+                const entry = choice && typeof choice === 'object' ? choice : {value:choice,label:choice};
+                const {value,label,detail} = entry;
+                // Internal presentation HTML only; callers must escape any external text.
+                let detailHtml = entry.detailHtml || (detail ? `<span>${escapeFeedbackHtml(detail)}</span>` : '');
+                return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeFeedbackHtml(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeFeedbackHtml(label)}</strong>${detailHtml}</button>`;
             }).join('')}</div>`;
         }
         return '';
