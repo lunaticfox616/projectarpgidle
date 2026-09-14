@@ -14,7 +14,7 @@ assert(uiSource.includes('merged.currencies.colonyTrace = Math.max'), 'legacy hi
 assert(uiSource.includes('delete merged.currencies.hiveTrace'), 'legacy hive trace must be removed after migration');
 assert(uiSource.includes('merged.skyTower.condensedPower = Math.max'), 'legacy condensed sky power must migrate into the sky tower state');
 assert(uiSource.includes('delete merged.currencies.condensedSkyPower'), 'legacy condensed sky power must be removed after migration');
-assert(uiSource.includes("hiddenCurrencyKeys.add('condensedSkyPower')"), 'the logical condensed-power award key must stay out of the generic wallet UI');
+// Currency catalog exclusions are behavior-tested in smoke-crafting-workspace.js.
 assert(uiSource.includes("Object.prototype.hasOwnProperty.call(save.currencies, 'starDust')"), 'save migration must distinguish a real wallet from a legacy atlas-only balance');
 assert(uiSource.includes('delete merged.cosmosAtlas.starDust'), 'atlas-local star dust must not survive save migration');
 

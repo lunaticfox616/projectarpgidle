@@ -1,3 +1,4 @@
+const {currencyUse}=require('./crafting-helpers');
 const { test, expect } = require('@playwright/test');
 const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
@@ -1504,17 +1505,16 @@ test('equipment crafting shows the exact last change and repeats without losing 
         selectForCrafting(item.id, false);
     });
 
-    await expect(page.locator('.craft-result-ledger')).toHaveCount(0);
-    await page.evaluate(() => useCurrency('deepWhetstone'));
-    const result = page.locator('.craft-result-ledger');
-    await expect(result).toHaveCount(1);
-    await expect(result).toBeVisible();
+    await dismissVisibleTutorials(page);
+    const use=await currencyUse(page,'deepWhetstone');
+    await use.click();
+    const result=page.locator('.cl-result');
     await expect(result).toContainText('품질 0% → 1%');
-    await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 1');
-    await result.locator('[data-repeat-craft="deepWhetstone"]').click();
+    await use.click();
     await expect(result).toContainText('품질 1% → 2%');
-    await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 0');
-    await expect.poll(() => page.evaluate(() => getSelectedCraftItem().quality)).toBe(2);
+    await expect(use).toBeDisabled();
+    expect(await page.evaluate(()=>getSelectedCraftItem().quality)).toBe(2);
+    expect(await page.evaluate(()=>game.currencies.deepWhetstone)).toBe(0);
     expect(failures).toEqual([]);
 });
 
@@ -1534,33 +1534,23 @@ test('special crafting sources block additions but allow rerolls', async ({page}
     });
     await dismissVisibleTutorials(page);
     await page.evaluate(()=>useCurrency('sapBud'));
-    await expect(page.locator('[data-repeat-craft="sapBud"]')).toBeDisabled();
-    await expect(page.locator('[data-repeat-craft="sapBud"]')).toContainText('이미 홀씨 옵션');
-    await expect(page.locator('#forge-item-display .equipment-craft-source')).toContainText('홀씨');
-    if(testInfo.project.use.isMobile) {
-        await page.evaluate(()=>selectMobileCraftCurrency('sapBud'));
-        await expect(page.locator('#ui-mobile-craft-currency-picker button').last()).toBeDisabled();
-        await page.evaluate(()=>selectMobileCraftCurrency('formlessDew'));
-        await page.locator('#ui-mobile-craft-currency-picker button').last().click();
-    } else {
-        await expect(page.locator(`#ui-currency-grid button[onclick="useCurrency('sapBud')"]`)).toBeDisabled();
-        await page.locator(`#ui-currency-grid button[onclick="useCurrency('formlessDew')"]`).click();
-    }
-    await expect(page.locator('[data-repeat-craft="formlessDew"]')).toBeEnabled();
-    await page.locator('[data-repeat-craft="formlessDew"]').click();
+    await expect(page.locator('#forge-item-display .cl-sources .filled')).toContainText('홀씨');
+    await expect(await currencyUse(page,'sapBud')).toBeDisabled();
+    await (await currencyUse(page,'formlessDew')).click();
+    await (await currencyUse(page,'formlessDew')).click();
     expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(s=>equipmentCrafting.getSource(s)==='spore').length)).toBe(1);
     await page.screenshot({path:testInfo.outputPath('spore-reroll.png')});
     await page.evaluate(()=>{
         getSelectedCraftItem().stats=[{id:'resF',val:20,statName:'화염 저항',craftSource:'spore',lockedByHoney:true}];
         switchItemSubtab('item-tab-fossil');updateStaticUI();
     });
-    const fossil=page.locator(`#ui-fossil-actions button[onclick="applyFossilChaosCraft('fossilJagged')"]`);
+    const fossil=await currencyUse(page,'fossilJagged');
     await dismissVisibleTutorials(page);
     await expect(fossil).toBeEnabled();await fossil.click();await fossil.click();
     expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(s=>equipmentCrafting.getSource(s)==='fossil').length)).toBe(1);
     expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(s=>equipmentCrafting.getSource(s)==='spore').length)).toBe(1);
     await page.evaluate(()=>{getSelectedCraftItem().stats.find(s=>s.craftSource==='fossil').lockedByHoney=true;updateStaticUI();});
-    await expect(fossil).toBeDisabled();await expect(fossil).toContainText('잠긴 화석 옵션');
+    await expect(fossil).toBeDisabled();await expect(page.locator('.cl-block')).toContainText('잠긴 화석 옵션');
     await page.screenshot({path:testInfo.outputPath('fossil-locked.png')});
     await page.evaluate(()=>{switchItemSubtab('item-tab-craft');updateStaticUI();});
     await expect(page.locator(`button[onclick="applyRiftSporeToSelectedItem()"]`).first()).toBeDisabled();

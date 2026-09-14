@@ -1398,7 +1398,7 @@ function getSummonGemLevel(gemName, source, pStats, evaluation) {
     // 투자해도 젬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
     let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
     let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
-    let materialBonus = isGem ? Number(record.bossCoreLevel || 0) + Number(record.skyCoreLevel || 0) + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    let materialBonus = isGem ? gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let talentBonus = !isSupport ? Math.max(0, Math.floor(Number(pStats && pStats.talentSummonGemLevelBonus) || 0)) : 0;
     return Math.max(1, baseLevel + bonus + engraveBonus + materialBonus + talentBonus);
 }
@@ -1421,7 +1421,7 @@ function getSummonLevelGrowthSteps(profile, gemLv) {
 }
 
 function getSummonScaledBaseDamage(profile, gemLv, pStats) {
-    let dmgGrowth = 1 + getSummonLevelGrowthSteps(profile, gemLv) * (profile.dmgPerLevelPct || 0.1);
+    let dmgGrowth = 1 + getGemHighLevelGrowth(getSummonLevelGrowthSteps(profile, gemLv), getSummonLevelGrowthSteps(profile, 19)) * (profile.dmgPerLevelPct || 0.1);
     let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
     return Math.max(1, Math.floor(((profile.baseDamage || 20) * dmgGrowth) + flat));
 }
@@ -1442,7 +1442,7 @@ function getRepresentativeSummonAttackPower(summonStats, evaluation) {
         let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
         let arcanaPct = getSummonArcanaGemDamagePct({ gemName: name }, summonStats);
         let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
-        best = Math.max(best, base * ownMul);
+        best = Math.max(best, base * ownMul * gemCoreForge.effects(game.gemData?.[name]).damage);
     });
     return Math.max(0, best);
 }
@@ -1460,7 +1460,8 @@ const SUMMON_REGEN_PCT_PER_SEC = 0.75;
 
 function getSummonMaxHp(profile, gemLevel, pStats) {
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLevel);
-    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
+    const exponent = profile.hpScaleExp || 1.12;
+    let hpGrowth = 1 + getGemHighLevelGrowth(Math.pow(levelSteps, exponent), Math.pow(getSummonLevelGrowthSteps(profile, 19), exponent)) * (profile.hpScaleBase || 0.04);
     let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
     let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
     let flags = (pStats && pStats.passiveKeystoneFlags) || {};
@@ -1478,7 +1479,7 @@ function getSummonEvasionGrowthSteps(gemLevel) {
 
 function getSummonEvasionRating(profile, gemLevel, pStats) {
     let steps = getSummonEvasionGrowthSteps(gemLevel);
-    let growth = 1 + (Math.pow(steps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
+    let growth = 1 + getGemHighLevelGrowth(Math.pow(steps, profile.evasionScaleExp || 1.1), Math.pow(getSummonEvasionGrowthSteps(19), profile.evasionScaleExp || 1.1)) * (profile.evasionScaleBase || 0.015);
     let efficiencyPct = Math.max(0, Number(pStats && pStats.summonEfficiency) || 0);
     let efficiencyMultiplier = 1 + (efficiencyPct * SUMMON_EFFICIENCY_EVASION_RATIO / 100);
     return Math.max(0, Math.floor((profile.baseEvasion || 0) * growth * efficiencyMultiplier));
@@ -1492,7 +1493,8 @@ function buildSummonRuntimeStats(row, pStats, now, gemLv = getSummonGemLevel(row
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
-    let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
+    const exponent = profile.armorScaleExp || 1.1;
+    let armorGrowth = 1 + getGemHighLevelGrowth(Math.pow(levelSteps, exponent), Math.pow(getSummonLevelGrowthSteps(profile, 19), exponent)) * (profile.armorScaleBase || 0.015);
     let maxHp = getSummonMaxHp(profile, gemLv, pStats);
     return {
         gemName: row.name,
@@ -1567,12 +1569,13 @@ function getLimitedSummonBossDamageMultiplier(pStats, target) {
 }
 
 function getSummonAttackIntervalMs(pStats, summon) {
+    const forgeSpeed = gemCoreForge.forSkill(summon && summon.gemName).speed;
     if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__soulbinder')) {
-        return Math.max(120, Math.floor(1000 / Math.max(0.1, Number(pStats && pStats.aspd) || 1)));
+        return Math.max(120, Math.floor(1000 / (Math.max(0.1, Number(pStats && pStats.aspd) || 1) * forgeSpeed)));
     }
     let profileMul = Math.max(0.1, Number((summon && summon.attackSpeedMul) || 1));
     let summonAspdMul = 1 + Math.max(0, ((pStats && pStats.summonAspd) || 0) / 100);
-    return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul)));
+    return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul * forgeSpeed)));
 }
 
 function getSummonSharedDamageIncreasePct(summon, pStats) {
@@ -1615,7 +1618,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     }
     let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct + arcanaIncreasePct
         + elementalCaller + targetLinkedBonus + citadelIncrease) / 100)
-        * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul;
+        * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul * gemCoreForge.forSkill(s.gemName).damage;
     if (s.role === 'attack' && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
         dmgMul *= 1 + Math.max(0, Number(pStats.passiveSoleMinionLostCap) || 0) * 0.75;
     }
@@ -1798,7 +1801,7 @@ function buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare) {
     const sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
     const arcanaPct = getSummonArcanaGemDamagePct(s, pStats);
     const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
-    const ownAttackPower = (s.baseDamage * dmgMul) + sbShare;
+    const ownAttackPower = (s.baseDamage * dmgMul * gemCoreForge.effects(game.gemData?.[s.gemName]).damage) + sbShare;
     const critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     const critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     const aps = 1000 / getSummonAttackIntervalMs(pStats, s);
@@ -3757,14 +3760,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let val;
         if (db.scaleWithOwnStat) {
             let ownStatTotal = sumNonSupportStat(db.scaleWithOwnStat);
-            let ratioPct = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+            let ratioPct = (db.baseVal + (getGemLevelGrowthSteps(effectiveLevel) * db.scale)) * tierMul;
             val = Math.max(0, ownStatTotal) * (ratioPct / 100);
         } else {
-            val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+            val = (db.baseVal + (getGemLevelGrowthSteps(effectiveLevel) * db.scale)) * tierMul;
         }
         addStatToBucket(support, db.stat, val);
         if (db.capStat) {
-            let capVal = (db.capBase || 0) + Math.max(0, effectiveLevel - (db.capGrowAfterLevel || 0)) * (db.capPerLevel || 0);
+            let capVal = (db.capBase || 0) + getGemLevelGrowthSteps(effectiveLevel, db.capGrowAfterLevel || 0) * (db.capPerLevel || 0);
             addStatToBucket(support, db.capStat, capVal);
         }
     });
@@ -3953,13 +3956,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let spellFlatDmg = 0;
     if (isSpellSkill) {
         let skillLevel = Number.isFinite(skill.finalLevel) ? skill.finalLevel : 1;
-        let spellBase = Number.isFinite(skill.spellFlatBase) ? skill.spellFlatBase : 0;
-        let spellScale = Number.isFinite(skill.spellFlatScale) ? skill.spellFlatScale : 0;
-        let logBoost = Math.log2(Math.max(1, skillLevel));
         let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
         if (uniqueGrandBreachCrown) spellFlatBonus += Math.floor(Math.max(0, localDefenseTotals.energyShield) * (Math.max(0, uniqueGrandBreachCrown.spellFromEsPct || 10) / 100));
         let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
-        spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
+        spellFlatDmg = Math.max(1, (getGemSpellBaseDamage(skill, skillLevel) + spellFlatBonus) * (1 + spellFlatPct / 100));
         spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
         // 부패 증식(워록 wlk2): 지속 피해 배율 20% 증폭과 동일하게 주문 내장 피해도 20% 증가시킨다.
         if (game.ascendClass === 'warlock' && hasKeystone('wlk2')) spellFlatDmg *= 1.20;
@@ -5780,7 +5780,7 @@ function getGemPresentation(name, isSupport, statsOverride) {
         let db = SUPPORT_GEM_DB[name];
         if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null, gemBonusSources: targetGemSources };
         let totalLevel = Math.max(1, gem.level + targetGemSources.total);
-        let val = db.baseVal + ((totalLevel - 1) * db.scale);
+        let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
         let ratioPct = val * tierMul;
@@ -5795,19 +5795,19 @@ function getGemPresentation(name, isSupport, statsOverride) {
     let gem = normalizeGemRecord((game.gemData || {})[name]);
     if (db.levelable) game.gemData[name] = gem;
     let permanentSkyBonus = db.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
-    let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    let materialBonus = db.isGem ? gemCoreForge.effects(gem).levels + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let levelBonus = db.isGem ? targetGemSources.total : 0;
     let talentBonus = db.isGem && Array.isArray(db.tags) && db.tags.includes('summon_attack')
         ? Math.max(0, Math.floor(Number(stats.talentSummonGemLevelBonus) || 0)) : 0;
     let totalLevel = gem.level + levelBonus + materialBonus + talentBonus;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + talentBonus;
     let skill = { ...db };
-    skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
-    skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
-    if (skill.critScale) skill.crit = (skill.crit || 0) + (finalLevel * skill.critScale);
+    skill.dmg = skill.baseDmg + (getGemLevelGrowthSteps(finalLevel) * skill.dmgScale);
+    skill.spd = skill.baseSpd + (getGemLevelGrowthSteps(finalLevel) * skill.spdScale);
+    if (skill.critScale) skill.crit = (skill.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * skill.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
-    skill.dmg *= qualityMul;
-    skill.spd *= qualityMul;
+    skill.dmg *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).damage : 1);
+    skill.spd *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).speed : 1);
     skill.arcanaGemDamagePct = db.isGem ? getArcanaGemDamageBonusPct(name, game) : 0;
     let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
         ? stats.sSkill : null;
@@ -8639,7 +8639,7 @@ function getEnemyExperienceReward(enemy, pStats) {
     let abyssScale = getAbyssMonsterScales(zone);
     let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     const level = levelProgression.monsterLevel(zone, enemy);
-    let exp = Math.floor(Math.max(24, getExpReq(level) * LEVEL_PROGRESSION.experiencePerKill)
+    let exp = Math.floor(levelProgression.monsterExperience(level)
         * levelProgression.loopExperienceMultiplier(game.season, game.level, level));
     if (enemy.isElite) exp = Math.floor(exp * 1.8);
     if (enemy.isBoss) exp = Math.floor(exp * 6);
@@ -8663,14 +8663,9 @@ function grantExpAndGem(enemy, pStats) {
         game.gemData = game.gemData || {};
         game.gemData[game.activeSkill] = normalizeGemRecord(game.gemData[game.activeSkill]);
         let gem = game.gemData[game.activeSkill];
-        if (gem.level < 20) {
-            gem.exp += gemExp;
-            if (gem.exp >= getGemReqExp(gem.level)) {
-                gem.level++;
-                gem.exp = 0;
-                gemLeveled = true;
-                addLog(`✨ ${pStats.sSkill.isGem ? '젬' : '스킬'} [${game.activeSkill}] 레벨업!`, "loot-unique");
-            }
+        if (gainGemExperience(gem, gemExp) > 0) {
+            gemLeveled = true;
+            addLog(`✨ ${pStats.sSkill.isGem ? '젬' : '스킬'} [${game.activeSkill}] 레벨업!`, "loot-unique");
         }
     }
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
@@ -8680,27 +8675,20 @@ function grantExpAndGem(enemy, pStats) {
         game.gemData = game.gemData || {};
         game.gemData[name] = normalizeGemRecord(game.gemData[name]);
         let gem = game.gemData[name];
-        if (gem && gem.level < 20) {
-            gem.exp += gemExp;
-            if (gem.exp >= getGemReqExp(gem.level)) {
-                gem.level++;
-                gem.exp = 0;
-                gemLeveled = true;
-                addLog(`🐾 소환수 젬 [${name}] 레벨업!`, "loot-unique");
-            }
+        if (gainGemExperience(gem, gemExp) > 0) {
+            gemLeveled = true;
+            addLog(`🐾 소환수 젬 [${name}] 레벨업!`, "loot-unique");
         }
     });
     (game.equippedSupports || []).forEach(name => {
         let gem = game.supportGemData[name];
-        if (gem && gem.level < 20) {
-            gem.exp += gemExp;
-            if (gem.exp >= getGemReqExp(gem.level)) {
-                gem.level++;
-                gem.exp = 0;
-                gemLeveled = true;
-                if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'support_gem_upgrade');
-                addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
+        const levels = gem ? gainGemExperience(gem, gemExp) : 0;
+        if (levels > 0) {
+            gemLeveled = true;
+            if (typeof grantExpertExpByAction === 'function') {
+                for (let i = 0; i < levels; i++) grantExpertExpByAction('gemEngraver', 'support_gem_upgrade');
             }
+            addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
         }
     });
 
@@ -12956,6 +12944,7 @@ function triggerSeasonReset(options) {
     game.pendingTalentBloomHeroId = null;
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
+    craftingWorkspaceState.capture(game);
     game.currencies = { ...defaultGame.currencies };
     game.currencies.timeRemnant = preservedTimeRemnant;
     if (preservedOfflineProgress && typeof ensureOfflineProgressState === 'function') game.offlineProgress = preservedOfflineProgress;

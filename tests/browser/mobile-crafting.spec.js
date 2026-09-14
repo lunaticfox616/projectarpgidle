@@ -1,7 +1,6 @@
 const {test,expect}=require('@playwright/test');
-
-test('mobile crafting explains materials, keeps blocked choices inspectable and consumes only on use',async({page},info)=>{
-    test.skip(!info.project.use.isMobile,'Mobile quick crafting');
+test('mobile currency inventory explains blocked choices and spends only on use',async({page},info)=>{
+    test.skip(!info.project.use.isMobile,'Mobile crafting inventory');
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').tap();await page.locator('[data-class-id="warrior"]').tap();
@@ -14,32 +13,30 @@ test('mobile crafting explains materials, keeps blocked choices inspectable and 
         game.inventory=[createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='war_helm'),'normal',1)];
         openTabPane('tab-items');switchItemSubtab('item-tab-craft');selectForCrafting(game.inventory[0].id,false);updateStaticUI();
     });
-    await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
-    await page.getByRole('button',{name:'사용할 재화 선택',exact:true}).tap();
-    const overlay=page.locator('#mobile-craft-currency-overlay');
-    const bud=overlay.locator('[data-craft-currency="magicBud"]');
-    await expect(bud).toContainText('일반 아이템을 매직');
-    await expect(overlay.locator('[data-craft-currency="sapBud"]')).toBeHidden();
-    await overlay.locator('summary').tap();
-    await expect(overlay.locator('[data-craft-currency="sapBud"]')).toBeVisible();
-    await bud.tap();
-    await expect(overlay).toHaveCount(0);
+    await settle(page);
+    await page.getByRole('button',{name:'기타 재화',exact:true}).tap();
+    const overlay=page.locator('.cl-catalog');
+    await overlay.locator('[data-resource="sapBud"]').tap();
+    await expect(overlay.locator('[data-apply]')).toBeDisabled();
+    await overlay.locator('[data-resource="magicBud"]').tap();
+    await expect(overlay.locator('.cl-resource-detail')).toContainText('일반 아이템을 매직');
+    await overlay.locator('[data-apply]').tap();
     expect(await page.evaluate(()=>game.currencies.magicBud)).toBe(2);
-    await page.locator('#ui-mobile-craft-currency-picker').getByRole('button',{name:'사용',exact:true}).tap();
+    await page.locator('[data-command="craft"]').tap();
     await expect.poll(()=>page.evaluate(()=>game.inventory[0].rarity)).toBe('magic');
     expect(await page.evaluate(()=>game.currencies.magicBud)).toBe(1);
     expect(await page.evaluate(()=>game.currencies.sapBud)).toBe(2);
     await page.evaluate(()=>{for(const key of Object.keys(ORB_DB))game.currencies[key]=0;updateStaticUI();});
-    await page.getByRole('button',{name:'사용할 재화 선택',exact:true}).tap();
-    await expect(overlay.locator('.mobile-craft-currency-empty')).toBeVisible();
-    await overlay.getByRole('button',{name:'닫기',exact:true}).tap();
-    await expect(overlay).toHaveCount(0);
+    await settle(page);
+    await page.getByRole('button',{name:'기타 재화',exact:true}).tap();
+    await expect(overlay.locator('.cl-resource-empty')).toBeVisible();
+    await overlay.locator('[data-close]').tap();
     await page.evaluate(()=>{for(const key of Object.keys(ORB_DB))game.currencies[key]=20;updateStaticUI();});
-    await page.getByRole('button',{name:'사용할 재화 선택',exact:true}).tap();
-    expect(await overlay.locator('[data-craft-currency]').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).every(el=>el.scrollHeight<=el.clientHeight+1))).toBe(true);
-    await overlay.locator('.mobile-craft-currency-panel > .mobile-craft-currency-list').evaluate(el=>{el.scrollTop=el.scrollHeight;});
-    await expect(overlay.getByRole('button',{name:'닫기',exact:true})).toBeInViewport();
-    await overlay.getByRole('button',{name:'닫기',exact:true}).tap();
-    await expect(overlay).toHaveCount(0);
+    await settle(page);
+    await page.getByRole('button',{name:'기타 재화',exact:true}).tap();
+    await overlay.locator('.cl-resource-list').evaluate(el=>{el.scrollTop=el.scrollHeight;});
+    await expect(overlay.locator('[data-close]')).toBeInViewport();
+    await overlay.locator('[data-close]').tap();
     expect(errors).toEqual([]);
 });
+async function settle(page){await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});}

@@ -1044,6 +1044,14 @@ function stopChatPolling() {
     socialState.chatPollTimer = null;
     socialState.onlinePollTimer = null;
 }
+// 다른 게임 창이 활성화돼도 화면에 남아 있는 채팅 도크의 수신은 유지한다.
+function syncSocialChatPolling() {
+    if (!socialCloudReady() || !isSocialTabActive()) {
+        stopChatPolling();
+        return;
+    }
+    if (!socialState.chatPollTimer) startChatPolling();
+}
 function onSocialChatKeydown(event) {
     if (!event || event.isComposing || event.keyCode === 229 || event.repeat) return;
     if (event.key !== 'Enter' || event.shiftKey) return;
@@ -1617,7 +1625,7 @@ if (typeof document !== 'undefined') {
 if (typeof safeExposeGlobals === 'function') {
     safeExposeGlobals({
         socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet, syncPlayerProfile,
-        sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling,
+        sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling, syncSocialChatPolling,
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,

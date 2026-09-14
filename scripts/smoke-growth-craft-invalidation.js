@@ -81,7 +81,7 @@ const vm = require('vm');
 {
     const html = fs.readFileSync('index.html', 'utf8');
     // 생장 아이템을 고를 수 있는 제작 화면(제작/화석)
-    ['ui-craft-growth-list', 'ui-fossil-growth-list'].forEach(id => {
+    ['ui-craft-growth-list'].forEach(id => {
         assert.ok(html.includes(`id="${id}"`), `${id}가 없으면 이 계약의 전제가 무너진다`);
     });
     assert.ok(!html.includes('id="ui-infuser-growth-list"'), '혼돈 주입기에는 생장 아이템 대상 목록을 노출하면 안 된다');

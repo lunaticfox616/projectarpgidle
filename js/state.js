@@ -1586,7 +1586,7 @@ const SUPPORT_GEM_DB = {
     '냉기 공명': { baseVal: 8, scale: 1.5, stat: 'coldPctDmg', name: '냉기 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'coldPctDmg', desc: '자신의 냉기 피해 증가 수치에 비례해 냉기 피해를 추가로 증폭합니다.' },
     '번개 공명': { baseVal: 8, scale: 1.5, stat: 'lightPctDmg', name: '번개 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'lightPctDmg', desc: '자신의 번개 피해 증가 수치에 비례해 번개 피해를 추가로 증폭합니다.' },
     '혼돈 공명': { baseVal: 8, scale: 1.5, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'chaosPctDmg', desc: '자신의 카오스 피해 증가 수치에 비례해 카오스 피해를 추가로 증폭합니다.' },
-    '카오스 잠식': { baseVal: 1, scale: 0.05, stat: 'chaosErosion', name: '카오스 잠식', isPct: false, resonanceCosts: [9, 21, 33], capStat: 'chaosErosionCap', capBase: 20, capGrowAfterLevel: 20, capPerLevel: 1, desc: '카오스 피해로 적중할 때마다 적의 카오스 저항을 깎아 잠식시킵니다(중첩). 잠식 한도는 기본 20이며, 20레벨을 넘기면 레벨당 1씩 한도가 늘어납니다. 적이 죽거나 교체되면 잠식은 초기화됩니다.' },
+    '카오스 잠식': { baseVal: 1, scale: 0.05, stat: 'chaosErosion', name: '카오스 잠식', isPct: false, resonanceCosts: [9, 21, 33], capStat: 'chaosErosionCap', capBase: 20, capGrowAfterLevel: 20, capPerLevel: 1, desc: '카오스 피해로 적중할 때마다 적의 카오스 저항을 깎아 잠식시킵니다(중첩). 잠식 한도는 기본 20이며, 20레벨을 넘기면 레벨당 1.1씩 한도가 늘어납니다. 적이 죽거나 교체되면 잠식은 초기화됩니다.' },
     '분쇄의 일격': { baseVal: 9, scale: 2.8, stat: 'slamPctDmg', name: '강타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '강타 태그 스킬의 피해를 강하게 증폭하는 상급 보조 젬입니다.' },
     '비전 증폭': { baseVal: 9, scale: 2.6, stat: 'spellFlatPct', name: '주문 내장 피해 증가', isPct: true, resonanceCosts: [9, 21, 33], desc: '주문 태그 스킬의 내장 피해 증가를 강하게 끌어올리는 상급 보조 젬입니다.' },
     '방패 공명': { baseVal: 7, scale: 2.4, stat: 'shieldPctDmg', name: '방패 스킬 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '방패 태그 스킬의 피해를 높입니다.' },
@@ -2572,6 +2572,7 @@ const defaultGame = {
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
+    craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
     currencies: { timeRemnant: 0, growthEssence: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
         offlineProgress: { version: 1, recognitionLevel: 0, efficiencyLevel: 0, stashLevel: 0, huntDirectiveUnlocked: false, safeReturnUnlocked: false, lootDirectiveUnlocked: false, rewardedThroughLoop: 0, lifetimeGranted: 0, huntMode: 'push', safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [], protectedOverflow: [] },
     ascendClass: null,
@@ -2692,28 +2693,31 @@ safeExposeGlobals({
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
     let lv = Math.max(1, Math.floor(level || 1));
-    if (lv <= 20) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 2);
-    let base20 = Math.floor((24 + Math.pow(20, 1.34) * 14) * 2);
-    if (lv <= 50) return Math.floor(base20 + 90 * Math.pow(lv - 20, 1.42));
-    let base50 = Math.floor(base20 + 90 * Math.pow(30, 1.42));
-    if (lv <= 100) return Math.floor(base50 + 252 * Math.pow(lv - 50, 1.55));
-    let base100 = Math.floor(base50 + 252 * Math.pow(50, 1.55));
+    const requirements = LEVEL_PROGRESSION.playerExperienceRequired;
+    if (lv <= 100) return requirements[lv - 1];
     let delta = lv - 100;
-    return base100 + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
+    return requirements[99] + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
 }
-function getGemReqExp(level) { return Math.floor(100 * Math.pow(1.3, level - 1)); }
+function getGemReqExp(level) { return LEVEL_PROGRESSION.gemExperienceRequired[Math.max(1, Math.min(20, Math.floor(level || 1))) - 1]; }
+// Save boundary: retain failures through the current stage's guaranteed attempt.
+function normalizeGemCoreFailures(value, level) {
+    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0
+        : Math.min(GEM_CORE_FORGE.pityBonusPct.findIndex(bonus => GEM_CORE_FORGE.successPct[level] + bonus >= 100), Math.max(0, Math.floor(value)));
+}
 function normalizeGemRecord(raw) {
-    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, bossCoreFailures: 0, skyCoreFailures: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
     let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
     let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
     let bossCoreLevel = Number.isFinite(raw.bossCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.bossCoreLevel))) : 0;
     let skyCoreLevel = Number.isFinite(raw.skyCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.skyCoreLevel))) : 0;
+    const bossCoreFailures = normalizeGemCoreFailures(raw.bossCoreFailures, bossCoreLevel);
+    const skyCoreFailures = normalizeGemCoreFailures(raw.skyCoreFailures, skyCoreLevel);
     let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
     let unlockedTier = Number.isFinite(raw.unlockedTier) ? Math.max(1, Math.min(3, Math.floor(raw.unlockedTier))) : 1;
     let activeTier = Number.isFinite(raw.activeTier) ? Math.max(1, Math.min(unlockedTier, Math.floor(raw.activeTier))) : 1;
     let quality = Number.isFinite(raw.quality) ? Math.max(0, Math.min(20, Math.floor(raw.quality))) : 0;
     let awakened = !!raw.awakened;
-    return { level: level, exp: exp, bossCoreLevel: bossCoreLevel, skyCoreLevel: skyCoreLevel, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
+    return { level: level, exp: exp, bossCoreLevel: bossCoreLevel, skyCoreLevel: skyCoreLevel, bossCoreFailures, skyCoreFailures, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
 }
 
 

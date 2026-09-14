@@ -1,5 +1,47 @@
 const {test,expect}=require('@playwright/test');
 
+test('visible chat keeps receiving messages after another game tab opens',async({page},info)=>{
+    const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');await page.locator('#btn-startup-guest').click();
+    await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
+        cloudState.user={id:'receive-fixture'};setMyNicknameLocal('수신검사');
+        socialState.identityCheckedUserId='receive-fixture';
+        window.chatReceiveRows=[];
+        window.cloudJsonRequest=async(path,options={})=>{
+            if(path.includes('chat_messages')) {
+                if(options.method==='POST')throw new Error('Receive test must not send chat');
+                return chatReceiveRows;
+            }
+            return [];
+        };
+        switchTab('tab-social');
+    });
+    await expect(page.locator('#social-chat-input')).toBeVisible();
+    await page.locator('#social-chat-input').fill('작성 중인 문장');
+    await page.evaluate(()=>switchTab('tab-items'));
+    if(info.project.name==='mobile-chromium') {
+        await expect(page.locator('#social-chat-input')).not.toBeVisible();
+        await page.evaluate(()=>switchTab('tab-social'));
+    }
+    await expect(page.locator('#social-chat-input')).toBeVisible();
+    await page.evaluate(()=>{
+        chatReceiveRows=[{id:101,user_id:'other-fixture',nickname:'다른 플레이어',
+            body:'탭 전환 후 새 메시지',created_at:new Date().toISOString()}];
+    });
+    await expect(page.locator('#social-chat-list')).toContainText('탭 전환 후 새 메시지');
+    if(info.project.name==='desktop-chromium') {
+        await expect(page.locator('#social-chat-input')).toHaveValue('작성 중인 문장');
+        await page.locator('#tab-items [data-window-action="close"]').click();
+    }
+    await page.screenshot({path:info.outputPath('chat-receive-after-tab.png'),scale:'css'});
+    expect(errors).toEqual([]);
+});
+
 test('guest community opens the account screen without changing the current character',async({page},info)=>{
     await page.route('https://**',route=>route.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').click();

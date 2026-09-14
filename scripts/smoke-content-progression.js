@@ -252,7 +252,7 @@ assert.deepEqual(json("getSkyEnhancementForSkill('연속 베기')"),[]);
 for (const expression of ["applySkyGemEnhancementToActive('sky_swiftness')",'upgradeSkyEngraveCap()',
     'selectGemEngraveSlot(1)',"removeSkyGemEnhancementFromActive('sky_fury',0)"]) assert(!run(expression));
 assert.deepEqual(json('[game.gemData,game.skyGemEnhancements,game.currencies]'),before);
-run("upgradeActiveGem('bossCore');upgradeActiveGem('skyEssence')");
+run("gemCoreForge.attempt('연속 베기','bossCore');gemCoreForge.attempt('연속 베기','skyEssence')");
 assert.deepEqual(json("[game.gemData['연속 베기'].bossCoreLevel,game.gemData['연속 베기'].skyCoreLevel]"),[1,1]);
 run('game.season=5;contentProgression.sync()');
 assert(run("contentProgression.purchase('engraving').ok"));

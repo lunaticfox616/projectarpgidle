@@ -110,6 +110,7 @@ function refreshItemIdCounter() {
 
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
+    snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
     delete snapshot.talentCardRuntime;
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
     return snapshot;
@@ -120,6 +121,7 @@ function serializeSaveState(sourceGame) {
     // 같은 상태를 두 번 순회하고 대량의 임시 객체를 만들어 주기적인 GC 끊김을 유발한다.
     let root = sourceGame || game || {};
     let serializable = root && typeof root === 'object' ? { ...root } : {};
+    serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
     delete serializable.talentCardRuntime;
     return JSON.stringify(serializable);
 }
