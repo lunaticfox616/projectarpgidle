@@ -138,6 +138,7 @@ const SKILL_TAG_LABELS = {
     fire: '화염',
     cold: '냉기',
     lightning: '번개',
+    light: '번개',
     chaos: '카오스',
     aoe: '범위',
     dot: '지속',

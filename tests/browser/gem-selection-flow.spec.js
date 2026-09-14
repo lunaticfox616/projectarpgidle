@@ -21,6 +21,55 @@ async function openGems(page) {
     await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
 }
 
+test('double click equips gems and highlights the equip action',async({page},info)=>{
+    await openGems(page);
+    const card=page.getByRole('group',{name:'연속 베기',exact:true});
+    await card.click();
+    await expect(page.locator('#gem-selection .gem-equip-primary')).toHaveCSS('background-color','rgb(215, 179, 107)');
+    await page.screenshot({path:info.outputPath('equip-button.png')});
+    await page.getByRole('button',{name:'젬 상세 닫기',exact:true}).click();
+    if(info.project.use.isMobile){await card.click();await page.locator('#gem-selection [data-gem-action="equip"]').click();}
+    else await card.dblclick();
+    await expect.poll(()=>page.evaluate(()=>game.activeSkill)).toBe('연속 베기');
+    if(info.project.use.isMobile)await page.locator('[data-mobile-gem-library="support"]').click();
+    const support=page.locator('.support-gem.gem-library-card').first();
+    if(info.project.use.isMobile){await support.click();await page.locator('#gem-selection [data-gem-action="equip"]').click();}
+    else await support.dblclick();
+    await expect.poll(()=>page.evaluate(()=>game.equippedSupports.length)).toBe(1);
+    if(!info.project.use.isMobile)await support.dblclick();
+    expect(await page.evaluate(()=>game.equippedSupports.length)).toBe(1);
+    await page.evaluate(()=>{
+        const base=BASE_ITEM_DB.filter(row=>row.slot==='무기').sort((a,b)=>b.reqTier-a.reqTier)[0];
+        const item=createItemFromBase(base,'rare',1);
+        game.inventory=[item];game.level=1;
+        equipItemById(item.id);
+    });
+    await expect(page.locator('.game-toast').last()).toContainText('장착 실패');
+});
+
+test('gem detail translates ailments and lists only applied level sources including awakening',async({page})=>{
+    await openGems(page);
+    await page.evaluate(()=>{
+        game.skills.push('서리 폭발');game.gemData['서리 폭발']=normalizeGemRecord({level:1});updateStaticUI();
+    });
+    const card=page.getByRole('group',{name:'서리 폭발',exact:true});await card.click();
+    const panel=page.locator('#gem-selection');
+    await expect(panel).toContainText('동결 상태인 적에게');
+    await expect(panel).not.toContainText('freeze');
+    await expect(panel).not.toContainText('군주의 핵');
+    await expect(panel).not.toContainText('창공');
+    await expect(panel).not.toContainText('패시브 0');
+    await panel.getByRole('button',{name:'젬 상세 닫기',exact:true}).click();
+    await page.evaluate(()=>{
+        Object.assign(game.gemData['서리 폭발'],{level:5,bossCoreLevel:3,skyCoreLevel:2,awakened:true});updateStaticUI();
+    });
+    await card.click();
+    await expect(panel).toContainText('총 레벨 12');
+    await expect(panel).toContainText('군주의 핵 +3');
+    await expect(panel).toContainText('창공의 힘 +2');
+    await expect(panel).toContainText('각성 +2');
+});
+
 test('gem inspection preserves loadout until explicit equip and keeps actions inside the viewport', async ({ page }, info) => {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await openGems(page);
@@ -46,6 +95,32 @@ test('gem inspection preserves loadout until explicit equip and keeps actions in
     await expect(page.locator('#skill-tab-enhance')).toBeVisible();
     expect(await page.evaluate(() => game.gemEnhanceTargetSkill)).toBe('연속 베기');
     expect(errors).toEqual([]);
+});
+
+test('gem growth shows a target prompt and reflects affordable upgrades immediately', async ({ page }) => {
+    await openGems(page);
+    await page.locator('#btn-skill-tab-enhance').click();
+    const actions = page.locator('#ui-gem-upgrade-actions');
+    await expect(actions).not.toContainText('적용 후 최종');
+    await actions.getByRole('button', { name: '공격 젬 장착하기', exact: true }).click();
+    await expect(page.locator('#skill-tab-equip')).toBeVisible();
+    await page.evaluate(() => { changeSkill('연속 베기'); switchSkillSubtab('skill-tab-enhance'); updateStaticUI(); });
+    const core = actions.getByRole('button', { name: /^군주의 핵 강화/ });
+    const sky = actions.getByRole('button', { name: /^창공의 힘 강화/ });
+    const permanent = actions.getByRole('button', { name: /^응축 창공 영구 강화/ });
+    await expect(core).toBeDisabled(); await expect(sky).toBeDisabled(); await expect(permanent).toBeDisabled();
+    await page.evaluate(() => { game.currencies.bossCore = 1; game.currencies.skyEssence = 1; updateStaticUI(); });
+    await expect(core).toBeEnabled(); await core.click();
+    await expect.poll(() => page.evaluate(() => game.gemData['연속 베기'].bossCoreLevel)).toBe(1);
+    expect(await page.evaluate(() => game.currencies.bossCore)).toBe(0);
+    expect(await page.evaluate(() => game.gemData['연속 베기'].level)).toBe(5);
+    await expect(core).toBeDisabled(); await expect(sky).toBeEnabled(); await sky.click();
+    await expect.poll(() => page.evaluate(() => game.gemData['연속 베기'].skyCoreLevel)).toBe(1);
+    expect(await page.evaluate(() => game.currencies.skyEssence)).toBe(0);
+    await expect(sky).toBeDisabled();
+    await page.evaluate(() => { game.gemData['연속 베기'].bossCoreLevel = 5; game.currencies.bossCore = 100; updateStaticUI(); });
+    await expect(core).toBeDisabled();
+    await expect(core).toContainText('최대 단계');
 });
 
 test('support shows actual tag targets, inspection does not spend resonance, and locked equipment stays blocked', async ({ page }, info) => {

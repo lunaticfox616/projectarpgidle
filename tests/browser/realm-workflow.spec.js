@@ -9,6 +9,7 @@ async function openRealms(page) {
     await page.evaluate(()=>{
         clearInterval(gameTickHandle);gameTickHandle=null;
         game.level=100; game.season=50; game.combatHalted=true;
+        game.seenTutorials=[...new Set([...game.seenTutorials,...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)])];
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id); contentProgression.sync();
         Object.keys(game.unlocks).forEach(key=>game.unlocks[key]=true);
         game.journalEntries.push('woodsman'); game.abyssEndlessDepth=30; game.labyrinthUnlockedMaxFloor=100;
@@ -24,6 +25,7 @@ async function openRealms(page) {
         if(uiRefreshQueued||uiRefreshRunning)return false;
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
     });
+    await page.locator('#exploration-location').getByRole('button',{name:'전체 탐험',exact:true}).click();
 }
 
 
@@ -149,31 +151,60 @@ test('realm controls and themes remain usable; pruning stays outside miscellaneo
         await expect(page.locator('.ui-rail-tab-layer #btn-tab-pruning')).toBeVisible();
         await expect(page.locator('.ui-rail-misc-panel #btn-tab-pruning')).toHaveCount(0);
     }
-    if (info.project.use.isMobile) await page.locator('#mobile-map-destination').selectOption('btn-map-tab-underworld');
-    else await page.locator('#btn-map-tab-underworld').click();
+    await page.locator('#ui-exploration-atlas').getByRole('button',{name:'지하계',exact:true}).click();
     await expect(page.locator('.underworld-rune-slot')).toHaveCount(6);
     await page.locator('.underworld-rune-slot.unlocked').first().click();
     await expect(page.locator('.underworld-rune-overlay')).toBeVisible();
     await page.evaluate(()=>document.querySelector('.underworld-rune-overlay').remove());
     for(const light of [false,true]) {
         await page.evaluate(light=>document.body.classList.toggle('light-mode',light),light);
-        if (info.project.use.isMobile) await page.locator('#mobile-map-destination').selectOption('btn-map-tab-ocean');
-        else await page.locator('#btn-map-tab-ocean').click();
+        await page.locator('#mobile-map-destination').selectOption('btn-map-tab-ocean');
         await expect(page.getByRole('progressbar',{name:'남은 산소'})).toBeVisible();
         await expect(page.locator('.ocean-upgrade-card')).toHaveCount(3);
         await page.locator('#ui-ocean-panel').getByRole('button',{name:'낚시 · 제작'}).click();
         await expect(page.locator('#map-tab-fishing')).toHaveClass(/active/);
         if (info.project.use.isMobile) await expect(page.locator('#mobile-map-destination')).toHaveValue('btn-map-tab-fishing');
-        await expect(page.locator('.ocean-fish-grid')).toBeHidden();
+        await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeHidden();
         if (info.project.use.isMobile) await page.getByRole('tab', { name:'도감', exact:true }).click();
         else await page.locator('.ocean-collection-disclosure > summary').click();
-        await expect(page.locator('.ocean-fish-grid')).toBeVisible();
+        await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeVisible();
         await page.evaluate(()=>renderFishingPanel());
-        await expect(page.locator('.ocean-fish-grid')).toBeVisible();
+        await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeVisible();
         if (info.project.use.isMobile) await page.getByRole('tab', { name:'채집 · 전략', exact:true }).click();
         else await page.locator('.ocean-collection-disclosure > summary').click();
         await page.screenshot({path:info.outputPath(`fishing-${light}.png`)});
     }
+});
+
+test('underworld entry distinguishes highest-floor environment drain from direct survival', async ({page},info)=>{
+    const errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    await openRealms(page);
+    await page.locator('#ui-exploration-atlas').getByRole('button',{name:'지하계',exact:true}).click();
+    const entry=page.locator('.underworld-entry-card');
+    await expect(entry).toContainText('최고층 도전 기준');
+    await expect(entry).toContainText('현재 선택 12층');
+    await expect(entry).toContainText('권장 전투력');
+    await expect(entry).toContainText('권장 전투력 미달성');
+    const estimate=entry.locator('.map-power-estimate');
+    await estimate.click();
+    const tooltip=page.locator('#info-tooltip');
+    await expect(tooltip).toBeVisible();
+    const maxHp=await page.evaluate(()=>getPlayerStats().maxHp);
+    const percent=mitigation=>(Math.max(1,Math.floor(maxHp*0.015*mitigation))*1000/maxHp).toFixed(1);
+    await expect(tooltip).toContainText(`${percent(1)}%/초`);
+    await expect(tooltip).toContainText('에너지 보호막으로 막을 수 없습니다');
+    await expect(tooltip).toContainText('조건부 재능');
+    await page.screenshot({path:info.outputPath('underworld-environment.png')});
+    expect(await tooltip.evaluate(el=>el.getBoundingClientRect().right<=innerWidth+1)).toBe(true);
+    await page.evaluate(()=>{
+        ensureSkyTowerState().skyStone.level=15;
+        cachedTooltipStats=null; updateStaticUI();
+    });
+    await estimate.click();
+    await expect(tooltip).toContainText(`${percent(0.25)}%/초`);
+    expect(await page.evaluate(()=>game.underworldProgress.currentFloor)).toBe(12);
+    expect(errors).toEqual([]);
 });
 
 test('settlement buttons disclose sacrifice, double repeatedly and request finish once', async ({page},info)=>{

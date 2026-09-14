@@ -43,7 +43,7 @@
         const blocked = anchor.classList.contains('equipment-blocked') && !equipped;
         const label = equipped ? (canUnequip ? '장착 해제' : '장착 중') : '장착';
         const disabled = blocked || (equipped && !canUnequip);
-        return `<button type="button" data-gem-action="equip" ${disabled ? 'disabled' : ''}>${label}</button>`;
+        return `<button type="button" class="${equipped ? '' : 'gem-equip-primary'}" data-gem-action="equip" ${disabled ? 'disabled' : ''}>${label}</button>`;
     }
 
     function actions(type, name, anchor) {
@@ -93,6 +93,16 @@
         else changeSkill(name);
     }
 
+    function quickEquip(event) {
+        if (!selection || event.target.closest('button')) return;
+        const {anchor,type,name} = selection;
+        if (!anchor.contains(event.target) || anchor.matches('.active,.equipment-blocked')) return;
+        event.preventDefault();
+        close();
+        if (type === 'support') toggleSupport(name);
+        else changeSkill(name);
+    }
+
     function position() {
         if (!selection) return;
         const root = document.getElementById('gem-selection');
@@ -112,6 +122,7 @@
     }
 
     document.addEventListener('scroll', position, true);
+    document.addEventListener('dblclick', quickEquip);
     window.addEventListener('resize', position);
     safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, application }) });
 })();

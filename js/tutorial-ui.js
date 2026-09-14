@@ -151,9 +151,12 @@ function isTutorialPresentationBlocked() {
 
 function showNextTutorial() {
     if (activeTutorial || tutorialActionUi.active || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
-    while (tutorialQueue.length && !activeTutorial) {
+    while (tutorialQueue.length) {
         const next = tutorialQueue.shift();
-        if (contentProgression.canOpen(next.subtabId || next.tabId)) activeTutorial = next;
+        if (storyJournalUi.allowsNotice(next.key) && contentProgression.canOpen(next.subtabId || next.tabId)) {
+            activeTutorial = next;
+            break;
+        }
     }
     if (!activeTutorial) return;
     activeTutorial.title = stripDecorativeEmoji(activeTutorial.title);

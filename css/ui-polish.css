@@ -424,92 +424,16 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
   }
 }
 
-/* ── 창공의 탑 패널 ── */
-.sky-tower-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.sky-tower-title {
-  font-weight: 800;
-  color: #ffffff;
-  font-size: 1.05em;
-}
-.sky-tower-sub {
-  margin-top: 4px;
-  color: #ffffff;
-  font-size: 0.86em;
-  line-height: 1.5;
-  max-width: 560px;
-}
-.sky-tower-lock-chip {
-  flex-shrink: 0;
-  background: #1a2430;
-  border: 1px solid #4a637a;
-  border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 0.84em;
-  color: #ffcf8a;
-}
-.sky-tower-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 9px;
-}
-.sky-tower-chip {
-  background: #13202c;
-  border: 1px solid #35546b;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.82em;
-  color: #ffffff;
-  white-space: nowrap;
-}
-.sky-tower-chip b {
-  color: #ffd36b;
-}
-.sky-tower-chip.done {
-  border-color: #3f7a5a;
-  color: #9fe7b2;
-}
-.sky-tower-note {
-  margin-top: 8px;
-  font-size: 0.86em;
-  line-height: 1.5;
-}
-
-/* Keep the Sky Tower entry readable when the action button shares a narrow row. */
-.map-item--sky-tower {
-  align-items: stretch;
-  flex-wrap: wrap;
-}
-.map-item--sky-tower .map-item-main {
-  flex: 1 1 220px;
-  min-width: 0;
-}
-.map-item--sky-tower .map-item-main > span:last-child {
-  min-width: 0;
-  line-height: 1.45;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
-.map-item--sky-tower .map-item-actions {
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-@media (max-width: 720px) {
-  .map-item--sky-tower .map-item-main,
-  .map-item--sky-tower .map-item-actions {
-    width: 100%;
-  }
-  .map-item--sky-tower .map-item-actions {
-    justify-content: flex-start;
-  }
-}
+/* Sky entry and permanent investment share the expedition panel system. */
+#ui-sky-tower-list { margin-top: 12px; }
+/* Existing ocean/fishing panels still share these compact labels. */
+.sky-tower-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+.sky-tower-title { font-weight:800; color:var(--ui-text); font-size:1.05em; }
+.sky-tower-sub { margin-top:4px; color:var(--ui-text-2); font-size:.95em; line-height:1.5; max-width:560px; }
+.sky-tower-lock-chip { flex-shrink:0; background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:5px; padding:5px 12px; font-size:.9em; color:var(--ui-accent); }
+.sky-tower-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.sky-tower-chip { background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:5px; padding:4px 10px; font-size:.9em; color:var(--ui-text); }
+.sky-tower-chip b { color:var(--ui-accent); }
 
 /* Vertical subtab shells shared by the codex and map exploration panels. */
 .vertical-tab-layout {

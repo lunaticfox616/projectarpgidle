@@ -6,7 +6,8 @@ const LEVEL_PROGRESSION = Object.freeze({
     experienceGap: 5, experienceDecay: 0.10,
     lootGap: 10, lootDecay: 0.085,
     equipmentLevelDiscount: 8,
-    attributeStartTier: 3, attributeBase: 6, attributePerTier: 2.8,
+    // Base reqTier 1..22, not rolled affix tier. Early bases stay accessible; late bases need investment.
+    attributeRequirements: Object.freeze([0, 0, 6, 10, 15, 21, 28, 36, 44, 52, 61, 70, 78, 86, 94, 102, 110, 117, 124, 130, 135, 140]),
     // Entry tickets and deterministic completion rewards do not enter this list.
     ordinaryCurrencies: Object.freeze(['magicBud','formlessDew','blightSpore','goldenRule','fairyRing','sapBud',
         'ouroboros','pruningShears','abyssCatalyst','skyEssence','emberBranch','jewelShard','sealShard',

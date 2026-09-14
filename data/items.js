@@ -584,9 +584,9 @@ const COSMOS_CODEX = [
     { name: '방패의 보답', key: 'blockRecoverEnergyShieldPct', params: { pct: 3 }, desc: '막기 성공 시 에너지 보호막 3% 회복' },
     { name: '갑주를 두른 독', key: 'realmArmorAppliesToDot', params: {}, desc: '방어도가 지속 피해(도트)에도 적용됨' }
 ];
-const COSMOS_REALM_ENTRIES = COSMOS_CODEX.map((entry, idx) => ({
+const COSMOS_REALM_ENTRIES = COSMOS_CODEX.map(entry => ({
     name: entry.name,
-    effect: `우주계 전용 효과 #${idx + 1}: ${entry.desc}`,
+    effect: entry.desc,
     uniqueEffectKey: entry.key,
     uniqueEffectParams: entry.params
 }));
@@ -648,6 +648,7 @@ function pushRealmUniqueSet(realm, entries, tierStart) {
             slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
             reqTier: tierStart + Math.floor(i / 4),
             realmCodexOnly: true,
+            syncEffectOnLoad: realm === 'cosmos',
             realm,
             dropOnly: { type: dropTypeByRealm[realm] || 'cosmos', minTier: dropTier },
             uniqueEffect: entry.effect,
@@ -855,6 +856,24 @@ const COSMOS_BOSS_UNIQUE_EQUIPMENT = [
 ]
 COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
 
+// Acquisition realm is presentation metadata, not an effect activation condition.
+// Keep realmCodexOnly unchanged: existing main-codex rewards and hunt targets retain their contract.
+UNIQUE_DB.forEach(unique => {
+    const drop = unique.dropOnly;
+    if (!drop) return;
+    const realm = { chaosRealm: 'chaos', underworld: 'underworld', cosmos: 'cosmos', cosmosBoss: 'cosmos' }[drop.type]
+        || (drop.id === 'cosmos_astra' ? 'cosmos' : null);
+    if (!realm) return;
+    unique.realm = realm;
+    // High-tier fixed bases must not make their identities unreachable below the realm's loot cap.
+    if (unique.ultraRare && (realm === 'chaos' || realm === 'underworld')) {
+        drop.minTier = Math.min(unique.reqTier, REALM_UNIQUE_DROP_TIER_RANGES[realm].max);
+    }
+});
+
+// An extra boss roll independent of ordinary equipment/rarity rolls and underworld's loot reduction.
+const REALM_BOSS_UNIQUE_DROP_RULES = Object.freeze({ chance: 0.03, ultraRareShare: 0.01 });
+
 // 플라스크: 적 처치로 충전되고 전투 중 자동 사용되는 소모품. (생명력 1개 + 유틸리티 1개 슬롯)
 //  - life: 생명력이 autoBelowHpPct 이하로 떨어지면 자동으로 마셔 healPct% 즉시 회복.
 //  - 유틸리티: 전투 중 충전이 있으면 자동 발동, durationMs 동안 스탯 버프(버킷 반영).
@@ -944,10 +963,10 @@ const ORB_DB = {
     fairyRing: { name: '요정의 고리', desc: '일반 장비를 25% 확률로 파괴하거나 같은 부위의 고유 장비로 진화시킵니다. 공허 패시브에는 초월 시도에 사용합니다.' },
     pruningShears: { name: '전정 가위', desc: '우주계 전용 희귀 재화. 제거할 수 없는 옵션을 제외한 추가 옵션 1개를 무작위로 제거합니다.' },
     blightSpore: { name: '마름병 포자', desc: '유니크를 제외한 아이템을 일반 상태로 되돌립니다.' },
-    bossKeyFlame: { name: '열쇠: 화염 군주', desc: '루프2 뿌리 보스 [이그니스] 도전권입니다.' },
-    bossKeyFrost: { name: '열쇠: 서리 여제', desc: '루프2 뿌리 보스 [글라시아] 도전권입니다.' },
-    bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '루프2 뿌리 보스 [볼타] 도전권입니다.' },
-    beastKeyCerberus: { name: '열쇠: 케르베로스', desc: '루프6 야수 뿌리 보스 [케르베로스] 도전권입니다.' },
+    bossKeyFlame: { name: '열쇠: 화염 군주', desc: '루프2 뿌리 보스 [이그니스] 도전권입니다.', source: '혼돈 진입 이후 정예·보스 사냥 (시련·입장권 보스 제외)' },
+    bossKeyFrost: { name: '열쇠: 서리 여제', desc: '루프2 뿌리 보스 [글라시아] 도전권입니다.', source: '혼돈 진입 이후 정예·보스 사냥 (시련·입장권 보스 제외)' },
+    bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '루프2 뿌리 보스 [볼타] 도전권입니다.', source: '혼돈 진입 이후 정예·보스 사냥 (시련·입장권 보스 제외)' },
+    beastKeyCerberus: { name: '열쇠: 케르베로스', desc: '루프6 야수 뿌리 보스 [케르베로스] 도전권입니다.', source: '루프 6부터 혼돈 10층 이상 보스 사냥' },
     trialKey3: { name: '시련의 증표', desc: '3차/4차 전직 시련 재도전권입니다.' },
     chaosKey: { name: '카오스 키', desc: '혼돈계에서 드물게 드랍됩니다. 코어 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
     coreKey: { name: '코어 키', desc: '지하계에서 드물게 드랍됩니다. 카오스 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },

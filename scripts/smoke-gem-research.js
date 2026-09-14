@@ -2,18 +2,6 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-function readFunctionSource(source, name) {
-    const start = source.indexOf(`function ${name}`);
-    assert.ok(start >= 0, `${name} must exist`);
-    let depth = 0;
-    for (let index = source.indexOf('{', start); index < source.length; index++) {
-        if (source[index] === '{') depth++;
-        if (source[index] !== '}') continue;
-        depth--;
-        if (depth === 0) return source.slice(start, index + 1);
-    }
-    throw new Error(`${name} must have a closing brace`);
-}
 
 const logs = [];
 const context = {
@@ -99,57 +87,7 @@ assert(context.game.supports.includes('보조 C'));
 assert.strictEqual(context.game.currencies.gemShard, 2);
 assert.strictEqual(context.game.supportGemData['보조 C'].unlockedTier, 1);
 
-const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-// 스킬 젬 화면은 js/ui.js의 거대 렌더 함수에서 분리되어 자기 파일로 옮겨졌다.
-const skillsUiSource = fs.readFileSync('js/skills-ui.js', 'utf8');
-const stateSource = fs.readFileSync('js/state.js', 'utf8');
-const itemSource = fs.readFileSync('data/items.js', 'utf8');
-const indexSource = fs.readFileSync('index.html', 'utf8');
-const cssSource = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
-
-const supportDetails = {
-    dataset: { gemResearchSection: 'support' },
-    open: false,
-    addEventListener(event, handler) {
-        if (event === 'toggle') this.onToggle = handler;
-    }
-};
-const researchRoot = {
-    innerHTML: '',
-    querySelectorAll() { return [supportDetails]; }
-};
-context.document = { getElementById(id) { return id === 'ui-gem-research-panel' ? researchRoot : null; } };
-context.game.currencies.gemShard = 8;
-context.game.gemResearchExpanded = {};
-context.getGemResearchCollectionState = () => ({
-    attack: { missing: ['공격 미보유'], owned: 1, total: 2 },
-    support: { missing: ['보조 미보유'], owned: 1, total: 2 }
-});
-context.getGemResearchCost = kind => kind === 'support' ? 8 : 12;
-context.renderGemResearchCandidate = () => '<article>candidate</article>';
-vm.runInContext(`${readFunctionSource(uiSource, 'renderGemResearchPanel')}\nthis.renderGemResearchPanel = renderGemResearchPanel;`, context, { filename: 'gem-research-ui.js' });
-
-context.renderGemResearchPanel();
-assert(!researchRoot.innerHTML.includes('data-gem-research-section="support" open'), '지원 젬 목록은 기본 규칙을 따르되 사용자가 열기 전에는 강제로 열리지 않아야 한다');
-supportDetails.open = true;
-supportDetails.onToggle();
-assert.strictEqual(context.game.gemResearchExpanded.support, true, '사용자가 연 보조 젬 목록 상태를 저장해야 한다');
-context.renderGemResearchPanel();
-assert(researchRoot.innerHTML.includes('data-gem-research-section="support" open'), '화면을 다시 그려도 사용자가 연 보조 젬 목록은 펼친 상태를 유지해야 한다');
-
-assert(combatSource.includes('let baseGemShardGain'), 'every random gem drop should grant deterministic research progress');
-assert(combatSource.includes('최고 등급 보조 젬'), 'maxed support duplicates should be converted instead of disappearing');
-assert(combatSource.includes('!hasSkillGemOwned(name)'), 'trial rewards must respect sealed attack gems');
-assert(passiveSource.includes('중복 보조 젬 대신') && passiveSource.includes("grantGemResearchFragments(3)"), 'act reward duplicates should feed gem research');
-assert(uiSource.includes('function renderGemResearchPanel()'), 'skill UI should render targeted gem research');
-assert(stateSource.includes('gemResearchExpanded: {}'), 'new saves should initialize gem research fold preferences');
-assert(uiSource.includes('getGemGrowthSummaryHtml'), 'gem growth screen should expose its level and output breakdown');
-assert(skillsUiSource.includes("getExpertCombinedCostReduction('gemQualityCostReducePct')"), 'displayed quality cost must respect the actual discount');
-assert(stateSource.includes('gemShard: 0'), 'new saves should initialize gem fragments');
-assert(itemSource.includes("gemShard: { name: '젬 잔향'"), 'gem fragments need a player-facing currency definition');
-assert(indexSource.includes('id="ui-gem-research-panel"'), 'skill tab should contain the research workspace');
-assert(cssSource.includes('.gem-research-panel'), 'research workspace should have responsive game UI styling');
+// Search, persistent fold choices, UI refresh and resource spending are exercised
+// in tests/browser/gem-research.spec.js against the actual game DOM.
 
 console.log('smoke-gem-research passed');

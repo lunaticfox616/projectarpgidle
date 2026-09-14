@@ -43,3 +43,38 @@ test('requirements identify the usable glove slot and equip it in the real game'
     expect(await page.evaluate(() => getPlayerStats(false).disabledEquipment['장갑2'])).toBeUndefined();
     expect(failures).toEqual([]);
 });
+
+test('final weapon shows the new requirement and only equips at the exact threshold', async ({ page }, info) => {
+    const failures = []; page.on('pageerror', error => failures.push(error.message));
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').click();
+    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    const id = await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null; game.combatHalted = true;
+        game.level = 100; game.actRewardBonuses = [{ stat: 'strength', value: 129 }];
+        const weapon = createItemFromBase(BASE_ITEM_DB.find(base => base.id === 'apocalypse_greatblade'), 'normal', 20);
+        weapon.stats = [{ id: 'strength', val: 20 }]; game.inventory = [weapon];
+        switchTab('tab-items'); switchItemSubtab('item-tab-equip'); updateStaticUI();
+        return weapon.id;
+    });
+    await page.waitForFunction(() => {
+        if (uiRefreshQueued || uiRefreshRunning) return false;
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); return true;
+    });
+    const inventory = page.locator('#btn-equipment-mobile-inventory');
+    if (await inventory.isVisible()) await inventory.click();
+    await page.locator('#ui-inventory-list .equipment-grid-item').first().click();
+    const inspector = page.locator('#ui-equipment-inventory-inspector');
+    await expect(inspector).toContainText('장착 요구: 힘 130');
+    await expect(inspector).toContainText('요구 Lv.69');
+    await inspector.screenshot({ path: info.outputPath('final-weapon-requirement.png') });
+    expect(await page.evaluate(id => equipItemById(id), id)).toBe(false);
+    await page.evaluate(() => { game.actRewardBonuses[0].value = 130; updateStaticUI(); });
+    await expect(inspector).not.toContainText('장착 요구:');
+    await inspector.getByRole('button', { name: '장착', exact: true }).click();
+    expect(await page.evaluate(() => game.equipment['무기'].id)).toBe(id);
+    expect(await page.evaluate(() => getPlayerStats(false).disabledEquipment['무기'])).toBeUndefined();
+    expect(failures).toEqual([]);
+});

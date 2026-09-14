@@ -75,4 +75,25 @@ const indexHtml = fs.readFileSync('index.html', 'utf8');
   assert.ok(indexHtml.includes(`id="${id}"`), `캐릭터 탭에 ${id} 표시 영역이 연결되어야 한다.`);
 });
 
+vm.runInContext(`
+  game.passives = [getPassiveTreeRootNodeId()];
+  game.passiveStarEvolution = false;
+`, context);
+assert.strictEqual(context.renderPassiveSpecializationControls(), '', '관련 투자가 없으면 계시 조작을 나열하지 않는다.');
+assert.ok(!context.getAllocatedPassiveStatSummary().specialEffects.some(text => text.includes('성좌 각성')),
+  '시작 단계에는 성좌 각성 0/6이 투자 효과로 나타나지 않는다.');
+vm.runInContext(`
+  game.passives.push(Object.values(PASSIVE_TREE.nodes).find(node => node.kind === 'star_option').id);
+`, context);
+assert.ok(context.getAllocatedPassiveStatSummary().specialEffects.some(text => text.includes('성좌 각성 1/')),
+  '외곽 생성 패시브를 투자하면 실제 각성 진행을 표시한다.');
+vm.runInContext(`game.passives = [PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['지혜의 도약']];`, context);
+const wisdomControls = context.renderPassiveSpecializationControls();
+assert.ok(wisdomControls.includes('지혜의 도약') && wisdomControls.includes('투자한 노드 기준'));
+assert.ok(!wisdomControls.includes('<select'), '지혜의 도약만 있을 때 무관한 계시 선택기를 추가하지 않는다.');
+vm.runInContext(`game.passives = ['ui_devotion_test', PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['삼중 계시']];`, context);
+const tripleControls = context.renderPassiveSpecializationControls();
+assert.ok(/<select[^>]*disabled/.test(tripleControls), '삼중 계시는 개별 계시를 임의 선택하지 못한다.');
+assert.ok(tripleControls.includes('40%'), '삼중 계시의 기존 효과 안내는 유지한다.');
+
 console.log('smoke-character-passive-special-stats passed');

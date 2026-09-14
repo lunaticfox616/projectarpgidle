@@ -48,7 +48,8 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     await expect(page.locator('#ui-combat-flasks')).toBeHidden();
     await expect(page.locator('#ui-combat-flasks .combat-flask-mini')).toHaveCount(0);
     expect(await page.evaluate(() => ['tab-character','tab-char','tab-items','tab-skills'].every(isTabSurfaceAvailable))).toBe(true);
-    expect(await page.evaluate(() => ['tab-unlocks','tab-season','tab-map','tab-flask','tab-journal'].some(id => contentProgression.canOpen(id)))).toBe(false);
+    expect(await page.evaluate(() => ['tab-unlocks','tab-season','tab-map','tab-flask'].some(id => contentProgression.canOpen(id)))).toBe(false);
+    expect(await page.evaluate(() => contentProgression.canOpen('tab-journal'))).toBe(true);
     await page.evaluate(() => { switchTab('tab-items'); updateStaticUI(); });
     await expect(page.locator('#item-tab-equip')).toBeVisible();
     for (const id of ['craft','fossil','market','hall','infuser']) await expect(page.locator('#btn-item-tab-' + id)).toBeHidden();

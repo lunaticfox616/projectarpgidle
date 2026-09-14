@@ -138,6 +138,13 @@ function getUnderworldGravityActionMultiplier(floor, reductionPct) {
     let deepMultiplier = Math.pow(1 - UNDERWORLD_DIFFICULTY_CONFIG.gravityActionLossPerFloorAfterDeep, deepFloors);
     return Math.max(0.0001, (1 - baseSlow) * deepMultiplier);
 }
+/** Base HP loss per 100 ms, before conditional talent mitigation and temporary shields. */
+function getUnderworldLifeDrainPerTick(maxHp, floor, reductionPct) {
+    if (floor < 15) return 0;
+    const fraction = floor >= 40 ? 0.02 : (floor >= 30 ? 0.015 : 0.01);
+    const mitigation = 1 - Math.max(0, Math.min(75, Number(reductionPct) || 0)) / 100;
+    return Math.max(1, Math.floor((maxHp || 1) * fraction * mitigation));
+}
 function getChaosRealmAffixCount(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     if (safeFloor >= 35) return 5 + Math.floor((safeFloor - 35) / 20);
@@ -751,18 +758,39 @@ function createBeehiveZone(state) {
     };
 }
 
+/** The idle preview represents a fresh entry; active runs retain their paid entry depth. */
+function createColonyZone(state) {
+    const colony = state.colony;
+    const wave = colony.inRun ? Math.max(1,Math.floor(colony.wave||1)) : 1;
+    const depth = colony.inRun ? Math.max(21,Math.floor(colony.entryDeepChaosDepth||21))
+        : Math.max(21,Math.min(state.abyssEndlessDepth||21,state.loopProgressCurrent.bestAbyssDepth||21));
+    return { id:'colony_run', name:`군락지 방어 ${wave}웨이브`, type:'colony', tier:depth+Math.floor(wave/2),
+        maxKills:1, ele:'chaos', entryDeepChaosDepth:depth };
+}
+
+function createWorldTreeJourneyZone(id, state) {
+    const node = WORLD_TREE_JOURNEY.nodes.find(row => row.id === id);
+    if (!node) return null;
+    const stage = Math.max(1, Math.min(3, Math.floor(Number(state.worldTreeJourney?.stage) || 1)));
+    const floor = node.floor + (stage - 1) * 5;
+    return { id, name:node.name, type:'chaosRealm', tier:getChaosRealmTier(floor), floor,
+        maxKills:1, ele:'chaos', affixes:getChaosRealmAffixes(floor), worldTreeNode:node.id,
+        worldTreeKind:node.kind, worldTreeStage:stage,
+        bossMods:node.kind === 'boss' ? {hpMul:WORLD_TREE_JOURNEY.stages[stage-1].bossHpMul} : undefined };
+}
+
+function getUnderworldZone(floor) {
+    return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor };
+}
 function getZone(id) {
+    if (typeof id === 'string' && id.startsWith('worldtree_')) return createWorldTreeJourneyZone(id, game);
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
         if (challengeZone) return challengeZone;
     }
     if (id === BEYOND_BOUNDARY_ZONE_ID) return createBeyondBoundaryZone(game);
     if (id === 'beehive_run') return createBeehiveZone(game);
-    if (id === 'colony_run') {
-        let wave = Math.max(1, Math.floor((game && game.colony && game.colony.wave) || 1));
-        let depth = Math.max(21, Math.floor((game && game.colony && game.colony.entryDeepChaosDepth) || 21));
-        return { id: 'colony_run', name: `군락지 방어 ${wave}웨이브`, type: 'colony', tier: depth + Math.floor(wave / 2), maxKills: 1, ele: 'chaos', entryDeepChaosDepth: depth };
-    }
+    if (id === 'colony_run') return createColonyZone(game);
     if (id === 'grand_breach_run') {
         return {
             id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14, maxKills: 9999, ele: 'chaos',
@@ -795,7 +823,7 @@ function getZone(id) {
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
         let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
-        return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor: floor };
+        return getUnderworldZone(floor);
     }
     if (typeof id === 'string') {
         if (id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
@@ -1930,12 +1958,12 @@ const BASE_ITEM_DB = [
     { id: 'parry_sentinel_t12', slot: '방패', name: '감시자의 방패', reqTier: 12, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 76 }, { id: 'baseBlockChance', base: 13 }] },
     { id: 'parry_seraph_t16', slot: '방패', name: '세라프 방패', reqTier: 16, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 102 }, { id: 'baseBlockChance', base: 14 }] },
     { id: 'parry_astral_t20', slot: '방패', name: '성계 응수방패', reqTier: 20, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 132 }, { id: 'baseBlockChance', base: 15 }, { id: 'resAll', base: 3 }] },
-    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
-    { id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] },
-    { id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] },
-    { id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] },
-    { id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 랜스', reqTier: 22, realmBase: 'cosmos', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125, legacyDamageBase: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }] },
-    { id: 'cosmos_core_amulet', slot: '목걸이', name: '우주계 핵성 목걸이', reqTier: 22, realmBase: 'cosmos', baseStats: [{ id: 'gemLevel', base: 1 }, { id: 'suppCap', base: 1 }, { id: 'resAll', base: 10 }] },
+    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
+    { id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] },
+    { id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] },
+    { id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] },
+    { id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 랜스', reqTier: 22, realmBase: 'cosmos', dropOnly: { minTier: 20 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125, legacyDamageBase: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }] },
+    { id: 'cosmos_core_amulet', slot: '목걸이', name: '우주계 핵성 목걸이', reqTier: 22, realmBase: 'cosmos', dropOnly: { minTier: 20 }, baseStats: [{ id: 'gemLevel', base: 1 }, { id: 'suppCap', base: 1 }, { id: 'resAll', base: 10 }] },
     { id: 'gen__armor_t1', slot: '투구', name: '무쇠 투구', reqTier: 1, baseStats: [{ id: 'flatHp', base: 7 }, { id: 'armor', base: 26 }] },
     { id: 'gen__armor_t16', slot: '투구', name: '금강 투구', reqTier: 16, baseStats: [{ id: 'flatHp', base: 83 }, { id: 'armor', base: 307 }, { id: 'resAll', base: 6 }] },
     { id: 'gen__armor_t20', slot: '투구', name: '불멸 투구', reqTier: 20, baseStats: [{ id: 'flatHp', base: 103 }, { id: 'armor', base: 383 }, { id: 'resAll', base: 9 }] },
@@ -2305,6 +2333,10 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * @typedef {{seed:number,selected:number,goal:string,decisions:Record<string,string>,habitats:string[],retryAt:number}} CosmosRouteBoard
  */
 const defaultGame = {
+    // Discovery/clears persist across loops. Active fight/queue are transient; stage is 1..3.
+    worldTreeJourney: { cleared:[], stage:1, selected:'worldtree_guardian', hiveDiscovered:false, active:null, queue:[], plan:null, notice:null, lastResult:'' },
+    // Last expedition's committed combat receipts; display only, never a claimable reward.
+    explorationLoot: null,
     cosmosRoute: null,
     // Transient gravity pulse: {nextPulseAt: combat ms, steps: 0..2}; reset at load/exit.
     cosmosGravity: null,
@@ -2359,6 +2391,7 @@ const defaultGame = {
         growthUseItemFilter: false,
         showCrowdPauseLog: true,
         showDeathNotice: true,
+        showActJournal: true,
         showMobileBattlePip: true,
         pauseGameOnOverlay: true,
         twoRowTabs: false,
@@ -2563,6 +2596,8 @@ const defaultGame = {
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
+    // grandRun is created on entry. rewardVoidChisel: number|null is the actual paid integer,
+    // null before settlement or for legacy receipts; retained until the next entry/loop reset.
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
     shrineState: { activeId: null, spawnCell: null, pity: 0, spawned: 0, claimed: 0 },
@@ -2576,7 +2611,8 @@ const defaultGame = {
     abyssUnlockedDepths: [20],
     loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
-    loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] },
+    // Floor records count cleared floors; null in migrated saves means this loop was not recorded.
+    loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] },
     cosmosLoopCount: 0,
     lastLoopAdvancePath: null,
     chaosRealm: createDefaultChaosRealmState(),
@@ -2590,6 +2626,8 @@ const defaultGame = {
 
     skyGemEnhancements: {},
     recentDamageEvents: [],
+    // fatalElement is the last attack's dominant element, distinct from recent primaryElement.
+    // Older logs have no fatalElement; save migration keeps that uncertainty as null.
     lastDeathLog: null,
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],

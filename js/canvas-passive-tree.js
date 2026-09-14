@@ -638,7 +638,7 @@ function renderEquipmentGridCells(layout, visibleKeys) {
     for (let row = 0; row < layout.rows; row++) {
         for (let column = 0; column < layout.columns; column++) {
             let hiddenClass = hiddenOccupied.has(`${column}:${row}`) ? ' occupied-filtered' : '';
-            cells.push(`<button type="button" class="equipment-grid-cell${hiddenClass}" style="grid-column:${column + 1};grid-row:${row + 1};" data-grid-column="${column}" data-grid-row="${row}" aria-label="${column + 1}열 ${row + 1}행으로 이동" onclick="equipmentInventoryInteraction.moveFocusedTo(event,${column},${row})"></button>`);
+            cells.push(`<button type="button" tabindex="-1" class="equipment-grid-cell${hiddenClass}" style="grid-column:${column + 1};grid-row:${row + 1};" data-grid-column="${column}" data-grid-row="${row}" aria-label="${column + 1}열 ${row + 1}행으로 이동" onclick="equipmentInventoryInteraction.moveFocusedTo(event,${column},${row})"></button>`);
         }
     }
     return cells.join('');

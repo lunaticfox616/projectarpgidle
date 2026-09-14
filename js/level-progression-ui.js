@@ -26,7 +26,9 @@ const levelProgressionUi = (() => {
         const enemy = { level: levelProgression.areaLevel(zone) };
         const xp = Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience') * 100);
         const loot = Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level) * 100);
-        if (compact) return xp < 100 || loot < 100 ? '보상 감소' : '';
+        if (compact) {
+            return xp < 100 || loot < 100 ? '보상 감소' : '';
+        }
         return `${area(zone)} · 일반 적 기준 경험치 ${xp}% · 일반 드랍 ${loot}%`;
     }
     function decorateSlots(root) {

@@ -1,0 +1,62 @@
+const {test, expect} = require('@playwright/test');
+
+for (const theme of ['dark', 'light']) test(`research search, ownership and fold state remain usable in ${theme}`, async ({page}, info) => {
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('https://**', route => route.fulfill({status: 204, body: ''}));
+    await page.goto('/'); await page.locator('#btn-startup-guest').click();
+    await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.evaluate(theme => {
+        clearInterval(gameTickHandle); gameTickHandle = null; applyThemeMode(theme);
+        game.season = 20; game.contentProgression.inherited = ['craft', 'support', 'research']; contentProgression.sync();
+        game.seenTutorials = [...new Set([...game.seenTutorials, ...MAP_PRIMARY_CONTENTS.map(row => row.noticeKey).filter(Boolean)])];
+        game.skills = ['기본 공격', '연속 베기']; game.sealedSkills = ['용암 강타'];
+        game.supports = ['가속']; game.sealedSupports = ['근접 물리 피해'];
+        game.currencies.gemShard = getGemResearchCost('attack');
+        game.gemResearchExpanded = {attack: true, support: false};
+        switchTab('tab-skills'); switchSkillSubtab('skill-tab-research'); updateStaticUI();
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+    }, theme);
+    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+    await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
+    const panel = page.locator('#ui-gem-research-panel');
+    const search = panel.getByPlaceholder('젬 이름·효과·태그 검색', {exact: true});
+    await expect(search).toBeVisible();
+    const attack = panel.locator('[data-gem-research-section="attack"]');
+    const support = panel.locator('[data-gem-research-section="support"]');
+    await expect(support).not.toHaveAttribute('open');
+    const sizes = await panel.evaluate(el => ({panel: el.clientWidth, section: el.querySelector('details').clientWidth}));
+    expect(sizes.section / sizes.panel).toBeGreaterThan(0.9);
+    await attack.locator('summary').click();
+    await expect(attack).not.toHaveAttribute('open');
+    for (const name of ['연속 베기', '용암 강타', '가속', '근접 물리 피해']) {
+        await search.fill(name);
+        await expect(panel.getByRole('article', {name, exact: true})).toHaveCount(0);
+    }
+    await search.fill('동결');
+    await expect(attack).toHaveAttribute('open');
+    await expect(panel.locator('.gem-research-card').filter({hasText: '서리 폭발'})).toBeVisible();
+    await search.fill('파문심판');
+    await expect(panel.locator('.gem-research-card')).toHaveCount(1);
+    await expect(panel.locator('.gem-card-tags')).toContainText('번개');
+    await expect(panel.locator('.gem-card-tags')).not.toContainText('light');
+    await search.fill('묵직한 강타');
+    await expect(panel.locator('.gem-research-card')).toHaveCount(1);
+    await expect(search).toBeFocused();
+    await panel.getByRole('button', {name: /^확정 연구/}).click();
+    await expect.poll(() => page.evaluate(() => game.skills.includes('묵직한 강타'))).toBe(true);
+    expect(await page.evaluate(() => game.currencies.gemShard)).toBe(0);
+    await expect(search).toHaveValue('묵직한 강타');
+    await expect(panel).toContainText('검색 결과가 없습니다.');
+    await panel.getByRole('button', {name: '검색어 리셋', exact: true}).click();
+    await expect(attack).not.toHaveAttribute('open'); await expect(support).not.toHaveAttribute('open');
+    await attack.locator('summary').click();
+    await support.locator('summary').click();
+    await expect.poll(() => page.evaluate(() => game.gemResearchExpanded.support)).toBe(true);
+    await page.evaluate(() => { game.currencies.gemShard = 1; updateStaticUI(); });
+    await expect(support).toHaveAttribute('open');
+    await expect(attack.locator('button').first()).toBeDisabled();
+    expect(await panel.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({path: info.outputPath('research.png')});
+    expect(errors).toEqual([]);
+});

@@ -22,7 +22,7 @@ const baseline=buildGameRuntime({
     'js/combat-equipment-stats.js':fs.readFileSync('js/combat-equipment-stats.js','utf8').replace('return evaluate(owner).active;','return owner.equipment;')
 });
 baseline.auditState=JSON.parse(run('JSON.stringify(game)'));
-vm.runInContext('game=auditState',baseline);
+vm.runInContext('game=auditState; window.game=game;',baseline);
 function measure(runtime) {
     for(let i=0;i<30;i++)runtime.getPlayerStats(false);
     const timings=[];

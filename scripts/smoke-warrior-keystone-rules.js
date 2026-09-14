@@ -3,6 +3,7 @@ const assert = require('assert');
 const vm = require('vm');
 const {buildGameRuntime} = require('./lib/game-runtime');
 const context = buildGameRuntime();
+context.showGameToast = () => {}; // DOM notification boundary; browser coverage checks visible failures.
 const run = code => vm.runInContext(code, context);
 const plain = code => JSON.parse(run(`JSON.stringify(${code})`));
 

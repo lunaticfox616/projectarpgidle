@@ -91,6 +91,23 @@ function getEquipmentDropRarity(enemy, roll) {
     return ['unique', 'rare', 'magic'].find(rarity => roll < thresholds[rarity]) || 'normal';
 }
 
+/** Extra realm-boss reward. Generate only; combat commits pickup, codex and visual feedback. */
+function generateRealmBossUniqueDrop(zone, enemy) {
+    if (!enemy.isBoss || !['chaosRealm', 'underworld', 'cosmos'].includes(zone.type)) return null;
+    const chance = REALM_BOSS_UNIQUE_DROP_RULES.chance * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    if (Math.random() >= chance) return null;
+    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
+    const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type
+        && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));
+    const chase = eligible.filter(unique => unique.ultraRare);
+    const useChase = chase.length > 0 && Math.random() < REALM_BOSS_UNIQUE_DROP_RULES.ultraRareShare;
+    const pool = useChase ? chase : eligible.filter(unique => !unique.ultraRare);
+    if (!pool.length) return null;
+    const item = generateUniqueItem(cap, null, rndChoice(pool).name, zone);
+    return levelProgression.stampItem(item, itemLevel);
+}
+
 function getMappingTicketDrops(enemy, zone, mappingOpened) {
     let drops = [];
     if (!mappingOpened || !zone || zone.type === 'trial' || zone.type === 'seasonBoss') return drops;

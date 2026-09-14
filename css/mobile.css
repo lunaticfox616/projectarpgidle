@@ -18,6 +18,8 @@
   #passive-mobile-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ui-gold); font-size: 13px; }
   #passive-mobile-detail button { min-height: 44px; font-size: 14px; }
   #passive-mobile-detail footer button { width: 100%; }
+  /* The legacy mobile log sets bottom inline; keep notices away from this sheet's action. */
+  body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) { top: max(10px, env(safe-area-inset-top)); bottom: auto !important; }
   .passive-mobile-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; line-height: 1.5; }
   .flask-overview { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
   .flask-overview > div { flex-direction: column; gap: 4px; }

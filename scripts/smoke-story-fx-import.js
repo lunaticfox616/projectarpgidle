@@ -27,6 +27,16 @@ read('game.isBackgroundCalculation=false;storyJournalUi.sync();');
 assert(keys().includes('story_act_10_end'),'newly completed offline story can be shown on return');
 const afterReturn=keys();read('storyJournalUi.sync();');
 assert.deepStrictEqual(keys(),afterReturn,'return checks cannot duplicate scenes');
+read("game=JSON.parse(JSON.stringify(defaultGame));game.settings.showActJournal=false;game.seenTutorials=['story_illustrations_v1'];tutorialQueue.length=0;game.currentZoneId=2;unlockJournalEntry('act_2');storyJournalUi.sync();");
+assert.deepStrictEqual(keys(),['story_prologue'],'disabled act notices preserve the prologue');
+const mutedRewards=read('JSON.stringify([game.journalEntries,game.journalBonuses])');
+assert.strictEqual(read('mergeDefaults(JSON.parse(JSON.stringify(game))).settings.showActJournal'),false,'save restore preserves the disabled preference');
+assert.strictEqual(read('mergeDefaults({settings:{}}).settings.showActJournal'),true,'old saves default to showing act journals');
+read('tutorialQueue.length=0;game.settings.showActJournal=true;storyJournalUi.sync();');
+assert.deepStrictEqual(keys(),[],'reenabling does not replay skipped act notices');
+assert.strictEqual(read('JSON.stringify([game.journalEntries,game.journalBonuses])'),mutedRewards,'visibility never changes journal ownership or rewards');
+read("game.currentZoneId=3;unlockJournalEntry('act_4');storyJournalUi.sync();");
+assert.deepStrictEqual(keys(),['story_act_4_end'],'future acts resume after reenabling');
 
 const scenes=JSON.parse(read('JSON.stringify(STORY_JOURNAL_SCENES)'));
 assert.strictEqual(scenes.length,11);

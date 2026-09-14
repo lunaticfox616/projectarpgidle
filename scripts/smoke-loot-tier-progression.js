@@ -3,6 +3,7 @@ const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 const ctx = buildGameRuntime();
+vm.runInContext('game = mergeDefaults({}); window.game = game;', ctx);
 
 function read(expression) {
     return vm.runInContext(expression, ctx);
@@ -54,6 +55,43 @@ try {
         const range = plain(read(`getRealmItemDropTierRange({ type: "cosmos", tier: 57, lootTier: ${lootTier} }, {})`));
         assert.strictEqual(range.max, 16 + index, `cosmos galaxy ${index + 1} must unlock exactly one loot tier`);
     });
+
+    // Realm bases have separate drop gates; their stronger equip requirements remain intact.
+    for (const [realm, zoneId, cap] of [
+        ['chaos', 'chaos_realm', 15], ['underworld', 'underworld_core', 15], ['cosmos', 'cosmos_challenge', 20]
+    ]) {
+        read(`game.cosmosAtlas.activeChallenge={tier:80,galaxy:5,lootTier:21};`);
+        const zone = ctx.getZone(zoneId);
+        const bases = read('BASE_ITEM_DB').filter(base => base.realmBase === realm);
+        for (const base of bases) {
+            let selectedRoll = null;
+            for (let step = 0; step < 4000; step++) {
+                const roll = (step + 0.5) / 4000;
+                Math.random = () => roll;
+                if (ctx.chooseItemBase(base.slot, cap, zone).id === base.id) selectedRoll = roll;
+                assert.notStrictEqual(ctx.chooseItemBase(base.slot, cap - 1, zone).id, base.id,
+                    'realm base must not drop below its dedicated gate');
+                for (const type of ['act', 'chaosRealm', 'underworld', 'cosmos'].filter(type => type !== zone.type)) {
+                    assert.notStrictEqual(ctx.chooseItemBase(base.slot, 30, {type}).id, base.id,
+                        'realm base must not escape its source realm');
+                }
+            }
+            assert.notStrictEqual(selectedRoll, null, `${base.name} must be reachable at the realm drop ceiling`);
+            const rolls = [0.999999, selectedRoll, 0.5];
+            Math.random = () => rolls.length ? rolls.shift() : 0.5;
+            const item = ctx.generateEquipmentDrop({isBoss:true}, {zone,slot:base.slot,minimumRarity:'rare'});
+            assert.strictEqual(item.baseId, base.id, 'actual enemy drop must retain the selected realm base');
+            assert.strictEqual(item.hiddenTier, cap);
+            assert(item.affixTierCap <= cap && item.stats.every(stat => stat.tier <= cap));
+            const requirements = plain(read(`levelProgression.requirements(${JSON.stringify(item)})`));
+            assert.deepStrictEqual(requirements, plain(read(`levelProgression.requirements({baseId:${JSON.stringify(base.id)}})`)));
+            assert(requirements.level > read(`levelProgression.tierLevel(${cap}) - LEVEL_PROGRESSION.equipmentLevelDiscount`),
+                'making the base droppable must not lower its existing equip level');
+            ctx.normalizeItem(item);
+            assert.strictEqual(item.baseId, base.id);
+            assert.strictEqual(item.affixTierCap, cap, 'save normalization must not increase its crafting ceiling');
+        }
+    }
 
     Math.random = () => 0.5;
     ctx.game.currentZoneId = 0;

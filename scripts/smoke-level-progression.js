@@ -2,24 +2,25 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const {buildGameRuntime}=require('./lib/game-runtime');
 const r=buildGameRuntime(), run=code=>vm.runInContext(code,r);
+const notices=[];r.showGameToast=message=>notices.push(message); // DOM notification boundary.
 r.hideItemTooltip=()=>{}; r.updateStaticUI=()=>{}; // DOM boundaries; equipment and stat rules stay real.
 const json=code=>JSON.parse(run(`JSON.stringify(${code})`));
 run(`game=JSON.parse(JSON.stringify(defaultGame)); game.level=100;
-    game.actRewardBonuses=[{stat:'strength',value:26}];
+    game.actRewardBonuses=[{stat:'strength',value:52}];
     var weapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
     weapon.stats=[{id:'strength',val:20},{id:'gemLevel',val:3}];game.inventory=[weapon];`);
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),true);
 assert.equal(run('equipItemById(weapon.id)'),true);
-run('game.actRewardBonuses[0].value=6');
+run('game.actRewardBonuses[0].value=32');
 assert.equal(run("getPlayerStats(false).disabledEquipment['무기']"),undefined,'equipped item can satisfy its own requirement');
-assert.equal(run('getPlayerStats(false).strength'),26);
-run('game.actRewardBonuses[0].value=5');
+assert.equal(run('getPlayerStats(false).strength'),52);
+run('game.actRewardBonuses[0].value=31');
 assert.ok(run("getPlayerStats(false).disabledEquipment['무기']"));
-assert.equal(run('getPlayerStats(false).strength'),5,'inactive item contributes no strength');
+assert.equal(run('getPlayerStats(false).strength'),31,'inactive item contributes no strength');
 assert.equal(run("getPlayerStatSourceItemEntries().some(([slot])=>slot==='무기')"),false,'independent gem sources exclude inactive items');
 assert.equal(run("game.equipment['무기']===weapon"),true,'inactive gear stays owned and in its slot');
-run('game.actRewardBonuses[0].value=6');
-assert.equal(run('getPlayerStats(false).strength'),26,'condition recovery reactivates gear');
+run('game.actRewardBonuses[0].value=32');
+assert.equal(run('getPlayerStats(false).strength'),52,'condition recovery reactivates gear');
 run('var liveState=game;window.game=game;combatEquipmentStats.inspect(weapon,"무기")');
 assert.equal(run('game===liveState && window.game===liveState'),true,'isolated checks restore both runtime state references');
 run('game.equipment={...game.equipment};game.equipment["무기"]={...weapon}');
@@ -31,10 +32,14 @@ run("unequipItem('무기')");
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'new equip cannot count its own strength');
 const before=run('JSON.stringify(game.inventory)');
 assert.equal(run('equipItemById(weapon.id)'),false);
+assert.ok(notices.at(-1).includes('장착 실패'),'manual rejection presents a visible notification');
+const noticeCount=notices.length;
+assert.equal(run("equipItemById(weapon.id,'무기')"),false);
+assert.equal(notices.length,noticeCount+1,'explicit-slot rejection uses the same notification path');
 assert.equal(run('JSON.stringify(game.inventory)'),before,'rejected equip is atomic');
 run("game.shrineBuff={stat:'strength',value:200,expiresAt:getCombatTime()+60000}");
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'temporary attributes cannot open an equipment gate');
-run("game.actRewardBonuses[0].value=26;game.level=1");
+run("game.actRewardBonuses[0].value=52;game.level=1");
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false);
 run('weapon.inheritedLevelExempt=true');
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),true,'inherited gear exempts level only');
@@ -76,25 +81,25 @@ assert.equal(run('levelProgression.stampItem({itemLevel:Infinity,hiddenTier:3}).
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;
     weapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
     weapon.stats=[{id:'strength',val:20}];game.equipment['무기']=weapon;
-    game.actRewardBonuses=[{stat:'strength',value:26}];equipmentLoadoutRuntime.save(0,'요구조건',game);
-    unequipItem('무기');game.actRewardBonuses[0].value=6;`);
+    game.actRewardBonuses=[{stat:'strength',value:52}];equipmentLoadoutRuntime.save(0,'요구조건',game);
+    unequipItem('무기');game.actRewardBonuses[0].value=32;`);
 const loadoutBefore=json('({equipment:game.equipment,inventory:game.inventory})');
 assert.equal(run('equipmentLoadoutRuntime.apply(0,game).ok'),false,'preset cannot bootstrap its own missing attributes');
 assert.deepEqual(json('({equipment:game.equipment,inventory:game.inventory})'),loadoutBefore);
-run('game.actRewardBonuses[0].value=26');
+run('game.actRewardBonuses[0].value=52');
 assert.equal(run('equipmentLoadoutRuntime.apply(0,game).ok'),true);
-run('game.actRewardBonuses[0].value=6');
+run('game.actRewardBonuses[0].value=32');
 assert.equal(run('equipmentLoadoutRuntime.apply(0,game).ok'),true,'already equipped preset may maintain itself');
-run('game.actRewardBonuses[0].value=5;game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+run('game.actRewardBonuses[0].value=31;game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.ok(run('getPlayerStats(false).disabledEquipment["무기"]'),'reload cannot grant legacy grace to newly created ineligible equipment');
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;
-    game.actRewardBonuses=[{stat:'strength',value:6}];game.equipment['무기']=weapon;
+    game.actRewardBonuses=[{stat:'strength',value:32}];game.equipment['무기']=weapon;
     var helmet=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bastion_helm'),'normal',8);
     game.equipment['투구']=helmet;`);
 assert.equal(run('Object.keys(getPlayerStats(false).disabledEquipment).length'),0);
-run('game.actRewardBonuses[0].value=5');
+run('game.actRewardBonuses[0].value=31');
 assert.deepEqual(json('Object.keys(getPlayerStats(false).disabledEquipment).sort()'),['무기','투구'].sort(),'removing an invalid strength source cascades to dependent gear');
-run('game.actRewardBonuses[0].value=6');
+run('game.actRewardBonuses[0].value=32');
 assert.equal(run('Object.keys(getPlayerStats(false).disabledEquipment).length'),0,'restoring permanent attributes reactivates the complete valid setup');
 run(`var belt=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='blood_girdle'),'normal',12);
     belt.rarity='unique';belt.uniqueEffectKey='extraFlaskUtilitySlots';belt.uniqueEffectParams={slots:2,chargeRatePct:20};
@@ -106,9 +111,9 @@ for(const level of [9,10,19,20,49,50,99,100]) {
     assert.ok(run(`getExpReq(${level+1})>getExpReq(${level})`),'required experience must not fall at curve boundaries');
 }
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;
-    game.starWedge.constellationBuff={stat:'strength',val:26,permanent:false};`);
+    game.starWedge.constellationBuff={stat:'strength',val:52,permanent:false};`);
 assert.equal(run('combatEquipmentStats.inspect(weapon,"무기").ok'),true,'observed constellation is a stable build choice within the loop');
-run('game.starWedge.constellationBuff.val=25');
+run('game.starWedge.constellationBuff.val=51');
 assert.equal(run('combatEquipmentStats.inspect(weapon,"무기").ok'),false,'re-observation invalidates cached attribute eligibility');
 for (const [id, stat] of [['nova_rod','intelligence'], ['ember_wand','intelligence'],
     ['needle_recurve','dexterity'], ['seeker_railgun','dexterity']]) {
@@ -173,4 +178,55 @@ run("game.jewelSlots=[{uniqueId:'cbj_zubenubia_balance',cosmosKeystoneJewel:true
 assert.equal(run('getPlayerStats(false).requirementAttributes.strength'),30,'cosmos keystone immediately refreshes permanent requirement attributes');
 run('game.jewelSlots=[]');
 assert.equal(run('getPlayerStats(false).requirementAttributes.strength'),20,'removing a cosmos keystone cannot retain cached attributes');
+const baseRequirements = json('BASE_ITEM_DB.map(base=>({base,req:levelProgression.requirements({baseId:base.id})}))');
+for (const { base, req } of baseRequirements) {
+    assert.ok(Object.values(req.attributes).every(value => Number.isInteger(value) && value >= 0 && value <= 140), base.id);
+    if (['반지','목걸이','허리띠'].includes(base.slot)) assert.deepEqual(req.attributes, {}, base.id);
+    if (base.reqTier === 20 && Object.keys(req.attributes).length === 1) assert.equal(Object.values(req.attributes)[0], 130, base.id);
+}
+for (const [id, expected] of [['hunter_axe',6],['war_helm',10],['bastion_helm',36],['bloodletter_blade',52],
+    ['obsidian_helm',70],['executioner_blade',86],['dread_plate',102],['apocalypse_greatblade',130]]) {
+    assert.equal(run(`levelProgression.requirements({baseId:'${id}'}).attributes.strength`), expected, id);
+}
+assert.deepEqual(json("levelProgression.requirements({baseId:'gen__armor_energyShield_t20_1'}).attributes"),{strength:92,intelligence:92});
+assert.deepEqual(json("levelProgression.requirements({baseId:'tempestlord_lance'}).attributes"),{strength:78,dexterity:78});
+assert.deepEqual(json("levelProgression.requirements({baseId:'cosmos_prism_lance'}).attributes"),{strength:84,dexterity:84});
+assert.deepEqual(json("levelProgression.requirements({baseId:'rusted_blade',hiddenTier:20,itemLevel:100})"),{level:1,attributes:{strength:0}},'affix/drop tier never raises base requirements');
+run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;game.settings.autoEquipEmptySlots=false;
+    var finalWeapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='apocalypse_greatblade'),'normal',20);
+    finalWeapon.stats=[{id:'strength',val:20}];game.inventory=[finalWeapon];
+    game.actRewardBonuses=[{stat:'strength',value:129}];`);
+assert.equal(run('equipItemById(finalWeapon.id)'),false,'one point short cannot equip even with the candidate own strength');
+run('game.actRewardBonuses[0].value=130');
+assert.equal(run('equipItemById(finalWeapon.id)'),true,'exact final requirement can equip');
+run('game.actRewardBonuses[0].value=110');
+assert.equal(run('getPlayerStats(false).disabledEquipment["무기"]'),undefined,'equipped final weapon maintains itself');
+run('game.actRewardBonuses[0].value=109;game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.ok(run('getPlayerStats(false).disabledEquipment["무기"]'),'saved gear uses new thresholds without a new grace exemption');
+assert.equal(run('game.equipment["무기"].id'),run('finalWeapon.id'),'ineligible gear stays owned');
+assert.equal(run('getPlayerStats(false).strength'),109,'inactive gear does not grant its own attributes');
+// Delayed map/bounty rewards must use their origin for every roll, not the player's current map.
+run(`game=mergeDefaults({});game.cosmosAtlas.activeChallenge={tier:80,galaxy:5};`);
+const dropOrigins = [0, 'chaos_realm', 'underworld_core', 'cosmos_challenge'].map(id => r.getZone(id));
+function sampleOriginDrops(zone, currentZoneId) {
+    r.__dropOrigin = zone;
+    run(`game.currentZoneId=${JSON.stringify(currentZoneId)};window.game=game;`);
+    const savedRandom = r.Math.random;
+    let seed = 1309;
+    r.Math.random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    try {
+        return json(`Array.from({length:400},()=>{
+            const item=generateEquipmentDrop({isBoss:true},{zone:__dropOrigin});
+            return {name:item.name,baseId:item.baseId,rarity:item.rarity,itemLevel:item.itemLevel,
+                stats:item.stats,baseStats:item.baseStats,requirements:levelProgression.requirements(item)};
+        })`);
+    } finally { r.Math.random = savedRandom; }
+}
+for (const zone of dropOrigins) {
+    const local = sampleOriginDrops(zone, zone.id);
+    const away = sampleOriginDrops(zone, zone.id === 0 ? 'cosmos_challenge' : 0);
+    assert.deepEqual(away, local, `${zone.type}: travelling before reward must not change bases, uniques, levels or rolls`);
+    assert(local.some(item => item.rarity === 'unique'), 'the origin comparison must exercise unique generation');
+    assert(local.some(item => item.rarity !== 'unique'), 'the origin comparison must exercise ordinary bases');
+}
 console.log('smoke-level-progression passed');

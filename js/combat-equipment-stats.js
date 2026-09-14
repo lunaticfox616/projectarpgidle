@@ -54,7 +54,7 @@ const combatEquipmentStats = (() => {
     }
     function inspect(item, slot, owner = game) {
         const current = evaluate(owner);
-        const key = JSON.stringify([slot, item.baseId, item.baseName, item.inheritedLevelExempt]);
+        const key = JSON.stringify([slot, item.baseId, item.baseName, item.inheritedLevelExempt, item.rarity, item.name]);
         if (current.inspections.has(key)) return current.inspections.get(key);
         const equipment = { ...owner.equipment, [slot]: null };
         for (const key of Object.keys(current.disabled)) equipment[key] = null;

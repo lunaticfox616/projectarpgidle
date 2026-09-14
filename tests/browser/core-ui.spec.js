@@ -1129,6 +1129,9 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     const initial = await page.evaluate(() => {
+        clearInterval(gameTickHandle);
+        gameTickHandle = null;
+        game.combatHalted = true;
         game.level = 100;
         game.season = 20;
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
@@ -1186,6 +1189,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     await expect(page.locator('#ui-equipment-inventory-inspector')).not.toContainText('세팅 보호');
     await page.locator('#ui-equipment-inventory-inspector .equipment-card-danger:not(:disabled)').click();
     await expect(page.locator('#ui-inventory-list .equipment-grid-item')).toHaveCount(1);
+    await dismissVisibleTutorials(page);
     if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
     await panel.getByRole('button', { name: '세팅 불러오기' }).click();
 
@@ -1350,7 +1354,7 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     expect(failures).toEqual([]);
 });
 
-test('ascension trials visibly distinguish completed and pending clears', async ({ page }) => {
+test('ascension trials visibly distinguish completed and pending clears', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -1377,6 +1381,14 @@ test('ascension trials visibly distinguish completed and pending clears', async 
         return { border:style.borderColor, color:style.color, background:style.backgroundImage };
     }));
     expect(colors[0]).not.toEqual(colors[1]);
+    await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
+    for (const theme of ['dark','light']) {
+        await page.evaluate(theme=>applyThemeMode(theme),theme);
+        await pending.scrollIntoViewIfNeeded();
+        await expect(pending.getByRole('button',{name:'도전',exact:true})).toBeVisible();
+        expect(await pending.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
+        await page.screenshot({path:testInfo.outputPath(`trial-readability-${theme}.png`)});
+    }
     expect(failures).toEqual([]);
 });
 
@@ -1384,6 +1396,9 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        clearInterval(gameTickHandle);
+        gameTickHandle = null;
+        game.combatHalted = true;
         game.season = 30;
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
@@ -1436,7 +1451,8 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
         updateStaticUI();
     });
     await expect(page.locator('.ocean-craft-target')).toContainText('일반 장비가 아님');
-    await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
+    await expect(page.locator('.ocean-recipe-card button', { hasText: '일반 장비만 가공 가능' }).first()).toBeDisabled();
+    await dismissVisibleTutorials(page);
 
     if (testInfo.project.use.isMobile) await page.getByRole('tab', { name: '채집 · 전략', exact: true }).click();
     await page.locator('.ocean-strategy-card', { hasText: '심연 투망' }).click();
@@ -1913,6 +1929,8 @@ test('side encounters retain difficulty and active state on save restoration', a
     await dismissVisibleTutorials(page);
     await page.evaluate(() => { tickGrandBreachRun(getZone(game.currentZoneId)); game.combatHalted=true; updateStaticUI(); });
     expect(await page.evaluate(()=>game.enemies.length)).toBe(16);
+    await expect(page.locator('#side-encounter-hud')).toContainText('주얼 해금 후 제작 재화 획득');
+    await page.evaluate(()=>{game.contentProgression.inherited.push('jewel');contentProgression.sync();updateStaticUI();});
     await expect(page.locator('#side-encounter-hud')).toContainText('다음 보상까지 10마리');
     await expect(page.locator('#ui-progress-label')).toHaveText('남은 시간');
     await page.screenshot({path:testInfo.outputPath('grand-swarm.png')});
@@ -1973,7 +1991,7 @@ test('side encounters retain difficulty and active state on save restoration', a
     await page.locator('.beehive-choice-heading button').click();
     await expect(page.locator('.beehive-choice-card')).toHaveCount(0);
     await page.evaluate(() => {
-        forfeitBeehiveRun();prepareMeteorEncounterEntry(8);game.currentZoneId=METEOR_FALL_ZONE_ID;
+        exitBeehiveRun();prepareMeteorEncounterEntry(8);game.currentZoneId=METEOR_FALL_ZONE_ID;
         const plan=generateEncounterPlan(getZone(game.currentZoneId));
         game.enemies=[];spawnEncounterMarker(plan[plan.length-1]);
         game.enemies[0].patternAttackCount=2;refreshBossPatternPreview(game.enemies[0]);
@@ -2009,7 +2027,8 @@ test('side encounters retain difficulty and active state on save restoration', a
 test('character attributes and elemental EHP use readable custom tooltips', async ({ page },testInfo) => {
     const failures=watchRuntimeFailures(page);
     await openLocalGame(page);
-    await page.evaluate(() => { game.combatHalted = true; });
+    await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; game.combatHalted = true; });
+    await dismissVisibleTutorials(page);
     if (testInfo.project.use.isMobile) {
         await page.locator('#btn-mobile-nav-more').tap();
         await page.locator('#btn-tab-character').tap();
@@ -2969,6 +2988,47 @@ test('flask controls stay in place when their trigger label changes', async ({ p
     expect(failures).toEqual([]);
 });
 
+test('floor stop setting and a saved ocean guardian retain their actual location', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        game.season = 50; game.loopCount = 49; game.level = 100;
+        game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(row => row.id);
+        game.combatHalted = true;
+        switchTab('tab-settings'); updateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    const category = page.locator('#settings-category');
+    if (await category.isVisible()) await category.selectOption('progress');
+    await page.locator('#sel-map-complete-action').selectOption('stop');
+    expect(await page.evaluate(() => game.settings.mapCompleteAction)).toBe('stop');
+    for (const id of ['chaos_realm', 'labyrinth_endless', 'sky_tower', 'underworld_core']) {
+        const result = await page.evaluate(zoneId => {
+            game.currentZoneId = zoneId; game.combatHalted = false;
+            finishEncounterRun();
+            if (!saveGame({ skipCloudSync: true })) throw new Error('Floor save failed');
+            loadGame();
+            return { zone: game.currentZoneId, halted: game.combatHalted, move: game.moveTimer };
+        }, id);
+        expect(result).toEqual({ zone: id, halted: true, move: 0 });
+    }
+    const ocean = await page.evaluate(() => {
+        enterOceanDive(); game.ocean.depthM = 500; game.ocean.checkpointM = 500;
+        startEncounterRun(); game.combatHalted = true;
+        if (!saveGame({ skipCloudSync: true })) throw new Error('Ocean save failed');
+        loadGame();
+        const zone = game.currentZoneId;
+        finishEncounterRun(); game.combatHalted = true;
+        switchTab('tab-battle'); updateStaticUI();
+        return { zone, depth: game.ocean.bossClearM, fragments: game.currencies.reefFragment };
+    });
+    expect(ocean).toEqual({ zone: 'ocean_depth', depth: 500, fragments: 3 });
+    await dismissVisibleTutorials(page);
+    await page.screenshot({ path: testInfo.outputPath('ocean-restored.png') });
+    expect(failures).toEqual([]);
+});
+
 test('damage log detail is opt-in and persists through the settings control', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -3385,6 +3445,7 @@ test('map destinations show entry requirements before spending and run summaries
     await expect(hive.getByRole('button', {name:'원정 포기'})).toHaveCount(0);
     await expect(ready).not.toContainText('입장 가능');
     await page.evaluate(() => { game.currencies.hiveKey = 1; performUpdateStaticUI(); });
+    await ready.locator('summary').click();
     await ready.getByRole('button', {name:'입장 가능 벌집 원정'}).click();
     expect(await page.evaluate(() => [game.currencies.hiveKey, game.beehive.inRun])).toEqual([1, false]);
     await page.screenshot({path:testInfo.outputPath('map-hive-entry.png')});
@@ -3398,11 +3459,12 @@ test('map destinations show entry requirements before spending and run summaries
     await page.evaluate(() => performUpdateStaticUI());
     await expect(page.getByRole('dialog', {name:'벌집 갈림길'})).toHaveCount(0);
     await hive.getByRole('button', {name:'원정 포기'}).click();
+    await page.getByRole('button', {name:'포기하고 귀환', exact:true}).click();
     expect(await page.evaluate(() => [game.currencies.hiveKey, game.beehive.inRun])).toEqual([0, false]);
     await page.evaluate(() => { switchMapExploreSubtab('map-explore-voidrift'); performUpdateStaticUI(); });
     const grand = page.locator('#ui-voidrift-panel');
     await expect(grand.getByRole('button', {name:'대균열 입장'})).toBeDisabled();
-    await expect(grand).toContainText('공허 균열을 완료하면 입장할 수 있습니다.');
+    await expect(grand).toContainText('공허 균열 완료 시 8% 확률로 열립니다.');
     await page.evaluate(() => { game.voidRift.grandBreachUnlock = true; performUpdateStaticUI(); });
     await grand.getByRole('button', {name:'대균열 입장'}).click();
     await page.evaluate(() => { game.voidRift.grandRun.kills = 9; performUpdateStaticUI(); });
@@ -3420,6 +3482,7 @@ test('map destinations show entry requirements before spending and run summaries
     const meteor = page.locator('#ui-meteor-list');
     await expect(meteor.getByRole('button', {name:'운석 원정 입장'})).toBeDisabled();
     await page.evaluate(() => { game.starWedge.skyRiftReady = true; performUpdateStaticUI(); });
+    if (!await ready.locator('details').evaluate(el => el.open)) await ready.locator('summary').click();
     await ready.getByRole('button', {name:'입장 가능 운석 낙하'}).click();
     expect(await page.evaluate(() => game.starWedge.skyRiftReady)).toBe(true);
     for (const light of [false, true]) {
@@ -3448,7 +3511,7 @@ test('hive choices preserve interaction and closing a prompt lasts until the nex
     });
     await dismissVisibleTutorials(page);
     const hive = page.locator('#ui-beehive-panel');
-    const firstChoice = hive.locator('button[onclick="resolveBeehiveChoice(\'a\')"]');
+    const firstChoice = hive.locator('button.hive-choice').first();
     await firstChoice.focus();
     await page.evaluate(() => updateStaticUI());
     await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
@@ -3499,9 +3562,9 @@ test('map cards show readiness grades and keep approximate numbers in the toolti
     });
     const power = page.locator('#map-explore-hunting .map-power-estimate').first();
     await expect(power).toBeVisible();
-    await expect(power).toContainText('화력');
-    await expect(power).toContainText('생존력');
-    await expect(power).toContainText(/부족|적정|여유/);
+    await expect(power).toContainText(/권장 전투력 (달성|미달성)/);
+    const powerColor = await power.locator('.map-power-grade').first().evaluate(el=>({text:el.textContent,rgb:getComputedStyle(el).color.match(/\d+/g).map(Number)}));
+    expect(powerColor.text.includes('미달성') ? powerColor.rgb[0]>powerColor.rgb[1] : powerColor.rgb[1]>powerColor.rgb[0]).toBe(true);
     if (testInfo.project.name.startsWith('mobile')) await power.focus();
     else await power.hover();
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
@@ -3560,6 +3623,9 @@ test('atlas pinnacle bosses expose realm milestones and allow ticketless challen
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        clearInterval(gameTickHandle);
+        gameTickHandle = null;
+        game.combatHalted = true;
         game.season = 31;
         game.loopCount = 30;
         game.maxZoneId = 12;
@@ -3576,8 +3642,10 @@ test('atlas pinnacle bosses expose realm milestones and allow ticketless challen
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
     });
+    await dismissVisibleTutorials(page);
     const panel = page.locator('#map-explore-root-boss');
     await expect(panel).toContainText('강대한 적');
+    await panel.locator('[data-map-zone-group="finalGate"] .map-zone-group-header').click();
     await expect(panel.locator('[data-map-zone-group="finalGate"] .map-item')).toHaveCount(1);
     await expect(panel.locator('[data-map-zone-group="finalGate"]')).toContainText('경계의 관측자 베일라');
     await expect(panel.locator('[data-map-zone-group="pinnacleBosses"]')).not.toContainText('베일라');
@@ -3616,12 +3684,13 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     const detail = page.locator('#ui-cosmos-detail');
     await expect(detail).toBeVisible();
     await expect(detail).toContainText('하말리스');
-    await expect(detail).toContainText('화력');
-    await expect(detail).toContainText('생존력');
+    await expect(detail).toContainText('권장 전투력');
     await expect(detail).not.toContainText('예상 적 특성');
     await expect(detail).not.toContainText('대응:');
     const readiness = detail.locator('.map-power-estimate');
-    await expect(readiness).toContainText(/부족|적정|여유/);
+    await expect(readiness).toContainText(/권장 전투력 (달성|미달성)/);
+    const readinessColor = await readiness.locator('.map-power-grade').first().evaluate(el=>({text:el.textContent,rgb:getComputedStyle(el).color.match(/\d+/g).map(Number)}));
+    expect(readinessColor.text.includes('미달성') ? readinessColor.rgb[0]>readinessColor.rgb[1] : readinessColor.rgb[1]>readinessColor.rgb[0]).toBe(true);
     if (testInfo.project.name.startsWith('mobile')) await readiness.focus();
     else await readiness.hover();
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
@@ -3977,7 +4046,7 @@ test('void crafting and profile follow the theme; Wisdom Leap is read only', asy
         renderPassiveInvestmentSummary();
     });
     await expect(page.locator('#passive-investment-summary-body')).toContainText('지혜의 도약 · 공허');
-    await expect(page.locator('#passive-investment-summary-body select')).toHaveCount(1);
+    await expect(page.locator('#passive-investment-summary-body select')).toHaveCount(0);
     expect(await page.evaluate(() => getPlayerStats().passiveWisdomElement)).toBe('chaos');
     for (const theme of ['dark', 'light']) {
         await page.evaluate(mode => {

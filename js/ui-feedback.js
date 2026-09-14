@@ -337,7 +337,40 @@
         return toast;
     }
 
-    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, showGameToast, playUiFeedbackSound };
+    /** Binds an already-mounted picker; returns its close action for successful selections.
+     * @param {HTMLElement} overlay
+     * @param {{titleId:string, closeSelector:string, returnSelector:string, onClose?:()=>void}} options
+     * @returns {()=>void}
+     */
+    function bindGamePicker(overlay, options) {
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', options.titleId);
+        const close = () => {
+            overlay.remove();
+            options.onClose?.();
+            document.querySelector(options.returnSelector)?.focus({preventScroll:true});
+        };
+        overlay.onclick = event => { if (event.target === overlay) close(); };
+        overlay.onkeydown = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault(); event.stopPropagation(); close(); return;
+            }
+            if (event.key !== 'Tab') return;
+            const controls = [...overlay.querySelectorAll('button:not(:disabled),select:not(:disabled)')]
+                .filter(control => control.getClientRects().length);
+            const first = controls[0], last = controls[controls.length-1];
+            const target = event.shiftKey ? last : first;
+            if (document.activeElement !== (event.shiftKey ? first : last)) return;
+            event.preventDefault(); target.focus();
+        };
+        const closeButton = overlay.querySelector(options.closeSelector);
+        closeButton.onclick = close;
+        closeButton.focus({preventScroll:true});
+        return close;
+    }
+
+    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker, showGameToast, playUiFeedbackSound };
     if (typeof safeExposeGlobals === 'function') safeExposeGlobals(exports);
     else Object.assign(window, exports);
 }());

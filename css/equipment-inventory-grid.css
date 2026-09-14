@@ -61,7 +61,7 @@
 .equipment-grid-inspector:has(.equipment-inspection-columns > :only-child) { width: 360px; }
 .equipment-inspection-details { grid-column: 1 / -1; grid-row: 3; align-self: stretch; min-height: 0; overflow: auto; overscroll-behavior: contain; font-size: 12px; line-height: 1.55; }
 .equipment-inspection-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.equipment-inspection-column { min-width: 0; padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+.equipment-inspection-column { min-width: 0; padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); color: var(--ui-text); }
 .equipment-inspection-column h3 { margin: 0 0 8px; color: var(--ui-gold); font-size: 12px; }
 .equipment-inspection-column .tooltip-title { border-color: var(--ui-line); }
 .equipment-affix-inactive { opacity: 0.62; }

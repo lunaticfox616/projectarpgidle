@@ -144,6 +144,22 @@ const baseGame = extra => ({
 
 // 5) 최고 도달은 루프 정산이 초기화하는 값도 단조 증가로 지킨다.
 {
+    const {context}=bootRecords(baseGame({abyssEndlessDepth:20,labyrinthFloor:1,skyTower:{highestFloor:1},underworldProgress:{highestFloor:1}}));
+    context.trackRecordBests();
+    let best=context.getRecordsView().best;
+    for(const key of ['abyssDepth','labyrinthFloor','skyFloor','underworldFloor'])assert(!best[key], 'entry defaults are not achieved records: '+key);
+    Object.assign(context.game.records.best,{abyssDepth:20,labyrinthFloor:1,skyFloor:1,underworldFloor:1});
+    const stored=JSON.stringify(context.game.records.best);
+    best=context.getRecordsView().best;
+    for(const key of ['abyssDepth','labyrinthFloor','skyFloor','underworldFloor'])assert(!best[key], 'legacy entry defaults are not displayed: '+key);
+    assert.equal(JSON.stringify(context.game.records.best),stored,'reading old records does not rewrite saves');
+    Object.assign(context.game,{abyssEndlessDepth:21,labyrinthUnlockedMaxFloor:2,skyTower:{highestFloor:2},underworldProgress:{highestFloor:2}});
+    context.trackRecordBests();
+    best=context.getRecordsView().best;
+    assert.equal(best.abyssDepth,21);assert.equal(best.labyrinthFloor,2);assert.equal(best.skyFloor,2);assert.equal(best.underworldFloor,2);
+}
+
+{
     const { context } = bootRecords(baseGame({ colony: { highestWave: 9 }, abyssEndlessDepth: 23, labyrinthUnlockedMaxFloor: 7 }));
     context.trackRecordBests();
     assert.strictEqual(context.game.records.best.colonyWave, 9);

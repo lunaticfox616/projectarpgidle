@@ -101,7 +101,36 @@ try {
         ...simpleStats, evadeChance: 0,
         uniqueGuardianArmor: { takenLessPct: 8, bossTakenLessPct: 20 }
     };
+    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).environment'), null,
+        '중력만 적용되는 지핵군주는 지하계 지속 피해 경고를 잘못 표시하지 않아야 한다');
+    for (const [floor, lossPct] of [[14, 0], [15, 10], [29, 10], [30, 15], [39, 15], [40, 20]]) {
+        context.__drainStats = { ...simpleStats, maxHp: 100000, energyShield: 1000000, regen: 2, underworldGravityReductionPct: 0 };
+        context.game.underworldProgress.currentFloor = floor;
+        context.__drainEstimate = run("estimateMapZonePowerRequirements(getZone('underworld_core'))");
+        assert.ok(context.__drainEstimate, '층별 실제 지역의 준비도 추정치를 사용한다');
+        const environment = run('getMapPowerReadiness(__drainStats, __drainEstimate).environment');
+        if (floor < 15) {
+            assert.strictEqual(environment, null);
+            continue;
+        }
+        assert.strictEqual(environment.lossPct, lossPct);
+        assert.strictEqual(environment.deficitPct, lossPct - 2, '많은 생명력과 보호막도 비례 환경 피해를 상쇄하지 못한다');
+        context.__drainStats.underworldGravityReductionPct = 75;
+        assert.strictEqual(run('getMapPowerReadiness(__drainStats, __drainEstimate).environment.lossPct'), lossPct / 4);
+        context.__drainStats.regen = lossPct / 4;
+        assert.strictEqual(run('getMapPowerReadiness(__drainStats, __drainEstimate).environment.deficitPct'), 0);
+        const stateBefore = run('JSON.stringify(game.talentCardRuntime)');
+        run('getMapPowerReadiness(__drainStats, __drainEstimate)');
+        assert.strictEqual(run('JSON.stringify(game.talentCardRuntime)'), stateBefore, '입장 안내는 재능 보호막을 소모하지 않는다');
+    }
     context.__bossEstimate = { dps: 1, ehp: 3000, peakHit: 1500, elements: ['fire'] };
+    context.__drainStats = { ...simpleStats, totalDps: 1000, activeZoneId: 'underworld_core', activeUnderworldFloor: 12, underworldGravityReductionPct: 0 };
+    context.__drainEstimate = run('estimateMapZonePowerRequirements(getUnderworldZone(30))');
+    assert.ok(run('getMapPowerReadiness(__drainStats, __drainEstimate).playerDps') < 1000,
+        '현재 지하계에서 더 높은 층을 살필 때 기존 중력과 목표층 중력의 차이를 반영한다');
+    context.__drainStats.activeUnderworldFloor = 30;
+    assert.strictEqual(run('getMapPowerReadiness(__drainStats, __drainEstimate).playerDps'), 1000,
+        '같은 층 준비도에 중력 패널티를 두 번 적용하지 않는다');
     const baseBossReadiness = JSON.parse(run('JSON.stringify(getMapPowerReadiness(__simpleStats, __bossEstimate))'));
     const guardianBossReadiness = JSON.parse(run('JSON.stringify(getMapPowerReadiness(__guardianStats, __bossEstimate))'));
     assert.ok(Math.abs(guardianBossReadiness.recommendedEhp / baseBossReadiness.recommendedEhp - (0.8 / 0.92)) < 0.001,

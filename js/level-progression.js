@@ -49,12 +49,20 @@ const levelProgression = (() => {
         return Object.fromEntries(types.map(type => [type, 1 / Math.sqrt(types.length)]));
     }
     function requirements(item) {
+        const unique = item.rarity === 'unique' && UNIQUE_EQUIPMENT_RULES[item.name];
         const base = baseFor(item);
-        if (!base) return { level: 1, attributes: {} };
-        const tier = Math.max(1, Math.min(20, base.reqTier));
+        if (unique && (!base || base.id === unique.baseId)) return { level: unique.level, attributes: { ...unique.attributes } };
+        const req = base ? baseRequirements(base) : { level: 1, attributes: {} };
+        if (!unique) return req;
+        // A crafted base upgrade keeps the unique gate and also requires the stronger base's attributes.
+        const keys = new Set([...Object.keys(req.attributes), ...Object.keys(unique.attributes)]);
+        return { level: Math.max(req.level, unique.level), attributes: Object.fromEntries([...keys]
+            .map(key => [key, Math.max(req.attributes[key] || 0, unique.attributes[key] || 0)])) };
+    }
+    function baseRequirements(base) {
         const config = LEVEL_PROGRESSION;
-        const value = tier < config.attributeStartTier ? 0
-            : config.attributeBase + (tier - config.attributeStartTier) * config.attributePerTier;
+        const tier = Math.max(1, Math.min(config.attributeRequirements.length, base.reqTier));
+        const value = config.attributeRequirements[tier - 1];
         return { level: Math.max(1, tierLevel(base.reqTier) - config.equipmentLevelDiscount),
             attributes: Object.fromEntries(Object.entries(attributeWeights(base)).map(([key, weight]) => [key, Math.round(value * weight)])) };
     }

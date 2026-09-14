@@ -59,7 +59,7 @@ safeExposeGlobals({ captureCombatRuntime, restoreCombatRuntime });
 function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : getCombatTime();
     return {
-        encounterKey: '', targetId: null, targetLockedUntil: 0,
+        encounterKey: '', targetId: null, targetLockedUntil: 0, approachTargetId: null,
         attackDelayUntil: 0, nextMoveAt: 0,
         lastAttackAt: timestamp, previousCell: null, consecutiveRetreats: 0
     };
@@ -1216,24 +1216,21 @@ function sanitizeCombatRuntimeState() {
 }
 
 
-function runColonyDefenseTick(pStats) {
-    let zoneNow = getZone(game.currentZoneId);
-    if (!zoneNow || zoneNow.id !== 'colony_run' || !(game.colony && game.colony.inRun)) return false;
-    if (game.enemies.length <= 0 && typeof spawnColonyWave === 'function') spawnColonyWave();
-    tickEnemyDotEffects(pStats, 0.1);
-    tickEnemyAilments(pStats, 0.1);
-    let evasion = updateCombatHazardEvasion(pStats);
-    let nowCast = getCombatTime();
-    let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil);
-    let castBlocked = nowCast < castUntil || evasion.avoiding
-        || (evasion.holdPosition && pStats.sSkill.mobilityPattern);
-    if (!castBlocked) pTimer += 0.1 * pStats.aspd;
-    while (!castBlocked && pTimer >= 1.0 && game.enemies.length > 0) {
-        pTimer -= 1.0;
-        performPlayerAttack(pStats);
+/** Combat owns wave spawns; the entry UI only starts the expedition. */
+function spawnColonyWave(){
+    let c = game.colony || {}; let zone = getZone('colony_run') || getZone(0);
+    let count = Math.max(0, getColonyWaveEnemyCount(c.wave) - Math.max(0, Math.floor(c.kills || 0)));
+    game.enemies=[];
+    for (let i=0;i<count;i++){
+        let marker = { elite: Math.random() < 0.22 + Math.min(0.35, (c.wave||1)*0.02), boss: false };
+        if (i===count-1 && (c.wave||1)%5===0) { marker.elite=true; marker.boss=true; }
+        let enemy = createEnemy(zone, marker, i);
+        let hpMul = marker.elite && !marker.boss ? 4.8 : 3.4;
+        enemy.maxHp = Math.floor(enemy.maxHp * hpMul); enemy.hp = enemy.maxHp;
+        enemy.atkMul *= marker.boss ? 1.45 : (marker.elite ? 1.2 : 1.05);
+        enemy.name = marker.boss ? '군락지 지배체' : (marker.elite ? '정예 군락지 벌레' : '군락지 벌레');
+        game.enemies.push(enemy);
     }
-    performMonsterAttacks(pStats);
-    return true;
 }
 
 function getActiveSummonGemDefs() {
@@ -2576,7 +2573,8 @@ function prepareCombatTick(nowMs) {
 
 function isCombatDecisionPending(state) {
     return state.pendingLoopHeroSelection || state.pendingLoopDecision || state.pendingLoopReady
-        || cosmosRouteRuntime.waiting(state);
+        || cosmosRouteRuntime.waiting(state)
+        || (state.combatHalted && String(state.currentZoneId).startsWith('worldtree_') && !state.worldTreeJourney.active);
 }
 
 function coreLoop(nowMs) {
@@ -2768,20 +2766,18 @@ function coreLoop(nowMs) {
     if ((typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) && !(game.beehive && game.beehive.awaitingClear)) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
-    if (runColonyDefenseTick(pStats)) return;
+    if (zoneNow?.type === 'colony' && game.colony.inRun && !game.enemies.length) spawnColonyWave();
     if (zoneNow && zoneNow.type === 'underworld' && game.playerHp > 0) {
         let floor = Math.max(1, Math.floor(zoneNow.floor || 1));
         if (floor >= 15) {
-            let tickPct = floor >= 40 ? 0.02 : (floor >= 30 ? 0.015 : 0.01);
-            let skyStoneMitigation = 1 - Math.max(0, Math.min(75, typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
-            let tickDmg = Math.max(1, Math.floor((pStats.maxHp || 1) * tickPct * skyStoneMitigation));
+            let tickDmg = getUnderworldLifeDrainPerTick(pStats.maxHp, floor, getSkyStoneReductionPct());
             tickDmg = applyTalentIncomingDamageMultiplier(tickDmg, pStats);
             tickDmg = absorbDamageWithTalentStoneShield(tickDmg);
             game.playerHp = Math.max(0, Math.floor(game.playerHp - tickDmg));
         }
     }
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
-    let holdMapProgress = !!(zoneNow && zoneNow.type === "abyss" && vRift.active);
+    let holdMapProgress = zoneNow?.type === 'colony' || (isVoidRiftCombatZone(zoneNow) && vRift.active);
     if (!holdMapProgress) advanceMapProgress(pStats);
     if (game.moveTimer <= 0 && (game.enemies || []).length === 0) {
         if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
@@ -2844,7 +2840,7 @@ function coreLoop(nowMs) {
         performMonsterAttacks(pStats);
     }
     zoneNow = getZone(game.currentZoneId);
-    if ((game.season || 1) >= 9 && zoneNow && zoneNow.type === 'abyss') {
+    if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zoneNow)) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (v.active) {
             v.pendingWave = v.pendingWave !== false;
@@ -2859,15 +2855,15 @@ function coreLoop(nowMs) {
                 v.pendingWave = false;
                 v.breachClears = (v.breachClears || 0) + 1;
                 let reward = 1 + (Math.random() < 0.2 ? 1 : 0);
-                reward = awardCurrency('voidChisel', reward, 'drop');
+                reward = combatLootReceipts.capture(game,()=>awardCurrency('voidChisel', reward, 'drop'));
                 let unlockedGrand = false;
-                if (Math.random() < 0.08) {
+                if (Math.random() < GRAND_BREACH_ENCOUNTER.unlockChance) {
                     v.grandBreachUnlock = true;
                     unlockedGrand = true;
                 }
                 addLog(`🕳️ 공허의 구멍 정리 완료!${reward ? ` 공허의 끌 +${reward}` : ''}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
-                    let enteredGrand = typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
+                    let enteredGrand = !zoneNow.worldTreeNode && typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
                     if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
                     if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
@@ -2889,7 +2885,7 @@ function coreLoop(nowMs) {
     }
     syncCrowdPauseState();
 
-    if (game.runProgress >= 100 && game.encounterIndex >= game.encounterPlan.length && game.enemies.length === 0) finishEncounterRun();
+    if (!holdMapProgress && game.runProgress >= 100 && game.encounterIndex >= game.encounterPlan.length && game.enemies.length === 0) finishEncounterRun();
 }
 
 function processPendingSlamEchoHits() {
@@ -5448,6 +5444,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     let enemy = {
         activeZoneId: game.currentZoneId,
+        activeUnderworldFloor: currentStatsZone && currentStatsZone.type === 'underworld' ? currentStatsZone.floor : 0,
         underworldGravityReductionPct: Math.max(0, Math.min(75,
             typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)),
         baseDmg: finalBaseDmg,
@@ -5910,7 +5907,7 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
 
 /**
  * 그리드 교전 상태를 갱신한다. 현재 스킬 사거리 안에 대상이 있으면 true,
- * 없으면 가장 가까운 적을 향해 플레이어를 한 칸씩 이동시키고 false를 반환한다.
+ * 없으면 접근 중인 적을 유지하며 한 칸씩 이동시키고 false를 반환한다.
  * @param {Readonly<object>} pStats getPlayerStats 결과
  * @param {{holdPosition?:boolean}} [options] 이동을 막고 현재 사거리 안 공격만 허용할지
  * @returns {boolean} 이번 틱에 공격이 가능한지
@@ -5925,6 +5922,7 @@ function updatePlayerGridEngagement(pStats, options) {
     }
     let targets = getSkillTargets(pStats);
     if (targets.length > 0) {
+        combatTacticsRuntime.approachTargetId = null;
         let now = getCombatTime();
         let stalled = now - combatTacticsRuntime.lastAttackAt >= COMBAT_TACTIC_STALL_MS;
         let plan = !config.holdPosition && game.combatTacticsUnlocked && !stalled
@@ -5934,8 +5932,7 @@ function updatePlayerGridEngagement(pStats, options) {
         return true;
     }
     if (config.holdPosition) return false;
-    let nearest = typeof getTalentRangerChargeTarget === 'function' ? getTalentRangerChargeTarget(alive) : null;
-    if (!nearest) nearest = findNearestGridEnemy(game.gridPlayer, alive);
+    let nearest = resolvePlayerApproachTarget(alive);
     if (!nearest) return false;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
@@ -6682,13 +6679,13 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * 120);
     }
     if (isBoss) {
-        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (zone.type === 'oceanDepth' ? `심해 가디언 ${Math.floor(zone.depthM || 0)}m` : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`)))));
+        let bossName = getBossNameForZone(zone, marker.storyStage ?? 0);
         name = `👿 ${bossName}`;
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
     let chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
-    let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null);
+    let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed, marker.storyStage ?? 0) : null);
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const realmVisualSet = typeof getRealmMonsterVisualSet === 'function' ? getRealmMonsterVisualSet(zone) : null;
     const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
@@ -6826,7 +6823,8 @@ function createEnemy(zone, marker, groupIndex) {
             enemy.maxEnergyShield = Math.max(enemy.maxEnergyShield || 0, Math.floor(enemy.maxHp * cosmosMods.energyShieldPct / 100));
             enemy.energyShield = Math.max(enemy.energyShield || 0, enemy.maxEnergyShield);
         }
-        enemy.traitName = enemy.traitName ? `${enemy.traitName} · ${cosmosMods.traitName}` : cosmosMods.traitName;
+        // Shared encounter modifiers can adjust stats without adding a named trait.
+        enemy.traitName = [enemy.traitName, cosmosMods.traitName].filter(Boolean).join(' · ');
     }
     if (zone.id === 'cosmos_astra' && isBoss) {
         enemy.astraBase = {
@@ -7086,6 +7084,18 @@ const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
     return bossHp / duration + bossHp * recoveryPerSecond;
 };
 
+/** Keep environmental HP drain separate from zones that only inherit underworld gravity. */
+function getMapEstimateZonePenalties(zone) {
+    const underworldGravityFloor = Math.max(0, Math.floor(Number(
+        zone.type === 'underworld' ? zone.floor : zone.underworldPenaltyFloor) || 0));
+    return {
+        underworldGravityFloor,
+        underworldLifeDrainFloor: zone.type === 'underworld' ? underworldGravityFloor : 0,
+        underworldGravityIgnoresReduction: false,
+        oceanPressureDepthTier: Math.max(0, Math.floor(Number(zone.oceanPressureDepthTier) || 0))
+    };
+}
+
 /**
  * 지도 카드에 표시할 대략적인 보스전 기준치다.
  * @param {{type:string,tier:number,id:(number|string),ele?:string}} zone
@@ -7133,22 +7143,52 @@ function estimateMapZonePowerRequirements(zone) {
         attackSpeedMul: Number(bossMods.attackSpeedMul || 1) * Number(cosmosTrait.attackSpeedVarMul || 1)
     } : bossMods;
     const threat = getMapEstimateThreatProfile(zone, threatMods, bossHit, seasonDepth, tier);
-    const underworldGravityFloor = Math.max(0, Math.floor(Number(
-        zone.type === 'underworld' ? zone.floor : zone.underworldPenaltyFloor) || 0));
-    return {
+    return getWorldTreePackReadiness(zone, hp, {
         dps: Math.max(1, Math.round(getMapBossRequiredDps(bossHp, contentScale.clearTimeSec, zone.boundaryRegenRate))),
         ehp: Math.max(1, Math.round(threat.threatWindow)),
         peakHit: Math.max(1, Math.round(threat.peakHit)),
         resistancePressure: threat.resistancePressure,
         elements: getMapEstimateDamageElements(zone),
         playerDpsMultiplier: 1,
-        underworldGravityFloor,
-        underworldGravityIgnoresReduction: false,
-        oceanPressureDepthTier: Math.max(0, Math.floor(Number(zone.oceanPressureDepthTier) || 0)),
+        ...getMapEstimateZonePenalties(zone),
         zoneId: zone.id,
         element: String(zone.ele || 'phys'),
         clearTimeSec: contentScale.clearTimeSec,
         basis: 'bossThreatWindow'
+    });
+}
+
+/** Pack-only journey nodes use a wave budget, never a nonexistent boss pattern. */
+function getWorldTreePackReadiness(zone, baseHp, bossEstimate) {
+    if (!zone.worldTreeNode || zone.worldTreeKind === 'boss') return bossEstimate;
+    const waves = worldTreeJourney.encounterPlan(zone);
+    const pack = Math.max(...waves.map(wave => wave.count));
+    const elite = waves.some(wave => wave.elite);
+    const tier = levelProgression.combatZone(zone).tier;
+    const loops = getLoopDifficultyInputs(zone);
+    const depth = getSoftenedLoopDepth(loops.seasonLoops);
+    const rank = elite
+        ? {hp:1.4 + getSoftenedLoopDepth(loops.loopCount) * 0.05, hit:1.28, crit:10, rate:1.16, pressure:8}
+        : {hp:1, hit:1, crit:4, rate:1, pressure:3};
+    const loop = game.season || 1;
+    const hp = baseHp * resolveMapEstimateContentScale(zone).hp * 0.92 * rank.hp;
+    const affix = getMapEstimateAffixPressure(zone);
+    const hit = getMonsterBaseHitDamage(zone, depth, clampNumber((tier - 1) / 10, 0, 1), null)
+        * rank.hit;
+    const critChance = (loop >= 2 ? rank.crit : 0) + affix.critChance;
+    const peak = hit * (critChance > 0 ? affix.critDamageMul : 1);
+    const rate = (0.26 + tier * 0.013) * 1.10
+        * (1 + depth * (0.012 + clampNumber((tier - 1) / 10, 0, 1) * 0.018))
+        * rank.rate * 1.03 * affix.attackRateMul;
+    const hits = Math.max(1, Math.ceil(rate * 2.5)) * pack;
+    return {
+        ...bossEstimate,
+        dps: Math.max(1, Math.round(hp * pack / bossEstimate.clearTimeSec)),
+        peakHit: Math.max(1, Math.round(peak)),
+        ehp: Math.max(1, Math.round(peak + hit * (hits - 1)
+            * (1 + Math.min(1, critChance / 100) * (affix.critDamageMul - 1)))),
+        resistancePressure: (loop >= 4 ? rank.pressure : 0) + affix.penetration,
+        basis: 'packThreatWindow'
     };
 }
 
@@ -7179,6 +7219,13 @@ function getFrequentSpawnEncounterProfile(zone) {
     }
     if (zone.type === 'underworld') profile.markerCount = Math.max(1, Math.floor(profile.markerCount * 0.5));
     return profile;
+}
+
+function generateChaosRealmEncounterPlan(zone) {
+    if (zone.worldTreeNode) return worldTreeJourney.encounterPlan(zone);
+    const profile = getZoneEncounterProfile(zone);
+    return [{at:28,count:profile.minPack+1,elite:true}, {at:62,count:profile.maxPack,elite:true},
+        {at:100,count:1+profile.bossAdds,boss:true}];
 }
 
 function generateEncounterPlan(zone) {
@@ -7216,10 +7263,7 @@ function generateEncounterPlan(zone) {
     }
     if (zone.type === 'seasonBoss') return [{ at: 100, count: 1, boss: true }];
     if (zone.type === 'outsideChaos') return [{ at: 100, count: 1, boss: true }];
-    if (zone.type === 'chaosRealm') {
-        let profile = getZoneEncounterProfile(zone);
-        return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
-    }
+    if (zone.type === 'chaosRealm') return generateChaosRealmEncounterPlan(zone);
     if (zone.type === 'oceanDepth') {
         let oceanSt = ensureOceanState();
         // 500m 경계에 도달해 보스가 대기 중이면 이번 런은 심해 가디언 단일 전투로 구성한다.
@@ -7784,15 +7828,9 @@ function spreadCatalystAilmentsOnDeath(enemy, pStats) {
     let ailments = enemy.ailments.map(ail => cloneEnemyAilmentForSpread(ail, pStats)).filter(Boolean);
     if (ailments.length <= 0) return;
     let sourceGroup = Number.isFinite(enemy.groupIndex) ? enemy.groupIndex : 0;
-    let sourceDist = Number.isFinite(enemy.colonyDist) ? enemy.colonyDist : null;
     let targets = (game.enemies || [])
         .filter(target => target && target.id !== enemy.id && target.hp > 0)
         .sort((a, b) => {
-            if (sourceDist !== null && Number.isFinite(a.colonyDist) && Number.isFinite(b.colonyDist)) {
-                let da = Math.abs(a.colonyDist - sourceDist);
-                let db = Math.abs(b.colonyDist - sourceDist);
-                if (da !== db) return da - db;
-            }
             let ga = Math.abs((Number.isFinite(a.groupIndex) ? a.groupIndex : 0) - sourceGroup);
             let gb = Math.abs((Number.isFinite(b.groupIndex) ? b.groupIndex : 0) - sourceGroup);
             if (ga !== gb) return ga - gb;
@@ -7991,7 +8029,6 @@ function tickEnemyAilments(pStats, dt) {
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
-        if (zone && zone.id === 'colony_run' && Number(enemy.colonyDist || 0) > 8) return;
         enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
         if (enemy.ailments.length <= 0) return;
         enemyAttackRules.interrupt(enemy,getCombatTime());
@@ -8063,7 +8100,6 @@ function tickEnemyDotEffects(pStats, dt) {
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
-        if (zone && zone.id === 'colony_run' && Number(enemy.colonyDist || 0) > 8) return;
         let dotState = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
         if (!dotState) return;
         dotState.timeLeft = Math.max(0, (dotState.timeLeft || 0) - dt);
@@ -8229,6 +8265,9 @@ function startEncounterRun() {
     game.bloomBossDefeated = false;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
     let zone = getZone(game.currentZoneId) || getZone(0);
+    if (zone.worldTreeKind === 'breach') Object.assign(game.voidRift, {
+        active:true, pendingWave:true, totalToSpawn:9, spawnedCount:0, defeatedCount:0, spawnTick:0
+    });
     dispatchRuntimeEvent('encounter-started', {
         zoneId: zone.id,
         zoneType: zone.type,
@@ -8314,6 +8353,10 @@ function finishTownReturnAction() {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
+    if (String(game.currentZoneId).startsWith('worldtree_')) {
+        worldTreeJourney.stop(game, '귀환했습니다. 발견한 길은 유지됩니다.');
+        game.currentZoneId = 0;
+    }
     cosmosRouteRuntime.leave(game);
     let pStats = getPlayerStats();
     game.playerHp = getPlayerHpCap(pStats);
@@ -8389,7 +8432,7 @@ function spawnEncounterMarker(marker) {
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
-        let bossEnemy = createEnemy(zone, { ...marker, count: 1 }, count);
+        let bossEnemy = createEnemy(zone, { ...marker, count: 1, storyStage: game.killsInZone }, count);
         let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
         if (storyAct && storyAct.specialType === 'forced_defeat') {
             let now = performance.now();
@@ -8685,6 +8728,10 @@ function applyGrandBreachMobTuning(zone, enemy) {
 }
 
 // 공허 증원: 경험치·생명력 2배, 공격 속도 1.25배, 피해 1.3배.
+function isVoidRiftCombatZone(zone) {
+    return !!zone && (zone.type === 'abyss' || zone.worldTreeKind === 'breach');
+}
+
 function applyVoidRiftMobTuning(enemy) {
     if (!enemy || enemy.isBoss) return;
     enemy.maxHp = Math.max(1, Math.floor((enemy.maxHp || 1) * 2));
@@ -8694,6 +8741,10 @@ function applyVoidRiftMobTuning(enemy) {
     enemy.expMul = (enemy.expMul || 1) * 2;
 }
 
+
+function isBeeMappingZone(zone) {
+    return !!zone && (zone.type === 'abyss' || zone.worldTreeKind === 'grove');
+}
 
 function maybeTriggerBeeMappingEvent(beeLv, enemy) {
     if (beeLv < 10 || !enemy || enemy.isBoss) return;
@@ -8741,7 +8792,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
         game.equipmentDropProgress = roll.nextProgress;
         return;
     }
-    const item = generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity });
+    const item = generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity, zone });
     const highlight = equipmentLootPolicy.highlight(item, game);
     const accepted = addItemToInventory(item);
     if (accepted) {
@@ -8750,6 +8801,18 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     game.equipmentDropProgress = roll.nextProgress;
     return accepted ? item : null;
 };
+
+function grantRealmBossUniqueLoot(enemy, zone) {
+    const item = generateRealmBossUniqueDrop(zone, enemy);
+    if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
+    const highlight = equipmentLootPolicy.highlight(item, game);
+    queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
+    return item;
+}
+
+function grantEnemyLoot(enemy) {
+    return combatLootReceipts.capture(game,()=>rollLootForEnemy(enemy));
+}
 
 function rollLootForEnemy(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
@@ -8871,6 +8934,7 @@ function rollLootForEnemy(enemy) {
 
     let { equipment: itemChance, growth: growthItemChance } = getEquipmentDropChances(zone, enemy);
     const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
+    grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
     rollGrowthItemDrop(enemy, growthItemChance);
     if (contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul) {
@@ -8894,7 +8958,7 @@ function rollLootForEnemy(enemy) {
         }
     }
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
-    let mappingZone = zone && zone.type === 'abyss';
+    let mappingZone = isBeeMappingZone(zone);
     if (beeUnlocked && mappingZone && !enemy.isBoss) {
         let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
         let beeLootLogs = [];
@@ -9030,7 +9094,7 @@ function handleEnemyDeath(enemy, pStats) {
     grantEliteTraitBuffFromEnemy(enemy, pStats);
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
-    rollLootForEnemy(enemy);
+    grantEnemyLoot(enemy);
     let bountyOffer = bountyRuntime.processKill(zone, enemy);
     if (bountyOffer.offered || bountyOffer.completed) {
         addLog(bountyOffer.completed ? '보물사냥 표적 처치! 전리품 획득 · 추가 보물을 받을 수 있습니다.' : '보물사냥이 준비되었습니다. 전투 화면에서 표적을 확인하세요.', 'loot-unique');
@@ -9041,10 +9105,10 @@ function handleEnemyDeath(enemy, pStats) {
     gainSkyRiftGaugeFromCombat(zone, enemy);
     spreadCatalystAilmentsOnDeath(enemy, pStats);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
-    if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
+    if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zone)) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
-        if (!v.active && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
+        if (!v.active && !zone.worldTreeNode && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
             v.active = true;
             v.activeKills = 0;
             v.requiredKills = 0;
@@ -9167,6 +9231,7 @@ function handleEnemyDeath(enemy, pStats) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         let rewards = getGrandBreachRewardSummary(grand.kills);
         rewards.voidChisel = awardCurrency('voidChisel', rewards.voidChisel, 'drop');
+        grand.rewardVoidChisel = rewards.voidChisel;
         grand.inRun = false;
         grand.phase = 'done';
         grand.timeLeft = 0;
@@ -9288,6 +9353,30 @@ function enterAutomaticMapInterruptionAfterClear(clearedZone) {
     }
     if (typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady()) return true;
     return false;
+}
+
+// Keep the destination stable through a pathfinding detour. Re-picking the nearest enemy
+// at every cell can reverse that detour forever; attackable enemies still take precedence.
+function resolvePlayerApproachTarget(alive) {
+    let target = typeof getTalentRangerChargeTarget === 'function' ? getTalentRangerChargeTarget(alive) : null;
+    if (!target) target = alive.find(enemy => enemy.id === combatTacticsRuntime.approachTargetId);
+    if (!target) target = findNearestGridEnemy(game.gridPlayer, alive);
+    combatTacticsRuntime.approachTargetId = target ? target.id : null;
+    return target;
+}
+// Called only after a map/floor payout, never between waves of a committed expedition.
+function continueMapAfterClear(zone) {
+    if (game.settings.mapCompleteAction === 'stop') {
+        game.combatHalted = true;
+        game.moveTimer = 0;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
+        return;
+    }
+    enterAutomaticMapInterruptionAfterClear(zone);
+    startMoving(false);
 }
 
 function unlockConditionGemsAfterRootBossClear() {
@@ -9461,6 +9550,27 @@ function grantBeyondBoundaryFocusedReward(result) {
     return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
 }
 
+function finishWorldTreeJourneyEncounter(zone) {
+    const result = worldTreeJourney.complete(game, zone);
+    if (!result) return;
+    game.killsInZone = 0;
+    game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0; game.moveTimer = 0;
+    const next = game.worldTreeJourney.queue[0];
+    const pause = result.discovery || result.boss || game.settings.mapCompleteAction === 'stop';
+    if (next && !pause && !worldTreeJourney.lockReason(game, next)) {
+        game.worldTreeJourney.queue.shift();
+        game.currentZoneId = next;
+        worldTreeJourney.enter(game, next);
+        startMoving(false);
+    } else {
+        game.combatHalted = true;
+        game.worldTreeJourney.queue = [];
+        if (!result.discovery && !result.boss && next) game.worldTreeJourney.notice.kind = 'paused';
+    }
+    queueImportantSave(200);
+    pendingHeavyUiRefresh = true;
+}
+
 function finishEncounterRun() {
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
@@ -9473,6 +9583,7 @@ function finishEncounterRun() {
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
     shrineRuntime.advanceAfterEncounter(zone);
+    if (zone.worldTreeNode) return finishWorldTreeJourneyEncounter(zone);
 
     if (zone.type === 'beyondBoundary') {
         let result = completeBeyondBoundaryEncounter(game);
@@ -9570,15 +9681,14 @@ function finishEncounterRun() {
             grantChaosRealmFloorBonus(floor);
         }
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-        st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
+        st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
         addLog(`🌌 혼돈계 ${floor}층 돌파!`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
         } else game.currentZoneId = CHAOS_REALM_ZONE_ID;
         game.killsInZone = 0;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
+        continueMapAfterClear(zone);
         updateStaticUI();
         queueImportantSave(220);
         return;
@@ -9586,6 +9696,7 @@ function finishEncounterRun() {
     if (zone.type === 'skyTower') {
         let st = ensureSkyTowerState();
         let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+        game.loopProgressCurrent.bestSkyFloor = Math.max(game.loopProgressCurrent.bestSkyFloor || 0, floor);
         let remainingBefore = getSkyTowerRemainingClears();
         if (remainingBefore > 0) {
             st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
@@ -9596,7 +9707,7 @@ function finishEncounterRun() {
                 st.clearedFloors.push(floor);
                 st.clearedFloors = Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b);
                 st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-                st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
+                st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
                 if (floor >= 10) unlockJournalEntry('sky_tower_10');
             } else {
                 if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
@@ -9613,8 +9724,7 @@ function finishEncounterRun() {
         }
         game.killsInZone = 0;
         game.currentZoneId = SKY_TOWER_ZONE_ID;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
+        continueMapAfterClear(zone);
         updateStaticUI();
         queueImportantSave(220);
         return;
@@ -9623,7 +9733,7 @@ function finishEncounterRun() {
         let rift = ensureTimeRiftState();
         if (zone.riftPhase === 'past') {
             rift.altarOpen = true;
-            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 인벤토리에서 아이템을 선택해 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
+            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
         } else {
             let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
             if (fusion) {
@@ -9636,8 +9746,7 @@ function finishEncounterRun() {
         rift.activePressure = null;
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
+        continueMapAfterClear(zone);
         updateStaticUI();
         queueImportantSave(220);
         return;
@@ -9749,16 +9858,12 @@ function finishEncounterRun() {
         let prevLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
         if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
-        if (mapAction === 'repeatZone') {
-            game.labyrinthFloor = clearedFloor;
-        } else {
-            game.labyrinthFloor = clearedFloor + 1;
-            game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, game.labyrinthFloor || 1);
-            if ((game.labyrinthUnlockedMaxFloor || 1) > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
-        }
+        game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
+        if (game.labyrinthUnlockedMaxFloor > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
+        game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
         let fossilDropMul = contentProgression.isUnlocked('fossil') ? 1 + Math.max(0, getExpertNodeEffectValue('fossilDropPct')) / 100 : 0;
         let fossilRareMul = contentProgression.isUnlocked('fossil') ? 1 + Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) / 100 : 0;
-        let fossilChances = getLabyrinthFossilDropChances(game.labyrinthFloor, fossilDropMul, fossilRareMul);
+        let fossilChances = getLabyrinthFossilDropChances(clearedFloor, fossilDropMul, fossilRareMul);
         let gotBaseFossil = Math.random() < fossilChances.base;
         if (gotBaseFossil) awardCurrency('fossil', 1);
         let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
@@ -9776,20 +9881,19 @@ function finishEncounterRun() {
         }
         if ((game.season || 1) >= 6 && Math.random() < 0.025) awardCurrency('sealShard', 1, 'drop');
         if ((game.season || 1) >= 6 && Math.random() < 0.0075) awardCurrency('strongSealShard', 1, 'drop');
-        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1, 'drop');
+        if ((game.season || 1) >= 6 && clearedFloor >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1, 'drop');
         let fossilSummary = [];
         if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
         if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
         if (gotPrimalFossil) fossilSummary.push('원시 화석 +1');
         if (gotAncientPrimalFossil) fossilSummary.push('원시 고대 화석 +1');
-        addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
+        addLog(`🏛️ 미궁 ${clearedFloor}층 돌파! [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             if (nextZone !== null) game.currentZoneId = nextZone;
         }
         game.killsInZone = 0;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
+        continueMapAfterClear(zone);
         updateStaticUI();
         queueImportantSave(200);
         return;
@@ -9798,8 +9902,9 @@ function finishEncounterRun() {
         let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
         game.underworldProgress = uw;
         let floor = Math.max(1, Math.floor(zone.floor || uw.currentFloor || 1));
+        game.loopProgressCurrent.bestUnderworldFloor = Math.max(game.loopProgressCurrent.bestUnderworldFloor || 0, floor);
         uw.highestFloor = Math.max(Math.floor(uw.highestFloor || 1), floor + 1);
-        uw.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(uw.highestFloor, floor + 1);
+        uw.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(uw.highestFloor, floor + 1);
         if (floor >= 10) uw.floor10Cleared = true;
         if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
         if (floor % 10 === 0) {
@@ -9819,18 +9924,8 @@ function finishEncounterRun() {
         else if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : UNDERWORLD_ZONE_ID;
-        } else if (mapAction === 'stop') {
-            game.combatHalted = true;
-            game.enemies = [];
-            game.encounterPlan = [];
-            game.encounterIndex = 0;
-            game.runProgress = 0;
-            updateStaticUI();
-            queueImportantSave(180);
-            return;
         } else game.currentZoneId = UNDERWORLD_ZONE_ID;
-        enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
+        continueMapAfterClear(zone);
         updateStaticUI();
         queueImportantSave(220);
         return;
@@ -9883,7 +9978,6 @@ function finishEncounterRun() {
         if (zone.type === 'act') {
             let storyAct = getStoryActByZoneId(zone.id);
             if (storyAct && storyAct.clearText) addLog(`📜 ${storyAct.clearText}`, 'season-up');
-            if (zone.id === 1) addLog('📖 정원사의 불멸 앞에서 패배를 기록했지만, 전진을 위한 보상은 확보했다.', 'season-up');
             if (zone.id === 0) unlockJournalEntry('act_1');
             if (zone.id === 1) unlockJournalEntry('act_2');
             if (zone.id === 2) {
@@ -11389,6 +11483,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         zoneName: zone && zone.name ? zone.name : '알 수 없는 지역',
         expLost: expLost,
         primaryElement: primaryElement,
+        fatalElement: opts.fatalElement,
         reasonText: reasonText,
         damageSummary: damageSummary,
         ailmentDamageSummary: ailmentDamageSummary,
@@ -11399,6 +11494,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     startMoving(false);
+    worldTreeJourney.fail(game, zone);
     updateStaticUI();
     queueImportantSave(160);
 }
@@ -11548,17 +11644,6 @@ function tickAilments(pStats, dt) {
 }
 
 
-function updateColonyDefenseApproach() {
-    let zone = getZone(game.currentZoneId);
-    if (!zone || zone.id !== 'colony_run' || !(game.colony && game.colony.inRun)) return;
-    let enemies = (game.enemies || []).filter(e => e && e.hp > 0);
-    enemies.forEach(e => {
-        if (!Number.isFinite(e.colonyDist)) e.colonyDist = 100 + Math.random() * 40;
-        let spd = Math.max(0.1, Number(e.colonyMoveSpeed || e.moveSpeed || 0.6));
-        e.colonyDist = Math.max(0, e.colonyDist - spd * 0.55);
-    });
-}
-
 function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMultiplier) {
     let keyByElement = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' };
     let suffix = keyByElement[element];
@@ -11601,7 +11686,7 @@ function getCosmosEqualSplitDamageBreakdown(rawDamage, pStats, enemy) {
 
 function getEnemyPreferredGridTarget(enemy) {
     let player = game.gridPlayer;
-    if (Number.isFinite(enemy.colonyDist) || !hasGridCell(enemy) || !hasGridCell(player)) return player;
+    if (!hasGridCell(enemy) || !hasGridCell(player)) return player;
     let bestTarget = player;
     let bestDistance = getGridUnitDistance(enemy, player);
     (game.summons || []).forEach(summon => {
@@ -11616,8 +11701,6 @@ function getEnemyPreferredGridTarget(enemy) {
 
 /** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스 무제한) 안에 선택한 목표를 두고 있는지 판정한다. */
 function isEnemyInGridAttackRange(enemy, target) {
-    // 식민지 방어전은 자체 접근 거리(colonyDist) 모델을 쓰므로 그리드 사거리를 적용하지 않는다.
-    if (Number.isFinite(enemy.colonyDist)) return true;
     // 칸 미배정 상태(레거시 저장 복원 직후 등)에서는 다음 틱의 그리드 복구 전까지 기존 동작을 유지한다.
     target = target || game.gridPlayer;
     if (!hasGridCell(enemy) || !hasGridCell(target)) return true;
@@ -11754,7 +11837,6 @@ function getMonsterBaseHitDamage(zone, seasonDepth, tierPressure, benchmarkProfi
 }
 
 function performMonsterAttacks(pStats) {
-    updateColonyDefenseApproach();
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
@@ -12695,7 +12777,7 @@ function awardLoopProgressPoints() {
     bonus += woodsmanGain;
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
     game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
-    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
+    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] };
     game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
     game.woodsmanPendingScore = game.woodsmanSettledScore;
     return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain: woodsmanGain, woodsmanScore: woodsmanScore, woodsmanDelta: woodsmanDelta };
@@ -12917,6 +12999,7 @@ function triggerSeasonReset(options) {
     game.mapSubtab = 'map-tab-zones';
     game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
+    worldTreeJourney.stop(game, '');
     game.timeRift = preservedTimeRift;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;

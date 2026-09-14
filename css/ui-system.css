@@ -51,7 +51,7 @@ body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
   box-shadow: var(--ui-focus) !important;
 }
 
-body:not(.light-mode) :where(button, input, select, textarea):disabled {
+body:not(.light-mode) :where(button, input, select, textarea):disabled:not(.ocean-strategy-card) {
   cursor: not-allowed;
   filter: saturate(.55);
   opacity: .48;

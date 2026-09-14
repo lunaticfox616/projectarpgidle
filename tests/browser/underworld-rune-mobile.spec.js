@@ -35,7 +35,7 @@ test('rune selection keeps close and unequip available while browsing a full inv
     await page.evaluate(()=>{
         game.underworldRunes.obtainedRunes=[];openUnderworldRuneOverlay(0);
     });
-    await expect(overlay).toContainText('보유한 룬이 없습니다.');
+    await expect(overlay).toContainText('보관 중인 룬이 없습니다.');
     await expect(overlay.getByRole('button',{name:'이 슬롯 해제',exact:true})).toBeDisabled();
     await overlay.getByRole('button',{name:'닫기',exact:true}).click();
     await page.evaluate(()=>{

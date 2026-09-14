@@ -237,6 +237,13 @@ function createScrollableRenderHost(top, left) {
         'ui-growth-inv-count': createRenderHost(),
         'ui-growth-inv-limit': createRenderHost()
     };
+    // Model the search DOM too: a browser-created result list cannot remain null after innerHTML.
+    const searchInput = { value: '' };
+    const searchResults = createRenderHost();
+    elements['ui-growth-inventory'].querySelector = selector => {
+        if (selector === '.search-result-list') return searchResults;
+        return selector.startsWith('input[') ? searchInput : null;
+    };
     ctx.document.getElementById = id => elements[id] || null;
     run('renderGrowthTab({ force: true })');
 

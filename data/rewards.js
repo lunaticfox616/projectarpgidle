@@ -4,7 +4,7 @@ if (typeof safeExposeData !== 'function') throw new Error('data/constants.js mus
 const ACT_REWARD_DB = {
     0: {
         title: '액트 1 클리어 보상',
-        body: '해안에서 건진 전리품 중 하나를 골라 다음 구간을 준비하세요.',
+        body: '성소에서 얻은 전리품 중 하나를 골라 다음 구간을 준비하세요.',
         choices: [
             { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '액트 1 장갑을 받습니다.' },
             { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '액트 1 무기를 받습니다.' },

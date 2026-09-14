@@ -14,6 +14,14 @@
     let lastSkillPanelRenderSignature = '';
     const libraryPages = { skill: { index: 0, query: '' }, support: { index: 0, query: '' } };
 
+    /** @param {{title: string, action: string, done: boolean, ready: boolean, details: string, gain?: number}} upgrade
+     * @param {number} currentLevel Displayed total gem level, including equipment and passives. */
+    function renderGemUpgradeButton(upgrade, currentLevel) {
+        let details = upgrade.done ? '최대 단계' : upgrade.details;
+        if (!upgrade.done && upgrade.gain) details += ` · 적용 후 최종 Lv.${currentLevel + upgrade.gain}`;
+        return `<button class="gem-upgrade-btn ${upgrade.done ? 'done' : ''}" onclick="${escapeHTML(upgrade.action)}" ${upgrade.ready && !upgrade.done ? '' : 'disabled'}><strong>${escapeHTML(upgrade.title)}${upgrade.done ? ' 완료' : ''}</strong><small>${escapeHTML(details)}</small></button>`;
+    }
+
     function syncMobileLibraryNavigation(kind) {
         const panel = document.getElementById('skill-tab-equip');
         const navigation = panel.querySelector('.skill-mobile-library-navigation');
@@ -72,6 +80,71 @@
         updateStaticUI();
     });
 
+    function renderGemResearchCandidate(kind, name, cost, availableFragments) {
+        let isSupport = kind === 'support';
+        let def = isSupport ? (SUPPORT_GEM_DB[name] || {}) : (SKILL_DB[name] || {});
+        let meta = getGemCardMeta(def);
+        let encodedName = encodeURIComponent(name);
+        let affordable = availableFragments >= cost;
+        let rangeText = !isSupport && typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, def) : '';
+        let tags = renderGemTagChips(def, 3);
+        if (!tags && isSupport) {
+            tags = `<span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || '') || '보조 효과')}</span>`;
+        }
+        let art = isSupport ? '<span>보조</span>' : renderSkillGemArt(name, 'gem-research-card-art');
+        return `<article class="gem-research-card element-${meta.className}" aria-label="${escapeHTML(name)}">
+            <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조 젬' : `${meta.elementLabel} · ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
+            <p>${escapeHTML(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>
+            ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
+            <div class="gem-card-tags">${tags}</div>
+            <button type="button" onclick="researchMissingGem('${kind}', decodeURIComponent('${encodedName}'))" ${affordable ? '' : 'disabled'}>
+                ${affordable ? `확정 연구 · 잔향 ${cost}` : `잔향 부족 · ${availableFragments}/${cost}`}
+            </button>
+        </article>`;
+    }
+    function renderGemResearchSection(kind, collection, options) {
+        const {query, cost, fragments, defaultOpen} = options;
+        const data = collection[kind];
+        const definitions = kind === 'support' ? SUPPORT_GEM_DB : SKILL_DB;
+        const matches = data.missing.filter(name => matchSearchQuery(window.getGemSearchText(name, definitions[name]), query));
+        if (query && !matches.length) return '';
+        const saved = game.gemResearchExpanded[kind];
+        const open = query ? true : (typeof saved === 'boolean' ? saved : defaultOpen);
+        const label = kind === 'support' ? '보조' : '공격';
+        const cards = matches.map(name => renderGemResearchCandidate(kind, name, cost, fragments)).join('');
+        return `<details data-gem-research-section="${kind}" ${open ? 'open' : ''}><summary>미보유 ${label} 젬 <b>${matches.length}</b></summary><div class="gem-research-grid">${cards || '<div class="gem-process-empty">수집 완료</div>'}</div></details>`;
+    }
+    function bindGemResearchSections(root, query) {
+        root.querySelectorAll('details[data-gem-research-section]').forEach(details => {
+            if (details.dataset.bound) return;
+            details.dataset.bound = 'true';
+            details.addEventListener('toggle', () => {
+                if (query) return;
+                game.gemResearchExpanded[details.dataset.gemResearchSection] = details.open;
+                queueImportantSave(500);
+            });
+        });
+    }
+    function renderGemResearchPanel() {
+        const root = document.getElementById('ui-gem-research-panel');
+        if (!root) return;
+        const state = getGemResearchCollectionState();
+        const fragments = Math.max(0, Math.floor(game.currencies.gemShard || 0));
+        const query = getSearchFilterState().gemResearch.trim();
+        const attackCost = getGemResearchCost('attack'), supportCost = getGemResearchCost('support');
+        if (!root.querySelector('#ui-gem-research-results')) {
+            root.innerHTML = '<div class="gem-research-summary"></div><div id="ui-gem-research-results"></div>';
+        }
+        root.querySelector('.gem-research-summary').innerHTML = `<div><h3>젬 연구</h3><p>젬 잔향으로 원하는 미보유 젬을 획득합니다.</p></div>
+            <div class="gem-research-resource"><span>젬 잔향</span><strong>${fragments}</strong><small>공격 ${attackCost} · 보조 ${supportCost}</small></div>
+            <div class="gem-research-progress"><span>공격 <b>${state.attack.owned}/${state.attack.total}</b></span><span>보조 <b>${state.support.owned}/${state.support.total}</b></span></div>`;
+        const sections = renderGemResearchSection('attack', state, {query, cost: attackCost, fragments, defaultOpen: fragments >= attackCost})
+            + renderGemResearchSection('support', state, {query, cost: supportCost, fragments, defaultOpen: fragments >= supportCost && !state.attack.missing.length});
+        const allComplete = !state.attack.missing.length && !state.support.missing.length;
+        const rows = allComplete ? '<div class="gem-research-complete">모든 젬 연구 완료</div>' : (sections ? `<div class="gem-research-columns">${sections}</div>` : '');
+        renderSearchSection('ui-gem-research-results', 'gemResearch', '젬 이름·효과·태그 검색', rows, '<div class="gem-process-empty">검색 결과가 없습니다.</div>', '');
+        bindGemResearchSections(root, query);
+    }
     function renderSkillGemScreen(context) {
         syncMobileLibraryNavigation();
         let ctx = context || {};
@@ -113,7 +186,7 @@
                 condensedPower: Math.max(0, Math.floor((skyTowerSignatureState && skyTowerSignatureState.condensedPower) || 0)),
                 gemBoosts: (skyTowerSignatureState && skyTowerSignatureState.gemBoosts) || {}
             },
-            filters: { skill: sf.skill || '', support: sf.support || '' },
+            filters: { skill: sf.skill || '', support: sf.support || '', gemResearch: sf.gemResearch || '' },
             foldAttackInactive: foldAttackInactive,
             foldSupportInactive: foldSupportInactive,
             suppCap: pStats.suppCap || 0,
@@ -211,14 +284,15 @@
                 renderGemResourceStrip(activeGem, gemExpertLv, condensedPower);
                 renderGemEngraveSlots(activeSlots, engraveCap);
                 renderSupportGemProcessList(gemExpertLv);
-                let upgradeBtns = [];
                 let currentTotalGemLevel = Math.max(1, Math.floor((activePresentation && activePresentation.totalLevel) || 1));
-                upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유 ${game.currencies.bossCore || 0} / 필요 ${bossNeed} · ${activeGem && activeGem.bossCoreLevel >= 5 ? '최대 단계' : `적용 후 최종 Lv.${currentTotalGemLevel + 1}`}</small></button>`);
-                upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유 ${game.currencies.skyEssence || 0} / 필요 ${skyNeed} · ${activeGem && activeGem.skyCoreLevel >= 5 ? '최대 단계' : `적용 후 최종 Lv.${currentTotalGemLevel + 1}`}</small></button>`);
-                upgradeBtns.push(`<button class="gem-upgrade-btn ${permanentSkyBoost >= permanentSkyMax ? 'done' : ''}" onclick="upgradeActiveGemWithCondensedSkyPower()" ${!isGem || permanentSkyBoost >= permanentSkyMax ? 'disabled' : ''}><strong>${permanentSkyBoost >= permanentSkyMax ? '✅ 응축 창공 강화 완료' : '응축 창공 영구 강화'}</strong><br><small>루프 초기화 없음 · 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost} · ${permanentSkyBoost >= permanentSkyMax ? '최대 단계' : `적용 후 최종 Lv.${currentTotalGemLevel + 1}`}</small></button>`);
-                upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed} · 피해·속도 배율 +0.5%</small></button>`);
-                upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>각인사 Lv.15 · 기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · ${activeGem && activeGem.awakened ? '각성 완료' : `적용 후 최종 Lv.${currentTotalGemLevel + 2}`}</small></button>`);
-                document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 젬 강화 재료가 없습니다.</div>`;
+                const upgrades = [
+                    { title: '군주의 핵 강화', action: "upgradeActiveGem('bossCore', 1)", done: activeGem?.bossCoreLevel >= 5, ready: (game.currencies.bossCore || 0) >= bossNeed, details: `보유 ${game.currencies.bossCore || 0} / 필요 ${bossNeed}`, gain: 1 },
+                    { title: '창공의 힘 강화', action: "upgradeActiveGem('skyEssence', 1)", done: activeGem?.skyCoreLevel >= 5, ready: (game.currencies.skyEssence || 0) >= skyNeed, details: `보유 ${game.currencies.skyEssence || 0} / 필요 ${skyNeed}`, gain: 1 },
+                    { title: '응축 창공 영구 강화', action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: `${game.skyTower.unlocked ? '루프 초기화 없음' : '창공의 탑 해금 필요'} · 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost}`, gain: 1 },
+                    { title: '젬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: gemExpertLv >= 8 && (game.currencies.bossCore || 0) >= qualityNeed, details: `젬 각인사 Lv.8 · 군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed} · 피해·속도 배율 +0.5%` },
+                    { title: '각성 젬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `각인사 Lv.15 · 기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }
+                ];
+                document.getElementById('ui-gem-upgrade-actions').innerHTML = isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 젬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 젬 장착하기</button></div>';
                 if ((game.season || 1) >= 4) {
                     document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>각인을 누르면 빈 슬롯에 적용되고, 적용 중인 각인을 다시 누르면 해제됩니다. 특정 슬롯을 교체하려면 위 슬롯을 누르세요.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, gemExpertLv, isGem)).join('');
                 } else {

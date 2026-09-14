@@ -29,6 +29,28 @@ async function openInventory(page) {
     await page.evaluate(()=>{tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);});
 }
 
+test('empty equipment comparison remains readable in both themes',async({page})=>{
+    await openInventory(page);
+    await page.locator('#ui-inventory-list').getByRole('button',{name:'검색어 리셋',exact:true}).focus();
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.equipment-grid-item').first()).toBeFocused();
+    await page.locator('.equipment-grid-item').first().click();
+    const empty=page.locator('#ui-equipment-inventory-inspector').getByText('장착한 장비 없음',{exact:true});
+    await expect(empty).toBeVisible();
+    for(const light of [false,true]){
+        await page.evaluate(value=>document.body.classList.toggle('light-mode',value),light);
+        const contrast=await empty.evaluate(el=>{
+            const luminance=color=>color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>v/255)
+                .map(v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4)
+                .reduce((sum,v,i)=>sum+v*[0.2126,0.7152,0.0722][i],0);
+            const text=luminance(getComputedStyle(el).color);
+            const background=luminance(getComputedStyle(el.parentElement).backgroundColor);
+            return (Math.max(text,background)+0.05)/(Math.min(text,background)+0.05);
+        });
+        expect(contrast).toBeGreaterThanOrEqual(4.5);
+    }
+});
+
 test('equipment analysis supports cancellation, restart and build invalidation', async ({page}, info) => {
     await openInventory(page);
     const errors = []; page.on('pageerror', error => errors.push(error.message));

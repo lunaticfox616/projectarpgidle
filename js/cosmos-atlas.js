@@ -1701,9 +1701,10 @@
         const model = getCosmosNodeRecommendation(node);
         if (!model || !model.readiness) return '';
         const ready = model.readiness;
+        const label = `권장 전투력 ${ready.meetsRecommendation ? '달성' : '미달성'}`;
         return `<div class="cosmos-detail-section cosmos-readiness">
             <div class="cosmos-section-label">전투 준비도</div>
-            <div class="cosmos-power-grid map-power-estimate" tabindex="0" aria-label="화력 ${ready.dps.label} · 생존력 ${ready.ehp.label}" data-info-tooltip-anchor="1" data-player-dps="${Math.round(ready.playerDps)}" data-recommended-dps="${Math.round(ready.recommendedDps)}" data-player-ehp="${Math.round(ready.playerEhp)}" data-recommended-ehp="${Math.round(ready.recommendedEhp)}" data-limiting-element="${ready.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span>화력<strong class="map-power-grade grade-${ready.dps.id}">${ready.dps.label}</strong></span><span>생존력<strong class="map-power-grade grade-${ready.ehp.id}">${ready.ehp.label}</strong></span></div>
+            <div class="cosmos-power-grid map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-player-dps="${Math.round(ready.playerDps)}" data-recommended-dps="${Math.round(ready.recommendedDps)}" data-player-ehp="${Math.round(ready.playerEhp)}" data-recommended-ehp="${Math.round(ready.recommendedEhp)}" data-limiting-element="${ready.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span><strong class="map-power-grade grade-${ready.meetsRecommendation ? 'high' : 'low'}">${label}</strong></span></div>
         </div>`;
     }
 

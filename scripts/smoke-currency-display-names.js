@@ -35,25 +35,15 @@ assert.strictEqual(currencyContext.getCanonicalCurrencyKey('goldenRule'), 'golde
 
 const banner = { innerText: '', classList: { add() {}, remove() {} } };
 const logs = [];
-const awardContext = {
-    document: { getElementById: id => id === 'divine-drop-banner' ? banner : null },
-    ORB_DB: { goldenRule: { name: '황금률' }, ouroboros: { name: '우로보로스' } },
-    game: { currencies: {}, currencyDropVersion: 0, noti: {} },
-    divineBannerTimer: null,
-    getCanonicalCurrencyKey: currencyContext.getCanonicalCurrencyKey,
-    addLog: message => logs.push(message),
-    clearTimeout() {},
-    setTimeout() {}
-};
-vm.createContext(awardContext);
-vm.runInContext([
-    readFunctionSource(passiveSource, 'showDivineDropBanner'),
-    readFunctionSource(passiveSource, 'awardCurrency')
-].join('\n'), awardContext);
+const awardContext = require('./lib/game-runtime').buildGameRuntime();
+awardContext.document.getElementById = id => id === 'divine-drop-banner' ? banner : null;
+awardContext.addLog = message => logs.push(message);
+vm.runInContext('game=mergeDefaults({});window.game=game;',awardContext);
 
 awardContext.awardCurrency('divine', 2);
 assert.strictEqual(awardContext.game.currencies.goldenRule, 2, 'legacy divine rewards must enter the consolidated balance');
-assert.strictEqual(awardContext.game.currencies.divine, undefined, 'deleted balances must not be recreated');
+assert.strictEqual(JSON.parse(JSON.stringify(awardContext.game.currencies)).divine, undefined,
+    'the legacy compatibility accessor must not recreate a separate saved balance');
 assert.strictEqual(banner.innerText, '황금률 획득! +2');
 assert(logs.some(message => message.includes('황금률 +2') && !message.includes('신성한 오브')), 'drop logs must use the current currency name');
 

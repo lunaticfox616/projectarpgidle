@@ -1,7 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('flask slot management and category picking preserve charge and quality rules', async ({ page }, info) => {
-    const errors = []; page.on('pageerror', error => errors.push(error.message));
+async function openFlasks(page) {
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/'); await page.locator('#btn-startup-guest').click();
     await page.locator('[data-class-id="warrior"]').click();
@@ -19,6 +18,11 @@ test('flask slot management and category picking preserve charge and quality rul
         game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row => row.noticeKey).filter(Boolean));
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); return true;
     });
+}
+
+test('flask slot management and category picking preserve charge and quality rules', async ({ page }, info) => {
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await openFlasks(page);
     const mobile = info.project.use.isMobile;
     const slots = page.getByRole('combobox', { name: '관리할 플라스크 슬롯' });
     if (mobile) {
@@ -50,4 +54,43 @@ test('flask slot management and category picking preserve charge and quality rul
         await expect(page.locator('.flask-slot-box:visible')).toHaveCount(4);
     }
     expect(errors).toEqual([]);
+});
+
+test('flask crafting availability, quality comparison and keyboard dismissal reflect actual use', async ({ page }, info) => {
+    await openFlasks(page);
+    await page.evaluate(() => {
+        const st = ensureFlaskState();
+        st.utils = []; st.foundKeys = ['h1', 'h2']; st.healTier = 'h2';
+        st.qualityByKey = { h2: 20 }; st.alchemyGlass = 6;
+        updateStaticUI();
+    });
+    const workbench = page.locator('.flask-workbench');
+    const summary = workbench.locator('summary');
+    await expect(summary).toContainText('제작 가능 5개');
+    await summary.click();
+    await workbench.locator('.flask-craft-card').filter({ hasText: '화강암 플라스크 I' }).getByRole('button').click();
+    await expect(summary).toContainText('제작 가능 0개');
+    await expect(workbench).toHaveAttribute('open', '');
+    expect(await page.evaluate(() => ensureFlaskState().alchemyGlass)).toBe(0);
+    expect(await page.evaluate(() => ensureFlaskFoundKeys().includes('granite1'))).toBe(true);
+    await expect(workbench.locator('button:enabled')).toHaveCount(0);
+    const trigger = page.locator('.flask-slot-box.heal .flask-slot-select');
+    await trigger.click();
+    const picker = page.locator('#flask-picker-overlay');
+    await expect(picker).toHaveAttribute('role', 'dialog');
+    await expect(picker.locator('.selection-overlay-help')).toContainText('제작');
+    const nextTier = picker.locator('.selection-overlay-option').filter({ hasText: '생명력 플라스크 III' });
+    await expect(nextTier).toContainText('38.4% → 40.0% (+1.6%p)');
+    await expect(nextTier).toBeDisabled();
+    await expect(picker.getByRole('button', { name: '닫기', exact: true })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(picker.locator('.selection-overlay-option.selected')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(picker.getByRole('button', { name: '닫기', exact: true })).toBeFocused();
+    await page.screenshot({ path: info.outputPath('flask-quality-picker.png') });
+    await page.keyboard.press('Escape');
+    await expect(picker).toHaveCount(0);
+    await expect(page.locator('#ui-flask-panel')).toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(await page.evaluate(() => ensureFlaskState().healTier)).toBe('h2');
 });

@@ -1,5 +1,19 @@
 const {test,expect}=require('@playwright/test');
 
+test('introduction confirmation closes in the storage-isolated sandbox and stops video',async({page})=>{
+    await page.goto('/tests/fixtures/first-journey/index.html');
+    const gameFrame=page.frameLocator('#game');
+    const opener=gameFrame.locator('#startup-about-open');
+    await opener.click();
+    const dialog=gameFrame.locator('#startup-about-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button',{name:'알겠어요!',exact:true}).click();
+    await expect(dialog).toBeHidden();await expect(opener).toBeFocused();
+    expect(await gameFrame.locator('#startup-about-video').evaluate(video=>video.paused)).toBe(true);
+    await gameFrame.locator('#btn-startup-guest').click();
+    await expect(gameFrame.locator('#loop-hero-select-overlay')).toBeVisible();
+});
+
 test('game introduction loads real footage on demand and closes without changing progress',async({page},info)=>{
     const requests=[];const errors=[];
     page.on('request',request=>{if(request.url().includes('gameplay-intro.webm'))requests.push(request.url());});

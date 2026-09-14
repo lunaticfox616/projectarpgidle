@@ -129,7 +129,7 @@ test('defeat keeps paid loot, blocks retry for 30 seconds and then offers new ro
         const dust=game.currencies.starDust,clears=[...game.cosmosAtlas.cleared];
         game.moveTimer=0;game.isTownReturning=false;
         handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),'항로 검증',{noToast:true});
-        document.getElementById('death-overlay')?.classList.remove('active');
+        closeDeathOverlay();
         renderCosmosAtlas();
         return {dust,clears,phase:game.cosmosRoute.phase,zone:game.currentZoneId,blocked:!cosmosRouteRuntime.start(game)};
     });

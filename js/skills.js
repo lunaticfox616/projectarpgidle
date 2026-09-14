@@ -169,6 +169,7 @@ function upgradeActiveGemWithCondensedSkyPower() {
     if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
     st.condensedPower -= cost;
     st.gemBoosts[active] = current + 1;
+    queueImportantSave(200);
     addLog(`☁️ [${active}] 응축 창공 영구 강화 ${current + 1}/${getSkyTowerGemBoostMaxLevel()} (루프 초기화 없음)`, 'loot-unique');
     updateStaticUI();
 }

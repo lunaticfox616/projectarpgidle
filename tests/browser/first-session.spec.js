@@ -2,6 +2,20 @@
 // This verifies usability prerequisites; only human participants can judge fun.
 const { test, expect } = require('@playwright/test');
 
+for (const [classId, label] of [['occultist', '비술사'], ['warrior', '전사']]) {
+    test(`initial ${classId} selection updates HUD before the paused prologue ends`, async ({page}) => {
+        await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+        await page.goto('/');await page.locator('#btn-startup-guest').click();
+        await page.locator(`[data-class-id="${classId}"]`).click();
+        await expect(page.locator('#tutorial-overlay')).toHaveClass(/active/);
+        await expect(page.locator('#ui-player-name-label')).toHaveText(label);
+        const resource=await page.evaluate(()=>({hp:game.playerHp,cap:getPlayerHpCap(getPlayerStats())}));
+        expect(resource.hp).toBe(resource.cap);
+        expect(Number(await page.locator('#ui-hp').innerText())).toBe(Number(await page.locator('#ui-maxhp').innerText()));
+        expect(await page.evaluate(()=>game.loopKills)).toBe(0);
+    });
+}
+
 test('a new warrior earns and equips the first gem through visible controls', async ({ page }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -27,7 +41,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
         const state = await page.evaluate(() => ({
             seen: game.seenTutorials, pending: game.starterGemTutorialPending, skill: game.activeSkill,
             queue: tutorialQueue, active: activeTutorial, guide: tutorialActionUi.active?.notice,
-            level: game.level, kills: game.totalKills
+            level: game.level, kills: game.loopKills
         }));
         console.log(JSON.stringify({ notices, errors, state }));
         throw error;

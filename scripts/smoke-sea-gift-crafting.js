@@ -4,6 +4,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 
 const context = buildGameRuntime();
 const run = source => vm.runInContext(source, context);
+run('game.ocean.unlocked = true;');
 
 function setSealFixture(stats) {
     run(`(function () {
@@ -123,6 +124,22 @@ assert.strictEqual(run('window.__seaGiftTarget.stats.length'), 1,
 assert(!['flatHp', 'resF'].includes(run('window.__seaGiftTarget.stats[0].id')),
     'leviathan remnant must retain the newly granted top affix instead of deleting it');
 
+for (const blocked of ['unlocked', 'woodsmanBuildLock', 'corrupted', 'hallReplica']) {
+    setAdvancedFixture('normal', []);
+    run(`window.__seaGiftSaves = 0; queueImportantSave = () => window.__seaGiftSaves++;
+        game.ocean.unlocked = true; game.woodsmanBuildLock = null;`);
+    if (blocked === 'unlocked') run('game.ocean.unlocked = false');
+    else if (blocked === 'woodsmanBuildLock') run('game.woodsmanBuildLock = {}');
+    else run(`window.__seaGiftTarget.${blocked} = true`);
+    const before = run('JSON.stringify({item:window.__seaGiftTarget,fish:game.ocean.fishStock})');
+    assert.strictEqual(run("craftSeaGift('voidPureRefine', window.__seaGiftTarget)"), false, blocked);
+    assert.strictEqual(run('JSON.stringify({item:window.__seaGiftTarget,fish:game.ocean.fishStock})'), before, blocked);
+    assert.strictEqual(run('window.__seaGiftSaves'), 0, 'rejected craft must not schedule a save');
+}
+run('game.ocean.unlocked = true; game.woodsmanBuildLock = null;');
+setAdvancedFixture('normal', []);
+assert.strictEqual(run("craftSeaGift('voidPureRefine', window.__seaGiftTarget)"), true);
+assert.strictEqual(run('window.__seaGiftSaves'), 1, 'successful craft must schedule persistence');
 run('Math.random = window.__seaGiftOriginalRandom;');
 
 console.log('smoke-sea-gift-crafting passed');
