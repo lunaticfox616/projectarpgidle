@@ -125,7 +125,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.deepStrictEqual(Array.from(jewelSalvageContext.game.jewelInventory, jewel => jewel.name), ['확인 후 드랍'], 'bulk salvage must not include jewels acquired while the confirmation is open');
 
     assert(uiSource.includes("return { enabled: false, reason: `홀씨 부족"), 'crafting UI should explain insufficient spore cost');
-    assert(uiSource.includes("onclick=\"useCurrency('${key}')\" ${useState.enabled ? '' : 'disabled'}"), 'desktop crafting buttons should honor the computed use state');
+    // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.
     assert(uiSource.includes('const targetSet = new Set(targetItems);'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
     assert(uiSource.includes('const targetSet = new Set(targets);'), 'search-based jewel salvage should keep a confirmation-time target snapshot');
     assert(!cardSource.includes('getItemSalvagePreviewText(item, true)'), 'compact inventory cards should not spend metadata space on salvage materials');

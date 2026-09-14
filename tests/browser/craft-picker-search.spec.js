@@ -12,7 +12,7 @@ test('craft picker searches the entire inventory and selects the correct item af
         openTabPane('tab-items');switchItemSubtab('item-tab-craft');updateStaticUI();
     });
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
-    await page.locator('#forge-item-display').getByRole('button',{name:'인벤토리',exact:true}).click();
+    await page.locator('#crafting-workspace').getByRole('button',{name:'인벤토리',exact:true}).click();
     const picker=page.locator('#craft-item-picker-overlay');
     const cards=picker.locator('.craft-picker-card');
     await expect(cards).toHaveCount(info.project.use.isMobile?6:20);

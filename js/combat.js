@@ -12956,6 +12956,7 @@ function triggerSeasonReset(options) {
     game.pendingTalentBloomHeroId = null;
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
+    craftingWorkspaceState.capture(game);
     game.currencies = { ...defaultGame.currencies };
     game.currencies.timeRemnant = preservedTimeRemnant;
     if (preservedOfflineProgress && typeof ensureOfflineProgressState === 'function') game.offlineProgress = preservedOfflineProgress;

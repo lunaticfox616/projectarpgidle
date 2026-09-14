@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const {currencyUse}=require('./crafting-helpers');
 
 test('fused and corrupted equipment expose only usable currencies and spend on valid use', async ({ page }, info) => {
     const errors = [];
@@ -19,25 +20,25 @@ test('fused and corrupted equipment expose only usable currencies and spend on v
         selectForCrafting(game.inventory[0].id, false); updateStaticUI();
     });
     await settle(page);
-    const golden = await currencyUse(page, info, 'goldenRule');
+    const golden = await currencyUse(page, 'goldenRule');
     await expect(golden).toBeEnabled(); await golden.click();
     await expect.poll(() => page.evaluate(() => game.currencies.goldenRule)).toBe(1);
     await settle(page);
-    await expect(await currencyUse(page, info, 'formlessDew')).toBeDisabled();
-    const ember = await currencyUse(page, info, 'emberBranch');
+    await expect(await currencyUse(page, 'formlessDew')).toBeDisabled();
+    const ember = await currencyUse(page, 'emberBranch');
     await expect(ember).toBeEnabled(); await ember.click();
     await expect.poll(() => page.evaluate(() => game.inventory[0].corrupted)).toBe(true);
     expect(await page.evaluate(() => game.currencies.emberBranch)).toBe(2);
     await settle(page);
-    await expect(await currencyUse(page, info, 'goldenRule')).toBeDisabled();
-    await expect(await currencyUse(page, info, 'emberBranch')).toBeDisabled();
+    await expect(await currencyUse(page, 'goldenRule')).toBeDisabled();
+    await expect(await currencyUse(page, 'emberBranch')).toBeDisabled();
     await page.evaluate(() => {
         Object.assign(game.inventory[0], { slot: '방패', rarity: 'unique', uniqueEffectKey: 'kaleidoscopeShield' });
         game.inventory[0].stats = [{ id: 'flatHp', statName: '최대 생명력', val: 10, tier: 1 }];
         updateStaticUI();
     });
     await settle(page);
-    const repeat = await currencyUse(page, info, 'emberBranch');
+    const repeat = await currencyUse(page, 'emberBranch');
     await expect(repeat).toBeEnabled(); await repeat.click();
     await expect.poll(() => page.evaluate(() => game.currencies.emberBranch)).toBe(1);
     expect(await page.evaluate(() => game.currencies.formlessDew)).toBe(2);
@@ -50,14 +51,4 @@ async function settle(page) {
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         return true;
     });
-}
-
-async function currencyUse(page, info, key) {
-    if (!info.project.use.isMobile) return page.locator('#ui-currency-grid button[onclick="useCurrency(\'' + key + '\')"]');
-    await page.getByRole('button', { name: '사용할 재화 선택', exact: true }).click();
-    const overlay = page.locator('#mobile-craft-currency-overlay');
-    const choice = overlay.locator('[data-craft-currency="' + key + '"]');
-    if (!(await choice.isVisible())) await overlay.locator('summary').click();
-    await choice.click();
-    return page.locator('#ui-mobile-craft-currency-picker').getByRole('button', { name: '사용', exact: true });
 }

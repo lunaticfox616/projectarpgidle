@@ -103,7 +103,7 @@ const craftingResultUi = (() => {
         return useCurrency(result.meta.currencyKey, result.meta.paymentSource);
     }
 
-    return { getLedgerHtml, repeat };
+    return { getLedgerHtml, getMetaRows, repeat };
 })();
 
 safeExposeGlobals({ craftingResultUi });

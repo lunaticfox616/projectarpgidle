@@ -152,7 +152,7 @@ for (const [currencyKey, filename] of expectedCurrencyIcons) {
 }
 assert.ok(items.includes('if (ORB_DB[key]) ORB_DB[key].icon = icon;'), 'the canonical orb database must own currency icon assignments');
 assert.ok(ui.includes('function getCurrencyIconHtml('), 'currency cards must render icons through one shared helper');
-assert.ok(ui.includes('currency-card-name-wrap') && ui.includes('currency-tooltip-icon'), 'currency cards and their tooltips must both render icon art');
+assert.ok(ui.includes('currency-tooltip-icon'), 'currency tooltips must retain icon art');
 
 const currencyIconContext = { ORB_DB: { magicBud: { icon: 'assets/ui/currency/magic-bud.png' }, fossil: {} } };
 vm.createContext(currencyIconContext);

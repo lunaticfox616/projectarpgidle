@@ -33,6 +33,7 @@ const files = [
   'js/content-progression.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
+  'js/crafting-workspace-state.js',
   'js/save.js',
   'js/items.js',
   'js/equipment-crafting.js',

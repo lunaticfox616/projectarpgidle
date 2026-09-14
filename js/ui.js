@@ -2069,6 +2069,8 @@ function isSelectedSubtab(subtabId) {
 }
 
 function switchItemSubtab(subtabId) {
+    if(subtabId==='item-tab-fossil')subtabId='item-tab-craft';
+    if(subtabId!==game.itemSubtab)craftingWorkspaceUi.stopAuto('');
     if (!contentProgression.canOpen(subtabId)) return;
     if (subtabId === 'item-tab-equip' && game.noti) game.noti.items = false;
     if (subtabId === game.itemSubtab) {
@@ -2090,8 +2092,6 @@ function switchItemSubtab(subtabId) {
     if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
     updateStaticUI();
 }
-
-
 
 function getDefaultSkillAutoRule() {
     return {
@@ -2531,8 +2531,6 @@ function switchSkillSubtab(subtabId) {
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
 }
-
-
 
 // A dismissal belongs to this pending choice only; the next branch can prompt again.
 const dismissedBeehiveChoices = new WeakSet();
@@ -4420,8 +4418,6 @@ function getTalismanAnchorCell(talisman) {
     return ranked[0].cell;
 }
 
-
-
 function renderSealShardBadge(source) {
     let isRadiant = source === 'radiantSealShard';
     let isStrong = source === 'strongSealShard';
@@ -4469,9 +4465,6 @@ function rollTalismanStatLine(multiplier) {
     let value = (option.min * mul) + Math.random() * ((option.max * mul) - (option.min * mul));
     return { stat: option.stat, label: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)) };
 }
-
-
-
 
 const TALISMAN_UNIQUE_POOL = [
     { id:'ut_z_1', name:'굽이치는 전류', shape:'Z', stats:[{stat:'aspd',value:9,label:'공격 속도(%)'},{stat:'lightPctDmg',value:16,label:'번개 피해(%)'}] },
@@ -5969,8 +5962,6 @@ function applyThemeMode(mode) {
     let finalMode = mode === 'light' ? 'light' : 'dark';
     document.body.classList.toggle('light-mode', finalMode === 'light');
 }
-
-
 
 function applyUiSkin(skin) {
     document.body.dataset.uiSkin = normalizeUiSkin(skin);
@@ -8723,8 +8714,6 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     ctx.restore();
 }
 
-
-
 function setTextById(id, value) {
     let el = document.getElementById(id);
     if (!el) return;
@@ -9914,9 +9903,6 @@ function isEdgeInViewport(edge, viewport, margin) {
     return !(maxX < viewport.minX - m || minX > viewport.maxX + m || maxY < viewport.minY - m || minY > viewport.maxY + m);
 }
 
-
-
-
 // Phase-2 appended static UI renderer block.
 let uiRefreshQueued = false;
 let uiRefreshRunning = false;
@@ -10303,6 +10289,7 @@ function matchSearchQuery(raw, query) {
 }
 
 function performUpdateStaticUI() {
+    craftingWorkspaceState.capture(game);
     updateInventoryFullWarnings();
     syncInventoryExpansionShortcuts();
     announceMapPrimaryContentUnlocks();
@@ -10946,8 +10933,6 @@ function getCraftActionValidators(item) {
     };
 }
 
-
-
 function getCraftOrbUseState(key, item) {
     if (!item) return { enabled: false, reason: '아이템 미선택' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
@@ -11133,18 +11118,6 @@ function renderTimeRiftPanel() {
     sideEncounterUi.timeRiftPanel(host, ensureTimeRiftState());
 }
 
-function renderCraftSelectedSummary(item) {
-    let host = document.getElementById('ui-craft-selected-summary');
-    if (!host) return;
-    if (!item) {
-        host.innerHTML = '아이템을 선택하세요.';
-        return;
-    }
-    let statCount = getItemExplicitOptionCount(item);
-    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:var(--copy-bright); font-size:0.83em;">${item.baseName || ''}</div>`;
-}
-
 function renderChaosInfuserPanel(selectedItem) {
     let host = document.getElementById('ui-chaos-infuser-panel');
     if (!host) return;
@@ -11176,12 +11149,6 @@ function renderChaosInfuserPanel(selectedItem) {
     }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
     if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:var(--copy-bright);">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
     host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:var(--copy-bright);">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 마름병 포자가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
-}
-
-function renderCraftOrbActions(selectedItem) {
-    let host = document.getElementById('ui-craft-orb-actions');
-    if (!host) return;
-    host.innerHTML = '';
 }
 
 function openSporeModeOverlay(currencyKey) {
@@ -11252,17 +11219,7 @@ window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
 
-const MOBILE_CRAFT_CURRENCY_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'fairyRing', 'pruningShears', 'blightSpore', 'emberBranch', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'enchantedHoney', 'venomStinger', 'voidChisel'];
 const MOBILE_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'fairyRing', 'pruningShears', 'blightSpore', 'emberBranch', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst'];
-
-function getMobileCraftCurrencyOptions() {
-    return MOBILE_CRAFT_CURRENCY_KEYS.filter(key => {
-        if (!ORB_DB[key]) return false;
-        if ((game.currencies[key] || 0) <= 0) return false;
-        if (key === 'emberBranch' && (game.season || 1) < 5) return false;
-        return true;
-    });
-}
 
 function getMobileCraftCurrencyUseState(key, item) {
     if (!key || !ORB_DB[key]) return { enabled: false, reason: '재화를 선택하세요.' };
@@ -11299,62 +11256,6 @@ function getMobileCraftCurrencyUseState(key, item) {
         return getCraftOrbUseState(key, item);
     }
     return { enabled: false, reason: '지원하지 않는 재화' };
-}
-
-function selectMobileCraftCurrency(key) {
-    if (!getMobileCraftCurrencyOptions().includes(key)) return;
-    game.mobileCraftCurrencyKey = key;
-    updateStaticUI();
-}
-window.selectMobileCraftCurrency = selectMobileCraftCurrency;
-
-function useSelectedMobileCraftCurrency() {
-    let key = game.mobileCraftCurrencyKey;
-    if (!key) return addLog('사용할 재화를 먼저 선택하세요.', 'attack-monster');
-    if (key === 'enchantedHoney') return applyEnchantedHoneyToSelectedItem();
-    if (key === 'venomStinger') return applyVenomStingerToSelectedItem();
-    if (key === 'voidChisel') return applyVoidChiselToSelectedItem();
-    return useCurrency(key);
-}
-window.useSelectedMobileCraftCurrency = useSelectedMobileCraftCurrency;
-
-function openMobileCraftCurrencyOverlay() {
-    let options = getMobileCraftCurrencyOptions();
-    let old = document.getElementById('mobile-craft-currency-overlay');
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-    let overlay = document.createElement('div');
-    overlay.id = 'mobile-craft-currency-overlay';
-    overlay.className = 'mobile-craft-currency-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-    let current = game.mobileCraftCurrencyKey || '';
-    const target = getSelectedCraftItem();
-    const choices = options.map(key => {
-        let selected = key === current ? ' selected' : '';
-        const state = getMobileCraftCurrencyUseState(key, target);
-        const html = `<button type="button" class="mobile-craft-currency-option${selected}" data-craft-currency="${key}" onclick="selectMobileCraftCurrency('${key}'); var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();"><strong>${getStyledOrbName(key)}${selected ? ' ✓' : ''}</strong><span>보유 ${game.currencies[key] || 0}</span><p>${escapeHTML(ORB_DB[key].desc)}</p><small>${escapeHTML(state.reason)}</small></button>`;
-        return { enabled: state.enabled, html };
-    });
-    const available = choices.filter(row => row.enabled).map(row => row.html).join('');
-    const unavailable = choices.filter(row => !row.enabled).map(row => row.html).join('');
-    const empty = '<p class="mobile-craft-currency-empty">현재 장비에 사용할 수 있는 재화가 없습니다.</p>';
-    const listHtml = `${available || empty}${unavailable ? `<details class="mobile-craft-unavailable"><summary>조건이 맞지 않는 재화 ${choices.length - choices.filter(row => row.enabled).length}개</summary><div class="mobile-craft-currency-list">${unavailable}</div></details>` : ''}`;
-    overlay.innerHTML = `<div class="mobile-craft-currency-panel"><div class="mobile-craft-currency-head" style="margin-bottom:10px;"><div><div style="color:var(--copy-bright); font-size:1.02em; font-weight:900;">사용할 재화 선택</div><div style="color:var(--copy-muted); font-size:0.78em; margin-top:2px;">보유하고 해금된 재화만 표시됩니다.</div></div><button type="button" onclick="var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();">닫기</button></div><div class="mobile-craft-currency-list">${listHtml}</div></div>`;
-    document.body.appendChild(overlay);
-}
-window.openMobileCraftCurrencyOverlay = openMobileCraftCurrencyOverlay;
-
-function renderMobileCraftCurrencyPicker(item) {
-    let host = document.getElementById('ui-mobile-craft-currency-picker');
-    if (!host) return;
-    let options = getMobileCraftCurrencyOptions();
-    if (!options.includes(game.mobileCraftCurrencyKey)) game.mobileCraftCurrencyKey = options[0] || '';
-    let key = game.mobileCraftCurrencyKey;
-    if (!key) {
-        host.innerHTML = `<div class="mobile-craft-currency-card"><div class="mobile-craft-currency-head"><div class="mobile-craft-currency-title">빠른 제작</div><button type="button" onclick="openMobileCraftCurrencyOverlay()">사용할 재화 선택</button></div><div class="mobile-craft-currency-meta">보유하고 해금된 제작 재화가 없습니다.</div></div>`;
-        return;
-    }
-    let state = getMobileCraftCurrencyUseState(key, item);
-    host.innerHTML = `<div class="mobile-craft-currency-card"><div class="mobile-craft-currency-head"><div class="mobile-craft-currency-title">빠른 제작</div><button type="button" onclick="openMobileCraftCurrencyOverlay()">변경</button></div><div class="mobile-craft-currency-row" style="margin-top:7px;"><div class="mobile-craft-currency-selected">${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div><div class="mobile-craft-currency-meta">${state.reason || '사용 가능'}</div><div class="mobile-craft-currency-actions"><button type="button" onclick="openMobileCraftCurrencyOverlay()">사용할 재화 선택</button><button type="button" onclick="useSelectedMobileCraftCurrency()" ${state.enabled ? '' : 'disabled'}>사용</button></div></div>`;
 }
 
 function buildSporeSummaryHtml() {
@@ -11586,45 +11487,16 @@ exposeUiRenderHelpersOnce();
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
-        { key:'honey', label:'🍯 벌꿀 고정', onclick:'applyEnchantedHoneyToSelectedItem()' },
-        { key:'stinger', label:'🦂 독벌침 부여', onclick:'applyVenomStingerToSelectedItem()' },
-        { key:'baseUpgrade', label:'⬆️ 베이스 업그레이드', onclick:'upgradeSelectedItemBase()' }
+        { key:'honey', label:'벌꿀 고정', onclick:'applyEnchantedHoneyToSelectedItem()' },
+        { key:'stinger', label:'독벌침 부여', onclick:'applyVenomStingerToSelectedItem()' },
+        { key:'baseUpgrade', label:'베이스 업그레이드', onclick:'upgradeSelectedItemBase()' }
     ];
     return defs.map(d => `<button onclick="${d.onclick}" ${v[d.key] ? '' : 'disabled'}>${d.label}</button>`).join('');
 }
 
     if (itemsTabActive) {
-    let selectedItem = getSelectedCraftItem();
-    renderCraftSelectedSummary(selectedItem);
-    renderMobileCraftCurrencyPicker(selectedItem);
-    let craftTargetControls = getCraftTargetControlsHtml();
-    let craftSelectedBodyHtml = `<div style="color:var(--copy-bright);">아이템을 클릭하여 선택</div>`;
-    let craftSelectedBodyTailHtml = '';
-    let craftResultHtml = '';
-    if (selectedItem) {
-        let lines = [];
-        (selectedItem.baseStats || []).forEach(stat => {
-            let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
-            lines.push(`<div class="tooltip-line craft-option-line craft-option-line--base" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`);
-        });
-        let selectedExplicitStats = (selectedItem.stats || []).slice();
-        if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
-        selectedExplicitStats.forEach(stat => {
-            let tierText = getItemAffixTierHtml(stat);
-            let honeyTag = getHoneyLockBadgeHtml(stat);
-            let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
-            let rangeText = getItemStatRollRangeHtml(stat);
-            lines.push(`<div class="tooltip-line craft-option-line" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}${tierText}${honeyTag}${stingerTag}</div>`);
-        });
-        if (selectedExplicitStats.length === 0) lines.push(`<div class="tooltip-line" style="color:var(--copy-muted)">추가 옵션 없음</div>`);
-        if (selectedItem.encroached) {
-            if (selectedItem.encroached.liberated && selectedItem.encroached.chosen) {
-                let st = selectedItem.encroached.chosen;
-                lines.push(`<div class="tooltip-line" style="color:#d7b8ff;">[잠식] ${st.statName || getStatName(st.id)} +${formatValue(st.id, st.val)} ${getTierBadgeHtml(st.tier || 10, 'T')}</div>`);
-            } else {
-                lines.push(`<div class="tooltip-line" style="color:#8d7bb3;">[잠식] 해방 전 효과 없음 · 제작으로 변하지 않음</div>`);
-            }
-        }
+        let selectedItem=getSelectedCraftItem(), details='';
+        if(selectedItem){
         let equipSelectedButtonHtml = isCraftSelectionEquip() ? '' : `<button onclick="equipSelectedCraftInventoryItem()">착용</button>`;
         let voidSocketHtml = '';
         let abyssSocketHtml = '';
@@ -11654,77 +11526,18 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(selectedItem) : '';
-        let explicitCount = typeof getItemExplicitOptionCount === 'function' ? getItemExplicitOptionCount(selectedItem) : selectedExplicitStats.length;
-        let averageAffixTier = typeof getAverageExplicitAffixTier === 'function' ? getAverageExplicitAffixTier([selectedItem]) : 0;
-        let protectedAffixCount = (selectedItem.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift || stat.unremovable)).length;
-        let craftMetrics = `<div class="craft-target-metrics">
-            <span>추가 옵션 <b>${explicitCount}/6</b></span>
-            <span>평균 티어 <b>${averageAffixTier > 0 ? `T${averageAffixTier.toFixed(1)}` : '—'}</b></span>
-            <span>품질 <b>${Math.max(0, Math.floor(Number(selectedItem.quality) || 0))}%</b></span>
-            <span>보호 옵션 <b>${protectedAffixCount}</b></span>
-        </div>`;
         let selectedUniqueEffectHint = selectedItem.rarity === 'unique' && selectedItem.uniqueEffect
             ? getUniqueEffectApplicationHint(selectedItem, typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip(), typeof getCraftSelectionRef === 'function' ? getCraftSelectionRef() : null)
             : '';
         let selectedUniqueEffectHtml = selectedItem.rarity === 'unique' && selectedItem.uniqueEffect
             ? `<div class="craft-unique-effect"><strong>고유 효과</strong><span>${escapeHTML(selectedItem.uniqueEffect)}</span>${selectedUniqueEffectHint ? `<small>${escapeHTML(selectedUniqueEffectHint)}</small>` : ''}</div>`
             : '';
-        craftResultHtml = craftingResultUi.getLedgerHtml(selectedItem);
-        craftSelectedBodyHtml = `<div><div class="craft-item-heading"><img class="craft-target-art" src="${getEquipmentGridVisualAsset(selectedItem)}" alt=""><div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div></div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}`;
-        craftSelectedBodyTailHtml = `<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
-    }
-    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}${craftResultHtml}${craftSelectedBodyTailHtml}</div>`;
-    document.getElementById('fossil-item-display').innerHTML = `${craftSelectedBodyHtml}${craftSelectedBodyTailHtml}`;
-    if (game.itemSubtab === 'item-tab-fossil') renderFossilWorkbench(selectedItem);
-
-    let hiddenCurrencyKeys = new Set(['timeRemnant', 'chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
-    hiddenCurrencyKeys.add('condensedSkyPower');
-    hiddenCurrencyKeys.add('growthEssence');
-    document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
-        if (hiddenCurrencyKeys.has(key)) return false;
-        if (key === 'emberBranch') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
-        if (key === 'enchantedHoney' || key === 'venomStinger' || key === 'voidChisel') return (game.currencies[key] || 0) > 0;
-        if (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') return (game.currencies[key] || 0) > 0;
-        if (key === 'sporeFire' || key === 'sporeCold' || key === 'sporeLight') return false;
-        // 나무꾼의 손길: 한 번이라도 획득(또는 보유)한 적이 있을 때만 재화 탭에 노출.
-        if (key === 'ouroboros') return !!game.woodsmanTouchSeen || (game.currencies[key] || 0) > 0;
-        return true;
-    }).map(key => {
-        let useBtn = '';
-        if (key === 'enchantedHoney') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyEnchantedHoneyToSelectedItem()">사용</button></div>`;
-        if (key === 'ouroboros') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyWoodsmanTouchToSelectedItem()">봉인</button></div>`;
-        if (key === 'venomStinger') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVenomStingerToSelectedItem()">사용</button></div>`;
-        if (key === 'voidChisel') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVoidChiselToSelectedItem()">사용</button></div>`;
-        let sporeModes = game.sporeCraftModes || {};
-        let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let isCraftOrb = ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','emberBranch','blessing','deepWhetstone','rootIron','jewelPolish','abyssCatalyst'].includes(key);
-        let canUseSporeMode = ['magicBud','sapBud','formlessDew'].includes(key)
-            && (!selectedItem || (typeof isSporeCraftEquipment === 'function' && isSporeCraftEquipment(selectedItem)));
-        let mode = sporeModes[key] || 'none';
-        let useState = getMobileCraftCurrencyUseState(key, getSelectedCraftItem());
-        let reason = useState.reason;
-        if (isCraftOrb) {
-            let rightButtons = '';
-            if (canUseSporeMode) rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button>`;
-            rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="useCurrency('${key}')" ${useState.enabled ? '' : 'disabled'}>사용</button>`;
-            useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
+            details=selectedUniqueEffectHtml+'<div class="craft-actions">'+equipSelectedButtonHtml+buildCraftActionButtons(selectedItem)+voidSocketHtml+abyssSocketHtml+'</div>';
         }
-        let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
-        let rareCurrencyClass = key === 'ouroboros' ? ' woodsman-touch-currency' : '';
-        return `<div class="currency-card${rareCurrencyClass}" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="currency-card-header"><div class="currency-card-name-wrap">${getCurrencyIconHtml(key)}<div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div></div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
-    }).join('');
-    let sporeHtml = buildSporeSummaryHtml();
-    ['ui-spore-summary', 'ui-spore-summary-mobile'].forEach(id => {
-        let sporeHost = document.getElementById(id);
-        if (sporeHost) sporeHost.innerHTML = sporeHtml;
-    });
-
-    if (game.itemSubtab === 'item-tab-infuser') renderChaosInfuserPanel(selectedItem);
-    renderCraftOrbActions(selectedItem);
+        craftingWorkspaceUi.render(false,{details,useState:getMobileCraftCurrencyUseState,targetControls:getCraftTargetControlsHtml});
+        document.getElementById('ui-craft-spore-actions').innerHTML=buildSporeSummaryHtml();
+        if(game.itemSubtab==='item-tab-infuser')renderChaosInfuserPanel(selectedItem);
     }
-    let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
-    if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
     let marketTabBtn = document.getElementById('btn-item-tab-market');
     if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
     let infuserTabBtn = document.getElementById('btn-item-tab-infuser');
@@ -12735,8 +12548,8 @@ function openVoidPassiveCraftOverlay(nodeId) {
 
 function renderCraftTargetLibrary(isRarityVisible) {
     const kind = String(game.itemSubtab).replace('item-tab-', '');
-    if (!['craft', 'fossil', 'infuser'].includes(kind)) return;
-    if (!document.querySelector(`#item-tab-${kind} > details`).open) return;
+    if (!['craft', 'infuser'].includes(kind)) return;
+    if (!document.querySelector(`#item-tab-${kind} > details:is(.craft-target-library,.secondary-craft-library)`).open) return;
     renderPaperdoll(`ui-${kind}-equip-list`, true);
     const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
     document.getElementById(`ui-${kind}-inventory-list`).innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, kind)).join('');
@@ -15428,16 +15241,12 @@ function gameLoop(frameNow = performance.now()) {
     }
 }
 
-
-
 // Phase-4 extracted unlock/class/tab helper block.
 
 function getExpertiseOverviewHtml(total, spent, free) {
     const branchSummary = `균사 ${getExpertBranchSpent('mycologist')} · 젬 ${getExpertBranchSpent('gemEngraver')} · 천문 ${getExpertBranchSpent('astronomer')} · 양봉 ${getExpertBranchSpent('beekeeper')}`;
     return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="askResetExpertTree()" title="전문가 트리 전체 초기화 (마름병 포자 ${spent}개 소모)">트리 초기화${spent > 0 ? ` (마름병 포자 ${spent})` : ''}</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
 }
-
-
 
 function formatExpertFavorEffect(effect) {
     let map = {
@@ -15915,8 +15724,6 @@ async function buySeason(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-
-
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
@@ -16146,9 +15953,6 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
-
-
-
 
 async function pickEquippedSlotByPrompt(validSlots){
     return requestGameChoice({
