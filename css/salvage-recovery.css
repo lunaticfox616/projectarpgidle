@@ -1,3 +1,4 @@
+@layer components {
 #btn-salvage-recovery {
     display: inline-flex;
     align-items: center;
@@ -35,9 +36,9 @@
     gap: 8px;
     min-width: 0;
     padding: 12px;
-    border: 1px solid var(--ui-line);
-    border-radius: var(--ui-radius-sm);
-    background: var(--ui-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
     box-shadow: inset 3px 0 0 rgba(132, 153, 180, .46);
 }
 
@@ -55,26 +56,26 @@
 
 .salvage-recovery-item-head strong {
     overflow: hidden;
-    color: var(--ui-text);
+    color: var(--color-text);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .salvage-recovery-item-head span,
-.salvage-recovery-meta { color: var(--ui-text-2); font-size: .78rem; }
+.salvage-recovery-meta { color: var(--color-text-secondary); font-size: .78rem; }
 
 .salvage-recovery-cost {
     display: grid;
     gap: 3px;
     min-height: 38px;
     padding: 7px 8px;
-    border: 1px solid var(--ui-line);
-    border-radius: var(--ui-radius-sm);
-    background: var(--ui-surface-1);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
 }
 
-.salvage-recovery-cost span { color: var(--ui-text-2); font-size: .7rem; }
-.salvage-recovery-cost strong { color: var(--ui-success); font-size: .78rem; line-height: 1.35; }
+.salvage-recovery-cost span { color: var(--color-text-secondary); font-size: .7rem; }
+.salvage-recovery-cost strong { color: var(--color-success); font-size: .78rem; line-height: 1.35; }
 .salvage-recovery-entry > button { width: 100%; }
 .salvage-recovery-entry > button:not(:disabled) { border-color: #438b69; background: #255840; color: #d9f8e8; }
 
@@ -84,17 +85,18 @@
     gap: 6px;
     min-height: 150px;
     padding: 24px;
-    border: 1px dashed var(--ui-line);
-    border-radius: var(--ui-radius-sm);
-    color: var(--ui-text-2);
+    border: 1px dashed var(--color-line);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
     text-align: center;
 }
 
-.salvage-recovery-empty strong { color: var(--ui-text); }
+.salvage-recovery-empty strong { color: var(--color-text); }
 .salvage-recovery-empty span { max-width: 430px; font-size: .82rem; line-height: 1.5; }
 
 @media (max-width: 600px) {
     .salvage-recovery-panel { width: 100%; max-height: calc(100dvh - 12px); padding: 10px; }
     .salvage-recovery-grid { grid-template-columns: 1fr; max-height: 68dvh; }
     .salvage-recovery-entry { padding: 10px; }
+}
 }

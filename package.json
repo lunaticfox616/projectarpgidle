@@ -2,8 +2,12 @@
   "name": "projectarpgidle",
   "version": "0.2.0",
   "private": true,
-  "description": "브라우저 방치형 ARPG. 번들러 없이 index.html의 <script> 순서로 로드된다.",
+  "description": "브라우저 방치형 ARPG. CSS는 PostCSS로 번들링하고 JS는 index.html의 클래식 스크립트 순서를 유지한다.",
   "scripts": {
+    "dev": "node scripts/serve-test.js",
+    "build": "node scripts/build-web.js",
+    "review:css": "node scripts/review-css.cjs",
+    "check:css": "node scripts/check-css.js",
     "check:architecture": "node scripts/check-runtime-architecture.js",
     "test": "node scripts/run-smoke.js",
     "test:browser": "playwright test",
@@ -14,15 +18,29 @@
     "android:sync": "npm run build:mobile && cap sync android"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   },
-  "overrides": { "xcode": { "uuid": "11.1.1" } },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Edge versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions"
+  ],
+  "overrides": {
+    "xcode": {
+      "uuid": "11.1.1"
+    }
+  },
   "devDependencies": {
     "@capacitor/cli": "8.5.1",
     "@playwright/test": "^1.62.1",
+    "autoprefixer": "^10.6.0",
+    "cssnano": "^7.1.9",
     "eslint": "^9.39.5",
     "espree": "^10.4.0",
-    "globals": "^14.0.0"
+    "globals": "^14.0.0",
+    "postcss": "^8.5.28",
+    "postcss-import": "^16.2.0"
   },
   "dependencies": {
     "@capacitor/android": "8.5.1",
