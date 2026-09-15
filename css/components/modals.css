@@ -1,0 +1,162 @@
+/* Shared modals; base, theme and responsive variants retain their selectors. */
+@layer components {
+
+.game-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 22000;
+  display: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: transparent;
+  color: var(--color-text);
+}
+.game-dialog-overlay[open] { display: flex; }
+.game-dialog-overlay::backdrop { background: rgba(0, 0, 0, .62); }
+.game-dialog-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(480px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  padding: 22px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 16px 48px #0009;
+  font-family: var(--font-body);
+}
+.game-dialog-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 2px; }
+.game-dialog-card > :not(.game-dialog-body) { flex-shrink: 0; }
+.game-dialog-card::before,
+.game-dialog-card::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(217, 182, 111, 0.88), transparent);
+}
+.game-dialog-card::before { top: 10px; }
+.game-dialog-card::after { bottom: 10px; }
+.game-dialog-card[data-tone="danger"] { border-color: rgba(218, 93, 93, 0.66); }
+.game-dialog-card[data-tone="danger"]::before,
+.game-dialog-card[data-tone="danger"]::after { background: linear-gradient(90deg, transparent, rgba(227,112,112,.9), transparent); }
+.game-dialog-kicker { color: var(--color-accent-gold); font-size: 12px; font-weight: 700; }
+.game-dialog-kicker:empty { display: none; }
+.game-dialog-card .game-dialog-title { margin: 8px 0 0; padding: 0; border: 0; color: var(--color-text); font-family: var(--font-title); font-size: 19px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.game-dialog-message { margin-top: 12px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-line; }
+.game-dialog-control { margin-top: 20px; }
+.game-dialog-control:empty { display: none; }
+.game-dialog-error { margin-top: 12px; color: var(--color-warning-soft); font-size: 13px; line-height: 1.5; }
+.game-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--color-line); }
+.game-dialog-btn { min-width: 96px; min-height: 42px; padding: 8px 12px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-text); font: 700 13px/1.4 var(--font-body); cursor: pointer; }
+.game-dialog-btn:hover { border-color: var(--color-accent-gold); }
+.equipment-slot-dialog .game-dialog-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.equipment-slot-dialog .game-dialog-actions .game-dialog-btn-secondary:last-child:nth-child(3) { grid-column: 1 / -1; }
+.game-dialog-btn-primary { color: #19140b; border-color: #f0cf86; background: linear-gradient(180deg, #ffe5a8, #c89b4f); box-shadow: 0 5px 18px rgba(215, 167, 76, 0.18); }
+.game-dialog-btn-primary:hover { background: linear-gradient(180deg, #fff0c5, #d7aa5d); }
+.game-dialog-card[data-tone="danger"] .game-dialog-btn-primary { color: #fff4f4; border-color: #e27676; background: linear-gradient(180deg, #a84545, #702c32); }
+.game-dialog-btn-secondary { color: var(--color-text-secondary); border-color: var(--color-line); background: var(--color-surface); }
+.game-dialog-btn:focus-visible,
+.game-number-input:focus-visible,
+.game-text-field input:focus-visible,
+.game-choice-option:focus-visible { outline: 2px solid #ffe0a1; outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .game-dialog-overlay { padding: 10px; }
+  .game-dialog-card { padding: 20px 16px; }
+  .game-dialog-actions { display: grid; grid-template-columns: 1fr 1.25fr; }
+  .game-dialog-btn { width: 100%; min-width: 0; min-height: 48px; }
+}
+
+@media (max-height: 420px) {
+  .game-dialog-card { padding: 14px; }
+  .game-dialog-actions { margin-top: 12px; padding-top: 10px; }
+  .game-dialog-btn { min-height: 36px; }
+} }
+
+@layer overrides {
+
+@media (prefers-reduced-motion: reduce) {
+  .game-dialog-overlay,
+  .game-dialog-card,
+  .game-toast { transition: none; }
+} }
+
+@layer components {
+
+body:not(.light-mode) .startup-form input,
+body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)),
+body:not(.light-mode) select,
+body:not(.light-mode) textarea {
+  color: #ffffff;
+  border: 1px solid rgba(83, 119, 158, 0.56);
+  background: linear-gradient(180deg, rgba(8, 14, 22, 0.96), rgba(13, 21, 32, 0.96));
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.025);
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+body:not(.light-mode) .startup-form input:focus,
+body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)):focus,
+body:not(.light-mode) select:focus,
+body:not(.light-mode) textarea:focus {
+  border-color: rgba(107, 192, 252, 0.9);
+  background: rgba(11, 19, 30, 0.98);
+  box-shadow: 0 0 0 3px rgba(75, 168, 236, 0.11), inset 0 2px 5px rgba(0, 0, 0, 0.38);
+}
+
+:is(
+  .tutorial-body,
+  .trait-desc,
+  .gem-enhance-section-desc,
+  .journal-card-body,
+  .cosmos-desc,
+  .cosmos-detail,
+  .cloud-note,
+  .currency-desc,
+  .craft-picker-desc,
+  .colony-ward-desc,
+  .underworld-rune-overlay-desc,
+  .patch-note-body,
+  .ui-goal-desc,
+  .background-combat-speed-guide,
+  .tooltip-line,
+  .tooltip-final,
+  .game-dialog-message,
+  .game-choice-option span,
+  .gem-library-card > p,
+  .gem-orbit-copy span
+) {
+  font-family: var(--font-body);
+  font-size: max(0.86em, 13px);
+  line-height: 1.65;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+body.light-mode :is(.tutorial-body, .trait-desc, .gem-enhance-section-desc, .journal-card-body, .cosmos-desc, .cosmos-detail, .cloud-note, .currency-desc, .craft-picker-desc, .colony-ward-desc, .underworld-rune-overlay-desc, .patch-note-body, .ui-goal-desc, .background-combat-speed-guide, .tooltip-line, .tooltip-final, .game-dialog-message, .game-choice-option span, .gem-library-card > p, .gem-orbit-copy span) {
+  color: #3f5268;
+}
+
+.game-dialog-card[data-tone="bounty"] { width: min(600px, 100%); }
+.game-dialog-card[data-tone="bounty"] .game-dialog-message { margin-top: 6px; font-size: 12px; }
+.game-dialog-card[data-tone="bounty"] .game-dialog-control { margin-top: 12px; }
+.game-dialog-card[data-tone="bounty"] .game-choice-grid { max-height: none; overflow: visible; }
+.game-dialog-card[data-tone="bounty"] .game-choice-option { position: relative; padding: 12px 14px; gap: 7px; font-family: inherit; }
+.game-dialog-card[data-tone="bounty"] .game-choice-option > strong { font-size: 15px; padding-right: 100px; }
+.game-dialog-card[data-tone="bounty"] .bounty-choice-reward > span { color: var(--color-text); font-size: 14px; font-weight: 700; word-break: keep-all; }
+.game-dialog-card[data-tone="bounty"] .bounty-choice-reward .orb-tone { color: var(--orb-tone); font-size: inherit; }
+}

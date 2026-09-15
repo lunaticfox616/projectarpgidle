@@ -1,26 +1,10 @@
+@layer components {
 /* ============================================================
    ui-premium.css — Premium UI overrides
    전투 / 버튼 / HP게이지 / 장비창 / 제작실
    ============================================================ */
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action),
-/* ============================================================
-   ui-premium.css — Premium UI overrides
-   전투 / 버튼 / HP게이지 / 장비창 / 제작실
-   ============================================================ */
-
-/* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body.light-mode button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
-  border-width: 1px;
-  border-style: solid;
-  border-radius: 6px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  font-size: 0.85em;
-  position: relative;
-  overflow: hidden;
-}
 
 /* ============================================================
    ui-premium.css — Premium UI overrides
@@ -28,102 +12,22 @@ body.light-mode button:not(.market-shell button):not(.tab-btn):not(.tab-category
    ============================================================ */
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
-  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
-  border-color: var(--skin-line);
-  color: var(--ui-text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease, filter .08s ease;
-}
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):hover:not(:disabled) {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--skin-control), var(--skin-accent) 8%) 0%, var(--skin-panel-raised) 100%);
-  border-color: var(--skin-line-strong);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
-}
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):active:not(:disabled) {
-  filter: brightness(.9);
-  box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
-}
-body:not(.light-mode) button:disabled:not(.gem-engrave-option):not(.ocean-strategy-card) {
-  background: color-mix(in srgb, var(--skin-canvas), #000 18%) !important;
-  border-color: color-mix(in srgb, var(--skin-line), #000 24%) !important;
-  color: var(--ui-text-3) !important;
-  box-shadow: none !important;
-}
 
 /* 사용 / 액션 강조 버튼 — 골드 계열 */
-body:not(.light-mode) button.use-btn,
-body:not(.light-mode) .item-actions button:not(.market-shell button):not(:disabled),
-body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn),
-body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn),
-body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn) {
-  background: linear-gradient(180deg, #3a2a08 0%, #281d05 100%);
-  border-color: #8a6520;
-  color: #e8c26a;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,220,120,0.08);
-}
-body:not(.light-mode) button.use-btn:hover:not(:disabled),
-body:not(.light-mode) .item-actions button:hover:not(:disabled),
-body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn):hover:not(:disabled),
-body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn):hover:not(:disabled),
-body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
-  background: linear-gradient(180deg, #4a360c 0%, #342509 100%);
-  border-color: #b08830;
-  color: #f0d080;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 0 10px rgba(200,160,60,0.12), inset 0 1px 0 rgba(255,220,120,0.12);
-}
 
 /* ── HP BARS ────────────────────────────────────────────────── */
-body:not(.light-mode) .hp-bar-bg {
-  background: var(--skin-canvas);
-  border: 1px solid var(--skin-line);
-  border-radius: 6px;
-  height: 18px;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.03);
-}
 
 /* 플레이어 HP — 에메랄드 그린 */
-body:not(.light-mode) .hp-bar-fill.player {
-  background: linear-gradient(90deg, #1a8c4e 0%, #22b865 50%, #28d672 100%);
-  box-shadow: 0 0 10px rgba(34,184,101,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-  border-radius: 5px 0 0 5px;
-}
 
 /* 몬스터 HP — 다크 크림슨 */
-body:not(.light-mode) .hp-bar-fill.enemy {
-  background: linear-gradient(90deg, #8b1a24 0%, #c42836 50%, #e03040 100%);
-  box-shadow: 0 0 10px rgba(196,40,54,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-  border-radius: 5px 0 0 5px;
-}
 
 /* 이동/행동 게이지 — 사파이어 블루 */
-body:not(.light-mode) .hp-bar-fill.move {
-  background: linear-gradient(90deg, #1a5c9e 0%, #2478cc 50%, #2d8de0 100%);
-  box-shadow: 0 0 8px rgba(36,120,204,0.38), inset 0 1px 0 rgba(255,255,255,0.12);
-}
 
 /* 경험치 — 퍼플 */
-body:not(.light-mode) .hp-bar-fill.exp {
-  background: linear-gradient(90deg, #6b30b8 0%, #8a44d8 50%, #a060f0 100%);
-  box-shadow: 0 0 8px rgba(138,68,216,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
-}
 
 /* 대미지 고스트 */
-body:not(.light-mode) .hp-bar-fill.player-damage-ghost,
-body:not(.light-mode) .hp-bar-fill.enemy-damage-ghost {
-  background: linear-gradient(90deg, rgba(255,160,60,0.55), rgba(255,220,100,0.45));
-  box-shadow: inset 0 0 10px rgba(255,220,160,0.2);
-}
 
 /* HP 텍스트 */
-body:not(.light-mode) .hp-text {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  line-height: 18px;
-  text-shadow: 0 0 3px rgba(0,0,0,1), 0 1px 3px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,0.8);
-}
 
 /* ── ENEMY CARD ─────────────────────────────────────────────── */
 body:not(.light-mode) .enemy-card,
@@ -296,18 +200,10 @@ body:not(.light-mode) .craft-selected {
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
 }
 body:not(.light-mode) .craft-orb-card {
-  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%) !important;
-  border: 1px solid var(--skin-line) !important;
   border-radius: 8px;
   transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
 }
-body:not(.light-mode) .craft-orb-card:hover:not(.disabled) {
-  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel-raised) 100%) !important;
-  border-color: var(--skin-line-strong) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 86%), 0 4px 12px rgba(0,0,0,0.3) !important;
-}
 body:not(.light-mode) .craft-orb-name { color: #ffffff; }
-body:not(.light-mode) .craft-orb-count { color: var(--skin-accent) !important; }
 
 /* ── BATTLEFIELD ────────────────────────────────────────────── */
 body:not(.light-mode) .battlefield-wrap,
@@ -330,19 +226,19 @@ body:not(.light-mode) .battlefield-wrap {
    SETTINGS TAB
    ============================================================ */
 
-#tab-settings { font: 400 13px/1.5 var(--game-font-body, 'Malgun Gothic', sans-serif); }
+#tab-settings { font: 400 13px/1.5 var(--font-body, 'Malgun Gothic', sans-serif); }
 #tab-settings :is(button, input, select, summary) { font-family: inherit; }
 #tab-settings :is(button, select, input[type="number"]) { min-height: 34px; }
 .cfg-tab-platform,
 .cfg-tab-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cfg-tab-platform { padding: 8px 0; color: var(--ui-gold); font-weight: 600; }
-.cfg-tab-row { padding: 6px 0; border-bottom: 1px solid var(--ui-line); color: var(--ui-text); }
+.cfg-tab-platform { padding: 8px 0; color: var(--color-accent-gold); font-weight: 600; }
+.cfg-tab-row { padding: 6px 0; border-bottom: 1px solid var(--color-line); color: var(--color-text); }
 .cfg-tab-row > span { min-width: 0; overflow-wrap: anywhere; }
 .cfg-tab-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 #tab-settings .cfg-tab-actions button { min-width: 34px; padding: 4px 7px; }
 #tab-settings :is(.cfg-tab-actions, .cfg-tab-platform) select {
-  font: inherit; font-size: 12px; padding: 5px 7px; border: 1px solid var(--ui-line);
-  background: var(--ui-surface-1); color: var(--ui-text); border-radius: var(--ui-radius-sm);
+  font: inherit; font-size: 12px; padding: 5px 7px; border: 1px solid var(--color-line);
+  background: var(--color-surface); color: var(--color-text); border-radius: var(--radius-sm);
 }
 @media (max-width: 1080px) {
   #tab-settings :is(button, select, input[type="number"]) { min-height: 44px; }
@@ -359,7 +255,7 @@ body:not(.light-mode) .battlefield-wrap {
 .cfg-group {
   background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
   border: 1px solid var(--skin-line);
-  border-radius: var(--ui-radius-md);
+  border-radius: var(--radius-md);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -391,21 +287,21 @@ body:not(.light-mode) .battlefield-wrap {
   content: '＋';
   position: absolute;
   right: 7px;
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
 }
 .cfg-disclosure[open] > summary::after { content: '－'; }
-.cfg-disclosure > summary:hover { background: rgba(255, 255, 255, 0.04); color: var(--ui-text); }
+.cfg-disclosure > summary:hover { background: rgba(255, 255, 255, 0.04); color: var(--color-text); }
 .cfg-disclosure > .cfg-rows,
 .cfg-disclosure > .cfg-sublabel { margin-top: 7px; }
 .cfg-disclosure--tab-order { border-top: 0; padding-top: 0; }
 .cfg-disclosure--tab-order > summary {
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
   font-size: 12px;
   letter-spacing: 0;
 }
 .cfg-disclosure--card { border-top: 0; padding-top: 0; }
 .cfg-disclosure--card > summary {
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
   font-size: 12px;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -420,7 +316,7 @@ body:not(.light-mode) .battlefield-wrap {
   border: 1px solid var(--skin-line);
   border-radius: 10px;
   background: var(--skin-panel);
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -438,7 +334,7 @@ body:not(.light-mode) .battlefield-wrap {
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(232,194,106,0.15);
 }
@@ -470,21 +366,21 @@ body:not(.light-mode) .battlefield-wrap {
 }
 .cfg-toggle--header {
   font-weight: 600;
-  color: var(--ui-text);
+  color: var(--color-text);
 }
 .cfg-toggle input[type="checkbox"] {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
-  accent-color: var(--ui-gold);
+  accent-color: var(--color-accent-gold);
   cursor: pointer;
 }
 .cfg-label {
-  color: var(--ui-text);
+  color: var(--color-text);
   font-size: 12px;
   line-height: 1.3;
 }
-.cfg-toggle:hover .cfg-label { color: var(--ui-text); }
+.cfg-toggle:hover .cfg-label { color: var(--color-text); }
 
 /* ── 셀렉트 행 ── */
 .cfg-select-row {
@@ -510,7 +406,7 @@ body:not(.light-mode) .battlefield-wrap {
 .cfg-select-row #sel-ui-scale { flex: 0 1 180px; width: 180px; }
 .cfg-select {
   background: var(--skin-canvas);
-  color: var(--ui-text);
+  color: var(--color-text);
   border: 1px solid var(--skin-line);
   border-radius: 6px;
   padding: 5px 8px;
@@ -534,12 +430,12 @@ body:not(.light-mode) .battlefield-wrap {
   border-radius: 7px;
 }
 .cfg-sublabel {
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 .cfg-number {
   background: var(--skin-canvas);
-  color: var(--ui-text);
+  color: var(--color-text);
   border: 1px solid var(--skin-line);
   border-radius: 6px;
   padding: 4px 8px;
@@ -575,13 +471,13 @@ body:not(.light-mode) .battlefield-wrap {
   border: 1px solid var(--skin-line);
   border-radius: 999px;
   background: var(--skin-panel);
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
   font-size: 12px;
   cursor: pointer;
   transition: border-color .12s, background .12s, color .12s;
   user-select: none;
 }
-.cfg-grade-chip:hover { border-color: var(--skin-line-strong); color: var(--ui-text); }
+.cfg-grade-chip:hover { border-color: var(--skin-line-strong); color: var(--color-text); }
 .cfg-grade-chip input { accent-color: var(--skin-accent); width: 13px; height: 13px; }
 .cfg-grade-rare  { border-color: #6a5520; color: #c8a040; }
 .cfg-grade-unique { border-color: #7a4a18; color: #e0843a; }
@@ -589,7 +485,7 @@ body:not(.light-mode) .battlefield-wrap {
 /* ── 히어로 재능 요약 ── */
 .cfg-hero-talent {
   font-size: 12px;
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
   padding: 4px 10px 2px;
   line-height: 1.55;
 }
@@ -621,11 +517,11 @@ body:not(.light-mode) .battlefield-wrap {
 .cfg-btn--neutral {
   background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
   border-color: var(--skin-line);
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
 }
 .cfg-btn--neutral:hover {
   border-color: var(--skin-line-strong);
-  color: var(--ui-text);
+  color: var(--color-text);
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .cfg-btn--save {
@@ -655,18 +551,18 @@ body:not(.light-mode) .cloud-panel {
   max-width: 900px;
   background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
   border: 1px solid var(--skin-line);
-  border-radius: var(--ui-radius-md);
+  border-radius: var(--radius-md);
 }
 body:not(.light-mode) .cloud-title { color: var(--skin-accent); }
-body:not(.light-mode) .cloud-subtitle { color: var(--ui-text-2); }
+body:not(.light-mode) .cloud-subtitle { color: var(--color-text-secondary); }
 body:not(.light-mode) .cloud-meta {
   background: var(--skin-canvas);
   border-color: var(--skin-line);
   border-radius: 8px;
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
 }
-body:not(.light-mode) .cloud-meta strong { color: var(--ui-text); }
-body:not(.light-mode) .cloud-note { color: var(--ui-text-2); }
+body:not(.light-mode) .cloud-meta strong { color: var(--color-text); }
+body:not(.light-mode) .cloud-note { color: var(--color-text-secondary); }
 
 /* settings-stack max-width 해제 (새 layout으로 대체) */
 #tab-settings .settings-stack { max-width: none; }
@@ -708,7 +604,6 @@ body:not(.light-mode) .cloud-note { color: var(--ui-text-2); }
   box-shadow: inset 0 0 22px rgba(255, 171, 82, 0.2), 0 0 24px rgba(255, 159, 67, 0.3);
 }
 .item-card.item-card--unique-special .item-title.unique {
-  color: #ffad5c !important;
   text-shadow: 0 0 9px rgba(255, 159, 67, 0.65);
 }
 .item-card .unique-inventory-badge {
@@ -812,4 +707,26 @@ body.light-mode .patch-note-date {
 }
 body.light-mode .patch-notes-open-btn {
   color: #6a5212;
+}
+}
+@layer overrides {
+body:not(.light-mode) button:disabled:not(.gem-engrave-option):not(.ocean-strategy-card) {
+  background: color-mix(in srgb, var(--skin-canvas), #000 18%);
+  border-color: color-mix(in srgb, var(--skin-line), #000 24%);
+  color: var(--color-text-tertiary);
+  box-shadow: none;
+}
+body:not(.light-mode) .craft-orb-card {
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
+}
+body:not(.light-mode) .craft-orb-card:hover:not(.disabled) {
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel-raised) 100%);
+  border-color: var(--skin-line-strong);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 86%), 0 4px 12px rgba(0,0,0,0.3);
+}
+body:not(.light-mode) .craft-orb-count { color: var(--skin-accent); }
+.item-card.item-card--unique-special .item-title.unique {
+  color: #ffad5c;
+}
 }

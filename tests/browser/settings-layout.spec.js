@@ -94,7 +94,7 @@ test('settings edit unlocked menus independently for PC and mobile', async ({ pa
     const colors = await page.locator('#sel-theme-mode').evaluate(el => {
         const style = getComputedStyle(el);
         const probe = document.createElement('span');
-        probe.style.backgroundColor = 'var(--ui-surface-1)';
+        probe.style.backgroundColor = 'var(--color-surface)';
         el.parentElement.append(probe);
         const surface = getComputedStyle(probe).backgroundColor;
         probe.remove();

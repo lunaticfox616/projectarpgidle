@@ -1,3 +1,4 @@
+@layer components {
 /* 생장판 UI */
 .growth-summary-row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; color: #d7e9ff; font-size: 0.88em; margin-bottom: 6px; }
 .growth-stage-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -65,9 +66,6 @@
 .growth-cell.related { box-shadow: 0 0 0 1px #4fd1a5 inset; }
 .growth-cell.growth-hover-source { box-shadow: 0 0 0 2px #fff0a8 inset, 0 0 15px rgba(255, 220, 120, 0.7); z-index: 3; }
 .growth-cell.growth-hover-related { box-shadow: 0 0 0 2px #58d9bd inset, 0 0 12px rgba(79, 209, 165, 0.55); z-index: 2; }
-.growth-cell.preview-ok { background: rgba(46, 204, 113, 0.35) !important; border-color: #2ecc71 !important; }
-.growth-cell.preview-swap { background: rgba(241, 196, 15, 0.34) !important; border-color: #f1c40f !important; }
-.growth-cell.preview-bad { background: rgba(231, 76, 60, 0.35) !important; border-color: #e74c3c !important; }
 .growth-cell.filled.cat-slab { background: linear-gradient(150deg, rgba(66, 58, 44, 0.95), rgba(30, 27, 22, 0.95)); }
 
 /* 석판 레벨 표시 */
@@ -86,8 +84,8 @@
 /* 선택한 석판의 영향권 */
 .growth-cell.slab-buff { box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.75) inset; }
 .growth-cell.slab-debuff { box-shadow: 0 0 0 2px rgba(224, 122, 122, 0.75) inset; }
-.growth-cell.slab-hover-buff { background-image: radial-gradient(circle, rgba(255, 226, 128, 0.35), transparent 70%); border-color: #ffe080 !important; }
-.growth-cell.slab-hover-debuff { background-image: radial-gradient(circle, rgba(224, 100, 120, 0.35), transparent 70%); border-color: #e36b80 !important; }
+.growth-cell.slab-hover-buff { background-image: radial-gradient(circle, rgba(255, 226, 128, 0.35), transparent 70%); }
+.growth-cell.slab-hover-debuff { background-image: radial-gradient(circle, rgba(224, 100, 120, 0.35), transparent 70%); }
 
 .growth-level-badge { color: #ffd98a; font-weight: 900; }
 .growth-level-badge.negative { color: #e07a7a; }
@@ -181,7 +179,7 @@ body.growth-unplace-dragging .growth-unplace-zone.drag-hover { border-style: sol
     0%, 100% { box-shadow: 0 0 0 1px rgba(188, 125, 255, 0.45), 0 0 8px rgba(70, 190, 255, 0.22); }
     50% { box-shadow: 0 0 0 1px rgba(255, 221, 126, 0.75), 0 0 18px rgba(180, 92, 255, 0.5); }
 }
-.growth-chase { position: relative; border-color: #c88bff !important; animation: growth-chase-pulse 2.4s ease-in-out infinite; overflow: hidden; }
+.growth-chase { position: relative; animation: growth-chase-pulse 2.4s ease-in-out infinite; overflow: hidden; }
 .growth-chase::after { content: ''; position: absolute; inset: -50% -20%; pointer-events: none; background: linear-gradient(110deg, transparent 42%, rgba(255,255,255,0.22) 50%, transparent 58%); transform: translateX(-45%); animation: growth-chase-sheen 3.6s ease-in-out infinite; }
 @keyframes growth-chase-sheen { 0%, 60% { transform: translateX(-55%); } 100% { transform: translateX(55%); } }
 .growth-chase-label { margin-top: 4px; color: #d7a7ff; font-weight: 900; text-shadow: 0 0 6px rgba(181, 96, 255, 0.55); }
@@ -195,7 +193,6 @@ body.growth-unplace-dragging .growth-unplace-zone.drag-hover { border-style: sol
 .growth-craft-target { margin: 8px 0; color: #b9c9d8; font-size: 0.84em; }
 .growth-craft-preview { box-sizing: border-box; margin: 0 0 10px; padding: 9px 10px; border: 1px solid rgba(126, 166, 101, 0.48); border-radius: 8px; background: rgba(8, 17, 16, 0.58); color: #cfe0d2; font-size: 0.8em; line-height: 1.45; }
 .growth-craft-preview h4 { margin: 0 0 6px; color: #d9edbd; font-size: 1em; }
-.growth-craft-preview .tooltip-title { margin-bottom: 5px; font-weight: 900; }
 .growth-craft-preview.empty { color: #81958a; }
 .growth-craft-actions, .growth-exchange-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 .growth-craft-bench details { margin-top: 9px; color: #91aac2; font-size: 0.8em; }
@@ -227,8 +224,6 @@ body.growth-dragging .growth-cell { cursor: grabbing; }
     .growth-item-actions button { min-height: 44px; }
     #growth-workshop .growth-bench-disclosure > summary { display: none; }
 }
-body.growth-dragging .info-tooltip,
-body.growth-dragging #info-tooltip { pointer-events: none; }
 
 @media (max-width: 720px) {
     .growth-workspace { grid-template-columns: 1fr; }
@@ -239,4 +234,11 @@ body.growth-dragging #info-tooltip { pointer-events: none; }
     .growth-tray-list { flex-direction: row; max-height: none; overflow-x: auto; padding-bottom: 4px; }
     .growth-tray-card { flex: 0 0 165px; }
     .growth-unlock-guide ol { columns: 1; }
-}
+} }
+@layer overrides {
+.growth-cell.preview-ok { background: rgba(46, 204, 113, 0.35); border-color: #2ecc71; }
+.growth-cell.preview-swap { background: rgba(241, 196, 15, 0.34); border-color: #f1c40f; }
+.growth-cell.preview-bad { background: rgba(231, 76, 60, 0.35); border-color: #e74c3c; }
+.growth-cell.slab-hover-buff { border-color: #ffe080; }
+.growth-cell.slab-hover-debuff { border-color: #e36b80; }
+.growth-chase { border-color: #c88bff; } }

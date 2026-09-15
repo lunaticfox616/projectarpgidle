@@ -1,3 +1,4 @@
+@layer components {
 /* UI Polish Overrides
    Color rules:
    - General UI: dark navy / blue-gray
@@ -10,43 +11,16 @@
    - Success/recovery: green
 */
 
-:root {
-  --ui-bg-deep: #0b1119;
-  --ui-bg-panel-top: #111a26;
-  --ui-bg-panel-bot: #0d141f;
-  --ui-bg-elev-top: #162234;
-  --ui-bg-elev-bot: #111b2a;
-  --ui-border: #2a3a50;
-  --ui-border-soft: #223245;
-  --ui-accent: #67b7ff;
-  --ui-accent-glow: rgba(103, 183, 255, 0.28);
-  --ui-gold: #e8c26a;
-  --ui-unique: #ffad5c;
-  --ui-chaos: #b78bff;
-  --ui-under: #54b8a4;
-  --ui-danger: #d86d6d;
-  --ui-ok: #74c79d;
-}
-
 body:not(.light-mode) .panel,
 body:not(.light-mode) #right-pane,
 body:not(.light-mode) .tab-content,
 body:not(.light-mode) .forge-panel {
-  background: linear-gradient(180deg, var(--ui-bg-panel-top) 0%, var(--ui-bg-panel-bot) 100%);
-  border-color: var(--ui-border);
+  background: linear-gradient(180deg, var(--color-panel-gradient-top) 0%, var(--color-panel-gradient-bottom) 100%);
+  border-color: var(--color-border);
   box-shadow: 0 8px 28px rgba(2, 6, 12, 0.42), inset 0 1px 0 rgba(184, 212, 244, 0.04);
 }
 
 /* ── TAB HEADER ─────────────────────────────────────────────── */
-body:not(.light-mode) .tab-header {
-  background: linear-gradient(180deg, #0f1520 0%, #0b1018 100%);
-  border-bottom: 1px solid #1c2a3a;
-  gap: 2px;
-  padding: 0 4px;
-  align-items: stretch;
-  height: 44px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(180,140,60,0.08);
-}
 
 body:not(.light-mode) .subtab-row,
 body.light-mode .subtab-row {
@@ -61,25 +35,6 @@ body:not(.light-mode) .subtab-row {
 }
 
 /* ── TAB BUTTONS ────────────────────────────────────────────── */
-body:not(.light-mode) .tab-btn {
-  position: relative;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 0.86em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0 4px;
-  min-height: 44px;
-  border-right: 1px solid rgba(255,255,255,0.04);
-  box-shadow: none;
-  transition: color .15s ease, background .15s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
 .inventory-full-warning {
   display: none;
@@ -93,90 +48,10 @@ body:not(.light-mode) .tab-btn {
   font-weight: 800;
   line-height: 1.35;
 }
-body:not(.light-mode) .tab-btn::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 15%;
-  right: 15%;
-  height: 2px;
-  background: transparent;
-  border-radius: 2px 2px 0 0;
-  transition: background .18s ease, left .18s ease, right .18s ease;
-}
-
-body:not(.light-mode) .tab-btn:hover {
-  background: rgba(180,200,230,0.05);
-  color: #ffffff;
-}
-body:not(.light-mode) .tab-btn:hover::after {
-  background: rgba(180,200,230,0.2);
-}
-
-body:not(.light-mode) .tab-btn.active {
-  background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
-  color: #ffd783;
-  text-shadow: 0 0 12px rgba(232,194,106,0.35);
-  border-right-color: rgba(255,255,255,0.05);
-}
-body:not(.light-mode) .tab-btn.active::after {
-  left: 10%;
-  right: 10%;
-  background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
-  height: 2px;
-  box-shadow: 0 0 8px rgba(232,194,106,0.6);
-}
 
 /* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
-body:not(.light-mode) .subtab-btn,
-/* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
-body.light-mode .subtab-btn {
-  position: relative;
-  border-width: 1px;
-  border-style: solid;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.82em;
-  letter-spacing: 0.03em;
-  overflow: hidden;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
-body:not(.light-mode) .subtab-btn {
-  border-color: #25374e;
-  background: linear-gradient(180deg, #141f2e 0%, #0f1825 100%);
-  color: #eef2f6;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
-  transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
-}
-body:not(.light-mode) .subtab-btn::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: rgba(255,255,255,0.07);
-  border-radius: 6px 6px 0 0;
-}
-
-body:not(.light-mode) .subtab-btn:hover {
-  border-color: #3a5570;
-  background: linear-gradient(180deg, #1a2a3d 0%, #131f30 100%);
-  color: #ffffff;
-}
-
-body:not(.light-mode) .subtab-btn.active {
-  border-color: #b08830;
-  background: linear-gradient(180deg, #2a1e08 0%, #1e1506 100%);
-  color: #ffd783;
-  box-shadow: 0 0 0 1px rgba(200,160,60,0.2), 0 0 10px rgba(200,160,60,0.15), inset 0 1px 0 rgba(255,220,120,0.1);
-  text-shadow: 0 0 8px rgba(232,194,106,0.4);
-}
-body:not(.light-mode) .subtab-btn.active::before {
-  background: linear-gradient(90deg, transparent, rgba(200,160,60,0.4), transparent);
-}
 
 /* 특정 하위탭: 색상은 동일, 테두리만 강조 */
 body:not(.light-mode) #btn-item-tab-equip,
@@ -207,28 +82,13 @@ body:not(.light-mode) .item-card:hover {
 
 @supports selector(.item-card:has(.item-title.magic)) {
   body:not(.light-mode) .item-card:has(.item-title.magic) { border-left: 3px solid #63b8ff; }
-  body:not(.light-mode) .item-card:has(.item-title.rare) { border-left: 3px solid var(--ui-gold); }
-  body:not(.light-mode) .item-card:has(.item-title.unique) { border-left: 3px solid var(--ui-unique); box-shadow: 0 8px 20px rgba(255, 159, 67, 0.12); }
+  body:not(.light-mode) .item-card:has(.item-title.rare) { border-left: 3px solid var(--color-accent-gold); }
+  body:not(.light-mode) .item-card:has(.item-title.unique) { border-left: 3px solid var(--color-rarity-unique); box-shadow: 0 8px 20px rgba(255, 159, 67, 0.12); }
 }
 
 body:not(.light-mode) .item-title.magic { color: #68bfff; }
-body:not(.light-mode) .item-title.rare { color: var(--ui-gold); }
-body:not(.light-mode) .item-title.unique { color: var(--ui-unique); text-shadow: 0 0 8px rgba(255, 171, 93, 0.35); }
-
-body:not(.light-mode) #item-tooltip-box,
-body:not(.light-mode) #canvas-tooltip,
-body:not(.light-mode) #info-tooltip {
-  background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
-  border: 1px solid #3a5371;
-  box-shadow: 0 14px 34px rgba(0,0,0,.55);
-}
-body:not(.light-mode) #item-tooltip-box.item-compare-tooltip,
-body:not(.light-mode) #info-tooltip.item-compare-tooltip {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-}
+body:not(.light-mode) .item-title.rare { color: var(--color-accent-gold); }
+body:not(.light-mode) .item-title.unique { color: var(--color-rarity-unique); text-shadow: 0 0 8px rgba(255, 171, 93, 0.35); }
 body:not(.light-mode) .item-compare-tooltip .item-tooltip-main,
 body:not(.light-mode) .item-compare-tooltip .item-compare-single,
 body:not(.light-mode) .item-compare-tooltip .item-compare-grid {
@@ -236,53 +96,47 @@ body:not(.light-mode) .item-compare-tooltip .item-compare-grid {
   border-color: #4d6584;
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
 }
-body:not(.light-mode) #item-tooltip-box { border-color: #4d6584; }
-body:not(.light-mode) #canvas-tooltip { border-color: #6b578d; }
-body:not(.light-mode) #info-tooltip { border-color: #3f6a63; }
-body:not(.light-mode) .tooltip-title { color: #ffffff; margin-bottom: 6px; }
-body:not(.light-mode) .tooltip-line { color: #ffffff; line-height: 1.55; margin-top: 2px; }
 body:not(.light-mode) .tooltip-final { color: #ffcc7a; line-height: 1.5; }
 
 .forge-panel,
 .craft-selected,
 .currency-card {
-  border-color: var(--ui-line);
-  background: var(--ui-surface-1);
-  color: var(--ui-text);
+  border-color: var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-text);
   box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
 body:not(.light-mode) .forge-panel,
 body:not(.light-mode) .craft-selected,
 body:not(.light-mode) .currency-card {
-  border-color: var(--ui-line);
-  background: var(--ui-surface-1);
+  border-color: var(--color-line);
+  background: var(--color-surface);
   box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
-.currency-card:hover { border-color: var(--ui-line-strong); }
+.currency-card:hover { border-color: var(--color-line-strong); }
 .craft-item-heading { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
 .craft-target-art { width: 64px; height: 78px; padding: 4px; object-fit: contain; flex: none; box-sizing: border-box; }
 .craft-item-heading > div { min-width: 0; }
 .craft-selected-summary { font-size: 12px; }
-:is(.craft-target-library, .secondary-craft-library) { border-top: 1px solid var(--ui-line); margin-top: 12px; }
-:is(.craft-target-library, .secondary-craft-library) > summary { cursor: pointer; padding: 12px 0; color: var(--ui-text-2); }
-:is(.craft-target-library, .secondary-craft-library)[open] > summary { color: var(--ui-gold); }
+:is(.craft-target-library, .secondary-craft-library) { border-top: 1px solid var(--color-line); margin-top: 12px; }
+:is(.craft-target-library, .secondary-craft-library) > summary { cursor: pointer; padding: 12px 0; color: var(--color-text-secondary); }
+:is(.craft-target-library, .secondary-craft-library)[open] > summary { color: var(--color-accent-gold); }
 :is(.craft-target-library, .secondary-craft-library) h3 { font-size: 14px; }
-.fossil-recipe { padding: 10px; border: 1px solid var(--ui-line); border-radius: 6px; background: var(--ui-surface-2); }
-.fossil-recipe p, #ui-fossil-info { color: var(--ui-text-2); font-size: 13px; line-height: 1.5; }
+.fossil-recipe { padding: 10px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-surface-raised); }
+.fossil-recipe p, #ui-fossil-info { color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
 .fossil-recipe button { min-height: 44px; width: 100%; }
-.craft-spores { padding: 8px; background: var(--ui-surface-1); border: 1px solid var(--ui-line); border-radius: 6px; }
+.craft-spores { padding: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }
 body.light-mode :is(#item-tab-craft, #item-tab-market, #tab-flask) .orb-tone {
   color: color-mix(in srgb, var(--orb-tone) 45%, #16130f); text-shadow: none;
 }
 body.light-mode :is(#item-tab-craft, #item-tab-market) .orb-tone[style*="background"] { color: #fff; }
-body.light-mode #item-tab-craft .craft-option-line { color: var(--ui-text) !important; }
-body.light-mode #item-tab-craft .craft-item-heading .normal { color: var(--ui-text); }
+body.light-mode #item-tab-craft .craft-item-heading .normal { color: var(--color-text); }
 body.light-mode #item-tab-craft .craft-item-heading .magic { color: #21587e; }
 body.light-mode #item-tab-craft .craft-item-heading .rare { color: #795c12; }
 body.light-mode #item-tab-craft .craft-item-heading .unique { color: #a14c17; }
-.craft-spores-title { font-weight: 600; margin-bottom: 6px; color: var(--ui-text-2); }
-.flask-management-panel { padding: 10px; margin-bottom: 10px; border: 1px solid var(--ui-line); border-radius: 8px; background: var(--ui-surface-1); }
+.craft-spores-title { font-weight: 600; margin-bottom: 6px; color: var(--color-text-secondary); }
+.flask-management-panel { padding: 10px; margin-bottom: 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); }
 
 .currency-card-header,
 .currency-card-name-wrap,
@@ -308,9 +162,9 @@ body.light-mode #item-tab-craft .craft-item-heading .unique { color: #a14c17; }
   image-rendering: pixelated;
 }
 
-body:not(.light-mode) .loot-unique, body:not(.light-mode) .reward, body:not(.light-mode) .text-reward { color: var(--ui-gold); }
-body:not(.light-mode) .attack-monster, body:not(.light-mode) .text-danger { color: var(--ui-danger); }
-body:not(.light-mode) .season-up, body:not(.light-mode) .text-success { color: var(--ui-ok); }
+body:not(.light-mode) .loot-unique, body:not(.light-mode) .reward, body:not(.light-mode) .text-reward { color: var(--color-accent-gold); }
+body:not(.light-mode) .attack-monster, body:not(.light-mode) .text-danger { color: var(--color-danger); }
+body:not(.light-mode) .season-up, body:not(.light-mode) .text-success { color: var(--color-positive-muted); }
 
 body:not(.light-mode) .combat-feed,
 body:not(.light-mode) #log,
@@ -327,16 +181,8 @@ body:not(.light-mode) .enemy-card.selected {
   border-color: #79c7ff;
   box-shadow: 0 0 0 1px rgba(144, 212, 255, 0.32), 0 0 16px rgba(92, 185, 255, 0.25);
 }
-body:not(.light-mode) .hp-bar-bg {
-  border-radius: 8px;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.65), 0 0 8px rgba(32, 68, 97, 0.22);
-}
 
 /* Keep light mode safe: minimal only */
-body.light-mode .tab-btn.active,
-body.light-mode .subtab-btn.active {
-  box-shadow: 0 0 0 1px rgba(91, 152, 215, .2);
-}
 
 
 .search-filter-panel {
@@ -352,29 +198,28 @@ body.light-mode .subtab-btn.active {
 .search-filter-input:focus,
 input[data-search-key]:focus {
   outline: none;
-  border-color: #8fd3ff !important;
   box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.78), 0 0 0 1px rgba(143, 211, 255, 0.18);
 }
 
 /* ── 루프 달성 정산과 장비 정리 중 복귀 배너 ── */
 .tutorial-overlay .tutorial-card.loop-settlement-card {
   width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; box-sizing: border-box;
-  padding: 28px; text-align: left; color: var(--ui-text);
-  background: var(--ui-surface-1); border: 1px solid var(--ui-line-strong); border-radius: 12px;
-  font-family: var(--game-font-body, 'Malgun Gothic', sans-serif); font-size: 13px; line-height: 1.6;
+  padding: 28px; text-align: left; color: var(--color-text);
+  background: var(--color-surface); border: 1px solid var(--color-line-strong); border-radius: 12px;
+  font-family: var(--font-body, 'Malgun Gothic', sans-serif); font-size: 13px; line-height: 1.6;
 }
-.loop-settlement-card h2 { margin: 16px 0; color: var(--ui-gold); font-size: 26px; border: 0; }
-.loop-settlement-story { margin: 0; color: var(--ui-text-2); animation: loop-settlement-in .6s ease both; }
+.loop-settlement-card h2 { margin: 16px 0; color: var(--color-accent-gold); font-size: 26px; border: 0; }
+.loop-settlement-story { margin: 0; color: var(--color-text-secondary); animation: loop-settlement-in .6s ease both; }
 .loop-settlement-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 8px; margin: 0 0 18px; }
-.loop-settlement-stats > div { padding: 12px 8px; background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: 6px; }
-.loop-settlement-stats dt { color: var(--ui-text-2); font-size: 12px; }
-.loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--ui-text); }
+.loop-settlement-stats > div { padding: 12px 8px; background: var(--color-surface-raised); border: 1px solid var(--color-line); border-radius: 6px; }
+.loop-settlement-stats dt { color: var(--color-text-secondary); font-size: 12px; }
+.loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--color-text); }
 .loop-settlement-stats > div:last-child dd { font-size: 16px; word-break: keep-all; }
-.loop-settlement-next { border-block: 1px solid var(--ui-line); padding: 14px 0; }
-.loop-settlement-next h3 { margin: 0 0 8px; color: var(--ui-gold); font-size: 14px; }
+.loop-settlement-next { border-block: 1px solid var(--color-line); padding: 14px 0; }
+.loop-settlement-next h3 { margin: 0 0 8px; color: var(--color-accent-gold); font-size: 14px; }
 .loop-settlement-next ul { padding-left: 20px; margin: 0; }
-.loop-settlement-next p { margin: 10px 0 0; color: var(--ui-gold); }
-.loop-settlement-note, .loop-settlement-card .tutorial-body { font-size: 12px; color: var(--ui-text-2); line-height: 1.6; }
+.loop-settlement-next p { margin: 10px 0 0; color: var(--color-accent-gold); }
+.loop-settlement-note, .loop-settlement-card .tutorial-body { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
 .loop-settlement-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .loop-settlement-actions button, #loop-decision-actions button { min-height: 40px; }
 @keyframes loop-settlement-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -391,9 +236,9 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
   margin-top: 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--ui-surface-1);
-  border: 1px solid var(--ui-line-strong);
-  color: var(--ui-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text);
 }
 .loop-ready-banner.active {
   display: flex;
@@ -404,13 +249,13 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
   line-height: 1.45;
 }
 .loop-ready-banner-text strong {
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
 }
 .loop-ready-banner button {
   pointer-events: auto;
   flex-shrink: 0;
-  background: var(--ui-surface-3);
-  border-color: var(--ui-line-strong);
+  background: var(--color-control);
+  border-color: var(--color-line-strong);
   font-weight: 700;
   padding: 8px 12px;
 }
@@ -428,12 +273,12 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
 #ui-sky-tower-list { margin-top: 12px; }
 /* Existing ocean/fishing panels still share these compact labels. */
 .sky-tower-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
-.sky-tower-title { font-weight:800; color:var(--ui-text); font-size:1.05em; }
-.sky-tower-sub { margin-top:4px; color:var(--ui-text-2); font-size:.95em; line-height:1.5; max-width:560px; }
-.sky-tower-lock-chip { flex-shrink:0; background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:5px; padding:5px 12px; font-size:.9em; color:var(--ui-accent); }
+.sky-tower-title { font-weight:800; color:var(--color-text); font-size:1.05em; }
+.sky-tower-sub { margin-top:4px; color:var(--color-text-secondary); font-size:.95em; line-height:1.5; max-width:560px; }
+.sky-tower-lock-chip { flex-shrink:0; background:var(--color-surface-raised); border:1px solid var(--color-line); border-radius:5px; padding:5px 12px; font-size:.9em; color:var(--color-accent); }
 .sky-tower-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
-.sky-tower-chip { background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:5px; padding:4px 10px; font-size:.9em; color:var(--ui-text); }
-.sky-tower-chip b { color:var(--ui-accent); }
+.sky-tower-chip { background:var(--color-surface-raised); border:1px solid var(--color-line); border-radius:5px; padding:4px 10px; font-size:.9em; color:var(--color-text); }
+.sky-tower-chip b { color:var(--color-accent); }
 
 /* Vertical subtab shells shared by the codex and map exploration panels. */
 .vertical-tab-layout {
@@ -624,35 +469,35 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
 /* Map navigation uses the same surfaces in both themes; keep the layout identical. */
 body.light-mode #tab-map .vertical-tab-panels,
 body.light-mode #tab-map .vertical-tab-sidebar {
-  background: var(--ui-surface-1);
-  border-color: var(--ui-line);
+  background: var(--color-surface);
+  border-color: var(--color-line);
   box-shadow: none;
 }
 body.light-mode #tab-map .vertical-tab-panel > h2,
 body.light-mode #tab-map .map-zone-group-header,
 body.light-mode #tab-map .vertical-tab-btn {
-  background: var(--ui-surface-2);
-  border-color: var(--ui-line);
-  color: var(--ui-text);
+  background: var(--color-surface-raised);
+  border-color: var(--color-line);
+  color: var(--color-text);
   text-shadow: none;
   box-shadow: none;
 }
-body.light-mode #tab-map .vertical-tab-btn span { color: var(--ui-text); text-shadow: none; }
+body.light-mode #tab-map .vertical-tab-btn span { color: var(--color-text); text-shadow: none; }
 body.light-mode #tab-map .vertical-tab-btn.active,
 body.light-mode #tab-map .map-zone-group:not(.collapsed) .map-zone-group-header {
-  background: color-mix(in srgb, var(--ui-accent) 12%, var(--ui-surface-1));
-  border-color: var(--ui-accent);
-  color: var(--ui-text);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 body.light-mode #tab-map .map-state-badge {
-  color: var(--ui-text-2);
-  border-color: var(--ui-line-strong);
-  background: var(--ui-surface-2);
+  color: var(--color-text-secondary);
+  border-color: var(--color-line-strong);
+  background: var(--color-surface-raised);
 }
 body.light-mode #tab-map .map-state-badge.current,
 body.light-mode #tab-map .map-state-badge.recommended {
-  color: var(--ui-accent-strong);
-  border-color: var(--ui-accent);
+  color: var(--color-accent-strong);
+  border-color: var(--color-accent);
 }
 
 @media (max-width: 820px) {
@@ -729,101 +574,6 @@ body.light-mode #tab-map .map-state-badge.recommended {
 }
 
 /* Top-level grouping is the first tab row; the selected group's tabs stay in the second row. */
-.tab-category-bar {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: stretch;
-  gap: 2px;
-  padding: 0 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  background: #14141d;
-  border-bottom: 1px solid #2a2a35;
-}
-.tab-category-bar::-webkit-scrollbar { display: none; }
-.tab-category-btn {
-  position: relative;
-  flex: 0 0 auto;
-  min-width: max-content;
-  padding: 10px 14px;
-  text-align: center;
-  cursor: pointer;
-  border: 0;
-  border-right: 1px solid #2a2a35;
-  border-radius: 0;
-  background: transparent;
-  color: #888;
-  font-weight: bold;
-  transition: 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  white-space: nowrap;
-  word-break: keep-all;
-}
-body:not(.light-mode) .tab-category-bar {
-  background: linear-gradient(180deg, #121a26 0%, #0d141f 100%);
-  border-bottom: 1px solid #1c2a3a;
-  box-shadow: inset 0 -1px 0 rgba(180,140,60,0.08);
-}
-body:not(.light-mode) .tab-category-btn {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 0.86em;
-  letter-spacing: 0.04em;
-  padding: 0 14px;
-  min-height: 34px;
-  border-right: 1px solid rgba(255,255,255,0.04);
-  box-shadow: none;
-  transition: color .15s ease, background .15s ease;
-}
-body:not(.light-mode) .tab-category-btn::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 15%;
-  right: 15%;
-  height: 2px;
-  background: transparent;
-  border-radius: 2px 2px 0 0;
-  transition: background .18s ease, left .18s ease, right .18s ease;
-}
-body:not(.light-mode) .tab-category-btn:hover {
-  background: rgba(180,200,230,0.05);
-  color: #ffffff;
-}
-body:not(.light-mode) .tab-category-btn:hover::after {
-  background: rgba(180,200,230,0.2);
-}
-body:not(.light-mode) .tab-category-btn.active {
-  background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
-  color: #ffd783;
-  text-shadow: 0 0 12px rgba(232,194,106,0.35);
-}
-body:not(.light-mode) .tab-category-btn.active::after {
-  left: 10%;
-  right: 10%;
-  background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
-  height: 2px;
-  box-shadow: 0 0 8px rgba(232,194,106,0.6);
-}
-body.light-mode .tab-category-bar {
-  background-color: #eef2f8;
-  border-bottom-color: #d3deec;
-}
-body.light-mode .tab-category-btn {
-  color: #4b5f78;
-  border-right-color: #d3deec;
-}
-body.light-mode .tab-category-btn.active {
-  background: #ffffff;
-  color: #1e5aa5;
-}
 /* Flask equipment cards mirror the compact equipment-slot presentation.
    Slot count varies with the equipped belt (1 heal + 0~4 utility), so the grid
    auto-fits instead of assuming a fixed column count. */
@@ -835,34 +585,34 @@ body.light-mode .tab-category-btn.active {
 .flask-slot-box.empty-hint { border-style: dashed; opacity: 0.85; }
 .flask-slot-box {
   min-height: 96px;
-  border: 1px solid var(--ui-line);
+  border: 1px solid var(--color-line);
   border-radius: 8px;
-  background: var(--ui-surface-2);
+  background: var(--color-surface-raised);
   padding: 8px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.24);
 }
 .flask-slot-box.active {
-  border-color: var(--ui-gold);
-  box-shadow: inset 0 0 0 1px var(--ui-line-strong);
+  border-color: var(--color-accent-gold);
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
 }
 .flask-slot-box.heal { border-color: #4f7b65; }
 .flask-slot-box.heal.active { border-color: #74c79d; }
 .flask-slot-label {
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
   font-size: 0.72em;
   font-weight: 800;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
 }
 .flask-slot-name {
-  color: var(--ui-text);
+  color: var(--color-text);
   font-weight: 900;
   font-size: 0.86em;
   min-height: 32px;
   line-height: 1.25;
 }
 .flask-slot-status {
-  color: var(--ui-text);
+  color: var(--color-text);
   font-size: 0.74em;
   min-height: 18px;
   margin: 5px 0;
@@ -872,11 +622,21 @@ body.light-mode .tab-category-btn.active {
   font-size: 0.76em;
 }
 .flask-help-text {
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
   font-size: 0.76em;
   margin-top: 6px;
   line-height: 1.35;
 }
 @media (max-width: 720px) {
   .flask-paperdoll { grid-template-columns: 1fr; }
+}
+}
+
+@layer overrides {
+body.light-mode #item-tab-craft .craft-option-line { color: var(--color-text); }
+
+.search-filter-input:focus,
+input[data-search-key]:focus {
+  border-color: #8fd3ff;
+}
 }

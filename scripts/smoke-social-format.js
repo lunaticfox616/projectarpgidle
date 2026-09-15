@@ -167,7 +167,7 @@ const html = fs.readFileSync('index.html', 'utf8');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
 assert.ok(html.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');
 assert.ok(html.includes('id="sel-chat-message-size"'), 'settings should expose a persistent chat message size control');
-assert.ok(socialSource.includes('var(--social-chat-message-size,12px)'), 'chat message text should follow the shared size setting instead of a fixed pixel value');
+assert.ok(socialSource.includes('var(--font-size-chat,12px)'), 'chat message text should follow the shared size setting instead of a fixed pixel value');
 assert.ok(socialSource.includes('SOCIAL_BG_NOTI_POLL_MS = 15000'), 'background chat notifications should arrive promptly');
 assert.ok(socialSource.includes("showGameToast(`새 채팅"), 'incoming chat should create an in-game notification');
 const socialSql = fs.readFileSync('db/social.sql', 'utf8');
