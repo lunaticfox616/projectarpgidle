@@ -20,5 +20,7 @@ body.desktop-windowed-ui.ui-workspace-docked .player-hud-identity-row { max-widt
 /* 좁아진 전장 열: 겹치는 보조 문구를 줄여 적 이름표·목표·HUD 숫자가 잘리지 않게 한다. */
 body.desktop-windowed-ui.ui-workspace-docked .battlefield-caption { display: none; }
 body.desktop-windowed-ui.ui-workspace-docked .player-exp-percent::before { content: none; }
+/* 도킹 중 채팅을 열면 전투 기록 자리가 없으므로 도킹 창 위 오른쪽 열에 띄운다(창 z-index 1200+ 위). */
+body.desktop-windowed-ui.ui-workspace-docked.community-dock-open #tab-social.ui-community-dock { z-index: 1300; top: 56px; right: 18px; bottom: 18px; left: auto; width: var(--community-dock-width, 360px); height: auto; }
 }
 }

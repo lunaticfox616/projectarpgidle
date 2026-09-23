@@ -17,7 +17,7 @@ const levelProgressionUi = (() => {
         const warning = reason ? `<div class="tooltip-line" style="color:var(--danger,#ed8d83)">${equipped ? '효과 비활성 · ' : ''}${escapeHTML(reason)}</div>` : '';
         const grace = equipped && item.legacyRequirementGrace ? ' · 기존 장착 유예' : '';
         const slotHint = available ? `<div class="tooltip-line" style="color:var(--color-success)">장착 가능: ${escapeHTML(available)}</div>` : '';
-        return `<div class="tooltip-line" style="color:var(--copy-muted)">${escapeHTML([level,...attributes].join(' · ') + grace)}</div>${warning}${slotHint}`;
+        return `<div class="tooltip-line tooltip-meta tooltip-meta-base">${escapeHTML([level,...attributes].join(' · ') + grace)}</div>${warning}${slotHint}`;
     }
     function area(zone) {
         return `Lv.${levelProgression.areaLevel(zone)}`;

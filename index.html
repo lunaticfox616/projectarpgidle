@@ -368,6 +368,7 @@
                 <section id="act-exploration-panel" aria-label="탐험 지도" hidden>
                     <div class="act-exploration-heading"><strong>탐험 지도</strong><button type="button" data-exploration-loot onclick="actExplorationUi.openLoot()">임시 전리품</button></div>
                     <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
+                    <div id="act-exploration-progress" class="act-exploration-progress" role="progressbar" aria-label="탐험한 지형" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="act-exploration-progress-fill"></span><b></b></div>
                     <div class="act-exploration-modes">
                         <button type="button" data-exploration-mode="direct" onclick="actExplorationUi.mode('direct')">보스 직행</button>
                         <button type="button" data-exploration-mode="full" onclick="actExplorationUi.mode('full')">전체 탐색</button>

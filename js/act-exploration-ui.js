@@ -21,6 +21,18 @@ const actExplorationUi=(()=>{
         seal.setAttribute('aria-label',remaining?'남은 정예 몬스터 수: '+remaining:'보스 관문 개방');
         draw(document.getElementById('act-exploration-map'),run);
         draw(document.getElementById('act-exploration-map-large'),run);
+        renderProgress(run,remaining);
+    }
+    // 지도 아래 진행 막대: 밝혀낸 바닥 비율과 남은 정예 수. 표시 전용이며 탐험 규칙과 무관하다.
+    function renderProgress(run,remaining) {
+        const host=document.getElementById('act-exploration-progress');if(!host)return;
+        const map=actExplorationMap.layout(run.act);
+        const floor=map.tiles.filter(Boolean).length;
+        const seen=run.discovered.filter(id=>map.tiles[id]).length;
+        const pct=floor?Math.round(seen/floor*100):0;
+        host.style.setProperty('--explore-pct',pct+'%');
+        host.setAttribute('aria-valuenow',String(pct));
+        host.querySelector('b').textContent=`탐험 ${pct}%`+(remaining?` · 정예 ${remaining}`:' · 관문 개방');
     }
     function draw(canvas,run) {
         const map=actExplorationMap.layout(run.act),scale=canvas.id==='act-exploration-map-large'?10:5;

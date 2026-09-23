@@ -30,6 +30,8 @@ body.light-mode .cl-catalog .cl-resource.is-unavailable>small,body.light-mode .c
 .cl-catalog header>div:last-child{display:flex;gap:6px}.cl-catalog nav button[aria-pressed=true]{color:#eee4cc}
 #crafting-workspace .cl-method-note{margin-top:8px;padding:8px 0 0;border:0;border-top:1px solid #ffffff12;background:none;border-radius:0;line-height:1.6}
 #crafting-workspace .cl-method-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 8px;margin-bottom:4px}
+/* 주 재화 칸: 재화 그림 + 이름 + 보유 수. 그림은 ORB_DB 아이콘을 그대로 쓴다. */
+#crafting-workspace .cl-recipe.has-icon{grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:0 9px}#crafting-workspace .cl-recipe.has-icon>strong{grid-column:2;grid-row:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}#crafting-workspace .cl-recipe.has-icon>small{grid-column:2;grid-row:2;text-align:left}.cl-recipe-icon{grid-column:1;grid-row:1/3;width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 2px 3px #000c)}
 #crafting-workspace .cl-recipe.selected{outline:2px solid #dfbf82;outline-offset:-2px;border-color:transparent;box-shadow:none;background:#dfbf8210}
 #crafting-workspace .cl-section-title>div{display:flex;gap:5px}
 .cl-goal-help{position:relative;display:inline-block}#crafting-workspace #cl-goal-help{padding:0;min-height:28px;background:none;border:0;border-radius:0;border-bottom:1px dotted #a99c80;font-weight:600}

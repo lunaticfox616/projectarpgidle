@@ -35,6 +35,11 @@ body:not(.light-mode) #canvas-tooltip { border-color: #6b578d; }
 body:not(.light-mode) #info-tooltip { border-color: #3f6a63; }
 body:not(.light-mode) .tooltip-title { color: #ffffff; margin-bottom: 6px; }
 body:not(.light-mode) .tooltip-line { color: #ffffff; line-height: 1.55; margin-top: 2px; }
+/* 장비 툴팁의 보조 줄과 구획 제목. 색은 스킨이 바꿀 수 있게 인라인이 아니라 여기서 소유한다. */
+body .tooltip-line.tooltip-meta-base { color: var(--copy-muted); }
+body .tooltip-line.tooltip-section { margin-top: 6px; font-weight: 800; }
+body .tooltip-line.tooltip-section-base { color: #f1c40f; }
+body .tooltip-line.tooltip-section-explicit { color: var(--color-accent); }
 body:has(#background-combat-result-overlay) #item-tooltip-box { z-index: 13260; }
 body:has(#background-combat-result-overlay) #item-tooltip-box:not(.item-compare-tooltip),
 body:has(#background-combat-result-overlay) #item-tooltip-box :is(.item-tooltip-main, .item-compare-panel) { background: var(--color-surface-raised); border-color: var(--color-line-strong); border-radius: var(--radius-md); color: var(--color-text); }
