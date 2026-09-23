@@ -34,26 +34,72 @@ const actExplorationUi=(()=>{
         host.setAttribute('aria-valuenow',String(pct));
         host.querySelector('b').textContent=`탐험 ${pct}%`+(remaining?` · 정예 ${remaining}`:' · 관문 개방');
     }
+    // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
+    // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다(클릭 좌표는 비율로 계산해 영향 없음).
+    const MAP_INK={fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',floorAlt:'#877a58',wall:'#26342c',edge:'rgba(240,214,150,.85)'};
     function draw(canvas,run) {
-        const map=actExplorationMap.layout(run.act),scale=canvas.id==='act-exploration-map-large'?10:5;
-        canvas.width=map.columns*scale;canvas.height=map.rows*scale;
+        const map=actExplorationMap.layout(run.act),scale=canvas.id==='act-exploration-map-large'?10:5,ss=2;
+        canvas.width=map.columns*scale*ss;canvas.height=map.rows*scale*ss;
         const ctx=canvas.getContext('2d'),seen=new Set(run.discovered);
-        ctx.fillStyle='#080f0d';ctx.fillRect(0,0,canvas.width,canvas.height);
-        for(const id of seen) {
-            ctx.fillStyle=map.tiles[id]?'#91a089':'#283e33';
-            ctx.fillRect(id%map.columns*scale,Math.floor(id/map.columns)*scale,scale,scale);
-        }
+        ctx.setTransform(ss,0,0,ss,0,0);
+        drawFog(ctx,map,scale);
+        drawTerrain(ctx,map,seen,scale);
         drawMarkers(ctx,run,map,seen,scale);
     }
-    function drawMarkers(ctx,run,map,seen,scale) {
-        for(const pack of run.packs) {
-            const room=map.rooms.find(r=>r.id===pack.roomId);
-            if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
-            ctx.fillStyle=pack.stage!==null?'#e78077':pack.eliteIds.some(id=>pack.aliveIds.includes(id))?'#e1bd62':'#ae9073';
-            ctx.fillRect(room.gx*scale-1,room.gy*scale-1,7,7);
+    function drawFog(ctx,map,scale) {
+        ctx.fillStyle=MAP_INK.fog;ctx.fillRect(0,0,map.columns*scale,map.rows*scale);
+        ctx.fillStyle=MAP_INK.grid;
+        for(let gx=0;gx<map.columns;gx+=4)ctx.fillRect(gx*scale,0,.5,map.rows*scale);
+        for(let gy=0;gy<map.rows;gy+=4)ctx.fillRect(0,gy*scale,map.columns*scale,.5);
+    }
+    function drawTerrain(ctx,map,seen,scale) {
+        for(const id of seen) {
+            const gx=id%map.columns,gy=Math.floor(id/map.columns);
+            ctx.fillStyle=map.tiles[id]?((gx+gy)%2?MAP_INK.floor:MAP_INK.floorAlt):MAP_INK.wall;
+            ctx.fillRect(gx*scale,gy*scale,scale,scale);
         }
-        if(run.destination){ctx.strokeStyle='#f3e5b4';ctx.strokeRect(run.destination.gx*scale-1,run.destination.gy*scale-1,7,7);}
-        ctx.fillStyle='#91ecdf';ctx.fillRect(game.gridPlayer.gx*scale-1,game.gridPlayer.gy*scale-1,7,7);
+        ctx.fillStyle=MAP_INK.edge;
+        for(const id of seen)if(map.tiles[id])drawFloorEdges(ctx,map,seen,id,scale);
+    }
+    // 바닥 칸의 네 변 중 바닥이 아닌 쪽에만 얇은 금빛 경계를 긋는다.
+    const EDGE_SIDES=[[0,-1],[1,0],[0,1],[-1,0]];
+    function drawFloorEdges(ctx,map,seen,id,scale) {
+        const gx=id%map.columns,gy=Math.floor(id/map.columns),w=.7;
+        for(const [dx,dy] of EDGE_SIDES) {
+            if(isSeenFloor(map,seen,gx+dx,gy+dy))continue;
+            const x=gx*scale+(dx>0?scale-w:0),y=gy*scale+(dy>0?scale-w:0);
+            ctx.fillRect(x,y,dx?w:scale,dy?w:scale);
+        }
+    }
+    function isSeenFloor(map,seen,gx,gy) {
+        if(gx<0||gy<0||gx>=map.columns||gy>=map.rows)return false;
+        const id=gy*map.columns+gx;
+        return seen.has(id)&&!!map.tiles[id];
+    }
+    function drawDiamond(ctx,{x,y,r,fill}) {
+        ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();
+        ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#140d08';ctx.stroke();
+    }
+    function drawMarkers(ctx,run,map,seen,scale) {
+        const at=v=>v*scale+scale/2,r=Math.max(3,scale*.8);
+        for(const pack of run.packs) {
+            const room=map.rooms.find(item=>item.id===pack.roomId);
+            if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
+            const fill=pack.stage!==null?'#e78077':pack.eliteIds.some(id=>pack.aliveIds.includes(id))?'#e1bd62':'#ae9073';
+            drawDiamond(ctx,{x:at(room.gx),y:at(room.gy),r,fill});
+        }
+        if(run.destination) {
+            ctx.beginPath();ctx.arc(at(run.destination.gx),at(run.destination.gy),r+1,0,Math.PI*2);
+            ctx.setLineDash([2,1.5]);ctx.lineWidth=1;ctx.strokeStyle='#f3e5b4';ctx.stroke();ctx.setLineDash([]);
+        }
+        drawPlayerMarker(ctx,at(game.gridPlayer.gx),at(game.gridPlayer.gy),r);
+    }
+    function drawPlayerMarker(ctx,x,y,r) {
+        const glow=ctx.createRadialGradient(x,y,0,x,y,r*2.4);
+        glow.addColorStop(0,'rgba(145,236,223,.55)');glow.addColorStop(1,'rgba(145,236,223,0)');
+        ctx.fillStyle=glow;ctx.fillRect(x-r*2.4,y-r*2.4,r*4.8,r*4.8);
+        ctx.beginPath();ctx.arc(x,y,r*.7,0,Math.PI*2);
+        ctx.fillStyle='#91ecdf';ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#0b1a17';ctx.stroke();
     }
     function mode(value) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
