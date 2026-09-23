@@ -5766,7 +5766,7 @@ function getMobileToastRoot() {
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
     root.style.gap = '8px';
-    root.style.width = 'min(calc(92vw / var(--ui-display-factor, 1)), 560px)';
+    root.style.width = 'min(calc(92vw / var(--scale-display-factor, 1)), 560px)';
     document.body.appendChild(root);
     return root;
 }
@@ -7565,7 +7565,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             if (g !== 0) return g;
             return String(aKey || '').localeCompare(String(bKey || ''));
         });
-        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--ui-accent); font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--color-accent); font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = getItemAffixTierHtml(stat);
