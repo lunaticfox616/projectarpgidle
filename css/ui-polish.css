@@ -193,6 +193,9 @@ body:not(.light-mode) .enemy-card.selected {
   -webkit-appearance: none;
   appearance: none;
   outline: none;
+  border: 1px solid #45556f;
+  background: #111a28;
+  color: #ffffff;
 }
 
 .search-filter-input:focus,

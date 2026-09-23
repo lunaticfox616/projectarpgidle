@@ -1,5 +1,5 @@
 function normalizeUiSkin(skin) {
-    return ['reliquary', 'verdigris', 'crimson'].includes(skin) ? skin : 'reliquary';
+    return ['rift', 'reliquary', 'verdigris', 'crimson'].includes(skin) ? skin : 'rift';
 }
 
 /** Stored user scale in percent, independent of the current monitor's pixel ratio. */

@@ -8,7 +8,9 @@
 .battle-loot-flight{position:absolute;left:0;top:0;width:0;height:0;z-index:1}
 .battle-loot-item{position:absolute;width:28px;height:26px;max-width:none;object-fit:contain;left:-14px;top:-14px;filter:drop-shadow(1px 2px 1px #14130f);transform:rotate(var(--rest-angle,-15deg))}
 .battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
-.battle-loot-name{position:absolute;left:0;bottom:23px;transform:translateX(-50%);white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid rgba(176,164,140,.22);background:rgba(8,10,12,.88);padding:2px 7px;color:var(--loot-color);font:500 12px/1.4 sans-serif;text-shadow:0 1px 2px #000;z-index:4;opacity:0;transition:opacity 220ms 90ms}
+.battle-loot-drop::after{content:'';position:absolute;left:0;bottom:23px;width:1px;height:var(--label-lift,0px);background:linear-gradient(transparent,color-mix(in srgb,var(--loot-color) 55%,transparent));opacity:0;transition:opacity 220ms 90ms}
+.battle-loot-drop.landed::after{opacity:.7}
+.battle-loot-name{position:absolute;left:0;bottom:calc(23px + var(--label-lift,0px));transform:translateX(-50%);white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid rgba(176,164,140,.22);background:rgba(8,10,12,.88);padding:2px 7px;color:var(--loot-color);font:500 12px/1.4 sans-serif;text-shadow:0 1px 2px #000;z-index:4;opacity:0;transition:opacity 220ms 90ms}
 .battle-loot-drop.landed .battle-loot-name{opacity:1}
 .battle-loot-drop[data-rarity="unique"] .battle-loot-name{border-color:#996337;background:rgba(25,18,13,.95);font-weight:600;color:#ecad6b}
 .battle-loot-beam{position:absolute;left:-24px;bottom:0;width:48px;height:var(--beam-height,145px);pointer-events:none;opacity:0;transform-origin:center bottom;background:radial-gradient(ellipse at 50% 90%,color-mix(in srgb,var(--beam-color,#f4b76c) 40%,transparent),transparent 62%);transition:opacity 450ms;mask-image:linear-gradient(transparent,#000 22%,#000 96%,transparent)}

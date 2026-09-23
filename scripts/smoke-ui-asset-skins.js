@@ -126,7 +126,8 @@ vm.createContext(skinContext);
 vm.runInContext(readFunctionSource(fs.readFileSync('js/utils.js', 'utf8'), 'normalizeUiSkin')
     + readFunctionSource(ui, 'applyUiSkin'), skinContext, { filename: 'ui-skins.js' });
 assert.strictEqual(skinContext.normalizeUiSkin('verdigris'), 'verdigris', 'a supported skin must survive normalization');
-assert.strictEqual(skinContext.normalizeUiSkin('missing'), 'reliquary', 'an unknown saved skin must fall back safely');
+assert.strictEqual(skinContext.normalizeUiSkin('missing'), 'rift', 'an unknown saved skin must fall back to the default rift skin');
+assert.strictEqual(skinContext.normalizeUiSkin('reliquary'), 'reliquary', 'the previous default stays selectable');
 skinContext.applyUiSkin('crimson');
 assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'crimson', 'skin selection must update one body-level theme boundary');
 assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');

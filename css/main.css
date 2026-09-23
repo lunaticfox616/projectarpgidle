@@ -44,6 +44,8 @@
 @import "./crafting-workspace.css";
 @import "./gem-core-forge.css";
 @import "./act-exploration.css";
+@import "./workspace-dock.css";
+@import "./themes/rift.css";
 @import "./components/bars.css";
 @import "./components/tabs.css";
 @import "./components/modals.css";

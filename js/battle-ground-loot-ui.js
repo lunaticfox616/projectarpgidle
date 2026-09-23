@@ -49,10 +49,26 @@ const battleGroundLoot = (() => {
     }
 
     function place(marker) {
-        const half = marker.querySelector('.battle-loot-name').offsetWidth / 2 + 8;
+        const name = marker.querySelector('.battle-loot-name');
+        const half = name.offsetWidth / 2 + 8;
         const x = Math.max(half, Math.min(canvas.clientWidth - half, Number(marker.dataset.x) * canvas.clientWidth));
         const y = Math.max(62, Math.min(canvas.clientHeight - 25, Number(marker.dataset.y) * canvas.clientHeight));
         marker.style.left = x + 'px'; marker.style.top = y + 'px';
+        stackLabel(marker, { x, y, half: name.offsetWidth / 2, height: name.offsetHeight || 20 });
+    }
+
+    // 이름표가 이미 떨어진 이름표와 겹치면 한 줄씩 위로 올린다(아이템 그림 위치는 그대로).
+    // 표시 좌표만 바꾸며 지급·자동 획득과 무관하다. 올린 만큼 CSS가 연결선을 그린다.
+    function stackLabel(marker, box) {
+        const others = [...entries.keys()].filter(other => other !== marker && other.dataset.labelTop);
+        const overlaps = top => others.some(other => Math.abs(Number(other.dataset.labelTop) - top) < box.height - 1
+            && Math.abs(parseFloat(other.style.left) - box.x) < box.half + Number(other.dataset.labelHalf) + 4);
+        const base = box.y - 23 - box.height;
+        let lift = 0;
+        while (lift < box.height * 5 && base - lift > 4 && overlaps(base - lift)) lift += box.height + 2;
+        marker.dataset.labelTop = String(base - lift);
+        marker.dataset.labelHalf = String(box.half);
+        marker.style.setProperty('--label-lift', lift + 'px');
     }
 
     function currencyLabel(label, marker, receipt) {
