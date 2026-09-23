@@ -3008,11 +3008,12 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
             ctx.stroke();
         }
     }
-    drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { backdropActive, skillTargets, skillAreaCells });
+    drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { proj, backdropActive, skillTargets, skillAreaCells });
     ctx.restore();
 }
 
 function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
+    if (isBattleLightingEnabled()) return drawRiftCombatOccupants(ctx, layers);
     fillCell(game.gridPlayer, 'rgba(134, 190, 255, 0.13)', 'rgba(150, 203, 255, 0.55)', 0.9);
     (game.enemies || []).forEach(enemy => {
         if (enemy && enemy.hp > 0) fillCell(enemy, 'rgba(255, 87, 87, 0.12)', 'rgba(255, 140, 120, 0.38)', 0.7);
@@ -3022,6 +3023,83 @@ function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
     });
     (layers.skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.12)', 'rgba(124, 255, 214, 0.5)', 0.9));
     (layers.skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.18)', 'rgba(255, 225, 151, 0.75)', 0.95));
+}
+
+// 균열 등불(rift) 스킨의 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다.
+// 칸 판정·범위 계산은 그대로이고 그리는 모양만 바꾼다. 다른 스킨은 기존 칸 채우기를 쓴다.
+const RIFT_CELL_TONES = {
+    player: { fill: 'rgba(120, 210, 196, 0.22)', line: 'rgba(160, 236, 222, 0.7)' },
+    enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
+    summon: { fill: 'rgba(110, 200, 140, 0.18)', line: 'rgba(150, 230, 176, 0.5)' },
+    area: { fill: 'rgba(214, 170, 92, 0.12)', line: 'rgba(233, 203, 137, 0.42)' },
+    target: { fill: 'rgba(233, 180, 84, 0.2)', line: 'rgba(246, 214, 146, 0.9)' }
+};
+
+function drawRiftCombatOccupants(ctx, layers) {
+    const proj = layers.proj;
+    if (!proj) return;
+    (layers.skillAreaCells || []).forEach(cell => drawRiftAreaCell(ctx, proj, cell));
+    drawRiftUnitRing(ctx, proj, game.gridPlayer, RIFT_CELL_TONES.player);
+    (game.summons || []).forEach(summon => {
+        if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) drawRiftUnitRing(ctx, proj, summon, RIFT_CELL_TONES.summon);
+    });
+    (game.enemies || []).forEach(enemy => {
+        if (enemy && enemy.hp > 0) drawRiftUnitRing(ctx, proj, enemy, RIFT_CELL_TONES.enemy);
+    });
+    (layers.skillTargets || []).forEach(hit => drawRiftTargetBrackets(ctx, proj, hit && hit.enemy));
+}
+
+function getRiftUnitFootprintBox(proj, unit) {
+    const cells = getGridUnitCells(unit);
+    if (cells.length <= 0) return null;
+    const points = cells.map(cell => proj.cellToScreen(cell.gx, cell.gy));
+    const xs = points.map(p => p.x), ys = points.map(p => p.y);
+    const left = Math.min(...xs) - proj.tileW / 2, right = Math.max(...xs) + proj.tileW / 2;
+    const top = Math.min(...ys) - proj.tileH / 2, bottom = Math.max(...ys) + proj.tileH / 2;
+    return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
+}
+
+function drawRiftUnitRing(ctx, proj, unit, tone) {
+    const box = getRiftUnitFootprintBox(proj, unit);
+    if (!box) return;
+    const rx = (box.right - box.left) * 0.4;
+    const ry = Math.max(4, rx * 0.34);
+    const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.ellipse(box.cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = tone.fill;
+    ctx.fill();
+    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = tone.line;
+    ctx.stroke();
+}
+
+function drawRiftAreaCell(ctx, proj, cell) {
+    if (!hasGridCell(cell)) return;
+    const c = proj.cellToScreen(cell.gx, cell.gy);
+    const inset = Math.min(proj.tileW, proj.tileH) * 0.08;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = RIFT_CELL_TONES.area.fill;
+    ctx.fillRect(c.x - proj.tileW / 2 + inset, c.y - proj.tileH / 2 + inset, proj.tileW - inset * 2, proj.tileH - inset * 2);
+}
+
+// 조준 대상: 발자국 상자의 네 모서리에만 짧은 꺾쇠를 긋는다.
+function drawRiftTargetBrackets(ctx, proj, unit) {
+    const box = getRiftUnitFootprintBox(proj, unit);
+    if (!box) return;
+    const arm = Math.min(box.right - box.left, box.bottom - box.top) * 0.22;
+    const corners = [[box.left, box.top, 1, 1], [box.right, box.top, -1, 1], [box.left, box.bottom, 1, -1], [box.right, box.bottom, -1, -1]];
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = RIFT_CELL_TONES.target.line;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    corners.forEach(([x, y, dx, dy]) => {
+        ctx.moveTo(x, y + dy * arm);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + dx * arm, y);
+    });
+    ctx.stroke();
 }
 
 function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {

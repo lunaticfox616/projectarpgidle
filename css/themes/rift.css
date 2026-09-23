@@ -227,4 +227,35 @@ body[data-ui-skin="rift"]:not(.light-mode) .item-compare-title { color: #d8a64a;
 /* 스크롤바와 초점 표시 */
 body[data-ui-skin="rift"]:not(.light-mode) * { scrollbar-color: #3a3a36 transparent; }
 body[data-ui-skin="rift"]:not(.light-mode) :focus-visible { outline-color: #f3cf7a; }
+/* 기타 메뉴: 전투 HUD를 덮지 않도록 레일 안쪽, 기타·정리 버튼 바로 위로 세로로 연다. */
+body[data-ui-skin="rift"].desktop-windowed-ui .ui-rail-misc-panel {
+  left: 6px; right: auto; top: auto; bottom: 56px;
+  grid-template-columns: minmax(0, 1fr);
+  width: max-content; min-width: calc(100% - 12px); max-width: 220px;
+}
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-rail-misc-panel {
+  border-color: rgba(201, 164, 92, .42);
+  background: linear-gradient(180deg, #1a1813, #0c0b09);
+}
+body[data-ui-skin="rift"].desktop-windowed-ui .ui-rail-misc-panel .tab-btn { width: auto; min-height: 36px; align-items: center; justify-content: flex-start; padding: 6px 10px; text-align: left; }
+/* 전투 기록 접기 버튼 글자가 8px대로 줄어들던 것을 읽을 수 있는 크기로 둔다. */
+body[data-ui-skin="rift"].desktop-windowed-ui #btn-combat-log-toggle { font-size: 11px; }
+
+@media (max-width: 1080px) {
+  /* 모바일 탭 제목: 예전 보라 밑줄·주황 글자를 금빛 가는 선으로 맞춘다(색을 따로 지정한 제목은 그대로). */
+  body[data-ui-skin="rift"]:not(.light-mode) .tab-content h2:not([style*="color"]) { color: #e9cb89; }
+  body[data-ui-skin="rift"]:not(.light-mode) .tab-content h2:not([style*="border"]) { border-bottom: 1px solid rgba(201, 164, 92, .34); }
+  body[data-ui-skin="rift"]:not(.light-mode) #settings-category {
+    border-color: rgba(201, 164, 92, .38);
+    background: linear-gradient(180deg, #1b1914, #0e0d0b);
+  }
+  /* 설정 줄: 이름 칸 너비를 맞춰 선택 상자 왼쪽 끝이 한 줄로 서게 한다. */
+  body[data-ui-skin="rift"] #tab-settings .cfg-select-row {
+    display: grid;
+    grid-template-columns: minmax(84px, 34%) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+  }
+  body[data-ui-skin="rift"] #tab-settings .cfg-select-row > select { width: 100%; min-width: 0; flex: none; }
+}
 }
