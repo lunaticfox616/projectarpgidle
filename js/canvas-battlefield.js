@@ -1508,11 +1508,39 @@ function drawBattlefieldPlayerHealthBar(ctx, playerPos, hpPct, ghostPct, esPct) 
     ctx.restore();
 }
 
+// 정예는 일반 무리와 한눈에 구분되도록 체력바 위에 특성 이름표를 단다(보스는 상단 대형 바가 맡는다).
+function getEnemyFieldBarWidth(enemy) {
+    if (enemy.isBoss) return 96;
+    return enemy.isElite ? 60 : 46;
+}
+
+function getEnemyFieldBarEdge(enemy, targeted) {
+    if (targeted) return 'rgba(255, 224, 130, 0.95)';
+    return enemy.isElite ? 'rgba(232, 196, 96, 0.8)' : 'rgba(255,255,255,0.14)';
+}
+
+function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
+    if (!enemy.isElite || enemy.isBoss) return;
+    const label = enemy.traitName || '정예';
+    ctx.save();
+    ctx.font = '700 11px "IBM Plex Sans KR", "Malgun Gothic", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const width = Math.ceil(ctx.measureText(label).width) + 10;
+    ctx.fillStyle = 'rgba(10, 9, 6, 0.78)';
+    ctx.fillRect(Math.round(centerX - width / 2), bottomY - 15, width, 14);
+    ctx.fillStyle = '#f3d77a';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 2;
+    ctx.fillText(label, centerX, bottomY - 2);
+    ctx.restore();
+}
+
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
-        let width = enemy.isBoss ? 96 : 46;
+        let width = getEnemyFieldBarWidth(enemy);
         let x = Math.round(entry.x - width / 2);
         let y = Math.round(entry.y - (enemy.isBoss ? 106 : 56));
         let targeted = targetIds.includes(enemy.id);
@@ -1530,10 +1558,11 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
             ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
             ctx.fillRect(x, y - 4, Math.max(2, Math.round(width * esPct)), 3);
         }
-        ctx.strokeStyle = targeted ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
+        ctx.strokeStyle = getEnemyFieldBarEdge(enemy, targeted);
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 7);
         ctx.restore();
+        drawEliteNameplate(ctx, entry.x, y - (esPct > 0 ? 6 : 2), enemy);
         drawBossPatternLabel(ctx, entry, enemy);
     });
 }
@@ -2622,8 +2651,7 @@ function renderBattlefield(forceWhenHidden) {
             ctx.restore();
         }
     });
-    drawBattlefieldPlayerHealthBar(ctx, playerPos, playerHpPct, playerHpGhostPct, playerEsPct);
-    drawBattlefieldEnemyHealthBars(ctx, dynamicLayout, currentTargets);
+    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets });
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
@@ -2685,6 +2713,61 @@ function drawBattleScreenGrade(ctx, width, height, now) {
     bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = bottomEdge;
     ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
+    ctx.restore();
+}
+
+// 균열 등불(rift) 스킨의 조명 패스. 플레이어 주변만 밝히고 바깥을 눌러 시선을 전투로 모은다.
+// 렌더링 전용이며 판정·좌표·프레임 예산 계약에 영향을 주지 않는다(그라디언트 채우기 2~3회).
+// 체력바·피해 숫자보다 먼저 그려 숫자 가독성은 유지하고, 다른 스킨에서는 그리지 않는다.
+function isBattleLightingEnabled() {
+    const body = typeof document !== 'undefined' ? document.body : null;
+    return !!body && body.dataset.uiSkin === 'rift' && !body.classList.contains('light-mode');
+}
+
+// 조명은 체력바·피해 숫자 아래에 깔린다. 순서: 조명 → 플레이어 바 → 적 바.
+function drawBattleLightingAndBars(ctx, scene) {
+    drawBattleLightingPass(ctx, scene);
+    drawBattlefieldPlayerHealthBar(ctx, scene.light, scene.hpPct, scene.ghostPct, scene.esPct);
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets);
+}
+
+function drawBattleLightingPass(ctx, scene) {
+    if (!isBattleLightingEnabled() || !scene.light) return;
+    const { width, height, light } = scene;
+    const cy = light.y - 18;
+    const inner = Math.min(width, height) * 0.16;
+    const outer = Math.max(width, height) * 0.56;
+    ctx.save();
+    const dark = ctx.createRadialGradient(light.x, cy, inner, light.x, cy, outer);
+    dark.addColorStop(0, 'rgba(4,5,7,0)');
+    dark.addColorStop(0.42, 'rgba(4,5,7,0.24)');
+    dark.addColorStop(1, 'rgba(3,4,6,0.62)');
+    ctx.fillStyle = dark;
+    ctx.fillRect(-40, -40, width + 80, height + 80);
+    const glowRadius = inner * 1.5;
+    const warm = ctx.createRadialGradient(light.x, cy, 0, light.x, cy, glowRadius);
+    warm.addColorStop(0, 'rgba(255,190,105,0.16)');
+    warm.addColorStop(1, 'rgba(255,190,105,0)');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = warm;
+    ctx.fillRect(light.x - glowRadius, cy - glowRadius, glowRadius * 2, glowRadius * 2);
+    ctx.restore();
+    drawLowHealthEdge(ctx, scene);
+}
+
+// 체력 35% 미만: 화면 가장자리에 붉은 맥동. 낮을수록 짙어진다.
+function drawLowHealthEdge(ctx, scene) {
+    const hpPct = Number(scene.hpPct);
+    if (!(hpPct < 0.35)) return;
+    const { width, height, now } = scene;
+    const danger = (0.35 - Math.max(0, hpPct)) / 0.35;
+    const pulse = 0.7 + 0.3 * Math.sin(now * 0.006);
+    const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.34, width / 2, height / 2, Math.max(width, height) * 0.72);
+    edge.addColorStop(0, 'rgba(120,10,16,0)');
+    edge.addColorStop(1, `rgba(158,14,22,${((0.36 + 0.4 * danger) * pulse).toFixed(3)})`);
+    ctx.save();
+    ctx.fillStyle = edge;
+    ctx.fillRect(-40, -40, width + 80, height + 80);
     ctx.restore();
 }
 

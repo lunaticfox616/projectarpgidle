@@ -536,6 +536,20 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
     body.light-mode #item-tab-equip .equipment-inventory-panel { padding: 8px; }
     #item-tab-equip .inventory-management-row { gap: 6px; margin-bottom: 6px; padding-bottom: 0; border-bottom: 0; }
     #item-tab-equip .inventory-management-row :where(button, select) { min-height: 44px; }
+    /* 좁은 화면: 관리 버튼을 한 줄씩 쌓지 않고 두 줄 격자로 묶어 가방 격자를 첫 화면 안으로 올린다. */
+    #item-tab-equip .inventory-management-row { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: center; }
+    #item-tab-equip .inventory-management-row > .equipment-triage-host { grid-column: 1; grid-row: 1; min-width: 0; }
+    #item-tab-equip .inventory-management-row > .equipment-bulk-menu { grid-column: 2; grid-row: 1; }
+    #item-tab-equip .inventory-management-row .equipment-bulk-menu summary { justify-content: center; padding: 4px 6px; font-size: 12px; white-space: nowrap; }
+    #item-tab-equip .equipment-triage-copy { display: none; }
+    #item-tab-equip .equipment-triage-controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 6px; }
+    #item-tab-equip .equipment-triage-controls label { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; white-space: nowrap; }
+    #item-tab-equip .equipment-triage-controls select { width: 100%; min-width: 0; }
+    #item-tab-equip .equipment-triage-controls button { min-width: 0; padding: 4px 6px; font-size: 12px; }
+    #item-tab-equip .inventory-browse-toolbar { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    #item-tab-equip .inventory-browse-toolbar label { grid-column: span 3; font-size: 12px; }
+    #item-tab-equip .inventory-browse-toolbar button { grid-column: span 2; min-width: 0; min-height: 44px; font-size: 12px; }
+    #item-tab-equip .inventory-browse-toolbar #btn-auto-salvage { line-height: 1.15; }
     .equipment-inventory-grid-shell {
         --equipment-grid-cell-size: clamp(24px, calc((100cqw - 2px) / 10), 52px);
         display: block;

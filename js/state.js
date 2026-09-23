@@ -2453,7 +2453,7 @@ const defaultGame = {
         showCharacterComma: true,
         themeMode: 'dark',
         uiScale: 100,
-        uiSkin: 'reliquary',
+        uiSkin: 'rift',
         heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,

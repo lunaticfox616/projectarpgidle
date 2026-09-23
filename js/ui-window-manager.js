@@ -5,7 +5,13 @@
     const UI_LAYOUT_STORAGE_KEY = 'project-arpg-idle-ui-layout-v1';
     const UI_LAYOUT_VERSION = 1;
     const PASSIVE_TREE_PRESENTATION_VERSION = 1;
-    const WORKSPACE_PRESENTATION_VERSION = 1;
+    const WORKSPACE_PRESENTATION_VERSION = 2;
+    // 도킹 작업대: 장비·스킬·지도 창은 전장을 덮지 않고 오른쪽에 붙어 전투를 계속 보여 준다.
+    // 전장이 이 폭보다 좁아지는 화면에서는 기존처럼 작업 영역 전체를 쓴다.
+    const DOCK_MIN_BATTLE_WIDTH = 380;
+    const DOCK_MIN_WIDTH = 720;
+    const DOCK_MAX_WIDTH = 1100;
+    const DOCK_RATIO = 0.62;
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
@@ -16,11 +22,11 @@
     ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
-        'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
-        'tab-skills': { title: '스킬 및 스킬 젬', defaultMaximized: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
+        'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
+        'tab-skills': { title: '스킬 및 스킬 젬', defaultMaximized: true, dock: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
+        'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
         'tab-season': { title: '루프 패시브', x: 210, y: 70, width: 980, height: 800, minWidth: 500, minHeight: 380 },
@@ -73,10 +79,11 @@
         state.passiveTreePresentationVersion = PASSIVE_TREE_PRESENTATION_VERSION;
         // 기존에 아래로 밀린 주요 창만 최초 한 번 새 작업 영역에 맞춘다.
         // 이후 사용자가 복원·이동한 배치는 그대로 존중한다.
-        if ((Number(next.workspacePresentationVersion) || 0) < WORKSPACE_PRESENTATION_VERSION) {
+        let previousWorkspaceVersion = Number(next.workspacePresentationVersion) || 0;
+        if (previousWorkspaceVersion < WORKSPACE_PRESENTATION_VERSION) {
             state.windows = { ...state.windows };
             ['tab-items', 'tab-skills', 'tab-map'].forEach(id => {
-                state.windows[id] = { ...state.windows[id], maximized: true };
+                state.windows[id] = { ...state.windows[id], maximized: false, docked: true, restoreRect: null };
             });
         }
         state.workspacePresentationVersion = WORKSPACE_PRESENTATION_VERSION;
@@ -122,6 +129,25 @@
         return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - 16) };
     }
 
+    function getDockRect() {
+        let rect = getWorkspaceRect();
+        let width = clampNumberLocal(rect.width * DOCK_RATIO, DOCK_MIN_WIDTH, DOCK_MAX_WIDTH, DOCK_MIN_WIDTH);
+        if (rect.width - width - WORKSPACE_GAP < DOCK_MIN_BATTLE_WIDTH) return null;
+        return { x: rect.left + rect.width - width, y: rect.top, width, height: rect.height };
+    }
+
+    // 최대화 > 도킹 > 떠 있는 창 순. 도킹을 원하지만 전장 폭이 모자란 화면에서는 작업 영역 전체를 쓴다.
+    function resolveWindowPlacement(box, rect, maximized, docked) {
+        let dockRect = docked && !maximized ? getDockRect() : null;
+        if (dockRect) return { box: dockRect, dockActive: true };
+        if (maximized || docked) return { box: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }, dockActive: false };
+        return { box, dockActive: false };
+    }
+
+    function isDockPreferred(tabId, stored) {
+        return stored.docked === undefined ? !!WINDOW_DEFS[tabId].dock : !!stored.docked;
+    }
+
     function getWindowState(tabId) {
         let def = WINDOW_DEFS[tabId];
         let stored = layoutState.windows[tabId] || {};
@@ -134,17 +160,14 @@
         let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - height, Math.min(def.y, rect.top + rect.height - height));
         let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
         let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
-        if (maximized) {
-            x = rect.left;
-            y = rect.top;
-            width = rect.width;
-            height = rect.height;
-        }
-        return { open: !!stored.open, minimized: !!stored.minimized, maximized, restoreRect, x, y, width, height };
+        let docked = isDockPreferred(tabId, stored);
+        let placement = resolveWindowPlacement({ x, y, width, height }, rect, maximized, docked);
+        return { open: !!stored.open, minimized: !!stored.minimized, maximized, docked, dockActive: placement.dockActive, restoreRect, ...placement.box };
     }
 
     function persistWindowState(tabId, patch) {
         let cur = getWindowState(tabId);
+        delete cur.dockActive; // 화면 폭에 따라 계산되는 값이라 저장하지 않는다.
         layoutState.windows[tabId] = { ...cur, ...patch };
         saveLayoutState();
     }
@@ -187,6 +210,7 @@
         el.classList.toggle('ui-window-open', st.open && !st.minimized);
         el.classList.toggle('ui-window-minimized', st.minimized);
         el.classList.toggle('ui-window-maximized', st.maximized);
+        el.classList.toggle('ui-window-docked', st.dockActive);
         let btn = document.getElementById('btn-' + tabId);
         if (btn) {
             btn.classList.toggle('ui-window-open', st.open);
@@ -203,11 +227,21 @@
         // 채팅은 전투 로그와 같은 자리를 공유하므로 전투를 가리는 관리 창으로 취급하지 않는다.
         let managementMode = isDesktopWindowed() && !!activeWindowId;
         document.body.classList.toggle('ui-management-mode', managementMode);
+        syncWorkspaceDock(managementMode ? activeWindowId : '');
         document.body.classList.toggle('ui-combat-mode', isDesktopWindowed() && !managementMode);
         if (document.body.dataset) {
             if (activeWindowId) document.body.dataset.activeGameWindow = activeWindowId;
             else delete document.body.dataset.activeGameWindow;
         }
+    }
+
+    // 도킹된 창이 맨 위에 있으면 전장 열을 창 폭만큼 비워 두 화면이 겹치지 않게 한다.
+    function syncWorkspaceDock(activeWindowId) {
+        let state = activeWindowId && WINDOW_DEFS[activeWindowId] ? getWindowState(activeWindowId) : null;
+        let docked = !!(state && state.dockActive);
+        document.body.classList.toggle('ui-workspace-docked', docked);
+        // 폭 변수는 .ui-workspace-docked 아래에서만 읽히므로 도킹이 풀릴 때 지울 필요가 없다.
+        if (docked) document.body.style.setProperty('--workspace-dock-width', `${state.width}px`);
     }
 
     function focusWindow(tabId) {
@@ -225,9 +259,21 @@
         syncWorkspacePresentation();
     }
 
+    // 도킹 자리는 하나다. 새 도킹 창을 열면 같은 자리에 겹쳐 숨어 있던 도킹 창은 닫는다.
+    function closeOtherDockedWindows(tabId) {
+        if (!getWindowState(tabId).dockActive) return;
+        Object.keys(WINDOW_DEFS).forEach(id => {
+            if (id === tabId || !layoutState.windows[id] || !layoutState.windows[id].open) return;
+            if (!getWindowState(id).dockActive) return;
+            persistWindowState(id, { open: false, minimized: false });
+            applyWindowState(id);
+        });
+    }
+
     function openWindow(tabId) {
         if (!WINDOW_DEFS[tabId]) return false;
         prepareWindow(tabId);
+        closeOtherDockedWindows(tabId);
         persistWindowState(tabId, { open: true, minimized: false });
         applyWindowState(tabId);
         focusWindow(tabId);
@@ -300,6 +346,11 @@
         if (action === 'reset') resetWindow(tabId);
     }
 
+    // 도킹된 창을 실제로 끌거나 크기를 바꾸면 그 자리에서 떠 있는 창으로 전환한다.
+    function undockPatch(state, pendingValue) {
+        return state.dockActive && pendingValue !== undefined ? { docked: false } : {};
+    }
+
     function beginWindowDrag(event, tabId) {
         if (event.button !== undefined && event.button !== 0) return;
         if (event.target.closest('button,input,select,textarea,a')) return;
@@ -310,6 +361,8 @@
         if (st.maximized) return;
         let startX = event.clientX;
         let startY = event.clientY;
+        delete el.dataset.pendingX;
+        delete el.dataset.pendingY;
         focusWindow(tabId);
         titlebar.setPointerCapture(event.pointerId);
         let move = moveEvent => {
@@ -326,7 +379,9 @@
             titlebar.removeEventListener('pointermove', move);
             titlebar.removeEventListener('pointerup', up);
             titlebar.removeEventListener('pointercancel', up);
-            persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y) });
+            persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y), ...undockPatch(st, el.dataset.pendingX) });
+            applyWindowState(tabId);
+            syncWorkspacePresentation();
         };
         titlebar.addEventListener('pointermove', move);
         titlebar.addEventListener('pointerup', up);
@@ -343,6 +398,8 @@
         if (st.maximized) return;
         let startX = event.clientX;
         let startY = event.clientY;
+        delete el.dataset.pendingWidth;
+        delete el.dataset.pendingHeight;
         handle.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
@@ -358,7 +415,9 @@
             handle.removeEventListener('pointermove', move);
             handle.removeEventListener('pointerup', up);
             handle.removeEventListener('pointercancel', up);
-            persistWindowState(tabId, { width: Number(el.dataset.pendingWidth || st.width), height: Number(el.dataset.pendingHeight || st.height) });
+            persistWindowState(tabId, { x: st.x, y: st.y, width: Number(el.dataset.pendingWidth || st.width), height: Number(el.dataset.pendingHeight || st.height), ...undockPatch(st, el.dataset.pendingWidth) });
+            applyWindowState(tabId);
+            syncWorkspacePresentation();
         };
         handle.addEventListener('pointermove', move);
         handle.addEventListener('pointerup', up);

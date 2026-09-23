@@ -1,0 +1,172 @@
+@layer overrides {
+/* 균열 등불(rift) 스킨.
+   프로토타입 "RIGNIN 뿌리균열"의 색·글꼴을 기존 스킨 장치(body[data-ui-skin])로 옮긴다.
+   배치·크기·게이지 좌표는 다른 스킨과 같고, 색 토큰·글꼴·표면 재질만 바꾼다.
+   다크 전용 팔레트라 라이트 모드에서는 적용하지 않는다(라이트 모드 팔레트가 그대로 쓰인다).
+   글꼴 파일은 오프라인·Android 실행을 위해 assets/fonts에 함께 싣는다(OFL, 라이선스 동봉). */
+@font-face {
+  font-family: 'IBM Plex Sans KR';
+  src: url('../../assets/fonts/IBMPlexSansKR-Regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Sans KR';
+  src: url('../../assets/fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Song Myung';
+  src: url('../../assets/fonts/SongMyung-Regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cinzel';
+  src: url('../../assets/fonts/Cinzel-SemiBold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+body[data-ui-skin="rift"]:not(.light-mode) {
+  color-scheme: dark;
+  --skin-canvas: #07080a;
+  --skin-panel: #111316;
+  --skin-panel-raised: #17191d;
+  --skin-control: #1d2024;
+  --skin-line: #2b2f33;
+  --skin-line-strong: #4b4235;
+  --skin-accent: #d8a64a;
+  --skin-accent-strong: #a8782c;
+  --skin-focus: rgba(243, 207, 122, .82);
+  --color-text: #e6dcc6;
+  --color-text-secondary: #b3a88f;
+  --color-text-tertiary: #8a8170;
+  --copy-bright: #e6dcc6;
+  --copy-muted: #b3a88f;
+  --color-highlight-gold: #f3cf7a;
+  --color-reward-gold: #e3b45a;
+  --color-reward-gold-bright: #f3cf7a;
+  --color-health: #c9303a;
+  --color-danger: #e2474e;
+  --color-ice: #8fd8ff;
+  --color-overlay-line: rgba(75, 66, 53, .9);
+  --color-overlay-line-soft: rgba(75, 66, 53, .45);
+  --color-overlay-surface: rgba(17, 19, 22, .96);
+  --color-overlay-raised: rgba(23, 25, 29, .97);
+  --color-panel-bg: rgba(12, 13, 15, .95);
+  --color-panel-soft: rgba(23, 25, 29, .96);
+  --color-reading: #e6dcc6;
+  --color-reading-muted: #b3a88f;
+  --color-steel: #8b8272;
+  --color-steel-dim: rgba(139, 130, 114, .3);
+  --font-body: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --font-title: 'Song Myung', 'IBM Plex Sans KR', 'Malgun Gothic', serif;
+  --font-caps: 'Cinzel', 'IBM Plex Sans KR', serif;
+  font-family: var(--font-body);
+  background: radial-gradient(120% 90% at 50% 0%, #0d0e10 0%, #07080a 62%) fixed, #07080a;
+  color: var(--color-text);
+}
+
+/* 제목은 명조 계열로 한 단계 올리고, 작은 글자는 본문 글꼴로 남긴다(명조는 14px 미만에서 읽기 어렵다). */
+body[data-ui-skin="rift"]:not(.light-mode) :is(
+  .ui-window-title, .tutorial-title, .game-dialog-title, .deathlog-card .tutorial-title,
+  .combat-zone-row-title, #ui-combat-zone-inline, .startup-title
+) {
+  font-family: var(--font-title);
+  font-weight: 400;
+  letter-spacing: .01em;
+}
+body[data-ui-skin="rift"]:not(.light-mode) .ui-window-title { font-size: 17px; color: #efe3c9; }
+body[data-ui-skin="rift"]:not(.light-mode) .combat-zone-row-title { font-size: 18px; color: #efe3c9; }
+body[data-ui-skin="rift"]:not(.light-mode) :is(.tutorial-kicker, .game-dialog-kicker) { font-family: var(--font-caps); letter-spacing: .28em; }
+
+/* 창·작업대: 청회색 금속 틀 대신 어두운 판 + 1px 선 + 금색 활성 표시. */
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
+  background: linear-gradient(180deg, #121417, #0e1012);
+  border: 1px solid var(--skin-line);
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .62);
+}
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-active { border-color: var(--skin-line-strong); box-shadow: 0 24px 64px rgba(0, 0, 0, .66), inset 0 1px rgba(243, 207, 122, .06); }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-titlebar,
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-active .ui-window-titlebar {
+  background: linear-gradient(180deg, #17191d, #111316);
+  border-bottom: 1px solid var(--skin-line);
+  box-shadow: inset 0 -1px rgba(216, 166, 74, .08);
+}
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-actions button {
+  border-color: var(--skin-line);
+  background: #15171a;
+  color: var(--color-text-secondary);
+  border-radius: 3px;
+}
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-actions button:hover { color: #f3cf7a; border-color: var(--skin-line-strong); background: #1d2024; }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-resize::after { border-color: var(--skin-line-strong); }
+
+/* 전장: 두꺼운 푸른 테두리 대신 바닥에 스며드는 어둠. */
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-panel { background: #07080a; }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .battlefield-wrap {
+  border-color: #1b1d20;
+  border-radius: 6px;
+  background: #050607;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .8), 0 18px 48px rgba(0, 0, 0, .5);
+}
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-feed {
+  background: linear-gradient(180deg, rgba(17, 19, 22, .94), rgba(11, 12, 14, .94));
+  border-color: var(--skin-line);
+  border-radius: 6px;
+}
+body[data-ui-skin="rift"]:not(.light-mode) .combat-feed-title,
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-feed-title { border-bottom-color: var(--skin-line); }
+
+/* 목표 서랍·커뮤니티 도크의 청색 패널을 같은 재질로. */
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-goal-panel { background: rgba(14, 15, 18, .95); border-color: var(--skin-line); border-radius: 5px; }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel { border-color: var(--skin-line-strong); }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui :is(.ui-goal-handle-fill, .ui-goal-bar-fill) { background: linear-gradient(90deg, #a8782c, #f3cf7a); }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui :is(.ui-goal-handle-bar, .ui-goal-bar) { background: #1d2024; }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui #tab-social.ui-community-dock { background: linear-gradient(180deg, #121417, #0c0d0f); border-left-color: var(--skin-line); }
+body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-community-dock-header { background: #15171a; border-bottom-color: var(--skin-line); }
+
+/* 금속 장식 프레임은 유지하되 채도를 낮춰 금빛 등불 톤에 맞춘다(좌표 계약 불변). */
+body[data-ui-skin="rift"]:not(.light-mode) .map-progress-gauge::before { filter: saturate(.55) brightness(.78) contrast(1.05); }
+body[data-ui-skin="rift"]:not(.light-mode) .player-hud-shell {
+  --combat-hud-frame-filter: saturate(.5) brightness(.78) contrast(1.06) drop-shadow(0 6px 8px rgba(0, 0, 0, .8));
+}
+
+/* 알림 카드·대화 상자 */
+body[data-ui-skin="rift"]:not(.light-mode) :is(#tutorial-overlay, #death-overlay) .tutorial-card {
+  background: linear-gradient(180deg, #17191d, #101114);
+  border-color: var(--skin-line-strong);
+  border-radius: 4px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .7), inset 0 1px rgba(243, 207, 122, .05);
+}
+
+/* 입력·목록·빈 칸에 남은 청회색 선 */
+body[data-ui-skin="rift"]:not(.light-mode) :is(.search-filter-input, input[type="search"], input[type="text"], input[type="number"], textarea) {
+  border-color: var(--skin-line);
+  background-color: #0b0c0e;
+  color: var(--color-text);
+}
+body[data-ui-skin="rift"]:not(.light-mode) :is(.search-filter-input, input, textarea):focus-visible { border-color: #8a6a34; }
+body[data-ui-skin="rift"]:not(.light-mode) :is(.search-filter-input, input, textarea)::placeholder { color: #7d7564; }
+body[data-ui-skin="rift"]:not(.light-mode) .search-result-list { border-color: var(--skin-line); }
+body[data-ui-skin="rift"]:not(.light-mode) .rarity-filter-chip { border-color: color-mix(in srgb, var(--rarity-color, #b3a88f) 38%, #2b2f33); background: #0f1113; }
+body[data-ui-skin="rift"]:not(.light-mode) .rarity-filter-chip.active { border-color: color-mix(in srgb, var(--rarity-color, #b3a88f) 70%, #2b2f33); background: color-mix(in srgb, var(--rarity-color, #b3a88f) 12%, #0f1113); }
+body[data-ui-skin="rift"]:not(.light-mode) .equipment-slot-visual.empty { border-color: rgba(75, 66, 53, .55); background: linear-gradient(160deg, #15161a, #0d0e10); }
+body[data-ui-skin="rift"]:not(.light-mode) .battlefield-caption { border-color: rgba(75, 66, 53, .5); background: rgba(8, 9, 10, .72); }
+body[data-ui-skin="rift"]:not(.light-mode) .equipment-action-muted { border-color: var(--skin-line); }
+
+/* 전투 HUD 스킬 칸: 그림이 없는 젬(기본 공격 등)도 빈 칸처럼 보이지 않게 문양을 또렷하게. */
+body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .gem-art-fallback { color: #d8a64a; font-size: 20px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
+body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot.primary { box-shadow: inset 0 0 0 1px rgba(216, 166, 74, .55); }
+
+/* 스크롤바와 초점 표시 */
+body[data-ui-skin="rift"]:not(.light-mode) * { scrollbar-color: #3a3a36 transparent; }
+body[data-ui-skin="rift"]:not(.light-mode) :focus-visible { outline-color: #f3cf7a; }
+}

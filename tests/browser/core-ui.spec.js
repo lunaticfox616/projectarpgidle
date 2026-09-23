@@ -3914,7 +3914,7 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     expect(failures).toEqual([]);
 });
 
-test('desktop workspace upgrades old window placement once and preserves a later restore', async ({ page }, testInfo) => {
+test('desktop workspace docks management windows beside the battle and preserves a later choice', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'desktop window placement');
     await page.addInitScript(() => {
         const key = 'project-arpg-idle-ui-layout-v1';
@@ -3926,17 +3926,24 @@ test('desktop workspace upgrades old window placement once and preserves a later
     await openLocalGame(page);
     await page.evaluate(() => { game.unlocks.skills = true; switchTab('tab-skills'); });
     const panel = page.locator('#tab-skills');
-    await expect(panel).toHaveClass(/ui-window-maximized/);
-    expect((await panel.boundingBox()).y).toBeLessThan(20);
+    await expect(panel).toHaveClass(/ui-window-docked/);
+    await expect(page.locator('body')).toHaveClass(/ui-workspace-docked/);
+    const docked = await panel.boundingBox();
+    const battlefield = await page.locator('#battlefield-wrap').boundingBox();
+    expect(docked.y).toBeLessThan(20);
+    expect(battlefield.x + battlefield.width).toBeLessThanOrEqual(docked.x + 1);
+    expect(battlefield.width).toBeGreaterThan(300);
     await panel.locator('[data-window-action="maximize"]').click();
-    await expect(panel).not.toHaveClass(/ui-window-maximized/);
-    const restored = await panel.boundingBox();
+    await expect(panel).toHaveClass(/ui-window-maximized/);
+    await expect(page.locator('body')).not.toHaveClass(/ui-workspace-docked/);
+    await panel.locator('[data-window-action="maximize"]').click();
+    await expect(panel).toHaveClass(/ui-window-docked/);
     await page.reload();
     await page.locator('#btn-startup-guest').click();
     await page.waitForFunction(() => !document.body.classList.contains('startup-active'));
     await page.evaluate(() => { game.unlocks.skills = true; switchTab('tab-skills'); });
-    await expect(panel).not.toHaveClass(/ui-window-maximized/);
-    expect((await panel.boundingBox()).width).toBeCloseTo(restored.width, 0);
+    await expect(panel).toHaveClass(/ui-window-docked/);
+    expect((await panel.boundingBox()).width).toBeCloseTo(docked.width, 0);
 });
 
 test('desktop dock labels and named navigation follow the visible surface state', async ({ page }, testInfo) => {
@@ -3970,8 +3977,8 @@ test('desktop dock labels and named navigation follow the visible surface state'
     expect(menuLabel.x).toBeGreaterThanOrEqual(menuRect.x);
     expect(menuLabel.x + menuLabel.width).toBeLessThanOrEqual(menuRect.x + menuRect.width);
     const content = await page.locator('#tab-items').boundingBox();
-    const dock = await page.locator('.combat-feed').boundingBox();
-    expect(content.x + content.width).toBeGreaterThan(dock.x + dock.width - 20);
+    // 관리 창은 전투 기록 열 자리까지 오른쪽 끝을 쓴다(도킹 작업대).
+    expect(content.x + content.width).toBeGreaterThan(page.viewportSize().width - 30);
 
     await page.evaluate(() => closeWindow('tab-items'));
     const closed = await socket.evaluate(element => ({

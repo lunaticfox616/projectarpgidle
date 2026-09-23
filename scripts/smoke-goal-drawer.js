@@ -13,7 +13,7 @@ function createFakeDom() {
         const el = {
             tagName: String(tag || 'div').toUpperCase(),
             id: '',
-            style: {},
+            style: { setProperty(name, value) { this[name] = value; } },
             dataset: {},
             attrs: {},
             handlers: {},

@@ -42,4 +42,20 @@ for (const file of ['css/base.css', 'css/ui-feedback.css', 'css/typography-reada
 }
 assert(html.includes('href="css/main.css"'), 'the document must load the CSS entry');
 
+// 균열 등불(rift) 스킨 글꼴: 오프라인·Android에서도 같은 화면이 되도록 파일과 OFL 라이선스를 함께 싣는다.
+const riftCss = fs.readFileSync('css/themes/rift.css', 'utf8');
+for (const [font, license, notice] of [
+    ['IBMPlexSansKR-Regular.woff2', 'LICENSE-IBMPlexSansKR.txt', 'IBM Corp'],
+    ['IBMPlexSansKR-SemiBold.woff2', 'LICENSE-IBMPlexSansKR.txt', 'IBM Corp'],
+    ['SongMyung-Regular.woff2', 'LICENSE-SongMyung.txt', 'Song Myung Project Authors'],
+    ['Cinzel-SemiBold.woff2', 'LICENSE-Cinzel.txt', 'Cinzel Project Authors']
+]) {
+    const data = fs.readFileSync(`assets/fonts/${font}`);
+    assert(data.length > 10000 && data.subarray(0, 4).toString('ascii') === 'wOF2', `${font} must be a bundled WOFF2 font`);
+    const text = fs.readFileSync(`assets/fonts/${license}`, 'utf8');
+    assert(text.includes('SIL Open Font License') && text.includes(notice), `${license} must ship with ${font}`);
+    assert(riftCss.includes(`url('../../assets/fonts/${font}')`), `rift skin must load the bundled ${font}`);
+}
+assert(entry.includes('"./themes/rift.css"'), 'rift skin must be part of the CSS entry');
+
 console.log('smoke-font-assets passed');
