@@ -37,20 +37,22 @@ let passiveRevealBursts = [];
 
 function getPassiveNodeDisplayName(node) {
     if (!node) return '미확인 성좌';
-    if (node.intentionalNoEffect) return '무효';
+    const wedge = getSocketedStarWedge(node);
+    if (wedge) return `${getStarWedgeUniqueDef(wedge.uniqueType)?.name || '별쐐기'} #${wedge.id % 10000}`;
+    if (node.intentionalNoEffect) return getPassiveNodeMutation(node) ? '변성 패시브' : '무효';
     if (node.title) return node.title;
     return (P_STATS[node.stat] || {}).name || '미확인 성좌';
 }
 
 function getPassiveEffectLabel(node) {
     if (!node) return '';
-    if (node.intentionalNoEffect) return '효과 없음';
     if (game && game.starWedge && game.starWedge.disabledNodeEffects && game.starWedge.disabledNodeEffects[String(node.id)]) return '효과 비활성';
-    let mutation = game && game.starWedge && game.starWedge.nodeMutations ? game.starWedge.nodeMutations[node.id] : null;
+    let mutation = getPassiveNodeMutation(node);
     if (mutation && mutation.currentStat) {
         let statMut = P_STATS[mutation.currentStat] || {};
         return `${statMut.name || mutation.currentStat} +${formatValue(mutation.currentStat, mutation.currentVal)}${statMut.isPct ? '%' : ''} <span style="color:#b8a7c7;">(변성)</span>`;
     }
+    if (node.intentionalNoEffect) return '효과 없음';
     if (node.effectLabel) return node.effectLabel;
     if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
     if (node.kind === 'keystone') return node.desc || '키스톤 효과';
@@ -2010,7 +2012,7 @@ function getPassiveTreeAdjacency(allocatedNodeIds) {
     const unlockSignature = edges.filter(edge => edge.requiresAllocatedNodeId)
         .map(edge => `${edge.requiresAllocatedNodeId}:${isPassiveTreeEdgeAvailable(edge) ? 1 : 0}`).join('|');
     const signature = allocatedNodeIds === undefined
-        ? `${PASSIVE_TREE.layoutVersion || 0}:${nodeCount}:${edges.length}:${unlockSignature}` : '';
+        ? `${PASSIVE_TREE.layoutVersion || 0}:${PASSIVE_TREE.starWedgeGraphVersion || 0}:${nodeCount}:${edges.length}:${unlockSignature}` : '';
     if (signature && passiveTreeAdjacencyCache.signature === signature) return passiveTreeAdjacencyCache.map;
     const adjacency = new Map(Object.keys(PASSIVE_TREE.nodes || {}).map(id => [String(id), []]));
     edges.forEach(edge => {
@@ -2032,7 +2034,7 @@ function rebasePassiveTreeForClassChange(previousClassId, nextClassId) {
     if (!previousRoot || !nextRoot || previousRoot === nextRoot) return 0;
     const invested = (Array.isArray(game.passives) ? game.passives : [])
         .filter(nodeId => PASSIVE_TREE.nodes[nodeId] && PASSIVE_TREE.nodes[nodeId].kind !== 'start');
-    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + invested.length;
+    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) + invested.length - starWedgeRules.paleBonus(game));
     game.passives = [];
     game.passiveAttributeChoices = {};
     game.discoveredPassives = [nextRoot];
@@ -2156,13 +2158,12 @@ function ensurePassiveSpecializationState() {
 function getPassiveNodeRawEffects(node, mutation) {
     if (!node) return [];
     if (mutation && mutation.currentStat) {
-        return [{ stat: mutation.currentStat, val: Number(mutation.currentVal) || 0 }];
+        return mutation.effects || [{ stat: mutation.currentStat, val: Number(mutation.currentVal) || 0 }];
     }
+    if (node.intentionalNoEffect) return [];
     if (Array.isArray(node.effects) && node.effects.length > 0) return node.effects;
     if (!node.stat) return [];
-    const stat = node.kind === 'attribute' && typeof getPassiveAttributeNodeStat === 'function'
-        ? getPassiveAttributeNodeStat(node) : node.stat;
-    return [{ stat, val: Number(node.val) || 0 }];
+    return [{ stat: node.stat, val: Number(node.val) || 0 }];
 }
 
 function getPassiveSpecialStatReserve(statId, excludedNodeId) {
@@ -2171,7 +2172,7 @@ function getPassiveSpecialStatReserve(statId, excludedNodeId) {
     return (game && game.passives || []).reduce((total, nodeId) => {
         const node = PASSIVE_TREE.nodes[nodeId], key = String(nodeId);
         if (!node || key === String(excludedNodeId) || disabled[key]) return total;
-        if (node.kind === 'void' || node.intentionalNoEffect || node.activationRequirement) return total;
+        if (node.kind === 'void' || node.activationRequirement) return total;
         return total + getPassiveNodeRawEffects(node, mutations[key])
             .filter(effect => effect && effect.stat === statId)
             .reduce((sum, effect) => sum + (Number(effect.val) || 0), 0);
@@ -2213,7 +2214,7 @@ function getAllocatedPassiveStatValue(statId) {
     (game && game.passives || []).forEach(nodeId => {
         if (disabled[String(nodeId)]) return;
         const node = PASSIVE_TREE.nodes[nodeId], mutation = mutations[String(nodeId)];
-        if (!node || node.kind === 'void' || node.intentionalNoEffect) return;
+        if (!node || node.kind === 'void') return;
         const effects = getEffectivePassiveNodeEffects(node, mutation);
         effects.forEach(effect => {
             if (!effect || !effect.stat) return;
@@ -2551,7 +2552,7 @@ bootstrapPassiveTreeOnceReady();
 function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
     if (!node || (node.requiresEvolution && !(game && game.passiveStarEvolution))) return false;
-    if (node.kind === 'star_option' && !node.starWedgeOptionActive) return false;
+    if (starWedgeRules.isGenerated(node) && !node.starWedgeOptionActive) return false;
     if (node.hiddenByKeystoneId && !(game && (game.passives || []).includes(node.hiddenByKeystoneId))) return false;
     return true;
 }
@@ -2574,7 +2575,7 @@ function getPassiveConstellationAwakeningProgress() {
     const sockets = new Set(((game && game.starWedge && game.starWedge.sockets) || [])
         .map(entry => String(entry && entry.nodeId || '')));
     const completedHubs = new Set(Object.values(PASSIVE_TREE.nodes || {})
-        .filter(node => node.kind === 'star_option' && allocated.has(node.id))
+        .filter(node => starWedgeRules.isGenerated(node) && allocated.has(node.id))
         .map(node => String(node.requiresStarWedgeSocketNodeId || '')));
     return { mode: 'outer_constellation', required: outerHubs.length,
         completed: outerHubs.filter(node => completedHubs.has(String(node.id))).length,
@@ -2615,12 +2616,12 @@ function unlockPassiveStarEvolution(options) {
     return true;
 }
 
-function ensureStarWedgeState() {
-    game.starWedge = (game.starWedge && typeof game.starWedge === 'object') ? game.starWedge : {};
-    if (!Array.isArray(game.starWedge.wedges)) game.starWedge.wedges = [];
-    if (!Array.isArray(game.starWedge.sockets)) game.starWedge.sockets = [];
+function ensureStarWedgeState(owner = game) {
+    owner.starWedge = (owner.starWedge && typeof owner.starWedge === 'object') ? owner.starWedge : {};
+    if (!Array.isArray(owner.starWedge.wedges)) owner.starWedge.wedges = [];
+    if (!Array.isArray(owner.starWedge.sockets)) owner.starWedge.sockets = [];
     let seenWedgeIds = new Set();
-    game.starWedge.wedges = game.starWedge.wedges
+    owner.starWedge.wedges = owner.starWedge.wedges
         .map(wedge => {
             if (!wedge || typeof wedge !== 'object') return null;
             let normalizedId = Number(wedge.id);
@@ -2628,21 +2629,21 @@ function ensureStarWedgeState() {
             seenWedgeIds.add(normalizedId);
             wedge.id = normalizedId;
             normalizeUniqueStarWedgeItem(wedge);
+            starWedgeRules.normalize(wedge);
             return wedge;
         })
         .filter(Boolean);
     let seenSocketNodes = new Set();
     let seenSocketWedges = new Set();
-    let knownWedges = new Set(game.starWedge.wedges.map(wedge => wedge.id));
-    game.starWedge.sockets = game.starWedge.sockets
+    let knownWedges = new Set(owner.starWedge.wedges.map(wedge => wedge.id));
+    owner.starWedge.sockets = owner.starWedge.sockets
         .map(socket => {
             if (!socket || typeof socket !== 'object' || typeof socket.nodeId !== 'string') return null;
             let normalizedWedgeId = Number(socket.wedgeId);
             let nodeId = String(socket.nodeId);
             if (!Number.isFinite(normalizedWedgeId) || !knownWedges.has(normalizedWedgeId)) return null;
             if (seenSocketNodes.has(nodeId) || seenSocketWedges.has(normalizedWedgeId)) return null;
-            if (typeof PASSIVE_TREE !== 'undefined' && PASSIVE_TREE.nodes && Object.keys(PASSIVE_TREE.nodes).length > 0
-                && (!PASSIVE_TREE.nodes[nodeId] || PASSIVE_TREE.nodes[nodeId].socketType !== 'star_wedge')) return null;
+            if (!starWedgeRules.canRestoreSocket(owner.starWedge.wedges.find(wedge => wedge.id === normalizedWedgeId), PASSIVE_TREE.nodes[nodeId])) return null;
             seenSocketNodes.add(nodeId);
             seenSocketWedges.add(normalizedWedgeId);
             socket.nodeId = nodeId;
@@ -2650,24 +2651,24 @@ function ensureStarWedgeState() {
             return socket;
         })
         .filter(Boolean)
-        .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
-    if (!game.starWedge.nodeMutations || typeof game.starWedge.nodeMutations !== 'object') game.starWedge.nodeMutations = {};
-    if (!Number.isFinite(game.starWedge.skyRiftGauge)) game.starWedge.skyRiftGauge = 0;
-    game.starWedge.skyRiftGauge = clampNumber(game.starWedge.skyRiftGauge, 0, 100);
-    game.starWedge.skyRiftAllCosmos = !!game.starWedge.skyRiftAllCosmos;
-    game.starWedge.entriesCleared = Math.max(0, Math.floor(game.starWedge.entriesCleared || 0));
-    game.starWedge.skyRiftReady = !!game.starWedge.skyRiftReady;
-    game.starWedge.firstClearDone = !!game.starWedge.firstClearDone;
-    game.starWedge.lastAnomalyAt = Number.isFinite(game.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(game.starWedge.lastAnomalyAt)) : 0;
-    game.starWedge.skyRiftCarryGauge = Number.isFinite(game.starWedge.skyRiftCarryGauge) ? clampNumber(game.starWedge.skyRiftCarryGauge, 0, 99) : 0;
-    game.starWedge.constellationBuff = (game.starWedge.constellationBuff && typeof game.starWedge.constellationBuff === 'object') ? game.starWedge.constellationBuff : null;
-    game.starWedge.activeMeteorTier = Number.isFinite(game.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(game.starWedge.activeMeteorTier)) : null;
-    let returnZoneId = game.starWedge.meteorReturnZoneId;
-    game.starWedge.meteorReturnZoneId = (typeof returnZoneId === 'number' || typeof returnZoneId === 'string') && returnZoneId !== METEOR_FALL_ZONE_ID ? returnZoneId : null;
-    let selectedWedgeId = Number(game.starWedge.selectedWedgeId);
-    if (!Number.isFinite(selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === selectedWedgeId)) game.starWedge.selectedWedgeId = null;
-    else game.starWedge.selectedWedgeId = selectedWedgeId;
-    return game.starWedge;
+        .slice(0, getMaxEquippedStarWedges(owner));
+    if (!owner.starWedge.nodeMutations || typeof owner.starWedge.nodeMutations !== 'object') owner.starWedge.nodeMutations = {};
+    if (!Number.isFinite(owner.starWedge.skyRiftGauge)) owner.starWedge.skyRiftGauge = 0;
+    owner.starWedge.skyRiftGauge = clampNumber(owner.starWedge.skyRiftGauge, 0, 100);
+    owner.starWedge.skyRiftAllCosmos = !!owner.starWedge.skyRiftAllCosmos;
+    owner.starWedge.entriesCleared = Math.max(0, Math.floor(owner.starWedge.entriesCleared || 0));
+    owner.starWedge.skyRiftReady = !!owner.starWedge.skyRiftReady;
+    owner.starWedge.firstClearDone = !!owner.starWedge.firstClearDone;
+    owner.starWedge.lastAnomalyAt = Number.isFinite(owner.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(owner.starWedge.lastAnomalyAt)) : 0;
+    owner.starWedge.skyRiftCarryGauge = Number.isFinite(owner.starWedge.skyRiftCarryGauge) ? clampNumber(owner.starWedge.skyRiftCarryGauge, 0, 99) : 0;
+    owner.starWedge.constellationBuff = (owner.starWedge.constellationBuff && typeof owner.starWedge.constellationBuff === 'object') ? owner.starWedge.constellationBuff : null;
+    owner.starWedge.activeMeteorTier = Number.isFinite(owner.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(owner.starWedge.activeMeteorTier)) : null;
+    let returnZoneId = owner.starWedge.meteorReturnZoneId;
+    owner.starWedge.meteorReturnZoneId = (typeof returnZoneId === 'number' || typeof returnZoneId === 'string') && returnZoneId !== METEOR_FALL_ZONE_ID ? returnZoneId : null;
+    let selectedWedgeId = Number(owner.starWedge.selectedWedgeId);
+    if (!Number.isFinite(selectedWedgeId) || !(owner.starWedge.wedges || []).some(w => w.id === selectedWedgeId)) owner.starWedge.selectedWedgeId = null;
+    else owner.starWedge.selectedWedgeId = selectedWedgeId;
+    return owner.starWedge;
 }
 
 const VOID_PASSIVE_OPTION_POOL = [
@@ -2748,7 +2749,7 @@ function getVoidPassiveEffectLabel(nodeId) {
     let entry = getVoidPassiveCraft(nodeId);
     if (entry.transcendent) return formatTranscendentVoidPassive(entry.transcendent);
     if (!entry.stats.length) return '공허 옵션 없음 <span style="color:var(--copy-muted);">(오브로 최대 2줄 부여)</span>';
-    return entry.stats.map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
+    return starWedgeRules.voidStats(entry, game).map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
 }
 
 const TRANSCENDENT_VOID_PASSIVE_DB = [
@@ -2827,12 +2828,12 @@ function rerollTranscendentVoidPassive(entry) {
 
 function getTranscendentVoidPassiveCount(id, owner = game) {
     let state = owner === game ? ensureVoidPassiveState() : (owner.voidPassives || {});
-    return Object.values(state).filter(entry => entry && entry.transcendent && entry.transcendent.id === id).length;
+    return (owner.passives || []).filter(nodeId => state[nodeId]?.transcendent?.id === id).length;
 }
 
 function getTranscendentVoidPassiveBonusValue(id) {
     let state = ensureVoidPassiveState();
-    return Object.values(state).reduce((sum, entry) => sum + ((entry && entry.transcendent && entry.transcendent.id === id) ? Number(entry.transcendent.value || 0) : 0), 0);
+    return (game.passives || []).reduce((sum, nodeId) => sum + (state[nodeId]?.transcendent?.id === id ? Number(state[nodeId].transcendent.value || 0) : 0), 0);
 }
 
 function recordImmortalHeroDeathPenalty() {
@@ -2853,7 +2854,8 @@ function syncPaleBlueDotPassivePoints(previousEntry, nextEntry) {
     let previous = previousEntry && previousEntry.id === 'paleBlueDot' ? Number(previousEntry.value || 0) : 0;
     let next = nextEntry && nextEntry.id === 'paleBlueDot' ? Number(nextEntry.value || 0) : 0;
     if (previous === next) return;
-    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - previous + next);
+    const budget = starWedgeRules.pointBudget(game) - previous + next;
+    starWedgeRules.reconcile(game, PASSIVE_TREE, getStarWedgeRouting(), budget);
 }
 
 function applyVoidPassiveCurrency(nodeId, currencyKey) {
@@ -2903,7 +2905,6 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
 
 function isStarWedgeNodeMutable(node) {
     if (!node) return false;
-    if (node.intentionalNoEffect) return false;
     if (node.activationRequirement) return false;
     if (node.id === getPassiveTreeRootNodeId()) return false;
     if (node.socketType === 'star_wedge') return false;
@@ -2914,6 +2915,31 @@ function isStarWedgeNodeMutable(node) {
 function getStarWedgeRadiusTier(distance) {
     const tiers = Array.isArray(STAR_WEDGE_RADIUS_TIERS) ? STAR_WEDGE_RADIUS_TIERS : [];
     return tiers.findIndex(radius => distance <= radius);
+}
+
+function getPassiveNodeMutation(node) {
+    return game?.starWedge?.nodeMutations?.[node.id] || null;
+}
+
+/** Read-only socket lookup shared by tree labels and tooltips. */
+function getSocketedStarWedge(node) {
+    if (!node || node.socketType !== 'star_wedge') return null;
+    const state = game && game.starWedge;
+    const socket = state?.sockets?.find(entry => String(entry.nodeId) === String(node.id));
+    return socket ? state.wedges.find(wedge => wedge.id === socket.wedgeId) || null : null;
+}
+
+/** World-coordinate annuli; unique wedges retain their proportional distance boundaries. */
+function getStarWedgeMutationBands(wedge) {
+    if (!wedge) return [];
+    const type = wedge.unique ? wedge.uniqueType : '';
+    if (starWedgeRules.noRadius(wedge)) return [];
+    const outerRadius = { asteroid_belt: 300, satellite: 260, zero_gravity: 220 }[type];
+    const innerRadius = type === 'asteroid_belt' ? 120 : 0;
+    const radii = outerRadius ? [outerRadius / 3, outerRadius * 2 / 3, outerRadius] : STAR_WEDGE_RADIUS_TIERS;
+    return radii.map((outer, lineIndex) => ({
+        inner: Math.max(innerRadius, lineIndex ? radii[lineIndex - 1] : 0), outer, lineIndex
+    })).filter(band => band.outer > band.inner);
 }
 
 
@@ -2930,7 +2956,8 @@ function getMaxEquippedStarWedgesForLevel(astronomerLevel) {
     return Math.min(hardCap, base + bonus);
 }
 
-function getMaxEquippedStarWedges() {
+function getMaxEquippedStarWedges(owner = game) {
+    if (owner !== game) return getMaxEquippedStarWedgesForLevel(owner.expertise?.levels?.astronomer || 1);
     let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
     return getMaxEquippedStarWedgesForLevel(astroLv);
 }
@@ -2978,7 +3005,7 @@ function createRandomStarWedgeLine(optionPool) {
 
 function createStarWedgeItem() {
     let coreLine = createRandomStarWedgeLine(STAR_WEDGE_CORE_OPTION_POOL);
-    return { id: Date.now() + Math.floor(Math.random() * 100000), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine(), coreLine] };
+    return { id: Date.now() + Math.floor(Math.random() * 100000), outerLayout: starWedgeRules.rollLayout(), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine(), coreLine] };
 }
 
 const STAR_WEDGE_UNIQUE_DEFS = {
@@ -2988,7 +3015,11 @@ const STAR_WEDGE_UNIQUE_DEFS = {
     black_hole: { name: '블랙홀', desc: '기록된 별쐐기 슬롯을 무료 연결 거점으로 사용합니다. 장착 슬롯과 기록 슬롯 자체 효과는 비활성화됩니다.' },
     satellite: { name: '위성', desc: '슬롯 반경 260 안의 노드를 변성하지만, 범위 안 핵심 노드 효과와 슬롯 핵심 옵션은 비활성화됩니다.' },
     comet: { name: '혜성', desc: '경로가 멀어질수록 이동 속도 변성이 강해지고 슬롯에도 가장 강한 이동 속도가 적용됩니다.' },
-    resonant_star: { name: '공명별', desc: '일반 경로 변성과 함께 슬롯에서 보조 젬 공명 한도 +1을 얻습니다.' }
+    resonant_star: { name: '공명별', desc: '일반 경로 변성과 함께 슬롯에서 보조 젬 공명 한도 +1을 얻습니다.' },
+    dark_matter: { name: '암흑물질', desc: '일반 옵션이 하나인 공허 패시브의 효과가 100% 증가합니다. 초월 효과에는 적용되지 않습니다.' },
+    pluto: { name: '명왕성', desc: '외곽 성률에 공허 패시브 1~5개를 생성합니다. 재굴림할 수 있으며 5개 확률은 1/625입니다.' },
+    supernova: { name: '초신성', desc: '모든 경로 옵션과 핵심 옵션이 핵심 노드에 적용됩니다. 변성 반경이 없습니다.' },
+    andromeda: { name: '안드로메다', desc: '800~900 거리의 고리 안에서는 연결되지 않은 패시브도 할당할 수 있습니다. 장착 해제 시 고립된 경로는 반환됩니다.' }
 };
 
 function getStarWedgeUniqueDef(type) {
@@ -3006,42 +3037,22 @@ function normalizeUniqueStarWedgeItem(wedge) {
         core.boosted = true;
         lines = [0, 1, 2].map(() => ({ stat: 'flatHp', val: 0, boosted: false, disabled: true })).concat(core);
     } else if (wedge.uniqueType === 'comet') {
-        lines = [12, 16, 20, 24].map(val => ({ stat: 'move', val, boosted: true }));
+        lines = [6, 10, 14, 24].map(val => ({ stat: 'move', val, boosted: true }));
     } else if (wedge.uniqueType === 'resonant_star') {
         lines[3] = { stat: 'suppCap', val: 1, boosted: true };
     }
     wedge.lines = lines;
     wedge.uniqueSchemaVersion = 1;
-    return wedge;
+    return starWedgeRules.normalize(wedge);
 }
 
 
 
 function createUniqueStarWedgeItem() {
-    const type = rndChoice(['asteroid_belt','sun','zero_gravity','black_hole','satellite','comet','resonant_star']);
-    const id = Date.now() + Math.floor(Math.random() * 100000);
-    const mk = () => createRandomStarWedgeLine();
-    const mkCore = () => createRandomStarWedgeLine(STAR_WEDGE_CORE_OPTION_POOL);
-    let wedge = { id, unique: true, uniqueType: type, lines: [mk(), mk(), mk(), mkCore()] };
-    if (type === 'sun') {
-        let core = mkCore();
-        core.val = Number.isFinite(core.val) ? Math.round(core.val * 3 * 10) / 10 : core.val;
-        wedge.lines = [
-            { stat: 'flatHp', val: 0, boosted: false, disabled: true },
-            { stat: 'flatHp', val: 0, boosted: false, disabled: true },
-            { stat: 'flatHp', val: 0, boosted: false, disabled: true },
-            core
-        ];
-    } else if (type === 'comet') {
-        wedge.lines = [
-            { stat: 'move', val: 12, boosted: true },
-            { stat: 'move', val: 16, boosted: true },
-            { stat: 'move', val: 20, boosted: true },
-            { stat: 'move', val: 24, boosted: true }
-        ];
-    } else if (type === 'resonant_star') {
-        wedge.lines = [mk(), mk(), mk(), { stat: 'suppCap', val: 1, boosted: true }];
-    } else if (type === 'black_hole') {
+    const type = rndChoice(Object.keys(STAR_WEDGE_UNIQUE_DEFS));
+    const wedge = { ...createStarWedgeItem(), unique: true, uniqueType: type };
+    if (type === 'pluto') wedge.voidCount = starWedgeRules.rollPlutoCount();
+    if (type === 'black_hole') {
         const hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(n => n && n.kind === 'hub').map(n => String(n.id));
         wedge.recordedHubNodeId = hubs.length ? rndChoice(hubs) : null;
     }
@@ -3081,26 +3092,32 @@ function getStarWedgeById(wedgeId) {
     return (st.wedges || []).find(w => w.id === normalizedWedgeId) || null;
 }
 
-function refreshStarWedgeConstellationNodes(st, wedgeMap) {
-    const socketByNode = new Map((st.sockets || []).map(socket => [String(socket.nodeId), wedgeMap.get(socket.wedgeId)]));
-    const inactiveOwned = new Set();
-    Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'star_option').forEach(node => {
-        const wedge = socketByNode.get(String(node.requiresStarWedgeSocketNodeId));
-        const line = wedge && Array.isArray(wedge.lines) ? wedge.lines[node.starWedgeLineIndex] : null;
-        const active = !!(line && line.stat && !line.disabled);
-        node.starWedgeOptionActive = active;
-        node.effects = active ? [{ stat: line.stat, val: Number(line.val) || 0 }] : [];
-        node.stat = active ? line.stat : null;
-        node.val = active ? Number(line.val) || 0 : 0;
-        node.title = active ? `성률 · ${getStatName(line.stat)}` : '미장착 성률 옵션';
-        node.desc = active ? `${getStatName(line.stat)} +${formatValue(line.stat, node.val)}${P_STATS[line.stat] && P_STATS[line.stat].isPct ? '%' : ''}`
-            : '외곽 성률에 별쐐기를 장착하면 이 패시브가 나타납니다.';
-        if (!active && (game.passives || []).includes(node.id)) inactiveOwned.add(node.id);
+function refreshStarWedgeConstellationNodes() {
+    return starWedgeRules.rebuild(PASSIVE_TREE, game);
+}
+
+function applyStarWedgeSocketEffects(st, wedge, center, conflicts) {
+    if (wedge.uniqueType === 'black_hole') {
+        const recorded = PASSIVE_TREE.nodes[wedge.recordedHubNodeId];
+        if (recorded?.kind === 'hub') {
+            st.virtualLearnNodes[recorded.id] = true;
+            st.virtualLearnSources[recorded.id] = wedge.id;
+            markStarWedgeNodeEffectDisabled(st, center.id, wedge.id);
+            markStarWedgeNodeEffectDisabled(st, recorded.id, wedge.id);
+        }
+    }
+    if (center.starWedgeMode === 'constellation') return true;
+    if (!starWedgeRules.noRadius(wedge)) return false;
+    const effects = starWedgeRules.coreEffects(wedge, false);
+    if (effects.length) injectMutation(st, conflicts, center.id, {
+        wedgeId: wedge.id, socketNodeId: center.id, lineIndex: 3, effects,
+        originalStat: center.stat, originalVal: center.val, currentStat: effects[0].stat, currentVal: effects[0].val
     });
-    if (inactiveOwned.size === 0) return 0;
-    game.passives = (game.passives || []).filter(id => !inactiveOwned.has(id));
-    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + inactiveOwned.size;
-    return inactiveOwned.size;
+    return true;
+}
+
+function canAllocateStarWedgeRingNode(nodeId) {
+    return !!game.starWedge?.freeAllocationNodes?.[nodeId] && !game.passives.includes(nodeId);
 }
 
 function recalculateStarWedgeMutations(force) {
@@ -3111,11 +3128,12 @@ function recalculateStarWedgeMutations(force) {
         return wedge ? {
             nodeId: String(socket.nodeId), wedgeId: wedge.id, unique: !!wedge.unique,
             uniqueType: wedge.uniqueType || '', recordedHubNodeId: wedge.recordedHubNodeId || '',
+            outerLayout: wedge.outerLayout, voidCount: wedge.voidCount,
             lines: (wedge.lines || []).map(line => line ? [line.stat || '', Number(line.val) || 0, !!line.disabled] : null)
         } : null;
     }).filter(Boolean).sort((a, b) => a.nodeId.localeCompare(b.nodeId) || a.wedgeId - b.wedgeId);
-    let mutationSignature = `star-wedge-v2:${JSON.stringify(activeInputs)}`;
-    if (!force && st._mutationSignature === mutationSignature && st.nodeMutations && st.virtualLearnNodes && st.disabledNodeEffects && st.mutationConflictSources) return st;
+    let mutationSignature = `star-wedge-v4:${JSON.stringify(activeInputs)}`;
+    if (!force && starWedgeRules.cacheMatches(st, mutationSignature, PASSIVE_TREE.starWedgeGraphVersion)) return st;
     st._mutationSignature = mutationSignature;
     st.nodeMutations = {};
     st.virtualLearnNodes = {};
@@ -3123,7 +3141,9 @@ function recalculateStarWedgeMutations(force) {
     st.disabledNodeEffects = {};
     st.disabledNodeEffectSources = {};
     st.mutationConflictSources = {};
-    st.constellationRefunded = refreshStarWedgeConstellationNodes(st, wedgeMap);
+    st.constellationRefunded = refreshStarWedgeConstellationNodes();
+    st._graphVersion = PASSIVE_TREE.starWedgeGraphVersion;
+    st.freeAllocationNodes = Object.fromEntries([...starWedgeRules.freeNodes(PASSIVE_TREE, game)].map(id => [id, true]));
     let conflictNodes = new Set();
     const allNodes = Object.values(PASSIVE_TREE.nodes || {}).filter(Boolean);
     const radialNodes = allNodes.filter(n => Number.isFinite(Number(n.x)) && Number.isFinite(Number(n.y)));
@@ -3131,29 +3151,13 @@ function recalculateStarWedgeMutations(force) {
         let wedge = wedgeMap.get(socket.wedgeId);
         let center = PASSIVE_TREE.nodes[socket.nodeId];
         if (!wedge || !center) return;
-        if (center.starWedgeMode === 'constellation') return;
         const centerX = Number(center.x || 0), centerY = Number(center.y || 0);
         const radialDist = (n) => Math.hypot(Number(n.x||0)-centerX, Number(n.y||0)-centerY);
 
-        if (wedge.unique && wedge.uniqueType === 'black_hole' && wedge.recordedHubNodeId) {
-            let recordedId = String(wedge.recordedHubNodeId);
-            if (PASSIVE_TREE.nodes[recordedId] && PASSIVE_TREE.nodes[recordedId].kind === 'hub') {
-                st.virtualLearnNodes[recordedId] = true;
-                st.virtualLearnSources[recordedId] = wedge.id;
-                markStarWedgeNodeEffectDisabled(st, center.id, wedge.id);
-                markStarWedgeNodeEffectDisabled(st, recordedId, wedge.id);
-            }
-        }
-        if (wedge.unique && wedge.uniqueType === 'sun') {
-            let coreLineSun = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
-            if (coreLineSun && coreLineSun.stat) {
-                injectMutation(st, conflictNodes, center.id, { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:3, originalStat:center.stat, originalVal:center.val, currentStat:coreLineSun.stat, currentVal:coreLineSun.val });
-            }
-            return;
-        }
+        if (applyStarWedgeSocketEffects(st, wedge, center, conflictNodes)) return;
         if (wedge.unique && (wedge.uniqueType === 'zero_gravity' || wedge.uniqueType === 'asteroid_belt' || wedge.uniqueType === 'satellite')) {
-            const r1 = wedge.uniqueType === 'asteroid_belt' ? 120 : 0;
-            const r2 = wedge.uniqueType === 'asteroid_belt' ? 300 : (wedge.uniqueType === 'satellite' ? 260 : 220);
+            const bands = getStarWedgeMutationBands(wedge);
+            const [r1, r2] = [bands[0].inner, bands[bands.length - 1].outer];
             radialNodes.forEach(n => {
                 const d = radialDist(n);
                 if (d < r1 || d > r2 || String(n.id)===String(center.id) || n.kind === 'void') return;
@@ -3202,7 +3206,7 @@ function recalculateStarWedgeMutations(force) {
             });
         }
     });
-    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
     return st;
 }
 
@@ -3228,7 +3232,9 @@ function getPassiveConnectionNodeIds() {
 }
 
 function refreshStarWedgePassiveState() {
+    const budget = starWedgeRules.pointBudget(game);
     recalculateStarWedgeMutations(true);
+    starWedgeRules.reconcile(game, PASSIVE_TREE, getStarWedgeRouting(), budget);
     if (typeof calculateReachableNodes === 'function') calculateReachableNodes();
     if (typeof refreshPassiveVisibility === 'function') refreshPassiveVisibility();
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
@@ -3550,6 +3556,16 @@ function installOceanReefFragment() {
     st.reefInstalled = Math.max(0, Math.floor(st.reefInstalled || 0)) + 1;
     addLog(`🪸 암초 조각을 설치했습니다. (낚시 게이지 충전 +${(st.reefInstalled * 15)}%)`, 'loot-rare');
     queueImportantSave(200);
+}
+
+function getStarWedgeRouting(owner = game) {
+    const star = owner.starWedge || { wedges: [], sockets: [] };
+    const allocated = new Set(owner.passives || []);
+    const virtual = star.sockets.map(socket => star.wedges.find(wedge => wedge.id === socket.wedgeId))
+        .filter(wedge => wedge?.uniqueType === 'black_hole' && PASSIVE_TREE.nodes[wedge.recordedHubNodeId]?.kind === 'hub')
+        .map(wedge => String(wedge.recordedHubNodeId));
+    return { root: getPassiveTreeRootNodeId(owner), virtual, free: starWedgeRules.freeNodes(PASSIVE_TREE, { ...owner, starWedge: star }),
+        edges: PASSIVE_TREE.edges.filter(edge => isPassiveTreePathEdge(edge, allocated)) };
 }
 
 function enterOceanDive() {
@@ -4053,13 +4069,20 @@ function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('�
     updateStaticUI();
 }
 
+function getStarWedgeRerollError(wedge, keepIndex) {
+    if (wedge.eternal) return '영원 고정된 별쐐기는 리롤할 수 없습니다.';
+    if (wedge.unique && starWedgeRules.fixedTypes.has(wedge.uniqueType)) return '고정 효과는 재굴림할 수 없습니다.';
+    if (wedge.uniqueType === 'pluto' && keepIndex != null) return '명왕성은 공허 패시브 개수만 재굴림합니다.';
+    return '';
+}
+
 function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
     if (astroLv < 5) return addLog('별쐐기 리롤은 천문학자 Lv.5에 해금됩니다.', 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return;
-    if (wedge.eternal) return addLog('영원 고정된 별쐐기는 리롤할 수 없습니다.', 'attack-monster');
-    if (wedge.unique && wedge.uniqueType === 'comet') return addLog('혜성의 고정된 이동 속도 궤적은 리롤할 수 없습니다.', 'attack-monster');
+    const rerollError = getStarWedgeRerollError(wedge, keepIndex);
+    if (rerollError) return addLog(rerollError, 'attack-monster');
     let keepIndexes = [];
     let meteorCost = 23;
     let rerollDiscount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('starWedgeRerollCostReducePct') : 0;
@@ -4084,6 +4107,7 @@ function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) retur
         }
         return next;
     });
+    if (wedge.uniqueType === 'pluto') wedge.voidCount = starWedgeRules.rollPlutoCount();
     normalizeUniqueStarWedgeItem(wedge);
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
@@ -4131,6 +4155,13 @@ async function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return ad
     updateStaticUI();
 }
 
+function getStarWedgeSocketError(node, wedge) {
+    if (!node || node.socketType !== 'star_wedge') return '별쐐기 슬롯에만 장착할 수 있습니다.';
+    if (!wedge) return '장착할 별쐐기를 찾을 수 없습니다.';
+    if (!starWedgeRules.canSocket(wedge, node)) return '명왕성은 외곽 성률에만 장착할 수 있습니다.';
+    return '';
+}
+
 function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let lookupId = nodeId;
@@ -4140,9 +4171,9 @@ function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) re
         lookupId = Object.keys(PASSIVE_TREE.nodes || {}).find(id => String(id) === key) || lookupId;
         node = PASSIVE_TREE.nodes[lookupId];
     }
-    if (!node || node.socketType !== 'star_wedge') return addLog('별쐐기 슬롯에만 장착할 수 있습니다.', 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
-    if (!wedge) return addLog('장착할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    const socketError = getStarWedgeSocketError(node, wedge);
+    if (socketError) return addLog(socketError, 'attack-monster');
     let maxEquipped = getMaxEquippedStarWedges();
     let nodeKey = String(lookupId);
     let remainingSockets = (st.sockets || []).filter(v => String(v.nodeId) !== nodeKey && v.wedgeId !== wedgeId);
@@ -4189,11 +4220,13 @@ function beginStarWedgeSocketSelection(wedgeId) {
  */
 function getPassiveActivationPath(targetNodeId) {
     if (!game || !targetNodeId || !isPassiveNodeAvailable(targetNodeId)) return [];
+    recalculateStarWedgeMutations();
     const targetNode = PASSIVE_TREE.nodes[targetNodeId];
     if (targetNode && targetNode.kind === 'start') return [];
-    if (targetNode && targetNode.kind === 'star_option') {
-        return (game.passives || []).includes(targetNodeId) ? [] : [targetNodeId];
+    if (starWedgeRules.isGenerated(targetNode)) {
+        return starWedgeRules.generatedPath(targetNode, game, PASSIVE_TREE);
     }
+    if (canAllocateStarWedgeRingNode(targetNodeId)) return [targetNodeId];
     let owned = new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id)));
     let connectionNodes = getPassiveConnectionNodeIds();
     if (connectionNodes.has(String(targetNodeId))) return [];
@@ -4242,6 +4275,7 @@ function activatePassivePath(targetNodeId, options) {
     if (Math.max(0, Math.floor(game.passivePoints || 0)) < path.length) {
         return { activated: false, cost: path.length, path: path.slice(), reason: 'points' };
     }
+    const pointBudget = starWedgeRules.pointBudget(game);
     path.forEach(nodeId => {
         if (!(game.passives || []).includes(nodeId)) game.passives.push(nodeId);
         let node = PASSIVE_TREE.nodes[nodeId];
@@ -4253,6 +4287,7 @@ function activatePassivePath(targetNodeId, options) {
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
+    starWedgeRules.settlePoints(game, pointBudget);
     enforcePassiveEquipmentRestrictions();
     return { activated: true, cost: path.length, path: path.slice() };
 }
@@ -4426,8 +4461,10 @@ function calculateReachableNodes() {
         if (isPassiveNodeAvailable(id)) reachableNodes.add(id);
     });
     Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
-        if (node && node.kind === 'star_option' && isPassiveNodeAvailable(node)) reachableNodes.add(node.id);
+        if (node && (node.starWedgeRoot || node.starWedgeParentId) && isPassiveNodeAvailable(node)
+            && (node.starWedgeRoot || game.passives.includes(node.starWedgeParentId))) reachableNodes.add(node.id);
     });
+    Object.keys(game.starWedge?.freeAllocationNodes || {}).forEach(id => { if (isPassiveNodeAvailable(id)) reachableNodes.add(id); });
     PASSIVE_TREE.edges.forEach(edge => {
         if (!isPassiveTreePathEdge(edge)) return;
         if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
@@ -6821,6 +6858,7 @@ function initBattleAssets() {
         backdropAct9_10: 'assets/battlefield-act9-10.png',
 
         ...ACT_BATTLE_MAP_SOURCES,
+        bgAct9Sap: ACT_BATTLE_MAP_EFFECTS.bgAct9.source,
         bgChaos0: 'assets/background/refined-20260910/bgChaos0.webp',
         bgChaos1: 'assets/background/refined-20260910/bgChaos1.webp',
         bgChaos2: 'assets/background/refined-20260910/bgChaos2.webp',
@@ -10187,8 +10225,10 @@ function maybeApplyExceptionalBase(item) {
     return item;
 }
 
-/** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source */
-function awardCurrency(currencyKey, amount, source = 'reward') {
+/** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source
+ * @param {null|function(string,number):boolean} deferGrant Optional synchronous receiver of the resolved amount. True means stored for later claim.
+ */
+function awardCurrency(currencyKey, amount, source = 'reward', deferGrant = null) {
     currencyKey = getCanonicalCurrencyKey(currencyKey);
     if (source === 'drop' && !contentProgression.canDropCurrency(currencyKey)) return 0;
     let gain = Number(amount || 0);
@@ -10200,70 +10240,81 @@ function awardCurrency(currencyKey, amount, source = 'reward') {
         if (specificEffect) gain *= 1 + Math.max(0, getExpertNodeEffectValue(specificEffect)) / 100;
         gain = Math.max(1, Math.floor(gain));
     }
+    if (deferGrant && deferGrant(currencyKey, gain)) return gain;
+    commitCurrencyGain(currencyKey, gain);
+    return gain;
+}
+
+/** Commit an already resolved amount without applying expert multipliers again. */
+function commitCurrencyGain(currencyKey, gain) {
     if (currencyKey === 'condensedSkyPower') {
         let st = ensureSkyTowerState();
         st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + gain;
         combatLootReceipts.currency(game,currencyKey,gain);
         game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
-        return gain;
+        return;
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
     combatLootReceipts.currency(game,currencyKey,gain);
     game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
-    if (currencyKey === 'goldenRule' && gain > 0) {
-        showDivineDropBanner(gain);
-        addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`, 'loot-unique');
-    }
+    notifyCurrencyAcquisition(currencyKey, gain);
+}
+
+function notifyCurrencyAcquisition(currencyKey, gain) {
     if ((currencyKey === 'chaosKey' || currencyKey === 'coreKey') && gain > 0) {
         // 둘 중 하나라도 습득하면 지도 알람을 띄운다(5차 미궁 시련/재능 개화 도전 알림).
         if (game.noti) game.noti.map = true;
-        let keyName = (ORB_DB[currencyKey] && ORB_DB[currencyKey].name) || currencyKey;
-        addLog(`🗝️ <strong>${keyName} +${gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.`, 'loot-unique');
     }
     if (currencyKey === 'ouroboros' && gain > 0) {
         game.woodsmanTouchSeen = true;
-        addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
     }
+    const unlocked=unlockLegacyCurrencyFeatures(currencyKey);
+    dispatchRuntimeEvent('currency-acquired',{currencyKey,gain,unlocked});
+}
+
+function unlockLegacyCurrencyFeatures(currencyKey) {
+    const unlocked={gem:false,talisman:false};
     if (!game.contentProgression && !game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
         game.noti.skills = true;
-        addLog('☁️ 스킬 젬 강화 탭이 개방되었습니다!', 'loot-unique');
+        unlocked.gem=true;
     }
     if (!game.contentProgression && !game.talismanUnlocked && (currencyKey === 'sealShard' || currencyKey === 'strongSealShard' || currencyKey === 'radiantSealShard')) {
         game.talismanUnlocked = true;
         game.unlocks.talisman = true;
         game.noti.talisman = true;
-        addLog('🧿 부적 탭이 개방되었습니다!', 'loot-unique');
+        unlocked.talisman=true;
     }
-    return gain;
+    return unlocked;
 }
 
 
 
 // Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting.
 function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
-    if (offlineStashEnabled || options?.skipAutoEquip) return null;
+    if (offlineStashEnabled || options?.skipAutoEquip || options?.delivery) return null;
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 
 function addItemToInventory(item, options) {
     normalizeItem(item);
+    const delivery = options?.delivery, logLoot = game.settings.showLootLog && !delivery;
     // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
     // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
     let uniqueHuntTarget = uniqueHuntRuntime.isTargetItem(item);
     let guaranteedKeep = !!(options && options.guaranteedKeep) || uniqueHuntTarget || equipmentLootPolicy.matches(item);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
-    let offlineStashEnabled = game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
+    let offlineStashEnabled = !delivery && game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
     let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled);
     if (autoEquipSlot) {
         recordEquipmentAcquisition(item);
-        if (game.settings.showLootLog) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
+        if (logLoot) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
         checkUnlocks();
         return true;
     }
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
-        if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
+        if (logLoot) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
     if (offlineStashEnabled) {
@@ -10285,30 +10336,35 @@ function addItemToInventory(item, options) {
             if (!canStoreEquipmentItems([item], game)) game.backgroundStopReason = 'protected-storage-full';
         }
     }
-    if (!canStoreEquipmentItems([item], game)) {
-        if (!guaranteedKeep) {
-            let overflowRewards = salvageItemObject(item, true, { noDivine: true });
-            if (game.isBackgroundCalculation) {
-                game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
-            } else if (game.settings.showLootLog) {
-                addLog(`🎒 공간 부족 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(overflowRewards)}`, 'loot-normal');
-            }
-            return false;
-        }
-        addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
+    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage, delivery });
+    if (delivery) return result.accepted;
+    if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
+    if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
+    else if (logLoot && result.rewards && result.log) {
+        const label = result.kind === 'overflow' ? '🎒 공간 부족 자동해체' : '🧪 자동해체';
+        addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
     }
-    if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
-        let autoRewards = salvageItemObject(item, true);
-        if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(autoRewards)}`, 'loot-normal');
-        return false;
-    }
-    // 도감은 실제로 인벤토리에 수집했을 때만 등록한다. (인벤토리가 가득 차 해체된 고유는 도감 미등록)
-    recordEquipmentAcquisition(item);
-    game.inventory.push(item);
-    // 일반 습득마다 알림을 켜면 전투 중 끊임없는 드랍 때문에 장비 알림이 항상 켜진 것처럼
-    // 보인다. 장비 탭 알림은 해금 같은 실제 주목할 이벤트(checkUnlocks)에서만 켠다.
-    checkUnlocks();
-    return true;
+    return result.accepted;
+}
+
+/** Pickup policy is shared by owned and pending equipment; only delivery is deferred. */
+function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage, delivery }) {
+    const fits = delivery ? delivery.canStore(item) : canStoreEquipmentItems([item], game);
+    if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, delivery, true);
+    if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities?.[item.rarity])
+        return salvageEquipmentPickup(item, delivery, false);
+    if (delivery) delivery.store(item);
+    else game.inventory.push(item);
+    return { accepted: true, kind: fits ? 'stored' : 'protected' };
+}
+
+function salvageEquipmentPickup(item, delivery, overflow) {
+    const rewards = salvageItemObject(item, true, {
+        noDivine: overflow, deferCurrency: delivery?.currency, deferRecovery: delivery?.recovery
+    });
+    if (overflow && game.isBackgroundCalculation)
+        game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+    return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
 function recordEquipmentAcquisition(item) {
@@ -10804,7 +10860,7 @@ function generateJewelDrop(zoneOrTier) {
         });
         let petite = rollJewelPetiteStat('rare', stats.map(st => st.id));
         if (petite) stats.push(petite);
-        return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', uniqueLockedFusion: row.id !== 'uj_void', voidFusionCharges: Number.isFinite(row.voidFusionCharges) ? row.voidFusionCharges : 0, hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
+        return { id: ++itemIdCounter, uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', uniqueLockedFusion: row.id !== 'uj_void', voidFusionCharges: Number.isFinite(row.voidFusionCharges) ? row.voidFusionCharges : 0, hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
     let rarityRoll = Math.random();
     let rarity = 'normal';
@@ -10815,7 +10871,23 @@ function generateJewelDrop(zoneOrTier) {
     let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
     let name = stats.length ? `${getStatName(stats[0].id)} 주얼` : '미가공 주얼';
-    return { id: Date.now() + Math.floor(Math.random() * 100000), name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
+    return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
+}
+
+/** One pickup policy for immediate and held jewel drops. Delivery receives resolved salvage gains. */
+function receiveJewelDrop(jewel, delivery) {
+    const rarity=jewel.rarity;
+    const autoSalvage=!!(game.settings.jewelAutoSalvageEnabled&&game.settings.jewelAutoSalvageRarities[rarity]);
+    const inventoryFull=game.jewelInventory.length+(delivery?delivery.heldCount:0)>=getJewelInventoryLimit();
+    const protectOverflow=inventoryFull&&!autoSalvage&&['rare','unique'].includes(rarity);
+    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0,deferred:!!delivery};
+    if((inventoryFull&&!protectOverflow)||autoSalvage) {
+        result.shardGain=salvageJewelObject(jewel,true,delivery?.currency);
+        return result;
+    }
+    if(delivery)result.stored=delivery.store(jewel);
+    else {game.jewelInventory.push(jewel);game.noti.jewel=true;result.stored=true;}
+    return result;
 }
 
 function getJewelStats(jewel) {
@@ -10845,10 +10917,10 @@ function getJewelSalvageShardGain(jewel) {
     return rarity === 'unique' ? 18 : (rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2));
 }
 
-function salvageJewelObject(jewel, silent) {
+function salvageJewelObject(jewel, silent, deferCurrency = null) {
     let shardGain = getJewelSalvageShardGain(jewel);
     if (shardGain <= 0) return 0;
-    awardCurrency('jewelShard', shardGain);
+    awardCurrency('jewelShard', shardGain, 'reward', deferCurrency);
     if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
     return shardGain;
 }
@@ -11616,8 +11688,9 @@ function rollItemSalvageRewards(item, options) {
 function salvageItemObject(item, silent, options) {
     if (!item) return {};
     let rewards = rollItemSalvageRewards(item, options);
-    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount));
-    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
+    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward', options?.deferCurrency));
+    if (options?.deferRecovery) options.deferRecovery(item, rewards);
+    else if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
     if (!silent) addLog(`🧪 [${item.name}] 해체 · ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
     return rewards;
 }

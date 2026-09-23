@@ -11,6 +11,22 @@ function runForegroundCombat(nowMs) {
     }
     return executed;
 }
+function runForegroundExplorationFrame(nowMs) {
+    const run = actExplorationState.current(game);
+    if (!run || document.hidden || backgroundCombatRuntime.appInactive) return;
+    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground()) return;
+    const sinceTick = foregroundCombatClock.lastAtMs === null ? 0 : Math.max(0, nowMs - foregroundCombatClock.lastAtMs);
+    // The pending fraction and time since the last 100 ms callback can each approach
+    // 100 ms. Clamping their sum to 100 freezes walking until the next combat tick.
+    const remainder = Math.min(200, foregroundCombatClock.remainderMs + sinceTick);
+    const motionNow = getCombatTime() + remainder;
+    if (motionNow - run.motionTimeMs < 20) return;
+    // Walking shares the combat tick's current stats. A high-refresh display must not
+    // re-evaluate the character build on every RAF, including frames with no motion step.
+    const stats = game.lastCombatStats || getPlayerStats();
+    advancePlayerExplorationFrame(motionNow, stats);
+}
+safeExposeGlobals({runForegroundExplorationFrame});
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
     if (!window.__startupFirstPaintDone) {
@@ -100,7 +116,7 @@ function init() {
     checkUnlocks();
     renderExpertiseUI();
     normalizeSupportLoadout(false);
-    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) runUiStartEncounter();
+    runUiGlobalFunction('ensureEncounterRun');
     runStartupSmokeChecks();
     const passiveRootId = getPassiveTreeRootNodeId(game);
     if (!(game.discoveredPassives || []).includes(passiveRootId)) game.discoveredPassives.push(passiveRootId);

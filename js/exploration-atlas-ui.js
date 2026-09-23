@@ -47,7 +47,7 @@ const explorationAtlasUi = (() => {
         if (game.currentZoneId === index) switchTab('tab-battle');
     }
     function routeLabel(route) {
-        if (route === 'map-explore-worldtree') return '수호자 탐험';
+        if (route === 'map-explore-worldtree') return '지도 탐험';
         if (route === 'map-explore-chaos') return '혼돈 · 심화';
         if (route === 'map-explore-beehive') return '벌집';
         return document.getElementById('btn-' + route).textContent.trim();
@@ -126,7 +126,7 @@ const explorationAtlasUi = (() => {
         const current = game.currentZoneId === index && !game.combatHalted;
         const blocked = !current && (getZoneTravelBlockReason(index) || isBeehiveRunLockedForMapTravel() || game.beyondBoundary.activeRun);
         return `${rewards.length ? `<button class="atlas-claim" onclick="openActReward(${rewards[0]})">받을 보상 ${rewards.length}</button>` : ''}
-            <button class="atlas-hunt-now" onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? '전투로 돌아가기' : blocked ? '이동 대기' : '즉시 이동'}</button>
+            <button class="atlas-hunt-now" ${current ? '' : 'data-exploration-departure'} onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? '전투로 돌아가기' : blocked ? '이동 대기' : '즉시 이동'}</button>
             <button class="atlas-hunt-select" onclick="explorationAtlasUi.enter('map-explore-hunting')">세부 지역</button>`;
     }
     function trackedRewardHtml(route) {

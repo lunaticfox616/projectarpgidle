@@ -431,16 +431,16 @@ function getGrowthSalvageEssenceYield(item, randomSource) {
 /** 기존 해체 보상과 생장 정수를 한 트랜잭션으로 지급한다. */
 function salvageGrowthItemObject(item, silent, options) {
     if (!item) return {};
-    let rewards = salvageItemObject(item, true, options) || {};
+    let rewards = salvageItemObject(item, true, options);
     let essence = getGrowthSalvageEssenceYield(item, options && options.essenceRandom);
-    if (essence > 0) {
-        game.currencies = game.currencies || {};
-        game.currencies.growthEssence = (game.currencies.growthEssence || 0) + essence;
+    if (essence>0) {
+        if (!options?.deferCurrency?.('growthEssence', essence)) {
+            game.currencies.growthEssence = (game.currencies.growthEssence || 0) + essence;
+        }
         rewards.growthEssence = (rewards.growthEssence || 0) + essence;
     }
     if (!silent) {
-        let summary = typeof formatSalvageRewardSummary === 'function'
-            ? formatSalvageRewardSummary(rewards) : `생장 정수 +${essence}`;
+        let summary = formatSalvageRewardSummary(rewards);
         addLog(`🧪 [${item.name}] 해체 · ${summary}`, 'loot-normal');
     }
     return rewards;
@@ -470,26 +470,39 @@ function logGrowthStorageFull() {
 /** 보관함 직접 습득. 가득 차면 새 드랍을 비교·교체하지 않고 그대로 해체한다. */
 function storeGrowthItemDirectly(item, options) {
     if (!item) return false;
+    const opts=options||{}, delivery=opts.delivery;
     let limit = getGrowthInventoryLimit();
-    if (game.growthInventory.length < limit) {
-        game.growthInventory.push(item);
-        return true;
-    }
-    if (options && options.guaranteedKeep) {
-        // 명시적인 보상·반환 아이템은 유실시키지 않는다. 일반 전투 드랍만 아래에서 해체한다.
-        game.growthInventory.push(item);
-        logGrowthStorageFull();
-        return true;
-    }
-    salvageGrowthItemObject(item, true, { noDivine: true });
-    if (!(options && options.silent) && game.settings.showLootLog) {
+    const fits=game.growthInventory.length+(delivery?delivery.heldCount:0)<limit;
+    if (fits||opts.guaranteedKeep) return acceptGrowthDrop(item,delivery,fits);
+    salvageGrowthItemObject(item, true, { noDivine: true, deferCurrency: delivery?.currency });
+    if (!opts.silent && game.settings.showLootLog) {
         addLog(`🧪 생장 보관함 초과 자동해체: [${item.name}]`, 'loot-normal');
     }
-    logGrowthStorageFull();
+    if (!delivery) logGrowthStorageFull();
     return false;
 }
 
-// 전투/백그라운드 드랍 진입점. 가득 차도 전투를 멈추지 않고 새 드랍을 자동 해체한다.
+function acceptGrowthDrop(item,delivery,fits) {
+    if(delivery)return delivery.store(item);
+    game.growthInventory.push(item);
+    if(!fits)logGrowthStorageFull();
+    return true;
+}
+
+function getGrowthDropDisposition(item,options) {
+    if(options.guaranteedKeep)return 'keep';
+    if(!options.ignoreFilter&&game.settings.growthUseItemFilter&&!passesItemPickupFilter(item))return 'filtered';
+    const rarities=game.settings.growthAutoSalvageRarities||{};
+    if(!options.ignoreAutoSalvage&&game.settings.growthAutoSalvageEnabled&&rarities[item.rarity])return 'salvage';
+    return 'keep';
+}
+
+/** Drop delivery optionally holds kept items and resolved salvage currency until settlement.
+ * @param {ActExplorationPendingLoot['growthItems'][number]} item
+ * @param {{ignoreFilter?:boolean,guaranteedKeep?:boolean,ignoreAutoSalvage?:boolean,silent?:boolean,
+ * delivery?:{heldCount:number,store:function(ActExplorationPendingLoot['growthItems'][number]):boolean,
+ * discover:function(ActExplorationPendingLoot['growthItems'][number]):void,currency:function(string,number):boolean}}} [options]
+ */
 function addDroppedGrowthItem(item, options) {
     if (!item) return false;
     if (!isGrowthBoardUnlocked()) return false;
@@ -497,20 +510,21 @@ function addDroppedGrowthItem(item, options) {
     // 필터·자동해체는 생장 전용 설정을 쓴다. 장비 설정을 물려받으면 루프 25에 판이
     // 열리자마자 일반/매직 드랍이 전부 녹아, 8칸조차 채우지 못하고 "드랍이 안 나온다"고
     // 느끼게 된다. 기본값은 전부 보관이고, 원하면 아래 설정으로 좁힌다.
-    let ignoreFilter = !!(options && (options.ignoreFilter || options.guaranteedKeep));
-    if (!ignoreFilter && game.settings.growthUseItemFilter
-        && typeof passesItemPickupFilter === 'function' && !passesItemPickupFilter(item)) {
-        if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
+    const disposition=getGrowthDropDisposition(item,options||{});
+    if (disposition==='filtered') {
+        if (!options?.silent && game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
-    let ignoreAutoSalvage = !!(options && (options.ignoreAutoSalvage || options.guaranteedKeep));
-    let growthSalvage = game.settings.growthAutoSalvageRarities || {};
-    if (!ignoreAutoSalvage && game.settings.growthAutoSalvageEnabled && growthSalvage[item.rarity]) {
-        salvageGrowthItemObject(item, true);
-        if (game.settings.showLootLog) addLog(`🧪 생장 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
+    if (disposition==='salvage') {
+        salvageGrowthItemObject(item, true, {deferCurrency:options?.delivery?.currency});
+        if (!options?.silent && game.settings.showLootLog) addLog(`🧪 생장 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
     }
     ensureGrowthBoardState();
+    if (options?.delivery) {
+        options.delivery.discover(item);
+        return storeGrowthItemDirectly(item, options);
+    }
     if (item.rarity === 'unique' && typeof registerUniqueToCodexOnAcquire === 'function') registerUniqueToCodexOnAcquire(item);
     let stored = storeGrowthItemDirectly(item, options);
     if (stored && game.noti) game.noti.items = true;

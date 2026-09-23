@@ -11,6 +11,7 @@ const files = [
   'data/shrines.js',
   'data/bounties.js',
   'data/maps.js',
+  'data/act-exploration-maps.js',
   'data/cosmos-route.js',
   'data/world-tree-journey.js',
   'data/gem-core-forge.js', 'data/skills.js',
@@ -27,6 +28,8 @@ const files = [
   'data/content-progression.js',
   'data/offline-progress.js',
   'js/utils.js',
+  'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
+  'js/act-exploration-state.js',
   'js/state.js',
   'js/combat-loot-receipts.js',
   'js/level-progression.js', 'js/combat-equipment-stats.js',
@@ -37,7 +40,7 @@ const files = [
   'js/save.js',
   'js/items.js',
   'js/equipment-crafting.js',
-  'js/passives.js',
+  'js/star-wedge.js', 'js/passives.js',
   'js/loot.js',
   'js/unique-hunt.js',
   'js/shrines.js',
@@ -50,6 +53,7 @@ const files = [
   'js/bounties.js',
   'js/core-cube.js',
   'js/combat-grid.js',
+  'js/act-exploration-progress.js',
   'js/world-tree-journey.js',
   'js/condition-patterns.js',
   'js/hidden-journal.js',
@@ -798,8 +802,9 @@ assert.ok(desktopGridTop >= 0 && desktopGridBottom <= 580,
 const actBattleMapSources = Object.values(context.ACT_BATTLE_MAP_SOURCES);
 assert.strictEqual(actBattleMapSources.length, 10, 'ACT 1~10은 각각 하나의 전투 맵을 가져야 한다');
 assert(actBattleMapSources.every(source => source.endsWith('.webp') && fs.existsSync(source)), '모든 ACT 전투 맵은 압축된 WebP로 존재해야 한다');
-assert(actBattleMapSources.reduce((sum, source) => sum + fs.statSync(source).size, 0) < 2200000,
-  'ACT 전투 맵 10장의 합계 용량은 2.2MB 미만이어야 한다');
+// Lossless ACT art is now loaded on demand, so the budget covers startup + the largest destination.
+assert(fs.statSync(context.ACT_BATTLE_MAP_SOURCES.bgAct1).size + Math.max(...actBattleMapSources.map(source => fs.statSync(source).size)) < 2200000,
+  '처음 시작하는 맵과 목적지 맵의 로딩 합계는 기존 2.2MB 예산을 넘지 않아야 한다');
 const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'cone', 'summon']);
 const validShapes = new Set(['circle', 'diamond', 'square', 'cross', 'diagonal', 'ring']);
 Object.keys(context.SKILL_DB).forEach(name => {
@@ -2161,7 +2166,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.gridPlayer = { gx: 6, gy: 2, gridMoveTimer: 0 };
-  context.startEncounterRun();
+  context.startEncounterRun(false);
   const returnWarp = vm.runInContext("battleFx.find(fx => fx.type === 'playerReturnWarp')", context);
   assert.ok(returnWarp && returnWarp.duration === 720, '먼 칸에서 시작 지점으로 복귀하면 소환 연출을 한 번 예약해야 한다');
   assert.deepStrictEqual({ gx: returnWarp.cell.gx, gy: returnWarp.cell.gy },
@@ -2174,7 +2179,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.resetPlayerGridPosition();
-  context.startEncounterRun();
+  context.startEncounterRun(false);
   const stationaryWarpCount = vm.runInContext("battleFx.filter(fx => fx.type === 'playerReturnWarp').length", context);
   assert.strictEqual(stationaryWarpCount, 0, '이미 시작 지점에 있거나 최초 진입한 경우에는 복귀 연출을 반복하면 안 된다');
 }

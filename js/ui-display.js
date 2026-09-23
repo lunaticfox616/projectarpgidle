@@ -86,6 +86,7 @@ const uiDisplay = (() => {
 
     return Object.freeze({ apply, init, matches, registerStyles, get factor() { return factor; },
         get battleFrameMs() { return mobileDevice ? 1000 / 30 : 22; },
+        get explorationFrameMs() { return mobileDevice ? 1000 / 30 : 1000 / 60; },
         get battleRenderScale() { return Math.max(1, Math.min(mobileDevice ? 1.5 : 2, (window.devicePixelRatio || 1) * factor)); }
     });
 })();

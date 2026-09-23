@@ -163,7 +163,7 @@ for (const season of [10,50,100,1000]) {
 }
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;
     var remote=JSON.parse(JSON.stringify(game));remote.ascendClass='warrior';remote.ascendKeystones=['w3'];
-    remote.voidPassives={preview:{transcendent:{id:'thirdFinger',value:1}}};`);
+    remote.passives=['preview'];remote.voidPassives={preview:{transcendent:{id:'thirdFinger',value:1}}};`);
 assert.deepEqual(json("getEquipCandidateSlots({slot:'무기'},remote)"),['무기','방패'],'preset uses its owner for dual-wield slots');
 assert.deepEqual(json("getEquipCandidateSlots({slot:'반지'},remote)"),['반지1','반지2','반지3'],'preset uses its owner for extra ring slots');
 assert.deepEqual(json("getEquipCandidateSlots({slot:'무기'})"),['무기'],'remote inspection cannot grant the live player a slot');

@@ -353,7 +353,7 @@ function renderBeyondBoundaryStartAction(state) {
     if (state.activeRun) return `<button class="primary" type="button" onclick="viewBeyondBoundaryCombat()">전투 보기</button><button class="danger" type="button" onclick="leaveBeyondBoundaryRun()">도전 포기</button>`;
     const status = getBeyondBoundaryRewardFocusStatus(state.selectedRewardFocusId);
     const note = status.available ? '' : `<small>${escapeHTML(status.reason)} · 다른 보상을 선택하세요.</small>`;
-    return `<button class="primary" type="button" onclick="enterBeyondBoundaryRun()" ${status.available ? '' : 'disabled'}>${state.selectedTier}단계 도전 시작</button>${note}`;
+    return `<button class="primary" type="button" data-exploration-departure onclick="enterBeyondBoundaryRun()" ${status.available ? '' : 'disabled'}>${state.selectedTier}단계 도전 시작</button>${note}`;
 }
 
 function renderBeyondBoundaryIntensities(state) {

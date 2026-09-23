@@ -434,6 +434,9 @@
 }
 
 .enemy-card.targeted.enemy-boss {
+  --health-art-opacity: .5;
+  --health-name-opacity: .65;
+  --health-track-background: rgba(23, 7, 9, .45);
   --health-frame-width: 520px;
   --health-frame-ratio: 309 / 86;
   --health-art-height: 122.093%;
@@ -465,7 +468,7 @@
   box-sizing: border-box;
   border: 1px solid rgba(159, 111, 103, .72);
   border-radius: 6px 6px 2px 2px;
-  background: linear-gradient(180deg, rgba(28, 19, 21, .95), rgba(8, 8, 10, .95));
+  background: linear-gradient(180deg, rgba(28, 19, 21, var(--health-name-opacity, .95)), rgba(8, 8, 10, var(--health-name-opacity, .95)));
   box-shadow: 0 4px 12px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 231, 218, .06);
 }
 
@@ -490,6 +493,7 @@
 }
 
 #enemy-area .health-skin-frame {
+  opacity: var(--health-art-opacity, 1);
   position: absolute;
   top: var(--health-art-top);
   left: 0;
@@ -527,7 +531,7 @@
   min-height: 0;
   overflow: visible;
   border-radius: 2px;
-  background: #170709;
+  background: var(--health-track-background, #170709);
   box-shadow: inset 0 0 6px #000;
 }
 
@@ -559,6 +563,7 @@
 }
 
 #enemy-area .enemy-card.enemy-boss .health-skin-track > .hp-bar-fill.enemy {
+  opacity: .8;
   background-color: #d41f32 !important;
   background-image: url('../assets/ui/gauge-boss-hp-v1.png') !important;
 }

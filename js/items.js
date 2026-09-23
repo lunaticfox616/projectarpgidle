@@ -865,9 +865,10 @@ async function marketResetPassiveTreeByDivine() {
     }
     game.currencies.goldenRule -= 1;
     // 직업 시작점은 소유 목록에 넣지 않아도 항상 무료 연결점으로 계산된다.
+    const grantedPoints = starWedgeRules.paleBonus(game);
     game.passives = [];
     game.passiveAttributeChoices = {};
-    game.passivePoints += spentNodes;
+    game.passivePoints = Math.max(0, game.passivePoints + spentNodes - grantedPoints);
     calculateReachableNodes();
     refreshPassiveVisibility();
     addLog(`🧠 패시브 트리 초기화 완료! 포인트 ${spentNodes}점 반환`, 'season-up');

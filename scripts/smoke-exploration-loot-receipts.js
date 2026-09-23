@@ -29,8 +29,8 @@ assert.equal(runtime.game.explorationLoot.equipmentCount,7,'auto-salvaged equipm
 run(`game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;`);
 assert.equal(runtime.game.explorationLoot.currencies.magicBud,5);
 assert.equal(runtime.game.explorationLoot.items.length,3);
-run(`finishEncounterRun();finishEncounterRun();`);
-assert.equal(runtime.game.worldTreeJourney.notice.kind,'discovery');
+run(`worldTreeJourneyUi.pause();finishEncounterRun();`);
+assert.equal(runtime.game.worldTreeJourney.notice.kind,'paused');
 const receipt=JSON.stringify(runtime.game.explorationLoot);
 const wallet=JSON.stringify(runtime.game.currencies);
 run(`finishEncounterRun();`);
@@ -42,7 +42,7 @@ run(`game.settings.showDeathNotice=false;handlePlayerDefeat(getZone(game.current
 assert.equal(JSON.stringify(runtime.game.explorationLoot),receipt,'failed attempts retain already-earned loot');
 run(`worldTreeJourneyUi.resume();`);
 assert.equal(JSON.stringify(runtime.game.explorationLoot),receipt,'retry retains the expedition receipt');
-run(`worldTreeJourneyUi.pause();finishEncounterRun();game.worldTreeJourney.selected='worldtree_root';worldTreeJourneyUi.travel();`);
+run(`finishEncounterRun();finishEncounterRun();finishEncounterRun();worldTreeJourneyUi.nextStage();worldTreeJourneyUi.travel();`);
 assert.equal(runtime.game.explorationLoot.equipmentCount,0,'new expedition resets display only');
 run(`game.explorationLoot={currencies:{fake:20,magicBud:Infinity,sapBud:-2},items:[null,{}, {id:'bad',name:'bad',rarity:'unique',slot:'무기'}],equipmentCount:Infinity};
     combatLootReceipts.normalize(game);`);

@@ -240,6 +240,22 @@ function isTierlessSupportGem(name) {
 function getSupportTierCap(name) {
     return isTierlessSupportGem(name) ? 1 : 3;
 }
+function getSupportResonanceCost(name) {
+    let db = SUPPORT_GEM_DB[name] || {};
+    if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[0])) return Math.max(1, Math.floor(db.resonanceCosts[0]));
+    if (Number.isFinite(db.resonanceCost)) return Math.max(1, Math.floor(db.resonanceCost));
+    let stat = db.stat || '';
+    if (['flatDmg', 'critDmg', 'resPen', 'physIgnore', 'ds'].includes(stat)) return 3;
+    if (['aspd', 'crit', 'dotPctDmg', 'elementalPctDmg', 'meleePctDmg', 'projectilePctDmg'].includes(stat)) return 2;
+    return 1;
+}
+function getSupportResonanceCostAtTier(name,tier) {
+    const base=getSupportResonanceCost(name),db=SUPPORT_GEM_DB[name]||{};
+    if(Array.isArray(db.resonanceCosts)&&Number.isFinite(db.resonanceCosts[tier-1]))return Math.max(1,Math.floor(db.resonanceCosts[tier-1]));
+    if(tier<=1)return base;
+    if(tier===2)return Math.max(base+2,Math.floor(base*2.4));
+    return Math.max(base+5,Math.floor(base*3.8));
+}
 function getSupportTierLabel(name, tier) {
     if (isTierlessSupportGem(name)) return '통합';
     return tier === 3 ? '상급' : (tier === 2 ? '중급' : '하급');

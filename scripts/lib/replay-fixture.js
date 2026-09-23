@@ -16,7 +16,9 @@ module.exports = function replayFixture(seed = 7, sourceOverrides) {
             settings: {pauseGameOnOverlay: false}});
         gameplayStarted = true;
         startupOverlayActive = false;
-        startEncounterRun();
+        // Legacy arena fixture: focused skill/replay tests supply their own 9x8 enemies.
+        // Act exploration tests explicitly start the production default after setup.
+        startEncounterRun(false);
     `, runtime);
     return { runtime, state: vm.runInContext('game', runtime), run: code => vm.runInContext(code, runtime) };
 };

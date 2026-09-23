@@ -5,7 +5,8 @@ const vm = require('vm');
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
+  'data/act-exploration-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
 ];
 
 function createElement() {
@@ -98,6 +99,7 @@ vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filenam
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
 vm.runInContext(fs.readFileSync('js/canvas-enemy-projectiles.js', 'utf8'), context, { filename: 'js/canvas-enemy-projectiles.js' });
+for(const file of ['js/canvas-exploration-art.js','js/canvas-act-exploration.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 vm.runInContext(fs.readFileSync('js/canvas-attack-fx.js', 'utf8'), context, { filename: 'js/canvas-attack-fx.js' });
 const playerGridMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {

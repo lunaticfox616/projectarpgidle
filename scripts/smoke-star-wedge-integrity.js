@@ -5,7 +5,7 @@ const vm = require('vm');
 const files = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
 ];
 
 function createElement() {
@@ -97,6 +97,26 @@ assert.deepStrictEqual([
 ], [0, 1, 2], 'central sockets should use three circular distance bands');
 assert.strictEqual(context.game.starWedge.nodeMutations.r4, undefined, 'nodes outside the circular radius must not be mutated');
 
+vm.runInContext(`
+  PASSIVE_TREE.nodes.emptyPath = { id:'emptyPath', x:80, y:0, kind:'path', intentionalNoEffect:true, stat:null, val:0 };
+  PASSIVE_TREE.nodes.voidEnd = { id:'voidEnd', x:100, y:0, kind:'void', intentionalNoEffect:true, stat:null, val:0 };
+  game.passives = ['emptyPath'];
+  recalculateStarWedgeMutations(true);
+`, context);
+assert.strictEqual(context.game.starWedge.nodeMutations.emptyPath.currentStat, 'move', 'effectless approach paths must receive a real mutation');
+assert.strictEqual(context.getAllocatedPassiveStatValue('move'), 5, 'allocated effectless paths must grant the mutated stat');
+assert.strictEqual(context.game.starWedge.nodeMutations.voidEnd, undefined, 'the central void endpoint itself must remain protected');
+assert.ok(context.getPassiveNodeDisplayName(context.PASSIVE_TREE.nodes.h1).includes('#20'), 'socket labels must identify the equipped wedge');
+const normalBands = JSON.parse(JSON.stringify(context.getStarWedgeMutationBands(context.game.starWedge.wedges[0])));
+assert.deepStrictEqual(normalBands.map(band => [band.inner, band.outer]), [[0,160],[160,240],[240,320]], 'displayed normal annuli must match mutation boundaries');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(context.getStarWedgeMutationBands({ unique:true, uniqueType:'asteroid_belt' })))
+  .map(band => [band.inner,band.outer,band.lineIndex]), [[120,200,1],[200,300,2]], 'asteroid display must preserve the empty center and real option bands');
+assert.strictEqual(context.getStarWedgeMutationBands({ unique:true, uniqueType:'sun' }).length, 0, 'sun has no radial mutation footprint');
+vm.runInContext('game.starWedge.sockets = []; recalculateStarWedgeMutations();', context);
+assert.strictEqual(context.getAllocatedPassiveStatValue('move'), 0, 'removing a wedge must restore effectless paths without residual stats');
+assert.strictEqual(context.getPassiveEffectLabel(context.PASSIVE_TREE.nodes.emptyPath), '효과 없음');
+assert.strictEqual(context.getPassiveNodeDisplayName(context.PASSIVE_TREE.nodes.h1), '첫 번째 슬롯', 'unsocketing restores the empty slot label');
+
 context.game.starWedge = {
   wedges: [
     { id: 3, lines: [line('move'), line('aspd'), line('crit'), line('flatHp')] },
@@ -124,7 +144,7 @@ vm.runInContext(`
 `, context);
 assert.strictEqual(vm.runInContext('PASSIVE_TREE.nodes.o1.starWedgeOptionActive', context), true,
   'an outer star-wedge socket should reveal an investable option node');
-assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(PASSIVE_TREE.nodes.o1.effects)', context)), [{ stat:'move', val:7 }],
+assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(PASSIVE_TREE.nodes.o1.effects)', context)), [{ stat:'move', val:14 }],
   'the revealed outer option should use the matching star-wedge line');
 assert.deepStrictEqual(Array.from(context.getPassiveActivationPath('o1')), ['o1'],
   'an outer star-wedge option should always cost exactly one passive point');

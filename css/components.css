@@ -987,6 +987,30 @@ body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
     will-change: transform;
 }
 
+.passive-wedge-range {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.passive-wedge-range svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    animation: passive-wedge-expand 650ms cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes passive-wedge-expand {
+    from { transform: scale(.03); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .passive-wedge-range svg { animation: none; }
+}
+.passive-wedge-effects { display: grid; gap: 6px; margin-top: 8px; }
+.passive-wedge-effect { display: grid; gap: 3px; border-left: 2px solid var(--wedge-band); padding: 6px 10px; background: rgba(15,17,25,.85); }
+.passive-wedge-effect small { color: var(--wedge-band); }
+.passive-wedge-effect strong { color: #eee8df; font-weight: 600; }
+
 .passive-overlay-node,
 .passive-reveal-burst {
     position: absolute;

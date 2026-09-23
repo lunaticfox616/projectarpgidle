@@ -2,13 +2,15 @@ const assert=require('assert'),vm=require('vm');
 const {buildGameRuntime}=require('./lib/game-runtime');
 const runtime=buildGameRuntime(),run=code=>vm.runInContext(code,runtime);
 const json=code=>JSON.parse(run('JSON.stringify('+code+')'));
+// Preserve legacy in-progress wave saves here. Authored-map hunts are exercised separately
+// by smoke-act-exploration-entry.js with the production default and real coreLoop.
 function defeatTarget() {
  assert(!run('bountyRuntime.claimTreasure().ok'),'a reward cannot be claimed before hunting');
  assert(run('bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0])'));
  const savedBonus=json('game.bountyHunt.pending');
  run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));startMoving(false)');
  assert.deepEqual(json('game.bountyHunt.pending'),savedBonus,'reload and return retain the same target and bonus');
- run(`startEncounterRun();var marker=game.encounterPlan.find(entry=>entry.bountyId);
+ run(`startEncounterRun(false);var marker=game.encounterPlan.find(entry=>entry.bountyId);
      var target=createEnemy(getZone(game.currentZoneId),marker,0);game.enemies=[target]`);
  assert(run('target.isBountyTarget'));
  assert(Number.isFinite(run('target.maxHp')));
@@ -21,7 +23,7 @@ function defeatTarget() {
  assert(!run('bountyRuntime.completeTarget(target)'),'duplicate defeat cannot pay again');
 }
 const reset=()=>run("game=mergeDefaults({});game.season=2;game.currentZoneId=4;game.settings.autoEquipEmptySlots=false;contentProgression.sync()");
-reset();run('Math.random=()=>0.99;game.bountyHunt.remaining=0;startEncounterRun();game.runProgress=37;game.playerHp=73');
+reset();run('Math.random=()=>0.99;game.bountyHunt.remaining=0;startEncounterRun(false);game.runProgress=37;game.playerHp=73');
 const choices=json('bountyRuntime.openTreasure()');
 assert.equal(choices.offerIds.length,3,'three targets are offered');
 assert.equal(new Set(choices.offerIds).size,3,'offered targets are distinct');
@@ -39,7 +41,7 @@ assert.deepEqual(json('[game.currentZoneId,game.runProgress,game.moveTimer,game.
 assert.equal(run('game.bountyHunt.pending.offerIds.length'),0,'only the selected target remains');
 assert(!run('game.encounterPlan.some(marker=>marker.bountyId)'),'the current encounter has no new target');
 assert(!run("bountyRuntime.injectEncounterMarker([],{type:'trial',loopScaleExempt:true})"),'ineligible encounters do not consume the reservation');
-run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));game.currentZoneId=5;startEncounterRun()');
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));game.currentZoneId=5;startEncounterRun(false)');
 assert.equal(run('game.encounterPlan.filter(marker=>marker.bountyId).length'),1,'the next eligible encounter gets one target');
 assert.equal(run('game.encounterPlan.find(marker=>marker.bountyId).bountyId'),choices.offerIds[1]);
 assert(!run('bountyRuntime.injectEncounterMarker(game.encounterPlan,getZone(5))'),'an encounter cannot duplicate the target');
@@ -67,7 +69,7 @@ run('Math.random=()=>0.001');
 let pending=json('bountyRuntime.openTreasure()');
 assert(!['golden_reliquary','fairy_hollow','gem_cache','fossil_seam','sky_cache','craft_stash'].includes(pending.id),'locked currency events cannot be offered');
 assert(run('bountyRuntime.canAdvanceLoop()'),'an unselected hunt must not block a loop');
-run('startEncounterRun()');
+run('startEncounterRun(false)');
 assert(!run('game.encounterPlan.some(entry=>entry.bountyId)'),'an offered hunt cannot spawn without selection');
 const before=json('game.bountyHunt.pending');
 run('Math.random=()=>0.999;bountyRuntime.openTreasure();game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
@@ -142,10 +144,10 @@ assert(!run('bountyRuntime.failHunt()'),'repeated failure cannot reset later pro
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 for(let count=0;count<9;count++) run("bountyRuntime.advanceAfterBossKill(getZone(4),{isBoss:true})");
 assert.equal(run('bountyRuntime.openTreasure()'),null,'nine boss kills are insufficient');
-run("bountyRuntime.advanceAfterBossKill(getZone(4),{isBoss:true});startEncounterRun()");
+run("bountyRuntime.advanceAfterBossKill(getZone(4),{isBoss:true});startEncounterRun(false)");
 assert(!run('game.encounterPlan.some(entry=>entry.bountyId)'),'meeting the condition cannot auto-start a hunt');
 assert(run('bountyRuntime.canAdvanceLoop()'));
-run('bountyRuntime.openTreasure();startEncounterRun()');
+run('bountyRuntime.openTreasure();startEncounterRun(false)');
 assert(!run('game.encounterPlan.some(entry=>entry.bountyId)'),'previewing is not accepting');
 defeatTarget();
 const earned=json('game.bountyHunt');
@@ -193,7 +195,7 @@ for (const zoneId of [0,8]) {
 reset();run('game.season=25;game.contentProgression.inherited.push("growth");Math.random=()=>0.4');
 for(let kill=0;kill<10;kill++) run('bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true})');
 assert(run("bountyRuntime.openTreasure().offerIds.includes('root_poacher')"));
-run(`game.currentZoneId=8;bountyRuntime.startHunt('root_poacher');startEncounterRun();Math.random=()=>0.99;
+run(`game.currentZoneId=8;bountyRuntime.startHunt('root_poacher');startEncounterRun(false);Math.random=()=>0.99;
     var growthTarget=createEnemy(getZone(8),game.encounterPlan.find(entry=>entry.bountyId),0);growthTarget.hp=0`);
 assert(run('bountyRuntime.completeTarget(growthTarget)'));
 assert.equal(run('game.growthInventory.length'),1);

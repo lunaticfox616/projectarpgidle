@@ -56,7 +56,9 @@ async function openTreasureDialog() {
 }
 function getQueuedBountyHudState(state, tier, basis) {
     const id=state.pending.targetId;
-    const inRun=(game.encounterPlan || []).some(marker=>marker.bountyId===id);
+    const inRun=(game.encounterPlan || []).some(marker=>marker.bountyId===id)
+        || game.enemies.some(enemy=>enemy.bountyId===id)
+        || !!actExplorationState.current(game)?.packs.some(pack=>pack.waiting.some(enemy=>enemy.bountyId===id));
     const label=inRun ? '추적 중' : '다음 지역 등장 예정';
     return {key:`hunting:${id}:${inRun}${tier}`,html:`<div class="bounty-hud-progress" title="${basis}"><strong>보물사냥 · ${label}</strong><span>${BOUNTY_TARGET_DB[id].name}${tier}</span></div>`};
 }

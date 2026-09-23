@@ -128,12 +128,12 @@ function ensureCoreCubeState() {
     return game.coreCube;
 }
 
-function getCoreCubeUnlockInfo() {
-    let uw = (game && game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : {};
+function getCoreCubeUnlockInfo(state = game) {
+    let uw = state?.underworldProgress || {};
     let highest = Math.max(1, Math.floor(Number(uw.highestFloor) || 1));
     let underworld10Cleared = highest >= 11;
-    let loopReady = Math.max(1, Math.floor(Number((game && game.season) || 1))) >= 20 || Math.max(0, Math.floor(Number((game && game.loopCount) || 0))) >= 20;
-    let st = (game && game.coreCube && typeof game.coreCube === 'object') ? game.coreCube : {};
+    let loopReady = Math.max(1, Math.floor(Number((state && state.season) || 1))) >= 20 || Math.max(0, Math.floor(Number((state && state.loopCount) || 0))) >= 20;
+    let st = (state && state.coreCube && typeof state.coreCube === 'object') ? state.coreCube : {};
     let firstUnlockReady = underworld10Cleared && loopReady;
     return {
         unlocked: !!st.unlocked,
@@ -142,7 +142,7 @@ function getCoreCubeUnlockInfo() {
         underworld10Cleared,
         loopReady,
         highestFloor: highest,
-        currentLoop: Math.max(1, Math.floor(Number((game && game.season) || 1)))
+        currentLoop: Math.max(1, Math.floor(Number((state && state.season) || 1)))
     };
 }
 
@@ -210,22 +210,28 @@ function relockCoreCubeForLoop() {
     if (game.noti) game.noti.cube = false;
 }
 
-function addCoreCubeBlurred45(amount = 1) {
+/** Prepare a resolved material grant without changing inventory or opening the cube tab. */
+function prepareCoreCubeBlurred45(state, amount) {
+    if (!amount) return {};
+    const coreCube = {...state.coreCube};
+    const total = coreCube.blurred45 + amount;
+    if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(total)) throw Error('흐릿한 45면체 수령 한도 초과');
+    const opens = coreCube.everUnlocked ? !coreCube.unlocked : getCoreCubeUnlockInfo(state).firstUnlockReady;
+    coreCube.blurred45 = total;
+    if (opens) Object.assign(coreCube, {unlocked:true, everUnlocked:true, relockUntilDrop:false});
+    const patch = {coreCube};
+    if (coreCube.everUnlocked && coreCube.unlocked) patch.unlocks = {...state.unlocks, cube:true};
+    if (opens) patch.noti = {...state.noti, cube:true};
+    return patch;
+}
+
+function addCoreCubeBlurred45(amount = 1, deferGrant = null) {
     if (!contentProgression.isUnlocked('cube')) return 0;
-    let st = ensureCoreCubeState();
     let gain = Math.max(1, Math.floor(Number(amount) || 1));
-    st.blurred45 += gain;
+    if (deferGrant?.(gain)) return gain;
+    ensureCoreCubeState();
+    Object.assign(game, prepareCoreCubeBlurred45(game, gain));
     combatLootReceipts.currency(game,'blurred45',gain);
-    if (st.everUnlocked && !st.unlocked) {
-        st.unlocked = true;
-        st.relockUntilDrop = false;
-        if (game.unlocks) game.unlocks.cube = true;
-        // 알림은 탭이 다시 열리는 이 시점에만 켠다. 예전처럼 45면체 드랍마다 켜면
-        // 지하계 파밍 중 장비 상위탭 그룹 점이 계속 되살아나 항상 켜진 것처럼 보인다.
-        if (game.noti) game.noti.cube = true;
-    } else {
-        maybeUnlockCoreCube({ silent: true });
-    }
     return gain;
 }
 

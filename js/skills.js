@@ -44,12 +44,13 @@ function getGemResearchCost(kind) {
     return Math.max(8, 12 - Math.floor(Math.max(0, expertLevel - 1) / 4));
 }
 
-function grantGemResearchFragments(amount, source = 'reward') {
+/** Optional deferred grant receives the same resolved amount as ordinary enemy currency loot. */
+function grantGemResearchFragments(amount, source = 'reward', deferGrant = null) {
     if (source === 'drop' && !contentProgression.canDropCurrency('gemShard')) return 0;
     let gain = Math.max(0, Math.floor(Number(amount) || 0));
     if (gain <= 0) return 0;
     game.currencies = game.currencies || {};
-    if (typeof awardCurrency === 'function') awardCurrency('gemShard', gain);
+    if (typeof awardCurrency === 'function') awardCurrency('gemShard', gain, 'reward', deferGrant);
     else game.currencies.gemShard = Math.max(0, Math.floor(game.currencies.gemShard || 0)) + gain;
     return gain;
 }

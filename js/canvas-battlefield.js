@@ -1710,6 +1710,7 @@ function getPlayerGridMoveDurationMs(moveSpeed, distance) {
  * 진행도만 오르거나 같은 칸에 머무는 동안에는 새 이동을 만들지 않는다.
  */
 function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
+    if (actExplorationState.current(game)) return getExplorationPlayerVisualMotion(gridProj, playerCell);
     let currentCell = { gx: playerCell.gx, gy: playerCell.gy };
     let state = battleVisualState.playerGridMotion;
     if (!state) {
@@ -1761,6 +1762,15 @@ function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
         direction: state.direction,
         animating: moving || (!moving && now < state.holdUntil)
     };
+}
+
+function getExplorationPlayerVisualMotion(projection, player) {
+    const run = actExplorationState.current(game);
+    const cell = actExplorationMotion.position(run, player);
+    const position = projection.cellToScreen(cell.gx, cell.gy);
+    position.y += Number(projection.actorGroundOffsetY) || 0;
+    return {position, targetPosition: position, direction: run.motionDirection,
+        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion};
 }
 
 function getCardinalMoveDirection(fromCell, toCell) {
@@ -2058,12 +2068,15 @@ function drawBattleEnemyActor(ctx, entry, state) {
 }
 
 function drawBattleActorLayer(ctx, enemyEntries, state) {
-    let actors = (enemyEntries || []).map(entry => ({
+    const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj);
+    let actors = (enemyEntries || []).concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
     }));
     actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
+    actExplorationView.appendScenery(actors,state);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
+        else if (actor.kind === 'gate' || actor.kind === 'scenery') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
     });
 }
@@ -2821,8 +2834,8 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         });
     };
     ctx.save();
-    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
-        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
+    for (let gx = 0; !actExplorationState.current(game) && gx < getCombatGridSize().columns; gx++) {
+        for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             tilePath(gx, gy);
             // 배경 디오라마가 깔린 경우 바닥 아트를 가리지 않게 체커 칠 없이 선만 긋는다.
             if (!backdropActive) {

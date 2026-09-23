@@ -9,9 +9,17 @@ const GRID_CARDINAL_STEPS = Object.freeze([
 ]);
 
 function isGridCellInBounds(gx, gy) {
+    const size=getCombatGridSize();
     return Number.isInteger(gx) && Number.isInteger(gy)
         && gx >= 0 && gy >= 0
-        && gx < COMBAT_GRID_CONFIG.columns && gy < COMBAT_GRID_CONFIG.rows;
+        && gx < size.columns && gy < size.rows;
+}
+
+/** Reads the passed snapshot, so offline replay never changes the live world's dimensions. */
+function getCombatGridSize(state=game) {
+    const exploration=state.actExploration;
+    if(!exploration||exploration.zoneId!==state.currentZoneId)return COMBAT_GRID_CONFIG;
+    return actExplorationMap.layout(exploration.act) || COMBAT_GRID_CONFIG;
 }
 
 function gridCellKey(gx, gy) {
@@ -86,7 +94,10 @@ function getClosestGridUnitCell(from, unit) {
 function canPlaceGridFootprint(blocked, gx, gy, footprint) {
     let cells = getGridFootprintCells(gx, gy, footprint);
     if (cells.length !== footprint.columns * footprint.rows) return false;
-    return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy)));
+    const map=getCombatGridSize(),run=actExplorationState.current(game);
+    const sealed=run && actExplorationState.remainingElites(run)>0;
+    return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy))
+        && (!map.tiles || actExplorationMap.walkable(map,cell,sealed)));
 }
 
 function isGridUnitInCellSet(unit, cellKeys) {
@@ -106,8 +117,17 @@ function getGridBlockedCells(excludeUnit) {
     };
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
+    addExplorationGridReservations(blocked,excludeUnit);
     (game.summons || []).forEach(summon => { if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
     return blocked;
+}
+
+function addExplorationGridReservations(blocked,excludeUnit) {
+    const run=actExplorationState.current(game);if(!run)return;
+    run.packs.forEach(pack=>pack.waiting.forEach(enemy=>{
+        getGridUnitCells(enemy).forEach(cell=>blocked.add(gridCellKey(cell.gx,cell.gy)));
+    }));
+    if(run.motion && excludeUnit!==game.gridPlayer)blocked.add(gridCellKey(run.motion.to.gx,run.motion.to.gy));
 }
 
 /**
@@ -120,8 +140,8 @@ function getGridBlockedCells(excludeUnit) {
 function findFreeGridCell(blocked, near, footprint) {
     let size = footprint || { columns: 1, rows: 1 };
     let free = [];
-    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
-        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
+    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
+        for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             if (canPlaceGridFootprint(blocked, gx, gy, size)) free.push({ gx, gy });
         }
     }
@@ -186,7 +206,8 @@ function assignEnemyGridCombatProfile(enemy) {
 
 /** 플레이어를 스폰 칸으로 되돌린다(조우 시작/전장 리셋 시). */
 function resetPlayerGridPosition() {
-    game.gridPlayer = { gx: COMBAT_GRID_CONFIG.playerSpawn.gx, gy: COMBAT_GRID_CONFIG.playerSpawn.gy, gridMoveTimer: 0 };
+    const cell=getCombatGridSize().entry || COMBAT_GRID_CONFIG.playerSpawn;
+    game.gridPlayer = { gx: cell.gx, gy: cell.gy, gridMoveTimer: 0 };
 }
 
 /**
@@ -296,6 +317,7 @@ function gridStepToward(unit, tx, ty, blocked) {
 function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     if (!hasGridCell(unit) || !target) return false;
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
     let moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
@@ -303,8 +325,16 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     return moved;
 }
 
+function beginExplorationGridStep(target,interval) {
+    const run=actExplorationState.current(game);if(!run || run.motion)return false;
+    const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
+    if(!gridStepToward(next,target.gx,target.gy,getGridBlockedCells(game.gridPlayer)))return false;
+    return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
+}
+
 function findNearestSafeGridRoute(unit, hazardCells) {
     if (!hasGridCell(unit)) return null;
+    const footprint = getGridUnitFootprint(unit);
     let danger = new Set((hazardCells || [])
         .filter(cell => hasGridCell(cell))
         .map(cell => gridCellKey(cell.gx, cell.gy)));
@@ -321,7 +351,7 @@ function findNearestSafeGridRoute(unit, hazardCells) {
         GRID_CARDINAL_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = gridCellKey(gx, gy);
-            if (!isGridCellInBounds(gx, gy) || visited.has(key) || blocked.has(key)) return;
+            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
             let first = current.first || { gx, gy };
             visited.add(key);
             queue.push({ gx, gy, first, distance: current.distance + 1 });
@@ -336,6 +366,9 @@ function advanceGridHazardEscape(unit, hazardCells, dtSec, intervalSec) {
     if (!route) return { moved: false, safe: false, blocked: true };
     if (route.distance === 0) return { moved: false, safe: true, blocked: false, distance: 0 };
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    if (actExplorationState.current(game) && unit===game.gridPlayer) {
+        return {moved:beginExplorationGridStep(route.next,interval),safe:false,blocked:false,distance:route.distance};
+    }
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(dtSec) || 0);
     if (unit.gridMoveTimer < interval) return { moved: false, safe: false, blocked: false, distance: route.distance };
     let from = { gx: unit.gx, gy: unit.gy };
@@ -371,21 +404,32 @@ function findGridRetreatCell(unit, target, maxRange, previousCell) {
 
 /** 사거리 안 전술 재배치를 한 칸만 수행한다. */
 function advanceGridTacticalMovement(unit, target, options) {
-    if (!hasGridCell(unit) || !hasGridCell(target)) return { moved: false };
+    if (![unit,target].every(hasGridCell)) return { moved: false };
     let config = options || {};
     let interval = Number(config.intervalSec) > 0 ? Number(config.intervalSec) : COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationTacticalStep(target,config,interval);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(config.dtSec) || 0);
     if (unit.gridMoveTimer < interval) return { moved: false };
     let from = { gx: unit.gx, gy: unit.gy };
-    let moved = false;
-    if (config.direction === 'away') {
-        let cell = findGridRetreatCell(unit, target, Math.max(1, Number(config.maxRange) || 1), config.previousCell);
-        if (cell) { unit.gx = cell.gx; unit.gy = cell.gy; moved = true; }
-    } else {
-        moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
-    }
+    const cell = findGridTacticalDestination(unit,target,config);
+    const moved = !!cell;
+    if (cell) Object.assign(unit,cell);
     unit.gridMoveTimer = moved ? 0 : interval;
     return { moved, from, to: { gx: unit.gx, gy: unit.gy }, retreat: moved && config.direction === 'away' };
+}
+
+function beginExplorationTacticalStep(target,config,interval) {
+    const from={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
+    const away=config.direction==='away';
+    const next=findGridTacticalDestination(game.gridPlayer,target,config);
+    const moved=!!next && beginExplorationGridStep(next,interval);
+    return {moved,from,to:moved?game.actExploration.motion.to:from,retreat:moved && away};
+}
+
+function findGridTacticalDestination(unit,target,config) {
+    if(config.direction==='away')return findGridRetreatCell(unit,target,Math.max(1,Number(config.maxRange)||1),config.previousCell);
+    const next={gx:unit.gx,gy:unit.gy};
+    return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
 }
 
 /** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다. */
@@ -452,8 +496,8 @@ function getGridConeGeometry(profile, attacker, target) {
 function getGridConeAreaCells(profile, attacker, target) {
     let cone = getGridConeGeometry(profile, attacker, target);
     let cells = [];
-    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
-        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
+    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
+        for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             let dx = gx - cone.x, dy = gy - cone.y;
             let forward = dx * cone.dx + dy * cone.dy;
             let side = Math.abs(dx * cone.dy - dy * cone.dx);
@@ -1049,7 +1093,7 @@ function findNearestGridEnemy(fromCell, enemies, range) {
 }
 
 safeExposeGlobals({
-    isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
+    getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance,
     getGridDirectHitDistanceMultiplier,
     getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,

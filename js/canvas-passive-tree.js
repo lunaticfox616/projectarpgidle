@@ -1,6 +1,73 @@
 // Phase-2 extracted passive tree canvas draw block.
 
 let passiveEffectLabelRects = [];
+const PASSIVE_WEDGE_BAND_COLORS = ['#dfbf79', '#79cbbd', '#b09ce0'];
+
+function syncPassiveWedgeRanges(world) {
+    const sockets = game.starWedge?.sockets || [];
+    const wanted = new Set();
+    sockets.forEach(socket => {
+        const node = PASSIVE_TREE.nodes[socket.nodeId];
+        const wedge = getSocketedStarWedge(node);
+        if (!wedge || (node.starWedgeMode === 'constellation' && wedge.uniqueType !== 'andromeda')) return;
+        const bands = wedge.uniqueType === 'andromeda' ? [{ inner: 800, outer: 900, lineIndex: 2 }] : getStarWedgeMutationBands(wedge).filter(band => {
+            const line = wedge.lines[band.lineIndex];
+            return line?.stat && !line.disabled;
+        });
+        if (!bands.length) return;
+        const key = `${node.id}:${wedge.id}:${wedge.uniqueType || ''}`;
+        wanted.add(key);
+        let el = Array.from(world.querySelectorAll('.passive-wedge-range')).find(range => range.dataset.wedgeKey === key);
+        const signature = JSON.stringify(bands);
+        if (el?.dataset.bands === signature) return;
+        if (el) el.remove();
+        el = document.createElement('div');
+        el.className = 'passive-wedge-range';
+        el.dataset.wedgeKey = key;
+        el.dataset.bands = signature;
+        const radius = bands[bands.length - 1].outer;
+        el.style.cssText = `left:${node.x}px;top:${node.y}px;width:${radius * 2}px;height:${radius * 2}px`;
+        el.innerHTML = `<svg viewBox="${-radius} ${-radius} ${radius * 2} ${radius * 2}" aria-hidden="true">${bands.map(band => {
+            const color = PASSIVE_WEDGE_BAND_COLORS[band.lineIndex];
+            const fill = `<circle r="${(band.inner + band.outer) / 2}" fill="none" stroke="${color}" stroke-width="${band.outer - band.inner}" opacity=".06"/>`;
+            const border = r => `<circle r="${r}" fill="none" stroke="${color}" stroke-width="1.3" stroke-opacity=".7" vector-effect="non-scaling-stroke"/>`;
+            return `${fill}${border(band.outer)}${band === bands[0] && band.inner ? border(band.inner) : ''}`;
+        }).join('')}</svg>`;
+        world.prepend(el);
+    });
+    world.querySelectorAll('.passive-wedge-range').forEach(el => {
+        if (!wanted.has(el.dataset.wedgeKey)) el.remove();
+    });
+}
+
+function drawPassiveWedgeLabel(ctx, node) {
+    const wedge = getSocketedStarWedge(node);
+    if (!wedge || getPassiveVisibility(node.id) === 'hidden' || camZoom < 0.24) return;
+    const radius = getPassiveNodeVisualRadius(node);
+    const scale = Math.max(0.4, camZoom);
+    const text = getPassiveNodeDisplayName(node);
+    ctx.save();
+    ctx.fillStyle = wedge.unique ? '#dfbc77' : '#b7a2e0';
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius * 0.43, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = `600 ${12 / scale}px sans-serif`;
+    const width = ctx.measureText(text).width + 16 / scale;
+    const height = 24 / scale;
+    const top = node.y + radius + 5 / scale;
+    ctx.fillStyle = '#11121b';
+    ctx.strokeStyle = wedge.unique ? '#dfbc77' : '#b7a2e0';
+    ctx.lineWidth = 1 / scale;
+    ctx.beginPath();
+    ctx.roundRect(node.x - width / 2, top, width, height, 4 / scale);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#f2e8d6';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, node.x, top + height / 2);
+    ctx.restore();
+}
 
 function isCraftSelectionEquipAvailableLocal() {
     return typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip();
@@ -42,6 +109,7 @@ function syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hover
     const parts = updatePassiveTreeOverlayTransform(displayWidth, displayHeight);
     if (!parts) return;
     const world = parts.world;
+    syncPassiveWedgeRanges(world);
     const wanted = new Set();
     if (!ultraZoomedOutMode) {
         visibleNodes.forEach(node => {
@@ -144,7 +212,8 @@ function drawPassiveSearchHighlight(ctx, node, radius, accent) {
 
 function getPassiveNodeEffectShortLabel(node) {
     if (!node) return '';
-    const stat = node.stat || '';
+    const mutation = getPassiveNodeMutation(node);
+    const stat = mutation ? mutation.currentStat : node.stat || '';
     const shortByStat = {
         flatHp: '생명력', pctHp: '생명(%)', regen: '재생', leech: '흡혈',
         flatDmg: '피해', pctDmg: '피해(%)', meleePctDmg: '근접(%)', physPctDmg: '물리피해(%)', aoePctDmg: '범위피해(%)', projectilePctDmg: '투사체피해(%)',
@@ -185,7 +254,8 @@ function getPassiveNodeEffectShortLabel(node) {
 const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.62;
 
 function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility) {
-    if (game && game.settings && game.settings.passiveTreeShowLabels === false) return;
+    if (getSocketedStarWedge(node)) return drawPassiveWedgeLabel(ctx, node);
+    if (game.settings.passiveTreeShowLabels === false) return;
     if (!node || visibility === 'hidden' || camZoom < PASSIVE_EFFECT_LABEL_MIN_ZOOM) return;
     const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
     const hovered = !!(hoverNode && hoverNode.id === node.id);

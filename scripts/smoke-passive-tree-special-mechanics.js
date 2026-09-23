@@ -8,7 +8,7 @@ const files = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js',
   'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js', 'data/talent-cards.js',
-  'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
+  'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
 ];
 
 function createElement() {
@@ -141,6 +141,29 @@ vm.runInContext('game.passives = [];', context);
 
 const noEffectPassive = { id: 'no_effect_test', kind: 'path', sourceType: 'minor', intentionalNoEffect: true,
   title: null, desc: null, stat: null, val: 0, effects: [] };
+const originalWedgeState = structuredClone(context.game.starWedge);
+const voidApproaches = Object.values(context.PASSIVE_TREE.nodes).filter(node => node.intentionalNoEffect && node.kind === 'path');
+const centralSockets = Object.values(context.PASSIVE_TREE.nodes).filter(node => node.kind === 'hub' && node.starWedgeMode !== 'constellation');
+const coveredApproaches = new Set();
+context.game.starWedge.unlocked = true;
+context.assignStarWedgeSockets();
+context.game.starWedge.wedges = [{ id:909, lines:[0,1,2,3].map(() => ({stat:'flatHp',val:17})) }];
+for (const socket of centralSockets) {
+  context.game.starWedge.sockets = [{nodeId:socket.id,wedgeId:909}];
+  context.recalculateStarWedgeMutations(true);
+  for (const node of voidApproaches) {
+    if (Math.hypot(node.x-socket.x,node.y-socket.y) > 320) continue;
+    assert.strictEqual(context.game.starWedge.nodeMutations[node.id]?.currentVal, 17, `공허 앞 무효 경로가 변성되지 않음: ${node.id}`);
+    coveredApproaches.add(node.id);
+  }
+  for (const node of Object.values(context.PASSIVE_TREE.nodes).filter(node => node.kind === 'void')) {
+    assert.strictEqual(context.game.starWedge.nodeMutations[node.id], undefined, '공허 패시브 자체는 변성하지 않는다');
+  }
+}
+assert.ok(voidApproaches.length > 0);
+assert.strictEqual(coveredApproaches.size, voidApproaches.length, '실제 트리의 모든 무효 경로는 중앙 슬롯 범위 안에서 변성 가능해야 한다');
+context.game.starWedge = originalWedgeState;
+context.assignStarWedgeSockets();
 context.noEffectPassive = noEffectPassive;
 assert.strictEqual(vm.runInContext('getPassiveNodeDisplayName(noEffectPassive)', context), '무효');
 assert.strictEqual(vm.runInContext('getPassiveEffectLabel(noEffectPassive)', context), '효과 없음');
@@ -149,10 +172,13 @@ vm.runInContext(`
   game.passives = ['no_effect_test'];
   game.starWedge.nodeMutations.no_effect_test = { currentStat:'devotion', currentVal:99 };
 `, context);
-assert.strictEqual(context.isStarWedgeNodeMutable(noEffectPassive), false,
-  '의도적인 무효 패시브는 별쐐기로 변성되면 안 된다');
-assert.strictEqual(context.getAllocatedPassiveStatValue('devotion'), 0,
-  '이전 저장 데이터에 변성값이 남아도 무효 패시브는 능력치를 주면 안 된다');
+assert.strictEqual(context.isStarWedgeNodeMutable(noEffectPassive), true,
+  '공허 앞 무효 경로 패시브도 별쐐기로 변성할 수 있어야 한다');
+assert.strictEqual(context.getAllocatedPassiveStatValue('devotion'), 99,
+  '할당된 무효 패시브의 변성 효과가 능력치에 반영되어야 한다');
+assert.strictEqual(context.getPassiveSpecialStatReserve('devotion'), 99,
+  '변성으로 얻은 특수 스탯도 활성화 요구사항에 반영되어야 한다');
+assert.ok(context.getPassiveEffectLabel(noEffectPassive).includes('99'), '툴팁은 무효 대신 변성 효과를 보여야 한다');
 vm.runInContext("game.passives = []; delete game.starWedge.nodeMutations.no_effect_test;", context);
 
 vm.runInContext(`
