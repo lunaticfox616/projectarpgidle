@@ -1,3 +1,4 @@
+@layer components {
 #ui-bounty-box {
     position: absolute;
     top: 8px;
@@ -13,23 +14,14 @@
 }
 
 #ui-bounty-box[hidden] { display: none; }
-
-.game-dialog-card[data-tone="bounty"] { width: min(600px, 100%); }
-.game-dialog-card[data-tone="bounty"] .game-dialog-message { margin-top: 6px; font-size: 12px; }
-.game-dialog-card[data-tone="bounty"] .game-dialog-control { margin-top: 12px; }
-.game-dialog-card[data-tone="bounty"] .game-choice-grid { max-height: none; overflow: visible; }
-.game-dialog-card[data-tone="bounty"] .game-choice-option { position: relative; padding: 12px 14px; gap: 7px; font-family: inherit; }
-.game-dialog-card[data-tone="bounty"] .game-choice-option > strong { font-size: 15px; padding-right: 100px; }
 .bounty-choice-row:has(.bounty-risk) { position: absolute; top: 12px; right: 14px; grid-template-columns: auto auto; }
 .bounty-choice-row { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; align-items: baseline; }
-.bounty-choice-row > small, .bounty-choice-reward > small { color: var(--ui-text-2); font-size: 11px; font-weight: 400; }
-.bounty-choice-reward { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 4px 8px; align-items: baseline; padding-top: 7px; border-top: 1px solid var(--ui-line); }
-.game-dialog-card[data-tone="bounty"] .bounty-choice-reward > span { color: var(--ui-text); font-size: 14px; font-weight: 700; word-break: keep-all; }
-.game-dialog-card[data-tone="bounty"] .bounty-choice-reward .orb-tone { color: var(--orb-tone); font-size: inherit; }
-.bounty-risk-1 { color: var(--game-success, #7fd99a); }
-.bounty-risk-2 { color: var(--ui-gold); }
-.bounty-risk-3 { color: var(--game-danger); }
-.bounty-choice-reward .bounty-reward-bonus { grid-column: 2; color: var(--ui-gold); font-size: 11px; }
+.bounty-choice-row > small, .bounty-choice-reward > small { color: var(--color-text-secondary); font-size: 11px; font-weight: 400; }
+.bounty-choice-reward { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 4px 8px; align-items: baseline; padding-top: 7px; border-top: 1px solid var(--color-line); }
+.bounty-risk-1 { color: var(--color-success-soft, #7fd99a); }
+.bounty-risk-2 { color: var(--color-accent-gold); }
+.bounty-risk-3 { color: var(--color-warning-soft); }
+.bounty-choice-reward .bounty-reward-bonus { grid-column: 2; color: var(--color-accent-gold); font-size: 11px; }
 
 .bounty-hud-progress,
 .bounty-hud-active,
@@ -99,4 +91,5 @@ body.desktop-windowed-ui #ui-bounty-box { top: 58px; }
 
 @media (prefers-reduced-motion: reduce) {
     .bounty-hud-offer { animation: none; }
+}
 }

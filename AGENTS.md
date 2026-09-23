@@ -6,7 +6,7 @@
 
 ## 1. 작업에 맞는 실행 방식
 
-개발 기준은 이 `pr-repo` 디렉터리다. 상위 폴더나 다른 사본을 최신본으로 가정하지 않는다.
+개발 기준은 이 `AGENTS.md`가 있는 저장소 루트다. 상위 폴더나 다른 사본을 최신본으로 가정하지 않는다.
 처음 작업할 때는 [개발본 안내](README.md)와 [문서 색인](docs/README.md)에서 위치와 문서 상태를 확인한다.
 변경량보다 요청한 결과의 완성도를 우선하며, 무관한 리팩터링이나 추측성 기능은 섞지 않는다.
 
@@ -23,9 +23,16 @@
 
 ## 2. 런타임과 저장소 지도
 
-이 애플리케이션은 빌드 단계와 ES module이 없는 브라우저 JavaScript 게임이다. `index.html`의
+이 애플리케이션은 ES module이 없는 브라우저 JavaScript 게임이다. CSS는 `npm run build`에서
+PostCSS로 번들링하며, 개발 진입점은 `css/main.css`, 배포 디렉터리는 `dist/`다. `index.html`의
 `<script>` 순서와 명시적으로 노출된 브라우저 전역이 런타임 계약이다. import/export 기반
 프로젝트처럼 가정하지 않는다.
+
+CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
+`reset, base, components, features, overrides`이며, 공통 바·탭·모달·툴팁은 `css/components/`에서
+수정한다. 인라인 상태/위치 계약 때문에 남긴 `!important`는 이유 주석을 유지한다.
+`npm run check:css`와 `npm run build`로 구조, 자산 경로, 자동 캐시 키를 확인한다.
+브라우저 JS를 CSS 번들에 섞거나 스크립트 순서를 바꾸지 않는다.
 
 | 경로 | 책임 |
 | --- | --- |

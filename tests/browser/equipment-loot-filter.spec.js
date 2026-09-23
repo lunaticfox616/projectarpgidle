@@ -144,7 +144,7 @@ test('offline return shows compact highlights with snapshot tooltips and themed 
     await expect(overlay.locator('.loot-highlight-card')).toHaveCount(0);
     expect(await overlay.locator('.background-combat-result-card').evaluate(element=>{
         const css=getComputedStyle(element);
-        const probe=document.createElement('span');probe.style.background='var(--ui-surface-2)';element.appendChild(probe);
+        const probe=document.createElement('span');probe.style.background='var(--color-surface-raised)';element.appendChild(probe);
         const matches=css.backgroundColor===getComputedStyle(probe).backgroundColor;probe.remove();return matches;
     })).toBe(true);
     await overlay.getByRole('button',{name:'계속하기',exact:true}).click();

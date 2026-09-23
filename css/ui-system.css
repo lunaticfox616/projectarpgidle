@@ -1,54 +1,22 @@
+@layer components {
 /* PROJECT IDLE product UI contract.
    This final layer owns shared hierarchy and representative battle/equipment
    layouts while legacy screens are migrated incrementally. */
-:root {
-  --ui-canvas: #060706;
-  --ui-surface-1: #0c0e0c;
-  --ui-surface-2: #15140f;
-  --ui-surface-3: #211d15;
-  --ui-line: #40392e;
-  --ui-line-strong: #705938;
-  --ui-text: #eee7dc;
-  --ui-text-2: #c7bdad;
-  --ui-text-3: #91897d;
-  --ui-accent: #d7b36f;
-  --ui-accent-strong: #a9783c;
-  --ui-gold: #d7b36f;
-  --ui-danger: #e36c73;
-  --ui-success: #63d89a;
-  --ui-focus: 0 0 0 2px #080907, 0 0 0 4px rgba(215, 179, 111, .82);
-  --ui-radius-sm: 3px;
-  --ui-radius-md: 5px;
-  --ui-radius-lg: 7px;
-  --ui-space-1: 4px;
-  --ui-space-2: 8px;
-  --ui-space-3: 12px;
-  --ui-space-4: 16px;
-  --ui-control-sm: 32px;
-  --ui-control-md: 38px;
-  --ui-control-touch: 44px;
-  --copy-bright: var(--ui-text);
-  --copy-muted: var(--ui-text-2);
-}
 body:not(.light-mode) {
-  color: var(--ui-text);
-  background-color: var(--ui-canvas);
+  color: var(--color-text);
+  background-color: var(--color-canvas);
 }
 /* Shared native choices retain keyboard/touch behavior and the game's gold accent. */
-body :is(input[type="checkbox"], input[type="radio"], input[type="range"], select) { accent-color: var(--ui-gold); }
+body :is(input[type="checkbox"], input[type="radio"], input[type="range"], select) { accent-color: var(--color-accent-gold); }
 body select {
   color-scheme: dark;
-  color: var(--ui-text) !important;
-  background-color: var(--ui-surface-1) !important;
-  border: 1px solid var(--ui-line-strong) !important;
-  border-radius: var(--ui-radius-sm);
+  border-radius: var(--radius-sm);
 }
 body.light-mode select { color-scheme: light; }
-body select option { color: var(--ui-text); background-color: var(--ui-surface-1); }
-body select:focus-visible { outline: 2px solid var(--ui-gold); outline-offset: 2px; }
+body select option { color: var(--color-text); background-color: var(--color-surface); }
+body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline-offset: 2px; }
 body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
   outline: 0;
-  box-shadow: var(--ui-focus) !important;
 }
 
 body:not(.light-mode) :where(button, input, select, textarea):disabled:not(.ocean-strategy-card) {
@@ -61,59 +29,29 @@ body:not(.light-mode) :where(button, input, select, textarea):disabled:not(.ocea
 body:not(.light-mode) .subtab-row,
 /* Navigation communicates selected state with shape and position, not color alone. */
 body.light-mode .subtab-row {
-  gap: var(--ui-space-1);
-  padding: var(--ui-space-1);
+  gap: var(--space-1);
+  padding: var(--space-1);
   border-width: 1px;
   border-style: solid;
-  border-radius: var(--ui-radius-md);
+  border-radius: var(--radius-md);
 }
 
 /* Navigation communicates selected state with shape and position, not color alone. */
 body:not(.light-mode) .subtab-row {
-  border-color: var(--ui-line);
+  border-color: var(--color-line);
   background: rgba(8, 9, 8, .86);
 }
 
-body:not(.light-mode) .subtab-btn,
-body.light-mode .subtab-btn {
-  position: relative;
-  min-height: var(--ui-control-md);
-  border-width: 1px;
-  border-style: solid;
-  border-radius: var(--ui-radius-sm);
-}
-
-body:not(.light-mode) .subtab-btn {
-  border-color: transparent;
-  color: var(--ui-text-2);
-  background: transparent;
-  box-shadow: none;
-}
-
-body:not(.light-mode) .subtab-btn:hover:not(:disabled) {
-  border-color: var(--ui-line);
-  color: var(--ui-text);
-  background: var(--ui-surface-2);
-}
-
-body:not(.light-mode) .subtab-btn.active,
-body:not(.light-mode) .subtab-btn[aria-selected="true"] {
-  border-color: rgba(229, 187, 97, .72);
-  color: #fff2c4;
-  background: linear-gradient(180deg, rgba(111, 80, 28, .72), rgba(50, 36, 15, .9));
-  box-shadow: inset 0 -3px var(--ui-gold);
-}
-
 body:not(.light-mode) details > summary {
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
 }
 
 body:not(.light-mode) details[open] > summary {
-  color: var(--ui-text);
+  color: var(--color-text);
 }
 
 body:not(.light-mode) details > summary::marker {
-  color: var(--ui-accent);
+  color: var(--color-accent);
 }
 
 /* Desktop shell: keep the fantasy identity while reclaiming play space. */
@@ -137,14 +75,8 @@ body:not(.light-mode) details > summary::marker {
     scrollbar-gutter: stable;
   }
 
-  body.desktop-windowed-ui .combat-feed {
-    border-color: rgba(112, 89, 56, .7) !important;
-    background: rgba(8, 9, 8, .94) !important;
-  }
-
   body.desktop-windowed-ui .combat-feed-title {
     min-height: 28px;
-    letter-spacing: .08em !important;
   }
 }
 
@@ -152,9 +84,8 @@ body:not(.light-mode) details > summary::marker {
 .mobile-section-navigation { display: none; }
 .talisman-unseal-choice:not([hidden]) { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
 .talisman-unseal-choice select { min-height: 44px; width: 100%; font-size: 16px; }
-.talisman-unseal-source, .talisman-unseal-candidate { padding: 12px; margin-bottom: 10px; background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); }
+.talisman-unseal-source, .talisman-unseal-candidate { padding: 12px; margin-bottom: 10px; background: var(--color-surface-raised); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
 .talisman-unseal-source h3 { margin: 0 0 8px; font-size: 14px; }
-.talisman-unseal-source p, .talisman-unseal-candidate p, .talisman-unseal-candidate .tooltip-line { font-size: 13px; line-height: 1.6; }
 .talisman-unseal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .talisman-unseal-actions button { min-height: 44px; flex: 1 1 130px; }
 .talisman-candidate-shape { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -166,15 +97,14 @@ body:not(.light-mode) details > summary::marker {
 #talisman-library { order: 3; }
 #talisman-mobile-selected:not([hidden]) { display: grid; gap: 8px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
 #talisman-mobile-selected button { min-height: 44px; }
-#talisman-mobile-inspector { padding: 12px; margin: 10px 0; border: 1px solid var(--ui-gold); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+#talisman-mobile-inspector { padding: 12px; margin: 10px 0; border: 1px solid var(--color-accent-gold); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
 .talisman-mobile-heading { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.talisman-mobile-heading > span:last-child { margin-left: auto; color: var(--ui-text-muted); }
+.talisman-mobile-heading > span:last-child { margin-left: auto; color: var(--color-text-muted); }
 #talisman-mobile-inspector p { font-size: 13px; line-height: 1.5; }
 .talisman-mobile-actions { display: flex; gap: 8px; }
 .talisman-mobile-actions button { min-height: 44px; flex: 1; }
 #ui-talisman-board .talisman-mobile-footprint { outline: 2px solid #8fe7b0; outline-offset: -3px; }
 #ui-talisman-board .talisman-mobile-invalid { outline-color: #ff9a9a; }
-#ui-talisman-board .talisman-mobile-anchor { box-shadow: 0 0 0 2px var(--ui-gold) !important; }
 #ui-jewel-panel { display: flex; flex-direction: column; }
 #ui-jewel-panel > .jewel-cap-toolbar { order: 0; }
 #ui-jewel-craft-disclosure { order: 1; }
@@ -183,47 +113,42 @@ body:not(.light-mode) details > summary::marker {
 .inventory-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
 .inventory-library-pages button { min-height: 44px; }
 .inventory-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
-.jewel-craft-mode:not([hidden]) { display: grid; gap: 6px; margin-bottom: 10px; color: var(--ui-text-muted); }
+.jewel-craft-mode:not([hidden]) { display: grid; gap: 6px; margin-bottom: 10px; color: var(--color-text-muted); }
 .jewel-craft-mode select { min-height: 44px; width: 100%; font-size: 16px; }
-.jewel-craft-section { padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); margin-bottom: 10px; background: var(--ui-surface-2); }
-.jewel-craft-section h3 { margin: 0 0 8px; font-size: 14px; color: var(--ui-gold); }
+.jewel-craft-section { padding: 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); margin-bottom: 10px; background: var(--color-surface-raised); }
+.jewel-craft-section h3 { margin: 0 0 8px; font-size: 14px; color: var(--color-accent-gold); }
 .jewel-craft-section p, .jewel-craft-section .item-stats { font-size: 13px; line-height: 1.6; }
 .jewel-craft-currencies { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
-.jewel-craft-currency { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding-top: 8px; border-top: 1px solid var(--ui-line); }
+.jewel-craft-currency { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding-top: 8px; border-top: 1px solid var(--color-line); }
 .jewel-craft-currency button, .jewel-craft-actions button { min-height: 44px; }
 .jewel-craft-currency span { font-size: 13px; line-height: 1.5; }
-.jewel-craft-currency small, .jewel-craft-actions small { display: block; font-size: 12px; color: var(--ui-text-muted); line-height: 1.6; }
-.jewel-craft-balance { font-size: 13px; color: var(--ui-gold); }
+.jewel-craft-currency small, .jewel-craft-actions small { display: block; font-size: 12px; color: var(--color-text-muted); line-height: 1.6; }
+.jewel-craft-balance { font-size: 13px; color: var(--color-accent-gold); }
 .jewel-craft-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .jewel-amplified-choice { display: block; font-size: 13px; line-height: 1.6; }
 .jewel-amplified-choice input { width: 20px; height: 20px; vertical-align: middle; margin-right: 8px; }
 @media (max-width: 1080px) {
-  .talisman-workspaces > * { order: 0 !important; min-width: 0; }
-  #ui-talisman-inventory { grid-template-columns: minmax(0, 1fr) !important; }
-  .talisman-card-copy > div { display: block !important; }
+  .talisman-workspaces > * { min-width: 0; }
   .talisman-card-copy .item-actions { display: grid; }
   .talisman-card-copy .item-actions button { min-height: 44px; width: 100%; }
   .jewel-craft-currencies { grid-template-columns: minmax(0, 1fr); }
   .jewel-craft-section > button { min-height: 44px; }
   #ui-jewel-panel > * { order: 0; }
-  #ui-jewel-slots, #ui-jewel-inventory { grid-template-columns: minmax(0, 1fr) !important; }
   #ui-jewel-panel .item-actions button { min-height: 44px; }
   #ui-jewel-panel .jewel-card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #ui-jewel-panel .jewel-card-actions button { width: 100%; font-size: 12px; padding: 8px 4px; }
   .mobile-section-navigation:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
   .mobile-section-navigation button { min-height: 44px; padding: 6px; font-size: 13px; }
   .mobile-section-navigation button[hidden] { display: none; }
-  .mobile-section-navigation [aria-selected="true"] { border-color: var(--ui-gold); color: var(--ui-gold); background: var(--ui-surface-2); }
-  .mobile-section-panel[data-mobile-selected="false"],
-  .mobile-section-panel > summary { display: none !important; }
+  .mobile-section-navigation [aria-selected="true"] { border-color: var(--color-accent-gold); color: var(--color-accent-gold); background: var(--color-surface-raised); }
 }
 #tab-character .character-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
 #tab-character .character-overview .stat-item { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; }
 #tab-character .character-overview .stat-value { margin: 0; font-size: 20px; }
-#tab-character .character-stat-section { margin: 0 0 10px; padding: 0; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
-#tab-character .character-stat-section > summary { padding: 11px 12px; color: var(--ui-gold); font: inherit; font-weight: 600; cursor: pointer; }
+#tab-character .character-stat-section { margin: 0 0 10px; padding: 0; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
+#tab-character .character-stat-section > summary { padding: 11px 12px; color: var(--color-accent-gold); font: inherit; font-weight: 600; cursor: pointer; }
 #tab-character .character-stat-section > .stat-grid { margin: 0; padding: 0 10px 10px; gap: 4px 10px; }
-#tab-character .character-stat-section .stat-item { min-width: 0; padding: 9px 4px; border: 0; border-bottom: 1px solid var(--ui-line); border-radius: 0; background: transparent; }
+#tab-character .character-stat-section .stat-item { min-width: 0; padding: 9px 4px; border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; background: transparent; }
 #tab-character .character-stat-section .stat-label { font-size: 12px; line-height: 1.5; }
 #tab-character .character-stat-section .stat-value { font-size: 14px; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) {
@@ -236,39 +161,38 @@ body:not(.light-mode) details > summary::marker {
 
 /* Equipment is the reference management screen: compare, equip, then manage. */
 #item-tab-equip .equipment-workspace {
-  gap: var(--ui-space-3);
+  gap: var(--space-3);
 }
 
 body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
 body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
 body.light-mode #item-tab-equip .equipment-loadout-panel,
 body.light-mode #item-tab-equip .equipment-inventory-panel {
-  padding: var(--ui-space-3);
-  border-radius: var(--ui-radius-lg);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
 }
 
 body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
 body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
-  border-color: var(--ui-line);
+  border-color: var(--color-line);
   background: linear-gradient(180deg, rgba(21, 20, 16, .99), rgba(8, 9, 8, .995));
   box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .22);
 }
 
 #item-tab-equip .equipment-section-heading {
   align-items: center;
-  margin-bottom: var(--ui-space-3);
-  padding-bottom: var(--ui-space-3);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
   border-bottom-color: rgba(112, 89, 56, .46);
 }
 
 #item-tab-equip .equipment-section-heading h2 {
-  margin-top: 2px !important;
   font-size: 16px;
   line-height: 1.15;
 }
 
 #item-tab-equip .equipment-section-kicker {
-  color: var(--ui-text-3);
+  color: var(--color-text-tertiary);
   font-size: 10px;
   letter-spacing: .08em;
 }
@@ -276,15 +200,15 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
 #item-tab-equip .equipment-count-badge {
   min-width: 54px;
   padding: 5px 9px;
-  border-radius: var(--ui-radius-sm);
+  border-radius: var(--radius-sm);
   text-align: center;
 }
 
 #item-tab-equip .equipment-loadout-summary {
-  gap: var(--ui-space-2);
+  gap: var(--space-2);
   margin: 12px 0;
   padding-top: 12px;
-  border-top: 1px solid var(--ui-line);
+  border-top: 1px solid var(--color-line);
 }
 
 #item-tab-equip .equipment-summary-stat {
@@ -295,7 +219,7 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
 }
 
 #item-tab-equip .equipment-summary-stat span {
-  color: var(--ui-text-3);
+  color: var(--color-text-tertiary);
   font-size: 9px;
 }
 
@@ -304,50 +228,50 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
 }
 
 #item-tab-equip .inventory-browse-toolbar {
-  gap: var(--ui-space-2);
-  margin-bottom: var(--ui-space-2);
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
   padding: 0;
 }
 
 #item-tab-equip .inventory-browse-toolbar label {
-  color: var(--ui-text-2);
+  color: var(--color-text-secondary);
   font-size: 10px;
 }
 
 #item-tab-equip .inventory-browse-toolbar select,
 #item-tab-equip .equipment-triage-controls select {
-  min-height: var(--ui-control-sm);
-  border-color: var(--ui-line);
-  color: var(--ui-text);
-  background: var(--ui-surface-1);
+  min-height: var(--size-control-sm);
+  border-color: var(--color-line);
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 #item-tab-equip .equipment-triage-host {
-  min-height: var(--ui-control-md);
-  padding-left: var(--ui-space-3);
-  border-left-color: var(--ui-line);
+  min-height: var(--size-control-md);
+  padding-left: var(--space-3);
+  border-left-color: var(--color-line);
 }
 
 #item-tab-equip .equipment-triage-copy strong {
-  color: var(--ui-gold);
+  color: var(--color-accent-gold);
   font-size: 11px;
 }
 
 #item-tab-equip .equipment-triage-copy small {
-  color: var(--ui-text-3);
+  color: var(--color-text-tertiary);
   font-size: 9px;
 }
 
 #item-tab-equip .bulk-manager {
-  margin-bottom: var(--ui-space-2);
+  margin-bottom: var(--space-2);
   overflow: hidden;
-  border: 1px solid var(--ui-line);
-  border-radius: var(--ui-radius-md);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
   background: rgba(8, 9, 8, .62);
 }
 
 #item-tab-equip .bulk-manager > summary {
-  min-height: var(--ui-control-md);
+  min-height: var(--size-control-md);
   padding: 9px 11px;
   box-sizing: border-box;
   font-size: 11px;
@@ -359,7 +283,7 @@ body.light-mode #item-tab-equip .equipment-inventory-toolbar {
   border-top-width: 1px;
   border-top-style: solid;
   margin: 0;
-  padding: var(--ui-space-3);
+  padding: var(--space-3);
   border-width: 0;
   border-radius: 0;
 }
@@ -370,45 +294,35 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
 }
 
 #item-tab-equip .equipment-salvage-actions {
-  gap: var(--ui-space-2);
+  gap: var(--space-2);
 }
 
 #item-tab-equip .equipment-salvage-actions button {
-  min-height: var(--ui-control-sm);
-  border-color: var(--ui-line);
-  color: var(--ui-text-2);
-  background: var(--ui-surface-2);
+  min-height: var(--size-control-sm);
+  border-color: var(--color-line);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
 }
 
 #item-tab-equip .equipment-salvage-actions button:hover:not(:disabled) {
-  border-color: var(--ui-line-strong);
-  color: var(--ui-text);
-  background: var(--ui-surface-3);
+  border-color: var(--color-line-strong);
+  color: var(--color-text);
+  background: var(--color-control);
 }
 
 #item-tab-equip .search-filter-panel {
-  margin-bottom: var(--ui-space-2) !important;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
 #item-tab-equip .search-filter-input {
-  min-height: var(--ui-control-md);
-  padding-inline: 11px !important;
-  border-color: var(--ui-line) !important;
-  border-radius: var(--ui-radius-sm) !important;
-  background: var(--ui-surface-1) !important;
-}
-
-#item-tab-equip .search-action-row {
-  margin-top: var(--ui-space-1) !important;
-  overflow: visible !important;
+  min-height: var(--size-control-md);
 }
 
 #item-tab-equip .search-action-row button {
-  min-height: var(--ui-control-sm);
-  border-radius: var(--ui-radius-sm);
+  min-height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
 }
 
 #item-tab-equip #ui-inventory-list:empty::before,
@@ -418,11 +332,11 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
   display: grid;
   place-items: center;
   min-height: 158px;
-  border: 1px solid color-mix(in srgb, var(--ui-line), transparent 42%);
-  border-radius: var(--ui-radius-md);
-  color: var(--ui-text-3);
+  border: 1px solid color-mix(in srgb, var(--color-line), transparent 42%);
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ui-accent), transparent 93%), transparent 32%),
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-accent), transparent 93%), transparent 32%),
     rgba(8, 9, 8, .44);
   font-size: 10px;
   line-height: 1.8;
@@ -444,18 +358,6 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
 
 /* Phone composition: thumb-sized controls without turning every action into a full row. */
 @media (max-width: 1080px) {
-  body:not(.light-mode) .tab-header:not(.tab-header-bottom) {
-    position: sticky;
-    top: max(0px, env(safe-area-inset-top));
-    z-index: 90;
-    border-color: var(--ui-line);
-    background: rgba(8, 9, 8, .98);
-    backdrop-filter: none;
-  }
-
-  body:not(.light-mode) .tab-btn.active {
-    box-shadow: inset 0 -3px var(--ui-gold);
-  }
 
   .ui-goal-drawer:not(.expanded) { inset: auto 8px calc(74px + env(safe-area-inset-bottom, 0px)) auto; width: 44px; }
   .ui-goal-drawer:not(.expanded) .ui-goal-panel { width: 44px; }
@@ -465,15 +367,15 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
     position: relative;
     top: auto;
     z-index: 20;
-    margin-bottom: var(--ui-space-2);
-    border-color: var(--ui-line);
+    margin-bottom: var(--space-2);
+    border-color: var(--color-line);
     background: rgba(8, 9, 8, .98);
     box-shadow: 0 8px 22px rgba(0, 0, 0, .24);
   }
 
   #item-tab-equip .equipment-mobile-switch button {
-    min-height: var(--ui-control-touch);
-    border-radius: var(--ui-radius-sm);
+    min-height: var(--size-control-touch);
+    border-radius: var(--radius-sm);
   }
 
   #item-tab-equip .equipment-mobile-switch button.active,
@@ -481,7 +383,7 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
     border-color: rgba(229, 187, 97, .76);
     color: #fff2c4;
     background: #5a4118;
-    box-shadow: inset 0 -3px var(--ui-gold);
+    box-shadow: inset 0 -3px var(--color-accent-gold);
   }
 
 body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
@@ -489,12 +391,12 @@ body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
 body.light-mode #item-tab-equip .equipment-loadout-panel,
   body.light-mode #item-tab-equip .equipment-inventory-panel {
   padding: 11px;
-  border-radius: var(--ui-radius-md);
+  border-radius: var(--radius-md);
 }
 
   #item-tab-equip .equipment-section-heading {
-    margin-bottom: var(--ui-space-2);
-    padding-bottom: var(--ui-space-2);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-2);
   }
 
   #item-tab-equip .inventory-browse-toolbar {
@@ -506,28 +408,28 @@ body.light-mode #item-tab-equip .equipment-loadout-panel,
   #item-tab-equip .inventory-browse-toolbar > label {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--ui-space-1);
+    gap: var(--space-1);
   }
 
   #item-tab-equip .inventory-browse-toolbar select {
     width: 100%;
-    min-height: var(--ui-control-touch);
+    min-height: var(--size-control-touch);
   }
 
   #item-tab-equip .equipment-triage-host {
     grid-column: 1 / -1;
     min-height: auto;
-    padding: var(--ui-space-2) 0 0;
+    padding: var(--space-2) 0 0;
     border-top: 1px solid rgba(82, 68, 48, .72);
     border-left: 0;
   }
 
   #item-tab-equip .equipment-triage-controls :where(select, button) {
-    min-height: var(--ui-control-touch);
+    min-height: var(--size-control-touch);
   }
 
   #item-tab-equip .bulk-manager > summary {
-    min-height: var(--ui-control-touch);
+    min-height: var(--size-control-touch);
     padding-block: 12px;
   }
 
@@ -537,27 +439,23 @@ body.light-mode #item-tab-equip .equipment-loadout-panel,
 
   #item-tab-equip .equipment-salvage-actions button,
   #item-tab-equip .search-action-row button {
-    min-height: var(--ui-control-touch);
+    min-height: var(--size-control-touch);
   }
 
   #item-tab-equip .search-filter-panel {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: stretch;
-    gap: var(--ui-space-1);
+    gap: var(--space-1);
   }
 
   #item-tab-equip .search-action-row {
-    display: flex !important;
     grid-column: 2;
-    margin-top: 0 !important;
-    overflow: visible !important;
   }
 
   #item-tab-equip .search-action-row button {
     width: auto;
     min-width: 82px;
-    padding-inline: 10px !important;
   }
 
   body.mobile-battle-tab #tab-battle .enemy-empty {
@@ -567,22 +465,13 @@ body.light-mode #item-tab-equip .equipment-loadout-panel,
     height: 46px;
     padding: 0 10px;
     border-style: dashed;
-    color: var(--ui-text-3);
+    color: var(--color-text-tertiary);
     font-size: 11px;
   }
 
   body.mobile-battle-tab #tab-battle .combat-feed {
-    min-height: 144px !important;
-    height: clamp(144px, 20svh, 178px) !important;
-    max-height: 178px !important;
-    border-color: var(--ui-line);
-    background: var(--ui-surface-1);
-  }
-
-  body.mobile-battle-tab #tab-battle .combat-feed.collapsed {
-    min-height: 72px !important;
-    height: 72px !important;
-    max-height: 72px !important;
+    border-color: var(--color-line);
+    background: var(--color-surface);
   }
 
   body.mobile-battle-tab #tab-battle .combat-feed.collapsed #log {
@@ -645,15 +534,15 @@ body.light-mode #item-tab-equip .equipment-slot {
     box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--ui-space-1);
+    gap: var(--space-1);
     width: 100%;
-    margin-bottom: var(--ui-space-2);
+    margin-bottom: var(--space-2);
   }
 
   #tab-map .vertical-tab-btn {
     width: 100%;
     min-width: 0;
-    min-height: var(--ui-control-touch);
+    min-height: var(--size-control-touch);
     padding: 4px;
     font-size: 9px;
     line-height: 1.15;
@@ -662,24 +551,94 @@ body.light-mode #item-tab-equip .equipment-slot {
 
   #tab-map .vertical-tab-btn.active {
     border-color: rgba(229, 187, 97, .8);
-    box-shadow: inset 0 -3px var(--ui-gold);
+    box-shadow: inset 0 -3px var(--color-accent-gold);
   }
 
   #tab-map .vertical-tab-panels { min-width: 0; }
   #item-tab-equip .equipment-loadout-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+}
+@layer overrides {
+body select {
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+}
+body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+@media (min-width: 1081px) {
 
-  #item-tab-equip .equipment-salvage-actions,
+  body.desktop-windowed-ui .combat-feed {
+    border-color: rgba(112, 89, 56, .7);
+    background: rgba(8, 9, 8, .94);
+  }
+
+  body.desktop-windowed-ui .combat-feed-title {
+    letter-spacing: .08em;
+  }
+}
+#ui-talisman-board .talisman-mobile-anchor { box-shadow: 0 0 0 2px var(--color-accent-gold); }
+@media (max-width: 1080px) {
+  .talisman-workspaces > * { order: 0; }
+  #ui-talisman-inventory {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
+  .talisman-card-copy > div { display: block; }
+  #ui-jewel-slots, #ui-jewel-inventory {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
+  .mobile-section-panel[data-mobile-selected="false"],
+  .mobile-section-panel > summary {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
+}
+
+#item-tab-equip .equipment-section-heading h2 {
+  margin-top: 2px;
+}
+
+#item-tab-equip .search-filter-panel {
+  margin-bottom: var(--space-2);
+}
+
+#item-tab-equip .search-filter-input {
+  padding-inline: 11px;
+  border-color: var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+#item-tab-equip .search-action-row {
+  margin-top: var(--space-1);
+  overflow: visible;
+}
+@media (max-width: 1080px) {
+
   #item-tab-equip .search-action-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    display: flex;
+    margin-top: 0;
+    overflow: visible;
+  }
+
+  #item-tab-equip .search-action-row button {
+    padding-inline: 10px;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed {
+    min-height: 144px;
+    height: clamp(144px, 20svh, 178px);
+    max-height: 178px;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed {
+    min-height: 72px;
+    height: 72px;
+    max-height: 72px;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  body:not(.light-mode) .tab-btn,
-  body:not(.light-mode) .subtab-btn,
-  body:not(.light-mode) button {
-    transition-duration: .01ms !important;
+@media (max-width: 480px) {
+
+  #item-tab-equip .equipment-salvage-actions,
+  #item-tab-equip .search-action-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 }

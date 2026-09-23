@@ -23,6 +23,11 @@ const uiDisplay = (() => {
             const rule = pending.pop();
             if (rule.type === CSSRule.MEDIA_RULE) mediaRules.set(rule, rule.media.mediaText);
             if (rule.cssRules) pending.push(...rule.cssRules);
+            const imported = rule.styleSheet;
+            if (imported && !visitedSheets.has(imported) && new URL(imported.href).origin === window.origin) {
+                visitedSheets.add(imported);
+                pending.push(...imported.cssRules);
+            }
             if (rule.style) adaptStyle(rule.style);
         }
     }
@@ -30,9 +35,9 @@ const uiDisplay = (() => {
     function adaptStyle(style) {
         for (const property of Array.from(style)) {
             const value = style.getPropertyValue(property);
-            if (value.includes('--ui-display-factor')) continue;
+            if (value.includes('--scale-display-factor')) continue;
             const next = value.replace(/(-?(?:\d*\.)?\d+)(d?vw|d?vh|vmin|vmax)\b/g,
-                (_, number, unit) => `calc(${number}${unit} / var(--ui-display-factor, 1))`);
+                (_, number, unit) => `calc(${number}${unit} / var(--scale-display-factor, 1))`);
             if (next !== value) style.setProperty(property, next, style.getPropertyPriority(property));
         }
     }
@@ -60,7 +65,7 @@ const uiDisplay = (() => {
         const next = percent / 100 / deviceScale;
         const changed = Math.abs(next - factor) > 0.00001;
         factor = next;
-        document.documentElement.style.setProperty('--ui-display-factor', String(factor));
+        document.documentElement.style.setProperty('--scale-display-factor', String(factor));
         document.documentElement.style.zoom = String(factor);
         registerStyles();
         const select = document.getElementById('sel-ui-scale');

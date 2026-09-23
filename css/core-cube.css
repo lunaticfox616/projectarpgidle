@@ -1,3 +1,4 @@
+@layer components {
 .core-cube-locked {
   margin-bottom: 12px;
   padding: 12px 14px;
@@ -161,7 +162,6 @@
 .core-cube-card p { margin:8px 0 0; color:#eef2f6; font-size:.86em; line-height:1.45; }
 .core-cube-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .core-cube-row span { color:#ffffff; }
-.core-cube-good { color:#93ffc2 !important; }
 .core-cube-power-picker { min-width: 0; }
 .core-cube-inventory {
   display:grid;
@@ -262,3 +262,8 @@
     color: #7f93a8;
 }
 .core-cube-missing-no.owned { border-color: #4d8f6d; color: #a8e6c0; background: rgba(18, 40, 30, 0.7); font-weight: 700; }
+}
+
+@layer overrides {
+.core-cube-good { color:#93ffc2; }
+}

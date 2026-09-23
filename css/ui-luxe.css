@@ -1,24 +1,10 @@
+@layer components {
 /* Projectidle Luxe UI
    Final presentation layer: restrained fantasy-tech materials, clearer hierarchy,
    and subtle motion. Dark mode is scoped so the existing light theme stays intact. */
 
-:root {
-  --luxe-ink: #05080e;
-  --luxe-surface: rgba(12, 19, 30, 0.94);
-  --luxe-surface-2: rgba(17, 27, 42, 0.96);
-  --luxe-line: rgba(116, 151, 194, 0.42);
-  --luxe-line-soft: rgba(116, 151, 194, 0.18);
-  --luxe-blue: #73c7ff;
-  --luxe-blue-glow: rgba(76, 176, 255, 0.24);
-  --luxe-gold: #f0c86f;
-  --luxe-gold-soft: rgba(240, 200, 111, 0.2);
-  --luxe-copy: #ffffff;
-  --luxe-muted: #eef2f6;
-  --luxe-shadow: 0 24px 64px rgba(0, 0, 0, 0.56);
-}
-
 body:not(.light-mode) {
-  color: var(--luxe-copy);
+  color: var(--color-overlay-copy);
   background:
     radial-gradient(circle at 28% 18%, rgba(25, 74, 119, 0.16), transparent 30%),
     radial-gradient(circle at 78% 78%, rgba(145, 99, 34, 0.09), transparent 28%),
@@ -73,7 +59,7 @@ body:not(.light-mode) .startup-shell {
   border: 1px solid rgba(112, 151, 197, 0.5);
   background:
     linear-gradient(110deg, rgba(19, 29, 43, 0.97), rgba(9, 14, 22, 0.98)),
-    var(--luxe-surface);
+    var(--color-overlay-surface);
   box-shadow:
     0 32px 90px rgba(0, 0, 0, 0.62),
     0 0 0 1px rgba(4, 8, 14, 0.8),
@@ -121,26 +107,6 @@ body:not(.light-mode) .startup-summary-item:hover {
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
 }
 
-body:not(.light-mode) .startup-form input,
-body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)),
-body:not(.light-mode) select,
-body:not(.light-mode) textarea {
-  color: #ffffff;
-  border: 1px solid rgba(83, 119, 158, 0.56);
-  background: linear-gradient(180deg, rgba(8, 14, 22, 0.96), rgba(13, 21, 32, 0.96));
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.025);
-  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
-}
-
-body:not(.light-mode) .startup-form input:focus,
-body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)):focus,
-body:not(.light-mode) select:focus,
-body:not(.light-mode) textarea:focus {
-  border-color: rgba(107, 192, 252, 0.9);
-  background: rgba(11, 19, 30, 0.98);
-  box-shadow: 0 0 0 3px rgba(75, 168, 236, 0.11), inset 0 2px 5px rgba(0, 0, 0, 0.38);
-}
-
 body:not(.light-mode) .startup-primary,
 body:not(.light-mode) .startup-secondary,
 body:not(.light-mode) .startup-ghost {
@@ -174,7 +140,7 @@ body:not(.light-mode) .tutorial-card {
   border: 1px solid rgba(102, 145, 188, 0.62);
   background:
     linear-gradient(145deg, rgba(22, 32, 48, 0.985), rgba(8, 13, 22, 0.99));
-  box-shadow: var(--luxe-shadow), inset 0 1px 0 rgba(230, 243, 255, 0.08);
+  box-shadow: var(--shadow-overlay), inset 0 1px 0 rgba(230, 243, 255, 0.08);
 }
 
 body:not(.light-mode) .tutorial-card::before {
@@ -188,7 +154,6 @@ body:not(.light-mode) .tutorial-card::before {
 
 body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {
   width: min(760px, calc(100vw - 32px));
-  max-width: 760px !important;
 }
 
 body:not(.light-mode) #loop-hero-select-grid {
@@ -268,13 +233,6 @@ body:not(.light-mode).desktop-windowed-ui .combat-zone-row-title {
   text-shadow: 0 2px 8px #000;
 }
 
-body:not(.light-mode).desktop-windowed-ui .map-progress-row .hp-bar-bg {
-  overflow: visible;
-  border: 1px solid rgba(82, 143, 190, 0.52);
-  background: rgba(3, 8, 14, 0.8);
-  box-shadow: inset 0 1px 3px #000, 0 0 12px rgba(48, 151, 221, 0.1);
-}
-
 body:not(.light-mode).desktop-windowed-ui #ui-move-bar {
   position: relative;
   border-radius: inherit;
@@ -339,13 +297,6 @@ body:not(.light-mode).desktop-windowed-ui .enemy-card.enemy-boss {
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.44), 0 0 28px rgba(222, 104, 53, 0.13), inset 0 1px 0 rgba(255, 225, 170, 0.08);
 }
 
-body:not(.light-mode).desktop-windowed-ui .enemy-card .hp-bar-bg,
-body:not(.light-mode).desktop-windowed-ui .combat-hp-bar {
-  border-color: rgba(104, 132, 160, 0.48);
-  background: rgba(3, 7, 12, 0.84);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.02);
-}
-
 body:not(.light-mode).desktop-windowed-ui .player-hud,
 body.light-mode.desktop-windowed-ui .player-hud {
   min-height: 88px;
@@ -362,18 +313,9 @@ body:not(.light-mode).desktop-windowed-ui .player-hud {
   backdrop-filter: blur(7px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-hp-bar {
-  height: 29px;
-}
-
 body:not(.light-mode).desktop-windowed-ui #ui-hp-bar {
   background: linear-gradient(90deg, #168f55, #2fd477 62%, #72eba4);
   box-shadow: inset 0 1px 0 rgba(218, 255, 232, 0.2), 0 0 15px rgba(45, 209, 118, 0.22);
-}
-
-body:not(.light-mode).desktop-windowed-ui .combat-exp-bar {
-  border-color: rgba(143, 105, 197, 0.52);
-  background: rgba(4, 7, 13, 0.8);
 }
 
 body:not(.light-mode).desktop-windowed-ui #ui-exp-bar {
@@ -405,32 +347,6 @@ body:not(.light-mode).desktop-windowed-ui .combat-feed #log {
 }
 
 /* Desktop rail and windows */
-body:not(.light-mode).desktop-windowed-ui .tab-header {
-  border-right: 1px solid rgba(90, 127, 169, 0.34);
-  background:
-    linear-gradient(180deg, rgba(14, 23, 36, 0.98), rgba(7, 12, 20, 0.98));
-  box-shadow: 12px 0 34px rgba(0, 0, 0, 0.28), inset -1px 0 0 rgba(255, 255, 255, 0.025);
-}
-
-body:not(.light-mode).desktop-windowed-ui .tab-btn {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  transition: color 130ms ease, background 130ms ease, border-color 130ms ease, box-shadow 130ms ease;
-}
-
-body:not(.light-mode).desktop-windowed-ui .tab-btn:hover {
-  border-color: rgba(91, 139, 184, 0.35);
-  background: linear-gradient(180deg, rgba(42, 66, 94, 0.62), rgba(25, 42, 64, 0.55));
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-body:not(.light-mode).desktop-windowed-ui .tab-btn.active,
-body:not(.light-mode).desktop-windowed-ui .tab-btn.ui-window-open {
-  color: #ffe8b2;
-  border-color: rgba(228, 185, 98, 0.48);
-  background: linear-gradient(180deg, rgba(85, 64, 28, 0.45), rgba(31, 31, 34, 0.46));
-  box-shadow: inset 0 0 16px rgba(224, 177, 79, 0.08), 0 0 18px rgba(224, 177, 79, 0.06);
-}
 
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
   border: 1px solid rgba(111, 147, 189, 0.7);
@@ -508,14 +424,6 @@ body:not(.light-mode) .noti-dot {
   filter: drop-shadow(0 0 5px rgba(255, 76, 87, 0.75));
 }
 
-body:not(.light-mode) #item-tooltip-box,
-body:not(.light-mode) #canvas-tooltip,
-body:not(.light-mode) #info-tooltip {
-  border-color: rgba(114, 157, 201, 0.72);
-  background: linear-gradient(160deg, rgba(16, 25, 38, 0.97), rgba(6, 11, 18, 0.98));
-  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.055);
-}
-
 @keyframes luxeAtmosphere {
   0% { transform: translate3d(-1%, 0, 0) scale(1); opacity: 0.86; }
   100% { transform: translate3d(1%, -1%, 0) scale(1.025); opacity: 1; }
@@ -530,10 +438,12 @@ body:not(.light-mode) #info-tooltip {
 
 @media (prefers-reduced-motion: reduce) {
   body:not(.light-mode) .startup-overlay::before { animation: none; }
-  body:not(.light-mode) .startup-summary-item,
-  body:not(.light-mode) .startup-primary,
-  body:not(.light-mode) .startup-secondary,
-  body:not(.light-mode) .startup-ghost,
-  body:not(.light-mode) .hero-choice,
-  body:not(.light-mode).desktop-windowed-ui .tab-btn { transition: none; }
+}
+}
+
+@layer overrides {
+
+body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
+  max-width: 760px !important;
+}
 }

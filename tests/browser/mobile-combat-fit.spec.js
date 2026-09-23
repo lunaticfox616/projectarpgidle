@@ -61,7 +61,7 @@ test('shared choice controls follow both game themes', async ({ page }, info) =>
     // Native controls are platform boundaries; use the same unclassed controls as legacy screens.
     await page.evaluate(() => {
         const section = document.createElement('section'); section.id = 'choice-preview';
-        section.style = 'position:fixed;inset:20px auto auto 20px;z-index:99999;padding:20px;background:var(--ui-surface-1)';
+        section.style = 'position:fixed;inset:20px auto auto 20px;z-index:99999;padding:20px;background:var(--color-surface)';
         section.innerHTML = '<label><input type="checkbox" checked> 선택</label><select aria-label="검사 선택"><option>기본</option><option>변경</option></select>';
         document.body.append(section);
     });

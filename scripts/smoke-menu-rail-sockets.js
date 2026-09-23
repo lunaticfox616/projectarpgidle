@@ -401,7 +401,7 @@ assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefie
 // Menu geometry, hover feedback and visible labels are exercised in core-ui.spec.js.
 assert(!menuCss.includes('.tab-header > .ui-goal-drawer'), 'menu rail must not retain the obsolete lower-left goal handle');
 assert(/\.battlefield-wrap > \.ui-goal-drawer \{[\s\S]*?z-index: 80;/.test(reliquaryCss), 'battlefield goals must render above the enemy health overlay');
-assert(reliquaryCss.includes('isolation: auto !important;'), 'battlefield isolation must not trap goals beneath the enemy health overlay');
+// Goal-overlay stacking is verified in inventory-density.spec.js in the browser.
 // Fixed goal handle geometry and clickability are checked in inventory-density.spec.js.
 assert(!reliquaryCss.includes('.combat-stage:has(.ui-goal-drawer.expanded) #enemy-area'), 'opening goals must not move the enemy health overlay');
 assert(!source.includes('ui-goal-next-unlock') && !reliquaryCss.includes('.ui-goal-next-unlock'), 'battlefield goals must not render a separate content-unlock card');

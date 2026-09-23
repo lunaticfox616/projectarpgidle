@@ -1,19 +1,20 @@
-.cosmos-star-chart { color:var(--ui-text); border:1px solid var(--ui-line); border-radius:8px; background:var(--ui-surface-1); overflow:hidden; container-type:inline-size; }
-#ui-cosmos-route-progress { flex:0 0 auto; white-space:nowrap; color:var(--ui-text-2); font-size:11px; padding:3px 7px; border:1px solid var(--ui-line); border-radius:4px; background:var(--ui-surface-2); }
+@layer components {
+.cosmos-star-chart { color:var(--color-text); border:1px solid var(--color-line); border-radius:8px; background:var(--color-surface); overflow:hidden; container-type:inline-size; }
+#ui-cosmos-route-progress { flex:0 0 auto; white-space:nowrap; color:var(--color-text-secondary); font-size:11px; padding:3px 7px; border:1px solid var(--color-line); border-radius:4px; background:var(--color-surface-raised); }
 #ui-cosmos-route-progress[hidden] { display:none; }
 body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hidden])) { grid-template-columns:auto auto minmax(100px,1fr); }
 .cosmos-star-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; gap:12px; }
 .cosmos-star-header label { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--copy-muted); }
-#cosmos-inner-route button { font:inherit; font-size:12px; cursor:pointer; color:var(--ui-text-2); background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:4px; padding:8px 12px; }
+#cosmos-inner-route button { font:inherit; font-size:12px; cursor:pointer; color:var(--color-text-secondary); background:var(--color-surface-raised); border:1px solid var(--color-line); border-radius:4px; padding:8px 12px; }
 #cosmos-inner-route button:focus-visible { outline:2px solid #d6bd80; outline-offset:2px; }
-#cosmos-inner-route select { max-width:100%; color:var(--ui-text-2); background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:4px; padding:7px; font:inherit; }
+#cosmos-inner-route select { max-width:100%; color:var(--color-text-secondary); background:var(--color-surface-raised); border:1px solid var(--color-line); border-radius:4px; padding:7px; font:inherit; }
 .cosmos-route-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; font-size:12px; }
 .cosmos-route-footer>div { display:flex; gap:6px; }
 #cosmos-inner-route .primary { border-color:#b79b63; padding-inline:24px; }
 .cosmos-route-notice,.cosmos-route-outcome { margin:0; padding:12px 14px; font-size:12px; color:var(--copy-muted); }
 .cosmos-route-outcome { padding-top:0; }
-#cosmos-node-detail { margin-top:10px; border:1px solid var(--ui-line); border-radius:6px; }
-#cosmos-node-detail>summary { padding:10px 14px; color:var(--ui-text-2); font-size:12px; cursor:pointer; }
+#cosmos-node-detail { margin-top:10px; border:1px solid var(--color-line); border-radius:6px; }
+#cosmos-node-detail>summary { padding:10px 14px; color:var(--color-text-secondary); font-size:12px; cursor:pointer; }
 #cosmos-node-detail:not([open]) { display:none; }
 #cosmos-node-detail .cosmos-detail { border:0; padding:12px 14px; }
 .cosmos-unified-map { position:relative; }
@@ -26,7 +27,7 @@ body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hi
 .cosmos-journey-heading strong span { color:#bca575; margin-inline:8px; }
 .cosmos-journey-heading>span { font-size:12px; color:var(--copy-muted); margin-left:auto; }
 .cosmos-expedition-map { display:grid; gap:10px; padding:0 14px 16px; }
-.cosmos-expedition-stage { border:1px solid var(--ui-line); border-radius:6px; overflow:hidden; background:var(--ui-surface-2); }
+.cosmos-expedition-stage { border:1px solid var(--color-line); border-radius:6px; overflow:hidden; background:var(--color-surface-raised); }
 .cosmos-expedition-stage.current { border-color:#b49e6b; }
 .cosmos-expedition-stage.done { border-color:#638373; }
 .cosmos-expedition-stage summary { display:flex; align-items:center; gap:12px; padding:12px 14px; cursor:pointer; list-style:none; font-size:13px; }
@@ -50,4 +51,4 @@ body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hi
 .cosmos-planet-stop.done { opacity:.65; }
 .cosmos-planet-stop.done small { color:#b4d4c1; }
 @container(max-width:740px) { .cosmos-planet-path { grid-template-columns:repeat(4,minmax(0,1fr)); row-gap:20px; } .cosmos-planet-stop:nth-child(4n):after { display:none; } .cosmos-route-footer { flex-wrap:wrap; } }
-@container(max-width:390px) { .cosmos-journey-heading strong { font-size:16px; } .cosmos-planet-path { column-gap:6px; padding-inline:9px; } .cosmos-planet-stop i { width:34px; height:34px; } .cosmos-planet-stop:after { top:18px; } }
+@container(max-width:390px) { .cosmos-journey-heading strong { font-size:16px; } .cosmos-planet-path { column-gap:6px; padding-inline:9px; } .cosmos-planet-stop i { width:34px; height:34px; } .cosmos-planet-stop:after { top:18px; } } }

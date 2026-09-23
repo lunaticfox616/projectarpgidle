@@ -72,17 +72,18 @@ const ui = fs.readFileSync('js/ui.js', 'utf8');
 const items = fs.readFileSync('data/items.js', 'utf8');
 const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
-const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8');
+const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8') +
+    fs.readFileSync('css/components/bars.css', 'utf8').replaceAll('../../assets/', '../assets/');
+const cssEntry = fs.readFileSync('css/main.css', 'utf8');
 
-assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1'), 'asset skin CSS must be cache-versioned');
-assert.ok(html.includes('20260811-mobile-status-fix2'), 'combat HUD CSS changes must invalidate deployed browser caches');
-assert.ok(/css\/ui-menu-sockets\.css\?v=[^\"]+/.test(html), 'menu socket CSS must be cache-versioned');
-assert.ok(html.includes('css/ui-polish.css?v=20260723-currency-icons1'), 'currency card CSS must be cache-versioned');
+for (const file of ['ui-asset-skins.css', 'ui-menu-sockets.css', 'ui-polish.css']) {
+    assert.ok(cssEntry.includes(`./${file}`), `${file} must be included in the hashed CSS bundle`);
+}
 assert.ok(html.includes('data/items.js?v=20260723-currency-salvage1'), 'currency item data must be cache-versioned');
 assert.ok(html.includes('js/ui.js?v=20260723-merged-tab-window-fix2'), 'combat HUD JavaScript must be cache-versioned');
 assert.ok(html.includes('js/combat.js?v=20260806-loot-tiers1'), 'combat effect state fixes must be cache-versioned');
 assert.ok(/js\/ui-window-manager\.js\?v=[^\"]+/.test(html), 'menu socket JavaScript must be cache-versioned');
-assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
+assert.ok(cssEntry.indexOf('ui-asset-skins.css') > cssEntry.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
 assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/combat-hud-frame-v1.png')"), 'the lower HUD must use one continuous generated frame');
 assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/combat-hud-mobile-v1.png')"),
   'mobile vitals must use a compact asset instead of shrinking the desktop utility wings');
@@ -114,7 +115,7 @@ assert.ok(ui.indexOf('${metaMarkup}', enemyFrameSlot) > enemyFrameSlot,
 [
   'gauge-player-hp-v1.png', 'gauge-player-es-v1.png', 'gauge-player-exp-v1.png',
   'gauge-mob-hp-v1.png', 'gauge-elite-hp-v1.png', 'gauge-boss-hp-v1.png'
-].forEach(file => assert.ok(css.includes(file), `${file} must provide a live gauge texture`));
+].forEach(file => assert.ok(css.includes(file) || reliquaryCss.includes(file), `${file} must provide a live gauge texture`));
 assert.ok(reliquaryCss.includes('health-player-five-v3.png'),
   'desktop equipped flasks must reuse the supplied five-socket artwork');
 assert.ok(!html.includes('player-hud-rack-title'),

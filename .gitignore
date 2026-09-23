@@ -27,6 +27,7 @@ __pycache__/
 
 # Rebuilt Android web bundle, local SDK paths and signing material.
 /www/
+/dist/
 *.apk
 *.aab
 *.jks

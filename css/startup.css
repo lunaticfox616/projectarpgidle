@@ -1,3 +1,4 @@
+@layer components {
 /* Login presentation owner; fixed palette independent of the in-game theme.
    Authentication, consent, visibility and save selection retain their existing handlers. */
 @font-face {
@@ -53,7 +54,7 @@
 #startup-overlay .startup-about-link {
   justify-self: start; width: fit-content; min-height: 36px; margin: 0; padding: 7px 0;
   border: 0; border-radius: 0; background: none; box-shadow: none; color: #eee2bf;
-  font: 400 13px/1.6 var(--game-font-body); text-shadow: 0 2px 8px #07100a;
+  font: 400 13px/1.6 var(--font-body); text-shadow: 0 2px 8px #07100a;
   text-decoration: underline; text-underline-offset: 5px; text-decoration-color: #a89c70;
 }
 #startup-overlay .startup-about-link:hover { color: #fff5d9; background: none; transform: none; }
@@ -61,7 +62,7 @@
   width: min(520px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box;
   margin: auto; padding: 24px; overflow: auto; border: 1px solid #807450; border-radius: 4px;
   color: #eee9de; background: #101811; box-shadow: 0 24px 90px #0009; color-scheme: dark;
-  font: 400 14px/1.8 var(--game-font-body);
+  font: 400 14px/1.8 var(--font-body);
 }
 #startup-about-dialog::backdrop { background: rgba(3,8,5,.8); }
 #startup-about-dialog h2 { margin: 0 0 16px; color: #e2cd99; font-size: 19px; line-height: 1.5; }
@@ -71,7 +72,7 @@
 #startup-about-dialog #startup-about-status { color: #d8c392; font-size: 12px; }
 #startup-about-dialog button {
   width: 100%; min-height: 44px; margin: 0; border: 1px solid #d9c391; border-radius: 2px;
-  background: #c9b480; color: #1d241a; font: 600 14px/1.5 var(--game-font-body); box-shadow: none;
+  background: #c9b480; color: #1d241a; font: 600 14px/1.5 var(--font-body); box-shadow: none;
 }
 #startup-about-dialog button:focus-visible { outline: 2px solid #f2e2ba; outline-offset: 3px; }
 #startup-overlay .startup-summary-card {
@@ -88,7 +89,7 @@
 #startup-overlay .startup-summary-value { margin-top: 7px; color: var(--entry-copy); font-size: 12px; font-weight: 400; line-height: 1.65; }
 #startup-overlay .startup-patch-note-link {
   min-height: 30px; margin: 0; padding: 4px 0 4px 12px; border: 0; border-radius: 0;
-  color: var(--entry-gold); background: none; box-shadow: none; font: 400 11px/1.4 var(--game-font-body); text-shadow: none;
+  color: var(--entry-gold); background: none; box-shadow: none; font: 400 11px/1.4 var(--font-body); text-shadow: none;
 }
 #startup-overlay .startup-patch-note-link:hover { color: #fff3d4; text-decoration: underline; }
 #startup-overlay .startup-latest-patch-date { color: var(--entry-muted); font-size: 10px; }
@@ -106,7 +107,7 @@
 #startup-overlay .startup-form input:not([type='checkbox']) {
   width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px;
   border: 1px solid var(--entry-line); border-radius: 2px; background: #0b130f; color: var(--entry-copy);
-  font: 400 13px/1.5 var(--game-font-body); box-shadow: none;
+  font: 400 13px/1.5 var(--font-body); box-shadow: none;
 }
 #startup-overlay input::placeholder { color: #8c998d; opacity: 1; }
 #startup-overlay :is(button,input,a,[tabindex]):focus-visible { outline: 2px solid var(--entry-gold); outline-offset: 3px; }
@@ -115,7 +116,7 @@
 #startup-overlay :is(.startup-primary,.startup-secondary,.startup-ghost) {
   min-height: 44px; margin: 0; padding: 10px; border: 1px solid var(--entry-line); border-radius: 2px;
   color: #d0d3c4; background: rgba(27,36,28,.65); box-shadow: none;
-  font: 500 12px/1.5 var(--game-font-body); letter-spacing: .01em; text-transform: none;
+  font: 500 12px/1.5 var(--font-body); letter-spacing: .01em; text-transform: none;
   text-shadow: none; transform: none; transition: background-color .15s,border-color .15s;
 }
 #startup-overlay .startup-primary { color: #1d241a; background: #c9b480; border-color: #d9c391; font-weight: 700; }
@@ -168,4 +169,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   #startup-overlay *, #startup-overlay *::before, #startup-overlay *::after { animation: none; transition: none; }
+}
 }

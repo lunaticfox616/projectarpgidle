@@ -23,12 +23,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # package.json의 engines(>=20)와 맞춘다. 개발 환경은 22를 쓴다.
+          # package.json의 engines(>=20.9) 범위 안에서 Node 22로 검사한다.
           node-version: '22'
           cache: npm
       - name: 테스트 의존성 설치
         run: npm ci
       - name: 스모크 검사 실행
         run: npm test
+      - name: CSS 구조와 배포 빌드 검증
+        run: npm run check:css && npm run build
       - name: 구조 및 복잡도 래칫 검사
         run: npm run check:architecture

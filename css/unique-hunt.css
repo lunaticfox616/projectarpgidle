@@ -1,11 +1,12 @@
+@layer components {
 .unique-hunt-panel {
     display: grid;
     gap: 10px;
     margin-bottom: 12px;
     padding: 12px;
-    border: 1px solid var(--ui-line);
-    border-radius: var(--ui-radius-sm);
-    background: var(--ui-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
 }
 
 .unique-hunt-panel > header {
@@ -16,10 +17,10 @@
 }
 
 .unique-hunt-panel > header > div { display: grid; gap: 2px; }
-.unique-hunt-panel > header span { color: var(--ui-gold); font-size: 11px; font-weight: 900; letter-spacing: .14em; }
-.unique-hunt-panel > header strong { color: var(--ui-text); font-size: 13px; }
-.unique-hunt-panel > header small { color: var(--ui-text-2); line-height: 1.4; }
-.unique-hunt-panel > header > b { min-width: 48px; padding: 6px 9px; border: 1px solid rgba(225, 187, 94, .48); border-radius: 999px; color: var(--ui-gold); text-align: center; }
+.unique-hunt-panel > header span { color: var(--color-accent-gold); font-size: 11px; font-weight: 900; letter-spacing: .14em; }
+.unique-hunt-panel > header strong { color: var(--color-text); font-size: 13px; }
+.unique-hunt-panel > header small { color: var(--color-text-secondary); line-height: 1.4; }
+.unique-hunt-panel > header > b { min-width: 48px; padding: 6px 9px; border: 1px solid rgba(225, 187, 94, .48); border-radius: 999px; color: var(--color-accent-gold); text-align: center; }
 
 .unique-hunt-targets {
     display: grid;
@@ -31,26 +32,26 @@
     min-width: 0;
     min-height: 108px;
     padding: 9px;
-    border: 1px solid var(--ui-line);
-    border-radius: var(--ui-radius-sm);
-    background: var(--ui-surface-1);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
 }
 
 .unique-hunt-target { display: grid; align-content: space-between; gap: 6px; box-shadow: inset 3px 0 0 #d6ad54; }
 .unique-hunt-target.is-chase { border-color: rgba(194, 107, 240, .5); box-shadow: inset 3px 0 0 #bd68eb, 0 0 14px rgba(151, 65, 205, .12); }
 .unique-hunt-target-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.unique-hunt-target-head span { color: var(--ui-text-2); font-size: .7rem; }
-.unique-hunt-target-head b { padding: 2px 5px; border-radius: 999px; background: rgba(214, 173, 84, .12); color: var(--ui-gold); font-size: .65rem; }
-.unique-hunt-target.is-chase .unique-hunt-target-head b { background: rgba(189, 104, 235, .15); color: var(--ui-text); }
-.unique-hunt-target > strong { overflow: hidden; color: var(--ui-gold); text-overflow: ellipsis; white-space: nowrap; }
-.unique-hunt-target > small { min-height: 30px; color: var(--ui-text-2); line-height: 1.35; }
+.unique-hunt-target-head span { color: var(--color-text-secondary); font-size: .7rem; }
+.unique-hunt-target-head b { padding: 2px 5px; border-radius: 999px; background: rgba(214, 173, 84, .12); color: var(--color-accent-gold); font-size: .65rem; }
+.unique-hunt-target.is-chase .unique-hunt-target-head b { background: rgba(189, 104, 235, .15); color: var(--color-text); }
+.unique-hunt-target > strong { overflow: hidden; color: var(--color-accent-gold); text-overflow: ellipsis; white-space: nowrap; }
+.unique-hunt-target > small { min-height: 30px; color: var(--color-text-secondary); line-height: 1.35; }
 .unique-hunt-target > div:last-child { display: grid; grid-template-columns: 1fr auto; gap: 5px; }
 .unique-hunt-target button { min-height: 30px; padding: 4px 7px; font-size: .72rem; }
 
-.unique-hunt-empty-slot { grid-column: 1 / -1; margin: 0; color: var(--ui-text-3); font: inherit; font-size: 12px; line-height: 1.5; }
+.unique-hunt-empty-slot { grid-column: 1 / -1; margin: 0; color: var(--color-text-tertiary); font: inherit; font-size: 12px; line-height: 1.5; }
 
 .codex-card .item-actions { align-content: start; }
-.codex-hunt-toggle { min-width: 88px; border-color: rgba(201, 164, 76, .52); color: var(--ui-gold); }
+.codex-hunt-toggle { min-width: 88px; border-color: rgba(201, 164, 76, .52); color: var(--color-accent-gold); }
 .codex-hunt-toggle.active { border-color: #e0b554; background: linear-gradient(180deg, #6d521f, #463314); color: #fff2bc; box-shadow: inset 0 0 0 1px rgba(255, 228, 159, .16); }
 
 @media (max-width: 720px) {
@@ -58,4 +59,5 @@
     .unique-hunt-target { min-height: 88px; }
     .unique-hunt-panel > header { align-items: flex-start; }
     .unique-hunt-panel > header small { max-width: 34ch; }
+}
 }

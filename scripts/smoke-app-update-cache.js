@@ -11,7 +11,7 @@ const source = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const registrationMatch = html.match(/<script id="app-update-registration">([\s\S]*?)<\/script>/);
 
 assert(registrationMatch, 'app shell must include the update registration boundary');
-assert(html.includes('20260811-passive-tree-layout1'), 'changed passive-tree styles must receive an immediate cache version');
+// CSS content hashes and their dependency graph are verified by smoke-css-build.
 
 async function verifyRegistrationBehavior() {
     const serviceWorkerListeners = {};

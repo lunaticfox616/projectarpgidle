@@ -238,7 +238,7 @@ assert(!elements['ui-sea-gift-panel'].innerHTML.includes('테스트 중인 컨�
     'finished sea-gift presentation must not retain the prototype warning');
 
 const html = fs.readFileSync('index.html', 'utf8');
-assert(html.includes('css/ocean.css') && html.includes('class="ocean-panel-shell"'),
+assert(fs.readFileSync('css/main.css', 'utf8').includes('./ocean.css') && html.includes('class="ocean-panel-shell"'),
     'the ocean UI must load its dedicated responsive stylesheet');
 
 console.log('smoke-ocean-fishing-progression passed');

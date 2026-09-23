@@ -1,3 +1,4 @@
+@layer features {
 .gem-core-tone { color: #e4ba79; }
 .gem-sky-tone { color: #8cd8ef; }
 .gem-core-section h3 { margin: 0 0 12px; font-size: 15px; color: #eee3cb; }
@@ -26,10 +27,9 @@ dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #1
 .gem-forge-header small { font-size: 12px; color: var(--forge-muted); }
 .gem-forge-header h2 { margin: 2px 0 0; padding: 0; border: 0; font-size: 23px; letter-spacing: -.5px; color: var(--forge-accent); }
 .gem-forge-dialog button { font: inherit; cursor: pointer; }
-#gem-core-forge-overlay .gem-forge-header button { padding: 7px 12px; border: 1px solid var(--forge-line); border-radius: 5px; color: var(--forge-text) !important; background: transparent !important; }
+#gem-core-forge-overlay .gem-forge-header button { padding: 7px 12px; border: 1px solid var(--forge-line); border-radius: 5px; }
 .gem-forge-materials { display: flex; gap: 6px; margin-top: 16px; }
-#gem-core-forge-overlay .gem-forge-materials button { flex: 1; padding: 9px; background: transparent !important; border: 1px solid transparent !important; border-radius: 5px; color: var(--forge-muted) !important; box-shadow: none !important; }
-#gem-core-forge-overlay .gem-forge-materials button[aria-pressed="true"] { background: color-mix(in srgb, var(--forge-accent) 10%, transparent) !important; color: var(--forge-accent) !important; border-color: var(--forge-line) !important; }
+#gem-core-forge-overlay .gem-forge-materials button { flex: 1; padding: 9px; border-radius: 5px; }
 .gem-forge-stage { position: relative; isolation: isolate; display: flex; align-items: center; flex-direction: column; padding: 20px 0 16px; }
 .gem-forge-stage .gem-forge-art { position: relative; width: 56px; height: 56px; display: inline-block; object-fit: contain; }
 .gem-forge-art img { width: 100%; height: 100%; object-fit: contain; }
@@ -62,7 +62,7 @@ dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #1
 .gem-forge-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 18px; }
 .gem-forge-footer > div { display: flex; flex-direction: column; font-size: 12px; }
 .gem-forge-footer small { color: var(--forge-muted); }
-#gem-core-forge-overlay .gem-forge-footer > button { min-width: 150px; min-height: 46px; border: 1px solid var(--forge-accent) !important; border-radius: 6px; background: var(--forge-accent) !important; color: var(--forge-on-accent) !important; font-weight: 800; }
+#gem-core-forge-overlay .gem-forge-footer > button { min-width: 150px; min-height: 46px; border-radius: 6px; font-weight: 800; }
 .gem-forge-dialog button:disabled { opacity: .45; cursor: default; }
 .gem-forge-dialog button:focus-visible { outline: 2px solid var(--forge-accent); outline-offset: 3px; }
 .gem-forge-dialog.charging .gem-forge-art { animation: gem-forge-charge 450ms ease-in both; }
@@ -89,7 +89,13 @@ body.light-mode .gem-sky-tone { color: #226078; }
     .gem-forge-halo { top: 6px; width: 64px; height: 64px; }
     .gem-forge-result { min-height: 46px; }
     #gem-core-forge-overlay .gem-forge-footer > button { min-width: 130px; }
-}
+} }
+
+@layer overrides {
+#gem-core-forge-overlay .gem-forge-header button { color: var(--forge-text); background: transparent; }
+#gem-core-forge-overlay .gem-forge-materials button { background: transparent; border: 1px solid transparent; color: var(--forge-muted); box-shadow: none; }
+#gem-core-forge-overlay .gem-forge-materials button[aria-pressed="true"] { background: color-mix(in srgb, var(--forge-accent) 10%, transparent); color: var(--forge-accent); border-color: var(--forge-line); }
+#gem-core-forge-overlay .gem-forge-footer > button { border: 1px solid var(--forge-accent); background: var(--forge-accent); color: var(--forge-on-accent); }
 @media (prefers-reduced-motion: reduce) {
-    .gem-forge-dialog .gem-forge-art, .gem-forge-dialog .gem-forge-halo, .gem-forge-dialog .gem-forge-level-bonus { animation: none !important; }
-}
+    .gem-forge-dialog .gem-forge-art, .gem-forge-dialog .gem-forge-halo, .gem-forge-dialog .gem-forge-level-bonus { animation: none; }
+} }

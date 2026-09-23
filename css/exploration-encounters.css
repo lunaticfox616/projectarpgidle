@@ -1,16 +1,12 @@
-/* Leaf content uses the same region header; entry controls remain in each owning panel. */
-#tab-map .vertical-tab-panel>h2:not(:has(button)),
-#tab-map>.ui-window-body>.subtab-content>h2:not(:has(button)),
-#tab-map>.subtab-content>h2:not(:has(button)),
-#tab-map .exploration-legacy-title{display:none!important}
-#tab-map .vertical-tab-panel>h2:has(button){margin:0 0 12px;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;line-height:1}
-#tab-map .vertical-tab-panel>h2>button{margin:0!important;padding:7px 12px!important;font-size:12px!important;border:1px solid #a3946359!important;border-radius:4px;background:#26291f!important;color:#ddd3b5;min-height:34px}
+@layer components{/* Leaf content uses the same region header; entry controls remain in each owning panel. */
+#tab-map .vertical-tab-panel>h2:has(button){margin:0 0 12px;line-height:1}
+#tab-map .vertical-tab-panel>h2>button{border-radius:4px;color:#ddd3b5;min-height:34px}
 #tab-map .journey-header .journey-eyebrow,#tab-map .journey-header h2{display:none}
 #tab-map .journey-header p{margin:0;font-size:12px;color:#b8beb1}
 #tab-map .journey-header{padding:10px 0;min-height:0;background:none;border:0}
 #tab-map .journey-header .journey-navigation{width:100%;flex-direction:row;justify-content:space-between}
 #tab-map #map-ready-destinations{display:flex;align-items:center;flex-wrap:wrap;margin:0 0 14px;border:0;border-bottom:1px solid #b6a57833;padding:6px 0;background:none;gap:6px;overflow:visible}
-#tab-map #map-ready-destinations>button{min-width:0;max-width:100%;white-space:normal;text-align:left;border:0;border-radius:0;background:none!important;box-shadow:none!important;font-size:12px;padding:6px 0}
+#tab-map #map-ready-destinations>button{min-width:0;max-width:100%;white-space:normal;text-align:left;border:0;border-radius:0;font-size:12px;padding:6px 0}
 #tab-map #map-ready-destinations>details{margin-left:auto;font-size:12px;color:#d0bd92;max-width:100%}
 #tab-map #map-ready-destinations summary{list-style:none;cursor:pointer;padding:6px 8px;border:1px solid #a9976d50;border-radius:4px}
 #tab-map #map-ready-destinations summary::-webkit-details-marker{display:none}
@@ -22,46 +18,46 @@
 #tab-map .encounter-pending-title{margin:18px 0 8px;font-size:13px;color:#b7b7a7;font-weight:500}
 #tab-map #ui-season-boss-list .map-zone-group-count::after{content:' · 펼치기'}
 #tab-map #ui-season-boss-list .map-zone-group:not(.collapsed) .map-zone-group-count::after{content:' · 접기'}
-#tab-map #ui-season-boss-list{display:block;margin-top:0!important;container-type:inline-size}
+#tab-map #ui-season-boss-list{display:block;container-type:inline-size}
 #tab-map #ui-season-boss-list .map-zone-group{margin:0 0 18px;padding:0;border:0;background:none}
-#tab-map #ui-season-boss-list .map-zone-group-header{width:100%;padding:8px 0;margin:0 0 8px;background:none!important;box-shadow:none!important;border:0!important;border-bottom:1px solid #b6a57844!important;border-radius:0;color:#d8c497;font-size:15px;text-align:left;display:flex;justify-content:space-between}
+#tab-map #ui-season-boss-list .map-zone-group-header{width:100%;padding:8px 0;margin:0 0 8px;border-radius:0;color:#d8c497;font-size:15px;text-align:left;display:flex;justify-content:space-between}
 #tab-map #ui-season-boss-list .map-zone-group-icon{display:none}
 #tab-map #ui-season-boss-list .map-zone-group-count{font-size:11px;color:#a8aa9d}
 #tab-map #ui-season-boss-list .map-zone-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 #tab-map #ui-season-boss-list .map-zone-grid>.encounter-card:only-child{grid-column:1/-1}
 @container(max-width:650px){#tab-map #ui-season-boss-list .map-zone-grid{grid-template-columns:minmax(0,1fr)}}
-#tab-map #ui-trial-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px;margin-top:0!important}
-#tab-map .encounter-card{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px;min-width:0;padding:18px;border:1px solid var(--ui-line-strong);border-radius:5px;background:var(--ui-surface-1);color:var(--ui-text);cursor:default;box-shadow:none;line-height:1.6}
-#tab-map .encounter-card:hover{transform:none;background:var(--ui-surface-1)}
-#tab-map .encounter-card .map-zone-status{color:var(--ui-text-2)}
+#tab-map #ui-trial-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px}
+#tab-map .encounter-card{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px;min-width:0;padding:18px;border:1px solid var(--color-line-strong);border-radius:5px;background:var(--color-surface);color:var(--color-text);cursor:default;box-shadow:none;line-height:1.6}
+#tab-map .encounter-card:hover{transform:none;background:var(--color-surface)}
+#tab-map .encounter-card .map-zone-status{color:var(--color-text-secondary)}
 #tab-map .encounter-card.current{border-color:#d8bd78}
 #tab-map .encounter-card.trial-pending{border-left:3px solid #d8bd78}
-#tab-map .encounter-card.trial-completed{border-left:3px solid #6d926e;background:var(--ui-surface-2)}
+#tab-map .encounter-card.trial-completed{border-left:3px solid #6d926e;background:var(--color-surface-raised)}
 #tab-map .encounter-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
-#tab-map .encounter-heading>strong{font-size:20px;font-weight:600;line-height:1.5;overflow-wrap:anywhere;word-break:keep-all;color:var(--ui-text)}
-#tab-map .encounter-state{font-size:12px;white-space:nowrap;color:var(--ui-text-2);flex-shrink:0}
-#tab-map .encounter-card p{margin:0;font-size:16px;color:var(--ui-text);line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
+#tab-map .encounter-heading>strong{font-size:20px;font-weight:600;line-height:1.5;overflow-wrap:anywhere;word-break:keep-all;color:var(--color-text)}
+#tab-map .encounter-state{font-size:12px;white-space:nowrap;color:var(--color-text-secondary);flex-shrink:0}
+#tab-map .encounter-card p{margin:0;font-size:16px;color:var(--color-text);line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
 #tab-map .encounter-card .map-power-estimate{display:flex;flex-wrap:wrap;gap:6px 16px;align-self:flex-start;font-size:14px;line-height:1.6;margin:0;padding:0}
-#tab-map .encounter-reward{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px;font-size:15px;font-weight:600;color:var(--ui-accent)}
-#tab-map .encounter-reward small{font-size:12px;font-weight:400;color:var(--ui-text-2)}
-#tab-map .encounter-entry-source{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:13px;color:var(--ui-text-2);line-height:1.6}
-#tab-map .encounter-entry-source small{font-size:12px;color:var(--ui-text-2);flex-shrink:0}
-#tab-map .encounter-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--ui-line);padding-top:10px;margin-top:auto;font-size:14px;color:var(--ui-text-2)}
+#tab-map .encounter-reward{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px;font-size:15px;font-weight:600;color:var(--color-accent)}
+#tab-map .encounter-reward small{font-size:12px;font-weight:400;color:var(--color-text-secondary)}
+#tab-map .encounter-entry-source{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+#tab-map .encounter-entry-source small{font-size:12px;color:var(--color-text-secondary);flex-shrink:0}
+#tab-map .encounter-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--color-line);padding-top:10px;margin-top:auto;font-size:14px;color:var(--color-text-secondary)}
 #tab-map .encounter-footer>span{min-width:0;overflow-wrap:anywhere;word-break:keep-all;line-height:1.6}
-#tab-map .encounter-footer button{flex-shrink:0;min-width:88px;min-height:44px;padding:9px 16px;border:1px solid var(--ui-line-strong);border-radius:4px;background:var(--ui-surface-2);color:var(--ui-accent);font:inherit;cursor:pointer}
-#tab-map .encounter-footer button:disabled{background:var(--ui-surface-1);color:var(--ui-text-2);border-color:var(--ui-line);cursor:default}
+#tab-map .encounter-footer button{flex-shrink:0;min-width:88px;min-height:44px;padding:9px 16px;border:1px solid var(--color-line-strong);border-radius:4px;background:var(--color-surface-raised);color:var(--color-accent);font:inherit;cursor:pointer}
+#tab-map .encounter-footer button:disabled{background:var(--color-surface);color:var(--color-text-secondary);border-color:var(--color-line);cursor:default}
 #tab-map .encounter-footer button:focus-visible{outline:2px solid #efd6a2;outline-offset:2px}
-#tab-map #ui-trial-list .encounter-reward{font-size:18px;gap:4px 12px;padding:9px 0;border-top:1px solid var(--ui-line)}
+#tab-map #ui-trial-list .encounter-reward{font-size:18px;gap:4px 12px;padding:9px 0;border-top:1px solid var(--color-line)}
 #tab-map #ui-trial-list .encounter-reward small{font-size:13px}
-#tab-map #ui-trial-list .trial-pending .encounter-footer button{font-weight:600;border-color:var(--ui-accent);color:var(--ui-text);background:var(--ui-surface-3)}
+#tab-map #ui-trial-list .trial-pending .encounter-footer button{font-weight:600;border-color:var(--color-accent);color:var(--color-text);background:var(--color-control)}
 @media(max-width:700px){#tab-map .encounter-card{padding:14px}#tab-map .encounter-heading>strong{font-size:18px}#tab-map .encounter-footer{gap:8px}}
 
 /* Act choices prioritize readable names and stable actions over narrow card density. */
 #tab-map #ui-map-list{container-type:inline-size}
 #tab-map #ui-map-list .map-zone-grid--hunting{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-#tab-map #ui-map-list .map-zone-group-header{padding:8px 0;border:0!important;border-bottom:1px solid #b6a57844!important;border-radius:0;background:none!important;box-shadow:none!important;color:#c6c5b2;font-size:13px}
+#tab-map #ui-map-list .map-zone-group-header{padding:8px 0;border-radius:0;color:#c6c5b2;font-size:13px}
 #tab-map #ui-map-list .map-zone-group-icon{display:none}
-#tab-map #ui-map-list .map-item--act{padding:12px!important;min-width:0;gap:6px}
+#tab-map #ui-map-list .map-item--act{min-width:0;gap:6px}
 #tab-map #ui-map-list .map-item--act .map-item-main{font-size:17px;line-height:1.6;font-weight:500}
 #tab-map #ui-map-list .map-item--act .map-zone-status{font-size:12px;color:#b8c0ac}
 #tab-map #ui-map-list .map-item--act .map-power-estimate{font-size:12px;line-height:1.7}
@@ -84,12 +80,28 @@
 #reward-overlay .tutorial-title{font-size:23px;line-height:1.4;font-weight:500;color:#f2e9d5;padding:0 0 14px;margin:0 0 14px;border-bottom:1px solid #b6a57844;word-break:keep-all;overflow-wrap:anywhere}
 #reward-overlay .tutorial-body{font-size:13px;line-height:1.7;color:#bfc7b6}
 #reward-overlay .reward-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:18px}
-#reward-overlay .reward-choice{padding:14px 16px;border:1px solid #a9976d50;border-radius:4px;background:#182119!important;box-shadow:none!important;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0;white-space:normal}
+#reward-overlay .reward-choice{padding:14px 16px;border:1px solid #a9976d50;border-radius:4px;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0;white-space:normal}
 #reward-overlay .reward-choice strong{font-size:15px;color:#e5d3a2;font-weight:600}
 #reward-overlay .reward-choice span{font-size:13px;color:#e0e4d7}
 #reward-overlay .reward-choice small{font-size:11px;color:#a8b09e}
-#reward-overlay .reward-choice:hover{border-color:#d4b87b;background:#252d1d!important;transform:none}
+#reward-overlay .reward-choice:hover{border-color:#d4b87b;transform:none}
 #reward-overlay .reward-choice:focus-visible,#reward-overlay .tutorial-secondary:focus-visible{outline:2px solid #efd6a2;outline-offset:2px}
 #reward-overlay .tutorial-actions{display:flex;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #b6a57833}
-#reward-overlay .tutorial-secondary{min-height:40px;padding:8px 20px;font-size:13px;border:1px solid #a9976d66;border-radius:4px;background:#22271c!important;color:#dfd5b9}
-@media(max-width:600px){#reward-overlay{padding:12px}#reward-overlay .tutorial-card{padding:18px;max-height:calc(100dvh - 24px)}#reward-overlay .tutorial-title{font-size:20px}#reward-overlay .tutorial-secondary{min-height:44px}}
+#reward-overlay .tutorial-secondary{min-height:40px;padding:8px 20px;font-size:13px;border:1px solid #a9976d66;border-radius:4px;color:#dfd5b9}
+@media(max-width:600px){#reward-overlay{padding:12px}#reward-overlay .tutorial-card{padding:18px;max-height:calc(100dvh - 24px)}#reward-overlay .tutorial-title{font-size:20px}#reward-overlay .tutorial-secondary{min-height:44px}}}
+@layer overrides{
+#tab-map .vertical-tab-panel>h2:not(:has(button)),
+#tab-map>.ui-window-body>.subtab-content>h2:not(:has(button)),
+#tab-map>.subtab-content>h2:not(:has(button)),
+#tab-map .exploration-legacy-title{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
+#tab-map .vertical-tab-panel>h2:has(button){padding:0;border:0;background:none;box-shadow:none}
+#tab-map .vertical-tab-panel>h2>button{margin:0;padding:7px 12px;font-size:12px;border:1px solid #a3946359;background:#26291f}
+#tab-map #map-ready-destinations>button{background:none;box-shadow:none}
+#tab-map #ui-season-boss-list{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */margin-top:0!important}
+#tab-map #ui-season-boss-list .map-zone-group-header{background:none;box-shadow:none;border:0;border-bottom:1px solid #b6a57844}
+#tab-map #ui-trial-list{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */margin-top:0!important}
+#tab-map #ui-map-list .map-zone-group-header{border:0;border-bottom:1px solid #b6a57844;background:none;box-shadow:none}
+#tab-map #ui-map-list .map-item--act{padding:12px}
+#reward-overlay .reward-choice{background:#182119;box-shadow:none}
+#reward-overlay .reward-choice:hover{background:#252d1d}
+#reward-overlay .tutorial-secondary{background:#22271c}}

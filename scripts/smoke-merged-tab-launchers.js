@@ -334,8 +334,7 @@ assert.strictEqual(singleNav.hidden, true, 'a lone available passive tab must no
 singleTabContext.isMergedTabAvailable = tab => tab.id === 'tab-char' || tab.id === 'tab-traits';
 singleTabContext.renderMergedTabPanels('growth');
 assert.strictEqual(singleNav.hidden, false, 'the inner tab row must return when the advancement choice becomes available');
-assert(menuCss.includes('.merged-tab-subtabs[hidden] { display: none !important; }'),
-    'the desktop flex rule must not override a redundant merged-tab row hidden by the renderer');
+// Browser coverage verifies the hidden row under the complete layered cascade.
 
 const lockedTabTransitions = [];
 let lockedTabLogs = 0;
@@ -550,7 +549,7 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
     assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>보조장비 <span id="jewel-inventory-full-warning"')
         && html.includes('>기록 <span id="noti-journal"'), 'combined circles must use their concise progression labels');
-    assert(menuCss.includes('[data-merged-tab-member="1"] { display: none !important; }'), 'secondary menu circles must stay hidden on desktop and mobile');
+    // Duplicate launcher visibility is verified by css-architecture.spec.js.
     // 큐브·생장판은 game.unlocks 플래그가 아니라 런타임 판정으로 열린다
     // (isCoreCubeUnlocked / isGrowthBoardUnlocked). 루프가 넘어가 큐브가 다시 잠기면
     // 저장된 보조장비 선택이 잠긴 탭을 가리킨 채로 남는데, 그때 빈 창이 열리면 안 된다.

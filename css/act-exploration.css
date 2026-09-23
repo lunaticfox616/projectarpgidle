@@ -1,3 +1,4 @@
+@layer features {
 #act-exploration-panel {padding:10px;border-bottom:1px solid #65573a;background:#0b130f;flex:0 0 auto;color:#ddd4b9;}
 #act-exploration-panel[hidden] {display:none;}
 .combat-feed.collapsed #act-exploration-panel {display:none;}
@@ -35,4 +36,5 @@
 @media(max-width:1080px) {
     #act-exploration-panel {display:none;}
     #act-exploration-map-large {max-height:55vh;}
+}
 }

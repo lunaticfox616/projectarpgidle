@@ -203,7 +203,7 @@ test('asset loading uses theme surfaces and reports real progress without drifti
         expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
         expect(await card.evaluate(el => {
             const expected = document.createElement('div');
-            expected.style.backgroundColor = 'var(--ui-surface-2)';
+            expected.style.backgroundColor = 'var(--color-surface-raised)';
             el.append(expected);
             const matches = getComputedStyle(expected).backgroundColor === getComputedStyle(el).backgroundColor;
             expected.remove();
@@ -1336,7 +1336,9 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         await page.evaluate(id => switchTab(id), tabId);
         for (const panelId of panels) {
             await page.evaluate(([name, id]) => window[name](id), [switcher, panelId]);
-            await expect(page.locator(`#${panelId}`)).toHaveClass(/active/);
+            // The legacy fossil entry already redirects to the unified currency workspace.
+            const destination = panelId === 'item-tab-fossil' ? 'item-tab-craft' : panelId;
+            await expect(page.locator(`#${destination}`)).toHaveClass(/active/);
         }
     }
     await page.evaluate(() => {
@@ -3908,7 +3910,7 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     await page.evaluate(() => { closeCommunityDock(); switchTab('tab-settings'); });
     await page.locator('#sel-chat-message-size').selectOption('large');
     await expect(page.locator('body')).toHaveAttribute('data-chat-message-size', 'large');
-    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--social-chat-message-size').trim())).toBe('14px');
+    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--font-size-chat').trim())).toBe('14px');
     expect(failures).toEqual([]);
 });
 
@@ -4071,7 +4073,7 @@ test('void crafting and profile follow the theme; Wisdom Leap is read only', asy
         await expect(profile).toBeVisible();
         const colors = await profile.evaluate(el => {
             const style = getComputedStyle(el.querySelector('.social-modal-box'));
-            const token = getComputedStyle(document.body).getPropertyValue('--ui-surface-1').trim();
+            const token = getComputedStyle(document.body).getPropertyValue('--color-surface').trim();
             const probe = document.createElement('div');probe.style.backgroundColor=token;document.body.appendChild(probe);
             const expected = getComputedStyle(probe).backgroundColor;probe.remove();
             return { actual:style.backgroundColor, expected, overflow:el.scrollWidth-el.clientWidth };

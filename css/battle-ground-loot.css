@@ -1,4 +1,4 @@
-/* Bounded ground loot presentation, below actors. No continuously animated light pillars. */
+@layer components{/* Bounded ground loot presentation, below actors. No continuously animated light pillars. */
 .battle-loot-layer{position:absolute;z-index:12;pointer-events:none;overflow:hidden}
 .battle-loot-foreground{position:absolute;z-index:13;pointer-events:none;max-width:none}
 .battle-loot-air{position:absolute;z-index:14;pointer-events:none;overflow:hidden}
@@ -27,4 +27,4 @@
 @keyframes loot-contact{0%{opacity:0;transform:scale(.4)}20%{opacity:.8}100%{opacity:0;transform:scale(1.45)}}
 @keyframes loot-beam-arrival{0%{transform:scale(.7,.25)}30%{transform:scale(1.1,1.03)}100%{transform:scale(1)}}
 @keyframes loot-receive{0%{opacity:0;transform:scale(.3)}22%{opacity:.75}100%{opacity:0;transform:scale(1.25)}}
-@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-name,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}
+@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-name,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}

@@ -59,7 +59,10 @@ for(const [source,hash] of Object.entries(handoff.sourceSha256)){
         target=path.basename(handoff.skills.find(skill=>skill.id===id).path,'.png')+'.webp';
     }
     target=target.replace('-showcase.gif','.gif');
-    assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync('docs/skill-assets-v338/reference/'+target)).digest('hex'),hash,'reference keeps original bytes: '+source);
+    const bytes=fs.readFileSync('docs/skill-assets-v338/reference/'+target);
+    // Git autocrlf changes text checkout bytes on Windows, not the delivered content.
+    const canonical=/\.(md|json|txt)$/.test(target)?bytes.toString('utf8').replaceAll('\r\n','\n'):bytes;
+    assert.strictEqual(crypto.createHash('sha256').update(canonical).digest('hex'),hash,'reference keeps original content: '+source);
 }
 for(const spec of Object.values(atlas)) {
     const frames=[...spec.frames,...Object.values(spec.variants).flat(),spec.rainFrame,spec.lanceFrame,spec.flaskFrame].filter(Boolean);

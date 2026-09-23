@@ -1237,7 +1237,7 @@ function renderProfileGrowthList(rows) {
         let color = socialRarityColor(it.rarity);
         let key = `gw:${idx}`;
         socialState.profileTips[key] = renderProfileItemCard(it);
-        return `<div class="social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(it.slot || '생장')}]</div><div class="social-slot-name" style="color:var(--ui-text);">${socialEscape(it.name)}</div></div>`;
+        return `<div class="social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(it.slot || '생장')}]</div><div class="social-slot-name" style="color:var(--color-text);">${socialEscape(it.name)}</div></div>`;
     }).join('') + `</div>`;
 }
 
@@ -1305,7 +1305,7 @@ function renderProfileLegacyPaperdoll(equipment) {
         let color = socialRarityColor(it.rarity);
         let key = `eq:${slot}`;
         socialState.profileTips[key] = renderProfileItemCard(it);
-        return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:var(--ui-text);">${socialEscape(it.name)}</div></div>`;
+        return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:var(--color-text);">${socialEscape(it.name)}</div></div>`;
     }).join('') + `</div>`;
 }
 // 부적: 실제 배치도(8x8 보드) 형태
@@ -1517,7 +1517,7 @@ function injectSocialStyles() {
     .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
     .social-online-empty{color:var(--copy-muted);font-size:0.82em;}
     .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}
-    .social-chat-list{height:calc(46vh / var(--ui-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+    .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
     .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:0.9em;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:.8em;}
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
     .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
@@ -1525,7 +1525,7 @@ function injectSocialStyles() {
     .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:0.86em;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
     .social-chat-nick:hover{text-decoration:underline;}
     .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:0.68em;white-space:nowrap;}
-    .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--social-chat-message-size,12px);line-height:1.5;}
+    .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--font-size-chat,12px);line-height:1.5;}
     .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
     .social-chat-input-shell{position:relative;min-width:0;}
     .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:44px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}
@@ -1540,15 +1540,15 @@ function injectSocialStyles() {
     .social-item-link{display:inline-block;font-size:0.86em;font-weight:700;border:1px solid;border-radius:6px;padding:0 6px;margin:0 1px;cursor:pointer;}
     .social-item-link:hover{filter:brightness(1.2);}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
-    .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--ui-display-factor, 1)));max-height:calc(90vh / var(--ui-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:var(--ui-surface-1);border:1px solid var(--ui-line-strong);border-radius:var(--ui-radius-lg);color:var(--ui-text);}
+    .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--scale-display-factor, 1)));max-height:calc(90vh / var(--scale-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-lg);color:var(--color-text);}
     .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:20px;min-height:0;overscroll-behavior:contain;}
     /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
        덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
-    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:36px;height:36px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:var(--ui-surface-2);border:1px solid var(--ui-line);color:var(--ui-text);border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
-    .social-modal-close:hover{background:var(--ui-surface-3);}
+    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:36px;height:36px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:var(--color-surface-raised);border:1px solid var(--color-line);color:var(--color-text);border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
+    .social-modal-close:hover{background:var(--color-control);}
     .social-profile-empty{color:var(--copy-muted);text-align:center;padding:24px;}
-    .social-profile-header{border-bottom:1px solid var(--ui-line);padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
-    .social-profile-name{font-size:1.4em;font-weight:800;color:var(--ui-accent);}
+    .social-profile-header{border-bottom:1px solid var(--color-line);padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
+    .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:0.78em;margin-top:4px;}
     .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}
@@ -1556,8 +1556,8 @@ function injectSocialStyles() {
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
     .social-profile-tabs{display:flex;gap:6px;margin-bottom:8px;}
-    .social-profile-tabs button{flex:1;min-width:0;min-height:40px;padding:6px 4px;background:var(--ui-surface-2);border:1px solid var(--ui-line);border-radius:7px;color:var(--ui-text);cursor:pointer;font-size:0.84em;}
-    .social-profile-tabs button.active{background:var(--ui-surface-3);border-color:var(--ui-accent);color:var(--ui-text);font-weight:700;}
+    .social-profile-tabs button{flex:1;min-width:0;min-height:40px;padding:6px 4px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:7px;color:var(--color-text);cursor:pointer;font-size:0.84em;}
+    .social-profile-tabs button.active{background:var(--color-control);border-color:var(--color-accent);color:var(--color-text);font-weight:700;}
     @media(max-width:420px){
         .social-chat-inputbar{grid-template-columns:44px minmax(0,1fr) 64px;gap:5px;}
         .social-chat-inputbar button{padding:7px 8px;font-size:0.78em;}
@@ -1566,19 +1566,19 @@ function injectSocialStyles() {
         .social-send-btn{min-width:52px!important;}
     }
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
-    .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--ui-surface-2);border:1px solid var(--ui-line);border-radius:6px;padding:5px 9px;}
+    .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:6px;padding:5px 9px;}
     .social-stat-label{color:var(--copy-bright);font-size:0.86em;}
-    .social-stat-value{color:var(--ui-text);font-weight:700;font-size:0.9em;}
+    .social-stat-value{color:var(--color-text);font-weight:700;font-size:0.9em;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
-    .social-mini-card{background:var(--ui-surface-2);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:0.86em;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .social-mini-card:hover{background:var(--ui-surface-3);}
+    .social-mini-card{background:var(--color-surface-raised);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:0.86em;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .social-mini-card:hover{background:var(--color-control);}
     .social-paperdoll{margin:0;}
-    .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:var(--ui-surface-2);}
-    .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed var(--ui-line);}
+    .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:var(--color-surface-raised);}
+    .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed var(--color-line);}
     .social-paperdoll .social-slot-tag{font-size:0.66em;color:var(--copy-muted);font-weight:700;}
     .social-paperdoll .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
     .social-growth-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;}
-    .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:var(--ui-surface-2);}
+    .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:var(--color-surface-raised);}
     .social-growth-list .social-slot-tag{font-size:0.66em;color:#8aa0bd;font-weight:700;}
     .social-growth-list .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
     .social-growth-legacy{margin:0 0 8px;padding:8px 10px;border:1px solid rgba(183,147,91,.32);border-radius:7px;color:#cbb996;background:rgba(73,53,28,.18);font-size:.76em;line-height:1.45;}
@@ -1606,7 +1606,7 @@ function injectSocialStyles() {
     .social-item-stat.base{color:#f1c40f;}
     .social-roll{color:var(--copy-muted);font-size:0.92em;}
     .social-pick-sub{color:var(--copy-bright);margin:14px 0 6px;font-size:0.9em;}
-    .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:calc(30vh / var(--ui-display-factor, 1));overflow-y:auto;}
+    .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:calc(30vh / var(--scale-display-factor, 1));overflow-y:auto;}
     .social-pick-item{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:0.86em;}
     .social-pick-item:hover{background:#16243a;}
     .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}

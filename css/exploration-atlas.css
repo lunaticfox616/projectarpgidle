@@ -1,6 +1,4 @@
-/* Separate regional landscapes; content panels retain their specialized interaction. */
-#tab-map .map-primary-tabs,#tab-map .map-explore-layout>.vertical-tab-sidebar{display:none!important}
-#tab-map.is-atlas-overview .exploration-toolbar,#tab-map.is-atlas-overview #map-ready-destinations,#tab-map.is-atlas-overview #exploration-region-banner{display:none!important}
+@layer components{/* Separate regional landscapes; content panels retain their specialized interaction. */
 #tab-map .map-explore-layout{display:block}
 #tab-map .map-explore-layout>.vertical-tab-panels{padding:0;border:0;background:none}
 #tab-map .exploration-toolbar{display:flex;align-items:center;gap:16px;margin:0;padding:8px 18px;background:#101913;border:1px solid #ac9a623e;border-radius:6px 6px 0 0}
@@ -16,7 +14,7 @@
 #ui-exploration-atlas .atlas-heading{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;min-height:36px;box-sizing:content-box;background:#101913;border-bottom:1px solid #c7ac632b;gap:10px}
 #ui-exploration-atlas .atlas-breadcrumb{display:flex;align-items:center;gap:12px;font-size:12px}
 #ui-exploration-atlas .atlas-breadcrumb>span{color:#b7b6a3}
-#ui-exploration-atlas .atlas-heading h2{margin:0;padding:0;border:0;background:none!important;font-size:26px;font-weight:500;color:inherit;box-shadow:none}
+#ui-exploration-atlas .atlas-heading h2{margin:0;padding:0;border:0;font-size:26px;font-weight:500;color:inherit;box-shadow:none}
 #ui-exploration-atlas .atlas-heading span{font-size:12px;color:#b3b8a7}
 #ui-exploration-atlas .atlas-arena{padding:5px 10px;border:1px solid #b0a47750;border-radius:3px;background:transparent;color:#c9c4b0;font-size:11px}
 #ui-exploration-atlas .atlas-regions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px}
@@ -37,7 +35,7 @@
 #ui-exploration-atlas .atlas-region-copy>span{font-size:11px;color:#ccc9bd;line-height:1.5}
 #ui-exploration-atlas .atlas-region-enter{flex-shrink:0;font-size:11px;color:var(--region-tint);padding-bottom:3px;border-bottom:1px solid}
 #ui-exploration-atlas .atlas-region-hero{position:relative;isolation:isolate;overflow:hidden;min-height:48px;padding:8px 18px;display:flex;align-items:center;background:var(--region-shade)}
-#tab-map .atlas-region-hero h2,#exploration-region-banner h2{margin:2px 0;padding:0;font-size:23px;line-height:1.3;font-weight:500;color:#f2e9d5;border:0;background:none!important;box-shadow:none}
+#tab-map .atlas-region-hero h2,#exploration-region-banner h2{margin:2px 0;padding:0;font-size:23px;line-height:1.3;font-weight:500;color:#f2e9d5;border:0;box-shadow:none}
 #tab-map .atlas-region-hero p,#exploration-region-banner p{margin:0;color:#d0c9b9;font-size:12px}
 #tab-map .atlas-region-hero small,#exploration-region-banner small{display:none}
 #ui-exploration-atlas .atlas-region-routes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:12px 18px 18px;align-items:start}
@@ -60,7 +58,7 @@
 #ui-exploration-atlas .atlas-reward-name:focus-visible{outline:1px solid var(--content-accent);outline-offset:3px}
 #ui-exploration-atlas .atlas-reward-names{display:flex;flex-wrap:wrap;gap:4px 12px}
 #ui-exploration-atlas .atlas-destination .atlas-route-target{font-size:14px;color:#e4bba8}
-#ui-exploration-atlas .atlas-tracked-reward{display:block;color:#e1b7f0!important;font-size:12px!important;line-height:1.5;overflow-wrap:anywhere}
+#ui-exploration-atlas .atlas-tracked-reward{display:block;line-height:1.5;overflow-wrap:anywhere}
 #ui-exploration-atlas .atlas-current-hunt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 18px;background:#080e0b;border-bottom:1px solid #b7a36b30}
 #ui-exploration-atlas .atlas-current-hunt>div{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;min-width:0}
 #ui-exploration-atlas .atlas-current-hunt small{color:#a7b29c;font-size:11px}
@@ -98,4 +96,10 @@
 #exploration-region-banner[hidden]{display:none}
 #exploration-region-banner{position:relative;isolation:isolate;overflow:hidden;min-height:48px;margin-bottom:0;padding:8px 18px;border:1px solid #ac9a623e;border-top:0;border-radius:0 0 6px 6px;background:var(--region-shade);color:#ede7d9}
 @container(max-width:650px){#ui-exploration-atlas .atlas-regions{grid-template-columns:1fr;padding:10px;gap:8px}#ui-exploration-atlas .atlas-region{min-height:104px;padding:14px}#ui-exploration-atlas .atlas-region-copy strong{font-size:22px}#ui-exploration-atlas .atlas-region-routes{grid-template-columns:1fr;padding:10px 12px 12px;gap:14px}#ui-exploration-atlas .atlas-destinations{grid-template-columns:1fr}#ui-exploration-atlas .atlas-region-hero{min-height:48px;padding:8px 18px}#ui-exploration-atlas .atlas-heading{padding:8px 12px}}
-@media(max-width:700px){#tab-map .exploration-toolbar{padding:8px 12px;flex-wrap:wrap;gap:8px}#exploration-location{gap:8px;flex-wrap:wrap;font-size:11px}#tab-map #mobile-map-navigation{width:40%;max-width:150px;margin-left:auto}#tab-map #mobile-map-navigation select{font-size:11px}}
+@media(max-width:700px){#tab-map .exploration-toolbar{padding:8px 12px;flex-wrap:wrap;gap:8px}#exploration-location{gap:8px;flex-wrap:wrap;font-size:11px}#tab-map #mobile-map-navigation{width:40%;max-width:150px;margin-left:auto}#tab-map #mobile-map-navigation select{font-size:11px}}}
+@layer overrides{
+#tab-map .map-primary-tabs,#tab-map .map-explore-layout>.vertical-tab-sidebar{display:none}
+#tab-map.is-atlas-overview .exploration-toolbar,#tab-map.is-atlas-overview #map-ready-destinations,#tab-map.is-atlas-overview #exploration-region-banner{display:none}
+#ui-exploration-atlas .atlas-heading h2{background:none}
+#tab-map .atlas-region-hero h2,#exploration-region-banner h2{background:none}
+#ui-exploration-atlas .atlas-tracked-reward{color:#e1b7f0;font-size:12px}}

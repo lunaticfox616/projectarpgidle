@@ -79,7 +79,7 @@ assert.deepStrictEqual(Array.from(slots), [null, 'sky_b', null, null, null]);
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const uiCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const mobileCss = fs.readFileSync('css/mobile.css', 'utf8');
-const premiumCss = fs.readFileSync('css/ui-premium.css', 'utf8');
+const premiumCss = fs.readFileSync('css/components/tabs.css', 'utf8');
 assert.ok(uiSource.includes('openGemEngraveSlotOverlay'), 'engraving slots should open a dedicated choice overlay');
 assert.ok(uiSource.includes('bindGemEngraveSlotControls(root)'), 'slot controls should use one stable delegated input handler');
 assert.ok(uiSource.includes('root.dataset.renderSig === renderSignature'), 'unchanged combat updates must not replace engraving buttons during a click');

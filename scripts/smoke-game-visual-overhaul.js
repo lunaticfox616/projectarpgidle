@@ -521,6 +521,7 @@ assert.ok(!fs.readFileSync('index.html', 'utf8').includes('passive-node-star-wed
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const luxeCss = fs.readFileSync('css/ui-luxe.css', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
+const documentCss = fs.readFileSync('css/document.css', 'utf8');
 assert.ok(indexSource.includes('<body class="startup-active">'), 'the game body must begin in its startup state before any gameplay UI can paint');
 assert.ok(indexSource.includes('id="startup-overlay" class="startup-overlay active"'), 'the startup screen must be visible in the initial HTML paint');
 assert.ok(indexSource.includes('<title>Rignin</title>'), 'the browser tab should use the Rignin game title');
@@ -530,9 +531,9 @@ assert.ok(!indexSource.includes('끝없이 되감기는 성소에서 운명을 �
   'the startup screen should not retain the removed promotional tagline');
 assert.ok(indexSource.includes('class="startup-summary-head"') && indexSource.includes('class="patch-notes-open-btn startup-patch-note-link"'),
   'patch notes should remain accessible from the single compact local-save summary card');
-assert.ok(indexSource.includes('body.startup-active #left-pane') && indexSource.includes('body.startup-active #right-pane'), 'startup paint must hide legacy gameplay panes instead of briefly showing them behind the title screen');
+assert.ok(documentCss.includes('body.startup-active #left-pane') && documentCss.includes('body.startup-active #right-pane'), 'startup stylesheet must include the gameplay curtain');
 assert.ok(indexSource.includes('<html lang="ko" class="app-preload">'), 'the document must begin behind the critical preload curtain');
-assert.ok(indexSource.includes('html.app-preload body > :not(#startup-overlay)') && indexSource.includes("classList.remove('app-preload')"), 'the preload curtain must hide unstyled gameplay and release after the styled load frame');
+assert.ok(documentCss.includes('html.app-preload body > :not(#startup-overlay)') && indexSource.includes("classList.remove('app-preload')"), 'the preload curtain must hide unstyled gameplay and release after the styled load frame');
 assert.ok(indexSource.includes('id="tutorial-dismiss-btn"'), 'tutorial notice should expose a single acknowledgement action');
 assert.ok(!indexSource.includes('id="tutorial-progress-fill"'), 'tutorial notice should not use multi-step progress');
 assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should keep the actual game screen visible');

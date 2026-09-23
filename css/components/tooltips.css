@@ -1,0 +1,100 @@
+/* Shared tooltips; base, theme and responsive variants retain their selectors. */
+@layer components {
+        body.light-mode .startup-overlay, body.light-mode .loading-overlay, body.light-mode .loop-rewrite-overlay,
+        body.light-mode .tutorial-overlay, body.light-mode .loop-node-tooltip,
+        body.light-mode #item-tooltip-box, body.light-mode #canvas-tooltip, body.light-mode #info-tooltip { --copy-bright: #ffffff; --copy-muted: #eef2f6; }
+
+        #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; left: 0; top: 0; z-index: 9999; background: rgba(10,10,15,0.97); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-family: var(--font-body, 'Galmuri14', 'Malgun Gothic', sans-serif); font-size: 0.9em; line-height: 1.5; -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
+        #item-tooltip-box { max-width: min(720px, calc(100vw - 20px)); max-height: calc(100vh - 20px); overflow: hidden auto; overscroll-behavior: contain; }
+        #item-tooltip-box.item-compare-tooltip, #info-tooltip.item-compare-tooltip { width: fit-content; max-width: min(680px, calc(100vw - 20px)); min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+        #canvas-tooltip { z-index: 9999; border-color: #f39c12; min-width: 0; width: max-content; max-width: min(390px, calc((100vw - 24px) / var(--scale-display-factor, 1))); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
+        #info-tooltip { z-index: 13050; max-width: 340px; }
+        .tooltip-title { font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 6px; }
+        .tooltip-line { color: var(--copy-bright); }
+@media (max-width:1080px) {
+  .expert-mobile-node .tooltip-title { font-size:15px; margin-bottom:6px; }
+  .expert-mobile-node .tooltip-line { font-size:13px; line-height:1.55; white-space:normal; }
+}
+
+body:not(.light-mode) #item-tooltip-box,
+body:not(.light-mode) #canvas-tooltip,
+body:not(.light-mode) #info-tooltip {
+  background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
+  border: 1px solid #3a5371;
+  box-shadow: 0 14px 34px rgba(0,0,0,.55);
+}
+body:not(.light-mode) #item-tooltip-box.item-compare-tooltip,
+body:not(.light-mode) #info-tooltip.item-compare-tooltip {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body:not(.light-mode) #item-tooltip-box { border-color: #4d6584; }
+body:not(.light-mode) #canvas-tooltip { border-color: #6b578d; }
+body:not(.light-mode) #info-tooltip { border-color: #3f6a63; }
+body:not(.light-mode) .tooltip-title { color: #ffffff; margin-bottom: 6px; }
+body:not(.light-mode) .tooltip-line { color: #ffffff; line-height: 1.55; margin-top: 2px; }
+body:has(#background-combat-result-overlay) #item-tooltip-box { z-index: 13260; }
+body:has(#background-combat-result-overlay) #item-tooltip-box:not(.item-compare-tooltip),
+body:has(#background-combat-result-overlay) #item-tooltip-box :is(.item-tooltip-main, .item-compare-panel) { background: var(--color-surface-raised); border-color: var(--color-line-strong); border-radius: var(--radius-md); color: var(--color-text); }
+@media (max-width: 600px) {
+  body:has(#background-combat-result-overlay) #item-tooltip-box { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: auto; min-width: 0; max-width: none; max-height: 60dvh; overflow-y: auto; pointer-events: auto; touch-action: pan-y; }
+}
+}
+@layer overrides {
+@media (max-width: 600px) {
+  body:has(#background-combat-result-overlay) #item-tooltip-box { top: auto; transform: none; left: 12px; }
+} }
+
+@layer components {
+
+body:not(.light-mode) #item-tooltip-box,
+body:not(.light-mode) #canvas-tooltip,
+body:not(.light-mode) #info-tooltip {
+  border-color: rgba(114, 157, 201, 0.72);
+  background: linear-gradient(160deg, rgba(16, 25, 38, 0.97), rgba(6, 11, 18, 0.98));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+body:not(.light-mode) #item-tooltip-box,
+body:not(.light-mode) #canvas-tooltip,
+body:not(.light-mode) #info-tooltip {
+  border-radius: 2px 13px 2px 13px;
+  border-left: 2px solid var(--color-reward-gold);
+  background: linear-gradient(155deg, rgba(18,30,45,.98), rgba(3,7,12,.99));
+}
+#gem-selection .tooltip-title { margin-top: 0; }
+.tooltip-line .gem-tooltip-tags { display: inline-flex; min-height: 0; margin-left: 4px; overflow: visible; vertical-align: middle; flex-wrap: wrap; }
+}
+
+
+@layer overrides {
+body.light-mode #gem-selection .tooltip-line { color: var(--color-text-secondary); } }
+
+@layer components {
+:is(.item-title, .tooltip-title, .equipment-slot-name, .equipment-card-name) {
+  font-family: var(--font-body);
+}
+.growth-craft-preview .tooltip-title { margin-bottom: 5px; font-weight: 900; }
+body.growth-dragging .info-tooltip,
+body.growth-dragging #info-tooltip { pointer-events: none; }
+.talisman-unseal-source p, .talisman-unseal-candidate p, .talisman-unseal-candidate .tooltip-line { font-size: 13px; line-height: 1.6; }
+
+:where(
+  .equipment-panel-hint,
+  .equipment-preset-note,
+  .player-exchange-card,
+  .player-trade-item,
+  .hall-summary,
+  .selection-overlay-panel,
+  .item-description,
+  .tooltip-line
+) {
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  line-break: strict;
+}
+.equipment-inspection-column .tooltip-title { border-color: var(--color-line); }
+}

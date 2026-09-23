@@ -36,12 +36,10 @@ assert(baseCss.includes("font-family: 'Galmuri14'"), 'Galmuri14 @font-face must 
 assert(baseCss.includes("url('../assets/fonts/Galmuri14.woff2')"), 'copy font face must load the bundled asset');
 // Applied reading fonts are checked in the browser; this smoke owns bundled assets and loading.
 // Check the load contract, not a historical date that rejects legitimate cache refreshes.
-const stylesheets = [...html.matchAll(/<link\b[^>]*href="([^"]+)"/g)].map(match => match[1]);
+const entry = fs.readFileSync('css/main.css', 'utf8');
 for (const file of ['css/base.css', 'css/ui-feedback.css', 'css/typography-readability.css', 'css/ui-windows.css']) {
-    assert(stylesheets.some(href => href.split('?')[0] === file && new URL(href, 'https://local.test').searchParams.has('v')),
-        `${file} must be loaded with a cache version`);
+    assert(entry.includes(`"./${file.slice(4)}"`), `${file} must be included in the CSS entry`);
 }
-assert(stylesheets.findIndex(href => href.startsWith('css/typography-readability.css?')) >
-    stylesheets.findIndex(href => href.startsWith('css/base.css?')), 'readability overrides must load after base styles');
+assert(html.includes('href="css/main.css"'), 'the document must load the CSS entry');
 
 console.log('smoke-font-assets passed');

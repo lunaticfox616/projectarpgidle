@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { currencyUse } = require('./crafting-helpers');
 
 for (const theme of ['dark', 'light']) test(`content workspaces remain readable and contained in ${theme}`, async ({ page }, testInfo) => {
     const errors = [];
@@ -48,9 +49,9 @@ for (const theme of ['dark', 'light']) test(`content workspaces remain readable 
 async function verifyWorkspaceActions(page, target) {
     if (target === 'craft') {
         await expect(page.locator('.craft-target-library')).not.toHaveAttribute('open');
-        await page.evaluate(() => useCurrency('rootIron'));
-        await expect(page.locator('.craft-result-ledger')).toContainText('품질 0% → 1%');
-        await page.locator('[data-repeat-craft="rootIron"]').click();
+        await (await currencyUse(page, 'rootIron')).click();
+        await expect(page.locator('.cl-result')).toContainText('품질 0% → 1%');
+        await page.locator('#crafting-workspace [data-command="craft"]').click();
         await expect.poll(() => page.evaluate(() => getSelectedCraftItem().quality)).toBe(2);
         await page.waitForFunction(() => {
             if (uiRefreshRunning || uiRefreshQueued) return false;
