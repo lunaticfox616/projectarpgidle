@@ -41,38 +41,11 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 
 // ── 보관함 분리 + 해금 게이트 ────────────────────────────────────────────
 {
-    const context = {
-        console,
-        window: {},
-        game: {
-            season: 1,
-            inventory: [{ id: 1, slot: '무기', name: '기존 장비' }],
-            growthInventory: [],
-            recentGrowthDrops: [],
-            growthBoard: null,
-            settings: { showLootLog: false, autoSalvageEnabled: false, autoSalvageRarities: {} }
-        },
-        addLog: () => {},
-        updateStaticUI: () => {},
-        queueImportantSave: () => {},
-        startMoving: () => {},
-        normalizeItem: item => item,
-        salvageItemObject: () => {},
-        addItemToInventory: () => { throw new Error('생장 아이템이 장비 인벤토리로 들어가면 안 된다'); },
-        getInventoryLimit: () => 30,
-        registerUniqueToCodexOnAcquire: () => {},
-        passesItemPickupFilter: () => true
-    };
-    context.safeExposeData = map => Object.keys(map || {}).forEach(key => {
-        if (typeof context[key] === 'undefined') context[key] = map[key];
-    });
-    context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
-    vm.createContext(context);
-    require('./lib/load-content-progression')(context);
-    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
-    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
-    vm.runInContext('function invalidateGrowthEffects() {}', context);
+    const context = buildGameRuntime();
     const run = code => vm.runInContext(code, context);
+    context.game=run('game');
+    run(`game.contentProgression.inherited.push('growth');
+        game.inventory=[{id:1,slot:'무기',name:'기존 장비'}];game.settings.showLootLog=false;`);
 
     const makeDrop = id => ({ id, growthShapeId: 'dot1', growthCategory: 'flower', growthBaseId: 'gf_spark_seed', name: `드랍${id}`, rarity: 'normal', baseStats: [], stats: [] });
 
@@ -89,7 +62,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
     assert.strictEqual(context.game.recentGrowthDrops.length, 0, '새 드랍이 호환용 최근 획득 필드에 남으면 안 된다');
     assert.strictEqual(context.game.inventory.length, 1, '장비 인벤토리는 생장 드랍의 영향을 받지 않아야 한다');
 
-    // 보관은 전용 보관함으로 (addItemToInventory를 호출하면 위 throw로 실패한다).
+    // 보관은 전용 보관함으로.
     assert.strictEqual(context.game.inventory.length, 1, '장비 인벤토리 칸을 잠식하면 안 된다');
 
     // 전용 보관함 한도는 장비 한도와 별개다.
@@ -110,24 +83,21 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 // 회귀: 루프 25에 판이 열리는 시점이면 장비 자동해체(기본 일반+매직)를 켜 둔
 // 플레이어가 많다. 설정을 공유하면 생장 드랍이 전부 녹아 8칸도 못 채운다.
 {
-    const source = fs.readFileSync('js/growth-board.js', 'utf8');
-    const state = fs.readFileSync('js/state.js', 'utf8');
-    const intake = source.slice(source.indexOf('function addDroppedGrowthItem'), source.indexOf('const GROWTH_SORT_MODES'));
-
-    assert.ok(!/settings\.autoSalvageEnabled/.test(intake),
-        '생장 드랍 진입점이 장비 자동해체 설정을 읽으면 안 된다');
-    assert.ok(!/settings\.autoSalvageRarities/.test(intake),
-        '생장 드랍 진입점이 장비 자동해체 등급을 읽으면 안 된다');
-    assert.ok(/growthAutoSalvageEnabled/.test(intake) && /growthAutoSalvageRarities/.test(intake),
-        '생장 전용 자동해체 설정을 써야 한다');
-    assert.ok(/growthUseItemFilter/.test(intake),
-        '장비 아이템 필터 적용은 생장 전용 옵션 뒤에 있어야 한다');
-
-    // 기본값은 "전부 보관"이어야 한다.
-    assert.ok(/growthAutoSalvageEnabled:\s*false/.test(state), '생장 자동해체 기본값은 꺼짐이어야 한다');
-    assert.ok(/growthUseItemFilter:\s*false/.test(state), '장비 필터 적용 기본값은 꺼짐이어야 한다');
-    const defaults = state.slice(state.indexOf('growthAutoSalvageRarities:'), state.indexOf('growthAutoSalvageRarities:') + 140);
-    assert.ok(!/:\s*true/.test(defaults), '생장 자동해체 등급 기본값은 모두 꺼짐이어야 한다');
+    const runtime=buildGameRuntime(),run=code=>vm.runInContext(code,runtime);
+    assert.equal(run('game.settings.growthAutoSalvageEnabled'),false);
+    assert.equal(run('game.settings.growthUseItemFilter'),false);
+    assert.equal(run('Object.values(game.settings.growthAutoSalvageRarities).some(Boolean)'),false);
+    run(`game.season=25;game.contentProgression.inherited.push('growth');
+        game.settings.autoSalvageEnabled=true;game.settings.autoSalvageRarities.normal=true;
+        game.settings.itemFilterEnabled=true;game.settings.itemFilterRarities.normal=false;`);
+    assert.equal(run("addDroppedGrowthItem(createGrowthItemFromBase(GROWTH_BASE_DB[0],'normal',1))"),true,
+        'equipment filter and auto-salvage settings do not consume growth drops');
+    run('game.settings.growthUseItemFilter=true;');
+    assert.equal(run("addDroppedGrowthItem(createGrowthItemFromBase(GROWTH_BASE_DB[0],'normal',1))"),false);
+    run('game.settings.growthUseItemFilter=false;game.settings.growthAutoSalvageEnabled=true;game.settings.growthAutoSalvageRarities.normal=true;');
+    const buds=run('game.currencies.magicBud||0');
+    assert.equal(run("addDroppedGrowthItem(createGrowthItemFromBase(GROWTH_BASE_DB[0],'normal',1))"),false);
+    assert(run('game.currencies.magicBud')>buds,'ordinary salvage grants its guaranteed material');
 }
 
 // ── 방치 중 생장 보관함이 넘칠 때 ────────────────────────────────────────
@@ -136,37 +106,10 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 // 회귀 2: 새 드랍과 기존 아이템의 등급·티어를 임의 비교해 기존 보관함을 교체했다.
 //         옵션 조합의 실제 가치는 단순 점수로 판단할 수 없으므로 초과분만 해체한다.
 {
-    const context = {
-        console,
-        window: {},
-        game: {
-            season: 30,
-            inventory: [],
-            growthInventory: [],
-            recentGrowthDrops: [],
-            growthBoard: null,
-            noti: {},
-            settings: { showLootLog: false, growthAutoSalvageEnabled: false, growthUseItemFilter: false }
-        },
-        addLog: () => {},
-        updateStaticUI: () => {},
-        queueImportantSave: () => {},
-        normalizeItem: item => item,
-        salvageItemObject: () => {},
-        registerUniqueToCodexOnAcquire: () => {},
-        passesItemPickupFilter: () => true
-    };
-    context.safeExposeData = map => Object.keys(map || {}).forEach(key => {
-        if (typeof context[key] === 'undefined') context[key] = map[key];
-    });
-    context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
-    vm.createContext(context);
-    require('./lib/load-content-progression')(context);
-    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
-    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
-    vm.runInContext('function invalidateGrowthEffects() {}', context);
-    const run = code => vm.runInContext(code, context);
-    run('syncGrowthBoardUnlocks({ silent: true })');
+    const context=buildGameRuntime();
+    const run=code=>vm.runInContext(code,context);
+    context.game=run('game');
+    run("game.season=30;game.contentProgression.inherited.push('growth');game.settings.showLootLog=false;syncGrowthBoardUnlocks({silent:true});");
 
     const drop = (id, rarity, baseId, locked) => JSON.stringify({
         id, rarity, growthShapeId: 'dot1', growthCategory: 'flower',
@@ -216,34 +159,11 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 {
     const logs = [];
     let clock = 1000000;
-    const context = {
-        console,
-        window: {},
-        Date: { now: () => clock },
-        game: {
-            season: 30,
-            growthInventory: [], recentGrowthDrops: [], growthBoard: null,
-            noti: {}, settings: { showLootLog: false, growthAutoSalvageEnabled: false, growthUseItemFilter: false }
-        },
-        addLog: text => logs.push(String(text)),
-        updateStaticUI: () => {},
-        queueImportantSave: () => {},
-        normalizeItem: item => item,
-        salvageItemObject: () => {},
-        registerUniqueToCodexOnAcquire: () => {},
-        passesItemPickupFilter: () => true
-    };
-    context.safeExposeData = map => Object.keys(map || {}).forEach(key => {
-        if (typeof context[key] === 'undefined') context[key] = map[key];
-    });
-    context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
-    vm.createContext(context);
-    require('./lib/load-content-progression')(context);
-    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
-    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
-    vm.runInContext('function invalidateGrowthEffects() {}', context);
-    const run = code => vm.runInContext(code, context);
-    run('syncGrowthBoardUnlocks({ silent: true })');
+    const context=buildGameRuntime();
+    const run=code=>vm.runInContext(code,context);
+    context.game=run('game');context.testClock=()=>clock;
+    context.addLog=text=>logs.push(String(text)); // Presentation boundary only.
+    run("Date.now=()=>testClock();game.season=30;game.contentProgression.inherited.push('growth');game.settings.showLootLog=false;syncGrowthBoardUnlocks({silent:true});");
 
     const locked = id => JSON.stringify({
         id, rarity: 'normal', growthShapeId: 'dot1', growthCategory: 'flower',

@@ -23,7 +23,7 @@ const files = [
   'js/endgame-progression.js',
   'js/save.js',
   'js/items.js',
-  'js/passives.js',
+  'js/star-wedge.js', 'js/passives.js',
   'js/loot.js',
   'js/growth-board.js',
   'js/background-build-cache.js',

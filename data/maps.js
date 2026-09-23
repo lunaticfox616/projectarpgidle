@@ -1,22 +1,22 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/refined-20260910/bgAct1.webp',
-    bgAct2: 'assets/background/refined-20260910/bgAct2.webp',
-    bgAct3: 'assets/background/refined-20260910/bgAct3.webp',
-    bgAct4: 'assets/background/refined-20260910/bgAct4.webp',
-    bgAct5: 'assets/background/refined-20260910/bgAct5.webp',
-    bgAct6: 'assets/background/refined-20260910/bgAct6.webp',
-    bgAct7: 'assets/background/refined-20260910/bgAct7.webp',
-    bgAct8: 'assets/background/refined-20260910/bgAct8.webp',
-    bgAct9: 'assets/background/refined-20260910/bgAct9.webp',
-    bgAct10: 'assets/background/refined-20260910/bgAct10.webp'
+    bgAct1: 'assets/background/acts-20260915/bgAct1.webp',
+    bgAct2: 'assets/background/acts-20260915/bgAct2.webp',
+    bgAct3: 'assets/background/acts-20260915/bgAct3.webp',
+    bgAct4: 'assets/background/acts-20260915/bgAct4.webp',
+    bgAct5: 'assets/background/acts-20260915/bgAct5.webp',
+    bgAct6: 'assets/background/acts-20260915/bgAct6.webp',
+    bgAct7: 'assets/background/acts-20260915/bgAct7.webp',
+    bgAct8: 'assets/background/acts-20260915/bgAct8.webp',
+    bgAct9: 'assets/background/acts-20260915/bgAct9.webp',
+    bgAct10: 'assets/background/acts-20260915/bgAct10-soft-grid.webp'
 });
 
 const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
-    width: 816,
+    width: 912,
     height: 624,
-    gridOriginX: 192,
+    gridOriginX: 240,
     gridOriginY: 144,
     cellWidth: 48,
     cellHeight: 48,
@@ -24,6 +24,12 @@ const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
     rows: 8,
     viewScale: 1.06
 });
+
+const ACT_BATTLE_MAP_EFFECTS = Object.freeze({
+    bgAct9: {key:'bgAct9Sap',source:'assets/background/acts-20260915/act09-sap.png',
+        columns:4,frames:12,width:912,height:624,frameMs:100}
+});
+safeExposeData({ACT_BATTLE_MAP_EFFECTS});
 
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [

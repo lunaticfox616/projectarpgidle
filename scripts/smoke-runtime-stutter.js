@@ -32,6 +32,7 @@ const saveContext = {
   safeExposeGlobals(map) { Object.assign(saveContext, map); }
 };
 vm.createContext(saveContext);
+vm.runInContext(fs.readFileSync('js/act-exploration-loot.js','utf8'),saveContext,{filename:'js/act-exploration-loot.js'});
 vm.runInContext(saveSource, saveContext, { filename: 'save-runtime.js' });
 
 assert.strictEqual(saveContext.saveGame({ touchModifiedAt: false }), true, 'autosave should report successful persistence');

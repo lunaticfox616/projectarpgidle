@@ -59,7 +59,7 @@ const cosmosRouteUi = (() => {
         if (!cosmosRouteRuntime.unlocked(game,galaxy)) return `<p class="cosmos-route-notice">${galaxy-1}은하 보스 격파 후 탐사 가능</p>`;
         return `<footer class="cosmos-route-footer"><span>${plan.plan.length}구간 · ${plan.plan.flat().length}곳</span>
             <div>${currentStarBattle() ? '<button type="button" data-route-action="battle">전투 보기</button>' : ''}
-            <button type="button" class="primary" data-route-action="start" data-route-value="${galaxy}">탐사 출발</button></div></footer>`;
+            <button type="button" class="primary" data-exploration-departure data-route-action="start" data-route-value="${galaxy}">탐사 출발</button></div></footer>`;
     }
 
     function outcomeLine(nodes) {

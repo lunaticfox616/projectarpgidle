@@ -5,7 +5,6 @@ const vm = require('vm');
 const itemSource = fs.readFileSync('data/items.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const saveSource = fs.readFileSync('js/save.js', 'utf8');
 
 const dataContext = {
     console,
@@ -108,6 +107,11 @@ assert(uiSource.includes("renderCombatEffectIcon({ key: 'invulnerableBarrier'"),
 assert(uiSource.includes('getUniqueEffectApplicationHint'), 'equipment tooltips should explain how unique effects become active');
 assert(uiSource.includes('◆ 획득: ${escapeHTML(item.uniqueEffect)}'), 'equipment comparison should disclose gained unique effects');
 assert(uiSource.includes('◇ 상실: ${escapeHTML(backup.uniqueEffect)}'), 'equipment comparison should disclose lost unique effects');
-assert(saveSource.includes('payload.realmDeathWard = null;'), 'cloud snapshots should not persist transient ward state');
+const saveRuntime=require('./lib/game-runtime').buildGameRuntime();
+vm.runInContext('game=mergeDefaults({});game.realmDeathWard={amount:70,readyAt:1234};',saveRuntime);
+assert.strictEqual(vm.runInContext('createCloudSavePayload(game).realmDeathWard',saveRuntime),null,
+    'ordinary arena cloud snapshots should not persist transient ward state');
+assert.strictEqual(vm.runInContext('JSON.parse(createCloudSaveRequestBody("test",game)).save_data.realmDeathWard',saveRuntime),null);
+assert.strictEqual(vm.runInContext('game.realmDeathWard.amount',saveRuntime),70,'save projection does not clear the live shield');
 
 console.log('smoke-realm-unique-effects passed');

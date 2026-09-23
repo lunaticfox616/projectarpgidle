@@ -1,0 +1,94 @@
+{
+  "archive": "WorldTree_ACT01-10_WebGame_Maps_2026-09-15.zip",
+  "encoding": "lossless WebP; decoded RGBA verified equal to source PNG",
+  "width": 912,
+  "height": 624,
+  "battlefield": {
+    "x": 240,
+    "y": 144,
+    "columns": 9,
+    "rows": 8,
+    "tileSize": 48
+  },
+  "maps": [
+    {
+      "act": 1,
+      "source": "assets/act01/map.png",
+      "file": "bgAct1.webp",
+      "sourceSha256": "6bee4f5e0c85458fe247250efc98babdf958434795beb30dfe927e6df019857f",
+      "sha256": "98d7fad9fa86d52ce6b506d930c30f3f8c776beb5ace069d223caaffa6edaac3"
+    },
+    {
+      "act": 2,
+      "source": "assets/act02/map.png",
+      "file": "bgAct2.webp",
+      "sourceSha256": "f735c3589f3953c1f3d5e8997b843ea0b96c0be5e4fa7716bc76e9d4318fc0de",
+      "sha256": "f2ffbdbffdb57a9f39080be6e7bf9e3b24693e08bc0ca09090488b356341bbb5"
+    },
+    {
+      "act": 3,
+      "source": "assets/act03/map.png",
+      "file": "bgAct3.webp",
+      "sourceSha256": "439aec7915c3ae9e31e65aebec3c7bd08c4857d2cfad670588dbf48d2b8a46e7",
+      "sha256": "dbff6d9ea5cf1d538a94154f91118b8deb5fa380574411f086b261e70fd58fdd"
+    },
+    {
+      "act": 4,
+      "source": "assets/act04/map.png",
+      "file": "bgAct4.webp",
+      "sourceSha256": "54a8319048c19c7b45f35ffd4f813777a7cc1108f62ab50008e95383ddc7db6d",
+      "sha256": "f319ea7637d8099bc88e706c2d2c41e9c4185ff58d71ae23458558a9b2796e3a"
+    },
+    {
+      "act": 5,
+      "source": "assets/act05/map.png",
+      "file": "bgAct5.webp",
+      "sourceSha256": "3875240acc0c613fedded6f62eee6c3746b809be083c046d4feb4051ef788e24",
+      "sha256": "37c92432ccf449f4cc1ae37f4b1bd05067a9e876ae3f7d9df4b6f47a00e2c313"
+    },
+    {
+      "act": 6,
+      "source": "assets/act06/map.png",
+      "file": "bgAct6.webp",
+      "sourceSha256": "ec3f9ee39c9b639b586b1b9d119e3d51ded2c4728646c9418398754dfbca4b24",
+      "sha256": "3327e911c32808f67d6cb7ab3ba6c95792c6312bd535143c998eb87c93025c28"
+    },
+    {
+      "act": 7,
+      "source": "assets/act07/map.png",
+      "file": "bgAct7.webp",
+      "sourceSha256": "945b9b16f3dbf0b14fe9c4d0cc8b04eb6220b0593b3e0962b71d95a434a75e37",
+      "sha256": "ef6e8fad334c015bb1e5b39fa124fd246282a4803f9b25eb6ee0b0d99ba61124"
+    },
+    {
+      "act": 8,
+      "source": "assets/act08/map.png",
+      "file": "bgAct8.webp",
+      "sourceSha256": "1df54e0ba2856a70ff07063c431d26601b524cbec7ec66191398f985a67ae9fc",
+      "sha256": "1f4fae315612aadaad01fa9e8c4a0d4c3ff102e87e88269b77c38598e8d5aefd"
+    },
+    {
+      "act": 9,
+      "source": "assets/act09/map.png",
+      "file": "bgAct9.webp",
+      "sourceSha256": "4c180f3968a3320b2b185c7f70c8a8b64abb42dc4d60a0fa563faccf7ef9cebc",
+      "sha256": "16407c9dcce1305b6af3698b65ad034f0f469e9b46280f985b46bef32d0542dd"
+    },
+    {
+      "act": 10,
+      "source": "assets/act10/map.png",
+      "file": "bgAct10.webp",
+      "sourceSha256": "992bff884efd08a12365871063989fc4a730704b0c7a87dc1f5945b7f2606c17",
+      "sha256": "80bc9368bbae8d58347250d82e444a38531d80a7b4cfcbb10481fba02829e270"
+    }
+  ],
+  "overlay": {
+    "file": "act09-sap.png",
+    "source": "assets/act09/sap-upward-flow.png",
+    "sha256": "7768cf8896810a036806f176efefa11fd7c669ff7517af022347f6e849d7f36c",
+    "columns": 4,
+    "rows": 3,
+    "frames": 12,
+    "frameDurationMs": 100
+  }
+}

@@ -136,7 +136,7 @@ const sideEncounterUi = (() => {
         if (!hive.inRun) return `<div class="map-expedition-intro"><p class="map-expedition-type">갈림길을 직접 고르는 원정 · 10갈래 후 여왕</p>
             <dl><div><dt>주요 전리품</dt><dd>꽃가루 · 독벌침 · 벌꿀 · 밀랍</dd></div>
             <div><dt>입장 비용</dt><dd>벌집 열쇠 1개 <small>보유 ${keys}개</small></dd></div></dl>
-            ${power}<div class="map-expedition-actions"><button type="button" onclick="startBeehiveRun()" ${keys>0?'':'disabled'}>벌집 입장</button>
+            ${power}<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startBeehiveRun()" ${keys>0?'':'disabled'}>벌집 입장</button>
             ${keys>0?'':'<span>벌집 열쇠가 필요합니다.</span>'}</div></div>`;
         const level = getBeekeeperLevelForHive();
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${hive.queenActive?'여왕벌 전투':`갈림길 ${Math.min(10,hive.branchStep)}/10`}</strong>${power}</div>
@@ -149,7 +149,7 @@ const sideEncounterUi = (() => {
     function grandActions(rift) {
         if (rift.grandRun?.inRun) return '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>';
         const hint = rift.grandBreachUnlock ? '' : `<span>공허 균열 완료 시 ${Math.round(GRAND_BREACH_ENCOUNTER.unlockChance * 100)}% 확률로 열립니다.</span>`;
-        return `<button type="button" onclick="enterGrandBreach()" ${rift.grandBreachUnlock?'':'disabled'}>대균열 입장</button>${hint}`;
+        return `<button type="button" data-exploration-departure onclick="enterGrandBreach()" ${rift.grandBreachUnlock?'':'disabled'}>대균열 입장</button>${hint}`;
     }
 
     function grandResult(run) {
@@ -185,7 +185,7 @@ const sideEncounterUi = (() => {
             <dl><div><dt>주요 전리품</dt><dd>${reward}</dd></div>
             <div><dt>난이도</dt><dd>티어 ${getZone(METEOR_FALL_ZONE_ID).tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div></dl>
             <div class="map-expedition-actions">${active?'<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>':
-            `<button type="button" onclick="changeZone('${METEOR_FALL_ZONE_ID}')" ${ready?'':'disabled'}>운석 원정 입장</button>${ready?'':'<span>충전을 완료하면 1회 입장할 수 있습니다.</span>'}`}</div></div>`;
+            `<button type="button" data-exploration-departure onclick="changeZone('${METEOR_FALL_ZONE_ID}')" ${ready?'':'disabled'}>운석 원정 입장</button>${ready?'':'<span>충전을 완료하면 1회 입장할 수 있습니다.</span>'}`}</div></div>`;
     }
 
     function labyrinthPanel(power) {
@@ -195,11 +195,11 @@ const sideEncounterUi = (() => {
         const fossils = contentProgression.isUnlocked('fossil');
         const reward = fossils ? '미궁 화석 · 속성 화석' : '화석 제작 해금 후 전리품 획득';
         const owned = fossils ? `<small>미궁 화석 ${game.currencies.fossil||0}개 보유</small>` : '';
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" onclick="enterLabyrinthFloor(${floor})">${floor}층 입장</button>`;
+        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})">${floor}층 입장</button>`;
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${power}</div>
             <dl><div><dt>층 돌파</dt><dd>다음 층 개방<small>입장 가능 1 ~ ${max}층</small></dd></div>
             <div><dt>층 완료 시 확률 획득</dt><dd>${reward}${owned}</dd></div></dl>
-            <div class="map-expedition-actions">${action}${max>1?'<button type="button" onclick="enterLabyrinthPrompt()">층 선택</button>':''}</div></div>`;
+            <div class="map-expedition-actions">${action}${max>1?'<button type="button" data-exploration-departure onclick="enterLabyrinthPrompt()">층 선택</button>':''}</div></div>`;
     }
 
     function timePressure(rift) {
@@ -218,7 +218,7 @@ const sideEncounterUi = (() => {
     function timePast(rift) {
         const current = game.currentZoneId === TIME_RIFT_PAST_ZONE_ID;
         const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
-            `<button type="button" onclick="changeZone('${TIME_RIFT_PAST_ZONE_ID}')" ${rift.altarOpen?'disabled':''}>과거 입장</button>`;
+            `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_PAST_ZONE_ID}')" ${rift.altarOpen?'disabled':''}>과거 입장</button>`;
         return `<div class="map-expedition-intro"><h3>1. 과거</h3><strong>${rift.altarOpen?'제단 개방 완료':'과거를 돌파해 제단 개방'}</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_PAST_ZONE_ID))}<p>제단을 열면 장비 두 개를 올릴 수 있습니다.</p>
             <div class="map-expedition-actions">${action}</div></div>`;
@@ -249,7 +249,7 @@ const sideEncounterUi = (() => {
         const current = game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
         const issue = getTimeRiftFusionMismatchReason(rift.altarUnique,rift.altarRare);
         const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
-            `<button type="button" onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>미래 입장</button>`;
+            `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>미래 입장</button>`;
         return `<div class="map-expedition-intro"><h3>3. 미래</h3><strong>희귀 옵션을 고유에 계승</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
             <details class="map-expedition-details" id="time-rift-fusion-rules"><summary>융합 규칙</summary>
@@ -278,7 +278,7 @@ const sideEncounterUi = (() => {
             <details class="map-expedition-details" id="colony-entry-guide"><summary>입장권 획득처 · 진행 규칙</summary>
             <p>혼돈 심화 21층 이상·벌집·대균열에서 군락지 흔적을 얻습니다. 웨이브를 돌파하면 보상을 즉시 받고 다음 무리가 시작됩니다.</p>
             <p>철수해도 받은 보상은 유지됩니다. 새 도전은 1웨이브부터 시작합니다.</p></details>
-            <div class="map-expedition-actions"><button type="button" onclick="startColonyRun()" ${traces<=0||colony.inRun?'disabled':''}>군락지 입장</button>
+            <div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startColonyRun()" ${traces<=0||colony.inRun?'disabled':''}>군락지 입장</button>
             <button type="button" onclick="forfeitColonyRun()" ${colony.inRun?'':'disabled'}>철수</button>
             <button type="button" onclick="switchTab('tab-talisman'); switchTalismanSubtab('talisman-sub-colony-ward')">액막이 관리</button>
             <span>보조장비 · ${colony.wardSlots}/4슬롯 · 편린 ${game.currencies.colonyShard||0}개</span></div></div>`;
@@ -309,8 +309,8 @@ const sideEncounterUi = (() => {
     function skyEntryActions(tower,remaining) {
         const disabled = canEnterSkyTower() ? '' : 'disabled';
         const action = game.currentZoneId === SKY_TOWER_ZONE_ID ? '<button onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
-            `<button onclick="enterSkyTowerPrompt(${tower.currentFloor})" ${disabled}>${tower.currentFloor}층 ${remaining?'입장':'연습 입장'}</button>`;
-        return action + (tower.highestFloor>1?`<button onclick="enterSkyTowerPrompt()" ${disabled}>다른 층 선택</button>`:'');
+            `<button data-exploration-departure onclick="enterSkyTowerPrompt(${tower.currentFloor})" ${disabled}>${tower.currentFloor}층 ${remaining?'입장':'연습 입장'}</button>`;
+        return action + (tower.highestFloor>1?`<button data-exploration-departure onclick="enterSkyTowerPrompt()" ${disabled}>다른 층 선택</button>`:'');
     }
 
     function skyGrowth(tower) {

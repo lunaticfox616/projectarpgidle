@@ -53,6 +53,9 @@ Android 비활성 이벤트만 먼저 도착해도 전투와 PiP 렌더를 멈�
 Node 22 이상, JDK 21, Android SDK platform 36 및 build-tools 36.0.0이 필요하다.
 JDK/SDK를 표준 위치에 설치했다면 환경 변수 `JAVA_HOME`, `ANDROID_HOME`을 지정한다.
 이 작업의 휴대용 도구는 Git에서 제외한 `artifacts/android-toolchain/`에 있다.
+2026-09-23 용량 정리로 이 폴더에는 JDK와 APK 빌드용 SDK만 남겼다. 에뮬레이터,
+API 36 시스템 이미지, 가상 기기 상태 및 Gradle 캐시는 필요할 때 다시 설치·생성한다.
+따라서 아래 재빌드 명령은 Gradle 의존성 다운로드가 가능한 환경에서 실행한다.
 
 ```powershell
 npm ci

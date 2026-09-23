@@ -114,71 +114,27 @@ function mergeDefaults(save) {
         return null;
     }
     function normalizeAllocatedPassiveTreeNodes(rawIds, passiveStarEvolution, passiveSaveState) {
-        const rootId = typeof getPassiveTreeRootNodeId === 'function' ? getPassiveTreeRootNodeId(save) : 'n0';
-        let rawList = Array.isArray(rawIds) ? rawIds : [];
-        let seen = new Set();
-        let kept = [];
+        const rawList = Array.isArray(rawIds) ? rawIds : [];
+        const seen = new Set(), kept = [];
         let refunded = 0;
         rawList.forEach(rawId => {
-            let id = normalizePassiveNodeId(rawId);
+            const id = normalizePassiveNodeId(rawId);
             if (!id) { refunded++; return; }
             if (seen.has(id)) return;
             seen.add(id);
-            let node = PASSIVE_TREE.nodes[id];
-            if (!node || (node.requiresEvolution && !passiveStarEvolution)) {
-                if (id !== rootId) refunded++;
-                return;
-            }
+            const node = PASSIVE_TREE.nodes[id];
             if (node.kind === 'start') return;
+            if ((node.requiresEvolution && !passiveStarEvolution)
+                || ((node.kind === 'star_option' || node.starWedgeGenerated) && !node.starWedgeOptionActive)) {
+                refunded++; return;
+            }
             kept.push(id);
         });
-        let owned = new Set(kept);
-        owned.add(rootId);
-        let savedStarWedge = passiveSaveState && passiveSaveState.starWedge && typeof passiveSaveState.starWedge === 'object'
-            ? passiveSaveState.starWedge : {};
-        let savedWedges = new Map((Array.isArray(savedStarWedge.wedges) ? savedStarWedge.wedges : [])
-            .filter(wedge => wedge && Number.isFinite(Number(wedge.id)))
-            .map(wedge => [Number(wedge.id), wedge]));
-        let savedSocketWedges = new Map((Array.isArray(savedStarWedge.sockets) ? savedStarWedge.sockets : [])
-            .map(socket => [String(socket && socket.nodeId || ''), savedWedges.get(Number(socket && socket.wedgeId))]));
-        const isActiveSavedStarOption = node => {
-            if (!node || node.kind !== 'star_option') return false;
-            let wedge = savedSocketWedges.get(String(node.requiresStarWedgeSocketNodeId || ''));
-            let line = wedge && Array.isArray(wedge.lines) ? wedge.lines[node.starWedgeLineIndex] : null;
-            return !!(line && line.stat && !line.disabled);
-        };
-        let virtualRoots = new Set();
-        (Array.isArray(savedStarWedge.sockets) ? savedStarWedge.sockets : []).forEach(socket => {
-            let wedge = socket && savedWedges.get(Number(socket.wedgeId));
-            let recordedId = wedge && wedge.unique && wedge.uniqueType === 'black_hole' ? normalizePassiveNodeId(wedge.recordedHubNodeId) : null;
-            if (recordedId && PASSIVE_TREE.nodes[recordedId] && PASSIVE_TREE.nodes[recordedId].kind === 'hub') virtualRoots.add(recordedId);
-        });
-        virtualRoots.forEach(id => owned.add(id));
-        let traversalRoots = [rootId, ...virtualRoots];
-        let connected = new Set(traversalRoots);
-        let queue = traversalRoots.slice();
-        let passiveEdges = (PASSIVE_TREE && Array.isArray(PASSIVE_TREE.edges)) ? PASSIVE_TREE.edges : [];
-        while (queue.length > 0) {
-            let current = queue.shift();
-            passiveEdges.forEach(edge => {
-                let next = null;
-                if (edge.from === current && owned.has(edge.to)) next = edge.to;
-                else if (edge.to === current && owned.has(edge.from)) next = edge.from;
-                if (next && !connected.has(next)) {
-                    connected.add(next);
-                    queue.push(next);
-                }
-            });
-        }
-        let connectedPassives = [];
-        kept.forEach(id => {
-            let node = PASSIVE_TREE.nodes[id];
-            if (node && node.kind === 'star_option' && isActiveSavedStarOption(node)) connectedPassives.push(id);
-            else if (node && node.kind === 'star_option') refunded++;
-            else if (connected.has(id)) connectedPassives.push(id);
-            else refunded++;
-        });
-        return { passives: connectedPassives, refunded: refunded };
+        const candidate = { ...passiveSaveState, passives: kept };
+        const connected = starWedgeRules.connected(candidate, PASSIVE_TREE, getStarWedgeRouting(candidate));
+        const lostBonus = Math.max(0, starWedgeRules.paleBonus({ ...candidate, passives: rawList })
+            - starWedgeRules.paleBonus({ ...candidate, passives: connected }));
+        return { passives: connected, refunded: refunded + kept.length - connected.length, lostBonus };
     }
     function migratePassiveSaveNodeReferences(state) {
         if (typeof migratePassiveNodeIdList !== 'function' || typeof migratePassiveNodeIdRecord !== 'function') return;
@@ -244,6 +200,10 @@ function mergeDefaults(save) {
     // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
     function normalizeEnemyGridFields(record) {
         delete record.battleSlot;
+        // Exploration coordinates are validated against their own saved map below; never
+        // silently move a saved enemy to another tile or into a wall by clamping it.
+        const exploration=merged.actExploration;
+        if(exploration)return record;
         let gx = Math.floor(clampFiniteNumber(record.gx, NaN, 0, COMBAT_GRID_CONFIG.columns - 1));
         let gy = Math.floor(clampFiniteNumber(record.gy, NaN, 0, COMBAT_GRID_CONFIG.rows - 1));
         if (Number.isFinite(gx) && Number.isFinite(gy)) {
@@ -401,6 +361,7 @@ function mergeDefaults(save) {
     let merged = {
         ...JSON.parse(JSON.stringify(defaultGame)),
         ...save,
+        actExploration: save.actExploration == null ? null : JSON.parse(JSON.stringify(save.actExploration)),
         equipmentDropProgress: clampFiniteNumber(save.equipmentDropProgress, 0, 0, EQUIPMENT_DROUGHT_RULES.threshold - 0.5),
         settings: { ...defaultGame.settings, ...(save.settings || {}) },
         unlocks: { ...defaultGame.unlocks, ...(save.unlocks || {}) },
@@ -491,6 +452,8 @@ function mergeDefaults(save) {
     const legacyPassiveRefundCount = Number(merged.passiveLayoutVersion || 0) < 22
         ? (Array.isArray(save.passives) ? save.passives.filter(id => id !== 'n0').length : 0)
         : 0;
+    ensureStarWedgeState(merged);
+    starWedgeRules.rebuild(PASSIVE_TREE, merged, false);
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
@@ -840,6 +803,7 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
+    merged.settings.actExplorationMode = merged.settings.actExplorationMode === 'full' ? 'full' : 'direct';
     merged.settings.disableItemAutomationAfterLoop = merged.settings.disableItemAutomationAfterLoop !== false;
     merged.settings.postLoopMapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.postLoopMapCompleteAction) ? merged.settings.postLoopMapCompleteAction : 'nextLoopBestPlusOne';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
@@ -890,6 +854,11 @@ function mergeDefaults(save) {
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
+    if(merged.actExploration) {
+        // Validate the original ownership/HP first so normalization cannot revive a corrupt record.
+        actExplorationState.validate(merged.actExploration, save.enemies || []);
+        merged.actExploration.packs.forEach(pack=>{pack.waiting=pack.waiting.map(normalizeEnemyRecord);});
+    }
     let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
     function pruneEnemyRuntimeMap(rawMap, options = {}) {
         let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};
@@ -926,6 +895,7 @@ function mergeDefaults(save) {
     merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
+    starWedgeRules.reconcile(merged, PASSIVE_TREE, getStarWedgeRouting(merged), starWedgeRules.pointBudget(merged) - passiveAllocationNormalization.lostBonus);
     delete merged.inventoryExpandLevel;
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
@@ -1137,6 +1107,7 @@ function mergeDefaults(save) {
 }
 
 function normalizeSavedCombatRuntime(state) {
+    actExplorationState.restore(state);
     combatLootReceipts.normalize(state);
     state.cosmosGravity = null;
     restoreCosmosRouteSave(state);

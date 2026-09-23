@@ -4,7 +4,6 @@ const vm = require('vm');
 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 const growthUiSource = fs.readFileSync('js/growth-ui.js', 'utf8');
@@ -147,7 +146,8 @@ assert(passiveSource.includes('function openAbyssSocketJewelOverlay'), 'equipmen
 assert(uiSource.includes('openAbyssSocketJewelOverlay(${sidx})'), 'empty abyss sockets should open the picker instead of listing every jewel inline');
 assert(!uiSource.includes("insertJewelIntoAbyssSocket(${i}, ${sidx})"), 'owned abyss jewels must not be rendered as a long inline button list');
 assert(!uiSource.includes('onclick="bulkTalismanUnseal('), 'removed talisman bulk-unseal handler must not remain in the UI');
-assert(combatSource.includes('let protectOverflow = inventoryFull && !autoSalvage'), 'rare and unique jewel overflow must be protected unless explicitly auto-salvaged');
+// Actual normal/rare/unique pickup, capacity and auto-salvage behavior is covered by
+// smoke-act-exploration-items.js for both immediate and held delivery.
 assert(cosmosSource.includes("addItemToInventory(item, { guaranteedKeep: true })"), 'cosmos boss exclusive equipment must survive full inventory');
 assert(cosmosSource.includes("game.noti.jewel = true"), 'cosmos boss exclusive jewels need discovery notification');
 assert(cosmosSource.includes("game.noti.talisman = true"), 'cosmos boss exclusive talismans need discovery notification');

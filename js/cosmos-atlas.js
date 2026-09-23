@@ -1768,7 +1768,7 @@
             ${renderCosmosDifficultySection(node)}
             ${renderGalaxyGateLine(node, state)}
             <div class="cosmos-actions">
-                <button class="primary" onclick="challengeSelectedCosmosNode()" ${available ? '' : 'disabled'}>${getCosmosChallengeButtonLabel(node, status)}</button>
+                <button class="primary" data-exploration-departure onclick="challengeSelectedCosmosNode()" ${available ? '' : 'disabled'}>${getCosmosChallengeButtonLabel(node, status)}</button>
                 <button onclick="openCosmosStoneOverlay()">우주석 관리</button>
                 <button onclick="this.closest('details').open=false">닫기</button>
             </div>

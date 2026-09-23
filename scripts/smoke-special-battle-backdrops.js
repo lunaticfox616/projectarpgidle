@@ -109,9 +109,9 @@ async function run() {
   const renderRuntime = buildGameRuntime();
   const actDraws = [];
   const actContext = { fillStyle: '', fillRect() {}, drawImage(...args) { actDraws.push(args); } };
-  const projection = { mapX: 10, mapY: 20, mapWidth: 816, mapHeight: 624 };
-  renderRuntime.drawGridAlignedBackdrop(actContext, 1000, 700, { width: 816, height: 624 }, projection, 'bgAct1');
-  assert.deepStrictEqual(actDraws[0].slice(1), [10, 20, 816, 624],
+  const projection = { mapX: 10, mapY: 20, mapWidth: 912, mapHeight: 624 };
+  renderRuntime.drawGridAlignedBackdrop(actContext, 1000, 700, { width: 912, height: 624 }, projection, 'bgAct1');
+  assert.deepStrictEqual(actDraws[0].slice(1), [10, 20, 912, 624],
     'ACT backgrounds must use the exact same map transform as the square grid projection');
   assert.strictEqual(actDraws.length, 1, 'the old second diamond-alignment draw must not return');
   const specialDraws = [];
@@ -125,12 +125,14 @@ async function run() {
     for (const backdropKey of ['bgAct1','bgMeteor','bgUnderworld']) {
       const draws = [];
       const ctx = { fillStyle:'', fillRect() {}, drawImage(...args) { draws.push(args); } };
-      renderRuntime.drawGridAlignedBackdrop(ctx, width, height, {width:816,height:624}, grid, backdropKey);
+      const sourceWidth = backdropKey === 'bgAct1' ? 912 : 816;
+      const originX = backdropKey === 'bgAct1' ? 240 : 192;
+      renderRuntime.drawGridAlignedBackdrop(ctx, width, height, {width:sourceWidth,height:624}, grid, backdropKey);
       const [,x,y,w,h] = draws[0];
       const first = grid.cellToScreen(0,0);
-      assert(Math.abs(x + w * 192 / 816 - (first.x - grid.tileW / 2)) < 0.001);
+      assert(Math.abs(x + w * originX / sourceWidth - (first.x - grid.tileW / 2)) < 0.001);
       assert(Math.abs(y + h * 144 / 624 - (first.y - grid.tileH / 2)) < 0.001);
-      assert(Math.abs(w * 432 / 816 - grid.tileW * 9) < 0.001);
+      assert(Math.abs(w * 432 / sourceWidth - grid.tileW * 9) < 0.001);
       assert(Math.abs(h * 384 / 624 - grid.tileH * 8) < 0.001);
       assert.strictEqual(draws.length, 1);
     }

@@ -1,3 +1,39 @@
+/**
+ * @typedef {object} ActExplorationPendingLoot
+ * @property {number} version Schema version (6).
+ * @property {'pending'|'claimed'|'lost'} phase
+ * @property {Record<string,number>} currencies Already resolved canonical currency gains.
+ * @property {Array<{id:number,name:string,slot:string,baseStats:Array<{id:string,val:number}>,stats:Array<{id:string,val:number}>}>} equipment
+ * @property {string[]} flasks Discovered FLASK_DB keys, unavailable for equipping until claimed.
+ * @property {number} alchemyGlass Nonnegative integer, separate from ordinary currencies.
+ * @property {number} blurred45 Nonnegative integer cube material, unavailable until claimed.
+ * @property {Array<Omit<ActExplorationPendingLoot['equipment'][number],'slot'> & {slot:string|null,growthCategory:string,growthShapeId:string}>} growthItems
+ * @property {ActExplorationPendingLoot['growthItems']} growthCodex Accepted unique growth discoveries, including capacity-salvaged items.
+ * @property {Array<{item:ActExplorationPendingLoot['equipment'][number],rewards:Record<string,number>}>} salvagedEquipment Last recoverable equipment, unavailable until clear. Rewards are original salvage costs.
+ * @property {Array<{id:number,name:string,rarity:string,stats:Array<{id:string,val:number}>}>} jewels
+ * @property {Array<{kind:'attack',name:string,awakened:boolean}|{kind:'support',name:string,tier:number}>} gems Exact drop unlocks, not snapshots of live leveled records.
+ */
+/**
+ * @typedef {object} ActExplorationRun Saved authored act exploration, null in special arenas.
+ * @property {number} version Schema version (1).
+ * @property {number} act Story act 1..10; zoneId is act minus one.
+ * @property {number} zoneId
+ * @property {string} layoutId Authored preset identity, never randomised at restore.
+ * @property {'active'|'cleared'|'failed'} status
+ * @property {boolean} completionApplied Existing story/zone completion has been applied once.
+ * @property {null|{zoneId:number,remainingMs:number}} departure Already-selected automatic exit after presentation; never another reward claim.
+ * @property {ActExplorationPendingLoot} loot Already resolved rewards, inaccessible until boss completion.
+ * @property {number} motionTimeMs Last processed 20 ms exploration movement step, in combat time.
+ * @property {'north'|'south'|'east'|'west'} motionDirection Current walking direction.
+ * @property {null|{from:{gx:number,gy:number},to:{gx:number,gy:number},startedAt:number,elapsed:number,duration:number}} motion Saved movement in milliseconds; the hit cell changes halfway.
+ * @property {'direct'|'full'|'manual'} mode
+ * @property {{gx:number,gy:number}|null} destination Integer map tile.
+ * @property {number[]} discovered Row-major tile indices, including visible wall borders.
+ * @property {string[]} visitedRooms Internal room ids (not player-facing room names).
+ * @property {Array<{key:string,roomId:string,stage:number|null,aliveIds:number[],eliteIds:number[],waiting:Enemy[]}>} packs
+ * Waiting records move into game.enemies at engagement. aliveIds includes both owners;
+ * dead ids are removed once by the death handler. Boss stages are zero-based and sequential.
+ */
 // Central runtime namespace/state bridge (phase 2).
 function getPassiveEquipmentRestriction(item, state = game) {
     if (!item) return '';
@@ -771,12 +807,24 @@ function createColonyZone(state) {
 function createWorldTreeJourneyZone(id, state) {
     const node = WORLD_TREE_JOURNEY.nodes.find(row => row.id === id);
     if (!node) return null;
-    const stage = Math.max(1, Math.min(3, Math.floor(Number(state.worldTreeJourney?.stage) || 1)));
-    const floor = node.floor + (stage - 1) * 5;
-    return { id, name:node.name, type:'chaosRealm', tier:getChaosRealmTier(floor), floor,
-        maxKills:1, ele:'chaos', affixes:getChaosRealmAffixes(floor), worldTreeNode:node.id,
-        worldTreeKind:node.kind, worldTreeStage:stage,
-        bossMods:node.kind === 'boss' ? {hpMul:WORLD_TREE_JOURNEY.stages[stage-1].bossHpMul} : undefined };
+    const ledger = state.worldTreeJourney;
+    const stage = ledger.stage;
+    const seed = Math.abs(hashSeed(`${ledger.seed}:${ledger.cycle}:${stage}:${id}`));
+    const location = WORLD_TREE_JOURNEY.locations[seed % WORLD_TREE_JOURNEY.locations.length];
+    const eventSeed = Math.abs(hashSeed(`${ledger.seed}:${ledger.cycle}:${stage}:${node.floor}`));
+    const alternate = Number(['worldtree_breach','worldtree_meteor'].includes(id));
+    const event = WORLD_TREE_JOURNEY.events[(eventSeed + alternate) % WORLD_TREE_JOURNEY.events.length];
+    const risk = WORLD_TREE_JOURNEY.risks[ledger.risk];
+    const floor = 1 + (stage-1)*3;
+    const guardian = node.kind === 'boss';
+    return { id, name:guardian ? node.name : location.name, type:'chaosRealm', tier:getChaosRealmTier(floor), floor,
+        maxKills:1, ele:location.ele, affixes:[], worldTreeNode:node.id,
+        worldTreeKind:guardian ? 'boss' : event.id, worldTreeStage:stage, worldTreeRisk:ledger.risk,
+        worldTreeCycle:ledger.cycle, worldTreeSeed:seed,
+        background:ACT_BATTLE_MAP_SOURCES[location.image] || `assets/background/refined-20260910/${location.image}.webp`,
+        mapHpMul:risk.hp, mapDamageMul:risk.damage,
+        trialHazard:!guardian && event.id === 'meteor' ? {pattern:'pool',warningMs:1700,intervalMs:5500} : undefined,
+        bossMods:{hpMul:guardian ? WORLD_TREE_JOURNEY.stages[stage-1].bossHpMul : 0.08} };
 }
 
 function getUnderworldZone(floor) {
@@ -2333,8 +2381,11 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * @typedef {{seed:number,selected:number,goal:string,decisions:Record<string,string>,habitats:string[],retryAt:number}} CosmosRouteBoard
  */
 const defaultGame = {
-    // Discovery/clears persist across loops. Active fight/queue are transient; stage is 1..3.
-    worldTreeJourney: { cleared:[], stage:1, selected:'worldtree_guardian', hiveDiscovered:false, active:null, queue:[], plan:null, notice:null, lastResult:'' },
+    // normalize upgrades version 0 once. Stage/guardian unlocks and the seeded chart survive loops.
+    // risk/focus freeze on departure. loopClear records the current loop but is not yet a loop gate.
+    worldTreeJourney: { version:0, seed:null, cycle:0, unlocked:false, guardians:[], risk:0, focus:'craft',
+        branches:['worldtree_grove','worldtree_crossing'], loopClear:{season:0,stage:0},
+        cleared:[], stage:1, selected:'worldtree_guardian', hiveDiscovered:false, active:null, queue:[], plan:null, notice:null, lastResult:'' },
     // Last expedition's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,
@@ -2425,6 +2476,7 @@ const defaultGame = {
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
+        actExplorationMode: 'direct',
         disableItemAutomationAfterLoop: true,
         postLoopMapCompleteAction: 'nextLoopBestPlusOne',
         townReturnAction: 'retry',
@@ -2472,6 +2524,7 @@ const defaultGame = {
     runProgress: 0,
     encounterIndex: 0,
     encounterPlan: [],
+    actExploration: null,
     enemies: [],
     playerAilments: [],
     playerLeechInstances: [],

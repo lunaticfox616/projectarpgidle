@@ -755,7 +755,9 @@ function rollGrowthItemDrop(enemy, growthDropChance) {
     if (!isGrowthBoardUnlocked()) return;
     if (Math.random() >= Math.max(0, Number(growthDropChance) || 0)) return;
     let item = generateGrowthDrop(enemy);
-    if (!item || !addDroppedGrowthItem(item)) return;
+    const delivery=actExplorationLoot.delivery(game,'growthItems');
+    if (!item || !addDroppedGrowthItem(item,{delivery,silent:!!delivery})) return;
+    if (delivery) return;
     let growthDropColor = item.growthChase ? '#d7a7ff' : (item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8');
     queueEnemyGroundLoot(enemy, { item, itemKind: 'growth', color: growthDropColor });
     if (!game.settings.showLootLog) return;
@@ -994,6 +996,7 @@ function tryConditionGemEvasion(entry, now, rule) {
     const route = findNearestSafeGridRoute(game.gridPlayer, cells);
     if (!route || !route.distance || route.distance > entry.evadeRange) return conditionGemFeedback.record(rule, 'no-route');
     const from = { gx: game.gridPlayer.gx, gy: game.gridPlayer.gy };
+    actExplorationMotion.cancel(game.actExploration);
     Object.assign(game.gridPlayer, route.destination, { gridMoveTimer: 0 });
     cancelCombatChannel(entry.name);
     combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + 180);
@@ -2200,7 +2203,7 @@ function rollFlaskAlchemyGlassDrop(enemy, dropRateMultiplier) {
     let chance = (enemy.isBoss ? 0.32 : (enemy.isElite ? 0.07 : 0.006)) * dropMul;
     if (Math.random() >= chance) return 0;
     let amount = enemy && enemy.isBoss ? 2 + Math.floor(Math.random() * 3) : 1;
-    st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0)) + amount;
+    if (!actExplorationLoot.alchemyGlass(game, amount)) st.alchemyGlass += amount;
     return amount;
 }
 
@@ -2236,19 +2239,20 @@ function rollFlaskDiscoveryDrop(enemy, dropRateMultiplier) {
     let dropMul = Number.isFinite(dropRateMultiplier) ? Math.max(0, dropRateMultiplier) : 1;
     rollFlaskAlchemyGlassDrop(enemy, dropMul);
     let lvl = game.level;
-    let found = ensureFlaskFoundKeys();
+    let found = actExplorationLoot.foundFlasks(game, ensureFlaskFoundKeys());
     let candidates = getFlaskDiscoveryCandidates(lvl, found);
     if (candidates.length === 0) return;
     let key = pickWeightedFlaskDiscoveryCandidate(candidates);
     let baseChance = enemy.isBoss ? 0.16 : (enemy.isElite ? 0.05 : 0.012);
     let chance = baseChance * getFlaskDiscoveryTierMultiplier(key) * dropMul;
     if (Math.random() >= chance) return;
+    if (actExplorationLoot.flask(game, key)) return;
     if (!discoverFlask(key)) return;
     let def = FLASK_DB[key];
     addBattleFx('lootPickup', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 820 });
     addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 920 });
     if (game.settings.showLootLog) addLog(`🧪 새로운 플라스크 발견: <span class='loot-rare'>[${def.name}]</span>! 플라스크 탭에서 장착할 수 있습니다.`, 'loot-rare');
-    if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
+    requestGoalSystemRefresh();
 }
 // 유틸리티 플라스크가 단계 구분 없이 종류당 1개였던 예전 저장의 고정 키를 그 종류의 1단계로 옮긴다.
 const LEGACY_FLASK_UTILITY_KEYS = ['granite', 'quicksilver', 'amethyst', 'bismuth', 'sulphur'];
@@ -2575,12 +2579,14 @@ function prepareCombatTick(nowMs) {
 
 
 function isCombatDecisionPending(state) {
+    if(actExplorationProgress.waiting(state))return true;
     return state.pendingLoopHeroSelection || state.pendingLoopDecision || state.pendingLoopReady
         || cosmosRouteRuntime.waiting(state)
         || (state.combatHalted && String(state.currentZoneId).startsWith('worldtree_') && !state.worldTreeJourney.active);
 }
 
 function coreLoop(nowMs) {
+    if(advanceActExplorationDeparture())return;
     if (isCombatDecisionPending(game)) return;
     const pStats = prepareCombatTick(nowMs);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
@@ -2700,7 +2706,7 @@ function coreLoop(nowMs) {
         if (beehivePause || game.inTicketBossFight || manualStopState) return;
         game.combatHalted = false;
     }
-    if (typeof processTalentMossBarkRecovery === 'function') processTalentMossBarkRecovery(pStats, getCombatTime());
+    processTalentMossBarkRecovery(pStats, getCombatTime());
     let recoveryHpCap = getPlayerRecoveryHpCap(pStats);
     if (game.playerHp > 0 && game.playerHp < recoveryHpCap) {
         let hpCap = recoveryHpCap;
@@ -2782,7 +2788,7 @@ function coreLoop(nowMs) {
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
     let holdMapProgress = zoneNow?.type === 'colony' || (isVoidRiftCombatZone(zoneNow) && vRift.active);
     if (!holdMapProgress) advanceMapProgress(pStats);
-    if (game.moveTimer <= 0 && (game.enemies || []).length === 0) {
+    if (actExplorationProgress.shouldTrackStall()) {
         if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
         else progressStallTicks = 0;
         if (progressStallTicks >= 20) {
@@ -2806,7 +2812,7 @@ function coreLoop(nowMs) {
         let castBlocked = nowCast < castUntil || hazardEvasion.avoiding;
         let inSkillRange = hazardEvasion.avoiding ? false : (channelGate.locked
             ? channelGate.hasTargets
-            : updatePlayerGridEngagement(pStats, { holdPosition: hazardEvasion.holdPosition }));
+            : updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }));
         if (!castBlocked) {
             pTimer += 0.1 * pStats.aspd;
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
@@ -2888,7 +2894,7 @@ function coreLoop(nowMs) {
     }
     syncCrowdPauseState();
 
-    if (!holdMapProgress && game.runProgress >= 100 && game.encounterIndex >= game.encounterPlan.length && game.enemies.length === 0) finishEncounterRun();
+    if (!holdMapProgress && actExplorationProgress.canFinish()) finishEncounterRun();
 }
 
 function processPendingSlamEchoHits() {
@@ -3675,7 +3681,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         if (disabledPassiveEffects[String(id)]) return;
         if (node.kind === 'void') {
             let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(id) : null;
-            (entry && Array.isArray(entry.stats) ? entry.stats : []).forEach(line => {
+            starWedgeRules.voidStats(entry, game).forEach(line => {
                 if (line && line.id) addStatToBucket(passive, line.id, line.val);
             });
             let tr = entry && entry.transcendent;
@@ -3691,7 +3697,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             if (tr && tr.id === 'seasoned') addStatToBucket(passive, 'critDmg', Number(tr.value || 0) * Math.max(0, Math.floor(game.loopCount || 0)));
             return;
         }
-        if (node.intentionalNoEffect) return;
         let mut = mutationMap[id];
         getEffectivePassiveNodeEffects(node, mut)
             .forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
@@ -3700,7 +3705,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     Object.keys(mutationMap).forEach(nodeId => {
         let mut = mutationMap[nodeId];
         if (!mut || mut.lineIndex !== 3 || !mut.currentStat || ownedPassiveSet.has(nodeId) || disabledPassiveEffects[String(nodeId)]) return;
-        addStatToBucket(passive, mut.currentStat, mut.currentVal);
+        getPassiveNodeRawEffects(PASSIVE_TREE.nodes[nodeId], mut).forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
     });
 
     accumulateCombatSeasonStats(season, safeSeasonNodes, game.seasonNodeLevels);
@@ -5881,6 +5886,7 @@ function tryPlayerTacticalMove(pStats, target, plan, now) {
 }
 
 function movePlayerForCharge(target, maxCells) {
+    actExplorationMotion.cancel(game.actExploration);
     let origin = copyCombatGridCell(game.gridPlayer);
     let moved = false;
     for (let step = 0; step < maxCells; step++) {
@@ -5897,6 +5903,7 @@ function movePlayerForBlink(target) {
     if (!destination || getGridUnitDistance(destination, target) > 1) return null;
     let origin = copyCombatGridCell(game.gridPlayer);
     if (origin && origin.gx === destination.gx && origin.gy === destination.gy) return null;
+    actExplorationMotion.cancel(game.actExploration);
     game.gridPlayer.gx = destination.gx;
     game.gridPlayer.gy = destination.gy;
     return origin;
@@ -5915,6 +5922,28 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
     return true;
 }
 
+/** Complete walking and continue combat approach before the foreground renderer reads it. */
+function advancePlayerExplorationFrame(now, pStats) {
+    const run = actExplorationState.current(game);
+    if (!run) return;
+    const walking = run.motion;
+    actExplorationProgress.tick(now, pStats);
+    if (!walking || walking.elapsed !== walking.duration || run.motion) return;
+    continuePlayerExplorationApproach(pStats);
+}
+
+/** The foreground scheduler calls this only on a completed exploration step.
+ * Continue an out-of-range approach before rendering, without executing an attack
+ * or advancing combat timers. Actual attacks remain owned by coreLoop.
+ */
+function continuePlayerExplorationApproach(pStats) {
+    if (actExplorationProgress.holdPosition(false) || hasPlayerChannelBreakingAilment()) return;
+    if (getBossWarningCells(game, pendingEnemyCombatAttacks).length > 0 || isTrialHazardPositionHeld()) return;
+    if (getCombatChannelGate(pStats, getCombatTime()).locked) return;
+    if (getSkillTargets(pStats).length > 0) return;
+    updatePlayerGridEngagement(pStats);
+}
+
 /**
  * 그리드 교전 상태를 갱신한다. 현재 스킬 사거리 안에 대상이 있으면 true,
  * 없으면 접근 중인 적을 유지하며 한 칸씩 이동시키고 false를 반환한다.
@@ -5923,11 +5952,12 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
  * @returns {boolean} 이번 틱에 공격이 가능한지
  */
 function updatePlayerGridEngagement(pStats, options) {
+    if(actExplorationProgress.moving())return false;
     let config = options || {};
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
     if (alive.length === 0) return false;
     syncCombatTacticsEncounterRuntime();
-    if (config.holdPosition && pStats.sSkill && pStats.sSkill.mobilityPattern) {
+    if (config.holdPosition && pStats.sSkill?.mobilityPattern) {
         return false;
     }
     let targets = getSkillTargets(pStats);
@@ -6675,7 +6705,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
-    hp = Math.floor(hp * underworldEntryTuning.hp);
+    hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
@@ -6750,7 +6780,7 @@ function createEnemy(zone, marker, groupIndex) {
         level,
         hp: hp,
         maxHp: hp,
-        name: name,
+        name: worldTreeJourney.enemyName(zone,isBoss,isElite,name),
         isElite: isElite,
         isBoss: isBoss,
         bossAssetKey: bossAssetKey,
@@ -6773,7 +6803,7 @@ function createEnemy(zone, marker, groupIndex) {
         armor: baseArmor,
         evasion: baseEvasion,
         atkMul: (trait && trait.atkMul ? trait.atkMul : 1) * (cosmosMods && cosmosMods.atkMul ? cosmosMods.atkMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.atkMul ? cosmosExclusiveTrait.atkMul : 1),
-        damageMul: (zone.type === 'outsideChaos' ? 2 : 1) * (cosmosMods && cosmosMods.damageMul ? cosmosMods.damageMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.damageMul ? cosmosExclusiveTrait.damageMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryDamageMul) || 1) : 1),
+        damageMul: (zone.mapDamageMul || 1) * (zone.type === 'outsideChaos' ? 2 : 1) * (cosmosMods && cosmosMods.damageMul ? cosmosMods.damageMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.damageMul ? cosmosExclusiveTrait.damageMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryDamageMul) || 1) : 1),
         attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1) * (cosmosMods && cosmosMods.attackSpeedMul ? cosmosMods.attackSpeedMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.attackSpeedVarMul ? cosmosExclusiveTrait.attackSpeedVarMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryAttackSpeedMul) || 1) : 1),
         critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0) + (cosmosMods && cosmosMods.critChanceBonus ? cosmosMods.critChanceBonus : 0) + (cosmosExclusiveTrait && cosmosExclusiveTrait.critChanceBonus ? cosmosExclusiveTrait.critChanceBonus : 0),
         regenRate: Math.max(((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul, Number(zone.boundaryRegenRate) || 0),
@@ -7130,7 +7160,7 @@ function estimateMapZonePowerRequirements(zone) {
     let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
     let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4)
         * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
-        * contentScale.hp * (bossMods.hpMul || 1)
+        * contentScale.hp * (bossMods.hpMul || 1) * (zone.mapHpMul || 1)
         * (cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1);
     let estimateEnergyShieldPct = Math.max(Number(bossMods.energyShieldPct || 0), Number(cosmosTrait && cosmosTrait.energyShieldPct || 0));
     if (estimateEnergyShieldPct > 0) bossHp *= 1 + estimateEnergyShieldPct / 100;
@@ -7142,7 +7172,7 @@ function estimateMapZonePowerRequirements(zone) {
         * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
         * (1.14 + tier * 0.16) * 1.34
         * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
-        * contentScale.damage * (bossMods.damageMul || 1)
+        * contentScale.damage * (bossMods.damageMul || 1) * (zone.mapDamageMul || 1)
         * (cosmosTrait && cosmosTrait.damageMul ? cosmosTrait.damageMul : 1);
     if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
     bossHit *= underworldEntryTuning.damage;
@@ -7168,7 +7198,7 @@ function estimateMapZonePowerRequirements(zone) {
     });
 }
 
-/** Pack-only journey nodes use a wave budget, never a nonexistent boss pattern. */
+/** Journey readiness covers both the pack budget and the map's final boss. */
 function getWorldTreePackReadiness(zone, baseHp, bossEstimate) {
     if (!zone.worldTreeNode || zone.worldTreeKind === 'boss') return bossEstimate;
     const waves = worldTreeJourney.encounterPlan(zone);
@@ -7181,10 +7211,10 @@ function getWorldTreePackReadiness(zone, baseHp, bossEstimate) {
         ? {hp:1.4 + getSoftenedLoopDepth(loops.loopCount) * 0.05, hit:1.28, crit:10, rate:1.16, pressure:8}
         : {hp:1, hit:1, crit:4, rate:1, pressure:3};
     const loop = game.season || 1;
-    const hp = baseHp * resolveMapEstimateContentScale(zone).hp * 0.92 * rank.hp;
+    const hp = baseHp * resolveMapEstimateContentScale(zone).hp * 0.92 * rank.hp * (zone.mapHpMul || 1);
     const affix = getMapEstimateAffixPressure(zone);
     const hit = getMonsterBaseHitDamage(zone, depth, clampNumber((tier - 1) / 10, 0, 1), null)
-        * rank.hit;
+        * rank.hit * (zone.mapDamageMul || 1);
     const critChance = (loop >= 2 ? rank.crit : 0) + affix.critChance;
     const peak = hit * (critChance > 0 ? affix.critDamageMul : 1);
     const rate = (0.26 + tier * 0.013) * 1.10
@@ -7193,9 +7223,9 @@ function getWorldTreePackReadiness(zone, baseHp, bossEstimate) {
     const hits = Math.max(1, Math.ceil(rate * 2.5)) * pack;
     return {
         ...bossEstimate,
-        dps: Math.max(1, Math.round(hp * pack / bossEstimate.clearTimeSec)),
-        peakHit: Math.max(1, Math.round(peak)),
-        ehp: Math.max(1, Math.round(peak + hit * (hits - 1)
+        dps: Math.max(bossEstimate.dps, Math.round(hp * pack / bossEstimate.clearTimeSec)),
+        peakHit: Math.max(bossEstimate.peakHit, Math.round(peak)),
+        ehp: Math.max(bossEstimate.ehp, Math.round(peak + hit * (hits - 1)
             * (1 + Math.min(1, critChance / 100) * (affix.critDamageMul - 1)))),
         resistancePressure: (loop >= 4 ? rank.pressure : 0) + affix.penetration,
         basis: 'packThreatWindow'
@@ -7363,7 +7393,7 @@ function getTrialHazardProfile(zone) {
 function primeTrialHazardTimer(zone) {
     // 개화 시련 밖으로 나가면 누적된 재생 억제를 해제한다.
     if (!zone || !zone.bloomTrial) game.bloomTrialRegenSuppress = 0;
-    if (!zone || zone.type !== 'trial') {
+    if (!zone || (zone.type !== 'trial' && !zone.trialHazard)) {
         trialHazardRuntime = { nextAt: 0, active: null };
         game.trialHazardIndex = 0;
         return;
@@ -8261,10 +8291,54 @@ function applyCosmosAstraStance(enemy) {
     enemy.regenRate = base.regenRate * (stance.regenMul || 1);
 }
 
-function startEncounterRun() {
+function createActExplorationPack(zone,room,stage) {
+    const key=room.id+':'+(stage===null?'pack':stage),waiting=[];
+    const offsets=stage===null ? [[0,0],[-1,0],[1,0]] : [[0,0]];
+    offsets.forEach(([dx,dy],index)=>{
+        const marker={at:0,count:1,boss:stage!==null,elite:room.role==='elite' && index===0,storyStage:stage};
+        const enemy=createEnemy(zone,marker,index);
+        Object.assign(enemy,{gx:room.gx+dx,gy:room.gy+dy,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
+        waiting.push(enemy);
+    });
+    return {key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),
+        eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
+}
+
+function createActExplorationEncounter(zone,enabled=zone.type==='act') {
+    if(!enabled)return null;
+    if(!zone || zone.type!=='act')throw Error('일반 액트에서만 탐험을 시작할 수 있습니다.');
+    const map=actExplorationMap.layout(zone.id+1);
+    if(!map)throw Error('액트 탐험 지형이 없습니다.');
+    const packs=[];
+    for(const room of map.rooms) {
+        if(room.role==='entry')continue;
+        if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null));continue;}
+        for(let stage=0;stage<STORY_ACTS[zone.id].maxKills;stage++)packs.push(createActExplorationPack(zone,room,stage));
+    }
+    placeActExplorationBounty(zone,map,packs);
+    const run=actExplorationState.create(map.act,packs,getCombatTime());
+    run.mode=game.settings.actExplorationMode;
+    return run;
+}
+
+/** Add the existing queued hunt once, in a required elite room, before fog discovery. */
+function placeActExplorationBounty(zone,map,packs) {
+    const markers=[];
+    if(!bountyRuntime.injectEncounterMarker(markers,zone))return;
+    const pack=packs.find(row=>row.eliteIds.length>0);
+    const room=map.rooms.find(row=>row.id===pack.roomId);
+    const enemy=createEnemy(zone,markers[0],0);
+    Object.assign(enemy,{gx:room.gx,gy:room.gy+1,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:pack.key});
+    pack.waiting.push(enemy);pack.aliveIds.push(enemy.id);pack.eliteIds.push(enemy.id);
+}
+
+// Explicit false is retained for replaying legacy progress-based encounters in regression
+// fixtures. Production callers use the zone default; saved legacy plans finish in place.
+function startEncounterRun(exploration) {
+    let zone = getZone(game.currentZoneId) || getZone(0);
+    const explorationRun=createActExplorationEncounter(zone,exploration);
     let returnedToGridStart = hasGridCell(game.gridPlayer)
-        && (game.gridPlayer.gx !== COMBAT_GRID_CONFIG.playerSpawn.gx
-            || game.gridPlayer.gy !== COMBAT_GRID_CONFIG.playerSpawn.gy);
+        && getGridUnitDistance(game.gridPlayer,COMBAT_GRID_CONFIG.playerSpawn)>0;
     pTimer = 0;
     resetCombatTacticsRuntime();
     resetCombatChannelRuntime();
@@ -8274,7 +8348,6 @@ function startEncounterRun() {
     // 재능 개화 미궁 보스 실제 처치 여부(이번 런 기준). 보스 처치 없이 런이 완료 처리되는 경우 개화를 막는다.
     game.bloomBossDefeated = false;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
-    let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone.worldTreeKind === 'breach') Object.assign(game.voidRift, {
         active:true, pendingWave:true, totalToSpawn:9, spawnedCount:0, defeatedCount:0, spawnTick:0
     });
@@ -8285,14 +8358,15 @@ function startEncounterRun() {
         background: !!game.isBackgroundCalculation
     });
     resetBattleRuntimeVisuals();
+    game.actExploration=explorationRun;
     resetPlayerGridPosition();
     if (returnedToGridStart) {
         addBattleFx('playerReturnWarp', { duration: 720, cell: copyCombatGridCell(game.gridPlayer) });
     }
     restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
-    game.encounterPlan = generateEncounterPlan(zone);
-    bountyRuntime.injectEncounterMarker(game.encounterPlan, zone);
+    game.encounterPlan = explorationRun ? [] : generateEncounterPlan(zone);
+    if(!explorationRun)bountyRuntime.injectEncounterMarker(game.encounterPlan, zone);
     game.enemies = [];
     if (zone && zone.type === 'outsideChaos') startWoodsmanCurse();
     else resetWoodsmanCurse();
@@ -8303,6 +8377,7 @@ function startMoving(isTown) {
     let returnDepartureCell = isTown && hasGridCell(game.gridPlayer)
         ? copyCombatGridCell(game.gridPlayer)
         : null;
+    actExplorationProgress.depart(game);
     dispatchRuntimeEvent('movement-started', { background: !!game.isBackgroundCalculation });
     pTimer = 0;
     resetCombatTacticsRuntime();
@@ -8348,6 +8423,22 @@ function startMoving(isTown) {
     }
 }
 
+/** Called by the existing fixed combat clock; offline resumes a saved exit without visual delay. */
+function advanceActExplorationDeparture() {
+    const run=actExplorationState.current(game),departure=run?.departure;
+    if(!departure)return false;
+    departure.remainingMs=game.isBackgroundCalculation ? 0 : Math.max(0,departure.remainingMs-100);
+    if(departure.remainingMs>0)return true;
+    const zone=getZone(game.currentZoneId);
+    game.currentZoneId=departure.zoneId;
+    actExplorationProgress.depart(game);
+    enterAutomaticMapInterruptionAfterClear(zone);
+    if(game.settings.townReturnAction==='stop')actExplorationProgress.stopAfterCompletion(game);
+    else startMoving(false);
+    dispatchRuntimeEvent('exploration-departed',{background:!!game.isBackgroundCalculation});
+    return true;
+}
+
 function finishTownReturnAction() {
     let action = (game.settings && game.settings.townReturnAction) || 'retry';
     if (action !== 'stop') return false;
@@ -8379,6 +8470,7 @@ function returnToTown() {
 }
 
 function ensureEncounterRun() {
+    if(actExplorationState.current(game))return;
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
@@ -8390,10 +8482,9 @@ function isRegularAutoProgressZone(zone) {
 }
 
 function reconcileMapProgressRuntimeState() {
-    let zone = getZone(game.currentZoneId) || getZone(0);
-    if (!zone) return false;
+    if(actExplorationState.current(game))return false;
     if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
-    zone = getZone(game.currentZoneId) || getZone(0);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     if (!isRegularAutoProgressZone(zone)) return false;
     let changed = false;
     let explicitStop = (game.settings && ((game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop')) || !!game.pendingLoopDecision || !!game.pendingLoopReady;
@@ -8405,7 +8496,8 @@ function reconcileMapProgressRuntimeState() {
         game.combatHalted = false;
         changed = true;
     }
-    if (game.moveTimer <= 0 && (game.runProgress || 0) <= 0) {
+    if (game.combatHalted) return changed;
+    if (game.moveTimer <= 0 && game.runProgress <= 0) {
         let hasPlan = Array.isArray(game.encounterPlan) && game.encounterPlan.length > 0;
         let liveEnemies = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0).length;
         if (liveEnemies > 0 && !hasPlan && Math.max(0, Math.floor(game.encounterIndex || 0)) === 0) {
@@ -8498,12 +8590,13 @@ function advanceMapProgress(pStats) {
         return;
     }
     ensureEncounterRun();
+    if(actExplorationProgress.advance(pStats))return;
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
-    let baseGain = zoneType === 'trial' ? 0.26 : (zoneType === 'abyss' ? 0.42 : (zoneType === 'skyTower' ? 0.072 : 0.36));
+    let baseGain = ({trial:0.26,abyss:0.42,skyTower:0.072})[zoneType] ?? 0.36;
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let emptyTravelMultiplier = enemyCount === 0 ? EMPTY_TRAVEL_PROGRESS_MULTIPLIER : 1;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
@@ -8774,6 +8867,7 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
 
 /** Read-only visual receipt; rewards are already committed. Never replay grants from presentation. */
 function queueEnemyGroundLoot(enemy, receipt) {
+    if (actExplorationLoot.pending(game)) return;
     if (game.isBackgroundCalculation || battleFxSuppressed) return;
     const item = receipt.item;
     const loot = { ...receipt, zoneId: game.currentZoneId, sourceCell: { gx: enemy.gx, gy: enemy.gy } };
@@ -8792,7 +8886,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     }
     const item = generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity, zone });
     const highlight = equipmentLootPolicy.highlight(item, game);
-    const accepted = addItemToInventory(item);
+    const accepted = addItemToInventory(item,{delivery:actExplorationLoot.delivery(game,'equipment')});
     if (accepted) {
         queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
     }
@@ -8802,14 +8896,61 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
 
 function grantRealmBossUniqueLoot(enemy, zone) {
     const item = generateRealmBossUniqueDrop(zone, enemy);
-    if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
+    if (!item || !addItemToInventory(item, { guaranteedKeep: true, delivery:actExplorationLoot.delivery(game,'equipment') })) return null;
     const highlight = equipmentLootPolicy.highlight(item, game);
     queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
     return item;
 }
 
 function grantEnemyLoot(enemy) {
-    return combatLootReceipts.capture(game,()=>rollLootForEnemy(enemy));
+    return actExplorationLoot.capture(game,actExplorationState.current(game),
+        ()=>combatLootReceipts.capture(game,()=>rollLootForEnemy(enemy)));
+}
+
+function awardEnemyLootCurrency(key,amount,source='reward') {
+    return awardCurrency(key,amount,source,(currency,gain)=>actExplorationLoot.currency(game,currency,gain));
+}
+
+/** Atomic inventory commit precedes notifications; re-entry cannot grant a second time. */
+function announceActExplorationLoot(receipt) {
+    if(!receipt)return;
+    for(const [key,amount] of Object.entries(receipt.currencies)) {
+        combatLootReceipts.currency(game,key,amount);
+        notifyCurrencyAcquisition(key,amount);
+    }
+    receipt.equipment.forEach(item=>recordEquipmentAcquisition(item));
+    receipt.growthItems.forEach(item=>combatLootReceipts.item(game,item));
+    receipt.growthCodex.forEach(item=>registerUniqueToCodexOnAcquire(item));
+    if(receipt.blurred45)combatLootReceipts.currency(game,'blurred45',receipt.blurred45);
+    dispatchRuntimeEvent('exploration-loot-claimed',{...receipt,equipmentCount:receipt.equipment.length,background:!!game.isBackgroundCalculation});
+}
+
+function grantEnemyGemFragments(amount) {
+    return grantGemResearchFragments(amount,'drop',(key,gain)=>actExplorationLoot.currency(game,key,gain));
+}
+
+function rollEnemyGemReward(enemy,expertLevel) {
+    const shards=grantEnemyGemFragments(1),pending=actExplorationLoot.pending(game)?.gems||[];
+    const duplicateShards=enemy.isBoss?3:enemy.isElite?2:1;
+    if(!contentProgression.isUnlocked('support')||Math.random()<0.5) {
+        const gem=rollEnemyAttackGem(expertLevel,pending);
+        const bonus=gem?0:grantEnemyGemFragments(duplicateShards+1);
+        return {kind:'attack',gem,shards:shards+bonus};
+    }
+    const names=Object.keys(SUPPORT_GEM_DB);
+    if(!names.length)return {kind:'support',gem:null,shards};
+    const name=rndChoice(names),gem=gemDropRewards.nextSupport(game,name,pending);
+    const bonus=gem?0:grantEnemyGemFragments(duplicateShards);
+    return {kind:'support',name,gem,shards:shards+bonus};
+}
+
+function rollEnemyAttackGem(expertLevel,pending) {
+    const names=gemDropRewards.missingAttacks(game,pending);
+    if(!names.length)return null;
+    const name=rndChoice(names),awakened=expertLevel>=13&&Math.random()<getAwakenedDropChance(0.035);
+    // Pity records a completed random draw, like equipment drop progress, even if its loot is later lost.
+    if(expertLevel>=13)bumpExpertAwakenedPity(awakened);
+    return {kind:'attack',name,awakened};
 }
 
 function rollLootForEnemy(enemy) {
@@ -8820,98 +8961,29 @@ function rollLootForEnemy(enemy) {
         let echoChance = enemy.isBoss ? 0.045 : 0.004;
         let bonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('awakenedGemDropPct') || 0) / 100 : 0;
         if (Math.random() < echoChance * (1 + bonus) * contentDropMul) {
-            awardCurrency('awakenedEcho', 1);
+            awardEnemyLootCurrency('awakenedEcho', 1);
             if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
         }
     }
     let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
     if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * contentDropMul) {
-        let baseGemShardGain = grantGemResearchFragments(1, 'drop');
-        const shardSuffix = baseGemShardGain ? ` · 젬 잔향 +${baseGemShardGain}` : '';
-        if (!contentProgression.isUnlocked('support') || Math.random() < 0.5) {
-            let available = Object.keys(SKILL_DB).filter(name => !hasSkillGemOwned(name) && SKILL_DB[name].isGem);
-            if (available.length > 0) {
-                let skill = rndChoice(available);
-                game.skills.push(skill);
-                let awakenedDrop = gemExpertLvForLoot >= 13 && Math.random() < (typeof getAwakenedDropChance === 'function' ? getAwakenedDropChance(0.035) : 0.035);
-                if (gemExpertLvForLoot >= 13 && typeof bumpExpertAwakenedPity === 'function') bumpExpertAwakenedPity(awakenedDrop);
-                game.gemData[skill] = { level: 1, exp: 0, awakened: awakenedDrop };
-                game.noti.skills = true;
-                checkUnlocks();
-                if (game.settings.showLootLog) addLog(`✨ 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!${awakenedDrop ? ' (각성 후보)' : ''}${shardSuffix}`);
-            } else {
-                let bonus = enemy.isBoss ? 4 : enemy.isElite ? 3 : 2;
-                bonus = grantGemResearchFragments(bonus, 'drop');
-                if (game.settings.showLootLog && bonus > 0) addLog(`💠 모든 공격 젬을 보유해 드랍이 젬 잔향 +${baseGemShardGain + bonus}로 환원되었습니다.`, 'loot-magic');
-            }
-        } else {
-            let available = Object.keys(SUPPORT_GEM_DB);
-            if (available.length > 0) {
-                let gem = rndChoice(available);
-                let didImprove = false;
-                game.supportGemData = game.supportGemData || {};
-                if (!hasSupportGemOwned(gem)) {
-                    game.supports.push(gem);
-                    game.supportGemData[gem] = { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 };
-                    didImprove = true;
-                } else {
-                    let record = normalizeGemRecord(game.supportGemData[gem] || { level:1, exp:0 });
-                    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(gem) : 3;
-                    let before = Math.max(1, Math.min(tierCap, Math.floor(record.unlockedTier || 1)));
-                    record.unlockedTier = before;
-                    record.activeTier = Math.max(1, Math.min(before, Math.floor(record.activeTier || 1)));
-                    if (before < tierCap) {
-                        record.unlockedTier = before + 1;
-                        if ((record.activeTier || 1) < record.unlockedTier) {
-                            let prevTier = Math.max(1, Math.floor(record.activeTier || 1));
-                            let baseCost = Math.max(1, Math.floor(getSupportResonanceCost(gem)));
-                            let getTierCost = (tier) => {
-                                let db = SUPPORT_GEM_DB[gem] || {};
-                                if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[tier - 1])) return Math.max(1, Math.floor(db.resonanceCosts[tier - 1]));
-                                if (tier <= 1) return baseCost;
-                                if (tier === 2) return Math.max(baseCost + 2, Math.floor(baseCost * 2.4));
-                                return Math.max(baseCost + 5, Math.floor(baseCost * 3.8));
-                            };
-                            let isEquipped = (game.equippedSupports || []).includes(gem);
-                            let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-                            let resonanceStats = typeof getEffectiveResonanceCap === 'function' ? null : getPlayerStats();
-                            let resonanceCap = typeof getEffectiveResonanceCap === 'function'
-                                ? getEffectiveResonanceCap()
-                                : Math.floor((game.resonancePower || 0) + (resonanceStats.runeResonancePower || 0) + (resonanceStats.inquisitorResonanceBonus || 0));
-                            let remain = Math.max(0, resonanceCap - used);
-                            let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
-                            if (!isEquipped || remain >= extraNeed) {
-                                record.activeTier = record.unlockedTier;
-                            }
-                        }
-                        game.supportGemData[gem] = record;
-                        didImprove = true;
-                    }
-                }
-                if (didImprove) {
-                    game.noti.skills = true;
-                    checkUnlocks();
-                    let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
-                    let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(gem, tier) : (tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급');
-                    if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tierLabel})${shardSuffix}`);
-                } else {
-                    let bonus = enemy.isBoss ? 3 : enemy.isElite ? 2 : 1;
-                    bonus = grantGemResearchFragments(bonus, 'drop');
-                    if (game.settings.showLootLog && bonus > 0) addLog(`💠 최고 등급 보조 젬 [${gem}]이 젬 잔향 +${baseGemShardGain + bonus}로 환원되었습니다.`, 'loot-rare');
-                }
-            }
+        const reward=rollEnemyGemReward(enemy,gemExpertLvForLoot);
+        if(reward.gem&&!actExplorationLoot.gem(game,reward.gem)) {
+            gemDropRewards.grant(game,reward.gem,reward.kind==='support'?getEffectiveResonanceCap():0);
+            checkUnlocks();
         }
+        if(!actExplorationLoot.pending(game))dispatchRuntimeEvent('gem-loot-received',reward);
     }
 
     getCurrencyDrops(enemy).forEach(drop => {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'blurred45') {
-            let gain = typeof addCoreCubeBlurred45 === 'function' ? addCoreCubeBlurred45(drop[1]) : 0;
+            const gain = addCoreCubeBlurred45(drop[1],amount=>actExplorationLoot.blurred45(game,amount));
             if (gain > 0) queueEnemyGroundLoot(enemy, { currency: drop[0], count: gain });
-            if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain || drop[1]}`, 'loot-unique');
+            if (gain>0 && !actExplorationLoot.pending(game) && game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain}`, 'loot-unique');
             return;
         }
-        const gain = awardCurrency(drop[0], drop[1], 'drop');
+        const gain = awardEnemyLootCurrency(drop[0], drop[1], 'drop');
         if (gain <= 0) return;
         queueEnemyGroundLoot(enemy, { currency: drop[0], count: gain });
         let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
@@ -8937,23 +9009,12 @@ function rollLootForEnemy(enemy) {
     rollGrowthItemDrop(enemy, growthItemChance);
     if (contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul) {
         let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
-        game.jewelInventory = game.jewelInventory || [];
-        let jewelRarity = jewel.rarity || 'normal';
-        let autoSalvage = !!(game.settings.jewelAutoSalvageEnabled && game.settings.jewelAutoSalvageRarities && game.settings.jewelAutoSalvageRarities[jewelRarity]);
-        let inventoryFull = game.jewelInventory.length >= getJewelInventoryLimit();
-        let protectOverflow = inventoryFull && !autoSalvage && (jewelRarity === 'rare' || jewelRarity === 'unique');
-        if ((inventoryFull && !protectOverflow) || autoSalvage) {
-            let shardGain = salvageJewelObject(jewel, true);
-            if (game.settings.showLootLog && !game.isBackgroundCalculation) addLog(`💠 ${inventoryFull ? '주얼 인벤토리 초과' : '주얼 자동해체'}: [${jewel.name}] · 주얼 결정 +${shardGain}`, inventoryFull ? 'attack-monster' : 'loot-normal');
-        } else {
-            game.jewelInventory.push(jewel);
-            game.noti = game.noti || {};
-            game.noti.jewel = true;
+        const receipt=receiveJewelDrop(jewel,actExplorationLoot.delivery(game,'jewels'));
+        if (receipt.stored) {
             const jewelTier = jewel.rarity === 'unique' ? 'unique' : (jewel.rarity === 'rare' ? 'rare' : jewel.rarity);
             queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff' });
-            let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
-            if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득!${protectOverflow ? ' <span style="color:#ffb86b;">(공간 부족 보호)</span>' : ''} (${lineText || '미가공'})`, protectOverflow ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
         }
+        if(!receipt.deferred)dispatchRuntimeEvent('jewel-drop-received',receipt);
     }
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
     let mappingZone = isBeeMappingZone(zone);
@@ -8962,26 +9023,26 @@ function rollLootForEnemy(enemy) {
         let beeLootLogs = [];
         if (beeLv >= 1 && Math.random() < 0.05) {
             let pollenAmount = enemy.isElite ? 2 : 1;
-            awardCurrency('pollen', pollenAmount);
+            awardEnemyLootCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
         if (beeLv >= 4 && enemy.isElite && Math.random() < 0.0048) {
-            awardCurrency('venomStinger', 1);
+            awardEnemyLootCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
         if (beeLv >= 2 && enemy.isElite && Math.random() < 0.00064) {
-            awardCurrency('enchantedHoney', 1);
+            awardEnemyLootCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
         if (beeLv >= 8 && enemy.isElite && Math.random() < 0.0032) {
-            awardCurrency('beeswax', 1);
+            awardEnemyLootCurrency('beeswax', 1);
             beeLootLogs.push('밀랍 +1');
         }
         maybeTriggerBeeMappingEvent(beeLv, enemy);
         if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
     if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002)) {
-        awardCurrency('hiveKey', 1);
+        awardEnemyLootCurrency('hiveKey', 1);
         if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
     }
     let sporeUnlocked = contentProgression.canDropCurrency('sporeFire') && Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
@@ -8989,7 +9050,7 @@ function rollLootForEnemy(enemy) {
     if ((game.season || 1) >= 15 && (isDeepChaosZone || game.currentZoneId === 'beehive_run' || game.currentZoneId === 'grand_breach_run')) {
         let traceChance = isDeepChaosZone ? 0.00075 : (game.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005);
         if (Math.random() < traceChance) {
-            awardCurrency('colonyTrace', 1);
+            awardEnemyLootCurrency('colonyTrace', 1);
             addLog('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
         }
     }
@@ -9002,7 +9063,7 @@ function rollLootForEnemy(enemy) {
             if (enemy.ele === 'cold') pool.push('sporeCold');
             if (enemy.ele === 'light') pool.push('sporeLight');
             let key = rndChoice(pool);
-            awardCurrency(key, 1);
+            awardEnemyLootCurrency(key, 1);
             if (game.settings.showLootLog) addLog(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
         }
     }
@@ -9093,7 +9154,8 @@ function handleEnemyDeath(enemy, pStats) {
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     grantEnemyLoot(enemy);
-    let bountyOffer = bountyRuntime.processKill(zone, enemy);
+    actExplorationState.recordDeath(game,enemy);
+    let bountyOffer = actExplorationLoot.capture(game,actExplorationState.current(game),()=>bountyRuntime.processKill(zone,enemy));
     if (bountyOffer.offered || bountyOffer.completed) {
         addLog(bountyOffer.completed ? '보물사냥 표적 처치! 전리품 획득 · 추가 보물을 받을 수 있습니다.' : '보물사냥이 준비되었습니다. 전투 화면에서 표적을 확인하세요.', 'loot-unique');
         if (typeof queueImportantSave === 'function') queueImportantSave(200);
@@ -9549,7 +9611,14 @@ function grantBeyondBoundaryFocusedReward(result) {
 }
 
 function finishWorldTreeJourneyEncounter(zone) {
-    const result = worldTreeJourney.complete(game, zone);
+    const result = combatLootReceipts.capture(game,()=>{
+        const completed = worldTreeJourney.complete(game, zone);
+        if (!completed) return null;
+        for (const [key,amount] of completed.rewards) {
+            if (contentProgression.canDropCurrency(key)) awardCurrency(key,amount);
+        }
+        return completed;
+    });
     if (!result) return;
     game.killsInZone = 0;
     game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0; game.moveTimer = 0;
@@ -9570,6 +9639,9 @@ function finishWorldTreeJourneyEncounter(zone) {
 }
 
 function finishEncounterRun() {
+    const settlement=actExplorationProgress.beginCompletion(getZone(game.currentZoneId));
+    if(!settlement)return;
+    announceActExplorationLoot(settlement.loot);
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
     dispatchRuntimeEvent('encounter-finished', {
@@ -9578,7 +9650,7 @@ function finishEncounterRun() {
         contentContext: getEncounterTelemetryContext(zone),
         background: !!game.isBackgroundCalculation
     });
-    let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
+    let mapAction = game.settings.mapCompleteAction;
     game.killsInZone++;
     shrineRuntime.advanceAfterEncounter(zone);
     if (zone.worldTreeNode) return finishWorldTreeJourneyEncounter(zone);
@@ -10100,23 +10172,19 @@ function finishEncounterRun() {
             game.currentZoneId = nextZone !== null ? nextZone : getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         }
         else if (mapAction === 'stop') {
-            game.combatHalted = true;
-            game.enemies = [];
-            game.encounterPlan = [];
-            game.encounterIndex = 0;
-            game.runProgress = 0;
+            actExplorationProgress.stopAfterCompletion(game);
             updateStaticUI();
             queueImportantSave(180);
             return;
         } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+        if(actExplorationProgress.deferDeparture(game)) {
+            checkUnlocks();updateStaticUI();queueImportantSave(220);return;
+        }
+        actExplorationProgress.reconcileDeparture(game);
         enterAutomaticMapInterruptionAfterClear(zone);
         checkUnlocks();
         if ((game.settings.townReturnAction || 'retry') === 'stop') {
-            game.combatHalted = true;
-            game.enemies = [];
-            game.encounterPlan = [];
-            game.encounterIndex = 0;
-            game.runProgress = 0;
+            actExplorationProgress.stopAfterCompletion(game);
         } else startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -10232,6 +10300,7 @@ function syncSkillGemChannel(runtime) {
 function applySkillGemCommand(command,stats) {
     if (command.type==='teleport') {
         if (!skillGemCasts.free(command.to,game.enemies.filter(e=>e.hp>0))) return;
+        actExplorationMotion.cancel(game.actExploration);
         Object.assign(game.gridPlayer,command.to);
         addBattleFx('playerMobility',{skillName:'암살',fromCell:command.from,toCell:command.to,instant:true,duration:180});
         return;
@@ -11348,6 +11417,7 @@ function recordPlayerDefeatStart(zone, options) {
 }
 
 function handlePlayerDefeat(zone, pStats, message, options) {
+    actExplorationProgress.defeat(game);
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     recordPlayerDefeatStart(zone, opts);
@@ -12457,8 +12527,8 @@ function getBloomTrialRegenSuppressNext(zone, currentSuppress) {
 }
 
 function buildTrialHazardCells(zone, origin, sequence) {
-    let columns = COMBAT_GRID_CONFIG.columns;
-    let rows = COMBAT_GRID_CONFIG.rows;
+    let columns = getCombatGridSize().columns;
+    let rows = getCombatGridSize().rows;
     let profile = getTrialHazardProfile(zone);
     let cells = [], seen = new Set();
     let push = (gx, gy) => {
@@ -12615,9 +12685,12 @@ function resolveTrialHazardImpact(zone, pStats, hazard, now) {
     trialHazardRuntime = { nextAt: now + hazard.intervalMs, active: null };
 }
 
+function hasGroundHazard(zone) {
+    return !!zone && (zone.type === 'trial' || !!zone.trialHazard);
+}
 function applyTrialTrapTick(pStats, deferEscape) {
     let zone = getZone(game.currentZoneId);
-    if (!zone || zone.type !== 'trial' || game.moveTimer > 0) return false;
+    if (!hasGroundHazard(zone) || game.moveTimer > 0) return false;
     let now = getCombatTime();
     if (!(game.enemies || []).some(enemy => enemy && enemy.hp > 0)) {
         trialHazardRuntime.active = null;
@@ -12707,6 +12780,7 @@ function enterOutsideChaos() {
     if (!outsideChaosRequirementMet) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
+    actExplorationProgress.depart(game);
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
     game.killsInZone = 0;
     game.runProgress = 0;
@@ -12734,6 +12808,7 @@ function enterWoodsmanEchoChallenge() {
     run.timeLeft = 30;
     run.lastTickAt = getCombatTime();
     run.totalDamage = 0;
+    actExplorationProgress.depart(game);
     game.currentZoneId = WOODSMAN_ECHO_ZONE_ID;
     game.killsInZone = 0;
     game.runProgress = 0;

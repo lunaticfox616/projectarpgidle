@@ -34,7 +34,12 @@ const context = {
   COMBAT_GRID_CONFIG: { columns: 9, rows: 8 },
   hasKeystone(id) { return id === 'sb9'; }
 };
+context.window=context;
 vm.createContext(context);
+// Load the real exploration state dependency; ordinary arenas still have no active run.
+vm.runInContext(fs.readFileSync('js/utils.js','utf8'),context,{filename:'js/utils.js'});
+vm.runInContext('game=window.game;',context);
+vm.runInContext(fs.readFileSync('js/act-exploration-state.js','utf8'),context,{filename:'js/act-exploration-state.js'});
 
 [
   'getSummonCapMaximum',
@@ -46,6 +51,7 @@ vm.createContext(context);
   'generateEncounterPlan'
 ].forEach(name => vm.runInContext(readFunction(combatSource, name), context, { filename: name }));
 [
+  'getCombatGridSize',
   'isGridCellInBounds',
   'gridChebyshevDist',
   'gridCellKey',
@@ -54,7 +60,8 @@ vm.createContext(context);
   'hasGridCell',
   'getGridUnitCells',
   'getGridUnitDistance',
-  'getGridBlockedCells'
+  'getGridBlockedCells',
+  'addExplorationGridReservations'
 ].forEach(name => vm.runInContext(readFunction(gridSource, name), context, { filename: name }));
 
 assert.strictEqual(context.getSummonCapMaximum(), 12, 'Grandlord must raise the summon cap maximum to 12');

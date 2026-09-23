@@ -12,13 +12,13 @@ const vm = require('vm');
 
 // index.html의 <script src> 순서와 같아야 한다. 이 목록 자체가 로드 순서 계약이다.
 const LOAD_ORDER = [
-    'data/constants.js', 'data/level-progression.js', 'data/build-stat-inputs.js', 'data/shrines.js', 'data/bounties.js', 'data/maps.js', 'data/story-journal.js', 'data/cosmos-route.js', 'data/world-tree-journey.js', 'data/gem-core-forge.js', 'data/skills.js', 'data/skill-fx-atlas.js', 'data/endgame-progression.js', 'data/severed-wanderers.js', 'data/items.js', 'data/unique-equipment.js', 'data/offline-progress.js',
+    'data/constants.js', 'data/level-progression.js', 'data/build-stat-inputs.js', 'data/shrines.js', 'data/bounties.js', 'data/maps.js', 'data/story-journal.js', 'data/act-exploration-maps.js', 'data/cosmos-route.js', 'data/world-tree-journey.js', 'data/gem-core-forge.js', 'data/skills.js', 'data/skill-fx-atlas.js', 'data/endgame-progression.js', 'data/severed-wanderers.js', 'data/items.js', 'data/unique-equipment.js', 'data/offline-progress.js',
     'data/growth-items.js', 'data/passives.js', 'data/passive-node-id-migrations.js', 'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js',
     'data/talent-cards.js', 'data/content-progression.js',
-    'js/utils.js', 'js/ui-feedback.js', 'js/level-progression.js', 'js/state.js', 'js/combat-loot-receipts.js', 'js/ui-display.js', 'js/combat-clock.js', 'js/content-progression.js', 'js/endgame-progression.js', 'js/salvage-recovery.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/crafting-workspace-state.js', 'js/save.js', 'js/items.js', 'js/equipment-loadouts.js', 'js/equipment-inventory-grid.js',
-    'js/crafting-payment.js', 'js/equipment-crafting.js', 'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/battle-asset-loading.js', 'js/shrines.js', 'js/growth-board.js', 'js/background-build-cache.js', 'js/growth-effects.js',
-    'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/gem-core-forge.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/skill-gem-casts.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
-    'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/combat-build-stats.js', 'js/combat-equipment-stats.js', 'js/cosmos-route.js', 'js/world-tree-journey.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-world-tree-native.js', 'js/canvas-world-tree-fx.js', 'js/canvas-enemy-projectiles.js', 'js/battle-ground-loot-ui.js', 'js/canvas-battlefield.js',
+    'js/utils.js', 'js/ui-feedback.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/gem-drop-rewards.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js', 'js/level-progression.js', 'js/state.js', 'js/combat-loot-receipts.js', 'js/ui-display.js', 'js/combat-clock.js', 'js/content-progression.js', 'js/endgame-progression.js', 'js/salvage-recovery.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/crafting-workspace-state.js', 'js/save.js', 'js/items.js', 'js/equipment-loadouts.js', 'js/equipment-inventory-grid.js',
+    'js/crafting-payment.js', 'js/equipment-crafting.js', 'js/star-wedge.js', 'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/battle-asset-loading.js', 'js/shrines.js', 'js/growth-board.js', 'js/background-build-cache.js', 'js/growth-effects.js',
+    'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/gem-core-forge.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/skill-gem-casts.js', 'js/act-exploration-progress.js', 'js/act-exploration-ui.js', 'js/currency-acquisition-ui.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
+    'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/combat-build-stats.js', 'js/combat-equipment-stats.js', 'js/cosmos-route.js', 'js/world-tree-journey.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-world-tree-native.js', 'js/canvas-world-tree-fx.js', 'js/canvas-enemy-projectiles.js', 'js/battle-ground-loot-ui.js', 'js/canvas-exploration-art.js', 'js/canvas-act-exploration.js', 'js/canvas-battlefield.js',
 'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/equipment-inventory-grid-ui.js', 'js/equipment-inspection-ui.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/flask-ui.js', 'js/passive-selection-ui.js', 'js/arcana-mobile-ui.js', 'js/endgame-progression-ui.js', 'js/tutorial-ui.js', 'js/story-journal-ui.js', 'js/inventory-search-ui.js', 'js/colony-ward-ui.js', 'js/ui-panel-markup.js', 'js/underworld-rune-ui.js', 'js/tab-layout-ui.js', 'js/fossil-workbench-ui.js', 'js/chaos-infuser-ui.js', 'js/ocean-collection-ui.js', 'js/sea-gift-ui.js', 'js/level-progression-ui.js', 'js/crafting-goal-options.js', 'js/crafting-catalog-ui.js', 'js/crafting-workspace-ui.js', 'js/ui.js', 'js/market-ui.js', 'js/equipment-loot-ui.js', 'js/content-progression-ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
     'js/gem-selection-ui.js', 'js/condition-feedback-ui.js', 'js/gem-core-forge-ui.js', 'js/skills-ui.js', 'js/growth-workspace-ui.js', 'js/inventory-library-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js',
     'js/talent-cards.js', 'js/talent-precise.js', 'js/talent-hit-effects.js', 'js/talent-recovery.js',
@@ -28,7 +28,7 @@ const LOAD_ORDER = [
 // UI-window-manager·goal-system 등 DOM 조립 모듈은 실제 브라우저 검사에서 검증한다.
 // index.html 전체 순서와의 일치는 smoke-boot-script-contract.js가 확인한다.
 
-function buildGameRuntime(sourceOverrides = {}) {
+function buildGameRuntime(sourceOverrides = {}, eventTarget = null, documentOverrides = {}) {
     const noop = () => {};
     const stubCtx = {
         fillRect: noop, clearRect: noop, drawImage: noop, save: noop, restore: noop,
@@ -70,6 +70,12 @@ function buildGameRuntime(sourceOverrides = {}) {
         innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1,
         scrollTo: noop, alert: noop, confirm: () => false, prompt: () => null
     };
+    if(eventTarget)Object.assign(context,{
+        CustomEvent,
+        addEventListener:eventTarget.addEventListener.bind(eventTarget),
+        removeEventListener:eventTarget.removeEventListener.bind(eventTarget),
+        dispatchEvent:eventTarget.dispatchEvent.bind(eventTarget)
+    });
     context.window = context;
     context.globalThis = context;
     context.self = context;
@@ -80,6 +86,8 @@ function buildGameRuntime(sourceOverrides = {}) {
         createElement: makeEl, createTextNode: makeEl, createDocumentFragment: makeEl,
         addEventListener: noop, removeEventListener: noop
     };
+    // DOM boundary supplied by interaction tests; production modules remain unmodified.
+    Object.assign(context.document, documentOverrides);
     vm.createContext(context);
     LOAD_ORDER.forEach(file => {
         vm.runInContext(sourceOverrides[file] ?? fs.readFileSync(file, 'utf8'), context, { filename: file });

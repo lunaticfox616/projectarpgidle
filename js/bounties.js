@@ -229,17 +229,18 @@ const bountyRuntime = (() => {
     function grantTargetGrowth(enemy, reward) {
         if (!reward.growthCount || !contentProgression.isUnlocked('growth')) return 0;
         const item=generateGrowthDrop(enemy,{zone:ensureState().source?.zone});
-        return item && addDroppedGrowthItem(item,{guaranteedKeep:true}) ? 1 : 0;
+        return item && addDroppedGrowthItem(item,{guaranteedKeep:true,delivery:actExplorationLoot.delivery(game,'growthItems')}) ? 1 : 0;
     }
     function grantTargetLoot(enemy, reward) {
         const growthCount=grantTargetGrowth(enemy,reward);
         const count=rollRiskAmount((reward.equipmentCount || 0)+(growthCount<(reward.growthCount || 0) ? reward.fallbackEquipmentCount : 0));
         for (let i=0;i<count;i++) {
             const item=generateEquipmentDrop(enemy,{minimumRarity:reward.minimumRarity,zone:ensureState().source?.zone});
-            if (item) addItemToInventory(item,{guaranteedKeep:true});
+            if (item) addItemToInventory(item,{guaranteedKeep:true,delivery:actExplorationLoot.delivery(game,'equipment')});
         }
         for (const [key,amount] of Object.entries(reward.currencies || {})) {
-            if (contentProgression.canDropCurrency(key)) awardCurrency(key,rollRiskAmount(rewardAmount({amount,common:true})));
+            if (contentProgression.canDropCurrency(key)) awardCurrency(key,rollRiskAmount(rewardAmount({amount,common:true})),
+                'drop',actExplorationLoot.currency.bind(null,game));
         }
     }
     function rollRiskAmount(amount) {

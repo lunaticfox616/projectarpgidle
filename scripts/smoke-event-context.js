@@ -40,7 +40,7 @@ check('ready treasure is settled before a loop can discard equipment', () => {
     reset(2);
     run(`game.currentZoneId=8;game.bountyHunt.remaining=1;
         bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});bountyRuntime.openTreasure()`);
-    run(`bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun();
+    run(`bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun(false);
         var target=createEnemy(getZone(game.currentZoneId),game.encounterPlan.find(entry=>entry.bountyId),0);
         game.enemies=[target];target.hp=0;handleEnemyDeath(target,getPlayerStats());game.pendingLoopReady=true;
         confirmLoopReady()`);
@@ -53,7 +53,7 @@ check('ready treasure is settled before a loop can discard equipment', () => {
 check('defeat ends accepted treasure hunts and permits the earned loop', () => {
     reset(2);
     run(`game.currentZoneId=8;game.settings.showDeathNotice=false;game.bountyHunt.remaining=0;
-        bountyRuntime.openTreasure();bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun();
+        bountyRuntime.openTreasure();bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun(false);
         handlePlayerDefeat(getZone(8),getPlayerStats(),null,{noToast:true})`);
     assert.equal(run('game.bountyHunt.pending'),null);
     assert.equal(run('game.bountyHunt.remaining'),10);

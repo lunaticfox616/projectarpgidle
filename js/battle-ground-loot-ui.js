@@ -5,6 +5,7 @@ const battleGroundLoot = (() => {
     let seen = new WeakSet();
     const entries = new Map();
     const motes = new Set();
+    let settlement=null;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const displayLimit = () => canvas.clientWidth < 600 ? 16 : 24;
     const isMajor = receipt => receipt.currency === 'goldenRule' || receipt.item?.rarity === 'unique' || !!receipt.highlight;
@@ -201,14 +202,57 @@ const battleGroundLoot = (() => {
             && !document.hidden && !game.isBackgroundCalculation;
     }
 
+    // The domain has already paid every row. This bounded queue is presentation only.
+    function settle(event) {
+        if(event.detail.background || document.hidden)return;
+        const run=actExplorationState.current(game);if(!run?.completionApplied)return;
+        const rows=actExplorationUi.collectLootRows(event.detail).map(row=>({
+            currency:row.currency,count:row.amount,item:row.item||{name:row.name+(row.amount>1?' ×'+row.amount:''),rarity:'normal'},
+            itemKind:({growthItems:'growth',jewels:'jewel'})[row.kind],
+            color:row.rarity?getRarityColor(row.rarity):undefined
+        }));
+        if(!rows.length)return;
+        const boss=actExplorationMap.layout(run.act).rooms.find(room=>room.role==='boss');
+        clear();
+        settlement={run,rows:rows.sort((a,b)=>Number(isMajor(b))-Number(isMajor(a))),
+            cell:{gx:boss.gx+.5,gy:boss.gy+.5},started:performance.now(),index:0,bounded:false};
+        document.getElementById('btn-exploration-loot-skip').hidden=false;
+    }
+
+    function endSettlement(skip=false) {
+        if(skip && settlement?.run===game.actExploration && settlement.run.departure)
+            settlement.run.departure.remainingMs=0;
+        settlement=null;clear();
+        document.getElementById('btn-exploration-loot-skip').hidden=true;
+    }
+
+    function consumeSettlement(projection) {
+        if(!settlement)return;
+        if(settlement.run!==game.actExploration){endSettlement();return;}
+        const age=performance.now()-settlement.started;
+        if(age>=5000){endSettlement();return;}
+        const rows=settlement.rows,limit=displayLimit();
+        if(!settlement.bounded && rows.length>limit) {
+            const rest=rows.splice(limit-1),count=rest.reduce((sum,row)=>sum+(row.count||1),0);
+            rows.push({item:{name:'전리품 '+count.toLocaleString()+'개',rarity:'normal'}});
+        }
+        settlement.bounded=true;
+        const point=projection.cellToScreen(settlement.cell.gx,settlement.cell.gy);
+        point.y+=projection.actorGroundOffsetY;
+        while(settlement.index<rows.length && settlement.index*50<=age) {
+            const index=settlement.index++;
+            spawn({loot:rows[index]},point,index,rows.length);
+        }
+    }
+
     function prepare(source, now, projection) {
-        if (!visible(source)) { clear(); return false; }
+        if (!visible(source)) { endSettlement(); return false; }
         if (zone !== game.currentZoneId || epoch !== battleVisualState.lootEpoch) {
             clear(); zone = game.currentZoneId; epoch = battleVisualState.lootEpoch; seen = new WeakSet();
         }
-        if (!canvas && !battleFx.some(fx => fx.loot)) return false;
+        if (!canvas && !settlement && !battleFx.some(fx => fx.loot)) return false;
         if (!canvas) mount(source);
-        resize(); consume(now, projection);
+        resize(); consume(now, projection);consumeSettlement(projection);
         return hasPresentation();
     }
 
@@ -232,5 +276,9 @@ const battleGroundLoot = (() => {
         return next;
     }
 
+    window.addEventListener('project-idle:exploration-loot-claimed',settle);
+    document.addEventListener('click',event=>{
+        if(event.target.closest('#btn-exploration-loot-skip'))endSettlement(true);
+    });
     return Object.freeze({ actorContext });
 })();

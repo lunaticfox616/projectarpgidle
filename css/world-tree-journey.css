@@ -5,66 +5,6 @@
 #map-tab-zones:has(#map-explore-worldtree.active)>#map-ready-destinations{display:none}
 #tab-map #map-explore-worldtree{padding:0;border:0;background:none}
 #ui-world-tree-journey{--journey-gold:#e1ca99;--journey-muted:#a9b1a5;--journey-ink:#eaece2;--journey-line:#b0bba330;color:var(--journey-ink);container-type:inline-size}
-#ui-world-tree-journey .journey-layout{position:relative;isolation:isolate;overflow:hidden;border:1px solid var(--journey-line);border-radius:8px;background:#101916}
-#ui-world-tree-journey button{box-sizing:border-box;min-width:0;font:inherit;color:inherit;cursor:pointer;border:0;border-radius:3px;background:transparent;box-shadow:none;padding:0}
-#ui-world-tree-journey button:disabled{opacity:.4;cursor:default}
-#ui-world-tree-journey button:focus-visible{outline:2px solid var(--journey-gold);outline-offset:3px}
-#ui-world-tree-journey .journey-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:relative;z-index:2;padding:22px 28px 19px;background:linear-gradient(100deg,#17201b,#101916)}
-#ui-world-tree-journey .journey-eyebrow{color:var(--journey-muted);font-size:10px;letter-spacing:.1em}
-#ui-world-tree-journey .journey-header h2{display:block;margin:5px 0;padding:0;border:0;border-radius:0;background:none!important;box-shadow:none!important;color:var(--journey-ink);font-size:27px;line-height:1.3;font-weight:500;letter-spacing:-.04em}
-#ui-world-tree-journey .journey-header p{margin:0;color:var(--journey-muted);font-size:12px}
-#ui-world-tree-journey .journey-navigation{display:flex;align-items:flex-end;flex-direction:column;gap:15px}
-#ui-world-tree-journey .journey-list{font-size:11px;color:#bfc5b5;border-bottom:1px solid #84917e70;border-radius:0;padding:4px 0}
-#ui-world-tree-journey .journey-list:hover{color:var(--journey-gold)}
-#ui-world-tree-journey .journey-stages{display:flex;align-items:center;gap:5px}
-#ui-world-tree-journey .journey-stages>span{color:var(--journey-muted);font-size:11px;margin-right:8px}
-#ui-world-tree-journey .journey-stages button{width:32px;height:32px;font:14px Georgia,serif;color:var(--journey-muted);border:1px solid transparent}
-#ui-world-tree-journey .journey-stages button[aria-pressed="true"]{color:var(--journey-gold);border-color:#c5ab6970;background:#c5ab6910}
-#ui-world-tree-journey .journey-map{position:relative;min-width:0;height:clamp(330px,47cqw,480px);overflow:hidden;background:#141d18}
-#tab-map #ui-world-tree-journey .journey-terrain{display:block!important;position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;opacity:.86}
-#ui-world-tree-journey .journey-map::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#10191650,transparent 22%,transparent 75%,#10191665)}
-#ui-world-tree-journey .journey-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-#ui-world-tree-journey .journey-links path{fill:none;stroke:#c9d6b836;stroke-width:1px;vector-effect:non-scaling-stroke}
-#ui-world-tree-journey .journey-links .is-route{stroke:#ecd3a0bd;stroke-width:1.5px;filter:drop-shadow(0 1px 2px #10150f)}
-#ui-world-tree-journey .journey-links .is-explored{stroke:#b6d0a77d;stroke-width:1.2px}
-#ui-world-tree-journey .journey-node{position:absolute;z-index:1;left:var(--node-x);top:var(--node-y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;width:160px;min-height:48px;gap:4px;padding:7px 9px;border:0;border-bottom:1px solid #a5b59855;border-radius:0;background:linear-gradient(90deg,transparent,#111c17ed 20%,#111c17ed 80%,transparent);text-shadow:0 1px 3px #080f0b}
-#ui-world-tree-journey .journey-node strong{color:var(--journey-ink);font-size:16px;font-weight:500;line-height:1.45;word-break:keep-all}
-#ui-world-tree-journey .journey-node small{color:#b8c2ad;font-size:11px;line-height:1.3}
-#ui-world-tree-journey .journey-node small:empty{display:none}
-#ui-world-tree-journey .journey-node[aria-pressed="true"]{border-bottom-color:var(--journey-gold);background:linear-gradient(90deg,transparent,#252b1df5 20%,#252b1df5 80%,transparent)}
-#ui-world-tree-journey .journey-node[aria-pressed="true"] strong{color:#ffe2a7}
-#ui-world-tree-journey .journey-node:hover{border-bottom-color:#ece1be}
-#ui-world-tree-journey .journey-node.is-boss strong{color:#e3cd9f}
-#ui-world-tree-journey .journey-node.is-cleared small{color:#c2d8ad}
-#ui-world-tree-journey .journey-node.is-active small{color:#ffe2a7}
-#ui-world-tree-journey .journey-outpost{position:absolute;left:36%;top:16%;transform:translateX(-50%);z-index:2}
-#ui-world-tree-journey .journey-hive{display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;padding:8px 14px;border-bottom:1px solid #d3b87d;background:#172018e8;border-radius:0}
-#ui-world-tree-journey .journey-hive span{font-size:10px;color:#b7bea7}
-#ui-world-tree-journey .journey-hive strong{font-size:13px;color:#efcf88;font-weight:500}
-#ui-world-tree-journey .journey-detail{position:relative;z-index:2;display:flex;align-items:center;flex-wrap:wrap;gap:22px;border-top:1px solid var(--journey-line);padding:21px 28px;background:#111a16}
-#ui-world-tree-journey .journey-destination{flex:1 1 210px}
-#ui-world-tree-journey .journey-destination h3{font-size:18px;font-weight:500;margin:5px 0 7px;color:var(--journey-ink)}
-#ui-world-tree-journey .journey-reward{margin:0 0 8px;font-size:12px;color:var(--journey-gold);line-height:1.5}
-#ui-world-tree-journey .journey-zone-traits{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:9px;color:#b8aea1;font-size:11px;line-height:1.5}
-#ui-world-tree-journey .journey-zone-traits details{position:relative}
-#ui-world-tree-journey .journey-zone-traits summary{cursor:pointer;list-style:none;border-bottom:1px dotted #a18d7260}
-#ui-world-tree-journey .journey-zone-traits summary::-webkit-details-marker{display:none}
-#ui-world-tree-journey .journey-zone-traits p{max-width:190px;margin:4px 0;padding:7px;border:1px solid #8f82634d;background:#20261f;color:#dfd7c4}
-#ui-world-tree-journey .map-power-estimate{font-size:11px;gap:9px}
-#ui-world-tree-journey .journey-route-choice{display:flex;gap:6px}
-#ui-world-tree-journey .journey-route-choice button{text-align:left;padding:11px 14px;border:1px solid #8d9c783b;min-width:88px}
-#ui-world-tree-journey .journey-route-choice strong{display:block;font-size:13px;font-weight:500}
-#ui-world-tree-journey .journey-route-choice span{display:block;margin-top:5px;color:var(--journey-muted);font-size:11px}
-#ui-world-tree-journey .journey-route-choice button[aria-pressed="true"]{border-color:#c2ac797d;background:#c2ac7912}
-#ui-world-tree-journey .journey-route-choice button[aria-pressed="true"] strong{color:var(--journey-gold)}
-#ui-world-tree-journey .journey-actions{display:flex;flex-direction:column;gap:8px;min-width:150px}
-#ui-world-tree-journey .journey-travel,#ui-world-tree-journey .journey-continue{background:#d2bc8e;color:#19221b;font-size:13px;font-weight:700;padding:14px 20px;border:1px solid #e9d2a3;border-radius:3px}
-#ui-world-tree-journey .journey-travel:hover:enabled{background:#ead3a5}
-#ui-world-tree-journey .journey-travel:disabled{opacity:1;background:#263126;color:#cbd4be;border-color:#82937366}
-#ui-world-tree-journey .journey-route-choice button:disabled{opacity:.7}
-#ui-world-tree-journey .journey-actions>button:not(.journey-travel):not(.journey-continue){font-size:11px;color:var(--journey-muted);padding:5px}
-#ui-world-tree-journey .journey-lock{margin:0;color:#e1a491;font-size:11px;max-width:200px}
-#ui-world-tree-journey .journey-status{color:var(--journey-muted);padding:9px 3px;font-size:11px;min-height:14px}
 #ui-world-tree-journey .journey-receipt{padding:14px 24px;border-top:1px solid var(--journey-line);background:#131b16;color:var(--journey-ink);font-size:12px}
 #ui-world-tree-journey .journey-receipt>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:28px;cursor:pointer;list-style:none;color:var(--journey-gold)}
 #ui-world-tree-journey .journey-receipt>summary::-webkit-details-marker{display:none}
@@ -89,29 +29,14 @@ body.light-mode #ui-world-tree-journey{--journey-ink:#eaece2;--journey-muted:#a9
  body.desktop-windowed-ui .combat-panel:has(#ui-world-tree-combat:not([hidden])) #move-area{padding-top:120px}
 }
 @media(max-width:600px){#ui-world-tree-combat{padding:8px;align-items:flex-start;flex-direction:column;gap:7px}#ui-world-tree-combat .journey-hud-actions{justify-content:flex-start}}
-@container(max-width:650px){
- #ui-world-tree-journey .journey-node{width:120px;padding:7px 6px}
- #ui-world-tree-journey .journey-node strong{font-size:12px}
- #ui-world-tree-journey .journey-header{padding:18px 20px}
- #ui-world-tree-journey .journey-map{height:330px}
- #ui-world-tree-journey .journey-detail{gap:15px;padding:18px 20px}
- #ui-world-tree-journey .journey-destination{flex-basis:100%}
- #ui-world-tree-journey .journey-actions{flex:1;min-width:120px}
-}
-@container(max-width:440px){
- #ui-world-tree-journey .journey-header{padding:16px}
- #ui-world-tree-journey .journey-header h2{font-size:24px}
- #ui-world-tree-journey .journey-stages{gap:2px}
- #ui-world-tree-journey .journey-stages>span{margin-right:3px}
- #ui-world-tree-journey .journey-stages button{width:27px}
- #ui-world-tree-journey .journey-map{height:250px}
- #ui-world-tree-journey .journey-node{width:94px;min-height:44px;padding:5px 3px}
- #ui-world-tree-journey .journey-node strong{font-size:12px}
- #ui-world-tree-journey .journey-node small{font-size:10px}
- #ui-world-tree-journey .journey-hive{padding:6px 9px}
- #ui-world-tree-journey .journey-detail{gap:14px 8px;padding:16px}
- #ui-world-tree-journey .journey-route-choice{flex:1.2}
- #ui-world-tree-journey .journey-route-choice button{flex:1;min-width:66px;padding:9px 7px}
- #ui-world-tree-journey .journey-actions{flex:1;min-width:112px}
- #ui-world-tree-journey .journey-travel{padding:15px 8px;font-size:12px}
-}
+#ui-world-tree-journey .mapping-layout{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:0;border:1px solid var(--border-color,#514831);background:#0d1411;color:var(--text-color,#e6e1d5)}
+#ui-world-tree-journey .mapping-header,#ui-world-tree-journey .mapping-settings{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;border-bottom:1px solid #494632}
+#ui-world-tree-journey .mapping-header h2{font-size:21px;margin:0 0 4px;font-weight:600;color:#ead5a5}#ui-world-tree-journey .mapping-header span{font-size:12px;color:#b5baae}#ui-world-tree-journey .mapping-objective{margin-left:auto}#ui-world-tree-journey .mapping-stages{display:flex;gap:3px}#ui-world-tree-journey .mapping-stages button{min-width:29px;min-height:32px;padding:4px}
+#ui-world-tree-journey .mapping-layout button{font:inherit;color:inherit;border:1px solid #635a3d;border-radius:3px;background:#171d17;cursor:pointer}#ui-world-tree-journey .mapping-layout button:hover{border-color:#d0b373;background:#272d22}#ui-world-tree-journey .mapping-layout button:focus-visible{outline:2px solid #f0cf86;outline-offset:3px}#ui-world-tree-journey .mapping-layout button:disabled{opacity:.38;cursor:default}#ui-world-tree-journey .mapping-layout button[aria-pressed=true]{border-color:#d9ba75;box-shadow:inset 0 0 0 1px #d9ba7540;color:#ffe0a0;background:#353222}
+#ui-world-tree-journey .mapping-settings{padding:10px 18px;flex-wrap:wrap;background:#121b15}#ui-world-tree-journey .mapping-settings>div{display:flex;align-items:center;gap:6px}#ui-world-tree-journey .mapping-settings span{font-size:12px;color:#aeb5a7;margin-right:7px}#ui-world-tree-journey .mapping-settings button{padding:7px 11px;font-size:12px}
+#ui-world-tree-journey .mapping-map{position:relative;min-height:365px;isolation:isolate;overflow:hidden}#ui-world-tree-journey .mapping-terrain{position:absolute;width:100%;height:100%;object-fit:cover;filter:brightness(.43) saturate(.68);z-index:-1}#ui-world-tree-journey .mapping-map:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 90px #070d0b;pointer-events:none;z-index:-1}
+#ui-world-tree-journey .mapping-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#ui-world-tree-journey .mapping-links path{fill:none;stroke:#9a96784a;stroke-width:.23}#ui-world-tree-journey .mapping-links path.is-route{stroke:#dec48b;stroke-width:.4}
+#ui-world-tree-journey .mapping-layout .mapping-node{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:130px;max-width:23%;padding:10px 5px;background:#0b1513ee;border-color:#6b71616b;box-shadow:0 5px 15px #0006;text-align:center}#ui-world-tree-journey .mapping-node span,#ui-world-tree-journey .mapping-node small{display:block;font-size:10px;color:#b2b7a2}#ui-world-tree-journey .mapping-node strong{display:block;font-size:13px;margin:6px 0;line-height:1.45;font-weight:600}#ui-world-tree-journey .mapping-layout .mapping-node.is-route{border-color:#bfa36b}#ui-world-tree-journey .mapping-node.is-cleared{opacity:.58}#ui-world-tree-journey .mapping-layout .mapping-node.is-active{box-shadow:0 0 18px #d4ab5155;border-color:#ffe4a6}
+#ui-world-tree-journey .mapping-detail{border-left:1px solid #4b4733;background:#101711}#ui-world-tree-journey .mapping-detail>img{width:100%;height:100px;object-fit:cover;filter:brightness(.75)}#ui-world-tree-journey .mapping-detail>div{padding:15px}#ui-world-tree-journey .mapping-event{font-size:11px;color:#d9b878}#ui-world-tree-journey .mapping-detail h3{font-size:19px;margin:7px 0 14px;font-weight:600}#ui-world-tree-journey .mapping-reward{font-size:13px;line-height:1.7}#ui-world-tree-journey .mapping-reward>span{display:block;color:#a8b3a7;font-size:12px}#ui-world-tree-journey .mapping-traits{display:grid;gap:12px;border-top:1px solid #58563b66;padding:13px 0;color:#bfc7b8;font-size:12px;line-height:1.6}#ui-world-tree-journey .mapping-traits summary{cursor:pointer;color:#d8c79f}#ui-world-tree-journey .mapping-traits p{margin:6px 0}#ui-world-tree-journey .mapping-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 18px;border-top:1px solid #4b4733}#ui-world-tree-journey .mapping-actions button{min-height:39px;padding:8px 20px}#ui-world-tree-journey .mapping-layout .mapping-primary{background:#d1b987;color:#19170f;border-color:#e3cf9d;font-weight:700}#ui-world-tree-journey .mapping-layout>.journey-receipt{grid-column:1/-1;margin:0;padding:12px 18px}
+@media(max-width:1000px){#ui-world-tree-journey .mapping-layout{grid-template-columns:minmax(0,1fr)}#ui-world-tree-journey .mapping-detail{border-left:0;border-top:1px solid #4b4733;display:grid;grid-template-columns:150px minmax(0,1fr)}#ui-world-tree-journey .mapping-detail>img{height:100%;max-height:240px}#ui-world-tree-journey .mapping-detail>div{padding:12px 16px}#ui-world-tree-journey .mapping-detail h3{margin:4px 0 8px}#ui-world-tree-journey .mapping-traits{display:flex;justify-content:space-between;gap:10px;padding:8px 0}#ui-world-tree-journey .mapping-header{flex-wrap:wrap}#ui-world-tree-journey .mapping-map{min-height:300px}}
+@media(max-width:560px){#ui-world-tree-journey .mapping-header,#ui-world-tree-journey .mapping-settings{padding:10px;gap:10px}#ui-world-tree-journey .mapping-header h2{font-size:18px}#ui-world-tree-journey .mapping-stages{width:100%;justify-content:space-between}#ui-world-tree-journey .mapping-stages button{flex:1}#ui-world-tree-journey .mapping-objective{max-width:50%;text-align:right}#ui-world-tree-journey .mapping-settings>div{flex-wrap:wrap;gap:4px}#ui-world-tree-journey .mapping-settings button{padding:7px 9px}#ui-world-tree-journey .mapping-map{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:14px;min-height:0}#ui-world-tree-journey .mapping-layout .mapping-node{position:relative;transform:none;left:auto;top:auto;max-width:none;width:100%;min-height:81px}#ui-world-tree-journey .mapping-node:first-of-type,#ui-world-tree-journey .mapping-node:last-of-type{grid-column:1/-1}#ui-world-tree-journey .mapping-node strong{font-size:13px}#ui-world-tree-journey .mapping-links{display:none}#ui-world-tree-journey .mapping-detail{grid-template-columns:80px minmax(0,1fr)}#ui-world-tree-journey .mapping-detail>div{padding:10px}#ui-world-tree-journey .mapping-detail h3{font-size:17px}#ui-world-tree-journey .mapping-traits{display:grid;gap:6px}#ui-world-tree-journey .mapping-actions{padding:10px;flex-wrap:wrap}#ui-world-tree-journey .mapping-actions button{flex:1;padding:9px 10px}#ui-world-tree-journey .mapping-objective{font-size:11px}}

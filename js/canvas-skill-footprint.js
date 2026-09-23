@@ -31,7 +31,7 @@ function projectSkillFootprint(area, projection, sourceCell) {
     let corner = projection.cellToScreen(0, 0);
     return { points, round, cone, centerPoint: projection.cellToScreen(area.center.gx, area.center.gy),
         board: { x: corner.x - projection.tileW / 2, y: corner.y - projection.tileH / 2,
-        width: COMBAT_GRID_CONFIG.columns * projection.tileW, height: COMBAT_GRID_CONFIG.rows * projection.tileH },
+        width: getCombatGridSize().columns * projection.tileW, height: getCombatGridSize().rows * projection.tileH },
         tileW: projection.tileW, tileH: projection.tileH,
         sourcePoint: sourceCell ? projection.cellToScreen(sourceCell.gx, sourceCell.gy) : null,
         x: (minX + maxX) / 2, y: (minY + maxY) / 2, width: maxX - minX, height: maxY - minY };
