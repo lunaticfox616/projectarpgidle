@@ -33,6 +33,34 @@
   font-display: swap;
 }
 
+/* 글꼴·제목 크기는 라이트/다크 전환과 무관하게 같게 둔다(테마를 바꿔도 배치가 흔들리지 않도록). 색만 다크 전용. */
+body[data-ui-skin="rift"] {
+  --font-body: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  /* --font-title은 h1~h6·*-title 전체가 쓰므로 본문 글꼴로 둔다. 명조는 아래 지정 제목에만(--font-display). */
+  --font-title: var(--font-body);
+  --font-display: 'Song Myung', 'IBM Plex Sans KR', 'Malgun Gothic', serif;
+  --font-caps: 'Cinzel', 'IBM Plex Sans KR', serif;
+  font-family: var(--font-body);
+}
+
+/* 제목은 명조 계열로 한 단계 올리고, 작은 글자는 본문 글꼴로 남긴다(명조는 14px 미만에서 읽기 어렵다). */
+body[data-ui-skin="rift"] :is(
+  .ui-window-title, .tutorial-title, .game-dialog-title, .deathlog-card .tutorial-title,
+  .combat-zone-row-title, #ui-combat-zone-inline, .startup-title
+) {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: .01em;
+}
+body[data-ui-skin="rift"] .ui-window-title { font-size: 17px; }
+body[data-ui-skin="rift"]:not(.light-mode) .ui-window-title { color: #efe3c9; }
+body[data-ui-skin="rift"] .combat-zone-row-title { font-size: 18px; }
+body[data-ui-skin="rift"]:not(.light-mode) .combat-zone-row-title { color: #efe3c9; }
+@media (max-width: 1080px) {
+  body[data-ui-skin="rift"] :is(.combat-zone-row-title, #ui-combat-zone-inline) { font-family: var(--font-body); font-weight: 700; }
+}
+body[data-ui-skin="rift"] :is(.tutorial-kicker, .game-dialog-kicker) { font-family: var(--font-caps); letter-spacing: .28em; }
+
 body[data-ui-skin="rift"]:not(.light-mode) {
   color-scheme: dark;
   --skin-canvas: #07080a;
@@ -65,26 +93,9 @@ body[data-ui-skin="rift"]:not(.light-mode) {
   --color-reading-muted: #b3a88f;
   --color-steel: #8b8272;
   --color-steel-dim: rgba(139, 130, 114, .3);
-  --font-body: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --font-title: 'Song Myung', 'IBM Plex Sans KR', 'Malgun Gothic', serif;
-  --font-caps: 'Cinzel', 'IBM Plex Sans KR', serif;
-  font-family: var(--font-body);
   background: radial-gradient(120% 90% at 50% 0%, #0d0e10 0%, #07080a 62%) fixed, #07080a;
   color: var(--color-text);
 }
-
-/* 제목은 명조 계열로 한 단계 올리고, 작은 글자는 본문 글꼴로 남긴다(명조는 14px 미만에서 읽기 어렵다). */
-body[data-ui-skin="rift"]:not(.light-mode) :is(
-  .ui-window-title, .tutorial-title, .game-dialog-title, .deathlog-card .tutorial-title,
-  .combat-zone-row-title, #ui-combat-zone-inline, .startup-title
-) {
-  font-family: var(--font-title);
-  font-weight: 400;
-  letter-spacing: .01em;
-}
-body[data-ui-skin="rift"]:not(.light-mode) .ui-window-title { font-size: 17px; color: #efe3c9; }
-body[data-ui-skin="rift"]:not(.light-mode) .combat-zone-row-title { font-size: 18px; color: #efe3c9; }
-body[data-ui-skin="rift"]:not(.light-mode) :is(.tutorial-kicker, .game-dialog-kicker) { font-family: var(--font-caps); letter-spacing: .28em; }
 
 /* 창·작업대: 청회색 금속 틀 대신 어두운 판 + 1px 선 + 금색 활성 표시. */
 body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
@@ -163,8 +174,55 @@ body[data-ui-skin="rift"]:not(.light-mode) .battlefield-caption { border-color: 
 body[data-ui-skin="rift"]:not(.light-mode) .equipment-action-muted { border-color: var(--skin-line); }
 
 /* 전투 HUD 스킬 칸: 그림이 없는 젬(기본 공격 등)도 빈 칸처럼 보이지 않게 문양을 또렷하게. */
-body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .gem-art-fallback { color: #d8a64a; font-size: 20px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
+body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .combat-skill-gem-art .gem-art-fallback { display: grid; color: #d8a64a; font-size: 18px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
+body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .combat-skill-gem-art:has(img) .gem-art-fallback { display: none; }
+/* 모바일 HUD: 스킬 칸을 손가락 크기(40px)로, 상태이상이 없을 때는 그 자리까지 스킬 칸이 쓴다. */
+@media (max-width: 1080px) {
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-skill-slot { flex: 0 0 40px; width: 40px; height: 40px; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-skill-slots { gap: 6px; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-shell:has(#ui-player-ailments-under:empty) > .player-combat-effect-strip { display: none; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-shell:has(#ui-player-ailments-under:empty) > .player-hud-skill-rack { grid-column: 2 / 4; }
+}
 body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot.primary { box-shadow: inset 0 0 0 1px rgba(216, 166, 74, .55); }
+
+/* 장비 툴팁: 희귀도 머리띠 → 베이스·레벨 → 구획(베이스/추가 옵션) → 착용 비교. 내용·순서는 js/ui.js showItemTooltip이 소유. */
+body[data-ui-skin="rift"]:not(.light-mode) :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip),
+body[data-ui-skin="rift"]:not(.light-mode) .item-compare-tooltip :is(.item-tooltip-main, .item-compare-single, .item-compare-grid) {
+  border: 1px solid #3a352c;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(21, 22, 25, .985), rgba(11, 12, 14, .99));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .72), inset 0 1px rgba(243, 207, 122, .05);
+  color: var(--color-text);
+  font-size: 13px;
+}
+body[data-ui-skin="rift"]:not(.light-mode) :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip).item-compare-tooltip { border: 0; background: transparent; box-shadow: none; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box { --tooltip-rarity: #d0d5da; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box[data-rarity="magic"] { --tooltip-rarity: #5fb4ec; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box[data-rarity="rare"] { --tooltip-rarity: #f1c40f; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box[data-rarity="unique"] { --tooltip-rarity: #ff9f43; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box:not(.item-compare-tooltip),
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .item-tooltip-main { border-color: color-mix(in srgb, var(--tooltip-rarity) 42%, #2b2f33); }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box :is(:scope, .item-tooltip-main) > .tooltip-title {
+  margin: -12px -12px 8px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tooltip-rarity) 55%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tooltip-rarity) 20%, #141518), #141518);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: .01em;
+}
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-meta { color: #b3a88f; font-size: 12px; text-align: center; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section {
+  display: flex; align-items: center; gap: 8px;
+  margin: 9px 0 3px; color: #c9a45c; font-size: 11px; letter-spacing: .08em;
+}
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section::before,
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section::after { content: ''; flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, transparent, #4b4235, transparent); }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section-explicit { color: #9d9bd8; }
+body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tier-badge { font-size: 11px; opacity: .9; }
+body[data-ui-skin="rift"]:not(.light-mode) .item-compare-panel { border-color: #2b2f33; background: rgba(8, 9, 10, .55); }
+body[data-ui-skin="rift"]:not(.light-mode) .item-compare-title { color: #d8a64a; font-weight: 700; }
 
 /* 스크롤바와 초점 표시 */
 body[data-ui-skin="rift"]:not(.light-mode) * { scrollbar-color: #3a3a36 transparent; }

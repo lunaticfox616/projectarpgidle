@@ -562,7 +562,12 @@ assert.ok(!battlefieldSource.includes("fillCell(game.gridPlayer, 'rgba(107, 190,
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 3.65'), 'boss sprites should visually span their 2x2 footprint');
 assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
 assert.ok(battlefieldSource.includes('let rings = 1;'), 'annihilating hits should keep a single lightweight impact ring');
-assert.ok(battlefieldSource.includes('for (let ring = 0; ring < 1; ring++)'), 'level-up feedback should use a single lightweight ring');
+{
+    const start = battlefieldSource.indexOf('function drawLevelUpFx(');
+    const levelUpSource = battlefieldSource.slice(start, battlefieldSource.indexOf('\nfunction ', start + 1));
+    assert.strictEqual((levelUpSource.match(/ctx\.(?:ellipse|arc)\(/g) || []).length, 1, 'level-up feedback should use a single lightweight ring');
+    assert.ok(!/\bfor \(/.test(levelUpSource), 'level-up feedback should draw a fixed number of shapes per frame');
+}
 assert.ok(!battlefieldSource.includes('for (let ray = 0; ray < 4; ray++)'), 'level-up feedback should avoid a separate ray burst');
 assert.ok(!battlefieldSource.includes('let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92'), 'one-shot feedback should avoid its previous large radial fill');
 assert.ok(battlefieldSource.includes("const dissolveFade = Math.pow(1 - dissolve, 1.62);"), 'enemy death sprites should fade through a restrained dissolve curve');

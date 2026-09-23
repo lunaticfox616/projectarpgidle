@@ -6,7 +6,7 @@ runtime.requestAnimationFrame = callback => { const id = next++; frames.set(id, 
 runtime.cancelAnimationFrame = id => frames.delete(id);
 runtime.requestIdleCallback = callback => { const id = next++; idle.set(id, callback); return id; };
 runtime.cancelIdleCallback = id => idle.delete(id);
-const tooltip = {style:{display:'none'}, innerHTML:'', classList:{toggle(){}},
+const tooltip = {style:{display:'none'}, dataset:{}, innerHTML:'', classList:{toggle(){}},
     getBoundingClientRect:() => ({width:320,height:360})};
 runtime.document.getElementById = id => id === 'item-tooltip-box' ? tooltip : null;
 run(`game.equipment = { 반지1: {id:801,slot:'반지',name:'왼쪽 반지',rarity:'rare',baseStats:[],stats:[]},

@@ -5508,6 +5508,15 @@ function getDamageTextFillColor(text) {
     if (text.crit || text.impactTier === 'heavy') return '#ffdc75';
     return '#ffffff';
 }
+// 치명타·강타 숫자는 처음 잠깐 크게 튀어나왔다가 제자리 크기로 돌아온다(표시 전용).
+function applyDamageTextPop(ctx, text, t, anchor) {
+    if (text.bodyCue || (!text.crit && text.impactTier !== 'heavy' && text.impactTier !== 'annihilate')) return;
+    const pop = 1 + 0.38 * (1 - clampNumber(t / 0.16, 0, 1));
+    ctx.translate(anchor.x, anchor.y);
+    ctx.scale(pop, pop);
+    ctx.translate(-anchor.x, -anchor.y);
+}
+
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
         let elapsed = now - Number(text.start);
@@ -5519,6 +5528,7 @@ function drawDamageTexts(ctx, now) {
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
+        applyDamageTextPop(ctx, text, t, { x, y });
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
         const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16)))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;

@@ -7435,6 +7435,8 @@ function presentItemTooltip(context, event, item, html, isEquip) {
     let tt = context.target;
     tt.innerHTML = html;
     if (context.inline) return;
+    // 스킨이 희귀도별 머리띠·테두리를 그릴 수 있도록 표시 중인 장비의 희귀도를 남긴다.
+    tt.dataset.rarity = item.rarity || 'normal';
     tt.classList.toggle('item-compare-tooltip', false);
     tt.classList.toggle('dual-compare-tooltip', false);
     invalidateTooltipSize(tt);
@@ -7471,8 +7473,8 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
-    html += `<div class="tooltip-line" style="color:var(--copy-muted);">베이스: ${item.baseName}${baseChainBadge}</div>`;
-    html += `<div class="tooltip-line" style="color:var(--copy-bright);">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; 등급 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
+    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${baseChainBadge}</div>`;
+    html += `<div class="tooltip-line tooltip-meta">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; 등급 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
         html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ 고유 효과: ${escapeHTML(item.uniqueEffect)}</span></div>`;
@@ -7513,7 +7515,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     }
     let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f; font-weight:800;">베이스 옵션</div>`;
+        html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>`;
         item.baseStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
@@ -7565,7 +7567,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             if (g !== 0) return g;
             return String(aKey || '').localeCompare(String(bKey || ''));
         });
-        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--color-accent); font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += `<div class="tooltip-line tooltip-section tooltip-section-explicit">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = getItemAffixTierHtml(stat);

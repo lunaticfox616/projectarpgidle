@@ -15,6 +15,9 @@
 #act-exploration-panel button[aria-pressed="true"],#act-exploration-dialog button[aria-pressed="true"] {background:#3c3521;border-color:#bea363;color:#f2dfaa;}
 #act-exploration-panel button:disabled {opacity:.5;cursor:default;}
 #act-exploration-seal {margin-top:7px;}
+.act-exploration-progress {position:relative;height:18px;margin-top:6px;border:1px solid #3a3528;background:#07090a;overflow:hidden;}
+.act-exploration-progress-fill {position:absolute;inset:0 auto 0 0;width:var(--explore-pct,0%);background:linear-gradient(90deg,#5f4b24,#c9a45c);transition:width .4s ease;}
+.act-exploration-progress b {position:relative;display:block;font-size:11px;line-height:16px;font-weight:600;text-align:center;color:#f3e6c4;text-shadow:0 1px 2px #000;}
 #act-exploration-dialog,#act-exploration-loot-dialog {pointer-events:auto;padding:16px;background:#0b130f;color:#ddd4b9;border:1px solid #aa8e53;max-width:85vw;width:580px;max-height:85vh;}
 #act-exploration-dialog::backdrop,#act-exploration-loot-dialog::backdrop {background:#030906b8;}
 #act-exploration-map-large {display:block;width:auto;max-width:100%;height:auto;max-height:65vh;margin:0 auto;image-rendering:pixelated;cursor:crosshair;}

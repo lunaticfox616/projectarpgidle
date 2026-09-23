@@ -91,7 +91,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 
     defenseItem.encroached.chosen = { id: 'armor', val: 50, tier: 15, encroachedFinal: true };
     const tooltip = {
-      style: { display: 'none' }, innerHTML: '',
+      style: { display: 'none' }, dataset: {}, innerHTML: '',
       classList: { add() {}, remove() {}, toggle() {} },
       getBoundingClientRect: () => ({ width: 300, height: 300 })
     };

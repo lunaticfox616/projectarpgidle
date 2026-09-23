@@ -1601,26 +1601,45 @@ function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
     ctx.restore();
 }
 
+// 레벨업: 발밑 고리 + 금빛 기둥 + 떠오르는 레벨 글자. 지속 시간과 호출 시점은 전투 쪽 fx가 소유한다.
 function drawLevelUpFx(ctx, fx, t, playerPos) {
-    let fade = t < 0.48 ? 0.56 : ((1 - t) / 0.52) * 0.56;
-    let radius = 16 + t * 30;
+    const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
+    const cx = playerPos.x, footY = playerPos.y + 2;
     ctx.save();
-    ctx.globalAlpha = Math.max(0, fade);
+    ctx.globalAlpha = 0.95 * fade;
+    ctx.globalCompositeOperation = 'lighter';
+    const pillarHeight = 120 + 40 * Math.min(1, t * 2.4);
+    const pillar = ctx.createLinearGradient(cx, footY, cx, footY - pillarHeight);
+    pillar.addColorStop(0, 'rgba(255,214,120,0.85)');
+    pillar.addColorStop(0.45, 'rgba(255,229,154,0.4)');
+    pillar.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = pillar;
+    const pillarWidth = 30 * (1 - t * 0.45);
+    ctx.fillRect(cx - pillarWidth / 2, footY - pillarHeight, pillarWidth, pillarHeight);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.85 * fade;
     ctx.strokeStyle = '#ffe59a';
-    ctx.lineWidth = 1.8 * (1 - t) + 0.8;
-    for (let ring = 0; ring < 1; ring++) {
-        ctx.beginPath();
-        ctx.arc(playerPos.x, playerPos.y - 15, radius + ring * 10, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    ctx.font = '900 12px "Malgun Gothic", sans-serif';
+    ctx.lineWidth = 2 * (1 - t) + 0.8;
+    ctx.beginPath();
+    ctx.ellipse(cx, footY, 18 + t * 34, (18 + t * 34) * 0.36, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    drawLevelUpLabel(ctx, fx, { x: cx, y: playerPos.y - 62 - t * 14, alpha: fade });
+    ctx.restore();
+}
+
+function drawLevelUpLabel(ctx, fx, pos) {
+    const rift = typeof isBattleLightingEnabled === 'function' && isBattleLightingEnabled();
+    ctx.globalAlpha = pos.alpha;
+    ctx.font = rift ? '700 15px "Cinzel", "IBM Plex Sans KR", serif' : '900 13px "Malgun Gothic", sans-serif';
     ctx.textAlign = 'center';
     ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(25,9,0,.9)';
-    ctx.strokeText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 58 - t * 9);
-    ctx.fillStyle = '#fff2b4';
-    ctx.fillText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 58 - t * 9);
-    ctx.restore();
+    ctx.strokeStyle = 'rgba(25,9,0,.92)';
+    const label = `LEVEL ${fx.level || ''}`;
+    ctx.strokeText(label, pos.x, pos.y);
+    ctx.fillStyle = '#ffe9a8';
+    ctx.shadowColor = 'rgba(255,200,90,.7)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(label, pos.x, pos.y);
 }
 
 function getBattlefieldClientPoint(canvas, clientX, clientY) {
@@ -2655,6 +2674,7 @@ function renderBattlefield(forceWhenHidden) {
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
+    drawBossAnnouncement(ctx, { width, height }, updateBossAnnouncement(enemies, now));
 
     let caption = '전장을 스캔 중...';
     if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
@@ -2769,6 +2789,62 @@ function drawLowHealthEdge(ctx, scene) {
     ctx.fillStyle = edge;
     ctx.fillRect(-40, -40, width + 80, height + 80);
     ctx.restore();
+}
+
+// 보스가 처음 전장에 보이면 이름 배너를 잠깐 띄운다. 표시 전용이며 등장·판정 시점은 전투 쪽이 소유한다.
+const BOSS_BANNER_MS = 2600;
+function updateBossAnnouncement(enemies, now) {
+    const boss = (enemies || []).find(enemy => enemy && enemy.isBoss);
+    if (!boss) return null;
+    if (battleVisualState.bossAnnounceId !== boss.id) {
+        battleVisualState.bossAnnounceId = boss.id;
+        battleVisualState.bossAnnounceStart = now;
+    }
+    const age = now - battleVisualState.bossAnnounceStart;
+    return age >= 0 && age <= BOSS_BANNER_MS ? { boss, age } : null;
+}
+
+function getBossBannerAlpha(age) {
+    if (age < 260) return age / 260;
+    return Math.min(1, Math.max(0, (BOSS_BANNER_MS - age) / 640));
+}
+
+function drawBossAnnouncement(ctx, area, banner) {
+    if (!banner) return;
+    const { width, height } = area;
+    const cy = Math.round(height * 0.3);
+    const rift = isBattleLightingEnabled();
+    ctx.save();
+    ctx.globalAlpha = getBossBannerAlpha(banner.age);
+    const band = ctx.createLinearGradient(0, 0, width, 0);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(0.5, 'rgba(6,4,4,0.66)');
+    band.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, cy - 34, width, 62);
+    ctx.textAlign = 'center';
+    ctx.font = rift ? '400 30px "Song Myung", "IBM Plex Sans KR", serif' : '800 26px "DOSSaemmul", "Malgun Gothic", sans-serif';
+    const name = getEnemyDisplayName(banner.boss);
+    const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
+    drawBossBannerRule(ctx, width / 2 - half, width / 2 + half, cy + 12);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(12,4,4,.95)';
+    ctx.strokeText(name, width / 2, cy);
+    ctx.fillStyle = '#f0c46a';
+    ctx.fillText(name, width / 2, cy);
+    ctx.font = rift ? '600 11px "Cinzel", "IBM Plex Sans KR", serif' : '700 11px "Malgun Gothic", sans-serif';
+    ctx.fillStyle = '#d98a6a';
+    ctx.fillText(`BOSS · ${getElementLabel(banner.boss.ele)}`, width / 2, cy + 27);
+    ctx.restore();
+}
+
+function drawBossBannerRule(ctx, left, right, y) {
+    const rule = ctx.createLinearGradient(left, 0, right, 0);
+    rule.addColorStop(0, 'rgba(216,166,74,0)');
+    rule.addColorStop(0.5, 'rgba(216,166,74,0.9)');
+    rule.addColorStop(1, 'rgba(216,166,74,0)');
+    ctx.fillStyle = rule;
+    ctx.fillRect(left, y, right - left, 1);
 }
 
 function getBattleMarkerLabel(marker) {
