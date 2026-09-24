@@ -8902,32 +8902,104 @@ function renderCombatFlaskHud() {
     host.innerHTML = buttons.join('');
 }
 
-function renderCombatSkillHud() {
-    let host = document.getElementById('ui-combat-skill-gems');
-    if (!host) return;
+/** Combat HUD skill tray: 주 공격, 장착 소환, 켜 둔 자동 사용 규칙의 컨디션 젬(재사용 대기 표시). */
+const COMBAT_SKILL_HUD_LIMIT = 6;
+const COMBAT_SKILL_SLOT_LABELS = Object.freeze({ primary: '주 공격', summon: '소환', condition: '자동 사용' });
+// 표시 전용: 재사용 시작 시각을 저장 상태에 늘리지 않고, readyAt이 바뀐 순간의 남은 시간(ms)을 전체 길이로 삼는다.
+const combatSkillCooldownSpans = new Map();
+
+function getCombatConditionHudEntries() {
+    if (!game.conditionGemUnlocked || !Array.isArray(game.skillAutoRules)) return [];
+    let pool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
+    let names = game.skillAutoRules
+        .filter(rule => rule && rule.enabled && rule.actionType === 'condition_gem' && pool.includes(rule.skillName))
+        .sort((a, b) => (a.priority || 0) - (b.priority || 0))
+        .map(rule => rule.skillName);
+    let entries = getAllConditionGemEntries();
+    return Array.from(new Set(names))
+        .map(name => entries.find(entry => entry.name === name))
+        .filter(Boolean)
+        .map(entry => ({ kind: 'condition', name: entry.name, type: getConditionGemTypePresentation(entry).type }));
+}
+
+function getCombatSkillHudEntries() {
     let summons = (Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : []).filter(name => {
         let def = SKILL_DB[name];
         return def && Array.isArray(def.tags) && def.tags.includes('summon_attack');
     });
-    let names = [game.activeSkill || '기본 공격']
+    let gems = [game.activeSkill || '기본 공격']
         .concat(summons)
         .filter((name, index, list) => name && list.indexOf(name) === index)
-        .slice(0, 4);
-    let signature = names.join('|');
-    if (host.dataset.signature === signature) return;
-    names.forEach(name => {
-        const spec = SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[name]?.signature];
-        if (spec) getSkillGemVfxImage(spec.asset);
+        .slice(0, 4)
+        .map((name, index) => ({ kind: index === 0 ? 'primary' : 'summon', name }));
+    return gems.concat(getCombatConditionHudEntries()).slice(0, COMBAT_SKILL_HUD_LIMIT);
+}
+
+function renderCombatSkillSlot(entry) {
+    let name = escapeHTML(entry.name);
+    let condition = entry.kind === 'condition';
+    let art = condition
+        ? renderCombatEffectIcon({ key: entry.type, label: entry.name })
+        : renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
+    let cooldown = condition ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
+    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${name}" data-slot-kind="${entry.kind}" data-info-tooltip-anchor="1" aria-label="${COMBAT_SKILL_SLOT_LABELS[entry.kind]} · ${name}">${art}${cooldown}</button>`;
+}
+
+function bindCombatSkillSlot(button) {
+    let name = button.dataset.gemName;
+    let condition = button.dataset.slotKind === 'condition';
+    let show = event => (condition ? showConditionGemTooltip(event, name) : showGemTooltip(event, 'active', name));
+    button.addEventListener('mouseenter', show);
+    button.addEventListener('mousemove', show);
+    button.addEventListener('mouseleave', hideInfoTooltip);
+    button.addEventListener('click', () => {
+        openTabPane('tab-skills');
+        if (condition) switchSkillSubtab('skill-tab-condition');
     });
-    host.dataset.signature = signature;
-    host.innerHTML = names.map((name, index) => `<button type="button" class="player-hud-skill-slot ${index === 0 ? 'primary' : 'summon'}" data-gem-name="${escapeHTML(name)}" data-info-tooltip-anchor="1" aria-label="${escapeHTML(name)} 젬">${renderSkillGemArt(name, 'combat-skill-gem-art', { eager: true })}</button>`).join('');
-    host.querySelectorAll('.player-hud-skill-slot').forEach(button => {
+}
+
+function getCombatSkillCooldownSpan(name, readyAt, remaining) {
+    let known = combatSkillCooldownSpans.get(name);
+    if (!known || known.readyAt !== readyAt) {
+        known = { readyAt, totalMs: Math.max(1, remaining) };
+        combatSkillCooldownSpans.set(name, known);
+    }
+    return known.totalMs;
+}
+
+function refreshCombatSkillCooldowns(host) {
+    let now = getCombatTime();
+    let last = game.lastConditionGemCast;
+    host.querySelectorAll('.player-hud-skill-slot.condition').forEach(button => {
         let name = button.dataset.gemName;
-        button.addEventListener('mouseenter', event => showGemTooltip(event, 'active', name));
-        button.addEventListener('mousemove', event => showGemTooltip(event, 'active', name));
-        button.addEventListener('mouseleave', hideInfoTooltip);
-        button.addEventListener('click', () => openTabPane('tab-skills'));
+        let readyAt = Number(game.conditionGemCooldowns && game.conditionGemCooldowns[name]) || 0;
+        let remaining = Math.max(0, readyAt - now);
+        let badge = button.querySelector('.player-hud-skill-cooldown');
+        let seconds = remaining > 0 ? String(Math.ceil(remaining / 1000)) : '';
+        button.style.setProperty('--cooldown', remaining > 0 ? (remaining / getCombatSkillCooldownSpan(name, readyAt, remaining)).toFixed(3) : '0');
+        button.classList.toggle('cooling', remaining > 0);
+        button.classList.toggle('just-cast', Boolean(last && last.name === name && last.expiresAt > now));
+        if (badge.textContent !== seconds) badge.textContent = seconds;
+        badge.hidden = !seconds;
     });
+}
+
+function renderCombatSkillHud() {
+    let host = document.getElementById('ui-combat-skill-gems');
+    if (!host) return;
+    let entries = getCombatSkillHudEntries();
+    let signature = entries.map(entry => `${entry.kind}:${entry.name}`).join('|');
+    if (host.dataset.signature !== signature) {
+        entries.forEach(entry => {
+            const spec = entry.kind !== 'condition' && SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[entry.name]?.signature];
+            if (spec) getSkillGemVfxImage(spec.asset);
+        });
+        host.dataset.signature = signature;
+        host.dataset.slotCount = String(entries.length);
+        host.innerHTML = entries.map(renderCombatSkillSlot).join('');
+        host.querySelectorAll('.player-hud-skill-slot').forEach(bindCombatSkillSlot);
+    }
+    refreshCombatSkillCooldowns(host);
 }
 
 function setUiImageGaugePercent(element, percent) {
@@ -9633,6 +9705,12 @@ function buildEnemyRuntimeEffectIcons(enemy, now) {
     return icons.join('');
 }
 
+/** 모바일 HUD는 보호막이 없으면 생명력 아래 보호막 줄 자리를 접는다(css/components/bars.css). */
+function markPlayerEnergyShieldRow(hpTrack, hasEnergyShield) {
+    let frame = hpTrack && hpTrack.closest && hpTrack.closest('.player-health-frame');
+    if (frame) frame.toggleAttribute('data-energy-shield', hasEnergyShield);
+}
+
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
@@ -9667,11 +9745,13 @@ function updateCombatUI(pStats) {
         hpAilBar.className = 'hp-bar-fill player-ailment-pending';
         hpWrap.insertBefore(hpAilBar, hpBar);
     }
-    let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
+    let hasEnergyShield = (pStats.energyShield || 0) > 0;
+    let esPct = hasEnergyShield ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
+    markPlayerEnergyShieldRow(hpWrap, hasEnergyShield);
     let esInlineEl = document.getElementById('ui-es-inline');
     if (esInlineEl) {
-        setTextById('ui-es-inline', (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0');
-        esInlineEl.style.display = (pStats.energyShield || 0) > 0 ? '' : 'none';
+        setTextById('ui-es-inline', hasEnergyShield ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0');
+        esInlineEl.style.display = hasEnergyShield ? '' : 'none';
     }
     let esBar = document.getElementById('ui-es-bar');
     if (!esBar) {
@@ -9689,7 +9769,7 @@ function updateCombatUI(pStats) {
     }
     esBar.style.zIndex = '5';
     setUiImageGaugePercent(esBar, esPct);
-    esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
+    esBar.style.display = hasEnergyShield ? 'block' : 'none';
     let expProgress = getUiExperienceProgress(game.level, game.exp);
     setTextById('ui-exp', formatSettingNumber(expProgress.current, 'showExpComma'));
     setTextById('ui-maxexp', formatSettingNumber(expProgress.required, 'showExpComma'));

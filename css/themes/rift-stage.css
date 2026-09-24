@@ -101,6 +101,16 @@
     top: 108px;
     left: calc(var(--stage-rail-width) + var(--stage-gutter) + 8px);
   }
+  /* 대균열·쇄도 같은 곁다리 조우 계수기: 전장 아래 띠 대신 보물 사냥 아래 왼쪽 위에 뜬다. */
+  body[data-ui-skin="rift"].desktop-windowed-ui #side-encounter-hud {
+    position: absolute;
+    top: 160px; /* 보스 카드 영역(위 ~155px) 아래 */
+    left: calc(var(--stage-rail-width) + var(--stage-gutter) + 8px);
+    z-index: 6;
+    width: auto;
+    max-width: 440px;
+    margin: 0;
+  }
   body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-wrap > #ui-goal-drawer {
     top: 128px;
     right: calc(var(--stage-feed-width) + var(--stage-gutter) + 20px);
@@ -173,6 +183,16 @@
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-caption { -webkit-backdrop-filter: none; backdrop-filter: none; }
   /* 바닥 전리품 넘기기 버튼은 HUD에 가리지 않게 전장 위쪽 오른편(목표 버튼 아래)으로 */
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-exploration-loot-skip { top: 40px; bottom: auto; }
+  /* 곁다리 조우 계수기: HUD 밑에 깔리지 않게 전장 왼쪽 위(몬스터 수·보물 사냥 아래, 미니맵 왼쪽)에 띄운다. */
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #side-encounter-hud {
+    position: absolute;
+    top: 104px;
+    left: 6px;
+    z-index: 6;
+    width: auto;
+    max-width: calc(100% - 128px);
+    margin: 0;
+  }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row {
     border-color: rgba(201, 164, 92, .22);
     background: linear-gradient(180deg, rgba(10, 11, 13, .96), rgba(6, 7, 8, .9));

@@ -350,8 +350,8 @@
 
   body.mobile-battle-tab #tab-battle .player-hud-shell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto 56px 44px;
+    grid-template-columns: fit-content(58%) minmax(0, 1fr);
+    grid-template-rows: auto auto 44px;
     gap: 5px 8px;
     height: auto;
     aspect-ratio: auto;
@@ -360,12 +360,14 @@
   body.mobile-battle-tab #tab-battle .player-hud-identity-row { display: flex; }
   body.mobile-battle-tab #tab-battle .player-hud-identity-row strong { font-size: 13px; }
   body.mobile-battle-tab #tab-battle .player-hud-identity-row span { font-size: 11px; }
-  body.mobile-battle-tab #tab-battle .player-hud-skill-rack { grid-column: 3; grid-row: 3; height: 44px; padding: 0; }
+  body.mobile-battle-tab #tab-battle .player-hud-skill-rack { grid-column: 2; grid-row: 3; height: 44px; padding: 0; }
   body.mobile-battle-tab #tab-battle .player-hud-vitals { position: static; display: block; }
   body.mobile-battle-tab #tab-battle .player-exp-percent { display: none; }
   body.mobile-battle-tab #tab-battle .player-hud-flask-rack { grid-column: 1; grid-row: 3; width: 100%; height: 44px; padding: 0; }
   body.mobile-battle-tab #tab-battle .player-hud-flask-rack .combat-flask-mini { flex: 0 0 44px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; background: none; border-color: transparent; box-shadow: none; }
-  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-combat-effect-strip { grid-column: 2; grid-row: 3; position: static; display: flex; transform: none; }
+  /* 상태이상은 이름 줄의 오른쪽 빈자리에 두고, 아래 줄은 플라스크(왼쪽)와 스킬 칸(오른쪽)만 쓴다. */
+  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-combat-effect-strip { grid-column: 1 / -1; grid-row: 1; justify-self: end; position: static; display: flex; max-width: 62%; height: 24px; min-height: 24px; transform: none; }
+  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-combat-effect-strip .combat-effect-icon { flex-basis: 22px; width: 22px; min-width: 22px; height: 22px; min-height: 22px; }
 
   body.mobile-battle-tab #tab-battle .combat-feed {
     min-height: 110px;

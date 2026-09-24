@@ -193,3 +193,44 @@ test('high contrast mode brightens copy, drops the lighting pass and survives a 
     expect(state.secondary).not.toBe(before);
     expect(errors).toEqual([]);
 });
+
+test('combat HUD shows attack, summon and auto-rule gems with a live cooldown', async ({ page }, info) => {
+    const errors = await openGame(page, info);
+    await page.evaluate(() => {
+        game.season = 2;
+        game.contentProgression.inherited = ['craft', 'flask', 'condition']; contentProgression.sync();
+        game.activeSkill = '연속 베기';
+        game.equippedSummonSkills = ['서리늑대 소환'];
+        game.skills = Array.from(new Set([...(game.skills || []), '연속 베기', '서리늑대 소환']));
+        game.conditionGemPool = ['전장의 함성'];
+        game.skillAutoRules = [{ ...getDefaultSkillAutoRule(), id: 'hud-rule', enabled: true, skillName: '전장의 함성' }];
+        game.conditionGemCooldowns = { '전장의 함성': getCombatTime() + 4000 };
+        updateStaticUI();
+    });
+    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+    const slots = page.locator('#ui-combat-skill-gems .player-hud-skill-slot');
+    await expect(slots).toHaveCount(3);
+    const condition = slots.nth(2);
+    await expect(condition).toHaveAttribute('data-slot-kind', 'condition');
+    await expect(condition).toHaveClass(/cooling/);
+    await expect(condition.locator('.player-hud-skill-cooldown')).toHaveText(/^[1-4]$/);
+
+    if (!info.project.use.isMobile) {
+        // PC: 주 공격은 오른쪽 날개 안에, 나머지는 그 위 받침에 한 줄로 선다.
+        const rack = await rectOf(page, '.player-hud-skill-rack');
+        const boxes = await slots.evaluateAll(list => list.map(el => el.getBoundingClientRect().toJSON()));
+        expect(boxes[0].left).toBeGreaterThanOrEqual(rack.left - 1);
+        expect(boxes[0].right).toBeLessThanOrEqual(rack.right + 1);
+        for (const box of boxes.slice(1)) expect(box.bottom).toBeLessThanOrEqual(rack.top + 1);
+        expect(Math.abs(boxes[1].top - boxes[2].top)).toBeLessThan(1);
+        expect(boxes[1].left).toBeLessThan(boxes[2].left);
+    }
+
+    // 재사용이 끝나면 덮개와 숫자가 사라지고, 칸을 누르면 자동 사용 규칙 화면이 열린다.
+    await page.evaluate(() => { game.conditionGemCooldowns['전장의 함성'] = 0; renderCombatSkillHud(); });
+    await expect(condition).not.toHaveClass(/cooling/);
+    await expect(condition.locator('.player-hud-skill-cooldown')).toBeHidden();
+    if (info.project.use.isMobile) await condition.tap(); else await condition.click();
+    await expect(page.locator('#skill-tab-condition')).toBeVisible();
+    expect(errors).toEqual([]);
+});

@@ -9,13 +9,18 @@ async function checkStableStatusRow(page, screenshotPath) {
     });
     const effects = page.locator('#ui-player-ailments-under');
     await expect(effects.locator('.combat-effect-icon')).toHaveCount(5);
-    const boxes = await Promise.all(['.player-hud-skill-rack', '#ui-player-ailments-under', '#ui-combat-flasks'].map(selector => page.locator(selector).boundingBox()));
-    expect(boxes[2].x).toBeLessThan(boxes[1].x);
-    expect(boxes[1].x).toBeLessThan(boxes[0].x);
-    expect(Math.max(...boxes.map(box => box.y)) - Math.min(...boxes.map(box => box.y))).toBeLessThan(2);
+    // 상태이상은 이름 줄 오른쪽, 아래 줄은 플라스크(왼쪽)·스킬 칸(오른쪽)이 나란히 선다.
+    const [rack, ailments, flasks, identity, level] = await Promise.all(['.player-hud-skill-rack', '#ui-player-ailments-under', '#ui-combat-flasks', '.player-hud-identity-row', '#ui-exp-level-label']
+        .map(selector => page.locator(selector).boundingBox()));
+    expect(Math.abs((ailments.y + ailments.height / 2) - (identity.y + identity.height / 2))).toBeLessThan(6);
+    expect(ailments.x).toBeGreaterThanOrEqual(level.x + level.width);
+    expect(ailments.y + ailments.height).toBeLessThanOrEqual(flasks.y);
+    expect(flasks.x).toBeLessThan(rack.x);
+    expect(Math.abs(flasks.y - rack.y)).toBeLessThan(2);
     expect((await field.boundingBox()).y).toBeCloseTo(before.y, 0);
-    await effects.evaluate(el => { el.scrollLeft = el.scrollWidth; });
-    expect(await effects.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+    // 다섯 개가 한 줄에 다 들어가거나, 넘치면 그 줄만 옆으로 밀어 볼 수 있다.
+    const strip = await effects.evaluate(el => { el.scrollLeft = el.scrollWidth; return { overflow: el.scrollWidth > el.clientWidth + 1, scrolled: el.scrollLeft > 0 }; });
+    expect(strip.overflow ? strip.scrolled : true).toBe(true);
     await page.screenshot({ path: screenshotPath, scale: 'css' });
     await page.evaluate(() => { game.playerAilments = []; updatePlayerCombatEffectHud(getPlayerStats()); });
     expect((await field.boundingBox()).y).toBeCloseTo(before.y, 0);
