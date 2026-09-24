@@ -61,7 +61,6 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     const docked = await rectOf(page, '#battlefield-wrap');
     expect(docked.width).toBeCloseTo(field.width, 0);
     expect(docked.height).toBeCloseTo(field.height, 0);
-    await page.screenshot({ path: info.outputPath('stage-docked.png') });
     expect(errors).toEqual([]);
 });
 
@@ -122,7 +121,6 @@ test('exploration minimap sits on the battlefield and follows the player', async
     await expect(dialog.locator('[data-exploration-mode]')).toHaveCount(3);
     await expect(dialog.locator('#act-exploration-seal')).toBeVisible();
     await expect(dialog.locator('[data-exploration-loot]')).toHaveCount(1);
-    await page.screenshot({ path: info.outputPath('minimap-dialog.png') });
     expect(errors).toEqual([]);
 });
 
@@ -141,7 +139,6 @@ test('mobile portrait battlefield runs under the HUD and log', async ({ page }, 
     expect(hud.bottom).toBeLessThanOrEqual(field.bottom + 1);
     expect(feed.bottom).toBeLessThanOrEqual(hud.top + 1);
     expect(feed.top).toBeGreaterThan(field.top);
-    await page.screenshot({ path: info.outputPath('mobile-stage.png') });
     expect(errors).toEqual([]);
 });
 
