@@ -147,12 +147,4 @@ body textarea:focus {
   text-shadow: none;
 }
 
-.game-dialog-card[data-tone="bounty"] { width: min(600px, 100%); }
-.game-dialog-card[data-tone="bounty"] .game-dialog-message { margin-top: 6px; font-size: 12px; }
-.game-dialog-card[data-tone="bounty"] .game-dialog-control { margin-top: 12px; }
-.game-dialog-card[data-tone="bounty"] .game-choice-grid { max-height: none; overflow: visible; }
-.game-dialog-card[data-tone="bounty"] .game-choice-option { position: relative; padding: 12px 14px; gap: 7px; font-family: inherit; }
-.game-dialog-card[data-tone="bounty"] .game-choice-option > strong { font-size: 15px; padding-right: 100px; }
-.game-dialog-card[data-tone="bounty"] .bounty-choice-reward > span { color: var(--color-text); font-size: 14px; font-weight: 700; word-break: keep-all; }
-.game-dialog-card[data-tone="bounty"] .bounty-choice-reward .orb-tone { color: var(--orb-tone); font-size: inherit; }
 }

@@ -165,7 +165,7 @@ function mergeDefaults(save) {
             elite: !!marker.elite,
             boss: !!marker.boss
         };
-        // Pre-treasure hunt markers resume as ordinary elites; the unfinished hunt becomes a ready treasure.
+        // Markers keep only their spawn shape; removed content fields (e.g. treasure-hunt ids) are dropped.
         return normalized;
     }
     function normalizeEnemyRecord(enemy) {
@@ -1096,8 +1096,11 @@ function mergeDefaults(save) {
     if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
-    merged.bountyHunt = bountyRuntime.restore(save.bountyHunt);
-    merged.enemies.forEach(enemy => { delete enemy.isBountyTarget; delete enemy.bountyId; });
+    // 보물사냥은 삭제된 콘텐츠: 남은 진행·예약 보물은 지급 없이 버리고, 표적이던 적은 표시만 지운다.
+    delete merged.bountyHunt;
+    const explorationPacks = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
+    [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat()
+        .forEach(enemy => { if (enemy) { delete enemy.isBountyTarget; delete enemy.bountyId; } });
     // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.

@@ -88,11 +88,7 @@ const loopSettlementUi = {
         }
     }
 
-    async function requestManualLoopAdvanceConfirmation() {
-        if (!bountyRuntime.canAdvanceLoop()) {
-            await bountyUi.openTreasure();
-            return false;
-        }
+    function requestManualLoopAdvanceConfirmation() {
         return requestGameConfirmation(
             '정말 지금 루프하시겠습니까?\n현재 루프를 정산하고 다음 루프로 이동합니다.',
             { title: '루프 진행 확인', tone: 'danger', confirmLabel: '루프 진행',

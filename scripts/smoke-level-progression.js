@@ -205,7 +205,7 @@ run('game.actRewardBonuses[0].value=109;game=mergeDefaults(JSON.parse(JSON.strin
 assert.ok(run('getPlayerStats(false).disabledEquipment["무기"]'),'saved gear uses new thresholds without a new grace exemption');
 assert.equal(run('game.equipment["무기"].id'),run('finalWeapon.id'),'ineligible gear stays owned');
 assert.equal(run('getPlayerStats(false).strength'),109,'inactive gear does not grant its own attributes');
-// Delayed map/bounty rewards must use their origin for every roll, not the player's current map.
+// Delayed map rewards must use their origin for every roll, not the player's current map.
 run(`game=mergeDefaults({});game.cosmosAtlas.activeChallenge={tier:80,galaxy:5};`);
 const dropOrigins = [0, 'chaos_realm', 'underworld_core', 'cosmos_challenge'].map(id => r.getZone(id));
 function sampleOriginDrops(zone, currentZoneId) {

@@ -13,7 +13,6 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"flaskUtility","after":"flask","name":"특수 플라스크","group":"대응","minLoop":3,"cost":1,"description":"전투를 보조하는 특수 플라스크의 발견·제작·장착이 열립니다. 장착 수는 허리띠의 플라스크 슬롯에 따릅니다.","action":{"tab":"tab-flask"},"lifecycle":{"label":"루프 초기화","kept":"","reset":"특수 플라스크 발견·품질·장착"}},
     {"id":"market","name":"거래소","group":"편의","minLoop":2,"cost":0,"after":"craft","description":"장비 제련과 함께 열립니다. 제작 재화 교환과 암거래·특수 서비스를 이용합니다.","routes":["item-tab-market"]},
     {"id":"hall","name":"장비 전당","group":"편의","minLoop":2,"cost":0,"after":"craft","description":"장비 제련과 함께 열립니다. 로그인 후 장비를 전시하고 소장품을 구매합니다.","routes":["item-tab-hall"]},
-    {"id":"bounty","name":"보물사냥","action":{"bounty":true},"group":"전투","minLoop":2,"cost":0,"description":"보스 10회 처치마다 무작위 보물을 탐색합니다. 드물게 고유 장비와 귀한 재화를 발견할 수 있습니다.","sections":["#ui-bounty-box"]},
     {"id":"codex","after":"craft","name":"고유 도감","group":"장비","minLoop":5,"cost":1,"description":"고유 장비를 수집하고 도감 보너스를 얻습니다.","routes":["tab-codex"],"gate":"codex","lifecycle":{"label":"성장 영구 유지","kept":"등록한 고유 장비의 도감 기록과 수집 보너스","reset":"일반 인벤토리·장착 장비. 루프 봉인 장비는 유지됩니다."}},
     {"id":"journal","name":"저널","group":"기록","minLoop":1,"cost":0,"description":"발견한 기록과 영구 보상을 확인합니다.","routes":["tab-journal"],"gate":"journal"},
     {"id":"records","name":"전적","group":"기록","minLoop":1,"cost":0,"description":"루프와 전투 기록을 비교합니다.","routes":["tab-records"]},

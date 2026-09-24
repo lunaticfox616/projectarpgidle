@@ -72,34 +72,6 @@ until('game.combatHalted','town stop waits for presentation, then halts');
 assert.equal(run('game.currentZoneId'),1);
 assert.equal(run('game.actExploration'),null);
 
-// A queued hunt uses the same source/target and is preplaced once on every authored layout.
-for(let act=1;act<=10;act++) {
-    fresh(act,{mapCompleteAction:'stop'},2);
-    run(`game.bountyHunt.remaining=0;bountyRuntime.openTreasure();
-        bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);ensureEncounterRun();
-        window.huntEnemy=game.actExploration.packs.flatMap(pack=>pack.waiting).find(enemy=>enemy.isBountyTarget);`);
-    assert.ok(run('window.huntEnemy'));
-    assert.match(run('runUiGlobalFunction("getBountyHudState").html'),/추적 중/);
-    assert.equal(run('game.actExploration.packs.flatMap(pack=>pack.waiting).filter(enemy=>enemy.isBountyTarget).length'),1);
-    assert.equal(run('window.huntEnemy.bountyId'),run('game.bountyHunt.pending.targetId'));
-    const held=copy('game.actExploration');
-    run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));ensureEncounterRun();');
-    assert.deepEqual(copy('game.actExploration'),held,'reconnect never rerolls the hunt roster');
-}
-fresh(1,{mapCompleteAction:'stop'},2);
-run(`game.bountyHunt.remaining=0;bountyRuntime.openTreasure();
-    window.selectedHunt=game.bountyHunt.pending.offerIds.find(id=>Object.keys(BOUNTY_TARGET_DB[id].reward.currencies).length);
-    bountyRuntime.startHunt(window.selectedHunt);ensureEncounterRun();`);
-until('game.bountyHunt.pending.status==="reward"','real attacks defeat the preplaced hunt');
-assert.ok(run('game.actExploration.loot.equipment.length')>=1,'target equipment stays in the dungeon');
-assert.equal(run('game.inventory.length'),0,'enemy target rewards cannot be equipped before the boss');
-for(const key of copy('Object.keys(BOUNTY_TARGET_DB[window.selectedHunt].reward.currencies)')) {
-    assert.equal(run(`game.currencies[${JSON.stringify(key)}]`),0);
-    assert.ok(run(`game.actExploration.loot.currencies[${JSON.stringify(key)}]`)>0,'target currency is held with equipment');
-}
-until('game.actExploration.completionApplied','the bounty does not strand the elite gate');
-assert.ok(run('game.inventory.length')>=1);
-
 // Death and manual return abandon the old packet; retry starts fresh through normal travel.
 for(const action of ['returnToTown()','handlePlayerDefeat(getZone(0),getPlayerStats())']) {
     fresh(1,{mapCompleteAction:'repeatZone',townReturnAction:'retry'});
@@ -143,4 +115,4 @@ run(`ensureEncounterRun();game.actExploration.mode='manual';
     window.replayed=simulateBackgroundCombat({elapsedMs:1000,snapshot:game});`);
 assert.deepEqual(copy('window.replayed.game.gridPlayer'),copy('game.gridPlayer'),'manual exploration is not silently changed to automatic offline');
 assert.equal(run('mergeDefaults({settings:{actExplorationMode:"unknown"}}).settings.actExplorationMode'),'direct');
-console.log('Default act entry, legacy saves, repeat/next/stop, bounty, death/return, arenas and offline settlement: OK');
+console.log('Default act entry, legacy saves, repeat/next/stop, death/return, arenas and offline settlement: OK');

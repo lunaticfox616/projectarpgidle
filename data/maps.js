@@ -200,7 +200,7 @@ const STAR_WEDGE_CORE_OPTION_POOL = [
 
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
-    2: { title: '루프 2', features: ['해금: 홀씨 제작 / 보물사냥', '조건부 해금: 컨디션 젬 (뿌리 보스 처치)'] },
+    2: { title: '루프 2', features: ['해금: 홀씨 제작', '조건부 해금: 컨디션 젬 (뿌리 보스 처치)'] },
     3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
     4: { title: '루프 4', features: ['해금: 창공 강화'] },
     5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },

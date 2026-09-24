@@ -97,14 +97,14 @@ function resetLocalSave(snapshot) {
 }
 
 function refreshItemIdCounter() {
-    // Every owned or pending item reserves its id, including postponed treasures and offline overflow.
+    // Every owned or pending item reserves its id, including offline overflow.
     const rift = game.timeRift || {};
     const offline = game.offlineProgress || {};
     const presets = ((game.equipmentLoadouts || {}).presets || []).filter(Boolean)
         .flatMap(preset => Object.values(preset.slots || {}));
     const items = [game.inventory, Object.values(game.equipment || {}), rift.altarUnique, rift.altarRare,
         game.growthInventory, game.recentGrowthDrops, offline.stash, offline.protectedOverflow,
-        game.equipmentTemporaryStorage, presets, game.bountyHunt?.pending?.item,
+        game.equipmentTemporaryStorage, presets,
         actExplorationLoot.reservedItems(game)].flat().filter(Boolean);
     const jewels=[game.jewelInventory,game.jewelSlots,items.map(item=>item.voidSocket?.jewel)].flat().filter(Boolean);
     itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));

@@ -6892,7 +6892,6 @@ function createEnemy(zone, marker, groupIndex) {
     }
     applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
-    if (marker.bountyId) bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
     if (enemy.isBoss) startHiddenJournalBossRun(enemy, zone);
@@ -8315,21 +8314,9 @@ function createActExplorationEncounter(zone,enabled=zone.type==='act') {
         if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null));continue;}
         for(let stage=0;stage<STORY_ACTS[zone.id].maxKills;stage++)packs.push(createActExplorationPack(zone,room,stage));
     }
-    placeActExplorationBounty(zone,map,packs);
     const run=actExplorationState.create(map.act,packs,getCombatTime());
     run.mode=game.settings.actExplorationMode;
     return run;
-}
-
-/** Add the existing queued hunt once, in a required elite room, before fog discovery. */
-function placeActExplorationBounty(zone,map,packs) {
-    const markers=[];
-    if(!bountyRuntime.injectEncounterMarker(markers,zone))return;
-    const pack=packs.find(row=>row.eliteIds.length>0);
-    const room=map.rooms.find(row=>row.id===pack.roomId);
-    const enemy=createEnemy(zone,markers[0],0);
-    Object.assign(enemy,{gx:room.gx,gy:room.gy+1,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:pack.key});
-    pack.waiting.push(enemy);pack.aliveIds.push(enemy.id);pack.eliteIds.push(enemy.id);
 }
 
 // Explicit false is retained for replaying legacy progress-based encounters in regression
@@ -8366,7 +8353,6 @@ function startEncounterRun(exploration) {
     restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
     game.encounterPlan = explorationRun ? [] : generateEncounterPlan(zone);
-    if(!explorationRun)bountyRuntime.injectEncounterMarker(game.encounterPlan, zone);
     game.enemies = [];
     if (zone && zone.type === 'outsideChaos') startWoodsmanCurse();
     else resetWoodsmanCurse();
@@ -9155,11 +9141,6 @@ function handleEnemyDeath(enemy, pStats) {
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     grantEnemyLoot(enemy);
     actExplorationState.recordDeath(game,enemy);
-    let bountyOffer = actExplorationLoot.capture(game,actExplorationState.current(game),()=>bountyRuntime.processKill(zone,enemy));
-    if (bountyOffer.offered || bountyOffer.completed) {
-        addLog(bountyOffer.completed ? '보물사냥 표적 처치! 전리품 획득 · 추가 보물을 받을 수 있습니다.' : '보물사냥이 준비되었습니다. 전투 화면에서 표적을 확인하세요.', 'loot-unique');
-        if (typeof queueImportantSave === 'function') queueImportantSave(200);
-    }
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
@@ -9315,7 +9296,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
     let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
-    if (enemy.isBoss || enemy.isElite || bountyOffer.offered || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map || game.noti.cube) {
+    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map || game.noti.cube) {
         pendingHeavyUiRefresh = true;
     }
 }
@@ -11405,13 +11386,11 @@ function recordPlayerDefeatStart(zone, options) {
     resetHiddenJournalBossRun();
     refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
-    const bountyFailed = bountyRuntime.failHunt();
     dispatchRuntimeEvent('player-defeated', {
         zoneId: zone && zone.id,
         zoneType: zone && zone.type,
         contentContext: getEncounterTelemetryContext(zone),
         background: !!game.isBackgroundCalculation,
-        bountyFailed,
         noToast: !!options.noToast
     });
 }
@@ -12882,10 +12861,6 @@ function triggerSeasonReset(options) {
         return false;
     }
     if (!loopPath) loopPath = 'chaos';
-    if (!bountyRuntime.canAdvanceLoop()) {
-        addLog('발견한 보물을 먼저 받아주세요. 전투 화면의 [보물사냥]에서 받은 뒤 루프를 진행할 수 있습니다.','season-up',{toast:true});
-        return false;
-    }
     if (isRewardOpen()) closeRewardOverlay();
     if (game.woodsmanBuildLock) {
         clearWoodsmanBuildLock();
