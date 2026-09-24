@@ -157,3 +157,22 @@ test('light mode is gone and old light saves open in the dark theme', async ({ p
     expect(restored).toEqual({ hasTheme: false, lightClass: false });
     expect(errors).toEqual([]);
 });
+
+test('desktop hotkeys open and close management windows like an ARPG', async ({ page }, info) => {
+    test.skip(info.project.use.isMobile, 'Keyboard shortcuts are desktop-only');
+    const errors = await openGame(page, info);
+    await expect(page.locator('#btn-tab-items')).toHaveAttribute('aria-keyshortcuts', 'I');
+    await page.keyboard.press('i');
+    await expect(page.locator('#tab-items')).toBeVisible();
+    await page.keyboard.press('i');
+    await expect(page.locator('#tab-items')).toBeHidden();
+    await page.keyboard.press('c');
+    await expect(page.locator('#tab-character')).toBeVisible();
+    // 입력칸에 글자를 칠 때는 단축키가 동작하지 않는다.
+    await page.keyboard.press('i');
+    await page.locator('#tab-items').getByPlaceholder(/장비 검색/).click();
+    await page.keyboard.type('mi');
+    await expect(page.locator('#tab-items')).toBeVisible();
+    await expect(page.locator('#tab-map')).toBeHidden();
+    expect(errors).toEqual([]);
+});

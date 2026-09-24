@@ -1116,6 +1116,44 @@
         if (open) closeWindow(open);
     }
 
+    // PC 단축키(ARPG 관례): 누르면 해당 창을 열고, 이미 맨 위에 열려 있으면 닫는다.
+    // 입력 중·모달·튜토리얼·시작 화면·모바일 배치이거나 아직 해금되지 않은 메뉴면 무시한다.
+    const WINDOW_HOTKEYS = Object.freeze({
+        KeyC: 'tab-character', KeyP: 'tab-char', KeyI: 'tab-items', KeyM: 'tab-map', KeyG: 'tab-skills', KeyJ: 'tab-journal'
+    });
+
+    function isWindowHotkeyBlocked(event) {
+        if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.repeat) return true;
+        let body = document.body;
+        if (!body.classList.contains('desktop-windowed-ui') || body.classList.contains('startup-active')) return true;
+        let typing = event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]');
+        return !!typing || !!document.querySelector('dialog:modal, .tutorial-overlay.active');
+    }
+
+    function isMenuUnlocked(tabId) {
+        let button = document.getElementById('btn-' + tabId);
+        return !!button && !button.hidden && button.style.display !== 'none';
+    }
+
+    function toggleWindowByHotkey(event) {
+        let tabId = WINDOW_HOTKEYS[event.code];
+        if (!tabId || isWindowHotkeyBlocked(event) || !isMenuUnlocked(tabId)) return;
+        event.preventDefault();
+        let state = layoutState.windows[tabId];
+        let onTop = zOrder[zOrder.length - 1] === tabId;
+        if (state && state.open && !state.minimized && onTop) closeWindow(tabId);
+        else window.switchTab(tabId);
+    }
+
+    function labelWindowHotkeys() {
+        Object.entries(WINDOW_HOTKEYS).forEach(([code, tabId]) => {
+            let button = document.getElementById('btn-' + tabId);
+            if (!button) return;
+            button.dataset.hotkey = code.slice(3);
+            button.setAttribute('aria-keyshortcuts', code.slice(3));
+        });
+    }
+
     function initWindowManager() {
         if (initialized) return;
         initialized = true;
@@ -1126,6 +1164,8 @@
         applyResponsiveMode();
         window.addEventListener('resize', applyResponsiveMode);
         document.addEventListener('keydown', closeTopWindowOnEscape);
+        document.addEventListener('keydown', toggleWindowByHotkey);
+        labelWindowHotkeys();
         document.addEventListener('pointerdown', closeCommunityOverlayOnOutsidePointer);
     }
 
