@@ -1,6 +1,6 @@
 # Browser fixtures
 
-`first-journey/` and `world-tree-journey/` are versioned, isolated browser test entry pages.
+`world-tree-journey/` is a versioned, isolated browser test entry page.
 They load the production `index.html` with the existing tracked unlock-lab storage bridge;
 they do not read or overwrite the player's persistent save. The two build JSON files
 are synthetic equipment fixtures, not player exports. `seed.js` also provides explicitly

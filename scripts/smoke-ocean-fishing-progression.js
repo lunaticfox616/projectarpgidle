@@ -228,7 +228,7 @@ const elements = {
 };
 context.document.getElementById = id => elements[id] || null;
 // Fishing controls and collection disclosure run against a real DOM
-// in tests/browser/ocean-workflow.spec.js and mobile-map-navigation.spec.js.
+// in a real browser when the ocean screens change.
 run('renderSeaGiftPanel();');
 assert(elements['ui-sea-gift-panel'].innerHTML.includes('현재 제작 대상')
     && elements['ui-sea-gift-panel'].innerHTML.includes('일반 장비가 아님')

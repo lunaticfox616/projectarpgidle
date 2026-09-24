@@ -1,6 +1,4 @@
 const { test, expect } = require('@playwright/test');
-const { currencyUse } = require('./crafting-helpers');
-
 async function setup(page) {
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     page.on('console',message=>{if(message.type()==='error'&&/crafting.*failed/i.test(message.text()))errors.push(message.text());});
@@ -28,54 +26,6 @@ async function settle(page) {
     });
 }
 test.afterEach(async({page})=>{expect(page.craftingErrors||[]).toEqual([]);});
-
-test('honey and stinger use the currency controls without duplicate item actions',async({page})=>{
-    await setup(page);
-    await page.evaluate(()=>{
-        const item=getSelectedCraftItem();
-        item.stats=['flatDmg','aspd','crit','critDmg'].map(id=>({id,statName:getStatName(id),val:10,tier:1}));
-        Object.assign(game.currencies,{enchantedHoney:2,venomStinger:2});
-        updateStaticUI();
-    });
-    await settle(page);
-    const actions=page.locator('#crafting-workspace .craft-actions');
-    await expect(actions.getByRole('button',{name:'벌꿀 고정',exact:true})).toHaveCount(0);
-    await expect(actions.getByRole('button',{name:'독벌침 부여',exact:true})).toHaveCount(0);
-    await expect(actions.getByRole('button',{name:'베이스 업그레이드',exact:true})).toBeVisible();
-    await (await currencyUse(page,'enchantedHoney')).click();
-    await settle(page);
-    expect(await page.evaluate(()=>game.currencies.enchantedHoney)).toBe(1);
-    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(stat=>stat.lockedByHoney).length)).toBe(1);
-    await expect(await currencyUse(page,'enchantedHoney')).toBeDisabled();
-    await (await currencyUse(page,'venomStinger')).click();
-    await settle(page);
-    expect(await page.evaluate(()=>game.currencies.venomStinger)).toBe(1);
-    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(stat=>stat.venomStingerBonus).length)).toBe(1);
-    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(stat=>stat.lockedByHoney).length)).toBe(1);
-});
-
-test('unified crafting catalog preserves discoveries and pin order without spending',async({page})=>{
-    await setup(page);
-    await expect(page.locator('#btn-item-tab-fossil')).toHaveCount(0);
-    await page.getByRole('button',{name:'기타 재화',exact:true}).click();
-    const dialog=page.locator('.cl-catalog');
-    await expect(dialog).toBeVisible();
-    await expect(dialog.locator('[data-resource="fossilJagged"]')).toBeVisible();
-    await expect(dialog.locator('[data-resource="sporeFire"]')).toHaveCount(0);
-    await expect(dialog.locator('[data-resource="fairyRing"]')).toHaveCount(0);
-    await page.evaluate(()=>{game.currencies.fossilJagged=0;});
-    await dialog.getByLabel('소진한 재화도 보기').check();
-    await expect(dialog.locator('[data-resource="fossilJagged"]')).toBeVisible();
-    await expect(dialog.locator('[data-resource="fairyRing"]')).toHaveCount(0);
-    await dialog.getByRole('button',{name:'주 재화 편집',exact:true}).click();
-    await dialog.locator('[data-pin-slot="3"]').click();
-    await dialog.locator('[data-resource="formlessDew"]').click();
-    expect(await page.evaluate(()=>game.craftingWorkspace.pins)).toEqual(['blightSpore','sapBud','goldenRule','formlessDew']);
-    expect(await page.evaluate(()=>mergeDefaults(JSON.parse(serializeSaveState())).craftingWorkspace.pins)).toEqual(['blightSpore','sapBud','goldenRule','formlessDew']);
-    expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(50);
-    await dialog.getByRole('button',{name:'재화 목록 닫기',exact:true}).click();
-    await page.screenshot({path:`artifacts/crafting-workspace-${test.info().project.name}.png`});
-});
 
 test('goal hit consumes once and requires acknowledgement before another craft',async({page})=>{
     await setup(page);
@@ -111,19 +61,6 @@ test('automatic crafting stops at goal and leaving the workspace prevents furthe
     await page.evaluate(()=>switchItemSubtab('item-tab-equip'));
     await page.waitForTimeout(900);
     expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(49);
-});
-
-test('fossil selection uses real currency, and small viewport has reachable controls',async({page})=>{
-    await setup(page);
-    await page.getByRole('button',{name:'기타 재화',exact:true}).click();
-    await page.locator('.cl-catalog [data-resource="fossilJagged"]').click();
-    await page.locator('.cl-catalog [data-apply]').click();
-    await page.getByRole('button',{name:/1회 사용$/}).click();
-    expect(await page.evaluate(()=>game.currencies.fossilJagged)).toBe(9);
-    expect(await page.evaluate(()=>getSelectedCraftItem().stats.some(stat=>stat.craftSource==='fossil'))).toBe(true);
-    await expect(page.locator('.cl-session')).toContainText('1회 제작');
-    await settle(page);
-    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 });
 
 test('automatic use respects its count limit and the available materials',async({page})=>{

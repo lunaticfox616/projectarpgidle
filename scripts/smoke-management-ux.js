@@ -60,7 +60,7 @@ assert(favorHtml.includes('현재 선택') && favorHtml.includes('✓ 선택됨'
 
 const equipmentCardHtml = runtime.renderInventoryCard({ id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] }, 0, 'equip');
 assert(!equipmentCardHtml.includes('<details'), 'equipment card actions must not be split behind a management disclosure');
-// Equipment action behavior is covered by tests/browser/equipment-selection-flow.spec.js.
+// Equipment action behavior is checked in the real browser when that screen changes.
 
 const starWedgeDrawer = { hidden: false, open: true };
 const starWedgePanel = { innerHTML: '' };
