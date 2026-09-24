@@ -459,7 +459,7 @@ function renderGrowthDropSettings() {
     let enabled = !!(game.settings && game.settings.growthAutoSalvageEnabled);
     let useFilter = !!(game.settings && game.settings.growthUseItemFilter);
     let rarities = getGrowthAutoSalvageRarities();
-    let labels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+    let labels = ITEM_RARITY_LABELS;
     let allRarities = Object.keys(labels).every(key => rarities[key]);
     let rarityChips = Object.keys(labels).map(key =>
         `<button type="button" class="growth-filter-chip loot-${key}${rarities[key] ? ' on' : ''}" aria-pressed="${rarities[key]}" onclick="toggleGrowthAutoSalvageRarity('${key}')">${labels[key]}</button>`).join('');

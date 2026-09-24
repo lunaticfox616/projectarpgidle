@@ -609,7 +609,7 @@ function showBackgroundCombatResult(result) {
     overlay.id = 'background-combat-result-overlay';
     overlay.className = 'background-combat-result-overlay';
     let summary = result.summary || {};
-    let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+    let rarityLabels = ITEM_RARITY_LABELS;
     let rarityColor = rarity => (typeof getRarityColor === 'function' ? getRarityColor(rarity) : '#e4eefb');
     let currencyHtml = (summary.currencies || []).sort((a, b) => (a && a.key === 'goldenRule' ? -1 : 0) - (b && b.key === 'goldenRule' ? -1 : 0)).slice(0, 8)
         .map(entry => (entry && typeof entry === 'object')
@@ -5982,6 +5982,11 @@ function applyUiSkin(skin) {
     document.body.dataset.uiSkin = normalizeUiSkin(skin);
 }
 
+// 고대비 모드(접근성): 글자·테두리 대비를 높이고 전장 조명 패스를 끈다. 색은 css/themes/high-contrast.css가 소유한다.
+function applyHighContrast(enabled) {
+    document.body.classList.toggle('high-contrast', enabled === true);
+}
+
 function getHeroSelectionDef(id) {
     return PLAYER_CLASS_DEFS[id] || HERO_SELECTION_DEFS[id] || PLAYER_CLASS_DEFS.archer;
 }
@@ -6474,7 +6479,10 @@ function updateSettings() {
     game.settings.townReturnAction = ['retry', 'stop'].includes(townReturnValue) ? townReturnValue : 'retry';
     let skinSelect = document.getElementById('sel-ui-skin');
     game.settings.uiSkin = normalizeUiSkin(skinSelect ? skinSelect.value : game.settings.uiSkin);
+    let highContrastToggle = document.getElementById('chk-high-contrast');
+    game.settings.highContrast = highContrastToggle ? highContrastToggle.checked : game.settings.highContrast === true;
     applyUiSkin(game.settings.uiSkin);
+    applyHighContrast(game.settings.highContrast);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
     syncMapCompleteActionQuickControl();
     updateStaticUI();
@@ -10612,7 +10620,7 @@ function highlightSearchText(text, query) {
 }
 
 function getInventoryRarityFilterKeys() { return ['normal', 'magic', 'rare', 'unique']; }
-function getInventoryRarityFilterLabels() { return { normal: '일반', magic: '매직', rare: '레어', unique: '고유' }; }
+function getInventoryRarityFilterLabels() { return ITEM_RARITY_LABELS; }
 function getInventoryRarityFilter() {
     game.settings = game.settings || {};
     let f = game.settings.inventoryViewRarities;

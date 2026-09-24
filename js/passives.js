@@ -10876,7 +10876,7 @@ function generateJewelDrop(zoneOrTier) {
     let rarity = 'normal';
     if (rarityRoll > 0.9) rarity = 'rare';
     else if (rarityRoll > 0.55) rarity = 'magic';
-    // 등급별 옵션 줄 수: 일반 0줄(진화의 오브로 제작), 매직 1~2줄, 레어 2~4줄
+    // 등급별 옵션 줄 수: 일반 0줄(진화의 오브로 제작), 매직 1~2줄, 희귀 2~4줄
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (rarity === 'magic' ? (1 + Math.floor(Math.random() * 2)) : 0);
     let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
@@ -10909,7 +10909,7 @@ function getJewelStats(jewel) {
 
 function getJewelRarityLabel(rarity) {
     if (rarity === 'unique') return '고유';
-    if (rarity === 'rare') return '레어';
+    if (rarity === 'rare') return ITEM_RARITY_LABELS.rare;
     if (rarity === 'magic') return '매직';
     return '일반';
 }
@@ -11236,7 +11236,7 @@ function renderJewelFusionOverlay(indices) {
     let stats = indices.flatMap(idx => getJewelCoreStats(game.jewelInventory[idx]).slice(0, 1)).map(cloneJewelStat).filter(Boolean);
     let extra = useAmplified ? '랜덤 패널티 1줄 + 랜덤 추가옵션 1줄' : '';
     let cost = useAmplified ? 14 : 6;
-    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 레어 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:calc(52vh / var(--scale-display-factor, 1));overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#ffffff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 희귀 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:calc(52vh / var(--scale-display-factor, 1));overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#ffffff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
     overlay.innerHTML = getJewelFusionOverlayShellHtml('선택한 주얼 융합', body, '<button onclick="confirmJewelFusion()">융합</button>', '#4b86bd');
 }
 
@@ -11779,7 +11779,7 @@ async function toggleJewelAutoSalvage() {
     let active = JEWEL_RARITY_ORDER.filter(rarity => !!rarities[rarity]);
     if (nextEnabled && active.length === 0) return addLog('자동해체할 주얼 등급을 먼저 선택하세요.', 'attack-monster');
     if (nextEnabled && (rarities.rare || rarities.unique)) {
-        let labels = [rarities.rare ? '레어' : '', rarities.unique ? '고유' : ''].filter(Boolean).join('·');
+        let labels = [rarities.rare ? ITEM_RARITY_LABELS.rare : '', rarities.unique ? ITEM_RARITY_LABELS.unique : ''].filter(Boolean).join('·');
         if (!await requestGameConfirmation(`${labels} 주얼 자동해체가 포함되어 있습니다.\n드랍 즉시 주얼 결정으로 바뀌며 복구할 수 없습니다.`, {
             title: '고급 주얼 자동해체',
             tone: 'danger',
@@ -11827,7 +11827,7 @@ function getActiveRarityFilterSet() {
 async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
-    let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+    let rarityLabels = ITEM_RARITY_LABELS;
     let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity));
     let targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');

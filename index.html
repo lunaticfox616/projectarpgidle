@@ -933,7 +933,7 @@
                 <div class="jewel-salvage-filters">
                     <label><input type="checkbox" id="chk-jewel-salvage-normal" checked onchange="updateJewelSalvageSettingsFromUI()"> 일반</label>
                     <label><input type="checkbox" id="chk-jewel-salvage-magic" checked onchange="updateJewelSalvageSettingsFromUI()"> 매직</label>
-                    <label><input type="checkbox" id="chk-jewel-salvage-rare" checked onchange="updateJewelSalvageSettingsFromUI()"> 레어</label>
+                    <label><input type="checkbox" id="chk-jewel-salvage-rare" checked onchange="updateJewelSalvageSettingsFromUI()"> 희귀</label>
                     <label><input type="checkbox" id="chk-jewel-salvage-unique" onchange="updateJewelSalvageSettingsFromUI()"> 고유</label>
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1462,6 +1462,8 @@
                             <option value="crimson">핏빛 참회</option>
                         </select>
                     </div>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-high-contrast" onchange="updateSettings()"><span class="cfg-label">고대비 모드</span></label>
+                    <div class="cfg-sublabel">글자·테두리를 또렷하게 하고 반투명 판을 짙게 합니다. 전장 조명(가장자리 어둡게)도 끕니다.</div>
                     <div class="cfg-select-row">
                         <label class="cfg-label" for="sel-ui-scale">UI 배율</label>
                         <select id="sel-ui-scale" class="cfg-select">

@@ -47,6 +47,7 @@
 @import "./workspace-dock.css";
 @import "./themes/rift.css";
 @import "./themes/rift-stage.css";
+@import "./themes/high-contrast.css";
 @import "./components/bars.css";
 @import "./components/tabs.css";
 @import "./components/modals.css";

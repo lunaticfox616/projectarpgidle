@@ -173,3 +173,23 @@ test('desktop hotkeys open and close management windows like an ARPG', async ({ 
     await expect(page.locator('#tab-map')).toBeHidden();
     expect(errors).toEqual([]);
 });
+
+test('high contrast mode brightens copy, drops the lighting pass and survives a save round trip', async ({ page }, info) => {
+    const errors = await openGame(page, info);
+    const before = await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--color-text-secondary').trim());
+    await page.evaluate(() => { switchTab('tab-settings'); });
+    const toggle = page.locator('#chk-high-contrast');
+    await toggle.scrollIntoViewIfNeeded();
+    if (info.project.use.isMobile) await toggle.tap(); else await toggle.click();
+    const state = await page.evaluate(() => ({
+        on: document.body.classList.contains('high-contrast'),
+        saved: game.settings.highContrast,
+        lighting: isBattleLightingEnabled(),
+        secondary: getComputedStyle(document.body).getPropertyValue('--color-text-secondary').trim(),
+        restored: mergeDefaults(JSON.parse(serializeSaveState())).settings.highContrast,
+        oldSave: mergeDefaults({ settings: { highContrast: 'yes' } }).settings.highContrast
+    }));
+    expect(state).toMatchObject({ on: true, saved: true, lighting: false, restored: true, oldSave: false });
+    expect(state.secondary).not.toBe(before);
+    expect(errors).toEqual([]);
+});

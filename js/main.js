@@ -102,7 +102,9 @@ function init() {
     document.getElementById('sel-loop-map-complete-action').value = getMapCompleteActionOption(game.settings.postLoopMapCompleteAction).value;
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-ui-skin').value = normalizeUiSkin(game.settings.uiSkin);
+    document.getElementById('chk-high-contrast').checked = game.settings.highContrast === true;
     applyUiSkin(game.settings.uiSkin);
+    applyHighContrast(game.settings.highContrast);
     uiDisplay.apply(game.settings.uiScale);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();

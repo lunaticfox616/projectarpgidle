@@ -790,6 +790,7 @@ function mergeDefaults(save) {
     // 라이트 모드는 2026-09 UI 개편에서 제거됐다(다크 전용). 이전 저장의 설정값은 버린다.
     delete merged.settings.themeMode;
     merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
+    merged.settings.highContrast = merged.settings.highContrast === true;
     merged.settings.uiScale = normalizeUiScale(merged.settings.uiScale);
     merged.settings.tabLayouts = normalizeTabLayoutSettings(save.settings || {});
     ['tabOrder', 'tabPlacement', 'tabGroupOrder', 'tabPlacementInitialized'].forEach(key => delete merged.settings[key]);

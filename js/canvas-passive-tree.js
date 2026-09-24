@@ -679,7 +679,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     let carried = equipmentInventoryInteraction.isCarryingKey(itemKey);
     let filterClass = filterState && filterState.filterActive
         ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
-    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
+    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
     let badges = `${item.locked ? '<span>잠금</span>' : ''}${presetProtected ? '<span>세팅</span>' : ''}`;
     if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span>공격 +${triageResult.dpsGainPct}%</span>`;
     if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span>생존 +${triageResult.ehpGainPct}%</span>`;
@@ -760,7 +760,7 @@ function renderEquipmentInventoryInspector(rows) {
     equipmentInventoryInteraction.setFocusedKey(equipmentInventoryGridRuntime.getItemKey(item));
     let footprint = getEquipmentInventoryFootprint(item);
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
-    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
+    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
     let html = `<div class="equipment-grid-inspector-copy rarity-${item.rarity || 'normal'}">
         <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel} · ${escapeHTML(item.slot || '장비')} · ${footprint.columns}×${footprint.rows}칸</span>
         <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
@@ -823,7 +823,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
+    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || item.rarity || ITEM_RARITY_LABELS.normal;
     return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
         <div class="equipment-card-main">

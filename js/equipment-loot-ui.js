@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const rarityNames = { normal: '일반', magic: '매직', rare: '희귀', unique: '고유' };
+    const rarityNames = ITEM_RARITY_LABELS;
 
     function renderPickup() {
         const settings = game.settings;
