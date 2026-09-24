@@ -95,11 +95,8 @@ test('new trial cue follows unfinished eligible trials and travel locks',async({
     await card.click();
     await expect(frame.locator('#map-explore-trials')).toBeVisible();
     await expect(frame.locator('#ui-trial-list [data-trial-id]').first()).toHaveAttribute('data-trial-id','trial_3');
-    for (const theme of ['dark', 'light']) {
-        await child.evaluate(theme => applyThemeMode(theme), theme);
-        await child.waitForFunction(() => !document.getElementById('tab-map').getAnimations({subtree:true}).some(animation => animation.playState === 'running'));
-        await frame.locator('#ui-trial-list [data-trial-id]').first().screenshot({path:info.outputPath(`trial-choices-${theme}.png`)});
-    }
+    await child.waitForFunction(() => !document.getElementById('tab-map').getAnimations({subtree:true}).some(animation => animation.playState === 'running'));
+    await frame.locator('#ui-trial-list [data-trial-id]').first().screenshot({path:info.outputPath('trial-choices-dark.png')});
     await frame.locator('[data-trial-id="trial_3"]').getByRole('button',{name:'도전',exact:true}).click();
     expect(await child.evaluate(()=>({zone:game.currentZoneId,keys:game.currencies.trialKey3})))
         .toEqual({zone:'trial_3',keys:0});

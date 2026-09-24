@@ -4,7 +4,7 @@ const { test, expect } = require('@playwright/test');
 // OS settings remain untouched; both CSS viewport and DPR change together.
 for (const scale of [1, 1.25, 1.5]) test.describe(`display scale ${scale}`, () => {
     test.use({ viewport: { width: Math.round(1482.5 / scale), height: Math.round(927.5 / scale) }, deviceScaleFactor: scale });
-    test('choices and saved windows remain usable in dark and light', async ({ page }, info) => {
+    test('choices and saved windows remain usable', async ({ page }, info) => {
         test.skip(info.project.name !== 'desktop-chromium', 'Explicit viewport/DPR matrix uses the desktop browser.');
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
@@ -21,17 +21,15 @@ for (const scale of [1, 1.25, 1.5]) test.describe(`display scale ${scale}`, () =
             clearInterval(gameTickHandle); gameTickHandle = null;
             game.season = 2; checkUnlocks(); tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         });
-        for (const theme of ['dark', 'light']) {
-            await page.evaluate(theme => { applyThemeMode(theme); switchTab('tab-unlocks'); updateStaticUI(); }, theme);
-            await expect(page.locator('[data-unlock-content]:enabled')).toHaveCount(1);
-            await expect(page.locator('#content-unlock-panel')).toBeVisible();
-            expect(await page.locator('#content-unlock-panel').evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-            await page.screenshot({ path: info.outputPath(`choices-${theme}.png`), scale: 'css' });
-            for (const tab of ['tab-character', 'tab-items', 'tab-skills', 'tab-settings']) {
-                await page.evaluate(tab => { switchTab(tab); updateStaticUI(); }, tab);
-                await expect(page.locator('#' + tab)).toBeVisible();
-                await assertContained(page, tab);
-            }
+        await page.evaluate(() => { switchTab('tab-unlocks'); updateStaticUI(); });
+        await expect(page.locator('[data-unlock-content]:enabled')).toHaveCount(1);
+        await expect(page.locator('#content-unlock-panel')).toBeVisible();
+        expect(await page.locator('#content-unlock-panel').evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+        await page.screenshot({ path: info.outputPath('choices-dark.png'), scale: 'css' });
+        for (const tab of ['tab-character', 'tab-items', 'tab-skills', 'tab-settings']) {
+            await page.evaluate(tab => { switchTab(tab); updateStaticUI(); }, tab);
+            await expect(page.locator('#' + tab)).toBeVisible();
+            await assertContained(page, tab);
         }
         if (scale < 1.5) {
             await page.evaluate(() => switchTab('tab-character'));

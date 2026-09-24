@@ -418,7 +418,6 @@
 #tab-codex .codex-new-summary { margin-top: 6px; color: var(--color-accent-gold); font-weight: 600; }
 #tab-codex .codex-slot-heading span { color: var(--color-accent-gold); }
 #tab-codex .codex-card :is(.item-base-line, .item-stats) { color: var(--color-text-secondary); }
-body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
 #tab-codex .codex-registered { color: var(--color-success); font-weight: 600; }
 @media (max-width:900px){.codex-slot-tabs{flex-direction:row}.codex-card-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));}}
 .expertise-tree-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}

@@ -29,29 +29,26 @@ test('returning and reloading preserve the four core menus at level one', async 
 });
 
 test('notice and death report share theme materials and remain operable', async ({ page }, testInfo) => {
-    for (const theme of ['dark', 'light']) {
-        await page.evaluate(theme => {
-            applyThemeMode(theme);
-            tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
-            queueTutorialNotice('review-' + theme, '새 콘텐츠', '새로운 콘텐츠를 확인하세요.');
-            checkUnlocks();
-        }, theme);
-        const notice = page.locator('#tutorial-overlay');
-        await expect(notice).toBeVisible();
-        const material = await notice.locator('.tutorial-card').evaluate(el => getComputedStyle(el).backgroundImage);
-        await page.screenshot({ path: testInfo.outputPath('notice-' + theme + '.png') });
-        await page.locator('#tutorial-dismiss-btn').click();
-        await page.evaluate(() => openDeathOverlay({ primaryElement: 'fire', reasonText: '화염 공격', expLost: 12, activeAilments: [],
-            damageSummary: [{ ele: 'fire', value: 100 }], monsterSummary: [{ name: '화염 정령', value: 100, primaryElement: 'fire' }] }));
-        const death = page.locator('#death-overlay');
-        await expect(death).toBeVisible();
-        await expect(death.locator('.tutorial-card')).toHaveCSS('background-image', material);
-        await death.getByRole('tab', { name: '몬스터별' }).click();
-        await expect(death.getByRole('tab', { name: '몬스터별' })).toHaveAttribute('aria-selected', 'true');
-        await page.screenshot({ path: testInfo.outputPath('death-' + theme + '.png') });
-        await death.getByRole('button', { name: '확인', exact: true }).click();
-        await expect(death).toBeHidden();
-    }
+    await page.evaluate(() => {
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+        queueTutorialNotice('review-dark', '새 콘텐츠', '새로운 콘텐츠를 확인하세요.');
+        checkUnlocks();
+    });
+    const notice = page.locator('#tutorial-overlay');
+    await expect(notice).toBeVisible();
+    const material = await notice.locator('.tutorial-card').evaluate(el => getComputedStyle(el).backgroundImage);
+    await page.screenshot({ path: testInfo.outputPath('notice-dark.png') });
+    await page.locator('#tutorial-dismiss-btn').click();
+    await page.evaluate(() => openDeathOverlay({ primaryElement: 'fire', reasonText: '화염 공격', expLost: 12, activeAilments: [],
+        damageSummary: [{ ele: 'fire', value: 100 }], monsterSummary: [{ name: '화염 정령', value: 100, primaryElement: 'fire' }] }));
+    const death = page.locator('#death-overlay');
+    await expect(death).toBeVisible();
+    await expect(death.locator('.tutorial-card')).toHaveCSS('background-image', material);
+    await death.getByRole('tab', { name: '몬스터별' }).click();
+    await expect(death.getByRole('tab', { name: '몬스터별' })).toHaveAttribute('aria-selected', 'true');
+    await page.screenshot({ path: testInfo.outputPath('death-dark.png') });
+    await death.getByRole('button', { name: '확인', exact: true }).click();
+    await expect(death).toBeHidden();
 });
 
 test('warrior strips keep their ground contact across directions', async ({ page }, testInfo) => {

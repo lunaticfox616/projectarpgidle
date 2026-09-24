@@ -20,47 +20,8 @@
             font-weight: 400;
             font-display: swap;
         }
-        body.light-mode { --copy-bright: #1f2a3a; --copy-muted: #52657b; }
         /* surfaces that keep a dark background in light mode need bright copy back */
         body { font-family: 'MulmaruMono', 'Malgun Gothic', sans-serif; background-color: #08080b; color: #ffffff; padding: 15px; padding-top: max(15px, env(safe-area-inset-top)); padding-right: max(15px, env(safe-area-inset-right)); padding-bottom: max(15px, env(safe-area-inset-bottom)); padding-left: max(15px, env(safe-area-inset-left)); font-size: 14px; margin: 0; display: flex; gap: 15px; height: 100vh; height: 100dvh; min-height: 100vh; min-height: 100dvh; width: 100%; box-sizing: border-box; overflow: hidden; -webkit-text-size-adjust: 100%; }
-        body.light-mode { background-color: #eef2f8; color: #1f2a3a; }
-        body.light-mode #right-pane { background-color: #f8fbff; border-color: #cfd9e6; }
-        body.light-mode .panel { background-color: #ffffff; border-color: #d5deea; color: #1f2a3a; }
-        body.light-mode .tab-content { color: #243247; }
-        body.light-mode button { background: var(--color-surface-raised); color: var(--color-text); border-color: var(--color-line); }
-        body.light-mode .map-item { background-color: #ffffff; border-color: #c7d6e8; color: #243247; }
-        body.light-mode .skill-gem { background-color: #ffffff; border-color: #c7d6e8; color: #243247; }
-        body.light-mode .combat-feed { background: linear-gradient(180deg, #f7fbff 0%, #eef5fc 100%); border-color: #c7d9eb; }
-        body.light-mode .combat-feed-title { color: #2f5f91; }
-        body.light-mode #log { background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%); border-color: #c7d6e8; color: #203148; box-shadow: inset 0 0 14px rgba(83, 116, 150, 0.12); }
-        body.light-mode #log:empty::before { color: #6c7f96; }
-        body.light-mode .enemy-card { background: linear-gradient(180deg, #ffffff 0%, #f2f7fd 100%); border-color: #c8d6e8; }
-        body.light-mode .enemy-name { color: #8c4f16; }
-        body.light-mode .enemy-tags.muted { color: #5f748d; }
-        body.light-mode .enemy-empty { background: #f4f8fc; border-color: #c9d6e4; color: #61748b; }
-        body.light-mode .stat-grid { background: #f7fbff; border-color: #cfdae8; }
-        body.light-mode .stat-item { border-bottom-color: #d5e1ef; }
-        body.light-mode .stat-label { color: #35516e; }
-        body.light-mode .stat-value { color: #173a63; }
-        body.light-mode .ailment-stat-title { color: #35516e; }
-        body.light-mode .ailment-chip-value { color: #173a63; }
-        body.light-mode .stat-unit { color: #6f89a4; }
-        body.light-mode .trait-tree { background: #f6faff; border-color: #c8d7e8; }
-        body.light-mode .trait-card { background: #ffffff; border-color: #b8cbe0; color: #28435f; box-shadow: 0 3px 8px rgba(84, 113, 146, 0.12); }
-        body.light-mode .trait-desc { color: #5c7690; }
-        body.light-mode .class-card { background: #ffffff; border-color: #a988d8; color: #233951; }
-        body.light-mode .class-card:hover { background: #f7efff; border-color: #916bc8; }
-        body.light-mode .slot-box { background: #ffffff; border-color: #c7d6e8; color: #263b54; }
-        body.light-mode .slot-box:hover { background: #f3f8ff; border-color: #99afc6; }
-        body.light-mode .forge-panel { background: var(--color-surface); border-color: var(--color-line); }
-        body.light-mode .craft-selected { background: var(--color-surface-raised); border-color: var(--color-line); color: var(--color-text); }
-        body.light-mode .jewel-salvage-bar { background: #f6fbff; border-color: #c5d8eb; }
-        body.light-mode .jewel-salvage-filters { color: #355374; }
-        body.light-mode #ui-talisman-unseal { color: #23384d; }
-        body.light-mode .item-card { background: #ffffff; border-color: #c7d5e6; }
-        body.light-mode .item-card:hover { background: #f4f8fd; }
-        body.light-mode .item-base-line { color: #6c829a; }
-        body.light-mode .item-stats { color: #3f5670; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; transition: width 160ms ease, min-width 160ms ease, margin 160ms ease; }
         /* 창형 PC 배치는 펼치기 버튼이 없으므로 이전 패널 접힘 설정을 적용하지 않는다. */
         body.left-pane-collapsed:not(.desktop-windowed-ui) { gap: 4px; }
@@ -70,7 +31,6 @@
         #left-pane-collapse-toggle, #left-pane-floating-toggle { position: absolute; top: 8px; right: 8px; width: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; background: #16263a; border: 1px solid #304b66; color: #ffffff; font-size: 0.9em; padding: 0; z-index: 3; }
         #left-pane-expand-fab { display: none; position: absolute; top: 10px; left: 10px; width: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; background: #16263a; border: 1px solid #304b66; color: #ffffff; font-size: 0.9em; padding: 0; z-index: 30; }
         body.left-pane-collapsed:not(.desktop-windowed-ui) #left-pane-expand-fab { display: inline-flex; align-items: center; justify-content: center; }
-        body.light-mode #left-pane-collapse-toggle, body.light-mode #left-pane-floating-toggle, body.light-mode #left-pane-expand-fab { background: #edf4fc; border-color: #bcd1e8; color: #2a5178; }
         #right-pane { flex: 1; display: flex; flex-direction: column; background-color: #121216; border: 1px solid #2a2a35; border-radius: 8px; min-width: 0; min-height: 0; height: 100%; overflow: hidden; position: relative; }
         .panel { background-color: #16161d; border: 1px solid #2a2a35; padding: 15px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .player-panel { flex-shrink: 0; }
@@ -92,14 +52,4 @@
         #log { flex: 1 1 auto; min-width: 0; min-height: 180px; box-sizing: border-box; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: linear-gradient(180deg, #06080d 0%, #040509 100%); padding: 8px 10px; border: 1px solid #1a1a24; border-radius: 8px; font-family: var(--font-body, 'DOSSaemmul', 'Malgun Gothic', sans-serif); font-size: 0.84em; box-shadow: inset 0 0 18px rgba(0,0,0,0.35); }
         #log:empty::before { content: '전투 로그가 여기에 표시됩니다.'; display: block; color: var(--copy-muted); padding-top: 4px; }
 }        @layer overrides {
-        body.light-mode #ui-jewel-panel {
-                /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ background: #f7fbff !important; /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ border-color: #c5d8eb !important; }
-        body.light-mode #ui-jewel-core-craft { background: #ffffff; border-color: #c5d8eb; }
-        body.light-mode #tab-journal > div,
-        body.light-mode #ui-journal-list > div { background: var(--color-surface); border-color: var(--color-line); color: var(--color-text); }
-        body.light-mode #ui-talisman-currency,
-        body.light-mode #ui-abyss-passive-summary {
-                /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ color: #3f6284 !important; }
-        body.light-mode #ui-talisman-unseal { background: #ffffff; border-color: #c5d8eb; }
-        body.light-mode #ui-talisman-board > div { border-color: #a7bdd4; }
 }

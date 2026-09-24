@@ -2741,7 +2741,7 @@ function drawBattleScreenGrade(ctx, width, height, now) {
 // 체력바·피해 숫자보다 먼저 그려 숫자 가독성은 유지하고, 다른 스킨에서는 그리지 않는다.
 function isBattleLightingEnabled() {
     const body = typeof document !== 'undefined' ? document.body : null;
-    return !!body && body.dataset.uiSkin === 'rift' && !body.classList.contains('light-mode');
+    return !!body && body.dataset.uiSkin === 'rift';
 }
 
 // 조명은 체력바·피해 숫자 아래에 깔린다. 순서: 조명 → 플레이어 바 → 적 바.

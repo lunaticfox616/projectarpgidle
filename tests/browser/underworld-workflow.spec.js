@@ -47,25 +47,9 @@ test('first rune unlock explains the milestone instead of an inverted range',asy
     await expect(panel).not.toContainText('1~0');
     await expect(panel).toContainText('10층');
     await expect(panel.getByRole('button',{name:'룬 가공 조각 10',exact:true})).toBeDisabled();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
-        if(light) {
-            const action=panel.getByRole('button',{name:'옵션 리롤 추가 옵션 변경',exact:true});
-            await action.hover();
-            await expect.poll(()=>action.evaluate(el=>el.getAnimations().filter(animation=>animation.playState==='running').length)).toBe(0);
-            const contrast=await action.evaluate(el=>{
-                const luminance=color=>color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>v/255)
-                    .map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4))
-                    .reduce((sum,v,i)=>sum+v*[0.2126,0.7152,0.0722][i],0);
-                const a=luminance(getComputedStyle(el).color),b=luminance(getComputedStyle(el).backgroundColor);
-                return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
-            });
-            expect(contrast).toBeGreaterThanOrEqual(4.5);
-        }
-        await panel.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath(`underworld-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
+    await panel.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('underworld-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
 });
 
 test('equipped rune growth shows costs and protects cancellation and changed state',async({page})=>{

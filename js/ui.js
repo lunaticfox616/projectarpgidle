@@ -5978,11 +5978,6 @@ function addLog(msg, cls, opts = {}) {
     if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
 }
 
-function applyThemeMode(mode) {
-    let finalMode = mode === 'light' ? 'light' : 'dark';
-    document.body.classList.toggle('light-mode', finalMode === 'light');
-}
-
 function applyUiSkin(skin) {
     document.body.dataset.uiSkin = normalizeUiSkin(skin);
 }
@@ -6477,11 +6472,8 @@ function updateSettings() {
     game.settings.postLoopMapCompleteAction = getMapCompleteActionOption(postLoopMapCompleteAction ? postLoopMapCompleteAction.value : game.settings.postLoopMapCompleteAction).value;
     let townReturnValue = (document.getElementById('sel-town-return-action') || {}).value;
     game.settings.townReturnAction = ['retry', 'stop'].includes(townReturnValue) ? townReturnValue : 'retry';
-    let themeSelect = document.getElementById('sel-theme-mode');
-    game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
     let skinSelect = document.getElementById('sel-ui-skin');
     game.settings.uiSkin = normalizeUiSkin(skinSelect ? skinSelect.value : game.settings.uiSkin);
-    applyThemeMode(game.settings.themeMode);
     applyUiSkin(game.settings.uiSkin);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
     syncMapCompleteActionQuickControl();

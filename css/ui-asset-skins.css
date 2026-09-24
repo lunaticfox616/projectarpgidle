@@ -387,9 +387,9 @@
 }
 
 @media (min-width: 1081px) and (max-height: 720px) {
-  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob { margin-top: 44px; }
-  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite { margin-top: 42px; }
-  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss { margin-top: 41px; }
+  :root body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob { margin-top: 44px; }
+  :root body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite { margin-top: 42px; }
+  :root body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss { margin-top: 41px; }
 }
 
 #enemy-area .enemy-traits {

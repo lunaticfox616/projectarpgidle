@@ -35,13 +35,10 @@ test('sky has one direct first-floor entry and preserves focused controls',async
     await page.evaluate(()=>{game.skyTower.condensedPower++;renderSkyTowerMapPanel();});
     await expect(page.locator('#sky-tower-guide')).toHaveAttribute('open','');
     await panel.getByText('등반 · 보상 규칙',{exact:true}).click();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
-        await panel.scrollIntoViewIfNeeded();
-        await page.screenshot({path:info.outputPath(`sky-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
+    await panel.scrollIntoViewIfNeeded();
+    await page.screenshot({path:info.outputPath('sky-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
     await entry.click();
     await expect.poll(()=>page.evaluate(()=>game.currentZoneId===SKY_TOWER_ZONE_ID)).toBe(true);
     await expect(page.locator('#game-dialog-control')).not.toBeVisible();

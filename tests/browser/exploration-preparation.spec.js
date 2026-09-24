@@ -45,12 +45,9 @@ test('boss preparation shows obtainable rewards and ticket sources without expos
     await settlePreparationUi(page);
     await expect(boss.locator('.encounter-reward')).toContainText('군주의 핵');
     await expect(boss.getByRole('button',{name:'도전',exact:true})).toBeEnabled();
-    for(const light of [false,true]) {
-        await child.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await settlePreparationUi(page);
-        await boss.screenshot({path:info.outputPath(`boss-preparation-${light?'light':'dark'}.png`)});
-        expect(await boss.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await settlePreparationUi(page);
+    await boss.screenshot({path:info.outputPath('boss-preparation-dark.png')});
+    expect(await boss.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
     expect(await child.evaluate(()=>game.currencies.bossKeyFlame)).toBe(1);
 });
 
@@ -107,12 +104,10 @@ test('completed grand breach receipt stays readable and does not grant rewards o
     await expect(receipt).toContainText('121처치');
     await expect(receipt).toContainText('공허의 끌 +14');
     const balance=await page.evaluate(()=>game.currencies.voidChisel);
-    for(const light of [false,true]) {
-        await page.evaluate(light=>{applyThemeMode(light?'light':'dark');performUpdateStaticUI();},light);
-        await settlePreparationUi(page);
-        expect(await receipt.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-        await receipt.screenshot({path:info.outputPath(`grand-result-${light?'light':'dark'}.png`)});
-    }
+    await page.evaluate(()=>performUpdateStaticUI());
+    await settlePreparationUi(page);
+    expect(await receipt.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
+    await receipt.screenshot({path:info.outputPath('grand-result-dark.png')});
     expect(await page.evaluate(()=>game.currencies.voidChisel)).toBe(balance);
     await page.evaluate(()=>{
         game.voidRift.grandRun={inRun:false,phase:'failed',kills:5,rewardVoidChisel:null};
@@ -192,18 +187,15 @@ test('time rift guides altar selection with eligible equipment and preserves a f
     await page.evaluate(()=>{handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),null,{noToast:true});performUpdateStaticUI();});
     expect(await page.evaluate(()=>JSON.stringify([game.timeRift.altarUnique,game.timeRift.altarRare]))).toBe(stored);
     await expect(panel.getByRole('button',{name:'미래 입장',exact:true})).toBeEnabled();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await page.waitForFunction(()=>mobileToastQueue.length===0&&mobileToastActiveCount===0);
-        if(info.project.name.startsWith('mobile')) {
-            for(const name of ['past','altar','future']) {
-                const stage=panel.locator(`[data-rift-stage="${name}"]`);
-                await stage.scrollIntoViewIfNeeded();
-                await page.screenshot({path:info.outputPath(`time-rift-${name}-${light?'light':'dark'}.png`)});
-            }
-        } else await panel.screenshot({path:info.outputPath(`time-rift-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await page.waitForFunction(()=>mobileToastQueue.length===0&&mobileToastActiveCount===0);
+    if(info.project.name.startsWith('mobile')) {
+        for(const name of ['past','altar','future']) {
+            const stage=panel.locator(`[data-rift-stage="${name}"]`);
+            await stage.scrollIntoViewIfNeeded();
+            await page.screenshot({path:info.outputPath(`time-rift-${name}-dark.png`)});
+        }
+    } else await panel.screenshot({path:info.outputPath('time-rift-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
     await panel.getByRole('button',{name:'제단 회수',exact:true}).click();
     const recovered=await page.evaluate(()=>game.inventory.map(item=>({id:item.id,name:item.name})));
     expect(recovered.map(item=>item.id)).toEqual(expect.arrayContaining(JSON.parse(stored).map(item=>item.id)));
@@ -236,12 +228,9 @@ test('colony preparation keeps entry difficulty and completed waves consistent t
     expect(await page.evaluate(()=>game.currentZoneId)).toBe(8);
     expect(await page.evaluate(()=>JSON.stringify([game.inventory,game.colony.wardInventory,game.currencies.colonyShard]))).toBe(owned);
     await expect(entry).toBeDisabled();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await page.waitForFunction(()=>mobileToastQueue.length===0&&mobileToastActiveCount===0);
-        await panel.screenshot({path:info.outputPath(`colony-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await page.waitForFunction(()=>mobileToastQueue.length===0&&mobileToastActiveCount===0);
+    await panel.screenshot({path:info.outputPath('colony-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
     await panel.getByRole('button',{name:'액막이 관리',exact:true}).click();
     await expect(page.locator('#ui-colony-ward-talisman-panel')).toBeVisible();
 });
@@ -269,12 +258,9 @@ test('labyrinth entry and floor choice remain operable during stat refresh',asyn
     await expect(page.locator('#game-dialog-number')).toHaveValue('3');
     await page.getByRole('button',{name:'취소',exact:true}).click();
     expect(await page.evaluate(()=>game.currentZoneId)).toBe(8);
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await expect(page.locator('#game-toast-region .game-toast')).toHaveCount(0);
-        await panel.screenshot({path:info.outputPath(`labyrinth-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await expect(page.locator('#game-toast-region .game-toast')).toHaveCount(0);
+    await panel.screenshot({path:info.outputPath('labyrinth-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
     await entry.click();
     expect(await page.evaluate(()=>[game.currentZoneId,game.labyrinthFloor])).toEqual(['labyrinth_endless',1]);
     await page.evaluate(()=>{
@@ -350,11 +336,8 @@ test('rift preparation reports actual reinforcements and conditional entry',asyn
         handleEnemyDeath(enemy,getPlayerStats());performUpdateStaticUI();
     });
     await expect(panel).toContainText('2/6 처치');
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await panel.screenshot({path:info.outputPath(`rift-preparation-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await panel.screenshot({path:info.outputPath('rift-preparation-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
 });
 
 for(const result of ['clear','defeat']) for(const source of [0,19]) test(`manual meteor ${result} returns to hunting area ${source}`,async({page})=>{

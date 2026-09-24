@@ -1,20 +1,21 @@
 @layer features {
-#act-exploration-panel {padding:10px;border-bottom:1px solid #65573a;background:#0b130f;flex:0 0 auto;color:#ddd4b9;}
+/* 탐험 미니맵: 전장 오른쪽 위에 떠 있는 작은 지도. 탐험 방식·봉인·임시 전리품은 크게 보기 창(#act-exploration-dialog)에 있다. */
+#act-exploration-panel {position:absolute;top:44px;right:8px;z-index:14;width:min(212px,42%);padding:8px;border:1px solid #5b5037;border-radius:4px;background:rgba(8,12,10,.82);color:#ddd4b9;box-shadow:0 8px 20px rgba(0,0,0,.45);box-sizing:border-box;}
 #act-exploration-panel[hidden] {display:none;}
-.combat-feed.collapsed #act-exploration-panel {display:none;}
-#btn-act-exploration-map,#btn-exploration-loot-skip {flex:0 0 auto;padding:5px;min-width:38px;min-height:40px;border:1px solid #aa8e53;background:#19231b;color:#ddd4b9;font:inherit;font-size:11px;cursor:pointer;}
+#act-exploration-panel #btn-act-exploration-map {position:absolute;top:4px;right:4px;min-width:0;min-height:26px;padding:2px 8px;font-size:11px;background:rgba(20,26,22,.9);}
+#btn-exploration-loot-skip {flex:0 0 auto;padding:5px;min-width:38px;min-height:40px;border:1px solid #aa8e53;background:#19231b;color:#ddd4b9;font:inherit;font-size:11px;cursor:pointer;}
 #btn-act-exploration-map[hidden],#btn-exploration-loot-skip[hidden] {display:none;}
 #btn-exploration-loot-skip {position:absolute;right:12px;bottom:12px;z-index:15;padding:7px 12px;}
 #btn-exploration-loot-skip:focus-visible {outline:2px solid #f0cf80;outline-offset:2px;}
 .act-exploration-heading {display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
-#act-exploration-panel canvas {display:block;width:auto;max-width:100%;height:auto;max-height:210px;margin:0 auto;background:#080f0d;image-rendering:auto;cursor:crosshair;}
+#act-exploration-panel canvas {display:block;width:auto;max-width:100%;height:auto;max-height:176px;margin:0 auto;background:#080f0d;image-rendering:auto;cursor:crosshair;}
 .act-exploration-modes {display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px;}
 .act-exploration-modes button {white-space:nowrap;}
 .act-exploration-modes button:last-child {grid-column:1 / -1;}
-#act-exploration-panel button {padding:5px 7px;min-height:30px;font:inherit;font-size:12px;background:#19231b;color:#ddd4b9;border:1px solid #5b5037;cursor:pointer;}
-#act-exploration-panel button[aria-pressed="true"],#act-exploration-dialog button[aria-pressed="true"] {background:#3c3521;border-color:#bea363;color:#f2dfaa;}
-#act-exploration-panel button:disabled {opacity:.5;cursor:default;}
-#act-exploration-seal {margin-top:7px;}
+#act-exploration-panel button {font:inherit;font-size:12px;color:#ddd4b9;border:1px solid #5b5037;cursor:pointer;}
+#act-exploration-dialog button[aria-pressed="true"] {background:#3c3521;border-color:#bea363;color:#f2dfaa;}
+#act-exploration-dialog button:disabled {opacity:.5;cursor:default;}
+.act-exploration-dialog-actions {display:flex;justify-content:space-between;gap:8px;margin-top:10px;}
 .act-exploration-progress {position:relative;height:18px;margin-top:6px;border:1px solid #3a3528;background:#07090a;overflow:hidden;}
 .act-exploration-progress-fill {position:absolute;inset:0 auto 0 0;width:var(--explore-pct,0%);background:linear-gradient(90deg,#5f4b24,#c9a45c);transition:width .4s ease;}
 .act-exploration-progress b {position:relative;display:block;font-size:11px;line-height:16px;font-weight:600;text-align:center;color:#f3e6c4;text-shadow:0 1px 2px #000;}
@@ -22,7 +23,7 @@
 #act-exploration-dialog::backdrop,#act-exploration-loot-dialog::backdrop {background:#030906b8;}
 #act-exploration-map-large {display:block;width:auto;max-width:100%;height:auto;max-height:65vh;margin:0 auto;image-rendering:auto;cursor:crosshair;}
 #act-exploration-dialog button,#act-exploration-loot-dialog button {padding:7px 16px;border:1px solid #aa8e53;background:#292719;color:#eee1bd;cursor:pointer;font:inherit;}
-#act-exploration-panel :focus-visible,#act-exploration-dialog :focus-visible,#act-exploration-loot-dialog :focus-visible,#btn-act-exploration-map:focus-visible {outline:2px solid #f0cf80;outline-offset:2px;}
+#act-exploration-panel :focus-visible,#act-exploration-dialog :focus-visible,#act-exploration-loot-dialog :focus-visible {outline:2px solid #f0cf80;outline-offset:2px;}
 #act-exploration-loot-dialog {width:760px;}
 #act-exploration-loot-status {color:#c6b78d;border-bottom:1px solid #65573a;padding-bottom:12px;margin:10px 0 0;}
 .act-exploration-loot-body {display:grid;grid-template-columns:minmax(170px,2fr) minmax(0,3fr);gap:16px;min-height:220px;}
@@ -37,7 +38,10 @@
     #act-exploration-loot-details {max-height:32vh;border-left:0;border-top:1px solid #65573a;padding-left:4px;}
 }
 @media(max-width:1080px) {
-    #act-exploration-panel {display:none;}
+    #act-exploration-panel {top:84px;width:136px;padding:5px;}
+    #act-exploration-panel canvas {max-height:96px;}
+    #act-exploration-panel .act-exploration-progress {height:15px;margin-top:4px;}
+    #act-exploration-panel .act-exploration-progress b {font-size:10px;line-height:13px;letter-spacing:-.02em;white-space:nowrap;}
     #act-exploration-map-large {max-height:55vh;}
 }
 }

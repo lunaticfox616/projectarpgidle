@@ -46,9 +46,6 @@ test('death report separates final damage, blocks background controls and closes
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width - 8);
     expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
     await page.screenshot({ path: info.outputPath('death-dark.png') });
-    await page.evaluate(() => applyThemeMode('light'));
-    await page.waitForFunction(() => !document.querySelector('.deathlog-card').getAnimations({subtree:true}).some(animation => animation.playState === 'running'));
-    await page.screenshot({ path: info.outputPath('death-light.png') });
     await page.keyboard.press('Escape');
     await expect(report).toBeHidden();
     expect(await page.evaluate(() => ({ exp: game.exp, deaths: game.loopDeaths, log: JSON.stringify(game.lastDeathLog) }))).toEqual(before);

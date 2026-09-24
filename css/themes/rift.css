@@ -53,15 +53,15 @@ body[data-ui-skin="rift"] :is(
   letter-spacing: .01em;
 }
 body[data-ui-skin="rift"] .ui-window-title { font-size: 17px; }
-body[data-ui-skin="rift"]:not(.light-mode) .ui-window-title { color: #efe3c9; }
+:root body[data-ui-skin="rift"] .ui-window-title { color: #efe3c9; }
 body[data-ui-skin="rift"] .combat-zone-row-title { font-size: 18px; }
-body[data-ui-skin="rift"]:not(.light-mode) .combat-zone-row-title { color: #efe3c9; }
+:root body[data-ui-skin="rift"] .combat-zone-row-title { color: #efe3c9; }
 @media (max-width: 1080px) {
   body[data-ui-skin="rift"] :is(.combat-zone-row-title, #ui-combat-zone-inline) { font-family: var(--font-body); font-weight: 700; }
 }
 body[data-ui-skin="rift"] :is(.tutorial-kicker, .game-dialog-kicker) { font-family: var(--font-caps); letter-spacing: .28em; }
 
-body[data-ui-skin="rift"]:not(.light-mode) {
+:root body[data-ui-skin="rift"] {
   color-scheme: dark;
   --skin-canvas: #07080a;
   --skin-panel: #111316;
@@ -98,60 +98,60 @@ body[data-ui-skin="rift"]:not(.light-mode) {
 }
 
 /* 창·작업대: 청회색 금속 틀 대신 어두운 판 + 1px 선 + 금색 활성 표시. */
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
+:root body[data-ui-skin="rift"].desktop-windowed-ui .tab-content.ui-window {
   background: linear-gradient(180deg, #121417, #0e1012);
   border: 1px solid var(--skin-line);
   border-radius: 6px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, .62);
 }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-active { border-color: var(--skin-line-strong); box-shadow: 0 24px 64px rgba(0, 0, 0, .66), inset 0 1px rgba(243, 207, 122, .06); }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-titlebar,
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-active .ui-window-titlebar {
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-active { border-color: var(--skin-line-strong); box-shadow: 0 24px 64px rgba(0, 0, 0, .66), inset 0 1px rgba(243, 207, 122, .06); }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-titlebar,:root 
+body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-active .ui-window-titlebar {
   background: linear-gradient(180deg, #17191d, #111316);
   border-bottom: 1px solid var(--skin-line);
   box-shadow: inset 0 -1px rgba(216, 166, 74, .08);
 }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-actions button {
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-actions button {
   border-color: var(--skin-line);
   background: #15171a;
   color: var(--color-text-secondary);
   border-radius: 3px;
 }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-actions button:hover { color: #f3cf7a; border-color: var(--skin-line-strong); background: #1d2024; }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-window-resize::after { border-color: var(--skin-line-strong); }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-actions button:hover { color: #f3cf7a; border-color: var(--skin-line-strong); background: #1d2024; }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-window-resize::after { border-color: var(--skin-line-strong); }
 
 /* 전장: 두꺼운 푸른 테두리 대신 바닥에 스며드는 어둠. */
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-panel { background: #07080a; }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .battlefield-wrap {
+:root body[data-ui-skin="rift"].desktop-windowed-ui .combat-panel { background: #07080a; }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-wrap {
   border-color: #1b1d20;
   border-radius: 6px;
   background: #050607;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .8), 0 18px 48px rgba(0, 0, 0, .5);
 }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-feed {
+:root body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed {
   background: linear-gradient(180deg, rgba(17, 19, 22, .94), rgba(11, 12, 14, .94));
   border-color: var(--skin-line);
   border-radius: 6px;
 }
-body[data-ui-skin="rift"]:not(.light-mode) .combat-feed-title,
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-feed-title { border-bottom-color: var(--skin-line); }
+:root body[data-ui-skin="rift"] .combat-feed-title,:root 
+body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed-title { border-bottom-color: var(--skin-line); }
 
 /* 목표 서랍·커뮤니티 도크의 청색 패널을 같은 재질로. */
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-goal-panel { background: rgba(14, 15, 18, .95); border-color: var(--skin-line); border-radius: 5px; }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel { border-color: var(--skin-line-strong); }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui :is(.ui-goal-handle-fill, .ui-goal-bar-fill) { background: linear-gradient(90deg, #a8782c, #f3cf7a); }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui :is(.ui-goal-handle-bar, .ui-goal-bar) { background: #1d2024; }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui #tab-social.ui-community-dock { background: linear-gradient(180deg, #121417, #0c0d0f); border-left-color: var(--skin-line); }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-community-dock-header { background: #15171a; border-bottom-color: var(--skin-line); }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-goal-panel { background: rgba(14, 15, 18, .95); border-color: var(--skin-line); border-radius: 5px; }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel { border-color: var(--skin-line-strong); }
+:root body[data-ui-skin="rift"].desktop-windowed-ui :is(.ui-goal-handle-fill, .ui-goal-bar-fill) { background: linear-gradient(90deg, #a8782c, #f3cf7a); }
+:root body[data-ui-skin="rift"].desktop-windowed-ui :is(.ui-goal-handle-bar, .ui-goal-bar) { background: #1d2024; }
+:root body[data-ui-skin="rift"].desktop-windowed-ui #tab-social.ui-community-dock { background: linear-gradient(180deg, #121417, #0c0d0f); border-left-color: var(--skin-line); }
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock-header { background: #15171a; border-bottom-color: var(--skin-line); }
 
 /* 금속 장식 프레임은 유지하되 채도를 낮춰 금빛 등불 톤에 맞춘다(좌표 계약 불변). */
-body[data-ui-skin="rift"]:not(.light-mode) .map-progress-gauge::before { filter: saturate(.55) brightness(.78) contrast(1.05); }
-body[data-ui-skin="rift"]:not(.light-mode) .player-hud-shell {
+:root body[data-ui-skin="rift"] .map-progress-gauge::before { filter: saturate(.55) brightness(.78) contrast(1.05); }
+:root body[data-ui-skin="rift"] .player-hud-shell {
   --combat-hud-frame-filter: saturate(.5) brightness(.78) contrast(1.06) drop-shadow(0 6px 8px rgba(0, 0, 0, .8));
 }
 
 /* 알림 카드·대화 상자 */
-body[data-ui-skin="rift"]:not(.light-mode) :is(#tutorial-overlay, #death-overlay) .tutorial-card {
+:root body[data-ui-skin="rift"] :is(#tutorial-overlay, #death-overlay) .tutorial-card {
   background: linear-gradient(180deg, #17191d, #101114);
   border-color: var(--skin-line-strong);
   border-radius: 4px;
@@ -159,23 +159,23 @@ body[data-ui-skin="rift"]:not(.light-mode) :is(#tutorial-overlay, #death-overlay
 }
 
 /* 입력·목록·빈 칸에 남은 청회색 선 */
-body[data-ui-skin="rift"]:not(.light-mode) :is(.search-filter-input, input[type="search"], input[type="text"], input[type="number"], textarea) {
+:root body[data-ui-skin="rift"] :is(.search-filter-input, input[type="search"], input[type="text"], input[type="number"], textarea) {
   border-color: var(--skin-line);
   background-color: #0b0c0e;
   color: var(--color-text);
 }
-body[data-ui-skin="rift"]:not(.light-mode) :is(.search-filter-input, input, textarea):focus-visible { border-color: #8a6a34; }
-body[data-ui-skin="rift"]:not(.light-mode) :is(.search-filter-input, input, textarea)::placeholder { color: #7d7564; }
-body[data-ui-skin="rift"]:not(.light-mode) .search-result-list { border-color: var(--skin-line); }
-body[data-ui-skin="rift"]:not(.light-mode) .rarity-filter-chip { border-color: color-mix(in srgb, var(--rarity-color, #b3a88f) 38%, #2b2f33); background: #0f1113; }
-body[data-ui-skin="rift"]:not(.light-mode) .rarity-filter-chip.active { border-color: color-mix(in srgb, var(--rarity-color, #b3a88f) 70%, #2b2f33); background: color-mix(in srgb, var(--rarity-color, #b3a88f) 12%, #0f1113); }
-body[data-ui-skin="rift"]:not(.light-mode) .equipment-slot-visual.empty { border-color: rgba(75, 66, 53, .55); background: linear-gradient(160deg, #15161a, #0d0e10); }
-body[data-ui-skin="rift"]:not(.light-mode) .battlefield-caption { border-color: rgba(75, 66, 53, .5); background: rgba(8, 9, 10, .72); }
-body[data-ui-skin="rift"]:not(.light-mode) .equipment-action-muted { border-color: var(--skin-line); }
+:root body[data-ui-skin="rift"] :is(.search-filter-input, input, textarea):focus-visible { border-color: #8a6a34; }
+:root body[data-ui-skin="rift"] :is(.search-filter-input, input, textarea)::placeholder { color: #7d7564; }
+:root body[data-ui-skin="rift"] .search-result-list { border-color: var(--skin-line); }
+:root body[data-ui-skin="rift"] .rarity-filter-chip { border-color: color-mix(in srgb, var(--rarity-color, #b3a88f) 38%, #2b2f33); background: #0f1113; }
+:root body[data-ui-skin="rift"] .rarity-filter-chip.active { border-color: color-mix(in srgb, var(--rarity-color, #b3a88f) 70%, #2b2f33); background: color-mix(in srgb, var(--rarity-color, #b3a88f) 12%, #0f1113); }
+:root body[data-ui-skin="rift"] .equipment-slot-visual.empty { border-color: rgba(75, 66, 53, .55); background: linear-gradient(160deg, #15161a, #0d0e10); }
+:root body[data-ui-skin="rift"] .battlefield-caption { border-color: rgba(75, 66, 53, .5); background: rgba(8, 9, 10, .72); }
+:root body[data-ui-skin="rift"] .equipment-action-muted { border-color: var(--skin-line); }
 
 /* 전투 HUD 스킬 칸: 그림이 없는 젬(기본 공격 등)도 빈 칸처럼 보이지 않게 문양을 또렷하게. */
-body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .combat-skill-gem-art .gem-art-fallback { display: grid; color: #d8a64a; font-size: 18px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
-body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .combat-skill-gem-art:has(img) .gem-art-fallback { display: none; }
+:root body[data-ui-skin="rift"] .player-hud-skill-slot .combat-skill-gem-art .gem-art-fallback { display: grid; color: #d8a64a; font-size: 18px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
+:root body[data-ui-skin="rift"] .player-hud-skill-slot .combat-skill-gem-art:has(img) .gem-art-fallback { display: none; }
 /* 모바일 HUD: 스킬 칸을 손가락 크기(40px)로, 상태이상이 없을 때는 그 자리까지 스킬 칸이 쓴다. */
 @media (max-width: 1080px) {
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-skill-slot { flex: 0 0 40px; width: 40px; height: 40px; }
@@ -183,11 +183,11 @@ body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot .combat-skill-
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-shell:has(#ui-player-ailments-under:empty) > .player-combat-effect-strip { display: none; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-shell:has(#ui-player-ailments-under:empty) > .player-hud-skill-rack { grid-column: 2 / 4; }
 }
-body[data-ui-skin="rift"]:not(.light-mode) .player-hud-skill-slot.primary { box-shadow: inset 0 0 0 1px rgba(216, 166, 74, .55); }
+:root body[data-ui-skin="rift"] .player-hud-skill-slot.primary { box-shadow: inset 0 0 0 1px rgba(216, 166, 74, .55); }
 
 /* 장비 툴팁: 희귀도 머리띠 → 베이스·레벨 → 구획(베이스/추가 옵션) → 착용 비교. 내용·순서는 js/ui.js showItemTooltip이 소유. */
-body[data-ui-skin="rift"]:not(.light-mode) :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip),
-body[data-ui-skin="rift"]:not(.light-mode) .item-compare-tooltip :is(.item-tooltip-main, .item-compare-single, .item-compare-grid) {
+:root body[data-ui-skin="rift"] :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip),:root 
+body[data-ui-skin="rift"] .item-compare-tooltip :is(.item-tooltip-main, .item-compare-single, .item-compare-grid) {
   border: 1px solid #3a352c;
   border-radius: 3px;
   background: linear-gradient(180deg, rgba(21, 22, 25, .985), rgba(11, 12, 14, .99));
@@ -195,14 +195,14 @@ body[data-ui-skin="rift"]:not(.light-mode) .item-compare-tooltip :is(.item-toolt
   color: var(--color-text);
   font-size: 13px;
 }
-body[data-ui-skin="rift"]:not(.light-mode) :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip).item-compare-tooltip { border: 0; background: transparent; box-shadow: none; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box { --tooltip-rarity: #d0d5da; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box[data-rarity="magic"] { --tooltip-rarity: #5fb4ec; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box[data-rarity="rare"] { --tooltip-rarity: #f1c40f; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box[data-rarity="unique"] { --tooltip-rarity: #ff9f43; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box:not(.item-compare-tooltip),
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .item-tooltip-main { border-color: color-mix(in srgb, var(--tooltip-rarity) 42%, #2b2f33); }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box :is(:scope, .item-tooltip-main) > .tooltip-title {
+:root body[data-ui-skin="rift"] :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip).item-compare-tooltip { border: 0; background: transparent; box-shadow: none; }
+:root body[data-ui-skin="rift"] #item-tooltip-box { --tooltip-rarity: #d0d5da; }
+:root body[data-ui-skin="rift"] #item-tooltip-box[data-rarity="magic"] { --tooltip-rarity: #5fb4ec; }
+:root body[data-ui-skin="rift"] #item-tooltip-box[data-rarity="rare"] { --tooltip-rarity: #f1c40f; }
+:root body[data-ui-skin="rift"] #item-tooltip-box[data-rarity="unique"] { --tooltip-rarity: #ff9f43; }
+:root body[data-ui-skin="rift"] #item-tooltip-box:not(.item-compare-tooltip),:root 
+body[data-ui-skin="rift"] #item-tooltip-box .item-tooltip-main { border-color: color-mix(in srgb, var(--tooltip-rarity) 42%, #2b2f33); }
+:root body[data-ui-skin="rift"] #item-tooltip-box :is(:scope, .item-tooltip-main) > .tooltip-title {
   margin: -12px -12px 8px;
   padding: 10px 14px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--tooltip-rarity) 55%, transparent);
@@ -212,28 +212,28 @@ body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box :is(:scope, .item-t
   text-align: center;
   letter-spacing: .01em;
 }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-meta { color: #b3a88f; font-size: 12px; text-align: center; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section {
+:root body[data-ui-skin="rift"] #item-tooltip-box .tooltip-line.tooltip-meta { color: #b3a88f; font-size: 12px; text-align: center; }
+:root body[data-ui-skin="rift"] #item-tooltip-box .tooltip-line.tooltip-section {
   display: flex; align-items: center; gap: 8px;
   margin: 9px 0 3px; color: #c9a45c; font-size: 11px; letter-spacing: .08em;
 }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section::before,
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section::after { content: ''; flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, transparent, #4b4235, transparent); }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tooltip-line.tooltip-section-explicit { color: #9d9bd8; }
-body[data-ui-skin="rift"]:not(.light-mode) #item-tooltip-box .tier-badge { font-size: 11px; opacity: .9; }
-body[data-ui-skin="rift"]:not(.light-mode) .item-compare-panel { border-color: #2b2f33; background: rgba(8, 9, 10, .55); }
-body[data-ui-skin="rift"]:not(.light-mode) .item-compare-title { color: #d8a64a; font-weight: 700; }
+:root body[data-ui-skin="rift"] #item-tooltip-box .tooltip-line.tooltip-section::before,:root 
+body[data-ui-skin="rift"] #item-tooltip-box .tooltip-line.tooltip-section::after { content: ''; flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, transparent, #4b4235, transparent); }
+:root body[data-ui-skin="rift"] #item-tooltip-box .tooltip-line.tooltip-section-explicit { color: #9d9bd8; }
+:root body[data-ui-skin="rift"] #item-tooltip-box .tier-badge { font-size: 11px; opacity: .9; }
+:root body[data-ui-skin="rift"] .item-compare-panel { border-color: #2b2f33; background: rgba(8, 9, 10, .55); }
+:root body[data-ui-skin="rift"] .item-compare-title { color: #d8a64a; font-weight: 700; }
 
 /* 스크롤바와 초점 표시 */
-body[data-ui-skin="rift"]:not(.light-mode) * { scrollbar-color: #3a3a36 transparent; }
-body[data-ui-skin="rift"]:not(.light-mode) :focus-visible { outline-color: #f3cf7a; }
+:root body[data-ui-skin="rift"] * { scrollbar-color: #3a3a36 transparent; }
+:root body[data-ui-skin="rift"] :focus-visible { outline-color: #f3cf7a; }
 /* 기타 메뉴: 전투 HUD를 덮지 않도록 레일 안쪽, 기타·정리 버튼 바로 위로 세로로 연다. */
 body[data-ui-skin="rift"].desktop-windowed-ui .ui-rail-misc-panel {
   left: 6px; right: auto; top: auto; bottom: 56px;
   grid-template-columns: minmax(0, 1fr);
   width: max-content; min-width: calc(100% - 12px); max-width: 220px;
 }
-body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .ui-rail-misc-panel {
+:root body[data-ui-skin="rift"].desktop-windowed-ui .ui-rail-misc-panel {
   border-color: rgba(201, 164, 92, .42);
   background: linear-gradient(180deg, #1a1813, #0c0b09);
 }
@@ -243,9 +243,9 @@ body[data-ui-skin="rift"].desktop-windowed-ui #btn-combat-log-toggle { font-size
 
 @media (max-width: 1080px) {
   /* 모바일 탭 제목: 예전 보라 밑줄·주황 글자를 금빛 가는 선으로 맞춘다(색을 따로 지정한 제목은 그대로). */
-  body[data-ui-skin="rift"]:not(.light-mode) .tab-content h2:not([style*="color"]) { color: #e9cb89; }
-  body[data-ui-skin="rift"]:not(.light-mode) .tab-content h2:not([style*="border"]) { border-bottom: 1px solid rgba(201, 164, 92, .34); }
-  body[data-ui-skin="rift"]:not(.light-mode) #settings-category {
+  :root body[data-ui-skin="rift"] .tab-content h2:not([style*="color"]) { color: #e9cb89; }
+  :root body[data-ui-skin="rift"] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid rgba(201, 164, 92, .34); }
+  :root body[data-ui-skin="rift"] #settings-category {
     border-color: rgba(201, 164, 92, .38);
     background: linear-gradient(180deg, #1b1914, #0e0d0b);
   }

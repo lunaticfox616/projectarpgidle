@@ -87,26 +87,6 @@ test('settings edit unlocked menus independently for PC and mobile', async ({ pa
     const bounds = await editor.boundingBox();
     expect(bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
     await page.screenshot({ path: testInfo.outputPath('settings-menu.png') });
-    if(testInfo.project.use.isMobile) await page.locator('#settings-category').selectOption('display');
-    await page.locator('#sel-theme-mode').selectOption('light');
-    await expect(page.locator('body')).toHaveClass(/light-mode/);
-    await page.locator('#sel-theme-mode').scrollIntoViewIfNeeded();
-    const colors = await page.locator('#sel-theme-mode').evaluate(el => {
-        const style = getComputedStyle(el);
-        const probe = document.createElement('span');
-        probe.style.backgroundColor = 'var(--color-surface)';
-        el.parentElement.append(probe);
-        const surface = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        return { foreground: style.color, background: style.backgroundColor, surface };
-    });
-    expect(colors.foreground).toBe('rgb(41, 39, 31)');
-    expect(colors.background).toBe(colors.surface);
-    if (current === 'desktop') {
-        expect(await page.locator('#right-pane').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
-        expect(await page.locator('#tab-settings .ui-window-title').evaluate(el => getComputedStyle(el).color)).toBe('rgb(41, 39, 31)');
-    }
-    await page.screenshot({ path: testInfo.outputPath('settings-light.png') });
     await expect(page.locator('.cfg-disclosure--card')).toHaveAttribute('open', '');
     if (current === 'desktop') {
         await page.setViewportSize({ width: 900, height: 900 });

@@ -1,25 +1,26 @@
 @layer overrides {
 /* 도킹 작업대: 관리 창이 오른쪽에 붙으면 전장은 왼쪽 열로 줄어들 뿐 가려지지 않는다.
    전투 기록 열은 창이 닫히면 돌아오고, 전장·HUD는 흐리게 처리하지 않는다.
-   창 폭과 적용 조건은 js/ui-window-manager.js getDockRect가 소유한다. */
+   창 폭과 적용 조건은 js/ui-window-manager.js getDockRect가 소유한다.
+   균열 등불(rift) 스킨은 전장이 화면 전체를 쓰므로 도킹 창이 전장 위에 그냥 겹친다(전장 크기 불변, css/themes/rift-stage.css). */
 @media (min-width: 1081px) {
-body.desktop-windowed-ui.ui-workspace-docked { --combat-log-width: 0px; }
-body.desktop-windowed-ui.ui-workspace-docked #left-pane { padding-right: calc(var(--workspace-dock-width, 720px) + 18px); }
-body.desktop-windowed-ui.ui-workspace-docked .combat-feed { display: none; }
-body.desktop-windowed-ui.ui-workspace-docked #move-area { padding: 56px 12px 118px; }
-body.desktop-windowed-ui.ui-workspace-docked :is(#enemy-area, .player-hud, .combat-zone-row) { opacity: 1; }
-body.desktop-windowed-ui.ui-workspace-docked .battlefield-wrap { filter: none; }
-body.desktop-windowed-ui.ui-workspace-docked #enemy-area,
-body.desktop-windowed-ui.ui-workspace-docked #enemy-area:has(.enemy-boss) { width: calc(100% - 28px); }
-body.desktop-windowed-ui.ui-workspace-docked .player-hud { width: calc(100% - 28px); }
-body.desktop-windowed-ui.ui-workspace-docked .combat-zone-row { grid-template-columns: minmax(0, 1fr) auto; }
-body.desktop-windowed-ui.ui-workspace-docked .combat-zone-row .map-progress-row { display: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) { --combat-log-width: 0px; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) #left-pane { padding-right: calc(var(--workspace-dock-width, 720px) + 18px); }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .combat-feed { display: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) #move-area { padding: 56px 12px 118px; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) :is(#enemy-area, .player-hud, .combat-zone-row) { opacity: 1; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .battlefield-wrap { filter: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) #enemy-area,
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) #enemy-area:has(.enemy-boss) { width: calc(100% - 28px); }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .player-hud { width: calc(100% - 28px); }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .combat-zone-row { grid-template-columns: minmax(0, 1fr) auto; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .combat-zone-row .map-progress-row { display: none; }
 body.desktop-windowed-ui .tab-content.ui-window.ui-window-docked { border-radius: 10px; }
-body.desktop-windowed-ui.ui-workspace-docked .player-hud-identity-row #ui-player-class-label { display: none; }
-body.desktop-windowed-ui.ui-workspace-docked .player-hud-identity-row { max-width: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .player-hud-identity-row #ui-player-class-label { display: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .player-hud-identity-row { max-width: none; }
 /* 좁아진 전장 열: 겹치는 보조 문구를 줄여 적 이름표·목표·HUD 숫자가 잘리지 않게 한다. */
-body.desktop-windowed-ui.ui-workspace-docked .battlefield-caption { display: none; }
-body.desktop-windowed-ui.ui-workspace-docked .player-exp-percent::before { content: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .battlefield-caption { display: none; }
+body.desktop-windowed-ui.ui-workspace-docked:not([data-ui-skin="rift"]) .player-exp-percent::before { content: none; }
 /* 도킹 중 채팅을 열면 전투 기록 자리가 없으므로 도킹 창 위 오른쪽 열에 띄운다(창 z-index 1200+ 위). */
 body.desktop-windowed-ui.ui-workspace-docked.community-dock-open #tab-social.ui-community-dock { z-index: 1300; top: 56px; right: 18px; bottom: 18px; left: auto; width: var(--community-dock-width, 360px); height: auto; }
 }

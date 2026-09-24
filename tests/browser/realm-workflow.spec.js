@@ -156,24 +156,21 @@ test('realm controls and themes remain usable; pruning stays outside miscellaneo
     await page.locator('.underworld-rune-slot.unlocked').first().click();
     await expect(page.locator('.underworld-rune-overlay')).toBeVisible();
     await page.evaluate(()=>document.querySelector('.underworld-rune-overlay').remove());
-    for(const light of [false,true]) {
-        await page.evaluate(light=>document.body.classList.toggle('light-mode',light),light);
-        await page.locator('#mobile-map-destination').selectOption('btn-map-tab-ocean');
-        await expect(page.getByRole('progressbar',{name:'남은 산소'})).toBeVisible();
-        await expect(page.locator('.ocean-upgrade-card')).toHaveCount(3);
-        await page.locator('#ui-ocean-panel').getByRole('button',{name:'낚시 · 제작'}).click();
-        await expect(page.locator('#map-tab-fishing')).toHaveClass(/active/);
-        if (info.project.use.isMobile) await expect(page.locator('#mobile-map-destination')).toHaveValue('btn-map-tab-fishing');
-        await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeHidden();
-        if (info.project.use.isMobile) await page.getByRole('tab', { name:'도감', exact:true }).click();
-        else await page.locator('.ocean-collection-disclosure > summary').click();
-        await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeVisible();
-        await page.evaluate(()=>renderFishingPanel());
-        await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeVisible();
-        if (info.project.use.isMobile) await page.getByRole('tab', { name:'채집 · 전략', exact:true }).click();
-        else await page.locator('.ocean-collection-disclosure > summary').click();
-        await page.screenshot({path:info.outputPath(`fishing-${light}.png`)});
-    }
+    await page.locator('#mobile-map-destination').selectOption('btn-map-tab-ocean');
+    await expect(page.getByRole('progressbar',{name:'남은 산소'})).toBeVisible();
+    await expect(page.locator('.ocean-upgrade-card')).toHaveCount(3);
+    await page.locator('#ui-ocean-panel').getByRole('button',{name:'낚시 · 제작'}).click();
+    await expect(page.locator('#map-tab-fishing')).toHaveClass(/active/);
+    if (info.project.use.isMobile) await expect(page.locator('#mobile-map-destination')).toHaveValue('btn-map-tab-fishing');
+    await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeHidden();
+    if (info.project.use.isMobile) await page.getByRole('tab', { name:'도감', exact:true }).click();
+    else await page.locator('.ocean-collection-disclosure > summary').click();
+    await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeVisible();
+    await page.evaluate(()=>renderFishingPanel());
+    await expect(page.locator('#ui-fishing-collection > .ocean-fish-grid')).toBeVisible();
+    if (info.project.use.isMobile) await page.getByRole('tab', { name:'채집 · 전략', exact:true }).click();
+    else await page.locator('.ocean-collection-disclosure > summary').click();
+    await page.screenshot({path:info.outputPath('fishing-dark.png')});
 });
 
 test('underworld entry distinguishes highest-floor environment drain from direct survival', async ({page},info)=>{

@@ -187,56 +187,51 @@ test('asset loading uses theme surfaces and reports real progress without drifti
     // The controlled progress sample starts after the real preloader has settled.
     await page.waitForFunction(()=>battleAssets.ready);
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    for (const theme of ['dark', 'light']) {
-        await page.evaluate(theme => {
-            applyThemeMode(theme);
-            setLoadingOverlayState(true, { title: '전장 에셋을 불러오는 중...',
-                detail: '전투 에셋 로딩 중... (80/223)', caption: '전투 이미지 준비', progress: 68 });
-        }, theme);
-        const card = page.locator('#loading-overlay .loading-card');
-        await expect(card).toBeVisible();
-        const bounds = await card.boundingBox();
-        const viewport = page.viewportSize();
-        expect(bounds.x).toBeGreaterThanOrEqual(0);
-        expect(bounds.y).toBeGreaterThanOrEqual(0);
-        expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
-        expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
-        expect(await card.evaluate(el => {
-            const expected = document.createElement('div');
-            expected.style.backgroundColor = 'var(--color-surface-raised)';
-            el.append(expected);
-            const matches = getComputedStyle(expected).backgroundColor === getComputedStyle(el).backgroundColor;
-            expected.remove();
-            return matches;
-        })).toBe(true);
-        await expect(page.locator('.loading-ring')).toHaveCSS('animation-name', 'none');
-        await page.waitForTimeout(1000);
-        await expect(page.locator('#loading-overlay [role="progressbar"]')).toHaveAttribute('aria-valuenow', '68');
-        await page.screenshot({ path: testInfo.outputPath(`loading-${theme}.png`) });
-        await page.evaluate(() => advanceLoadingOverlay({ progress: 81 }));
-        await expect(page.locator('#loading-overlay [role="progressbar"]')).toHaveAttribute('aria-valuenow', '81');
-    }
+    await page.evaluate(() => {
+        setLoadingOverlayState(true, { title: '전장 에셋을 불러오는 중...',
+            detail: '전투 에셋 로딩 중... (80/223)', caption: '전투 이미지 준비', progress: 68 });
+    });
+    const card = page.locator('#loading-overlay .loading-card');
+    await expect(card).toBeVisible();
+    const bounds = await card.boundingBox();
+    const viewport = page.viewportSize();
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.y).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+    expect(await card.evaluate(el => {
+        const expected = document.createElement('div');
+        expected.style.backgroundColor = 'var(--color-surface-raised)';
+        el.append(expected);
+        const matches = getComputedStyle(expected).backgroundColor === getComputedStyle(el).backgroundColor;
+        expected.remove();
+        return matches;
+    })).toBe(true);
+    await expect(page.locator('.loading-ring')).toHaveCSS('animation-name', 'none');
+    await page.waitForTimeout(1000);
+    await expect(page.locator('#loading-overlay [role="progressbar"]')).toHaveAttribute('aria-valuenow', '68');
+    await page.screenshot({ path: testInfo.outputPath('loading-dark.png') });
+    await page.evaluate(() => advanceLoadingOverlay({ progress: 81 }));
+    await expect(page.locator('#loading-overlay [role="progressbar"]')).toHaveAttribute('aria-valuenow', '81');
     expect(failures).toEqual([]);
 });
 
 test('tutorial buttons stay reachable on small and landscape screens', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
-    for (const [width, height, light, lines] of [[390, 844, false, 1], [320, 568, false, 10],
-        [844, 390, false, 10], [320, 568, true, 10]]) {
+    for (const [width, height, lines] of [[390, 844, 1], [320, 568, 10], [844, 390, 10]]) {
         await page.setViewportSize({ width, height });
-        await page.evaluate(({ light, lines }) => {
-            document.body.classList.toggle('light-mode', light);
+        await page.evaluate(({ lines }) => {
             game.settings.pauseGameOnOverlay = true;
             game.seenTutorials = game.seenTutorials.filter(key => key !== 'tutorial_battle_basics');
             queueTutorialNotice('tutorial_battle_basics', '전투와 성장 안내',
                 '전투는 자동으로 진행됩니다. 장비와 스킬, 패시브를 조합해 성장하세요.\n'.repeat(lines), 'tab-character');
             showGameToast('새 콘텐츠를 확인하세요.');
             enqueueMobileToast('새 콘텐츠를 확인하세요.', 'season-up');
-        }, { light, lines });
+        }, { lines });
         const card = page.locator('#tutorial-overlay .tutorial-card');
         await expect(card).toBeVisible();
-        await page.screenshot({ path: testInfo.outputPath(`tutorial-${width}-${height}-${light}.png`) });
+        await page.screenshot({ path: testInfo.outputPath(`tutorial-${width}-${height}.png`) });
         const bounds = await card.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.y).toBeGreaterThanOrEqual(0);
@@ -284,8 +279,6 @@ test('journal entries open illustrated reading without inline artwork or duplica
     expect(await reader.locator('img').evaluateAll(images => images.every(img => img.src.includes('/unified-20260910/')))).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('journal-reader.png'), scale: 'css' });
     expect(await reader.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
-    await page.evaluate(() => document.body.classList.add('light-mode'));
-    await page.screenshot({ path: testInfo.outputPath('journal-reader-light.png'), scale: 'css' });
     await reader.getByRole('button', { name: '닫기', exact: true }).click();
     await expect(reader).not.toBeVisible();
     await expect(page.locator('[data-journal-entry="act_9"]')).toBeFocused();
@@ -1385,13 +1378,10 @@ test('ascension trials visibly distinguish completed and pending clears', async 
     }));
     expect(colors[0]).not.toEqual(colors[1]);
     await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
-    for (const theme of ['dark','light']) {
-        await page.evaluate(theme=>applyThemeMode(theme),theme);
-        await pending.scrollIntoViewIfNeeded();
-        await expect(pending.getByRole('button',{name:'도전',exact:true})).toBeVisible();
-        expect(await pending.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-        await page.screenshot({path:testInfo.outputPath(`trial-readability-${theme}.png`)});
-    }
+    await pending.scrollIntoViewIfNeeded();
+    await expect(pending.getByRole('button',{name:'도전',exact:true})).toBeVisible();
+    expect(await pending.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
+    await page.screenshot({path:testInfo.outputPath('trial-readability-dark.png')});
     expect(failures).toEqual([]);
 });
 
@@ -2026,41 +2016,38 @@ test('character attributes and elemental EHP use readable custom tooltips', asyn
         await page.locator('#btn-mobile-nav-more').tap();
         await page.locator('#btn-tab-character').tap();
     } else await page.locator('#btn-tab-character').click();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>{
-            document.body.classList.toggle('light-mode',light);
-            document.querySelectorAll('#tab-character details').forEach(row=>row.open=true);
-        },light);
-        if (testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab', { name: '기본 · 특수' }).tap();
-        for(const [id,label] of [['strength','힘'],['dexterity','민첩'],['intelligence','지능']]) {
-            const row=page.locator('#ui-'+id).locator('..');
-            await row.scrollIntoViewIfNeeded();
-            // Park the setup mouse so layout scrolling cannot replace a touch tooltip with hover text.
-            await page.mouse.move(0, 0);
-            if (testInfo.project.use.isMobile) await row.tap();
-            else await row.focus();
-            await expect(page.locator('#info-tooltip')).toBeVisible();
-            await expect(page.locator('#info-tooltip .tooltip-title')).toContainText(label);
-            expect(await page.locator('#info-tooltip').innerText()).not.toMatch(/[💪🏹🧠]/u);
-        }
-        if (testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab', { name: '방어 · 회복' }).tap();
-        const cards=page.locator('#ui-character-ehp .character-ehp-stat');
-        await expect(cards).toHaveCount(5);
-        for(let i=0;i<5;i++) {
-            const card=cards.nth(i);
-            await card.scrollIntoViewIfNeeded();
-            await page.mouse.move(0, 0);
-            if (testInfo.project.use.isMobile) await card.tap();
-            else await card.focus();
-            await expect(card).not.toHaveAttribute('title',/.+/);
-            await expect(page.locator('#info-tooltip')).toBeVisible();
-            await expect(page.locator('#info-tooltip')).toContainText('공격 EHP');
-            await expect(page.locator('#info-tooltip')).toContainText('직격 EHP');
-        }
-        await cards.first().evaluate(row=>row.blur());
-        await page.screenshot({path:testInfo.outputPath('character-'+light+'.png')});
-        expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await page.evaluate(()=>{
+        document.querySelectorAll('#tab-character details').forEach(row=>row.open=true);
+    });
+    if (testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab', { name: '기본 · 특수' }).tap();
+    for(const [id,label] of [['strength','힘'],['dexterity','민첩'],['intelligence','지능']]) {
+        const row=page.locator('#ui-'+id).locator('..');
+        await row.scrollIntoViewIfNeeded();
+        // Park the setup mouse so layout scrolling cannot replace a touch tooltip with hover text.
+        await page.mouse.move(0, 0);
+        if (testInfo.project.use.isMobile) await row.tap();
+        else await row.focus();
+        await expect(page.locator('#info-tooltip')).toBeVisible();
+        await expect(page.locator('#info-tooltip .tooltip-title')).toContainText(label);
+        expect(await page.locator('#info-tooltip').innerText()).not.toMatch(/[💪🏹🧠]/u);
     }
+    if (testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab', { name: '방어 · 회복' }).tap();
+    const cards=page.locator('#ui-character-ehp .character-ehp-stat');
+    await expect(cards).toHaveCount(5);
+    for(let i=0;i<5;i++) {
+        const card=cards.nth(i);
+        await card.scrollIntoViewIfNeeded();
+        await page.mouse.move(0, 0);
+        if (testInfo.project.use.isMobile) await card.tap();
+        else await card.focus();
+        await expect(card).not.toHaveAttribute('title',/.+/);
+        await expect(page.locator('#info-tooltip')).toBeVisible();
+        await expect(page.locator('#info-tooltip')).toContainText('공격 EHP');
+        await expect(page.locator('#info-tooltip')).toContainText('직격 EHP');
+    }
+    await cards.first().evaluate(row=>row.blur());
+    await page.screenshot({path:testInfo.outputPath('character-dark.png')});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
     expect(failures).toEqual([]);
 });
 
@@ -3482,14 +3469,11 @@ test('map destinations show entry requirements before spending and run summaries
     if (!await ready.locator('details').evaluate(el => el.open)) await ready.locator('summary').click();
     await ready.getByRole('button', {name:'입장 가능 운석 낙하'}).click();
     expect(await page.evaluate(() => game.starWedge.skyRiftReady)).toBe(true);
-    for (const light of [false, true]) {
-        await page.evaluate(light => document.body.classList.toggle('light-mode', light), light);
-        const grid = await meteor.boundingBox();
-        const panel = await meteor.locator('.map-expedition-intro').boundingBox();
-        expect(panel.width).toBeGreaterThan(grid.width - 3);
-        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-        await page.screenshot({path:testInfo.outputPath('map-meteor-' + (light?'light':'dark') + '.png')});
-    }
+    const grid = await meteor.boundingBox();
+    const panel = await meteor.locator('.map-expedition-intro').boundingBox();
+    expect(panel.width).toBeGreaterThan(grid.width - 3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({path:testInfo.outputPath('map-meteor-dark.png')});
     await meteor.getByRole('button', {name:'운석 원정 입장'}).click();
     expect(await page.evaluate(() => [game.currentZoneId, game.starWedge.skyRiftReady])).toEqual(['meteor_fall_site', false]);
     expect(failures).toEqual([]);
@@ -4052,50 +4036,47 @@ test('void crafting and profile follow the theme; Wisdom Leap is read only', asy
     await expect(page.locator('#passive-investment-summary-body')).toContainText('지혜의 도약 · 공허');
     await expect(page.locator('#passive-investment-summary-body select')).toHaveCount(0);
     expect(await page.evaluate(() => getPlayerStats().passiveWisdomElement)).toBe('chaos');
-    for (const theme of ['dark', 'light']) {
-        await page.evaluate(mode => {
-            applyThemeMode(mode);
-            const node = Object.values(PASSIVE_TREE.nodes).find(n => n.kind === 'void');
-            if (!game.passives.includes(node.id)) game.passives.push(node.id);
-            game.currencies.magicBud = 2;
-            openVoidPassiveCraftOverlay(node.id);
-        }, theme);
-        const dialog = page.locator('.void-craft-dialog');
-        await expect(dialog).toBeVisible();
-        const geometry = await dialog.evaluate(el => {
-            const r = el.getBoundingClientRect();
-            return { left: r.left, right: r.right, width: innerWidth, overflow: el.scrollWidth - el.clientWidth };
-        });
-        expect(geometry.left).toBeGreaterThanOrEqual(0);
-        expect(geometry.right).toBeLessThanOrEqual(geometry.width);
-        expect(geometry.overflow).toBeLessThanOrEqual(1);
-        await page.screenshot({path: testInfo.outputPath('void-'+theme+'.png')});
-        await dialog.getByRole('button', { name: /마법의 새싹/ }).click();
-        expect(await page.evaluate(() => game.currencies.magicBud)).toBe(1);
-        await page.locator('.void-craft-dialog').getByRole('button', {name:'닫기',exact:true}).click();
-        await expect(dialog).toHaveCount(0);
-        await page.evaluate(() => {
-            ensureProfileModal().style.display = 'flex';
-            renderProfileData({ nickname:'정원사',level:90,className:'비술사',loop:31,
-                stats:[{label:'생명력',value:'12,500',color:'#ffffff'}],
-                equipment:[{slot:'무기',name:'별빛 지팡이',rarity:'rare',stats:[]}],jewels:[],talismans:[] });
-        });
-        const profile = page.locator('#social-profile-modal');
-        await expect(profile).toBeVisible();
-        const colors = await profile.evaluate(el => {
-            const style = getComputedStyle(el.querySelector('.social-modal-box'));
-            const token = getComputedStyle(document.body).getPropertyValue('--color-surface').trim();
-            const probe = document.createElement('div');probe.style.backgroundColor=token;document.body.appendChild(probe);
-            const expected = getComputedStyle(probe).backgroundColor;probe.remove();
-            return { actual:style.backgroundColor, expected, overflow:el.scrollWidth-el.clientWidth };
-        });
-        expect(colors.actual).toBe(colors.expected);
-        expect(colors.overflow).toBeLessThanOrEqual(1);
-        await page.screenshot({path:testInfo.outputPath('profile-'+theme+'.png')});
-        await profile.locator('#social-profile-tabs').getByRole('button',{name:'주얼',exact:true}).click();
-        await expect(profile.locator('#social-profile-items')).toContainText('없');
-        await profile.getByRole('button',{name:'닫기',exact:true}).click();
-        await expect(profile).toBeHidden();
-    }
+    await page.evaluate(() => {
+        const node = Object.values(PASSIVE_TREE.nodes).find(n => n.kind === 'void');
+        if (!game.passives.includes(node.id)) game.passives.push(node.id);
+        game.currencies.magicBud = 2;
+        openVoidPassiveCraftOverlay(node.id);
+    });
+    const dialog = page.locator('.void-craft-dialog');
+    await expect(dialog).toBeVisible();
+    const geometry = await dialog.evaluate(el => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, width: innerWidth, overflow: el.scrollWidth - el.clientWidth };
+    });
+    expect(geometry.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.right).toBeLessThanOrEqual(geometry.width);
+    expect(geometry.overflow).toBeLessThanOrEqual(1);
+    await page.screenshot({path: testInfo.outputPath('void-dark.png')});
+    await dialog.getByRole('button', { name: /마법의 새싹/ }).click();
+    expect(await page.evaluate(() => game.currencies.magicBud)).toBe(1);
+    await page.locator('.void-craft-dialog').getByRole('button', {name:'닫기',exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await page.evaluate(() => {
+        ensureProfileModal().style.display = 'flex';
+        renderProfileData({ nickname:'정원사',level:90,className:'비술사',loop:31,
+            stats:[{label:'생명력',value:'12,500',color:'#ffffff'}],
+            equipment:[{slot:'무기',name:'별빛 지팡이',rarity:'rare',stats:[]}],jewels:[],talismans:[] });
+    });
+    const profile = page.locator('#social-profile-modal');
+    await expect(profile).toBeVisible();
+    const colors = await profile.evaluate(el => {
+        const style = getComputedStyle(el.querySelector('.social-modal-box'));
+        const token = getComputedStyle(document.body).getPropertyValue('--color-surface').trim();
+        const probe = document.createElement('div');probe.style.backgroundColor=token;document.body.appendChild(probe);
+        const expected = getComputedStyle(probe).backgroundColor;probe.remove();
+        return { actual:style.backgroundColor, expected, overflow:el.scrollWidth-el.clientWidth };
+    });
+    expect(colors.actual).toBe(colors.expected);
+    expect(colors.overflow).toBeLessThanOrEqual(1);
+    await page.screenshot({path:testInfo.outputPath('profile-dark.png')});
+    await profile.locator('#social-profile-tabs').getByRole('button',{name:'주얼',exact:true}).click();
+    await expect(profile.locator('#social-profile-items')).toContainText('없');
+    await profile.getByRole('button',{name:'닫기',exact:true}).click();
+    await expect(profile).toBeHidden();
     expect(failures).toEqual([]);
 });

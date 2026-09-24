@@ -101,9 +101,7 @@ function init() {
     document.getElementById('chk-loop-disable-item-automation').checked = game.settings.disableItemAutomationAfterLoop !== false;
     document.getElementById('sel-loop-map-complete-action').value = getMapCompleteActionOption(game.settings.postLoopMapCompleteAction).value;
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
-    document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     document.getElementById('sel-ui-skin').value = normalizeUiSkin(game.settings.uiSkin);
-    applyThemeMode(game.settings.themeMode);
     applyUiSkin(game.settings.uiSkin);
     uiDisplay.apply(game.settings.uiScale);
     syncMapCompleteActionQuickControl();

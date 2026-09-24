@@ -2451,7 +2451,6 @@ const defaultGame = {
         showHpComma: true,
         showEnemyHpComma: true,
         showCharacterComma: true,
-        themeMode: 'dark',
         uiScale: 100,
         uiSkin: 'rift',
         heroAppearanceMode: 'loop',

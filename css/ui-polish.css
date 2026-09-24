@@ -11,10 +11,10 @@
    - Success/recovery: green
 */
 
-body:not(.light-mode) .panel,
-body:not(.light-mode) #right-pane,
-body:not(.light-mode) .tab-content,
-body:not(.light-mode) .forge-panel {
+:root body .panel,:root 
+body #right-pane,:root 
+body .tab-content,:root 
+body .forge-panel {
   background: linear-gradient(180deg, var(--color-panel-gradient-top) 0%, var(--color-panel-gradient-bottom) 100%);
   border-color: var(--color-border);
   box-shadow: 0 8px 28px rgba(2, 6, 12, 0.42), inset 0 1px 0 rgba(184, 212, 244, 0.04);
@@ -22,14 +22,13 @@ body:not(.light-mode) .forge-panel {
 
 /* ── TAB HEADER ─────────────────────────────────────────────── */
 
-body:not(.light-mode) .subtab-row,
-body.light-mode .subtab-row {
+:root body .subtab-row {
   gap: 5px;
   padding: 6px 8px;
   align-items: center;
 }
 
-body:not(.light-mode) .subtab-row {
+:root body .subtab-row {
   background: linear-gradient(180deg, #0e1a28 0%, #0b1420 100%);
   border-bottom: 1px solid #1c2c3f;
 }
@@ -54,49 +53,46 @@ body:not(.light-mode) .subtab-row {
 /* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
 
 /* 특정 하위탭: 색상은 동일, 테두리만 강조 */
-body:not(.light-mode) #btn-item-tab-equip,
-body:not(.light-mode) #btn-skill-tab-equip,
-/* 특정 하위탭: 색상은 동일, 테두리만 강조 */
-body.light-mode #btn-item-tab-equip,
-body.light-mode #btn-skill-tab-equip {
+:root body #btn-item-tab-equip,:root 
+body #btn-skill-tab-equip {
   border-width: 2px;
 }
 
 /* 특정 하위탭: 색상은 동일, 테두리만 강조 */
-body:not(.light-mode) #btn-item-tab-equip,
-body:not(.light-mode) #btn-skill-tab-equip {
+:root body #btn-item-tab-equip,:root 
+body #btn-skill-tab-equip {
   border-color: #486688;
 }
 
-body:not(.light-mode) .item-card {
+:root body .item-card {
   border: 1px solid #314359;
   border-radius: 8px;
   background: linear-gradient(180deg, #182230 0%, #121b28 100%);
   box-shadow: 0 6px 14px rgba(0,0,0,.22);
 }
-body:not(.light-mode) .item-card:hover {
+:root body .item-card:hover {
   border-color: #4a6483;
   background: linear-gradient(180deg, #1d2b3c 0%, #162334 100%);
   box-shadow: 0 10px 24px rgba(3, 8, 14, 0.38);
 }
 
 @supports selector(.item-card:has(.item-title.magic)) {
-  body:not(.light-mode) .item-card:has(.item-title.magic) { border-left: 3px solid #63b8ff; }
-  body:not(.light-mode) .item-card:has(.item-title.rare) { border-left: 3px solid var(--color-accent-gold); }
-  body:not(.light-mode) .item-card:has(.item-title.unique) { border-left: 3px solid var(--color-rarity-unique); box-shadow: 0 8px 20px rgba(255, 159, 67, 0.12); }
+  :root body .item-card:has(.item-title.magic) { border-left: 3px solid #63b8ff; }
+  :root body .item-card:has(.item-title.rare) { border-left: 3px solid var(--color-accent-gold); }
+  :root body .item-card:has(.item-title.unique) { border-left: 3px solid var(--color-rarity-unique); box-shadow: 0 8px 20px rgba(255, 159, 67, 0.12); }
 }
 
-body:not(.light-mode) .item-title.magic { color: #68bfff; }
-body:not(.light-mode) .item-title.rare { color: var(--color-accent-gold); }
-body:not(.light-mode) .item-title.unique { color: var(--color-rarity-unique); text-shadow: 0 0 8px rgba(255, 171, 93, 0.35); }
-body:not(.light-mode) .item-compare-tooltip .item-tooltip-main,
-body:not(.light-mode) .item-compare-tooltip .item-compare-single,
-body:not(.light-mode) .item-compare-tooltip .item-compare-grid {
+:root body .item-title.magic { color: #68bfff; }
+:root body .item-title.rare { color: var(--color-accent-gold); }
+:root body .item-title.unique { color: var(--color-rarity-unique); text-shadow: 0 0 8px rgba(255, 171, 93, 0.35); }
+:root body .item-compare-tooltip .item-tooltip-main,:root 
+body .item-compare-tooltip .item-compare-single,:root 
+body .item-compare-tooltip .item-compare-grid {
   background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
   border-color: #4d6584;
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
 }
-body:not(.light-mode) .tooltip-final { color: #ffcc7a; line-height: 1.5; }
+:root body .tooltip-final { color: #ffcc7a; line-height: 1.5; }
 
 .forge-panel,
 .craft-selected,
@@ -106,9 +102,9 @@ body:not(.light-mode) .tooltip-final { color: #ffcc7a; line-height: 1.5; }
   color: var(--color-text);
   box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
-body:not(.light-mode) .forge-panel,
-body:not(.light-mode) .craft-selected,
-body:not(.light-mode) .currency-card {
+:root body .forge-panel,:root 
+body .craft-selected,:root 
+body .currency-card {
   border-color: var(--color-line);
   background: var(--color-surface);
   box-shadow: inset 0 1px rgba(255,255,255,.03);
@@ -127,14 +123,6 @@ body:not(.light-mode) .currency-card {
 .fossil-recipe button { min-height: 44px; width: 100%; }
 .craft-spores { padding: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }
-body.light-mode :is(#item-tab-craft, #item-tab-market, #tab-flask) .orb-tone {
-  color: color-mix(in srgb, var(--orb-tone) 45%, #16130f); text-shadow: none;
-}
-body.light-mode :is(#item-tab-craft, #item-tab-market) .orb-tone[style*="background"] { color: #fff; }
-body.light-mode #item-tab-craft .craft-item-heading .normal { color: var(--color-text); }
-body.light-mode #item-tab-craft .craft-item-heading .magic { color: #21587e; }
-body.light-mode #item-tab-craft .craft-item-heading .rare { color: #795c12; }
-body.light-mode #item-tab-craft .craft-item-heading .unique { color: #a14c17; }
 .craft-spores-title { font-weight: 600; margin-bottom: 6px; color: var(--color-text-secondary); }
 .flask-management-panel { padding: 10px; margin-bottom: 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); }
 
@@ -162,22 +150,22 @@ body.light-mode #item-tab-craft .craft-item-heading .unique { color: #a14c17; }
   image-rendering: pixelated;
 }
 
-body:not(.light-mode) .loot-unique, body:not(.light-mode) .reward, body:not(.light-mode) .text-reward { color: var(--color-accent-gold); }
-body:not(.light-mode) .attack-monster, body:not(.light-mode) .text-danger { color: var(--color-danger); }
-body:not(.light-mode) .season-up, body:not(.light-mode) .text-success { color: var(--color-positive-muted); }
+:root body .loot-unique,:root  body .reward,:root  body .text-reward { color: var(--color-accent-gold); }
+:root body .attack-monster,:root  body .text-danger { color: var(--color-danger); }
+:root body .season-up,:root  body .text-success { color: var(--color-positive-muted); }
 
-body:not(.light-mode) .combat-feed,
-body:not(.light-mode) #log,
-body:not(.light-mode) .battlefield-wrap,
-body:not(.light-mode) .enemy-card {
+:root body .combat-feed,:root 
+body #log,:root 
+body .battlefield-wrap,:root 
+body .enemy-card {
   border-color: #31465f;
   background: linear-gradient(180deg, #101822 0%, #0c131d 100%);
 }
-body:not(.light-mode) #log {
+:root body #log {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
-body:not(.light-mode) .enemy-card.targeted,
-body:not(.light-mode) .enemy-card.selected {
+:root body .enemy-card.targeted,:root 
+body .enemy-card.selected {
   border-color: #79c7ff;
   box-shadow: 0 0 0 1px rgba(144, 212, 255, 0.32), 0 0 16px rgba(92, 185, 255, 0.25);
 }
@@ -470,38 +458,6 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
 }
 
 /* Map navigation uses the same surfaces in both themes; keep the layout identical. */
-body.light-mode #tab-map .vertical-tab-panels,
-body.light-mode #tab-map .vertical-tab-sidebar {
-  background: var(--color-surface);
-  border-color: var(--color-line);
-  box-shadow: none;
-}
-body.light-mode #tab-map .vertical-tab-panel > h2,
-body.light-mode #tab-map .map-zone-group-header,
-body.light-mode #tab-map .vertical-tab-btn {
-  background: var(--color-surface-raised);
-  border-color: var(--color-line);
-  color: var(--color-text);
-  text-shadow: none;
-  box-shadow: none;
-}
-body.light-mode #tab-map .vertical-tab-btn span { color: var(--color-text); text-shadow: none; }
-body.light-mode #tab-map .vertical-tab-btn.active,
-body.light-mode #tab-map .map-zone-group:not(.collapsed) .map-zone-group-header {
-  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
-  border-color: var(--color-accent);
-  color: var(--color-text);
-}
-body.light-mode #tab-map .map-state-badge {
-  color: var(--color-text-secondary);
-  border-color: var(--color-line-strong);
-  background: var(--color-surface-raised);
-}
-body.light-mode #tab-map .map-state-badge.current,
-body.light-mode #tab-map .map-state-badge.recommended {
-  color: var(--color-accent-strong);
-  border-color: var(--color-accent);
-}
 
 @media (max-width: 820px) {
   .vertical-tab-layout,
@@ -636,7 +592,6 @@ body.light-mode #tab-map .map-state-badge.recommended {
 }
 
 @layer overrides {
-body.light-mode #item-tab-craft .craft-option-line { color: var(--color-text); }
 
 .search-filter-input:focus,
 input[data-search-key]:focus {

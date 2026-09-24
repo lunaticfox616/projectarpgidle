@@ -442,13 +442,6 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
     line-height: 1.25;
 }
 
-body.light-mode .equipment-grid-inspector { border-color: #aebdcb; background: #f3f7fb; }
-body.light-mode .equipment-grid-inspector-copy span,
-body.light-mode .equipment-grid-inspector-copy small { color: #526477; }
-body.light-mode #item-tab-equip #ui-inventory-list > .search-result-list { background-color: #dce5ed; }
-body.light-mode .equipment-grid-cell { border-color: rgba(69, 88, 107, .34); background: rgba(244, 248, 251, .62); }
-body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50% 42%, #32485d, #162330 74%); }
-
 .equipment-slot-visual {
     position: relative;
     display: grid;
@@ -532,8 +525,7 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
     #item-tab-equip .inventory-browse-toolbar select { width: 100%; min-width: 0; min-height: 44px; }
     #item-tab-equip .inventory-browse-toolbar .equipment-grid-auto-arrange { width: auto; margin: 0; min-height: 44px; padding: 5px 8px; }
     #item-tab-equip .inventory-browse-toolbar #btn-auto-salvage { min-height: 44px; }
-    body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
-    body.light-mode #item-tab-equip .equipment-inventory-panel { padding: 8px; }
+    :root body #item-tab-equip .equipment-inventory-panel { padding: 8px; }
     #item-tab-equip .inventory-management-row { gap: 6px; margin-bottom: 6px; padding-bottom: 0; border-bottom: 0; }
     #item-tab-equip .inventory-management-row :where(button, select) { min-height: 44px; }
     /* 좁은 화면: 관리 버튼을 한 줄씩 쌓지 않고 두 줄 격자로 묶어 가방 격자를 첫 화면 안으로 올린다. */

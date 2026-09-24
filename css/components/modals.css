@@ -98,10 +98,10 @@
 
 @layer components {
 
-body:not(.light-mode) .startup-form input,
-body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)),
-body:not(.light-mode) select,
-body:not(.light-mode) textarea {
+:root body .startup-form input,:root 
+body input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)),:root 
+body select,:root 
+body textarea {
   color: #ffffff;
   border: 1px solid rgba(83, 119, 158, 0.56);
   background: linear-gradient(180deg, rgba(8, 14, 22, 0.96), rgba(13, 21, 32, 0.96));
@@ -109,10 +109,10 @@ body:not(.light-mode) textarea {
   transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
 
-body:not(.light-mode) .startup-form input:focus,
-body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)):focus,
-body:not(.light-mode) select:focus,
-body:not(.light-mode) textarea:focus {
+:root body .startup-form input:focus,:root 
+body input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)):focus,:root 
+body select:focus,:root 
+body textarea:focus {
   border-color: rgba(107, 192, 252, 0.9);
   background: rgba(11, 19, 30, 0.98);
   box-shadow: 0 0 0 3px rgba(75, 168, 236, 0.11), inset 0 2px 5px rgba(0, 0, 0, 0.38);
@@ -145,10 +145,6 @@ body:not(.light-mode) textarea:focus {
   line-height: 1.65;
   letter-spacing: 0;
   text-shadow: none;
-}
-
-body.light-mode :is(.tutorial-body, .trait-desc, .gem-enhance-section-desc, .journal-card-body, .cosmos-desc, .cosmos-detail, .cloud-note, .currency-desc, .craft-picker-desc, .colony-ward-desc, .underworld-rune-overlay-desc, .patch-note-body, .ui-goal-desc, .background-combat-speed-guide, .tooltip-line, .tooltip-final, .game-dialog-message, .game-choice-option span, .gem-library-card > p, .gem-orbit-copy span) {
-  color: #3f5268;
 }
 
 .game-dialog-card[data-tone="bounty"] { width: min(600px, 100%); }

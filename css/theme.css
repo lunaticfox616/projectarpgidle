@@ -15,9 +15,6 @@
         .map-power-grade.grade-low { color: #ff877f; }
         .map-power-grade.grade-fit { color: #f0cf71; }
         .map-power-grade.grade-high { color: #78d8b0; }
-        body.light-mode .map-power-grade.grade-low { color: #a3332c; }
-        body.light-mode .map-power-grade.grade-fit { color: #74560e; }
-        body.light-mode .map-power-grade.grade-high { color: #216947; }
 
         .subtab-row { display: flex; gap: 8px; margin-bottom: 15px; }
         .subtab-content { display: none; }

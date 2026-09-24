@@ -1,13 +1,13 @@
 const {test, expect} = require('@playwright/test');
 
-for (const theme of ['dark', 'light']) test(`research search, ownership and fold state remain usable in ${theme}`, async ({page}, info) => {
+test('research search, ownership and fold state remain usable', async ({page}, info) => {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({status: 204, body: ''}));
     await page.goto('/'); await page.locator('#btn-startup-guest').click();
     await page.locator('[data-class-id="warrior"]').click();
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await page.evaluate(theme => {
-        clearInterval(gameTickHandle); gameTickHandle = null; applyThemeMode(theme);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
         game.season = 20; game.contentProgression.inherited = ['craft', 'support', 'research']; contentProgression.sync();
         game.seenTutorials = [...new Set([...game.seenTutorials, ...MAP_PRIMARY_CONTENTS.map(row => row.noticeKey).filter(Boolean)])];
         game.skills = ['기본 공격', '연속 베기']; game.sealedSkills = ['용암 강타'];
@@ -16,7 +16,7 @@ for (const theme of ['dark', 'light']) test(`research search, ownership and fold
         game.gemResearchExpanded = {attack: true, support: false};
         switchTab('tab-skills'); switchSkillSubtab('skill-tab-research'); updateStaticUI();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
-    }, theme);
+    });
     await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
     const panel = page.locator('#ui-gem-research-panel');
