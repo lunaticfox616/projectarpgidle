@@ -307,8 +307,15 @@ test('grand breach counter does not overlap the battlefield or combat HUDs',asyn
     for(const compact of info.project.name.startsWith('desktop')?[false,true]:[false]) {
         if(compact)await page.setViewportSize({width:1014,height:742});
         const row=await counter.boundingBox(),field=await page.locator('#battlefield-wrap').boundingBox();
-        expect(field.y+field.height).toBeLessThanOrEqual(row.y+1);
-        for(const selector of ['.player-hud-shell','#ui-enemy-list','#ui-player-ailments-under','#ui-combat-flasks']) {
+        // 균열 등불은 전장이 화면 전체에 깔리므로 계수기는 전장 위에 떠 있고, 다른 판에 가려지지 않아야 한다.
+        const fullBleed=await page.evaluate(()=>document.body.dataset.uiSkin==='rift'&&getComputedStyle(document.getElementById('side-encounter-hud')).position==='absolute');
+        if(fullBleed) {
+            expect(row.y).toBeGreaterThanOrEqual(field.y-1);
+            expect(row.y+row.height).toBeLessThanOrEqual(field.y+field.height+1);
+            const onTop=await counter.evaluate(el=>{const r=el.getBoundingClientRect();const hit=document.elementFromPoint(r.left+8,r.top+r.height/2);return el.contains(hit);});
+            expect(onTop).toBe(true);
+        } else expect(field.y+field.height).toBeLessThanOrEqual(row.y+1);
+        for(const selector of ['.player-hud-shell','#ui-enemy-list','#ui-player-ailments-under','#ui-combat-flasks','#ui-battlefield-caption','.combat-feed']) {
             const hud=await page.locator(selector).boundingBox();
             const overlap=Math.min(row.y+row.height,hud.y+hud.height)-Math.max(row.y,hud.y);
             expect(overlap,selector).toBeLessThanOrEqual(1);

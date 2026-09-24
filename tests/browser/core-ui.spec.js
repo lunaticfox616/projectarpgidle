@@ -3834,7 +3834,9 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     await skillSlot.hover();
     await expect(page.locator('#info-tooltip')).toBeVisible();
     await expect(page.locator('#info-tooltip')).toContainText(await skillSlot.getAttribute('data-gem-name'));
-    await page.locator('#battlefield-canvas').click({ position: { x: 8, y: 8 } });
+    // 전장이 화면 전체에 깔려 왼쪽 위 모서리는 메뉴 레일 밑이다. 레일 바로 오른쪽 빈 전장을 누른다.
+    const railRight = await page.locator('#tab-header-main').evaluate(el => el.getBoundingClientRect().right);
+    await page.locator('#battlefield-canvas').click({ position: { x: Math.ceil(railRight) + 12, y: 8 } });
     await expect(page.locator('#ui-goal-drawer')).toHaveClass(/expanded/);
 
     const itemSocket = page.locator('#btn-tab-items');

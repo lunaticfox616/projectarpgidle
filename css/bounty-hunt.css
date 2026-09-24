@@ -82,8 +82,9 @@
 body.desktop-windowed-ui #ui-bounty-box { top: 58px; }
 
 @media (max-width: 760px) {
-    #ui-bounty-box { top: 6px; left: 6px; max-width: calc(100% - 92px); }
-    body.desktop-windowed-ui #ui-bounty-box { top: 6px; }
+    /* 모바일은 전장 위쪽에 몬스터 수 표식(위 12px)과 대상 적 체력바(아래 끝 약 62px)가 있으므로 그 아래에 둔다. */
+    #ui-bounty-box { top: 66px; left: 6px; max-width: calc(100% - 92px); }
+    body.desktop-windowed-ui #ui-bounty-box { top: 66px; }
     .bounty-hud-progress, .bounty-hud-active, .bounty-hud-offer { min-height: 30px; padding: 4px 7px; gap: 5px; }
     .bounty-hud-progress strong, .bounty-hud-active strong, .bounty-hud-offer strong { font-size: .72rem; }
     .bounty-hud-progress span, .bounty-hud-active span, .bounty-hud-offer span { font-size: .66rem; }

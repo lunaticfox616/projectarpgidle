@@ -971,6 +971,8 @@ body.desktop-windowed-ui .combat-hp-bar::after {
   body.mobile-battle-tab #tab-battle .player-hud-shell::before,
   body.mobile-battle-tab #tab-battle .player-health-frame::before { content: none; background-image: none; }
   body.mobile-battle-tab #tab-battle .player-health-frame { grid-column: 1 / -1; grid-row: 2; width: 100%; height: 56px; min-height: 56px; aspect-ratio: auto; }
+  /* 보호막이 없으면 생명력(30px) 아래 보호막 줄 자리를 접어 경험치 줄을 바로 붙인다. */
+  body.mobile-battle-tab #tab-battle .player-health-frame:not([data-energy-shield]) { height: 40px; min-height: 40px; }
   body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar { position: absolute; inset: 0 0 auto; width: 100%; height: 30px; min-height: 30px; margin: 0; border-radius: 3px; overflow: visible; }
   body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar .hp-text { font-size: 14px; line-height: 30px; }
   body.mobile-battle-tab #tab-battle .player-health-frame .combat-exp-bar { position: absolute; inset: auto 0 0; width: 100%; height: 5px; min-height: 5px; }

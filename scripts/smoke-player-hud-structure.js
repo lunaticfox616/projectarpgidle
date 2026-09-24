@@ -160,6 +160,34 @@ assert.strictEqual((skillHost.innerHTML.match(/player-hud-skill-slot/g) || []).l
 assert.strictEqual((skillHost.innerHTML.match(/data-info-tooltip-anchor="1"/g) || []).length, 2,
   'combat gem slots must remain recognized by the shared tooltip lifetime manager while hovered');
 
+// 켜 둔 자동 사용 규칙의 컨디션 젬은 공격 젬 뒤에 우선순위 순서로 한 번씩만 붙는다.
+Object.assign(flaskContext.game, {
+  conditionGemUnlocked: true,
+  conditionGemPool: ['철의 맹세', '전장의 함성', '긴급 회피'],
+  skillAutoRules: [
+    { enabled: true, priority: 2, actionType: 'condition_gem', skillName: '철의 맹세' },
+    { enabled: true, priority: 1, actionType: 'condition_gem', skillName: '전장의 함성' },
+    { enabled: false, priority: 3, actionType: 'condition_gem', skillName: '긴급 회피' },
+    { enabled: true, priority: 4, actionType: 'target_nearest', skillName: '긴급 회피' },
+    { enabled: true, priority: 5, actionType: 'condition_gem', skillName: '철의 맹세' },
+    { enabled: true, priority: 6, actionType: 'condition_gem', skillName: '미보유 젬' }
+  ]
+});
+flaskContext.getAllConditionGemEntries = () => [
+  { name: '전장의 함성', type: 'warcry' }, { name: '철의 맹세', type: 'guard' }, { name: '긴급 회피', type: 'utility' }, { name: '미보유 젬', type: 'curse' }
+];
+flaskContext.getConditionGemTypePresentation = entry => ({ type: entry.type });
+skillHost.dataset = {};
+flaskContext.renderCombatSkillHud();
+const slotKinds = [...skillHost.innerHTML.matchAll(/data-gem-name="([^"]+)" data-slot-kind="([^"]+)"/g)].map(match => `${match[2]}:${match[1]}`);
+assert.deepStrictEqual(slotKinds, ['primary:독니 사출', 'summon:서리늑대 소환', 'condition:전장의 함성', 'condition:철의 맹세'],
+  'enabled condition-gem rules must add each owned gem once, in rule priority order, after the attack gems');
+assert(skillHost.innerHTML.includes('player-hud-skill-cooldown'), 'condition slots must carry a cooldown readout');
+flaskContext.game.conditionGemUnlocked = false;
+skillHost.dataset = {};
+flaskContext.renderCombatSkillHud();
+assert(!skillHost.innerHTML.includes('data-slot-kind="condition"'), 'locked condition gems must not appear in the combat HUD');
+
 const gaugeStyle = {
   width: '',
   values: {},

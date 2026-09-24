@@ -176,12 +176,10 @@ body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed-title { border-bottom
 /* 전투 HUD 스킬 칸: 그림이 없는 젬(기본 공격 등)도 빈 칸처럼 보이지 않게 문양을 또렷하게. */
 :root body[data-ui-skin="rift"] .player-hud-skill-slot .combat-skill-gem-art .gem-art-fallback { display: grid; color: #d8a64a; font-size: 18px; line-height: 1; text-shadow: 0 0 6px rgba(216, 166, 74, .45); }
 :root body[data-ui-skin="rift"] .player-hud-skill-slot .combat-skill-gem-art:has(img) .gem-art-fallback { display: none; }
-/* 모바일 HUD: 스킬 칸을 손가락 크기(40px)로, 상태이상이 없을 때는 그 자리까지 스킬 칸이 쓴다. */
+/* 모바일 HUD: 스킬 칸을 손가락 크기(40px)로. */
 @media (max-width: 1080px) {
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-skill-slot { flex: 0 0 40px; width: 40px; height: 40px; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-skill-slots { gap: 6px; }
-  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-shell:has(#ui-player-ailments-under:empty) > .player-combat-effect-strip { display: none; }
-  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud-shell:has(#ui-player-ailments-under:empty) > .player-hud-skill-rack { grid-column: 2 / 4; }
 }
 :root body[data-ui-skin="rift"] .player-hud-skill-slot.primary { box-shadow: inset 0 0 0 1px rgba(216, 166, 74, .55); }
 
