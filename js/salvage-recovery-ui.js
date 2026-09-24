@@ -7,7 +7,7 @@ function getSalvageRecoveryCurrencyText(rewards) {
 }
 
 function getSalvageRecoveryRarityLabel(rarity) {
-    return ({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' })[rarity] || '일반';
+    return ITEM_RARITY_LABELS[rarity] || ITEM_RARITY_LABELS.normal;
 }
 
 function getSalvageRecoveryUnavailableText(availability) {

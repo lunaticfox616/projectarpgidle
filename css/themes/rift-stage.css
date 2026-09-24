@@ -47,6 +47,10 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   }
 
+  /* 메뉴 레일: 화면 높이 전체 기둥 대신 메뉴 길이만큼만(넘치는 메뉴는 기존처럼 "기타"로). */
+  body[data-ui-skin="rift"].desktop-windowed-ui .tab-header { bottom: auto; max-height: calc(100% - 16px); }
+  body[data-ui-skin="rift"].desktop-windowed-ui .tab-header > .ui-rail-tab-layer { flex: 0 1 auto; min-height: 0; }
+
   /* 레일 단축키 표시(I·C·P·G·M·J, js/ui-window-manager.js WINDOW_HOTKEYS) */
   body[data-ui-skin="rift"].desktop-windowed-ui .ui-rail-tab-layer .tab-btn[data-hotkey]::after {
     content: attr(data-hotkey);
@@ -111,6 +115,22 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   }
   :root body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed #log { background: transparent; }
+  /* 전투 기록: 오래된 줄은 위로 갈수록 흐려지고, 줄 구분선은 걷어 가볍게 */
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed #log {
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 48px);
+    mask-image: linear-gradient(180deg, transparent 0, #000 48px);
+  }
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed #log > * { border-bottom-color: transparent; padding-block: 2px; }
+
+  /* 채팅 판: 예전 스킨의 남색 안내 상자를 판 재질로, 작은 글자는 읽을 크기로 */
+  :root body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-empty-state { border-color: var(--stage-line); background: rgba(10, 11, 13, .6); }
+  body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-chat-nick { font-size: 11px; }
+  body[data-ui-skin="rift"].desktop-windowed-ui .ui-community-dock .social-chat-time { font-size: 10px; }
+
+  /* 목표 서랍: 9px대로 줄어 있던 글자를 읽을 크기로 */
+  body[data-ui-skin="rift"].desktop-windowed-ui #ui-goal-body .ui-goal-title { font-size: 12px; line-height: 1.4; }
+  body[data-ui-skin="rift"].desktop-windowed-ui #ui-goal-body :is(.ui-goal-desc, .ui-goal-notice-action, .ui-goal-notice-action span) { font-size: 11px; }
+
 }
 /* 모바일 세로 화면: 전장 캔버스가 지역 줄 아래부터 화면 바닥까지 깔리고, 전투 기록·HUD가 그 아래쪽 위에 뜬다.
    격자 한 칸(2~4행)에 전장과 기록·HUD를 겹쳐 두어 높이를 숫자로 맞추지 않는다(HUD 높이가 바뀌어도 그대로 맞음).
@@ -136,6 +156,8 @@
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud { grid-row: 4; grid-column: 1; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle :is(.combat-zone-row, .player-hud, .combat-feed) { position: relative; z-index: 20; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-wrap { border: 0; border-radius: 0; }
+  /* 하단 메뉴 "전체" 글자가 다른 칸보다 아래로 처지던 것을 가운데로 */
+  body[data-ui-skin="rift"] #tab-header-bottom #btn-mobile-nav-more { align-items: center; justify-content: center; }
   /* 바닥 전리품 넘기기 버튼은 HUD에 가리지 않게 전장 위쪽 오른편(목표 버튼 아래)으로 */
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-exploration-loot-skip { top: 40px; bottom: auto; }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row {

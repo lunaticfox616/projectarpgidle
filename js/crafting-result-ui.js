@@ -54,7 +54,7 @@ const craftingResultUi = (() => {
         let before = result.before;
         let after = result.after;
         let rows = [];
-        let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+        let rarityLabels = ITEM_RARITY_LABELS;
         if (before.rarity !== after.rarity) rows.push(`등급 ${rarityLabels[before.rarity] || before.rarity} → ${rarityLabels[after.rarity] || after.rarity}`);
         if (before.quality !== after.quality) rows.push(`품질 ${before.quality}% → ${after.quality}%`);
         if (before.baseName !== after.baseName) rows.push(`베이스 ${before.baseName || '없음'} → ${after.baseName || '없음'}`);

@@ -2453,6 +2453,7 @@ const defaultGame = {
         showCharacterComma: true,
         uiScale: 100,
         uiSkin: 'rift',
+        highContrast: false,
         heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
