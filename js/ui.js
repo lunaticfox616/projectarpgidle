@@ -10480,7 +10480,6 @@ function performUpdateStaticUI() {
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
-    if (typeof bountyUi !== 'undefined') bountyUi.renderHud();
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
         let drawNow = Date.now();

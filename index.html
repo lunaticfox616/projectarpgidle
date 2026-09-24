@@ -347,7 +347,6 @@
                         <canvas id="battlefield-canvas"></canvas>
                         <button id="btn-exploration-loot-skip" type="button" hidden>연출 건너뛰기</button>
                         <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
-                        <div id="ui-bounty-box" aria-live="polite" hidden></div>
                         <button id="btn-combat-goal-toggle" class="ui-context-dock-tab combat-goal-toggle" type="button" aria-controls="ui-goal-drawer" aria-expanded="false" onclick="toggleGoalDrawer()" hidden>목표</button>
                         <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
                             <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
@@ -1613,7 +1612,6 @@
 <script defer src="data/level-progression.js?v=20260911-1&requirements-review=20260911-1&review=20260912-v338&unique-equipment=20260913-1&experience-curve=20260914-1&gem-growth=20260914-1"></script>
 <script defer src="data/build-stat-inputs.js?v=20260911-1"></script>
 <script defer src="data/shrines.js?v=20260817-battlefield1"></script>
-<script defer src="data/bounties.js?v=20260817-bounty1&choice-tree=20260906-1&reward-flow=20260906-1&treasure=20260907-1&hunt-rewards=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1&cosmos=20260814-balance1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-bloom2&trial5=20260816-underworld1&directives=20260817-1&journal=20260820-arcana2&roadmap=20260821-2&map-tabs=20260823-1&trial-hazard=20260901-1&square-map=20260901-3&rival31=20260902-1&refinement=20260906-1&treasure=20260907-1&story-fx=20260909-1&expedition-review=20260914-2&act-maps=20260915-soft-grid"></script>
 <script defer src="data/story-journal.js?v=20260910-style1"></script>
 <script defer src="data/act-exploration-maps.js?v=20260922-1"></script>
@@ -1674,7 +1672,6 @@
 <script defer src="js/equipment-stat-resolution.js?v=20260820-source-unify1&growth-precision=20260904-1&affix-balance=20260910-1&level-progression=20260911-1"></script>
 <script defer src="js/gem-core-forge.js?v=20260914-1&gem-value=20260914-2"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1&shield-charge=20260814-armor1&arcana=20260820-5&passive-gate=20260829-1&refinement=20260906-1&content-choice=20260906-1&unlock-loot=20260906-1&unlock-split=20260907-1&stat-inputs=20260909-1&craft-origin=20260910-1&craft-eligibility=20260911-1&level-progression=20260911-1&sky-flow=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2"></script>
-<script defer src="js/bounties.js?v=20260817-bounty1&content-choice=20260906-1&reward-flow=20260906-1&treasure=20260907-1&hunt-rewards=20260908-1&hunt-failure=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1&recycle=20260820-1&display=20260906-1&unlock-loot=20260906-1&reward-flow=20260906-1"></script>
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1&trial-hazard=20260901-1&square-map=20260901-3&actor-depth=20260901-1&boss-footprint=20260902-1&diagonal-attack=20260902-1&frost-burst=20260902-1&footprint=20260905-4&skill-identity=20260905-1&flow=20260906-1&enemy-attacks=20260910-1&integrated-review=20260910-1&affix-balance=20260910-1"></script>
 <script defer src="js/skill-gem-casts.js?v=20260912-1"></script>
@@ -1712,7 +1709,6 @@
 <script defer src="js/equipment-inventory-grid-ui.js?v=20260827-14&inventory-search=20260901-1&loot-overhaul=20260905-2&equipment-cleanup=20260906-1&interface-fixes=20260906-2&display=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&hover-compare=20260909-1&popup-layer=20260911-1"></script>
 <script defer src="js/equipment-inspection-ui.js?v=20260908-1&affix-ui=20260910-1&level-progression=20260911-1"></script>
 <script defer src="js/crafting-result-ui.js?v=20260817-ledger1&craft-origin=20260910-1&crafting-workspace=20260914-1"></script>
-<script defer src="js/bounty-ui.js?v=20260819-compact-hud1&reward-flow=20260906-1&treasure=20260907-1&hunt-rewards=20260908-1&hunt-failure=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1"></script>
 <script defer src="js/loop-ui.js?v=20260819-advance-confirm1&content-choice=20260906-1&pr-review=20260907-1&loop-map=20260908-1"></script>
 <script defer src="js/flask-ui.js?v=20260914-1&rune-picker-review=20260914-1"></script>
 <script defer src="js/passive-selection-ui.js?v=20260908-1&tree-tools=20260908-1"></script>

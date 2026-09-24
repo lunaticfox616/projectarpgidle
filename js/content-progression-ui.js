@@ -273,18 +273,11 @@ const contentUnlockUi = {
         if (section) section.open = true;
         requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block:'nearest' }));
     },
-    openBounty() {
-        switchTab('tab-battle');
-        const state = bountyRuntime.ensureState();
-        if (state.remaining===0) { bountyUi.openTreasure(); return; }
-        addLog(`다음 보물사냥까지 보스 ${state.remaining}회 처치`, 'season-up', { toast:true });
-    },
     open(id) {
         if (!contentProgression.isUnlocked(id)) return;
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         const action = this.routeAction(def);
         if (!action) return;
-        if (action.bounty) { this.openBounty(); return; }
         if (!getRenderingUiTabIds().has(action.tab)) switchTab(action.tab);
         if (action.subtab) switchItemSubtab(action.subtab);
         if (action.skillSubtab) switchSkillSubtab(action.skillSubtab);

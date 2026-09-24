@@ -77,7 +77,7 @@ vm.runInContext('game.season=25; game.unlockedSeasonContents=[]; game.seenSeason
 assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_25')", runtime), true, 'loop milestones must extend through the growth-board unlock');
 assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 25, 'milestone reconciliation must register every loop through 25 exactly once');
 [
-    [2, '보물사냥'], [11, '심해 / 낚시'], [15, '군락지 / 군락지 액막이'],
+    [2, '홀씨 제작'], [11, '심해 / 낚시'], [15, '군락지 / 군락지 액막이'],
     [18, '가지치기'], [20, '코어 큐브'], [25, '생장판 / 생장 아이템 드랍']
 ].forEach(([loop, label]) => {
     assert.strictEqual(vm.runInContext(`SEASON_CONTENT_ROADMAP[${loop}].features.some(line => line.includes('${label}'))`, runtime), true,

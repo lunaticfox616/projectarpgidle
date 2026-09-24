@@ -21,48 +21,6 @@ const checks = [];
 function check(name, action) {
     try { action(); console.log('PASS', name); } catch (error) { checks.push(name); console.error('FAIL', name, error.stack); }
 }
-check('earned treasure keeps its source tier after moving and reloading', () => {
-    reset(2);
-    run(`game.currentZoneId=8;game.maxZoneId=8;game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});
-        game.currentZoneId=0;game=mergeDefaults(JSON.parse(JSON.stringify(game)))`);
-    assert.equal(run('bountyRuntime.openTreasure().item.itemTier'), 9);
-});
-check('cosmos treasure uses cosmos affix cap', () => {
-    reset(50);
-    run(`game.cosmosAtlas.activeChallenge={galaxy:5,lootTier:25,tier:86};
-        game.currentZoneId='cosmos_challenge';game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(game.currentZoneId),{isBoss:true});game.currentZoneId=0`);
-    const item = run('bountyRuntime.openTreasure().item');
-    assert.equal(item.itemTier, 20); assert.equal(item.affixTierCap, 20); assert.equal(item.dropRealm, 'cosmos');
-});
-check('ready treasure is settled before a loop can discard equipment', () => {
-    reset(2);
-    run(`game.currentZoneId=8;game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});bountyRuntime.openTreasure()`);
-    run(`bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun(false);
-        var target=createEnemy(getZone(game.currentZoneId),game.encounterPlan.find(entry=>entry.bountyId),0);
-        game.enemies=[target];target.hp=0;handleEnemyDeath(target,getPlayerStats());game.pendingLoopReady=true;
-        confirmLoopReady()`);
-    assert.equal(run('game.season'), 2); assert(run('game.pendingLoopReady'));
-    assert(run('bountyRuntime.claimTreasure().ok'));
-    run('confirmLoopReady()');
-    assert.equal(run('game.season'), 3);
-    assert.equal(run('game.inventory.some(item=>item.itemTier===9 && !item.sealed)'), false);
-});
-check('defeat ends accepted treasure hunts and permits the earned loop', () => {
-    reset(2);
-    run(`game.currentZoneId=8;game.settings.showDeathNotice=false;game.bountyHunt.remaining=0;
-        bountyRuntime.openTreasure();bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun(false);
-        handlePlayerDefeat(getZone(8),getPlayerStats(),null,{noToast:true})`);
-    assert.equal(run('game.bountyHunt.pending'),null);
-    assert.equal(run('game.bountyHunt.remaining'),10);
-    assert.equal(run('game.bountyHunt.completed'),0);
-    assert(!run('game.encounterPlan.some(entry=>entry.bountyId)'));
-    assert(!run('bountyRuntime.claimTreasure().ok'));
-    run('game.pendingLoopReady=true;confirmLoopReady()');
-    assert.equal(run('game.season'),3);
-});
 check('colony entrance uses this loop, not a previous loop depth', () => {
     reset();
     run('game.abyssEndlessDepth=200;game.loopProgressCurrent.bestAbyssDepth=21;game.currencies.colonyTrace=1;startColonyRun()');
