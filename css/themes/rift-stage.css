@@ -1,0 +1,134 @@
+@layer overrides {
+/* 균열 등불(rift) 스킨의 "전장 전체 화면" 배치(PC).
+   프로토타입처럼 전투 캔버스가 화면 전체를 쓰고, 메뉴 레일·지역 줄·전투 기록·목표·HUD는 캔버스 위에 떠 있다.
+   DOM·ID·스크립트 참조는 그대로이고 자리와 표면만 바꾼다. 캔버스 크기는 resizeBattlefieldCanvas가
+   부모(.battlefield-wrap) 크기를 읽어 정하므로 여기서 부모를 화면 크기로 넓히면 그대로 따라온다.
+   도킹 창이 열리면 전장은 예전처럼 창 왼쪽 열로 줄어든다(탐험 카메라가 캔버스 가운데를 따라가므로
+   창 밑에 플레이어가 깔리지 않게). 배치(자리·여백)는 라이트/다크 공통이고(테마를 바꿔도 배치가 흔들리지 않게) 색·반투명 판은 다크 전용이다. 다른 스킨은 영향 없음. */
+@media (min-width: 1081px) {
+  body[data-ui-skin="rift"].desktop-windowed-ui {
+    --stage-rail-width: 148px;
+    --stage-gutter: 16px;
+    --stage-scrim: rgba(6, 7, 8, .74);
+    --stage-scrim-strong: rgba(6, 7, 8, .86);
+    --stage-line: rgba(201, 164, 92, .26);
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui { background: #050607; }
+
+  /* 전장 틀: 여백·테두리를 걷고 화면 끝까지. 채팅 창도 전투 기록처럼 전장 위에 떠서 전장 폭을 바꾸지 않는다. */
+  body[data-ui-skin="rift"].desktop-windowed-ui #left-pane { padding: 0; }
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-workspace-docked #left-pane { padding-right: calc(var(--workspace-dock-width, 720px) + 18px); }
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-panel { border: 0; border-radius: 0; }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-panel { background: #050607; box-shadow: none; }
+  body[data-ui-skin="rift"].desktop-windowed-ui #move-area,
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-workspace-docked #move-area { padding: 0; }
+  body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-wrap {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-height: none;
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .battlefield-wrap { background: #050607; box-shadow: none; }
+
+  /* 보스 체력바·HUD: 레일과 전투 기록 사이 보이는 영역의 가운데 */
+  body[data-ui-skin="rift"].desktop-windowed-ui :is(#enemy-area, .player-hud) {
+    left: calc((100% + var(--stage-rail-width) - var(--combat-log-width) - 10px) / 2);
+  }
+  body[data-ui-skin="rift"].desktop-windowed-ui .player-hud { bottom: 10px; }
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-workspace-docked :is(#enemy-area, #enemy-area:has(.enemy-boss), .player-hud) {
+    width: calc(100% - var(--stage-rail-width) - 28px);
+  }
+
+  /* 메뉴 레일: 캔버스 위 반투명 기둥 */
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .tab-header {
+    border-color: var(--stage-line);
+    background: linear-gradient(90deg, var(--stage-scrim-strong), var(--stage-scrim));
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  }
+
+  /* 지역 줄: 레일 오른쪽부터 전투 기록 왼쪽까지, 상자 없이 그늘만 */
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row {
+    left: calc(var(--stage-rail-width) + var(--stage-gutter));
+    right: calc(var(--combat-log-width) + var(--stage-gutter) + 12px);
+    top: 10px;
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-zone-row {
+    border-color: transparent;
+    background: linear-gradient(180deg, rgba(6, 7, 8, .78), rgba(6, 7, 8, 0));
+    box-shadow: none;
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-zone-row-title { text-shadow: 0 2px 6px #000; }
+
+  /* 몬스터 수·목표 서랍: 레일·전투 기록·보스 체력바(위쪽 ~120px)에 가리지 않는 자리로 */
+  body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-caption {
+    top: 70px;
+    left: calc(var(--stage-rail-width) + var(--stage-gutter) + 8px);
+  }
+  body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-wrap > #ui-goal-drawer {
+    top: 128px;
+    right: calc(var(--combat-log-width) + var(--stage-gutter) + 20px);
+  }
+  body[data-ui-skin="rift"].desktop-windowed-ui #ui-bounty-box {
+    top: 108px;
+    left: calc(var(--stage-rail-width) + var(--stage-gutter) + 8px);
+  }
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-workspace-docked .battlefield-caption { left: calc(var(--stage-rail-width) + var(--stage-gutter) + 8px); }
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-workspace-docked .battlefield-wrap > #ui-goal-drawer { right: var(--stage-gutter); }
+
+  /* 오른쪽 탐험 지도·전투 기록: 떠 있는 반투명 판 */
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed {
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-feed {
+    border-color: var(--stage-line);
+    background: linear-gradient(180deg, var(--stage-scrim-strong), var(--stage-scrim));
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).desktop-windowed-ui .combat-feed :is(#act-exploration-panel, #log) { background: transparent; }
+}
+/* 모바일 세로 화면: 전장 캔버스가 지역 줄 아래부터 화면 바닥까지 깔리고, 전투 기록·HUD가 그 아래쪽 위에 뜬다.
+   격자 한 칸(2~4행)에 전장과 기록·HUD를 겹쳐 두어 높이를 숫자로 맞추지 않는다(HUD 높이가 바뀌어도 그대로 맞음).
+   지역 줄은 전장 위에 겹치지 않으므로 전장 위쪽에 붙는 표식(몬스터 수·목표·보물 사냥)은 원래 자리를 쓴다.
+   가로 화면(HUD가 전장 왼쪽에 서는 배치)은 기존 그대로 둔다. */
+@media (max-width: 1080px) and (orientation: portrait) {
+  body[data-ui-skin="rift"].mobile-battle-tab { padding: 0; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle { padding: 0; }
+  body[data-ui-skin="rift"]:not(.light-mode).mobile-battle-tab #tab-battle { background: #050607; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    padding: 0;
+    gap: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).mobile-battle-tab #tab-battle .combat-panel { background: #050607; box-shadow: none; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row { grid-row: 1; grid-column: 1; width: auto; margin: 6px 6px 0; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-stage { grid-row: 2 / 5; grid-column: 1; z-index: 0; height: auto; min-height: 0; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed { grid-row: 3; grid-column: 1; width: auto; margin: 0 6px 6px; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .player-hud { grid-row: 4; grid-column: 1; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle :is(.combat-zone-row, .player-hud, .combat-feed) { position: relative; z-index: 20; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-wrap { border: 0; border-radius: 0; }
+  /* 바닥 전리품 넘기기 버튼은 HUD에 가리지 않게 전장 위쪽 오른편(목표 버튼 아래)으로 */
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-exploration-loot-skip { top: 40px; bottom: auto; }
+  body[data-ui-skin="rift"]:not(.light-mode).mobile-battle-tab #tab-battle .combat-zone-row {
+    border-color: rgba(201, 164, 92, .22);
+    background: linear-gradient(180deg, rgba(10, 11, 13, .96), rgba(6, 7, 8, .9));
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).mobile-battle-tab #tab-battle .combat-feed {
+    border-color: rgba(201, 164, 92, .22);
+    background: rgba(6, 7, 8, .72);
+  }
+  body[data-ui-skin="rift"]:not(.light-mode).mobile-battle-tab #tab-battle .player-hud {
+    border-top: 1px solid rgba(201, 164, 92, .26);
+    background: linear-gradient(180deg, rgba(10, 11, 13, .74), rgba(6, 7, 8, .92));
+  }
+}
+}

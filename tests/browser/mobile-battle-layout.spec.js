@@ -59,13 +59,18 @@ test('mobile battle keeps readable health, touchable flasks and an optional comp
             const frame = document.querySelector('.player-health-frame').getBoundingClientRect();
             const field = document.getElementById('battlefield-wrap').getBoundingClientRect();
             const flasks = [...document.querySelectorAll('#ui-combat-flasks button')].map(el => el.getBoundingClientRect().width);
-            return { font: parseFloat(getComputedStyle(hp).fontSize), hpBottom: frame.bottom, hpRight: frame.right, fieldTop: field.top, fieldLeft: field.left,
-                fieldBottom: field.bottom, navigationTop: document.getElementById('tab-header-bottom').getBoundingClientRect().top, flasks };
+            return { font: parseFloat(getComputedStyle(hp).fontSize), hpTop: frame.top, hpBottom: frame.bottom, hpRight: frame.right, fieldTop: field.top, fieldLeft: field.left,
+                fieldBottom: field.bottom, navigationTop: document.getElementById('tab-header-bottom').getBoundingClientRect().top, flasks,
+                fullBleed: document.body.dataset.uiSkin === 'rift' };
         });
         expect(geometry.font).toBeGreaterThanOrEqual(14);
         if (viewport.width > viewport.height) {
             expect(geometry.hpRight).toBeLessThanOrEqual(geometry.fieldLeft);
             expect(geometry.fieldBottom).toBeLessThanOrEqual(geometry.navigationTop);
+        } else if (geometry.fullBleed) {
+            // 균열 등불 세로 화면: 전장이 전투 탭 전체 뒤에 깔리고 HUD는 그 아래쪽 절반 위에 떠 있다.
+            expect(geometry.hpTop).toBeGreaterThan((geometry.fieldTop + geometry.fieldBottom) / 2);
+            expect(geometry.hpBottom).toBeLessThanOrEqual(Math.min(geometry.fieldBottom, geometry.navigationTop));
         } else expect(geometry.hpBottom).toBeLessThanOrEqual(geometry.fieldTop);
         expect(geometry.flasks.length).toBeGreaterThan(0);
         expect(Math.min(...geometry.flasks)).toBeGreaterThanOrEqual(44);

@@ -3187,11 +3187,15 @@ test('main battle progress stays readable and collapsing the log returns space t
     if (testInfo.project.name.startsWith('mobile')) return;
     const battlefield = page.locator('#battlefield-wrap');
     const original = await battlefield.boundingBox();
+    // 균열 등불(rift) 스킨은 전장이 화면 전체를 쓰고 전투 기록이 그 위에 떠 있다. 기록을 접으면 폭은 그대로이고 가리던 부분이 드러난다.
+    const fullBleed = await page.evaluate(() => document.body.dataset.uiSkin === 'rift');
+    if (fullBleed) expect(original.width).toBeGreaterThanOrEqual(page.viewportSize().width - 1);
     const toggle = page.locator('#btn-combat-log-toggle');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('#log')).toBeHidden();
-    await expect.poll(async () => (await battlefield.boundingBox()).width).toBeGreaterThan(original.width + 100);
+    if (fullBleed) await expect.poll(async () => Math.abs((await battlefield.boundingBox()).width - original.width)).toBeLessThan(2);
+    else await expect.poll(async () => (await battlefield.boundingBox()).width).toBeGreaterThan(original.width + 100);
     await expect.poll(() => page.locator('#battlefield-canvas').evaluate(canvas =>
         canvas.width - Math.round(Math.round(canvas.parentElement.getBoundingClientRect().width)
             * Math.min(2, Math.max(1, window.devicePixelRatio))))).toBe(0);
