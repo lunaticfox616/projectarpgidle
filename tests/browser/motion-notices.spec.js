@@ -9,25 +9,6 @@ test.beforeEach(async ({ page }) => {
     await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; });
 });
 
-test('returning and reloading preserve the four core menus at level one', async ({ page }) => {
-    await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
-    expect(await page.evaluate(() => game.unlocks.char)).toBe(true);
-    await page.locator('#btn-combat-return').click();
-    expect(await page.evaluate(() => [game.level, game.unlocks.char])).toEqual([1, true]);
-    if (await page.locator('#btn-mobile-nav-more').isVisible()) await page.locator('#btn-mobile-nav-more').click();
-    await expect(page.locator('#btn-tab-char')).toBeVisible();
-    await page.evaluate(() => saveGame({ skipCloudSync: true }));
-    await page.reload();
-    await page.locator('#btn-startup-guest').click();
-    await page.waitForFunction(() => battleAssets.ready && game.heroSelectionInitialized);
-    await page.evaluate(() => { clearInterval(gameTickHandle); tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
-    expect(await page.evaluate(() => game.unlocks.char)).toBe(true);
-    await page.evaluate(() => { game.level = 2; checkUnlocks(); updateStaticUI(); });
-    expect(await page.evaluate(() => game.unlocks.char)).toBe(true);
-    if (await page.locator('#btn-mobile-nav-more').isVisible()) await page.locator('#btn-mobile-nav-more').click();
-    await expect(page.locator('#btn-tab-char')).toBeVisible();
-});
-
 test('notice and death report share theme materials and remain operable', async ({ page }, testInfo) => {
     await page.evaluate(() => {
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);

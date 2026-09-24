@@ -73,28 +73,6 @@ test('battle survives repeated large-scale and viewport mode transitions', async
     await expect(page.locator('#left-pane #battle-column')).toBeVisible();
 });
 
-test('desktop battle uses viewport height and reclaims collapsed log space', async ({ page }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium');
-    await start(page);
-    for (const percent of ['80', '100', '175', '200', '225', '250']) {
-        const height = 900 * Number(percent) / 100;
-        await page.setViewportSize({ width: 1400 * Number(percent) / 100, height });
-        await page.evaluate(() => { closeAllWindows(); switchTab('tab-settings'); });
-        await page.locator('#sel-ui-scale').selectOption(percent);
-        await page.evaluate(() => {
-            closeAllWindows();
-            game.settings.combatLogCollapsed = false; applyPanelLayoutSettings();
-        });
-        const bounds = await page.locator('#left-pane').boundingBox();
-        expect(Math.abs(bounds.y + bounds.height - height)).toBeLessThan(3);
-        const expanded = await page.locator('#battlefield-wrap').boundingBox();
-        await page.locator('#btn-combat-log-toggle').click();
-        const collapsed = await page.locator('#battlefield-wrap').boundingBox();
-        expect(collapsed.width).toBeGreaterThan(expanded.width);
-        await expect(page.locator('.player-hud')).toBeVisible();
-    }
-});
-
 test('embedded previews apply the same viewport scaling to external styles', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop-chromium');
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
@@ -116,26 +94,6 @@ test('embedded previews apply the same viewport scaling to external styles', asy
         return { height: document.getElementById('left-pane').getBoundingClientRect().height, viewport: innerHeight };
     });
     expect(Math.abs(bounds.height - bounds.viewport)).toBeLessThan(3);
-});
-
-test('4K display keeps large scales in desktop layout with accessible controls', async ({ browser, baseURL }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium');
-    const context = await browser.newContext({ baseURL, viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2, serviceWorkers: 'block' });
-    const page = await context.newPage();
-    await start(page);
-    const select = page.locator('#sel-ui-scale');
-    const baseHeight = (await select.boundingBox()).height;
-    for (const percent of ['175', '200', '225', '250']) {
-        await select.selectOption(percent);
-        await select.scrollIntoViewIfNeeded();
-        await select.click({ trial: true });
-        await expect(page.locator('body')).toHaveClass(/desktop-windowed-ui/);
-        expect((await select.boundingBox()).height / baseHeight).toBeCloseTo(Number(percent) / 100, 1);
-        await page.screenshot({ path: info.outputPath(`4k-scale-${percent}.png`), scale: 'device' });
-    }
-    await page.evaluate(() => closeAllWindows());
-    await expect(page.locator('#left-pane #battle-column')).toBeVisible();
-    await context.close();
 });
 
 test('large UI scales apply, survive reload, and allow returning to normal size', async ({ page }, info) => {

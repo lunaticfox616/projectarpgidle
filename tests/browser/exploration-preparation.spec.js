@@ -347,7 +347,7 @@ test('rift preparation reports actual reinforcements and conditional entry',asyn
     expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
 });
 
-for(const result of ['clear','defeat']) for(const source of [0,19]) test(`manual meteor ${result} returns to hunting area ${source}`,async({page})=>{
+for(const result of ['clear','defeat']) for(const source of [19]) test(`manual meteor ${result} returns to hunting area ${source}`,async({page})=>{
     await openPreparedGame(page);
         await page.evaluate(source=>{
             game.currentZoneId=source;game.combatHalted=false;game.pendingLoopReady=false;

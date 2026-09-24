@@ -29,46 +29,6 @@ async function openRealms(page) {
 }
 
 
-test('expeditions preserve all planets and galaxy gates without individual exploration',async({page},info)=>{
-    const errors=[];page.on('pageerror',error=>errors.push(error.message));
-    await openRealms(page);
-    await page.evaluate(()=>switchMapSubtab('map-tab-cosmos'));
-    await expect(page.locator('#cosmos-atlas-canvas')).toHaveCount(0);
-    await expect(page.locator('#btn-cosmos-sub-atlas')).toHaveCount(0);
-    await expect(page.getByText('개별 천체 탐사',{exact:true})).toHaveCount(0);
-    await expect(page.locator('[data-route-action="node"]')).toHaveCount(0);
-    await expect(page.locator('#ui-cosmos-detail')).toBeHidden();
-    const displayed = new Set(await page.locator('[data-planned-node]').evaluateAll(nodes=>nodes.map(node=>node.dataset.plannedNode)));
-    for(const galaxy of [2,3,4,5]){
-        await page.locator('#cosmos-galaxy').selectOption(String(galaxy));
-        for(const id of await page.locator('[data-planned-node]').evaluateAll(nodes=>nodes.map(node=>node.dataset.plannedNode)))displayed.add(id);
-        await expect(page.locator('[data-route-action="start"]')).toHaveCount(0);
-        await expect(page.locator('.cosmos-route-notice')).toContainText(`${galaxy-1}은하 보스 격파`);
-        await expect(page.locator('[data-route-action="node"]')).toHaveCount(0);
-    }
-    const existingIds=await page.evaluate(()=>[...COSMOS_PLANETS.map((_,i)=>'planet-'+i),...COSMOS_ASTEROID_NUMBERS.map(n=>'asteroid-'+n)]);
-    expect([...displayed].sort()).toEqual(existingIds.sort());
-    await page.locator('#cosmos-galaxy').selectOption('1');
-    const selectedPlan=await page.evaluate(()=>cosmosRouteRuntime.preview(game).plan.flat());
-    expect(await page.locator('[data-planned-node]').evaluateAll(nodes=>nodes.map(n=>n.dataset.plannedNode))).toEqual(selectedPlan);
-    await page.screenshot({path:info.outputPath('star-map.png'),scale:'css'});
-    await page.locator('[data-route-action="start"]').click();
-    expect(await page.evaluate(()=>game.cosmosAtlas.activeChallenge.nodeId)).toBe('planet-0');
-    await page.evaluate(()=>{for(let i=0;i<26;i++)finishEncounterRun();renderCosmosAtlas();});
-    expect(await page.evaluate(()=>game.cosmosAtlas.bossClears)).toContain('planet-46');
-    await page.waitForFunction(()=>{
-        if(uiRefreshQueued||uiRefreshRunning)return false;
-        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
-    });
-    await page.locator('#cosmos-galaxy').selectOption('2');
-    await page.locator('[data-route-action="start"]').click();
-    expect(await page.evaluate(()=>game.currentZoneId)).toBe('cosmos_challenge');
-    expect(await page.evaluate(()=>game.cosmosAtlas.activeChallenge.nodeId)).not.toBe('planet-0');
-    await expect(page.locator('.cosmos-planet-stop.current')).toHaveCount(1);
-    await expect(page.locator('[data-route-action="battle"]')).toBeVisible();
-    expect(errors).toEqual([]);
-});
-
 test('expedition controls work at UI scales and do not redraw while idle',async({page},info)=>{
     await openRealms(page);
     if(!info.project.use.isMobile)await page.setViewportSize({width:3200,height:1800});

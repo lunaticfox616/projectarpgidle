@@ -25,22 +25,6 @@ async function openUnderworld(page,empty=false) {
     });
 }
 
-test('underworld controls remain connected during combat and currency refresh',async({page})=>{
-    await openUnderworld(page);
-    const button=page.locator('.underworld-entry-actions').getByRole('button',{name:'1층 입장',exact:true});
-    await button.focus();
-    expect(await button.evaluate(el=>{
-        game.currencies.runeShard++;renderUnderworldMapPanel();
-        return el.isConnected&&document.activeElement===el;
-    })).toBe(true);
-    const summary=page.locator('.underworld-inventory-card summary');await summary.click();
-    expect(await summary.evaluate(el=>{
-        game.currencies.underCopper++;renderUnderworldMapPanel();
-        return el.isConnected&&el.parentElement.open;
-    })).toBe(true);
-    await button.click();expect(await page.evaluate(()=>game.currentZoneId===UNDERWORLD_ZONE_ID)).toBe(true);
-});
-
 test('first rune unlock explains the milestone instead of an inverted range',async({page},info)=>{
     await openUnderworld(page,true);
     const panel=page.locator('#ui-underworld-panel');

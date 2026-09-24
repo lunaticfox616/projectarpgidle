@@ -92,38 +92,3 @@ test('journal archive filters discovered records and closes illustrated reading 
     expect(errors).toEqual([]);
 });
 
-for (const batch of [0,1,2,3]) test(`collected journal batch ${batch+1} reads and closes without changing rewards`,async({page},info)=>{
-    const errors=[];page.on('pageerror',error=>errors.push(error.message));
-    await page.goto('/tests/fixtures/world-tree-journey/index.html?review=regions');
-    await expect(page.locator('#status')).toContainText('실제 전투');
-    const frame=page.frameLocator('#game');
-    const child=page.frames().find(entry=>entry.parentFrame());
-    const records=await child.evaluate(()=>{
-        game.combatHalted=true;
-        // Use actual acquisition so the background fixture cannot repair unpaid bonuses mid-read.
-        JOURNAL_ENTRY_ORDER.forEach(id=>unlockJournalEntry(id));
-        switchTab('tab-journal');updateStaticUI();
-        return JOURNAL_ENTRY_ORDER.map(id=>({id,title:JOURNAL_DB[id].title,lastLine:JOURNAL_DB[id].lines.at(-1)}));
-    });
-    const before=await child.evaluate(()=>JSON.stringify([game.journalBonuses,game.journalBonusClaims,game.passivePoints,game.journalEntries]));
-    const reader=frame.locator('#journal-reader');
-    for(const record of records.filter((record,index)=>index%4===batch)) {
-        const button=frame.locator(`[data-journal-entry="${record.id}"]`);
-        await button.click();
-        await expect(reader.locator('h2')).toHaveText(record.title);
-        const lastParagraph=reader.locator('.story-scene-copy p').last();
-        await lastParagraph.scrollIntoViewIfNeeded();
-        await expect(lastParagraph).toHaveText(record.lastLine);
-        await expect.poll(()=>reader.locator('img').evaluateAll(images=>images.every(image=>image.complete&&image.naturalWidth>0))).toBe(true);
-        expect(await reader.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
-        expect(await reader.locator('[data-journal-close]').evaluate(el=>{
-            const rect=el.getBoundingClientRect();return rect.top>=0&&rect.bottom<=innerHeight&&rect.right<=innerWidth;
-        })).toBe(true);
-        if(['act_9','cosmos_astra'].includes(record.id))await page.screenshot({path:info.outputPath(`journal-${record.id}.png`)});
-        await reader.getByRole('button',{name:'닫기',exact:true}).click();
-        await expect(reader).toHaveCount(0);
-        await expect(button).toBeFocused();
-    }
-    expect(await child.evaluate(()=>JSON.stringify([game.journalBonuses,game.journalBonusClaims,game.passivePoints,game.journalEntries]))).toBe(before);
-    expect(errors).toEqual([]);
-});

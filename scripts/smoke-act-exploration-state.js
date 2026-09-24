@@ -116,7 +116,6 @@ const mutations=[
     'bad.actExploration.packs[0].aliveIds.push(bad.actExploration.packs[0].aliveIds[0])',
     'bad.actExploration.packs.pop()',
     'bad.actExploration.status="cleared"',
-    'bad.currentZoneId=1',
     'bad.actExploration.departure={zoneId:1,remainingMs:100}',
     'bad.actExploration.departure=false'
 ];
@@ -126,6 +125,9 @@ for(const mutation of mutations) {
     assert.throws(()=>run('mergeDefaults(bad)'),/탐험|보스/);
     assert.deepEqual(copy('bad.actExploration'),original,'failed save restore leaves source roster intact');
 }
+// 다른 지역에 남은 탐험은 손상이 아니라 끝난 탐험이다(실행 중 current()와 같은 규칙): 탐험만 버리고 연다.
+run('bad=JSON.parse(serializeSaveState(game));bad.currentZoneId=1;');
+assert.equal(run('mergeDefaults(bad).actExploration'),null,'a run left in another zone is dropped instead of blocking the save');
 assert.equal(run('mergeDefaults({}).actExploration'),null,'old saves do not invent a new run');
 run('game.actExploration=null;game.currentZoneId="trial_1";');
 assert.equal(run('getCombatGridSize().columns'),9,'special arenas keep their original bounds');

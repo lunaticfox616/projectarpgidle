@@ -179,7 +179,13 @@ const actExplorationState = (() => {
     }
     function restore(state) {
         const run=state.actExploration;if(run===null || run===undefined)return null;
-        if(run.zoneId!==state.currentZoneId)throw Error('탐험 저장과 현재 지역이 일치하지 않습니다.');
+        // 다른 지역에 남은 탐험은 실행 중에도 current()가 무시하고 다음 출발 때 버려진다(reconcileDeparture).
+        // 불러올 때도 같은 규칙으로 버린다: 저장 전체를 손상으로 막지 않고, 임시 전리품은 지급하지 않는다.
+        if(run.zoneId!==state.currentZoneId) {
+            console.warn('stale act exploration dropped on load:', run.zoneId, '!=', state.currentZoneId);
+            state.actExploration=null;
+            return null;
+        }
         validate(run,state.enemies);validCell(actExplorationMap.layout(run.act),state.gridPlayer);
         actExplorationMotion.validate(run,state.gridPlayer,actExplorationMap.layout(run.act));
         actExplorationLoot.restore(run);

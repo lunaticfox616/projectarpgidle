@@ -108,6 +108,10 @@ async function main() {
     fresh();const tooltip=element('',{onclick:'void 0'});tooltip.click();
     assert.equal(run('actExplorationUi.departurePending()'),false,'tooltip actions inside cards do not request travel');
     run('returnToTown()');assert.equal(run('game.actExploration'),null,'combat-initiated return stays synchronous');
+    // 다른 지역에 남은 탐험이 든 저장은 손상 처리 대신 그 탐험만 버리고 연다(임시 전리품 미지급).
+    fresh();run('game.currentZoneId=1');
+    const stale=copy('(()=>{const restored=mergeDefaults(JSON.parse(serializeSaveState(game)));return {zone:restored.currentZoneId,run:restored.actExploration,gold:restored.currencies.goldenRule};})()');
+    assert.deepEqual(stale,{zone:1,run:null,gold:0},'a stale exploration from another zone is dropped on load without paying its loot');
     console.log('act exploration departure: PASS');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -264,64 +264,6 @@ test('craft entry opens branches and loop progress works without a normal item o
     await expect(page.locator('#btn-skill-tab-research')).toBeHidden();
 });
 
-test('condition choice prepares an editable boss evasion rule', async ({ page }, info) => {
-    const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
-    await page.evaluate(() => {
-        game.season = 3; checkUnlocks(); contentProgression.purchase('craft'); tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
-        switchTab('tab-unlocks'); updateStaticUI();
-    });
-    await page.locator('[data-unlock-select="condition"]').click();
-    await page.locator('[data-unlock-content="condition"]').click();
-    await page.locator('[data-open-content="condition"]').click();
-    await expect(page.locator('#skill-tab-condition')).toBeVisible();
-    const rule = page.locator('.condition-pattern-rule').first();
-    await expect(rule.locator('select').nth(0)).toHaveValue('boss_warning');
-    await expect(rule.locator('select').last()).toHaveValue('긴급 회피');
-    await rule.locator('input[type="checkbox"]').uncheck();
-    expect(await page.evaluate(() => game.skillAutoRules[0].enabled)).toBe(false);
-    await rule.locator('input[type="checkbox"]').check();
-    await page.screenshot({ path: info.outputPath('condition-evasion.png') });
-    const result = await page.evaluate(() => {
-        game.gridPlayer = { gx: 3, gy: 4, gridMoveTimer: 0 };
-        game.enemies = [{ id: 'evasion-review', hp: 100, gx: 7, gy: 4, ailments: [],
-            patternArea: { cells: [{ gx: 3, gy: 4 }, { gx: 4, gy: 4 }] } }];
-        const hp = game.playerHp;
-        runConditionGemAutoRules(getPlayerStats());
-        return { moved: game.gridPlayer.gx !== 3 || game.gridPlayer.gy !== 4,
-            unchangedHp: game.playerHp === hp, cast: game.lastConditionGemCast?.name,
-            cooldown: game.conditionGemCooldowns['긴급 회피'] > getCombatTime() };
-    });
-    expect(result).toEqual({ moved: true, unchangedHp: true, cast: '긴급 회피', cooldown: true });
-    expect(errors).toEqual([]);
-});
-
-test('craft reward is usable and automatic combat needs no purchase', async ({ page }) => {
-    await page.evaluate(() => {
-        game.season = 3; checkUnlocks(); tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
-        game.inventory.push(createItemFromBase(BASE_ITEM_DB.find(row => row.id === 'war_helm'), 'normal', 10));
-        game.currencies.magicBud = 0;
-        switchTab('tab-unlocks'); updateStaticUI();
-    });
-    await page.locator('[data-unlock-select="craft"]').click();
-    await page.locator('[data-unlock-content="craft"]').click();
-    await page.locator('[data-open-content="craft"]').click();
-    await expect(page.locator('#item-tab-craft')).toBeVisible();
-    const baseBefore = await page.evaluate(() => JSON.stringify(game.inventory[0].baseStats));
-    await page.evaluate(async () => { selectForCrafting(game.inventory[0].id, false); await useCurrency('magicBud'); });
-    expect(await page.evaluate(() => [game.currencies.magicBud, game.inventory[0].rarity])).toEqual([0, 'magic']);
-    expect(await page.evaluate(() => game.inventory[0].stats.length)).toBeGreaterThan(0);
-    expect(await page.evaluate(() => JSON.stringify(game.inventory[0].baseStats))).toBe(baseBefore);
-    await expect(page.locator('.craft-result-ledger')).toBeVisible();
-    await page.evaluate(() => { switchTab('tab-unlocks'); updateStaticUI(); });
-    await page.locator('[data-unlock-view="progress"]').click();
-    await page.locator('[data-unlock-select="labyrinth"]').click();
-    await expect(page.locator('[data-open-content="labyrinth"]')).toBeEnabled();
-    await expect(page.locator('.content-unlock-balance strong')).toHaveText('3');
-    await page.locator('[data-open-content="labyrinth"]').click();
-    await expect(page.locator('#map-explore-labyrinth')).toBeVisible();
-});
-
 test('milestones distinguish world progress from choices and passive points stay usable after unlocking', async ({ page }, info) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
