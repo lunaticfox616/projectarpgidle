@@ -10,7 +10,7 @@
     --stage-rail-width: 148px;
     --stage-gutter: 16px;
     --stage-feed-width: clamp(248px, 19vw, 280px);
-    --stage-map-block: 226px;
+    --stage-map-block: 206px;
     --stage-scrim: rgba(6, 7, 8, .74);
     --stage-scrim-strong: rgba(6, 7, 8, .86);
     --stage-line: rgba(201, 164, 92, .26);
@@ -47,6 +47,23 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   }
 
+  /* 레일 단축키 표시(I·C·P·G·M·J, js/ui-window-manager.js WINDOW_HOTKEYS) */
+  body[data-ui-skin="rift"].desktop-windowed-ui .ui-rail-tab-layer .tab-btn[data-hotkey]::after {
+    content: attr(data-hotkey);
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: auto;
+    border: 1px solid rgba(201, 164, 92, .34);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, .35);
+    color: #b3a88f;
+    font: 600 10px/1 var(--font-caps, serif);
+  }
+
   /* 지역 줄: 레일 오른쪽부터 오른쪽 열 왼쪽까지, 상자 없이 그늘만 */
   body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row {
     left: calc(var(--stage-rail-width) + var(--stage-gutter));
@@ -75,17 +92,10 @@
   }
 
   /* 오른쪽 열: 위에 탐험 미니맵(탐험 중에만), 아래에 전투 기록·채팅 */
+  /* 둥근 미니맵은 오른쪽 열 가운데 위 */
   body[data-ui-skin="rift"].desktop-windowed-ui #act-exploration-panel {
-    top: 10px;
-    right: 10px;
-    width: var(--stage-feed-width);
-    height: var(--stage-map-block);
-    padding: 10px;
-    border-radius: 0;
-  }
-  :root body[data-ui-skin="rift"].desktop-windowed-ui #act-exploration-panel {
-    border-color: var(--stage-line);
-    background: linear-gradient(180deg, var(--stage-scrim-strong), var(--stage-scrim));
+    top: 16px;
+    right: calc(10px + (var(--stage-feed-width) - var(--minimap-size)) / 2);
   }
   /* 전투 기록은 아래쪽에 붙은 낮은 판(화면 높이의 44%까지). 그 위 빈자리로 전장이 보인다. */
   body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed {

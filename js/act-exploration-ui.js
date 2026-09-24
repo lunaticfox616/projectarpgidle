@@ -31,6 +31,7 @@ const actExplorationUi=(()=>{
         const seen=run.discovered.filter(id=>map.tiles[id]).length;
         const pct=floor?Math.round(seen/floor*100):0;
         host.style.setProperty('--explore-pct',pct+'%');
+        document.getElementById('act-exploration-panel').style.setProperty('--explore-pct',pct+'%');
         host.setAttribute('aria-valuenow',String(pct));
         host.querySelector('b').textContent=`탐험 ${pct}%`+(remaining?` · 정예 ${remaining}`:' · 관문 개방');
     }
