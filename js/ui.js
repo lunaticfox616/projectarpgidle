@@ -15241,7 +15241,10 @@ function renderBattlefieldThrottled(frameNow) {
     // The scrolling exploration camera needs 60 Hz on desktop. Keep the existing
     // arena/mobile limits, and retain fractional timing on high-refresh displays.
     const exploration = !!actExplorationState.current(game);
-    const interval = exploration ? uiDisplay.explorationFrameMs : uiDisplay.battleFrameMs;
+    // 관리 창이 열려 전장을 덮고 있으면 그리기를 10fps로 늦춘다(전장 전체 화면에서 합성 비용·배터리 절약).
+    const covered = document.body.classList.contains('ui-management-mode');
+    const interval = Math.max(exploration ? uiDisplay.explorationFrameMs : uiDisplay.battleFrameMs,
+        covered ? uiDisplay.coveredBattleFrameMs : 0);
     const elapsed = frameNow - lastBattlefieldRenderAt;
     // Allow sub-millisecond RAF jitter without increasing the desktop's existing paint cadence.
     if (elapsed + 0.5 < interval) return;

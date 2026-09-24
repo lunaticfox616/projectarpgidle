@@ -47,6 +47,17 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   }
 
+  /* 성능: 매 프레임 바뀌는 전장 캔버스 위·아래에 CSS 필터나 배경 흐림(backdrop-filter)이 있으면 브라우저가 그 면적을
+     프레임마다 다시 계산한다(GPU 없는 렌더에서 관리 창을 열면 초당 10프레임 안팎까지 떨어짐). 색 보정 필터와 흐림을 빼고,
+     창이 열렸을 때 전장 어둡게는 고정된 반투명 막(::before)으로 대신한다. 판들은 이미 충분히 불투명하다. */
+  body[data-ui-skin="rift"].desktop-windowed-ui #battlefield-canvas { filter: none; }
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-management-mode .battlefield-wrap { filter: none; }
+  body[data-ui-skin="rift"].desktop-windowed-ui.ui-management-mode .battlefield-wrap::before { background: rgba(3, 4, 5, .4); }
+  body[data-ui-skin="rift"].desktop-windowed-ui :is(.combat-zone-row, .battlefield-caption, .combat-feed, .tab-content.ui-window, #act-exploration-panel, .player-hud, .enemy-card, .ui-goal-panel, #ui-goal-body) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
   /* 메뉴 레일: 화면 높이 전체 기둥 대신 메뉴 길이만큼만(넘치는 메뉴는 기존처럼 "기타"로). */
   body[data-ui-skin="rift"].desktop-windowed-ui .tab-header { bottom: auto; max-height: calc(100% - 16px); }
   body[data-ui-skin="rift"].desktop-windowed-ui .tab-header > .ui-rail-tab-layer { flex: 0 1 auto; min-height: 0; }
@@ -158,6 +169,8 @@
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-wrap { border: 0; border-radius: 0; }
   /* 하단 메뉴 "전체" 글자가 다른 칸보다 아래로 처지던 것을 가운데로 */
   body[data-ui-skin="rift"] #tab-header-bottom #btn-mobile-nav-more { align-items: center; justify-content: center; }
+  /* 성능: 움직이는 전장 위 배경 흐림 제거(PC와 같은 이유) */
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-caption { -webkit-backdrop-filter: none; backdrop-filter: none; }
   /* 바닥 전리품 넘기기 버튼은 HUD에 가리지 않게 전장 위쪽 오른편(목표 버튼 아래)으로 */
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-exploration-loot-skip { top: 40px; bottom: auto; }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row {
