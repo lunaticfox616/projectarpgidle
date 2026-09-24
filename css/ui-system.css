@@ -2,7 +2,7 @@
 /* PROJECT IDLE product UI contract.
    This final layer owns shared hierarchy and representative battle/equipment
    layouts while legacy screens are migrated incrementally. */
-body:not(.light-mode) {
+:root body {
   color: var(--color-text);
   background-color: var(--color-canvas);
 }
@@ -12,23 +12,20 @@ body select {
   color-scheme: dark;
   border-radius: var(--radius-sm);
 }
-body.light-mode select { color-scheme: light; }
 body select option { color: var(--color-text); background-color: var(--color-surface); }
 body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline-offset: 2px; }
-body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
+:root body :where(button, input, select, textarea):focus-visible {
   outline: 0;
 }
 
-body:not(.light-mode) :where(button, input, select, textarea):disabled:not(.ocean-strategy-card) {
+:root body :where(button, input, select, textarea):disabled:not(.ocean-strategy-card) {
   cursor: not-allowed;
   filter: saturate(.55);
   opacity: .48;
 }
 
 /* Navigation communicates selected state with shape and position, not color alone. */
-body:not(.light-mode) .subtab-row,
-/* Navigation communicates selected state with shape and position, not color alone. */
-body.light-mode .subtab-row {
+:root body .subtab-row {
   gap: var(--space-1);
   padding: var(--space-1);
   border-width: 1px;
@@ -37,20 +34,20 @@ body.light-mode .subtab-row {
 }
 
 /* Navigation communicates selected state with shape and position, not color alone. */
-body:not(.light-mode) .subtab-row {
+:root body .subtab-row {
   border-color: var(--color-line);
   background: rgba(8, 9, 8, .86);
 }
 
-body:not(.light-mode) details > summary {
+:root body details > summary {
   color: var(--color-text-secondary);
 }
 
-body:not(.light-mode) details[open] > summary {
+:root body details[open] > summary {
   color: var(--color-text);
 }
 
-body:not(.light-mode) details > summary::marker {
+:root body details > summary::marker {
   color: var(--color-accent);
 }
 
@@ -164,16 +161,14 @@ body:not(.light-mode) details > summary::marker {
   gap: var(--space-3);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
-body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
-body.light-mode #item-tab-equip .equipment-loadout-panel,
-body.light-mode #item-tab-equip .equipment-inventory-panel {
+:root body #item-tab-equip .equipment-loadout-panel,:root 
+body #item-tab-equip .equipment-inventory-panel {
   padding: var(--space-3);
   border-radius: var(--radius-lg);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
-body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
+:root body #item-tab-equip .equipment-loadout-panel,:root 
+body #item-tab-equip .equipment-inventory-panel {
   border-color: var(--color-line);
   background: linear-gradient(180deg, rgba(21, 20, 16, .99), rgba(8, 9, 8, .995));
   box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .22);
@@ -278,8 +273,7 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
   font-weight: 800;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar,
-body.light-mode #item-tab-equip .equipment-inventory-toolbar {
+:root body #item-tab-equip .equipment-inventory-toolbar {
   border-top-width: 1px;
   border-top-style: solid;
   margin: 0;
@@ -288,7 +282,7 @@ body.light-mode #item-tab-equip .equipment-inventory-toolbar {
   border-radius: 0;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
+:root body #item-tab-equip .equipment-inventory-toolbar {
   border-top-color: rgba(82, 68, 48, .72);
   background: rgba(13, 14, 12, .82);
 }
@@ -386,10 +380,8 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
     box-shadow: inset 0 -3px var(--color-accent-gold);
   }
 
-body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
-  body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
-body.light-mode #item-tab-equip .equipment-loadout-panel,
-  body.light-mode #item-tab-equip .equipment-inventory-panel {
+:root body #item-tab-equip .equipment-loadout-panel,:root 
+  body #item-tab-equip .equipment-inventory-panel {
   padding: 11px;
   border-radius: var(--radius-md);
 }
@@ -502,14 +494,12 @@ body.light-mode #item-tab-equip .equipment-loadout-panel,
     font-size: 12px;
   }
 
-body:not(.light-mode) #item-tab-equip .equipment-paperdoll,
-body.light-mode #item-tab-equip .equipment-paperdoll {
+:root body #item-tab-equip .equipment-paperdoll {
   padding: 5px;
   gap: 4px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot,
-body.light-mode #item-tab-equip .equipment-slot {
+:root body #item-tab-equip .equipment-slot {
   min-height: 74px;
   padding: 4px;
 }
@@ -566,7 +556,7 @@ body select {
   background-color: var(--color-surface);
   border: 1px solid var(--color-line-strong);
 }
-body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
+:root body :where(button, input, select, textarea):focus-visible {
   box-shadow: var(--shadow-focus);
 }
 @media (min-width: 1081px) {

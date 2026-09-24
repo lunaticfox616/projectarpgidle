@@ -16,11 +16,9 @@ test('mobile settings categories preserve controls while desktop keeps all group
     if(!info.project.use.isMobile){
         await expect(category).toBeHidden();
         await expect(page.locator('#chk-camera-shake')).toBeVisible();
-        await expect(page.locator('#sel-theme-mode')).toBeVisible();
         return;
     }
     await expect(category).toBeVisible();
-    await expect(page.locator('#sel-theme-mode')).toBeVisible();
     await expect(page.locator('#chk-camera-shake')).toBeHidden();
     await expect(page.locator('#sel-loop-map-complete-action')).toBeHidden();
     await category.selectOption('battle');
@@ -52,8 +50,6 @@ test('mobile settings categories preserve controls while desktop keeps all group
     await page.setViewportSize({width:1440,height:900});
     await page.evaluate(()=>switchTab('tab-settings'));
     await expect(category).toBeHidden();
-    await expect(page.locator('#sel-theme-mode')).toBeVisible();
     await page.setViewportSize({width:393,height:851});
     await expect(category).toHaveValue('battle');
-    await expect(page.locator('#sel-theme-mode')).toBeHidden();
 });

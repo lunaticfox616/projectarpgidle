@@ -1,13 +1,13 @@
 const {test, expect} = require('@playwright/test');
 
-for (const theme of ['dark', 'light']) test(`hive costs, choices and forfeit remain clear in ${theme}`, async ({page}, info) => {
+test('hive costs, choices and forfeit remain clear', async ({page}, info) => {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({status: 204, body: ''}));
     await page.goto('/'); await page.locator('#btn-startup-guest').click();
     await page.locator('[data-class-id="warrior"]').click();
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await page.evaluate(theme => {
-        clearInterval(gameTickHandle); gameTickHandle = null; applyThemeMode(theme);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
         game.season = 10; game.loopCount = 9; contentProgression.sync();
         game.seenTutorials = [...new Set([...game.seenTutorials, ...MAP_PRIMARY_CONTENTS.map(row => row.noticeKey).filter(Boolean)])];
         game.seenTutorials.push(...STORY_JOURNAL_SCENES.map(scene => 'story_' + scene.id));
@@ -20,7 +20,7 @@ for (const theme of ['dark', 'light']) test(`hive costs, choices and forfeit rem
         closeBeehiveChoiceOverlay(); switchTab('tab-battle');
         openBeehiveChoiceOverlay(); updateStaticUI();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
-    }, theme);
+    });
     await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
     const card = page.locator('.beehive-choice-card');

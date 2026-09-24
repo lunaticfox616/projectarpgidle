@@ -367,8 +367,6 @@ test('milestones distinguish world progress from choices and passive points stay
     if (info.project.name === 'desktop-chromium') await expect(page.locator('[data-unlock-select="deepTree"]')).toBeInViewport();
     await page.locator('#content-unlock-panel').scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath('unlock-passives-dark.png') });
-    await page.evaluate(() => applyThemeMode('light'));
-    await page.screenshot({ path: info.outputPath('unlock-passives-light.png') });
     expect(await page.locator('#content-unlock-panel img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth > 0))).toBe(true);
     expect(errors).toEqual([]);
 });

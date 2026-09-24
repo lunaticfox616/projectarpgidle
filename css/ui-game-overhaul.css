@@ -20,7 +20,7 @@
 }
 
 /* ---------- character selection ---------- */
-body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {
+:root body #loop-hero-select-overlay .tutorial-card {
   width: min(1120px, calc(100vw - 48px));
   padding: 28px;
   border-radius: 4px 28px 4px 28px;
@@ -29,12 +29,12 @@ body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {
     linear-gradient(155deg, rgba(18, 29, 44, 0.99), rgba(4, 9, 16, 0.995));
 }
 
-body:not(.light-mode) #loop-hero-select-grid {
+:root body #loop-hero-select-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
-body:not(.light-mode) .hero-choice {
+:root body .hero-choice {
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -46,7 +46,7 @@ body:not(.light-mode) .hero-choice {
     linear-gradient(180deg, rgba(24, 39, 58, 0.96), rgba(7, 13, 22, 0.99));
 }
 
-body:not(.light-mode) .hero-choice::before {
+:root body .hero-choice::before {
   content: '';
   position: absolute;
   inset: 8px;
@@ -60,7 +60,7 @@ body:not(.light-mode) .hero-choice::before {
   z-index: 2;
 }
 
-body:not(.light-mode) .hero-choice-portrait {
+:root body .hero-choice-portrait {
   position: absolute;
   inset: 9px 9px 42px;
   z-index: 1;
@@ -75,7 +75,7 @@ body:not(.light-mode) .hero-choice-portrait {
   user-select: none;
 }
 
-body:not(.light-mode) .hero-choice strong {
+:root body .hero-choice strong {
   z-index: 3;
   width: 100%;
   margin: 0;
@@ -87,7 +87,7 @@ body:not(.light-mode) .hero-choice strong {
   letter-spacing: 0.08em;
 }
 
-body:not(.light-mode) .hero-choice strong small {
+:root body .hero-choice strong small {
   display:block;
   margin-top:4px;
   overflow:hidden;
@@ -99,7 +99,7 @@ body:not(.light-mode) .hero-choice strong small {
   white-space:nowrap;
 }
 
-body:not(.light-mode) .hero-choice-badge {
+:root body .hero-choice-badge {
   position:absolute;
   z-index:4;
   top:10px;
@@ -112,29 +112,29 @@ body:not(.light-mode) .hero-choice-badge {
   font-size:.62rem;
 }
 
-body:not(.light-mode) .hero-choice:hover:not(:disabled) {
+:root body .hero-choice:hover:not(:disabled) {
   transform: translateY(-5px) scale(1.015);
   border-color: rgba(236, 192, 103, 0.92);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.48), 0 0 28px rgba(74, 171, 231, 0.14), inset 0 0 28px rgba(236, 192, 103, 0.06);
 }
 
 /* ---------- persistent game shell ---------- */
-body:not(.light-mode).desktop-windowed-ui #left-pane { padding: 8px 8px 8px 160px; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-battle::before { content: '⚔︎'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-character::before { content: '♙'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-char::before { content: '✦'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-season::before { content: '↻'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-pruning::before { content: '⌁'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-arcana::before { content: '◇'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-expertise::before { content: '⌬'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-traits::before { content: '♛'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-talent::before { content: '❖'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-items::before { content: '⚒︎'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-jewel::before { content: '◆'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-flask::before { content: '♜'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-map::before { content: '⌖'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-skills::before { content: '◈'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '▤'; }
+:root body.desktop-windowed-ui #left-pane { padding: 8px 8px 8px 160px; }
+:root body.desktop-windowed-ui #btn-tab-battle::before { content: '⚔︎'; }
+:root body.desktop-windowed-ui #btn-tab-character::before { content: '♙'; }
+:root body.desktop-windowed-ui #btn-tab-char::before { content: '✦'; }
+:root body.desktop-windowed-ui #btn-tab-season::before { content: '↻'; }
+:root body.desktop-windowed-ui #btn-tab-pruning::before { content: '⌁'; }
+:root body.desktop-windowed-ui #btn-tab-arcana::before { content: '◇'; }
+:root body.desktop-windowed-ui #btn-tab-expertise::before { content: '⌬'; }
+:root body.desktop-windowed-ui #btn-tab-traits::before { content: '♛'; }
+:root body.desktop-windowed-ui #btn-tab-talent::before { content: '❖'; }
+:root body.desktop-windowed-ui #btn-tab-items::before { content: '⚒︎'; }
+:root body.desktop-windowed-ui #btn-tab-jewel::before { content: '◆'; }
+:root body.desktop-windowed-ui #btn-tab-flask::before { content: '♜'; }
+:root body.desktop-windowed-ui #btn-tab-map::before { content: '⌖'; }
+:root body.desktop-windowed-ui #btn-tab-skills::before { content: '◈'; }
+:root body.desktop-windowed-ui #btn-tab-journal::before { content: '▤'; }
 
 .journal-archive {
   display: grid;
@@ -608,7 +608,6 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 .inventory-expand-shortcut:hover:not(:disabled) { border-color: #e0b86b; color: #fff3ce; }
 .inventory-expand-shortcut:disabled { opacity: .48; cursor: not-allowed; }
 .inventory-expand-shortcut[hidden] { display: none; }
-body.light-mode .inventory-expand-shortcut { border-color: #caa85f; background: #fff7e4; color: #765616; }
 
 .jewel-overflow-warning {
   color: #ffbd7e;
@@ -673,26 +672,24 @@ body.light-mode .inventory-expand-shortcut { border-color: #caa85f; background: 
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-codex::before { content: '⌘'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-talisman::before { content: '☽'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-cube::before { content: '⬡'; }
-body:not(.light-mode).desktop-windowed-ui #btn-tab-settings::before { content: '⚙︎'; }
+:root body.desktop-windowed-ui #btn-tab-codex::before { content: '⌘'; }
+:root body.desktop-windowed-ui #btn-tab-talisman::before { content: '☽'; }
+:root body.desktop-windowed-ui #btn-tab-cube::before { content: '⬡'; }
+:root body.desktop-windowed-ui #btn-tab-settings::before { content: '⚙︎'; }
 
-body:not(.light-mode).desktop-windowed-ui .combat-panel,
-body.light-mode.desktop-windowed-ui .combat-panel {
+:root body.desktop-windowed-ui .combat-panel {
   border-width: 1px;
   border-style: solid;
   border-radius: 0 18px 0 18px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-panel {
+:root body.desktop-windowed-ui .combat-panel {
   border-color: rgba(91, 126, 162, 0.32);
   background: radial-gradient(circle at 45% 42%, rgba(28, 60, 86, 0.24), transparent 44%), #02060b;
   box-shadow: inset 0 0 80px rgba(0,0,0,.64);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row,
-body.light-mode.desktop-windowed-ui .combat-zone-row {
+:root body.desktop-windowed-ui .combat-zone-row {
   z-index: 20;
   left: 18px;
   right: calc(var(--combat-log-width) + 22px);
@@ -701,25 +698,24 @@ body.light-mode.desktop-windowed-ui .combat-zone-row {
   border-radius: 2px 14px 2px 14px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
+:root body.desktop-windowed-ui .combat-zone-row {
   border-color: rgba(126, 164, 201, 0.42);
   background: linear-gradient(180deg, rgba(17, 30, 45, 0.93), rgba(5, 11, 18, 0.9));
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap,
-body.light-mode.desktop-windowed-ui .battlefield-wrap {
+:root body.desktop-windowed-ui .battlefield-wrap {
   width: min(100%, 1440px);
   border-width: 1px;
   border-style: solid;
   border-radius: 2px 22px 2px 22px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap {
+:root body.desktop-windowed-ui .battlefield-wrap {
   border-color: rgba(232, 190, 103, 0.52);
   box-shadow: 0 36px 88px rgba(0,0,0,.68), 0 0 0 3px rgba(5,11,18,.8), 0 0 42px rgba(65,154,211,.12), inset 0 0 60px rgba(0,0,0,.48);
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap::after {
+:root body.desktop-windowed-ui .battlefield-wrap::after {
   content: '';
   position: absolute;
   inset: 9px;
@@ -729,38 +725,34 @@ body:not(.light-mode).desktop-windowed-ui .battlefield-wrap::after {
   pointer-events: none;
 }
 
-body:not(.light-mode).desktop-windowed-ui #enemy-area,
-body.light-mode.desktop-windowed-ui #enemy-area {
+:root body.desktop-windowed-ui #enemy-area {
   top: 24px;
   z-index: 24;
   width: clamp(440px, 48vw, 680px);
 }
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted,
-body.light-mode.desktop-windowed-ui .enemy-card.targeted {
+:root body.desktop-windowed-ui .enemy-card.targeted {
   min-height: 68px;
   padding: 7px 16px 8px;
   border-radius: 12px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted {
+:root body.desktop-windowed-ui .enemy-card.targeted {
   clip-path: none;
   background: linear-gradient(180deg, rgba(24, 28, 36, .84), rgba(6, 10, 16, .8));
   box-shadow: 0 12px 32px rgba(0,0,0,.42), inset 0 1px rgba(255,235,192,.07);
   backdrop-filter: blur(5px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .enemy-name,
-body.light-mode.desktop-windowed-ui .enemy-card.targeted .enemy-name {
+:root body.desktop-windowed-ui .enemy-card.targeted .enemy-name {
   letter-spacing: .08em;
 }
 
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .enemy-name {
+:root body.desktop-windowed-ui .enemy-card.targeted .enemy-name {
   color: #ffe9b6;
   text-shadow: 0 0 16px rgba(232,154,73,.35);
 }
 
-body:not(.light-mode).desktop-windowed-ui .player-hud,
-body.light-mode.desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   z-index: 18;
   bottom: 17px;
   width: clamp(470px, 44vw, 640px);
@@ -769,14 +761,14 @@ body.light-mode.desktop-windowed-ui .player-hud {
   border-radius: 14px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   clip-path: none;
   border-color: rgba(130, 170, 208, 0.52);
   background: linear-gradient(180deg, rgba(16, 27, 41, .82), rgba(4, 9, 15, .76));
   box-shadow: 0 18px 42px rgba(0,0,0,.46), 0 0 24px rgba(55,156,220,.06), inset 0 1px rgba(255,255,255,.06);
   backdrop-filter: blur(5px);
 }
-body:not(.light-mode).desktop-windowed-ui #ui-hp-bar { background: linear-gradient(90deg, #0c7747, #23cb75 62%, #76f2aa); box-shadow: 0 0 18px rgba(38,215,122,.3); }
+:root body.desktop-windowed-ui #ui-hp-bar { background: linear-gradient(90deg, #0c7747, #23cb75 62%, #76f2aa); box-shadow: 0 0 18px rgba(38,215,122,.3); }
 
 .loop-roadmap-heading {
   display: flex;
@@ -800,8 +792,7 @@ body:not(.light-mode).desktop-windowed-ui #ui-hp-bar { background: linear-gradie
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed,
-body.light-mode.desktop-windowed-ui .combat-feed {
+:root body.desktop-windowed-ui .combat-feed {
   z-index: 20;
   top: 9px;
   right: 9px;
@@ -810,53 +801,48 @@ body.light-mode.desktop-windowed-ui .combat-feed {
   border-radius: 2px 18px 2px 18px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed {
+:root body.desktop-windowed-ui .combat-feed {
   border-color: rgba(103, 143, 180, .4);
   background: linear-gradient(180deg, rgba(14, 25, 38, .91), rgba(4, 9, 15, .93));
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed-title,
-body.light-mode.desktop-windowed-ui .combat-feed-title {
+:root body.desktop-windowed-ui .combat-feed-title {
   font-size: 10px;
   letter-spacing: .15em;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed-title {
+:root body.desktop-windowed-ui .combat-feed-title {
   color: #ffffff;
 }
 
-body:not(.light-mode) .battlefield-caption,
-body.light-mode .battlefield-caption {
+:root body .battlefield-caption {
   z-index: 16;
   text-wrap: balance;
 }
 
-body:not(.light-mode) .battlefield-caption {
+:root body .battlefield-caption {
   background: rgba(3, 7, 12, 0.86);
   text-shadow: 0 2px 5px #000;
 }
 
-body:not(.light-mode) #tree-container {
+:root body #tree-container {
   background:
     radial-gradient(ellipse at 50% 78%, rgba(111, 72, 34, 0.14), transparent 32%),
     radial-gradient(ellipse at 50% 34%, rgba(42, 81, 89, 0.12), transparent 55%),
     #030508;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-goal-panel,
-body.light-mode.desktop-windowed-ui .ui-goal-panel {
+:root body.desktop-windowed-ui .ui-goal-panel {
   border-radius: 2px 14px 2px 14px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-goal-panel {
+:root body.desktop-windowed-ui .ui-goal-panel {
   border-left: 3px solid var(--color-reward-gold);
   background: linear-gradient(90deg, rgba(20, 28, 38, .96), rgba(5, 10, 17, .95));
 }
 
 /* ---------- windows and menus ---------- */
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window,
-/* ---------- windows and menus ---------- */
-body.light-mode.desktop-windowed-ui .tab-content.ui-window {
+:root body.desktop-windowed-ui .tab-content.ui-window {
   box-sizing: border-box;
   border-width: 1px;
   border-style: solid;
@@ -865,7 +851,7 @@ body.light-mode.desktop-windowed-ui .tab-content.ui-window {
 }
 
 /* ---------- windows and menus ---------- */
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
+:root body.desktop-windowed-ui .tab-content.ui-window {
   border-color: rgba(111, 151, 188, .58);
   background:
     radial-gradient(circle at 80% 0%, rgba(54, 104, 145, .14), transparent 34%),
@@ -952,14 +938,8 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
 .equipment-ehp-stat[data-ehp-element="light"] { --ehp-color: #ffe27a; }
 .equipment-ehp-stat[data-ehp-element="chaos"] { --ehp-color: #d5a2ff; }
 .equipment-ehp-stat strong { color: var(--ehp-color); }
-body.light-mode .equipment-ehp-stat[data-ehp-element="phys"] { --ehp-color: #4b5563; }
-body.light-mode .equipment-ehp-stat[data-ehp-element="fire"] { --ehp-color: #b63d20; }
-body.light-mode .equipment-ehp-stat[data-ehp-element="cold"] { --ehp-color: #116894; }
-body.light-mode .equipment-ehp-stat[data-ehp-element="light"] { --ehp-color: #876000; }
-body.light-mode .equipment-ehp-stat[data-ehp-element="chaos"] { --ehp-color: #7335a4; }
 
-body:not(.light-mode) #item-tab-equip .equipment-paperdoll,
-body.light-mode #item-tab-equip .equipment-paperdoll {
+:root body #item-tab-equip .equipment-paperdoll {
   position: relative;
   margin: 0;
   padding: 10px;
@@ -969,15 +949,14 @@ body.light-mode #item-tab-equip .equipment-paperdoll {
   border-radius: 10px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-paperdoll {
+:root body #item-tab-equip .equipment-paperdoll {
   border-color: rgba(43, 65, 91, .82);
   background:
     radial-gradient(ellipse at 50% 44%, rgba(58, 87, 116, .16), transparent 47%),
     linear-gradient(180deg, rgba(5, 10, 17, .88), rgba(9, 15, 24, .92));
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot,
-body.light-mode #item-tab-equip .equipment-slot {
+:root body #item-tab-equip .equipment-slot {
   position: relative;
   min-width: 0;
   min-height: 91px;
@@ -986,7 +965,7 @@ body.light-mode #item-tab-equip .equipment-slot {
   overflow: hidden;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot {
+:root body #item-tab-equip .equipment-slot {
   border-color: rgba(55, 78, 104, .82);
   background: linear-gradient(155deg, rgba(23, 36, 52, .96), rgba(10, 17, 27, .98));
 }
@@ -1066,15 +1045,14 @@ body:not(.light-mode) #item-tab-equip .equipment-slot {
 .equipment-capacity-track > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #4b8cbd, #75cbed); transition: width .2s ease; }
 .equipment-capacity-track > span.near-capacity { background: linear-gradient(90deg, #d49d42, #ff765e); }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar,
-body.light-mode #item-tab-equip .equipment-inventory-toolbar {
+:root body #item-tab-equip .equipment-inventory-toolbar {
   display: grid;
   gap: 9px;
   margin: 0 0 10px;
   padding: 10px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
+:root body #item-tab-equip .equipment-inventory-toolbar {
   background: rgba(8, 15, 24, .72);
   border-color: rgba(48, 72, 98, .7);
 }
@@ -1083,14 +1061,12 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
 .equipment-salvage-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .equipment-salvage-actions button { min-width: 0; min-height: 29px; padding: 5px 7px; font-size: 10px; }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-grid,
-body.light-mode #item-tab-equip .equipment-inventory-grid {
+:root body #item-tab-equip .equipment-inventory-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 7px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-item-card,
-body.light-mode #item-tab-equip .equipment-item-card {
+:root body #item-tab-equip .equipment-item-card {
   position: relative;
   min-width: 0;
   min-height: 118px;
@@ -1098,11 +1074,11 @@ body.light-mode #item-tab-equip .equipment-item-card {
   overflow: hidden;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-item-card {
+:root body #item-tab-equip .equipment-item-card {
   border-left: 1px solid #314359;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
+:root body #item-tab-equip .equipment-item-card::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
@@ -1466,16 +1442,14 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 
 @container (max-width: 860px) {
   .equipment-workspace { grid-template-columns: 1fr; }
-body:not(.light-mode) #item-tab-equip .equipment-inventory-grid,
-body.light-mode #item-tab-equip .equipment-inventory-grid {
+:root body #item-tab-equip .equipment-inventory-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 }
 }
 
 @container (max-width: 560px) {
   .equipment-loadout-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-body:not(.light-mode) #item-tab-equip .equipment-inventory-grid,
-body.light-mode #item-tab-equip .equipment-inventory-grid {
+:root body #item-tab-equip .equipment-inventory-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
   .equipment-salvage-actions { grid-template-columns: 1fr; }
@@ -1484,8 +1458,7 @@ body.light-mode #item-tab-equip .equipment-inventory-grid {
 @media (max-width: 1080px) {
   .equipment-workspace { grid-template-columns: 1fr; }
   .equipment-loadout-panel, .equipment-inventory-panel { padding: 12px; }
-body:not(.light-mode) #item-tab-equip .equipment-inventory-grid,
-body.light-mode #item-tab-equip .equipment-inventory-grid {
+:root body #item-tab-equip .equipment-inventory-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 }
 }
@@ -1524,44 +1497,37 @@ body.light-mode #item-tab-equip .equipment-inventory-grid {
 .map-state-badge.recommended { border-color: #d8b45d; color: #fff0b8; background: #5d4519; }
 .map-enter-btn { min-height: 30px; padding: 5px 9px; font-size: 10px; }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-body,
-body.light-mode.desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,
-body.light-mode.desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
+:root body.desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,:root 
+body.desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
   position: relative;
   z-index: 1;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar,
-body.light-mode.desktop-windowed-ui .ui-window-titlebar {
+:root body.desktop-windowed-ui .ui-window-titlebar {
   flex: 0 0 42px;
   min-width: 0;
   overflow: hidden;
   padding-inline: 14px 10px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
+:root body.desktop-windowed-ui .ui-window-titlebar {
   background: linear-gradient(180deg, rgba(39, 61, 85, .99), rgba(14, 25, 39, .99));
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-title::before { content: '◇'; margin-right: 9px; color: var(--color-reward-gold); }
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions,
-body.light-mode.desktop-windowed-ui .ui-window-actions {
+:root body.desktop-windowed-ui .ui-window-title::before { content: '◇'; margin-right: 9px; color: var(--color-reward-gold); }
+:root body.desktop-windowed-ui .ui-window-actions {
   flex: 0 0 auto;
   flex-wrap: nowrap;
 }
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button,
-body.light-mode.desktop-windowed-ui .ui-window-actions button {
+:root body.desktop-windowed-ui .ui-window-actions button {
   min-width: 28px;
   min-height: 26px;
   border-radius: 2px 8px 2px 8px;
 }
-body:not(.light-mode).desktop-windowed-ui .ui-window-body,
-body.light-mode.desktop-windowed-ui .ui-window-body {
+:root body.desktop-windowed-ui .ui-window-body {
   padding: clamp(12px, 1.15vw, 18px);
 }
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-resize,
-body.light-mode.desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
+:root body.desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
   position: absolute;
   right: 1px;
   bottom: 1px;
@@ -1571,12 +1537,12 @@ body.light-mode.desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
   border-radius: 8px 0 0;
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
+:root body.desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
   background: rgba(7, 12, 18, .86);
 }
 
 /* A one-shot guide sits over the live game instead of replacing it with a modal lesson. */
-body:not(.light-mode) #tutorial-overlay {
+:root body #tutorial-overlay {
   inset: auto 34px 18px auto;
   width: min(420px, calc(100vw - 24px));
   background: transparent;
@@ -1584,11 +1550,11 @@ body:not(.light-mode) #tutorial-overlay {
   pointer-events: none;
 }
 
-body:not(.light-mode) #tutorial-overlay.active {
+:root body #tutorial-overlay.active {
   display: block;
 }
 
-body:not(.light-mode) #tutorial-overlay .tutorial-card {
+:root body #tutorial-overlay .tutorial-card {
   box-sizing: border-box;
   width: 100%;
   padding: 16px 18px;
@@ -1598,10 +1564,10 @@ body:not(.light-mode) #tutorial-overlay .tutorial-card {
   box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 0 1px rgba(255,225,159,.08);
 }
 
-body:not(.light-mode) #tutorial-overlay .tutorial-kicker { margin-bottom: 5px; }
-body:not(.light-mode) #tutorial-overlay .tutorial-title { margin-bottom: 6px; font-size: 1.12rem; }
-body:not(.light-mode) #tutorial-overlay .tutorial-body { font-size: .9rem; line-height: 1.48; }
-body:not(.light-mode) #tutorial-overlay .tutorial-summary { margin: 0; font-weight: 500; }
+:root body #tutorial-overlay .tutorial-kicker { margin-bottom: 5px; }
+:root body #tutorial-overlay .tutorial-title { margin-bottom: 6px; font-size: 1.12rem; }
+:root body #tutorial-overlay .tutorial-body { font-size: .9rem; line-height: 1.48; }
+:root body #tutorial-overlay .tutorial-summary { margin: 0; font-weight: 500; }
 body #tutorial-overlay .tutorial-pause-toggle {
   align-items: center;
   margin-top: 12px;
@@ -1613,12 +1579,12 @@ body #tutorial-overlay .tutorial-pause-toggle {
 body #tutorial-overlay .tutorial-pause-toggle .cfg-label { flex: 1; display: grid; gap: 3px; }
 body #tutorial-overlay .tutorial-pause-toggle .cfg-label small { color: var(--copy-muted); font-size: .78rem; font-weight: 500; }
 body #tutorial-overlay .tutorial-pause-toggle > strong { color: #f0c86f; font-size: .82rem; }
-body:not(.light-mode) #tutorial-overlay .tutorial-actions { margin-top: 12px; gap: 7px; }
-body:not(.light-mode) #tutorial-overlay .tutorial-actions button { min-width: 84px; min-height: 34px; }
+:root body #tutorial-overlay .tutorial-actions { margin-top: 12px; gap: 7px; }
+:root body #tutorial-overlay .tutorial-actions button { min-width: 84px; min-height: 34px; }
 
 @media (max-width: 1080px) {
-  body #tutorial-overlay,
-  body:not(.light-mode) #tutorial-overlay {
+  body #tutorial-overlay,:root 
+  body #tutorial-overlay {
     --tutorial-bottom: calc(var(--bottom-tab-height, 0px) + max(12px, env(safe-area-inset-bottom)));
     inset: auto max(12px, env(safe-area-inset-right)) var(--tutorial-bottom) max(12px, env(safe-area-inset-left));
     z-index: 13250; /* Above mobile navigation, below startup/loading dialogs. */
@@ -1628,8 +1594,8 @@ body:not(.light-mode) #tutorial-overlay .tutorial-actions button { min-width: 84
     pointer-events: none;
   }
   body #tutorial-overlay.active { display: block; }
-  body #tutorial-overlay .tutorial-card,
-  body:not(.light-mode) #tutorial-overlay .tutorial-card {
+  body #tutorial-overlay .tutorial-card,:root 
+  body #tutorial-overlay .tutorial-card {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -1645,37 +1611,33 @@ body:not(.light-mode) #tutorial-overlay .tutorial-actions button { min-width: 84
     overscroll-behavior: contain;
   }
   body #tutorial-overlay :is(.tutorial-kicker, .tutorial-title, .tutorial-actions) { flex-shrink: 0; }
-  body #tutorial-overlay .tutorial-actions button,
-  body:not(.light-mode) #tutorial-overlay .tutorial-actions button { min-height: 44px; }
+  body #tutorial-overlay .tutorial-actions button,:root 
+  body #tutorial-overlay .tutorial-actions button { min-height: 44px; }
   body:has(#tutorial-overlay.active) #game-toast-region { z-index: 13200; }
   /* Mobile log toasts currently set their layer inline; keep them behind the guide too. */
 }
 
-body:not(.light-mode) .subtab-row,
-body.light-mode .subtab-row {
+:root body .subtab-row {
   padding: 8px;
   border-width: 1px;
   border-style: solid;
   border-radius: 2px 12px 2px 12px;
 }
 
-body:not(.light-mode) .subtab-row {
+:root body .subtab-row {
   border-color: rgba(92,130,167,.28);
   background: rgba(4,10,17,.68);
 }
 
-body:not(.light-mode) .stat-card,
-body:not(.light-mode) .item-card,
-body:not(.light-mode) .cfg-group,
-body.light-mode .stat-card,
-body.light-mode .item-card,
-body.light-mode .cfg-group {
+:root body .stat-card,:root 
+body .item-card,:root 
+body .cfg-group {
   border-radius: 2px 13px 2px 13px;
 }
 
-body:not(.light-mode) .stat-card,
-body:not(.light-mode) .item-card,
-body:not(.light-mode) .cfg-group {
+:root body .stat-card,:root 
+body .item-card,:root 
+body .cfg-group {
   border-color: rgba(91, 129, 168, .38);
   background: linear-gradient(155deg, rgba(22, 35, 52, .82), rgba(6, 12, 20, .9));
   box-shadow: inset 0 1px rgba(255,255,255,.035), 0 9px 22px rgba(0,0,0,.22);
@@ -1691,30 +1653,25 @@ body:not(.light-mode) .cfg-group {
 @keyframes heroFloatPreview { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-7px); } }
 
 @media (max-width: 1080px) {
-  body:not(.light-mode) .startup-shell { grid-template-columns: minmax(0, 1fr) minmax(330px, 410px); gap: 28px; padding: 32px; }
-  body:not(.light-mode) #loop-hero-select-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-body:not(.light-mode) #enemy-area,
-  body:not(.light-mode) .player-hud,
-body.light-mode #enemy-area,
-  body.light-mode .player-hud {
+  :root body .startup-shell { grid-template-columns: minmax(0, 1fr) minmax(330px, 410px); gap: 28px; padding: 32px; }
+  :root body #loop-hero-select-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+:root body #enemy-area,:root 
+  body .player-hud {
   z-index: 18;
 }
-  body:not(.light-mode) .enemy-card.targeted { background: rgba(7, 12, 19, 0.96); }
+  :root body .enemy-card.targeted { background: rgba(7, 12, 19, 0.96); }
 }
 
 @media (min-width: 1081px) and (max-width: 1360px) {
   body.desktop-windowed-ui { --combat-log-width: clamp(230px, 22vw, 290px); }
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row,
-body.light-mode.desktop-windowed-ui .combat-zone-row {
+:root body.desktop-windowed-ui .combat-zone-row {
   left: 18px;
   right: calc(var(--combat-log-width) + 18px);
 }
-body:not(.light-mode).desktop-windowed-ui #enemy-area,
-body.light-mode.desktop-windowed-ui #enemy-area {
+:root body.desktop-windowed-ui #enemy-area {
   width: clamp(390px, 48vw, 620px);
 }
-body:not(.light-mode).desktop-windowed-ui .player-hud,
-body.light-mode.desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   width: clamp(430px, 46vw, 590px);
   min-height: 86px;
   padding-inline: 18px;
@@ -1722,26 +1679,21 @@ body.light-mode.desktop-windowed-ui .player-hud {
 }
 
 @media (min-width: 1081px) and (max-height: 720px) {
-body:not(.light-mode).desktop-windowed-ui #enemy-area,
-body.light-mode.desktop-windowed-ui #enemy-area {
+:root body.desktop-windowed-ui #enemy-area {
   top: 20px;
   width: clamp(390px, 43.2vw, 558px);
   transform: translateX(-50%);
 }
-body:not(.light-mode).desktop-windowed-ui #enemy-area:has(.enemy-boss),
-body.light-mode.desktop-windowed-ui #enemy-area:has(.enemy-boss) {
+:root body.desktop-windowed-ui #enemy-area:has(.enemy-boss) {
   width: clamp(504px, 58.5vw, 810px);
 }
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .enemy-name,
-body.light-mode.desktop-windowed-ui .enemy-card.targeted .enemy-name {
+:root body.desktop-windowed-ui .enemy-card.targeted .enemy-name {
   font-size: 14px;
 }
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .enemy-traits,
-body.light-mode.desktop-windowed-ui .enemy-card.targeted .enemy-traits {
+:root body.desktop-windowed-ui .enemy-card.targeted .enemy-traits {
   font-size: 10px;
 }
-body:not(.light-mode).desktop-windowed-ui .player-hud,
-body.light-mode.desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   left: calc((100% - var(--combat-log-width) - 24px) / 2 + clamp(105px, calc(393px - 22.5vw), 150px));
   bottom: 19px;
   box-sizing: border-box;
@@ -1751,16 +1703,14 @@ body.light-mode.desktop-windowed-ui .player-hud {
   transform: translateX(-50%);
 }
   body.desktop-windowed-ui .ui-goal-panel { width: 235px; }
-body:not(.light-mode).desktop-windowed-ui .battlefield-caption,
-body.light-mode.desktop-windowed-ui .battlefield-caption {
+:root body.desktop-windowed-ui .battlefield-caption {
   top: 12px;
   bottom: auto;
 }
 }
 
 @media (min-width: 1081px) and (max-width: 1199px) and (max-height: 720px) {
-body:not(.light-mode).desktop-windowed-ui .player-hud,
-body.light-mode.desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   left: calc((100% - var(--combat-log-width) - 24px) / 2 + 100px);
   width: calc(35.88vw + 28px);
   padding-inline: 14px;
@@ -1769,13 +1719,13 @@ body.light-mode.desktop-windowed-ui .player-hud {
 }
 
 @media (max-width: 760px) {
-  body:not(.light-mode) .startup-overlay {
+  :root body .startup-overlay {
     align-items: flex-start;
     justify-content: flex-start;
     overflow-y: auto;
     background-position: 42% center;
   }
-  body:not(.light-mode) .startup-shell {
+  :root body .startup-shell {
     min-height: 100dvh;
     box-sizing: border-box;
     display: flex;
@@ -1784,37 +1734,37 @@ body.light-mode.desktop-windowed-ui .player-hud {
     gap: 12px;
     padding: max(14px, env(safe-area-inset-top)) 12px calc(22px + env(safe-area-inset-bottom));
   }
-  body:not(.light-mode) .startup-panel.hero,
-  body:not(.light-mode) .startup-hero-grid,
-  body:not(.light-mode) .startup-hero-copy { display: contents; }
-  body:not(.light-mode) .startup-brand-wrap { order: 0; gap: 4px; margin: 4px auto 2px; text-align: center; }
-  body:not(.light-mode) .startup-wordmark { margin-top: 0; font-size: clamp(2rem, 10vw, 2.8rem); line-height: 1; }
-  body:not(.light-mode) .startup-wordmark-bar { width: 110px; margin: 6px auto 0; }
-  body:not(.light-mode) .startup-panel.auth { order: 1; width: 100%; max-width: 440px; margin: 0 auto; padding: 16px; gap: 9px; border-radius: 12px; box-sizing: border-box; }
-  body:not(.light-mode) .startup-panel.auth::before,
-  body:not(.light-mode) .startup-panel.auth::after { display: none; }
-  body:not(.light-mode) .startup-auth-title { font-size: 1.35rem; }
-  body:not(.light-mode) .startup-summary-card { order: 2; width: 100%; max-width: 440px; margin: 0 auto; padding: 10px; box-sizing: border-box; }
-  body:not(.light-mode) .startup-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-  body:not(.light-mode) .startup-summary-item { min-height: 0; padding: 9px 10px; }
-  body:not(.light-mode) #startup-social-actions .social-login-image-btn img { height: 44px; }
-  body:not(.light-mode) .startup-status { min-height: 0; padding: 8px 10px; line-height: 1.4; }
-  body:not(.light-mode) #loop-hero-select-overlay .tutorial-card { width: calc(100vw - 12px); padding: 18px; }
-  body:not(.light-mode) #loop-hero-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  body:not(.light-mode) .hero-choice { min-height: 146px; }
+  :root body .startup-panel.hero,:root 
+  body .startup-hero-grid,:root 
+  body .startup-hero-copy { display: contents; }
+  :root body .startup-brand-wrap { order: 0; gap: 4px; margin: 4px auto 2px; text-align: center; }
+  :root body .startup-wordmark { margin-top: 0; font-size: clamp(2rem, 10vw, 2.8rem); line-height: 1; }
+  :root body .startup-wordmark-bar { width: 110px; margin: 6px auto 0; }
+  :root body .startup-panel.auth { order: 1; width: 100%; max-width: 440px; margin: 0 auto; padding: 16px; gap: 9px; border-radius: 12px; box-sizing: border-box; }
+  :root body .startup-panel.auth::before,:root 
+  body .startup-panel.auth::after { display: none; }
+  :root body .startup-auth-title { font-size: 1.35rem; }
+  :root body .startup-summary-card { order: 2; width: 100%; max-width: 440px; margin: 0 auto; padding: 10px; box-sizing: border-box; }
+  :root body .startup-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  :root body .startup-summary-item { min-height: 0; padding: 9px 10px; }
+  :root body #startup-social-actions .social-login-image-btn img { height: 44px; }
+  :root body .startup-status { min-height: 0; padding: 8px 10px; line-height: 1.4; }
+  :root body #loop-hero-select-overlay .tutorial-card { width: calc(100vw - 12px); padding: 18px; }
+  :root body #loop-hero-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root body .hero-choice { min-height: 146px; }
 }
 
 @media (min-width: 761px) and (max-height: 820px) {
-  body:not(.light-mode) .startup-overlay {
+  :root body .startup-overlay {
     align-items: flex-start;
     overflow-y: auto;
   }
 }
 
 @media (max-width: 430px) {
-  body:not(.light-mode) #loop-hero-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  body:not(.light-mode) .hero-choice { min-height: 136px; padding: 8px; }
-  body:not(.light-mode) .hero-choice strong { padding: 7px 4px; font-size: .82rem; }
+  :root body #loop-hero-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  :root body .hero-choice { min-height: 136px; padding: 8px; }
+  :root body .hero-choice strong { padding: 7px 4px; font-size: .82rem; }
 }
 
 /* Skill gem management: loadout first, progression second. */
@@ -1879,8 +1829,6 @@ body.light-mode.desktop-windowed-ui .player-hud {
 .gem-selection-actions button:last-child { margin-left: auto; }
 .gem-selection-content { padding: 14px; overflow: auto; overscroll-behavior: contain; min-height: 0; }
 /* Shared tooltip markup has inline colors intended for dark backgrounds. */
-body.light-mode #tab-skills .skill-loadout-summary { background: var(--color-surface-raised); border-color: var(--color-line); }
-body.light-mode #tab-skills .skill-loadout-summary :is(span, strong, small) { color: var(--color-text); }
 @media (max-width: 1080px) {
   .gem-selection-actions button,
   .condition-pattern-rule button,
@@ -2585,9 +2533,6 @@ body.light-mode #tab-skills .skill-loadout-summary :is(span, strong, small) { co
 .equipment-triage-chip.triage-special { color: #e2bcff; border-color: #9b67c4; background: rgba(67, 37, 91, .56); }
 .equipment-triage-chip.triage-keep { color: #b9c5d0; border-color: #657482; background: rgba(48, 59, 69, .56); }
 .equipment-card-meta.has-triage { flex-wrap: wrap; overflow: visible; }
-body.light-mode .equipment-triage-host { border-left-color: #c7d7e5; }
-body.light-mode .equipment-triage-copy strong { color: #256d99; }
-body.light-mode .equipment-triage-copy small { color: #5d7183; }
 .item-card-more { grid-column: 1 / -1; min-width: 0; border: 1px solid rgba(68, 92, 117, .58); border-radius: 6px; background: rgba(8, 16, 25, .7); }
 .item-card-more > summary { min-height: 25px; box-sizing: border-box; padding: 5px 7px; }
 .item-card-more[open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 0 4px 4px; }
@@ -2619,9 +2564,6 @@ body.light-mode .equipment-triage-copy small { color: #5d7183; }
 .passive-special-stat-card > strong { color: #e7c878; font-size: 12px; text-align: right; }
 .passive-special-stat-card > small { grid-column: 1 / -1; overflow: hidden; color: #aebdcc; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .passive-special-stat-card:hover, .passive-special-stat-card:focus-visible { border-color: #d2af5a; outline: none; background: rgba(39, 31, 17, .82); }
-body.light-mode .passive-special-stat-card { border-color: #c5d2df; background: #edf3f8; }
-body.light-mode .passive-special-stat-card > strong { color: #805c16; }
-body.light-mode .passive-special-stat-card > small { color: #53697c; }
 .trait-card[role="button"]:focus-visible,
 .class-card:focus-visible,
 .talisman-board-cell:focus-visible { outline: 2px solid #f2d88f; outline-offset: 2px; }
@@ -2670,12 +2612,11 @@ body.light-mode .passive-special-stat-card > small { color: #53697c; }
 
 
 @layer overrides {
-body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
+:root body #loop-hero-select-overlay .tutorial-card {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
   max-width: 1120px !important;
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap,
-body.light-mode.desktop-windowed-ui .battlefield-wrap {
+:root body.desktop-windowed-ui .battlefield-wrap {
   height: min(100%, 760px);
 }
 #enemy-area .enemy-card.targeted,

@@ -215,8 +215,8 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  #ui-infuser-inventory-list,
-  body:not(.light-mode) #item-tab-equip .equipment-inventory-grid { gap: 7px; }
+  #ui-infuser-inventory-list,:root 
+  body #item-tab-equip .equipment-inventory-grid { gap: 7px; }
   .map-route-summary { align-items: center; padding: 9px; text-align: left; }
   .map-route-action { min-width: 80px; padding: 8px; min-height: 44px; }
   .map-item[role="group"] .map-item-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
@@ -366,8 +366,8 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  #ui-infuser-inventory-list,
-  body:not(.light-mode) #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #ui-infuser-inventory-list,:root 
+  body #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .item-actions:not(.jewel-card-actions), .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #tab-skills .skill-gem-library,
   #tab-skills .gem-enhance-actions,
@@ -387,8 +387,8 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  #ui-infuser-inventory-list,
-  body:not(.light-mode) #item-tab-equip .equipment-inventory-grid,
+  #ui-infuser-inventory-list,:root 
+  body #item-tab-equip .equipment-inventory-grid,
   #ui-skills-list,
   #ui-support-list { grid-template-columns: minmax(0, 1fr); }
 }

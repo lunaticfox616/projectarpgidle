@@ -74,10 +74,6 @@ dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #1
 @keyframes gem-forge-impact { 0% { transform: scale(.8); } 30% { transform: scale(1.16); } 100% { transform: scale(1); } }
 @keyframes gem-forge-burst { from { transform: scale(.55); opacity: 1; border-color: var(--forge-accent); } to { transform: scale(1.65); opacity: 0; border-color: var(--forge-accent); } }
 @keyframes gem-forge-reward { 0% { transform: scale(.92); opacity: .4; } 35% { transform: scale(1.06); text-shadow: 0 0 18px var(--forge-accent); } 100% { transform: scale(1); opacity: 1; text-shadow: none; } }
-body.light-mode .gem-forge-track, body.light-mode .gem-forge-dialog { --forge-accent: #775018; --forge-on-accent: #fff8e7; --forge-muted: #74634e; --forge-line: #c5b99f; --forge-bg: #f6f0e4; --forge-text: #30291f; background: var(--forge-bg); }
-body.light-mode .gem-forge-track.sky, body.light-mode .gem-forge-dialog.sky { --forge-accent: #226078; }
-body.light-mode .gem-core-tone { color: #775018; }
-body.light-mode .gem-sky-tone { color: #226078; }
 @media (max-width: 560px) {
     #ui-gem-core-forge { gap: 8px; }
     button.gem-forge-track { padding: 12px; }

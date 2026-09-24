@@ -99,25 +99,22 @@ test('scaled short screen keeps actions reachable and dialog validation and queu
     expect(failures).toEqual([]);
 });
 
-test('newest modal takes input above older modal and inspector in both themes', async ({ page }, info) => {
+test('newest modal takes input above older modal and inspector', async ({ page }, info) => {
     const failures = await openEquipment(page);
-    for (const light of [false, true]) {
-        await page.evaluate(light => {
-            document.body.classList.toggle('light-mode', light);
-            openGloveSlotOverlayByItemId(game.inventory[0].id);
-            requestGameConfirmation('선택한 장비를 확인하세요.', { title: '장비 확인' });
-        }, light);
-        await expect(page.locator('#game-dialog-overlay')).toBeVisible();
-        await expectInFront(page, '#game-dialog-confirm');
-        await page.screenshot({ path: info.outputPath(light ? 'confirm-light.png' : 'confirm-dark.png') });
-        await page.keyboard.press('Escape');
-        await expect(page.locator('#game-dialog-overlay')).toBeHidden();
-        await expect(page.locator('#glove-slot-overlay')).toBeVisible();
-        await expectInFront(page, '#glove-slot-overlay button');
-        await page.keyboard.press('Escape');
-        await expect(page.locator('#glove-slot-overlay')).toBeHidden();
-        await expect(page.locator('#ui-equipment-inventory-inspector')).toBeVisible();
-    }
+    await page.evaluate(() => {
+        openGloveSlotOverlayByItemId(game.inventory[0].id);
+        requestGameConfirmation('선택한 장비를 확인하세요.', { title: '장비 확인' });
+    });
+    await expect(page.locator('#game-dialog-overlay')).toBeVisible();
+    await expectInFront(page, '#game-dialog-confirm');
+    await page.screenshot({ path: info.outputPath('confirm-dark.png') });
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#game-dialog-overlay')).toBeHidden();
+    await expect(page.locator('#glove-slot-overlay')).toBeVisible();
+    await expectInFront(page, '#glove-slot-overlay button');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#glove-slot-overlay')).toBeHidden();
+    await expect(page.locator('#ui-equipment-inventory-inspector')).toBeVisible();
     await page.evaluate(() => {
         requestGameConfirmation('먼저 열린 확인창');
         openWeaponSlotOverlayByItemId(game.inventory[0].id);

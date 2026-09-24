@@ -44,7 +44,5 @@ test('early records show actual progress before optional growth and preserve con
     expect(await root.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
     await page.screenshot({path:info.outputPath('records-offline-open.png')});
     await offline.locator('summary').click();
-    await page.evaluate(()=>document.body.classList.add('light-mode'));
-    await page.screenshot({path:info.outputPath('records-light.png')});
     expect(errors).toEqual([]);
 });

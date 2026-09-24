@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-for (const theme of ['dark','light']) test('market purchase workspace in ' + theme, async ({page},testInfo) => {
+test('market purchase workspace', async ({page},testInfo) => {
     const errors=[];
     page.on('pageerror',error=>errors.push(error.message));
     await page.route('https://**',route=>route.fulfill({status:204,body:''}));
@@ -8,13 +8,13 @@ for (const theme of ['dark','light']) test('market purchase workspace in ' + the
     await page.locator('#btn-startup-guest').click();
     await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
     await page.waitForFunction(()=>battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await page.evaluate(theme=>{
+    await page.evaluate(()=>{
         clearInterval(gameTickHandle);gameTickHandle=null;
         game.season=2;game.level=30;game.maxZoneId=5;
         game.settings.autoEquipEmptySlots=false;
-        contentProgression.sync();applyThemeMode(theme);
+        contentProgression.sync();
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
-    },theme);
+    });
     expect(await page.evaluate(()=>[contentProgression.canOpen('item-tab-market'),contentProgression.canOpen('item-tab-hall')])).toEqual([false,false]);
     await page.evaluate(()=>{
         contentProgression.purchase('craft');

@@ -14,42 +14,6 @@ test.beforeEach(async ({ page }) => {
     });
 });
 
-test('theme changes preserve battle and management layout', async ({ page }) => {
-    const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
-    const screens = {
-        'tab-battle': ['.combat-zone-row', '.battlefield-wrap', '.player-hud', '.player-health-frame', '.combat-feed', '.ui-goal-drawer'],
-        'tab-character': ['.character-stat-section', '.character-ehp-grid'],
-        'tab-items': ['.equipment-paperdoll', '.equipment-triage-host', '.inventory-browse-toolbar'],
-        'tab-skills': ['.skill-subtab-row', '.attack-library'],
-        'tab-settings': ['.cfg-disclosure--card']
-    };
-    for (const [tab, children] of Object.entries(screens)) {
-        await page.evaluate(tab => switchTab(tab, { keepWindowOpen: true }), tab);
-        const samples = [];
-        for (const theme of ['dark', 'light', 'dark']) {
-            await page.evaluate(theme => { applyThemeMode(theme); updateStaticUI(); }, theme);
-            await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
-            const root = page.locator(tab === 'tab-battle' ? '.combat-panel' : '#' + tab);
-            await expect(root).toBeVisible();
-            samples.push(await root.evaluate((root, children) => {
-                return [root, ...children.map(selector => root.querySelector(selector))].map(el => {
-                    if (!el || !el.getClientRects().length) return null;
-                    const r = el.getBoundingClientRect();
-                    return { x: r.x, y: r.y, width: r.width, height: r.height };
-                });
-            }, children));
-        }
-        for (const current of samples.slice(1)) current.forEach((rect, i) => {
-            if (!rect || !samples[0][i]) return expect(rect).toEqual(samples[0][i]);
-            for (const key of Object.keys(rect)) {
-                expect(Math.abs(rect[key] - samples[0][i][key]), tab + ' ' + (children[i - 1] || 'window') + ' ' + key).toBeLessThanOrEqual(1);
-            }
-        });
-    }
-    expect(errors).toEqual([]);
-});
-
 test('elemental effective health belongs to defense with distinct readable colors', async ({ page }, testInfo) => {
     await page.evaluate(() => switchTab('tab-character'));
     const navigation = page.locator('#tab-character .mobile-section-navigation');
@@ -58,22 +22,19 @@ test('elemental effective health belongs to defense with distinct readable color
     const health = defense.locator('#ui-character-ehp');
     await expect(health).toBeVisible();
     await expect(health.locator('[data-ehp-element]')).toHaveCount(5);
-    for (const theme of ['dark', 'light']) {
-        await page.evaluate(theme => applyThemeMode(theme), theme);
-        const colors = await health.locator('[data-ehp-element]').evaluateAll(cards => cards.map(card => {
-            const name = getComputedStyle(card.querySelector('span')).color;
-            const value = getComputedStyle(card.querySelector('strong')).color;
-            return { name, value };
-        }));
-        expect(new Set(colors.map(row => row.value)).size).toBe(5);
-        expect(colors.every(row => row.name === row.value)).toBe(true);
-        await health.scrollIntoViewIfNeeded();
-        await page.screenshot({ path: testInfo.outputPath('defense-' + theme + '.png'), animations: 'disabled' });
-        if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '공격', exact: true }).click();
-        else await defense.locator('summary').click();
-        await expect(health).not.toBeVisible();
-        if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '방어 · 회복' }).click();
-        else await defense.locator('summary').click();
-        await expect(health).toBeVisible();
-    }
+    const colors = await health.locator('[data-ehp-element]').evaluateAll(cards => cards.map(card => {
+        const name = getComputedStyle(card.querySelector('span')).color;
+        const value = getComputedStyle(card.querySelector('strong')).color;
+        return { name, value };
+    }));
+    expect(new Set(colors.map(row => row.value)).size).toBe(5);
+    expect(colors.every(row => row.name === row.value)).toBe(true);
+    await health.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('defense-dark.png'), animations: 'disabled' });
+    if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '공격', exact: true }).click();
+    else await defense.locator('summary').click();
+    await expect(health).not.toBeVisible();
+    if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '방어 · 회복' }).click();
+    else await defense.locator('summary').click();
+    await expect(health).toBeVisible();
 });

@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-for (const theme of ['dark', 'light']) test(`loop settlement shows real progress and preserves preparation and deferral in ${theme}`, async ({ page }, testInfo) => {
+test('loop settlement shows real progress and preserves preparation and deferral', async ({ page }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
@@ -8,7 +8,6 @@ for (const theme of ['dark', 'light']) test(`loop settlement shows real progress
     await page.locator('#btn-startup-guest').click();
     await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await page.evaluate(theme => applyThemeMode(theme), theme);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);

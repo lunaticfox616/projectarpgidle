@@ -3,7 +3,7 @@
    Final presentation layer: restrained fantasy-tech materials, clearer hierarchy,
    and subtle motion. Dark mode is scoped so the existing light theme stays intact. */
 
-body:not(.light-mode) {
+:root body {
   color: var(--color-overlay-copy);
   background:
     radial-gradient(circle at 28% 18%, rgba(25, 74, 119, 0.16), transparent 30%),
@@ -14,48 +14,46 @@ body:not(.light-mode) {
   text-rendering: optimizeLegibility;
 }
 
-body:not(.light-mode) ::selection {
+:root body ::selection {
   color: #ffffff;
   background: rgba(83, 171, 235, 0.48);
 }
 
-body:not(.light-mode) :focus-visible {
+:root body :focus-visible {
   outline: 2px solid rgba(115, 199, 255, 0.86);
   outline-offset: 2px;
 }
 
-body:not(.light-mode) * {
+:root body * {
   scrollbar-color: rgba(94, 129, 169, 0.68) rgba(5, 9, 15, 0.5);
 }
 
-body:not(.light-mode) *,
-body.light-mode * {
+:root body * {
   scrollbar-width: thin;
 }
 
-body:not(.light-mode) *::-webkit-scrollbar,
-body.light-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
-body:not(.light-mode) *::-webkit-scrollbar-track { background: rgba(5, 9, 15, 0.54); }
-body:not(.light-mode) *::-webkit-scrollbar-thumb {
+:root body *::-webkit-scrollbar { width: 8px; height: 8px; }
+:root body *::-webkit-scrollbar-track { background: rgba(5, 9, 15, 0.54); }
+:root body *::-webkit-scrollbar-thumb {
   border: 2px solid rgba(5, 9, 15, 0.7);
   border-radius: 999px;
   background: linear-gradient(#56718f, #314963);
 }
 
 /* Startup gate */
-body:not(.light-mode) .startup-overlay {
+:root body .startup-overlay {
   background:
     radial-gradient(ellipse at 16% 42%, rgba(45, 122, 183, 0.22), transparent 40%),
     radial-gradient(ellipse at 86% 34%, rgba(177, 116, 35, 0.17), transparent 36%),
     linear-gradient(120deg, rgba(4, 9, 16, 0.97), rgba(7, 11, 18, 0.98));
 }
 
-body:not(.light-mode) .startup-overlay::before {
+:root body .startup-overlay::before {
   animation: luxeAtmosphere 16s ease-in-out infinite alternate;
   filter: saturate(1.08);
 }
 
-body:not(.light-mode) .startup-shell {
+:root body .startup-shell {
   border: 1px solid rgba(112, 151, 197, 0.5);
   background:
     linear-gradient(110deg, rgba(19, 29, 43, 0.97), rgba(9, 14, 22, 0.98)),
@@ -67,7 +65,7 @@ body:not(.light-mode) .startup-shell {
     inset 0 -28px 60px rgba(2, 5, 10, 0.3);
 }
 
-body:not(.light-mode) .startup-shell::after {
+:root body .startup-shell::after {
   content: '';
   position: absolute;
   inset: 10px;
@@ -77,39 +75,39 @@ body:not(.light-mode) .startup-shell::after {
   pointer-events: none;
 }
 
-body:not(.light-mode) .startup-wordmark {
+:root body .startup-wordmark {
   filter: drop-shadow(0 6px 18px rgba(52, 136, 202, 0.14));
 }
 
-body:not(.light-mode) .startup-wordmark-bar {
+:root body .startup-wordmark-bar {
   height: 2px;
   width: 128px;
   box-shadow: 0 0 16px rgba(103, 185, 245, 0.48);
 }
 
-body:not(.light-mode) .startup-summary-card,
-body:not(.light-mode) .startup-status {
+:root body .startup-summary-card,:root 
+body .startup-status {
   border-color: rgba(89, 126, 165, 0.34);
   background:
     linear-gradient(145deg, rgba(18, 28, 42, 0.82), rgba(7, 12, 20, 0.82));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
-body:not(.light-mode) .startup-summary-item {
+:root body .startup-summary-item {
   border-color: rgba(76, 111, 148, 0.34);
   background: linear-gradient(160deg, rgba(18, 29, 44, 0.9), rgba(10, 17, 26, 0.95));
   transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
-body:not(.light-mode) .startup-summary-item:hover {
+:root body .startup-summary-item:hover {
   transform: translateY(-1px);
   border-color: rgba(108, 168, 220, 0.5);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
 }
 
-body:not(.light-mode) .startup-primary,
-body:not(.light-mode) .startup-secondary,
-body:not(.light-mode) .startup-ghost {
+:root body .startup-primary,:root 
+body .startup-secondary,:root 
+body .startup-ghost {
   position: relative;
   overflow: hidden;
   min-height: 38px;
@@ -119,22 +117,22 @@ body:not(.light-mode) .startup-ghost {
   transition: transform 130ms ease, filter 130ms ease, box-shadow 130ms ease;
 }
 
-body:not(.light-mode) .startup-primary:hover,
-body:not(.light-mode) .startup-secondary:hover,
-body:not(.light-mode) .startup-ghost:hover {
+:root body .startup-primary:hover,:root 
+body .startup-secondary:hover,:root 
+body .startup-ghost:hover {
   transform: translateY(-1px);
   filter: brightness(1.1);
 }
 
 /* Overlays and selection */
-body:not(.light-mode) .tutorial-overlay {
+:root body .tutorial-overlay {
   background:
     radial-gradient(circle at 50% 45%, rgba(31, 72, 111, 0.22), transparent 48%),
     rgba(3, 6, 11, 0.86);
   backdrop-filter: blur(5px) saturate(0.8);
 }
 
-body:not(.light-mode) .tutorial-card {
+:root body .tutorial-card {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(102, 145, 188, 0.62);
@@ -143,7 +141,7 @@ body:not(.light-mode) .tutorial-card {
   box-shadow: var(--shadow-overlay), inset 0 1px 0 rgba(230, 243, 255, 0.08);
 }
 
-body:not(.light-mode) .tutorial-card::before {
+:root body .tutorial-card::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
@@ -152,16 +150,16 @@ body:not(.light-mode) .tutorial-card::before {
   pointer-events: none;
 }
 
-body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {
+:root body #loop-hero-select-overlay .tutorial-card {
   width: min(760px, calc(100vw - 32px));
 }
 
-body:not(.light-mode) #loop-hero-select-grid {
+:root body #loop-hero-select-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
 }
 
-body:not(.light-mode) .hero-choice {
+:root body .hero-choice {
   position: relative;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
@@ -176,7 +174,7 @@ body:not(.light-mode) .hero-choice {
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
-body:not(.light-mode) .hero-choice::before {
+:root body .hero-choice::before {
   content: '✦';
   display: grid;
   place-items: center;
@@ -189,23 +187,23 @@ body:not(.light-mode) .hero-choice::before {
   box-shadow: 0 0 18px rgba(60, 148, 214, 0.16);
 }
 
-body:not(.light-mode) .hero-choice:nth-child(2n)::before { content: '◆'; color: #ffd994; border-color: rgba(219, 170, 87, 0.42); }
-body:not(.light-mode) .hero-choice:nth-child(3n)::before { content: '✧'; color: #c8a7ff; border-color: rgba(160, 113, 220, 0.42); }
-body:not(.light-mode) .hero-choice strong { margin: 0; font-size: 0.94rem; letter-spacing: 0.025em; }
-body:not(.light-mode) .hero-choice:hover:not(:disabled) {
+:root body .hero-choice:nth-child(2n)::before { content: '◆'; color: #ffd994; border-color: rgba(219, 170, 87, 0.42); }
+:root body .hero-choice:nth-child(3n)::before { content: '✧'; color: #c8a7ff; border-color: rgba(160, 113, 220, 0.42); }
+:root body .hero-choice strong { margin: 0; font-size: 0.94rem; letter-spacing: 0.025em; }
+:root body .hero-choice:hover:not(:disabled) {
   transform: translateY(-2px);
   border-color: rgba(111, 201, 255, 0.84);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.26), 0 0 20px rgba(68, 162, 229, 0.12);
 }
 
 /* Battlefield presentation */
-body:not(.light-mode).desktop-windowed-ui .combat-panel {
+:root body.desktop-windowed-ui .combat-panel {
   background:
     radial-gradient(ellipse at 42% 45%, rgba(24, 48, 70, 0.3), transparent 50%),
     linear-gradient(145deg, #070c13, #03060a);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-panel::after {
+:root body.desktop-windowed-ui .combat-panel::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -216,7 +214,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-panel::after {
     linear-gradient(180deg, rgba(2, 5, 9, 0.34), transparent 20%, transparent 76%, rgba(2, 5, 9, 0.34));
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
+:root body.desktop-windowed-ui .combat-zone-row {
   z-index: 9;
   height: 46px;
   padding-inline: 13px;
@@ -227,20 +225,20 @@ body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
   backdrop-filter: blur(7px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row-title {
+:root body.desktop-windowed-ui .combat-zone-row-title {
   color: #ffffff;
   letter-spacing: 0.025em;
   text-shadow: 0 2px 8px #000;
 }
 
-body:not(.light-mode).desktop-windowed-ui #ui-move-bar {
+:root body.desktop-windowed-ui #ui-move-bar {
   position: relative;
   border-radius: inherit;
   background: linear-gradient(90deg, #3289c8, #75d2ff);
   box-shadow: 0 0 12px rgba(78, 184, 249, 0.42);
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap {
+:root body.desktop-windowed-ui .battlefield-wrap {
   isolation: isolate;
   overflow: hidden;
   border: 1px solid rgba(113, 151, 192, 0.58);
@@ -253,7 +251,7 @@ body:not(.light-mode).desktop-windowed-ui .battlefield-wrap {
     inset 0 1px 0 rgba(230, 244, 255, 0.08);
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap::before {
+:root body.desktop-windowed-ui .battlefield-wrap::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -263,11 +261,11 @@ body:not(.light-mode).desktop-windowed-ui .battlefield-wrap::before {
   box-shadow: inset 0 0 52px rgba(1, 4, 8, 0.5), inset 0 0 0 1px rgba(224, 239, 255, 0.035);
 }
 
-body:not(.light-mode).desktop-windowed-ui #battlefield-canvas {
+:root body.desktop-windowed-ui #battlefield-canvas {
   filter: saturate(1.08) contrast(1.045) brightness(1.025);
 }
 
-body:not(.light-mode) .battlefield-caption {
+:root body .battlefield-caption {
   top: 12px;
   left: 14px;
   right: auto;
@@ -285,20 +283,19 @@ body:not(.light-mode) .battlefield-caption {
   letter-spacing: 0.035em;
 }
 
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted {
+:root body.desktop-windowed-ui .enemy-card.targeted {
   border-color: rgba(229, 184, 100, 0.74);
   background: linear-gradient(180deg, rgba(27, 31, 40, 0.96), rgba(10, 15, 23, 0.96));
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38), 0 0 20px rgba(231, 179, 79, 0.1), inset 0 1px 0 rgba(255, 231, 181, 0.06);
   backdrop-filter: blur(6px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .enemy-card.enemy-boss {
+:root body.desktop-windowed-ui .enemy-card.enemy-boss {
   border-color: rgba(246, 175, 82, 0.88);
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.44), 0 0 28px rgba(222, 104, 53, 0.13), inset 0 1px 0 rgba(255, 225, 170, 0.08);
 }
 
-body:not(.light-mode).desktop-windowed-ui .player-hud,
-body.light-mode.desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   min-height: 88px;
   padding: 10px 14px 9px;
   border-width: 1px;
@@ -306,24 +303,24 @@ body.light-mode.desktop-windowed-ui .player-hud {
   border-radius: 14px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .player-hud {
+:root body.desktop-windowed-ui .player-hud {
   border-color: rgba(84, 121, 158, 0.38);
   background: linear-gradient(180deg, rgba(12, 20, 31, 0.82), rgba(5, 10, 17, 0.78));
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(7px);
 }
 
-body:not(.light-mode).desktop-windowed-ui #ui-hp-bar {
+:root body.desktop-windowed-ui #ui-hp-bar {
   background: linear-gradient(90deg, #168f55, #2fd477 62%, #72eba4);
   box-shadow: inset 0 1px 0 rgba(218, 255, 232, 0.2), 0 0 15px rgba(45, 209, 118, 0.22);
 }
 
-body:not(.light-mode).desktop-windowed-ui #ui-exp-bar {
+:root body.desktop-windowed-ui #ui-exp-bar {
   background: linear-gradient(90deg, #6b4eb5, #ae7ae8);
   box-shadow: 0 0 10px rgba(170, 115, 230, 0.28);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed {
+:root body.desktop-windowed-ui .combat-feed {
   z-index: 9;
   border-color: rgba(81, 118, 157, 0.46);
   background: linear-gradient(180deg, rgba(12, 20, 31, 0.88), rgba(5, 10, 17, 0.86));
@@ -331,14 +328,14 @@ body:not(.light-mode).desktop-windowed-ui .combat-feed {
   backdrop-filter: blur(7px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed-title {
+:root body.desktop-windowed-ui .combat-feed-title {
   min-height: 26px;
   color: #ffffff;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed #log {
+:root body.desktop-windowed-ui .combat-feed #log {
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -348,7 +345,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-feed #log {
 
 /* Desktop rail and windows */
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
+:root body.desktop-windowed-ui .tab-content.ui-window {
   border: 1px solid rgba(111, 147, 189, 0.7);
   background:
     radial-gradient(circle at 50% -20%, rgba(61, 100, 140, 0.17), transparent 42%),
@@ -357,12 +354,12 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
   backdrop-filter: blur(10px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window.ui-window-active {
+:root body.desktop-windowed-ui .tab-content.ui-window.ui-window-active {
   border-color: rgba(232, 194, 106, 0.88);
   box-shadow: 0 32px 86px rgba(0, 0, 0, 0.64), 0 0 0 1px rgba(232, 194, 106, 0.17), 0 0 34px rgba(232, 194, 106, 0.06);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
+:root body.desktop-windowed-ui .ui-window-titlebar {
   position: relative;
   flex-basis: 38px;
   border-bottom: 1px solid rgba(107, 144, 185, 0.44);
@@ -370,7 +367,7 @@ body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
   box-shadow: inset 0 1px 0 rgba(233, 245, 255, 0.08), 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar::after {
+:root body.desktop-windowed-ui .ui-window-titlebar::after {
   content: '';
   position: absolute;
   left: 12px;
@@ -381,46 +378,46 @@ body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar::after {
   pointer-events: none;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-active .ui-window-titlebar {
+:root body.desktop-windowed-ui .ui-window-active .ui-window-titlebar {
   background: linear-gradient(180deg, rgba(48, 75, 105, 0.99), rgba(23, 38, 58, 0.99));
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-title {
+:root body.desktop-windowed-ui .ui-window-title {
   font-size: 0.9rem;
   letter-spacing: 0.025em;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.54);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button {
+:root body.desktop-windowed-ui .ui-window-actions button {
   border-color: rgba(105, 140, 177, 0.4);
   background: rgba(7, 13, 21, 0.42);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button:hover {
+:root body.desktop-windowed-ui .ui-window-actions button:hover {
   color: #ffffff;
   border-color: rgba(126, 186, 232, 0.68);
   background: rgba(55, 89, 123, 0.52);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-body h2 {
+:root body.desktop-windowed-ui .ui-window-body h2 {
   color: #ffffff;
   border-bottom-color: rgba(75, 108, 143, 0.46);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.44);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-goal-panel {
+:root body.desktop-windowed-ui .ui-goal-panel {
   border-color: rgba(94, 132, 173, 0.58);
   background: linear-gradient(180deg, rgba(15, 24, 37, 0.92), rgba(6, 11, 18, 0.92));
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(7px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
+:root body.desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42), 0 0 20px rgba(232, 194, 106, 0.09), inset 0 1px 0 rgba(255, 241, 207, 0.05);
 }
 
-body:not(.light-mode) .noti-dot {
+:root body .noti-dot {
   filter: drop-shadow(0 0 5px rgba(255, 76, 87, 0.75));
 }
 
@@ -430,20 +427,20 @@ body:not(.light-mode) .noti-dot {
 }
 
 @media (max-width: 760px) {
-  body:not(.light-mode) #loop-hero-select-grid { grid-template-columns: 1fr; }
-  body:not(.light-mode) .hero-choice { min-height: 52px; }
-  body:not(.light-mode) .startup-shell { border-radius: 20px; }
-  body:not(.light-mode) .tutorial-overlay { backdrop-filter: blur(3px); }
+  :root body #loop-hero-select-grid { grid-template-columns: 1fr; }
+  :root body .hero-choice { min-height: 52px; }
+  :root body .startup-shell { border-radius: 20px; }
+  :root body .tutorial-overlay { backdrop-filter: blur(3px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body:not(.light-mode) .startup-overlay::before { animation: none; }
+  :root body .startup-overlay::before { animation: none; }
 }
 }
 
 @layer overrides {
 
-body:not(.light-mode) #loop-hero-select-overlay .tutorial-card {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
+:root body #loop-hero-select-overlay .tutorial-card {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
   max-width: 760px !important;
 }
 }

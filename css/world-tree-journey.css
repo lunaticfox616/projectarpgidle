@@ -14,7 +14,6 @@
 #ui-world-tree-journey .journey-receipt-currencies b{font-weight:500;color:#e5d2aa}
 #ui-world-tree-journey .journey-receipt .loot-return-highlights{margin:4px 0}
 #ui-world-tree-journey .journey-receipt .loot-highlight-card strong{color:var(--loot-rarity)}
-body.light-mode #ui-world-tree-journey{--journey-ink:#eaece2;--journey-muted:#a9b1a5}
 #ui-world-tree-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 #ui-world-tree-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #ad976349;border-radius:5px;background:#172019;color:#ece4cf;grid-column:1/-1}
 #ui-world-tree-combat .journey-hud-copy{display:flex;flex-direction:column;gap:4px;min-width:0}

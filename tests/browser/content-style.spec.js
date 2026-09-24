@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { currencyUse } = require('./crafting-helpers');
 
-for (const theme of ['dark', 'light']) test(`content workspaces remain readable and contained in ${theme}`, async ({ page }, testInfo) => {
+test('content workspaces remain readable and contained', async ({ page }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
@@ -9,7 +9,6 @@ for (const theme of ['dark', 'light']) test(`content workspaces remain readable 
     await page.locator('#btn-startup-guest').click();
     await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await page.evaluate(theme => applyThemeMode(theme), theme);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
         game.level = 200; game.season = 20; game.maxZoneId = 10;

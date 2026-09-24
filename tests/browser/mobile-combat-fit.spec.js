@@ -65,15 +65,12 @@ test('shared choice controls follow both game themes', async ({ page }, info) =>
         section.innerHTML = '<label><input type="checkbox" checked> 선택</label><select aria-label="검사 선택"><option>기본</option><option>변경</option></select>';
         document.body.append(section);
     });
-    for (const light of [false, true]) {
-        await page.evaluate(light => document.body.classList.toggle('light-mode', light), light);
-        const colors = await page.locator('#choice-preview').evaluate(el => {
-            const checkbox = getComputedStyle(el.querySelector('input')), select = getComputedStyle(el.querySelector('select'));
-            return { accent: checkbox.accentColor, scheme: select.colorScheme, background: select.backgroundColor };
-        });
-        expect(colors.accent).not.toBe('auto'); expect(colors.scheme).toBe(light ? 'light' : 'dark');
-        await page.getByRole('combobox', { name: '검사 선택' }).selectOption({ label: '변경' });
-        await expect(page.getByRole('combobox', { name: '검사 선택' })).toHaveValue('변경');
-        await page.locator('#choice-preview').screenshot({ path: info.outputPath(`choices-${light}.png`) });
-    }
+    const colors = await page.locator('#choice-preview').evaluate(el => {
+        const checkbox = getComputedStyle(el.querySelector('input')), select = getComputedStyle(el.querySelector('select'));
+        return { accent: checkbox.accentColor, scheme: select.colorScheme, background: select.backgroundColor };
+    });
+    expect(colors.accent).not.toBe('auto'); expect(colors.scheme).toBe('dark');
+    await page.getByRole('combobox', { name: '검사 선택' }).selectOption({ label: '변경' });
+    await expect(page.getByRole('combobox', { name: '검사 선택' })).toHaveValue('변경');
+    await page.locator('#choice-preview').screenshot({ path: info.outputPath('choices-dark.png') });
 });

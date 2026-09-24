@@ -155,7 +155,7 @@ test('defeat keeps paid loot, blocks retry for 30 seconds and then offers new ro
     expect(await page.evaluate(()=>game.cosmosRoute.stage)).toBe(0);
 });
 
-test('planned route survives a real reload with its remaining path and light theme',async({page},info)=>{
+test('planned route survives a real reload with its remaining path',async({page},info)=>{
     await openRoute(page);
     await page.locator('[data-route-action="start"]').click();
     const saved=await page.evaluate(()=>{
@@ -169,12 +169,11 @@ test('planned route survives a real reload with its remaining path and light the
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
         if(!document.getElementById('tab-map').classList.contains('active'))switchTab('tab-map');
         switchMapSubtab('map-tab-cosmos');switchCosmosInnerTab('route');
-        document.body.classList.add('light-mode');
     });
     expect(await page.evaluate(()=>game.cosmosRoute.phase)).toBe('fighting');
     expect(await page.evaluate(()=>game.cosmosRoute.plan)).toEqual(saved.plan);
     expect(await page.evaluate(()=>getZone(game.currentZoneId).cosmosHabitat)).toBe(saved.habitat);
     expect(await page.evaluate(()=>game.currencies.starDust)).toBeGreaterThanOrEqual(saved.dust);
     await page.locator('.cosmos-star-header').scrollIntoViewIfNeeded();
-    await page.screenshot({path:info.outputPath('route-light.png'),scale:'css'});
+    await page.screenshot({path:info.outputPath('route.png'),scale:'css'});
 });

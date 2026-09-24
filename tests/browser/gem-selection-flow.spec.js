@@ -193,9 +193,6 @@ test('core forge has persistent pity, bounded feedback and usable mobile control
     expect(buttonBox.x).toBeGreaterThanOrEqual(0);expect(buttonBox.y).toBeGreaterThanOrEqual(0);
     expect(buttonBox.x+buttonBox.width).toBeLessThanOrEqual(viewport.width);
     expect(buttonBox.y+buttonBox.height).toBeLessThanOrEqual(viewport.height);
-    await page.evaluate(()=>document.body.classList.add('light-mode'));
-    await expect(dialog.locator('[data-forge-close]')).toHaveCSS('color','rgb(48, 41, 31)');
-    await page.screenshot({path:info.outputPath('forge-light.png')});
     await dialog.getByRole('button',{name:'젬 강화 닫기'}).click();
     await page.locator('[data-forge-material="bossCore"]').click();
     await expect(dialog).toContainText('젬 레벨 +1 적용 중');
@@ -275,10 +272,9 @@ test('loadout summary stays visible while browsing and all gem sections fit on p
     });
     expect(foreground).toBe(true);
     await page.screenshot({ path: info.outputPath('gem-summary-scroll.png') });
-    await page.evaluate(() => document.body.classList.add('light-mode'));
     await page.getByRole('group', { name: '연속 베기', exact: true }).click();
     await expect(page.locator('#gem-selection')).toBeVisible();
-    await page.screenshot({ path: info.outputPath('gem-selection-light.png') });
+    await page.screenshot({ path: info.outputPath('gem-selection.png') });
 });
 
 test('condition feedback reports real failures and casts without rebuilding rules or changing combat', async ({ page }, info) => {

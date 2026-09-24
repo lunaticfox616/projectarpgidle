@@ -138,7 +138,6 @@ test('offline return shows compact highlights with snapshot tooltips and themed 
     await expect(page.locator('#tab-items')).toBeVisible();
     await expect(tooltip).not.toBeVisible();
     await page.evaluate(()=>{
-        document.body.classList.add('light-mode');
         showBackgroundCombatResult({summary:{},actualElapsedMs:3600000,effectiveProgressMs:0});
     });
     await expect(overlay.locator('.loot-highlight-card')).toHaveCount(0);

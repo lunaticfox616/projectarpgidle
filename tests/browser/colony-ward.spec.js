@@ -48,15 +48,12 @@ test('ward search retains focus and units through refresh; both themes stay read
     await expect(panel.locator('[data-ward-id="regen"] strong')).toHaveText('초당 생명력 재생 +8');
     const reset=panel.getByRole('button',{name:'검색어 리셋'});
     await reset.focus();await page.evaluate(()=>performUpdateStaticUI());await expect(reset).toBeFocused();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
-        await panel.getByRole('heading',{name:'군락지 액막이',exact:true}).scrollIntoViewIfNeeded();
-        await page.screenshot({path:info.outputPath(`wards-top-${light?'light':'dark'}.png`)});
-        await panel.locator('[data-ward-id="shield"]').scrollIntoViewIfNeeded();
-        await page.screenshot({path:info.outputPath(`wards-bottom-${light?'light':'dark'}.png`)});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
+    await panel.getByRole('heading',{name:'군락지 액막이',exact:true}).scrollIntoViewIfNeeded();
+    await page.screenshot({path:info.outputPath('wards-top-dark.png')});
+    await panel.locator('[data-ward-id="shield"]').scrollIntoViewIfNeeded();
+    await page.screenshot({path:info.outputPath('wards-bottom-dark.png')});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
     await input.fill('없는 옵션');
     await expect(panel.getByRole('button',{name:'검색 항목 해체',exact:true})).toBeDisabled();
     await expect(panel).toContainText('검색 조건에 맞는 액막이가 없습니다.');

@@ -35,13 +35,23 @@ const actExplorationUi=(()=>{
         host.querySelector('b').textContent=`탐험 ${pct}%`+(remaining?` · 정예 ${remaining}`:' · 관문 개방');
     }
     // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
-    // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다(클릭 좌표는 비율로 계산해 영향 없음).
+    // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다.
+    // 전장 위 미니맵은 플레이어 주변 MINI_VIEW칸만, 크게 보기 창은 지도 전체를 그린다(클릭 좌표는 같은 창(view)으로 환산).
     const MAP_INK={fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',floorAlt:'#877a58',wall:'#26342c',edge:'rgba(240,214,150,.85)'};
+    const MINI_VIEW=21;
+    function mapView(canvas,map) {
+        if(canvas.id!=='act-exploration-map')return {x0:0,y0:0,cols:map.columns,rows:map.rows,scale:10};
+        const cols=Math.min(MINI_VIEW,map.columns),rows=Math.min(MINI_VIEW,map.rows);
+        const x0=Math.max(0,Math.min(map.columns-cols,game.gridPlayer.gx-Math.floor(cols/2)));
+        const y0=Math.max(0,Math.min(map.rows-rows,game.gridPlayer.gy-Math.floor(rows/2)));
+        return {x0,y0,cols,rows,scale:8};
+    }
     function draw(canvas,run) {
-        const map=actExplorationMap.layout(run.act),scale=canvas.id==='act-exploration-map-large'?10:5,ss=2;
-        canvas.width=map.columns*scale*ss;canvas.height=map.rows*scale*ss;
+        const map=actExplorationMap.layout(run.act),view=mapView(canvas,map),scale=view.scale,ss=2;
+        canvas.width=view.cols*scale*ss;canvas.height=view.rows*scale*ss;
+        canvas.dataset.view=[view.x0,view.y0,view.cols,view.rows].join(',');
         const ctx=canvas.getContext('2d'),seen=new Set(run.discovered);
-        ctx.setTransform(ss,0,0,ss,0,0);
+        ctx.setTransform(ss,0,0,ss,-view.x0*scale*ss,-view.y0*scale*ss);
         drawFog(ctx,map,scale);
         drawTerrain(ctx,map,seen,scale);
         drawMarkers(ctx,run,map,seen,scale);
@@ -108,11 +118,14 @@ const actExplorationUi=(()=>{
         if(value!=='manual')game.settings.actExplorationMode=value;
         render();
     }
+    // 모바일의 작은 미니맵은 손가락으로 칸을 고르기 어려워, 누르면 크게 보기 창을 연다(칸 선택은 큰 지도에서).
     function choose(event) {
+        if(event.currentTarget.id==='act-exploration-map'&&window.matchMedia('(max-width: 1080px)').matches)return expand();
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         const map=actExplorationMap.layout(run.act),rect=event.currentTarget.getBoundingClientRect();
-        const cell={gx:Math.floor((event.clientX-rect.left)/rect.width*map.columns),
-            gy:Math.floor((event.clientY-rect.top)/rect.height*map.rows)};
+        const view=mapView(event.currentTarget,map);
+        const cell={gx:view.x0+Math.floor((event.clientX-rect.left)/rect.width*view.cols),
+            gy:view.y0+Math.floor((event.clientY-rect.top)/rect.height*view.rows)};
         actExplorationState.selectDestination(run,cell);render();
     }
     function key(event) {

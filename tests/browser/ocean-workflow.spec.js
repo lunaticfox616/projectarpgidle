@@ -116,11 +116,8 @@ test('ocean upgrade shows actual owned costs and spends exactly once',async({pag
     expect(await page.evaluate(()=>[game.currencies.skyEssence,game.currencies.oceanRerollShard,game.currencies.reefFragment,game.ocean.permanentUpgrades.oxygenMax]))
         .toEqual([0,0,0,1]);
     await expect(page.getByRole('button',{name:'산소 최대치 강화',exact:true})).toBeDisabled();
-    for(const light of [false,true]) {
-        await page.evaluate(light=>applyThemeMode(light?'light':'dark'),light);
-        await panel.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath(`ocean-${light?'light':'dark'}.png`),scale:'css'});
-        expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    }
+    await panel.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('ocean-dark.png'),scale:'css'});
+    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
 });
 
 test('locked travel and repeated dive cannot reset oxygen or overwrite an encounter',async({page})=>{

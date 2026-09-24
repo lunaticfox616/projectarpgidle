@@ -39,12 +39,11 @@ test('rune selection keeps close and unequip available while browsing a full inv
     await expect(overlay.getByRole('button',{name:'이 슬롯 해제',exact:true})).toBeDisabled();
     await overlay.getByRole('button',{name:'닫기',exact:true}).click();
     await page.evaluate(()=>{
-        document.body.classList.add('light-mode');
         game.underworldRunes.obtainedRunes=[1,1,1];game.currencies.runeShard=5;
         openUnderworldRuneUpgradeOverlay();
     });
     await expect(overlay).toContainText('룬조각 5');
-    await page.screenshot({path:info.outputPath('rune-upgrade-light.png'),scale:'css'});
+    await page.screenshot({path:info.outputPath('rune-upgrade.png'),scale:'css'});
     await overlay.locator('.underworld-rune-option').click();
     expect(await page.evaluate(()=>game.currencies.runeShard)).toBe(0);
     expect(await page.evaluate(()=>game.underworldRunes.equippedRunes[0])).toBe(2);

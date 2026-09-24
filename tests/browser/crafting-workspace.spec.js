@@ -124,8 +124,6 @@ test('fossil selection uses real currency, and small viewport has reachable cont
     await expect(page.locator('.cl-session')).toContainText('1회 제작');
     await settle(page);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
-    await page.evaluate(()=>document.body.classList.add('light-mode'));
-    await page.screenshot({path:`artifacts/crafting-workspace-light-${test.info().project.name}.png`});
 });
 
 test('automatic use respects its count limit and the available materials',async({page})=>{
