@@ -8574,6 +8574,56 @@ function getBattleActorDrawAlpha(ctx,alpha) {
     return (alpha ?? 1)*(ctx.battleActorAlpha ?? 1);
 }
 
+// 윤곽선 스프라이트 캐시. ctx.filter(drop-shadow 4개)는 그릴 때마다 캔버스 전체 크기의 임시 버퍼를 만들어,
+// 전장이 클수록 비싸다(GPU 없는 렌더에서 1440×900 기준 프레임당 약 100ms). 같은 원본 조각·크기·색이면
+// 윤곽을 한 번만 만들어 두고 그림처럼 찍는다. 표시 전용이며 판정·좌표와 무관하다.
+const OUTLINED_SPRITE_CACHE_LIMIT = 192;
+const outlinedSpriteCache = new Map();
+const outlinedSpriteImageIds = new WeakMap();
+let outlinedSpriteNextImageId = 1;
+
+function getOutlinedSpriteSurface(sourceImage, src, size, outline) {
+    let imageId = outlinedSpriteImageIds.get(sourceImage);
+    if (!imageId) { imageId = outlinedSpriteNextImageId++; outlinedSpriteImageIds.set(sourceImage, imageId); }
+    const key = [imageId, src.x, src.y, src.w, src.h, size.w, size.h, outline.color, outline.thickness, outline.smooth].join('|');
+    const cached = outlinedSpriteCache.get(key);
+    if (cached) {
+        outlinedSpriteCache.delete(key);
+        outlinedSpriteCache.set(key, cached);
+        return cached;
+    }
+    const surface = createOutlinedSpriteSurface(sourceImage, src, size, outline);
+    if (!surface) return null;
+    outlinedSpriteCache.set(key, surface);
+    if (outlinedSpriteCache.size > OUTLINED_SPRITE_CACHE_LIMIT) outlinedSpriteCache.delete(outlinedSpriteCache.keys().next().value);
+    return surface;
+}
+
+function createOutlinedSpriteSurface(sourceImage, src, size, outline) {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+    const t = outline.thickness, color = outline.color;
+    const canvas = document.createElement('canvas');
+    canvas.width = size.w + t * 2;
+    canvas.height = size.h + t * 2;
+    const c = canvas.getContext && canvas.getContext('2d');
+    if (!c) return null;
+    c.imageSmoothingEnabled = outline.smooth;
+    c.filter = `drop-shadow(0 ${t}px 0 ${color}) drop-shadow(0 ${-t}px 0 ${color}) drop-shadow(${t}px 0 0 ${color}) drop-shadow(${-t}px 0 0 ${color})`;
+    c.drawImage(sourceImage, src.x, src.y, src.w, src.h, t, t, size.w, size.h);
+    return canvas;
+}
+
+// 윤곽 패스: 캐시한 윤곽 그림을 (x, y) 기준으로 찍는다. 원래처럼 윤곽 알파로 그린 뒤 본 그림을 위에 덧그린다.
+function drawBattleSpriteOutline(ctx, sourceImage, src, box, options) {
+    const thickness = Math.max(1, Math.round(options.outlineThickness || 1));
+    const surface = getOutlinedSpriteSurface(sourceImage, src, { w: box.w, h: box.h },
+        { color: options.outlineColor, thickness, smooth: ctx.imageSmoothingEnabled !== false });
+    if (!surface) return;
+    ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
+    ctx.drawImage(surface, box.x - thickness, box.y - thickness, box.w + thickness * 2, box.h + thickness * 2);
+    ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
+}
+
 function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (!rect) return;
     options = options || {};
@@ -8611,14 +8661,8 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (options.rotation) {
         ctx.translate(Math.round(x + (options.offsetX || 0)), Math.round(y - drawHeight / 2 + (options.offsetY || 0)));
         ctx.rotate(options.rotation);
-        if (options.outlineColor) {
-            let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
-            ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
-            ctx.filter = `drop-shadow(0 ${thickness}px 0 ${options.outlineColor}) drop-shadow(0 ${-thickness}px 0 ${options.outlineColor}) drop-shadow(${thickness}px 0 0 ${options.outlineColor}) drop-shadow(${-thickness}px 0 0 ${options.outlineColor})`;
-            ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
-            ctx.filter = 'none';
-            ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
-        }
+        if (options.outlineColor) drawBattleSpriteOutline(ctx, sourceImage, { x: srcX, y: srcY, w: srcW, h: srcH },
+            { x: Math.round(-drawWidth / 2), y: Math.round(-drawHeight / 2), w: drawWidth, h: drawHeight }, options);
         ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
     } else {
         if (options.devicePixelSnap === true) {
@@ -8634,14 +8678,8 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
             ctx.scale(-1, 1);
             ctx.translate(-centerX, 0);
         }
-        if (options.outlineColor) {
-            let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
-            ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
-            ctx.filter = `drop-shadow(0 ${thickness}px 0 ${options.outlineColor}) drop-shadow(0 ${-thickness}px 0 ${options.outlineColor}) drop-shadow(${thickness}px 0 0 ${options.outlineColor}) drop-shadow(${-thickness}px 0 0 ${options.outlineColor})`;
-            ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
-            ctx.filter = 'none';
-            ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
-        }
+        if (options.outlineColor) drawBattleSpriteOutline(ctx, sourceImage, { x: srcX, y: srcY, w: srcW, h: srcH },
+            { x: dx, y: dy, w: drawWidth, h: drawHeight }, options);
         ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
     }
     ctx.restore();
