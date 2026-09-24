@@ -76,6 +76,11 @@ const flaskContext = {
 vm.createContext(flaskContext);
 require('./lib/load-content-progression')(flaskContext);
 require('./lib/load-combat-clock')(flaskContext);
+// 실제 단축키 배정 모듈(기본 1~5)로 플라스크 칸의 키 표시를 만든다.
+flaskContext.safeExposeData = map => Object.assign(flaskContext, map);
+flaskContext.safeExposeGlobals = map => Object.assign(flaskContext, map);
+for (const file of ['data/hotkeys.js', 'js/hotkeys.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), flaskContext, { filename: file });
+flaskContext.game.settings = { hotkeyOverrides: {} };
 vm.runInContext(uiSource.slice(flaskStart, flaskEnd), flaskContext, { filename: 'player-hud-flasks.js' });
 flaskContext.renderCombatFlaskHud();
 assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 5, 'the HUD must render every unlocked flask socket up to the five-slot cap');
@@ -86,6 +91,9 @@ assert(flaskHost.innerHTML.includes('flask-heal') && flaskHost.innerHTML.include
   && flaskHost.innerHTML.includes('flask-sulphur'),
   'equipped flasks must expose their potion category for distinct liquid colors');
 assert(!flaskHost.innerHTML.includes(' title='), 'combat flasks must not use browser-native title tooltips');
+assert.deepStrictEqual([...flaskHost.innerHTML.matchAll(/data-flask-slot="(\d)" aria-keyshortcuts="([^"]+)"/g)].map(m => m[1] + '=' + m[2]),
+  ['0=1', '1=2', '2=3', '3=4', '4=5'], 'each flask socket shows its own default number key');
+assert(flaskHost.innerHTML.includes('onclick="hotkeysUi.useFlask(0, this)"'), 'clicking a flask socket drinks it instead of opening management');
 assert(flaskHost.innerHTML.includes('onmouseenter="showPlayerFlaskTooltip(event'),
   'every combat flask socket must use the shared custom tooltip handler');
 

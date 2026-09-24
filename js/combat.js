@@ -2498,6 +2498,60 @@ function applyFlaskHealProgress(st, hpCap, now) {
     }
 }
 
+/** 생명력 플라스크 1회: 충전 1 소모, durationMs 동안 최대 생명력의 healPct%를 나눠 회복. 조건 검사는 호출부. */
+function drinkHealFlask(st, healDef, hpCap, now) {
+    st.healCharges--;
+    trackHiddenJournalFlaskUse();
+    let healDurationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
+    let durSec = Math.max(0.5, healDurationMs / 1000);
+    let totalHeal = Math.max(1, Math.floor(hpCap * getFlaskEffectiveHealPct(healDef) / 100));
+    st.healOverTimePerSec = totalHeal / durSec;
+    st.healOverTimeTotal = totalHeal;
+    st.healOverTimeApplied = 0;
+    st.healOverTimeStartedAt = now;
+    st.healOverTimeUntil = now + healDurationMs;
+}
+
+/** 보조 플라스크 1회: 충전 1 소모, 효과 시간 시작. 이번 조우의 자동 사용으로 쳐서 곧바로 다시 자동 발동하지 않는다. */
+function drinkUtilityFlask(st, u, def, now) {
+    u.charges--;
+    trackHiddenJournalFlaskUse();
+    u.until = now + getFlaskEffectiveDurationMs(def);
+    if (normalizeUtilityFlaskTrigger(u.trigger) !== 'lowHp') u.lastAutoEncounter = st.encounterSerial;
+    syncUtilityFlaskChargeBank(st, u);
+}
+
+/**
+ * 수동 사용(단축키·HUD 플라스크 칸). slot 0 = 생명력, 1~4 = 보조 칸(st.utils[slot-1]).
+ * @returns {{ok: boolean, reason?: 'locked'|'dead'|'empty'|'charges'|'active'|'full'}}
+ */
+function useFlaskSlot(slot) {
+    if (!contentProgression.isUnlocked('flask')) return { ok: false, reason: 'locked' };
+    if (!(game.playerHp > 0)) return { ok: false, reason: 'dead' };
+    let st = ensureFlaskState();
+    let now = getCombatTime();
+    return slot === 0 ? useHealFlaskManually(st, now) : useUtilityFlaskManually(st, slot, now);
+}
+
+function useHealFlaskManually(st, now) {
+    let hpCap = Math.max(1, Math.floor(getPlayerStats().maxHp || 1));
+    if (st.healCharges <= 0) return { ok: false, reason: 'charges' };
+    if (st.healOverTimeUntil > now) return { ok: false, reason: 'active' };
+    if (game.playerHp >= hpCap) return { ok: false, reason: 'full' };
+    drinkHealFlask(st, getFlaskHealDef(st.healTier), hpCap, now);
+    return { ok: true };
+}
+
+function useUtilityFlaskManually(st, slot, now) {
+    let u = slot >= 1 && slot <= getMaxFlaskUtilitySlotCount() ? st.utils[slot - 1] : null;
+    let def = u && FLASK_UTILITY_POOL[u.key];
+    if (!def) return { ok: false, reason: 'empty' };
+    if (u.charges <= 0) return { ok: false, reason: 'charges' };
+    if (u.until > now) return { ok: false, reason: 'active' };
+    drinkUtilityFlask(st, u, def, now);
+    return { ok: true };
+}
+
 function tickFlaskAutoUse(pStats) {
     if (!contentProgression.isUnlocked('flask')) return;
     let st = ensureFlaskState();
@@ -2514,16 +2568,7 @@ function tickFlaskAutoUse(pStats) {
     // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
     if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
-        st.healCharges--;
-        trackHiddenJournalFlaskUse();
-        let healDurationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
-        let durSec = Math.max(0.5, healDurationMs / 1000);
-        let totalHeal = Math.max(1, Math.floor(hpCap * getFlaskEffectiveHealPct(healDef) / 100));
-        st.healOverTimePerSec = totalHeal / durSec;
-        st.healOverTimeTotal = totalHeal;
-        st.healOverTimeApplied = 0;
-        st.healOverTimeStartedAt = now;
-        st.healOverTimeUntil = now + healDurationMs;
+        drinkHealFlask(st, healDef, hpCap, now);
     }
     // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
     // 현재 허리띠가 지원하는 슬롯 수만큼만 발동한다(초과분은 배열엔 남아있지만 비활성).
@@ -2534,11 +2579,7 @@ function tickFlaskAutoUse(pStats) {
         let trigger = normalizeUtilityFlaskTrigger(u.trigger);
         let alreadyUsedThisEncounter = trigger !== 'lowHp' && u.lastAutoEncounter === st.encounterSerial;
         if (!alreadyUsedThisEncounter && u.charges > 0 && u.until <= now && shouldAutoUseUtilityFlask(trigger, aliveEnemies, hpPct)) {
-            u.charges--;
-            trackHiddenJournalFlaskUse();
-            u.until = now + getFlaskEffectiveDurationMs(def);
-            if (trigger !== 'lowHp') u.lastAutoEncounter = st.encounterSerial;
-            syncUtilityFlaskChargeBank(st, u);
+            drinkUtilityFlask(st, u, def, now);
         }
     });
 }

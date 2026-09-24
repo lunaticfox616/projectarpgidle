@@ -6900,7 +6900,16 @@ function showPlayerFlaskTooltip(event, kind, key) {
             + `<div class="tooltip-line">효과: ${def.desc}</div>`
             + `<div class="tooltip-line" style="color:var(--copy-bright);">남은 충전: ${entry ? entry.charges : 0}/${def.maxCharges}</div>`;
     }
+    html += getCombatFlaskUseHintHtml(event.currentTarget);
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#9ed6ff');
+}
+
+/** 전투 HUD 플라스크 칸(data-flask-slot)에만 붙는 사용 안내 줄. */
+function getCombatFlaskUseHintHtml(target) {
+    let data = target && target.dataset;
+    if (!data || data.flaskSlot === undefined) return '';
+    let key = data.hotkeyLabel ? ` 또는 [${escapeHTML(data.hotkeyLabel)}] 키` : '';
+    return `<div class="tooltip-line">누르기${key}: 바로 마시기 · 장착 변경은 보조장비 창</div>`;
 }
 
 function showCombatFlaskOverflowTooltip(event) {
@@ -8877,14 +8886,14 @@ function renderCombatFlaskHud() {
     let st = ensureFlaskState();
     let now = getCombatTime();
     let healDef = getFlaskHealDef(st.healTier);
-    let healEntry = { key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal', category: 'heal' };
+    let healEntry = { slot: 0, key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal', category: 'heal' };
     let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
     let utilityEntries = [];
     for (let index = 0; index < maxUtility; index++) {
         let runtime = st.utils[index];
         let def = runtime && FLASK_UTILITY_POOL[runtime.key];
         utilityEntries.push(def
-            ? { key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility', category: def.category || 'utility' }
+            ? { slot: index + 1, key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility', category: def.category || 'utility' }
             : null);
     }
     // HUD는 허용된 빈 슬롯이 아니라 실제 장착된 플라스크만 보여준다.
@@ -8892,12 +8901,17 @@ function renderCombatFlaskHud() {
     let entries = [healEntry].concat(utilityEntries.filter(Boolean));
     let visibleSlotCount = String(entries.length);
     host.dataset.visibleSlots = visibleSlotCount;
-    let signature = `${maxUtility}|${entries.map(entry => entry ? `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}` : '-').join('|')}`;
+    entries.forEach(entry => { entry.hotkey = hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, `flask:${entry.slot}`)); });
+    let signature = `${maxUtility}|${entries.map(entry => `${entry.slot}:${entry.key}:${entry.charges}:${entry.active ? 1 : 0}:${entry.hotkey}`).join('|')}`;
     if (host.dataset.signature === signature) return;
     host.dataset.signature = signature;
+    // 누르거나 단축키(기본 1~5)로 바로 마신다(useFlaskSlot). 장착·관리는 보조장비 창.
     let buttons = entries.map(entry => {
         let categoryClass = `flask-${String(entry.category || 'utility').replace(/[^a-z0-9_-]/gi, '')}`;
-        return `<button type="button" class="combat-flask-mini ${entry.type} ${categoryClass} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" aria-label="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmousemove="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmouseleave="hideInfoTooltip()" onclick="openTabPane('tab-flask')"><span aria-hidden="true">🧪</span><b>${entry.charges}</b></button>`;
+        let kind = entry.type === 'heal' ? 'heal' : 'util';
+        let keyAttrs = entry.hotkey ? ` aria-keyshortcuts="${escapeHTML(entry.hotkey)}" data-hotkey-label="${escapeHTML(entry.hotkey)}"` : '';
+        let keyCap = entry.hotkey ? `<i class="combat-flask-key" aria-hidden="true">${escapeHTML(entry.hotkey)}</i>` : '';
+        return `<button type="button" class="combat-flask-mini ${entry.type} ${categoryClass} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" aria-label="${escapeHTML(entry.name)} 마시기 · ${entry.charges}/${entry.maxCharges}회" data-flask-slot="${entry.slot}"${keyAttrs} data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'${kind}','${entry.key}')" onmousemove="showPlayerFlaskTooltip(event,'${kind}','${entry.key}')" onmouseleave="hideInfoTooltip()" onclick="hotkeysUi.useFlask(${entry.slot}, this)"><span aria-hidden="true">🧪</span><b>${entry.charges}</b>${keyCap}</button>`;
     });
     host.innerHTML = buttons.join('');
 }
@@ -10476,6 +10490,7 @@ function performUpdateStaticUI() {
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     updateLoopDecisionOverlayUi();
+    if (typeof hotkeysUi !== 'undefined') hotkeysUi.sync();
     let loopReadyBanner = document.getElementById('loop-ready-banner');
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');

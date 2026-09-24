@@ -1,0 +1,85 @@
+@layer features {
+/* PC 단축키: HUD 플라스크 칸의 키 표시·사용 반응, 설정 > 단축키 목록. 동작은 js/hotkeys-ui.js. */
+
+.player-hud-flask-rack .combat-flask-mini > .combat-flask-key {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  z-index: 5;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 2px;
+  box-sizing: border-box;
+  border: 1px solid #695237;
+  border-radius: 2px;
+  background: #090a08;
+  color: #d8c8a8;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 10px;
+  text-align: center;
+  pointer-events: none;
+}
+/* 터치 화면은 키보드가 없으므로 키 표시를 숨긴다(누르면 마시는 동작은 그대로). */
+@media (hover: none) and (pointer: coarse) {
+  .player-hud-flask-rack .combat-flask-mini > .combat-flask-key { display: none; }
+}
+
+.player-hud-flask-rack .combat-flask-mini.flask-used { animation: flask-used-pulse .32s ease-out; }
+.player-hud-flask-rack .combat-flask-mini.flask-denied { animation: flask-denied-shake .26s ease-in-out; }
+@keyframes flask-used-pulse {
+  0% { filter: brightness(1.8); }
+  100% { filter: none; }
+}
+@keyframes flask-denied-shake {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -2px 0; }
+  75% { translate: 2px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-hud-flask-rack .combat-flask-mini:is(.flask-used, .flask-denied) { animation: none; }
+}
+
+.hotkey-settings { display: grid; gap: 10px; }
+.hotkey-section { display: grid; gap: 2px; }
+.hotkey-section-title {
+  padding: 0 10px 2px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.hotkey-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 10px;
+}
+.hotkey-key {
+  min-width: 64px;
+  min-height: 28px;
+  padding: 3px 10px;
+  border: 1px solid var(--skin-line);
+  border-radius: 4px;
+  background: var(--skin-canvas);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.hotkey-key:hover, .hotkey-key:focus-visible { border-color: var(--color-accent-gold); }
+.hotkey-key.changed { color: var(--color-accent-gold); }
+.hotkey-key.unbound { color: var(--color-text-secondary); font-weight: 600; }
+.hotkey-key.capturing { border-color: var(--color-accent-gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-gold) 35%, transparent); }
+.hotkey-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding: 2px 10px;
+}
+.hotkey-notice { min-height: 1.3em; color: var(--color-text-secondary); font-size: 11px; }
+}

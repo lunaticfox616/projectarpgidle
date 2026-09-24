@@ -44,6 +44,7 @@
 @import "./gem-core-forge.css";
 @import "./act-exploration.css";
 @import "./workspace-dock.css";
+@import "./hotkeys.css";
 @import "./themes/rift.css";
 @import "./themes/rift-stage.css";
 @import "./themes/high-contrast.css";

@@ -105,6 +105,7 @@ function init() {
     document.getElementById('chk-high-contrast').checked = game.settings.highContrast === true;
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
+    hotkeysUi.init();
     uiDisplay.apply(game.settings.uiScale);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
