@@ -88,6 +88,6 @@ assert.strictEqual(context.game.currencies.gemShard, 2);
 assert.strictEqual(context.game.supportGemData['보조 C'].unlockedTier, 1);
 
 // Search, persistent fold choices, UI refresh and resource spending are exercised
-// in tests/browser/gem-research.spec.js against the actual game DOM.
+// in a real browser against the actual game DOM when that screen changes.
 
 console.log('smoke-gem-research passed');
