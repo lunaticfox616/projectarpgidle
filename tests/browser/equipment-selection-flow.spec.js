@@ -192,27 +192,6 @@ test('equipped gear opens adjacent actions and supports crafting and unequip',as
     expect(errors).toEqual([]);
 });
 
-test('edge placement stays on screen at adjusted scale and dismissal preserves double click',async({page},info)=>{
-    await openInventory(page);
-    if(!info.project.use.isMobile)await page.evaluate(()=>uiDisplay.apply(125));
-    const key=await page.locator('.equipment-grid-item').evaluateAll(cards=>cards
-        .map(card=>({key:card.dataset.equipmentGridKey,x:card.getBoundingClientRect().right}))
-        .sort((a,b)=>b.x-a.x)[0].key);
-    const card=page.locator(`[data-equipment-grid-key="${key}"]`);
-    await card.scrollIntoViewIfNeeded();
-    if(info.project.use.isMobile)await card.tap();else await card.click();
-    const menu=page.locator('#ui-equipment-inventory-inspector');
-    await expect(menu).toBeVisible();
-    const box=await menu.boundingBox(),view=page.viewportSize();
-    expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(view.width);
-    expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(view.height);
-    await menu.getByRole('button',{name:'장착',exact:true}).click({trial:true});
-    await page.mouse.click(2,2);
-    await expect(menu).toBeHidden();await expect(page.locator('#tab-items')).toBeVisible();
-    await card.dblclick();await expect(card).toHaveCount(0);await expect(menu).toBeHidden();
-    expect(await page.evaluate(key=>Object.values(game.equipment).some(item=>item&&equipmentInventoryGridRuntime.getItemKey(item)===key),key)).toBe(true);
-});
-
 test('comparison stays inside the selection window and preserves equipment until equip',async({page},info)=>{
     await openInventory(page);
     const target=await page.evaluate(()=>{

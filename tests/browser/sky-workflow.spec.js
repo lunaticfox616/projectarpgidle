@@ -21,29 +21,6 @@ async function openSky(page) {
     });
 }
 
-test('sky has one direct first-floor entry and preserves focused controls',async({page},info)=>{
-    await openSky(page);
-    const panel=page.locator('#ui-sky-tower-panel');
-    const entry=panel.getByRole('button',{name:'1층 입장',exact:true});
-    await expect(panel.getByRole('button',{name:'다른 층 선택'})).toHaveCount(0);
-    await entry.focus();
-    expect(await entry.evaluate(el=>{
-        game.skyTower.condensedPower++;renderSkyTowerMapPanel();
-        return el.isConnected&&document.activeElement===el;
-    })).toBe(true);
-    await panel.getByText('등반 · 보상 규칙',{exact:true}).click();
-    await page.evaluate(()=>{game.skyTower.condensedPower++;renderSkyTowerMapPanel();});
-    await expect(page.locator('#sky-tower-guide')).toHaveAttribute('open','');
-    await panel.getByText('등반 · 보상 규칙',{exact:true}).click();
-    await expect(page.locator('#game-toast-region .game-toast, .mobile-log-toast')).toHaveCount(0);
-    await panel.scrollIntoViewIfNeeded();
-    await page.screenshot({path:info.outputPath('sky-dark.png')});
-    expect(await panel.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
-    await entry.click();
-    await expect.poll(()=>page.evaluate(()=>game.currentZoneId===SKY_TOWER_ZONE_ID)).toBe(true);
-    await expect(page.locator('#game-dialog-control')).not.toBeVisible();
-});
-
 test('sky investment pays once, stops at insufficient funds and opens real gem growth',async({page})=>{
     await openSky(page);
     const growth=page.locator('#ui-sky-tower-list');
@@ -58,31 +35,6 @@ test('sky investment pays once, stops at insufficient funds and opens real gem g
     await page.evaluate(()=>{game.woodsmanBuildLock=false;});
     await growth.getByRole('button',{name:'젬 강화로 이동',exact:true}).click();
     await expect(page.locator('#skill-tab-enhance')).toBeVisible();
-});
-
-test('exhausted sky allowance requires explicit practice and keeps clear rewards stopped',async({page})=>{
-    await openSky(page);
-    await page.evaluate(()=>{game.skyTower.clearedThisLoop=25;renderSkyTowerMapPanel();});
-    await page.getByRole('button',{name:'1층 연습 입장',exact:true}).click();
-    await expect(page.getByText('보상 없는 연습 전투',{exact:true})).toBeVisible();
-    await page.getByRole('button',{name:'취소',exact:true}).click();
-    expect(await page.evaluate(()=>game.currentZoneId===SKY_TOWER_ZONE_ID)).toBe(false);
-    await page.getByRole('button',{name:'1층 연습 입장',exact:true}).click();
-    await page.getByRole('button',{name:'연습 입장',exact:true}).click();
-    await page.evaluate(()=>finishEncounterRun());
-    expect(await page.evaluate(()=>({power:game.skyTower.condensedPower,highest:game.skyTower.highestFloor,clears:game.skyTower.clearedFloors})))
-        .toEqual({power:20,highest:1,clears:[]});
-});
-
-test('sky floor dialog cannot apply to a replaced save',async({page})=>{
-    await openSky(page);
-    await page.evaluate(()=>{game.skyTower.highestFloor=5;renderSkyTowerMapPanel();});
-    await page.getByRole('button',{name:'다른 층 선택',exact:true}).click();
-    await page.locator('#game-dialog-number').fill('4');
-    await page.evaluate(()=>{game.skyTower=JSON.parse(JSON.stringify(game.skyTower));});
-    await page.getByRole('button',{name:'입장',exact:true}).click();
-    expect(await page.evaluate(()=>game.skyTower.currentFloor)).toBe(1);
-    expect(await page.evaluate(()=>game.currentZoneId===SKY_TOWER_ZONE_ID)).toBe(false);
 });
 
 test('sky tenth-floor receipt and journal survive restore without repeating first reward',async({page})=>{

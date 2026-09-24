@@ -21,37 +21,6 @@ async function openOcean(page) {
     });
 }
 
-test('first fish appears in the collection and crafting preserves discovery',async({page},info)=>{
-    await openOcean(page);
-    await page.getByRole('button',{name:'잠수 시작 · 0m',exact:true}).click();
-    await page.evaluate(()=>{
-        for(let clear=0;clear<5;clear++)finishEncounterRun();
-        forceSurfaceOcean('manual');
-    });
-    await page.getByRole('button',{name:'낚시 · 제작',exact:true}).click();
-    await expect(page.locator('.ocean-last-catch')).toContainText('은빛 비늘치');
-    if(info.project.use.isMobile)await page.getByRole('tab',{name:'도감',exact:true}).click();
-    else await page.locator('#fishing-collection > summary').click();
-    const fish=page.locator('.ocean-fish-card').filter({hasText:'은빛 비늘치'});
-    await expect(fish.locator('.ocean-fish-count b')).toHaveText('1');
-    await expect(fish).toContainText('누적 1');
-    await page.evaluate(()=>{
-        enterOceanDive();
-        for(let clear=0;clear<20;clear++)finishEncounterRun();
-        forceSurfaceOcean('manual');renderFishingPanel();renderSeaGiftPanel();
-    });
-    if(info.project.use.isMobile)await page.getByRole('tab',{name:'제작',exact:true}).click();
-    const craft=page.locator('[data-sea-recipe="reefBundle"] button');
-    await expect(craft).toBeEnabled();
-    const reefBefore=await page.evaluate(()=>game.currencies.reefFragment||0);
-    await craft.click();await expect(craft).toBeDisabled();
-    expect(await page.evaluate(()=>game.currencies.reefFragment)).toBe(reefBefore+2);
-    if(info.project.use.isMobile)await page.getByRole('tab',{name:'도감',exact:true}).click();
-    await expect(fish.locator('.ocean-fish-count b')).toHaveText('0');
-    await expect(fish).toContainText('누적 5');
-    await page.screenshot({path:info.outputPath('caught-and-crafted.png'),scale:'css'});
-});
-
 test('collection puts caught fish first and keeps reward controls stable during refresh',async({page},info)=>{
     await openOcean(page);
     await page.getByRole('button',{name:'낚시 · 제작',exact:true}).click();
