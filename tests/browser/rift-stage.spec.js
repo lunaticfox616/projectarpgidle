@@ -234,3 +234,52 @@ test('combat HUD shows attack, summon and auto-rule gems with a live cooldown', 
     await expect(page.locator('#skill-tab-condition')).toBeVisible();
     expect(errors).toEqual([]);
 });
+
+test('number keys drink flasks and every hotkey can be rebound in settings', async ({ page }, info) => {
+    const errors = await openGame(page, info);
+    await page.evaluate(() => {
+        game.season = 2; contentProgression.sync(); ensureFlaskState();
+        game.playerHp = Math.floor(getPlayerStats().maxHp / 3);
+        updateStaticUI();
+    });
+    const heal = page.locator('#ui-combat-flasks [data-flask-slot="0"]');
+    await expect(heal).toBeVisible();
+    const charges = () => page.evaluate(() => ensureFlaskState().healCharges);
+    const start = await charges();
+    if (info.project.use.isMobile) {
+        // 터치: HUD 플라스크 칸을 누르면 바로 마신다.
+        await heal.tap();
+        expect(await charges()).toBe(start - 1);
+        expect(errors).toEqual([]);
+        return;
+    }
+    await expect(heal).toHaveAttribute('aria-keyshortcuts', '1');
+    await page.keyboard.press('1');
+    expect(await charges()).toBe(start - 1);
+    await page.keyboard.press('1');
+    expect(await charges()).toBe(start - 1);   // 이미 회복 중이면 두 번 마시지 않는다
+
+    // 설정에서 생명력 플라스크를 C로 옮기면 C를 쓰던 캐릭터 창은 키가 비워진다.
+    await page.evaluate(() => switchTab('tab-settings'));
+    const key = page.locator('#ui-hotkey-settings [data-hotkey-action="flask:0"]');
+    await key.scrollIntoViewIfNeeded();
+    await key.click();
+    await expect(key).toHaveText('키 입력…');
+    await page.keyboard.press('c');
+    await expect(key).toHaveText('C');
+    await expect(page.locator('#ui-hotkey-settings [data-hotkey-action="window:tab-character"]')).toHaveText('없음');
+    await expect(page.locator('#btn-tab-character')).not.toHaveAttribute('aria-keyshortcuts', /./);
+    await expect(heal).toHaveAttribute('aria-keyshortcuts', 'C');
+    const saved = await page.evaluate(() => mergeDefaults(JSON.parse(serializeSaveState())).settings.hotkeyOverrides);
+    expect(saved).toEqual({ 'window:tab-character': '', 'flask:0': 'KeyC' });
+
+    // Esc는 키 입력을 취소하고, 기본값 버튼은 전부 되돌린다.
+    const map = page.locator('#ui-hotkey-settings [data-hotkey-action="window:tab-map"]');
+    await map.click();
+    await page.keyboard.press('Escape');
+    await expect(map).toHaveText('M');
+    await page.locator('#ui-hotkey-settings [data-hotkey-reset]').click();
+    await expect(key).toHaveText('1');
+    await expect(page.locator('#btn-tab-character')).toHaveAttribute('aria-keyshortcuts', 'C');
+    expect(errors).toEqual([]);
+});

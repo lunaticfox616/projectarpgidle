@@ -791,6 +791,7 @@ function mergeDefaults(save) {
     delete merged.settings.themeMode;
     merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
     merged.settings.highContrast = merged.settings.highContrast === true;
+    merged.settings.hotkeyOverrides = hotkeyBindings.normalize(merged.settings.hotkeyOverrides);
     merged.settings.uiScale = normalizeUiScale(merged.settings.uiScale);
     merged.settings.tabLayouts = normalizeTabLayoutSettings(save.settings || {});
     ['tabOrder', 'tabPlacement', 'tabGroupOrder', 'tabPlacementInitialized'].forEach(key => delete merged.settings[key]);

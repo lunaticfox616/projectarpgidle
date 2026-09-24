@@ -5059,16 +5059,6 @@ document.addEventListener('mousemove', function(e) {
         if (el && el.style.display !== 'none') positionTooltipElement(el, mouseX, mouseY);
     }
 });
-document.addEventListener('keydown', function(event) {
-    if (event.ctrlKey || event.altKey || event.metaKey) return;
-    let skillId = Number(event.key);
-    if (!skillId) return;
-    if (!SKILL_CONFIG[skillId]) return;
-    let target = event.target;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-    event.preventDefault();
-    playSkill(skillId);
-});
 
 function getBattleHitFeedback(data) {
     if (!data || data.dot || !Number.isFinite(Number(data.damage))) return {};

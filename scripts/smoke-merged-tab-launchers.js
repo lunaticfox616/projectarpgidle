@@ -536,8 +536,9 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     context.openTabPane('tab-flask');
     assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))).slice(0, 2), ['utility', 'tab-flask'],
         'openTabPane must surface the requested pane, not just its window');
-    assert(source.includes("onclick=\"openTabPane('tab-flask')\""),
-        'the combat flask strip must open the flask pane directly');
+    // 전투 HUD 플라스크 칸은 누르면 마신다(단축키와 같은 입구). 관리 창은 보조장비 메뉴로 연다.
+    assert(source.includes('onclick="hotkeysUi.useFlask(${entry.slot}, this)"'),
+        'the combat flask strip drinks the flask it shows');
 
     // 해금 상태가 바뀌면 열려 있는 병합 창의 내부 탭도 다시 그려야 한다.
     // 회귀: 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고, 내부 탭 버튼에

@@ -182,7 +182,7 @@
   /* 곁다리 조우 계수기: HUD 밑에 깔리지 않게 전장 왼쪽 위(몬스터 수·대상 체력바 아래, 미니맵 왼쪽)에 띄운다. */
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #side-encounter-hud {
     position: absolute;
-    top: 66px;
+    top: 84px; /* 대상 적 카드(위 ~78px) 아래 */
     left: 6px;
     z-index: 6;
     width: auto;
