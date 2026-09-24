@@ -45,7 +45,7 @@ body[data-ui-skin="rift"] {
 
 /* 제목은 명조 계열로 한 단계 올리고, 작은 글자는 본문 글꼴로 남긴다(명조는 14px 미만에서 읽기 어렵다). */
 body[data-ui-skin="rift"] :is(
-  .ui-window-title, .tutorial-title, .game-dialog-title, .deathlog-card .tutorial-title,
+  .ui-window-title, .tutorial-title, .deathlog-card .tutorial-title,
   .combat-zone-row-title, #ui-combat-zone-inline, .startup-title
 ) {
   font-family: var(--font-display);
