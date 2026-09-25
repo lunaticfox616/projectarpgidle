@@ -204,6 +204,10 @@ function init() {
 }
 
 function runGameTick() {
+    combatEquipmentStats.withinTick(runGameTickOnce);
+}
+
+function runGameTickOnce() {
     try {
         if (runForegroundCombat(performance.now()) === 0) return;
         ensureLoopChallengeState();

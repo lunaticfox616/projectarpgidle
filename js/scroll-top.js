@@ -49,7 +49,7 @@
         if (!button) return;
         if (!isActiveContextAvailable()) setActiveContext(null);
         let surface = activeContext && activeContext.surface;
-        button.hidden = !surface || Math.max(0, Number(surface.scrollTop) || 0) < SCROLL_TOP_THRESHOLD;
+        button.toggleAttribute('hidden', !surface || Math.max(0, Number(surface.scrollTop) || 0) < SCROLL_TOP_THRESHOLD);
     }
 
     function onScrollableSurfaceScroll(event) {

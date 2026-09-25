@@ -4,8 +4,9 @@ const actExplorationUi=(()=>{
     let departurePending=false,approvedDeparture=null;
     function render() {
         const panel=document.getElementById('act-exploration-panel');if(!panel)return;
-        const run=actExplorationState.current(game);panel.hidden=!run;
-        document.getElementById('btn-act-exploration-map').hidden=!run;
+        // toggleAttribute leaves an unchanged flag alone, so per-frame calls do not restyle the page.
+        const run=actExplorationState.current(game);panel.toggleAttribute('hidden',!run);
+        document.getElementById('btn-act-exploration-map').toggleAttribute('hidden',!run);
         renderLoot(run);
         if(!run){lastRun=null;lastKey='';return;}
         const remaining=actExplorationState.remainingElites(run);

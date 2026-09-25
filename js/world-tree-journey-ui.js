@@ -158,7 +158,7 @@ const worldTreeJourneyUi = (() => {
     function updateHud(zone) {
         const host=document.getElementById('ui-world-tree-combat');
         if (!host) return;
-        const st=ledger();host.hidden=!zone.worldTreeNode;
+        const st=ledger();host.toggleAttribute('hidden',!zone.worldTreeNode);
         if (host.hidden) {hudSignature='';return;}
         const key=JSON.stringify([st.active,st.plan,st.notice,st.queue]);
         if (hudSignature===key) return;

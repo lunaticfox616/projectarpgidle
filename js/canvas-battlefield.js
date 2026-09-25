@@ -2729,7 +2729,7 @@ function renderBattlefield(forceWhenHidden) {
     else if (game.moveTimer > 0) caption = '';
     else if (getCanvasCrowdProgressPaused()) caption = '';
     else caption = `몬스터 수 ${enemies.length}마리`;
-    document.getElementById('ui-battlefield-caption').innerText = caption;
+    setElementText(document.getElementById('ui-battlefield-caption'), caption);
 }
 
 function getBattleCameraShake(now) {

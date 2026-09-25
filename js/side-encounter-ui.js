@@ -77,7 +77,7 @@ const sideEncounterUi = (() => {
         if (!host) return;
         const run = game.voidRift && game.voidRift.grandRun;
         const active = zone.type === 'grandBreach' && run && run.inRun;
-        host.hidden = !active;
+        host.toggleAttribute('hidden', !active);
         if (!active) { lastHudHtml = ''; return; }
         const html = grandSummary(run);
         if (html !== lastHudHtml) { host.innerHTML = html; lastHudHtml = html; }

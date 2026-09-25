@@ -23,6 +23,21 @@ run('game.actRewardBonuses[0].value=32');
 assert.equal(run('getPlayerStats(false).strength'),52,'condition recovery reactivates gear');
 run('var liveState=game;window.game=game;combatEquipmentStats.inspect(weapon,"무기")');
 assert.equal(run('game===liveState && window.game===liveState'),true,'isolated checks restore both runtime state references');
+// One game tick shares build validation, but a level-up or equipment change inside it still re-validates.
+assert.deepEqual(json(`combatEquipmentStats.withinTick(()=>{
+    let seen=[];game.level=1;
+    seen.push(!!combatEquipmentStats.evaluate(game).disabled['무기']);
+    game.level=100;
+    seen.push(!!combatEquipmentStats.evaluate(game).disabled['무기']);
+    game.equipment['무기']=null;
+    seen.push(combatEquipmentStats.activeEquipment(game)['무기']);
+    game.equipment['무기']=weapon;
+    seen.push(combatEquipmentStats.activeEquipment(game)['무기']===weapon);
+    return seen;
+})`),[true,false,null,true],'in-tick level and equipment changes are never served stale');
+run('game.actRewardBonuses[0].value=31');
+assert.ok(run("getPlayerStats(false).disabledEquipment['무기']"),'outside a tick every read re-validates in-place build edits');
+run('game.actRewardBonuses[0].value=32');
 run('game.equipment={...game.equipment};game.equipment["무기"]={...weapon}');
 assert.equal(run('combatEquipmentStats.activeEquipment(game)["무기"]===game.equipment["무기"]'),true,'equivalent equipment replacement must not retain old item references');
 run('game.equipment["무기"]={...weapon}');
