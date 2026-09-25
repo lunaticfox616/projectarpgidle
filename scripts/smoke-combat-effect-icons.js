@@ -93,6 +93,8 @@ vm.createContext(context);
 require('./lib/load-content-progression')(context);
 require('./lib/load-ui-display')(context);
 require('./lib/load-combat-clock')(context);
+const domWriteStart = source.indexOf('function setTextById(');
+vm.runInContext(source.slice(domWriteStart, source.indexOf('function updateHpDamageGhostState(', domWriteStart)), context, { filename: 'hud-dom-writes.js' });
 vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-icons.js' });
 
 const playerStats = {

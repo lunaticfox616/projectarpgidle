@@ -2,6 +2,9 @@
 const combatEquipmentStats = (() => {
     const cache = new WeakMap();
     const evaluating = new WeakSet();
+    // One synchronous game tick validates the build once; its helpers reuse that result.
+    // It is the same tick-start snapshot the combat step already takes for player stats.
+    let tickResults = null;
     function missing(item, attributes, owner, maintaining) {
         if (maintaining && item.legacyRequirementGrace) return [];
         const req = levelProgression.requirements(item), result = [];
@@ -29,11 +32,33 @@ const combatEquipmentStats = (() => {
             return equipmentStatCalculator(false, true, true);
         } finally { evaluating.delete(game); game = live; stateBridge.game = windowGame; }
     }
+    function sameEquipment(previous, owner) {
+        return previous.equipmentRef === owner.equipment
+            && Object.entries(owner.equipment || {}).every(([slot, item]) => previous.itemRefs[slot] === item);
+    }
+    /**
+     * Run one synchronous tick while sharing build validation between its helpers.
+     * A level-up or equipment change inside the tick still re-validates.
+     * @template T
+     * @param {() => T} work
+     * @returns {T}
+     */
+    function withinTick(work) {
+        if (tickResults) return work();
+        tickResults = new WeakMap();
+        try { return work(); } finally { tickResults = null; }
+    }
     function evaluate(owner) {
+        const ticked = tickResults?.get(owner);
+        if (ticked && ticked.level === owner.level && sameEquipment(ticked, owner)) return ticked;
+        const result = evaluateBuild(owner);
+        tickResults?.set(owner, result);
+        return result;
+    }
+    function evaluateBuild(owner) {
         const signature = getPersistentBuildSignature(owner);
         const previous = cache.get(owner);
-        if (previous?.signature === signature && previous.equipmentRef === owner.equipment
-            && Object.entries(owner.equipment || {}).every(([slot, item]) => previous.itemRefs[slot] === item)) return previous;
+        if (previous?.signature === signature && sameEquipment(previous, owner)) return previous;
         const snapshot = permanentSnapshot(owner), equipment = { ...snapshot.equipment }, disabled = {};
         let totals = attributes(snapshot, equipment);
         // Descending fixed point: each round only removes invalid items, so at most slot-count rounds.
@@ -47,7 +72,7 @@ const combatEquipmentStats = (() => {
         }
         const active = Object.keys(disabled).length
             ? Object.fromEntries(Object.entries(owner.equipment).map(([slot, item]) => [slot, disabled[slot] ? null : item])) : owner.equipment;
-        const result = { signature, disabled, totals, snapshot, active, equipmentRef: owner.equipment,
+        const result = { signature, level: owner.level, disabled, totals, snapshot, active, equipmentRef: owner.equipment,
             itemRefs: { ...owner.equipment }, inspections: new Map() };
         cache.set(owner, result);
         return result;
@@ -97,5 +122,5 @@ const combatEquipmentStats = (() => {
         if (evaluating.has(owner)) return owner.equipment;
         return evaluate(owner).active;
     }
-    return Object.freeze({ evaluate, inspect, validateLoadout, read, activeEquipment });
+    return Object.freeze({ evaluate, inspect, validateLoadout, read, activeEquipment, withinTick });
 })();

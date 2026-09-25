@@ -154,7 +154,7 @@ const cosmosRouteUi = (() => {
         const label = document.getElementById('ui-cosmos-route-progress');
         if (!label) return;
         const visible = game.currentZoneId === 'cosmos_challenge' && cosmosRouteRuntime.active(game);
-        label.hidden = !visible;
+        label.toggleAttribute('hidden', !visible);
         if (!visible) return;
         const route = game.cosmosRoute;
         const completed = route.history.filter(row => row.stage === route.stage).length;

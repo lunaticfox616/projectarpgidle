@@ -8775,10 +8775,18 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
 }
 
 function setTextById(id, value) {
-    let el = document.getElementById(id);
+    setElementText(document.getElementById(id), value);
+}
+
+// Per-tick HUD writes: an identical write still dirties styles, so only real changes touch the DOM.
+function setElementText(el, value) {
     if (!el) return;
     const text = value == null ? '' : String(value);
     if (el.textContent !== text) el.textContent = text;
+}
+
+function setElementAttribute(el, name, value) {
+    if (el && el.getAttribute(name) !== value) el.setAttribute(name, value);
 }
 
 function updateHpDamageGhostState(state, actualPct, now, options) {
@@ -8900,10 +8908,11 @@ function renderCombatFlaskHud() {
     // 논리 슬롯 상한은 플라스크 화면에서 관리하고, 전투 HUD는 현재 장착 상태만 압축해 표현한다.
     let entries = [healEntry].concat(utilityEntries.filter(Boolean));
     let visibleSlotCount = String(entries.length);
-    host.dataset.visibleSlots = visibleSlotCount;
     entries.forEach(entry => { entry.hotkey = hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, `flask:${entry.slot}`)); });
     let signature = `${maxUtility}|${entries.map(entry => `${entry.slot}:${entry.key}:${entry.charges}:${entry.active ? 1 : 0}:${entry.hotkey}`).join('|')}`;
+    // The signature covers the entry count, so an unchanged HUD skips every DOM write.
     if (host.dataset.signature === signature) return;
+    host.dataset.visibleSlots = visibleSlotCount;
     host.dataset.signature = signature;
     // 누르거나 단축키(기본 1~5)로 바로 마신다(useFlaskSlot). 장착·관리는 보조장비 창.
     let buttons = entries.map(entry => {
@@ -9584,9 +9593,9 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     let visible = Array.isArray(labels) && labels.length > 0;
     traitEl.style.display = visible ? '' : 'none';
     traitEl.removeAttribute('title');
-    traitEl.setAttribute('data-enemy-trait-tooltip', fullTooltip || display.fullText || '');
-    traitEl.setAttribute('data-enemy-trait-kind', isBoss ? '보스 특성' : '정예 특성');
-    traitEl.setAttribute('aria-label', fullTooltip || display.fullText || '');
+    setElementAttribute(traitEl, 'data-enemy-trait-tooltip', fullTooltip || display.fullText || '');
+    setElementAttribute(traitEl, 'data-enemy-trait-kind', isBoss ? '보스 특성' : '정예 특성');
+    setElementAttribute(traitEl, 'aria-label', fullTooltip || display.fullText || '');
     if (!visible) {
         clearUiEnemyTraitRotation(traitEl);
         traitEl.__traitSignature = '';
@@ -9925,7 +9934,7 @@ function updateCombatUI(pStats) {
         let hpTextEl = enemyListEl.querySelector('.hp-text');
         let ailmentEl = enemyListEl.querySelector('.enemy-ailments');
         let traitEl = enemyListEl.querySelector('.enemy-traits');
-        if (nameEl) nameEl.innerText = `${getEnemyDisplayName(focusedEnemy)} · Lv.${levelProgression.monsterLevel(zone, focusedEnemy)}`;
+        setElementText(nameEl, `${getEnemyDisplayName(focusedEnemy)} · Lv.${levelProgression.monsterLevel(zone, focusedEnemy)}`);
         if (ghostEl) {
             ghostEl.style.left = `${pct}%`;
             ghostEl.style.width = `${ghostTrailPct}%`;
@@ -9942,8 +9951,8 @@ function updateCombatUI(pStats) {
             let zoneNow = getZone(game.currentZoneId);
             if (zoneNow && zoneNow.type === 'woodsmanEcho') {
                 let totalDealt = Math.max(0, Math.floor((focusedEnemy.echoStartHp || focusedEnemy.maxHp || 0) - Math.max(0, focusedEnemy.hp || 0)));
-                hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`;
-            } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`;
+                setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`);
+            } else setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`);
         }
         if (ailmentEl && ailmentEl.__lastHtml !== effectMarkup) {
             ailmentEl.innerHTML = effectMarkup;
