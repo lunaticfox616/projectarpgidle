@@ -1,0 +1,159 @@
+{
+  "scale": 2,
+  "note": "모든 좌표·크기는 출력(@2x) 픽셀 기준입니다.",
+  "kit": {
+    "panel-large": {
+      "file": "panel-large-v1.png",
+      "size": [
+        962,
+        302
+      ],
+      "role": "대화 창·알림 카드·보스 이름판",
+      "slice": [
+        88,
+        88,
+        88,
+        88
+      ]
+    },
+    "button-plate": {
+      "file": "button-plate-v1.png",
+      "size": [
+        302,
+        90
+      ],
+      "role": "주 버튼·메뉴 탭",
+      "slice": [
+        24,
+        24,
+        24,
+        24
+      ]
+    },
+    "slot-socket": {
+      "file": "slot-socket-v1.png",
+      "size": [
+        114,
+        114
+      ],
+      "role": "스킬·젬·장비 칸(고정 크기)",
+      "slice": null
+    },
+    "field-plate": {
+      "file": "field-plate-v1.png",
+      "size": [
+        386,
+        74
+      ],
+      "role": "검색창·선택 목록·이름 라벨",
+      "slice": [
+        20,
+        28,
+        20,
+        28
+      ]
+    },
+    "label-knot": {
+      "file": "label-knot-v1.png",
+      "size": [
+        222,
+        82
+      ],
+      "role": "장식 머리판(고정 크기)",
+      "slice": null
+    },
+    "icon-slot": {
+      "file": "icon-slot-v1.png",
+      "size": [
+        90,
+        90
+      ],
+      "role": "창 버튼·작은 아이콘 칸",
+      "slice": [
+        28,
+        28,
+        28,
+        28
+      ]
+    },
+    "tab-plate": {
+      "file": "tab-plate-v1.png",
+      "size": [
+        342,
+        90
+      ],
+      "role": "넓은 버튼·목표 머리판·하위 탭",
+      "slice": [
+        24,
+        88,
+        24,
+        88
+      ]
+    },
+    "socket-round": {
+      "file": "socket-round-v1.png",
+      "size": [
+        178,
+        182
+      ],
+      "role": "원형 버튼(지도 등, 고정 크기)",
+      "slice": null
+    },
+    "gauge-frame": {
+      "file": "gauge-frame-v1.png",
+      "size": [
+        562,
+        58
+      ],
+      "role": "경험치·진행도 게이지 틀",
+      "slice": [
+        18,
+        184,
+        18,
+        184
+      ]
+    }
+  },
+  "orb": {
+    "file": "hp-orb-frame-v1.png",
+    "size": [
+      768,
+      768
+    ],
+    "hole": {
+      "x": 118,
+      "y": 120,
+      "width": 530,
+      "height": 526
+    }
+  },
+  "stumpBoard": {
+    "file": "stump-board-v1.png",
+    "size": [
+      512,
+      512
+    ],
+    "grid": {
+      "origin": [
+        104,
+        106
+      ],
+      "cell": 54,
+      "divider": 8,
+      "pitch": 62,
+      "columns": 5,
+      "rows": 5
+    },
+    "sourceBeforeRegularize": {
+      "cellWidths": [
+        27,
+        28,
+        29
+      ],
+      "dividerWidths": [
+        3,
+        4
+      ]
+    }
+  }
+}
