@@ -40,12 +40,15 @@ function scaleEquipmentStatLines(stats, multiplier, growthItem) {
 
 function getEquipmentStatMultiplier(item, ownerState, growthItem, growthSnapshot) {
     if (growthItem) return getGrowthItemStatMultiplier(item.id, growthSnapshot);
+    // Only a warrior-w6 weapon can differ from 1. Check that first: resolving the active
+    // equipment re-validates the whole build and this runs for every item in every stat pass.
+    let warriorKeystone = ownerState.ascendClass === 'warrior'
+        && ((ownerState.ascendKeystones || []).includes('w6') || (ownerState.cosmosTwinKeystones || []).includes('w6'));
+    if (item.slot !== '무기' || !warriorKeystone) return 1;
     let equipment = combatEquipmentStats.activeEquipment(ownerState);
     let offhand = equipment && equipment['방패'];
     let dualWielding = !!(equipment && equipment['무기'] && offhand && offhand.slot === '무기');
-    let warriorKeystone = ownerState.ascendClass === 'warrior'
-        && ((ownerState.ascendKeystones || []).includes('w6') || (ownerState.cosmosTwinKeystones || []).includes('w6'));
-    return item.slot === '무기' && dualWielding && warriorKeystone ? 1.5 : 1;
+    return dualWielding ? 1.5 : 1;
 }
 
 function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier, growthItem, growthSnapshot) {

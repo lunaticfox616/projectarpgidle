@@ -5529,6 +5529,8 @@ function drawDamageTexts(ctx, now) {
         ctx.shadowColor = text.deflected ? 'rgba(151,174,174,0.2)' : (text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent')));
         ctx.shadowBlur = text.bodyCue ? 0 : (text.deflected ? 2 : (text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0)));
         ctx.strokeText(textValue, x, y);
+        // The fill sits inside the stroke, so the stroke pass already casts the whole glow.
+        ctx.shadowBlur = 0;
         ctx.fillStyle = getDamageTextFillColor(text);
         ctx.fillText(textValue, x, y);
         if (!text.bodyCue && !text.miss && Math.floor(Number(text.hitCount) || 1) > 1) {
@@ -5537,7 +5539,6 @@ function drawDamageTexts(ctx, now) {
             ctx.font = `800 10px "DOSSaemmul", "Malgun Gothic", sans-serif`;
             ctx.textAlign = 'left';
             ctx.lineWidth = 1.2;
-            ctx.shadowBlur = 0;
             ctx.strokeText(hitLabel, labelX, y - 3);
             ctx.fillStyle = '#c8d9e8';
             ctx.fillText(hitLabel, labelX, y - 3);

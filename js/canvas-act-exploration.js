@@ -1,5 +1,6 @@
 // Read-only large-map rendering. The player's saved fractional position also owns the camera.
 const actExplorationView=(()=>{
+    const FOG_VIEW_PX=12; // pre-softened fog resolution per tile; drawn with cheap bilinear scaling
     let cache=null,lastOrigin=null;
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.layout(run.act);
@@ -22,7 +23,7 @@ const actExplorationView=(()=>{
     }
     function prepare(map) {
         if(cache?.map===map)return;
-        const current={map,surface:null,scenery:[],error:'',fogKey:'',fog:null,closed:null,open:null};cache=current;
+        const current={map,surface:null,scenery:[],error:'',fogKey:'',fog:null,fogView:null,closed:null,open:null};cache=current;
         explorationArt.terrain(map).then(surface=>{
             if(cache!==current)return;
             current.surface=surface;current.scenery=explorationArt.scenery(map);
@@ -38,8 +39,9 @@ const actExplorationView=(()=>{
             ctx.fillStyle='#d7c99c';ctx.font='14px sans-serif';ctx.textAlign='center';
             ctx.fillText(cache.error?'지형 로딩 실패: '+cache.error:'지형 로딩 중',width/2,32);
         }
-        updateFog(run,map);ctx.imageSmoothingEnabled=true;
-        ctx.drawImage(cache.fog,p.mapX,p.mapY,p.mapWidth,p.mapHeight);ctx.restore();return true;
+        // The fog is pre-softened into fogView whenever it changes; per frame it is only copied.
+        updateFog(run,map);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
+        ctx.drawImage(cache.fogView,p.mapX,p.mapY,p.mapWidth,p.mapHeight);ctx.restore();return true;
     }
     function updateFog(run,map) {
         const key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy;
@@ -52,6 +54,12 @@ const actExplorationView=(()=>{
             pixels.data.set([8,14,12,Math.round(alpha*255)],i*4);
         }
         ctx.putImageData(pixels,0,0);
+        // Upscaling one pixel per tile with smoothing was the most expensive draw of every
+        // exploration frame. Soften it once per change at FOG_VIEW_PX per tile instead.
+        if(!cache.fogView){cache.fogView=document.createElement('canvas');cache.fogView.width=map.columns*FOG_VIEW_PX;cache.fogView.height=map.rows*FOG_VIEW_PX;}
+        const view=cache.fogView.getContext('2d');view.clearRect(0,0,cache.fogView.width,cache.fogView.height);
+        view.imageSmoothingEnabled=true;view.imageSmoothingQuality='high';
+        view.drawImage(cache.fog,0,0,cache.fogView.width,cache.fogView.height);
     }
     function appendScenery(actors,state) {
         const run=actExplorationState.current(game);if(!run || !cache?.surface)return;

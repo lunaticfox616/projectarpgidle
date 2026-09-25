@@ -219,7 +219,7 @@ context.escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({ '&':'
 context.document = { addEventListener() {}, getElementById(id) { return id === 'ui-arcana-panel' ? panel : null; } };
 context.navigator = { userAgent: 'Desktop' };
 context.matchMedia = () => ({ matches: false });
-vm.runInContext(fs.readFileSync('js/ui-display.js', 'utf8'), context);
+require('./lib/load-ui-display')(context);
 context.addLog = () => {};
 context.saveGame = () => {};
 vm.runInContext(fs.readFileSync('js/endgame-progression-ui.js', 'utf8'), context);
