@@ -5,6 +5,9 @@ module.exports = function loadUiDisplay(context) {
     context.navigator ||= { userAgent: 'Windows' };
     context.document ||= {};
     context.document.addEventListener ||= () => {};
+    context.document.hasFocus ||= () => true;
+    context.performance ||= { now: () => Date.now() };
+    context.addEventListener ||= () => {};
     context.window ||= context;
     context.safeExposeGlobals ||= definitions => Object.assign(context, definitions);
     vm.runInContext(fs.readFileSync('js/ui-display.js', 'utf8'), context, { filename: 'js/ui-display.js' });

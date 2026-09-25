@@ -84,7 +84,7 @@ function buildGameRuntime(sourceOverrides = {}, eventTarget = null, documentOver
         body: makeEl(), documentElement: makeEl(), head: makeEl(),
         getElementById: () => null, querySelector: () => null, querySelectorAll: () => [],
         createElement: makeEl, createTextNode: makeEl, createDocumentFragment: makeEl,
-        addEventListener: noop, removeEventListener: noop
+        addEventListener: noop, removeEventListener: noop, hasFocus: () => true
     };
     // DOM boundary supplied by interaction tests; production modules remain unmodified.
     Object.assign(context.document, documentOverrides);

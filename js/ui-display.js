@@ -6,6 +6,21 @@ const uiDisplay = (() => {
     const mediaRules = new Map();
     const visitedSheets = new WeakSet();
     const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // Resting cadence: an idle game keeps fighting while nobody watches closely. After a quiet
+    // period, or while another window has focus, the battlefield repaints less often.
+    // Combat timing is unaffected; only drawing is spaced out. Any input restores full cadence.
+    const RESTING_AFTER_MS = 20000;
+    const RESTING_FRAME_MS = mobileDevice ? 1000 / 20 : 1000 / 30;
+    const UNFOCUSED_FRAME_MS = 1000 / 20;
+    let lastInputAt = performance.now();
+    const markInput = () => { lastInputAt = performance.now(); };
+    ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(type =>
+        window.addEventListener(type, markInput, { capture: true, passive: true }));
+    window.addEventListener('focus', markInput);
+    function restingFrameMs() {
+        if (!document.hasFocus()) return UNFOCUSED_FRAME_MS;
+        return performance.now() - lastInputAt > RESTING_AFTER_MS ? RESTING_FRAME_MS : 0;
+    }
 
     function mediaText(query) {
         return query.replace(/((?:min-|max-)?(?:width|height)\s*:\s*)([\d.]+)(px|em|rem)/g,
@@ -90,8 +105,8 @@ const uiDisplay = (() => {
     }
 
     return Object.freeze({ apply, init, matches, registerStyles, get factor() { return factor; },
-        get battleFrameMs() { return mobileDevice ? 1000 / 30 : 22; },
-        get explorationFrameMs() { return mobileDevice ? 1000 / 30 : 1000 / 60; },
+        get battleFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 22, restingFrameMs()); },
+        get explorationFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 1000 / 60, restingFrameMs()); },
         // 관리 창이 전장 위에 떠 있을 때(전장이 대부분 가려짐) 전장 그리기 간격. 전투 계산과는 무관하다.
         get coveredBattleFrameMs() { return 1000 / 10; },
         get battleRenderScale() { return Math.max(1, Math.min(mobileDevice ? 1.5 : 2, (window.devicePixelRatio || 1) * factor)); }

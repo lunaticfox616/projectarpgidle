@@ -293,6 +293,45 @@ function getSkillGemVfxFilter(element, imageKey) {
     })[key] || 'none';
 }
 
+// Color-only VFX filters are fixed per image, so bake each (image, filter) pair once.
+// A live ctx.filter forces an offscreen pass on every draw, which dominated busy endgame frames.
+const filteredVfxImageCache = new WeakMap();
+
+/**
+ * Set ctx.filter for one image draw and return the image to draw. A loaded image gets a cached
+ * pre-filtered copy (ctx.filter becomes 'none'); a missing image keeps the live filter so the
+ * procedural fallback is tinted as before.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {CanvasImageSource|null} image
+ * @param {string} filter CSS filter string or 'none'.
+ */
+function useFilteredVfxImage(ctx, image, filter) {
+    filter = filter || 'none';
+    if (!image || filter === 'none' || !image.width || !image.height) {
+        ctx.filter = filter;
+        return image;
+    }
+    let byFilter = filteredVfxImageCache.get(image);
+    if (!byFilter) filteredVfxImageCache.set(image, byFilter = new Map());
+    let baked = byFilter.get(filter);
+    if (!baked) {
+        baked = document.createElement('canvas');
+        baked.width = image.width;
+        baked.height = image.height;
+        let bakeCtx = baked.getContext('2d');
+        bakeCtx.filter = filter;
+        bakeCtx.drawImage(image, 0, 0);
+        byFilter.set(filter, baked);
+    }
+    ctx.filter = 'none';
+    return baked;
+}
+
+/** Sword-slash sprites clear ctx.filter themselves, so their effect.filter never tinted them. */
+function getDrawnSkillEffectFilter(effect) {
+    return effect.family === 'continuousSlash' || effect.skillName === '기본 공격' ? 'none' : effect.filter;
+}
+
 function getSkillGemVfxBaseSize(family, stageKind) {
     if (stageKind === 'slamAftershock') return 132;
     if (stageKind === 'slamPrimary') return 104;
@@ -899,9 +938,10 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         ctx.rotate(fieldImpact ? Math.sin(now / 900) * 0.025 : progress * 0.2);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = fade;
-        ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        let cellImage = useCombatCellImage(ctx, image, fx, now >= arriveAt,
+            isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey));
         ctx.imageSmoothingEnabled = false;
-        if (image) drawCombatCellImage(ctx, image, { fieldImpact, size, progress, fade, fx, now, arriveAt });
+        if (cellImage) drawCombatCellImage(ctx, cellImage, { fieldImpact, size, progress, fade, fx, now, arriveAt });
         else {
             ctx.strokeStyle = getElementColor(element);
             ctx.lineWidth = 2;
@@ -941,9 +981,14 @@ function getCombatCellVfxLayout(fx, targets) {
  * @param {CanvasImageSource} image
  * @param {{fieldImpact: boolean, size: number, progress: number, fx: {patternKind?: string|null}, now: number, arriveAt: number}} view
  */
+/** A landed mine swaps to the shock ring; either image draws with the element tint baked in. */
+function useCombatCellImage(ctx, image, fx, landed, filter) {
+    if (image && landed && fx.patternKind === 'mine') image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.radialWave) || image;
+    return useFilteredVfxImage(ctx, image, filter);
+}
+
 function drawCombatCellImage(ctx, image, view) {
     let { fieldImpact, size, progress, fx, now, arriveAt } = view;
-    if (fx.patternKind === 'mine' && now >= arriveAt) image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.radialWave) || image;
     if (fx.screenFootprint) {
         let { width, height } = fx.screenFootprint;
         ctx.drawImage(image, -width / 2, -height / 2, width, height);
@@ -985,9 +1030,10 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
         if (fx.patternKind === 'boomerang' && !useProjectileImage) ctx.rotate(progress * Math.PI * 3);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = useProjectileImage ? 0.94 : 0.82;
-        ctx.filter = dedicatedProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        let filter = dedicatedProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        let drawnImage = useFilteredVfxImage(ctx, useProjectileImage ? image : null, filter);
         ctx.imageSmoothingEnabled = false;
-        if (useProjectileImage) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        if (useProjectileImage) ctx.drawImage(drawnImage, -width / 2, -height / 2, width, height);
         else if (playerProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
         else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
         ctx.restore();
@@ -1310,7 +1356,7 @@ function drawFootprintSkillImpact(ctx, effect, image, progress) {
     drawSkillFootprintGround(ctx, footprint, getElementColor(effect.element), fade);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = (effect.alpha || 0.82) * fade;
-    ctx.filter = effect.filter || 'none';
+    image = useFilteredVfxImage(ctx, image, getDrawnSkillEffectFilter(effect));
     ctx.imageSmoothingEnabled = false;
     let fitted = { ...effect, size: Math.min(footprint.width, footprint.height) };
     if (effect.family === 'continuousSlash') drawSwordSlashVfx(ctx, fitted, image, progress);
@@ -1343,7 +1389,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
         let imageProjectile = !!(effect.travel && effect.imageProjectile);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
-        ctx.filter = imageProjectile ? 'none' : (effect.filter || 'none');
+        image = useFilteredVfxImage(ctx, image, imageProjectile ? 'none' : getDrawnSkillEffectFilter(effect));
         ctx.imageSmoothingEnabled = false;
         if (effect.travel) {
             // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
@@ -1398,7 +1444,7 @@ function drawConditionGemImageVfx(ctx, condCast, playerPos, targetPos, now) {
     ctx.rotate((condCast.type === 'warcry' ? -1 : 1) * progress * 0.34);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = (0.22 + pulse * 0.32) * Math.min(1, remaining / 0.2);
-    ctx.filter = getSkillGemVfxFilter(getConditionGemVfxElement(condCast.name), imageKey);
+    image = useFilteredVfxImage(ctx, image, getSkillGemVfxFilter(getConditionGemVfxElement(condCast.name), imageKey));
     ctx.drawImage(image, -size / 2, -size / 2, size, size);
     ctx.restore();
     return true;

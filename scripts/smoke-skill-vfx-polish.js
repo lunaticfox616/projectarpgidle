@@ -13,7 +13,7 @@ const ctx = new Proxy(state, {
             for (const value of args) {
                 if (typeof value === 'number') assert(Number.isFinite(value), `${key}: finite geometry required`);
             }
-            calls.push({ key, args, alpha: object.globalAlpha });
+            calls.push({ key, args, alpha: object.globalAlpha, filter: object.filter });
             if (key === 'save') stack.push({ ...object });
             if (key === 'restore') Object.assign(object, stack.pop());
         };
@@ -67,6 +67,23 @@ calls.length = 0;
 runtime.drawCombatCellFx(ctx, { owner: 'player', skillName: '화염 폭풍핵', patternKind: 'field', start: 1000, duration: 1000 },
     2000, 1200, [target], 'skillFxDotField', 'fire');
 assert(calls.filter(call => call.key === 'drawImage').every(call => call.alpha === 0), 'fields must fade fully at expiry');
+// Color filters are baked once per image instead of forcing a filtered canvas pass on every draw.
+const fieldFx = { owner: 'player', skillName: '화염 폭풍핵', patternKind: 'field', start: 1000, duration: 1000 };
+const fieldImage = read('battleAssets.images.skillFxDotField');
+Object.assign(fieldImage, { width: 8, height: 8 });
+const fieldDraws = () => {
+    calls.length = 0;
+    runtime.drawCombatCellFx(ctx, fieldFx, 1500, 1200, [target], 'skillFxDotField', 'fire');
+    return calls.filter(call => call.key === 'drawImage');
+};
+const [firstTint] = fieldDraws(), [secondTint] = fieldDraws();
+assert(firstTint && firstTint.filter === 'none' && firstTint.args[0] !== fieldImage, 'a loaded image draws a tinted copy without a live filter');
+assert.strictEqual(secondTint.args[0], firstTint.args[0], 'the tinted copy is reused across frames');
+fieldImage.complete = false;
+fieldDraws();
+assert(calls.some(call => call.key === 'stroke' && call.filter === read("getSkillGemVfxFilter('fire', 'skillFxDotField')")),
+    'the procedural fallback keeps the element tint');
+fieldImage.complete = true;
 assert.strictEqual(read('JSON.stringify(game)'), before, 'VFX must not mutate combat, saves or progression');
 assert.strictEqual(stack.length, 0, 'no leaked canvas state');
 // Real multi-hit resolution must not multiply three confirmed hits into nine arcs.
