@@ -17,6 +17,9 @@ debug.log
 !/artifacts/unlock-ui/test.css
 !/artifacts/unlock-ui/test.js
 !/artifacts/unlock-ui/test-bridge.js
+!/artifacts/grove-ui/
+/artifacts/grove-ui/*
+!/artifacts/grove-ui/preview.html
 
 # Source art is retained locally; the game loads the compact WebP derivatives.
 /assets/items/illustrated/*.png
