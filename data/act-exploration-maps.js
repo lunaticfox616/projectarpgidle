@@ -159,4 +159,9 @@ const ACT_EXPLORATION_ART = Object.freeze({
         regions:[[0,0,690,675],[690,0,605,675],[0,675,690,539],[690,675,605,539]]
     }
 });
-safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART});
+// Whole-map backdrops drawn at 16px per tile (shown 3x at 48px). Walkability still comes from the map data above.
+// Source: rignin-ui/art-pipeline/tiles/build_map.py. Maps without an entry keep the material/prop renderer.
+const ACT_EXPLORATION_BACKDROPS = Object.freeze({
+    'root-branches':'assets/exploration/act1-map.png'
+});
+safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS});

@@ -198,12 +198,30 @@ const explorationArt=(()=>{
         const [kit]=await Promise.all([loadProfile(profileFor(layout?.biome)),loadProfile(ACT_EXPLORATION_ART.root)]);
         return kit;
     }
+    function backdropFor(layout) {return ACT_EXPLORATION_BACKDROPS[layout.id]||'';}
+    // A backdrop replaces the blended ground and the scattered props; a missing or mis-sized image falls back.
+    async function decodeImage(src) {
+        const image=new Image();image.src=src;await image.decode();return image;
+    }
+    async function loadBackdrop(layout) {
+        const src=backdropFor(layout);if(!src)return null;
+        let image=null;
+        for(let attempt=0;attempt<2&&!image;attempt++) {
+            // A decode can be aborted while the page is still settling; one retry avoids a session-long fallback.
+            try{image=await decodeImage(src);}catch(error){console.warn('exploration backdrop failed to load:',src,error);}
+        }
+        if(!image)return null;
+        if(image.width===layout.columns*16&&image.height===layout.rows*16)return image;
+        console.warn('exploration backdrop size mismatch:',src,image.width,image.height);return null;
+    }
     async function terrain(layout) {
-        const kit=await ready(layout);
+        const kit=await ready(layout); // the gate prop still needs the root kit
+        const backdrop=await loadBackdrop(layout);if(backdrop)return backdrop;
         const map=Array.from({length:layout.rows},(_,y)=>layout.tiles.slice(y*layout.columns,(y+1)*layout.columns));
         return ground(map,layout,kit);
     }
     function scenery(layout) {
+        if(backdropFor(layout))return [];
         const profile=profileFor(layout.biome);
         if(profile.landmarkWidths)return boundaryScenery(layout,profile.landmarkWidths);
         if(profile.platformWidths)return suspendedScenery(layout,profile.platformWidths);
