@@ -160,8 +160,10 @@ const ACT_EXPLORATION_ART = Object.freeze({
     }
 });
 // Whole-map backdrops drawn at 16px per tile (shown 3x at 48px). Walkability still comes from the map data above.
-// Source: rignin-ui/art-pipeline/tiles/build_map.py. Maps without an entry keep the material/prop renderer.
+// gate: closed|open frames side by side at the same pixel scale; gateBase = art px from the gate tile's bottom
+// down to the arch's base. Source: rignin-ui/art-pipeline/tiles/build_map.py. Maps without an entry keep the
+// material/prop renderer.
 const ACT_EXPLORATION_BACKDROPS = Object.freeze({
-    'root-branches':'assets/exploration/act1-map.png'
+    'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateBase:16})
 });
 safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS});

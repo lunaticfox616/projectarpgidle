@@ -158,7 +158,8 @@ const explorationArt=(()=>{
         ctx.ellipse(px+w*.13,py-3,w*.36,Math.max(3,w*.11),-.12,0,Math.PI*2);ctx.fill();
         ctx.drawImage(props,sx,sy,sw,sh,px-Math.floor(w/2),py-h,w,h);
     }
-    function gate(closed) {
+    function gate(closed,layout) {
+        const backdrop=backdropGate(closed,layout);if(backdrop)return backdrop;
         const c=canvas(128,160),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;
         if(closed){
             ctx.fillStyle='#27342f';ctx.fillRect(39,53,50,94);
@@ -198,21 +199,35 @@ const explorationArt=(()=>{
         const [kit]=await Promise.all([loadProfile(profileFor(layout?.biome)),loadProfile(ACT_EXPLORATION_ART.root)]);
         return kit;
     }
-    function backdropFor(layout) {return ACT_EXPLORATION_BACKDROPS[layout.id]||'';}
+    const BACKDROP_PX=16,gateSheets=new Map();
+    function backdropFor(layout) {return ACT_EXPLORATION_BACKDROPS[layout?.id]||null;}
     // A backdrop replaces the blended ground and the scattered props; a missing or mis-sized image falls back.
     async function decodeImage(src) {
         const image=new Image();image.src=src;await image.decode();return image;
     }
-    async function loadBackdrop(layout) {
-        const src=backdropFor(layout);if(!src)return null;
-        let image=null;
-        for(let attempt=0;attempt<2&&!image;attempt++) {
+    async function decodeWithRetry(src) {
+        for(let attempt=0;attempt<2;attempt++) {
             // A decode can be aborted while the page is still settling; one retry avoids a session-long fallback.
-            try{image=await decodeImage(src);}catch(error){console.warn('exploration backdrop failed to load:',src,error);}
+            try{return await decodeImage(src);}catch(error){console.warn('exploration backdrop failed to load:',src,error);}
         }
+        return null;
+    }
+    async function loadBackdrop(layout) {
+        const entry=backdropFor(layout);if(!entry)return null;
+        const [image,gateSheet]=await Promise.all([decodeWithRetry(entry.map),entry.gate?decodeWithRetry(entry.gate):null]);
         if(!image)return null;
-        if(image.width===layout.columns*16&&image.height===layout.rows*16)return image;
-        console.warn('exploration backdrop size mismatch:',src,image.width,image.height);return null;
+        if(image.width!==layout.columns*BACKDROP_PX||image.height!==layout.rows*BACKDROP_PX) {
+            console.warn('exploration backdrop size mismatch:',entry.map,image.width,image.height);return null;
+        }
+        if(gateSheet)gateSheets.set(layout.id,{image:gateSheet,base:entry.gateBase||0});
+        return image;
+    }
+    // Backdrop maps get a gate frame at the backdrop's own pixel scale (drawn at tile/16, never resampled).
+    function backdropGate(closed,layout) {
+        const sheet=gateSheets.get(layout?.id);if(!sheet)return null;
+        const w=sheet.image.width/2,h=sheet.image.height,c=canvas(w,h),ctx=c.getContext('2d');
+        ctx.drawImage(sheet.image,closed?0:w,0,w,h,0,0,w,h);
+        c.pixelTile=BACKDROP_PX;c.baseOffset=sheet.base;return c;
     }
     async function terrain(layout) {
         const kit=await ready(layout); // the gate prop still needs the root kit

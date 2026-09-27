@@ -27,7 +27,7 @@ const actExplorationView=(()=>{
         explorationArt.terrain(map).then(surface=>{
             if(cache!==current)return;
             current.surface=surface;current.scenery=explorationArt.scenery(map);
-            current.closed=explorationArt.gate(true);current.open=explorationArt.gate(false);
+            current.closed=explorationArt.gate(true,map);current.open=explorationArt.gate(false,map);
         }).catch(error=>{current.error=error.message;console.error('탐험 지형 준비 실패',error);});
     }
     function background(ctx,width,height,p) {
@@ -70,8 +70,8 @@ const actExplorationView=(()=>{
             actors.push({kind:'scenery',id:-100-prop.id,y:p.mapY+y*p.tileH,prop});
         }
         if(seen.has(actExplorationMap.index(map,map.gate))) {
-            const point=p.cellToScreen(map.gate.gx,map.gate.gy);
-            actors.push({kind:'gate',id:-2,y:point.y+p.actorGroundOffsetY,point});
+            const point=p.cellToScreen(map.gate.gx,map.gate.gy),box=gateBox(point,p);
+            actors.push({kind:'gate',id:-2,y:box?box.base:point.y+p.actorGroundOffsetY,point});
         }
     }
     function waitingEnemies() {
@@ -82,14 +82,22 @@ const actExplorationView=(()=>{
             .filter(enemy=>seen.has(actExplorationMap.index(map,enemy)));
         return dormant;
     }
+    // Pixel-scale gate art (backdrop maps): integer scale, base anchored below the gate tile.
+    function gateBox(point,p) {
+        const art=cache?.closed;if(!art?.pixelTile)return null;
+        const scale=p.tileW/art.pixelTile,w=art.width*scale,h=art.height*scale;
+        const base=point.y+p.tileH/2+art.baseOffset*scale;
+        return {x:point.x-w/2,y:base-h,w,h,base};
+    }
     function drawScenery(ctx,actor,state) {
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;
         if(actor.kind==='gate') {
-            const point=actor.point,occluded=player.y<actor.y&&player.y>point.y-150&&Math.abs(player.x-point.x)<76;
+            const point=actor.point,box=gateBox(point,p)||{x:point.x-76,y:point.y-158,w:152,h:190,base:actor.y};
+            const occluded=player.y<box.base&&player.y>box.y&&Math.abs(player.x-point.x)<box.w/2;
             ctx.globalAlpha=occluded?.38:1;
             const locked=actExplorationState.remainingElites(game.actExploration)>0;
-            ctx.drawImage(locked?cache.closed:cache.open,point.x-76,point.y-158,152,190);
+            ctx.drawImage(locked?cache.closed:cache.open,box.x,box.y,box.w,box.h);
         } else {
             const [,x,y,wide]=actor.prop.placement,px=p.mapX+x*p.tileW,py=p.mapY+y*p.tileH;
             const occluded=player.y<py&&player.y>py-wide*p.tileH*1.6&&Math.abs(player.x-px)<wide*p.tileW*.45;
