@@ -159,11 +159,20 @@ const ACT_EXPLORATION_ART = Object.freeze({
         regions:[[0,0,690,675],[690,0,605,675],[0,675,690,539],[690,675,605,539]]
     }
 });
-// Whole-map backdrops drawn at 16px per tile (shown 3x at 48px). Walkability still comes from the map data above.
-// gate: closed|open frames side by side at the same pixel scale; gateBase = art px from the gate tile's bottom
-// down to the arch's base. Source: rignin-ui/art-pipeline/tiles/build_map.py. Maps without an entry keep the
-// material/prop renderer.
+// Whole-map backdrops drawn at 16px per tile (shown at tile/16 = 3x at 48px). Walkability still comes from the map
+// data above. gate: closed|open frames side by side at the same pixel scale; gateOffset = art px from the gate tile's
+// centre to the frame's top-left. Source: rignin-ui/art-pipeline/tiles/build_map.py (writes backdrops.json).
+// Maps without an entry keep the material/prop renderer.
 const ACT_EXPLORATION_BACKDROPS = Object.freeze({
-    'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateBase:16})
+    'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateOffset:Object.freeze([-22,-28])}),
+    'garden-circuit':Object.freeze({map:'assets/exploration/act2-map.png',gate:'assets/exploration/act2-gate.png',gateOffset:Object.freeze([-22,-28])}),
+    'suspended-spans':Object.freeze({map:'assets/exploration/act3-map.png',gate:'assets/exploration/act3-gate.png',gateOffset:Object.freeze([-10,-42])}),
+    'braided-maze':Object.freeze({map:'assets/exploration/act4-map.png',gate:'assets/exploration/act4-gate.png',gateOffset:Object.freeze([-10,-42])}),
+    'silent-nave':Object.freeze({map:'assets/exploration/act5-map.png',gate:'assets/exploration/act5-gate.png',gateOffset:Object.freeze([-22,-28])}),
+    'broken-courtyard':Object.freeze({map:'assets/exploration/act6-map.png',gate:'assets/exploration/act6-gate.png',gateOffset:Object.freeze([-22,-28])}),
+    'hollow-spiral':Object.freeze({map:'assets/exploration/act7-map.png',gate:'assets/exploration/act7-gate.png',gateOffset:Object.freeze([-22,-44])}),
+    'offset-veils':Object.freeze({map:'assets/exploration/act8-map.png',gate:'assets/exploration/act8-gate.png',gateOffset:Object.freeze([-10,-42])}),
+    'three-confluences':Object.freeze({map:'assets/exploration/act9-map.png',gate:'assets/exploration/act9-gate.png',gateOffset:Object.freeze([-22,-28])}),
+    'crown-wheel':Object.freeze({map:'assets/exploration/act10-map.png',gate:'assets/exploration/act10-gate.png',gateOffset:Object.freeze([-22,-28])})
 });
 safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS});

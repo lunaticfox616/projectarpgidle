@@ -219,7 +219,7 @@ const explorationArt=(()=>{
         if(image.width!==layout.columns*BACKDROP_PX||image.height!==layout.rows*BACKDROP_PX) {
             console.warn('exploration backdrop size mismatch:',entry.map,image.width,image.height);return null;
         }
-        if(gateSheet)gateSheets.set(layout.id,{image:gateSheet,base:entry.gateBase||0});
+        if(gateSheet)gateSheets.set(layout.id,{image:gateSheet,offset:entry.gateOffset||[-gateSheet.width/4,-gateSheet.height]});
         return image;
     }
     // Backdrop maps get a gate frame at the backdrop's own pixel scale (drawn at tile/16, never resampled).
@@ -227,7 +227,7 @@ const explorationArt=(()=>{
         const sheet=gateSheets.get(layout?.id);if(!sheet)return null;
         const w=sheet.image.width/2,h=sheet.image.height,c=canvas(w,h),ctx=c.getContext('2d');
         ctx.drawImage(sheet.image,closed?0:w,0,w,h,0,0,w,h);
-        c.pixelTile=BACKDROP_PX;c.baseOffset=sheet.base;return c;
+        c.pixelTile=BACKDROP_PX;c.offset=sheet.offset;return c;
     }
     async function terrain(layout) {
         const kit=await ready(layout); // the gate prop still needs the root kit

@@ -20,7 +20,10 @@ function canvas() {
 const runtime=vm.createContext({document:{createElement:canvas},
     Image:class {width=1536;height=1024;async decode(){decodes.set(this.src,(decodes.get(this.src)||0)+1);}},
     setTimeout:callback=>setImmediate(()=>{yields++;callback();}),safeExposeGlobals(){},safeExposeData(){}});
-vm.runInContext(fs.readFileSync('data/act-exploration-maps.js','utf8'),runtime);
+// Whole-map backdrops replace this renderer where registered; the material/prop renderer below is the fallback,
+// so it is exercised with the backdrop registry emptied.
+vm.runInContext(fs.readFileSync('data/act-exploration-maps.js','utf8')
+    .replace(/const ACT_EXPLORATION_BACKDROPS = Object\.freeze\(\{[\s\S]*?\n\}\);/,'const ACT_EXPLORATION_BACKDROPS = Object.freeze({});'),runtime);
 vm.runInContext(fs.readFileSync('js/act-exploration-map.js','utf8'),runtime);
 vm.runInContext(fs.readFileSync('js/canvas-exploration-art.js','utf8'),runtime);
 async function check() {

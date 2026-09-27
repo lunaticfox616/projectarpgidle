@@ -82,12 +82,12 @@ const actExplorationView=(()=>{
             .filter(enemy=>seen.has(actExplorationMap.index(map,enemy)));
         return dormant;
     }
-    // Pixel-scale gate art (backdrop maps): integer scale, base anchored below the gate tile.
+    // Pixel-scale gate art (backdrop maps): integer scale, placed by its art-px offset from the gate tile centre.
     function gateBox(point,p) {
         const art=cache?.closed;if(!art?.pixelTile)return null;
         const scale=p.tileW/art.pixelTile,w=art.width*scale,h=art.height*scale;
-        const base=point.y+p.tileH/2+art.baseOffset*scale;
-        return {x:point.x-w/2,y:base-h,w,h,base};
+        const x=point.x+art.offset[0]*scale,y=point.y+art.offset[1]*scale;
+        return {x,y,w,h,base:y+h};
     }
     function drawScenery(ctx,actor,state) {
         const p=state.gridProj,player=state.playerPos;
