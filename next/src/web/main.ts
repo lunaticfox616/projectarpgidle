@@ -36,8 +36,11 @@ interface Game {
 
 const canvas = document.getElementById('world') as HTMLCanvasElement;
 let game: Game;
+/** Set once the player chose to start over: no later save (pagehide, timer) may bring the old game back. */
+let resetting = false;
 
 function save(): void {
+  if (resetting) return;
   game.savedAt = Date.now();
   if (!writeSave(game.state, game.savedAt)) toast('저장하지 못했다 — 브라우저 저장 공간을 확인해 주세요');
 }
@@ -157,7 +160,11 @@ async function boot(): Promise<void> {
   const character = await loadCharacter(CLASS_SPRITES[state.classId]);
   const first = await enterAct({ state, art: actArt(state.run!.act, { character: character.art, characterProblem: character.problem }) }, true);
   game = { state, ...first, hud: createHud(), prefs: readPrefs(), acc: 0, last: performance.now(), savedAt: Date.now(), busy: 0, hiddenAt: null };
-  initPanels({ state: () => game.state, saved: save, reset: () => { clearSave(); window.location.reload(); } });
+  initPanels({ state: () => game.state, saved: save, reset: () => {
+    resetting = true;
+    clearSave();
+    window.location.reload();
+  } });
   bindControls();
   resize();
   game.hud.root.hidden = false;
