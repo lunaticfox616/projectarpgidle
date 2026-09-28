@@ -5,7 +5,7 @@ const worldTreeSkillFx = (() => {
     let remaining=48;
     const layouts=new WeakMap(),adapters=new WeakMap(),stageKeys=new Map();
     let castTick=null,castAnchor=0,castNow=0;
-    function beginFrame() {remaining=48;}
+    function beginFrame() {remaining=48;fxRemake.discard();}
 
     function actorState(state) {
         const c=skillGemCombatRuntime?.pose,at=castNow;
@@ -42,6 +42,7 @@ const worldTreeSkillFx = (() => {
         let at=castNow;
         if(event.kind==='travel' && clock<event.at+event.duration)at=Math.min(at,event.at+event.duration-.001);
         renderer.layout(at,sample=>paint(ctx,sample,projection));
+        fxRemake.ring(native,at,SKILL_FX_ATLAS[event.skillName]);
     }
 
     function beamGeometry(input,cells) {
@@ -79,6 +80,7 @@ const worldTreeSkillFx = (() => {
         const image=getSkillGemVfxImage('skillFxWorldTree');
         if(!image)return;
         remaining--;
+        if(fxRemake.capture(sample,projection,image))return;
         const origin=projection.cellToScreen(0,0),sx=projection.tileW/48,sy=projection.tileH/48;
         const frame=sample.frame,width=frame.w*sample.scale,height=frame.h*sample.scaleY;
         ctx.save();ctx.filter='none';ctx.shadowBlur=0;ctx.imageSmoothingEnabled=false;
@@ -103,9 +105,12 @@ const worldTreeSkillFx = (() => {
     }
 
     function renderEvent(ctx,event,now,projection,owner) {
-        if(!SKILL_FX_ATLAS[event.skillName] || remaining<=0)return;
+        const spec=SKILL_FX_ATLAS[event.skillName];
+        if(!spec || remaining<=0)return;
+        if(fxRemake.projectile(event,now,spec.id))return;
         const renderer=layouts.get(event) || prepareNative(event,projection,owner);
         renderer.layout(now,sample=>paint(ctx,sample,projection));
+        fxRemake.ring(event,now,spec);
     }
 
     function visualEventBase(fx) {

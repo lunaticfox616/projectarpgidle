@@ -918,7 +918,7 @@ emit(event){
   }
 layout(now,visit){
 let used=0;
-const submit=(...args)=>{const [e,x,y,scale,frame,rotation,override,stretch=1,alpha=1]=args;const sheet=G.WT_ATLAS.skills[e.id-1],variant=sheet.variants?.[e.element]||sheet.frames,f=override||variant[Math.min(variant.length-1,frame)];if(used>=48)return;visit({x:Math.round(x),y:Math.round(y),scale,angle:rotation,frame:{x:f.x,y:f.y,w:f.w||64,h:f.h||64},scaleY:scale*stretch,alpha,ground:e.renderLayer==='ground'});used++;};
+const submit=(...args)=>{const [e,x,y,scale,frame,rotation,override,stretch=1,alpha=1]=args;const sheet=G.WT_ATLAS.skills[e.id-1],variant=sheet.variants?.[e.element]||sheet.frames,f=override||variant[Math.min(variant.length-1,frame)];if(used>=48)return;visit({x:Math.round(x),y:Math.round(y),scale,angle:rotation,frame:{x:f.x,y:f.y,w:f.w||64,h:f.h||64},scaleY:scale*stretch,alpha,ground:e.renderLayer==='ground',effect:e,now});used++;};
 for(const e of this.effects){if(now<e.at||now>=e.at+e.duration)continue;drawEvent(e,clamp((now-e.at)/e.duration,0,.999999),now,submit);}
 return used;
 }

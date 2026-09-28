@@ -1092,13 +1092,15 @@ function isGroundSkillCast(fx) {
 
 /** Paint ground spells first and summons above them, before the main actor layer. */
 function drawBattleGroundLayer(ctx, effects, view) {
-    worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
+    fxRemake.begin(ctx, view.gridProj);
+    worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
     for (let fx of effects) {
         if (!isGroundSkillCast(fx)) continue;
         drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
     }
+    fxRemake.end();
     let motions = buildSummonAttackMotionMap(effects, game.summons, view.gridProj, view.enemyPosMap, view.now);
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj, motions);
 }
@@ -1369,6 +1371,7 @@ function drawFootprintSkillImpact(ctx, effect, image, progress) {
 }
 
 function drawSkillGemVfxLayer(ctx, now, gridProj) {
+    fxRemake.begin(ctx, gridProj); // stays open through the battleFx overlay loop; closed in drawBattleLightingAndBars
     worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
@@ -2853,6 +2856,7 @@ function isBattleLightingEnabled() {
 
 // 조명은 체력바·피해 숫자 아래에 깔린다. 순서: 조명 → 플레이어 바 → 적 바.
 function drawBattleLightingAndBars(ctx, scene) {
+    fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
     drawBattlefieldPlayerHealthBar(ctx, scene.light, scene.hpPct, scene.ghostPct, scene.esPct);
     drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets);
