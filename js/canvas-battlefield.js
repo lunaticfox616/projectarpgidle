@@ -2056,9 +2056,7 @@ function drawBattlePlayerActor(ctx, state) {
     let departurePosition = returnDeparture && returnDeparture.position ? returnDeparture.position : position;
     let transition = returnWarp || returnDeparture;
     let transitionPosition = returnWarp ? warpPosition : departurePosition;
-    let walkingDirection = state.motionState.advanceBlend > 0.08 ? state.motionState.moveDirection : null;
-    let poseDirection = state.motionState.facingDirection || state.motionState.attackDirection || 'east';
-    let facingLeft = !walkingDirection && poseDirection === 'west';
+    let facingLeft = isBattlePlayerMirrored(state.motionState);
     drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, false);
     drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, false);
     drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, false);
@@ -2069,12 +2067,75 @@ function drawBattlePlayerActor(ctx, state) {
         ctx.scale(-1, 1);
     }
     drawSkillWeaponLayer(ctx, position, state.now, 'back');
-    drawBattlePlayerBody(ctx,state,position);
+    drawBattlePlayerFigure(ctx, state, position);
     drawSkillWeaponLayer(ctx, position, state.now, 'front');
     ctx.restore();
     drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
     drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
     drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, true);
+}
+
+// ---- Hana +6 player sprite (js/canvas-hana-actors.js). The legacy strip stays as the fallback and for monster skins.
+function canDrawHanaPlayer() {
+    if (typeof hanaActors !== 'object' || game.settings?.heroSpriteSet === 'legacy') return false;
+    return !getSelectedMonsterSkinId() && hanaActors.isReady(getHeroAppearanceId());
+}
+
+/** Legacy strips face east and are mirrored for west poses; Hana sheets carry their own west row. */
+function isBattlePlayerMirrored(motion) {
+    if (canDrawHanaPlayer()) return false;
+    let pose = motion.facingDirection || motion.attackDirection || 'east';
+    return motion.advanceBlend <= 0.08 && pose === 'west';
+}
+
+function drawBattlePlayerFigure(ctx, state, position) {
+    if (canDrawHanaPlayer() && drawHanaPlayerBody(ctx, state, position)) return;
+    drawBattlePlayerBody(ctx, state, position);
+}
+
+function drawHanaPlayerBody(ctx, state, position) {
+    let motion = state.motionState, hana = collectHanaPlayerMotion(motion, state.now);
+    let previous = ctx.battleActorAlpha;
+    ctx.battleActorAlpha = state.actorAlpha;
+    try {
+        return hanaActors.drawPlayer(ctx, position.x, position.y, {
+            ...hana, classId: getHeroAppearanceId(), tile: state.gridProj.tileW,
+            facing: motion.facingDirection || motion.attackDirection || 'east',
+            moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
+            alpha: getBattleActorDrawAlpha(ctx, 1)
+        }, state.now);
+    } finally { ctx.battleActorAlpha = previous; }
+}
+
+function notePlayerMotionFx(found, fx, now) {
+    if (fx.type === 'playerSwing') found.swing = found.swing || fx;
+    else if (fx.type === 'playerHit') found.hit = found.hit || fx;
+    else if (fx.type === 'playerDown' && now - fx.start <= fx.duration) found.down = found.down || fx;
+}
+
+function getHanaSwingTiming(swing, direction) {
+    if (!swing) return null;
+    let windup = Math.max(1, (Number(swing.impactAt) || swing.start) - swing.start);
+    let channelUntil = swing.duration > windup + 40 ? swing.start + swing.duration : 0;
+    return { start: swing.start, impactAt: swing.start + windup, direction, channelUntil };
+}
+
+/** Timing the Hana sprite needs. Its attack clip outlives the legacy swing window, so it reads battleFx directly. */
+function collectHanaPlayerMotion(motion, now) {
+    let found = { swing: null, hit: null, down: null };
+    for (let index = battleFx.length - 1; index >= 0; index--) {
+        let fx = battleFx[index];
+        if (fx && fx.start <= now) notePlayerMotionFx(found, fx, now);
+    }
+    let stats = motion.playerStats || {};
+    let move = Number(stats.moveSpeed || stats.move) || 100;
+    return {
+        attack: getHanaSwingTiming(found.swing, motion.attackDirection),
+        hurtAt: found.hit ? found.hit.start : null,
+        downProgress: found.down ? clampNumber((now - found.down.start) / Math.max(1, found.down.duration), 0, 1) : null,
+        running: move >= 90,
+        moveRate: clampNumber(move / 100, 0.8, 1.8)
+    };
 }
 
 function drawBattlePlayerBody(ctx,state,position) {
