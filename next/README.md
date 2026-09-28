@@ -49,6 +49,10 @@ npm run import:characters -- "<킷 경로>/리그닌_캐릭터_에셋킷"
 
 로컬에서 배포본 확인: `npm run build:site && npm run preview:site` → `http://localhost:8124/projectarpgidle/`
 
+팀 테스트용 한 파일: `npm run build:site -- --zip rignin-test.zip`. 압축을 풀고 `index.html`을 더블클릭하면
+서버 없이 실행된다(번들이 classic script이고 캐릭터 목록이 번들 안에 들어 있어 file://에서도 동작).
+킷 이미지가 들어 있으니 팀 밖으로 돌리지 않는다.
+
 교체 전 한 번만 준비할 것:
 
 1. 비공개 저장소 `lunaticfox616/projectarpgidle-assets`에 킷(`결과물/Hana_직업` 포함 폴더)을 올린다.
