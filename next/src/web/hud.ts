@@ -6,7 +6,8 @@ import { actText } from '../data/acts.ts';
 import { CURRENCY_NAMES, KIND_NAMES, RARITY_NAMES, itemName } from '../data/names.ts';
 import { actMap, tileIndex } from '../core/map.ts';
 import { stats } from '../core/stats.ts';
-import { currencyIconUrl, itemIconUrl, type Art } from './art.ts';
+import { currencyIconUrl, itemIconUrl } from './icons.ts';
+import type { Art } from './art.ts';
 import { actorName, type Announcement, type LogEntry, type Scene } from './scene.ts';
 import type { CurrencyKey, GameState, TempLoot } from '../core/types.ts';
 
@@ -54,8 +55,7 @@ const fmt = (n: number) => (n >= 10000 ? `${(n / 1000).toFixed(1)}k` : String(Ma
 const esc = (s: string) => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
 
 function coinSocket(key: CurrencyKey, amount: number): string {
-  const url = currencyIconUrl(key);
-  return `<span class="socket" title="${CURRENCY_NAMES[key]}">${url ? `<img src="${url}" alt="">` : '<i class="core"></i>'}<span class="n">${fmt(amount)}</span></span>`;
+  return `<span class="socket" title="${CURRENCY_NAMES[key]}"><img src="${currencyIconUrl(key)}" alt=""><span class="n">${fmt(amount)}</span></span>`;
 }
 
 function renderHero(state: GameState): void {
@@ -65,7 +65,7 @@ function renderHero(state: GameState): void {
   $('hp-fill').style.height = `${ratio * 100}%`;
   $('hp-text').textContent = `${Math.ceil(Math.max(0, state.hp))} / ${s.maxHp}`;
   $('hp-orb').classList.toggle('low', ratio < 0.3 && state.hp > 0);
-  $('exp-fill').style.width = `calc((100% - 72px) * ${state.exp / need})`;
+  $('exp-fill').style.width = `${(state.exp / need) * 100}%`;
   $('exp-text').textContent = `EXP ${((state.exp / need) * 100).toFixed(1)}%`;
 }
 
@@ -73,7 +73,7 @@ function renderAct(hud: Hud, state: GameState): void {
   const run = state.run!, map = actMap(run.act), text = actText(run.act);
   let floor = 0, seen = 0;
   map.tiles.forEach((t, i) => { if (t === 1) { floor++; seen += run.fog[i]!; } });
-  $('explore-fill').style.width = `calc((100% - 72px) * ${seen / floor})`;
+  $('explore-fill').style.width = `${(seen / floor) * 100}%`;
   $('explore-text').textContent = `탐험 ${Math.round((seen / floor) * 100)}%`;
   const normals = run.enemies.filter(e => e.kind === 'normal').length, elites = run.enemies.filter(e => e.kind === 'elite').length;
   $('act-count').textContent = `몬스터 ${normals} · 정예 ${elites}`;
@@ -104,7 +104,7 @@ function renderTarget(state: GameState, scene: Scene): void {
   const tag = $('target-tag');
   tag.textContent = target.kind === 'boss' ? '보스' : target.kind === 'elite' ? '정예' : `Lv.${state.run!.act * 3}`;
   tag.className = target.kind === 'normal' ? '' : target.kind;
-  $('target-fill').style.width = `calc((100% - 72px) * ${Math.max(0, target.hp) / target.maxHp})`;
+  $('target-fill').style.width = `${(Math.max(0, target.hp) / target.maxHp) * 100}%`;
   $('target-text').textContent = `${fmt(Math.max(0, target.hp))} / ${fmt(target.maxHp)}`;
 }
 

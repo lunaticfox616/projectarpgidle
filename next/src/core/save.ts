@@ -1,13 +1,14 @@
 // Save boundary of the rules core: the only place that turns untrusted JSON back into a GameState.
 // Storage (localStorage, cloud) lives in the web layer; this module is pure and runs in Node tests.
-import { CLASSES, ITEMS } from '../data/balance.ts';
+import { CLASSES } from '../data/balance.ts';
+import { AFFIXES } from '../data/affixes.ts';
 import { ACT_PRESETS } from '../data/act-maps.ts';
 import { EQUIP_SLOTS, ITEM_KINDS, basesFor, isItemBase, slotKind } from '../data/item-bases.ts';
 import { actMap, isFloor } from './map.ts';
-import type { AffixStat, ClassId, CurrencyKey, EquipSlot, GameState, Item, ItemKind, Settings } from './types.ts';
+import { isAffixId } from './affixes.ts';
+import type { Affix, ClassId, CurrencyKey, EquipSlot, GameState, Item, ItemKind, Settings } from './types.ts';
 
 const CURRENCIES: readonly CurrencyKey[] = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blightSpore', 'bossCore', 'challengeMark'];
-const AFFIXES = Object.keys(ITEMS.affix) as AffixStat[];
 const RARITIES: readonly Item['rarity'][] = ['normal', 'magic', 'rare'];
 
 type Json = Record<string, unknown>;
@@ -19,14 +20,43 @@ function check(condition: boolean, what: string): asserts condition {
   if (!condition) throw new Error(`save rejected: ${what}`);
 }
 
+/** Pre-crafting saves stored { stat, value }; each maps to the imported option of the same stat. */
+const LEGACY_STAT: Record<string, (kind: ItemKind) => string | null> = {
+  flatHp: () => 'flatHp',
+  pctAttackSpeed: () => 'aspd',
+  flatArmor: () => 'armor',
+  flatDamage: kind => ({ weapon: 'flatDmg', ring: 'ringFlatDmg', gloves: 'gloveFlatDmg', amulet: 'accessoryFlatDmg', belt: 'accessoryFlatDmg' } as Partial<Record<ItemKind, string>>)[kind] ?? null
+};
+
+/**
+ * Convert a legacy affix, keeping its value and taking the tier whose range is nearest to it.
+ * Returns null when the new table has no option for that stat on this kind (e.g. flat damage on
+ * body armour); only those lines are dropped, the item itself is kept.
+ */
+function migrateLegacyAffix(raw: Json, kind: ItemKind): Affix | null {
+  const id = LEGACY_STAT[String(raw.stat)]?.(kind);
+  const def = id ? AFFIXES.find(d => d.id === id && d.kinds.includes(kind)) : undefined;
+  if (!def || !isNumber(raw.value)) return null;
+  const value = raw.value;
+  const distance = ([min, max]: [number, number]) => (value < min ? min - value : value > max ? value - max : 0);
+  const tier = def.tiers.reduce((best, range, i) => (distance(range) < distance(def.tiers[best]!) ? i : best), 0) + 1;
+  return { mod: def.id, tier, value };
+}
+
+const isAffix = (a: unknown): a is Affix => isObject(a) && isAffixId(a.mod) && Number.isInteger(a.tier) && (a.tier as number) >= 1
+  && (a.tier as number) <= 20 && isNumber(a.value) && (a.extra === undefined || isNumber(a.extra));
+
 /**
  * Validate one saved item. Items written before bases existed get the base their kind and level
- * would drop now (the lowest eligible one, so the result never depends on randomness).
+ * would drop now (the lowest eligible one, so the result never depends on randomness), and
+ * pre-crafting affixes are converted (migrateLegacyAffix).
  */
 function checkItem(item: unknown, where: string, classId: ClassId): asserts item is Item {
   check(isObject(item) && isCount(item.id) && isCount(item.itemLevel), `${where} is not an item`);
   check(ITEM_KINDS.includes(item.slot as ItemKind) && RARITIES.includes(item.rarity as Item['rarity']), `${where} slot or rarity`);
-  check(Array.isArray(item.affixes) && item.affixes.every(a => isObject(a) && AFFIXES.includes(a.stat as AffixStat) && isNumber(a.value)), `${where} affixes`);
+  check(Array.isArray(item.affixes), `${where} affixes`);
+  item.affixes = item.affixes.map(a => (isObject(a) && 'stat' in a ? migrateLegacyAffix(a, item.slot as ItemKind) : a)).filter(a => a !== null);
+  check((item.affixes as unknown[]).every(isAffix), `${where} affixes`);
   if (!isItemBase(item.base)) {
     const fallback = basesFor(item.slot as ItemKind, classId, Math.max(1, item.itemLevel as number))[0];
     check(fallback !== undefined, `${where} has no base for its kind`);

@@ -5,9 +5,14 @@
 
 | 경로 | 책임 |
 | --- | --- |
-| `src/data/` | 밸런스 수치(`balance.ts`), 막 지도 프리셋(생성물), 캐릭터 시트 계약(`characters.ts`) |
+| `src/data/` | 밸런스 수치(`balance.ts`), 막 지도 프리셋·장비 옵션표(생성물), 아이템 베이스, 캐릭터 시트 계약(`characters.ts`) |
 | `src/core/` | 규칙 코어: 순수·결정적, DOM 없음. 상태는 JSON 그대로 저장 가능 (`save.ts`가 저장 검증 경계) |
 | `src/web/` | 브라우저 화면: 캔버스(`draw`, `fx`, `terrain`), 연출 모델(`scene`), HUD·패널·화면, 저장소(`storage`) |
+
+캐릭터와 스킬 이펙트를 뺀 모든 그림(지형·소품·몬스터·보스·아이템/재화 아이콘·타이틀 숲)은 이미지 파일 없이
+코드로 그린다: `pixel.ts`(격자 스프라이트·음영 블롭), `look.ts`(막별 팔레트), `props.ts`, `terrain.ts`,
+`monsters.ts`, `icons.ts`. HUD 틀도 CSS만 쓴다. 장비 옵션(`data/affixes.ts`)은 기존 게임 `MOD_DB`에서
+`npm run import:affixes`로 가져오고, 제작 규칙(`core/crafting.ts`)은 기존 재화 사용 규칙을 따른다.
 | `tools/` | 가져오기·자동 플레이 측정 도구 (게임에서 로드하지 않음) |
 | `test/` | `node --test` 행동 검사 |
 
@@ -19,10 +24,11 @@
 
 ```sh
 npm install
-npm run dev            # http://localhost:8123/next/ — 브라우저 게임 (저장소 루트를 서빙해 기존 /assets 사용)
+npm run dev            # http://localhost:8123/next/ — 브라우저 게임 (저장소 루트를 서빙해 /assets의 글꼴 사용)
 npm run check          # typecheck + test + 브라우저 번들
 npm run autoplay -- --seeds 20 --class arcanist   # 첫 루프(1~10막) 시뮬레이션 시간 측정
 npm run import:acts    # 기존 data/act-exploration-maps.js가 바뀌었을 때만
+npm run import:affixes # 기존 js/state.js의 MOD_DB가 바뀌었을 때만
 ```
 
 ## 캐릭터 에셋킷

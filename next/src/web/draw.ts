@@ -1,10 +1,11 @@
 // Canvas rendering of the act: baked terrain, props and the boss gate sorted with the actors by
 // depth, effects and soft fog of war. Reads the scene and state; changes neither.
-import { BAKE, TILE, drawGate, drawProp, type Placement, type Terrain } from './terrain.ts';
+import { TILE, drawGate, drawProp, type Terrain } from './terrain.ts';
 import { FACINGS } from '../data/characters.ts';
 import { motionNow, player, type Actor, type Scene } from './scene.ts';
 import { drawEffects, drawGroundEffects } from './fx.ts';
-import type { Art, EnemyArt } from './art.ts';
+import type { Art } from './art.ts';
+import type { EnemyArt } from './monsters.ts';
 import type { ActMap, GameState } from '../core/types.ts';
 
 export interface View {
@@ -163,28 +164,21 @@ function drawEnemy(view: View, scene: Scene, art: Art, actor: Actor): void {
   const [lx, ly] = lungeOffset(scene, actor, player(scene));
   const [x0, y0] = feet(actor.x, actor.y), x = x0 + lx, y = y0 + ly;
   const dying = actor.diedAt === null ? 0 : Math.min(1, Math.max(0, (scene.time - actor.diedAt) / 700));
-  const size = e?.height ?? (kind === 'boss' ? 44 : kind === 'elite' ? 26 : 16);
-  shadow(ctx, x, y, size * (kind === 'boss' ? 0.5 : 0.36));
+  const size = e.height;
+  shadow(ctx, x, y, e.frames[0]![2] * (kind === 'boss' ? 0.4 : 0.36));
   if (kind === 'elite') drawAura(ctx, x, y, 14, 'rgba(255, 196, 80, 0.9)', scene.time);
   if (kind === 'boss') drawAura(ctx, x, y, 30, 'rgba(220, 60, 40, 0.9)', scene.time);
   ctx.globalAlpha = 1 - dying;
-  if (!e) {
-    ctx.fillStyle = kind === 'boss' ? '#7a2a20' : kind === 'elite' ? '#8a6a2a' : '#5a4a3a';
-    ctx.fillRect(x - size / 3, y - size, (size * 2) / 3, size);
-  } else {
-    const [sx, sy, sw, sh] = enemyFrame(scene, e, actor);
-    const scale = (e.height / sh) * (kind === 'boss' ? 1 : 1.3) * (1 - dying * 0.2);
-    const w = Math.round(sw * scale), h = Math.round(sh * scale);
-    const mirror = e.facesLeft ? actor.facing === 'right' : actor.facing === 'left';
-    const tinted = withFlash(view, w, h, flashAmount(scene, actor), c => {
-      c.imageSmoothingEnabled = true;
-      if (mirror) { c.save(); c.translate(w, 0); c.scale(-1, 1); }
-      c.drawImage(e.image, sx, sy, sw, sh, 0, 0, w, h);
-      if (mirror) c.restore();
-    });
-    const pad = kind === 'boss' ? 0.04 : 0.12;
-    ctx.drawImage(tinted, 0, 0, w, h, Math.round(x - w / 2), Math.round(y - h * (1 - pad) + dying * 4), w, h);
-  }
+  const [sx, sy, w, h] = enemyFrame(scene, e, actor);
+  const mirror = e.facesLeft ? actor.facing === 'right' : actor.facing === 'left';
+  const tinted = withFlash(view, w, h, flashAmount(scene, actor), c => {
+    if (mirror) { c.save(); c.translate(w, 0); c.scale(-1, 1); }
+    c.drawImage(e.image, sx, sy, w, h, 0, 0, w, h);
+    if (mirror) c.restore();
+  });
+  // Dying enemies sink into the ground as they fade.
+  const sink = Math.round(dying * h * 0.3);
+  ctx.drawImage(tinted, 0, 0, w, h - sink, Math.round(x - w / 2), Math.round(y - h + 2 + sink), w, h - sink);
   ctx.globalAlpha = 1;
   if (actor.diedAt === null && kind !== 'boss' && (actor.hp < actor.maxHp || kind === 'elite')) drawBar(ctx, x, y - size - 4, kind === 'elite' ? 18 : 12, actor.hp / actor.maxHp, kind === 'elite');
 }
@@ -213,11 +207,11 @@ function scenery(view: View, scene: Scene, state: GameState, map: ActMap): Drawa
   const ctx = view.ctx, run = state.run!, hero = player(scene), [hx, hy] = feet(hero.x, hero.y);
   const seen = (x: number, y: number) => run.fog[Math.floor(y) * map.columns + Math.floor(x)] === 1;
   const behind = (px: number, py: number, w: number, h: number) => hy < py && hy > py - h && Math.abs(hx - px) < w * 0.45;
-  const out: Drawable[] = view.terrain.scenery.filter(([, x, y]) => seen(x, y)).map((p: Placement) => ({
-    y: p[2] * TILE,
+  const out: Drawable[] = view.terrain.props.filter(p => run.fog[p.tile] === 1).map(p => ({
+    y: p.y,
     draw: () => {
-      ctx.globalAlpha = behind(p[1] * TILE, p[2] * TILE, p[3] * TILE, p[3] * TILE * 1.6) ? 0.4 : 1;
-      drawProp(ctx, view.terrain.kit, p);
+      ctx.globalAlpha = behind(p.x, p.y, p.sprite.width, p.sprite.height) ? 0.4 : 1;
+      drawProp(ctx, p);
       ctx.globalAlpha = 1;
     }
   }));
@@ -225,7 +219,7 @@ function scenery(view: View, scene: Scene, state: GameState, map: ActMap): Drawa
     const gy = (map.gate.y + 1) * TILE;
     out.push({ y: gy, draw: () => {
       ctx.globalAlpha = behind((map.gate.x + 0.5) * TILE, gy, TILE * 2.4, TILE * 3) ? 0.38 : 1;
-      drawGate(ctx, view.terrain.gateKit, map.gate, !run.gateOpen);
+      drawGate(ctx, view.terrain.look, map.gate, !run.gateOpen, scene.time);
       ctx.globalAlpha = 1;
     } });
   }
@@ -245,8 +239,8 @@ export function drawWorld(view: View, scene: Scene, state: GameState, art: Art, 
   ctx.setTransform(view.zoom, 0, 0, view.zoom, Math.round((-view.camX + shakeX) * view.zoom), Math.round((-view.camY + shakeY) * view.zoom));
   ctx.imageSmoothingEnabled = false;
   const ground = view.terrain.ground;
-  ctx.drawImage(ground, 0, 0, (ground.width / BAKE) * TILE, (ground.height / BAKE) * TILE);
-  drawGroundEffects(ctx, scene, art);
+  ctx.drawImage(ground, 0, 0);
+  drawGroundEffects(ctx, scene);
   const drawables: Drawable[] = [...scene.actors.values()].map(actor => ({
     y: feet(actor.x, actor.y)[1] + (actor.kind === 'player' ? 0.01 : 0),
     draw: () => (actor.kind === 'player' ? drawHero(view, scene, art, actor) : drawEnemy(view, scene, art, actor))

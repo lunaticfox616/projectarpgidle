@@ -1,14 +1,18 @@
-// Windows opened from the rail (PC) or bottom tabs (phone): equipment after mockup v9 (3×4 paper
-// doll, stats, 10×10 grid bag with item footprints, compare tooltip, detail card) and settings.
+// Windows opened from the rail (PC) or bottom tabs (phone): equipment (3×4 paper doll, stats,
+// 10×10 grid bag with item footprints, compare tooltip, detail card with crafting) and settings.
 // Player input reaches the rules core only through core functions and Settings fields.
 import { CLASSES } from '../data/balance.ts';
 import { EQUIP_SLOTS, ITEM_SIZE } from '../data/item-bases.ts';
-import { KIND_NAMES, RARITY_NAMES, affixText, itemName, slotName } from '../data/names.ts';
+import { CRAFT_HINTS, CURRENCY_NAMES, KIND_NAMES, RARITY_NAMES, itemName, slotName, statText } from '../data/names.ts';
 import { defaultSlot, discard, equip, equipUpgrades, itemScore, slotsFor, unequip } from '../core/items.ts';
+import { affixStats, itemStats } from '../core/affixes.ts';
+import { CRAFT_CURRENCIES, craft, craftBlock, type CraftTarget } from '../core/crafting.ts';
 import { stats } from '../core/stats.ts';
-import { itemIconUrl } from './art.ts';
+import { currencyIconUrl, itemIconUrl } from './icons.ts';
 import { toast } from './hud.ts';
-import type { AffixStat, EquipSlot, GameState, Item, Settings } from '../core/types.ts';
+import { itemBase } from '../data/item-bases.ts';
+import type { StatId } from '../data/affix-types.ts';
+import type { CraftCurrency, EquipSlot, GameState, Item, Settings } from '../core/types.ts';
 
 export interface PanelHost {
   state(): GameState;
@@ -19,7 +23,7 @@ export interface PanelHost {
 }
 
 type PanelKind = 'gear' | 'settings' | 'log';
-type Selection = { from: 'bag'; id: number } | { from: 'slot'; slot: EquipSlot } | null;
+type Selection = CraftTarget | null;
 type Placed = { item: Item; x: number; y: number };
 
 let host: PanelHost;
@@ -43,17 +47,36 @@ export const hasUnseenItems = (state: GameState): boolean => state.inventory.som
 
 const isUpgrade = (state: GameState, item: Item) => itemScore(item) > itemScore(state.equipment[defaultSlot(state, item.slot)]);
 
+/** Base stat, then each option with its tier (T1 weakest … T20 strongest). */
 function affixLines(item: Item): string {
-  return item.affixes.map(a => `<div class="affix">${affixText(a.stat, a.value)}</div>`).join('');
+  const implicit = itemBase(item.base).implicit;
+  const lines = item.affixes.map(a => `<div class="affix"><span class="tier">T${a.tier}</span>${affixStats(a).map(([stat, v]) => esc(statText(stat, v))).join(' · ')}</div>`);
+  return `<div class="affix implicit">${esc(statText(implicit.stat, implicit.value))}</div>${lines.join('')}`;
+}
+
+function statTotals(item: Item | undefined): Map<StatId, number> {
+  const totals = new Map<StatId, number>();
+  for (const [stat, v] of item ? itemStats(item) : []) totals.set(stat, (totals.get(stat) ?? 0) + v);
+  return totals;
 }
 
 /** Per-stat change if `item` replaced `worn`, gains green and losses red. */
 function diffHtml(item: Item, worn: Item | undefined): string {
-  const total = (i: Item | undefined, stat: AffixStat) => i?.affixes.filter(a => a.stat === stat).reduce((s, a) => s + a.value, 0) ?? 0;
-  const touched = [...new Set([...item.affixes, ...(worn?.affixes ?? [])].map(a => a.stat))];
-  const parts = touched.map(stat => [stat, total(item, stat) - total(worn, stat)] as const).filter(([, d]) => d !== 0)
-    .map(([stat, d]) => `<span class="${d > 0 ? 'up' : 'down'}">${esc(affixText(stat, Math.abs(d)).replace('+', d > 0 ? '+' : '-'))}</span>`);
+  const mine = statTotals(item), theirs = statTotals(worn);
+  const parts = [...new Set([...mine.keys(), ...theirs.keys()])].map(stat => [stat, (mine.get(stat) ?? 0) - (theirs.get(stat) ?? 0)] as const)
+    .filter(([, d]) => Math.abs(d) > 1e-9)
+    .map(([stat, d]) => `<span class="${d > 0 ? 'up' : 'down'}">${esc(statText(stat, Math.round(d * 100) / 100))}</span>`);
   return parts.join(' · ') || '<span class="muted">변화 없음</span>';
+}
+
+/** One button per crafting currency; a blocked one says why on hover and stays disabled. */
+function craftHtml(state: GameState, item: Item): string {
+  const buttons = CRAFT_CURRENCIES.map(key => {
+    const block = craftBlock(state, item, key);
+    return `<button type="button" class="craft" data-craft="${key}" ${block ? 'disabled' : ''} title="${esc(`${CURRENCY_NAMES[key]} — ${CRAFT_HINTS[key]}${block ? ` (${block})` : ''}`)}">
+      <img src="${currencyIconUrl(key)}" alt=""><span class="n">${state.currencies[key]}</span><span class="sr">${CURRENCY_NAMES[key]}</span></button>`;
+  });
+  return `<div class="crafts"><span class="label">제작</span>${buttons.join('')}</div>`;
 }
 
 function card(item: Item, state: GameState, compareTo?: EquipSlot): string {
@@ -76,8 +99,11 @@ function dollHtml(state: GameState): string {
 
 function sheetHtml(state: GameState): string {
   const s = stats(state);
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
   return `<div class="sheet"><span>생명력 <b>${s.maxHp}</b></span><span>피해 <b>${s.damage.toFixed(1)}</b></span><span>공격/초 <b>${s.attacksPerSec.toFixed(2)}</b></span>
-    <span>방어도 <b>${s.armor}</b></span><span>사거리 <b>${s.range}</b></span><span>레벨 <b>${state.level}</b></span></div>`;
+    <span>방어도 <b>${s.armor}</b></span><span>치명타 <b>${pct(s.critChance)}</b></span><span>치명 피해 <b>${pct(s.critMulti)}</b></span><span>피해 감소 <b>${pct(s.damageReduction)}</b></span>
+    <span>화염 <b>${pct(s.resist.fire)}</b></span><span>냉기 <b>${pct(s.resist.cold)}</b></span><span>번개 <b>${pct(s.resist.light)}</b></span>
+    <span>카오스 <b>${pct(s.resist.chaos)}</b></span><span>연속 타격 <b>${pct(s.doubleStrike)}</b></span><span>흡수 <b>${pct(s.leech)}</b></span></div>`;
 }
 
 function fits(used: boolean[], x: number, y: number, w: number, h: number): boolean {
@@ -132,7 +158,7 @@ function detailHtml(state: GameState): string {
   if (sel.from === 'slot') {
     const item = state.equipment[sel.slot];
     if (!item) return `<div class="box detail muted">${slotName(sel.slot, state.classId)} 칸이 비어 있다.</div>`;
-    return `<div class="box detail card">${card(item, state)}<div class="acts"><button type="button" class="k-button" data-act="unequip">해제</button></div></div>`;
+    return `<div class="box detail card">${card(item, state)}${craftHtml(state, item)}<div class="acts"><button type="button" class="k-button" data-act="unequip">해제</button></div></div>`;
   }
   const item = state.inventory.find(i => i.id === sel.id);
   if (!item) return '<div class="box detail muted">그 장비는 더 이상 가방에 없다.</div>';
@@ -140,7 +166,7 @@ function detailHtml(state: GameState): string {
   const buttons = slots.length > 1
     ? slots.map((s, i) => `<button type="button" class="k-button" data-act="equip" data-to="${s}">반지 ${i + 1}에 착용</button>`).join('')
     : `<button type="button" class="k-button primary" data-act="equip" data-to="${slots[0]}">착용</button>`;
-  return `<div class="box detail card">${card(item, state, defaultSlot(state, item.slot))}
+  return `<div class="box detail card">${card(item, state, defaultSlot(state, item.slot))}${craftHtml(state, item)}
     <div class="acts">${buttons}<button type="button" class="k-button quiet" data-act="discard">버리기</button></div></div>`;
 }
 
@@ -170,7 +196,7 @@ function settingsHtml(state: GameState): string {
       <button type="button" class="k-button danger" data-act="reset">새로 시작</button></div>`;
 }
 
-const contentKey = (state: GameState) => `${state.inventory.map(i => i.id).join(',')}|${state.buildRevision}|${JSON.stringify(state.settings)}`;
+const contentKey = (state: GameState) => `${state.inventory.map(i => i.id).join(',')}|${state.buildRevision}|${JSON.stringify(state.settings)}|${JSON.stringify(state.currencies)}`;
 
 function render(): void {
   if (open !== 'gear' && open !== 'settings') return;
@@ -191,7 +217,10 @@ function setSetting(state: GameState, name: string, value: string): void {
 function act(state: GameState, data: DOMStringMap): boolean {
   const sel = selected;
   if (data.setting && data.value) setSetting(state, data.setting, data.value);
-  else if (data.act === 'equip' && sel?.from === 'bag') {
+  else if (data.craft && sel && (CRAFT_CURRENCIES as readonly string[]).includes(data.craft)) {
+    const result = craft(state, sel, data.craft as CraftCurrency);
+    if (!result.ok) toast(result.reason);
+  } else if (data.act === 'equip' && sel?.from === 'bag') {
     if (!equip(state, sel.id, data.to as EquipSlot)) toast('그 장비는 이 칸에 맞지 않는다');
     selected = null;
   } else if (data.act === 'unequip' && sel?.from === 'slot') unequip(state, sel.slot);

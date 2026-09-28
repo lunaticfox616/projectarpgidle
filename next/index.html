@@ -13,7 +13,7 @@
 
   <main id="hud" class="hud" hidden>
     <nav class="rail" aria-label="메뉴">
-      <img class="logo" src="../assets/ui/rignin-logo.png" alt="리그닌">
+      <div class="logo" role="img" aria-label="리그닌"><b>리그닌</b><small>RIGNIN</small></div>
       <button type="button" class="rail-item" data-panel="gear"><span class="lbl">장비</span><kbd>I</kbd><span class="noti" id="gear-noti" hidden></span></button>
       <button type="button" class="rail-item" data-panel="log"><span class="lbl">전투 기록</span><kbd>L</kbd></button>
       <button type="button" class="rail-item" data-panel="settings"><span class="lbl">설정</span><kbd>O</kbd></button>
@@ -38,9 +38,8 @@
       </div>
     </section>
 
-    <section class="minimap" aria-label="지도">
+    <section class="minimap ring" aria-label="지도">
       <canvas id="minimap" width="160" height="160" aria-hidden="true"></canvas>
-      <img class="orb-frame" src="../assets/ui/grove/hp-orb-frame-v1.png" alt="">
     </section>
 
     <aside class="k-panel side objectives" id="objectives" aria-label="목표">
@@ -66,8 +65,7 @@
 
     <section class="dock" aria-label="캐릭터">
       <div class="orb" id="hp-orb">
-        <div class="liquid"><i id="hp-fill"></i></div>
-        <img class="orb-frame" src="../assets/ui/grove/hp-orb-frame-v1.png" alt="">
+        <div class="liquid ring"><i id="hp-fill"></i></div>
         <div class="val"><span id="hp-text">0 / 0</span></div>
       </div>
       <div class="dock-col">
@@ -96,7 +94,8 @@
   </main>
 
   <section id="title-screen" class="title-screen" hidden>
-    <img class="logo" src="../assets/ui/rignin-logo.png" alt="리그닌">
+    <canvas id="title-forest" aria-hidden="true"></canvas>
+    <h1 class="logo" aria-label="리그닌"><b>리그닌</b><small>RIGNIN</small></h1>
     <p class="tagline">뿌리없는 자여, 어느 길로 세계수를 거슬러 오르겠는가</p>
     <div class="class-pick" id="class-pick"></div>
     <p class="title-note" id="title-note" hidden></p>

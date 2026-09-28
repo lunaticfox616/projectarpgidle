@@ -1,5 +1,5 @@
 // Assemble the deployable site in next/site/: the game at the root, its bundle and stylesheet, the
-// old-game art it uses and the imported character sheets, all under relative paths. The bundle is a
+// fonts it uses and the imported character sheets, all under relative paths. The bundle is a
 // classic script with the character manifest inlined, so the same folder runs on any Pages subpath
 // and straight from disk (index.html opened as file://). Usage:
 //   node tools/build-site.ts [--allow-missing-characters] [--zip <file>]
@@ -8,8 +8,6 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync,
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { oldArtFiles } from '../src/web/art-paths.ts';
-import { downscale, readRgba, writeRgba } from './png.ts';
 
 const next = fileURLToPath(new URL('..', import.meta.url));
 const repoAssets = join(next, '..', 'assets');
@@ -35,27 +33,23 @@ if (!html.includes('<script defer src="main.js">')) throw new Error('index.html:
 const manifestFile = join(characters, 'manifest.json');
 const manifest = existsSync(manifestFile) ? readFileSync(manifestFile, 'utf8') : 'null';
 const css = rewrite('style.css', readFileSync(join(next, 'src/web/style.css'), 'utf8'), [['../../../assets/', 'assets/']]);
-const referenced = [...`${html}\n${css}`.matchAll(/assets\/([\w\-./()]+?\.(?:png|webp|woff2))/g)].map(m => m[1]!);
+const referenced = [...`${html}\n${css}`.matchAll(/assets\/([\w\-./()]+?\.woff2)/g)].map(m => m[1]!);
 const fontLicenses = readdirSync(join(repoAssets, 'fonts')).filter(f => f.startsWith('LICENSE-')).map(f => `fonts/${f}`);
-const files = [...new Set([...oldArtFiles(), ...referenced, ...fontLicenses])].sort();
+const files = [...new Set([...referenced, ...fontLicenses])].sort();
 const missing = files.filter(f => !existsSync(join(repoAssets, f)));
-if (missing.length) throw new Error(`old-game art missing from /assets: ${missing.join(', ')}`);
+if (missing.length) throw new Error(`files missing from /assets: ${missing.join(', ')}`);
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 await build({
   entryPoints: [join(next, 'src/web/main.ts')], bundle: true, format: 'iife', target: 'es2022', minify: true,
-  outfile: join(out, 'main.js'), define: { __OLD_ASSETS__: '"assets/"', __CHARACTER_MANIFEST__: manifest }, logLevel: 'warning'
+  outfile: join(out, 'main.js'), define: { __CHARACTER_MANIFEST__: manifest }, logLevel: 'warning'
 });
 writeFileSync(join(out, 'index.html'), html);
 writeFileSync(join(out, 'style.css'), css);
-// Terrain material sheets are only ever drawn at 256 px (4 quadrants of 128, see terrain.ts), so
-// the 1254 px originals are shipped at that size: about 17 MB less to download.
-const MATERIAL_SIZE = 256;
 for (const file of files) {
   mkdirSync(dirname(join(out, 'assets', file)), { recursive: true });
-  if (/^exploration\/[\w-]+-materials\.png$/.test(file)) writeRgba(join(out, 'assets', file), downscale(readRgba(join(repoAssets, file)), MATERIAL_SIZE, MATERIAL_SIZE));
-  else copyFileSync(join(repoAssets, file), join(out, 'assets', file));
+  copyFileSync(join(repoAssets, file), join(out, 'assets', file));
 }
 if (existsSync(characters)) cpSync(characters, join(out, 'assets', 'characters'), { recursive: true });
 
@@ -71,4 +65,4 @@ if (zipAt > 0) {
 
 const size = (dir: string): number => readdirSync(dir, { withFileTypes: true })
   .reduce((sum, d) => sum + (d.isDirectory() ? size(join(dir, d.name)) : statSync(join(dir, d.name)).size), 0);
-console.log(`site: ${files.length} art files${existsSync(characters) ? ' + character sheets' : ' (no character sheets)'}, ${(size(out) / 1e6).toFixed(1)} MB -> next/site/`);
+console.log(`site: ${files.length} font files${existsSync(characters) ? ' + character sheets' : ' (no character sheets)'}, ${(size(out) / 1e6).toFixed(1)} MB -> next/site/`);

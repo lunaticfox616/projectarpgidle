@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { REST_MS, TICK_MS } from '../src/data/balance.ts';
-import { AFFIX_POOL, ITEM_KINDS, itemBase } from '../src/data/item-bases.ts';
+import { ITEM_KINDS, itemBase } from '../src/data/item-bases.ts';
+import { ITEMS } from '../src/data/balance.ts';
+import { affixDef, affixStats } from '../src/core/affixes.ts';
 import { advance, createGame, LAST_ACT, step } from '../src/core/game.ts';
 import { discard, equip, equipUpgrades, itemScore, rollItem, unequip } from '../src/core/items.ts';
 import { actMap, distances, tileIndex } from '../src/core/map.ts';
@@ -99,7 +101,7 @@ test('boss loot settles into the save exactly once, and equals what dropped', ()
 test('dying discards the run loot, keeps the save, and retries the same act', () => {
   const state = createGame(4, 'warrior');
   const r = state.run!, enemy = r.enemies[0]!;
-  const loot = { currencies: { magicBud: 3 }, items: [rollItem(state, 1)] };
+  const loot = { currencies: { magicBud: 3 }, items: [rollItem(state, 1, 'normal')] };
   r.loot = structuredClone(loot);
   Object.assign(enemy, { x: r.player.x + 1, y: r.player.y, active: true, attackMs: 0, damage: 1e9 });
   const before = clone(state), events = step(state);
@@ -115,13 +117,14 @@ test('dying discards the run loot, keeps the save, and retries the same act', ()
 test('equipping an item changes stats and swaps the old one back into the inventory', () => {
   const state = createGame(9, 'warrior');
   const base = stats(state).damage;
-  const sword = { id: 900, slot: 'weapon' as const, base: 'rusted-blade', itemLevel: 3, rarity: 'magic' as const, affixes: [{ stat: 'flatDamage' as const, value: 5 }] };
-  const better = { ...sword, id: 901, affixes: [{ stat: 'flatDamage' as const, value: 8 }] };
+  // The rusted blade's base stat adds 4 flat damage on top of its option.
+  const sword = { id: 900, slot: 'weapon' as const, base: 'rusted-blade', itemLevel: 3, rarity: 'magic' as const, affixes: [{ mod: 'flatDmg', tier: 1, value: 5 }] };
+  const better = { ...sword, id: 901, affixes: [{ mod: 'flatDmg', tier: 1, value: 8 }] };
   state.inventory.push(sword, better);
   assert.equal(equip(state, 900), true);
-  assert.equal(stats(state).damage, base + 5);
+  assert.equal(stats(state).damage, base + 9);
   assert.equal(equip(state, 901), true);
-  assert.equal(stats(state).damage, base + 8);
+  assert.equal(stats(state).damage, base + 12);
   assert.deepEqual(state.inventory.map(i => i.id), [900]);
   assert.equal(equip(state, 12345), false);
 });
@@ -143,7 +146,7 @@ test('auto-equip wears settled upgrades once; discard never touches equipped ite
 
 test('rings fill both ring slots, the weaker one is replaced, and unequip returns items', () => {
   const state = createGame(12, 'warrior');
-  const ring = (id: number, value: number) => ({ id, slot: 'ring' as const, base: 'copper-ring', itemLevel: 3, rarity: 'magic' as const, affixes: [{ stat: 'flatDamage' as const, value }] });
+  const ring = (id: number, value: number) => ({ id, slot: 'ring' as const, base: 'copper-ring', itemLevel: 3, rarity: 'magic' as const, affixes: [{ mod: 'ringFlatDmg', tier: 1, value }] });
   state.inventory.push(ring(1, 2), ring(2, 5), ring(3, 4));
   assert.deepEqual(equipUpgrades(state), [2, 3]);
   assert.deepEqual([state.equipment.ring?.id, state.equipment.ring2?.id], [2, 3]);
@@ -156,19 +159,28 @@ test('rings fill both ring slots, the weaker one is replaced, and unequip return
   assert.deepEqual(state.inventory.map(i => i.id).sort(), [1, 3]);
 });
 
-test('drops cover every kind with class-fitting bases and kind-legal affixes', () => {
+test('drops follow the old option rules: kind, class, tier cap, range, count by rarity', () => {
   const warrior = createGame(13, 'warrior'), arcanist = createGame(13, 'arcanist');
-  const seen = new Set<string>();
+  const seen = new Set<string>(), rarities = new Set<string>();
   for (let i = 0; i < 600; i++) {
-    for (const state of [warrior, arcanist]) {
-      const item = rollItem(state, 10), base = itemBase(item.base);
+    for (const [state, act] of [[warrior, 10], [arcanist, 2]] as const) {
+      const item = rollItem(state, act, i % 3 === 0 ? 'boss' : 'normal'), base = itemBase(item.base);
       seen.add(item.slot);
+      rarities.add(item.rarity);
       assert.equal(base.kind, item.slot);
       assert.ok(!base.classes || base.classes.includes(state.classId), `${base.id} for ${state.classId}`);
-      assert.ok(base.minLevel <= item.itemLevel);
-      for (const a of item.affixes) assert.ok(AFFIX_POOL[item.slot][a.stat], `${a.stat} on ${item.slot}`);
-      assert.equal(new Set(item.affixes.map(a => a.stat)).size, item.affixes.length);
+      const [min, max] = ITEMS.affixCount[item.rarity];
+      assert.ok(item.affixes.length >= min && item.affixes.length <= max, `${item.rarity} with ${item.affixes.length} options`);
+      for (const a of item.affixes) {
+        const def = affixDef(a.mod), [lo, hi] = def.tiers[a.tier - 1]!;
+        assert.ok(def.kinds.includes(item.slot) && (!def.classes || def.classes.includes(state.classId)), `${a.mod} on ${item.slot}`);
+        assert.ok(a.tier >= 1 && a.tier <= ITEMS.tierCap(item.itemLevel), `T${a.tier} at item level ${item.itemLevel}`);
+        assert.ok(a.value >= lo && a.value <= hi, `${a.mod} ${a.value} outside T${a.tier}`);
+      }
+      const statsOnItem = item.affixes.flatMap(a => affixStats(a).map(([stat]) => stat));
+      assert.equal(new Set(statsOnItem).size, statsOnItem.length, 'no stat twice on one item');
     }
   }
   assert.deepEqual([...seen].sort(), [...ITEM_KINDS].sort());
+  assert.deepEqual([...rarities].sort(), ['magic', 'normal', 'rare']);
 });

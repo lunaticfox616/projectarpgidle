@@ -1,30 +1,17 @@
-// Image loading for the browser view. Old-game art comes from the paths in art-paths.ts; the
-// character kit comes from the gitignored next/assets/characters/ and may be absent (public clones),
-// in which case the view draws simple stand-ins and says why.
+// What the view draws actors with. Monsters are drawn in code (monsters.ts); the character kit comes
+// from the gitignored next/assets/characters/ and may be absent (public clones), in which case the
+// view draws a simple stand-in and says why.
 import { sheetPath, type CharacterSheet, type JobId, type Motion } from '../data/characters.ts';
-import { NORMAL_SHEETS, OLD_ASSETS as OLD, artPath } from './art-paths.ts';
-import type { CurrencyKey, EnemyKind } from '../core/types.ts';
+import { actEnemies, type EnemyArt } from './monsters.ts';
+import type { EnemyKind } from '../core/types.ts';
 
 export interface CharacterArt { sheet: CharacterSheet; motions: Record<Motion, HTMLImageElement> }
-
-/** How one enemy kind of an act is cut from its sheet. */
-export interface EnemyArt {
-  image: HTMLImageElement | HTMLCanvasElement;
-  /** Source rectangles of the animation frames. */
-  frames: [number, number, number, number][];
-  frameMs: number;
-  /** On-screen height in art pixels (the hero is about 21). */
-  height: number;
-  /** True when the source faces left, so facing right mirrors it. */
-  facesLeft: boolean;
-}
 
 export interface Art {
   character: CharacterArt | null;
   /** Why the character kit is missing, shown to the player. Null when loaded. */
   characterProblem: string | null;
-  enemies: Record<EnemyKind, EnemyArt | null>;
-  currencies: Partial<Record<CurrencyKey, HTMLImageElement>>;
+  enemies: Record<EnemyKind, EnemyArt>;
 }
 
 const cache = new Map<string, Promise<HTMLImageElement | null>>();
@@ -42,43 +29,6 @@ export function loadImage(url: string): Promise<HTMLImageElement | null> {
     cache.set(url, pending);
   }
   return pending;
-}
-
-const cells = (list: [number, number][], size: number): [number, number, number, number][] =>
-  list.map(([x, y]) => [x * size, y * size, size, size]);
-
-/** Normal enemies rotate through the old game's three wood species by act. */
-async function normalArt(act: number): Promise<EnemyArt | null> {
-  const species = act % 3;
-  if (species === 1) {
-    const image = await loadImage(OLD + artPath.normal('root-spider'));
-    const frames = cells(Array.from({ length: 16 }, (_, f) => [f % 4, Math.floor(f / 4)] as [number, number]), 64);
-    return image && { image, frames, frameMs: 70, height: 20, facesLeft: true };
-  }
-  const [sheet, cx, cy] = species === 2 ? [NORMAL_SHEETS[1], 1, 0] as const : [NORMAL_SHEETS[2], 0, 0] as const;
-  const image = await loadImage(OLD + artPath.normal(sheet));
-  const frames = cells(Array.from({ length: 9 }, (_, f) => [(f % 3) * 4 + cx, Math.floor(f / 3) * 4 + cy] as [number, number]), 64);
-  return image && { image, frames, frameMs: 110, height: 18, facesLeft: false };
-}
-
-/** Elites are wood puppets: nine frames, four costume variants in 2x2 quarters of each frame. */
-async function eliteArt(act: number): Promise<EnemyArt | null> {
-  const images = await Promise.all(Array.from({ length: 9 }, (_, i) => loadImage(OLD + artPath.puppetFrame(i))));
-  if (images.some(i => !i)) return null;
-  const variant = act % 4, sx = (variant % 2) * 128, sy = Math.floor(variant / 2) * 128;
-  // One strip keeps EnemyArt single-image: the nine frames are copied side by side.
-  const strip = document.createElement('canvas');
-  strip.width = 128 * 9;
-  strip.height = 128;
-  const ctx = strip.getContext('2d')!;
-  images.forEach((image, i) => ctx.drawImage(image!, sx, sy, 128, 128, i * 128, 0, 128, 128));
-  // The canvas is drawn directly: reading it back (toDataURL) fails on file:// where images taint it.
-  return { image: strip, frames: cells(Array.from({ length: 9 }, (_, i) => [i, 0] as [number, number]), 128), frameMs: 120, height: 30, facesLeft: false };
-}
-
-async function bossArt(act: number): Promise<EnemyArt | null> {
-  const image = await loadImage(OLD + artPath.boss(act));
-  return image && { image, frames: [[0, 0, image.width, image.height]], frameMs: 1000, height: 68, facesLeft: false };
 }
 
 /** Set by the site build to the imported manifest (or null without a kit); undefined in development. */
@@ -113,26 +63,7 @@ export async function loadCharacter(job: JobId): Promise<{ art: CharacterArt | n
   return { art: { sheet, motions }, problem: null };
 }
 
-export async function loadCurrencyIcons(): Promise<Art['currencies']> {
-  const out: Art['currencies'] = {};
-  const keys: CurrencyKey[] = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blightSpore', 'bossCore', 'challengeMark'];
-  await Promise.all(keys.map(async key => {
-    const path = artPath.currency(key);
-    const image = path ? await loadImage(OLD + path) : null;
-    if (image) out[key] = image;
-  }));
-  return out;
-}
-
-export const itemIconUrl = (baseId: string): string => OLD + artPath.item(baseId);
-
-export const currencyIconUrl = (key: CurrencyKey): string | null => {
-  const path = artPath.currency(key);
-  return path ? OLD + path : null;
-};
-
 /** Everything one act needs. The character is loaded once per class and reused. */
-export async function loadActArt(act: number, character: Pick<Art, 'character' | 'characterProblem'>, currencies: Art['currencies']): Promise<Art> {
-  const [normal, elite, boss] = await Promise.all([normalArt(act), eliteArt(act), bossArt(act)]);
-  return { ...character, enemies: { normal, elite, boss }, currencies };
+export function actArt(act: number, character: Pick<Art, 'character' | 'characterProblem'>): Art {
+  return { ...character, enemies: actEnemies(act) };
 }

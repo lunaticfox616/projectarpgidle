@@ -40,14 +40,19 @@ export interface ActMap {
 
 export type CurrencyKey = 'magicBud' | 'sapBud' | 'formlessDew' | 'goldenRule' | 'blightSpore' | 'bossCore' | 'challengeMark';
 export type Wallet = Record<CurrencyKey, number>;
+/** The five common crafting currencies. */
+export type CraftCurrency = 'magicBud' | 'sapBud' | 'formlessDew' | 'goldenRule' | 'blightSpore';
 
 export type ClassId = 'warrior' | 'arcanist';
 /** What an item is. Rings fit either ring slot; every other kind has exactly one slot. */
 export type ItemKind = 'weapon' | 'offhand' | 'helmet' | 'armor' | 'gloves' | 'boots' | 'belt' | 'amulet' | 'ring';
 /** Where an item is worn. */
 export type EquipSlot = ItemKind | 'ring2';
-export type AffixStat = 'flatDamage' | 'flatHp' | 'pctAttackSpeed' | 'flatArmor';
-export interface Affix { stat: AffixStat; value: number }
+/** One rolled option: its row in data/affixes.ts, tier 1..20 (20 strongest) and rolled value(s). */
+export interface Affix { mod: string; tier: number; value: number; extra?: number }
+
+/** Damage kinds: enemies hit with their act's element; armor and damage reduction stop only 'phys'. */
+export type Element = 'phys' | 'fire' | 'cold' | 'light' | 'chaos';
 export interface Item {
   id: number;
   /** The item's kind (saved under this name since the first saves). */
@@ -71,6 +76,18 @@ export interface Stats {
   moveMsPerTile: number;
   /** Life regenerated per second, as a fraction of maxHp. */
   regenPerSec: number;
+  /** Chance per hit, 0..1. */
+  critChance: number;
+  /** Damage multiplier of a critical hit (1.5 = 150%). */
+  critMulti: number;
+  /** Chance per swing to strike twice, 0..1. */
+  doubleStrike: number;
+  /** Fraction of damage dealt healed. */
+  leech: number;
+  /** Fraction of physical damage removed after armor, 0..cap. */
+  damageReduction: number;
+  /** Fraction of each element's damage removed, 0..cap. */
+  resist: Record<Exclude<Element, 'phys'>, number>;
 }
 
 export type EnemyKind = 'normal' | 'elite' | 'boss';
@@ -145,7 +162,7 @@ export interface GameState {
 export type GameEvent =
   | { type: 'runStarted'; act: number }
   /** damage: life removed from the target this swing. */
-  | { type: 'playerAttacked'; targetId: number; damage: number; killed: boolean }
+  | { type: 'playerAttacked'; targetId: number; damage: number; killed: boolean; crit: boolean }
   /** damage: life the player lost, after armor. */
   | { type: 'enemyAttacked'; enemyId: number; damage: number }
   | { type: 'enemyKilled'; kind: EnemyKind; enemyId: number }

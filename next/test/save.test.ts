@@ -38,6 +38,8 @@ test('saves a running game could not continue from are rejected with the reason'
     ['fog of another map', raw => { raw.run.fog = [1]; }, /fog/],
     ['broken item', raw => { raw.inventory.push({ id: 1, slot: 'hat', rarity: 'rare', itemLevel: 3, affixes: [] }); }, /inventory item/],
     ['item in the wrong slot', raw => { raw.equipment.ring = { id: 1, slot: 'weapon', base: 'rusted-blade', rarity: 'normal', itemLevel: 3, affixes: [] }; }, /wrong slot/],
+    ['unknown option', raw => { raw.inventory.push({ id: 1, slot: 'ring', base: 'copper-ring', rarity: 'magic', itemLevel: 3, affixes: [{ mod: 'summonCap', tier: 1, value: 1 }] }); }, /affixes/],
+    ['tier out of range', raw => { raw.inventory.push({ id: 1, slot: 'ring', base: 'copper-ring', rarity: 'magic', itemLevel: 3, affixes: [{ mod: 'crit', tier: 21, value: 1 }] }); }, /affixes/],
     ['unknown slot', raw => { raw.equipment.tail = { id: 1, slot: 'ring', base: 'copper-ring', rarity: 'normal', itemLevel: 3, affixes: [] }; }, /unknown equipment slot/]
   ];
   for (const [name, corrupt, reason] of cases) {
@@ -61,9 +63,14 @@ test('the rules core and data never reach into the browser layer', () => {
 test('items saved before bases existed get a deterministic base for their kind', () => {
   const raw = json(played()) as Record<string, any>;
   raw.inventory = [{ id: 7, slot: 'weapon', rarity: 'normal', itemLevel: 12, affixes: [] }];
-  raw.equipment = { ring: { id: 8, slot: 'ring', rarity: 'magic', itemLevel: 3, affixes: [{ stat: 'flatHp', value: 9 }] } };
+  raw.equipment = { ring: { id: 8, slot: 'ring', rarity: 'magic', itemLevel: 3, affixes: [{ stat: 'flatHp', value: 9 }, { stat: 'flatDamage', value: 4 }] },
+    armor: { id: 9, slot: 'armor', base: 'leather-vest', rarity: 'magic', itemLevel: 3, affixes: [{ stat: 'flatDamage', value: 3 }, { stat: 'flatArmor', value: 30 }] } };
   const restored = restoreGame(raw);
   assert.equal(restored.inventory[0]!.base, 'echo-focus');
   assert.equal(restored.equipment.ring!.base, 'copper-ring');
+  // Pre-crafting affixes keep their values under the option of the same stat, at the nearest tier.
+  assert.deepEqual(restored.equipment.ring!.affixes, [{ mod: 'flatHp', tier: 1, value: 9 }, { mod: 'ringFlatDmg', tier: 1, value: 4 }]);
+  // Body armour has no flat-damage option any more: only that line goes, the item stays.
+  assert.deepEqual(restored.equipment.armor!.affixes, [{ mod: 'armor', tier: 2, value: 30 }]);
   assert.deepEqual(restoreGame(json(restored)), restored);
 });

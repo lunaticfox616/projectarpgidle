@@ -13,6 +13,7 @@
     "check": "npm run typecheck && npm test && npm run build:web",
     "autoplay": "node tools/autoplay.ts",
     "import:acts": "node tools/import-acts.ts",
+    "import:affixes": "node tools/import-affixes.ts",
     "import:characters": "node tools/import-characters.ts",
     "build:web": "esbuild src/web/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=build/main.js",
     "dev": "npm run build:web -- --watch=forever --servedir=.. --serve=8123",

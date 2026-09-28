@@ -2,7 +2,7 @@
 // beams, level-up pillar, gate break and floating numbers.
 import { TILE } from './terrain.ts';
 import { player, type Fx, type Scene } from './scene.ts';
-import type { Art } from './art.ts';
+import { currencySprite } from './icons.ts';
 import type { Facing } from '../data/characters.ts';
 
 const center = (x: number, y: number): [number, number] => [(x + 0.5) * TILE, (y + 0.5) * TILE - 6];
@@ -61,7 +61,7 @@ function burst(ctx: CanvasRenderingContext2D, f: Extract<Fx, { kind: 'burst' }>,
 }
 
 /** Drops pop out of the corpse, lie glowing, then rise into the loot pouch. */
-function drop(ctx: CanvasRenderingContext2D, f: Extract<Fx, { kind: 'drop' }>, since: number, art: Art): void {
+function drop(ctx: CanvasRenderingContext2D, f: Extract<Fx, { kind: 'drop' }>, since: number): void {
   if (since < 0 || since > 2400) return;
   const [x0, y0] = center(f.x, f.y), land = Math.min(1, since / 420);
   const x = x0 + f.dx * TILE * land, hop = Math.sin(land * Math.PI) * 12;
@@ -86,14 +86,8 @@ function drop(ctx: CanvasRenderingContext2D, f: Extract<Fx, { kind: 'drop' }>, s
     ctx.lineWidth = 1;
     ctx.strokeRect(x - 3.5, y - 3.5, 7, 7);
   } else if (f.currency) {
-    const icon = art.currencies[f.currency];
-    if (icon) ctx.drawImage(icon, x - 5, y - 5, 10, 10);
-    else {
-      ctx.fillStyle = f.currency === 'bossCore' ? '#ff7a4a' : '#ffd24a';
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    const icon = currencySprite(f.currency);
+    ctx.drawImage(icon.canvas, Math.round(x - icon.width / 2), Math.round(y - icon.height / 2));
   }
   ctx.restore();
 }
@@ -135,8 +129,8 @@ function number(ctx: CanvasRenderingContext2D, f: Extract<Fx, { kind: 'number' }
 }
 
 /** Effects that lie on the ground under the actors. */
-export function drawGroundEffects(ctx: CanvasRenderingContext2D, scene: Scene, art: Art): void {
-  for (const f of scene.fx) if (f.kind === 'drop') drop(ctx, f, scene.time - f.at, art);
+export function drawGroundEffects(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const f of scene.fx) if (f.kind === 'drop') drop(ctx, f, scene.time - f.at);
 }
 
 export function drawEffects(ctx: CanvasRenderingContext2D, scene: Scene): void {

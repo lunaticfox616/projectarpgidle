@@ -4,10 +4,11 @@ import {
   ARMOR_K, BOSS_ITEM_COUNT, BOSS_STACK, CURRENCY_DROPS, DAMAGE_SPREAD, ENEMY, ITEM_DROPS, PACKS, PLAYER, REST_MS, TICK_MS, expToNext
 } from '../data/balance.ts';
 import { rollItem } from './items.ts';
+import { actText } from '../data/acts.ts';
 import { actMap, distances, isFloor, lineOfSight, reach, route, tileIndex, visibleTiles } from './map.ts';
 import { chance, random, rollInt } from './rng.ts';
 import { stats } from './stats.ts';
-import type { ActMap, Cell, CurrencyKey, Enemy, GameEvent, GameState, Room, Run, Stats, TempLoot } from './types.ts';
+import type { ActMap, Cell, CurrencyKey, Element, Enemy, GameEvent, GameState, Room, Run, Stats, TempLoot } from './types.ts';
 
 const emptyLoot = (): TempLoot => ({ currencies: {}, items: [] });
 
@@ -77,7 +78,7 @@ function rollDrops(state: GameState, run: Run, enemy: Enemy, events: GameEvent[]
     run.loot.currencies[key] = (run.loot.currencies[key] ?? 0) + amount;
   }
   const count = enemy.kind === 'boss' ? BOSS_ITEM_COUNT : chance(state, ITEM_DROPS[enemy.kind]) ? 1 : 0;
-  const items = Array.from({ length: count }, () => rollItem(state, run.act));
+  const items = Array.from({ length: count }, () => rollItem(state, run.act, enemy.kind));
   run.loot.items.push(...items);
   if (items.length > 0 || Object.keys(currencies).length > 0) {
     events.push({ type: 'lootDropped', enemyId: enemy.id, x: enemy.x, y: enemy.y, currencies, items });
@@ -161,10 +162,29 @@ function playerAct(state: GameState, map: ActMap, run: Run, s: Stats, events: Ga
   if (p.attackMs > 0) return;
   p.attackMs = 1000 / s.attacksPerSec;
   for (const mate of run.enemies) if (mate.packId === target.packId) mate.active = true;
-  const damage = Math.min(target.hp, s.damage * (1 + (random(state) * 2 - 1) * DAMAGE_SPREAD));
+  strike(state, run, target, s, events);
+  if (target.hp > 0 && random(state) < s.doubleStrike) strike(state, run, target, s, events);
+}
+
+/** One hit: ±spread, a critical roll, life leech; kills at zero. */
+function strike(state: GameState, run: Run, target: Enemy, s: Stats, events: GameEvent[]): void {
+  const crit = random(state) < s.critChance;
+  const rolled = s.damage * (1 + (random(state) * 2 - 1) * DAMAGE_SPREAD) * (crit ? s.critMulti : 1);
+  const damage = Math.min(target.hp, rolled);
   target.hp -= damage;
-  events.push({ type: 'playerAttacked', targetId: target.id, damage, killed: target.hp <= 0 });
+  state.hp = Math.min(s.maxHp, state.hp + damage * s.leech);
+  events.push({ type: 'playerAttacked', targetId: target.id, damage, killed: target.hp <= 0, crit });
   if (target.hp <= 0) kill(state, run, target, events);
+}
+
+/**
+ * Damage the player takes from one enemy hit: ENEMY.elementShare of it is the act's element
+ * (stopped by that resistance), the rest physical (stopped by armor, then damage reduction).
+ */
+function mitigated(raw: number, element: Element, s: Stats): number {
+  const physical = (share: number) => ((raw * share * ARMOR_K) / (ARMOR_K + s.armor)) * (1 - s.damageReduction);
+  if (element === 'phys') return physical(1);
+  return physical(1 - ENEMY.elementShare) + raw * ENEMY.elementShare * (1 - s.resist[element]);
 }
 
 function die(state: GameState, run: Run, events: GameEvent[]): void {
@@ -198,7 +218,7 @@ function enemiesAct(state: GameState, map: ActMap, run: Run, s: Stats, events: G
     }
     if (enemy.attackMs > 0) continue;
     enemy.attackMs = ENEMY.kind[enemy.kind].attackMs;
-    const damage = enemy.damage * ARMOR_K / (ARMOR_K + s.armor);
+    const damage = mitigated(enemy.damage, actText(run.act).element, s);
     state.hp -= damage;
     events.push({ type: 'enemyAttacked', enemyId: enemy.id, damage });
     if (state.hp <= 0) return die(state, run, events);

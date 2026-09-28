@@ -6,6 +6,9 @@ import { actText } from '../data/acts.ts';
 import { step } from '../core/game.ts';
 import { loadCharacter, type CharacterArt } from './art.ts';
 import { drawIdle } from './hud.ts';
+import { lookFor } from './look.ts';
+import { hash } from './pixel.ts';
+import { propSprite } from './props.ts';
 import type { ClassId, CurrencyKey, GameState } from '../core/types.ts';
 
 const el = (id: string) => document.getElementById(id)!;
@@ -14,6 +17,33 @@ const CLASS_TEXT: Record<ClassId, { weapon: string; blurb: string; traits: strin
   warrior: { weapon: '대검', blurb: '두꺼운 생명력과 방어도로 무리 한가운데를 버티며 베어 넘긴다.', traits: ['근접', `생명력 ${CLASSES.warrior.hp}`, `방어도 ${CLASSES.warrior.armor}`] },
   arcanist: { weapon: '오브', blurb: '다가오기 전에 오브를 날려 쓰러뜨린다. 몸은 약하니 먼저 쳐야 한다.', traits: [`원거리 ${CLASSES.arcanist.range}칸`, `피해 ${CLASSES.arcanist.damage}`, `생명력 ${CLASSES.arcanist.hp}`] }
 };
+
+/** Three rows of code-drawn trees fading into the dark behind the title, at 3 screen px per art px. */
+function drawTitleForest(canvas: HTMLCanvasElement): void {
+  const look = lookFor('root'), scale = 3;
+  canvas.width = Math.ceil(canvas.clientWidth / scale);
+  canvas.height = Math.ceil(canvas.clientHeight / scale);
+  const ctx = canvas.getContext('2d')!, w = canvas.width, h = canvas.height;
+  ctx.imageSmoothingEnabled = false;
+  const rows: [number, number, string][] = [[0.55, 0.62, 'rgba(10, 13, 11, 0.72)'], [0.78, 0.42, 'rgba(10, 13, 11, 0.45)'], [1, 0.3, 'rgba(6, 8, 7, 0.25)']];
+  rows.forEach(([base, gap, veil], row) => {
+    for (let x = -8, i = 0; x < w + 8; i++) {
+      const kind = hash(i, row, 41) < 0.8 ? 'tree' : 'bush', tree = propSprite(kind, look, i * 3 + row);
+      ctx.drawImage(tree.canvas, Math.round(x), Math.round(h * base - tree.height + hash(i, row, 42) * 4));
+      x += tree.width * gap * (0.8 + hash(i, row, 43) * 0.6);
+    }
+    ctx.fillStyle = veil;
+    ctx.fillRect(0, 0, w, h);
+  });
+  // The top edge dissolves into the page background instead of ending in a line.
+  const fade = ctx.createLinearGradient(0, 0, 0, h * 0.4);
+  fade.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = 'source-over';
+}
 
 /** Show the title and resolve with the class the player picked. */
 export async function chooseClass(note: string | null): Promise<ClassId> {
@@ -28,6 +58,7 @@ export async function chooseClass(note: string | null): Promise<ClassId> {
       <div class="traits">${CLASS_TEXT[id].traits.map(t => `<span>${t}</span>`).join('')}</div>
       <button type="button" class="k-button primary" data-pick="${id}">이 길로 간다</button></article>`).join('');
   screen.hidden = false;
+  drawTitleForest(el('title-forest') as HTMLCanvasElement);
   let frame = 0;
   const animate = (time: number) => {
     ids.forEach((id, i) => {

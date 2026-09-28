@@ -1,12 +1,13 @@
 // Item generation, comparison and equipping across the ten equipment slots.
-import { AFFIX_WEIGHT, ITEMS } from '../data/balance.ts';
-import { AFFIX_POOL, KIND_WEIGHT, basesFor, slotKind } from '../data/item-bases.ts';
-import { random, rollInt } from './rng.ts';
+import { DROP_RARITY, ITEMS, STAT_WEIGHT } from '../data/balance.ts';
+import { KIND_WEIGHT, basesFor, slotKind } from '../data/item-bases.ts';
+import { itemStats, rerollAffixes } from './affixes.ts';
+import { random } from './rng.ts';
 import { stats } from './stats.ts';
-import type { AffixStat, EquipSlot, GameState, Item, ItemKind } from './types.ts';
+import type { EnemyKind, EquipSlot, GameState, Item, ItemKind } from './types.ts';
 
 /** Pick a key by relative weight. */
-function weighted<K extends string>(state: GameState, weights: Partial<Record<K, number>>): K {
+function weighted<K extends string>(state: GameState, weights: Record<K, number>): K {
   const entries = Object.entries(weights) as [K, number][];
   let roll = random(state) * entries.reduce((sum, [, w]) => sum + w, 0);
   for (const [key, w] of entries) {
@@ -16,32 +17,26 @@ function weighted<K extends string>(state: GameState, weights: Partial<Record<K,
   return entries[entries.length - 1]![0];
 }
 
-function rollRarity(state: GameState): Item['rarity'] {
-  return weighted(state, Object.fromEntries(ITEMS.rarity) as Record<Item['rarity'], number>);
+function rollRarity(state: GameState, source: EnemyKind): Item['rarity'] {
+  const odds = DROP_RARITY[source], roll = random(state);
+  return roll < odds.rare ? 'rare' : roll < odds.magic ? 'magic' : 'normal';
 }
 
-/** A new item for a drop in `act`, sized to the player's class. Affix stats never repeat on one item. */
-export function rollItem(state: GameState, act: number): Item {
-  const itemLevel = ITEMS.itemLevel(act), rarity = rollRarity(state);
+/** A new item dropped in `act` by `source`, fitted to the player's class. */
+export function rollItem(state: GameState, act: number, source: EnemyKind): Item {
+  const itemLevel = ITEMS.itemLevel(act), rarity = rollRarity(state, source);
   const kind = weighted<ItemKind>(state, KIND_WEIGHT);
   const bases = basesFor(kind, state.classId, itemLevel);
   if (bases.length === 0) throw new Error(`no ${kind} base for ${state.classId} at item level ${itemLevel}`);
   // Mostly the newest base the level allows, sometimes the one before it.
   const base = bases[Math.max(0, bases.length - 1 - (random(state) < 0.3 ? 1 : 0))]!;
-  const [min, max] = ITEMS.affixCount[rarity];
-  const pool: Partial<Record<AffixStat, number>> = { ...AFFIX_POOL[kind] };
-  const affixes = [];
-  for (let n = rollInt(state, min, max); n > 0 && Object.keys(pool).length > 0; n--) {
-    const stat = weighted(state, pool);
-    delete pool[stat];
-    const [low = 0, high = 0] = ITEMS.affix[stat](itemLevel);
-    affixes.push({ stat, value: Math.round(low + random(state) * (high - low)) });
-  }
-  return { id: state.nextId++, slot: kind, base: base.id, itemLevel, rarity, affixes };
+  const item: Item = { id: state.nextId++, slot: kind, base: base.id, itemLevel, rarity, affixes: [] };
+  rerollAffixes(state, item, state.classId);
+  return item;
 }
 
 export function itemScore(item: Item | undefined): number {
-  return item ? item.affixes.reduce((sum, a) => sum + a.value * AFFIX_WEIGHT[a.stat], 0) : 0;
+  return item ? itemStats(item).reduce((sum, [stat, value]) => sum + value * STAT_WEIGHT[stat], 0) : 0;
 }
 
 /** Slots an item can go into: its own, or either ring slot for rings. */

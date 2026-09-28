@@ -1,6 +1,7 @@
 // Every tuning number of the first core slice. The autoplay tool measures the result
 // (first loop target: 15-30 simulated minutes to clear act 10); change numbers here, not in rules.
-import type { ClassId, CurrencyKey, EnemyKind, RoomRole, AffixStat } from '../core/types.ts';
+import type { ClassId, CurrencyKey, EnemyKind, RoomRole } from '../core/types.ts';
+import type { StatId } from './affix-types.ts';
 
 export const TICK_MS = 100;
 /** Offline settlement never simulates more than this per call; ms. */
@@ -30,7 +31,7 @@ export const DAMAGE_SPREAD = 0.1;
 export const expToNext = (level: number): number => Math.round(30 * level ** 1.6);
 
 export const ENEMY = {
-  hp: (act: number) => 32 * 1.23 ** (act - 1),
+  hp: (act: number) => 38 * 1.23 ** (act - 1),
   damage: (act: number) => 2.4 * 1.19 ** (act - 1),
   exp: (act: number) => 4 * 1.45 ** (act - 1),
   kind: {
@@ -39,6 +40,8 @@ export const ENEMY = {
     boss: { hp: 18, damage: 2.4, exp: 25, attackMs: 1500 }
   } satisfies Record<EnemyKind, { hp: number; damage: number; exp: number; attackMs: number }>,
   moveMsPerTile: 520,
+  /** Share of an enemy hit dealt as its act's element in non-physical acts; the rest is physical. */
+  elementShare: 0.5,
   /** A pack wakes when the player comes within this reach of any member. */
   wakeReach: 5
 };
@@ -63,18 +66,36 @@ export const ITEM_DROPS: Record<EnemyKind, number> = { normal: 0.03, elite: 0.3,
 export const BOSS_ITEM_COUNT = 2;
 
 export const ITEMS = {
-  rarity: [['normal', 0.6], ['magic', 0.32], ['rare', 0.08]] as const,
-  affixCount: { normal: [1, 1], magic: [2, 2], rare: [3, 4] } as const,
-  /** Value range of one affix at item level il: [min, max]. */
-  affix: {
-    flatDamage: (il: number) => [1 + il * 0.5, 2 + il * 0.8],
-    flatHp: (il: number) => [6 + il * 3, 10 + il * 5],
-    pctAttackSpeed: () => [3, 10],
-    flatArmor: (il: number) => [2 + il, 4 + il * 1.6]
-  } satisfies Record<AffixStat, (il: number) => number[]>,
+  /** Explicit options per rarity, as in the old game: normal none, magic 1-2, rare 4-5, at most 6. */
+  affixCount: { normal: [0, 0], magic: [1, 2], rare: [4, 5] } as const,
+  explicitCap: 6,
   /** Item level of a drop in a given act. */
-  itemLevel: (act: number) => act * 3
+  itemLevel: (act: number) => act * 3,
+  /** Highest option tier an item level can roll (act 10 reaches T20). */
+  tierCap: (itemLevel: number) => Math.max(1, Math.min(20, Math.ceil((itemLevel * 2) / 3))),
+  /** Old rollAffixValue: start at T1 and climb one tier with this chance, up to the cap. */
+  tierClimb: 0.58
 };
 
-/** How much one point of each affix is worth when comparing items (autoplay's equip rule). */
-export const AFFIX_WEIGHT: Record<AffixStat, number> = { flatDamage: 3, flatHp: 0.35, pctAttackSpeed: 2, flatArmor: 0.6 };
+/** Drop rarity odds by what dropped it (old EQUIPMENT_DROP_RARITY_THRESHOLDS, uniques left out). */
+export const DROP_RARITY: Record<EnemyKind, { rare: number; magic: number }> = {
+  normal: { rare: 0.09, magic: 0.3 },
+  elite: { rare: 0.24, magic: 0.62 },
+  boss: { rare: 0.36, magic: 0.8 }
+};
+
+export const COMBAT = {
+  /** Base critical chance and multiplier, in percent. */
+  critChance: 5,
+  critMulti: 150,
+  /** Caps, in percent. */
+  resistCap: 75,
+  damageReductionCap: 60
+};
+
+/** How much one point of each stat is worth when comparing items (auto-equip and ▲ marks). */
+export const STAT_WEIGHT: Record<StatId, number> = {
+  flatDmg: 3, weaponDmgPct: 0.5, pctDmg: 0.6, attackPctDmg: 0.6, meleePctDmg: 0.6, projectilePctDmg: 0.6, physPctDmg: 0.5, elementalPctDmg: 0.5,
+  flatHp: 0.35, pctHp: 2, armor: 0.6, armorPct: 0.8, dr: 3, aspd: 2, crit: 2.5, critDmg: 0.8, move: 1,
+  resF: 1, resC: 1, resL: 1, resAll: 3, resChaos: 1.2, regen: 8, leech: 6, ds: 1.5
+};

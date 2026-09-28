@@ -4,7 +4,7 @@ import { CLASS_SPRITES } from '../data/characters.ts';
 import { createGame, step } from '../core/game.ts';
 import { actMap } from '../core/map.ts';
 import { stats } from '../core/stats.ts';
-import { loadActArt, loadCharacter, loadCurrencyIcons, type Art } from './art.ts';
+import { actArt, loadCharacter, type Art } from './art.ts';
 import { bakeTerrain } from './terrain.ts';
 import { createView, drawWorld, fitZoom, type View } from './draw.ts';
 import { createScene, syncScene, takeEvents, timingFrom, updateScene, type Scene } from './scene.ts';
@@ -53,7 +53,7 @@ function resize(): void {
 async function enterAct(g: Pick<Game, 'state' | 'art'> & Partial<Game>, announceAct: boolean): Promise<{ art: Art; view: View; scene: Scene }> {
   const run = g.state.run!, map = actMap(run.act);
   const sameAct = g.view && g.scene && g.scene.act === run.act;
-  const art = sameAct ? g.art : await loadActArt(run.act, g.art, g.art.currencies);
+  const art = sameAct ? g.art : actArt(run.act, g.art);
   const view = sameAct ? g.view! : createView(canvas, await bakeTerrain(map), map);
   const ranged = stats(g.state).range > 1;
   const scene = createScene(g.state, timingFrom(art.character?.sheet ?? null, ranged));
@@ -154,9 +154,8 @@ async function boot(): Promise<void> {
   const loaded = readSave();
   const state = loaded.kind === 'ok' ? loaded.state
     : createGame(crypto.getRandomValues(new Uint32Array(1))[0]!, await chooseClass(loaded.kind === 'broken' ? `저장을 읽지 못해 새로 시작합니다 (${loaded.reason}). 손상된 저장은 브라우저에 따로 보관했습니다.` : null));
-  const [character, currencies] = await Promise.all([loadCharacter(CLASS_SPRITES[state.classId]), loadCurrencyIcons()]);
-  const baseArt: Art = { character: character.art, characterProblem: character.problem, enemies: { normal: null, elite: null, boss: null }, currencies };
-  const first = await enterAct({ state, art: baseArt }, true);
+  const character = await loadCharacter(CLASS_SPRITES[state.classId]);
+  const first = await enterAct({ state, art: actArt(state.run!.act, { character: character.art, characterProblem: character.problem }) }, true);
   game = { state, ...first, hud: createHud(), prefs: readPrefs(), acc: 0, last: performance.now(), savedAt: Date.now(), busy: 0, hiddenAt: null };
   initPanels({ state: () => game.state, saved: save, reset: () => { clearSave(); window.location.reload(); } });
   bindControls();
