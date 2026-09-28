@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { readAlpha, visibleBox } from './png-alpha.ts';
+import { readAlpha, visibleBox } from './png.ts';
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const source = readFileSync(here('../../data/act-exploration-maps.js'), 'utf8');

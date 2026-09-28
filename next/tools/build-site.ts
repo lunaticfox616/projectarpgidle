@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { oldArtFiles } from '../src/web/art-paths.ts';
+import { downscale, readRgba, writeRgba } from './png.ts';
 
 const next = fileURLToPath(new URL('..', import.meta.url));
 const repoAssets = join(next, '..', 'assets');
@@ -48,9 +49,13 @@ await build({
 });
 writeFileSync(join(out, 'index.html'), html);
 writeFileSync(join(out, 'style.css'), css);
+// Terrain material sheets are only ever drawn at 256 px (4 quadrants of 128, see terrain.ts), so
+// the 1254 px originals are shipped at that size: about 17 MB less to download.
+const MATERIAL_SIZE = 256;
 for (const file of files) {
   mkdirSync(dirname(join(out, 'assets', file)), { recursive: true });
-  copyFileSync(join(repoAssets, file), join(out, 'assets', file));
+  if (/^exploration\/[\w-]+-materials\.png$/.test(file)) writeRgba(join(out, 'assets', file), downscale(readRgba(join(repoAssets, file)), MATERIAL_SIZE, MATERIAL_SIZE));
+  else copyFileSync(join(repoAssets, file), join(out, 'assets', file));
 }
 if (existsSync(characters)) cpSync(characters, join(out, 'assets', 'characters'), { recursive: true });
 
