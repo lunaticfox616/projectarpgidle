@@ -24,6 +24,7 @@ async function verifyRegistrationBehavior() {
         location: { protocol: 'https:', reload() { reloadCount += 1; } },
         navigator: {
             serviceWorker: {
+                controller: null,
                 addEventListener(type, handler) { serviceWorkerListeners[type] = handler; },
                 async register(url, options) {
                     registrationArgs = { url, options };
@@ -36,6 +37,11 @@ async function verifyRegistrationBehavior() {
     vm.createContext(registrationContext);
     vm.runInContext(registrationMatch[1], registrationContext, { filename: 'app-update-registration.js' });
     await windowListeners.load();
+    const serviceWorker = registrationContext.navigator.serviceWorker;
+    serviceWorker.controller = { scriptURL: 'first-install' };
+    serviceWorkerListeners.controllerchange();
+    assert.strictEqual(reloadCount, 0, 'the first install claiming a freshly loaded page must not restart it');
+    serviceWorker.controller = { scriptURL: 'update' };
     serviceWorkerListeners.controllerchange();
     serviceWorkerListeners.controllerchange();
     assert.strictEqual(registrationArgs.url, './service-worker.js', 'app shell must register the root update worker');

@@ -13,8 +13,13 @@
     (() => {
         if (!('serviceWorker' in navigator) || location.protocol === 'file:' || window.Capacitor?.isNativePlatform()) return;
         let updateReloadStarted = false;
+        // Only a worker replacing another one means new code. The first install claims a page that was just loaded
+        // from the network; reloading it then restarted a new player's first minute (class pick, prologue) mid-way.
+        let controller = navigator.serviceWorker.controller;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (updateReloadStarted) return;
+            const replaced = !!controller;
+            controller = navigator.serviceWorker.controller;
+            if (!replaced || updateReloadStarted) return;
             updateReloadStarted = true;
             location.reload();
         });
