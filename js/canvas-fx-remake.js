@@ -75,6 +75,7 @@ const fxRemake = (() => {
         return true;
     }
     function isOpen() { return !!scope; }
+    function projection() { return scope ? scope.projection : null; }
     /** Frame start: a layer left open by an interrupted frame must not leak into the next one. */
     function discard() {
         if (scope?.dirty) surfaces.fullCtx.clearRect(0, 0, surfaces.full.width, surfaces.full.height);
@@ -198,18 +199,53 @@ const fxRemake = (() => {
         return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, angle: Math.atan2(b.y - a.y, b.x - a.x) };
     }
     function hasProjectile(id) { return isEnabled() && !!projectileFor(id); }
+    /** The caster's sprite in buffer px while it shows its back (facing north): a shot sent forward starts hidden by it.
+     * Read at the frame's visual time — a projectile's own playback time may wait at an unconfirmed contact. */
+    function bodyCut() {
+        const now = typeof battleVisualState === 'object' ? battleVisualState.visualNow : NaN;
+        const body = typeof hanaActors === 'object' ? hanaActors.drawnBody(now) : null;
+        if (!body || body.dir !== 'north') return null;
+        const at = toBuffer(body.dest.x, body.dest.y);
+        return { image: body.image, src: body.src, x: at.x, y: at.y, size: body.dest.dot / scope.s };
+    }
+    function scratchCanvas(size) {
+        if (!surfaces.cut || surfaces.cut.width < size || surfaces.cut.height < size) {
+            surfaces.cut = document.createElement('canvas');
+            surfaces.cut.width = surfaces.cut.height = size;
+        }
+        const c = surfaces.cut.getContext('2d');
+        c.setTransform(1, 0, 0, 1, 0, 0);
+        c.clearRect(0, 0, size, size);
+        return c;
+    }
+    function drawSprite(c, sprite, at, angle) {
+        const w = sprite.canvas.width, h = sprite.canvas.height;
+        c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.imageSmoothingEnabled = false;
+        c.translate(at.x, at.y); c.rotate(angle);
+        c.drawImage(sprite.canvas, -Math.round(w * 0.62) * BLOCK, -Math.floor(h / 2) * BLOCK, w * BLOCK, h * BLOCK);
+        c.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    /** Draws the sprite on a scratch square around (x, y), erases the caster's opaque pixels from it, then copies it in. */
+    function drawBehindBody(sprite, box, cut) {
+        const size = box.reach * 2, left = box.x - box.reach, top = box.y - box.reach, c = scratchCanvas(size);
+        drawSprite(c, sprite, { x: box.reach, y: box.reach }, box.angle);
+        c.globalCompositeOperation = 'destination-out'; c.imageSmoothingEnabled = false;
+        c.drawImage(cut.image, cut.src.x, cut.src.y, cut.src.w, cut.src.h, cut.x - left, cut.y - top, cut.src.w * cut.size, cut.src.h * cut.size);
+        c.globalCompositeOperation = 'source-over';
+        surfaces.fullCtx.setTransform(1, 0, 0, 1, 0, 0);
+        surfaces.fullCtx.globalAlpha = 1;
+        surfaces.fullCtx.drawImage(c.canvas, 0, 0, size, size, left, top, size, size);
+    }
     /** Replaces the native travel sprite of a redrawn projectile. Returns true when drawn. */
     function projectile(e, now, id) {
         const sprite = scope && e.kind === 'travel' ? projectileFor(id) : null;
         const age = now - e.at;
         if (!sprite || !(age >= 0 && age < e.duration)) return false;
         const p = travelPoint(e, age), angle = Math.round(p.angle / (Math.PI / 16)) * (Math.PI / 16);
-        const w = sprite.canvas.width, h = sprite.canvas.height, c = surfaces.fullCtx;
         const x = Math.round(p.x) - scope.ox, y = Math.round(p.y) - scope.oy;
-        c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.imageSmoothingEnabled = false;
-        c.translate(x, y); c.rotate(angle);
-        c.drawImage(sprite.canvas, -Math.round(w * 0.62) * BLOCK, -Math.floor(h / 2) * BLOCK, w * BLOCK, h * BLOCK);
-        const reach = Math.hypot(w, h) * BLOCK;
+        const reach = Math.ceil(Math.hypot(sprite.canvas.width, sprite.canvas.height) * BLOCK), cut = bodyCut();
+        if (cut) drawBehindBody(sprite, { x, y, reach, angle }, cut);
+        else drawSprite(surfaces.fullCtx, sprite, { x, y }, angle);
         markDirty(x - reach, y - reach, x + reach, y + reach);
         return true;
     }
@@ -307,6 +343,6 @@ const fxRemake = (() => {
         t.restore();
     }
 
-    return Object.freeze({ begin, end, discard, isOpen, isEnabled, capture, drawDots, ring, projectile, hasProjectile, brass, ELEMENT_RAMPS });
+    return Object.freeze({ begin, end, discard, isOpen, projection, isEnabled, capture, drawDots, ring, projectile, hasProjectile, brass, ELEMENT_RAMPS });
 })();
 safeExposeGlobals({ fxRemake });

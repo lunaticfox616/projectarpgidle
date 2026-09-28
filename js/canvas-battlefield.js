@@ -1100,6 +1100,7 @@ function drawBattleGroundLayer(ctx, effects, view) {
         if (!isGroundSkillCast(fx)) continue;
         drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
     }
+    redrawnSkillFx.drawLayer('ground', view.now);
     fxRemake.end();
     let motions = buildSummonAttackMotionMap(effects, game.summons, view.gridProj, view.enemyPosMap, view.now);
     drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj, motions);
@@ -2098,14 +2099,16 @@ function drawBattlePlayerFigure(ctx, state, position) {
 
 function drawHanaPlayerBody(ctx, state, position) {
     let motion = state.motionState, hana = collectHanaPlayerMotion(motion, state.now);
+    let spin = redrawnSkillFx.playerSpin(state.now);
+    if (spin && hana.attack) Object.assign(hana.attack, { direction: spin.facing, channelUntil: Math.max(hana.attack.channelUntil, spin.holdUntil) });
     let previous = ctx.battleActorAlpha;
     ctx.battleActorAlpha = state.actorAlpha;
     try {
         return hanaActors.drawPlayer(ctx, position.x, position.y, {
             ...hana, classId: getHeroAppearanceId(), tile: state.gridProj.tileW,
-            facing: motion.facingDirection || motion.attackDirection || 'east',
+            facing: spin ? spin.facing : motion.facingDirection || motion.attackDirection || 'east',
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
-            alpha: getBattleActorDrawAlpha(ctx, 1)
+            alpha: getBattleActorDrawAlpha(ctx, 1), tint: redrawnSkillFx.playerTint(state.now)
         }, state.now);
     } finally { ctx.battleActorAlpha = previous; }
 }
@@ -2123,6 +2126,12 @@ function getHanaSwingTiming(swing, direction) {
     return { start: swing.start, impactAt: swing.start + windup, direction, channelUntil };
 }
 
+/** Only a hit worth at least 6% of max life flashes the sprite; chip damage from archers just plays the hurt pose. */
+function isHeavyPlayerHit(hit, stats) {
+    if (!hit) return false;
+    return Number(hit.damage) >= Math.max(1, Number(stats.maxHp) || 0) * 0.06;
+}
+
 /** Timing the Hana sprite needs. Its attack clip outlives the legacy swing window, so it reads battleFx directly. */
 function collectHanaPlayerMotion(motion, now) {
     let found = { swing: null, hit: null, down: null };
@@ -2135,6 +2144,7 @@ function collectHanaPlayerMotion(motion, now) {
     return {
         attack: getHanaSwingTiming(found.swing, motion.attackDirection),
         hurtAt: found.hit ? found.hit.start : null,
+        hurtHeavy: isHeavyPlayerHit(found.hit, stats),
         downProgress: found.down ? clampNumber((now - found.down.start) / Math.max(1, found.down.duration), 0, 1) : null,
         running: move >= 90,
         moveRate: clampNumber(move / 100, 0.8, 1.8)
@@ -2856,6 +2866,7 @@ function isBattleLightingEnabled() {
 
 // 조명은 체력바·피해 숫자 아래에 깔린다. 순서: 조명 → 플레이어 바 → 적 바.
 function drawBattleLightingAndBars(ctx, scene) {
+    redrawnSkillFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
     drawBattlefieldPlayerHealthBar(ctx, scene.light, scene.hpPct, scene.ghostPct, scene.esPct);

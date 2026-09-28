@@ -34,6 +34,7 @@ const worldTreeSkillFx = (() => {
         for(const event of skillGemCombatRuntime?.events || []) if(event.renderLayer===layer)paintCast(ctx,event,projection,clock);
     }
     function paintCast(ctx,event,projection,clock) {
+        if(redrawnSkillFx.claim(event,SKILL_FX_ATLAS[event.skillName],'combat'))return;
         const renderer=layouts.get(event) || prepareNative(event,projection);
         const native=renderer.effects[0];
         if(event.timeCenter)native.timeCenter=event.timeCenter;
@@ -107,7 +108,7 @@ const worldTreeSkillFx = (() => {
     function renderEvent(ctx,event,now,projection,owner) {
         const spec=SKILL_FX_ATLAS[event.skillName];
         if(!spec || remaining<=0)return;
-        if(fxRemake.projectile(event,now,spec.id))return;
+        if(redrawnSkillFx.claim(event,spec) || fxRemake.projectile(event,now,spec.id))return;
         const renderer=layouts.get(event) || prepareNative(event,projection,owner);
         renderer.layout(now,sample=>paint(ctx,sample,projection));
         fxRemake.ring(event,now,spec);
@@ -116,7 +117,7 @@ const worldTreeSkillFx = (() => {
     function visualEventBase(fx) {
         return {skillName:fx.skillName,sourceCell:fx.sourceCell,targetCells:fx.targetCells,
             element:fx.element,stageIndex:fx.stageIndex || 0,repeatIndex:fx.repeatIndex || 0,
-            channelId:fx.channelId,footprint:fx.attackFootprint};
+            channelId:fx.channelId,footprint:fx.attackFootprint,groupId:fx.damageTextGroupId};
     }
 
     function travelEvents(fx) {
@@ -199,7 +200,8 @@ const worldTreeSkillFx = (() => {
         const cell=p=>({gx:(p.x-corner.x)/tile,gy:(p.y-corner.y)/projection.tileH});
         const kind=effect.family==='hitSpark' ? 'hit' : 'stage';
         const event={kind,skillName:effect.skillName,sourceCell:effect.sourceCell || cell(source),targetCells:[effect.targetCell || cell(target)],
-            element:effect.element,at:effect.startAt || 0,duration:effect.duration || 260,stageIndex:effect.stageIndex || 0};
+            element:effect.element,at:effect.startAt || 0,duration:effect.duration || 260,stageIndex:effect.stageIndex || 0,
+            repeatIndex:effect.repeatIndex,channelId:effect.channelId,groupId:effect.vfxGroupId};
         if(effect.travel)event.kind='travel';
         if(effect.attackFootprint)event.footprint=effect.attackFootprint;
         else if(fp)event.footprint=impactFootprint(fp,cell);
@@ -277,6 +279,9 @@ const worldTreeSkillFx = (() => {
         renderEvent(ctx,adapters.get(fx),progress,projection);
     }
 
-    return {beginFrame,renderEvent,travel,impact,mobility,queueHit,drawQueued,swing,castFrame,actorState};
+    /** Combat clock (+ up to 100ms interpolation) the native gem casts are drawn on this frame. */
+    function castClock() {return castNow;}
+
+    return {beginFrame,renderEvent,travel,impact,mobility,queueHit,drawQueued,swing,castFrame,actorState,castClock};
 })();
 safeExposeGlobals({ worldTreeSkillFx });

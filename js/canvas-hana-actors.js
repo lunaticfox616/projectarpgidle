@@ -7,9 +7,13 @@ const hanaActors = (() => {
     const ROW = { south: 0, west: 1, east: 2, north: 3 };
     const DOTS_PER_TILE = 16;
     const HURT_MS = 420;
-    const FLASH_MS = 60;
+    const FLASH_MS = 45;
+    const FLASH_ALPHA = 0.45;
+    const FLASH_COLOUR = '#ffe2dc';
     const images = new Map();
     const flashes = new Map();
+    const masks = new Map();
+    let body = null;
 
     function data() { return typeof HANA_SPRITES === 'object' && HANA_SPRITES ? HANA_SPRITES : null; }
     function classDef(classId) {
@@ -41,9 +45,11 @@ const hanaActors = (() => {
     }
     function dotSize(tile) { return Math.max(1, (Number(tile) || 48) / DOTS_PER_TILE); }
 
-    /** White silhouette of a sheet for the first frames of a hit (a multiply tint vanishes on dark sprites). */
-    function flashSheet(img) {
-        let canvas = flashes.get(img);
+    /** One-colour silhouette of a sheet: white for the first frames of a hit (a multiply tint vanishes on dark
+     * sprites), crimson for 흡혈 타격's drain pulse. Cached per sheet and colour. */
+    function silhouette(img, colour = '#ffffff') {
+        const key = `${img.src}|${colour}`;
+        let canvas = flashes.get(key);
         if (canvas) return canvas;
         canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
@@ -51,10 +57,44 @@ const hanaActors = (() => {
         const c = canvas.getContext('2d');
         c.drawImage(img, 0, 0);
         c.globalCompositeOperation = 'source-in';
-        c.fillStyle = '#ffffff';
+        c.fillStyle = colour;
         c.fillRect(0, 0, canvas.width, canvas.height);
-        flashes.set(img, canvas);
+        flashes.set(key, canvas);
         return canvas;
+    }
+    const DRAIN_TINT = '#ba3e5f';
+
+    /** Opaque pixels of a sheet (alpha ≥ 50%), read once per sheet. */
+    function alphaMask(img) {
+        let mask = masks.get(img.src);
+        if (mask) return mask;
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const c = canvas.getContext('2d', { willReadFrequently: true });
+        c.drawImage(img, 0, 0);
+        const rgba = c.getImageData(0, 0, canvas.width, canvas.height).data, bits = new Uint8Array(canvas.width * canvas.height);
+        for (let i = 0; i < bits.length; i++) bits[i] = rgba[i * 4 + 3] >= 128 ? 1 : 0;
+        mask = { width: canvas.width, bits };
+        masks.set(img.src, mask);
+        return mask;
+    }
+    /**
+     * The player sprite as drawn at `now` (null when it was not drawn this frame): the facing row shown, the frame
+     * (image, src rect, CSS dest with its dot size) and covers(x, y), true where an opaque sprite pixel sits at that
+     * CSS point. Effects use it to pass behind the body.
+     * @returns {?{dir:string, image:HTMLImageElement, src:object, dest:object, covers:function(number, number):boolean}}
+     */
+    function drawnBody(now) {
+        if (!body || body.now !== now) return null;
+        const { img, src, dest, dir } = body;
+        let mask = null;
+        return { dir, image: img, src, dest, covers(x, y) {
+            const sx = Math.floor((x - dest.x) / dest.dot), sy = Math.floor((y - dest.y) / dest.dot);
+            if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h) return false;
+            mask = mask || alphaMask(img);
+            return mask.bits[(src.y + sy) * mask.width + src.x + sx] === 1;
+        } };
     }
 
     function sum(list, from = 0, to = list.length) {
@@ -109,7 +149,7 @@ const hanaActors = (() => {
     function hurtPose(def, state, now) {
         const age = now - state.hurtAt;
         if (!(age >= 0 && age < HURT_MS)) return null;
-        return { motion: 'hurt', frame: frameAt(def.motions.hurt.ms, age, false), dir: state.facing, flash: age < FLASH_MS };
+        return { motion: 'hurt', frame: frameAt(def.motions.hurt.ms, age, false), dir: state.facing, flash: !!state.hurtHeavy && age < FLASH_MS };
     }
     function pickPose(def, state, now) {
         return downPose(def, state) || swingPose(def, state, now) || movePose(def, state, now)
@@ -137,7 +177,8 @@ const hanaActors = (() => {
      * @param {number} x feet x (CSS px)
      * @param {number} y feet y (CSS px)
      * @param {{classId:string, tile:number, facing:string, moving?:boolean, running?:boolean, moveRate?:number,
-     *   moveDirection?:string, attack?:?object, hurtAt?:?number, downProgress?:?number, alpha?:number}} state
+     *   moveDirection?:string, attack?:?object, hurtAt?:?number, hurtHeavy?:boolean, downProgress?:?number, alpha?:number,
+     *   tint?:number}} state
      * @param {number} now visual clock
      * @returns {boolean} false when the sheets are not ready (caller falls back to the legacy sprite)
      */
@@ -154,7 +195,11 @@ const hanaActors = (() => {
         drawDotShadow(ctx, { x, y }, dot, 0.26 * alpha);
         ctx.globalAlpha = alpha;
         const src = { x: pose.frame * cw, y: (ROW[pose.dir] ?? ROW.east) * ch, w: cw, h: ch };
-        blit(ctx, pose.flash ? flashSheet(img) : img, src, { x: x - (cw / 2) * dot, y: y - (sprites.feetY + 1) * dot + sink, dot });
+        const dest = { x: x - (cw / 2) * dot, y: y - (sprites.feetY + 1) * dot + sink, dot };
+        blit(ctx, img, src, dest);
+        body = { img, src, dest, dir: pose.dir, now };
+        if (pose.flash) { ctx.globalAlpha = alpha * FLASH_ALPHA; blit(ctx, silhouette(img, FLASH_COLOUR), src, dest); }
+        if (state.tint > 0) { ctx.globalAlpha = alpha * Math.min(1, state.tint); blit(ctx, silhouette(img, DRAIN_TINT), src, dest); }
         ctx.restore();
         return true;
     }
@@ -206,6 +251,6 @@ const hanaActors = (() => {
         return true;
     }
 
-    return { drawPlayer, drawSummon, preload, isReady, summonSlug, attackPose, frameAt };
+    return { drawPlayer, drawSummon, drawnBody, preload, isReady, summonSlug, attackPose, frameAt };
 })();
 safeExposeGlobals({ hanaActors });

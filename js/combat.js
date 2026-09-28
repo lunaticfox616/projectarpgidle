@@ -3043,7 +3043,7 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         contactSchedule: row.contactSchedule,
         attackFootprint: row.options.attackFootprint,
         targetIds: visualTargetIds,
-        skillName: attackContext.skillName,
+        skillName: attackContext.skillName, damageTextGroupId: row.options.damageTextGroupId,
         element: row.options.forcedElement,
         releaseDelayMs: Math.max(0, row.launchAt - now),
         flightMs: Math.max(1, row.at - row.launchAt),
