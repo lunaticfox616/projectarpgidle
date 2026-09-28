@@ -49,6 +49,12 @@ const actExplorationView=(()=>{
         updateFog(run,map);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
         ctx.drawImage(cache.fogView,p.mapX,p.mapY,p.mapWidth,p.mapHeight);ctx.restore();return true;
     }
+    /** Discovered ground dims with distance (≤48%). Undiscovered ground is not a wall of black: just past the
+     * discovered edge it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
+    function fogAlpha(discovered,distance) {
+        if(discovered)return Math.min(.48,Math.max(0,(distance-4)/7));
+        return Math.min(.97,.66+Math.max(0,distance-5)*.05);
+    }
     function updateFog(run,map) {
         const key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy;
         if(cache.fogKey===key)return;cache.fogKey=key;
@@ -56,8 +62,7 @@ const actExplorationView=(()=>{
         const ctx=cache.fog.getContext('2d'),pixels=ctx.createImageData(map.columns,map.rows),seen=new Set(run.discovered);
         for(let i=0;i<map.tiles.length;i++) {
             const distance=Math.hypot(i%map.columns-game.gridPlayer.gx,Math.floor(i/map.columns)-game.gridPlayer.gy);
-            const alpha=seen.has(i)?Math.min(.48,Math.max(0,(distance-4)/7)):.98;
-            pixels.data.set([8,14,12,Math.round(alpha*255)],i*4);
+            pixels.data.set([8,14,12,Math.round(fogAlpha(seen.has(i),distance)*255)],i*4);
         }
         ctx.putImageData(pixels,0,0);
         // Upscaling one pixel per tile with smoothing was the most expensive draw of every
