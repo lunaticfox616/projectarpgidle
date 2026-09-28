@@ -2441,7 +2441,7 @@ function renderBattlefield(forceWhenHidden) {
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
-    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, 1.3);
+    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
     drawBattlefieldShrine(ctx, gridProj, now, gridUnitScale, cameraShake);
     drawBattleGroundLayer(ctx, battleFx, { now, gridProj, playerPos, enemyPosMap });
 

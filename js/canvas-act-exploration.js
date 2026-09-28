@@ -2,24 +2,30 @@
 const actExplorationView=(()=>{
     const FOG_VIEW_PX=12; // pre-softened fog resolution per tile; drawn with cheap bilinear scaling
     let cache=null,lastOrigin=null;
+    /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 or ×5 once the view keeps about
+     * 16×12 tiles — on a desktop window the corridor then fills the screen instead of floating in black. */
+    function tileSize(width,height) {
+        const fit=Math.floor(Math.min(width/16,height/12)/16);
+        return 16*Math.max(3,Math.min(5,fit));
+    }
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.layout(run.act);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=48;
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height);
         const mapX=width/2-(cell.gx+.5)*tile,mapY=height/2-(cell.gy+.5)*tile;
-        shiftActors(run,mapX,mapY);
-        return {tileW:tile,tileH:tile,actorGroundOffsetY:8,mapX,mapY,
+        shiftActors(run,{x:mapX,y:mapY,tile});
+        return {tileW:tile,tileH:tile,actorGroundOffsetY:tile/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*tile,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*tile})};
     }
-    function shiftActors(run,x,y) {
-        if(lastOrigin?.run===run) {
+    function shiftActors(run,origin) {
+        if(lastOrigin?.run===run && lastOrigin.tile===origin.tile) {
             for(const bank of [battleVisualState.enemySmoothPos,battleVisualState.enemyGhostPos]) {
-                for(const point of Object.values(bank||{})){point.x+=x-lastOrigin.x;point.y+=y-lastOrigin.y;}
+                for(const point of Object.values(bank||{})){point.x+=origin.x-lastOrigin.x;point.y+=origin.y-lastOrigin.y;}
             }
         } else {
             battleVisualState.enemySmoothPos={};battleVisualState.enemyGhostPos={};
         }
-        lastOrigin={run,x,y};
+        lastOrigin={run,...origin};
     }
     function prepare(map) {
         if(cache?.map===map)return;
