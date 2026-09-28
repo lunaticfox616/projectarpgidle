@@ -101,10 +101,22 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
 function requestBattleHitStop(fx) {
     if (!fx || fx.dot || battleVisualState.lastHitStopFxId === fx.id) return;
     let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
-    let duration = Math.max(0, Number(profile && profile.hitStopMs) || 0);
+    let duration = Math.max(0, Number(profile && profile.hitStopMs) || 0, getKillHitStopMs(fx));
     battleVisualState.lastHitStopFxId = fx.id;
     if (duration <= 0) return;
     battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
+}
+
+// Finishing blows on elites and bosses hold the frame a little longer. Ordinary kills stay fluid: an idle fight
+// kills constantly, and a stop on each would read as stutter.
+const KILL_HIT_STOP_MS = Object.freeze({ elite: 45, boss: 110 });
+/** The death effect starts on the killing hit (getBattleFxStart), so a death stamped with this hit's start is its kill. */
+function getKillHitStopMs(fx) {
+    if (fx.enemyId === undefined || fx.enemyId === null) return 0;
+    const death = battleFx.find(other => other && other.type === 'enemyDeath' && other.enemyId === fx.enemyId
+        && Math.abs(Number(other.start) - Number(fx.start)) < 1);
+    if (!death) return 0;
+    return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
 }
 
 function getEnemyDeathMotion(enemyPos, playerPos, progress, boss, elite) {
@@ -2823,9 +2835,11 @@ function getBattleCameraShake(now) {
                 : (fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32) : hitStrength));
         amplitude = Math.max(amplitude, strength * (1 - age / duration));
     });
+    // Whole device pixels: a fractional offset would resample every nearest-neighbour sprite and tile unevenly.
+    const k = Math.max(1, Number(typeof uiDisplay === 'object' && uiDisplay && uiDisplay.battleRenderScale) || 1);
     return {
-        x: Math.sin(now * 0.72) * amplitude,
-        y: Math.cos(now * 0.94) * amplitude * 0.56
+        x: Math.round(Math.sin(now * 0.72) * amplitude * k) / k,
+        y: Math.round(Math.cos(now * 0.94) * amplitude * 0.56 * k) / k
     };
 }
 
