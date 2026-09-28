@@ -1,10 +1,9 @@
-// Image loading for the browser view. Old-game art is read from the repository's /assets; the
+// Image loading for the browser view. Old-game art comes from the paths in art-paths.ts; the
 // character kit comes from the gitignored next/assets/characters/ and may be absent (public clones),
 // in which case the view draws simple stand-ins and says why.
 import { sheetPath, type CharacterSheet, type JobId, type Motion } from '../data/characters.ts';
-import type { CurrencyKey, EnemyKind } from '../core/types.ts';
-
-const OLD = '../assets/';
+import { NORMAL_SHEETS, OLD_ASSETS as OLD, artPath } from './art-paths.ts';
+import type { ClassId, CurrencyKey, EnemyKind, Slot } from '../core/types.ts';
 
 export interface CharacterArt { sheet: CharacterSheet; motions: Record<Motion, HTMLImageElement> }
 
@@ -46,13 +45,6 @@ export function loadImage(url: string): Promise<HTMLImageElement | null> {
   return pending;
 }
 
-const BIOME_MATERIAL: Record<string, string> = {
-  root: 'root', courtyard: 'courtyard', aerial: 'wood', maze: 'maze', sanctum: 'sanctum',
-  ruins: 'ruins', trunk: 'trunk', veil: 'maze', canopy: 'root', crown: 'sanctum'
-};
-
-const BOSS_FILES = ['Act1', 'Act2', 'Act3', 'Act4-1', 'Act5', 'Act6', 'Act7', 'Act8-1', 'Act9', 'Act10(1)'];
-
 const cells = (list: [number, number][], size: number): [number, number, number, number][] =>
   list.map(([x, y]) => [x * size, y * size, size, size]);
 
@@ -60,19 +52,19 @@ const cells = (list: [number, number][], size: number): [number, number, number,
 async function normalArt(act: number): Promise<EnemyArt | null> {
   const species = act % 3;
   if (species === 1) {
-    const image = await loadImage(`${OLD}enemies/wood/root-spider.png`);
+    const image = await loadImage(OLD + artPath.normal('root-spider'));
     const frames = cells(Array.from({ length: 16 }, (_, f) => [f % 4, Math.floor(f / 4)] as [number, number]), 64);
     return image && { image, frames, frameMs: 70, height: 20, facesLeft: true };
   }
-  const [file, cx, cy] = species === 2 ? ['wood-slimes', 1, 0] : ['sap-leeches', 0, 0];
-  const image = await loadImage(`${OLD}enemies/wood/${file}.png`);
+  const [sheet, cx, cy] = species === 2 ? [NORMAL_SHEETS[1], 1, 0] as const : [NORMAL_SHEETS[2], 0, 0] as const;
+  const image = await loadImage(OLD + artPath.normal(sheet));
   const frames = cells(Array.from({ length: 9 }, (_, f) => [(f % 3) * 4 + cx, Math.floor(f / 3) * 4 + cy] as [number, number]), 64);
   return image && { image, frames, frameMs: 110, height: 18, facesLeft: false };
 }
 
 /** Elites are wood puppets: nine frames, four costume variants in 2x2 quarters of each frame. */
 async function eliteArt(act: number): Promise<EnemyArt | null> {
-  const images = await Promise.all(Array.from({ length: 9 }, (_, i) => loadImage(`${OLD}enemies/wood/wood-puppet/frame_00${i}.png`)));
+  const images = await Promise.all(Array.from({ length: 9 }, (_, i) => loadImage(OLD + artPath.puppetFrame(i))));
   if (images.some(i => !i)) return null;
   const variant = act % 4, sx = (variant % 2) * 128, sy = Math.floor(variant / 2) * 128;
   // One strip keeps EnemyArt single-image: the nine frames are copied side by side.
@@ -88,7 +80,7 @@ async function eliteArt(act: number): Promise<EnemyArt | null> {
 }
 
 async function bossArt(act: number): Promise<EnemyArt | null> {
-  const image = await loadImage(`${OLD}boss/${BOSS_FILES[act - 1] ?? 'Act1'}.png`);
+  const image = await loadImage(OLD + artPath.boss(act));
   return image && { image, frames: [[0, 0, image.width, image.height]], frameMs: 1000, height: 68, facesLeft: false };
 }
 
@@ -114,31 +106,28 @@ export async function loadCharacter(job: JobId): Promise<{ art: CharacterArt | n
   return { art: { sheet, motions }, problem: null };
 }
 
-const CURRENCY_FILES: Partial<Record<CurrencyKey, string>> = {
-  magicBud: 'magic-bud', sapBud: 'sap-bud', formlessDew: 'formless-dew', goldenRule: 'golden-rule', blightSpore: 'blight-spore'
-};
-
 export async function loadCurrencyIcons(): Promise<Art['currencies']> {
   const out: Art['currencies'] = {};
-  await Promise.all(Object.entries(CURRENCY_FILES).map(async ([key, file]) => {
-    const image = await loadImage(`${OLD}ui/currency/${file}.png`);
-    if (image) out[key as CurrencyKey] = image;
+  const keys: CurrencyKey[] = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blightSpore', 'bossCore', 'challengeMark'];
+  await Promise.all(keys.map(async key => {
+    const path = artPath.currency(key);
+    const image = path ? await loadImage(OLD + path) : null;
+    if (image) out[key] = image;
   }));
   return out;
 }
 
-export const itemIconUrl = (slot: 'weapon' | 'armor' | 'ring', classId: 'warrior' | 'arcanist'): string =>
-  `${OLD}items/${slot === 'weapon' ? (classId === 'warrior' ? 'root-sword' : 'branch-staff') : slot === 'armor' ? 'root-armor' : 'ruby-ring'}-v3.png`;
+export const itemIconUrl = (slot: Slot, classId: ClassId): string => OLD + artPath.item(slot, classId);
 
 export const currencyIconUrl = (key: CurrencyKey): string | null => {
-  const file = CURRENCY_FILES[key];
-  return file ? `${OLD}ui/currency/${file}.png` : null;
+  const path = artPath.currency(key);
+  return path ? OLD + path : null;
 };
 
 /** Everything one act needs. The character is loaded once per class and reused. */
 export async function loadActArt(act: number, biome: string, character: Pick<Art, 'character' | 'characterProblem'>, currencies: Art['currencies']): Promise<Art> {
   const [material, normal, elite, boss] = await Promise.all([
-    loadImage(`${OLD}exploration/${BIOME_MATERIAL[biome] ?? 'root'}-materials.png`), normalArt(act), eliteArt(act), bossArt(act)
+    loadImage(OLD + artPath.material(biome)), normalArt(act), eliteArt(act), bossArt(act)
   ]);
   return { ...character, material, enemies: { normal, elite, boss }, currencies };
 }

@@ -36,3 +36,24 @@ npm run import:characters -- "<킷 경로>/리그닌_캐릭터_에셋킷"
 
 규격 JSON을 검증한 뒤 `assets/characters/<직업>/<모션>-<레이어>.png`와 `manifest.json`을 만든다.
 직업 대응은 `src/data/characters.ts`의 `CLASS_SPRITES`(전사 → 전사·대검, 비술사 → 비술사·오브)다.
+
+## GitHub Pages 배포
+
+`.github/workflows/next-site.yml`이 담당한다. 킷 이미지는 비공개 에셋 저장소에만 두고, 배포할 때만
+받아서 빌드된 게임 안에 싣는다.
+
+| 이벤트 | 하는 일 | Pages |
+| --- | --- | --- |
+| `ui-rift` 푸시 | `npm run check`, 캐릭터 없는 사이트 빌드 | 그대로 |
+| `site-v*` 태그 푸시 | 킷 가져오기 → 검사 → `npm run build:site` → 배포 | **이 게임으로 교체** |
+
+로컬에서 배포본 확인: `npm run build:site && npm run preview:site` → `http://localhost:8124/projectarpgidle/`
+
+교체 전 한 번만 준비할 것:
+
+1. 비공개 저장소 `lunaticfox616/projectarpgidle-assets`에 킷(`결과물/Hana_직업` 포함 폴더)을 올린다.
+   다른 이름이면 저장소 변수 `ASSETS_REPO`에 `소유자/이름`을 넣는다.
+2. 그 저장소만 Contents: Read-only로 읽는 fine-grained 토큰을 `ASSETS_TOKEN` 시크릿으로 등록한다.
+3. 교체할 때: Settings → Pages → Source를 **GitHub Actions**로 바꾸고, Settings → Environments →
+   `github-pages`의 배포 규칙에 태그 `site-v*`를 허용한 뒤 태그를 푸시한다
+   (`git tag site-v1 && git push origin site-v1`).

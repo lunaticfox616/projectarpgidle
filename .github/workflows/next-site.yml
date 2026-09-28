@@ -1,0 +1,82 @@
+# New game (next/) checks and GitHub Pages release.
+# - Push to ui-rift: typecheck, tests and a site build without character sheets. Nothing is uploaded
+#   and the live Pages site is untouched.
+# - Push a tag named site-v*: fetch the character kit from the private asset repository, build the
+#   full site and replace the Pages site with it. This is the only step that publishes.
+name: next site
+
+on:
+  push:
+    branches: [ui-rift]
+    paths: ['next/**', 'assets/**', '.github/workflows/next-site.yml']
+    tags: ['site-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: next-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: next/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build:site -- --allow-missing-characters
+
+  release:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    defaults:
+      run:
+        working-directory: next
+    steps:
+      - name: Require the asset token
+        env:
+          ASSETS_TOKEN: ${{ secrets.ASSETS_TOKEN }}
+        run: |
+          if [ -z "$ASSETS_TOKEN" ]; then
+            echo "::error::ASSETS_TOKEN secret is not set; the site would ship without characters."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.ASSETS_REPO || 'lunaticfox616/projectarpgidle-assets' }}
+          token: ${{ secrets.ASSETS_TOKEN }}
+          path: kit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: next/package-lock.json
+      - run: npm ci
+      - run: npm run import:characters -- ../kit
+      - run: npm run check
+      - run: npm run build:site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: next/site
+          retention-days: 1
+      - id: deploy
+        uses: actions/deploy-pages@v4

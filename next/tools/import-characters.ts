@@ -1,7 +1,7 @@
 // Copy the game sheets of a local 리그닌 캐릭터 에셋킷 into assets/characters/ (gitignored: the kit's
 // license forbids public redistribution) and write assets/characters/manifest.json.
 // Usage: node tools/import-characters.ts <path to 리그닌_캐릭터_에셋킷>
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -9,10 +9,17 @@ import {
   type CharacterSheet, type JobId, type Motion, type SheetLayer
 } from '../src/data/characters.ts';
 
-const kit = process.argv[2];
-if (!kit) throw new Error('usage: node tools/import-characters.ts <kit directory>');
-const jobsDir = join(kit, '결과물', 'Hana_직업');
-if (!existsSync(jobsDir)) throw new Error(`not a character kit (no 결과물/Hana_직업): ${kit}`);
+const given = process.argv[2];
+if (!given) throw new Error('usage: node tools/import-characters.ts <kit directory>');
+
+/** The kit folder itself, or the one folder inside it (an unzipped kit or a checked-out asset repo). */
+function findJobsDir(root: string): string {
+  const candidates = [root, ...readdirSync(root, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => join(root, d.name))];
+  const found = candidates.map(dir => join(dir, '결과물', 'Hana_직업')).find(existsSync);
+  if (!found) throw new Error(`not a character kit (no 결과물/Hana_직업 in it or one level down): ${root}`);
+  return found;
+}
+const jobsDir = findJobsDir(given);
 const out = fileURLToPath(new URL('../assets/characters/', import.meta.url));
 
 /** Width and height from a PNG's IHDR chunk. */

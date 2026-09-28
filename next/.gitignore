@@ -2,3 +2,4 @@ node_modules/
 # Character kit sheets: licensed art, never committed (tools/import-characters.ts).
 assets/characters/
 build/
+site/
