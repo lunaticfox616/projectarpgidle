@@ -22,11 +22,11 @@ export async function chooseClass(note: string | null): Promise<ClassId> {
   el('title-note').textContent = note ?? '';
   const ids = Object.keys(CLASSES) as ClassId[];
   const arts = await Promise.all(ids.map(id => loadCharacter(CLASS_SPRITES[id])));
-  pick.innerHTML = ids.map(id => `<article class="panel class-card">
+  pick.innerHTML = ids.map(id => `<article class="k-panel class-card">
       <canvas width="158" height="158" data-class="${id}" aria-hidden="true"></canvas>
       <div class="weapon">${CLASS_TEXT[id].weapon}</div><h2>${CLASSES[id].name}</h2><p>${CLASS_TEXT[id].blurb}</p>
       <div class="traits">${CLASS_TEXT[id].traits.map(t => `<span>${t}</span>`).join('')}</div>
-      <button type="button" class="primary" data-pick="${id}">이 길로 간다</button></article>`).join('');
+      <button type="button" class="k-button primary" data-pick="${id}">이 길로 간다</button></article>`).join('');
   screen.hidden = false;
   let frame = 0;
   const animate = (time: number) => {

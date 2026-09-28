@@ -1,6 +1,6 @@
-// Canvas rendering of the act: baked terrain, the boss seal, actors with their animations, effects,
-// fog of war and the hero's light. Reads the scene and state; changes neither.
-import { TILE, BAKE_SCALE } from './terrain.ts';
+// Canvas rendering of the act: baked terrain, props and the boss gate sorted with the actors by
+// depth, effects and soft fog of war. Reads the scene and state; changes neither.
+import { BAKE, TILE, drawGate, drawProp, type Placement, type Terrain } from './terrain.ts';
 import { FACINGS } from '../data/characters.ts';
 import { motionNow, player, type Actor, type Scene } from './scene.ts';
 import { drawEffects, drawGroundEffects } from './fx.ts';
@@ -15,9 +15,11 @@ export interface View {
   height: number;
   camX: number;
   camY: number;
-  terrain: HTMLCanvasElement;
+  terrain: Terrain;
+  /** One pixel per tile, and its pre-softened copy (FOG_PX per tile) drawn each frame. */
   fog: HTMLCanvasElement;
-  fogRevealed: number;
+  fogView: HTMLCanvasElement;
+  fogKey: string;
   tint: HTMLCanvasElement;
 }
 
@@ -25,13 +27,17 @@ const FEET_OFFSET = 3;
 /** Tile centre (feet position) in art pixels. */
 export const feet = (x: number, y: number): [number, number] => [(x + 0.5) * TILE, (y + 0.5) * TILE + FEET_OFFSET];
 
-export function createView(canvas: HTMLCanvasElement, terrain: HTMLCanvasElement, map: ActMap): View {
-  const fog = document.createElement('canvas');
+const FOG_PX = 12;
+
+export function createView(canvas: HTMLCanvasElement, terrain: Terrain, map: ActMap): View {
+  const fog = document.createElement('canvas'), fogView = document.createElement('canvas');
   fog.width = map.columns;
   fog.height = map.rows;
+  fogView.width = map.columns * FOG_PX;
+  fogView.height = map.rows * FOG_PX;
   return {
     ctx: canvas.getContext('2d')!, zoom: 3, width: canvas.width, height: canvas.height, camX: 0, camY: 0,
-    terrain, fog, fogRevealed: -1, tint: document.createElement('canvas')
+    terrain, fog, fogView, fogKey: '', tint: document.createElement('canvas')
   };
 }
 
@@ -43,13 +49,23 @@ export function fitZoom(view: View, cssWidth: number, cssHeight: number, dpr: nu
   view.zoom = Math.max(2, Math.min(4, Math.round(shorter / 300))) * dpr;
 }
 
+/** Unseen tiles are near-black; seen ones dim with distance from the hero (old game's rule). */
 function refreshFog(view: View, state: GameState): void {
-  const fog = state.run!.fog, revealed = fog.reduce((a, b) => a + b, 0);
-  if (revealed === view.fogRevealed) return;
-  view.fogRevealed = revealed;
-  const ctx = view.fog.getContext('2d')!, image = ctx.createImageData(view.fog.width, view.fog.height);
-  fog.forEach((seen, i) => { image.data[i * 4 + 3] = seen ? 0 : 255; });
+  const run = state.run!, key = `${run.fog.reduce((a, b) => a + b, 0)}:${run.player.x}:${run.player.y}`;
+  if (key === view.fogKey) return;
+  view.fogKey = key;
+  const w = view.fog.width, ctx = view.fog.getContext('2d')!, image = ctx.createImageData(w, view.fog.height);
+  run.fog.forEach((seen, i) => {
+    const distance = Math.hypot((i % w) - run.player.x, Math.floor(i / w) - run.player.y);
+    const alpha = seen ? Math.min(0.48, Math.max(0, (distance - 4) / 7)) : 0.98;
+    image.data.set([8, 14, 12, Math.round(alpha * 255)], i * 4);
+  });
   ctx.putImageData(image, 0, 0);
+  const soft = view.fogView.getContext('2d')!;
+  soft.clearRect(0, 0, view.fogView.width, view.fogView.height);
+  soft.imageSmoothingEnabled = true;
+  soft.imageSmoothingQuality = 'high';
+  soft.drawImage(view.fog, 0, 0, view.fogView.width, view.fogView.height);
 }
 
 /** The hero stays at the centre; beyond the map edge is dark void, like the unexplored fog. */
@@ -59,29 +75,6 @@ function followCamera(view: View, scene: Scene): void {
   const far = Math.abs(targetX - view.camX) > TILE * 6 || Math.abs(targetY - view.camY) > TILE * 6;
   view.camX = far ? targetX : view.camX + (targetX - view.camX) * 0.15;
   view.camY = far ? targetY : view.camY + (targetY - view.camY) * 0.15;
-}
-
-function drawSeal(ctx: CanvasRenderingContext2D, map: ActMap, time: number): void {
-  const [x, y] = feet(map.gate.x, map.gate.y), pulse = 0.6 + 0.4 * Math.sin(time / 260);
-  ctx.save();
-  ctx.translate(x, y - FEET_OFFSET);
-  ctx.globalCompositeOperation = 'lighter';
-  const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, TILE);
-  glow.addColorStop(0, `rgba(255, 214, 120, ${0.55 * pulse})`);
-  glow.addColorStop(1, 'rgba(255, 180, 60, 0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(-TILE, -TILE, TILE * 2, TILE * 2);
-  ctx.strokeStyle = `rgba(255, 222, 140, ${0.8 * pulse})`;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(0, 0, TILE * 0.42, 0, Math.PI * 2);
-  ctx.stroke();
-  for (let i = 0; i < 6; i++) {
-    const a = time / 900 + (i * Math.PI) / 3;
-    ctx.fillStyle = `rgba(255, 236, 180, ${pulse})`;
-    ctx.fillRect(Math.cos(a) * TILE * 0.42 - 1, Math.sin(a) * TILE * 0.42 - 1, 2, 2);
-  }
-  ctx.restore();
 }
 
 /** Draw `draw` into the shared tint canvas, then optionally wash it white (hit flash). */
@@ -206,17 +199,37 @@ function drawBar(ctx: CanvasRenderingContext2D, x: number, y: number, width: num
   ctx.fillRect(left, top, Math.max(0, Math.round(width * ratio)), 2);
 }
 
-function drawFogAndLight(view: View, scene: Scene, map: ActMap): void {
+function drawFog(view: View, map: ActMap): void {
   const ctx = view.ctx;
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(view.fog, 0, 0, map.columns, map.rows, -TILE * 0.5, -TILE * 0.5, map.columns * TILE + TILE, map.rows * TILE + TILE);
+  ctx.drawImage(view.fogView, 0, 0, map.columns * TILE, map.rows * TILE);
   ctx.imageSmoothingEnabled = false;
-  const hero = player(scene), [x, y] = feet(hero.x, hero.y);
-  const light = ctx.createRadialGradient(x, y - 8, TILE * 3, x, y - 8, TILE * 9);
-  light.addColorStop(0, 'rgba(8, 6, 4, 0)');
-  light.addColorStop(1, 'rgba(8, 6, 4, 0.45)');
-  ctx.fillStyle = light;
-  ctx.fillRect(view.camX - TILE, view.camY - TILE, view.width / view.zoom + TILE * 2, view.height / view.zoom + TILE * 2);
+}
+
+type Drawable = { y: number; draw: () => void };
+
+/** Props and the gate the hero has seen; they fade when the hero walks behind them. */
+function scenery(view: View, scene: Scene, state: GameState, map: ActMap): Drawable[] {
+  const ctx = view.ctx, run = state.run!, hero = player(scene), [hx, hy] = feet(hero.x, hero.y);
+  const seen = (x: number, y: number) => run.fog[Math.floor(y) * map.columns + Math.floor(x)] === 1;
+  const behind = (px: number, py: number, w: number, h: number) => hy < py && hy > py - h && Math.abs(hx - px) < w * 0.45;
+  const out: Drawable[] = view.terrain.scenery.filter(([, x, y]) => seen(x, y)).map((p: Placement) => ({
+    y: p[2] * TILE,
+    draw: () => {
+      ctx.globalAlpha = behind(p[1] * TILE, p[2] * TILE, p[3] * TILE, p[3] * TILE * 1.6) ? 0.4 : 1;
+      drawProp(ctx, view.terrain.kit, p);
+      ctx.globalAlpha = 1;
+    }
+  }));
+  if (seen(map.gate.x, map.gate.y)) {
+    const gy = (map.gate.y + 1) * TILE;
+    out.push({ y: gy, draw: () => {
+      ctx.globalAlpha = behind((map.gate.x + 0.5) * TILE, gy, TILE * 2.4, TILE * 3) ? 0.38 : 1;
+      drawGate(ctx, view.terrain.gateKit, map.gate, !run.gateOpen);
+      ctx.globalAlpha = 1;
+    } });
+  }
+  return out;
 }
 
 export function drawWorld(view: View, scene: Scene, state: GameState, art: Art, map: ActMap): void {
@@ -224,20 +237,21 @@ export function drawWorld(view: View, scene: Scene, state: GameState, art: Art, 
   refreshFog(view, state);
   followCamera(view, scene);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#060705';
+  // Beyond the map edge reads as the same fog as unexplored ground.
+  ctx.fillStyle = 'rgb(8, 14, 12)';
   ctx.fillRect(0, 0, view.width, view.height);
   const shakeT = Math.max(0, 1 - (scene.time - scene.shakeAt) / 260);
   const shakeX = shakeT * scene.shakePower * Math.sin(scene.time * 0.09), shakeY = shakeT * scene.shakePower * Math.cos(scene.time * 0.11);
   ctx.setTransform(view.zoom, 0, 0, view.zoom, Math.round((-view.camX + shakeX) * view.zoom), Math.round((-view.camY + shakeY) * view.zoom));
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(view.terrain, 0, 0, view.terrain.width / BAKE_SCALE, view.terrain.height / BAKE_SCALE);
-  if (!run.gateOpen) drawSeal(ctx, map, scene.time);
+  const ground = view.terrain.ground;
+  ctx.drawImage(ground, 0, 0, (ground.width / BAKE) * TILE, (ground.height / BAKE) * TILE);
   drawGroundEffects(ctx, scene, art);
-  const actors = [...scene.actors.values()].sort((a, b) => a.y - b.y || (a.kind === 'player' ? 1 : -1));
-  for (const actor of actors) {
-    if (actor.kind === 'player') drawHero(view, scene, art, actor);
-    else drawEnemy(view, scene, art, actor);
-  }
+  const drawables: Drawable[] = [...scene.actors.values()].map(actor => ({
+    y: feet(actor.x, actor.y)[1] + (actor.kind === 'player' ? 0.01 : 0),
+    draw: () => (actor.kind === 'player' ? drawHero(view, scene, art, actor) : drawEnemy(view, scene, art, actor))
+  }));
+  for (const d of [...drawables, ...scenery(view, scene, state, map)].sort((a, b) => a.y - b.y)) d.draw();
   drawEffects(ctx, scene);
-  drawFogAndLight(view, scene, map);
+  drawFog(view, map);
 }

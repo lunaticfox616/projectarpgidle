@@ -1,12 +1,14 @@
-// Drawer panels: equipment (compare, equip, discard) and settings. Player input enters the rules
-// core only through core functions (equip, discard, equipUpgrades) and Settings fields.
+// Windows opened from the rail (PC) or bottom tabs (phone): equipment after mockup v9 (3×4 paper
+// doll, stats, 10×10 grid bag with item footprints, compare tooltip, detail card) and settings.
+// Player input reaches the rules core only through core functions and Settings fields.
 import { CLASSES } from '../data/balance.ts';
-import { RARITY_NAMES, SLOT_NAMES, affixText, itemName } from '../data/names.ts';
-import { discard, equip, equipUpgrades, itemScore } from '../core/items.ts';
+import { EQUIP_SLOTS, ITEM_SIZE } from '../data/item-bases.ts';
+import { KIND_NAMES, RARITY_NAMES, affixText, itemName, slotName } from '../data/names.ts';
+import { defaultSlot, discard, equip, equipUpgrades, itemScore, slotsFor, unequip } from '../core/items.ts';
 import { stats } from '../core/stats.ts';
 import { itemIconUrl } from './art.ts';
 import { toast } from './hud.ts';
-import type { AffixStat, GameState, Item, Settings, Slot } from '../core/types.ts';
+import type { AffixStat, EquipSlot, GameState, Item, Settings } from '../core/types.ts';
 
 export interface PanelHost {
   state(): GameState;
@@ -16,87 +18,168 @@ export interface PanelHost {
   reset(): void;
 }
 
-type PanelKind = 'gear' | 'settings';
+type PanelKind = 'gear' | 'settings' | 'log';
+type Selection = { from: 'bag'; id: number } | { from: 'slot'; slot: EquipSlot } | null;
+type Placed = { item: Item; x: number; y: number };
+
 let host: PanelHost;
 let open: PanelKind | null = null;
 let shownKey = '';
+let selected: Selection = null;
+let page = 0;
+let mobileView: 'bag' | 'doll' = 'bag';
+/** Highest item id the player has seen in the bag; newer ones light the menu dot. */
+let seenItemId = 0;
 
 const el = (id: string) => document.getElementById(id)!;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
-const SLOTS: readonly Slot[] = ['weapon', 'armor', 'ring'];
+const narrow = () => window.matchMedia('(max-width: 760px)').matches;
+
+/** Doll layout, row by row; null cells are gaps. */
+const DOLL: (EquipSlot | null)[] = [null, 'helmet', 'amulet', 'weapon', 'armor', 'offhand', 'ring', 'belt', 'ring2', 'gloves', 'boots', null];
+const BAG_W = 10, BAG_H = 10;
+
+export const hasUnseenItems = (state: GameState): boolean => state.inventory.some(i => i.id > seenItemId);
+
+const isUpgrade = (state: GameState, item: Item) => itemScore(item) > itemScore(state.equipment[defaultSlot(state, item.slot)]);
 
 function affixLines(item: Item): string {
   return item.affixes.map(a => `<div class="affix">${affixText(a.stat, a.value)}</div>`).join('');
 }
 
-/** Per-stat change if `item` replaced what its slot holds, as HTML: gains green, losses red. */
-function statDiff(item: Item, worn: Item | undefined): { html: string; up: boolean } {
+/** Per-stat change if `item` replaced `worn`, gains green and losses red. */
+function diffHtml(item: Item, worn: Item | undefined): string {
   const total = (i: Item | undefined, stat: AffixStat) => i?.affixes.filter(a => a.stat === stat).reduce((s, a) => s + a.value, 0) ?? 0;
-  const stats = [...new Set([...item.affixes, ...(worn?.affixes ?? [])].map(a => a.stat))];
-  const parts = stats.map(stat => [stat, total(item, stat) - total(worn, stat)] as const).filter(([, d]) => d !== 0)
-    .map(([stat, d]) => `<span class="delta ${d > 0 ? 'up' : 'down'}">${esc(affixText(stat, Math.abs(d)).replace('+', d > 0 ? '+' : '-'))}</span>`);
-  return { html: parts.join(' · ') || '변화 없음', up: itemScore(item) > itemScore(worn) };
+  const touched = [...new Set([...item.affixes, ...(worn?.affixes ?? [])].map(a => a.stat))];
+  const parts = touched.map(stat => [stat, total(item, stat) - total(worn, stat)] as const).filter(([, d]) => d !== 0)
+    .map(([stat, d]) => `<span class="${d > 0 ? 'up' : 'down'}">${esc(affixText(stat, Math.abs(d)).replace('+', d > 0 ? '+' : '-'))}</span>`);
+  return parts.join(' · ') || '<span class="muted">변화 없음</span>';
 }
 
-function itemCard(item: Item, state: GameState): string {
-  const worn = state.equipment[item.slot], diff = statDiff(item, worn);
-  return `<div class="item ${diff.up ? 'upgrade' : ''}">
-    <img src="${itemIconUrl(item.slot, state.classId)}" alt="">
-    <div><div class="name r-${item.rarity}">${esc(itemName(item, state.classId))}</div>
-      <div class="affix">${RARITY_NAMES[item.rarity]} ${SLOT_NAMES[item.slot]} · 아이템 레벨 ${item.itemLevel}</div>
-      ${affixLines(item)}<div class="delta">${diff.up ? '▲ 더 좋음' : '▼ 착용 중이 나음'} · ${diff.html}</div></div>
-    <div class="actions"><button type="button" class="btn small" data-equip="${item.id}">장착</button>
-      <button type="button" class="btn small quiet" data-discard="${item.id}">버리기</button></div></div>`;
+function card(item: Item, state: GameState, compareTo?: EquipSlot): string {
+  const worn = compareTo ? state.equipment[compareTo] : undefined;
+  const cmp = compareTo ? `<div class="cmp">${worn ? `${esc(itemName(worn))} 대신 착용하면` : '빈 칸에 착용하면'}<br>${diffHtml(item, worn)}</div>` : '';
+  return `<h4 class="r-${item.rarity}">${esc(itemName(item))}</h4>
+    <div class="kind">${RARITY_NAMES[item.rarity]} ${KIND_NAMES[item.slot]} · 아이템 레벨 ${item.itemLevel}</div>${affixLines(item)}${cmp}`;
+}
+
+function dollHtml(state: GameState): string {
+  return DOLL.map(slot => {
+    if (!slot) return '<span class="eslot hole" aria-hidden="true"></span>';
+    const item = state.equipment[slot], pressed = selected?.from === 'slot' && selected.slot === slot;
+    return `<button type="button" class="eslot ${item ? '' : 'empty'}" data-slot="${slot}" aria-pressed="${pressed}">
+      <span class="cap">${slotName(slot, state.classId)}</span>
+      <span class="sock">${item ? `<img src="${itemIconUrl(item.base)}" alt="">` : ''}</span>
+      <span class="nm ${item ? `r-${item.rarity}` : ''}">${item ? esc(itemName(item)) : '비어 있음'}</span></button>`;
+  }).join('');
+}
+
+function sheetHtml(state: GameState): string {
+  const s = stats(state);
+  return `<div class="sheet"><span>생명력 <b>${s.maxHp}</b></span><span>피해 <b>${s.damage.toFixed(1)}</b></span><span>공격/초 <b>${s.attacksPerSec.toFixed(2)}</b></span>
+    <span>방어도 <b>${s.armor}</b></span><span>사거리 <b>${s.range}</b></span><span>레벨 <b>${state.level}</b></span></div>`;
+}
+
+function fits(used: boolean[], x: number, y: number, w: number, h: number): boolean {
+  if (x + w > BAG_W || y + h > BAG_H) return false;
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (used[(y + dy) * BAG_W + x + dx]) return false;
+  return true;
+}
+
+/** First-fit packing of the bag into 10×10 pages; the layout is derived from the list, never saved. */
+function packBag(state: GameState): Placed[][] {
+  const order = [...state.inventory].sort((a, b) => EQUIP_SLOTS.indexOf(a.slot) - EQUIP_SLOTS.indexOf(b.slot) || itemScore(b) - itemScore(a) || a.id - b.id);
+  const pages: { used: boolean[]; items: Placed[] }[] = [];
+  for (const item of order) {
+    const [w, h] = ITEM_SIZE[item.slot];
+    for (let p = 0; ; p++) {
+      const target = pages[p] ?? (pages[p] = { used: new Array<boolean>(BAG_W * BAG_H).fill(false), items: [] });
+      const at = target.used.findIndex((_, i) => fits(target.used, i % BAG_W, Math.floor(i / BAG_W), w, h));
+      if (at < 0) continue;
+      const x = at % BAG_W, y = Math.floor(at / BAG_W);
+      for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) target.used[(y + dy) * BAG_W + x + dx] = true;
+      target.items.push({ item, x, y });
+      break;
+    }
+  }
+  return pages.length ? pages.map(p => p.items) : [[]];
+}
+
+function bagHtml(state: GameState): string {
+  const pages = packBag(state);
+  page = Math.min(page, pages.length - 1);
+  const upgrades = state.inventory.filter(i => isUpgrade(state, i)).length, worse = state.inventory.length - upgrades;
+  const shown = pages[page]!;
+  const cells = shown.map(({ item, x, y }) => {
+    const [w, h] = ITEM_SIZE[item.slot], pressed = selected?.from === 'bag' && selected.id === item.id;
+    return `<button type="button" class="it r-${item.rarity} ${isUpgrade(state, item) ? 'up' : ''}" data-item="${item.id}" aria-pressed="${pressed}" aria-label="${esc(itemName(item))}"
+      style="grid-column:${x + 1} / span ${w};grid-row:${y + 1} / span ${h}"><img src="${itemIconUrl(item.base)}" alt=""></button>`;
+  }).join('');
+  const used = shown.reduce((n, { item }) => n + ITEM_SIZE[item.slot][0] * ITEM_SIZE[item.slot][1], 0);
+  const fresh = state.inventory.filter(i => i.id > seenItemId).length;
+  return `<div class="bag-head">
+      <button type="button" class="k-button" data-act="equip-best" ${upgrades ? '' : 'disabled'}>추천 교체 ${upgrades}</button>
+      <button type="button" class="k-button quiet" data-act="discard-worse" ${worse ? '' : 'disabled'}>하위 장비 정리 ${worse}</button>
+      <span class="spacer"></span>
+      <div class="pages">${pages.map((_, i) => `<button type="button" data-page="${i}" aria-current="${i === page ? 'page' : 'false'}">${i + 1}</button>`).join('')}</div></div>
+    <div class="bag">${cells}</div>
+    <div class="bag-foot"><span>가방 ${page + 1}쪽 · ${used} / ${BAG_W * BAG_H} 칸</span><span>${fresh ? `새 장비 ${fresh}` : `총 ${state.inventory.length}개`}</span></div>`;
+}
+
+function detailHtml(state: GameState): string {
+  const sel = selected;
+  if (!sel) return '<div class="box detail muted">장비를 누르면 설명과 착용 장비 비교가 나온다. ▲가 붙은 장비가 지금보다 좋다.</div>';
+  if (sel.from === 'slot') {
+    const item = state.equipment[sel.slot];
+    if (!item) return `<div class="box detail muted">${slotName(sel.slot, state.classId)} 칸이 비어 있다.</div>`;
+    return `<div class="box detail card">${card(item, state)}<div class="acts"><button type="button" class="k-button" data-act="unequip">해제</button></div></div>`;
+  }
+  const item = state.inventory.find(i => i.id === sel.id);
+  if (!item) return '<div class="box detail muted">그 장비는 더 이상 가방에 없다.</div>';
+  const slots = slotsFor(item.slot);
+  const buttons = slots.length > 1
+    ? slots.map((s, i) => `<button type="button" class="k-button" data-act="equip" data-to="${s}">반지 ${i + 1}에 착용</button>`).join('')
+    : `<button type="button" class="k-button primary" data-act="equip" data-to="${slots[0]}">착용</button>`;
+  return `<div class="box detail card">${card(item, state, defaultSlot(state, item.slot))}
+    <div class="acts">${buttons}<button type="button" class="k-button quiet" data-act="discard">버리기</button></div></div>`;
 }
 
 function gearHtml(state: GameState): string {
-  const s = stats(state);
-  const slots = SLOTS.map(slot => {
-    const item = state.equipment[slot];
-    if (!item) return `<div class="slot empty"><div class="kind">${SLOT_NAMES[slot]}</div>비어 있음</div>`;
-    return `<div class="slot"><div class="kind">${SLOT_NAMES[slot]}</div><img src="${itemIconUrl(slot, state.classId)}" alt="">
-      <div class="name r-${item.rarity}">${esc(itemName(item, state.classId))}</div>${affixLines(item)}</div>`;
-  }).join('');
-  const bag = [...state.inventory].sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot) || itemScore(b) - itemScore(a));
-  const worse = bag.filter(i => itemScore(i) <= itemScore(state.equipment[i.slot])).length;
-  const upgrades = bag.length - worse;
-  const shown = bag.slice(0, 60);
-  return `<section><h3 class="section-title">착용 중</h3><div class="slots">${slots}</div></section>
-    <section><h3 class="section-title">능력치</h3><div class="stats">
-      <span>생명력 <b>${s.maxHp}</b></span><span>피해 <b>${s.damage.toFixed(1)}</b></span><span>공격/초 <b>${s.attacksPerSec.toFixed(2)}</b></span>
-      <span>방어도 <b>${s.armor}</b></span><span>사거리 <b>${s.range}</b></span><span>레벨 <b>${state.level}</b></span></div></section>
-    <section><h3 class="section-title">가방 ${bag.length}</h3>
-      <div class="bag-tools"><button type="button" class="btn" data-act="equip-best" ${upgrades ? '' : 'disabled'}>더 좋은 장비 모두 착용 (${upgrades})</button>
-        <button type="button" class="btn quiet" data-act="discard-worse" ${worse ? '' : 'disabled'}>하위 장비 정리 (${worse})</button></div>
-      <div class="items">${shown.map(i => itemCard(i, state)).join('') || '<p class="empty-note">보스를 쓰러뜨리면 전리품이 이곳에 들어온다.</p>'}</div>
-      ${bag.length > shown.length ? `<p class="empty-note">외 ${bag.length - shown.length}개</p>` : ''}</section>`;
+  return `<div class="seg mobile-only" role="tablist">
+      <button type="button" role="tab" data-view="bag" aria-selected="${mobileView === 'bag'}">가방 ${state.inventory.length}</button>
+      <button type="button" role="tab" data-view="doll" aria-selected="${mobileView === 'doll'}">착용 장비</button></div>
+    <div class="gear" data-view="${mobileView}">
+      <div class="gear-doll"><div class="box"><h3>장착</h3><div class="doll">${dollHtml(state)}</div></div>
+        <div class="box sheet-box"><h3>능력치</h3>${sheetHtml(state)}</div></div>
+      <div class="gear-bag">${bagHtml(state)}${detailHtml(state)}</div></div>`;
 }
 
 function choice(name: keyof Settings, options: [string, string][], value: string): string {
-  return `<div class="choice" role="group">${options.map(([v, label]) => `<button type="button" data-setting="${name}" data-value="${v}" aria-pressed="${v === value}">${label}</button>`).join('')}</div>`;
+  return `<div class="choice" role="group">${options.map(([v, label]) => `<button type="button" class="k-button" data-setting="${name}" data-value="${v}" aria-pressed="${v === value}">${label}</button>`).join('')}</div>`;
 }
 
 function settingsHtml(state: GameState): string {
   const st = state.settings;
   return `<div class="setting"><div><b>탐험 방식</b><p>보스 직행은 정예만 쓰러뜨리고 봉인으로, 전체 탐험은 모든 무리를 소탕한다.</p></div>
       ${choice('exploreMode', [['boss', '보스 직행'], ['full', '전체 탐험']], st.exploreMode)}</div>
-    <div class="setting"><div><b>막 정복 후</b><p>다음 막으로 나아가거나, 같은 막을 반복해 성장한다.</p></div>
-      ${choice('autoContinue', [['true', '다음 막'], ['false', '반복']], String(st.autoContinue))}</div>
+    <div class="setting"><div><b>액트 정복 후</b><p>다음 액트로 나아가거나, 같은 액트를 반복해 성장한다.</p></div>
+      ${choice('autoContinue', [['true', '다음 액트'], ['false', '반복']], String(st.autoContinue))}</div>
     <div class="setting"><div><b>자동 착용</b><p>전리품이 확정될 때 더 좋은 장비를 바로 입는다.</p></div>
       ${choice('autoEquip', [['true', '켜기'], ['false', '끄기']], String(st.autoEquip))}</div>
-    <div class="setting"><div><b>처음부터</b><p>${CLASSES[state.classId].name} Lv ${state.level} · ${state.actsCleared}막까지 정복. 되돌릴 수 없다.</p></div>
-      <button type="button" class="btn danger" data-act="reset">새로 시작</button></div>`;
+    <div class="setting"><div><b>처음부터</b><p>${CLASSES[state.classId].name} Lv ${state.level} · 액트 ${state.actsCleared}까지 정복. 되돌릴 수 없다.</p></div>
+      <button type="button" class="k-button danger" data-act="reset">새로 시작</button></div>`;
 }
+
+const contentKey = (state: GameState) => `${state.inventory.map(i => i.id).join(',')}|${state.buildRevision}|${JSON.stringify(state.settings)}`;
 
 function render(): void {
-  if (!open) return;
+  if (open !== 'gear' && open !== 'settings') return;
   const state = host.state();
-  el('drawer-title').textContent = open === 'gear' ? '장비' : '설정';
+  el('drawer-title').textContent = open === 'gear' ? '장비 및 인벤토리' : '설정';
   el('drawer-body').innerHTML = open === 'gear' ? gearHtml(state) : settingsHtml(state);
+  if (open === 'gear') seenItemId = Math.max(seenItemId, ...state.inventory.map(i => i.id));
   shownKey = contentKey(state);
 }
-
-const contentKey = (state: GameState) => `${state.inventory.length}|${state.buildRevision}|${JSON.stringify(state.settings)}`;
 
 function setSetting(state: GameState, name: string, value: string): void {
   if (name === 'exploreMode' && (value === 'boss' || value === 'full')) state.settings.exploreMode = value;
@@ -104,52 +187,102 @@ function setSetting(state: GameState, name: string, value: string): void {
   else throw new Error(`panels: unknown setting ${name}=${value}`);
 }
 
+/** Apply one button press to the save. Returns false when it was not a save-changing action. */
+function act(state: GameState, data: DOMStringMap): boolean {
+  const sel = selected;
+  if (data.setting && data.value) setSetting(state, data.setting, data.value);
+  else if (data.act === 'equip' && sel?.from === 'bag') {
+    if (!equip(state, sel.id, data.to as EquipSlot)) toast('그 장비는 이 칸에 맞지 않는다');
+    selected = null;
+  } else if (data.act === 'unequip' && sel?.from === 'slot') unequip(state, sel.slot);
+  else if (data.act === 'discard' && sel?.from === 'bag') {
+    discard(state, [sel.id]);
+    selected = null;
+  } else if (data.act === 'equip-best') toast(`${equipUpgrades(state).length}개를 착용했다`, 'gold');
+  else if (data.act === 'discard-worse') {
+    toast(`${discard(state, state.inventory.filter(i => !isUpgrade(state, i)).map(i => i.id))}개를 정리했다`);
+    selected = null;
+  } else return false;
+  return true;
+}
+
 function onClick(event: MouseEvent): void {
   const target = (event.target as HTMLElement).closest('button');
   if (!target) return;
   const state = host.state(), data = target.dataset;
-  if (data.equip) {
-    if (!equip(state, Number(data.equip))) toast('그 장비는 이미 가방에 없다');
-  } else if (data.discard) {
-    discard(state, [Number(data.discard)]);
-  } else if (data.setting && data.value) {
-    setSetting(state, data.setting, data.value);
-  } else if (data.act === 'equip-best') {
-    toast(`${equipUpgrades(state).length}개를 착용했다`, 'gold');
-  } else if (data.act === 'discard-worse') {
-    const worse = state.inventory.filter(i => itemScore(i) <= itemScore(state.equipment[i.slot])).map(i => i.id);
-    toast(`${discard(state, worse)}개를 정리했다`);
-  } else if (data.act === 'reset') {
+  if (data.act === 'reset') {
     if (window.confirm('지금까지의 진행을 모두 지우고 처음부터 시작할까요?')) host.reset();
     return;
-  } else {
-    return;
   }
-  host.saved();
+  if (data.item) selected = { from: 'bag', id: Number(data.item) };
+  else if (data.slot) selected = { from: 'slot', slot: data.slot as EquipSlot };
+  else if (data.page) page = Number(data.page);
+  else if (data.view) mobileView = data.view as typeof mobileView;
+  else if (act(state, data)) host.saved();
+  hideTip();
   render();
+}
+
+function hideTip(): void {
+  el('tip').hidden = true;
+}
+
+/** Hover card for bag items and worn slots (mouse only; touch uses the detail card). */
+function onHover(event: PointerEvent): void {
+  if (event.pointerType !== 'mouse') return;
+  const button = (event.target as HTMLElement).closest<HTMLElement>('[data-item], [data-slot]');
+  const state = host.state();
+  const bagItem = button?.dataset.item ? state.inventory.find(i => i.id === Number(button.dataset.item)) : undefined;
+  const worn = button?.dataset.slot ? state.equipment[button.dataset.slot as EquipSlot] : undefined;
+  const html = bagItem ? card(bagItem, state, defaultSlot(state, bagItem.slot)) : worn ? card(worn, state) : '';
+  if (!html) return hideTip();
+  const tip = el('tip');
+  tip.innerHTML = html;
+  tip.hidden = false;
+  tip.style.left = `${Math.min(event.clientX + 16, window.innerWidth - tip.offsetWidth - 8)}px`;
+  tip.style.top = `${Math.min(event.clientY + 12, window.innerHeight - tip.offsetHeight - 8)}px`;
+}
+
+function markCurrent(): void {
+  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
+    if ((b.dataset.panel || null) === open) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  }
 }
 
 export function openPanel(kind: PanelKind | null): void {
   open = open === kind ? null : kind;
-  el('drawer').hidden = open === null;
-  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-panel]')) b.setAttribute('aria-expanded', String(b.dataset.panel === open));
+  selected = null;
+  hideTip();
+  el('drawer').hidden = open !== 'gear' && open !== 'settings';
+  // The log is always on screen on desktop; "전투 기록" unfolds it, and on phones expands it.
+  el('log').classList.toggle('open', open === 'log');
+  if (open === 'log' && !narrow()) el('log').classList.remove('folded');
+  markCurrent();
   render();
 }
 
-/** Re-render the open panel when the save changed underneath it (loot settled, auto-equip). */
+/** Re-render the open window when the save changed underneath it (loot settled, auto-equip). */
 export function refreshPanel(): void {
-  if (open && contentKey(host.state()) !== shownKey) render();
+  if ((open === 'gear' || open === 'settings') && contentKey(host.state()) !== shownKey) render();
 }
 
 export function initPanels(h: PanelHost): void {
   host = h;
   el('drawer-body').addEventListener('click', onClick);
+  el('drawer-body').addEventListener('pointermove', onHover);
+  el('drawer-body').addEventListener('pointerleave', hideTip);
   el('drawer-close').addEventListener('click', () => openPanel(null));
   for (const b of document.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
-    b.addEventListener('click', () => openPanel(b.dataset.panel as PanelKind));
+    b.addEventListener('click', () => openPanel((b.dataset.panel || null) as PanelKind | null));
   }
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') openPanel(null);
-    else if ((e.key === 'i' || e.key === 'I') && !(e.target instanceof HTMLInputElement)) openPanel('gear');
+    if (e.target instanceof HTMLInputElement) return;
+    const key = e.key.toLowerCase();
+    if (key === 'escape') openPanel(null);
+    else if (key === 'i') openPanel('gear');
+    else if (key === 'o') openPanel('settings');
+    else if (key === 'l') openPanel('log');
   });
+  markCurrent();
 }

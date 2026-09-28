@@ -3,7 +3,7 @@
 // in which case the view draws simple stand-ins and says why.
 import { sheetPath, type CharacterSheet, type JobId, type Motion } from '../data/characters.ts';
 import { NORMAL_SHEETS, OLD_ASSETS as OLD, artPath } from './art-paths.ts';
-import type { ClassId, CurrencyKey, EnemyKind, Slot } from '../core/types.ts';
+import type { CurrencyKey, EnemyKind } from '../core/types.ts';
 
 export interface CharacterArt { sheet: CharacterSheet; motions: Record<Motion, HTMLImageElement> }
 
@@ -23,7 +23,6 @@ export interface Art {
   character: CharacterArt | null;
   /** Why the character kit is missing, shown to the player. Null when loaded. */
   characterProblem: string | null;
-  material: HTMLImageElement | null;
   enemies: Record<EnemyKind, EnemyArt | null>;
   currencies: Partial<Record<CurrencyKey, HTMLImageElement>>;
 }
@@ -125,7 +124,7 @@ export async function loadCurrencyIcons(): Promise<Art['currencies']> {
   return out;
 }
 
-export const itemIconUrl = (slot: Slot, classId: ClassId): string => OLD + artPath.item(slot, classId);
+export const itemIconUrl = (baseId: string): string => OLD + artPath.item(baseId);
 
 export const currencyIconUrl = (key: CurrencyKey): string | null => {
   const path = artPath.currency(key);
@@ -133,9 +132,7 @@ export const currencyIconUrl = (key: CurrencyKey): string | null => {
 };
 
 /** Everything one act needs. The character is loaded once per class and reused. */
-export async function loadActArt(act: number, biome: string, character: Pick<Art, 'character' | 'characterProblem'>, currencies: Art['currencies']): Promise<Art> {
-  const [material, normal, elite, boss] = await Promise.all([
-    loadImage(OLD + artPath.material(biome)), normalArt(act), eliteArt(act), bossArt(act)
-  ]);
-  return { ...character, material, enemies: { normal, elite, boss }, currencies };
+export async function loadActArt(act: number, character: Pick<Art, 'character' | 'characterProblem'>, currencies: Art['currencies']): Promise<Art> {
+  const [normal, elite, boss] = await Promise.all([normalArt(act), eliteArt(act), bossArt(act)]);
+  return { ...character, enemies: { normal, elite, boss }, currencies };
 }

@@ -3,6 +3,8 @@
 // kill, drops and banners that followed wait for that moment. Nothing here changes GameState.
 import { ENEMY } from '../data/balance.ts';
 import { actMap } from '../core/map.ts';
+import { actText } from '../data/acts.ts';
+import { ATTACK_NAMES, CURRENCY_NAMES, enemyName, itemName } from '../data/names.ts';
 import type { CharacterSheet, Facing, Motion } from '../data/characters.ts';
 import type { CurrencyKey, EnemyKind, GameEvent, GameState, Item, TempLoot } from '../core/types.ts';
 
@@ -48,6 +50,18 @@ export type Announcement =
   | { kind: 'equipped'; count: number }
   | { kind: 'rareDrop'; item: Item };
 
+/** One combat-log line, shown once its moment has come (at <= scene time). */
+export interface LogEntry {
+  at: number;
+  cat: 'fight' | 'loot';
+  tone: 'hit' | 'taken' | 'kill' | 'loot' | 'rare' | 'gold';
+  text: string;
+  /** Damage for hits and hits taken; null for plain lines. */
+  value: number | null;
+}
+
+const LOG_LIMIT = 80;
+
 /** Sheet timings the scene needs; defaults stand in when the character kit is missing. */
 export interface Timing { attackMs: number; hitDelayMs: number; hitMs: number; ranged: boolean; muzzle: Record<Facing, [number, number]> | null }
 
@@ -65,6 +79,10 @@ export interface Scene {
   bossAnnounced: boolean;
   diedAt: number | null;
   timing: Timing;
+  /** The enemy the hero last swung at, for the target nameplate. */
+  targetId: number | null;
+  attackName: string;
+  log: LogEntry[];
 }
 
 const PLAYER_ID = 0;
@@ -96,7 +114,8 @@ export function createScene(state: GameState, timing: Timing): Scene {
   const run = state.run!;
   const scene: Scene = {
     act: run.act, time: state.timeMs, actors: new Map(), playerId: PLAYER_ID, fx: [], queue: [], announcements: [],
-    shakeAt: -Infinity, shakePower: 0, bossAnnounced: false, diedAt: null, timing
+    shakeAt: -Infinity, shakePower: 0, bossAnnounced: false, diedAt: null, timing,
+    targetId: null, attackName: ATTACK_NAMES[state.classId], log: []
   };
   scene.actors.set(PLAYER_ID, newActor(PLAYER_ID, 'player', run.player.x, run.player.y, state.hp, state.timeMs));
   for (const e of run.enemies) scene.actors.set(e.id, { ...newActor(e.id, e.kind, e.x, e.y, e.maxHp, state.timeMs), hp: e.hp, active: e.active });
@@ -104,6 +123,15 @@ export function createScene(state: GameState, timing: Timing): Scene {
 }
 
 export const player = (scene: Scene): Actor => scene.actors.get(scene.playerId)!;
+
+/** Display name of an actor in this scene's act. */
+export const actorName = (scene: Scene, actor: Actor): string =>
+  actor.kind === 'player' ? '나' : enemyName(scene.act, actor.kind, actText(scene.act).boss);
+
+function log(scene: Scene, entry: LogEntry): void {
+  scene.log.push(entry);
+  if (scene.log.length > LOG_LIMIT) scene.log.splice(0, scene.log.length - LOG_LIMIT);
+}
 
 function faceToward(actor: Actor, x: number, y: number): void {
   const dx = x - actor.to[0], dy = y - actor.to[1];
@@ -151,6 +179,7 @@ function playerSwing(scene: Scene, e: Extract<GameEvent, { type: 'playerAttacked
   const hero = player(scene), target = scene.actors.get(e.targetId);
   if (!target) return at;
   faceToward(hero, target.to[0], target.to[1]);
+  scene.targetId = target.id;
   const t = scene.timing, rate = Math.max(1, t.attackMs / (intervalMs * 0.95));
   Object.assign(hero, { motion: 'attack', motionAt: at, motionRate: rate });
   let impact = at + t.hitDelayMs / rate;
@@ -168,6 +197,8 @@ function playerSwing(scene: Scene, e: Extract<GameEvent, { type: 'playerAttacked
   scene.fx.push({ kind: 'burst', at: impact, x: target.to[0], y: target.to[1], color: t.ranged ? '#c9a4ff' : '#fff3c4', radius: e.killed ? 0.9 : 0.5 });
   target.flashAt = impact;
   target.hp = Math.max(0, target.hp - e.damage);
+  log(scene, { at: impact, cat: 'fight', tone: 'hit', text: `${scene.attackName} → ${actorName(scene, target)}`, value: e.damage });
+  if (e.killed) log(scene, { at: impact, cat: 'fight', tone: 'kill', text: `${actorName(scene, target)} 처치`, value: null });
   if (e.killed) {
     target.diedAt = impact;
     if (target.kind === 'boss') shake(scene, impact, 7);
@@ -185,6 +216,7 @@ function enemyStrike(scene: Scene, e: Extract<GameEvent, { type: 'enemyAttacked'
   hero.flashAt = hitAt;
   if (hero.motion !== 'attack' || scene.time - hero.motionAt > scene.timing.attackMs) Object.assign(hero, { motion: 'hit', motionAt: hitAt, motionRate: 1 });
   hero.hp = state.hp;
+  if (enemy) log(scene, { at: hitAt, cat: 'fight', tone: 'taken', text: `${actorName(scene, enemy)} → 나`, value: e.damage });
   scene.fx.push({ kind: 'number', at: hitAt, x: hero.to[0], y: hero.to[1], text: String(Math.max(1, Math.round(e.damage))), tone: 'take' });
   shake(scene, hitAt, enemy?.kind === 'boss' ? 5 : 2);
 }
@@ -192,9 +224,13 @@ function enemyStrike(scene: Scene, e: Extract<GameEvent, { type: 'enemyAttacked'
 function drops(scene: Scene, e: Extract<GameEvent, { type: 'lootDropped' }>, at: number): void {
   const spread = (i: number) => (i % 2 === 0 ? 1 : -1) * (0.25 + 0.2 * Math.floor(i / 2));
   let i = 0;
-  for (const key of Object.keys(e.currencies) as CurrencyKey[]) scene.fx.push({ kind: 'drop', at, x: e.x, y: e.y, dx: spread(i++), currency: key, rarity: null });
+  for (const [key, n] of Object.entries(e.currencies) as [CurrencyKey, number][]) {
+    scene.fx.push({ kind: 'drop', at, x: e.x, y: e.y, dx: spread(i++), currency: key, rarity: null });
+    log(scene, { at, cat: 'loot', tone: 'loot', text: `${CURRENCY_NAMES[key]}${n > 1 ? ` ×${n}` : ''} 획득`, value: null });
+  }
   for (const item of e.items) {
     scene.fx.push({ kind: 'drop', at, x: e.x, y: e.y, dx: spread(i++), currency: null, rarity: item.rarity });
+    log(scene, { at, cat: 'loot', tone: item.rarity === 'rare' ? 'rare' : 'loot', text: `${itemName(item)} 획득`, value: null });
     if (item.rarity === 'rare') scene.announcements.push({ kind: 'rareDrop', item });
   }
 }
@@ -208,15 +244,18 @@ function apply(scene: Scene, event: GameEvent, at: number, state: GameState): vo
       scene.fx.push({ kind: 'burst', at, x: gate.x, y: gate.y, color: '#ffd98a', radius: 2.2 });
       shake(scene, at, 3);
       scene.announcements.push({ kind: 'gate' });
+      log(scene, { at, cat: 'fight', tone: 'gold', text: '봉인이 풀렸다', value: null });
       return;
     }
     case 'levelUp':
       scene.fx.push({ kind: 'levelUp', at });
+      log(scene, { at, cat: 'fight', tone: 'gold', text: `레벨 ${event.level} 달성`, value: null });
       scene.announcements.push({ kind: 'levelUp', level: event.level });
       return;
     case 'actCleared':
       shake(scene, at, 4);
       scene.announcements.push({ kind: 'cleared', act: event.act, loot: event.loot });
+      log(scene, { at, cat: 'loot', tone: 'gold', text: `${event.act}막 정복 — 전리품 확정`, value: null });
       return;
     case 'playerDied':
       scene.diedAt = at;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0907">
+  <meta name="theme-color" content="#0b0a08">
   <title>리그닌</title>
   <link rel="stylesheet" href="src/web/style.css">
 </head>
@@ -12,54 +12,84 @@
   <div id="vignette" class="vignette"></div>
 
   <main id="hud" class="hud" hidden>
-    <header class="top">
-      <section class="panel hero-card" aria-label="캐릭터">
-        <canvas id="portrait" width="44" height="44" aria-hidden="true"></canvas>
-        <div class="hero-meta">
-          <div class="hero-line"><b id="hero-class">전사</b><span class="lv">Lv <b id="hero-level">1</b></span></div>
-          <div class="bar hp" role="meter" aria-label="생명력" id="hp-meter"><i id="hp-fill"></i><span id="hp-text"></span></div>
-          <div class="bar exp" role="meter" aria-label="경험치" id="exp-meter"><i id="exp-fill"></i></div>
-        </div>
-      </section>
-
-      <section class="panel act-card" aria-label="현재 막">
-        <div class="act-no" id="act-no">1막</div>
-        <h1 id="act-title">뿌리끝 성소</h1>
-        <ol class="objective" id="objective"></ol>
-      </section>
-
-      <section class="panel map-card" aria-label="지도와 속도">
-        <canvas id="minimap" width="150" height="120" aria-hidden="true"></canvas>
-        <div class="speed" role="group" aria-label="게임 속도">
-          <button type="button" data-speed="1">×1</button>
-          <button type="button" data-speed="2">×2</button>
-          <button type="button" data-speed="4">×4</button>
-        </div>
-      </section>
-    </header>
-
-    <div class="bossbar" id="bossbar" hidden>
-      <span class="boss-name" id="boss-name"></span>
-      <div class="bar boss"><i id="boss-fill"></i></div>
-    </div>
-
-    <aside class="panel pouch" id="pouch" aria-label="전리품 주머니">
-      <h2>전리품 주머니 <span id="pouch-count"></span></h2>
-      <p class="warn">보스를 쓰러뜨리면 확정 · 쓰러지면 소실</p>
-      <ul id="pouch-list"></ul>
-    </aside>
-
-    <nav class="dock" aria-label="메뉴">
-      <button type="button" class="dock-btn" data-panel="gear"><span class="icon-gear" aria-hidden="true"></span>장비<span class="badge" id="bag-count" hidden></span></button>
-      <div class="wallet" id="wallet" aria-label="보유 재화"></div>
-      <button type="button" class="dock-btn" data-panel="settings"><span class="icon-cog" aria-hidden="true"></span>설정</button>
+    <nav class="rail" aria-label="메뉴">
+      <img class="logo" src="../assets/ui/rignin-logo.png" alt="리그닌">
+      <button type="button" class="rail-item" data-panel="gear"><span class="lbl">장비</span><kbd>I</kbd><span class="noti" id="gear-noti" hidden></span></button>
+      <button type="button" class="rail-item" data-panel="log"><span class="lbl">전투 기록</span><kbd>L</kbd></button>
+      <button type="button" class="rail-item" data-panel="settings"><span class="lbl">설정</span><kbd>O</kbd></button>
+      <hr>
+      <div class="speed" role="group" aria-label="게임 속도">
+        <button type="button" class="k-button" data-speed="1">×1</button>
+        <button type="button" class="k-button" data-speed="2">×2</button>
+        <button type="button" class="k-button" data-speed="4">×4</button>
+      </div>
     </nav>
 
-    <section class="panel drawer" id="drawer" role="dialog" aria-labelledby="drawer-title" hidden>
-      <header class="drawer-head"><h2 id="drawer-title"></h2><button type="button" class="close" id="drawer-close" aria-label="닫기">✕</button></header>
-      <div class="drawer-body" id="drawer-body"></div>
+    <header class="act">
+      <h1><span id="act-no">액트 1</span> · <span id="act-title">뿌리끝 성소</span></h1>
+      <span class="k-field chip" id="act-count">몬스터 0 · 정예 0</span>
+    </header>
+
+    <section class="top-center" aria-label="탐험과 대상">
+      <div class="k-gauge explore" id="explore-meter" role="meter" aria-label="탐험도"><i id="explore-fill"></i><span id="explore-text">탐험 0%</span></div>
+      <div class="target" id="target" hidden>
+        <div class="k-tab plate"><b id="target-name"></b><small id="target-tag"></small></div>
+        <div class="k-gauge enemy" role="meter" aria-label="대상 생명력"><i id="target-fill"></i><span id="target-text"></span></div>
+      </div>
     </section>
 
+    <section class="minimap" aria-label="지도">
+      <canvas id="minimap" width="160" height="160" aria-hidden="true"></canvas>
+      <img class="orb-frame" src="../assets/ui/grove/hp-orb-frame-v1.png" alt="">
+    </section>
+
+    <aside class="k-panel side objectives" id="objectives" aria-label="목표">
+      <h2>목표</h2>
+      <ol class="checklist" id="objective"></ol>
+      <div class="pouch" id="pouch">
+        <h3>전리품 주머니 <span id="pouch-count"></span></h3>
+        <ul id="pouch-list"></ul>
+        <p class="warn">보스를 쓰러뜨리면 확정 · 쓰러지면 소실</p>
+      </div>
+    </aside>
+
+    <section class="k-panel side log" id="log" aria-label="전투 기록">
+      <div class="seg" role="tablist">
+        <button type="button" role="tab" data-log="all" aria-selected="true">전체</button>
+        <button type="button" role="tab" data-log="fight" aria-selected="false">전투</button>
+        <button type="button" role="tab" data-log="loot" aria-selected="false">획득</button>
+        <button type="button" class="log-fold" id="log-fold" aria-expanded="true" aria-label="기록 접기">–</button>
+      </div>
+      <div class="dps"><span>최근 10초 가한 피해 <b id="dealt">0</b></span><span>받은 피해 <b id="taken">0</b></span></div>
+      <ol class="lines" id="log-lines" aria-live="off"></ol>
+    </section>
+
+    <section class="dock" aria-label="캐릭터">
+      <div class="orb" id="hp-orb">
+        <div class="liquid"><i id="hp-fill"></i></div>
+        <img class="orb-frame" src="../assets/ui/grove/hp-orb-frame-v1.png" alt="">
+        <div class="val"><span id="hp-text">0 / 0</span></div>
+      </div>
+      <div class="dock-col">
+        <div class="k-tab plate"><canvas id="portrait" width="26" height="26" aria-hidden="true"></canvas><b id="hero-class">전사</b><small>Lv.<span id="hero-level">1</span></small></div>
+        <div class="wallet" id="wallet" aria-label="보유 재화"></div>
+      </div>
+      <div class="k-gauge exp" role="meter" aria-label="경험치" id="exp-meter"><i id="exp-fill"></i><span id="exp-text">EXP 0%</span></div>
+    </section>
+
+    <nav class="mnav" aria-label="메뉴">
+      <button type="button" class="nav-item" data-panel="" aria-current="page">전투</button>
+      <button type="button" class="nav-item" data-panel="gear">장비<span class="noti" id="gear-noti-m" hidden></span></button>
+      <button type="button" class="nav-item" data-panel="log">기록</button>
+      <button type="button" class="nav-item" data-panel="settings">설정</button>
+    </nav>
+
+    <section class="k-panel win" id="drawer" role="dialog" aria-labelledby="drawer-title" hidden>
+      <header class="win-title"><h2 id="drawer-title"></h2><button type="button" class="win-btn close" id="drawer-close" aria-label="닫기">✕</button></header>
+      <div class="win-body" id="drawer-body"></div>
+    </section>
+
+    <div class="tip" id="tip" role="tooltip" hidden></div>
     <div class="banner" id="banner" hidden></div>
     <div class="toasts" id="toasts" aria-live="polite"></div>
     <p class="asset-note" id="asset-note" hidden></p>
@@ -73,12 +103,12 @@
   </section>
 
   <section id="settle" class="modal" role="dialog" aria-labelledby="settle-title" hidden>
-    <div class="panel settle-card">
+    <div class="k-panel settle-card">
       <h2 id="settle-title">자리를 비운 동안</h2>
       <p id="settle-away"></p>
-      <div class="bar progress"><i id="settle-fill"></i></div>
+      <div class="k-gauge progress"><i id="settle-fill"></i></div>
       <dl id="settle-summary"></dl>
-      <button type="button" class="primary" id="settle-ok" hidden>계속하기</button>
+      <button type="button" class="k-button primary" id="settle-ok" hidden>계속하기</button>
     </div>
   </section>
 

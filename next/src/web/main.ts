@@ -9,7 +9,7 @@ import { bakeTerrain } from './terrain.ts';
 import { createView, drawWorld, fitZoom, type View } from './draw.ts';
 import { createScene, syncScene, takeEvents, timingFrom, updateScene, type Scene } from './scene.ts';
 import { announce, createHud, drawIdle, toast, updateHud, type Hud } from './hud.ts';
-import { initPanels, refreshPanel } from './panels.ts';
+import { hasUnseenItems, initPanels, refreshPanel } from './panels.ts';
 import { chooseClass, settleAway } from './screens.ts';
 import { clearSave, readPrefs, readSave, writePrefs, writeSave, type Prefs } from './storage.ts';
 import type { GameState } from '../core/types.ts';
@@ -53,8 +53,8 @@ function resize(): void {
 async function enterAct(g: Pick<Game, 'state' | 'art'> & Partial<Game>, announceAct: boolean): Promise<{ art: Art; view: View; scene: Scene }> {
   const run = g.state.run!, map = actMap(run.act);
   const sameAct = g.view && g.scene && g.scene.act === run.act;
-  const art = sameAct ? g.art : await loadActArt(run.act, map.biome, g.art, g.art.currencies);
-  const view = sameAct ? g.view! : createView(canvas, bakeTerrain(map, art.material), map);
+  const art = sameAct ? g.art : await loadActArt(run.act, g.art, g.art.currencies);
+  const view = sameAct ? g.view! : createView(canvas, await bakeTerrain(map), map);
   const ranged = stats(g.state).range > 1;
   const scene = createScene(g.state, timingFrom(art.character?.sheet ?? null, ranged));
   if (announceAct) scene.announcements.push({ kind: 'act', act: run.act });
@@ -62,6 +62,8 @@ async function enterAct(g: Pick<Game, 'state' | 'art'> & Partial<Game>, announce
 }
 
 function applyAct(next: { art: Art; view: View; scene: Scene }): void {
+  // The combat log reads across acts: its entries carry game time, which keeps running.
+  if (game.scene) next.scene.log = game.scene.log;
   game.art = next.art;
   game.view = next.view;
   game.scene = next.scene;
@@ -98,11 +100,11 @@ function frame(now: number): void {
   const { state, scene } = game;
   if (game.busy === 0) {
     updateScene(scene, state.timeMs + game.acc, state);
-    for (const a of scene.announcements.splice(0)) announce(a, state);
+    for (const a of scene.announcements.splice(0)) announce(a);
     drawWorld(game.view, scene, state, game.art, actMap(scene.act));
-    updateHud(game.hud, state, scene);
+    updateHud(game.hud, state, scene, hasUnseenItems(state));
     refreshPanel();
-    drawIdle(document.getElementById('portrait') as HTMLCanvasElement, game.art, scene.time, [26, 11, 27]);
+    drawIdle(document.getElementById('portrait') as HTMLCanvasElement, game.art, scene.time, [29, 13, 21]);
     const dead = state.run!.status === 'failed';
     document.body.classList.toggle('dead', dead);
     document.getElementById('vignette')!.classList.toggle('dead', dead);
@@ -153,7 +155,7 @@ async function boot(): Promise<void> {
   const state = loaded.kind === 'ok' ? loaded.state
     : createGame(crypto.getRandomValues(new Uint32Array(1))[0]!, await chooseClass(loaded.kind === 'broken' ? `저장을 읽지 못해 새로 시작합니다 (${loaded.reason}). 손상된 저장은 브라우저에 따로 보관했습니다.` : null));
   const [character, currencies] = await Promise.all([loadCharacter(CLASS_SPRITES[state.classId]), loadCurrencyIcons()]);
-  const baseArt: Art = { character: character.art, characterProblem: character.problem, material: null, enemies: { normal: null, elite: null, boss: null }, currencies };
+  const baseArt: Art = { character: character.art, characterProblem: character.problem, enemies: { normal: null, elite: null, boss: null }, currencies };
   const first = await enterAct({ state, art: baseArt }, true);
   game = { state, ...first, hud: createHud(), prefs: readPrefs(), acc: 0, last: performance.now(), savedAt: Date.now(), busy: 0, hiddenAt: null };
   initPanels({ state: () => game.state, saved: save, reset: () => { clearSave(); window.location.reload(); } });

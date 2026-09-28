@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { REST_MS, TICK_MS } from '../src/data/balance.ts';
+import { AFFIX_POOL, ITEM_KINDS, itemBase } from '../src/data/item-bases.ts';
 import { advance, createGame, LAST_ACT, step } from '../src/core/game.ts';
-import { discard, equip, itemScore, rollItem } from '../src/core/items.ts';
+import { discard, equip, equipUpgrades, itemScore, rollItem, unequip } from '../src/core/items.ts';
 import { actMap, distances, tileIndex } from '../src/core/map.ts';
 import { stats } from '../src/core/stats.ts';
 import type { CurrencyKey, GameEvent, GameState, TempLoot } from '../src/core/types.ts';
@@ -114,7 +115,7 @@ test('dying discards the run loot, keeps the save, and retries the same act', ()
 test('equipping an item changes stats and swaps the old one back into the inventory', () => {
   const state = createGame(9, 'warrior');
   const base = stats(state).damage;
-  const sword = { id: 900, slot: 'weapon' as const, itemLevel: 3, rarity: 'magic' as const, affixes: [{ stat: 'flatDamage' as const, value: 5 }] };
+  const sword = { id: 900, slot: 'weapon' as const, base: 'rusted-blade', itemLevel: 3, rarity: 'magic' as const, affixes: [{ stat: 'flatDamage' as const, value: 5 }] };
   const better = { ...sword, id: 901, affixes: [{ stat: 'flatDamage' as const, value: 8 }] };
   state.inventory.push(sword, better);
   assert.equal(equip(state, 900), true);
@@ -138,4 +139,36 @@ test('auto-equip wears settled upgrades once; discard never touches equipped ite
   assert.equal(discard(state, [...worn, ...state.inventory.map(i => i.id)]), before);
   assert.deepEqual(state.inventory, []);
   assert.deepEqual(Object.values(state.equipment).map(item => item!.id), worn);
+});
+
+test('rings fill both ring slots, the weaker one is replaced, and unequip returns items', () => {
+  const state = createGame(12, 'warrior');
+  const ring = (id: number, value: number) => ({ id, slot: 'ring' as const, base: 'copper-ring', itemLevel: 3, rarity: 'magic' as const, affixes: [{ stat: 'flatDamage' as const, value }] });
+  state.inventory.push(ring(1, 2), ring(2, 5), ring(3, 4));
+  assert.deepEqual(equipUpgrades(state), [2, 3]);
+  assert.deepEqual([state.equipment.ring?.id, state.equipment.ring2?.id], [2, 3]);
+  const base = stats(state).damage;
+  assert.equal(equip(state, 1, 'weapon'), false, 'a ring does not fit the weapon slot');
+  assert.equal(equip(state, 1, 'ring2'), true);
+  assert.equal(stats(state).damage, base - 2);
+  assert.equal(unequip(state, 'ring2'), true);
+  assert.equal(unequip(state, 'ring2'), false);
+  assert.deepEqual(state.inventory.map(i => i.id).sort(), [1, 3]);
+});
+
+test('drops cover every kind with class-fitting bases and kind-legal affixes', () => {
+  const warrior = createGame(13, 'warrior'), arcanist = createGame(13, 'arcanist');
+  const seen = new Set<string>();
+  for (let i = 0; i < 600; i++) {
+    for (const state of [warrior, arcanist]) {
+      const item = rollItem(state, 10), base = itemBase(item.base);
+      seen.add(item.slot);
+      assert.equal(base.kind, item.slot);
+      assert.ok(!base.classes || base.classes.includes(state.classId), `${base.id} for ${state.classId}`);
+      assert.ok(base.minLevel <= item.itemLevel);
+      for (const a of item.affixes) assert.ok(AFFIX_POOL[item.slot][a.stat], `${a.stat} on ${item.slot}`);
+      assert.equal(new Set(item.affixes.map(a => a.stat)).size, item.affixes.length);
+    }
+  }
+  assert.deepEqual([...seen].sort(), [...ITEM_KINDS].sort());
 });

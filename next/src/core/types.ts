@@ -42,10 +42,22 @@ export type CurrencyKey = 'magicBud' | 'sapBud' | 'formlessDew' | 'goldenRule' |
 export type Wallet = Record<CurrencyKey, number>;
 
 export type ClassId = 'warrior' | 'arcanist';
-export type Slot = 'weapon' | 'armor' | 'ring';
+/** What an item is. Rings fit either ring slot; every other kind has exactly one slot. */
+export type ItemKind = 'weapon' | 'offhand' | 'helmet' | 'armor' | 'gloves' | 'boots' | 'belt' | 'amulet' | 'ring';
+/** Where an item is worn. */
+export type EquipSlot = ItemKind | 'ring2';
 export type AffixStat = 'flatDamage' | 'flatHp' | 'pctAttackSpeed' | 'flatArmor';
 export interface Affix { stat: AffixStat; value: number }
-export interface Item { id: number; slot: Slot; itemLevel: number; rarity: 'normal' | 'magic' | 'rare'; affixes: Affix[] }
+export interface Item {
+  id: number;
+  /** The item's kind (saved under this name since the first saves). */
+  slot: ItemKind;
+  /** Base id from data/item-bases.ts: name and picture. */
+  base: string;
+  itemLevel: number;
+  rarity: 'normal' | 'magic' | 'rare';
+  affixes: Affix[];
+}
 
 /** Derived from the build. Never stored in the save. */
 export interface Stats {
@@ -118,7 +130,7 @@ export interface GameState {
   level: number;
   exp: number;
   hp: number;
-  equipment: Partial<Record<Slot, Item>>;
+  equipment: Partial<Record<EquipSlot, Item>>;
   inventory: Item[];
   currencies: Wallet;
   /** Bumped by every change that can alter Stats; stats are recomputed only when it changes. */

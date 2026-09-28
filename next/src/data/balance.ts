@@ -1,6 +1,6 @@
 // Every tuning number of the first core slice. The autoplay tool measures the result
 // (first loop target: 15-30 simulated minutes to clear act 10); change numbers here, not in rules.
-import type { ClassId, CurrencyKey, EnemyKind, RoomRole, Slot, AffixStat } from '../core/types.ts';
+import type { ClassId, CurrencyKey, EnemyKind, RoomRole, AffixStat } from '../core/types.ts';
 
 export const TICK_MS = 100;
 /** Offline settlement never simulates more than this per call; ms. */
@@ -63,7 +63,6 @@ export const ITEM_DROPS: Record<EnemyKind, number> = { normal: 0.03, elite: 0.3,
 export const BOSS_ITEM_COUNT = 2;
 
 export const ITEMS = {
-  slots: ['weapon', 'armor', 'ring'] as readonly Slot[],
   rarity: [['normal', 0.6], ['magic', 0.32], ['rare', 0.08]] as const,
   affixCount: { normal: [1, 1], magic: [2, 2], rare: [3, 4] } as const,
   /** Value range of one affix at item level il: [min, max]. */
