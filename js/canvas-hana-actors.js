@@ -230,25 +230,26 @@ const hanaActors = (() => {
     }
 
     /**
-     * Draws a summon standing on (summon.x, summon.y); summon.attackAt is the visual time of its current strike.
+     * Draws a summon standing on (summon.x, summon.y); summon.attackAt is the visual time of its current strike
+     * (the third attack frame lands on it). Style: settings.summonArtStyle (glow · dark · simple · cute).
      * @param {CanvasRenderingContext2D} ctx
      * @param {{skillName:string,x:number,y:number,now:number,tile?:number,attackAt?:number,flipX?:boolean,alpha?:number,phase?:number}} summon
-     * @returns {boolean}
+     * @returns {?{top:number}} top edge of the drawn sprite, or null when this summon has no loaded Hana sheet
      */
     function drawSummon(ctx, summon) {
         const slug = summonSlug(summon.skillName), found = slug && summonSpec(slug);
-        if (!found) return false;
+        if (!found) return null;
         const pose = summonPose(summon), img = image(`assets/summon/hana/${found.style}/${slug}_${pose.motion}.png`);
-        if (!loaded(img)) return false;
-        const box = found.spec[pose.motion], dot = dotSize(summon.tile);
+        if (!loaded(img)) return null;
+        const box = found.spec[pose.motion], dot = dotSize(summon.tile), top = summon.y - box.h * dot;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = Math.max(0, Math.min(1, summon.alpha ?? 1));
         drawDotShadow(ctx, summon, dot * 0.8, 0.22 * ctx.globalAlpha);
         if (summon.flipX) { ctx.translate(summon.x * 2, 0); ctx.scale(-1, 1); }
-        blit(ctx, img, { x: pose.frame * box.w, y: 0, w: box.w, h: box.h }, { x: summon.x - (box.w / 2) * dot, y: summon.y - box.h * dot, dot });
+        blit(ctx, img, { x: pose.frame * box.w, y: 0, w: box.w, h: box.h }, { x: summon.x - (box.w / 2) * dot, y: top, dot });
         ctx.restore();
-        return true;
+        return { top };
     }
 
     return { drawPlayer, drawSummon, drawnBody, preload, isReady, summonSlug, attackPose, frameAt };
