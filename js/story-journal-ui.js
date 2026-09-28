@@ -60,6 +60,14 @@ const storyJournalUi = (() => {
         }
         for (const scene of STORY_JOURNAL_SCENES.filter(available)) queueScene(scene);
     }
+    /** Narration plus the words spoken in that scene (STORY_SCENE_QUOTES), before or after it as the moment reads. */
+    function sceneCopy(scene) {
+        const quote = typeof STORY_SCENE_QUOTES === 'object' && scene.id ? STORY_SCENE_QUOTES[scene.id] : null;
+        const narration = scene.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('');
+        if (!quote) return narration;
+        const spoken = `<blockquote class="story-scene-quote">${quote.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</blockquote>`;
+        return quote.before ? spoken + narration : narration + spoken;
+    }
     function renderTutorial(notice) {
         const scene = STORY_JOURNAL_SCENES.find(row => 'story_'+row.id === notice.key);
         document.getElementById('tutorial-overlay').classList.toggle('is-story-scene',!!scene);
@@ -69,7 +77,7 @@ const storyJournalUi = (() => {
         document.getElementById('tutorial-kicker').textContent = scene.act ? `액트 ${scene.act}` : '프롤로그';
         document.getElementById('tutorial-title').textContent = scene.title;
         document.getElementById('tutorial-body').innerHTML = `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async">
-            <div class="story-scene-copy">${scene.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</div>`;
+            <div class="story-scene-copy">${sceneCopy(scene)}</div>`;
         document.getElementById('tutorial-open-btn').style.display = 'none';
         document.getElementById('tutorial-dismiss-btn').textContent = '계속';
         return true;
@@ -88,7 +96,7 @@ const storyJournalUi = (() => {
             <button type="button" autofocus data-journal-close>닫기</button></header>
             <div class="journal-reader-pages">${pages.map(scene => `<section class="journal-reader-page ${scene.image ? '' : 'is-text-only'}">
                 ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
-                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${scene.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</div>
+                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${sceneCopy(scene)}</div>
             </section>`).join('')}</div>`;
         reader.addEventListener('close', () => reader.remove(), {once:true});
         reader.querySelector('[data-journal-close]').addEventListener('click', () => reader.close());

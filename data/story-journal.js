@@ -12,10 +12,23 @@ const STORY_JOURNAL_SCENES = Object.freeze([
     {"id":"act_9_end","title":"액트 9 · 고치에서 태어난 존재","act":9,"phase":"end","journal":"act_9","image":"assets/journal/unified-20260910/act-9-end.webp","lines":["비탄하는 접목의 어머니가 쓰러지자, 그녀가 품고 있던 고치가 열렸습니다.","고치에서 태어난 존재는 옅은 금빛 후광에 둘러싸여, 세계수의 끝자락으로 올라갔습니다."]},
     {"id":"act_10_end","title":"액트 10 · 손끝 사이","act":10,"phase":"end","journal":"act_10","image":"assets/journal/unified-20260910/act-10.webp","lines":["쓰러진 존재가 당신을 향해 힘없이 손을 뻗었습니다.","당신은 몸을 숙여, 그 손끝을 향해 손을 내밀었습니다.","두 손 사이에는 아직 작은 틈이 남아 있었습니다."]},
 ]);
+// The spoken lines each journal entry had before the illustrations (data/maps.js JOURNAL_DB) stay with the scene where
+// they are said — the gardener's verdict, the druid's "첫 번째 날붙이" reveal the woodsman and the abandoned blades
+// build on, the dying words — before the narrated moment (verdicts, last words) or after it (reflections).
+const STORY_QUOTE_PLACEMENT = Object.freeze({
+    prologue: ['prologue', 'before'], act_2: ['act_2_end', 'before'], act_3: ['act_3_start', 'before'],
+    act_4: ['act_4_end', 'before'], act_5: ['act_5_end', 'before'], act_6: ['act_6_end', 'before'],
+    act_7: ['act_7_start', 'after'], act_8: ['act_8_start', 'after'], act_9: ['act_9_end', 'after'], act_10: ['act_10_end', 'after']
+});
+const STORY_SCENE_QUOTES = {};
+for (const [entryId, [sceneId, placement]] of Object.entries(STORY_QUOTE_PLACEMENT)) {
+    STORY_SCENE_QUOTES[sceneId] = Object.freeze({ lines: Object.freeze([...JOURNAL_DB[entryId].lines]), before: placement === 'before' });
+}
+Object.freeze(STORY_SCENE_QUOTES);
 for (const entryId of new Set(STORY_JOURNAL_SCENES.map(scene => scene.journal))) {
     const scenes = STORY_JOURNAL_SCENES.filter(scene => scene.journal === entryId);
     JOURNAL_DB[entryId].title = scenes[0].title;
     JOURNAL_DB[entryId].lines = scenes.flatMap(scene => scene.lines);
     JOURNAL_DB[entryId].scenes = scenes.map(scene => scene.id);
 }
-safeExposeData({ STORY_JOURNAL_SCENES });
+safeExposeData({ STORY_JOURNAL_SCENES, STORY_SCENE_QUOTES });

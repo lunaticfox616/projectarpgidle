@@ -2871,6 +2871,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     drawBattleLightingPass(ctx, scene);
     drawBattlefieldPlayerHealthBar(ctx, scene.light, scene.hpPct, scene.ghostPct, scene.esPct);
     drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets);
+    actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 
 function drawBattleLightingPass(ctx, scene) {
