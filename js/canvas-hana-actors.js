@@ -239,17 +239,29 @@ const hanaActors = (() => {
     function drawSummon(ctx, summon) {
         const slug = summonSlug(summon.skillName), found = slug && summonSpec(slug);
         if (!found) return null;
-        const pose = summonPose(summon), img = image(`assets/summon/hana/${found.style}/${slug}_${pose.motion}.png`);
+        const sheetPath = motion => `assets/summon/hana/${found.style}/${slug}_${motion}.png`;
+        const pose = summonPose(summon), img = image(sheetPath(pose.motion));
         if (!loaded(img)) return null;
-        const box = found.spec[pose.motion], dot = dotSize(summon.tile), top = summon.y - box.h * dot;
+        const box = found.spec[pose.motion], dot = dotSize(summon.tile), blockTop = summon.y - box.h * dot;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = Math.max(0, Math.min(1, summon.alpha ?? 1));
         drawDotShadow(ctx, summon, dot * 0.8, 0.22 * ctx.globalAlpha);
         if (summon.flipX) { ctx.translate(summon.x * 2, 0); ctx.scale(-1, 1); }
-        blit(ctx, img, { x: pose.frame * box.w, y: 0, w: box.w, h: box.h }, { x: summon.x - (box.w / 2) * dot, y: top, dot });
+        blit(ctx, img, { x: pose.frame * box.w, y: 0, w: box.w, h: box.h }, { x: summon.x - (box.w / 2) * dot, y: blockTop, dot });
         ctx.restore();
-        return { top };
+        const idle = image(sheetPath('idle'));
+        return { top: blockTop + opaqueTop(loaded(idle) ? idle : img) * dot };
+    }
+    const tops = new Map();
+    /** First opaque row of a summon sheet: the 16×16 blocks keep the body low, so the life bar sits on the body, not
+     * on the empty top of the block (where it read as the life bar of the enemy standing behind). */
+    function opaqueTop(img) {
+        if (tops.has(img.src)) return tops.get(img.src);
+        const mask = alphaMask(img), width = mask.width, height = mask.bits.length / width;
+        const first = mask.bits.indexOf(1), top = first < 0 ? 0 : Math.floor(first / width);
+        tops.set(img.src, Math.min(top, height));
+        return tops.get(img.src);
     }
 
     return { drawPlayer, drawSummon, drawnBody, preload, isReady, summonSlug, attackPose, frameAt };
