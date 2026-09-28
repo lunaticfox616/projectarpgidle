@@ -11,7 +11,7 @@ const read = code => JSON.parse(JSON.stringify(vm.runInContext(code, runtime)));
 const scenes = read('STORY_JOURNAL_SCENES');
 const quotes = read('STORY_SCENE_QUOTES');
 const sceneIds = new Set(scenes.map(scene => scene.id));
-assert.strictEqual(Object.keys(quotes).length, 10, 'prologue and acts 2–10 each keep their spoken lines');
+assert.strictEqual(Object.keys(quotes).length, 11, 'the prologue and every act keep their spoken lines');
 for (const [sceneId, quote] of Object.entries(quotes)) {
     assert(sceneIds.has(sceneId), `${sceneId}: a quote belongs to an existing scene`);
     assert(quote.lines.length > 0 && quote.lines.every(line => line.startsWith('“')), `${sceneId}: spoken lines, in quotes`);
@@ -21,6 +21,8 @@ for (const [sceneId, quote] of Object.entries(quotes)) {
 assert(quotes.act_5_end.lines.includes('“나무꾼의 손에서 빠진, 첫 번째 날붙이였구나.”'), 'the first-blade reveal is back in act 5');
 assert.strictEqual(quotes.act_5_end.before, true, 'last words come before the druid opens the path');
 assert.strictEqual(quotes.act_10_end.before, false, 'a closing reflection comes after the scene');
+assert(quotes.act_1_start.lines.includes('“중간계로 돌아가고 싶다면, 썩은 잔뿌리들을 베어라.”'), 'act 1 opens with the druid giving the task');
+assert.strictEqual(quotes.act_2_end.before, false, 'the gardener taunts after the fall, not before the arrival');
 assert.deepStrictEqual(read('JOURNAL_DB.act_5.scenes'), ['act_5_end'], 'journal entries still read their illustrated scenes');
 
 // The title card only reads the current act; drawing it must not change combat or progression state.
