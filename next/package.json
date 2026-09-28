@@ -1,0 +1,22 @@
+{
+  "name": "rignin-next",
+  "private": true,
+  "version": "0.0.1",
+  "description": "리그닌 재설계 첫 핵심판: 화면과 분리된 게임 규칙 코어",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test 'test/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
+    "autoplay": "node tools/autoplay.ts",
+    "import:acts": "node tools/import-acts.ts",
+    "import:characters": "node tools/import-characters.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.3"
+  }
+}
