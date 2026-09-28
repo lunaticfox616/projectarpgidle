@@ -2,7 +2,6 @@
 // report simulated time per act. Usage: node tools/autoplay.ts [--class warrior|arcanist] [--seed N] [--mode boss|full] [--seeds K]
 import { parseArgs } from 'node:util';
 import { createGame, LAST_ACT, step } from '../src/core/game.ts';
-import { equipUpgrades } from '../src/core/items.ts';
 import type { ClassId, ExploreMode } from '../src/core/types.ts';
 
 const HOUR = 3_600_000;
@@ -22,7 +21,6 @@ function play(seed: number): { lines: ActLine[]; totalMs: number | null } {
       if (event.type !== 'actCleared' || lines.some(l => l.act === event.act)) continue;
       lines.push({ act: event.act, clearedAtMs: state.timeMs, deaths: state.deaths - deathsBefore, level: state.level });
       deathsBefore = state.deaths;
-      equipUpgrades(state);
     }
   }
   return { lines, totalMs: state.actsCleared >= LAST_ACT ? state.timeMs : null };

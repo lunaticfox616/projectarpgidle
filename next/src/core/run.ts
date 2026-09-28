@@ -68,14 +68,20 @@ function gainExp(state: GameState, amount: number, events: GameEvent[]): void {
   }
 }
 
-function rollDrops(state: GameState, run: Run, enemy: Enemy): void {
+function rollDrops(state: GameState, run: Run, enemy: Enemy, events: GameEvent[]): void {
+  const currencies: Partial<Record<CurrencyKey, number>> = {};
   for (const [key, p] of Object.entries(CURRENCY_DROPS[enemy.kind]) as [CurrencyKey, number][]) {
     if (!chance(state, p)) continue;
     const amount = enemy.kind === 'boss' ? rollInt(state, BOSS_STACK[0], BOSS_STACK[1]) : 1;
+    currencies[key] = amount;
     run.loot.currencies[key] = (run.loot.currencies[key] ?? 0) + amount;
   }
-  const items = enemy.kind === 'boss' ? BOSS_ITEM_COUNT : chance(state, ITEM_DROPS[enemy.kind]) ? 1 : 0;
-  for (let i = 0; i < items; i++) run.loot.items.push(rollItem(state, run.act));
+  const count = enemy.kind === 'boss' ? BOSS_ITEM_COUNT : chance(state, ITEM_DROPS[enemy.kind]) ? 1 : 0;
+  const items = Array.from({ length: count }, () => rollItem(state, run.act));
+  run.loot.items.push(...items);
+  if (items.length > 0 || Object.keys(currencies).length > 0) {
+    events.push({ type: 'lootDropped', enemyId: enemy.id, x: enemy.x, y: enemy.y, currencies, items });
+  }
 }
 
 /** Move the run's loot into the save. Emptying run.loot makes a second settlement impossible. */
@@ -96,7 +102,7 @@ function kill(state: GameState, run: Run, enemy: Enemy, events: GameEvent[]): vo
   if (pack) pack.alive--;
   events.push({ type: 'enemyKilled', kind: enemy.kind, enemyId: enemy.id });
   gainExp(state, ENEMY.exp(run.act) * ENEMY.kind[enemy.kind].exp, events);
-  rollDrops(state, run, enemy);
+  rollDrops(state, run, enemy, events);
   if (!run.gateOpen && !run.packs.some(p => p.role === 'elite' && p.alive > 0)) {
     run.gateOpen = true;
     events.push({ type: 'gateOpened', act: run.act });
@@ -155,7 +161,9 @@ function playerAct(state: GameState, map: ActMap, run: Run, s: Stats, events: Ga
   if (p.attackMs > 0) return;
   p.attackMs = 1000 / s.attacksPerSec;
   for (const mate of run.enemies) if (mate.packId === target.packId) mate.active = true;
-  target.hp -= s.damage * (1 + (random(state) * 2 - 1) * DAMAGE_SPREAD);
+  const damage = Math.min(target.hp, s.damage * (1 + (random(state) * 2 - 1) * DAMAGE_SPREAD));
+  target.hp -= damage;
+  events.push({ type: 'playerAttacked', targetId: target.id, damage, killed: target.hp <= 0 });
   if (target.hp <= 0) kill(state, run, target, events);
 }
 
@@ -190,7 +198,9 @@ function enemiesAct(state: GameState, map: ActMap, run: Run, s: Stats, events: G
     }
     if (enemy.attackMs > 0) continue;
     enemy.attackMs = ENEMY.kind[enemy.kind].attackMs;
-    state.hp -= enemy.damage * ARMOR_K / (ARMOR_K + s.armor);
+    const damage = enemy.damage * ARMOR_K / (ARMOR_K + s.armor);
+    state.hp -= damage;
+    events.push({ type: 'enemyAttacked', enemyId: enemy.id, damage });
     if (state.hp <= 0) return die(state, run, events);
   }
 }

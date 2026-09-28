@@ -6,16 +6,21 @@
 | 경로 | 책임 |
 | --- | --- |
 | `src/data/` | 밸런스 수치(`balance.ts`), 막 지도 프리셋(생성물), 캐릭터 시트 계약(`characters.ts`) |
-| `src/core/` | 규칙 코어: 순수·결정적, DOM 없음. 상태는 JSON 그대로 저장 가능 |
+| `src/core/` | 규칙 코어: 순수·결정적, DOM 없음. 상태는 JSON 그대로 저장 가능 (`save.ts`가 저장 검증 경계) |
+| `src/web/` | 브라우저 화면: 캔버스(`draw`, `fx`, `terrain`), 연출 모델(`scene`), HUD·패널·화면, 저장소(`storage`) |
 | `tools/` | 가져오기·자동 플레이 측정 도구 (게임에서 로드하지 않음) |
 | `test/` | `node --test` 행동 검사 |
+
+의존 방향은 `data → core → web`이다. `scene.ts`는 코어가 즉시 판정한 공격을 시트의 타격 프레임에 맞춰
+보여 주고, 처치·드랍·배너는 그 타격이 보이는 순간까지 미룬다(상태는 바꾸지 않음).
 
 규칙 코어는 `createGame(seed, classId)`로 시작하고 `step(state)` 한 번이 100ms 한 틱이다. 실시간 진행,
 오프라인 정산(`advance`), 테스트, 자동 플레이가 모두 같은 `step`을 거치므로 결과가 같다.
 
 ```sh
 npm install
-npm run check          # typecheck + test
+npm run dev            # http://localhost:8123/next/ — 브라우저 게임 (저장소 루트를 서빙해 기존 /assets 사용)
+npm run check          # typecheck + test + 브라우저 번들
 npm run autoplay -- --seeds 20 --class arcanist   # 첫 루프(1~10막) 시뮬레이션 시간 측정
 npm run import:acts    # 기존 data/act-exploration-maps.js가 바뀌었을 때만
 ```

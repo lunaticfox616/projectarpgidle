@@ -50,11 +50,18 @@ export function equip(state: GameState, itemId: number): boolean {
   return true;
 }
 
-/** Equip every inventory item that outscores what its slot holds. Returns how many were equipped. */
-export function equipUpgrades(state: GameState): number {
-  let equipped = 0;
+/** Equip every inventory item that outscores what its slot holds. Returns the equipped item ids. */
+export function equipUpgrades(state: GameState): number[] {
+  const equipped: number[] = [];
   for (const item of [...state.inventory].sort((a, b) => itemScore(b) - itemScore(a))) {
-    if (itemScore(item) > itemScore(state.equipment[item.slot]) && equip(state, item.id)) equipped++;
+    if (itemScore(item) > itemScore(state.equipment[item.slot]) && equip(state, item.id)) equipped.push(item.id);
   }
   return equipped;
+}
+
+/** Destroy inventory items. Equipped items are never touched. Returns how many were removed. */
+export function discard(state: GameState, itemIds: readonly number[]): number {
+  const doomed = new Set(itemIds), before = state.inventory.length;
+  state.inventory = state.inventory.filter(item => !doomed.has(item.id));
+  return before - state.inventory.length;
 }

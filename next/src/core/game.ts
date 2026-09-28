@@ -2,6 +2,7 @@
 // tests and the autoplay tool all advance the game through the same function.
 import { ACT_PRESETS } from '../data/act-maps.ts';
 import { MAX_OFFLINE_MS, TICK_MS } from '../data/balance.ts';
+import { equipUpgrades } from './items.ts';
 import { seedRng } from './rng.ts';
 import { startRun, tickRun } from './run.ts';
 import { stats } from './stats.ts';
@@ -15,7 +16,7 @@ export function createGame(seed: number, classId: ClassId, settings: Partial<Set
     equipment: {}, inventory: [],
     currencies: { magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, blightSpore: 0, bossCore: 0, challengeMark: 0 },
     buildRevision: 0, actsCleared: 0, deaths: 0,
-    settings: { exploreMode: 'boss', autoContinue: true, ...settings },
+    settings: { exploreMode: 'boss', autoContinue: true, autoEquip: true, ...settings },
     run: null
   };
   state.hp = stats(state).maxHp;
@@ -36,6 +37,10 @@ export function step(state: GameState): GameEvent[] {
   state.timeMs += TICK_MS;
   if (run.status === 'active') {
     tickRun(state, run, events);
+    if (state.settings.autoEquip && events.some(e => e.type === 'actCleared')) {
+      const itemIds = equipUpgrades(state);
+      if (itemIds.length > 0) events.push({ type: 'itemsEquipped', itemIds });
+    }
     return events;
   }
   run.restMs -= TICK_MS;

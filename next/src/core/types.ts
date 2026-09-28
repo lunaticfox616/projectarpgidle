@@ -98,7 +98,13 @@ export interface Run {
   restMs: number;
 }
 
-export interface Settings { exploreMode: ExploreMode; autoContinue: boolean }
+export interface Settings {
+  exploreMode: ExploreMode;
+  /** After a clear, go on to the next act instead of repeating this one. */
+  autoContinue: boolean;
+  /** When loot settles, equip every item that outscores its slot. */
+  autoEquip: boolean;
+}
 
 export interface GameState {
   version: 1;
@@ -126,8 +132,15 @@ export interface GameState {
 
 export type GameEvent =
   | { type: 'runStarted'; act: number }
+  /** damage: life removed from the target this swing. */
+  | { type: 'playerAttacked'; targetId: number; damage: number; killed: boolean }
+  /** damage: life the player lost, after armor. */
+  | { type: 'enemyAttacked'; enemyId: number; damage: number }
   | { type: 'enemyKilled'; kind: EnemyKind; enemyId: number }
+  /** What one kill added to the run's temporary loot. Only emitted when something dropped. */
+  | { type: 'lootDropped'; enemyId: number; x: number; y: number; currencies: Partial<Wallet>; items: Item[] }
   | { type: 'gateOpened'; act: number }
   | { type: 'levelUp'; level: number }
   | { type: 'playerDied'; act: number; lostLoot: TempLoot }
-  | { type: 'actCleared'; act: number; loot: TempLoot };
+  | { type: 'actCleared'; act: number; loot: TempLoot }
+  | { type: 'itemsEquipped'; itemIds: number[] };

@@ -10,13 +10,16 @@
   "scripts": {
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run typecheck && npm test && npm run build:web",
     "autoplay": "node tools/autoplay.ts",
     "import:acts": "node tools/import-acts.ts",
-    "import:characters": "node tools/import-characters.ts"
+    "import:characters": "node tools/import-characters.ts",
+    "build:web": "esbuild src/web/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=build/main.js",
+    "dev": "npm run build:web -- --watch=forever --servedir=.. --serve=8123"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
+    "esbuild": "^0.25.12",
     "typescript": "^5.9.3"
   }
 }

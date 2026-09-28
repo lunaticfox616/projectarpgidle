@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { REST_MS, TICK_MS } from '../src/data/balance.ts';
 import { advance, createGame, LAST_ACT, step } from '../src/core/game.ts';
-import { equip, rollItem } from '../src/core/items.ts';
+import { discard, equip, itemScore, rollItem } from '../src/core/items.ts';
 import { actMap, distances, tileIndex } from '../src/core/map.ts';
 import { stats } from '../src/core/stats.ts';
-import type { GameEvent, GameState } from '../src/core/types.ts';
+import type { CurrencyKey, GameEvent, GameState, TempLoot } from '../src/core/types.ts';
 
 const run = (state: GameState, ticks: number): GameEvent[] => {
   const events: GameEvent[] = [];
@@ -65,12 +65,20 @@ test('the gate opens once, and only after every elite pack falls', () => {
   assert.equal(opened, 1);
 });
 
-test('boss loot settles into the save exactly once', () => {
-  const state = createGame(2, 'warrior');
+test('boss loot settles into the save exactly once, and equals what dropped', () => {
+  const state = createGame(2, 'warrior', { autoEquip: false });
+  const dropped: TempLoot = { currencies: {}, items: [] };
   for (let i = 0; i < 40000; i++) {
     const before = clone(state), events = step(state);
+    for (const e of events) {
+      if (e.type === 'runStarted') Object.assign(dropped, { currencies: {}, items: [] });
+      if (e.type !== 'lootDropped') continue;
+      for (const [key, n] of Object.entries(e.currencies)) dropped.currencies[key as CurrencyKey] = (dropped.currencies[key as CurrencyKey] ?? 0) + n;
+      dropped.items.push(...e.items);
+    }
     const cleared = events.find(e => e.type === 'actCleared');
     if (!cleared) continue;
+    assert.deepEqual(cleared.loot, dropped);
     for (const [key, amount] of Object.entries(state.currencies)) {
       assert.equal(amount, before.currencies[key as keyof typeof before.currencies] + (cleared.loot.currencies[key as keyof typeof cleared.loot.currencies] ?? 0));
     }
@@ -115,4 +123,19 @@ test('equipping an item changes stats and swaps the old one back into the invent
   assert.equal(stats(state).damage, base + 8);
   assert.deepEqual(state.inventory.map(i => i.id), [900]);
   assert.equal(equip(state, 12345), false);
+});
+
+test('auto-equip wears settled upgrades once; discard never touches equipped items', () => {
+  const state = createGame(2, 'warrior');
+  let equippedEvents = 0;
+  for (let i = 0; i < 40000 && state.actsCleared < 1; i++) {
+    for (const e of step(state)) if (e.type === 'itemsEquipped') equippedEvents++;
+  }
+  assert.equal(equippedEvents, 1, 'the act-1 boss always drops at least one upgrade over empty slots');
+  for (const item of state.inventory) assert.ok(itemScore(item) <= itemScore(state.equipment[item.slot]));
+  const worn = Object.values(state.equipment).map(item => item!.id);
+  const before = state.inventory.length;
+  assert.equal(discard(state, [...worn, ...state.inventory.map(i => i.id)]), before);
+  assert.deepEqual(state.inventory, []);
+  assert.deepEqual(Object.values(state.equipment).map(item => item!.id), worn);
 });

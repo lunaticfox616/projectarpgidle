@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0907">
+  <title>리그닌</title>
+  <link rel="stylesheet" href="src/web/style.css">
+</head>
+<body>
+  <canvas id="world" aria-label="탐험 화면"></canvas>
+  <div id="vignette" class="vignette"></div>
+
+  <main id="hud" class="hud" hidden>
+    <header class="top">
+      <section class="panel hero-card" aria-label="캐릭터">
+        <canvas id="portrait" width="44" height="44" aria-hidden="true"></canvas>
+        <div class="hero-meta">
+          <div class="hero-line"><b id="hero-class">전사</b><span class="lv">Lv <b id="hero-level">1</b></span></div>
+          <div class="bar hp" role="meter" aria-label="생명력" id="hp-meter"><i id="hp-fill"></i><span id="hp-text"></span></div>
+          <div class="bar exp" role="meter" aria-label="경험치" id="exp-meter"><i id="exp-fill"></i></div>
+        </div>
+      </section>
+
+      <section class="panel act-card" aria-label="현재 막">
+        <div class="act-no" id="act-no">1막</div>
+        <h1 id="act-title">뿌리끝 성소</h1>
+        <ol class="objective" id="objective"></ol>
+      </section>
+
+      <section class="panel map-card" aria-label="지도와 속도">
+        <canvas id="minimap" width="150" height="120" aria-hidden="true"></canvas>
+        <div class="speed" role="group" aria-label="게임 속도">
+          <button type="button" data-speed="1">×1</button>
+          <button type="button" data-speed="2">×2</button>
+          <button type="button" data-speed="4">×4</button>
+        </div>
+      </section>
+    </header>
+
+    <div class="bossbar" id="bossbar" hidden>
+      <span class="boss-name" id="boss-name"></span>
+      <div class="bar boss"><i id="boss-fill"></i></div>
+    </div>
+
+    <aside class="panel pouch" id="pouch" aria-label="전리품 주머니">
+      <h2>전리품 주머니 <span id="pouch-count"></span></h2>
+      <p class="warn">보스를 쓰러뜨리면 확정 · 쓰러지면 소실</p>
+      <ul id="pouch-list"></ul>
+    </aside>
+
+    <nav class="dock" aria-label="메뉴">
+      <button type="button" class="dock-btn" data-panel="gear"><span class="icon-gear" aria-hidden="true"></span>장비<span class="badge" id="bag-count" hidden></span></button>
+      <div class="wallet" id="wallet" aria-label="보유 재화"></div>
+      <button type="button" class="dock-btn" data-panel="settings"><span class="icon-cog" aria-hidden="true"></span>설정</button>
+    </nav>
+
+    <section class="panel drawer" id="drawer" role="dialog" aria-labelledby="drawer-title" hidden>
+      <header class="drawer-head"><h2 id="drawer-title"></h2><button type="button" class="close" id="drawer-close" aria-label="닫기">✕</button></header>
+      <div class="drawer-body" id="drawer-body"></div>
+    </section>
+
+    <div class="banner" id="banner" hidden></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <p class="asset-note" id="asset-note" hidden></p>
+  </main>
+
+  <section id="title-screen" class="title-screen" hidden>
+    <img class="logo" src="../assets/ui/rignin-logo.png" alt="리그닌">
+    <p class="tagline">뿌리없는 자여, 어느 길로 세계수를 거슬러 오르겠는가</p>
+    <div class="class-pick" id="class-pick"></div>
+    <p class="title-note" id="title-note" hidden></p>
+  </section>
+
+  <section id="settle" class="modal" role="dialog" aria-labelledby="settle-title" hidden>
+    <div class="panel settle-card">
+      <h2 id="settle-title">자리를 비운 동안</h2>
+      <p id="settle-away"></p>
+      <div class="bar progress"><i id="settle-fill"></i></div>
+      <dl id="settle-summary"></dl>
+      <button type="button" class="primary" id="settle-ok" hidden>계속하기</button>
+    </div>
+  </section>
+
+  <script type="module" src="build/main.js"></script>
+</body>
+</html>
