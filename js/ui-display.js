@@ -109,7 +109,13 @@ const uiDisplay = (() => {
         get explorationFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 1000 / 60, restingFrameMs()); },
         // 관리 창이 전장 위에 떠 있을 때(전장이 대부분 가려짐) 전장 그리기 간격. 전투 계산과는 무관하다.
         get coveredBattleFrameMs() { return 1000 / 10; },
-        get battleRenderScale() { return Math.max(1, Math.min(mobileDevice ? 1.5 : 2, (window.devicePixelRatio || 1) * factor)); }
+        // Canvas pixels per CSS pixel, capped for fill cost. The canvas is shown with image-rendering:pixelated, so it
+        // takes a whole number of device pixels per canvas pixel: a 2.625 phone renders at 1.3125 (×2 on screen)
+        // instead of 1.5 (×1.75, which drew every fourth pixel-art column twice as wide as its neighbours).
+        get battleRenderScale() {
+            const ratio = (window.devicePixelRatio || 1) * factor, cap = mobileDevice ? 1.5 : 2;
+            return Math.max(1, ratio / Math.max(1, Math.ceil(ratio / cap - 1e-6)));
+        }
     });
 })();
 safeExposeGlobals({ uiDisplay });

@@ -3,15 +3,21 @@ const actExplorationView=(()=>{
     const FOG_VIEW_PX=12; // pre-softened fog resolution per tile; drawn with cheap bilinear scaling
     let cache=null,lastOrigin=null;
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 or ×5 once the view keeps about
-     * 16×12 tiles — on a desktop window the corridor then fills the screen instead of floating in black. */
+     * 16×12 tiles — on a desktop window the corridor then fills the screen instead of floating in black.
+     * The tile is sized so one art pixel is a whole number of canvas pixels at the battle render scale
+     * (48 CSS px at scale 1, 48.76 on a 2.625 phone drawing 4 canvas px per art pixel). */
+    function renderScale() { return typeof uiDisplay==='object'?uiDisplay.battleRenderScale:1; }
     function tileSize(width,height) {
-        const fit=Math.floor(Math.min(width/16,height/12)/16);
-        return 16*Math.max(3,Math.min(5,fit));
+        const zoom=Math.max(3,Math.min(5,Math.floor(Math.min(width/16,height/12)/16))),scale=renderScale();
+        return 16*Math.max(1,Math.floor(zoom*scale+.25))/scale;
     }
+    /** The map origin on the canvas pixel grid, so the terrain, the characters and the re-dotted effects share it
+     * while the camera glides between cells. */
+    function snap(value) { const scale=renderScale();return Math.round(value*scale)/scale; }
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.layout(run.act);
         const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height);
-        const mapX=width/2-(cell.gx+.5)*tile,mapY=height/2-(cell.gy+.5)*tile;
+        const mapX=snap(width/2-(cell.gx+.5)*tile),mapY=snap(height/2-(cell.gy+.5)*tile);
         shiftActors(run,{x:mapX,y:mapY,tile});
         return {tileW:tile,tileH:tile,actorGroundOffsetY:tile/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*tile,

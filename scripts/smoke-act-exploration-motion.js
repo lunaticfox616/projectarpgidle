@@ -23,15 +23,19 @@ assert.equal(run('getGridBlockedCells().has(gridCellKey(game.actExploration.moti
     'other actors cannot enter the reserved destination');
 const camera=copy(`(()=>{const p=getBattleGridProjection(960,640,'grid-contain');
     return updatePlayerGridVisualMotion(p,game.gridPlayer,0,100).position;})()`);
-assert.deepEqual(camera,{x:480,y:328},'camera and actor use one position, not separate easing curves');
+// The map origin sits on the canvas pixel grid (pixel art must not be resampled at fractional offsets), so the
+// centred actor may land up to half a canvas pixel off centre; a separate easing curve or a tile jump is far larger.
+const near=(actual,expected,tolerance,message)=>assert.ok(Math.abs(actual.x-expected.x)<=tolerance&&Math.abs(actual.y-expected.y)<=tolerance,
+    `${message}: ${JSON.stringify(actual)} vs ${JSON.stringify(expected)}`);
+near(camera,{x:480,y:328},0.5,'camera and actor use one position, not separate easing curves');
 for(const expression of ['JSON.parse(serializeSaveState(game))','createCloudSavePayload(game)',
     'JSON.parse(createCloudSaveRequestBody("test",game)).save_data']) {
     run(`game=mergeDefaults(${expression});`);
     assert.deepEqual(copy('actExplorationMotion.position(game.actExploration,game.gridPlayer)'),pose,'local/cloud reconnect preserves fractional position');
 }
 advance(300);
-assert.deepEqual(copy(`(()=>{const p=getBattleGridProjection(960,640,'grid-contain');
-    return updatePlayerGridVisualMotion(p,game.gridPlayer,0,100).position;})()`),camera,
+near(copy(`(()=>{const p=getBattleGridProjection(960,640,'grid-contain');
+    return updatePlayerGridVisualMotion(p,game.gridPlayer,0,100).position;})()`),{x:480,y:328},0.5,
     'crossing the hit-cell boundary cannot shift the player on screen');
 assert.equal(run('game.gridPlayer.gx'),target.gx);assert.equal(run('game.gridPlayer.gy'),target.gy);
 assert.equal(run('!!game.actExploration.motion'),true,'hit cell changes at the halfway boundary, not on arrival');
