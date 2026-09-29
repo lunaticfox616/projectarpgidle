@@ -21,7 +21,8 @@ const THEMES = {
         title: '가지치기의 중정', shape: 'straight',
         floor: { base: 2, band: null, specks: ['crack', 'speck'] },
         paving: [{ style: 'slabs', where: 'all', ruin: 0.02, roomRuin: 0.03, tones: [2, 2, 3], mossy: 0.06, cracks: 0.12, grout: ['stone', 0] }],
-        ornament: { kind: 'arcs', roles: ['battle', 'elite', 'optional'], inset: 6, look: { style: 'gold', ramp: 'warm', level: 1 } },
+        // 방마다 그리던 금·옅은 선 무늬(사각 테두리+호, 동심원)는 농구 코트처럼 보여 뺐다(2026-09-30).
+        ornament: null,
         floorRoots: 14,
         wall: { top: 'masonry', face: 'arches', faceH: 24, jitter: false, edge: 70, buttress: 26, deep: 30, deepW: 8, fade: 40 },
         lamp: 'lantern', bossLamp: 'lantern', landmarks: ['statues', 'urn', 'ring', 'colonnade'], elite: 'statues', optional: 'shrine',
@@ -52,7 +53,8 @@ const THEMES = {
         title: '지주근의 침묵 성소', shape: 'straight',
         floor: { base: 2, band: null, specks: ['crack', 'pebble', 'speck'] },
         paving: [{ style: 'slabs', where: 'all', ruin: 0.1, roomRuin: 0.1, tones: [1, 2, 2], mossy: 0.1, cracks: 0.2, grout: ['dirt', 0] }],
-        ornament: { kind: 'rings', roles: ['battle', 'elite', 'optional'], inset: 6, look: { style: 'pale', ramp: 'stone', level: 4 } },
+        // 방마다 그리던 금·옅은 선 무늬(사각 테두리+호, 동심원)는 농구 코트처럼 보여 뺐다(2026-09-30).
+        ornament: null,
         floorRoots: 22,
         wall: { top: 'masonry', face: 'balustrade', faceH: 22, jitter: false, doors: true, edge: 50, buttress: 22, fade: 26 },
         lamp: 'brazier', bossLamp: 'brazier', landmarks: ['statues', 'pool', 'candles', 'colonnade'], pool: 'teal', elite: 'candles', optional: 'shrine',
@@ -62,7 +64,8 @@ const THEMES = {
         title: '무너진 중정', shape: 'straight',
         floor: { base: 2, band: 'grass', bandW: 2, patch: 1.2, specks: ['crack', 'pebble', 'blade'] },
         paving: [{ style: 'slabs', where: 'all', ruin: 0.12, roomRuin: 0.16, tones: [1, 2, 2], mossy: 0.12, cracks: 0.35, grout: ['dirt', 0] }],
-        ornament: { kind: 'quatrefoil', roles: ['battle', 'elite', 'optional'], inset: 6, look: { style: 'etched' } },
+        // 네잎 새김만 남기고 방 둘레 사각 테두리는 뺐다(2026-09-30).
+        ornament: { kind: 'quatrefoil', roles: ['battle', 'elite', 'optional'], inset: 6, look: { style: 'etched', frame: false } },
         floorRoots: 18,
         wall: { top: 'masonry', face: 'balustrade', faceH: 16, jitter: false, birch: true, edge: 30, buttress: 10, fade: 24 },
         lamp: 'brazier', bossLamp: 'brazier', landmarks: ['broken_statue', 'urn', 'colonnade', 'ring'], statue: 'broken_statue', elite: 'broken_statue',
@@ -92,7 +95,8 @@ const THEMES = {
         title: '비탄의 교차', shape: 'organic',
         floor: { base: 3, band: null, specks: ['petal', 'petal', 'twig', 'crack'] },
         paving: [{ style: 'slabs', where: 'all', ruin: 0.04, roomRuin: 0.05, tones: [2, 2, 3], mossy: 0.04, cracks: 0.1, grout: ['dirt', 0] }],
-        ornament: { kind: 'arcs', roles: ['battle', 'elite', 'optional'], inset: 6, look: { style: 'pale', ramp: 'stone', level: 5 } },
+        // 방마다 그리던 금·옅은 선 무늬(사각 테두리+호, 동심원)는 농구 코트처럼 보여 뺐다(2026-09-30).
+        ornament: null,
         floorRoots: 24,
         wall: { top: 'canopy', face: 'railing', faceH: 16, flowers: 0.16, flowerRamp: 'teal' },
         lamp: 'lantern', bossLamp: 'lantern', landmarks: ['blossom', 'stump', 'twigs', 'statues'], elite: 'cocoon', optional: 'shrine', treasure: 'blossom',
@@ -102,7 +106,8 @@ const THEMES = {
         title: '합일의 차륜', shape: 'straight',
         floor: { base: 2, band: null, specks: ['star', 'speck'] },
         paving: [{ style: 'slabs', where: 'all', ruin: 0.02, roomRuin: 0.02, tones: [1, 2, 2], mossy: 0, cracks: 0.06, grout: ['dirt', 0] }],
-        ornament: { kind: 'rings', roles: ['battle', 'elite', 'optional', 'entry'], inset: 5, look: { style: 'gold', ramp: 'warm', level: 1 } },
+        // 방마다 그리던 금·옅은 선 무늬(사각 테두리+호, 동심원)는 농구 코트처럼 보여 뺐다(2026-09-30).
+        ornament: null,
         floorRoots: 0,
         wall: { top: 'void', face: 'obsidian', faceH: 18, jitter: false, stars: true },
         lamp: 'brazier', bossLamp: 'brazier', landmarks: ['gold_statue', 'ring', 'statues', 'colonnade'], statue: 'gold_statue', ring: 'warm', ringGlow: true,

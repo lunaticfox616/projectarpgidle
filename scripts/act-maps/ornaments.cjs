@@ -63,9 +63,9 @@ const KINDS = {
         const m = Math.min(f.hw, f.hh);
         for (const k of [0.16, 0.5, 0.82]) for (const p of circleDots(f.cx, f.cy, m * k, m * k)) lineDot(cv, g, p[0], p[1], look, seen);
     },
-    /** 테두리 + 둥글게 늘어선 판석마다 작은 네잎 무늬(액트 6). */
+    /** 테두리(look.frame: false면 생략) + 둥글게 늘어선 판석마다 작은 네잎 무늬(액트 6). */
     quatrefoil(cv, g, f, look, seen) {
-        KINDS.border(cv, g, f, look, seen);
+        if (look.frame !== false) KINDS.border(cv, g, f, look, seen);
         const m = Math.min(f.hw, f.hh);
         for (let y = f.box[1] + 8; y < f.box[3]; y += 16) for (let x = f.box[0] + 8; x < f.box[2]; x += 16) {
             const d = Math.hypot(x - f.cx, y - f.cy);
