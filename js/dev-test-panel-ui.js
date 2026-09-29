@@ -6,7 +6,7 @@ const devTestPanel = (() => {
     const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
     const SPEEDS = [1, 2, 4, 8];
     const SUMMON_STYLES = [['glow', '코어키퍼식'], ['dark', '다크 판타지'], ['simple', '단순 색감'], ['cute', '기본 · 귀여운']];
-    const WEAPON_MODES = [['auto', '젬에 맞춰 자동'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
+    const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
 
@@ -149,7 +149,7 @@ const devTestPanel = (() => {
         line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'} · ${game.activeSkill} · ${weaponLabel()} · Lv.${game.level} · ${sprite} · 이펙트 ${fx} · ×${speed}`;
     }
     function weaponLabel() {
-        const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.activeSkill, game.settings.heroWeaponMode || 'auto');
+        const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment['무기'], game.settings.heroWeaponMode || 'auto');
         return HANA_WEAPON_COMBOS.weapons[weapon]?.label || '-';
     }
 

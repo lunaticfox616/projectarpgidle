@@ -105,15 +105,23 @@ for (const classId of classIds) {
     }
 }
 
-// The weapon in hand follows the gem: the class keeps its own weapon when it fits the gem's motion.
-const weapons = plain(run(`[
-    hanaActors.weaponFor('warrior', '연속 베기'), hanaActors.weaponFor('wanderer', '연속 베기'),
-    hanaActors.weaponFor('warrior', '서리 폭발'), hanaActors.weaponFor('cleric', '서리 폭발'),
-    hanaActors.weaponFor('alchemist', '관통 사격'), hanaActors.weaponFor('occultist', '원소 포션 투척'),
-    hanaActors.weaponFor('archer', '파문심판'), hanaActors.weaponFor('archer', '기본 공격'),
-    hanaActors.weaponFor('archer', '서리 폭발', 'class'), hanaActors.weaponFor('archer', '서리 폭발', 'flask')
-]`));
-assert.deepStrictEqual(weapons, ['greatsword', 'scimitar', 'orb', 'censer', 'shortbow', 'flask', 'censer', 'shortbow', 'shortbow', 'flask'],
-    'gem → weapon: blades, casts, bows, flasks and censers; the class weapon when it fits or for gems without a motion');
+// The weapon in hand follows the equipped weapon's base: every weapon base in the game maps to a drawn weapon.
+const weapons = plain(run(`(function () {
+    const item = id => ({ slot: '무기', baseId: id, baseName: BASE_ITEM_DB.find(b => b.id === id).name });
+    return [
+        hanaActors.weaponFor('warrior', item('rusted_blade')), hanaActors.weaponFor('archer', item('doomcleaver_blade')),
+        hanaActors.weaponFor('cleric', item('hunter_axe')), hanaActors.weaponFor('wanderer', item('tempest_pike')),
+        hanaActors.weaponFor('warrior', item('windlash_bow')), hanaActors.weaponFor('occultist', item('seeker_railgun')),
+        hanaActors.weaponFor('warrior', item('nova_rod')), hanaActors.weaponFor('cleric', item('void_archon_staff')),
+        hanaActors.weaponFor('alchemist', item('ember_wand')), hanaActors.weaponFor('archer', null),
+        hanaActors.weaponFor('warrior', { slot: '무기', name: '세계파쇄자', rarity: 'unique' }),
+        hanaActors.weaponFor('archer', item('rusted_blade'), 'class'), hanaActors.weaponFor('archer', null, 'censer')
+    ];
+})()`));
+assert.deepStrictEqual(weapons, ['scimitar', 'greatsword', 'scimitar', 'greatsword', 'shortbow', 'shortbow', 'orb', 'censer', 'flask',
+    'shortbow', 'greatsword', 'shortbow', 'censer'],
+    'equipped weapon → drawn weapon: blades/axes, greatswords/polearms, bows/launchers, casting weapons by class; unarmed keeps the class weapon');
+const unmapped = plain(run(`BASE_ITEM_DB.filter(b => b.slot === '무기').filter(b => hanaActors.weaponFor('warrior', { slot: '무기', baseId: b.id, baseName: b.name }) === 'greatsword' && !/great|doom|executioner|spear|pike|lance|glaive|대검|창|글레이브/.test(b.id + b.name)).map(b => b.id)`));
+assert.deepStrictEqual(unmapped, [], 'no weapon base falls through to the warrior default by accident');
 
 console.log('hana actors ok');

@@ -6,11 +6,11 @@
  * 시뮬레이터 HTML에는 6직업 × 6무기(대검·곡도·단궁·오브·플라스크·향로) 조합 시트가 레이어째 들어 있다
  * (인계서 "교차 무기 — 36조합 모두 생성됨(시뮬레이터 안)"). 이 명령은 그것을
  *   assets/playable/hana/combos/<직업 id>/<무기 slug>.png
- * 로 쓰고, 규격(프레임 ms·타격 프레임·손 좌표·레이어 배치)과 젬 → 무기 대응을 data/hana-weapon-combos.js 로 옮긴다.
+ * 로 쓰고, 규격(프레임 ms·타격 프레임·손 좌표·레이어 배치)을 data/hana-weapon-combos.js 로 옮긴다.
+ * 어떤 무기를 그릴지는 착용한 무기 아이템이 정한다(js/canvas-hana-actors.js weaponFor).
  *
  * 시트 배치: 칸은 79×79 캐릭터 칸에서 crop[x0,y0,w,h]만 잘라 둔 것. 열 = 레이어(무기_뒤·베이스·무기_앞·
  * 빈손_뒤·빈손_앞) × 10프레임, 행 = 모션(대기·달리기·공격·피격) × 방향(옆·아래·위). 왼쪽은 옆을 좌우 반전.
- * 젬 → 무기: 시뮬레이터의 "젬에 맞춰 자동" 분류(MOTION_CAT·CATS, docs/skill-assets-hana/reference/ui_player.js.txt).
  * 원본 라이선스(Hana Caraka): 게임 안 사용·수정만 가능, 재배포 금지. 이 저장소 밖으로 내보내지 않는다.
  */
 'use strict';
@@ -20,14 +20,6 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const JOBS = { 전사: 'warrior', 방랑자: 'wanderer', 궁수: 'archer', 비술사: 'occultist', 연금술사: 'alchemist', 성직자: 'cleric' };
 const WEAPONS = { 대검: 'greatsword', 곡도: 'scimitar', 단궁: 'shortbow', 오브: 'orb', 플라스크: 'flask', 향로: 'censer' };
-// Weapons whose motion fits each gem category, preferred first. A class keeps its own weapon when it fits
-// (a wanderer slashes with the scimitar, a cleric casts with the censer); otherwise the first one is drawn.
-const CATEGORY_WEAPONS = {
-    melee: ['대검', '곡도'], slam: ['대검', '곡도'], spin: ['대검', '곡도'], move: ['곡도', '대검'],
-    shoot: ['단궁'], flask: ['플라스크'], censer: ['향로'],
-    spell: ['오브', '향로'], channel: ['오브', '향로'], lance: ['오브', '향로'], summon: ['오브', '향로'],
-    spear: ['오브', '향로'], throw: ['오브', '향로']
-};
 
 function fail(message) { console.error(message); process.exit(1); }
 /** A JSON object literal assigned as `NAME=` inside the page, taken by brace matching. */
@@ -42,12 +34,6 @@ function grabObject(source, name) {
         else if (ch === '}' && --depth === 0) { end++; break; }
     }
     return JSON.parse(source.slice(start, end));
-}
-function motionCategories() {
-    const text = fs.readFileSync(path.join(root, 'docs/skill-assets-hana/reference/ui_player.js.txt'), 'utf8');
-    const match = text.match(/const MOTION_CAT=(\{[^}]*\})/);
-    if (!match) fail('ui_player.js.txt에서 MOTION_CAT을 찾지 못했습니다.');
-    return Function(`return ${match[1]}`)();
 }
 function slug(weapon) { return WEAPONS[weapon] || fail(`모르는 무기: ${weapon}`); }
 function points(value) {
@@ -73,10 +59,6 @@ function writeSheets(meta, sheets) {
     }
     return combos;
 }
-function gemWeapons(meta) {
-    const categories = Object.fromEntries(Object.entries(CATEGORY_WEAPONS).map(([cat, list]) => [cat, list.map(slug)]));
-    return { byGemId: motionCategories(), categories };
-}
 function main() {
     const htmlPath = process.argv[2];
     if (!htmlPath || !fs.existsSync(htmlPath)) fail('사용법: node scripts/import-hana-weapon-combos.cjs <리그닌_젬_시전_시뮬레이터.html>');
@@ -88,7 +70,7 @@ function main() {
         maxFrames: meta.maxFrames, motions: meta.motions, dirs: meta.dirs, layers: meta.layers,
         weapons: Object.fromEntries(meta.weapons.map(weapon => [slug(weapon), { label: weapon, hitFrame: meta.hit[weapon] }])),
         classWeapons: Object.fromEntries(Object.entries(meta.default).map(([job, weapon]) => [JOBS[job], slug(weapon)])),
-        gems: gemWeapons(meta), combos
+        combos
     };
     // One line per top-level field and per combo keeps the file diffable without one number per line.
     const fields = Object.entries(out).filter(([key]) => key !== 'combos').map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)}`);
