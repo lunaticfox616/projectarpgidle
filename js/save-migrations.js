@@ -832,6 +832,7 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.actExplorationMode = merged.settings.actExplorationMode === 'full' ? 'full' : 'direct';
+    merged.settings.autoMove = merged.settings.autoMove !== false;
     merged.settings.disableItemAutomationAfterLoop = merged.settings.disableItemAutomationAfterLoop !== false;
     merged.settings.postLoopMapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.postLoopMapCompleteAction) ? merged.settings.postLoopMapCompleteAction : 'nextLoopBestPlusOne';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';

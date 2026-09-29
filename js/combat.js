@@ -2944,7 +2944,7 @@ function coreLoop(nowMs) {
                 }
             }
         }
-        mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange }); // 이동 스킬: closes the gap the main gem can't reach
+        mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange, auto: !actExplorationProgress.holdPosition(hazardEvasion.holdPosition) }); // 이동 스킬: the player's key, or (auto-move on) closing the gap the main gem can't reach
         runSummonAttackTick(pStats);
         performMonsterAttacks(pStats);
     }
@@ -8435,7 +8435,7 @@ function createActExplorationEncounter(zone,enabled=zone.type==='act') {
         for(let stage=0;stage<STORY_ACTS[zone.id].maxKills;stage++)packs.push(createActExplorationPack(zone,room,stage));
     }
     const run=actExplorationState.create(map.act,packs,getCombatTime());
-    run.mode=game.settings.actExplorationMode;
+    run.mode=actExplorationProgress.startMode(game.settings);
     return run;
 }
 

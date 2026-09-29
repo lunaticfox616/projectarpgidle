@@ -122,24 +122,27 @@ const actExplorationState = (() => {
         }
         state.enemies=[];
     }
-    /** Unknown manual destinations remain unavailable. A sealed gate blocks every routing mode. */
+    /** The player's move command (minimap, map or battlefield click). It never changes the mode: with auto-move on the
+     * hero walks there and then goes on exploring. Unknown cells stay unavailable; a sealed gate blocks every route. */
     function selectDestination(run,cell) {
         const map=actExplorationMap.layout(run.act);
         const sealed=remainingElites(run)>0;
         if(!actExplorationMap.walkable(map,cell,sealed))return false;
         if(!run.discovered.includes(actExplorationMap.index(map,cell)))return false;
         if(sealed && !reachableBeforeBoss(map,cell))return false;
-        run.mode='manual';run.destination={gx:cell.gx,gy:cell.gy};return true;
+        run.destination={gx:cell.gx,gy:cell.gy};return true;
     }
     function reachableBeforeBoss(map,cell) {
         if(cell.gx===map.entry.gx && cell.gy===map.entry.gy)return true;
         const blocked=new Set([actExplorationMap.index(map,map.gate)]);
         return actExplorationMap.route(map,map.entry,cell,blocked).length>0;
     }
+    /** Where the hero walks: the player's command first, then — auto-move on (mode direct/full) — the nearest pack
+     * the route wants; with auto-move off (mode manual) only commands move it. */
     function destination(run,from) {
+        if(run.destination || run.mode==='manual')return run.destination;
         const map=actExplorationMap.layout(run.act);
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
-        if(run.mode==='manual')return run.destination;
         const candidates=run.packs.filter(pack=>pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
         const targets=run.mode==='full' && ordinary.length ? ordinary

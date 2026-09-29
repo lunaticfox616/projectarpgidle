@@ -12,7 +12,9 @@ const HOTKEY_ACTIONS = Object.freeze([
     { id: 'flask:1', kind: 'flask', target: 1, label: '보조 플라스크 1', code: 'Digit2' },
     { id: 'flask:2', kind: 'flask', target: 2, label: '보조 플라스크 2', code: 'Digit3' },
     { id: 'flask:3', kind: 'flask', target: 3, label: '보조 플라스크 3', code: 'Digit4' },
-    { id: 'flask:4', kind: 'flask', target: 4, label: '보조 플라스크 4', code: 'Digit5' }
+    { id: 'flask:4', kind: 'flask', target: 4, label: '보조 플라스크 4', code: 'Digit5' },
+    { id: 'combat:mobility', kind: 'combat', target: 'mobility', label: '이동 스킬 사용', code: 'KeyE' },
+    { id: 'combat:autoMove', kind: 'combat', target: 'autoMove', label: '자동 이동 켜기·끄기', code: 'KeyA' }
 ].map(Object.freeze));
 
 // 바꿀 수 있는 키: 글자·숫자·숫자패드와 기호 몇 개. 브라우저 동작과 겹치는 Esc·Tab·Enter·Space·F키는 제외.

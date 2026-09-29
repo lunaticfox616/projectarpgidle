@@ -7,16 +7,14 @@ const actExplorationUi=(()=>{
         // toggleAttribute leaves an unchanged flag alone, so per-frame calls do not restyle the page.
         const run=actExplorationState.current(game);panel.toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-map').toggleAttribute('hidden',!run);
+        document.getElementById('btn-act-exploration-auto').toggleAttribute('hidden',!run);
         renderLoot(run);
         if(!run){lastRun=null;lastKey='';return;}
         const remaining=actExplorationState.remainingElites(run);
         const key=[run.discovered.length,game.gridPlayer.gx,game.gridPlayer.gy,remaining,run.status,run.mode,
-            run.destination?.gx,run.destination?.gy,run.packs.map(p=>p.aliveIds.length).join(',')].join(':');
+            run.destination?.gx,run.destination?.gy,run.packs.map(p=>p.aliveIds.length).join(','),autoKey()].join(':');
         if(run===lastRun&&key===lastKey)return;lastRun=run;lastKey=key;
-        for(const button of document.querySelectorAll('[data-exploration-mode]')) {
-            button.setAttribute('aria-pressed',String(button.dataset.explorationMode===run.mode));
-            button.disabled=run.status!=='active';
-        }
+        renderModes(run);
         const seal=document.getElementById('act-exploration-seal');
         seal.textContent=remaining?'🔒 '+remaining:'🔓 개방';
         seal.setAttribute('aria-label',remaining?'남은 정예 몬스터 수: '+remaining:'보스 관문 개방');
@@ -24,6 +22,22 @@ const actExplorationUi=(()=>{
         draw(document.getElementById('act-exploration-map-large'),run);
         renderProgress(run);
     }
+    /** 크게 보기 창의 탐험 방식 단추와 미니맵의 자동 이동 단추(같은 상태: 직접 이동 = 자동 이동 꺼짐). */
+    function renderModes(run) {
+        for(const button of document.querySelectorAll('[data-exploration-mode]')) {
+            button.setAttribute('aria-pressed',String(button.dataset.explorationMode===run.mode));
+            button.disabled=run.status!=='active';
+        }
+        const auto=document.getElementById('btn-act-exploration-auto'),on=run.mode!=='manual',key=autoKey();
+        auto.setAttribute('aria-pressed',String(on));
+        auto.disabled=run.status!=='active';
+        auto.querySelector('b').textContent=on?'자동':'수동';
+        auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+' · 눌러서 바꾸기'+(key?' ('+key+')':''));
+        const cap=auto.querySelector('.combat-flask-key');
+        cap.textContent=key;cap.hidden=!key;
+        if(key)auto.setAttribute('aria-keyshortcuts',key);else auto.removeAttribute('aria-keyshortcuts');
+    }
+    function autoKey() {return hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides,'combat:autoMove'));}
     // 미니맵 둘레 고리: 밝혀낸 바닥 비율. 글자 없이 고리로만 보인다(남은 정예 수는 크게 보기 창의 봉인 표시).
     // 표시 전용이며 탐험 규칙과 무관하다.
     function renderProgress(run) {
@@ -114,8 +128,26 @@ const actExplorationUi=(()=>{
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
         run.mode=value;run.destination=null;
+        game.settings.autoMove=value!=='manual';
         if(value!=='manual')game.settings.actExplorationMode=value;
         render();
+    }
+    /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
+    function toggleAuto() {
+        const on=game.settings.autoMove===false,run=actExplorationState.current(game);
+        game.settings.autoMove=on;
+        if(run&&run.status==='active')run.mode=actExplorationProgress.startMode(game.settings);
+        showGameToast(on?'자동 이동을 켰습니다':'자동 이동을 껐습니다 · 클릭한 곳으로만 움직입니다',{duration:1800});
+        render();
+        return on;
+    }
+    /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */
+    function commandMove(cell) {
+        const run=actExplorationState.current(game);if(!run||run.status!=='active'||!cell)return false;
+        const accepted=actExplorationState.selectDestination(run,cell);
+        if(!accepted)showGameToast('그곳으로는 갈 수 없습니다',{tone:'warning',duration:1400});
+        render();
+        return accepted;
     }
     // 모바일의 작은 미니맵은 손가락으로 칸을 고르기 어려워, 누르면 크게 보기 창을 연다(칸 선택은 큰 지도에서).
     function choose(event) {
@@ -125,14 +157,14 @@ const actExplorationUi=(()=>{
         const view=mapView(event.currentTarget,map);
         const cell={gx:view.x0+Math.floor((event.clientX-rect.left)/rect.width*view.cols),
             gy:view.y0+Math.floor((event.clientY-rect.top)/rect.height*view.rows)};
-        actExplorationState.selectDestination(run,cell);render();
+        commandMove(cell);
     }
     function key(event) {
         const offsets={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
         const delta=offsets[event.key],run=actExplorationState.current(game);
         if(!delta||!run||run.status!=='active')return;
         event.preventDefault();
-        actExplorationState.selectDestination(run,{gx:game.gridPlayer.gx+delta[0],gy:game.gridPlayer.gy+delta[1]});render();
+        commandMove({gx:game.gridPlayer.gx+delta[0],gy:game.gridPlayer.gy+delta[1]});
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
     function collectLootRows(loot) {
@@ -231,6 +263,6 @@ const actExplorationUi=(()=>{
             (rows.length>6?'\n외 '+(rows.length-6)+'개':'');
     }
     document.addEventListener('click',departureClick,true);
-    return {render,mode,choose,key,expand,hint,openLoot,inspectLoot,collectLootRows,departurePending:()=>departurePending};
+    return {render,mode,toggleAuto,commandMove,choose,key,expand,hint,openLoot,inspectLoot,collectLootRows,departurePending:()=>departurePending};
 })();
 safeExposeGlobals({actExplorationUi});

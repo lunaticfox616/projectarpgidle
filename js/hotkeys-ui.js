@@ -1,6 +1,7 @@
 // PC 단축키: 키 입력 처리, 메뉴·HUD 키 표시, 설정 > 전투 · 소리 > 단축키 화면.
 // 배정 해석은 js/hotkeys.js(hotkeyBindings), 창 열기/닫기는 ui-window-manager(toggleWindowFromHotkey),
-// 플라스크 사용 규칙은 js/combat.js(useFlaskSlot)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.
+// 플라스크 사용 규칙은 js/combat.js(useFlaskSlot), 이동 스킬은 js/mobility-skill.js(request), 자동 이동은
+// js/act-exploration-ui.js(toggleAuto)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.
 const hotkeysUi = (() => {
     'use strict';
     const FLASK_DENIED = Object.freeze({
@@ -29,20 +30,34 @@ const hotkeysUi = (() => {
         button.classList.add(ok ? 'flask-used' : 'flask-denied');
     }
 
-    function announceDenied(reason) {
+    /** A held key or quick taps repeat the same refusal; one toast per reason in DENIED_TOAST_GAP_MS. */
+    function announceDenied(message) {
         const now = performance.now();
-        if (lastDenied.reason === reason && now - lastDenied.at < DENIED_TOAST_GAP_MS) return;
-        lastDenied = { reason, at: now };
-        showGameToast(FLASK_DENIED[reason] || '지금은 마실 수 없습니다', { tone: 'warning', duration: 1600 });
+        if (lastDenied.reason === message && now - lastDenied.at < DENIED_TOAST_GAP_MS) return;
+        lastDenied = { reason: message, at: now };
+        showGameToast(message, { tone: 'warning', duration: 1600 });
     }
 
     /** HUD 칸 클릭과 단축키가 함께 쓰는 입구. */
     function useFlask(slot, button) {
         const result = useFlaskSlot(slot);
         if (result.ok) renderCombatFlaskHud();
-        else announceDenied(result.reason);
+        else announceDenied(FLASK_DENIED[result.reason] || '지금은 마실 수 없습니다');
         flashFlask(button || document.querySelector(`#ui-combat-flasks [data-flask-slot="${slot}"]`), result.ok);
         return result;
+    }
+
+    /** HUD 이동 스킬 칸 클릭과 단축키가 함께 쓰는 입구: 다음 전투 틱에 시전된다. '' = 받아들임, 아니면 못 쓰는 까닭. */
+    function useMobility(button) {
+        const reason = mobilitySkill.request();
+        if (reason) announceDenied(reason);
+        flashFlask(button || document.querySelector('#ui-combat-skill-gems .player-hud-skill-slot.mobility'), !reason);
+        return reason;
+    }
+
+    function useCombatAction(target) {
+        if (target === 'mobility') useMobility();
+        else actExplorationUi.toggleAuto();
     }
 
     function onKeydown(event) {
@@ -55,7 +70,8 @@ const hotkeysUi = (() => {
             return;
         }
         event.preventDefault();
-        useFlask(action.target);
+        if (action.kind === 'combat') useCombatAction(action.target);
+        else useFlask(action.target);
     }
 
     function captureKey(event) {
@@ -113,6 +129,7 @@ const hotkeysUi = (() => {
         const group = kind => hotkeyBindings.actions.filter(action => action.kind === kind).map(action => rowHtml(action, bindings)).join('');
         host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">창 열기·닫기</div>${group('window')}</div>`
             + `<div class="hotkey-section"><div class="hotkey-section-title">플라스크 마시기</div>${group('flask')}</div>`
+            + `<div class="hotkey-section"><div class="hotkey-section-title">전투 · 이동</div>${group('combat')}</div>`
             + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${escapeHTML(notice)}</span>`
             + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>기본값으로</button></div>`;
     }
@@ -164,6 +181,6 @@ const hotkeysUi = (() => {
         refresh();
     }
 
-    return Object.freeze({ init, sync, useFlask });
+    return Object.freeze({ init, sync, useFlask, useMobility });
 })();
 safeExposeGlobals({ hotkeysUi });

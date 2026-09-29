@@ -53,7 +53,23 @@ const actExplorationView=(()=>{
         }
         // The fog is pre-softened into fogView whenever it changes; per frame it is only copied.
         updateFog(run,map);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
-        ctx.drawImage(cache.fogView,p.mapX,p.mapY,p.mapWidth,p.mapHeight);ctx.restore();return true;
+        ctx.drawImage(cache.fogView,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
+        drawCommand(ctx,run,p);ctx.restore();return true;
+    }
+    /** The player's move command: a thin pale-gold dashed ring on the cell's floor until the hero gets there. */
+    function drawCommand(ctx,run,p) {
+        const cell=run.destination;if(!cell)return;
+        const point=p.cellToScreen(cell.gx,cell.gy),dot=p.tileW/16;
+        ctx.globalAlpha=.9;ctx.strokeStyle='#f3e5b4';ctx.lineWidth=Math.max(1,dot);ctx.setLineDash([dot*2,dot*1.5]);
+        ctx.beginPath();ctx.ellipse(point.x,point.y+p.actorGroundOffsetY,p.tileW*.3,p.tileW*.13,0,0,Math.PI*2);ctx.stroke();
+        ctx.setLineDash([]);ctx.globalAlpha=1;
+    }
+    /** The cell under a canvas point (CSS px, getBattlefieldClientPoint) in this frame's projection; null before the
+     * first exploration frame. A camera shake (a few px for a moment) is not undone. */
+    function cellAt(point) {
+        const run=actExplorationState.current(game);
+        if(!run || lastOrigin?.run!==run || !point)return null;
+        return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.tile)};
     }
     /** Discovered ground dims with distance (≤48%). Undiscovered ground is not a wall of black: just past the
      * discovered edge it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
@@ -139,6 +155,6 @@ const actExplorationView=(()=>{
         }
         ctx.restore();
     }
-    return {projection,background,appendScenery,waitingEnemies,drawScenery,bossRoomGlow};
+    return {projection,background,appendScenery,waitingEnemies,drawScenery,bossRoomGlow,cellAt};
 })();
 safeExposeGlobals({actExplorationView});

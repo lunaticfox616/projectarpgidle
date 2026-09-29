@@ -38,13 +38,13 @@ function arena(mobility, enemies, hero = { gx: 3, gy: 4 }, main = '연속 베기
       game.enemies=arenaEnemies.map((e,i)=>Object.assign(createEnemy(getZone(1),{at:0},0),
         {id:9100+i,hp:1e7,maxHp:1e7,energyShield:0,evasion:0,evasionChance:0,facingDirection:4,...e}));`);
 }
-/** The slot decides and its casts move on; the main gem's reach gates it like in the combat loop. */
-function play(ms, inRange) {
+/** The slot decides and its casts move on; the main gem's reach gates it like in the combat loop (auto: auto-move on). */
+function play(ms, inRange, auto = true) {
     let casts = 0;
     for (let t = 0; t <= ms; t += 50) {
-        r.tickMs = t; r.forceRange = inRange;
+        Object.assign(r, { tickMs: t, forceRange: inRange, autoMove: auto });
         run('game.combatTimeMs=100000+tickMs;globalThis.mainStats=getPlayerStats(false);advanceSkillGemCasts(mainStats);');
-        casts += run('mobilitySkill.cast({blocked:false,inRange:forceRange ?? getSkillTargets(mainStats).length>0})') ? 1 : 0;
+        casts += run('mobilitySkill.cast({blocked:false,inRange:forceRange ?? getSkillTargets(mainStats).length>0,auto:autoMove})') ? 1 : 0;
     }
     return { casts, hero: json('[game.gridPlayer.gx,game.gridPlayer.gy]'), hurt: json('game.enemies.map(e=>e.hp<e.maxHp)') };
 }
@@ -83,29 +83,54 @@ arena('향로구름', [{ gx: 4, gy: 4 }]);
 result = play(800);
 assert.deepEqual([result.casts, result.hero], [0, [3, 4]], 'the main gem already reaches an enemy: no gap to close');
 
+// ---------------------------------------------------------------- the player's key / HUD slot
+arena('향로구름', [{ gx: 4, gy: 4 }]);
+assert.equal(run('mobilitySkill.request()'), '', 'pressed with an enemy in its reach: the next tick casts it');
+result = play(400);
+assert.equal(result.casts, 1, 'a requested cast goes even when the main gem already reaches an enemy');
+assert.match(run('mobilitySkill.request()'), /^재사용 대기 \d+\.\d초$/, 'pressed again: it says how long the cooldown still runs');
+
+arena('향로구름', [{ gx: 6, gy: 4 }]);
+result = play(800, undefined, false);
+assert.equal(result.casts, 0, 'with auto-move off the gem never closes a gap by itself');
+run('mobilitySkill.request()');
+result = play(1500, undefined, false);
+assert.deepEqual([result.casts, result.hero], [1, [5, 4]], 'but the player can still cast it');
+
+arena('향로구름', [{ gx: 13, gy: 4 }]);
+assert.equal(run('mobilitySkill.request()'), '닿는 적이 없습니다', 'no enemy in its reach: nothing to cast at');
+run("game.mobilitySkill='';");
+assert.equal(run('mobilitySkill.request()'), '이동 스킬 젬을 장착하지 않았습니다', 'nothing worn');
+
+arena('향로구름', [{ gx: 4, gy: 4 }]);
+run('mobilitySkill.request();');
+assert.equal(run('mobilitySkill.cast({blocked:true,inRange:true,auto:true})'), false, 'a request waits while the caster is busy');
+run('game.combatTimeMs+=1600;');
+assert.equal(run('mobilitySkill.cast({blocked:false,inRange:true,auto:true})'), false, 'and lapses when it waited too long');
+
 // ---------------------------------------------------------------- the main gem's casts in flight are untouched
 arena('암살', [{ gx: 6, gy: 4, facingDirection: 4 }], { gx: 3, gy: 4 }, '탄성 플라스크');
 run('globalThis.mainStats=getPlayerStats(false);performPlayerAttack(mainStats);');
-assert.ok(run('mobilitySkill.cast({blocked:false,inRange:false})'), 'the mobility gem casts beside the main gem');
+assert.ok(run('mobilitySkill.cast({blocked:false,inRange:false,auto:true})'), 'the mobility gem casts beside the main gem');
 assert.ok(run('skillGemCombatRuntime.casts.some(c=>c.id===44)'), 'the main gem\'s flask is still in flight');
 assert.ok(run('mobilitySkill.castState().casts.some(c=>c.id===52)'), 'and the assassination runs in the slot\'s own cast state');
 assert.equal(run('game.activeSkill'), '탄성 플라스크', 'the main gem is back in its slot after the cast');
 
 // ---------------------------------------------------------------- while the caster is mid-move it neither walks nor attacks
 arena('공중강타', [{ gx: 6, gy: 4 }]);
-run('mobilitySkill.cast({blocked:false,inRange:false});');
+run('mobilitySkill.cast({blocked:false,inRange:false,auto:true});');
 assert.ok(run('mobilitySkill.moving()'), 'a leap is a move in progress');
 assert.equal(run('updatePlayerGridEngagement(getPlayerStats(false),{})'), false, 'so the engagement holds');
 
 // ---------------------------------------------------------------- an enemy walks onto the landing mid-move
 arena('공중강타', [{ gx: 6, gy: 4 }]);
-run('mobilitySkill.cast({blocked:false,inRange:false});game.enemies.push(Object.assign(createEnemy(getZone(1),{at:0},0),{id:9199,gx:5,gy:4,hp:1e7,maxHp:1e7,energyShield:0,evasion:0,evasionChance:0}));');
+run('mobilitySkill.cast({blocked:false,inRange:false,auto:true});game.enemies.push(Object.assign(createEnemy(getZone(1),{at:0},0),{id:9199,gx:5,gy:4,hp:1e7,maxHp:1e7,energyShield:0,evasion:0,evasionChance:0}));');
 result = play(1200, false);
 assert.deepEqual(result.hero, [4, 4], 'the leap comes down beside the cell that got taken, nearest the caster');
 assert.deepEqual(result.hurt, [false, true], 'and slams the cells around where it really landed');
 
 // ---------------------------------------------------------------- replay isolation
 arena('차원찢기', [{ gx: 6, gy: 4 }]);
-run('mobilitySkill.cast({blocked:false,inRange:false});globalThis.online=JSON.stringify(mobilitySkill.capture());globalThis.sim=createCombatReplay(2000,game,getCombatTime());advanceCombatReplay(sim,1000);');
+run('mobilitySkill.cast({blocked:false,inRange:false,auto:true});globalThis.online=JSON.stringify(mobilitySkill.capture());globalThis.sim=createCombatReplay(2000,game,getCombatTime());advanceCombatReplay(sim,1000);');
 assert.equal(run('JSON.stringify(mobilitySkill.capture())'), run('online'), 'an offline replay cannot move the online mobility cast');
 console.log('mobility skill slot: save, equipping, gap closing, 54~57 landings, isolation ok');

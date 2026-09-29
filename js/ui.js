@@ -993,10 +993,16 @@ function setupBattlefieldShrineInteraction() {
         canvas.style.cursor = '';
     });
     canvas.addEventListener('click', event => {
-        if (!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY)) return;
         event.preventDefault();
-        claimBattlefieldShrine();
+        if (getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY)) claimBattlefieldShrine();
+        else commandBattlefieldMove(canvas, event);
     });
+}
+
+/** 탐험 중 전장을 누르면 그 칸으로 걸어간다(미니맵 클릭과 같은 이동 명령 · 자동 이동은 그대로). */
+function commandBattlefieldMove(canvas, event) {
+    let cell = actExplorationView.cellAt(getBattlefieldClientPoint(canvas, event.clientX, event.clientY));
+    if (cell) actExplorationUi.commandMove(cell);
 }
 
 let mobileNavigationKeyBound = false;
@@ -8982,8 +8988,13 @@ function getCombatSkillHudEntries() {
         .filter((name, index, list) => name && list.indexOf(name) === index)
         .slice(0, 4)
         .map((name, index) => ({ kind: index === 0 ? 'primary' : 'summon', name }));
-    let mobility = SKILL_DB[game.mobilitySkill] ? [{ kind: 'mobility', name: game.mobilitySkill }] : [];
+    let mobility = SKILL_DB[game.mobilitySkill] ? [{ kind: 'mobility', name: game.mobilitySkill, hotkey: getHotkeyLabel('combat:mobility') }] : [];
     return gems.slice(0, 1).concat(mobility, gems.slice(1), getCombatConditionHudEntries()).slice(0, COMBAT_SKILL_HUD_LIMIT);
+}
+
+/** Short key name of a PC hotkey action for HUD key caps ('' when unbound). */
+function getHotkeyLabel(actionId) {
+    return hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, actionId));
 }
 
 function renderCombatSkillSlot(entry) {
@@ -8993,7 +9004,11 @@ function renderCombatSkillSlot(entry) {
         ? renderCombatEffectIcon({ key: entry.type, label: entry.name })
         : renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
     let cooldown = condition || entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
-    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${name}" data-slot-kind="${entry.kind}" data-info-tooltip-anchor="1" aria-label="${COMBAT_SKILL_SLOT_LABELS[entry.kind]} · ${name}">${art}${cooldown}</button>`;
+    // 이동 스킬 칸은 누르거나 단축키(기본 E)로 쓴다: 키 표시는 플라스크 칸과 같다.
+    let key = entry.hotkey ? escapeHTML(entry.hotkey) : '';
+    let keyAttrs = key ? ` aria-keyshortcuts="${key}"` : '';
+    let keyCap = key ? `<i class="combat-flask-key" aria-hidden="true">${key}</i>` : '';
+    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${name}" data-slot-kind="${entry.kind}"${keyAttrs} data-info-tooltip-anchor="1" aria-label="${COMBAT_SKILL_SLOT_LABELS[entry.kind]} · ${name}">${art}${cooldown}${keyCap}</button>`;
 }
 
 function bindCombatSkillSlot(button) {
@@ -9004,6 +9019,7 @@ function bindCombatSkillSlot(button) {
     button.addEventListener('mousemove', show);
     button.addEventListener('mouseleave', hideInfoTooltip);
     button.addEventListener('click', () => {
+        if (button.dataset.slotKind === 'mobility') { hotkeysUi.useMobility(button); return; }
         openTabPane('tab-skills');
         if (condition) switchSkillSubtab('skill-tab-condition');
     });
@@ -9045,7 +9061,7 @@ function renderCombatSkillHud() {
     let host = document.getElementById('ui-combat-skill-gems');
     if (!host) return;
     let entries = getCombatSkillHudEntries();
-    let signature = entries.map(entry => `${entry.kind}:${entry.name}`).join('|');
+    let signature = entries.map(entry => `${entry.kind}:${entry.name}:${entry.hotkey || ''}`).join('|');
     if (host.dataset.signature !== signature) {
         entries.forEach(entry => {
             const spec = entry.kind !== 'condition' && SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[entry.name]?.signature];

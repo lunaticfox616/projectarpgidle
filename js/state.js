@@ -2495,6 +2495,8 @@ const defaultGame = {
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
         actExplorationMode: 'direct',
+        // 탐험 자동 이동(미니맵 단추 · 단축키). 끄면 이동 명령으로만 움직이고 새 탐험도 직접 이동으로 시작한다.
+        autoMove: true,
         disableItemAutomationAfterLoop: true,
         postLoopMapCompleteAction: 'nextLoopBestPlusOne',
         townReturnAction: 'retry',

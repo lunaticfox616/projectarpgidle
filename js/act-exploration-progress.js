@@ -1,6 +1,10 @@
 // Combat progression adapter: authored exploration -> existing grid movement and enemies.
 // It never rolls enemies, rewards, attacks or runs a second combat loop.
 const actExplorationProgress = (() => {
+    // A move command that makes no progress for this many 20 ms steps (its cell taken, or out of reach) is dropped:
+    // the hero stays as close as it got and, with auto-move on, goes back to exploring.
+    const COMMAND_GIVE_UP_STEPS=15;
+    const commandStalls=new WeakMap(); // run → steps the command has not advanced (transient, like the discovery memos)
     function advance(stats) {
         const run=actExplorationState.current(game);
         if(!run)return false;
@@ -33,13 +37,24 @@ const actExplorationProgress = (() => {
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
-        // The player stands still at the threshold while the boss rises.
-        if(entrance || (run.mode!=='manual' && game.enemies.some(enemy=>enemy.hp>0)))return;
+        // The player stands still at the threshold while the boss rises. A fight pauses the automatic walk, never a command.
+        if(entrance || (!run.destination && game.enemies.some(enemy=>enemy.hp>0)))return;
         const target=actExplorationState.destination(run,game.gridPlayer);
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
+        walk(run,target,stats);
+    }
+    function walk(run,target,stats) {
         const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
-        advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
+        const stepped=advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
+        if(stepped || target!==run.destination){commandStalls.delete(run);return;}
+        const stalls=(commandStalls.get(run)||0)+1;
+        commandStalls.set(run,stalls);
+        if(stalls>=COMMAND_GIVE_UP_STEPS){run.destination=null;commandStalls.delete(run);}
+    }
+    /** The mode a new run starts in: the chosen route (보스 직행 · 전체 탐색) while auto-move is on, else 직접 이동. */
+    function startMode(settings) {
+        return settings.autoMove===false?'manual':settings.actExplorationMode;
     }
     /** A newly opened boss entrance cues its presentation (js/canvas-boss-entrance.js) with the rising enemies. */
     function watchEntrance(run,opened) {
@@ -84,9 +99,11 @@ const actExplorationProgress = (() => {
     function shouldTrackStall() {
         return !live() && game.moveTimer<=0 && game.enemies.length===0;
     }
+    /** The hero neither chases nor sidesteps: a hazard asked for it, auto-move is off, or a move command is under way
+     * (the command walks in step; the combat engagement only fights what is in reach). */
     function holdPosition(requested) {
         const run=actExplorationState.current(game);
-        return requested || !!(run && run.mode==='manual');
+        return requested || !!(run && (run.mode==='manual' || run.destination));
     }
     function waiting(state) {
         const run=actExplorationState.current(state);
@@ -114,6 +131,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);actExplorationLoot.discard(run);run.status='failed';}
     }
-    return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

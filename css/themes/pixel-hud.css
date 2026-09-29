@@ -488,6 +488,7 @@ body[data-ui-skin] {
   image-rendering: pixelated;
 }
 :root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map { top: -6px; right: -6px; border-radius: 0; font-size: 12px; }
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-auto { top: -6px; left: -6px; border-radius: 0; font-size: 12px; }
 
 /* ─── 하단 HUD(2026-09-30): [생명 구슬] [이름·플라스크] [미니맵] [젬] [경험치 구슬] ─────────────────────
    디아블로 계열 하단 바처럼 둥근 셋(생명 · 지도 · 경험치)이 낮은 돌판 위로 솟는다. 장식은 청동 테 하나(창과 같은 테).
@@ -598,6 +599,16 @@ body[data-ui-skin] {
   padding: 0 10px;
   transform: translateX(-50%);
   line-height: 18px;
+}
+/* 자동 이동 단추: 테 위쪽 가운데("지도" 단추와 마주 보게) */
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-auto {
+  top: -10px;
+  left: 50%;
+  z-index: 3;
+  height: 20px;
+  padding: 0 8px;
+  transform: translateX(-50%);
+  line-height: 16px;
 }
 /* 젬(주 공격 · 소환 · 자동 사용): 돌판 위, 경험치 구슬 옆 */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 4; grid-row: 1; align-self: end; justify-self: end; margin-bottom: 2px; }
