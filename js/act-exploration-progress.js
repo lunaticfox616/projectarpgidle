@@ -92,8 +92,8 @@ const actExplorationProgress = (() => {
         actExplorationState.retireCombat(game);
         run.completionApplied=true;
         game.runProgress=100;
-        // Act 4's two actual boss kills happen within this one map, not two new maps.
-        game.killsInZone=Math.max(game.killsInZone,zone.maxKills-1);
+        // Act 4's two actual boss kills happen within this one map, not two new maps (zones without kill counts skip it).
+        if(Number.isFinite(zone.maxKills))game.killsInZone=Math.max(game.killsInZone,zone.maxKills-1);
         return {loot};
     }
     function shouldTrackStall() {

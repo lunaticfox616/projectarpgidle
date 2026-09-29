@@ -15,7 +15,7 @@ const actExplorationView=(()=>{
      * while the camera glides between cells. */
     function snap(value) { const scale=renderScale();return Math.round(value*scale)/scale; }
     function projection(width,height) {
-        const run=actExplorationState.current(game),map=actExplorationMap.layout(run.act);
+        const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
         const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height);
         const mapX=snap(width/2-(cell.gx+.5)*tile),mapY=snap(height/2-(cell.gy+.5)*tile);
         shiftActors(run,{x:mapX,y:mapY,tile});
@@ -44,7 +44,7 @@ const actExplorationView=(()=>{
     }
     function background(ctx,width,height,p) {
         const run=actExplorationState.current(game);if(!run)return false;
-        const map=actExplorationMap.layout(run.act);prepare(map);
+        const map=actExplorationMap.forRun(run);prepare(map);
         ctx.save();ctx.fillStyle='#080e0c';ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
         if(cache.surface)ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
         else {
@@ -115,7 +115,7 @@ const actExplorationView=(()=>{
     }
     function waitingEnemies() {
         const run=actExplorationState.current(game);if(!run)return [];
-        const map=actExplorationMap.layout(run.act),seen=new Set(run.discovered);
+        const map=actExplorationMap.forRun(run),seen=new Set(run.discovered);
         // A waiting boss stays out of sight until its entrance begins (it rises there, js/canvas-boss-entrance.js).
         const rising=actExplorationState.entrance(run)?.key;
         const dormant=run.packs.filter(pack=>pack.stage===null||pack.key===rising).flatMap(pack=>pack.waiting)

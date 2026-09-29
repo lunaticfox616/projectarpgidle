@@ -18,22 +18,30 @@ const actExplorationState = (() => {
     function remainingElites(run) {
         return run.packs.reduce((sum,pack)=>sum+pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length,0);
     }
-    /** @returns {ActExplorationRun} Takes ownership of already-generated enemy records. */
-    function create(act,packs,now=0) {
-        const map=actExplorationMap.layout(act);
-        if(!map)throw Error('알 수 없는 액트 탐험: '+act);
-        const run={version:1,act,zoneId:act-1,layoutId:map.id,status:'active',mode:'direct',completionApplied:false,
+    /**
+     * @param {{act:number}|{source:object,zoneId:(number|string),bossStages:number}} where a story act's authored map, or a
+     *   generated map (explorationLayouts spec) for any other zone with its boss stage count.
+     * @returns {ActExplorationRun} Takes ownership of already-generated enemy records.
+     */
+    function create(where,packs,now=0) {
+        const run=where.source ? {version:1,act:null,source:explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
+            : {version:1,act:where.act,zoneId:where.act-1};
+        const map=actExplorationMap.forRun(run);
+        if(!map)throw Error('알 수 없는 액트 탐험: '+where.act);
+        Object.assign(run,{layoutId:map.id,status:'active',mode:'direct',completionApplied:false,
             motion:null,motionTimeMs:now,motionDirection:'south',
             loot:actExplorationLoot.create(),departure:null,destination:null,discovered:actExplorationMap.visibleCells(map,map.entry),
-            visitedRooms:[map.entry.id],packs};
+            visitedRooms:[map.entry.id],packs});
         validate(run,[]);
         return run;
     }
+    /** Rooms that hold a pack: every room but the entry, the boss room (its stages) and monster-free paths. */
+    function packRooms(map) {return map.rooms.filter(room=>!['entry','boss','path'].includes(room.role));}
     /** @returns {ReadonlyArray<number>} Current visibility; only this owner updates discovered/visited lists. */
     function discover(run,cell) {
-        const prior=discoveryMemos.get(run),key=`${run.act}:${cell.gx},${cell.gy}`;
+        const prior=discoveryMemos.get(run),key=`${run.layoutId}:${cell.gx},${cell.gy}`;
         if(prior?.key===key && prior.discovered===run.discovered && prior.visited===run.visitedRooms)return prior.visible;
-        const map=actExplorationMap.layout(run.act),known=new Set(run.discovered);
+        const map=actExplorationMap.forRun(run),known=new Set(run.discovered);
         const visible=Object.freeze(actExplorationMap.visibleCells(map,cell));
         visible.forEach(id=>known.add(id));run.discovered=[...known];
         for(const room of map.rooms) {
@@ -54,7 +62,7 @@ const actExplorationState = (() => {
     }
     /** The boss room when cell is its gate or inside it (the view then lights the whole room), else null. */
     function bossRoomAt(run,cell) {
-        const map=actExplorationMap.layout(run.act),room=map.rooms.find(row=>row.role==='boss');
+        const map=actExplorationMap.forRun(run),room=map.rooms.find(row=>row.role==='boss');
         return room && atBossRoom(map,room,cell) ? room : null;
     }
     /** The whole boss room is uncovered as its entrance opens: its floor and the walls around it join the discovered map. */
@@ -89,7 +97,7 @@ const actExplorationState = (() => {
     /** Transfers nearby, visible enemies into combat without re-rolling or respawning them. now = combat ms. */
     function engage(state,visible,now=getCombatTime()) {
         const run=current(state);if(!run || run.status!=='active')return [];
-        const map=actExplorationMap.layout(run.act),seen=new Set(visible),added=[];
+        const map=actExplorationMap.forRun(run),seen=new Set(visible),added=[];
         for(const pack of run.packs) {
             if(!bossReady(run,pack))continue;
             const ready=pack.waiting.filter(enemy=>seen.has(actExplorationMap.index(map,enemy)));
@@ -125,7 +133,7 @@ const actExplorationState = (() => {
     /** The player's move command (minimap, map or battlefield click). It never changes the mode: with auto-move on the
      * hero walks there and then goes on exploring. Unknown cells stay unavailable; a sealed gate blocks every route. */
     function selectDestination(run,cell) {
-        const map=actExplorationMap.layout(run.act);
+        const map=actExplorationMap.forRun(run);
         const sealed=remainingElites(run)>0;
         if(!actExplorationMap.walkable(map,cell,sealed))return false;
         if(!run.discovered.includes(actExplorationMap.index(map,cell)))return false;
@@ -141,7 +149,7 @@ const actExplorationState = (() => {
      * the route wants; with auto-move off (mode manual) only commands move it. */
     function destination(run,from) {
         if(run.destination || run.mode==='manual')return run.destination;
-        const map=actExplorationMap.layout(run.act);
+        const map=actExplorationMap.forRun(run);
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
         const candidates=run.packs.filter(pack=>pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
@@ -160,7 +168,7 @@ const actExplorationState = (() => {
     }
     function validatePackShape(map,pack) {
         const room=map.rooms.find(row=>row.id===pack.roomId);
-        if(!room || room.role==='entry' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
+        if(!room || room.role==='entry' || room.role==='path' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
         if(!Array.isArray(pack.aliveIds) || !Array.isArray(pack.eliteIds) || !Array.isArray(pack.waiting))throw Error('탐험 저장의 적 목록이 없습니다.');
         if((room.role==='boss')!==(pack.stage!==null))throw Error('탐험 저장의 보스 단계가 잘못되었습니다.');
     }
@@ -186,8 +194,8 @@ const actExplorationState = (() => {
     }
     /** Save boundary rejects corrupt runs rather than resetting enemies or granting their loot. */
     function validate(run,enemies) {
-        const map=actExplorationMap.layout(run.act);
-        if(!map || run.version!==1 || run.zoneId!==run.act-1 || run.layoutId!==map.id)throw Error('지원하지 않는 액트 탐험 저장입니다.');
+        const map=validSource(run);
+        if(!map || run.version!==1 || run.layoutId!==map.id)throw Error('지원하지 않는 액트 탐험 저장입니다.');
         if(!['active','cleared','failed'].includes(run.status) || !['manual','direct','full'].includes(run.mode))throw Error('탐험 저장의 진행 상태가 잘못되었습니다.');
         if(!Array.isArray(run.packs) || !run.packs.length)throw Error('탐험 저장의 적 배치가 없습니다.');
         validateDiscovery(map,run);
@@ -199,6 +207,13 @@ const actExplorationState = (() => {
         validateProgress(run);
         return run;
     }
+    /** The run's map: an act's (zone = act − 1), or a generated one whose spec rebuilds the saved layout id. */
+    function validSource(run) {
+        if(!run.source)return run.zoneId===run.act-1 ? actExplorationMap.forRun(run) : null;
+        const zoneOk=(typeof run.zoneId==='string' && run.zoneId) || Number.isSafeInteger(run.zoneId);
+        if(run.act!==null || !zoneOk || !Number.isInteger(run.bossStages) || run.bossStages<1 || run.bossStages>4)return null;
+        return actExplorationMap.forRun(run);
+    }
     function validateDiscovery(map,run) {
         if(!Array.isArray(run.discovered) || !run.discovered.every(id=>Number.isInteger(id) && id>=0 && id<map.tiles.length))throw Error('탐험 저장의 발견 지도가 잘못되었습니다.');
         if(!Array.isArray(run.visitedRooms) || !run.visitedRooms.every(id=>map.rooms.some(room=>room.id===id)))throw Error('탐험 저장의 방문 위치가 잘못되었습니다.');
@@ -206,9 +221,9 @@ const actExplorationState = (() => {
     }
     function validateProgress(run) {
         const bosses=run.packs.filter(pack=>pack.stage!==null);
-        if(bosses.length!==STORY_ACTS[run.zoneId].maxKills)throw Error('탐험 저장의 보스 수가 잘못되었습니다.');
+        if(bosses.length!==bossStageCount(run))throw Error('탐험 저장의 보스 수가 잘못되었습니다.');
         validateBossStages(bosses);
-        const rooms=actExplorationMap.layout(run.act).rooms.filter(room=>room.role!=='entry' && room.role!=='boss');
+        const rooms=packRooms(actExplorationMap.forRun(run));
         if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
         for(const pack of run.packs) {
             if(new Set(pack.eliteIds).size!==pack.eliteIds.length || !pack.eliteIds.every(Number.isSafeInteger))throw Error('탐험 저장의 정예 목록이 잘못되었습니다.');
@@ -216,6 +231,7 @@ const actExplorationState = (() => {
         if(run.status==='cleared' && bosses.some(pack=>pack.aliveIds.length))throw Error('처치하지 않은 보스의 탐험 완료 저장입니다.');
         if(run.completionApplied && run.status!=='cleared')throw Error('완료되지 않은 탐험의 진행 정산 저장입니다.');
     }
+    function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}
     function validateBossStages(bosses) {
         if(new Set(bosses.map(pack=>pack.stage)).size!==bosses.length)throw Error('탐험 저장의 보스 단계가 중복되었습니다.');
         if(bosses.some(pack=>!Number.isInteger(pack.stage) || pack.stage<0 || pack.stage>=bosses.length))throw Error('탐험 저장의 보스 순서가 잘못되었습니다.');
@@ -229,8 +245,8 @@ const actExplorationState = (() => {
             state.actExploration=null;
             return null;
         }
-        validate(run,state.enemies);validCell(actExplorationMap.layout(run.act),state.gridPlayer);
-        actExplorationMotion.validate(run,state.gridPlayer,actExplorationMap.layout(run.act));
+        validate(run,state.enemies);validCell(actExplorationMap.forRun(run),state.gridPlayer);
+        actExplorationMotion.validate(run,state.gridPlayer,actExplorationMap.forRun(run));
         actExplorationLoot.restore(run);
         if(run.departure===undefined)run.departure=null;
         validateDeparture(run);
@@ -244,6 +260,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,discover,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
+    return {settlementMs,current,create,packRooms,discover,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
 })();
 safeExposeGlobals({actExplorationState});

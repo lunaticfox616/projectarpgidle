@@ -228,7 +228,7 @@ const battleGroundLoot = (() => {
             color:row.rarity?getRarityColor(row.rarity):undefined
         }));
         if(!rows.length)return;
-        const boss=actExplorationMap.layout(run.act).rooms.find(room=>room.role==='boss');
+        const boss=actExplorationMap.forRun(run).rooms.find(room=>room.role==='boss');
         clear();
         settlement={run,rows:rows.sort((a,b)=>Number(isMajor(b))-Number(isMajor(a))),
             cell:{gx:boss.gx+.5,gy:boss.gy+.5},started:performance.now(),index:0,bounded:false};

@@ -42,7 +42,7 @@ const actExplorationUi=(()=>{
     // 표시 전용이며 탐험 규칙과 무관하다.
     function renderProgress(run) {
         const panel=document.getElementById('act-exploration-panel');if(!panel)return;
-        const map=actExplorationMap.layout(run.act);
+        const map=actExplorationMap.forRun(run);
         const floor=map.tiles.filter(Boolean).length;
         const seen=run.discovered.filter(id=>map.tiles[id]).length;
         panel.style.setProperty('--explore-pct',(floor?Math.round(seen/floor*100):0)+'%');
@@ -60,7 +60,7 @@ const actExplorationUi=(()=>{
         return {x0,y0,cols,rows,scale:8};
     }
     function draw(canvas,run) {
-        const map=actExplorationMap.layout(run.act),view=mapView(canvas,map),scale=view.scale,ss=2;
+        const map=actExplorationMap.forRun(run),view=mapView(canvas,map),scale=view.scale,ss=2;
         canvas.width=view.cols*scale*ss;canvas.height=view.rows*scale*ss;
         canvas.dataset.view=[view.x0,view.y0,view.cols,view.rows].join(',');
         const ctx=canvas.getContext('2d'),seen=new Set(run.discovered);
@@ -153,7 +153,7 @@ const actExplorationUi=(()=>{
     function choose(event) {
         if(event.currentTarget.id==='act-exploration-map'&&window.matchMedia('(max-width: 1080px)').matches)return expand();
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
-        const map=actExplorationMap.layout(run.act),rect=event.currentTarget.getBoundingClientRect();
+        const map=actExplorationMap.forRun(run),rect=event.currentTarget.getBoundingClientRect();
         const view=mapView(event.currentTarget,map);
         const cell={gx:view.x0+Math.floor((event.clientX-rect.left)/rect.width*view.cols),
             gy:view.y0+Math.floor((event.clientY-rect.top)/rect.height*view.rows)};

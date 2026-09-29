@@ -913,7 +913,7 @@ function getZone(id) {
         let over50 = Math.max(0, floor - 50);
         let over100 = Math.max(0, floor - 100);
         let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
-        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor };
+        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);

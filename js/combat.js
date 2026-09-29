@@ -8423,20 +8423,32 @@ function createActExplorationPack(zone,room,stage) {
         eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
 }
 
-function createActExplorationEncounter(zone,enabled=zone.type==='act') {
-    if(!enabled)return null;
-    if(!zone || zone.type!=='act')throw Error('일반 액트에서만 탐험을 시작할 수 있습니다.');
-    const map=actExplorationMap.layout(zone.id+1);
-    if(!map)throw Error('액트 탐험 지형이 없습니다.');
-    const packs=[];
-    for(const room of map.rooms) {
-        if(room.role==='entry')continue;
-        if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null));continue;}
-        for(let stage=0;stage<STORY_ACTS[zone.id].maxKills;stage++)packs.push(createActExplorationPack(zone,room,stage));
-    }
-    const run=actExplorationState.create(map.act,packs,getCombatTime());
+/** How a zone is fought: a story act walks its authored map; any other zone whose factory declares `exploration` (a
+ * generated-map spec, js/exploration-layouts.js, with bossStages) walks that map; everything else keeps the 9×8 board. */
+function getZoneExplorationPlan(zone) {
+    if(!zone)return null;
+    if(zone.type==='act')return actExplorationMap.layout(zone.id+1) ? {act:zone.id+1,bossStages:STORY_ACTS[zone.id].maxKills} : null;
+    return zone.exploration ? {source:zone.exploration,zoneId:zone.id,bossStages:zone.exploration.bossStages||1} : null;
+}
+
+/** exploration: false = the legacy board (regression fixtures), true = must explore (throws where no map exists). */
+function createActExplorationEncounter(zone,exploration) {
+    const plan=exploration===false ? null : getZoneExplorationPlan(zone);
+    if(!plan && exploration===true)throw Error('일반 액트나 전용 맵이 있는 콘텐츠에서만 탐험을 시작할 수 있습니다.');
+    if(!plan)return null;
+    const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
     run.mode=actExplorationProgress.startMode(game.settings);
     return run;
+}
+/** One pack per monster room (paths and the entry stay empty), and the boss room's stages in order. */
+function createExplorationPacks(zone,map,bossStages) {
+    const packs=[];
+    for(const room of map.rooms) {
+        if(room.role==='entry' || room.role==='path')continue;
+        if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null));continue;}
+        for(let stage=0;stage<bossStages;stage++)packs.push(createActExplorationPack(zone,room,stage));
+    }
+    return packs;
 }
 
 // Explicit false is retained for replaying legacy progress-based encounters in regression
@@ -8529,12 +8541,13 @@ function startMoving(isTown) {
     prepareActExplorationArrival();
 }
 
-/** Moving into a story act lays its map out at once: the travel wait (다음 구간 준비 · 재정비) shows the act's
- * entrance with the character standing in it instead of the legacy 9×8 board. The run stays idle until the timer
- * ends (actExplorationProgress.tick holds it while moveTimer > 0), then startEncounterRun takes it over. */
+/** Moving into an explored zone (a story act, or a content with its own map) lays its map out at once: the travel
+ * wait (다음 구간 준비 · 재정비) shows the entrance with the character standing in it instead of the legacy 9×8 board.
+ * The run stays idle until the timer ends (actExplorationProgress.tick holds it while moveTimer > 0), then
+ * startEncounterRun takes it over. */
 function prepareActExplorationArrival() {
     const zone = getZone(game.currentZoneId);
-    if (!zone || zone.type !== 'act' || zone.id !== game.currentZoneId || !actExplorationMap.layout(zone.id + 1)) return;
+    if (!zone || zone.id !== game.currentZoneId || !getZoneExplorationPlan(zone)) return;
     const run = createActExplorationEncounter(zone);
     run.arrival = true;
     game.actExploration = run;

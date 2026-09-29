@@ -24,6 +24,7 @@ const runtime=vm.createContext({document:{createElement:canvas},
 // so it is exercised with the backdrop registry emptied.
 vm.runInContext(fs.readFileSync('data/act-exploration-maps.js','utf8')
     .replace(/const ACT_EXPLORATION_BACKDROPS = Object\.freeze\(\{[\s\S]*?\n\}\);/,'const ACT_EXPLORATION_BACKDROPS = Object.freeze({});'),runtime);
+vm.runInContext(fs.readFileSync('js/exploration-layouts.js','utf8'),runtime);
 vm.runInContext(fs.readFileSync('js/act-exploration-map.js','utf8'),runtime);
 vm.runInContext(fs.readFileSync('js/canvas-exploration-art.js','utf8'),runtime);
 async function check() {

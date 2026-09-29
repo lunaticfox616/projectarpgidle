@@ -19,7 +19,7 @@ function isGridCellInBounds(gx, gy) {
 function getCombatGridSize(state=game) {
     const exploration=state.actExploration;
     if(!exploration||exploration.zoneId!==state.currentZoneId)return COMBAT_GRID_CONFIG;
-    return actExplorationMap.layout(exploration.act) || COMBAT_GRID_CONFIG;
+    return actExplorationMap.forRun(exploration) || COMBAT_GRID_CONFIG;
 }
 
 function gridCellKey(gx, gy) {
@@ -328,8 +328,17 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
 function beginExplorationGridStep(target,interval) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
-    if(!gridStepToward(next,target.gx,target.gy,getGridBlockedCells(game.gridPlayer)))return false;
+    if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
     return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
+}
+
+/** The hero plans its exploration step around fighters, summons and its own reserved tile, but not around dormant packs:
+ * they wake as soon as they are seen, so a narrow passage (a maze chamber) they stand in must not look like a dead end.
+ * Stepping into a tile a dormant enemy still holds is refused at the half-way check (canEnterMotionTile). */
+function getExplorationPlanningBlockedCells(run) {
+    const blocked=getGridBlockedCells(game.gridPlayer);
+    run.packs.forEach(pack=>pack.waiting.forEach(enemy=>getGridUnitCells(enemy).forEach(cell=>blocked.delete(gridCellKey(cell.gx,cell.gy)))));
+    return blocked;
 }
 
 function findNearestSafeGridRoute(unit, hazardCells) {

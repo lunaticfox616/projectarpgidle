@@ -1,11 +1,12 @@
-// Pure authored-map geometry. No game, combat, DOM or renderer dependency.
+// Pure map geometry: the authored act maps and generated ones (js/exploration-layouts.js) share one compiler.
+// No game, combat, DOM or renderer dependency.
 const actExplorationMap = (() => {
     const cache = new Map();
     /** @typedef {{gx:number,gy:number}} Cell Integer map tile. */
     /**
      * @typedef {object} Layout
-     * @property {string} id Stable authored preset identifier.
-     * @property {number} act Story act, 1 through 10.
+     * @property {string} id Stable preset identifier ('gen:…' for generated maps).
+     * @property {?number} act Story act, 1 through 10; null for a generated map.
      * @property {number} columns
      * @property {number} rows
      * @property {ReadonlyArray<number>} tiles Row-major wall=0, floor=1.
@@ -48,10 +49,8 @@ const actExplorationMap = (() => {
         corridor(tiles,source,[centers.get(source.approach),source.gate,centers.get('boss')],0);
         return tiles;
     }
-    /** @returns {Readonly<Layout>|null} Compiles each static preset once. */
-    function layout(act) {
-        if(cache.has(act))return cache.get(act);
-        const source=ACT_EXPLORATION_MAPS.find(row=>row.act===act);if(!source)return null;
+    /** @returns {Readonly<Layout>} tiles, rooms, entry and gate of an authored or generated source (act = null if generated). */
+    function compile(source,act=null) {
         const columns=source.rotation%2?source.height:source.width, rows=source.rotation%2?source.width:source.height;
         const tiles=Array(columns*rows).fill(0),original=floors(source);
         original.forEach((value,index)=>{
@@ -59,10 +58,38 @@ const actExplorationMap = (() => {
         });
         const rooms=source.rooms.map(([id,x,y,rx,ry,role])=>Object.freeze({id,...rotate([x,y],source),role,
             radiusX:source.rotation%2?ry:rx,radiusY:source.rotation%2?rx:ry}));
-        const result=Object.freeze({id:source.id,act,biome:source.biome,columns,rows,tiles:Object.freeze(tiles),
+        return Object.freeze({id:source.id,act,biome:source.biome,columns,rows,tiles:Object.freeze(tiles),
             rooms:Object.freeze(rooms),entry:rooms.find(r=>r.role==='entry'),gate:Object.freeze(rotate(source.gate,source)),rotation:source.rotation});
+    }
+    /** @returns {Readonly<Layout>|null} Compiles each static preset once. */
+    function layout(act) {
+        if(cache.has(act))return cache.get(act);
+        const source=ACT_EXPLORATION_MAPS.find(row=>row.act===act);if(!source)return null;
+        const result=compile(source,act);
         cache.set(act,result);return result;
     }
+    const generatedCache=new Map(),GENERATED_KEEP=12; // a few recent seeds: the live run, its arrival and the map screen
+    /** @returns {Readonly<Layout>} the map explorationLayouts builds for spec, checked to be whole (throws if not). */
+    function generated(spec) {
+        const key=explorationLayouts.key(spec);
+        if(generatedCache.has(key))return generatedCache.get(key);
+        const result=compile(explorationLayouts.build(spec));
+        assertWhole(result,key);
+        generatedCache.set(key,result);
+        if(generatedCache.size>GENERATED_KEEP)generatedCache.delete(generatedCache.keys().next().value);
+        return result;
+    }
+    /** Every room is reachable from the entry, and the boss room only through its one-cell gate. */
+    function assertWhole(map,key) {
+        const boss=map.rooms.find(room=>room.role==='boss');
+        if(!map.entry || !boss)throw Error('생성 탐험 맵에 입구나 보스 방이 없습니다: '+key);
+        const unreached=map.rooms.filter(room=>room!==boss && !route(map,map.entry,room).length && !same(room,map.entry));
+        if(unreached.length)throw Error('생성 탐험 맵이 끊겼습니다: '+key+' '+unreached.map(room=>room.id).join(','));
+        if(route(map,map.entry,boss,new Set([index(map,map.gate)])).length)throw Error('생성 탐험 맵의 보스 방이 관문 밖으로 열려 있습니다: '+key);
+    }
+    const same=(a,b)=>a.gx===b.gx&&a.gy===b.gy;
+    /** The map a run walks: its generated source, else its story act's authored map. */
+    function forRun(run) {return run.source?generated(run.source):layout(run.act);}
     function index(map,cell) {return cell.gy*map.columns+cell.gx;}
     function inBounds(map,cell) {
         if(!Number.isInteger(cell.gx)||!Number.isInteger(cell.gy))return false;
@@ -110,6 +137,6 @@ const actExplorationMap = (() => {
         }
         return [...seen];
     }
-    return {layout,index,walkable,neighbors,route,visibleCells};
+    return {layout,generated,forRun,index,walkable,neighbors,route,visibleCells};
 })();
 safeExposeGlobals({actExplorationMap});

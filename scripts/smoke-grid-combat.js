@@ -27,7 +27,7 @@ const files = [
   'data/content-progression.js',
   'data/offline-progress.js',
   'js/utils.js',
-  'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
+  'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
   'js/act-exploration-state.js',
   'js/state.js',
   'js/combat-loot-receipts.js',
