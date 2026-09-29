@@ -1396,9 +1396,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const targets = [makeEnemy(31, 2, 6), makeEnemy(32, 2, 5), makeEnemy(33, 1, 5)]
     .map((enemy, idx) => ({ enemy, mult: idx === 0 ? 1 : 0.8 }));
   const whirl = context.buildSkillHitSequence('회오리바람', context.SKILL_DB['회오리바람'], targets);
-  assert.strictEqual(whirl.length, 3, '회오리바람은 대상마다 독립 타격 단계가 있어야 한다');
-  assert.strictEqual(whirl.map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
-  assert.ok(whirl.every(stage => stage.targets.length === 1), '회오리바람 단계 하나가 모든 대상에게 동시에 피해를 주면 안 된다');
+  assert.strictEqual(whirl.length, context.SKILL_DB['회오리바람'].targets, '회오리바람은 대상 수만큼 회전한다 (대상은 회전이 닿을 때 고른다)');
+  assert.strictEqual(whirl.slice(0, 3).map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
+  assert.ok(whirl.every(stage => stage.targets.length === 1 && stage.whirl === whirl[0].whirl),
+    '회전 하나는 한 명만 베고, 한 시전의 회전들은 이미 벤 적 목록을 함께 쓴다');
 
   const chain = context.buildSkillHitSequence('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍'], targets);
   assert.strictEqual(chain.map(stage => stage.kind).join(','), 'chainPrimary,chainJump,chainJump', '연쇄는 최초 공격과 후속 점프로 구분돼야 한다');
@@ -1591,6 +1592,25 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리바람 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리바람 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
+
+  // 09-30: 회전마다 그 순간 서 있는 칸 둘레에서 아직 안 맞은 적을 벤다 — 걷는 동안에도 칼바람이 따라간다.
+  resetGame();
+  context.game.activeSkill = '회오리바람';
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const near = makeEnemy(44, 2, 6), far = makeEnemy(45, 4, 6);
+  [near, far].forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
+  context.game.enemies = [near, far];
+  const walkStats = context.getPlayerStats();
+  Object.assign(walkStats, { baseDmg: 1000, minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000 });
+  context.performPlayerAttack(walkStats);
+  assert.strictEqual(vm.runInContext('pendingSkillStageHits.length', context), walkStats.sSkill.targets, '회오리바람은 대상 수만큼 회전을 예약한다');
+  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  const nearAfterFirst = near.hp;
+  assert.ok(near.hp < near.maxHp && far.hp === far.maxHp, '첫 회전은 서 있는 칸 둘레의 적을 벤다');
+  context.game.gridPlayer = { gx: 3, gy: 6, gridMoveTimer: 0 };
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(far.hp < far.maxHp, '걸어간 칸 둘레의 적을 남은 회전이 벤다');
+  assert.strictEqual(near.hp, nearAfterFirst, '이미 벤 적은 같은 시전에서 다시 베지 않는다');
 
   resetGame();
   context.game.activeSkill = '기본 공격';

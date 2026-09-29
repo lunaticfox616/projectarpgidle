@@ -2987,6 +2987,18 @@ function getPendingSkillCollisionCells(row) {
     return path.length > 0 ? path.map(cell => ({ ...cell, mult: target.mult })) : row.targetCells;
 }
 
+/** 회오리바람: this spin's victim, chosen as it lands — the nearest enemy not yet struck around the caster's current cell,
+ * with the whirl's falloff by strike order. Nobody around: the spin whiffs. */
+function pickWhirlSpinTargets(row) {
+    let struck = row.whirl.struck;
+    let fresh = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !struck.includes(enemy.id));
+    let pick = selectGridSkillTargets(row.options.skillName, row.pStats.sSkill, game.gridPlayer, fresh)[0];
+    if (!pick) return [];
+    struck.push(pick.enemy.id);
+    row.options.sourceCell = copyCombatGridCell(game.gridPlayer);
+    return [{ enemy: pick.enemy, mult: getGridSkillTargetMult('whirl', struck.length - 1) }];
+}
+
 function getPendingSkillImpactTargets(row) {
     if (!row || row.delivery === 'instantTarget' || row.delivery === 'projectileTarget') {
         return (row && row.targetEntries || []).map(entry => {
@@ -3185,7 +3197,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,
             launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
-            contactState: {resolved: false},
+            contactState: {resolved: false}, whirl: stage.whirl,
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
@@ -3230,7 +3242,7 @@ function processPendingSkillStageHits() {
     ready.sort((a, b) => a.at - b.at).forEach(row => {
         if (row && row.contactState) row.contactState.resolved = true;
         if (!row || row.zoneId !== game.currentZoneId || !row.pStats) return;
-        let targets = getPendingSkillImpactTargets(row);
+        let targets = row.whirl ? pickWhirlSpinTargets(row) : getPendingSkillImpactTargets(row);
         if (targets.length <= 0) return;
         performPlayerAttack(row.pStats, {
             ...(row.options || {}),

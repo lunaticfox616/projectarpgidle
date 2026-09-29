@@ -907,6 +907,20 @@ function buildPierceSkillHitSequence(profile, skill, targets) {
     }];
 }
 
+/** 회오리바람: as many spins as the skill has targets, one per interval. A spin picks its victim when it lands — the nearest
+ * enemy not yet struck around the cell the caster stands in then — so the blade keeps cutting while they move
+ * (combat.js pickWhirlSpinTargets). The cast-time primary only anchors the stage. */
+function buildWhirlSkillHitSequence(skill, targets, intervalMs) {
+    let spins = Math.max(1, Math.floor(Number(skill && skill.targets) || targets.length));
+    let whirl = { struck: [] };
+    return Array.from({ length: spins }, (_, idx) => ({
+        kind: idx === 0 ? 'whirlPrimary' : 'whirlSweep',
+        label: idx === 0 ? '회전 시작' : `회전 ${idx + 1}타`,
+        delayMs: idx * intervalMs, damageMultiplier: 1, whirl,
+        targets: targets.slice(0, 1)
+    }));
+}
+
 /** 한 번의 스킬 사용을 실제 시간차가 있는 타격 단계로 분해한다. */
 function buildSkillHitSequence(skillName, skill, targetEntries) {
     let targets = (targetEntries || []).filter(entry => entry && entry.enemy && entry.enemy.hp > 0);
@@ -914,15 +928,7 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
     let configured = buildConfiguredSkillHitSequence(skillName, skill, targets);
     if (configured) return configured;
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
-    if (profile.kind === 'whirl') {
-        return targets.map((entry, idx) => ({
-            kind: idx === 0 ? 'whirlPrimary' : 'whirlSweep',
-            label: idx === 0 ? '회전 시작' : `회전 ${idx + 1}타`,
-            delayMs: idx * profile.intervalMs,
-            damageMultiplier: 1,
-            targets: [entry]
-        }));
-    }
+    if (profile.kind === 'whirl') return buildWhirlSkillHitSequence(skill, targets, profile.intervalMs);
     if (profile.kind === 'chain') {
         return targets.map((entry, idx) => ({
             kind: idx === 0 ? 'chainPrimary' : 'chainJump',

@@ -19,8 +19,24 @@ const skillGemCasts = (() => {
         if(direction===2)destination.gy--;
         return destination;
     }
+    /** A landing cell: on the board, walkable (walls and sealed gates block) and not under a living enemy. */
     function free(destination,enemies) {
-        return hasGridCell(destination) && !enemies.some(e=>getGridUnitCells(e).some(c=>same(c,destination)));
+        const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy))));
+        return canPlaceGridFootprint(taken,destination.gx,destination.gy,{columns:1,rows:1});
+    }
+    const nearness=(c,source)=>Math.max(Math.abs(c.gx-source.gx),Math.abs(c.gy-source.gy))*100+(c.gx-source.gx)**2+(c.gy-source.gy)**2;
+    /** Where 암살 may land, in order: straight behind the enemy, then its two sides (the one nearer the caster first). */
+    function blindSpots(enemy,source) {
+        const direction=enemy.facingDirection || facing(enemy,source),size=getGridUnitFootprint(enemy),at=cell(enemy);
+        const sides=direction===4 || direction===6 ? [{gx:at.gx,gy:at.gy-1},{gx:at.gx,gy:at.gy+size.rows}]
+            : [{gx:at.gx-1,gy:at.gy},{gx:at.gx+size.columns,gy:at.gy}];
+        return [behind(enemy,source),...sides.sort((a,b)=>nearness(a,source)-nearness(b,source))];
+    }
+    function landing(enemy,source,enemies) {return blindSpots(enemy,source).find(c=>free(c,enemies)) || null;}
+    /** Facing (2/4/6/8) from the landing cell toward the enemy: the dagger strikes from where the assassin stands. */
+    function toward(from,enemy) {
+        const center=getGridUnitCenter(enemy),x=center.gx-from.gx,y=center.gy-from.gy;
+        return Math.abs(x)>=Math.abs(y) ? (x<0?4:6) : (y<0?8:2);
     }
     function cross(source,target) {
         for(const [direction,[x,y]] of Object.entries(dirs)) {
@@ -34,7 +50,7 @@ const skillGemCasts = (() => {
     function targets(id,source,enemies) {
         const live=enemies.filter(e=>e.hp>0);
         if(id===51)return live.filter(e=>cross(source,e));
-        if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4 && free(behind(e,source),live));
+        if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4 && landing(e,source,live));
         const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1,53:4})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
@@ -208,9 +224,9 @@ const skillGemCasts = (() => {
         return [contact(c,[target],c.nextAt,{ailment:Math.random()<.3?ailment:null})];
     }
     function teleport(state,c,input,target) {
-        const destination=behind(target,input.source);
-        if(!free(destination,input.enemies) || getGridUnitDistance(input.source,target)>4){c.done=true;c.failed=true;return [];}
-        c.destination=destination;c.anchor=cell(target);c.direction=target.facingDirection || facing(target,input.source);
+        const destination=landing(target,input.source,input.enemies.filter(e=>e.hp>0));
+        if(!destination || getGridUnitDistance(input.source,target)>4){c.done=true;c.failed=true;return [];}
+        c.destination=destination;c.anchor=cell(target);c.direction=toward(destination,target);
         c.index=1;c.nextAt=c.at+240;
         visual(state,c,'arrive',c.at+100,180,{blinkCell:cell(destination)});
         return [{type:'teleport',from:cell(input.source),to:destination,at:c.at+100}];
@@ -277,6 +293,6 @@ const skillGemCasts = (() => {
             {footprint:{cells:cells(input.source,'circle',4)}});
         return [contact(c,area(input.enemies,input.source,'circle',4),input.now)];
     }
-    return {createState,start,update,receiveHit,targets,facing,free,behind,cross};
+    return {createState,start,update,receiveHit,targets,facing,free,behind,blindSpots,cross};
 })();
 safeExposeGlobals({skillGemCasts});

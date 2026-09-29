@@ -79,8 +79,16 @@ assert.equal(run('game.enemies[0].hp'),1e7,'teleport is not a damage event');
 tick(240);assert.ok(run('game.enemies[0].hp<1e7'));
 run('game.gridPlayer={gx:3,gy:4};');cast();tick(340);
 assert.equal(run('game.gridPlayer.gx'),6,'persistent enemy facing allows another rear teleport');
+// 암살 (09-30): straight behind first; if that cell is taken, the enemy's side nearer the caster, then the far side.
+assert.deepEqual(json('skillGemCasts.blindSpots(game.enemies[0],game.gridPlayer)'),[{gx:6,gy:4},{gx:4,gy:3},{gx:4,gy:6}],
+    'a west-facing 2x2 enemy: rear (east), then the north side (nearer the caster at 3,4), then the south side');
 setup('암살');cast();run('game.enemies.push({...game.enemies[0],id:9002,isBoss:false,gridWidth:1,gridHeight:1,gx:6,gy:4});');
-tick(100);assert.equal(run('game.gridPlayer.gx'),3,'late obstruction prevents teleport');
+tick(100);assert.deepEqual(json('[game.gridPlayer.gx,game.gridPlayer.gy]'),[4,3],'a late obstruction behind sends the assassin to the nearer side');
+tick(240);assert.ok(run('game.enemies[0].hp<1e7'),'the dagger still lands from the side');
+assert.equal(run('skillGemCombatRuntime.events.find(e=>e.assassinationPhase==="slash").facingDirection'),2,'and faces the enemy from the landing cell');
+setup('암살');cast();run('for(const [id,gx,gy] of [[9002,6,4],[9003,4,3],[9004,4,6]])game.enemies.push({...game.enemies[0],id,isBoss:false,gx,gy});');
+tick(100);assert.equal(run('game.gridPlayer.gx'),3,'rear and both sides taken: no teleport');
+assert.equal(run('game.enemies[0].hp'),1e7,'and no strike');
 setup('파문심판',false);run('game.enemies[0].gx=5;game.enemies[0].gy=6;');
 assert.equal(run('getSkillTargets(getPlayerStats()).length'),0,'diagonal cannot trigger an empty cross forever');
 run('game.gridPlayer.gy=5;');assert.ok(run('getSkillTargets(getPlayerStats()).length')>0);
