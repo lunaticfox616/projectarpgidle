@@ -117,26 +117,41 @@ const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '�
 // "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
 const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
-    'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
-    'tab-jewel': '주얼', 'tab-expertise': '전문가', 'tab-flask': '보조장비', 'tab-cube': '코어 큐브', 'tab-growthboard': '생장판', 'tab-talisman': '부적',
-    'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록'
+    'tab-season': '루프 패시브', 'tab-traits': '직업전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
+    'tab-jewel': '주얼', 'tab-expertise': '전문가', 'tab-flask': '보조장비', 'tab-cube': '큐브', 'tab-growthboard': '생장판', 'tab-talisman': '부적',
+    'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적'
 });
 function tutorialNoticeKind(notice) {
     if (TUTORIAL_START_KEYS.has(notice.key)) return 'start';
     return String(notice.key).startsWith('unlock_content_loop_') ? 'loop' : 'content';
 }
-/** First line = what happened; the rest = what to do, as a short list (a quoted line keeps the text as prose). */
+/** Colour in card text: ‘menu or button’ in the card's kind colour (where to go), [item name] in blue (what it is). */
+function tutorialMarkup(line) {
+    return escapeTutorialText(line)
+        .replace(/‘([^’]+)’/g, '<span class="tutorial-ui">$1</span>')
+        .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
+}
+/** First line = what happened; the rest = what to do, as a short list (a line of speech in “…” keeps it prose). */
 function tutorialBodyHtml(body) {
     const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);
-    const head = `<p class="tutorial-summary">${escapeTutorialText(lead)}</p>`;
+    const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
     if (!rest.length) return head;
-    if (rest.some(line => /^[\u201c"\u2018']/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${escapeTutorialText(line)}</p>`).join('');
-    return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${escapeTutorialText(line)}</li>`).join('')}</ul>`;
+    if (rest.some(line => /^[\u201c"]/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${tutorialMarkup(line)}</p>`).join('');
+    return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${tutorialMarkup(line)}</li>`).join('')}</ul>`;
 }
 function tutorialOpenLabel(notice) {
     if (tutorialActionUi.guideFor(notice.key)) return '따라 해보기';
+    if (notice.openLabel) return notice.openLabel;
     const name = TUTORIAL_TAB_NAMES[notice.tabId];
     return name ? `${name} 열기` : '화면 열기';
+}
+/** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
+function openTutorialTarget(notice) {
+    if (notice.contentId && contentUnlockUi.open(notice.contentId)) return;
+    const { tabId, subtabId } = notice;
+    if (tabId) switchTab(tabId, { keepWindowOpen: true });
+    if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
+    if (subtabId && tabId === 'tab-map') switchMapSubtab(subtabId);
 }
 /** "다음 안내 N": how many more cards will follow this one. The counter sits in the card's top-right corner. */
 function syncTutorialQueueCount() {
@@ -257,10 +272,10 @@ function setTutorialCallout(tabId, holdMs) {
  * guides never fire now (the tabs start open). Saves that saw those notices (seenAs), and later loops, skip them. */
 const TUTORIAL_STARTER_GUIDES = Object.freeze([
     { key: 'tutorial_first_passive', seenAs: 'unlock_char', tabId: 'tab-char', title: '첫 패시브 포인트',
-        body: '레벨이 올라 패시브 포인트를 얻었습니다.\n스킬트리에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 캐릭터 창에서 확인할 수 있습니다.',
+        body: '레벨이 올라 패시브 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
-        body: '장비를 얻었습니다.\n장비 창에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 생명 구슬 위에 DPS 변화가 뜹니다.',
+        body: '장비를 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 생명 구슬 위에 DPS 변화가 뜹니다.',
         starterDue: state => (state.inventory || []).some(Boolean) }
 ]);
 function queueStarterGuides(state) {
@@ -310,17 +325,16 @@ function goBackTutorialStep() {
 }
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
-    const notice = activeTutorial;
-    const { tabId, subtabId } = notice;
+    const notice = activeTutorial, tabId = notice.tabId;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     activeTutorialStep = 0;
     lastTime = Date.now();
     setTutorialCallout(openTarget ? null : tabId, 6000);
+    // Phone notices held while the card was up: after the next card (if any) has had its turn.
+    setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
     if (!openTarget) return setTimeout(showNextTutorial, 40);
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
-    if (tabId) switchTab(tabId, { keepWindowOpen: true });
-    if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
-    if (subtabId && tabId === 'tab-map') switchMapSubtab(subtabId);
+    openTutorialTarget(notice);
     setTimeout(showNextTutorial, 40);
 }

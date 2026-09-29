@@ -244,7 +244,7 @@ const stumpBoxUi = (() => {
         if (!game.stumpBox.acquired) return;
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
             '액트 10을 넘어선 보상으로 그루터기 함을 얻었습니다.\n씨앗과 수액을 판에 놓으면 처치할 때마다 자랍니다. 보관함에서는 자라지 않습니다.\n'
-            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기 · 번개와 카오스가 맞닿으면 둘 다 멈춥니다.\n먼저 시작 선물로 씨앗과 수액의 색을 골라 받으세요.',
+            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기 · 번개와 카오스가 맞닿으면 둘 다 멈춥니다.\n먼저 ‘그루터기 함’에서 시작 선물로 씨앗과 수액의 색을 골라 받으세요.',
             'tab-stump');
     }
     function announceStumpChange(detail) {

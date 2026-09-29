@@ -316,6 +316,13 @@
         focusable[next].focus();
     }
 
+    function dismissGameToast(toast, fadeMs) {
+        if (toast.classList.contains('is-dismissed')) return;
+        toast.classList.add('is-dismissed');
+        toast.classList.remove('active');
+        setTimeout(() => toast.remove(), fadeMs);
+    }
+
     function showGameToast(message, options) {
         if (!message) return null;
         ensureFeedbackRoot();
@@ -329,10 +336,9 @@
         while (region.children.length > 4) region.firstElementChild.remove();
         requestAnimationFrame(() => toast.classList.add('active'));
         let duration = Math.max(1600, Number(opts.duration) || (tone === 'danger' ? 4300 : 2800));
-        setTimeout(() => {
-            toast.classList.remove('active');
-            setTimeout(() => toast.remove(), 220);
-        }, duration);
+        // A click clears it at once; otherwise it fades out on its own.
+        toast.addEventListener('click', () => dismissGameToast(toast, 90));
+        setTimeout(() => dismissGameToast(toast, 220), duration);
         if (tone === 'success') playUiFeedbackSound('success');
         else if (tone === 'danger') playUiFeedbackSound('danger');
         return toast;

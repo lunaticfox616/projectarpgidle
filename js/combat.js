@@ -2914,10 +2914,10 @@ function coreLoop(nowMs) {
                 addLog(`🕳️ 공허의 구멍 정리 완료!${reward ? ` 공허의 끌 +${reward}` : ''}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
                     let enteredGrand = !zoneNow.worldTreeNode && typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
-                    if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
+                    if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.', 'loot-unique');
                     if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
-                        queueTutorialNotice('void_grand_breach_ready_once', '대균열 개방', '대균열이 열렸습니다! 지도 탭에서 [대균열 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
+                        queueTutorialNotice('void_grand_breach_ready_once', '대균열', '대균열이 열렸습니다.\n‘지도 → 탐험 → 공허 균열 · 대균열’에서 ‘대균열 입장’을 누르세요.', 'tab-map');
                     }
                 }
             }
@@ -6078,7 +6078,7 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
         st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 0));
         game.noti.map = true;
         addLog('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.', 'loot-unique');
-        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_chaos_realm', '혼돈계 해금', '혼돈계 영구 등반이 열렸습니다.', 'tab-map', 'map-tab-chaos-realm');
+        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_chaos_realm', '혼돈계', '나무꾼의 경계가 갈라져 혼돈계가 열렸습니다.\n‘지도 → 혼돈계’에서 루프가 바뀌어도 이어지는 영구 등반에 도전하세요.', 'tab-map', 'map-tab-chaos-realm');
     }
     if (options && options.log) {
         addLog(`🪓 나무꾼 피해율 기록: ${st.woodsmanBestDamagePct.toFixed(1)}% / 해금 조건 10%`, st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');
@@ -7472,7 +7472,7 @@ function unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBl
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
     game.ascendRank = Math.max(game.ascendRank || 0, 5);
     if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 개방', '이번 루프 최초 개화 조합으로 5차 재능·전직 특화 노드가 열렸습니다.', 'tab-traits');
+        queueTutorialNotice('unlock_fifth_node', '5차 특화 노드', '이번 루프에 처음 피운 개화 조합으로 5차 특화 노드가 열렸습니다.\n‘스킬트리 → 직업전직’에서 재능·전직 특화 노드를 확인하세요.', 'tab-traits');
     }
     addLog(`[${classLabel}] 5차 특화 개방: 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
     return true;
@@ -7486,7 +7486,8 @@ function awardTalentBloomCard(comboKey, heroLabel, classLabel) {
     game.unlocks.talent = true;
     game.noti.talent = true;
     if (firstUnlock && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다. 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
+        queueContentNotice('unlock_talent_tab', '재능 개화', 'talent', { open: '재능 개화 카드를 얻었습니다.\n‘재능’에서 가진 카드와 효과를 확인하세요.',
+            locked: '재능 개화 카드를 얻었습니다.\n‘해금’에서 재능을 열면 카드와 효과를 관리할 수 있습니다.' }, 'tab-talent');
     }
     addLog(`개화 카드 [${heroLabel} × ${classLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승' : ''}`, 'loot-unique');
     dispatchRuntimeEvent('talent-tab-refresh-requested');
@@ -9057,7 +9058,8 @@ function rollLootForEnemy(enemy) {
     if (arcanaDrop.dropped) {
         if (typeof unlockJournalEntry === 'function') unlockJournalEntry('arcana_first_seal');
         if (arcanaDrop.unlockedNow && typeof queueTutorialNotice === 'function') {
-            queueTutorialNotice('unlock_arcana', '아르카나 해금', '봉인된 카드를 발견했습니다. 아르카나 탭에서 봉인을 풀고 덱 또는 장비 슬롯에 배치하세요.', 'tab-arcana');
+            queueContentNotice('unlock_arcana', '봉인된 카드', 'arcana', { open: '봉인된 카드를 발견했습니다.\n‘아르카나’에서 봉인을 풀고 덱이나 장비 칸에 놓으세요.',
+            locked: '봉인된 카드를 발견했습니다.\n‘해금’에서 아르카나를 열면 봉인을 풀어 덱이나 장비 칸에 놓을 수 있습니다.' }, 'tab-arcana');
         }
         addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#d5adff', tier: 'unique', duration: 1420 });
         addLog('🂠 봉인된 아르카나 카드를 발견했습니다.', 'loot-unique');
@@ -9913,7 +9915,7 @@ function finishEncounterRun() {
         if (!game.unlocks.traits) game.unlocks.traits = true;
         game.noti.traits = true;
         if (zone.id === 'trial_1' && isFirstClear) {
-            queueTutorialNotice('unlock_first_ascend', '1차 전직 해금', '1차 전직 시련을 통과했습니다!\n직업전직 탭에서 클래스를 선택하고 전직 노드를 활성화하세요.', 'tab-traits');
+            queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 직업전직’에서 직업을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
         }
         checkUnlocks();
         if (zone.id !== 'trial_4') {
@@ -10114,7 +10116,7 @@ function finishEncounterRun() {
                 unlockJournalEntry('act_3');
                 if (ensureCombatTacticsUnlockState(game)) {
                     addLog('🎯 전투 전술이 해금되었습니다. 설정에서 대상 우선순위와 위치 운용을 선택할 수 있습니다.', 'season-up');
-                    queueTutorialNotice('combat_tactics_unlock', '전투 전술 해금', '대상 우선순위와 위치 운용을 설정할 수 있습니다. 전술 이동 중에는 다음 공격이 잠시 미뤄집니다.', 'tab-settings');
+                    queueTutorialNotice('combat_tactics_unlock', '전투 전술', '전투 전술을 정할 수 있게 되었습니다.\n‘설정 → 전투 전술’에서 대상 우선순위와 위치 운용을 고르세요.\n전술 이동 중에는 다음 공격이 잠시 미뤄집니다.', 'tab-settings');
                 }
             }
             if (zone.id === 3) unlockJournalEntry('act_4');
@@ -13003,16 +13005,17 @@ function triggerSeasonReset(options) {
     game.seasonPoints++;
     addLog(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_spore_crafting', '다음 제작 · 속성 홀씨', '화석 제작을 해금하고 사냥에서 속성 홀씨를 모으면 제작 태그를 지정할 수 있습니다.\n화염·냉기·번개 홀씨의 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
+        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염·냉기·번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
     if (game.season === 13 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13 달성! 지도 → 탐험에 시간의 균열이 열렸습니다.\n과거를 클리어해 제단을 열고 같은 부위의 고유 1개·희귀 1개를 올린 뒤, 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
+        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개·희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
     }
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
+        queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
     if (game.season === PRUNING_TREE_UNLOCK_LOOP && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_pruning_tree', '성장 나무 해금', '나무에 첫 나이테가 생겼습니다. 가지치기 탭에서 성장 방향과 감당할 부담을 선택하세요.', 'tab-pruning');
+        queueContentNotice('unlock_pruning_tree', '첫 나이테', 'pruning', { open: '나무에 첫 나이테가 생겼습니다.\n‘가지치기’에서 성장 방향과 감당할 부담을 고르세요.',
+            locked: '나무에 첫 나이테가 생겼습니다.\n‘해금’에서 가지치기를 열면 성장 방향과 감당할 부담을 고를 수 있습니다.' }, 'tab-pruning');
     }
     if (pruningAdvance.changed && game.season > PRUNING_TREE_UNLOCK_LOOP) addLog(`🌳 성장 나무가 자라 성장점 +${pruningAdvance.granted}`, 'season-up');
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');

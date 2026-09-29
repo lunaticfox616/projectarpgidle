@@ -1876,7 +1876,8 @@
         if (!result.completedNow) return;
         if (typeof window.unlockJournalEntry === 'function') window.unlockJournalEntry('arcana_first_seal');
         if (typeof window.queueTutorialNotice === 'function') {
-            window.queueTutorialNotice('unlock_arcana', '아르카나 해금', '별길의 봉인을 복원했습니다. 아르카나 탭에서 카드를 확인하세요.', 'tab-arcana');
+            window.queueContentNotice('unlock_arcana', '봉인된 카드', 'arcana', { open: '별길의 봉인을 복원해 봉인된 카드를 얻었습니다.\n‘아르카나’에서 카드를 확인하세요.',
+                locked: '별길의 봉인을 복원해 봉인된 카드를 얻었습니다.\n‘해금’에서 아르카나를 열면 카드를 덱이나 장비 칸에 놓을 수 있습니다.' }, 'tab-arcana');
         }
         if (typeof window.addLog === 'function') window.addLog('🂠 무명의 패 복원 완료: 봉인된 아르카나 카드 1장 획득', 'loot-unique');
         if (typeof window.showGameToast === 'function') window.showGameToast('아르카나 퀘스트 완료 · 봉인 카드 1장', { tone:'success', duration:4200 });

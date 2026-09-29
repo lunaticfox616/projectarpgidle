@@ -1,4 +1,23 @@
 /** Menu projection and purchase event boundary; the ledger is owned by contentProgression. */
+// 해금 카드의 "…에 있습니다" 줄: 콘텐츠가 있는 곳을 메뉴 이름 그대로.
+const CONTENT_ROUTE_PATHS = Object.freeze({
+    'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
+    'item-tab-hall': '장비 → 장비 전당', 'item-tab-infuser': '장비 → 혼돈 주입기',
+    'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
+    'skill-tab-condition': '스킬 젬 → 자동 사용',
+    'tab-flask': '보조장비 → 플라스크', 'tab-jewel': '보조장비 → 주얼', 'tab-talisman': '보조장비 → 부적', 'tab-cube': '보조장비 → 큐브',
+    'tab-growthboard': '보조장비 → 생장판', 'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 직업전직', 'tab-char': '스킬트리',
+    'tab-season': '루프 패시브', 'tab-expertise': '전문가', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-talent': '재능',
+    'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
+    'map-explore-voidrift': '지도 → 탐험 → 공허 균열 · 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
+    'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-deep-chaos': '지도 → 탐험 → 혼돈 심화층', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
+});
+// 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
+const CONTENT_CARD_DEDICATED = Object.freeze({
+    stump: 'unlock_stump_box', growth: 'unlock_growth_board', timerift: 'unlock_time_rift', cube: 'unlock_core_cube',
+    chaosRealm: 'unlock_chaos_realm', sky: 'unlock_sky_tower', underworld: 'unlock_underworld', cosmos: 'unlock_cosmos',
+    ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
+});
 const contentUnlockUi = {
     renderedKey: '',
     selectedId: 'craft',
@@ -10,12 +29,12 @@ const contentUnlockUi = {
         game.unlocks.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬 젬 장착',
-            `[${name}] 젬을 얻었습니다.\n스킬 젬 창에서 빛나는 젬을 누르고 ‘장착’을 누르세요.\n장착한 젬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
+            `[${name}] 젬을 얻었습니다.\n‘스킬 젬’에서 빛나는 젬을 누르고 ‘장착’을 누르세요.\n장착한 젬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
     },
     announceLoop() {
         if (game.contentProgression && contentProgression.points().complete) return;
         const body = game.contentProgression
-            ? `루프 ${game.season}에 도달해 해금 포인트 ${contentProgression.balance()}P가 생겼습니다.\n해금 창에서 원하는 콘텐츠를 골라 여세요.\n한 번 연 콘텐츠는 루프가 바뀌어도 열려 있습니다.`
+            ? `루프 ${game.season}에 도달해 해금 포인트 ${contentProgression.balance()}P가 생겼습니다.\n‘해금’에서 원하는 콘텐츠를 골라 여세요.\n한 번 연 콘텐츠는 루프가 바뀌어도 열려 있습니다.`
             : `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`;
         queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택', body, 'tab-unlocks');
     },
@@ -247,10 +266,13 @@ const contentUnlockUi = {
         if (root.clientWidth < 600) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
     },
     purchase(id) {
-        const key = document.querySelector(`[data-unlock-reward="${id}"]`)?.value;
+        const key = document.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();
         const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
-        addLog(result.message, 'season-up', { toast: true });
+        // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
+        const carded = this.announceContent(id);
+        addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
+        this.announceOpenedSince(opened); // free content that comes with it (거래소 · 장비 전당 with 장비 제련)
         game.noti.season = contentProgression.balance() > 0;
         checkUnlocks();
         updateStaticUI();
@@ -258,6 +280,7 @@ const contentUnlockUi = {
     },
     routeAction(def) {
         if (def.action) return def.action;
+        if (def.id === 'flask') return { tab: 'tab-flask' };
         const route = def.routes?.[0];
         if (!route) return null;
         if (route.startsWith('item-tab-')) return { tab:'tab-items', subtab:route };
@@ -273,17 +296,48 @@ const contentUnlockUi = {
         if (section) section.open = true;
         requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block:'nearest' }));
     },
+    /** The route an unlock card or button opens: explore / sub-tab / tab, whichever is most exact. */
+    routeKey(action) {
+        const map = action.mapSubtab && action.mapSubtab !== 'map-tab-zones' ? action.mapSubtab : null;
+        return action.explore || action.subtab || action.skillSubtab || map || action.tab;
+    },
+    /** New content card: what it is (the catalog line) and where it lives. Once per content; returns true if queued. */
+    announceContent(id) {
+        const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
+        if (!def || def.minLoop <= 1 || CONTENT_CARD_DEDICATED[id]) return false;
+        const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
+        const path = CONTENT_ROUTE_PATHS[route];
+        const before = tutorialQueue.length;
+        queueTutorialNotice(`unlock_content_${id}`, def.name, path ? `${def.description}\n‘${path}’에 있습니다.` : def.description,
+            action ? action.tab : null, { subtabId: route, contentId: id, openLabel: `${def.name} 열기` });
+        return tutorialQueue.length > before;
+    },
+    /** Free contents open right now (contentProgression keeps them in automatic once reached). */
+    openedContents() {
+        return new Set(game.contentProgression ? game.contentProgression.automatic : []);
+    },
+    announceOpenedSince(before) {
+        this.openedContents().forEach(id => { if (!before.has(id)) this.announceContent(id); });
+    },
+    /** contentProgression.sync, plus a card for each free content that has just opened (loop reached, condition met).
+     * Contents open at load are not news: the save migration syncs before any of this runs. */
+    syncOpened() {
+        const before = this.openedContents();
+        contentProgression.sync();
+        this.announceOpenedSince(before);
+    },
     open(id) {
-        if (!contentProgression.isUnlocked(id)) return;
+        if (!contentProgression.isUnlocked(id)) return false;
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         const action = this.routeAction(def);
-        if (!action) return;
+        if (!action) return false;
         if (!getRenderingUiTabIds().has(action.tab)) switchTab(action.tab);
         if (action.subtab) switchItemSubtab(action.subtab);
         if (action.skillSubtab) switchSkillSubtab(action.skillSubtab);
         if (action.mapSubtab) switchMapSubtab(action.mapSubtab);
         if (action.explore) switchMapExploreSubtab(action.explore);
         if (action.section) this.openSection(action.section);
+        return true;
     }
 };
 document.addEventListener('click', event => {

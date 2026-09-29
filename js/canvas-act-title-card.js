@@ -22,7 +22,8 @@ const actTitleCard = (() => {
         zone = game.currentZoneId;
         const act = actOf(zone);
         card = null;
-        pending = act ? { style: ACT, kicker: `액트 ${act.displayAct}`, title: act.title, subtitle: act.subtitle || '' } : null;
+        // Act number and name only: the act's one-line subtitle repeats the goal panel (and ran under it on phones).
+        pending = act ? { style: ACT, kicker: `액트 ${act.displayAct}`, title: act.title } : null;
     }
     function track(now) {
         watchZone();
@@ -33,12 +34,12 @@ const actTitleCard = (() => {
         return Math.max(0, Math.min(1, age / FADE_IN_MS, (showMs - age) / FADE_OUT_MS));
     }
     function band(ctx, view) {
-        const shade = ctx.createLinearGradient(0, view.top - view.size * 1.4, 0, view.top + view.size * 2.6);
+        const shade = ctx.createLinearGradient(0, view.top - view.size * 1.4, 0, view.top + view.size * 1.8);
         shade.addColorStop(0, 'rgba(6,8,10,0)');
         shade.addColorStop(0.5, 'rgba(6,8,10,0.62)');
         shade.addColorStop(1, 'rgba(6,8,10,0)');
         ctx.fillStyle = shade;
-        ctx.fillRect(0, view.top - view.size * 1.4, view.width, view.size * 4);
+        ctx.fillRect(0, view.top - view.size * 1.4, view.width, view.size * 3.2);
     }
     function kicker(ctx, view) {
         const half = view.size * 2.4;
@@ -56,9 +57,6 @@ const actTitleCard = (() => {
         ctx.strokeText(card.title, view.x, view.top + view.size * 0.5);
         ctx.fillStyle = card.style.titleColour;
         ctx.fillText(card.title, view.x, view.top + view.size * 0.5);
-        ctx.font = `${Math.round(view.size * 0.46)}px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
-        ctx.fillStyle = 'rgba(233,226,207,0.82)';
-        ctx.fillText(card.subtitle, view.x, view.top + view.size * 1.45);
     }
     /** Called once per battlefield frame, after the lighting pass. */
     function draw(ctx, width, height, now) {

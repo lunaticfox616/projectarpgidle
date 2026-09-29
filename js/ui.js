@@ -5767,7 +5767,7 @@ function getMobileToastRoot() {
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
     root.style.gap = '8px';
-    root.style.width = 'min(calc(92vw / var(--scale-display-factor, 1)), 560px)';
+    root.style.width = 'min(calc(92vw / var(--scale-display-factor, 1)), 420px)';
     document.body.appendChild(root);
     return root;
 }
@@ -5787,6 +5787,8 @@ function enqueueMobileToast(msg, cls) {
 // 표시 시간을 점점 줄여 더 빨리 다음 알림이 나오게 한다(밀린 알림이 한 줄씩 느긋하게
 // 빠지는 대신, 밀린 만큼 더 빠르게 소화됨).
 function pumpMobileToastQueue() {
+    // A guide card sits where these notices appear on phones: hold them until it closes (dismissTutorial pumps again).
+    if (typeof isTutorialOpen === 'function' && isTutorialOpen()) return;
     while (mobileToastActiveCount < MOBILE_TOAST_MAX_CONCURRENT && mobileToastQueue.length > 0) {
         showNextMobileToast();
     }
@@ -5809,15 +5811,22 @@ function showNextMobileToast() {
     toast.style.transition = 'opacity .2s ease';
     root.appendChild(toast);
     requestAnimationFrame(() => { toast.style.opacity = '1'; });
-    let duration = getMobileToastDisplayDurationMs();
+    // A tap clears it at once and the next one follows; otherwise it fades out on its own.
+    toast.addEventListener('click', () => releaseMobileToast(toast, 90));
+    setTimeout(() => releaseMobileToast(toast, 220), getMobileToastDisplayDurationMs());
+}
+
+/** Frees a phone toast's slot once: fade out, remove, then let the next queued toast in. */
+function releaseMobileToast(toast, fadeMs) {
+    if (toast.dataset.released) return;
+    toast.dataset.released = '1';
+    toast.style.transition = `opacity ${fadeMs}ms ease`;
+    toast.style.opacity = '0';
     setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => {
-            if (toast.parentNode) toast.parentNode.removeChild(toast);
-            mobileToastActiveCount = Math.max(0, mobileToastActiveCount - 1);
-            pumpMobileToastQueue();
-        }, 220);
-    }, duration);
+        toast.remove();
+        mobileToastActiveCount = Math.max(0, mobileToastActiveCount - 1);
+        setTimeout(pumpMobileToastQueue, 0);
+    }, fadeMs);
 }
 
 let logQueue = [];
@@ -15633,9 +15642,9 @@ function checkUnlocks() {
     if (typeof stumpBoxUi === 'object') stumpBoxUi.checkStumpBoxUnlock();
     if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
         game.noti.growthboard = true;
-        queueTutorialNotice('unlock_growth_board', '생장판 개방',
-            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n보조장비 탭의 빠른 배치함에서 카드를 8×4 판으로 끌면 공간 시너지가 발동합니다.\n생장 아이템과 석판을 해체하면 탭 내부 제작대에서 쓰는 생장 정수를 얻습니다.`,
-            'tab-flask');
+        queueTutorialNotice('unlock_growth_board', '생장판',
+            '장비와 별개로 자라는 생장판이 열렸습니다.\n‘보조장비 → 생장판’의 ‘빠른 배치함’에서 생장 아이템을 8×4 판으로 끌어 놓으면 공간 시너지가 생깁니다.\n생장 아이템과 석판을 해체하면 나오는 생장 정수는 생장판 안의 제작대에서 씁니다.',
+            'tab-growthboard');
     }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', '첫 여정', '전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 젬을 얻으면 그때마다 조작을 안내합니다.');
@@ -15643,24 +15652,25 @@ function checkUnlocks() {
     if (game.level >= 2 && !u.char) {
         u.char = true;
         game.noti.char = true;
-        queueTutorialNotice('unlock_char', '스킬트리 개방', '레벨 2에 도달해 성좌를 찍을 수 있게 되었습니다.\n패시브 포인트를 사용해 성장 방향을 정해보세요.', 'tab-char');
+        queueTutorialNotice('unlock_char', '스킬트리', '레벨 2가 되어 패시브 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.', 'tab-char');
     }
     if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
         u.items = true;
         game.noti.items = true;
-        queueTutorialNotice('unlock_items', '장비/제작 개방', '첫 장비 또는 제작 재화를 얻었습니다.\n아이템을 장착하고, 오브를 사용해 장비를 강화할 수 있습니다.', 'tab-items');
+        queueTutorialNotice('unlock_items', '첫 장비', '장비나 제작 재화를 처음 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하고 착용하세요.', 'tab-items');
     }
     if (isJewelTabUnlockReady() && !u.jewel) {
         u.jewel = true;
         game.noti.jewel = true;
-        queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');
+        queueContentNotice('unlock_jewel', '주얼', 'jewel', { open: '주얼과 주얼 결정을 쓸 수 있게 되었습니다.\n‘보조장비 → 주얼’에서 주얼을 장착해 부족한 능력치를 보완하세요.',
+            locked: '주얼과 주얼 결정을 모을 수 있게 되었습니다.\n‘해금’에서 주얼을 열면 장착해 부족한 능력치를 보완할 수 있습니다.' }, 'tab-jewel');
     }
     contentUnlockUi.announceStarterGem(starterTutorialGem);
     queueStarterGuides(game);
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
         u.skills = true;
         game.noti.skills = true;
-        queueTutorialNotice('unlock_skills', '스킬 젬 개방', '새로운 젬을 얻었습니다.\n공격 스킬을 교체하거나 보조 젬을 연결해 전투 스타일을 바꿔보세요.', 'tab-skills');
+        queueTutorialNotice('unlock_skills', '새 스킬 젬', '새 젬을 얻었습니다.\n‘스킬 젬’에서 젬을 눌러 효과를 보고 공격 젬을 바꿔 보세요.', 'tab-skills');
     }
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
@@ -15669,13 +15679,14 @@ function checkUnlocks() {
         if (isCodexTabUnlockReady() || growthUniqueSeen) {
             u.codex = true;
             game.noti.codex = true;
-            queueTutorialNotice('unlock_codex', '도감 탭 개방', '첫 고유 아이템을 획득해 도감이 열렸습니다.\n고유 아이템을 등록/보관하고 도감 보너스를 받을 수 있습니다.', 'tab-codex');
+            queueContentNotice('unlock_codex', '첫 고유 장비', 'codex', { open: '고유 장비를 처음 얻었습니다.\n‘기록 → 도감’에 등록하면 도감 보너스를 받습니다.',
+                locked: '고유 장비를 처음 얻었습니다.\n‘해금’에서 고유 도감을 열면 등록해 도감 보너스를 받을 수 있습니다.' }, 'tab-codex');
         }
     }
     if (game.maxZoneId >= 1 && !u.map) {
         u.map = true;
         game.noti.map = true;
-        queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n지도에서 지역을 골라 이동하면 드랍과 몬스터 속성을 고를 수 있습니다.', 'tab-map');
+        queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n‘지도’에서 지역을 골라 이동하면 드랍과 몬스터 속성을 고를 수 있습니다.', 'tab-map');
     }
     reconcileBeyondBoundaryUnlock(game);
     let boundaryState = ensureBeyondBoundaryState(game);
@@ -15688,7 +15699,7 @@ function checkUnlocks() {
             boundaryButton.classList.add('map-explore-tab-unlock-reveal');
             setTimeout(() => boundaryButton.classList.remove('map-explore-tab-unlock-reveal'), 1400);
         }
-        queueTutorialNotice('unlock_beyond_boundary', '경계 너머 해금', '완전한 수관과 최종 관문 너머에 끝없는 도전이 열렸습니다.\n지도 → 경계 너머에서 단계와 성장시킬 인장을 선택하세요.', 'tab-map');
+        queueTutorialNotice('unlock_beyond_boundary', '경계 너머', '완전한 수관과 최종 관문 너머로 끝없는 도전이 열렸습니다.\n‘지도 → 탐험 → 경계 너머’에서 단계를 고르고 키울 경계 인장을 정하세요.', 'tab-map');
     }
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
     if (game.season > 1 && !u.season) {
@@ -15699,17 +15710,20 @@ function checkUnlocks() {
     if (ensurePruningTreeState(game).unlocked && !u.pruning) {
         u.pruning = true;
         game.noti.pruning = true;
-        queueTutorialNotice('unlock_pruning_tree', '성장 나무 해금', '나무에 첫 나이테가 생겼습니다. 가지치기 탭에서 성장 방향과 감당할 부담을 선택하세요.', 'tab-pruning');
+        queueContentNotice('unlock_pruning_tree', '첫 나이테', 'pruning', { open: '나무에 첫 나이테가 생겼습니다.\n‘가지치기’에서 성장 방향과 감당할 부담을 고르세요.',
+            locked: '나무에 첫 나이테가 생겼습니다.\n‘해금’에서 가지치기를 열면 성장 방향과 감당할 부담을 고를 수 있습니다.' }, 'tab-pruning');
     }
     if (ensureArcanaState(game).unlocked && !u.arcana) {
         u.arcana = true;
         game.noti.arcana = true;
-        queueTutorialNotice('unlock_arcana', '아르카나 해금', '봉인된 카드를 발견했습니다. 아르카나 탭에서 봉인을 풀고 덱 또는 장비 슬롯에 배치하세요.', 'tab-arcana');
+        queueContentNotice('unlock_arcana', '봉인된 카드', 'arcana', { open: '봉인된 카드를 발견했습니다.\n‘아르카나’에서 봉인을 풀고 덱이나 장비 칸에 놓으세요.',
+            locked: '봉인된 카드를 발견했습니다.\n‘해금’에서 아르카나를 열면 봉인을 풀어 덱이나 장비 칸에 놓을 수 있습니다.' }, 'tab-arcana');
     }
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
-        queueTutorialNotice('unlock_traits', '전직 탭 개방', '전직 화면에서 직업을 선택할 수 있습니다.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 사용합니다.', 'tab-traits');
+        queueContentNotice('unlock_traits', '직업전직', 'trials', { open: '직업을 고를 수 있게 되었습니다.\n‘스킬트리 → 직업전직’에서 직업을 선택하세요.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
+            locked: '직업을 고를 수 있게 되었습니다.\n‘해금’에서 직업 전직을 열면 직업과 전직 패시브를 고를 수 있습니다.' }, 'tab-traits');
     }
     if ((((game.currencies || {}).sealShard || 0) > 0 || ((game.currencies || {}).strongSealShard || 0) > 0) && !u.talisman) {
         u.talisman = true;
@@ -15729,14 +15743,15 @@ function checkUnlocks() {
     if ((game.season||1) >= 7 && ((game.starWedge||{}).unlocked || getStarWedgeUnlockReady())) game.expertise.unlockedExperts.push('astronomer');
     if ((game.season||1) >= 8 && (((game.beehive||{}).unlockedPermanent) || (game.currencies.hiveKey||0) > 0)) game.expertise.unlockedExperts.push('beekeeper');
     game.expertise.unlockedExperts = Array.from(new Set(game.expertise.unlockedExperts));
-    if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; queueTutorialNotice('unlock_expertise','전문가 탭 개방','전문가 조우를 통해 전문가 시스템이 개방되었습니다.','tab-expertise'); }
+    if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; }
     let newlyUnlockedExperts = (game.expertise.unlockedExperts||[]).filter(id => !beforeExperts.has(id));
     if (newlyUnlockedExperts.length > 0) game.noti.expertise = true;
     if (game.unlocks.expertise) newlyUnlockedExperts.forEach(id => {
         let key = `unlock_expert_${id}`;
         if ((game.seenTutorials||[]).includes(key)) return;
         let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
-        queueTutorialNotice(key, `${def.icon || '🧠'} ${def.name} 조우`, `${def.desc}\n전문가 탭에서 레벨과 해금, 노드 트리를 확인해보세요.`, 'tab-expertise');
+        queueContentNotice(key, `${def.name} 조우`, 'experts', { open: `${def.desc}\n‘전문가’에서 레벨과 해금, 노드 트리를 확인하세요.`,
+            locked: `${def.desc}\n‘해금’에서 전문가를 열면 이 전문가의 기술을 키울 수 있습니다.` }, 'tab-expertise');
     });
     if (game.level >= 200) unlockJournalEntry('level_200');
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
@@ -15744,7 +15759,7 @@ function checkUnlocks() {
         game.noti.map = true;
         addLog('🏛️ Lv.100 달성으로 4차 전직 미궁 시련이 개방되었습니다!', 'loot-unique');
     }
-    contentProgression.sync();
+    contentUnlockUi.syncOpened();
     detectNewMapUnlockAlarms();
     announceMapPrimaryContentUnlocks();
 }

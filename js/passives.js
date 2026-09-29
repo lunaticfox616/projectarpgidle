@@ -2608,8 +2608,8 @@ function unlockPassiveStarEvolution(options) {
             'passive_star_evolution',
             '성좌 각성',
             progress.mode === 'outer_constellation'
-                ? '여섯 외곽 성률의 별자리에서 패시브를 하나 이상 받아들였습니다.\n성좌 각성은 영구 유지되며 별의 공명으로 피해, 생명력, 이동 속도가 상승합니다.'
-                : '별끝 특수 노드를 모두 활성화했습니다.\n성좌 각성은 영구 유지되며 별의 공명으로 피해, 생명력, 이동 속도가 상승합니다.',
+                ? '여섯 외곽 성률의 별자리에서 패시브를 하나 이상 받아들여 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해·생명력·이동 속도가 오릅니다.'
+                : '별끝 특수 노드를 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해·생명력·이동 속도가 오릅니다.',
             'tab-char'
         );
     }
@@ -3252,7 +3252,7 @@ function tryUnlockMeteorContentByProgress() {
     recalculateStarWedgeMutations();
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
     addLog('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.', 'loot-unique');
-    queueTutorialNotice('meteor_unlocked', '운석 낙하 지점', '루프 7 이후 액트 7을 넘긴 사냥에서 하늘의 균열이 열립니다.\n게이지를 100%까지 채우면 운석 낙하 지점에 1회 입장할 수 있습니다.', 'tab-map');
+    queueTutorialNotice('meteor_unlocked', '운석 낙하 지점', '검은 별이 떨어지기 시작했습니다.\n액트 7을 넘긴 사냥터에서 사냥하면 하늘의 균열 게이지가 찹니다.\n게이지가 100%가 되면 ‘지도 → 탐험 → 운석 낙하’에 한 번 들어갈 수 있습니다.', 'tab-map');
     return true;
 }
 

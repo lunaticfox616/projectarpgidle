@@ -91,12 +91,12 @@ const OCEAN_ZONE_ID = 'ocean_depth';
 
 const MAP_PRIMARY_CONTENTS = Object.freeze([
     { id: 'map-tab-zones', label: '탐험', initiallyUnlocked: true },
-    { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계 해금', noticeBody: '루프 밖에서 이어지는 혼돈계 영구 등반이 열렸습니다.' },
-    { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑 해금', noticeBody: '창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
-    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계 해금', noticeBody: '지하계가 열렸습니다. 룬과 영구 강화 진행도는 루프 후에도 유지됩니다.' },
-    { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계 해금', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.' },
-    { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
-    { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
+    { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계', noticeBody: '루프가 바뀌어도 이어지는 혼돈계 영구 등반이 열렸습니다.\n‘지도 → 혼돈계’에서 도전하세요.' },
+    { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑', noticeBody: '창공의 탑이 열렸습니다.\n‘지도 → 창공’에서 탑을 오르세요.\n이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
+    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계', noticeBody: '지하계가 열렸습니다.\n‘지도 → 지하계’에서 룬을 모으세요.\n룬과 영구 강화 진행도는 루프가 바뀌어도 유지됩니다.' },
+    { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.\n‘지도 → 우주계’에서 우주를 탐험하세요.' },
+    { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시', noticeBody: '심해 탐사와 낚시가 열렸습니다.\n‘지도 → 심해’에서 수압에 도전하세요.\n‘지도 → 낚시’에서 어획물을 모으세요.', noticeTargetId: 'map-tab-ocean' },
+    { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시', noticeBody: '심해 탐사와 낚시가 열렸습니다.\n‘지도 → 심해’에서 수압에 도전하세요.\n‘지도 → 낚시’에서 어획물을 모으세요.', noticeTargetId: 'map-tab-ocean' },
     { id: 'map-tab-pvp', label: '대전', unlockLoop: 3 }
 ].map(Object.freeze));
 

@@ -178,7 +178,7 @@ function maybeUnlockCoreCube(options = {}) {
         if (game.unlocks) game.unlocks.cube = true;
         if (game.noti) game.noti.cube = true;
         if (!options.silent) {
-            if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_core_cube', '큐브 탭 개방', '지하계 10층 클리어와 루프 20 조건을 달성해 코어 큐브가 해금되었습니다. 흐릿한 45면체는 이제 지하계에서 드랍됩니다.', 'tab-cube');
+            if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_core_cube', '코어 큐브', '코어 큐브가 열렸습니다.\n지하계에서 얻은 동력원을 ‘보조장비 → 큐브’의 면에 붙이세요.\n[흐릿한 45면체]는 이제 지하계에서 떨어집니다.', 'tab-cube');
             else if (typeof addLog === 'function') addLog('🧊 코어 큐브가 해금되었습니다!', 'loot-unique');
         }
         return true;

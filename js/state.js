@@ -65,12 +65,20 @@ window.GameModules.state = window.GameState;
 
 // Transient notices: domains enqueue data; the foreground UI decides when to present it.
 let tutorialQueue = [];
-function queueTutorialNotice(key, title, body, tabId, subtabId) {
+/** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
+function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
     game.seenTutorials = game.seenTutorials || [];
     if (game.seenTutorials.includes(key)) return;
     game.seenTutorials.push(key);
-    tutorialQueue.push({ key, title, body, tabId: tabId || null, subtabId: subtabId || null });
+    const extra = target && typeof target === 'object' ? target : { subtabId: target };
+    tutorialQueue.push({ ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
+}
+/** A notice about content bought in 해금 (arcana, talent, …): before it is bought, the card says where to buy it and
+ * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
+function queueContentNotice(key, title, contentId, bodies, route) {
+    const opened = typeof contentProgression !== 'object' || contentProgression.isUnlocked(contentId);
+    queueTutorialNotice(key, title, opened ? bodies.open : bodies.locked, opened ? route : 'tab-unlocks');
 }
 
 // Phase-3 extracted world/season progression helpers.
@@ -2671,7 +2679,7 @@ const defaultGame = {
     // NPC escrow: UTC millisecond clocks and integer refill-time budget (300,000 ms per dew).
     // listings: {id, item, price: integer dew, listedAt: UTC ms}[]; only this container owns listed gear.
     // proceeds: unclaimed integer dew; rng: saved uint32; sequence: monotonically increasing listing ID.
-    playerStall: { version: 1, sequence: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, budgetMs: 0, proceeds: 0, listings: [], history: [] },
+    playerStall: { version: 2, sequence: 0, offerSequence: 0, nextOfferAt: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, budgetMs: 0, proceeds: 0, listings: [], history: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,

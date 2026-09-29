@@ -1642,6 +1642,20 @@ body #tutorial-overlay .tutorial-pause-toggle > strong { color: #f0c86f; font-si
   box-shadow: 1px 1px 0 #000;
 }
 :root body #tutorial-overlay .tutorial-line { margin: 6px 0 0; }
+/* 본문 색: ‘메뉴·단추’는 카드 종류 색(어디로 갈지), [이름]은 하늘색(무엇인지). 제목 금색·본문 베이지는 그대로. */
+:root body #tutorial-overlay .tutorial-ui { color: var(--tutorial-kind); }
+:root body #tutorial-overlay .tutorial-name { color: #a6d0ea; }
+:root body #tutorial-overlay:not(.is-story-scene) .tutorial-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 16px;
+  left: 16px;
+  height: 2px;
+  background: var(--tutorial-kind);
+  opacity: .7;
+  pointer-events: none;
+}
 /* "다음 안내 N": 이 카드 뒤에 몇 장이 더 오는지 */
 :root body #tutorial-overlay .tutorial-queue-count {
   position: absolute;
