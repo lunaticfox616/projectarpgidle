@@ -70,7 +70,8 @@ until('game.actExploration?.completionApplied','town stop still commits completi
 assert.equal(run('game.currentZoneId'),0,'source map remains visible during settlement');
 until('game.combatHalted','town stop waits for presentation, then halts');
 assert.equal(run('game.currentZoneId'),1);
-assert.equal(run('game.actExploration'),null);
+assert.equal(run('game.actExploration.arrival'),true,'the halted next act shows its entrance, not the legacy board');
+assert.equal(run('game.actExploration.act'),2);
 
 // Death and manual return abandon the old packet; retry starts fresh through normal travel.
 for(const action of ['returnToTown()','handlePlayerDefeat(getZone(0),getPlayerStats())']) {
@@ -84,8 +85,11 @@ for(const action of ['returnToTown()','handlePlayerDefeat(getZone(0),getPlayerSt
 }
 
 fresh(1,{mapCompleteAction:'repeatZone',townReturnAction:'stop'});
-run('ensureEncounterRun();returnToTown();');advance(30);
-assert.equal(run('game.combatHalted'),true);assert.equal(run('game.actExploration'),null);
+run('ensureEncounterRun();window.entryRun=game.actExploration;returnToTown();');advance(30);
+assert.equal(run('game.combatHalted'),true);
+assert.notEqual(run('game.actExploration'),run('window.entryRun'),'the abandoned map is gone');
+assert.equal(run('game.actExploration.arrival'),true,'halted in town, the act entrance waits unstarted');
+advance(30);assert.equal(run('game.actExploration.arrival'),true,'nothing starts while halted');
 fresh(1,{mapCompleteAction:'repeatZone'});
 run('ensureEncounterRun();game.combatHalted=true;normalizeLocalRuntimeAfterLoad();');
 assert.equal(run('game.combatHalted'),true,'loading a paused empty entry room does not silently start travel');

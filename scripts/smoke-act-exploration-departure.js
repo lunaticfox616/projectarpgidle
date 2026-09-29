@@ -56,7 +56,7 @@ function returnButton() {
 }
 const snapshot=()=>copy('({zone:game.currentZoneId,loot:game.actExploration?.loot,player:game.gridPlayer,currencies:game.currencies})');
 async function main() {
-    fresh();const before=snapshot(),button=returnButton();
+    fresh();const before=snapshot(),button=returnButton(),abandoned=run('game.actExploration');
     button.click();assert.equal(run('actExplorationUi.departurePending()'),true);
     assert.equal(run('isForegroundGameplayPausedForBackground()'),true,'loss confirmation pauses even with optional overlay pause off');
     assert.match(nodes.get('game-dialog-message').innerHTML,/황금률 ×2/);
@@ -66,7 +66,10 @@ async function main() {
     assert.equal(run('actExplorationUi.departurePending()'),false);
     assert.equal(run('isForegroundGameplayPausedForBackground()'),false);
     button.click();nodes.get('game-dialog-confirm').click();await settle();
-    assert.equal(run('game.actExploration'),null);
+    // The abandoned map is gone; the wait shows the act's entrance, freshly laid out (not the legacy board).
+    assert.notEqual(run('game.actExploration'),abandoned);
+    assert.equal(run('game.actExploration.arrival'),true,'the return wait lays out a fresh map of the act');
+    assert.equal(run('game.actExploration.loot.phase'),'pending');
     assert.deepEqual(copy('game.currencies'),before.currencies,'abandon never pays pending loot');
     assert.equal(run('game.isTownReturning'),true,'normal town return still executes');
 
@@ -99,7 +102,9 @@ async function main() {
 
     fresh();const direct=element('',{'data-exploration-departure':'',onclick:'changeZone(1)'});
     direct.click();nodes.get('game-dialog-confirm').click();await settle();
-    assert.equal(run('game.currentZoneId'),1);assert.equal(run('game.actExploration'),null);
+    assert.equal(run('game.currentZoneId'),1);
+    assert.equal(run('game.actExploration.act'),2,'map travel lays out the destination act at once — never the legacy 9×8 board');
+    assert.equal(run('game.actExploration.arrival'),true);
     fresh();run('actExplorationProgress.defeat(game)');direct.click();
     assert.equal(run('game.currentZoneId'),1,'already-lost loot needs no extra confirmation');
     assert.equal(run('actExplorationUi.departurePending()'),false);
@@ -107,7 +112,9 @@ async function main() {
     assert.equal(run('game.currentZoneId'),1,'completed and claimed runs do not warn');
     fresh();const tooltip=element('',{onclick:'void 0'});tooltip.click();
     assert.equal(run('actExplorationUi.departurePending()'),false,'tooltip actions inside cards do not request travel');
-    run('returnToTown()');assert.equal(run('game.actExploration'),null,'combat-initiated return stays synchronous');
+    const beforeReturn=run('game.actExploration');run('returnToTown()');
+    assert.notEqual(run('game.actExploration'),beforeReturn,'combat-initiated return stays synchronous');
+    assert.equal(run('game.actExploration.arrival'),true);
     // 다른 지역에 남은 탐험이 든 저장은 손상 처리 대신 그 탐험만 버리고 연다(임시 전리품 미지급).
     fresh();run('game.currentZoneId=1');
     const stale=copy('(()=>{const restored=mergeDefaults(JSON.parse(serializeSaveState(game)));return {zone:restored.currentZoneId,run:restored.actExploration,gold:restored.currencies.goldenRule};})()');

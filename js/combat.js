@@ -8364,9 +8364,8 @@ function createActExplorationEncounter(zone,enabled=zone.type==='act') {
 // fixtures. Production callers use the zone default; saved legacy plans finish in place.
 function startEncounterRun(exploration) {
     let zone = getZone(game.currentZoneId) || getZone(0);
-    const explorationRun=createActExplorationEncounter(zone,exploration);
-    let returnedToGridStart = hasGridCell(game.gridPlayer)
-        && getGridUnitDistance(game.gridPlayer,COMBAT_GRID_CONFIG.playerSpawn)>0;
+    const opened=openEncounterExploration(zone,exploration),explorationRun=opened.run;
+    let returnedToGridStart = opened.returning;
     pTimer = 0;
     resetCombatTacticsRuntime();
     resetCombatChannelRuntime();
@@ -8448,6 +8447,34 @@ function startMoving(isTown) {
         v.defeatedCount = 0;
         v.spawnTick = 0;
     }
+    prepareActExplorationArrival();
+}
+
+/** Moving into a story act lays its map out at once: the travel wait (다음 구간 준비 · 재정비) shows the act's
+ * entrance with the character standing in it instead of the legacy 9×8 board. The run stays idle until the timer
+ * ends (actExplorationProgress.tick holds it while moveTimer > 0), then startEncounterRun takes it over. */
+function prepareActExplorationArrival() {
+    const zone = getZone(game.currentZoneId);
+    if (!zone || zone.type !== 'act' || zone.id !== game.currentZoneId || !actExplorationMap.layout(zone.id + 1)) return;
+    const run = createActExplorationEncounter(zone);
+    run.arrival = true;
+    game.actExploration = run;
+    resetPlayerGridPosition();
+    restoreAndRecallSummons(getPlayerStats());
+}
+/** The act's exploration for a new encounter: the one laid out while moving here, else a new one (null outside acts).
+ * returning: the character comes back from elsewhere on the board (the return warp plays), not already standing in it. */
+function openEncounterExploration(zone,exploration) {
+    const arrival=takeActExplorationArrival(zone,exploration);
+    const returning=!arrival && hasGridCell(game.gridPlayer) && getGridUnitDistance(game.gridPlayer,COMBAT_GRID_CONFIG.playerSpawn)>0;
+    return {run:arrival || createActExplorationEncounter(zone,exploration),returning};
+}
+/** The run laid out while moving here, if this encounter starts in the same act. */
+function takeActExplorationArrival(zone, exploration) {
+    const run = game.actExploration;
+    if (exploration === false || !run || !run.arrival || run.zoneId !== zone.id) return null;
+    delete run.arrival;
+    return run;
 }
 
 /** Called by the existing fixed combat clock; offline resumes a saved exit without visual delay. */
@@ -8460,7 +8487,7 @@ function advanceActExplorationDeparture() {
     game.currentZoneId=departure.zoneId;
     actExplorationProgress.depart(game);
     enterAutomaticMapInterruptionAfterClear(zone);
-    if(game.settings.townReturnAction==='stop')actExplorationProgress.stopAfterCompletion(game);
+    if(game.settings.townReturnAction==='stop'){actExplorationProgress.stopAfterCompletion(game);prepareActExplorationArrival();}
     else startMoving(false);
     dispatchRuntimeEvent('exploration-departed',{background:!!game.isBackgroundCalculation});
     return true;

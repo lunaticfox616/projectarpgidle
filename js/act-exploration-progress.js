@@ -15,6 +15,7 @@ const actExplorationProgress = (() => {
             actExplorationMotion.rebase(run,now);
             return;
         }
+        if(run.arrival)delete run.arrival; // laid out during the move; from here it is the act's live run
         if(!run.motionTimeMs)run.motionTimeMs=now;
         // Combat replay supplies fixed ticks. A restored/stalled foreground clock must not
         // turn one frame into an unbounded movement-only catch-up loop.
@@ -45,14 +46,20 @@ const actExplorationProgress = (() => {
         return canPlaceGridFootprint(getGridBlockedCells(game.gridPlayer),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
     function moving() {return !!actExplorationState.current(game)?.motion;}
+    /** The current run once it has begun. A map laid out during the move toward the act (arrival) is only the
+     * scenery of the wait: completion and stall checks still belong to whatever encounter is actually running. */
+    function live(state=game) {
+        const run=actExplorationState.current(state);
+        return run && !run.arrival ? run : null;
+    }
     function canFinish() {
-        const run=actExplorationState.current(game);
+        const run=live();
         if(run)return run.status==='cleared' && !run.completionApplied;
         return game.runProgress>=100 && game.encounterIndex>=game.encounterPlan.length && game.enemies.length===0;
     }
     /** Claim first: invalid rewards leave completion retryable, before story/unlock changes. */
     function beginCompletion(zone) {
-        const run=actExplorationState.current(game);
+        const run=live();
         if(!run)return {loot:null};
         if(!canFinish())return false;
         const loot=actExplorationLoot.claim(game,run);
@@ -65,7 +72,7 @@ const actExplorationProgress = (() => {
         return {loot};
     }
     function shouldTrackStall() {
-        return !actExplorationState.current(game) && game.moveTimer<=0 && game.enemies.length===0;
+        return !live() && game.moveTimer<=0 && game.enemies.length===0;
     }
     function holdPosition(requested) {
         const run=actExplorationState.current(game);
