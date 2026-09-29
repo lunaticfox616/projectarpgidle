@@ -11,9 +11,6 @@
 #btn-exploration-loot-skip:focus-visible {outline:2px solid #f0cf80;outline-offset:2px;}
 .act-exploration-heading {display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
 #act-exploration-panel canvas {position:relative;display:block;width:var(--minimap-size);height:var(--minimap-size);border-radius:50%;background:#050807;image-rendering:auto;cursor:crosshair;}
-#act-exploration-panel .act-exploration-progress {position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:auto;margin:0;padding:1px 9px;border:1px solid #4b4235;border-radius:999px;background:rgba(10,9,8,.92);overflow:visible;white-space:nowrap;}
-#act-exploration-panel .act-exploration-progress-fill {display:none;}
-#act-exploration-panel .act-exploration-progress b {font-size:11px;line-height:16px;}
 .act-exploration-modes {display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px;}
 .act-exploration-modes button {white-space:nowrap;}
 .act-exploration-modes button:last-child {grid-column:1 / -1;}
@@ -21,9 +18,6 @@
 #act-exploration-dialog button[aria-pressed="true"] {background:#3c3521;border-color:#bea363;color:#f2dfaa;}
 #act-exploration-dialog button:disabled {opacity:.5;cursor:default;}
 .act-exploration-dialog-actions {display:flex;justify-content:space-between;gap:8px;margin-top:10px;}
-.act-exploration-progress {position:relative;height:18px;margin-top:6px;border:1px solid #3a3528;background:#07090a;overflow:hidden;}
-.act-exploration-progress-fill {position:absolute;inset:0 auto 0 0;width:var(--explore-pct,0%);background:linear-gradient(90deg,#5f4b24,#c9a45c);transition:width .4s ease;}
-.act-exploration-progress b {position:relative;display:block;font-size:11px;line-height:16px;font-weight:600;text-align:center;color:#f3e6c4;text-shadow:0 1px 2px #000;}
 #act-exploration-dialog,#act-exploration-loot-dialog {pointer-events:auto;padding:16px;background:#0b130f;color:#ddd4b9;border:1px solid #aa8e53;max-width:85vw;width:580px;max-height:85vh;}
 #act-exploration-dialog::backdrop,#act-exploration-loot-dialog::backdrop {background:#030906b8;}
 #act-exploration-map-large {display:block;width:auto;max-width:100%;height:auto;max-height:65vh;margin:0 auto;image-rendering:auto;cursor:crosshair;}
@@ -45,8 +39,6 @@
 @media(max-width:1080px) {
     #act-exploration-panel {--minimap-size:96px;top:88px;right:12px;}
     #act-exploration-panel #btn-act-exploration-map {width:30px;height:30px;top:-6px;right:-8px;font-size:10px;}
-    #act-exploration-panel .act-exploration-progress {padding:0 6px;}
-    #act-exploration-panel .act-exploration-progress b {font-size:10px;line-height:14px;letter-spacing:-.02em;}
     #act-exploration-map-large {max-height:55vh;}
 }
 }

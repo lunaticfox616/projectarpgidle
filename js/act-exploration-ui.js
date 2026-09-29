@@ -22,19 +22,16 @@ const actExplorationUi=(()=>{
         seal.setAttribute('aria-label',remaining?'남은 정예 몬스터 수: '+remaining:'보스 관문 개방');
         draw(document.getElementById('act-exploration-map'),run);
         draw(document.getElementById('act-exploration-map-large'),run);
-        renderProgress(run,remaining);
+        renderProgress(run);
     }
-    // 지도 아래 진행 막대: 밝혀낸 바닥 비율과 남은 정예 수. 표시 전용이며 탐험 규칙과 무관하다.
-    function renderProgress(run,remaining) {
-        const host=document.getElementById('act-exploration-progress');if(!host)return;
+    // 미니맵 둘레 고리: 밝혀낸 바닥 비율. 글자 없이 고리로만 보인다(남은 정예 수는 크게 보기 창의 봉인 표시).
+    // 표시 전용이며 탐험 규칙과 무관하다.
+    function renderProgress(run) {
+        const panel=document.getElementById('act-exploration-panel');if(!panel)return;
         const map=actExplorationMap.layout(run.act);
         const floor=map.tiles.filter(Boolean).length;
         const seen=run.discovered.filter(id=>map.tiles[id]).length;
-        const pct=floor?Math.round(seen/floor*100):0;
-        host.style.setProperty('--explore-pct',pct+'%');
-        document.getElementById('act-exploration-panel').style.setProperty('--explore-pct',pct+'%');
-        host.setAttribute('aria-valuenow',String(pct));
-        host.querySelector('b').textContent=`탐험 ${pct}%`+(remaining?` · 정예 ${remaining}`:' · 관문 개방');
+        panel.style.setProperty('--explore-pct',(floor?Math.round(seen/floor*100):0)+'%');
     }
     // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
     // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다.

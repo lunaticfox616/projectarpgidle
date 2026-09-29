@@ -9035,6 +9035,13 @@ function setUiImageGaugePercent(element, percent) {
     }
 }
 
+/** The progress gauge speaks only for special content — a timer, waves, depth, a boss wait or a floor run. Story acts
+ * are explored on the map (the minimap ring shows how much is revealed), so the gauge is hidden there. */
+function syncMapProgressRow(zone) {
+    const row = document.getElementById('ui-map-progress-row');
+    if (row) row.toggleAttribute('hidden', !!zone && zone.type === 'act');
+}
+
 function setCombatProgressGaugePercent(percent) {
     let bar = document.getElementById('ui-move-bar');
     if (!bar) return;
@@ -9861,6 +9868,7 @@ function updateCombatUI(pStats) {
     }
 
     sideEncounterUi.updateHud(zone);
+    syncMapProgressRow(zone);
     worldTreeJourneyUi.updateHud(zone);
     if (getRenderingUiTabIds().has('tab-character')) renderCharacterStats(pStats);
 

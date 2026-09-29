@@ -1,17 +1,13 @@
-/** Title cards over the upper battlefield, like an area name in an ARPG:
- *  - entering (or loading into) a story act: "액트 N", the act name and its subtitle;
- *  - a boss appearing: "보스", its name and the act it guards.
- * Cards queue one after another and wait while a story or tutorial popup is open, so none is spent behind it.
- * Read-only: they watch game.currentZoneId and the boss spawn effects; nothing here touches combat state.
+/** Act title card over the upper battlefield, like an area name in an ARPG: entering (or loading into) a story act
+ * shows "액트 N", the act name and its subtitle. It waits while a story or tutorial popup is open, so it is not spent
+ * behind it. Bosses keep the battlefield's own banner (drawBossAnnouncement).
+ * Read-only: it watches game.currentZoneId; nothing here touches combat state.
  */
 const actTitleCard = (() => {
     const ACT = Object.freeze({ showMs: 3600, kickerColour: '#e0c27e', titleColour: '#e9e2cf' });
-    const BOSS = Object.freeze({ showMs: 2800, kickerColour: '#e26a5a', titleColour: '#f3dcc8' });
     const FADE_IN_MS = 500;
     const FADE_OUT_MS = 800;
-    const queue = [];
-    const seenBosses = new WeakSet(); // spawn effects already announced (fx ids restart when the field resets)
-    let zone, card = null;
+    let zone, pending = null, card = null;
 
     function actOf(zoneId) {
         return Number.isInteger(zoneId) && zoneId >= 0 && zoneId < STORY_ACTS.length ? STORY_ACTS[zoneId] : null;
@@ -24,27 +20,13 @@ const actTitleCard = (() => {
         if (game.currentZoneId === zone) return;
         zone = game.currentZoneId;
         const act = actOf(zone);
-        queue.length = 0;
         card = null;
-        if (act) queue.push({ style: ACT, kicker: `액트 ${act.displayAct}`, title: act.title, subtitle: act.subtitle || '' });
-    }
-    function bossName(fx) {
-        const enemy = (game.enemies || []).find(row => row && row.id === fx.enemyId) || battleVisualState.enemyGhostPos?.[fx.enemyId]?.enemy;
-        return enemy && enemy.name ? String(enemy.name).replace(/^👿\s*/, '') : '';
-    }
-    function watchBosses(now) {
-        for (const fx of battleFx) {
-            if (!fx || fx.type !== 'enemySpawn' || !fx.boss || seenBosses.has(fx) || fx.start > now) continue;
-            seenBosses.add(fx);
-            const name = bossName(fx), act = actOf(game.currentZoneId);
-            if (name) queue.push({ style: BOSS, kicker: '보스', title: name, subtitle: act ? `액트 ${act.displayAct} · ${act.title}` : '' });
-        }
+        pending = act ? { style: ACT, kicker: `액트 ${act.displayAct}`, title: act.title, subtitle: act.subtitle || '' } : null;
     }
     function track(now) {
         watchZone();
-        watchBosses(now);
         if (card && now - card.startAt >= card.style.showMs) card = null;
-        if (!card && queue.length && !popupOpen()) card = { ...queue.shift(), startAt: now };
+        if (!card && pending && !popupOpen()) { card = { ...pending, startAt: now }; pending = null; }
     }
     function opacity(age, showMs) {
         return Math.max(0, Math.min(1, age / FADE_IN_MS, (showMs - age) / FADE_OUT_MS));

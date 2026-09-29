@@ -69,6 +69,7 @@
   body.desktop-windowed-ui .combat-zone-actions { display: flex; justify-content: flex-end; gap: 6px; pointer-events: auto; }
   body.desktop-windowed-ui .combat-zone-actions .combat-action-btn { min-height: 26px; padding: 4px 9px; font-size: 11px; }
   body.desktop-windowed-ui .map-progress-row { display: grid; grid-template-columns: auto minmax(150px, 1fr); align-items: center; gap: 8px; pointer-events: none; }
+  body.desktop-windowed-ui .map-progress-row[hidden] { display: none; }
   body.desktop-windowed-ui .map-progress-row #ui-progress-label { white-space: nowrap; }
 
   body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 24px; z-index: 24; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
