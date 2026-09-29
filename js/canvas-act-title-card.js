@@ -7,7 +7,8 @@ const actTitleCard = (() => {
     const ACT = Object.freeze({ showMs: 3600, kickerColour: '#e0c27e', titleColour: '#e9e2cf' });
     const FADE_IN_MS = 500;
     const FADE_OUT_MS = 800;
-    let zone, pending = null, card = null;
+    const LIVE_MS = 400; // the battlefield drew within this long: it is on screen and running
+    let zone, pending = null, card = null, frameAt = 0;
 
     function actOf(zoneId) {
         return Number.isInteger(zoneId) && zoneId >= 0 && zoneId < STORY_ACTS.length ? STORY_ACTS[zoneId] : null;
@@ -61,6 +62,7 @@ const actTitleCard = (() => {
     }
     /** Called once per battlefield frame, after the lighting pass. */
     function draw(ctx, width, height, now) {
+        frameAt = Date.now();
         track(now);
         if (!card) return;
         const size = Math.round(Math.max(20, Math.min(34, Math.min(width, height) * 0.04)));
@@ -74,7 +76,10 @@ const actTitleCard = (() => {
         title(ctx, view);
         ctx.restore();
     }
+    /** True while a title card is on screen or about to start — guide cards wait for it (js/tutorial-ui.js). It runs on
+     * the battlefield's clock, so this asks the battlefield: a hidden or stalled view never holds the cards back. */
+    function busy() { return !!(card || pending) && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
-    return Object.freeze({ draw });
+    return Object.freeze({ draw, busy });
 })();
 safeExposeGlobals({ actTitleCard });

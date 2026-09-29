@@ -15638,7 +15638,7 @@ function checkUnlocks() {
             'tab-flask');
     }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
-        queueTutorialNotice('tutorial_battle_basics', '첫 여정', '캐릭터가 자동으로 이동하고 공격합니다. 생명력이 줄면 장비와 저항을 점검하세요.\n장비와 젬을 얻으면 필요한 조작을 하나씩 안내합니다.');
+        queueTutorialNotice('tutorial_battle_basics', '첫 여정', '전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 젬을 얻으면 그때마다 조작을 안내합니다.');
     }
     if (game.level >= 2 && !u.char) {
         u.char = true;
@@ -15656,6 +15656,7 @@ function checkUnlocks() {
         queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');
     }
     contentUnlockUi.announceStarterGem(starterTutorialGem);
+    queueStarterGuides(game);
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
         u.skills = true;
         game.noti.skills = true;
@@ -15674,7 +15675,7 @@ function checkUnlocks() {
     if (game.maxZoneId >= 1 && !u.map) {
         u.map = true;
         game.noti.map = true;
-        queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n원하는 지역으로 이동해 드랍과 속성을 조절할 수 있습니다.', 'tab-map');
+        queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n지도에서 지역을 골라 이동하면 드랍과 몬스터 속성을 고를 수 있습니다.', 'tab-map');
     }
     reconcileBeyondBoundaryUnlock(game);
     let boundaryState = ensureBeyondBoundaryState(game);

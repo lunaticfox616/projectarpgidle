@@ -1622,6 +1622,37 @@ body #tutorial-overlay .tutorial-pause-toggle > strong { color: #f0c86f; font-si
   /* Mobile log toasts currently set their layer inline; keep them behind the guide too. */
 }
 
+/* 안내 카드: 첫 줄은 무슨 일이 생겼는지, 나머지는 할 일 목록. 머리말 색으로 종류를 가른다
+   (시작 안내 이끼색 · 새 콘텐츠 금색 · 새 루프 보라). 이야기 장면(is-story-scene)은 story-journal.css가 맡는다. */
+:root body #tutorial-overlay { --tutorial-kind: #d9b066; }
+:root body #tutorial-overlay[data-notice-kind="start"] { --tutorial-kind: #9cc98a; }
+:root body #tutorial-overlay[data-notice-kind="loop"] { --tutorial-kind: #b7a3e0; }
+:root body #tutorial-overlay:not(.is-story-scene) .tutorial-kicker { color: var(--tutorial-kind); }
+:root body #tutorial-overlay .tutorial-card { position: relative; }
+:root body #tutorial-overlay .tutorial-steps { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
+:root body #tutorial-overlay .tutorial-steps li { position: relative; padding-left: 14px; }
+:root body #tutorial-overlay .tutorial-steps li::before {
+  content: '';
+  position: absolute;
+  top: .68em;
+  left: 2px;
+  width: 4px;
+  height: 4px;
+  background: var(--tutorial-kind);
+  box-shadow: 1px 1px 0 #000;
+}
+:root body #tutorial-overlay .tutorial-line { margin: 6px 0 0; }
+/* "다음 안내 N": 이 카드 뒤에 몇 장이 더 오는지 */
+:root body #tutorial-overlay .tutorial-queue-count {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: var(--copy-muted, #a39883);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+:root body #tutorial-overlay.is-story-scene .tutorial-queue-count { display: none; }
+
 :root body .subtab-row {
   padding: 8px;
   border-width: 1px;
@@ -2619,6 +2650,21 @@ body .cfg-group {
 @layer overrides {
 :root body #loop-hero-select-overlay .tutorial-card {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
   max-width: 1120px !important;
+}
+
+/* 안내 카드가 가리키는 화면의 메뉴 단추(js/tutorial-ui.js setTutorialCallout): 금빛 테가 두 박자로 깜빡인다.
+   도트 단추의 음각(box-shadow)은 그대로 두고 outline만 쓴다. 레일·하단 바가 넘친 부분을 자르므로 단추 안쪽에 긋는다. */
+:root body .tutorial-callout {
+  outline: 2px solid #f3d28c;
+  outline-offset: -2px;
+  animation: tutorial-callout-blink 1.1s steps(1, end) infinite;
+}
+@keyframes tutorial-callout-blink {
+  0%, 60% { outline-color: #f3d28c; }
+  61%, 100% { outline-color: rgba(243, 210, 140, .28); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root body .tutorial-callout { animation: none; }
 }
 
 :root body.desktop-windowed-ui .battlefield-wrap {

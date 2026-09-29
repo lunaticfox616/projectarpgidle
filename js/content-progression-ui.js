@@ -10,12 +10,12 @@ const contentUnlockUi = {
         game.unlocks.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬 젬 장착',
-            `[${name}] 젬을 획득했습니다.\n스킬 젬 탭에서 빛나는 젬을 선택하고 ‘장착’을 누르세요.`, 'tab-skills');
+            `[${name}] 젬을 얻었습니다.\n스킬 젬 창에서 빛나는 젬을 누르고 ‘장착’을 누르세요.\n장착한 젬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
     },
     announceLoop() {
         if (game.contentProgression && contentProgression.points().complete) return;
         const body = game.contentProgression
-            ? `루프 ${game.season} 도달 · 해금 포인트 ${contentProgression.balance()}P 보유\n해금 탭에서 원하는 콘텐츠를 선택하세요.`
+            ? `루프 ${game.season}에 도달해 해금 포인트 ${contentProgression.balance()}P가 생겼습니다.\n해금 창에서 원하는 콘텐츠를 골라 여세요.\n한 번 연 콘텐츠는 루프가 바뀌어도 열려 있습니다.`
             : `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`;
         queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택', body, 'tab-unlocks');
     },

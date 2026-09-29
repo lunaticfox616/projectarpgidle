@@ -107,12 +107,13 @@ assert.strictEqual(run(`stumpBox.unplace(game, game.stumpBox.board[12])`), false
 run('game.woodsmanBuildLock = false;');
 
 // ── 루프 전환: 배치·미성숙 진행 유지, 다 자란 것만 씨앗·수액으로 ───────────────────────────
-run(`{ const item = stumpBox.createItem(game, { family: 'seed', color: 'lightning' }); stumpBox.place(game, item.id, 18, 'fruit'); item.xp = 120; }`);
+// 앞 단계의 처치에서 무작위로 떨어진 번개 씨앗이 있을 수 있으므로 색이 아니라 id로 짚는다.
+const unripe = run(`(() => { const item = stumpBox.createItem(game, { family: 'seed', color: 'lightning' }); stumpBox.place(game, item.id, 18, 'fruit'); item.xp = 120; return item.id; })()`);
 const board = run('JSON.stringify(game.stumpBox.board)');
 run('stumpBox.regress(game);');
 assert.strictEqual(run('JSON.stringify(game.stumpBox.board)'), board, 'placements stay');
 assert.strictEqual(run('game.stumpBox.items.filter(item => item.ripe).length'), 0, 'grown items return to seed/sap');
-assert.strictEqual(run('game.stumpBox.items.find(item => item.color === "lightning").xp'), 120, 'unripe progress stays');
+assert.strictEqual(run(`stumpBox.itemById(game, ${unripe}).xp`), 120, 'unripe progress stays');
 assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).path`), 'flower', 'a regressed seed keeps its path');
 
 // ── 저장 경계: 왕복 그대로, 손상 저장은 고친다 ─────────────────────────────────────

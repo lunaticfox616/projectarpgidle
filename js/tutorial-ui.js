@@ -29,10 +29,11 @@ const tutorialActionUi = {
             completed: (current, before) => current !== before
         }
     },
+    aliases: { tutorial_starter_gem_equip: 'unlock_skills', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items' },
     guideFor(key) {
-        if (key === 'unlock_items' && !game.inventory.some(Boolean)) return null;
-        if (key === 'unlock_char' && game.passivePoints < 1) return null;
-        const guideKey = key === 'tutorial_starter_gem_equip' ? 'unlock_skills' : key;
+        const guideKey = this.aliases[key] || key;
+        if (guideKey === 'unlock_items' && !game.inventory.some(Boolean)) return null;
+        if (guideKey === 'unlock_char' && game.passivePoints < 1) return null;
         return Object.hasOwn(this.guides, guideKey) ? this.guides[guideKey] : null;
     },
     start(notice) {
@@ -109,11 +110,58 @@ const tutorialActionUi = {
     }
 };
 
+// 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프). 이야기 장면은 storyJournalUi가 그린다.
+const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'tutorial_first_passive', 'tutorial_first_gear',
+    'unlock_char', 'unlock_items', 'unlock_skills']);
+const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '새 콘텐츠', loop: '새 루프' });
+// "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
+const TUTORIAL_TAB_NAMES = Object.freeze({
+    'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
+    'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
+    'tab-jewel': '주얼', 'tab-expertise': '전문가', 'tab-flask': '보조장비', 'tab-cube': '코어 큐브', 'tab-growthboard': '생장판', 'tab-talisman': '부적',
+    'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록'
+});
+function tutorialNoticeKind(notice) {
+    if (TUTORIAL_START_KEYS.has(notice.key)) return 'start';
+    return String(notice.key).startsWith('unlock_content_loop_') ? 'loop' : 'content';
+}
+/** First line = what happened; the rest = what to do, as a short list (a quoted line keeps the text as prose). */
+function tutorialBodyHtml(body) {
+    const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);
+    const head = `<p class="tutorial-summary">${escapeTutorialText(lead)}</p>`;
+    if (!rest.length) return head;
+    if (rest.some(line => /^[\u201c"\u2018']/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${escapeTutorialText(line)}</p>`).join('');
+    return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${escapeTutorialText(line)}</li>`).join('')}</ul>`;
+}
+function tutorialOpenLabel(notice) {
+    if (tutorialActionUi.guideFor(notice.key)) return '따라 해보기';
+    const name = TUTORIAL_TAB_NAMES[notice.tabId];
+    return name ? `${name} 열기` : '화면 열기';
+}
+/** "다음 안내 N": how many more cards will follow this one. The counter sits in the card's top-right corner. */
+function syncTutorialQueueCount() {
+    let count = document.getElementById('tutorial-queue-count');
+    const card = count ? null : document.querySelector?.('#tutorial-overlay .tutorial-card');
+    if (card) {
+        count = document.createElement('span');
+        count.id = 'tutorial-queue-count';
+        count.className = 'tutorial-queue-count';
+        card.prepend(count);
+    }
+    if (!count) return;
+    const waiting = tutorialQueue.filter(next => storyJournalUi.allowsNotice(next.key) && contentProgression.canOpen(next.subtabId || next.tabId)).length;
+    count.hidden = waiting === 0;
+    count.textContent = waiting ? `다음 안내 ${waiting}` : '';
+}
+
 function renderTutorialStep() {
     if (!activeTutorial) return;
     if (storyJournalUi.renderTutorial(activeTutorial)) return;
-    document.getElementById('tutorial-kicker').innerText = '새 콘텐츠';
+    const kind = tutorialNoticeKind(activeTutorial), overlay = document.getElementById('tutorial-overlay');
+    if (overlay.dataset) overlay.dataset.noticeKind = kind;
+    document.getElementById('tutorial-kicker').innerText = TUTORIAL_KIND_LABELS[kind];
     document.getElementById('tutorial-title').innerText = activeTutorial.title;
+    syncTutorialQueueCount();
     let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
     let pauseControl = activeTutorial.key === 'tutorial_battle_basics' ? `
         <label class="cfg-toggle tutorial-pause-toggle">
@@ -121,7 +169,8 @@ function renderTutorialStep() {
             <span class="cfg-label"><b>안내 중 전투 일시 정지</b><small>이후 기타 → 설정에서 언제든 변경할 수 있습니다.</small></span>
             <strong id="tutorial-pause-overlay-status">${pauseEnabled ? '켜짐' : '꺼짐'}</strong>
         </label>` : '';
-    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(activeTutorial.body)}</p>${pauseControl}`;
+    // 본문은 줄바꿈을 살려 보이므로(pre-line) 템플릿 앞의 줄바꿈이 빈 줄이 되지 않게 다듬는다.
+    document.getElementById('tutorial-body').innerHTML = tutorialBodyHtml(activeTutorial.body) + pauseControl.trim();
     let pauseToggle = document.getElementById('tutorial-pause-overlay-toggle');
     if (pauseToggle) {
         pauseToggle.checked = pauseEnabled;
@@ -139,12 +188,19 @@ function renderTutorialStep() {
     const openButton = document.getElementById('tutorial-open-btn');
     const dismissButton = document.getElementById('tutorial-dismiss-btn');
     openButton.style.display = hasShortcut ? 'inline-block' : 'none';
-    openButton.innerText = tutorialActionUi.guideFor(activeTutorial.key) ? '따라 해보기' : '화면 열기';
+    openButton.innerText = tutorialOpenLabel(activeTutorial);
     dismissButton.innerText = '확인';
 }
 
+/** A guide card waits while the act title card is on screen (a story scene does not: the title card waits for it). */
+function tutorialWaitsForTitleCard() {
+    const next = tutorialQueue[0];
+    if (!next || String(next.key).startsWith('story_')) return false;
+    return typeof actTitleCard === 'object' && typeof actTitleCard.busy === 'function' && actTitleCard.busy();
+}
 function isTutorialPresentationBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
+    if (tutorialWaitsForTitleCard()) return true;
     return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen']
         .some(name => typeof window[name] === 'function' && window[name]());
 }
@@ -165,7 +221,53 @@ function showNextTutorial() {
     renderTutorialStep();
     document.getElementById('tutorial-overlay').classList.add('active');
     placeTutorialCard();
+    setTutorialCallout(activeTutorial.tabId, 0);
     lastTime = Date.now();
+}
+let tutorialCallouts = [], tutorialCalloutTimer = null;
+// 탭 단추가 메뉴 안에 숨어 있을 때 대신 깜빡일 여는 단추: PC 레일의 기타, 좁은 레일의 기타, 휴대폰의 전체.
+const TUTORIAL_MENU_OPENERS = Object.freeze(['btn-ui-rail-misc', 'ui-rail-misc-toggle', 'btn-mobile-nav-more']);
+function tutorialShown(node) {
+    return !!(node && node.classList && node.getClientRects && node.getClientRects().length);
+}
+/** The menu buttons of the screen a card points to: the tab's own button when it is on screen; otherwise that button
+ * (it lights up once its menu opens) plus the visible button that opens it — the merged launcher, 기타 or 전체. */
+function tutorialMenuButtons(tabId) {
+    const own = document.getElementById(`btn-${tabId}`);
+    if (tutorialShown(own)) return [own];
+    const group = typeof getMergedTabGroup === 'function' ? getMergedTabGroup(tabId) : null;
+    const ids = [group ? `btn-${group[1].launcher}` : '', ...TUTORIAL_MENU_OPENERS];
+    const opener = ids.map(id => (id ? document.getElementById(id) : null)).find(tutorialShown) || null;
+    return [own, opener].filter(node => node && node.classList);
+}
+function clearTutorialCallout() {
+    clearTimeout(tutorialCalloutTimer);
+    tutorialCallouts.forEach(node => node.classList.remove('tutorial-callout'));
+    tutorialCallouts = [];
+}
+/** Pulses those buttons while the card is up (holdMs 0) and a little after a plain 확인 (holdMs), so a newly
+ * opened screen can be found again. */
+function setTutorialCallout(tabId, holdMs) {
+    clearTutorialCallout();
+    tutorialCallouts = tabId ? tutorialMenuButtons(tabId) : [];
+    tutorialCallouts.forEach(node => node.classList.add('tutorial-callout'));
+    if (holdMs && tutorialCallouts.length) tutorialCalloutTimer = setTimeout(clearTutorialCallout, holdMs);
+}
+/** First passive point and first piece of gear for a new character: the old tab-unlock notices that carried these
+ * guides never fire now (the tabs start open). Saves that saw those notices (seenAs), and later loops, skip them. */
+const TUTORIAL_STARTER_GUIDES = Object.freeze([
+    { key: 'tutorial_first_passive', seenAs: 'unlock_char', tabId: 'tab-char', title: '첫 패시브 포인트',
+        body: '레벨이 올라 패시브 포인트를 얻었습니다.\n스킬트리에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 캐릭터 창에서 확인할 수 있습니다.',
+        starterDue: state => state.level >= 2 && state.passivePoints > 0 },
+    { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
+        body: '장비를 얻었습니다.\n장비 창에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 생명 구슬 위에 DPS 변화가 뜹니다.',
+        starterDue: state => (state.inventory || []).some(Boolean) }
+]);
+function queueStarterGuides(state) {
+    if ((state.season || 1) > 1 || (state.loopCount || 0) > 0) return;
+    const seen = state.seenTutorials || [];
+    TUTORIAL_STARTER_GUIDES.filter(guide => !seen.includes(guide.seenAs) && guide.starterDue(state))
+        .forEach(guide => queueTutorialNotice(guide.key, guide.title, guide.body, guide.tabId));
 }
 /** Wide screens: centre the guide card right above the player HUD (life orb and panel) so it covers neither the combat
  * log nor the minimap. Phones keep the bottom sheet from CSS. Coordinates are divided by the display zoom. */
@@ -214,6 +316,7 @@ function dismissTutorial(openTarget) {
     activeTutorial = null;
     activeTutorialStep = 0;
     lastTime = Date.now();
+    setTutorialCallout(openTarget ? null : tabId, 6000);
     if (!openTarget) return setTimeout(showNextTutorial, 40);
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
     if (tabId) switchTab(tabId, { keepWindowOpen: true });
