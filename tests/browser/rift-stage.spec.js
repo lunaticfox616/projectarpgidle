@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 // 균열 등불(rift) 스킨의 "전장 전체 화면" 배치 계약.
-// 전장 캔버스가 화면을 채우고, 메뉴·기록·미니맵·HUD·관리 창은 그 위에 겹친다(전장 크기는 바뀌지 않음).
+// 전장 캔버스가 화면을 채우고, 기록·HUD(미니맵·메뉴 포함)·관리 창은 그 위에 겹친다(전장 크기는 바뀌지 않음).
 async function openGame(page, info) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -39,15 +39,26 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     const canvasPixels = await page.locator('#battlefield-canvas').evaluate(canvas => canvas.width / Number(canvas.dataset.renderScale || 1));
     expect(Math.abs(canvasPixels - field.width)).toBeLessThan(2);
 
-    // 메뉴 레일·지역 줄·HUD·전투 기록은 화면 안에서 서로 겹치지 않고 전장 위에 떠 있다.
-    const rail = await rectOf(page, '#tab-header-main');
+    // 메뉴는 하단 HUD 안(미니맵 양옆 두 날개)에 있고, 지역 줄·HUD·전투 기록은 화면 안에서 서로 겹치지 않고 전장 위에 떠 있다.
     const zone = await rectOf(page, '.combat-zone-row');
     const hud = await rectOf(page, '.player-hud');
     const feed = await rectOf(page, '.combat-feed');
-    expect(zone.left).toBeGreaterThanOrEqual(rail.right);
+    const map = await rectOf(page, '#act-exploration-panel');
+    for (const wing of ['.ui-rail-wing-left', '.ui-rail-wing-right']) {
+        const menu = await rectOf(page, wing);
+        expect(menu.width).toBeGreaterThan(0);
+        expect(menu.left).toBeGreaterThanOrEqual(hud.left);
+        expect(menu.right).toBeLessThanOrEqual(hud.right);
+        expect(menu.bottom).toBeLessThanOrEqual(hud.bottom);
+    }
+    expect(await page.locator('#tab-header-main .tab-btn:visible').count()).toBeGreaterThan(1);
+    expect(Math.abs((map.left + map.right) / 2 - (hud.left + hud.right) / 2)).toBeLessThan(2);
+    expect(zone.left).toBeGreaterThanOrEqual(0);
     expect(zone.right).toBeLessThanOrEqual(feed.left);
-    expect(hud.left).toBeGreaterThanOrEqual(rail.right - 1);
-    expect(hud.right).toBeLessThanOrEqual(feed.left + 1);
+    expect(zone.bottom).toBeLessThanOrEqual(hud.top);
+    expect(feed.bottom).toBeLessThanOrEqual(hud.top + 1);
+    expect(hud.left).toBeGreaterThanOrEqual(0);
+    expect(hud.right).toBeLessThanOrEqual(viewport.width);
     expect(hud.bottom).toBeLessThanOrEqual(viewport.height);
 
     // 전투 기록을 접어도, 장비 창(도킹)을 열어도 전장 크기는 그대로다.
@@ -57,7 +68,10 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     await page.evaluate(() => switchTab('tab-items'));
     await expect(page.locator('#tab-items')).toBeVisible();
     const window = await rectOf(page, '#tab-items');
-    expect(window.left).toBeGreaterThan(rail.right);
+    expect(window.left).toBeGreaterThanOrEqual(0);
+    // 창은 HUD 위까지만 온다: 메뉴 단추가 가려지지 않는다.
+    expect(window.bottom).toBeLessThanOrEqual(hud.top);
+    await expect(page.locator('#btn-tab-character')).toBeVisible();
     const docked = await rectOf(page, '#battlefield-wrap');
     expect(docked.width).toBeCloseTo(field.width, 0);
     expect(docked.height).toBeCloseTo(field.height, 0);

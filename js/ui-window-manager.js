@@ -17,6 +17,7 @@
     const DEFAULT_COMMUNITY_WIDTH = 360;
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
+    const WORKSPACE_EDGE = 8;
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
@@ -115,19 +116,29 @@
     }
 
     function getDesktopRailInset() {
+        if (railDockHome) return WORKSPACE_EDGE;
         let rail = document.querySelector('.tab-header');
         let rect = rail && typeof rail.getBoundingClientRect === 'function' ? rail.getBoundingClientRect() : null;
         if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return DESKTOP_RAIL_WIDTH;
         return Math.ceil(rect.right / uiDisplay.factor + WORKSPACE_GAP / 2);
     }
 
-    // 관리 창은 전투 기록 위까지 확장할 수 있으며 좌측 메뉴는 항상 남겨 둔다.
+    // 메뉴를 담은 하단 HUD는 창이 덮지 않는다: 작업 영역의 아래 끝은 HUD 윗변(솟은 미니맵·구슬 포함) 위다.
+    function getDockedHudInset(viewHeight) {
+        let hud = railDockHome ? document.querySelector('.player-hud') : null;
+        let rect = hud && typeof hud.getBoundingClientRect === 'function' ? hud.getBoundingClientRect() : null;
+        if (!rect || !(rect.height > 0)) return WORKSPACE_EDGE;
+        return Math.ceil(viewHeight - rect.top / uiDisplay.factor + WORKSPACE_GAP / 2);
+    }
+
+    // 관리 창은 전투 기록 위까지 확장할 수 있으며 메뉴(왼쪽 레일 또는 하단 HUD)는 항상 남겨 둔다.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth / uiDisplay.factor || 1280);
         let height = Math.max(260, window.innerHeight / uiDisplay.factor || 720);
         let railInset = getDesktopRailInset();
-        return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - 16) };
+        let hudInset = getDockedHudInset(height);
+        return { left: railInset, top: WORKSPACE_EDGE, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - WORKSPACE_EDGE - hudInset) };
     }
 
     function getDockRect() {
@@ -527,6 +538,7 @@
         let label = document.createElement('span');
         label.className = 'ui-rail-label';
         label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
+        if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);
     }
@@ -620,10 +632,100 @@
             installRailLayers(header);
         }
         installCloseAllButton();
+        dockRailIntoHud(header);
         syncDesktopRailGroups();
     }
 
-    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일이다.
+    // ─── 하단 HUD 메뉴(2026-09-30) ─────────────────────────────────────────────────────────
+    // 데스크톱에서는 레일(#tab-header-main)을 하단 HUD 돌판(.player-hud-shell) 안으로 옮긴다. 탭은 미니맵 양옆 두 날개
+    // (.ui-rail-tab-layer 둘)에 고르게 나눠 싣고, 기타·정리(.ui-rail-external-controls)는 오른쪽 날개 끝에 둔다.
+    // 모바일로 바뀌면 원래 자리로 되돌린다. HUD가 없는 문서에서는 예전처럼 왼쪽 기둥 레일이다.
+    let railDockHome = null;
+
+    function dockRailIntoHud(header) {
+        let shell = document.querySelector('.player-hud-shell');
+        if (!shell || railDockHome) return;
+        railDockHome = { parent: header.parentElement, next: header.nextElementSibling };
+        let rightWing = document.createElement('div');
+        rightWing.className = 'ui-rail-tab-layer ui-rail-wing-right';
+        rightWing.setAttribute('aria-label', '메뉴');
+        header.querySelector(':scope > .ui-rail-tab-layer').classList.add('ui-rail-wing-left');
+        header.insertBefore(rightWing, header.querySelector(':scope > .ui-rail-external-controls'));
+        shell.appendChild(header);
+        header.classList.add('ui-rail-docked');
+        document.body.classList.add('hud-menu-docked');
+        observeDockedHud([document.querySelector('.player-hud'), header.querySelector(':scope > .ui-rail-wing-left'), rightWing]);
+    }
+
+    function undockRailFromHud(header) {
+        if (!railDockHome) return;
+        railDockHome.parent.insertBefore(header, railDockHome.next);
+        railDockHome = null;
+        header.classList.remove('ui-rail-docked');
+        document.body.classList.remove('hud-menu-docked');
+        if (dockedHudWatch) dockedHudWatch.disconnect();
+        dockedHudSizes.clear();
+    }
+
+    // HUD 크기가 바뀌면(미니맵이 나타나거나 젬·플라스크 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
+    // 날개 폭은 격자의 남는 자리(minmax(0, 1fr))라 단추를 옮겨도 다시 바뀌지 않는다.
+    let dockedHudWatch = null;
+    const dockedHudSizes = new Map();
+    function observeDockedHud(targets) {
+        if (typeof ResizeObserver !== 'function') return;
+        dockedHudWatch = dockedHudWatch || new ResizeObserver(noteDockedHudResize);
+        targets.forEach(target => { if (target) dockedHudWatch.observe(target); });
+    }
+
+    function noteDockedHudResize(entries) {
+        let changed = entries.filter(entry => {
+            let size = Math.round(entry.contentRect.width) + 'x' + Math.round(entry.contentRect.height);
+            if (dockedHudSizes.get(entry.target) === size) return false;
+            dockedHudSizes.set(entry.target, size);
+            return true;
+        });
+        if (railDockHome && changed.length) requestAnimationFrame(relayoutDockedHud);
+    }
+
+    function relayoutDockedHud() {
+        if (!railDockHome) return;
+        syncDesktopRailGroups();
+        Object.keys(WINDOW_DEFS).forEach(applyWindowState);
+    }
+
+    /** Shown on screen: a tab can be unlocked (no inline display: none) yet still hidden by a stylesheet (해금 before its first unlock). */
+    function isRailButtonDisplayed(button) {
+        return typeof button.getClientRects !== 'function' || button.getClientRects().length > 0;
+    }
+
+    /** How many of the buttons sit on the wing's single row (the rest wrap below its bottom edge). */
+    function countRailWingRoom(wing, buttons) {
+        let bottom = wing.getBoundingClientRect().bottom;
+        return buttons.filter(button => button.getBoundingClientRect().bottom <= bottom + 0.5).length;
+    }
+
+    // 두 날개에 고르게(왼쪽이 하나 더 많게), 한쪽이 모자라면 다른 쪽이 더 받는다. 둘 다 넘치는 탭은 기타로.
+    function spreadRailWings(header, visible) {
+        let left = header.querySelector(':scope > .ui-rail-wing-left');
+        let right = header.querySelector(':scope > .ui-rail-wing-right');
+        if (!left || !right) return [];
+        let shown = visible.filter(isRailButtonDisplayed);
+        let leftRoom = countRailWingRoom(left, shown);
+        shown.forEach(button => right.appendChild(button));
+        let rightRoom = countRailWingRoom(right, shown);
+        let leftCount = Math.min(leftRoom, Math.max(Math.ceil(shown.length / 2), shown.length - rightRoom));
+        shown.slice(0, leftCount).forEach(button => left.appendChild(button));
+        return shown.slice(leftCount + rightRoom);
+    }
+
+    function measureRailOverflow(tabLayer, visible) {
+        // Measure in viewport coordinates so UI scale and actual row/gap sizes agree.
+        tabLayer.scrollTop = 0;
+        const bottom = tabLayer.getBoundingClientRect().bottom;
+        return visible.filter(button => button.getBoundingClientRect().bottom > bottom + 0.5);
+    }
+
+    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일(또는 HUD의 두 날개)이다.
     function syncDesktopRailGroups() {
         let header = document.querySelector('.tab-header');
         let tabLayer = header && header.querySelector(':scope > .ui-rail-tab-layer');
@@ -637,10 +739,7 @@
         });
         buttons.filter(button => tabLayoutUi.isMisc(button.id)).forEach(button => miscPanel.appendChild(button));
         moveRailAuxiliaryTabs(miscPanel);
-        // Measure in viewport coordinates so UI scale and actual row/gap sizes agree.
-        tabLayer.scrollTop = 0;
-        const bottom = tabLayer.getBoundingClientRect().bottom;
-        const overflow = visible.filter(button => button.getBoundingClientRect().bottom > bottom + 0.5);
+        const overflow = railDockHome ? spreadRailWings(header, visible) : measureRailOverflow(tabLayer, visible);
         overflow.forEach(button => miscPanel.appendChild(button));
         miscPanel.dataset.railOverflow = String(overflow.length);
         updateRailMiscNotice(miscPanel);
@@ -1024,11 +1123,11 @@
     function restoreDesktopMenuForMobile() {
         let header = document.querySelector('.tab-header');
         if (!header) return;
+        undockRailFromHud(header);
         // 데스크톱 목록에서 원래 탭 버튼을 꺼내 모바일 헤더 순서로 복원한다.
         header.querySelectorAll(':scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn')
             .forEach(btn => header.appendChild(btn));
-        let tabLayer = header.querySelector(':scope > .ui-rail-tab-layer');
-        if (tabLayer) tabLayer.remove();
+        header.querySelectorAll(':scope > .ui-rail-tab-layer').forEach(layer => layer.remove());
         let miscPanel = header.querySelector(':scope > .ui-rail-misc-panel');
         if (miscPanel) miscPanel.remove();
         let externalControls = header.querySelector(':scope > .ui-rail-external-controls');

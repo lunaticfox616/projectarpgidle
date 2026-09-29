@@ -1,0 +1,401 @@
+@layer overrides {
+/* 도트 UI — 메뉴(2026-09-30). PC는 왼쪽 메뉴 레일을 하단 HUD 돌판 안으로 옮겨(js/ui-window-manager.js dockRailIntoHud)
+   [생명 구슬][플라스크][정리 · 메뉴 날개][미니맵][메뉴 날개 · 기타][젬][경험치 구슬] 한 줄로 싣는다. 메뉴는 둥근 소켓 단추,
+   이름(과 단축키)은 올려 두면 뜬다. 창은 HUD 위까지만 온다. 휴대폰은 하단 메뉴 띠가 전투 화면의 HUD 돌판과 한 판이 되고,
+   칸마다 아이콘이 붙는다. 아이콘: scripts/pixel-menu-icons.cjs(13도트) → assets/ui/pixel/menu-icons.png.
+   --px-icon 번호는 그 파일의 순서, --px-icon-count는 아이콘 수다(아이콘을 더하면 둘 다 맞춘다). */
+
+body[data-ui-skin] {
+  --px-menu-icons: url('../../assets/ui/pixel/menu-icons.png');
+  --px-icon-count: 21;
+  --px-key: 40px;
+  --px-key-socket: url('../../assets/ui/pixel/key-socket.png');
+  --px-key-socket-on: url('../../assets/ui/pixel/key-socket-on.png');
+}
+body[data-ui-skin] #btn-tab-battle { --px-icon: 0; }
+body[data-ui-skin] #btn-tab-character { --px-icon: 1; }
+body[data-ui-skin] :is(#btn-tab-char, #btn-tab-traits) { --px-icon: 2; }
+body[data-ui-skin] #btn-tab-unlocks { --px-icon: 3; }
+body[data-ui-skin] #btn-tab-season { --px-icon: 4; }
+body[data-ui-skin] #btn-tab-stump { --px-icon: 5; }
+body[data-ui-skin] #btn-tab-items { --px-icon: 6; }
+body[data-ui-skin] :is(#btn-tab-flask, #btn-tab-jewel, #btn-tab-talisman, #btn-tab-cube, #btn-tab-growthboard) { --px-icon: 7; }
+body[data-ui-skin] #btn-tab-map { --px-icon: 8; }
+body[data-ui-skin] #btn-tab-skills { --px-icon: 9; }
+body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --px-icon: 10; }
+body[data-ui-skin] #btn-ui-rail-misc { --px-icon: 11; }
+body[data-ui-skin] #btn-close-all-windows { --px-icon: 12; }
+body[data-ui-skin] #btn-mobile-nav-more { --px-icon: 13; }
+body[data-ui-skin] #btn-tab-pruning { --px-icon: 14; }
+body[data-ui-skin] #btn-tab-arcana { --px-icon: 15; }
+body[data-ui-skin] #btn-tab-expertise { --px-icon: 16; }
+body[data-ui-skin] #btn-tab-talent { --px-icon: 17; }
+body[data-ui-skin] #btn-tab-social { --px-icon: 18; }
+body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }
+body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
+
+/* ─── PC: 하단 HUD에 담긴 메뉴 ─────────────────────────────────────────────── */
+@media (min-width: 1081px) {
+  /* 왼쪽 기둥 레일이 없어졌으니 지역 줄·몬스터 수·HUD 가운데 맞춤이 화면 왼쪽 끝부터 잰다. */
+  body[data-ui-skin].desktop-windowed-ui.hud-menu-docked {
+    --stage-rail-width: 0px;
+    --menu-rail-width: 0px;
+    --px-hud-bar: 70px;
+    --px-side: 112px;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud {
+    z-index: 1500;
+    width: min(1040px, calc(100vw - var(--stage-feed-width, var(--combat-log-width, 260px)) - 40px));
+    max-width: 1040px;
+  }
+  /* 균열(기본) 전장은 캔버스가 화면 전체라 바를 화면 가운데 기준으로 넓게 편다. 전투 기록은 바 위로 올려
+     창(바 위까지만 온다)이 기록까지 한 번에 덮게 한다. 채팅 판은 기록 자리를 그대로 따라간다. */
+  :root body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud {
+    left: 50%;
+    width: min(1280px, calc(100vw - 32px));
+    max-width: 1280px;
+  }
+  body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .combat-feed { bottom: calc(var(--px-map-size) + 24px); }
+  /* 대상 적 체력바도 같은 세로축(주인공 · 미니맵)에 */
+  :root body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #battle-column #enemy-area { left: 50%; }
+  /* 창을 열어도 메뉴는 흐려지지 않는다(창은 HUD 위까지만 온다). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked.ui-management-mode #battle-column .player-hud { opacity: 1; }
+
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell {
+    grid-template-columns: var(--px-orb-size) minmax(var(--px-side), auto) minmax(0, 1fr) auto minmax(0, 1fr) minmax(var(--px-side), auto) var(--px-orb-size);
+    column-gap: 10px;
+    padding: 0 14px 15px;
+  }
+  /* [생명 구슬][플라스크][정리 · 메뉴 날개][미니맵][메뉴 날개 · 기타][젬][경험치 구슬] — 양쪽 칸 폭이 같아 미니맵이 바 한가운데.
+     둥근 셋은 판 아래 테두리까지 내려앉고 윗부분이 솟는다. 나머지는 메뉴 단추(40px) 줄에 가운데 맞춘다. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell :is(.combat-hp-bar, .combat-exp-bar, #act-exploration-panel) { margin-bottom: -11px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell #act-exploration-panel { grid-column: 4; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing { grid-column: 2; justify-self: start; margin-bottom: 4px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { display: none; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 6; justify-self: end; margin-bottom: 2px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slots { flex-wrap: nowrap; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 32px; width: 32px; height: 32px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 36px; width: 36px; height: 36px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell :is(.combat-exp-bar, #ui-exp-level-label, .player-exp-percent) { grid-column: 7; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { margin-bottom: calc(var(--px-orb-size) * .5 - 11px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-health-frame .player-exp-percent { margin-bottom: calc(var(--px-orb-size) * .3 - 11px); }
+
+  /* 레일 틀은 사라지고 안의 날개·단추·기타 목록만 HUD 격자에 놓인다. 로고는 PC 전투 화면에서 뺀다. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main.ui-rail-docked { display: contents; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > #ui-rail-logo { display: none; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer {
+    grid-row: 1;
+    align-self: end;
+    position: relative;
+    inset: auto;
+    z-index: 3;
+    display: flex;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    gap: 4px;
+    width: auto;
+    height: var(--px-key);
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+    pointer-events: none;
+    /* 한 줄을 넘친 단추(다음 정리 때 기타로 간다)가 바 아래로 삐져나오지 않게 아래만 자른다. 위로 뜨는 이름표는 그대로. */
+    clip-path: inset(-80px -80px 0 -80px);
+  }
+  /* 단추는 미니맵 쪽으로 모인다(메뉴가 적을 때 빈자리는 바깥쪽). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-left { grid-column: 3; justify-content: flex-end; padding-left: calc(var(--px-key) + 4px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-right { grid-column: 5; justify-content: flex-start; padding-right: calc(var(--px-key) + 4px); }
+  /* 정리는 왼쪽 날개 바깥 끝, 기타는 오른쪽 날개 바깥 끝(날개 안쪽 여백 자리에 겹쳐 놓는다). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls { display: contents; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button { grid-row: 1; align-self: end; z-index: 4; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-close-all-windows { grid-column: 3; justify-self: start; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc { grid-column: 5; justify-self: end; }
+
+  /* 메뉴 단추: 둥근 청동 소켓 + 13도트 금빛 아이콘(2배). 열린 창은 금빛 테. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button {
+    position: relative;
+    flex: 0 0 var(--px-key);
+    width: var(--px-key);
+    height: var(--px-key);
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: visible;
+    border-radius: 50%;
+    background: var(--px-key-socket) center / 100% 100% no-repeat;
+    box-shadow: none;
+    color: transparent;
+    font-size: 12px;
+    text-shadow: none;
+    image-rendering: pixelated;
+    pointer-events: auto;
+    cursor: pointer;
+    transform: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button { font-size: 0; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn::after,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button::after {
+    content: '';
+    position: absolute;
+    inset: 7px;
+    display: block;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--px-menu-icons) calc(var(--px-icon, 0) * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+    box-shadow: none;
+    image-rendering: pixelated;
+    filter: brightness(.84);
+    transition: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(:hover, :focus-visible)::after,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:is(:hover, :focus-visible)::after { filter: brightness(1.22); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(.ui-window-open, [aria-pressed='true']),
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc[aria-expanded='true'] {
+    background: var(--px-key-socket-on) center / 100% 100% no-repeat;
+    box-shadow: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(.ui-window-open, [aria-pressed='true'])::after,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc[aria-expanded='true']::after { filter: brightness(1.18); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:active::after,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:active::after { inset: 8px 7px 6px; }
+
+  /* 이름표: 단추에 올리면 위에 뜬다(단축키가 있으면 옆에). 기타·정리는 aria-label을 쓴다. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .ui-rail-label,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button::before {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    z-index: 6;
+    display: none;
+    width: auto;
+    max-width: none;
+    padding: 4px 8px;
+    overflow: visible;
+    border: 2px solid var(--px-ink);
+    border-radius: 0;
+    background: var(--px-dither), #1b1711;
+    box-shadow: inset 2px 2px 0 #4a3b27, inset -2px -2px 0 #1a140d, var(--px-drop);
+    color: var(--px-gold-bright);
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    line-height: 14px;
+    white-space: nowrap;
+    text-shadow: var(--px-text-edge);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button::before { content: attr(aria-label); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(:hover, :focus-visible) > .ui-rail-label,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:is(:hover, :focus-visible):not([aria-expanded='true'])::before { display: block; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .ui-rail-label[data-hotkey]::after {
+    content: attr(data-hotkey);
+    margin-left: 6px;
+    padding: 0 3px;
+    border: 2px solid #3b2f1e;
+    color: var(--px-copy-muted);
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > :is(.ui-rail-tab-layer, .ui-rail-external-controls) > :is(.tab-btn, button):hover { z-index: 4; }
+
+  /* 알림 점 · 가득 참 */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > :is(.ui-rail-tab-layer, .ui-rail-external-controls) > :is(.tab-btn, button) > .noti-dot {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    left: auto;
+    z-index: 2;
+    width: 8px;
+    height: 8px;
+    margin: 0;
+    border: 2px solid #000;
+    border-radius: 0;
+    background: #e4a44b;
+    box-shadow: none;
+    transform: none;
+    animation: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .inventory-full-warning {
+    position: absolute;
+    top: -9px;
+    right: auto;
+    left: 50%;
+    z-index: 3;
+    margin: 0;
+    padding: 0 3px;
+    border: 2px solid var(--px-ink);
+    border-radius: 0;
+    background: #8a2418;
+    color: #ffe6d8;
+    font-size: 12px;
+    line-height: 12px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* 기타 목록: 오른쪽 날개 위에 뜨는 도트 판(아이콘 + 이름) */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel {
+    position: absolute;
+    top: auto;
+    right: calc(var(--px-orb-size) + var(--px-side) + 34px);
+    bottom: calc(var(--px-hud-bar) + 6px);
+    left: auto;
+    z-index: 8;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    width: 200px;
+    min-width: 0;
+    max-width: none;
+    max-height: 60vh;
+    padding: 6px;
+    overflow-y: auto;
+    border: 6px solid transparent;
+    border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+    border-radius: 0;
+    background: var(--px-dither), rgba(14, 12, 10, .97);
+    background-clip: padding-box;
+    box-shadow: var(--px-drop);
+    transform: none;
+    image-rendering: pixelated;
+    pointer-events: auto;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel[hidden],
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn[hidden] { display: none; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: auto;
+    min-height: 36px;
+    padding: 4px 8px;
+    border: 2px solid var(--px-ink);
+    border-radius: 0;
+    background: var(--px-dither), var(--px-stone-control);
+    box-shadow: var(--px-bevel);
+    color: var(--px-copy);
+    font-size: 12px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn:is(:hover, .ui-window-open) { background: var(--px-dither), #2d2417; color: var(--px-gold-bright); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn::after {
+    content: '';
+    order: -1;
+    position: static;
+    display: block;
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--px-menu-icons) calc(var(--px-icon, 0) * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+    box-shadow: none;
+    image-rendering: pixelated;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn .ui-rail-label { position: static; display: inline; overflow: visible; color: inherit; font-size: 12px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn > .noti-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border: 2px solid #000; border-radius: 0; background: #e4a44b; box-shadow: none; }
+}
+
+/* 좁은 PC 화면: 플라스크·젬 칸을 줄여 날개마다 단추 넷이 들어가게 */
+@media (min-width: 1081px) and (max-width: 1279px) {
+  body[data-ui-skin].desktop-windowed-ui.hud-menu-docked { --px-side: 88px; }
+}
+
+/* ─── 휴대폰: 하단 메뉴 띠 = HUD 돌판의 아랫단 ─────────────────────────────────── */
+@media (max-width: 1080px) {
+  body[data-ui-skin].mobile-primary-navigation { --mobile-primary-nav-height: 66px; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
+    border: 10px solid transparent;
+    border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+    border-radius: 0;
+    background: var(--px-dither), #15120e;
+    background-clip: padding-box;
+    box-shadow: none;
+    image-rendering: pixelated;
+  }
+  /* 전투 화면: 바로 위 HUD 판과 이어 붙인다(HUD 판은 아래 테를, 메뉴 띠는 위 테를 빼고 가는 금 한 줄로 나눈다). */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab:has(#tab-battle.active) #tab-header-bottom {
+    border-top-width: 0;
+    border-image-width: 0 10px 10px;
+    box-shadow: inset 0 2px 0 #0a0806, inset 0 4px 0 #3b2f1e;
+  }
+  /* 메뉴 띠는 화면 끝까지, HUD는 #right-pane의 1px 좌우 테두리 안쪽이라 돌판을 1px씩 넓혀 두 판의 테를 맞춘다. */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before {
+    right: -1px;
+    left: -1px;
+    border-bottom-width: 0;
+    border-image-width: 10px 10px 0;
+    box-shadow: none;
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    align-self: stretch;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 2px 0 0;
+    font-size: 12px;
+    line-height: 12px;
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more)::after,
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn::after {
+    content: '';
+    order: -1;
+    position: static;
+    display: block;
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--px-menu-icons) calc(var(--px-icon, 0) * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+    box-shadow: none;
+    image-rendering: pixelated;
+    filter: brightness(.8);
+    transition: none;
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active::after,
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active::after { filter: brightness(1.15); }
+  /* 가득 참: 칸이 좁아 아이콘 위에 도장처럼 겹친다 */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn { position: relative; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn > .inventory-full-warning {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    z-index: 2;
+    margin: 0;
+    padding: 0 3px;
+    border: 2px solid var(--px-ink);
+    border-radius: 0;
+    background: #8a2418;
+    color: #ffe6d8;
+    font-size: 12px;
+    line-height: 12px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+  /* 전체 메뉴 서랍: 아이콘 + 이름 */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+}
+}

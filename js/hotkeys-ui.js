@@ -117,15 +117,18 @@ const hotkeysUi = (() => {
             + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>기본값으로</button></div>`;
     }
 
-    /** 레일 메뉴의 키 표시(ui-window-manager의 버튼 id 규칙: btn-<tabId>). */
+    /** 레일 메뉴의 키 표시(ui-window-manager의 버튼 id 규칙: btn-<tabId>). 하단 HUD 메뉴는 이름표(.ui-rail-label)에 적는다. */
     function labelRail() {
         const bindings = hotkeyBindings.effective(overrides());
         hotkeyBindings.actions.filter(action => action.kind === 'window').forEach(action => {
             const button = document.getElementById('btn-' + action.target);
             if (!button) return;
             const label = hotkeyBindings.label(bindings.get(action.id));
+            const tip = button.querySelector('.ui-rail-label');
             if (label) { button.dataset.hotkey = label; button.setAttribute('aria-keyshortcuts', label); }
             else { delete button.dataset.hotkey; button.removeAttribute('aria-keyshortcuts'); }
+            if (tip && label) tip.dataset.hotkey = label;
+            else if (tip) delete tip.dataset.hotkey;
         });
     }
 

@@ -119,6 +119,7 @@ function createElement(tagName) {
         hidden: false, textContent: '', innerText: '', draggable: false,
         setAttribute(key, value) { this.attrs[key] = String(value); },
         getAttribute(key) { return this.attrs[key] || null; },
+        removeAttribute(key) { delete this.attrs[key]; },
         addEventListener(type, handler) { this.handlers[type] = handler; },
         removeEventListener() {},
         appendChild(child) {
@@ -160,10 +161,11 @@ function createElement(tagName) {
         },
         matches() { return false; },
         focus() {},
+        getClientRects() { return this.cssHidden ? [] : [{}]; },
         getBoundingClientRect() {
             if (this.classList.contains('ui-rail-tab-layer')) return { bottom: this.parentElement.railHeight ?? 517 };
             if (this.parentElement?.classList.contains('ui-rail-tab-layer')) {
-                const rows = this.parentElement.children.filter(row => row.style.display !== 'none' && !row.hidden);
+                const rows = this.parentElement.children.filter(row => row.style.display !== 'none' && !row.hidden && !row.cssHidden);
                 return { bottom: rows.indexOf(this) * 47 + 42 };
             }
             return { right: this.classList.contains('tab-header') ? 222 : 0, bottom: 0 };
@@ -203,7 +205,7 @@ function createTabHeader(body, openedTabs) {
     return header;
 }
 
-function bootMenu() {
+function bootMenu(options = {}) {
     const body = createElement('body');
     const openedTabs = [];
     const battlefieldWrap = createElement('div');
@@ -216,6 +218,19 @@ function bootMenu() {
     combatFeedTitle.className = 'combat-feed-title';
     combatFeed.appendChild(combatFeedTitle);
     body.appendChild(combatFeed);
+    // 하단 HUD(데스크톱에서는 메뉴가 이 판 안으로 옮겨진다). 윗변 700px = 창 작업 영역의 아래 끝 기준.
+    const hud = options.hud ? createElement('div') : null;
+    const hudShell = options.hud ? createElement('div') : null;
+    if (hud) {
+        hud.className = 'combat-top-status player-hud';
+        hudShell.className = 'player-hud-shell';
+        hud.appendChild(hudShell);
+        body.appendChild(hud);
+        hud.getBoundingClientRect = () => ({ top: 700, bottom: 850, height: 150 });
+        const itemsWindow = createElement('div');
+        itemsWindow.id = 'tab-items';
+        body.appendChild(itemsWindow);
+    }
     const header = createTabHeader(body, openedTabs);
     const windowHandlers = {};
     const exposed = {};
@@ -228,7 +243,7 @@ function bootMenu() {
     const document = {
         readyState: 'complete', body, documentElement: { clientWidth: 1600, clientHeight: 900 },
         getElementById: findById,
-        querySelector: selector => selector === '.tab-header' ? header : (selector === '.combat-feed' ? combatFeed : null),
+        querySelector: selector => ({ '.tab-header': header, '.combat-feed': combatFeed, '.player-hud-shell': hudShell, '.player-hud': hud })[selector] || null,
         querySelectorAll: selector => selector === '.tab-header .tab-btn' ? header.querySelectorAll('.tab-btn') : [],
         createElement,
         addEventListener() {},
@@ -257,7 +272,7 @@ function bootMenu() {
     require('./lib/load-content-progression')(context, true);
     vm.runInContext(fs.readFileSync('js/tab-layout-ui.js', 'utf8'), context, { filename: 'js/tab-layout-ui.js' });
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { body, header, battlefieldWrap, combatFeed, game, openedTabs, exposed, findById, context, setDesktop: value => { desktop = value; }, windowHandlers };
+    return { body, header, battlefieldWrap, combatFeed, hud, hudShell, game, openedTabs, exposed, findById, context, setDesktop: value => { desktop = value; }, windowHandlers };
 }
 
 function socketButtons(menu) {
@@ -496,5 +511,51 @@ assert.strictEqual(refreshedHeader, 0, 'tab placement must wait until the window
 deferredViewportSync();
 assert.strictEqual(viewportContext.lastTabHeaderUiSignature, null);
 assert.strictEqual(refreshedHeader, 1, 'saved mobile placement must be restored after responsive mode changes');
+
+// 하단 HUD 메뉴(2026-09-30): 데스크톱은 레일을 HUD 돌판 안으로 옮기고 탭을 미니맵 양옆 두 날개에 고르게 싣는다.
+const dock = bootMenu({ hud: true });
+const wing = side => dock.header.querySelector(':scope > .ui-rail-wing-' + side);
+const wingTabs = side => wing(side).children.filter(button => button.classList.contains('tab-btn') && button.style.display !== 'none' && !button.cssHidden);
+assert.strictEqual(dock.header.parentElement, dock.hudShell, 'desktop menu must live inside the bottom HUD');
+assert(dock.body.classList.contains('hud-menu-docked'));
+assert.strictEqual(dock.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 2, 'the docked menu has one wing on each side of the minimap');
+assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], [9, 9], 'tabs split evenly between the wings');
+assert.deepStrictEqual([...wingTabs('left'), ...wingTabs('right')].map(button => button.id), PRIMARY_TAB_IDS.map(id => 'btn-tab-' + id), 'the wings keep the menu order left to right');
+assert.strictEqual(dock.findById('ui-rail-misc-panel').parentElement, dock.header, 'misc stays a direct child so syncing still finds it');
+assert.strictEqual(dock.findById('btn-ui-rail-misc').parentElement, dock.findById('btn-close-all-windows').parentElement, 'misc and window cleanup keep their shared control row');
+dock.header.railHeight = 42 + 47 * 2;
+dock.exposed.syncDesktopRailGroups();
+assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], [3, 3], 'each wing holds only the keys that fit on its single row');
+assert.strictEqual(dock.findById('ui-rail-misc-panel').dataset.railOverflow, String(PRIMARY_TAB_IDS.length - 6), 'tabs that fit neither wing stay reachable from misc');
+dock.header.railHeight = 517;
+dock.findById('btn-tab-character').cssHidden = true;
+dock.findById('btn-tab-char').cssHidden = true;
+dock.exposed.syncDesktopRailGroups();
+assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], [8, 8], 'tabs a stylesheet still hides do not unbalance the wings');
+dock.findById('btn-tab-character').cssHidden = false;
+dock.findById('btn-tab-char').cssHidden = false;
+dock.exposed.syncDesktopRailGroups();
+assert(dock.exposed.openWindow('tab-items'));
+const itemsWindow = dock.findById('tab-items');
+assert(parseInt(itemsWindow.style.top, 10) + parseInt(itemsWindow.style.height, 10) <= 700 - 5, 'a docked window stops above the HUD');
+if (!itemsWindow.classList.contains('ui-window-maximized')) dock.exposed.toggleMaximizeWindow('tab-items');
+assert(itemsWindow.classList.contains('ui-window-maximized'));
+assert.strictEqual(itemsWindow.style.left, '8px', 'without the left rail a maximized window starts at the screen edge');
+assert(parseInt(itemsWindow.style.top, 10) + parseInt(itemsWindow.style.height, 10) <= 700 - 5, 'windows stop above the HUD so the docked menu stays clickable');
+dock.exposed.closeWindow('tab-items');
+dock.setDesktop(false);
+dock.windowHandlers.resize();
+assert.strictEqual(dock.header.parentElement, dock.body, 'mobile returns the menu to its original place');
+assert(!dock.body.classList.contains('hud-menu-docked'));
+assert.strictEqual(dock.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 0, 'mobile restore removes both wings');
+assert.deepStrictEqual(
+    dock.header.querySelectorAll('.tab-btn').map(button => button.id),
+    ['btn-tab-battle', ...PRIMARY_TAB_IDS.map(id => 'btn-tab-' + id), 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'],
+    'mobile restore must return every tab from both wings in the original order'
+);
+dock.setDesktop(true);
+dock.windowHandlers.resize();
+assert.strictEqual(dock.header.parentElement, dock.hudShell, 'desktop docks the menu again');
+assert.strictEqual(dock.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 2, 'docking again must not duplicate a wing');
 
 console.log('smoke-menu-rail-sockets passed');
