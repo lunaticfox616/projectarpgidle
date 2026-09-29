@@ -11,8 +11,8 @@ function lineDot(cv, g, x, y, look, seen) {
     if (!cv.inside(x, y) || !g.floor[i] || seen.has(i)) return;
     seen.add(i);
     if (look.style === 'gold') {
-        cv.px[i] = cv.col(look.ramp || 'warm', look.level ?? 2);
-        if (cv.inside(x, y + 1) && g.floor[i + cv.w] && !seen.has(i + cv.w)) cv.px[i + cv.w] = cv.pal.shade(cv.px[i + cv.w], -2);
+        cv.px[i] = cv.col(look.ramp || 'warm', look.level ?? 1);
+        if (cv.inside(x, y + 1) && g.floor[i + cv.w] && !seen.has(i + cv.w)) cv.px[i + cv.w] = cv.pal.shade(cv.px[i + cv.w], -1);
     } else if (look.style === 'pale') {
         cv.px[i] = cv.col(look.ramp || 'stone', look.level ?? 4);
     } else {
@@ -53,7 +53,7 @@ const KINDS = {
         KINDS.border(cv, g, f, look, seen);
         const [a, b, c, d] = f.inner, rx = f.hw * 0.62, ry = f.hh * 0.62, clip = [a + 3, b + 3, c - 3, d - 3], mx = (a + c) / 2, my = (b + d) / 2;
         for (const [x, y, r] of [[a, my, rx], [c, my, rx], [mx, b, ry], [mx, d, ry]]) {
-            for (const rr of [r * 0.8, r * 0.8 + 3]) for (const p of circleDots(x, y, rr, rr, clip)) lineDot(cv, g, p[0], p[1], look, seen);
+            for (const p of circleDots(x, y, r * 0.8, r * 0.8, clip)) lineDot(cv, g, p[0], p[1], look, seen);
         }
         const k = Math.min(f.hw, f.hh) * 0.18;
         for (let t = -k; t <= k; t += 0.5) for (const [x, y] of [[mx + t, my - (k - Math.abs(t))], [mx + t, my + (k - Math.abs(t))]]) lineDot(cv, g, x, y, look, seen);
@@ -62,10 +62,6 @@ const KINDS = {
     rings(cv, g, f, look, seen) {
         const m = Math.min(f.hw, f.hh);
         for (const k of [0.16, 0.5, 0.82]) for (const p of circleDots(f.cx, f.cy, m * k, m * k)) lineDot(cv, g, p[0], p[1], look, seen);
-        for (let s = 0; s < 8; s++) {
-            const a = s / 8 * Math.PI * 2 + Math.PI / 8;
-            for (let r = m * 0.52; r < m * 0.8; r += 0.7) lineDot(cv, g, f.cx + Math.cos(a) * r, f.cy + Math.sin(a) * r, look, seen);
-        }
     },
     /** 테두리 + 둥글게 늘어선 판석마다 작은 네잎 무늬(액트 6). */
     quatrefoil(cv, g, f, look, seen) {

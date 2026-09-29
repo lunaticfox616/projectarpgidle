@@ -91,6 +91,7 @@ function sprinkle(cv, g, fungus, on) {
         const x = cv.rng.int(1, w - 1), y = cv.rng.int(1, cv.h - 1), i = y * w + x;
         if (!g.top[i] || !on.includes(cv.px[i])) continue;
         const ramp = cv.rng.random() < fungus ? 'teal' : 'moss', hi = ramp === 'teal' ? 3 : 2;
+        if (n % 4 === 0) continue; // 넷에 하나는 덜어낸다
         cv.put(x, y, cv.col(ramp, hi)); cv.put(x + 1, y, cv.col(ramp, hi === 3 ? 2 : 3)); cv.put(x - (ramp === 'teal' ? 0 : 1), y + 1, cv.col(ramp, 1));
     }
 }
@@ -198,6 +199,7 @@ function hangingStrands(cv, area, d, o) {
     const { w, h } = cv, rng = cv.rng, count = Math.floor(area.reduce((s, v) => s + v, 0) / (o.divisor || 700));
     for (let n = 0; n < count; n++) {
         const x = rng.int(0, w), y = rng.int(0, h), len = rng.int(10, 50);
+        if (n % 4 === 3) continue; // 넷에 하나는 덜어낸다
         for (let j = 0; j < len; j++) {
             const yy = y + j, xx = x + Math.round(Math.sin(j / 7) * 2);
             if (!cv.inside(xx, yy) || !area[yy * w + xx]) break;

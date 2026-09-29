@@ -1,6 +1,6 @@
 'use strict';
 /* 방 꾸미기: 입구 계단·등, 보스 무대·제단·균열, 방 역할별 볼거리, 벽가 흩뿌린 소품, 빛과 그늘. */
-const { drawTube, blob, contactShadow, stamp } = require('./paint.cjs');
+const { drawTube, blob, ghost, contactShadow, stamp } = require('./paint.cjs');
 const { roomBox, roomCenter } = require('./terrain.cjs');
 const { ART, PROPS } = require('./props.cjs');
 
@@ -195,10 +195,29 @@ function scatter(ctx) {
         const x = cand[k] % cv.w, y = Math.floor(cand[k] / cv.w);
         if (placed.some(([px, py]) => Math.hypot(x - px, y - py) < 16)) continue;
         if (centers.some(([cx, cy]) => Math.hypot(x - cx, (y - cy) * 1.2) < 26)) continue;
-        const name = names[rng.weighted(names.map(n => weights[n]))];
-        draw(y, () => PROPS[name](cv, x, y, th, lights));
+        const name = names[rng.weighted(names.map(n => weights[n]))], kept = budget % 5 !== 0; // 다섯에 하나는 덜어낸다(자리는 그대로 차지)
+        draw(y, () => PROPS[name](kept ? cv : ghost(cv), x, y, th, kept ? lights : []));
         placed.push([x, y]);
         if (--budget <= 0) break;
+    }
+}
+
+const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
+function luminance(c) { return ((c >> 16) & 255) * 0.3 + ((c >> 8) & 255) * 0.59 + (c & 255) * 0.11; }
+/** 외곽선 다듬기: 새까만 선 대신 맞닿은 재질 가운데 가장 어두운 것의 두 단계 아래 색(색 있는 외곽선).
+ * 벽·뿌리·바닥 선이 주변 색에 섞여 덜 튄다. 굵은 먹 덩어리의 안쪽(재질과 닿지 않는 곳)은 그대로 둔다. */
+function softenOutlines(cv) {
+    const { w, h } = cv, src = Int32Array.from(cv.px), ink = cv.pal.ink;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        if (src[y * w + x] !== ink) continue;
+        let best = null;
+        for (const [dx, dy] of N8) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const c = src[ny * w + nx];
+            if (c !== ink && (best === null || luminance(c) < luminance(best))) best = c;
+        }
+        if (best !== null) cv.px[y * w + x] = cv.pal.rampOf(best) ? cv.pal.shade(best, -2) : best;
     }
 }
 
@@ -234,4 +253,4 @@ function roomGlow(cv, g) {
     return glow;
 }
 
-module.exports = { dress, scatter, lighting, gateDirection, pool, stoneRing };
+module.exports = { dress, scatter, lighting, softenOutlines, gateDirection, pool, stoneRing };

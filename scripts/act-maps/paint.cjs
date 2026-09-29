@@ -124,6 +124,12 @@ function blob(cv, cx, cy, rx, ry, ramp, opts = {}) {
     }
 }
 
+/** 덜어낸 장식을 그려서 버리는 캔버스. 난수는 똑같이 소비하므로 뒤에 오는 배치(소품 자리·뿌리 모양)가 바뀌지 않는다. */
+function ghost(cv) {
+    if (!cv.ghostCanvas) cv.ghostCanvas = Object.create(cv, { px: { value: new Int32Array(cv.px.length) } });
+    return cv.ghostCanvas;
+}
+
 function contactShadow(cv, cx, y, half) {
     for (let dx = -half; dx <= half; dx++) {
         for (const dy of [0, 1]) if (Math.abs(dx) <= half - dy) cv.shadeAt(cx + dx, y + dy, -2 + dy);
@@ -152,4 +158,4 @@ function stamp(cv, art, x, y, flip = false) {
     });
 }
 
-module.exports = { T, hex, Palette, Canvas, LIGHT, densify, drawTube, blob, contactShadow, stamp };
+module.exports = { T, hex, Palette, Canvas, LIGHT, densify, drawTube, blob, ghost, contactShadow, stamp };

@@ -94,8 +94,9 @@ const actExplorationView=(()=>{
     function waitingEnemies() {
         const run=actExplorationState.current(game);if(!run)return [];
         const map=actExplorationMap.layout(run.act),seen=new Set(run.discovered);
-        const stage=Math.min(...run.packs.filter(pack=>pack.stage!==null&&pack.aliveIds.length).map(pack=>pack.stage));
-        const dormant=run.packs.filter(pack=>pack.stage===null||pack.stage===stage).flatMap(pack=>pack.waiting)
+        // A waiting boss stays out of sight until its entrance begins (it rises there, js/canvas-boss-entrance.js).
+        const rising=actExplorationState.entrance(run)?.key;
+        const dormant=run.packs.filter(pack=>pack.stage===null||pack.key===rising).flatMap(pack=>pack.waiting)
             .filter(enemy=>seen.has(actExplorationMap.index(map,enemy)));
         return dormant;
     }

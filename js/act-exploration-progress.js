@@ -28,16 +28,26 @@ const actExplorationProgress = (() => {
     function step(run,stats) {
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         if(run.motion)return;
-        const visible=actExplorationState.discover(run,game.gridPlayer);
-        actExplorationState.engage(game,visible);
+        const visible=actExplorationState.discover(run,game.gridPlayer),opened=actExplorationState.entrance(run);
+        actExplorationState.engage(game,visible,run.motionTimeMs);
+        const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
-        if(run.mode!=='manual' && game.enemies.some(enemy=>enemy.hp>0))return;
+        // The player stands still at the threshold while the boss rises.
+        if(entrance || (run.mode!=='manual' && game.enemies.some(enemy=>enemy.hp>0)))return;
         const target=actExplorationState.destination(run,game.gridPlayer);
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
         const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
         advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
+    }
+    /** A newly opened boss entrance cues its presentation (js/canvas-boss-entrance.js) with the rising enemies. */
+    function watchEntrance(run,opened) {
+        const entrance=actExplorationState.entrance(run);
+        if(!entrance || entrance===opened)return entrance;
+        const pack=run.packs.find(row=>row.key===entrance.key);
+        addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600});
+        return entrance;
     }
     /** Occupancy matters only when the authoritative hit cell crosses the tile boundary. */
     function canEnterMotionTile(run) {

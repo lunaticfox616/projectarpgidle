@@ -22,7 +22,7 @@ const { ornaments } = require('./act-maps/ornaments.cjs');
 const faces = require('./act-maps/faces.cjs');
 const faces2 = require('./act-maps/faces2.cjs');
 const tops = require('./act-maps/tops.cjs');
-const { dress, scatter, lighting, gateDirection } = require('./act-maps/dress.cjs');
+const { dress, scatter, lighting, softenOutlines, gateDirection } = require('./act-maps/dress.cjs');
 const { buildGate } = require('./act-maps/gate.cjs');
 
 const root = path.resolve(__dirname, '..');
@@ -72,6 +72,7 @@ function build(layout, seed = 1) {
     if (th.puddles) puddles(cv, g, th.puddles);
     paintWalls(cv, g, th, lights);
     darkenBossRoom(cv, g);
+    softenOutlines(cv); // 벽·뿌리·바닥까지만. 소품은 이 뒤에 그려서 제 외곽선을 지킨다(작아서 읽혀야 한다)
     const ctx = { cv, g, th, lights, taken, draw: (y, fn) => queue.push([y, queue.length, fn]) };
     dress(ctx, layout);
     scatter(ctx);

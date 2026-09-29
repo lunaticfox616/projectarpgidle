@@ -1,7 +1,7 @@
 'use strict';
 /* 바닥: 흙 바탕 → 판석·널·자갈 포장 → 방마다 새기거나 상감한 무늬 → 벽에서 기어 나온 뿌리·웅덩이·낙엽.
  * 디오라마처럼 판석은 칸(16도트)에 맞춰 깔고, 무늬는 방 크기에 맞춰 방 가운데를 중심으로 그린다. */
-const { drawTube } = require('./paint.cjs');
+const { drawTube, ghost } = require('./paint.cjs');
 const { edt, erode, gradient } = require('./raster.cjs');
 const { roomBox, roomCenter } = require('./terrain.cjs');
 
@@ -16,7 +16,7 @@ function paintGround(cv, g, th) {
     const specks = fl.specks || ['pebble'];
     for (let n = Math.floor(w * h / 90); n > 0; n--) {
         const x = cv.rng.int(2, w - 2), y = cv.rng.int(2, h - 3);
-        if (g.floor[y * w + x]) speck(cv, g, cv.rng.choice(specks), x, y, fl.band);
+        if (g.floor[y * w + x]) speck(n % 3 ? cv : ghost(cv), g, cv.rng.choice(specks), x, y, fl.band); // 셋에 하나는 덜어낸다
     }
 }
 
@@ -181,7 +181,7 @@ function floorRoots(cv, g, count, opts = {}) {
             if (!cv.inside(x, y) || g.wallDist[Math.floor(y) * w + Math.floor(x)] > 16) break;
             pts.push([x, y]);
         }
-        drawTube(cv, pts, opts.width || 5, { taper: 0.7, seed: rng.int(0, 99), ramp: opts.ramp || 'wood' });
+        drawTube(n % 5 === 4 ? ghost(cv) : cv, pts, opts.width || 5, { taper: 0.7, seed: rng.int(0, 99), ramp: opts.ramp || 'wood' }); // 다섯에 하나는 덜어낸다
     }
 }
 
@@ -192,6 +192,7 @@ function puddles(cv, g, count) {
         const i = cv.rng.int(0, g.floor.length);
         if (!g.floor[i] || g.wallDist[i] < 5 || g.wallDist[i] > 16) continue;
         const cx = i % w, cy = Math.floor(i / w), rx = cv.rng.int(6, 12), ry = cv.rng.int(3, 6);
+        if (n % 5 === 4) continue; // 다섯에 하나는 덜어낸다
         for (let y = cy - ry - 1; y <= cy + ry + 1; y++) for (let x = cx - rx - 1; x <= cx + rx + 1; x++) {
             if (!cv.inside(x, y) || !g.floor[y * w + x]) continue;
             const v = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (rough[y * w + x] - 0.5) * 0.7;

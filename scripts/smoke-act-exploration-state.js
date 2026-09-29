@@ -71,16 +71,32 @@ for(let act=1;act<=10;act++) {
     assert.equal(run('game.actExploration.status'),'active','elites alone cannot complete the dungeon');
     run('game.actExploration.mode="full";');
     assert.notEqual(run('actExplorationState.destination(game.actExploration,game.gridPlayer).role'),'boss','full exploration visits remaining ordinary and optional rooms');
+    // A boss seen from the approach keeps waiting; it wakes after its entrance once the player reaches its gate.
+    run(`{
+        const map=actExplorationMap.layout(act),boss=map.rooms.find(room=>room.role==='boss');
+        game.gridPlayer={gx:map.gate.gx+Math.sign(map.gate.gx-boss.gx),gy:map.gate.gy+Math.sign(map.gate.gy-boss.gy),gridMoveTimer:0};
+        actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),10000);
+    }`);
+    assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'a boss seen from the approach does not wake');
+    assert.equal(run('actExplorationState.entrance(game.actExploration)'),null,'and no entrance starts before its gate');
     run(`{
         const boss=actExplorationMap.layout(act).rooms.find(room=>room.role==='boss');
         game.gridPlayer={gx:boss.gx-1,gy:boss.gy,gridMoveTimer:0};
-        actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer));
+        actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),10000);
     }`);
+    assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'stepping into the boss room starts the entrance first');
+    assert.equal(run('actExplorationState.entrance(game.actExploration).holdMs'),2600);
+    run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),12599);');
+    assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'the boss keeps rising for the whole entrance');
+    run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),12600);');
     assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),1,'only one boss stage fights at a time, without adds');
+    assert.equal(run('actExplorationState.entrance(game.actExploration)'),null,'the entrance ends when the boss joins the fight');
     run('{const first=game.enemies.find(enemy=>enemy.isBoss);first.hp=0;handleEnemyDeath(first,getPlayerStats());}');
     if(act===4) {
         assert.equal(run('game.actExploration.status'),'active','Act 4 first boss is not the final clear');
-        run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer));');
+        run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),20000);');
+        assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'the second stage has its own entrance');
+        run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),22600);');
         assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),1);
         run('{const second=game.enemies.find(enemy=>enemy.isBoss);second.hp=0;handleEnemyDeath(second,getPlayerStats());}');
     }

@@ -92,8 +92,8 @@ function obsidian(cv, g, th) {
     for (const i of faceIndices(g)) {
         const k = g.below[i], x = i % cv.w, row = Math.floor((k - 1) / 8), bx = (x + (row % 2) * 6) % 12;
         let c = k === 1 ? cv.pal.ink : bx === 0 || (k - 1) % 8 === 0 ? cv.col('stone', 0) : cv.col('stone', (k - 1) % 8 === 7 ? 2 : 1);
-        if (k === fh - 3) c = cv.col('warm', 2);
-        else if (k === fh - 5) c = cv.col('warm', 1);
+        if (k === fh - 3) c = cv.col('warm', 1); // 이중 금선: 흑요석에 섞이게 한 단계 낮춤
+        else if (k === fh - 5) c = cv.col('warm', 0);
         else if (k >= fh) c = cv.col('stone', 3);
         else if (k > 1 && cv.rng.random() < 0.02) c = cv.col('teal', cv.rng.random() < 0.3 ? 4 : 3);
         cv.px[i] = c;

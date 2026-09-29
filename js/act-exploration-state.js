@@ -3,6 +3,11 @@
 // pack.waiting before engagement, game.enemies afterwards.
 const actExplorationState = (() => {
     const settlementMs=5500;
+    // A boss wakes only once the player reaches its room (the one-cell gate or inside): the room falls still for BOSS_ENTRANCE_MS while it rises
+    // (drawn by js/canvas-boss-entrance.js), then the fight starts. Transient like the discovery memos — a reload
+    // simply replays the entrance; nothing about it is saved.
+    const BOSS_ENTRANCE_MS=2600;
+    const entrances=new WeakMap();
     // Discovery geometry is static at a tile. Keep this transient memo outside saves;
     // engagement still runs every step so deaths/elite gates can activate waiting packs.
     const discoveryMemos=new WeakMap();
@@ -42,18 +47,38 @@ const actExplorationState = (() => {
         if(remainingElites(run)>0)return false;
         return !run.packs.some(other=>other.stage!==null && other.stage<pack.stage && other.aliveIds.length>0);
     }
-    /** Transfers nearby, visible enemies into combat without re-rolling or respawning them. */
-    function engage(state,visible) {
+    /** The gate cell counts: the player stops on the threshold and watches the boss rise a few cells away. */
+    function atBossRoom(map,room,cell) {
+        if(cell.gx===map.gate.gx && cell.gy===map.gate.gy)return true;
+        return Math.abs(cell.gx-room.gx)<=room.radiusX && Math.abs(cell.gy-room.gy)<=room.radiusY;
+    }
+    /** False until the player has stood at the boss room for BOSS_ENTRANCE_MS; the first such step opens the entrance. */
+    function bossAwake(state,run,o) {
+        const room=o.map.rooms.find(row=>row.id===o.pack.roomId),open=entrances.get(run);
+        if(!atBossRoom(o.map,room,state.gridPlayer))return false;
+        if(!open || open.key!==o.pack.key || o.now<open.at){entrances.set(run,{key:o.pack.key,at:o.now,holdMs:BOSS_ENTRANCE_MS});return false;}
+        if(o.now-open.at<BOSS_ENTRANCE_MS)return false;
+        entrances.delete(run);
+        return true;
+    }
+    /** A visible boss keeps waiting through its entrance, and in background hunts set to stop before bosses. */
+    function holdBoss(state,run,o) {
+        if(o.pack.stage===null)return false;
+        // Stop before transferring a visible boss: a strong build could otherwise kill it
+        // in this same tick, before the replay's next safety-policy check can see it.
+        if(state.isBackgroundCalculation && state.offlineHuntMode==='stopBeforeBoss'){state.backgroundStopReason='before-boss';return true;}
+        return !bossAwake(state,run,o);
+    }
+    /** @returns {?{key:string, at:number, holdMs:number}} The boss entrance in progress (combat ms), if any. */
+    function entrance(run) {return run && entrances.get(run) || null;}
+    /** Transfers nearby, visible enemies into combat without re-rolling or respawning them. now = combat ms. */
+    function engage(state,visible,now=getCombatTime()) {
         const run=current(state);if(!run || run.status!=='active')return [];
         const map=actExplorationMap.layout(run.act),seen=new Set(visible),added=[];
         for(const pack of run.packs) {
             if(!bossReady(run,pack))continue;
             const ready=pack.waiting.filter(enemy=>seen.has(actExplorationMap.index(map,enemy)));
-            // Stop before transferring a visible boss: a strong build could otherwise kill it
-            // in this same tick, before the replay's next safety-policy check can see it.
-            if(ready.length && pack.stage!==null && state.isBackgroundCalculation && state.offlineHuntMode==='stopBeforeBoss') {
-                state.backgroundStopReason='before-boss';continue;
-            }
+            if(ready.length && holdBoss(state,run,{map,pack,now}))continue;
             const ids=new Set(ready.map(enemy=>enemy.id));
             pack.waiting=pack.waiting.filter(enemy=>!ids.has(enemy.id));
             added.push(...ready);
@@ -201,6 +226,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,discover,engage,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
+    return {settlementMs,current,create,discover,engage,entrance,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
 })();
 safeExposeGlobals({actExplorationState});

@@ -281,10 +281,17 @@ const hanaActors = (() => {
         const origin = projection.cellToScreen(0, 0), s = projection.tileW / 48;
         return { x: (x - origin.x) / s + 24, y: (y - origin.y) / s + 24 };
     }
+    /** Dots from the feet to the top of the head in the idle pose (sheet bounds) — steady while attacks swing a weapon up. */
+    function headroom(classId) {
+        const sprites = data(), idle = sprites && sprites.classes[classId] && sprites.classes[classId].motions.idle;
+        return idle && idle.bounds ? sprites.feetY + 1 - idle.bounds[1] : 25;
+    }
     function remember(frame, dest, pose, context) {
         body = { img: frame.img, srcs: frame.srcs, dest, dir: pose.dir, flip: frame.flip, footX: context.foot.x, now: context.now,
-            handBoard: handOnBoard(frame, context.foot, dest, context.projection) };
+            headY: context.foot.y - headroom(context.classId) * dest.dot, handBoard: handOnBoard(frame, context.foot, dest, context.projection) };
     }
+    /** CSS y of the top of the head drawn this frame (overhead bars sit above it), or null when no Hana body was drawn. */
+    function headY(now) { return body && body.now === now ? body.headY : null; }
 
     /**
      * @param {CanvasRenderingContext2D} ctx
@@ -310,7 +317,7 @@ const hanaActors = (() => {
         if (frame.flip) { ctx.translate(x * 2, 0); ctx.scale(-1, 1); }
         ctx.globalAlpha = alpha;
         frame.srcs.forEach(src => blit(ctx, frame.img, src, dest));
-        remember(frame, dest, pose, { foot: { x, y }, now, projection: state.projection });
+        remember(frame, dest, pose, { foot: { x, y }, now, projection: state.projection, classId: state.classId });
         overlay(ctx, frame, dest, pose.flash ? alpha * FLASH_ALPHA : 0, FLASH_COLOUR);
         overlay(ctx, frame, dest, state.tint > 0 ? alpha * Math.min(1, state.tint) : 0, DRAIN_TINT);
         ctx.restore();
@@ -377,6 +384,6 @@ const hanaActors = (() => {
         return tops.get(img.src);
     }
 
-    return { drawPlayer, drawSummon, drawnBody, handBoard, weaponFor, comboDef, preload, isReady, summonSlug, attackPose, frameAt };
+    return { drawPlayer, drawSummon, drawnBody, handBoard, headY, weaponFor, comboDef, preload, isReady, summonSlug, attackPose, frameAt };
 })();
 safeExposeGlobals({ hanaActors });

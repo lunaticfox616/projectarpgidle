@@ -85,8 +85,8 @@ function arches(cv, g, th) {
 }
 function pillarPixel(cv, u, k, fh) {
     if (u === 0 || u === 5) return cv.pal.ink;
-    if ((u === 2 || u === 3) && k > 5 && k < fh - 3 && k % 6 === 0) return cv.col('warm', 2);
-    if ((u === 2 || u === 3) && k > 5 && k < fh - 3 && k % 6 === 3) return cv.col('warm', 1);
+    if ((u === 2 || u === 3) && k > 5 && k < fh - 3 && k % 6 === 0) return cv.col('warm', 1); // 기둥 금 박음: 판석 색에 섞이게 한 단계 낮춤
+    if ((u === 2 || u === 3) && k > 5 && k < fh - 3 && k % 6 === 3) return cv.col('warm', 0);
     return cv.col('stone', u === 1 ? 4 : u === 4 ? 2 : 3);
 }
 /** 아치 안: 아래는 난간, 위는 어둠 속 늘어진 뿌리. */

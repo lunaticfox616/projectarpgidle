@@ -1559,25 +1559,28 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
     });
 }
 
-function drawBattlefieldPlayerHealthBar(ctx, playerPos, hpPct, ghostPct, esPct) {
-    let width = 64;
-    let x = Math.round(playerPos.x - width / 2);
-    let y = Math.round(playerPos.y - 82);
+/** The player's bar floats just above the drawn head — Hana sprites scale with the tile (×3~×5), so a fixed offset
+ * cut across the face on large screens. Legacy sprites keep the old offset. */
+function drawBattlefieldPlayerHealthBar(ctx, scene) {
+    const width = 64, height = 6, head = hanaActors.headY(scene.now), playerPos = scene.light;
+    const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 : head - 10);
     ctx.save();
     ctx.globalAlpha = 0.97;
-    if (ghostPct > hpPct + 0.003) {
+    ctx.fillStyle = 'rgba(6, 5, 4, 0.72)';
+    ctx.fillRect(x, y, width, height);
+    if (scene.ghostPct > scene.hpPct + 0.003) {
         ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
-        ctx.fillRect(x, y, Math.max(1, Math.round(width * ghostPct)), 8);
+        ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.ghostPct)), height);
     }
     ctx.fillStyle = '#20bf6b';
-    ctx.fillRect(x, y, Math.max(2, Math.round(width * hpPct)), 8);
-    if (esPct > 0) {
+    ctx.fillRect(x, y, Math.max(2, Math.round(width * scene.hpPct)), height);
+    if (scene.esPct > 0) {
         ctx.fillStyle = 'rgba(75,123,236,0.85)';
-        ctx.fillRect(x, y, Math.max(1, Math.round(width * esPct)), 8);
+        ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.esPct)), height);
     }
-    ctx.strokeStyle = 'rgba(200, 232, 255, 0.55)';
+    ctx.strokeStyle = 'rgba(6, 5, 4, 0.9)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 9);
+    ctx.strokeRect(x - 0.5, y - 0.5, width + 1, height + 1);
     ctx.restore();
 }
 
@@ -2165,10 +2168,17 @@ function buildSummonAttackMotionMap(effects, summons, proj, enemyPosMap, now) {
     return result;
 }
 
+/** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js). */
+function getEnemySpawnAge(enemy, now, duration) {
+    const rising = bossEntranceView.enemyAge(enemy, now);
+    if (rising !== null) return rising;
+    return enemy.spawnStamp ? clampNumber((now - enemy.spawnStamp) / duration, 0, 1) : 1;
+}
+
 function drawBattleEnemyActor(ctx, entry, state) {
     let enemy = entry.enemy;
     let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
-    let age = enemy.spawnStamp ? clampNumber((state.now - enemy.spawnStamp) / spawnDuration, 0, 1) : 1;
+    let age = getEnemySpawnAge(enemy, state.now, spawnDuration);
     let easedAge = 1 - Math.pow(1 - age, 3);
     let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
     if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
@@ -2191,6 +2201,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
     }));
     actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
     actExplorationView.appendScenery(actors,state);
+    bossEntranceView.drawGround(ctx, state);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
         else if (actor.kind === 'gate' || actor.kind === 'scenery') actExplorationView.drawScenery(ctx,actor,state);
@@ -2742,7 +2753,7 @@ function renderBattlefield(forceWhenHidden) {
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
-    drawBossAnnouncement(ctx, { width, height }, updateBossAnnouncement(enemies, now));
+    drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
 
     let caption = '전장을 스캔 중...';
     if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
@@ -2756,7 +2767,7 @@ function renderBattlefield(forceWhenHidden) {
 
 function getBattleCameraShake(now) {
     if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
-    let amplitude = 0;
+    let amplitude = bossEntranceView.shake(now);
     (battleFx || []).forEach(fx => {
         if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn'].includes(fx.type)) return;
         let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
@@ -2819,7 +2830,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     redrawnSkillFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
-    drawBattlefieldPlayerHealthBar(ctx, scene.light, scene.hpPct, scene.ghostPct, scene.esPct);
+    drawBattlefieldPlayerHealthBar(ctx, scene);
     drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets);
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
@@ -2867,7 +2878,7 @@ function drawLowHealthEdge(ctx, scene) {
 // 보스가 처음 전장에 보이면 이름 배너를 잠깐 띄운다. 표시 전용이며 등장·판정 시점은 전투 쪽이 소유한다.
 const BOSS_BANNER_MS = 2600;
 function updateBossAnnouncement(enemies, now) {
-    const boss = (enemies || []).find(enemy => enemy && enemy.isBoss);
+    const boss = (enemies || []).find(enemy => enemy && enemy.isBoss) || bossEntranceView.revealedBoss(now);
     if (!boss) return null;
     if (battleVisualState.bossAnnounceId !== boss.id) {
         battleVisualState.bossAnnounceId = boss.id;
@@ -2882,10 +2893,20 @@ function getBossBannerAlpha(age) {
     return Math.min(1, Math.max(0, (BOSS_BANNER_MS - age) / 640));
 }
 
+/** The band's centre line, chosen once per banner: out of the way of a boss rising through its entrance, else 30% down. */
+function getBossBannerY(area, banner) {
+    const held = battleVisualState.bossBannerY;
+    if (held && held.start === battleVisualState.bossAnnounceStart) return held.y;
+    const y = bossEntranceView.bannerY(area, banner.boss, { up: 38, down: 32 }) ?? Math.round(area.height * 0.3);
+    battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
+    return y;
+}
+
 function drawBossAnnouncement(ctx, area, banner) {
+    bossEntranceView.drawScreen(ctx, area);
     if (!banner) return;
-    const { width, height } = area;
-    const cy = Math.round(height * 0.3);
+    const { width } = area;
+    const cy = getBossBannerY(area, banner);
     const rift = isBattleLightingEnabled();
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
