@@ -69,6 +69,27 @@ const devTestPanel = (() => {
         refresh();
         note(`레벨 ${game.level}`);
     }
+    /** 그루터기 함: 액트 10을 깨지 않고 받기, 씨앗·수액 몇 개, 판 위 아이템 처치 100회분 성장. */
+    function grantStumpBox() {
+        const box = stumpBox.of(game);
+        if (!box.acquired) { box.acquired = true; box.via = 'dev'; }
+        contentProgression.sync(game);
+        checkUnlocks();
+        refresh();
+        note('그루터기 함 지급');
+    }
+    function giveStumpItems() {
+        if (!game.stumpBox.acquired) grantStumpBox();
+        const colors = Object.keys(STUMP_BOX_COLORS);
+        const made = Array.from({ length: 8 }, (_, i) => stumpBox.createItem(game, { family: i % 3 ? 'seed' : 'sap', color: colors[i % 4], roll: 0.8 + Math.random() * 0.4 }));
+        refresh();
+        note(`씨앗·수액 ${made.filter(Boolean).length}개`);
+    }
+    function growStumpBox() {
+        for (let i = 0; i < 100; i++) stumpBox.grow(game, {});
+        refresh();
+        note('그루터기 함 성장 +100');
+    }
     function travelToAct(order) {
         const zoneId = order - 1;
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
@@ -138,7 +159,8 @@ const devTestPanel = (() => {
         const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct} · ${act.title}` })));
         return section('진행', [
             row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
-            row([acts, button('이동', () => travelToAct(Number(acts.value)))])
+            row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
+            row([button('그루터기 함 받기', grantStumpBox), button('씨앗·수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
         ]);
     }
     function status() {

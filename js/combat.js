@@ -3763,6 +3763,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (typeof getCoreCubeActiveStats === 'function') {
         getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
     }
+    if (typeof stumpBox === 'object') stumpBox.applyStats(reward, game);
     if (typeof getCosmosBossRelicStatTotals === 'function') {
         let relicStats = getCosmosBossRelicStatTotals();
         Object.keys(relicStats).forEach(statKey => addStatToBucket(reward, statKey, relicStats[statKey]));
@@ -9208,6 +9209,7 @@ function handleEnemyDeath(enemy, pStats) {
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     grantEnemyLoot(enemy);
+    if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
     actExplorationState.recordDeath(game,enemy);
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
@@ -13111,6 +13113,7 @@ function triggerSeasonReset(options) {
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
     if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
+    if (typeof stumpBox === 'object') stumpBox.regress(game);
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';

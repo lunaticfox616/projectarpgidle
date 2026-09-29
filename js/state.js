@@ -2375,6 +2375,13 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * @typedef {{version:number, highestLoop:number, unlocked:string[], paidCosts:Record<string, number>, inherited:string[], automatic:string[], grandfathered:string[], legacy?:boolean}} ContentProgressionState
  */
 /**
+ * 그루터기 함(js/stump-box.js). acquired/via/starter are one-time receipts. items live in storage unless an id sits
+ * on the 5×5 board (row-major, null = empty); xp counts kills toward the family's need (data/stump-box.js) and ripe
+ * marks a grown item. Suppression, resonance and stats are recomputed from the board, never saved.
+ * @typedef {{id:number, family:('seed'|'sap'), color:('fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'), xp:number, ripe:boolean, roll:number}} StumpBoxItem
+ * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>}} StumpBoxState
+ */
+/**
  * G1 expedition ledger. Rewards in history are already in the wallet, never claimable again.
  * @typedef {{version:number,galaxy?:number,loop:number,phase:string,stage:number,goal:string,legSize:number,signal:string,seed:number,plan:string[][],queue:string[],history:Array<{id:string,dust:number,stage:number}>,dust:number,decisions:Record<string,string>,habitats?:string[],failedNode?:string}} CosmosRouteState
  * Board seed fixes the route across reloads; retryAt is a wall-clock UTC timestamp in ms. Older routes have no galaxy (G1).
@@ -2676,6 +2683,8 @@ const defaultGame = {
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
     underworldProgress: { highestFloor: 1, currentFloor: 1 },
     ocean: createDefaultOceanState(),
+    /** @type {StumpBoxState} */
+    stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
     coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
     pendingLoopDecision: false,
     pendingLoopReady: false,
@@ -2729,8 +2738,8 @@ const defaultGame = {
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
-    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, arcana: false },
-    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, arcana: false, stump: false },
+    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

@@ -409,6 +409,7 @@
         <div class="tab-btn" id="btn-tab-expertise" onclick="switchTab('tab-expertise')">전문가 <span id="noti-expertise" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-traits" data-merged-tab-member="1" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talent" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-stump" onclick="switchTab('tab-stump')" style="display:none;">그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-jewel" data-merged-tab-member="1" onclick="switchTab('tab-jewel')" style="display:none;">주얼 <span id="noti-jewel" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-flask" data-merged-tab-launcher="utility" onclick="openMergedTabPicker(event,'utility')" style="display:none;">보조장비 <span id="jewel-inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-flask" class="noti-dot"></span></div>
@@ -749,6 +750,21 @@
     <div id="tab-arcana" class="tab-content">
         <h2>아르카나</h2>
         <div id="ui-arcana-panel"></div>
+    </div>
+    <div id="tab-stump" class="tab-content">
+        <h2>그루터기 함</h2>
+        <p class="stump-rules">판에 놓인 씨앗·수액만 처치로 자랍니다 · 같은 색 셋이 다 자라면 공명 +10% · 화염↔냉기, 번개↔카오스가 맞닿으면 둘 다 멈춥니다</p>
+        <div class="stump-box-screen">
+            <section id="stump-board-section" class="stump-box-pane">
+                <div id="stump-box-board"></div>
+                <div id="stump-box-summary" class="stump-box-summary"></div>
+                <div id="stump-box-detail" class="stump-box-detail"></div>
+            </section>
+            <section id="stump-storage-section" class="stump-box-pane">
+                <div id="stump-box-starter" class="stump-box-starter"></div>
+                <div id="stump-box-storage" class="stump-box-storage"></div>
+            </section>
+        </div>
     </div>
 
     
@@ -1635,6 +1651,7 @@
 <script defer src="data/unique-equipment.js?v=20260913-1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1&stash=20260820-1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1&precision=20260904-1"></script>
+<script defer src="data/stump-box.js?v=20260929-1"></script>
 <script defer src="data/passives.js?v=20260719-spiderweb-rollback1&hero-motion=20260828-test-characters5&player-classes=20260828-1&review-fixes=20260901-1&walk-direction=20260901-1&idle-direction=20260902-1&refinement=20260906-1&flow=20260906-1"></script>
 <script defer src="data/hana-sprites.js?v=20260929-1"></script>
 <script defer src="data/hana-weapon-combos.js?v=20260929-1"></script>
@@ -1656,6 +1673,7 @@
 <script defer src="js/gem-drop-rewards.js?v=20260922-1"></script>
 <script defer src="js/act-exploration-loot.js?v=20260922-1"></script>
 <script defer src="js/act-exploration-state.js?v=20260922-1"></script>
+<script defer src="js/stump-box.js?v=20260929-1"></script>
 <script defer src="js/level-progression.js?v=20260911-1&requirements-review=20260911-1&unique-equipment=20260913-1&experience-curve=20260914-1"></script>
 <script defer src="js/state.js?flow=20260906-1&v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1&underworld=20260819-depth1&loadout=20260820-1&endgame=20260820-pruning3&roadmap=20260821-1&hideout=20260821-2&map-tabs=20260823-1&equipment-grid=20260826-2&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260827-1&player-classes=20260828-1&tree-visual=20260829-3&settings=20260901-1&beyond=20260901-2&review-fixes=20260901-1&tutorial-pause=20260901-1&drop-balance=20260902-1&underworld-yield=20260902-1&boundary-balance=20260902-1&save-reset=20260903-1&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&realm-ui=20260907-1&mobile-review=20260907-2&loop-map=20260908-1&hunt-rewards=20260908-1&login-idle=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1&route=20260909-8&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-copy=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&requirements-review=20260911-1&affix-continuity=20260912-1&realm-base-drops=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&time-rift=20260914-4&death-report=20260914-1&atlas-copy=20260914-3&journal-preference=20260914-1&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915"></script>
 <script defer src="js/combat-loot-receipts.js?v=20260913-1"></script>
@@ -1763,6 +1781,7 @@
 <script defer src="js/playtest-telemetry.js?v=20260816-telemetry-separation1&login-idle=20260908-1"></script>
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1&display=20260906-1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1&overflow=20260819-salvage1&visuals=20260820-1&profile=20260821-1&craft-lists=20260908-1"></script>
+<script defer src="js/stump-box-ui.js?v=20260929-1"></script>
 <script defer src="js/gem-selection-ui.js?v=20260909-1&equip-feedback=20260914-1"></script>
 <script defer src="js/condition-feedback-ui.js?v=20260909-1"></script>
 <script defer src="js/gem-core-forge-ui.js?v=20260914-1&gem-value=20260915-1"></script>

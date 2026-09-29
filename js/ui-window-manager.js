@@ -37,7 +37,8 @@
         // 실제 창 소유자는 이 런처 하나뿐이다. 큐브의 2열 그리드에 맞춰 최소 폭도 보장한다.
         'tab-flask': { title: '보조장비', x: 260, y: 100, width: 860, height: 660, minWidth: 800, minHeight: 380 },
         'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 }
+        'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 },
+        'tab-stump': { title: '그루터기 함', x: 240, y: 70, width: 940, height: 760, minWidth: 560, minHeight: 440 }
     };
 
     let layoutState = getDefaultLayoutState();

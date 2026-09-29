@@ -1206,8 +1206,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise', 'stump'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
@@ -1219,7 +1219,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
-    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-unlocks', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-skills'] },
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-unlocks', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-stump', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
@@ -1799,6 +1799,7 @@ function getRenderingUiTabIds() {
 // Keep timed stock progression independent of whether its management panel is visible.
 function renderVisibleManagementPanels(tabIds, renderFlasks) {
     if (tabIds.has('tab-talent')) renderTalentTab();
+    if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
     if (tabIds.has('tab-flask')) renderFlasks();
     if (tabIds.has('tab-expertise')) renderExpertiseUI();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
@@ -15629,6 +15630,7 @@ function checkUnlocks() {
     let u = game.unlocks;
     let starterTutorialGem = getStarterGemTutorialTarget();
     if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();
+    if (typeof stumpBoxUi === 'object') stumpBoxUi.checkStumpBoxUnlock();
     if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
         game.noti.growthboard = true;
         queueTutorialNotice('unlock_growth_board', '생장판 개방',

@@ -19,7 +19,8 @@ const contentProgression = (() => {
         cube: owner => [['지하계 10층 클리어', owner.underworldProgress.highestFloor >= 11]],
         arcana: owner => [['봉인된 카드 발견', owner.arcana.unlocked]],
         talent: owner => [['재능 개화', hasPermanentTalentTabUnlock(owner)]],
-        woodsman: owner => [['나무꾼 조우 또는 기록', !!owner.woodsmanSimulatorSeenLoop || owner.woodsmanDefeatAttempts > 0 || owner.journalEntries.includes('woodsman')]]
+        woodsman: owner => [['나무꾼 조우 또는 기록', !!owner.woodsmanSimulatorSeenLoop || owner.woodsmanDefeatAttempts > 0 || owner.journalEntries.includes('woodsman')]],
+        stump: owner => [['액트 10 클리어', !!(owner.stumpBox && owner.stumpBox.acquired) || stumpBox.eligible(owner)]]
     };
 
     function requirements(id, owner = game) {

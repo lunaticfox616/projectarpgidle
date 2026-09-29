@@ -51,5 +51,5 @@ npm run test:browser        # tests/browser/ Playwright 검사
 작업 트리에는 진행 중인 변경과 추적되지 않은 파일이 있습니다. 일괄 초기화하지 말고
 관련 기능과 호출부를 검색한 뒤 기존 변경을 이어받으세요. 예를 들어 넓은 맵 탐험은
 [이관 기록](docs/act-exploration-integration.md)에 남아 있고, 그루터기 함은
-[미구현 설계안](docs/stump-cube-game-design.md)입니다. 설계안의 수치를 확정된 게임 규칙으로
-취급하지 마세요.
+[설계안과 구현 메모](docs/stump-cube-game-design.md)에 있습니다(기본 함 구현, 젬 초월·포식 미구현).
+수치는 첫 시안이므로 확정된 게임 규칙으로 취급하지 마세요.

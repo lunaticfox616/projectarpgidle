@@ -11,7 +11,7 @@ const BUILD_STAT_FIELDS = [
     'jewelSlots', 'jewelSlotAmplify', 'growthBoard', 'growthInventory',
     'talismanBoard', 'talismanPlacements', 'talismanBoardUnlock', 'talismanUnlockedCells',
     'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',
-    'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression'
+    'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression', 'stumpBox'
 ];
 const BUILD_STAT_PARTS = {
     passiveSpecialization: ['revelation', 'keystoneChoices'],

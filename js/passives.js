@@ -4959,7 +4959,8 @@ const TAB_UNLOCK_GATES = {
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
-    'tab-expertise': 'expertise'
+    'tab-expertise': 'expertise',
+    'tab-stump': 'stump'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;
 let battleTabDocked = false;

@@ -88,5 +88,6 @@
         new SectionNavigation('tab-talisman', '#talisman-layout, #talisman-library, #talisman-workshop', ['배치 보드', '보관함', '공방'], '부적 작업');
         new SectionNavigation('tab-cube', '#cube-assembly, #cube-result, #cube-resources', ['동력원 장착', '발현 결과', '재료 · 조합'], '큐브 작업');
         new SectionNavigation('tab-growthboard', '#growth-layout, #growth-library, #growth-workshop', ['배치판', '보관함', '제작대'], '생장판 작업');
+        new SectionNavigation('tab-stump', '#stump-board-section, #stump-storage-section', ['판', '보관함'], '그루터기 함');
     }, { once: true });
 }());
