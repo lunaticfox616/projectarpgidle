@@ -1,0 +1,2329 @@
+{
+  "schemaVersion": 1,
+  "sourceFingerprint": "ad605a224a7fa669e56055523388caaf37c597bfff12277eeaffe4f8f9772b9a",
+  "seedCount": 200,
+  "rules": {
+    "slots": 4,
+    "visitMs": 360000,
+    "minimumAgeMs": 720000,
+    "offlineLimitMs": 43200000,
+    "dewPerHour": 12,
+    "walletCap": 120,
+    "maxAppraisal": 100,
+    "pricePremium": 1.2,
+    "maxAsk": 1000000,
+    "historyLimit": 16,
+    "currency": "formlessDew"
+  },
+  "method": {
+    "initialDemandDew": 0,
+    "listedItemsPerTrial": 4,
+    "horizonHours": 12,
+    "items": "One fixed-seed actual generated weapon per tier/rarity; a sample, not the entire loot distribution.",
+    "prices": "Cheap = floor(fair/2), minimum 1. All four listings have the same item and asking price.",
+    "quantiles": "Across all listings, including unsold as censored. Null means the quantile exceeds the 12-hour horizon.",
+    "controls": "No relisting, restocking, replay acceleration, loot bonus, LLM call or existing player save."
+  },
+  "samples": [
+    {
+      "tier": 1,
+      "rarity": "normal",
+      "base": "견습 사역봉",
+      "baseReqTier": 1,
+      "rolledAffixTiers": [],
+      "appraisal": {
+        "fair": 1,
+        "ceiling": 1,
+        "tier": 1,
+        "quality": 0,
+        "options": 0,
+        "fit": 15
+      },
+      "scenarios": [
+        {
+          "mode": "cheap",
+          "price": 1,
+          "fractionSoldAt1h": 0.55,
+          "fractionSoldAt3h": 0.9825,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 60,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 96,
+          "selloutP90Minutes": 156,
+          "meanRevenueDew": 4
+        },
+        {
+          "mode": "fair",
+          "price": 1,
+          "fractionSoldAt1h": 0.55,
+          "fractionSoldAt3h": 0.9825,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 60,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 96,
+          "selloutP90Minutes": 156,
+          "meanRevenueDew": 4
+        },
+        {
+          "mode": "ceiling",
+          "price": 1,
+          "fractionSoldAt1h": 0.55,
+          "fractionSoldAt3h": 0.9825,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 60,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 96,
+          "selloutP90Minutes": 156,
+          "meanRevenueDew": 4
+        },
+        {
+          "mode": "aboveCeiling",
+          "price": 2,
+          "fractionSoldAt1h": 0,
+          "fractionSoldAt3h": 0,
+          "fractionSoldAt12h": 0,
+          "medianMinutes": null,
+          "p90Minutes": null,
+          "selloutMedianMinutes": null,
+          "selloutP90Minutes": null,
+          "meanRevenueDew": 0
+        }
+      ]
+    },
+    {
+      "tier": 1,
+      "rarity": "rare",
+      "base": "견습 사역봉",
+      "baseReqTier": 1,
+      "rolledAffixTiers": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "appraisal": {
+        "fair": 4,
+        "ceiling": 4,
+        "tier": 1,
+        "quality": 46,
+        "options": 5,
+        "fit": 82
+      },
+      "scenarios": [
+        {
+          "mode": "cheap",
+          "price": 2,
+          "fractionSoldAt1h": 0.88375,
+          "fractionSoldAt3h": 1,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 36,
+          "p90Minutes": 66,
+          "selloutMedianMinutes": 54,
+          "selloutP90Minutes": 78,
+          "meanRevenueDew": 8
+        },
+        {
+          "mode": "fair",
+          "price": 4,
+          "fractionSoldAt1h": 0.4325,
+          "fractionSoldAt3h": 0.99,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 72,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 102,
+          "selloutP90Minutes": 150,
+          "meanRevenueDew": 16
+        },
+        {
+          "mode": "ceiling",
+          "price": 4,
+          "fractionSoldAt1h": 0.4325,
+          "fractionSoldAt3h": 0.99,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 72,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 102,
+          "selloutP90Minutes": 150,
+          "meanRevenueDew": 16
+        },
+        {
+          "mode": "aboveCeiling",
+          "price": 5,
+          "fractionSoldAt1h": 0,
+          "fractionSoldAt3h": 0,
+          "fractionSoldAt12h": 0,
+          "medianMinutes": null,
+          "p90Minutes": null,
+          "selloutMedianMinutes": null,
+          "selloutP90Minutes": null,
+          "meanRevenueDew": 0
+        }
+      ]
+    },
+    {
+      "tier": 10,
+      "rarity": "normal",
+      "base": "혈각 검",
+      "baseReqTier": 10,
+      "rolledAffixTiers": [],
+      "appraisal": {
+        "fair": 2,
+        "ceiling": 2,
+        "tier": 10,
+        "quality": 0,
+        "options": 0,
+        "fit": 15
+      },
+      "scenarios": [
+        {
+          "mode": "cheap",
+          "price": 1,
+          "fractionSoldAt1h": 0.81375,
+          "fractionSoldAt3h": 1,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 36,
+          "p90Minutes": 72,
+          "selloutMedianMinutes": 60,
+          "selloutP90Minutes": 90,
+          "meanRevenueDew": 4
+        },
+        {
+          "mode": "fair",
+          "price": 2,
+          "fractionSoldAt1h": 0.5375,
+          "fractionSoldAt3h": 0.9875,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 60,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 96,
+          "selloutP90Minutes": 150,
+          "meanRevenueDew": 8
+        },
+        {
+          "mode": "ceiling",
+          "price": 2,
+          "fractionSoldAt1h": 0.5375,
+          "fractionSoldAt3h": 0.9875,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 60,
+          "p90Minutes": 120,
+          "selloutMedianMinutes": 96,
+          "selloutP90Minutes": 150,
+          "meanRevenueDew": 8
+        },
+        {
+          "mode": "aboveCeiling",
+          "price": 3,
+          "fractionSoldAt1h": 0,
+          "fractionSoldAt3h": 0,
+          "fractionSoldAt12h": 0,
+          "medianMinutes": null,
+          "p90Minutes": null,
+          "selloutMedianMinutes": null,
+          "selloutP90Minutes": null,
+          "meanRevenueDew": 0
+        }
+      ]
+    },
+    {
+      "tier": 10,
+      "rarity": "rare",
+      "base": "혈각 검",
+      "baseReqTier": 10,
+      "rolledAffixTiers": [
+        4,
+        9,
+        3,
+        4,
+        2
+      ],
+      "appraisal": {
+        "fair": 7,
+        "ceiling": 8,
+        "tier": 10,
+        "quality": 52,
+        "options": 5,
+        "fit": 82
+      },
+      "scenarios": [
+        {
+          "mode": "cheap",
+          "price": 3,
+          "fractionSoldAt1h": 0.7825,
+          "fractionSoldAt3h": 1,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 48,
+          "p90Minutes": 72,
+          "selloutMedianMinutes": 66,
+          "selloutP90Minutes": 84,
+          "meanRevenueDew": 12
+        },
+        {
+          "mode": "fair",
+          "price": 7,
+          "fractionSoldAt1h": 0.21125,
+          "fractionSoldAt3h": 0.95125,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 108,
+          "p90Minutes": 162,
+          "selloutMedianMinutes": 156,
+          "selloutP90Minutes": 198,
+          "meanRevenueDew": 28
+        },
+        {
+          "mode": "ceiling",
+          "price": 8,
+          "fractionSoldAt1h": 0.16,
+          "fractionSoldAt3h": 0.86625,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 126,
+          "p90Minutes": 192,
+          "selloutMedianMinutes": 180,
+          "selloutP90Minutes": 234,
+          "meanRevenueDew": 32
+        },
+        {
+          "mode": "aboveCeiling",
+          "price": 9,
+          "fractionSoldAt1h": 0,
+          "fractionSoldAt3h": 0,
+          "fractionSoldAt12h": 0,
+          "medianMinutes": null,
+          "p90Minutes": null,
+          "selloutMedianMinutes": null,
+          "selloutP90Minutes": null,
+          "meanRevenueDew": 0
+        }
+      ]
+    },
+    {
+      "tier": 20,
+      "rarity": "normal",
+      "base": "멸세 대검",
+      "baseReqTier": 20,
+      "rolledAffixTiers": [],
+      "appraisal": {
+        "fair": 3,
+        "ceiling": 3,
+        "tier": 20,
+        "quality": 0,
+        "options": 0,
+        "fit": 15
+      },
+      "scenarios": [
+        {
+          "mode": "cheap",
+          "price": 1,
+          "fractionSoldAt1h": 0.88,
+          "fractionSoldAt3h": 1,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 36,
+          "p90Minutes": 66,
+          "selloutMedianMinutes": 54,
+          "selloutP90Minutes": 78,
+          "meanRevenueDew": 4
+        },
+        {
+          "mode": "fair",
+          "price": 3,
+          "fractionSoldAt1h": 0.4475,
+          "fractionSoldAt3h": 0.9825,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 66,
+          "p90Minutes": 132,
+          "selloutMedianMinutes": 108,
+          "selloutP90Minutes": 168,
+          "meanRevenueDew": 12
+        },
+        {
+          "mode": "ceiling",
+          "price": 3,
+          "fractionSoldAt1h": 0.4475,
+          "fractionSoldAt3h": 0.9825,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 66,
+          "p90Minutes": 132,
+          "selloutMedianMinutes": 108,
+          "selloutP90Minutes": 168,
+          "meanRevenueDew": 12
+        },
+        {
+          "mode": "aboveCeiling",
+          "price": 4,
+          "fractionSoldAt1h": 0,
+          "fractionSoldAt3h": 0,
+          "fractionSoldAt12h": 0,
+          "medianMinutes": null,
+          "p90Minutes": null,
+          "selloutMedianMinutes": null,
+          "selloutP90Minutes": null,
+          "meanRevenueDew": 0
+        }
+      ]
+    },
+    {
+      "tier": 20,
+      "rarity": "rare",
+      "base": "멸세 대검",
+      "baseReqTier": 20,
+      "rolledAffixTiers": [
+        6,
+        16,
+        5,
+        6,
+        3
+      ],
+      "appraisal": {
+        "fair": 9,
+        "ceiling": 10,
+        "tier": 20,
+        "quality": 52,
+        "options": 5,
+        "fit": 82
+      },
+      "scenarios": [
+        {
+          "mode": "cheap",
+          "price": 4,
+          "fractionSoldAt1h": 0.60375,
+          "fractionSoldAt3h": 1,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 60,
+          "p90Minutes": 90,
+          "selloutMedianMinutes": 90,
+          "selloutP90Minutes": 102,
+          "meanRevenueDew": 16
+        },
+        {
+          "mode": "fair",
+          "price": 9,
+          "fractionSoldAt1h": 0.17,
+          "fractionSoldAt3h": 0.77375,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 138,
+          "p90Minutes": 198,
+          "selloutMedianMinutes": 192,
+          "selloutP90Minutes": 228,
+          "meanRevenueDew": 36
+        },
+        {
+          "mode": "ceiling",
+          "price": 10,
+          "fractionSoldAt1h": 0.1,
+          "fractionSoldAt3h": 0.68125,
+          "fractionSoldAt12h": 1,
+          "medianMinutes": 150,
+          "p90Minutes": 228,
+          "selloutMedianMinutes": 222,
+          "selloutP90Minutes": 264,
+          "meanRevenueDew": 40
+        },
+        {
+          "mode": "aboveCeiling",
+          "price": 11,
+          "fractionSoldAt1h": 0,
+          "fractionSoldAt3h": 0,
+          "fractionSoldAt12h": 0,
+          "medianMinutes": null,
+          "p90Minutes": null,
+          "selloutMedianMinutes": null,
+          "selloutP90Minutes": null,
+          "meanRevenueDew": 0
+        }
+      ]
+    }
+  ],
+  "uniqueResale": {
+    "dewPerGold": 30,
+    "checkedDefinitions": 207,
+    "merchantEligibleDefinitions": 104,
+    "arbitrage": [],
+    "rows": [
+      {
+        "name": "첫 계약",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "무리의 서약",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "묘지종 사령홀",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "칼날폭풍 지휘봉",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "뭉툭한 사역 지팡이",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "효율적인 아콘 사역마 지팡이",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "새끼 사역마의 인장",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "군주의 오른손 고리",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "찌그러진 생존 방패",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "철벽의 심장판",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "접이식 방패",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "흰 가시의 반월",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "별빛 응축기",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "용비늘 방패",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "성소의 맹세",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "달그림자",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "아스트랄 수호성",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "마지막 기도의 문",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "새벽 현자 후드",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "맹세의 바르부트",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "사제의 왕관",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "철면피",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "생존자의 외투",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "어느 성전사의 낡은 판금",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "별무리",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "맹독 외투",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "조류의 수호흉갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "숨은 칼날 장갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "보호장갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "잔류전류",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "번개 강타",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "헝겊 순례자",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "추적자",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "명사수의 경보",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "태양의 불길",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "핏빛 톱날",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "순풍의 장화",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "도둑의 반지",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "군단 지휘관의 투구",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "사냥개의 발톱",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "현자의 시선",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "분광 고리",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "카옴의 심장",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "절단자의 송곳니",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "불멸의 띠",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "분광 천칭",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "광전사의 손길",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "별의 파괴자",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "균열 사냥꾼",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "폭군의 왕관",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "심연의 굴레",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "공허의 첨탑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "무명의 맹세",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "균열추",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "여명의 결속",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "화염 군주의 숨결",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 15,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "서리 여제의 인장",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 15,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "폭풍 군단장의 창끝",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 15,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "창공의 사슬",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 15,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "타락한 심장석",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "파편비 시위",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "일점 관통기",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "귀로를 새긴 활",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "군무의 베일",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "고독한 잔상",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "영점 장갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "별을 품은 살갗",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "초월자 파쇄검",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "새벽의 약속",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "심연 군주갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "폭풍 추적자",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "종말의 논리",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "공허 제국의 인장",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "황제의 심연띠",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "세계파쇄자",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "만상 관통석",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "천공 붕괴자",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "폭우의 석궁",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "칠흑의 연사기",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "성좌의 주문핵",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "영겁의 마도서",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "영겁의 손아귀",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "황혼의 왕관",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.07
+      },
+      {
+        "name": "기수의 나침반",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "쐐기 파편",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 15,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "절대 하한",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "천정 파쇄",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "가호의 갑피",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "굶주린 톱니",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "거인의 지지대",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "지평선 분할자",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "용맥 수호",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "운명의 쌍현",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "불씨 군주의 보행",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "빙결파수 장화",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "감전추적 경갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "독기 유영화",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "출혈 봉쇄 투구",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "저주의 관",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "수호 성갑",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "함성 공명 허리띠",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "천 개의 유리병",
+        "merchantEligible": true,
+        "minMerchantGold": 32,
+        "merchantCostDewCashOut": 960,
+        "fair": 53,
+        "ceiling": 63,
+        "resaleCostRatio": 0.065625
+      },
+      {
+        "name": "저항 잠식 반지",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "컨디션 교본",
+        "merchantEligible": true,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "벌집 여왕의 명령",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "시련 심판자의 장갑",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "대균열의 왕관",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "미궁 군주의 족쇄",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 20,
+        "ceiling": 24,
+        "resaleCostRatio": 0.4
+      },
+      {
+        "name": "낙성의 발자취",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "영원",
+        "merchantEligible": true,
+        "minMerchantGold": 30,
+        "merchantCostDewCashOut": 900,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.07111111111111111
+      },
+      {
+        "name": "폭풍의 눈",
+        "merchantEligible": false,
+        "minMerchantGold": 32,
+        "merchantCostDewCashOut": 960,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.06666666666666667
+      },
+      {
+        "name": "대지의 태동",
+        "merchantEligible": false,
+        "minMerchantGold": 36,
+        "merchantCostDewCashOut": 1080,
+        "fair": 55,
+        "ceiling": 66,
+        "resaleCostRatio": 0.06111111111111111
+      },
+      {
+        "name": "사건의 지평선",
+        "merchantEligible": false,
+        "minMerchantGold": 40,
+        "merchantCostDewCashOut": 1200,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.05333333333333334
+      },
+      {
+        "name": "만화경",
+        "merchantEligible": false,
+        "minMerchantGold": 40,
+        "merchantCostDewCashOut": 1200,
+        "fair": 50,
+        "ceiling": 60,
+        "resaleCostRatio": 0.05
+      },
+      {
+        "name": "무한한 허기",
+        "merchantEligible": false,
+        "minMerchantGold": 40,
+        "merchantCostDewCashOut": 1200,
+        "fair": 55,
+        "ceiling": 66,
+        "resaleCostRatio": 0.055
+      },
+      {
+        "name": "거울 반지",
+        "merchantEligible": false,
+        "minMerchantGold": 40,
+        "merchantCostDewCashOut": 1200,
+        "fair": 50,
+        "ceiling": 60,
+        "resaleCostRatio": 0.05
+      },
+      {
+        "name": "아스트라의 파편",
+        "merchantEligible": false,
+        "minMerchantGold": 60,
+        "merchantCostDewCashOut": 1800,
+        "fair": 54,
+        "ceiling": 64,
+        "resaleCostRatio": 0.035555555555555556
+      },
+      {
+        "name": "파열의 언약",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "균열의 정수",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "공허의 갈고리",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "타락각 투구",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "균열군주의 피부",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "독성 심연갑",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "침식 장갑",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "망각 추적화",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "잠식 목걸이",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "절단 반지",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "심층 제련검",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "암반 분쇄기",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "망자 감시투구",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "지하 성채갑",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "대지 구속장갑",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "철벽 척력화",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "룬 심장 목걸이",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "지맥 반지",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "골렘 허리띠",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "중핵 결속대",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "잿불의 인장",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "빗발치는 화살",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "무너지지 않는 둑",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "뒤바뀐 운명",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "흐르는 잔상",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "공명하는 핵",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "빛을 두른 살갗",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "되돌아오는 빚",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "새겨진 낙인",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "저주받은 왕관",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "질주의 발자국",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "우주 먼지",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "언더독",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "길잡이 나침반",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 17,
+        "ceiling": 20,
+        "resaleCostRatio": 0.3333333333333333
+      },
+      {
+        "name": "떨어지는 별똥",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "뒤집힌 전류",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "갈래 화살",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "번개를 쫓는 자",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "최대 이윤",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "균형의 결정",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "부식의 장막",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "좀먹는 독니",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "피를 마시는 고리",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "시체밭",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "끊어진 회복",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "메아리의 주문서",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "거인의 심장",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "깜빡이는 보호막",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "외로운 사냥",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "덧나는 상처",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 17,
+        "ceiling": 20,
+        "resaleCostRatio": 0.3333333333333333
+      },
+      {
+        "name": "짓누르는 중력",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "용맥의 수호",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "저주의 표적",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "성장의 증표",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "파수꾼의 갑주",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "깨우침의 등불",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "망령의 분노",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "깨어난 보석",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "사냥개의 송곳니",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "마르지 않는 샘",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "비껴내는 손목",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "독보의 자취",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "깨지지 않는 비늘",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "스쳐가는 그림자",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "신성한 맹세",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "군세의 부름",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "감전된 표적",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "충직한 군대",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "방패의 보답",
+        "merchantEligible": false,
+        "minMerchantGold": 3,
+        "merchantCostDewCashOut": 90,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.24444444444444444
+      },
+      {
+        "name": "갑주를 두른 독",
+        "merchantEligible": false,
+        "minMerchantGold": 3,
+        "merchantCostDewCashOut": 90,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.24444444444444444
+      },
+      {
+        "name": "우연한 충돌",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "하말리스의 균열",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "궤도",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "디프다르의 낫",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "심해",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "조수",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 17,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "완벽한 균형",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "주베누비아의 천칭",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "쌍성",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "주벤샤말의 심판하는 창",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "최종 관문",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "판결문",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "인력",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "태초의 대폭발",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "에니프론의 혜성",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 18,
+        "ceiling": 21,
+        "resaleCostRatio": 0.35
+      },
+      {
+        "name": "충돌 없는 궤도",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "두 번째 심장",
+        "merchantEligible": false,
+        "minMerchantGold": 1,
+        "merchantCostDewCashOut": 30,
+        "fair": 18,
+        "ceiling": 18,
+        "resaleCostRatio": 0.6
+      },
+      {
+        "name": "오차 없는 천칭",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "최후통첩",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      },
+      {
+        "name": "빛보다 먼저",
+        "merchantEligible": false,
+        "minMerchantGold": 2,
+        "merchantCostDewCashOut": 60,
+        "fair": 19,
+        "ceiling": 22,
+        "resaleCostRatio": 0.36666666666666664
+      }
+    ]
+  },
+  "regularCurrency": {
+    "scenario": "Loop 2, craft purchased, first act, matched monster level, regular kills, no bonus gear",
+    "kills": 200000,
+    "dropMultiplier": 1,
+    "rewardMultiplier": 1,
+    "totals": {
+      "magicBud": 1246,
+      "blightSpore": 278,
+      "sapBud": 27,
+      "goldenRule": 17,
+      "fairyRing": 1
+    },
+    "per10000Kills": {
+      "magicBud": 62.3,
+      "blightSpore": 13.9,
+      "sapBud": 1.35,
+      "goldenRule": 0.85,
+      "fairyRing": 0.05
+    },
+    "limitation": "Seeded currency rolls only: no item salvage, equipment sales, elite/boss mix, kill rate or time estimate."
+  }
+}

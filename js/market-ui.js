@@ -9,7 +9,7 @@ const marketUi = {
         event.preventDefault();buttons[next].click();buttons[next].focus();
     },
     show(section) {
-        if (!['exchange', 'black', 'services'].includes(section)) return;
+        if (!['exchange', 'black', 'services', 'stall'].includes(section)) return;
         this.section = section;
         renderMarketUI();
     },
@@ -238,5 +238,6 @@ function renderMarketUI() {
     if (marketUi.section === 'exchange') marketUi.renderExchange();
     if (marketUi.section === 'black') marketUi.renderBlackMarket();
     if (marketUi.section === 'services') marketUi.renderServices();
+    if (marketUi.section === 'stall') playerStallUi.render();
 }
 safeExposeGlobals({marketUi, renderMarketUI});

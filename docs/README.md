@@ -10,6 +10,7 @@
 | --- | --- |
 | 콘텐츠 진행·해금 | [진행 구조](content-progression.md), [기존 해금 순서](unlock-original-order.md) |
 | 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md) |
+| 전투 정산·NPC 가판대 | [결함 수정, 감정·판매 규칙과 측정](balance-and-player-stall-20260929.md) |
 | 저장과 방치 성능 | [방치 성능](offline-performance.md) |
 | 넓은 맵 탐험 | [실제 게임 이관 및 남은 작업](act-exploration-integration.md) |
 | 탐험 맵 그림 | [디오라마 스타일 맵 그림과 다시 만들기](act-maps-20260929.md) |

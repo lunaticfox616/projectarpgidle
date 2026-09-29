@@ -12926,14 +12926,21 @@ function getLoopAdvancePathLabel(path) {
     return path === 'cosmos' ? '우주계 루프' : '혼돈 루프';
 }
 
+function getSeasonResetBlockReason(loopPath) {
+    const stallReason = typeof playerStall === 'object' ? playerStall.loopBlockReason(game) : '';
+    if (stallReason) return stallReason;
+    if ((game.season || 1) < 31 || loopPath) return '';
+    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+    return available.length > 1
+        ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
+        : getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.';
+}
+
 function triggerSeasonReset(options) {
     let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
-    if ((game.season || 1) >= 31 && !loopPath) {
-        let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
-        let msg = available.length > 1
-            ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
-            : getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.';
-        addLog(msg, 'attack-monster');
+    let blockedReason = getSeasonResetBlockReason(loopPath);
+    if (blockedReason) {
+        addLog(blockedReason, 'attack-monster');
         return false;
     }
     if (!loopPath) loopPath = 'chaos';

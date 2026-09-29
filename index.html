@@ -882,6 +882,7 @@
                         <button type="button" role="tab" aria-controls="market-panel-exchange" data-market-section="exchange" aria-selected="true" onclick="marketUi.show('exchange')">재화 교환</button>
                         <button type="button" role="tab" aria-controls="market-panel-black" data-market-section="black" aria-selected="false" onclick="marketUi.show('black')">암거래상</button>
                         <button type="button" role="tab" aria-controls="market-panel-services" data-market-section="services" aria-selected="false" onclick="marketUi.show('services')">특수 서비스</button>
+                        <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')">나의 가판대</button>
                     </nav>
                     <section id="market-panel-exchange" role="tabpanel" aria-label="재화 교환"><div id="ui-market-exchange-list"></div></section>
                     <section id="market-panel-black" role="tabpanel" aria-label="암거래상" hidden>
@@ -891,6 +892,7 @@
                         <div id="ui-market-black" class="market-black-grid"></div>
                         <button id="market-black-expand" class="market-black-expand" onclick="expandBlackMarketSlotsByDivine()"></button>
                     </section>
+                    <section id="market-panel-stall" role="tabpanel" aria-label="나의 가판대" hidden></section>
                     <section id="market-panel-services" role="tabpanel" aria-label="특수 서비스" hidden>
                         <p id="market-service-balance" class="market-meta"></p>
                         <div id="market-service-navigation"></div>
@@ -1652,6 +1654,7 @@
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1&stash=20260820-1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1&precision=20260904-1"></script>
 <script defer src="data/stump-box.js?v=20260929-1"></script>
+<script defer src="data/player-stall.js?v=20260929-1"></script>
 <script defer src="data/passives.js?v=20260719-spiderweb-rollback1&hero-motion=20260828-test-characters5&player-classes=20260828-1&review-fixes=20260901-1&walk-direction=20260901-1&idle-direction=20260902-1&refinement=20260906-1&flow=20260906-1"></script>
 <script defer src="data/hana-sprites.js?v=20260929-1"></script>
 <script defer src="data/hana-weapon-combos.js?v=20260929-1"></script>
@@ -1675,6 +1678,8 @@
 <script defer src="js/act-exploration-loot.js?v=20260922-1"></script>
 <script defer src="js/act-exploration-state.js?v=20260922-1"></script>
 <script defer src="js/stump-box.js?v=20260929-1"></script>
+<script defer src="js/item-appraisal.js?v=20260929-1"></script>
+<script defer src="js/player-stall.js?v=20260929-1"></script>
 <script defer src="js/level-progression.js?v=20260911-1&requirements-review=20260911-1&unique-equipment=20260913-1&experience-curve=20260914-1"></script>
 <script defer src="js/state.js?flow=20260906-1&v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1&underworld=20260819-depth1&loadout=20260820-1&endgame=20260820-pruning3&roadmap=20260821-1&hideout=20260821-2&map-tabs=20260823-1&equipment-grid=20260826-2&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260827-1&player-classes=20260828-1&tree-visual=20260829-3&settings=20260901-1&beyond=20260901-2&review-fixes=20260901-1&tutorial-pause=20260901-1&drop-balance=20260902-1&underworld-yield=20260902-1&boundary-balance=20260902-1&save-reset=20260903-1&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&realm-ui=20260907-1&mobile-review=20260907-2&loop-map=20260908-1&hunt-rewards=20260908-1&login-idle=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1&route=20260909-8&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-copy=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&requirements-review=20260911-1&affix-continuity=20260912-1&realm-base-drops=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&time-rift=20260914-4&death-report=20260914-1&atlas-copy=20260914-3&journal-preference=20260914-1&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915"></script>
 <script defer src="js/combat-loot-receipts.js?v=20260913-1"></script>
@@ -1784,6 +1789,7 @@
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1&display=20260906-1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1&overflow=20260819-salvage1&visuals=20260820-1&profile=20260821-1&craft-lists=20260908-1"></script>
 <script defer src="js/stump-box-ui.js?v=20260929-1"></script>
+<script defer src="js/player-stall-ui.js?v=20260929-1"></script>
 <script defer src="js/gem-selection-ui.js?v=20260909-1&equip-feedback=20260914-1"></script>
 <script defer src="js/condition-feedback-ui.js?v=20260909-1"></script>
 <script defer src="js/gem-core-forge-ui.js?v=20260914-1&gem-value=20260915-1"></script>

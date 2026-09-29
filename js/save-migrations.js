@@ -1110,7 +1110,10 @@ function mergeDefaults(save) {
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);
-    return normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
+    const normalized = normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
+    // Escrow identity checks need the migrated exploration loot containers first.
+    playerStall.restore(normalized);
+    return normalized;
 }
 
 function normalizeSavedCombatRuntime(state) {

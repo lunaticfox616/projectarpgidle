@@ -2668,6 +2668,10 @@ const defaultGame = {
     shrineBuff: null,
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
+    // NPC escrow: UTC millisecond clocks and integer refill-time budget (300,000 ms per dew).
+    // listings: {id, item, price: integer dew, listedAt: UTC ms}[]; only this container owns listed gear.
+    // proceeds: unclaimed integer dew; rng: saved uint32; sequence: monotonically increasing listing ID.
+    playerStall: { version: 1, sequence: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, budgetMs: 0, proceeds: 0, listings: [], history: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,

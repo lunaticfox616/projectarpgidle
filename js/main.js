@@ -36,6 +36,7 @@ function init() {
         renderPatchNotes();
         setLoadingOverlayState(false);
         let localSaveStatus = loadGame();
+        playerStallUi.settleSales(Date.now());
         if (localSaveStatus.writable === false) {
             setCloudMessage(localSaveStatus.message);
             addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
@@ -210,6 +211,7 @@ function runGameTick() {
 
 function runGameTickOnce() {
     try {
+        settlePlayerStall();
         if (runForegroundCombat(performance.now()) === 0) return;
         ensureLoopChallengeState();
         let now = Date.now();
@@ -227,6 +229,12 @@ function runGameTickOnce() {
         try { refreshCombatTickUi(); }
         catch (uiError) { console.error('tick UI recovery failed:', uiError); }
     }
+}
+
+function settlePlayerStall() {
+    if (document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.snapshot
+        || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || Date.now() - game.playerStall.lastAt < 15000) return;
+    if (playerStallUi.settleSales(Date.now()) > 0) pendingHeavyUiRefresh = true;
 }
 
 function refreshCombatTickUi() {
