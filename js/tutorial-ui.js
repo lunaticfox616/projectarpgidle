@@ -164,8 +164,39 @@ function showNextTutorial() {
     activeTutorialStep = 0;
     renderTutorialStep();
     document.getElementById('tutorial-overlay').classList.add('active');
+    placeTutorialCard();
     lastTime = Date.now();
 }
+/** Wide screens: centre the guide card right above the player HUD (life orb and panel) so it covers neither the combat
+ * log nor the minimap. Phones keep the bottom sheet from CSS. Coordinates are divided by the display zoom. */
+function placeTutorialCard() {
+    const overlay = document.getElementById('tutorial-overlay');
+    if (!overlay || !overlay.style) return;
+    const hud = document.querySelector('.combat-top-status.player-hud'), orb = document.getElementById('ui-hp-bar');
+    const rect = hud ? hud.getBoundingClientRect() : null;
+    if (!rect || !rect.width || uiDisplay.matches('(max-width: 1080px)')) {
+        overlay.style.removeProperty('--tutorial-anchor-left');
+        overlay.style.removeProperty('--tutorial-anchor-bottom');
+        return;
+    }
+    const factor = uiDisplay.factor || 1, viewWidth = window.innerWidth / factor, width = Math.min(420, viewWidth - 24);
+    const top = Math.min(rect.top, orb ? orb.getBoundingClientRect().top : rect.top) / factor;
+    const centred = Math.max(12, Math.min(viewWidth - width - 12, (rect.left + rect.width / 2) / factor - width / 2));
+    const left = tutorialLeftClearOfWindows(centred, width, factor);
+    overlay.style.setProperty('--tutorial-anchor-left', `${Math.round(left)}px`);
+    overlay.style.setProperty('--tutorial-anchor-bottom', `${Math.round(window.innerHeight / factor - top + 10)}px`);
+}
+/** An open window docked beside the HUD (equipment, skills…) keeps its content: the card slides left into the free
+ * battlefield when there is room, otherwise it stays centred over the HUD. */
+function tutorialLeftClearOfWindows(left, width, factor) {
+    let limit = Infinity;
+    document.querySelectorAll('.tab-content.ui-window.ui-window-open').forEach(node => {
+        const rect = node.getBoundingClientRect();
+        if (rect.width && rect.left / factor < left + width && rect.right / factor > left) limit = Math.min(limit, rect.left / factor);
+    });
+    return limit !== Infinity && limit - width - 12 >= 12 ? Math.min(left, limit - width - 12) : left;
+}
+window.addEventListener('resize', () => { if (activeTutorial) placeTutorialCard(); });
 function advanceTutorial() {
     if (!activeTutorial) return;
     dismissTutorial(true);

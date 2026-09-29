@@ -1541,9 +1541,11 @@ body.desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
   background: rgba(7, 12, 18, .86);
 }
 
-/* A one-shot guide sits over the live game instead of replacing it with a modal lesson. */
+/* A one-shot guide sits over the live game instead of replacing it with a modal lesson.
+   Wide screens: right above the player HUD, centred on it (js/tutorial-ui.js placeTutorialCard sets the anchor) — not over the combat log. */
 :root body #tutorial-overlay {
-  inset: auto 34px 18px auto;
+  /* left comes from JS when a HUD is on screen (width is fixed, so right is then ignored); otherwise the old bottom-right spot */
+  inset: auto 34px var(--tutorial-anchor-bottom, 18px) var(--tutorial-anchor-left, auto);
   width: min(420px, calc(100vw - 24px));
   background: transparent;
   backdrop-filter: none;
@@ -1613,6 +1615,9 @@ body #tutorial-overlay .tutorial-pause-toggle > strong { color: #f0c86f; font-si
   body #tutorial-overlay :is(.tutorial-kicker, .tutorial-title, .tutorial-actions) { flex-shrink: 0; }
   body #tutorial-overlay .tutorial-actions button,:root 
   body #tutorial-overlay .tutorial-actions button { min-height: 44px; }
+  /* 확인 · 화면 열기를 한 줄에: 세로로 쌓으면 카드가 화면 아래 1/3을 덮는다 */
+  body #tutorial-overlay:not(.is-story-scene) .tutorial-actions { flex-direction: row; align-items: stretch; }
+  body #tutorial-overlay:not(.is-story-scene) .tutorial-actions button { flex: 1 1 0; min-width: 0; }
   body:has(#tutorial-overlay.active) #game-toast-region { z-index: 13200; }
   /* Mobile log toasts currently set their layer inline; keep them behind the guide too. */
 }
