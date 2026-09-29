@@ -37,6 +37,9 @@ body[data-ui-skin] {
   --px-frame-inset: url('../../assets/ui/pixel/frame-inset.png');
   font-family: var(--font-body);
   font-synthesis-weight: none;
+  /* 도트 글꼴은 글자 폭이 넓어 줄이 자주 넘는다: 한글 단어 중간("초기/화")이 아니라 띄어쓰기에서 끊고, 한 단어가 줄보다 길 때만 쪼갠다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* 요소마다 박힌 글꼴(맑은 고딕·IBM Plex 등)을 걷어 내고 부모 글꼴을 따른다. 제목처럼 스킨이 고른 곳만 예외. */
