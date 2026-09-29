@@ -161,7 +161,7 @@ const ACT_EXPLORATION_ART = Object.freeze({
 });
 // Whole-map backdrops drawn at 16px per tile (shown at tile/16 = 3x at 48px). Walkability still comes from the map
 // data above. gate: closed|open frames side by side at the same pixel scale; gateOffset = art px from the gate tile's
-// centre to the frame's top-left. Source: rignin-ui/art-pipeline/tiles/build_map.py (writes backdrops.json).
+// centre to the frame's top-left. Source: scripts/build-act-maps.cjs (node, --write) — the old battle dioramas' look, top-down.
 // Maps without an entry keep the material/prop renderer.
 const ACT_EXPLORATION_BACKDROPS = Object.freeze({
     'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateOffset:Object.freeze([-22,-28])}),

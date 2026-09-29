@@ -12,6 +12,7 @@
 | 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md) |
 | 저장과 방치 성능 | [방치 성능](offline-performance.md) |
 | 넓은 맵 탐험 | [실제 게임 이관 및 남은 작업](act-exploration-integration.md) |
+| 탐험 맵 그림 | [디오라마 스타일 맵 그림과 다시 만들기](act-maps-20260929.md) |
 | 브라우저 검사 | [브라우저 CI 운영](browser-ci.md) |
 | Android 검사 | [Android 테스트](android-testing.md) |
 | 모바일 UI | [모바일 재설계](mobile-redesign.md) |
