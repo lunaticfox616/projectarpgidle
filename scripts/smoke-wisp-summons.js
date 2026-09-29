@@ -94,6 +94,21 @@ played = tick(3000);
 assert.ok(played.struck.length >= 3 && played.struck.every(hit => hit.ele === 'cold'), 'the hit resolves with the rolled element (0.5 → cold), not the wisp\'s own');
 assert.equal(json('game.summons[0].ele'), 'light', 'and the wisp keeps its own element between attacks');
 
+const shared = json(`(() => {
+    const stats = { summonPctDmg: 0, summonEfficiency: 0, summonCrit: 0, summonCritDmg: 0, summonSharedPctDmg: 0,
+        summonSharedTaggedPctDmg: { firePctDmg: 90, coldPctDmg: 30, lightPctDmg: 0, elementalPctDmg: 10 } };
+    const pct = ele => getSummonSharedDamageIncreasePct({ gemName: '분광 위습 소환', ele }, stats);
+    const hit = (ele, roll, crit) => getSummonHitDamageInfo({ gemName: '분광 위습 소환', ele, baseDamage: 100, crit: 0, critDmg: 150, dmgRollMinPct: 50 }, stats, null, { rollOverridePct: roll, forceCrit: crit }).damage;
+    const range = getSummonTooltipHitRange({ gemName: '분광 위습 소환', ele: 'light', baseDamage: 100, crit: 0, critDmg: 150, dmgRollMinPct: 50 }, stats);
+    return { each: ['fire', 'cold', 'light'].map(pct), average: getSummonAverageSharedIncreasePct({ gemName: '분광 위습 소환' }, stats),
+        fireWisp: getSummonSharedDamageIncreasePct({ gemName: '화염 위습 소환', ele: 'fire' }, stats),
+        range, fireMax: hit('fire', 100, true), lowest: Math.min(...['fire', 'cold', 'light'].map(ele => hit(ele, 50, false))) };
+})()`);
+assert.deepEqual(shared.each, [100, 40, 10], '분광 위습: each attack gets its rolled element\'s increase (plus the elemental one)');
+assert.equal(shared.average, 50, 'the DPS breakdown and the representative attack power use the average of the three');
+assert.equal(shared.fireWisp, 100, 'a single-element wisp keeps the increases its gem tags name');
+assert.deepEqual([shared.range.max, shared.range.min], [shared.fireMax, shared.lowest], 'the tooltip spans the weakest to the strongest element');
+
 // ---------------------------------------------------------------- in flight: dropped with the target or the wisp, kept in a snapshot
 arena('냉기 위습 소환', { gx: 6, gy: 4 });
 run('game.combatTimeMs = 200000; runSummonAttackTick(arenaStats);');

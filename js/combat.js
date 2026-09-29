@@ -1448,7 +1448,7 @@ function getRepresentativeSummonAttackPower(summonStats, evaluation) {
         if (profile.role === 'guard') return;
         let gemLv = getSummonGemLevel(name, 'skill', summonStats, evaluation);
         let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
-        let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
+        let sharedInc = getSummonAverageSharedIncreasePct({ gemName: name }, summonStats);
         let arcanaPct = getSummonArcanaGemDamagePct({ gemName: name }, summonStats);
         let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
         best = Math.max(best, base * ownMul * gemCoreForge.effects(game.gemData?.[name]).damage);
@@ -1587,17 +1587,32 @@ function getSummonAttackIntervalMs(pStats, summon) {
     return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul * forgeSpeed)));
 }
 
+/** The gem's tags, plus the element a rolling wisp (분광) hits with on this attack. */
+function getSummonDamageTags(summon) {
+    const skillDef = summon && summon.gemName && typeof SKILL_DB !== 'undefined' ? SKILL_DB[summon.gemName] : null;
+    const tags = new Set((skillDef && Array.isArray(skillDef.tags)) ? skillDef.tags : []);
+    const rolled = wispSummons.elementTag(summon);
+    if (rolled) tags.add(rolled);
+    return tags;
+}
+
 function getSummonSharedDamageIncreasePct(summon, pStats) {
     let generic = Math.max(0, Number((pStats && pStats.summonSharedPctDmg) || 0));
     let taggedStats = (pStats && pStats.summonSharedTaggedPctDmg) || {};
-    let skillDef = summon && summon.gemName && typeof SKILL_DB !== 'undefined' ? SKILL_DB[summon.gemName] : null;
-    let tags = new Set((skillDef && Array.isArray(skillDef.tags)) ? skillDef.tags : []);
+    let tags = getSummonDamageTags(summon);
     let tagged = 0;
     Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).forEach(tag => {
         if (!tags.has(tag)) return;
         tagged += Math.max(0, Number(taggedStats[TAGGED_DAMAGE_STAT_BY_TAG[tag]]) || 0);
     });
     return generic + tagged;
+}
+
+/** A wisp that rolls its element per attack (분광) gets each element's increase a third of the time: the average. */
+function getSummonAverageSharedIncreasePct(summon, pStats) {
+    const elements = wispSummons.elements(summon.gemName);
+    if (!elements) return getSummonSharedDamageIncreasePct(summon, pStats);
+    return elements.reduce((sum, ele) => sum + getSummonSharedDamageIncreasePct({ ...summon, ele }, pStats), 0) / elements.length;
 }
 
 function getSummonHitDamageInfo(s, pStats, target, options) {
@@ -1815,7 +1830,7 @@ function estimateSummonDps(pStats, includeBreakdowns = true, evaluation) {
 
 function buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare) {
     const { s, hit, dps } = estimate;
-    const sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
+    const sharedInc = getSummonAverageSharedIncreasePct(s, pStats);
     const arcanaPct = getSummonArcanaGemDamagePct(s, pStats);
     const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
     const ownAttackPower = (s.baseDamage * dmgMul * gemCoreForge.effects(game.gemData?.[s.gemName]).damage) + sbShare;
@@ -1860,6 +1875,16 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
     return lines;
 }
+/** Lowest (low roll, no crit) to highest (full roll, crit) hit; a wisp that rolls its element per attack spans them all. */
+function getSummonTooltipHitRange(hitProfile, stats) {
+    const profiles = (wispSummons.elements(hitProfile.gemName) || [hitProfile.ele]).map(ele => ({ ...hitProfile, ele }));
+    const hits = options => profiles.map(profile => getSummonHitDamageInfo(profile, stats, null, options).damage || 1);
+    return {
+        min: Math.min(...hits({ rollOverridePct: hitProfile.dmgRollMinPct, forceCrit: false })),
+        max: Math.max(...hits({ rollOverridePct: 100, forceCrit: true }))
+    };
+}
+
 function getSummonTooltipPreview(gemName, pStats) {
     let stats = pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null) || {};
     let profile = getSummonProfile(gemName);
@@ -1877,8 +1902,7 @@ function getSummonTooltipPreview(gemName, pStats) {
     };
     // 실제 전투에서 나올 수 있는 진짜 최소(편차 하한 · 비치명타)~최대(편차 상한 · 치명타) 피해를
     // 그대로 보여준다(이전에는 배율 적용 전 원시 기본값을 "최소"로 잘못 표시했음).
-    let minHit = getSummonHitDamageInfo(hitProfile, stats, null, { rollOverridePct: hitProfile.dmgRollMinPct, forceCrit: false });
-    let maxHit = getSummonHitDamageInfo(hitProfile, stats, null, { rollOverridePct: 100, forceCrit: true });
+    let hitRange = getSummonTooltipHitRange(hitProfile, stats);
     let maxHp = getSummonMaxHp(profile, gemLv, stats);
     let evasion = getSummonEvasionRating(profile, gemLv, stats);
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
@@ -1890,8 +1914,8 @@ function getSummonTooltipPreview(gemName, pStats) {
         regenPerSec: getSummonRegenPerSec(maxHp),
         evasion: evasion,
         evadeChancePct: Math.round(getSummonEvadeChance({ evasion: evasion }, null) * 10) / 10,
-        hitDamageMin: Math.max(1, Math.floor(minHit.damage || 1)),
-        hitDamageMax: Math.max(1, Math.floor(maxHit.damage || 1)),
+        hitDamageMin: Math.max(1, Math.floor(hitRange.min)),
+        hitDamageMax: Math.max(1, Math.floor(hitRange.max)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
         critChancePct: Math.round(critChance * 1000) / 10,
         critDmgPct: Math.max(100, (profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)),

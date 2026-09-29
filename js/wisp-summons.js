@@ -1,7 +1,8 @@
 /** 위습 정령 소환 공격 규칙 (스킬 변경분 2, 2026-09-30 · 표 data/wisp-summons.js). 그림은 js/canvas-wisp-summon-fx.js.
  * - 던지는 공격(화염·냉기·물리·카오스)은 날아가는 시간이 지난 뒤에 피해가 들어간다. 비행 시간은 그림과 같은 식
  *   (WispAttack.timing): base + perDot × 거리(도트) — 위습 칸 가운데에서 대상 칸 가운데 1도트 위까지.
- * - 번개·분광은 광선이라 바로 맞는다. 분광은 공격마다 화염·냉기·번개 중 하나로 친다(한 번의 공격 안에서는 같은 원소).
+ * - 번개·분광은 광선이라 바로 맞는다. 분광은 공격마다 화염·냉기·번개 중 하나로 친다(한 번의 공격 안에서는 같은 원소)
+ *   — 저항·상태 이상과 함께 그 원소의 피해 증가(화염%·냉기%·번개%)도 그 공격에만 받는다.
  * - 날아가는 공격은 전투 캡처(captureCombatRuntime)에 같이 담긴다. 도착할 때 위습이 쓰러졌거나 대상이 없으면 사라진다.
  */
 const wispSummons = (() => {
@@ -22,6 +23,13 @@ const wispSummons = (() => {
     /** Elements this wisp picks from per attack, or null when it always hits with its own. */
     function elements(name) {
         return specOf(name)?.elements || null;
+    }
+    const ELEMENT_TAG = Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning' });
+    /** The damage tag of the element a rolling wisp (분광) hits with right now, so fire / cold / lightning increases
+     * count for that attack only; null for the other wisps (their gem tags already name their element). */
+    function elementTag(summon) {
+        const pool = summon && elements(summon.gemName);
+        return pool && pool.includes(summon.ele) ? ELEMENT_TAG[summon.ele] : null;
     }
     function rollElement(name) {
         const pool = elements(name);
@@ -52,6 +60,6 @@ const wispSummons = (() => {
     function restore(saved) {
         inFlight = Array.isArray(saved) ? saved.filter(isHit).map(hit => ({ ...hit, first: hit.first === true, element: hit.element || null })) : [];
     }
-    return Object.freeze({ flightMs, artMs, elements, launch, due, reset, capture, restore });
+    return Object.freeze({ flightMs, artMs, elements, elementTag, launch, due, reset, capture, restore });
 })();
 safeExposeGlobals({ wispSummons });
