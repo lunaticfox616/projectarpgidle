@@ -10,6 +10,8 @@
         const active = getUiGemPresentation(game.activeSkill || '기본 공격', false, stats).skill;
         const targets = [];
         if (getTaggedDamageBreakdown({ [def.stat]: 1 }, active).total > 0) targets.push('주 공격');
+        const mobility = mobilitySkill.equipped();
+        if (mobility && getTaggedDamageBreakdown({ [def.stat]: 1 }, getUiGemPresentation(mobility, false, stats).skill).total > 0) targets.push('이동 스킬');
         const summons = (game.equippedSummonSkills || []).filter(gem => (SKILL_DB[gem]?.tags || []).includes(tag));
         targets.push(...summons);
         if (targets.length) return `적용: ${targets.join(' · ')}`;
@@ -49,7 +51,7 @@
     function actions(type, name, anchor) {
         const support = type === 'support';
         const summon = !support && (SKILL_DB[name].tags || []).includes('summon_attack');
-        let html = equipButton(anchor, support || summon);
+        let html = equipButton(anchor, support || summon || mobilitySkill.isMobilityGem(name));
         if (!support && game.gemEnhanceUnlocked && getEquippedEnhanceableGemNames().includes(name)) {
             html += '<button type="button" data-gem-action="enhance">강화 · 각인</button>';
         }

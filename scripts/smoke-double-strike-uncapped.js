@@ -33,7 +33,7 @@ const files = [
   'js/core-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/combat-build-stats.js',
-  'js/combat.js',
+  'js/combat.js', 'js/mobility-skill.js',
   'js/talent-cards.js',
 ];
 

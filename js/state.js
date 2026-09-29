@@ -2569,6 +2569,7 @@ const defaultGame = {
     passiveStarEvolutionSource: null,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
+    mobilitySkill: '', // 이동 스킬 칸 (js/mobility-skill.js): a gem tagged 'mobility', worn next to the main gem
     equippedSummonSkills: [],
     summonSkillCounts: {},
     summonLoadoutInitialized: false,

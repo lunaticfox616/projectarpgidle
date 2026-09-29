@@ -15,10 +15,10 @@ assert.strictEqual(run('fxRemake.isEnabled()'), true, 'the remake pass is on onc
 
 // ---------------------------------------------------------------- which events a redrawn gem owns
 const claims = plain(run(`(function () {
-    const nameOf = id => Object.keys(SKILL_FX_ATLAS).find(name => SKILL_FX_ATLAS[name].id === id);
+    const nameOf = id => Object.keys(SKILL_DB).find(name => redrawnSkillFx.specOf(name)?.id === id);
     const out = {};
     for (const id of redrawnSkillFx.ids) {
-        const skillName = nameOf(id), spec = SKILL_FX_ATLAS[skillName];
+        const skillName = nameOf(id), spec = redrawnSkillFx.specOf(skillName);
         out[id] = {};
         for (const kind of ['windup', 'travel', 'stage', 'hit']) {
             redrawnSkillFx.reset();
@@ -29,7 +29,7 @@ const claims = plain(run(`(function () {
     }
     return out;
 })()`));
-assert.strictEqual(Object.keys(claims).length, 22, 'twenty-two gems are redrawn');
+assert.strictEqual(Object.keys(claims).length, 26, 'twenty-six gems are redrawn');
 for (const [id, got] of Object.entries(claims)) {
     const n = Number(id);
     if (n === 50) {
@@ -42,6 +42,7 @@ for (const [id, got] of Object.entries(claims)) {
     else if (n === 48) assert.deepStrictEqual([got.travel, got.stage, got.hit], [false, true, false], '48 과냉각 혼합물 keeps the flask and hit sparks; the cloud ring goes');
     else assert.strictEqual(got.stage && got.hit, true, `${id}: stage and hit sprites belong to the redrawn art`);
     if ([3, 16, 33, 37].includes(n)) assert.strictEqual(got.windup, true, `${id}: the redrawn art owns the windup`);
+    if (n >= 54) assert.deepStrictEqual([got.windup, got.travel, got.stage, got.hit], [true, true, true, true], `${id}: a movement gem has no original art — the redrawn art owns every event`);
 }
 
 const nonRedrawn = run(`redrawnSkillFx.claim({ kind: 'stage', skillName: '연속 베기', at: 0, duration: 100 }, SKILL_FX_ATLAS['연속 베기'])`);
@@ -123,7 +124,7 @@ const paint = plain(run(`(function () {
     const hit = (at, cell, extra) => ({ kind: 'hit', at, duration: 320, targetCells: [cell || aim], ...extra });
     function cast(skillName, events) {
         redrawnSkillFx.reset();
-        for (const e of events) redrawnSkillFx.claim({ skillName, sourceCell: src, targetCells: [aim], groupId: 'p', ...e }, SKILL_FX_ATLAS[skillName], 'visual');
+        for (const e of events) redrawnSkillFx.claim({ skillName, sourceCell: src, targetCells: [aim], groupId: 'p', ...e }, redrawnSkillFx.specOf(skillName), 'visual');
     }
     function dots(layer, now) {
         pts.length = 0;
@@ -155,6 +156,20 @@ const paint = plain(run(`(function () {
     battleVisualState.playerPos = { x: 24 + 5 * 48, y: 24 + 3 * 48 };
     out.whirl = { shift: meanX('fore', 1300) - atStart };
     battleVisualState.playerPos = null;
+    const moveCast = (skillName, move) => cast(skillName, [{ kind: 'stage', at: 1000, duration: 1800, move, riftPhase: 'move' }]);
+    moveCast('차원찢기', { from: src, to: aim, tear: 1300, openB: 1420, vanish: [1380, 1640], close: 1680, burst: 1720 });
+    out.rift = { tears: dots('ground', 1450), burst: dots('fore', 1760), none: dots('ground', 1200) };
+    moveCast('향로구름', { from: src, to: aim, foe: side, puff: 1400, puffB: 1520, vanish: [1430, 1710], lifeA: 720, lifeB: 1000 });
+    out.smoke = { both: dots('fore', 1600), gone: dots('fore', 2600) };
+    const harpoon = { from: src, to: { gx: 3, gy: 3 }, foe: aim, release: 1360, hitAt: 1500, pull0: 1590, pull1: 1800, moved: true };
+    moveCast('작살화살', harpoon);
+    out.harpoon = { flight: dots('fore', 1420), rope: dots('fore', 1700), reeled: dots('fore', 2000) };
+    const leapMove = { from: src, to: { gx: 3, gy: 3 }, jump: 1160, slam: 1580, peak: 14 };
+    moveCast('공중강타', leapMove);
+    out.slam = { dust: dots('fore', 1200), ground: dots('ground', 1620) };
+    out.caster = { leap: redrawnSkillFxExtra.moveCaster(57, leapMove, 1370), pulled: redrawnSkillFxExtra.moveCaster(56, harpoon, 1700),
+        hidden: redrawnSkillFxExtra.moveCaster(55, { vanish: [1430, 1710] }, 1570), after: redrawnSkillFxExtra.moveCaster(57, leapMove, 1600),
+        landing: redrawnSkillFxExtra.moveCaster(57, leapMove, 1600, true), stillInside: redrawnSkillFxExtra.moveCaster(55, { vanish: [1430, 1710] }, 1690, true) };
     const mist = holyRadius => { cast('신성한 안개', [{ kind: 'stage', at: 1000, duration: 700, holyMistPhase: 'mist', holySource: src, holyRadius }]); return dots('ground', 1300); };
     out.holy = { base: mist(1), grown: mist(2) };
     redrawnSkillFx.reset();
@@ -172,6 +187,16 @@ assert(paint.mine.sigil > 0 && paint.mine.toss > 0 && paint.mine.blast > 0, 'the
 assert(paint.cool.ring1 > 0 && paint.cool.ring3 > 0 && paint.cool.flash > 0, '48 과냉각 혼합물: a frost flash and one thin ring per ring hit');
 assert.strictEqual(paint.cool.gone, 0, 'the rings and the frost star clear after the last ring');
 assert.deepStrictEqual(paint.crescent.withHits, paint.crescent.crescentOnly, '16 공허 베기 draws the crescent only — no marks on the struck cells');
+assert(paint.rift.tears > 0 && paint.rift.burst > 0 && paint.rift.none === 0, '54 차원찢기: two tears, then the burst — nothing before the tear');
+assert(paint.smoke.both > 0 && paint.smoke.gone === 0, '55 향로구름: the smoke clouds come and clear');
+assert(paint.harpoon.flight > 0 && paint.harpoon.rope > 0 && paint.harpoon.reeled === 0, '56 작살화살: flight, the taut rope and pull, then reeled in');
+assert(paint.slam.dust > 0 && paint.slam.ground > 0, '57 공중강타: dust at the jump, cracks at the landing');
+assert(paint.caster.leap.lift > 10 && Math.abs(paint.caster.leap.dx - 16) < 1, 'the leaper is up in the air half way along');
+assert(paint.caster.pulled.dx > 16 && paint.caster.pulled.dx < 32 && paint.caster.pulled.alpha === 1, 'the archer glides along the rope');
+assert.strictEqual(paint.caster.hidden.alpha, 0, 'inside the smoke the caster is out of sight');
+assert.strictEqual(paint.caster.after, null, 'once landed the caster stands in its cell');
+assert.deepStrictEqual([paint.caster.landing.dx, paint.caster.landing.lift], [32, 0], 'landed before combat moved it: drawn at the landing, not back at the take-off');
+assert.strictEqual(paint.caster.stillInside.alpha, 0, 'past the middle of the smoke but not yet moved: still out of sight');
 assert(paint.holy.grown > paint.holy.base * 1.5, `50 신성한 안개: effect expansion spreads the mist wider (${paint.holy.base} → ${paint.holy.grown} dots)`);
 assert(Math.abs(paint.whirl.shift - 4 * 16 * 3) < 1, `5 회오리바람: the blade wind follows the caster (moved ${paint.whirl.shift}px for 4 cells)`);
 

@@ -4,7 +4,7 @@ const BUILD_STAT_FIELDS = [
     'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones',
     'passives', 'voidPassives', 'passiveAttributePreference', 'passiveAttributeChoices',
     'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
-    'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'skills', 'supports',
+    'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'mobilitySkill', 'skills', 'supports',
     'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
     'skillAutoRules', 'conditionGemLevels', 'conditionGemPool',
     'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',

@@ -98,6 +98,7 @@ vm.runInContext(fs.readFileSync('js/combat-clock.js', 'utf8'), context, { filena
 vm.runInContext(fs.readFileSync('js/skill-effect-expansion.js', 'utf8'), context, { filename: 'js/skill-effect-expansion.js' });
 vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filename: 'js/combat-grid.js' });
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
+vm.runInContext(fs.readFileSync('js/mobility-skill.js', 'utf8'), context, { filename: 'js/mobility-skill.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
 vm.runInContext(fs.readFileSync('js/canvas-enemy-projectiles.js', 'utf8'), context, { filename: 'js/canvas-enemy-projectiles.js' });
 for(const file of ['js/canvas-exploration-art.js','js/canvas-act-exploration.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});

@@ -7,9 +7,13 @@ const worldTreeSkillFx = (() => {
     let castTick=null,castAnchor=0,castNow=0;
     function beginFrame() {remaining=48;fxRemake.discard();}
 
+    /** The caster during a mobility gem's cast: the movement gems' own motion, or 암살's vanish and thrust. */
     function actorState(state) {
-        const c=skillGemCombatRuntime?.pose,at=castNow;
-        if(!assassinPoseActive(c,at,state))return state;
+        const c=mobilitySkill.castState()?.pose,at=castNow;
+        if(c && c.move)return movingActorState(state,c,at);
+        return assassinPoseActive(c,at,state) ? assassinActorState(state,c,at) : state;
+    }
+    function assassinActorState(state,c,at) {
         const moved=!!c.destination && game.gridPlayer.gx===c.destination.gx && game.gridPlayer.gy===c.destination.gy;
         const direction=({2:'south',4:'west',6:'east',8:'north'})[c.direction] || state.motionState.facingDirection;
         const alpha=moved?Math.min(1,(at-c.at-100)/70):Math.max(0,(c.at+100-at)/100);
@@ -22,8 +26,18 @@ const worldTreeSkillFx = (() => {
             actorAlpha:alpha,swingPower:0,motionState:{...state.motionState,advanceBlend:0,attackBlend:0,attackActive:false,
                 attackProgress:0,facingDirection:direction,attackDirection:direction}};
     }
+    /** 이동기 4종: the caster fades into a tear or smoke, glides along the rope or arcs through the air
+     * (redrawnSkillFxExtra.moveCaster, board dots relative to the cell it stands in). */
+    function movingActorState(state,c,at) {
+        const waiting=game.gridPlayer.gx===c.move.from.gx && game.gridPlayer.gy===c.move.from.gy;
+        const m=c.failed || game.playerHp<=0 || state.returnWarp || state.returnDeparture ? null : redrawnSkillFxExtra.moveCaster(c.id,c.move,at,waiting);
+        if(!m)return state;
+        const k=state.gridProj.tileW/16;
+        return {...state,actorAlpha:(state.actorAlpha ?? 1)*m.alpha,
+            playerPos:{x:state.playerPos.x+m.dx*k,y:state.playerPos.y+(m.dy-m.lift)*k}};
+    }
     function assassinPoseActive(c,at,state) {
-        return c && !c.failed && game.playerHp>0 && game.activeSkill==='암살' && at<=c.at+360 && !state.returnWarp && !state.returnDeparture;
+        return c && !c.failed && game.playerHp>0 && mobilitySkill.equipped()==='암살' && at<=c.at+360 && !state.returnWarp && !state.returnDeparture;
     }
 
     function castFrame(ctx,projection,layer) {
@@ -31,10 +45,13 @@ const worldTreeSkillFx = (() => {
         if(clock!==castTick){castTick=clock;castAnchor=wall;}
         if(game.combatHalted || document.hidden)castAnchor=wall;
         castNow=clock+Math.max(0,Math.min(100,wall-castAnchor));
-        for(const event of skillGemCombatRuntime?.events || []) if(event.renderLayer===layer)paintCast(ctx,event,projection,clock);
+        // The main gem's native casts and the mobility slot's (js/mobility-skill.js) share one painter.
+        for(const state of [skillGemCombatRuntime,mobilitySkill.castState()])
+            for(const event of state?.events || []) if(event.renderLayer===layer)paintCast(ctx,event,projection,clock);
     }
     function paintCast(ctx,event,projection,clock) {
-        if(redrawnSkillFx.claim(event,SKILL_FX_ATLAS[event.skillName],'combat'))return;
+        if(redrawnSkillFx.claim(event,redrawnSkillFx.specOf(event.skillName),'combat'))return;
+        if(!SKILL_FX_ATLAS[event.skillName])return; // the movement gems have no PixelLab art: only their redrawn art draws them
         const renderer=layouts.get(event) || prepareNative(event,projection);
         const native=renderer.effects[0];
         if(event.timeCenter)native.timeCenter=event.timeCenter;

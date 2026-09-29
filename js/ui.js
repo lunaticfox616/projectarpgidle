@@ -4982,6 +4982,8 @@ function toggleGemFoldMode(mode) {
     updateStaticUI();
 }
 
+// The first matching tag names a gem card's kind (이동: worn in the 이동 스킬 slot, js/mobility-skill.js).
+const GEM_TYPE_LABELS = Object.freeze([['summon_attack', '소환'], ['mobility', '이동'], ['spell', '주문'], ['projectile', '투사체'], ['slam', '강타']]);
 function getGemCardMeta(def) {
     let tags = Array.isArray(def && def.tags) ? def.tags : [];
     let element = String((def && def.ele) || (tags.includes('fire') ? 'fire' : tags.includes('cold') ? 'cold' : tags.includes('lightning') ? 'light' : tags.includes('chaos') ? 'chaos' : 'phys'));
@@ -4994,7 +4996,7 @@ function getGemCardMeta(def) {
         phys: { icon: '◇', label: '물리', className: 'physical' },
         physical: { icon: '◇', label: '물리', className: 'physical' }
     };
-    let typeLabel = tags.includes('summon_attack') ? '소환' : tags.includes('spell') ? '주문' : tags.includes('projectile') ? '투사체' : tags.includes('slam') ? '강타' : '공격';
+    let typeLabel = GEM_TYPE_LABELS.find(([tag]) => tags.includes(tag))?.[1] || '공격';
     let presentation = elementMap[element] || elementMap.phys;
     return { typeLabel: typeLabel, icon: presentation.icon, elementLabel: presentation.label, className: presentation.className };
 }
@@ -5039,7 +5041,7 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let rangeText = typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, gemInfo.skill || def) : '';
     let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
     let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
-    let active = name === game.activeSkill || summonEquipped;
+    let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
     let usageLabel = !equipmentReady ? '방패 필요 · 상세 보기' : (active ? '장착 중 · 상세 보기' : '상세 보기');
@@ -5096,6 +5098,12 @@ function renderSealedGemCard(name, highlightedName, isSupport) {
     return `<article class="skill-gem gem-library-card sealed-gem-card"><div class="gem-card-head">${art}<div><small>봉인 보관함</small><strong>${highlightedName}</strong></div></div><p>봉인을 해제하면 공명력 1을 사용해 보유 목록으로 되돌립니다.</p><div class="gem-card-footer"><span class="gem-usage-state">공명력으로 복원</span><button class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></div></article>`;
 }
 
+/** The worn 이동 스킬 gem, noted under the main attack in the loadout summary. */
+function renderMobilityLoadoutNote() {
+    const name = mobilitySkill.equipped();
+    return name ? ` · 이동 ${escapeHTML(name)}` : '';
+}
+
 function renderSkillLoadoutSummary(pStats, resonanceCap) {
     let root = document.getElementById('ui-skill-loadout-summary');
     if (!root) return;
@@ -5104,7 +5112,7 @@ function renderSkillLoadoutSummary(pStats, resonanceCap) {
     let usedResonance = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
     let summonCount = getEquippedSummonCount();
     let summonCap = getSummonEquipCapFromStats(pStats);
-    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small title="${escapeHTML(game.equippedSupports.join(' · '))}">${escapeHTML(game.equippedSupports.join(' · ') || '장착 없음')}</small></div><div><span>남은 공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
+    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}${renderMobilityLoadoutNote()}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small title="${escapeHTML(game.equippedSupports.join(' · '))}">${escapeHTML(game.equippedSupports.join(' · ') || '장착 없음')}</small></div><div><span>남은 공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
 }
 
 
@@ -5541,7 +5549,7 @@ function getEquippedSummonGuardSupports() {
 function getStarterGemTutorialTarget() {
     let name = typeof game.starterGemTutorialPending === 'string' ? game.starterGemTutorialPending : '';
     if (!name || !Array.isArray(game.skills) || !game.skills.includes(name)) return null;
-    let equipped = name === game.activeSkill
+    let equipped = [game.activeSkill, game.mobilitySkill].includes(name)
         || (Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
     return equipped ? null : name;
 }
@@ -5617,26 +5625,34 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
 }
 
 function changeSkill(name) { if (!assertBuildEditable()) return;
-    let def = SKILL_DB[name] || {};
+    if (mobilitySkill.isMobilityGem(name) && game.mobilitySkill === name) return wearMobilityGem('');
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
         return addLog(`[${name}]은(는) 방패를 장착해야 사용할 수 있습니다.`, 'attack-monster');
     }
-    if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
-        normalizeEquippedSummonAttackSkills();
-        if (game.equippedSummonSkills.includes(name)) {
-            game.summonLoadoutInitialized = true;
-            game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
-            delete game.summonSkillCounts[name];
-            if (game.activeSkill === name) game.activeSkill = '기본 공격';
-            updateStaticUI();
-            return;
-        }
-        changeSummonSkillCount(name, 1);
-        return;
-    }
+    if ((SKILL_DB[name]?.tags || []).includes('summon_attack')) return toggleSummonAttackGem(name);
+    if (mobilitySkill.isMobilityGem(name)) return wearMobilityGem(name);
     game.activeSkill = name;
     completeStarterGemTutorial(name);
-    if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
+    if (SKILL_DB[name]?.isGem) game.gemEnhanceTargetSkill = name;
+    updateStaticUI();
+}
+
+/** A worn summon gem comes off its slots; another one goes on (as far as the summon cap allows). */
+function toggleSummonAttackGem(name) {
+    normalizeEquippedSummonAttackSkills();
+    if (!game.equippedSummonSkills.includes(name)) return changeSummonSkillCount(name, 1);
+    game.summonLoadoutInitialized = true;
+    game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
+    delete game.summonSkillCounts[name];
+    if (game.activeSkill === name) game.activeSkill = '기본 공격';
+    updateStaticUI();
+}
+
+/** 이동 스킬 칸 (js/mobility-skill.js): a mobility gem is worn in its own slot next to the main gem ('' takes it off). */
+function wearMobilityGem(name) {
+    game.mobilitySkill = name;
+    mobilitySkill.reset();
+    if (name) { completeStarterGemTutorial(name); game.gemEnhanceTargetSkill = name; }
     updateStaticUI();
 }
 
@@ -8937,7 +8953,7 @@ function renderCombatFlaskHud() {
 
 /** Combat HUD skill tray: 주 공격, 장착 소환, 켜 둔 자동 사용 규칙의 컨디션 젬(재사용 대기 표시). */
 const COMBAT_SKILL_HUD_LIMIT = 6;
-const COMBAT_SKILL_SLOT_LABELS = Object.freeze({ primary: '주 공격', summon: '소환', condition: '자동 사용' });
+const COMBAT_SKILL_SLOT_LABELS = Object.freeze({ primary: '주 공격', mobility: '이동 스킬', summon: '소환', condition: '자동 사용' });
 // 표시 전용: 재사용 시작 시각을 저장 상태에 늘리지 않고, readyAt이 바뀐 순간의 남은 시간(ms)을 전체 길이로 삼는다.
 const combatSkillCooldownSpans = new Map();
 
@@ -8965,7 +8981,8 @@ function getCombatSkillHudEntries() {
         .filter((name, index, list) => name && list.indexOf(name) === index)
         .slice(0, 4)
         .map((name, index) => ({ kind: index === 0 ? 'primary' : 'summon', name }));
-    return gems.concat(getCombatConditionHudEntries()).slice(0, COMBAT_SKILL_HUD_LIMIT);
+    let mobility = SKILL_DB[game.mobilitySkill] ? [{ kind: 'mobility', name: game.mobilitySkill }] : [];
+    return gems.slice(0, 1).concat(mobility, gems.slice(1), getCombatConditionHudEntries()).slice(0, COMBAT_SKILL_HUD_LIMIT);
 }
 
 function renderCombatSkillSlot(entry) {
@@ -8974,7 +8991,7 @@ function renderCombatSkillSlot(entry) {
     let art = condition
         ? renderCombatEffectIcon({ key: entry.type, label: entry.name })
         : renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
-    let cooldown = condition ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
+    let cooldown = condition || entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
     return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${name}" data-slot-kind="${entry.kind}" data-info-tooltip-anchor="1" aria-label="${COMBAT_SKILL_SLOT_LABELS[entry.kind]} · ${name}">${art}${cooldown}</button>`;
 }
 
@@ -9000,21 +9017,27 @@ function getCombatSkillCooldownSpan(name, readyAt, remaining) {
     return known.totalMs;
 }
 
+function paintCombatSkillCooldown(button, readyAt, now, justCast) {
+    let name = button.dataset.gemName;
+    let remaining = Math.max(0, readyAt - now);
+    let badge = button.querySelector('.player-hud-skill-cooldown');
+    let seconds = remaining > 0 ? String(Math.ceil(remaining / 1000)) : '';
+    button.style.setProperty('--cooldown', remaining > 0 ? (remaining / getCombatSkillCooldownSpan(name, readyAt, remaining)).toFixed(3) : '0');
+    button.classList.toggle('cooling', remaining > 0);
+    button.classList.toggle('just-cast', justCast);
+    if (badge.textContent !== seconds) badge.textContent = seconds;
+    badge.hidden = !seconds;
+}
+
 function refreshCombatSkillCooldowns(host) {
     let now = getCombatTime();
     let last = game.lastConditionGemCast;
     host.querySelectorAll('.player-hud-skill-slot.condition').forEach(button => {
         let name = button.dataset.gemName;
         let readyAt = Number(game.conditionGemCooldowns && game.conditionGemCooldowns[name]) || 0;
-        let remaining = Math.max(0, readyAt - now);
-        let badge = button.querySelector('.player-hud-skill-cooldown');
-        let seconds = remaining > 0 ? String(Math.ceil(remaining / 1000)) : '';
-        button.style.setProperty('--cooldown', remaining > 0 ? (remaining / getCombatSkillCooldownSpan(name, readyAt, remaining)).toFixed(3) : '0');
-        button.classList.toggle('cooling', remaining > 0);
-        button.classList.toggle('just-cast', Boolean(last && last.name === name && last.expiresAt > now));
-        if (badge.textContent !== seconds) badge.textContent = seconds;
-        badge.hidden = !seconds;
+        paintCombatSkillCooldown(button, readyAt, now, Boolean(last && last.name === name && last.expiresAt > now));
     });
+    host.querySelectorAll('.player-hud-skill-slot.mobility').forEach(button => paintCombatSkillCooldown(button, now + mobilitySkill.cooldownLeft(now), now, false));
 }
 
 function renderCombatSkillHud() {

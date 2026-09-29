@@ -2145,7 +2145,7 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
 }
 
 function resolveEnemyFacingDirection(enemyPos, playerPos) {
-    if (game.activeSkill==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
+    if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
     if (!enemyPos || !playerPos) return 'south';
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     const dy = Number(playerPos.y) - Number(enemyPos.y);
@@ -2402,7 +2402,7 @@ function renderBattlefield(forceWhenHidden) {
     // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
     // 한 프레임 안에서는 결과가 동일하므로 프레임당 1회만 계산해 재사용한다.
     if (latestSwingFx && latestSwingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
-        playSkillFromActiveGem(game.activeSkill || '기본 공격');
+        playSkillFromActiveGem(latestSwingFx.skillName || '기본 공격');
         battleVisualState.lastAutoSwingId = latestSwingFx.id;
         const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, framePlayerStats.aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;

@@ -112,11 +112,38 @@ Object.assign(SKILL_DB, {
     "암살": {"isGem":true,"ele":"phys","category":"attack","baseSpd":0.74,"targetMode":"behind-target","targets":99,"desc":"적 뒤로 순간이동 후 찌르기(뒤가 막히면 가까운 옆, 그다음 반대쪽 옆) · 중독 또는 출혈 30%","tags":["attack","melee","physical","mobility","dagger"],"combatPattern":{"kind":"assassination","range":4},"baseDmg":2.85,"dmgScale":0.16,"spdScale":0.012,"crit":10,"nativeCastId":52,"leech":0,"rangeText":"사거리 4칸 · 뒤·좌우 칸 중 한 곳이 비어 있어야 함"},
     "인과": {"isGem":true,"category":"attack","ele":"phys","baseSpd":1,"desc":"집중 유지 중 유효한 피격 5회마다 물리 폭발 · 집중 중단 시 누적 초기화","tags":["attack","physical","aoe","channeling"],"targetMode":"area","combatPattern":{"kind":"channel"},"baseDmg":12,"dmgScale":0.7,"spdScale":0,"crit":0,"nativeCastId":53,"leech":0,"targets":99,"rangeText":"원형 반경 4칸 · 5회 피격"}
 });
+// 이동기 4종 (스킬 변경분 2, 2026-09-30 · 인계 mob4_core.js). Worn in the 이동 스킬 slot (js/mobility-skill.js) and cast
+// by js/skill-gem-casts.js. Damage and cooldowns are provisional (handoff §8-5); 향로구름 deals no damage.
+Object.assign(SKILL_DB, {
+    "차원찢기": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":0.8,"targetMode":"aimed-cell","targets":99,"nativeCastId":54,
+        "desc":"오브로 허공을 갈라 차원의 틈을 열고 들어가, 최대 4칸 떨어진 빈 칸의 틈에서 나옵니다. 두 틈이 닫히는 순간 도착 칸 둘레 8칸의 적에게 카오스 피해를 줍니다.",
+        "tags":["spell","chaos","aoe","mobility"],"baseDmg":1.6,"dmgScale":0.085,"spdScale":0.01,"spellFlatBase":22,"spellFlatScale":4.8,"crit":6,"leech":0,
+        "mobilityCooldownMs":4000,"rangeText":"사거리 4칸 · 도착 칸 둘레 8칸"},
+    "향로구름": {"isGem":true,"category":"spell","ele":"fire","baseSpd":0.9,"targetMode":"nearest-enemy","targets":99,"nativeCastId":55,
+        "desc":"향로를 휘둘러 연막 구름에 몸을 숨기고, 최대 5칸 안의 적 곁 빈 칸으로 순간이동합니다. 도착한 자리에도 연막이 피어오릅니다. 피해 없음.",
+        "tags":["spell","mobility"],"baseDmg":0,"dmgScale":0,"spdScale":0.01,"crit":0,"leech":0,
+        "mobilityCooldownMs":3000,"rangeText":"사거리 5칸 · 적 곁으로 순간이동 · 피해 없음"},
+    "작살화살": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":56,
+        "desc":"줄이 달린 작살화살을 쏴 최대 5칸 안의 적에게 물리 피해를 주고, 줄을 당겨 그 적 바로 앞 칸까지 끌려갑니다. 이미 붙어 있으면 끌려가지 않습니다.",
+        "tags":["attack","projectile","physical","mobility"],"baseDmg":1.7,"dmgScale":0.09,"spdScale":0.01,"crit":8,"leech":0,
+        "mobilityCooldownMs":4000,"rangeText":"사거리 5칸 · 적 앞 칸까지 끌려감"},
+    "공중강타": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.72,"targetMode":"aimed-cell","targets":99,"nativeCastId":57,
+        "desc":"포물선을 그리며 최대 3칸 뛰어올라 대검으로 내려찍어, 착지 칸 둘레 8칸의 적에게 물리 피해를 줍니다. 조준한 칸에 적이 있으면 그 앞 빈 칸에 착지합니다.",
+        "tags":["attack","melee","physical","aoe","mobility"],"baseDmg":1.8,"dmgScale":0.095,"spdScale":0.01,"crit":6,"leech":0,
+        "mobilityCooldownMs":4500,"rangeText":"사거리 3칸 · 착지 칸 둘레 8칸"}
+});
+// The mobility slot's cooldowns for the mobility gems that were main gems before (provisional).
+Object.assign(SKILL_DB['방패 돌진'], { mobilityCooldownMs: 3000 });
+Object.assign(SKILL_DB['그림자 점멸'], { mobilityCooldownMs: 3500 });
+Object.assign(SKILL_DB['암살'], { mobilityCooldownMs: 4000 });
 // These authored flask trajectories own their contacts; generic pattern engraving cannot replace them.
 for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합물','빈 플라스크']) {
     SKILL_DB[name].projectilePattern = { mode: 'lob', kind: 'blast', fixed: true };
     SKILL_DB[name].rangeText = '발사 방식: ' + SKILL_DB[name].rangeText + ' · 고유 궤적';
 }
+// 작살화살's harpoon flies on its own rope: one straight shot that no engraving replaces.
+Object.assign(SKILL_DB['작살화살'], { projectilePattern: { mode: 'focus', kind: 'line', fixed: true },
+    rangeText: '발사 방식: ' + SKILL_DB['작살화살'].rangeText + ' · 고유 궤적' });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB });
 
 // signature 스킬은 전용 이미지 프레임을 재생한다. 모든 액티브 젬을 명시하여 누락을 검사한다.
@@ -131,6 +158,10 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '파문심판': {family:'worldTree',scale:1,impactVfx:false},
     '암살': {family:'worldTree',scale:1,impactVfx:false},
     '인과': {family:'worldTree',scale:1,impactVfx:false},
+    '차원찢기': {family:'worldTree',scale:1,impactVfx:false},
+    '향로구름': {family:'worldTree',scale:1,impactVfx:false},
+    '작살화살': {family:'worldTree',scale:1,impactVfx:false},
+    '공중강타': {family:'worldTree',scale:1,impactVfx:false},
     '기본 공격': { family: 'slash', scale: 0.82 },
     '펜리르의 독니': { family: 'bite', scale: 0.86, impactAccentVfx: false },
     '연속 베기': { family: 'continuousSlash', scale: 1, repeats: 1, impactAccentVfx: false },
@@ -310,7 +341,11 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '공허 유충 소환': 'assets/gems/active/summon-void-larva-v1.png',
     '벌떼 소환': 'assets/gems/active/summon-swarm-v1.png',
     '폭풍 정령 소환': 'assets/gems/active/summon-storm-spirit-v1.png',
-    '철갑 거북 소환': 'assets/gems/active/summon-armored-turtle-v1.png'
+    '철갑 거북 소환': 'assets/gems/active/summon-armored-turtle-v1.png',
+    '차원찢기': 'assets/gems/world-tree/dimension-rift.png',
+    '향로구름': 'assets/gems/world-tree/censer-cloud.png',
+    '작살화살': 'assets/gems/world-tree/harpoon-arrow.png',
+    '공중강타': 'assets/gems/world-tree/aerial-slam.png'
 });
 
 safeExposeData({ SKILL_GEM_ART_PATHS });
@@ -381,6 +416,10 @@ const SKILL_GRID_DB = {
     '집중 광선':     { kind: 'line',  range: 7 },
     '용화 숨결':     { kind: 'cone',  range: 4 },
     '공허 절삭광':   { kind: 'line',  range: 6 },
+    '차원찢기':      { kind: 'blast', range: 4, radius: 1, shape: 'square' },
+    '향로구름':      { kind: 'melee', range: 5 },
+    '작살화살':      { kind: 'line',  range: 5 },
+    '공중강타':      { kind: 'blast', range: 3, radius: 1, shape: 'square' },
     // 소환 젬 카드에는 소환수 본체가 실제로 사용하는 공격 사거리를 표시한다.
     '서리늑대 소환':   { kind: 'summon', range: 1 },
     '불곰 소환':       { kind: 'summon', range: 1 },

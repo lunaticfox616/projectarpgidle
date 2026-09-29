@@ -18,7 +18,7 @@ function cast(extra=0) {
 }
 function tick(ms) {r.tickMs=ms;run('game.combatTimeMs=100000+tickMs;updateSkillGemCombat(castStats);');}
 const names=json('Object.keys(SKILL_DB).filter(n=>SKILL_DB[n].nativeCastId)');
-assert.equal(names.length,10);
+assert.equal(names.length,14,'44~53 and the four movement gems (54~57)');
 setup('시간 가속');cast();
 assert.equal(run('castStats.dps'),run('castStats.baseDmg*castStats.dotDamageScale'),
     'clock DPS is one native tick per second, without hit crits or generic DoT stacks');
@@ -46,7 +46,8 @@ assert.equal(run('getPlayerStats().dps'),run('getPlayerStats().baseDmg*getPlayer
 run(`SKILL_DB['시간 가속'].baseSpd=clockBaseSpeed;game.equipment=clockEquipment;`);
 setup('화염 부패');
 assert.ok(run('getPlayerStats().damageScales.estimatedSkillDotDps>0'),'generic stacking DoT remains estimated');
-for(const name of names) {
+// 향로구름 only moves the caster (no damage): scripts/smoke-mobility-skill.js covers the movement gems' landings.
+for(const name of names.filter(n=>n!=='향로구름')) {
     setup(name);cast();
     for(let ms=0;ms<=7000;ms+=50) {
         tick(ms);
@@ -116,4 +117,4 @@ run('game.skills=Object.keys(SKILL_DB).filter(n=>SKILL_DB[n].isGem);game.activeS
 assert.equal(run('roundTrip.activeSkill'),'인과');assert.equal(run('roundTrip.gemData["인과"].level'),8);
 run('game.skills=game.skills.filter(n=>n!=="인과");');
 assert.ok(json('getGemResearchCollectionState().attack.missing').includes('인과'),'new gems enter normal research acquisition pool');
-console.log('10 production gems: contacts, boss geometry, investment, channel, replay and save compatibility passed');
+console.log('14 production gems: contacts, boss geometry, investment, channel, replay and save compatibility passed');

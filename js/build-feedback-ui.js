@@ -51,7 +51,7 @@
     /** @param {ReturnType<typeof getPlayerStats>} stats Current displayed combat estimates. */
     function updateBuildFeedback(stats) {
         if (game.isBackgroundCalculation || stats.__uiFallbackStats) return;
-        const signature = JSON.stringify([game.equipment, game.activeSkill, game.equippedSupports, game.equippedSummonSkills, game.summonSkillCounts]);
+        const signature = JSON.stringify([game.equipment, game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills, game.summonSkillCounts]);
         if (previousGame === game && previousStats && previousSignature !== signature) {
             showDpsDelta(previousStats.dps, stats.dps);
         }

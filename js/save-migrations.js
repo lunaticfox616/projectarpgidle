@@ -56,6 +56,30 @@ function reconcileUniqueEquipmentSave(state) {
     equipmentInventoryGridRuntime.ensureState(state);
 }
 
+/** The main gem and the 이동 스킬 slot (스킬 변경분 2). A summon gem is never the main gem; a mobility gem worn as the main
+ * gem moves to its own slot (unless one is already there) and the main gem falls back to 기본 공격; the slot keeps only an
+ * owned mobility gem. Idempotent. */
+function normalizeSkillSlotsSave(merged) {
+    merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
+    if ((SKILL_DB[merged.activeSkill]?.tags || []).includes('summon_attack')) {
+        if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
+        merged.activeSkill = '기본 공격';
+    }
+    const worn = name => mobilitySkill.isMobilityGem(name) && merged.skills.includes(name);
+    if (mobilitySkill.isMobilityGem(merged.activeSkill)) {
+        if (!worn(merged.mobilitySkill)) merged.mobilitySkill = merged.activeSkill;
+        merged.activeSkill = '기본 공격';
+    }
+    merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
+}
+
+/** The gem the enhance screen opens on: one that is worn — the main gem, the mobility gem or a summon gem. */
+function normalizeGemEnhanceTargetSave(merged) {
+    const worn = [merged.activeSkill, merged.mobilitySkill, ...merged.equippedSummonSkills].filter(name => SKILL_DB[name]?.isGem);
+    if (worn.includes(merged.gemEnhanceTargetSkill)) return;
+    merged.gemEnhanceTargetSkill = worn[0] || null;
+}
+
 function migrateUniqueCodexKeys(records) {
     for (const [key, found] of Object.entries(records)) {
         const next = migrateUniqueCodexKey(key);
@@ -1002,11 +1026,8 @@ function mergeDefaults(save) {
     merged.pendingLoopReady = !!merged.pendingLoopReady;
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
-    merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
-    if (merged.activeSkill && SKILL_DB[merged.activeSkill] && Array.isArray(SKILL_DB[merged.activeSkill].tags) && SKILL_DB[merged.activeSkill].tags.includes('summon_attack')) {
-        if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
-        merged.activeSkill = '기본 공격';
-    }
+    normalizeSkillSlotsSave(merged);
+    if (Array.isArray(merged.woodsmanBuildSnapshot?.skills)) normalizeSkillSlotsSave(merged.woodsmanBuildSnapshot);
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
         ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
             let def = SKILL_DB[name] || {};
@@ -1045,16 +1066,7 @@ function mergeDefaults(save) {
         merged.summonSkillCounts = legacySummonCounts;
     }
     merged.summonLoadoutInitialized = true;
-    let equippedEnhanceTargets = [];
-    if (SKILL_DB[merged.activeSkill] && SKILL_DB[merged.activeSkill].isGem) equippedEnhanceTargets.push(merged.activeSkill);
-    merged.equippedSummonSkills.forEach(name => {
-        if (SKILL_DB[name] && SKILL_DB[name].isGem && !equippedEnhanceTargets.includes(name)) equippedEnhanceTargets.push(name);
-    });
-    if (!equippedEnhanceTargets.includes(merged.gemEnhanceTargetSkill)) {
-        if (equippedEnhanceTargets.includes(merged.activeSkill)) merged.gemEnhanceTargetSkill = merged.activeSkill;
-        else if (merged.equippedSummonSkills.length > 0) merged.gemEnhanceTargetSkill = merged.equippedSummonSkills[0];
-        else merged.gemEnhanceTargetSkill = null;
-    }
+    normalizeGemEnhanceTargetSave(merged);
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.maxZoneId !== 'string') {

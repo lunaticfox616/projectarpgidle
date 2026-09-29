@@ -113,6 +113,7 @@ const devTestPanel = (() => {
     function gemGroup(name) {
         const tags = SKILL_DB[name].tags || [];
         if (tags.includes('summon_attack')) return '소환';
+        if (tags.includes('mobility')) return '이동 스킬(따로 장착)';
         if (SKILL_DB[name].nativeCastId) return '전용 시전(44~53)';
         return tags.includes('spell') ? '주문' : '공격';
     }
@@ -177,7 +178,7 @@ const devTestPanel = (() => {
         if (!line) return;
         const sprite = game.settings.heroSpriteSet === 'legacy' ? '기존' : 'Hana';
         const fx = game.settings.skillFxStyle === 'original' ? '원본' : '리메이크';
-        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'} · ${game.activeSkill} · ${weaponLabel()} · Lv.${game.level} · ${sprite} · 이펙트 ${fx} · ×${speed}`;
+        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'} · ${game.activeSkill}${game.mobilitySkill ? ' + ' + game.mobilitySkill : ''} · ${weaponLabel()} · Lv.${game.level} · ${sprite} · 이펙트 ${fx} · ×${speed}`;
     }
     function weaponLabel() {
         const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment['무기'], game.settings.heroWeaponMode || 'auto');

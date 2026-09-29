@@ -5659,6 +5659,8 @@ function mapEffectIndexByGemTags(skillName, fallbackIndex) {
     return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
 }
 function playSkillFromActiveGem(skillName) {
+    // World-tree gems draw their own art (the movement gems of the 이동 스킬 slot swing without the generic effect).
+    if (SKILL_GEM_VFX_PROFILES[skillName]?.family === 'worldTree') return false;
     let slot = mapSkillSlotByGemTags(skillName);
     if (!playSkill(slot)) return false;
     let state = battleVisualState.skillPlayback;

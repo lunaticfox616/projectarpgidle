@@ -2209,6 +2209,7 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
 .player-hud-skill-slot.primary { border-color: #a87c3e; }
 .player-hud-skill-slot.summon { border-color: #725188; }
 .player-hud-skill-slot.condition { border-color: #4f6b7c; }
+.player-hud-skill-slot.mobility { border-color: #56794f; }
 .player-hud-skill-slot:hover { filter: brightness(1.18); }
 /* 자동 사용 젬 재사용 대기: 남은 비율만큼 시계 방향으로 어둡게 덮고 남은 초를 가운데에 쓴다(값은 js/ui.js refreshCombatSkillCooldowns). */
 .player-hud-skill-slot.cooling::after {

@@ -47,7 +47,7 @@
         const records = owned.map(name => ({ name, sealed: false }))
             .concat(sealed.map(name => ({ name, sealed: true }))).filter(record => {
                 const active = !record.sealed && (support ? game.equippedSupports.includes(record.name)
-                    : record.name === game.activeSkill || (game.equippedSummonSkills || []).includes(record.name));
+                    : [game.activeSkill, game.mobilitySkill].includes(record.name) || (game.equippedSummonSkills || []).includes(record.name));
                 return window.isGemLibraryMatchVisible(window.getGemSearchText(record.name, definitions[record.name] || {}), filter, fold, active);
             });
         const state = libraryPages[kind];
@@ -164,7 +164,7 @@
         let skillPanelRenderSignature = JSON.stringify({
             libraryPages: libraryPages,
             mobileLibrary: uiDisplay.matches('(max-width: 1080px)'),
-            activeSkill: game.activeSkill || '',
+            activeSkill: game.activeSkill || '', mobilitySkill: game.mobilitySkill,
             skills: game.skills || [],
             supports: game.supports || [],
             equippedSupports: game.equippedSupports || [],

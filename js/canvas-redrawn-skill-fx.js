@@ -1,4 +1,5 @@
-/** 새로 그린 스킬 이펙트 22종을 실제 전투 이벤트에 연결한다 (인계 ui_player.js의 젬별 draw 함수를 게임용으로 옮김, 09-30 변경분 포함).
+/** 새로 그린 스킬 이펙트 26종을 실제 전투 이벤트에 연결한다 (인계 ui_player.js의 젬별 draw 함수를 게임용으로 옮김).
+ * 09-30 변경분(17·29·30·37·48)과 이동기 4종(54~57)의 그리는 쪽은 js/canvas-redrawn-skill-fx-extra.js.
  * The world-tree renderer offers every event it is about to draw to claim(). Events a redrawn gem replaces (the handoff's
  * customSkip) are collected per cast — one attack's stage/travel/hit events, keyed by its damage group or channel — and
  * that gem's drawer paints the whole cast into the remake pass once per frame (ground layer under the actors, the rest in
@@ -6,12 +7,19 @@
  * schedules, resolves or applies damage.
  */
 const redrawnSkillFx = (() => {
-    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 32, 33, 37, 38, 41, 42, 43, 45, 46, 48, 50, 51]);
+    const MOVE_EVENTS = ['windup', 'travel', 'stage', 'hit', 'transfer'];
+    // Gems drawn only by the redrawn art (no PixelLab atlas entry): the movement gems of the 이동 스킬 slot.
+    const OWN_ART = Object.freeze({ '차원찢기': { id: 54 }, '향로구름': { id: 55 }, '작살화살': { id: 56 }, '공중강타': { id: 57 } });
+    /** The art spec a skill is drawn under: its atlas entry, or its own redrawn-only id. */
+    const specOf = name => SKILL_FX_ATLAS[name] || OWN_ART[name] || null;
+    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 32, 33, 37, 38, 41, 42, 43, 45, 46, 48, 50, 51, 54, 55, 56, 57]);
     const REPLACED = { 3: ['windup', 'stage', 'hit'], 33: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
         45: ['travel', 'stage', 'hit'], 38: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
         // 빙결 파열창 keeps its redrawn spear (fxRemake.projectile) and only its hits turn to frost mist; 과냉각 혼합물 keeps
         // its flask flight and hit sparks and only its heavy cloud ring (the wave stage) becomes thin frost rings.
-        30: ['hit'], 48: ['stage'] };
+        30: ['hit'], 48: ['stage'],
+        // The movement gems have no original art at all: everything they show is redrawn.
+        54: MOVE_EVENTS, 55: MOVE_EVENTS, 56: MOVE_EVENTS, 57: MOVE_EVENTS };
     const CAST_LIMIT = 48;
     const TAIL_MS = 1400;
     const SPIN = ['east', 'south', 'west', 'north'];
@@ -93,7 +101,7 @@ const redrawnSkillFx = (() => {
     function collectHits() {
         for (const fx of battleFx) {
             if (!fx || fx.type !== 'hit' || fx.dot || !fx.targetCell) continue;
-            const spec = SKILL_FX_ATLAS[fx.skillName];
+            const spec = specOf(fx.skillName);
             if (isActive(spec)) register(hitEvent(fx), spec, 'visual');
         }
     }
@@ -393,102 +401,15 @@ const redrawnSkillFx = (() => {
         for (const b of st.timeTickTargets || []) for (const p of b.cells) art().CelticClock.mark(dot, p.gx * 16 + 8, p.gy * 16 + 8, ft - b.at);
     }
 
-    // ------------------------------------------------------------------ 09-30 변경분
-    function burstPull(cast) { return SKILL_DB[cast.skillName]?.combatPattern?.stages?.[1]?.delayMs || 160; }
-    function burstInfo(cast) {                                // 17 혈기 폭쇄: condense (stage 0), then the burst (stage 1)
-        const st = eventsOf(cast, 'stage'), s0 = st.find(e => !e.stageIndex);
-        if (!s0) return null;
-        const s1 = st.find(e => e.stageIndex === 1), c = s1?.footprint?.center || s0.targetCells[0];
-        return { s0, s1, c, x: c.gx * 16 + 8, y: c.gy * 16 + 7, dur: s1 ? s1.at - s0.at : burstPull(cast) };
-    }
-    function drawBurstGround(dot, cast, ft) {
-        const I = burstInfo(cast);
-        if (I && I.s1) extra().BloodBurst.stains(dot, I.x, I.y + 2, ft - I.s1.at);
-    }
-    /** The lance that would point back at an orthogonally adjacent caster is left out. */
-    function burstSkip(src, c) { return Math.abs(src.gx - c.gx) + Math.abs(src.gy - c.gy) === 1 ? [src.gx - c.gx, src.gy - c.gy] : null; }
-    function drawBurst(dot, cast, ft) {
-        const I = burstInfo(cast);
-        if (!I) return;
-        const src = I.s0.sourceCell || I.c, at = { x: I.x, y: I.y };
-        art().BloodDrain.splash(dot, at, unitToward(cellDot(src), at), ft - I.s0.at);
-        extra().BloodBurst.condense(dot, I.x, I.y, ft - I.s0.at, { dur: I.dur });
-        if (I.s1) extra().BloodBurst.burst(dot, I.x, I.y, ft - I.s1.at, { skip: burstSkip(src, I.c), dr: grownBy(cast, I.s1) });
-    }
-    function vortexInfo(cast) {                               // 29 화염 폭풍핵: one field stage; its ticks are the hits
-        const st = firstOf(cast, 'stage');
-        if (!st) return null;
-        const c = (st.footprint && st.footprint.center) || st.targetCells[0];
-        const ticks = [...new Set(eventsOf(cast, 'hit').map(e => e.at))].sort((a, b) => a - b);
-        return { st, c, x: c.gx * 16 + 8, y: c.gy * 16 + 8, ticks };
-    }
-    function drawVortexGround(dot, cast, ft) {
-        const I = vortexInfo(cast);
-        if (I) extra().FireVortex.ground(dot, I.x, I.y, ft, { start: I.st.at, end: I.st.at + I.st.duration, ticks: I.ticks, R: 22 + 16 * grownBy(cast, I.st) });
-    }
-    function drawVortex(dot, cast, ft) {                      // a small flame on each struck cell off the core
-        const I = vortexInfo(cast);
-        if (!I) return;
-        eventsOf(cast, 'hit').forEach((e, i) => {
-            const tc = hitCell(e);
-            if (tc && (tc.gx !== I.c.gx || tc.gy !== I.c.gy)) art().TriWave.spark(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at - 20, { el: 'fire', seed: i + 3 });
-        });
-    }
-    function drawFrostMistGround(dot, cast, ft) {             // 30 빙결 파열창: mist under each pierced target, drifting on
-        eventsOf(cast, 'hit').filter(hitCell).forEach((e, i) => {
-            const tc = hitCell(e), fr = e.sourceCell || tc, L = Math.hypot(tc.gx - fr.gx, tc.gy - fr.gy) || 1;
-            const o = { seed: 31 + i * 17 + tc.gx * 5 + tc.gy * 3, dx: (tc.gx - fr.gx) / L, dy: (tc.gy - fr.gy) / L, spin: i % 2 ? -1 : 1 };
-            extra().FrostMist.mist(dot, tc.gx * 16 + 8, tc.gy * 16 + 10, ft - e.at, o);
-        });
-    }
-    function drawFrostMist(dot, cast, ft) {
-        for (const e of eventsOf(cast, 'hit')) { const tc = hitCell(e); if (tc) extra().FrostMist.burst(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at); }
-    }
-    function mineArm(cast) { return SKILL_DB[cast.skillName]?.combatPattern?.armDelayMs || 460; }
-    function mineInfo(cast) {                                 // 37 룬 지뢰: windup = throw + arming, stage = the blast
-        const w = firstOf(cast, 'windup'), st = firstOf(cast, 'stage'), ev = st || w;
-        if (!ev) return null;
-        const fp = ev.footprint || {}, c = fp.center || ev.targetCells[0], arm = mineArm(cast), T = w ? w.at + w.duration : st.at;
-        return { st, c, src: ev.sourceCell || c, cells: fp.cells || [c], arm, land: T - arm, radius: Math.max(1, Number(fp.radius) || 2) };
-    }
-    function drawMineGround(dot, cast, ft) {
-        const I = mineInfo(cast);
-        if (I) extra().RuneMine.sigil(dot, I.c.gx * 16 + 8, I.c.gy * 16 + 8, ft - I.land, I.arm);
-    }
-    function drawMine(dot, cast, ft) {
-        const I = mineInfo(cast);
-        if (!I) return;
-        const sx = Math.sign(I.c.gx - I.src.gx) || 1, from = { x: I.src.gx * 16 + 8 + sx * 5, y: I.src.gy * 16 + 3 };
-        extra().RuneMine.toss(dot, from, { x: I.c.gx * 16 + 8, y: I.c.gy * 16 + 8 }, ft - (I.land - 160), 160);
-        if (I.st) extra().RuneMine.blast(dot, { gx: I.c.gx, gy: I.c.gy }, I.cells, ft - I.st.at, { arm: I.radius });
-    }
-    function coolInfo(cast) {                                 // 48 과냉각 혼합물: the wave stage (landing + ring times)
-        const st = eventsOf(cast, 'stage').find(e => e.supercooledPhase === 'wave');
-        if (!st) return null;
-        const L = st.landingCell || st.targetCells[0], step = st.ringInterval || 260, rings = [0, 1, 2].map(k => st.at + k * step);
-        return { x: L.gx * 16 + 8, y: L.gy * 16 + 8, land: st.at, rings, end: rings[2] + 250 };
-    }
-    function drawCoolGround(dot, cast, ft) {                  // a frost star, then one thin ring per ring hit (radius 1, 2, 3)
-        const I = coolInfo(cast);
-        if (!I) return;
-        extra().SuperCool.star(dot, I.x, I.y, ft - I.land, I.end - I.land);
-        I.rings.forEach((rt, k) => extra().SuperCool.ring(dot, I.x, I.y, ft - rt, (k + 1) * 16));
-    }
-    function drawCool(dot, cast, ft) {
-        const I = coolInfo(cast);
-        if (I) extra().FrostMist.burst(dot, I.x, I.y - 2, ft - I.land);
-    }
-
     const DRAWERS = {
         3: { fore: drawDrain }, 5: { fore: drawWhirl }, 10: { fore: drawFrost }, 16: { fore: drawCrescent },
         18: { ground: drawQuakeGround, fore: drawQuake }, 21: { fore: drawFrostWave }, 28: { fore: drawCollapse },
         32: { fore: drawTri }, 33: { fore: drawTriple }, 38: { ground: drawPotionGround, fore: drawPotion },
         41: { fore: drawWave }, 42: { fore: drawBreath }, 43: { fore: drawVoid }, 45: { fore: drawLance },
-        46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment },
-        17: { ground: drawBurstGround, fore: drawBurst }, 29: { ground: drawVortexGround, fore: drawVortex },
-        30: { ground: drawFrostMistGround, fore: drawFrostMist }, 37: { ground: drawMineGround, fore: drawMine },
-        48: { ground: drawCoolGround, fore: drawCool }
+        46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment }
     };
+    /** js/canvas-redrawn-skill-fx-extra.js adds its drawers (17·29·30·37·48, 54~57) here. */
+    function registerDrawers(map) { Object.assign(DRAWERS, map); }
 
     // ------------------------------------------------------------------ per frame
     function playerDot(view) {
@@ -578,6 +499,9 @@ const redrawnSkillFx = (() => {
         return [...casts.values()].map(c => ({ key: c.key, id: c.id, clock: c.clock, end: Math.round(c.end), kinds: c.events.map(e => e.kind), events: c.events.map(eventBrief) }));
     }
 
-    return Object.freeze({ claim, drawLayer, playerTint, playerSpin, weaponHidden, reset, snapshot, ids: IDS, replaces });
+    // Helpers the companion drawer file shares.
+    const kit = Object.freeze({ art, extra, cellDot, hitCell, eventsOf, firstOf, unitToward, grownBy, feetY, feetDots });
+    return Object.freeze({ claim, drawLayer, playerTint, playerSpin, weaponHidden, reset, snapshot, ids: IDS, replaces, specOf,
+        registerDrawers, kit });
 })();
 safeExposeGlobals({ redrawnSkillFx });

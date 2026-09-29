@@ -47,12 +47,14 @@ let skillGemCombatRuntime = null;
 function captureCombatRuntime() {
     return { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
-        combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime };
+        combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime,
+        mobilitySkill: mobilitySkill.capture() };
 }
 function restoreCombatRuntime(snapshot) {
     ({ pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime } = snapshot);
+    mobilitySkill.restore(snapshot.mobilitySkill);
 }
 safeExposeGlobals({ captureCombatRuntime, restoreCombatRuntime });
 
@@ -68,6 +70,7 @@ function createCombatTacticsRuntime(now) {
 function resetCombatTacticsRuntime() {
     combatTacticsRuntime = createCombatTacticsRuntime();
     skillGemCombatRuntime = null;
+    mobilitySkill.reset();
 }
 
 function resetCombatChannelRuntime() {
@@ -1129,7 +1132,7 @@ function snapshotWoodsmanBuildState() {
         equipment: game.equipment || {},
         inventory: game.inventory || [],
         skills: game.skills || [],
-        activeSkill: game.activeSkill || '기본 공격',
+        activeSkill: game.activeSkill || '기본 공격', mobilitySkill: game.mobilitySkill,
         supports: game.supports || [],
         equippedSupports: game.equippedSupports || [],
         supportGemData: game.supportGemData || {},
@@ -1166,6 +1169,7 @@ function enforceWoodsmanBuildLock() {
     game.inventory = JSON.parse(JSON.stringify(snap.inventory));
     game.skills = JSON.parse(JSON.stringify(snap.skills));
     game.activeSkill = snap.activeSkill;
+    game.mobilitySkill = snap.mobilitySkill;
     game.supports = JSON.parse(JSON.stringify(snap.supports));
     game.equippedSupports = JSON.parse(JSON.stringify(snap.equippedSupports));
     game.supportGemData = JSON.parse(JSON.stringify(snap.supportGemData));
@@ -2645,7 +2649,7 @@ function coreLoop(nowMs) {
     } else {
         runConditionGemAutoRules(pStats);
     }
-    updateSkillGemCombat(pStats);
+    advanceSkillGemCasts(pStats);
     updateCombatChannelRuntime(getCombatTime());
     processPendingSkillStageHits();
     processPendingSlamEchoHits();
@@ -2884,8 +2888,8 @@ function coreLoop(nowMs) {
                     game.warriorRhythmDoubleExpiresAt = now + 2000;
                 }
             }
-
         }
+        mobilitySkill.cast({ blocked: castBlocked, inRange: inSkillRange }); // 이동 스킬: closes the gap the main gem can't reach
         runSummonAttackTick(pStats);
         performMonsterAttacks(pStats);
     }
@@ -6007,14 +6011,11 @@ function continuePlayerExplorationApproach(pStats) {
  * @returns {boolean} 이번 틱에 공격이 가능한지
  */
 function updatePlayerGridEngagement(pStats, options) {
-    if(actExplorationProgress.moving())return false;
+    if(actExplorationProgress.moving() || mobilitySkill.moving())return false;
     let config = options || {};
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
     if (alive.length === 0) return false;
     syncCombatTacticsEncounterRuntime();
-    if (config.holdPosition && pStats.sSkill?.mobilityPattern) {
-        return false;
-    }
     let targets = getSkillTargets(pStats);
     if (targets.length > 0) {
         combatTacticsRuntime.approachTargetId = null;
@@ -8822,6 +8823,18 @@ function getEnemyExperienceReward(enemy, pStats) {
     return Math.max(0, Math.floor(exp * levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience')));
 }
 
+/** The main gem (or a levelable skill) and the worn 이동 스킬 gem gain experience; returns the ones that leveled up.
+ * A kill during a mobility cast still feeds the real main gem, not the mobility gem twice. */
+function grantWornGemExp(gemExp, pStats) {
+    const main = mobilitySkill.mainGem(), mainSkill = main === game.activeSkill ? pStats.sSkill : (SKILL_DB[main] || {});
+    const worn = new Set([(mainSkill.isGem || mainSkill.levelable) && main, mobilitySkill.equipped()].filter(Boolean));
+    game.gemData = game.gemData || {};
+    return [...worn].filter(name => {
+        game.gemData[name] = normalizeGemRecord(game.gemData[name]);
+        return gainGemExperience(game.gemData[name], gemExp) > 0;
+    });
+}
+
 function grantExpAndGem(enemy, pStats) {
     let gemLeveled = false;
     let exp = getEnemyExperienceReward(enemy, pStats);
@@ -8829,14 +8842,9 @@ function grantExpAndGem(enemy, pStats) {
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
     let gemExp = Math.floor(exp * 0.45);
-    if ((pStats.sSkill.isGem || pStats.sSkill.levelable) && game.activeSkill) {
-        game.gemData = game.gemData || {};
-        game.gemData[game.activeSkill] = normalizeGemRecord(game.gemData[game.activeSkill]);
-        let gem = game.gemData[game.activeSkill];
-        if (gainGemExperience(gem, gemExp) > 0) {
-            gemLeveled = true;
-            addLog(`✨ ${pStats.sSkill.isGem ? '젬' : '스킬'} [${game.activeSkill}] 레벨업!`, "loot-unique");
-        }
+    for (const name of grantWornGemExp(gemExp, pStats)) {
+        gemLeveled = true;
+        addLog(`✨ ${SKILL_DB[name]?.isGem ? '젬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
     }
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     game.equippedSummonSkills.forEach(name => {
@@ -10329,8 +10337,17 @@ function startSkillGemCombat(stats, options) {
             attackDamageMultiplier:options.attackDamageMultiplier,talentAttackMultiplier:options.talentAttackMultiplier,
             passiveKarmaContext:options.passiveKarmaContext}});
     if (!started) return;
+    noteNativeGemSwing(name, stats);
     noteCombatTacticAttack(300);
     if (name==='인과') beginCombatChannel(name,0,5000,{repeatChannelCast:false,channelContinuation:false});
+}
+
+/** 이동기 4종 swing their weapon once at the move's key moment (the tear, the puff, the release, the slam). */
+function noteNativeGemSwing(name, stats) {
+    const cast = skillGemCombatRuntime.casts.at(-1), swing = cast && cast.move && cast.move.swing;
+    if (!swing || game.isBackgroundCalculation) return;
+    addBattleFx('playerSwing', { skillName: name, element: stats.sSkill.ele, color: getElementColor(stats.sSkill.ele),
+        sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: swing.impact - cast.at, duration: Math.max(80, swing.until - cast.at) });
 }
 
 function shouldDeferNativeGemCast(stats,options) {
@@ -10338,7 +10355,7 @@ function shouldDeferNativeGemCast(stats,options) {
     if (hasPlayerChannelBreakingAilment() || game.combatHalted) return true;
     if (!skillGemCombatRuntime) return false;
     if (stats.sSkill.nativeCastId===53) return !!skillGemCombatRuntime.channel;
-    return [46,52].includes(stats.sSkill.nativeCastId) && skillGemCombatRuntime.casts.some(c=>c.id===stats.sSkill.nativeCastId);
+    return skillGemCasts.singleCast.has(stats.sSkill.nativeCastId) && skillGemCombatRuntime.casts.some(c=>c.id===stats.sSkill.nativeCastId);
 }
 
 function getAttackProjectileShots(stats) {
@@ -10354,6 +10371,12 @@ function updateSkillGemCombat(stats) {
     syncSkillGemChannel(runtime);
     const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies,now:getCombatTime()});
     for (const command of commands) applySkillGemCommand(command,stats);
+}
+
+/** The main gem's native casts, then the mobility slot's own (js/mobility-skill.js). */
+function advanceSkillGemCasts(stats) {
+    updateSkillGemCombat(stats);
+    mobilitySkill.advance();
 }
 
 function skillGemRuntimeChanged(name) {
@@ -10377,7 +10400,7 @@ function applySkillGemCommand(command,stats) {
         if (!skillGemCasts.free(command.to,game.enemies.filter(e=>e.hp>0))) return;
         actExplorationMotion.cancel(game.actExploration);
         Object.assign(game.gridPlayer,command.to);
-        addBattleFx('playerMobility',{skillName:'암살',fromCell:command.from,toCell:command.to,instant:true,duration:180});
+        addBattleFx('playerMobility',{skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180});
         return;
     }
     const targets=game.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
@@ -13056,6 +13079,7 @@ function triggerSeasonReset(options) {
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
+    game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
     game.flasks = {};
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };

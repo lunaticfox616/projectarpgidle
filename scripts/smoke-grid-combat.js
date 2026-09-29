@@ -60,7 +60,7 @@ const files = [
   'js/cosmos-rules.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js',
+  'js/combat.js', 'js/mobility-skill.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];
