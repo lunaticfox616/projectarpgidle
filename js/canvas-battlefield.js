@@ -1104,6 +1104,7 @@ function isGroundSkillCast(fx) {
 
 /** Paint ground spells first and summons above them, before the main actor layer. */
 function drawBattleGroundLayer(ctx, effects, view) {
+    drawRiftPlayerRing(ctx, view.gridProj, view.playerPos);
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
     fxRemake.begin(ctx, view.gridProj);
     worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
@@ -3104,7 +3105,6 @@ function drawRiftCombatOccupants(ctx, layers) {
     const proj = layers.proj;
     if (!proj) return;
     (layers.skillAreaCells || []).forEach(cell => drawRiftAreaCell(ctx, proj, cell));
-    drawRiftUnitRing(ctx, proj, game.gridPlayer, RIFT_CELL_TONES.player);
     (game.summons || []).forEach(summon => {
         if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) drawRiftUnitRing(ctx, proj, summon, RIFT_CELL_TONES.summon);
     });
@@ -3112,6 +3112,23 @@ function drawRiftCombatOccupants(ctx, layers) {
         if (enemy && enemy.hp > 0) drawRiftUnitRing(ctx, proj, enemy, RIFT_CELL_TONES.enemy);
     });
     (layers.skillTargets || []).forEach(hit => drawRiftTargetBrackets(ctx, proj, hit && hit.enemy));
+}
+
+/** The player's foot ring sits under the drawn figure, not on the hit cell: while walking, the body glides between
+ * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
+function drawRiftPlayerRing(ctx, proj, feet) {
+    if (!isBattleLightingEnabled() || !proj || !feet) return;
+    const rx = proj.tileW * 0.4, ry = Math.max(4, rx * 0.34), tone = RIFT_CELL_TONES.player;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.ellipse(feet.x, feet.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = tone.fill;
+    ctx.fill();
+    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = tone.line;
+    ctx.stroke();
+    ctx.restore();
 }
 
 function getRiftUnitFootprintBox(proj, unit) {
