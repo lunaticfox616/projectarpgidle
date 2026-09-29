@@ -35,7 +35,7 @@
     </script>
     <link rel="stylesheet" href="css/main.css">
 
-    <link rel="preload" as="image" href="assets/ui/login-world-tree.webp">
+    <link rel="preload" as="image" href="assets/background/act1.png">
 
     <script>
     window.addEventListener('load', function revealStyledApp() {
@@ -59,18 +59,15 @@
                 <div class="startup-hero-copy">
                     <div class="startup-brand-wrap">
                         <img class="startup-logo" src="assets/ui/pixel/rignin-logo-120.png" alt="RIGNIN" width="120" height="120" fetchpriority="high">
-                        <div class="startup-wordmark-bar"></div>
-                        <button type="button" class="startup-about-link" id="startup-about-open" aria-haspopup="dialog" aria-controls="startup-about-dialog">잠깐, RIGNIN은 어떤 게임인가요?</button>
                     </div>
                     <div class="startup-summary-card">
                         <div class="startup-summary-head">
-                            <div class="startup-summary-title">현재 기기 저장 정보</div>
+                            <div class="startup-summary-title">이 기기 저장</div>
                             <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 9월 2일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(26-09-02)</span></button>
                         </div>
                         <div class="startup-summary-grid">
                             <div class="startup-summary-item">
-                                <div class="startup-summary-label">로컬 진행</div>
-                                <div class="startup-summary-value" id="startup-local-summary">저장 데이터를 확인하는 중입니다.</div>
+                                <div class="startup-summary-value" id="startup-local-summary"></div>
                             </div>
                             <div class="startup-summary-item">
                                 <div class="startup-summary-label">마지막 저장</div>
@@ -104,39 +101,33 @@
                 </div>
             </div>
             <div class="startup-actions-stack two" id="startup-auth-actions">
-                <button id="btn-startup-login" class="startup-primary" onclick="startupLogin()">로그인 후 시작</button>
-                <button id="btn-startup-signup" class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입 후 시작</button>
+                <button id="btn-startup-login" class="startup-primary" onclick="startupLogin()">로그인</button>
+                <button id="btn-startup-signup" class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입</button>
             </div>
             <div class="startup-actions-stack">
                 <button id="btn-startup-continue" class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">클라우드 세이브로 계속</button>
                 <button id="btn-startup-switch-account" class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;">다른 계정 사용</button>
-                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작 (로컬 전용)</button>
-                <div class="startup-local-save-warning">게스트 저장은 이 브라우저에만 남습니다. 데이터 삭제·기기 변경 시 복구되지 않습니다.</div>
+                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작</button>
+                <div class="startup-local-save-warning">이 기기에만 저장되며, 지우면 복구되지 않습니다.</div>
                 <button id="btn-startup-back" class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
             </div>
-            <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
-                <button id="btn-startup-google" class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
-                    <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
-                    <span>Sign in with Google</span>
-                </button>
-                <button id="btn-startup-kakao" class="social-login-image-btn" onclick="loginWithKakao()">
-                    <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
-                </button>
-            </div>
-            <div class="startup-status" id="startup-status">클라우드 연결 상태를 확인하는 중입니다.</div>
+            <details class="startup-social-login" id="startup-social-login">
+                <summary>소셜 로그인</summary>
+                <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
+                    <button id="btn-startup-google" class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
+                        <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
+                        <span>Sign in with Google</span>
+                    </button>
+                    <button id="btn-startup-kakao" class="social-login-image-btn" onclick="loginWithKakao()">
+                        <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
+                    </button>
+                </div>
+            </details>
+            <div class="startup-status" id="startup-status" role="status"></div>
             <div class="startup-policy-links"><a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a><span>·</span><a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></div>
         </div>
     </div>
 </div>
-<dialog id="startup-about-dialog" aria-labelledby="startup-about-title" aria-describedby="startup-about-description">
-    <h2 id="startup-about-title">RIGNIN은 어떤 게임인가요?</h2>
-    <figure class="startup-about-preview">
-        <video id="startup-about-video" muted loop playsinline disablepictureinpicture preload="none" aria-label="비술사가 몬스터 처치 후 레벨업하는 실제 게임 영상, 2초"></video>
-    </figure>
-    <p id="startup-about-description">액션 롤플레잉 게임(ARPG)의 요소에 자동사냥 방치형 게임의 요소를 결합한 게임입니다. 루프하며 새로운 컨텐츠를 해금하고 강력한 캐릭터를 육성해보세요!</p>
-    <p id="startup-about-status" role="status" hidden>영상을 재생할 수 없어 실제 전투 이미지를 표시합니다.</p>
-    <button type="button" autofocus onclick="this.closest('dialog').close()">알겠어요!</button>
-</dialog>
 <div id="loading-overlay" class="loading-overlay">
     <div class="loading-card" role="dialog" aria-modal="true" aria-labelledby="loading-title">
         <div class="loading-sigil" aria-hidden="true">
@@ -1812,7 +1803,6 @@
 <script defer src="js/save-migrations.js?v=20260905-runtime1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&content-choice=20260906-1&display=20260906-1&flow=20260906-1&treasure=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260907-2&unlock-path=20260908-1&route=20260909-8&level-progression=20260911-1&unique-equipment=20260913-1&content-resume=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&expedition-result=20260914-2&death-report=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-1"></script>
     <script defer src="js/build-feedback-ui.js?v=20260905-runtime1&refinement=20260906-1"></script>
 <script defer src="js/combat-replay.js?v=20260905-runtime1&thermal=20260907-1&realm-ui=20260907-1&route=20260909-2"></script>
-<script defer src="js/startup-ui.js?v=20260907-1"></script>
 <script defer src="js/android-app-ui.js?v=20260907-1&thermal=20260907-1&popup-layer=20260911-1"></script>
 <script defer src="js/dev-test-panel-ui.js?v=20260929-1"></script>
 <script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1"></script>

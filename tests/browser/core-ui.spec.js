@@ -79,7 +79,9 @@ test('login preloads bounded battle assets without frame polling and resumes aft
     await page.waitForTimeout(700);
     expect(await page.evaluate(() => observedFrames)).toBe(frames);
     expect(battleRequests.length).toBe(preparedRequests);
-    expect(await page.locator('#startup-about-video').evaluate(video => video.paused)).toBe(true);
+    // Social sign-in stays folded until asked for; the brand buttons are inside it.
+    await expect(page.locator('#startup-social-login')).not.toHaveAttribute('open', /.*/);
+    await expect(page.locator('#btn-startup-google')).toBeHidden();
     await page.locator('#btn-startup-guest').click();
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
     await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();

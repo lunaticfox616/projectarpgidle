@@ -89,6 +89,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 ) { font-size: 12px; }
 :root body[data-ui-skin] :is(.tab-content, .ui-window) small { font-size: 12px; }
 :root body[data-ui-skin] #startup-overlay .startup-summary-card { padding: 12px 14px; }
+:root body[data-ui-skin] #startup-overlay .startup-patch-note-link { border: 0; background: none; box-shadow: none; color: var(--px-gold); text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] #startup-overlay .startup-patch-note-link:hover { color: var(--px-gold-bright); text-decoration: underline; }
 /* 장비 세팅 칸: 도트 글꼴은 폭이 넓어 번호 배지를 빼고("세팅 1"에 이미 번호가 있다) 이름·상태를 한 줄씩 */
 :root body[data-ui-skin] .equipment-preset-slot { grid-template-columns: minmax(0, 1fr); padding: 4px 6px; }
 :root body[data-ui-skin] .equipment-preset-slot > span { display: none; }
@@ -131,7 +133,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .ui-rail-external-controls button,
 :root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay) button,
 :root body[data-ui-skin] .game-dialog-btn,
-:root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost) {
+:root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost, .startup-social-login > summary) {
   border: 2px solid var(--px-ink);
   background: var(--px-dither), var(--px-stone-control);
   box-shadow: var(--px-bevel);
@@ -146,7 +148,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .ui-rail-external-controls button:hover,
 :root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay) button:hover,
 :root body[data-ui-skin] .game-dialog-btn:hover:not(:disabled),
-:root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost):hover:not(:disabled) {
+:root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost):hover:not(:disabled),
+:root body[data-ui-skin] #startup-overlay .startup-social-login > summary:hover {
   background: var(--px-dither), #30281e;
   color: var(--px-gold-bright);
 }
@@ -162,13 +165,14 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #startup-overlay .startup-primary:hover:not(:disabled),
 :root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary:hover:not(:disabled) { background: var(--px-dither), #dcb66c; color: #0f0b05; }
 :root body[data-ui-skin] :is(.game-dialog-btn, #startup-overlay :is(.startup-primary, .startup-secondary, .startup-ghost)):active:not(:disabled) { box-shadow: var(--px-bevel-pressed); }
-/* 구글·카카오 로그인 버튼은 각 사의 표기 규정대로 원래 글꼴을 둔다. */
-:root body[data-ui-skin] #startup-overlay :is(#btn-startup-google, #btn-startup-kakao) { font-family: 'IBM Plex Sans KR', 'Malgun Gothic', system-ui, sans-serif; }
+/* 구글 로그인 버튼은 구글 표기 규정의 글꼴(Google Sans, css/startup.css)을 그대로 둔다. 카카오는 공식 그림 버튼. */
+:root body[data-ui-skin] #startup-overlay #btn-startup-google { font-family: 'Google Sans', sans-serif; }
 /* 시작 화면의 로그인 판·저장 정보 */
 :root body[data-ui-skin] #startup-overlay :is(.startup-panel.auth, .startup-summary-card) {
   border: 6px solid transparent;
   border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
   border-radius: 0;
+  background: var(--px-dither), rgba(16, 13, 10, .93);
   background-clip: padding-box;
   box-shadow: var(--px-drop);
   image-rendering: pixelated;

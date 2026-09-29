@@ -72,7 +72,7 @@ assert(latestPatchDate && html.includes(`aria-hidden="true">(${latestPatchDate})
 const elements = {
     'startup-signup-consent': { hidden: true },
     'btn-startup-signup': {
-        innerText: '회원가입 후 시작',
+        innerText: '회원가입',
         attributes: {},
         setAttribute(name, value) { this.attributes[name] = value; }
     },

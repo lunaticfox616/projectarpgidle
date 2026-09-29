@@ -52,7 +52,7 @@ assert.strictEqual(run(`pixelIconPath(${JSON.stringify(jewel)})`), jewel, 'the p
 assert.strictEqual(run("getEquipmentGridVisualAsset({ slot: '반지' })"), 'assets/items/illustrated/copper_ring.webp');
 run("game.settings.iconArtStyle = undefined;");
 assert.strictEqual(run("getEquipmentGridVisualAsset({ slot: '반지' })"), 'assets/px/items/illustrated/copper_ring.png', 'pixel copies are the default');
-assert.strictEqual(run("pixelIconPath('assets/ui/login-world-tree.webp')"), 'assets/ui/login-world-tree.webp', 'art without a copy is untouched');
+assert.strictEqual(run("pixelIconPath('assets/background/act1.png')"), 'assets/background/act1.png', 'art without a copy is untouched');
 assert.strictEqual(run("pixelIconPath('')"), '', 'an empty path stays empty');
 assert.strictEqual(run("normalizeIconArtStyle('weird')"), 'pixel');
 

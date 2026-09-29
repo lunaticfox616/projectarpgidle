@@ -13375,6 +13375,13 @@ function getCurrentZoneLabel() {
     return zone && zone.name ? zone.name : '액트 1: 버려진 해안';
 }
 
+// 시작 화면에는 오류·진행 결과만 적는다. 가만히 있을 때의 안내("로그인하면 …")는 버튼만으로 충분하다.
+const STARTUP_IDLE_MESSAGES = new Set(['설정 전', '로그인하면 클라우드 저장을 사용할 수 있습니다.', '시작 화면을 다시 열었습니다.']);
+function getStartupStatusText() {
+    const message = cloudState.lastMessage || '';
+    return STARTUP_IDLE_MESSAGES.has(message) ? '' : message;
+}
+
 function updateStartupScreenUI() {
     let overlay = document.getElementById('startup-overlay');
     if (!overlay) return;
@@ -13384,7 +13391,7 @@ function updateStartupScreenUI() {
     let statusEl = document.getElementById('startup-status');
     let authFormEl = document.getElementById('startup-auth-form');
     let authActionsEl = document.getElementById('startup-auth-actions');
-    let socialActionsEl = document.getElementById('startup-social-actions');
+    let socialActionsEl = document.getElementById('startup-social-login');
     let continueBtn = document.getElementById('btn-startup-continue');
     let switchBtn = document.getElementById('btn-startup-switch-account');
     let guestBtn = document.getElementById('btn-startup-guest');
@@ -13399,7 +13406,7 @@ function updateStartupScreenUI() {
     let loopLabel = Math.max(1, Math.floor((game && game.season) || 1));
     if (localSummaryEl) localSummaryEl.innerText = `Lv.${game.level || 1} · 루프 ${loopLabel} · ${zoneLabel}`;
     if (localTimeEl) localTimeEl.innerText = formatCloudTime(localStamp);
-    if (statusEl) statusEl.innerHTML = `<strong>안내</strong><br>${cloudState.lastMessage || '시작 방식을 선택해주세요.'}`;
+    if (statusEl) statusEl.textContent = getStartupStatusText();
     if (backBtn) {
         backBtn.style.display = gameplayStarted ? 'block' : 'none';
         backBtn.disabled = cloudState.busy;
@@ -13408,7 +13415,7 @@ function updateStartupScreenUI() {
     if (!config.enabled) {
         if (authFormEl) authFormEl.classList.remove('hidden');
         if (authActionsEl) authActionsEl.style.display = 'grid';
-        if (socialActionsEl) socialActionsEl.style.display = 'grid';
+        if (socialActionsEl) socialActionsEl.style.display = '';
         if (continueBtn) continueBtn.style.display = 'none';
         if (switchBtn) switchBtn.style.display = 'none';
         if (loginBtn) loginBtn.disabled = true;
@@ -13438,7 +13445,7 @@ function updateStartupScreenUI() {
 
     if (authFormEl) authFormEl.classList.remove('hidden');
     if (authActionsEl) authActionsEl.style.display = 'grid';
-    if (socialActionsEl) socialActionsEl.style.display = 'grid';
+    if (socialActionsEl) socialActionsEl.style.display = '';
     if (continueBtn) continueBtn.style.display = 'none';
     if (switchBtn) switchBtn.style.display = 'none';
     if (loginBtn) loginBtn.disabled = cloudState.busy;
@@ -13890,7 +13897,7 @@ function setStartupRegistrationMode(active) {
     let signupBtn = document.getElementById('btn-startup-signup');
     if (consent) consent.hidden = !active;
     if (!signupBtn) return;
-    signupBtn.innerText = active ? '동의하고 회원가입' : '회원가입 후 시작';
+    signupBtn.innerText = active ? '동의하고 회원가입' : '회원가입';
     signupBtn.setAttribute('aria-expanded', String(active));
 }
 
