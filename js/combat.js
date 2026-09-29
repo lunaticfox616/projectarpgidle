@@ -9172,6 +9172,8 @@ function handleEnemyDeath(enemy, pStats) {
     // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
     if (!liveRef || liveRef.hp > 0) return;
     enemy = liveRef;
+    // Retire the victim before rewards or corpse explosions can recursively report it again.
+    game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.erosionLegacy) {
         let inheritedErosion = Math.floor(Math.max(0, Number(enemy.chaosErosionShred) || 0) * 0.5);
         if (inheritedErosion > 0) game.passiveChaosErosionTransfer = inheritedErosion;
@@ -9313,7 +9315,6 @@ function handleEnemyDeath(enemy, pStats) {
             if (target.hp <= 0) handleEnemyDeath(target, pStats);
         });
     }
-    game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     if (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') delete game.enemyWitherStacks[enemy.id];
     clearDotFxThrottleForEnemy(enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
@@ -10377,7 +10378,8 @@ function applySkillGemCommand(command,stats) {
 function applySkillGemDot(command,targets) {
     for (const enemy of targets) {
         const stats=command.stats,mitigation=getEffectiveEnemyMitigation('chaos',getZone(game.currentZoneId).tier,enemy,stats);
-        const damage=applyDamageToEnemyResource(enemy,Math.max(1,Math.floor(stats.baseDmg*stats.dotDamageScale*(1-mitigation/100))));
+        const attackMultiplier=command.attackOptions?.attackDamageMultiplier ?? 1;
+        const damage=applyDamageToEnemyResource(enemy,Math.max(1,Math.floor(stats.baseDmg*stats.dotDamageScale*attackMultiplier*(1-mitigation/100))));
         addBattleFx('hit',{enemyId:enemy.id,damage,element:'chaos',color:getElementColor('chaos'),duration:240,
             noLine:true,dot:true,resolvedSkillContact:true});
         if (enemy.hp<=0) handleEnemyDeath(enemy,stats);
@@ -10498,30 +10500,26 @@ function performPlayerAttack(pStats, attackOptions) {
     if (!isStageReplay && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
         recordElementalistOverloadAttack(isCrit);
     }
-    let baseDamage = pStats.baseDmg;
     if (currentFanaticismStacks !== previousFanaticismStacks) {
         let previousMultiplier = 1 + previousFanaticismStacks * 0.015;
         let currentMultiplier = 1 + currentFanaticismStacks * 0.015;
-        baseDamage = Math.floor(baseDamage * currentMultiplier / previousMultiplier);
+        colosseumStrikeMul *= currentMultiplier / previousMultiplier;
     }
     let riderCompassReady = !!(pStats.uniqueRiderCompass && (game.lastMoveEndedAt || 0) > 0 && !game.uniqueRiderCompassConsumed);
-    if (isCrit) {
-        baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
-        if (skillName === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
-    }
+    // This multiplier travels with the cast. Per-contact critical rolls remain in the hit resolver.
     // 피의 계약(워록 wlk7): 공격마다 생명력의 4%를 소모 가능하면 소모하여 해당 공격의 피해를 1.5배로 만든다.
     if (!isStageReplay && game.ascendClass === 'warlock' && hasKeystone('wlk7')) {
         let bloodPactCost = Math.floor((pStats.maxHp || game.playerHp || 1) * 0.04);
         if (bloodPactCost > 0 && (game.playerHp || 0) > bloodPactCost) {
             game.playerHp -= bloodPactCost;
-            baseDamage = Math.floor(baseDamage * 1.5);
+            colosseumStrikeMul *= 1.5;
         }
     }
     // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+저항관통+치명타 피해 배율)% 사이에서 균등 분포로 결정된다.
     if (!isStageReplay && game.ascendClass === 'warlock' && hasKeystone('wlk6')) {
         let singularityMaxPct = 100 + Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0);
         let singularityPct = 100 + Math.random() * Math.max(0, singularityMaxPct - 100);
-        baseDamage = Math.floor(baseDamage * (singularityPct / 100));
+        colosseumStrikeMul *= singularityPct / 100;
     }
     let getHitElement = () => {
         let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;
