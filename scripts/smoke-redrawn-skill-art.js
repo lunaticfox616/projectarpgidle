@@ -12,8 +12,12 @@ const reference = vm.createContext({ Math, Object, Array, Map, Set, Number, Stri
 vm.runInContext(fs.readFileSync(path.join(root, 'docs/skill-assets-hana/reference/void_fx.js.txt'), 'utf8'), reference);
 const portContext = vm.createContext({ Math, Object, Array, Map, Set, Number, String, safeExposeGlobals(map) { Object.assign(portContext, map); } });
 vm.runInContext(fs.readFileSync(path.join(root, 'js/canvas-redrawn-skill-art.js'), 'utf8'), portContext);
+vm.runInContext(fs.readFileSync(path.join(root, 'js/canvas-redrawn-skill-art-extra.js'), 'utf8'), portContext);
+vm.runInContext(fs.readFileSync(path.join(root, 'js/canvas-redrawn-skill-art-moves.js'), 'utf8'), portContext);
 const art = portContext.redrawnSkillArt;
+const extra = { ...portContext.redrawnSkillArtExtra, ...portContext.redrawnSkillArtMoves };
 assert(art, 'redrawnSkillArt must be exposed');
+assert(portContext.redrawnSkillArtExtra && portContext.redrawnSkillArtMoves, 'the 09-30 art modules must be exposed');
 
 function record(call) {
     const dots = new Map();
@@ -31,7 +35,7 @@ function same(label, refCall, portCall) {
     for (const [key, colour] of a.dots) if (b.dots.get(key) !== colour) assert.fail(`${label}: dot ${key} ${colour} ≠ ${b.dots.get(key)}`);
 }
 const R = name => reference[name.split('.')[0]][name.split('.')[1]];
-const P = name => art[name.split('.')[0]][name.split('.')[1]];
+const P = name => (art[name.split('.')[0]] || extra[name.split('.')[0]])[name.split('.')[1]];
 const range = (from, to, step) => { const out = []; for (let t = from; t <= to; t += step) out.push(t); return out; };
 const DIRS = range(0, 7, 1).map(k => ({ x: Math.cos(k * Math.PI / 4 + 0.13), y: Math.sin(k * Math.PI / 4 + 0.13) }));
 const AXES = [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }, { x: Math.SQRT1_2, y: -Math.SQRT1_2 }];
@@ -122,6 +126,59 @@ for (const o of [{}, { T: 3000, F: 300, R: 30, amp: 2, n: 10, ticks: [500, 1500]
 }
 for (const age of range(-5, 210, 6)) same(`clockMark ${age}`, d => R('CelticClock.mark')(d, 44.5, 20.5, age), d => P('CelticClock.mark')(d, 44.5, 20.5, age));
 for (const age of range(0, 6000, 250)) assert.strictEqual(art.CelticClock.angle(age), reference.CelticClock.angle(age));
+
+// ---------------------------------------------------------------- 09-30 additions (js/canvas-redrawn-skill-art-extra.js)
+const CELLS = [{ gx: 3, gy: 2 }, { gx: 4, gy: 2 }, { gx: 5, gy: 2 }, { gx: 2, gy: 2 }, { gx: 1, gy: 2 }, { gx: 3, gy: 1 }, { gx: 3, gy: 0 }, { gx: 3, gy: 3 }, { gx: 3, gy: 4 }];
+for (const C of TARGETS) for (const age of range(-5, 330, 11)) same(`mineToss ${age}`, d => R('RuneMine.toss')(d, { x: 40, y: 40 }, C, age, 320), d => P('RuneMine.toss')(d, { x: 40, y: 40 }, C, age, 320));
+for (const arm of [460, 300]) for (const age of range(-5, 470, 7)) same(`mineSigil ${arm} ${age}`, d => R('RuneMine.sigil')(d, 56.4, 40.6, age, arm), d => P('RuneMine.sigil')(d, 56.4, 40.6, age, arm));
+for (const [cx, cy] of [[3, 2], [0, 7], [8, 0], [5, 5]]) for (const o of [{}, { arm: 3, reachMs: 70 }]) for (const age of range(-5, 560, 9)) {
+    const cells = CELLS.map(c => ({ gx: c.gx + cx - 3, gy: c.gy + cy - 2 }));
+    same(`mineBlast ${cx},${cy} ${age}`, d => R('RuneMine.blast')(d, cx, cy, cells, age, o), d => P('RuneMine.blast')(d, { gx: cx, gy: cy }, cells, age, o));
+}
+for (let cx = 0; cx < 9; cx++) for (let cy = 0; cy < 8; cy++) for (const [tx, ty] of [[cx, cy], [cx + 1, cy], [cx - 2, cy], [cx, cy - 1], [cx, cy + 2]]) {
+    assert.strictEqual(extra.RuneMine.runeFor(cx, cy, tx, ty), reference.RuneMine.runeFor(cx, cy, tx, ty), `runeFor ${cx},${cy} -> ${tx},${ty}`);
+}
+for (const o of [{}, { dur: 120 }]) for (const age of range(-5, 200, 4)) same(`bloodCondense ${age}`, d => R('BloodBurst.condense')(d, 40.4, 38.7, age, o), d => P('BloodBurst.condense')(d, 40.4, 38.7, age, o));
+for (const o of [{}, { dr: 1 }, { skip: [1, 0] }, { dr: 2, skip: [0, -1] }]) for (const age of range(-5, 470, 6)) {
+    same(`bloodBurst ${JSON.stringify(o)} ${age}`, d => R('BloodBurst.burst')(d, 56.5, 40.3, age, o), d => P('BloodBurst.burst')(d, 56.5, 40.3, age, o));
+}
+for (const age of range(-5, 910, 13)) same(`bloodStains ${age}`, d => R('BloodBurst.stains')(d, 40.6, 42.2, age), d => P('BloodBurst.stains')(d, 40.6, 42.2, age));
+for (const el of ['fire', 'cold', 'light', 'phys', 'chaos', 'spectral', 'none']) for (const T of TARGETS) {
+    assert.deepStrictEqual({ ...extra.WispAttack.timing(el, { x: 40, y: 44 }, T) }, { ...reference.WispAttack.timing(el, { x: 40, y: 44 }, T) }, `wispTiming ${el}`);
+    for (const age of range(-5, 1100, 17)) {
+        same(`wispAttack ${el} ${T.x},${T.y} ${age}`, d => R('WispAttack.attack')(d, el, { x: 40, y: 44 }, T, age), d => P('WispAttack.attack')(d, el, { x: 40, y: 44 }, T, age));
+        same(`wispMist ${el} ${age}`, d => R('WispAttack.mist')(d, el, { x: 40, y: 44 }, T, age), d => P('WispAttack.mist')(d, el, { x: 40, y: 44 }, T, age));
+    }
+}
+for (const age of range(-5, 180, 4)) same(`frostBurst ${age}`, d => R('FrostMist.burst')(d, 40, 38, age), d => P('FrostMist.burst')(d, 40, 38, age));
+for (const o of [{}, { seed: 3, dx: 1, dy: 0, spin: -1 }, { life: 900, seed: 11, dx: -0.6, dy: 0.8 }]) for (const age of range(-5, 1320, 23)) {
+    same(`frostMist ${JSON.stringify(o)} ${age}`, d => R('FrostMist.mist')(d, 56, 41, age, o), d => P('FrostMist.mist')(d, 56, 41, age, o));
+}
+for (const o of [{ start: 200, end: 1100, ticks: [300, 560, 820] }, { start: 0, end: 600, ticks: [100], R: 38 }]) for (const age of range(-10, 1520, 19)) {
+    same(`vortex ${o.end} ${age}`, d => R('FireVortex.ground')(d, 56, 40, age, o), d => P('FireVortex.ground')(d, 56, 40, age, o));
+}
+for (const Rr of [16, 32, 48]) for (const age of range(-5, 260, 5)) same(`coolRing ${Rr} ${age}`, d => R('SuperCool.ring')(d, 72, 56, age, Rr), d => P('SuperCool.ring')(d, 72, 56, age, Rr));
+for (const life of [900, 400]) for (const age of range(-5, 910, 13)) same(`coolStar ${life} ${age}`, d => R('SuperCool.star')(d, 40, 40, age, life), d => P('SuperCool.star')(d, 40, 40, age, life));
+for (const o of [{ closeAt: 300 }, { closeAt: 120 }]) for (const age of range(-5, 400, 5)) same(`rift ${o.closeAt} ${age}`, d => R('Mobility4.rift')(d, 40, 56, age, o), d => P('Mobility4.rift')(d, 40, 56, age, o));
+for (const dr of [0, 1]) for (const age of range(-5, 270, 6)) same(`riftBurst ${dr} ${age}`, d => R('Mobility4.riftBurst')(d, 56, 40, age, dr), d => P('Mobility4.riftBurst')(d, 56, 40, age, dr));
+for (const o of [{}, { seed: 9 }]) for (const life of [900, 700]) for (const age of range(-5, 910, 11)) {
+    same(`smoke ${life} ${age}`, d => R('Mobility4.smoke')(d, 40.5, 56, age, life, o), d => P('Mobility4.smoke')(d, { x: 40.5, foot: 56 }, age, life, o));
+}
+for (const ang of [0, 0.4, 1.9, -2.6, Math.PI]) same(`harpoon ${ang}`, d => R('Mobility4.harpoon')(d, 60.4, 30.6, ang), d => P('Mobility4.harpoon')(d, 60.4, 30.6, ang));
+for (const T of TARGETS) for (const [sag, wob] of [[0, 0], [3, 0], [0, 1], [2, -1]]) {
+    same(`rope ${sag},${wob}`, d => R('Mobility4.rope')(d, 40.3, 44.6, T.x, T.y, sag, wob), d => P('Mobility4.rope')(d, { x: 40.3, y: 44.6 }, T, { sag, wob }));
+}
+for (const pal of [undefined, { W: '#ffffff', H: '#fae4ff', L: '#d093ee' }]) for (const age of range(-5, 160, 5)) same(`strikeStar ${age}`, d => R('Mobility4.strikeStar')(d, 40, 40, age, pal), d => P('Mobility4.strikeStar')(d, 40, 40, age, pal));
+for (const age of range(-5, 250, 6)) same(`dustPuff ${age}`, d => R('Mobility4.dustPuff')(d, 40.5, 56, age, 1), d => P('Mobility4.dustPuff')(d, 40.5, 56, age, 1));
+for (const o of [{}, { seed: 3, dr: 1 }]) for (const age of range(-5, 530, 7)) same(`slamGround ${age}`, d => R('Mobility4.slamGround')(d, 56, 40, age, o), d => P('Mobility4.slamGround')(d, 56, 40, age, o));
+for (const age of range(-5, 390, 6)) same(`slamFore ${age}`, d => R('Mobility4.slamFore')(d, 56, 44, age), d => P('Mobility4.slamFore')(d, 56, 44, age));
+assert.deepStrictEqual(JSON.parse(JSON.stringify(extra.RuneMine.runes)), JSON.parse(JSON.stringify(reference.RuneMine.runes)), 'rune strokes');
+for (const module of ['RuneMine', 'BloodBurst', 'FrostMist', 'FireVortex', 'SuperCool', 'Mobility4']) {
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(extra[module].colors)), JSON.parse(JSON.stringify(reference[module].colors)), `${module} colours`);
+}
+assert.deepStrictEqual({ ...extra.WispAttack.wood }, { ...reference.WispAttack.wood });
+assert.strictEqual(extra.FrostMist.life, reference.FrostMist.life);
+assert.strictEqual(extra.FireVortex.fade, reference.FireVortex.fade);
 
 // Colour tables other modules and the pass rely on are the delivered ones.
 for (const module of ['VoidBolt', 'FrostRing', 'EnergyWave', 'DragonSweep', 'HolyMist', 'Whirlwind', 'GravityCollapse', 'TripleBolt', 'RippleSwing', 'BloodDrain', 'GoldQuake', 'CelticClock']) {

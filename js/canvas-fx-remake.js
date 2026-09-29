@@ -12,7 +12,8 @@ const fxRemake = (() => {
     const BLOCK = 3;
     const DROP_BELOW = 0.3;
     const DIM_BELOW = 0.7;
-    const RING_IDS = new Set([2, 12, 13, 17, 26, 27, 34, 37, 47]);
+    // 17 혈기 폭쇄 and 37 룬 지뢰 bring their own shock ring (js/canvas-redrawn-skill-fx.js owns their stages).
+    const RING_IDS = new Set([2, 12, 13, 26, 27, 34, 47]);
     const QUIET_ASSASSIN = new Set(['vanish', 'arrive', 'dagger']);
     const ELEMENT_RAMPS = {
         phys: ['#353844', '#7f899d', '#c4d5df', '#fff3d3'], fire: ['#572c31', '#c14936', '#ff963e', '#fff1b8'],
@@ -149,7 +150,7 @@ const fxRemake = (() => {
     }
     /** One expanding 1-dot ring for each burst stage (240ms, 9→43px), never on the caster's own cell. */
     function hasRing(e, spec) {
-        return !!scope && RING_IDS.has(spec?.id) && e.kind === 'stage' && !(spec.id === 17 && !e.stageIndex);
+        return !!scope && RING_IDS.has(spec?.id) && e.kind === 'stage';
     }
     function ring(e, now, spec) {
         const age = now - e.at;

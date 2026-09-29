@@ -29,7 +29,7 @@ const claims = plain(run(`(function () {
     }
     return out;
 })()`));
-assert.strictEqual(Object.keys(claims).length, 17, 'seventeen gems are redrawn');
+assert.strictEqual(Object.keys(claims).length, 22, 'twenty-two gems are redrawn');
 for (const [id, got] of Object.entries(claims)) {
     const n = Number(id);
     if (n === 50) {
@@ -38,8 +38,10 @@ for (const [id, got] of Object.entries(claims)) {
     }
     if (n === 21) assert.deepStrictEqual([got.travel, got.stage, got.hit], [true, false, true], '21 서리 파동 replaces its travel and hits');
     else if (n === 51) assert.deepStrictEqual([got.stage, got.hit], [true, false], '51 파문심판 replaces the censer stage only');
+    else if (n === 30) assert.deepStrictEqual([got.travel, got.stage, got.hit], [false, false, true], '30 빙결 파열창 keeps its spear; its hits become frost mist');
+    else if (n === 48) assert.deepStrictEqual([got.travel, got.stage, got.hit], [false, true, false], '48 과냉각 혼합물 keeps the flask and hit sparks; the cloud ring goes');
     else assert.strictEqual(got.stage && got.hit, true, `${id}: stage and hit sprites belong to the redrawn art`);
-    if ([3, 33].includes(n)) assert.strictEqual(got.windup, true, `${id}: the redrawn art owns the windup`);
+    if ([3, 16, 33, 37].includes(n)) assert.strictEqual(got.windup, true, `${id}: the redrawn art owns the windup`);
 }
 
 const nonRedrawn = run(`redrawnSkillFx.claim({ kind: 'stage', skillName: '연속 베기', at: 0, duration: 100 }, SKILL_FX_ATLAS['연속 베기'])`);
@@ -107,6 +109,68 @@ const hidden = plain(run(`(function () {
     return [1999, 2000, 2699, 2700, 5100].map(now => redrawnSkillFx.weaponHidden(now));
 })()`));
 assert.deepStrictEqual(hidden, [false, true, true, false, false], 'the censer phase of 파문심판 hides the carried weapon; other gems do not');
+
+// ---------------------------------------------------------------- the 09-30 drawers paint their casts
+// A recording buffer stands in for the remake pass: each dot is one fillRect at (board dot × 3) in buffer px.
+const paint = plain(run(`(function () {
+    const pts = [];
+    const ctx = { setTransform() {}, fillRect(x, y) { pts.push([x, y]); }, clearRect() {}, drawImage() {}, save() {}, restore() {} };
+    document.createElement = () => ({ width: 0, height: 0, getContext: () => ctx });
+    const target = { canvas: { dataset: {}, clientWidth: 432, clientHeight: 384, width: 432, height: 384 }, getTransform() { return {}; } };
+    const projection = { tileW: 48, tileH: 48, actorGroundOffsetY: 0, cellToScreen: (gx, gy) => ({ x: 24 + gx * 48, y: 24 + gy * 48 }) };
+    const src = { gx: 1, gy: 3 }, aim = { gx: 4, gy: 3 }, side = { gx: 4, gy: 2 };
+    const area = r => ({ center: aim, radius: r, cells: [aim, side, { gx: 5, gy: 3 }, { gx: 3, gy: 3 }, { gx: 4, gy: 4 }] });
+    const hit = (at, cell, extra) => ({ kind: 'hit', at, duration: 320, targetCells: [cell || aim], ...extra });
+    function cast(skillName, events) {
+        redrawnSkillFx.reset();
+        for (const e of events) redrawnSkillFx.claim({ skillName, sourceCell: src, targetCells: [aim], groupId: 'p', ...e }, SKILL_FX_ATLAS[skillName], 'visual');
+    }
+    function dots(layer, now) {
+        pts.length = 0;
+        fxRemake.begin(target, projection);
+        redrawnSkillFx.drawLayer(layer, now);
+        fxRemake.discard();
+        return pts.length;
+    }
+    function meanX(layer, now) { dots(layer, now); return pts.reduce((sum, p) => sum + p[0], 0) / Math.max(1, pts.length); }
+    const out = {};
+    cast('혈기 폭쇄', [{ kind: 'stage', at: 1000, duration: 160, stageIndex: 0, footprint: area(0) }, { kind: 'stage', at: 1160, duration: 240, stageIndex: 1, footprint: area(1) }, hit(1000), hit(1160, side)]);
+    out.burst = { condense: dots('fore', 1060), burst: dots('fore', 1200), stainsEarly: dots('ground', 1100), stains: dots('ground', 1400) };
+    cast('화염 폭풍핵', [{ kind: 'stage', at: 1000, duration: 840, footprint: area(1) }, hit(1040), hit(1040, side), hit(1300), hit(1300, side)]);
+    out.vortex = { turning: dots('ground', 1400), gone: dots('ground', 2400), flames: dots('fore', 1100) };
+    cast('빙결 파열창', [hit(1000, aim, { sourceCell: src })]);
+    out.mist = { burst: dots('fore', 1050), burstGone: dots('fore', 1300), mist: dots('ground', 1500), mistGone: dots('ground', 2400) };
+    cast('룬 지뢰', [{ kind: 'windup', at: 1000, duration: 820, footprint: area(2) }, { kind: 'stage', at: 1820, duration: 260, footprint: area(2) }]);
+    out.mine = { beforeLanding: dots('ground', 1300), sigil: dots('ground', 1500), toss: dots('fore', 1300), blast: dots('fore', 1900) };
+    cast('과냉각 혼합물', [{ kind: 'stage', at: 1000, duration: 860, supercooledPhase: 'wave', ringInterval: 260, landingCell: aim }]);
+    out.cool = { ring1: dots('ground', 1060), ring3: dots('ground', 1580), gone: dots('ground', 1800), flash: dots('fore', 1040) };
+    const slash = { kind: 'stage', at: 1000, duration: 240, targetCells: [{ gx: 4, gy: 3 }] };
+    cast('공허 베기', [slash]);
+    const crescentOnly = [dots('fore', 1060), dots('fore', 1160)];
+    cast('공허 베기', [slash, hit(1000, { gx: 2, gy: 3 }), hit(1030, { gx: 3, gy: 3 })]);
+    out.crescent = { crescentOnly, withHits: [dots('fore', 1060), dots('fore', 1160)] };
+    cast('회오리바람', [hit(1000, { gx: 2, gy: 3 }, { sourceCell: src }), hit(1080, { gx: 1, gy: 2 }, { sourceCell: src })]);
+    battleVisualState.playerPos = { x: 24 + 1 * 48, y: 24 + 3 * 48 };
+    const atStart = meanX('fore', 1300);
+    battleVisualState.playerPos = { x: 24 + 5 * 48, y: 24 + 3 * 48 };
+    out.whirl = { shift: meanX('fore', 1300) - atStart };
+    battleVisualState.playerPos = null;
+    redrawnSkillFx.reset();
+    return out;
+})()`));
+assert(paint.burst.condense > 0 && paint.burst.burst > 0, '17 혈기 폭쇄: the blood gathers, then bursts');
+assert.strictEqual(paint.burst.stainsEarly, 0, 'no stains before the burst');
+assert(paint.burst.stains > 0, 'the burst leaves stains on the ground layer');
+assert(paint.vortex.turning > 0 && paint.vortex.flames > 0, '29 화염 폭풍핵: the vortex turns on the ground, flames on the struck cells');
+assert.strictEqual(paint.vortex.gone, 0, 'the vortex winds down after the field ends');
+assert(paint.mist.burst > 0 && paint.mist.mist > 0, '30 빙결 파열창: a frost flash, then mist on the floor');
+assert.deepStrictEqual([paint.mist.burstGone, paint.mist.mistGone], [0, 0], 'the flash and the mist both clear');
+assert.strictEqual(paint.mine.beforeLanding, 0, '37 룬 지뢰: no sigil before the spark lands');
+assert(paint.mine.sigil > 0 && paint.mine.toss > 0 && paint.mine.blast > 0, 'the spark is tossed, the sigil arms, the cross blasts');
+assert(paint.cool.ring1 > 0 && paint.cool.ring3 > 0 && paint.cool.flash > 0, '48 과냉각 혼합물: a frost flash and one thin ring per ring hit');
+assert.strictEqual(paint.cool.gone, 0, 'the rings and the frost star clear after the last ring');
+assert.deepStrictEqual(paint.crescent.withHits, paint.crescent.crescentOnly, '16 공허 베기 draws the crescent only — no marks on the struck cells');
+assert(Math.abs(paint.whirl.shift - 4 * 16 * 3) < 1, `5 회오리바람: the blade wind follows the caster (moved ${paint.whirl.shift}px for 4 cells)`);
 
 // ---------------------------------------------------------------- outside a frame
 assert.doesNotThrow(() => run(`redrawnSkillFx.drawLayer('fore', 1000); redrawnSkillFx.drawLayer('ground', 1000);`),

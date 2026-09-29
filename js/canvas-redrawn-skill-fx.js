@@ -1,4 +1,4 @@
-/** 새로 그린 스킬 이펙트 17종을 실제 전투 이벤트에 연결한다 (인계 ui_player.js의 젬별 draw 함수를 게임용으로 옮김).
+/** 새로 그린 스킬 이펙트 22종을 실제 전투 이벤트에 연결한다 (인계 ui_player.js의 젬별 draw 함수를 게임용으로 옮김, 09-30 변경분 포함).
  * The world-tree renderer offers every event it is about to draw to claim(). Events a redrawn gem replaces (the handoff's
  * customSkip) are collected per cast — one attack's stage/travel/hit events, keyed by its damage group or channel — and
  * that gem's drawer paints the whole cast into the remake pass once per frame (ground layer under the actors, the rest in
@@ -6,9 +6,12 @@
  * schedules, resolves or applies damage.
  */
 const redrawnSkillFx = (() => {
-    const IDS = new Set([3, 5, 10, 16, 18, 21, 28, 32, 33, 38, 41, 42, 43, 45, 46, 50, 51]);
+    const IDS = new Set([3, 5, 10, 16, 17, 18, 21, 28, 29, 30, 32, 33, 37, 38, 41, 42, 43, 45, 46, 48, 50, 51]);
     const REPLACED = { 3: ['windup', 'stage', 'hit'], 33: ['windup', 'stage', 'hit'], 21: ['travel', 'hit'],
-        45: ['travel', 'stage', 'hit'], 38: ['travel', 'stage', 'hit'], 51: ['stage'] };
+        45: ['travel', 'stage', 'hit'], 38: ['travel', 'stage', 'hit'], 51: ['stage'], 16: ['windup', 'stage', 'hit'], 37: ['windup', 'stage', 'hit'],
+        // 빙결 파열창 keeps its redrawn spear (fxRemake.projectile) and only its hits turn to frost mist; 과냉각 혼합물 keeps
+        // its flask flight and hit sparks and only its heavy cloud ring (the wave stage) becomes thin frost rings.
+        30: ['hit'], 48: ['stage'] };
     const CAST_LIMIT = 48;
     const TAIL_MS = 1400;
     const SPIN = ['east', 'south', 'west', 'north'];
@@ -17,6 +20,7 @@ const redrawnSkillFx = (() => {
     const casts = new Map();
 
     const art = () => redrawnSkillArt;
+    const extra = () => redrawnSkillArtExtra;
     const cellDot = g => ({ x: g.gx * 16 + 8, y: g.gy * 16 + 8 });
     const hitCell = e => e.targetCells && e.targetCells[0];
     const eventsOf = (cast, kind) => cast.events.filter(e => e.kind === kind);
@@ -109,6 +113,11 @@ const redrawnSkillFx = (() => {
         const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
         return { x: dx / L, y: dy / L };
     }
+    /** Cells an event's footprint grew by (effect expansion) over the gem's own radius; fixed-size art grows 16 dots a cell. */
+    function grownBy(cast, st) {
+        const r = Number(st && st.footprint && st.footprint.radius), base = Number(SKILL_GRID_DB[cast.skillName]?.radius) || 0;
+        return Number.isFinite(r) ? Math.max(0, r - base) : 0;
+    }
 
     // ------------------------------------------------------------------ drawers (handoff ui_player.js, per cast)
     function drawVoid(dot, cast, ft) {                        // 43 공허 절삭광
@@ -124,13 +133,8 @@ const redrawnSkillFx = (() => {
         const st = firstOf(cast, 'stage');
         if (!st) return;
         const S = cellDot(st.sourceCell), d = unitToward(S, cellDot(st.targetCells.at(-1)));
+        // (09-30) the crescent only — the rift before the swing and the X marks on the struck cells were taken out
         art().VoidCrescent.crescent(dot, { x: S.x + d.x * 9, y: S.y + d.y * 9 - 2 }, d, ft - st.at, { dur: Math.max(260, st.duration + 40), R: 13, travel: 30 });
-        for (const e of eventsOf(cast, 'hit')) {
-            const tc = hitCell(e);
-            if (!tc) continue;
-            const g = cellDot(tc), k = Math.hypot(g.x - S.x, g.y - S.y);
-            art().VoidCrescent.slashMark(dot, g.x, g.y - 2, ft - e.at - Math.max(0, (k - 9) / 30 * 140), d);
-        }
     }
     function frostReach(st, ctr, hits) {
         const radius = Number(st.footprint?.radius) || 0;
@@ -219,14 +223,15 @@ const redrawnSkillFx = (() => {
         const times = hits.map(e => e.at);
         return { t0: Math.min(...times), t1: Math.max(...times) + 140 };
     }
-    function drawWhirl(dot, cast, ft) {                       // 5 회오리바람
+    function drawWhirl(dot, cast, ft, view) {                 // 5 회오리바람: the blade wind stays on the caster as they move
         const hits = eventsOf(cast, 'hit').filter(hitCell);
         if (!hits.length) return;
-        const src = hits[0].sourceCell || hitCell(hits[0]), cx = src.gx * 16 + 8, cy = src.gy * 16 + 8, span = whirlSpan(hits);
-        art().Whirlwind.whirl(dot, cx, cy, ft - span.t0, { T: span.t1 - span.t0, F: 160, period: 360, R: 19, start: 0 });
-        for (const e of hits) {
-            const tc = hitCell(e), x = tc.gx * 16 + 8, y = tc.gy * 16 + 6;
-            art().Whirlwind.cut(dot, x, y, ft - e.at, Math.atan2(y - cy, x - cx));
+        const src = hits[0].sourceCell || hitCell(hits[0]), span = whirlSpan(hits), c = view.playerDot || cellDot(src);
+        const R = 19 + 16 * grownBy(cast, firstOf(cast, 'stage'));
+        art().Whirlwind.whirl(dot, c.x, c.y, ft - span.t0, { T: span.t1 - span.t0, F: 160, period: 360, R, start: 0 });
+        for (const e of hits) {                               // each cut points away from where the caster stood at that spin
+            const tc = hitCell(e), x = tc.gx * 16 + 8, y = tc.gy * 16 + 6, h = e.sourceCell ? cellDot(e.sourceCell) : c;
+            art().Whirlwind.cut(dot, x, y, ft - e.at, Math.atan2(y - h.y, x - h.x));
         }
     }
     function frostWaveCells(nodes) {                          // cells crossed, each with every time the front passed inside it
@@ -382,12 +387,101 @@ const redrawnSkillFx = (() => {
         for (const b of st.timeTickTargets || []) for (const p of b.cells) art().CelticClock.mark(dot, p.gx * 16 + 8, p.gy * 16 + 8, ft - b.at);
     }
 
+    // ------------------------------------------------------------------ 09-30 변경분
+    function burstPull(cast) { return SKILL_DB[cast.skillName]?.combatPattern?.stages?.[1]?.delayMs || 160; }
+    function burstInfo(cast) {                                // 17 혈기 폭쇄: condense (stage 0), then the burst (stage 1)
+        const st = eventsOf(cast, 'stage'), s0 = st.find(e => !e.stageIndex);
+        if (!s0) return null;
+        const s1 = st.find(e => e.stageIndex === 1), c = s1?.footprint?.center || s0.targetCells[0];
+        return { s0, s1, c, x: c.gx * 16 + 8, y: c.gy * 16 + 7, dur: s1 ? s1.at - s0.at : burstPull(cast) };
+    }
+    function drawBurstGround(dot, cast, ft) {
+        const I = burstInfo(cast);
+        if (I && I.s1) extra().BloodBurst.stains(dot, I.x, I.y + 2, ft - I.s1.at);
+    }
+    /** The lance that would point back at an orthogonally adjacent caster is left out. */
+    function burstSkip(src, c) { return Math.abs(src.gx - c.gx) + Math.abs(src.gy - c.gy) === 1 ? [src.gx - c.gx, src.gy - c.gy] : null; }
+    function drawBurst(dot, cast, ft) {
+        const I = burstInfo(cast);
+        if (!I) return;
+        const src = I.s0.sourceCell || I.c, at = { x: I.x, y: I.y };
+        art().BloodDrain.splash(dot, at, unitToward(cellDot(src), at), ft - I.s0.at);
+        extra().BloodBurst.condense(dot, I.x, I.y, ft - I.s0.at, { dur: I.dur });
+        if (I.s1) extra().BloodBurst.burst(dot, I.x, I.y, ft - I.s1.at, { skip: burstSkip(src, I.c), dr: grownBy(cast, I.s1) });
+    }
+    function vortexInfo(cast) {                               // 29 화염 폭풍핵: one field stage; its ticks are the hits
+        const st = firstOf(cast, 'stage');
+        if (!st) return null;
+        const c = (st.footprint && st.footprint.center) || st.targetCells[0];
+        const ticks = [...new Set(eventsOf(cast, 'hit').map(e => e.at))].sort((a, b) => a - b);
+        return { st, c, x: c.gx * 16 + 8, y: c.gy * 16 + 8, ticks };
+    }
+    function drawVortexGround(dot, cast, ft) {
+        const I = vortexInfo(cast);
+        if (I) extra().FireVortex.ground(dot, I.x, I.y, ft, { start: I.st.at, end: I.st.at + I.st.duration, ticks: I.ticks, R: 22 + 16 * grownBy(cast, I.st) });
+    }
+    function drawVortex(dot, cast, ft) {                      // a small flame on each struck cell off the core
+        const I = vortexInfo(cast);
+        if (!I) return;
+        eventsOf(cast, 'hit').forEach((e, i) => {
+            const tc = hitCell(e);
+            if (tc && (tc.gx !== I.c.gx || tc.gy !== I.c.gy)) art().TriWave.spark(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at - 20, { el: 'fire', seed: i + 3 });
+        });
+    }
+    function drawFrostMistGround(dot, cast, ft) {             // 30 빙결 파열창: mist under each pierced target, drifting on
+        eventsOf(cast, 'hit').filter(hitCell).forEach((e, i) => {
+            const tc = hitCell(e), fr = e.sourceCell || tc, L = Math.hypot(tc.gx - fr.gx, tc.gy - fr.gy) || 1;
+            const o = { seed: 31 + i * 17 + tc.gx * 5 + tc.gy * 3, dx: (tc.gx - fr.gx) / L, dy: (tc.gy - fr.gy) / L, spin: i % 2 ? -1 : 1 };
+            extra().FrostMist.mist(dot, tc.gx * 16 + 8, tc.gy * 16 + 10, ft - e.at, o);
+        });
+    }
+    function drawFrostMist(dot, cast, ft) {
+        for (const e of eventsOf(cast, 'hit')) { const tc = hitCell(e); if (tc) extra().FrostMist.burst(dot, tc.gx * 16 + 8, tc.gy * 16 + 6, ft - e.at); }
+    }
+    function mineArm(cast) { return SKILL_DB[cast.skillName]?.combatPattern?.armDelayMs || 460; }
+    function mineInfo(cast) {                                 // 37 룬 지뢰: windup = throw + arming, stage = the blast
+        const w = firstOf(cast, 'windup'), st = firstOf(cast, 'stage'), ev = st || w;
+        if (!ev) return null;
+        const fp = ev.footprint || {}, c = fp.center || ev.targetCells[0], arm = mineArm(cast), T = w ? w.at + w.duration : st.at;
+        return { st, c, src: ev.sourceCell || c, cells: fp.cells || [c], arm, land: T - arm, radius: Math.max(1, Number(fp.radius) || 2) };
+    }
+    function drawMineGround(dot, cast, ft) {
+        const I = mineInfo(cast);
+        if (I) extra().RuneMine.sigil(dot, I.c.gx * 16 + 8, I.c.gy * 16 + 8, ft - I.land, I.arm);
+    }
+    function drawMine(dot, cast, ft) {
+        const I = mineInfo(cast);
+        if (!I) return;
+        const sx = Math.sign(I.c.gx - I.src.gx) || 1, from = { x: I.src.gx * 16 + 8 + sx * 5, y: I.src.gy * 16 + 3 };
+        extra().RuneMine.toss(dot, from, { x: I.c.gx * 16 + 8, y: I.c.gy * 16 + 8 }, ft - (I.land - 160), 160);
+        if (I.st) extra().RuneMine.blast(dot, { gx: I.c.gx, gy: I.c.gy }, I.cells, ft - I.st.at, { arm: I.radius });
+    }
+    function coolInfo(cast) {                                 // 48 과냉각 혼합물: the wave stage (landing + ring times)
+        const st = eventsOf(cast, 'stage').find(e => e.supercooledPhase === 'wave');
+        if (!st) return null;
+        const L = st.landingCell || st.targetCells[0], step = st.ringInterval || 260, rings = [0, 1, 2].map(k => st.at + k * step);
+        return { x: L.gx * 16 + 8, y: L.gy * 16 + 8, land: st.at, rings, end: rings[2] + 250 };
+    }
+    function drawCoolGround(dot, cast, ft) {                  // a frost star, then one thin ring per ring hit (radius 1, 2, 3)
+        const I = coolInfo(cast);
+        if (!I) return;
+        extra().SuperCool.star(dot, I.x, I.y, ft - I.land, I.end - I.land);
+        I.rings.forEach((rt, k) => extra().SuperCool.ring(dot, I.x, I.y, ft - rt, (k + 1) * 16));
+    }
+    function drawCool(dot, cast, ft) {
+        const I = coolInfo(cast);
+        if (I) extra().FrostMist.burst(dot, I.x, I.y - 2, ft - I.land);
+    }
+
     const DRAWERS = {
         3: { fore: drawDrain }, 5: { fore: drawWhirl }, 10: { fore: drawFrost }, 16: { fore: drawCrescent },
         18: { ground: drawQuakeGround, fore: drawQuake }, 21: { fore: drawFrostWave }, 28: { fore: drawCollapse },
         32: { fore: drawTri }, 33: { fore: drawTriple }, 38: { ground: drawPotionGround, fore: drawPotion },
         41: { fore: drawWave }, 42: { fore: drawBreath }, 43: { fore: drawVoid }, 45: { fore: drawLance },
-        46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment }
+        46: { ground: drawTimeClock, fore: drawTimeMarks }, 50: { ground: drawMist }, 51: { fore: drawJudgment },
+        17: { ground: drawBurstGround, fore: drawBurst }, 29: { ground: drawVortexGround, fore: drawVortex },
+        30: { ground: drawFrostMistGround, fore: drawFrostMist }, 37: { ground: drawMineGround, fore: drawMine },
+        48: { ground: drawCoolGround, fore: drawCool }
     };
 
     // ------------------------------------------------------------------ per frame
@@ -468,9 +562,14 @@ const redrawnSkillFx = (() => {
         return { facing: SPIN[Math.floor((now - span.t0) / 90) % 4], holdUntil: span.t1 };
     }
     function reset() { casts.clear(); weaponWindows.length = 0; }
-    /** Test panel / diagnostics: the casts being drawn right now. */
+    function eventBrief(e) {
+        const fp = e.footprint;
+        return { kind: e.kind, at: Math.round(e.at), duration: e.duration, stageIndex: e.stageIndex, sourceCell: e.sourceCell, targetCells: e.targetCells,
+            phase: Object.keys(e).find(k => k.endsWith('Phase')), footprint: fp && { center: fp.center, radius: fp.radius, cells: (fp.cells || []).length } };
+    }
+    /** Test panel / diagnostics: the casts being drawn right now (with each event's timing and cells). */
     function snapshot() {
-        return [...casts.values()].map(c => ({ key: c.key, id: c.id, clock: c.clock, end: Math.round(c.end), kinds: c.events.map(e => e.kind) }));
+        return [...casts.values()].map(c => ({ key: c.key, id: c.id, clock: c.clock, end: Math.round(c.end), kinds: c.events.map(e => e.kind), events: c.events.map(eventBrief) }));
     }
 
     return Object.freeze({ claim, drawLayer, playerTint, playerSpin, weaponHidden, reset, snapshot, ids: IDS, replaces });

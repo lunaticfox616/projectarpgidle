@@ -1193,7 +1193,9 @@ const redrawnSkillArt = (() => {
         BloodDrain: { slash: bloodSlash, splash: bloodSplash, drain, tint: drainTint, timing: DRAIN_T, colors: BL },
         GoldQuake: { ground: quakeGround, fore: quakeFore, hit: quakeHit, colors: GQ },
         PotionThrow: { flight, shatter, pool, flask: flaskAt, colors: POOL, glass: GLASS },
-        CelticClock: { clock: celticClock, mark: clockMark, angle: clockAngle, colors: CK }
+        CelticClock: { clock: celticClock, mark: clockMark, angle: clockAngle, colors: CK },
+        // shared by js/canvas-redrawn-skill-art-extra.js (the 09-30 additions draw with the same rasteriser and bolts)
+        lib: { rng, line, layer, jag, stroke }
     });
 })();
 safeExposeGlobals({ redrawnSkillArt });
