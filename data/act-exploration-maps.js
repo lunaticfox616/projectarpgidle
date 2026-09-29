@@ -1,6 +1,7 @@
 // Authored topology, not a random generator. Rooms use [id, centerX, centerY, radiusX, radiusY, role].
 // Links use [from, to, optional orthogonal bend points]. Rotation is clockwise quarter turns.
 // Every boss chamber has exactly one one-cell threshold; ordinary passages stay wider.
+// Boss chambers are 9×5 (act 7: 7×5 — its deadwood room sits one wall column away) so a 2×2 boss has room to move.
 const ACT_EXPLORATION_MAPS = Object.freeze([
     {
         act:1, id:'root-branches', biome:'root', width:39, height:35, rotation:0,
@@ -8,7 +9,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
         rooms:[['entry',19,31,2,2,'entry'],['hall',19,25,4,2,'battle'],
             ['fork',19,18,3,3,'battle'],['west',7,18,4,3,'elite'],
             ['east',31,18,4,3,'elite'],['twig',31,27,3,2,'optional'],
-            ['hollow',6,10,3,2,'optional'],['crown',19,11,3,2,'battle'],['boss',19,4,2,2,'boss']],
+            ['hollow',6,10,3,2,'optional'],['crown',19,11,3,2,'battle'],['boss',19,4,4,2,'boss']],
         links:[['entry','hall'],['hall','fork'],['fork','west'],['fork','east'],
             ['east','twig'],['west','hollow'],['fork','crown']]
     },
@@ -19,7 +20,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['west',8,25,3,2,'battle'],['east',34,25,3,2,'battle'],
             ['hedgeWest',8,14,3,3,'elite'],['hedgeEast',34,14,3,3,'elite'],
             ['alcove',3,20,1,2,'optional'],['arbor',39,20,1,2,'optional'],
-            ['balcony',21,11,4,2,'battle'],['boss',21,4,2,2,'boss']],
+            ['balcony',21,11,4,2,'battle'],['boss',21,4,4,2,'boss']],
         links:[['entry','south'],['south','west'],['south','east'],['west','hedgeWest'],
             ['east','hedgeEast'],['hedgeWest','balcony',[[8,11]]],['hedgeEast','balcony',[[34,11]]],
             ['west','alcove',[[3,25]]],['east','arbor',[[39,25]]]]
@@ -30,7 +31,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
         rooms:[['entry',7,44,3,2,'entry'],['isleSouth',25,39,3,2,'battle'],
             ['isleWest',8,31,3,2,'elite'],['isleEast',25,22,3,2,'elite'],
             ['spur',29,31,2,2,'optional'],['ledge',5,18,2,2,'optional'],
-            ['summit',17,11,3,2,'battle'],['boss',17,4,2,2,'boss']],
+            ['summit',17,11,3,2,'battle'],['boss',17,4,4,2,'boss']],
         links:[['entry','isleSouth',[[7,39]]],['isleSouth','isleWest',[[25,31]]],
             ['isleWest','isleEast',[[8,22]]],['isleEast','summit',[[25,11]]],
             ['isleWest','spur'],['isleEast','ledge',[[5,22]]]]
@@ -42,7 +43,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['westLow',8,28,2,2,'battle'],['eastLow',38,28,2,2,'battle'],
             ['westHigh',8,16,2,2,'elite'],['eastHigh',38,16,2,2,'elite'],
             ['center',23,21,2,2,'battle'],['blindWest',3,21,1,1,'optional'],
-            ['blindEast',43,21,1,1,'optional'],['threshold',23,11,2,2,'battle'],['boss',23,4,2,2,'boss']],
+            ['blindEast',43,21,1,1,'optional'],['threshold',23,11,2,2,'battle'],['boss',23,4,4,2,'boss']],
         links:[['entry','cross'],['cross','westLow'],['cross','eastLow'],['westLow','westHigh'],
             ['eastLow','eastHigh'],['westHigh','center',[[16,16],[16,21]]],
             ['eastHigh','center',[[30,16],[30,21]]],['center','cross'],['center','threshold'],
@@ -54,7 +55,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
         rooms:[['entry',17,39,2,2,'entry'],['naveSouth',17,32,3,3,'battle'],
             ['naveNorth',17,20,3,3,'battle'],['choir',6,30,3,3,'elite'],
             ['vestry',28,18,3,3,'elite'],['crypt',5,12,2,2,'optional'],
-            ['archive',29,33,2,2,'optional'],['altar',17,11,3,2,'battle'],['boss',17,4,2,2,'boss']],
+            ['archive',29,33,2,2,'optional'],['altar',17,11,3,2,'battle'],['boss',17,4,4,2,'boss']],
         links:[['entry','naveSouth'],['naveSouth','naveNorth'],['naveNorth','altar'],
             ['naveSouth','choir',[[6,32]]],['naveNorth','vestry',[[28,20]]],
             ['choir','crypt',[[6,12]]],['naveSouth','archive',[[29,32]]]]
@@ -66,7 +67,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['west',8,25,3,2,'battle'],['east',34,25,3,2,'elite'],
             ['hedgeWest',8,14,3,3,'elite'],['hedgeEast',34,14,3,3,'optional'],
             ['breach',21,19,3,2,'battle'],['collapse',3,20,1,2,'optional'],
-            ['balcony',21,11,4,2,'battle'],['boss',21,4,2,2,'boss']],
+            ['balcony',21,11,4,2,'battle'],['boss',21,4,4,2,'boss']],
         links:[['entry','south'],['south','west'],['west','hedgeWest'],['west','collapse',[[3,25]]],
             ['south','breach'],['breach','east',[[34,19]]],['breach','hedgeEast',[[34,19]]],
             ['breach','balcony'],['hedgeWest','balcony',[[8,11]]]]
@@ -78,7 +79,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['rimEast',38,13,3,3,'elite'],['rimNorth',7,13,3,3,'battle'],
             ['innerWest',7,30,2,2,'elite'],['innerSouth',25,30,3,2,'battle'],
             ['innerEast',25,20,2,2,'battle'],['deadwood',15,6,2,2,'optional'],
-            ['hollow',15,23,2,2,'optional'],['heart',22,11,2,2,'battle'],['boss',22,4,2,2,'boss']],
+            ['hollow',15,23,2,2,'optional'],['heart',22,11,2,2,'battle'],['boss',22,4,3,2,'boss']],
         links:[['entry','rimSouth',[[5,39]]],['rimSouth','rimEast'],['rimEast','rimNorth'],
             ['rimNorth','innerWest'],['innerWest','innerSouth'],['innerSouth','innerEast'],
             ['innerEast','heart',[[25,11]]],['innerWest','hollow',[[15,30]]],['rimNorth','deadwood',[[15,13]]]]
@@ -89,7 +90,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
         rooms:[['entry',5,30,2,2,'entry'],['southEast',42,29,3,2,'battle'],
             ['middleEast',42,20,3,2,'elite'],['middleWest',13,20,3,2,'battle'],
             ['northWest',13,11,3,2,'elite'],['veilEnd',24,11,2,2,'battle'],
-            ['foldSouth',25,35,2,2,'optional'],['foldNorth',42,11,3,2,'optional'],['boss',24,4,2,2,'boss']],
+            ['foldSouth',25,35,2,2,'optional'],['foldNorth',42,11,3,2,'optional'],['boss',24,4,4,2,'boss']],
         links:[['entry','southEast',[[5,29]]],['southEast','middleEast'],['middleEast','middleWest'],
             ['middleWest','northWest'],['northWest','veilEnd'],['middleWest','foldSouth',[[25,20]]],
             ['middleEast','foldNorth']]
@@ -101,7 +102,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['west',7,25,3,3,'elite'],['east',45,25,3,3,'elite'],
             ['center',26,19,4,3,'battle'],['westHigh',7,13,3,2,'battle'],
             ['eastHigh',45,13,3,2,'battle'],['sapWest',16,32,2,2,'optional'],
-            ['sapEast',36,32,2,2,'optional'],['cocoon',26,11,4,2,'battle'],['boss',26,4,2,2,'boss']],
+            ['sapEast',36,32,2,2,'optional'],['cocoon',26,11,4,2,'battle'],['boss',26,4,4,2,'boss']],
         links:[['entry','fork'],['fork','west',[[7,27]]],['fork','east',[[45,27]]],['fork','center'],
             ['west','westHigh'],['east','eastHigh'],['westHigh','cocoon',[[7,11]]],
             ['eastHigh','cocoon',[[45,11]]],['center','cocoon'],['west','sapWest',[[16,25]]],['east','sapEast',[[36,25]]]]
@@ -114,7 +115,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['west',6,20,3,3,'elite'],['east',42,20,3,3,'elite'],
             ['northWest',12,11,3,2,'battle'],['northEast',36,11,3,2,'battle'],
             ['innerWest',17,23,2,2,'optional'],['innerEast',31,23,2,2,'optional'],
-            ['axis',24,11,3,2,'battle'],['boss',24,4,2,2,'boss']],
+            ['axis',24,11,3,2,'battle'],['boss',24,4,4,2,'boss']],
         links:[['entry','south'],['south','southWest',[[9,33]]],['south','southEast',[[39,33]]],
             ['southWest','west',[[6,31]]],['southEast','east',[[42,31]]],
             ['west','northWest',[[6,11]]],['east','northEast',[[42,11]]],

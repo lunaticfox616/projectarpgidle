@@ -79,6 +79,12 @@ for(let act=1;act<=10;act++) {
     }`);
     assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'a boss seen from the approach does not wake');
     assert.equal(run('actExplorationState.entrance(game.actExploration)'),null,'and no entrance starts before its gate');
+    const bossRoomUncovered=`(()=>{const map=actExplorationMap.layout(act),boss=map.rooms.find(r=>r.role==='boss'),known=new Set(game.actExploration.discovered);
+        for(let gy=Math.max(0,boss.gy-boss.radiusY-1);gy<=Math.min(map.rows-1,boss.gy+boss.radiusY+1);gy++)
+            for(let gx=Math.max(0,boss.gx-boss.radiusX-1);gx<=Math.min(map.columns-1,boss.gx+boss.radiusX+1);gx++)if(!known.has(gy*map.columns+gx))return false;
+        return true;})()`;
+    assert.equal(run(bossRoomUncovered),false,'the far side of the boss room is still dark from the approach');
+    assert.equal(run('actExplorationState.bossRoomAt(game.actExploration,game.gridPlayer)'),null,'the approach is not the boss room');
     run(`{
         const boss=actExplorationMap.layout(act).rooms.find(room=>room.role==='boss');
         game.gridPlayer={gx:boss.gx-1,gy:boss.gy,gridMoveTimer:0};
@@ -86,6 +92,8 @@ for(let act=1;act<=10;act++) {
     }`);
     assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'stepping into the boss room starts the entrance first');
     assert.equal(run('actExplorationState.entrance(game.actExploration).holdMs'),2600);
+    assert.equal(run(bossRoomUncovered),true,'the whole boss room and its walls are uncovered as the entrance opens');
+    assert.equal(run('actExplorationState.bossRoomAt(game.actExploration,game.gridPlayer).role'),'boss');
     run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),12599);');
     assert.equal(run('game.enemies.filter(enemy=>enemy.isBoss).length'),0,'the boss keeps rising for the whole entrance');
     run('actExplorationState.engage(game,actExplorationState.discover(game.actExploration,game.gridPlayer),12600);');

@@ -61,14 +61,20 @@ const actExplorationView=(()=>{
         if(discovered)return Math.min(.48,Math.max(0,(distance-4)/7));
         return Math.min(.97,.66+Math.max(0,distance-5)*.05);
     }
+    /** Tiles from the hero; while the hero is at the boss room, every tile of the room (and its walls) counts as right here. */
+    function fogDistance(map,i,lit) {
+        const gx=i%map.columns,gy=Math.floor(i/map.columns);
+        if(lit && Math.abs(gx-lit.gx)<=lit.radiusX+1 && Math.abs(gy-lit.gy)<=lit.radiusY+1)return 0;
+        return Math.hypot(gx-game.gridPlayer.gx,gy-game.gridPlayer.gy);
+    }
     function updateFog(run,map) {
         const key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy;
         if(cache.fogKey===key)return;cache.fogKey=key;
         if(!cache.fog){cache.fog=document.createElement('canvas');cache.fog.width=map.columns;cache.fog.height=map.rows;}
         const ctx=cache.fog.getContext('2d'),pixels=ctx.createImageData(map.columns,map.rows),seen=new Set(run.discovered);
+        const lit=actExplorationState.bossRoomAt(run,game.gridPlayer);
         for(let i=0;i<map.tiles.length;i++) {
-            const distance=Math.hypot(i%map.columns-game.gridPlayer.gx,Math.floor(i/map.columns)-game.gridPlayer.gy);
-            pixels.data.set([8,14,12,Math.round(fogAlpha(seen.has(i),distance)*255)],i*4);
+            pixels.data.set([8,14,12,Math.round(fogAlpha(seen.has(i),fogDistance(map,i,lit))*255)],i*4);
         }
         ctx.putImageData(pixels,0,0);
         // Upscaling one pixel per tile with smoothing was the most expensive draw of every
@@ -100,6 +106,15 @@ const actExplorationView=(()=>{
             .filter(enemy=>seen.has(actExplorationMap.index(map,enemy)));
         return dormant;
     }
+    /** While the hero is at the boss room: the room's screen centre and a radius covering it, so the lighting pass
+     * opens over the whole room instead of around the hero. Uses this frame's projection (lastOrigin). */
+    function bossRoomGlow() {
+        const run=actExplorationState.current(game);
+        if(!run || lastOrigin?.run!==run)return null;
+        const room=actExplorationState.bossRoomAt(run,game.gridPlayer),tile=lastOrigin.tile;
+        if(!room)return null;
+        return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*tile,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
+    }
     // Pixel-scale gate art (backdrop maps): integer scale, placed by its art-px offset from the gate tile centre.
     function gateBox(point,p) {
         const art=cache?.closed;if(!art?.pixelTile)return null;
@@ -124,6 +139,6 @@ const actExplorationView=(()=>{
         }
         ctx.restore();
     }
-    return {projection,background,appendScenery,waitingEnemies,drawScenery};
+    return {projection,background,appendScenery,waitingEnemies,drawScenery,bossRoomGlow};
 })();
 safeExposeGlobals({actExplorationView});

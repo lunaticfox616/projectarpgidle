@@ -2835,14 +2835,21 @@ function drawBattleLightingAndBars(ctx, scene) {
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 
+/** Where the dark vignette opens: around the hero, or over the whole boss room while the hero stands in it. */
+function getBattleLightFocus(scene) {
+    const { width, height, light } = scene;
+    const room = typeof actExplorationView === 'object' ? actExplorationView.bossRoomGlow() : null;
+    if (room) return { x: room.x, y: room.y, inner: room.radius, outer: room.radius + Math.max(width, height) * 0.3 };
+    return { x: light.x, y: light.y - 18, inner: Math.min(width, height) * 0.16, outer: Math.max(width, height) * 0.56 };
+}
+
 function drawBattleLightingPass(ctx, scene) {
     if (!isBattleLightingEnabled() || !scene.light) return;
     const { width, height, light } = scene;
     const cy = light.y - 18;
-    const inner = Math.min(width, height) * 0.16;
-    const outer = Math.max(width, height) * 0.56;
+    const focus = getBattleLightFocus(scene), inner = Math.min(width, height) * 0.16;
     ctx.save();
-    const dark = ctx.createRadialGradient(light.x, cy, inner, light.x, cy, outer);
+    const dark = ctx.createRadialGradient(focus.x, focus.y, focus.inner, focus.x, focus.y, focus.outer);
     dark.addColorStop(0, 'rgba(4,5,7,0)');
     dark.addColorStop(0.42, 'rgba(4,5,7,0.24)');
     dark.addColorStop(1, 'rgba(3,4,6,0.62)');

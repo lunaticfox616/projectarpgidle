@@ -52,11 +52,26 @@ const actExplorationState = (() => {
         if(cell.gx===map.gate.gx && cell.gy===map.gate.gy)return true;
         return Math.abs(cell.gx-room.gx)<=room.radiusX && Math.abs(cell.gy-room.gy)<=room.radiusY;
     }
+    /** The boss room when cell is its gate or inside it (the view then lights the whole room), else null. */
+    function bossRoomAt(run,cell) {
+        const map=actExplorationMap.layout(run.act),room=map.rooms.find(row=>row.role==='boss');
+        return room && atBossRoom(map,room,cell) ? room : null;
+    }
+    /** The whole boss room is uncovered as its entrance opens: its floor and the walls around it join the discovered map. */
+    function revealRoom(run,map,room) {
+        const known=new Set(run.discovered);
+        for(let gy=Math.max(0,room.gy-room.radiusY-1);gy<=Math.min(map.rows-1,room.gy+room.radiusY+1);gy++) {
+            for(let gx=Math.max(0,room.gx-room.radiusX-1);gx<=Math.min(map.columns-1,room.gx+room.radiusX+1);gx++)known.add(gy*map.columns+gx);
+        }
+        run.discovered=[...known];
+    }
     /** False until the player has stood at the boss room for BOSS_ENTRANCE_MS; the first such step opens the entrance. */
     function bossAwake(state,run,o) {
         const room=o.map.rooms.find(row=>row.id===o.pack.roomId),open=entrances.get(run);
         if(!atBossRoom(o.map,room,state.gridPlayer))return false;
-        if(!open || open.key!==o.pack.key || o.now<open.at){entrances.set(run,{key:o.pack.key,at:o.now,holdMs:BOSS_ENTRANCE_MS});return false;}
+        if(!open || open.key!==o.pack.key || o.now<open.at) {
+            entrances.set(run,{key:o.pack.key,at:o.now,holdMs:BOSS_ENTRANCE_MS});revealRoom(run,o.map,room);return false;
+        }
         if(o.now-open.at<BOSS_ENTRANCE_MS)return false;
         entrances.delete(run);
         return true;
@@ -226,6 +241,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,discover,engage,entrance,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
+    return {settlementMs,current,create,discover,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
 })();
 safeExposeGlobals({actExplorationState});
