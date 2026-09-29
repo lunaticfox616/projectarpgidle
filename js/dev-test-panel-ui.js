@@ -188,12 +188,14 @@ const devTestPanel = (() => {
         setSpeed(1);
         status();
     }
-    const STYLE = `#dev-test-panel{position:fixed;left:10px;bottom:10px;z-index:30000;font:13px/1.45 'Malgun Gothic',sans-serif;color:#efe6cf}
+    // 왼쪽 아래는 하단 HUD(생명 구슬 · 휴대폰은 HUD와 하단 메뉴)라 그 위로 띄운다.
+    const STYLE = `#dev-test-panel{--dtp-bottom:170px;position:fixed;left:10px;bottom:var(--dtp-bottom);z-index:30000;font:13px/1.45 'Malgun Gothic',sans-serif;color:#efe6cf}
+@media (max-width:1080px){#dev-test-panel{--dtp-bottom:250px}}
 #dev-test-panel button{background:#231d15;color:#f3dfae;border:1px solid #6b5431;border-radius:6px;padding:4px 8px;cursor:pointer}
 #dev-test-panel button:hover,#dev-test-panel button.on{background:#4a3a1f;border-color:#d7b36f}
 #dev-test-panel select{background:#15120e;color:#efe6cf;border:1px solid #6b5431;border-radius:6px;padding:3px;max-width:190px}
 .dtp-toggle{font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.5)}
-.dtp-panel{position:absolute;left:0;bottom:40px;width:330px;max-height:72vh;overflow:auto;padding:10px 12px;background:rgba(13,11,9,.95);border:1px solid #b58a48;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.dtp-panel{position:absolute;left:0;bottom:40px;width:330px;max-height:min(72vh,calc(100vh - var(--dtp-bottom) - 72px));overflow:auto;padding:10px 12px;background:rgba(13,11,9,.95);border:1px solid #b58a48;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
 .dtp-panel header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .dtp-panel h4{margin:10px 0 4px;color:#d7b36f;font-size:12px;letter-spacing:.04em}
 .dtp-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:4px 0}
