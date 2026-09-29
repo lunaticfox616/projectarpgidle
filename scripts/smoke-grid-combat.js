@@ -13,7 +13,7 @@ const files = [
   'data/act-exploration-maps.js',
   'data/cosmos-route.js',
   'data/world-tree-journey.js',
-  'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js',
+  'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
   'data/items.js',
@@ -60,7 +60,7 @@ const files = [
   'js/cosmos-rules.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js', 'js/mobility-skill.js',
+  'js/combat.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];
@@ -824,7 +824,7 @@ assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKI
 assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 3칸');
 assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통 · 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
-assert.strictEqual(context.describeSkillGridProfile('칼날까마귀 소환', context.SKILL_DB['칼날까마귀 소환']), '공격 범위: 소환수 공격 · 사거리 2칸');
+assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격 · 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사 · 사거리 6칸 · 5방향 · 발사 방식 변경 가능');
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
@@ -2324,7 +2324,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     { id: 1, hp: 50, maxHp: 50, ailments: [] },
     { id: 2, hp: 50, maxHp: 50, isBoss: true, ailments: [] },
   ];
-  context.game.summons = [{ id: 1, alive: true, hp: 10, maxHp: 10, role: 'attack', gemName: '서리늑대 소환', slotIdx: 0 }];
+  context.game.summons = [{ id: 1, alive: true, hp: 10, maxHp: 10, role: 'attack', gemName: '냉기 위습 소환', slotIdx: 0 }];
   context.ensureCombatGridRuntime();
   assert.ok(context.hasGridCell(context.game.gridPlayer), '플레이어 칸이 복구되어야 한다');
   context.game.enemies.forEach(enemy => {
@@ -2430,12 +2430,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 12. 소환수 회복/재배치와 장착 소환수 젬 봉인 보호 ──
 {
   resetGame();
-  context.game.skills = ['기본 공격', '서리늑대 소환', '연속 베기'];
+  context.game.skills = ['기본 공격', '냉기 위습 소환', '연속 베기'];
   context.game.activeSkill = '기본 공격';
-  context.game.equippedSummonSkills = ['서리늑대 소환'];
-  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.game.equippedSummonSkills = ['냉기 위습 소환'];
+  context.game.summonSkillCounts = { '냉기 위습 소환': 1 };
   context.sealAllInactiveSkillGems();
-  assert.ok(context.game.skills.includes('서리늑대 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
+  assert.ok(context.game.skills.includes('냉기 위습 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
   assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
   assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬 젬은 일괄 봉인해야 한다');
 
@@ -2449,16 +2449,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(summon.hp, summon.maxHp, '플레이어 회복 경계에서는 소환수 체력도 전부 회복해야 한다');
   assert.ok(context.gridChebyshevDist(summon.gx, summon.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy) <= 1, '회복 경계에서는 소환수를 플레이어 주변으로 재배치해야 한다');
 
-  const preview = context.getSummonTooltipPreview('서리늑대 소환', pStats);
+  const preview = context.getSummonTooltipPreview('냉기 위습 소환', pStats);
   assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
-  assert.strictEqual(context.getSummonProfile('서리늑대 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
+  assert.strictEqual(context.getSummonProfile('냉기 위습 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
   assert.strictEqual(vm.runInContext('SUMMON_REGEN_PCT_PER_SEC', context), 0.75, '소환수 재생 너프는 기초 재생률에 반영해야 한다');
 }
 
 // ── 12-1. 소환수 회피: 별도 성장·적 정확도·엔트로피 판정 ──
 {
   resetGame();
-  const profile = context.getSummonProfile('칼날까마귀 소환');
+  const profile = context.getSummonProfile('물리 위습 소환');
   const level20Evasion = context.getSummonEvasionRating(profile, 20, { summonEfficiency: 0 });
   const level30Evasion = context.getSummonEvasionRating(profile, 30, { summonEfficiency: 0 });
   const lowestAccuracy = context.getEnemyAccuracyForZone({ tier: 1 });
@@ -2497,9 +2497,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   let pStats = context.getPlayerStats();
   assert.ok(pStats.leech >= 3.5, '야생성은 플레이어와 소환수에 공유하는 흡혈 +3.5%를 제공해야 한다');
 
-  context.game.skills = ['기본 공격', '서리늑대 소환'];
-  context.game.equippedSummonSkills = ['서리늑대 소환'];
-  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.game.skills = ['기본 공격', '번개 위습 소환'];
+  context.game.equippedSummonSkills = ['번개 위습 소환'];
+  context.game.summonSkillCounts = { '번개 위습 소환': 1 };
   context.ensureSummonRuntime(pStats);
   assert.strictEqual(context.game.summons[0].respawnMs, 4000, '기본 공격 소환수의 실제 부활 시간은 4초여야 한다');
 
@@ -2523,8 +2523,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.runSummonAttackTick(context.getPlayerStats());
   assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
   const summonAttackFx = vm.runInContext("battleFx.find(fx => fx.type === 'summonAttack')", context);
-  assert.ok(summonAttackFx && summonAttackFx.summonId === attacker.id && summonAttackFx.targetEnemyId === primary.id,
-    '소환수 공격은 주 대상 방향의 짧은 전진·복귀 연출 정보를 남겨야 한다');
+  assert.ok(summonAttackFx && summonAttackFx.summonId === attacker.id && summonAttackFx.targetEnemyId === primary.id
+    && summonAttackFx.sourceGx === attacker.gx && summonAttackFx.sourceGy === attacker.gy && summonAttackFx.gemName === '번개 위습 소환',
+    '위습 공격은 그림이 쓸 위습 칸 → 주 대상 칸 정보를 남겨야 한다');
 }
 
 // ── 신규 전투 젬: 시간차 판정 / 기동 / 채널 취소 / 태그 보조 ──
@@ -2634,8 +2635,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(continuationRuntimeRemaining <= cycleMs + 100, '이어지는 집중 주기에 최초 시전 선딜이 다시 붙으면 안 된다');
   assert.ok(new Set(continuationRows.map(row => row.channelId)).size === 1 && continuationRows[0].channelId > 0, '이어지는 집중 틱은 하나의 새 채널 주기에 속해야 한다');
 
-  assert.strictEqual(context.getSummonProfile('폭풍 정령 소환').gridRange, 4, '폭풍 정령은 원거리 소환수 계약을 사용해야 한다');
-  assert.ok(context.getSummonProfile('철갑 거북 소환').baseArmor > context.getSummonProfile('불곰 소환').baseArmor, '철갑 거북은 기존 근접 소환수보다 높은 방어도를 가져야 한다');
+  assert.strictEqual(context.getSummonProfile('분광 위습 소환').gridRange, 4, '분광 위습은 원거리(4칸) 소환수 계약을 사용해야 한다');
+  assert.ok(Object.keys(context.WISP_SUMMONS).every(name => context.getSummonProfile(name).gridRange >= 3), '위습 정령은 모두 3칸 이상 떨어져서 공격한다');
   resetGame();
 }
 

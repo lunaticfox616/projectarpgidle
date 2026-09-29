@@ -400,6 +400,7 @@ function mergeDefaults(save) {
     delete merged.unlocks.hideout;
     delete merged.noti.hideout;
     migratePassiveSaveNodeReferences(merged);
+    migrateLegacySummonGemSave(merged);
     delete merged.talentCardRuntime;
     Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
         let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);

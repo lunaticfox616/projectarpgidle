@@ -4998,7 +4998,8 @@ function getGemCardMeta(def) {
     };
     let typeLabel = GEM_TYPE_LABELS.find(([tag]) => tags.includes(tag))?.[1] || '공격';
     let presentation = elementMap[element] || elementMap.phys;
-    return { typeLabel: typeLabel, icon: presentation.icon, elementLabel: presentation.label, className: presentation.className };
+    // elementLabel: a gem that hits with more than one element (분광 위습 소환) names them itself.
+    return { typeLabel: typeLabel, icon: presentation.icon, elementLabel: def?.elementLabel || presentation.label, className: presentation.className };
 }
 
 function getSkillGemArtPath(name) {

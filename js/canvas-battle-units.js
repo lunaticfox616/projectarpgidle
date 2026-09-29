@@ -1,4 +1,5 @@
-/** Battle units on the field: the player figure (Hana +6 sheets with the legacy strip as fallback) and the summons.
+/** Battle units on the field: the player figure (Hana +6 sheets with the legacy strip as fallback) and the summons
+ * (wisps from their own sheets, js/canvas-hana-actors.js; the guard golem from the legacy summon1.png frame).
  * Split out of canvas-battlefield.js along the unit-drawing boundary; renderBattlefield still decides when they draw
  * (drawBattlePlayerActor → drawBattlePlayerFigure, drawBattleGroundLayer → drawActiveSummons). Rendering only.
  */
@@ -84,30 +85,30 @@ function collectHanaPlayerMotion(motion, now) {
     };
 }
 
-function drawActiveSummons(ctx, playerPos, now, proj, attackMotions) {
+function drawActiveSummons(ctx, playerPos, now, proj) {
     const summons = (game.summons || []).filter(s => s && s.alive && (s.hp || 0) > 0);
     if (summons.length <= 0) return;
     const strikes = getLatestSummonStrikes(now);
     summons.forEach((summon, index) => {
-        const at = getSummonDrawPosition(summon, index, { count: summons.length, playerPos, now, proj, motion: attackMotions && attackMotions[summon.id] });
+        const at = getSummonDrawPosition(summon, index, { count: summons.length, playerPos, now, proj });
         ctx.save();
         if (summon.isGhost) ctx.globalAlpha = 0.46;
-        const top = drawHanaSummon(ctx, summon, at, { now, proj, strike: strikes.get(summon.id) }) ?? drawLegacySummon(ctx, summon, at);
+        const top = drawWispSummon(ctx, summon, at, { now, proj, strike: strikes.get(summon.id) }) ?? drawLegacySummon(ctx, summon, at);
         if (summon.isGhost) drawSummonGhostRing(ctx, summon, at);
         ctx.restore();
         drawSummonHpBar(ctx, summon, at.x, top);
     });
 }
 
-/** 그리드 유닛: 자기 칸(발 위치)에 그린다. 칸이 아직 없으면(스폰 직후) 플레이어 주변 궤도로 표시한다. */
+/** 그리드 유닛: 자기 칸(발 위치)에 그린다 — 위습은 공격할 때도 제자리에서 쏜다(인계 lunge 0). 칸이 아직 없으면(스폰 직후)
+ * 플레이어 주변 궤도로 표시한다. */
 function getSummonDrawPosition(summon, index, view) {
-    const lunge = view.motion || { x: 0, y: 0 };
     if (view.proj && hasGridCell(summon)) {
         const cell = view.proj.cellToScreen(summon.gx, summon.gy);
-        return { x: cell.x + lunge.x, y: cell.y + (Number(view.proj.actorGroundOffsetY) || 0) + lunge.y };
+        return { x: cell.x, y: cell.y + (Number(view.proj.actorGroundOffsetY) || 0) };
     }
     const angle = (view.now / 1000) * 0.9 + (index / Math.max(1, view.count)) * Math.PI * 2, radius = 24 + Math.min(40, view.count * 4);
-    return { x: view.playerPos.x + Math.cos(angle) * radius + lunge.x, y: view.playerPos.y - 18 + Math.sin(angle) * 12 + lunge.y };
+    return { x: view.playerPos.x + Math.cos(angle) * radius, y: view.playerPos.y - 18 + Math.sin(angle) * 12 };
 }
 
 /** Latest visible strike per summon (the hit resolves as the effect starts, so it is also the strike frame's time). */
@@ -121,23 +122,23 @@ function getLatestSummonStrikes(now) {
     return strikes;
 }
 
-const hanaSummonFacesLeft = new WeakMap();
-/** Hana summon sheets are side views facing right; they turn toward the enemy they last struck. */
-function isHanaSummonFacingLeft(summon, at, view) {
+const wispSummonFacesLeft = new WeakMap();
+/** Wisp sheets face right; a wisp turns toward the enemy it last struck. */
+function isWispSummonFacingLeft(summon, at, view) {
     const strike = view.strike;
     if (strike && view.proj && Number.isFinite(strike.targetGx)) {
         const target = view.proj.cellToScreen(strike.targetGx, strike.targetGy);
-        if (Math.abs(target.x - at.x) > 1) hanaSummonFacesLeft.set(summon, target.x < at.x);
+        if (Math.abs(target.x - at.x) > 1) wispSummonFacesLeft.set(summon, target.x < at.x);
     }
-    return hanaSummonFacesLeft.get(summon) === true;
+    return wispSummonFacesLeft.get(summon) === true;
 }
 
-/** @returns {?number} top of the drawn body, or null when the Hana sheet is not available (legacy fallback). */
-function drawHanaSummon(ctx, summon, at, view) {
-    if (typeof hanaActors !== 'object' || game.settings?.heroSpriteSet === 'legacy' || !view.proj) return null;
+/** @returns {?number} top of the drawn body, or null when the summon is no wisp or its sheet is still loading. */
+function drawWispSummon(ctx, summon, at, view) {
+    if (typeof hanaActors !== 'object' || !view.proj) return null;
     const drawn = hanaActors.drawSummon(ctx, {
         skillName: summon.gemName, x: at.x, y: at.y, now: view.now, tile: view.proj.tileW, phase: (Number(summon.id) || 0) * 97,
-        attackAt: view.strike ? view.strike.start : -Infinity, flipX: isHanaSummonFacingLeft(summon, at, view), alpha: ctx.globalAlpha
+        attackAt: view.strike ? view.strike.start : -Infinity, flipX: isWispSummonFacingLeft(summon, at, view), alpha: ctx.globalAlpha
     });
     return drawn ? drawn.top : null;
 }

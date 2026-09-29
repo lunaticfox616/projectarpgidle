@@ -28,14 +28,14 @@ assert.deepEqual(json('({level:gem.level,exp:gem.exp,quality:gem.quality})'), {l
 assert.equal(run('gainGemExperience(gem,100000000)'), 0, 'max level does not accumulate or overlevel');
 
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.currentZoneId=1;game.level=100;
-    game.skills=['기본 공격','연속 베기','서리늑대 소환'];game.activeSkill='연속 베기';
-    game.equippedSummonSkills=['서리늑대 소환'];game.summonSkillCounts={'서리늑대 소환':1};
+    game.skills=['기본 공격','연속 베기','냉기 위습 소환'];game.activeSkill='연속 베기';
+    game.equippedSummonSkills=['냉기 위습 소환'];game.summonSkillCounts={'냉기 위습 소환':1};
     var support=Object.keys(SUPPORT_GEM_DB)[0];game.supports=[support];game.equippedSupports=[support];
     game.gemData['연속 베기']=normalizeGemRecord({level:14,quality:7});
-    game.gemData['서리늑대 소환']=normalizeGemRecord({level:14,quality:8});
+    game.gemData['냉기 위습 소환']=normalizeGemRecord({level:14,quality:8});
     game.supportGemData[support]=normalizeGemRecord({level:14,quality:9});
     var stats=getPlayerStats(false), reward=getEnemyExperienceReward({level:100},stats), gemReward=Math.floor(reward*.45);
-    var currentGems=()=>[game.gemData['연속 베기'],game.gemData['서리늑대 소환'],game.supportGemData[support]];
+    var currentGems=()=>[game.gemData['연속 베기'],game.gemData['냉기 위습 소환'],game.supportGemData[support]];
     var records=currentGems();
     records.forEach(record=>{record.exp=getGemReqExp(14)-gemReward-1;});
     grantExpAndGem({level:100},stats);records=currentGems();`);
@@ -46,6 +46,6 @@ assert.deepEqual(json('records.map(record=>[record.level,record.exp])'), [[15,7]
     'combat does not discard overflow in any gem category');
 assert.deepEqual(json('records.map(record=>record.quality)'), [7,8,9]);
 run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
-assert.deepEqual(json("[game.gemData['연속 베기'],game.gemData['서리늑대 소환'],game.supportGemData[support]].map(record=>[record.level,record.exp])"),
+assert.deepEqual(json("[game.gemData['연속 베기'],game.gemData['냉기 위습 소환'],game.supportGemData[support]].map(record=>[record.level,record.exp])"),
     [[15,7],[15,7],[15,7]], 'save restoration preserves earned gem levels and XP');
 console.log('smoke-gem-growth passed');

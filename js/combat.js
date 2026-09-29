@@ -48,13 +48,14 @@ function captureCombatRuntime() {
     return { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime,
-        mobilitySkill: mobilitySkill.capture() };
+        mobilitySkill: mobilitySkill.capture(), wispSummons: wispSummons.capture() };
 }
 function restoreCombatRuntime(snapshot) {
     ({ pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime } = snapshot);
     mobilitySkill.restore(snapshot.mobilitySkill);
+    wispSummons.restore(snapshot.wispSummons);
 }
 safeExposeGlobals({ captureCombatRuntime, restoreCombatRuntime });
 
@@ -71,6 +72,7 @@ function resetCombatTacticsRuntime() {
     combatTacticsRuntime = createCombatTacticsRuntime();
     skillGemCombatRuntime = null;
     mobilitySkill.reset();
+    wispSummons.reset();
 }
 
 function resetCombatChannelRuntime() {
@@ -1263,18 +1265,18 @@ function getActiveSummonGemDefs() {
 }
 
 function getSummonProfile(gemName) {
+    // 위습 정령 6종(스킬 변경분 2, 2026-09-30)은 대신한 동물의 수치를 그대로 물려받았다(임시): 화염←불곰, 냉기←서리늑대,
+    // 번개←벼락멧돼지, 물리←칼날까마귀, 카오스←공허 유충, 분광←폭풍 정령. 사거리는 인계 4/4/3/3/4/4.
     // baseHp는 기존 수치의 50% 수준으로 너프됨(성장 배율 hpScaleBase/Exp는 그대로라 모든
     // 레벨에서 균일하게 50% 낮은 생명력이 됨). dmgRollMinPct는 일격 편차의 하한(%) —
-    // 버스트형(불곰)은 편차가 크고, 연사형(서리늑대/벌떼)은 편차가 작음.
+    // 버스트형(화염 위습)은 편차가 크고, 연사형(냉기 위습)은 편차가 작음.
     let table = {
-        '서리늑대 소환': { role: 'attack', ele: 'cold', gridRange: 1, trait: '빠른 공속', baseHp: 58, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, dmgRollMinPct: 50, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 4000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '불곰 소환': { role: 'attack', ele: 'fire', gridRange: 1, trait: '강한 1타', baseHp: 83, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, dmgRollMinPct: 30, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 4000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
-        '벼락멧돼지 소환': { role: 'attack', ele: 'light', gridRange: 1, trait: '높은 저항 관통', baseHp: 65, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, dmgRollMinPct: 40, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
-        '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 55, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, dmgRollMinPct: 35, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
-        '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 71, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, dmgRollMinPct: 45, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
-        '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 50, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, dmgRollMinPct: 50, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 4000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '폭풍 정령 소환': { role: 'attack', ele: 'light', gridRange: 4, trait: '원거리 번개', baseHp: 48, baseArmor: 20, baseEvasion: 66, baseRes: { fire: 8, cold: 12, light: 34, chaos: 0 }, baseDamage: 48, dmgRollMinPct: 45, attackSpeedMul: 1.32, baseCrit: 12, baseCritDmg: 160, resPenBonus: 10, respawnMs: 4000, hpScaleBase: 0.032, hpScaleExp: 1.09, dmgPerLevelPct: 0.104, armorScaleBase: 0.011, armorScaleExp: 1.07, evasionScaleBase: 0.027, evasionScaleExp: 1.12 },
-        '철갑 거북 소환': { role: 'attack', ele: 'phys', gridRange: 1, trait: '중장갑 돌진', baseHp: 102, baseArmor: 96, baseEvasion: 12, baseRes: { fire: 18, cold: 18, light: 18, chaos: 8 }, baseDamage: 72, dmgRollMinPct: 38, attackSpeedMul: 0.68, baseCrit: 4, baseCritDmg: 145, physIgnoreBonus: 10, respawnMs: 4800, hpScaleBase: 0.052, hpScaleExp: 1.15, dmgPerLevelPct: 0.118, armorScaleBase: 0.034, armorScaleExp: 1.14, evasionScaleBase: 0.008, evasionScaleExp: 1.05 },
+        '화염 위습 소환': { role: 'attack', ele: 'fire', gridRange: 4, trait: '강한 1타', baseHp: 83, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, dmgRollMinPct: 30, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 4000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
+        '냉기 위습 소환': { role: 'attack', ele: 'cold', gridRange: 4, trait: '빠른 공속', baseHp: 58, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, dmgRollMinPct: 50, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 4000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '번개 위습 소환': { role: 'attack', ele: 'light', gridRange: 3, trait: '높은 저항 관통', baseHp: 65, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, dmgRollMinPct: 40, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
+        '물리 위습 소환': { role: 'attack', ele: 'phys', gridRange: 3, trait: '치명타 특화', baseHp: 55, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, dmgRollMinPct: 35, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
+        '카오스 위습 소환': { role: 'attack', ele: 'chaos', gridRange: 4, trait: '카오스 관통', baseHp: 71, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, dmgRollMinPct: 45, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
+        '분광 위습 소환': { role: 'attack', ele: 'light', gridRange: 4, trait: '공격마다 원소 무작위', baseHp: 48, baseArmor: 20, baseEvasion: 66, baseRes: { fire: 8, cold: 12, light: 34, chaos: 0 }, baseDamage: 48, dmgRollMinPct: 45, attackSpeedMul: 1.32, baseCrit: 12, baseCritDmg: 160, resPenBonus: 10, respawnMs: 4000, hpScaleBase: 0.032, hpScaleExp: 1.09, dmgPerLevelPct: 0.104, armorScaleBase: 0.011, armorScaleExp: 1.07, evasionScaleBase: 0.027, evasionScaleExp: 1.12 },
         '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 111, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, dmgRollMinPct: 45, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 8000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
     return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 58, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, dmgRollMinPct: 40, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
@@ -1637,8 +1639,8 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
     let ailmentSourceDmg = Math.max(1, base * dmgMul);
-    // 소환수마다 다른 일격 편차(dmgRollMinPct~100%)를 적용. 버스트형(불곰 등)은 편차가 크고
-    // 연사형(서리늑대/벌떼 등)은 편차가 작아, "최소 피해"가 최대 피해 대비 지나치게 미미해지지 않게 함.
+    // 소환수마다 다른 일격 편차(dmgRollMinPct~100%)를 적용. 버스트형(화염 위습 등)은 편차가 크고
+    // 연사형(냉기 위습 등)은 편차가 작아, "최소 피해"가 최대 피해 대비 지나치게 미미해지지 않게 함.
     let rollMinPct = Math.max(1, Math.min(100, Math.floor(s.dmgRollMinPct || 40)));
     let rollPct = Number.isFinite(options && options.rollOverridePct)
         ? Math.max(1, Math.min(100, options.rollOverridePct))
@@ -1776,9 +1778,17 @@ function calculateSummonDpsRow(row, pStats, target) {
         dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40)))
     };
     let intervalSec = getSummonAttackIntervalMs(pStats, s) / 1000;
-    let hit = getSummonHitDamageInfo(s, pStats, target, { expected: true });
+    let hit = getSummonExpectedHit(s, pStats, target);
     let dps = hit.damage / intervalSec;
     return { s, hit, dps };
+}
+
+/** Expected hit; a wisp that rolls its element per attack (분광) averages over its elements. */
+function getSummonExpectedHit(s, pStats, target) {
+    const elements = wispSummons.elements(s.gemName);
+    if (!elements) return getSummonHitDamageInfo(s, pStats, target, { expected: true });
+    const hits = elements.map(ele => getSummonHitDamageInfo({ ...s, ele }, pStats, target, { expected: true }));
+    return { ...hits[0], damage: hits.reduce((sum, hit) => sum + hit.damage, 0) / hits.length };
 }
 
 /** Numeric consumers skip presentation; repeated identical summons share work within this call only. */
@@ -1841,7 +1851,8 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     const lines = [];
     const eleLabel = ele => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
     let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
-    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
+    const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('·');
+    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${elements}`);
     lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
     let arcanaText = g.arcanaPct > 0 ? ` + 별 아르카나 ${Math.floor(g.arcanaPct)}%` : '';
     lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc + g.arcanaPct)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%${arcanaText}) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
@@ -1992,6 +2003,7 @@ function getSummonPierceTargets(target, enemies) {
 function runSummonAttackTick(pStats) {
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb5')) return;
     let now = getCombatTime();
+    landSummonAttacks(pStats, now);
     let aliveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
     if (aliveEnemies.length <= 0) return;
     (game.summons || []).forEach(s => {
@@ -2006,19 +2018,38 @@ function runSummonAttackTick(pStats) {
         }
         if (now < (s.nextAttackAt || 0)) return;
         s.nextAttackAt = now + getSummonAttackIntervalMs(pStats, s);
-        addBattleFx('summonAttack', {
-            summonId: s.id,
-            targetEnemyId: target.id,
-            targetGx: target.gx,
-            targetGy: target.gy,
-            duration: 220
-        });
         let pierceTargets = game.ascendClass === 'soulbinder' && hasKeystone('sb6')
             ? getSummonPierceTargets(target, aliveEnemies)
             : [];
-        resolveSummonHit(s, pStats, target, true);
-        pierceTargets.forEach(enemy => resolveSummonHit(s, pStats, enemy, false));
+        launchSummonAttack(s, pStats, [target, ...pierceTargets], now);
     });
+}
+
+/** One wisp attack (js/wisp-summons.js): the strike frame now; the hits now, or — a thrown orb, shard or root — when it lands. */
+function launchSummonAttack(summon, pStats, targets, now) {
+    const shot = wispSummons.launch(summon, targets, now), target = targets[0];
+    addBattleFx('summonAttack', {
+        summonId: summon.id, gemName: summon.gemName, targetEnemyId: target.id, targetGx: target.gx, targetGy: target.gy,
+        sourceGx: summon.gx, sourceGy: summon.gy, duration: Math.max(220, wispSummons.artMs(summon.gemName, shot.flight))
+    });
+    shot.now.forEach(hit => resolveSummonStrike(summon, pStats, hit));
+}
+
+/** Thrown wisp attacks whose flight ended: they hit if the wisp still stands and the target still lives. */
+function landSummonAttacks(pStats, now) {
+    wispSummons.due(now).forEach(hit => {
+        const summon = (game.summons || []).find(s => s && s.id === hit.summonId && s.alive);
+        const target = (game.enemies || []).find(enemy => enemy && enemy.id === hit.enemyId && enemy.hp > 0);
+        if (summon && target) resolveSummonStrike(summon, pStats, { ...hit, target });
+    });
+}
+
+/** hit = { target, first, element }: 분광 위습 strikes with the element rolled for this attack instead of its own. */
+function resolveSummonStrike(summon, pStats, hit) {
+    const own = summon.ele;
+    if (hit.element) summon.ele = hit.element;
+    resolveSummonHit(summon, pStats, hit.target, hit.first);
+    summon.ele = own;
 }
 
 function markPlayerMovementCompleted() {
@@ -8855,7 +8886,7 @@ function grantExpAndGem(enemy, pStats) {
         let gem = game.gemData[name];
         if (gainGemExperience(gem, gemExp) > 0) {
             gemLeveled = true;
-            addLog(`🐾 소환수 젬 [${name}] 레벨업!`, "loot-unique");
+            addLog(`✦ 소환수 젬 [${name}] 레벨업!`, "loot-unique");
         }
     });
     (game.equippedSupports || []).forEach(name => {

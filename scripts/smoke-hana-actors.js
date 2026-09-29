@@ -71,14 +71,15 @@ assert.deepStrictEqual(channel.slice(0, 3), [channel[3], channel[3], channel[3]]
 // Finished swings release the body back to idle.
 assert.strictEqual(run(`hanaActors.attackPose(HANA_SPRITES.classes.warrior.motions.attack, { start: 0, impactAt: 200, channelUntil: 0 }, 5000)`), null);
 
-// Summon sheets exist for every style the renderer can pick.
-for (const [style, bank] of Object.entries(sprites.summons)) {
-    for (const [slug, motions] of Object.entries(bank)) {
-        for (const motion of ['idle', 'attack']) {
-            const file = path.join(root, 'assets/summon/hana', style, `${slug}_${motion}.png`);
-            assert(fs.existsSync(file), `${file} must exist`);
-            assert.strictEqual(pngSize(file).w, motions[motion].w * 4, `${style}/${slug} ${motion}: four frames`);
-        }
+// Summons are the wisps (data/wisp-summons.js, one look): every wisp gem finds its sheet pair, other summons draw elsewhere.
+assert.strictEqual(sprites.summons, undefined, 'the four animal summon looks are gone from the Hana data');
+const wispSlugs = plain(run('Object.keys(WISP_SUMMONS).map(name => [hanaActors.summonSlug(name), WISP_SUMMONS[name].slug])'));
+assert(wispSlugs.length === 6 && wispSlugs.every(([drawn, table]) => drawn === table), 'each wisp gem draws from its own sheet');
+assert.strictEqual(run("hanaActors.summonSlug('수액 골렘 소환')"), null, 'the guard golem keeps the legacy frame');
+for (const [slug] of wispSlugs) {
+    for (const motion of ['idle', 'attack']) {
+        const file = path.join(root, 'assets/summon/wisp', `${slug}_${motion}.png`);
+        assert.deepStrictEqual(pngSize(file), { w: 64, h: 16 }, `${slug} ${motion}: four 16×16 frames`);
     }
 }
 

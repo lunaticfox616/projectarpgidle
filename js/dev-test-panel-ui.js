@@ -1,11 +1,10 @@
 /** 로컬 테스트 패널. 127.0.0.1/localhost 에서 주소 끝에 ?dev=1 을 붙여 열 때만 나타난다(배포판·앱에서는 없음).
- * 직업·스킬 젬·캐릭터 스프라이트·이펙트 스타일·소환수 외형·무적·배속·레벨·액트를 바로 바꿔
+ * 직업·스킬 젬·캐릭터 스프라이트·이펙트 스타일·무적·배속·레벨·액트를 바로 바꿔
  * 새 캐릭터와 스킬 이펙트, 스토리 장면을 확인한다. 저장 데이터를 바꾸므로 테스트용 세이브에서 쓴다.
  */
 const devTestPanel = (() => {
     const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
     const SPEEDS = [1, 2, 4, 8];
-    const SUMMON_STYLES = [['glow', '코어키퍼식'], ['dark', '다크 판타지'], ['simple', '단순 색감'], ['cute', '기본 · 귀여운']];
     const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
         ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
@@ -146,14 +145,10 @@ const devTestPanel = (() => {
     }
     function gemSection() {
         const select = gemSelect();
-        const styles = el('select', { id: 'dtp-summon' }, SUMMON_STYLES.map(([value, label]) => el('option', { value, textContent: label })));
-        styles.value = game.settings.summonArtStyle || 'glow';
-        styles.onchange = () => setSetting('summonArtStyle', styles.value, `소환수 외형: ${styles.selectedOptions[0].textContent}`);
         return section('스킬 이펙트', [
             row([select, button('장착', () => equipGem(select.value))]),
             row([button('리메이크(16도트)', () => setSetting('skillFxStyle', 'remake', '이펙트: 리메이크')),
                 button('원본 v3.38', () => setSetting('skillFxStyle', 'original', '이펙트: 원본'))]),
-            row([el('label', { textContent: '소환수' }), styles]),
             row([el('label', { textContent: '효과 확장' }), ...['없음', '+1', '+2'].map((label, n) =>
                 button(label, () => setExpansion(n), { dataset: { expand: String(n) } }))])
         ]);

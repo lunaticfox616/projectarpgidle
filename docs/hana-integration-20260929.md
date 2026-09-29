@@ -19,11 +19,11 @@
 
 | 파일 | 하는 일 |
 |---|---|
-| `scripts/import-hana-characters.cjs` | 킷 결과물 → `assets/playable/hana/<직업>/<모션>.png`, `assets/summon/hana/<시안>/`, `data/hana-sprites.js` |
+| `scripts/import-hana-characters.cjs` | 킷 결과물 → `assets/playable/hana/<직업>/<모션>.png`, `data/hana-sprites.js`, 위습 정령 소환수 → `assets/summon/wisp/` (동물 소환 시안 4종은 스킬 변경분 2에서 위습으로 교체, docs/skill-delta2-20260930.md) |
 | `scripts/import-hana-weapon-combos.cjs` | 시뮬레이터 HTML 안의 직업 × 무기 36조합 레이어 시트 → `assets/playable/hana/combos/<직업>/<무기>.png`, `data/hana-weapon-combos.js` |
 | `scripts/import-hana-skill-fx.cjs` | 82색 팔레트·OKLab 색표·투사체 도안 → `data/hana-skill-fx.js`, 원본 JS를 `docs/skill-assets-hana/reference/` |
-| `js/canvas-hana-actors.js` | 플레이어·소환수 시트 그리기(장치 픽셀 맞춤, 타격 프레임을 impactAt에 맞춤, 피격·흡혈 물들임) |
-| `js/canvas-battle-units.js` | 전장의 플레이어 모습과 소환수 그리기(Hana → 없으면 기존 스트립) |
+| `js/canvas-hana-actors.js` | 플레이어·위습 소환수 시트 그리기(장치 픽셀 맞춤, 타격 프레임을 impactAt에 맞춤, 피격·흡혈 물들임) |
+| `js/canvas-battle-units.js` | 전장의 플레이어 모습(Hana → 없으면 기존 스트립)과 소환수 그리기(위습 시트, 방어 소환수는 기존 summon1.png) |
 | `js/canvas-fx-remake.js` | 리메이크 패스: v3.38 이펙트를 전장 좌표 버퍼에 그린 뒤 3×3 블록마다 한 도트로 다시 찍음 |
 | `js/canvas-redrawn-skill-art.js` | 인계 `void_fx.js` 17개 모듈을 규칙에 맞게 옮긴 것(그림만) |
 | `js/canvas-redrawn-skill-fx.js` | 새로 그린 17젬을 실제 전투 이벤트에 연결(아래) |
@@ -66,7 +66,6 @@
 | `game.settings.heroSpriteSet` | `'hana'` · `'legacy'` | Hana |
 | `game.settings.skillFxStyle` | `'remake'` · `'original'` | 리메이크 |
 | `game.settings.heroWeaponMode` | `'auto'` · `'class'` · 무기 slug | auto |
-| `game.settings.summonArtStyle` | `'glow'`(코어키퍼식) · `'dark'` · `'simple'` · `'cute'` | glow |
 
 ## 검증
 

@@ -8,7 +8,7 @@ const files = [
   'data/constants.js',
   'data/level-progression.js', 'data/build-stat-inputs.js',
   'data/maps.js',
-  'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js',
+  'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/items.js',
   'data/growth-items.js',
   'data/passives.js',
@@ -33,7 +33,7 @@ const files = [
   'js/core-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/combat-build-stats.js',
-  'js/combat.js', 'js/mobility-skill.js',
+  'js/combat.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/talent-cards.js',
 ];
 

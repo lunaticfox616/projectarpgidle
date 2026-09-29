@@ -1,4 +1,4 @@
-/** Hana +6 player and summon sprites (data/hana-sprites.js, data/hana-weapon-combos.js).
+/** Hana +6 player sprites (data/hana-sprites.js, data/hana-weapon-combos.js) and the wisp summons (data/wisp-summons.js).
  * One sprite pixel is one battle dot = tile/16 CSS px, the same grid the remade skill effects use.
  * Frames are drawn nearest-neighbour and snapped to device pixels. The attack clip is timed so its
  * authored hit frame lands on the swing's impactAt. The class holds the weapon that fits the skill in use
@@ -324,57 +324,43 @@ const hanaActors = (() => {
         return true;
     }
 
-    // ------------------------------------------------------------------ summons
-    const SUMMON_SLUGS = {
-        '서리늑대 소환': 'frost-wolf', '불곰 소환': 'fire-bear', '벼락멧돼지 소환': 'thunder-boar',
-        '칼날까마귀 소환': 'blade-raven', '공허 유충 소환': 'void-larva', '벌떼 소환': 'swarm',
-        '폭풍 정령 소환': 'storm-spirit', '철갑 거북 소환': 'armored-turtle'
-    };
-    const SUMMON_TIMING = { idle: [180, 180, 180, 180], attack: [90, 70, 110, 110], strike: 2 };
-    function summonStyle() {
-        const style = typeof game === 'object' && game && game.settings ? game.settings.summonArtStyle : null;
-        const summons = (data() || {}).summons || {};
-        return summons[style] ? style : 'glow';
-    }
-    function summonSlug(skillName) { return SUMMON_SLUGS[skillName] || null; }
+    // ------------------------------------------------------------------ summons: 위습 정령 6종 (data/wisp-summons.js)
+    const WISP = WISP_SUMMON_SHEET;
+    function summonSlug(skillName) { return (WISP_SUMMONS[skillName] && WISP_SUMMONS[skillName].slug) || null; }
     function summonPose(summon) {
-        const lead = sum(SUMMON_TIMING.attack, 0, SUMMON_TIMING.strike);
+        const lead = sum(WISP.attackMs, 0, WISP.strike);
         const t = summon.now - (summon.attackAt - lead);
-        if (t >= 0 && t < sum(SUMMON_TIMING.attack)) return { motion: 'attack', frame: frameAt(SUMMON_TIMING.attack, t, false) };
-        return { motion: 'idle', frame: frameAt(SUMMON_TIMING.idle, summon.now + (summon.phase || 0), true) };
-    }
-    function summonSpec(slug) {
-        const style = summonStyle(), summons = (data() || {}).summons || {};
-        const spec = summons[style] && summons[style][slug];
-        return spec ? { style, spec } : null;
+        if (t >= 0 && t < sum(WISP.attackMs)) return { motion: 'attack', frame: frameAt(WISP.attackMs, t, false) };
+        return { motion: 'idle', frame: frameAt(WISP.idleMs, summon.now + (summon.phase || 0), true) };
     }
 
     /**
-     * Draws a summon standing on (summon.x, summon.y); summon.attackAt is the visual time of its current strike
-     * (the third attack frame lands on it). Style: settings.summonArtStyle (glow · dark · simple · cute).
+     * Draws a wisp summon on (summon.x, summon.y): the 16×16 block's bottom edge on the feet line, like the handoff.
+     * summon.attackAt is the visual time of its current strike (the second attack frame lands on it). Both sheets start
+     * loading with the first draw; until the attack sheet is decoded the idle loop stands in.
      * @param {CanvasRenderingContext2D} ctx
      * @param {{skillName:string,x:number,y:number,now:number,tile?:number,attackAt?:number,flipX?:boolean,alpha?:number,phase?:number}} summon
-     * @returns {?{top:number}} top edge of the drawn sprite, or null when this summon has no loaded Hana sheet
+     * @returns {?{top:number}} top edge of the drawn body, or null when this summon is not a wisp or its sheet is not loaded
      */
     function drawSummon(ctx, summon) {
-        const slug = summonSlug(summon.skillName), found = slug && summonSpec(slug);
-        if (!found) return null;
-        const sheetPath = motion => `assets/summon/hana/${found.style}/${slug}_${motion}.png`;
-        const pose = summonPose(summon), img = image(sheetPath(pose.motion));
+        const slug = summonSlug(summon.skillName);
+        if (!slug) return null;
+        const sheets = { idle: image(`${WISP.path}${slug}_idle.png`), attack: image(`${WISP.path}${slug}_attack.png`) };
+        const wanted = summonPose(summon), pose = loaded(sheets[wanted.motion]) ? wanted : { motion: 'idle', frame: 0 };
+        const img = sheets[pose.motion];
         if (!loaded(img)) return null;
-        const box = found.spec[pose.motion], dot = dotSize(summon.tile), blockTop = summon.y - box.h * dot;
+        const size = WISP.size, dot = dotSize(summon.tile), blockTop = summon.y - size * dot;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = Math.max(0, Math.min(1, summon.alpha ?? 1));
         drawDotShadow(ctx, summon, dot * 0.8, 0.22 * ctx.globalAlpha);
         if (summon.flipX) { ctx.translate(summon.x * 2, 0); ctx.scale(-1, 1); }
-        blit(ctx, img, { x: pose.frame * box.w, y: 0, w: box.w, h: box.h }, { x: summon.x - (box.w / 2) * dot, y: blockTop, dot });
+        blit(ctx, img, { x: pose.frame * size, y: 0, w: size, h: size }, { x: summon.x - (size / 2) * dot, y: blockTop, dot });
         ctx.restore();
-        const idle = image(sheetPath('idle'));
-        return { top: blockTop + opaqueTop(loaded(idle) ? idle : img) * dot };
+        return { top: blockTop + opaqueTop(loaded(sheets.idle) ? sheets.idle : img) * dot };
     }
     const tops = new Map();
-    /** First opaque row of a summon sheet: the 16×16 blocks keep the body low, so the life bar sits on the body, not
+    /** First opaque row of a wisp sheet: the 16×16 blocks keep the body low, so the life bar sits on the body, not
      * on the empty top of the block (where it read as the life bar of the enemy standing behind). */
     function opaqueTop(img) {
         if (tops.has(img.src)) return tops.get(img.src);

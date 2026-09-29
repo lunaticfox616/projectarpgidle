@@ -1124,9 +1124,9 @@ function drawBattleGroundLayer(ctx, effects, view) {
         drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
     }
     redrawnSkillFx.drawLayer('ground', view.now);
+    wispSummonFx.drawLayer('ground', view.now);
     fxRemake.end();
-    let motions = buildSummonAttackMotionMap(effects, game.summons, view.gridProj, view.enemyPosMap, view.now);
-    drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj, motions);
+    drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
 }
 
 /** Preserve special spell animation while fitting its range to the cast-time grid snapshot. */
@@ -2153,27 +2153,6 @@ function resolveEnemyFacingDirection(enemyPos, playerPos) {
     return dy < 0 ? 'north' : 'south';
 }
 
-function buildSummonAttackMotionMap(effects, summons, proj, enemyPosMap, now) {
-    let result = {};
-    if (!proj || typeof proj.cellToScreen !== 'function') return result;
-    let summonById = new Map((summons || []).filter(summon => summon
-        && Number.isFinite(summon.gx) && Number.isFinite(summon.gy))
-        .map(summon => [summon.id, summon]));
-    (effects || []).forEach(fx => {
-        if (!fx || fx.type !== 'summonAttack' || fx.summonId == null) return;
-        let summon = summonById.get(fx.summonId);
-        if (!summon) return;
-        let source = proj.cellToScreen(summon.gx, summon.gy);
-        let target = enemyPosMap && enemyPosMap[fx.targetEnemyId];
-        if (!target && Number.isFinite(fx.targetGx) && Number.isFinite(fx.targetGy)) {
-            target = proj.cellToScreen(fx.targetGx, fx.targetGy);
-        }
-        let motion = getEnemyAttackMotion(fx, source, target, now, 5);
-        if (motion) result[fx.summonId] = motion;
-    });
-    return result;
-}
-
 /** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js). */
 function getEnemySpawnAge(enemy, now, duration) {
     const rising = bossEntranceView.enemyAge(enemy, now);
@@ -2840,6 +2819,7 @@ function isBattleLightingEnabled() {
 // 조명은 체력바·피해 숫자 아래에 깔린다. 순서: 조명 → 플레이어 바 → 적 바.
 function drawBattleLightingAndBars(ctx, scene) {
     redrawnSkillFx.drawLayer('fore', scene.now);
+    wispSummonFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
     drawBattlefieldPlayerHealthBar(ctx, scene);
@@ -3011,47 +2991,16 @@ function getEnemyShortLabel(enemy) {
 }
 
 
-const SUMMON_SPRITE_ORDER = ['서리늑대 소환', '불곰 소환', '벼락멧돼지 소환', '칼날까마귀 소환', '공허 유충 소환', '벌떼 소환', '수액 골렘 소환'];
-const SUMMON_SPRITE_FALLBACK_BY_NAME = Object.freeze({
-    '폭풍 정령 소환': '벼락멧돼지 소환',
-    '철갑 거북 소환': '불곰 소환'
-});
-const summonSpriteFrameCache = new WeakMap();
+// summon1.png(가로 540 기준 7칸, 수동 분석 경계) 중 아직 쓰는 칸: 방어 소환수 수액 골렘(마지막 칸). 공격 소환수는 위습이라
+// 자기 시트로 그린다(hanaActors.drawSummon) — 그 밖의 이름은 칸이 없다(시트를 불러오는 동안 점으로 표시).
 const SUMMON1_CANONICAL_WIDTH = 540;
-// summon1.png 수동 분석 기준 경계(좌->우, 7프레임).
-const SUMMON1_FRAME_BOUNDARIES = [0, 74, 152, 233, 313, 396, 464, 540];
-
-function buildSummonSpriteFramesByContent(image) {
-    if (!image || !image.width || !image.height) return null;
-    const cached = summonSpriteFrameCache.get(image);
-    if (cached) return cached;
-    const frameCount = SUMMON_SPRITE_ORDER.length;
-    const scale = image.width / SUMMON1_CANONICAL_WIDTH;
-    const boundaries = SUMMON1_FRAME_BOUNDARIES.map((value, idx) => {
-        if (idx === 0) return 0;
-        if (idx === SUMMON1_FRAME_BOUNDARIES.length - 1) return image.width;
-        return clampNumber(Math.round(value * scale), 0, image.width);
-    });
-    const frames = [];
-    for (let i = 0; i < frameCount; i++) {
-        const sx = boundaries[i];
-        const ex = boundaries[i + 1];
-        const sw = Math.max(1, ex - sx);
-        frames.push({ sx, sy: 0, sw, sh: image.height });
-    }
-    summonSpriteFrameCache.set(image, frames);
-    return frames;
-}
+const SUMMON1_FRAMES = Object.freeze({ '수액 골렘 소환': Object.freeze([464, 540]) });
 
 function getSummonSpriteFrameRectByName(name, image) {
-    if (!image) return null;
-    const frames = buildSummonSpriteFramesByContent(image);
-    if (!frames || frames.length <= 0) return null;
-    const rawName = String(name || '').replace(/\s+/g, ' ').trim();
-    const normalizeName = SUMMON_SPRITE_FALLBACK_BY_NAME[rawName] || rawName;
-    const index = Math.max(0, SUMMON_SPRITE_ORDER.findIndex(label => label === normalizeName));
-    const safeIndex = Math.min(index, frames.length - 1);
-    return frames[safeIndex];
+    const span = image && image.width && image.height ? SUMMON1_FRAMES[String(name || '').trim()] : null;
+    if (!span) return null;
+    const scale = image.width / SUMMON1_CANONICAL_WIDTH, sx = clampNumber(Math.round(span[0] * scale), 0, image.width - 1);
+    return { sx, sy: 0, sw: Math.max(1, clampNumber(Math.round(span[1] * scale), 0, image.width) - sx), sh: image.height };
 }
 
 function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {

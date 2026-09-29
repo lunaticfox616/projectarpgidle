@@ -19,8 +19,8 @@ async function measure(name) {
     if (name === 'endgame') run(`(${require('./lib/offline-endgame-fixture').toString()})()`);
     if (name === 'summoner') run(`
         game.selectedClassId='occultist';game.selectedHeroId='hero9';game.level=8;
-        game.skills=['기본 공격','서리늑대 소환'];game.gemData={'서리늑대 소환':{level:3,exp:0}};
-        game.equippedSummonSkills=['서리늑대 소환'];game.summonSkillCounts={'서리늑대 소환':1};
+        game.skills=['기본 공격','냉기 위습 소환'];game.gemData={'냉기 위습 소환':{level:3,exp:0}};
+        game.equippedSummonSkills=['냉기 위습 소환'];game.summonSkillCounts={'냉기 위습 소환':1};
         game.summonLoadoutInitialized=true;
     `);
     if (name === 'void-passives') run(`

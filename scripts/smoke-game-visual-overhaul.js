@@ -4,7 +4,7 @@ const vm = require('vm');
 
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
-  'data/skills.js', 'data/skill-effect-expansion.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
+  'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
   'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
   'data/act-exploration-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
 ];
@@ -99,6 +99,7 @@ vm.runInContext(fs.readFileSync('js/skill-effect-expansion.js', 'utf8'), context
 vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filename: 'js/combat-grid.js' });
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
 vm.runInContext(fs.readFileSync('js/mobility-skill.js', 'utf8'), context, { filename: 'js/mobility-skill.js' });
+vm.runInContext(fs.readFileSync('js/wisp-summons.js', 'utf8'), context, { filename: 'js/wisp-summons.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
 vm.runInContext(fs.readFileSync('js/canvas-enemy-projectiles.js', 'utf8'), context, { filename: 'js/canvas-enemy-projectiles.js' });
 for(const file of ['js/canvas-exploration-art.js','js/canvas-act-exploration.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
@@ -224,20 +225,6 @@ const enemyFacingDirections = JSON.parse(vm.runInContext(`JSON.stringify({
 })`, context));
 assert.deepStrictEqual(enemyFacingDirections, { north: 'north', south: 'south', west: 'west', east: 'east' },
   '방향 스프라이트가 있는 몬스터는 플레이어를 향한 네 방향 프레임을 선택해야 한다');
-const summonAttackMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
-  let proj = { actorGroundOffsetY: 0, cellToScreen: (gx, gy) => ({ x: gx * 10, y: gy * 10 }) };
-  let summons = [{ id: 7, gx: 1, gy: 2 }];
-  let fx = [{ type: 'summonAttack', summonId: 7, targetEnemyId: 8, targetGx: 4, targetGy: 2,
-    start: 1000, duration: 200 }];
-  return {
-    impact: buildSummonAttackMotionMap(fx, summons, proj, {}, 1100)[7],
-    end: buildSummonAttackMotionMap(fx, summons, proj, {}, 1200)[7]
-  };
-})())`, context));
-assert.ok(summonAttackMotion.impact.x > 4.9 && Math.abs(summonAttackMotion.impact.y) < 1e-9,
-  '소환수는 실제 공격 대상을 향해 짧게 전진해야 한다');
-assert.ok(Math.abs(summonAttackMotion.end.x) < 1e-9 && Math.abs(summonAttackMotion.end.y) < 1e-9,
-  '소환수는 공격 연출이 끝나면 원래 칸의 기준점으로 돌아와야 한다');
 const heroWalkMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
   let ids = Array.from({ length: 10 }, (_, index) => 'hero' + (index + 1));
   return {

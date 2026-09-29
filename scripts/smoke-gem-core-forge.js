@@ -6,7 +6,7 @@ const run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 run(`game=mergeDefaults({});game.season=10;contentProgression.sync();
     game.contentProgression.inherited=['craft','gemForge'];contentProgression.sync();
-    game.skills=['연속 베기','서리 폭발','서리늑대 소환'];game.activeSkill='연속 베기';
+    game.skills=['연속 베기','서리 폭발','냉기 위습 소환'];game.activeSkill='연속 베기';
     game.gemData['연속 베기']=normalizeGemRecord({level:14,quality:10});
     game.currencies.bossCore=100;game.currencies.skyEssence=100;`);
 // Errors must not consume material, create records, or mutate the enhancement target.
@@ -64,20 +64,20 @@ for (const name of ['연속 베기','서리 폭발']) {
     run(`Object.assign(game.gemData['${name}'],{bossCoreLevel:5,skyCoreLevel:5});`);
     assert.equal(run('getActiveSkillStats(0).finalLevel'), base.finalLevel+2);
 }
-run(`game.gemData['서리늑대 소환']=normalizeGemRecord({level:14});
-    game.equippedSummonSkills=['서리늑대 소환'];
+run(`game.gemData['냉기 위습 소환']=normalizeGemRecord({level:14});
+    game.equippedSummonSkills=['냉기 위습 소환'];
     var summonStats={summonPctDmg:0,summonEfficiency:0,finalDamageMultiplier:1};
-    var summon=buildSummonRuntimeStats({name:'서리늑대 소환',source:'skill'},summonStats,0);
+    var summon=buildSummonRuntimeStats({name:'냉기 위습 소환',source:'skill'},summonStats,0);
     var hitOptions={rollOverridePct:100,forceCrit:false};`);
 const baseHit = run('getSummonHitDamageInfo(summon,summonStats,null,hitOptions).damage');
 const baseInterval = run('getSummonAttackIntervalMs(summonStats,summon)');
-run("Object.assign(game.gemData['서리늑대 소환'],{bossCoreLevel:4,skyCoreLevel:4})");
+run("Object.assign(game.gemData['냉기 위습 소환'],{bossCoreLevel:4,skyCoreLevel:4})");
 const upgradedHit = run('getSummonHitDamageInfo(summon,summonStats,null,hitOptions).damage');
 assert(Math.abs(upgradedHit/baseHit-1.16)<0.01);
 assert.equal(run('getSummonAttackIntervalMs(summonStats,summon)'),Math.floor(1000/(1.35*1.08)));
 assert(run('getSummonAttackIntervalMs(summonStats,summon)')<baseInterval);
-run("Object.assign(game.gemData['서리늑대 소환'],{bossCoreLevel:5,skyCoreLevel:5})");
-assert.equal(run("getSummonGemLevel('서리늑대 소환','skill',summonStats)"),16);
+run("Object.assign(game.gemData['냉기 위습 소환'],{bossCoreLevel:5,skyCoreLevel:5})");
+assert.equal(run("getSummonGemLevel('냉기 위습 소환','skill',summonStats)"),16);
 run("game.talentCards={'hero3__soulbinder':{level:10,score:600,count:1}};game.talentCardLoadout=['hero3__soulbinder',null,null,null,null,null];summonStats.aspd=2");
 assert.equal(run('getSummonAttackIntervalMs(summonStats,summon)'),Math.floor(1000/(2*1.1)), 'shared player attack speed still benefits from sky enhancement');
 console.log('smoke-gem-core-forge passed');

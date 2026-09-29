@@ -30,11 +30,11 @@ module.exports = function configureOfflineEndgameFixture() {
     }
     // Explicit synthetic load modifier: ensure the requested eight summons really run.
     game.equipment['무기'].stats.push({ id: 'summonCap', val: 7 });
-    game.skills = ['기본 공격', '서리늑대 소환'];
+    game.skills = ['기본 공격', '냉기 위습 소환'];
     game.activeSkill = '기본 공격';
-    game.gemData['서리늑대 소환'] = { level: 20, exp: 0, quality: 20 };
-    game.equippedSummonSkills = ['서리늑대 소환'];
-    game.summonSkillCounts = { '서리늑대 소환': 8 };
+    game.gemData['냉기 위습 소환'] = { level: 20, exp: 0, quality: 20 };
+    game.equippedSummonSkills = ['냉기 위습 소환'];
+    game.summonSkillCounts = { '냉기 위습 소환': 8 };
     game.summonLoadoutInitialized = true;
     game.equippedSupports = Object.keys(SUPPORT_GEM_DB).slice(0, 5);
     for (const name of game.equippedSupports) game.supportGemData[name] = { level: 20, exp: 0 };

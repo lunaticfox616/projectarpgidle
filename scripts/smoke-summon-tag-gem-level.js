@@ -22,19 +22,19 @@ const tagResult = vm.runInContext(`(() => {
   game.ascendClass = null;
   game.ascendNodes = [];
   game.gemData = {
-    '공허 유충 소환': { level:5 },
-    '불곰 소환': { level:5 },
-    '칼날까마귀 소환': { level:4, bossCoreLevel:2, skyCoreLevel:1, awakened:true }
+    '카오스 위습 소환': { level:5 },
+    '화염 위습 소환': { level:5 },
+    '물리 위습 소환': { level:4, bossCoreLevel:2, skyCoreLevel:1, awakened:true }
   };
   let genericValue = Number(generic[1].effects.find(effect => effect.stat === 'gemLevel').val || 0);
   let chaosValue = Number(chaos[1].effects.find(effect => effect.stat === 'chaosGemLevel').val || 0);
   return {
     genericValue,
     chaosValue,
-    voidBonus:getGemBonusSources('공허 유충 소환').total,
-    fireBonus:getGemBonusSources('불곰 소환').total,
-    voidLevel:getSummonGemLevel('공허 유충 소환', 'skill'),
-    materialLevel:getSummonGemLevel('칼날까마귀 소환', 'skill')
+    voidBonus:getGemBonusSources('카오스 위습 소환').total,
+    fireBonus:getGemBonusSources('화염 위습 소환').total,
+    voidLevel:getSummonGemLevel('카오스 위습 소환', 'skill'),
+    materialLevel:getSummonGemLevel('물리 위습 소환', 'skill')
   };
 })()`, runtime);
 
@@ -55,18 +55,18 @@ const masterSummonerResult = vm.runInContext(`(() => {
   game.journalBonuses = [];
   game.talismanPlacements = {};
   game.jewelSlots = [];
-  game.gemData['벼락멧돼지 소환'] = { level:5, quality:0 };
+  game.gemData['번개 위습 소환'] = { level:5, quality:0 };
   game.gemData['화염 참격'] = { level:5, quality:0 };
-  game.skills = Array.from(new Set([...(game.skills || []), '벼락멧돼지 소환']));
-  game.equippedSummonSkills = ['벼락멧돼지 소환'];
+  game.skills = Array.from(new Set([...(game.skills || []), '번개 위습 소환']));
+  game.equippedSummonSkills = ['번개 위습 소환'];
   game.talentCards = { hero7__soulbinder:{ level:10, score:600, count:1 } };
   game.talentCardLoadout = ['hero7__soulbinder', null, null, null, null, null];
   let stats = getPlayerStats();
-  let presentation = getGemPresentation('벼락멧돼지 소환', false, stats);
+  let presentation = getGemPresentation('번개 위습 소환', false, stats);
   let directPresentation = getGemPresentation('화염 참격', false, stats);
-  let preview = getSummonTooltipPreview('벼락멧돼지 소환', stats);
+  let preview = getSummonTooltipPreview('번개 위습 소환', stats);
   ensureSummonRuntime(stats);
-  let runtimeSummon = (game.summons || []).find(row => row && row.gemName === '벼락멧돼지 소환');
+  let runtimeSummon = (game.summons || []).find(row => row && row.gemName === '번개 위습 소환');
   return {
     talentBonus:stats.talentSummonGemLevelBonus,
     presentationLevel:presentation.finalLevel,
@@ -107,13 +107,13 @@ const equipmentResult = vm.runInContext(`(() => {
   let rawTotal = [...raw.baseStats, ...raw.explicitStats]
     .filter(stat => ['gemLevel', 'elementalGemLevel', 'fireGemLevel', 'summonGemLevel'].includes(stat.id))
     .reduce((sum, stat) => sum + stat.val, 0);
-  let fireGemGear = getGemBonusSources('불곰 소환').gear;
-  let arcanaDamage = getArcanaGemDamageBonus('불곰 소환');
+  let fireGemGear = getGemBonusSources('화염 위습 소환').gear;
+  let arcanaDamage = getArcanaGemDamageBonus('화염 위습 소환');
   game.activeSkill = '화염 참격';
   game.gemData['화염 참격'] = { level:5, quality:0 };
   let activeSkillWithStar = getActiveSkillStats(getGemBonusSources('화염 참격').total);
   let playerDpsWithStar = getPlayerStats().dps;
-  let summon = { gemName:'불곰 소환', ele:'fire', baseDamage:100, crit:0, critDmg:140, dmgRollMinPct:100 };
+  let summon = { gemName:'화염 위습 소환', ele:'fire', baseDamage:100, crit:0, critDmg:140, dmgRollMinPct:100 };
   let summonStats = { summonPctDmg:0, summonEfficiency:0, summonCrit:0, summonCritDmg:0,
     summonSharedPctDmg:0, summonSharedTaggedPctDmg:{}, resPen:0, physIgnore:0,
     finalDamageMultiplier:1, bossDamageDealtMultiplier:1, uniqueSummonNonCritNoDamage:false };
@@ -152,7 +152,7 @@ const growthResult = vm.runInContext(`(() => {
   game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:1, activeLoadout:0,
     loadouts:[{ name:'세팅 1', placements:{ 9001:{ x:0, y:0, rotation:0 } } }] };
   let placed = getPlacedGrowthEntries();
-  let bonus = getGemBonusSources('불곰 소환');
+  let bonus = getGemBonusSources('화염 위습 소환');
   return { placed:placed.length, gear:bonus.gear };
 })()`, runtime);
 
@@ -170,7 +170,7 @@ const evaluationResult = vm.runInContext(`(() => {
     {baseStats: [{id:'gemLevel',val:0.7}], explicitStats: GEM_LEVEL_TAG_RULES.map(rule => ({id:rule.stat,val:0.1}))}];
   const input = JSON.stringify(lists);
   const evaluation = createGemBonusEvaluation(lists);
-  const targets = ['불곰 소환','공허 유충 소환','서리늑대 소환','연속 베기', ...Object.keys(SUPPORT_GEM_DB).slice(0,12)];
+  const targets = ['화염 위습 소환','카오스 위습 소환','냉기 위습 소환','연속 베기', ...Object.keys(SUPPORT_GEM_DB).slice(0,12)];
   const pairs = targets.map(name => [getTargetGemBonusSources(name, undefined, lists),
     getTargetGemBonusSources(name, undefined, lists, evaluation)]);
   const gearPairs = targets.map(name => [getGemBonusSources(name, lists, evaluation).gear,
