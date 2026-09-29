@@ -1,0 +1,218 @@
+@layer overrides {
+/* 도트 UI. 전장(한 칸 16도트)과 같은 결로 UI를 맞춘다: 도트 글꼴, 각진 모서리, 흐림 없는 그림자, 도트 테두리.
+   디아블로 2 향은 살짝만 — 돌판 재질, 청동 테와 금빛 징, 금빛 제목, 생명 구슬(themes/pixel-hud.css).
+   테두리 그림은 scripts/build-pixel-ui.cjs가 찍는다(한 도트 = 2 CSS px). 스킨별 색 토큰은 그대로 둔다. */
+
+body[data-ui-skin] {
+  /* 도트 글꼴의 제 크기: 물마루 12px(UI 전반), 갈무리 15px(긴 글), DOS새물 16px(제목). 그 배수에서 가장 또렷하다. */
+  --font-pixel: 'MulmaruMono', 'Galmuri14', 'Malgun Gothic', sans-serif;
+  --font-pixel-read: 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif;
+  --font-pixel-title: 'DOSSaemmul', 'MulmaruMono', 'Malgun Gothic', sans-serif;
+  --font-body: var(--font-pixel);
+  --font-title: var(--font-pixel);
+  --font-display: var(--font-pixel-title);
+  --font-caps: var(--font-pixel);
+  --px-ink: #050404;
+  --px-stone: #12100d;
+  --px-stone-raised: #1a1712;
+  --px-stone-control: #262019;
+  --px-bronze-hi: #8d7249;
+  --px-bronze: #5d4a2e;
+  --px-bronze-lo: #211a11;
+  --px-gold: #d9b066;
+  --px-gold-bright: #f3d28c;
+  --px-copy: #e6dcc6;
+  --px-copy-muted: #a39883;
+  /* 돌판 결: 2px 체크 무늬를 아주 옅게 */
+  --px-dither: repeating-conic-gradient(rgba(255, 236, 200, .024) 0 25%, transparent 0 50%) 0 0 / 4px 4px;
+  --px-drop: 4px 4px 0 rgba(0, 0, 0, .55);
+  --px-bevel: inset 2px 2px 0 var(--px-bronze-hi), inset -2px -2px 0 var(--px-bronze-lo);
+  --px-bevel-pressed: inset 2px 2px 0 var(--px-bronze-lo), inset -2px -2px 0 #4f3f28;
+  --px-text-edge: 1px 1px 0 #000;
+  /* 겹쳐 찍기 굵게: 가는 DOS새물 제목을 한 도트 옆에 한 번 더 찍고 그림자를 붙인다(흐린 가짜 굵기 대신). */
+  --px-text-bold: 1px 0 0 currentColor, 1px 1px 0 #000, 2px 1px 0 #000;
+  --px-text-outline: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 1px 0 #000;
+  --px-frame-heavy: url('../../assets/ui/pixel/frame-heavy.png');
+  --px-frame-light: url('../../assets/ui/pixel/frame-light.png');
+  --px-frame-inset: url('../../assets/ui/pixel/frame-inset.png');
+  font-family: var(--font-body);
+  font-synthesis-weight: none;
+}
+
+/* 요소마다 박힌 글꼴(맑은 고딕·IBM Plex 등)을 걷어 내고 부모 글꼴을 따른다. 제목처럼 스킨이 고른 곳만 예외. */
+body[data-ui-skin] :where(*) { font-family: inherit; }
+/* 모서리는 모두 각지게. */
+body[data-ui-skin] :where(*),
+body[data-ui-skin] ::before,
+body[data-ui-skin] ::after { border-radius: 0; }
+/* 도트로 다시 찍은 로고(scripts/build-pixel-ui.cjs): 정수배로 키우고 번지지 않게 */
+:root body[data-ui-skin] #ui-rail-logo img { width: 104px; max-width: 104px; image-rendering: pixelated; }
+:root body[data-ui-skin] #startup-overlay .startup-logo {
+  width: min(384px, 30vw, 42dvh);
+  padding: 12px;
+  border: 10px solid transparent;
+  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+  background: var(--px-dither), #15120e;
+  background-clip: padding-box;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
+  filter: none;
+  image-rendering: pixelated;
+}
+@media (max-width: 760px) {
+  :root body[data-ui-skin] #startup-overlay .startup-logo { width: min(204px, 50vw); padding: 12px; }
+}
+:root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
+
+/* 제목: DOS새물 16px 금빛, 흐림 없는 한 도트 그림자 */
+body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title) {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-shadow: var(--px-text-bold);
+}
+:root body[data-ui-skin] .ui-window-title { font-size: 16px; color: var(--px-gold-bright); }
+:root body[data-ui-skin] .combat-zone-row-title { font-size: 16px; color: var(--px-gold-bright); }
+:root body[data-ui-skin] :is(.tutorial-kicker, .game-dialog-kicker) { letter-spacing: .12em; }
+/* 8~11px로 줄어 있던 글자는 물마루의 제 크기(12px)로. 그보다 작으면 도트가 뭉개져 읽히지 않는다. */
+:root body[data-ui-skin] :is(
+  .equipment-slot-head span, .equipment-empty-label, .equipment-summary-stat span, .equipment-preset-slot small,
+  .equipment-preset-note span, .equipment-triage-copy small, .inventory-view-filter-label,
+  .gem-tag, .gem-level-badge, .gem-card-range, .gem-usage-state, .gem-card-utility, .starter-gem-equip-guide,
+  .gem-library-card p, .skill-library-toolbar > *, #btn-skill-tab-equip small, #ui-skill-loadout-summary :is(span, small),
+  .map-state-badge, .map-zone-group-count, .ui-goal-desc, .ui-goal-notice-action span, .ailment-stat-title,
+  .subtab-btn, .ui-window-actions button, [class*="kicker"]
+) { font-size: 12px; }
+:root body[data-ui-skin] :is(.tab-content, .ui-window) small { font-size: 12px; }
+:root body[data-ui-skin] #startup-overlay .startup-summary-card { padding: 12px 14px; }
+/* 장비 세팅 칸: 도트 글꼴은 폭이 넓어 번호 배지를 빼고("세팅 1"에 이미 번호가 있다) 이름·상태를 한 줄씩 */
+:root body[data-ui-skin] .equipment-preset-slot { grid-template-columns: minmax(0, 1fr); padding: 4px 6px; }
+:root body[data-ui-skin] .equipment-preset-slot > span { display: none; }
+:root body[data-ui-skin] .equipment-preset-slot > :is(strong, small) { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 긴 글(이야기·대화·설명)은 갈무리 15px */
+:root body[data-ui-skin] :is(.tutorial-body, .story-journal-text, .journal-entry-text, .game-dialog-body) {
+  font-family: var(--font-pixel-read);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ─── 도트 판 ─────────────────────────────────────────────── */
+/* 무거운 판: 창·대화 상자. 테는 border-image(9칸 자르기), 바탕은 테 안쪽만. */
+:root body[data-ui-skin].desktop-windowed-ui .tab-content.ui-window,
+:root body[data-ui-skin] :is(#tutorial-overlay, #death-overlay) .tutorial-card,
+:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog),
+:root body[data-ui-skin] :is(.game-dialog-card, .loading-card) {
+  border: 10px solid transparent;
+  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+  border-radius: 0;
+  background: var(--px-dither), var(--px-stone);
+  background-clip: padding-box;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-active { box-shadow: 6px 6px 0 rgba(0, 0, 0, .58); }
+:root body[data-ui-skin].desktop-windowed-ui :is(.ui-window-titlebar, .ui-window-active .ui-window-titlebar) {
+  border-bottom: 2px solid var(--px-ink);
+  background: var(--px-dither), var(--px-stone-raised);
+  box-shadow: inset 0 -2px 0 #3b2f1e;
+}
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-body { background: transparent; }
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-actions button,
+:root body[data-ui-skin] .combat-action-btn,
+:root body[data-ui-skin] .ui-context-dock-tab,
+:root body[data-ui-skin] #ui-goal-toggle,
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map,
+:root body[data-ui-skin] #ui-rail-misc-toggle,
+:root body[data-ui-skin] .ui-rail-external-controls button,
+:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay) button,
+:root body[data-ui-skin] .game-dialog-btn,
+:root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost) {
+  border: 2px solid var(--px-ink);
+  background: var(--px-dither), var(--px-stone-control);
+  box-shadow: var(--px-bevel);
+  color: var(--px-copy);
+  text-shadow: var(--px-text-edge);
+}
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-actions button:hover,
+:root body[data-ui-skin] .combat-action-btn:hover,
+:root body[data-ui-skin] .ui-context-dock-tab:hover,
+:root body[data-ui-skin] #ui-goal-toggle:hover,
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map:hover,
+:root body[data-ui-skin] .ui-rail-external-controls button:hover,
+:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay) button:hover,
+:root body[data-ui-skin] .game-dialog-btn:hover:not(:disabled),
+:root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost):hover:not(:disabled) {
+  background: var(--px-dither), #30281e;
+  color: var(--px-gold-bright);
+}
+/* 주 동작(시작·확인)은 금빛 판 */
+:root body[data-ui-skin] #startup-overlay .startup-primary,
+:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary {
+  border: 2px solid var(--px-ink);
+  background: var(--px-dither), #c9a15a;
+  box-shadow: inset 2px 2px 0 #f3d28c, inset -2px -2px 0 #7a5a2a;
+  color: #1a130a;
+  text-shadow: none;
+}
+:root body[data-ui-skin] #startup-overlay .startup-primary:hover:not(:disabled),
+:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary:hover:not(:disabled) { background: var(--px-dither), #dcb66c; color: #0f0b05; }
+:root body[data-ui-skin] :is(.game-dialog-btn, #startup-overlay :is(.startup-primary, .startup-secondary, .startup-ghost)):active:not(:disabled) { box-shadow: var(--px-bevel-pressed); }
+/* 구글·카카오 로그인 버튼은 각 사의 표기 규정대로 원래 글꼴을 둔다. */
+:root body[data-ui-skin] #startup-overlay :is(#btn-startup-google, #btn-startup-kakao) { font-family: 'IBM Plex Sans KR', 'Malgun Gothic', system-ui, sans-serif; }
+/* 시작 화면의 로그인 판·저장 정보 */
+:root body[data-ui-skin] #startup-overlay :is(.startup-panel.auth, .startup-summary-card) {
+  border: 6px solid transparent;
+  border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+  border-radius: 0;
+  background-clip: padding-box;
+  box-shadow: var(--px-drop);
+  image-rendering: pixelated;
+}
+/* 불러오기 막대: 2px 검은 테 안의 금빛 칸 */
+:root body[data-ui-skin] .loading-bar { height: 12px; border: 2px solid var(--px-ink); background: #0b0906; box-shadow: inset 0 2px 0 #000; }
+:root body[data-ui-skin] .loading-bar-fill { background: linear-gradient(180deg, #f3d28c 0 2px, #c99a4c 2px 6px, #8a6a32 6px); }
+:root body[data-ui-skin] :is(.combat-action-btn, .ui-context-dock-tab, #ui-goal-toggle, .ui-rail-external-controls button):active,
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-actions button:active,
+:root body[data-ui-skin] .ui-context-dock-tab.active {
+  box-shadow: var(--px-bevel-pressed);
+}
+:root body[data-ui-skin] .ui-context-dock-tab.active { background: var(--px-dither), #1b1711; color: var(--px-gold-bright); }
+
+/* 가벼운 판: 전장 위에 떠 있는 판(전투 기록·목표·메뉴 레일·툴팁) */
+:root body[data-ui-skin].desktop-windowed-ui .combat-feed,
+:root body[data-ui-skin].desktop-windowed-ui .tab-header,
+:root body[data-ui-skin].desktop-windowed-ui .ui-goal-panel,
+:root body[data-ui-skin] :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip):not(.item-compare-tooltip),
+:root body[data-ui-skin] .item-compare-tooltip :is(.item-tooltip-main, .item-compare-single, .item-compare-grid) {
+  border: 6px solid transparent;
+  border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+  border-radius: 0;
+  background: var(--px-dither), rgba(14, 12, 10, .94);
+  background-clip: padding-box;
+  box-shadow: var(--px-drop);
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #item-tooltip-box:not(.item-compare-tooltip),
+:root body[data-ui-skin] #item-tooltip-box .item-tooltip-main { border-color: transparent; }
+:root body[data-ui-skin] #item-tooltip-box :is(:scope, .item-tooltip-main) > .tooltip-title {
+  margin: -12px -12px 8px;
+  border-bottom: 2px solid var(--px-ink);
+  background: color-mix(in srgb, var(--tooltip-rarity) 16%, #15120e);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--tooltip-rarity) 45%, #2a2116);
+  font-size: 15px;
+  text-shadow: var(--px-text-edge);
+}
+:root body[data-ui-skin] #item-tooltip-box .tooltip-line.tooltip-section::before,
+:root body[data-ui-skin] #item-tooltip-box .tooltip-line.tooltip-section::after { height: 2px; background: repeating-linear-gradient(90deg, #4b4235 0 2px, transparent 2px 4px); }
+
+/* 움푹한 칸: 입력 */
+:root body[data-ui-skin] :is(.search-filter-input, input[type="search"], input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea, select) {
+  border: 2px solid var(--px-ink);
+  background-color: #0a0907;
+  box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #3a2e1d;
+}
+
+/* 흐린 그림자·빛 번짐 대신 도트 그림자 */
+:root body[data-ui-skin] :focus-visible { outline-color: var(--px-gold-bright); }
+:root body[data-ui-skin] * { scrollbar-color: #5d4a2e #0a0907; }
+}

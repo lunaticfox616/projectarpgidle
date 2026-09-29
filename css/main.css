@@ -52,3 +52,6 @@
 @import "./components/tabs.css";
 @import "./components/modals.css";
 @import "./components/tooltips.css";
+@import "./themes/pixel.css";
+@import "./themes/pixel-hud.css";
+@import "./themes/pixel-mobile.css";

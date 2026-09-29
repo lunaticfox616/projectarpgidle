@@ -1,0 +1,388 @@
+@layer overrides {
+/* 도트 UI — 전투 화면. 하단 HUD는 디아블로 2처럼 돌판 왼쪽에 생명 구슬(빨강, 에너지 보호막은 그 위 파란 막)을 둔다.
+   구슬도 기존 막대와 같은 --gauge-fill(js/ui.js setUiImageGaugePercent)을 읽어 아래에서 위로 찬다 — 스크립트 변경 없음.
+   대상 적 체력바·미니맵·지역 줄·목표도 도트 판으로. 그림은 scripts/build-pixel-ui.cjs가 찍는다. */
+
+body[data-ui-skin] {
+  --px-orb-frame: url('../../assets/ui/pixel/orb-frame.png');
+  --px-orb-mask: url('../../assets/ui/pixel/orb-mask.png');
+  --px-orb-size: 104px;
+  --px-life: linear-gradient(90deg, rgba(0, 0, 0, .34) 0 16%, rgba(0, 0, 0, .16) 16% 28%, transparent 28% 64%, rgba(255, 190, 170, .08) 64% 72%, rgba(0, 0, 0, .16) 72% 86%, rgba(0, 0, 0, .34) 86%),
+    linear-gradient(180deg, #d63a40 0 14%, #b0212a 14% 52%, #8a1420 52% 78%, #650c16 78%);
+  --px-shield: linear-gradient(90deg, rgba(0, 0, 0, .28) 0 16%, transparent 16% 84%, rgba(0, 0, 0, .28) 84%),
+    linear-gradient(180deg, rgba(126, 206, 255, .72) 0 14%, rgba(62, 146, 226, .62) 14% 60%, rgba(34, 92, 176, .62) 60%);
+}
+
+/* ─── 하단 HUD: [생명 구슬] [이름·플라스크 / 경험치] [젬] ─────────────── */
+:root body[data-ui-skin] #battle-column .player-hud-shell {
+  display: grid;
+  grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 6px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  box-sizing: border-box;
+  padding: 6px 10px 8px 4px;
+  border: 10px solid transparent;
+  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+  background: var(--px-dither), #15120e;
+  background-clip: padding-box;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
+  image-rendering: pixelated;
+  pointer-events: auto;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell::before { content: none; }
+:root body[data-ui-skin] #battle-column .player-hud-shell > .player-health-frame,
+:root body[data-ui-skin] #battle-column .player-hud-shell > .player-health-frame > .combat-hud-row { display: contents; }
+
+/* 생명 구슬: 돌판 위로 불룩 솟는다(윗변을 넘겨 걸친다). */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  position: relative;
+  inset: auto;
+  z-index: 3;
+  width: var(--px-orb-size);
+  height: var(--px-orb-size);
+  min-height: 0;
+  margin: calc(var(--px-orb-size) * -.34) 0 -4px -8px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  pointer-events: auto;
+}
+/* 빈 유리(아래) · 테와 반짝임(위) */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::before,
+:root body[data-ui-skin].desktop-windowed-ui #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  transform: none;
+  opacity: 1;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::before {
+  z-index: 0;
+  background: var(--px-dither), radial-gradient(circle at 50% 38%, #2a0d10 0 46%, #150507 47%);
+  -webkit-mask: var(--px-orb-mask) center / 100% 100% no-repeat;
+  mask: var(--px-orb-mask) center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::after,
+:root body[data-ui-skin].desktop-windowed-ui #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: var(--px-orb-frame) center / 100% 100% no-repeat;
+  box-shadow: none;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(#ui-hp-bar, .combat-es-overlay) {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  -webkit-mask: var(--px-orb-mask) center / 100% 100% no-repeat;
+  mask: var(--px-orb-mask) center / 100% 100% no-repeat;
+}
+/* 액체는 아래에서 위로: 막대의 가로 자르기(clip-path)를 세로로 바꾼다. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-hp-bar {
+  z-index: 1;
+  background: var(--px-life);
+  box-shadow: none;
+  clip-path: inset(calc(100% - var(--gauge-fill, 100%)) 0 0 0);
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-hp-bar.player-danger { animation: px-orb-danger 1s steps(2, jump-none) infinite; }
+@keyframes px-orb-danger { from { opacity: 1; } to { opacity: .62; } }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-overlay { z-index: 2; overflow: hidden; border: 0; background: none; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-es-bar {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  background: var(--px-shield);
+  clip-path: inset(calc(100% - var(--gauge-fill, 0%)) 0 0 0);
+}
+/* 막대 전용 잔상(받은 피해·지속 피해 예고)은 가로 너비로 그려지므로 구슬에서는 숨긴다. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(#ui-hp-damage-ghost-bar, #ui-hp-ailment-bar) { visibility: hidden; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  color: #fff4e6;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: var(--px-text-outline);
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text {
+  position: absolute;
+  top: 64%;
+  right: 0;
+  left: 0;
+  z-index: 7;
+  color: #bfe6ff;
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+  transform: none;
+  text-shadow: var(--px-text-outline);
+}
+
+/* 이름·직업·레벨 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--px-copy-muted);
+  font-size: 12px;
+  text-shadow: var(--px-text-edge);
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row :is(strong, span) {
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row strong { color: var(--px-gold-bright); font-size: 15px; font-family: var(--font-pixel-read); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row #ui-exp-level-label { color: var(--px-copy); }
+
+/* 경험치: 가는 금빛 도트 막대, 퍼센트는 막대 오른쪽 위 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-exp-bar {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  inset: auto;
+  width: auto;
+  height: 10px;
+  min-height: 0;
+  margin: 0;
+  border: 2px solid var(--px-ink);
+  border-radius: 0;
+  background: #0b0906;
+  box-shadow: inset 0 2px 0 #000;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-bar {
+  height: 100%;
+  background: linear-gradient(180deg, #f3d28c 0 2px, #c99a4c 2px 4px, #8a6a32 4px);
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent {
+  grid-column: 2;
+  grid-row: 1;
+  position: static;
+  align-self: end;
+  justify-self: end;
+  margin: 0;
+  color: #d9c28f;
+  font-size: 12px;
+  line-height: 1;
+  text-shadow: var(--px-text-edge);
+  transform: none;
+}
+
+/* 장착 젬: 움푹한 도트 칸 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack {
+  grid-column: 3;
+  grid-row: 1 / -1;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { container-type: normal; overflow: visible; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack::before { content: none; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+/* 주 공격은 큰 칸, 소환·자동 사용 젬은 옆에 작은 칸으로 한 줄 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot {
+  position: relative;
+  inset: auto;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px;
+  border: 2px solid var(--px-ink);
+  background: var(--px-dither), #0d0b08;
+  box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 48px; width: 48px; height: 48px; box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24, inset 0 0 0 4px rgba(217, 176, 102, .72); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24, inset 0 0 0 4px rgba(150, 104, 190, .7); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.condition { box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24, inset 0 0 0 4px rgba(96, 146, 172, .7); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.just-cast { box-shadow: inset 0 0 0 2px var(--px-gold-bright), inset 0 0 0 4px rgba(243, 210, 140, .45); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot .player-hud-skill-cooldown:not([hidden]) { font-size: 12px; text-shadow: var(--px-text-outline); }
+
+/* 휴대폰: 구슬을 조금 작게, 판은 화면 너비 그대로 */
+@media (max-width: 1080px) {
+  body[data-ui-skin] { --px-orb-size: 84px; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .player-hud {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  :root body[data-ui-skin] #battle-column .player-hud-shell { column-gap: 8px; padding: 4px 6px 6px 2px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar { margin: calc(var(--px-orb-size) * -.24) 0 -2px -4px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { flex-wrap: wrap; row-gap: 4px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 40px; width: 40px; height: 40px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 44px; width: 44px; height: 44px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell #ui-player-ailments-under { position: absolute; right: 8px; bottom: calc(100% + 6px); left: auto; top: auto; width: auto; }
+}
+
+@media (min-width: 1081px) {
+  :root body[data-ui-skin].desktop-windowed-ui .player-hud {
+    width: min(620px, calc(100vw - var(--stage-rail-width, 148px) - var(--stage-feed-width, 260px) - 60px));
+    max-width: 620px;
+    min-height: 0;
+    padding: 0;
+  }
+}
+
+/* ─── 대상 적 체력바: 장식 그림 대신 도트 막대 ───────────────── */
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted {
+  --health-frame-ratio: auto;
+  --health-track-left: 0;
+  --health-track-right: 0;
+  --health-track-top: 0;
+  --health-track-height: 100%;
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-frame { display: none; }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .enemy-health-frame {
+  width: min(100%, 360px);
+  height: 24px;
+  aspect-ratio: auto;
+  margin: 2px 0 0;
+  overflow: visible;
+  border: 6px solid transparent;
+  border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+  background: #0b0606;
+  background-clip: padding-box;
+  box-shadow: var(--px-drop);
+  filter: none;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted.enemy-elite .enemy-health-frame { width: min(100%, 400px); }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame {
+  width: min(100%, 480px);
+  height: 30px;
+  border-width: 10px;
+  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .enemy-health-frame > .hp-bar-bg { position: absolute; inset: 0; height: auto; }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track { inset: 0; height: auto; background: #1a0709; box-shadow: inset 0 2px 0 #000; }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track > .hp-bar-fill.enemy {
+  opacity: 1;
+  background: linear-gradient(180deg, #ff6f6a 0 2px, #d1283a 2px 55%, #8f1223 55%);
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-elite .health-skin-track > .hp-bar-fill.enemy { background: linear-gradient(180deg, #ffb46a 0 2px, #d8662a 2px 55%, #93381a 55%); }
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .health-skin-track > .hp-bar-fill.enemy { background: linear-gradient(180deg, #ff8a6a 0 2px, #c61f2c 2px 55%, #7a0c1a 55%); }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track > .hp-text {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  height: auto;
+  font-size: 12px;
+  line-height: 1;
+  text-shadow: var(--px-text-outline);
+}
+:root body[data-ui-skin] #enemy-area .enemy-nameplate {
+  padding: 2px 10px;
+  border: 2px solid var(--px-ink);
+  background: var(--px-dither), #1b1411;
+  box-shadow: inset 2px 2px 0 #5a3c33, inset -2px -2px 0 #2a1714, var(--px-drop);
+}
+:root body[data-ui-skin] #enemy-area .enemy-nameplate .enemy-name { color: #ffe0cf; font-size: 12px; line-height: 16px; text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .enemy-nameplate .enemy-name { color: var(--px-gold-bright); }
+@media (min-width: 1081px) {
+  :root body[data-ui-skin].desktop-windowed-ui #enemy-area .enemy-card.targeted :is(.enemy-health-frame) { margin: 2px 0 0; }
+  :root body[data-ui-skin].desktop-windowed-ui #enemy-area .enemy-card.targeted { margin-top: 30px; }
+}
+
+/* ─── 지역 줄·몬스터 수·귀환·목표 ─────────────────────────── */
+:root body[data-ui-skin] .combat-zone-row-title { text-shadow: var(--px-text-outline); }
+:root body[data-ui-skin] .battlefield-caption {
+  border: 2px solid var(--px-ink);
+  background: var(--px-dither), rgba(18, 15, 11, .9);
+  box-shadow: inset 2px 2px 0 #4a3b27, inset -2px -2px 0 #1a140d;
+  color: var(--px-copy);
+  font-size: 12px;
+  text-shadow: var(--px-text-edge);
+}
+
+/* ─── 미니맵: 네모난 도트 틀, 둘레가 탐험 비율만큼 금빛으로 찬다 ───────── */
+:root body[data-ui-skin] #act-exploration-panel::before {
+  top: -6px;
+  left: -6px;
+  width: calc(var(--minimap-size) + 12px);
+  height: calc(var(--minimap-size) + 12px);
+  border-radius: 0;
+  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #2a2418 0);
+  box-shadow: 0 0 0 2px var(--px-ink), var(--px-drop);
+}
+:root body[data-ui-skin] #act-exploration-panel canvas {
+  border-radius: 0;
+  box-shadow: 0 0 0 2px var(--px-ink), inset 0 0 0 2px #000;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map { top: -6px; right: -6px; border-radius: 0; font-size: 12px; }
+}

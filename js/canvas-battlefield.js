@@ -12,6 +12,16 @@ function getCanvasRuntimeFunction(name) {
 let __canvasStatsCache = null;
 let __canvasStatsCacheAt = 0;
 const CANVAS_STATS_CACHE_MS = 150;
+// 전장 위 글자도 UI(css/themes/pixel.css)와 같은 도트 글꼴: 물마루는 12px 격자, 제목의 DOS새물은 16px 격자에서 또렷하다.
+// 흐린 그림자(shadowBlur) 대신 한 도트 어긋난 검은 글자를 먼저 찍는다.
+const BATTLE_PIXEL_FONT = "'MulmaruMono', 'Galmuri14', 'Malgun Gothic', sans-serif";
+const BATTLE_TITLE_FONT = "'DOSSaemmul', 'MulmaruMono', 'Malgun Gothic', sans-serif";
+function fillPixelText(ctx, text, x, y, color) {
+    ctx.fillStyle = '#000';
+    ctx.fillText(text, x + 1, y + 1);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+}
 function getCanvasPlayerStats(fallback = {}) {
     let provider = getCanvasRuntimeFunction('getPlayerStats');
     if (!provider) return fallback;
@@ -1586,16 +1596,14 @@ function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     if (!enemy.isElite || enemy.isBoss) return;
     const label = enemy.traitName || '정예';
     ctx.save();
-    ctx.font = '700 11px "IBM Plex Sans KR", "Malgun Gothic", sans-serif';
+    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     const width = Math.ceil(ctx.measureText(label).width) + 10;
-    ctx.fillStyle = 'rgba(10, 9, 6, 0.78)';
-    ctx.fillRect(Math.round(centerX - width / 2), bottomY - 15, width, 14);
-    ctx.fillStyle = '#f3d77a';
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = 2;
-    ctx.fillText(label, centerX, bottomY - 2);
+    const x = Math.round(centerX), y = Math.round(bottomY);
+    ctx.fillStyle = 'rgba(10, 9, 6, 0.82)';
+    ctx.fillRect(Math.round(x - width / 2), y - 17, width, 16);
+    fillPixelText(ctx, label, x, y - 3, '#f3d77a');
     ctx.restore();
 }
 
@@ -1693,16 +1701,16 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
 function drawLevelUpLabel(ctx, fx, pos) {
     const rift = typeof isBattleLightingEnabled === 'function' && isBattleLightingEnabled();
     ctx.globalAlpha = pos.alpha;
-    ctx.font = rift ? '700 15px "Cinzel", "IBM Plex Sans KR", serif' : '900 13px "Malgun Gothic", sans-serif';
+    ctx.font = `${rift ? 24 : 12}px ${BATTLE_PIXEL_FONT}`;
     ctx.textAlign = 'center';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(25,9,0,.92)';
     const label = `LEVEL ${fx.level || ''}`;
-    ctx.strokeText(label, pos.x, pos.y);
+    const x = Math.round(pos.x), y = Math.round(pos.y);
+    ctx.strokeText(label, x, y);
     ctx.fillStyle = '#ffe9a8';
-    ctx.shadowColor = 'rgba(255,200,90,.7)';
-    ctx.shadowBlur = 8;
-    ctx.fillText(label, pos.x, pos.y);
+    ctx.fillText(label, x, y);
 }
 
 function getBattlefieldClientPoint(canvas, clientX, clientY) {
@@ -1765,7 +1773,7 @@ function drawBattlefieldShrine(ctx, gridProj, now, gridScale, cameraShake) {
     else drawShrineFallback(ctx, width, height, color);
     ctx.shadowBlur = 0;
     let label = `${encounter.blessing.name} · 클릭`;
-    ctx.font = `700 ${hovered ? 12 : 11}px Malgun Gothic`;
+    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     let labelWidth = Math.ceil(ctx.measureText(label).width) + 16;
     ctx.fillStyle = 'rgba(8, 12, 18, 0.88)';
     ctx.fillRect(-labelWidth / 2, -height - 19, labelWidth, 17);
@@ -2195,7 +2203,7 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
     if (!fx.reason) return;
     ctx.save();
     ctx.globalAlpha = Math.min(1, (1 - progress) * 3);
-    ctx.font = 'bold 12px sans-serif';
+    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     ctx.textAlign = 'center';
     const name = String(fx.itemName || '').slice(0, 24);
     const width = Math.min(250, Math.max(ctx.measureText(name).width, ctx.measureText(fx.reason).width) + 24);
@@ -2206,7 +2214,6 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
     ctx.fillRect(position.x - width / 2, top, 3, 43);
     ctx.fillText(fx.reason, position.x, top + 15);
     ctx.fillStyle = '#f4eedf';
-    ctx.font = '11px sans-serif';
     ctx.fillText(name, position.x, top + 32, width - 16);
     ctx.restore();
 }
@@ -2290,7 +2297,7 @@ function renderBattlefield(forceWhenHidden) {
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
-        ctx.font = 'bold 14px Malgun Gothic';
+        ctx.font = `16px ${BATTLE_TITLE_FONT}`;
         ctx.textAlign = 'center';
         ctx.fillText('전장 에셋 로딩 중...', width / 2, height / 2);
         ctx.restore();
@@ -2882,35 +2889,38 @@ function drawBossAnnouncement(ctx, area, banner) {
     const rift = isBattleLightingEnabled();
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
-    const band = ctx.createLinearGradient(0, 0, width, 0);
-    band.addColorStop(0, 'rgba(0,0,0,0)');
-    band.addColorStop(0.5, 'rgba(6,4,4,0.66)');
-    band.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = band;
-    ctx.fillRect(0, cy - 34, width, 62);
+    // 도트 띠: 흐린 그라디언트 대신 납작한 어둠 + 위아래 2px 청동 선
+    ctx.fillStyle = 'rgba(6,4,4,0.72)';
+    ctx.fillRect(0, cy - 36, width, 66);
+    ctx.fillStyle = rift ? '#5d4a2e' : '#4a3a24';
+    ctx.fillRect(0, cy - 38, width, 2);
+    ctx.fillRect(0, cy + 30, width, 2);
     ctx.textAlign = 'center';
-    ctx.font = rift ? '400 30px "Song Myung", "IBM Plex Sans KR", serif' : '800 26px "DOSSaemmul", "Malgun Gothic", sans-serif';
+    ctx.font = `32px ${BATTLE_TITLE_FONT}`;
     const name = getEnemyDisplayName(banner.boss);
     const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
-    drawBossBannerRule(ctx, width / 2 - half, width / 2 + half, cy + 12);
+    const mid = Math.round(width / 2);
+    drawBossBannerRule(ctx, Math.round(mid - half), Math.round(mid + half), cy + 10);
     ctx.lineWidth = 4;
+    ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(12,4,4,.95)';
-    ctx.strokeText(name, width / 2, cy);
+    ctx.strokeText(name, mid, cy);
     ctx.fillStyle = '#f0c46a';
-    ctx.fillText(name, width / 2, cy);
-    ctx.font = rift ? '600 11px "Cinzel", "IBM Plex Sans KR", serif' : '700 11px "Malgun Gothic", sans-serif';
-    ctx.fillStyle = '#d98a6a';
-    ctx.fillText(`BOSS · ${getElementLabel(banner.boss.ele)}`, width / 2, cy + 27);
+    ctx.fillText(name, mid, cy);
+    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    fillPixelText(ctx, `BOSS · ${getElementLabel(banner.boss.ele)}`, mid, cy + 25, '#d98a6a');
     ctx.restore();
 }
 
 function drawBossBannerRule(ctx, left, right, y) {
-    const rule = ctx.createLinearGradient(left, 0, right, 0);
-    rule.addColorStop(0, 'rgba(216,166,74,0)');
-    rule.addColorStop(0.5, 'rgba(216,166,74,0.9)');
-    rule.addColorStop(1, 'rgba(216,166,74,0)');
-    ctx.fillStyle = rule;
-    ctx.fillRect(left, y, right - left, 1);
+    // 가운데는 금빛 2px 선, 양 끝은 2px 점선으로 흩어진다(도트식 그라디언트).
+    const span = right - left, solid = span * 0.6, dotted = (span - solid) / 2;
+    ctx.fillStyle = 'rgba(216,166,74,0.9)';
+    ctx.fillRect(left + dotted, y, solid, 2);
+    for (let x = 0; x < dotted; x += 4) {
+        ctx.fillRect(left + dotted - 4 - x, y, 2, 2);
+        ctx.fillRect(right - dotted + 2 + x, y, 2, 2);
+    }
 }
 
 function getBattleMarkerLabel(marker) {

@@ -660,7 +660,7 @@
         logo.type = 'button';
         logo.setAttribute('aria-label', 'RIGNIN · 열린 창 모두 닫기');
         logo.title = '열린 창 모두 닫기';
-        logo.innerHTML = '<img src="assets/ui/rignin-logo.png" alt="" width="1254" height="1254">';
+        logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
         logo.addEventListener('click', closeAllWindows);
         header.prepend(logo);
         let controls = header.querySelector(':scope > .ui-rail-external-controls');

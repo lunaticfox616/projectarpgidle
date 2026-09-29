@@ -48,7 +48,7 @@ const actExplorationView=(()=>{
         ctx.save();ctx.fillStyle='#080e0c';ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
         if(cache.surface)ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
         else {
-            ctx.fillStyle='#d7c99c';ctx.font='14px sans-serif';ctx.textAlign='center';
+            ctx.fillStyle='#d7c99c';ctx.font="12px 'MulmaruMono', 'Malgun Gothic', sans-serif";ctx.textAlign='center';
             ctx.fillText(cache.error?'지형 로딩 실패: '+cache.error:'지형 로딩 중',width/2,32);
         }
         // The fog is pre-softened into fogView whenever it changes; per frame it is only copied.

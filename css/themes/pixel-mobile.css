@@ -1,0 +1,72 @@
+@layer overrides {
+/* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다. */
+@media (max-width: 1080px) {
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-row, .combat-feed) {
+    border: 6px solid transparent;
+    border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+    border-radius: 0;
+    background: var(--px-dither), rgba(14, 12, 10, .94);
+    background-clip: padding-box;
+    box-shadow: var(--px-drop);
+    image-rendering: pixelated;
+  }
+  /* 좁은 화면의 지역 이름은 DOS새물(넓은 글꼴) 대신 갈무리 15px로 한 줄에 */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-row-title, #ui-combat-zone-inline) {
+    font-family: var(--font-pixel-read);
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--px-gold-bright);
+    text-shadow: var(--px-text-edge);
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, #btn-exploration-loot-skip),
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
+    border: 2px solid var(--px-ink);
+    border-radius: 0;
+    background: var(--px-dither), var(--px-stone-control);
+    box-shadow: var(--px-bevel);
+    color: var(--px-copy);
+    text-shadow: var(--px-text-edge);
+  }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, #btn-exploration-loot-skip, .ui-context-dock-tab, .combat-log-toggle):active {
+    box-shadow: var(--px-bevel-pressed);
+  }
+  /* 전투 기록 막대는 판 자체가 테두리라 안의 펼치기 버튼은 납작하게 */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > #btn-combat-log-toggle { border-color: transparent; background: none; box-shadow: none; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-log-toggle::before { color: var(--px-gold-bright); }
+
+  /* 하단 메뉴: 돌판 띠, 고른 칸은 눌린 금빛 칸 */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
+    border-top: 2px solid var(--px-ink);
+    background: var(--px-dither), #15120e;
+    box-shadow: inset 0 2px 0 #5d4a2e, inset 0 4px 0 #0a0806;
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
+    border: 0;
+    border-right: 2px solid #0a0806;
+    border-radius: 0;
+    background: none;
+    box-shadow: inset -2px 0 0 #2c2317;
+    color: var(--px-copy-muted);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-shadow: var(--px-text-edge);
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more):last-child { border-right: 0; box-shadow: none; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active {
+    background: var(--px-dither), #261f16;
+    box-shadow: inset 0 4px 0 var(--px-gold), inset 2px 0 0 #000, inset -2px 0 0 #000;
+    color: var(--px-gold-bright);
+  }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) > .noti-dot {
+    width: 8px;
+    height: 8px;
+    border: 2px solid #000;
+    border-radius: 0;
+    background: #e4a44b;
+    box-shadow: none;
+  }
+  /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
+  :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: 16px; font-weight: 400; }
+  :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 2px solid #3b2f1e; box-shadow: 0 2px 0 #000; }
+}
+}
