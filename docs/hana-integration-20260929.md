@@ -17,6 +17,7 @@
 | 파일 | 하는 일 |
 |---|---|
 | `scripts/import-hana-characters.cjs` | 킷 결과물 → `assets/playable/hana/<직업>/<모션>.png`, `assets/summon/hana/<시안>/`, `data/hana-sprites.js` |
+| `scripts/import-hana-weapon-combos.cjs` | 시뮬레이터 HTML 안의 직업 × 무기 36조합 레이어 시트 → `assets/playable/hana/combos/<직업>/<무기>.png`, `data/hana-weapon-combos.js` |
 | `scripts/import-hana-skill-fx.cjs` | 82색 팔레트·OKLab 색표·투사체 도안 → `data/hana-skill-fx.js`, 원본 JS를 `docs/skill-assets-hana/reference/` |
 | `js/canvas-hana-actors.js` | 플레이어·소환수 시트 그리기(장치 픽셀 맞춤, 타격 프레임을 impactAt에 맞춤, 피격·흡혈 물들임) |
 | `js/canvas-battle-units.js` | 전장의 플레이어 모습과 소환수 그리기(Hana → 없으면 기존 스트립) |
@@ -25,6 +26,16 @@
 | `js/canvas-redrawn-skill-fx.js` | 새로 그린 17젬을 실제 전투 이벤트에 연결(아래) |
 | `js/canvas-act-title-card.js` | 액트·보스 제목 카드 |
 | `js/dev-test-panel-ui.js` | `127.0.0.1/?dev=1` 전용 테스트 패널 |
+
+## 무기별 캐릭터 (직업 × 무기 36조합)
+
+- 시트: 79×79 칸에서 crop(62×53)만 잘라 둔 것. 열 = 레이어(무기_뒤·몸·무기_앞·빈손_뒤·빈손_앞) × 10프레임,
+  행 = 모션(대기·달리기·공격·피격) × 방향(옆·아래·위). 왼쪽은 옆 행을 좌우 반전. 걷기는 달리기 주기를 씀.
+- 드는 무기(`hanaActors.weaponFor`): 젬 동작 분류(근접·내려찍기·회전 → 대검/곡도, 사격 → 단궁, 병 → 플라스크,
+  향로 → 향로, 주문·집중·창·투척·광창·소환 → 오브/향로)에서 직업 무기가 맞으면 그대로, 아니면 첫 무기.
+  `settings.heroWeaponMode`: 'auto'(기본) · 'class' · 무기 slug(테스트 패널).
+- 병을 던지는 젬은 놓는 프레임부터 빈손, 신성한 안개·파문심판의 향로 단계와 암살의 단검 단계는 무기를 숨김.
+  그 향로는 이번 프레임에 그린 손 좌표(`hanaActors.handBoard`)에 매달린다.
 
 ## 새로 그린 이펙트가 전투에 붙는 방식
 
@@ -50,6 +61,7 @@
 |---|---|---|
 | `game.settings.heroSpriteSet` | `'hana'` · `'legacy'` | Hana |
 | `game.settings.skillFxStyle` | `'remake'` · `'original'` | 리메이크 |
+| `game.settings.heroWeaponMode` | `'auto'` · `'class'` · 무기 slug | auto |
 | `game.settings.summonArtStyle` | `'glow'`(코어키퍼식) · `'dark'` · `'simple'` · `'cute'` | glow |
 
 ## 검증
