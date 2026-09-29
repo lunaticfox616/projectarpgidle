@@ -1610,13 +1610,19 @@ function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     ctx.restore();
 }
 
+/** Bar height above the feet: fixed for bosses and atlas monsters; a wisp floats its body higher (js/canvas-wisp-actors.js). */
+function getEnemyFieldBarLift(enemy) {
+    if (enemy.isBoss) return 106;
+    return wispActors.barLift(enemy) || 56;
+}
+
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let width = getEnemyFieldBarWidth(enemy);
         let x = Math.round(entry.x - width / 2);
-        let y = Math.round(entry.y - (enemy.isBoss ? 106 : 56));
+        let y = Math.round(entry.y - getEnemyFieldBarLift(enemy));
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
         ctx.globalAlpha = 0.96;
@@ -2188,10 +2194,16 @@ function drawBattleEnemyActor(ctx, entry, state) {
             : (enemy.isBoss ? 3.65 : (enemy.isElite ? 2.2 : 1.95)));
     ctx.save();
     ctx.globalAlpha = easedAge;
-    drawEnemySprite(ctx, enemy, entry.x, entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18),
-        crowdScale * state.gridUnitScale * spawnScale, state.flashingEnemyIds.has(enemy.id), state.now, entry.moving,
-        state.enemyAttackMotions[enemy.id], resolveEnemyFacingDirection(entry, state.playerPos));
+    drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
     ctx.restore();
+}
+
+/** Wisps draw from their own 16-dot sheets (js/canvas-wisp-actors.js); every other enemy keeps its atlas sprite. */
+function drawEnemyActorSprite(ctx, entry, state, pose) {
+    const enemy = entry.enemy, flash = state.flashingEnemyIds.has(enemy.id), facing = resolveEnemyFacingDirection(entry, state.playerPos);
+    const tile = state.gridProj && state.gridProj.tileW;
+    if (wispActors.draw(ctx, enemy, { x: entry.x, y: pose.y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale })) return;
+    drawEnemySprite(ctx, enemy, entry.x, pose.y, pose.scale, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
 function drawBattleActorLayer(ctx, enemyEntries, state) {

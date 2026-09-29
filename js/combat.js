@@ -6686,15 +6686,23 @@ function getUnderworldEnemyDamageMultiplier(zone) {
 function getWispEnemyDefenseBonuses(monsterVariant) {
     const isWisp = !!(monsterVariant && String(monsterVariant.id || '').startsWith('wisp-'));
     const elements = new Set(isWisp && Array.isArray(monsterVariant.elements) ? monsterVariant.elements : []);
+    const rules = isWisp ? WISP_ENEMY_RULES : WISP_NEUTRAL_RULES;
     return {
         isWisp,
-        evasionMul: isWisp ? 1.6 : 1,
+        evasionMul: rules.evasionMul,
+        armorMul: rules.armorMul,
+        hpMul: rules.hpMul,
         dr: elements.has('phys') ? 18 : 0,
         resF: elements.has('fire') ? 30 : 0,
         resC: elements.has('cold') ? 30 : 0,
         resL: elements.has('light') ? 30 : 0,
         resChaos: elements.has('chaos') ? 30 : 0
     };
+}
+
+/** Wisps drop skill gems more often (data/bosses.js WISP_ENEMY_RULES). */
+function getEnemyGemDropMul(enemy) {
+    return enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
 }
 
 function createEnemy(zone, marker, groupIndex) {
@@ -6779,7 +6787,7 @@ function createEnemy(zone, marker, groupIndex) {
         : null;
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
     const wispVisual = wispDefense.isWisp ? monsterVariant : null;
-    if (wispDefense.isWisp) hp = Math.floor(hp * 0.7);
+    hp = Math.floor(hp * wispDefense.hpMul);
     if (!isBoss && realmVisual) {
         name = isElite && trait ? `${trait.name} ${realmVisual.name}` : realmVisual.name;
     } else if (!isBoss && monsterVariant) {
@@ -6812,7 +6820,7 @@ function createEnemy(zone, marker, groupIndex) {
 
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
     let defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
-    let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
+    let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)) * wispDefense.armorMul);
     let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
     baseEvasion = Math.floor(baseEvasion * wispDefense.evasionMul);
     let baselineResistancePressure = (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0;
@@ -9021,7 +9029,7 @@ function rollLootForEnemy(enemy) {
         }
     }
     let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
-    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * contentDropMul) {
+    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * contentDropMul * getEnemyGemDropMul(enemy)) {
         const reward=rollEnemyGemReward(enemy,gemExpertLvForLoot);
         if(reward.gem&&!actExplorationLoot.gem(game,reward.gem)) {
             gemDropRewards.grant(game,reward.gem,reward.kind==='support'?getEffectiveResonanceCap():0);

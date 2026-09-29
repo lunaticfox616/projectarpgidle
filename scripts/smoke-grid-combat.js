@@ -154,17 +154,17 @@ const cfg = context.COMBAT_GRID_CONFIG;
   resetGame();
   assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 56, '목재 몬스터 38종과 위습 18종에 이름이 지정되어야 한다');
   assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
-  const fireWisp = context.getMonsterVariantDefinition(4, 'fire');
+  const fireWisp = context.getMonsterVariantDefinition(5, 'fire');
   assert(fireWisp.id.startsWith('wisp-'), '일반 구역에서도 위습이 일정 비율로 등장해야 한다');
   assert(context.WISP_MONSTER_VISUALS.find(wisp => wisp.id === fireWisp.id).elements.includes('fire'),
     '위습의 이름과 외형은 실제 몬스터 속성과 맞아야 한다');
-  assert(!context.getMonsterVariantDefinition(5, 'fire').id.startsWith('wisp-'),
+  assert(!context.getMonsterVariantDefinition(4, 'fire').id.startsWith('wisp-'),
     '위습이 기존 목재 몬스터를 전부 대체하면 안 된다');
   const fireDefense = JSON.parse(JSON.stringify(context.getWispEnemyDefenseBonuses(
     context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'B02'))));
   assert.deepStrictEqual(fireDefense, {
-    isWisp: true, evasionMul: 1.6, dr: 0, resF: 30, resC: 0, resL: 0, resChaos: 0
-  }, '화염 위습은 높은 회피와 화염 저항만 받아야 한다');
+    isWisp: true, evasionMul: 1.3, armorMul: 0.5, hpMul: 0.7, dr: 0, resF: 30, resC: 0, resL: 0, resChaos: 0
+  }, '화염 위습은 조금 높은 회피, 낮은 방어도, 화염 저항만 받아야 한다');
   const hybridDefense = context.getWispEnemyDefenseBonuses(
     context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'H03'));
   assert.strictEqual(hybridDefense.resC, 30, '혼합형 위습은 첫 번째 색상 저항을 받아야 한다');
@@ -172,15 +172,22 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const ordinaryDefense = JSON.parse(JSON.stringify(
     context.getWispEnemyDefenseBonuses(context.MONSTER_VARIANT_DEFS[0])));
   assert.deepStrictEqual(ordinaryDefense, {
-    isWisp: false, evasionMul: 1, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0
+    isWisp: false, evasionMul: 1, armorMul: 1, hpMul: 1, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0
   }, '위습 방어 특성이 기존 몬스터에게 번지면 안 된다');
   const zone = context.getZone(0);
   const normal = context.createEnemy(zone, { at: 20, count: 1 }, 0);
-  const wisp = context.createEnemy(zone, { at: 20, count: 1 }, 3);
+  const wisp = context.createEnemy(zone, { at: 20, count: 1 }, 4);
   const elite = context.createEnemy(zone, { at: 20, count: 1, elite: true }, 0);
   assert(wisp.spriteVariantId.startsWith('wisp-'), '생명력 검증 대상은 위습이어야 한다');
   assert.strictEqual(wisp.maxHp, Math.floor(normal.maxHp * 0.7),
     '위습은 동급 일반 몬스터 생명력의 70%를 가져야 한다');
+  assert.strictEqual(wisp.armor, Math.floor(normal.armor * 0.5), '위습은 방어도가 절반이어야 한다');
+  assert.strictEqual(wisp.evasion, Math.floor(normal.evasion * 1.3), '위습은 회피가 조금(1.3배) 높아야 한다');
+  assert.strictEqual(context.getEnemyGemDropMul(wisp), 3, '위습은 스킬 젬을 3배 잘 준다');
+  assert.strictEqual(context.getEnemyGemDropMul(normal), 1, '일반 몬스터의 젬 확률은 그대로다');
+  const wispShare = Array.from({ length: 997 }, (_, seed) => context.getMonsterVariantDefinition(seed, 'fire'))
+    .filter(def => def.id.startsWith('wisp-')).length / 997;
+  assert(wispShare > 0.19 && wispShare < 0.21, '위습은 일반 외형 뽑기의 약 20%(이전 25%)로 조금 드물게 나온다');
   assert.strictEqual(normal.name, normal.baseMonsterName, '일반 몬스터는 스프라이트 종명을 그대로 사용해야 한다');
   assert.strictEqual(elite.name, elite.trait.name + ' ' + elite.baseMonsterName,
     '정예 몬스터는 특성과 스프라이트 종명을 결합해야 한다');
