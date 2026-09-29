@@ -48,6 +48,10 @@ const BLACK_MARKET_INSIGHT_TARGET = 5;
 const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
 
 function getInventoryItemVisualAsset(item, kind) {
+    return pixelIconPath(pickInventoryItemVisualAsset(item, kind));
+}
+
+function pickInventoryItemVisualAsset(item, kind) {
     let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
     if (!visuals) return '';
     if (kind === 'jewel') return visuals.jewel;
@@ -69,6 +73,10 @@ function renderInventoryItemVisual(item, kind, className) {
 safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
 
 function getEquipmentGridVisualAsset(item) {
+    return pixelIconPath(pickEquipmentGridVisualAsset(item));
+}
+
+function pickEquipmentGridVisualAsset(item) {
     const visuals = ITEM_VISUAL_ASSET_DB;
     if (!item) return visuals.equipment.default;
     const grid = visuals.equipmentGrid;

@@ -38,7 +38,7 @@ const marketUi = {
         if (recipe) await exchangeAtMarket(recipe.id, false, this.quantity);
     },
     icon(key, className = '') {
-        const src = ORB_DB[key]?.icon;
+        const src = pixelIconPath(ORB_DB[key]?.icon);
         return src ? `<img class="market-currency-art ${className}" src="${src}" alt="">` : '';
     },
     mount(host, html) {

@@ -54,6 +54,9 @@ assert.strictEqual(context.equipmentInventoryGridRuntime.restoreTemporaryItem('r
 assert.strictEqual(overflowRecoveryState.inventory.length, 120, 'restoring must add the temporary item exactly once');
 assert.strictEqual(overflowRecoveryState.equipmentTemporaryStorage.length, 0, 'restored temporary storage entries must be removed');
 
+// Which painted art an item picks is checked with the "원화" icon setting; the pixel copies of the same art are
+// covered by smoke-pixel-icons.js.
+vm.runInContext("game.settings.iconArtStyle = 'painted';", context);
 const exactAsset = context.getEquipmentGridVisualAsset({ slot: '무기', baseId: 'rusted_blade' });
 assert.strictEqual(exactAsset, 'assets/items/illustrated/rusted_blade.webp');
 const wandAsset = context.getEquipmentGridVisualAsset({ slot: '무기', baseId: 'unknown_wand', baseName: '검증 완드' });

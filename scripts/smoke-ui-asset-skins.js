@@ -156,13 +156,25 @@ assert.ok(items.includes('if (ORB_DB[key]) ORB_DB[key].icon = icon;'), 'the cano
 assert.ok(ui.includes('function getCurrencyIconHtml('), 'currency cards must render icons through one shared helper');
 assert.ok(ui.includes('currency-tooltip-icon'), 'currency tooltips must retain icon art');
 
-const currencyIconContext = { ORB_DB: { magicBud: { icon: 'assets/ui/currency/magic-bud.png' }, fossil: {} } };
+const utils = fs.readFileSync('js/utils.js', 'utf8');
+const currencyIconContext = {
+  ORB_DB: { magicBud: { icon: 'assets/ui/currency/magic-bud.png' }, fossil: {} },
+  PIXEL_ICON_SOURCE_SET: new Set(['assets/ui/currency/magic-bud.png']),
+  game: { settings: { iconArtStyle: 'painted' } }
+};
 vm.createContext(currencyIconContext);
-vm.runInContext(`${readFunctionSource(ui, 'getCurrencyIconHtml')}; this.getCurrencyIconHtml = getCurrencyIconHtml;`, currencyIconContext);
+vm.runInContext(`${readFunctionSource(utils, 'normalizeIconArtStyle')}; ${readFunctionSource(utils, 'pixelIconPath')};
+${readFunctionSource(ui, 'getCurrencyIconHtml')}; this.getCurrencyIconHtml = getCurrencyIconHtml;`, currencyIconContext);
 assert.strictEqual(
   currencyIconContext.getCurrencyIconHtml('magicBud'),
   '<img class="currency-icon" src="assets/ui/currency/magic-bud.png" alt="" aria-hidden="true">',
   'currency card helper must render the canonical item art'
+);
+currencyIconContext.game.settings.iconArtStyle = 'pixel';
+assert.strictEqual(
+  currencyIconContext.getCurrencyIconHtml('magicBud'),
+  '<img class="currency-icon" src="assets/px/ui/currency/magic-bud.png" alt="" aria-hidden="true">',
+  'the default pixel icon setting renders the pixel copy of the same art'
 );
 assert.strictEqual(currencyIconContext.getCurrencyIconHtml('fossil'), '', 'currencies without artwork must retain a text-only fallback');
 

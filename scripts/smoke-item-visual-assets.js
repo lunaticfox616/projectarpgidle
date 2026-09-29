@@ -17,6 +17,11 @@ assets.forEach(file => {
 
 const context = buildGameRuntime();
 const resolve = context.getInventoryItemVisualAsset;
+// Default icon art is the pixel copy of the same painted source.
+assert.strictEqual(resolve({ slot: '무기', baseName: '고목 활' }, 'equipment'), 'assets/px/items/illustrated/windlash_bow.png');
+assert.strictEqual(resolve({}, 'jewel'), 'assets/px/items/chaos-jewel-v3.png');
+// The painted sources below are what the "원화" setting shows.
+context.game.settings.iconArtStyle = 'painted';
 assert.strictEqual(resolve({ slot: '무기', baseName: '고목 활' }, 'equipment'), 'assets/items/illustrated/windlash_bow.webp');
 assert.strictEqual(resolve({ slot: '무기', name: '제의 지팡이' }, 'equipment'), 'assets/items/illustrated/ritual_familiar_staff.webp');
 assert.strictEqual(resolve({ slot: '방패' }, 'equipment'), 'assets/items/illustrated/buckler_scrap.webp');

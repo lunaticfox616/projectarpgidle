@@ -145,7 +145,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceFavoriteHtml(key,index) {
         if(!key)return `<button data-command="pins" class="cl-recipe"><strong>${index+1}번 빈 칸</strong><small>재화 지정</small></button>`;
         const row=recipes.find(entry=>entry.key===key), selected=key===recipe.key;
-        const icon=ORB_DB[key]?.icon;
+        const icon=pixelIconPath(ORB_DB[key]?.icon);
         return `<button class="cl-recipe ${selected?'selected':''} ${icon?'has-icon':''}" data-theme="${craftingCatalogUi.theme(key)}" ${row?`data-recipe="${key}"`:`data-favorite="${key}"`} aria-pressed="${selected}">${icon?`<img class="cl-recipe-icon" src="${esc(icon)}" alt="">`:''}<strong>${craftingCatalogUi.styledName(key)}</strong><small>${game.currencies[key]||0}개</small></button>`;
     }
 

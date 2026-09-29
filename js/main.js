@@ -103,6 +103,7 @@ function init() {
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-ui-skin').value = normalizeUiSkin(game.settings.uiSkin);
     document.getElementById('chk-high-contrast').checked = game.settings.highContrast === true;
+    iconArtUi.sync();
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
     hotkeysUi.init();

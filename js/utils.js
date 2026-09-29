@@ -2,6 +2,19 @@ function normalizeUiSkin(skin) {
     return ['rift', 'reliquary', 'verdigris', 'crimson'].includes(skin) ? skin : 'rift';
 }
 
+/** 아이콘 그림: 'pixel'(원화를 도트로 다시 찍은 사본, 기본) 또는 'painted'(원화). */
+function normalizeIconArtStyle(value) {
+    return value === 'painted' ? 'painted' : 'pixel';
+}
+
+const PIXEL_ICON_SOURCE_SET = new Set(typeof PIXEL_ICON_SOURCES !== 'undefined' ? PIXEL_ICON_SOURCES : []);
+/** 원화 아이콘 경로 → 도트 사본(assets/px/…png, scripts/build-pixel-icons.cjs). 원화를 골랐거나 사본이 없으면 그대로. */
+function pixelIconPath(path) {
+    const file = String(path || '').split('?')[0];
+    if (!PIXEL_ICON_SOURCE_SET.has(file) || normalizeIconArtStyle(game.settings && game.settings.iconArtStyle) === 'painted') return path;
+    return 'assets/px/' + file.slice('assets/'.length).replace(/\.(png|webp)$/i, '.png');
+}
+
 /** Stored user scale in percent, independent of the current monitor's pixel ratio. */
 function normalizeUiScale(value) {
     const number = Number(value);
@@ -594,7 +607,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
+safeExposeGlobals({ normalizeIconArtStyle, pixelIconPath, clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 

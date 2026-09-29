@@ -65,6 +65,8 @@ body[data-ui-skin] ::after { border-radius: 0; }
   :root body[data-ui-skin] #startup-overlay .startup-logo { width: min(204px, 50vw); padding: 12px; }
 }
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
+/* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs)과 32도트 세계수 젬도 확대할 때 번지지 않게 */
+body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/world-tree/"]) { image-rendering: pixelated; }
 
 /* 제목: DOS새물 16px 금빛, 흐림 없는 한 도트 그림자 */
 body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutorial-title, .combat-zone-row-title, #ui-combat-zone-inline, .startup-title) {

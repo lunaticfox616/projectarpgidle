@@ -5000,7 +5000,7 @@ function getGemCardMeta(def) {
 
 function getSkillGemArtPath(name) {
     return typeof SKILL_GEM_ART_PATHS !== 'undefined' && SKILL_GEM_ART_PATHS[name]
-        ? SKILL_GEM_ART_PATHS[name]
+        ? pixelIconPath(SKILL_GEM_ART_PATHS[name])
         : '';
 }
 
@@ -10959,7 +10959,7 @@ function bulkSalvageTalismansBySearch(salvageUnmatched) {
 }
 
 function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
-    let icon = ORB_DB[orbKey] && ORB_DB[orbKey].icon;
+    let icon = pixelIconPath(ORB_DB[orbKey] && ORB_DB[orbKey].icon);
     return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 

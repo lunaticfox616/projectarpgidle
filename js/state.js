@@ -2453,6 +2453,7 @@ const defaultGame = {
         showCharacterComma: true,
         uiScale: 100,
         uiSkin: 'rift',
+        iconArtStyle: 'pixel',
         highContrast: false,
         /** PC 단축키 중 기본값과 다른 것만: { 동작 id: KeyboardEvent.code | '' } (data/hotkeys.js) */
         hotkeyOverrides: {},
