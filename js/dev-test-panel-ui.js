@@ -90,6 +90,13 @@ const devTestPanel = (() => {
         refresh();
         note('그루터기 함 성장 +100');
     }
+    /** 효과 확장 +N for the active skill (rules only for now — items, inner growth and the keystone come later). */
+    function setExpansion(n) {
+        const level = skillEffectExpansion.setTestLevel(n);
+        root.querySelectorAll('[data-expand]').forEach(node => node.classList.toggle('on', Number(node.dataset.expand) === level));
+        refresh();
+        note(level ? `효과 확장 +${level}${level >= 2 ? ' (피해 −30%)' : ''}` : '효과 확장 없음');
+    }
     function travelToAct(order) {
         const zoneId = order - 1;
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
@@ -145,7 +152,9 @@ const devTestPanel = (() => {
             row([select, button('장착', () => equipGem(select.value))]),
             row([button('리메이크(16도트)', () => setSetting('skillFxStyle', 'remake', '이펙트: 리메이크')),
                 button('원본 v3.38', () => setSetting('skillFxStyle', 'original', '이펙트: 원본'))]),
-            row([el('label', { textContent: '소환수' }), styles])
+            row([el('label', { textContent: '소환수' }), styles]),
+            row([el('label', { textContent: '효과 확장' }), ...['없음', '+1', '+2'].map((label, n) =>
+                button(label, () => setExpansion(n), { dataset: { expand: String(n) } }))])
         ]);
     }
     function combatSection() {

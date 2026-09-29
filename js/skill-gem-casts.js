@@ -6,6 +6,9 @@ const skillGemCasts = (() => {
     const same = (a,b) => a.gx===b.gx && a.gy===b.gy;
     const distance = (a,b) => Math.hypot(a.gx-b.gx,a.gy-b.gy);
     const dirs = {2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
+    // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
+    // 빈 플라스크 shard reach and 암살 reach grow by it; 광창 강림·시간 가속·과냉각 혼합물·인과 never do.
+    const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
     function facing(enemy,source) {
         const center=getGridUnitCenter(enemy),x=source.gx-center.gx,y=source.gy-center.gy;
         return Math.abs(x)>=Math.abs(y) ? (x<0?4:6) : (y<0?8:2);
@@ -38,20 +41,21 @@ const skillGemCasts = (() => {
         const center=getGridUnitCenter(enemy),x=center.gx-from.gx,y=center.gy-from.gy;
         return Math.abs(x)>=Math.abs(y) ? (x<0?4:6) : (y<0?8:2);
     }
-    function cross(source,target) {
+    const onCross=(c,center,radius)=>{const x=Math.abs(c.gx-center.gx),y=Math.abs(c.gy-center.gy);return (x===0 || y===0) && x+y<=radius;};
+    function cross(source,target,radius=1) {
         for(const [direction,[x,y]] of Object.entries(dirs)) {
             const center={gx:source.gx+x*2,gy:source.gy+y*2};
-            if(hasGridCell(center) && getGridUnitCells(target).some(c=>Math.abs(c.gx-center.gx)+Math.abs(c.gy-center.gy)<=1)) {
+            if(hasGridCell(center) && getGridUnitCells(target).some(c=>onCross(c,center,radius))) {
                 return {center,direction:Number(direction)};
             }
         }
         return null;
     }
-    function targets(id,source,enemies) {
+    function targets(id,source,enemies,extra=0) {
         const live=enemies.filter(e=>e.hp>0);
-        if(id===51)return live.filter(e=>cross(source,e));
-        if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4 && landing(e,source,live));
-        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1,53:4})[id];
+        if(id===51)return live.filter(e=>cross(source,e,1+extra));
+        if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
+        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra,53:4})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
     function inArea(id,source,c,range) {
@@ -61,7 +65,7 @@ const skillGemCasts = (() => {
     function area(enemies,center,shape,radius) {
         return enemies.filter(e=>e.hp>0 && getGridUnitCells(e).some(c=>{
             const x=Math.abs(c.gx-center.gx),y=Math.abs(c.gy-center.gy);
-            if(shape==='cross')return x+y<=radius;
+            if(shape==='cross')return (x===0 || y===0) && x+y<=radius;
             if(shape==='square')return Math.max(x,y)<=radius;
             if(shape==='ring')return distance(c,center)>radius-.5 && distance(c,center)<=radius+.5;
             return distance(c,center)<=radius;
@@ -98,7 +102,7 @@ const skillGemCasts = (() => {
     function start(state,input) {
         const {id,name,stats,source,enemies,now}=input;
         state.visuals=input.visuals;
-        const options=targets(id,source,enemies);
+        const options=targets(id,source,enemies,grow(stats));
         if(!options.length)return false;
         if([46,52].includes(id) && state.casts.some(c=>c.id===id))return false;
         const target=findNearestGridEnemy(source,options);
@@ -132,10 +136,10 @@ const skillGemCasts = (() => {
         c.event=visual(state,c,'censer',c.at,Math.round(520/c.speed),{holySource:cell(c.source)});
     }
     function launchJudgment(state,c,enemies) {
-        const plan=cross(c.source,enemies.find(e=>e.id===c.targetId));
+        const radius=1+grow(c.stats),plan=cross(c.source,enemies.find(e=>e.id===c.targetId),radius);
         c.aim=plan.center;c.nextAt=c.at+Math.round(480/c.speed);c.direction=plan.direction;
-        c.geometry={judgmentDirection:c.direction,crossRadius:1,impactOffsetMs:c.nextAt-c.at,
-            holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',1)}};
+        c.geometry={judgmentDirection:c.direction,crossRadius:radius,impactOffsetMs:c.nextAt-c.at,
+            holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',radius)}};
         visual(state,c,'censer',c.at,c.nextAt-c.at+c.geometry.holdMs,c.geometry);
     }
     function launchAssassin(state,c) {
@@ -158,7 +162,7 @@ const skillGemCasts = (() => {
         visual(state,c,'splash',c.nextAt,280/c.speed);
         const result=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.nextAt);
         c.index++;
-        if(c.index===4)c.done=true;
+        if(c.index===4+grow(c.stats))c.done=true;
         else {c.source=cell(c.aim);c.nextAt+=80/c.speed;c.pendingBounce=true;}
         return [result];
     }
@@ -177,7 +181,7 @@ const skillGemCasts = (() => {
     }
     function stepExplosion(state,c,input) {
         visual(state,c,'burst',c.nextAt,Math.round(540/c.speed));c.done=true;
-        return [contact(c,area(input.enemies,c.aim,'square',1),c.nextAt)];
+        return [contact(c,area(input.enemies,c.aim,'square',1+grow(c.stats)),c.nextAt)];
     }
     function stepCold(state,c,input) {
         if(!c.index)visual(state,c,'wave',c.nextAt,Math.round(860/c.speed),{ringInterval:Math.round(260/c.speed)});
@@ -188,8 +192,8 @@ const skillGemCasts = (() => {
     }
     function stepMist(state,c,input) {
         c.source=cell(input.source);c.aim=cell(input.source);c.event.holySource=cell(input.source);
-        const hit=targets(50,input.source,input.enemies);c.done=true;
-        visual(state,c,'mist',c.nextAt,Math.round(700/c.speed),{holySource:cell(input.source)});
+        const hit=targets(50,input.source,input.enemies,grow(c.stats));c.done=true;
+        visual(state,c,'mist',c.nextAt,Math.round(700/c.speed),{holySource:cell(input.source),holyRadius:1+grow(c.stats)});
         markMistTargets(state,c,hit);
         return [contact(c,hit,c.nextAt),{type:'mist',targets:hit.map(e=>e.id),at:c.nextAt}];
     }
@@ -210,7 +214,7 @@ const skillGemCasts = (() => {
     }
     function stepJudgment(state,c,input) {
         visual(state,c,'cross',c.nextAt,Math.round(420/c.speed),c.geometry);c.done=true;
-        return [contact(c,area(input.enemies,c.aim,'cross',1),c.nextAt)];
+        return [contact(c,area(input.enemies,c.aim,'cross',c.geometry.crossRadius),c.nextAt)];
     }
     function stepAssassin(state,c,input) {
         const target=input.enemies.find(e=>e.id===c.targetId && e.hp>0);
@@ -225,7 +229,7 @@ const skillGemCasts = (() => {
     }
     function teleport(state,c,input,target) {
         const destination=landing(target,input.source,input.enemies.filter(e=>e.hp>0));
-        if(!destination || getGridUnitDistance(input.source,target)>4){c.done=true;c.failed=true;return [];}
+        if(!destination || getGridUnitDistance(input.source,target)>4+grow(c.stats)){c.done=true;c.failed=true;return [];}
         c.destination=destination;c.anchor=cell(target);c.direction=toward(destination,target);
         c.index=1;c.nextAt=c.at+240;
         visual(state,c,'arrive',c.at+100,180,{blinkCell:cell(destination)});
@@ -241,7 +245,7 @@ const skillGemCasts = (() => {
     }
     function shards(state,c,input) {
         const plan=shardPlan(Math.max(0,c.stats.projectileExtraShots || 0));
-        const live=area(input.enemies,c.aim,'circle',3),others=live.filter(e=>e.id!==c.targetId),unused=[...others];
+        const live=area(input.enemies,c.aim,'circle',3+grow(c.stats)),others=live.filter(e=>e.id!==c.targetId),unused=[...others];
         return plan.map((bonus,i)=>{
             const pool=unused.length?unused:(others.length?others:live);
             if(!pool.length)return null;

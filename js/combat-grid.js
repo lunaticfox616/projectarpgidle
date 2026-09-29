@@ -432,24 +432,35 @@ function findGridTacticalDestination(unit,target,config) {
     return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
 }
 
-/** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다. */
+/** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다.
+ * The resolved active skill's 효과 확장 grows it (js/skill-effect-expansion.js); at +0 the table row itself comes back. */
 function getSkillGridProfile(skillName, skillDef) {
+    let profile = getAuthoredSkillGridProfile(skillName, skillDef) || getDefaultSkillGridProfile(skillDef);
+    return skillEffectExpansion.grid(profile, skillDef);
+}
+
+/** The SKILL_GRID_DB row, reshaped when an engraved projectile pattern changes its kind. */
+function getAuthoredSkillGridProfile(skillName, skillDef) {
     let profile = SKILL_GRID_DB[skillName];
     let pattern = skillDef && skillDef.projectilePattern;
-    if (profile && pattern && pattern.kind) {
-        let resolved = { ...profile, kind: pattern.kind };
-        if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
-        return resolved;
-    }
-    if (profile) return profile;
+    if (!profile || !(pattern && pattern.kind)) return profile || null;
+    let resolved = { ...profile, kind: pattern.kind };
+    if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
+    return resolved;
+}
+
+function getDefaultSkillGridProfile(skillDef) {
     let mode = skillDef && skillDef.targetMode;
-    let isMeleeTag = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
-    if (mode === 'whirl') return { kind: 'nova', range: 1, radius: 1 };
-    if (mode === 'cleave') return isMeleeTag ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 4, radius: 1 };
-    if (mode === 'pierce') return { kind: 'line', range: 6 };
-    if (mode === 'chain') return { kind: 'chain', range: 4, jump: COMBAT_GRID_CONFIG.chainJumpRange };
-    if (mode === 'all') return { kind: 'blast', range: 5, radius: 2 };
-    return isMeleeTag ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 5, radius: 0 };
+    let melee = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
+    let byMode = {
+        whirl: { kind: 'nova', range: 1, radius: 1 },
+        cleave: melee ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 4, radius: 1 },
+        pierce: { kind: 'line', range: 6 },
+        chain: { kind: 'chain', range: 4, jump: COMBAT_GRID_CONFIG.chainJumpRange },
+        all: { kind: 'blast', range: 5, radius: 2 }
+    };
+    if (Object.hasOwn(byMode, mode)) return byMode[mode];
+    return melee ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 5, radius: 0 };
 }
 
 /** 기존 targetMode별 부가 타격 감쇄 배율(1타는 항상 1.0). */
@@ -813,7 +824,7 @@ function buildAuthoredSkillHitSequence(skillName, skill, targets) {
     let aimCell = getClosestGridUnitCell(source, targets[0].enemy);
     let base = getSkillGridProfile(skillName, skill);
     return skill.combatPattern.stages.map(phase => {
-        let gridProfile = { ...base, ...phase.grid };
+        let gridProfile = { ...base, ...skillEffectExpansion.stageGrid(phase.grid, skill) };
         return { kind: 'authored', label: phase.label, delayMs: phase.delayMs,
             damageMultiplier: phase.damagePct / 100, singleRepeat: true, delivery: 'magicCell',
             targetLimit: skill.targets, targets, aimCell: { ...aimCell }, gridProfile,

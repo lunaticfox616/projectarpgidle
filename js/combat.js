@@ -3898,6 +3898,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         skill.pierceOverkillCarry = true;
         if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) skill.targetMode = 'pierce';
     }
+    skillEffectExpansion.applyToSkill(skill, game.activeSkill); // 효과 확장 +N: more targets for target gems, the keystone's cost
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
@@ -5902,7 +5903,7 @@ function getSkillTargets(pStats) {
 }
 
 function selectCombatGemTargets(name,skill,source,enemies,options) {
-    if (skill.nativeCastId) return skillGemCasts.targets(skill.nativeCastId,source,enemies).map(enemy=>({enemy,mult:1}));
+    if (skill.nativeCastId) return skillGemCasts.targets(skill.nativeCastId,source,enemies,skillEffectExpansion.extra(skill)).map(enemy=>({enemy,mult:1}));
     return selectGridSkillTargets(name,skill,source,enemies,options);
 }
 

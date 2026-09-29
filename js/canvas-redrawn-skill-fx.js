@@ -113,6 +113,11 @@ const redrawnSkillFx = (() => {
         const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
         return { x: dx / L, y: dy / L };
     }
+    /** An event's footprint radius (grown by effect expansion), else the gem's own. */
+    function footprintRadius(cast, st, fallback) {
+        const r = Number(st && st.footprint && st.footprint.radius);
+        return r > 0 ? r : (SKILL_GRID_DB[cast.skillName]?.radius || fallback);
+    }
     /** Cells an event's footprint grew by (effect expansion) over the gem's own radius; fixed-size art grows 16 dots a cell. */
     function grownBy(cast, st) {
         const r = Number(st && st.footprint && st.footprint.radius), base = Number(SKILL_GRID_DB[cast.skillName]?.radius) || 0;
@@ -216,7 +221,8 @@ const redrawnSkillFx = (() => {
         for (const st of cast.events) {
             if (st.kind !== 'stage' || st.holyMistPhase !== 'mist') continue;
             const src = st.holySource || st.sourceCell;
-            art().HolyMist.mist(dot, src.gx * 16 + 8, src.gy * 16 + 9, ft - st.at, { dur: st.duration, R: 17, N: 12 });
+            const grown = Math.max(0, (st.holyRadius || 1) - 1);
+            art().HolyMist.mist(dot, src.gx * 16 + 8, src.gy * 16 + 9, ft - st.at, { dur: st.duration, R: 17 + 16 * grown, N: 12 + 6 * grown });
         }
     }
     function whirlSpan(hits) {
@@ -270,7 +276,7 @@ const redrawnSkillFx = (() => {
         if (!st.length) return;
         const ctr = st[0].footprint?.center || st[0].targetCells[0];
         const pull = SKILL_DB[cast.skillName]?.combatPattern?.stages?.[1]?.delayMs || 320, t1 = (st[1] ? st[1].at : st[0].at + pull) - st[0].at;
-        art().GravityCollapse.collapse(dot, ctr.gx * 16 + 8, ctr.gy * 16 + 8, ft - st[0].at, { t1, R1: 27 });
+        art().GravityCollapse.collapse(dot, ctr.gx * 16 + 8, ctr.gy * 16 + 8, ft - st[0].at, { t1, R1: 27 + 16 * grownBy(cast, st[0]) });
     }
     function drawTriple(dot, cast, ft) {                      // 33 뇌격 삼연타 (the charge before the first hit is drawn from the swing)
         eventsOf(cast, 'hit').filter(hitCell).forEach((e, i) => {
@@ -340,7 +346,7 @@ const redrawnSkillFx = (() => {
     function drawQuakeGround(dot, cast, ft) {                 // 18 불멸의 진동 (ground)
         const q = quakeSource(cast);
         if (!q) return;
-        const ms = SKILL_DB[cast.skillName]?.combatPattern?.waveMsPerCell || 110, radius = SKILL_GRID_DB[cast.skillName]?.radius || 2;
+        const ms = SKILL_DB[cast.skillName]?.combatPattern?.waveMsPerCell || 110, radius = footprintRadius(cast, q.st, 2);
         art().GoldQuake.ground(dot, q.src.gx * 16 + 8, q.src.gy * 16 + 8, ft - q.st.at, { msPerCell: ms, maxR: radius * 16 + 8 });
     }
     function drawQuake(dot, cast, ft, view) {                 // 18 불멸의 진동 (foreground)
@@ -358,12 +364,12 @@ const redrawnSkillFx = (() => {
         if (!tr || !st.length) return null;
         const ctr = st[0].footprint?.center || tr.targetCells[0], land = st[0].at, last = st.at(-1);
         const el = tr.element || SKILL_DB[cast.skillName]?.ele || 'fire';
-        return { tr, land, el, C: cellDot(ctr), pulses: potionPulses(cast, land), end: last.at + last.duration - land };
+        return { tr, st: st[0], land, el, C: cellDot(ctr), pulses: potionPulses(cast, land), end: last.at + last.duration - land };
     }
     function drawPotionGround(dot, cast, ft) {
         const I = potionInfo(cast);
         if (!I) return;
-        const radius = SKILL_GRID_DB[cast.skillName]?.radius || 1;
+        const radius = footprintRadius(cast, I.st, 1);
         art().PotionThrow.pool(dot, I.C.x, I.C.y, ft - I.land, { el: I.el, pulses: I.pulses, end: I.end, R: radius * 16 + 3 });
     }
     function drawPotion(dot, cast, ft) {

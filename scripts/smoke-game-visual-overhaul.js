@@ -4,7 +4,7 @@ const vm = require('vm');
 
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
-  'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
+  'data/skills.js', 'data/skill-effect-expansion.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
   'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
   'data/act-exploration-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
 ];
@@ -95,6 +95,7 @@ context.Path2D = require('./lib/canvas-path');
 vm.runInContext(fs.readFileSync('js/canvas-skill-signatures.js', 'utf8'), context, { filename: 'js/canvas-skill-signatures.js' });
 vm.runInContext(fs.readFileSync('data/skill-fx-atlas.js', 'utf8'), context, { filename: 'data/skill-fx-atlas.js' });
 vm.runInContext(fs.readFileSync('js/combat-clock.js', 'utf8'), context, { filename: 'js/combat-clock.js' });
+vm.runInContext(fs.readFileSync('js/skill-effect-expansion.js', 'utf8'), context, { filename: 'js/skill-effect-expansion.js' });
 vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filename: 'js/combat-grid.js' });
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });

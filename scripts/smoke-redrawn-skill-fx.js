@@ -155,6 +155,8 @@ const paint = plain(run(`(function () {
     battleVisualState.playerPos = { x: 24 + 5 * 48, y: 24 + 3 * 48 };
     out.whirl = { shift: meanX('fore', 1300) - atStart };
     battleVisualState.playerPos = null;
+    const mist = holyRadius => { cast('신성한 안개', [{ kind: 'stage', at: 1000, duration: 700, holyMistPhase: 'mist', holySource: src, holyRadius }]); return dots('ground', 1300); };
+    out.holy = { base: mist(1), grown: mist(2) };
     redrawnSkillFx.reset();
     return out;
 })()`));
@@ -170,6 +172,7 @@ assert(paint.mine.sigil > 0 && paint.mine.toss > 0 && paint.mine.blast > 0, 'the
 assert(paint.cool.ring1 > 0 && paint.cool.ring3 > 0 && paint.cool.flash > 0, '48 과냉각 혼합물: a frost flash and one thin ring per ring hit');
 assert.strictEqual(paint.cool.gone, 0, 'the rings and the frost star clear after the last ring');
 assert.deepStrictEqual(paint.crescent.withHits, paint.crescent.crescentOnly, '16 공허 베기 draws the crescent only — no marks on the struck cells');
+assert(paint.holy.grown > paint.holy.base * 1.5, `50 신성한 안개: effect expansion spreads the mist wider (${paint.holy.base} → ${paint.holy.grown} dots)`);
 assert(Math.abs(paint.whirl.shift - 4 * 16 * 3) < 1, `5 회오리바람: the blade wind follows the caster (moved ${paint.whirl.shift}px for 4 cells)`);
 
 // ---------------------------------------------------------------- outside a frame
