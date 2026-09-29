@@ -97,6 +97,17 @@ assert.strictEqual(tint[0], 0, 'the drained blood has not reached the caster at 
 assert(tint[1] > 0 && tint[1] <= 0.35, `the caster flushes crimson once the blood sinks in (got ${tint[1]})`);
 assert.strictEqual(tint[2], 0, 'and the flush fades');
 
+// ---------------------------------------------------------------- the gem's own prop takes the weapon out of the hand
+const hidden = plain(run(`(function () {
+    redrawnSkillFx.reset();
+    const censer = { kind: 'stage', skillName: '파문심판', at: 2000, duration: 700, judgmentPhase: 'censer' };
+    redrawnSkillFx.claim(censer, SKILL_FX_ATLAS['파문심판'], 'visual');
+    const other = { kind: 'stage', skillName: '서리 폭발', at: 5000, duration: 400 };
+    redrawnSkillFx.claim(other, SKILL_FX_ATLAS['서리 폭발'], 'visual');
+    return [1999, 2000, 2699, 2700, 5100].map(now => redrawnSkillFx.weaponHidden(now));
+})()`));
+assert.deepStrictEqual(hidden, [false, true, true, false, false], 'the censer phase of 파문심판 hides the carried weapon; other gems do not');
+
 // ---------------------------------------------------------------- outside a frame
 assert.doesNotThrow(() => run(`redrawnSkillFx.drawLayer('fore', 1000); redrawnSkillFx.drawLayer('ground', 1000);`),
     'drawing with no remake pass open is a no-op');

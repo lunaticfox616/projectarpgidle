@@ -206,7 +206,7 @@ const fxRemake = (() => {
         const body = typeof hanaActors === 'object' ? hanaActors.drawnBody(now) : null;
         if (!body || body.dir !== 'north') return null;
         const at = toBuffer(body.dest.x, body.dest.y);
-        return { image: body.image, src: body.src, x: at.x, y: at.y, size: body.dest.dot / scope.s };
+        return { image: body.image, srcs: body.srcs, x: at.x, y: at.y, size: body.dest.dot / scope.s };
     }
     function scratchCanvas(size) {
         if (!surfaces.cut || surfaces.cut.width < size || surfaces.cut.height < size) {
@@ -230,7 +230,7 @@ const fxRemake = (() => {
         const size = box.reach * 2, left = box.x - box.reach, top = box.y - box.reach, c = scratchCanvas(size);
         drawSprite(c, sprite, { x: box.reach, y: box.reach }, box.angle);
         c.globalCompositeOperation = 'destination-out'; c.imageSmoothingEnabled = false;
-        c.drawImage(cut.image, cut.src.x, cut.src.y, cut.src.w, cut.src.h, cut.x - left, cut.y - top, cut.src.w * cut.size, cut.src.h * cut.size);
+        for (const src of cut.srcs) c.drawImage(cut.image, src.x, src.y, src.w, src.h, cut.x - left, cut.y - top, src.w * cut.size, src.h * cut.size);
         c.globalCompositeOperation = 'source-over';
         surfaces.fullCtx.setTransform(1, 0, 0, 1, 0, 0);
         surfaces.fullCtx.globalAlpha = 1;

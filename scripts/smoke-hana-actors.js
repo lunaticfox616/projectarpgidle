@@ -81,4 +81,39 @@ for (const [style, bank] of Object.entries(sprites.summons)) {
         }
     }
 }
+
+// Class × weapon sheets (data/hana-weapon-combos.js): every class can hold every weapon, laid out as
+// columns = layer × maxFrames cells and rows = motion × direction of the cropped cell.
+const combos = plain(run('HANA_WEAPON_COMBOS'));
+const [, , cropW, cropH] = combos.crop;
+assert.deepStrictEqual(Object.keys(combos.classWeapons).sort(), classIds.slice().sort(), 'every class names its own weapon');
+for (const classId of classIds) {
+    for (const [weapon, info] of Object.entries(combos.weapons)) {
+        const file = path.join(root, 'assets/playable/hana/combos', classId, `${weapon}.png`);
+        assert(fs.existsSync(file), `${file} must exist`);
+        assert.deepStrictEqual(pngSize(file), { w: combos.layers.length * combos.maxFrames * cropW, h: combos.motions.length * combos.dirs.length * cropH },
+            `${classId} × ${weapon}: layer columns × motion/direction rows`);
+        const spec = combos.combos[`${classId}|${weapon}`];
+        for (const motion of combos.motions) assert(spec[motion].ms.length <= combos.maxFrames, `${classId} × ${weapon} ${motion}: fits the sheet`);
+        assert(info.hitFrame > 0 && info.hitFrame < spec.attack.ms.length, `${weapon}: hit frame inside the attack clip`);
+        const at = plain(run(`(function () {
+            const clip = hanaActors.comboDef(${JSON.stringify(classId)}, ${JSON.stringify(weapon)}).motions.attack;
+            const swing = { start: 1000, impactAt: 1300, channelUntil: 0 };
+            return hanaActors.attackPose(clip, swing, swing.impactAt + 0.5).frame;
+        })()`));
+        assert.strictEqual(at, info.hitFrame, `${classId} × ${weapon}: the weapon's hit frame is on screen at impact`);
+    }
+}
+
+// The weapon in hand follows the gem: the class keeps its own weapon when it fits the gem's motion.
+const weapons = plain(run(`[
+    hanaActors.weaponFor('warrior', '연속 베기'), hanaActors.weaponFor('wanderer', '연속 베기'),
+    hanaActors.weaponFor('warrior', '서리 폭발'), hanaActors.weaponFor('cleric', '서리 폭발'),
+    hanaActors.weaponFor('alchemist', '관통 사격'), hanaActors.weaponFor('occultist', '원소 포션 투척'),
+    hanaActors.weaponFor('archer', '파문심판'), hanaActors.weaponFor('archer', '기본 공격'),
+    hanaActors.weaponFor('archer', '서리 폭발', 'class'), hanaActors.weaponFor('archer', '서리 폭발', 'flask')
+]`));
+assert.deepStrictEqual(weapons, ['greatsword', 'scimitar', 'orb', 'censer', 'shortbow', 'flask', 'censer', 'shortbow', 'shortbow', 'flask'],
+    'gem → weapon: blades, casts, bows, flasks and censers; the class weapon when it fits or for gems without a motion');
+
 console.log('hana actors ok');

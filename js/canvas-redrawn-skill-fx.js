@@ -46,8 +46,29 @@ const redrawnSkillFx = (() => {
         cast.events.push(event);
         cast.end = Math.max(cast.end, event.at + (event.duration || 0));
     }
+    // Phases where a gem's own art holds the prop the character carries: 신성한 안개·파문심판 swing their censer and
+    // 암살 draws its dagger. While one is on screen the character's weapon layer is left out (the hands stay).
+    const WEAPON_PHASES = {
+        50: e => e.holyMistPhase === 'censer', 51: e => e.judgmentPhase === 'censer',
+        52: e => e.assassinationPhase === 'dagger' || e.assassinationPhase === 'slash'
+    };
+    const weaponWindows = [];
+    function noteWeaponWindow(event, spec, clock) {
+        const phase = spec && WEAPON_PHASES[spec.id];
+        if (!phase || !phase(event) || weaponWindows.some(w => w.event === event)) return;
+        weaponWindows.push({ event, clock, from: event.at, to: event.at + (event.duration || 0) });
+        if (weaponWindows.length > 8) weaponWindows.shift();
+    }
+    /** True while a gem's own censer or dagger is on screen (see WEAPON_PHASES). */
+    function weaponHidden(visualNow) {
+        return weaponWindows.some(w => {
+            const now = w.clock === 'combat' ? worldTreeSkillFx.castClock() : visualNow;
+            return now >= w.from && now < w.to;
+        });
+    }
     /** Called by the world-tree renderer before it draws an event. True = a redrawn gem owns it; skip the native sprite. */
     function claim(event, spec, clock = 'visual') {
+        noteWeaponWindow(event, spec, clock);
         if (!isActive(spec) || !replaces(spec.id, event)) return false;
         register(event, spec, clock);
         return true;
@@ -282,18 +303,19 @@ const redrawnSkillFx = (() => {
         for (let k = 0; k <= 14; k++) { const tt = Math.min(620, j.t) - k * 9; if (tt < 300) break; pts.push(judgmentPos(j, tt)); }
         if (pts.length > 1) art().RippleSwing.trail(dot, pts);
     }
-    function judgmentPlan(st, ft) {                           // the censer swings from the caster's hand toward the landing cell
+    function judgmentPlan(st, ft, hand) {                     // the censer swings from the caster's hand toward the landing cell
         const src = st.sourceCell, land = st.landingCell || st.targetCells[0], d = { x: Math.sign(land.gx - src.gx), y: Math.sign(land.gy - src.gy) };
-        return { base: Math.atan2(d.y, d.x), side: d.x < 0 ? -1 : 1, H: { x: src.gx * 16 + 8 + d.x * 4, y: src.gy * 16 + 6 + d.y * 4 }, t: ft - st.at };
+        const H = hand || { x: src.gx * 16 + 8 + d.x * 4, y: src.gy * 16 + 6 + d.y * 4 };
+        return { base: Math.atan2(d.y, d.x), side: d.x < 0 ? -1 : 1, H, t: ft - st.at };
     }
     function judgmentCells(cast, st) {
         const cr = cast.events.find(e => e.kind === 'stage' && e.judgmentPhase === 'cross');
         return (cr && cr.footprint?.cells) || st.footprint?.cells || [];
     }
-    function drawJudgment(dot, cast, ft) {                    // 51 파문심판
+    function drawJudgment(dot, cast, ft, view) {              // 51 파문심판
         const st = cast.events.find(e => e.kind === 'stage' && e.judgmentPhase === 'censer');
         if (!st) return;
-        const j = judgmentPlan(st, ft);
+        const j = judgmentPlan(st, ft, view.hand);
         judgmentCells(cast, st).forEach((cl, i) => judgmentBolt(dot, j, cl, i));
         if (j.t >= 300 && j.t < 680) judgmentTrail(dot, j);
         if (j.t >= 0 && j.t < st.duration) art().RippleSwing.censer(dot, j.H, judgmentPos(j, j.t), j.t >= 300);
@@ -375,6 +397,11 @@ const redrawnSkillFx = (() => {
         const origin = p.cellToScreen(0, 0), s = p.tileW / 48;
         return { x: Math.round(((pos.x - origin.x) / s + 24) / 3), y: Math.round(((pos.y - (Number(p.actorGroundOffsetY) || 0) - origin.y) / s + 24) / 3) };
     }
+    /** The caster's hand in board dots, from the sprite drawn this frame (hanaActors); null before it is drawn. */
+    function handDot(visualNow) {
+        const hand = typeof hanaActors === 'object' ? hanaActors.handBoard(visualNow) : null;
+        return hand ? { x: Math.round(hand.x / 3), y: Math.round(hand.y / 3) } : null;
+    }
     function castNow(cast, visualNow) { return cast.clock === 'combat' ? worldTreeSkillFx.castClock() : visualNow; }
     /** 33's charge before the first strike: from the swing, since its hits are not known yet. */
     function drawCharges(dot, visualNow) {
@@ -409,7 +436,7 @@ const redrawnSkillFx = (() => {
         const projection = fxRemake.projection();
         if (!fxRemake.isOpen() || !projection) return;
         if (layer === 'ground') collectHits();
-        const view = { projection, playerDot: null };
+        const view = { projection, playerDot: null, hand: handDot(visualNow) };
         view.playerDot = playerDot(view);
         const hidden = layer === 'fore' ? backMask(view, visualNow) : null;
         fxRemake.drawDots(dot => {
@@ -440,12 +467,12 @@ const redrawnSkillFx = (() => {
         if (now < span.t0 || now >= span.t1) return null;
         return { facing: SPIN[Math.floor((now - span.t0) / 90) % 4], holdUntil: span.t1 };
     }
-    function reset() { casts.clear(); }
+    function reset() { casts.clear(); weaponWindows.length = 0; }
     /** Test panel / diagnostics: the casts being drawn right now. */
     function snapshot() {
         return [...casts.values()].map(c => ({ key: c.key, id: c.id, clock: c.clock, end: Math.round(c.end), kinds: c.events.map(e => e.kind) }));
     }
 
-    return Object.freeze({ claim, drawLayer, playerTint, playerSpin, reset, snapshot, ids: IDS, replaces });
+    return Object.freeze({ claim, drawLayer, playerTint, playerSpin, weaponHidden, reset, snapshot, ids: IDS, replaces });
 })();
 safeExposeGlobals({ redrawnSkillFx });

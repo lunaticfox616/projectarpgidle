@@ -28,12 +28,22 @@ function drawHanaPlayerBody(ctx, state, position) {
     ctx.battleActorAlpha = state.actorAlpha;
     try {
         return hanaActors.drawPlayer(ctx, position.x, position.y, {
-            ...hana, classId: getHeroAppearanceId(), tile: state.gridProj.tileW,
+            ...hana, ...getHanaWeaponState(state.now), classId: getHeroAppearanceId(), tile: state.gridProj.tileW, projection: state.gridProj,
             facing: spin ? spin.facing : motion.facingDirection || motion.attackDirection || 'east',
             moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
             alpha: getBattleActorDrawAlpha(ctx, 1), tint: redrawnSkillFx.playerTint(state.now)
         }, state.now);
     } finally { ctx.battleActorAlpha = previous; }
+}
+
+// Gems whose art throws the flask itself: from the release frame the character's hand is empty.
+const HANA_THROWN_FLASK_GEMS = new Set([38, 44, 47, 48, 49]);
+/** The weapon in hand for the active skill (settings.heroWeaponMode: 'auto' by gem · 'class' · a weapon slug)
+ * and when the skill's own art takes it out of the hand. */
+function getHanaWeaponState(now) {
+    const skill = game.activeSkill, gemId = SKILL_FX_ATLAS[skill]?.id;
+    const weapon = hanaActors.weaponFor(getHeroAppearanceId(), skill, game.settings?.heroWeaponMode || 'auto');
+    return { weapon, throwsWeapon: weapon === 'flask' && HANA_THROWN_FLASK_GEMS.has(gemId), hideWeapon: redrawnSkillFx.weaponHidden(now) };
 }
 
 function notePlayerMotionFx(found, fx, now) {
