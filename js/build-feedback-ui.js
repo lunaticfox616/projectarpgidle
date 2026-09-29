@@ -13,19 +13,12 @@
         const rect = node.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && getComputedStyle(node).visibility !== 'hidden' ? rect : null;
     }
-    /** How far the orb's crest (horns, clasp: the holder's ::after) reaches above the liquid, in viewport px. */
-    function crestLift() {
-        const holder = document.querySelector('.player-health-frame .combat-hp-bar');
-        const top = holder ? parseFloat(getComputedStyle(holder, '::after').top) : 0;
-        return Number.isFinite(top) && top < 0 ? -top * (uiDisplay.factor || 1) : 0;
-    }
-    /** The top of what sits right under the chip: the life orb (above its crest), or on phones the collapsed combat log
-     * stacked on it. */
+    /** The top of what sits right under the chip: the life orb, or on phones the collapsed combat log stacked on it. */
     function floorTop(orb) {
         const log = visibleRect('.combat-feed'), bar = visibleRect('#tab-header-bottom');
         if (!orb) return bar ? bar.top : window.innerHeight - 96;
         const stacked = log && log.bottom <= orb.top + 12 && log.bottom > orb.top - 60 && log.left < orb.right;
-        return stacked ? log.top : orb.top - crestLift();
+        return stacked ? log.top : orb.top;
     }
     /** Where the chip's bottom edge sits (CSS px from the top, after the display zoom), and its left edge (null → centred):
      * above the life orb; above the phone tab bar when the orb is hidden; never under an open guide card it would overlap. */

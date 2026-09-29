@@ -297,7 +297,6 @@
                     <div class="player-hud-identity-row">
                         <strong id="ui-player-name-label">궁수</strong>
                         <span id="ui-player-class-label">미전직</span>
-                        <span id="ui-exp-level-label">Lv.1</span>
                     </div>
                     <div id="ui-combat-flasks" class="combat-flask-strip player-hud-flask-rack" data-content-locked data-visible-slots="1" aria-label="장착 플라스크와 남은 충전">
                         <span class="combat-flask-mini boot-heal flask-heal" aria-hidden="true"></span>
@@ -315,6 +314,7 @@
                         </div>
                     </div>
                     <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
+                        <span id="ui-exp-level-label" class="player-exp-level">Lv.1</span>
                         <div class="player-exp-percent" id="ui-exp-note">0.0%</div>
                         <div class="hp-bar-bg combat-exp-bar" aria-label="경험치 진행도" data-info-tooltip-anchor="1" onmouseenter="showPlayerExperienceTooltip(event)" onmousemove="showPlayerExperienceTooltip(event)" onmouseleave="hideInfoTooltip()">
                             <div id="ui-exp-bar" class="hp-bar-fill exp" style="--gauge-fill: 0%;"></div>
@@ -322,6 +322,10 @@
                         </div>
                     </div>
                 </div>
+                <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
+                    <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
+                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기 · 탐험 방식 · 임시 전리품" onclick="actExplorationUi.expand()" hidden>지도</button>
+                </section>
                 <div class="player-hud-skill-rack" aria-label="현재 장착 젬">
                     <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
                 </div>
@@ -344,10 +348,6 @@
                         <button id="btn-exploration-loot-skip" type="button" hidden>연출 건너뛰기</button>
                         <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
                         <button id="btn-combat-goal-toggle" class="ui-context-dock-tab combat-goal-toggle" type="button" aria-controls="ui-goal-drawer" aria-expanded="false" onclick="toggleGoalDrawer()" hidden>목표</button>
-                        <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
-                            <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
-                            <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기 · 탐험 방식 · 임시 전리품" onclick="actExplorationUi.expand()" hidden>지도</button>
-                        </section>
                     </div>
                     <div id="side-encounter-hud" hidden></div>
                 </div>
