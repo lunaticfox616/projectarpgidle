@@ -8419,20 +8419,23 @@ function applyCosmosAstraStance(enemy) {
     enemy.regenRate = base.regenRate * (stance.regenMul || 1);
 }
 
-// A room pack stands in a line; an atlas map's pack-size mod adds the cells above and below its leader.
-const EXPLORATION_PACK_OFFSETS=Object.freeze([[0,0],[-1,0],[1,0],[0,-1],[0,1]]);
-function createActExplorationPack(zone,room,stage) {
+// A room pack stands in a line; an atlas map's pack-size mod and content rooms fill the rest of the leader's 3×3.
+const EXPLORATION_PACK_OFFSETS=Object.freeze([[0,0],[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]);
+/** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
+function createActExplorationPack(zone,room,stage,encounter=null) {
     const key=room.id+':'+(stage===null?'pack':stage),waiting=[];
-    const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,3+(zone.atlasPackExtra||0)) : [[0,0]];
-    const elite=room.role==='elite' || isAtlasExtraEliteRoom(zone,room);
+    const extra=(zone.atlasPackExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
+    const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,Math.min(EXPLORATION_PACK_OFFSETS.length,3+extra)) : [[0,0]];
+    const elite=room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room);
     offsets.forEach(([dx,dy],index)=>{
         const marker={at:0,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
         const enemy=createEnemy(zone,marker,index);
+        if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         Object.assign(enemy,{gx:room.gx+dx,gy:room.gy+dy,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });
     return {key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),
-        eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
+        eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id),...(encounter?{encounter}:{})};
 }
 
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
@@ -8460,10 +8463,10 @@ function createActExplorationEncounter(zone,exploration) {
 }
 /** One pack per monster room (paths and the entry stay empty), and the boss room's stages in order. */
 function createExplorationPacks(zone,map,bossStages) {
-    const packs=[];
+    const packs=[],encounters=atlasEncounters.rooms(zone,map);
     for(const room of map.rooms) {
         if(room.role==='entry' || room.role==='path')continue;
-        if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null));continue;}
+        if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null,encounters[room.id]||null));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createActExplorationPack(zone,room,stage));
     }
     return packs;
@@ -9067,10 +9070,10 @@ function grantRealmBossUniqueLoot(enemy, zone) {
     return item;
 }
 
+/** Atlas finds (maps, fragments, an emptied content room) ride the same capture, so room rewards wait with the map's loot. */
 function grantEnemyLoot(enemy) {
-    atlasRun.onKill(enemy);
     return actExplorationLoot.capture(game,actExplorationState.current(game),
-        ()=>combatLootReceipts.capture(game,()=>rollLootForEnemy(enemy)));
+        ()=>combatLootReceipts.capture(game,()=>{atlasRun.onKill(enemy);return rollLootForEnemy(enemy);}));
 }
 
 function awardEnemyLootCurrency(key,amount,source='reward') {

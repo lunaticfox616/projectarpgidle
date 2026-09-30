@@ -90,10 +90,21 @@ const atlasRun = (() => {
         queueImportantSave(160);
     }
 
-    /** 처치 전리품(grantEnemyLoot)과 함께: 지도석 드롭. 맵 안에서는 보스를 잡을 때까지 런이 보관한다. */
+    /** 처치 전리품(grantEnemyLoot의 보관 안): 지도석 · 각인 드롭, 그리고 콘텐츠 방을 비운 처치면 그 방의 보상.
+     * 맵 안의 지도석 · 각인은 보스를 잡을 때까지 런이, 방 보상 재화는 넓은 맵 전리품 보관이 들고 있다. */
     function onKill(enemy) {
-        const maps = atlas.dropFromKill(game, getZone(game.currentZoneId), enemy);
-        if (maps.length) notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })) });
+        const zone = getZone(game.currentZoneId);
+        const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);
+        const room = zone && zone.type === 'atlasMap' && game.atlas.run ? atlasEncounters.clearedBy(game, enemy) : null;
+        const rewards = room ? clearRoom(zone, room, maps) : [];
+        if (!maps.length && !fragments.length && !room) return;
+        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards });
+    }
+    function clearRoom(zone, room, maps) {
+        const rewards = atlasEncounters.rewards(zone, room, game.atlas.run.bonus, Math.random);
+        for (const [key, amount] of rewards) awardEnemyLootCurrency(key, amount);
+        if (Math.random() < ATLAS.encounters[room].mapChance) maps.push(...atlas.extraMap(game));
+        return rewards;
     }
     /** 혼돈 20 · 심화 클리어(onChaos20Cleared): 아틀라스가 처음 열리거나 이번 루프의 첫 지도석이 들어온다. */
     function onChaos20() {

@@ -116,7 +116,7 @@ const atlasMaps = (() => {
         if (!zone || zone.type !== 'atlasMap') return enemy;
         for (const [id, v] of zone.atlasEnemyMods) EFFECTS[id].enemy(enemy, v);
         enemy.dropMul = (Number(enemy.dropMul) || 1) * (1 + zone.atlasLootQuantity / 100);
-        enemy.lootRarityMul = 1 + zone.atlasLootRarity / 100;
+        enemy.lootRarityMul = 1 + (zone.atlasLootRarity + (enemy.isBoss ? zone.atlasBossRarity : 0)) / 100;
         return enemy;
     }
     function describe(entry) {

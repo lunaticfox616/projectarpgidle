@@ -78,7 +78,7 @@ assert.ok(outcomes.capped, 'a corrupted map never goes past the top tier');
 const enemyMods = copy(`(() => {
     const map = { uid: 1, node: 'garden_3', tier: 6, rarity: 'rare', quality: 0, corrupted: false,
         mods: [{ id: 'monsterResist', roll: 1 }, { id: 'packSize', roll: 1 }, { id: 'monsterLife', roll: 0 }, { id: 'burningGround', roll: 0.5 }] };
-    const zone = atlas.preview(map), enemy = createEnemy(zone, { at: 0, count: 1 }, 0), plain = createEnemy(atlas.preview({ ...map, mods: [] }), { at: 0, count: 1 }, 0);
+    const zone = atlas.preview(game, map), enemy = createEnemy(zone, { at: 0, count: 1 }, 0), plain = createEnemy(atlas.preview(game, { ...map, mods: [] }), { at: 0, count: 1 }, 0);
     return { resist: enemy.resF - plain.resF, pack: zone.atlasPackExtra, hp: zone.mapHpMul, hazard: !!zone.trialHazard, quantity: zone.atlasLootQuantity,
         drop: enemy.dropMul / plain.dropMul, rarityMul: enemy.lootRarityMul };
 })()`);
@@ -89,7 +89,7 @@ assert.ok(enemyMods.quantity > 20 && Math.abs(enemyMods.drop - (1 + enemyMods.qu
 
 // ---------------------------------------------------------------- difficulty = chaos depth at its loop
 const difficulty = copy(`[1, 16].map(tier => {
-    const zone = atlas.preview(atlasMaps.create(atlas.nodes.find(node => node.tier === tier).id, tier, 'normal'));
+    const zone = atlas.preview(game, atlasMaps.create(atlas.nodes.find(node => node.tier === tier).id, tier, 'normal'));
     const saved = { season: game.season, endless: game.abyssEndlessDepth, loops: game.loopCount };
     const boss = createEnemy(zone, { at: 0, count: 1, boss: true, storyStage: 0 }, 0);
     Object.assign(game, { season: zone.fixedSeason, abyssEndlessDepth: zone.equivalentDepth, loopCount: zone.fixedSeason - 1 });
@@ -100,7 +100,7 @@ const difficulty = copy(`[1, 16].map(tier => {
 assert.deepEqual(difficulty.map(row => [row.depth, row.season]), [[20, 10], [50, 40]], '1등급 = 루프 10 혼돈 20, 16등급 = 루프 40 심화 50');
 assert.ok(difficulty.every(row => row.boss === row.reference), 'a node boss is exactly the chaos boss of its depth at that loop');
 assert.deepEqual(difficulty.map(row => row.loot), [15, 20], 'equipment tier rises with the map tier');
-assert.equal(copy(`[1, 30].map(season => { game.season = season; const hp = createEnemy(atlas.preview(atlasMaps.create('roots_0', 1)), { at: 0, count: 1, boss: true }, 0).maxHp; game.season = 1; return hp; })`)
+assert.equal(copy(`[1, 30].map(season => { game.season = season; const hp = createEnemy(atlas.preview(game, atlasMaps.create('roots_0', 1)), { at: 0, count: 1, boss: true }, 0).maxHp; game.season = 1; return hp; })`)
     .reduce((a, b) => a === b), true, 'the loop count never inflates an atlas map');
 
 // ---------------------------------------------------------------- unlock, starter maps, the device and a real map

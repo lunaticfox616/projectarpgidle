@@ -1,6 +1,7 @@
-/** 세계수 아틀라스 (docs/atlas-endgame-20260930.md 3절): 저장 상태 · 노드 그래프 · 지도 장치 런 · 지도석 드롭 · 자동 지도.
+/** 세계수 아틀라스 (docs/atlas-endgame-20260930.md 3절): 저장 상태 · 노드 그래프 · 지도 장치 런 · 지도석 · 각인 드롭 · 자동 지도.
  * 전투 함수는 부르지 않는다 — 이동 · 보스 처치 정산 · 쓰러짐은 js/atlas-run.js가 이 모듈의 상태 전이를 부른다.
- * 루프를 넘어 남는 것: 해금 · 완료 · 보너스 · 자동 지도 설정. 루프마다 비우는 것: 지도석 보관함 · 열린 지도(열쇠 · 우주석과 같은 규칙).
+ * 루프를 넘어 남는 것: 해금 · 완료 · 보너스 · 패시브 · 자동 지도 · 각인 홈 설정. 루프마다 비우는 것: 지도석 · 각인 · 열린 지도.
+ * 지도를 열 때 패시브와 각인의 효과를 런에 고정한다(run.bonus): 열린 지도 도중에 패시브를 바꿔도 그 지도는 그대로다.
  */
 const atlas = (() => {
     const NODES = Object.freeze(ATLAS.regions.flatMap((region, regionIndex) => ATLAS.nodes[region.id].map((row, slot) => Object.freeze({
@@ -18,6 +19,7 @@ const atlas = (() => {
     }));
     const NEIGHBOURS = new Map(NODES.map(node => [node.id, LINKS.filter(link => link.includes(node.id))
         .map(([a, b]) => (a === node.id ? b : a))]));
+    const FRAGMENTS = new Map(ATLAS.fragments.map(fragment => [fragment.id, fragment]));
     const RARITY_RANK = { normal: 0, magic: 1, rare: 2 };
     const zones = new WeakMap();
 
@@ -28,9 +30,13 @@ const atlas = (() => {
     }
     const position = node => polar(node.regionIndex, ATLAS.chart.offsets[node.slot], ATLAS.chart.radii[ATLAS.chart.ring[node.slot]]);
     function defaults() {
-        return { version: 1, unlocked: false, completed: [], bonus: [], stash: [], nextUid: 1, run: null, lastResult: null,
-            autoMap: false, starterSeason: 0 };
+        return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], stash: [], fragments: {}, loadout: [], nextUid: 1,
+            run: null, lastResult: null, autoMap: false, starterSeason: 0 };
     }
+    /** Every effect key at zero, so zone and drop math never needs fallbacks. */
+    const ZERO = () => Object.fromEntries([...atlasPassives.effectKeys].map(key => [key, 0]));
+    const fragmentEffects = ids => ids.map(id => FRAGMENTS.get(id).effect).filter(Boolean);
+    const bonusOf = (state, fragmentIds = []) => ({ ...ZERO(), ...atlasPassives.sum(state.atlas.passives, fragmentEffects(fragmentIds)) });
 
     // ---------------------------------------------------------------- availability and the graph
     /** 루프 10부터 혼돈 20이 관문이다: 처음 깨면 아틀라스가 영구히 열리고, 지도는 루프마다 이번 루프 혼돈 20을 깬 뒤에 연다. */
@@ -59,13 +65,13 @@ const atlas = (() => {
         }
         return null;
     }
-    function rollMap(state, tier, random) {
+    function rollMap(state, tier, random, bonus) {
         const node = nodeForTier(state, tier, random);
         if (!node) return null;
-        const drops = ATLAS.drops, roll = random();
-        const rarity = roll < drops.rare ? 'rare' : (roll < drops.rare + drops.magic ? 'magic' : 'normal');
+        const drops = ATLAS.drops, roll = random(), better = 1 + bonus.mapRarity / 100;
+        const rarity = roll < drops.rare * better ? 'rare' : (roll < (drops.rare + drops.magic) * better ? 'magic' : 'normal');
         const map = atlasMaps.create(node.id, node.tier, rarity, random);
-        if (random() < drops.qualityChance) map.quality = 1 + Math.floor(random() * drops.quality);
+        if (random() < drops.qualityChance + bonus.mapQuality / 100) map.quality = 1 + Math.floor(random() * drops.quality);
         map.uid = state.atlas.nextUid++;
         return map;
     }
@@ -75,6 +81,9 @@ const atlas = (() => {
         state.atlas.stash.push(...maps.slice(0, room));
         return Math.min(room, maps.length);
     }
+    function addFragments(state, ids) {
+        for (const id of ids) state.atlas.fragments[id] = Math.min(ATLAS.fragmentRules.cap, (state.atlas.fragments[id] || 0) + 1);
+    }
 
     /** Once per loop, the first look after this loop's chaos 20 clear: the atlas opens for good and a few maps start the loop. */
     function sync(state, random = Math.random) {
@@ -83,36 +92,52 @@ const atlas = (() => {
         const season = Math.max(1, Math.floor(state.season || 1));
         if (state.atlas.starterSeason === season) return [];
         state.atlas.starterSeason = season;
-        const tier = Math.max(1, bestTier(state) - ATLAS.starter.belowBest);
-        const maps = Array.from({ length: ATLAS.starter.count }, () => rollMap(state, tier, random)).filter(Boolean);
+        const bonus = bonusOf(state), tier = Math.max(1, bestTier(state) - ATLAS.starter.belowBest);
+        const maps = Array.from({ length: ATLAS.starter.count + bonus.starter }, () => rollMap(state, tier, random, bonus)).filter(Boolean);
         store(state, maps);
         return maps;
     }
 
     // ---------------------------------------------------------------- the map device
+    const slots = state => ATLAS.fragmentRules.slots + bonusOf(state).slots;
+    /** 각인 홈 설정: 지도를 열 때(자동 지도 포함) 이 순서대로, 가진 것만 하나씩 쓴다. */
+    function setLoadout(state, ids) {
+        state.atlas.loadout = [...new Set(ids)].filter(id => FRAGMENTS.has(id)).slice(0, slots(state));
+    }
     function beginReason(state, uid) {
         const reason = lockReason(state);
         if (reason) return reason;
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
         return state.atlas.stash.some(map => map.uid === uid) ? '' : '보관함에 없는 지도석입니다.';
     }
-    /** Consumes the map: from here the run owns it (three portals, its own drops held until the boss falls). */
-    function begin(state, uid, returnZoneId) {
+    /** Fragments in the loadout that are in stock, one each; the keep passive may save one. */
+    function useFragments(state, random) {
+        const keep = bonusOf(state).fragmentKeep / 100;
+        const used = state.atlas.loadout.slice(0, slots(state)).filter(id => (state.atlas.fragments[id] || 0) > 0);
+        for (const id of used) if (random() >= keep) state.atlas.fragments[id] -= 1;
+        return used;
+    }
+    /** Consumes the map (and its fragments): from here the run owns it — portals, content rooms, drops held until the boss falls. */
+    function begin(state, uid, returnZoneId, random = Math.random) {
         const reason = beginReason(state, uid);
         if (reason) return reason;
         const [map] = state.atlas.stash.splice(state.atlas.stash.findIndex(entry => entry.uid === uid), 1);
-        state.atlas.run = { map, portals: ATLAS.portals, drops: [], returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null };
+        const fragments = useFragments(state, random), bonus = bonusOf(state, fragments);
+        state.atlas.run = { map, portals: ATLAS.portals + bonus.portals, drops: [], found: [], fragments, bonus,
+            encounters: atlasEncounters.roll(bonus, fragments.map(id => FRAGMENTS.get(id).encounter).filter(Boolean), random),
+            returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null };
         state.atlas.lastResult = null;
         return '';
     }
-    /** Travel failed right after opening: the untouched map goes back to the stash. */
+    /** Travel failed right after opening: the untouched map (and its fragments) go back. */
     function cancel(state) {
         const run = state.atlas.run;
         if (!run) return;
         state.atlas.stash.unshift(run.map);
+        addFragments(state, run.fragments);
         state.atlas.run = null;
     }
-    /** Boss down: completion (and the bonus for a rare map) count once per node; the run's map drops go to the stash. */
+    /** Boss down: completion (and the bonus for a rare map) count once per node; the run's drops go to the stash. */
     function complete(state) {
         const run = state.atlas.run;
         if (!run) return null;
@@ -121,8 +146,10 @@ const atlas = (() => {
         const bonus = run.map.rarity === 'rare' && !state.atlas.bonus.includes(id);
         if (bonus) state.atlas.bonus.push(id);
         const stored = store(state, run.drops);
+        addFragments(state, run.found);
         state.atlas.run = null;
-        state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored, lost: run.drops.length - stored };
+        state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
+            lost: run.drops.length - stored, fragments: run.found.length };
         return { ...state.atlas.lastResult, returnZoneId: run.returnZoneId };
     }
     /** Death, a town return or leaving the map spends a portal; the last one closes the map and loses its held drops. */
@@ -136,7 +163,8 @@ const atlas = (() => {
     function close(state, outcome) {
         const run = state.atlas.run;
         state.atlas.run = null;
-        state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, first: false, bonus: false, drops: 0, lost: run.drops.length };
+        state.atlas.lastResult = { nodeId: run.map.node, tier: run.map.tier, outcome, first: false, bonus: false, drops: 0,
+            lost: run.drops.length, fragments: 0 };
         return { returnZoneId: run.returnZoneId };
     }
     /** 자동 지도: 방금 마친 등급 이하에서 가장 높은 지도석 — 같은 등급이면 아직 못 끝낸 노드, 희귀한 것, 먼저 얻은 것 순. */
@@ -148,13 +176,13 @@ const atlas = (() => {
     }
 
     // ---------------------------------------------------------------- drops
-    function dropTier(tier, random) {
-        const drops = ATLAS.drops, roll = random();
-        if (roll < drops.tierUp) return tier + 1;
-        return roll < drops.tierUp + drops.tierSame ? tier : tier - 1 - Math.floor(random() * 3);
+    function dropTier(tier, random, bonus) {
+        const drops = ATLAS.drops, roll = random(), up = drops.tierUp + bonus.mapTierUp / 100;
+        if (roll < up) return tier + 1;
+        return roll < up + drops.tierSame ? tier : tier - 1 - Math.floor(random() * 3);
     }
-    /** A kill in a map: elites and bosses drop more, the map's item quantity counts; drops wait in the run until the boss falls.
-     * Outside the atlas, bosses of chaos 20 and deeper sometimes drop a low map straight to the stash (the way back in). */
+    /** A kill in a map: elites and bosses drop more, item quantity and the sustain passives count; drops wait in the run until the
+     * boss falls. Outside the atlas, bosses of chaos 20 and deeper sometimes drop a low map straight to the stash (the way back in). */
     function dropFromKill(state, zone, enemy, random = Math.random) {
         if (!zone || !enemy || lockReason(state)) return [];
         if (zone.type === 'atlasMap' && state.atlas.run) return dropInMap(state, zone, enemy, random);
@@ -163,60 +191,102 @@ const atlas = (() => {
     function dropOutside(state, zone, enemy, random) {
         const drops = ATLAS.drops;
         if (zone.type !== 'abyss' || !enemy.isBoss || !(zone.depth >= drops.outsideDepth) || random() >= drops.outsideBoss) return [];
-        const map = rollMap(state, 1 + Math.floor(random() * drops.outsideTier), random);
+        const map = rollMap(state, 1 + Math.floor(random() * drops.outsideTier), random, bonusOf(state));
         return map && store(state, [map]) ? [map] : [];
     }
     function dropInMap(state, zone, enemy, random) {
-        const run = state.atlas.run, drops = ATLAS.drops;
-        const chance = (enemy.isBoss ? 1 : (enemy.isElite ? drops.elite : drops.regular)) * (1 + zone.atlasLootQuantity / 100);
-        const count = Math.floor(chance) + Number(random() < chance % 1) + Number(!!enemy.isBoss && random() < drops.bossExtra);
-        const maps = Array.from({ length: count }, () => rollMap(state, dropTier(run.map.tier, random), random)).filter(Boolean);
+        const run = state.atlas.run, drops = ATLAS.drops, bonus = run.bonus;
+        const base = enemy.isBoss ? 1 : (enemy.isElite ? drops.elite : drops.regular);
+        const chance = base * (1 + zone.atlasLootQuantity / 100) * (1 + bonus.mapDrop / 100);
+        const extra = Number(!!enemy.isBoss && random() < drops.bossExtra + bonus.bossMap / 100);
+        const count = Math.floor(chance) + Number(random() < chance % 1) + extra;
+        const maps = Array.from({ length: count }, () => rollMap(state, dropTier(run.map.tier, random, bonus), random, bonus)).filter(Boolean);
         run.drops.push(...maps.slice(0, Math.max(0, ATLAS.stashCap - run.drops.length)));
         return maps;
+    }
+    /** One more map for the run (an emptied content room's find). */
+    function extraMap(state, random = Math.random) {
+        const run = state.atlas.run, map = run && rollMap(state, run.map.tier, random, run.bonus);
+        if (map && run.drops.length < ATLAS.stashCap) run.drops.push(map);
+        return map ? [map] : [];
+    }
+    /** Elites and bosses in a map sometimes drop a fragment; like maps it waits in the run until the boss falls. */
+    function fragmentFromKill(state, zone, enemy, random = Math.random) {
+        const run = state.atlas.run;
+        if (!run || !zone || zone.type !== 'atlasMap') return [];
+        const rules = ATLAS.fragmentRules, base = enemy.isBoss ? rules.boss : (enemy.isElite ? rules.elite : 0);
+        if (random() >= base * (1 + run.bonus.fragmentDrop / 100)) return [];
+        const id = ATLAS.fragments[Math.floor(random() * ATLAS.fragments.length)].id;
+        run.found.push(id);
+        return [id];
     }
 
     // ---------------------------------------------------------------- the combat zone of the open map
     const equivalentDepth = tier => ATLAS.difficulty.baseDepth + (tier - 1) * ATLAS.difficulty.depthPerTier;
     const sizeFor = tier => 1 + ATLAS.sizeBands.filter(band => tier >= band).length;
-    /** The zone getZone(ATLAS.zoneId) returns while a map is open (memoized per run: the map inside never changes). */
+    /** The zone getZone(ATLAS.zoneId) returns while a map is open (memoized per run: its map and bonus never change). */
     function zone(state) {
         const run = state.atlas && state.atlas.run;
         if (!run) return null;
-        if (!zones.has(run)) zones.set(run, buildZone(run.map));
+        if (!zones.has(run)) zones.set(run, buildZone(run));
         return zones.get(run);
     }
-    function buildZone(map) {
-        const node = BY_ID.get(map.node), fx = atlasMaps.effects(map), depth = equivalentDepth(map.tier);
+    function buildZone(run) {
+        const { map, bonus } = run, node = BY_ID.get(map.node), fx = atlasMaps.effects(map), depth = equivalentDepth(map.tier);
+        const more = key => 1 + bonus[key] / 100;
         return {
             id: ATLAS.zoneId, name: node.name, type: 'atlasMap', tier: getAbyssZoneTier(depth), maxKills: 1, ele: node.ele,
             areaLevel: ATLAS.areaLevel.base + (map.tier - 1) * ATLAS.areaLevel.perTier,
             // 루프 인플레이션 대신 등급이 정한 고정 루프 · 깊이 (combat getLoopDifficultyInputs · state getAbyssMonsterScales).
             fixedSeason: depth - ATLAS.difficulty.loopBehindDepth, equivalentDepth: depth, equivalentChaosDepth: depth,
-            mapHpMul: fx.hp, mapDamageMul: fx.damage, bossMods: { hpMul: fx.bossHp, damageMul: fx.bossDamage },
+            mapHpMul: fx.hp * more('monsterLife'), mapDamageMul: fx.damage * more('monsterDamage'),
+            bossMods: { hpMul: fx.bossHp * more('bossLife'), damageMul: fx.bossDamage * more('bossLife') },
             trialHazard: fx.hazard ? { ...ATLAS.burningGround } : undefined,
-            atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy,
-            atlasLootQuantity: fx.quantity, atlasLootRarity: fx.rarity, atlasPackExtra: fx.packExtra, atlasExtraElite: fx.extraElite,
+            atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
+            atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
+            atlasPackExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
             atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct,
             exploration: { style: node.style, biome: node.biome, size: sizeFor(map.tier), seed: `atlas:${map.uid}`, bossStages: 1 }
         };
     }
+    /** What a stash map would be with the current passives and loadout (the device card). */
+    const preview = (state, map) => buildZone({ map, bonus: bonusOf(state, state.atlas.loadout.filter(id => (state.atlas.fragments[id] || 0) > 0)), encounters: [] });
     /** Equipment base tier from the map tier: T15 at 1~3등급, one more every three tiers, T20 at 16등급. */
     const lootTier = tier => Math.min(20, 14 + Math.ceil(tier / 3));
 
     // ---------------------------------------------------------------- save boundary and the loop
+    const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
+    function normalizeBonus(raw) {
+        const bonus = ZERO();
+        for (const key of Object.keys(bonus)) {
+            const value = Number(raw && raw[key]);
+            bonus[key] = Number.isFinite(value) ? Math.max(0, Math.min(1000, value)) : 0;
+        }
+        return bonus;
+    }
     function normalizeRun(raw, validMap) {
         const map = raw && validMap(raw.map);
         if (!map) return null;
-        const portals = Math.floor(Number(raw.portals));
-        return { map, portals: portals >= 1 && portals <= ATLAS.portals ? portals : 1,
+        const bonus = normalizeBonus(raw.bonus), portals = Math.floor(Number(raw.portals));
+        return { map, portals: portals >= 1 && portals <= ATLAS.portals + bonus.portals ? portals : 1,
             drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, ATLAS.stashCap),
+            found: fragmentIds(raw.found, 50), fragments: fragmentIds(raw.fragments, 3), bonus,
+            encounters: [...new Set(Array.isArray(raw.encounters) ? raw.encounters : [])].filter(type => ATLAS.encounters[type]),
             returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null };
     }
     function normalizeResult(raw) {
         if (!raw || !BY_ID.has(raw.nodeId) || !['complete', 'failed'].includes(raw.outcome)) return null;
         const count = value => Math.max(0, Math.min(ATLAS.stashCap, Math.floor(Number(value) || 0)));
         return { nodeId: raw.nodeId, tier: Math.max(1, Math.min(ATLAS.maxTier, Math.floor(Number(raw.tier) || 1))), outcome: raw.outcome,
-            first: raw.first === true, bonus: raw.bonus === true, drops: count(raw.drops), lost: count(raw.lost) };
+            first: raw.first === true, bonus: raw.bonus === true, drops: count(raw.drops), lost: count(raw.lost), fragments: count(raw.fragments) };
+    }
+    function normalizeFragments(raw) {
+        const counts = {};
+        for (const id of FRAGMENTS.keys()) {
+            const value = Math.floor(Number(raw && raw[id]));
+            if (value > 0) counts[id] = Math.min(ATLAS.fragmentRules.cap, value);
+        }
+        return counts;
     }
     const nodeList = (value, allowed) => [...new Set(Array.isArray(value) ? value : [])].filter(id => BY_ID.has(id) && allowed(id));
     /** Defaults, the one-time move from the world-tree journey (its unlock carries over), corrupt entries dropped, unique uids. */
@@ -231,24 +301,27 @@ const atlas = (() => {
             return map;
         };
         // The open map claims its uid first: a stash entry sharing it is the duplicate.
-        const done = nodeList(raw.completed, () => true), run = normalizeRun(raw.run, validMap);
-        const next = { ...defaults(), unlocked: raw.unlocked === true || journeyUnlocked, completed: done,
-            bonus: nodeList(raw.bonus, id => done.includes(id)), stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(Boolean)
-                .slice(0, ATLAS.stashCap), run, lastResult: normalizeResult(raw.lastResult),
+        const done = nodeList(raw.completed, () => true), bonus = nodeList(raw.bonus, id => done.includes(id)), run = normalizeRun(raw.run, validMap);
+        const next = { ...defaults(), unlocked: raw.unlocked === true || journeyUnlocked, completed: done, bonus,
+            passives: atlasPassives.normalize(raw.passives, done.length + bonus.length),
+            stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(Boolean).slice(0, ATLAS.stashCap),
+            fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult),
             autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
         next.nextUid = Math.max(Math.floor(Number(raw.nextUid) || 1), ...[...uids].map(uid => uid + 1), 1);
         state.atlas = next;
+        setLoadout(state, Array.isArray(raw.loadout) ? raw.loadout : []);
         return next;
     }
     function onLoopReset(state) {
-        Object.assign(state.atlas, { stash: [], run: null, lastResult: null });
+        Object.assign(state.atlas, { stash: [], fragments: {}, run: null, lastResult: null });
     }
     function travelReason(state, id) {
         return id === ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지도석을 열어야 들어갈 수 있습니다.' : '';
     }
     return Object.freeze({ nodes: NODES, links: LINKS, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
-        position, polar, defaults, lockReason, status, reachable, points, bestTier, sync, beginReason, begin, cancel, complete, usePortal, close, nextAuto,
-        dropFromKill, zone, preview: buildZone, lootTier, equivalentDepth, normalize, onLoopReset, travelReason,
+        fragment: id => FRAGMENTS.get(id) || null, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
+        slots, setLoadout, beginReason, begin, cancel, complete, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill,
+        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();
 safeExposeGlobals({ atlas });

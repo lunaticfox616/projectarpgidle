@@ -2381,7 +2381,8 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
 const defaultGame = {
     // 세계수 아틀라스 (js/atlas.js normalize): unlocked/completed/bonus/autoMap survive loops; stash/run reset each loop.
     // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
-    atlas: { version: 1, unlocked: false, completed: [], bonus: [], stash: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0 },
+    // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
+    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0 },
     // Last map's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,

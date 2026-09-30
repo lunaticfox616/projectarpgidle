@@ -95,6 +95,33 @@ const ATLAS = Object.freeze({
         { id: 'burningGround', kind: 'suffix', text: '바닥에 불길 웅덩이가 예고 후 번진다', min: 0, max: 0, quantity: [8, 12], rarity: [5, 7] },
         { id: 'monsterEvasion', kind: 'suffix', text: '몬스터 회피 확률 +{v}%', min: 10, max: 20, quantity: [5, 8], rarity: [3, 4] }
     ].map(Object.freeze)),
+    // 각인(스캐럽): 지도 장치 홈(기본 2)에 끼워 두면 지도를 열 때 1개씩 쓴다. 지도 안 정예 · 보스가 떨어뜨리고 루프마다 비운다.
+    // effect 키는 아틀라스 패시브와 같다(js/atlas-passives.js). encounter는 그 콘텐츠 방을 반드시 만든다.
+    fragments: Object.freeze([
+        { id: 'packs', name: '무리 각인', effect: { packSize: 1, quantity: 8 } },
+        { id: 'elites', name: '정예 각인', effect: { extraElite: 30, rarity: 10 } },
+        { id: 'maps', name: '지도 각인', effect: { mapDrop: 60 } },
+        { id: 'boss', name: '보스 각인', effect: { bossLife: 40, bossMap: 50, bossRarity: 50 } },
+        { id: 'breach', name: '균열 각인', encounter: 'breach' },
+        { id: 'hive', name: '벌집 각인', encounter: 'hive' },
+        { id: 'treasure', name: '보물 각인', encounter: 'treasure' },
+        { id: 'meteor', name: '운석 각인', encounter: 'meteor' }
+    ].map(Object.freeze)),
+    fragmentRules: Object.freeze({ slots: 2, elite: 0.03, boss: 0.25, cap: 99 }),
+    // 지도 속 콘텐츠 방: 정예가 이끄는 무리(보스 관문을 함께 봉인)에 그 콘텐츠의 적 보정이 붙고, 방을 비우면 그 콘텐츠의 재화를 맵
+    // 전리품으로 받는다(쓰러지면 잃는다). 보상 [재화, 기본, 등급당] — 기대값의 소수부는 확률로 1개 더.
+    // chance: 지도마다 그 방이 생길 기본 확률(%). 패시브 · 각인이 더한다. 지도마다 굴려 생기는 방은 encounterLimit개까지.
+    encounters: Object.freeze({
+        breach: Object.freeze({ name: '공허 균열', chance: 8, packExtra: 4, prefix: '공허의', enemy: Object.freeze({ hp: 2, damage: 1.3, attack: 1.25, exp: 2 }),
+            rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3 }),
+        hive: Object.freeze({ name: '벌집', chance: 8, packExtra: 3, names: Object.freeze(['벌집 전투벌', '정예 수호벌']), enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
+            rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15 }),
+        treasure: Object.freeze({ name: '보물 방', chance: 10, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
+            rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5 }),
+        meteor: Object.freeze({ name: '운석 분화구', chance: 6, packExtra: 2, prefix: '별에 물든', enemy: Object.freeze({ hp: 1.6, damage: 1.2, attack: 1.1, exp: 1.6 }),
+            rewards: Object.freeze([['meteorShard', 4, 0.5], ['skyEssence', 0.3, 0]]), mapChance: 0.2 })
+    }),
+    encounterLimit: 1,
     // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
     chart: Object.freeze({ radii: Object.freeze([40, 31, 22.5, 14]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
         offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]), labelRadius: 47.5 }),
