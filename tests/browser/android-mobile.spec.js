@@ -127,3 +127,31 @@ test('picking a class by touch leaves no class tooltip over the battle HUD', asy
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await expect(page.locator('#info-tooltip')).toBeHidden();
 });
+
+test('HUD gem hover details follow the mouse and never stay behind after a tap', async ({ page }, info) => {
+    // Review 2026-10-01: tapping the mobility gem (the dash) left its gem tooltip over the battlefield on phones.
+    const mobile = !!info.project.use.isMobile;
+    if (mobile) await openMobile(page);
+    else {
+        await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+        await page.goto('/');
+        await page.locator('#btn-startup-guest').click();
+        await page.locator('[data-class-id="warrior"]').click();
+        await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+        await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
+    }
+    await page.evaluate(() => {
+        game.mobilitySkill = Object.keys(SKILL_DB).find(name => SKILL_DB[name].tags?.includes('mobility'));
+        hideInfoTooltip(); renderCombatSkillHud();
+    });
+    const slot = page.locator('#ui-combat-skill-gems .player-hud-skill-slot.mobility');
+    if (mobile) {
+        await slot.tap();
+        await expect(page.locator('#info-tooltip')).toBeHidden();
+    } else {
+        await slot.hover();
+        await expect(page.locator('#info-tooltip')).toBeVisible();
+        await page.mouse.move(5, 5);
+        await expect(page.locator('#info-tooltip')).toBeHidden();
+    }
+});

@@ -48,6 +48,8 @@
     background: var(--px-board), var(--px-stone-control);
     box-shadow: var(--px-bevel);
     color: var(--px-copy);
+    /* 기본 모바일 규칙의 9 ~ 10px 글씨는 도트 글꼴에서 뭉개진다 */
+    font-size: 12px;
     text-shadow: var(--px-text-edge);
   }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, #btn-exploration-loot-skip, .ui-context-dock-tab, .combat-log-toggle):active {

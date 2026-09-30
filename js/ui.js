@@ -7932,10 +7932,11 @@ function renderCombatSkillSlot(entry) {
 
 function bindCombatSkillSlot(button) {
     let name = button.dataset.gemName;
-    let show = event => showGemTooltip(event, 'active', name);
-    button.addEventListener('mouseenter', show);
-    button.addEventListener('mousemove', show);
-    button.addEventListener('mouseleave', hideInfoTooltip);
+    // 올려 두면 뜨는 설명은 마우스만: 터치는 떼도 mouseleave가 없어 이동 스킬을 누를 때마다 설명이 전장을 덮은 채 남았다.
+    let show = event => { if (event.pointerType === 'mouse') showGemTooltip(event, 'active', name); };
+    button.addEventListener('pointerenter', show);
+    button.addEventListener('pointermove', show);
+    button.addEventListener('pointerleave', hideInfoTooltip);
     button.addEventListener('click', () => {
         if (button.dataset.slotKind === 'mobility') { hotkeysUi.useMobility(button); return; }
         openTabPane('tab-skills');
