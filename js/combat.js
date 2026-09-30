@@ -13193,7 +13193,7 @@ function triggerSeasonReset(options) {
     game.unlocks = { ...defaultGame.unlocks };
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
-    coreItems.resetForLoop();
+    coreItems.resetForLoop(); stumpCube.clear();
     if (typeof stumpBox === 'object') stumpBox.regress(game);
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';

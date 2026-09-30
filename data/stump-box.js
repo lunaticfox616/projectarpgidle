@@ -40,6 +40,8 @@ const STUMP_BOX_DROPS = Object.freeze({
     sapShare: 0.4,
     roll: Object.freeze({ min: 0.8, max: 1.2 })
 });
+// 보관된 씨앗 · 수액의 품질 범위. 드랍은 위 roll 범위로 굴리고, 조합창 합치기만 130%까지 올린다(data/stump-cube.js).
+const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 
 const STUMP_BOX_STORAGE = 50;
 const STUMP_BOX_RESONANCE = Object.freeze({ count: 3, bonusPct: 10 });
@@ -82,5 +84,5 @@ const STUMP_BOX_STAGES = Object.freeze({
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_UNLOCKS,
-    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
+    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
 });

@@ -52,7 +52,7 @@ const stumpBox = (() => {
         return box.items.filter(item => !placed.has(item.id));
     }
     function clampRoll(value) {
-        return Math.round(Math.min(STUMP_BOX_DROPS.roll.max, Math.max(STUMP_BOX_DROPS.roll.min, Number(value) || 1)) * 100) / 100;
+        return Math.round(Math.min(STUMP_BOX_ROLL_LIMIT.max, Math.max(STUMP_BOX_ROLL_LIMIT.min, Number(value) || 1)) * 100) / 100;
     }
     /** Adds a new item to storage; null when storage is full or the input is invalid. */
     function createItem(state, spec) {

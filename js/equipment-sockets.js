@@ -36,12 +36,19 @@ const equipmentSockets = (() => {
         return isSocketable(item) && !hasVoidSocket(item) && !item.fusedRelic;
     }
 
+    /** Opens the void socket; the caller has already paid for it (the chisel here, the cube recipe in stump-cube.js). */
+    function openVoidSocket(item) {
+        if (!canChisel(item)) return false;
+        item.voidSocket = { open: true, jewel: null };
+        return true;
+    }
+
     function chisel(item, state = game) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         if (!canChisel(item)) return { ok: false, reason: '이 장비에는 공허 소켓을 더 뚫을 수 없습니다.' };
         if ((state.currencies.voidChisel || 0) <= 0) return { ok: false, reason: '공허의 끌이 부족합니다.' };
         state.currencies.voidChisel -= 1;
-        item.voidSocket = { open: true, jewel: null };
+        openVoidSocket(item);
         return { ok: true };
     }
 
@@ -78,6 +85,6 @@ const equipmentSockets = (() => {
         return { ok: true, jewel };
     }
 
-    return Object.freeze({ isSocketable, hasBuiltInSocket, hasVoidSocket, list, canChisel, chisel, insert, remove });
+    return Object.freeze({ isSocketable, hasBuiltInSocket, hasVoidSocket, list, canChisel, openVoidSocket, chisel, insert, remove });
 })();
 safeExposeGlobals({ equipmentSockets });

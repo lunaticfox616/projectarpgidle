@@ -1,6 +1,6 @@
 // 그루터기 함 화면: 5×5 판(유물 그림 위의 칸 단추), 고른 아이템 설명, 공명·억제 요약, 시작 선물, 보관함.
 // 누르기만으로 다룬다(휴대폰과 PC 같음): 아이템을 고르고 판의 빈 칸을 누르면 심거나 옮긴다. 규칙·계산은 js/stump-box.js.
-// 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가 준다.
+// 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가, 판 아래 3×3 조합창은 js/stump-cube-ui.js가 준다.
 const stumpBoxUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const PATH_LABELS = { flower: '꽃으로 키우기', fruit: '열매로 키우기' };
@@ -165,7 +165,8 @@ const stumpBoxUi = (() => {
     }
     function stumpTabSignature() {
         const talismanInputs = [contentProgression.isUnlocked('talisman'), TALISMAN_CURRENCIES.map(key => Math.floor(game.currencies[key] || 0))];
-        return JSON.stringify([game.stumpBox, selectedId, pendingPath, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs]);
+        return JSON.stringify([game.stumpBox, selectedId, pendingPath, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
+            stumpCubeUi.cubeSignature()]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
     function renderStumpBoxTab(force) {
@@ -177,6 +178,7 @@ const stumpBoxUi = (() => {
         lastSignature = key;
         const result = stumpBox.evaluate(game);
         paintStumpPart('stump-box-board', stumpBoardHtml(result));
+        paintStumpPart('stump-cube', stumpCubeUi.cubeHtml());
         paintStumpPart('stump-box-summary', stumpSummaryHtml(result));
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-starter', stumpStarterHtml());
@@ -264,7 +266,12 @@ const stumpBoxUi = (() => {
         'talisman-exchange': data => { if (stumpTalismanUi.exchange(Number(data.index))) commitStumpChange(); },
         'talisman-wax': () => { if (stumpTalismanUi.wax(selectedId)) commitStumpChange(); },
         'talisman-turn': () => { if (stumpTalismanUi.turn(selectedId)) commitStumpChange(); },
-        'talisman-discard': () => discardTalisman()
+        'talisman-discard': () => discardTalisman(),
+        'cube-cell': data => stumpCubeUi.takeOutCubeCell(Number(data.cell)),
+        'cube-open': () => stumpCubeUi.openCubePicker(),
+        'cube-transmute': () => stumpCubeUi.transmuteCube(),
+        'cube-clear': () => stumpCubeUi.clearCube(),
+        'cube-book': () => stumpCubeUi.toggleCubeBook()
     };
     function onStumpTabClick(event) {
         const target = event.target.closest('[data-stump-action]');
@@ -297,6 +304,12 @@ const stumpBoxUi = (() => {
         window.addEventListener('project-idle:stump-box-changed', event => announceStumpChange(event.detail || {}));
     }
 
-    return { renderStumpBoxTab, checkStumpBoxUnlock };
+    /** Repaints now (the cube and its picker change outside the tab's own clicks). */
+    function refreshStumpTabNow() {
+        lastSignature = '';
+        renderStumpBoxTab(true);
+    }
+
+    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock };
 })();
 safeExposeGlobals({ stumpBoxUi });

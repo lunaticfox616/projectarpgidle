@@ -120,6 +120,29 @@ const talismans = (() => {
             dir: 1, lines: (row.stats || []).map(stat => ({ kind: 'stat', id: stat.stat, value: Number(stat.value) || 0 })) });
     }
 
+    /** A talisman as unsealed with this shard (unique chance included), without paying anything. */
+    function roll(source, random = Math.random) {
+        const rule = TALISMAN_UNSEAL_RULES[source];
+        return random() < rule.uniqueChance ? rollUnique(pick(TALISMAN_UNIQUE_DB, random), random) : rollNormal(source, random);
+    }
+
+    /** 조합창: 밀랍이 아닌 일반 줄 하나를 강력한 기운의 봉인편린 배율로 새로 굴린다(줄 종류도 새로). @returns {?object} the new line. */
+    function rerollStatLine(item, random = Math.random) {
+        const lines = item.lines.filter(line => line.kind === 'stat' && !line.wax);
+        if (!lines.length) return null;
+        const old = pick(lines, random);
+        const taken = new Set(item.lines.map(line => line.id));
+        const next = rollLine({ conditionChance: 0, mul: TALISMAN_UNSEAL_RULES.strongSealShard.mul }, taken, random);
+        item.lines[item.lines.indexOf(old)] = next;
+        return next;
+    }
+
+    /** 조합창: 다른 고유 부적 하나(재료와 같은 고유는 나오지 않는다). */
+    function rollOtherUnique(excludedIds, random = Math.random) {
+        const pool = TALISMAN_UNIQUE_DB.filter(def => !excludedIds.includes(def.id));
+        return rollUnique(pick(pool.length ? pool : TALISMAN_UNIQUE_DB, random), random);
+    }
+
     function unsealRefusal(source, state) {
         if (!TALISMAN_UNSEAL_RULES[source]) return '알 수 없는 편린입니다.';
         if (!stumpBox.of(state).acquired) return '그루터기 함을 먼저 얻어야 합니다.';
@@ -132,10 +155,8 @@ const talismans = (() => {
     function unseal(source, state = game, random = Math.random) {
         const reason = unsealRefusal(source, state);
         if (reason) return { ok: false, reason };
-        const rule = TALISMAN_UNSEAL_RULES[source];
-        state.currencies[source] -= rule.cost;
-        const talisman = random() < rule.uniqueChance ? rollUnique(pick(TALISMAN_UNIQUE_DB, random), random) : rollNormal(source, random);
-        return { ok: true, item: stumpBox.addTalisman(state, talisman) };
+        state.currencies[source] -= TALISMAN_UNSEAL_RULES[source].cost;
+        return { ok: true, item: stumpBox.addTalisman(state, roll(source, random)) };
     }
 
     function exchange(index, state = game) {
@@ -188,7 +209,7 @@ const talismans = (() => {
         return `${getStatName(line.id)} +${formatValue(line.id, line.value)}${line.wax ? ' (밀랍)' : ''}`;
     }
 
-    return Object.freeze({ normalizeTalisman, rollNormal, rollUnique, fromCosmos, unseal, exchange, wax, waxPreview, turn, describeLine,
+    return Object.freeze({ normalizeTalisman, rollNormal, rollUnique, roll, rerollStatLine, rollOtherUnique, fromCosmos, unseal, exchange, wax, waxPreview, turn, describeLine,
         isDirectional: item => !!item && DIRECTIONAL.has(item.special), directionName: dir => DIRECTION_NAMES[dir] || DIRECTION_NAMES[1],
         conditionDef: id => conditionPool.get(id), uniqueDef: id => uniquePool.get(id), statDef: id => statPool.get(id) });
 })();

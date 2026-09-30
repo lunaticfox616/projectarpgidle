@@ -1098,7 +1098,7 @@ function mergeDefaults(save) {
     reconcileMapPrimaryContentUnlocks(merged);
     if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
-    if (typeof stumpBox === 'object') stumpBox.restore(merged);
+    if (typeof stumpBox === 'object') stumpBox.restore(merged); merged.stumpCube = stumpCube.normalize(merged.stumpCube);
     merged.saveVersion = defaultGame.saveVersion;
     // 보물사냥은 삭제된 콘텐츠: 남은 진행·예약 보물은 지급 없이 버리고, 표적이던 적은 표시만 지운다.
     delete merged.bountyHunt;

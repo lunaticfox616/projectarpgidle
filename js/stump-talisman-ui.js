@@ -2,12 +2,12 @@
 // 깨어난 부적 합계, 봉인 풀기 · 편린 교환. 판 · 보관함 · 선택 · 다시 그리기는 stump-box-ui.js가 맡고, 여기는 HTML 조각과
 // 동작만 준다(동작은 바뀐 것이 있으면 참을 돌려준다). 규칙은 talismans.js, 이웃 효과는 talisman-effects.js.
 const stumpTalismanUi = (() => {
-    const SHARD_NAMES = { sealShard: '봉인편린', strongSealShard: '강력 봉인편린', radiantSealShard: '광휘 봉인편린' };
     const RARITY_LABELS = { magic: '마법', rare: '희귀', unique: '고유' };
 
     function esc(text) { return escapeHTML(String(text)); }
     function tone(item) { return TALISMAN_RARITY_TONES[item.rarity] || TALISMAN_RARITY_TONES.magic; }
     function owned(key) { return Math.floor(game.currencies[key] || 0); }
+    function shardName(key) { return ORB_DB[key].name; }
 
     function linesHtml(item) {
         const rows = item.lines.map(line => `<li class="${line.kind === 'condition' ? 'is-condition' : ''}">${esc(talismans.describeLine(line))}</li>`);
@@ -61,13 +61,13 @@ const stumpTalismanUi = (() => {
 
     function unsealButton(key) {
         const ready = owned(key) >= TALISMAN_UNSEAL_RULES[key].cost;
-        return `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>${SHARD_NAMES[key]} 풀기 · ${owned(key)}</button>`;
+        return `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>${shardName(key)} 풀기 · ${owned(key)}</button>`;
     }
 
     function exchangeButton(row, index) {
         const ready = owned(row.from) >= row.cost;
         return `<button type="button" data-stump-action="talisman-exchange" data-index="${index}"${ready ? '' : ' disabled'}>`
-            + `${SHARD_NAMES[row.from]} ${row.cost} → ${SHARD_NAMES[row.to]} 1</button>`;
+            + `${shardName(row.from)} ${row.cost} → ${shardName(row.to)} 1</button>`;
     }
 
     /** 봉인 풀기 · 편린 교환 (해금 목록의 '부적'을 연 뒤). */

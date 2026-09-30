@@ -10171,8 +10171,6 @@ function unlockLegacyCurrencyFeatures(currencyKey) {
     return unlocked;
 }
 
-
-
 // Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting.
 function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
     if (offlineStashEnabled || options?.skipAutoEquip || options?.delivery) return null;

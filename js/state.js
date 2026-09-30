@@ -2611,6 +2611,8 @@ const defaultGame = {
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
+    // 그루터기 함 아래 3×3 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
+    stumpCube: { slots: [] },
     equipmentTemporaryStorage: [],
     inventory: [],
     // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.

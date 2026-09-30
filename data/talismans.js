@@ -8,7 +8,7 @@ const TALISMAN_UNSEAL_RULES = Object.freeze({
     strongSealShard: { cost: 1, lines: [2, 2], conditionChance: 0.25, mul: 1.35, uniqueChance: 0.03 },
     radiantSealShard: { cost: 1, lines: [2, 3], conditionChance: 0.3, mul: 1.6, uniqueChance: 0.24 }
 });
-// 편린 교환: 봉인편린 80 → 강력 1, 강력 40 → 광휘 1.
+// 편린 교환: 봉인편린 80 → 강력한 기운의 봉인편린 1, 그것 40 → 찬란한 봉인편린 1.
 const TALISMAN_SHARD_EXCHANGE = Object.freeze([
     { from: 'sealShard', to: 'strongSealShard', cost: 80 },
     { from: 'strongSealShard', to: 'radiantSealShard', cost: 40 }
