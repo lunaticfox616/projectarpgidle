@@ -1,5 +1,7 @@
 // 세계수 아틀라스 패시브 (docs/atlas-endgame-20260930.md 3절): 완료 · 보너스로 얻은 아틀라스 포인트를 쓴다(노드 1개 = 1점).
-// 갈래마다 뿌리 1 → 세 줄기(작은 노드 2 + 주요 노드 1) → 핵심 노드 2(두 주요 노드 중 하나가 있으면 열림) = 12노드.
+// 갈래마다 뿌리 1 → 세 줄기(작은 노드 2 · 주요 노드 · 끝) · 줄기 사이를 잇는 노드 3 · 핵심 노드 3(두 주요 노드 중 하나가 있으면 열림)
+// = 19노드. 끝 · 사이 · 세 번째 핵심(2026-09-30 추가)은 모두 기존 노드 뒤에 붙어, 예전 저장의 찍은 노드가 끊기지 않는다.
+// 화면 배치(가운데 뿌리 · 육각으로 맞물린 고리 넷)는 js/atlas-passives-ui.js가 id로 정한다: _r 뿌리, _a1~_aT 줄기, _ab 사이, _k 핵심.
 // requires는 "이 중 하나라도 찍혀 있으면" 찍을 수 있다는 뜻이다. 효과 키는 js/atlas-passives.js가 더한다(수치는 첫 제안값).
 const ATLAS_PASSIVES = Object.freeze({
     wheels: Object.freeze([
@@ -12,7 +14,12 @@ const ATLAS_PASSIVES = Object.freeze({
             ['s_c1', '좋은 지도석', ['s_r'], { mapRarity: 15 }], ['s_c2', '좋은 지도석', ['s_c1'], { mapRarity: 15 }],
             ['s_cN', '지도 제작자', ['s_c2'], { mapRarity: 20, mapQuality: 20 }, true],
             ['s_k1', '끝없는 뿌리', ['s_aN', 's_bN'], { starter: 2, mapDrop: 15 }, 'key'],
-            ['s_k2', '여분의 포털', ['s_bN', 's_cN'], { portals: 1 }, 'key']
+            ['s_k2', '여분의 포털', ['s_bN', 's_cN'], { portals: 1 }, 'key'],
+            ['s_aT', '뿌리 내린 발견', ['s_aN'], { mapDrop: 15 }], ['s_bT', '높은 가지', ['s_bN'], { mapTierUp: 5 }],
+            ['s_cT', '정교한 제작', ['s_cN'], { mapRarity: 10, mapQuality: 10 }],
+            ['s_ab', '뿌리와 기류', ['s_a2', 's_b2'], { mapDrop: 5, mapTierUp: 2 }], ['s_bc', '기류와 결', ['s_b2', 's_c2'], { mapTierUp: 2, mapRarity: 8 }],
+            ['s_ca', '결과 뿌리', ['s_c2', 's_a2'], { mapRarity: 8, mapDrop: 5 }],
+            ['s_k3', '지도 장인', ['s_cN', 's_aN'], { mapQuality: 30, mapRarity: 20, starter: 1 }, 'key']
         ] },
         { id: 'loot', name: '줄기 · 수량과 희귀도', tint: '#8a6a45', nodes: [
             ['l_r', '풍성한 수확', [], { quantity: 4 }],
@@ -23,7 +30,12 @@ const ATLAS_PASSIVES = Object.freeze({
             ['l_c1', '정예의 기척', ['l_r'], { extraElite: 5 }], ['l_c2', '정예의 기척', ['l_c1'], { extraElite: 5 }],
             ['l_cN', '정예의 옹이', ['l_c2'], { extraElite: 15, quantity: 5 }, true],
             ['l_k1', '끝없는 무리', ['l_aN', 'l_cN'], { packSize: 1, monsterLife: 15 }, 'key'],
-            ['l_k2', '탐욕', ['l_aN', 'l_bN'], { quantity: 15, rarity: 15, monsterDamage: 10 }, 'key']
+            ['l_k2', '탐욕', ['l_aN', 'l_bN'], { quantity: 15, rarity: 15, monsterDamage: 10 }, 'key'],
+            ['l_aT', '가득 찬 곳간', ['l_aN'], { quantity: 6 }], ['l_bT', '짙은 수액', ['l_bN'], { rarity: 10 }],
+            ['l_cT', '정예 무리', ['l_cN'], { extraElite: 8 }],
+            ['l_ab', '풍성한 빛', ['l_a2', 'l_b2'], { quantity: 2, rarity: 3 }], ['l_bc', '빛나는 정예', ['l_b2', 'l_c2'], { rarity: 3, extraElite: 3 }],
+            ['l_ca', '정예의 수확', ['l_c2', 'l_a2'], { extraElite: 3, quantity: 2 }],
+            ['l_k3', '황금 옹이', ['l_bN', 'l_cN'], { rarity: 25, extraElite: 20, monsterLife: 20 }, 'key']
         ] },
         { id: 'boss', name: '가지 · 보스와 각인', tint: '#5f8a9a', nodes: [
             ['b_r', '각인 탐색', [], { fragmentDrop: 15 }],
@@ -34,7 +46,12 @@ const ATLAS_PASSIVES = Object.freeze({
             ['b_c1', '아끼는 손', ['b_r'], { fragmentKeep: 8 }], ['b_c2', '아끼는 손', ['b_c1'], { fragmentKeep: 8 }],
             ['b_cN', '되돌아오는 각인', ['b_c2'], { fragmentKeep: 20 }, true],
             ['b_k1', '세 번째 홈', ['b_aN', 'b_cN'], { slots: 1 }, 'key'],
-            ['b_k2', '강대한 보스', ['b_aN', 'b_bN'], { bossLife: 40, bossMap: 50, bossRarity: 50 }, 'key']
+            ['b_k2', '강대한 보스', ['b_aN', 'b_bN'], { bossLife: 40, bossMap: 50, bossRarity: 50 }, 'key'],
+            ['b_aT', '각인 사냥', ['b_aN'], { fragmentDrop: 20 }], ['b_bT', '보스의 기억', ['b_bN'], { bossMap: 15, bossRarity: 15 }],
+            ['b_cT', '단단한 손', ['b_cN'], { fragmentKeep: 10 }],
+            ['b_ab', '흔적 수집', ['b_a2', 'b_b2'], { fragmentDrop: 8, bossMap: 5 }], ['b_bc', '남는 흔적', ['b_b2', 'b_c2'], { bossMap: 5, fragmentKeep: 4 }],
+            ['b_ca', '아끼는 수집', ['b_c2', 'b_a2'], { fragmentKeep: 4, fragmentDrop: 8 }],
+            ['b_k3', '보스의 인장', ['b_bN', 'b_cN'], { bossMap: 40, fragmentKeep: 15 }, 'key']
         ] },
         { id: 'content', name: '잎 · 지도 속 콘텐츠', tint: '#9a5f45', nodes: [
             ['e_r', '세계의 메아리', [], { breach: 3, hive: 3, treasure: 3, meteor: 3 }],
@@ -45,7 +62,12 @@ const ATLAS_PASSIVES = Object.freeze({
             ['e_c1', '반짝이는 흙', ['e_r'], { treasure: 8 }], ['e_c2', '반짝이는 흙', ['e_c1'], { treasure: 8 }],
             ['e_cN', '숨겨진 보물', ['e_c2'], { treasure: 12, treasureReward: 50 }, true],
             ['e_k1', '떨어지는 별', ['e_aN', 'e_bN'], { meteor: 20, meteorReward: 50 }, 'key'],
-            ['e_k2', '겹치는 세계', ['e_bN', 'e_cN'], { encounterExtra: 1 }, 'key']
+            ['e_k2', '겹치는 세계', ['e_bN', 'e_cN'], { encounterExtra: 1 }, 'key'],
+            ['e_aT', '깊은 균열', ['e_aN'], { breach: 10, breachReward: 25 }], ['e_bT', '여왕의 방', ['e_bN'], { hive: 10, hiveReward: 25 }],
+            ['e_cT', '보물 지도', ['e_cN'], { treasure: 10, treasureReward: 25 }],
+            ['e_ab', '공허의 벌집', ['e_a2', 'e_b2'], { breach: 4, hive: 4 }], ['e_bc', '꿀과 흙', ['e_b2', 'e_c2'], { hive: 4, treasure: 4 }],
+            ['e_ca', '균열 속 흙', ['e_c2', 'e_a2'], { treasure: 4, breach: 4 }],
+            ['e_k3', '갈라진 세계', ['e_cN', 'e_aN'], { breach: 10, treasure: 10, breachReward: 30, treasureReward: 30 }, 'key']
         ] }
     ].map(wheel => Object.freeze({ ...wheel, nodes: Object.freeze(wheel.nodes.map(([id, name, requires, effect, rank = false]) =>
         Object.freeze({ id, name, requires: Object.freeze(requires), effect: Object.freeze(effect), rank: rank === 'key' ? 'keystone' : (rank ? 'notable' : 'small') }))) }))),

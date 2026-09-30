@@ -2,7 +2,7 @@
  * 패시브 보기는 js/atlas-passives-ui.js. 상태는 js/atlas.js, 런 흐름은 js/atlas-run.js가 맡고, 여기서는 고르기 · 보여주기 · 기록만 한다.
  */
 const atlasUi = (() => {
-    let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps';
+    let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps', panelObserver = null;
     const STATUS = { locked: '잠김', open: '열림', complete: '완료', bonus: '보너스' };
     const STYLE = { rooms: '방과 복도', maze: '미로', descent: '하강 갱도', islands: '떠 있는 섬', gauntlet: '연속 방', arena: '투기장' };
     const CRAFT_ORDER = ['magicBud', 'sapBud', 'formlessDew', 'blightSpore', 'pruningShears', 'goldenRule', 'deepWhetstone', 'emberBranch'];
@@ -29,6 +29,7 @@ const atlasUi = (() => {
     }
     function selectNode(id) {
         if (!atlas.node(id)) return;
+        hideInfoTooltip(); // a tap also fires the hover card; the detail panel shows the node now
         selectedNode = id;
         const maps = ledger().stash.filter(map => map.node === id);
         if (maps.length && !maps.some(map => map.uid === selectedUid)) selectedUid = maps[0].uid;
@@ -102,25 +103,55 @@ const atlasUi = (() => {
     }
 
     // ---------------------------------------------------------------- chart
+    /** The chart: a dot drawing of the world tree's cross-section (js/canvas-atlas-chart.js) under transparent node buttons. */
     function chartHtml() {
-        const rings = ATLAS.chart.radii.map(r => `<circle cx="50" cy="50" r="${r}"/>`).join('');
-        const half = 180 / ATLAS.regions.length;
-        const wedges = ATLAS.regions.map((region, i) => {
-            const from = atlas.polar(i, -half, 47), to = atlas.polar(i, half, 47);
-            return `<path d="M50 50 L${from.x} ${from.y} A47 47 0 0 1 ${to.x} ${to.y} Z" style="fill:${region.tint}"/>`;
-        }).join('');
-        const sectors = ATLAS.regions.map((_, i) => {
-            const from = atlas.polar(i, half, 8), to = atlas.polar(i, half, 44);
-            return `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}"/>`;
-        }).join('');
-        const links = atlas.links.map(([a, b]) => {
-            const p = atlas.position(atlas.node(a)), q = atlas.position(atlas.node(b));
-            const lit = atlas.reachable(game, a) && atlas.reachable(game, b);
-            return `<line class="${lit ? 'is-lit' : ''}" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}"/>`;
-        }).join('');
-        return `<div class="atlas-chart" role="group" aria-label="세계수 아틀라스 노드"><svg class="atlas-lines" viewBox="0 0 100 100" aria-hidden="true">
-            <g class="atlas-wedges">${wedges}</g><g class="atlas-rings">${rings}</g><g class="atlas-sectors">${sectors}</g><g class="atlas-links">${links}</g></svg>
+        return `<div class="atlas-chart" role="group" aria-label="세계수 아틀라스 노드"><canvas class="atlas-art" aria-hidden="true"></canvas>
             ${atlas.nodes.map(nodeHtml).join('')}</div>`;
+    }
+    const done = id => ['complete', 'bonus'].includes(atlas.status(game, id));
+    /** Walked paths are gold, the way on from a completed node glows sap, the rest waits dim. */
+    function linkState(a, b) {
+        if (done(a) && done(b)) return 'done';
+        return (done(a) || done(b)) && atlas.reachable(game, a) && atlas.reachable(game, b) ? 'lit' : 'dim';
+    }
+    const polarOf = point => ({ angle: Math.atan2(point.y - 50, point.x - 50), radius: Math.hypot(point.x - 50, point.y - 50) });
+    /** A path between two nodes: along the ring when both sit on the same ring, straight across rings. */
+    function linkModel([a, b]) {
+        const from = atlas.node(a), to = atlas.node(b), p = atlas.position(from), q = atlas.position(to);
+        const sameRing = from.kind === 'map' && to.kind === 'map' && ATLAS.chart.ring[from.slot] === ATLAS.chart.ring[to.slot];
+        const arc = sameRing ? { radius: polarOf(p).radius, from: polarOf(p).angle, to: polarOf(q).angle } : null;
+        return { from: p, to: q, arc, state: linkState(a, b) };
+    }
+    function chartModel() {
+        const running = ledger().run && ledger().run.map.node;
+        const nodes = atlas.nodes.map(node => ({ ...atlas.position(node), kind: node.kind, region: node.regionIndex,
+            status: atlas.status(game, node.id), selected: node.id === selectedNode, running: node.id === running }));
+        return { regions: ATLAS.regions, nodes, links: atlas.links.map(linkModel), tickets: ATLAS.pinnacle.tickets.map(key => (game.currencies[key] || 0) >= 1) };
+    }
+    /** Paints the drawing at about one dot per 2 CSS px of the chart's width — again whenever the panel changes size. */
+    function paintChart() {
+        const box = document.querySelector('#ui-atlas .atlas-chart'), canvas = box && box.querySelector('.atlas-art');
+        if (!canvas || !box.clientWidth) return;
+        atlasChartArt.paint(canvas, Math.max(120, Math.round(box.clientWidth / 2)), chartModel());
+    }
+    /** The dot drawings of the current view: the chart, the passive wheels (the epoch view has none). */
+    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {} };
+    /** Drawings follow the panel's width: repaint the current view whenever the panel resizes. */
+    function watchPanel(panel) {
+        if (panelObserver || typeof ResizeObserver !== 'function') return;
+        panelObserver = new ResizeObserver(() => { if (panelOpen()) PAINT[view](); });
+        panelObserver.observe(panel);
+    }
+    /** Hover card: name, tier, state and region, then what stands there (map layout and boss, guardian, the pinnacle). */
+    function hint(event, id) {
+        const node = atlas.node(id);
+        if (!node || typeof showInfoTooltipHtml !== 'function') return;
+        const region = ATLAS.regions.find(row => row.id === node.region);
+        const kind = node.kind === 'map' ? STYLE[node.style] : (node.kind === 'guardian' ? '지역 수호자 · 투기장' : '정점 · 투기장');
+        const where = region ? ` · ${region.name}` : '';
+        showInfoTooltipHtml(event.clientX, event.clientY, `<div class="tooltip-title">${escapeHTML(node.name)}</div>
+            <div class="tooltip-line">${atlas.effectiveTier(game, node)}등급 · ${STATUS[atlas.status(game, id)]}${where}</div>
+            <div class="tooltip-line">${kind} · 보스 ${escapeHTML(node.boss)}</div>`, region ? region.tint : '#d9b066');
     }
     /** Region legend: tint, name and how much of it is done (its maps and guardian). */
     function legendHtml() {
@@ -137,7 +168,8 @@ const atlasUi = (() => {
         const classes = ['atlas-node', `is-${status}`, `kind-${node.kind}`, node.id === selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
         const tier = atlas.effectiveTier(game, node);
         return `<button class="${classes}" style="--x:${x}%;--y:${y}%" data-atlas-node="${node.id}" aria-pressed="${node.id === selectedNode}"
-            aria-label="${escapeHTML(node.name)} ${tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
+            aria-label="${escapeHTML(node.name)} ${tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"
+            onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
     }
 
     // ---------------------------------------------------------------- side: open map, map device, node
@@ -262,6 +294,8 @@ const atlasUi = (() => {
         const lock = atlas.lockReason(game);
         panel.innerHTML = `<div class="atlas-shell">${headerHtml()}${lock && !ledger().unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
             ${VIEWS[view]()}</div>`;
+        PAINT[view]();
+        watchPanel(panel);
     }
 
     // ---------------------------------------------------------------- combat HUD and log lines
@@ -310,6 +344,6 @@ const atlasUi = (() => {
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, selectNode, selectMap, craft, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, selectNode, selectMap, hint, craft, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto });
 })();
 safeExposeGlobals({ atlasUi });
