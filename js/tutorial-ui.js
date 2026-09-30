@@ -72,7 +72,9 @@ const tutorialActionUi = {
         }
         requestAnimationFrame(() => {
             this.refresh();
-            if (this.highlighted) this.highlighted.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            if (!this.highlighted) return;
+            this.highlighted.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            this.placeCard(this.highlighted);
         });
     },
     refresh() {
@@ -86,7 +88,21 @@ const tutorialActionUi = {
         const describedBy = target.getAttribute('aria-describedby') || '';
         target.setAttribute('aria-describedby', (describedBy + ' tutorial-action-description').trim());
         this.highlighted = target;
-        this.card.classList.toggle('at-top', target.getBoundingClientRect().top > innerHeight / 2);
+        this.placeCard(target);
+    },
+    /** PC는 화면 구석(가리키는 칸이 아래 절반이면 위쪽)이되 그 자리가 칸을 덮으면, 휴대폰은 늘(카드가 화면 폭을 다 쓴다)
+     * 가리키는 칸 바로 위(아래 절반) 또는 바로 아래(위 절반)에 붙인다 — 화면 맨 위에 두면 장비 창 머리의 판단 · 일괄 분석 줄을 덮었다. */
+    placeCard(target) {
+        const card = this.card, rect = target.getBoundingClientRect(), lower = rect.top > innerHeight / 2;
+        card.classList.toggle('at-top', lower);
+        card.style.top = card.style.bottom = '';
+        const corner = card.getBoundingClientRect();
+        if (!rectsOverlap(corner, rect) && !isMobilePrimaryNavigationEnabled()) return;
+        const factor = uiDisplay.factor || 1, height = corner.height;
+        const floor = document.getElementById('tab-header-bottom')?.getBoundingClientRect().top || innerHeight;
+        const top = lower ? rect.top - 12 - height : rect.bottom + 12;
+        card.style.top = `${Math.max(8, Math.min(floor - height - 8, top)) / factor}px`;
+        card.style.bottom = 'auto';
     },
     /** 먼저 적은 자리부터 화면에 보이는 첫 요소(selector는 문자열 하나 또는 우선순위 배열). */
     findTarget(selectors) {
@@ -118,6 +134,10 @@ const tutorialActionUi = {
         setTimeout(showNextTutorial, 40);
     }
 };
+
+function rectsOverlap(a, b) {
+    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
 
 // 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프). 이야기 장면은 storyJournalUi가 그린다.
 const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'tutorial_first_passive', 'tutorial_first_gear',
