@@ -153,8 +153,8 @@ for(const mutation of mutations) {
 run('bad=JSON.parse(serializeSaveState(game));bad.currentZoneId=1;');
 assert.equal(run('mergeDefaults(bad).actExploration'),null,'a run left in another zone is dropped instead of blocking the save');
 assert.equal(run('mergeDefaults({}).actExploration'),null,'old saves do not invent a new run');
-run('game.actExploration=null;game.currentZoneId="trial_1";');
-assert.equal(run('getCombatGridSize().columns'),9,'special arenas keep their original bounds');
+run('game.actExploration=null;game.currentZoneId=OUTSIDE_CHAOS_ZONE_ID;');
+assert.equal(run('getCombatGridSize().columns'),9,'board-only contents (the woodsman, wave contents) keep their original bounds');
 const beforeRejectedStart=copy('game');
 assert.throws(()=>run('startEncounterRun(true)'),/일반 액트/);
 assert.deepEqual(copy('game'),beforeRejectedStart,'invalid exploration start does not reset existing battle state');

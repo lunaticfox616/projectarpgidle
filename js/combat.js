@@ -7333,7 +7333,7 @@ function estimateMapZonePowerRequirements(zone) {
 /** Atlas map readiness covers both an elite-led room pack (3 + the pack-size mod) and the node boss. */
 function getAtlasPackReadiness(zone, baseHp, bossEstimate) {
     if (zone.type !== 'atlasMap') return bossEstimate;
-    const pack = 3 + zone.atlasPackExtra;
+    const pack = 3 + zone.packExtra;
     const tier = levelProgression.combatZone(zone).tier;
     const loops = getLoopDifficultyInputs(zone);
     const depth = getSoftenedLoopDepth(loops.seasonLoops);
@@ -8424,7 +8424,7 @@ const EXPLORATION_PACK_OFFSETS=Object.freeze([[0,0],[-1,0],[1,0],[0,-1],[0,1],[-
 /** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
 function createActExplorationPack(zone,room,stage,encounter=null) {
     const key=room.id+':'+(stage===null?'pack':stage),waiting=[];
-    const extra=(zone.atlasPackExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
+    const extra=(zone.packExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
     const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,Math.min(EXPLORATION_PACK_OFFSETS.length,3+extra)) : [[0,0]];
     const elite=room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room);
     offsets.forEach(([dx,dy],index)=>{

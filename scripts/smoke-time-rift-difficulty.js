@@ -50,7 +50,7 @@ function resetRift() {
 }
 function prepareAltar() {
     resetRift();
-    run(`changeZone(TIME_RIFT_PAST_ZONE_ID);startEncounterRun();finishEncounterRun();
+    run(`changeZone(TIME_RIFT_PAST_ZONE_ID);startEncounterRun(false);finishEncounterRun();
         var unique=generateUniqueItem(10,null,'첫 계약');
         var rare=createItemFromBase(BASE_ITEM_DB.find(base=>base.id===unique.baseId),'rare',20,
             {dropRealm:'cosmos',affixTierCap:20,affixTierFloor:20});

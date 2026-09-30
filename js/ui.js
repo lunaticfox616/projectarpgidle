@@ -9087,9 +9087,10 @@ function setUiImageGaugePercent(element, percent) {
 
 /** The progress gauge speaks only for special content — a timer, waves, depth, a boss wait or a floor run. Story acts
  * are explored on the map (the minimap ring shows how much is revealed), so the gauge is hidden there. */
+/** Wide maps (story acts and every content with its own map) show progress on the minimap, not the bar. */
 function syncMapProgressRow(zone) {
     const row = document.getElementById('ui-map-progress-row');
-    if (row) row.toggleAttribute('hidden', !!zone && zone.type === 'act');
+    if (row) row.toggleAttribute('hidden', !!zone && (zone.type === 'act' || !!zone.exploration));
 }
 
 function setCombatProgressGaugePercent(percent) {

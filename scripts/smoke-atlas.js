@@ -82,7 +82,7 @@ const enemyMods = copy(`(() => {
     const map = { uid: 1, node: 'garden_3', tier: 6, rarity: 'rare', quality: 0, corrupted: false,
         mods: [{ id: 'monsterResist', roll: 1 }, { id: 'packSize', roll: 1 }, { id: 'monsterLife', roll: 0 }, { id: 'burningGround', roll: 0.5 }] };
     const zone = atlas.preview(game, map), enemy = createEnemy(zone, { at: 0, count: 1 }, 0), plain = createEnemy(atlas.preview(game, { ...map, mods: [] }), { at: 0, count: 1 }, 0);
-    return { resist: enemy.resF - plain.resF, pack: zone.atlasPackExtra, hp: zone.mapHpMul, hazard: !!zone.trialHazard, quantity: zone.atlasLootQuantity,
+    return { resist: enemy.resF - plain.resF, pack: zone.packExtra, hp: zone.mapHpMul, hazard: !!zone.trialHazard, quantity: zone.atlasLootQuantity,
         drop: enemy.dropMul / plain.dropMul, rarityMul: enemy.lootRarityMul };
 })()`);
 assert.equal(enemyMods.pack, 2, 'pack size adds monsters to every room pack');

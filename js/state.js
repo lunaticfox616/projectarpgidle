@@ -813,7 +813,7 @@ function createColonyZone(state) {
 }
 
 function getUnderworldZone(floor) {
-    return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor };
+    return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor, ...contentMaps.underworld(floor) };
 }
 function getZone(id) {
     if (id === ATLAS.zoneId) return atlas.zone(game);
@@ -834,12 +834,12 @@ function getZone(id) {
     if (id === CHAOS_REALM_ZONE_ID) {
         let realm = ensureChaosRealmState();
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
-        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
+        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
     }
     if (id === SKY_TOWER_ZONE_ID) {
         let st = ensureSkyTowerState();
         let floor = Math.max(1, Math.floor(st.currentFloor || 1));
-        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor };
+        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
     }
     if (id === WOODSMAN_ECHO_ZONE_ID) return { id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' };
     if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) {
@@ -851,7 +851,7 @@ function getZone(id) {
         let difficultyTier = getTimeRiftDifficultyTier(activePressure);
         // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
         let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth };
+        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
@@ -859,9 +859,9 @@ function getZone(id) {
         return getUnderworldZone(floor);
     }
     if (typeof id === 'string') {
-        if (id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
+        if (id.startsWith('trial_')) return contentMaps.withArena(TRIAL_ZONES.find(t => t.id === id), 'sanctum');
         let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
-        if (seasonBossZone) return seasonBossZone;
+        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
     }
     if (id === METEOR_FALL_ZONE_ID) {
         let star = (game && game.starWedge) || {};
@@ -875,7 +875,7 @@ function getZone(id) {
             tier: tier,
             maxKills: 1,
             ele: 'chaos',
-            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }
+            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
         };
     }
     if (id === OCEAN_ZONE_ID) {
@@ -906,7 +906,7 @@ function getZone(id) {
             ele: 'chaos',
             depth: displayDepth,
             baseDepth: Math.min(20, depth),
-            isEndlessDepth: displayDepth > 20
+            isEndlessDepth: displayDepth > 20, ...contentMaps.chaos(displayDepth)
         };
     }
     return MAP_ZONES[id];

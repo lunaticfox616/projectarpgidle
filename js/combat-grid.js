@@ -166,7 +166,8 @@ function assignEnemyGridSpawn(enemy, blocked) {
         ? (!bossSpawnFree
             ? findFreeGridCell(blocked, COMBAT_GRID_CONFIG.bossSpawn, footprint)
             : { gx: COMBAT_GRID_CONFIG.bossSpawn.gx, gy: COMBAT_GRID_CONFIG.bossSpawn.gy })
-        : findFreeGridCell(blocked);
+        // A wide map spawns reinforcements (void breach, swarms) beside the hero, not in some far room.
+        : findFreeGridCell(blocked, actExplorationState.current(game) ? game.gridPlayer : undefined);
     if (!cell) cell = { gx: COMBAT_GRID_CONFIG.bossSpawn.gx, gy: COMBAT_GRID_CONFIG.bossSpawn.gy };
     enemy.gx = cell.gx;
     enemy.gy = cell.gy;

@@ -45,7 +45,7 @@ const uid = run(`game.atlas.stash.push(Object.assign(atlasMaps.create('roots_0',
 assert.equal(run(`atlasRun.open(${uid})`), '');
 const opened = copy(`(() => { const run = game.atlas.run, zone = getZone(game.currentZoneId);
     return { fragments: run.fragments, stock: game.atlas.fragments, encounters: run.encounters, portals: run.portals, quantity: run.bonus.quantity,
-        packExtra: zone.atlasPackExtra, zoneQuantity: zone.atlasLootQuantity, zoneRooms: zone.atlasEncounters }; })()`);
+        packExtra: zone.packExtra, zoneQuantity: zone.atlasLootQuantity, zoneRooms: zone.atlasEncounters }; })()`);
 assert.deepEqual(opened.fragments, ['breach', 'treasure']);
 assert.deepEqual([opened.stock.breach, opened.stock.treasure || 0], [1, 0], 'each fragment used once');
 assert.ok(opened.encounters.includes('breach') && opened.encounters.includes('treasure'), 'fragments force their content rooms');
@@ -54,7 +54,7 @@ assert.equal(opened.quantity, 22);
 assert.equal(opened.packExtra, 1, 'the pack-size notable reaches the map');
 assert.deepEqual(opened.zoneRooms, opened.encounters);
 run(`atlasPassives.refund(game,'s_k2');`);
-assert.equal(copy('getZone(game.currentZoneId).atlasPackExtra'), 1, 'the open map keeps the passives it opened with');
+assert.equal(copy('getZone(game.currentZoneId).packExtra'), 1, 'the open map keeps the passives it opened with');
 run('game.atlas.passives.push("s_k2");');
 
 for (let n = 0; n < 200 && run('!game.actExploration || game.actExploration.zoneId !== "atlas_map" || !!game.actExploration.arrival'); n++) advance();

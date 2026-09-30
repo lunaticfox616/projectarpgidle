@@ -305,7 +305,7 @@ const atlas = (() => {
             trialHazard: fx.hazard ? { ...ATLAS.burningGround } : undefined,
             atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
-            atlasPackExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
+            packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
             atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct,
             atlasKind: node.kind,
             exploration: { style: node.style, biome: node.biome, size: sizeFor(map.tier), seed: `atlas:${map.uid}`, bossStages: boss.stages }

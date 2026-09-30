@@ -93,9 +93,9 @@ advance(30);assert.equal(run('game.actExploration.arrival'),true,'nothing starts
 fresh(1,{mapCompleteAction:'repeatZone'});
 run('ensureEncounterRun();game.combatHalted=true;normalizeLocalRuntimeAfterLoad();');
 assert.equal(run('game.combatHalted'),true,'loading a paused empty entry room does not silently start travel');
-run('game.currentZoneId="trial_1";actExplorationProgress.depart(game);startEncounterRun();');
+run('game.currentZoneId=OUTSIDE_CHAOS_ZONE_ID;actExplorationProgress.depart(game);startEncounterRun();');
 assert.equal(run('game.actExploration'),null);assert.equal(run('getCombatGridSize().columns'),9);
-assert.ok(run('game.encounterPlan.length')>0,'special arenas keep their own progression');
+assert.ok(run('game.encounterPlan.length')>0,'board-only contents keep their own progression');
 
 // Background execution owns the same map and escrow and leaves the live snapshot untouched.
 fresh(1,{mapCompleteAction:'stop'});run('ensureEncounterRun();');

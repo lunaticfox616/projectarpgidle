@@ -2,6 +2,8 @@
 // Capture is synchronous and limited to enemy loot; purchases, quests and XP stay outside it.
 const actExplorationLoot=(()=>{
     let captureOwner=null;
+    /** Escrow holds any wallet currency: ORB_DB items and wallet-only counters (군락지 흔적 · 성핵 …). */
+    const isCurrency=key=>Object.hasOwn(ORB_DB,key) || Object.hasOwn(defaultGame.currencies,key);
     function create(){return {version:6,phase:'pending',currencies:{},equipment:[],flasks:[],alchemyGlass:0,gems:[],blurred45:0,growthItems:[],jewels:[],growthCodex:[],salvagedEquipment:[]};}
     function reservedItems(state){
         const loot=state.actExploration?.loot;
@@ -25,7 +27,7 @@ const actExplorationLoot=(()=>{
     /** Amount has already passed unlock checks and expert gain modifiers. */
     function currency(state,key,amount) {
         const loot=pending(state);if(!loot)return false;
-        if(!Object.hasOwn(ORB_DB,key) || !Number.isFinite(amount) || amount<=0)throw Error('잘못된 탐험 재화 보상');
+        if(!isCurrency(key) || !Number.isFinite(amount) || amount<=0)throw Error('잘못된 탐험 재화 보상');
         const total=(loot.currencies[key]||0)+amount;
         if(!Number.isFinite(total))throw Error('탐험 재화 보상 범위 초과');
         loot.currencies[key]=total;return true;
@@ -129,7 +131,7 @@ const actExplorationLoot=(()=>{
     function validateCurrencies(currencies) {
         if(!currencies || typeof currencies!=='object' || Array.isArray(currencies))throw Error('잘못된 탐험 재화 목록');
         for(const [key,amount] of Object.entries(currencies)) {
-            if(!Object.hasOwn(ORB_DB,key) || !Number.isFinite(amount) || amount<=0)throw Error('잘못된 탐험 재화 저장');
+            if(!isCurrency(key) || !Number.isFinite(amount) || amount<=0)throw Error('잘못된 탐험 재화 저장');
         }
     }
     /** Prepare all inventory values before committing. Overflow is retained, never discarded. */
