@@ -78,17 +78,17 @@ const elements = {};
     dots[id] = { style: {} };
     elements['btn-' + id] = { style: {}, classList: makeClassList(), querySelector: () => dots[id] };
 });
-['tab-char', 'tab-traits', 'tab-jewel', 'tab-talisman', 'tab-flask', 'tab-journal', 'tab-codex'].forEach(id => {
+['tab-char', 'tab-traits', 'tab-talisman', 'tab-flask', 'tab-journal', 'tab-codex'].forEach(id => {
     elements[id] = { classList: makeClassList() };
 });
 
 const opened = [];
 const context = {
     game: {
-        unlocks: { char: true, traits: true, items: true, jewel: false, talisman: true, codex: true },
-        noti: { char: false, traits: true, flask: false, jewel: true, talisman: false, journal: false, codex: true }
+        unlocks: { char: true, traits: true, items: true, talisman: true, codex: true },
+        noti: { char: false, traits: true, flask: false, talisman: false, journal: false, codex: true }
     },
-    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     document: { getElementById: id => elements[id] || null },
     isNotiEnabled: () => true,
     getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', utility: 'tab-talisman', records: 'tab-journal' })[groupKey],
@@ -112,15 +112,15 @@ vm.runInContext([
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
 // 병합 하위 패널(.merged-subtab-pane)은 각 창의 안쪽 선택을 표현하려고 .active를 계속
-// 유지한다. 그리고 런처 안으로 옮겨져 문서 순서가 바뀌므로(tab-jewel은 tab-flask 안 =
+// 유지한다. 그리고 런처 안으로 옮겨져 문서 순서가 바뀌므로(tab-talisman은 tab-flask 안 =
 // tab-skills보다 앞), 셀렉터가 그 패널을 배제하지 않으면 다른 탭이 전부 오인식된다.
 // 회귀를 잡으려면 스텁도 셀렉터를 실제로 해석해야 한다.
 const activeTabContext = {
     game: {
-        unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true },
+        unlocks: { char: true, traits: true, items: true, talisman: true },
         settings: { mergedTabSelection: {} }
     },
-    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-talisman': 'talisman' },
     document: {
         // 문서 순서: 남아 있는 하위 패널이 먼저, 최상위 활성 탭이 나중.
         querySelector(selector) {
@@ -154,7 +154,6 @@ vm.runInContext([
 
 [
     ['growth', 'tab-char', 'tab-traits'],
-    ['utility', 'tab-flask', 'tab-jewel'],
     ['utility', 'tab-flask', 'tab-talisman']
 ].forEach(([groupKey, launcherId, selectedId]) => {
     activeTabContext.activeContent = { id: launcherId };
@@ -169,11 +168,11 @@ assert.strictEqual(activeTabContext.getActiveUiTabId(), 'tab-char', 'a stale loc
 activeTabContext.activeContent = null;
 assert.strictEqual(activeTabContext.getActiveUiTabId(), '', 'no active content must not select a renderer');
 
-// 회귀: 보조장비 창을 한 번 열면 tab-jewel이 .active인 채 tab-flask 안(문서 순서상 앞)에
-// 남는다. 그때 스킬 젬·기록·지도로 이동하면 렌더 대상이 tab-jewel로 오인식돼,
+// 회귀: 보조장비 창을 한 번 열면 tab-talisman이 .active인 채 tab-flask 안(문서 순서상 앞)에
+// 남는다. 그때 스킬 젬·기록·지도로 이동하면 렌더 대상이 tab-talisman으로 오인식돼,
 // 그 탭들이 열려 있는데도 내용이 갱신되지 않았다.
 activeTabContext.game.unlocks.traits = true;
-activeTabContext.stalePane = { id: 'tab-jewel' };
+activeTabContext.stalePane = { id: 'tab-talisman' };
 [['tab-skills', 'tab-skills'], ['tab-map', 'tab-map'], ['tab-items', 'tab-items']].forEach(([activeId, expected]) => {
     activeTabContext.activeContent = { id: activeId };
     assert.strictEqual(activeTabContext.getActiveUiTabId(), expected,
@@ -191,10 +190,10 @@ activeTabContext.stalePane = null;
     const openWindowIds = ['tab-items', 'tab-skills', 'tab-flask'];
     const renderingContext = {
         game: {
-            unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true, skills: true },
+            unlocks: { char: true, traits: true, items: true, talisman: true, skills: true },
             settings: { mergedTabSelection: { utility: 'tab-talisman' } }
         },
-        TAB_UNLOCK_GATES: { 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-skills': 'skills' },
+        TAB_UNLOCK_GATES: { 'tab-talisman': 'talisman', 'tab-skills': 'skills' },
         document: {
             body: { classList: { contains: name => name === 'desktop-windowed-ui' && renderingContext.windowedUi } },
             querySelector: selector => (selector.includes(':not(.merged-subtab-pane)') ? { id: 'tab-items' } : { id: 'tab-talisman' }),
@@ -232,12 +231,12 @@ activeTabContext.stalePane = null;
     const renderBody = readFunctionSource('performUpdateStaticUI');
     assert.ok(!/activeTabId === 'tab-/.test(renderBody),
         '패널 렌더 게이트는 활성 탭 하나가 아니라 보이는 화면 집합(isTabRendering)을 써야 한다');
-    ['tab-codex', 'tab-skills', 'tab-journal', 'tab-jewel', 'tab-talisman', 'tab-growthboard'].forEach(tabId => {
+    ['tab-codex', 'tab-skills', 'tab-journal', 'tab-talisman', 'tab-growthboard'].forEach(tabId => {
         assert.ok(renderBody.includes(`isTabRendering('${tabId}')`), `${tabId} 패널은 보이는 화면 집합으로 판정해야 한다`);
     });
 }
 
-const persistentPaneIds = ['tab-traits', 'tab-jewel', 'tab-talisman', 'tab-codex', 'tab-growthboard'];
+const persistentPaneIds = ['tab-traits', 'tab-talisman', 'tab-codex', 'tab-growthboard'];
 const switchNodes = {};
 function addSwitchNode(id, className) {
     const node = makePanelNode(id, className);
@@ -341,7 +340,7 @@ let lockedTabLogs = 0;
 let lockedTabRefreshes = 0;
 const lockedTabContext = {
     game: { unlocks: {}, settings: {}, inventory: [], equipment: {}, uniqueCodex: {}, journalEntries: ['prologue'] },
-    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     addLog: () => { lockedTabLogs += 1; },
     window: { switchTab: tabId => lockedTabTransitions.push(tabId) },
     updateStaticUI: () => { lockedTabRefreshes += 1; },
@@ -460,8 +459,8 @@ assert.strictEqual(lockedTabContext.getSelectedMergedTabId('records'), null,
 const routedCalls = [];
 let routedRefreshes = 0;
 const routedContext = {
-    game: { unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true, codex: true }, inventory: [{ rarity: 'unique' }], settings: {}, noti: {} },
-    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
+    game: { unlocks: { char: true, traits: true, items: true, talisman: true, codex: true }, inventory: [{ rarity: 'unique' }], settings: {}, noti: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     window: { switchTab: (tabId, options) => routedCalls.push([tabId, options]) },
     updateStaticUI: () => { routedRefreshes += 1; },
     Object,
@@ -478,17 +477,15 @@ vm.runInContext([
 ].join('\n'), routedContext, { filename: 'routed-merged-tab.js' });
 [
     ['growth', 'tab-traits'],
-    ['utility', 'tab-jewel'],
     ['utility', 'tab-talisman'],
     ['records', 'tab-codex']
 ].forEach(([groupKey, tabId]) => routedContext.switchMergedTabSubtab(groupKey, tabId));
 assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [
     ['tab-char', { keepWindowOpen: true }],
     ['tab-flask', { keepWindowOpen: true }],
-    ['tab-flask', { keepWindowOpen: true }],
     ['tab-journal', { keepWindowOpen: true }]
 ], 'inner tabs must switch content without closing their host window');
-assert.strictEqual(routedRefreshes, 4, 'each affected inner tab must request its content renderer in an already-open host');
+assert.strictEqual(routedRefreshes, 3, 'each affected inner tab must request its content renderer in an already-open host');
 assert.ok(
     menuCss.includes('body.desktop-windowed-ui .merged-tab-panels > .merged-subtab-pane.active'),
     'desktop window mode must override the generic hidden tab-content rule for the selected merged inner panel'
@@ -556,11 +553,11 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     {
         const runtimeContext = {
             game: {
-                unlocks: { jewel: true, talisman: true },
+                unlocks: { talisman: true },
                 settings: { mergedTabSelection: { utility: 'tab-growthboard' } },
                 inventory: [], equipment: {}, uniqueCodex: {}
             },
-            TAB_UNLOCK_GATES: { 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
+            TAB_UNLOCK_GATES: { 'tab-talisman': 'talisman' },
             isGrowthBoardUnlocked: () => runtimeContext.__growthOpen,
             __growthOpen: true,
             addLog: () => {},
@@ -587,11 +584,10 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
         runtimeContext.__growthOpen = false;
         assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-growthboard' }), false,
             '잠긴 생장판 탭은 열 수 없어야 한다');
-        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-jewel',
+        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-talisman',
             '잠긴 선택이 남아 있어도 열 수 있는 첫 탭으로 되돌아가야 한다(빈 창 금지)');
 
         // 보조장비의 모든 구성원이 잠기면 선택 자체가 없어야 한다(런처도 숨는다).
-        runtimeContext.game.unlocks.jewel = false;
         runtimeContext.game.unlocks.talisman = false;
         assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), null,
             '열 수 있는 탭이 하나도 없으면 선택이 없어야 한다');

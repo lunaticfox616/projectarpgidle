@@ -2476,8 +2476,6 @@ const defaultGame = {
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
-        jewelAutoSalvageEnabled: false,
-        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         // 자동 환생(js/loop-automation-ui.js): 관문을 채우면 몇 초 뒤 다음 루프로, 다음 직업은 'ask' | 'keep'.
         autoLoop: false, autoLoopClass: 'ask',
         mapCompleteAction: 'nextZone',
@@ -2654,8 +2652,6 @@ const defaultGame = {
     seasonNodeLevels: {},
     labyrinthFloor: 1,
     jewelInventory: [],
-    jewelSlots: [null, null],
-    jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     // grandRun is created on entry. rewardVoidChisel: number|null is the actual paid integer,

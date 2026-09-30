@@ -626,18 +626,38 @@ function clearAscendKeystoneRuntimeState(removedIds, options) {
     if (shouldClear('h2')) removeEnemyAilment('hunterExpose');
 }
 
-// 심연 군주(워록 wlk8)는 주얼 슬롯을 2칸 추가로 제공한다.
-function getMaxJewelSlotCount() {
-    let greedSlots = typeof getTranscendentVoidPassiveCount === 'function' ? getTranscendentVoidPassiveCount('greed') : 0;
-    return 2 + ((game.ascendClass === 'warlock' && hasKeystone('wlk8')) ? 2 : 0) + Math.min(1, greedSlots);
+/** 장비 맵의 소켓에 낀 주얼 전부(공허 소켓, 심연 소켓 순). 주얼은 2026-09-30부터 장비 소켓에만 낀다. */
+function collectSocketedJewels(equipment) {
+    let rows = [];
+    Object.entries(equipment || {}).forEach(([slot, item]) => {
+        if (!item) return;
+        if (item.voidSocket && item.voidSocket.open && item.voidSocket.jewel) rows.push({ jewel: item.voidSocket.jewel, slot, source: 'void', index: 0 });
+        (Array.isArray(item.abyssSockets) ? item.abyssSockets : []).forEach((socket, index) => {
+            if (socket && socket.jewel) rows.push({ jewel: socket.jewel, slot, source: 'abyss', index });
+        });
+    });
+    return rows;
 }
 
-// 우주계 쌍둥이 주얼: 주베누비아의 균형 + 주벤샤말의 심판을 주얼 슬롯에 함께 장착하고
+/** 요구치를 채워 실제로 적용되는 장비의 소켓 주얼. */
+function getSocketedJewels(owner = game) {
+    return collectSocketedJewels(combatEquipmentStats.activeEquipment(owner));
+}
+
+// 거울 심장: 반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼을 한 번 더 적용한다(예전 '반대 슬롯 주얼 복제').
+function getMirroredRingJewels(owner = game) {
+    let rings = {};
+    getSocketedJewels(owner).forEach(row => { if (row.source === 'void') rings[row.slot] = row.jewel; });
+    return [['반지1', '반지2'], ['반지2', '반지1']]
+        .filter(([host, partner]) => rings[host] && rings[host].uniqueId === 'uj_mirror_heart' && rings[partner])
+        .map(([, partner]) => rings[partner]);
+}
+
+// 우주계 쌍둥이 주얼: 주베누비아의 균형 + 주벤샤말의 심판을 장비 소켓에 함께 끼우고
 // 두 주얼에 고정 배정된 전직 키스톤이 일치하면 해당 키스톤을 무료로 할당한다.
-// (두 주얼 모두 '장비 소켓 사용불가'이므로 주얼 슬롯만 검사한다.)
 function recomputeCosmosTwinKeystones() {
     let granted = [];
-    let slots = Array.isArray(game.jewelSlots) ? game.jewelSlots.slice(0, getMaxJewelSlotCount()) : [];
+    let slots = collectSocketedJewels(game.equipment).map(row => row.jewel);
     let ensureKeystone = (jewel) => {
         if (!jewel || !jewel.cosmosKeystoneJewel) return;
         if (!jewel.cosmosKeystone && typeof pickRandomAscendKeystoneId === 'function') jewel.cosmosKeystone = pickRandomAscendKeystoneId();
@@ -1142,8 +1162,6 @@ function snapshotWoodsmanBuildState() {
         playerRecoupInstances: game.playerRecoupInstances || [],
         gemData: game.gemData || {},
         jewelInventory: game.jewelInventory || [],
-        jewelSlots: game.jewelSlots || [null, null],
-        jewelSlotAmplify: game.jewelSlotAmplify || [0,0],
         talismanInventory: game.talismanInventory || [],
         talismanBoard: game.talismanBoard || [],
         talismanPlacements: game.talismanPlacements || {},
@@ -1179,8 +1197,6 @@ function enforceWoodsmanBuildLock() {
     game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
     game.gemData = JSON.parse(JSON.stringify(snap.gemData));
     game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
-    game.jewelSlots = JSON.parse(JSON.stringify(snap.jewelSlots));
-    game.jewelSlotAmplify = JSON.parse(JSON.stringify(snap.jewelSlotAmplify));
     game.talismanInventory = JSON.parse(JSON.stringify(snap.talismanInventory));
     game.talismanBoard = JSON.parse(JSON.stringify(snap.talismanBoard));
     game.talismanPlacements = JSON.parse(JSON.stringify(snap.talismanPlacements));
@@ -1333,27 +1349,12 @@ function getEquippedJewelGemLevelBonusSources(target) {
             if (stat.id === 'summonGemLevel' && activeTags.includes('summon_attack')) gear += value;
         });
     };
-    Object.values(combatEquipmentStats.activeEquipment(game) || {}).forEach(item => {
-        if (!item) return;
-        if (item.voidSocket && item.voidSocket.open) addJewelGemLevels(item.voidSocket.jewel, 1);
-        let abyssAmp = 1;
-        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
-            let params = item.uniqueEffectParams || {};
-            let min = Number(params.ampMin || 1), max = Number(params.ampMax || 100);
-            let pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : ((min + max) / 2);
-            abyssAmp += pct / 100;
-        }
-        (Array.isArray(item.abyssSockets) ? item.abyssSockets : []).forEach(socket => addJewelGemLevels(socket && socket.jewel, abyssAmp));
+    let socketMultiplier = getSocketJewelMultiplier();
+    let equipment = combatEquipmentStats.activeEquipment(game) || {};
+    getSocketedJewels().forEach(row => {
+        addJewelGemLevels(row.jewel, socketMultiplier * (row.source === 'abyss' ? getAbyssJewelMultiplier(equipment[row.slot]) : 1));
     });
-    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
-        let amplify = Math.max(0, Math.floor(((game.jewelSlotAmplify || [])[idx]) || 0));
-        addJewelGemLevels(jewel, 1 + (amplify * 0.03));
-    });
-    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
-        if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
-        let pairedIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
-        addJewelGemLevels((game.jewelSlots || [])[pairedIdx], 1);
-    });
+    getMirroredRingJewels().forEach(jewel => addJewelGemLevels(jewel, 1));
     return gear;
 }
 
@@ -3420,21 +3421,7 @@ function triggerUniqueEnergyShieldBreakRecharge(pStats, energyShieldBeforeHit, n
 }
 
 function getEquippedUniqueJewels() {
-    let equipped = [];
-    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
-        if (jewel && jewel.rarity === 'unique' && jewel.uniqueId) equipped.push({ jewel, slot: idx, source: 'slot' });
-    });
-    Object.values(combatEquipmentStats.activeEquipment(game) || {}).forEach(item => {
-        let j = item && item.voidSocket && item.voidSocket.open ? item.voidSocket.jewel : null;
-        if (j && j.rarity === 'unique' && j.uniqueId) equipped.push({ jewel: j, slot: -1, source: 'void' });
-        if (Array.isArray(item && item.abyssSockets)) {
-            item.abyssSockets.forEach((sock, idx) => {
-                let aj = sock && sock.jewel ? sock.jewel : null;
-                if (aj && aj.rarity === 'unique' && aj.uniqueId) equipped.push({ jewel: aj, slot: idx, source: 'abyss' });
-            });
-        }
-    });
-    return equipped;
+    return getSocketedJewels().filter(row => row.jewel.rarity === 'unique' && row.jewel.uniqueId);
 }
 
 function getLabyrinthShacklesDamageMultiplier(moveSpeed) {
@@ -3567,23 +3554,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // reward 버킷은 평탄/증가 방어와 막기까지 모두 최종 합산식에 포함되므로 여기로 흘려보낸다.
     if (typeof applyGrowthSpatialStats === 'function') applyGrowthSpatialStats(reward, growthSnapshot);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
-    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0, 0, 0];
-    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
-        let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
-        let ampMul = 1 + (amp * 0.03);
-        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((Number(stat.val || 0) * ampMul).toFixed(2))));
-    });
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
-    if (activeUniqueIds.has('uj_mirror_heart')) {
-        (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
-            if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
-            let pairedIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
-            let other = (game.jewelSlots || [])[pairedIdx];
-            if (!other) return;
-            getJewelStats(other).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
-        });
-    }
+    getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val)));
     if (activeUniqueIds.has('uj_old_box')) {
         let inv = Array.isArray(game.inventory) ? game.inventory : [];
         let r = { normal: 0, magic: 0, rare: 0, unique: 0 };
@@ -13207,8 +13180,6 @@ function triggerSeasonReset(options) {
     game.labyrinthFloor = 1;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];
-    game.jewelSlots = [null, null];
-    game.jewelSlotAmplify = [0, 0];
     game.talismanUnlocked = preservedTalismanUnlocked;
     game.talismanBoardUnlock = Math.max(3, Math.floor(defaultGame.talismanBoardUnlock || 3));
     game.talismanUnlockedCells = [];
@@ -13255,7 +13226,6 @@ function triggerSeasonReset(options) {
     if (game.settings) {
         if (game.settings.disableItemAutomationAfterLoop !== false) {
             game.settings.autoSalvageEnabled = false;
-            game.settings.jewelAutoSalvageEnabled = false;
             game.settings.itemFilterEnabled = false;
         }
         game.settings.mapCompleteAction = game.settings.postLoopMapCompleteAction || 'nextLoopBestPlusOne';

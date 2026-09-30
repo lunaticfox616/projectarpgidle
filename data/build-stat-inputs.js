@@ -8,7 +8,7 @@ const BUILD_STAT_FIELDS = [
     'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
     'skillAutoRules', 'conditionGemLevels', 'conditionGemPool',
     'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
-    'jewelSlots', 'jewelSlotAmplify', 'growthBoard', 'growthInventory',
+    'growthBoard', 'growthInventory',
     'talismanBoard', 'talismanPlacements', 'talismanBoardUnlock', 'talismanUnlockedCells',
     'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',
     'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression', 'stumpBox'

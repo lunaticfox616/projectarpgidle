@@ -261,9 +261,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   box-shadow: inset 2px 2px 0 #050302, inset -2px -2px 0 #5b3220;
 }
 
-/* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 별쐐기 · 주얼 판 · 검색 목록 · 전장 여백) */
-:root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #ui-star-wedge-panel, #passive-investment-summary,
-  #ui-jewel-panel, .jewel-cap-summary, #ui-jewel-craft-disclosure) { background-color: var(--color-panel-bg); }
+/* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 별쐐기 · 검색 목록 · 전장 여백) */
+:root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #ui-star-wedge-panel, #passive-investment-summary) { background-color: var(--color-panel-bg); }
 :root body[data-ui-skin] .battlefield-wrap { background-color: var(--skin-canvas); }
 :root body[data-ui-skin] .bulk-salvage-action.equipment-action-muted { background: var(--px-board), var(--px-stone-control); }
 

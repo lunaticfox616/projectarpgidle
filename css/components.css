@@ -158,8 +158,6 @@
             50% { transform: translate3d(2%, -2%, 0) scale(1.03); }
             100% { transform: translate3d(0, 0, 0) scale(1); }
         }
-        .jewel-salvage-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0; padding:8px 10px; background:#0f1620; border:1px solid #29415a; border-radius:8px; }
-        .jewel-salvage-filters { display:flex; gap:10px; flex-wrap:wrap; font-size:0.82em; color:var(--copy-bright); }
         /* 부적 보드는 8열 고정이라 칸 크기가 고정이면 좁은 화면에서 오른쪽 열이 잘린다.
            360px 기기에서 보드 폭 364px이 화면 밖으로 29px 넘어가 8열째를 누를 수 없었다.
            화면 폭에 맞춰 줄이되 42px을 넘지 않고, 손가락으로 누를 수 있는 26px 아래로는
@@ -310,7 +308,7 @@
             .combat-feed { height: clamp(320px, 52vh, 480px); max-height: 480px; padding: 10px; }
             #log { min-height: 0; }
             .cloud-actions, .cloud-actions.secondary, .gem-enhance-actions, .gem-engrave-grid { grid-template-columns: 1fr; }
-            .bulk-salvage-bar, .jewel-salvage-bar, .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
+            .bulk-salvage-bar, .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
             .bulk-salvage-bar > div:last-child { width: 100%; grid-template-columns: 1fr 1fr; }
             .settings-stack { max-width: none; }
             #ui-skills-list .skill-gem,
@@ -1948,67 +1946,6 @@
   font-weight: 800;
   white-space: nowrap;
 }
-.abyss-socket-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-  padding: 7px 8px;
-  color: #a9dcff;
-  border: 1px solid rgba(70, 126, 170, 0.44);
-  border-radius: 7px;
-  background: rgba(7, 20, 32, 0.72);
-}
-.abyss-socket-row small { grid-column: 1 / -1; color: var(--copy-muted); }
-.jewel-picker-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 14px;
-  background: rgba(4, 8, 14, 0.82);
-  backdrop-filter: blur(5px);
-}
-.jewel-picker-panel {
-  width: min(980px, 95vw);
-  max-height: min(760px, 92vh);
-  overflow: hidden;
-  padding: 14px;
-  border: 1px solid var(--color-line-strong, #705938);
-  border-radius: 4px;
-  background: linear-gradient(155deg, var(--color-surface-raised, #15140f), var(--color-surface, #0c0e0c));
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.62);
-}
-.jewel-picker-panel header,
-.jewel-picker-panel footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.jewel-picker-panel header small,
-.jewel-picker-panel header strong { display: block; }
-.jewel-picker-panel header small { color: var(--copy-muted); font-size: 0.74em; }
-.jewel-picker-panel header strong { margin-top: 2px; color: var(--copy-bright); font-size: 18px; }
-.jewel-picker-panel > p { margin: 10px 0; color: var(--copy-bright); line-height: 1.5; }
-.jewel-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
-  max-height: 52vh;
-  overflow: auto;
-  padding: 2px 4px 2px 2px;
-}
-.abyss-jewel-choice { min-height: 104px; padding: 10px; text-align: left; }
-.abyss-jewel-choice > strong { display: block; color: var(--copy-bright); font-size: 0.95em; }
-.abyss-jewel-choice-stats { margin-top: 5px; color: var(--copy-bright); font-size: 0.8em; line-height: 1.4; }
-.abyss-jewel-choice > span { display: block; margin-top: 8px; color: var(--color-accent, #d7b36f); font-size: 0.8em; font-weight: 800; }
-.abyss-jewel-choice-empty { padding: 24px; color: var(--copy-muted); border: 1px dashed var(--color-line, #40392e); text-align: center; }
-.jewel-picker-panel footer { justify-content: flex-end; margin-top: 10px; }
-@media (max-width: 560px) {
-  .jewel-picker-overlay { align-items: flex-end; padding: 0; }
-  .jewel-picker-panel { width: 100%; max-height: 88vh; border-radius: 14px 14px 0 0; }
-  .jewel-picker-grid { grid-template-columns: 1fr; max-height: 58vh; }
-}
 
 /* Keep desktop scrolling inside panes/tabs only; mobile uses page scrolling. */
 html, body { overflow: hidden; }
@@ -2141,9 +2078,7 @@ html, body { overflow: hidden; }
             #ui-fossil-inventory-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .bulk-salvage-bar > div:last-child { display: grid; }
             .responsive-split-grid,
-            #ui-class-grid,
-            #ui-jewel-slots,
-            #ui-jewel-inventory {
+            #ui-class-grid {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: 1fr !important; }
             #ui-skills-list,
             #ui-support-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

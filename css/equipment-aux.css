@@ -35,4 +35,42 @@
     .core-item-card { grid-template-columns: 32px minmax(0, 1fr); }
     .core-item-actions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
+
+  /* 장비 그리드 아래 보조 줄: 주얼 보관함(이어서 허리띠 물약 · 부적 줄) */
+  .equipment-aux:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+  .equipment-aux-store { flex: 1 1 auto; min-height: 36px; }
+  .equipment-aux-store.is-full { color: #ffbd7e; }
+
+  /* 장착 장비 칸의 소켓 표시(찬 칸 · 빈 칸) */
+  .equipment-slot-head { justify-content: space-between; }
+  .equipment-socket-pips { display: inline-flex; gap: 2px; }
+  .equipment-socket-pips i { width: 6px; height: 6px; transform: rotate(45deg); border: 1px solid #7fa7c9; background: transparent; }
+  .equipment-socket-pips i.is-filled { background: #8fd3ff; border-color: #cfeaff; }
+  .tooltip-socket-line { color: #9fd6ff; }
+  .tooltip-socket-line.is-empty { color: var(--px-copy-muted, #a39883); }
+
+  /* 긴 제목에도 닫기 단추는 한 줄 */
+  :is(.equipment-socket-panel, .core-item-panel, .chaos-infusion-panel) .selection-overlay-header > button { flex: 0 0 auto; white-space: nowrap; }
+
+  /* 소켓 대화 상자 */
+  .equipment-socket-panel { display: grid; gap: 8px; }
+  .socket-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px;
+    border: 2px solid #050404; background: rgba(12, 18, 26, .66); box-shadow: inset 0 0 0 1px #2c4256; }
+  .socket-row.is-empty { background: rgba(12, 12, 12, .45); box-shadow: inset 0 0 0 1px #3b2f1e; }
+  .socket-row-label { color: #9fd6ff; font-size: 12px; }
+  .socket-row.is-empty .socket-row-jewel { color: var(--px-copy-muted, #a39883); }
+  .socket-jewel-lines { margin: 3px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.5; }
+  .socket-jewel-effect { margin: 2px 0 0; color: #d7b8ff; font-size: 12px; }
+  .socket-chisel { justify-self: start; }
+  .socket-jewel-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .socket-jewel-card { display: grid; gap: 6px; align-content: space-between; padding: 8px 10px; border: 2px solid #050404;
+    background: rgba(18, 12, 8, .72); box-shadow: inset 0 0 0 1px #3b2f1e; }
+  .socket-jewel-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+  .socket-store-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+  @media (max-width: 600px) {
+    .socket-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .socket-row-label { grid-column: 1 / -1; }
+    .socket-jewel-list { grid-template-columns: minmax(0, 1fr); }
+  }
 }

@@ -130,7 +130,6 @@
 :root body.desktop-windowed-ui #btn-tab-traits::before { content: '♛'; }
 :root body.desktop-windowed-ui #btn-tab-talent::before { content: '❖'; }
 :root body.desktop-windowed-ui #btn-tab-items::before { content: '⚒︎'; }
-:root body.desktop-windowed-ui #btn-tab-jewel::before { content: '◆'; }
 :root body.desktop-windowed-ui #btn-tab-flask::before { content: '♜'; }
 :root body.desktop-windowed-ui #btn-tab-map::before { content: '⌖'; }
 :root body.desktop-windowed-ui #btn-tab-skills::before { content: '◈'; }
@@ -554,37 +553,6 @@
   box-shadow: 0 0 7px rgba(92, 217, 159, .4);
 }
 
-.jewel-cap-summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px 14px;
-  padding: 7px 9px;
-  border: 1px solid rgba(83, 128, 171, .3);
-  border-radius: 7px;
-  background: rgba(8, 15, 25, .56);
-}
-
-.jewel-cap-summary strong {
-  color: #ffffff;
-}
-
-.jewel-cap-summary.is-overflow {
-  border-color: rgba(221, 137, 72, .58);
-  background: rgba(55, 31, 18, .58);
-}
-
-.jewel-cap-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.jewel-cap-toolbar #ui-jewel-cap { flex: 1 1 auto; min-width: 0; }
-
 .inventory-capacity-actions {
   display: flex;
   align-items: center;
@@ -608,17 +576,6 @@
 .inventory-expand-shortcut:hover:not(:disabled) { border-color: #e0b86b; color: #fff3ce; }
 .inventory-expand-shortcut:disabled { opacity: .48; cursor: not-allowed; }
 .inventory-expand-shortcut[hidden] { display: none; }
-
-.jewel-overflow-warning {
-  color: #ffbd7e;
-  font-weight: 800;
-}
-
-.jewel-quality-line {
-  margin: 3px 0 5px;
-  color: #eef2f6;
-  font-size: .7rem;
-}
 
 .talisman-quality-badge {
   display: inline-flex;
@@ -1088,14 +1045,12 @@
 .equipment-card-main { min-width: 0; }
 
 .equipment-item-card,
-.jewel-inventory-card,
 .talisman-inventory-card,
 .growth-item-card {
     position: relative;
 }
 
 .equipment-card-visual,
-.jewel-card-visual,
 .growth-card-visual {
     width: 42px;
     height: 42px;
@@ -1112,8 +1067,7 @@
     filter: drop-shadow(0 4px 7px rgba(0, 0, 0, .68));
 }
 
-.equipment-item-card,
-.jewel-inventory-card {
+.equipment-item-card {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr);
     align-items: start;
@@ -1128,8 +1082,6 @@
 }
 
 .equipment-item-card > .equipment-card-actions { grid-column: 1 / -1; }
-.jewel-inventory-card > .jewel-card-actions { grid-column: 1 / -1; }
-.jewel-card-copy,
 .talisman-card-copy { min-width: 0; }
 
 .growth-item-card { padding-left: 52px; min-height: 56px; }
@@ -1137,10 +1089,8 @@
 
 @media (max-width: 640px) {
     .equipment-card-visual,
-    .jewel-card-visual,
     .growth-card-visual { width: 36px; height: 36px; flex-basis: 36px; }
-    .equipment-item-card,
-    .jewel-inventory-card { grid-template-columns: 36px minmax(0, 1fr); gap: 7px; }
+    .equipment-item-card { grid-template-columns: 36px minmax(0, 1fr); gap: 7px; }
     .growth-item-card { padding-left: 46px; min-height: 50px; }
     .talisman-card-visual { width: 48px; height: 48px; flex-basis: 48px; }
     .talisman-inventory-card { grid-template-columns: 48px minmax(0, 1fr); gap: 7px; }

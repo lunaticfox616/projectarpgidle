@@ -4,7 +4,7 @@ const copy=expression=>JSON.parse(run(`JSON.stringify(${expression})`));
 run(`game.currentZoneId=0;game.season=25;game.settings.mapCompleteAction='stop';
     game.contentProgression.inherited.push('growth','jewel');contentProgression.sync(game);
     game.settings.growthAutoSalvageEnabled=false;game.settings.growthUseItemFilter=false;
-    game.settings.jewelAutoSalvageEnabled=false;startEncounterRun(true);`);
+    startEncounterRun(true);`);
 const baseline=copy('({growth:game.growthInventory,jewels:game.jewelInventory,currencies:game.currencies,codex:game.uniqueCodex})');
 run(`actExplorationLoot.capture(game,game.actExploration,()=>{
     const item=generateGrowthUniqueItem(20,'세계수의 심장');
@@ -36,8 +36,9 @@ const claimed=copy('({growth:game.growthInventory,jewels:game.jewelInventory,cur
 run('finishEncounterRun();');
 assert.deepEqual(copy('({growth:game.growthInventory,jewels:game.jewelInventory,currencies:game.currencies,codex:game.uniqueCodex})'),claimed);
 
-// Fill both inventories. Two pending rewards also count toward capacity before settlement.
-run(`startEncounterRun(true);
+// Fill both inventories. Two pending rewards also count toward capacity before settlement. The roll is pinned so the
+// normal growth item's 60% essence chance cannot hinge on how many draws the earlier steps used.
+run(`startEncounterRun(true);const fillRandom=Math.random;Math.random=()=>0.1;try{
     game.growthInventory=Array.from({length:getGrowthInventoryLimit()-1},()=>createGrowthItemFromBase(GROWTH_BASE_DB[0],'normal',1));
     game.jewelInventory=Array.from({length:getJewelInventoryLimit()-1},()=>({...generateJewelDrop(1),rarity:'normal'}));
     window.beforeSalvage=JSON.stringify(game.currencies);
@@ -48,7 +49,7 @@ run(`startEncounterRun(true);
         }
         receiveJewelDrop({...generateJewelDrop(1),rarity:'rare'},actExplorationLoot.delivery(game,'jewels'));
         receiveJewelDrop({...generateJewelDrop(1),rarity:'unique'},actExplorationLoot.delivery(game,'jewels'));
-    });`);
+    });}finally{Math.random=fillRandom;}`);
 assert.equal(run('JSON.stringify(game.currencies)===window.beforeSalvage'),true,'salvage currencies cannot be spent before clear');
 assert.equal(run('game.actExploration.loot.growthItems.length'),1);
 assert.equal(run('game.actExploration.loot.jewels.length'),3,'rare and unique jewels retain overflow protection');
@@ -61,34 +62,33 @@ run(`actExplorationProgress.defeat(game);`);
 assert.deepEqual(copy('game.actExploration.loot.currencies'),{});
 assert.equal(run('JSON.stringify(game.currencies)===window.beforeSalvage'),true,'death loses salvage gains too');
 
-// Explicit auto-salvage still overrides rare/unique protection. No codex for auto-salvaged growth.
+// Explicit growth auto-salvage still overrides rare/unique protection. No codex for auto-salvaged growth.
+// Jewels have no auto-salvage since 2026-09-30 (the jewel window went away), so a unique jewel is always kept.
 run(`startEncounterRun(true);game.settings.growthAutoSalvageEnabled=true;
     game.settings.growthAutoSalvageRarities.unique=true;
-    game.settings.jewelAutoSalvageEnabled=true;game.settings.jewelAutoSalvageRarities.unique=true;
     actExplorationLoot.capture(game,game.actExploration,()=>{
         addDroppedGrowthItem(generateGrowthUniqueItem(20,'세계수의 심장'),{delivery:actExplorationLoot.delivery(game,'growthItems'),silent:true});
         receiveJewelDrop({...generateJewelDrop(1),rarity:'unique'},actExplorationLoot.delivery(game,'jewels'));
     });`);
 assert.equal(run('game.actExploration.loot.growthItems.length'),0);
 assert.equal(run('game.actExploration.loot.growthCodex.length'),0);
-assert.equal(run('game.actExploration.loot.jewels.length'),0);
-assert.equal(run('game.actExploration.loot.currencies.jewelShard'),18);
+assert.equal(run('game.actExploration.loot.jewels.length'),1);
+assert.equal(run('game.actExploration.loot.currencies.jewelShard'),undefined);
 const pendingCurrency=copy('game.actExploration.loot.currencies'),beforeCurrency=copy('game.currencies');
 run(`game.actExploration.status='cleared';finishEncounterRun();`);
 for(const [key,amount] of Object.entries(pendingCurrency))assert.equal(run(`game.currencies[${JSON.stringify(key)}]`),(beforeCurrency[key]||0)+amount);
 
-// Same pickup policy outside exploration, including direct overflow and configured salvage.
-run(`actExplorationProgress.depart(game);game.settings.jewelAutoSalvageEnabled=false;`);
+// Same pickup policy outside exploration: direct overflow keeps rare/unique jewels and salvages the rest.
+run(`actExplorationProgress.depart(game);`);
 const immediateCount=run('game.jewelInventory.length');
 for(const rarity of ['rare','unique']) {
     assert.equal(run(`receiveJewelDrop({...generateJewelDrop(1),rarity:'${rarity}'}).stored`),true);
 }
 assert.equal(run('game.jewelInventory.length'),immediateCount+2);
-run(`game.settings.jewelAutoSalvageEnabled=true;`);
-assert.equal(run("receiveJewelDrop({...generateJewelDrop(1),rarity:'unique'}).stored"),false);
+assert.equal(run("receiveJewelDrop({...generateJewelDrop(1),rarity:'magic'}).stored"),false,'a full store salvages ordinary jewels');
 
 run(`startEncounterRun(true);game.growthInventory=[];game.jewelInventory=[];
-    game.settings.growthAutoSalvageEnabled=false;game.settings.jewelAutoSalvageEnabled=false;
+    game.settings.growthAutoSalvageEnabled=false;
     const dropRandom=Math.random;
     try {
         Math.random=()=>0;

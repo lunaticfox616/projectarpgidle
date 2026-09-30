@@ -34,70 +34,22 @@ const qualityStates = vm.runInContext(`([
 assert(qualityStates.every(state => state.enabled),
     'each quality material must be usable on its matching equipment family');
 
-const context = buildGameRuntime();
-vm.runInContext(`
-    updateStaticUI = function () {};
-    addLog = function () {};
-    game.jewelInventory = [];
-    game.jewelSlots = [{ id: 7001, name: '장착된 주얼', rarity: 'normal', stats: [] }];
-    game.currencies.magicBud = 1;
-    selectEquippedJewelCraftTarget(0);
-`, context);
 
-Promise.resolve(vm.runInContext("useCurrencyOnJewel('magicBud')", context)).then(() => {
-    const result = vm.runInContext(`({
-        target: getSelectedJewelCraftTarget(),
-        equipped: game.jewelSlots[0],
-        inventoryLength: game.jewelInventory.length,
-        remaining: game.currencies.magicBud
-    })`, context);
-    assert.strictEqual(result.target, result.equipped,
-        'the workbench target must remain the equipped jewel object');
-    assert.strictEqual(result.target.rarity, 'magic',
-        'crafting must mutate the equipped jewel in place');
-    assert.strictEqual(result.inventoryLength, 0,
-        'crafting an equipped jewel must not move or duplicate it');
-    assert.strictEqual(result.remaining, 0,
-        'successful equipped-jewel crafting must consume one currency');
-    const selection = vm.runInContext(`
-        game.jewelInventory = ['A', 'B', 'C', 'D'].map((name, id) => ({id, name, rarity: 'magic', stats: [{id:'crit',val:2,tier:1}]}));
-        game.jewelSlots = [null, null];
-        toggleJewelFusionSelection(1); toggleJewelFusionSelection(3);
-        equipJewel(0, 0);
-        getSelectedJewelFusionIndices().map(index => game.jewelInventory[index].name)
-    `, context);
-    assert.deepStrictEqual(Array.from(selection), ['B', 'D'], 'equipping an earlier item must preserve the selected materials');
-    const replaced = vm.runInContext(`
-        equipJewel(0, 0);
-        getSelectedJewelFusionIndices().map(index => game.jewelInventory[index].name)
-    `, context);
-    assert.deepStrictEqual(Array.from(replaced), ['D'], 'the item returned from an equipment slot must not inherit fusion selection');
-    const reordered = vm.runInContext(`
-        game.jewelInventory.reverse();
-        getSelectedJewelFusionIndices().map(index => game.jewelInventory[index].name)
-    `, context);
-    assert.deepStrictEqual(Array.from(reordered), ['D'], 'reordering must preserve the chosen material identity');
-    for (const [amplified, funds, succeeds] of [[true, 13, false], [true, 14, true], [false, 5, false], [false, 6, true]]) {
-        context.fusionCase = { amplified, funds };
-        const fusion = vm.runInContext(`
-            document.getElementById = id => id === 'chk-jewel-amplified-fusion' ? {checked: fusionCase.amplified} : null;
-            game.jewelInventory = [
-                {id: 8001, name: 'A', rarity: 'magic', stats: [{id: 'crit', val: 2, tier: 1}]},
-                {id: 8002, name: 'B', rarity: 'magic', stats: [{id: 'armor', val: 2, tier: 1}]}
-            ];
-            toggleJewelFusionSelection(0); toggleJewelFusionSelection(1);
-            game.currencies.jewelShard = fusionCase.funds;
-            confirmJewelFusion();
-            ({funds: game.currencies.jewelShard, count: game.jewelInventory.length,
-                ids: game.jewelInventory.map(j => j.id), options: getJewelCoreStats(game.jewelInventory[0]).length})
-        `, context);
-        assert.strictEqual(fusion.funds, succeeds ? 0 : funds, 'fusion must validate and charge the total cost');
-        assert.strictEqual(fusion.count, succeeds ? 1 : 2, 'insufficient funds must not consume materials');
-        if (!succeeds) assert.deepStrictEqual(Array.from(fusion.ids), [8001, 8002]);
-        else assert.strictEqual(fusion.options, amplified ? 4 : 2);
-    }
-    console.log('smoke-crafting-target-stability passed');
-}).catch(error => {
-    console.error(error);
-    process.exitCode = 1;
-});
+// Socket actions (2026-09-30, they replaced the jewel workbench) work on the chosen equipment object and move the exact
+// jewel objects: reordering the store between actions cannot swap which jewel goes in or comes out.
+const context = buildGameRuntime();
+const run = source => vm.runInContext(source, context);
+run(`updateStaticUI = function () {}; addLog = function () {};
+    game.jewelInventory = ['A', 'B', 'C'].map((name, index) => ({ id: 9100 + index, name, rarity: 'magic', stats: [{ id: 'crit', val: 2, tier: 1 }] }));
+    game.equipment['목걸이'] = createItemFromBase(BASE_ITEM_DB.find(row => row.slot === '목걸이'), 'rare', 10);`);
+const moved = run(`(() => { const chosen = game.jewelInventory[1]; game.jewelInventory.reverse();
+    equipmentSockets.insert(game.equipment['목걸이'], chosen.id); return game.equipment['목걸이'].voidSocket.jewel === chosen; })()`);
+assert.strictEqual(moved, true, 'the jewel chosen by id goes in even after the store reorders');
+assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.jewelInventory.map(jewel => jewel.name))')), ['C', 'A'],
+    'the socketed jewel leaves the store exactly once');
+assert.strictEqual(run("equipmentSockets.insert(game.equipment['목걸이'], 9102).ok"), false, 'a filled socket takes no second jewel');
+run(`game.jewelInventory.length = 0;
+    for (let i = 0; i < getJewelInventoryLimit(); i++) game.jewelInventory.push({ id: 9200 + i, name: 'x', rarity: 'magic', stats: [] });`);
+assert.strictEqual(run("equipmentSockets.remove(game.equipment['목걸이'], 'void', 0).ok"), false, 'a full store blocks taking a jewel out');
+assert.strictEqual(run("game.equipment['목걸이'].voidSocket.jewel.name"), 'B', 'a blocked removal leaves the jewel in place');
+console.log('smoke-crafting-target-stability passed');

@@ -118,7 +118,7 @@ const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '�
 const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
     'tab-season': '루프 패시브', 'tab-traits': '직업전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
-    'tab-jewel': '주얼', 'tab-expertise': '전문가', 'tab-flask': '보조장비', 'tab-growthboard': '생장판', 'tab-talisman': '부적',
+    'tab-expertise': '전문가', 'tab-flask': '보조장비', 'tab-growthboard': '생장판', 'tab-talisman': '부적',
     'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적'
 });
 function tutorialNoticeKind(notice) {

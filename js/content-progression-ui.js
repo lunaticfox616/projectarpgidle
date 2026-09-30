@@ -1,11 +1,11 @@
 /** Menu projection and purchase event boundary; the ledger is owned by contentProgression. */
 // 해금 카드의 "…에 있습니다" 줄: 콘텐츠가 있는 곳을 메뉴 이름 그대로.
 const CONTENT_ROUTE_PATHS = Object.freeze({
-    'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
+    'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
     'item-tab-hall': '장비 → 장비 전당',
     'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
     'skill-tab-condition': '스킬 젬 → 자동 사용',
-    'tab-flask': '보조장비 → 플라스크', 'tab-jewel': '보조장비 → 주얼', 'tab-talisman': '보조장비 → 부적',
+    'tab-flask': '보조장비 → 플라스크', 'tab-talisman': '보조장비 → 부적',
     'tab-growthboard': '보조장비 → 생장판', 'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 직업전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-expertise': '전문가', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-talent': '재능',
     'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
@@ -14,7 +14,7 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
 });
 // 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
 const CONTENT_CARD_DEDICATED = Object.freeze({
-    stump: 'unlock_stump_box', growth: 'unlock_growth_board', timerift: 'unlock_time_rift', cube: 'unlock_core_cube',
+    stump: 'unlock_stump_box', growth: 'unlock_growth_board', timerift: 'unlock_time_rift',
     chaosRealm: 'unlock_chaos_realm', sky: 'unlock_sky_tower', underworld: 'unlock_underworld', cosmos: 'unlock_cosmos',
     ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
 });

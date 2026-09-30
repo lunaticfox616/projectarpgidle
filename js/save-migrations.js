@@ -447,7 +447,6 @@ function mergeDefaults(save) {
         ? merged.saveMeta.cloudUserId
         : null;
     merged.ocean = mergeOceanState(save && save.ocean);
-    merged.unlocks.jewel = !!merged.unlocks.jewel;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
     if (!save.currencies && save.materials) {
         merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
@@ -596,11 +595,9 @@ function mergeDefaults(save) {
     // 게다가 앞에서부터 40개를 남기므로 가장 최근에 지켜 낸 것이 먼저 지워진다.
     // 장비 보관함도 같은 이유로 자르지 않고 초과 보관을 허용한다(유실 방지).
     // 새로 넣는 쪽은 각 push 지점이 getJewelInventoryLimit()으로 계속 막는다.
-    // 심연 군주(워록 wlk8)가 주얼 슬롯을 2칸 추가로 제공하므로 최대 4슬롯까지 보존한다.
-    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 4).map(normalizeJewelRecord) : [null, null];
-    while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
-    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 4).map(v => Math.max(0, Math.min(20, Math.floor(v || 0)))) : [0, 0];
-    while (merged.jewelSlotAmplify.length < 2) merged.jewelSlotAmplify.push(0);
+    // 주얼 슬롯은 2026-09-30에 없어졌다(주얼은 장비 소켓에만 낀다). 슬롯의 주얼은 보관함으로 옮기고, 증폭은 보상 없이 지운다.
+    merged.jewelInventory.push(...(Array.isArray(merged.jewelSlots) ? merged.jewelSlots.map(normalizeJewelRecord).filter(Boolean) : []));
+    delete merged.jewelSlots; delete merged.jewelSlotAmplify; delete merged.unlocks.jewel; delete merged.noti.jewel;
     merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
     Object.keys(merged.skyGemEnhancements).forEach(skill => {
         let arr = Array.isArray(merged.skyGemEnhancements[skill]) ? merged.skyGemEnhancements[skill] : [];
@@ -841,8 +838,7 @@ function mergeDefaults(save) {
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
-    merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
-    merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
+    delete merged.settings.jewelAutoSalvageEnabled; delete merged.settings.jewelAutoSalvageRarities; // 주얼 자동 해체는 주얼 창과 함께 없어졌다.
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.actExplorationMode = merged.settings.actExplorationMode === 'full' ? 'full' : 'direct';
     normalizeAutomationSettings(merged.settings);

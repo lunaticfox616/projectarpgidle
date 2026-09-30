@@ -189,9 +189,15 @@ run(`game.ascendClass='warrior';game.ascendKeystones=['w3'];
     game.equipment['방패']=createItemFromBase(lowWeapon,'normal',1);
     game.equipment['무기'].stats=[{id:'strength',val:10}];game.equipment['방패'].stats=[{id:'strength',val:10}];`);
 assert.equal(run('getPlayerStats(false).requirementAttributes.strength'),20);
-run("game.jewelSlots=[{uniqueId:'cbj_zubenubia_balance',cosmosKeystoneJewel:true,cosmosKeystone:'w6',stats:[]},{uniqueId:'cbj_zubenshamali_judgment',cosmosKeystoneJewel:true,cosmosKeystone:'w6',stats:[]}]");
+// The twin cosmos jewels grant their keystone from equipment sockets (2026-09-30: jewels live only in sockets).
+run(`for (const slot of ['목걸이', '허리띠']) {
+        const item = createItemFromBase(BASE_ITEM_DB.find(base => base.slot === slot), 'normal', 1);
+        item.baseStats = []; item.stats = []; game.equipment[slot] = item;
+    }
+    game.equipment['목걸이'].voidSocket = { open: true, jewel: { uniqueId: 'cbj_zubenubia_balance', cosmosKeystoneJewel: true, cosmosKeystone: 'w6', stats: [] } };
+    game.equipment['허리띠'].voidSocket = { open: true, jewel: { uniqueId: 'cbj_zubenshamali_judgment', cosmosKeystoneJewel: true, cosmosKeystone: 'w6', stats: [] } };`);
 assert.equal(run('getPlayerStats(false).requirementAttributes.strength'),30,'cosmos keystone immediately refreshes permanent requirement attributes');
-run('game.jewelSlots=[]');
+run("game.equipment['목걸이'].voidSocket.jewel=null");
 assert.equal(run('getPlayerStats(false).requirementAttributes.strength'),20,'removing a cosmos keystone cannot retain cached attributes');
 const baseRequirements = json('BASE_ITEM_DB.map(base=>({base,req:levelProgression.requirements({baseId:base.id})}))');
 for (const { base, req } of baseRequirements) {

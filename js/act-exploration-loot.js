@@ -160,7 +160,7 @@ const actExplorationLoot=(()=>{
         const growthInventory=(state.growthInventory||[]).concat(loot.growthItems);
         const jewelInventory=(state.jewelInventory||[]).concat(loot.jewels);
         const owned=[...state.inventory,...(state.growthInventory||[]),...(state.jewelInventory||[]),
-            ...Object.values(state.equipment),...(state.jewelSlots||[]),...coreItems.ownedItems(state)].filter(Boolean);
+            ...Object.values(state.equipment),...coreItems.ownedItems(state)].filter(Boolean);
         const ids=new Set(owned.map(item=>item.id));
         for(const item of [...loot.equipment,...loot.growthItems,...loot.jewels,...loot.cores]) {
             if(ids.has(item.id))throw Error('이미 소유한 탐험 장비 보상');
@@ -171,7 +171,7 @@ const actExplorationLoot=(()=>{
     }
     function markItemsReceived(state,loot) {
         if(loot.growthItems.length)state.noti.items=true;
-        if(loot.jewels.length)state.noti.jewel=true;
+        if(loot.jewels.length)state.noti.items=true;
     }
     function prepareFlasks(owned,loot) {
         const alchemyGlass=owned.alchemyGlass+loot.alchemyGlass;

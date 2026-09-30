@@ -306,8 +306,8 @@ function buildProfileSnapshot() {
     let growth = buildProfileGrowthData();
 
     let jewels = [];
-    let jslots = (typeof game !== 'undefined' && Array.isArray(game.jewelSlots)) ? game.jewelSlots : [];
-    jslots.forEach(j => { let s = buildJewelSnapshot(j); if (s) jewels.push(s); });
+    let socketed = (typeof game !== 'undefined' && typeof collectSocketedJewels === 'function') ? collectSocketedJewels(game.equipment) : [];
+    socketed.forEach(row => { let s = buildJewelSnapshot(row.jewel); if (s) jewels.push(s); });
 
     // 부적: 배치도 형태로 보이도록 보드 셀→부적 인덱스 매핑까지 저장.
     let talismans = [];
@@ -829,7 +829,6 @@ function getChatAttachSnapshot(source, key) {
     let state = typeof game !== 'undefined' && game ? game : {};
     if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
     if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
-    if (source === 'jewelSlot') return buildJewelSnapshot((state.jewelSlots || [])[Number(key)]);
     if (source === 'jewel') return buildJewelSnapshot((state.jewelInventory || [])[Number(key)]);
     if (source === 'talisman') return buildTalismanSnapshot((state.talismanInventory || [])[Number(key)]);
     if (source === 'talismanPlaced') {
@@ -890,7 +889,7 @@ function getChatItemPickerGroups() {
     let state = typeof game !== 'undefined' && game ? game : {};
     let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
     let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot]).map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
-    let jewels = entries('jewelSlot', state.jewelSlots, (_, index) => `[장착 ${index + 1}]`).concat(entries('jewel', state.jewelInventory, () => '[보관]'));
+    let jewels = entries('jewel', state.jewelInventory, () => '[보관]');
     let placedTalismans = Object.keys(state.talismanPlacements || {}).map(id => ({ source: 'talismanPlaced', key: id, label: '[배치]' }));
     let placedGrowth = typeof getPlacedGrowthEntries === 'function'
         ? getPlacedGrowthEntries().map(row => ({ source: 'growthPlaced', key: row.item.id, label: '[배치]' })) : [];

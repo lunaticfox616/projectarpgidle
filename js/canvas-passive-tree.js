@@ -792,7 +792,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
+                <div class="equipment-slot-head"><span>${displaySlot}</span>${equipmentSocketsUi.pipsHtml(item)}</div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}</div>
                 ${footer}
             </div>`;
@@ -807,6 +807,7 @@ function renderPaperdoll(targetId, forCrafting) {
     });
     if (targetId === 'ui-equip-list') html += coreItemsUi.slotHtml();
     document.getElementById(targetId).innerHTML = html;
+    if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }
 
 function renderEquipmentGridItem(item, idx, triageResult, placement, filterState) {
@@ -874,6 +875,7 @@ function renderEquipmentInspectorActions(item, slot, presetProtected) {
     return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : '장착'}</button>
         ${contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작</button>` : ''}
         ${chaosInfusionUi.actionHtml(item, slot)}
+        ${equipmentSocketsUi.actionHtml(item, slot)}
         ${slot ? '' : renderEquipmentInventoryProtectionActions(item, presetProtected)}`;
 }
 

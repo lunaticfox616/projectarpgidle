@@ -59,7 +59,7 @@ assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, tr
 // Confirmation-time target changes are exercised against the full runtime below.
 
 const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'async function marketExpandJewelInventoryByDivine');
-const bulkJewelSalvageBlock = extract(passiveSource, 'async function bulkSalvageJewels()', 'async function toggleJewelAutoSalvage');
+const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(jewelId)', 'function isChaseUniqueItem');
 const protectedItem = {
     name: '보호 장비',
     rarity: 'rare',
@@ -107,27 +107,27 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.strictEqual(annulContext.game.currencies.goldenRule, 0);
     assert(annulPrompt.includes('황금률 2개') && !annulPrompt.includes('신성한 오브'), 'market confirmation must name the currency that is actually spent');
 
-    const originalJewel = { name: '확인 대상', rarity: 'rare', locked: false };
-    const newlyDroppedJewel = { name: '확인 후 드랍', rarity: 'rare', locked: false };
+    // A unique jewel asks first; if it left the store while the question was open (for example into a socket), nothing is salvaged.
+    const uniqueJewel = { id: 7, name: '확인 대상', rarity: 'unique' };
+    const salvaged = [];
     const jewelSalvageContext = {
-        game: { woodsmanBuildLock: false, jewelInventory: [originalJewel] },
-        JEWEL_RARITY_ORDER: ['normal', 'magic', 'rare', 'unique'],
-        document: { getElementById(id) { return { checked: id === 'chk-jewel-salvage-rare' }; } },
-        getJewelSalvageShardGain: () => 1,
-        requestGameConfirmation: async () => { jewelSalvageContext.game.jewelInventory.push(newlyDroppedJewel); return true; },
-        salvageJewelObject: () => 1,
-        updateStaticUI() {},
-        addLog() {}
+        game: { jewelInventory: [uniqueJewel, { id: 8, name: '남는 주얼', rarity: 'magic' }] },
+        getJewelSalvageShardGain: () => 18,
+        requestGameConfirmation: async () => { jewelSalvageContext.game.jewelInventory.shift(); return true; },
+        salvageJewelObject: jewel => salvaged.push(jewel.id),
+        updateStaticUI() {}
     };
     vm.createContext(jewelSalvageContext);
-    vm.runInContext(bulkJewelSalvageBlock, jewelSalvageContext, { filename: 'bulk-jewel-salvage.js' });
-    await jewelSalvageContext.bulkSalvageJewels();
-    assert.deepStrictEqual(Array.from(jewelSalvageContext.game.jewelInventory, jewel => jewel.name), ['확인 후 드랍'], 'bulk salvage must not include jewels acquired while the confirmation is open');
+    vm.runInContext(jewelSalvageBlock, jewelSalvageContext, { filename: 'jewel-salvage.js' });
+    assert.strictEqual(await jewelSalvageContext.salvageJewel(7), false, 'a jewel that left the store during confirmation is not salvaged');
+    assert.deepStrictEqual(salvaged, []);
+    assert.strictEqual(await jewelSalvageContext.salvageJewel(8), true, 'ordinary jewels salvage without a question');
+    assert.deepStrictEqual(salvaged, [8]);
+    assert.deepStrictEqual(Array.from(jewelSalvageContext.game.jewelInventory), []);
 
     assert(uiSource.includes("return { enabled: false, reason: `홀씨 부족"), 'crafting UI should explain insufficient spore cost');
     // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.
     assert(uiSource.includes('const targetSet = new Set(targetItems);'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
-    assert(uiSource.includes('const targetSet = new Set(targets);'), 'search-based jewel salvage should keep a confirmation-time target snapshot');
     assert(!cardSource.includes('getItemSalvagePreviewText(item, true)'), 'compact inventory cards should not spend metadata space on salvage materials');
     assert(cardSource.includes('getItemSalvagePreviewText(item, false)'), 'the destructive action should retain a detailed salvage preview in its own hint');
     console.log('smoke-crafting-economy passed');

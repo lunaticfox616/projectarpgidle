@@ -277,20 +277,6 @@ function verifyCraftSourceSaveCompatibility() {
         assert(run("window.__sporeCraftLogs.some(message => message.includes('홀씨 제작은 장비에만'))"),
             'growth-board targets must explain that special spore crafting is equipment-only');
 
-        run(`(function () {
-            game.jewelInventory = [{ id: 980007, name: '홀씨 검증 주얼', rarity: 'normal', stats: [] }];
-            game.currencies.magicBud = 1;
-            game.currencies.sporeFire = 100;
-            game.currencies.sporeCold = 100;
-            game.currencies.sporeLight = 100;
-            game.sporeCraftModes.magicBud = 'fire';
-            selectJewelCraftTarget(0);
-        })()`);
-        const jewelSporeBefore = run('JSON.stringify({ fire: game.currencies.sporeFire, cold: game.currencies.sporeCold, light: game.currencies.sporeLight })');
-        await run("useCurrencyOnJewel('magicBud')");
-        assert.strictEqual(run('JSON.stringify({ fire: game.currencies.sporeFire, cold: game.currencies.sporeCold, light: game.currencies.sporeLight })'), jewelSporeBefore,
-            'jewel refining must never consume spores from an equipment spore mode');
-
         const oldFossilBoots = makeBoots(980003);
         oldFossilBoots.stats = [{ id: 'move', statName: '군단 진군', val: 35, fossilExclusive: true }];
         run(`(function () {

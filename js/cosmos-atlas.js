@@ -856,8 +856,7 @@
     }
 
     function hasSixthCosmosStoneUnlock() {
-        const jewels = Array.isArray(game && game.jewelSlots) ? game.jewelSlots : [];
-        return jewels.some(jewel => jewel && (jewel.uniqueId === 'cbj_enifron_faded_stone' || jewel.id === 'cbj_enifron_faded_stone' || jewel.name === '바래진 우주석'));
+        return getSocketedJewels().some(({ jewel }) => jewel.uniqueId === 'cbj_enifron_faded_stone' || jewel.id === 'cbj_enifron_faded_stone' || jewel.name === '바래진 우주석');
     }
 
     function isCosmosStoneAcquired(state, galaxy) {
@@ -1257,7 +1256,6 @@
             statName: typeof window.getStatName === 'function' ? window.getStatName(stat.id) : stat.id
         }));
         const jewel = { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', source: 'cosmosBoss', stats };
-        if (row.noEquipSocket) jewel.noEquipSocket = true;
         if (row.cosmosKeystoneJewel) {
             jewel.cosmosKeystoneJewel = true;
             // 드랍 시 무작위 전직 키스톤을 고정 배정한다. (균형/심판 주얼이 같은 키스톤이면 할당)
@@ -1324,7 +1322,7 @@
         const overflow = game.jewelInventory.length >= limit;
         game.jewelInventory.push(jewel);
         game.noti = game.noti || {};
-        game.noti.jewel = true;
+        game.noti.items = true;
         if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}${overflow ? ' (공간 부족 보호)' : ''}`, 'loot-unique', { item:jewel, itemKind:'jewel' });
         return true;
     }

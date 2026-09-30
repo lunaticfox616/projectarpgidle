@@ -29,7 +29,6 @@
   body.desktop-windowed-ui #btn-tab-traits::before { content: '👑'; }
   body.desktop-windowed-ui #btn-tab-talent::before { content: '🌸'; }
   body.desktop-windowed-ui #btn-tab-items::before { content: '⚒️'; }
-  body.desktop-windowed-ui #btn-tab-jewel::before { content: '💠'; }
   body.desktop-windowed-ui #btn-tab-flask::before { content: '🧪'; }
   body.desktop-windowed-ui #btn-tab-map::before { content: '🗺️'; }
   body.desktop-windowed-ui #btn-tab-skills::before { content: '💎'; }

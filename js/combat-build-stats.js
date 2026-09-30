@@ -105,10 +105,28 @@ function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {
     applyStatsToBucket(result.gearBase, resolved.baseStats);
     applyStatsToBucket(result.gearExplicit, resolved.explicitStats);
     accumulateCombatItemDefenses(result, slotKey, item, resolved);
-    if (item.voidSocket?.open && item.voidSocket.jewel) {
-        getJewelStats(item.voidSocket.jewel).forEach(stat => addStatToBucket(result.gearExplicit, stat.id, stat.val));
+    accumulateCombatSocketJewels(result.gearExplicit, item);
+}
+
+/** 장비 소켓의 주얼: 공허 소켓 · 심연 소켓(황제의 심연띠는 증폭), 둘 다 소켓 주얼 배율을 받는다. */
+function accumulateCombatSocketJewels(bucket, item) {
+    const socketMultiplier = getSocketJewelMultiplier();
+    if (item.voidSocket?.open && item.voidSocket.jewel) addSocketJewelStats(bucket, item.voidSocket.jewel, socketMultiplier);
+    for (const socket of Array.isArray(item.abyssSockets) ? item.abyssSockets : []) {
+        if (socket?.jewel) addSocketJewelStats(bucket, socket.jewel, socketMultiplier * getAbyssJewelMultiplier(item));
     }
-    accumulateCombatAbyssJewels(result.gearExplicit, item);
+}
+
+// 심연 군주(워록 wlk8)와 재물욕(초월 공허)은 예전의 주얼 슬롯 추가 대신 장비 소켓 주얼의 옵션을 키운다(2026-09-30).
+const SOCKET_JEWEL_BONUS = Object.freeze({ warlockLord: 0.25, greed: 0.1 });
+function getSocketJewelMultiplier(owner = game) {
+    const lord = owner.ascendClass === 'warlock' && hasKeystone('wlk8', owner) ? SOCKET_JEWEL_BONUS.warlockLord : 0;
+    const greed = getTranscendentVoidPassiveCount('greed', owner) > 0 ? SOCKET_JEWEL_BONUS.greed : 0;
+    return 1 + lord + greed;
+}
+
+function addSocketJewelStats(bucket, jewel, multiplier) {
+    getJewelStats(jewel).forEach(stat => addStatToBucket(bucket, stat.id, Number((Number(stat.val || 0) * multiplier).toFixed(2))));
 }
 
 function accumulateCombatItemDefenses(result, slotKey, item, resolved) {
@@ -143,18 +161,11 @@ function accumulateCombatDefenseLine(result, flat, pct, stat) {
     if (stat.id === 'blockChance') result.shieldBlockChanceFlat += value;
 }
 
-function accumulateCombatAbyssJewels(bucket, item) {
-    if (!Array.isArray(item.abyssSockets)) return;
-    let multiplier = 1;
-    if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
-        const params = item.uniqueEffectParams || {};
-        const min = Number(params.ampMin || 1), max = Number(params.ampMax || 100);
-        const pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : (min + max) / 2;
-        multiplier = 1 + pct / 100;
-    }
-    for (const socket of item.abyssSockets) {
-        if (!socket?.jewel) continue;
-        getJewelStats(socket.jewel).forEach(stat =>
-            addStatToBucket(bucket, stat.id, Number((stat.val * multiplier).toFixed(2))));
-    }
+/** 황제의 심연띠: 심연 소켓 주얼 효과 증폭(고유 옵션의 굴린 값, 없으면 범위 가운데). */
+function getAbyssJewelMultiplier(item) {
+    if (!item || item.uniqueEffectKey !== 'abyssSocketAndJewelAmp') return 1;
+    const params = item.uniqueEffectParams || {};
+    const min = Number(params.ampMin || 1), max = Number(params.ampMax || 100);
+    const pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : (min + max) / 2;
+    return 1 + pct / 100;
 }

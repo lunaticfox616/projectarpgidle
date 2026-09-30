@@ -365,7 +365,7 @@
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
   :root body #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .item-actions:not(.jewel-card-actions), .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #tab-skills .skill-gem-library,
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,

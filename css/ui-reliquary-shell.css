@@ -2402,7 +2402,6 @@ body .hero-choice {
 :root body :where(
   .talent-card,
   .talent-combo-cell,
-  .jewel-salvage-bar,
   .craft-selected-summary,
   .craft-actions .craft-orb-card,
   .expertise-panel,

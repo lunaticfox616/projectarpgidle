@@ -32,10 +32,15 @@ assert.strictEqual(resolve({}, 'talisman'), 'assets/items/seed-talisman-v3.png')
 assert.strictEqual(resolve({ growthCategory: 'flower' }, 'growth'), 'assets/items/flower-growth-v3.png');
 assert.strictEqual(resolve({ growthCategory: 'slab' }, 'growth'), 'assets/items/cosmic-slab-v3.png');
 
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const uiCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
-assert(uiSource.includes('item-actions jewel-card-actions'), 'jewel action buttons must render outside the icon-and-copy row');
-assert(uiCss.includes('.jewel-inventory-card > .jewel-card-actions { grid-column: 1 / -1; }'),
-  'jewel actions must span the full card width instead of inheriting the icon column offset');
+// Cores (2026-09-30) carry only their lines to ground loot and logs; the icon follows the first line's group.
+assert.strictEqual(resolve({ lines: [{ id: 'pct_dmg', value: 10 }] }, 'core'), 'assets/px/cores/core-offense.png');
+assert.strictEqual(resolve({}, 'core'), 'assets/px/cores/core-empty.png');
+assert(fs.existsSync('assets/px/cores/core-offense.png') && fs.existsSync('assets/px/cores/core-empty.png'));
+
+// The jewel store cards (socket dialog) keep their buttons in their own row under the stats.
+const socketUi = fs.readFileSync('js/equipment-sockets-ui.js', 'utf8');
+const auxCss = fs.readFileSync('css/equipment-aux.css', 'utf8');
+assert(socketUi.includes('<div class="socket-jewel-actions">'), 'jewel store buttons render in their own row');
+assert(auxCss.includes('.socket-jewel-actions { display: grid;'), 'the jewel store button row is a grid across the card');
 
 console.log('smoke-item-visual-assets: ok');

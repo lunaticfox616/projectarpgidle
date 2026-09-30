@@ -115,7 +115,6 @@ function init() {
     renderMonsterSkinControls();
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
-    syncJewelSalvageControlsFromSettings();
     checkUnlocks();
     renderExpertiseUI();
     normalizeSupportLoadout(false);

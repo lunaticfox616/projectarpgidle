@@ -16,7 +16,7 @@ function extract(source, startNeedle, endNeedle) {
 const keystoneBlock = extract(
     combatSource,
     'function getAscendKeystoneOwnerClass',
-    'function getMaxJewelSlotCount'
+    'function collectSocketedJewels'
 );
 const context = {
     CLASS_KEYSTONE_DEFS: {

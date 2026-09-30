@@ -91,7 +91,6 @@ assert.strictEqual(chatSizeContext.applyChatMessageSize('invalid'), 'medium', 'd
 context.game = {
   equipment: { 무기: { name: '검', rarity: 'rare', stats: [] } },
   inventory: [{ name: '장갑', slot: '장갑', rarity: 'magic', stats: [] }],
-  jewelSlots: [{ name: '장착 주얼', rarity: 'rare', stats: [{ id: 'crit', val: 3 }] }],
   jewelInventory: [{ name: '보관 주얼', rarity: 'magic', stats: [] }],
   talismanPlacements: { 10: { talisman: { id: 10, name: '배치 부적', rarity: 'rare', stat: 'flatHp', value: 4 } } },
   talismanInventory: [{ id: 11, name: '보관 부적', rarity: 'magic', stat: 'crit', value: 2 }],
@@ -129,7 +128,7 @@ assert.strictEqual(context.getChatAttachSnapshot('starWedge', 30).name, '태양 
 const pickerGroups = context.getChatItemPickerGroups();
 assert.deepStrictEqual(Array.from(pickerGroups, group => group.title),
   ['장착 장비', '장비 인벤토리', '주얼', '부적', '생장판', '별쐐기']);
-assert.ok(context.renderChatItemPickerGroup(pickerGroups[2]).includes("attachChatItem('jewelSlot',0)"), 'equipped jewels should be selectable in the chat picker');
+assert.ok(context.renderChatItemPickerGroup(pickerGroups[2]).includes("attachChatItem('jewel',0)"), 'stored jewels should be selectable in the chat picker');
 assert.ok(context.renderChatItemPickerGroup(pickerGroups[5]).includes('태양 #30'), 'star wedges should render as item links with their unique name');
 
 const socialRoot = { innerHTML: '' };

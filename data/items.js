@@ -679,12 +679,12 @@ const COSMOS_BOSS_REWARD_DB = {
     },
     'planet-48': {
         equipment: ['완벽한 균형', '주베누비아의 천칭', '쌍성', '오차 없는 천칭'],
-        jewel: { id: 'cbj_zubenubia_balance', name: '주베누비아의 균형', uniqueEffect: '장비 소켓에 사용불가, 주벤샤말의 심판 주얼과 같은 키스톤이면 해당 키스톤 할당', noEquipSocket: true, cosmosKeystoneJewel: true, stats: [{ id: 'resAll', val: 12 }, { id: 'dr', val: 4 }] },
+        jewel: { id: 'cbj_zubenubia_balance', name: '주베누비아의 균형', uniqueEffect: '장비 소켓에 주벤샤말의 심판 주얼과 함께 끼우고 두 주얼의 키스톤이 같으면 해당 키스톤 할당', cosmosKeystoneJewel: true, stats: [{ id: 'resAll', val: 12 }, { id: 'dr', val: 4 }] },
         talisman: { id: 'cbt_zubenubia_choice', name: '주베누비아의 선택', shape: 'DASH2', special: 'cosmosChoice', uniqueEffect: '가로 배치: 모든 스킬 젬 레벨 +2 / 세로 배치: 모든 스킬 젬 레벨 -2, 보조 젬 한도 +2', stats: [] }
     },
     'planet-49': {
         equipment: ['주벤샤말의 심판하는 창', '최종 관문', '판결문', '최후통첩'],
-        jewel: { id: 'cbj_zubenshamali_judgment', name: '주벤샤말의 심판', uniqueEffect: '장비 소켓에 사용불가, 주베누비아의 균형 주얼과 같은 키스톤이면 해당 키스톤 할당', noEquipSocket: true, cosmosKeystoneJewel: true, stats: [{ id: 'lightPctDmg', val: 18 }, { id: 'resPen', val: 6 }] },
+        jewel: { id: 'cbj_zubenshamali_judgment', name: '주벤샤말의 심판', uniqueEffect: '장비 소켓에 주베누비아의 균형 주얼과 함께 끼우고 두 주얼의 키스톤이 같으면 해당 키스톤 할당', cosmosKeystoneJewel: true, stats: [{ id: 'lightPctDmg', val: 18 }, { id: 'resPen', val: 6 }] },
         talisman: { id: 'cbt_zubenshamali_verdict', name: '주벤샤말의 판결', shape: 'O', special: 'cosmosLightningVariance', uniqueEffect: '번개 피해의 최종 피해가 0.8배~1.5배 사이에서 무작위로 결정됨', stats: [] }
     },
     'planet-45': {
@@ -1019,7 +1019,7 @@ const ORB_DB = {
     sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeCold: { name: '냉기 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeLight: { name: '번개 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
-    voidChisel: { name: '공허의 끌', desc: '반지/목걸이에 주얼 소켓을 뚫거나 공허 주얼 제작/융합에 쓰입니다.' },
+    voidChisel: { name: '공허의 끌', desc: '반지 · 목걸이 · 허리띠 밖의 장비에 주얼을 끼울 공허 소켓을 한 칸 뚫습니다.' },
     sealShard: { name: '봉인편린', desc: '루프6 부적 시스템 핵심 재료입니다. 봉인을 해제해 부적 후보를 확인합니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 더 강한 부적 옵션을 노릴 수 있습니다.' },
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 고유 부적 등장 확률이 높습니다.' },

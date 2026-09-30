@@ -3,20 +3,28 @@ const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const context = buildGameRuntime();
 const run = code => vm.runInContext(code, context);
-const jewel = {}, growth = {};
-context.document.getElementById = id => ({
-    'btn-jewel-inventory-expand': jewel, 'btn-growth-inventory-expand': growth
-})[id] || null;
+const growth = {};
+context.document.getElementById = id => ({ 'btn-growth-inventory-expand': growth })[id] || null;
+// The jewel store's +5 button lives in the jewel dialog since 2026-09-30 (the jewel window went away).
+const storeFooter = () => {
+    let captured = '';
+    context.document.body = { append(node) { captured = node.innerHTML; node.remove = () => {}; } };
+    run('equipmentSocketsUi.openStore()');
+    return captured;
+};
+const jewelExpandDisabled = html => /equipmentSocketsUi\.expand\(\)" disabled/.test(html);
 run('game=mergeDefaults({});game.season=100;game.currencies.goldenRule=100;contentProgression.sync();syncInventoryExpansionShortcuts()');
-assert(jewel.hidden && growth.hidden);
+assert(growth.hidden);
+assert(!storeFooter().includes('+5칸'), 'the jewel store offers no expansion before the market opens');
 run("contentProgression.purchase('craft');syncInventoryExpansionShortcuts()");
-assert(jewel.hidden && growth.hidden, 'high loop must not bypass feature purchases');
+assert(growth.hidden, 'high loop must not bypass feature purchases');
 run("game.contentProgression.inherited.push('jewel','growth');contentProgression.sync();syncInventoryExpansionShortcuts()");
-assert(!jewel.hidden && !growth.hidden);
-assert(!jewel.disabled && !growth.disabled);
-assert(jewel.textContent.includes('보유 100') && growth.textContent.includes('보유 100'));
-assert(jewel.title.includes(run('getJewelInventoryLimit()')+'칸'));
+assert(!growth.hidden && !growth.disabled);
+assert(growth.textContent.includes('보유 100'));
+const open = storeFooter();
+assert(open.includes('+5칸 · 황금률') && open.includes('보유 100') && !jewelExpandDisabled(open), 'the jewel store offers the expansion');
 run('game.currencies.goldenRule=0;syncInventoryExpansionShortcuts()');
-assert(jewel.disabled && growth.disabled);
-assert(jewel.textContent.includes('보유 0'));
+assert(growth.disabled);
+const poor = storeFooter();
+assert(jewelExpandDisabled(poor) && poor.includes('보유 0'), 'an unaffordable expansion is disabled');
 console.log('smoke-inventory-expansion-shortcuts passed');
