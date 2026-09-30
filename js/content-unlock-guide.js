@@ -149,14 +149,13 @@
         });
     }
 
-    function coreCubeGuide(state) {
-        let cube = state.coreCube && typeof state.coreCube === 'object' ? state.coreCube : {};
-        if (cube.everUnlocked || cube.unlocked) return null;
+    function coreGuide(state) {
         let loop = Math.max(1, count(state.season) || 1);
         let highest = Math.max(1, count(state.underworldProgress && state.underworldProgress.highestFloor) || 1);
+        if (loop >= 20 && highest >= 11) return null;
         return guide({
-            id: 'core-cube', title: '코어 큐브',
-            description: '루프 20 이후 지하계 10층을 클리어하면 큐브와 전용 동력원이 열립니다.',
+            id: 'core', title: '코어',
+            description: '루프 20 이후 지하계 10층을 넘기면 지하계 적에게서 코어가 떨어집니다. 장비창 왼쪽 위 코어 칸에 낍니다.',
             requirements: [requirement('루프 20', loop >= 20, Math.min(loop, 20), 20), requirement('지하계 10층', highest >= 11, Math.min(highest - 1, 10), 10)],
             actionLabel: '지하계 보기', actionTabId: 'tab-map', actionSubtabId: 'map-tab-underworld'
         });
@@ -240,7 +239,7 @@
     function getNextLegacyContentUnlock(state) {
         let loop = Math.max(1, count(state.season) || 1);
         const candidates = [conditionGemGuide, eventUnlockGuide, chaosRealmGuide, skyTowerGuide];
-        if (loop >= 18) candidates.push(underworldGuide, coreCubeGuide, cosmosGuide);
+        if (loop >= 18) candidates.push(underworldGuide, coreGuide, cosmosGuide);
         if (tabUnlocked(state, 'map-tab-cosmos') && loop >= 31) candidates.push(astraGuide, pinnacleGuide);
         for (const candidate of candidates) {
             const found = candidate(state);

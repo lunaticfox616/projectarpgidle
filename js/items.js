@@ -56,11 +56,14 @@ function pickInventoryItemVisualAsset(item, kind) {
     if (!visuals) return '';
     if (kind === 'jewel') return visuals.jewel;
     if (kind === 'talisman') return visuals.talisman;
-    if (kind === 'growth') {
-        let category = item && (item.growthCategory || (item.slabType ? 'slab' : ''));
-        return visuals.growth[category] || visuals.growth.default;
-    }
+    if (kind === 'core') return coreItems.icon(item);
+    if (kind === 'growth') return pickGrowthVisualAsset(visuals, item);
     return getEquipmentGridVisualAsset(item);
+}
+
+function pickGrowthVisualAsset(visuals, item) {
+    let category = item && (item.growthCategory || (item.slabType ? 'slab' : ''));
+    return visuals.growth[category] || visuals.growth.default;
 }
 
 function renderInventoryItemVisual(item, kind, className) {

@@ -88,17 +88,19 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(g.growthInventory.length, 2, '배치가 정리되어도 아이템은 남아야 한다');
 }
 
-// ── 큐브 프리셋이 망가진 저장 ────────────────────────────────────────────
+// ── 예전 코어 큐브 · 망가진 코어 저장 ────────────────────────────────────
 {
     const g = merge({
         level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
-        currencies: {}, unlocks: {}, settings: {},
-        coreCube: { unlocked: true, everUnlocked: true, faces: 'xxx', powers: null,
-                    presets: 'bad', powersUsedEver: 5, presetSlot2Unlocked: 'yes', revealedOptions: 3 }
+        currencies: {}, unlocks: { cube: true }, noti: { cube: true }, settings: {},
+        coreCube: { unlocked: true, everUnlocked: true, faces: [1, 2, 3, 4, 5, 6], blurred45: 9 },
+        cores: { equipped: { id: 5, lines: [{ id: 'pct_dmg', value: 999 }, { id: 'nope', value: 1 }] }, owned: 'bad' }
     });
-    assert.ok(g.coreCube && typeof g.coreCube === 'object', '큐브 상태가 객체여야 한다');
-    assert.ok(Array.isArray(g.coreCube.faces), '망가진 faces를 배열로 되돌려야 한다');
-    assert.ok(Array.isArray(g.coreCube.presets), '망가진 presets를 배열로 되돌려야 한다');
+    assert.ok(!('coreCube' in g) && !('cube' in g.unlocks) && !('cube' in g.noti), '예전 큐브 진행은 보상 없이 지워야 한다');
+    const plain = value => JSON.parse(JSON.stringify(value));
+    assert.deepStrictEqual(plain(g.cores.owned), [], '망가진 보관함은 빈 배열이 되어야 한다');
+    assert.deepStrictEqual(plain(g.cores.equipped.lines), [{ id: 'pct_dmg', value: 24 }], '모르는 줄은 버리고 값은 범위 안으로 되돌린다');
+    assert.deepStrictEqual(plain(merge(plain(g)).cores), plain(g.cores), '다시 불러와도 같은 결과여야 한다');
 }
 
 // ── 비정상적으로 큰/음수인 확장 레벨 ─────────────────────────────────────

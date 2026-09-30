@@ -4964,7 +4964,6 @@ const TAB_UNLOCK_GATES = {
     'tab-skills': 'skills',
     'tab-codex': 'codex',
     'tab-talisman': 'talisman',
-    'tab-cube': 'cube',
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-talent': 'talent',

@@ -52,5 +52,5 @@ const LEVEL_PROGRESSION = Object.freeze({
     ordinaryCurrencies: Object.freeze(['magicBud','formlessDew','blightSpore','goldenRule','fairyRing','sapBud',
         'ouroboros','pruningShears','abyssCatalyst','skyEssence','emberBranch','jewelShard','sealShard',
         'strongSealShard','radiantSealShard','blessing','fossil','fossilBulwark','fossilWedge','fossilOld',
-        'fossilRift','deepWhetstone','rootIron','jewelPolish','runeShard','blurred45','underCopper','underSilver','underGold','bossCore'])
+        'fossilRift','deepWhetstone','rootIron','jewelPolish','runeShard','core','underCopper','underSilver','underGold','bossCore'])
 });

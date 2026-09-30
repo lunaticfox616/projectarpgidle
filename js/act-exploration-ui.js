@@ -183,7 +183,8 @@ const actExplorationUi=(()=>{
         rows.push(...loot.gems.map(row=>({key:row.kind+':'+row.name,kind:'gem',name:row.name,
             description:row.kind==='support'?'보조 젬 T'+row.tier:'공격 젬',amount:1})));
         if(loot.alchemyGlass)rows.push({key:'glass',kind:'supply',name:'연금 유리',amount:loot.alchemyGlass});
-        if(loot.blurred45)rows.push({key:'cube',kind:'supply',name:'흐릿한 45면체',amount:loot.blurred45});
+        rows.push(...loot.cores.map(core=>({key:'core:'+core.id,kind:'core',name:core.name,
+            description:core.lines.map(coreItems.describe).join(' · '),amount:1})));
         return rows;
     }
     function renderLoot(run,force=false) {

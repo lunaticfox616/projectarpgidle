@@ -135,12 +135,12 @@ function bootManager(storedRaw, options = {}) {
 }
 
 // 8) 병합 하위 탭은 독립 창으로 열리지 않는다.
-// 큐브는 보조장비(tab-flask)가 창을 소유하므로 tab-cube를 다시 openWindow하면
+// 도감은 기록(tab-journal)이 창을 소유하므로 tab-codex를 다시 openWindow하면
 // 병합 패널 안에 제목 표시줄과 리사이즈 핸들이 중첩된다.
 {
     const m = bootManager(undefined);
-    assert.strictEqual(m.exposed.openWindow('tab-cube'), false, 'cube must not create a nested standalone window');
-    assert.strictEqual(m.exposed.openWindow('tab-flask'), true, 'the utility launcher must remain the cube window owner');
+    assert.strictEqual(m.exposed.openWindow('tab-codex'), false, 'codex must not create a nested standalone window');
+    assert.strictEqual(m.exposed.openWindow('tab-journal'), true, 'the records launcher must remain the codex window owner');
 }
 
 // 9) 기존 창 배치는 한 번만 몰입형 패시브 화면으로 이행하고, 이후 사용자의 복원 선택은 보존한다.

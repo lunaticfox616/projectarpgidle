@@ -448,7 +448,6 @@ function mergeDefaults(save) {
         : null;
     merged.ocean = mergeOceanState(save && save.ocean);
     merged.unlocks.jewel = !!merged.unlocks.jewel;
-    merged.unlocks.cube = !!merged.unlocks.cube;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
     if (!save.currencies && save.materials) {
         merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
@@ -708,8 +707,8 @@ function mergeDefaults(save) {
     if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
     merged.mapSubtab = ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.mapExploreSubtab = ['map-explore-atlas', 'map-explore-worldtree', 'map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-beyond', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-atlas';
-    merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
-    if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
+    delete merged.coreCube; delete merged.unlocks.cube; delete merged.noti.cube; // 코어 큐브 → 코어 칸(2026-09-30): 예전 진행은 보상 없이 지운다.
+    merged.cores = coreItems.normalize(merged.cores);
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
     let gemResearchExpanded = merged.gemResearchExpanded && typeof merged.gemResearchExpanded === 'object' && !Array.isArray(merged.gemResearchExpanded) ? merged.gemResearchExpanded : {};

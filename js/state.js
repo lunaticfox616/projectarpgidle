@@ -1,12 +1,12 @@
 /**
  * @typedef {object} ActExplorationPendingLoot
- * @property {number} version Schema version (6).
+ * @property {number} version Schema version (7).
  * @property {'pending'|'claimed'|'lost'} phase
  * @property {Record<string,number>} currencies Already resolved canonical currency gains.
  * @property {Array<{id:number,name:string,slot:string,baseStats:Array<{id:string,val:number}>,stats:Array<{id:string,val:number}>}>} equipment
  * @property {string[]} flasks Discovered FLASK_DB keys, unavailable for equipping until claimed.
  * @property {number} alchemyGlass Nonnegative integer, separate from ordinary currencies.
- * @property {number} blurred45 Nonnegative integer cube material, unavailable until claimed.
+ * @property {Array<{id:number,name:string,lines:Array<{id:string,value:number}>}>} cores Core items, unavailable until claimed.
  * @property {Array<Omit<ActExplorationPendingLoot['equipment'][number],'slot'> & {slot:string|null,growthCategory:string,growthShapeId:string}>} growthItems
  * @property {ActExplorationPendingLoot['growthItems']} growthCodex Accepted unique growth discoveries, including capacity-salvaged items.
  * @property {Array<{item:ActExplorationPendingLoot['equipment'][number],rewards:Record<string,number>}>} salvagedEquipment Last recoverable equipment, unavailable until clear. Rewards are original salvage costs.
@@ -242,8 +242,7 @@ function isUnderworldUnlockReady(source) {
     let runes = state && state.underworldRunes;
     let hasProgress = Math.max(1, Math.floor((progress && progress.highestFloor) || 1)) > 1
         || !!(progress && progress.floor10Cleared)
-        || Math.max(0, Math.floor((runes && runes.unlockedSlots) || 0)) > 0
-        || !!(state && state.coreCube && state.coreCube.everUnlocked);
+        || Math.max(0, Math.floor((runes && runes.unlockedSlots) || 0)) > 0;
     if (hasProgress) return true;
     let chaosRealm = state && state.chaosRealm;
     let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
@@ -2688,7 +2687,7 @@ const defaultGame = {
     ocean: createDefaultOceanState(),
     /** @type {StumpBoxState} */
     stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
-    coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
+    cores: { equipped: null, owned: [] },
     pendingLoopDecision: false,
     pendingLoopReady: false,
     // The pending loop gate was reached in offline/background replay (js/loop-automation-ui.js does not auto-advance it).
@@ -2743,8 +2742,8 @@ const defaultGame = {
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
-    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, arcana: false, stump: false },
-    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
+    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, growthboard: false, expertise: false, jewel: false, arcana: false, stump: false },
+    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

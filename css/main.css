@@ -24,7 +24,6 @@
 @import "./exploration-encounters.css";
 @import "./side-encounters.css";
 @import "./battle-ground-loot.css";
-@import "./core-cube.css";
 @import "./ui-luxe.css";
 @import "./ui-game-overhaul.css";
 @import "./equipment-loot.css";
@@ -37,6 +36,7 @@
 @import "./ui-reliquary-shell.css";
 @import "./ui-responsive-refine.css";
 @import "./equipment-inventory-grid.css";
+@import "./equipment-aux.css";
 @import "./startup.css";
 @import "./story-journal.css";
 @import "./document.css";

@@ -15,22 +15,17 @@ function reset(loop = 25) {
     run(`game=mergeDefaults({});game.season=${loop};game.maxZoneId=25;game.currentZoneId=1;contentProgression.sync()`);
 }
 
-check('cube purchase, legacy state and per-loop relock', () => {
+check('core drops need the purchase and reset with the loop', () => {
     reset();
     run('game.underworldProgress.highestFloor=11');
-    const before = json('game.coreCube');
-    assert.equal(run('maybeUnlockCoreCube({silent:true})'), false);
-    assert.equal(run('isCoreCubeUnlocked()'), false);
-    assert.deepEqual(json('game.coreCube'), before);
-    run('game.coreCube.completed=true;game.coreCube.revealedOptions=[{stat:"flatHp",value:100}]');
-    assert.deepEqual(json('getCoreCubeActiveStats()'), []);
+    assert.equal(run('coreItems.canDrop()'), false);
     run("game.contentProgression.inherited.push('cube')");
-    assert(run('maybeUnlockCoreCube({silent:true})'));
-    assert.equal(json('getCoreCubeActiveStats()')[0].val, 100);
-    run('relockCoreCubeForLoop()');
-    assert.equal(run('isCoreCubeUnlocked()'), false);
-    assert.equal(run('addCoreCubeBlurred45(1)'), 1);
-    assert(run('isCoreCubeUnlocked()'));
+    assert(run('coreItems.canDrop()'));
+    run('coreItems.equip(coreItems.receiveDrop(null).id)');
+    assert(json('coreItems.stats()').length >= 4);
+    run('coreItems.resetForLoop()');
+    assert.deepEqual(json('game.cores'), { equipped: null, owned: [] });
+    assert.deepEqual(json('coreItems.stats()'), []);
 });
 
 check('growth placement and loot require the purchased feature', () => {

@@ -674,7 +674,6 @@
 }
 :root body.desktop-windowed-ui #btn-tab-codex::before { content: '⌘'; }
 :root body.desktop-windowed-ui #btn-tab-talisman::before { content: '☽'; }
-:root body.desktop-windowed-ui #btn-tab-cube::before { content: '⬡'; }
 :root body.desktop-windowed-ui #btn-tab-settings::before { content: '⚙︎'; }
 
 :root body.desktop-windowed-ui .combat-panel {

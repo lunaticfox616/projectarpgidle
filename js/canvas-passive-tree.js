@@ -805,6 +805,7 @@ function renderPaperdoll(targetId, forCrafting) {
             </div>`;
         }
     });
+    if (targetId === 'ui-equip-list') html += coreItemsUi.slotHtml();
     document.getElementById(targetId).innerHTML = html;
 }
 

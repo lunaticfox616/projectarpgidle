@@ -178,7 +178,7 @@ function createElement(tagName) {
 
 const PRIMARY_TAB_IDS = [
     'character', 'char', 'season', 'pruning', 'arcana', 'expertise', 'traits', 'talent', 'items', 'jewel',
-    'flask', 'map', 'skills', 'journal', 'codex', 'talisman', 'cube', 'stump'
+    'flask', 'map', 'skills', 'journal', 'codex', 'talisman', 'stump'
 ];
 
 function createTabHeader(body, openedTabs) {
@@ -325,9 +325,9 @@ miscPanel.parentElement.handlers.click({ target: overflowTab });
 assert.strictEqual(miscPanel.hidden, true, 'choosing a direct overflow tab must close misc');
 assert(menu.openedTabs.includes(overflowTab.id.replace(/^btn-/, '')), 'overflow entries must remain real tab buttons');
 
-menu.game.settings.tabLayouts.desktop.tabOrder = ['btn-tab-cube', 'btn-tab-character'];
+menu.game.settings.tabLayouts.desktop.tabOrder = ['btn-tab-stump', 'btn-tab-character'];
 menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(socketButtons(menu)[0].id, 'btn-tab-cube', 'the first saved tab must lead the menu');
+assert.strictEqual(socketButtons(menu)[0].id, 'btn-tab-stump', 'the first saved tab must lead the menu');
 assert.strictEqual(socketButtons(menu)[1].id, 'btn-tab-character', 'character must follow its saved position');
 
 menu.game.settings.tabLayouts.desktop.tabOrder = [];
@@ -519,7 +519,8 @@ const wingTabs = side => wing(side).children.filter(button => button.classList.c
 assert.strictEqual(dock.header.parentElement, dock.hudShell, 'desktop menu must live inside the bottom HUD');
 assert(dock.body.classList.contains('hud-menu-docked'));
 assert.strictEqual(dock.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 2, 'the docked menu has one wing on each side of the minimap');
-assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], [9, 9], 'tabs split evenly between the wings');
+const half = count => [Math.ceil(count / 2), Math.floor(count / 2)];
+assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], half(PRIMARY_TAB_IDS.length), 'tabs split evenly between the wings');
 assert.deepStrictEqual([...wingTabs('left'), ...wingTabs('right')].map(button => button.id), PRIMARY_TAB_IDS.map(id => 'btn-tab-' + id), 'the wings keep the menu order left to right');
 assert.strictEqual(dock.findById('ui-rail-misc-panel').parentElement, dock.header, 'misc stays a direct child so syncing still finds it');
 assert.strictEqual(dock.findById('btn-ui-rail-misc').parentElement, dock.findById('btn-close-all-windows').parentElement, 'misc and window cleanup keep their shared control row');
@@ -531,7 +532,7 @@ dock.header.railHeight = 517;
 dock.findById('btn-tab-character').cssHidden = true;
 dock.findById('btn-tab-char').cssHidden = true;
 dock.exposed.syncDesktopRailGroups();
-assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], [8, 8], 'tabs a stylesheet still hides do not unbalance the wings');
+assert.deepStrictEqual([wingTabs('left').length, wingTabs('right').length], half(PRIMARY_TAB_IDS.length - 2), 'tabs a stylesheet still hides do not unbalance the wings');
 dock.findById('btn-tab-character').cssHidden = false;
 dock.findById('btn-tab-char').cssHidden = false;
 dock.exposed.syncDesktopRailGroups();

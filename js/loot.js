@@ -138,12 +138,12 @@ safeExposeGlobals({ getEnemyLootDropMultiplier, getEquipmentDropChances, rollEqu
 
 function getUnderworldResourceDropChances(enemy) {
     if (enemy && enemy.isBoss) {
-        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, blurredPower: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
+        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, core: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
     }
     if (enemy && enemy.isElite) {
-        return { fossil: 0.0125, typedFossil: 0.003, tool: 0.0025, rune: 0.008, blurredPower: 0.0005, ...UNDERWORLD_ORE_DROP_CHANCES };
+        return { fossil: 0.0125, typedFossil: 0.003, tool: 0.0025, rune: 0.008, core: 0.0005, ...UNDERWORLD_ORE_DROP_CHANCES };
     }
-    return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, blurredPower: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
+    return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, core: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
 }
 
 (function () {
@@ -220,7 +220,7 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < resourceChance.typedFossil) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < resourceChance.tool) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
         if (underFloor >= 10 && Math.random() < resourceChance.rune) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
-        if (typeof canDropCoreCubeBlurred45 === 'function' && canDropCoreCubeBlurred45() && Math.random() < resourceChance.blurredPower) drops.push(['blurred45', 1]);
+        if (coreItems.canDrop() && Math.random() < resourceChance.core) drops.push(['core', 1]);
         if (Math.random() < resourceChance.copper) drops.push(['underCopper', 1]);
         if (Math.random() < resourceChance.silver) drops.push(['underSilver', 1]);
         if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);

@@ -3831,9 +3831,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
         accumulateCombatRuneStats(reward, game.underworldRunes);
     applyEliteTraitBuffStats(game.uniqueEliteTraitBuff, reward);
-    if (typeof getCoreCubeActiveStats === 'function') {
-        getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
-    }
+    coreItems.stats().forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     if (typeof stumpBox === 'object') stumpBox.applyStats(reward, game);
     if (typeof getCosmosBossRelicStatTotals === 'function') {
         let relicStats = getCosmosBossRelicStatTotals();
@@ -5551,7 +5549,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 inquisitorAbsoluteDoctrinePct > 0 ? `절대 교리 반영: 저항 관통 +${Math.floor(inquisitorAbsoluteDoctrinePct)}%가 원소 피해/평균 한 방/DPS에 적용` : null,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
-                coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
+                coreCubeAddedDamageTotalPct > 0 ? `추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 확률 ${formatValue('projectileExtraChance', projectileExtraShotsForDps * 100)}%, 발사 상한 반영, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
                 skillSequenceDpsMultiplier > 1 ? `강타 여진 기대값 x${skillSequenceDpsMultiplier.toFixed(2)} (본 타격 후 독립 여진)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
@@ -9060,7 +9058,7 @@ function queueEnemyGroundLoot(enemy, receipt) {
     const item = receipt.item;
     const loot = { ...receipt, zoneId: game.currentZoneId, sourceCell: { gx: enemy.gx, gy: enemy.gy } };
     if (item) loot.item = { name: item.name, baseId: item.baseId, slot: item.slot,
-        rarity: item.rarity, growthCategory: item.growthCategory, slabType: item.slabType };
+        rarity: item.rarity, growthCategory: item.growthCategory, slabType: item.slabType, lines: item.lines };
     addBattleFx('lootPickup', { enemyId: enemy.id, loot, duration: 1200 });
     if (receipt.highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...receipt.highlight,
         itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
@@ -9110,7 +9108,6 @@ function announceActExplorationLoot(receipt) {
     receipt.equipment.forEach(item=>recordEquipmentAcquisition(item));
     receipt.growthItems.forEach(item=>combatLootReceipts.item(game,item));
     receipt.growthCodex.forEach(item=>registerUniqueToCodexOnAcquire(item));
-    if(receipt.blurred45)combatLootReceipts.currency(game,'blurred45',receipt.blurred45);
     dispatchRuntimeEvent('exploration-loot-claimed',{...receipt,equipmentCount:receipt.equipment.length,background:!!game.isBackgroundCalculation});
 }
 
@@ -9166,10 +9163,10 @@ function rollLootForEnemy(enemy) {
 
     getCurrencyDrops(enemy).forEach(drop => {
         if (!drop || !drop[0]) return;
-        if (drop[0] === 'blurred45') {
-            const gain = addCoreCubeBlurred45(drop[1],amount=>actExplorationLoot.blurred45(game,amount));
-            if (gain > 0) queueEnemyGroundLoot(enemy, { currency: drop[0], count: gain });
-            if (gain>0 && !actExplorationLoot.pending(game) && game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain}`, 'loot-unique');
+        if (drop[0] === 'core') {
+            const core = coreItems.receiveDrop(actExplorationLoot.delivery(game, 'cores'));
+            if (core) queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
+            if (core && !actExplorationLoot.pending(game)) dispatchRuntimeEvent('core-item-received', core);
             return;
         }
         const gain = awardEnemyLootCurrency(drop[0], drop[1], 'drop');
@@ -9502,7 +9499,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
     let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
-    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map || game.noti.cube) {
+    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
         pendingHeavyUiRefresh = true;
     }
 }
@@ -13240,7 +13237,7 @@ function triggerSeasonReset(options) {
     if (preservedTalismanUnlocked) game.unlocks.talisman = true;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
-    if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
+    coreItems.resetForLoop();
     if (typeof stumpBox === 'object') stumpBox.regress(game);
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';

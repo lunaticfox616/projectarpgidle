@@ -517,7 +517,7 @@ const baseGame = extra => ({
         unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
         starWedge: { unlocked: true }, skyTower: { unlocked: true, highestFloor: 1 },
-        chaosRealm: { unlocked: true }, coreCube: { unlocked: true, everUnlocked: true },
+        chaosRealm: { unlocked: true },
         clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra'],
         underworldProgress: { highestFloor: 18 }, cosmosAtlas: { unlocked: true },
         loopProgressCurrent: { bestAbyssDepth: 31 }
@@ -538,7 +538,7 @@ const baseGame = extra => ({
         unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
         starWedge: { unlocked: true }, skyTower: { unlocked: true }, chaosRealm: { unlocked: true },
-        coreCube: { unlocked: true, everUnlocked: true },
+        underworldProgress: { highestFloor: 11 },
         clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'],
         loopProgressCurrent: { bestAbyssDepth: 42 }
     }), { hasCurrentLoopAbyssRequirementClear: () => true });

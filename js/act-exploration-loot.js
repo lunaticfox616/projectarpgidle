@@ -4,10 +4,10 @@ const actExplorationLoot=(()=>{
     let captureOwner=null;
     /** Escrow holds any wallet currency: ORB_DB items and wallet-only counters (군락지 흔적 · 성핵 …). */
     const isCurrency=key=>Object.hasOwn(ORB_DB,key) || Object.hasOwn(defaultGame.currencies,key);
-    function create(){return {version:6,phase:'pending',currencies:{},equipment:[],flasks:[],alchemyGlass:0,gems:[],blurred45:0,growthItems:[],jewels:[],growthCodex:[],salvagedEquipment:[]};}
+    function create(){return {version:7,phase:'pending',currencies:{},equipment:[],flasks:[],alchemyGlass:0,gems:[],cores:[],growthItems:[],jewels:[],growthCodex:[],salvagedEquipment:[]};}
     function reservedItems(state){
         const loot=state.actExploration?.loot;
-        return loot ? [...loot.equipment,...loot.growthItems,...loot.jewels,...loot.salvagedEquipment.map(row=>row.item)] : [];
+        return loot ? [...loot.equipment,...loot.growthItems,...loot.jewels,...loot.cores,...loot.salvagedEquipment.map(row=>row.item)] : [];
     }
     function capture(state,run,produce) {
         // The last boss can trigger corpse explosions before completion is committed.
@@ -15,7 +15,7 @@ const actExplorationLoot=(()=>{
         if(run.loot.phase!=='pending')throw Error('종료된 탐험에 보상을 추가할 수 없습니다.');
         if(captureOwner?.state===state && captureOwner.run===run)return produce();
         const previous=captureOwner,loot={...run.loot,currencies:{...run.loot.currencies},
-            equipment:[...run.loot.equipment],flasks:[...run.loot.flasks],gems:[...run.loot.gems],
+            equipment:[...run.loot.equipment],flasks:[...run.loot.flasks],gems:[...run.loot.gems],cores:[...run.loot.cores],
             growthItems:[...run.loot.growthItems],jewels:[...run.loot.jewels],growthCodex:[...run.loot.growthCodex],
             salvagedEquipment:[...run.loot.salvagedEquipment]};
         captureOwner={state,run,loot};
@@ -42,6 +42,11 @@ const actExplorationLoot=(()=>{
             &&Object.hasOwn(GROWTH_SHAPE_DB,item.growthShapeId)
             &&Object.hasOwn(GROWTH_CATEGORY_INFO,item.growthCategory);
     }
+    /** A stored core is exactly its own normalized form: no unknown lines, no out-of-range values. */
+    function validCore(item) {
+        const core=coreItems.normalizeCore(item);
+        return !!core && JSON.stringify(core)===JSON.stringify(item);
+    }
     function validJewel(item) {
         return item&&Number.isSafeInteger(item.id)&&typeof item.name==='string'
             &&['normal','magic','rare','unique'].includes(item.rarity)&&Array.isArray(item.stats);
@@ -49,7 +54,7 @@ const actExplorationLoot=(()=>{
     /** Optional delivery boundary used by the existing pickup/filter/salvage policy. */
     function delivery(state,kind) {
         const loot=pending(state);if(!loot)return null;
-        if(!['equipment','growthItems','jewels'].includes(kind))throw Error('알 수 없는 탐험 아이템 보관함');
+        if(!['equipment','growthItems','jewels','cores'].includes(kind))throw Error('알 수 없는 탐험 아이템 보관함');
         return {heldCount:loot[kind].length,currency:currency.bind(null,state),
             canStore:item=>canStoreEquipmentItems(loot.equipment.concat(item),state),
             recovery:(item,rewards)=>{
@@ -57,7 +62,7 @@ const actExplorationLoot=(()=>{
                 loot.salvagedEquipment=loot.salvagedEquipment.slice(-SALVAGE_RECOVERY_CAP);
             },
             discover:item=>{if(kind==='growthItems'&&item.rarity==='unique')loot.growthCodex.push(item);},store:item=>{
-            const valid={equipment:validEquipment,growthItems:validGrowth,jewels:validJewel}[kind];
+            const valid={equipment:validEquipment,growthItems:validGrowth,jewels:validJewel,cores:validCore}[kind];
             if(!valid(item)||loot[kind].some(row=>row.id===item.id))throw Error('잘못된 탐험 아이템 보상');
             loot[kind].push(item);return true;
         }};
@@ -87,14 +92,8 @@ const actExplorationLoot=(()=>{
         }
         return true;
     }
-    function blurred45(state,amount) {
-        const loot=pending(state);if(!loot)return false;
-        const total=loot.blurred45+amount;
-        if(!Number.isSafeInteger(amount)||amount<=0||!Number.isSafeInteger(total))throw Error('잘못된 탐험 큐브 재료 보상');
-        loot.blurred45=total;return true;
-    }
     function validate(loot) {
-        if(!loot || loot.version!==6 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
+        if(!loot || loot.version!==7 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
         validateCurrencies(loot.currencies);
         validateSupplies(loot);
         gemDropRewards.validate(loot.gems);
@@ -102,12 +101,13 @@ const actExplorationLoot=(()=>{
         validateItemList(loot.growthItems,validGrowth);
         validateItemList(loot.growthCodex,validGrowth);
         validateItemList(loot.jewels,validJewel);
+        validateItemList(loot.cores,validCore);
         validateSalvagedEquipment(loot);
         if(loot.phase!=='pending' && hasRewards(loot))throw Error('정산된 탐험 보상이 남아 있습니다.');
     }
     function hasRewards(loot) {
         return [loot.equipment.length,Object.keys(loot.currencies).length,loot.flasks.length,loot.alchemyGlass,
-            loot.gems.length,loot.blurred45,loot.growthItems.length,loot.jewels.length,loot.growthCodex.length,
+            loot.gems.length,loot.cores.length,loot.growthItems.length,loot.jewels.length,loot.growthCodex.length,
             loot.salvagedEquipment.length].some(Boolean);
     }
     function validateSalvagedEquipment(loot) {
@@ -126,7 +126,6 @@ const actExplorationLoot=(()=>{
         if(!Array.isArray(loot.flasks)||!loot.flasks.every(key=>typeof key==='string'&&Object.hasOwn(FLASK_DB,key)))throw Error('잘못된 탐험 플라스크 저장');
         if(new Set(loot.flasks).size!==loot.flasks.length)throw Error('중복된 탐험 플라스크 저장');
         if(!Number.isSafeInteger(loot.alchemyGlass)||loot.alchemyGlass<0)throw Error('잘못된 탐험 연금 유리 저장');
-        if(!Number.isSafeInteger(loot.blurred45)||loot.blurred45<0)throw Error('잘못된 탐험 큐브 재료 저장');
     }
     function validateCurrencies(currencies) {
         if(!currencies || typeof currencies!=='object' || Array.isArray(currencies))throw Error('잘못된 탐험 재화 목록');
@@ -141,15 +140,13 @@ const actExplorationLoot=(()=>{
         const {currencies,skyPower}=prepareCurrencyBalances(state,loot.currencies);
         const flasks=prepareFlasks(state.flasks,loot);
         const gems=gemDropRewards.prepare(state,loot.gems);
-        const cube=loot.blurred45 ? prepareCoreCubeBlurred45(state,loot.blurred45) : {};
         const inventories=prepareInventories(state,loot);
         const recovery=loot.salvagedEquipment.length?{salvageRecovery:salvageRecoveryRuntime.prepareRecords(loot.salvagedEquipment,state)}:{};
-        const receipt={currencies:loot.currencies,equipment:loot.equipment,flasks:loot.flasks,alchemyGlass:loot.alchemyGlass,gems:loot.gems,blurred45:loot.blurred45,growthItems:loot.growthItems,jewels:loot.jewels,growthCodex:loot.growthCodex};
+        const receipt={currencies:loot.currencies,equipment:loot.equipment,flasks:loot.flasks,alchemyGlass:loot.alchemyGlass,gems:loot.gems,cores:loot.cores,growthItems:loot.growthItems,jewels:loot.jewels,growthCodex:loot.growthCodex};
         // Retain the currency object's legacy non-enumerable accessors and consumers' references.
         Object.assign(state.currencies,currencies);Object.assign(state,inventories);
         Object.assign(state,recovery);
         state.skyTower.condensedPower=skyPower;
-        Object.assign(state,cube);
         Object.assign(state.flasks,flasks);
         if(loot.flasks.length)state.noti.flask=true;
         Object.assign(state,gems);if(loot.gems.length)state.noti.skills=true;
@@ -163,13 +160,14 @@ const actExplorationLoot=(()=>{
         const growthInventory=(state.growthInventory||[]).concat(loot.growthItems);
         const jewelInventory=(state.jewelInventory||[]).concat(loot.jewels);
         const owned=[...state.inventory,...(state.growthInventory||[]),...(state.jewelInventory||[]),
-            ...Object.values(state.equipment),...(state.jewelSlots||[])].filter(Boolean);
+            ...Object.values(state.equipment),...(state.jewelSlots||[]),...coreItems.ownedItems(state)].filter(Boolean);
         const ids=new Set(owned.map(item=>item.id));
-        for(const item of [...loot.equipment,...loot.growthItems,...loot.jewels]) {
+        for(const item of [...loot.equipment,...loot.growthItems,...loot.jewels,...loot.cores]) {
             if(ids.has(item.id))throw Error('이미 소유한 탐험 장비 보상');
             ids.add(item.id);
         }
-        return {inventory,growthInventory,jewelInventory};
+        const store=coreItems.ensure(state);
+        return {inventory,growthInventory,jewelInventory,cores:{...store,owned:store.owned.concat(loot.cores)}};
     }
     function markItemsReceived(state,loot) {
         if(loot.growthItems.length)state.noti.items=true;
@@ -196,6 +194,21 @@ const actExplorationLoot=(()=>{
         if(!run || run.loot.phase!=='pending')return;
         Object.assign(run.loot,create(),{phase:'lost'});
     }
+    // One schema step per saved version. Each older version already granted what the new collection would hold.
+    const LOOT_UPGRADES={
+        // Version 1 granted flask drops immediately, so it has no pending flask rewards to recover.
+        1:loot=>Object.assign(loot,{version:2,flasks:[],alchemyGlass:0}),
+        // v2 already granted gem drops. Only future rolls enter the pending collection.
+        2:loot=>Object.assign(loot,{version:3,gems:[]}),
+        // v3 granted cube material immediately; its previous drops must not be paid twice.
+        3:loot=>Object.assign(loot,{version:4,blurred45:0}),
+        // v4 paid these collections immediately, including their auto-salvage rewards.
+        4:loot=>Object.assign(loot,{version:5,growthItems:[],jewels:[],growthCodex:[]}),
+        // v5 bypassed equipment salvage, so it has no deferred recovery records.
+        5:loot=>Object.assign(loot,{version:6,salvagedEquipment:[]}),
+        // v6 held core cube material. The cube became core items (2026-09-30); old progress resets without compensation.
+        6:loot=>{delete loot.blurred45;Object.assign(loot,{version:7,cores:[]});}
+    };
     function migrateLegacyLoot(run) {
         // Earlier opt-in review saves already granted their drops; never reconstruct them.
         if(run.loot===undefined) {
@@ -204,16 +217,7 @@ const actExplorationLoot=(()=>{
             if(run.completionApplied)run.loot.phase='claimed';
         }
         if(run.loot===null)return; // validate() reports the malformed save below.
-        // Version 1 granted flask drops immediately, so it has no pending flask rewards to recover.
-        if(run.loot.version===1)Object.assign(run.loot,{version:2,flasks:[],alchemyGlass:0});
-        // v2 already granted gem drops. Only future rolls enter the pending collection.
-        if(run.loot.version===2)Object.assign(run.loot,{version:3,gems:[]});
-        // v3 granted cube material immediately; its previous drops must not be paid twice.
-        if(run.loot.version===3)Object.assign(run.loot,{version:4,blurred45:0});
-        // v4 paid these collections immediately, including their auto-salvage rewards.
-        if(run.loot.version===4)Object.assign(run.loot,{version:5,growthItems:[],jewels:[],growthCodex:[]});
-        // v5 bypassed equipment salvage, so it has no deferred recovery records.
-        if(run.loot.version===5)Object.assign(run.loot,{version:6,salvagedEquipment:[]});
+        while(Object.hasOwn(LOOT_UPGRADES,run.loot?.version))LOOT_UPGRADES[run.loot.version](run.loot);
     }
     function restore(run) {
         migrateLegacyLoot(run);
@@ -222,6 +226,6 @@ const actExplorationLoot=(()=>{
         if(run.status==='failed' && run.loot.phase!=='lost')throw Error('실패한 탐험에 보상이 남아 있습니다.');
         if(run.completionApplied && run.loot.phase!=='claimed')throw Error('완료된 탐험 보상이 정산되지 않았습니다.');
     }
-    return {create,reservedItems,capture,pending,currency,delivery,foundFlasks,flask,alchemyGlass,gem,blurred45,validate,claim,discard,restore};
+    return {create,reservedItems,capture,pending,currency,delivery,foundFlasks,flask,alchemyGlass,gem,validate,claim,discard,restore};
 })();
 safeExposeGlobals({actExplorationLoot});

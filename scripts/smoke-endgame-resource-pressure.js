@@ -9,23 +9,10 @@ async function main() {
     await checkPendingFossilRefining();
     run(`(function () {
         game.season = 30;
-        game.contentProgression.inherited.push('cube', 'growth', 'craft');
-        game.unlocks.cube = true;
+        game.contentProgression.inherited.push('growth', 'craft');
         game.underworldProgress = { highestFloor: 300 };
-        game.coreCube = null;
-        let cube = ensureCoreCubeState();
-        cube.unlocked = true;
-        cube.everUnlocked = true;
-        cube.relockUntilDrop = false;
-        cube.powers = { 7: 5 };
         Math.random = () => 0;
     })()`);
-    assert.strictEqual(run('transmuteCoreCubePower(7)'), 1,
-        'duplicate power conversion should prefer the first never-owned power');
-    assert.strictEqual(run('ensureCoreCubeState().powers[7] || 0'), 0,
-        'power conversion must consume five copies of the source');
-    assert.strictEqual(run('ensureCoreCubeState().powers[1] || 0'), 1,
-        'power conversion must grant exactly one replacement');
 
     run(`(function () {
         getExpertLevel = () => 4;
@@ -100,11 +87,11 @@ async function main() {
     assert(chances.normal.fossil < chances.elite.fossil && chances.elite.fossil < chances.boss.fossil,
         'underworld resources should be concentrated on elite and boss enemies');
     assert.deepStrictEqual({
-        normal: chances.normal.blurredPower,
-        elite: chances.elite.blurredPower,
-        boss: chances.boss.blurredPower
+        normal: chances.normal.core,
+        elite: chances.elite.core,
+        boss: chances.boss.core
     }, { normal: 0.00005, elite: 0.0005, boss: 0.01 },
-        'core-cube power sources must be a long-term chase rather than a per-run flood');
+        'cores must be a long-term chase rather than a per-run flood');
     assert.deepStrictEqual({
         normal: chances.normal.rune,
         elite: chances.elite.rune,

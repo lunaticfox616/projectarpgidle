@@ -192,10 +192,10 @@ assert.equal(run('game.currencies.gemShard'),4);
 assert.equal(run("awardCurrency('sealShard',2)"),2);
 assert(!run("contentProgression.isUnlocked('talisman')"));
 assert.equal(run('game.talismanUnlocked'),false);
-run('game.coreCube.everUnlocked=true');
-assert(!run('canDropCoreCubeBlurred45()'),'world discovery alone cannot drop a locked cube resource');
+run('game.underworldProgress.highestFloor=11');
+assert(!run('coreItems.canDrop()'),'world progress alone cannot drop a locked core');
 run("game.contentProgression.inherited.push('cube')");
-assert(run('canDropCoreCubeBlurred45()'));
+assert(run('coreItems.canDrop()'));
 // Exercise the real loop transition: UI descriptions distinguish access from possessions.
 run(`game=mergeDefaults({}); game.season=25; contentProgression.sync();
     contentProgression.purchase('craft'); contentProgression.purchase('flask');

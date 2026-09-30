@@ -42,6 +42,10 @@
         addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득!${protectOverflow?' <span style="color:#ffb86b;">(공간 부족 보호)</span>':''} (${lines||'미가공'})`,protectOverflow?'loot-unique':'loot-rare',{item:jewel,itemKind:'jewel'});
     }
     window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
+    function announceCore(core) {
+        if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(' · ')})`,'loot-unique',{item:core,itemKind:'core'});
+    }
+    window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
     window.addEventListener('project-idle:exploration-departed',event=>{
         if(event.detail.background)return;
         updateStaticUI();queueImportantSave(220);
@@ -51,7 +55,7 @@
         event.detail.gems.forEach(gem=>announceGemReward({gem,kind:gem.kind,shards:0}));
         event.detail.jewels.forEach(jewel=>announceJewelReward({jewel,stored:true}));
         if(game.settings.showLootLog)event.detail.growthItems.forEach(item=>addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`,'',{item,itemKind:'growth'}));
-        if(event.detail.blurred45 && game.settings.showLootLog)addLog(`🧊 흐릿한 45면체 +${event.detail.blurred45}`,'loot-unique');
+        event.detail.cores.forEach(announceCore);
         for(const key of event.detail.flasks) {
             if(game.settings.showLootLog)addLog(`🧪 새로운 플라스크 발견: [${FLASK_DB[key].name}]`,'loot-rare');
         }

@@ -29,10 +29,11 @@ const saveContext = {
   },
   scheduleCloudAutoSync() { scheduledCloudSyncs += 1; },
   updateCloudSaveUI() {},
-  safeExposeGlobals(map) { Object.assign(saveContext, map); }
+  safeExposeGlobals(map) { Object.assign(saveContext, map); },
+  safeExposeData(map) { Object.assign(saveContext, map); }
 };
 vm.createContext(saveContext);
-vm.runInContext(fs.readFileSync('js/act-exploration-loot.js','utf8'),saveContext,{filename:'js/act-exploration-loot.js'});
+for (const file of ['data/core-items.js', 'js/core-items.js', 'js/act-exploration-loot.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), saveContext, { filename: file });
 vm.runInContext(saveSource, saveContext, { filename: 'save-runtime.js' });
 
 assert.strictEqual(saveContext.saveGame({ touchModifiedAt: false }), true, 'autosave should report successful persistence');

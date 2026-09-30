@@ -551,20 +551,17 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>보조장비 <span id="jewel-inventory-full-warning"')
         && html.includes('>기록 <span id="noti-journal"'), 'combined circles must use their concise progression labels');
     // Duplicate launcher visibility is verified by css-architecture.spec.js.
-    // 큐브·생장판은 game.unlocks 플래그가 아니라 런타임 판정으로 열린다
-    // (isCoreCubeUnlocked / isGrowthBoardUnlocked). 루프가 넘어가 큐브가 다시 잠기면
-    // 저장된 보조장비 선택이 잠긴 탭을 가리킨 채로 남는데, 그때 빈 창이 열리면 안 된다.
+    // 생장판은 game.unlocks 플래그가 아니라 런타임 판정(isGrowthBoardUnlocked)으로 열린다. 루프가 넘어가 생장판이
+    // 다시 잠기면 저장된 보조장비 선택이 잠긴 탭을 가리킨 채로 남는데, 그때 빈 창이 열리면 안 된다.
     {
         const runtimeContext = {
             game: {
-                unlocks: { jewel: true, talisman: true, cube: true },
-                settings: { mergedTabSelection: { utility: 'tab-cube' } },
+                unlocks: { jewel: true, talisman: true },
+                settings: { mergedTabSelection: { utility: 'tab-growthboard' } },
                 inventory: [], equipment: {}, uniqueCodex: {}
             },
-            TAB_UNLOCK_GATES: { 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-cube': 'cube' },
-            isCoreCubeUnlocked: () => runtimeContext.__cubeOpen,
+            TAB_UNLOCK_GATES: { 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
             isGrowthBoardUnlocked: () => runtimeContext.__growthOpen,
-            __cubeOpen: true,
             __growthOpen: true,
             addLog: () => {},
             window: { switchTab: () => {} },
@@ -581,23 +578,17 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
             readFunctionSource('getSelectedMergedTabId')
         ].join('\n'), runtimeContext, { filename: 'runtime-gated-merged-tab.js' });
 
-        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-cube',
+        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-growthboard',
             '열려 있는 동안에는 저장된 선택을 그대로 쓴다');
         assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-growthboard' }), true,
             '생장판은 런타임 판정으로 열린다');
 
-        // 루프 리셋: 큐브가 다시 잠기고 game.unlocks.cube도 내려간다.
-        runtimeContext.__cubeOpen = false;
-        runtimeContext.game.unlocks.cube = false;
-        assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-cube' }), false,
-            '재잠금된 큐브 탭은 열 수 없어야 한다');
-        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-jewel',
-            '잠긴 선택이 남아 있어도 열 수 있는 첫 탭으로 되돌아가야 한다(빈 창 금지)');
-
-        // 루프 25 전: 생장판도 같은 방식으로 막힌다.
+        // 루프 리셋 · 루프 25 전: 생장판이 잠긴다.
         runtimeContext.__growthOpen = false;
         assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-growthboard' }), false,
-            '해금 전 생장판 탭은 열 수 없어야 한다');
+            '잠긴 생장판 탭은 열 수 없어야 한다');
+        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-jewel',
+            '잠긴 선택이 남아 있어도 열 수 있는 첫 탭으로 되돌아가야 한다(빈 창 금지)');
 
         // 보조장비의 모든 구성원이 잠기면 선택 자체가 없어야 한다(런처도 숨는다).
         runtimeContext.game.unlocks.jewel = false;
