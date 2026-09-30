@@ -739,7 +739,7 @@ function mergeDefaults(save) {
         }
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    merged.talismanSubtab = merged.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board';
+    delete merged.talismanSubtab; // 군락지 액막이는 2026-09-30에 군락지 화면으로 옮겨 부적 창의 하위 탭이 없다.
     merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)).map(t => ensureTalismanName({ ...t, locked: !!t.locked, waxedByBeeswax: !!t.waxedByBeeswax })) : [];
     merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);

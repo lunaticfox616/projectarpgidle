@@ -2741,32 +2741,20 @@ function canPayColonyWardCost(cost) {
     return Object.keys(cost).every(key => Math.floor(game.currencies[key] || 0) >= cost[key]);
 }
 
-function renderColonyWardPanel(targetId) {
-    renderColonyWardView(targetId || 'ui-colony-ward-talisman-panel');
-}
-
-function switchTalismanSubtab(tabId) {
-    let active = tabId === 'talisman-sub-colony-ward' ? tabId : 'talisman-sub-board';
-    ['talisman-sub-board', 'talisman-sub-colony-ward'].forEach(id => {
-        let el = document.getElementById(id);
-        let btn = document.getElementById(id === 'talisman-sub-board' ? 'btn-talisman-sub-board' : 'btn-talisman-sub-colony-ward');
-        if (el) el.classList.toggle('active', id === active);
-        if (btn) btn.classList.toggle('active', id === active);
-    });
-    game.talismanSubtab = active;
-    if (active === 'talisman-sub-colony-ward') renderColonyWardPanel('ui-colony-ward-talisman-panel');
-}
-
+// 군락지 화면: 방어전 패널 아래에 액막이(2026-09-30에 부적 창에서 옮겨 옴)를 함께 그린다.
 function renderLoop15ColonyPanel() {
     let open = (game.season || 1) >= 15;
     let header = document.getElementById('ui-colony-header');
     let panel = document.getElementById('ui-colony-panel');
-    if (!header || !panel) return;
+    let wardHost = document.getElementById('ui-colony-ward-panel');
+    if (!header || !panel || !wardHost) return;
     header.style.display = open ? 'block' : 'none';
     panel.style.display = open ? 'block' : 'none';
+    wardHost.hidden = !open;
     if (!open) return;
     let c = normalizeColonyWardState();
     sideEncounterUi.renderPanel(panel, sideEncounterUi.colonyPanel(c, getZone('colony_run')));
+    renderColonyWardView('ui-colony-ward-panel');
 }
 
 function generateColonyWard(){
@@ -11936,9 +11924,6 @@ function buildCraftActionButtons(item) {
         talismanTotalEl.innerHTML = allRows.length > 0
             ? `<div style="font-weight:800; color:var(--copy-bright); border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${allRows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
             : `<div style="font-weight:800; color:var(--copy-bright); border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:var(--copy-bright);">없음</div>`;
-    }
-    if (talismanTabActive && document.getElementById('talisman-sub-colony-ward')) {
-        switchTalismanSubtab(game.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board');
     }
     let journalList = isTabRendering('tab-journal') ? document.getElementById('ui-journal-list') : null;
     if (journalList) {

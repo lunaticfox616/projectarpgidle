@@ -280,8 +280,8 @@ const sideEncounterUi = (() => {
             <p>철수해도 받은 보상은 유지됩니다. 새 도전은 1웨이브부터 시작합니다.</p></details>
             <div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startColonyRun()" ${traces<=0||colony.inRun?'disabled':''}>군락지 입장</button>
             <button type="button" onclick="forfeitColonyRun()" ${colony.inRun?'':'disabled'}>철수</button>
-            <button type="button" onclick="switchTab('tab-talisman'); switchTalismanSubtab('talisman-sub-colony-ward')">액막이 관리</button>
-            <span>보조장비 · ${colony.wardSlots}/4슬롯 · 편린 ${game.currencies.colonyShard||0}개</span></div></div>`;
+            <button type="button" onclick="document.getElementById('ui-colony-ward-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })">액막이 관리</button>
+            <span>액막이 ${colony.wardSlots}/4칸 · 편린 ${game.currencies.colonyShard||0}개</span></div></div>`;
     }
 
     function skyPanel(tower) {
