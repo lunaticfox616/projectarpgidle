@@ -84,7 +84,6 @@
         new SectionNavigation('map-tab-fishing', '#fishing-gather, #fishing-collection, #fishing-workshop', ['채집 · 전략', '도감', '제작'], '낚시 작업');
         new SectionNavigation('tab-character', '#tab-character .character-stat-section', ['공격', '방어 · 회복', '기본 · 특수'], '능력치 분류');
         new SectionNavigation('tab-season', '#trait-season-section, #ui-loop10-section', ['원환 패시브', '심화 성장'], '루프 성장 분류');
-        new SectionNavigation('tab-talisman', '#talisman-layout, #talisman-library, #talisman-workshop', ['배치 보드', '보관함', '공방'], '부적 작업');
         new SectionNavigation('tab-growthboard', '#growth-layout, #growth-library, #growth-workshop', ['배치판', '보관함', '제작대'], '생장판 작업');
         new SectionNavigation('tab-stump', '#stump-board-section, #stump-storage-section', ['판', '보관함'], '그루터기 함');
     }, { once: true });

@@ -79,36 +79,10 @@ body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline
 
 /* Character sheet: key values first, related stats stay together. */
 .mobile-section-navigation { display: none; }
-.talisman-unseal-choice:not([hidden]) { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
-.talisman-unseal-choice select { min-height: 44px; width: 100%; font-size: 16px; }
-.talisman-unseal-source, .talisman-unseal-candidate { padding: 12px; margin-bottom: 10px; background: var(--color-surface-raised); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
-.talisman-unseal-source h3 { margin: 0 0 8px; font-size: 14px; }
-.talisman-unseal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.talisman-unseal-actions button { min-height: 44px; flex: 1 1 130px; }
-.talisman-candidate-shape { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.talisman-shard-exchange { margin: 10px 0; }
-.talisman-shard-exchange summary { padding: 10px; cursor: pointer; }
-.talisman-workspaces { display: flex; flex-direction: column; }
-#talisman-workshop { order: 1; }
-#talisman-layout { order: 2; }
-#talisman-library { order: 3; }
-#talisman-mobile-selected:not([hidden]) { display: grid; gap: 8px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
-#talisman-mobile-selected button { min-height: 44px; }
-#talisman-mobile-inspector { padding: 12px; margin: 10px 0; border: 1px solid var(--color-accent-gold); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
-.talisman-mobile-heading { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.talisman-mobile-heading > span:last-child { margin-left: auto; color: var(--color-text-muted); }
-#talisman-mobile-inspector p { font-size: 13px; line-height: 1.5; }
-.talisman-mobile-actions { display: flex; gap: 8px; }
-.talisman-mobile-actions button { min-height: 44px; flex: 1; }
-#ui-talisman-board .talisman-mobile-footprint { outline: 2px solid #8fe7b0; outline-offset: -3px; }
-#ui-talisman-board .talisman-mobile-invalid { outline-color: #ff9a9a; }
 .inventory-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
 .inventory-library-pages button { min-height: 44px; }
 .inventory-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 @media (max-width: 1080px) {
-  .talisman-workspaces > * { min-width: 0; }
-  .talisman-card-copy .item-actions { display: grid; }
-  .talisman-card-copy .item-actions button { min-height: 44px; width: 100%; }
   .mobile-section-navigation:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
   .mobile-section-navigation button { min-height: 44px; padding: 6px; font-size: 13px; }
   .mobile-section-navigation button[hidden] { display: none; }
@@ -545,11 +519,7 @@ body select {
     letter-spacing: .08em;
   }
 }
-#ui-talisman-board .talisman-mobile-anchor { box-shadow: 0 0 0 2px var(--color-accent-gold); }
 @media (max-width: 1080px) {
-  .talisman-workspaces > * { order: 0; }
-  #ui-talisman-inventory {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
-  .talisman-card-copy > div { display: block; }
   .mobile-section-panel[data-mobile-selected="false"],
   .mobile-section-panel > summary {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
 }

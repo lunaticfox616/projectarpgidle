@@ -17,7 +17,7 @@ const tagResult = vm.runInContext(`(() => {
   game.starWedge = {};
   game.actRewardBonuses = [];
   game.journalBonuses = [];
-  game.talismanPlacements = {};
+  game.stumpBox = stumpBox.empty();
   game.jewelSlots = [];
   game.ascendClass = null;
   game.ascendNodes = [];
@@ -53,7 +53,7 @@ const masterSummonerResult = vm.runInContext(`(() => {
   game.passives = [];
   game.actRewardBonuses = [];
   game.journalBonuses = [];
-  game.talismanPlacements = {};
+  game.stumpBox = stumpBox.empty();
   game.jewelSlots = [];
   game.gemData['번개 위습 소환'] = { level:5, quality:0 };
   game.gemData['화염 참격'] = { level:5, quality:0 };

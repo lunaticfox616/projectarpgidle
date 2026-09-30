@@ -2494,7 +2494,7 @@ const defaultGame = {
         tabNotiEnabled: true,
         socialChatNotifications: true,
         chatMessageSize: 'medium',
-        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     selectedClassId: 'archer',
@@ -2608,15 +2608,6 @@ const defaultGame = {
     gemFoldInactiveSupport: false,
     gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
-    talismanUnlocked: false,
-    talismanBoardUnlock: 3,
-    talismanUnlockedCells: [],
-    talismanInventory: [],
-    talismanBoard: [],
-    talismanPlacements: {},
-    talismanSelectedId: null,
-    talismanUnseal: null,
-    talismanUnlockPickMode: false,
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
@@ -2738,8 +2729,8 @@ const defaultGame = {
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
-    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, growthboard: false, expertise: false, jewel: false, arcana: false, stump: false },
-    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
+    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, growthboard: false, expertise: false, jewel: false, arcana: false, stump: false },
+    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

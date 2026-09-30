@@ -577,29 +577,6 @@
 .inventory-expand-shortcut:disabled { opacity: .48; cursor: not-allowed; }
 .inventory-expand-shortcut[hidden] { display: none; }
 
-.talisman-quality-badge {
-  display: inline-flex;
-  padding: 1px 5px;
-  border: 1px solid rgba(218, 184, 107, .42);
-  border-radius: 99px;
-  color: #e1c47d;
-  background: rgba(76, 58, 24, .45);
-  font-size: .64rem;
-  font-weight: 800;
-}
-
-.talisman-quality-badge.high {
-  border-color: rgba(93, 198, 133, .48);
-  color: #9be2b5;
-  background: rgba(24, 72, 45, .48);
-}
-
-.talisman-quality-badge.low {
-  border-color: rgba(120, 140, 161, .34);
-  color: #eef2f6;
-  background: rgba(29, 39, 50, .5);
-}
-
 .flask-trigger-select {
   color: #ffffff;
   border-color: rgba(95, 143, 184, .55);
@@ -630,7 +607,6 @@
   }
 }
 :root body.desktop-windowed-ui #btn-tab-codex::before { content: '⌘'; }
-:root body.desktop-windowed-ui #btn-tab-talisman::before { content: '☽'; }
 :root body.desktop-windowed-ui #btn-tab-settings::before { content: '⚙︎'; }
 
 :root body.desktop-windowed-ui .combat-panel {
@@ -1045,7 +1021,6 @@
 .equipment-card-main { min-width: 0; }
 
 .equipment-item-card,
-.talisman-inventory-card,
 .growth-item-card {
     position: relative;
 }
@@ -1059,14 +1034,6 @@
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .68));
 }
 
-.talisman-card-visual {
-    width: 58px;
-    height: 58px;
-    flex: 0 0 58px;
-    object-fit: contain;
-    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, .68));
-}
-
 .equipment-item-card {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr);
@@ -1074,15 +1041,7 @@
     gap: 8px;
 }
 
-.talisman-inventory-card {
-    display: grid;
-    grid-template-columns: 58px minmax(0, 1fr);
-    align-items: start;
-    gap: 9px;
-}
-
 .equipment-item-card > .equipment-card-actions { grid-column: 1 / -1; }
-.talisman-card-copy { min-width: 0; }
 
 .growth-item-card { padding-left: 52px; min-height: 56px; }
 .growth-card-visual { position: absolute; left: 6px; top: 6px; }
@@ -1092,8 +1051,6 @@
     .growth-card-visual { width: 36px; height: 36px; flex-basis: 36px; }
     .equipment-item-card { grid-template-columns: 36px minmax(0, 1fr); gap: 7px; }
     .growth-item-card { padding-left: 46px; min-height: 50px; }
-    .talisman-card-visual { width: 48px; height: 48px; flex-basis: 48px; }
-    .talisman-inventory-card { grid-template-columns: 48px minmax(0, 1fr); gap: 7px; }
 }
 
 .condition-pattern-summary {
@@ -2561,8 +2518,7 @@ body .cfg-group {
 .passive-special-stat-card > small { grid-column: 1 / -1; overflow: hidden; color: #aebdcc; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .passive-special-stat-card:hover, .passive-special-stat-card:focus-visible { border-color: #d2af5a; outline: none; background: rgba(39, 31, 17, .82); }
 .trait-card[role="button"]:focus-visible,
-.class-card:focus-visible,
-.talisman-board-cell:focus-visible { outline: 2px solid #f2d88f; outline-offset: 2px; }
+.class-card:focus-visible { outline: 2px solid #f2d88f; outline-offset: 2px; }
 .class-card { width: 100%; text-align: left; }
 .expert-favor-current { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; padding: 8px 9px; border: 1px solid rgba(225, 186, 92, .48); border-radius: 7px; background: rgba(72, 50, 16, .32); }
 .expert-favor-current span { color: var(--copy-bright); font-size: 9px; }

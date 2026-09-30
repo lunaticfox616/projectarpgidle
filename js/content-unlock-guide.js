@@ -80,13 +80,6 @@
             requirements: [requirement('루프 4', true), requirement('강화 재료 획득', false)],
             actionLabel: '스킬 젬 보기', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance'
         });
-        let talismanUnlocked = !!state.talismanUnlocked || !!(state.unlocks && state.unlocks.talisman);
-        if (loop >= 6 && !talismanUnlocked) return guide({
-            id: 'talisman', title: '부적',
-            description: '고대 미궁에서 봉인편린을 처음 획득하면 부적 탭이 나타납니다.',
-            requirements: [requirement('루프 6', true), requirement('봉인편린 획득', false)],
-            actionLabel: '고대 미궁 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-labyrinth'
-        });
         let wedgeUnlocked = !!(state.starWedge && state.starWedge.unlocked);
         if (loop >= 7 && !wedgeUnlocked) return guide({
             id: 'star-wedge', title: '별쐐기와 운석 낙하 지점',

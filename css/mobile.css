@@ -43,10 +43,6 @@
 
 @media (max-width: 640px) {
   button { min-height: 36px; }
-  #ui-talisman-inventory .item-card { padding: 12px; }
-  #ui-talisman-inventory .item-title { font-size: 0.9em; line-height: 1.35; word-break: keep-all; }
-  #ui-talisman-inventory .item-base-line { font-size: 0.78em; line-height: 1.35; white-space: normal; }
-  #ui-talisman-inventory button { min-height: 32px; padding: 4px 8px; }
 }
 
 /* Playable phone layout: switch composition instead of shrinking the desktop UI. */
@@ -303,10 +299,6 @@
   #skill-tab-equip[data-mobile-library="skill"] .support-library { display: none; }
 }
 
-@media (max-width: 640px) {
-  #ui-talisman-inventory {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: 1fr !important; gap: 10px; }
-  #ui-talisman-inventory .item-card { min-height: 96px; }
-}
 @media (max-width: 1080px) {
   html, body { overflow-x: hidden; }
   #tab-items > .subtab-row {

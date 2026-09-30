@@ -80,7 +80,6 @@ body #info-tooltip {
 .growth-craft-preview .tooltip-title { margin-bottom: 5px; font-weight: 900; }
 body.growth-dragging .info-tooltip,
 body.growth-dragging #info-tooltip { pointer-events: none; }
-.talisman-unseal-source p, .talisman-unseal-candidate p, .talisman-unseal-candidate .tooltip-line { font-size: 13px; line-height: 1.6; }
 
 :where(
   .equipment-panel-hint,

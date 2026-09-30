@@ -32,35 +32,6 @@ safeExposeData({ GROWTH_ITEM_BASE_DROP_CHANCES, EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
     EQUIPMENT_DROP_RARITY_THRESHOLDS, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
 
-
-const TALISMAN_BOARD_W = 8;
-
-const TALISMAN_BOARD_H = 8;
-
-const TALISMAN_BOARD_MASK = new Set([
-'2,0','3,0','4,0','5,0',
-'1,1','2,1','5,1','6,1',
-'0,2','1,2','2,2','3,2','4,2','5,2','6,2','7,2',
-'0,3','2,3','3,3','4,3','5,3','7,3',
-'0,4','2,4','3,4','4,4','5,4','7,4',
-'0,5','1,5','2,5','3,5','4,5','5,5','6,5','7,5',
-'1,6','2,6','5,6','6,6',
-'2,7','3,7','4,7','5,7'
-]);
-
-const TALISMAN_NAME_STEMS = Object.freeze({
-    flatHp: '생명의', pctHp: '심장의', regen: '회복의', armor: '철벽의', armorPct: '강철의',
-    evasion: '그림자의', evasionPct: '잔상의', energyShield: '비전의', energyShieldPct: '수호의',
-    dr: '불굴의', resAll: '조화의', resF: '잿불의', resC: '서리의', resL: '뇌광의', resChaos: '심연의',
-    flatDmg: '격돌의', pctDmg: '격노의', physPctDmg: '쇄격의', firePctDmg: '화염의',
-    coldPctDmg: '빙결의', lightPctDmg: '천둥의', chaosPctDmg: '공허의', dotPctDmg: '침식의',
-    crit: '예리함의', critDmg: '처형의', aspd: '질풍의', move: '유랑의', resPen: '관통의',
-    projectilePctDmg: '궤적의', meleePctDmg: '결투의', summonPctDmg: '사역의', summonHpPct: '군세의'
-});
-
-const TALISMAN_SHAPE_NAMES = Object.freeze({ I: '장침', O: '고리', T: '갈림쇠', S: '굽이', Z: '번개매듭', J: '갈고리', L: '모서리' });
-
-
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
 
 const ITEM_VISUAL_ASSET_DB = Object.freeze({
@@ -670,27 +641,27 @@ const COSMOS_BOSS_REWARD_DB = {
     'planet-46': {
         equipment: ['우연한 충돌', '하말리스의 균열', '궤도', '충돌 없는 궤도'],
         jewel: { id: 'cbj_hamalis_meteor_shard', name: '운석 파편', uniqueEffect: '스킬 타겟 수 +(1~3), 투사체 피해 +20%', stats: [{ id: 'targetAny', val: 2 }, { id: 'projectilePctDmg', val: 20 }] },
-        talisman: { id: 'cbt_hamalis_collision', name: '하말리스의 충돌', shape: 'T', uniqueEffect: '투사체 추가 발사 +(1~3), 몬스터에게 가하는 첫 공격의 피해 1.1배', stats: [{ stat: 'projectileExtraShots', value: 2, label: '투사체 추가 발사' }, { stat: 'firstHitDamageMorePct', value: 10, label: '첫 공격 피해 증폭(%)' }] }
+        talisman: { id: 'cbt_hamalis_collision', name: '하말리스의 충돌', uniqueEffect: '투사체 추가 발사 +2, 몬스터에게 가하는 첫 공격의 피해 1.1배', stats: [{ stat: 'projectileExtraShots', value: 2, label: '투사체 추가 발사' }, { stat: 'firstHitDamageMorePct', value: 10, label: '첫 공격 피해 증폭(%)' }] }
     },
     'planet-47': {
         equipment: ['디프다르의 낫', '심해', '조수', '두 번째 심장'],
         jewel: { id: 'cbj_diphdar_bloodstone', name: '디프다르의 혈석', uniqueEffect: '흡수가 생명력이 최대가 되어도 사라지지 않음', stats: [{ id: 'leech', val: 1.2 }, { id: 'leechKeepFullLife', val: 1 }] },
-        talisman: { id: 'cbt_diphdar_current', name: '디프다르의 조류', shape: 'L', uniqueEffect: '생명력 흡수 캡 없음', stats: [{ stat: 'leechRateCap', value: 1000, label: '흡수 속도 캡 추가' }, { stat: 'leechTotalCap', value: 1000, label: '흡수 전체 캡 추가' }, { stat: 'leechInstanceCap', value: 1000, label: '흡수 타격당 캡 추가' }] }
+        talisman: { id: 'cbt_diphdar_current', name: '디프다르의 조류', uniqueEffect: '생명력 흡수 캡 없음', stats: [{ stat: 'leechRateCap', value: 1000, label: '흡수 속도 캡 추가' }, { stat: 'leechTotalCap', value: 1000, label: '흡수 전체 캡 추가' }, { stat: 'leechInstanceCap', value: 1000, label: '흡수 타격당 캡 추가' }] }
     },
     'planet-48': {
         equipment: ['완벽한 균형', '주베누비아의 천칭', '쌍성', '오차 없는 천칭'],
         jewel: { id: 'cbj_zubenubia_balance', name: '주베누비아의 균형', uniqueEffect: '장비 소켓에 주벤샤말의 심판 주얼과 함께 끼우고 두 주얼의 키스톤이 같으면 해당 키스톤 할당', cosmosKeystoneJewel: true, stats: [{ id: 'resAll', val: 12 }, { id: 'dr', val: 4 }] },
-        talisman: { id: 'cbt_zubenubia_choice', name: '주베누비아의 선택', shape: 'DASH2', special: 'cosmosChoice', uniqueEffect: '가로 배치: 모든 스킬 젬 레벨 +2 / 세로 배치: 모든 스킬 젬 레벨 -2, 보조 젬 한도 +2', stats: [] }
+        talisman: { id: 'cbt_zubenubia_choice', name: '주베누비아의 선택', special: 'cosmosChoice', uniqueEffect: '표식이 가로면 모든 스킬 젬 레벨 +2 / 세로면 모든 스킬 젬 레벨 -2, 보조 젬 한도 +2', stats: [] }
     },
     'planet-49': {
         equipment: ['주벤샤말의 심판하는 창', '최종 관문', '판결문', '최후통첩'],
         jewel: { id: 'cbj_zubenshamali_judgment', name: '주벤샤말의 심판', uniqueEffect: '장비 소켓에 주베누비아의 균형 주얼과 함께 끼우고 두 주얼의 키스톤이 같으면 해당 키스톤 할당', cosmosKeystoneJewel: true, stats: [{ id: 'lightPctDmg', val: 18 }, { id: 'resPen', val: 6 }] },
-        talisman: { id: 'cbt_zubenshamali_verdict', name: '주벤샤말의 판결', shape: 'O', special: 'cosmosLightningVariance', uniqueEffect: '번개 피해의 최종 피해가 0.8배~1.5배 사이에서 무작위로 결정됨', stats: [] }
+        talisman: { id: 'cbt_zubenshamali_verdict', name: '주벤샤말의 판결', special: 'cosmosLightningVariance', uniqueEffect: '번개 피해의 최종 피해가 0.8배~1.5배 사이에서 무작위로 결정됨', stats: [] }
     },
     'planet-45': {
         equipment: ['인력', '태초의 대폭발', '에니프론의 혜성', '빛보다 먼저'],
         jewel: { id: 'cbj_enifron_faded_stone', name: '바래진 우주석', uniqueEffect: '우주석 공격 옵션의 보수적인 증폭을 보조함', stats: [{ id: 'pctDmg', val: 8 }, { id: 'coldPctDmg', val: 6 }] },
-        talisman: { id: 'cbt_enifron_repulsion', name: '척력', shape: 'DOT', special: 'cosmosRepulsion', uniqueEffect: '인접한 부적의 효과 무효화, 인접하지 않은 모든 부적들의 효과 25% 증가', stats: [] }
+        talisman: { id: 'cbt_enifron_repulsion', name: '척력', special: 'cosmosRepulsion', uniqueEffect: '맞닿은 부적의 효과 무효화, 그 밖의 모든 부적 효과 25% 증가', stats: [] }
     }
 };
 

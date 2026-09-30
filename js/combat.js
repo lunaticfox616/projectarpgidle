@@ -915,11 +915,16 @@ function getConditionGemStatDelta(name, type) {
     return out;
 }
 
+/** A curse entry's stat delta: talisman curses carry it, condition-gem curses resolve it by name. */
+function getConditionDebuffDelta(deb) {
+    return deb.delta || getConditionGemStatDelta(deb.name, 'curse');
+}
+
 function getEnemyConditionDebuffFactor(enemy, pStats) {
     let list = (game.enemyConditionDebuffs && enemy) ? (game.enemyConditionDebuffs[enemy.id] || []) : [];
     let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1, ailmentChanceAdd: {}, ailmentTakenMul: {} };
     list.forEach(deb => {
-        let d = getConditionGemStatDelta(deb.name, 'curse');
+        let d = getConditionDebuffDelta(deb);
         fx.mul *= (d.enemyTakenMul || 1);
         fx.resShred += (d.enemyResShred || 0);
         fx.resFShred += (d.enemyResFShred || 0);
@@ -1162,9 +1167,6 @@ function snapshotWoodsmanBuildState() {
         playerRecoupInstances: game.playerRecoupInstances || [],
         gemData: game.gemData || {},
         jewelInventory: game.jewelInventory || [],
-        talismanInventory: game.talismanInventory || [],
-        talismanBoard: game.talismanBoard || [],
-        talismanPlacements: game.talismanPlacements || {},
         growthBoard: game.growthBoard || {},
         growthInventory: game.growthInventory || [],
         recentGrowthDrops: game.recentGrowthDrops || [],
@@ -1197,9 +1199,6 @@ function enforceWoodsmanBuildLock() {
     game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
     game.gemData = JSON.parse(JSON.stringify(snap.gemData));
     game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
-    game.talismanInventory = JSON.parse(JSON.stringify(snap.talismanInventory));
-    game.talismanBoard = JSON.parse(JSON.stringify(snap.talismanBoard));
-    game.talismanPlacements = JSON.parse(JSON.stringify(snap.talismanPlacements));
     if (snap.growthBoard) game.growthBoard = JSON.parse(JSON.stringify(snap.growthBoard));
     if (snap.growthInventory) game.growthInventory = JSON.parse(JSON.stringify(snap.growthInventory));
     if (snap.recentGrowthDrops) game.recentGrowthDrops = JSON.parse(JSON.stringify(snap.recentGrowthDrops));
@@ -2703,7 +2702,7 @@ function coreLoop(nowMs) {
         game.playerConditionBuffs = [];
         game.enemyConditionDebuffs = {};
     } else {
-        runConditionGemAutoRules(pStats);
+        runConditionGemAutoRules(pStats); talismanCombat.applyHexes(pStats, getCombatTime());
     }
     advanceSkillGemCasts(pStats);
     updateCombatChannelRuntime(getCombatTime());
@@ -2723,7 +2722,7 @@ function coreLoop(nowMs) {
     let activeConditionEffects = getEffectivePlayerConditionBuffs(getCombatTime()).map(buff => ({
         buff,
         delta: getConditionGemStatDelta(buff.name, buff.type)
-    }));
+    })).concat(talismanCombat.effects(pStats));
     applyConditionPhysicalReductionEffects(pStats, activeConditionEffects);
     activeConditionEffects.forEach(({ delta }) => {
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
@@ -3824,11 +3823,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (game.passiveStarEvolution && Array.isArray(game.journalEntries) && game.journalEntries.includes('passive_star_evolution')) {
         Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
     }
-    let talismanEffects = typeof calculateTalismanBoardEffects === 'function'
-        ? calculateTalismanBoardEffects(game.talismanPlacements || {}, game.talismanBoard || [])
-        : { entries: Object.values(game.talismanPlacements || {}).filter(entry => entry && entry.talisman), stats: {}, bossFinalDmgBonusPct: 0 };
-    let talismanEntries = talismanEffects.entries || [];
-    Object.keys(talismanEffects.stats || {}).forEach(stat => addStatToBucket(reward, stat, talismanEffects.stats[stat]));
+    let talismanSummary = talismanEffects.summarize();
+    Object.keys(talismanSummary.stats).forEach(stat => addStatToBucket(reward, stat, talismanSummary.stats[stat]));
 
     function sumNonSupportStat(statId) {
         return gearBase[statId] + gearExplicit[statId] + passive[statId]
@@ -4434,7 +4430,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         if (armorSteps > 0) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (armorSteps * uniqueArmorToPhysicalDamagePctPer1000) / 100));
     }
     if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
-    talismanBossFinalDmgBonusPct = Math.max(talismanBossFinalDmgBonusPct, Number(talismanEffects.bossFinalDmgBonusPct) || 0);
+    talismanBossFinalDmgBonusPct = Math.max(talismanBossFinalDmgBonusPct, Number(talismanSummary.bossFinalDmgBonusPct) || 0);
     let damageScales = {
         hpFlatBonus: hpFlatBonus,
         hpScaleRatio: hpScaleRatio,
@@ -12106,8 +12102,8 @@ function performMonsterAttacks(pStats) {
         let curseDebuffs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[enemy.id]) ? game.enemyConditionDebuffs[enemy.id] : [];
         let curseSlow = 0;
         let enemyDmgMul = 1;
-        curseDebuffs.forEach(deb => { curseSlow += (getConditionGemStatDelta(deb.name, 'curse').enemyAspdSlow || 0); });
-        curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionGemStatDelta(deb.name, 'curse').enemyDmgMul || 1); });
+        curseDebuffs.forEach(deb => { curseSlow += (getConditionDebuffDelta(deb).enemyAspdSlow || 0); });
+        curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionDebuffDelta(deb).enemyDmgMul || 1); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
         chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
@@ -13058,7 +13054,6 @@ function triggerSeasonReset(options) {
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
-    let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
     // 나무꾼의 손길로 봉인된 장비(장착/인벤)와 나무꾼의 손길 보유분은 루프가 지나도 유지한다.
     let preservedSealedEquipment = {};
     Object.keys(game.equipment || {}).forEach(slot => {
@@ -13180,15 +13175,6 @@ function triggerSeasonReset(options) {
     game.labyrinthFloor = 1;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];
-    game.talismanUnlocked = preservedTalismanUnlocked;
-    game.talismanBoardUnlock = Math.max(3, Math.floor(defaultGame.talismanBoardUnlock || 3));
-    game.talismanUnlockedCells = [];
-    game.talismanInventory = [];
-    game.talismanBoard = [];
-    game.talismanPlacements = {};
-    game.talismanSelectedId = null;
-    game.talismanUnseal = null;
-    game.talismanUnlockPickMode = false;
     game.abyssClearedDepths = [];
     game.claimableActRewards = [];
     game.claimedActRewards = [];
@@ -13205,7 +13191,6 @@ function triggerSeasonReset(options) {
     game.starWedge.wedges = preservedEternalWedges;
     game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
-    if (preservedTalismanUnlocked) game.unlocks.talisman = true;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
     coreItems.resetForLoop();

@@ -229,23 +229,6 @@ const COMPARE_STAT_META = {
     maxDmgRoll: { label: '최대피해 보정', format: value => `${Math.floor(value)}%` }
 };
 
-function getTalismanMomentRoll(talisman, options = {}) {
-    if (!talisman || talisman.special !== 'moment') return 0;
-    let min = Math.floor(Number.isFinite(Number(talisman.bossFinalDmgMin)) ? Number(talisman.bossFinalDmgMin) : 5);
-    let max = Math.floor(Number.isFinite(Number(talisman.bossFinalDmgMax)) ? Number(talisman.bossFinalDmgMax) : 15);
-    if (max < min) { let tmp = min; min = max; max = tmp; }
-    let current = Number(talisman.bossFinalDmgRoll);
-    if (!Number.isFinite(current)) current = Number(talisman.bossFinalDmgValue);
-    if (!Number.isFinite(current) && options && options.rollIfMissing === false) return min;
-    if (!Number.isFinite(current)) current = min + Math.floor(Math.random() * (max - min + 1));
-    current = Math.max(min, Math.min(max, Math.floor(current)));
-    talisman.bossFinalDmgRoll = current;
-    talisman.bossFinalDmgValue = current;
-    talisman.value = current;
-    return current;
-}
-
-
 function isTierlessSupportGem(name) {
     let db = (typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB) ? SUPPORT_GEM_DB[name] : null;
     return !!(db && db.noTiers);
@@ -323,6 +306,7 @@ const STAT_DISPLAY_NAMES = {
         slamPctDmg: '강타 피해(%)',
         projectilePctDmg: '투사체 피해(%)',
         projectileExtraShots: '투사체 추가 발사',
+        firstHitDamageMorePct: '첫 공격 피해 증폭(%)',
         projectileExtraChance: '투사체 추가 발사 확률(%)',
         attackPctDmg: '공격 피해 증가(%)',
         spellFlatDmg: '주문 내장 피해',

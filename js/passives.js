@@ -4956,7 +4956,6 @@ const TAB_UNLOCK_GATES = {
     'tab-items': 'items',
     'tab-skills': 'skills',
     'tab-codex': 'codex',
-    'tab-talisman': 'talisman',
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
@@ -10163,17 +10162,11 @@ function notifyCurrencyAcquisition(currencyKey, gain) {
 }
 
 function unlockLegacyCurrencyFeatures(currencyKey) {
-    const unlocked={gem:false,talisman:false};
+    const unlocked={gem:false};
     if (!game.contentProgression && !game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
         game.noti.skills = true;
         unlocked.gem=true;
-    }
-    if (!game.contentProgression && !game.talismanUnlocked && (currencyKey === 'sealShard' || currencyKey === 'strongSealShard' || currencyKey === 'radiantSealShard')) {
-        game.talismanUnlocked = true;
-        game.unlocks.talisman = true;
-        game.noti.talisman = true;
-        unlocked.talisman=true;
     }
     return unlocked;
 }
@@ -10292,155 +10285,6 @@ function passesItemPickupFilter(item) {
     return true;
 }
 
-function getTalismanEffectAnchorCell(talisman) {
-    if (!talisman || !Array.isArray(talisman.cells) || talisman.cells.length <= 0) return { x: 0, y: 0 };
-    let cells = talisman.cells.map(cell => ({ x: Number(cell.x) || 0, y: Number(cell.y) || 0 }));
-    let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
-    let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
-    let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
-    return cells.map(cell => {
-        let neighbors = 0;
-        if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
-        if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
-        if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
-        if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
-        return { cell, neighbors, dist: Math.hypot(cell.x - centerX, cell.y - centerY) };
-    }).sort((a, b) => {
-        if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
-        if (a.dist !== b.dist) return a.dist - b.dist;
-        if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
-        return a.cell.x - b.cell.x;
-    })[0].cell;
-}
-
-function calculateTalismanBoardEffects(placementsInput, boardInput) {
-    let entries = Array.isArray(placementsInput)
-        ? placementsInput.filter(entry => entry && entry.talisman)
-        : Object.values((placementsInput && typeof placementsInput === 'object') ? placementsInput : {}).filter(entry => entry && entry.talisman);
-    let board = Array.isArray(boardInput) ? boardInput : [];
-    let idPos = {};
-    entries.forEach(entry => {
-        let id = entry && entry.talisman && entry.talisman.id;
-        if (id !== undefined && id !== null) idPos[id] = entry;
-    });
-    let stats = {};
-    let suppressedIds = new Set();
-    let amplifiedIds = new Set();
-    let bossFinalDmgBonusPct = 0;
-    let addStat = (stat, value) => {
-        let amount = Number(value);
-        if (!stat || !Number.isFinite(amount) || amount === 0) return;
-        stats[stat] = (stats[stat] || 0) + amount;
-    };
-    let getStats = talisman => {
-        if (!talisman) return [];
-        if (Array.isArray(talisman.stats) && talisman.stats.length > 0) return talisman.stats.filter(stat => stat && stat.stat);
-        return talisman.stat ? [{ stat: talisman.stat, value: Number(talisman.value) || 0 }] : [];
-    };
-    let adjIds = talismanId => {
-        let entry = idPos[talismanId];
-        if (!entry || !entry.talisman) return [];
-        let adjacent = new Set();
-        (entry.talisman.cells || []).forEach(cell => {
-            let x = (Number(entry.x) || 0) + (Number(cell.x) || 0);
-            let y = (Number(entry.y) || 0) + (Number(cell.y) || 0);
-            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(offset => {
-                let nx = x + offset[0];
-                let ny = y + offset[1];
-                if (nx < 0 || ny < 0 || nx >= 8 || ny >= 8) return;
-                let neighborId = board[(ny * 8) + nx];
-                if (neighborId !== undefined && neighborId !== null && neighborId !== talismanId) adjacent.add(neighborId);
-            });
-        });
-        return Array.from(adjacent);
-    };
-    let hasRepulsion = entries.some(entry => entry.talisman && entry.talisman.special === 'cosmosRepulsion');
-    let hasAdjacentRepulsion = entry => {
-        let talisman = entry && entry.talisman;
-        if (!talisman || talisman.special === 'cosmosRepulsion') return false;
-        return adjIds(talisman.id).some(id => idPos[id] && idPos[id].talisman && idPos[id].talisman.special === 'cosmosRepulsion');
-    };
-    entries.forEach(entry => {
-        if (hasAdjacentRepulsion(entry)) suppressedIds.add(entry.talisman.id);
-    });
-    entries.forEach(entry => {
-        let talisman = entry.talisman;
-        if (!talisman || suppressedIds.has(talisman.id)) return;
-        let multiplier = hasRepulsion && talisman.special !== 'cosmosRepulsion' ? 1.25 : 1;
-        if (multiplier > 1) amplifiedIds.add(talisman.id);
-        getStats(talisman).forEach(stat => addStat(stat.stat, (Number(stat.value) || 0) * multiplier));
-    });
-    let findMarkedNeighborId = entry => {
-        let talisman = entry && entry.talisman;
-        if (!talisman || !talisman.markDir) return null;
-        let anchor = getTalismanEffectAnchorCell(talisman);
-        let x = (Number(entry.x) || 0) + anchor.x;
-        let y = (Number(entry.y) || 0) + anchor.y;
-        let offset = talisman.markDir === 'up' ? [0, -1]
-            : talisman.markDir === 'right' ? [1, 0]
-            : talisman.markDir === 'down' ? [0, 1]
-            : [-1, 0];
-        let nx = x + offset[0];
-        let ny = y + offset[1];
-        if (nx < 0 || ny < 0 || nx >= 8 || ny >= 8) return null;
-        return board[(ny * 8) + nx] || null;
-    };
-    entries.forEach(entry => {
-        let talisman = entry.talisman;
-        if (!talisman || !talisman.special || suppressedIds.has(talisman.id)) return;
-        if (talisman.special === 'gravity') {
-            adjIds(talisman.id).forEach(id => {
-                let neighbor = idPos[id] && idPos[id].talisman;
-                if (!neighbor || suppressedIds.has(neighbor.id)) return;
-                getStats(neighbor).forEach(stat => addStat(stat.stat, (Number(stat.value) || 0) * 0.25));
-            });
-        } else if (talisman.special === 'simpleCopy') {
-            let id = findMarkedNeighborId(entry);
-            let neighbor = id && idPos[id] && !suppressedIds.has(id) ? idPos[id].talisman : null;
-            getStats(neighbor).forEach(stat => addStat(stat.stat, Number(stat.value) || 0));
-        } else if (talisman.special === 'cosmosChoice') {
-            let cells = (talisman.cells || []).map(cell => ({ x: Number(cell.x) || 0, y: Number(cell.y) || 0 }));
-            let horizontal = cells.length >= 2 && cells.every(cell => cell.y === cells[0].y);
-            if (horizontal) addStat('gemLevel', 2);
-            else {
-                addStat('gemLevel', -2);
-                addStat('suppCap', 2);
-            }
-        } else if (talisman.special === 'cosmosLightningVariance') {
-            addStat('cosmosLightningVariance', 1);
-        } else if (talisman.special === 'pride') {
-            let count = adjIds(talisman.id).length;
-            if (count === 0) {
-                addStat('gemLevel', 1);
-                addStat('suppCap', 1);
-            } else if (count === 1) {
-                addStat('suppCap', 1);
-            } else if (count <= 4) {
-                addStat('pctDmg', 15);
-                addStat('aspd', 10);
-            } else {
-                addStat('crit', 5);
-                addStat('critDmg', 25);
-                addStat('pctDmg', 15);
-                addStat('aspd', 10);
-            }
-        } else if (talisman.special === 'moment') {
-            let roll = Number(talisman.bossFinalDmgRoll || talisman.bossFinalDmgValue || talisman.bossFinalDmgMin || 5);
-            if (typeof getTalismanMomentRoll === 'function') roll = Number(getTalismanMomentRoll(talisman)) || roll;
-            bossFinalDmgBonusPct = Math.max(bossFinalDmgBonusPct, roll);
-        }
-    });
-    return {
-        entries,
-        stats,
-        bossFinalDmgBonusPct,
-        suppressedIds: Array.from(suppressedIds),
-        amplifiedIds: Array.from(amplifiedIds),
-        adjacency: Object.fromEntries(entries.map(entry => [entry.talisman.id, adjIds(entry.talisman.id)]))
-    };
-}
-
-safeExposeGlobals({ getTalismanEffectAnchorCell, calculateTalismanBoardEffects });
 
 
 const UNIQUE_JEWEL_DB = [

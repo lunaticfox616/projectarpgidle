@@ -4,6 +4,8 @@
 // 씨앗은 꽃 또는 열매로, 수액은 호박석으로 자란다. 판(5×5)에 놓인 것만 처치로 자라고, 다 자란 것만 능력치를 준다.
 // 같은 색 3개 이상이 다 자라 억제되지 않으면 그 색 능력치가 10% 오르고(공명), 상극색이 상하좌우로 맞닿으면
 // 둘 다 멈춘다(억제: 능력치·성장 0, 공명 개수에서 빠짐). 위치·줄·모양 규칙은 없다(생장판과 다른 점).
+// 부적(2026-09-30, 예전 부적 판 · 생장판 · 컨디션 젬 자리)은 색 없는 세 번째 계열이다. 판에서 처치로 깨어나고,
+// 공명 · 억제에 끼지 않는다. 줄과 이웃 효과는 data/talismans.js.
 
 const STUMP_BOX_SIZE = 5;
 
@@ -25,8 +27,9 @@ const STUMP_BOX_UNLOCKS = Object.freeze([
 ]);
 
 // 성장: 판 위에서 억제되지 않은 미성숙품만 처치마다 자란다. 절반에서 새싹/송진, 다 차면 꽃·열매/호박석.
+// 부적은 절반 단계 없이 다 차면 깨어난다.
 const STUMP_BOX_GROWTH = Object.freeze({
-    need: Object.freeze({ seed: 400, sap: 500 }),
+    need: Object.freeze({ seed: 400, sap: 500, talisman: 300 }),
     perKill: Object.freeze({ normal: 1, elite: 6, boss: 30 }),
     sproutAt: 0.5
 });
@@ -72,7 +75,9 @@ const STUMP_BOX_STAGES = Object.freeze({
     fruit: Object.freeze({ label: '열매', icon: 'fruit' }),
     sap: Object.freeze({ label: '수액', icon: 'sap' }),
     resin: Object.freeze({ label: '송진', icon: 'resin' }),
-    amber: Object.freeze({ label: '호박석', icon: 'amber' })
+    amber: Object.freeze({ label: '호박석', icon: 'amber' }),
+    sealed: Object.freeze({ label: '잠든 부적', icon: 'sealed' }),
+    talisman: Object.freeze({ label: '부적', icon: 'talisman' })
 });
 
 safeExposeData({

@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 // 백엔드는 Supabase(player_profiles / chat_messages). 스키마는 db/social.sql.
 // ui.js 이후 로드되며 cloudState / cloudJsonRequest / getPlayerStats / getJewelStats
-// / getItemStatToneColor / getTierBadgeHtml / getTalismanShapeStyle 등 전역을 재사용.
+// / getItemStatToneColor / getTierBadgeHtml 등 전역을 재사용.
 // 보안: 사용자/상대가 보낸 모든 문자열은 socialEscape 로 이스케이프한다.
 // ============================================================================
 
@@ -193,18 +193,11 @@ function buildJewelSnapshot(jewel) {
     return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8) };
 }
 function buildTalismanSnapshot(t) {
-    if (!t) return null;
-    let stats = [];
-    if (t.stat) stats.push({ id: t.stat, val: t.value, statName: t.statName });
-    let effects = [];
-    if (t.special && typeof getTalismanSpecialDescription === 'function') {
-        let d = getTalismanSpecialDescription(t); if (d) effects.push(d);
-    }
-    let name = (typeof getTalismanDisplayName === 'function')
-        ? getTalismanDisplayName(t)
-        : (t.name || (t.statName ? `${t.statName} 부적` : '이름 없는 부적'));
-    let cells = Array.isArray(t.cells) ? t.cells.map(c => ({ x: c.x || 0, y: c.y || 0 })) : [];
-    return { kind: 'talisman', name, rarity: t.rarity || 'normal', shape: t.shape || null, cells, stats, effects };
+    if (!t || !Array.isArray(t.lines)) return null;
+    let stats = t.lines.filter(line => line.kind === 'stat').map(line => ({ id: line.id, val: line.value }));
+    let effects = t.lines.filter(line => line.kind === 'condition').map(talismans.describeLine);
+    if (t.uniqueEffect) effects.unshift(t.uniqueEffect);
+    return { kind: 'talisman', name: t.name || '부적', rarity: t.rarity || 'magic', stats, effects };
 }
 
 function buildProfileGrowthSnapshot(entry) {
@@ -309,24 +302,12 @@ function buildProfileSnapshot() {
     let socketed = (typeof game !== 'undefined' && typeof collectSocketedJewels === 'function') ? collectSocketedJewels(game.equipment) : [];
     socketed.forEach(row => { let s = buildJewelSnapshot(row.jewel); if (s) jewels.push(s); });
 
-    // 부적: 배치도 형태로 보이도록 보드 셀→부적 인덱스 매핑까지 저장.
-    let talismans = [];
-    let talBoard = [];
-    let placements = (typeof game !== 'undefined' && game.talismanPlacements) ? game.talismanPlacements : {};
-    let board = (typeof game !== 'undefined' && Array.isArray(game.talismanBoard)) ? game.talismanBoard : [];
-    let W = (typeof TALISMAN_BOARD_W !== 'undefined') ? TALISMAN_BOARD_W : 8;
-    let H = (typeof TALISMAN_BOARD_H !== 'undefined') ? TALISMAN_BOARD_H : 8;
-    let idToIndex = {};
-    Object.keys(placements).forEach(id => {
-        let t = placements[id] && placements[id].talisman;
-        let s = buildTalismanSnapshot(t);
-        if (s) { idToIndex[id] = talismans.length; talismans.push(s); }
-    });
-    talBoard = new Array(W * H).fill(-1);
-    for (let i = 0; i < W * H; i++) { let id = board[i]; if (id != null && idToIndex[id] != null) talBoard[i] = idToIndex[id]; }
+    // 부적: 그루터기 함 판에 놓인 부적(판 순서).
+    let talismanRows = (typeof game !== 'undefined' && game.stumpBox ? game.stumpBox.board : [])
+        .map(id => id === null ? null : stumpBox.itemById(game, id)).filter(item => item && item.family === 'talisman').map(buildTalismanSnapshot);
 
     return {
-        version: 5,
+        version: 6,
         nickname: getMyNickname(),
         level: (typeof game !== 'undefined' && game.level) ? game.level : 1,
         ascendClass: (typeof game !== 'undefined') ? (game.ascendClass || '') : '',
@@ -338,9 +319,7 @@ function buildProfileSnapshot() {
         growthBoardH: growth.height,
         growthUnlockedCells: growth.unlockedCells,
         jewels: jewels.slice(0, 8),
-        talismans: talismans.slice(0, 60),
-        talBoard,
-        boardW: W, boardH: H,
+        talismans: talismanRows,
         updatedAt: Date.now()
     };
 }
@@ -830,10 +809,7 @@ function getChatAttachSnapshot(source, key) {
     if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
     if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
     if (source === 'jewel') return buildJewelSnapshot((state.jewelInventory || [])[Number(key)]);
-    if (source === 'talisman') return buildTalismanSnapshot((state.talismanInventory || [])[Number(key)]);
-    if (source === 'talismanPlaced') {
-        return buildTalismanSnapshot(((state.talismanPlacements || {})[key] || {}).talisman);
-    }
+    if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
     if (source === 'growth') return buildItemSnapshot((state.growthInventory || [])[Number(key)], '생장판');
     if (source === 'growthPlaced' && typeof getPlacedGrowthEntries === 'function') {
         let entry = getPlacedGrowthEntries().find(row => String(row.item.id) === String(key));
@@ -890,7 +866,9 @@ function getChatItemPickerGroups() {
     let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
     let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot]).map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
     let jewels = entries('jewel', state.jewelInventory, () => '[보관]');
-    let placedTalismans = Object.keys(state.talismanPlacements || {}).map(id => ({ source: 'talismanPlaced', key: id, label: '[배치]' }));
+    let stump = state.stumpBox || { items: [], board: [] };
+    let talismanEntries = stump.items.filter(item => item.family === 'talisman')
+        .map(item => ({ source: 'talisman', key: item.id, label: stump.board.includes(item.id) ? '[판]' : '[보관]' }));
     let placedGrowth = typeof getPlacedGrowthEntries === 'function'
         ? getPlacedGrowthEntries().map(row => ({ source: 'growthPlaced', key: row.item.id, label: '[배치]' })) : [];
     let wedges = ((((state.starWedge || {}).wedges) || [])).map(wedge => ({ source: 'starWedge', key: wedge.id, label: wedge.eternal ? '[영원]' : '[보유]' }));
@@ -898,7 +876,7 @@ function getChatItemPickerGroups() {
         { title: '장착 장비', entries: equipment },
         { title: '장비 인벤토리', entries: entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`) },
         { title: '주얼', entries: jewels.slice(0, 300) },
-        { title: '부적', entries: placedTalismans.concat(entries('talisman', state.talismanInventory, () => '[보관]')).slice(0, 300) },
+        { title: '부적', entries: talismanEntries.slice(0, 300) },
         { title: '생장판', entries: placedGrowth.concat(entries('growth', state.growthInventory, () => '[보관]')).slice(0, 300) },
         { title: '별쐐기', entries: wedges }
     ];
@@ -1091,12 +1069,6 @@ function moveSocialTip(event) {
     tip.style.left = x / uiDisplay.factor + 'px'; tip.style.top = y / uiDisplay.factor + 'px';
 }
 function hideSocialTip() { let t = document.getElementById('social-tooltip'); if (t) t.style.display = 'none'; }
-// 부적 보드: 같은 부적의 모든 칸을 동시에 강조
-function socialTalHighlight(idx, on) {
-    document.querySelectorAll(`.social-tal-cell[data-tal="${idx}"]`).forEach(c => c.classList.toggle('hl', !!on));
-}
-function socialTalEnter(event, idx, key) { socialTalHighlight(idx, true); showSocialTip(event, 'profile', key); }
-function socialTalLeave(idx) { socialTalHighlight(idx, false); hideSocialTip(); }
 function socialGrowthHighlight(idx, on) {
     document.querySelectorAll(`.social-growth-cell[data-growth="${idx}"]`).forEach(c => c.classList.toggle('hl', !!on));
 }
@@ -1308,39 +1280,17 @@ function renderProfileLegacyPaperdoll(equipment) {
     }).join('') + `</div>`;
 }
 // 부적: 실제 배치도(8x8 보드) 형태
-function renderProfileTalismanBoard(profile) {
-    let talismans = profile.talismans || [];
-    let board = Array.isArray(profile.talBoard) ? profile.talBoard : [];
-    let W = profile.boardW || (typeof TALISMAN_BOARD_W !== 'undefined' ? TALISMAN_BOARD_W : 8);
-    let H = profile.boardH || (typeof TALISMAN_BOARD_H !== 'undefined' ? TALISMAN_BOARD_H : 8);
-    let mask = (typeof TALISMAN_BOARD_MASK !== 'undefined') ? TALISMAN_BOARD_MASK : null;
-    if (!board.length) {
-        if (!talismans.length) return `<div class="social-profile-empty">장착한 부적 없음</div>`;
-        // 구버전 스냅샷: 목록으로 대체
-        return `<div class="social-mini-grid">` + talismans.map((t, i) => {
-            let key = `tl:${i}`; socialState.profileTips[key] = renderSimpleCard(t);
-            let color = socialRarityColor(t.rarity);
-            return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${socialEscape(t.name)}</div>`;
-        }).join('') + `</div>`;
-    }
-    let cells = '';
-    for (let i = 0; i < W * H; i++) {
-        let x = i % W, y = Math.floor(i / W);
-        let valid = mask ? mask.has(`${x},${y}`) : true;
-        if (!valid) { cells += `<span class="social-tal-cell void"></span>`; continue; }
-        let idx = board[i];
-        if (idx != null && idx >= 0 && talismans[idx]) {
-            let t = talismans[idx];
-            let color = socialSafeColor(typeof getTalismanShapeStyle === 'function' ? getTalismanShapeStyle(t.shape).color : null, '#9fb3c7');
-            let key = `tb:${i}`;
-            socialState.profileTips[key] = renderSimpleCard(t);
-            cells += `<span class="social-tal-cell filled" data-tal="${idx}" style="background:linear-gradient(145deg, rgba(255,255,255,0.28) 0%, ${color} 45%, rgba(8,12,18,0.25) 100%); border-color:${color};" onmouseenter="socialTalEnter(event, ${idx}, '${key}')" onmousemove="moveSocialTip(event)" onmouseleave="socialTalLeave(${idx})" onclick="openTipModal('profile','${key}')"></span>`;
-        } else {
-            cells += `<span class="social-tal-cell empty"></span>`;
-        }
-    }
-    return `<div class="social-tal-board" style="grid-template-columns:repeat(${W}, 1fr);">${cells}</div>`;
+// 예전 프로필(부적 판 배치도)도 부적 목록만 그린다.
+function renderProfileTalismans(profile) {
+    let rows = profile.talismans || [];
+    if (!rows.length) return `<div class="social-profile-empty">장착한 부적 없음</div>`;
+    return `<div class="social-mini-grid">` + rows.map((t, i) => {
+        let key = `tl:${i}`; socialState.profileTips[key] = renderSimpleCard(t);
+        let color = socialRarityColor(t.rarity);
+        return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${socialEscape(t.name || '부적')}</div>`;
+    }).join('') + `</div>`;
 }
+
 function renderProfileItemsArea() {
     let p = socialState.currentProfile;
     if (!p) return '';
@@ -1348,7 +1298,7 @@ function renderProfileItemsArea() {
     let cat = socialState.profileTab;
     if (cat === 'equipment') return renderProfileEquipPaperdoll(p.equipment);
     if (cat === 'growth') return renderProfileGrowthBoard(p);
-    if (cat === 'talismans') return renderProfileTalismanBoard(p);
+    if (cat === 'talismans') return renderProfileTalismans(p);
     // jewels
     let jewels = p.jewels || [];
     if (!jewels.length) return `<div class="social-profile-empty">장착한 주얼 없음</div>`;
@@ -1590,12 +1540,6 @@ function injectSocialStyles() {
     .social-growth-cell.filled.origin{font-size:1.15em;text-shadow:0 1px 3px #000;}
     .social-growth-cell.filled.chase{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 0 10px color-mix(in srgb,var(--growth-color) 70%,transparent);}
     .social-growth-cell.filled.hl{filter:brightness(1.36) saturate(1.2);box-shadow:0 0 0 2px #e7cf98,0 0 13px color-mix(in srgb,var(--growth-color) 72%,transparent),inset 0 1px 0 rgba(255,255,255,.32);transform:translateY(-1px);z-index:1;}
-    .social-tal-board{display:grid;gap:2px;justify-content:center;max-width:280px;margin:0 auto;}
-    .social-tal-cell{width:100%;aspect-ratio:1/1;border-radius:3px;border:1px solid rgba(120,140,160,0.18);background:#0a0e14;}
-    .social-tal-cell.void{border-color:transparent;background:transparent;}
-    .social-tal-cell.empty{background:radial-gradient(circle at 30% 25%, #2a313c 0%, #1a1f27 70%);border-color:rgba(120,140,160,0.28);}
-    .social-tal-cell.filled{cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,0.25);transition:filter .08s, box-shadow .08s;}
-    .social-tal-cell.filled.hl{filter:brightness(1.35) saturate(1.2);box-shadow:0 0 0 2px rgba(255,230,140,.85), 0 0 10px rgba(255,210,110,.55), inset 0 1px 0 rgba(255,255,255,0.3);z-index:1;}
     .social-equip-grid{display:flex;flex-direction:column;gap:8px;}
     .social-item-card{background:#0f1a28;border:1px solid #2c4063;border-left-width:3px;border-radius:8px;padding:8px 10px;}
     .social-item-title{font-weight:700;font-size:0.92em;}
@@ -1628,7 +1572,7 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight, socialGrowthEnter, socialGrowthLeave, socialGrowthHighlight,
+        socialGrowthEnter, socialGrowthLeave, socialGrowthHighlight,
         checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
     });
 }

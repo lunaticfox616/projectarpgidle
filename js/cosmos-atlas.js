@@ -1264,28 +1264,6 @@
         return jewel;
     }
 
-    function createCosmosBossTalisman(row) {
-        if (!row || !window.TALISMAN_SHAPES || !window.TALISMAN_SHAPES[row.shape]) return null;
-        const stats = (row.stats || []).map(stat => ({ ...stat }));
-        return {
-            id: Date.now() + Math.floor(Math.random() * 100000),
-            shape: row.shape,
-            cells: window.TALISMAN_SHAPES[row.shape].map(([x, y]) => ({ x, y })),
-            rarity: '고유',
-            source: 'cosmosBoss',
-            isUnique: true,
-            uniqueId: row.id,
-            name: row.name,
-            special: row.special || null,
-            uniqueEffect: row.uniqueEffect || '',
-            stats,
-            stat: stats[0] ? stats[0].stat : null,
-            statName: row.name,
-            value: stats[0] ? stats[0].value : 0,
-            markDir: 'up'
-        };
-    }
-
     function pickCosmosBossEquipmentName(spec) {
         const names = spec && Array.isArray(spec.equipment) ? spec.equipment : [];
         const uniqueDb = Array.isArray(window.UNIQUE_DB) ? window.UNIQUE_DB : [];
@@ -1327,16 +1305,14 @@
         return true;
     }
 
+    // 우주계 보스 부적은 그루터기 함 보관함이 가득 차도 잃지 않도록 한도를 넘겨 넣는다(봉인 풀기만 한도를 본다).
     function grantCosmosBossTalisman(spec, force) {
         if (!spec || !spec.talisman || (!force && Math.random() >= COSMOS_BOSS_TALISMAN_DROP_CHANCE)) return false;
-        if (!game) return false;
-        game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
-        const talisman = createCosmosBossTalisman(spec.talisman);
+        const talisman = stumpBox.addTalisman(game, talismans.fromCosmos(spec.talisman), true);
         if (!talisman) return false;
-        game.talismanInventory.push(talisman);
         game.noti = game.noti || {};
-        game.noti.talisman = true;
-        if (typeof window.addLog === 'function') window.addLog(`🧿 우주계 보스 전용 부적 획득: ${talisman.name}`, 'loot-unique', { item:talisman, itemKind:'talisman' });
+        game.noti.stump = true;
+        if (typeof window.addLog === 'function') window.addLog(`🧿 우주계 보스 전용 부적 획득: ${talisman.name}`, 'loot-unique');
         return true;
     }
 

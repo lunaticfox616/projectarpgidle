@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-/* 그루터기 함 아이템 도트 아이콘(16×16 도트): 씨앗·새싹·꽃·열매 / 수액·송진·호박석 × 화염·냉기·번개·카오스.
+/* 그루터기 함 아이템 도트 아이콘(16×16 도트): 씨앗·새싹·꽃·열매 / 수액·송진·호박석 × 화염·냉기·번개·카오스,
+ * 부적(깨어남 · 잠듦) × 마법 · 희귀 · 고유.
  * 모양을 도트 칸 가운데에서 재서 칠하고(빛은 왼쪽 위), 바깥 한 도트를 그 색의 가장 어두운 단계로 두른다.
  *
- *   node scripts/build-stump-icons.cjs            # assets/px/stump/<모양>-<색>.png (28장)
+ *   node scripts/build-stump-icons.cjs            # assets/px/stump/<모양>-<색>.png (28장) + 부적 <talisman|sealed>-<희귀도>.png (6장)
  *
  * 게임은 16도트 그대로 불러 CSS에서 정수배(image-rendering: pixelated)로 키운다. */
 'use strict';
@@ -22,6 +23,13 @@ const COLORS = {
 const LEAF = ['#0f2410', '#1e4a1c', '#3a7a2a', '#6aae40', '#a6d870'];
 const BARK = ['#2a1a0e', '#5a3a1e', '#8a5a2e', '#b07a44', '#d8a868'];
 const GOLD = ['#4a3208', '#a0741c', '#e0b040', '#f4d470', '#fff0a0'];
+// 부적: 빛바랜 종이와 희귀도 먹색(원소 색과 겹치지 않게 푸른 회색 · 누런 금 · 붉은 주황).
+const PAPER = ['#2a2014', '#6e5a3c', '#a8926a', '#d2c098', '#eee2c4'];
+const RARITIES = {
+    magic: ['#141c2c', '#2c3e5e', '#4a6a9a', '#8fa9d6', '#c8d8f0'],
+    rare: ['#2e2408', '#6a5418', '#a88a2c', '#d8bc58', '#f6e6a4'],
+    unique: ['#2e1206', '#6a2a10', '#aa4a1e', '#dc7a3c', '#f8c08a']
+};
 
 /** A painted part: inside(x, y) test and the ramp it uses; light comes from the upper left of its own centre. */
 function ellipse(cx, cy, rx, ry, turn = 0) {
@@ -75,6 +83,20 @@ const SHAPES = {
     resin: ramp => [{ inside: union(ellipse(8, 9.6, 4.8, 4.8), polygon([[8, 1.4], [12.2, 8], [3.8, 8]])), ramp, cx: 8, cy: 9, r: 5.6, glint: true }],
     amber: ramp => [{ inside: polygon([[8, 1.5], [13.6, 4.8], [13.6, 11.2], [8, 14.5], [2.4, 11.2], [2.4, 4.8]]), ramp, cx: 8, cy: 8, r: 6, facets: true }]
 };
+/** 부적 종이 한 장과 먹 글씨(둥근 인장 · 세로 획 · 짧은 가로 획 둘). 잠든 부적은 글씨가 어둡고 끈으로 묶였다. */
+const paper = () => ({ inside: polygon([[4.6, 1.4], [11.4, 1.4], [11.4, 14.6], [4.6, 14.6]]), ramp: PAPER, cx: 8, cy: 8, r: 9, flat: 3 });
+const glyph = (ramp, tone) => [
+    { inside: ellipse(8, 4.6, 1.8, 1.8), ramp, cx: 8, cy: 4.6, r: 2, flat: tone },
+    { inside: line(8, 7, 8, 12.8, 1.1), ramp, cx: 8, cy: 10, r: 3, flat: tone },
+    { inside: line(6.2, 8.6, 9.8, 8.6, 1.0), ramp, cx: 8, cy: 8.6, r: 2, flat: tone },
+    { inside: line(6.6, 11.4, 9.4, 11.4, 1.0), ramp, cx: 8, cy: 11.4, r: 2, flat: tone }
+];
+const TALISMAN_SHAPES = {
+    talisman: ramp => [paper(), ...glyph(ramp, 3)],
+    sealed: ramp => [{ ...paper(), flat: 2 }, ...glyph(ramp, 1),
+        { inside: line(3.6, 8.2, 12.4, 8.2, 1.6), ramp: BARK, cx: 8, cy: 8, r: 5, flat: 2 },
+        { inside: ellipse(8, 8.2, 1.4, 1.3), ramp: BARK, cx: 8, cy: 8, r: 2, flat: 3 }]
+};
 
 /** Tone for a pixel inside a part: brighter towards the upper left, darker to the lower right. */
 function tone(part, x, y) {
@@ -92,7 +114,7 @@ function facetTone(part, x, y) {
 
 function paint(shape, ramp) {
     const rgb = new Int32Array(SIZE * SIZE), alpha = new Uint8Array(SIZE * SIZE), owner = new Array(SIZE * SIZE).fill(null);
-    for (const part of SHAPES[shape](ramp)) {
+    for (const part of (SHAPES[shape] || TALISMAN_SHAPES[shape])(ramp)) {
         for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
             if (!part.inside(x + 0.5, y + 0.5)) continue;
             const i = y * SIZE + x;
@@ -133,15 +155,17 @@ function main() {
     const out = path.resolve(__dirname, '..', 'assets/px/stump');
     fs.mkdirSync(out, { recursive: true });
     let count = 0;
-    for (const shape of Object.keys(SHAPES)) {
-        for (const [color, ramp] of Object.entries(COLORS)) {
-            const { rgb, alpha } = paint(shape, ramp);
-            fs.writeFileSync(path.join(out, `${shape}-${color}.png`), encodePng(rgb, SIZE, SIZE, alpha));
-            count++;
+    for (const [shapes, ramps] of [[SHAPES, COLORS], [TALISMAN_SHAPES, RARITIES]]) {
+        for (const shape of Object.keys(shapes)) {
+            for (const [color, ramp] of Object.entries(ramps)) {
+                const { rgb, alpha } = paint(shape, ramp);
+                fs.writeFileSync(path.join(out, `${shape}-${color}.png`), encodePng(rgb, SIZE, SIZE, alpha));
+                count++;
+            }
         }
     }
     console.log(`그루터기 함 아이콘 ${count}장 → assets/px/stump/`);
 }
 
 if (require.main === module) main();
-module.exports = { SHAPES, COLORS, paint };
+module.exports = { SHAPES, COLORS, TALISMAN_SHAPES, RARITIES, paint };

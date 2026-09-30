@@ -14,7 +14,6 @@
             addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`,'loot-unique');
         }
         if(unlocked.gem)addLog('☁️ 스킬 젬 강화 탭이 개방되었습니다!','loot-unique');
-        if(unlocked.talisman)addLog('🧿 부적 탭이 개방되었습니다!','loot-unique');
     }
     function announceGemReward(reward) {
         if(!game.settings.showLootLog)return;

@@ -191,7 +191,8 @@ assert.equal(run('game.currencies.gemShard'),4);
 // An explicit reward/refund is not a monster drop and cannot be silently destroyed.
 assert.equal(run("awardCurrency('sealShard',2)"),2);
 assert(!run("contentProgression.isUnlocked('talisman')"));
-assert.equal(run('game.talismanUnlocked'),false);
+assert.equal(run("talismans.unseal('sealShard').ok"),false,'shards alone do not open talisman unsealing');
+assert.equal(run('game.currencies.sealShard'),2,'a refused unseal keeps the shards');
 run('game.underworldProgress.highestFloor=11');
 assert(!run('coreItems.canDrop()'),'world progress alone cannot drop a locked core');
 run("game.contentProgression.inherited.push('cube')");

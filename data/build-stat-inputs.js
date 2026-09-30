@@ -9,7 +9,6 @@ const BUILD_STAT_FIELDS = [
     'skillAutoRules', 'conditionGemLevels', 'conditionGemPool',
     'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
     'growthBoard', 'growthInventory',
-    'talismanBoard', 'talismanPlacements', 'talismanBoardUnlock', 'talismanUnlockedCells',
     'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',
     'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression', 'stumpBox'
 ];

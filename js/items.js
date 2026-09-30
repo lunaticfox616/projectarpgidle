@@ -1,24 +1,3 @@
-function talismanCellKey(x,y){ return `${x},${y}`; }
-
-function talismanCellIndex(x,y){ return y * TALISMAN_BOARD_W + x; }
-
-function isTalismanBoardCellValid(x,y){ return TALISMAN_BOARD_MASK.has(talismanCellKey(x,y)); }
-
-function isTalismanCellInitiallyUnlocked(x, y){ return x >= 2 && x <= 5 && y >= 2 && y <= 5; }
-
-function getGeneratedTalismanName(talisman) {
-    if (!talisman) return '이름 없는 부적';
-    if (talisman.name) return talisman.name;
-    let stem = TALISMAN_NAME_STEMS[talisman.stat]
-        || String(talisman.statName || '미지').replace(/\s*\(%\)\s*|\s*증가\s*|\s*피해\s*/g, '').trim() + '의';
-    let shape = TALISMAN_SHAPE_NAMES[talisman.shape] || '매듭';
-    return `${stem} ${shape}`;
-}
-
-function ensureTalismanName(talisman) {
-    if (talisman && !talisman.name) talisman.name = getGeneratedTalismanName(talisman);
-    return talisman;
-}
 
 function getCodexSlotOrder() {
     return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];

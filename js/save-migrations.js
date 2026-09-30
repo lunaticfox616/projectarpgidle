@@ -726,30 +726,10 @@ function mergeDefaults(save) {
         merged.currencies.jewelShard = (merged.currencies.jewelShard || 0) + Math.max(0, Math.floor(merged.currencies.jewelCore || 0));
         merged.currencies.jewelCore = 0;
     }
-    merged.talismanUnlocked = !!merged.talismanUnlocked || ((merged.currencies.sealShard || 0) > 0) || ((merged.currencies.strongSealShard || 0) > 0);
-    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)).filter(v => isTalismanBoardCellValid(v % TALISMAN_BOARD_W, Math.floor(v / TALISMAN_BOARD_W))) : [];
-    merged.talismanBoardUnlock = Math.max(3, Math.min(5, Math.floor(clampFiniteNumber(merged.talismanBoardUnlock, 3, 3, 5))));
-    if (merged.talismanUnlockedCells.length === 0 && merged.talismanBoardUnlock > 3) {
-        for (let y = 0; y < merged.talismanBoardUnlock; y++) {
-            for (let x = 0; x < merged.talismanBoardUnlock; x++) {
-                if (x < 4 && y < 4) continue;
-                if (!isTalismanBoardCellValid(x, y)) continue;
-                merged.talismanUnlockedCells.push(talismanCellIndex(x, y));
-            }
-        }
-    }
-    merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    delete merged.talismanSubtab; // 군락지 액막이는 2026-09-30에 군락지 화면으로 옮겨 부적 창의 하위 탭이 없다.
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)).map(t => ensureTalismanName({ ...t, locked: !!t.locked, waxedByBeeswax: !!t.waxedByBeeswax })) : [];
-    merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
-    while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
-    merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};
-    Object.values(merged.talismanPlacements).forEach(entry => {
-        if (entry && entry.talisman) ensureTalismanName(entry.talisman);
-    });
-    merged.talismanSelectedId = Number.isFinite(merged.talismanSelectedId) ? merged.talismanSelectedId : null;
-    merged.talismanUnseal = (merged.talismanUnseal && merged.talismanUnseal.current) ? merged.talismanUnseal : null;
-    if (merged.talismanUnlocked) merged.unlocks.talisman = true;
+    // 부적 판 → 그루터기 함의 부적(2026-09-30): 예전 판 · 배치 · 보유 부적은 보상 없이 지운다. 봉인편린은 그대로 쓴다.
+    ['talismanUnlocked', 'talismanBoardUnlock', 'talismanUnlockedCells', 'talismanInventory', 'talismanBoard', 'talismanPlacements',
+        'talismanSelectedId', 'talismanUnseal', 'talismanUnlockPickMode', 'talismanSubtab'].forEach(key => delete merged[key]);
+    delete merged.unlocks.talisman; delete merged.noti.talisman;
     merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
     merged.gemEngraveSelectedSlot = Math.max(0, Math.min(4, Math.floor(clampFiniteNumber(merged.gemEngraveSelectedSlot, 0, 0, 4))));
     merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
@@ -956,7 +936,7 @@ function mergeDefaults(save) {
     merged.settings.showEnemyHpComma = merged.settings.showEnemyHpComma !== false;
     merged.settings.showCharacterComma = merged.settings.showCharacterComma !== false;
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
-    delete merged.settings.notiFilters.hideout;
+    delete merged.settings.notiFilters.hideout; delete merged.settings.notiFilters.talisman;
     merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0)));
     merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);

@@ -1,12 +1,15 @@
 // 그루터기 함 화면: 5×5 판(유물 그림 위의 칸 단추), 고른 아이템 설명, 공명·억제 요약, 시작 선물, 보관함.
 // 누르기만으로 다룬다(휴대폰과 PC 같음): 아이템을 고르고 판의 빈 칸을 누르면 심거나 옮긴다. 규칙·계산은 js/stump-box.js.
+// 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가 준다.
 const stumpBoxUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const PATH_LABELS = { flower: '꽃으로 키우기', fruit: '열매로 키우기' };
+    const TALISMAN_CURRENCIES = ['sealShard', 'strongSealShard', 'radiantSealShard', 'beeswax'];
     let selectedId = null, pendingPath = 'flower', colorFilter = 'all', lastSignature = '', bound = false, ticker = null;
 
     function escStump(text) { return escapeHTML(String(text)); }
     function stumpTone(color) { return STUMP_BOX_COLORS[color].tone; }
+    function itemTone(item) { return item.family === 'talisman' ? stumpTalismanUi.tone(item) : stumpTone(item.color); }
     function stumpPercent(item) { return Math.min(100, Math.round(item.xp / stumpBox.need(item) * 100)); }
     function stumpNumber(value) { return String(Math.round(value * 10) / 10); }
     function stumpBar(item, wide) {
@@ -16,7 +19,7 @@ const stumpBoxUi = (() => {
 
     // ── 판 ─────────────────────────────────────────────────
     function stumpItemClasses(item, result) {
-        const out = ['is-filled'], suppressed = result.suppressed.has(item.id);
+        const out = ['is-filled', `is-${item.family}`], suppressed = result.suppressed.has(item.id);
         if (item.id === selectedId) out.push('is-selected');
         if (suppressed) out.push('is-suppressed');
         if (stumpBox.isMature(item)) out.push('is-ripe');
@@ -40,7 +43,7 @@ const stumpBoxUi = (() => {
         const id = game.stumpBox.board[cell], item = id === null ? null : stumpBox.itemById(game, id), open = stumpBox.isOpen(game, cell);
         const classes = stumpCellClasses(item, open, result), body = stumpCellBody(cell, item, open);
         return `<button type="button" class="${classes.join(' ')}" data-stump-action="cell" data-cell="${cell}" aria-label="${escStump(stumpCellLabel(cell, item, open))}"`
-            + `${open ? '' : ' aria-disabled="true"'} style="--stump-tone:${item ? stumpTone(item.color) : 'transparent'}">${body}</button>`;
+            + `${open ? '' : ' aria-disabled="true"'} style="--stump-tone:${item ? itemTone(item) : 'transparent'}">${body}</button>`;
     }
     function stumpBoardHtml(result) {
         const cells = Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, result)).join('');
@@ -64,11 +67,16 @@ const stumpBoxUi = (() => {
         const stats = Object.keys(result.stats).map(stat => `<li>${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
         return `<div class="stump-chips" title="다 자라고 억제되지 않은 색별 개수. ${STUMP_BOX_RESONANCE.count}개부터 공명 +${STUMP_BOX_RESONANCE.bonusPct}%">${chips}</div>`
             + `<p class="stump-line">${notes.join(' · ')}</p>`
-            + `<ul class="stump-stats">${stats || '<li class="is-empty">다 자란 아이템이 아직 없습니다.</li>'}</ul>`;
+            + `<ul class="stump-stats">${stats || '<li class="is-empty">다 자란 아이템이 아직 없습니다.</li>'}</ul>`
+            + stumpTalismanUi.summaryHtml();
     }
 
     // ── 고른 아이템 ─────────────────────────────────────────
     function stumpGrowthLine(item) {
+        if (item.family === 'talisman' && !stumpBox.isMature(item)) {
+            return `<p class="stump-growth">깨어남 ${item.xp} / ${stumpBox.need(item)}</p>${stumpBar(item, true)}`;
+        }
+        if (item.family === 'talisman') return '';
         if (stumpBox.isMature(item)) return '<p class="stump-growth is-ripe">다 자랐습니다. 새 루프에 씨앗·수액으로 돌아가 다시 자랍니다.</p>';
         const hint = stumpBox.targetStage(item) ? '' : ' · 꽃·열매 중 하나를 고르세요';
         return `<p class="stump-growth">성장 ${item.xp} / ${stumpBox.need(item)}${hint}</p>${stumpBar(item, true)}`;
@@ -101,13 +109,18 @@ const stumpBoxUi = (() => {
         const back = cell < 0 ? '' : '<button type="button" data-stump-action="unplace">보관함으로</button>';
         return `<p class="stump-hint">${hint}</p><div class="stump-actions">${back}<button type="button" data-stump-action="deselect">선택 해제</button></div>`;
     }
+    function stumpDetailHead(item) {
+        const note = item.family === 'talisman' ? '' : `<small>품질 ${Math.round(item.roll * 100)}%</small>`;
+        return `<div class="stump-detail-head" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}`
+            + `<div><strong>${escStump(stumpBox.label(item))}</strong>${note}</div></div>`;
+    }
     function stumpDetailHtml(result) {
         const item = selectedId === null ? null : stumpBox.itemById(game, selectedId);
         if (!item) return '<p class="stump-hint">보관함이나 판에서 아이템을 누르면 설명이 나옵니다.</p>';
         const cell = game.stumpBox.board.indexOf(item.id);
-        return `<div class="stump-detail-head" style="--stump-tone:${stumpTone(item.color)}">${stumpIcon(item)}`
-            + `<div><strong>${escStump(stumpBox.label(item))}</strong><small>품질 ${Math.round(item.roll * 100)}%</small></div></div>`
-            + stumpGrowthLine(item) + stumpYieldLine(item, result) + stumpStatusLine(item, result, cell) + stumpPathPicker(item) + stumpActionsHtml(item, cell);
+        const body = item.family === 'talisman' ? stumpTalismanUi.detailHtml(item, cell)
+            : stumpYieldLine(item, result) + stumpStatusLine(item, result, cell) + stumpPathPicker(item);
+        return stumpDetailHead(item) + stumpGrowthLine(item) + body + stumpActionsHtml(item, cell);
     }
 
     // ── 시작 선물·보관함 ────────────────────────────────────
@@ -125,13 +138,22 @@ const stumpBoxUi = (() => {
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '', label = escStump(stumpBox.label(item));
         return `<button type="button" class="stump-item${item.id === selectedId ? ' is-selected' : ''}" data-stump-action="item" data-item="${item.id}"`
-            + ` title="${label}" aria-label="${label}" style="--stump-tone:${stumpTone(item.color)}">${stumpIcon(item)}${growing}</button>`;
+            + ` title="${label}" aria-label="${label}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}</button>`;
+    }
+    function stumpFilterLabel(key) {
+        if (key === 'all') return '전체';
+        return key === 'talisman' ? '부적' : STUMP_BOX_COLORS[key].label;
+    }
+    function stumpFilterMatch(item) {
+        if (colorFilter === 'all') return true;
+        return colorFilter === 'talisman' ? item.family === 'talisman' : item.color === colorFilter;
     }
     function stumpStorageHtml() {
-        const all = stumpBox.storage(game), items = colorFilter === 'all' ? all : all.filter(item => item.color === colorFilter);
-        const filters = ['all'].concat(COLORS).map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
-            + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${key === 'all' ? '전체' : STUMP_BOX_COLORS[key].label}</button>`).join('');
-        const empty = all.length ? '이 색의 아이템이 없습니다.' : '비어 있습니다. 스토리 액트 밖의 처치에서 가끔 씨앗·수액이 나옵니다.';
+        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch);
+        const keys = ['all'].concat(COLORS, all.some(item => item.family === 'talisman') || colorFilter === 'talisman' ? ['talisman'] : []);
+        const filters = keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
+            + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('');
+        const empty = all.length ? '이 분류의 아이템이 없습니다.' : '비어 있습니다. 스토리 액트 밖의 처치에서 가끔 씨앗·수액이 나옵니다.';
         return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${STUMP_BOX_STORAGE}</h3><div class="stump-filters">${filters}</div></div>`
             + `<div class="stump-storage-grid">${items.map(stumpStorageCard).join('') || `<p class="stump-hint">${empty}</p>`}</div>`;
     }
@@ -142,7 +164,8 @@ const stumpBoxUi = (() => {
         if (node && node.__stumpHtml !== html) { node.innerHTML = html; node.__stumpHtml = html; }
     }
     function stumpTabSignature() {
-        return JSON.stringify([game.stumpBox, selectedId, pendingPath, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock]);
+        const talismanInputs = [contentProgression.isUnlocked('talisman'), TALISMAN_CURRENCIES.map(key => Math.floor(game.currencies[key] || 0))];
+        return JSON.stringify([game.stumpBox, selectedId, pendingPath, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
     function renderStumpBoxTab(force) {
@@ -158,6 +181,7 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
         paintStumpPart('stump-box-starter', stumpStarterHtml());
         paintStumpPart('stump-box-storage', stumpStorageHtml());
+        paintStumpPart('stump-box-unseal', stumpTalismanUi.unsealHtml());
     }
     function refreshStumpTabIfVisible() {
         if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
@@ -217,6 +241,17 @@ const stumpBoxUi = (() => {
         notifyStump(`시작 선물: ${stumpBox.label(item)}`);
         commitStumpChange();
     }
+    function unsealTalisman(source) {
+        const item = stumpTalismanUi.unseal(source);
+        if (!item) return;
+        selectedId = item.id;
+        commitStumpChange();
+    }
+    async function discardTalisman() {
+        if (selectedId === null || !await stumpTalismanUi.discard(selectedId)) return;
+        selectedId = null;
+        commitStumpChange();
+    }
     const ACTIONS = {
         cell: data => clickStumpCell(Number(data.cell)),
         item: data => selectStumpItem(Number(data.item)),
@@ -224,7 +259,12 @@ const stumpBoxUi = (() => {
         unplace: () => unplaceStumpSelection(),
         deselect: () => selectStumpItem(null),
         starter: data => claimStumpStarter(data.family, data.color),
-        filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); }
+        filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); },
+        'talisman-unseal': data => unsealTalisman(data.source),
+        'talisman-exchange': data => { if (stumpTalismanUi.exchange(Number(data.index))) commitStumpChange(); },
+        'talisman-wax': () => { if (stumpTalismanUi.wax(selectedId)) commitStumpChange(); },
+        'talisman-turn': () => { if (stumpTalismanUi.turn(selectedId)) commitStumpChange(); },
+        'talisman-discard': () => discardTalisman()
     };
     function onStumpTabClick(event) {
         const target = event.target.closest('[data-stump-action]');
@@ -249,7 +289,8 @@ const stumpBoxUi = (() => {
     }
     function announceStumpChange(detail) {
         if (detail.drop) addLog(`🌱 그루터기 함: ${stumpBox.label(detail.drop)} 획득`, 'loot-magic');
-        (detail.ripened || []).forEach(item => addLog(`🌸 그루터기 함: ${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stumpBox.stageOf(item)].label} 다 자람`, 'loot-rare'));
+        (detail.ripened || []).forEach(item => addLog(item.family === 'talisman' ? `🧿 그루터기 함: [${item.name}] 깨어남`
+            : `🌸 그루터기 함: ${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stumpBox.stageOf(item)].label} 다 자람`, 'loot-rare'));
         lastSignature = '';
     }
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {

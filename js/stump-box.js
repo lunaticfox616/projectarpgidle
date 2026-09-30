@@ -1,11 +1,14 @@
 // 그루터기 함 도메인: 획득·배치·성장·공명·억제·드랍·루프 회귀를 소유한다. DOM·전투 계산·저장 입출력은 모른다.
 // 전투는 처치(onEnemyKilled)만 넘기고, 능력치 파이프라인은 applyStats로 계산 결과를 한 번 합산한다.
 // 설계: docs/stump-cube-game-design.md, 수치: data/stump-box.js. 공명·억제·능력치는 저장하지 않고 배치에서 계산한다.
+// 부적(family 'talisman')은 색 없는 세 번째 계열: 판에서 깨어나고(성장), 공명 · 억제 · 꽃 능력치에 끼지 않는다.
+// 부적의 줄과 이웃 효과는 talismans.js / talisman-effects.js가 맡고, 여기서는 보관 · 배치 · 깨어남 · 저장 경계만 다룬다.
 // 성장량 필드 이름이 xp인 것은 의도다: 영구 빌드 서명(getPersistentBuildSignature)이 xp를 빼므로 처치마다
 // 장비 분석 캐시가 깨지지 않고, 다 자라 능력치가 바뀌는 순간만 ripe가 바뀌어 캐시가 새로 계산된다.
 const stumpBox = (() => {
     const CELLS = STUMP_BOX_SIZE * STUMP_BOX_SIZE;
     const FAMILIES = ['seed', 'sap'], PATHS = ['flower', 'fruit'], COLORS = Object.keys(STUMP_BOX_COLORS);
+    const FIXED_TARGET = { sap: 'amber', talisman: 'talisman' };
     let memo = { key: null, box: null, value: null };
 
     function empty() {
@@ -22,6 +25,7 @@ const stumpBox = (() => {
     function isMature(item) { return item.ripe === true; }
     /** seed · sprout · flower · fruit / sap · resin · amber */
     function stageOf(item) {
+        if (item.family === 'talisman') return isMature(item) ? 'talisman' : 'sealed';
         const half = item.xp >= need(item) * STUMP_BOX_GROWTH.sproutAt;
         if (item.family === 'sap') return isMature(item) ? 'amber' : half ? 'resin' : 'sap';
         if (isMature(item) && item.path) return item.path;
@@ -32,12 +36,15 @@ const stumpBox = (() => {
         const kind = item.family === 'sap' ? 'amber' : item.path;
         return kind ? STUMP_BOX_YIELDS[kind][item.color] : null;
     }
-    function targetStage(item) { return item.family === 'sap' ? 'amber' : item.path; }
+    function targetStage(item) { return FIXED_TARGET[item.family] || item.path; }
     function label(item) {
+        if (item.family === 'talisman') return isMature(item) ? item.name : `${item.name} · 잠듦`;
         const target = targetStage(item), now = STUMP_BOX_STAGES[stageOf(item)].label;
         return `${STUMP_BOX_COLORS[item.color].label} ${now}` + (target && !isMature(item) ? ` → ${STUMP_BOX_STAGES[target].label}` : '');
     }
-    function iconPath(item) { return `assets/px/stump/${STUMP_BOX_STAGES[stageOf(item)].icon}-${item.color}.png`; }
+    function iconPath(item) {
+        return `assets/px/stump/${STUMP_BOX_STAGES[stageOf(item)].icon}-${item.family === 'talisman' ? item.rarity : item.color}.png`;
+    }
     function findItem(box, id) { return box.items.find(item => item.id === id) || null; }
     function cellOf(state, id) { return of(state).board.indexOf(id); }
     function storage(state) {
@@ -55,6 +62,21 @@ const stumpBox = (() => {
         const item = { id: box.nextId++, family: spec.family, color: spec.color, path: null, xp: 0, ripe: false, roll: clampRoll(spec.roll) };
         box.items.push(item);
         return item;
+    }
+    /** Adds an unsealed talisman (talismans.js fields, normalized here) to storage. force: a boss reward that must not be lost to a full storage. */
+    function addTalisman(state, talisman, force) {
+        const box = of(state), fields = talismans.normalizeTalisman(talisman);
+        if (!box.acquired || !fields || (!force && storage(state).length >= STUMP_BOX_STORAGE)) return null;
+        const item = { id: box.nextId++, family: 'talisman', color: null, path: null, xp: 0, ripe: false, roll: 1, ...fields };
+        box.items.push(item);
+        return item;
+    }
+    /** Throws away a stored (not placed) item. */
+    function discard(state, id) {
+        const box = of(state);
+        if (box.board.includes(id) || !findItem(box, id)) return false;
+        box.items = box.items.filter(item => item.id !== id);
+        return true;
     }
 
     // ── 칸 ─────────────────────────────────────────────────
@@ -124,7 +146,7 @@ const stumpBox = (() => {
         const out = new Set();
         box.board.forEach((id, cell) => {
             const item = id === null ? null : findItem(box, id);
-            if (!item) return;
+            if (!item || !item.color) return;
             for (const next of neighbors(cell)) {
                 const other = box.board[next] === null ? null : findItem(box, box.board[next]);
                 if (other && STUMP_BOX_OPPOSITES[item.color] === other.color) { out.add(item.id); out.add(other.id); }
@@ -229,9 +251,17 @@ const stumpBox = (() => {
 
     // ── 저장 경계 ───────────────────────────────────────────
     function validItem(raw) {
-        return raw && Number.isSafeInteger(raw.id) && raw.id > 0 && FAMILIES.includes(raw.family) && COLORS.includes(raw.color);
+        const known = raw && (raw.family === 'talisman' || (FAMILIES.includes(raw.family) && COLORS.includes(raw.color)));
+        return known && Number.isSafeInteger(raw.id) && raw.id > 0;
+    }
+    function cleanTalisman(raw) {
+        const fields = talismans.normalizeTalisman(raw);
+        if (!fields) return null;
+        const xp = Math.min(STUMP_BOX_GROWTH.need.talisman, Math.max(0, Math.floor(Number(raw.xp) || 0)));
+        return { id: raw.id, family: 'talisman', color: null, path: null, xp, ripe: xp >= STUMP_BOX_GROWTH.need.talisman, roll: 1, ...fields };
     }
     function cleanItem(raw) {
+        if (raw.family === 'talisman') return cleanTalisman(raw);
         const path = raw.family === 'seed' && PATHS.includes(raw.path) ? raw.path : null;
         const xp = Math.min(STUMP_BOX_GROWTH.need[raw.family], Math.max(0, Math.floor(Number(raw.xp) || 0)));
         const ripe = xp >= STUMP_BOX_GROWTH.need[raw.family] && (raw.family === 'sap' || path !== null);
@@ -240,7 +270,8 @@ const stumpBox = (() => {
     function restoreItems(raw, box) {
         const seen = new Set();
         (Array.isArray(raw.items) ? raw.items : []).filter(validItem).forEach(item => {
-            if (!seen.has(item.id)) { seen.add(item.id); box.items.push(cleanItem(item)); }
+            const clean = seen.has(item.id) ? null : cleanItem(item);
+            if (clean) { seen.add(clean.id); box.items.push(clean); }
         });
         const used = new Set();
         (Array.isArray(raw.board) ? raw.board : []).slice(0, CELLS).forEach((id, cell) => {
@@ -264,7 +295,7 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, createItem, storage, place, unplace, setPath,
+        empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, unplace, setPath,
         evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, openCount, isOpen, opensAt, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
         itemById: (state, id) => findItem(of(state), id)

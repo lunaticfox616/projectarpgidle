@@ -1,7 +1,7 @@
 // Page state belongs to presentation. Filter complete inventories before passing rows here;
 // the returned slice preserves item references and original indices used by domain actions.
 const inventoryLibraryUi = (() => {
-    const states = {talisman: {page:0, search:''}, growth: {page:0, search:''}};
+    const states = {growth: {page:0, search:''}};
 
     function visibleRows(kind, rows, query) {
         const state = states[kind];
