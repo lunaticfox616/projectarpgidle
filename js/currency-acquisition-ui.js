@@ -54,9 +54,5 @@
         event.detail.gems.forEach(gem=>announceGemReward({gem,kind:gem.kind,shards:0}));
         event.detail.jewels.forEach(jewel=>announceJewelReward({jewel,stored:true}));
         event.detail.cores.forEach(announceCore);
-        for(const key of event.detail.flasks) {
-            if(game.settings.showLootLog)addLog(`🧪 새로운 플라스크 발견: [${FLASK_DB[key].name}]`,'loot-rare');
-        }
-        if(event.detail.flasks.length)requestGoalSystemRefresh();
     });
 })();

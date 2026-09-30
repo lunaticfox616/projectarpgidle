@@ -33,9 +33,6 @@
         'tab-season': { title: '루프 패시브', x: 210, y: 70, width: 980, height: 800, minWidth: 500, minHeight: 380 },
         'tab-pruning': { title: '성장 나무 · 가지치기', x: 210, y: 70, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-arcana': { title: '아르카나', x: 230, y: 72, width: 920, height: 740, minWidth: 620, minHeight: 460 },
-        // 보조장비 창에는 플라스크만 남았다(주얼 · 코어는 장비창, 부적 · 생장판 자리는 그루터기 함으로 옮겼다).
-        // 창 소유자는 이 런처 하나뿐이다.
-        'tab-flask': { title: '보조장비', x: 260, y: 100, width: 860, height: 660, minWidth: 800, minHeight: 380 },
         'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 },
         'tab-stump': { title: '그루터기 함', x: 240, y: 70, width: 940, height: 760, minWidth: 560, minHeight: 440 }
@@ -666,7 +663,7 @@
         dockedHudSizes.clear();
     }
 
-    // HUD 크기가 바뀌면(미니맵이 나타나거나 젬·플라스크 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
+    // HUD 크기가 바뀌면(미니맵이 나타나거나 젬 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
     // 날개 폭은 격자의 남는 자리(minmax(0, 1fr))라 단추를 옮겨도 다시 바뀌지 않는다.
     let dockedHudWatch = null;
     const dockedHudSizes = new Map();

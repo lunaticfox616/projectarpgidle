@@ -130,7 +130,6 @@
 :root body.desktop-windowed-ui #btn-tab-traits::before { content: '♛'; }
 :root body.desktop-windowed-ui #btn-tab-talent::before { content: '❖'; }
 :root body.desktop-windowed-ui #btn-tab-items::before { content: '⚒︎'; }
-:root body.desktop-windowed-ui #btn-tab-flask::before { content: '♜'; }
 :root body.desktop-windowed-ui #btn-tab-map::before { content: '⌖'; }
 :root body.desktop-windowed-ui #btn-tab-skills::before { content: '◈'; }
 :root body.desktop-windowed-ui #btn-tab-journal::before { content: '▤'; }
@@ -476,83 +475,6 @@
   .craft-result-head button { width: 100%; }
 }
 
-.flask-slot-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: auto;
-  padding-top: 8px;
-}
-
-.flask-slot-actions.two-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.flask-slot-actions button { width: 100%; min-width: 0; min-height: 44px; padding: 5px 4px; line-height: 1.2; overflow-wrap: anywhere; }
-.flask-slot-box { display: flex; flex-direction: column; }
-
-.flask-overview {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 9px;
-}
-
-.flask-overview > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 7px;
-  min-width: 0;
-  padding: 7px 9px;
-  border: 1px solid var(--color-line);
-  border-radius: 7px;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  font-size: .7rem;
-}
-
-.flask-overview strong {
-  color: var(--color-text);
-  font-size: .78rem;
-}
-
-.flask-slot-effect {
-  min-height: 2.4em;
-  color: var(--color-text);
-  font-size: .7rem;
-  line-height: 1.35;
-}
-
-.flask-charge-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 7px;
-  margin-top: 7px;
-  color: var(--color-text-secondary);
-  font-size: .64rem;
-}
-
-.flask-charge-meter {
-  height: 4px;
-  margin: 3px 0 7px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: var(--color-surface);
-  box-shadow: inset 0 0 0 1px rgba(97, 135, 172, .24);
-}
-
-.flask-charge-meter > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #397aa5, #73d2e8);
-  box-shadow: 0 0 7px rgba(92, 205, 230, .42);
-  transition: width .18s ease-out;
-}
-
-.flask-slot-box.heal .flask-charge-meter > span {
-  background: linear-gradient(90deg, #34775a, #6ed9a5);
-  box-shadow: 0 0 7px rgba(92, 217, 159, .4);
-}
-
 .inventory-capacity-actions {
   display: flex;
   align-items: center;
@@ -577,17 +499,7 @@
 .inventory-expand-shortcut:disabled { opacity: .48; cursor: not-allowed; }
 .inventory-expand-shortcut[hidden] { display: none; }
 
-.flask-trigger-select {
-  color: #ffffff;
-  border-color: rgba(95, 143, 184, .55);
-  background: rgba(24, 52, 75, .75);
-  font-size: .7rem;
-}
-
 @container (max-width: 760px) {
-  .flask-overview {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .journal-card-grid {
       grid-template-columns: minmax(0, 1fr);
@@ -2232,46 +2144,6 @@ body .cfg-group {
   body:not(.desktop-windowed-ui) .gem-research-progress { grid-column: auto; }
 }
 
-/* Combat flask HUD: charge count stays readable without covering the health bar. */
-.combat-flask-strip {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 31px;
-  max-width: 156px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  pointer-events: auto;
-}
-.combat-flask-strip::-webkit-scrollbar { display: none; }
-.combat-flask-mini {
-  position: relative;
-  flex: 0 0 27px;
-  width: 27px;
-  height: 30px;
-  color: #ffffff;
-}
-.combat-flask-mini.heal { color: #a7f0c8; }
-.combat-flask-mini.active { box-shadow: 0 0 9px currentColor; }
-.combat-flask-mini.empty-charge { filter: grayscale(.75); opacity: .58; }
-.combat-flask-mini.empty { opacity: .42; }
-.combat-flask-mini > span { font-size: 14px; line-height: 1; }
-.combat-flask-mini > b {
-  position: absolute;
-  right: -3px;
-  bottom: -4px;
-  display: grid;
-  place-items: center;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 2px;
-  border: 1px solid #55718c;
-  border-radius: 999px;
-  color: #ffffff;
-  background: #07101a;
-  font-size: 8px;
-}
-
 .game-choice-overlay.gem-engrave-slot-overlay {
   position: fixed;
   inset: 0;
@@ -2318,32 +2190,6 @@ body .cfg-group {
 .gem-engrave-slot-dialog .gem-engrave-option { width: 100%; min-height: 86px; padding: 10px; cursor: pointer; }
 .gem-engrave-slot-dialog .gem-engrave-option:disabled { opacity: .42; cursor: not-allowed; filter: saturate(.55); }
 .gem-engrave-slot-dialog .gem-engrave-option:focus-visible { outline: 2px solid #d9b867; outline-offset: -3px; }
-
-.flask-workbench.progression-workbench {
-  margin-top: 10px;
-  padding: 10px;
-  border: 1px solid var(--color-line);
-  border-radius: 9px;
-  background: var(--color-surface-raised);
-}
-.flask-workbench-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
-.flask-workbench-head span,
-.flask-workbench-head strong,
-.flask-workbench-head small { display: block; }
-.flask-workbench-head > div:first-child > span { color: var(--color-text-secondary); font-size: 12px; font-weight: 900; letter-spacing: .14em; }
-.flask-workbench-head > div:first-child > strong { margin-top: 2px; color: var(--color-text); font-size: 12px; }
-.flask-workbench-head > div:first-child > small { margin-top: 2px; color: var(--color-text-secondary); font-size: 12px; }
-.flask-glass-balance { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: 7px; text-align: center; background: var(--color-surface); }
-.flask-glass-balance span { color: var(--color-text-secondary); font-size: 12px; }
-.flask-glass-balance b { color: var(--color-text); font-size: 15px; }
-.flask-craft-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 6px; }
-.flask-craft-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid var(--color-line); border-radius: 7px; background: var(--color-surface); }
-.flask-craft-card span,
-.flask-craft-card strong,
-.flask-craft-card small { display: block; white-space: normal; word-break: keep-all; }
-.flask-craft-card span { color: var(--color-text-secondary); font-size: 12px; }
-.flask-craft-card strong { margin-top: 2px; color: var(--color-text); font-size: 12px; }
-.flask-craft-card small { margin-top: 2px; color: var(--color-text-secondary); font-size: 12px; }
 
 /* Dense management screens keep the primary browse/equip flow visible and fold secondary work. */
 .progression-workbench,
@@ -2480,7 +2326,6 @@ body .cfg-group {
   .equipment-triage-controls label { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .equipment-triage-controls select { width: 100%; max-width: none; }
 }
-.flask-craft-card button { min-width: 76px; min-height: 36px; padding: 6px 9px; font-size: 12px; }
 
 @media (max-width: 720px) {
   .gem-engrave-overlay-grid { grid-template-columns: 1fr; }
@@ -2491,8 +2336,6 @@ body .cfg-group {
   .gem-engrave-dialog-art { width: 44px; height: 44px; }
   .gem-engrave-slot-dialog header h3 { font-size: 12px; }
   .gem-engrave-slot-dialog header p { font-size: 8px; }
-  .flask-craft-grid { grid-template-columns: 1fr; }
-  .flask-workbench-head { align-items: flex-start; }
 } }
 
 
@@ -2560,14 +2403,4 @@ body .cfg-group {
 .summon-gem-count-btn { border-radius: 5px; }
 .gem-orbit-slot { clip-path: none; border-radius: 50%; }
 .condition-gem-rule-list > div { border-radius: 2px 10px 2px 10px; background: linear-gradient(150deg, rgba(17, 29, 43, .94), rgba(7, 13, 21, .96)); }
-.player-hud-vitals { grid-template-columns: auto minmax(0, 1fr); }
-.combat-flask-mini {
-  min-width: 27px;
-  min-height: 30px;
-  padding: 0;
-  border: 1px solid rgba(86, 127, 157, .72);
-  border-radius: 6px;
-  background: linear-gradient(180deg, rgba(25, 58, 78, .94), rgba(8, 19, 29, .96));
-}
-.combat-flask-mini.heal { border-color: rgba(71, 155, 112, .78); }
-.combat-flask-mini.empty { border-style: dashed; } }
+.player-hud-vitals { grid-template-columns: auto minmax(0, 1fr); } }

@@ -66,7 +66,7 @@ const actExplorationProgress = (() => {
         addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600});
         return entrance;
     }
-    /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit, no flask) starts as they wake. */
+    /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
     function wakeBosses(woken) {
         const zone=getZone(game.currentZoneId);
         for(const enemy of woken)if(enemy.isBoss)restartHiddenJournalBossRun(enemy,zone);

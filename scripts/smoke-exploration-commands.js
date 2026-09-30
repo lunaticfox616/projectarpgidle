@@ -112,6 +112,6 @@ assert.equal(run("hotkeyBindings.actionForCode({},'KeyE').id"), 'combat:mobility
 assert.equal(run("hotkeyBindings.actionForCode({},'KeyA').id"), 'combat:autoMove', 'A toggles auto-move');
 const slot = run("renderCombatSkillSlot({kind:'mobility',name:'향로구름',hotkey:getHotkeyLabel('combat:mobility')})");
 assert.match(slot, /data-gem-name="향로구름" data-slot-kind="mobility" aria-keyshortcuts="E"/, 'the mobility slot names its key');
-assert.match(slot, /<i class="combat-flask-key" aria-hidden="true">E<\/i><\/button>$/, 'and shows it like the flask keys');
-assert.doesNotMatch(run("renderCombatSkillSlot({kind:'primary',name:'연속 베기'})"), /combat-flask-key/, 'other slots have no key');
+assert.match(slot, /<i class="combat-hud-key" aria-hidden="true">E<\/i><\/button>$/, 'and shows it like the auto-move key');
+assert.doesNotMatch(run("renderCombatSkillSlot({kind:'primary',name:'연속 베기'})"), /combat-hud-key/, 'other slots have no key');
 console.log('exploration commands: auto-move stays on, 직접 이동, give-up, click → cell, keys ok');

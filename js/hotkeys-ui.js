@@ -1,13 +1,9 @@
 // PC 단축키: 키 입력 처리, 메뉴·HUD 키 표시, 설정 > 전투 · 소리 > 단축키 화면.
 // 배정 해석은 js/hotkeys.js(hotkeyBindings), 창 열기/닫기는 ui-window-manager(toggleWindowFromHotkey),
-// 플라스크 사용 규칙은 js/combat.js(useFlaskSlot), 이동 스킬은 js/mobility-skill.js(request), 자동 이동은
+// 이동 스킬은 js/mobility-skill.js(request), 자동 이동은
 // js/act-exploration-ui.js(toggleAuto)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.
 const hotkeysUi = (() => {
     'use strict';
-    const FLASK_DENIED = Object.freeze({
-        charges: '충전이 없습니다', active: '이미 효과가 켜져 있습니다', full: '생명력이 가득 찼습니다',
-        empty: '이 칸에 장착한 플라스크가 없습니다', locked: '플라스크가 아직 잠겨 있습니다', dead: '쓰러진 상태에서는 마실 수 없습니다'
-    });
     const DENIED_TOAST_GAP_MS = 1200;
     let capturing = null;
     let notice = '';
@@ -23,11 +19,11 @@ const hotkeysUi = (() => {
         return !!typing || !!document.querySelector('dialog:modal, .tutorial-overlay.active');
     }
 
-    function flashFlask(button, ok) {
+    function flashHudButton(button, ok) {
         if (!button) return;
-        button.classList.remove('flask-used', 'flask-denied');
+        button.classList.remove('hud-key-used', 'hud-key-denied');
         void button.offsetWidth;
-        button.classList.add(ok ? 'flask-used' : 'flask-denied');
+        button.classList.add(ok ? 'hud-key-used' : 'hud-key-denied');
     }
 
     /** A held key or quick taps repeat the same refusal; one toast per reason in DENIED_TOAST_GAP_MS. */
@@ -38,20 +34,11 @@ const hotkeysUi = (() => {
         showGameToast(message, { tone: 'warning', duration: 1600 });
     }
 
-    /** HUD 칸 클릭과 단축키가 함께 쓰는 입구. */
-    function useFlask(slot, button) {
-        const result = useFlaskSlot(slot);
-        if (result.ok) renderCombatFlaskHud();
-        else announceDenied(FLASK_DENIED[result.reason] || '지금은 마실 수 없습니다');
-        flashFlask(button || document.querySelector(`#ui-combat-flasks [data-flask-slot="${slot}"]`), result.ok);
-        return result;
-    }
-
     /** HUD 이동 스킬 칸 클릭과 단축키가 함께 쓰는 입구: 다음 전투 틱에 시전된다. '' = 받아들임, 아니면 못 쓰는 까닭. */
     function useMobility(button) {
         const reason = mobilitySkill.request();
         if (reason) announceDenied(reason);
-        flashFlask(button || document.querySelector('#ui-combat-skill-gems .player-hud-skill-slot.mobility'), !reason);
+        flashHudButton(button || document.querySelector('#ui-combat-skill-gems .player-hud-skill-slot.mobility'), !reason);
         return reason;
     }
 
@@ -70,8 +57,7 @@ const hotkeysUi = (() => {
             return;
         }
         event.preventDefault();
-        if (action.kind === 'combat') useCombatAction(action.target);
-        else useFlask(action.target);
+        useCombatAction(action.target);
     }
 
     function captureKey(event) {
@@ -128,7 +114,6 @@ const hotkeysUi = (() => {
         const bindings = hotkeyBindings.effective(overrides());
         const group = kind => hotkeyBindings.actions.filter(action => action.kind === kind).map(action => rowHtml(action, bindings)).join('');
         host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">창 열기·닫기</div>${group('window')}</div>`
-            + `<div class="hotkey-section"><div class="hotkey-section-title">플라스크 마시기</div>${group('flask')}</div>`
             + `<div class="hotkey-section"><div class="hotkey-section-title">전투 · 이동</div>${group('combat')}</div>`
             + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${escapeHTML(notice)}</span>`
             + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>기본값으로</button></div>`;
@@ -153,7 +138,7 @@ const hotkeysUi = (() => {
         shownSignature = JSON.stringify(overrides());
         labelRail();
         render();
-        renderCombatFlaskHud();
+        renderCombatSkillHud();
     }
 
     /** 저장 불러오기 등으로 game이 바뀌면 표시를 맞춘다(바뀐 게 없으면 아무것도 하지 않음). */
@@ -181,6 +166,6 @@ const hotkeysUi = (() => {
         refresh();
     }
 
-    return Object.freeze({ init, sync, useFlask, useMobility });
+    return Object.freeze({ init, sync, useMobility });
 })();
 safeExposeGlobals({ hotkeysUi });

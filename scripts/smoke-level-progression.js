@@ -117,11 +117,11 @@ assert.deepEqual(json('Object.keys(getPlayerStats(false).disabledEquipment).sort
 run('game.actRewardBonuses[0].value=32');
 assert.equal(run('Object.keys(getPlayerStats(false).disabledEquipment).length'),0,'restoring permanent attributes reactivates the complete valid setup');
 run(`var belt=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='blood_girdle'),'normal',12);
-    belt.rarity='unique';belt.uniqueEffectKey='extraFlaskUtilitySlots';belt.uniqueEffectParams={slots:2,chargeRatePct:20};
-    game.equipment['허리띠']=belt;game.level=1;`);
-assert.equal(run('getFlaskChargeRateBonusPct()'),0,'independent flask consumers also exclude ineligible gear');
+    belt.rarity='unique';belt.uniqueEffectKey='thousandBottles';game.level=1;`);
+const damageWithBelt=worn=>run(`game.equipment['허리띠']=${worn?'belt':'null'};getPlayerStats(false).damageIncreasePct`);
+assert.equal(damageWithBelt(true),damageWithBelt(false),'an ineligible unique belt grants no unique effect');
 run('game.level=100');
-assert.equal(run('getFlaskChargeRateBonusPct()'),20);
+assert.equal(damageWithBelt(true)-damageWithBelt(false),10,'천 개의 유리병 adds its damage once eligible');
 for(const level of [9,10,19,20,49,50,99,100]) {
     assert.ok(run(`getExpReq(${level+1})>getExpReq(${level})`),'required experience must not fall at curve boundaries');
 }

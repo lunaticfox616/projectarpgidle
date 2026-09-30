@@ -33,14 +33,6 @@ context.game.playerHp = 100;
 context.startHiddenJournalBossRun(pinnacle, pinnacleZone);
 context.completeHiddenJournalBossRun(pinnacle, pinnacleZone, { maxHp:100 });
 assert(unlocked.includes('hidden_unscarred'), 'pinnacle victory without life damage must unlock the unscarred journal');
-assert(unlocked.includes('hidden_dry_vial'), 'pinnacle victory without flask use must unlock the dry-vial journal');
-
-unlocked.length = 0;
-const secondPinnacle = { id:73, isBoss:true };
-context.startHiddenJournalBossRun(secondPinnacle, pinnacleZone);
-context.trackHiddenJournalFlaskUse();
-context.completeHiddenJournalBossRun(secondPinnacle, pinnacleZone, { maxHp:100 });
-assert(!unlocked.includes('hidden_dry_vial'), 'any flask activation during the fight must block the dry-vial journal');
 
 unlocked.length = 0;
 const defeatedBoss = { id:75, isBoss:true };

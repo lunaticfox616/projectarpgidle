@@ -2066,106 +2066,6 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
   white-space: nowrap;
 }
 
-.player-hud-flask-rack {
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.player-hud-flask-rack .combat-flask-mini {
-  --flask-liquid: #79509f;
-  --flask-liquid-dark: #38234d;
-  --flask-slot-edge: #8b6839;
-  flex: 0 0 clamp(18px, 2.1vw, 23px);
-  isolation: isolate;
-}
-
-.player-hud-flask-rack .combat-flask-mini.heal,
-.player-hud-flask-rack .combat-flask-mini.boot-heal,
-.player-hud-flask-rack .combat-flask-mini.flask-heal {
-  --flask-liquid: #b93239;
-  --flask-liquid-dark: #5c0d17;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-granite {
-  --flask-liquid: #8b8177;
-  --flask-liquid-dark: #403b37;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-quicksilver {
-  --flask-liquid: #70b7c1;
-  --flask-liquid-dark: #244d59;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-amethyst {
-  --flask-liquid: #9451b0;
-  --flask-liquid-dark: #432052;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-bismuth {
-  --flask-liquid: #c18e45;
-  --flask-liquid-dark: #5c3a19;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-sulphur {
-  --flask-liquid: #d17a35;
-  --flask-liquid-dark: #642d13;
-}
-
-.player-hud-flask-rack .combat-flask-mini::before {
-  content: '';
-  position: absolute;
-  z-index: 2;
-  top: 20%;
-  right: 15%;
-  bottom: 7%;
-  left: 15%;
-  clip-path: polygon(37% 0, 63% 0, 63% 17%, 78% 28%, 89% 49%, 86% 83%, 72% 100%, 28% 100%, 14% 83%, 11% 49%, 22% 28%, 37% 17%);
-  background:
-    linear-gradient(108deg, transparent 0 25%, rgba(255, 255, 255, .58) 28% 35%, transparent 39% 100%),
-    radial-gradient(circle at 66% 72%, rgba(255, 255, 255, .34) 0 5%, transparent 7%),
-    linear-gradient(180deg, rgba(205, 222, 216, .3) 0 39%, var(--flask-liquid) 42% 73%, var(--flask-liquid-dark) 100%);
-  box-shadow:
-    inset 0 1px rgba(255, 255, 255, .45),
-    inset 0 -3px rgba(0, 0, 0, .55);
-  filter:
-    drop-shadow(0 0 1px rgba(244, 228, 197, .92))
-    drop-shadow(0 0 4px color-mix(in srgb, var(--flask-liquid), transparent 45%));
-  pointer-events: none;
-}
-
-.player-hud-flask-rack .combat-flask-mini::after {
-  content: '';
-  position: absolute;
-  z-index: 3;
-  top: 5%;
-  left: 36%;
-  width: 28%;
-  height: 24%;
-  border: 1px solid rgba(219, 199, 160, .72);
-  border-radius: 2px 2px 1px 1px;
-  background: linear-gradient(180deg, #c39b60 0 25%, #66482a 27% 43%, rgba(205, 222, 216, .3) 45% 100%);
-  box-shadow:
-    inset 0 1px rgba(255, 238, 196, .45),
-    inset 1px 0 rgba(255, 255, 255, .14),
-    0 1px 1px rgba(0, 0, 0, .88);
-  pointer-events: none;
-}
-
-.player-hud-flask-rack .combat-flask-mini > span { display: none; }
-
-.player-hud-flask-rack .combat-flask-mini > b {
-  right: -3px;
-  bottom: -3px;
-  z-index: 4;
-  min-width: 13px;
-  height: 13px;
-  border-color: #695237;
-  color: #f1e7d7;
-  background: #090a08;
-  font-size: 8px;
-}
-
 .player-hud-skill-rack {
   display: grid;
   align-content: center;
@@ -2283,30 +2183,6 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
     max-width: 82px;
   }
 
-  body.desktop-windowed-ui .player-hud-flask-rack {
-    z-index: 5;
-    aspect-ratio: 900 / 230;
-    box-sizing: border-box;
-    background-image: var(--combat-hud-flask-rack-art);
-    background-position: 1.887% 43.927%;
-    background-repeat: no-repeat;
-    background-size: 241.333% 314.783%;
-    filter: var(--combat-hud-frame-filter);
-  }
-
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini {
-    flex: none;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-  }
-
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini::before {
-    top: 18%;
-    right: 14%;
-    bottom: 6%;
-    left: 14%;
-  }
-
   body.desktop-windowed-ui .player-hud-skill-rack {
     align-content: center;
   }
@@ -2336,9 +2212,6 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
     grid-template-columns: minmax(72px, 1fr) auto;
     align-items: center;
     padding: 5px 7px;
-  }
-  body.mobile-battle-tab .player-hud-flask-rack .combat-flask-mini {
-    flex-basis: 18px;
   }
 
   body.mobile-battle-tab .player-hud-skill-rack {
@@ -2979,39 +2852,6 @@ body .selection-overlay-panel {
   color: #d6b572;
 }
 
-.player-hud-flask-rack {
-  position: static;
-  display: flex;
-  width: 100%;
-  height: clamp(18px, 2.1vw, 23px);
-  max-width: none;
-  overflow: visible;
-  pointer-events: auto;
-}
-
-.player-hud-flask-rack .combat-flask-mini {
-  position: relative;
-  top: auto;
-  right: auto;
-  bottom: auto;
-  left: auto;
-  width: clamp(18px, 2.1vw, 23px);
-  min-width: clamp(18px, 2.1vw, 23px);
-  height: clamp(18px, 2.1vw, 23px);
-  min-height: clamp(18px, 2.1vw, 23px);
-  padding: 0;
-  overflow: visible;
-  border: 1px solid #8b6839;
-  border-radius: 50%;
-  background: radial-gradient(circle, #17130f 0 56%, #050605 59% 100%);
-  box-shadow:
-    inset 0 0 0 1px #090a08,
-    inset 0 0 5px #000,
-    0 0 0 2px #070806,
-    0 0 0 3px var(--flask-slot-edge),
-    0 2px 5px rgba(0, 0, 0, .78);
-}
-
 @media (min-width: 1081px) {
   body.desktop-windowed-ui .player-hud {
     left: calc((100% - var(--combat-log-width) - 24px) / 2);
@@ -3034,36 +2874,6 @@ body .selection-overlay-panel {
     padding: 4px 7px;
     overflow: hidden;
   }
-
-  body.desktop-windowed-ui .player-hud-flask-rack {
-    position: absolute;
-    top: auto;
-    bottom: calc(100% - 1px);
-    left: -47%;
-    display: block;
-    width: 191%;
-    height: auto;
-    padding: 0;
-    overflow: visible;
-  }
-
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini {
-    position: absolute;
-    top: 54%;
-    width: 13.1%;
-    min-width: 0;
-    height: auto;
-    min-height: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(1) { left: 26%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(2) { left: 41.8%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(3) { left: 57.7%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(4) { left: 73.6%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(5) { left: 89.5%; }
 
   /* 스킬 받침: 오른쪽 날개에는 주 공격만 크게 두고, 소환·자동 사용 젬은 플라스크 받침을 좌우로 뒤집은 위쪽 받침에 놓는다.
      cqw는 스킬 칸 틀 너비의 1%. 받침 그림과 소켓 중심은 플라스크 받침(너비 191%, 소켓 26/41.8/57.7/73.6/89.5%, 높이 54%)의 거울상이다. */
@@ -3130,13 +2940,5 @@ body .selection-overlay-panel {
 
   body.mobile-battle-tab .player-hud-left-wing .player-hud-identity-row span {
     font-size: 10px;
-  }
-
-  body.mobile-battle-tab .player-hud-flask-rack { width: auto; }
-  body.mobile-battle-tab .player-hud-flask-rack .combat-flask-mini {
-    width: 18px;
-    min-width: 18px;
-    height: 18px;
-    min-height: 18px;
   }
 } }

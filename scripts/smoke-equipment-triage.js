@@ -166,8 +166,7 @@ for (const mutation of [
     "game.stumpBox.acquired = !game.stumpBox.acquired",
     "game.pruningTree.nodeRanks.test = 1",
     "game.cosmosAtlas = {mastery:{resonanceDrive:1}}",
-    "game.ocean.permanentUpgrades.pressureResist = 1",
-    "game.flasks.utils = [{key:'quicksilver',charges:1}]"
+    "game.ocean.permanentUpgrades.pressureResist = 1"
 ]) {
     const saved = frozen.run('JSON.stringify(game)');
     analysis.start(); complete();

@@ -21,7 +21,7 @@ assert.throws(()=>run('mergeDefaults(window.bad)'),/탐험 장비 저장/,'an ou
 run(`window.legacy=JSON.parse(serializeSaveState(game));Object.assign(window.legacy.actExploration.loot,{version:6,blurred45:5});
     delete window.legacy.actExploration.loot.cores;`);
 const legacy=JSON.parse(run('JSON.stringify(mergeDefaults(window.legacy).actExploration.loot)'));
-assert.equal(legacy.version,8);
+assert.equal(legacy.version,9);
 assert.deepEqual(legacy.cores,[],'old pending cube material is dropped without compensation');
 assert(!('blurred45' in legacy));
 // v7 held growth items and growth essence; the growth board is gone (2026-09-30), so they go without compensation.
@@ -29,8 +29,13 @@ run(`window.legacy7=JSON.parse(serializeSaveState(game));Object.assign(window.le
     growthItems:[{id:990001,name:'옛 생장판',rarity:'magic',stats:[],baseStats:[],slot:'무기',growthCategory:'flower',growthShapeId:'dot1'}],
     growthCodex:[],currencies:{...window.legacy7.actExploration.loot.currencies,growthEssence:4}});`);
 const legacy7=JSON.parse(run('JSON.stringify(mergeDefaults(window.legacy7).actExploration.loot)'));
-assert.equal(legacy7.version,8);
+assert.equal(legacy7.version,9);
 assert(!('growthItems' in legacy7)&&!('growthCodex' in legacy7)&&!('growthEssence' in legacy7.currencies),'pending growth rewards are dropped');
+// v8 held flask discoveries and alchemy glass; flasks are gone (2026-10-01), so they go without compensation.
+run(`window.legacy8=JSON.parse(serializeSaveState(game));Object.assign(window.legacy8.actExploration.loot,{version:8,flasks:['h2'],alchemyGlass:3});`);
+const legacy8=JSON.parse(run('JSON.stringify(mergeDefaults(window.legacy8).actExploration.loot)'));
+assert.equal(legacy8.version,9);
+assert(!('flasks' in legacy8)&&!('alchemyGlass' in legacy8),'pending flask rewards are dropped');
 
 run(`game.actExploration.status='cleared';finishEncounterRun();`);
 assert.deepEqual(copy('game.cores.owned'),[held],'settlement moves the pending core into the store');

@@ -39,13 +39,13 @@ assert.equal(walking, true, 'a map walk with no fight in sight is still replayed
 // ---------------------------------------------------------------- the hidden journal count starts when a boss wakes
 const journal = copy(`(() => {
     const zone = { id: 'test_pinnacle', type: 'seasonBoss', milestonePinnacle: true }, boss = { id: 424242, isBoss: true };
-    startHiddenJournalBossRun(boss, zone); trackHiddenJournalFlaskUse(); trackHiddenJournalPlayerDamage(50);
+    startHiddenJournalBossRun(boss, zone); trackHiddenJournalPlayerDamage(50);
     const walkedIn = { ...game.hiddenJournalBossRun };
     restartHiddenJournalBossRun(boss, zone);
-    return { walkedIn: [walkedIn.flaskUses, walkedIn.hpDamageTaken], woke: [game.hiddenJournalBossRun.flaskUses, game.hiddenJournalBossRun.hpDamageTaken] };
+    return { walkedIn: walkedIn.hpDamageTaken, woke: game.hiddenJournalBossRun.hpDamageTaken };
 })()`);
-assert.deepEqual(journal.walkedIn, [1, 50]);
-assert.deepEqual(journal.woke, [0, 0], 'flasks and hits on the walk to a waiting boss do not count against its hidden entries');
+assert.equal(journal.walkedIn, 50);
+assert.equal(journal.woke, 0, 'hits on the walk to a waiting boss do not count against its hidden entries');
 run('resetHiddenJournalBossRun();');
 
 // ---------------------------------------------------------------- climbing past the cap takes the automatic entries

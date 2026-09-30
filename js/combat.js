@@ -1832,582 +1832,6 @@ function markPlayerMovementCompleted() {
     game.uniqueRiderCompassConsumed = false;
 }
 
-// ── 플라스크: 회복 1슬롯(항상) + 허리띠가 결정하는 유틸리티 슬롯, 적 처치로 충전·전투 중 자동 사용 ──
-// 유틸리티 슬롯 수는 장착한 허리띠로 결정된다: 기본(또는 숨겨진 티어 5 미만) 0개 / T5~9 0~1개(허리띠의
-// flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
-// 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
-const FLASK_UTILITY_SLOT_HARD_CAP = 4;
-// 유틸리티 슬롯은 여전히 허리띠가 결정한다.
-const FLASK_AUTO_TRIGGER_ORDER =['combat', 'elite', 'boss', 'lowHp'];
-const FLASK_AUTO_TRIGGER_LABELS = Object.freeze({
-    combat: '전투 시작',
-    elite: '정예 이상',
-    boss: '보스',
-    lowHp: '생명력 50% 이하'
-});
-const FLASK_CRAFT_COSTS = Object.freeze([6, 16, 34, 60, 96, 145, 205, 280]);
-// 1단계는 초반 운용을 위해 유지하되, 2단계부터는 단계가 오를수록 발견 확률이
-// 급격히 낮아진다. 상위 플라스크는 연금 유리 제작이 주된 확정 획득 경로다.
-const FLASK_DISCOVERY_TIER_MULTIPLIERS = Object.freeze([1.00, 0.45, 0.20, 0.09, 0.04, 0.018, 0.008, 0.0035]);
-
-function normalizeUtilityFlaskTrigger(trigger) {
-    return FLASK_AUTO_TRIGGER_ORDER.includes(trigger) ? trigger : 'combat';
-}
-
-function shouldAutoUseUtilityFlask(trigger, enemies, hpPct) {
-    let mode = normalizeUtilityFlaskTrigger(trigger);
-    let alive = (Array.isArray(enemies) ? enemies : []).filter(enemy => enemy && enemy.hp > 0);
-    if (alive.length === 0) return false;
-    if (mode === 'boss') return alive.some(enemy => enemy.isBoss);
-    if (mode === 'elite') return alive.some(enemy => enemy.isElite || enemy.isBoss);
-    if (mode === 'lowHp') return Number(hpPct) <= 50;
-    return true;
-}
-
-function getUtilityFlaskTriggerLabel(trigger) {
-    return FLASK_AUTO_TRIGGER_LABELS[normalizeUtilityFlaskTrigger(trigger)];
-}
-
-function getMaxFlaskUtilitySlotCount() {
-    if (!contentProgression.isUnlocked('flaskUtility')) return 0;
-    let belt = combatEquipmentStats.activeEquipment(game)?.['허리띠'];
-    if (!belt) return 0;
-    let bonus = 0;
-    let stat = (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots');
-    if (stat) bonus += Math.max(0, Math.floor(Number(stat.val) || 0));
-    if (belt.rarity === 'unique' && belt.uniqueEffectKey === 'extraFlaskUtilitySlots') {
-        let ep = belt.uniqueEffectParams || {};
-        bonus += Math.max(0, Math.floor(Number(ep.slots) || 0));
-    }
-    return Math.max(0, Math.min(FLASK_UTILITY_SLOT_HARD_CAP, bonus));
-}
-function getMaxFlaskSlotCount() {
-    return contentProgression.isUnlocked('flask') ? 1 + getMaxFlaskUtilitySlotCount() : 0;
-}
-// 허리띠의 특수 효과(예: '천 개의 유리병')로 얻는 플라스크 충전 속도 보너스(%).
-function getFlaskChargeRateBonusPct() {
-    let belt = combatEquipmentStats.activeEquipment(game)?.['허리띠'];
-    if (!belt || belt.rarity !== 'unique' || belt.uniqueEffectKey !== 'extraFlaskUtilitySlots') return 0;
-    let ep = belt.uniqueEffectParams || {};
-    return Math.max(0, Number(ep.chargeRatePct) || 0);
-}
-function getFlaskEffectiveChargesPerKills(baseChargesPerKills) {
-    let bonusPct = getFlaskChargeRateBonusPct();
-    if (bonusPct <= 0) return Math.max(1, Math.floor(baseChargesPerKills || 1));
-    return Math.max(1, Math.round((baseChargesPerKills || 1) / (1 + bonusPct / 100)));
-}
-function getFlaskHealDef(tierKey) {
-    return FLASK_HEAL_TIERS.find(t => t.key === tierKey) || FLASK_HEAL_TIERS[0];
-}
-function getHighestUnlockedHealTier() {
-    let lvl = Math.max(1, Math.floor(game.level || 1));
-    let found = ensureFlaskFoundKeys();
-    let best = FLASK_HEAL_TIERS[0];
-    FLASK_HEAL_TIERS.forEach(t => { if (lvl >= t.reqLevel && found.includes(t.key)) best = t; });
-    return best;
-}
-
-function getFlaskProgressionTier(flaskKey) {
-    let def = FLASK_DB[flaskKey];
-    if (!def) return 1;
-    return Math.max(1, Math.min(8, Math.floor(Number(def.tier) || 1)));
-}
-
-function getFlaskCraftCost(flaskKey) {
-    return FLASK_CRAFT_COSTS[getFlaskProgressionTier(flaskKey) - 1];
-}
-
-function getFlaskQuality(flaskKey) {
-    let qualities = game.flasks && game.flasks.qualityByKey;
-    return Math.max(0, Math.min(20, Math.floor(Number(qualities && qualities[flaskKey]) || 0)));
-}
-
-function getFlaskQualityUpgradeCost(flaskKey) {
-    return 1 + Math.floor((getFlaskProgressionTier(flaskKey) - 1) / 2);
-}
-
-function getFlaskEffectiveHealPct(def) {
-    return Math.max(0, Number(def.healPct) || 0) * (1 + getFlaskQuality(def.key) / 100);
-}
-
-function getFlaskEffectiveDurationMs(def) {
-    return Math.floor(Math.max(500, Number(def.durationMs) || 500) * (1 + getFlaskQuality(def.key) / 100));
-}
-
-function upgradeFlaskQuality(flaskKey) {
-    if (!contentProgression.canUseFlask(flaskKey)) return false;
-    let def = FLASK_DB[flaskKey];
-    let st = ensureFlaskState();
-    if (!def || !ensureFlaskFoundKeys().includes(flaskKey) || getFlaskQuality(flaskKey) >= 20) return false;
-    let cost = getFlaskQualityUpgradeCost(flaskKey);
-    if (st.alchemyGlass < cost) return false;
-    st.alchemyGlass -= cost;
-    st.qualityByKey[flaskKey] = getFlaskQuality(flaskKey) + 1;
-    updateStaticUI();
-    return true;
-}
-
-function getFlaskDiscoveryTierMultiplier(flaskKey) {
-    return FLASK_DISCOVERY_TIER_MULTIPLIERS[getFlaskProgressionTier(flaskKey) - 1];
-}
-
-function pickWeightedFlaskDiscoveryCandidate(candidates) {
-    let entries = (Array.isArray(candidates) ? candidates : []).map(key => ({
-        key,
-        weight: 1 / Math.max(1, getFlaskProgressionTier(key))
-    }));
-    let total = entries.reduce((sum, entry) => sum + entry.weight, 0);
-    if (total <= 0) return null;
-    let roll = Math.random() * total;
-    for (let entry of entries) {
-        roll -= entry.weight;
-        if (roll <= 0) return entry.key;
-    }
-    return entries[entries.length - 1].key;
-}
-
-// 고레벨 캐릭터가 1단계를 건너뛰고 5단계를 먼저 발견하지 않도록, 회복 1종과
-// 유틸리티 종류별 '다음 단계'만 드랍 후보로 삼는다.
-function getFlaskDiscoveryCandidates(level, foundKeys) {
-    let lvl = Math.max(1, Math.floor(Number(level) || 1));
-    let found = new Set(Array.isArray(foundKeys) ? foundKeys : []);
-    let candidates = [];
-    let nextHeal = FLASK_HEAL_TIERS.find(def => def.reqLevel <= lvl && !found.has(def.key));
-    if (nextHeal) candidates.push(nextHeal.key);
-    if (!contentProgression.isUnlocked('flaskUtility')) return candidates;
-    FLASK_UTILITY_CATEGORIES.forEach(category => {
-        let next = FLASK_UTILITY_TIER_REQ_LEVELS
-            .map((reqLevel, index) => FLASK_UTILITY_POOL[`${category.category}${index + 1}`])
-            .find(def => def && def.reqLevel <= lvl && !found.has(def.key));
-        if (next) candidates.push(next.key);
-    });
-    return candidates;
-}
-// 지금까지 발견(드랍)한 플라스크 종류. 발견하지 못한 플라스크는 장착할 수 없다.
-function ensureFlaskFoundKeys() {
-    if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
-    let st = game.flasks;
-    if (!Array.isArray(st.foundKeys)) st.foundKeys = ['h1', 'granite1', 'quicksilver1'];
-    st.foundKeys = st.foundKeys.map(remapLegacyFlaskKey).filter(key => FLASK_DB[key]);
-    // 시작 기본 지급 플라스크와 현재 장착 중인 플라스크는 항상 발견한 것으로 취급한다.
-    ['h1'].concat(st.healTier ? [st.healTier] : [], (st.utils || []).map(u => u && u.key).filter(Boolean)).forEach(key => {
-        if (key && FLASK_DB[key] && !st.foundKeys.includes(key)) st.foundKeys.push(key);
-    });
-    return st.foundKeys;
-}
-// 전투 드랍으로 새 플라스크를 발견시킨다. 이미 발견한 플라스크면 아무 일도 일어나지 않는다.
-function discoverFlask(flaskKey) {
-    if (!contentProgression.canUseFlask(flaskKey)) return false;
-    let found = ensureFlaskFoundKeys();
-    if (found.includes(flaskKey)) return false;
-    found.push(flaskKey);
-    game.noti = game.noti || {};
-    game.noti.flask = true;
-    return true;
-}
-
-function rollFlaskAlchemyGlassDrop(enemy, dropRateMultiplier) {
-    if (!contentProgression.isUnlocked('flask')) return 0;
-    let st = ensureFlaskState();
-    let dropMul = Number.isFinite(dropRateMultiplier) ? Math.max(0, dropRateMultiplier) : 1;
-    let chance = (enemy.isBoss ? 0.32 : (enemy.isElite ? 0.07 : 0.006)) * dropMul;
-    if (Math.random() >= chance) return 0;
-    let amount = enemy && enemy.isBoss ? 2 + Math.floor(Math.random() * 3) : 1;
-    if (!actExplorationLoot.alchemyGlass(game, amount)) st.alchemyGlass += amount;
-    return amount;
-}
-
-function craftFlask(flaskKey) {
-    if (!contentProgression.canUseFlask(flaskKey)) return false;
-    let def = FLASK_DB[flaskKey];
-    if (!def) return false;
-    let st = ensureFlaskState();
-    let found = ensureFlaskFoundKeys();
-    if (found.includes(flaskKey)) return false;
-    let level = Math.max(1, Math.floor(game.level || 1));
-    let candidates = getFlaskDiscoveryCandidates(level, found);
-    if (!candidates.includes(flaskKey)) {
-        addLog('같은 계열의 앞 단계 플라스크부터 발견하거나 제작해야 합니다.', 'attack-monster');
-        return false;
-    }
-    let cost = getFlaskCraftCost(flaskKey);
-    if (st.alchemyGlass < cost) {
-        addLog(`연금 유리가 부족합니다. (필요: ${cost})`, 'attack-monster');
-        return false;
-    }
-    st.alchemyGlass -= cost;
-    if (!discoverFlask(flaskKey)) return false;
-    addLog(`⚗️ 플라스크 제작 완료: [${def.name}] (연금 유리 ${cost} 소모)`, 'loot-rare');
-    if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
-    updateStaticUI();
-    return true;
-}
-// 몬스터 처치 시 아직 발견하지 못한 플라스크(요구 레벨 이하인 것만)를 낮은 확률로 하나
-// 발견시킨다. 발견한 플라스크는 플라스크 탭에서 장착할 수 있다.
-function rollFlaskDiscoveryDrop(enemy, dropRateMultiplier) {
-    if (!contentProgression.isUnlocked('flask')) return;
-    let dropMul = Number.isFinite(dropRateMultiplier) ? Math.max(0, dropRateMultiplier) : 1;
-    rollFlaskAlchemyGlassDrop(enemy, dropMul);
-    let lvl = game.level;
-    let found = actExplorationLoot.foundFlasks(game, ensureFlaskFoundKeys());
-    let candidates = getFlaskDiscoveryCandidates(lvl, found);
-    if (candidates.length === 0) return;
-    let key = pickWeightedFlaskDiscoveryCandidate(candidates);
-    let baseChance = enemy.isBoss ? 0.16 : (enemy.isElite ? 0.05 : 0.012);
-    let chance = baseChance * getFlaskDiscoveryTierMultiplier(key) * dropMul;
-    if (Math.random() >= chance) return;
-    if (actExplorationLoot.flask(game, key)) return;
-    if (!discoverFlask(key)) return;
-    let def = FLASK_DB[key];
-    addBattleFx('lootPickup', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 820 });
-    addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 920 });
-    if (game.settings.showLootLog) addLog(`🧪 새로운 플라스크 발견: <span class='loot-rare'>[${def.name}]</span>! 플라스크 탭에서 장착할 수 있습니다.`, 'loot-rare');
-    requestGoalSystemRefresh();
-}
-// 유틸리티 플라스크가 단계 구분 없이 종류당 1개였던 예전 저장의 고정 키를 그 종류의 1단계로 옮긴다.
-const LEGACY_FLASK_UTILITY_KEYS = ['granite', 'quicksilver', 'amethyst', 'bismuth', 'sulphur'];
-function remapLegacyFlaskKey(key) {
-    return LEGACY_FLASK_UTILITY_KEYS.includes(key) ? `${key}1` : key;
-}
-function getPassiveUtilityFlaskMaxCharges(def) {
-    let maxCharges = Math.max(1, Math.floor(Number(def && def.maxCharges) || 1));
-    let overdose = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('과잉 투여');
-    return overdose ? Math.max(1, Math.floor(maxCharges * 0.5)) : maxCharges;
-}
-function getPassiveUtilityFlaskChargeKills(def) {
-    let chargeKills = getFlaskEffectiveChargesPerKills(def && def.chargesPerKills);
-    let overdose = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('과잉 투여');
-    return overdose ? Math.max(1, Math.ceil(chargeKills * 2)) : chargeKills;
-}
-function ensureFlaskState() {
-    if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
-    let st = game.flasks;
-    ensureFlaskFoundKeys();
-    st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0));
-    st.qualityByKey = (st.qualityByKey && typeof st.qualityByKey === 'object') ? st.qualityByKey : {};
-    Object.keys(st.qualityByKey).forEach(key => {
-        if (!FLASK_DB[key]) delete st.qualityByKey[key];
-        else st.qualityByKey[key] = Math.max(0, Math.min(20, Math.floor(Number(st.qualityByKey[key]) || 0)));
-    });
-    // 회복 슬롯: 선택 티어가 없거나 레벨 미달이면 해금된 최고 티어로 보정.
-    if (!getFlaskHealDef(st.healTier) || getFlaskHealDef(st.healTier).reqLevel > Math.max(1, Math.floor(game.level || 1))) {
-        st.healTier = getHighestUnlockedHealTier().key;
-    }
-    let healDef = getFlaskHealDef(st.healTier);
-    st.healCharges = Math.max(0, Math.min(healDef.maxCharges, Number.isFinite(st.healCharges) ? Math.floor(st.healCharges) : healDef.maxCharges));
-    st.healOverTimeUntil = Math.max(0, Math.floor(st.healOverTimeUntil || 0));
-    st.healOverTimePerSec = Math.max(0, Number(st.healOverTimePerSec) || 0);
-    st.healChargeProgress = Math.max(0, Math.min(getFlaskEffectiveChargesPerKills(healDef.chargesPerKills) - 1, Math.floor(Number(st.healChargeProgress) || 0)));
-    st.healOverTimeTotal = Math.max(0, Math.floor(Number(st.healOverTimeTotal) || 0));
-    st.healOverTimeApplied = Math.max(0, Math.min(st.healOverTimeTotal, Math.floor(Number(st.healOverTimeApplied) || 0)));
-    st.healOverTimeStartedAt = Math.max(0, Math.floor(Number(st.healOverTimeStartedAt) || 0));
-    // 진행 중인 구버전 지속 회복은 이미 지나간 시간만큼 적용된 것으로 이관해 중복 회복을 막는다.
-    if (st.healOverTimeUntil > getCombatTime() && st.healOverTimePerSec > 0 && st.healOverTimeTotal <= 0) {
-        let durationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
-        st.healOverTimeStartedAt = Math.max(0, st.healOverTimeUntil - durationMs);
-        st.healOverTimeTotal = Math.max(1, Math.floor(st.healOverTimePerSec * durationMs / 1000));
-        let elapsed = Math.max(0, Math.min(durationMs, getCombatTime() - st.healOverTimeStartedAt));
-        st.healOverTimeApplied = Math.floor(st.healOverTimeTotal * elapsed / durationMs);
-    }
-    // 유틸리티 슬롯 데이터는 여기서 "현재 장착한 허리띠가 지원하는 개수"로 잘라내지 않는다.
-    // ensureFlaskState는 스탯 미리보기(showItemTooltip 등)처럼 game.equipment[슬롯]을 일시적으로
-    // 다른 아이템으로 바꾼 뒤 getPlayerStats를 호출하는 경로에서도 함께 불린다 — 여기서 잘라내면
-    // 미리보기가 끝나고 원래 허리띠로 복원돼도 이미 배열에서 사라진 유틸리티 플라스크는 영구히
-    // 사라진다. 실제 사용 가능 슬롯 수 제한(허리띠 미지원분 비활성화)은 장착 시점(equipUtilityFlask)과
-    // 소비 시점(충전/자동발동/스탯 적용 — getMaxFlaskUtilitySlotCount로 앞쪽 N개만 사용)에서만 적용한다.
-    if (!Array.isArray(st.utils)) {
-        // 과거 단일 utilKey 저장 마이그레이션.
-        let legacyKey = remapLegacyFlaskKey(st.utilKey);
-        let legacy = FLASK_UTILITY_POOL[legacyKey] ? [legacyKey] : [];
-        st.utils = legacy.map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
-    }
-    // 예전 저장(단계 구분 전)의 고정 키를 그 종류의 1단계로 옮겨 이어서 쓸 수 있게 한다.
-    st.utils = st.utils.map(u => (u && !FLASK_UTILITY_POOL[u.key] ? { ...u, key: remapLegacyFlaskKey(u.key) } : u));
-    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]);
-    let seenCategories = new Set();
-    st.utils = st.utils.filter(u => {
-        let category = FLASK_UTILITY_POOL[u.key].category;
-        if (seenCategories.has(category)) return false;
-        seenCategories.add(category);
-        return true;
-    });
-    st.utilityChargeBank = (st.utilityChargeBank && typeof st.utilityChargeBank === 'object') ? st.utilityChargeBank : {};
-    st.utils.forEach(u => {
-        let def = FLASK_UTILITY_POOL[u.key];
-        let maxCharges = getPassiveUtilityFlaskMaxCharges(def);
-        let saved = st.utilityChargeBank[u.key];
-        if (!saved || typeof saved !== 'object') {
-            saved = {
-                charges: Number.isFinite(u.charges) ? Math.floor(u.charges) : maxCharges,
-                progress: Math.floor(Number(u.chargeProgress) || 0)
-            };
-            st.utilityChargeBank[u.key] = saved;
-        }
-        let chargeNeed = getPassiveUtilityFlaskChargeKills(def);
-        saved.charges = Math.max(0, Math.min(maxCharges, Math.floor(Number(saved.charges) || 0)));
-        saved.progress = saved.charges >= maxCharges ? 0 : Math.max(0, Math.min(chargeNeed - 1, Math.floor(Number(saved.progress) || 0)));
-        u.charges = saved.charges;
-        u.chargeProgress = saved.progress;
-        u.until = Math.max(0, Math.floor(u.until || 0));
-        u.trigger = normalizeUtilityFlaskTrigger(u.trigger);
-        u.lastAutoEncounter = Math.max(0, Math.floor(Number(u.lastAutoEncounter) || 0));
-    });
-    st.killCounter = Math.max(0, Math.floor(st.killCounter || 0));
-    st.encounterSerial = Math.max(0, Math.floor(Number(st.encounterSerial) || 0));
-    st.wasInCombat = !!st.wasInCombat;
-    return st;
-}
-
-function syncUtilityFlaskChargeBank(st, utility) {
-    if (!st || !utility || !FLASK_UTILITY_POOL[utility.key]) return;
-    st.utilityChargeBank = (st.utilityChargeBank && typeof st.utilityChargeBank === 'object') ? st.utilityChargeBank : {};
-    st.utilityChargeBank[utility.key] = {
-        charges: Math.max(0, Math.floor(Number(utility.charges) || 0)),
-        progress: Math.max(0, Math.floor(Number(utility.chargeProgress) || 0))
-    };
-}
-
-function refillAllFlaskCharges() {
-    let st = ensureFlaskState();
-    let healDef = getFlaskHealDef(st.healTier);
-    st.healCharges = healDef.maxCharges;
-    st.healChargeProgress = 0;
-
-    st.utilityChargeBank = (st.utilityChargeBank && typeof st.utilityChargeBank === 'object') ? st.utilityChargeBank : {};
-    ensureFlaskFoundKeys().forEach(key => {
-        let def = FLASK_UTILITY_POOL[key];
-        if (!def) return;
-        st.utilityChargeBank[key] = { charges: getPassiveUtilityFlaskMaxCharges(def), progress: 0 };
-    });
-    st.utils.forEach(utility => {
-        let def = utility && FLASK_UTILITY_POOL[utility.key];
-        if (!def) return;
-        utility.charges = getPassiveUtilityFlaskMaxCharges(def);
-        utility.chargeProgress = 0;
-        syncUtilityFlaskChargeBank(st, utility);
-    });
-    return st;
-}
-
-function selectHealFlaskTier(tierKey) {
-    if (!contentProgression.isUnlocked('flask')) return false;
-    let st = ensureFlaskState();
-    let def = getFlaskHealDef(tierKey);
-    if (!def || def.reqLevel > Math.max(1, Math.floor(game.level || 1)) || st.healTier === tierKey) return;
-    if (!ensureFlaskFoundKeys().includes(tierKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
-    st.healTier = tierKey;
-    st.healCharges = Math.min(st.healCharges, def.maxCharges);
-    st.healChargeProgress = Math.min(
-        Math.max(0, Math.floor(st.healChargeProgress || 0)),
-        Math.max(0, getFlaskEffectiveChargesPerKills(def.chargesPerKills) - 1)
-    );
-    addLog(`🧪 회복 플라스크 교체: ${def.name}`, 'loot-magic');
-    updateStaticUI();
-}
-
-// 유틸리티 슬롯(허리띠가 부여한 개수만큼)에 플라스크를 장착/교체한다. 이미 다른 슬롯에 있으면 무시.
-function equipUtilityFlask(slotIndex, flaskKey) {
-    if (!contentProgression.isUnlocked('flaskUtility')) return false;
-    let st = ensureFlaskState();
-    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
-    if (maxUtilSlots <= 0) return addLog('유틸리티 플라스크 슬롯이 없습니다. 플라스크 슬롯 옵션이 있는 허리띠를 장착하세요.', 'attack-monster');
-    let idx = Math.max(0, Math.min(maxUtilSlots - 1, Math.floor(slotIndex || 0)));
-    if (!FLASK_UTILITY_POOL[flaskKey]) return;
-    let def = FLASK_UTILITY_POOL[flaskKey];
-    if (def.reqLevel > game.level) return addLog(`레벨 ${def.reqLevel} 이상이어야 장착할 수 있습니다.`, 'attack-monster');
-    if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
-    if (st.utils.some((u, i) => i < maxUtilSlots && u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
-    let previous = st.utils[idx];
-    if (previous && previous.key === flaskKey) return;
-    if (previous) syncUtilityFlaskChargeBank(st, previous);
-    let previousTrigger = previous && previous.trigger;
-    let saved = st.utilityChargeBank[flaskKey];
-    if (!saved || typeof saved !== 'object') {
-        saved = { charges: 0, progress: 0 };
-        st.utilityChargeBank[flaskKey] = saved;
-    }
-    st.utils[idx] = {
-        key: flaskKey,
-        charges: Math.min(getPassiveUtilityFlaskMaxCharges(def), Math.max(0, Math.floor(saved.charges || 0))),
-        chargeProgress: Math.max(0, Math.floor(saved.progress || 0)),
-        until: 0,
-        trigger: normalizeUtilityFlaskTrigger(previousTrigger),
-        lastAutoEncounter: st.wasInCombat ? st.encounterSerial : 0
-    };
-    syncUtilityFlaskChargeBank(st, st.utils[idx]);
-    addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name} · 기존 충전 상태를 불러왔습니다.`, 'loot-magic');
-    updateStaticUI();
-}
-
-function cycleUtilityFlaskTrigger(slotIndex) {
-    let st = ensureFlaskState();
-    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
-    let idx = Math.max(0, Math.floor(Number(slotIndex) || 0));
-    if (idx >= maxUtilSlots || !st.utils[idx]) return;
-    let current = normalizeUtilityFlaskTrigger(st.utils[idx].trigger);
-    let next = FLASK_AUTO_TRIGGER_ORDER[(FLASK_AUTO_TRIGGER_ORDER.indexOf(current) + 1) % FLASK_AUTO_TRIGGER_ORDER.length];
-    st.utils[idx].trigger = next;
-    addLog(`🧪 ${FLASK_UTILITY_POOL[st.utils[idx].key].name} 자동 발동: ${getUtilityFlaskTriggerLabel(next)}`, 'loot-magic');
-    updateStaticUI();
-}
-
-function tickFlaskChargesOnKill() {
-    if (!contentProgression.isUnlocked('flask')) return;
-    let st = ensureFlaskState();
-    st.killCounter++;
-    let healDef = getFlaskHealDef(st.healTier);
-    let healChargesPerKills = getFlaskEffectiveChargesPerKills(healDef.chargesPerKills);
-    if (st.healCharges < healDef.maxCharges) {
-        st.healChargeProgress++;
-        if (st.healChargeProgress >= healChargesPerKills) {
-            st.healCharges++;
-            st.healChargeProgress = 0;
-        }
-    } else {
-        st.healChargeProgress = 0;
-    }
-    // 현재 허리띠가 지원하는 슬롯 수만큼만 충전한다(초과분은 배열엔 남아있지만 비활성).
-    st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
-        let def = FLASK_UTILITY_POOL[u.key];
-        if (!def) return;
-        let maxCharges = getPassiveUtilityFlaskMaxCharges(def);
-        let chargesPerKills = getPassiveUtilityFlaskChargeKills(def);
-        if (u.charges < maxCharges) {
-            u.chargeProgress = Math.max(0, Math.floor(u.chargeProgress || 0)) + 1;
-            if (u.chargeProgress >= chargesPerKills) {
-                u.charges++;
-                u.chargeProgress = 0;
-            }
-        } else {
-            u.chargeProgress = 0;
-        }
-        syncUtilityFlaskChargeBank(st, u);
-    });
-}
-
-function applyFlaskHealProgress(st, hpCap, now) {
-    if (!st || st.healOverTimeUntil <= 0 || st.healOverTimeTotal <= 0) return;
-    let startedAt = Math.min(st.healOverTimeUntil, Number(st.healOverTimeStartedAt) || now);
-    let duration = Math.max(1, st.healOverTimeUntil - startedAt);
-    let elapsed = Math.max(0, Math.min(duration, now - startedAt));
-    let targetApplied = Math.floor(st.healOverTimeTotal * (elapsed / duration));
-    if (now >= st.healOverTimeUntil) targetApplied = st.healOverTimeTotal;
-    let amount = Math.max(0, targetApplied - Math.max(0, st.healOverTimeApplied || 0));
-    if (amount > 0 && game.playerHp > 0) {
-        let beforeTalentFlaskHeal = game.playerHp;
-        game.playerHp = Math.min(hpCap, game.playerHp + amount);
-        if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentFlaskHeal);
-    }
-    st.healOverTimeApplied = targetApplied;
-    if (now >= st.healOverTimeUntil) {
-        st.healOverTimeUntil = 0;
-        st.healOverTimePerSec = 0;
-        st.healOverTimeTotal = 0;
-        st.healOverTimeApplied = 0;
-        st.healOverTimeStartedAt = 0;
-    }
-}
-
-/** 생명력 플라스크 1회: 충전 1 소모, durationMs 동안 최대 생명력의 healPct%를 나눠 회복. 조건 검사는 호출부. */
-function drinkHealFlask(st, healDef, hpCap, now) {
-    st.healCharges--;
-    trackHiddenJournalFlaskUse();
-    let healDurationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
-    let durSec = Math.max(0.5, healDurationMs / 1000);
-    let totalHeal = Math.max(1, Math.floor(hpCap * getFlaskEffectiveHealPct(healDef) / 100));
-    st.healOverTimePerSec = totalHeal / durSec;
-    st.healOverTimeTotal = totalHeal;
-    st.healOverTimeApplied = 0;
-    st.healOverTimeStartedAt = now;
-    st.healOverTimeUntil = now + healDurationMs;
-}
-
-/** 보조 플라스크 1회: 충전 1 소모, 효과 시간 시작. 이번 조우의 자동 사용으로 쳐서 곧바로 다시 자동 발동하지 않는다. */
-function drinkUtilityFlask(st, u, def, now) {
-    u.charges--;
-    trackHiddenJournalFlaskUse();
-    u.until = now + getFlaskEffectiveDurationMs(def);
-    if (normalizeUtilityFlaskTrigger(u.trigger) !== 'lowHp') u.lastAutoEncounter = st.encounterSerial;
-    syncUtilityFlaskChargeBank(st, u);
-}
-
-/**
- * 수동 사용(단축키·HUD 플라스크 칸). slot 0 = 생명력, 1~4 = 보조 칸(st.utils[slot-1]).
- * @returns {{ok: boolean, reason?: 'locked'|'dead'|'empty'|'charges'|'active'|'full'}}
- */
-function useFlaskSlot(slot) {
-    if (!contentProgression.isUnlocked('flask')) return { ok: false, reason: 'locked' };
-    if (!(game.playerHp > 0)) return { ok: false, reason: 'dead' };
-    let st = ensureFlaskState();
-    let now = getCombatTime();
-    return slot === 0 ? useHealFlaskManually(st, now) : useUtilityFlaskManually(st, slot, now);
-}
-
-function useHealFlaskManually(st, now) {
-    let hpCap = Math.max(1, Math.floor(getPlayerStats().maxHp || 1));
-    if (st.healCharges <= 0) return { ok: false, reason: 'charges' };
-    if (st.healOverTimeUntil > now) return { ok: false, reason: 'active' };
-    if (game.playerHp >= hpCap) return { ok: false, reason: 'full' };
-    drinkHealFlask(st, getFlaskHealDef(st.healTier), hpCap, now);
-    return { ok: true };
-}
-
-function useUtilityFlaskManually(st, slot, now) {
-    let u = slot >= 1 && slot <= getMaxFlaskUtilitySlotCount() ? st.utils[slot - 1] : null;
-    let def = u && FLASK_UTILITY_POOL[u.key];
-    if (!def) return { ok: false, reason: 'empty' };
-    if (u.charges <= 0) return { ok: false, reason: 'charges' };
-    if (u.until > now) return { ok: false, reason: 'active' };
-    drinkUtilityFlask(st, u, def, now);
-    return { ok: true };
-}
-
-function tickFlaskAutoUse(pStats) {
-    if (!contentProgression.isUnlocked('flask')) return;
-    let st = ensureFlaskState();
-    let hpCap = Math.max(1, Math.floor(pStats.maxHp || 1));
-    let recoveryHpCap = getPlayerRecoveryHpCap(pStats);
-    let now = getCombatTime();
-    let healDef = getFlaskHealDef(st.healTier);
-    let aliveEnemies = game.enemies.filter(e => e && e.hp > 0);
-    let inCombat = aliveEnemies.length > 0;
-    if (inCombat && !st.wasInCombat) st.encounterSerial++;
-    st.wasInCombat = inCombat;
-    applyFlaskHealProgress(st, recoveryHpCap, now);
-    // 회복 발동: 전투 중이고 HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
-    // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
-    // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
-    if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
-        drinkHealFlask(st, healDef, hpCap, now);
-    }
-    // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
-    // 현재 허리띠가 지원하는 슬롯 수만큼만 발동한다(초과분은 배열엔 남아있지만 비활성).
-    st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
-        let def = FLASK_UTILITY_POOL[u.key];
-        if (!def) return;
-        let hpPct = (Math.max(0, Number(game.playerHp) || 0) / hpCap) * 100;
-        let trigger = normalizeUtilityFlaskTrigger(u.trigger);
-        let alreadyUsedThisEncounter = trigger !== 'lowHp' && u.lastAutoEncounter === st.encounterSerial;
-        if (!alreadyUsedThisEncounter && u.charges > 0 && u.until <= now && shouldAutoUseUtilityFlask(trigger, aliveEnemies, hpPct)) {
-            drinkUtilityFlask(st, u, def, now);
-        }
-    });
-}
-
-// 발동 중인 플라스크 효과를 즉시 종료한다. 조우 사이(다음 팩 대기)에는 유지되어야 하므로
-// 지역(런) 완료와 지역 이동 경계에서만 호출한다.
-function expireActiveFlaskEffects() {
-    let st = ensureFlaskState();
-    let now = getCombatTime();
-    if (st.healOverTimeUntil > now) st.healOverTimeUntil = now;
-    st.healOverTimePerSec = 0;
-    st.healOverTimeTotal = 0;
-    st.healOverTimeApplied = 0;
-    st.healOverTimeStartedAt = 0;
-    st.wasInCombat = false;
-    st.utils.forEach(u => { if (u && (u.until || 0) > now) u.until = now; });
-}
-
 function prepareCombatTick(nowMs) {
     game.combatTimeMs = Number.isFinite(nowMs) ? nowMs : getCombatTime() + 100;
     tickOceanOxygen(game.combatTimeMs);
@@ -2422,7 +1846,6 @@ function prepareCombatTick(nowMs) {
     game.lastCombatStatsAt = getCombatTime();
     ensureSummonRuntime(pStats);
     tickSummonRecovery();
-    tickFlaskAutoUse(pStats);
     cosmosRouteRuntime.tickGravity();
     return pStats;
 }
@@ -3110,7 +2533,7 @@ function getUniqueEffectImplementationReport() {
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','evasionDanceOnEvade','loneEvasionCounter','critAdvanceEnergyShieldRecharge','energyShieldBreakRecharge','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','extraFlaskUtilitySlots'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','thousandBottles'
     ]);
     return {
         total: uniqueKeys.length,
@@ -3471,7 +2894,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else if (effect.key === 'fixedAllMaxRes') fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
         else if (effect.key === 'stealEliteTrait') uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
         else if (effect.key === 'kaleidoscopeShield' || effect.key === 'mirrorOppositeRing') { /* item stat path handles these */ }
-        else if (effect.key === 'extraFlaskUtilitySlots') { /* getMaxFlaskUtilitySlotCount/getFlaskChargeRateBonusPct read game.equipment['허리띠'] directly */ }
+        else if (effect.key === 'thousandBottles') addThousandBottlesStats(reward);
         else if (effect.key === 'cosmosStatBundle') {
             addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
             addStatToBucket(reward, 'dr', Number(ep.dr || 0));
@@ -3635,23 +3058,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
     let accuracyBonusPct = Math.max(0, sumStatAcrossBuckets('accuracyBonusPct'));
     let playerAccuracy = calculatePlayerAccuracy(game.level, totalDexterity, flatAccuracy, accuracyBonusPct);
-    // 플라스크 지속 효과(유틸리티 슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
-    // 현재 허리띠(스탯 미리보기 중이면 미리보기 대상 허리띠)가 지원하는 슬롯 수만큼만 반영한다.
-    let flaskState = (typeof ensureFlaskState === 'function') ? ensureFlaskState() : null;
-    if (flaskState && Array.isArray(flaskState.utils)) {
-        let nowFlask = getCombatTime();
-        flaskState.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
-            if (!u || (u.until || 0) <= nowFlask) return;
-            let flaskDef = (typeof FLASK_UTILITY_POOL !== 'undefined' && FLASK_UTILITY_POOL[u.key]) || {};
-            let effectMultiplier = authoredPassiveRules.flags.flaskOverdose ? 1.5 : 1;
-            if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct * effectMultiplier);
-            if (flaskDef.aspd) addStatToBucket(reward, 'aspd', flaskDef.aspd * effectMultiplier);
-            if (flaskDef.move) addStatToBucket(reward, 'move', flaskDef.move * effectMultiplier);
-            if (flaskDef.resAll) addStatToBucket(reward, 'resAll', flaskDef.resAll * effectMultiplier);
-            if (flaskDef.pctDmg) addStatToBucket(reward, 'pctDmg', flaskDef.pctDmg * effectMultiplier);
-            if (flaskDef.genericTakenReducePct) addStatToBucket(reward, 'genericTakenDamageReducePct', flaskDef.genericTakenReducePct * effectMultiplier);
-        });
-    }
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots + sumStatAcrossBuckets('projectileExtraChance') / 100;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
@@ -3870,7 +3276,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (typeof getTalentAttackSpeedSoftcapKnee === 'function') aspdSoftCapKnee = getTalentAttackSpeedSoftcapKnee(aspdSoftCapKnee);
     let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
     finalAspd = Math.min(12, finalAspd);
-    if (authoredPassiveRules.flags.maximumRoll) finalAspd = Math.max(0.1, finalAspd * 0.7);
+    finalAspd = scaleKeystoneAttackSpeed(finalAspd, authoredPassiveRules.flags);
     if (authoredPassiveRules.flags.bloodAcceleration && Array.isArray(game.playerLeechInstances)
         && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0)) {
         finalAspd = Math.min(12, finalAspd * 1.15);
@@ -8232,8 +7638,6 @@ function startMoving(isTown) {
     resetCombatChannelRuntime();
     progressStallTicks = 0;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
-    expireActiveFlaskEffects();
-    if (isTown) refillAllFlaskCharges();
     resetBattleRuntimeVisuals();
     restoreAndRecallSummons(getPlayerStats());
     if (!isTown && game.ascendClass === 'assassin' && hasKeystone('a2')) game.assassinBlurred = true;
@@ -8905,8 +8309,6 @@ function rollLootForEnemy(enemy) {
         addLog('🂠 봉인된 아르카나 카드를 발견했습니다.', 'loot-unique');
     }
 
-    rollFlaskDiscoveryDrop(enemy, contentDropMul);
-
     let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
     const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
     grantRealmBossUniqueLoot(enemy, zone);
@@ -9040,7 +8442,6 @@ function handleEnemyDeath(enemy, pStats) {
         mix[bucket] = Math.max(0, Math.floor(mix[bucket] || 0)) + 1;
     }
     grantLoopStarterGemOnFirstKill();
-    tickFlaskChargesOnKill();
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
     if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
     if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
@@ -9502,7 +8903,6 @@ function finishEncounterRun() {
     const settlement=actExplorationProgress.beginCompletion(getZone(game.currentZoneId));
     if(!settlement)return;
     combatLootReceipts.capture(game,()=>announceActExplorationLoot(settlement.loot));
-    expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
     dispatchRuntimeEvent('encounter-finished', {
         zoneId: zone.id,
@@ -10049,6 +9449,25 @@ function finishEncounterRun() {
     updateStaticUI();
 }
 
+/** 포션 스킬 키스톤의 명중 피해 배율: 폭발성 증류 ×0.75, 과잉 투여 ×1.5. */
+function getPotionKeystoneHitScale(flags) {
+    return (flags.explosiveDistill ? 0.75 : 1) * (flags.potionOverdose ? 1.5 : 1);
+}
+
+/** 키스톤의 공격 · 시전 속도 감폭: 한 번의 중량 ×0.7, 과잉 투여(포션 스킬) ×0.75. 감폭이 없으면 그대로. */
+function scaleKeystoneAttackSpeed(aspd, flags) {
+    const scale = (flags.maximumRoll ? 0.7 : 1) * (flags.potionOverdose ? 0.75 : 1);
+    return scale < 1 ? Math.max(0.1, aspd * scale) : aspd;
+}
+
+/** 천 개의 유리병(고유 허리띠): 예전 물약 넷의 약한 상시 효과. */
+function addThousandBottlesStats(bucket) {
+    addStatToBucket(bucket, 'armorPct', 25);
+    addStatToBucket(bucket, 'resAll', 12);
+    addStatToBucket(bucket, 'aspd', 8);
+    addStatToBucket(bucket, 'pctDmg', 10);
+}
+
 function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, skillName) {
     const flags = pStats.passiveKeystoneFlags || {};
     let multiplier = 1;
@@ -10057,7 +9476,7 @@ function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, 
         multiplier *= distance >= 3 ? 1.25 : (distance <= 1 ? 0.75 : 1);
     }
     if (flags.projectileFormation && targetIndex > 0) multiplier *= 0.6;
-    if (flags.explosiveDistill) multiplier *= 0.75;
+    multiplier *= getPotionKeystoneHitScale(flags);
     if (flags.erosionLegacy && pStats.sSkill.ele === 'chaos') multiplier *= 0.85;
     if (flags.openingHunt) {
         multiplier *= target.passiveOpeningHuntConsumed ? 0.8 : 2;
@@ -11255,7 +10674,6 @@ function getDefeatRecoveryZoneId() {
 function recordPlayerDefeatStart(zone, options) {
     cosmosRouteRuntime.leave(game, 'failed');
     resetHiddenJournalBossRun();
-    refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
     dispatchRuntimeEvent('player-defeated', {
         zoneId: zone && zone.id,
@@ -12833,7 +12251,6 @@ function triggerSeasonReset(options) {
     game.activeSkill = '기본 공격';
     game.mobilitySkill = '';
     game.loopStarterGemGranted = false;
-    game.flasks = {};
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];
@@ -13001,4 +12418,4 @@ function chooseLoopAdvance(shouldLoop) {
 
 safeExposeGlobals({ estimateMapZonePowerRequirements });
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, getEnemyExperienceReward, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, getEnemyExperienceReward, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

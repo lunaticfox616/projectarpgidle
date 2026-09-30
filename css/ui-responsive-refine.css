@@ -151,10 +151,6 @@
   body.mobile-battle-tab #tab-battle .player-hud-identity-row { grid-column: 1 / -1; grid-row: 1; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
   body.mobile-battle-tab #tab-battle .player-hud-skill-rack { width: 100%; min-width: 0; max-width: none; min-height: 44px; margin: 0; border: 0; background: transparent; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   body.mobile-battle-tab #tab-battle .player-hud-skill-slots { justify-content: flex-start; min-height: 44px; width: max-content; margin-left: auto; }
-  body.mobile-battle-tab #tab-battle .player-hud-flask-rack { display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 5px; min-width: 0; max-width: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-  body.mobile-battle-tab #tab-battle .player-hud-flask-rack .combat-flask-mini::before { inset: 10px 12px 7px; }
-  body.mobile-battle-tab #tab-battle .player-hud-flask-rack .combat-flask-mini::after { top: 7px; left: 18px; width: 8px; height: 7px; }
-  body.mobile-battle-tab #tab-battle .player-hud-flask-rack .combat-flask-mini > b { right: 5px; bottom: 2px; font-size: 10px; }
   body.mobile-battle-tab #tab-battle .player-hud-shell > .player-combat-effect-strip { flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 5px; min-width: 0; width: 100%; height: 44px; min-height: 44px; margin: 0; padding: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   body.mobile-battle-tab #tab-battle .player-combat-effect-strip .combat-effect-icon { flex: 0 0 28px; width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
 
@@ -363,9 +359,7 @@
   body.mobile-battle-tab #tab-battle .player-hud-skill-rack { grid-column: 2; grid-row: 3; height: 44px; padding: 0; }
   body.mobile-battle-tab #tab-battle .player-hud-vitals { position: static; display: block; }
   body.mobile-battle-tab #tab-battle .player-exp-percent { display: none; }
-  body.mobile-battle-tab #tab-battle .player-hud-flask-rack { grid-column: 1; grid-row: 3; width: 100%; height: 44px; padding: 0; }
-  body.mobile-battle-tab #tab-battle .player-hud-flask-rack .combat-flask-mini { flex: 0 0 44px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; background: none; border-color: transparent; box-shadow: none; }
-  /* 상태이상은 이름 줄의 오른쪽 빈자리에 두고, 아래 줄은 플라스크(왼쪽)와 스킬 칸(오른쪽)만 쓴다. */
+  /* 상태이상은 이름 줄의 오른쪽 빈자리에 두고, 아래 줄은 스킬 칸(오른쪽)만 쓴다. */
   body.mobile-battle-tab #tab-battle .player-hud-shell > .player-combat-effect-strip { grid-column: 1 / -1; grid-row: 1; justify-self: end; position: static; display: flex; max-width: 62%; height: 24px; min-height: 24px; transform: none; }
   body.mobile-battle-tab #tab-battle .player-hud-shell > .player-combat-effect-strip .combat-effect-icon { flex-basis: 22px; width: 22px; min-width: 22px; height: 22px; min-height: 22px; }
 

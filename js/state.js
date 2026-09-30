@@ -4,8 +4,6 @@
  * @property {'pending'|'claimed'|'lost'} phase
  * @property {Record<string,number>} currencies Already resolved canonical currency gains.
  * @property {Array<{id:number,name:string,slot:string,baseStats:Array<{id:string,val:number}>,stats:Array<{id:string,val:number}>}>} equipment
- * @property {string[]} flasks Discovered FLASK_DB keys, unavailable for equipping until claimed.
- * @property {number} alchemyGlass Nonnegative integer, separate from ordinary currencies.
  * @property {Array<{id:number,name:string,lines:Array<{id:string,value:number}>}>} cores Core items, unavailable until claimed.
  * @property {Array<{item:ActExplorationPendingLoot['equipment'][number],rewards:Record<string,number>}>} salvagedEquipment Last recoverable equipment, unavailable until clear. Rewards are original salvage costs.
  * @property {Array<{id:number,name:string,rarity:string,stats:Array<{id:string,val:number}>}>} jewels
@@ -2485,7 +2483,7 @@ const defaultGame = {
         tabNotiEnabled: true,
         socialChatNotifications: true,
         chatMessageSize: 'medium',
-        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     selectedClassId: 'archer',
@@ -2578,16 +2576,6 @@ const defaultGame = {
     },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
-    // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
-    // getMaxFlaskUtilitySlotCount 참고.
-    flasks: {
-        healTier: 'h1', healCharges: 3, healChargeProgress: 0,
-        healOverTimeUntil: 0, healOverTimePerSec: 0, healOverTimeTotal: 0,
-        healOverTimeApplied: 0, healOverTimeStartedAt: 0,
-        alchemyGlass: 0, qualityByKey: {},
-        utils: [], utilityChargeBank: {}, killCounter: 0,
-        encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
-    },
     mapSubtab: 'map-tab-zones',
     unlockedMapContents: ['map-tab-zones'],
     mapExploreSubtab: 'map-explore-hunting',
@@ -2713,7 +2701,7 @@ const defaultGame = {
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
     unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, expertise: false, jewel: false, arcana: false, stump: false },
-    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
+    noti: { char: false, season: false, pruning: false, items: false, skills: false, map: false, arcana: false, codex: false, traits: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

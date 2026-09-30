@@ -2479,7 +2479,7 @@ function getPassiveKeystoneCombatFlags(skillTags) {
         blackDistill: !!findAllocatedPassiveKeystone('검은 증류'),
         singleMystique: !!findAllocatedPassiveKeystone('단일 해석'),
         soleMinion: !!findAllocatedPassiveKeystone('단 하나의 사역'),
-        flaskOverdose: !!findAllocatedPassiveKeystone('과잉 투여')
+        potionOverdose: tags.has('potion') && !!findAllocatedPassiveKeystone('과잉 투여')
     };
 }
 
@@ -8801,18 +8801,11 @@ function migrateUniqueBaseStat(stat, old) {
 }
 
 function migrateUniqueBaseStats(item, base) {
-    const previous = item.baseStats;
-    const remaining = previous.filter(stat => stat.id !== 'flaskUtilSlots');
-    const rolled = base.baseStats.map(stat => {
+    const remaining = item.baseStats.filter(stat => stat.id !== 'flaskUtilSlots');
+    return base.baseStats.map(stat => {
         const index = Math.max(0, remaining.findIndex(row => row.id === stat.id));
         return migrateUniqueBaseStat(stat, remaining.splice(index, 1)[0]);
     });
-    if (base.slot === '허리띠') {
-        const range = getBeltFlaskUtilSlotRollRange(item.hiddenTier);
-        if (range) rolled.push(previous.find(row => row.id === 'flaskUtilSlots')
-            || { id: 'flaskUtilSlots', val: range.min, tier: 0, statName: getStatName('flaskUtilSlots') });
-    }
-    return rolled;
 }
 
 /** Restore old unique bases once; keep the original rolls for recovery, never reroll affixes. */
@@ -8911,30 +8904,8 @@ function normalizeItem(item) {
         item.affixTierCap,
         legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
     )), 1, legacyProgressionProvenance ? 20 : 10);
-    // 마이그레이션: 유틸리티 플라스크 슬롯 시스템(flaskUtilSlots) 도입 이전에 저장된 허리띠는
-    // rollBaseStats()가 해당 옵션을 굴린 적이 없어 baseStats에 없다. 그대로 두면 숨겨진 티어
-    // 5+/10+ 허리띠였어도 유틸리티 슬롯이 0개로 취급돼 저장된 유틸리티 플라스크가 멈춘다.
-    // 여기서 아이템 로드/정규화 시 단 한 번, 신규 생성 시와 동일한 확률 범위로 굴려 채워 넣는다.
-    if (item.slot === '허리띠') {
-        let range = typeof getBeltFlaskUtilSlotRollRange === 'function' ? getBeltFlaskUtilSlotRollRange(item.hiddenTier) : null;
-        let flaskSlotStat = item.baseStats.find(s => s && s.id === 'flaskUtilSlots');
-        if (range && !flaskSlotStat) {
-            let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-            flaskSlotStat = { id: 'flaskUtilSlots', val: val, tier: 0, statName: getStatName('flaskUtilSlots') };
-            item.baseStats.push(flaskSlotStat);
-        }
-        // 구버전 허리띠에는 유틸리티 슬롯 범위가 0~1/0~2로 저장되어 있었다.
-        // 축복의 오브를 사용하기 전에도 현재 규칙(최소 1칸)이 즉시 반영되도록 로드 시 교정한다.
-        if (range && flaskSlotStat) {
-            flaskSlotStat.valMin = range.min;
-            flaskSlotStat.valMax = range.max;
-            flaskSlotStat.baseRollMin = range.min;
-            flaskSlotStat.baseRollMax = range.max;
-            flaskSlotStat.val = clampNumber(Math.floor(coerceFiniteNumber(flaskSlotStat.val, range.min, range.min)), range.min, range.max);
-            flaskSlotStat.tier = 0;
-            flaskSlotStat.statName = getStatName('flaskUtilSlots');
-        }
-    }
+    // 2026-10-01 물약 삭제: 허리띠의 '유틸리티 플라스크 슬롯' 베이스 옵션은 쓸 곳이 없어 불러올 때 지운다.
+    if (item.slot === '허리띠') item.baseStats = item.baseStats.filter(stat => !stat || stat.id !== 'flaskUtilSlots');
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
     syncStoredUniqueEffect(item);
@@ -9099,17 +9070,6 @@ function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}
     return candidates[candidates.length - 1];
 }
 
-// 허리띠 전용: 숨겨진 티어에 따라 유틸리티 플라스크 슬롯 베이스 옵션을 굴린다.
-// 회복 플라스크 슬롯은 항상 1개 고정(별도 계산, ensureFlaskState 참고). 이 옵션은
-// 일반 베이스 옵션이라 축복의 오브로 valMin~valMax 범위 내에서 다시 굴릴 수 있다.
-// T5 미만: 없음(유틸 0개) / T5~9: 1개 / T10 이상: 1~2개.
-function getBeltFlaskUtilSlotRollRange(zoneTier) {
-    let tier = Math.max(1, Math.floor(Number(zoneTier) || 1));
-    if (tier >= 10) return { min: 1, max: 2 };
-    if (tier >= 5) return { min: 1, max: 1 };
-    return null;
-}
-
 function getBaseStatRollRange(stat) {
     let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.8);
     let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.2);
@@ -9158,25 +9118,8 @@ function rollBaseStat(stat, percentile = Math.random()) {
     };
 }
 
-function rollBaseStats(base, zoneTier) {
-    let rolled = base.baseStats.map(stat => rollBaseStat(stat));
-    if (base.slot === '허리띠') {
-        let range = getBeltFlaskUtilSlotRollRange(zoneTier);
-        if (range) {
-            let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-            rolled.push({
-                id: 'flaskUtilSlots',
-                val: val,
-                valMin: range.min,
-                valMax: range.max,
-                baseRollMin: range.min,
-                baseRollMax: range.max,
-                tier: 0,
-                statName: getStatName('flaskUtilSlots')
-            });
-        }
-    }
-    return rolled;
+function rollBaseStats(base) {
+    return base.baseStats.map(stat => rollBaseStat(stat));
 }
 
 

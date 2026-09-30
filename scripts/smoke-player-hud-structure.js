@@ -32,12 +32,13 @@ assert.deepStrictEqual(
 identityContext.game.selectedHeroId = 'missing';
 assert.strictEqual(identityContext.getUiPlayerHudIdentity().name, '플레이어', 'missing hero data must use the visible fallback name');
 
-const flaskStart = uiSource.indexOf('function renderCombatFlaskHud()');
-const flaskEnd = uiSource.indexOf('function updateCombatUI(', flaskStart);
-assert(flaskStart >= 0 && flaskEnd > flaskStart, 'combat flask rendering must have a testable boundary');
-const flaskHost = { dataset: {}, innerHTML: '' };
+// 전투 HUD의 젬 칸 · 게이지 · 효과 아이콘(플라스크 칸은 2026-10-01 물약 삭제와 함께 없어졌다).
+const hudStart = uiSource.indexOf('/** Combat HUD skill tray');
+const hudEnd = uiSource.indexOf('function updateCombatUI(', hudStart);
+assert(hudStart >= 0 && hudEnd > hudStart, 'combat HUD rendering must have a testable boundary');
+assert(!uiSource.includes('renderCombatFlaskHud'), 'the flask strip went with the flasks');
 const skillHost = { dataset: {}, innerHTML: '', querySelectorAll() { return []; } };
-const flaskContext = {
+const hudContext = {
   Date,
   game: { season: 3, activeSkill: '독니 사출', equippedSummonSkills: ['서리늑대 소환', '유성낙화'] },
   SKILL_DB: {
@@ -45,120 +46,26 @@ const flaskContext = {
     '서리늑대 소환': { tags: ['summon', 'summon_attack'] },
     '유성낙화': { tags: ['spell', 'aoe'] }
   },
-  document: { getElementById(id) { return id === 'ui-combat-flasks' ? flaskHost : (id === 'ui-combat-skill-gems' ? skillHost : null); } },
-  utilitySlotCount: 4,
-  flaskState: {
-    healTier: 1,
-    healCharges: 3,
-    healOverTimeUntil: 0,
-    utils: [
-      { key: 'u1', charges: 1, until: 0 },
-      { key: 'u2', charges: 2, until: 0 },
-      { key: 'u3', charges: 3, until: 0 },
-      { key: 'u4', charges: 4, until: 0 }
-    ]
-  },
-  ensureFlaskState() {
-    return flaskContext.flaskState;
-  },
-  getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크', maxCharges: 5 }; },
-  getMaxFlaskUtilitySlotCount() { return flaskContext.utilitySlotCount; },
+  document: { getElementById(id) { return id === 'ui-combat-skill-gems' ? skillHost : null; } },
   getExpReq() { return 100; },
-  FLASK_UTILITY_POOL: {
-    u1: { key: 'u1', name: '유틸리티 1', maxCharges: 5, category: 'granite' },
-    u2: { key: 'u2', name: '유틸리티 2', maxCharges: 5, category: 'quicksilver' },
-    u3: { key: 'u3', name: '유틸리티 3', maxCharges: 5, category: 'amethyst' },
-    u4: { key: 'u4', name: '유틸리티 4', maxCharges: 5, category: 'sulphur' }
-  },
   escapeHTML(value) { return String(value); },
   renderSkillGemArt(name) { return `<i>${name}</i>`; }
 };
-vm.createContext(flaskContext);
-require('./lib/load-content-progression')(flaskContext);
-require('./lib/load-combat-clock')(flaskContext);
-// 실제 단축키 배정 모듈(기본 1~5)로 플라스크 칸의 키 표시를 만든다.
-flaskContext.safeExposeData = map => Object.assign(flaskContext, map);
-flaskContext.safeExposeGlobals = map => Object.assign(flaskContext, map);
-for (const file of ['data/hotkeys.js', 'js/hotkeys.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), flaskContext, { filename: file });
-flaskContext.game.settings = { hotkeyOverrides: {} };
-vm.runInContext(uiSource.slice(flaskStart, flaskEnd), flaskContext, { filename: 'player-hud-flasks.js' });
-flaskContext.renderCombatFlaskHud();
-assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 5, 'the HUD must render every unlocked flask socket up to the five-slot cap');
-assert(!flaskHost.innerHTML.includes('class="combat-flask-mini overflow"'), 'the fourth and fifth flasks must remain first-class sockets instead of being collapsed');
-assert(flaskHost.innerHTML.includes("'util','u4'"), 'the fifth flask socket must preserve its own custom tooltip target');
-assert(flaskHost.innerHTML.includes('flask-heal') && flaskHost.innerHTML.includes('flask-granite')
-  && flaskHost.innerHTML.includes('flask-quicksilver') && flaskHost.innerHTML.includes('flask-amethyst')
-  && flaskHost.innerHTML.includes('flask-sulphur'),
-  'equipped flasks must expose their potion category for distinct liquid colors');
-assert(!flaskHost.innerHTML.includes(' title='), 'combat flasks must not use browser-native title tooltips');
-assert.deepStrictEqual([...flaskHost.innerHTML.matchAll(/data-flask-slot="(\d)" aria-keyshortcuts="([^"]+)"/g)].map(m => m[1] + '=' + m[2]),
-  ['0=1', '1=2', '2=3', '3=4', '4=5'], 'each flask socket shows its own default number key');
-assert(flaskHost.innerHTML.includes('onclick="hotkeysUi.useFlask(0, this)"'), 'clicking a flask socket drinks it instead of opening management');
-assert(flaskHost.innerHTML.includes('onmouseenter="showPlayerFlaskTooltip(event'),
-  'every combat flask socket must use the shared custom tooltip handler');
-
-flaskContext.flaskState = { healTier: 1, healCharges: 3, healOverTimeUntil: 0, utils: [] };
-flaskContext.utilitySlotCount = 2;
-flaskHost.dataset = {};
-flaskHost.innerHTML = '';
-flaskContext.renderCombatFlaskHud();
-assert.strictEqual((flaskHost.innerHTML.match(/<button/g) || []).length, 1, 'only the health flask may be interactive before utility flasks are equipped');
-assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini empty/g) || []).length, 0, 'unequipped utility sockets must not be rendered in the combat HUD');
-assert.strictEqual(flaskHost.dataset.visibleSlots, '1', 'the frame must close every socket beyond the equipped health flask');
-assert(!flaskHost.innerHTML.includes('class="combat-flask-mini utility'), 'an empty utility slot must not look like an equipped potion');
-
-const flaskTooltipStart = uiSource.indexOf('function showPlayerFlaskTooltip(');
-const flaskTooltipEnd = uiSource.indexOf('const UI_ENEMY_AILMENT_DETAIL_FORMATTERS', flaskTooltipStart);
-assert(flaskTooltipStart >= 0 && flaskTooltipEnd > flaskTooltipStart, 'flask custom tooltips must have a testable boundary');
-const flaskTooltipContext = {
-  Date,
-  state: {
-    healTier: 1, healCharges: 3, healOverTimeUntil: 0, healOverTimePerSec: 120,
-    utils: [
-      { key: 'u1', charges: 1, until: 0 }, { key: 'u2', charges: 2, until: 0 },
-      { key: 'u3', charges: 3, until: 0 }, { key: 'u4', charges: 4, until: 0 }
-    ]
-  },
-  ensureFlaskState() { return flaskTooltipContext.state; },
-  getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크', maxCharges: 5, autoBelowHpPct: 40, durationMs: 4000, healPct: 20 }; },
-  getMaxFlaskUtilitySlotCount() { return 4; },
-  FLASK_UTILITY_POOL: {
-    u1: { key: 'u1', name: '유틸리티 1', maxCharges: 5, desc: '효과 1' },
-    u2: { key: 'u2', name: '유틸리티 2', maxCharges: 5, desc: '효과 2' },
-    u3: { key: 'u3', name: '유틸리티 3', maxCharges: 5, desc: '효과 3' },
-    u4: { key: 'u4', name: '유틸리티 4', maxCharges: 5, desc: '효과 4' }
-  },
-  escapeHTML(value) { return String(value); },
-  showInfoTooltipHtml(x, y, html) { flaskTooltipContext.tooltip = { x, y, html }; },
-  hideInfoTooltip() { flaskTooltipContext.hidden = true; }
-};
-vm.createContext(flaskTooltipContext);
-require('./lib/load-combat-clock')(flaskTooltipContext);
-vm.runInContext(uiSource.slice(flaskTooltipStart, flaskTooltipEnd), flaskTooltipContext, { filename: 'player-hud-flask-tooltips.js' });
-flaskTooltipContext.showPlayerFlaskTooltip({ clientX: 4, clientY: 8 }, 'heal', 'heal');
-assert(flaskTooltipContext.tooltip.html.includes('생명력 플라스크') && flaskTooltipContext.tooltip.html.includes('상태: 대기 중'),
-  'an inactive flask socket must show its full state in the custom tooltip');
-flaskTooltipContext.showCombatFlaskOverflowTooltip({ clientX: 5, clientY: 9 });
-assert(flaskTooltipContext.tooltip.html.includes('유틸리티 3') && flaskTooltipContext.tooltip.html.includes('유틸리티 4'),
-  'overflow flask custom tooltip must list every hidden flask and its effect');
-
-flaskContext.flaskState = {
-  healTier: 1,
-  healCharges: 3,
-  healOverTimeUntil: 0,
-  utils: [{ key: 'u1', charges: 1, until: 0 }]
-};
-flaskHost.dataset = {};
-flaskContext.renderCombatFlaskHud();
-assert.strictEqual((flaskHost.innerHTML.match(/<button/g) || []).length, 2, 'equipping one utility flask must reveal only one utility art socket');
-assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini empty/g) || []).length, 0, 'unfilled utility slots must stay absent after equipping another flask');
-assert.strictEqual(flaskHost.dataset.visibleSlots, '2', 'equipping one utility flask must reveal exactly two sockets including health');
+vm.createContext(hudContext);
+require('./lib/load-content-progression')(hudContext);
+require('./lib/load-combat-clock')(hudContext);
+// 실제 단축키 배정 모듈로 이동 스킬 칸의 키 표시를 만든다.
+hudContext.safeExposeData = map => Object.assign(hudContext, map);
+hudContext.safeExposeGlobals = map => Object.assign(hudContext, map);
+for (const file of ['data/hotkeys.js', 'js/hotkeys.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), hudContext, { filename: file });
+hudContext.game.settings = { hotkeyOverrides: {} };
+vm.runInContext(uiSource.slice(hudStart, hudEnd), hudContext, { filename: 'player-hud.js' });
 
 const effectRuntime = require('./lib/game-runtime').buildGameRuntime();
-flaskContext.SKILL_SIGNATURE_SPRITES = effectRuntime.SKILL_SIGNATURE_SPRITES;
-flaskContext.SKILL_GEM_VFX_PROFILES = effectRuntime.SKILL_GEM_VFX_PROFILES;
-flaskContext.getSkillGemVfxImage = effectRuntime.getSkillGemVfxImage;
-flaskContext.renderCombatSkillHud();
+hudContext.SKILL_SIGNATURE_SPRITES = effectRuntime.SKILL_SIGNATURE_SPRITES;
+hudContext.SKILL_GEM_VFX_PROFILES = effectRuntime.SKILL_GEM_VFX_PROFILES;
+hudContext.getSkillGemVfxImage = effectRuntime.getSkillGemVfxImage;
+hudContext.renderCombatSkillHud();
 assert(skillHost.innerHTML.includes('독니 사출') && skillHost.innerHTML.includes('서리늑대 소환'),
   'the combat gem rack must show the active attack and equipped summon gems');
 assert(!skillHost.innerHTML.includes('유성낙화'),
@@ -169,12 +76,12 @@ assert.strictEqual((skillHost.innerHTML.match(/data-info-tooltip-anchor="1"/g) |
   'combat gem slots must remain recognized by the shared tooltip lifetime manager while hovered');
 
 // 전술 규칙(예전 컨디션 젬 규칙)은 전투 HUD에 칸을 더하지 않는다.
-flaskContext.game.skillAutoRules = [
+hudContext.game.skillAutoRules = [
   { enabled: true, priority: 1, actionType: 'target_nearest' },
   { enabled: true, priority: 2, actionType: 'return_town' }
 ];
 skillHost.dataset = {};
-flaskContext.renderCombatSkillHud();
+hudContext.renderCombatSkillHud();
 const slotKinds = [...skillHost.innerHTML.matchAll(/data-gem-name="([^"]+)" data-slot-kind="([^"]+)"/g)].map(match => `${match[2]}:${match[1]}`);
 assert.deepStrictEqual(slotKinds, ['primary:독니 사출', 'summon:서리늑대 소환'], 'tactics rules add no combat HUD slots');
 
@@ -187,22 +94,22 @@ const gaugeParentStyle = {
   values: {},
   setProperty(name, value) { this.values[name] = value; }
 };
-flaskContext.setUiImageGaugePercent({ style: gaugeStyle, parentElement: { style: gaugeParentStyle } }, 42.5);
+hudContext.setUiImageGaugePercent({ style: gaugeStyle, parentElement: { style: gaugeParentStyle } }, 42.5);
 assert.strictEqual(gaugeStyle.width, '100%', 'image gauges must preserve the source texture width');
 assert.strictEqual(gaugeStyle.values['--gauge-fill'], '42.5%', 'image gauges must clip the source texture to the live percentage');
 assert.strictEqual(gaugeParentStyle.values['--gauge-fill'], '42.5%', 'the gauge frame must receive the live percentage for its end cap');
-flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, -1);
+hudContext.setUiImageGaugePercent({ style: gaugeStyle }, -1);
 assert.strictEqual(gaugeStyle.values['--gauge-fill'], '0%', 'image gauges must clamp underflow');
-flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, 101);
+hudContext.setUiImageGaugePercent({ style: gaugeStyle }, 101);
 assert.strictEqual(gaugeStyle.values['--gauge-fill'], '100%', 'image gauges must clamp overflow');
 
 assert.deepStrictEqual(
-  JSON.parse(JSON.stringify(flaskContext.getUiExperienceProgress(7, 42.5))),
+  JSON.parse(JSON.stringify(hudContext.getUiExperienceProgress(7, 42.5))),
   { current: 42.5, required: 100, remaining: 57, percent: 42.5 },
   'experience presentation must derive the bar, percent, and exact remaining value from one calculation'
 );
-assert.strictEqual(flaskContext.getUiExperienceProgress(7, 150).percent, 100, 'experience presentation must clamp visual overflow');
-const igniteIcon = flaskContext.renderCombatEffectIcon({ key: 'ignite', tooltip: 'tip()', badge: '3' });
+assert.strictEqual(hudContext.getUiExperienceProgress(7, 150).percent, 100, 'experience presentation must clamp visual overflow');
+const igniteIcon = hudContext.renderCombatEffectIcon({ key: 'ignite', tooltip: 'tip()', badge: '3' });
 assert(igniteIcon.includes('effect-ignite') && igniteIcon.includes('combat-effect-art'),
   'ailment icons must use the shared raster presentation');
 assert(igniteIcon.includes('combat-effect-badge">3'), 'stacked effects must keep a compact count badge');

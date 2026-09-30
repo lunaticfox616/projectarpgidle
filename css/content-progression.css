@@ -113,6 +113,5 @@
 #content-unlock-panel button:focus-visible,#content-unlock-panel select:focus-visible{outline:2px solid var(--skin-accent);outline-offset:3px}}
 @layer overrides{
 [data-content-locked]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
-#ui-combat-flasks[data-content-locked]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 .content-craft-locked [data-content-action="craft"]{display:none}
 .content-choice-progression #season-content-section{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}}

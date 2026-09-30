@@ -99,7 +99,7 @@ function buildMapEnvironmentTooltipHtml(target) {
     const regen = Number(environment.dataset.environmentRegen).toFixed(1);
     return `<div class="tooltip-line">환경 피해: 최대 생명력 ${loss}%/초 · 지속 재생 ${regen}%/초</div>
         <div class="tooltip-line tooltip-muted">창공석 완화 반영 · 방어도·회피·에너지 보호막으로 막을 수 없습니다.</div>
-        <div class="tooltip-line tooltip-muted">플라스크·흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
+        <div class="tooltip-line tooltip-muted">흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
 }
 
 function showMapPowerEstimateTooltip(event) {
@@ -1213,11 +1213,10 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'map', 'traits', 'talent', 'expertise', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'stump'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
@@ -1228,7 +1227,7 @@ const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-unlocks', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-stump', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-flask'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -1755,8 +1754,8 @@ function getSelectedMergedTabId(groupKey) {
 
 // 지금 보고 있는 "최상위" 탭 화면. 병합 그룹의 하위 패널(.merged-subtab-pane)은 각 창의
 // 안쪽 선택을 표현하려고 .active를 계속 유지하므로 반드시 제외해야 한다. 하위 패널은
-// 런처 안으로 옮겨져 문서 순서가 바뀌기 때문에(예: tab-jewel은 tab-flask 안 = tab-skills보다 앞),
-// 제외하지 않으면 보조장비 창을 한 번 연 뒤부터 다른 탭이 전부 그 패널로 오인식된다.
+// 런처 안으로 옮겨져 문서 순서가 바뀌기 때문에(예: tab-traits는 tab-char 안 = tab-skills보다 앞),
+// 제외하지 않으면 병합 창을 한 번 연 뒤부터 다른 탭이 전부 그 패널로 오인식된다.
 function getActiveTopLevelTabElement() {
     return document.querySelector('.tab-content.active:not(.merged-subtab-pane)');
 }
@@ -1791,10 +1790,9 @@ function getRenderingUiTabIds() {
 }
 
 // Keep timed stock progression independent of whether its management panel is visible.
-function renderVisibleManagementPanels(tabIds, renderFlasks) {
+function renderVisibleManagementPanels(tabIds) {
     if (tabIds.has('tab-talent')) renderTalentTab();
     if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
-    if (tabIds.has('tab-flask')) renderFlasks();
     if (tabIds.has('tab-expertise')) renderExpertiseUI();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
     else refreshBlackMarket(false);
@@ -1931,8 +1929,8 @@ function openMergedTabPicker(event, groupKey) {
 }
 
 // 특정 탭을 "그 탭이 실제로 보이는 상태"로 연다.
-// tab-flask처럼 병합 그룹의 런처인 탭은 switchTab만으로는 창만 열리고 안쪽 화면은
-// 마지막에 보던 탭(주얼 등)이 그대로여서, 누른 것과 다른 화면이 뜬다.
+// tab-char처럼 병합 그룹의 런처인 탭은 switchTab만으로는 창만 열리고 안쪽 화면은
+// 마지막에 보던 탭(직업전직 등)이 그대로여서, 누른 것과 다른 화면이 뜬다.
 function openTabPane(tabId) {
     let mergedEntry = getMergedTabGroup(tabId);
     if (mergedEntry) {
@@ -5924,58 +5922,7 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
     html += `<div class="tooltip-line">${escapeHTML(talismans.describeDelta(findConditionEffectDelta(name, type)) || '효과 없음')}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
-// 플라스크 발동은 전투 중 자주 반복되어 전투 로그에 띄우면 스팸이 되므로, 캐릭터 효과
-// 줄(생명력 바 아래)에 아이콘으로만 표시하고 상세 정보는 이 커스텀 툴팁으로 보여준다.
-function showPlayerFlaskTooltip(event, kind, key) {
-    if (typeof ensureFlaskState !== 'function') return;
-    let st = ensureFlaskState();
-    let now = getCombatTime();
-    let html = '';
-    if (kind === 'heal') {
-        let def = getFlaskHealDef(key);
-        let remain = Math.max(0, Math.ceil(((st.healOverTimeUntil || 0) - now) / 1000));
-        html = `<div class="tooltip-title">🧪 ${def.name}</div>`
-            + `<div class="tooltip-line">${remain > 0 ? `남은 시간: ${remain}초` : '상태: 대기 중'}</div>`
-            + `<div class="tooltip-line">지속 회복: 초당 약 ${(st.healOverTimePerSec || 0).toLocaleString()}</div>`
-            + `<div class="tooltip-line" style="color:var(--copy-bright);">생명력 ${def.autoBelowHpPct}% 이하 시 자동 발동 · ${Math.round((def.durationMs || 4000) / 1000)}초간 총 ${def.healPct}% 회복</div>`
-            + `<div class="tooltip-line" style="color:var(--copy-bright);">남은 충전: ${st.healCharges}/${def.maxCharges}</div>`;
-    } else {
-        let def = FLASK_UTILITY_POOL[key];
-        if (!def) return;
-        let entry = (st.utils || []).find(u => u && u.key === key);
-        let remain = entry ? Math.max(0, Math.ceil(((entry.until || 0) - now) / 1000)) : 0;
-        html = `<div class="tooltip-title">🧪 ${def.name}</div>`
-            + `<div class="tooltip-line">${remain > 0 ? `남은 시간: ${remain}초` : '상태: 대기 중'}</div>`
-            + `<div class="tooltip-line">효과: ${def.desc}</div>`
-            + `<div class="tooltip-line" style="color:var(--copy-bright);">남은 충전: ${entry ? entry.charges : 0}/${def.maxCharges}</div>`;
-    }
-    html += getCombatFlaskUseHintHtml(event.currentTarget);
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#9ed6ff');
-}
 
-/** 전투 HUD 플라스크 칸(data-flask-slot)에만 붙는 사용 안내 줄. */
-function getCombatFlaskUseHintHtml(target) {
-    let data = target && target.dataset;
-    if (!data || data.flaskSlot === undefined) return '';
-    let key = data.hotkeyLabel ? ` 또는 [${escapeHTML(data.hotkeyLabel)}] 키` : '';
-    return `<div class="tooltip-line">누르기${key}: 바로 마시기 · 장착 변경은 보조장비 창</div>`;
-}
-
-function showCombatFlaskOverflowTooltip(event) {
-    if (typeof ensureFlaskState !== 'function') return;
-    let st = ensureFlaskState();
-    let maxSlots = typeof getMaxFlaskUtilitySlotCount === 'function'
-        ? getMaxFlaskUtilitySlotCount() : (st.utils || []).length;
-    let entries = (st.utils || []).slice(2, maxSlots).map(runtime => {
-        let def = runtime && FLASK_UTILITY_POOL[runtime.key];
-        return def ? { runtime, def } : null;
-    }).filter(Boolean);
-    if (entries.length === 0) return hideInfoTooltip();
-    let lines = entries.map(({ runtime, def }) => `<div class="tooltip-line"><strong>${escapeHTML(def.name)}</strong>`
-        + ` · ${runtime.charges}/${def.maxCharges}회<br><span style="color:var(--copy-bright);">${escapeHTML(def.desc || '')}</span></div>`).join('');
-    showInfoTooltipHtml(event.clientX, event.clientY,
-        `<div class="tooltip-title">🧪 추가 플라스크</div>${lines}`, '#9ed6ff');
-}
 const UI_ENEMY_AILMENT_DETAIL_FORMATTERS = Object.freeze({
     chill: () => '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)',
     freeze: () => '행동 불가 (최대 생명력 대비 타격 비율 반영)',
@@ -6207,7 +6154,6 @@ function getItemStatToneColor(statId) {
     if (['leech'].includes(id)) return '#ff8fa3';
     if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
     if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
-    if (id === 'flaskUtilSlots') return '#9ed6ff';
 
     if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
     if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
@@ -7930,44 +7876,6 @@ function formatCappedResistanceValue(appliedValue, uncappedValue) {
     return applied === uncapped ? `${applied}` : `${applied} (${uncapped})`;
 }
 
-function renderCombatFlaskHud() {
-    let host = document.getElementById('ui-combat-flasks');
-    if (!host || typeof ensureFlaskState !== 'function') return;
-    if (!contentProgression.isUnlocked('flask')) { host.innerHTML = ''; delete host.dataset.signature; return; }
-    let st = ensureFlaskState();
-    let now = getCombatTime();
-    let healDef = getFlaskHealDef(st.healTier);
-    let healEntry = { slot: 0, key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal', category: 'heal' };
-    let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
-    let utilityEntries = [];
-    for (let index = 0; index < maxUtility; index++) {
-        let runtime = st.utils[index];
-        let def = runtime && FLASK_UTILITY_POOL[runtime.key];
-        utilityEntries.push(def
-            ? { slot: index + 1, key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility', category: def.category || 'utility' }
-            : null);
-    }
-    // HUD는 허용된 빈 슬롯이 아니라 실제 장착된 플라스크만 보여준다.
-    // 논리 슬롯 상한은 플라스크 화면에서 관리하고, 전투 HUD는 현재 장착 상태만 압축해 표현한다.
-    let entries = [healEntry].concat(utilityEntries.filter(Boolean));
-    let visibleSlotCount = String(entries.length);
-    entries.forEach(entry => { entry.hotkey = hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, `flask:${entry.slot}`)); });
-    let signature = `${maxUtility}|${entries.map(entry => `${entry.slot}:${entry.key}:${entry.charges}:${entry.active ? 1 : 0}:${entry.hotkey}`).join('|')}`;
-    // The signature covers the entry count, so an unchanged HUD skips every DOM write.
-    if (host.dataset.signature === signature) return;
-    host.dataset.visibleSlots = visibleSlotCount;
-    host.dataset.signature = signature;
-    // 누르거나 단축키(기본 1~5)로 바로 마신다(useFlaskSlot). 장착·관리는 보조장비 창.
-    let buttons = entries.map(entry => {
-        let categoryClass = `flask-${String(entry.category || 'utility').replace(/[^a-z0-9_-]/gi, '')}`;
-        let kind = entry.type === 'heal' ? 'heal' : 'util';
-        let keyAttrs = entry.hotkey ? ` aria-keyshortcuts="${escapeHTML(entry.hotkey)}" data-hotkey-label="${escapeHTML(entry.hotkey)}"` : '';
-        let keyCap = entry.hotkey ? `<i class="combat-flask-key" aria-hidden="true">${escapeHTML(entry.hotkey)}</i>` : '';
-        return `<button type="button" class="combat-flask-mini ${entry.type} ${categoryClass} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" aria-label="${escapeHTML(entry.name)} 마시기 · ${entry.charges}/${entry.maxCharges}회" data-flask-slot="${entry.slot}"${keyAttrs} data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'${kind}','${entry.key}')" onmousemove="showPlayerFlaskTooltip(event,'${kind}','${entry.key}')" onmouseleave="hideInfoTooltip()" onclick="hotkeysUi.useFlask(${entry.slot}, this)"><span aria-hidden="true">🧪</span><b>${entry.charges}</b>${keyCap}</button>`;
-    });
-    host.innerHTML = buttons.join('');
-}
-
 /** Combat HUD skill tray: 주 공격, 이동 스킬(재사용 대기 표시), 장착 소환. */
 const COMBAT_SKILL_HUD_LIMIT = 6;
 const COMBAT_SKILL_SLOT_LABELS = Object.freeze({ primary: '주 공격', mobility: '이동 스킬', summon: '소환' });
@@ -7997,10 +7905,10 @@ function renderCombatSkillSlot(entry) {
     let name = escapeHTML(entry.name);
     let art = renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
     let cooldown = entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
-    // 이동 스킬 칸은 누르거나 단축키(기본 E)로 쓴다: 키 표시는 플라스크 칸과 같다.
+    // 이동 스킬 칸은 누르거나 단축키(기본 E)로 쓴다: 키 표시는 자동 이동 단추와 같다.
     let key = entry.hotkey ? escapeHTML(entry.hotkey) : '';
     let keyAttrs = key ? ` aria-keyshortcuts="${key}"` : '';
-    let keyCap = key ? `<i class="combat-flask-key" aria-hidden="true">${key}</i>` : '';
+    let keyCap = key ? `<i class="combat-hud-key" aria-hidden="true">${key}</i>` : '';
     return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${name}" data-slot-kind="${entry.kind}"${keyAttrs} data-info-tooltip-anchor="1" aria-label="${COMBAT_SKILL_SLOT_LABELS[entry.kind]} · ${name}">${art}${cooldown}${keyCap}</button>`;
 }
 
@@ -8109,8 +8017,6 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     warcry: { sprite: 17, label: '함성', color: '#ffd36b' },
     utility: { sprite: 18, label: '기능', color: '#8fe3b0' },
     buff: { sprite: 18, label: '강화 효과', color: '#8fe3b0' },
-    healFlask: { sprite: 19, label: '생명력 플라스크', color: '#7fd99a' },
-    utilityFlask: { sprite: 20, label: '유틸리티 플라스크', color: '#ffd27a' },
     woodsmanCurse: { sprite: 21, label: '나무꾼의 저주', color: '#d0a8ff' },
     deathWard: { sprite: 22, label: '감시 보호막', color: '#b9d9ff' },
     invulnerableBarrier: { sprite: 23, label: '균열 장막', color: '#c49bff' },
@@ -8341,24 +8247,6 @@ function buildPlayerConditionEffectIcons(now) {
     return icons.join('');
 }
 
-function buildPlayerFlaskEffectIcons(now) {
-    if (!contentProgression.isUnlocked('flask')) return '';
-    if (typeof ensureFlaskState !== 'function') return '';
-    let st = ensureFlaskState();
-    let icons = [];
-    let healDef = getFlaskHealDef(st.healTier);
-    if ((st.healOverTimeUntil || 0) > now) {
-        icons.push(renderCombatEffectIcon({ key: 'healFlask', label: healDef.name, tooltip: `showPlayerFlaskTooltip(event,'heal','${healDef.key}')`, remainingSec: (st.healOverTimeUntil - now) / 1000, durationSec: Number(healDef.durationMs) / 1000 }));
-    }
-    let maxSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : (st.utils || []).length;
-    (st.utils || []).slice(0, maxSlots).forEach(entry => {
-        let def = entry && FLASK_UTILITY_POOL[entry.key];
-        if (!def || (entry.until || 0) <= now) return;
-        icons.push(renderCombatEffectIcon({ key: 'utilityFlask', label: def.name, tooltip: `showPlayerFlaskTooltip(event,'util','${entry.key}')`, remainingSec: (entry.until - now) / 1000, durationSec: Number(def.durationMs) / 1000 }));
-    });
-    return icons.join('');
-}
-
 function buildPlayerUniqueEffectIcons(pStats, now) {
     let icons = [];
     let talentRuntime = game.talentCardRuntime;
@@ -8537,7 +8425,6 @@ function buildPlayerRealmEffectIcons(pStats, now) {
 function buildPlayerCombatEffectIcons(pStats, now) {
     return buildPlayerAilmentEffectIcons()
         + buildPlayerConditionEffectIcons(now)
-        + buildPlayerFlaskEffectIcons(now)
         + buildPlayerUniqueEffectIcons(pStats, now)
         + buildPlayerRecoveryEffectIcons(pStats)
         + buildPlayerAscendStackEffectIcons(now)
@@ -8790,7 +8677,6 @@ function updateCombatUI(pStats) {
     let hpBar = document.getElementById('ui-hp-bar');
     setUiImageGaugePercent(hpBar, hpPct);
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
-    renderCombatFlaskHud();
     renderCombatSkillHud();
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
@@ -9940,142 +9826,6 @@ function getCraftOrbUseState(key, item) {
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
 }
 
-function renderFlaskChargeMeter(charges, maxCharges, progress, chargeNeed) {
-    let current = Math.max(0, Math.floor(Number(charges) || 0));
-    let max = Math.max(1, Math.floor(Number(maxCharges) || 1));
-    let need = Math.max(1, Math.floor(Number(chargeNeed) || 1));
-    let value = current >= max ? need : Math.max(0, Math.min(need, Math.floor(Number(progress) || 0)));
-    let pct = current >= max ? 100 : Math.max(0, Math.min(100, value / need * 100));
-    let label = current >= max ? '충전 완료' : `다음 충전 ${value}/${need} 처치`;
-    return `<div class="flask-charge-row"><span>${label}</span><span>${current}/${max}회</span></div>
-        <div class="flask-charge-meter" aria-label="${label}"><span style="width:${pct.toFixed(1)}%"></span></div>`;
-}
-
-// 플라스크 패널: 충전 상태 표시 + 발견한 플라스크 중 교체.
-function renderFlaskCraftCards(candidates, glass) {
-    return candidates.map(key => {
-        let def = FLASK_DB[key];
-        let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
-        let affordable = glass >= cost;
-        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계 · 요구 Lv.${def.reqLevel}</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
-    }).join('');
-}
-
-function renderFlaskPanel() {
-    let host = document.getElementById('ui-flask-panel');
-    if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
-    let st = ensureFlaskState();
-    let now = Date.now();
-    const availableKeys = Object.keys(FLASK_DB).filter(key => contentProgression.canUseFlask(key));
-    let found = ensureFlaskFoundKeys().filter(key => availableKeys.includes(key));
-    let healDef = getFlaskHealDef(st.healTier);
-    let healActive = (st.healOverTimeUntil || 0) > now;
-    let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
-    let utilSlots = Array.from({ length: maxUtilSlots }, (_, idx) => {
-        let cur = st.utils[idx];
-        let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
-        let active = cur && (cur.until || 0) > now;
-        let status = cur ? `${active ? `발동 중 · ${Math.ceil((cur.until - now) / 1000)}초` : '대기 중'}` : '비어 있음';
-        let triggerLabel = cur && typeof getUtilityFlaskTriggerLabel === 'function' ? getUtilityFlaskTriggerLabel(cur.trigger) : '전투 시작';
-        let quality = def && typeof getFlaskQuality === 'function' ? getFlaskQuality(def.key) : 0;
-        let qualityCost = def && typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(def.key) : 0;
-        return `<div class="flask-slot-box utility ${active ? 'active' : ''}">
-            <div class="flask-slot-label">유틸리티 ${idx + 1}</div>
-            <div class="flask-slot-name">${def ? def.name : '빈 플라스크 슬롯'}</div>
-            <div class="flask-slot-status">${status}</div>
-            ${def ? `<div class="flask-slot-effect">${def.desc} · 품질 +${quality}%</div>${renderFlaskChargeMeter(cur.charges, def.maxCharges, cur.chargeProgress, getFlaskEffectiveChargesPerKills(def.chargesPerKills))}` : ''}
-            <div class="flask-slot-actions ${def ? 'three-actions' : 'two-actions'}">
-                <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" ${def ? `data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'util','${def.key}')" onmousemove="showPlayerFlaskTooltip(event,'util','${def.key}')" onmouseleave="hideInfoTooltip()"` : ''}>변경</button>
-                <button type="button" class="flask-trigger-select" onclick="cycleUtilityFlaskTrigger(${idx})" ${cur ? '' : 'disabled'}>자동: ${triggerLabel}</button>
-                ${def ? `<button type="button" onclick="upgradeFlaskQuality('${def.key}')" ${quality >= 20 || st.alchemyGlass < qualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${qualityCost}</button>` : ''}
-            </div>
-        </div>`;
-    }).join('');
-    let beltHint = contentProgression.isUnlocked('flaskUtility') && maxUtilSlots <= 0
-        ? `<div class="flask-slot-box utility empty-hint"><div class="flask-slot-label">유틸리티</div><div class="flask-slot-name" style="color:var(--copy-muted);">허리띠 필요</div><div class="flask-slot-status">플라스크 슬롯 옵션이 있는 허리띠를 장착하면 유틸리티 슬롯이 열립니다.</div></div>`
-        : '';
-    let totalFlasks = availableKeys.length;
-    let undiscoveredCount = totalFlasks - found.length;
-    let activeSlots = 1 + st.utils.slice(0, maxUtilSlots).filter(u => u && FLASK_UTILITY_POOL[u.key]).length;
-    let chargeRateBonus = typeof getFlaskChargeRateBonusPct === 'function' ? Math.max(0, Math.floor(getFlaskChargeRateBonusPct())) : 0;
-    let craftCandidates = typeof getFlaskDiscoveryCandidates === 'function' ? getFlaskDiscoveryCandidates(game.level, found) : [];
-    let craftCards = renderFlaskCraftCards(craftCandidates, st.alchemyGlass), craftableCount = craftCandidates.filter(key => st.alchemyGlass >= getFlaskCraftCost(key)).length;
-    let healQuality = typeof getFlaskQuality === 'function' ? getFlaskQuality(healDef.key) : 0;
-    let healQualityCost = typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(healDef.key) : 0;
-    let html = `<div class="flask-overview">
-        <div><span>발견</span><strong>${found.length}/${totalFlasks}</strong></div>
-        <div><span>장착</span><strong>${activeSlots}/${1 + maxUtilSlots}</strong></div>
-        <div><span>충전 속도</span><strong>${chargeRateBonus > 0 ? `+${chargeRateBonus}%` : '기본'}</strong></div>
-    </div><div class="flask-paperdoll">
-        <div class="flask-slot-box heal ${healActive ? 'active' : ''}">
-            <div class="flask-slot-label">회복</div>
-            <div class="flask-slot-name">${healDef.name}</div>
-            <div class="flask-slot-status">${healActive ? `회복 중 · ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : `생명력 ${healDef.autoBelowHpPct}% 이하 자동 사용`}</div>
-            <div class="flask-slot-effect">최대 생명력의 ${(typeof getFlaskEffectiveHealPct === 'function' ? getFlaskEffectiveHealPct(healDef) : healDef.healPct).toFixed(1)}%를 ${Math.round(healDef.durationMs / 1000)}초에 걸쳐 회복 · 품질 +${healQuality}%</div>
-            ${renderFlaskChargeMeter(st.healCharges, healDef.maxCharges, st.healChargeProgress, getFlaskEffectiveChargesPerKills(healDef.chargesPerKills))}
-            <div class="flask-slot-actions two-actions"><button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button><button type="button" onclick="upgradeFlaskQuality('${healDef.key}')" ${healQuality >= 20 || st.alchemyGlass < healQualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${healQualityCost}</button></div>
-        </div>
-        ${utilSlots}${beltHint}
-    </div>
-    <details class="flask-workbench progression-workbench"><summary>플라스크 제작 · 제작 가능 ${craftableCount}개 · 연금 유리 ${st.alchemyGlass}</summary><div class="flask-workbench-head"><div><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></details>
-    <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
-    if (host.__lastHtml !== html) host.innerHTML = html;
-    host.__lastHtml = html;
-    flaskUi.bind(host);
-}
-
-// 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나
-// 레벨 미달인 플라스크, 다른 슬롯에 이미 장착된 같은 종류의 유틸리티 플라스크는
-// 비활성(disabled) 처리되어 선택할 수 없다 — 오직 발견한 플라스크만 활성화된다.
-
-function openFlaskPickerOverlay(kind, slotIndex) {
-    let st = ensureFlaskState();
-    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
-    let idx = Math.max(0, Math.min(Math.max(0, maxUtilSlots - 1), Math.floor(slotIndex || 0)));
-    let old = document.getElementById('flask-picker-overlay');
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    let overlay = document.createElement('div');
-    overlay.id = 'flask-picker-overlay';
-    overlay.className = 'selection-overlay';
-
-    let panel = document.createElement('div');
-    panel.className = 'selection-overlay-panel flask-picker-panel';
-
-    let title = kind === 'heal' ? '회복 플라스크 선택' : `유틸리티 플라스크 선택 (슬롯 ${idx + 1})`;
-    let header = document.createElement('div');
-    header.className = 'selection-overlay-header';
-    header.innerHTML = `<div class="selection-overlay-title" id="flask-picker-title">${title}</div><button type="button" id="flask-picker-close">닫기</button>`;
-    panel.appendChild(header);
-    panel.insertAdjacentHTML('beforeend', '<div class="selection-overlay-help">전투에서 발견하거나 연금 유리로 제작한 플라스크를 장착할 수 있습니다.</div>');
-
-    function makeOptionButton(opts) {
-        let btn = document.createElement('button');
-        btn.type = 'button';
-        btn.disabled = opts.locked;
-        btn.className = `selection-overlay-option${opts.selected ? ' selected' : ''}${opts.locked ? ' locked' : ''}`;
-        btn.innerHTML = `${opts.name}${opts.selected ? ' ✓' : ''}<br><span>${opts.desc}${opts.lockLabel ? ` · ${opts.lockLabel}` : ''}</span>${opts.compare ? `<br><span class="selection-overlay-compare">${opts.compare}</span>` : ''}`;
-        if (!opts.locked) btn.onclick = () => { opts.onSelect(); closePicker(); };
-        return btn;
-    }
-
-    let body = document.createElement('div');
-    if (kind === 'heal') {
-        flaskUi.renderHealChoices(body, makeOptionButton);
-    } else {
-        if (uiDisplay.matches('(max-width: 1080px)')) {
-            flaskUi.picker(body, FLASK_UTILITY_POOL[st.utils[idx]?.key]?.category,
-                (cards, categories) => flaskUi.renderUtilityChoices(cards, idx, makeOptionButton, categories));
-        } else flaskUi.renderUtilityChoices(body, idx, makeOptionButton, FLASK_UTILITY_CATEGORIES);
-    }
-    panel.appendChild(body);
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
-    const returnSelector = kind === 'heal' ? '.flask-slot-box.heal .flask-slot-select' : `.flask-slot-box.utility:nth-child(${idx + 2}) .flask-slot-select`;
-    const closePicker = flaskUi.bindPicker(overlay, returnSelector);
-}
-window.openFlaskPickerOverlay = openFlaskPickerOverlay;
-
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
 function renderTimeRiftPanel() {
     const host = document.getElementById('ui-timerift-panel');
@@ -10433,7 +10183,7 @@ function buildCraftActionButtons(item) {
     if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     __mark('midRender');
-    renderVisibleManagementPanels(renderingTabIds, renderFlaskPanel);
+    renderVisibleManagementPanels(renderingTabIds);
     __mark('market+expertise');
 
     let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');

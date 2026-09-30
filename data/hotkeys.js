@@ -8,11 +8,6 @@ const HOTKEY_ACTIONS = Object.freeze([
     { id: 'window:tab-map', kind: 'window', target: 'tab-map', label: '지도', code: 'KeyM' },
     { id: 'window:tab-skills', kind: 'window', target: 'tab-skills', label: '스킬 젬', code: 'KeyG' },
     { id: 'window:tab-journal', kind: 'window', target: 'tab-journal', label: '기록', code: 'KeyJ' },
-    { id: 'flask:0', kind: 'flask', target: 0, label: '생명력 플라스크', code: 'Digit1' },
-    { id: 'flask:1', kind: 'flask', target: 1, label: '보조 플라스크 1', code: 'Digit2' },
-    { id: 'flask:2', kind: 'flask', target: 2, label: '보조 플라스크 2', code: 'Digit3' },
-    { id: 'flask:3', kind: 'flask', target: 3, label: '보조 플라스크 3', code: 'Digit4' },
-    { id: 'flask:4', kind: 'flask', target: 4, label: '보조 플라스크 4', code: 'Digit5' },
     { id: 'combat:mobility', kind: 'combat', target: 'mobility', label: '이동 스킬 사용', code: 'KeyE' },
     { id: 'combat:autoMove', kind: 'combat', target: 'autoMove', label: '자동 이동 켜기·끄기', code: 'KeyA' }
 ].map(Object.freeze));

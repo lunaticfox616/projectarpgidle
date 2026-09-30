@@ -28,13 +28,12 @@ function startHiddenJournalBossRun(enemy, zone) {
         enemyId: enemy.id,
         zoneId: zone.id,
         hpDamageTaken: 0,
-        flaskUses: 0,
         ailments: []
     };
     return true;
 }
 
-/** A wide map's boss is created with its room and waits there: the no-hit / no-flask count starts again when it wakes. */
+/** A wide map's boss is created with its room and waits there: the no-hit count starts again when it wakes. */
 function restartHiddenJournalBossRun(enemy, zone) {
     if (!enemy || !enemy.isBoss) return false;
     game.hiddenJournalBossRun = null;
@@ -46,12 +45,6 @@ function trackHiddenJournalPlayerDamage(amount) {
     let damage = Math.max(0, Math.floor(Number(amount) || 0));
     if (!run || damage <= 0) return;
     run.hpDamageTaken = Math.max(0, Math.floor(run.hpDamageTaken || 0)) + damage;
-}
-
-function trackHiddenJournalFlaskUse() {
-    let run = game.hiddenJournalBossRun;
-    if (!run) return;
-    run.flaskUses = Math.max(0, Math.floor(run.flaskUses || 0)) + 1;
 }
 
 function trackHiddenJournalAilment(type, enemy) {
@@ -67,7 +60,6 @@ function unlockHiddenJournalRunEntries(run, zone, playerStats) {
     let maxHp = Math.max(1, Number(playerStats && playerStats.maxHp) || hp || 1);
     if (hp > 0 && (hp / maxHp) <= 0.05) unlockJournalEntry('hidden_last_breath');
     if (isHiddenJournalPinnacleBoss(zone) && (run.hpDamageTaken || 0) <= 0) unlockJournalEntry('hidden_unscarred');
-    if (isHiddenJournalPinnacleBoss(zone) && (run.flaskUses || 0) <= 0) unlockJournalEntry('hidden_dry_vial');
     if ((run.ailments || []).length >= 4) unlockJournalEntry('hidden_fourfold_affliction');
 }
 
@@ -87,7 +79,6 @@ safeExposeGlobals({
     startHiddenJournalBossRun,
     restartHiddenJournalBossRun,
     trackHiddenJournalPlayerDamage,
-    trackHiddenJournalFlaskUse,
     trackHiddenJournalAilment,
     completeHiddenJournalBossRun,
     resetHiddenJournalBossRun

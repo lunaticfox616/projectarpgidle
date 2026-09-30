@@ -50,7 +50,15 @@ function stripRemovedGrowthBoard(merged) {
         .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
 }
 
-/** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
+/** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
+ * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
+function stripRemovedFlasks(merged) {
+    delete merged.flasks;
+    [[merged.settings && merged.settings.notiFilters, 'flask'], [merged.noti, 'flask']]
+        .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
+}
+
+/** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     contentProgression.sync(merged);
@@ -789,7 +797,7 @@ function mergeDefaults(save) {
         ? merged.starterGemTutorialPending
         : null;
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
-    // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해·플라스크 사용을
+    // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를
     // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.
     merged.hiddenJournalBossRun = null;
     // 전적: 기존 세이브에는 과거 시간 데이터가 없다. 지어내지 않고 지금부터 기록을 시작하며,
@@ -1110,6 +1118,7 @@ function mergeDefaults(save) {
     [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat()
         .forEach(enemy => { if (enemy) { delete enemy.isBountyTarget; delete enemy.bountyId; } });
     stripRemovedGrowthBoard(merged);
+    stripRemovedFlasks(merged);
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);

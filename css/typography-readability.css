@@ -2,18 +2,17 @@
 /* Reading copy uses scalable screen fonts, including at fractional UI scales. */
 
 /* Content workspaces share the same readable family as equipment and settings. */
-:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) {
+:is(#item-tab-craft, #item-tab-market, #tab-journal) {
   font: 400 13px/1.5 var(--font-body);
   color: var(--color-text);
 }
-:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) :is(button, select, input, h2, h3, h4, summary) {
+:is(#item-tab-craft, #item-tab-market, #tab-journal) :is(button, select, input, h2, h3, h4, summary) {
   font-family: var(--font-body);
   letter-spacing: 0;
   text-shadow: none;
 }
-:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) :is(h2, h3) { font-size: 16px; }
-:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) > h2 { border-color: var(--color-line); color: var(--color-text); }
-#tab-flask :is(.flask-slot-label, .flask-slot-status, .flask-slot-effect, .flask-charge-row, .flask-help-text) { font-size: 12px; line-height: 1.5; }
+:is(#item-tab-craft, #item-tab-market, #tab-journal) :is(h2, h3) { font-size: 16px; }
+:is(#item-tab-craft, #item-tab-market, #tab-journal) > h2 { border-color: var(--color-line); color: var(--color-text); }
 #item-tab-craft .currency-name { font-size: 13px; word-break: keep-all; }
 #item-tab-craft .currency-card-header { flex-wrap: wrap; gap: 4px 8px; }
 #item-tab-craft .currency-card .currency-count { margin-left: auto; font-size: 13px; }

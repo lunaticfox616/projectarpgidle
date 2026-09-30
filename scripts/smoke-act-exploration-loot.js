@@ -62,7 +62,7 @@ run(`awardEnemyLootCurrency('goldenRule',1);`);
 assert.equal(run('game.currencies.goldenRule'),claimed.currencies.goldenRule+1,'failed producer releases the synchronous capture boundary');
 
 run(`window.claimFailureState={inventory:[],equipment:{},currencies:{goldenRule:Number.MAX_VALUE},
-    flasks:{alchemyGlass:0,foundKeys:[]},noti:{},skyTower:{condensedPower:0},currencyDropVersion:0};
+    noti:{},skyTower:{condensedPower:0},currencyDropVersion:0};
     window.claimFailureRun={status:'cleared',loot:actExplorationLoot.create()};
     window.claimFailureRun.loot.currencies.goldenRule=Number.MAX_VALUE;`);
 const failedState=copy('window.claimFailureState'),failedRun=copy('window.claimFailureRun');
@@ -90,39 +90,14 @@ run(`game.actExploration.loot.currencies.goldenRule=1;game.currencies.goldenRule
 assert.equal(run('game.actExploration.completionApplied'),true,'completion can retry once its invalid balance is corrected');
 assert.equal(run('game.currencies.goldenRule'),1);
 
+// v8 held flask discoveries and alchemy glass; flasks were removed (2026-10-01) and go without compensation.
 run(`game=mergeDefaults({level:100,season:3,settings:{showLootLog:false,pauseGameOnOverlay:false,mapCompleteAction:'stop'}});
-    game.contentProgression.inherited=['craft','flask','flaskUtility'];startEncounterRun(true);ensureFlaskState();
-    window.beforeFlasks=JSON.parse(JSON.stringify(game.flasks));
-    window.originalLootRandom=Math.random;Math.random=()=>0;
-    actExplorationLoot.capture(game,game.actExploration,()=>{
-        rollFlaskDiscoveryDrop({id:51,isBoss:true,isElite:false},1);
-        rollFlaskDiscoveryDrop({id:52,isBoss:true,isElite:false},1);
-    });Math.random=window.originalLootRandom;`);
-const flaskLoot=copy('game.actExploration.loot');
-assert.equal(flaskLoot.flasks.length,2);
-assert.equal(new Set(flaskLoot.flasks).size,2,'pending flask discoveries are excluded from the next candidate roll');
-assert.equal(flaskLoot.alchemyGlass,4,'already rolled boss glass amounts are held unchanged');
-assert.deepEqual(copy('game.flasks'),copy('window.beforeFlasks'),'pending bottles and glass cannot be equipped or spent');
-run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));');
-assert.deepEqual(copy('game.actExploration.loot'),flaskLoot,'reconnect retains pending bottle identities and glass');
-run(`window.badFlaskSave=JSON.parse(serializeSaveState(game));window.badFlaskSave.actExploration.loot.flasks.push('missing-flask');`);
-assert.throws(()=>run('mergeDefaults(window.badFlaskSave)'),/플라스크 저장/);
-run(`window.badFlaskSave=JSON.parse(serializeSaveState(game));window.badFlaskSave.actExploration.loot.alchemyGlass=0.5;`);
-assert.throws(()=>run('mergeDefaults(window.badFlaskSave)'),/연금 유리 저장/);
-run(`window.oldLootSave=JSON.parse(serializeSaveState(game));window.oldLootSave.actExploration.loot.version=1;
-    delete window.oldLootSave.actExploration.loot.flasks;delete window.oldLootSave.actExploration.loot.alchemyGlass;`);
-assert.deepEqual(copy('mergeDefaults(window.oldLootSave).actExploration.loot.flasks'),[],'legacy immediate flask rewards are never regenerated');
-run(`game.actExploration.status='cleared';finishEncounterRun();`);
-assert.ok(flaskLoot.flasks.every(key=>copy('game.flasks.foundKeys').includes(key)));
-assert.equal(run('game.flasks.alchemyGlass'),copy('window.beforeFlasks').alchemyGlass+4);
-assert.equal(run('game.noti.flask'),true);
-const flaskClaimed=copy('game.flasks');
-run('finishEncounterRun();');
-assert.deepEqual(copy('game.flasks'),flaskClaimed,'repeated completion does not add glass again');
-run(`startEncounterRun(true);Math.random=()=>0;
-    actExplorationLoot.capture(game,game.actExploration,()=>rollFlaskDiscoveryDrop({id:53,isBoss:true},1));
-    Math.random=window.originalLootRandom;actExplorationProgress.defeat(game);`);
-assert.deepEqual(copy('game.flasks'),flaskClaimed,'death does not keep newly discovered bottles or glass');
-assert.deepEqual(copy('game.actExploration.loot.flasks'),[]);
-assert.equal(run('game.actExploration.loot.alchemyGlass'),0);
+    startEncounterRun(true);window.v8LootSave=JSON.parse(serializeSaveState(game));
+    Object.assign(window.v8LootSave.actExploration.loot,{version:8,flasks:['h2','granite1'],alchemyGlass:4});`);
+const upgradedLoot=copy('mergeDefaults(window.v8LootSave).actExploration.loot');
+assert.equal(upgradedLoot.version,9);
+assert(!('flasks' in upgradedLoot)&&!('alchemyGlass' in upgradedLoot),'pending flask discoveries and glass are dropped');
+run(`window.oldLootSave=JSON.parse(serializeSaveState(game));window.oldLootSave.actExploration.loot.version=1;`);
+const fromV1=copy('mergeDefaults(window.oldLootSave).actExploration.loot');
+assert(fromV1.version===9&&!('flasks' in fromV1),'legacy immediate flask rewards are never regenerated');
 console.log('act exploration loot smoke passed');

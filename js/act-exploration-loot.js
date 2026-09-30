@@ -4,7 +4,7 @@ const actExplorationLoot=(()=>{
     let captureOwner=null;
     /** Escrow holds any wallet currency: ORB_DB items and wallet-only counters (군락지 흔적 · 성핵 …). */
     const isCurrency=key=>Object.hasOwn(ORB_DB,key) || Object.hasOwn(defaultGame.currencies,key);
-    function create(){return {version:8,phase:'pending',currencies:{},equipment:[],flasks:[],alchemyGlass:0,gems:[],cores:[],jewels:[],salvagedEquipment:[]};}
+    function create(){return {version:9,phase:'pending',currencies:{},equipment:[],gems:[],cores:[],jewels:[],salvagedEquipment:[]};}
     function reservedItems(state){
         const loot=state.actExploration?.loot;
         return loot ? [...loot.equipment,...loot.jewels,...loot.cores,...loot.salvagedEquipment.map(row=>row.item)] : [];
@@ -15,7 +15,7 @@ const actExplorationLoot=(()=>{
         if(run.loot.phase!=='pending')throw Error('종료된 탐험에 보상을 추가할 수 없습니다.');
         if(captureOwner?.state===state && captureOwner.run===run)return produce();
         const previous=captureOwner,loot={...run.loot,currencies:{...run.loot.currencies},
-            equipment:[...run.loot.equipment],flasks:[...run.loot.flasks],gems:[...run.loot.gems],cores:[...run.loot.cores],
+            equipment:[...run.loot.equipment],gems:[...run.loot.gems],cores:[...run.loot.cores],
             jewels:[...run.loot.jewels],salvagedEquipment:[...run.loot.salvagedEquipment]};
         captureOwner={state,run,loot};
         try{const result=produce();run.loot=loot;return result;}finally{captureOwner=previous;}
@@ -60,20 +60,6 @@ const actExplorationLoot=(()=>{
             loot[kind].push(item);return true;
         }};
     }
-    /** Discovery candidates include pending bottles; equipping still reads owned foundKeys only. */
-    function foundFlasks(state,owned) {return owned.concat(pending(state)?.flasks||[]);}
-    function flask(state,key) {
-        const loot=pending(state);if(!loot)return false;
-        if(!Object.hasOwn(FLASK_DB,key))throw Error('잘못된 탐험 플라스크 보상');
-        if(loot.flasks.includes(key))throw Error('중복된 탐험 플라스크 보상');
-        loot.flasks.push(key);return true;
-    }
-    function alchemyGlass(state,amount) {
-        const loot=pending(state);if(!loot)return false;
-        const total=loot.alchemyGlass+amount;
-        if(!Number.isSafeInteger(amount)||amount<=0||!Number.isSafeInteger(total))throw Error('잘못된 탐험 연금 유리 보상');
-        loot.alchemyGlass=total;return true;
-    }
     function gem(state,row) {
         const loot=pending(state);if(!loot)return false;
         gemDropRewards.validateGem(row);
@@ -86,9 +72,8 @@ const actExplorationLoot=(()=>{
         return true;
     }
     function validate(loot) {
-        if(!loot || loot.version!==8 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
+        if(!loot || loot.version!==9 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
         validateCurrencies(loot.currencies);
-        validateSupplies(loot);
         gemDropRewards.validate(loot.gems);
         validateItemList(loot.equipment,validEquipment);
         validateItemList(loot.jewels,validJewel);
@@ -97,7 +82,7 @@ const actExplorationLoot=(()=>{
         if(loot.phase!=='pending' && hasRewards(loot))throw Error('정산된 탐험 보상이 남아 있습니다.');
     }
     function hasRewards(loot) {
-        return [loot.equipment.length,Object.keys(loot.currencies).length,loot.flasks.length,loot.alchemyGlass,
+        return [loot.equipment.length,Object.keys(loot.currencies).length,
             loot.gems.length,loot.cores.length,loot.jewels.length,loot.salvagedEquipment.length].some(Boolean);
     }
     function validateSalvagedEquipment(loot) {
@@ -112,11 +97,6 @@ const actExplorationLoot=(()=>{
         if(!Array.isArray(items)||!items.every(valid))throw Error('잘못된 탐험 장비 저장');
         if(new Set(items.map(item=>item.id)).size!==items.length)throw Error('중복된 탐험 아이템 저장');
     }
-    function validateSupplies(loot) {
-        if(!Array.isArray(loot.flasks)||!loot.flasks.every(key=>typeof key==='string'&&Object.hasOwn(FLASK_DB,key)))throw Error('잘못된 탐험 플라스크 저장');
-        if(new Set(loot.flasks).size!==loot.flasks.length)throw Error('중복된 탐험 플라스크 저장');
-        if(!Number.isSafeInteger(loot.alchemyGlass)||loot.alchemyGlass<0)throw Error('잘못된 탐험 연금 유리 저장');
-    }
     function validateCurrencies(currencies) {
         if(!currencies || typeof currencies!=='object' || Array.isArray(currencies))throw Error('잘못된 탐험 재화 목록');
         for(const [key,amount] of Object.entries(currencies)) {
@@ -128,17 +108,14 @@ const actExplorationLoot=(()=>{
         if(!run || run.status!=='cleared')return null;
         const loot=run.loot;validate(loot);if(loot.phase!=='pending')return null;
         const {currencies,skyPower}=prepareCurrencyBalances(state,loot.currencies);
-        const flasks=prepareFlasks(state.flasks,loot);
         const gems=gemDropRewards.prepare(state,loot.gems);
         const inventories=prepareInventories(state,loot);
         const recovery=loot.salvagedEquipment.length?{salvageRecovery:salvageRecoveryRuntime.prepareRecords(loot.salvagedEquipment,state)}:{};
-        const receipt={currencies:loot.currencies,equipment:loot.equipment,flasks:loot.flasks,alchemyGlass:loot.alchemyGlass,gems:loot.gems,cores:loot.cores,jewels:loot.jewels};
+        const receipt={currencies:loot.currencies,equipment:loot.equipment,gems:loot.gems,cores:loot.cores,jewels:loot.jewels};
         // Retain the currency object's legacy non-enumerable accessors and consumers' references.
         Object.assign(state.currencies,currencies);Object.assign(state,inventories);
         Object.assign(state,recovery);
         state.skyTower.condensedPower=skyPower;
-        Object.assign(state.flasks,flasks);
-        if(loot.flasks.length)state.noti.flask=true;
         Object.assign(state,gems);if(loot.gems.length)state.noti.skills=true;
         markItemsReceived(state,loot);
         state.currencyDropVersion=Math.max(0,Math.floor(state.currencyDropVersion||0))+Object.keys(loot.currencies).length;
@@ -160,11 +137,6 @@ const actExplorationLoot=(()=>{
     }
     function markItemsReceived(state,loot) {
         if(loot.jewels.length)state.noti.items=true;
-    }
-    function prepareFlasks(owned,loot) {
-        const alchemyGlass=owned.alchemyGlass+loot.alchemyGlass;
-        if(!Number.isSafeInteger(alchemyGlass)||alchemyGlass<0)throw Error('연금 유리 수령 한도 초과');
-        return {foundKeys:[...new Set(owned.foundKeys.concat(loot.flasks))],alchemyGlass};
     }
     function prepareCurrencyBalances(state,rewards) {
         const currencies={...state.currencies};
@@ -201,7 +173,9 @@ const actExplorationLoot=(()=>{
             delete loot.growthItems;delete loot.growthCodex;
             if(loot.currencies&&typeof loot.currencies==='object')delete loot.currencies.growthEssence;
             loot.version=8;
-        }
+        },
+        // v8 held flask discoveries and alchemy glass. Flasks were removed (2026-10-01); they go without compensation.
+        8:loot=>{delete loot.flasks;delete loot.alchemyGlass;loot.version=9;}
     };
     function migrateLegacyLoot(run) {
         // Earlier opt-in review saves already granted their drops; never reconstruct them.
@@ -220,6 +194,6 @@ const actExplorationLoot=(()=>{
         if(run.status==='failed' && run.loot.phase!=='lost')throw Error('실패한 탐험에 보상이 남아 있습니다.');
         if(run.completionApplied && run.loot.phase!=='claimed')throw Error('완료된 탐험 보상이 정산되지 않았습니다.');
     }
-    return {create,reservedItems,capture,pending,currency,delivery,foundFlasks,flask,alchemyGlass,gem,validate,claim,discard,restore};
+    return {create,reservedItems,capture,pending,currency,delivery,gem,validate,claim,discard,restore};
 })();
 safeExposeGlobals({actExplorationLoot});

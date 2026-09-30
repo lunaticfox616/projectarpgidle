@@ -4,7 +4,6 @@
 .mobile-map-navigation { display: none; }
 .sea-gift-group-picker { display: none; }
 .settings-category-picker { display: none; }
-.flask-mobile-slots { display: none; }
 #passive-mobile-detail { display: none; }
 @media (max-width: 1080px) {
   .settings-category-picker { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:10px; margin-bottom:12px; color:var(--color-text-secondary); font-size:13px; }
@@ -22,14 +21,6 @@
   /* The legacy mobile log sets bottom inline; keep notices away from this sheet's action. */
   body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) { top: max(10px, env(safe-area-inset-top)); }
   .passive-mobile-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; line-height: 1.5; }
-  .flask-overview > div { flex-direction: column; gap: 4px; }
-  .flask-mobile-slots, .flask-mobile-category { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
-  .flask-mobile-slots select, .flask-mobile-category select { width: 100%; min-width: 0; min-height: 44px; font-size: 14px; }
-  .flask-paperdoll > [data-flask-selected="false"] { display: none; }
-  #ui-flask-panel .flask-slot-name { font-size: 16px; line-height: 1.4; margin: 4px 0 8px; }
-  #ui-flask-panel .flask-slot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  #ui-flask-panel .flask-slot-actions.three-actions button:last-child { grid-column: 1 / -1; }
-  #ui-flask-panel .flask-slot-actions button { font-size: 13px; }
   .mobile-map-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
   .mobile-map-navigation > span { font-size: 12px; color: var(--color-accent-gold); }
   .mobile-map-navigation select { min-height: 44px; width: 100%; font-size: 14px; }
@@ -164,8 +155,6 @@
   body.mobile-battle-tab #tab-battle .combat-zone-actions button { min-width: 58px; min-height: 36px; padding: 5px 7px; font-size: 10px; }
   body.mobile-battle-tab #tab-battle .map-progress-row { grid-area: progress; min-width: 0; gap: 5px; }
   body.mobile-battle-tab #tab-battle .player-hud-vitals { gap: 5px; }
-  body.mobile-battle-tab #tab-battle .combat-flask-strip { max-width: 42vw; padding: 2px 2px 4px; }
-  body.mobile-battle-tab #tab-battle .combat-flask-mini { flex-basis: 28px; width: 28px; height: 30px; }
   body.mobile-battle-tab #tab-battle .combat-stage,
   body.mobile-battle-tab #tab-battle #move-area { width: 100%; min-width: 0; }
   body.mobile-battle-tab #tab-battle #move-area { align-items: center; }
@@ -263,8 +252,6 @@
   .gem-orbit-slot.open .gem-orbit-slot-glyph { width: 22px; height: 22px; }
   .paperdoll { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .slot-box { min-width: 0; padding: 5px; font-size: .78em; }
-  .flask-workbench-head { flex-direction: column; }
-  .flask-glass-balance { width: 100%; box-sizing: border-box; }
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
@@ -292,7 +279,6 @@
 @layer overrides {
 @media (max-width: 1080px) {
   body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ bottom: auto !important; }
-  .flask-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #tab-map .map-primary-tabs,
   #tab-map .map-explore-layout > .vertical-tab-sidebar { display: none; }
   #skill-tab-equip[data-mobile-library="support"] .attack-library,
@@ -323,7 +309,6 @@
   body.mobile-battle-tab #tab-battle #ui-progress-label { font-size: 12px; }
   body.mobile-battle-tab #tab-battle .combat-top-status { display: block; }
   body.mobile-battle-tab #tab-battle .player-hud-vitals { display: grid; grid-template-columns: auto minmax(0, 1fr); }
-  body.mobile-battle-tab #tab-battle .combat-flask-mini { min-width: 28px; min-height: 30px; }
   body.mobile-battle-tab #tab-battle .battlefield-wrap {
     height: clamp(320px, 48svh, 520px);
   }
@@ -364,7 +349,6 @@
   .gem-support-process-list { grid-template-columns: minmax(0, 1fr); }
   .gem-resource-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gem-target-list { grid-template-columns: minmax(0, 1fr); }
-  .flask-paperdoll { grid-template-columns: minmax(0, 1fr); }
   #tree-container {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ width: 100% !important; /* Fills the tab down to the bottom navigation: 240px = phone header, subtab strip, title and bottom tabs. */ min-height: calc(100svh - 240px - env(safe-area-inset-bottom, 0px)) !important; }
   .craft-picker-grid .craft-picker-card .item-title { font-size: 14px; }
   .craft-picker-card .craft-picker-stat { font-size: 13px; white-space: normal; }

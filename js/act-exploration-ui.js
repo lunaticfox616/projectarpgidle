@@ -33,7 +33,7 @@ const actExplorationUi=(()=>{
         auto.disabled=run.status!=='active';
         auto.querySelector('b').textContent=on?'자동':'수동';
         auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+' · 눌러서 바꾸기'+(key?' ('+key+')':''));
-        const cap=auto.querySelector('.combat-flask-key');
+        const cap=auto.querySelector('.combat-hud-key');
         cap.textContent=key;cap.hidden=!key;
         if(key)auto.setAttribute('aria-keyshortcuts',key);else auto.removeAttribute('aria-keyshortcuts');
     }
@@ -179,10 +179,8 @@ const actExplorationUi=(()=>{
             rows.push(...loot[kind].map(item=>({key:kind+':'+item.id,kind,item,name:item.name,rarity:item.rarity,amount:1})));
         for(const [key,amount] of Object.entries(loot.currencies))
             rows.push({key:'currency:'+key,kind:'currency',name:getCurrencyInfo(key).name,currency:key,amount});
-        rows.push(...loot.flasks.map(key=>({key:'flask:'+key,kind:'flask',name:FLASK_DB[key].name,description:FLASK_DB[key].desc,amount:1})));
         rows.push(...loot.gems.map(row=>({key:row.kind+':'+row.name,kind:'gem',name:row.name,
             description:row.kind==='support'?'보조 젬 T'+row.tier:'공격 젬',amount:1})));
-        if(loot.alchemyGlass)rows.push({key:'glass',kind:'supply',name:'연금 유리',amount:loot.alchemyGlass});
         rows.push(...loot.cores.map(core=>({key:'core:'+core.id,kind:'core',name:core.name,
             description:core.lines.map(coreItems.describe).join(' · '),amount:1})));
         return rows;

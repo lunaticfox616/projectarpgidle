@@ -14,7 +14,7 @@ async function openGame(page, info) {
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
-        game.contentProgression.inherited = ['craft', 'flask']; contentProgression.sync();
+        game.contentProgression.inherited = ['craft']; contentProgression.sync();
         game.unlocks.items = true; updateStaticUI();
     });
     await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);

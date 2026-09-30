@@ -373,7 +373,6 @@ const STAT_DISPLAY_NAMES = {
         targetAny: '스킬 타겟 수',
         targetProjectile: '투사체 스킬 타겟 수',
         targetSlam: '강타 스킬 타겟 수',
-        flaskUtilSlots: '유틸리티 플라스크 슬롯',
         armor: '방어도',
         evasion: '회피',
         energyShield: '에너지 보호막',

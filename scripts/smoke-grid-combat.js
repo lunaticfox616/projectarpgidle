@@ -1976,43 +1976,23 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   );
 }
 
-// ── 3-4. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
+// ── 3-4. 루프 리셋: 방치 보관함 · 루프 후 완료 행동 · 자동관리 설정 ──
 {
   resetGame();
-  context.game.contentProgression.inherited.push('flask', 'flaskUtility');
-  context.game.season = 3;
-  const st = context.ensureFlaskState();
-  const future = Date.now() + 5000;
-  st.healOverTimeUntil = future;
-  st.healOverTimePerSec = 10;
-  st.utils = [{ key: 'granite1', charges: 1, until: future }];
-  context.game.enemies = []; // 조우 사이(살아있는 적 없음)
-  context.game.playerHp = 50;
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.ok(st.healOverTimeUntil > Date.now(), '조우 사이에는 회복 지속 효과가 유지되어야 한다');
-  assert.ok(st.utils[0].until > Date.now(), '조우 사이에는 유틸 플라스크 효과가 유지되어야 한다');
-  context.expireActiveFlaskEffects();
-  assert.ok(st.healOverTimeUntil <= Date.now(), '지역 완료/이동 시 회복 지속 효과가 종료되어야 한다');
-  assert.ok(st.utils[0].until <= Date.now(), '지역 완료/이동 시 유틸 플라스크 효과가 종료되어야 한다');
-
-  // 루프(환생) 시 플라스크 발견/충전 리셋
-  context.game.flasks.foundKeys = ['h1', 'h2', 'h3', 'granite1', 'quicksilver1'];
+  // 루프(환생) 시 방치 보관함 · 완료 행동 리셋
   context.game.season = 1;
   context.game.settings.mapCompleteAction = 'nextZone';
   context.game.settings.postLoopMapCompleteAction = 'nextLoopBestPlusOne';
   context.game.offlineProgress.stashLevel = 1;
   context.game.offlineProgress.stash = [{ name: '지난 루프 장비', rarity: 'rare' }];
   context.game.offlineProgress.protectedOverflow = [{ name: '지난 루프 고유', rarity: 'unique' }];
-  const beforeFound = context.game.flasks.foundKeys.length;
   // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
-  ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
+  ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
     if (typeof context[name] !== 'function') context[name] = () => {};
   });
   const tutorialNotices = [];
   context.queueTutorialNotice = (...args) => tutorialNotices.push(args);
   context.triggerSeasonReset();
-  const afterFound = context.ensureFlaskFoundKeys();
-  assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
   assert.strictEqual(context.game.offlineProgress.stash.length, 0, '루프 시 방치 보관함이 초기화되어야 한다');
   assert.strictEqual(context.game.offlineProgress.protectedOverflow.length, 0, '루프 시 방치 보호 대기열도 초기화되어야 한다');
   assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
@@ -2051,130 +2031,6 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
-// ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
-{
-  resetGame();
-  context.game.season = 3;
-  context.game.contentProgression.inherited.push('flask', 'flaskUtility');
-  context.updateStaticUI = () => {};
-  context.game.level = 100;
-  context.game.equipment['허리띠'] = { baseStats: [{ id: 'flaskUtilSlots', val: 1 }] };
-  context.game.flasks.foundKeys = ['h1', 'granite1', 'quicksilver1'];
-
-  const frontier = context.getFlaskDiscoveryCandidates(100, ['h1', 'granite1']);
-  assert.ok(frontier.includes('h2'), '회복 플라스크는 다음 단계부터 발견되어야 한다');
-  assert.ok(!frontier.includes('h3'), '회복 플라스크의 중간 단계를 건너뛰면 안 된다');
-  assert.ok(frontier.includes('granite2'), '발견한 유틸 종류는 다음 단계가 후보여야 한다');
-  assert.ok(!frontier.includes('granite3'), '유틸 플라스크의 중간 단계를 건너뛰면 안 된다');
-  assert.ok(frontier.includes('quicksilver1'), '미발견 유틸 종류는 1단계부터 시작해야 한다');
-  assert.strictEqual(context.getFlaskDiscoveryTierMultiplier('h1'), 1, '1단계 플라스크 발견 확률은 기준 배율이어야 한다');
-  assert.ok(context.getFlaskDiscoveryTierMultiplier('h2') <= 0.45, '2단계부터 발견 확률이 크게 감소해야 한다');
-  for (let tier = 3; tier <= 8; tier++) {
-    assert.ok(
-      context.getFlaskDiscoveryTierMultiplier(`h${tier}`) < context.getFlaskDiscoveryTierMultiplier(`h${tier - 1}`) * 0.5,
-      `${tier}단계 플라스크는 직전 단계보다 절반 미만의 발견 배율이어야 한다`
-    );
-  }
-  assert.ok(context.getFlaskHealDef('h8').healPct < 100, '최상위 회복 플라스크도 최대 생명력 전체를 초과 회복하면 안 된다');
-  assert.ok(vm.runInContext('FLASK_UTILITY_POOL.granite5.armorPct <= 65', context), '최상위 방어 플라스크 효과가 완화되어야 한다');
-  assert.ok(vm.runInContext('FLASK_UTILITY_POOL.bismuth5.genericTakenReducePct <= 11', context), '최상위 피해 감소 플라스크 효과가 완화되어야 한다');
-
-  context.game.noti.flask = false;
-  const originalRandom = context.Math.random;
-  context.Math.random = () => 0;
-  assert.strictEqual(context.rollFlaskAlchemyGlassDrop({ isElite: false, isBoss: false }), 1, '연금 유리 드롭을 강제로 재현해야 한다');
-  context.Math.random = originalRandom;
-  assert.strictEqual(context.game.noti.flask, false, '연금 유리 획득만으로 플라스크 탭 알림이 켜지면 안 된다');
-
-  let st = context.ensureFlaskState();
-  context.equipUtilityFlask(0, 'granite1');
-  assert.strictEqual(st.utils[0].charges, 0, '처음 장착한 유틸 플라스크는 빈 충전으로 시작해야 한다');
-  st.utils[0].charges = 1;
-  st.utils[0].chargeProgress = 3;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.equipUtilityFlask(0, 'quicksilver1');
-  assert.strictEqual(st.utils[0].charges, 0, '교체 장착으로 새 플라스크 충전을 생성하면 안 된다');
-  context.equipUtilityFlask(0, 'granite1');
-  assert.strictEqual(st.utils[0].charges, 1, '다시 장착한 플라스크는 보관된 충전을 복원해야 한다');
-  assert.strictEqual(st.utils[0].chargeProgress, 3, '다시 장착한 플라스크는 보관된 처치 진행도를 복원해야 한다');
-
-  st.healCharges = 0;
-  st.healChargeProgress = 0;
-  st.utils[0].charges = 0;
-  st.utils[0].chargeProgress = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  const healNeed = context.getFlaskEffectiveChargesPerKills(context.getFlaskHealDef('h1').chargesPerKills);
-  for (let i = 0; i < healNeed - 1; i++) context.tickFlaskChargesOnKill();
-  assert.strictEqual(st.healCharges, 0, '필요 처치 전에는 회복 플라스크가 충전되면 안 된다');
-  context.tickFlaskChargesOnKill();
-  assert.strictEqual(st.healCharges, 1, '필요 처치를 채우면 회복 플라스크가 1회 충전되어야 한다');
-
-  st.healCharges = context.getFlaskHealDef('h1').maxCharges;
-  st.utils[0].charges = 2;
-  st.utils[0].chargeProgress = 0;
-  st.utils[0].trigger = 'combat';
-  st.utils[0].until = 0;
-  st.utils[0].lastAutoEncounter = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.game.playerHp = 100;
-  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.strictEqual(st.utils[0].charges, 1, '전투 시작 시 유틸 플라스크를 1회 사용해야 한다');
-  st.utils[0].until = 0;
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.strictEqual(st.utils[0].charges, 1, '같은 조우에서 전투 시작 조건이 반복 소비되면 안 된다');
-  context.game.enemies = [];
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.strictEqual(st.utils[0].charges, 0, '새 조우에서는 전투 시작 조건을 다시 사용할 수 있어야 한다');
-
-  st.healCharges = 0;
-  st.healChargeProgress = 4;
-  st.utils[0].charges = 0;
-  st.utils[0].chargeProgress = 4;
-  st.utilityChargeBank.quicksilver1 = { charges: 0, progress: 3 };
-  context.refillAllFlaskCharges();
-  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '귀환·사망 회복은 회복 플라스크를 최대로 채워야 한다');
-  assert.strictEqual(st.healChargeProgress, 0, '완전 충전 시 회복 플라스크 진행도를 초기화해야 한다');
-  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '장착 유틸리티 플라스크를 최대로 채워야 한다');
-  assert.strictEqual(st.utilityChargeBank.quicksilver1.charges, vm.runInContext('FLASK_UTILITY_POOL.quicksilver1.maxCharges', context), '보관 중인 발견 플라스크도 최대로 채워야 한다');
-  assert.strictEqual(st.utilityChargeBank.quicksilver1.progress, 0, '보관 플라스크 충전 진행도도 초기화해야 한다');
-
-  const glassBeforeRecovery = st.alchemyGlass;
-  st.healCharges = 0;
-  st.utils[0].charges = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.startMoving(true);
-  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '귀환을 시작하면 회복 플라스크 충전이 즉시 회복되어야 한다');
-  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '귀환을 시작하면 유틸리티 플라스크 충전도 즉시 회복되어야 한다');
-  assert.strictEqual(st.alchemyGlass, glassBeforeRecovery, '충전 회복이 연금 유리 보유량을 바꾸면 안 된다');
-
-  st.healCharges = 0;
-  st.utils[0].charges = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.game.settings.showDeathNotice = false;
-  context.handlePlayerDefeat({ id: 'flask_test', type: 'abyss', name: '플라스크 테스트' }, { maxHp: 100, energyShield: 0, moveSpeed: 100 });
-  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '사망하면 회복 플라스크 충전이 즉시 회복되어야 한다');
-  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '사망하면 유틸리티 플라스크 충전도 즉시 회복되어야 한다');
-  assert.strictEqual(st.alchemyGlass, glassBeforeRecovery, '사망 충전 회복이 연금 유리 보유량을 바꾸면 안 된다');
-
-  resetGame();
-  st = context.ensureFlaskState();
-  context.game.season = 2;
-  context.game.contentProgression.inherited.push('flask');
-  const now = Date.now();
-  context.game.playerHp = 10;
-  context.game.enemies = [];
-  st.healOverTimeStartedAt = now - 2000;
-  st.healOverTimeUntil = now + 2000;
-  st.healOverTimeTotal = 40;
-  st.healOverTimeApplied = 0;
-  st.healOverTimePerSec = 10;
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.ok(context.game.playerHp >= 29 && context.game.playerHp <= 31, '지속 회복은 고정 틱이 아니라 실제 경과 시간 비율로 적용되어야 한다');
-}
-
 // ── 시작 지점 복귀: 먼 칸에서 새 조우를 시작할 때만 워프 연출 ──
 {
   resetGame();

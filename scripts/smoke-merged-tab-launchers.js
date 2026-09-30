@@ -74,11 +74,11 @@ const MERGED_TAB_GROUPS_SOURCE = source.slice(groupStart, groupEnd);
 
 const dots = {};
 const elements = {};
-['tab-char', 'tab-flask', 'tab-journal'].forEach(id => {
+['tab-char', 'tab-journal'].forEach(id => {
     dots[id] = { style: {} };
     elements['btn-' + id] = { style: {}, classList: makeClassList(), querySelector: () => dots[id] };
 });
-['tab-char', 'tab-traits', 'tab-flask', 'tab-journal', 'tab-codex'].forEach(id => {
+['tab-char', 'tab-traits', 'tab-journal', 'tab-codex'].forEach(id => {
     elements[id] = { classList: makeClassList() };
 });
 
@@ -86,12 +86,12 @@ const opened = [];
 const context = {
     game: {
         unlocks: { char: true, traits: true, items: true, codex: true },
-        noti: { char: false, traits: true, flask: false, journal: false, codex: true }
+        noti: { char: false, traits: true, journal: false, codex: true }
     },
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-codex': 'codex' },
     document: { getElementById: id => elements[id] || null },
     isNotiEnabled: () => true,
-    getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', utility: 'tab-flask', records: 'tab-codex' })[groupKey],
+    getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', records: 'tab-codex' })[groupKey],
     switchMergedTabSubtab: (groupKey, tabId, options) => opened.push([groupKey, tabId, options]),
     window: {},
     safeExposeGlobals() {},
@@ -244,9 +244,9 @@ function addSwitchNode(id, className) {
     switchNodes[id] = node;
     return node;
 }
-const switchTopLevel = [addSwitchNode('tab-flask', 'tab-content active'), addSwitchNode('tab-character', 'tab-content')];
+const switchTopLevel = [addSwitchNode('tab-char', 'tab-content active'), addSwitchNode('tab-character', 'tab-content')];
 const switchPanes = persistentPaneIds.map(id => addSwitchNode(id, 'tab-content merged-subtab-pane active'));
-const switchButtons = [addSwitchNode('btn-tab-flask', 'tab-btn active'), addSwitchNode('btn-tab-character', 'tab-btn')];
+const switchButtons = [addSwitchNode('btn-tab-char', 'tab-btn active'), addSwitchNode('btn-tab-character', 'tab-btn')];
 const tabSwitchContext = {
     game: { unlocks: {}, settings: {}, noti: {} },
     TAB_UNLOCK_GATES: {},
@@ -270,7 +270,7 @@ const tabSwitchContext = {
 vm.createContext(tabSwitchContext);
 require('./lib/load-content-progression')(tabSwitchContext, true);
 vm.runInContext([
-    'let lastActiveTabId = "tab-flask";',
+    'let lastActiveTabId = "tab-char";',
     source.slice(groupStart, groupEnd),
     readFunctionSource('getMergedTabGroup'),
     readFunctionSource('switchTab')
@@ -278,7 +278,7 @@ vm.runInContext([
 vm.runInContext(readFunctionSource('isTabSurfaceAvailable'), tabSwitchContext);
 tabSwitchContext.switchTab('tab-character');
 assert(switchNodes['tab-character'].classList.contains('active'), 'the newly selected top-level tab must become active');
-assert(!switchNodes['tab-flask'].classList.contains('active'), 'the previous top-level host must relinquish global tab activation');
+assert(!switchNodes['tab-char'].classList.contains('active'), 'the previous top-level host must relinquish global tab activation');
 persistentPaneIds.forEach(id => {
     assert(switchNodes[id].classList.contains('active'), `${id} must keep its selected content while another window opens`);
 });
@@ -506,12 +506,10 @@ assert.ok(
     context.game.unlocks = {};
     context.syncMergedTabLauncherVisibility();
     assert.strictEqual(elements['btn-tab-char'].style.display, 'none');
-    assert.strictEqual(elements['btn-tab-flask'].style.display, 'none');
     assert.strictEqual(elements['btn-tab-journal'].style.display, 'none', 'a new game must start without later combined menus');
     context.game.unlocks = unlockedState;
     context.syncMergedTabLauncherVisibility();
     assert.strictEqual(elements['btn-tab-char'].style.display, 'flex');
-    assert.strictEqual(elements['btn-tab-flask'].style.display, 'flex', 'unlocking equipment must surface the utility launcher');
 
 elements['tab-char'].classList.toggle('active', true);
 context.syncMergedTabLauncherState();
@@ -526,14 +524,11 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['records', 'tab-codex', { keepWindowOpen: false }],
         'a launcher must reopen the inner subtab the player last used');
 
-    // 전투 화면 플라스크처럼 특정 화면을 콕 집어 여는 경로는 그 탭이 실제로 보여야 한다.
-    // switchTab만 쓰면 tab-flask는 그룹 런처라 창만 열리고 안쪽은 마지막에 보던 탭이 남는다.
-    context.openTabPane('tab-flask');
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))).slice(0, 2), ['utility', 'tab-flask'],
+    // 안내 카드처럼 특정 화면을 콕 집어 여는 경로는 그 탭이 실제로 보여야 한다.
+    // switchTab만 쓰면 tab-traits는 성장 창의 안쪽 탭이라 창만 열리고 안쪽은 마지막에 보던 탭이 남는다.
+    context.openTabPane('tab-traits');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))).slice(0, 2), ['growth', 'tab-traits'],
         'openTabPane must surface the requested pane, not just its window');
-    // 전투 HUD 플라스크 칸은 누르면 마신다(단축키와 같은 입구). 관리 창은 보조장비 메뉴로 연다.
-    assert(source.includes('onclick="hotkeysUi.useFlask(${entry.slot}, this)"'),
-        'the combat flask strip drinks the flask it shows');
 
     // 해금 상태가 바뀌면 열려 있는 병합 창의 내부 탭도 다시 그려야 한다.
     // 회귀: 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고, 내부 탭 버튼에
@@ -541,10 +536,12 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     assert(readFunctionSource('updateTabUnlockButtons').includes('renderMergedTabPanels'),
         'unlock changes must re-render the open merged window so locked tabs disappear');
 
-    assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
-        && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
-    assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>보조장비 <span id="noti-flask"')
-        && html.includes('>기록 <span id="noti-journal"'), 'combined circles must use their concise progression labels');
+    assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="records"'),
+        'the two combined menu circles must be wired in HTML');
+    assert(!html.includes('data-merged-tab-launcher="utility"') && !html.includes('id="tab-flask"'),
+        'the 보조장비 window went with the flasks (2026-10-01)');
+    assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>기록 <span id="noti-journal"'),
+        'combined circles must use their concise progression labels');
     // Duplicate launcher visibility is verified by css-architecture.spec.js.
     // 저장된 안쪽 선택이 다시 잠긴 탭을 가리키면 열 수 있는 첫 탭으로 되돌아간다(빈 창 금지).
     // 기록 창: 도감은 game.unlocks.codex가 권위, 저널은 영구 기록 여부.

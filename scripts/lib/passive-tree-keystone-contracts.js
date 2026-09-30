@@ -79,7 +79,7 @@ const PASSIVE_KEYSTONE_CONTRACTS = Object.freeze([
         '투사체 스킬 대상 수가 2 증가합니다.\n두 번째 이후 대상에게 주는 투사체 피해가 40% 감폭됩니다.\n' +
         '하나의 스킬 행동으로 같은 적을 중복 타격할 수 없습니다. 단, 회귀 타격은 예외입니다.'),
     contract('backbone_branch_alchemist_outer_1_universal_flask_keystone', '과잉 투여',
-        '유틸리티 플라스크 효과가 50% 증폭됩니다.\n유틸리티 플라스크 최대 충전과 처치 시 획득 충전이 50% 감폭됩니다.'),
+        '포션 스킬 피해가 50% 증폭됩니다.\n포션 스킬 속도가 25% 감폭됩니다.'),
     contract('backbone_branch_alchemist_outer_2_universal_summon_keystone', '단 하나의 사역',
         '공격형 소환수 최대 한도가 1이 됩니다.\n잃은 소환수 최대 한도 1당 남은 공격형 소환수의 피해가 75%, 생명력이 50% 증폭됩니다.\n' +
         '해당 소환수의 부활 대기시간이 100% 증가합니다.'),

@@ -84,5 +84,5 @@ run(`window.v4=JSON.parse(serializeSaveState(game));window.v4.actExploration.loo
     delete window.v4.actExploration.loot.jewels;`);
 const v4=copy('mergeDefaults(window.v4).actExploration.loot');
 assert.deepEqual(v4.jewels,[]);
-assert(v4.version===8&&!('growthItems' in v4)&&!('growthCodex' in v4),'v4 upgrades through v5 growth collections to v8 without them');
+assert(v4.version===9&&!('growthItems' in v4)&&!('growthCodex' in v4),'v4 upgrades through v5 growth collections to v9 without them');
 console.log('act exploration jewel escrow, salvage, capacity protection, ids, settlement and story-act talisman rule: OK');

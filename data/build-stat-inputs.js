@@ -21,5 +21,5 @@ const BUILD_STAT_PARTS = {
     cosmosAtlas: ['mastery', 'equippedStones', 'equippedStoneGalaxy', 'bossStoneOptions'],
     chaosRealm: ['permanentBonuses'],
     skyTower: ['skyStone', 'gemBoosts'], ocean: ['permanentUpgrades'],
-    expertise: ['levels', 'nodes', 'favors'], flasks: ['healTier', 'qualityByKey']
+    expertise: ['levels', 'nodes', 'favors']
 };

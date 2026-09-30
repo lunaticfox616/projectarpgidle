@@ -51,22 +51,12 @@ const context = {
     shrineBuff: { name: '힘의 성소', stat: 'pctDmg', value: 16, expiresAt: 14000 },
     uniqueEliteTraitBuff: { trait: { name: '고속 공세', attackSpeedVarMul: 1.18 }, expiresAt: 14000 }
   },
-  FLASK_UTILITY_POOL: { speed: { key: 'speed', name: '신속 플라스크' } },
   escapeHTML(value) {
     return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   },
   getExpReq() { return 100; },
   getUiStoredAilmentHitDamage() { return 40; },
-  ensureFlaskState() {
-    return {
-      healTier: 1,
-      healOverTimeUntil: 12000,
-      utils: [{ key: 'speed', until: 12500 }]
-    };
-  },
-  getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크' }; },
-  getMaxFlaskUtilitySlotCount() { return 1; },
   // 부적 조건부 줄(예전 컨디션 젬 버프): 최근 틱에 켜진 수호 · 함성 줄.
   talismanCombat: { active: () => context.__activeConditions },
   talismans: { conditionDef: id => ({ guard_iron_oath: { name: '철의 맹세', kind: 'guard' } })[id] || null, describeDelta: () => '' },
@@ -108,8 +98,8 @@ const playerStats = {
   uniqueRiderCompass: true
 };
 const playerMarkup = context.buildPlayerCombatEffectIcons(playerStats, now);
-const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_down', 'healFlask',
-  'utilityFlask', 'playerUniqueGuard', 'shadowStealth', 'leechEfficiency', 'meleeArmorAmp',
+const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_down',
+  'playerUniqueGuard', 'shadowStealth', 'leechEfficiency', 'meleeArmorAmp',
   'killMoveStacks', 'riderCompassReady', 'shrineBuff', 'eliteTraitBuff', 'lifeLeech', 'energyShieldLeech',
   'lifeRecoup', 'delayedGuardHeal', 'warriorRhythm', 'talentAegis', 'fletcherCharge', 'colosseumReady',
   'bloomRegenSuppress', 'queenBeeSwarm', 'summonDeathDamageBuff', 'summonCritAspd',

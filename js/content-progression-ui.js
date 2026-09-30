@@ -5,7 +5,6 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
     'item-tab-hall': '장비 → 장비 전당',
     'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
     'skill-tab-condition': '스킬 젬 → 전술 규칙',
-    'tab-flask': '보조장비 → 플라스크',
     'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 직업전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-expertise': '전문가', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-talent': '재능',
     'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
@@ -279,7 +278,6 @@ const contentUnlockUi = {
     },
     routeAction(def) {
         if (def.action) return def.action;
-        if (def.id === 'flask') return { tab: 'tab-flask' };
         const route = def.routes?.[0];
         if (!route) return null;
         if (route.startsWith('item-tab-')) return { tab:'tab-items', subtab:route };

@@ -35,7 +35,6 @@ const contentProgression = (() => {
     }
 
     function meetsUsageGate(def, owner) {
-        if (def.id === 'flask') return owner.season >= def.minLoop;
         if (def.id !== 'battleTrials') return true;
         const state = owner.contentProgression;
         return owner.season >= def.minLoop && !!state
@@ -65,12 +64,6 @@ const contentProgression = (() => {
     function canDropCurrency(key, owner = game) {
         const unlocks = ORB_DB[getCanonicalCurrencyKey(key)]?.dropUnlocks;
         return !unlocks || unlocks.some(id => isUnlocked(id, owner));
-    }
-
-    /** Flask discovery, crafting and inventory share the same feature boundary. */
-    function canUseFlask(key, owner = game) {
-        const def = FLASK_DB[key];
-        return !!def && isUnlocked(def.kind === 'heal' ? 'flask' : 'flaskUtility', owner);
     }
 
     function canOpenMap(owner) {
@@ -169,7 +162,7 @@ const contentProgression = (() => {
         if (def.id === 'journal') return owner.journalEntries.length > 0;
         if (def.gate) return !!owner.unlocks[def.gate];
         if (def.flags) return def.flags.some(flag => owner[flag]);
-        return owner.season >= def.minLoop || ['support','craft','fossil','research','hall','flask','records'].includes(def.id);
+        return owner.season >= def.minLoop || ['support','craft','fossil','research','hall','records'].includes(def.id);
     }
 
     function restorePurchases(purchased, next, record) {
@@ -237,7 +230,6 @@ const contentProgression = (() => {
             && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
         inheritSplitGrowth(record, next);
-        if (next.highestLoop < 2) next.inherited = next.inherited.filter(id => !['flask', 'flaskUtility'].includes(id));
         return next;
     }
 
@@ -246,9 +238,8 @@ const contentProgression = (() => {
         if (Number(record.version) >= 7) return;
         const owned = new Set([...next.unlocked, ...next.inherited]);
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
-        if (owned.has('flask') && !owned.has('flaskUtility')) next.inherited.push('flaskUtility');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canUseFlask, canOpen, points, balance, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, balance, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

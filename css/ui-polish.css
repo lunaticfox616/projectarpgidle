@@ -124,7 +124,6 @@ body .currency-card {
 .craft-spores { padding: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }
 .craft-spores-title { font-weight: 600; margin-bottom: 6px; color: var(--color-text-secondary); }
-.flask-management-panel { padding: 10px; margin-bottom: 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); }
 
 .currency-card-header,
 .currency-card-name-wrap,
@@ -538,62 +537,6 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
 }
 
 /* Top-level grouping is the first tab row; the selected group's tabs stay in the second row. */
-/* Flask equipment cards mirror the compact equipment-slot presentation.
-   Slot count varies with the equipped belt (1 heal + 0~4 utility), so the grid
-   auto-fits instead of assuming a fixed column count. */
-.flask-paperdoll {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-}
-.flask-slot-box.empty-hint { border-style: dashed; opacity: 0.85; }
-.flask-slot-box {
-  min-height: 96px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface-raised);
-  padding: 8px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.24);
-}
-.flask-slot-box.active {
-  border-color: var(--color-accent-gold);
-  box-shadow: inset 0 0 0 1px var(--color-line-strong);
-}
-.flask-slot-box.heal { border-color: #4f7b65; }
-.flask-slot-box.heal.active { border-color: #74c79d; }
-.flask-slot-label {
-  color: var(--color-text-secondary);
-  font-size: 0.72em;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
-}
-.flask-slot-name {
-  color: var(--color-text);
-  font-weight: 900;
-  font-size: 0.86em;
-  min-height: 32px;
-  line-height: 1.25;
-}
-.flask-slot-status {
-  color: var(--color-text);
-  font-size: 0.74em;
-  min-height: 18px;
-  margin: 5px 0;
-}
-.flask-slot-select {
-  width: 100%;
-  font-size: 0.76em;
-}
-.flask-help-text {
-  color: var(--color-text-secondary);
-  font-size: 0.76em;
-  margin-top: 6px;
-  line-height: 1.35;
-}
-@media (max-width: 720px) {
-  .flask-paperdoll { grid-template-columns: 1fr; }
-}
 }
 
 @layer overrides {

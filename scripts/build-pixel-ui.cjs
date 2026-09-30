@@ -174,45 +174,6 @@ function iconStrip() {
     return png(13 * ORDER.length, 13, (x, y) => PALETTE[ICONS[ORDER[Math.floor(x / 13)]][y][x % 13]] || null);
 }
 
-/** ASCII pixel map → PNG. Each character is one dot; '.' is clear. */
-function sprite(rows, palette) {
-    return png(rows[0].length, rows.length, (x, y) => palette[rows[y][x]] || null);
-}
-// 물약(12×14 도트): 병 테·코르크·유리 반짝임. 액체는 potion-mask 모양에 CSS 색(--flask-liquid)을 칠해 병 아래에 깐다.
-const POTION_GLASS = [
-    '....cccc....',
-    '....cCCc....',
-    '....KggK....',
-    '....KgGK....',
-    '...KgggGK...',
-    '..KgW...gK..',
-    '.KgW.....gK.',
-    '.KW.......K.',
-    'KgW........K',
-    'Kg.........K',
-    'Kg.........K',
-    '.K........K.',
-    '.KK......KK.',
-    '...KKKKKK...'
-];
-const POTION_LIQUID = [
-    '............',
-    '............',
-    '............',
-    '............',
-    '............',
-    '............',
-    '............',
-    '..########..',
-    '.##########.',
-    '.##########.',
-    '.##########.',
-    '..########..',
-    '...######...',
-    '............'
-];
-const POTION_PALETTE = { K: INK, c: '#5a3a1c', C: '#9a6a36', g: '#b9c4c099', G: '#e8f0ec', W: '#ffffffb8' };
-
 /** Box-filter the source down to n×n dots, drop edges fainter than `cut` (lower keeps thin strokes at small sizes), repaint by brightness with a gold ramp. */
 function pixelLogo(source, n, cut) {
     const ramp = ['#4a3418', '#7a5628', '#a87c3e', '#d4a95c', '#f3d492'];
@@ -250,8 +211,6 @@ const FILES = {
     'board-hot.png': board(1),
     // 메뉴 아이콘: 한 줄 그림(13도트 × 개수).
     'menu-icons.png': iconStrip(),
-    'potion-glass.png': sprite(POTION_GLASS, POTION_PALETTE),
-    'potion-mask.png': sprite(POTION_LIQUID, { '#': '#000000' }),
     'rignin-logo-52.png': pixelLogo(logo, 52, .2),
     'rignin-logo-120.png': pixelLogo(logo, 120, .3)
 };

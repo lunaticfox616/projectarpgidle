@@ -448,7 +448,7 @@ const UNIQUE_DB = [
     { name: "저주의 관", slots: ["투구"], reqTier: 13, uniqueEffect: "저주 최대치 +1, 적에게 걸린 저주 1개당 최종 피해 +6%", uniqueEffectKey: "curseCrown", uniqueEffectParams: { extraCurseCap: 1, finalDmgPerCursePct: 6 }, stats: [{ id: "chaosPctDmg", min: 20, max: 30 }, { id: "resPen", min: 8, max: 14 }, { id: "crit", min: 6, max: 10 }, { id: "resChaos", min: 10, max: 16 }, { id: 'resAll', min: 18, max: 20.1 }, { id: 'energyShieldPct', min: 36, max: 40.3 }] },
     { name: "수호 성갑", slots: ["갑옷"], reqTier: 14, uniqueEffect: "받는 피해 -8%, 보스에게 받는 피해 -12%", uniqueEffectKey: "guardianArmor", uniqueEffectParams: { takenLessPct: 8, bossTakenLessPct: 12 }, stats: [{ id: "flatHp", min: 140, max: 200 }, { id: "dr", min: 10, max: 14 }, { id: "resAll", min: 14, max: 20 }, { id: "regen", min: 1.4, max: 2.2 }, { id: 'armorPct', min: 36, max: 40.3 }, { id: 'evasionPct', min: 36, max: 40.3 }] },
     { name: "함성 공명 허리띠", slots: ["허리띠"], reqTier: 13, uniqueEffect: "플레이어에게 적용된 함성 1개당 피해 20% 증폭", uniqueEffectKey: "warcryResonanceBelt", uniqueEffectParams: { perWarcryAmpPct: 20 }, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "move", min: 8, max: 14 }, { id: "aspd", min: 8, max: 12 }, { id: "resAll", min: 8, max: 14 }, { id: 'dr', min: 17.3, max: 19.5 }, { id: 'energyShieldPct', min: 36, max: 40.3 }] },
-    { name: "천 개의 유리병", slots: ["허리띠"], reqTier: 16, ultraRare: true, uniqueEffect: "유틸리티 플라스크 슬롯 +3, 장착한 플라스크 충전 속도 +25%", uniqueEffectKey: "extraFlaskUtilitySlots", uniqueEffectParams: { slots: 3, chargeRatePct: 25 }, stats: [{ id: "flatHp", min: 130, max: 190 }, { id: "regen", min: 1.3, max: 2.0 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 12, max: 16 }, { id: "leech", min: 0.8, max: 1.2 }] },
+    { name: "천 개의 유리병", slots: ["허리띠"], reqTier: 16, ultraRare: true, syncEffectOnLoad: true, uniqueEffect: "방어도 +25%, 모든 저항 +12%, 공격 속도 +8%, 피해 +10%", uniqueEffectKey: "thousandBottles", stats: [{ id: "flatHp", min: 130, max: 190 }, { id: "regen", min: 1.3, max: 2.0 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 12, max: 16 }, { id: "leech", min: 0.8, max: 1.2 }] },
     { name: "저항 잠식 반지", slots: ["반지"], reqTier: 12, uniqueEffect: "동일 대상 연속 타격 시 원소저항 -2% 누적 (최대 -20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "resPen", min: 10, max: 16 }, { id: "elementalPctDmg", min: 18, max: 28 }, { id: "resAll", min: 8, max: 14 }, { id: "leech", min: 0.8, max: 1.3 }, { id: 'flatHp', min: 90, max: 100.7 }, { id: 'crit', min: 4.3, max: 4.9 }] },
     { name: "컨디션 교본", slots: ["목걸이"], reqTier: 14, uniqueEffect: "부적 저주 지속시간 +100%, 저주 간격 −20%", uniqueEffectKey: "conditionManual", uniqueEffectParams: { durationPct: 100, cdrPct: 20 }, stats: [{ id: "gemLevel", min: 2, max: 2 }, { id: "suppCap", min: 1, max: 1 }, { id: "regen", min: 1.1, max: 1.7 }, { id: "resAll", min: 10, max: 16 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'flatHp', min: 90, max: 100.7 }] },
 
@@ -836,67 +836,6 @@ UNIQUE_DB.forEach(unique => {
 // An extra boss roll independent of ordinary equipment/rarity rolls and underworld's loot reduction.
 const REALM_BOSS_UNIQUE_DROP_RULES = Object.freeze({ chance: 0.03, ultraRareShare: 0.01 });
 
-// 플라스크: 적 처치로 충전되고 전투 중 자동 사용되는 소모품. (생명력 1개 + 유틸리티 1개 슬롯)
-//  - life: 생명력이 autoBelowHpPct 이하로 떨어지면 자동으로 마셔 healPct% 즉시 회복.
-//  - 유틸리티: 전투 중 충전이 있으면 자동 발동, durationMs 동안 스탯 버프(버킷 반영).
-// 플라스크: 회복 플라스크 1슬롯(티어 선택) + 유틸리티 플라스크 2슬롯(풀에서 2개 장착).
-//  - 회복 플라스크는 티어 1/5/10/15/20/25/30/35마다 하나씩, 성능(회복량·지속)만 다르다.
-//    발동 시 즉시 회복이 아니라 durationMs 동안 총 healPct%를 나눠서 지속 회복한다.
-//    각 티어는 캐릭터 레벨이 reqLevel 이상이면 선택할 수 있다.
-//  - 유틸리티 플라스크는 durationMs 동안 스탯 버프(버킷 반영). 최대 2개 장착.
-//  - 모두 적 처치로 충전되고 전투 중 자동 사용된다.
-const FLASK_HEAL_TIERS = [
-    { key: 'h1', kind: 'heal', tier: 1, name: '생명력 플라스크 I', reqLevel: 1, healPct: 25, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
-    { key: 'h2', kind: 'heal', tier: 2, name: '생명력 플라스크 II', reqLevel: 7, healPct: 32, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
-    { key: 'h3', kind: 'heal', tier: 3, name: '생명력 플라스크 III', reqLevel: 13, healPct: 40, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
-    { key: 'h4', kind: 'heal', tier: 4, name: '생명력 플라스크 IV', reqLevel: 19, healPct: 49, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 57 },
-    { key: 'h5', kind: 'heal', tier: 5, name: '생명력 플라스크 V', reqLevel: 25, healPct: 59, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 57 },
-    { key: 'h6', kind: 'heal', tier: 6, name: '생명력 플라스크 VI', reqLevel: 31, healPct: 70, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h7', kind: 'heal', tier: 7, name: '생명력 플라스크 VII', reqLevel: 37, healPct: 82, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h8', kind: 'heal', tier: 8, name: '생명력 플라스크 VIII', reqLevel: 43, healPct: 95, durationMs: 5500, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 60 }
-];
-
-// 유틸리티 플라스크도 회복 플라스크처럼 종류별 5단계(레벨 1/5/10/15/20)로 나뉘며,
-// 단계가 오를수록 효과와 충전 속도가 함께 좋아진다. 같은 종류의 플라스크는 슬롯 2개에 동시 장착할 수 없다.
-const FLASK_UTILITY_TIER_REQ_LEVELS = [1, 8, 16, 24, 32];
-const FLASK_UTILITY_CATEGORIES = [
-    { category: 'granite', label: '화강암', statKey: 'armorPct', statValues: [30, 38, 46, 55, 65], statSuffix: '방어도', chargesPerKillsBase: 10 },
-    { category: 'quicksilver', label: '수은', statValues: [8, 10, 12, 14, 16], statSuffix: '공격 속도', statKey: 'aspd', extraStatKey: 'move', extraStatValues: [12, 15, 18, 21, 24], extraStatSuffix: '이동 속도', chargesPerKillsBase: 10 },
-    { category: 'amethyst', label: '자수정', statKey: 'resAll', statValues: [10, 13, 16, 20, 24], statSuffix: '모든 저항', chargesPerKillsBase: 10 },
-    { category: 'bismuth', label: '창연', statKey: 'genericTakenReducePct', statValues: [5, 6, 7, 9, 11], statSuffix: '받는 피해 감소', chargesPerKillsBase: 12 },
-    { category: 'sulphur', label: '유황', statKey: 'pctDmg', statValues: [10, 13, 16, 19, 22], statSuffix: '피해', chargesPerKillsBase: 12 }
-];
-const FLASK_UTILITY_POOL = {};
-FLASK_UTILITY_CATEGORIES.forEach(cat => {
-    FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, idx) => {
-        let tier = idx + 1;
-        let key = `${cat.category}${tier}`;
-        let statValue = cat.statValues[idx];
-        let descParts = [`${cat.statSuffix} +${statValue}%`];
-        let def = {
-            key,
-            kind: 'utility',
-            category: cat.category,
-            tier,
-            name: `${cat.label} 플라스크 ${['I', 'II', 'III', 'IV', 'V'][idx]}`,
-            reqLevel,
-            durationMs: 5000,
-            maxCharges: 3 + Math.floor(idx / 2),
-            chargesPerKills: Math.max(6, cat.chargesPerKillsBase - idx)
-        };
-        def[cat.statKey] = statValue;
-        if (cat.extraStatKey) {
-            def[cat.extraStatKey] = cat.extraStatValues[idx];
-            descParts.push(`${cat.extraStatSuffix} +${cat.extraStatValues[idx]}%`);
-        }
-        def.desc = `${Math.round(def.durationMs / 1000)}초간 ${descParts.join(', ')}`;
-        FLASK_UTILITY_POOL[key] = def;
-    });
-});
-
-// 하위호환: 과거 저장의 utilKey 등에서 참조할 수 있도록 통합 조회 맵.
-const FLASK_DB = Object.assign({}, FLASK_UTILITY_POOL, Object.fromEntries(FLASK_HEAL_TIERS.map(t => [t.key, t])));
-
 const CURRENCY_LEGACY_MERGE = Object.freeze({
     magicBud: ['transmute', 'augment', 'alteration'],
     sapBud: ['regal', 'exalted'],
@@ -1074,4 +1013,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

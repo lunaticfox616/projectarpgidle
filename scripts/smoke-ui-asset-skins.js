@@ -117,10 +117,10 @@ assert.ok(ui.indexOf('${metaMarkup}', enemyFrameSlot) > enemyFrameSlot,
   'gauge-mob-hp-v1.png', 'gauge-elite-hp-v1.png', 'gauge-boss-hp-v1.png'
 ].forEach(file => assert.ok(css.includes(file) || reliquaryCss.includes(file), `${file} must provide a live gauge texture`));
 assert.ok(reliquaryCss.includes('health-player-five-v3.png'),
-  'desktop equipped flasks must reuse the supplied five-socket artwork');
+  'the desktop skill rack mirrors the supplied five-socket artwork');
 assert.ok(!html.includes('player-hud-rack-title'),
   'the equipped-gem artwork must not repeat a title beside the icons');
-assert.strictEqual((html.match(/<span class="combat-flask-mini/g) || []).length, 1, 'the boot HUD must expose only the always-equipped health flask before live state renders');
+assert.ok(!html.includes('combat-flask-mini'), 'the boot HUD has no flask strip (flasks removed 2026-10-01)');
 const skinContext = { document: { body: { dataset: {} } } };
 vm.createContext(skinContext);
 vm.runInContext(readFunctionSource(fs.readFileSync('js/utils.js', 'utf8'), 'normalizeUiSkin')

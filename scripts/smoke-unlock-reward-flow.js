@@ -121,16 +121,5 @@ check('boundary jewel payouts cannot leak through legacy active runs; an old gro
     assert(run('game.currencies.jewelShard>0'));
 });
 
-check('flask HUD rebuilds after changing between locked and owned saves', () => {
-    reset();
-    const host = { innerHTML:'', dataset:{} };
-    runtime.document.getElementById = id => id === 'ui-combat-flasks' ? host : null;
-    run('game.contentProgression.inherited.push("flask");renderCombatFlaskHud()');
-    assert(host.innerHTML.includes('combat-flask-mini'));
-    run('game.contentProgression.inherited=[];renderCombatFlaskHud()');
-    assert.equal(host.innerHTML, '');
-    run('game.contentProgression.inherited.push("flask");renderCombatFlaskHud()');
-    assert(host.innerHTML.includes('combat-flask-mini'));
-});
 assert.deepEqual(failures, [], failures.join('\n'));
 console.log('smoke-unlock-reward-flow passed');

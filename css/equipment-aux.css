@@ -36,7 +36,7 @@
     .core-item-actions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
-  /* 장비 그리드 아래 보조 줄: 주얼 보관함(이어서 허리띠 물약 · 부적 줄) */
+  /* 장비 그리드 아래 보조 줄: 주얼 보관함 */
   .equipment-aux:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
   .equipment-aux-store { flex: 1 1 auto; min-height: 36px; }
   .equipment-aux-store.is-full { color: #ffbd7e; }
