@@ -35,7 +35,8 @@ assert.deepEqual(designs.sky.slice(0, 2), ['islands', 'aerial'], 'the sky tower 
 assert.deepEqual(designs.under.slice(0, 2), ['descent', 'trunk'], 'the underworld is a short shaft');
 assert.deepEqual([designs.past[0], designs.past[1], designs.future[1]], ['rooms', 'ruins', 'sanctum'], 'the rift shows the same rooms in two eras');
 assert.equal(designs.lab[0], 'maze');
-for (const key of ['trial', 'boss', 'rival', 'sea', 'meteor']) assert.equal(designs[key][0], 'arena', `${key} is fought in an arena`);
+assert.deepEqual(designs.trial.slice(0, 2), ['gauntlet', 'sanctum'], 'a class trial is a trap corridor of elite-led rooms before its guardian');
+for (const key of ['boss', 'rival', 'sea', 'meteor']) assert.equal(designs[key][0], 'arena', `${key} is fought in an arena`);
 assert.deepEqual([designs.boss[1], designs.rival[1], designs.sea[1]], ['trunk', 'ruins', 'courtyard'], 'arenas take their content look');
 for (const key of ['woodsman', 'breach', 'echo', 'ocean']) assert.equal(designs[key], null, `${key} keeps its board (waves, timers, depth)`);
 assert.equal(run('SEASON_BOSS_ZONES[0].exploration === undefined'), true, 'the data rows stay untouched');
@@ -59,7 +60,7 @@ assert.equal(clearsVia('chaos', `game.currentZoneId=getAbyssZoneIdForDepth(5)`, 
 assert.equal(clearsVia('realm', `game.chaosRealm.currentFloor=3;game.chaosRealm.highestFloor=3;game.currentZoneId=CHAOS_REALM_ZONE_ID`, 'game.chaosRealm.highestFloor'), 0);
 assert.equal(clearsVia('sky', `ensureSkyTowerState().unlocked=true;game.skyTower.currentFloor=4;game.skyTower.highestFloor=4;game.currentZoneId=SKY_TOWER_ZONE_ID`, 'game.skyTower.highestFloor'), 0);
 assert.equal(clearsVia('under', `game.underworldProgress.currentFloor=2;game.underworldProgress.highestFloor=2;game.currentZoneId=UNDERWORLD_ZONE_ID`, 'game.underworldProgress.highestFloor'), 0);
-assert.equal(clearsVia('trial', `game.currentZoneId='trial_1'`, 'game.completedTrials.length'), 0, 'a trial arena is won through the loop');
+assert.equal(clearsVia('trial', `game.currentZoneId='trial_1'`, 'game.completedTrials.length'), 0, 'a trial corridor is won through the loop');
 
 // ---------------------------------------------------------------- wide-map loot holds wallet-only currencies
 setup(`game.currentZoneId=getAbyssZoneIdForDepth(24);game.abyssEndlessDepth=24`);

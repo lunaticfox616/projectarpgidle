@@ -103,13 +103,19 @@ const actExplorationUi=(()=>{
         ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();
         ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#140d08';ctx.stroke();
     }
+    // Atlas content rooms keep their own colour on the minimap (the rest: boss red, elite gold, pack brown).
+    const ENCOUNTER_MARKS={breach:'#b58ce0',hive:'#e7d36a',treasure:'#8fd08a',meteor:'#e89a5c'};
+    function packMark(pack) {
+        if(pack.stage!==null)return '#e78077';
+        if(ENCOUNTER_MARKS[pack.encounter])return ENCOUNTER_MARKS[pack.encounter];
+        return pack.eliteIds.some(id=>pack.aliveIds.includes(id))?'#e1bd62':'#ae9073';
+    }
     function drawMarkers(ctx,run,map,seen,scale) {
         const at=v=>v*scale+scale/2,r=Math.max(3,scale*.8);
         for(const pack of run.packs) {
             const room=map.rooms.find(item=>item.id===pack.roomId);
             if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
-            const fill=pack.stage!==null?'#e78077':pack.eliteIds.some(id=>pack.aliveIds.includes(id))?'#e1bd62':'#ae9073';
-            drawDiamond(ctx,{x:at(room.gx),y:at(room.gy),r,fill});
+            drawDiamond(ctx,{x:at(room.gx),y:at(room.gy),r,fill:packMark(pack)});
         }
         if(run.destination) {
             ctx.beginPath();ctx.arc(at(run.destination.gx),at(run.destination.gy),r+1,0,Math.PI*2);

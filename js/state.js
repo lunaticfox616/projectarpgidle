@@ -859,7 +859,7 @@ function getZone(id) {
         return getUnderworldZone(floor);
     }
     if (typeof id === 'string') {
-        if (id.startsWith('trial_')) return contentMaps.withArena(TRIAL_ZONES.find(t => t.id === id), 'sanctum');
+        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
         let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
         if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
     }
