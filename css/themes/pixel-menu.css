@@ -1,6 +1,6 @@
 @layer overrides {
 /* 도트 UI — 메뉴(2026-09-30). PC는 왼쪽 메뉴 레일을 하단 HUD 돌판 안으로 옮겨(js/ui-window-manager.js dockRailIntoHud)
-   [생명 구슬][플라스크][정리 · 메뉴 날개][미니맵][메뉴 날개 · 기타][젬][경험치 구슬] 한 줄로 싣는다. 메뉴는 둥근 소켓 단추,
+   [생명 구슬][플라스크][정리 · 메뉴 날개][미니맵][메뉴 날개 · 기타][젬][경험치 구슬] 한 줄로 싣는다. 메뉴는 네모 틀 단추(HUD 그림에서 자른 쇠 · 청동 틀),
    이름(과 단축키)은 올려 두면 뜬다. 창은 HUD 위까지만 온다. 휴대폰은 하단 메뉴 띠가 전투 화면의 HUD 돌판과 한 판이 되고,
    칸마다 아이콘이 붙는다. 아이콘: scripts/pixel-menu-icons.cjs(13도트) → assets/ui/pixel/menu-icons.png.
    --px-icon 번호는 그 파일의 순서, --px-icon-count는 아이콘 수다(아이콘을 더하면 둘 다 맞춘다). */
@@ -9,8 +9,8 @@ body[data-ui-skin] {
   --px-menu-icons: url('../../assets/ui/pixel/menu-icons.png');
   --px-icon-count: 21;
   --px-key: 40px;
-  --px-key-socket: url('../../assets/ui/pixel/key-socket.png');
-  --px-key-socket-on: url('../../assets/ui/pixel/key-socket-on.png');
+  --px-key-frame: url('../../assets/ui/pixel/hud-key.png');
+  --px-key-frame-on: url('../../assets/ui/pixel/hud-key-on.png');
 }
 body[data-ui-skin] #btn-tab-battle { --px-icon: 0; }
 body[data-ui-skin] #btn-tab-character { --px-icon: 1; }
@@ -42,6 +42,9 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     --menu-rail-width: 0px;
     --px-hud-bar: 70px;
     --px-side: 112px;
+    /* 판 아래 여백이 15px이라 둥근 셋은 조금 덜 올린다(pixel-hud.css --px-orb-lift 참고). */
+    --px-orb-lift: 16px;
+    --px-map-lift: 33px;
   }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud {
     z-index: 1500;
@@ -55,7 +58,8 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     width: min(1280px, calc(100vw - 32px));
     max-width: 1280px;
   }
-  body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .combat-feed { bottom: calc(var(--px-map-size) + 24px); }
+  /* 기록은 HUD 상자(지도 테 꼭대기까지) 위: 바 아래 10px + 판 여백 15px + 올림 + 지도 + 테 윗장식 48도트 + 틈 10px */
+  body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .combat-feed { bottom: calc(var(--px-map-size) + var(--px-map-lift) + 48px * var(--px-hud-dot) + 35px); }
   /* 대상 적 체력바도 같은 세로축(주인공 · 미니맵)에 */
   :root body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #battle-column #enemy-area { left: 50%; }
   /* 창을 열어도 메뉴는 흐려지지 않는다(창은 HUD 위까지만 온다). */
@@ -67,8 +71,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     padding: 0 14px 15px;
   }
   /* [생명 구슬][플라스크][정리 · 메뉴 날개][미니맵][메뉴 날개 · 기타][젬][경험치 구슬] — 양쪽 칸 폭이 같아 미니맵이 바 한가운데.
-     둥근 셋은 판 아래 테두리까지 내려앉고 윗부분이 솟는다. 나머지는 메뉴 단추(40px) 줄에 가운데 맞춘다. */
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell :is(.combat-hp-bar, .combat-exp-bar, #act-exploration-panel) { margin-bottom: -11px; }
+     둥근 셋은 아래 장식이 판 안에 들도록 올라앉고 윗부분이 솟는다. 나머지는 메뉴 단추(40px) 줄에 가운데 맞춘다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell #act-exploration-panel { grid-column: 4; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing { grid-column: 2; justify-self: start; margin-bottom: 4px; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { display: none; }
@@ -77,8 +80,6 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 32px; width: 32px; height: 32px; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 36px; width: 36px; height: 36px; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell :is(.combat-exp-bar, #ui-exp-level-label, .player-exp-percent) { grid-column: 7; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { margin-bottom: calc(var(--px-orb-size) * .5 - 11px); }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-health-frame .player-exp-percent { margin-bottom: calc(var(--px-orb-size) * .3 - 11px); }
 
   /* 레일 틀은 사라지고 안의 날개·단추·기타 목록만 HUD 격자에 놓인다. 로고는 PC 전투 화면에서 뺀다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main.ui-rail-docked { display: contents; }
@@ -117,7 +118,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-close-all-windows { grid-column: 3; justify-self: start; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc { grid-column: 5; justify-self: end; }
 
-  /* 메뉴 단추: 둥근 청동 소켓 + 13도트 금빛 아이콘(2배). 열린 창은 금빛 테. */
+  /* 메뉴 단추: 네모 틀(scripts/build-hud-kit.cjs, 40도트) + 13도트 금빛 아이콘(2배). 열린 창은 틀이 금빛. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn,
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button {
     position: relative;
@@ -130,8 +131,8 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     padding: 0;
     border: 0;
     overflow: visible;
-    border-radius: 50%;
-    background: var(--px-key-socket) center / 100% 100% no-repeat;
+    border-radius: 0;
+    background: var(--px-key-frame) center / 100% 100% no-repeat;
     box-shadow: none;
     color: transparent;
     font-size: 12px;
@@ -164,7 +165,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:is(:hover, :focus-visible)::after { filter: brightness(1.22); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(.ui-window-open, [aria-pressed='true']),
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc[aria-expanded='true'] {
-    background: var(--px-key-socket-on) center / 100% 100% no-repeat;
+    background: var(--px-key-frame-on) center / 100% 100% no-repeat;
     box-shadow: none;
   }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(.ui-window-open, [aria-pressed='true'])::after,
