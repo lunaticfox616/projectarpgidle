@@ -154,7 +154,8 @@
    지역 줄은 전장 위에 겹치지 않으므로 전장 위쪽에 붙는 표식(몬스터 수·목표)은 원래 자리를 쓴다.
    가로 화면(HUD가 전장 왼쪽에 서는 배치)은 기존 그대로 둔다. */
 @media (max-width: 1080px) and (orientation: portrait) {
-  body[data-ui-skin="rift"].mobile-battle-tab { padding: 0; }
+  /* 노치 · 상태 표시줄 아래로(가장자리까지 그리는 안드로이드 · iOS 홈 화면 앱): 위쪽 안전 영역만 비운다(아래는 하단 메뉴가 비운다). */
+  body[data-ui-skin="rift"].mobile-battle-tab { padding: env(safe-area-inset-top) 0 0; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle { padding: 0; }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle { background: #050607; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel {

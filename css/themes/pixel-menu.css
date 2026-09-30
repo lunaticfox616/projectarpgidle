@@ -59,8 +59,9 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   }
   /* 기록은 HUD 상자(지도 테 꼭대기까지) 위: 바 아래 10px + 판 여백 15px + 올림 + 지도 + 테 윗장식 48도트 + 틈 10px */
   body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .combat-feed { bottom: calc(var(--px-map-size) + var(--px-map-lift) + 48px * var(--px-hud-dot) + 35px); }
-  /* 알림은 오른쪽 위 귀환 단추(전장 첫 줄, ~47px) 아래에서 쌓는다 — 16px에 뜨면 귀환 단추를 덮었다. 목표 단추(132px~)를 덮지 않게 두 개까지. */
-  body[data-ui-skin].desktop-windowed-ui .game-toast-region { top: 50px; }
+  /* 알림은 왼쪽 위 몬스터 수 줄 아래(전장 위)에서 쌓는다: 오른쪽 위는 귀환 · 목표 단추와 창 제목 줄(닫기 · 최대화)이 모이는 자리라
+     알림이 창 닫기 단추를 덮었다. 두 개까지. */
+  body[data-ui-skin].desktop-windowed-ui .game-toast-region { top: 108px; right: auto; left: calc(var(--stage-rail-width, 0px) + 24px); }
   body[data-ui-skin].desktop-windowed-ui .game-toast-region > .game-toast:nth-last-child(n+3) { display: none; }
   /* 전리품 연출 건너뛰기: 전장 오른쪽 아래 구석은 경험치 구슬 뒤라 가려졌다 — 미니맵 테 바로 위 가운데로 */
   body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #btn-exploration-loot-skip {

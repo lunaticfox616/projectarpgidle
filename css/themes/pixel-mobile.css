@@ -34,6 +34,10 @@
   /* 목표 단추는 전장 오른쪽 위 모서리에서 6px 안쪽이라(전장은 넘친 것을 자른다) 아래 · 왼쪽으로 넓힌다 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-goal-toggle::after { content: ''; position: absolute; inset: -6px -6px -16px -8px; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
+  /* 따라 하기 대상이 다른 화면에 있을 때(전투 화면으로 돌아옴): 제목과 단추만 한 줄로 줄여 전장을 덜 가린다(js/tutorial-ui.js) */
+  :root body[data-ui-skin] .tutorial-action-card.is-away:not([hidden]) { display: flex; align-items: center; gap: 8px; padding-block: 8px; }
+  :root body[data-ui-skin] .tutorial-action-card.is-away > p { display: none; }
+  :root body[data-ui-skin] .tutorial-action-card.is-away > strong { flex: 1 1 auto; min-width: 0; }
   /* 따라 하기 안내 카드도 HUD 판(생명 구슬 · 미니맵)을 덮지 않게 기록 막대 위로 */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card:not(.at-top) { bottom: calc(254px + env(safe-area-inset-bottom)); }
   /* 진행 막대가 숨은 지역(액트 · 제 지도가 있는 콘텐츠)은 이름이 그 칸까지 쓴다 — 빈 칸 때문에 "뿌리끝 …"으로 잘리던 문제 */

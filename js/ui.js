@@ -5315,8 +5315,12 @@ function applyHeroSelection(classId, options = {}) {
         game.selectedHeroId = classDef.recommendedTalentHeroId;
         game.talentSelectionInitialized = true;
     }
-    if (refundedPassiveCount > 0 && typeof calculateReachableNodes === 'function') calculateReachableNodes();
-    if (refundedPassiveCount > 0 && typeof refreshPassiveVisibility === 'function') refreshPassiveVisibility();
+    // 직업이 바뀌면 시작점이 달라진다: 반환할 패시브가 없는 새 캐릭터도 닿는 노드를 새 시작점 기준으로 다시 센다
+    // (예전에는 기본 직업의 시작점이 "닿는 노드"로 남아 트리를 처음 열면 트리 절반을 담는 배율로 물러나 있었다).
+    if (prev !== classId || refundedPassiveCount > 0) {
+        if (typeof calculateReachableNodes === 'function') calculateReachableNodes();
+        if (typeof refreshPassiveVisibility === 'function') refreshPassiveVisibility();
+    }
     if (game.settings.heroAppearanceMode === 'fixed' && (!wasInitialized || !PLAYER_CLASS_DEFS[game.appearanceClassId])) {
         game.appearanceClassId = wasInitialized ? prevAppearance : classId;
     }
@@ -11176,6 +11180,15 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
     });
 };
 
+/** 직업 시작점은 늘 무료로 열려 있는 출발점이다(소유 목록에 넣지 않는다). */
+function describeReachablePassiveNode(node) {
+    return node.kind === 'start' ? '시작점 · 여기서 이어진 노드부터 포인트를 씁니다.' : '활성화하면 주변 노드가 밝혀집니다.';
+}
+
+function describeBlockedPassiveNode(node) {
+    return node.kind === 'start' ? '시작점은 이미 열려 있습니다 · 이어진 노드를 눌러 포인트를 쓰세요.' : '연결된 노드가 아니라 활성화할 수 없습니다.';
+}
+
 function setupCanvasEvents() {
     passiveSelectionUi.bindTools();
     setupPassiveTreeSearchControls();
@@ -11203,11 +11216,18 @@ function setupCanvasEvents() {
 
     window.hidePassiveNodeTooltip = hideCanvasTooltip;
 
-    function getPassiveNodeAtClientPosition(clientX, clientY) {
+    /** 손가락은 도트 노드보다 굵다: 터치는 화면 반지름 22px(지름 44px) 안의 가장 가까운 노드를 고른다. */
+    function getPassiveNodeAtTouch(touch) {
+        return getPassiveNodeAtClientPosition(touch.clientX, touch.clientY, 22);
+    }
+
+    /** minScreenRadius: 이 화면 반지름(px) 안이면 노드로 본다(마우스 0 — 그린 반지름 + 8). */
+    function getPassiveNodeAtClientPosition(clientX, clientY, minScreenRadius) {
         ensurePassiveRenderCache();
         const rect = canvas.getBoundingClientRect();
         const viewW = passiveCanvasMetrics.width || rect.width;
         const viewH = passiveCanvasMetrics.height || rect.height;
+        const minRadius = minScreenRadius * viewW / rect.width / camZoom;
         const worldX = ((clientX - rect.left) * viewW / rect.width - viewW / 2 - camX) / camZoom;
         const worldY = ((clientY - rect.top) * viewH / rect.height - viewH / 2 - camY) / camZoom;
         let found = null;
@@ -11229,7 +11249,7 @@ function setupCanvasEvents() {
         let nearestStarSlotDistance = Infinity;
         nearbyNodes.forEach(node => {
             if (getPassiveVisibility(node.id) === 'hidden') return;
-            let radius = getPassiveNodeVisualRadius(node) + 8;
+            let radius = Math.max(getPassiveNodeVisualRadius(node) + 8, minRadius);
             let distance = Math.hypot(node.x - worldX, node.y - worldY);
             if (distance > radius) return;
             if (selectingStarWedge && node.socketType === 'star_wedge' && distance < nearestStarSlotDistance) {
@@ -11266,15 +11286,15 @@ function setupCanvasEvents() {
             && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start').length;
         let ownedApexCount = getPassiveApexNodeIds().filter(id => (game.passives || []).includes(id)).length;
         let msg = virtualLearned
-            ? '🌀 블랙홀이 연결한 가상 거점 · 포인트 없이 인접 경로를 시작할 수 있습니다.'
+            ? '블랙홀이 연결한 가상 거점 · 포인트 없이 인접 경로를 시작할 수 있습니다.'
             : (game.passives || []).includes(node.id)
-            ? '✔️ 활성화됨'
+            ? '활성화됨'
             : (reachableNodes.has(node.id)
-                ? '활성화하면 주변 노드가 밝혀집니다.'
-                : '🌒 아직 길이 이어지지 않은 노드');
+                ? describeReachablePassiveNode(node)
+                : '아직 길이 이어지지 않은 노드');
 
         if (state === 'preview' && !discoveredPassiveNodes.has(node.id)) {
-            msg = '🌫️ 안개 속 노드입니다. 활성화하여 주변을 밝힐 수 있습니다.';
+            msg = '안개 속 노드입니다. 활성화하여 주변을 밝힐 수 있습니다.';
         }
         if (node.kind === 'apex' && !(game.passives || []).includes(node.id)) {
             msg = `★ 별끝 특수 노드 ${ownedApexCount}/5. 다섯 개를 모두 잇면 외곽 성좌가 별 모양으로 각성합니다.`;
@@ -11334,7 +11354,7 @@ function setupCanvasEvents() {
 
     function updateHoverNode(clientX, clientY) {
         let oldHover = hoverNode;
-        hoverNode = getPassiveNodeAtClientPosition(clientX, clientY);
+        hoverNode = getPassiveNodeAtClientPosition(clientX, clientY, 0);
         if (oldHover !== hoverNode) {
             drawPassiveTree();
             if (hoverNode) renderPassiveTooltip(hoverNode, clientX, clientY);
@@ -11360,7 +11380,7 @@ function setupCanvasEvents() {
     async function activateHoveredPassive(opts) {
         let options = opts || {};
         if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) {
-            hoverNode = getPassiveNodeAtClientPosition(options.clientX, options.clientY);
+            hoverNode = getPassiveNodeAtClientPosition(options.clientX, options.clientY, 0);
         }
         if (dragDist >= 10 || !hoverNode) return;
         const targetNode = hoverNode;
@@ -11408,12 +11428,12 @@ function setupCanvasEvents() {
                 return askRefundPassiveNode(hoverNode.id);
             }
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
-            return addLog("연결된 노드가 아니라 활성화할 수 없습니다.", "attack-monster");
+            return addLog(describeBlockedPassiveNode(hoverNode), "attack-monster", { toast: true });
         }
         let pointCost = activationPath.length;
         if (game.passivePoints < pointCost) {
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
-            return addLog(`패시브 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster");
+            return addLog(`패시브 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster", { toast: true });
         }
         if (options.fromTouch && (canActivate || canPathActivate)) {
             let now = Date.now();
@@ -11519,7 +11539,7 @@ function setupCanvasEvents() {
         dragStartY = touch.clientY / uiDisplay.factor - camY;
         lastTouchX = touch.clientX;
         lastTouchY = touch.clientY;
-        hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
+        hoverNode = getPassiveNodeAtTouch(touch);
         canvas.style.cursor = 'grabbing';
     }, { passive: false });
     canvas.addEventListener('touchmove', e => {
@@ -11578,7 +11598,7 @@ function setupCanvasEvents() {
         canvas.style.cursor = 'grab';
         if (e.changedTouches && e.changedTouches.length) {
             let touch = e.changedTouches[0];
-            hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
+            hoverNode = getPassiveNodeAtTouch(touch);
             passiveSelectionUi.touch(hoverNode, touch, { preview: renderPassiveTooltip, activate: activateHoveredPassive });
         }
     }, { passive: false });

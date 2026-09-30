@@ -5,6 +5,12 @@ const passiveSelectionUi = (() => {
         if (panel) panel.hidden = true;
     }
 
+    /** 확인 단추 글씨: 가진 노드는 반환(공허는 제작), 직업 시작점은 늘 열린 출발점, 나머지는 드는 포인트. */
+    function confirmLabel(node, owned, cost) {
+        if (owned) return node.kind === 'void' ? '공허 제작' : '노드 반환';
+        return node.kind === 'start' ? '시작점 · 이미 열림' : `${cost}포인트 사용`;
+    }
+
     function canAct(node, cost) {
         if (!game.passives.includes(node.id)) return cost > 0 && game.passivePoints >= cost;
         if (node.kind === 'void') return true;
@@ -26,9 +32,8 @@ const passiveSelectionUi = (() => {
         const owned = game.passives.includes(node.id);
         const path = getPassiveActivationPath(node.id);
         const cost = path.length;
-        const crafting = owned && node.kind === 'void';
         const enabled = canAct(node, cost);
-        const label = owned ? (crafting ? '공허 제작' : '노드 반환') : `${cost}포인트 사용`;
+        const label = confirmLabel(node, owned, cost);
         panel.innerHTML = `<header><strong>선택한 패시브</strong><button type="button" data-passive-close>닫기</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><button type="button" data-passive-confirm ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
         panel.hidden = false;
         panel.querySelector('[data-passive-close]').onclick = hide;

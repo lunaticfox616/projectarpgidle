@@ -5019,35 +5019,43 @@ function getPassiveActiveViewBoundsIds() {
     return ids;
 }
 
+/** 카메라가 맞출 노드들의 경계(없으면 시작점 한 점). */
+function getPassiveViewBounds(viewNodes) {
+    const nodes = viewNodes.length ? viewNodes : [getPassiveTreeRootNode() || { x: 0, y: 0 }];
+    const xs = nodes.map(n => n.x), ys = nodes.map(n => n.y);
+    return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
+
+/** 아직 투자하지 않은 캐릭터: 시작점 이웃이 한쪽에만 있어 경계 가운데로 맞추면 시작점이 화면 끝(휴대폰은 안내 카드 밑)에
+ * 걸렸다 — 시작점이 가운데보다 높이의 10% 넘게 아래, 또는 가장자리 60px 안에 있지 않게 카메라만 옮긴다(배율은 그대로). */
+function keepPassiveRootInView(width, height) {
+    const root = getPassiveTreeRootNode();
+    if (!root) return;
+    const dx = camX + root.x * camZoom, dy = camY + root.y * camZoom, limitX = width / 2 - 60;
+    camX -= dx - Math.max(-limitX, Math.min(limitX, dx));
+    camY -= dy - Math.max(-(height / 2 - 60), Math.min(height * 0.1, dy));
+}
+
 function fitPassiveCameraToBounds(force) {
     if (passiveCameraInitialized && !force) return;
     let container = document.getElementById('tree-container');
     if (!container || container.offsetParent === null) return;
+    // 닿는 노드가 지금 직업의 시작점 기준인지 맞춘 뒤 범위를 잰다.
+    calculateReachableNodes();
     let width = Math.max(1, container.clientWidth);
     let height = Math.max(1, container.clientHeight);
-    let viewIds = getPassiveActiveViewBoundsIds();
-    let viewNodes = Array.from(viewIds).map(id => PASSIVE_TREE.nodes[id]).filter(Boolean);
-    let minX, maxX, minY, maxY;
-    if (viewNodes.length > 0) {
-        minX = Math.min(...viewNodes.map(n => n.x));
-        maxX = Math.max(...viewNodes.map(n => n.x));
-        minY = Math.min(...viewNodes.map(n => n.y));
-        maxY = Math.max(...viewNodes.map(n => n.y));
-    } else {
-        const root = getPassiveTreeRootNode() || { x: 0, y: 0 };
-        minX = maxX = root.x;
-        minY = maxY = root.y;
-    }
+    let viewNodes = Array.from(getPassiveActiveViewBoundsIds()).map(id => PASSIVE_TREE.nodes[id]).filter(Boolean);
+    const invested = Array.isArray(game && game.passives) && game.passives.length > 0;
+    const bounds = getPassiveViewBounds(viewNodes);
     const viewPadding = 120;
-    const spanX = Math.max(1, (maxX - minX) + viewPadding * 2);
-    const spanY = Math.max(1, (maxY - minY) + viewPadding * 2);
+    const spanX = Math.max(1, (bounds.maxX - bounds.minX) + viewPadding * 2);
+    const spanY = Math.max(1, (bounds.maxY - bounds.minY) + viewPadding * 2);
     const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
     camZoom = clampNumber(defaultZoom, 0.14, 0.72);
-    const boundsCenterX = (minX + maxX) * 0.5;
-    const boundsCenterY = (minY + maxY) * 0.5;
-    const toolbarOffsetY = Array.isArray(game && game.passives) && game.passives.length === 0 ? 56 : 0;
-    camX = -boundsCenterX * camZoom;
-    camY = -boundsCenterY * camZoom + toolbarOffsetY;
+    const toolbarOffsetY = invested ? 0 : 56;
+    camX = -(bounds.minX + bounds.maxX) * 0.5 * camZoom;
+    camY = -(bounds.minY + bounds.maxY) * 0.5 * camZoom + toolbarOffsetY;
+    if (!invested) keepPassiveRootInView(width, height);
     passiveCameraInitialized = true;
 }
 

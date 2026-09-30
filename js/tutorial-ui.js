@@ -83,7 +83,9 @@ const tutorialActionUi = {
         if (action.guide.completed(action.guide.read(), action.before)) return this.finish(true);
         const target = this.findTarget(action.guide.selector);
         this.clearHighlight();
-        if (!target) return;
+        // 가리킬 칸이 다른 화면에 있으면(전투 화면으로 돌아옴) 제목 · 단추만 한 줄로 기본 자리에 둔다.
+        this.card.classList.toggle('is-away', !target);
+        if (!target) { this.card.style.top = this.card.style.bottom = ''; return; }
         target.classList.add('tutorial-action-target');
         const describedBy = target.getAttribute('aria-describedby') || '';
         target.setAttribute('aria-describedby', (describedBy + ' tutorial-action-description').trim());
@@ -96,8 +98,9 @@ const tutorialActionUi = {
         const card = this.card, rect = target.getBoundingClientRect(), lower = rect.top > innerHeight / 2;
         card.classList.toggle('at-top', lower);
         card.style.top = card.style.bottom = '';
-        const corner = card.getBoundingClientRect();
-        if (!rectsOverlap(corner, rect) && !isMobilePrimaryNavigationEnabled()) return;
+        const corner = card.getBoundingClientRect(), phone = isMobilePrimaryNavigationEnabled();
+        // PC는 구석이 칸을 덮을 때만 옮기되, 트리 캔버스처럼 화면 절반이 넘는 대상은 어디에 두어도 겹치니 구석에 둔다.
+        if (!phone && (!rectsOverlap(corner, rect) || rect.height > innerHeight / 2)) return;
         const factor = uiDisplay.factor || 1, height = corner.height;
         const floor = document.getElementById('tab-header-bottom')?.getBoundingClientRect().top || innerHeight;
         const top = lower ? rect.top - 12 - height : rect.bottom + 12;
