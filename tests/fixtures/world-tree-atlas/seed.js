@@ -21,8 +21,8 @@
         game.equipment['갑옷']={id:99102,name:'탐험 흐름 확인용 갑옷',slot:'갑옷',rarity:'rare',baseStats:[{id:'flatHp',val:100000000}],stats:[{id:'regen',val:20}]};
         game.playerHp=getPlayerHpCap(getPlayerStats());
         if(mode==='complete') {
-            game.worldTreeJourney.cleared=WORLD_TREE_JOURNEY.nodes.map(node=>'1:'+node.id);
-            game.worldTreeJourney.hiveDiscovered=true;
+            // Atlas progress: every tier 1-3 node complete (their neighbours open) and this loop's starter maps in the stash.
+            game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
         }
         if(mode==='realms') {
             game.season=50;game.abyssEndlessDepth=30;game.labyrinthUnlockedMaxFloor=100;
@@ -108,7 +108,7 @@
             updateStaticUI();
             parent.postMessage({type:'worldtree-lab-status',message:'대균열 입장 기회만 지급 · 장비와 전투 수치 유지 · 저장 분리'},origin);
         }
-        if(event.data.type==='worldtree-defeat'&&game.worldTreeJourney.active)handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),'체험용 실패',{noToast:true});
+        if(event.data.type==='worldtree-defeat'&&atlas.inMap(game))handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),'체험용 실패',{noToast:true});
         if(event.data.type==='worldtree-view') {
             battle=!battle;
             parent.postMessage({type:'worldtree-view-status',battle},origin);

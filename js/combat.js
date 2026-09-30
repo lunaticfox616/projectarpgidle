@@ -2681,8 +2681,7 @@ function prepareCombatTick(nowMs) {
 function isCombatDecisionPending(state) {
     if(actExplorationProgress.waiting(state))return true;
     return state.pendingLoopHeroSelection || state.pendingLoopDecision || state.pendingLoopReady
-        || cosmosRouteRuntime.waiting(state)
-        || (state.combatHalted && String(state.currentZoneId).startsWith('worldtree_') && !state.worldTreeJourney.active);
+        || cosmosRouteRuntime.waiting(state);
 }
 
 function coreLoop(nowMs) {
@@ -2972,7 +2971,7 @@ function coreLoop(nowMs) {
                 }
                 addLog(`🕳️ 공허의 구멍 정리 완료!${reward ? ` 공허의 끌 +${reward}` : ''}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
-                    let enteredGrand = !zoneNow.worldTreeNode && typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
+                    let enteredGrand = typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
                     if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.', 'loot-unique');
                     if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
@@ -6180,6 +6179,11 @@ function applyChaosRealmAffixesToEnemy(enemy, zone) {
     });
     return enemy;
 }
+/** Zone-wide enemy modifiers: chaos-realm floor affixes and atlas map mods (js/atlas-maps.js). */
+function applyZoneEnemyMods(enemy, zone) {
+    applyChaosRealmAffixesToEnemy(enemy, zone);
+    return atlasMaps.applyEnemyMods(enemy, zone);
+}
 function getChaosRealmBonusSummary() {
     let b = (ensureChaosRealmState().permanentBonuses || {});
     return [`피해 +${(b.pctDmg||0).toFixed(1)}%`, `이속 +${(b.move||0).toFixed(1)}%`, `생명력 +${(b.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(b.resChaos||0)}%`, `치명 +${Math.floor(b.crit||0)}%`, `관통 +${Math.floor(b.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(b.armorPct||0)}%`, `치피 +${Math.floor(b.critDmg||0)}%`, `공속 +${Math.floor(b.aspd||0)}%`].join(' · ');
@@ -6653,7 +6657,8 @@ function getSoftenedLoopDepth(depth) {
 //    우주계 루프와 노드 티어로만 추가 난이도를 올린다.
 //  - 그 외(엔드리스 파밍 콘텐츠): 제한 없이 루프 스케일을 따른다.
 function getLoopDifficultyInputs(zone) {
-    if (getDifficultyBenchmarkProfile(zone)) return { exempt: false, seasonLoops: 30, loopCount: 30 };
+    const fixed = getFixedLoopDifficultyInputs(zone);
+    if (fixed) return fixed;
     let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos' || !!zone.loopScaleExempt);
     if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
     let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP
@@ -6663,6 +6668,14 @@ function getLoopDifficultyInputs(zone) {
         seasonLoops: Math.min(cap, Math.max(0, (game.season || 1) - 1)),
         loopCount: Math.min(cap, Math.max(0, Math.floor(game.loopCount || 0)))
     };
+}
+
+// 고정 난이도: 벤치마크 콘텐츠는 루프 30으로, 세계수 아틀라스 지도는 등급이 정한 루프(zone.fixedSeason)로 계산한다.
+function getFixedLoopDifficultyInputs(zone) {
+    if (getDifficultyBenchmarkProfile(zone)) return { exempt: false, seasonLoops: 30, loopCount: 30 };
+    if (!zone || !Number.isFinite(zone.fixedSeason)) return null;
+    const loops = Math.max(0, Math.floor(zone.fixedSeason) - 1);
+    return { exempt: false, seasonLoops: loops, loopCount: loops };
 }
 
 // 방어(장갑/회피) 루프 배율: 루프24까지는 기존과 동일하게 커지고(2.2 상한 도달),
@@ -6704,9 +6717,10 @@ function getLoopHpScale(loopCount) {
     return scale;
 }
 
+/** Chaos bosses borrow a random act boss; an atlas node keeps its own (zone.bossAct). */
 function getChaosBossVisual(zone, variantSeed) {
-    if (!zone || !['abyss', 'chaosRealm'].includes(zone.type) || typeof getBossAssetKeyForZone !== 'function') return null;
-    let actId = Math.abs(Math.floor(variantSeed || 0)) % 10;
+    if (!zone || !['abyss', 'chaosRealm', 'atlasMap'].includes(zone.type) || typeof getBossAssetKeyForZone !== 'function') return null;
+    let actId = Number.isInteger(zone.bossAct) ? zone.bossAct : Math.abs(Math.floor(variantSeed || 0)) % 10;
     let assetKey = getBossAssetKeyForZone({ type: 'act', id: actId }, variantSeed);
     let hues = [286, 318, 202, 266, 334, 178, 244, 302, 222, 274];
     return { assetKey: assetKey, tint: hues[actId] };
@@ -6899,7 +6913,7 @@ function createEnemy(zone, marker, groupIndex) {
         level,
         hp: hp,
         maxHp: hp,
-        name: worldTreeJourney.enemyName(zone,isBoss,isElite,name),
+        name,
         isElite: isElite,
         isBoss: isBoss,
         bossAssetKey: bossAssetKey,
@@ -7009,7 +7023,7 @@ function createEnemy(zone, marker, groupIndex) {
         enemy.armorGuard = Math.max(Number(enemy.armorGuard || 0), 0.12);
         enemy.evasionChance = Math.max(Number(enemy.evasionChance || 0), 12);
     }
-    applyChaosRealmAffixesToEnemy(enemy, zone);
+    applyZoneEnemyMods(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
@@ -7260,7 +7274,7 @@ function getMapEstimateZonePenalties(zone) {
  * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}|null}
  */
 function estimateMapZonePowerRequirements(zone) {
-    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos', 'beyondBoundary'];
+    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos', 'beyondBoundary', 'atlasMap'];
     if (!zone || !supportedTypes.includes(zone.type)) return null;
     let tier = Math.max(1, Number(levelProgression.combatZone(zone).tier) || 1);
     let loopInputs = getLoopDifficultyInputs(zone);
@@ -7301,7 +7315,7 @@ function estimateMapZonePowerRequirements(zone) {
         attackSpeedMul: Number(bossMods.attackSpeedMul || 1) * Number(cosmosTrait.attackSpeedVarMul || 1)
     } : bossMods;
     const threat = getMapEstimateThreatProfile(zone, threatMods, bossHit, seasonDepth, tier);
-    return getWorldTreePackReadiness(zone, hp, {
+    return getAtlasPackReadiness(zone, hp, {
         dps: Math.max(1, Math.round(getMapBossRequiredDps(bossHp, contentScale.clearTimeSec, zone.boundaryRegenRate))),
         ehp: Math.max(1, Math.round(threat.threatWindow)),
         peakHit: Math.max(1, Math.round(threat.peakHit)),
@@ -7316,18 +7330,14 @@ function estimateMapZonePowerRequirements(zone) {
     });
 }
 
-/** Journey readiness covers both the pack budget and the map's final boss. */
-function getWorldTreePackReadiness(zone, baseHp, bossEstimate) {
-    if (!zone.worldTreeNode || zone.worldTreeKind === 'boss') return bossEstimate;
-    const waves = worldTreeJourney.encounterPlan(zone);
-    const pack = Math.max(...waves.map(wave => wave.count));
-    const elite = waves.some(wave => wave.elite);
+/** Atlas map readiness covers both an elite-led room pack (3 + the pack-size mod) and the node boss. */
+function getAtlasPackReadiness(zone, baseHp, bossEstimate) {
+    if (zone.type !== 'atlasMap') return bossEstimate;
+    const pack = 3 + zone.atlasPackExtra;
     const tier = levelProgression.combatZone(zone).tier;
     const loops = getLoopDifficultyInputs(zone);
     const depth = getSoftenedLoopDepth(loops.seasonLoops);
-    const rank = elite
-        ? {hp:1.4 + getSoftenedLoopDepth(loops.loopCount) * 0.05, hit:1.28, crit:10, rate:1.16, pressure:8}
-        : {hp:1, hit:1, crit:4, rate:1, pressure:3};
+    const rank = {hp:1.4 + getSoftenedLoopDepth(loops.loopCount) * 0.05, hit:1.28, crit:10, rate:1.16, pressure:8};
     const loop = game.season || 1;
     const hp = baseHp * resolveMapEstimateContentScale(zone).hp * 0.92 * rank.hp * (zone.mapHpMul || 1);
     const affix = getMapEstimateAffixPressure(zone);
@@ -7380,7 +7390,6 @@ function getFrequentSpawnEncounterProfile(zone) {
 }
 
 function generateChaosRealmEncounterPlan(zone) {
-    if (zone.worldTreeNode) return worldTreeJourney.encounterPlan(zone);
     const profile = getZoneEncounterProfile(zone);
     return [{at:28,count:profile.minPack+1,elite:true}, {at:62,count:profile.maxPack,elite:true},
         {at:100,count:1+profile.bossAdds,boss:true}];
@@ -8410,17 +8419,26 @@ function applyCosmosAstraStance(enemy) {
     enemy.regenRate = base.regenRate * (stance.regenMul || 1);
 }
 
+// A room pack stands in a line; an atlas map's pack-size mod adds the cells above and below its leader.
+const EXPLORATION_PACK_OFFSETS=Object.freeze([[0,0],[-1,0],[1,0],[0,-1],[0,1]]);
 function createActExplorationPack(zone,room,stage) {
     const key=room.id+':'+(stage===null?'pack':stage),waiting=[];
-    const offsets=stage===null ? [[0,0],[-1,0],[1,0]] : [[0,0]];
+    const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,3+(zone.atlasPackExtra||0)) : [[0,0]];
+    const elite=room.role==='elite' || isAtlasExtraEliteRoom(zone,room);
     offsets.forEach(([dx,dy],index)=>{
-        const marker={at:0,count:1,boss:stage!==null,elite:room.role==='elite' && index===0,storyStage:stage};
+        const marker={at:0,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
         const enemy=createEnemy(zone,marker,index);
         Object.assign(enemy,{gx:room.gx+dx,gy:room.gy+dy,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });
     return {key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),
         eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
+}
+
+/** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
+function isAtlasExtraEliteRoom(zone,room) {
+    if(!zone.atlasExtraElite || room.role==='boss')return false;
+    return (Math.abs(hashSeed(zone.atlasSeed+':'+room.id))%1000)/1000<zone.atlasExtraElite;
 }
 
 /** How a zone is fought: a story act walks its authored map; any other zone whose factory declares `exploration` (a
@@ -8466,9 +8484,6 @@ function startEncounterRun(exploration) {
     // 재능 개화 미궁 보스 실제 처치 여부(이번 런 기준). 보스 처치 없이 런이 완료 처리되는 경우 개화를 막는다.
     game.bloomBossDefeated = false;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
-    if (zone.worldTreeKind === 'breach') Object.assign(game.voidRift, {
-        active:true, pendingWave:true, totalToSpawn:9, spawnedCount:0, defeatedCount:0, spawnTick:0
-    });
     dispatchRuntimeEvent('encounter-started', {
         zoneId: zone.id,
         zoneType: zone.type,
@@ -8600,10 +8615,7 @@ function finishTownReturnAction() {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
-    if (String(game.currentZoneId).startsWith('worldtree_')) {
-        worldTreeJourney.stop(game, '귀환했습니다. 발견한 길은 유지됩니다.');
-        game.currentZoneId = 0;
-    }
+    atlasRun.leave('마을 귀환');
     cosmosRouteRuntime.leave(game);
     let pStats = getPlayerStats();
     game.playerHp = getPlayerHpCap(pStats);
@@ -8973,7 +8985,7 @@ function applyGrandBreachMobTuning(zone, enemy) {
 
 // 공허 증원: 경험치·생명력 2배, 공격 속도 1.25배, 피해 1.3배.
 function isVoidRiftCombatZone(zone) {
-    return !!zone && (zone.type === 'abyss' || zone.worldTreeKind === 'breach');
+    return !!zone && zone.type === 'abyss';
 }
 
 function applyVoidRiftMobTuning(enemy) {
@@ -8987,7 +8999,7 @@ function applyVoidRiftMobTuning(enemy) {
 
 
 function isBeeMappingZone(zone) {
-    return !!zone && (zone.type === 'abyss' || zone.worldTreeKind === 'grove');
+    return !!zone && zone.type === 'abyss';
 }
 
 function maybeTriggerBeeMappingEvent(beeLv, enemy) {
@@ -9056,6 +9068,7 @@ function grantRealmBossUniqueLoot(enemy, zone) {
 }
 
 function grantEnemyLoot(enemy) {
+    atlasRun.onKill(enemy);
     return actExplorationLoot.capture(game,actExplorationState.current(game),
         ()=>combatLootReceipts.capture(game,()=>rollLootForEnemy(enemy)));
 }
@@ -9320,7 +9333,7 @@ function handleEnemyDeath(enemy, pStats) {
     if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zone)) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
-        if (!v.active && !zone.worldTreeNode && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
+        if (!v.active && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
             v.active = true;
             v.activeKills = 0;
             v.requiredKills = 0;
@@ -9553,6 +9566,12 @@ function enterAutomaticMeteorEncounter() {
     game.currentZoneId = METEOR_FALL_ZONE_ID;
 }
 
+/** 혼돈 20 · 심화 클리어: 창공의 탑 해금 검사와 세계수 아틀라스(첫 해금 · 이번 루프의 첫 지도석). */
+function onChaos20Cleared() {
+    maybeUnlockSkyTowerFromChaos20();
+    atlasRun.onChaos20();
+}
+
 function enterAutomaticMapInterruptionAfterClear(clearedZone) {
     let star = game.starWedge || {};
     let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
@@ -9761,38 +9780,10 @@ function grantBeyondBoundaryFocusedReward(result) {
     return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
 }
 
-function finishWorldTreeJourneyEncounter(zone) {
-    const result = combatLootReceipts.capture(game,()=>{
-        const completed = worldTreeJourney.complete(game, zone);
-        if (!completed) return null;
-        for (const [key,amount] of completed.rewards) {
-            if (contentProgression.canDropCurrency(key)) awardCurrency(key,amount);
-        }
-        return completed;
-    });
-    if (!result) return;
-    game.killsInZone = 0;
-    game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0; game.moveTimer = 0;
-    const next = game.worldTreeJourney.queue[0];
-    const pause = result.discovery || result.boss || game.settings.mapCompleteAction === 'stop';
-    if (next && !pause && !worldTreeJourney.lockReason(game, next)) {
-        game.worldTreeJourney.queue.shift();
-        game.currentZoneId = next;
-        worldTreeJourney.enter(game, next);
-        startMoving(false);
-    } else {
-        game.combatHalted = true;
-        game.worldTreeJourney.queue = [];
-        if (!result.discovery && !result.boss && next) game.worldTreeJourney.notice.kind = 'paused';
-    }
-    queueImportantSave(200);
-    pendingHeavyUiRefresh = true;
-}
-
 function finishEncounterRun() {
     const settlement=actExplorationProgress.beginCompletion(getZone(game.currentZoneId));
     if(!settlement)return;
-    announceActExplorationLoot(settlement.loot);
+    combatLootReceipts.capture(game,()=>announceActExplorationLoot(settlement.loot));
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
     dispatchRuntimeEvent('encounter-finished', {
@@ -9804,7 +9795,7 @@ function finishEncounterRun() {
     let mapAction = game.settings.mapCompleteAction;
     game.killsInZone++;
     shrineRuntime.advanceAfterEncounter(zone);
-    if (zone.worldTreeNode) return finishWorldTreeJourneyEncounter(zone);
+    if (zone.type === 'atlasMap') return atlasRun.finish(zone);
 
     if (zone.type === 'beyondBoundary') {
         let result = completeBeyondBoundaryEncounter(game);
@@ -10190,7 +10181,7 @@ function finishEncounterRun() {
             if (depth >= 20) {
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
                 game.loopProgressCurrent.chaos20Cleared = true;
-                if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
+                onChaos20Cleared();
             }
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
@@ -10243,7 +10234,7 @@ function finishEncounterRun() {
                     : bestAbyssDepthBeforeClear >= seasonAbyssCap;
                 if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
-                if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
+                onChaos20Cleared();
                 if (mapAction === 'repeatZone') {
                     game.currentZoneId = zone.id;
                     game.killsInZone = 0;
@@ -11723,7 +11714,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     startMoving(false);
-    worldTreeJourney.fail(game, zone);
+    atlasRun.defeat(zone);
     updateStaticUI();
     queueImportantSave(160);
 }
@@ -13240,7 +13231,7 @@ function triggerSeasonReset(options) {
     game.mapSubtab = 'map-tab-zones';
     game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
-    worldTreeJourney.stop(game, '');
+    atlas.onLoopReset(game);
     game.timeRift = preservedTimeRift;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;

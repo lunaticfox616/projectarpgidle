@@ -3176,7 +3176,7 @@ function applyBeehiveChoiceReward(pick) {
 function startBeehiveRun(){
     let b = game.beehive || (game.beehive = {});
     if ((game.currencies.hiveKey || 0) <= 0 || b.inRun) return;
-    if (game.worldTreeJourney.active) return addLog('현재 지역의 탐험을 마친 후 벌집에 입장하세요.', 'attack-monster');
+    if (atlas.inMap(game)) return addLog('진행 중인 지도를 마친 후 벌집에 입장하세요.', 'attack-monster');
     let lastDeepChaosDepth = Math.max(21, Math.min(game.abyssEndlessDepth || 21, game.loopProgressCurrent.bestAbyssDepth || 21));
     resetBeehiveRunModifiers(b);
     game.currencies.hiveKey--;
@@ -3266,7 +3266,7 @@ function exitBeehiveRun(message, logType){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
-    game.combatHalted = !!getZone(game.currentZoneId).worldTreeNode;
+    game.combatHalted = false;
     if (message) addLog(message, logType || 'attack-monster');
     updateStaticUI();
 }
@@ -3293,7 +3293,7 @@ function completeBeehiveRun(){
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
-    game.combatHalted = !!getZone(game.currentZoneId).worldTreeNode;
+    game.combatHalted = false;
     markLoopSpecialBossKill('beehive_queen');
     unlockJournalEntry('beehive_queen');
     if (Math.random() < 0.08) {
@@ -3951,7 +3951,7 @@ function switchMapExploreSubtab(subtabId) {
     if (activeId === 'map-explore-beehive') renderLoop8BeehivePanel(true);
     if (activeId === 'map-explore-colony') renderLoop15ColonyPanel();
     if (activeId === 'map-explore-beyond') renderBeyondBoundaryPanel();
-    if (activeId === 'map-explore-worldtree') worldTreeJourneyUi.render();
+    if (activeId === 'map-explore-worldtree') atlasUi.render();
     renderMobileMapNavigation();
     explorationAtlasUi.render();
 }
@@ -9919,7 +9919,7 @@ function updateCombatUI(pStats) {
 
     sideEncounterUi.updateHud(zone);
     syncMapProgressRow(zone);
-    worldTreeJourneyUi.updateHud(zone);
+    atlasUi.updateHud(zone);
     if (getRenderingUiTabIds().has('tab-character')) renderCharacterStats(pStats);
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
@@ -11891,7 +11891,7 @@ function buildCraftActionButtons(item) {
 
     sideEncounterUi.renderPanel(document.getElementById('ui-meteor-list'), meteorUnlocked ? sideEncounterUi.meteorPanel(buildMapPowerEstimateHtml(getZone(METEOR_FALL_ZONE_ID))) : '');
 
-    worldTreeJourneyUi.render();
+    atlasUi.render();
     renderChaosRealmMapPanel();
     renderSkyTowerMapPanel();
     if (game.mapSubtab === 'map-tab-underworld') renderUnderworldMapPanel();

@@ -5,7 +5,7 @@ const vm = require('vm');
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'data/atlas.js', 'js/utils.js', 'js/atlas-maps.js', 'js/atlas.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
   'data/act-exploration-maps.js', 'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
 ];
 

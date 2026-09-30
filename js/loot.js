@@ -84,11 +84,13 @@ function rollEquipmentDrop(zone, enemy, chance) {
     return { dropped, guaranteed, minimumRarity, nextProgress: dropped ? 0 : progress };
 }
 
-/** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. */
+/** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. An atlas map's item rarity
+ * (enemy.lootRarityMul, js/atlas-maps.js) scales the roll down, so every rarer outcome grows by the same factor. */
 function getEquipmentDropRarity(enemy, roll) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
     let thresholds = EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
-    return ['unique', 'rare', 'magic'].find(rarity => roll < thresholds[rarity]) || 'normal';
+    let scaled = roll / Math.max(1, Number(enemy.lootRarityMul) || 1);
+    return ['unique', 'rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
 }
 
 /** Extra realm-boss reward. Generate only; combat commits pickup, codex and visual feedback. */

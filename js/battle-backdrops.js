@@ -12,7 +12,6 @@ const specialBattleBackdropLoads = new Map();
 
 function getBattleBackdropKeyForZone(zone) {
     if (!zone) return 'bgAct1';
-    if (zone.worldTreeNode) return zone.background.split('/').at(-1).replace('.webp','');
     if (zone.type === 'skyTower' || zone.pinnacleTrack === 'sky') return 'bgSkyTower';
     if (zone.type === 'underworld' || zone.pinnacleTrack === 'underworld') return 'bgUnderworld';
     if (zone.type === 'oceanDepth' || zone.pinnacleTrack === 'ocean') return 'bgOceanDepth';

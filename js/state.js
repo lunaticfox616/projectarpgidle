@@ -812,34 +812,11 @@ function createColonyZone(state) {
         maxKills:1, ele:'chaos', entryDeepChaosDepth:depth };
 }
 
-function createWorldTreeJourneyZone(id, state) {
-    const node = WORLD_TREE_JOURNEY.nodes.find(row => row.id === id);
-    if (!node) return null;
-    const ledger = state.worldTreeJourney;
-    const stage = ledger.stage;
-    const seed = Math.abs(hashSeed(`${ledger.seed}:${ledger.cycle}:${stage}:${id}`));
-    const location = WORLD_TREE_JOURNEY.locations[seed % WORLD_TREE_JOURNEY.locations.length];
-    const eventSeed = Math.abs(hashSeed(`${ledger.seed}:${ledger.cycle}:${stage}:${node.floor}`));
-    const alternate = Number(['worldtree_breach','worldtree_meteor'].includes(id));
-    const event = WORLD_TREE_JOURNEY.events[(eventSeed + alternate) % WORLD_TREE_JOURNEY.events.length];
-    const risk = WORLD_TREE_JOURNEY.risks[ledger.risk];
-    const floor = 1 + (stage-1)*3;
-    const guardian = node.kind === 'boss';
-    return { id, name:guardian ? node.name : location.name, type:'chaosRealm', tier:getChaosRealmTier(floor), floor,
-        maxKills:1, ele:location.ele, affixes:[], worldTreeNode:node.id,
-        worldTreeKind:guardian ? 'boss' : event.id, worldTreeStage:stage, worldTreeRisk:ledger.risk,
-        worldTreeCycle:ledger.cycle, worldTreeSeed:seed,
-        background:ACT_BATTLE_MAP_SOURCES[location.image] || `assets/background/refined-20260910/${location.image}.webp`,
-        mapHpMul:risk.hp, mapDamageMul:risk.damage,
-        trialHazard:!guardian && event.id === 'meteor' ? {pattern:'pool',warningMs:1700,intervalMs:5500} : undefined,
-        bossMods:{hpMul:guardian ? WORLD_TREE_JOURNEY.stages[stage-1].bossHpMul : 0.08} };
-}
-
 function getUnderworldZone(floor) {
     return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor };
 }
 function getZone(id) {
-    if (typeof id === 'string' && id.startsWith('worldtree_')) return createWorldTreeJourneyZone(id, game);
+    if (id === ATLAS.zoneId) return atlas.zone(game);
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
         if (challengeZone) return challengeZone;
@@ -1046,13 +1023,19 @@ function getAutoProgressZoneId(fallbackZoneId) {
 
 
 
+// 세계수 아틀라스 지도는 등급이 정한 혼돈 깊이 · 루프에서 같은 배율을 받는다(js/atlas.js buildZone).
 function getAbyssMonsterScales(zone) {
-    let active = zone && zone.type === 'abyss';
-    if (!active) return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
-    let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
+    if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth, zone.fixedSeason);
+    if (!zone || zone.type !== 'abyss') return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
+    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
     // 심화 혼돈(21+) 기록은 심화 구간에서만 난이도에 반영한다.
     // 새 루프의 혼돈 1~20에 과거 심화층 배율이 섞이면 난이도가 비정상적으로 급등한다.
     let endlessDepth = depth <= 20 ? depth : Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
+    return getChaosDepthScales(endlessDepth, game.season || 1);
+}
+
+/** Monster scales at a chaos depth (21+ = deep chaos) in a given loop. */
+function getChaosDepthScales(endlessDepth, season) {
     let endlessOver = Math.max(0, endlessDepth - 20);
     let endlessMul = 1;
     if (endlessOver > 0) {
@@ -1062,7 +1045,7 @@ function getAbyssMonsterScales(zone) {
     }
     // 루프 30 이후에는 원시 스탯 인플레이션을 동결한다 — 이후의 도전은 스탯 상승이 아니라
     // 루프 조건 세분화(대체 경로, data/maps.js LOOP_GATE_*)로 제공한다.
-    let postLoopOver = Math.min(20, Math.max(0, Math.floor((game.season || 1) - 10)));
+    let postLoopOver = Math.min(20, Math.max(0, Math.floor(season - 10)));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
     return {
         dmgMul: postLoopDifficultyMul,
@@ -2396,12 +2379,10 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * @typedef {{seed:number,selected:number,goal:string,decisions:Record<string,string>,habitats:string[],retryAt:number}} CosmosRouteBoard
  */
 const defaultGame = {
-    // normalize upgrades version 0 once. Stage/guardian unlocks and the seeded chart survive loops.
-    // risk/focus freeze on departure. loopClear records the current loop but is not yet a loop gate.
-    worldTreeJourney: { version:0, seed:null, cycle:0, unlocked:false, guardians:[], risk:0, focus:'craft',
-        branches:['worldtree_grove','worldtree_crossing'], loopClear:{season:0,stage:0},
-        cleared:[], stage:1, selected:'worldtree_guardian', hiveDiscovered:false, active:null, queue:[], plan:null, notice:null, lastResult:'' },
-    // Last expedition's committed combat receipts; display only, never a claimable reward.
+    // 세계수 아틀라스 (js/atlas.js normalize): unlocked/completed/bonus/autoMap survive loops; stash/run reset each loop.
+    // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
+    atlas: { version: 1, unlocked: false, completed: [], bonus: [], stash: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0 },
+    // Last map's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,
     // Transient gravity pulse: {nextPulseAt: combat ms, steps: 0..2}; reset at load/exit.

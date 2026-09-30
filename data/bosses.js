@@ -152,7 +152,7 @@ function getBossNameForZone(zone, stageIndex = 0) {
     if (stage) return stage.name;
     const names = {
         outsideChaos: '혼돈 밖의 나무꾼', trial: `${zone.name} 수호자`, seasonBoss: zone.name,
-        meteor: '검은 별의 심장', oceanDepth: `심해 가디언 ${Math.floor(zone.depthM || 0)}m`
+        meteor: '검은 별의 심장', oceanDepth: `심해 가디언 ${Math.floor(zone.depthM || 0)}m`, atlasMap: zone.bossName
     };
     return names[zone.type] || ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`;
 }

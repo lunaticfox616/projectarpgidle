@@ -17,7 +17,9 @@ const files = [
   'data/rewards.js',
   'data/talent-cards.js',
   'data/endgame-progression.js',
+  'data/atlas.js',
   'js/utils.js',
+  'js/atlas-maps.js', 'js/atlas.js',
   'js/state.js',
   'js/level-progression.js', 'js/combat-equipment-stats.js',
   'js/endgame-progression.js',
@@ -33,7 +35,7 @@ const files = [
   'js/core-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/combat-build-stats.js',
-  'js/combat.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/talent-cards.js',
 ];
 

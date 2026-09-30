@@ -8973,30 +8973,27 @@ function getItemCraftTier(item) {
 
 function getRealmEquipmentHiddenTierCap(zone) {
     if (!zone) return 1;
-    if (zone.type === 'act') {
-        let actOrder = Math.max(1, Math.floor(Number(zone.storyOrder) || Number(zone.id) + 1 || 1));
-        return Math.min(9, actOrder);
-    }
-    if (zone.type === 'abyss') {
-        let depth = Math.max(1, Math.floor(Number(zone.depth) || 1));
-        return Math.min(15, 10 + Math.floor((depth - 1) / 5));
-    }
-    if (zone.type === 'timeRift') {
-        let depth = Math.max(1, Math.floor(Number(zone.equivalentChaosDepth) || 1));
-        return Math.min(15, 10 + Math.floor((depth - 1) / 5));
-    }
-    if (zone.type === 'cosmos') {
-        // 전투 tier는 지하계 환산값(첫 지역도 50+)이다. 전리품은 아틀라스에 표시된
-        // 1~25 티어를 사용해야 G1~G5가 각각 T16~T20으로 한 단계씩 열린다.
-        let cosmosTier = Math.max(1, Math.floor(Number(zone.lootTier) || Number(zone.tier) || 1));
-        return Math.min(20, 16 + Math.floor((cosmosTier - 1) / 5));
-    }
-    return Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
+    const cap = REALM_EQUIPMENT_TIER_CAPS[zone.type];
+    return cap ? cap(zone) : Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
 }
+function getChaosDepthEquipmentTierCap(depth) {
+    return Math.min(15, 10 + Math.floor((Math.max(1, Math.floor(Number(depth) || 1)) - 1) / 5));
+}
+// 콘텐츠별 장비 베이스 티어 상한(표에 없는 콘텐츠는 전투 tier, 최대 15).
+const REALM_EQUIPMENT_TIER_CAPS = Object.freeze({
+    act: zone => Math.min(9, Math.max(1, Math.floor(Number(zone.storyOrder) || Number(zone.id) + 1 || 1))),
+    abyss: zone => getChaosDepthEquipmentTierCap(zone.depth),
+    timeRift: zone => getChaosDepthEquipmentTierCap(zone.equivalentChaosDepth),
+    // 전투 tier는 지하계 환산값(첫 지역도 50+)이다. 전리품은 아틀라스에 표시된
+    // 1~25 티어를 사용해야 G1~G5가 각각 T16~T20으로 한 단계씩 열린다.
+    cosmos: zone => Math.min(20, 16 + Math.floor((Math.max(1, Math.floor(Number(zone.lootTier) || Number(zone.tier) || 1)) - 1) / 5)),
+    // 세계수 아틀라스: 지도 등급이 오를수록 T15 → T20 (js/atlas.js lootTier).
+    atlasMap: zone => atlas.lootTier(zone.atlasTier)
+});
 
 function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
     const itemTier = Math.max(1, Math.floor(Number(hiddenTierCap) || 1));
-    return Math.min(zone && zone.type === 'cosmos' ? 20 : 15, itemTier);
+    return Math.min(zone && ['cosmos', 'atlasMap'].includes(zone.type) ? 20 : 15, itemTier);
 }
 
 /**

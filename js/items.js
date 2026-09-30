@@ -773,10 +773,8 @@ function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.curren
 }
 
 function getZoneTravelBlockReason(id) {
-    if (typeof id === 'string' && id.startsWith('worldtree_')) {
-        const reason = worldTreeJourney.lockReason(game, id);
-        if (reason) return reason;
-    }
+    const atlasReason = atlas.travelReason(game, id);
+    if (atlasReason) return atlasReason;
     if (getZone(id)?.type === 'trial' && !contentProgression.isUnlocked('battleTrials')) {
         return '루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
     }
@@ -843,7 +841,7 @@ function changeZone(id) {
         game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
         if (depth >= 20 && !game.abyssUnlockedDepths.includes(depth)) game.abyssUnlockedDepths.push(depth);
     }
-    worldTreeJourney.onTravel(game, zone);
+    atlasRun.travel(zone);
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
     // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다.

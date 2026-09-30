@@ -1081,7 +1081,7 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    worldTreeJourney.normalize(merged);
+    atlas.normalize(merged);
     if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = 0;
     if (merged.currentZoneId === BEYOND_BOUNDARY_ZONE_ID && !merged.beyondBoundary.activeRun) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
@@ -1147,7 +1147,7 @@ function normalizeSavedCombatRuntime(state) {
 }
 
 function getSavedZoneForValidation(state) {
-    if (typeof state.currentZoneId === 'string' && state.currentZoneId.startsWith('worldtree_')) return createWorldTreeJourneyZone(state.currentZoneId, state);
+    if (state.currentZoneId === ATLAS.zoneId) return atlas.zone(state);
     // During boot the current game has no challenge yet; validate the incoming snapshot instead.
     if (state.currentZoneId === 'cosmos_challenge') return createCosmosChallengeZone(state);
     const zone = getZone(state.currentZoneId);

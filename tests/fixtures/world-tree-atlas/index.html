@@ -1,8 +1,8 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>세계수 탐험 · 실제 전투 테스트</title>
+<title>세계수 아틀라스 · 실제 전투 테스트</title>
 <style>body{margin:0;background:#171714;color:#dacba8;font:13px sans-serif;color-scheme:dark}header{height:38px;display:flex;align-items:center;gap:10px;padding:0 10px;overflow-x:auto;white-space:nowrap}button{flex-shrink:0;background:#302e26;color:inherit;border:1px solid #766a4c;padding:4px 12px}iframe{display:block;width:100%;height:calc(100dvh - 38px);border:0}small{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis}@media(max-width:600px){small{display:none}header{gap:4px;font-size:11px}button{padding:4px 6px;font-size:11px}}</style>
-<header>탐험 <button data-mode="first">첫 여정</button><button data-mode="start">수호자 탐험</button><button data-mode="complete">발견한 지도</button><button data-mode="realms">후반 권역</button><button id="atlas">전체 탐험</button><button id="speed">전투 1배</button><button id="defeat">실패 체험</button><button id="view">전투 보기</button><small id="status">준비 중 · 실제 저장과 분리</small></header>
-<iframe id="game" title="실제 세계수 탐험 테스트" sandbox="allow-scripts allow-same-origin"></iframe>
+<header>탐험 <button data-mode="first">첫 여정</button><button data-mode="start">아틀라스 시작</button><button data-mode="complete">완료한 노드</button><button data-mode="realms">후반 권역</button><button id="atlas">전체 탐험</button><button id="speed">전투 1배</button><button id="defeat">실패 체험</button><button id="view">전투 보기</button><small id="status">준비 중 · 실제 저장과 분리</small></header>
+<iframe id="game" title="실제 세계수 아틀라스 테스트" sandbox="allow-scripts allow-same-origin"></iframe>
 <script>
 const frame=document.getElementById('game');let seeded=false;
 window.addEventListener('message',event=>{
@@ -58,7 +58,7 @@ document.querySelectorAll('header button').forEach(button=>button.disabled=true)
  const base=doc.createElement('base');base.href=location.origin+'/';
  const policy=doc.createElement('meta');policy.httpEquiv='Content-Security-Policy';policy.content="connect-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'none'; frame-src 'none'; form-action 'none'; object-src 'none'";
  const bridge=doc.createElement('script');bridge.src='/artifacts/unlock-ui/test-bridge.js';
- const seed=doc.createElement('script');seed.src='/tests/fixtures/world-tree-journey/seed.js';
+ const seed=doc.createElement('script');seed.src='/tests/fixtures/world-tree-atlas/seed.js';
  doc.head.prepend(base,policy,bridge,seed);frame.srcdoc='<!doctype html>'+doc.documentElement.outerHTML;
 })().catch(error=>{console.error(error);document.getElementById('status').textContent=error.message;});
 </script></html>
