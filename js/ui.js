@@ -5602,7 +5602,8 @@ function syncMapCompleteActionQuickControl() {
     if (!show) return;
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
     button.textContent = `전투 완료: ${option.label}`;
-    button.dataset.mobileLabel = option.label;
+    // 전체 메뉴 서랍에는 짧은 이름이 뜬다: "다음 지역"만으로는 이동 단추로 읽혀 무엇을 고르는 칸인지 붙인다.
+    button.dataset.mobileLabel = `완료 후 ${option.label}`;
     button.setAttribute('aria-label', `전투 완료 후 행동: ${option.label}`);
     button.title = `현재: ${option.label} · ${option.detail}`;
 }

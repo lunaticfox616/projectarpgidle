@@ -153,7 +153,9 @@
    격자 한 칸(2~4행)에 전장과 기록·HUD를 겹쳐 두어 높이를 숫자로 맞추지 않는다(HUD 높이가 바뀌어도 그대로 맞음).
    지역 줄은 전장 위에 겹치지 않으므로 전장 위쪽에 붙는 표식(몬스터 수·목표)은 원래 자리를 쓴다.
    가로 화면(HUD가 전장 왼쪽에 서는 배치)은 기존 그대로 둔다. */
-@media (max-width: 1080px) and (orientation: portrait) {
+/* 키가 600px 넘는 가로 창(태블릿 가로 · 좁은 PC 창)도 같은 세로 쌓기: 가로 전용 규칙은 600px 이하 가로 휴대폰 몫이라
+   1024×768 같은 창에서는 HUD가 지역 줄을 덮은 채 위로 올라가 있었다. */
+@media (max-width: 1080px) and (orientation: portrait), (max-width: 1080px) and (min-height: 601px) {
   /* 노치 · 상태 표시줄 아래로(가장자리까지 그리는 안드로이드 · iOS 홈 화면 앱): 위쪽 안전 영역만 비운다(아래는 하단 메뉴가 비운다). */
   body[data-ui-skin="rift"].mobile-battle-tab { padding: env(safe-area-inset-top) 0 0; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle { padding: 0; }

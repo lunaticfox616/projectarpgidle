@@ -65,6 +65,9 @@ body[data-ui-skin] {
 
 /* 좁은 화면과 가로로 눕힌 휴대폰(높이 600px 이하)은 테를 반 굵기로: 가로 휴대폰은 폭이 760px를 넘어도 높이가 293 ~ 393px뿐이다 */
 @media (max-width: 760px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { body[data-ui-skin] { --px-window-border: 13px; --px-plate-border: 13px; } }
+/* 세로로 쌓는 배치(1080px 이하 — 태블릿 · 좁은 PC 창 포함)의 HUD 돌판 · 하단 메뉴 띠도 반 굵기: 26px 테가 판 위로 26px 솟아
+   바로 위 전투 기록 막대의 "전투 로그" 글씨를 덮었다(1024×768). */
+@media (max-width: 1080px) { body[data-ui-skin].mobile-battle-tab { --px-plate-border: 13px; } }
 /* 스킨의 판 · 선 색 토큰(components가 쓰는 --skin-*, 겹 판 색)도 나무 · 쇠 결로. 스킨별 토큰(:root body[data-ui-skin="…"])과
    우선순위가 같아 뒤에 오는 이 파일이 이기고, 고대비(:root body.high-contrast[data-ui-skin])는 더 높아 그대로 남는다. */
 :root body[data-ui-skin] {

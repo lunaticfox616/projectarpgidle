@@ -638,7 +638,8 @@ body[data-ui-skin] {
     --px-orb-lift: 0px;
   }
   :root body[data-ui-skin] #battle-column .player-hud-shell { column-gap: 6px; padding: 10px 12px 10px; align-items: center; }
-  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { align-self: center; gap: 4px; }
+  /* 생명 구슬 테(그림이 상자 밖으로 몇 도트 나온다)가 직업 글자 첫 획을 덮지 않게 4px 띄운다("미전직"이 "기전직"으로 보였다) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { align-self: center; gap: 4px; margin-left: 4px; }
   /* 이름 위 · 직업 아래(좁은 칸에서 둘 다 잘리지 않게) */
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { flex-direction: column; align-items: flex-start; gap: 1px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row strong { font-size: 12px; }
