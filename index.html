@@ -1311,13 +1311,11 @@
                 <details class="cfg-disclosure cfg-disclosure--card" open>
                     <summary>외형 &amp; 인터페이스</summary>
                     <div class="cfg-rows">
-                    <div class="cfg-select-row">
+                    <!-- UI 스킨은 하나(균열 등불)라 고르는 줄을 숨긴다: js/utils.js normalizeUiSkin -->
+                    <div class="cfg-select-row" style="display:none">
                         <span class="cfg-label">UI 스킨</span>
                         <select id="sel-ui-skin" onchange="updateSettings()" class="cfg-select">
                             <option value="rift">균열 등불</option>
-                            <option value="reliquary">검은 성유물함</option>
-                            <option value="verdigris">녹청 성당</option>
-                            <option value="crimson">핏빛 참회</option>
                         </select>
                     </div>
                     <div class="cfg-select-row">
@@ -1513,7 +1511,7 @@
 <script defer src="data/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&flask-slots=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&unlock-path=20260908-1&world-tree-journey=20260913-1&first-journal=20260914-1&gem-forge=20260914-1&chat-dock=20260914-1&skill-delta2=20260930-10&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1"></script>
 <script defer src="data/hotkeys.js?v=20260930-6&aux=20261001-1"></script>
 <script defer src="data/pixel-icons.js?aux=20260930-8"></script>
-<script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1"></script>
+<script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-7"></script>
 <script defer src="js/hotkeys.js"></script>
     <script defer src="js/app-platform.js?v=20260907-1"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1&focus=20260814-dialog1&death-feedback=20260901-1&notice=20260904-1&popup-layer=20260911-1&rune-picker-review=20260914-1"></script>

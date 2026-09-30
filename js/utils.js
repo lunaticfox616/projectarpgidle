@@ -1,5 +1,7 @@
-function normalizeUiSkin(skin) {
-    return ['rift', 'reliquary', 'verdigris', 'crimson'].includes(skin) ? skin : 'rift';
+/** UI 스킨은 도트 HUD 배치(균열 등불) 하나다. 예전 스킨(검은 성유물함 · 녹청 성당 · 핏빛 참회)은 옛 세로 칸 배치라 새 HUD를
+ * 담지 못해(PC에서 생명 구슬이 화면 밖으로 밀렸다) 저장에 남아 있어도 균열 등불로 읽는다. */
+function normalizeUiSkin() {
+    return 'rift';
 }
 
 /** 아이콘 그림: 'pixel'(원화를 도트로 다시 찍은 사본, 기본) 또는 'painted'(원화). */

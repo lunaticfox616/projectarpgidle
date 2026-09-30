@@ -125,11 +125,14 @@ const skinContext = { document: { body: { dataset: {} } } };
 vm.createContext(skinContext);
 vm.runInContext(readFunctionSource(fs.readFileSync('js/utils.js', 'utf8'), 'normalizeUiSkin')
     + readFunctionSource(ui, 'applyUiSkin'), skinContext, { filename: 'ui-skins.js' });
-assert.strictEqual(skinContext.normalizeUiSkin('verdigris'), 'verdigris', 'a supported skin must survive normalization');
+// 2026-10-01: the legacy skins kept the old column layout the pixel HUD cannot sit in (PC life orb off screen); they
+// are retired and every saved skin loads into the one supported layout.
+assert.strictEqual(skinContext.normalizeUiSkin('verdigris'), 'rift', 'a retired skin must load into the supported pixel HUD layout');
 assert.strictEqual(skinContext.normalizeUiSkin('missing'), 'rift', 'an unknown saved skin must fall back to the default rift skin');
-assert.strictEqual(skinContext.normalizeUiSkin('reliquary'), 'reliquary', 'the previous default stays selectable');
+assert.strictEqual(skinContext.normalizeUiSkin('reliquary'), 'rift', 'the old default must not bring back the column layout');
 skinContext.applyUiSkin('crimson');
-assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'crimson', 'skin selection must update one body-level theme boundary');
+assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'rift', 'skin application must update one body-level theme boundary');
+assert.ok(!/<option value="(?:reliquary|verdigris|crimson)"/.test(html), 'settings must not offer a retired skin');
 assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
 const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
 assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must remain square');
