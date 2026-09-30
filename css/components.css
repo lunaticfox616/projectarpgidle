@@ -970,12 +970,12 @@
 
 .passive-overlay-node.hover-current {
     border-style: solid;
-    border-color: rgba(195, 231, 255, 0.88);
+    border-color: rgba(246, 226, 178, 0.9);
 }
 
 .passive-overlay-node.hover-linked {
     border-style: solid;
-    border-color: rgba(151, 205, 255, 0.78);
+    border-color: rgba(214, 186, 128, 0.7);
 }
 
 .passive-tree-planner {
