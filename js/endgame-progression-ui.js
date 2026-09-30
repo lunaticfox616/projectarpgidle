@@ -255,7 +255,7 @@ function renderPruningTreePanel() {
     let tree = ensurePruningTreeState(game);
     section.style.display = tree.unlocked ? '' : 'none';
     if (!tree.unlocked) return;
-    let html = `<div class="pruning-head"><div><span>LOOP ${getEndgameProgressLoop(game)} · 루프당 ${PRUNING_TREE_POINTS_PER_LOOP}점</span><strong>남은 성장점 ${tree.growthPoints}</strong><small>마름병 포자 ${game.currencies.blightSpore || 0}개</small></div><p>성장점으로 능력을 키우거나 부담을 잘라냅니다. 반환 성장점 1점당 마름병 포자 1개가 필요합니다.</p><button type="button" onclick="askRefundPruningNode(null, 'all')">전체 반환</button></div>
+    let html = `<div class="pruning-head"><div><span>루프 ${getEndgameProgressLoop(game)} · 루프당 ${PRUNING_TREE_POINTS_PER_LOOP}점</span><strong>남은 성장점 ${tree.growthPoints}</strong><small>마름병 포자 ${game.currencies.blightSpore || 0}개</small></div><p>성장점으로 능력을 키우거나 부담을 잘라냅니다. 반환 성장점 1점당 마름병 포자 1개가 필요합니다.</p><button type="button" onclick="askRefundPruningNode(null, 'all')">전체 반환</button></div>
         ${renderPruningTreeSummary()}${renderPruningWorkspace(tree)}`;
     if (panel.__lastHtml !== html) {
         let previous = panel.querySelector('.pruning-tree-scroll');

@@ -30,6 +30,8 @@ const fxRemake = (() => {
     ];
     let palette = null, surfaces = null, scope = null, brassAtlas = null;
     const projectileArt = new Map();
+    // (atlas image) → 'x,y,w,h|filter' → canvas holding that frame with the filter already applied.
+    const filteredFrames = new WeakMap();
     const scratch = { a: 0, r: 0, g: 0, b: 0, w: 0 };
 
     function rgb(hex) { return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]; }
@@ -107,6 +109,23 @@ const fxRemake = (() => {
         if (isStruck(e, age)) return Math.max(width, height) <= 84 ? 'brightness(0) invert(1)' : 'brightness(1.45)';
         return age > duration * 0.7 && duration >= 160 ? 'brightness(0.72)' : 'none';
     }
+    /** The frame with a brightness/invert filter baked in (per-pixel colour maths, so baking before the transform draws
+     * the same dots). A filter on the board context itself re-filtered the whole buffer on every draw. */
+    function filteredFrame(source, frame, filter) {
+        let bySource = filteredFrames.get(source);
+        if (!bySource) { bySource = new Map(); filteredFrames.set(source, bySource); }
+        const key = `${frame.x},${frame.y},${frame.w},${frame.h}|${filter}`;
+        let canvas = bySource.get(key);
+        if (!canvas) {
+            canvas = document.createElement('canvas');
+            canvas.width = frame.w; canvas.height = frame.h;
+            const c = canvas.getContext('2d');
+            c.filter = filter;
+            c.drawImage(source, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+            bySource.set(key, canvas);
+        }
+        return canvas;
+    }
     /** Draws one v3.38 sample into the open buffer. Returns false when no layer is open. */
     function capture(sample, projection, image) {
         if (!scope) return false;
@@ -117,11 +136,11 @@ const fxRemake = (() => {
         const c = surfaces.fullCtx;
         c.setTransform(1, 0, 0, 1, 0, 0);
         c.globalAlpha = Math.max(0, Math.min(1, sample.alpha));
-        c.filter = sampleFilter(sample, Math.abs(width), Math.abs(height));
+        const filter = sampleFilter(sample, Math.abs(width), Math.abs(height)), source = brass(image);
+        const baked = filter !== 'none' && frame.w > 0 && frame.h > 0 ? filteredFrame(source, frame, filter) : null;
         c.translate(at.x, at.y); c.scale(k, psy / scope.s); c.rotate(sample.angle);
         if (height < 0) c.scale(1, -1);
-        c.drawImage(brass(image), frame.x, frame.y, frame.w, frame.h, -width / 2, -Math.abs(height) / 2, width, Math.abs(height));
-        c.filter = 'none';
+        c.drawImage(baked || source, baked ? 0 : frame.x, baked ? 0 : frame.y, frame.w, frame.h, -width / 2, -Math.abs(height) / 2, width, Math.abs(height));
         markDirty(at.x - reach, at.y - reach, at.x + reach, at.y + reach);
         return true;
     }

@@ -371,6 +371,7 @@ vm.runInContext([
     readFunctionSource(uiSource, 'isMobilePrimaryNavigationEnabled'),
     readFunctionSource(uiSource, 'getTabHeaderUiSignature'),
     readFunctionSource(uiSource, 'hideOutOfGroupTabButtons'),
+    readFunctionSource(uiSource, 'syncTabUnlockButton'),
     readFunctionSource(uiSource, 'updateTabUnlockButtons')
 ].join('\n'), talentMenu.context, { filename: 'talent-tab-unlock-rail.js' });
 const lockedTalentSignature = talentMenu.context.getTabHeaderUiSignature();

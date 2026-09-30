@@ -418,7 +418,7 @@ function isForegroundGameplayPausedForBackground() {
     if (isStartupOverlayOpen()) return true;
     if (typeof isLoadingOverlayOpen === 'function' && isLoadingOverlayOpen()) return true;
     if (typeof isRewardOpen === 'function' && isRewardOpen()) return true;
-    if (typeof isDeathOverlayOpen === 'function' && isDeathOverlayOpen()) return true;
+    // 사망 기록은 읽을거리일 뿐 — 열려 있어도 방치 진행은 멈추지 않는다(예전에는 닫을 때까지 전투 시간이 멈췄다).
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
     let overlayPause = !!game?.settings?.pauseGameOnOverlay;
@@ -646,7 +646,7 @@ function showBackgroundCombatResult(result) {
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
-    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">백그라운드 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div></header><div class="background-result-body">${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
+    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">백그라운드 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다 · 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -952,7 +952,7 @@ function isOverlayElementOpen(selector) {
 
 function isPauseSettingOverlayOpen() {
     let modalSelectors = [
-        '.tutorial-overlay.active:not(#tutorial-overlay)',
+        '.tutorial-overlay.active:not(#tutorial-overlay):not(#death-overlay)',
         '#act-exploration-dialog[open]',
         '#act-exploration-loot-dialog[open]',
         '#beehive-choice-overlay',
@@ -1665,10 +1665,20 @@ function updateTabNotificationDots() {
     syncMobilePrimaryNavigationState();
 }
 
+/** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
+ * 메뉴 칸이 넷에서 다섯으로 늘며 스킬 젬 칸이 밀리던 것을 막는다(누르면 notifyLockedTab이 여는 조건을 알린다). */
+function syncTabUnlockButton(key) {
+    let button = document.getElementById('btn-tab-' + key);
+    let reserved = key === 'map' && !game.unlocks.map && isMobilePrimaryNavigationEnabled()
+        && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
+    button.classList.toggle('nav-locked', reserved);
+    if (reserved) button.setAttribute('aria-disabled', 'true');
+    else button.removeAttribute('aria-disabled');
+    button.style.display = game.unlocks[key] || reserved ? 'flex' : 'none';
+}
+
 function updateTabUnlockButtons() {
-    TAB_UNLOCK_BUTTON_KEYS.forEach(key => {
-        document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none';
-    });
+    TAB_UNLOCK_BUTTON_KEYS.forEach(syncTabUnlockButton);
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = isMobilePrimaryNavigationEnabled() ? 'flex' : 'none';
     syncMergedTabLauncherVisibility();
@@ -1958,7 +1968,7 @@ function switchTab(tabId) {
     if (mergedEntry && !getSelectedMergedTabId(mergedEntry[0])) return;
     syncDerivedTabUnlock(tabId);
     if (!isTabSurfaceAvailable(tabId)) {
-        addLog(getLockedTabMessage(tabId), 'attack-monster');
+        notifyLockedTab(tabId);
         return;
     }
     setMobileTabDrawerOpen(false);
@@ -5327,6 +5337,14 @@ function onHeroAppearanceModeChanged() {
     updateStaticUI();
 }
 safeExposeGlobals({ onHeroAppearanceModeChanged });
+
+/** 장비 창 "빈 칸 채우기": 가방에서 빈 장비 칸에 맞는 장비를 티어 · 등급 높은 것부터 장착한다. */
+function fillEmptyEquipmentSlots() {
+    const equipped = equipIntoEmptySlots(game.inventory.slice());
+    if (equipped) showGameToast(`빈 장비 칸 ${equipped}개를 채웠습니다`, { tone: 'success' });
+    updateStaticUI();
+}
+safeExposeGlobals({ fillEmptyEquipmentSlots });
 
 function onHeroSelectionChanged() {
     let selectEl = document.getElementById('sel-active-hero');
@@ -9422,7 +9440,7 @@ function performUpdateStaticUI() {
     __mark('tree');
 
     TAB_HEADER_NOTI_KEYS.forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    TAB_UNLOCK_BUTTON_KEYS.forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
+    TAB_UNLOCK_BUTTON_KEYS.forEach(syncTabUnlockButton);
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = isMobilePrimaryNavigationEnabled() ? 'flex' : 'none';
     syncMergedTabLauncherVisibility();
@@ -10417,12 +10435,13 @@ function buildCraftActionButtons(item) {
     }).join('');
     document.getElementById('ui-season-content-roadmap').innerHTML = collapsedRoadmapSummary + roadmapCards
         || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
+    // 노드 한가운데 한 글자(도트 글꼴): 경험치 · 피해 · 생명 · 치명 … 전체 효과는 이름표 · 툴팁이 말한다.
     const seasonNodeGlyphs = {
-        expGain: '✦', pctDmg: '⚔', pctHp: '♥', crit: '✧', dotPctDmg: '◌',
-        move: '➤', dr: '◆', aspd: 'ϟ', physIgnore: '⟐', resPen: '◇', ds: '∞',
-        critDmg: '✵', flatHp: '✚', regen: '♨', projectilePctDmg: '➶',
-        meleePctDmg: '✣', physPctDmg: '⬙', elementalPctDmg: '✺', chaosPctDmg: '◉',
-        minDmgRoll: '⌊', maxDmgRoll: '⌈'
+        expGain: '경', pctDmg: '피', pctHp: '생', crit: '치', dotPctDmg: '지',
+        move: '이', dr: '감', aspd: '속', physIgnore: '무', resPen: '관', ds: '연',
+        critDmg: '폭', flatHp: '체', regen: '재', projectilePctDmg: '투',
+        meleePctDmg: '근', physPctDmg: '물', elementalPctDmg: '원', chaosPctDmg: '카',
+        minDmgRoll: '소', maxDmgRoll: '대'
     };
     let renderSeasonNode = (id, placement, x, y) => {
         let node = getSeasonPassiveNodeDef(id);
@@ -10445,7 +10464,7 @@ function buildCraftActionButtons(item) {
         let actionAttrs = reqMet
             ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
             : ' aria-disabled="true"';
-        let glyph = seasonNodeGlyphs[node.stat] || '✦';
+        let glyph = seasonNodeGlyphs[node.stat] || '능';
         return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core"><span class="loop-node-glyph" aria-hidden="true">${glyph}</span><span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
@@ -11762,10 +11781,16 @@ function getStartupStatusText() {
     return STARTUP_IDLE_MESSAGES.has(message) ? '' : message;
 }
 
-/** 이 기기 저장의 시각. 저장이 있으면 게스트 단추는 "이어하기"(처음이면 "게스트로 시작"). */
+/** 이 기기 저장의 시각. 저장이 있으면 게스트 단추는 "이어하기"(처음이면 "게스트로 시작"), 저장이 없으면 요약 칸 대신
+ * "새 모험"만 보인다(처음 온 사람에게 Lv.1 · 루프 1 · 마지막 저장 없음이라는 빈 저장을 보여 주지 않는다). */
 function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
+    const hasSave = localStamp > 0;
     if (timeEl) timeEl.innerText = formatCloudTime(localStamp);
-    if (guestBtn) guestBtn.textContent = localStamp > 0 ? '이 기기 저장으로 이어하기' : '게스트로 시작';
+    if (guestBtn) guestBtn.textContent = hasSave ? '이 기기 저장으로 이어하기' : '게스트로 시작';
+    const card = document.querySelector('.startup-summary-card');
+    if (!card) return;
+    card.querySelector('.startup-summary-grid').hidden = !hasSave;
+    card.querySelector('.startup-summary-title').textContent = hasSave ? '이 기기 저장' : '새 모험';
 }
 
 function updateStartupScreenUI() {
@@ -13783,7 +13808,7 @@ function gameLoop(frameNow = performance.now()) {
         // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
         showNextTutorial();
         let tutorialPause = !!(game.settings && game.settings.pauseGameOnOverlay) && isTutorialOpen();
-        if (tutorialPause || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
+        if (tutorialPause || isRewardOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {
                 let passiveNow = Date.now();
                 if (shouldRedrawPassiveTree(passiveNow)) {
@@ -13859,7 +13884,7 @@ function getExpertiseCardHtml(id) {
         : '';
     let guideRows = ((typeof EXPERT_EXP_GUIDES !== 'undefined' && EXPERT_EXP_GUIDES[id]) || []).map(line => `<li>${line}</li>`).join('');
     let guideHtml = guideRows ? `<div class="expertise-panel" style="margin-top:8px;"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">경험치 획득 가이드</div><ul style="margin:0 0 0 18px; padding:0; color:var(--copy-bright); line-height:1.55;">${guideRows}</ul></div>` : '';
-    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4>${favorHtml}<div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${guideHtml}${historyHtml}</div>`;
+    return `<div class="expertise-card"><h4>${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4>${favorHtml}<div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${guideHtml}${historyHtml}</div>`;
 }
 
 const EXPERT_BRANCH_COLORS = { common:'#ffd36b', mycologist:'#6fcf72', gemEngraver:'#5cc8ff', astronomer:'#a98bff', beekeeper:'#f5c451' };
@@ -13929,7 +13954,7 @@ function getExpertiseNodeButtonHtml(node) {
         let theme = getExpertBranchTheme(node.branch);
         let spent = getExpertBranchSpent(node.branch);
         let met = spent >= node.requireBranchPoints;
-        reqHtml = `<br><span class="expertise-node-req ${met ? 'met' : 'unmet'}">${met ? '✓' : '🔒'} ${theme.label} 분기 ${spent}/${node.requireBranchPoints}</span>`;
+        reqHtml = `<br><span class="expertise-node-req ${met ? 'met' : 'unmet'}">${met ? '✓' : '✕'} ${theme.label} 분기 ${spent}/${node.requireBranchPoints}</span>`;
     }
     // Use a `locked` class instead of the disabled attribute so hover tooltips still fire
     // on nodes the player cannot yet allocate; the click handlers guard their own conditions.
@@ -14480,6 +14505,12 @@ function buyAscend(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
+/** 잠긴 화면을 열려 할 때: 기록에 여는 조건을 남기고, 하단 메뉴의 잠금 칸을 눌렀다면 알림으로도 보여 준다. */
+function notifyLockedTab(tabId) {
+    let reservedCell = !!document.getElementById('btn-' + tabId)?.classList.contains('nav-locked');
+    addLog(getLockedTabMessage(tabId), 'attack-monster', { toast: reservedCell });
+}
+
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
@@ -14487,7 +14518,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
-    if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
+    if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';

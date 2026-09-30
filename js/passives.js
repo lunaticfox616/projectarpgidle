@@ -5912,7 +5912,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
         let experienced = experiencedSet.has(id);
         let summary = def.description || '';
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
     overlay.classList.add('active');
     return true;
@@ -6088,6 +6088,8 @@ function closeDeathOverlay() {
 }
 
 function escapeDeathLogText(value) {
+    // 보스 이름의 장식 이모지(👿 …)는 도트 판에서 컬러 그림으로 튀어 뺀다.
+    value = stripDecorativeEmoji(value);
     if (typeof escapeHTML === 'function') return escapeHTML(String(value || ''));
     return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
@@ -6157,6 +6159,13 @@ function setDeathLogView(view) {
         : renderDeathElementView(activeDeathLog);
 }
 
+/** 탐험 중 쓰러지면 모아 둔 전리품이 사라지고 지도를 처음부터 다시 밝힌다 — 보고서에 그 사실을 적는다. */
+function describeDeathLootLoss(log) {
+    if (!log.lostItems && !log.lostCurrencies) return '';
+    const parts = [log.lostItems ? `아이템 ${log.lostItems}개` : '', log.lostCurrencies ? `재화 ${log.lostCurrencies}종` : ''].filter(Boolean);
+    return `탐험 전리품(${parts.join(' · ')})을 잃고 지도를 처음부터 다시 밝힙니다.`;
+}
+
 function openDeathOverlay(log) {
     if (game.isBackgroundCalculation) return;
     let overlay = document.getElementById('death-overlay');
@@ -6168,12 +6177,13 @@ function openDeathOverlay(log) {
         : '없음';
     const describeDamage = () => {
         const fatal = log.fatalElement ? getDamageElementLabel(log.fatalElement) : '속성 미기록';
-        const source = [log.sourceName, fatal].filter(Boolean).join(' · ');
+        const source = [stripDecorativeEmoji(log.sourceName), fatal].filter(Boolean).join(' · ');
         const recent = log.damageSummary?.length ? getDamageElementLabel(log.primaryElement) : '기록 없음';
         return `마지막 피해: ${source}\n최근 주요 피해: ${recent}`;
     };
     document.getElementById('deathlog-title').innerText = '전투에서 쓰러졌습니다.';
-    document.getElementById('deathlog-body').innerText = `${describeDamage()}\n경험치를 ${log.expLost} 잃었습니다.\n죽기 전 상태이상: ${ailmentText}`;
+    document.getElementById('deathlog-body').innerText = [describeDamage(), `경험치를 ${log.expLost} 잃었습니다.`, describeDeathLootLoss(log),
+        log.retreatZoneName ? `${log.retreatZoneName}(으)로 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.` : '', `죽기 전 상태이상: ${ailmentText}`].filter(Boolean).join('\n');
     document.querySelectorAll('[data-deathlog-view]').forEach(tab => { tab.onclick = () => setDeathLogView(tab.dataset.deathlogView); });
     setDeathLogView('element');
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);

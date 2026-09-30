@@ -822,10 +822,11 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     let filterClass = filterState && filterState.filterActive
         ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
     let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
-    let badges = `${item.locked ? '<span>잠금</span>' : ''}${presetProtected ? '<span>세팅</span>' : ''}`;
-    if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span>공격 +${triageResult.dpsGainPct}%</span>`;
-    if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span>생존 +${triageResult.ehpGainPct}%</span>`;
-    if (triageResult && triageResult.special) badges += '<span>특수</span>';
+    // 한 칸(휴대폰 약 33px)에도 들어가는 두 글자 표식(12px): 잠금 · 세팅(장비 세팅에 포함) · 특수, 분석 결과는 색으로 나눈 +N%(주황 공격 · 초록 생존).
+    let badges = `${item.locked ? '<span class="is-lock" title="잠금">잠금</span>' : ''}${presetProtected ? '<span class="is-set" title="장비 세팅에 포함">세팅</span>' : ''}`;
+    if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span class="is-atk" title="공격 +${triageResult.dpsGainPct}%">+${Math.round(triageResult.dpsGainPct)}%</span>`;
+    if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span class="is-def" title="생존 +${triageResult.ehpGainPct}%">+${Math.round(triageResult.ehpGainPct)}%</span>`;
+    if (triageResult && triageResult.special) badges += '<span class="is-special" title="특수 효과">특수</span>';
     let label = `${rarityLabel} ${item.name || item.baseName || '장비'} · ${footprint.columns}×${footprint.rows}`;
     let preview = `if(window.matchMedia('(hover: hover)').matches&&!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)`;
     return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${carried ? 'is-carried' : ''} ${filterClass} ${sourceMeta ? sourceMeta.toneClass : ''}"

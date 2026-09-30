@@ -331,6 +331,15 @@ function mergeDefaults(save) {
             };
         }).filter(row => row && row.value > 0).sort((a, b) => b.value - a.value) : [];
     }
+    /** {frontierZoneId: story act id 1-9, level: positive integer} or null for anything else. */
+    function normalizeActRetreat(value) {
+        if (!value || typeof value !== 'object') return null;
+        const zone = getZone(value.frontierZoneId);
+        const level = Math.floor(Number(value.level));
+        if (zone?.type !== 'act' || !(zone.id > 0) || !Number.isFinite(level) || level < 1) return null;
+        return { frontierZoneId: zone.id, level };
+    }
+
     function normalizeDeathLog(log) {
         if (!log || typeof log !== 'object') return null;
         let primaryElement = normalizeDamageElementKey(log.primaryElement);
@@ -359,6 +368,9 @@ function mergeDefaults(save) {
             monsterSummary: monsterSummary,
             activeAilments: activeAilments,
             sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
+            lostItems: Math.max(0, Math.floor(clampFiniteNumber(log.lostItems, 0, 0))),
+            lostCurrencies: Math.max(0, Math.floor(clampFiniteNumber(log.lostCurrencies, 0, 0))),
+            retreatZoneName: typeof log.retreatZoneName === 'string' ? log.retreatZoneName : '',
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
     }
@@ -886,6 +898,7 @@ function mergeDefaults(save) {
     merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
+    merged.actRetreat = normalizeActRetreat(merged.actRetreat);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
     if(merged.actExploration) {
         // Validate the original ownership/HP first so normalization cannot revive a corrupt record.

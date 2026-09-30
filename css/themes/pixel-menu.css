@@ -392,6 +392,9 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active::after,
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active::after { filter: brightness(1.15); }
+  /* 아직 잠긴 지도 칸: 열리면 들어갈 자리를 미리 지키는 흐린 칸(js/ui.js syncTabUnlockButton) */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn.nav-locked { color: #6c6258; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn.nav-locked::after { filter: grayscale(1) brightness(.5); }
   /* 가득 참: 칸이 좁아 아이콘 위에 도장처럼 겹친다 */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn { position: relative; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn > .inventory-full-warning {

@@ -2656,6 +2656,9 @@ const defaultGame = {
     // fatalElement is the last attack's dominant element, distinct from recent primaryElement.
     // Older logs have no fatalElement; save migration keeps that uncertainty as null.
     lastDeathLog: null,
+    // Auto progression retreated after a defeat in story act frontierZoneId at this level (null = not retreating).
+    // Cleared once the level rose by ACT_RETREAT_LEVELS or a map outside the retreat act finishes (js/combat.js holdActRetreat).
+    actRetreat: null,
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],

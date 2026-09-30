@@ -637,8 +637,17 @@ body[data-ui-skin] {
   /* 휴대폰 전투 탭은 막대 옆 퍼센트를 숨기던 규칙이 있다(ui-responsive-refine.css): 구슬 안에서는 보인다 */
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { display: block; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { align-self: center; }
-  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 30px; width: 30px; height: 30px; }
-  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 36px; width: 36px; height: 36px; }
+  /* 젬: 누르는 칸(주 공격 44 · 이동 스킬 40px)이 윗줄, 소환 젬(누르면 스킬 젬 창)은 24px 알로 아랫줄 — 다섯 칸이 세 줄로
+     쌓여 판이 늘어나지 않게. 젬 칸이 윗줄 두 칸 너비(88px)를 늘 갖도록 이름 칸이 양보한다. */
+  :root body[data-ui-skin] #battle-column .player-hud-shell { grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto minmax(88px, 1fr) var(--px-orb-size); }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots { justify-content: center; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots:has(.summon)::after { content: ''; order: 1; flex-basis: 100%; height: 0; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 40px; width: 40px; height: 40px; overflow: visible; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 44px; width: 44px; height: 44px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { order: 2; flex-basis: 24px; width: 24px; height: 24px; padding: 1px; }
+  /* 보이지 않는 누름 자리: 옆 칸과는 틈의 절반씩, 판 여백 쪽으로는 더 — 누르는 칸은 위로(44px 넘게), 소환 줄은 아래로 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot::before { content: ''; position: absolute; inset: -8px -2px -2px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon::before { inset: -2px -2px -10px; }
   /* 지도 테 위아래 장식(24 · 23px)이 판 여백(10px)을 넘는 만큼 자리를 둔다. */
   :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel { margin: 14px 0 13px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { align-self: center; margin-bottom: calc(var(--px-orb-size) * .2); font-size: 12px; }

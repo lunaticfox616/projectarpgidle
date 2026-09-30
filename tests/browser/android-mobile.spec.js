@@ -90,3 +90,40 @@ test('all unlocked mobile navigation entries open without page overflow or runti
     expect(errors).toEqual([]);
     await info.attach('visited-mobile-tabs', { body: JSON.stringify(ids), contentType: 'application/json' });
 });
+
+test('the phone dock keeps its cells when the map unlocks', async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, 'Phone bottom dock');
+    await openMobile(page);
+    // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬 젬 moved under the thumb.
+    const cells = () => page.locator('#tab-header-bottom > :is(.tab-btn, .mobile-nav-more):visible').evaluateAll(elements =>
+        elements.map(el => el.id + '@' + Math.round(el.getBoundingClientRect().left)));
+    const before = await cells();
+    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-items', 'btn-tab-map', 'btn-tab-skills']);
+    const map = page.locator('#btn-tab-map');
+    await expect(map).toHaveClass(/nav-locked/);
+    await expect(map).toHaveAttribute('aria-disabled', 'true');
+    // The locked cell is aria-disabled for assistive tech, yet a tap still explains when it opens.
+    await map.tap({ force: true });
+    await expect(page.locator('#tab-map')).toBeHidden();
+    await expect(page.locator('#game-toast-region .game-toast', { hasText: '액트 1을 마치면 지도가 열립니다.' })).toBeVisible();
+    await page.evaluate(() => { game.maxZoneId = 1; checkUnlocks(); updateStaticUI(); });
+    await page.waitForFunction(() => {
+        if (uiRefreshRunning || uiRefreshQueued) return false;
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+        return !document.getElementById('btn-tab-map').classList.contains('nav-locked');
+    });
+    expect(await cells()).toEqual(before);
+    await map.tap();
+    await expect(page.locator('#tab-map')).toBeVisible();
+});
+
+test('picking a class by touch leaves no class tooltip over the battle HUD', async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, 'Touch fires the hover tooltip before the click');
+    // Review 2026-10-01: the tapped class card tooltip stayed over the HUD after the battle started.
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').tap();
+    await page.locator('[data-class-id="warrior"]').tap();
+    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await expect(page.locator('#info-tooltip')).toBeHidden();
+});

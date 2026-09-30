@@ -177,14 +177,16 @@
         const recommendation = getRecommendedCandidate();
         const autoSalvageButton = isInventoryNearFull() && typeof openAutoSalvageConfigOverlay === 'function'
             ? '<button type="button" onclick="openAutoSalvageConfigOverlay()">자동 해체 설정</button>' : '';
+        const fillable = countFillableEmptySlots();
+        const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">빈 칸 채우기 ${fillable}</button>` : '';
         const html = `<div class="equipment-triage-copy" title="분석 시작 시점의 세팅·전투 상태를 기준으로 비교합니다."><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
             <div class="equipment-triage-controls">
                 <label>판단 <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
                 <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? '분석 중단' : (state.status === 'idle' ? '일괄 분석' : '다시 분석')}</button>
                 <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} title="${state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.'}">추천 교체</button>
-                ${autoSalvageButton}
+                ${fillButton}${autoSalvageButton}
             </div>`;
-        const renderSignature = `${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}`;
+        const renderSignature = `${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}|${fillable}`;
         if (host.dataset.renderSig === renderSignature) return;
         host.innerHTML = html;
         host.dataset.renderSig = renderSignature;

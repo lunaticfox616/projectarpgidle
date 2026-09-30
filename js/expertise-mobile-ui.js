@@ -8,7 +8,7 @@ const expertiseMobileUi = (() => {
         const mobile = uiDisplay.matches('(max-width: 1080px)');
         document.getElementById('ui-expert-subtabs').classList.toggle('subtab-row', !mobile);
         if (!mobile) {
-            return unlocked.map(id => `<button class="subtab-btn ${selected === id ? 'active' : ''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('')
+            return unlocked.map(id => `<button class="subtab-btn ${selected === id ? 'active' : ''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].name}</button>`).join('')
                 + `<button class="subtab-btn ${selected === '__tree' ? 'active' : ''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();">${treeLabel}</button>`;
         }
         const rows = [...unlocked.map(id => ({ id, label: EXPERT_DEFS[id].name })), { id: '__tree', label: treeLabel }];

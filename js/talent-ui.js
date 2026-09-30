@@ -114,7 +114,7 @@ function matchesTalentCardView(key) {
 }
 
 function renderTalentLoadoutSlot(index, unlocked, key, owned) {
-    if (!unlocked) return `<div class="talent-slot locked">🔒<br><span>보유 ${TALENT_CARD_SLOT_UNLOCKS[index]}장</span></div>`;
+    if (!unlocked) return `<div class="talent-slot locked">잠김<br><span>보유 ${TALENT_CARD_SLOT_UNLOCKS[index]}장</span></div>`;
     if (!key || !owned[key]) return '<div class="talent-slot empty">빈 슬롯<br><span>카드를 눌러 장착</span></div>';
     let { heroId, classKey } = parseTalentComboKey(key);
     let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
@@ -148,7 +148,7 @@ function renderTalentScoreSummary(count) {
     let curScore = getTalentBloomScore();
     return `보유 카드 <strong>${count}</strong> / ${TALENT_BLOOM_TOTAL_CARDS} · 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
         + `<br><span style="font-size:0.85em; color:var(--copy-bright);">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
-        + `<br><span style="font-size:0.82em; color:#9fe2b1;">🌸 한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
+        + `<br><span style="font-size:0.82em; color:#9fe2b1;">한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
 }
 
 function renderTalentTab() {

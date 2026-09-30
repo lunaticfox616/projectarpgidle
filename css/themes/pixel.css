@@ -254,6 +254,14 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   box-shadow: var(--px-drop);
   image-rendering: pixelated;
 }
+/* 방치 전투 결과: 비운 시간 → 전투 진행 계산식 한 줄 */
+:root body[data-ui-skin] .background-result-formula { margin: 6px 0 0; color: var(--px-copy-muted); font-size: 12px; line-height: 1.5; }
+/* 첫 실행: 직업 선택판은 부팅 때 열려 있어 불러오기 판 뒤로 흐리게 비쳤다 — 불러오는 동안은 감춘다 */
+:root body[data-ui-skin].loading-active #loop-hero-select-overlay { visibility: hidden; }
+:root body[data-ui-skin] #startup-overlay .startup-summary-grid[hidden] { display: none; }
+/* 가입 판의 인증 메일 재발송은 가입한 뒤에 쓰는 보조 동작 — 큰 단추 대신 작은 글 단추 */
+:root body[data-ui-skin] #startup-overlay .startup-resend-confirmation { width: auto; margin: 2px 0 0; padding: 4px 0; border: 0; background: none; box-shadow: none; color: var(--px-copy-muted); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+:root body[data-ui-skin] #startup-overlay .startup-resend-confirmation:hover:not(:disabled) { background: none; color: var(--px-gold-bright); }
 /* 불러오기 막대: 2px 검은 테 안의 금빛 칸 */
 :root body[data-ui-skin] .loading-bar { height: 12px; border: 1px solid var(--px-ink); background: #0d0b0f; box-shadow: inset 1px 1px 0 #000, inset -1px -1px 0 #3a2c30; }
 :root body[data-ui-skin] .loading-bar-fill { background: linear-gradient(180deg, #ffe39a 0 1px, #ecc476 1px 3px, #c48a44 3px 7px, #845f42 7px); }
@@ -264,7 +272,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] .ui-context-dock-tab.active { background: var(--px-wood-dark), var(--px-stone-raised); color: var(--px-gold-bright); }
 /* 사망 기록 분류 탭: 모든 오버레이 단추의 빗면이 예전 활성 표시를 덮어 두 탭이 같아 보였다 — 고른 쪽은 눌린 판 + 금 밑줄 */
-:root body[data-ui-skin] #death-overlay .deathlog-tab.active { background: var(--px-wood-dark), var(--px-stone-raised); box-shadow: var(--px-bevel-pressed), inset 0 -2px 0 var(--px-gold); color: var(--px-gold-bright); }
+/* 탭(전투 로그 · 채팅, 사망 기록 분류): 고른 탭은 금 테 · 금빛 글, 나머지는 납작하고 흐린 판. 빗면이 밝은 안 고른 탭이 오히려 골라진 것처럼 보였다. */
+:root body[data-ui-skin] :is(.ui-context-dock-tab, #death-overlay .deathlog-tab):not(.active) { box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy-muted); }
+:root body[data-ui-skin] :is(.ui-context-dock-tab, #death-overlay .deathlog-tab).active { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 작은 머리글(예전 영문 대문자 자리): 한글이 되었으니 넓은 자간을 풀고 도트 12px */
 :root body[data-ui-skin] :is(.skill-panel-kicker, .cosmos-kicker, .ghost-duel-stage-label, .map-pvp-heading span, .beyond-head span, .beyond-farming header span, .arcana-vault-head span, .cosmos-arcana-quest span, .cosmos-mastery-card-head span, .gem-engrave-dialog-identity span, .equipment-preset-panel > header span) {
   color: var(--px-gold);
@@ -285,6 +295,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.codex-card .item-base-line, .codex-card .item-stats, .cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
 :root body[data-ui-skin] :is(.records-stat-label, .records-note, .records-empty, .records-time-note summary, .records-section-title span, .unlock-depth-label, .unlock-lifetime-note, .trait-progress-summary span) { font-size: 12px; }
 :root body[data-ui-skin] .unlock-lifetime-tag { font-size: 11px; }
+:root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span),
+:root body[data-ui-skin] .records-offline > summary::after { font-size: 12px; }
 :root body[data-ui-skin] #btn-auto-salvage::after { font-size: 11px; }
 :root body[data-ui-skin] #ui-passive-points { font-size: 20px; }
 :root body[data-ui-skin] :is(#tab-character, #tab-stump) h2,
@@ -347,9 +359,12 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more)[open] > summary { border-bottom: 1px solid var(--px-bronze-lo); }
 :root body[data-ui-skin] .trait-progress-summary > div { border-radius: 0; background: rgba(8, 5, 8, .35); }
+/* 접힌 머리(summary)가 없는 휴대폰에서 판 첫 제목의 도트 글자 윗부분이 판의 overflow에 잘렸다 — 위 여백 */
+:root body[data-ui-skin] .progression-section > h2 { padding-top: 10px; }
 :root body[data-ui-skin] .loop10-panel { padding: 12px; }
 :root body[data-ui-skin] .loop10-entry-box { margin-bottom: 8px; padding: 10px; background: var(--px-wood-dark), var(--px-stone-raised); }
 :root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
+:root body[data-ui-skin] .loop-node-glyph { font-family: var(--font-pixel); font-size: 12px; font-weight: 400; text-shadow: var(--px-text-edge); }
 /* 재능 개화: 남색 · 보라 유리 판 → 숯빛 판. 개화의 보라는 요약 왼쪽 띠에만 남긴다. */
 :root body[data-ui-skin] .talent-bloom-summary { border-radius: 0; border-left: 3px solid #b88ad8; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy); }
 :root body[data-ui-skin] :is(.talent-bloom-navigator, .talent-current-combo, .talent-loadout-panel) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); }
@@ -359,7 +374,12 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .talent-slot { border-radius: 0; border-color: var(--px-bronze-lo); background: #141216; }
 :root body[data-ui-skin] .talent-slot.filled { border-color: var(--px-gold); background: var(--px-stone-raised); }
 /* 젬 카드 꼬리표 · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
-:root body[data-ui-skin] .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); }
+:root body[data-ui-skin] .gem-card-tags :is(.gem-tag--neutral, .gem-tag--spell, .gem-tag--utility, .gem-tag--projectile, .gem-tag--pierce, .gem-tag--melee, .gem-tag--slam, .gem-tag--chain, .gem-tag--aoe, .gem-tag--dot) {
+  /* 분류 꼬리표(주문 · 범위 · 지속 …)는 숯빛 판 — 색은 원소 꼬리표(화염 · 냉기 · 번개 · 카오스)의 뜻으로만 남긴다 */
+  border-color: var(--px-bronze-lo); border-radius: 0; background: rgba(8, 5, 8, .5); color: var(--px-copy);
+}
+:root body[data-ui-skin] .gem-card-tags span { border-radius: 0; }
+:root body[data-ui-skin] #tutorial-overlay .tutorial-pause-toggle { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .45); }
 :root body[data-ui-skin] :is(.gem-card-footer, .offline-progress-upgrade) { border-color: var(--px-bronze-lo); }
 :root body[data-ui-skin] .orb-tone { border-color: var(--px-bronze-lo); border-radius: 0; }
 :root body[data-ui-skin] .cloud-status-pill { border-radius: 0; }
@@ -397,6 +417,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .passive-star-wedge-drawer > summary span { color: var(--px-copy-muted); }
 :root body[data-ui-skin] .passive-search-drawer > summary { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-board), var(--px-stone-control); box-shadow: var(--px-bevel); color: var(--px-copy); }
 :root body[data-ui-skin] .battlefield-wrap { background-color: var(--skin-canvas); }
+/* 지도 창의 목록 줄 머리 그림은 컬러 이모지(🔥 · 🌊 · 🌌 …)였다 — 지역 목록처럼 모든 지도 목록에서 뺀다(이름 · 상태 글이 뜻을 전한다) */
+:root body[data-ui-skin] #tab-map .map-item-main > span:first-child:not(:last-child) { display: none; }
 :root body[data-ui-skin] .bulk-salvage-action.equipment-action-muted { background: var(--px-board), var(--px-stone-control); }
 
 /* 흐린 그림자·빛 번짐 대신 도트 그림자 */

@@ -1686,7 +1686,7 @@ function drawLevelUpLabel(ctx, fx, pos) {
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(25,9,0,.92)';
-    const label = `LEVEL ${fx.level || ''}`;
+    const label = `레벨 ${fx.level || ''}`;
     const x = Math.round(pos.x), y = Math.round(pos.y);
     ctx.strokeText(label, x, y);
     ctx.fillStyle = '#ffe9a8';
@@ -1757,7 +1757,7 @@ function drawBattlefieldShrine(ctx, gridProj, now, gridScale, cameraShake) {
     if (image && image.naturalWidth > 0) ctx.drawImage(image, -width / 2, -height, width, height);
     else drawShrineFallback(ctx, width, height, color);
     ctx.shadowBlur = 0;
-    let label = `${encounter.blessing.name} · 클릭`;
+    let label = `${encounter.blessing.name} · ${isMobilePrimaryNavigationEnabled() ? '터치' : '클릭'}`;
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     let labelWidth = Math.ceil(ctx.measureText(label).width) + 16;
     ctx.fillStyle = 'rgba(8, 12, 18, 0.88)';

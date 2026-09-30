@@ -1983,6 +1983,7 @@ function coreLoop(nowMs) {
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul);
         if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentRegen);
     }
+    applyActRestRecovery(pStats, recoveryHpCap);
     if ((game.delayedGuardHealPool || 0) > 0) {
         let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
         let hpCap = recoveryHpCap;
@@ -9429,7 +9430,7 @@ function finishEncounterRun() {
             updateStaticUI();
             queueImportantSave(180);
             return;
-        } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+        } else if (!holdActRetreat(zone)) game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         if(actExplorationProgress.deferDeparture(game)) {
             checkUnlocks();updateStaticUI();queueImportantSave(220);return;
         }
@@ -10684,7 +10685,42 @@ function recordPlayerDefeatStart(zone, options) {
     });
 }
 
+/** 자동 진행(다음 지역) 중 스토리 액트에서 쓰러지면 바로 앞 액트로 물러난다 — 같은 무리에 거듭 쓰러지며 탐험 전리품을
+ * 잃던 반복을 끊는다. ACT_RETREAT_LEVELS만큼 오르면 holdActRetreat가 다시 앞 액트로 보낸다. Returns the retreat zone name ('' = stays). */
+function retreatAfterActDefeat(zone) {
+    if (zone?.type !== 'act' || !(zone.id > 0)) return '';
+    if ((game.settings.mapCompleteAction || 'nextZone') !== 'nextZone') return '';
+    const target = getZone(zone.id - 1);
+    if (target?.type !== 'act') return '';
+    game.actRetreat = { frontierZoneId: zone.id, level: game.level };
+    game.currentZoneId = target.id;
+    game.killsInZone = 0;
+    return target.name;
+}
+
+/** 물러난 뒤 탐험을 마치면: 덜 올랐으면 지금 액트를 한 번 더, 충분히 올랐으면 기록을 지우고 평소처럼 앞으로 간다. */
+function holdActRetreat(zone) {
+    const retreat = game.actRetreat;
+    if (!retreat) return false;
+    // 레벨이 충분히 올랐거나, 직접 다른 지역으로 옮겨 그곳을 마쳤으면 물러남을 끝낸다.
+    if (game.level >= retreat.level + ACT_RETREAT_LEVELS || zone.id !== retreat.frontierZoneId - 1) {
+        game.actRetreat = null;
+        return false;
+    }
+    game.currentZoneId = zone.id;
+    return true;
+}
+
+/** 스토리 액트의 방과 방 사이(살아 있는 적이 없을 때) 숨 고르기: 0.1초 틱마다 최대 생명의 ACT_REST_RECOVERY_PCT_PER_SEC/10 %. */
+function applyActRestRecovery(pStats, hpCap) {
+    if (game.playerHp <= 0 || game.playerHp >= hpCap) return;
+    if (getZone(game.currentZoneId)?.type !== 'act') return;
+    if ((game.enemies || []).some(enemy => enemy && enemy.hp > 0)) return;
+    game.playerHp = Math.min(hpCap, game.playerHp + pStats.maxHp * ACT_REST_RECOVERY_PCT_PER_SEC / 100 * 0.1);
+}
+
 function handlePlayerDefeat(zone, pStats, message, options) {
+    const lostLoot = actExplorationLoot.pendingCounts(actExplorationState.current(game));
     actExplorationProgress.defeat(game);
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -10825,8 +10861,12 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         ailmentDamageSummary: ailmentDamageSummary,
         monsterSummary: monsterSummary,
         activeAilments: activeAilments,
-        sourceName: opts.sourceName || ''
+        sourceName: opts.sourceName || '',
+        lostItems: lostLoot.items,
+        lostCurrencies: lostLoot.currencies,
+        retreatZoneName: retreatAfterActDefeat(zone)
     };
+    if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${game.lastDeathLog.retreatZoneName}(으)로 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);

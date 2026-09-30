@@ -48,8 +48,12 @@ const actExplorationView=(()=>{
         ctx.save();ctx.fillStyle='#080e0c';ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
         if(cache.surface)ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
         else {
-            ctx.fillStyle='#d7c99c';ctx.font="12px 'MulmaruMono', 'Malgun Gothic', sans-serif";ctx.textAlign='center';
-            ctx.fillText(cache.error?'지형 로딩 실패: '+cache.error:'지형 로딩 중',width/2,32);
+            // 지도를 만드는 동안 전장 한가운데에 도트 글씨로(점 셋이 차례로 찬다). 실패하면 까닭을 적는다.
+            const dots='.'.repeat(1+Math.floor(performance.now()/400)%3);
+            ctx.font="16px 'MulmaruMono', 'Malgun Gothic', sans-serif";ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.lineWidth=4;ctx.strokeStyle='rgba(8,5,8,.9)';ctx.fillStyle='#e0c283';
+            const label=cache.error?'지형을 준비하지 못했습니다: '+cache.error:'지형을 준비하는 중'+dots;
+            ctx.strokeText(label,width/2,height/2);ctx.fillText(label,width/2,height/2);
         }
         // The fog is pre-softened into fogView whenever it changes; per frame it is only copied.
         updateFog(run,map);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';

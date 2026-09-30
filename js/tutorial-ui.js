@@ -10,7 +10,7 @@ const tutorialActionUi = {
         unlock_items: {
             selector: '#ui-inventory-list .equipment-grid-item',
             title: '첫 장비 장착',
-            body: '장비를 눌러 비교한 뒤, 더블클릭하거나 장착 버튼으로 착용해 보세요.',
+            body: '장비를 눌러 비교한 뒤 장착 버튼으로 착용해 보세요.',
             read: () => Object.values(game.equipment).filter(Boolean).map(item => String(item.instanceId || item.id)),
             completed: (current, before) => current.some(id => !before.includes(id))
         },
@@ -181,7 +181,7 @@ function renderTutorialStep() {
     let pauseControl = activeTutorial.key === 'tutorial_battle_basics' ? `
         <label class="cfg-toggle tutorial-pause-toggle">
             <input type="checkbox" id="tutorial-pause-overlay-toggle" ${pauseEnabled ? 'checked' : ''}>
-            <span class="cfg-label"><b>안내 중 전투 일시 정지</b><small>이후 기타 → 설정에서 언제든 변경할 수 있습니다.</small></span>
+            <span class="cfg-label"><b>안내 중 전투 일시 정지</b><small>이후 ${settingsMenuPath()}에서 언제든 변경할 수 있습니다.</small></span>
             <strong id="tutorial-pause-overlay-status">${pauseEnabled ? '켜짐' : '꺼짐'}</strong>
         </label>` : '';
     // 본문은 줄바꿈을 살려 보이므로(pre-line) 템플릿 앞의 줄바꿈이 빈 줄이 되지 않게 다듬는다.
@@ -213,14 +213,32 @@ function tutorialWaitsForTitleCard() {
     if (!next || String(next.key).startsWith('story_')) return false;
     return typeof actTitleCard === 'object' && typeof actTitleCard.busy === 'function' && actTitleCard.busy();
 }
+/** 설정으로 가는 길: 휴대폰은 하단 "전체" 서랍, PC는 HUD의 "기타" 목록. */
+function settingsMenuPath() {
+    return isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정';
+}
+
 function isTutorialPresentationBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
+    // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
+    if (backgroundCombatRuntime.processing || document.getElementById('background-combat-result-overlay')) return true;
     if (tutorialWaitsForTitleCard()) return true;
     return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen']
         .some(name => typeof window[name] === 'function' && window[name]());
 }
 
+/** 떠 있는 안내 카드는 열린 창이 바뀌면 다시 자리를 잡는다 — 카드가 뜬 뒤 연 창(장비 등)의 내용을 덮고 있었다. */
+let tutorialCardWindowSignature = '';
+function refreshTutorialCardPlacement() {
+    if (!activeTutorial) return;
+    const signature = [...document.querySelectorAll('.tab-content.ui-window.ui-window-open')].map(node => node.id).join(',');
+    if (signature === tutorialCardWindowSignature) return;
+    tutorialCardWindowSignature = signature;
+    placeTutorialCard();
+}
+
 function showNextTutorial() {
+    refreshTutorialCardPlacement();
     if (activeTutorial || tutorialActionUi.active || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
     while (tutorialQueue.length) {
         const next = tutorialQueue.shift();

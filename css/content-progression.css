@@ -112,6 +112,7 @@
 }
 #content-unlock-panel button:focus-visible,#content-unlock-panel select:focus-visible{outline:2px solid var(--skin-accent);outline-offset:3px}}
 @layer overrides{
-[data-content-locked]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
+/* 휴대폰 하단 메뉴의 잠긴 지도 칸(.nav-locked)은 열리면 들어갈 자리를 지키려 흐리게 남긴다(js/ui.js syncTabUnlockButton). */
+[data-content-locked]:not(.nav-locked){/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 .content-craft-locked [data-content-action="craft"]{display:none}
 .content-choice-progression #season-content-section{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}}

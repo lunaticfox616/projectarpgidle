@@ -136,7 +136,7 @@ const actExplorationLoot=(()=>{
         return {inventory,jewelInventory,cores:{...store,owned:store.owned.concat(loot.cores)}};
     }
     function markItemsReceived(state,loot) {
-        if(loot.jewels.length)state.noti.items=true;
+        if(loot.jewels.length || loot.equipment.length)state.noti.items=true;
     }
     function prepareCurrencyBalances(state,rewards) {
         const currencies={...state.currencies};
@@ -149,6 +149,13 @@ const actExplorationLoot=(()=>{
         const skyPower=(state.skyTower.condensedPower||0)+skyGain;
         if(!Number.isFinite(skyPower))throw Error('창공 보상 수령 한도 초과');
         return {currencies,skyPower};
+    }
+    /** What a defeat would discard right now: rolled items and currency kinds still held by the expedition. */
+    function pendingCounts(run) {
+        const loot=run?.loot;
+        if(!loot || loot.phase!=='pending')return {items:0,currencies:0};
+        return {items:loot.equipment.length+loot.gems.length+loot.cores.length+loot.jewels.length,
+            currencies:Object.values(loot.currencies).filter(amount=>amount>0).length};
     }
     function discard(run) {
         if(!run || run.loot.phase!=='pending')return;
@@ -194,6 +201,6 @@ const actExplorationLoot=(()=>{
         if(run.status==='failed' && run.loot.phase!=='lost')throw Error('실패한 탐험에 보상이 남아 있습니다.');
         if(run.completionApplied && run.loot.phase!=='claimed')throw Error('완료된 탐험 보상이 정산되지 않았습니다.');
     }
-    return {create,reservedItems,capture,pending,currency,delivery,gem,validate,claim,discard,restore};
+    return {create,reservedItems,capture,pending,currency,delivery,gem,validate,claim,pendingCounts,discard,restore};
 })();
 safeExposeGlobals({actExplorationLoot});

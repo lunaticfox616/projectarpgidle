@@ -392,12 +392,39 @@ function canEquipItemToSlot(item, preferredSlot) {
 
 function tryAutoEquipEmptySlot(item) {
     if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
+    return equipIntoFirstEmptySlot(item);
+}
+
+/** Puts the item into its first empty candidate slot when the requirements allow. Returns the slot or null. */
+function equipIntoFirstEmptySlot(item) {
     let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
     if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
     delete item.legacyRequirementGrace;
     game.equipment[slot] = item;
     if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
     return slot;
+}
+
+/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터(플레이어가 누른 동작이라 자동 장착 설정과 무관).
+ * Returns the equipped count. */
+function equipIntoEmptySlots(items) {
+    const rank = item => (Number(item.itemTier) || 0) * 10 + JEWEL_RARITY_ORDER.indexOf(item.rarity);
+    let equipped = 0;
+    for (const item of [...(items || [])].filter(Boolean).sort((a, b) => rank(b) - rank(a))) {
+        const index = game.inventory.indexOf(item);
+        if (index < 0 || !equipIntoFirstEmptySlot(item)) continue;
+        game.inventory.splice(index, 1);
+        equipped++;
+    }
+    return equipped;
+}
+
+/** 가방에 맞는 장비가 있는 빈 장비 칸 수("빈 칸 채우기" 단추의 숫자). */
+function countFillableEmptySlots() {
+    const empty = Object.keys(game.equipment).filter(slot => !game.equipment[slot]);
+    if (!empty.length) return 0;
+    return empty.filter(slot => game.inventory.some(item => item && getEquipCandidateSlots(item).includes(slot)
+        && combatEquipmentStats.inspect(item, slot).ok)).length;
 }
 
 function pickEquipSlot(item, preferredSlot) {
