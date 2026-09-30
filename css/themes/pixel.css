@@ -161,6 +161,21 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .divine-drop-banner.show { transform: translateX(-50%); }
 :root body[data-ui-skin].desktop-windowed-ui #btn-combat-log-toggle { font-size: 12px; }
 
+/* 스킬트리 필터(전체 · 공격 · …): 고른 필터는 탭처럼 금 테 · 금빛 글 */
+:root body[data-ui-skin] [data-passive-filter].is-active { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
+/* 첫 스킬 젬 안내: 하늘색 번짐 대신 번짐 없는 금빛 두 겹 테가 깜빡인다 */
+:root body[data-ui-skin] #tab-skills .gem-library-card.starter-gem-tutorial-target {
+  border-color: var(--px-gold-bright);
+  box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-gold-bright);
+  animation: px-target-blink 1.1s steps(1, end) infinite;
+}
+:root body[data-ui-skin] #btn-tab-skills.starter-gem-tutorial-pending { box-shadow: inset 3px 0 var(--px-gold-bright); }
+@keyframes px-target-blink { 50% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-bronze); } }
+/* 적 체력 막대의 붉은 번짐(휴대폰 · PC 대상 적): 윗면 밝은 한 줄만 남긴다 */
+:root body[data-ui-skin] .hp-bar-fill.enemy,
+:root body[data-ui-skin].mobile-battle-tab #tab-battle .hp-bar-fill.enemy,
+:root body[data-ui-skin].desktop-windowed-ui .enemy-card.targeted .hp-bar-fill.enemy { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); }
+
 /* 패치 노트 · 자동 환생 안내: em 배율(9.6 · 10 · 10.7px)은 도트 글꼴이 번져 정수로 */
 :root body[data-ui-skin] :is(.patch-note-list li, .patch-note-empty, .patch-note-date, .loop-automation small) { font-size: 12px; }
 :root body[data-ui-skin] .patch-note-version { font-size: 15px; }

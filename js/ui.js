@@ -10805,10 +10805,9 @@ function syncPassiveTreeSearchControls() {
     if (input && input.value !== state.search) input.value = state.search;
     document.querySelectorAll('[data-passive-filter]').forEach(btn => {
         let active = btn.dataset.passiveFilter === state.filter;
-        btn.style.background = active ? '#2c5878' : '';
-        btn.style.borderColor = active ? '#7fc7ff' : '';
-        btn.style.color = active ? '#e8f7ff' : '';
-        btn.style.boxShadow = active ? '0 0 10px rgba(127,199,255,0.24)' : '';
+        // 고른 필터 모양은 스킨 CSS가 그린다(예전에는 남색 판 · 파란 광택을 여기서 직접 칠했다).
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-pressed', String(active));
     });
 }
 
