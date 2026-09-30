@@ -47,7 +47,8 @@ body #journal-reader.is-text-only { width:min(660px,calc((100vw - 24px) / var(--
     body #tutorial-overlay.is-story-scene { padding:12px; }
     body #tutorial-overlay.is-story-scene .tutorial-card { padding:16px; }
     body #tutorial-overlay.is-story-scene .tutorial-body { grid-template-columns:1fr; gap:12px; }
-    .story-scene-art { max-height:43dvh; }
+    /* 휴대폰: 삽화를 조금 줄여 이야기 글 전체가 계속 단추 위에 한 번에 들어오게(43dvh면 마지막 문단이 잘려 스크롤해야 했다) */
+    .story-scene-art { max-height:34dvh; }
     .story-scene-copy { font-size:13px; line-height:1.7; }
     .journal-reader-head { padding:12px; }
     .journal-reader-pages { padding:12px; }

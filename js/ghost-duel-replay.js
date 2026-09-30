@@ -17,7 +17,7 @@ function renderGhostDuelReplay(duel) {
         <div class="ghost-duel-hud left"><strong>${escapeHTML(String(left.nickname || '도전자'))}</strong><span>${escapeHTML(String(left.snapshot.activeSkill || '기본 공격'))}</span><div><i data-ghost-hp="left"></i></div><em data-ghost-hp-label="left">100%</em></div>
         <div class="ghost-duel-hud right"><strong>${escapeHTML(String(right.nickname || '수비자'))}</strong><span>${escapeHTML(String(right.snapshot.activeSkill || '기본 공격'))}</span><div><i data-ghost-hp="right"></i></div><em data-ghost-hp-label="right">100%</em></div>
         <canvas class="ghost-duel-canvas" width="800" height="480" aria-label="고스트 실전투 재생"></canvas>
-        <div class="ghost-duel-stage-label">GHOST COMBAT REPLAY</div>
+        <div class="ghost-duel-stage-label">유령 대전 다시보기</div>
         <div class="ghost-duel-status" aria-live="polite">실전투 준비</div>
         <div class="ghost-duel-controls"><button type="button" data-ghost-action="toggle">일시정지</button><button type="button" data-ghost-action="speed">1×</button><button type="button" data-ghost-action="restart">다시 보기</button><button type="button" data-ghost-action="skip">결과 보기</button></div>
     </section>`;

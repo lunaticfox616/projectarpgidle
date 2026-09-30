@@ -1,8 +1,8 @@
 @layer overrides {
 /* 도트 UI. 전장(한 칸 16도트)과 같은 결로 UI를 맞춘다: 도트 글꼴, 각진 모서리, 흐림 없는 그림자, 도트 테두리.
-   재질(2026-09-30 사용자 참고 그림): 나무 판 · 검은 쇠 테 · 청동 매듭 — 창은 매듭 테에 판자 바탕, 버튼은 쇠 테 가로 결 판,
-   떠 있는 판은 따뜻한 어두운 판. 금빛 제목, 생명 구슬(themes/pixel-hud.css).
-   테두리 그림은 scripts/build-pixel-ui.cjs가 찍는다(한 도트 = 2 CSS px). 스킨별 색 토큰은 그대로 둔다. */
+   재질(2026-10-01, 하단 HUD 그림과 같은 결): 숯빛 판 · 청동 빗면 테 · 모서리 켈트 매듭. 창은 HUD 그림의 네모 단추를 키운 테
+   (모서리 매듭), 버튼은 4도트 청동 빗면(먹선 · 빛 · 청동 · 먹선), 칸은 움푹한 숯빛. 한 도트 = 1 CSS px(PC).
+   테 그림은 scripts/build-hud-kit.cjs가 사용자 HUD 그림에서 만든다. 금빛 제목, 구슬 · 미니맵(themes/pixel-hud.css). */
 
 body[data-ui-skin] {
   /* 도트 글꼴의 제 크기: 물마루 12px(UI 전반), 갈무리 15px(긴 글), DOS새물 16px(제목). 그 배수에서 가장 또렷하다. */
@@ -13,44 +13,48 @@ body[data-ui-skin] {
   --font-title: var(--font-pixel);
   --font-display: var(--font-pixel-title);
   --font-caps: var(--font-pixel);
-  --px-ink: #050404;
-  --px-stone: #1f120b;
-  --px-stone-raised: #2a170e;
-  --px-stone-control: #3b2014;
-  --px-bronze-hi: #8d7249;
-  --px-bronze: #5d4a2e;
-  --px-bronze-lo: #211a11;
+  --px-ink: #080508;
+  --px-stone: #1e1c22;
+  --px-stone-raised: #25222a;
+  --px-stone-control: #2c2831;
+  --px-bronze-hi: #c59862;
+  --px-bronze: #845f42;
+  --px-bronze-lo: #483239;
   --px-gold: #c69f5e;
   --px-gold-bright: #e0c283;
   --px-copy: #dbd0b9;
   --px-copy-muted: #9d927d;
-  /* 돌판 결: 2px 체크 무늬를 아주 옅게 */
-  --px-dither: repeating-conic-gradient(rgba(255, 236, 200, .024) 0 25%, transparent 0 50%) 0 0 / 4px 4px;
+  /* 판 결: 1px 체크 무늬를 아주 옅게 */
+  --px-dither: repeating-conic-gradient(rgba(236, 196, 118, .02) 0 25%, transparent 0 50%) 0 0 / 2px 2px;
   --px-drop: 4px 4px 0 rgba(0, 0, 0, .55);
-  /* 버튼 테: 먹선 안에 쇠 볼록(왼쪽 위 빛) 한 도트 + 먹선 한 도트(테두리 두께는 예전 그대로 2px). */
-  --px-bevel: inset 2px 2px 0 #6c6c78, inset -2px -2px 0 #222228, inset 0 0 0 4px #070605;
-  --px-bevel-pressed: inset 2px 2px 0 #18181d, inset -2px -2px 0 #4a4a55, inset 0 0 0 4px #070605;
-  --px-gold-rim: inset 2px 2px 0 #f3d9a2, inset -2px -2px 0 #6a4c24, inset 0 0 0 4px #070605;
+  /* 버튼 테(HUD 그림의 네모 단추): 1px 먹선 테두리 안에 빛(위 · 왼) / 어두운 청동(아래 · 오른) 한 도트, 청동 한 도트, 먹선 한 도트. */
+  --px-bevel: inset 1px 1px 0 #ecc476, inset -1px -1px 0 #70513d, inset 0 0 0 2px #845f42, inset 0 0 0 3px #080508;
+  --px-bevel-pressed: inset 1px 1px 0 #2c2126, inset -1px -1px 0 #845f42, inset 0 0 0 2px #483239, inset 0 0 0 3px #080508;
+  --px-gold-rim: inset 1px 1px 0 #ffe39a, inset -1px -1px 0 #a8753c, inset 0 0 0 2px #c48a44, inset 0 0 0 3px #080508;
   --px-text-edge: 1px 1px 0 #000;
   /* 겹쳐 찍기 굵게: 가는 DOS새물 제목을 한 도트 옆에 한 번 더 찍고 그림자를 붙인다(흐린 가짜 굵기 대신). */
   --px-text-bold: 1px 0 0 currentColor, 1px 1px 0 #000, 2px 1px 0 #000;
   --px-text-outline: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 1px 0 #000;
-  --px-frame-heavy: url('../../assets/ui/pixel/frame-heavy.png');
-  --px-frame-light: url('../../assets/ui/pixel/frame-light.png');
-  --px-frame-inset: url('../../assets/ui/pixel/frame-inset.png');
-  --px-frame-plate: url('../../assets/ui/pixel/frame-plate.png');
-  /* 나무: 창 바탕 세로 판자 · 제목 줄과 HUD의 어두운 판 · 버튼의 가로 결 판(올리면 밝은 판). 떠 있는 판은 무늬 없이 어둡게. */
-  /* 나무 = 두 층: 크고 아주 옅은 얼룩(240×180도트) 위, 무늬 없는 가는 결(96도트) 아래 — 큰 창에서도 되풀이가 눈에 띄지 않게. */
-  --px-wood: url('../../assets/ui/pixel/wood-stains.png') 0 0 / 480px 360px, url('../../assets/ui/pixel/wood.png') 0 0 / 192px 192px;
-  --px-wood-dark: url('../../assets/ui/pixel/wood-stains.png') 170px 110px / 480px 360px, url('../../assets/ui/pixel/wood-dark.png') 0 0 / 192px 192px;
-  /* 창 안쪽 가장자리의 그늘: 흐림 없이 세 단(참고 그림의 깊이) */
-  --px-inner-shade: inset 0 0 0 2px rgba(0, 0, 0, .3), inset 0 0 0 4px rgba(0, 0, 0, .18), inset 0 0 0 6px rgba(0, 0, 0, .09);
-  --px-board: url('../../assets/ui/pixel/board.png') 0 0 / 64px 24px;
-  --px-board-hot: url('../../assets/ui/pixel/board-hot.png') 0 0 / 64px 24px;
-  --px-panel: rgba(24, 14, 9, .95);
-  /* 창 테: 38도트 매듭 테를 한 도트 2px로(좁은 화면은 1px). */
+  /* 테 그림(scripts/build-hud-kit.cjs): 창 · 판 = 모서리 매듭 단추 테(9칸 26), 가벼운 판 · 버튼 = 4도트 청동 빗면, 칸 = 움푹한 숯빛. */
+  --px-frame-heavy: url('../../assets/ui/pixel/hud-window.png');
+  --px-frame-light: url('../../assets/ui/pixel/hud-btn.png');
+  --px-frame-inset: url('../../assets/ui/pixel/hud-inset.png');
+  --px-frame-plate: url('../../assets/ui/pixel/hud-window.png');
+  /* 판 바탕: HUD 그림의 숯빛 판(아주 드문 한 도트 얼룩, 되풀이가 보이지 않는다). 제목 줄 · 어두운 판은 한 단 더 어둡게. */
+  --px-wood: url('../../assets/ui/pixel/hud-panel.png') 0 0 / 64px 64px;
+  --px-wood-dark: url('../../assets/ui/pixel/hud-panel-dark.png') 0 0 / 64px 64px;
+  /* 창 안쪽 가장자리의 그늘: 흐림 없이 두 단 */
+  --px-inner-shade: inset 0 0 0 1px rgba(0, 0, 0, .3), inset 0 0 0 2px rgba(0, 0, 0, .15);
+  --px-board: url('../../assets/ui/pixel/hud-panel.png') 0 0 / 64px 64px;
+  --px-board-hot: linear-gradient(rgba(236, 196, 118, .07), rgba(236, 196, 118, .07)), url('../../assets/ui/pixel/hud-panel.png') 0 0 / 64px 64px;
+  --px-panel: rgba(26, 24, 30, .96);
+  /* 창 테: 모서리 매듭 조각 26도트를 한 도트 1px로(좁은 화면은 0.5px). 가벼운 판은 4도트 빗면, 판(HUD · 로고)은 창과 같은 테. */
   --px-window-border: 26px;
-  --px-window-frame: var(--px-frame-heavy) 13 / var(--px-window-border) / 0 round;
+  --px-window-frame: var(--px-frame-heavy) 26 / var(--px-window-border) / 0 stretch;
+  --px-light-border: 4px;
+  --px-light-frame: var(--px-frame-light) 4 / var(--px-light-border) / 0 stretch;
+  --px-plate-border: 26px;
+  --px-plate-frame: var(--px-frame-plate) 26 / var(--px-plate-border) / 0 stretch;
   font-family: var(--font-body);
   font-synthesis-weight: none;
   /* 도트 글꼴은 글자 폭이 넓어 줄이 자주 넘는다: 한글 단어 중간("초기/화")이 아니라 띄어쓰기에서 끊고, 한 단어가 줄보다 길 때만 쪼갠다. */
@@ -58,22 +62,23 @@ body[data-ui-skin] {
   overflow-wrap: break-word;
 }
 
-@media (max-width: 760px) { body[data-ui-skin] { --px-window-border: 13px; } }
+/* 좁은 화면과 가로로 눕힌 휴대폰(높이 600px 이하)은 테를 반 굵기로: 가로 휴대폰은 폭이 760px를 넘어도 높이가 293 ~ 393px뿐이다 */
+@media (max-width: 760px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { body[data-ui-skin] { --px-window-border: 13px; --px-plate-border: 13px; } }
 /* 스킨의 판 · 선 색 토큰(components가 쓰는 --skin-*, 겹 판 색)도 나무 · 쇠 결로. 스킨별 토큰(:root body[data-ui-skin="…"])과
    우선순위가 같아 뒤에 오는 이 파일이 이기고, 고대비(:root body.high-contrast[data-ui-skin])는 더 높아 그대로 남는다. */
 :root body[data-ui-skin] {
-  --skin-canvas: #0c0806;
-  --skin-panel: #1f120b;
-  --skin-panel-raised: #2a170e;
-  --skin-control: #3b2014;
-  --skin-line: #3a3a44;
-  --skin-line-strong: #6e5233;
-  --color-overlay-line: rgba(110, 82, 51, .9);
-  --color-overlay-line-soft: rgba(110, 82, 51, .45);
-  --color-overlay-surface: rgba(31, 18, 11, .96);
-  --color-overlay-raised: rgba(42, 23, 14, .97);
-  --color-panel-bg: rgba(24, 14, 9, .95);
-  --color-panel-soft: rgba(42, 23, 14, .96);
+  --skin-canvas: #0b0a0d;
+  --skin-panel: #1e1c22;
+  --skin-panel-raised: #25222a;
+  --skin-control: #2c2831;
+  --skin-line: #3a3540;
+  --skin-line-strong: #845f42;
+  --color-overlay-line: rgba(132, 95, 66, .9);
+  --color-overlay-line-soft: rgba(132, 95, 66, .45);
+  --color-overlay-surface: rgba(30, 28, 34, .96);
+  --color-overlay-raised: rgba(37, 34, 42, .97);
+  --color-panel-bg: rgba(26, 24, 30, .95);
+  --color-panel-soft: rgba(37, 34, 42, .96);
   --color-steel: #8d8a86;
   --color-steel-dim: rgba(141, 138, 134, .3);
 }
@@ -91,8 +96,8 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 :root body[data-ui-skin] #startup-overlay .startup-logo {
   width: min(384px, 30vw, 42dvh);
   padding: 12px;
-  border: 10px solid transparent;
-  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+  border: var(--px-plate-border) solid transparent;
+  border-image: var(--px-plate-frame);
   background: var(--px-wood-dark), var(--px-stone);
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
@@ -144,7 +149,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* ─── 도트 판 ─────────────────────────────────────────────── */
 /* 무거운 판: 창·대화 상자. 테는 매듭 테(9칸 자르기, 가장자리는 되풀이), 바탕은 테 안쪽의 판자. */
 :root body[data-ui-skin].desktop-windowed-ui .tab-content.ui-window,
-:root body[data-ui-skin] :is(#tutorial-overlay, #death-overlay) .tutorial-card,
+:root body[data-ui-skin] :is(#tutorial-overlay, #death-overlay, #loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) .tutorial-card,
 :root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog),
 :root body[data-ui-skin] :is(.game-dialog-card, .loading-card, .selection-overlay-panel, .void-craft-dialog) {
   border: var(--px-window-border) solid transparent;
@@ -157,23 +162,27 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin].desktop-windowed-ui .ui-window-active { box-shadow: var(--px-inner-shade), 6px 6px 0 rgba(0, 0, 0, .58); }
 :root body[data-ui-skin].desktop-windowed-ui :is(.ui-window-titlebar, .ui-window-active .ui-window-titlebar) {
-  border-bottom: 2px solid var(--px-ink);
+  border-bottom: 1px solid var(--px-ink);
   background: var(--px-wood-dark), var(--px-stone-raised);
-  box-shadow: inset 0 -2px 0 #5d4a2e;
+  box-shadow: inset 0 -1px 0 var(--px-bronze), inset 0 -2px 0 var(--px-ink);
 }
 :root body[data-ui-skin].desktop-windowed-ui .ui-window-body { background: transparent; }
+/* 창 안 제목: 옛 남색 밑줄(ui-luxe) → 청동 선 위 먹선, 글은 휴대폰 창 제목과 같은 금빛 */
+:root body[data-ui-skin].desktop-windowed-ui .ui-window-body h2 { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); color: var(--px-gold-bright); font-size: 16px; text-shadow: var(--px-text-edge); }
 :root body[data-ui-skin].desktop-windowed-ui .ui-window-actions button,
 :root body[data-ui-skin] .combat-action-btn,
+:root body[data-ui-skin] #btn-exploration-loot-skip,
 :root body[data-ui-skin] .ui-context-dock-tab,
 :root body[data-ui-skin] #ui-goal-toggle,
 :root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map,
 :root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-auto,
 :root body[data-ui-skin] #ui-rail-misc-toggle,
 :root body[data-ui-skin] .ui-rail-external-controls button,
-:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay) button,
+:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay, #loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) button,
 :root body[data-ui-skin] .game-dialog-btn,
+:root body[data-ui-skin] .tutorial-action-card button,
 :root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost, .startup-social-login > summary) {
-  border: 2px solid var(--px-ink);
+  border: 1px solid var(--px-ink);
   background: var(--px-board), var(--px-stone-control);
   box-shadow: var(--px-bevel);
   color: var(--px-copy);
@@ -186,7 +195,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map:hover,
 :root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-auto:hover,
 :root body[data-ui-skin] .ui-rail-external-controls button:hover,
-:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay) button:hover,
+:root body[data-ui-skin] :is(#act-exploration-dialog, #act-exploration-loot-dialog, #tutorial-overlay, #death-overlay, #loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) button:hover,
 :root body[data-ui-skin] .game-dialog-btn:hover:not(:disabled),
 :root body[data-ui-skin] #startup-overlay :is(.startup-secondary, .startup-ghost):hover:not(:disabled),
 :root body[data-ui-skin] #startup-overlay .startup-social-login > summary:hover {
@@ -196,21 +205,49 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 주 동작(시작·확인)은 금 테 밝은 판 */
 :root body[data-ui-skin] #startup-overlay .startup-primary,
 :root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary {
-  border: 2px solid var(--px-ink);
-  background: var(--px-board-hot), #5b3220;
+  border: 1px solid var(--px-ink);
+  background: var(--px-board-hot), #2a2420;
   box-shadow: var(--px-gold-rim);
   color: var(--px-gold-bright);
   text-shadow: var(--px-text-edge);
 }
 :root body[data-ui-skin] #startup-overlay .startup-primary:hover:not(:disabled),
-:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary:hover:not(:disabled) { background: var(--px-board-hot), #683a26; color: #fff4d6; }
+:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary:hover:not(:disabled) { background: var(--px-board-hot), #33291f; color: #fff4d6; }
 :root body[data-ui-skin] :is(.game-dialog-btn, #startup-overlay :is(.startup-primary, .startup-secondary, .startup-ghost)):active:not(:disabled) { box-shadow: var(--px-bevel-pressed); }
+/* 설정: 지금 저장은 주 동작(금 테), 초기화 · 삭제는 붉은 빗면(예전 초록 · 적갈 유리 판 대신) */
+:root body[data-ui-skin] .cfg-btn--save { border: 1px solid var(--px-ink); background: var(--px-board-hot), #2a2420; box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] :is(.cfg-btn--danger, .cfg-btn--danger-reset) {
+  border: 1px solid var(--px-ink);
+  background: var(--px-board), #2a1618;
+  box-shadow: inset 1px 1px 0 #c9665a, inset -1px -1px 0 #5a2620, inset 0 0 0 2px #7a3029, inset 0 0 0 3px var(--px-ink);
+  color: #f0b4aa;
+  text-shadow: var(--px-text-edge);
+}
+/* 잠긴 루프 패시브: 넓은 창 위쪽 한 줄 대신 가운데 안내 판 */
+:root body[data-ui-skin] #loop-passive-locked:not([hidden]) {
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  max-width: 440px;
+  min-height: 170px;
+  margin: 48px auto 16px;
+  padding: 24px;
+  border: var(--px-light-border) solid transparent;
+  border-image: var(--px-light-frame);
+  background: var(--px-panel);
+  background-clip: padding-box;
+  color: var(--px-copy);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
 /* 구글 로그인 버튼은 구글 표기 규정의 글꼴(Google Sans, css/startup.css)을 그대로 둔다. 카카오는 공식 그림 버튼. */
 :root body[data-ui-skin] #startup-overlay #btn-startup-google { font-family: 'Google Sans', sans-serif; }
+:root body[data-ui-skin] #startup-overlay .startup-policy-scroll .effective { color: var(--px-copy-muted); font-size: 12px; }
 /* 시작 화면의 로그인 판·저장 정보 */
 :root body[data-ui-skin] #startup-overlay :is(.startup-panel.auth, .startup-summary-card) {
-  border: 6px solid transparent;
-  border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+  border: var(--px-light-border) solid transparent;
+  border-image: var(--px-light-frame);
   border-radius: 0;
   background: var(--px-panel);
   background-clip: padding-box;
@@ -218,23 +255,58 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   image-rendering: pixelated;
 }
 /* 불러오기 막대: 2px 검은 테 안의 금빛 칸 */
-:root body[data-ui-skin] .loading-bar { height: 12px; border: 2px solid var(--px-ink); background: #0b0906; box-shadow: inset 0 2px 0 #000; }
-:root body[data-ui-skin] .loading-bar-fill { background: linear-gradient(180deg, #f3d28c 0 2px, #c99a4c 2px 6px, #8a6a32 6px); }
+:root body[data-ui-skin] .loading-bar { height: 12px; border: 1px solid var(--px-ink); background: #0d0b0f; box-shadow: inset 1px 1px 0 #000, inset -1px -1px 0 #3a2c30; }
+:root body[data-ui-skin] .loading-bar-fill { background: linear-gradient(180deg, #ffe39a 0 1px, #ecc476 1px 3px, #c48a44 3px 7px, #845f42 7px); }
 :root body[data-ui-skin] :is(.combat-action-btn, .ui-context-dock-tab, #ui-goal-toggle, .ui-rail-external-controls button):active,
 :root body[data-ui-skin].desktop-windowed-ui .ui-window-actions button:active,
 :root body[data-ui-skin] .ui-context-dock-tab.active {
   box-shadow: var(--px-bevel-pressed);
 }
 :root body[data-ui-skin] .ui-context-dock-tab.active { background: var(--px-wood-dark), var(--px-stone-raised); color: var(--px-gold-bright); }
+/* 사망 기록 분류 탭: 모든 오버레이 단추의 빗면이 예전 활성 표시를 덮어 두 탭이 같아 보였다 — 고른 쪽은 눌린 판 + 금 밑줄 */
+:root body[data-ui-skin] #death-overlay .deathlog-tab.active { background: var(--px-wood-dark), var(--px-stone-raised); box-shadow: var(--px-bevel-pressed), inset 0 -2px 0 var(--px-gold); color: var(--px-gold-bright); }
+/* 작은 머리글(예전 영문 대문자 자리): 한글이 되었으니 넓은 자간을 풀고 도트 12px */
+:root body[data-ui-skin] :is(.skill-panel-kicker, .cosmos-kicker, .ghost-duel-stage-label, .map-pvp-heading span, .beyond-head span, .beyond-farming header span, .arcana-vault-head span, .cosmos-arcana-quest span, .cosmos-mastery-card-head span, .gem-engrave-dialog-identity span, .equipment-preset-panel > header span) {
+  color: var(--px-gold);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* 도트 글꼴은 소수 크기에서 번진다: em · rem 배율로 소수가 되던 단추 · 수치 글씨를 정수 크기로 */
+:root body[data-ui-skin] :is(.combat-action-btn, .stat-unit, .stat-label, .rarity-filter-chip, .cfg-btn, .stump-filter, .passive-planner-toggle, .passive-planner-progress, .passive-tree-gesture-hint),
+:root body[data-ui-skin] :is(#ui-equipment-presets, #ui-skills-list, #ui-support-list, #passive-filter-row, #passive-tree-planner, #passive-search-clear, #stump-box-starter, #loop-passive-locked) button,
+:root body[data-ui-skin] :is(.mobile-section-navigation, .equipment-mobile-switch, .skill-mobile-library-navigation, .social-mobile-sheet-header) > button,
+:root body[data-ui-skin] :is(.passive-preset-drawer, .passive-search-drawer) > summary strong,
+:root body[data-ui-skin] :is(#passive-search-clear, #passive-search-close, .passive-investment-summary-toggle span, #ui-equipment-inventory-pages button span, .journal-section-title span),
+:root body[data-ui-skin] .journal-summary-main > div > span { font-size: 12px; }
+:root body[data-ui-skin] :is(.journal-section-title, .equipment-preset-panel > header strong) { font-size: 14px; }
+:root body[data-ui-skin] .journal-summary-main > b { font-size: 16px; }
+/* 작은 글(도감 카드 · 클라우드 계정 판 · 기록 · 해금 단계 · 루프 트리 요약)이 9.6~10.9px 소수 크기였다 — 도트 12px, 좁은 꼬리표는 11px */
+:root body[data-ui-skin] :is(.codex-card .item-base-line, .codex-card .item-stats, .cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
+:root body[data-ui-skin] :is(.records-stat-label, .records-note, .records-empty, .records-time-note summary, .records-section-title span, .unlock-depth-label, .unlock-lifetime-note, .trait-progress-summary span) { font-size: 12px; }
+:root body[data-ui-skin] .unlock-lifetime-tag { font-size: 11px; }
+:root body[data-ui-skin] #btn-auto-salvage::after { font-size: 11px; }
+:root body[data-ui-skin] #ui-passive-points { font-size: 20px; }
+:root body[data-ui-skin] :is(#tab-character, #tab-stump) h2,
+:root body[data-ui-skin] #tab-char h2 :is(span, .h2-right) { font-size: 16px; }
+/* 목표 판(PC 떠 있는 판 · 휴대폰 시트): 바로가기 줄과 이동 단추는 HUD 단추, 머리 꼬리표는 청동 테(예전 남색 알약) */
+:root body[data-ui-skin] .ui-goal-drawer :is(.ui-goal-action, .ui-goal-notice-action) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-board), var(--px-stone-control); box-shadow: var(--px-bevel); color: var(--px-copy); text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] .ui-goal-drawer :is(.ui-goal-action, .ui-goal-notice-action):hover { background: var(--px-board-hot), var(--px-stone-control); color: var(--px-gold-bright); }
+:root body[data-ui-skin] .ui-goal-drawer :is(.ui-goal-action, .ui-goal-notice-action):active { box-shadow: var(--px-bevel-pressed); }
+:root body[data-ui-skin] .ui-goal-badge { border: 1px solid var(--px-bronze); border-radius: 0; background: var(--px-stone); color: var(--px-gold); font-size: 12px; letter-spacing: 0; }
+/* 커뮤니티 안내 글씨는 em 배율(11.18 · 9.5px)이라 도트가 번졌다 — 정수 크기로 */
+:root body[data-ui-skin] :is(.ui-community-dock, #tab-social) .social-notice,
+:root body[data-ui-skin] :is(.ui-community-dock, #tab-social) .social-notice :is(button, strong, p) { font-size: 12px; }
 
 /* 가벼운 판: 전장 위에 떠 있는 판(전투 기록·목표·메뉴 레일·툴팁) */
 :root body[data-ui-skin].desktop-windowed-ui .combat-feed,
 :root body[data-ui-skin].desktop-windowed-ui .tab-header,
 :root body[data-ui-skin].desktop-windowed-ui .ui-goal-panel,
 :root body[data-ui-skin] :is(#item-tooltip-box, #info-tooltip, #canvas-tooltip):not(.item-compare-tooltip),
+:root body[data-ui-skin] .tutorial-action-card,
 :root body[data-ui-skin] .item-compare-tooltip :is(.item-tooltip-main, .item-compare-single, .item-compare-grid) {
-  border: 6px solid transparent;
-  border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+  border: var(--px-light-border) solid transparent;
+  border-image: var(--px-light-frame);
   border-radius: 0;
   background: var(--px-panel);
   background-clip: padding-box;
@@ -247,26 +319,141 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   margin: -12px -12px 8px;
   border-bottom: 2px solid var(--px-ink);
   background: color-mix(in srgb, var(--tooltip-rarity) 16%, var(--px-stone));
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--tooltip-rarity) 45%, #2a2116);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--tooltip-rarity) 45%, var(--px-bronze-lo));
   font-size: 15px;
   text-shadow: var(--px-text-edge);
 }
 :root body[data-ui-skin] #item-tooltip-box .tooltip-line.tooltip-section::before,
-:root body[data-ui-skin] #item-tooltip-box .tooltip-line.tooltip-section::after { height: 2px; background: repeating-linear-gradient(90deg, #4b4235 0 2px, transparent 2px 4px); }
+:root body[data-ui-skin] #item-tooltip-box .tooltip-line.tooltip-section::after { height: 1px; background: repeating-linear-gradient(90deg, var(--px-bronze-lo) 0 2px, transparent 2px 4px); }
 
-/* 움푹한 칸: 입력 */
+/* 움푹한 칸: 입력(HUD 그림의 숯빛 판을 한 단 파낸 자리 — 위 · 왼 그늘, 아래 · 오른 어두운 청동) */
 :root body[data-ui-skin] :is(.search-filter-input, input[type="search"], input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea, select) {
-  border: 2px solid var(--px-ink);
-  background-color: #140b07;
-  box-shadow: inset 2px 2px 0 #050302, inset -2px -2px 0 #5b3220;
+  border: 1px solid var(--px-ink);
+  background-color: #141216;
+  background-image: none; /* 공용 입력 규칙(components/modals.css)의 남색 그라데이션을 걷어 낸다 */
+  border-radius: 0;
+  box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30;
 }
+:root body[data-ui-skin] :is(.search-filter-input, input, textarea, select):focus-visible { box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 var(--px-bronze); }
 
 /* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 별쐐기 · 검색 목록 · 전장 여백) */
 :root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #ui-star-wedge-panel, #passive-investment-summary) { background-color: var(--color-panel-bg); }
+/* 진행 판(루프 패시브 · 전직 · 재능 · 일괄 정리의 접는 판)과 트리 요약: 옛 남색 유리 → 숯빛 판, 먹선 안쪽 어두운 청동 선 */
+:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more, .trait-progress-summary, .loop10-panel, .loop10-entry-box) {
+  border: 1px solid var(--px-ink);
+  border-radius: 0;
+  background: var(--px-panel);
+  box-shadow: inset 0 0 0 1px var(--px-bronze-lo);
+}
+:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more)[open] > summary { border-bottom: 1px solid var(--px-bronze-lo); }
+:root body[data-ui-skin] .trait-progress-summary > div { border-radius: 0; background: rgba(8, 5, 8, .35); }
+:root body[data-ui-skin] .loop10-panel { padding: 12px; }
+:root body[data-ui-skin] .loop10-entry-box { margin-bottom: 8px; padding: 10px; background: var(--px-wood-dark), var(--px-stone-raised); }
+:root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
+/* 재능 개화: 남색 · 보라 유리 판 → 숯빛 판. 개화의 보라는 요약 왼쪽 띠에만 남긴다. */
+:root body[data-ui-skin] .talent-bloom-summary { border-radius: 0; border-left: 3px solid #b88ad8; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy); }
+:root body[data-ui-skin] :is(.talent-bloom-navigator, .talent-current-combo, .talent-loadout-panel) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); }
+:root body[data-ui-skin] .talent-current-combo { background: var(--px-wood-dark), var(--px-stone-raised); }
+:root body[data-ui-skin] .talent-bloom-navigator[open] > summary { border-bottom: 1px solid var(--px-bronze-lo); }
+:root body[data-ui-skin] :is(.talent-combo-status, .talent-bloom-empty) { border-color: var(--px-bronze-lo); border-radius: 0; }
+:root body[data-ui-skin] .talent-slot { border-radius: 0; border-color: var(--px-bronze-lo); background: #141216; }
+:root body[data-ui-skin] .talent-slot.filled { border-color: var(--px-gold); background: var(--px-stone-raised); }
+/* 젬 카드 꼬리표 · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
+:root body[data-ui-skin] .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); }
+:root body[data-ui-skin] :is(.gem-card-footer, .offline-progress-upgrade) { border-color: var(--px-bronze-lo); }
+:root body[data-ui-skin] .orb-tone { border-color: var(--px-bronze-lo); border-radius: 0; }
+:root body[data-ui-skin] .cloud-status-pill { border-radius: 0; }
+:root body[data-ui-skin] .cloud-status-pill:not(.online, .syncing, .error) { border-color: var(--px-bronze-lo); background: var(--px-stone-raised); }
+:root body[data-ui-skin] .passive-tree-planner { background: var(--px-panel); }
+/* 젬 공방(성장 · 각인)과 대전 판: 남색 유리 → 숯빛 판. 각인 등급색(기본 · 제작 · 각성)은 꼬리표 글자색이 그대로 맡는다. */
+:root body[data-ui-skin] :is(.gem-target-rail, .gem-forge-detail, .gem-enhance-section, .gem-engrave-orbit, .ghost-arena) {
+  border: 1px solid var(--px-ink);
+  border-radius: 0;
+  background: var(--px-panel);
+  box-shadow: inset 0 0 0 1px var(--px-bronze-lo);
+}
+:root body[data-ui-skin] :is(.gem-resource-strip, .gem-engrave-slot-guide, .gem-process-empty) { border-color: var(--px-bronze-lo); border-radius: 0; background: rgba(8, 5, 8, .45); }
+:root body[data-ui-skin] .gem-section-index { border-color: var(--px-bronze); border-radius: 0; color: var(--px-gold); font-size: 12px; }
+:root body[data-ui-skin] :is(#tab-skills, .gem-engrave-slot-dialog) .gem-engrave-option:not(.applied) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-board), var(--px-stone-control); box-shadow: var(--px-bevel); }
+:root body[data-ui-skin] :is(#tab-skills, .gem-engrave-slot-dialog) .gem-engrave-option.applied { border-radius: 0; box-shadow: var(--px-gold-rim); }
+:root body[data-ui-skin] .ghost-arena > header { background: var(--px-wood-dark), var(--px-stone-raised); }
+/* 공방의 7 ~ 10px 글씨(각인 꼬리표 · 층 · 안내)는 카드 폭이 넉넉해 도트 12px로 */
+:root body[data-ui-skin] :is(.gem-engrave-top :is(em, b), .gem-forge-heading p, .gem-process-empty button, .gem-engrave-slot-guide :is(strong, span)) { font-size: 12px; }
+:root body[data-ui-skin] .gem-engrave-top em { border-radius: 0; }
+:root body[data-ui-skin] .gem-engrave-slot-guide strong { white-space: nowrap; }
+/* 패시브 트리 위 서랍(별쐐기 · 프리셋): 예전 보라 · 파랑 유리 판 → 가벼운 판, 머리띠는 청동 선 아래 어두운 판 */
+:root body[data-ui-skin] :is(.passive-star-wedge-drawer, .passive-preset-drawer) {
+  border: var(--px-light-border) solid transparent;
+  border-image: var(--px-light-frame);
+  border-radius: 0;
+  background: var(--px-panel);
+  background-clip: padding-box;
+  box-shadow: var(--px-drop);
+  color: var(--px-copy);
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] :is(.passive-star-wedge-drawer, .passive-preset-drawer) > summary { background: var(--px-wood-dark), var(--px-stone-raised); color: var(--px-gold); text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] :is(.passive-star-wedge-drawer, .passive-preset-drawer)[open] > summary { border-bottom: 1px solid var(--px-ink); box-shadow: 0 1px 0 var(--px-bronze); }
+:root body[data-ui-skin] .passive-star-wedge-drawer > summary span { color: var(--px-copy-muted); }
+:root body[data-ui-skin] .passive-search-drawer > summary { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-board), var(--px-stone-control); box-shadow: var(--px-bevel); color: var(--px-copy); }
 :root body[data-ui-skin] .battlefield-wrap { background-color: var(--skin-canvas); }
 :root body[data-ui-skin] .bulk-salvage-action.equipment-action-muted { background: var(--px-board), var(--px-stone-control); }
 
 /* 흐린 그림자·빛 번짐 대신 도트 그림자 */
 :root body[data-ui-skin] :focus-visible { outline-color: var(--px-gold-bright); }
-:root body[data-ui-skin] * { scrollbar-color: #55555f #140b07; }
+:root body[data-ui-skin] * { scrollbar-color: var(--px-bronze) #141216; }
+
+/* ─── 전면 오버레이(직업 선택 · 루프 정산 · 보상 · 패치 노트) ─────────────────────────────── */
+/* 머리글은 금빛(안내 카드의 종류별 색은 #tutorial-overlay 규칙이 그대로 둔다). 예전 스킨의 위쪽 푸른 빛줄은 뺀다. */
+:root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) .tutorial-kicker { color: var(--px-gold); }
+:root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) .tutorial-card::before { content: none; }
+/* 루프 결정 문장은 짧은 안내라 위 정산 문구와 같은 도트 글씨(긴 글 갈무리 규칙에서 뺀다) */
+:root body[data-ui-skin] .loop-settlement-card .tutorial-body { font-family: inherit; font-size: 12px; line-height: 1.6; }
+/* 직업 카드: HUD 단추 결(먹선 · 청동 빗면 · 숯빛 판), 올리면 금빛 테. 초상 아래 이름 띠는 청동 선 위 어두운 판. */
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 4px;
+  border-radius: 0;
+  transform: none;
+}
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice::before { content: none; }
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice:hover:not(:disabled) { box-shadow: var(--px-gold-rim); transform: translateY(-2px); }
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { position: static; flex: 0 0 auto; width: 100%; height: 150px; border-radius: 0; object-position: center bottom; filter: none; }
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong {
+  flex: 1 1 auto;
+  margin: 0;
+  width: auto;
+  padding: 7px 8px;
+  border-top: 1px solid var(--px-bronze);
+  background: rgba(8, 5, 8, .88);
+  color: var(--px-gold-bright);
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 0;
+  text-shadow: var(--px-text-bold);
+}
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { color: var(--px-copy); font-family: var(--font-pixel); font-size: 12px; text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-badge { border: 1px solid var(--px-bronze); border-radius: 0; background: var(--px-stone); color: var(--px-gold); font-size: 12px; }
+@media (max-width: 1080px) {
+  /* 휴대폰: 고르는 오버레이(직업 · 루프 · 보상 · 사망 · 패치 노트)는 하단 메뉴 띠(z 13100)보다 위 — 아래 줄 카드가 메뉴에 가려
+     누를 수 없던 문제. 판은 화면 안에서 스크롤한다. 안내 카드(#tutorial-overlay)는 화면을 막지 않도록 그대로 둔다. */
+  :root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) { z-index: 13200; }
+  :root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) .tutorial-card { max-height: calc(100dvh - 16px); overflow-y: auto; }
+}
+@media (max-width: 760px) {
+  /* 좁은 화면: 초상은 작게, 설명은 한 줄 말줄임 대신 여러 줄 */
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { white-space: normal; text-overflow: clip; line-height: 1.35; }
+}
+}
+
+@layer components {
+/* base.css의 기본 제목 색(h3 주황 · h2 남보라 밑줄)만 스킨 색으로 — 휴대폰 창의 소제목이 주황으로 남았다.
+   :where로 우선순위를 0에 두어 영역마다 정한 색 규칙은 그대로 이긴다. */
+:where(body[data-ui-skin]) h3 { color: var(--px-copy); }
+:where(body[data-ui-skin]) h2 { border-bottom-color: var(--px-bronze-lo); }
 }

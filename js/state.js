@@ -1588,7 +1588,7 @@ const SUPPORT_GEM_DB = {
     '투사체 강화': { baseVal: 5, scale: 2.0, stat: 'projectilePctDmg', name: '투사체 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '투사체 태그 스킬을 강화합니다.' },
     '원소 집중': { baseVal: 5, scale: 2.0, stat: 'elementalPctDmg', name: '원소 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '원소 태그 스킬을 강화합니다.' },
     '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '범위 태그 스킬의 피해를 높입니다.' },
-    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, resonanceCosts: [6, 12, 21], desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
+    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, resonanceCosts: [6, 12, 21], desc: '지속 피해 태그 스킬의 지속 피해 배율을 올립니다.' },
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '치명타 배율을 높입니다.' },
     '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, resonanceCosts: [3, 9, 18], desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, resonanceCosts: [9, 21, 33], desc: '한 번 더 타격할 확률을 부여합니다.' },

@@ -49,9 +49,9 @@ const actExplorationUi=(()=>{
     }
     // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
     // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다.
-    // 전장 위 미니맵은 플레이어 주변 MINI_VIEW칸만, 크게 보기 창은 지도 전체를 그린다(클릭 좌표는 같은 창(view)으로 환산).
+    // 전장 위 미니맵은 플레이어 주변 MINI_VIEW칸만(13칸: 둥근 창에 방이 크게 들어차게), 크게 보기 창은 지도 전체를 그린다(클릭 좌표는 같은 창(view)으로 환산).
     const MAP_INK={fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',floorAlt:'#877a58',wall:'#26342c',edge:'rgba(240,214,150,.85)'};
-    const MINI_VIEW=21;
+    const MINI_VIEW=13;
     function mapView(canvas,map) {
         if(canvas.id!=='act-exploration-map')return {x0:0,y0:0,cols:map.columns,rows:map.rows,scale:10};
         const cols=Math.min(MINI_VIEW,map.columns),rows=Math.min(MINI_VIEW,map.rows);

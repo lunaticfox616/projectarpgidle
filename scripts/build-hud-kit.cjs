@@ -23,6 +23,8 @@ const GEOMETRY = {
     amber: { file: 'exp-orb.png', cx: 68, cy: 72.5, r: 50 },
     map: { file: 'mini-map.png', cx: 103, cy: 113.5, r: 65, grow: 3 },
     key: { file: 'inventory-button.png', size: 40, corner: 6, band: 6 },
+    // 창 테: 같은 단추를 9칸으로. corner = 모서리 조각(매듭 포함), knot = 모서리에서 잰 매듭 삼각형 크기(x+y), band = 테 두께.
+    window: { corner: 26, knot: 28, band: 6 },
 };
 
 // ─── 도트 다루기 ────────────────────────────────────────────────────────
@@ -171,6 +173,69 @@ function litKey(img, lift) {
     return out;
 }
 
+// ─── 창 · 단추 · 칸 · 판(2026-10-01): UI 전체를 HUD 그림의 결로 ─────────────────────────
+// 원본 단추의 테를 도트 단위로 읽은 색: 먹선 · 윗/왼 청동 빛 · 청동 · 아래/오른 어두운 청동 · 안쪽 그늘 · 숯빛 판.
+const KIT = { ink: '#080508', hiTop: '#ecc476', hiSide: '#c59862', midTop: '#845f42', midSide: '#70513d', dark: '#483239', shade: '#19161c', panel: '#1e1c22' };
+// 올렸을 때(조금 밝게) · 주 동작과 열린 상태(금빛, 원본 hud-key-on과 같은 방향) · 눌렀을 때(빛이 뒤집힘).
+const KIT_TONES = {
+    base: KIT,
+    hot: { ...KIT, hiTop: '#f6d898', hiSide: '#dcb074', midTop: '#9e7148', midSide: '#8a6243', dark: '#574038', panel: '#25222a' },
+    on: { ...KIT, hiTop: '#ffe39a', hiSide: '#f0c46e', midTop: '#c48a44', midSide: '#a8753c', dark: '#6a4a2e', panel: '#2a2420' },
+    down: { ...KIT, hiTop: '#483239', hiSide: '#483239', midTop: '#2c2126', midSide: '#2c2126', dark: '#845f42', panel: '#19161c' },
+};
+const rgbaOf = color => parse(color);
+/** The side of a square a pixel belongs to (nearest edge; ties go to top, then left) and how deep it sits. */
+function edgeOf(x, y, last) {
+    const d = { top: y, left: x, bottom: last - y, right: last - x };
+    const side = ['top', 'left', 'bottom', 'right'].reduce((a, b) => (d[a] <= d[b] ? a : b));
+    return { side, depth: d[side] };
+}
+/** Button frame 9×9 (9-slice 4): ink · light · bronze · ink, lit from the top left like the kit buttons; the centre is the panel. */
+function bevelFrame(tone) {
+    const n = 9, last = n - 1, out = blank(n, n);
+    each(out, (x, y) => {
+        if ((x === 0 || x === last) && (y === 0 || y === last)) return;
+        const { side, depth } = edgeOf(x, y, last), lit = side === 'top' || side === 'left';
+        const rows = [tone.ink, lit ? (side === 'top' ? tone.hiTop : tone.hiSide) : tone.midSide,
+            lit ? (side === 'top' ? tone.midTop : tone.midSide) : tone.dark, tone.ink];
+        put(out, x, y, rgbaOf(depth < rows.length ? rows[depth] : tone.panel));
+    });
+    return out;
+}
+/** Sunken field 5×5 (9-slice 2): ink, then shadow on the top left and dim bronze on the bottom right, dark centre. */
+function insetFrame() {
+    const n = 5, last = n - 1, out = blank(n, n);
+    each(out, (x, y) => {
+        const { side, depth } = edgeOf(x, y, last);
+        const color = depth === 0 ? KIT.ink : depth === 1 ? (side === 'top' || side === 'left' ? '#0d0b0f' : '#3a2c30') : '#141216';
+        put(out, x, y, rgbaOf(color));
+    });
+    return out;
+}
+/** Window / panel frame: the kit's square button grown to any size — its bronze bevel, rounded corners and the Celtic knot
+ * triangles in each corner (a triangular mask keeps the icon out), a flat charcoal centre. 9-slice `corner`. */
+function windowFrame(img, { corner, knot, band }) {
+    const size = corner * 2 + 1, last = size - 1, out = blank(size, size), panel = rgbaOf(KIT.panel);
+    const midX = Math.floor(img.w / 2), midY = Math.floor(img.h / 2);
+    const source = (v, length, mid) => (v < corner ? v : v > last - corner ? length - 1 - (last - v) : mid);
+    each(out, (x, y) => {
+        const sx = source(x, img.w, midX), sy = source(y, img.h, midY);
+        const dx = Math.min(sx, img.w - 1 - sx), dy = Math.min(sy, img.h - 1 - sy);
+        put(out, x, y, dx < band || dy < band || dx + dy < knot ? at(img, sx, sy) : panel);
+    });
+    return out;
+}
+/** Charcoal panel tile: the kit panel colour with sparse one-dot specks (never a pattern that repeats visibly). */
+function panelTile(base, seed) {
+    const n = 64, out = blank(n, n), [r, g, b] = rgbaOf(base);
+    const speck = (x, y) => (((x * 73856093) ^ (y * 19349663) ^ (seed * 83492791)) >>> 0) % 1000 / 1000;
+    each(out, (x, y) => {
+        const s = speck(x, y), lift = s < .035 ? 7 : s > .975 ? -5 : 0;
+        put(out, x, y, [r + lift, g + lift, b + lift, 255]);
+    });
+    return out;
+}
+
 function build() {
     const life = load(GEOMETRY.life.file), amber = load(GEOMETRY.amber.file);
     measureGlass(life, GEOMETRY.life);
@@ -188,6 +253,14 @@ function build() {
         'hud-map-window.png': mapWindow(GEOMETRY.map, 4),
         'hud-key.png': key,
         'hud-key-on.png': litKey(key, 40),
+        'hud-window.png': windowFrame(trim(load(GEOMETRY.key.file)), GEOMETRY.window),
+        'hud-btn.png': bevelFrame(KIT_TONES.base),
+        'hud-btn-hot.png': bevelFrame(KIT_TONES.hot),
+        'hud-btn-on.png': bevelFrame(KIT_TONES.on),
+        'hud-btn-down.png': bevelFrame(KIT_TONES.down),
+        'hud-inset.png': insetFrame(),
+        'hud-panel.png': panelTile(KIT.panel, 3),
+        'hud-panel-dark.png': panelTile(KIT.shade, 5),
     };
 }
 

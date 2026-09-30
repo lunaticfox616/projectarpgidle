@@ -10,7 +10,7 @@ function isPlayerExchangeServerReady() {
 function getPlayerExchangeError(error) {
     let raw = String(error && error.message || error || '알 수 없는 오류');
     if (/PGRST202|function[^\n]*get_player_hall[^\n]*does not exist|relation[^\n]*hall_listings[^\n]*does not exist/i.test(raw)) {
-        return '장비 전당 서버 SQL이 아직 적용되지 않았습니다.';
+        return '장비 전당 서버를 준비 중입니다. 잠시 후 다시 열어주세요.';
     }
     let messages = {
         AUTH_REQUIRED: '클라우드 로그인이 필요합니다.', CLOUD_SAVE_NOT_FOUND: '먼저 클라우드 저장을 완료해주세요.',
@@ -79,7 +79,7 @@ function applyPlayerExchangeServerState(result, mutation) {
 }
 
 async function preparePlayerExchangeMutation(reason) {
-    if (!isPlayerExchangeServerReady()) throw new Error('전당 서버 SQL 적용과 클라우드 로그인이 필요합니다.');
+    if (!isPlayerExchangeServerReady()) throw new Error(cloudState && cloudState.user ? '장비 전당 서버를 준비 중입니다.' : '클라우드 로그인이 필요합니다.');
     if (!saveGame({ skipCloudSync: true })) throw new Error('로컬 저장에 실패하여 전당 작업을 중단했습니다.');
     await pushCloudSave({ touchModifiedAt: true, reason });
 }
@@ -248,8 +248,14 @@ function renderMyHallListings() {
         `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}</small>`)).join('');
 }
 
+/** 전당을 못 여는 까닭: 로그인 전이면 로그인 단추, 로그인했는데 서버가 준비 전이면 기다려 달라는 말. */
+function playerHallUnavailableHtml() {
+    if (cloudState && cloudState.user) return '<div class="player-exchange-empty">장비 전당 서버를 준비 중입니다. 잠시 후 다시 열어주세요.</div>';
+    return '<div class="player-exchange-empty">장비 전당은 클라우드 로그인 후 이용할 수 있습니다.<button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>';
+}
+
 function renderPlayerHallPanel() {
-    if (!isPlayerExchangeServerReady()) return '<div class="player-exchange-empty">클라우드 로그인과 전당 SQL 적용 후 이용할 수 있습니다.</div>';
+    if (!isPlayerExchangeServerReady()) return playerHallUnavailableHtml();
     playerExchangeState.itemTips.clear();
     let data = playerExchangeState.data || {};
     let activeCount = (Array.isArray(data.mine) ? data.mine : [])

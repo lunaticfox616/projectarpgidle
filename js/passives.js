@@ -5903,7 +5903,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
         return false;
     }
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
-    if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
+    if (kickerEl) kickerEl.innerText = options.kicker || '다음 루프';
     if (titleEl) titleEl.innerText = options.title || '다음 루프 직업 선택';
     if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 직업을 선택하세요.';
     let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
@@ -6416,7 +6416,9 @@ function openActReward(zoneId) {
     if (!getAvailableActRewardZoneIds().includes(zoneId)) return;
     activeRewardZoneId = zoneId;
     let storyAct = getStoryActByZoneId(zoneId);
-    document.getElementById('reward-title').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상 - ${storyAct.title}` : config.title;
+    // 머리글이 "액트 N 클리어 보상", 제목은 지역 이름만(예전에는 둘 다 '클리어 보상'을 되풀이했다).
+    document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
+    document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
     document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId).map((choice, index) => !isActRewardChoiceAvailable(choice) ? '' : `
         <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
@@ -6917,8 +6919,8 @@ function initBattleAssets() {
         if (typeof advanceLoadingOverlay === 'function') {
             advanceLoadingOverlay({
                 progress: progress,
-                detail: `전투 에셋 로딩 중... (${loaded}/${totalAssets})`,
-                caption: '전투 이미지 준비'
+                detail: `그림 불러오는 중 (${loaded}/${totalAssets})`,
+                caption: '전투 그림 준비'
             });
         }
     }
@@ -10655,7 +10657,7 @@ function syncSalvageControlsFromSettings() {
         let enabled = !!game.settings.autoSalvageEnabled;
         btn.textContent = '드랍 필터';
         btn.dataset.enabled = String(enabled);
-        btn.setAttribute('aria-label', `드랍 필터 · 자동해체 ${enabled ? 'ON' : 'OFF'}`);
+        btn.setAttribute('aria-label', `드랍 필터 · 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
     }
 }
 

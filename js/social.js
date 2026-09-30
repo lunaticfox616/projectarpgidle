@@ -859,7 +859,7 @@ function openItemPicker() {
     socialState.pickTips = {};
     let groups = getChatItemPickerGroups().map(renderChatItemPickerGroup).join('');
     modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
-        <div class="social-modal-content"><h3 style="color:var(--copy-bright);margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>${groups}</div></div>`;
+        <div class="social-modal-content"><h3 style="color:var(--copy-bright);margin-top:0;">첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>${groups}</div></div>`;
     modal.style.display = 'flex';
 }
 function closeItemPicker() { hideSocialTip(); let m = document.getElementById('social-item-picker-modal'); if (m) m.style.display = 'none'; }
@@ -1286,13 +1286,13 @@ function renderSocialTab() {
         let checkingCloud = typeof cloudState !== 'undefined' && cloudState
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
-            ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<h2>💬 커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+            ? `<h2>커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
+            : `<h2>커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
         stopChatPolling();
         return;
     }
     root.innerHTML = `
-        <h2>💬 커뮤니티</h2>
+        <h2>커뮤니티</h2>
         <div class="social-toolbar">
             <div class="social-profile-summary"><span>현재 사용자</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong></div>
             <div class="social-toolbar-actions">
@@ -1332,7 +1332,8 @@ function injectSocialStyles() {
     if (document.getElementById('social-styles')) return;
     let style = document.createElement('style');
     style.id = 'social-styles';
-    style.textContent = `
+    // 레이어 안에 둔다: 레이어 밖 CSS는 모든 @layer 규칙(스킨 포함)을 이겨 테마가 덮지 못한다.
+    style.textContent = `@layer components {
     .social-notice{color:var(--copy-bright);font-size:0.86em;line-height:1.5;}
     .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
     .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
@@ -1425,7 +1426,7 @@ function injectSocialStyles() {
     .social-pick-item:hover{background:#16243a;}
     .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}
     .social-tooltip .social-item-card{background:#0c1421;border-width:1px;border-left-width:3px;}
-    `;
+    }`;
     document.head.appendChild(style);
 }
 

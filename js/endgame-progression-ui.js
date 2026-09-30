@@ -95,7 +95,7 @@ function renderArcanaPanel() {
     }
     if (!findArcanaCopy(selectedArcanaCardUid, game) || getArcanaCardPlacement(selectedArcanaCardUid, game)) selectedArcanaCardUid = null;
     let available = arcana.cards.filter(copy => !getArcanaCardPlacement(copy.uid, game));
-    let html = `<section class="arcana-vault-head"><div><span>SEALED ARCANA</span><strong>봉인 카드 ${arcana.sealedCards}장</strong></div><button type="button" onclick="openSealedArcanaCard()" ${arcana.sealedCards > 0 ? '' : 'disabled'}>봉인 해제</button></section>
+    let html = `<section class="arcana-vault-head"><div><span>봉인 아르카나</span><strong>봉인 카드 ${arcana.sealedCards}장</strong></div><button type="button" onclick="openSealedArcanaCard()" ${arcana.sealedCards > 0 ? '' : 'disabled'}>봉인 해제</button></section>
         <p class="arcana-rule">카드 한 장은 덱 또는 장비 슬롯 한 곳에만 놓을 수 있습니다. 덱은 전역 효과, 장비 슬롯은 그 부위에 붙은 지정 옵션을 증폭합니다.</p>
         ${renderArcanaWorkspace(arcana, available)}`;
     if (panel.__lastHtml !== html) panel.innerHTML = html;
@@ -377,9 +377,9 @@ function renderBeyondBoundaryPanel() {
         ? `<div class="beyond-run-state"><strong>${run.tier}단계 진행 중</strong><span>${run.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우</span></div>`
         : `<div class="beyond-tier-controls"><button type="button" onclick="stepBeyondBoundaryTier(-1)" ${state.selectedTier <= 1 ? 'disabled' : ''}>−</button><label>도전 단계<input type="number" min="1" max="${state.highestTier}" value="${state.selectedTier}" onchange="setBeyondBoundaryTier(this.value)"></label><button type="button" onclick="stepBeyondBoundaryTier(1)" ${state.selectedTier >= state.highestTier ? 'disabled' : ''}>＋</button></div>`;
     let action = renderBeyondBoundaryStartAction(state);
-    panel.innerHTML = `<section class="beyond-head"><div><span>BEYOND THE BOUNDARY</span><h3>경계 너머</h3><p>다섯 조우를 연속 돌파해 빌드의 한계를 시험합니다. 마지막 조우는 보스전입니다.</p></div><dl><div><dt>최고 도달</dt><dd>${state.bestTier}단계</dd></div><div><dt>도전 가능</dt><dd>${state.highestTier}단계</dd></div><div><dt>완료</dt><dd>${state.completions}회</dd></div></dl></section>
+    panel.innerHTML = `<section class="beyond-head"><div><span>연속 조우 도전</span><h3>경계 너머</h3><p>다섯 조우를 연속 돌파해 빌드의 한계를 시험합니다. 마지막 조우는 보스전입니다.</p></div><dl><div><dt>최고 도달</dt><dd>${state.bestTier}단계</dd></div><div><dt>도전 가능</dt><dd>${state.highestTier}단계</dd></div><div><dt>완료</dt><dd>${state.completions}회</dd></div></dl></section>
         <section class="beyond-challenge"><div>${tierControls}<div class="beyond-mutators">${renderBeyondBoundaryMutators(selectedTier)}</div>${estimate}</div><div class="beyond-actions">${action}</div></section>
-        <section class="beyond-farming"><header><div><span>FARMING FOCUS</span><h3>완료 보상 집중</h3></div><p>원하는 파밍 계열을 고릅니다. 위험은 보상 계열에 따라 달라지고, 조율 재화는 도전 시작 때 한 번만 소모됩니다.</p></header><div class="beyond-focus-grid">${renderBeyondBoundaryRewardFocuses(state)}</div><div class="beyond-intensity-grid">${renderBeyondBoundaryIntensities(state)}</div></section>
+        <section class="beyond-farming"><header><div><span>파밍 집중</span><h3>완료 보상 집중</h3></div><p>원하는 파밍 계열을 고릅니다. 위험은 보상 계열에 따라 달라지고, 조율 재화는 도전 시작 때 한 번만 소모됩니다.</p></header><div class="beyond-focus-grid">${renderBeyondBoundaryRewardFocuses(state)}</div><div class="beyond-intensity-grid">${renderBeyondBoundaryIntensities(state)}</div></section>
         <section class="beyond-seals"><header><div><span>완료 보상</span><h3>경계 인장 성장</h3></div><p>선택한 인장에 완료 경험치가 들어갑니다. 획득한 모든 인장 효과는 누적 적용됩니다.</p></header><div>${BEYOND_BOUNDARY_SEAL_DB.map(seal => renderBeyondBoundarySeal(seal, state)).join('')}</div></section>`;
 }
 

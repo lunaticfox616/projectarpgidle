@@ -32,8 +32,8 @@ body[data-ui-skin] {
   aspect-ratio: auto;
   box-sizing: border-box;
   padding: 6px 10px 8px 4px;
-  border: 10px solid transparent;
-  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+  border: var(--px-plate-border) solid transparent;
+  border-image: var(--px-plate-frame);
   background: var(--px-wood-dark), var(--px-stone);
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
@@ -175,7 +175,10 @@ body[data-ui-skin] {
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text > #ui-hp { font-size: 12px; }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text > #ui-maxhp { padding: 1px 3px 0; border-top: 2px solid rgba(255, 236, 214, .5); color: #f1c9bd; font-size: 12px; }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame[data-energy-shield] .combat-hp-bar .hp-text { padding-bottom: 12px; }
+/* 보호막 글자: 막대 시절의 max-width 18 ~ 20%(말줄임)가 구슬에서는 "E…"만 남겼다 — 구슬 폭 전체를 쓴다 */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text {
+  overflow: hidden;
+  max-width: none;
   position: absolute;
   top: 64%;
   right: 0;
@@ -243,7 +246,7 @@ body[data-ui-skin] {
   height: 10px;
   min-height: 0;
   margin: 0;
-  border: 2px solid var(--px-ink);
+  border: 1px solid var(--px-ink);
   border-radius: 0;
   background: #0b0906;
   box-shadow: inset 0 2px 0 #000;
@@ -300,13 +303,13 @@ body[data-ui-skin] {
   min-width: 0;
   min-height: 0;
   padding: 2px;
-  border: 2px solid var(--px-ink);
-  background: var(--px-dither), #0d0b08;
-  box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24;
+  border: 1px solid var(--px-ink);
+  background: var(--px-dither), #141216;
+  box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30;
 }
-:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 48px; width: 48px; height: 48px; box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24, inset 0 0 0 4px rgba(217, 176, 102, .72); }
-:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24, inset 0 0 0 4px rgba(150, 104, 190, .7); }
-:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.mobility { box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #4a3a24, inset 0 0 0 4px rgba(118, 160, 104, .7); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 48px; width: 48px; height: 48px; box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30, inset 0 0 0 4px rgba(217, 176, 102, .72); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30, inset 0 0 0 4px rgba(150, 104, 190, .7); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.mobility { box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30, inset 0 0 0 4px rgba(118, 160, 104, .7); }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.just-cast { box-shadow: inset 0 0 0 2px var(--px-gold-bright), inset 0 0 0 4px rgba(243, 210, 140, .45); }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot .player-hud-skill-cooldown:not([hidden]) { font-size: 12px; text-shadow: var(--px-text-outline); }
 
@@ -352,8 +355,8 @@ body[data-ui-skin] {
   aspect-ratio: auto;
   margin: 2px 0 0;
   overflow: visible;
-  border: 6px solid transparent;
-  border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+  border: var(--px-light-border) solid transparent;
+  border-image: var(--px-light-frame);
   background: #0b0606;
   background-clip: padding-box;
   box-shadow: var(--px-drop);
@@ -364,8 +367,8 @@ body[data-ui-skin] {
 :root body[data-ui-skin] #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame {
   width: min(100%, 480px);
   height: 30px;
-  border-width: 10px;
-  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+  border-width: var(--px-light-border);
+  border-image: var(--px-light-frame);
 }
 :root body[data-ui-skin] #enemy-area .enemy-card.targeted .enemy-health-frame > .hp-bar-bg { position: absolute; inset: 0; height: auto; }
 :root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track { inset: 0; height: auto; background: #1a0709; box-shadow: inset 0 2px 0 #000; }
@@ -386,12 +389,18 @@ body[data-ui-skin] {
 }
 :root body[data-ui-skin] #enemy-area .enemy-nameplate {
   padding: 2px 10px;
-  border: 2px solid var(--px-ink);
+  border: 1px solid var(--px-ink);
   background: var(--px-panel);
-  box-shadow: inset 2px 2px 0 #5a3c33, inset -2px -2px 0 #2a1714, var(--px-drop);
+  box-shadow: inset 1px 1px 0 var(--px-bronze), inset -1px -1px 0 var(--px-shade, #19161c), var(--px-drop);
 }
 :root body[data-ui-skin] #enemy-area .enemy-nameplate .enemy-name { color: #ffe0cf; font-size: 12px; line-height: 16px; text-shadow: var(--px-text-edge); }
 :root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .enemy-nameplate .enemy-name { color: var(--px-gold-bright); }
+/* 정예 · 일반 적의 특성 꼬리표(공허 · 강철 피부 등)는 체력 숫자 위가 아니라 막대 바로 아래(예전에는 숫자를 가렸다) */
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted:is(.enemy-mob, .enemy-elite) .enemy-hud-meta { top: calc(100% + 2px); }
+@media (max-width: 1080px) {
+  /* 휴대폰: 이름표가 왼쪽 위 몬스터 수 칸(아래 끝 95px)과 겹쳤다 — 대상 적 막대를 그 줄 아래로 */
+  :root body[data-ui-skin].mobile-battle-tab #enemy-area .enemy-card.targeted { margin-top: 36px; }
+}
 @media (min-width: 1081px) {
   :root body[data-ui-skin].desktop-windowed-ui #enemy-area .enemy-card.targeted :is(.enemy-health-frame) { margin: 2px 0 0; }
   :root body[data-ui-skin].desktop-windowed-ui #enemy-area .enemy-card.targeted { margin-top: 30px; }
@@ -400,9 +409,9 @@ body[data-ui-skin] {
 /* ─── 지역 줄·몬스터 수·귀환·목표 ─────────────────────────── */
 :root body[data-ui-skin] .combat-zone-row-title { text-shadow: var(--px-text-outline); }
 :root body[data-ui-skin] .battlefield-caption {
-  border: 2px solid var(--px-ink);
+  border: 1px solid var(--px-ink);
   background: var(--px-panel);
-  box-shadow: inset 2px 2px 0 #4a3b27, inset -2px -2px 0 #1a140d;
+  box-shadow: inset 1px 1px 0 var(--px-bronze), inset -1px -1px 0 #19161c;
   color: var(--px-copy);
   font-size: 12px;
   text-shadow: var(--px-text-edge);
@@ -415,7 +424,7 @@ body[data-ui-skin] {
   width: calc(var(--minimap-size) + 12px);
   height: calc(var(--minimap-size) + 12px);
   border-radius: 0;
-  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #2a2418 0);
+  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #25222a 0);
   box-shadow: 0 0 0 2px var(--px-ink), var(--px-drop);
 }
 :root body[data-ui-skin] #act-exploration-panel canvas {
@@ -461,8 +470,8 @@ body[data-ui-skin] {
   inset: auto 0 0 0;
   z-index: 0;
   height: var(--px-hud-bar);
-  border: 10px solid transparent;
-  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+  border: var(--px-plate-border) solid transparent;
+  border-image: var(--px-plate-frame);
   background: var(--px-wood-dark), var(--px-stone);
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
@@ -503,7 +512,7 @@ body[data-ui-skin] {
   width: var(--px-map-size);
   height: var(--px-map-size);
   border-radius: 50%;
-  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #2a2418 0);
+  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #25222a 0);
   box-shadow: none;
 }
 :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel::after {
@@ -634,5 +643,10 @@ body[data-ui-skin] {
   :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel { margin: 14px 0 13px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { align-self: center; margin-bottom: calc(var(--px-orb-size) * .2); font-size: 12px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { align-self: center; margin-bottom: 0; margin-top: calc(var(--px-orb-size) * .3); }
+  /* 지도 · 자동 단추는 테에 맞춘 20 ~ 22px 띠라 손가락으로 누르기 어렵다: 보이지 않는 누름 자리를 위아래로 넓힌다(모양은 그대로) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel :is(#btn-act-exploration-map, #btn-act-exploration-auto) { overflow: visible; }
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel :is(#btn-act-exploration-map, #btn-act-exploration-auto)::after { content: ''; position: absolute; inset: -10px -8px; }
+  /* 작은 생명 구슬(유리 50px)에는 보호막 현재값만 — "ES 120/300"이 넘쳐 "E."만 보였다 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text .combat-es-max { display: none; }
 }
 }

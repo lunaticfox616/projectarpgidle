@@ -2277,9 +2277,9 @@ function renderBattlefield(forceWhenHidden) {
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
         ctx.font = `16px ${BATTLE_TITLE_FONT}`;
         ctx.textAlign = 'center';
-        ctx.fillText('전장 에셋 로딩 중...', width / 2, height / 2);
+        ctx.fillText('전장을 준비하는 중...', width / 2, height / 2);
         ctx.restore();
-        document.getElementById('ui-battlefield-caption').innerText = '전장 에셋 로딩 중...';
+        document.getElementById('ui-battlefield-caption').innerText = '전장을 준비하는 중...';
         return;
     }
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
@@ -2692,7 +2692,7 @@ function renderBattlefield(forceWhenHidden) {
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
 
     let caption = '전장을 스캔 중...';
-    if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
+    if (battleAssets.failed && !battleAssets.ready) caption = '일부 그림을 불러오지 못해 기본 그림으로 전투합니다';
     if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
     else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
     else if (game.moveTimer > 0) caption = '';

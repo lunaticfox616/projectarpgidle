@@ -783,9 +783,9 @@ function startBattleAssetLoadNow() {
 async function ensureBattleAssetsLoadedBeforeEntry() {
     if (battleAssets.ready) return true;
     advanceLoadingOverlay({
-        title: '전장 에셋을 불러오는 중...',
-        detail: '첫 전투에 필요한 이미지 에셋을 모두 확인하고 있습니다.',
-        caption: 'Loading Battle Assets',
+        title: '전장을 준비하는 중...',
+        detail: '첫 전투에 필요한 그림을 불러오고 있습니다.',
+        caption: '전투 그림 불러오기',
         progress: 56
     });
     let result = false;
@@ -806,14 +806,14 @@ async function ensureBattleAssetsLoadedBeforeEntry() {
     }
     if (!result) {
         advanceLoadingOverlay({
-            detail: '일부 에셋 확인에 실패했습니다. 기본 렌더링으로 계속 준비합니다.',
-            caption: 'Asset Fallback',
+            detail: '일부 그림을 불러오지 못해 기본 그림으로 준비합니다.',
+            caption: '기본 그림 사용',
             progress: 92
         });
     } else {
         advanceLoadingOverlay({
-            detail: '전장 에셋 로딩이 완료되었습니다.',
-            caption: 'Assets Ready',
+            detail: '전장 준비를 마쳤습니다.',
+            caption: '준비 완료',
             progress: 92
         });
     }
@@ -2714,7 +2714,7 @@ function renderLoop9VoidRiftPanel(){
     let autoBtn = document.getElementById('btn-grand-breach-auto-enter');
     if (autoBtn) {
         autoBtn.style.display = open ? 'inline-block' : 'none';
-        autoBtn.innerText = `대균열 자동입장 ${game.settings && game.settings.autoEnterGrandBreach ? 'ON' : 'OFF'}`;
+        autoBtn.innerText = `대균열 자동입장 ${game.settings && game.settings.autoEnterGrandBreach ? '켜짐' : '꺼짐'}`;
     }
     if (!open) return;
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
@@ -3153,8 +3153,8 @@ function enterGrandBreach(options){
     updateStaticUI();
 }
 
-function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
-function toggleGrandBreachAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterGrandBreach = !game.settings.autoEnterGrandBreach; addLog(`🌌 대균열 자동입장 ${game.settings.autoEnterGrandBreach ? 'ON' : 'OFF'}`, 'season-up'); autoEnterGrandBreachIfReady(); updateStaticUI(); }
+function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? '켜짐' : '꺼짐'}`, 'season-up'); updateStaticUI(); }
+function toggleGrandBreachAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterGrandBreach = !game.settings.autoEnterGrandBreach; addLog(`🌌 대균열 자동입장 ${game.settings.autoEnterGrandBreach ? '켜짐' : '꺼짐'}`, 'season-up'); autoEnterGrandBreachIfReady(); updateStaticUI(); }
 
 function renderChaosRealmMapPanel() {
     let panel = document.getElementById('ui-chaos-realm-panel');
@@ -4049,7 +4049,7 @@ async function enterLabyrinthPrompt(){
 
 function toggleSeasonBossRepeat() {
     game.autoRepeatSeasonBoss = !game.autoRepeatSeasonBoss;
-    addLog(`🗝️ 뿌리 보스 반복 도전: ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`, 'season-up');
+    addLog(`🗝️ 뿌리 보스 반복 도전: ${game.autoRepeatSeasonBoss ? '켜짐' : '꺼짐'}`, 'season-up');
     updateStaticUI();
 }
 
@@ -4478,7 +4478,7 @@ function openGemEngraveSlotOverlay(index) {
     overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
     overlay.dataset.triggerSlotIndex = String(slotIndex);
     overlay.tabIndex = -1;
-    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>SKY INSCRIPTION</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
+    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
     overlay.addEventListener('click', event => {
         if (event.target === overlay) return closeGemEngraveSlotOverlay();
         let button = event.target.closest('button[data-action]');
@@ -4967,7 +4967,7 @@ function getMobileToastRoot() {
     root.id = 'mobile-toast-root';
     root.style.position = 'fixed';
     root.style.left = '50%';
-    root.style.bottom = '84px';
+    root.style.bottom = 'var(--mobile-toast-bottom, 84px)'; // 전투 화면은 CSS가 HUD 판 위로 올린다(pixel-mobile.css)
     root.style.transform = 'translateX(-50%)';
     root.style.zIndex = '22000';
     root.style.pointerEvents = 'none';
@@ -5494,7 +5494,7 @@ function ensureInitialHeroSelection() {
         addLog(`시작 직업을 선택했습니다: ${PLAYER_CLASS_DEFS[pickedId].blindLabel}`, 'season-up');
         persistHeroSelectionChange('시작 직업 선택');
     }, {
-        kicker: 'Class Selection',
+        kicker: '첫 루프',
         title: '시작 직업 선택',
         body: '첫 루프에서 사용할 직업을 선택하세요.'
     });
@@ -5610,7 +5610,7 @@ async function openMapCompleteActionPicker(event) {
     try {
         let selected = await requestGameChoice({
             title: '전투 완료 후 행동',
-            kicker: 'AUTOMATION',
+            kicker: '자동 전투',
             message: '항목을 누르면 즉시 적용됩니다.',
             submitOnChoice: true,
             dismissOnBackdrop: true,
@@ -8666,12 +8666,23 @@ function markPlayerEnergyShieldRow(hpTrack, hasEnergyShield) {
     if (frame) frame.toggleAttribute('data-energy-shield', hasEnergyShield);
 }
 
+/** 생명 구슬 안 보호막 글자: "ES 현재" + 최대. 휴대폰의 작은 구슬(50px)에서는 CSS가 최대를 숨긴다(pixel-hud.css). */
+function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
+    if (!el) return;
+    el.style.display = hasEnergyShield ? '' : 'none';
+    if (!hasEnergyShield) return;
+    const html = `ES ${Math.floor(current || 0)}<span class="combat-es-max">/${Math.floor(max || 0)}</span>`;
+    if (el.__esHtml !== html) { el.innerHTML = html; el.__esHtml = html; }
+}
+
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
     if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
-    setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
+    // 생명은 정수로 올림(1 미만이 남아도 1 — 살아 있음이 보이게), 최대 생명 표시(내림)는 넘지 않는다.
+    let shownHp = Math.max(0, Math.min(Math.ceil(safeHp - 1e-6), Math.floor(Number(pStats.maxHp) || 0)));
+    setTextById('ui-hp', formatSettingNumber(shownHp, 'showHpComma'));
     setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
@@ -8701,11 +8712,7 @@ function updateCombatUI(pStats) {
     let hasEnergyShield = (pStats.energyShield || 0) > 0;
     let esPct = hasEnergyShield ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     markPlayerEnergyShieldRow(hpWrap, hasEnergyShield);
-    let esInlineEl = document.getElementById('ui-es-inline');
-    if (esInlineEl) {
-        setTextById('ui-es-inline', hasEnergyShield ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0');
-        esInlineEl.style.display = hasEnergyShield ? '' : 'none';
-    }
+    renderEnergyShieldInline(document.getElementById('ui-es-inline'), hasEnergyShield, game.playerEnergyShield, pStats.energyShield);
     let esBar = document.getElementById('ui-es-bar');
     if (!esBar) {
         let esWrap = document.getElementById('ui-es-track') || hpWrap;
@@ -9633,7 +9640,7 @@ function refreshAutoSalvageConfigOverlay() {
     let toggleBtn = overlay.querySelector('#auto-salvage-toggle-btn');
     if (toggleBtn) toggleBtn.innerText = enabled ? '자동해체 끄기' : '자동해체 켜기';
     let statusEl = overlay.querySelector('#auto-salvage-status');
-    if (statusEl) { statusEl.innerText = `현재: ${enabled ? 'ON' : 'OFF'}`; statusEl.style.color = enabled ? '#2ecc71' : 'var(--copy-bright)'; }
+    if (statusEl) { statusEl.innerText = `현재: ${enabled ? '켜짐' : '꺼짐'}`; statusEl.style.color = enabled ? '#2ecc71' : 'var(--copy-bright)'; }
 }
 function closeAutoSalvageConfigOverlay() {
     let overlay = document.getElementById('auto-salvage-config-overlay');
@@ -10278,7 +10285,7 @@ function buildCraftActionButtons(item) {
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
     if (seasonBossRepeatBtn) {
         seasonBossRepeatBtn.style.display = seasonBosses.length > 0 ? 'inline-block' : 'none';
-        seasonBossRepeatBtn.innerText = `입장권 보스 반복 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
+        seasonBossRepeatBtn.innerText = `입장권 보스 반복 ${game.autoRepeatSeasonBoss ? '켜짐' : '꺼짐'}`;
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
         seasonBossRepeatBtn.style.minWidth = '0';
     }
@@ -10311,7 +10318,7 @@ function buildCraftActionButtons(item) {
     let meteorAutoBtn = document.getElementById('btn-meteor-auto-enter');
     if (meteorAutoBtn) {
         meteorAutoBtn.style.display = meteorUnlocked ? 'inline-block' : 'none';
-        meteorAutoBtn.innerText = `자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`;
+        meteorAutoBtn.innerText = `자동입장 ${game.settings.autoEnterMeteor ? '켜짐' : '꺼짐'}`;
     }
 
     sideEncounterUi.renderPanel(document.getElementById('ui-meteor-list'), meteorUnlocked ? sideEncounterUi.meteorPanel(buildMapPowerEstimateHtml(getZone(METEOR_FALL_ZONE_ID))) : '');
@@ -10375,7 +10382,7 @@ function buildCraftActionButtons(item) {
                 let deepStats = game.loopDeepStats || {};
                 let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:0.82em;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
-                <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
+                <div class="loop10-entry-box">
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
                     <div style="margin-top:6px; color:var(--copy-bright);">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button data-exploration-departure onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:var(--copy-bright);">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
                 </div>
@@ -11407,7 +11414,7 @@ function setupCanvasEvents() {
             let attributeStat = null;
             if (attributeNodeCount > 0) {
                 attributeStat = await requestGameChoice({
-                    kicker: 'PASSIVE ATTRIBUTE',
+                    kicker: '패시브 능력치',
                     title: attributeNodeCount > 1 ? `능력치 노드 ${attributeNodeCount}개 선택` : '능력치 노드 선택',
                     message: attributeNodeCount > 1
                         ? '이번 최단 경로에 포함된 모든 능력치 노드에 같은 능력치를 적용합니다.'
@@ -11728,7 +11735,7 @@ async function finishLoadingOverlay() {
         progress: 100,
         title: '전장을 여는 중...',
         detail: '진입 준비를 마무리하고 있습니다.',
-        caption: 'Opening Gate'
+        caption: '전장 입장'
     });
     await new Promise(resolve => setTimeout(resolve, 320));
     setLoadingOverlayState(false);
@@ -11755,6 +11762,12 @@ function getStartupStatusText() {
     return STARTUP_IDLE_MESSAGES.has(message) ? '' : message;
 }
 
+/** 이 기기 저장의 시각. 저장이 있으면 게스트 단추는 "이어하기"(처음이면 "게스트로 시작"). */
+function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
+    if (timeEl) timeEl.innerText = formatCloudTime(localStamp);
+    if (guestBtn) guestBtn.textContent = localStamp > 0 ? '이 기기 저장으로 이어하기' : '게스트로 시작';
+}
+
 function updateStartupScreenUI() {
     let overlay = document.getElementById('startup-overlay');
     if (!overlay) return;
@@ -11778,7 +11791,7 @@ function updateStartupScreenUI() {
     let zoneLabel = getCurrentZoneLabel();
     let loopLabel = Math.max(1, Math.floor((game && game.season) || 1));
     if (localSummaryEl) localSummaryEl.innerText = `Lv.${game.level || 1} · 루프 ${loopLabel} · ${zoneLabel}`;
-    if (localTimeEl) localTimeEl.innerText = formatCloudTime(localStamp);
+    renderStartupLocalSave(localTimeEl, guestBtn, localStamp);
     if (statusEl) statusEl.textContent = getStartupStatusText();
     if (backBtn) {
         backBtn.style.display = gameplayStarted ? 'block' : 'none';
@@ -12283,7 +12296,7 @@ async function enterGameWorld() {
     advanceLoadingOverlay({
         title: '전장을 불러오는 중...',
         detail: '전투 로그와 캐릭터 상태를 복원하고 있습니다.',
-        caption: 'Restoring Battlefield',
+        caption: '진행 복원',
         progress: 48
     });
     await ensureBattleAssetsLoadedBeforeEntry();
@@ -12327,7 +12340,7 @@ async function continueWithCloudSession() {
     setLoadingOverlayState(true, {
         title: '클라우드 세이브를 여는 중...',
         detail: '계정 연결을 확인하고 최신 진행도를 비교하고 있습니다.',
-        caption: 'Checking Cloud Save',
+        caption: '클라우드 확인',
         progress: 14
     });
     setCloudMessage('클라우드 세이브를 확인하고 있습니다...');
@@ -12336,7 +12349,7 @@ async function continueWithCloudSession() {
         advanceLoadingOverlay({
             title: '클라우드 저장을 불러오는 중...',
             detail: '같은 계정의 로컬과 클라우드 저장을 비교해 더 앞선 진행도를 적용합니다.',
-            caption: 'Comparing Timelines',
+            caption: '진행도 비교',
             progress: 48
         });
         await reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true });
@@ -12387,7 +12400,7 @@ async function startGuestMode() {
     setLoadingOverlayState(true, {
         title: '게스트 세션을 준비하는 중...',
         detail: '현재 기기 로컬 저장을 기준으로 전장을 준비하고 있습니다.',
-        caption: 'Starting Local Session',
+        caption: '이 기기 저장',
         progress: 22
     });
     enterGameWorld();
@@ -12476,9 +12489,9 @@ async function linkSocialIdentityProvider(provider) {
     let alreadyLinked = linkedProviders.some(it => String(it || '').toLowerCase() === providerKey);
     if (alreadyLinked) return setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 계정은 이미 연동되어 있습니다.`);
     let client = getSupabaseClient();
-    if (!client) return setCloudMessage('Supabase OAuth 클라이언트를 초기화하지 못했습니다.');
+    if (!client) return setCloudMessage('소셜 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
     // Supabase Dashboard > Authentication에서 Manual Identity Linking 옵션이 켜져 있어야 동작합니다.
-    if (typeof client.auth.linkIdentity !== 'function') return setCloudMessage('현재 Supabase 클라이언트에서 계정 연결 API를 지원하지 않습니다.');
+    if (typeof client.auth.linkIdentity !== 'function') return setCloudMessage('이 환경에서는 소셜 계정 연결을 지원하지 않습니다.');
     if (cloudState.session && cloudState.session.access_token && cloudState.session.refresh_token && client.auth && typeof client.auth.setSession === 'function') {
         try {
             await client.auth.setSession({
@@ -12537,7 +12550,7 @@ function updateCloudSaveUI() {
         }
     }
     if (!config.enabled) {
-        if (hintEl) hintEl.innerText = 'cloud-save-config.js에 Supabase URL과 publishable key를 넣으면 클라우드 세이브가 켜집니다.';
+        if (hintEl) hintEl.innerText = '이 버전은 클라우드 저장을 쓰지 않습니다. 진행은 이 기기에 저장됩니다.';
     } else if (cloudState.busy) {
         if (hintEl) hintEl.innerText = '시작 화면 또는 현재 세션에서 저장 데이터를 서버와 동기화하고 있습니다.';
     } else if (cloudState.user) {
@@ -13245,7 +13258,7 @@ async function cloudSignUp(options = {}) {
         setLoadingOverlayState(true, {
             title: '계정을 생성하는 중...',
             detail: '인증 정보를 등록하고 첫 클라우드 세이브를 준비하고 있습니다.',
-            caption: 'Creating Account',
+            caption: '계정 만들기',
             progress: 12
         });
     }
@@ -13260,7 +13273,7 @@ async function cloudSignUp(options = {}) {
             advanceLoadingOverlay({
                 title: '첫 세이브를 연결하는 중...',
                 detail: '새 계정에 현재 진행도를 연결하고 있습니다.',
-                caption: 'Binding Save Data',
+                caption: '저장 연결',
                 progress: 54
             });
             await reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true });
@@ -13297,7 +13310,7 @@ function showSignupEmailNotice(email, resent) {
     return requestGameDialog({
         type: 'notice',
         tone: 'success',
-        kicker: 'ACCOUNT VERIFICATION',
+        kicker: '계정 인증',
         title: resent ? '인증 메일을 다시 보냈습니다' : '인증 메일을 보냈습니다',
         message: `${email}\n메일의 인증 링크를 누른 뒤 이 화면으로 돌아와 로그인해주세요.`,
         confirmLabel: '확인'
@@ -13341,7 +13354,7 @@ async function cloudLogin(options = {}) {
         setLoadingOverlayState(true, {
             title: '계정을 확인하는 중...',
             detail: '인증 정보를 검증하고 연결된 클라우드 세이브를 찾고 있습니다.',
-            caption: 'Authenticating',
+            caption: '계정 확인',
             progress: 14
         });
     }
@@ -13359,7 +13372,7 @@ async function cloudLogin(options = {}) {
         advanceLoadingOverlay({
             title: '저장 데이터를 불러오는 중...',
             detail: '같은 계정의 로컬과 클라우드 저장을 비교해 더 앞선 진행도를 적용합니다.',
-            caption: 'Syncing Save Data',
+            caption: '저장 동기화',
             progress: 58
         });
         await reconcileCloudSaveState({

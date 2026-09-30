@@ -1655,7 +1655,7 @@
         const title = quest.started ? quest.stage.name : '낯선 패의 흔적';
         const description = quest.started ? quest.stage.description : '첫 우주계 탐사를 완료하면 봉인의 흔적을 발견할 수 있습니다.';
         const count = quest.rewarded ? '복원 완료' : `${progress}/${quest.target} 탐사`;
-        return `<section class="cosmos-arcana-quest ${stateClass}"><div><span>ARCANA QUEST</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></div><div class="cosmos-arcana-progress"><b>${count}</b><i><em style="width:${pct}%"></em></i><small>보상 · 봉인된 아르카나 카드 1장</small></div></section>`;
+        return `<section class="cosmos-arcana-quest ${stateClass}"><div><span>아르카나 과업</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></div><div class="cosmos-arcana-progress"><b>${count}</b><i><em style="width:${pct}%"></em></i><small>보상 · 봉인된 아르카나 카드 1장</small></div></section>`;
     }
 
     function focusCosmosCapstoneBoss(nodeId) {
@@ -2047,13 +2047,13 @@
                 return `${required ? required.name : key} ${Math.max(1, Math.floor(Number(level || 1)))}Lv`;
             }).join(' · ') : '시작 노드';
             return `<article class="cosmos-mastery-card ${stateClass}">
-                <div class="cosmos-mastery-card-head"><div><span>${lockReason ? 'LOCKED' : (value >= node.max ? 'MASTERED' : 'STAR PATH')}</span><strong>${node.name}</strong></div><b>${value}/${node.max}</b></div>
+                <div class="cosmos-mastery-card-head"><div><span>${lockReason ? '잠김' : (value >= node.max ? '완성' : '별길')}</span><strong>${node.name}</strong></div><b>${value}/${node.max}</b></div>
                 <div class="cosmos-mastery-progress"><i style="width:${Math.floor(value / node.max * 100)}%"></i></div>
                 <p>${node.desc}</p>
                 <div class="cosmos-mastery-card-foot"><small>${lockReason || linkLine}</small><button type="button" onclick="allocateCosmosMastery('${node.key}')" ${canSpend ? '' : 'disabled'}>투자 · ${node.cost}P</button></div>
             </article>`;
         }).join('');
-        const html = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">Stellar Mastery</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
+        const html = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">별의 숙련</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
         if (el.__masteryHtml !== html || !el.firstElementChild) {
             el.innerHTML = html;
             el.__masteryHtml = html;

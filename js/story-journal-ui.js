@@ -82,6 +82,12 @@ const storyJournalUi = (() => {
         const spoken = `<blockquote class="story-scene-quote">${quote.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</blockquote>`;
         return quote.before ? spoken + narration : narration + spoken;
     }
+    // 머리글이 이미 "액트 N"(프롤로그)이라 제목의 같은 머리말은 뺀다: "액트 2 · 다시 추락하다" → "다시 추락하다".
+    function sceneHeading(scene) {
+        const kicker = scene.act ? `액트 ${scene.act}` : '프롤로그';
+        const prefix = kicker + ' · ';
+        return { kicker, title: scene.title.startsWith(prefix) ? scene.title.slice(prefix.length) : scene.title };
+    }
     function renderTutorial(notice) {
         const scene = STORY_JOURNAL_SCENES.find(row => 'story_'+row.id === notice.key);
         const overlay = document.getElementById('tutorial-overlay');
@@ -90,8 +96,9 @@ const storyJournalUi = (() => {
         document.getElementById('tutorial-journal-preference').hidden = !scene || !scene.act;
         document.getElementById('chk-hide-act-journal').checked = game.settings.showActJournal === false;
         if (!scene) return false;
-        document.getElementById('tutorial-kicker').textContent = scene.act ? `액트 ${scene.act}` : '프롤로그';
-        document.getElementById('tutorial-title').textContent = scene.title;
+        const heading = sceneHeading(scene);
+        document.getElementById('tutorial-kicker').textContent = heading.kicker;
+        document.getElementById('tutorial-title').textContent = heading.title;
         const art = scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async">` : '';
         document.getElementById('tutorial-body').innerHTML = `${art}
             <div class="story-scene-copy">${sceneCopy(scene)}</div>`;

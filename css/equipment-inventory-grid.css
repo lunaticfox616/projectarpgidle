@@ -84,8 +84,8 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
 #item-tab-equip .inventory-browse-toolbar select { min-height: 34px; }
 #item-tab-equip .inventory-browse-toolbar button { min-height: 34px; font-size: 11px; }
 #item-tab-equip #btn-auto-salvage { border-color: #977440; color: #efdbb0; background: linear-gradient(#34291a, #211b13); }
-#btn-auto-salvage::after { content: '자동해체 OFF'; display: block; margin-top: 2px; font-size: 9px; color: #b5aa96; }
-#btn-auto-salvage[data-enabled="true"]::after { content: '자동해체 ON'; color: #a8d5a7; }
+#btn-auto-salvage::after { content: '자동해체 꺼짐'; display: block; margin-top: 2px; font-size: 9px; color: #b5aa96; }
+#btn-auto-salvage[data-enabled="true"]::after { content: '자동해체 켜짐'; color: #a8d5a7; }
 #item-tab-equip .inventory-management-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; margin: 0 0 8px; padding: 0 0 8px; border-bottom: 1px solid var(--color-line); }
 #item-tab-equip .equipment-bulk-menu { position: relative; }
 #item-tab-equip .equipment-bulk-menu summary { cursor: pointer; padding: 7px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); font-size: 12px; white-space: nowrap; }

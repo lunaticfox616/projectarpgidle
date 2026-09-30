@@ -2,8 +2,8 @@
 /* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다. */
 @media (max-width: 1080px) {
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-row, .combat-feed) {
-    border: 6px solid transparent;
-    border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
+    border: var(--px-light-border) solid transparent;
+    border-image: var(--px-light-frame);
     border-radius: 0;
     background: var(--px-panel);
     background-clip: padding-box;
@@ -18,9 +18,26 @@
     color: var(--px-gold-bright);
     text-shadow: var(--px-text-edge);
   }
+  /* 전투 탭의 알림은 전투 기록 막대 위로(.mobile-battle-tab은 휴대폰 배치라는 뜻이라 전투 탭이 열린 때만 :has로 고른다) — 예전 자리(아래 84 · 132px)는 HUD 판(생명 구슬 · 이름)을 덮었다.
+     메뉴 띠 + HUD 판 + 기록 막대가 248px로 기종이 달라도 같다. 게임 알림은 전투 기록 알림(37px) 위에 쌓는다. */
+  body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: auto; bottom: calc(302px + env(safe-area-inset-bottom)); }
+  /* 안내 카드(z 13250)가 떠 있으면 전투 기록 알림은 카드 아래로 — 같은 뜻의 예전 규칙(ui-game-overhaul.css)은 알림 판의
+     인라인 z-index 22000(js/ui.js getMobileToastRoot, 루프 오버레이보다 위)에 져서 알림이 카드 글과 확인 단추를 덮었다. */
+  :root body[data-ui-skin]:has(#tutorial-overlay.active) #mobile-toast-root {
+    /* Overrides inline presentation from the runtime: the toast root sets its layer inline; the guide card must stay on top. */
+    z-index: 13200 !important;
+  }
+  /* 따라 하기 안내 카드도 HUD 판(생명 구슬 · 미니맵)을 덮지 않게 기록 막대 위로 */
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card:not(.at-top) { bottom: calc(254px + env(safe-area-inset-bottom)); }
+  /* 진행 막대가 숨은 지역(액트 · 제 지도가 있는 콘텐츠)은 이름이 그 칸까지 쓴다 — 빈 칸 때문에 "뿌리끝 …"으로 잘리던 문제 */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-row:has(> #ui-map-progress-row[hidden]) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'zone actions';
+  }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, #btn-exploration-loot-skip),
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
-    border: 2px solid var(--px-ink);
+    border: 1px solid var(--px-ink);
     border-radius: 0;
     background: var(--px-board), var(--px-stone-control);
     box-shadow: var(--px-bevel);
@@ -36,16 +53,16 @@
 
   /* 하단 메뉴: 어두운 판 띠, 고른 칸은 밝은 판에 금빛 줄 */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
-    border-top: 2px solid var(--px-ink);
+    border-top: 1px solid var(--px-ink);
     background: var(--px-wood-dark), var(--px-stone);
-    box-shadow: inset 0 2px 0 #5d4a2e, inset 0 4px 0 #0a0806;
+    box-shadow: inset 0 1px 0 var(--px-bronze-hi), inset 0 2px 0 var(--px-bronze), inset 0 3px 0 var(--px-ink);
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
     border: 0;
-    border-right: 2px solid #0a0806;
+    border-right: 1px solid var(--px-ink);
     border-radius: 0;
     background: none;
-    box-shadow: inset -2px 0 0 #2c2317;
+    box-shadow: inset -1px 0 0 var(--px-bronze-lo);
     color: var(--px-copy-muted);
     font-size: 12px;
     letter-spacing: 0;
@@ -68,8 +85,8 @@
   /* 전체 메뉴 서랍·목표 서랍: 무거운 도트 판(목표 서랍의 화면 어둡게 막은 그대로) */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main,
   :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel {
-    border: 10px solid transparent;
-    border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+    border: var(--px-plate-border) solid transparent;
+    border-image: var(--px-plate-frame);
     border-radius: 0;
     background: var(--px-wood), var(--px-stone);
     background-clip: padding-box;
@@ -78,9 +95,9 @@
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main { box-shadow: 6px 6px 0 rgba(0, 0, 0, .5); }
   :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel { box-shadow: 0 -100vh 0 100vh rgba(0, 0, 0, .58); }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .mobile-tab-drawer-head {
-    border-bottom: 2px solid var(--px-ink);
+    border-bottom: 1px solid var(--px-ink);
     background: var(--px-wood-dark), var(--px-stone-raised);
-    box-shadow: 0 2px 0 #3b2f1e;
+    box-shadow: 0 1px 0 var(--px-bronze);
     color: var(--px-gold-bright);
     font-family: var(--font-display);
     font-size: 16px;
@@ -88,7 +105,7 @@
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn,
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .mobile-tab-drawer-head button {
-    border: 2px solid var(--px-ink);
+    border: 1px solid var(--px-ink);
     border-radius: 0;
     background: var(--px-board), var(--px-stone-control);
     box-shadow: var(--px-bevel);
@@ -97,10 +114,48 @@
     text-shadow: var(--px-text-edge);
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active { background: var(--px-board-hot), var(--px-stone-control); box-shadow: var(--px-bevel-pressed), inset 0 0 0 4px rgba(217, 176, 102, .5); color: var(--px-gold-bright); }
-  :root body[data-ui-skin] .mobile-menu-group-title { border-top: 2px solid #2c2317; color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
+  :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
   :root body[data-ui-skin] .tab-content h2:not([style*="color"]) { color: var(--px-gold-bright); font-family: var(--font-display); font-size: 16px; font-weight: 400; }
-  :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 2px solid #3b2f1e; box-shadow: 0 2px 0 #000; }
+  :root body[data-ui-skin] .tab-content h2:not([style*="border"]) { border-bottom: 1px solid var(--px-bronze); box-shadow: 0 1px 0 var(--px-ink); }
+}
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 가로 휴대폰: HUD는 지역 줄 아래 왼쪽 칸이라 메뉴 띠와 붙지 않는다. 세로용 "메뉴 띠와 이어 붙이기"(아래 테 없음 ·
+     돌판이 위로 솟음)를 되돌려 돌판을 HUD 상자 안에 맞춘다 — 예전에는 돌판 윗단이 지역 줄을 덮었다. */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before {
+    box-sizing: border-box;
+    border-bottom-width: var(--px-plate-border);
+    border-image-width: var(--px-plate-border);
+    box-shadow: var(--px-drop);
+  }
+  /* 알림: 세로용 자리(기록 막대 위 254 · 302px)는 가로에서 HUD와 지역 줄을 덮는다 — 기록은 메뉴 띠 위, 게임 알림은 전장 오른쪽 위 */
+  body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) { --mobile-toast-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: 84px; bottom: auto; }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card:not(.at-top) { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
+  /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.
+     설치 앱의 가로 화면(360px 이상)은 위의 가로 배치를 그대로 쓴다. 가림막이라 아래 화면은 눌리지 않는다. */
+  body[data-ui-skin]::after {
+    content: '세로 화면으로 돌려 주세요';
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: grid;
+    place-items: center;
+    background: rgba(8, 5, 8, .96);
+    color: var(--px-gold-bright);
+    font: 16px var(--font-pixel);
+    text-shadow: var(--px-text-edge);
+    pointer-events: auto;
+  }
+}
+@media (max-width: 640px) {
+  /* 휴대폰 스킬 젬 목록은 한 줄에 한 장 — 두 장이면 이름 칸이 56px라 "기본 …", "서리 …"로 잘려 젬을 알아볼 수 없었다 */
+  :root body[data-ui-skin] #tab-skills .skill-gem-library {
+    /* components.css의 1080px 이하 두 열 규칙이 !important라 같은 무게로만 덮인다(좁은 휴대폰에서만). */
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 }

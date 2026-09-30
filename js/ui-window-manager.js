@@ -566,6 +566,8 @@
         miscPanel.className = 'ui-rail-misc-panel';
         miscPanel.hidden = true;
         header.addEventListener('click', closeRailMiscPanelAfterSelection);
+        document.addEventListener('pointerdown', closeRailMiscPanelFromOutside, true);
+        document.addEventListener('keydown', closeRailMiscPanelOnEscape, true);
         header.appendChild(miscPanel);
     }
 
@@ -588,6 +590,21 @@
         let trigger = document.getElementById('btn-ui-rail-misc');
         if (panel) panel.hidden = true;
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    // 펼친 기타 목록은 바깥을 누르거나 Esc로 닫는다(목록 · 기타 단추 안의 누름은 그대로 둔다).
+    function closeRailMiscPanelFromOutside(event) {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        if (!panel || panel.hidden || !event.target.closest) return;
+        if (event.target.closest('#ui-rail-misc-panel, #btn-ui-rail-misc')) return;
+        closeRailMiscPanel();
+    }
+
+    function closeRailMiscPanelOnEscape(event) {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        if (event.key !== 'Escape' || !panel || panel.hidden) return;
+        closeRailMiscPanel();
+        event.stopPropagation();
     }
 
     function closeRailMiscPanelAfterSelection(event) {
