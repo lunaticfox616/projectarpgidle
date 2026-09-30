@@ -1,4 +1,11 @@
 /** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
+/** 자동화 설정: 자동 이동(기본 켬) · 자동 환생(기본 끔) · 다음 루프 직업(매번 고르기 | 같은 직업 유지). */
+function normalizeAutomationSettings(settings) {
+    settings.autoMove = settings.autoMove !== false;
+    settings.autoLoop = settings.autoLoop === true;
+    settings.autoLoopClass = settings.autoLoopClass === 'keep' ? 'keep' : 'ask';
+}
+
 function normalizeTabLayoutSettings(settings) {
     const normalizeOrder = (list, pattern) => Array.from(new Set(
         (Array.isArray(list) ? list : []).filter(id => typeof id === 'string' && pattern.test(id))
@@ -832,7 +839,7 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.actExplorationMode = merged.settings.actExplorationMode === 'full' ? 'full' : 'direct';
-    merged.settings.autoMove = merged.settings.autoMove !== false;
+    normalizeAutomationSettings(merged.settings);
     merged.settings.disableItemAutomationAfterLoop = merged.settings.disableItemAutomationAfterLoop !== false;
     merged.settings.postLoopMapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.postLoopMapCompleteAction) ? merged.settings.postLoopMapCompleteAction : 'nextLoopBestPlusOne';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';

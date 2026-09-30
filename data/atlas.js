@@ -139,6 +139,20 @@ const ATLAS = Object.freeze({
     // (data/endgame-progression.js BEYOND_BOUNDARY_UNLOCK_SEEDS).
     seeds: Object.freeze({ max: 4, tierStep: 2 }),
     tierCap: 24,
+    // 시대 재생(아틀라스 위의 환생 층): 씨앗 4개를 모으면 아틀라스 진행(완료 · 보너스 · 패시브 · 씨앗)을 되돌리고 세계수 정수를 받는다.
+    // 정수 = 기본 + 완료 5개마다 1 + 보너스 5개마다 1 + 씨앗마다 1. 특전 한 단계의 값 = 다음 단계 번호 × costStep.
+    epoch: Object.freeze({
+        essence: Object.freeze({ base: 2, perCompleted: 5, perBonus: 5, perSeed: 1 }),
+        costStep: 1,
+        perks: Object.freeze([
+            { id: 'mapDrop', name: '풍요의 뿌리', max: 5, effect: Object.freeze({ mapDrop: 15 }) },
+            { id: 'quantity', name: '시대의 수확', max: 5, effect: Object.freeze({ quantity: 5 }) },
+            { id: 'points', name: '오래된 수액', max: 5, points: 2 },
+            { id: 'starter', name: '기억된 지도', max: 3, effect: Object.freeze({ starter: 1 }) },
+            { id: 'slots', name: '넓은 장치', max: 1, effect: Object.freeze({ slots: 1 }) },
+            { id: 'supply', name: '시작 보급', max: 3, supply: Object.freeze([['magicBud', 20], ['formlessDew', 5], ['sapBud', 1]]) }
+        ].map(Object.freeze))
+    }),
     // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
     chart: Object.freeze({ radii: Object.freeze([42, 33, 24.5, 16.5]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
         offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]) }),

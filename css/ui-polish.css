@@ -207,6 +207,11 @@ input[data-search-key]:focus {
 .loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--color-text); }
 .loop-settlement-stats > div:last-child dd { font-size: 16px; word-break: keep-all; }
 .loop-settlement-next { border-block: 1px solid var(--color-line); padding: 14px 0; }
+.loop-automation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 12px 0 0; font-size: 12px; }
+.loop-automation label { display: inline-flex; align-items: center; gap: 6px; }
+.loop-automation small { color: var(--copy-muted, #a9ab9c); }
+.loop-automation select { font: inherit; }
+.loop-automation-status { flex-basis: 100%; margin: 0; min-height: 1.2em; color: var(--color-accent-gold); }
 .loop-settlement-next h3 { margin: 0 0 8px; color: var(--color-accent-gold); font-size: 14px; }
 .loop-settlement-next ul { padding-left: 20px; margin: 0; }
 .loop-settlement-next p { margin: 10px 0 0; color: var(--color-accent-gold); }

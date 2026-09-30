@@ -119,6 +119,20 @@
 #ui-atlas .atlas-passive.is-taken small{color:#c9d8b8}
 #ui-atlas .atlas-passive.is-locked{opacity:.5}
 @container (max-width:720px){#ui-atlas .atlas-wheels{grid-template-columns:minmax(0,1fr)}}
+#ui-atlas .atlas-epoch{padding:14px 18px}
+#ui-atlas .atlas-epoch-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;padding-bottom:12px;border-bottom:1px solid #45402d}
+#ui-atlas .atlas-epoch-head h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}
+#ui-atlas .atlas-epoch-head h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-epoch-action{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:180px}
+#ui-atlas .atlas-epoch-action strong{color:#e6d2a4}
+#ui-atlas .atlas-epoch-action .atlas-primary{min-height:34px;padding:6px 14px;background:#cfb887;border-color:#e6cf9f;color:#17201a;font-weight:700}
+#ui-atlas .atlas-perks{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px;margin-top:12px}
+#ui-atlas .atlas-perk{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #45402d;border-radius:4px;background:#0f1511}
+#ui-atlas .atlas-perk.is-taken{border-color:#6f8a57}
+#ui-atlas .atlas-perk strong{display:block;font-size:12px}
+#ui-atlas .atlas-perk strong span{margin-left:4px;color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-perk small{display:block;margin-top:2px;font-size:10px;color:var(--atlas-muted)}
+#ui-atlas .atlas-perk button{flex:0 0 auto;min-height:30px;padding:4px 10px;font-size:11px}
 #ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 #ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #ad976349;border-radius:5px;background:#172019;color:#ece4cf;grid-column:1/-1}
 #ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}

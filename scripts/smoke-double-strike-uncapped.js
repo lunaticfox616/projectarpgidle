@@ -19,7 +19,7 @@ const files = [
   'data/endgame-progression.js',
   'data/atlas.js', 'data/atlas-passives.js',
   'js/utils.js',
-  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas.js',
+  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js',
   'js/state.js',
   'js/level-progression.js', 'js/combat-equipment-stats.js',
   'js/endgame-progression.js',

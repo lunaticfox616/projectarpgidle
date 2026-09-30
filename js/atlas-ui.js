@@ -24,7 +24,7 @@ const atlasUi = (() => {
         updateStaticUI();
     }
     function setView(next) {
-        view = next === 'passives' ? 'passives' : 'maps';
+        view = ['passives', 'epoch'].includes(next) ? next : 'maps';
         refresh();
     }
     function selectNode(id) {
@@ -229,7 +229,7 @@ const atlasUi = (() => {
         const st = ledger(), total = atlas.nodes.length, free = atlasPassives.available(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length} · 씨앗 ${st.seeds}/${ATLAS.seeds.max} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}</nav>
+            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('epoch', '시대')}</nav>
             <label class="atlas-auto"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
@@ -237,6 +237,7 @@ const atlasUi = (() => {
         return `<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
+    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html() };
     function render() {
         const panel = document.getElementById('ui-atlas');
         if (!panel || !panelOpen()) return;
@@ -247,7 +248,7 @@ const atlasUi = (() => {
         signature = key;
         const lock = atlas.lockReason(game);
         panel.innerHTML = `<div class="atlas-shell">${headerHtml()}${lock && !ledger().unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
-            ${view === 'passives' ? atlasPassivesUi.html() : mapsViewHtml()}</div>`;
+            ${VIEWS[view]()}</div>`;
     }
 
     // ---------------------------------------------------------------- combat HUD and log lines

@@ -17,7 +17,7 @@ const loopSettlementUi = {
         return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
             <h2>루프 ${loop} 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>
-            <section class="loop-settlement-next"><h3>다음 루프 · ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.stallWarningHtml()}`;
+            <section class="loop-settlement-next"><h3>다음 루프 · ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
     },
     /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew. */
     resetButtonAttr(ready) {
@@ -44,7 +44,7 @@ const loopSettlementUi = {
         overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
         document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
-        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${playerStall.loopBlockReason(game)}`;
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${playerStall.loopBlockReason(game)}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
         if (key === this.renderedKey) return;
         this.renderedKey = key;
         const html = this.summaryHtml();

@@ -44,7 +44,7 @@ const atlas = (() => {
     }
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
-            run: null, lastResult: null, autoMap: false, starterSeason: 0 };
+            run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} } };
     }
     /** 세계수 씨앗 하나마다 모든 노드가 2등급 오른다(24등급까지). */
     const effectiveTier = (state, node) => Math.min(ATLAS.tierCap, node.tier + state.atlas.seeds * ATLAS.seeds.tierStep);
@@ -52,7 +52,8 @@ const atlas = (() => {
     /** Every effect key at zero, so zone and drop math never needs fallbacks. */
     const ZERO = () => Object.fromEntries([...atlasPassives.effectKeys].map(key => [key, 0]));
     const fragmentEffects = ids => ids.map(id => FRAGMENTS.get(id).effect).filter(Boolean);
-    const bonusOf = (state, fragmentIds = []) => ({ ...ZERO(), ...atlasPassives.sum(state.atlas.passives, fragmentEffects(fragmentIds)) });
+    // Passives, the map's fragments and the epoch perks share one effect sum (keys: ATLAS_PASSIVES.labels).
+    const bonusOf = (state, fragmentIds = []) => ({ ...ZERO(), ...atlasPassives.sum(state.atlas.passives, [...fragmentEffects(fragmentIds), ...atlasEpoch.effects(state)]) });
 
     // ---------------------------------------------------------------- availability and the graph
     /** 루프 10부터 혼돈 20이 관문이다: 처음 깨면 아틀라스가 영구히 열리고, 지도는 루프마다 이번 루프 혼돈 20을 깬 뒤에 연다. */
@@ -70,7 +71,7 @@ const atlas = (() => {
         return node && (node.tier === 1 || NEIGHBOURS.get(id).some(other => completed(state, other))) ? 'open' : 'locked';
     }
     const reachable = (state, id) => status(state, id) !== 'locked';
-    const points = state => state.atlas.completed.length + state.atlas.bonus.length;
+    const points = state => state.atlas.completed.length + state.atlas.bonus.length + atlasEpoch.points(state);
     const bestTier = state => Math.max(0, ...state.atlas.completed.map(id => effectiveTier(state, BY_ID.get(id))));
 
     /** The highest reachable map tier at or below `tier`, a random node of it (guardians drop by their own rule). */
@@ -364,8 +365,9 @@ const atlas = (() => {
         };
         // The open map claims its uid first: a stash entry sharing it is the duplicate.
         const done = nodeList(raw.completed, () => true), bonus = nodeList(raw.bonus, id => done.includes(id)), run = normalizeRun(raw.run, validMap);
+        const epoch = atlasEpoch.normalize(raw.epoch), epochPoints = atlasEpoch.points({ atlas: { epoch } });
         const next = { ...defaults(), unlocked: raw.unlocked === true || journeyUnlocked, completed: done, bonus,
-            passives: atlasPassives.normalize(raw.passives, done.length + bonus.length),
+            passives: atlasPassives.normalize(raw.passives, done.length + bonus.length + epochPoints), epoch,
             stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && map.node !== PINNACLE.id).slice(0, ATLAS.stashCap),
             fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
@@ -375,8 +377,10 @@ const atlas = (() => {
         setLoadout(state, Array.isArray(raw.loadout) ? raw.loadout : []);
         return next;
     }
+    /** 새 루프: 지도석 · 각인 · 열린 지도를 비우고, 시대 재생 특전의 시작 보급을 빈 지갑에 넣는다(지갑 초기화 뒤에 불린다). */
     function onLoopReset(state) {
         Object.assign(state.atlas, { stash: [], fragments: {}, run: null, lastResult: null });
+        for (const [key, amount] of atlasEpoch.supply(state)) state.currencies[key] = (state.currencies[key] || 0) + amount;
     }
     function travelReason(state, id) {
         return id === ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지도석을 열어야 들어갈 수 있습니다.' : '';

@@ -981,9 +981,11 @@ function markLoopCosmosPlanetClear(nodeId) {
     if (!nodeId || !game || (game.season || 1) < LOOP_GATE_ALT_START_SEASON) return false;
     game.loopProgressCurrent = game.loopProgressCurrent || {};
     let planets = Array.isArray(game.loopProgressCurrent.cosmosPlanets) ? game.loopProgressCurrent.cosmosPlanets : [];
-    if (!planets.includes(nodeId)) planets.push(nodeId);
+    let fresh = !planets.includes(nodeId);
+    if (fresh) planets.push(nodeId);
     game.loopProgressCurrent.cosmosPlanets = planets;
-    return nodeId === LOOP_GATE_ALT_COSMOS_PLANET_ID;
+    // True once per loop, when this loop's clear of the alternative planet is first recorded.
+    return fresh && nodeId === LOOP_GATE_ALT_COSMOS_PLANET_ID;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
@@ -2382,7 +2384,8 @@ const defaultGame = {
     // 세계수 아틀라스 (js/atlas.js normalize): unlocked/completed/bonus/autoMap survive loops; stash/run reset each loop.
     // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
     // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
-    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0 },
+    // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
+    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} } },
     // Last map's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,
@@ -2475,6 +2478,8 @@ const defaultGame = {
         autoEnterGrandBreach: false,
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
+        // 자동 환생(js/loop-automation-ui.js): 관문을 채우면 몇 초 뒤 다음 루프로, 다음 직업은 'ask' | 'keep'.
+        autoLoop: false, autoLoopClass: 'ask',
         mapCompleteAction: 'nextZone',
         actExplorationMode: 'direct',
         // 탐험 자동 이동(미니맵 단추 · 단축키). 끄면 이동 명령으로만 움직이고 새 탐험도 직접 이동으로 시작한다.

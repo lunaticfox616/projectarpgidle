@@ -1800,7 +1800,7 @@
         }
         if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
         if (firstClear) updateArcanaQuestAfterExploration(node);
-        if (firstClear && node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
+        if (node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
             const completedLoopGate = window.markLoopCosmosPlanetClear(node.id);
             if (completedLoopGate && typeof window.addLog === 'function') window.addLog('🪐 루프 대체 경로 달성: 우주계 에니프론 행성 돌파', 'season-up');
         }

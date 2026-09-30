@@ -52,7 +52,7 @@ const files = [
   'js/core-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/act-exploration-progress.js',
-  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas.js',
+  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js',
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
