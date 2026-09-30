@@ -2097,10 +2097,6 @@ function switchItemSubtab(subtabId) {
         addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
         subtabId = 'item-tab-equip';
     }
-    if (subtabId === 'item-tab-infuser' && (typeof isChaosInfuserUnlocked !== 'function' || !isChaosInfuserUnlocked())) {
-        addLog('나무꾼을 한 번 이상 마주치면 혼돈 주입기가 해금됩니다.', 'attack-monster');
-        subtabId = 'item-tab-equip';
-    }
     game.itemSubtab = subtabId;
     document.querySelectorAll('#tab-items .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-items .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -11346,39 +11342,6 @@ function renderTimeRiftPanel() {
     sideEncounterUi.timeRiftPanel(host, ensureTimeRiftState());
 }
 
-function renderChaosInfuserPanel(selectedItem) {
-    let host = document.getElementById('ui-chaos-infuser-panel');
-    if (!host) return;
-    let unlocked = typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked();
-    let infuserBtn = document.getElementById('btn-item-tab-infuser');
-    if (infuserBtn) infuserBtn.style.display = unlocked ? 'block' : 'none';
-    if (!unlocked) {
-        host.innerHTML = '<div style="color:var(--copy-bright);">나무꾼을 한 번 이상 마주치면 혼돈 주입기가 영구 해금됩니다.</div>';
-        return;
-    }
-    if (!selectedItem) {
-        host.innerHTML = '<div style="color:var(--copy-bright);">장착 장비나 인벤토리 아이템을 선택하세요. 혼돈 주입 옵션은 아이템당 한 줄만 유지되며 언제든 교체할 수 있습니다.</div>';
-        return;
-    }
-    let current = selectedItem.chaosInfusion
-        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <span style="color:var(--copy-bright);">(${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMin)}~${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMax)})</span> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.blightSpore || 0) > 0 ? '' : 'disabled'}>제거(마름병 포자 1)</button></div>`
-        : '<div style="color:var(--copy-muted); margin-bottom:8px;">현재 주입 옵션 없음</div>';
-    let eligibility = typeof isChaosInfusionEligibleItem === 'function' ? isChaosInfusionEligibleItem(selectedItem) : { ok: true, reason: '' };
-    let explicitCount = typeof getItemExplicitOptionCount === 'function' ? getItemExplicitOptionCount(selectedItem) : ((selectedItem.stats || []).length + (selectedItem.chaosInfusion ? 1 : 0));
-    let options = typeof getChaosInfuserOptionsForItem === 'function' ? getChaosInfuserOptionsForItem(selectedItem) : (Array.isArray(window.CHAOS_INFUSER_OPTIONS) ? window.CHAOS_INFUSER_OPTIONS : []);
-    let buttons = eligibility.ok ? options.map(opt => {
-        let costs = typeof getChaosInfusionCost === 'function' ? getChaosInfusionCost(opt, selectedItem) : [{ key: opt.currency, amount: opt.cost }];
-        let canPay = costs.every(row => (game.currencies[row.key] || 0) >= row.amount);
-        let costText = typeof formatCurrencyCosts === 'function' ? formatCurrencyCosts(costs) : `${opt.currency} ${opt.cost}`;
-        let key = opt.optionId || opt.id;
-        let same = selectedItem.chaosInfusion && (selectedItem.chaosInfusion.sourceOptionId === key || selectedItem.chaosInfusion.id === opt.id);
-        let rangeText = `${formatValue(opt.id, opt.min)}~${formatValue(opt.id, opt.max)}`;
-        return `<button onclick="previewChaosInfusion('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:var(--copy-bright);">${same ? '적용 중' : costText}</span></button>`;
-    }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
-    if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:var(--copy-bright);">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
-    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:var(--copy-bright);">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 마름병 포자가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
-}
-
 function openSporeModeOverlay(currencyKey) {
     let allowed = ['magicBud','sapBud','formlessDew'];
     if (!allowed.includes(currencyKey)) return;
@@ -11764,15 +11727,10 @@ function buildCraftActionButtons(item) {
         }
         craftingWorkspaceUi.render(false,{details,useState:getMobileCraftCurrencyUseState,targetControls:getCraftTargetControlsHtml});
         document.getElementById('ui-craft-spore-actions').innerHTML=buildSporeSummaryHtml();
-        if(game.itemSubtab==='item-tab-infuser')renderChaosInfuserPanel(selectedItem);
     }
     let marketTabBtn = document.getElementById('btn-item-tab-market');
     if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
-    let infuserTabBtn = document.getElementById('btn-item-tab-infuser');
-    let chaosInfuserOpen = typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked();
-    if (infuserTabBtn) infuserTabBtn.style.display = chaosInfuserOpen ? 'block' : 'none';
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
-    if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
     __mark('midRender');
     renderVisibleManagementPanels(renderingTabIds, renderFlaskPanel);
     __mark('market+expertise');
@@ -12774,13 +12732,11 @@ function openVoidPassiveCraftOverlay(nodeId) {
 }
 
 function renderCraftTargetLibrary(isRarityVisible) {
-    const kind = String(game.itemSubtab).replace('item-tab-', '');
-    if (!['craft', 'infuser'].includes(kind)) return;
-    if (!document.querySelector(`#item-tab-${kind} > details:is(.craft-target-library,.secondary-craft-library)`).open) return;
-    renderPaperdoll(`ui-${kind}-equip-list`, true);
+    if (game.itemSubtab !== 'item-tab-craft' || !document.querySelector('#item-tab-craft > details.craft-target-library').open) return;
+    renderPaperdoll('ui-craft-equip-list', true);
     const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
-    document.getElementById(`ui-${kind}-inventory-list`).innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, kind)).join('');
-    if (kind !== 'infuser') renderGrowthCraftTargets(`ui-${kind}-growth-list`);
+    document.getElementById('ui-craft-inventory-list').innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
+    renderGrowthCraftTargets('ui-craft-growth-list');
 }
 
 function normalizePassiveTooltipText(value) {
@@ -15791,7 +15747,7 @@ function checkUnlocks() {
     if (typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked() && !game.chaosInfuserUnlocked) {
         game.chaosInfuserUnlocked = true;
         game.noti.items = true;
-        addLog('🧪 나무꾼의 흔적을 해석해 혼돈 주입기가 해금되었습니다.', 'loot-unique');
+        addLog('🧪 나무꾼의 흔적을 해석해 혼돈 주입이 열렸습니다. 장비 상세의 [주입]으로 희귀 장비에 한 줄을 더할 수 있습니다.', 'loot-unique');
     }
     ensureExpertiseState();
     const beforeExperts = new Set(game.expertise.unlockedExperts || []);

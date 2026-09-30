@@ -784,7 +784,6 @@
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
             <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')">장비 전당</button>
-            <button class="subtab-btn" id="btn-item-tab-infuser" onclick="switchItemSubtab('item-tab-infuser')" style="display:none;">혼돈 주입기</button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -849,26 +848,6 @@
                     <div class="inventory-grid" id="ui-craft-inventory-list"></div>
                     <h3 class="growth-craft-heading" id="ui-craft-growth-list-heading" style="display:none; margin-top:12px;">생장 아이템</h3>
                     <div class="growth-card-grid" id="ui-craft-growth-list"></div>
-                </div>
-            </div>
-            </details>
-        </div>
-
-        <div id="item-tab-infuser" class="subtab-content">
-            <div class="forge-panel craft-workbench-card" style="border-color:#6e4aa8;">
-                <h3>🧪 혼돈 주입기</h3>
-                <div class="craft-target-actions"><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비 선택</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리 검색</button></div>
-                <div id="ui-chaos-infuser-panel" style="background:#10131f; border:1px solid #3f315f; border-radius:10px; padding:10px; color:#cfc8eb; font-size:0.9em;">나무꾼을 한 번 이상 마주치면 해금됩니다.</div>
-            </div>
-            <details class="secondary-craft-library" ontoggle="if(this.open) updateStaticUI()"><summary>전체 주입 대상 둘러보기</summary>
-            <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <h3>장착 장비</h3>
-                    <div class="paperdoll" id="ui-infuser-equip-list"></div>
-                </div>
-                <div>
-                    <h3>인벤토리</h3>
-                    <div class="inventory-grid" id="ui-infuser-inventory-list"></div>
                 </div>
             </div>
             </details>
@@ -1771,7 +1750,7 @@
 <script defer src="js/canvas-wisp-actors.js?v=20260929-1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260902-crowd-count2&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1&shrine=20260817-field1&bounty=20260817-restore1&vfx-budget=20260818-1&hideout=20260821-2&test-character=20260827-2&player-classes=20260828-1&trial-hazard=20260901-1&death-feedback=20260901-2&vfx-icons=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&return-warp=20260902-3&return-depart=20260902-2&facing-hold=20260902-2&return-shroud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&pixel-vfx=20260902-1&frost-burst=20260902-1&wisps=20260904-1&grid-fit=20260904-1&runtime=20260905-1&slash-vfx=20260905-2&skill-polish=20260905-2&footprint=20260905-4&pixel-review=20260905-1&skill-identity=20260905-1&sprite-vfx=20260905-1&combat-overhaul=20260905-2&loot-filter=20260905-1&refinement=20260906-1&display=20260906-1&sword-sheets=20260906-1&treasure=20260907-1&thermal=20260907-1&cosmos-route=20260909-8&story-fx=20260909-3&native-bridge=20260909-1&slash-gallery=20260909-1&enemy-attacks=20260910-1&enemy-projectiles=20260910-1&ground-loot=20260911-1&cast-hud=20260912-2&review=20260912-v338&skill-delta2=20260930-15"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1&budget=20260818-1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1&triage=20260817-1&loadout=20260820-1&visuals=20260820-1&equipment-grid=20260827-9&tree-visual=20260829-9&interface-fixes=20260906-2&content-choice=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&quality-audit=20260914-1&tree-look=20260930-1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1&triage=20260817-1&loadout=20260820-1&visuals=20260820-1&equipment-grid=20260827-9&tree-visual=20260829-9&interface-fixes=20260906-2&content-choice=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&quality-audit=20260914-1&tree-look=20260930-1&infuse=20260930-1"></script>
 <script defer src="js/equipment-inventory-grid-ui.js?v=20260827-14&inventory-search=20260901-1&loot-overhaul=20260905-2&equipment-cleanup=20260906-1&interface-fixes=20260906-2&display=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&hover-compare=20260909-1&popup-layer=20260911-1"></script>
 <script defer src="js/equipment-inspection-ui.js?v=20260908-1&affix-ui=20260910-1&level-progression=20260911-1"></script>
 <script defer src="js/crafting-result-ui.js?v=20260817-ledger1&craft-origin=20260910-1&crafting-workspace=20260914-1"></script>
@@ -1790,7 +1769,7 @@
 <script defer src="js/underworld-rune-ui.js?v=20260914-1&rune-picker-review=20260914-1&ocean-flow=20260914-1"></script>
 <script defer src="js/tab-layout-ui.js?v=20260906&display=20260906-1&realm-ui=20260907-1&mobile-review=20260907-2&lazy-editor=20260908-1"></script>
     <script defer src="js/fossil-workbench-ui.js?v=20260908-1&craft-origin=20260910-1&crafting-workspace=20260914-1"></script>
-    <script defer src="js/chaos-infuser-ui.js?v=20260908-1"></script>
+    <script defer src="js/chaos-infuser-ui.js?v=20260930-inspector1"></script>
     <script defer src="js/ocean-collection-ui.js?v=20260914-2"></script>
     <script defer src="js/sea-gift-ui.js?v=20260908-1"></script>
 <script defer src="js/level-progression-ui.js?v=20260911-1&region-label=20260911-1&requirements-review=20260911-1&reward-hint=20260914-1&atlas-copy=20260914-3"></script>

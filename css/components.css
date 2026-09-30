@@ -289,8 +289,7 @@
             #ui-map-list.map-grid--split { display: block; }
             #ui-inventory-list .item-card,
             #ui-craft-inventory-list .item-card,
-            #ui-fossil-inventory-list .item-card,
-            #ui-infuser-inventory-list .item-card { min-width: 0; font-size: 0.86em; }
+            #ui-fossil-inventory-list .item-card { min-width: 0; font-size: 0.86em; }
             #ui-map-list.map-grid--split .map-zone-group-header { padding: 8px 10px; font-size: 0.9em; }
             #ui-map-list.map-grid--split .map-zone-grid--hunting { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             #ui-map-list.map-grid--split .map-zone-grid--chaos { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
@@ -2139,8 +2138,7 @@ html, body { overflow: hidden; }
         @media (max-width: 720px) {
             #ui-inventory-list,
             #ui-craft-inventory-list,
-            #ui-fossil-inventory-list,
-            #ui-infuser-inventory-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            #ui-fossil-inventory-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .bulk-salvage-bar > div:last-child { display: grid; }
             .responsive-split-grid,
             #ui-class-grid,

@@ -20,7 +20,7 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     expect(await page.evaluate(() => contentProgression.canOpen('tab-journal'))).toBe(true);
     await page.evaluate(() => { switchTab('tab-items'); updateStaticUI(); });
     await expect(page.locator('#item-tab-equip')).toBeVisible();
-    for (const id of ['craft','fossil','market','hall','infuser']) await expect(page.locator('#btn-item-tab-' + id)).toBeHidden();
+    for (const id of ['craft','fossil','market','hall']) await expect(page.locator('#btn-item-tab-' + id)).toBeHidden();
     await page.evaluate(() => { switchItemSubtab('item-tab-craft'); switchTab('tab-skills'); updateStaticUI(); });
     await expect(page.locator('.attack-library')).toBeVisible();
     await expect(page.locator('.support-library')).toBeHidden();

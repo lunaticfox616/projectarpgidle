@@ -872,6 +872,7 @@ function renderEquipmentInspectorActions(item, slot, presetProtected) {
     let craftAction = slot ? `equipmentInventoryInteraction.focus(null);switchItemSubtab('item-tab-craft');selectForCrafting('${slot}',true)` : `equipmentInventoryInteraction.focus(null);craftSelectInventoryItemById(${item.id})`;
     return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : '장착'}</button>
         ${contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작</button>` : ''}
+        ${chaosInfusionUi.actionHtml(item, slot)}
         ${slot ? '' : renderEquipmentInventoryProtectionActions(item, presetProtected)}`;
 }
 

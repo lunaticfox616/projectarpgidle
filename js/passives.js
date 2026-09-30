@@ -9784,7 +9784,7 @@ function payCurrencyCosts(costs) {
     return true;
 }
 function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!isChaosInfuserUnlocked()) return addLog('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입기를 사용할 수 있습니다.', 'attack-monster');
+    if (!isChaosInfuserUnlocked()) return addLog('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입을 사용할 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('혼돈 주입 대상 아이템을 선택하세요.', 'attack-monster');
     let eligibility = isChaosInfusionEligibleItem(item);

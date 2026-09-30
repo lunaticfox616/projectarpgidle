@@ -2,7 +2,7 @@
 // 해금 카드의 "…에 있습니다" 줄: 콘텐츠가 있는 곳을 메뉴 이름 그대로.
 const CONTENT_ROUTE_PATHS = Object.freeze({
     'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
-    'item-tab-hall': '장비 → 장비 전당', 'item-tab-infuser': '장비 → 혼돈 주입기',
+    'item-tab-hall': '장비 → 장비 전당',
     'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
     'skill-tab-condition': '스킬 젬 → 자동 사용',
     'tab-flask': '보조장비 → 플라스크', 'tab-jewel': '보조장비 → 주얼', 'tab-talisman': '보조장비 → 부적', 'tab-cube': '보조장비 → 큐브',
