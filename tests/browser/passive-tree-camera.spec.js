@@ -52,3 +52,20 @@ test('a finger near a small passive node selects it on phones', async ({ page },
     await expect(page.locator('#passive-mobile-detail')).toBeVisible();
     await expect(page.locator('#passive-mobile-detail')).toContainText(await page.evaluate(id => getPassiveNodeDisplayName(PASSIVE_TREE.nodes[id]), next));
 });
+
+test('the first-passive guide steps aside for the phone node sheet and points at its confirm button', async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, 'Phone node sheet');
+    await openTreeAsPlayer(page, true);
+    await page.evaluate(() => { tutorialActionUi.start({ key: 'tutorial_first_passive', tabId: 'tab-char' }); });
+    await expect(page.locator('#tutorial-action-card')).toBeVisible();
+    const next = await page.evaluate(() => [...reachableNodes].find(id => getPassiveActivationPath(id).length === 1));
+    const spot = await nodeOnScreen(page, next);
+    await page.touchscreen.tap(spot.x, spot.y);
+    const confirm = page.locator('#passive-mobile-detail [data-passive-confirm]');
+    await expect(confirm).toHaveClass(/tutorial-action-target/);
+    await expect(page.locator('#tutorial-action-card')).toBeHidden();
+    const box = await confirm.boundingBox();
+    expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-passive-confirm]'), [box.x + box.width / 2, box.y + box.height / 2])).toBe(true);
+    await confirm.tap();
+    await expect.poll(() => page.evaluate(() => game.passives.length)).toBe(1);
+});

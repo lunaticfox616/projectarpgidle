@@ -15,7 +15,8 @@ const tutorialActionUi = {
             completed: (current, before) => current.some(id => !before.includes(id))
         },
         unlock_char: {
-            selector: '#tree-canvas',
+            // 휴대폰에서 노드 상세가 열려 있으면 그 "포인트 사용" 단추를, 아니면 트리 캔버스를 가리킨다.
+            selector: ['#passive-mobile-detail:not([hidden]) [data-passive-confirm]:not(:disabled)', '#tree-canvas'],
             title: '첫 패시브 투자',
             body: '연결된 시작 노드의 효과를 살펴보고, 원하는 노드에 포인트를 투자해 보세요.',
             read: () => game.passives.length,

@@ -1,8 +1,14 @@
 // Reuses the tree's tooltip and activation controller; mobile selection never allocates a node.
 const passiveSelectionUi = (() => {
+    /** 따라 하기 안내가 트리 캔버스와 상세의 "포인트 사용" 단추 사이로 표시를 옮긴다. */
+    function refreshGuide() {
+        if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
+    }
+
     function hide() {
         const panel = document.getElementById('passive-mobile-detail');
         if (panel) panel.hidden = true;
+        refreshGuide();
     }
 
     /** 확인 단추 글씨: 가진 노드는 반환(공허는 제작), 직업 시작점은 늘 열린 출발점, 나머지는 드는 포인트. */
@@ -37,6 +43,7 @@ const passiveSelectionUi = (() => {
         panel.innerHTML = `<header><strong>선택한 패시브</strong><button type="button" data-passive-close>닫기</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><button type="button" data-passive-confirm ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
         panel.hidden = false;
         panel.querySelector('[data-passive-close]').onclick = hide;
+        refreshGuide();
     }
 
     function touch(node, point, actions) {
