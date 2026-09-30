@@ -826,10 +826,7 @@
 }
 
 :root body #tree-container {
-  background:
-    radial-gradient(ellipse at 50% 78%, rgba(111, 72, 34, 0.14), transparent 32%),
-    radial-gradient(ellipse at 50% 34%, rgba(42, 81, 89, 0.12), transparent 55%),
-    #030508;
+  background: radial-gradient(ellipse at 50% 50%, #17120c, #0b0907 55%, #040303);
 }
 
 :root body.desktop-windowed-ui .ui-goal-panel {

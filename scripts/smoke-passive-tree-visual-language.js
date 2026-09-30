@@ -128,14 +128,16 @@ const linkContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     };
     const normal = { id: 'normal', x: 0, y: 0, kind: 'normal', tier: 2 };
     const voidNode = { id: 'void', x: 100, y: 0, kind: 'void', tier: 3 };
-    const drawn = drawPassiveLink(ctx, normal, voidNode, { stroke: '#fff', width: 1 });
-    const collapsed = drawPassiveLink(ctx, normal, { ...normal }, { stroke: '#fff', width: 1 });
+    const drawn = tracePassiveLinkSegment(ctx, normal, voidNode);
+    const collapsed = tracePassiveLinkSegment(ctx, normal, { ...normal });
     return { drawn, collapsed, ...calls };
 })())`, context));
 
-assert.strictEqual(linkContract.drawn, true, 'a spaced passive connection should be drawn');
+assert.strictEqual(linkContract.drawn, true, 'a spaced passive connection should be traced');
 assert.strictEqual(linkContract.collapsed, false, 'a zero-length passive connection should be ignored');
-assert.strictEqual(linkContract.strokes, 1, 'only the valid passive connection should stroke');
+assert.deepStrictEqual([linkContract.starts.length, linkContract.ends.length], [1, 1],
+    'only the valid passive connection should add a segment');
+assert.strictEqual(linkContract.strokes, 0, 'links are traced into one batched path per layer and stroked by the caller');
 assert(linkContract.starts[0][0] > 0 && linkContract.ends[0][0] < 100,
     'passive connections must stop at node boundaries instead of showing through node artwork');
 
@@ -259,8 +261,6 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const voidSlot = { complete: true, naturalWidth: 128, naturalHeight: 128 };
     const constellationSlot = { complete: true, naturalWidth: 128, naturalHeight: 128 };
     battleAssets.images.passiveTreeIcons = atlas;
-    battleAssets.images.passiveTreeNotableFrame = frame;
-    battleAssets.images.passiveTreeKeystoneFrame = frame;
     battleAssets.images.passiveTreeVoidSlot = voidSlot;
     battleAssets.images.passiveTreeConstellationSlot = constellationSlot;
     battleAssets.images.passiveTreeCustom_custom = frame;
@@ -281,9 +281,11 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const normalFrame = drawPassiveNodeFrameArt(ctx, normal, 12, false, 1);
     const strokesBeforeMajor = calls.strokes;
     drawPassiveNodeShape(ctx, major, 18, getPassiveNodePalette(major, false, true, 'discovered'),
-        false, true, 'discovered', 1, { lightweight: false, imageFramed: true });
+        false, true, 'discovered', 1, { lightweight: false, framed: true });
     const framedMajorLegacyStrokes = calls.strokes - strokesBeforeMajor;
+    const strokesBeforeMajorFrame = calls.strokes;
     const majorFrame = drawPassiveNodeFrameArt(ctx, major, 18, false, 1);
+    const majorFrameStrokes = calls.strokes - strokesBeforeMajorFrame;
     isDragging = true;
     const dragImageVisible = drawPassiveNodeImageArt(ctx,
         { id: 'drag-icon', x: 0, y: 0, kind: 'normal', tier: 2, stat: 'mystique' }, 12, 1);
@@ -297,7 +299,7 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const constellationIcon = drawPassiveNodeImageArt(ctx, constellationNode, 23, 1);
     const customIcon = drawPassiveNodeImageArt(ctx, customNode, 12, 1);
     return {
-        normalIcon, normalFrame, majorFrame, images: calls.images, normalBottomGap,
+        normalIcon, normalFrame, majorFrame, majorFrameStrokes, images: calls.images, normalBottomGap,
         framedMajorLegacyStrokes, dragImageVisible,
         clusterPlateType: typeof drawPassiveClusterPlate,
         voidIcon, constellationIcon, customIcon,
@@ -311,7 +313,9 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
 assert.strictEqual(imageArtContract.normalIcon, true, 'nearby effect nodes should use the colored semantic atlas');
 assert.strictEqual(imageArtContract.normalFrame, false, 'small nodes should not receive oversized notable frames');
 assert.strictEqual(imageArtContract.majorFrame, true, 'major nodes should receive a dedicated medallion frame');
-assert.strictEqual(imageArtContract.images.length, 6, 'regular, dragged, special-slot, and custom art should draw around one major frame');
+assert.ok(imageArtContract.majorFrameStrokes >= 3,
+    'the major medallion should be drawn as clean vector bands (rim, band and inner line), not a spiked frame image');
+assert.strictEqual(imageArtContract.images.length, 5, 'regular, dragged, special-slot, and custom art should be the only images; the medallion frame is vector');
 assert.strictEqual(imageArtContract.customIcon, true, 'an editor-uploaded node icon should override its atlas cell');
 assert.deepStrictEqual(imageArtContract.images[0].slice(0, 4), [0, 128, 128, 128],
     'the mystique family should crop the eye cell from the semantic atlas');
@@ -378,9 +382,7 @@ assert.strictEqual(new Set(Object.entries(generatedAtlasContract.notableFamilies
     ['assets/ui/passive-tree-keystone-icons-v1.webp', 180 * 1024],
     ['assets/ui/passive-tree-notable-icons-v4.webp', 95 * 1024],
     ['assets/ui/passive-tree-slot-void-v3.webp', 10 * 1024],
-    ['assets/ui/passive-tree-slot-constellation-v2.webp', 8 * 1024],
-    ['assets/ui/passive-tree-frame-notable-v1.webp', 16 * 1024],
-    ['assets/ui/passive-tree-frame-keystone-v1.webp', 16 * 1024]
+    ['assets/ui/passive-tree-slot-constellation-v2.webp', 8 * 1024]
 ].forEach(([assetPath, maxBytes]) => {
     const asset = fs.readFileSync(assetPath);
     assert.strictEqual(asset.subarray(0, 4).toString('ascii'), 'RIFF', `${assetPath} should be WebP`);

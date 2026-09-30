@@ -343,34 +343,307 @@ function getHoveredPassivePathNodeIds(hoveredNodeId) {
     return path;
 }
 
-function drawPassiveAstralBackdrop(ctx, lightweightMode) {
+// Far zoom draws every node as a batched dot; nearer zoom draws framed medallions with icons.
+const PASSIVE_TREE_SIMPLIFY_ZOOM = 0.24;
+const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.18;
+// Small path nodes show a stat-colored pip until their icon would be at least this many screen pixels wide.
+const PASSIVE_SMALL_ICON_MIN_PX = 12;
+const PASSIVE_BACKDROP_RINGS = Object.freeze([720, 1440, 2160, 2880]);
+// Link layers, bottom to top. Widths are screen pixels (px) with a world-unit floor (min) for close zoom.
+const PASSIVE_LINK_LAYER_ORDER = Object.freeze(['idle', 'reach', 'active', 'chain', 'path', 'hover']);
+const PASSIVE_LINK_LAYERS = Object.freeze({
+    idle: [{ color: 'rgba(126,109,84,0.4)', px: 1, min: 1 }],
+    reach: [{ color: 'rgba(208,186,140,0.64)', px: 1.4, min: 1.5 }],
+    active: [
+        { color: 'rgba(233,190,103,0.16)', px: 7, min: 8 },
+        { color: '#d6ae5e', px: 2.4, min: 2.6 },
+        { color: 'rgba(255,240,202,0.78)', px: 0.8, min: 0.8 }
+    ],
+    chain: [{ color: 'rgba(224,200,150,0.74)', px: 1.6, min: 1.8 }],
+    path: [{ color: 'rgba(246,212,134,0.95)', px: 2, min: 2.2, dash: 7 }],
+    hover: [{ color: 'rgba(255,246,222,0.96)', px: 2.4, min: 2.8 }]
+});
+const PASSIVE_DOT_PX = Object.freeze({ start: 6.5, keystone: 4.2, hub: 3.6, void: 3.4, major: 3.2, node: 2.4, star_option: 2 });
+const PASSIVE_DOT_IDLE_COLOR = Object.freeze({
+    start: '#b89a64', keystone: '#b98a5c', hub: '#9c86c9', void: '#8676b4', major: '#a8905f', node: '#8e7d60', star_option: '#6f8f8a'
+});
+
+function drawPassiveScreenBackdrop(ctx, width, height) {
+    const cx = width / 2 + camX;
+    const cy = height / 2 + camY;
+    const radius = Math.max(Math.hypot(width, height) * 0.75, 2800 * camZoom);
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    glow.addColorStop(0, '#17120c');
+    glow.addColorStop(0.55, '#0b0907');
+    glow.addColorStop(1, '#040303');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+}
+
+// Faint bronze orbit rings and the six class axes; one stroke, constant screen width.
+function drawPassiveAstralBackdrop(ctx) {
     ctx.save();
-    ctx.lineWidth = lightweightMode ? 2 : 3;
-    ctx.strokeStyle = 'rgba(105,126,140,0.07)';
-    [720, 1440, 2160, 2880].forEach(radius => {
-        ctx.beginPath();
+    ctx.strokeStyle = 'rgba(141,114,73,0.1)';
+    ctx.lineWidth = passiveTreeScreenWidth(1, 2);
+    ctx.beginPath();
+    PASSIVE_BACKDROP_RINGS.forEach(radius => {
+        ctx.moveTo(radius, 0);
         ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.stroke();
     });
-    ctx.lineWidth = lightweightMode ? 1.4 : 2.2;
-    ctx.strokeStyle = 'rgba(178,143,83,0.055)';
     for (let index = 0; index < 6; index++) {
         const angle = -Math.PI / 2 + index * Math.PI / 3;
-        ctx.beginPath();
         ctx.moveTo(Math.cos(angle) * 260, Math.sin(angle) * 260);
-        ctx.lineTo(Math.cos(angle) * 3400, Math.sin(angle) * 3400);
-        ctx.stroke();
+        ctx.lineTo(Math.cos(angle) * 2880, Math.sin(angle) * 2880);
     }
-    if (!lightweightMode) {
-        ctx.strokeStyle = 'rgba(205,174,112,0.09)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, 235, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.rotate(Math.PI / 4);
-        ctx.strokeRect(-118, -118, 236, 236);
-    }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(215,179,111,0.12)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 235, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
+}
+
+function getHoveredPassiveLinkedIds(hoverId) {
+    const ids = new Set();
+    if (!hoverId) return ids;
+    ids.add(hoverId);
+    (passiveRenderCache.edges || []).forEach(edge => {
+        if (edge.from === hoverId) ids.add(edge.to);
+        else if (edge.to === hoverId) ids.add(edge.from);
+    });
+    return ids;
+}
+
+function createPassiveDrawFrame() {
+    const hoverId = hoverNode && hoverNode.id ? hoverNode.id : null;
+    const allocated = new Set(game.passives || []);
+    const isVirtual = typeof isPassiveNodeVirtuallyLearned === 'function' ? isPassiveNodeVirtuallyLearned : () => false;
+    return {
+        hoverId,
+        allocated,
+        isVirtual,
+        isActive: id => allocated.has(id) || isVirtual(id),
+        isDisabled: typeof isPassiveNodeEffectDisabled === 'function' ? isPassiveNodeEffectDisabled : () => false,
+        linkedIds: getHoveredPassiveLinkedIds(hoverId),
+        pathIds: getHoveredPassivePathNodeIds(hoverId),
+        rootId: getPassiveTreeRootNodeId(),
+        lightweightMode: !!isDragging,
+        zoomedOutMode: camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM,
+        ultraZoomedOutMode: camZoom <= PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM,
+        fading: passiveRevealBursts.length > 0
+    };
+}
+
+function getPassiveHoverLinkLayer(a, b, frame) {
+    if (a.id === frame.hoverId || b.id === frame.hoverId) return 'hover';
+    if (frame.pathIds.has(a.id) && frame.pathIds.has(b.id)) return 'path';
+    if (frame.linkedIds.has(a.id) && frame.linkedIds.has(b.id)) return 'chain';
+    return null;
+}
+
+function getPassiveLinkLayer(edge, frame) {
+    const hoverLayer = frame.hoverId ? getPassiveHoverLinkLayer(edge.a, edge.b, frame) : null;
+    if (hoverLayer) return hoverLayer;
+    if (frame.isActive(edge.a.id) && frame.isActive(edge.b.id)) return 'active';
+    return reachableNodes.has(edge.a.id) || reachableNodes.has(edge.b.id) ? 'reach' : 'idle';
+}
+
+// One path per layer: 2.5k links become a handful of strokes, and a layer's glow, core and highlight
+// reuse the same path.
+function strokePassiveLinkLayer(ctx, edges, strokes) {
+    if (!edges.length) return;
+    ctx.beginPath();
+    edges.forEach(edge => tracePassiveLinkSegment(ctx, edge.a, edge.b));
+    strokes.forEach(stroke => {
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = passiveTreeScreenWidth(stroke.px, stroke.min);
+        ctx.setLineDash(stroke.dash ? [stroke.dash / camZoom, stroke.dash * 0.7 / camZoom] : []);
+        ctx.stroke();
+    });
+    ctx.setLineDash([]);
+}
+
+function getPassiveLinkRevealAlpha(edge, frame) {
+    if (!frame.fading) return 1;
+    return Math.min(getNodeRevealAmount(edge.a), getNodeRevealAmount(edge.b));
+}
+
+function drawPassiveTreeLinks(ctx, edges, frame) {
+    const layers = Object.fromEntries(PASSIVE_LINK_LAYER_ORDER.map(key => [key, []]));
+    const fading = [];
+    edges.forEach(edge => {
+        if (!isPassiveNodeAvailable(edge.a) || !isPassiveNodeAvailable(edge.b)) return;
+        const layer = getPassiveLinkLayer(edge, frame);
+        const alpha = getPassiveLinkRevealAlpha(edge, frame);
+        if (alpha < 1) fading.push({ edge, layer, alpha });
+        else layers[layer].push(edge);
+    });
+    ctx.save();
+    ctx.lineCap = 'round';
+    PASSIVE_LINK_LAYER_ORDER.forEach(key => strokePassiveLinkLayer(ctx, layers[key], PASSIVE_LINK_LAYERS[key]));
+    fading.forEach(entry => {
+        ctx.globalAlpha = entry.alpha;
+        strokePassiveLinkLayer(ctx, [entry.edge], PASSIVE_LINK_LAYERS[entry.layer]);
+    });
+    ctx.restore();
+}
+
+function getPassiveNodeSearchLook(node) {
+    const search = typeof getPassiveNodeSearchMatch === 'function' ? getPassiveNodeSearchMatch(node) : null;
+    if (!search || !search.active) return { dimmed: false, searchHit: false };
+    return { dimmed: !search.matches, searchHit: !!search.matches };
+}
+
+function getPassiveNodeLook(node, frame) {
+    const look = getPassiveNodeSearchLook(node);
+    look.virtual = frame.isVirtual(node.id);
+    look.active = look.virtual || frame.allocated.has(node.id);
+    look.reachable = reachableNodes.has(node.id);
+    look.disabled = frame.isDisabled(node.id);
+    look.alpha = getNodeRevealAmount(node) * (look.dimmed ? 0.28 : 1);
+    look.imageSlot = !look.dimmed && isPassiveImageSlotNode(node) && !!getPassiveNodeSlotImage(node);
+    look.framed = !isPassiveImageSlotNode(node) && isPassiveFramedNode(node);
+    look.radius = getPassiveNodeVisualRadius(node) + (frame.hoverId === node.id ? 1.5 : 0);
+    return look;
+}
+
+// Pips keep the stat family hue but blend it toward the bronze frame, so the tree never turns into a rainbow.
+const PASSIVE_PIP_BLEND = Object.freeze([157, 128, 82]);
+const passivePipColors = new Map();
+
+function getPassivePipColor(color) {
+    if (passivePipColors.has(color)) return passivePipColors.get(color);
+    const match = /^#([0-9a-f]{6})$/i.exec(String(color || ''));
+    const value = match ? parseInt(match[1], 16) : null;
+    const muted = value === null ? color : `rgb(${[16, 8, 0].map((shift, index) =>
+        Math.round(((value >> shift) & 255) * 0.62 + PASSIVE_PIP_BLEND[index] * 0.38)).join(',')})`;
+    passivePipColors.set(color, muted);
+    return muted;
+}
+
+// A small node shows a pip in its stat color (neutral while locked) until its icon is large enough to read.
+function drawPassiveNodePip(ctx, node, look, palette) {
+    if (!canUsePassiveNodeImageArt(node)) return;
+    ctx.save();
+    ctx.globalAlpha = look.alpha;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, Math.max(1.6, look.radius * 0.36), 0, Math.PI * 2);
+    ctx.fillStyle = getPassivePipColor(palette.icon || palette.outer);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawPassiveNodeCore(ctx, node, look, palette) {
+    if (look.dimmed) return;
+    // 1.56 = icon width / node radius in drawPassiveNodeImageArt.
+    if (getPassiveNodeVisualRadius(node) < 12 && look.radius * 1.56 * camZoom < PASSIVE_SMALL_ICON_MIN_PX) {
+        drawPassiveNodePip(ctx, node, look, palette);
+        return;
+    }
+    const emphasis = look.active ? 1 : (look.reachable ? 0.94 : 0.86);
+    drawPassiveNodeImageArt(ctx, node, look.radius, look.alpha * emphasis);
+}
+
+function drawPassiveNodeStatusRing(ctx, node, look) {
+    if (look.dimmed || !(look.virtual || look.disabled)) return;
+    ctx.save();
+    ctx.globalAlpha = look.alpha;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, look.radius + (look.virtual ? 7 : 5), 0, Math.PI * 2);
+    ctx.setLineDash(look.virtual ? [5, 4] : [2, 4]);
+    ctx.strokeStyle = look.virtual ? 'rgba(188,132,255,0.95)' : 'rgba(255,122,122,0.88)';
+    ctx.lineWidth = look.virtual ? 2.2 : 1.7;
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawPassiveTreeNode(ctx, node, frame) {
+    const visibility = getPassiveVisibility(node.id);
+    if (visibility === 'hidden') return;
+    const look = getPassiveNodeLook(node, frame);
+    const palette = getPassiveNodePalette(node, look.active, look.reachable, visibility);
+    drawPassiveNodeShape(ctx, node, look.radius, palette, look.active, look.reachable, visibility, look.alpha, {
+        lightweight: frame.lightweightMode || look.dimmed, framed: look.framed, imageSlot: look.imageSlot
+    });
+    if (look.framed) drawPassiveNodeFrameArt(ctx, node, look.radius, look.active, look.alpha);
+    drawPassiveNodeCore(ctx, node, look, palette);
+    drawPassiveNodeStatusRing(ctx, node, look);
+    if (!look.dimmed) drawPassiveNodeEffectLabel(ctx, node, look.radius, look.active, look.reachable, visibility);
+    if (look.searchHit) drawPassiveSearchHighlight(ctx, node, look.radius, palette);
+}
+
+function getPassiveNodeDotColor(node, look) {
+    if (look.active) return '#e9be67';
+    if (look.reachable) return '#dccaa2';
+    return PASSIVE_DOT_IDLE_COLOR[node.kind] || '#7e705a';
+}
+
+function collectPassiveNodeDot(buckets, node, frame) {
+    const hidden = getPassiveVisibility(node.id) === 'hidden';
+    const look = hidden ? { active: false, reachable: false, dimmed: false } : getPassiveNodeLook(node, frame);
+    const alpha = hidden ? 0.14 : (look.dimmed ? 0.25 : 1);
+    const key = `${getPassiveNodeDotColor(node, look)}|${alpha}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(node.x, node.y, (PASSIVE_DOT_PX[node.kind] || 1.6) / camZoom);
+    return look;
+}
+
+function fillPassiveDotBucket(ctx, key, dots) {
+    const [color, alpha] = key.split('|');
+    ctx.globalAlpha = Number(alpha);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let index = 0; index < dots.length; index += 3) {
+        ctx.moveTo(dots[index] + dots[index + 2], dots[index + 1]);
+        ctx.arc(dots[index], dots[index + 1], dots[index + 2], 0, Math.PI * 2);
+    }
+    ctx.fill();
+}
+
+// Far zoom: every node is one dot in a colour bucket, so the whole tree costs a few fills.
+function drawPassiveTreeNodeDots(ctx, nodes, frame) {
+    const buckets = new Map();
+    const hits = [];
+    nodes.forEach(node => {
+        const look = collectPassiveNodeDot(buckets, node, frame);
+        if (look.searchHit) hits.push({ node, look });
+    });
+    ctx.save();
+    buckets.forEach((dots, key) => fillPassiveDotBucket(ctx, key, dots));
+    ctx.restore();
+    hits.forEach(({ node, look }) => {
+        const palette = getPassiveNodePalette(node, look.active, look.reachable, 'discovered');
+        drawPassiveSearchHighlight(ctx, node, (PASSIVE_DOT_PX[node.kind] || 1.6) / camZoom, palette);
+    });
+}
+
+// Class names under the six starts keep the overview readable; the player's own class is gold.
+function drawPassiveClassStartLabels(ctx, nodes, frame) {
+    const starts = nodes.filter(node => node.kind === 'start' && node.title && getPassiveVisibility(node.id) !== 'hidden');
+    if (!starts.length) return;
+    ctx.save();
+    ctx.font = `${13 / camZoom}px 'MulmaruMono', 'Malgun Gothic', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3 / camZoom;
+    ctx.strokeStyle = 'rgba(5,4,4,0.92)';
+    starts.forEach(node => {
+        const rim = frame.zoomedOutMode ? PASSIVE_DOT_PX.start / camZoom : getPassiveNodeVisualRadius(node) + 7;
+        const y = node.y + rim + 6 / camZoom;
+        ctx.fillStyle = node.id === frame.rootId ? '#e9be67' : '#b3a283';
+        ctx.strokeText(node.title, node.x, y);
+        ctx.fillText(node.title, node.x, y);
+    });
+    ctx.restore();
+}
+
+function getPassiveCanvasSize(canvas) {
+    return {
+        dpr: Math.max(1, passiveCanvasMetrics.dpr || window.devicePixelRatio || 1),
+        width: passiveCanvasMetrics.width || Math.max(1, canvas.clientWidth || 1),
+        height: passiveCanvasMetrics.height || Math.max(1, canvas.clientHeight || 1)
+    };
 }
 
 function drawPassiveTree() {
@@ -379,170 +652,37 @@ function drawPassiveTree() {
 
     const canvas = document.getElementById('tree-canvas');
     if (!canvas || canvas.offsetParent === null) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const dpr = Math.max(1, passiveCanvasMetrics.dpr || window.devicePixelRatio || 1);
-    const displayWidth = passiveCanvasMetrics.width || Math.max(1, canvas.clientWidth || 1);
-    const displayHeight = passiveCanvasMetrics.height || Math.max(1, canvas.clientHeight || 1);
-    const lightweightMode = !!isDragging;
-    const PASSIVE_TREE_SIMPLIFY_ZOOM = 0.24;
-    const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.18;
-    const zoomedOutMode = camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM;
-    const ultraZoomedOutMode = camZoom <= PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM;
+    const size = getPassiveCanvasSize(canvas);
 
     // transform 누적 방지: 매 렌더 시작 시 setTransform으로 초기화
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
 
-    const viewport = getPassiveWorldViewport(displayWidth, displayHeight);
+    const viewport = getPassiveWorldViewport(size.width, size.height);
     const visibleNodes = passiveRenderCache.nodes.filter(node => isNodeInViewport(node, viewport, 120));
     const visibleEdges = passiveRenderCache.activeEdges.filter(edge => isEdgeInViewport(edge, viewport, 120));
-
-    // 화면 배경
-    const screenBg = ctx.createLinearGradient(0, 0, 0, displayHeight);
-    screenBg.addColorStop(0, '#0a0d11');
-    screenBg.addColorStop(0.45, '#05080b');
-    screenBg.addColorStop(1, '#020304');
-    ctx.fillStyle = screenBg;
-    ctx.fillRect(0, 0, displayWidth, displayHeight);
+    drawPassiveScreenBackdrop(ctx, size.width, size.height);
 
     ctx.save();
     // setTransform 이후 카메라 zoom/translate 적용
-    ctx.translate(displayWidth / 2 + camX, displayHeight / 2 + camY);
+    ctx.translate(size.width / 2 + camX, size.height / 2 + camY);
     ctx.scale(camZoom, camZoom);
-
-    drawPassiveAstralBackdrop(ctx, lightweightMode);
-
+    drawPassiveAstralBackdrop(ctx);
     // 리빌 펄스는 CSS overlay에서 animationend까지 GPU compositor로 처리한다.
-
-    let hoveredLinkedIds = new Set();
-    let hoveredPathNodeIds = getHoveredPassivePathNodeIds(hoverNode && hoverNode.id);
-    if (hoverNode && hoverNode.id) {
-        hoveredLinkedIds.add(hoverNode.id);
-        (passiveRenderCache.edges || []).forEach(edge => {
-            if (edge.from === hoverNode.id) hoveredLinkedIds.add(edge.to);
-            else if (edge.to === hoverNode.id) hoveredLinkedIds.add(edge.from);
-        });
-    }
-
-    // 링크
-    drawPassiveBranchUnderlay(ctx, visibleEdges, lightweightMode);
-
-    const allocatedNodeIds = new Set(game.passives || []);
-    visibleEdges.forEach(edge => {
-        const a = edge.a;
-        const b = edge.b;
-        if (!isPassiveNodeAvailable(a) || !isPassiveNodeAvailable(b)) return;
-
-        const hoveredLink = hoverNode && (a.id === hoverNode.id || b.id === hoverNode.id);
-        const linkedHoverChain = hoverNode && hoveredLinkedIds.has(a.id) && hoveredLinkedIds.has(b.id);
-        const onHoveredPath = hoverNode && hoveredPathNodeIds.has(a.id) && hoveredPathNodeIds.has(b.id);
-        const hoverRelatedEdge = hoveredLink || linkedHoverChain || onHoveredPath;
-
-        const visibleA = getPassiveVisibility(a.id);
-        const visibleB = getPassiveVisibility(b.id);
-        if ((visibleA === 'hidden' || visibleB === 'hidden') && !hoverRelatedEdge) return;
-        const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
-        const activeA = allocatedNodeIds.has(a.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(a.id));
-        const activeB = allocatedNodeIds.has(b.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(b.id));
-        const activeLink = activeA && activeB;
-        const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
-        const previewLink = visibleA === 'preview' || visibleB === 'preview';
-        const crossBranchLink = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
-        const sameDepthLink = Number(a.depth) === Number(b.depth);
-
-        ctx.save();
-        ctx.globalAlpha = alpha;
-
-        if (ultraZoomedOutMode) {
-            drawPassiveLink(ctx, a, b, {
-                stroke: activeLink ? 'rgba(160,130,82,0.78)' : (crossBranchLink ? 'rgba(80,98,115,0.2)' : 'rgba(80,98,115,0.5)'),
-                width: activeLink ? 2.6 : (crossBranchLink ? 0.7 : (sameDepthLink ? 0.9 : 1.1))
-            });
-        } else if (hoveredLink || linkedHoverChain || onHoveredPath) {
-            drawPassiveLink(ctx, a, b, {
-                stroke: hoveredLink ? 'rgba(238,248,255,0.98)' : (onHoveredPath ? 'rgba(255,216,120,0.95)' : 'rgba(112,165,214,0.82)'),
-                width: hoveredLink ? 3 : (onHoveredPath ? 2.6 : 2.2)
-            });
-        } else if (activeLink) {
-            drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(226,194,129,0.9)',
-                width: 2.4
-            });
-        } else if (reachableLink) {
-            drawPassiveLink(ctx, a, b, {
-                stroke: crossBranchLink ? 'rgba(116,128,137,0.3)' : 'rgba(157,170,179,0.66)',
-                width: crossBranchLink ? 0.8 : (sameDepthLink ? 1 : 1.3)
-            });
-        } else if (previewLink) {
-            drawPassiveLink(ctx, a, b, {
-                stroke: crossBranchLink ? 'rgba(67,85,98,0.1)' : 'rgba(67,85,98,0.24)',
-                width: crossBranchLink ? 0.6 : (sameDepthLink ? 0.8 : 1)
-            });
-        } else {
-            drawPassiveLink(ctx, a, b, {
-                stroke: crossBranchLink ? 'rgba(65,72,78,0.2)' : (sameDepthLink ? 'rgba(79,87,94,0.42)' : 'rgba(94,102,109,0.56)'),
-                width: crossBranchLink ? 0.5 : (sameDepthLink ? 0.7 : 0.9)
-            });
-        }
-
-        ctx.restore();
-    });
-
+    const frame = createPassiveDrawFrame();
+    drawPassiveTreeLinks(ctx, visibleEdges, frame);
     // 노드 효과 라벨은 화면 좌표상 서로 겹치지 않는 것만 그린다.
     passiveEffectLabelRects = [];
-    // 노드
-    visibleNodes.forEach(node => {
-        const visibility = getPassiveVisibility(node.id);
-        const hiddenSilhouette = visibility === 'hidden' && zoomedOutMode;
-        if (visibility === 'hidden' && !hiddenSilhouette) return;
-        const searchInfo = (typeof getPassiveNodeSearchMatch === 'function') ? getPassiveNodeSearchMatch(node) : { active: false, matches: true };
-        const revealAlpha = hiddenSilhouette ? (searchInfo.active && searchInfo.matches ? 0.18 : 0.12) : getNodeRevealAmount(node);
-        const virtualActive = !hiddenSilhouette && typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(node.id);
-        const active = !hiddenSilhouette && (allocatedNodeIds.has(node.id) || virtualActive);
-        const effectDisabled = !hiddenSilhouette && typeof isPassiveNodeEffectDisabled === 'function' && isPassiveNodeEffectDisabled(node.id);
-        const reachable = !hiddenSilhouette && reachableNodes.has(node.id);
-        const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
-        const palette = getPassiveNodePalette(node, active, reachable, visibility);
-        const searchDimmed = searchInfo.active && !searchInfo.matches;
-        const nodeAlpha = revealAlpha * (searchDimmed ? 0.28 : 1);
-        const framedNode = typeof isPassiveFramedNode === 'function' && isPassiveFramedNode(node);
-        const detailedArt = !hiddenSilhouette && !searchDimmed && !ultraZoomedOutMode;
-        const artOpacity = nodeAlpha * (active ? 1 : (reachable ? 0.94 : 0.86));
-        const imageSlot = detailedArt && typeof isPassiveImageSlotNode === 'function'
-            && typeof getPassiveNodeSlotImage === 'function'
-            && isPassiveImageSlotNode(node) && !!getPassiveNodeSlotImage(node);
-        const imageFramed = detailedArt && framedNode && !imageSlot && !!getPassiveNodeFrameImage(node);
-
-        drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, nodeAlpha, {
-            lightweight: lightweightMode || zoomedOutMode || hiddenSilhouette || searchDimmed,
-            imageFramed,
-            imageSlot
-        });
-        if (imageFramed) drawPassiveNodeFrameArt(ctx, node, radius, active, artOpacity);
-        if (detailedArt) drawPassiveNodeImageArt(ctx, node, radius, artOpacity);
-        if (!searchDimmed && (virtualActive || effectDisabled)) {
-            ctx.save();
-            ctx.globalAlpha = nodeAlpha;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius + (virtualActive ? 7 : 5), 0, Math.PI * 2);
-            ctx.setLineDash(virtualActive ? [5, 4] : [2, 4]);
-            ctx.strokeStyle = virtualActive ? 'rgba(188,132,255,0.95)' : 'rgba(255,122,122,0.88)';
-            ctx.lineWidth = virtualActive ? 2.2 : 1.7;
-            ctx.stroke();
-            ctx.restore();
-        }
-        if (!searchDimmed) drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility);
-        if (searchInfo.active && searchInfo.matches) drawPassiveSearchHighlight(ctx, node, radius, palette);
-
-        // reachable/hover rings are maintained in the CSS overlay below.
-    });
-
+    if (frame.zoomedOutMode) drawPassiveTreeNodeDots(ctx, visibleNodes, frame);
+    else visibleNodes.forEach(node => drawPassiveTreeNode(ctx, node, frame));
+    drawPassiveClassStartLabels(ctx, visibleNodes, frame);
     ctx.restore();
 
-    syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hoveredLinkedIds, hoveredPathNodeIds, ultraZoomedOutMode);
+    // reachable/hover rings are maintained in the CSS overlay.
+    syncPassiveTreeOverlay(size.width, size.height, visibleNodes, frame.linkedIds, frame.pathIds, frame.ultraZoomedOutMode);
 }
 
 function handleEquipmentSlotDoubleClick(slot, forCrafting) {

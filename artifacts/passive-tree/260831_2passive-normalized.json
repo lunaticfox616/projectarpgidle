@@ -57751,6 +57751,2383 @@
       "runtimeEffects": [],
       "iconFamily": "notableBleed",
       "keystoneEffectId": "keystone:pt_warrior_blood_cradle"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n01",
+      "x": 355.81,
+      "y": 2254.78,
+      "type": "assist",
+      "name": "기본 피해",
+      "desc": "기본 피해 +2",
+      "mods": [
+        {
+          "statId": "flatDmg",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "melee",
+      "optionProfile": "topology:bundle:melee:flatDmg",
+      "runtimeEffects": [
+        {
+          "statId": "flatDmg",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 8,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n02",
+      "x": 407.64,
+      "y": 2259.06,
+      "type": "normal",
+      "name": "급소 절개",
+      "desc": "근접 피해 +8%\n치명타 확률 +1%p",
+      "mods": [
+        {
+          "statId": "meleePctDmg",
+          "value": 8
+        },
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "melee",
+      "optionProfile": "feature:vital",
+      "runtimeEffects": [
+        {
+          "statId": "meleePctDmg",
+          "value": 8
+        },
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 9,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n03",
+      "x": 453.03,
+      "y": 2207.63,
+      "type": "minor",
+      "name": "치명타 확률",
+      "desc": "치명타 확률 +1%p",
+      "mods": [
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "melee",
+      "optionProfile": "topology:bundle:melee:crit",
+      "runtimeEffects": [
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n04",
+      "x": 500.76,
+      "y": 2176.45,
+      "type": "minor",
+      "name": "적 물리 피해 감소 무시",
+      "desc": "적 물리 피해 감소 무시 +1.5%",
+      "mods": [
+        {
+          "statId": "physIgnore",
+          "value": 1.5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "melee",
+      "optionProfile": "topology:bundle:melee:physIgnore",
+      "runtimeEffects": [
+        {
+          "statId": "physIgnore",
+          "value": 1.5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n05",
+      "x": 524.13,
+      "y": 2233.57,
+      "type": "major",
+      "name": "전장의 칼바람",
+      "desc": "근접 피해 +25%\n스킬 속도 +6%",
+      "mods": [
+        {
+          "statId": "meleePctDmg",
+          "value": 25
+        },
+        {
+          "statId": "aspd",
+          "value": 6
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "melee",
+      "optionProfile": "manual:pt_fill_warrior_rim_east_n05",
+      "runtimeEffects": [
+        {
+          "statId": "meleePctDmg",
+          "value": 25
+        },
+        {
+          "statId": "aspd",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n06",
+      "x": 518.37,
+      "y": 2303.33,
+      "type": "minor",
+      "name": "근접 피해",
+      "desc": "근접 피해 +5%",
+      "mods": [
+        {
+          "statId": "meleePctDmg",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "melee",
+      "optionProfile": "topology:bundle:melee:meleePctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "meleePctDmg",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "melee",
+      "id": "pt_fill_warrior_rim_east_n07",
+      "x": 467.65,
+      "y": 2334.26,
+      "type": "minor",
+      "name": "스킬 속도",
+      "desc": "스킬 속도 +2%",
+      "mods": [
+        {
+          "statId": "aspd",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "melee",
+      "optionProfile": "topology:bundle:melee:aspd",
+      "runtimeEffects": [
+        {
+          "statId": "aspd",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_east:theme:melee",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_east",
+      "visualPattern": "crown",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_warrior_rim_west_n01",
+      "x": -465.28,
+      "y": 1999.82,
+      "type": "assist",
+      "name": "막기 확률",
+      "desc": "막기 확률 +1%p",
+      "mods": [
+        {
+          "statId": "blockChance",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:blockChance",
+      "runtimeEffects": [
+        {
+          "statId": "blockChance",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_west:theme:armor",
+      "distanceFromClassStart": 9,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_west",
+      "visualPattern": "pentagon",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_warrior_rim_west_n02",
+      "x": -441.5,
+      "y": 2047.19,
+      "type": "normal",
+      "name": "강철 외피",
+      "desc": "방어도 +8%\n방어도 +25",
+      "mods": [
+        {
+          "statId": "armorPct",
+          "value": 8
+        },
+        {
+          "statId": "armor",
+          "value": 25
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "feature:shell",
+      "runtimeEffects": [
+        {
+          "statId": "armorPct",
+          "value": 8
+        },
+        {
+          "statId": "armor",
+          "value": 25
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_west:theme:armor",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_west",
+      "visualPattern": "pentagon",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_warrior_rim_west_n03",
+      "x": -373.95,
+      "y": 2059.15,
+      "type": "minor",
+      "name": "방어도",
+      "desc": "방어도 +5%",
+      "mods": [
+        {
+          "statId": "armorPct",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:armorPct",
+      "runtimeEffects": [
+        {
+          "statId": "armorPct",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_west:theme:armor",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_west",
+      "visualPattern": "pentagon",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_warrior_rim_west_n04",
+      "x": -366.24,
+      "y": 2121.3,
+      "type": "major",
+      "name": "녹슬지 않는 성벽",
+      "desc": "방어도 +30%\n최대 생명력 +8%",
+      "mods": [
+        {
+          "statId": "armorPct",
+          "value": 30
+        },
+        {
+          "statId": "pctHp",
+          "value": 8
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "armor",
+      "optionProfile": "manual:pt_fill_warrior_rim_west_n04",
+      "runtimeEffects": [
+        {
+          "statId": "armorPct",
+          "value": 30
+        },
+        {
+          "statId": "pctHp",
+          "value": 8
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_west:theme:armor",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_west",
+      "visualPattern": "pentagon",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_warrior_rim_west_n05",
+      "x": -427.01,
+      "y": 2151.81,
+      "type": "minor",
+      "name": "방어도",
+      "desc": "방어도 +15",
+      "mods": [
+        {
+          "statId": "armor",
+          "value": 15
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:armor",
+      "runtimeEffects": [
+        {
+          "statId": "armor",
+          "value": 15
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_west:theme:armor",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_west",
+      "visualPattern": "pentagon",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_warrior_rim_west_n06",
+      "x": -472.25,
+      "y": 2108.51,
+      "type": "minor",
+      "name": "최대 생명력",
+      "desc": "최대 생명력 +2%",
+      "mods": [
+        {
+          "statId": "pctHp",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:pctHp",
+      "runtimeEffects": [
+        {
+          "statId": "pctHp",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_rim_west:theme:armor",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_rim_west",
+      "visualPattern": "pentagon",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n01",
+      "x": -637,
+      "y": 1869.23,
+      "type": "assist",
+      "name": "지속 피해 배율",
+      "desc": "지속 피해 배율 +5%",
+      "mods": [
+        {
+          "statId": "dotPctDmg",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:dotPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "dotPctDmg",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n02",
+      "x": -668.46,
+      "y": 1827.82,
+      "type": "assist",
+      "name": "출혈 확률",
+      "desc": "출혈 확률 +4%p",
+      "mods": [
+        {
+          "statId": "bleedChance",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:bleedChance",
+      "runtimeEffects": [
+        {
+          "statId": "bleedChance",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n03",
+      "x": -699.92,
+      "y": 1786.42,
+      "type": "normal",
+      "name": "철을 가르는 힘",
+      "desc": "물리 피해 +8%\n적 물리 피해 감소 무시 +2.5%",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "physIgnore",
+          "value": 2.5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "feature:split",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "physIgnore",
+          "value": 2.5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n04",
+      "x": -653.74,
+      "y": 1751.33,
+      "type": "minor",
+      "name": "기본 피해",
+      "desc": "기본 피해 +2",
+      "mods": [
+        {
+          "statId": "flatDmg",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:flatDmg",
+      "runtimeEffects": [
+        {
+          "statId": "flatDmg",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n05",
+      "x": -706.29,
+      "y": 1728.46,
+      "type": "major",
+      "name": "핏빛 쇄도",
+      "desc": "물리 피해 +30%\n출혈 확률 +15%p",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 30
+        },
+        {
+          "statId": "bleedChance",
+          "value": 15
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:pt_fill_warrior_bleed_fold_n05",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 30
+        },
+        {
+          "statId": "bleedChance",
+          "value": 15
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 14,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n06",
+      "x": -754.06,
+      "y": 1764.76,
+      "type": "minor",
+      "name": "적 물리 피해 감소 무시",
+      "desc": "적 물리 피해 감소 무시 +1%",
+      "mods": [
+        {
+          "statId": "physIgnore",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:physIgnore",
+      "runtimeEffects": [
+        {
+          "statId": "physIgnore",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 14,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_warrior_bleed_fold_n07",
+      "x": -746.1,
+      "y": 1821.51,
+      "type": "minor",
+      "name": "물리 피해",
+      "desc": "물리 피해 +5%",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:physPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_warrior_bleed_fold:theme:physical",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_warrior_bleed_fold",
+      "visualPattern": "blossom",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "elemental",
+      "id": "pt_fill_alchemist_inner_n01",
+      "x": -224.5,
+      "y": -747.12,
+      "type": "assist",
+      "name": "원소 피해",
+      "desc": "원소 피해 +7%",
+      "mods": [
+        {
+          "statId": "elementalPctDmg",
+          "value": 7
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "elemental",
+      "optionProfile": "topology:bundle:elemental:elementalPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "elementalPctDmg",
+          "value": 7
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_alchemist_inner:theme:elemental",
+      "distanceFromClassStart": 21,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_alchemist_inner",
+      "visualPattern": "tulip",
+      "expansionRole": "gap-fill",
+      "expansionZone": "alchemist"
+    },
+    {
+      "cat": "elemental",
+      "id": "pt_fill_alchemist_inner_n02",
+      "x": -194,
+      "y": -789.23,
+      "type": "normal",
+      "name": "전류 촉매",
+      "desc": "번개 피해 +8%\n감전 확률 +4%p",
+      "mods": [
+        {
+          "statId": "lightPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "shockChance",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "elemental",
+      "optionProfile": "feature:lightning",
+      "runtimeEffects": [
+        {
+          "statId": "lightPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "shockChance",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_alchemist_inner:theme:elemental",
+      "distanceFromClassStart": 22,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_alchemist_inner",
+      "visualPattern": "tulip",
+      "expansionRole": "gap-fill",
+      "expansionZone": "alchemist"
+    },
+    {
+      "cat": "elemental",
+      "id": "pt_fill_alchemist_inner_n03",
+      "x": -211.57,
+      "y": -858.75,
+      "type": "minor",
+      "name": "화염 피해",
+      "desc": "화염 피해 +6%",
+      "mods": [
+        {
+          "statId": "firePctDmg",
+          "value": 6
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "elemental",
+      "optionProfile": "topology:bundle:elemental:firePctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "firePctDmg",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_alchemist_inner:theme:elemental",
+      "distanceFromClassStart": 23,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_alchemist_inner",
+      "visualPattern": "tulip",
+      "expansionRole": "gap-fill",
+      "expansionZone": "alchemist"
+    },
+    {
+      "cat": "elemental",
+      "id": "pt_fill_alchemist_inner_n04",
+      "x": -157.95,
+      "y": -881.65,
+      "type": "major",
+      "name": "정제된 원소핵",
+      "desc": "원소 피해 +25%\n저항 관통 +4%",
+      "mods": [
+        {
+          "statId": "elementalPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "resPen",
+          "value": 4
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "elemental",
+      "optionProfile": "manual:pt_fill_alchemist_inner_n04",
+      "runtimeEffects": [
+        {
+          "statId": "elementalPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "resPen",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_alchemist_inner:theme:elemental",
+      "distanceFromClassStart": 24,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_alchemist_inner",
+      "visualPattern": "tulip",
+      "expansionRole": "gap-fill",
+      "expansionZone": "alchemist"
+    },
+    {
+      "cat": "elemental",
+      "id": "pt_fill_alchemist_inner_n05",
+      "x": -117.45,
+      "y": -852.33,
+      "type": "minor",
+      "name": "냉기 피해",
+      "desc": "냉기 피해 +6%",
+      "mods": [
+        {
+          "statId": "coldPctDmg",
+          "value": 6
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "elemental",
+      "optionProfile": "topology:bundle:elemental:coldPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "coldPctDmg",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_alchemist_inner:theme:elemental",
+      "distanceFromClassStart": 24,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_alchemist_inner",
+      "visualPattern": "tulip",
+      "expansionRole": "gap-fill",
+      "expansionZone": "alchemist"
+    },
+    {
+      "cat": "elemental",
+      "id": "pt_fill_alchemist_inner_n06",
+      "x": -122.48,
+      "y": -794.23,
+      "type": "minor",
+      "name": "점화 확률",
+      "desc": "점화 확률 +3%p",
+      "mods": [
+        {
+          "statId": "igniteChance",
+          "value": 3
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "elemental",
+      "optionProfile": "topology:bundle:elemental:igniteChance",
+      "runtimeEffects": [
+        {
+          "statId": "igniteChance",
+          "value": 3
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_alchemist_inner:theme:elemental",
+      "distanceFromClassStart": 23,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_alchemist_inner",
+      "visualPattern": "tulip",
+      "expansionRole": "gap-fill",
+      "expansionZone": "alchemist"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_rim_n01",
+      "x": -2039.49,
+      "y": 427.45,
+      "type": "assist",
+      "name": "지속 피해 배율",
+      "desc": "지속 피해 배율 +5%",
+      "mods": [
+        {
+          "statId": "dotPctDmg",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:dotPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "dotPctDmg",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_rim:theme:physical",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_rim",
+      "visualPattern": "comet",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_rim_n02",
+      "x": -2108.57,
+      "y": 406.68,
+      "type": "assist",
+      "name": "기본 피해",
+      "desc": "기본 피해 +2",
+      "mods": [
+        {
+          "statId": "flatDmg",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:flatDmg",
+      "runtimeEffects": [
+        {
+          "statId": "flatDmg",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_rim:theme:physical",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_rim",
+      "visualPattern": "comet",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_rim_n03",
+      "x": -2021.44,
+      "y": 357.61,
+      "type": "minor",
+      "name": "물리 피해",
+      "desc": "물리 피해 +4%",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:physPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_rim:theme:physical",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_rim",
+      "visualPattern": "comet",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_rim_n04",
+      "x": -2092.48,
+      "y": 333.35,
+      "type": "normal",
+      "name": "무거운 타격",
+      "desc": "물리 피해 +8%\n기본 피해 +3",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "flatDmg",
+          "value": 3
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "feature:heavy",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "flatDmg",
+          "value": 3
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_rim:theme:physical",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_rim",
+      "visualPattern": "comet",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_rim_n05",
+      "x": -2074.43,
+      "y": 263.5,
+      "type": "major",
+      "name": "황혼의 절단",
+      "desc": "물리 피해 +25%\n적 물리 피해 감소 무시 +6%",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "physIgnore",
+          "value": 6
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:pt_fill_wanderer_rim_n05",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "physIgnore",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_rim:theme:physical",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_rim",
+      "visualPattern": "comet",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_wanderer_hollow_n01",
+      "x": -1170.4,
+      "y": 1462.75,
+      "type": "assist",
+      "name": "회피",
+      "desc": "회피 +5%",
+      "mods": [
+        {
+          "statId": "evasionPct",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:evasionPct",
+      "runtimeEffects": [
+        {
+          "statId": "evasionPct",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_hollow:theme:evasion",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_hollow",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_wanderer_hollow_n02",
+      "x": -1140.8,
+      "y": 1505.51,
+      "type": "normal",
+      "name": "비스듬한 회피",
+      "desc": "비껴내기 확률 +2%p\n회피 +6%",
+      "mods": [
+        {
+          "statId": "deflectChance",
+          "value": 2
+        },
+        {
+          "statId": "evasionPct",
+          "value": 6
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "feature:glance",
+      "runtimeEffects": [
+        {
+          "statId": "deflectChance",
+          "value": 2
+        },
+        {
+          "statId": "evasionPct",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_hollow:theme:evasion",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_hollow",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_wanderer_hollow_n03",
+      "x": -1065.79,
+      "y": 1511.96,
+      "type": "minor",
+      "name": "회피",
+      "desc": "회피 +15",
+      "mods": [
+        {
+          "statId": "evasion",
+          "value": 15
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:evasion",
+      "runtimeEffects": [
+        {
+          "statId": "evasion",
+          "value": 15
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_hollow:theme:evasion",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_hollow",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_wanderer_hollow_n04",
+      "x": -1080.47,
+      "y": 1592.66,
+      "type": "major",
+      "name": "침묵의 보법",
+      "desc": "회피 +25%\n비껴내기 확률 +5%p",
+      "mods": [
+        {
+          "statId": "evasionPct",
+          "value": 25
+        },
+        {
+          "statId": "deflectChance",
+          "value": 5
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "evasion",
+      "optionProfile": "manual:pt_fill_wanderer_hollow_n04",
+      "runtimeEffects": [
+        {
+          "statId": "evasionPct",
+          "value": 25
+        },
+        {
+          "statId": "deflectChance",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_hollow:theme:evasion",
+      "distanceFromClassStart": 14,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_wanderer_hollow",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_wanderer_hollow_n05",
+      "x": -1161.17,
+      "y": 1577.99,
+      "type": "minor",
+      "name": "비껴내기 확률",
+      "desc": "비껴내기 확률 +2%p",
+      "mods": [
+        {
+          "statId": "deflectChance",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:deflectChance",
+      "runtimeEffects": [
+        {
+          "statId": "deflectChance",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_hollow:theme:evasion",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_hollow",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_wanderer_hollow_n06",
+      "x": -1110.06,
+      "y": 1549.91,
+      "type": "minor",
+      "name": "치명타 확률",
+      "desc": "치명타 확률 +1%p",
+      "mods": [
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:crit",
+      "runtimeEffects": [
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_hollow:theme:evasion",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_wanderer_hollow",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_vale_n01",
+      "x": -848.21,
+      "y": 792.79,
+      "type": "assist",
+      "name": "물리 피해",
+      "desc": "물리 피해 +6%",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 6
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:physPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_vale:theme:physical",
+      "distanceFromClassStart": 14,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_wanderer_vale",
+      "visualPattern": "web",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_vale_n02",
+      "x": -826.42,
+      "y": 745.57,
+      "type": "assist",
+      "name": "기본 피해",
+      "desc": "기본 피해 +3",
+      "mods": [
+        {
+          "statId": "flatDmg",
+          "value": 3
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:flatDmg",
+      "runtimeEffects": [
+        {
+          "statId": "flatDmg",
+          "value": 3
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_vale:theme:physical",
+      "distanceFromClassStart": 15,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_wanderer_vale",
+      "visualPattern": "web",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_vale_n03",
+      "x": -804.63,
+      "y": 698.36,
+      "type": "major",
+      "name": "부서지는 골격",
+      "desc": "물리 피해 +25%\n최대 생명력 +50",
+      "mods": [
+        {
+          "statId": "physPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "flatHp",
+          "value": 50
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:pt_fill_wanderer_vale_n03",
+      "runtimeEffects": [
+        {
+          "statId": "physPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "flatHp",
+          "value": 50
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_vale:theme:physical",
+      "distanceFromClassStart": 16,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_wanderer_vale",
+      "visualPattern": "web",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_vale_n04",
+      "x": -854.56,
+      "y": 675.31,
+      "type": "minor",
+      "name": "적 물리 피해 감소 무시",
+      "desc": "적 물리 피해 감소 무시 +1%",
+      "mods": [
+        {
+          "statId": "physIgnore",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:physIgnore",
+      "runtimeEffects": [
+        {
+          "statId": "physIgnore",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_vale:theme:physical",
+      "distanceFromClassStart": 17,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_wanderer_vale",
+      "visualPattern": "web",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "physical",
+      "id": "pt_fill_wanderer_vale_n05",
+      "x": -754.69,
+      "y": 721.41,
+      "type": "minor",
+      "name": "출혈 확률",
+      "desc": "출혈 확률 +3%p",
+      "mods": [
+        {
+          "statId": "bleedChance",
+          "value": 3
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "physical",
+      "optionProfile": "topology:bundle:physical:bleedChance",
+      "runtimeEffects": [
+        {
+          "statId": "bleedChance",
+          "value": 3
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_wanderer_vale:theme:physical",
+      "distanceFromClassStart": 17,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_wanderer_vale",
+      "visualPattern": "web",
+      "expansionRole": "gap-fill",
+      "expansionZone": "wanderer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n01",
+      "x": -1487,
+      "y": -1512.45,
+      "type": "assist",
+      "name": "스킬 속도",
+      "desc": "스킬 속도 +2%",
+      "mods": [
+        {
+          "statId": "aspd",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "projectile",
+      "optionProfile": "topology:bundle:projectile:aspd",
+      "runtimeEffects": [
+        {
+          "statId": "aspd",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n02",
+      "x": -1495.57,
+      "y": -1574.35,
+      "type": "assist",
+      "name": "투사체 피해",
+      "desc": "투사체 피해 +6%",
+      "mods": [
+        {
+          "statId": "projectilePctDmg",
+          "value": 6
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "projectile",
+      "optionProfile": "topology:bundle:projectile:projectilePctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "projectilePctDmg",
+          "value": 6
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n03",
+      "x": -1475.35,
+      "y": -1626.26,
+      "type": "minor",
+      "name": "치명타 확률",
+      "desc": "치명타 확률 +1%p",
+      "mods": [
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "projectile",
+      "optionProfile": "topology:bundle:projectile:crit",
+      "runtimeEffects": [
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n04",
+      "x": -1425.56,
+      "y": -1651.26,
+      "type": "minor",
+      "name": "정확도",
+      "desc": "정확도 +37",
+      "mods": [
+        {
+          "statId": "accuracy",
+          "value": 37
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "projectile",
+      "optionProfile": "topology:bundle:projectile:accuracy",
+      "runtimeEffects": [
+        {
+          "statId": "accuracy",
+          "value": 37
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n05",
+      "x": -1373.91,
+      "y": -1636.69,
+      "type": "major",
+      "name": "꿰뚫는 매의 시선",
+      "desc": "투사체 피해 +30%\n치명타 피해 배율 +30%",
+      "mods": [
+        {
+          "statId": "projectilePctDmg",
+          "value": 30
+        },
+        {
+          "statId": "critDmg",
+          "value": 30
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "projectile",
+      "optionProfile": "manual:pt_fill_archer_rim_n05",
+      "runtimeEffects": [
+        {
+          "statId": "projectilePctDmg",
+          "value": 30
+        },
+        {
+          "statId": "critDmg",
+          "value": 30
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n06",
+      "x": -1362.64,
+      "y": -1577.76,
+      "type": "minor",
+      "name": "투사체 피해",
+      "desc": "투사체 피해 +4%",
+      "mods": [
+        {
+          "statId": "projectilePctDmg",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "projectile",
+      "optionProfile": "topology:bundle:projectile:projectilePctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "projectilePctDmg",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "projectile",
+      "id": "pt_fill_archer_rim_n07",
+      "x": -1388.77,
+      "y": -1531.23,
+      "type": "minor",
+      "name": "스킬 속도",
+      "desc": "스킬 속도 +2%",
+      "mods": [
+        {
+          "statId": "aspd",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "projectile",
+      "optionProfile": "topology:bundle:projectile:aspd",
+      "runtimeEffects": [
+        {
+          "statId": "aspd",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_rim:theme:projectile",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_rim",
+      "visualPattern": "crescent",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_archer_glade_n01",
+      "x": -1819.9,
+      "y": -157.81,
+      "type": "assist",
+      "name": "이동 속도",
+      "desc": "이동 속도 +2%",
+      "mods": [
+        {
+          "statId": "move",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:move",
+      "runtimeEffects": [
+        {
+          "statId": "move",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_glade:theme:evasion",
+      "distanceFromClassStart": 8,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_glade",
+      "visualPattern": "braid",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_archer_glade_n02",
+      "x": -1773.34,
+      "y": -204.3,
+      "type": "assist",
+      "name": "회피",
+      "desc": "회피 +5%",
+      "mods": [
+        {
+          "statId": "evasionPct",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:evasionPct",
+      "runtimeEffects": [
+        {
+          "statId": "evasionPct",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_glade:theme:evasion",
+      "distanceFromClassStart": 9,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_glade",
+      "visualPattern": "braid",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_archer_glade_n03",
+      "x": -1719.95,
+      "y": -160.96,
+      "type": "normal",
+      "name": "반격의 틈",
+      "desc": "회피 +8%\n치명타 확률 +1%p",
+      "mods": [
+        {
+          "statId": "evasionPct",
+          "value": 8
+        },
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "feature:counter",
+      "runtimeEffects": [
+        {
+          "statId": "evasionPct",
+          "value": 8
+        },
+        {
+          "statId": "crit",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_glade:theme:evasion",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_glade",
+      "visualPattern": "braid",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_archer_glade_n04",
+      "x": -1666.56,
+      "y": -117.61,
+      "type": "major",
+      "name": "흩날리는 잔상",
+      "desc": "회피 +25%\n치명타 확률 +4%p",
+      "mods": [
+        {
+          "statId": "evasionPct",
+          "value": 25
+        },
+        {
+          "statId": "crit",
+          "value": 4
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "evasion",
+      "optionProfile": "manual:pt_fill_archer_glade_n04",
+      "runtimeEffects": [
+        {
+          "statId": "evasionPct",
+          "value": 25
+        },
+        {
+          "statId": "crit",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_glade:theme:evasion",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_glade",
+      "visualPattern": "braid",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "evasion",
+      "id": "pt_fill_archer_glade_n05",
+      "x": -1669.39,
+      "y": -207.57,
+      "type": "minor",
+      "name": "기동 스킬 피해",
+      "desc": "기동 스킬 피해 +5%",
+      "mods": [
+        {
+          "statId": "mobilityPctDmg",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "evasion",
+      "optionProfile": "topology:bundle:evasion:mobilityPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "mobilityPctDmg",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_archer_glade:theme:evasion",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_archer_glade",
+      "visualPattern": "braid",
+      "expansionRole": "gap-fill",
+      "expansionZone": "archer"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_cleric_rim_n01",
+      "x": 1521.24,
+      "y": 1488.96,
+      "type": "assist",
+      "name": "막기 확률",
+      "desc": "막기 확률 +1%p",
+      "mods": [
+        {
+          "statId": "blockChance",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:blockChance",
+      "runtimeEffects": [
+        {
+          "statId": "blockChance",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_rim:theme:armor",
+      "distanceFromClassStart": 10,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_cleric_rim",
+      "visualPattern": "pinwheel",
+      "expansionRole": "gap-fill",
+      "expansionZone": "cleric"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_cleric_rim_n02",
+      "x": 1562.99,
+      "y": 1519.95,
+      "type": "normal",
+      "name": "완강한 수비",
+      "desc": "막기 확률 +1%p\n방어도 +8%",
+      "mods": [
+        {
+          "statId": "blockChance",
+          "value": 1
+        },
+        {
+          "statId": "armorPct",
+          "value": 8
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "feature:guard",
+      "runtimeEffects": [
+        {
+          "statId": "blockChance",
+          "value": 1
+        },
+        {
+          "statId": "armorPct",
+          "value": 8
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_rim:theme:armor",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_cleric_rim",
+      "visualPattern": "pinwheel",
+      "expansionRole": "gap-fill",
+      "expansionZone": "cleric"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_cleric_rim_n03",
+      "x": 1570.18,
+      "y": 1597.51,
+      "type": "minor",
+      "name": "방어도",
+      "desc": "방어도 +15",
+      "mods": [
+        {
+          "statId": "armor",
+          "value": 15
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:armor",
+      "runtimeEffects": [
+        {
+          "statId": "armor",
+          "value": 15
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_rim:theme:armor",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_cleric_rim",
+      "visualPattern": "pinwheel",
+      "expansionRole": "gap-fill",
+      "expansionZone": "cleric"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_cleric_rim_n04",
+      "x": 1639.4,
+      "y": 1601.57,
+      "type": "major",
+      "name": "서약의 보루",
+      "desc": "방어도 +25%\n초당 생명력 재생 +1%",
+      "mods": [
+        {
+          "statId": "armorPct",
+          "value": 25
+        },
+        {
+          "statId": "regen",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "armor",
+      "optionProfile": "manual:pt_fill_cleric_rim_n04",
+      "runtimeEffects": [
+        {
+          "statId": "armorPct",
+          "value": 25
+        },
+        {
+          "statId": "regen",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_rim:theme:armor",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_cleric_rim",
+      "visualPattern": "pinwheel",
+      "expansionRole": "gap-fill",
+      "expansionZone": "cleric"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_cleric_rim_n05",
+      "x": 1659.52,
+      "y": 1544.26,
+      "type": "minor",
+      "name": "방어도",
+      "desc": "방어도 +4%",
+      "mods": [
+        {
+          "statId": "armorPct",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:armorPct",
+      "runtimeEffects": [
+        {
+          "statId": "armorPct",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_rim:theme:armor",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_cleric_rim",
+      "visualPattern": "pinwheel",
+      "expansionRole": "gap-fill",
+      "expansionZone": "cleric"
+    },
+    {
+      "cat": "armor",
+      "id": "pt_fill_cleric_rim_n06",
+      "x": 1624.86,
+      "y": 1493.64,
+      "type": "minor",
+      "name": "최대 생명력",
+      "desc": "최대 생명력 +2%",
+      "mods": [
+        {
+          "statId": "pctHp",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "armor",
+      "optionProfile": "topology:bundle:armor:pctHp",
+      "runtimeEffects": [
+        {
+          "statId": "pctHp",
+          "value": 2
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_rim:theme:armor",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_cleric_rim",
+      "visualPattern": "pinwheel",
+      "expansionRole": "gap-fill",
+      "expansionZone": "cleric"
+    },
+    {
+      "cat": "chaos",
+      "id": "pt_fill_occultist_rim_n01",
+      "x": 2138.31,
+      "y": -274.9,
+      "type": "assist",
+      "name": "저항 관통",
+      "desc": "저항 관통 +1%",
+      "mods": [
+        {
+          "statId": "resPen",
+          "value": 1
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "chaos",
+      "optionProfile": "topology:bundle:chaos:resPen",
+      "runtimeEffects": [
+        {
+          "statId": "resPen",
+          "value": 1
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_occultist_rim:theme:chaos",
+      "distanceFromClassStart": 11,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_occultist_rim",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "occultist"
+    },
+    {
+      "cat": "chaos",
+      "id": "pt_fill_occultist_rim_n02",
+      "x": 2147.77,
+      "y": -223.77,
+      "type": "normal",
+      "name": "공허 관통",
+      "desc": "카오스 피해 +8%\n저항 관통 +1.5%",
+      "mods": [
+        {
+          "statId": "chaosPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "resPen",
+          "value": 1.5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "chaos",
+      "optionProfile": "feature:breach",
+      "runtimeEffects": [
+        {
+          "statId": "chaosPctDmg",
+          "value": 8
+        },
+        {
+          "statId": "resPen",
+          "value": 1.5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_occultist_rim:theme:chaos",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_occultist_rim",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "occultist"
+    },
+    {
+      "cat": "chaos",
+      "id": "pt_fill_occultist_rim_n03",
+      "x": 2213.54,
+      "y": -187.13,
+      "type": "minor",
+      "name": "카오스 피해",
+      "desc": "카오스 피해 +4%",
+      "mods": [
+        {
+          "statId": "chaosPctDmg",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "chaos",
+      "optionProfile": "topology:bundle:chaos:chaosPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "chaosPctDmg",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_occultist_rim:theme:chaos",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_occultist_rim",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "occultist"
+    },
+    {
+      "cat": "chaos",
+      "id": "pt_fill_occultist_rim_n04",
+      "x": 2167.07,
+      "y": -119.54,
+      "type": "major",
+      "name": "가라앉는 심연",
+      "desc": "카오스 피해 +25%\n지속 피해 배율 +15%",
+      "mods": [
+        {
+          "statId": "chaosPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "dotPctDmg",
+          "value": 15
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "chaos",
+      "optionProfile": "manual:pt_fill_occultist_rim_n04",
+      "runtimeEffects": [
+        {
+          "statId": "chaosPctDmg",
+          "value": 25
+        },
+        {
+          "statId": "dotPctDmg",
+          "value": 15
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_occultist_rim:theme:chaos",
+      "distanceFromClassStart": 14,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_occultist_rim",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "occultist"
+    },
+    {
+      "cat": "chaos",
+      "id": "pt_fill_occultist_rim_n05",
+      "x": 2099.48,
+      "y": -166.01,
+      "type": "minor",
+      "name": "중독 확률",
+      "desc": "중독 확률 +3%p",
+      "mods": [
+        {
+          "statId": "poisonChance",
+          "value": 3
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "chaos",
+      "optionProfile": "topology:bundle:chaos:poisonChance",
+      "runtimeEffects": [
+        {
+          "statId": "poisonChance",
+          "value": 3
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_occultist_rim:theme:chaos",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_occultist_rim",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "occultist"
+    },
+    {
+      "cat": "chaos",
+      "id": "pt_fill_occultist_rim_n06",
+      "x": 2157.6,
+      "y": -170.67,
+      "type": "minor",
+      "name": "지속 피해 배율",
+      "desc": "지속 피해 배율 +4%",
+      "mods": [
+        {
+          "statId": "dotPctDmg",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "chaos",
+      "optionProfile": "topology:bundle:chaos:dotPctDmg",
+      "runtimeEffects": [
+        {
+          "statId": "dotPctDmg",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_occultist_rim:theme:chaos",
+      "distanceFromClassStart": 13,
+      "powerBand": 1,
+      "expansionGroupId": "pt_fill_occultist_rim",
+      "visualPattern": "eye",
+      "expansionRole": "gap-fill",
+      "expansionZone": "occultist"
+    },
+    {
+      "cat": "energyShield",
+      "id": "pt_fill_cleric_inner_n01",
+      "x": 365.1,
+      "y": 656.88,
+      "type": "assist",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
+      "mods": [
+        {
+          "statId": "energyShield",
+          "value": 15
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "energyShield",
+      "optionProfile": "topology:bundle:energyShield:energyShield",
+      "runtimeEffects": [
+        {
+          "statId": "energyShield",
+          "value": 15
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_inner:theme:energyShield",
+      "distanceFromClassStart": 18,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_cleric_inner",
+      "visualPattern": "shield",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "energyShield",
+      "id": "pt_fill_cleric_inner_n02",
+      "x": 410.21,
+      "y": 682.75,
+      "type": "assist",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +5%",
+      "mods": [
+        {
+          "statId": "energyShieldPct",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "energyShield",
+      "optionProfile": "topology:bundle:energyShield:energyShieldPct",
+      "runtimeEffects": [
+        {
+          "statId": "energyShieldPct",
+          "value": 5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_inner:theme:energyShield",
+      "distanceFromClassStart": 19,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_cleric_inner",
+      "visualPattern": "shield",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "energyShield",
+      "id": "pt_fill_cleric_inner_n03",
+      "x": 455.31,
+      "y": 708.63,
+      "type": "normal",
+      "name": "차오르는 장막",
+      "desc": "에너지 보호막 +8%\n에너지 보호막 회복 속도 +4%",
+      "mods": [
+        {
+          "statId": "energyShieldPct",
+          "value": 8
+        },
+        {
+          "statId": "energyShieldRegen",
+          "value": 4
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "energyShield",
+      "optionProfile": "feature:recharge",
+      "runtimeEffects": [
+        {
+          "statId": "energyShieldPct",
+          "value": 8
+        },
+        {
+          "statId": "energyShieldRegen",
+          "value": 4
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_inner:theme:energyShield",
+      "distanceFromClassStart": 20,
+      "powerBand": 2,
+      "expansionGroupId": "pt_fill_cleric_inner",
+      "visualPattern": "shield",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "energyShield",
+      "id": "pt_fill_cleric_inner_n04",
+      "x": 474.54,
+      "y": 779.61,
+      "type": "major",
+      "name": "고요한 결계",
+      "desc": "에너지 보호막 +25%\n에너지 보호막 +40",
+      "mods": [
+        {
+          "statId": "energyShieldPct",
+          "value": 25
+        },
+        {
+          "statId": "energyShield",
+          "value": 40
+        }
+      ],
+      "statAutoName": false,
+      "archetype": "energyShield",
+      "optionProfile": "manual:pt_fill_cleric_inner_n04",
+      "runtimeEffects": [
+        {
+          "statId": "energyShieldPct",
+          "value": 25
+        },
+        {
+          "statId": "energyShield",
+          "value": 40
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_inner:theme:energyShield",
+      "distanceFromClassStart": 21,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_cleric_inner",
+      "visualPattern": "shield",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
+    },
+    {
+      "cat": "energyShield",
+      "id": "pt_fill_cleric_inner_n05",
+      "x": 526.29,
+      "y": 689.4,
+      "type": "minor",
+      "name": "생명력 재생",
+      "desc": "초당 생명력 재생 +0.5%",
+      "mods": [
+        {
+          "statId": "regen",
+          "value": 0.5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "energyShield",
+      "optionProfile": "topology:bundle:energyShield:regen",
+      "runtimeEffects": [
+        {
+          "statId": "regen",
+          "value": 0.5
+        }
+      ],
+      "optionClusterId": "cluster:pt_fill_cleric_inner:theme:energyShield",
+      "distanceFromClassStart": 21,
+      "powerBand": 3,
+      "expansionGroupId": "pt_fill_cleric_inner",
+      "visualPattern": "shield",
+      "expansionRole": "gap-fill",
+      "expansionZone": "warrior"
     }
   ],
   "edges": [
@@ -67569,6 +69946,334 @@
     {
       "a": "pt_spine_warrior_left_07",
       "b": "pt_warrior_blood_cradle"
+    },
+    {
+      "a": "backbone_branch_warrior_outer_1_t2_n02",
+      "b": "pt_fill_warrior_rim_east_n01"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n01",
+      "b": "pt_fill_warrior_rim_east_n02"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n02",
+      "b": "pt_fill_warrior_rim_east_n03"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n03",
+      "b": "pt_fill_warrior_rim_east_n04"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n04",
+      "b": "pt_fill_warrior_rim_east_n05"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n05",
+      "b": "pt_fill_warrior_rim_east_n06"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n06",
+      "b": "pt_fill_warrior_rim_east_n07"
+    },
+    {
+      "a": "pt_fill_warrior_rim_east_n07",
+      "b": "pt_fill_warrior_rim_east_n02"
+    },
+    {
+      "a": "backbone_branch_warrior_outer_2_t3_n03",
+      "b": "pt_fill_warrior_rim_west_n01"
+    },
+    {
+      "a": "pt_fill_warrior_rim_west_n01",
+      "b": "pt_fill_warrior_rim_west_n02"
+    },
+    {
+      "a": "pt_fill_warrior_rim_west_n02",
+      "b": "pt_fill_warrior_rim_west_n03"
+    },
+    {
+      "a": "pt_fill_warrior_rim_west_n03",
+      "b": "pt_fill_warrior_rim_west_n04"
+    },
+    {
+      "a": "pt_fill_warrior_rim_west_n04",
+      "b": "pt_fill_warrior_rim_west_n05"
+    },
+    {
+      "a": "pt_fill_warrior_rim_west_n05",
+      "b": "pt_fill_warrior_rim_west_n06"
+    },
+    {
+      "a": "pt_fill_warrior_rim_west_n06",
+      "b": "pt_fill_warrior_rim_west_n02"
+    },
+    {
+      "a": "backbone_branch_warrior_outer_2_t2_n06",
+      "b": "pt_fill_warrior_bleed_fold_n01"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n01",
+      "b": "pt_fill_warrior_bleed_fold_n02"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n02",
+      "b": "pt_fill_warrior_bleed_fold_n03"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n03",
+      "b": "pt_fill_warrior_bleed_fold_n04"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n04",
+      "b": "pt_fill_warrior_bleed_fold_n05"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n05",
+      "b": "pt_fill_warrior_bleed_fold_n06"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n06",
+      "b": "pt_fill_warrior_bleed_fold_n07"
+    },
+    {
+      "a": "pt_fill_warrior_bleed_fold_n07",
+      "b": "pt_fill_warrior_bleed_fold_n03"
+    },
+    {
+      "a": "v13_balance_center_dimensional_prism_02",
+      "b": "pt_fill_alchemist_inner_n01"
+    },
+    {
+      "a": "pt_fill_alchemist_inner_n01",
+      "b": "pt_fill_alchemist_inner_n02"
+    },
+    {
+      "a": "pt_fill_alchemist_inner_n02",
+      "b": "pt_fill_alchemist_inner_n03"
+    },
+    {
+      "a": "pt_fill_alchemist_inner_n03",
+      "b": "pt_fill_alchemist_inner_n04"
+    },
+    {
+      "a": "pt_fill_alchemist_inner_n04",
+      "b": "pt_fill_alchemist_inner_n05"
+    },
+    {
+      "a": "pt_fill_alchemist_inner_n05",
+      "b": "pt_fill_alchemist_inner_n06"
+    },
+    {
+      "a": "pt_fill_alchemist_inner_n06",
+      "b": "pt_fill_alchemist_inner_n02"
+    },
+    {
+      "a": "completion_wanderer_dagger_02",
+      "b": "pt_fill_wanderer_rim_n01"
+    },
+    {
+      "a": "pt_fill_wanderer_rim_n01",
+      "b": "pt_fill_wanderer_rim_n02"
+    },
+    {
+      "a": "pt_fill_wanderer_rim_n01",
+      "b": "pt_fill_wanderer_rim_n03"
+    },
+    {
+      "a": "pt_fill_wanderer_rim_n02",
+      "b": "pt_fill_wanderer_rim_n04"
+    },
+    {
+      "a": "pt_fill_wanderer_rim_n03",
+      "b": "pt_fill_wanderer_rim_n04"
+    },
+    {
+      "a": "pt_fill_wanderer_rim_n04",
+      "b": "pt_fill_wanderer_rim_n05"
+    },
+    {
+      "a": "n1y7irrzl0g",
+      "b": "pt_fill_wanderer_hollow_n01"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n01",
+      "b": "pt_fill_wanderer_hollow_n02"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n02",
+      "b": "pt_fill_wanderer_hollow_n03"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n03",
+      "b": "pt_fill_wanderer_hollow_n04"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n04",
+      "b": "pt_fill_wanderer_hollow_n05"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n05",
+      "b": "pt_fill_wanderer_hollow_n02"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n02",
+      "b": "pt_fill_wanderer_hollow_n06"
+    },
+    {
+      "a": "pt_fill_wanderer_hollow_n06",
+      "b": "pt_fill_wanderer_hollow_n04"
+    },
+    {
+      "a": "nni7wy0igut",
+      "b": "pt_fill_wanderer_vale_n01"
+    },
+    {
+      "a": "pt_fill_wanderer_vale_n01",
+      "b": "pt_fill_wanderer_vale_n02"
+    },
+    {
+      "a": "pt_fill_wanderer_vale_n02",
+      "b": "pt_fill_wanderer_vale_n03"
+    },
+    {
+      "a": "pt_fill_wanderer_vale_n03",
+      "b": "pt_fill_wanderer_vale_n04"
+    },
+    {
+      "a": "pt_fill_wanderer_vale_n03",
+      "b": "pt_fill_wanderer_vale_n05"
+    },
+    {
+      "a": "expansion_archer_longbow_04",
+      "b": "pt_fill_archer_rim_n01"
+    },
+    {
+      "a": "pt_fill_archer_rim_n01",
+      "b": "pt_fill_archer_rim_n02"
+    },
+    {
+      "a": "pt_fill_archer_rim_n02",
+      "b": "pt_fill_archer_rim_n03"
+    },
+    {
+      "a": "pt_fill_archer_rim_n03",
+      "b": "pt_fill_archer_rim_n04"
+    },
+    {
+      "a": "pt_fill_archer_rim_n04",
+      "b": "pt_fill_archer_rim_n05"
+    },
+    {
+      "a": "pt_fill_archer_rim_n05",
+      "b": "pt_fill_archer_rim_n06"
+    },
+    {
+      "a": "pt_fill_archer_rim_n06",
+      "b": "pt_fill_archer_rim_n07"
+    },
+    {
+      "a": "pt_fill_archer_rim_n07",
+      "b": "pt_fill_archer_rim_n01"
+    },
+    {
+      "a": "nsj4grkygxa",
+      "b": "pt_fill_archer_glade_n01"
+    },
+    {
+      "a": "pt_fill_archer_glade_n01",
+      "b": "pt_fill_archer_glade_n02"
+    },
+    {
+      "a": "pt_fill_archer_glade_n02",
+      "b": "pt_fill_archer_glade_n03"
+    },
+    {
+      "a": "pt_fill_archer_glade_n03",
+      "b": "pt_fill_archer_glade_n04"
+    },
+    {
+      "a": "pt_fill_archer_glade_n03",
+      "b": "pt_fill_archer_glade_n05"
+    },
+    {
+      "a": "v13_balance_cycle_infinity_13",
+      "b": "pt_fill_cleric_rim_n01"
+    },
+    {
+      "a": "pt_fill_cleric_rim_n01",
+      "b": "pt_fill_cleric_rim_n02"
+    },
+    {
+      "a": "pt_fill_cleric_rim_n02",
+      "b": "pt_fill_cleric_rim_n03"
+    },
+    {
+      "a": "pt_fill_cleric_rim_n03",
+      "b": "pt_fill_cleric_rim_n04"
+    },
+    {
+      "a": "pt_fill_cleric_rim_n04",
+      "b": "pt_fill_cleric_rim_n05"
+    },
+    {
+      "a": "pt_fill_cleric_rim_n05",
+      "b": "pt_fill_cleric_rim_n06"
+    },
+    {
+      "a": "pt_fill_cleric_rim_n06",
+      "b": "pt_fill_cleric_rim_n02"
+    },
+    {
+      "a": "expansion_occult_grimoire_12",
+      "b": "pt_fill_occultist_rim_n01"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n01",
+      "b": "pt_fill_occultist_rim_n02"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n02",
+      "b": "pt_fill_occultist_rim_n03"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n03",
+      "b": "pt_fill_occultist_rim_n04"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n04",
+      "b": "pt_fill_occultist_rim_n05"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n05",
+      "b": "pt_fill_occultist_rim_n02"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n02",
+      "b": "pt_fill_occultist_rim_n06"
+    },
+    {
+      "a": "pt_fill_occultist_rim_n06",
+      "b": "pt_fill_occultist_rim_n04"
+    },
+    {
+      "a": "nwi0bl6hvbv",
+      "b": "pt_fill_cleric_inner_n01"
+    },
+    {
+      "a": "pt_fill_cleric_inner_n01",
+      "b": "pt_fill_cleric_inner_n02"
+    },
+    {
+      "a": "pt_fill_cleric_inner_n02",
+      "b": "pt_fill_cleric_inner_n03"
+    },
+    {
+      "a": "pt_fill_cleric_inner_n03",
+      "b": "pt_fill_cleric_inner_n04"
+    },
+    {
+      "a": "pt_fill_cleric_inner_n03",
+      "b": "pt_fill_cleric_inner_n05"
     }
   ],
   "allocated": [],

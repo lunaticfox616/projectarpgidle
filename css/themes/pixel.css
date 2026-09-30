@@ -48,6 +48,8 @@ body[data-ui-skin] :where(*) { font-family: inherit; }
 body[data-ui-skin] :where(*),
 body[data-ui-skin] ::before,
 body[data-ui-skin] ::after { border-radius: 0; }
+/* 예외: 패시브 트리의 호버·리빌 고리는 둥근 노드를 감싸는 캔버스 위 표식이라 둥글게 둔다. */
+body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-burst) { border-radius: 50%; }
 /* 도트로 다시 찍은 로고(scripts/build-pixel-ui.cjs): 정수배로 키우고 번지지 않게 */
 :root body[data-ui-skin] #ui-rail-logo img { width: 104px; max-width: 104px; image-rendering: pixelated; }
 :root body[data-ui-skin] #startup-overlay .startup-logo {

@@ -493,7 +493,9 @@ const passiveDrawCalls = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     drawImage() { count('images'); }, createRadialGradient() { count('gradients'); return { addColorStop() {} }; },
     createLinearGradient() { count('gradients'); return { addColorStop() {} }; },
   };
-  drawPassiveLink(ctx, { x: 0, y: 0 }, { x: 80, y: 30 }, { stroke: '#789', width: 1 });
+  ctx.beginPath();
+  tracePassiveLinkSegment(ctx, { x: 0, y: 0 }, { x: 80, y: 30 });
+  ctx.stroke();
   drawPassiveNodeShape(ctx, { id: 'clean-major', x: 30, y: 20, kind: 'major', tier: 3 }, 16,
     { outer: '#e2c281', mid: '#27313d', inner: '#fff3d6' }, false, true, 'discovered', 1, false);
   return calls;
