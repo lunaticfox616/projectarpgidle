@@ -5,7 +5,7 @@
     border: 6px solid transparent;
     border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
     border-radius: 0;
-    background: var(--px-dither), rgba(14, 12, 10, .94);
+    background: var(--px-panel);
     background-clip: padding-box;
     box-shadow: var(--px-drop);
     image-rendering: pixelated;
@@ -22,7 +22,7 @@
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
     border: 2px solid var(--px-ink);
     border-radius: 0;
-    background: var(--px-dither), var(--px-stone-control);
+    background: var(--px-board), var(--px-stone-control);
     box-shadow: var(--px-bevel);
     color: var(--px-copy);
     text-shadow: var(--px-text-edge);
@@ -34,10 +34,10 @@
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > #btn-combat-log-toggle { border-color: transparent; background: none; box-shadow: none; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-log-toggle::before { color: var(--px-gold-bright); }
 
-  /* 하단 메뉴: 돌판 띠, 고른 칸은 눌린 금빛 칸 */
+  /* 하단 메뉴: 어두운 판 띠, 고른 칸은 밝은 판에 금빛 줄 */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
     border-top: 2px solid var(--px-ink);
-    background: var(--px-dither), #15120e;
+    background: var(--px-wood-dark), var(--px-stone);
     box-shadow: inset 0 2px 0 #5d4a2e, inset 0 4px 0 #0a0806;
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) {
@@ -53,7 +53,7 @@
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more):last-child { border-right: 0; box-shadow: none; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more).active {
-    background: var(--px-dither), #261f16;
+    background: var(--px-board-hot), var(--px-stone-control);
     box-shadow: inset 0 4px 0 var(--px-gold), inset 2px 0 0 #000, inset -2px 0 0 #000;
     color: var(--px-gold-bright);
   }
@@ -69,9 +69,9 @@
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main,
   :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel {
     border: 10px solid transparent;
-    border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+    border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
     border-radius: 0;
-    background: var(--px-dither), var(--px-stone);
+    background: var(--px-wood), var(--px-stone);
     background-clip: padding-box;
     image-rendering: pixelated;
   }
@@ -79,7 +79,7 @@
   :root body[data-ui-skin].mobile-primary-navigation .ui-goal-drawer.expanded .ui-goal-panel { box-shadow: 0 -100vh 0 100vh rgba(0, 0, 0, .58); }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .mobile-tab-drawer-head {
     border-bottom: 2px solid var(--px-ink);
-    background: var(--px-dither), var(--px-stone-raised);
+    background: var(--px-wood-dark), var(--px-stone-raised);
     box-shadow: 0 2px 0 #3b2f1e;
     color: var(--px-gold-bright);
     font-family: var(--font-display);
@@ -90,13 +90,13 @@
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .mobile-tab-drawer-head button {
     border: 2px solid var(--px-ink);
     border-radius: 0;
-    background: var(--px-dither), var(--px-stone-control);
+    background: var(--px-board), var(--px-stone-control);
     box-shadow: var(--px-bevel);
     color: var(--px-copy);
     font-family: var(--font-pixel);
     text-shadow: var(--px-text-edge);
   }
-  :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active { background: var(--px-dither), #2d2417; box-shadow: var(--px-bevel-pressed), inset 0 0 0 4px rgba(217, 176, 102, .5); color: var(--px-gold-bright); }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active { background: var(--px-board-hot), var(--px-stone-control); box-shadow: var(--px-bevel-pressed), inset 0 0 0 4px rgba(217, 176, 102, .5); color: var(--px-gold-bright); }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 2px solid #2c2317; color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */

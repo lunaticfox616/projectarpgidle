@@ -30,8 +30,8 @@ body[data-ui-skin] {
   box-sizing: border-box;
   padding: 6px 10px 8px 4px;
   border: 10px solid transparent;
-  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
-  background: var(--px-dither), #15120e;
+  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+  background: var(--px-wood-dark), var(--px-stone);
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;
@@ -429,7 +429,7 @@ body[data-ui-skin] {
   width: min(100%, 480px);
   height: 30px;
   border-width: 10px;
-  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
 }
 :root body[data-ui-skin] #enemy-area .enemy-card.targeted .enemy-health-frame > .hp-bar-bg { position: absolute; inset: 0; height: auto; }
 :root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track { inset: 0; height: auto; background: #1a0709; box-shadow: inset 0 2px 0 #000; }
@@ -451,7 +451,7 @@ body[data-ui-skin] {
 :root body[data-ui-skin] #enemy-area .enemy-nameplate {
   padding: 2px 10px;
   border: 2px solid var(--px-ink);
-  background: var(--px-dither), #1b1411;
+  background: var(--px-panel);
   box-shadow: inset 2px 2px 0 #5a3c33, inset -2px -2px 0 #2a1714, var(--px-drop);
 }
 :root body[data-ui-skin] #enemy-area .enemy-nameplate .enemy-name { color: #ffe0cf; font-size: 12px; line-height: 16px; text-shadow: var(--px-text-edge); }
@@ -465,7 +465,7 @@ body[data-ui-skin] {
 :root body[data-ui-skin] .combat-zone-row-title { text-shadow: var(--px-text-outline); }
 :root body[data-ui-skin] .battlefield-caption {
   border: 2px solid var(--px-ink);
-  background: var(--px-dither), rgba(18, 15, 11, .9);
+  background: var(--px-panel);
   box-shadow: inset 2px 2px 0 #4a3b27, inset -2px -2px 0 #1a140d;
   color: var(--px-copy);
   font-size: 12px;
@@ -524,8 +524,8 @@ body[data-ui-skin] {
   z-index: 0;
   height: var(--px-hud-bar);
   border: 10px solid transparent;
-  border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
-  background: var(--px-dither), #15120e;
+  border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
+  background: var(--px-wood-dark), var(--px-stone);
   background-clip: padding-box;
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;

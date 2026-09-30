@@ -186,8 +186,8 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     overflow: visible;
     border: 2px solid var(--px-ink);
     border-radius: 0;
-    background: var(--px-dither), #1b1711;
-    box-shadow: inset 2px 2px 0 #4a3b27, inset -2px -2px 0 #1a140d, var(--px-drop);
+    background: var(--px-wood-dark), var(--px-stone-raised);
+    box-shadow: var(--px-bevel), var(--px-drop);
     color: var(--px-gold-bright);
     font-family: var(--font-pixel);
     font-size: 12px;
@@ -264,7 +264,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     border: 6px solid transparent;
     border-image: var(--px-frame-light) 3 / 6px / 0 stretch;
     border-radius: 0;
-    background: var(--px-dither), rgba(14, 12, 10, .97);
+    background: var(--px-panel);
     background-clip: padding-box;
     box-shadow: var(--px-drop);
     transform: none;
@@ -285,14 +285,14 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     padding: 4px 8px;
     border: 2px solid var(--px-ink);
     border-radius: 0;
-    background: var(--px-dither), var(--px-stone-control);
+    background: var(--px-board), var(--px-stone-control);
     box-shadow: var(--px-bevel);
     color: var(--px-copy);
     font-size: 12px;
     text-align: left;
     white-space: nowrap;
   }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn:is(:hover, .ui-window-open) { background: var(--px-dither), #2d2417; color: var(--px-gold-bright); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn:is(:hover, .ui-window-open) { background: var(--px-board-hot), var(--px-stone-control); color: var(--px-gold-bright); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-misc-panel .tab-btn::after {
     content: '';
     order: -1;
@@ -322,9 +322,9 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   body[data-ui-skin].mobile-primary-navigation { --mobile-primary-nav-height: 66px; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
     border: 10px solid transparent;
-    border-image: var(--px-frame-heavy) 5 / 10px / 0 stretch;
+    border-image: var(--px-frame-plate) 5 / 10px / 0 stretch;
     border-radius: 0;
-    background: var(--px-dither), #15120e;
+    background: var(--px-wood-dark), var(--px-stone);
     background-clip: padding-box;
     box-shadow: none;
     image-rendering: pixelated;
