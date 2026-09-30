@@ -1,9 +1,3 @@
-const GROWTH_ITEM_BASE_DROP_CHANCES = Object.freeze({
-    regular: 0.003,
-    elite: 0.01,
-    boss: 0.03
-});
-
 const EQUIPMENT_BASE_DROP_CHANCES = Object.freeze({
     regular: 0.00765,
     elite: 0.034,
@@ -28,7 +22,7 @@ const EQUIPMENT_DROP_RARITY_THRESHOLDS = Object.freeze({
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '매직', rare: '희귀', unique: '고유' });
 
-safeExposeData({ GROWTH_ITEM_BASE_DROP_CHANCES, EQUIPMENT_BASE_DROP_CHANCES,
+safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
     EQUIPMENT_DROP_RARITY_THRESHOLDS, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
 
@@ -54,12 +48,6 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
     ]),
     jewel: 'assets/items/chaos-jewel-v3.png?v=20260821-1',
     talisman: 'assets/items/seed-talisman-v3.png',
-    growth: Object.freeze({
-        flower: 'assets/items/flower-growth-v3.png',
-        thorn: 'assets/items/thorn-growth-v3.png', root: 'assets/items/thorn-growth-v3.png',
-        vine: 'assets/items/thorn-growth-v3.png', slab: 'assets/items/cosmic-slab-v3.png',
-        default: 'assets/items/seed-talisman-v3.png'
-    }),
     equipmentGrid: Object.freeze({
         uniqueAssets: Object.freeze({
             "공허 제국의 인장": "assets/items/illustrated/unique_void_empire.webp",
@@ -929,7 +917,6 @@ function getCanonicalCurrencyKey(currencyKey) {
 
 const ORB_DB = {
     timeRemnant: { name: '시간의 잔재', desc: '영구 방치 성장의 업그레이드와 지시 해금에 사용하는 메타 재화입니다.' },
-    growthEssence: { name: '생장 정수', desc: '생장 아이템과 석판 해체로 얻습니다. 일반 등급은 60% 확률, 상위 등급은 등급별 무작위 수량을 획득합니다.' },
     magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템의 옵션은 1~2줄로 다시 굴립니다.' },
     sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
     formlessDew: { name: '형체 없는 이슬', desc: '일반 아이템을 희귀로 만들거나, 희귀 아이템의 옵션을 모두 다시 굴립니다.' },
@@ -1019,8 +1006,7 @@ for (const [unlock, keys] of [
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
     ['talisman', ['sealShard','strongSealShard','radiantSealShard']],
-    ['meteor', ['meteorShard','starDust']],
-    ['growth', ['growthEssence']]
+    ['meteor', ['meteorShard','starDust']]
 ]) {
     for (const key of keys) ORB_DB[key].dropUnlocks = [unlock];
 }

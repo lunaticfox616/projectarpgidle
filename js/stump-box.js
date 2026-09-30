@@ -84,17 +84,26 @@ const stumpBox = (() => {
         const ledger = state.contentProgression && state.contentProgression.highestLoop;
         return Math.max(1, Math.floor(Number(state.season) || 1), Math.floor(Number(ledger) || 1));
     }
+    /** Open cells: the centre 3×3 on acquisition, then one more every STUMP_BOX_OPENING.everyLoops reached loops. */
     function openCount(state) {
         if (!of(state).acquired) return 0;
-        const loop = highestLoop(state);
-        return STUMP_BOX_UNLOCKS.reduce((count, step) => loop >= step.loop ? step.cells : count, 0);
+        const steps = Math.floor((highestLoop(state) - 1) / STUMP_BOX_OPENING.everyLoops);
+        return Math.min(STUMP_BOX_CELL_ORDER.length, STUMP_BOX_OPENING.start + steps);
+    }
+    /** The loop that opens the cell at this place in the opening order. */
+    function loopForRank(rank) {
+        return rank < STUMP_BOX_OPENING.start ? 1 : 1 + (rank + 1 - STUMP_BOX_OPENING.start) * STUMP_BOX_OPENING.everyLoops;
     }
     function isOpen(state, cell) { return STUMP_BOX_CELL_ORDER.slice(0, openCount(state)).includes(cell); }
     /** The loop that opens a closed cell (the board's hint), or null when it is open. */
     function opensAt(state, cell) {
-        if (isOpen(state, cell)) return null;
-        const rank = STUMP_BOX_CELL_ORDER.indexOf(cell), step = STUMP_BOX_UNLOCKS.find(row => row.cells > rank);
-        return step ? step.loop : null;
+        const rank = STUMP_BOX_CELL_ORDER.indexOf(cell);
+        return isOpen(state, cell) || rank < 0 ? null : loopForRank(rank);
+    }
+    /** The next opening { loop, cells } (cells = the count after it), or null when the whole board is open. */
+    function nextOpening(state) {
+        const open = openCount(state);
+        return open < STUMP_BOX_CELL_ORDER.length ? { loop: loopForRank(open), cells: open + 1 } : null;
     }
     function neighbors(cell) {
         const x = cell % STUMP_BOX_SIZE, y = Math.floor(cell / STUMP_BOX_SIZE), out = [];
@@ -296,7 +305,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, unplace, setPath,
-        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, openCount, isOpen, opensAt, neighbors,
+        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
         itemById: (state, id) => findItem(of(state), id)
     };

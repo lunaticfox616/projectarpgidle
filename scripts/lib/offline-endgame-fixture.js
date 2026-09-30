@@ -1,5 +1,5 @@
 // Synthetic load scenario, not a player's save or a balanced/legally allocated build.
-// Uses real item rolls and a full one-cell growth board to exercise repeated stat resolution.
+// Uses real item rolls and a full stump box (awake talismans, grown seeds and saps) to exercise repeated stat resolution.
 module.exports = function configureOfflineEndgameFixture() {
     game.season = 100;
     game.loopCount = 99;
@@ -38,19 +38,17 @@ module.exports = function configureOfflineEndgameFixture() {
     game.summonLoadoutInitialized = true;
     game.equippedSupports = Object.keys(SUPPORT_GEM_DB).slice(0, 5);
     for (const name of game.equippedSupports) game.supportGemData[name] = { level: 20, exp: 0 };
-    game.growthInventory = [];
-    const board = ensureGrowthBoardState();
-    board.unlockedCellCount = GROWTH_BOARD_W * GROWTH_BOARD_H;
-    const bases = GROWTH_BASE_DB.filter(base => base.shapeId === 'dot1');
-    for (let i = 0; i < board.unlockedCellCount; i++) {
-        const item = createGrowthItemFromBase(bases[i % bases.length], 'rare', 80);
-        game.growthInventory.push(item);
-        board.loadouts[0].placements[item.id] = { x: i % GROWTH_BOARD_W, y: Math.floor(i / GROWTH_BOARD_W), rotation: 0 };
-    }
-    invalidateGrowthEffects();
+    stumpBox.sync(game, 'test');
+    const colors = Object.keys(STUMP_BOX_COLORS);
+    STUMP_BOX_CELL_ORDER.forEach((cell, index) => {
+        const item = index % 3 === 0 ? stumpBox.addTalisman(game, talismans.rollWild(index % 2 ? 'boss' : 'elite'), true)
+            : stumpBox.createItem(game, { family: index % 3 === 1 ? 'seed' : 'sap', color: colors[index % colors.length], roll: 1 });
+        stumpBox.place(game, item.id, cell, 'flower');
+        Object.assign(item, { xp: stumpBox.need(item), ripe: true });
+    });
     game.playerHp = getPlayerStats().maxHp;
     startEncounterRun();
     return { level: game.level, loop: game.season, equipment: Object.values(game.equipment).filter(Boolean).length,
-        passives: game.passives.length, growthItems: getPlacedGrowthEntries().length,
+        passives: game.passives.length, stumpPieces: game.stumpBox.board.filter(id => id !== null).length,
         configuredSummons: game.summonSkillCounts, activeSummons: game.summons.length };
 };

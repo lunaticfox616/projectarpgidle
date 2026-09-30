@@ -34,15 +34,9 @@ function pickInventoryItemVisualAsset(item, kind) {
     let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
     if (!visuals) return '';
     if (kind === 'jewel') return visuals.jewel;
-    if (kind === 'talisman') return visuals.talisman;
+    if (kind === 'talisman') return item && item.family === 'talisman' ? stumpBox.iconPath(item) : visuals.talisman;
     if (kind === 'core') return coreItems.icon(item);
-    if (kind === 'growth') return pickGrowthVisualAsset(visuals, item);
     return getEquipmentGridVisualAsset(item);
-}
-
-function pickGrowthVisualAsset(visuals, item) {
-    let category = item && (item.growthCategory || (item.slabType ? 'slab' : ''));
-    return visuals.growth[category] || visuals.growth.default;
 }
 
 function renderInventoryItemVisual(item, kind, className) {
@@ -303,10 +297,7 @@ function clearCraftSelection() { craftingSelectionState.ref = null; craftingSele
 function getSelectedCraftItem() {
     if (craftingSelectionState.ref === null) return null;
     if (craftingSelectionState.isEquip) return game.equipment[craftingSelectionState.ref] || null;
-    // 생장 아이템은 전용 보관함(game.growthInventory)에 있으므로 함께 조회한다.
-    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref)
-        || (typeof findAnyGrowthItemById === 'function' ? findAnyGrowthItemById(craftingSelectionState.ref) : null)
-        || null;
+    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref) || null;
 }
 
 function ensureCraftSelectionValid() {
@@ -315,9 +306,7 @@ function ensureCraftSelectionValid() {
         if (!game.equipment[craftingSelectionState.ref]) clearCraftSelection();
         return;
     }
-    let inShared = game.inventory.some(item => item.id === craftingSelectionState.ref);
-    let inGrowth = typeof findAnyGrowthItemById === 'function' && !!findAnyGrowthItemById(craftingSelectionState.ref);
-    if (!inShared && !inGrowth) clearCraftSelection();
+    if (!game.inventory.some(item => item.id === craftingSelectionState.ref)) clearCraftSelection();
 }
 
 function selectForCrafting(ref, isEquip) {
@@ -653,7 +642,6 @@ function getTimeRiftFusionMismatchReason(altarItem, candidate) {
 function getTimeAltarItemIssue(item, rift = ensureTimeRiftState()) {
     if (!rift.altarOpen) return '먼저 과거를 클리어해 제단을 열어야 합니다.';
     if (!item) return '제단에 올릴 장비를 고르세요.';
-    if (isGrowthItem(item)) return '생장판과 석판은 제단에 올릴 수 없습니다.';
     if (item.hallReplica) return '전당 소장품은 제단에 올릴 수 없습니다.';
     if (item.fusedRelic) return '이미 융합된 유물은 다시 시간을 건널 수 없습니다.';
     if (item.corrupted) return '타락한 장비는 제단에 올릴 수 없습니다.';
@@ -676,7 +664,6 @@ function placeItemOnTimeAltar() {
     const issue = getTimeAltarItemIssue(item, rift);
     if (issue) return addLog(issue, 'attack-monster');
     let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
-    if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
@@ -912,22 +899,6 @@ async function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
-async function marketExpandGrowthInventoryByDivine() {
-    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
-    if (!isGrowthBoardUnlocked()) return addLog('생장판 해금 후 이용할 수 있습니다.', 'attack-monster');
-    let cost = getGrowthMarketExpandCost();
-    if (game.currencies.goldenRule < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 생장 보관함을 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`), {
-        title: '생장 보관함 영구 확장',
-        confirmLabel: '확장'
-    })) return;
-    if (!isMarketUnlocked() || !isGrowthBoardUnlocked() || getGrowthMarketExpandCost() !== cost || game.currencies.goldenRule < cost) return addLog('확인 중 확장 조건 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
-    game.currencies.goldenRule -= cost;
-    game.growthInventoryExpandLevel = Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)) + 1;
-    addLog(`🌱 생장 보관함 영구 확장 완료! 현재 최대 칸: ${getGrowthInventoryLimit()}`, 'loot-unique');
-    updateStaticUI();
-}
-
 function getBaseDefenseProfile(base) {
     let ids = new Set((base.baseStats || []).map(stat => stat.id));
     return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
@@ -1096,8 +1067,6 @@ function getBaseUpgradeCost(nextBase) {
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
-    // 생장 아이템의 형태·크기는 베이스 정체성이므로 일반 제작으로 바꾸지 않는다 (spec 7).
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return addLog('생장 아이템의 형태와 크기는 베이스 정체성이라 업그레이드로 바꿀 수 없습니다.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
     if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');
@@ -1571,4 +1540,4 @@ async function buyBlackMarketOffer(idx){
     updateStaticUI();
 }
 
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandJewelInventoryByDivine, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

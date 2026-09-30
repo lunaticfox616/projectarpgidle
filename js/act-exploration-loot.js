@@ -4,10 +4,10 @@ const actExplorationLoot=(()=>{
     let captureOwner=null;
     /** Escrow holds any wallet currency: ORB_DB items and wallet-only counters (군락지 흔적 · 성핵 …). */
     const isCurrency=key=>Object.hasOwn(ORB_DB,key) || Object.hasOwn(defaultGame.currencies,key);
-    function create(){return {version:7,phase:'pending',currencies:{},equipment:[],flasks:[],alchemyGlass:0,gems:[],cores:[],growthItems:[],jewels:[],growthCodex:[],salvagedEquipment:[]};}
+    function create(){return {version:8,phase:'pending',currencies:{},equipment:[],flasks:[],alchemyGlass:0,gems:[],cores:[],jewels:[],salvagedEquipment:[]};}
     function reservedItems(state){
         const loot=state.actExploration?.loot;
-        return loot ? [...loot.equipment,...loot.growthItems,...loot.jewels,...loot.cores,...loot.salvagedEquipment.map(row=>row.item)] : [];
+        return loot ? [...loot.equipment,...loot.jewels,...loot.cores,...loot.salvagedEquipment.map(row=>row.item)] : [];
     }
     function capture(state,run,produce) {
         // The last boss can trigger corpse explosions before completion is committed.
@@ -16,8 +16,7 @@ const actExplorationLoot=(()=>{
         if(captureOwner?.state===state && captureOwner.run===run)return produce();
         const previous=captureOwner,loot={...run.loot,currencies:{...run.loot.currencies},
             equipment:[...run.loot.equipment],flasks:[...run.loot.flasks],gems:[...run.loot.gems],cores:[...run.loot.cores],
-            growthItems:[...run.loot.growthItems],jewels:[...run.loot.jewels],growthCodex:[...run.loot.growthCodex],
-            salvagedEquipment:[...run.loot.salvagedEquipment]};
+            jewels:[...run.loot.jewels],salvagedEquipment:[...run.loot.salvagedEquipment]};
         captureOwner={state,run,loot};
         try{const result=produce();run.loot=loot;return result;}finally{captureOwner=previous;}
     }
@@ -36,12 +35,6 @@ const actExplorationLoot=(()=>{
         return item && Number.isSafeInteger(item.id) && typeof item.name==='string'
             && typeof item.slot==='string' && Array.isArray(item.stats) && Array.isArray(item.baseStats);
     }
-    function validGrowth(item) {
-        return validJewel(item)&&Array.isArray(item.baseStats)
-            &&(typeof item.slot==='string'||item.slot===null&&item.growthCategory==='slab')
-            &&Object.hasOwn(GROWTH_SHAPE_DB,item.growthShapeId)
-            &&Object.hasOwn(GROWTH_CATEGORY_INFO,item.growthCategory);
-    }
     /** A stored core is exactly its own normalized form: no unknown lines, no out-of-range values. */
     function validCore(item) {
         const core=coreItems.normalizeCore(item);
@@ -54,15 +47,15 @@ const actExplorationLoot=(()=>{
     /** Optional delivery boundary used by the existing pickup/filter/salvage policy. */
     function delivery(state,kind) {
         const loot=pending(state);if(!loot)return null;
-        if(!['equipment','growthItems','jewels','cores'].includes(kind))throw Error('알 수 없는 탐험 아이템 보관함');
+        if(!['equipment','jewels','cores'].includes(kind))throw Error('알 수 없는 탐험 아이템 보관함');
         return {heldCount:loot[kind].length,currency:currency.bind(null,state),
             canStore:item=>canStoreEquipmentItems(loot.equipment.concat(item),state),
             recovery:(item,rewards)=>{
                 loot.salvagedEquipment.push({item,rewards});
                 loot.salvagedEquipment=loot.salvagedEquipment.slice(-SALVAGE_RECOVERY_CAP);
             },
-            discover:item=>{if(kind==='growthItems'&&item.rarity==='unique')loot.growthCodex.push(item);},store:item=>{
-            const valid={equipment:validEquipment,growthItems:validGrowth,jewels:validJewel,cores:validCore}[kind];
+            store:item=>{
+            const valid={equipment:validEquipment,jewels:validJewel,cores:validCore}[kind];
             if(!valid(item)||loot[kind].some(row=>row.id===item.id))throw Error('잘못된 탐험 아이템 보상');
             loot[kind].push(item);return true;
         }};
@@ -93,13 +86,11 @@ const actExplorationLoot=(()=>{
         return true;
     }
     function validate(loot) {
-        if(!loot || loot.version!==7 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
+        if(!loot || loot.version!==8 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
         validateCurrencies(loot.currencies);
         validateSupplies(loot);
         gemDropRewards.validate(loot.gems);
         validateItemList(loot.equipment,validEquipment);
-        validateItemList(loot.growthItems,validGrowth);
-        validateItemList(loot.growthCodex,validGrowth);
         validateItemList(loot.jewels,validJewel);
         validateItemList(loot.cores,validCore);
         validateSalvagedEquipment(loot);
@@ -107,8 +98,7 @@ const actExplorationLoot=(()=>{
     }
     function hasRewards(loot) {
         return [loot.equipment.length,Object.keys(loot.currencies).length,loot.flasks.length,loot.alchemyGlass,
-            loot.gems.length,loot.cores.length,loot.growthItems.length,loot.jewels.length,loot.growthCodex.length,
-            loot.salvagedEquipment.length].some(Boolean);
+            loot.gems.length,loot.cores.length,loot.jewels.length,loot.salvagedEquipment.length].some(Boolean);
     }
     function validateSalvagedEquipment(loot) {
         if(!Array.isArray(loot.salvagedEquipment)||loot.salvagedEquipment.length>SALVAGE_RECOVERY_CAP)throw Error('잘못된 탐험 해체 기록');
@@ -142,7 +132,7 @@ const actExplorationLoot=(()=>{
         const gems=gemDropRewards.prepare(state,loot.gems);
         const inventories=prepareInventories(state,loot);
         const recovery=loot.salvagedEquipment.length?{salvageRecovery:salvageRecoveryRuntime.prepareRecords(loot.salvagedEquipment,state)}:{};
-        const receipt={currencies:loot.currencies,equipment:loot.equipment,flasks:loot.flasks,alchemyGlass:loot.alchemyGlass,gems:loot.gems,cores:loot.cores,growthItems:loot.growthItems,jewels:loot.jewels,growthCodex:loot.growthCodex};
+        const receipt={currencies:loot.currencies,equipment:loot.equipment,flasks:loot.flasks,alchemyGlass:loot.alchemyGlass,gems:loot.gems,cores:loot.cores,jewels:loot.jewels};
         // Retain the currency object's legacy non-enumerable accessors and consumers' references.
         Object.assign(state.currencies,currencies);Object.assign(state,inventories);
         Object.assign(state,recovery);
@@ -157,20 +147,18 @@ const actExplorationLoot=(()=>{
     }
     function prepareInventories(state,loot) {
         const inventory=state.inventory.concat(loot.equipment);
-        const growthInventory=(state.growthInventory||[]).concat(loot.growthItems);
         const jewelInventory=(state.jewelInventory||[]).concat(loot.jewels);
-        const owned=[...state.inventory,...(state.growthInventory||[]),...(state.jewelInventory||[]),
+        const owned=[...state.inventory,...(state.jewelInventory||[]),
             ...Object.values(state.equipment),...coreItems.ownedItems(state)].filter(Boolean);
         const ids=new Set(owned.map(item=>item.id));
-        for(const item of [...loot.equipment,...loot.growthItems,...loot.jewels,...loot.cores]) {
+        for(const item of [...loot.equipment,...loot.jewels,...loot.cores]) {
             if(ids.has(item.id))throw Error('이미 소유한 탐험 장비 보상');
             ids.add(item.id);
         }
         const store=coreItems.ensure(state);
-        return {inventory,growthInventory,jewelInventory,cores:{...store,owned:store.owned.concat(loot.cores)}};
+        return {inventory,jewelInventory,cores:{...store,owned:store.owned.concat(loot.cores)}};
     }
     function markItemsReceived(state,loot) {
-        if(loot.growthItems.length)state.noti.items=true;
         if(loot.jewels.length)state.noti.items=true;
     }
     function prepareFlasks(owned,loot) {
@@ -207,7 +195,13 @@ const actExplorationLoot=(()=>{
         // v5 bypassed equipment salvage, so it has no deferred recovery records.
         5:loot=>Object.assign(loot,{version:6,salvagedEquipment:[]}),
         // v6 held core cube material. The cube became core items (2026-09-30); old progress resets without compensation.
-        6:loot=>{delete loot.blurred45;Object.assign(loot,{version:7,cores:[]});}
+        6:loot=>{delete loot.blurred45;Object.assign(loot,{version:7,cores:[]});},
+        // v7 held growth items and growth essence. The growth board was removed (2026-09-30); they go without compensation.
+        7:loot=>{
+            delete loot.growthItems;delete loot.growthCodex;
+            if(loot.currencies&&typeof loot.currencies==='object')delete loot.currencies.growthEssence;
+            loot.version=8;
+        }
     };
     function migrateLegacyLoot(run) {
         // Earlier opt-in review saves already granted their drops; never reconstruct them.

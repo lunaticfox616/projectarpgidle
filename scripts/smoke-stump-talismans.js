@@ -14,7 +14,7 @@ const unlockTalisman = () => run("game.contentProgression.inherited.push('talism
 // A legacy-shaped save inherits every unlock up to its loop; drop the talisman one to test the gate.
 const lockTalisman = () => run("game.contentProgression.inherited = game.contentProgression.inherited.filter(id => id !== 'talisman'); contentProgression.sync(game);");
 const clearBoard = () => run('game.stumpBox.board = game.stumpBox.board.map(() => null); game.stumpBox.items = [];');
-// An awake talisman placed on an open cell (loop 8 opens the centre 13 cells).
+// An awake talisman placed on an open cell (loop 8 opens 16: the centre 3×3 and one more per loop).
 const awake = (fields, cell) => run(`(() => { const item = stumpBox.addTalisman(game, ${JSON.stringify(fields)}, true);
     item.xp = STUMP_BOX_GROWTH.need.talisman; item.ripe = true; if (!stumpBox.place(game, item.id, ${cell})) throw new Error('place ${cell}'); return item.id; })()`);
 const line = (id, value) => ({ kind: 'stat', id, value });
@@ -232,6 +232,69 @@ assert.strictEqual(run('game.stumpBox.items.length'), full + 1);
 assert.deepStrictEqual(cosmos.lines.map(row => row.id), ['leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
 assert.strictEqual(run("stumpBox.addTalisman(game, talismans.fromCosmos(COSMOS_BOSS_REWARD_DB['planet-47'].talisman))"), null, 'unsealing still respects the storage');
 
+// ── 야생 부적(예전 생장판 · 생장 아이템 드랍 자리): 루프 25 드랍과 고유의 판 효과 ─────────────────────
+fresh({ season: 50, loopCount: 49 });
+unlockTalisman();
+run("stumpBox.sync(game, 'test');");
+assert.strictEqual(run('talismans.wildDropsOpen(game)'), true, 'loop 25+ with the talisman unlock opens wild drops');
+fresh({ season: 24, loopCount: 23 });
+unlockTalisman();
+run("stumpBox.sync(game, 'test');");
+assert.strictEqual(run('talismans.wildDropsOpen(game)'), false, 'not before loop 25');
+fresh({ season: 50, loopCount: 49 });
+unlockTalisman();
+run("stumpBox.sync(game, 'test');");
+const wildDrop = json('talismans.dropWild(game, { isElite: true }, () => 0.5)');
+assert.strictEqual(wildDrop.item.rarity !== 'unique' && wildDrop.item.family, 'talisman', 'an ordinary wild drop is a talisman in the storage');
+run('for (let i = 0; i < STUMP_BOX_STORAGE && stumpBox.storage(game).length < STUMP_BOX_STORAGE; i++) stumpBox.createItem(game, { family: "seed", color: "fire", roll: 1 });');
+assert.strictEqual(run('stumpBox.storage(game).length'), run('STUMP_BOX_STORAGE'), 'the storage is full');
+assert.deepStrictEqual(json('[talismans.dropWild(game, { isBoss: true }, () => 0.5).currency, game.currencies.strongSealShard]'), ['strongSealShard', 1],
+    'a full storage turns the drop into a shard instead');
+assert.strictEqual(run("talismans.isWild(talismans.rollOtherUnique(['uw_void_ring'], () => 0).uniqueId)"), true, 'a wild unique rerolls into another wild unique');
+assert.strictEqual(run("talismans.isWild(talismans.rollOtherUnique(['ut_gravity'], () => 0).uniqueId)"), false, 'a shard unique stays in its pool');
+
+const r2 = stats => Object.fromEntries(Object.entries(stats).map(([key, value]) => [key, Math.round(value * 100) / 100]));
+const wild = (id, cell) => run(`(() => { const def = TALISMAN_WILD_UNIQUE_DB.find(row => row.id === '${id}');
+    const item = stumpBox.addTalisman(game, talismans.rollUnique(def, () => 0), true);
+    item.xp = STUMP_BOX_GROWTH.need.talisman; item.ripe = true; if (!stumpBox.place(game, item.id, ${cell})) throw new Error('place ${cell}'); return item.id; })()`);
+const grown = (family, color, cell) => run(`(() => { const item = stumpBox.createItem(game, { family: '${family}', color: '${color}', roll: 1 });
+    if (!stumpBox.place(game, item.id, ${cell}, 'flower')) throw new Error('place ${cell}'); item.xp = stumpBox.need(item); item.ripe = true; return item.id; })()`);
+const wildStats = setup => { clearBoard(); setup(); return r2(summary().stats); };
+
+assert.deepStrictEqual(wildStats(() => wild('uw_boundary_stone', 0)), { flatHp: 27, armor: 30, resAll: 8, dr: 4, pctHp: 10 },
+    '경계석 가지: two walls and a corner');
+assert.deepStrictEqual(wildStats(() => { wild('uw_cradle_branch', 12); grown('seed', 'fire', 7); awake({ name: '이웃', rarity: 'magic', lines: [line('crit', 2)] }, 13); }),
+    { flatHp: 33, regen: 0.45, resAll: 6, dr: 2, crit: 2 }, '요람 가지: one point per touching piece');
+assert.strictEqual(wildStats(() => { wild('uw_void_ring', 12); awake({ name: '대각', rarity: 'magic', lines: [line('pctDmg', 10)] }, 6);
+    awake({ name: '두 칸', rarity: 'magic', lines: [line('pctDmg', 10)] }, 2); }).pctDmg, 23.5, '공허 고리: the eight around, diagonals included');
+assert.strictEqual(wildStats(() => { wild('uw_world_heart', 0); awake({ name: '먼 곳', rarity: 'magic', lines: [line('pctDmg', 10)] }, 24);
+    awake({ name: '가까운 곳', rarity: 'magic', lines: [line('pctDmg', 10)] }, 6); }).pctDmg, 22.5, '세계수의 심장: three or more cells away');
+assert.deepStrictEqual(wildStats(() => { wild('uw_twin_spore', 12); awake({ name: '두 칸 옆', rarity: 'magic', lines: [line('pctDmg', 10)] }, 14);
+    awake({ name: '바로 옆', rarity: 'magic', lines: [line('crit', 2)] }, 13); }), { pctDmg: 18, aspd: 3, crit: 2 }, '쌍둥이 홀씨: exactly two cells along a row or column');
+assert.strictEqual(wildStats(() => { wild('uw_storm_conduit', 12); awake({ name: '같은 줄', rarity: 'magic', lines: [line('pctDmg', 10)] }, 2);
+    awake({ name: '대각', rarity: 'magic', lines: [line('pctDmg', 10)] }, 6); }).pctDmg, 21.8, '폭풍을 꿰는 도관: the same row or column');
+assert.deepStrictEqual(wildStats(() => { wild('uw_blood_tithe', 12); grown('seed', 'fire', 7); grown('sap', 'fire', 11); }),
+    { physPctDmg: 32, leech: 0.75, pctHp: -4 }, '피의 십일조: per touching piece');
+assert.deepStrictEqual(wildStats(() => { wild('uw_ashen_sun', 12); grown('seed', 'fire', 7); grown('sap', 'cold', 17); grown('seed', 'lightning', 11); }),
+    { firePctDmg: 45, igniteChance: 18, resPen: 5 }, '재의 태양: three touching colours');
+assert.deepStrictEqual(wildStats(() => { wild('uw_tri_core', 12); grown('seed', 'fire', 0); grown('sap', 'cold', 24); grown('seed', 'lightning', 4); }),
+    { elementalPctDmg: 40.5, resAll: 6, resPen: 6 }, '삼원소 공명핵: grown fire, cold and lightning on the board');
+assert.deepStrictEqual(wildStats(() => { wild('uw_tri_core', 12); grown('seed', 'fire', 0); grown('sap', 'cold', 1); grown('seed', 'lightning', 4); }),
+    { elementalPctDmg: 10.5, resAll: 6 }, '삼원소 공명핵: suppressed pieces do not count');
+assert.deepStrictEqual(wildStats(() => { wild('uw_first_harvest', 12); grown('seed', 'fire', 0); grown('seed', 'cold', 4); grown('sap', 'chaos', 20); }),
+    { crit: 7.2, critDmg: 25.2 }, '첫 수확의 성배: +10% per grown seed');
+assert.deepStrictEqual(wildStats(() => { wild('uw_inverted_root', 12); grown('seed', 'fire', 0); grown('sap', 'cold', 1); }),
+    { flatHp: 48, armor: 155, pctHp: 10 }, '거꾸로 자란 뿌리: per suppressed piece');
+assert.deepStrictEqual(wildStats(() => { wild('uw_hive_cord', 12); [0, 4, 20, 24].forEach(cell => awake({ name: '소환', rarity: 'magic', lines: [line('summonPctDmg', 10)] }, cell)); }),
+    { summonPctDmg: 73, summonHpPct: 22.5, summonCap: 1 }, '군체의 탯줄: +15% of the others\' summon lines, four of them add a summon');
+assert.deepStrictEqual(wildStats(() => { wild('uw_blueprint', 12); grown('seed', 'fire', 0); grown('seed', 'cold', 4); grown('sap', 'lightning', 20);
+    grown('sap', 'chaos', 24); grown('sap', 'fire', 2); }), { pctHp: 33.6, pctDmg: 33.6 }, '태초의 설계도: six pieces, no kind twice');
+assert.deepStrictEqual(wildStats(() => { wild('uw_blueprint', 12); grown('seed', 'fire', 0); grown('seed', 'cold', 4); grown('sap', 'lightning', 20);
+    grown('sap', 'chaos', 24); awake({ name: '두 번째 부적', rarity: 'magic', lines: [line('crit', 2)] }, 2); }), { pctHp: 24, pctDmg: 24, crit: 2 },
+    '태초의 설계도: two talismans are the same kind');
+assert.deepStrictEqual(wildStats(() => { wild('uw_dead_star', 12); grown('seed', 'chaos', 0); grown('sap', 'chaos', 4); }),
+    { chaosPctDmg: 52, dotPctDmg: 52, pctHp: -10 }, '죽은 별의 균사체: per grown chaos piece, always −10% life');
+
 // ── 화면 조각 ────────────────────────────────────────────────────────────────
 fresh({ season: 8, loopCount: 7, currencies: { sealShard: 2, beeswax: 1 } });
 lockTalisman();
@@ -250,4 +313,4 @@ assert(run('stumpTalismanUi.summaryHtml()').includes('보스와 싸우는 동안
 const html = fs.readFileSync('index.html', 'utf8');
 assert(html.includes('id="stump-box-unseal"') && !html.includes('id="tab-talisman"') && !html.includes('btn-tab-talisman'), 'the talisman window is gone; unsealing lives in the stump box');
 
-console.log('stump talismans: legacy cleanup, unseal, awakening, neighbours, gem levels, conditions, curses, wax, saves, cosmos and screen: OK');
+console.log('stump talismans: legacy cleanup, unseal, awakening, neighbours, gem levels, conditions, curses, wax, saves, cosmos, wild drops and uniques, screen: OK');

@@ -162,6 +162,55 @@ const TALISMAN_UNIQUE_DB = Object.freeze([
     { id: 'ut_phys_focus', name: '쇄격의 부적', special: 'elementFocus', elem: 'phys' },
     { id: 'ut_chaos_focus', name: '심연의 부적', special: 'elementFocus', elem: 'chaos' }
 ]);
+// 야생 부적(2026-09-30, 예전 생장 아이템 드랍 자리): 부적을 연 뒤 루프 25부터 적이 부적을 떨어뜨린다. 장비 드랍과 따로,
+// 같은 드랍 배율(도감 · 심화 · 레벨 · 미궁 감쇠)로 굴린다. 확률은 예전 생장 아이템 그대로. 고유는 아래 야생 고유에서만 나오고,
+// 아니면 적 등급의 편린 규칙으로 굴린다. 보관함이 가득 차면 부적 대신 overflow 편린 하나를 준다.
+const TALISMAN_WILD_DROPS = Object.freeze({
+    minLoop: 25,
+    chance: Object.freeze({ normal: 0.003, elite: 0.01, boss: 0.03 }),
+    uniqueChance: Object.freeze({ normal: 0.006, elite: 0.02, boss: 0.04 }),
+    rule: Object.freeze({ normal: 'sealShard', elite: 'strongSealShard', boss: 'radiantSealShard' }),
+    overflow: Object.freeze({ normal: 'sealShard', elite: 'strongSealShard', boss: 'strongSealShard' })
+});
+// 야생 고유 부적(2026-09-30, 예전 생장판 고유 생장 아이템): 루프 25부터 적이 떨어뜨리는 부적에서만 나온다(편린 풀기 제외).
+// 이웃 · 판 효과는 그루터기 함 판(5×5)의 칸 · 색 · 성숙 · 억제를 읽는다. weight: 뽑힐 비중(추적 대상은 낮게).
+const TALISMAN_WILD_UNIQUE_DB = Object.freeze([
+    { id: 'uw_orchard_crown', name: '황금 과수원의 왕관', lines: [['crit', 7.5], ['critDmg', 27]] },
+    { id: 'uw_earth_memory', name: '대지의 기억', lines: [['flatHp', 57], ['dr', 9]] },
+    { id: 'uw_martyr_briar', name: '순교자의 가시관', lines: [['physPctDmg', 21], ['armor', 90]] },
+    { id: 'uw_sky_vein', name: '천공의 맥관', lines: [['aspd', 15], ['move', 15]] },
+    { id: 'uw_black_moon', name: '검은 달의 균사', lines: [['chaosPctDmg', 24], ['dotPctDmg', 27]] },
+    { id: 'uw_world_kernel', name: '태초의 핵', lines: [['pctHp', 18], ['pctDmg', 18]] },
+    { id: 'uw_bond_vine', name: '만물결속 덩굴', lines: [['summonPctDmg', 24], ['summonEfficiency', 18]] },
+    { id: 'uw_world_heart', name: '세계수의 심장', special: 'farReach', lines: [['flatDmg', 9], ['pctHp', 6], ['aoePctDmg', 12]],
+        uniqueEffect: '세 칸 이상 떨어진 깨어난 부적의 일반 줄을 25% 더 얻습니다.' },
+    { id: 'uw_cradle_branch', name: '요람 가지', special: 'cradle', lines: [['flatHp', 33], ['regen', 0.45], ['resAll', 6]],
+        uniqueEffect: '맞닿은 조각 하나마다 받는 물리 피해 감소 +1%.' },
+    { id: 'uw_void_ring', name: '공허 고리', special: 'voidRing', lines: [['energyShield', 42], ['resChaos', 7.5]],
+        uniqueEffect: '둘레 여덟 칸(대각선 포함)의 깨어난 부적 일반 줄을 35% 더 얻습니다.' },
+    { id: 'uw_twin_spore', name: '쌍둥이 홀씨', special: 'twinSpore', lines: [['pctDmg', 6], ['aspd', 3]],
+        uniqueEffect: '가로 · 세로로 두 칸 떨어진 깨어난 부적의 일반 줄을 20% 더 얻습니다.' },
+    { id: 'uw_tri_core', name: '삼원소 공명핵', special: 'triElement', lines: [['elementalPctDmg', 10.5], ['resAll', 6]],
+        uniqueEffect: '판에 다 자란 화염 · 냉기 · 번개 조각이 모두 있으면 원소 피해 +30% · 저항 관통 +6%.' },
+    { id: 'uw_boundary_stone', name: '경계석 가지', special: 'boundary', lines: [['flatHp', 27], ['armor', 30]],
+        uniqueEffect: '판의 가장자리에 닿은 면 하나마다 모든 원소 저항 +4% · 받는 물리 피해 감소 +2%, 모서리면 생명력 +10%.' },
+    { id: 'uw_ashen_sun', name: '재의 태양', special: 'ashenSun', lines: [['firePctDmg', 21], ['igniteChance', 18]],
+        uniqueEffect: '맞닿은 씨앗 · 수액의 서로 다른 색 하나마다 화염 피해 +8%, 셋 이상이면 저항 관통 +5%.' },
+    { id: 'uw_first_harvest', name: '첫 수확의 성배', special: 'firstHarvest', lines: [['crit', 6], ['critDmg', 21]],
+        uniqueEffect: '판의 다 자란 씨앗 하나마다 이 부적의 일반 줄 +10%(최대 30%).' },
+    { id: 'uw_inverted_root', name: '거꾸로 자란 뿌리', special: 'invertedRoot', lines: [['flatHp', 48], ['armor', 105]],
+        uniqueEffect: '판의 억제된 조각 하나마다 생명력 +5% · 방어도 +25(최대 넷).' },
+    { id: 'uw_blood_tithe', name: '피의 십일조', special: 'bloodTithe', lines: [['physPctDmg', 18], ['leech', 0.75]],
+        uniqueEffect: '맞닿은 조각 하나마다 물리 피해 +7% · 생명력 −2%.' },
+    { id: 'uw_storm_conduit', name: '폭풍을 꿰는 도관', special: 'stormConduit', lines: [['aspd', 12], ['lightPctDmg', 21]],
+        uniqueEffect: '같은 가로줄 · 세로줄의 깨어난 부적 일반 줄을 18% 더 얻습니다.' },
+    { id: 'uw_hive_cord', name: '군체의 탯줄', special: 'hiveCord', lines: [['summonPctDmg', 27], ['summonHpPct', 22.5]],
+        uniqueEffect: '다른 깨어난 부적의 소환수 줄을 15% 더 얻고, 그런 부적이 넷 이상이면 소환수 한도 +1.' },
+    { id: 'uw_blueprint', name: '태초의 설계도', special: 'blueprint', weight: 0.3, lines: [['pctHp', 24], ['pctDmg', 24]],
+        uniqueEffect: '판의 조각이 여섯 이상이고 같은 종류(계열 · 색)가 하나도 없으면 이 부적의 일반 줄 +40%.' },
+    { id: 'uw_dead_star', name: '죽은 별의 균사체', special: 'deadStar', weight: 0.3, lines: [['chaosPctDmg', 36], ['dotPctDmg', 36]],
+        uniqueEffect: '판의 다 자란 카오스 조각 하나마다 카오스 · 지속 피해 +8%(최대 다섯), 생명력 −10%.' }
+]);
 // 원소 집중 고유: 젬 레벨 1~3 · 그 원소 피해 5~15% · 그 원소 저항 5~15%.
 const TALISMAN_ELEMENT_FOCUS = Object.freeze({
     fire: ['fireGemLevel', 'firePctDmg', 'resF'], cold: ['coldGemLevel', 'coldPctDmg', 'resC'],
@@ -170,4 +219,5 @@ const TALISMAN_ELEMENT_FOCUS = Object.freeze({
 });
 
 safeExposeData({ TALISMAN_UNSEAL_RULES, TALISMAN_SHARD_EXCHANGE, TALISMAN_WAX_COPY_PCT, TALISMAN_RARITY_TONES, TALISMAN_STAT_POOL,
-    TALISMAN_CONDITION_POOL, TALISMAN_CONDITION_EFFECTS, TALISMAN_CONDITION_WHEN, TALISMAN_HEX_RULES, TALISMAN_UNIQUE_DB, TALISMAN_ELEMENT_FOCUS });
+    TALISMAN_CONDITION_POOL, TALISMAN_CONDITION_EFFECTS, TALISMAN_CONDITION_WHEN, TALISMAN_HEX_RULES, TALISMAN_UNIQUE_DB, TALISMAN_WILD_DROPS,
+    TALISMAN_WILD_UNIQUE_DB, TALISMAN_ELEMENT_FOCUS });

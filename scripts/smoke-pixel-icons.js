@@ -32,7 +32,10 @@ for (const file of referenced) {
     const needsCopy = Math.max(Math.min(width, height) / 32, Math.max(width, height) / 48) > 1;
     assert.strictEqual(sources.has(file), needsCopy, `${file} (${width}×${height}) ${needsCopy ? 'needs' : 'must not get'} a pixel copy`);
 }
-assert(sources.size > 300, `the pixel copy list covers the item, gem and currency art (got ${sources.size})`);
+// The list is exactly the referenced art that needs a copy: removed art (the growth board, 2026-09-30) leaves no stale entry.
+const referencedSet = new Set(referenced);
+for (const source of sources) assert(referencedSet.has(source), `${source} has a pixel copy entry but no game data points at it`);
+assert(sources.size > 290, `the pixel copy list covers the item, gem and currency art (got ${sources.size})`);
 
 // Copies exist, are PNG, and stay within 32 dots on the short side and 48 on the long side.
 run("game.settings.iconArtStyle = 'pixel';");

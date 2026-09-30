@@ -771,26 +771,15 @@ function isDualWielding() {
     return !!(mainWeapon && shieldWeapon && shieldWeapon.slot === '무기');
 }
 
-/**
- * 생장 아이템 드랍. 기존 장비 드랍과 독립된 별도 굴림이라 장비 파밍 리듬을 바꾸지 않는다.
- * 루프 25(생장판 해금) 전에는 아무것도 굴리지 않는다.
- */
-
-function rollGrowthItemDrop(enemy, growthDropChance) {
-    if (!isGrowthBoardUnlocked()) return;
-    if (Math.random() >= Math.max(0, Number(growthDropChance) || 0)) return;
-    let item = generateGrowthDrop(enemy);
-    const delivery=actExplorationLoot.delivery(game,'growthItems');
-    if (!item || !addDroppedGrowthItem(item,{delivery,silent:!!delivery})) return;
-    if (delivery) return;
-    let growthDropColor = item.growthChase ? '#d7a7ff' : (item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8');
-    queueEnemyGroundLoot(enemy, { item, itemKind: 'growth', color: growthDropColor });
-    if (!game.settings.showLootLog) return;
-    let chaseLabel = item.growthChase ? ' <span style="color:#d7a7ff;font-weight:900;">✦ 체이싱</span>' : '';
-    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`, '', { item, itemKind:'growth' });
+/** 야생 부적(루프 25+, 예전 생장 아이템 드랍 자리): 장비 드랍과 따로 굴린다. 이야기 액트 원정은 그루터기 함 드랍처럼
+ * 굴리지 않는다. 알림은 그루터기 함 화면이 stump-box-changed로 남긴다. */
+function rollWildTalismanDrop(enemy, chance) {
+    if (!talismans.wildDropsOpen(game) || actExplorationState.current(game)?.act != null || Math.random() >= chance) return;
+    const drop = talismans.dropWild(game, enemy, Math.random);
+    if (game.noti) game.noti.stump = true;
+    if (drop.item) queueEnemyGroundLoot(enemy, { item: drop.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[drop.item.rarity] });
+    dispatchRuntimeEvent('stump-box-changed', { ripened: [], drop: drop.item || null, overflow: drop.currency || null });
 }
-
-
 
 /** Expires talisman curses every combat tick (and in grand breach runs). Rows from the removed condition gems carry no delta and go too. */
 function expireConditionEffects(now) {
@@ -935,9 +924,6 @@ function snapshotWoodsmanBuildState() {
         playerRecoupInstances: game.playerRecoupInstances || [],
         gemData: game.gemData || {},
         jewelInventory: game.jewelInventory || [],
-        growthBoard: game.growthBoard || {},
-        growthInventory: game.growthInventory || [],
-        recentGrowthDrops: game.recentGrowthDrops || [],
         starWedge: game.starWedge || {}
     }));
 }
@@ -967,10 +953,6 @@ function enforceWoodsmanBuildLock() {
     game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
     game.gemData = JSON.parse(JSON.stringify(snap.gemData));
     game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
-    if (snap.growthBoard) game.growthBoard = JSON.parse(JSON.stringify(snap.growthBoard));
-    if (snap.growthInventory) game.growthInventory = JSON.parse(JSON.stringify(snap.growthInventory));
-    if (snap.recentGrowthDrops) game.recentGrowthDrops = JSON.parse(JSON.stringify(snap.recentGrowthDrops));
-    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     game.starWedge = JSON.parse(JSON.stringify(snap.starWedge));
 }
 
@@ -1855,7 +1837,7 @@ function markPlayerMovementCompleted() {
 // flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
 // 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
 const FLASK_UTILITY_SLOT_HARD_CAP = 4;
-// 유틸리티 슬롯은 여전히 허리띠가 결정한다. 생장판은 별도 시스템이므로 이 계약을 건드리지 않는다.
+// 유틸리티 슬롯은 여전히 허리띠가 결정한다.
 const FLASK_AUTO_TRIGGER_ORDER =['combat', 'elite', 'boss', 'lowHp'];
 const FLASK_AUTO_TRIGGER_LABELS = Object.freeze({
     combat: '전투 시작',
@@ -3299,9 +3281,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let starBlessing = createEmptyStatBucket();
     let colonyWardBonus = {};
 
-    let growthSnapshot = getGrowthEffectSnapshot();
     let resolvedSources = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
-        [slotKey, item, getResolvedEquipmentStatLists(slotKey, item, game, true, growthSnapshot)]);
+        [slotKey, item, getResolvedEquipmentStatLists(slotKey, item, game, true)]);
     let resolvedStats = resolvedSources.map(([, , stats]) => stats);
     let excludedSlots = new Set();
     let barbarismKeystone = findAllocatedPassiveKeystone('야만');
@@ -3311,9 +3292,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let { gearBase, gearExplicit, localDefenseTotals, shieldArmorForDamage, shieldBaseBlockChance,
         shieldBlockChancePct, shieldBlockChanceFlat, equippedUniqueEffects } =
         getCombatEquipmentContributions(resolvedSources, excludedSlots);
-    // 생장판 공간 시너지: 배치 기하로만 결정되는 정적 보너스를 한 번에 합산한다.
-    // reward 버킷은 평탄/증가 방어와 막기까지 모두 최종 합산식에 포함되므로 여기로 흘려보낸다.
-    if (typeof applyGrowthSpatialStats === 'function') applyGrowthSpatialStats(reward, growthSnapshot);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
@@ -8800,7 +8778,7 @@ function queueEnemyGroundLoot(enemy, receipt) {
     const item = receipt.item;
     const loot = { ...receipt, zoneId: game.currentZoneId, sourceCell: { gx: enemy.gx, gy: enemy.gy } };
     if (item) loot.item = { name: item.name, baseId: item.baseId, slot: item.slot,
-        rarity: item.rarity, growthCategory: item.growthCategory, slabType: item.slabType, lines: item.lines };
+        rarity: item.rarity, family: item.family, lines: item.lines };
     addBattleFx('lootPickup', { enemyId: enemy.id, loot, duration: 1200 });
     if (receipt.highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...receipt.highlight,
         itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
@@ -8848,8 +8826,6 @@ function announceActExplorationLoot(receipt) {
         notifyCurrencyAcquisition(key,amount);
     }
     receipt.equipment.forEach(item=>recordEquipmentAcquisition(item));
-    receipt.growthItems.forEach(item=>combatLootReceipts.item(game,item));
-    receipt.growthCodex.forEach(item=>registerUniqueToCodexOnAcquire(item));
     dispatchRuntimeEvent('exploration-loot-claimed',{...receipt,equipmentCount:receipt.equipment.length,background:!!game.isBackgroundCalculation});
 }
 
@@ -8931,11 +8907,11 @@ function rollLootForEnemy(enemy) {
 
     rollFlaskDiscoveryDrop(enemy, contentDropMul);
 
-    let { equipment: itemChance, growth: growthItemChance } = getEquipmentDropChances(zone, enemy);
+    let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
     const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
     grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
-    rollGrowthItemDrop(enemy, growthItemChance);
+    rollWildTalismanDrop(enemy, talismanChance);
     if (contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul) {
         let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
         const receipt=receiveJewelDrop(jewel,actExplorationLoot.delivery(game,'jewels'));
@@ -9501,18 +9477,6 @@ function grantBeyondBoundaryGemRewards(context) {
     return `젬 잔향 ${gained}개`;
 }
 
-function grantBeyondBoundaryGrowthRewards(context) {
-    let count = rollBeyondBoundaryRewardCount(context.intensity.rewardMul);
-    let stored = 0;
-    for (let index = 0; index < count; index++) {
-        let item = generateGrowthDrop({ isBoss: true }, { zone: context.zone });
-        if (!item || !addDroppedGrowthItem(item, { guaranteedKeep: true })) continue;
-        stored++;
-        addLog(`경계 완료 보상: [${item.name}]`, 'loot-rare', { item, itemKind:'growth' });
-    }
-    return `${stored}개의 생장 배치물`;
-}
-
 function grantBeyondBoundaryCurrencyRewards(context) {
     let tier = Math.min(50, context.tier);
     let multiplier = context.intensity.rewardMul;
@@ -9530,8 +9494,7 @@ function grantBeyondBoundaryFocusedReward(result) {
     let summary = context.focus.id === 'armory' ? grantBeyondBoundaryEquipmentRewards(context)
         : context.focus.id === 'jewel' ? grantBeyondBoundaryJewelRewards(context)
             : context.focus.id === 'gem' ? grantBeyondBoundaryGemRewards(context)
-                : context.focus.id === 'growth' ? grantBeyondBoundaryGrowthRewards(context)
-                    : grantBeyondBoundaryCurrencyRewards(context);
+                : grantBeyondBoundaryCurrencyRewards(context);
     return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
 }
 
@@ -12813,9 +12776,6 @@ function triggerSeasonReset(options) {
         if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
     let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
-    // 생장판: 해금된 칸 수와 봉인 아이템은 영구 성장이라 루프를 건너 유지한다.
-    let preservedGrowthUnlockedCells = Math.max(0, Math.floor(((game.growthBoard || {}).unlockedCellCount) || 0));
-    let preservedSealedGrowthInventory = (game.growthInventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
     let preservedTimeRemnant = Math.max(0, Math.floor((game.currencies && game.currencies.timeRemnant) || 0));
     let preservedOfflineProgress = typeof ensureOfflineProgressState === 'function' ? JSON.parse(JSON.stringify(ensureOfflineProgressState(game))) : null;
@@ -12913,10 +12873,6 @@ function triggerSeasonReset(options) {
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
     Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = Object.assign(preservedSealedEquipment[slot], { inheritedLevelExempt: true }); });
     if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory.map(item => Object.assign(item, { inheritedLevelExempt: true })));
-    // 생장판 초기화: 배치는 비우되 해금 칸(영구 성장)과 봉인 아이템은 유지한다.
-    if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
-    game.recentGrowthDrops = [];
-    game.growthInventory = preservedSealedGrowthInventory;
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;

@@ -8,7 +8,6 @@ const levelProgressionUi = (() => {
             available: available.length < slots.length ? available.map(getDualSlotDisplayLabel).join(' · ') : '' };
     }
     function item(item, equipped, slot) {
-        if (isGrowthItem(item)) return '';
         const required = levelProgression.requirements(item);
         const attributes = Object.entries(required.attributes).filter(([, value]) => value > 0)
             .map(([key, value]) => `${getStatName(key)} ${value}`);

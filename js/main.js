@@ -50,15 +50,6 @@ function init() {
     }
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
-    // 생장판(추가 시스템) 상태 정규화. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
-    try {
-        ensureGrowthBoardState();
-        syncGrowthBoardUnlocks({ silent: true });
-        validateGrowthPlacements();
-    } catch (error) {
-        console.error('growth board init failed:', error);
-        addLog('⚠️ 생장판 초기화 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
-    }
     unlockPassiveStarEvolution({ silent: true });
     window.__battleAssetAutoloadEnabled = false;
     refreshPassiveVisibility();

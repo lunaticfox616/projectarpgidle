@@ -8,7 +8,6 @@ const BUILD_STAT_FIELDS = [
     'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
     'skillAutoRules',
     'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
-    'growthBoard', 'growthInventory',
     'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',
     'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression', 'stumpBox'
 ];

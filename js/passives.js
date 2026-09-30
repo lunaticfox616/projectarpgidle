@@ -3843,8 +3843,7 @@ const applySeaGiftLockEffect = function (item, effect, category) {
 };
 
 function isSeaGiftEquipmentTarget(item) {
-    if (!item || (typeof isGrowthItem === 'function' && isGrowthItem(item))) return false;
-    if (!Array.isArray(item.stats) || typeof getEquipCandidateSlots !== 'function') return false;
+    if (!item || !Array.isArray(item.stats) || typeof getEquipCandidateSlots !== 'function') return false;
     return getEquipCandidateSlots(item).some(slot => Object.prototype.hasOwnProperty.call(game.equipment || {}, slot));
 }
 
@@ -8726,7 +8725,7 @@ function findStoredEquipmentAffix(item, stat) {
 
 function migrateEquipmentAffixBalance(item) {
     [...item.baseStats, ...item.stats, item.underEnchant, item.chaosInfusion].forEach(migrateEquipmentProjectileOption);
-    if (item.rarity === 'unique' || isGrowthItem(item)) return;
+    if (item.rarity === 'unique') return;
     for (const stat of item.stats) {
         if (stat.affixBalanceVersion >= 2 || !stat.tier || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) continue;
         const mod = findStoredEquipmentAffix(item, stat);
@@ -9195,15 +9194,11 @@ function rollTierValueAffix(mod, statId, tier) {
         valueStep, fixedValue: !!mod.fixedValue, sourceModId: mod.id, affixBalanceVersion: mod.affixBalanceVersion };
 }
 
-function rerollStoredAffixValue(stat, growthItem) {
+function rerollStoredAffixValue(stat) {
     let min = Number(stat && stat.valMin);
     let max = Number(stat && stat.valMax);
     if (!Number.isFinite(min) || !Number.isFinite(max)) return;
     if (max < min) { let tmp = min; min = max; max = tmp; }
-    if (growthItem) {
-        stat.val = rollGrowthAffixNumber(stat.id, min, max).val;
-        return;
-    }
     if (stat.valueStep) {
         stat.val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / stat.valueStep) + 1)) * stat.valueStep).toFixed(2));
         return;
@@ -9228,12 +9223,7 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
         let min = sub.base + (tier * sub.step);
         let max = min + sub.step * 1.6;
         let val;
-        if (mod.growthAffix) {
-            let rolled = rollGrowthAffixNumber(subId, min, max);
-            val = rolled.val;
-            min = rolled.min;
-            max = rolled.max;
-        } else if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
+        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9264,12 +9254,7 @@ function rollAffixValue(mod, maxTier, opts) {
         let min = mod.base + (tier * mod.step);
         let max = min + mod.step * 1.6;
         let val;
-        if (mod.growthAffix) {
-            let rolled = rollGrowthAffixNumber(statId, min, max);
-            val = rolled.val;
-            min = rolled.min;
-            max = rolled.max;
-        } else if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9330,12 +9315,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
         let min = mod.base + (tier * mod.step);
         let max = min + mod.step * 1.6;
         let val;
-        if (mod.growthAffix) {
-            let rolled = rollGrowthAffixNumber(statId, min, max);
-            val = rolled.val;
-            min = rolled.min;
-            max = rolled.max;
-        } else if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9578,8 +9558,6 @@ function isKaleidoscopeShieldItem(item) {
 
 function getAvailableModSlotsForItem(item) {
     if (isKaleidoscopeShieldItem(item)) return EQUIPMENT_DROP_SLOTS.slice();
-    // 생장 아이템은 종류(꽃/가지/잎)가 옵션 계열을 결정한다 (spec: 부위 전용 → 종류 전용).
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return getGrowthCategoryModSlots(item.growthCategory);
     return [item && item.slot].filter(Boolean);
 }
 
@@ -9589,7 +9567,6 @@ function getExplicitModStatIds(mod) {
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
-    let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
     let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
     let allowedSlots = getAvailableModSlotsForItem(item);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
@@ -9600,7 +9577,6 @@ function getAvailableMods(item) {
     let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
     let baseDefenseTypes = getItemBaseDefenseTypes(item);
     return MOD_DB.filter(mod => {
-        if (growthItem && !getGrowthAffixValueDef(mod.id)) return false;
         let statId = mod.statId || mod.id;
         if (!isDefenseTypeStatAllowed(item, statId)) return false;
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
@@ -9610,29 +9586,7 @@ function getAvailableMods(item) {
         if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
         return allowedSlots.some(slot => mod.slots.includes(slot))
             && !getExplicitModStatIds(makeDualDefenseAffixMod(item, mod)).some(id => existing.has(id));
-    }).map(mod => {
-        if (!growthItem) return makeDualDefenseAffixMod(item, mod);
-        let growthValues = getGrowthAffixValueDef(mod.id);
-        let growthMod = { ...mod, ...growthValues, growthAffix: true };
-        delete growthMod.tierValues;
-        delete growthMod.affixBalanceVersion;
-        if (growthValues.compound) growthMod.compound = growthValues.compound.map(stat => ({ ...stat }));
-        return makeDualDefenseAffixMod(item, growthMod);
-    });
-}
-
-function rollGrowthAffixNumber(statId, min, max) {
-    let step = getGrowthStatValueStep(statId);
-    let minStep = Math.round(Number(min) / step);
-    let maxStep = Math.max(minStep, Math.round(Number(max) / step));
-    if (Number(min) > 0) minStep = Math.max(1, minStep);
-    if (Number(max) > 0) maxStep = Math.max(minStep, maxStep);
-    let rolledStep = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
-    return {
-        val: roundGrowthStatValue(statId, rolledStep * step),
-        min: roundGrowthStatValue(statId, minStep * step),
-        max: roundGrowthStatValue(statId, maxStep * step)
-    };
+    }).map(mod => makeDualDefenseAffixMod(item, mod));
 }
 
 function updateItemName(item) {
@@ -9668,15 +9622,12 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
-    // 생장 아이템은 등급별 전용 옵션 상한을 적용한다.
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) count = Math.min(count, getGrowthItemAffixCap(item));
     count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
     mods.forEach(mod => item.stats.push(minTier > 1 || hasTierWeightOverride
         ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
         : rollAffixValue(mod, maxTier)));
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) item.growthOptionValueVersion = GROWTH_AFFIX_VALUE_VERSION;
     updateItemName(item);
 }
 
@@ -9710,14 +9661,12 @@ CHAOS_INFUSER_OPTIONS.forEach(option => {
     if (merged) option.currency = merged[0];
 });
 function getChaosInfuserOptionsForItem(item) {
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return [];
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
     return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
 }
 function isChaosInfusionEligibleItem(item) {
     if (!item) return { ok: false, reason: '아이템 미선택' };
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return { ok: false, reason: '생장판에는 혼돈 주입을 할 수 없습니다.' };
     if (item.corrupted) return { ok: false, reason: '타락된 아이템에는 혼돈 주입을 할 수 없습니다.' };
     if (item.rarity === 'unique') return { ok: false, reason: '고유 아이템에는 혼돈 주입을 할 수 없습니다.' };
     if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: '일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.' };
@@ -10590,11 +10539,7 @@ function destroySelectedCraftItem(item) {
     if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
     let ref = getCraftSelectionRef();
     if (isCraftSelectionEquip()) game.equipment[ref] = null;
-    else {
-        game.inventory = (game.inventory || []).filter(entry => entry !== item);
-        game.growthInventory = (game.growthInventory || []).filter(entry => entry !== item);
-    }
-    if (item && typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
+    else game.inventory = (game.inventory || []).filter(entry => entry !== item);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
 }
 
@@ -10743,7 +10688,6 @@ function salvageItem(idx) {
         return addLog(`🧰 장비 세팅에 저장된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
     }
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
-    if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
     updateStaticUI();
@@ -10784,12 +10728,11 @@ function toggleAutoSalvage() {
     addLog(`⚙️ 자동해체 ${game.settings.autoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
 
-// 일괄 해체 보호: 잠금·장비 프리셋·생장판 배치 아이템은 대상에서 제외한다.
+// 일괄 해체 보호: 잠금·장비 프리셋 아이템은 대상에서 제외한다.
 function isBulkSalvageProtectedItem(item) {
     if (!item) return true;
     if (item.locked || equipmentLootPolicy.matches(item)) return true;
-    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item)) return true;
-    return typeof isGrowthItemPlacedAnywhere === 'function' && isGrowthItemPlacedAnywhere(item.id);
+    return typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
 }
 
 function bulkSalvage(maxRarity) {
@@ -10905,7 +10848,7 @@ function getAvailableSporeCraftModes() {
 }
 
 function isSporeCraftEquipment(item) {
-    if (!item || (typeof isGrowthItem === 'function' && isGrowthItem(item))) return false;
+    if (!item) return false;
     let slot = String(item.slot || '').replace(/[123]$/, '');
     return EQUIPMENT_DROP_SLOTS.includes(slot);
 }
@@ -11053,25 +10996,19 @@ function hasSporeCraftCost(mode) {
 }
 
 /**
- * @param {string} currencyKey Crafting action, independent of its payment source.
- * @param {'growthEssence'} [paymentSource] Omit to pay one ordinary currency.
+ * @param {string} currencyKey Crafting action; pays one of that currency.
  * @returns {Promise<true|undefined>} True only after the item and payment are committed.
  */
-async function useCurrency(currencyKey, paymentSource) {
+async function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
-    const payment = getCraftPayment(currencyKey, item, paymentSource);
+    const payment = getCraftPayment(currencyKey);
     if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
-    // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
-    if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
     let actionKey = equipmentCrafting.resolveAction(currencyKey, item.rarity);
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률·잿불가지·축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
 
-    // 생장 아이템은 마법 1줄, 희귀 2줄이다. 승급 판정은 현재 마법 상한이 아니라
-    // 승급 후 희귀 상한을 써야 1줄짜리 마법 아이템을 희귀로 올릴 수 있다.
-    let growthCraft = typeof isGrowthItem === 'function' && isGrowthItem(item);
-    let explicitCap = growthCraft ? getGrowthCategoryAffixCap(item.growthCategory) : 6;
+    let explicitCap = 6;
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
     else if (actionKey === 'alteration') ok = item.rarity === 'magic';
@@ -11104,15 +11041,14 @@ async function useCurrency(currencyKey, paymentSource) {
     })) return;
     // 확인창이 열린 동안 제작 대상을 바꾸거나 장비를 이동한 경우, 이전 객체에 오브가
     // 적용되는 것을 막는다. 확인 전의 잔여 수량·제작 가능 상태도 다시 검증한다.
-    if (getSelectedCraftItem() !== item || !getCraftPayment(currencyKey, item, paymentSource)?.affordable) {
+    if (getSelectedCraftItem() !== item || !getCraftPayment(currencyKey)?.affordable) {
         return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
     }
     if (item.corrupted && actionKey !== 'tainted') return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
 
     game.sporeCraftModes = game.sporeCraftModes || {};
-    // 홀씨 태그 보장은 장비 제작 전용이다. 생장판 제작대가 이 함수를
-    // 재사용하더라도 장비 화면에 남은 모드를 적용하거나 홀씨를 소모하지 않는다.
+    // 홀씨 태그 보장은 장비 제작 전용이다.
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
     const sporeBlock = equipmentCrafting.getSporeBlockReason(item, actionKey, sporeMode);
     if (sporeBlock) return addLog(sporeBlock, 'attack-monster');
@@ -11186,12 +11122,8 @@ async function useCurrency(currencyKey, paymentSource) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
     }
-    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey, paymentSource });
+    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });
     game.currencies[payment.key] -= payment.cost;
-    let expiredGrowthDropAffix = growthCraft ? removeGrowthDropOverflowAffix(item) : null;
-    if (expiredGrowthDropAffix) {
-        addLog(`🍂 제작으로 변이 옵션이 소멸했습니다: ${expiredGrowthDropAffix.statName || getStatName(expiredGrowthDropAffix.id)}`, 'attack-monster');
-    }
     if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
@@ -11226,13 +11158,12 @@ async function useCurrency(currencyKey, paymentSource) {
             applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (actionKey === 'divine') {
-        let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
-            rerollStoredAffixValue(stat, growthItem);
+            rerollStoredAffixValue(stat);
         });
         if (item.chaosInfusion && Number.isFinite(Number(item.chaosInfusion.valMin)) && Number.isFinite(Number(item.chaosInfusion.valMax))) {
-            rerollStoredAffixValue(item.chaosInfusion, growthItem);
+            rerollStoredAffixValue(item.chaosInfusion);
         }
         if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) {
             let p = item.uniqueEffectParams;
@@ -11249,8 +11180,7 @@ async function useCurrency(currencyKey, paymentSource) {
             addLog('💥 기회의 오브: 아이템이 파괴되었습니다.', 'attack-monster');
         } else {
             let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
-            let isGrowth = typeof isGrowthItem === 'function' && isGrowthItem(item);
-            let unique = isGrowth ? generateGrowthUniqueItem(tier) : generateUniqueItem(tier, item.slot);
+            let unique = generateUniqueItem(tier, item.slot);
             if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
             let previousId = item.id;
             Object.keys(item).forEach(key => delete item[key]);
@@ -11273,8 +11203,7 @@ async function useCurrency(currencyKey, paymentSource) {
         updateItemName(item);
     } else if (actionKey === 'tainted') {
         item.corrupted = true;
-        if (typeof isGrowthItem === 'function' && isGrowthItem(item)) applyGrowthCorruptionOutcome(item);
-        else if (Math.random() < 0.35) {
+        if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) {
                 item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
@@ -11321,22 +11250,10 @@ async function useCurrency(currencyKey, paymentSource) {
         });
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
-    // 제작으로 태그/크기/옵션이 바뀔 수 있으므로 공간 시너지 캐시를 무효화한다.
-    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     craftingResultLedger.commit(craftResultToken, item);
     addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
     return true;
-}
-
-/** 드랍에서만 붙는 상한 초과 옵션은 첫 제작이 확정된 뒤 한 번만 제거한다. */
-function removeGrowthDropOverflowAffix(item) {
-    if (!item || !Array.isArray(item.stats)) return null;
-    let index = item.stats.findIndex(stat => stat && stat.growthDropOverflow);
-    if (index < 0) return null;
-    let removed = item.stats.splice(index, 1)[0];
-    updateItemName(item);
-    return removed;
 }
 
 function isMarketUnlocked() {
@@ -11390,6 +11307,5 @@ safeExposeGlobals({
     getItemSalvagePreviewText,
     rollItemSalvageRewards,
     mergeSalvageRewards,
-    formatSalvageRewardSummary,
-    removeGrowthDropOverflowAffix
+    formatSalvageRewardSummary
 });

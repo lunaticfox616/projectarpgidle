@@ -423,10 +423,10 @@ assert(!source.includes('ui-goal-next-unlock') && !reliquaryCss.includes('.ui-go
 
 // Actual menu editing, unlock filtering and platform separation: settings-layout.spec.js.
 const inventoryStart = uiSource.indexOf('function updateInventoryFullWarnings()');
-const inventoryEnd = uiSource.indexOf('function syncInventoryExpansionShortcuts()', inventoryStart);
+const inventoryEnd = uiSource.indexOf('function getEquipmentSearchStatText(stat, resolveName)', inventoryStart);
+assert(inventoryStart >= 0 && inventoryEnd > inventoryStart, 'the capacity warning function is found');
 const inventoryElements = {
-    'inventory-full-warning': { style: { display: 'none' }, title: '' },
-    'jewel-inventory-full-warning': { style: { display: 'none' }, title: '' }
+    'inventory-full-warning': { style: { display: 'none' }, title: '' }
 };
 let railSyncs = 0;
 const inventoryContext = {

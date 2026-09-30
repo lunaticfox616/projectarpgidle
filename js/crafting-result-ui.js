@@ -74,10 +74,10 @@ const craftingResultUi = (() => {
 
     function getRepeatButton(result, item) {
         if (!['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'deepWhetstone', 'rootIron', 'jewelPolish'].includes(result.meta.currencyKey)) return '';
-        const payment = getCraftPayment(result.meta.currencyKey, item, result.meta.paymentSource);
+        const payment = getCraftPayment(result.meta.currencyKey);
         if (!payment) return '';
         const name = ORB_DB[payment.key].name;
-        const label = payment.key === 'growthEssence' ? `${name} ${payment.cost}개로 다시 제작 · 보유 ${payment.have}` : `${name} 다시 사용 · ${payment.have}`;
+        const label = `${name} 다시 사용 · ${payment.have}`;
         const mode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[result.meta.currencyKey] || 'none') : 'none';
         const action = equipmentCrafting.resolveAction(result.meta.currencyKey, item.rarity);
         const reason = equipmentCrafting.getSporeBlockReason(item, action, mode);
@@ -100,7 +100,7 @@ const craftingResultUi = (() => {
         if (itemId !== undefined && item?.id !== itemId) return addLog('제작 대상이 변경되었습니다. 아이템을 다시 선택하세요.', 'attack-monster');
         let result = craftingResultLedger.getForItem(item);
         if (!result) return addLog('다시 사용할 수 있는 최근 제작 결과가 없습니다.', 'attack-monster');
-        return useCurrency(result.meta.currencyKey, result.meta.paymentSource);
+        return useCurrency(result.meta.currencyKey);
     }
 
     return { getLedgerHtml, getMetaRows, repeat };

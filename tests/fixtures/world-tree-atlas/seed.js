@@ -14,7 +14,7 @@
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);contentProgression.sync();
         game.settings.mapCompleteAction='nextZone';game.settings.showDeathNotice=false;game.settings.autoEquipEmptySlots=false;
         game.settings.autoEnterGrandBreach=false;game.settings.autoEnterMeteor=false;
-        game.seenTutorials=['tutorial_battle_basics','tutorial_starter_gem_equip','unlock_growth_board'];
+        game.seenTutorials=['tutorial_battle_basics','tutorial_starter_gem_equip'];
         game.equipment['무기']={id:99101,name:'탐험 흐름 확인용 무기',slot:'무기',rarity:'rare',baseStats:[{id:'flatDmg',val:1000000000}],stats:[]};
         // Synthetic recovery covers the underworld's percentage drain during navigation checks.
         // This is not a legal-build or difficulty fixture.

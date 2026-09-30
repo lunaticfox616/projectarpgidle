@@ -6,7 +6,7 @@ const fixture = require('./lib/replay-fixture');
 const configure = require('./lib/offline-endgame-fixture');
 const { runtime, run } = fixture(17);
 run(`(${configure.toString()})()`);
-const names = ['getPlayerStats', 'getGrowthEffectSnapshot', 'getResolvedEquipmentStatLists',
+const names = ['getPlayerStats', 'getResolvedEquipmentStatLists',
     'getEffectivePassiveNodeEffects', 'getGemBonusSources', 'getTargetGemBonusSources',
     'getEquippedJewelGemLevelBonusSources', 'estimateSummonDps', 'getActiveSkillStats',
     'getArcanaGemDamageBonus', 'getPreciseTalentRatio', 'recalculateStarWedgeMutations'];

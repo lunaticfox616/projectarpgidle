@@ -28,22 +28,18 @@ check('core drops need the purchase and reset with the loop', () => {
     assert.deepEqual(json('coreItems.stats()'), []);
 });
 
-check('growth placement and loot require the purchased feature', () => {
+check('wild talisman drops (old growth drops) require the talisman unlock and loop 25', () => {
     reset();
-    assert.equal(run('isGrowthBoardUnlocked()'), false);
-    run('syncGrowthBoardUnlocks({silent:true})');
-    assert.equal(run('game.growthBoard.unlockedCellCount'), 0);
-    assert.equal(run('game.growthInventory.length'), 0);
-    // Retain items/placements from a saved state while suppressing their active effects.
-    run('game.growthInventory=[generateGrowthDrop({isBoss:true})];game.growthBoard.unlockedCellCount=30');
-    run('game.growthBoard.loadouts[0].placements[game.growthInventory[0].id]={x:3,y:3,rotation:0}');
-    const saved = json('[game.growthInventory,game.growthBoard]');
-    assert.deepEqual(json('getPlacedGrowthEntries()'), []);
-    assert.equal(run('isGrowthCellUnlocked(3,3)'), false);
-    assert.deepEqual(json('[game.growthInventory,game.growthBoard]'), saved);
-    run("game.contentProgression.inherited.push('growth')");
-    assert(run('isGrowthBoardUnlocked()'));
-    assert.equal(run('getPlacedGrowthEntries().length'), 1);
+    run('stumpBox.sync(game,"test")');
+    assert.equal(run('talismans.wildDropsOpen(game)'), false);
+    run('game.season=25;contentProgression.sync()');
+    assert.equal(run('talismans.wildDropsOpen(game)'), false, 'loop 25 alone does not open them');
+    run("game.contentProgression.inherited.push('talisman')");
+    assert(run('talismans.wildDropsOpen(game)'));
+    const drop = json('talismans.dropWild(game,{isBoss:true},()=>0)');
+    assert.equal(drop.item.rarity, 'unique');
+    assert(run(`talismans.isWild(${JSON.stringify(drop.item.uniqueId)})`), 'a wild unique comes from the old growth uniques');
+    assert(run(`stumpBox.itemById(game,${drop.item.id}).family==='talisman'`), 'the drop lands in the stump box storage');
 });
 
 check('codex records precede purchase but bonuses do not', () => {
@@ -87,7 +83,7 @@ check('boundary selection and entry reject unavailable rewards before spending',
     reset(50);
     run('game.beyondBoundary.unlocked=true;game.currencies.formlessDew=10');
     const before = json('[game.beyondBoundary,game.currencies]');
-    for (const id of ['jewel','gem','growth','currency','missing']) {
+    for (const id of ['jewel','gem','currency','missing']) {
         assert.equal(run(`selectBeyondBoundaryRewardFocus('${id}',game)`), false);
     }
     assert.deepEqual(json('[game.beyondBoundary,game.currencies]'), before);
@@ -107,21 +103,21 @@ check('boundary selection and entry reject unavailable rewards before spending',
     assert(run('game.currencies.gemShard>0'));
 });
 
-check('boundary jewel and growth payouts cannot leak through legacy active runs', () => {
+check('boundary jewel payouts cannot leak through legacy active runs; an old growth focus pays equipment', () => {
     for (const focus of ['jewel','growth','currency']) {
         reset(50);
         const before = json('game.currencies');
         assert.equal(json(`grantBeyondBoundaryFocusedReward({rewardFocusId:'${focus}',tier:1,intensityId:'plain'})`).focusId, 'armory');
         assert.equal(gear().length, 1);
-        assert.equal(run('game.growthInventory.length+game.jewelInventory.length'), 0);
+        assert.equal(run('game.jewelInventory.length'), 0);
         assert.deepEqual(json('game.currencies'), before);
     }
     reset(50);
-    run('game.contentProgression.inherited.push("jewel","growth")');
+    run('game.contentProgression.inherited.push("jewel")');
     run('grantBeyondBoundaryFocusedReward({rewardFocusId:"jewel",tier:1,intensityId:"plain"})');
-    run('grantBeyondBoundaryFocusedReward({rewardFocusId:"growth",tier:1,intensityId:"plain"})');
+    assert.equal(json('grantBeyondBoundaryFocusedReward({rewardFocusId:"growth",tier:1,intensityId:"plain"})').focusId, 'armory',
+        'the removed growth focus falls back to equipment');
     assert.equal(run('game.jewelInventory.length'), 1);
-    assert.equal(run('game.growthInventory.length'), 1);
     assert(run('game.currencies.jewelShard>0'));
 });
 

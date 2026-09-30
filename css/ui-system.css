@@ -79,9 +79,6 @@ body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline
 
 /* Character sheet: key values first, related stats stay together. */
 .mobile-section-navigation { display: none; }
-.inventory-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
-.inventory-library-pages button { min-height: 44px; }
-.inventory-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 @media (max-width: 1080px) {
   .mobile-section-navigation:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
   .mobile-section-navigation button { min-height: 44px; padding: 6px; font-size: 13px; }

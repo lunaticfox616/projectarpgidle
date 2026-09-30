@@ -175,7 +175,7 @@ const actExplorationUi=(()=>{
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
     function collectLootRows(loot) {
         const rows=[];
-        for(const kind of ['equipment','growthItems','jewels'])
+        for(const kind of ['equipment','jewels'])
             rows.push(...loot[kind].map(item=>({key:kind+':'+item.id,kind,item,name:item.name,rarity:item.rarity,amount:1})));
         for(const [key,amount] of Object.entries(loot.currencies))
             rows.push({key:'currency:'+key,kind:'currency',name:getCurrencyInfo(key).name,currency:key,amount});
@@ -214,7 +214,6 @@ const actExplorationUi=(()=>{
         selectedLoot=row.key;
         document.querySelectorAll('[data-loot-index]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.lootIndex)===index)));
         if(row.kind==='equipment')showItemTooltip(null,-1,false,row.item,{target:details});
-        else if(row.kind==='growthItems')details.innerHTML=buildGrowthTooltipHtml(row.item);
         else if(row.kind==='jewels')details.innerHTML=window.createJewelRangeTooltipHtml(row.item);
         else details.innerHTML=supplyDetails(row);
     }

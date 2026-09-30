@@ -81,9 +81,8 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
             shieldBaseBlockChance: 0, shieldBlockChancePct: 0, shieldBlockChanceFlat: 0,
             equippedUniqueEffects: [] };
         for (const source of resolvedSources) {
-            const [, item, resolved] = source;
-            if (excludedSlots.has(item.slot) && !resolved.growthItem) continue;
-            if (excludedSlots.has('all:' + item.slot)) continue;
+            const [, item] = source;
+            if (excludedSlots.has(item.slot) || excludedSlots.has('all:' + item.slot)) continue;
             accumulateCombatEquipmentItem(result, source);
         }
         memo?.set('combat-equipment', result);

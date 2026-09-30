@@ -203,7 +203,7 @@ assert(run('coreItems.canDrop()'));
 // Exercise the real loop transition: UI descriptions distinguish access from possessions.
 run(`game=mergeDefaults({}); game.season=25; contentProgression.sync();
     contentProgression.purchase('craft'); contentProgression.purchase('flask');
-    game.contentProgression.inherited.push('growth');
+    game.contentProgression.inherited.push('talisman');
     game.currencies.bossCore=7; game.currencies.skyEssence=8; game.currencies.sporeFire=9;
     game.currencies.runeShard=10; game.currencies.underCopper=11; game.currencies.enchantedHoney=12;
     game.currencies.voidChisel=13; game.currencies.colonyShard=14;
@@ -221,8 +221,6 @@ run(`game=mergeDefaults({}); game.season=25; contentProgression.sync();
     game.talentCards={hero1__warrior:{level:3,score:45,count:2}};
     game.bloomedClassThisLoop='warrior'; game.bloomedTalentThisLoop='hero1'; game.ascendPoints=3;
     game.skillAutoRules=[{id:'keep',enabled:true,priority:1,triggerType:'hp_below',triggerValue:30,actionType:'return_town'}];
-    game.growthBoard.unlockedCellCount=11; ensureGrowthBoardState();
-    game.growthBoard.loadouts[0].placements={'old-growth':{x:0,y:0}};
 `);
 const permanentBefore=json('[game.beehive.cleared,game.voidRift.breachClears,game.voidRift.grandBreachUnlock,game.underworldRunes,game.talentCards,game.skillAutoRules]');
 const pointsBefore=run('contentProgression.balance()');
@@ -243,8 +241,6 @@ assert.deepEqual(json('[game.ocean.fishStock[OCEAN_STATE_FISH_KEYS[0]],game.ocea
 assert.equal(run('game.colony.wave'),run('defaultGame.colony.wave'));
 assert.deepEqual(json('game.colony.wardInventory'),[]);
 assert.deepEqual(json('[game.bloomedClassThisLoop,game.bloomedTalentThisLoop,game.ascendPoints]'),[null,null,0]);
-assert.equal(run('game.growthBoard.unlockedCellCount'),11);
-assert(run('game.growthBoard.loadouts.every(row=>Object.keys(row.placements).length===0)'));
 // New choices split meaningful access; old owners retain the former bundle for free.
 run(`game=mergeDefaults({});game.season=4;contentProgression.sync();
     ['craft','support','research','gemForge'].forEach(id=>contentProgression.purchase(id));
@@ -301,7 +297,7 @@ const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
 assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:2,complete:false});
 run('game.season=20;contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),totalCost);
-assert(!run("contentProgression.status('growth').available"),'future loop gates remain enforced after funding');
+assert(!run("contentProgression.status('beyond').available"),'future loop gates remain enforced after funding');
 before=json('game');
 assert.equal(run('contentProgression.points().nextAward'),0);
 assert.deepEqual(json('game'),before,'reading the budget never mutates state');

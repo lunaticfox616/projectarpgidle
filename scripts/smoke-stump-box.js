@@ -23,16 +23,18 @@ run('game.maxZoneId = ABYSS_START_ZONE_ID;');
 assert.strictEqual(run('stumpBox.sync(game, "act10")'), true, 'clearing act 10 (the chaos floors open) grants it live');
 assert.strictEqual(run('stumpBox.sync(game, "act10")'), false, 'and only once');
 
-// ── 칸 해금: 최고 도달 루프로 5 → 9 → 13 → 17 → 21 → 25 ────────────────────────────────
+// ── 칸 해금(2026-09-30 사용자 결정): 가운데 3×3 9칸에서 시작해 최고 도달 루프마다 한 칸씩, 루프 17에 25칸 ─────
 const opens = {};
-for (const loop of [1, 2, 5, 6, 10, 25, 49, 50]) {
+for (const loop of [1, 2, 5, 6, 10, 16, 17, 25, 50]) {
     run(`game.season = ${loop}; game.contentProgression.highestLoop = ${loop};`);
     opens[loop] = run('stumpBox.openCount(game)');
 }
-assert.deepStrictEqual(opens, { 1: 5, 2: 9, 5: 9, 6: 13, 10: 17, 25: 21, 49: 21, 50: 25 });
+assert.deepStrictEqual(opens, { 1: 9, 2: 10, 5: 13, 6: 14, 10: 18, 16: 24, 17: 25, 25: 25, 50: 25 });
+assert.strictEqual(run('stumpBox.nextOpening(game)'), null, 'nothing left to open on a full board');
 run('game.season = 1; game.contentProgression.highestLoop = 1;');
-assert.deepStrictEqual(json('[12, 7, 11, 13, 17].map(cell => stumpBox.isOpen(game, cell))'), [true, true, true, true, true], 'the centre cross opens first');
-assert.deepStrictEqual(json('[6, 2, 1, 0].map(cell => stumpBox.opensAt(game, cell))'), [2, 6, 10, 50], 'closed cells say which loop opens them');
+assert.deepStrictEqual(json('[12, 7, 11, 13, 17, 6, 8, 16, 18].map(cell => stumpBox.isOpen(game, cell))'), Array(9).fill(true), 'the centre 3×3 is open from the start');
+assert.deepStrictEqual(json('[2, 22, 1, 0, 20].map(cell => stumpBox.opensAt(game, cell))'), [2, 5, 6, 14, 17], 'closed cells say which loop opens them');
+assert.deepStrictEqual(json('stumpBox.nextOpening(game)'), { loop: 2, cells: 10 }, 'the next cell opens on the next loop');
 
 // ── 시작 선물과 배치 ─────────────────────────────────────────────────────────
 const seed = run('stumpBox.claimStarter(game, "seed", "fire").id');

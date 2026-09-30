@@ -104,7 +104,6 @@ function canStoreEquipmentItems(items, targetGame) {
 }
 function getJewelInventoryLimit() { return JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) * 5); }
 function getJewelMarketExpandCost() { return 1 + Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)); }
-function getGrowthMarketExpandCost() { return 2 + Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)); }
 function getExceptionalBaseStarCount(item) {
     return ((item && item.baseStats) || []).filter(stat => stat && stat.exceptional).length;
 }
@@ -591,7 +590,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ normalizeIconArtStyle, pixelIconPath, clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
+safeExposeGlobals({ normalizeIconArtStyle, pixelIconPath, clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 

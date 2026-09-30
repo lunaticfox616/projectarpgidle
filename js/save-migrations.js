@@ -34,13 +34,23 @@ function normalizeTabLayoutSettings(settings) {
     return layouts;
 }
 
-/** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
 /** 전술 규칙만 남긴다: 예전 컨디션 젬 규칙(행동이 없거나 condition_gem)은 버린다. */
 function normalizeSavedTacticRules(raw) {
     const rules = Array.isArray(raw) ? raw.filter(rule => rule && typeof rule === 'object') : [];
     return rules.filter(rule => rule.actionType && rule.actionType !== 'condition_gem').map(rule => normalizeConditionPatternRule({ ...rule }));
 }
 
+/** 생장판 제거(2026-09-30): 판 · 보관함 · 확장 · 생장 정수 · 설정 · 해금 표시는 보상 없이 지운다(결정 4). 두 번 불러와도 같다. */
+function stripRemovedGrowthBoard(merged) {
+    ['growthBoard', 'growthInventory', 'recentGrowthDrops', 'growthInventoryExpandLevel', 'growthEssenceExpandLevel', 'growthCodex']
+        .forEach(key => delete merged[key]);
+    ['growthSortMode', 'growthAutoSalvageEnabled', 'growthAutoSalvageRarities', 'growthUseItemFilter', 'growthInventoryFilter']
+        .forEach(key => delete merged.settings[key]);
+    [[merged.settings.searchFilters, 'growth'], [merged.currencies, 'growthEssence'], [merged.unlocks, 'growthboard'], [merged.noti, 'growthboard']]
+        .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
+}
+
+/** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     contentProgression.sync(merged);
@@ -470,8 +480,6 @@ function mergeDefaults(save) {
         ? merged.equipmentTemporaryStorage.map(normalizeItem) : [];
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
     if (typeof equipmentInventoryGridRuntime !== 'undefined') equipmentInventoryGridRuntime.ensureState(merged);
-    merged.growthInventory = (merged.growthInventory || []).map(normalizeGrowthOptionValues);
-    merged.recentGrowthDrops = (merged.recentGrowthDrops || []).map(normalizeGrowthOptionValues);
     merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
     merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
     Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
@@ -816,7 +824,6 @@ function mergeDefaults(save) {
     merged.settings.mobileCombatLogExpanded = merged.settings.mobileCombatLogExpanded === true;
     equipmentLootPolicy.normalizeSettings(merged.settings);
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
-    merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
     delete merged.settings.jewelAutoSalvageEnabled; delete merged.settings.jewelAutoSalvageRarities; // 주얼 자동 해체는 주얼 창과 함께 없어졌다.
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
@@ -915,8 +922,6 @@ function mergeDefaults(save) {
     starWedgeRules.reconcile(merged, PASSIVE_TREE, getStarWedgeRouting(merged), starWedgeRules.pointBudget(merged) - passiveAllocationNormalization.lostBonus);
     delete merged.inventoryExpandLevel;
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
-    merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
-    merged.growthEssenceExpandLevel = Math.max(0, Math.min(12, Math.floor(clampFiniteNumber(merged.growthEssenceExpandLevel, 0, 0, 12))));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     delete merged.settings.testCharacterMotionId;
     merged.settings.chatMessageSize = ['small', 'medium', 'large'].includes(merged.settings.chatMessageSize) ? merged.settings.chatMessageSize : 'medium';
@@ -1104,10 +1109,7 @@ function mergeDefaults(save) {
     const explorationPacks = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
     [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat()
         .forEach(enemy => { if (enemy) { delete enemy.isBountyTarget; delete enemy.bountyId; } });
-    // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
-    // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
-    // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
-    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
+    stripRemovedGrowthBoard(merged);
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);

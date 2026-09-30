@@ -20,11 +20,10 @@ const STUMP_BOX_OPPOSITES = Object.freeze({ fire: 'cold', cold: 'fire', lightnin
 
 // 칸 해금 순서(칸 번호 = 줄 × 5 + 칸): 가운데 십자 5 → 3×3의 네 모서리 → 바깥 십자 끝 → 바깥 테 둘레 → 네 모서리.
 const STUMP_BOX_CELL_ORDER = Object.freeze([12, 7, 11, 13, 17, 6, 8, 16, 18, 2, 10, 14, 22, 1, 9, 23, 15, 3, 19, 21, 5, 0, 4, 24, 20]);
-// 최고 도달 루프에 따라 자동으로 열린다(콘텐츠 포인트 없음). 첫 획득(루프 1 액트 10)은 5칸.
-const STUMP_BOX_UNLOCKS = Object.freeze([
-    Object.freeze({ loop: 1, cells: 5 }), Object.freeze({ loop: 2, cells: 9 }), Object.freeze({ loop: 6, cells: 13 }),
-    Object.freeze({ loop: 10, cells: 17 }), Object.freeze({ loop: 25, cells: 21 }), Object.freeze({ loop: 50, cells: 25 })
-]);
+// 최고 도달 루프에 따라 자동으로 열린다(콘텐츠 포인트 없음). 첫 획득(루프 1 액트 10)에 가운데 3×3 9칸이 열리고,
+// 그 뒤 everyLoops 루프마다 위 순서대로 한 칸씩 열린다(2026-09-30 사용자 결정: 9칸에서 한 칸씩 → 루프 17에 25칸).
+// 간격을 바꾸면 data/maps.js 로드맵의 그루터기 함 줄(루프 2 · 17)도 함께 고친다.
+const STUMP_BOX_OPENING = Object.freeze({ start: 9, everyLoops: 1 });
 
 // 성장: 판 위에서 억제되지 않은 미성숙품만 처치마다 자란다. 절반에서 새싹/송진, 다 차면 꽃·열매/호박석.
 // 부적은 절반 단계 없이 다 차면 깨어난다.
@@ -83,6 +82,6 @@ const STUMP_BOX_STAGES = Object.freeze({
 });
 
 safeExposeData({
-    STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_UNLOCKS,
+    STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
     STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
 });

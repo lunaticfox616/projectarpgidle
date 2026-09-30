@@ -19,9 +19,9 @@ function getCodexBonusPct() {
     return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
 }
 
-function getGrowthItemBaseDropChance(enemy) {
-    if (enemy && enemy.isBoss) return GROWTH_ITEM_BASE_DROP_CHANCES.boss;
-    return enemy && enemy.isElite ? GROWTH_ITEM_BASE_DROP_CHANCES.elite : GROWTH_ITEM_BASE_DROP_CHANCES.regular;
+function getWildTalismanBaseDropChance(enemy) {
+    if (enemy && enemy.isBoss) return TALISMAN_WILD_DROPS.chance.boss;
+    return enemy && enemy.isElite ? TALISMAN_WILD_DROPS.chance.elite : TALISMAN_WILD_DROPS.chance.normal;
 }
 
 function getEquipmentBaseDropChance(enemy) {
@@ -47,14 +47,14 @@ function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMu
     };
 }
 
-/** One capped multiplier for equipment, growth items and bonus currency rolls. */
+/** One capped multiplier for equipment, wild talismans and bonus currency rolls. */
 function getEnemyLootDropMultiplier(zone, enemy) {
     let progression = getAdditiveDropBonusMultiplier(getCodexBonusPct());
     let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1);
     return capEndlessContentDropMultiplier(zone, raw) * getContentDropRateMultiplier(zone);
 }
 
-/** Independent base chances share bonuses without deriving growth drops from equipment. */
+/** Independent base chances share bonuses without deriving talisman drops from equipment. */
 function getEquipmentDropChances(zone, enemy) {
     let multiplier = getEnemyLootDropMultiplier(zone, enemy) * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (zone.type === 'labyrinth') {
@@ -64,7 +64,7 @@ function getEquipmentDropChances(zone, enemy) {
     }
     return {
         equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier,
-        growth: getGrowthItemBaseDropChance(enemy) * multiplier
+        talisman: getWildTalismanBaseDropChance(enemy) * multiplier
     };
 }
 

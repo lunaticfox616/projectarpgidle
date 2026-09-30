@@ -28,7 +28,7 @@ function getSearchFilterState() {
     game.settings = game.settings || {};
     game.settings.searchFilters = (game.settings.searchFilters && typeof game.settings.searchFilters === 'object') ? game.settings.searchFilters : {};
     const d = game.settings.searchFilters;
-    for (const key of ['equip', 'growth', 'colonyWard', 'skill', 'support', 'gemResearch']) {
+    for (const key of ['equip', 'colonyWard', 'skill', 'support', 'gemResearch']) {
         d[key] = String(d[key] || '');
     }
     return d;

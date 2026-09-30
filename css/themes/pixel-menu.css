@@ -19,7 +19,7 @@ body[data-ui-skin] #btn-tab-unlocks { --px-icon: 3; }
 body[data-ui-skin] #btn-tab-season { --px-icon: 4; }
 body[data-ui-skin] #btn-tab-stump { --px-icon: 5; }
 body[data-ui-skin] #btn-tab-items { --px-icon: 6; }
-body[data-ui-skin] :is(#btn-tab-flask, #btn-tab-growthboard) { --px-icon: 7; }
+body[data-ui-skin] #btn-tab-flask { --px-icon: 7; }
 body[data-ui-skin] #btn-tab-map { --px-icon: 8; }
 body[data-ui-skin] #btn-tab-skills { --px-icon: 9; }
 body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --px-icon: 10; }

@@ -53,7 +53,6 @@
         if(event.detail.equipmentCount||event.detail.gems.length)checkUnlocks();
         event.detail.gems.forEach(gem=>announceGemReward({gem,kind:gem.kind,shards:0}));
         event.detail.jewels.forEach(jewel=>announceJewelReward({jewel,stored:true}));
-        if(game.settings.showLootLog)event.detail.growthItems.forEach(item=>addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`,'',{item,itemKind:'growth'}));
         event.detail.cores.forEach(announceCore);
         for(const key of event.detail.flasks) {
             if(game.settings.showLootLog)addLog(`🧪 새로운 플라스크 발견: [${FLASK_DB[key].name}]`,'loot-rare');

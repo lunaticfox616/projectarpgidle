@@ -8,7 +8,7 @@ const output = process.argv[2] || 'artifacts/offline-replay-benchmark.json';
 const cases = ['starter', 'summoner', 'void-passives', 'endgame'].filter(name => !process.env.REPLAY_CASE || name === process.env.REPLAY_CASE);
 const sourceOverrides = {};
 if (process.argv.includes('--baseline')) {
-    for (const file of ['js/combat.js', 'js/combat-replay.js', 'js/growth-effects.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
+    for (const file of ['js/combat.js', 'js/combat-replay.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
         sourceOverrides[file] = require('node:child_process').execFileSync('git', ['show', `HEAD:${file}`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
     }
 }

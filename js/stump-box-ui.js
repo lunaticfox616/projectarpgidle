@@ -62,7 +62,7 @@ const stumpBoxUi = (() => {
             const on = result.resonant.has(color);
             return `<span class="stump-chip${on ? ' is-on' : ''}" style="--stump-tone:${stumpTone(color)}">${STUMP_BOX_COLORS[color].label} ${result.counts[color]}${on ? ' · 공명' : ''}</span>`;
         }).join('');
-        const open = stumpBox.openCount(game), next = STUMP_BOX_UNLOCKS.find(step => step.cells > open);
+        const open = stumpBox.openCount(game), next = stumpBox.nextOpening(game);
         const notes = [`열린 칸 ${open}/25`, next ? `루프 ${next.loop}에 ${next.cells}칸(판의 숫자 = 열리는 루프)` : '', result.suppressed.size ? `억제 ${result.suppressed.size}개` : ''].filter(Boolean);
         const stats = Object.keys(result.stats).map(stat => `<li>${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
         return `<div class="stump-chips" title="다 자라고 억제되지 않은 색별 개수. ${STUMP_BOX_RESONANCE.count}개부터 공명 +${STUMP_BOX_RESONANCE.bonusPct}%">${chips}</div>`
@@ -295,7 +295,9 @@ const stumpBoxUi = (() => {
             'tab-stump');
     }
     function announceStumpChange(detail) {
-        if (detail.drop) addLog(`🌱 그루터기 함: ${stumpBox.label(detail.drop)} 획득`, 'loot-magic');
+        if (detail.drop) addLog(detail.drop.family === 'talisman' ? `🧿 그루터기 함: [${detail.drop.name}] 획득`
+            : `🌱 그루터기 함: ${stumpBox.label(detail.drop)} 획득`, detail.drop.rarity === 'unique' ? 'loot-unique' : 'loot-magic');
+        if (detail.overflow) addLog(`🧿 그루터기 함 보관함이 가득 차 부적 대신 ${ORB_DB[detail.overflow].name} 1개를 받았습니다.`, 'loot-magic');
         (detail.ripened || []).forEach(item => addLog(item.family === 'talisman' ? `🧿 그루터기 함: [${item.name}] 깨어남`
             : `🌸 그루터기 함: ${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stumpBox.stageOf(item)].label} 다 자람`, 'loot-rare'));
         lastSignature = '';

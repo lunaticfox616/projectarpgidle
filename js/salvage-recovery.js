@@ -10,8 +10,7 @@ function getSalvageRecoveryLoop(targetGame) {
 function isSalvageRecoveryItem(item) {
     return !!(item && typeof item === 'object'
         && typeof item.slot === 'string' && typeof item.name === 'string'
-        && SALVAGE_RECOVERY_RARITIES.includes(item.rarity) && Number(item.id) > 0
-        && !item.growthCategory);
+        && SALVAGE_RECOVERY_RARITIES.includes(item.rarity) && Number(item.id) > 0);
 }
 
 function normalizeSalvageRecoveryRewards(rewards) {

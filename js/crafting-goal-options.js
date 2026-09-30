@@ -40,7 +40,7 @@ const craftingGoalOptions = (() => {
 
     function eligible(item,recipe) {
         if(!item||!['add','reroll','fossil','value'].includes(recipe.kind))return false;
-        if(isGrowthItem(item)||item.rarity==='unique'||item.corrupted||item.fusedRelic)return false;
+        if(item.rarity==='unique'||item.corrupted||item.fusedRelic)return false;
         const rarities={magicBud:['normal','magic'],sapBud:['magic','rare'],formlessDew:['normal','rare']};
         return !rarities[recipe.key]||rarities[recipe.key].includes(item.rarity);
     }

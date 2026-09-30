@@ -77,9 +77,6 @@ body #info-tooltip {
 :is(.item-title, .tooltip-title, .equipment-slot-name, .equipment-card-name) {
   font-family: var(--font-body);
 }
-.growth-craft-preview .tooltip-title { margin-bottom: 5px; font-weight: 900; }
-body.growth-dragging .info-tooltip,
-body.growth-dragging #info-tooltip { pointer-events: none; }
 
 :where(
   .equipment-panel-hint,

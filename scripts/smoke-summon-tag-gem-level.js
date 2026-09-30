@@ -10,8 +10,6 @@ const tagResult = vm.runInContext(`(() => {
   let chaos = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => (node.effects || []).some(effect => effect.stat === 'chaosGemLevel'));
   if (!generic || !chaos) throw new Error('required passive gem-level nodes are missing');
   game.equipment = {};
-  game.growthInventory = [];
-  game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:0, activeLoadout:0, loadouts:[] };
   game.arcana = createDefaultArcanaState();
   game.passives = [generic[0], chaos[0]];
   game.starWedge = {};
@@ -144,20 +142,20 @@ assert(equipmentResult.playerDpsWithStar > equipmentResult.playerDpsWithoutStar,
 assert(equipmentResult.summonWithStar > equipmentResult.summonWithoutStar,
   'the Star must increase actual summon gem hit damage without changing summon gem levels');
 
-const growthResult = vm.runInContext(`(() => {
-  game.season = 25; game.contentProgression.inherited.push('growth');
+// 그루터기 함에서 깨어난 부적의 젬 레벨 줄(예전 생장판 자리)도 실제 젬 레벨에 들어간다.
+const talismanResult = vm.runInContext(`(() => {
+  game.season = 25; game.contentProgression.inherited.push('talisman'); contentProgression.sync(game);
   game.equipment = {};
   game.arcana = createDefaultArcanaState();
-  game.growthInventory = [{ id:9001, name:'젬 새싹', growthCategory:'flower', growthShapeId:'dot1', baseStats:[], stats:[{ id:'gemLevel', val:3 }] }];
-  game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:1, activeLoadout:0,
-    loadouts:[{ name:'세팅 1', placements:{ 9001:{ x:0, y:0, rotation:0 } } }] };
-  let placed = getPlacedGrowthEntries();
-  let bonus = getGemBonusSources('화염 위습 소환');
-  return { placed:placed.length, gear:bonus.gear };
+  stumpBox.sync(game, 'test');
+  game.stumpBox.board = game.stumpBox.board.map(() => null);
+  const before = getGemBonusSources('화염 위습 소환').reward;
+  const item = stumpBox.addTalisman(game, { name: '젬 부적', rarity: 'magic', lines: [{ kind: 'stat', id: 'gemLevel', value: 3 }] }, true);
+  Object.assign(item, { xp: STUMP_BOX_GROWTH.need.talisman, ripe: true });
+  stumpBox.place(game, item.id, 12);
+  return { before, after: getGemBonusSources('화염 위습 소환').reward };
 })()`, runtime);
-
-assert.strictEqual(growthResult.placed, 1, 'the real growth board must expose the placed item');
-assert.strictEqual(growthResult.gear, 3, 'a placed growth item gem-level affix must affect the actual gem level');
+assert.strictEqual(talismanResult.after - talismanResult.before, 3, 'an awake talisman gem-level line must affect the actual gem level');
 
 const evaluationResult = vm.runInContext(`(() => {
   const nodes = Object.entries(PASSIVE_TREE.nodes).filter(([, node]) =>

@@ -21,7 +21,7 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     const g = merge({});
     assert.strictEqual(g.season, 1, '빈 저장은 루프 1로 시작해야 한다');
     assert.ok(Array.isArray(g.inventory), '인벤토리는 배열이어야 한다');
-    assert.ok(Array.isArray(g.growthInventory), '생장 보관함도 준비되어야 한다');
+    assert.ok(!('growthInventory' in g) && !('growthBoard' in g), '새 게임에는 생장판 필드가 없다');
     assert.ok(g.playerHp > 0, '체력은 양수여야 한다');
     assert.strictEqual(g.settings.pauseGameOnOverlay, true, '새 게임은 안내 창 전투 정지가 기본으로 켜져야 한다');
 }
@@ -34,9 +34,6 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         unlocks: { items: true }, settings: {}
     });
     assert.strictEqual(g.season, 3, '진행도를 잃으면 안 된다');
-    assert.ok(Array.isArray(g.growthInventory), '없던 생장 필드를 만들어 줘야 한다');
-    assert.ok(Array.isArray(g.recentGrowthDrops), '최근 획득함도 만들어 줘야 한다');
-    assert.strictEqual(typeof g.growthInventoryExpandLevel, 'number', '확장 레벨이 숫자여야 한다');
     assert.strictEqual(g.settings.pauseGameOnOverlay, true, '설정값이 없던 옛 저장도 새 기본값을 받아야 한다');
 }
 
@@ -46,46 +43,31 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(g.settings.pauseGameOnOverlay, false, '기존 사용자의 일시 정지 선택을 덮어쓰면 안 된다');
 }
 
-// ── 생장판 추가 전에 저장한 루프 40 세이브 ───────────────────────────────
+// ── 생장판 제거(2026-09-30): 판 · 보관함 · 확장 · 생장 정수 · 설정 · 해금 표시는 보상 없이 지운다 ─────
 {
     const g = merge({
         level: 80, season: 40, loopCount: 40, playerHp: 500, maxZoneId: 40,
-        inventory: [], equipment: {}, currencies: {}, unlocks: { items: true }, settings: {}
+        inventory: [], equipment: {}, unlocks: { items: true, growthboard: true }, noti: { growthboard: true },
+        currencies: { growthEssence: 120, goldenRule: 2 },
+        settings: { growthSortMode: 'recent', growthAutoSalvageEnabled: true, growthAutoSalvageRarities: { normal: true },
+            growthUseItemFilter: true, searchFilters: { equip: 'x', growth: '꽃' } },
+        growthInventory: [
+            { id: 11, growthCategory: 'flower', growthShapeId: 'L4', growthBaseId: 'gf_spark_seed', name: 'L4 꽃', rarity: 'rare', baseStats: [], stats: [] }
+        ],
+        recentGrowthDrops: [{ id: 12 }], growthInventoryExpandLevel: 3, growthEssenceExpandLevel: 2,
+        growthBoard: { width: 10, height: 6, unlockedCellCount: 60, activeLoadout: 0, loadouts: [{ name: '옛 세팅', placements: { 11: { x: 0, y: 0 } } }] }
     });
     assert.strictEqual(g.season, 40, '루프를 잃으면 안 된다');
-    assert.strictEqual(g.growthInventory.length, 0, '없던 생장 아이템이 생기면 안 된다');
-}
-
-// ── 폴리오미노 시절(10x6) 판 저장 ────────────────────────────────────────
-// 이 브랜치가 판을 8x4로 줄이고 아이템을 전부 1칸으로 바꿨다.
-{
-    const g = merge({
-        level: 80, season: 40, loopCount: 40, playerHp: 500, maxZoneId: 40,
-        inventory: [], equipment: {}, currencies: {}, unlocks: { items: true }, settings: {},
-        growthInventory: [
-            { id: 11, growthCategory: 'flower', growthShapeId: 'L4', growthBaseId: 'gf_spark_seed', name: 'L4 꽃', rarity: 'rare', baseStats: [], stats: [] },
-            { id: 12, growthCategory: 'branch', growthShapeId: 'T4', growthBaseId: 'gb_iron_stump', name: 'T4 가지', rarity: 'rare', baseStats: [], stats: [] }
-        ],
-        growthBoard: {
-            width: 10, height: 6, unlockedCellCount: 60, activeLoadout: 0,
-            loadouts: [{ name: '옛 세팅', placements: { 11: { x: 0, y: 0, rotation: 0 }, 12: { x: 9, y: 5, rotation: 1 } } }]
-        }
-    });
-    assert.strictEqual(g.growthInventory.length, 2, '옛 생장 아이템을 잃으면 안 된다');
-    // 판 크기 정규화는 mergeDefaults가 아니라 첫 접근 시점의 ensureGrowthBoardState가 한다.
-    // 게임도 그 순서로 지나가므로 여기서도 같은 순서로 확인한다.
-    // game은 js/utils.js의 최상위 let이라 컨텍스트 속성 대입으로는 바뀌지 않는다.
-    // vm 안에서 대입해야 실제 바인딩이 바뀐다.
-    ctx.__loaded = g;
-    vm.runInContext('game = __loaded; ensureGrowthBoardState(); validateGrowthPlacements();', ctx);
-    assert.strictEqual(g.growthBoard.width, ctx.GROWTH_BOARD_W, '판 폭을 현재 값으로 맞춰야 한다');
-    assert.strictEqual(g.growthBoard.height, ctx.GROWTH_BOARD_H, '판 높이를 현재 값으로 맞춰야 한다');
-    assert.ok(g.growthBoard.unlockedCellCount <= ctx.GROWTH_BOARD_W * ctx.GROWTH_BOARD_H,
-        '옛 60칸 해금이 현재 최대 칸수를 넘으면 안 된다');
-    // 판 밖(9,5)을 가리키던 배치는 검증 경로가 정리하고, 아이템은 보관함에 남는다.
-    const placedIds = Array.from(vm.runInContext('getPlacedGrowthEntries().map(e => e.item.id)', ctx));
-    assert.ok(!placedIds.includes(12), '새 판 밖을 가리키는 배치는 정리되어야 한다');
-    assert.strictEqual(g.growthInventory.length, 2, '배치가 정리되어도 아이템은 남아야 한다');
+    assert.deepStrictEqual(['growthBoard', 'growthInventory', 'recentGrowthDrops', 'growthInventoryExpandLevel', 'growthEssenceExpandLevel']
+        .filter(key => key in g), [], '예전 생장판 진행은 보상 없이 지워야 한다');
+    assert.ok(!('growthEssence' in g.currencies) && g.currencies.goldenRule === 2, '생장 정수만 지우고 다른 재화는 남긴다');
+    assert.ok(!('growthboard' in g.unlocks) && !('growthboard' in g.noti), '해금 · 알림 표시도 지운다');
+    assert.deepStrictEqual(['growthSortMode', 'growthAutoSalvageEnabled', 'growthAutoSalvageRarities', 'growthUseItemFilter']
+        .filter(key => key in g.settings), [], '생장판 설정을 지운다');
+    assert.ok(!('growth' in g.settings.searchFilters) && g.settings.searchFilters.equip === 'x', '생장 검색어만 지운다');
+    const plain = value => JSON.parse(JSON.stringify(value));
+    const again = merge(plain(g));
+    assert.deepStrictEqual([again.currencies.goldenRule, 'growthBoard' in again], [2, false], '두 번 불러와도 같다');
 }
 
 // ── 예전 코어 큐브 · 망가진 코어 저장 ────────────────────────────────────
@@ -108,10 +90,9 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     const g = merge({
         level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
         currencies: {}, unlocks: {}, settings: {},
-        growthInventoryExpandLevel: 1e9, inventoryExpandLevel: Infinity, jewelInventoryExpandLevel: -5
+        inventoryExpandLevel: Infinity, jewelInventoryExpandLevel: -5
     });
-    [['growthInventoryExpandLevel', g.growthInventoryExpandLevel],
-     ['jewelInventoryExpandLevel', g.jewelInventoryExpandLevel]].forEach(([name, value]) => {
+    [['jewelInventoryExpandLevel', g.jewelInventoryExpandLevel]].forEach(([name, value]) => {
         assert.ok(Number.isFinite(value) && value >= 0, `${name}은 0 이상의 유한한 수여야 한다 (${value})`);
     });
     assert.strictEqual(Object.prototype.hasOwnProperty.call(g, 'inventoryExpandLevel'), false,

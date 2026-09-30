@@ -1020,13 +1020,11 @@
 .equipment-item-card.rarity-unique { --equipment-rarity: #ff9f43; }
 .equipment-card-main { min-width: 0; }
 
-.equipment-item-card,
-.growth-item-card {
+.equipment-item-card {
     position: relative;
 }
 
-.equipment-card-visual,
-.growth-card-visual {
+.equipment-card-visual {
     width: 42px;
     height: 42px;
     flex: 0 0 42px;
@@ -1043,14 +1041,9 @@
 
 .equipment-item-card > .equipment-card-actions { grid-column: 1 / -1; }
 
-.growth-item-card { padding-left: 52px; min-height: 56px; }
-.growth-card-visual { position: absolute; left: 6px; top: 6px; }
-
 @media (max-width: 640px) {
-    .equipment-card-visual,
-    .growth-card-visual { width: 36px; height: 36px; flex-basis: 36px; }
+    .equipment-card-visual { width: 36px; height: 36px; flex-basis: 36px; }
     .equipment-item-card { grid-template-columns: 36px minmax(0, 1fr); gap: 7px; }
-    .growth-item-card { padding-left: 46px; min-height: 50px; }
 }
 
 .condition-pattern-summary {

@@ -4,9 +4,9 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
     'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
     'item-tab-hall': '장비 → 장비 전당',
     'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
-    'skill-tab-condition': '스킬 젬 → 자동 사용',
+    'skill-tab-condition': '스킬 젬 → 전술 규칙',
     'tab-flask': '보조장비 → 플라스크',
-    'tab-growthboard': '보조장비 → 생장판', 'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 직업전직', 'tab-char': '스킬트리',
+    'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 직업전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-expertise': '전문가', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-talent': '재능',
     'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
     'map-explore-voidrift': '지도 → 탐험 → 공허 균열 · 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
@@ -14,7 +14,7 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
 });
 // 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
 const CONTENT_CARD_DEDICATED = Object.freeze({
-    stump: 'unlock_stump_box', growth: 'unlock_growth_board', timerift: 'unlock_time_rift',
+    stump: 'unlock_stump_box', timerift: 'unlock_time_rift',
     chaosRealm: 'unlock_chaos_realm', sky: 'unlock_sky_tower', underworld: 'unlock_underworld', cosmos: 'unlock_cosmos',
     ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
 });
@@ -162,7 +162,7 @@ const contentUnlockUi = {
         const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop);
         const choices = rows.filter(row => row.cost > 0);
         const automatic = rows.filter(row => row.cost === 0);
-        const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|생장판 확장|생장판 시너지|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
+        const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
             <summary><strong>루프 ${loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}</span></summary>
             <p class="unlock-loop-requirement">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>
@@ -202,10 +202,8 @@ const contentUnlockUi = {
     },
     relatedFeatures(def) {
         if (!def.features) return '';
-        const stages = def.id === 'growth' ? GROWTH_SYNERGY_STAGES.map(stage =>
-            `<li>루프 ${stage.req.season} · ${escapeHTML(stage.label)}</li>`).join('') : '';
         return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${def.features.map(row =>
-            `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}${stages ? `<ul>${stages}</ul>` : ''}</details>`;
+            `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</details>`;
     },
     detail(def) {
         const status = contentProgression.status(def.id);

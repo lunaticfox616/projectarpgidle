@@ -49,14 +49,10 @@ assert.ok(beehive, 'reaching loop 8 announces the beehive expedition');
 assert.match(beehive.body, /‘지도 → 탐험 → 벌집’에 있습니다/);
 assert.deepStrictEqual([beehive.tabId, beehive.subtabId], ['tab-map', 'map-explore-beehive']);
 
-// ── 자기 카드가 있는 콘텐츠는 두 번 알리지 않는다(생장판: 전용 카드, 생장판 창을 가리킨다) ──
-fresh(60);
-buyBefore('growth');
-run("contentUnlockUi.purchase('growth')");
-cards = queued();
-assert.deepStrictEqual(cards.map(card => card.key), ['unlock_growth_board']);
-assert.strictEqual(cards[0].tabId, 'tab-growthboard', 'the growth board lives in its own window now');
-assert.match(cards[0].body, /‘보조장비 → 생장판’/);
+// ── 자기 카드가 있는 콘텐츠는 두 번 알리지 않는다(시간의 균열: 루프 전환이 전용 카드를 띄운다) ──
+fresh(12);
+run('game.season = 13; checkUnlocks();');
+assert.ok(!queued().some(card => card.key === 'unlock_content_timerift'), 'a content with its own card gets no second, generic card');
 
 // ── 아직 사지 않은 콘텐츠의 안내는 해금을 가리킨다(열 수 없는 창을 가리키면 보이지도 않고 사라졌다) ──
 fresh(20);

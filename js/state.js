@@ -1,14 +1,12 @@
 /**
  * @typedef {object} ActExplorationPendingLoot
- * @property {number} version Schema version (7).
+ * @property {number} version Schema version (8).
  * @property {'pending'|'claimed'|'lost'} phase
  * @property {Record<string,number>} currencies Already resolved canonical currency gains.
  * @property {Array<{id:number,name:string,slot:string,baseStats:Array<{id:string,val:number}>,stats:Array<{id:string,val:number}>}>} equipment
  * @property {string[]} flasks Discovered FLASK_DB keys, unavailable for equipping until claimed.
  * @property {number} alchemyGlass Nonnegative integer, separate from ordinary currencies.
  * @property {Array<{id:number,name:string,lines:Array<{id:string,value:number}>}>} cores Core items, unavailable until claimed.
- * @property {Array<Omit<ActExplorationPendingLoot['equipment'][number],'slot'> & {slot:string|null,growthCategory:string,growthShapeId:string}>} growthItems
- * @property {ActExplorationPendingLoot['growthItems']} growthCodex Accepted unique growth discoveries, including capacity-salvaged items.
  * @property {Array<{item:ActExplorationPendingLoot['equipment'][number],rewards:Record<string,number>}>} salvagedEquipment Last recoverable equipment, unavailable until clear. Rewards are original salvage costs.
  * @property {Array<{id:number,name:string,rarity:string,stats:Array<{id:string,val:number}>}>} jewels
  * @property {Array<{kind:'attack',name:string,awakened:boolean}|{kind:'support',name:string,tier:number}>} gems Exact drop unlocks, not snapshots of live leveled records.
@@ -2433,13 +2431,6 @@ const defaultGame = {
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
-        growthSortMode: 'recent',
-        // 생장 아이템은 장비와 별개 시스템이라 필터/자동해체도 따로 둔다.
-        // 기본은 "전부 보관" — 루프 25에 판이 열리는데 장비 설정을 물려받으면
-        // 일반/매직이 전부 녹아 8칸조차 채우지 못한다.
-        growthAutoSalvageEnabled: false,
-        growthAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
-        growthUseItemFilter: false,
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showActJournal: true,
@@ -2611,17 +2602,11 @@ const defaultGame = {
     stumpCube: { slots: [] },
     equipmentTemporaryStorage: [],
     inventory: [],
-    // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
-    growthBoard: { width: GROWTH_BOARD_W, height: GROWTH_BOARD_H, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
-    growthInventory: [],
-    growthInventoryExpandLevel: 0,
-    growthEssenceExpandLevel: 0,
-    recentGrowthDrops: [],
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
     craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
-    currencies: { timeRemnant: 0, growthEssence: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { timeRemnant: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
         offlineProgress: { version: 1, recognitionLevel: 0, efficiencyLevel: 0, stashLevel: 0, huntDirectiveUnlocked: false, safeReturnUnlocked: false, lootDirectiveUnlocked: false, rewardedThroughLoop: 0, lifetimeGranted: 0, huntMode: 'push', safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [], protectedOverflow: [] },
     ascendClass: null,
     ascendPoints: 0,
@@ -2727,7 +2712,7 @@ const defaultGame = {
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
-    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, growthboard: false, expertise: false, jewel: false, arcana: false, stump: false },
+    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, expertise: false, jewel: false, arcana: false, stump: false },
     noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},

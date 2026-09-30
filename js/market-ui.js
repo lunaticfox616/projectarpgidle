@@ -127,8 +127,7 @@ const marketUi = {
     renderServices() {
         document.getElementById('market-service-balance').textContent = `황금률 ${(game.currencies.goldenRule || 0).toLocaleString()}개 보유`;
         const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true},
-            {id:'jewel-inv', label:'주얼 인벤토리 확장', open:contentProgression.isUnlocked('jewel')},
-            {id:'growth-inv', label:'생장 보관함 확장', open:isGrowthBoardUnlocked()}];
+            {id:'jewel-inv', label:'주얼 인벤토리 확장', open:contentProgression.isUnlocked('jewel')}];
         const available = choices.filter(row => row.open);
         if (!available.some(row => row.id === this.service)) this.service = 'annul';
         const mobile = uiDisplay.matches('(max-width: 1080px)');
@@ -142,14 +141,13 @@ const marketUi = {
     renderService(id) {
         if (id === 'annul') return this.renderAnnul();
         if (id === 'passive') return this.renderPassiveReset();
-        if (id === 'jewel-inv') return this.renderExpansion('jewel', true, getJewelMarketExpandCost(), getJewelInventoryLimit());
-        this.renderExpansion('growth', true, getGrowthMarketExpandCost(), getGrowthInventoryLimit());
+        return this.renderExpansion('jewel', true, getJewelMarketExpandCost(), getJewelInventoryLimit());
     },
     renderExpansion(kind, open, cost, limit) {
         const host = document.getElementById('ui-market-service-' + kind + '-inv');
         host.hidden = !open;if (!open) return;
-        const name = kind === 'jewel' ? '주얼 인벤토리' : '생장 보관함';
-        const action = kind === 'jewel' ? 'marketExpandJewelInventoryByDivine' : 'marketExpandGrowthInventoryByDivine';
+        const name = '주얼 인벤토리';
+        const action = 'marketExpandJewelInventoryByDivine';
         this.mount(host, `<div class="market-service-top"><h3>${name} 확장</h3><span>영구 유지</span></div><p>${limit}칸 → ${limit + 5}칸<br>루프가 바뀌어도 확장은 유지됩니다.</p>
             <button onclick="${action}()" ${(game.currencies.goldenRule || 0) < cost ? 'disabled' : ''}>5칸 확장 · 황금률 ${cost}개</button>`);
     },

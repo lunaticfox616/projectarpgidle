@@ -3,8 +3,7 @@ const fs = require('fs');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 const assets = [
-  'chaos-jewel-v1',
-  'seed-talisman-v1', 'flower-growth-v1', 'thorn-growth-v1', 'cosmic-slab-v1'
+  'chaos-jewel-v1', 'seed-talisman-v1'
 ].map(name => `assets/items/${name.replace('-v1', '-v3')}.png`);
 
 assets.forEach(file => {
@@ -17,6 +16,7 @@ assets.forEach(file => {
 
 const context = buildGameRuntime();
 const resolve = context.getInventoryItemVisualAsset;
+const stumpIcon = item => context.pixelIconPath(context.stumpBox.iconPath(item));
 // Default icon art is the pixel copy of the same painted source.
 assert.strictEqual(resolve({ slot: '무기', baseName: '고목 활' }, 'equipment'), 'assets/px/items/illustrated/windlash_bow.png');
 assert.strictEqual(resolve({}, 'jewel'), 'assets/px/items/chaos-jewel-v3.png');
@@ -29,8 +29,8 @@ assert.strictEqual(resolve({ slot: '허리띠' }, 'equipment'), 'assets/items/il
 assert.strictEqual(resolve({ slot: '반지' }, 'equipment'), 'assets/items/illustrated/copper_ring.webp');
 assert.strictEqual(resolve({}, 'jewel'), 'assets/items/chaos-jewel-v3.png?v=20260821-1');
 assert.strictEqual(resolve({}, 'talisman'), 'assets/items/seed-talisman-v3.png');
-assert.strictEqual(resolve({ growthCategory: 'flower' }, 'growth'), 'assets/items/flower-growth-v3.png');
-assert.strictEqual(resolve({ growthCategory: 'slab' }, 'growth'), 'assets/items/cosmic-slab-v3.png');
+// A stump-box talisman (a wild talisman on the ground, 2026-09-30) shows its own stump icon.
+assert.strictEqual(resolve({ family: 'talisman', rarity: 'unique' }, 'talisman'), stumpIcon({ family: 'talisman', rarity: 'unique' }));
 
 // Cores (2026-09-30) carry only their lines to ground loot and logs; the icon follows the first line's group.
 assert.strictEqual(resolve({ lines: [{ id: 'pct_dmg', value: 10 }] }, 'core'), 'assets/px/cores/core-offense.png');

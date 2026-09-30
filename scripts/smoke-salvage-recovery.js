@@ -96,16 +96,6 @@ run('__salvageRecoveryRandom = Math.random; Math.random = () => 0.999;');
 }
 
 {
-    const state = loadGame({ season: 25 });
-    context.__growthSalvageItem = {
-        id: 800, name: '생장판 시험품', slot: '보조장비', rarity: 'rare', hiddenTier: 5, stats: [],
-        growthCategory: 'flower', growthShapeId: 'dot1'
-    };
-    run('salvageItemObject(__growthSalvageItem, true);');
-    assert.strictEqual(state.salvageRecovery.entries.length, 0, '생장판은 장비 해체 복구함에 들어가면 안 된다');
-}
-
-{
     const state = loadGame({ season: 2, inventory: [equipment(901)] });
     run('salvageItem(0);');
     const entry = state.salvageRecovery.entries[0];

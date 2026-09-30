@@ -7,15 +7,15 @@ const numeric = stats => JSON.stringify(stats, (key, value) => key === 'breakdow
 const full = r.getPlayerStats(true);
 const lean = r.getPlayerStats(false);
 assert.equal(lean.breakdowns, null, 'replay must omit unshown tooltip allocations');
-assert.equal(numeric(lean), numeric(full), 'full gear, growth, passives and summons must keep all combat values');
+assert.equal(numeric(lean), numeric(full), 'full gear, stump box, passives and summons must keep all combat values');
 assert.ok(full.breakdowns.dps.lines.length > 0);
 assert.ok(full.breakdowns.resF.lines.length > 0);
 
-const initialBoard = run('JSON.stringify(game.growthBoard)');
-run('game.growthBoard.loadouts[0].placements = {}; invalidateGrowthEffects();');
+const initialBoard = run('JSON.stringify(game.stumpBox.board)');
+run('game.stumpBox.board = game.stumpBox.board.map(() => null);');
 const emptyBoard = r.getPlayerStats(false);
 assert.notEqual(numeric(emptyBoard), numeric(lean), 'a new evaluation must observe a changed board');
-run(`game.growthBoard = ${initialBoard}; invalidateGrowthEffects();`);
+run(`game.stumpBox.board = ${initialBoard};`);
 assert.equal(numeric(r.getPlayerStats(false)), numeric(lean), 'restoring the board must restore its bonuses');
 
 const result = r.simulateBackgroundCombat({ snapshot: run('game'), elapsedMs: 1000 });
@@ -35,7 +35,7 @@ assert.equal(r.getPlayerStats(false).aspd, plain.aspd, 'buff expiry refreshes at
 run('game.actRewardBonuses.push({stat:"gemLevel",value:2})');
 assert.equal(r.getGemBonusSources('냉기 위습 소환').reward,
     lean.gemBonusSources.reward + 2, 'a reward inside a kill is immediately reflected');
-run('game.growthBoard.loadouts[0].placements = {}; invalidateGrowthEffects();');
+run('game.stumpBox.board = game.stumpBox.board.map(() => null);');
 const replayEmpty = r.getPlayerStats(false);
 run('delete game.isBackgroundCalculation');
 assert.equal(numeric(replayEmpty), numeric(r.getPlayerStats(false)),

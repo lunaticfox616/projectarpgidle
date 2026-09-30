@@ -1213,11 +1213,11 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'growthboard', 'map', 'traits', 'talent', 'expertise', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'map', 'traits', 'talent', 'expertise', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'stump'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
@@ -1228,7 +1228,7 @@ const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-unlocks', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-stump', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-flask', 'tab-growthboard'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-flask'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -1729,11 +1729,6 @@ function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.n
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
     if (game.contentProgression) return contentProgression.canOpen(tabId);
-    // 생장판은 game.unlocks 플래그가 아니라 그 시스템의 런타임 판정으로 열린다.
-    // 해금 권위를 그 시스템에 두고 탭 노출은 판정을 그대로 읽는다.
-    if (tabId === 'tab-growthboard') {
-        return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
-    }
     let gateKey = typeof tab === 'string' ? TAB_UNLOCK_GATES[tabId] : tab.gate || TAB_UNLOCK_GATES[tabId];
     // 저널은 루프를 건너 유지되는 영구 기록이라 고유 아이템 보유 여부와 무관하게 열려 있어야 한다.
     // (도감은 game.unlocks.codex가 권위이며 checkUnlocks가 루프마다 다시 판정한다. 여기서
@@ -1980,7 +1975,7 @@ function switchTab(tabId) {
         return;
     }
     // 병합 창 안의 하위 패널은 각 창이 독립적으로 표시 상태를 소유한다.
-    // 다른 최상위 창을 열 때까지 함께 비활성화하면, 이미 열려 있던 도감·생장판·전직·주얼·부적
+    // 다른 최상위 창을 열 때까지 함께 비활성화하면, 이미 열려 있던 도감·전직·주얼·부적
     // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -3365,7 +3360,7 @@ const renderSeaGiftTarget = function () {
     let target = item
         ? `<div><small>현재 제작 대상</small><strong class="item-title ${item.rarity || 'normal'}">[${item.slot || '장비'}] ${item.name}</strong><span>추가 옵션 ${(item.stats || []).length}줄 · 바다의 선물 장비 가공은 이 대상에만 적용됩니다.</span></div>`
         : selected
-            ? `<div><small>현재 제작 대상</small><strong>일반 장비가 아님</strong><span>생장판 등 보조 아이템에는 바다의 선물 장비 가공을 사용할 수 없습니다.</span></div>`
+            ? `<div><small>현재 제작 대상</small><strong>일반 장비가 아님</strong><span>장비가 아닌 대상에는 바다의 선물 장비 가공을 사용할 수 없습니다.</span></div>`
             : `<div><small>현재 제작 대상</small><strong>선택된 장비 없음</strong><span>장비 가공 레시피를 사용하려면 대상을 먼저 선택하세요.</span></div>`;
     return `<div class="ocean-craft-target ${item ? 'selected' : ''}">${target}<div><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리</button></div></div>`;
 };
@@ -4550,7 +4545,6 @@ function storeUniqueToCodexByItemId(itemId) {
         game.inventory[idx] = swapped;
         addLog(`🔁 도감 교체: [${item.name}] 등록, [${swapped.name}] 인벤토리로 반환`, 'season-up');
     } else {
-        if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
         game.inventory.splice(idx, 1);
         addLog(`📚 도감 등록: [${item.name}]`, 'season-up');
     }
@@ -6234,13 +6228,6 @@ function getItemStatToneColor(statId) {
 }
 
 function getItemSlotDisplayLabel(item, fallbackLabel) {
-    // 생장 아이템은 부위가 아니라 종류와 점유 칸 수로 식별한다.
-    // item.slot은 옵션 풀·화석 계열 판정을 위한 내부 매핑일 뿐이라 사용자에게 노출하지 않는다.
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
-        let info = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[item.growthCategory]) || null;
-        let cellCount = typeof getGrowthItemCells === 'function' ? getGrowthItemCells(item, 0).length : 1;
-        return `${info ? info.label : '생장'} · ${cellCount}칸`;
-    }
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
     let label = rawSlot !== null ? rawSlot : (fallbackLabel || '장비');
@@ -9305,7 +9292,7 @@ function updateStaticUI(forceImmediate) {
     if (game.isBackgroundCalculation) return;
     void forceImmediate;
     // 긴 정적 UI 갱신 도중 탭을 누르면 이전에는 그 탭의 후속 렌더 요청을 버렸다.
-    // 그러면 새 탭 컨테이너만 활성화되고 주얼·부적·생장판·스킬 젬 내용은 이전 탭
+    // 그러면 새 탭 컨테이너만 활성화되고 주얼·부적·스킬 젬 내용은 이전 탭
     // 기준으로 남아 간헐적인 빈 화면이 됐다. 실행 중 요청은 다음 프레임에 반드시 잇는다.
     if (uiRefreshRunning) {
         uiRefreshQueued = true;
@@ -9426,12 +9413,9 @@ function renderEquipmentLoadoutSummary(pStats) {
 
 function updateInventoryFullWarnings() {
     let changed = false;
-    // 보조장비 탭의 생장 보관함이 가득 차면 켜고, 몇 칸인지는 툴팁으로 알린다(주얼 보관함은 장비창의 단추가 알린다).
+    // 장비 인벤토리가 가득 차면 켜고, 몇 칸인지는 툴팁으로 알린다(주얼 보관함은 장비창의 단추가 알린다).
     let warnings = [
-        ['inventory-full-warning', [['장비', getInventoryUsedCellCount(game), getInventoryLimit(game)]]],
-        ['jewel-inventory-full-warning', [
-            ['생장', (game.growthInventory || []).length, typeof getGrowthInventoryLimit === 'function' ? getGrowthInventoryLimit() : Infinity]
-        ]]
+        ['inventory-full-warning', [['장비', getInventoryUsedCellCount(game), getInventoryLimit(game)]]]
     ];
     warnings.forEach(([id, sources]) => {
         let element = document.getElementById(id);
@@ -9446,27 +9430,6 @@ function updateInventoryFullWarnings() {
     if (changed && document.body.classList.contains('desktop-windowed-ui') && typeof syncDesktopRailGroups === 'function') {
         syncDesktopRailGroups();
     }
-}
-
-function syncInventoryExpansionShortcuts() {
-    let goldenRule = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
-    let controls = [
-        {
-            id: 'btn-growth-inventory-expand',
-            unlocked: isMarketUnlocked() && typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked(),
-            cost: getGrowthMarketExpandCost(),
-            currentLimit: getGrowthInventoryLimit()
-        }
-    ];
-    controls.forEach(control => {
-        let button = document.getElementById(control.id);
-        if (!button) return;
-        button.hidden = !control.unlocked;
-        if (!control.unlocked) return;
-        button.disabled = goldenRule < control.cost;
-        button.textContent = `+5칸 · 황금률 ${control.cost} / 보유 ${goldenRule}`;
-        button.title = `현재 ${control.currentLimit}칸 · 필요 황금률 ${control.cost}개 · 보유 황금률 ${goldenRule}개`;
-    });
 }
 
 function getEquipmentSearchStatText(stat, resolveName) {
@@ -9495,7 +9458,6 @@ function matchSearchQuery(raw, query) {
 function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
     updateInventoryFullWarnings();
-    syncInventoryExpansionShortcuts();
     announceMapPrimaryContentUnlocks();
     syncMapPrimaryContentTabs();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
@@ -9600,7 +9562,6 @@ function performUpdateStaticUI() {
     // 재구성하면 탭 전환·주기적 갱신마다 큰 렉이 발생한다. 활성 탭의 패널만 재구성한다.
     // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
     let itemsTabActive = isTabRendering('tab-items');
-    if (isTabRendering('tab-growthboard') && typeof renderGrowthTab === 'function') renderGrowthTab();
     const sf = getSearchFilterState();
     document.getElementById('ui-passive-points').innerText = game.passivePoints;
     if (isTabRendering('tab-char')) renderPassiveInvestmentSummary();
@@ -10424,7 +10385,6 @@ function exposeUiRenderHelpersOnce() {
         showPlayerRuntimeEffectTooltip,
         showPlayerNamedEffectTooltip,
         showPlayerCosmosDebuffTooltip,
-        // 생장판 UI(js/growth-ui.js)가 보관함 필터/검색을 그대로 재사용한다.
         isItemRarityVisible,
         matchSearchQuery,
         // 스킬 젬 화면(js/skills-ui.js)이 젬 목록 검색/강조에 그대로 재사용한다.
@@ -11378,7 +11338,6 @@ function renderCraftTargetLibrary(isRarityVisible) {
     renderPaperdoll('ui-craft-equip-list', true);
     const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
     document.getElementById('ui-craft-inventory-list').innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
-    renderGrowthCraftTargets('ui-craft-growth-list');
 }
 
 function normalizePassiveTooltipText(value) {
@@ -14293,14 +14252,7 @@ function checkUnlocks() {
     storyJournalUi.sync();
     let u = game.unlocks;
     let starterTutorialGem = getStarterGemTutorialTarget();
-    if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();
     if (typeof stumpBoxUi === 'object') stumpBoxUi.checkStumpBoxUnlock();
-    if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
-        game.noti.growthboard = true;
-        queueTutorialNotice('unlock_growth_board', '생장판',
-            '장비와 별개로 자라는 생장판이 열렸습니다.\n‘보조장비 → 생장판’의 ‘빠른 배치함’에서 생장 아이템을 8×4 판으로 끌어 놓으면 공간 시너지가 생깁니다.\n생장 아이템과 석판을 해체하면 나오는 생장 정수는 생장판 안의 제작대에서 씁니다.',
-            'tab-growthboard');
-    }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', '첫 여정', '전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 젬을 얻으면 그때마다 조작을 안내합니다.');
     }
@@ -14328,8 +14280,7 @@ function checkUnlocks() {
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
     if (!u.codex) {
-        let growthUniqueSeen = (game.growthInventory || []).some(item => item && item.rarity === 'unique');
-        if (isCodexTabUnlockReady() || growthUniqueSeen) {
+        if (isCodexTabUnlockReady()) {
             u.codex = true;
             game.noti.codex = true;
             queueContentNotice('unlock_codex', '첫 고유 장비', 'codex', { open: '고유 장비를 처음 얻었습니다.\n‘기록 → 도감’에 등록하면 도감 보너스를 받습니다.',

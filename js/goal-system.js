@@ -65,23 +65,6 @@
         });
     }
 
-    // 생장판은 루프 25에 조용히 열린다. 직접 보관된 아이템도 배치하지 않으면 효과가 없으므로
-    // 빈 판과 가득 찬 보관함을 목표 안내에서 놓치지 않게 한다.
-    function isGrowthGoalReady() {
-        return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
-    }
-
-    function getGrowthFreeCellCount(g) {
-        if (typeof getPlacedGrowthEntries !== 'function') return 0;
-        let unlocked = Math.max(0, Math.floor((g.growthBoard && g.growthBoard.unlockedCellCount) || 0));
-        return Math.max(0, unlocked - getPlacedGrowthEntries().length);
-    }
-
-    function getUnplacedGrowthItemCount(g) {
-        if (typeof isGrowthItemPlacedInLoadout !== 'function' || !Array.isArray(g.growthInventory)) return 0;
-        return g.growthInventory.filter(item => item && !isGrowthItemPlacedInLoadout(item.id)).length;
-    }
-
     function hasAffordableGemUpgrade(g) {
         if (!g || !g.gemEnhanceUnlocked || Math.max(1, Math.floor(Number(g.season) || 1)) < 2) return false;
         if (typeof SKILL_DB === 'undefined' || !SKILL_DB || !Array.isArray(g.skills)) return false;
@@ -492,29 +475,6 @@
                 let used = getInventoryUsedCellCount(g);
                 let limit = Math.floor(getInventoryLimit(g));
                 return buildNotice(`인벤토리 ${used}/${limit}칸 · 장비 분석으로 추천 교체 후 자동 해체를 설정하세요`, 'tab-items', 'item-tab-equip');
-            }
-        },
-        {
-            id: 'growth-placeable',
-            matches(g) {
-                if (!isGrowthGoalReady()) return false;
-                return getGrowthFreeCellCount(g) > 0 && getUnplacedGrowthItemCount(g) > 0;
-            },
-            build(g) {
-                return buildNotice(`생장판 빈 칸 ${getGrowthFreeCellCount(g)}개에 놓을 아이템이 있습니다`, 'tab-growthboard');
-            }
-        },
-        {
-            id: 'growth-storage',
-            matches(g) {
-                if (!isGrowthGoalReady() || typeof getGrowthInventoryLimit !== 'function') return false;
-                let stored = Array.isArray(g.growthInventory) ? g.growthInventory.length : 0;
-                return stored >= Math.floor(getGrowthInventoryLimit());
-            },
-            build(g) {
-                let stored = Array.isArray(g.growthInventory) ? g.growthInventory.length : 0;
-                let limit = Math.floor(getGrowthInventoryLimit());
-                return buildNotice(`생장 보관함 ${stored}/${limit} · 새 드랍은 비교 없이 자동 해체됩니다`, 'tab-growthboard');
             }
         }
     ];

@@ -57,26 +57,26 @@ assert.strictEqual(starWedgeDrawer.hidden, false, 'star-wedge management must ap
 assert(starWedgePanel.innerHTML.includes('잠금 상태'), 'loop 7 may show the button before the separate act requirement is met');
 runtime.document.getElementById = () => null;
 vm.runInContext('game.season=25; game.unlockedSeasonContents=[]; game.seenSeasonContentNotices=[]; applySeasonContentProgression({silent:true});', runtime);
-assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_25')", runtime), true, 'loop milestones must extend through the growth-board unlock');
+assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_25')", runtime), true, 'loop milestones must extend through the loop 25 wild talisman drops');
 assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 25, 'milestone reconciliation must register every loop through 25 exactly once');
 [
     [2, '홀씨 제작'], [11, '심해 / 낚시'], [15, '군락지 / 군락지 액막이'],
-    [18, '가지치기'], [20, '코어 큐브'], [25, '생장판 / 생장 아이템 드랍']
+    [18, '가지치기'], [20, '코어 (지하계 10층 클리어)'], [25, '야생 부적 드랍']
 ].forEach(([loop, label]) => {
     assert.strictEqual(vm.runInContext(`SEASON_CONTENT_ROADMAP[${loop}].features.some(line => line.includes('${label}'))`, runtime), true,
         `loop ${loop} milestone must list ${label}`);
 });
 vm.runInContext('game.season=50; applySeasonContentProgression({silent:true});', runtime);
-assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_50')", runtime), true, 'late growth-board milestones must reconcile through loop 50');
+assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_50')", runtime), true, 'late milestones must reconcile through loop 50');
 assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 50, 'milestone reconciliation must register every loop through 50 exactly once');
 [
-    [28, '생장판 확장: 11칸'], [31, '버려진 날붙이 / 단절된 방랑자'],
-    [32, '생장판 시너지 해금: 행과 열'], [38, '생장판 시너지 해금: 태그 공명'],
-    [40, '생장판 확장: 23칸'], [45, '생장판 시너지 해금: 복합 시너지'],
-    [50, '생장판 확장: 32칸']
+    [2, '그루터기 함: 루프마다 한 칸씩'], [17, '그루터기 함: 25칸'], [31, '버려진 날붙이 / 단절된 방랑자']
 ].forEach(([loop, label]) => {
     assert.strictEqual(vm.runInContext(`SEASON_CONTENT_ROADMAP[${loop}].features.some(line => line.includes('${label}'))`, runtime), true,
         `loop ${loop} milestone must list ${label}`);
 });
+
+assert.strictEqual(vm.runInContext("Object.values(SEASON_CONTENT_ROADMAP).flatMap(row => row.features).some(line => line.includes('생장판'))", runtime), false,
+    'the roadmap no longer promises the removed growth board');
 
 console.log('smoke-management-ux passed');

@@ -6,10 +6,11 @@
 const talismans = (() => {
     const statPool = new Map(TALISMAN_STAT_POOL.map(def => [def.id, def]));
     const conditionPool = new Map(TALISMAN_CONDITION_POOL.map(def => [def.id, def]));
-    const uniquePool = new Map(TALISMAN_UNIQUE_DB.map(def => [def.id, def]));
+    const uniquePool = new Map([...TALISMAN_UNIQUE_DB, ...TALISMAN_WILD_UNIQUE_DB].map(def => [def.id, def]));
+    const wildIds = new Set(TALISMAN_WILD_UNIQUE_DB.map(def => def.id));
     const RARITIES = ['magic', 'rare', 'unique'];
     const SPECIALS = new Set(['gravity', 'simpleCopy', 'temperance', 'pride', 'moment', 'elementFocus',
-        'cosmosChoice', 'cosmosLightningVariance', 'cosmosRepulsion']);
+        'cosmosChoice', 'cosmosLightningVariance', 'cosmosRepulsion', ...TALISMAN_WILD_UNIQUE_DB.map(def => def.special).filter(Boolean)]);
     const DIRECTIONAL = new Set(['simpleCopy', 'cosmosChoice']);
     const DIRECTION_NAMES = ['위', '오른쪽', '아래', '왼쪽'];
 
@@ -68,6 +69,13 @@ const talismans = (() => {
 
     function pick(list, random) {
         return list[Math.floor(random() * list.length)];
+    }
+
+    /** Weighted pick by def.weight (default 1). */
+    function pickWeighted(list, random) {
+        const total = list.reduce((sum, def) => sum + (def.weight ?? 1), 0);
+        let roll = random() * total;
+        return list.find(def => (roll -= def.weight ?? 1) < 0) || list[list.length - 1];
     }
 
     function rollLine(rule, taken, random) {
@@ -138,10 +146,37 @@ const talismans = (() => {
         return next;
     }
 
-    /** 조합창: 다른 고유 부적 하나(재료와 같은 고유는 나오지 않는다). */
+    /** 조합창: 다른 고유 부적 하나(재료와 같은 고유는 나오지 않는다). 야생 고유가 재료에 있으면 야생 고유에서 뽑는다. */
     function rollOtherUnique(excludedIds, random = Math.random) {
-        const pool = TALISMAN_UNIQUE_DB.filter(def => !excludedIds.includes(def.id));
-        return rollUnique(pick(pool.length ? pool : TALISMAN_UNIQUE_DB, random), random);
+        const source = excludedIds.some(id => wildIds.has(id)) ? TALISMAN_WILD_UNIQUE_DB : TALISMAN_UNIQUE_DB;
+        const pool = source.filter(def => !excludedIds.includes(def.id));
+        return rollUnique(pickWeighted(pool.length ? pool : source, random), random);
+    }
+
+    function killKind(enemy) {
+        return enemy && enemy.isBoss ? 'boss' : enemy && enemy.isElite ? 'elite' : 'normal';
+    }
+
+    /** 야생 부적 드랍이 열렸는가: 부적 해금 · 그루터기 함 · 최고 도달 루프 25. */
+    function wildDropsOpen(state = game) {
+        return contentProgression.isUnlocked('talisman', state) && stumpBox.of(state).acquired
+            && stumpBox.highestLoop(state) >= TALISMAN_WILD_DROPS.minLoop;
+    }
+
+    /** 적 등급의 야생 부적 하나(고유면 야생 고유에서). */
+    function rollWild(kind, random = Math.random) {
+        return random() < TALISMAN_WILD_DROPS.uniqueChance[kind] ? rollUnique(pickWeighted(TALISMAN_WILD_UNIQUE_DB, random), random)
+            : rollNormal(TALISMAN_WILD_DROPS.rule[kind], random);
+    }
+
+    /** 야생 부적 드랍을 받는다: 그루터기 함 보관함에, 가득 찼으면 편린 하나로. @returns {{item?:object, currency?:string}} */
+    function dropWild(state, enemy, random = Math.random) {
+        const kind = killKind(enemy);
+        const item = stumpBox.addTalisman(state, rollWild(kind, random));
+        if (item) return { item };
+        const currency = TALISMAN_WILD_DROPS.overflow[kind];
+        state.currencies[currency] = (state.currencies[currency] || 0) + 1;
+        return { currency };
     }
 
     function unsealRefusal(source, state) {
@@ -258,6 +293,7 @@ const talismans = (() => {
     }
 
     return Object.freeze({ normalizeTalisman, rollNormal, rollUnique, roll, rerollStatLine, rollOtherUnique, fromCosmos, unseal, exchange, wax, waxPreview, turn, describeLine,
+        wildDropsOpen, rollWild, dropWild, isWild: id => wildIds.has(id),
         conditionDelta, describeDelta,
         isDirectional: item => !!item && DIRECTIONAL.has(item.special), directionName: dir => DIRECTION_NAMES[dir] || DIRECTION_NAMES[1],
         conditionDef: id => conditionPool.get(id), uniqueDef: id => uniquePool.get(id), statDef: id => statPool.get(id) });

@@ -5,7 +5,6 @@ const vm = require('vm');
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
-const growthUiSource = fs.readFileSync('js/growth-ui.js', 'utf8');
 
 function extract(source, startNeedle, endNeedle) {
     const start = source.indexOf(startNeedle);
@@ -42,8 +41,5 @@ assert(cosmosSource.includes("addItemToInventory(item, { guaranteedKeep: true })
 assert(cosmosSource.includes("game.noti.items = true"), 'cosmos boss exclusive jewels light the equipment menu');
 assert(cosmosSource.includes("game.noti.stump = true"), 'cosmos boss exclusive talismans light the stump box menu');
 
-const growthCardBlock = extract(growthUiSource, 'function renderGrowthItemCard', '// 보관함이 40칸이라');
-assert(!growthCardBlock.includes('<summary>관리</summary>'), 'growth item actions must not require an extra management disclosure click');
-assert(growthCardBlock.includes('toggleGrowthItemLock') && growthCardBlock.includes('salvageGrowthInventoryItem'), 'growth item lock and salvage actions must remain directly available');
 
 console.log('smoke-jewel-talisman-integrity passed');

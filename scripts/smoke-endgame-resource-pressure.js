@@ -9,7 +9,7 @@ async function main() {
     await checkPendingFossilRefining();
     run(`(function () {
         game.season = 30;
-        game.contentProgression.inherited.push('growth', 'craft');
+        game.contentProgression.inherited.push('craft');
         game.underworldProgress = { highestFloor: 300 };
         Math.random = () => 0;
     })()`);
@@ -25,22 +25,6 @@ async function main() {
         'surplus refining must consume the full source cost');
     assert.strictEqual(run('game.currencies.fossilPrimal'), 1,
         'surplus refining must award one restoration-only fossil');
-
-    run(`(function () {
-        requestGameConfirmation = async () => true;
-        renderGrowthTab = () => {};
-        game.currencies.growthEssence = 300;
-        game.growthEssenceExpandLevel = 0;
-        game.growthInventoryExpandLevel = 0;
-    })()`);
-    assert.strictEqual(await vm.runInContext('expandGrowthInventoryWithEssence()', context), true,
-        'growth essence should buy a permanent five-slot expansion');
-    assert.strictEqual(run('game.currencies.growthEssence'), 0,
-        'the first expansion must spend its advertised 300 essence');
-    assert.strictEqual(run('getGrowthInventoryLimit()'), 45,
-        'the paid growth expansion must change the actual storage limit');
-    assert.strictEqual(run('getGrowthEssenceExpansionCost()'), 550,
-        'later essence expansions must become progressively more expensive');
 
     const profile = JSON.parse(run("JSON.stringify(getZoneEncounterProfile({ type: 'underworld', floor: 300 }))"));
     assert.deepStrictEqual(profile, {
@@ -227,21 +211,6 @@ async function main() {
     })()`);
     assert.strictEqual(run("battleFx.filter(fx => fx.type === 'hit').length"), 3,
         'small fights must retain individual hit feedback');
-
-    run(`(function () {
-        let growth = { id: 99001, name: '균열 금지 생장판', rarity: 'rare', slot: '무기',
-            growthCategory: 'flower', growthShapeId: 'dot1', baseStats: [], stats: [] };
-        game.growthInventory = [growth];
-        let rift = ensureTimeRiftState();
-        rift.altarOpen = true;
-        rift.altarRare = null;
-        selectForCrafting(growth.id, false);
-        placeItemOnTimeAltar();
-    })()`);
-    assert.strictEqual(run('ensureTimeRiftState().altarRare'), null,
-        'growth-board items must be rejected by the time-rift altar');
-    assert.strictEqual(run('game.growthInventory.length'), 1,
-        'a rejected time-rift placement must not remove the growth item');
 
     console.log('smoke-endgame-resource-pressure passed');
 }

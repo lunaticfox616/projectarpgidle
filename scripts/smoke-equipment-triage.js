@@ -163,7 +163,7 @@ for (const mutation of [
     "game.underworldRunes.enhanceLvByNo[1] = 2",
     "game.talentCardLoadout[0] = 'hero1__warrior'",
     "game.cores.equipped = coreItems.roll()",
-    "game.growthBoard.activeLoadout = 1",
+    "game.stumpBox.acquired = !game.stumpBox.acquired",
     "game.pruningTree.nodeRanks.test = 1",
     "game.cosmosAtlas = {mastery:{resonanceDrive:1}}",
     "game.ocean.permanentUpgrades.pressureResist = 1",

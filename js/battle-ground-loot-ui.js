@@ -224,7 +224,7 @@ const battleGroundLoot = (() => {
         const run=actExplorationState.current(game);if(!run?.completionApplied)return;
         const rows=actExplorationUi.collectLootRows(event.detail).map(row=>({
             currency:row.currency,count:row.amount,item:row.item||{name:row.name+(row.amount>1?' ×'+row.amount:''),rarity:'normal'},
-            itemKind:({growthItems:'growth',jewels:'jewel'})[row.kind],
+            itemKind:({jewels:'jewel'})[row.kind],
             color:row.rarity?getRarityColor(row.rarity):undefined
         }));
         if(!rows.length)return;
