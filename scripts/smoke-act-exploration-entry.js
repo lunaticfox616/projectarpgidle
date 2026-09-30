@@ -117,6 +117,7 @@ assert.equal(run('window.replayed.game.actExploration.packs.filter(pack=>pack.st
 fresh(1,{mapCompleteAction:'stop'});
 run(`ensureEncounterRun();game.actExploration.mode='manual';
     window.replayed=simulateBackgroundCombat({elapsedMs:1000,snapshot:game});`);
-assert.deepEqual(copy('window.replayed.game.gridPlayer'),copy('game.gridPlayer'),'manual exploration is not silently changed to automatic offline');
+assert.notDeepEqual(copy('window.replayed.game.gridPlayer'),copy('game.gridPlayer'),'offline replay walks even with auto-move off (user decision)');
+assert.equal(run('window.replayed.game.actExploration.mode'),'manual','the live choice is kept for when the player returns');
 assert.equal(run('mergeDefaults({settings:{actExplorationMode:"unknown"}}).settings.actExplorationMode'),'direct');
 console.log('Default act entry, legacy saves, repeat/next/stop, death/return, arenas and offline settlement: OK');

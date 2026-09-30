@@ -182,13 +182,14 @@ const stumpBox = (() => {
         return createItem(state, { family, color, roll: STUMP_BOX_DROPS.roll.min + random() * span });
     }
     /** One call per kill (live and offline replay alike). Story-act expeditions escrow their loot until the act is
-     * settled, so the box's drops are not rolled there; growth still counts. */
+     * settled, so the box's drops are not rolled there (growth still counts); generated maps — chaos, realm, the atlas … —
+     * roll them as the 9×8 board does. */
     function onEnemyKilled(state, enemy) {
         const box = state.stumpBox;
         if (!box || !box.acquired) return;
         const ripened = grow(state, enemy);
-        const expedition = typeof actExplorationState === 'object' && actExplorationState.current(state);
-        const drop = expedition ? null : rollDrop(state, enemy, Math.random);
+        const storyAct = typeof actExplorationState === 'object' && actExplorationState.current(state)?.act != null;
+        const drop = storyAct ? null : rollDrop(state, enemy, Math.random);
         if (!ripened.length && !drop) return;
         if (state.noti) state.noti.stump = true;
         dispatchRuntimeEvent('stump-box-changed', { ripened, drop });

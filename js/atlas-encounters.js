@@ -4,19 +4,31 @@
  */
 const atlasEncounters = (() => {
     const TYPES = Object.freeze(Object.keys(ATLAS.encounters));
-    /** Forced rooms (fragments) first, then each other type rolls its chance (base + passives) up to the map's limit. */
-    function roll(bonus, forced, random) {
-        const fixed = [...new Set(forced)].filter(type => ATLAS.encounters[type]);
+    /** Forced rooms (fragments) first, then the other types — in a random order, so none is starved by the list order — roll
+     * their chance (base + passives) up to the map's limit; never more rooms than the map has ordinary rooms for. */
+    function roll(bonus, forced, random, capacity = Infinity) {
+        const fixed = [...new Set(forced)].filter(type => Object.hasOwn(ATLAS.encounters, type));
         const limit = ATLAS.encounterLimit + bonus.encounterExtra;
-        const rolled = TYPES.filter(type => !fixed.includes(type) && random() * 100 < ATLAS.encounters[type].chance + bonus[type]);
-        return [...fixed, ...rolled.slice(0, limit)];
+        const rolled = shuffledTypes(TYPES.filter(type => !fixed.includes(type)), random)
+            .filter(type => random() * 100 < ATLAS.encounters[type].chance + bonus[type]);
+        return [...fixed, ...rolled.slice(0, limit)].slice(0, capacity);
     }
+    function shuffledTypes(list, random) {
+        const out = [...list];
+        for (let i = out.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [out[i], out[j]] = [out[j], out[i]];
+        }
+        return out;
+    }
+    /** Rooms that can hold content: ordinary ones (not the entry, paths, elite gates or the boss). */
+    const hostRooms = map => map.rooms.filter(room => room.role === 'optional' || room.role === 'battle');
     const score = (zone, type, room) => Math.abs(hashSeed(`${zone.atlasSeed}:${type}:${room.id}`));
     /** @returns {Object<string,string>} room id → content, fixed per map: ordinary rooms only (not the entry, paths, elite gates, boss). */
     function rooms(zone, map) {
         const out = {};
         if (!zone || zone.type !== 'atlasMap') return out;
-        const pool = map.rooms.filter(room => room.role === 'optional' || room.role === 'battle');
+        const pool = hostRooms(map);
         for (const type of zone.atlasEncounters) {
             const free = pool.filter(room => !out[room.id]);
             if (free.length) out[free.reduce((best, room) => (score(zone, type, room) > score(zone, type, best) ? room : best)).id] = type;
@@ -34,12 +46,12 @@ const atlasEncounters = (() => {
         enemy.atlasEncounter = type;
         return enemy;
     }
-    /** The content a kill empties (checked before the engine removes the enemy from its pack), or null. */
-    function clearedBy(state, enemy) {
+    /** The pack a kill empties (checked before the engine removes the enemy from its pack), or null. */
+    function emptiedPack(state, enemy) {
         const run = actExplorationState.current(state);
         const pack = run && run.packs.find(row => row.key === enemy.explorationPack);
-        if (!pack || !ATLAS.encounters[pack.encounter] || pack.waiting.length) return null;
-        return pack.aliveIds.length === 1 && pack.aliveIds[0] === enemy.id ? pack.encounter : null;
+        if (!pack || pack.waiting.length) return null;
+        return pack.aliveIds.length === 1 && pack.aliveIds[0] === enemy.id ? pack : null;
     }
     /** Room rewards: expected (base + perTier × tier) × (1 + reward passive %); the fraction rolls one more. Locked currencies are skipped. */
     function rewards(zone, type, bonus, random) {
@@ -49,6 +61,6 @@ const atlasEncounters = (() => {
             return [key, Math.floor(expected) + Number(random() < expected % 1)];
         }).filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
     }
-    return Object.freeze({ types: TYPES, roll, rooms, tuneEnemy, clearedBy, rewards });
+    return Object.freeze({ types: TYPES, roll, rooms, hostRooms, tuneEnemy, emptiedPack, rewards });
 })();
 safeExposeGlobals({ atlasEncounters });

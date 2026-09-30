@@ -1097,7 +1097,7 @@ function runConditionGemAutoRules(pStats) {
         }
         let cdr=Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.cdrPct)||0);
         game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor(((entry.castTime || 1) * 1000 + 2500) * (1 - cdr/100)));
-        if (gemName === '귀환 젬') returnToTown();
+        if (gemName === '귀환 젬') returnToTownByConditionGem();
         let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
         if (entry.type === 'warcry' && typeof isTalentInstantWarcryActive === 'function' && isTalentInstantWarcryActive()) castDelayMs = 0;
         if (entry.type === 'curse' && typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero10__warlock')) castDelayMs = 0;
@@ -1204,6 +1204,7 @@ function clearWoodsmanBuildLock() {
 
 
 function sanitizeCombatRuntimeState() {
+    atlasRun.recoverClosedMap();
     if (!Number.isFinite(game.playerHp)) game.playerHp = 1;
     game.enemies = Array.isArray(game.enemies) ? game.enemies : [];
     game.enemies.forEach(enemy => {
@@ -2885,7 +2886,7 @@ function coreLoop(nowMs) {
         }
     }
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
-    let holdMapProgress = zoneNow?.type === 'colony' || (isVoidRiftCombatZone(zoneNow) && vRift.active);
+    let holdMapProgress = isMapProgressHeld(zoneNow, vRift);
     if (!holdMapProgress) advanceMapProgress(pStats);
     if (actExplorationProgress.shouldTrackStall()) {
         if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
@@ -8422,8 +8423,13 @@ function applyCosmosAstraStance(enemy) {
 // A room pack stands in a line; an atlas map's pack-size mod and content rooms fill the rest of the leader's 3×3.
 const EXPLORATION_PACK_OFFSETS=Object.freeze([[0,0],[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]);
 /** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
+const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
+/** A room an atlas map's earlier entry already emptied (before a portal): its pack is there, defeated. */
+function emptiedExplorationPack(room) {
+    return {key:explorationPackKey(room,null),roomId:room.id,stage:null,waiting:[],aliveIds:[],eliteIds:[]};
+}
 function createActExplorationPack(zone,room,stage,encounter=null) {
-    const key=room.id+':'+(stage===null?'pack':stage),waiting=[];
+    const key=explorationPackKey(room,stage),waiting=[];
     const extra=(zone.packExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
     const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,Math.min(EXPLORATION_PACK_OFFSETS.length,3+extra)) : [[0,0]];
     const elite=room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room);
@@ -8466,7 +8472,8 @@ function createExplorationPacks(zone,map,bossStages) {
     const packs=[],encounters=atlasEncounters.rooms(zone,map);
     for(const room of map.rooms) {
         if(room.role==='entry' || room.role==='path')continue;
-        if(room.role!=='boss'){packs.push(createActExplorationPack(zone,room,null,encounters[room.id]||null));continue;}
+        if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
+            : createActExplorationPack(zone,room,null,encounters[room.id]||null));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createActExplorationPack(zone,room,stage));
     }
     return packs;
@@ -8628,6 +8635,11 @@ function returnToTown() {
     addLog('⛺ 마을 귀환', "season-up");
     startMoving(true);
     updateStaticUI();
+}
+
+/** 귀환 젬: a condition rule never spends an open map's last portal (that would close the map without a death). */
+function returnToTownByConditionGem() {
+    if (!atlasRun.lastPortal()) returnToTown();
 }
 
 function ensureEncounterRun() {
@@ -8826,6 +8838,7 @@ function spawnVoidBreachReinforcement(zone, rift) {
     enemy.fromVoidRift = true;
     applyVoidRiftMobTuning(enemy);
     game.enemies.push(enemy);
+    ensureCombatGridRuntime();
     rift.spawnedCount++;
     return true;
 }
@@ -8987,6 +9000,13 @@ function applyGrandBreachMobTuning(zone, enemy) {
 }
 
 // 공허 증원: 경험치·생명력 2배, 공격 속도 1.25배, 피해 1.3배.
+/** Colony waves and a void rift on the 9×8 board hold the map's progress plan. A wide map needs no hold: its walk already pauses
+ * while anything fights, and the hero must finish the step it is taking to reach the rift's monsters. */
+function isMapProgressHeld(zone, rift) {
+    if (zone?.type === 'colony') return true;
+    return isVoidRiftCombatZone(zone) && rift.active && !actExplorationState.current(game);
+}
+
 function isVoidRiftCombatZone(zone) {
     return !!zone && zone.type === 'abyss';
 }
@@ -10266,13 +10286,7 @@ function finishEncounterRun() {
                     queueImportantSave(220);
                     return;
                 }
-                game.pendingLoopDecision = true;
-                game.combatHalted = true;
-                game.enemies = [];
-                game.encounterPlan = [];
-                game.encounterIndex = 0;
-                game.runProgress = 0;
-                updateStaticUI();
+                handleSeasonLoopConditionMet();
                 return;
             }
             handleSeasonLoopConditionMet();
@@ -11716,8 +11730,8 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     };
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
-    startMoving(false);
     atlasRun.defeat(zone);
+    startMoving(false);
     updateStaticUI();
     queueImportantSave(160);
 }
@@ -13049,8 +13063,7 @@ function triggerSeasonReset(options) {
         clearWoodsmanBuildLock();
         addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
     }
-    game.pendingLoopDecision = false;
-    game.pendingLoopReady = false;
+    clearLoopGate();
     game.pendingLoopHeroSelection = true;
     let codexReveal = {};
     Object.keys(game.uniqueCodex || {}).forEach(key => {
@@ -13283,6 +13296,8 @@ function triggerSeasonReset(options) {
 function handleSeasonLoopConditionMet() {
     game.pendingLoopReady = (game.season || 1) < 10;
     game.pendingLoopDecision = !game.pendingLoopReady;
+    // Reached while nobody watched (offline / hidden-tab replay): the auto-loop leaves this gate to the player.
+    game.loopGateOffline = !!game.isBackgroundCalculation;
     game.combatHalted = true;
     game.enemies = [];
     game.encounterPlan = [];
@@ -13290,6 +13305,13 @@ function handleSeasonLoopConditionMet() {
     game.runProgress = 0;
     addLog(`루프 ${game.season || 1} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.`, 'season-up');
     updateStaticUI();
+}
+
+/** The waiting loop gate is resolved (loop taken or climbing continued): its offline mark goes with it. */
+function clearLoopGate() {
+    game.pendingLoopDecision = false;
+    game.pendingLoopReady = false;
+    game.loopGateOffline = false;
 }
 
 function confirmLoopReady() {
@@ -13317,7 +13339,7 @@ function chooseLoopAdvance(shouldLoop) {
         triggerSeasonReset({ path: 'chaos' });
         return;
     }
-    game.pendingLoopDecision = false;
+    clearLoopGate();
     addLog(`♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 ${Math.max(21, Math.floor((game.abyssEndlessDepth || 20) + 1))}부터 시작)`, 'season-up');
     enterNextEndlessChaosDepth();
 }

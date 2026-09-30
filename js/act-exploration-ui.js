@@ -104,7 +104,7 @@ const actExplorationUi=(()=>{
         ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#140d08';ctx.stroke();
     }
     // Atlas content rooms keep their own colour on the minimap (the rest: boss red, elite gold, pack brown).
-    const ENCOUNTER_MARKS={breach:'#b58ce0',hive:'#e7d36a',treasure:'#8fd08a',meteor:'#e89a5c'};
+    const ENCOUNTER_MARKS={breach:'#b58ce0',hive:'#79a8e8',treasure:'#8fd08a',meteor:'#f2efe6'};
     function packMark(pack) {
         if(pack.stage!==null)return '#e78077';
         if(ENCOUNTER_MARKS[pack.encounter])return ENCOUNTER_MARKS[pack.encounter];
@@ -178,7 +178,7 @@ const actExplorationUi=(()=>{
         for(const kind of ['equipment','growthItems','jewels'])
             rows.push(...loot[kind].map(item=>({key:kind+':'+item.id,kind,item,name:item.name,rarity:item.rarity,amount:1})));
         for(const [key,amount] of Object.entries(loot.currencies))
-            rows.push({key:'currency:'+key,kind:'currency',name:ORB_DB[key].name,currency:key,amount});
+            rows.push({key:'currency:'+key,kind:'currency',name:getCurrencyInfo(key).name,currency:key,amount});
         rows.push(...loot.flasks.map(key=>({key:'flask:'+key,kind:'flask',name:FLASK_DB[key].name,description:FLASK_DB[key].desc,amount:1})));
         rows.push(...loot.gems.map(row=>({key:row.kind+':'+row.name,kind:'gem',name:row.name,
             description:row.kind==='support'?'보조 젬 T'+row.tier:'공격 젬',amount:1})));
@@ -219,7 +219,7 @@ const actExplorationUi=(()=>{
     }
     function supplyDetails(row) {
         const title=row.kind==='currency'?window.getStyledOrbName(row.currency):escapeHTML(row.name);
-        const description=row.kind==='currency'?ORB_DB[row.currency].desc:row.description;
+        const description=row.kind==='currency'?getCurrencyInfo(row.currency).desc:row.description;
         return `<div class="tooltip-title">${title}</div><div class="tooltip-line">${description||''}</div><div class="tooltip-line">수량 ${row.amount.toLocaleString()}</div>`;
     }
     function openLoot() {

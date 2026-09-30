@@ -1,7 +1,8 @@
 /** 자동 환생 (docs/atlas-endgame-20260930.md 5절): 루프 관문을 채우면 정산 화면에서 몇 초를 센 뒤 "루프 진행"을 대신 누르고,
  * 설정대로 다음 루프의 직업을 고른다(같은 직업 유지). 누르는 버튼과 같은 함수만 부르므로 보상 · 판정은 루프 코드 그대로다.
  * 직업 선택을 기다리는 저장을 불러오면 선택 창을 다시 연다 — 예전에는 창 없이 전투만 멈춘 채 남았다.
- * 화면이 떠 있는 동안에만 돈다: 오프라인 재생은 여전히 루프 관문에서 멈추고, 돌아오면 여기서 이어간다.
+ * 화면이 떠 있는 동안에만 돈다: 오프라인 재생은 루프 관문에서 멈추고, 오프라인에서 채운 관문(game.loopGateOffline)은
+ * 자동으로 넘기지 않는다(사용자 결정 2026-09-30) — 플레이어가 넘긴 뒤 다음 관문부터 다시 자동이다.
  */
 const loopAutomationUi = (() => {
     const DELAY_MS = 5000, REOPEN_MS = 3000;
@@ -27,10 +28,16 @@ const loopAutomationUi = (() => {
         if (paths.includes('chaos') || !paths.length) return chooseLoopAdvance(true);
         chooseLoopAdvancePath(paths[0]);
     }
-    /** The loop screen is up, automation is on and nothing (the stall) blocks the reset. */
-    const armed = () => !!(game.pendingLoopReady || game.pendingLoopDecision) && game.settings.autoLoop && !playerStall.loopBlockReason(game);
+    /** Nothing else holds the screen: the game has started (no title or loading screen) and no dialog or reward pick is open. */
+    const screenFree = () => gameplayStarted && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !isRewardOpen()
+        && !document.getElementById('game-dialog-overlay')?.classList.contains('active');
+    /** The loop screen is up (not put aside for 장비 정리), automation is on, the gate was reached while the page was open
+     * (offline auto-loop stays off), the page is visible and nothing (the stall) blocks the reset. */
+    const armed = () => !!(game.pendingLoopReady || game.pendingLoopDecision) && game.settings.autoLoop && !game.loopGateOffline
+        && !document.hidden && loopSettlementUi.dismissedReadyLoop !== game.season && !playerStall.loopBlockReason(game);
     function autoTick(now = Date.now()) {
         if (typeof game === 'undefined' || !game || !game.settings) return;
+        if (!screenFree()) { deadline = 0; return; }
         if (game.pendingLoopHeroSelection) return heroSelection(now);
         if (!armed()) { deadline = 0; return showStatus(); }
         if (!deadline) deadline = now + DELAY_MS;
@@ -39,7 +46,8 @@ const loopAutomationUi = (() => {
         advanceLoop();
     }
     function showStatus(now = Date.now()) {
-        const text = deadline ? `자동 환생까지 ${Math.max(0, Math.ceil((deadline - now) / 1000))}초` : '';
+        const offline = game.loopGateOffline && game.settings.autoLoop ? '오프라인에서 채운 관문이라 자동 환생하지 않습니다.' : '';
+        const text = deadline ? `자동 환생까지 ${Math.max(0, Math.ceil((deadline - now) / 1000))}초` : offline;
         document.querySelectorAll('[data-loop-auto-status]').forEach(node => { node.textContent = text; });
     }
     function setAuto(on) {

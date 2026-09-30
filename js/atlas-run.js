@@ -4,6 +4,8 @@
  */
 const atlasRun = (() => {
     const inMap = () => game.currentZoneId === ATLAS.zoneId;
+    /** In the open map itself, not still on the cleared one during the settlement pause before the next map. */
+    const insideMap = () => inMap() && !actExplorationState.current(game)?.departure;
     const notify = detail => dispatchRuntimeEvent('atlas-map', detail);
     function returnZone(id) {
         return Number.isInteger(id) && getZone(id) ? id : getDefeatRecoveryZoneId();
@@ -35,10 +37,19 @@ const atlasRun = (() => {
         atlas.cancel(game);
         return '지도로 이동할 수 없습니다.';
     }
-    /** 열린 지도에 다시 들어간다(떠날 때 포털 하나를 이미 썼다). */
+    /** 열린 지도에 다시 들어간다(떠날 때 포털 하나를 이미 썼다). @returns {string} '' when the hero is headed in, otherwise why not. */
     function reenter() {
-        if (game.atlas.run && !inMap()) changeZone(ATLAS.zoneId);
+        const reason = game.atlas.run ? departureBlock() : '열린 지도가 없습니다.';
+        if (reason) return reason;
+        if (!inMap()) changeZone(ATLAS.zoneId);
+        return inMap() ? '' : '지도로 이동할 수 없습니다.';
     }
+    /** A content's return or a finished departure left the hero in a map that has closed since: back to the frontier. */
+    function recoverClosedMap() {
+        if (inMap() && !game.atlas.run) travelBack(null);
+    }
+    /** The open map has one entry left: spending it would close the map. */
+    const lastPortal = () => insideMap() && !!game.atlas.run && game.atlas.run.portals <= 1;
     /** 열린 지도를 닫는다: 지도석과 맵 안의 지도석 드롭을 잃는다. @returns {boolean} whether a map was open. */
     function abandon() {
         if (!game.atlas.run) return false;
@@ -57,6 +68,7 @@ const atlasRun = (() => {
     function finish(zone) {
         const result = atlas.complete(game);
         if (!result) return;
+        atlas.keepLoot(game, game.explorationLoot);
         grantSpoils(result);
         game.killsInZone = 0;
         const stop = game.settings.mapCompleteAction === 'stop';
@@ -87,9 +99,9 @@ const atlasRun = (() => {
     function defeat(zone) {
         if (zone && zone.type === 'atlasMap') spendPortal('defeat');
     }
-    /** 마을 귀환 · 다른 곳으로 이동: 포털 하나. */
+    /** 마을 귀환 · 다른 곳으로 이동: 포털 하나(정산 대기 중에는 아직 다음 지도에 들어가지 않았다). */
     function leave(reason) {
-        if (inMap()) spendPortal(reason);
+        if (insideMap()) spendPortal(reason);
     }
     /** changeZone의 마지막 단계: 맵을 떠나면 포털 하나, 그리고 도착지를 현재 지역으로. */
     function travel(zone) {
@@ -111,10 +123,17 @@ const atlasRun = (() => {
     function onKill(enemy) {
         const zone = getZone(game.currentZoneId);
         const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);
-        const room = zone && zone.type === 'atlasMap' && game.atlas.run ? atlasEncounters.clearedBy(game, enemy) : null;
+        const room = zone && zone.type === 'atlasMap' && game.atlas.run ? emptyRoom(enemy) : null;
         const rewards = room ? clearRoom(zone, room, maps) : [];
         if (!maps.length && !fragments.length && !room) return;
         notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards });
+    }
+    /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
+    function emptyRoom(enemy) {
+        const pack = atlasEncounters.emptiedPack(game, enemy);
+        if (!pack || pack.stage !== null) return null;
+        atlas.markCleared(game, pack.roomId);
+        return Object.hasOwn(ATLAS.encounters, pack.encounter || '') ? pack.encounter : null;
     }
     function clearRoom(zone, room, maps) {
         const rewards = atlasEncounters.rewards(zone, room, game.atlas.run.bonus, Math.random);
@@ -128,6 +147,7 @@ const atlasRun = (() => {
         const maps = atlas.sync(game);
         if (opened || maps.length) notify({ kind: 'starter', opened, count: maps.length });
     }
-    return Object.freeze({ open, openPinnacle, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20 });
+    return Object.freeze({ open, openPinnacle, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
+        blockReason: departureBlock });
 })();
 safeExposeGlobals({ atlasRun });

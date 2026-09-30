@@ -25,6 +25,7 @@ const atlasEpoch = (() => {
         epoch.count += 1;
         epoch.essence += gained;
         Object.assign(state.atlas, { completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, lastResult: null, starterSeason: 0 });
+        atlas.setLoadout(state, state.atlas.loadout); // the passive slot is gone with the passives
         return '';
     }
     const cost = (state, id) => (rank(state, id) + 1) * ATLAS.epoch.costStep;

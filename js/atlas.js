@@ -74,14 +74,15 @@ const atlas = (() => {
     const points = state => state.atlas.completed.length + state.atlas.bonus.length + atlasEpoch.points(state);
     const bestTier = state => Math.max(0, ...state.atlas.completed.map(id => effectiveTier(state, BY_ID.get(id))));
 
-    /** The highest reachable map tier at or below `tier`, a random node of it (guardians drop by their own rule). */
+    /** The highest reachable map tier at or below `tier`, a random node of it (guardians drop by their own rule). Seeds lift
+     * every node, so below the lowest reachable tier the drop takes that lowest tier (the way back in never comes up empty). */
     function nodeForTier(state, tier, random) {
         const open = MAP_NODES.filter(node => reachable(state, node.id));
-        for (let t = Math.min(ATLAS.tierCap, Math.max(1, tier)); t >= 1; t--) {
-            const pool = open.filter(node => effectiveTier(state, node) === t);
-            if (pool.length) return pool[Math.floor(random() * pool.length)];
-        }
-        return null;
+        if (!open.length) return null;
+        const tiers = open.map(node => effectiveTier(state, node)), wanted = Math.min(ATLAS.tierCap, Math.max(1, tier));
+        const below = tiers.filter(t => t <= wanted), target = below.length ? Math.max(...below) : Math.min(...tiers);
+        const pool = open.filter((node, i) => tiers[i] === target);
+        return pool[Math.floor(random() * pool.length)];
     }
     function rollMap(state, tier, random, bonus) {
         const node = nodeForTier(state, tier, random);
@@ -95,10 +96,11 @@ const atlas = (() => {
         map.uid = state.atlas.nextUid++;
         return map;
     }
-    /** A boss of a 13+ map in a region whose guardian is open sometimes drops that guardian's map. */
-    function guardianDrop(state, node, random, bonus) {
-        const guardian = BY_ID.get(`${node.region}_g`), rules = ATLAS.guardianRules;
-        if (node.kind !== 'map' || node.tier < rules.minTier || !reachable(state, guardian.id)) return [];
+    /** A boss of a 13+ map (its tier: seeds and corruption count) in a region whose guardian is open sometimes drops that
+     * guardian's map. */
+    function guardianDrop(state, map, random, bonus) {
+        const node = BY_ID.get(map.node), guardian = BY_ID.get(`${node.region}_g`), rules = ATLAS.guardianRules;
+        if (node.kind !== 'map' || map.tier < rules.minTier || !reachable(state, guardian.id)) return [];
         if (random() >= rules.dropChance * (1 + bonus.bossMap / 100)) return [];
         return [stamp(state, atlasMaps.create(guardian.id, effectiveTier(state, guardian), 'normal', random), random, bonus)];
     }
@@ -137,12 +139,22 @@ const atlas = (() => {
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
         return state.atlas.stash.some(map => map.uid === uid) ? '' : '보관함에 없는 지도석입니다.';
     }
-    /** Fragments in the loadout that are in stock, one each; the keep passive may save one. */
-    function useFragments(state, random) {
-        const keep = bonusOf(state).fragmentKeep / 100;
-        const used = state.atlas.loadout.slice(0, slots(state)).filter(id => (state.atlas.fragments[id] || 0) > 0);
-        for (const id of used) if (random() >= keep) state.atlas.fragments[id] -= 1;
-        return used;
+    /** The loadout's first `slots` fragments in stock. Encounter fragments only while the map has ordinary rooms left for
+     * them (guardian and pinnacle arenas have none) — the rest stay in the stock. */
+    function activeFragments(state, rooms = Infinity) {
+        let free = rooms;
+        return state.atlas.loadout.slice(0, slots(state)).filter(id => (state.atlas.fragments[id] || 0) > 0
+            && (!FRAGMENTS.get(id).encounter || free-- > 0));
+    }
+    /** One of each active fragment; the keep passive may save one. `spent` is what really left the stock (cancel refunds it). */
+    function useFragments(state, rooms, random) {
+        const keep = bonusOf(state).fragmentKeep / 100, used = activeFragments(state, rooms), spent = [];
+        for (const id of used) {
+            if (random() < keep) continue;
+            state.atlas.fragments[id] -= 1;
+            spent.push(id);
+        }
+        return { used, spent };
     }
     /** Consumes the map (and its fragments): from here the run owns it — portals, content rooms, drops held until the boss falls. */
     function begin(state, uid, returnZoneId, random = Math.random) {
@@ -152,12 +164,12 @@ const atlas = (() => {
         startRun(state, map, returnZoneId, random);
         return '';
     }
+    /** The last result stays on screen while the next map runs (자동 지도 chains maps). */
     function startRun(state, map, returnZoneId, random) {
-        const fragments = useFragments(state, random), bonus = bonusOf(state, fragments);
-        state.atlas.run = { map, portals: ATLAS.portals + bonus.portals, drops: [], found: [], fragments, bonus,
-            encounters: atlasEncounters.roll(bonus, fragments.map(id => FRAGMENTS.get(id).encounter).filter(Boolean), random),
-            returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null };
-        state.atlas.lastResult = null;
+        const rooms = encounterRooms(map), { used, spent } = useFragments(state, rooms, random), bonus = bonusOf(state, used);
+        const forced = used.map(id => FRAGMENTS.get(id).encounter).filter(Boolean);
+        state.atlas.run = { map, portals: ATLAS.portals + bonus.portals, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
+            encounters: atlasEncounters.roll(bonus, forced, random, rooms), returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null };
     }
     function pinnacleReason(state) {
         const reason = lockReason(state);
@@ -194,7 +206,7 @@ const atlas = (() => {
         if (!run) return;
         if (run.map.node === PINNACLE.id) for (const key of ATLAS.pinnacle.tickets) state.currencies[key] += 1;
         else state.atlas.stash.unshift(run.map);
-        addFragments(state, run.fragments);
+        addFragments(state, run.spent);
         state.atlas.run = null;
     }
     /** Boss down: completion (and the bonus for a rare map) count once per node; the run's drops go to the stash. */
@@ -211,6 +223,15 @@ const atlas = (() => {
         state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
             lost: run.drops.length - stored, fragments: run.found.length };
         return { ...state.atlas.lastResult, ...bossSpoils(state, BY_ID.get(id)), returnZoneId: run.returnZoneId };
+    }
+    /** An ordinary room emptied in the open map stays empty when a portal re-enters it: it is the same map. */
+    function markCleared(state, roomId) {
+        const run = state.atlas.run;
+        if (run && !run.cleared.includes(roomId)) run.cleared.push(roomId);
+    }
+    /** The finished map's loot receipt stays with its result (a chained map starts a new receipt). */
+    function keepLoot(state, receipt) {
+        if (state.atlas.lastResult && receipt) state.atlas.lastResult.loot = normalizeLoot(receipt);
     }
     /** Death, a town return or leaving the map spends a portal; the last one closes the map and loses its held drops. */
     function usePortal(state) {
@@ -261,7 +282,7 @@ const atlas = (() => {
         const extra = Number(!!enemy.isBoss && random() < drops.bossExtra + bonus.bossMap / 100);
         const count = Math.floor(chance) + Number(random() < chance % 1) + extra;
         const maps = Array.from({ length: count }, () => rollMap(state, dropTier(run.map.tier, random, bonus), random, bonus)).filter(Boolean);
-        if (enemy.isBoss) maps.push(...guardianDrop(state, BY_ID.get(run.map.node), random, bonus));
+        if (enemy.isBoss) maps.push(...guardianDrop(state, run.map, random, bonus));
         run.drops.push(...maps.slice(0, Math.max(0, ATLAS.stashCap - run.drops.length)));
         return maps;
     }
@@ -273,9 +294,9 @@ const atlas = (() => {
     }
     /** Elites and bosses in a map sometimes drop a fragment; like maps it waits in the run until the boss falls. */
     function fragmentFromKill(state, zone, enemy, random = Math.random) {
-        const run = state.atlas.run;
-        if (!run || !zone || zone.type !== 'atlasMap') return [];
-        const rules = ATLAS.fragmentRules, base = enemy.isBoss ? rules.boss : (enemy.isElite ? rules.elite : 0);
+        const run = state.atlas.run, rules = ATLAS.fragmentRules;
+        if (!run || !zone || zone.type !== 'atlasMap' || run.found.length >= rules.held) return [];
+        const base = enemy.isBoss ? rules.boss : (enemy.isElite ? rules.elite : 0);
         if (random() >= base * (1 + run.bonus.fragmentDrop / 100)) return [];
         const id = ATLAS.fragments[Math.floor(random() * ATLAS.fragments.length)].id;
         run.found.push(id);
@@ -293,6 +314,13 @@ const atlas = (() => {
         return zones.get(run);
     }
     const BOSS_RULES = { map: { hpMul: 1, damageMul: 1, stages: 1 }, guardian: { ...ATLAS.guardianRules, stages: 1 }, pinnacle: ATLAS.pinnacle };
+    /** The generated-map spec of a map item (js/exploration-layouts.js): the same map for every entry through its portals. */
+    function explorationSpec(map) {
+        const node = BY_ID.get(map.node);
+        return { style: node.style, biome: node.biome, size: sizeFor(map.tier), seed: `atlas:${map.uid}`, bossStages: BOSS_RULES[node.kind].stages };
+    }
+    /** Ordinary rooms of the map's layout: how many content rooms it can hold. */
+    const encounterRooms = map => atlasEncounters.hostRooms(actExplorationMap.forRun({ source: explorationSpec(map) })).length;
     function buildZone(run) {
         const { map, bonus } = run, node = BY_ID.get(map.node), fx = atlasMaps.effects(map), depth = equivalentDepth(map.tier);
         const more = key => 1 + bonus[key] / 100, boss = BOSS_RULES[node.kind];
@@ -307,18 +335,28 @@ const atlas = (() => {
             atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
-            atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct,
-            atlasKind: node.kind,
-            exploration: { style: node.style, biome: node.biome, size: sizeFor(map.tier), seed: `atlas:${map.uid}`, bossStages: boss.stages }
+            atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, atlasCleared: run.cleared,
+            atlasKind: node.kind, exploration: explorationSpec(map)
         };
     }
     /** What a stash map would be with the current passives and loadout (the device card). */
-    const preview = (state, map) => buildZone({ map, bonus: bonusOf(state, state.atlas.loadout.filter(id => (state.atlas.fragments[id] || 0) > 0)), encounters: [] });
+    const preview = (state, map) => buildZone({ map, bonus: bonusOf(state, activeFragments(state)), encounters: [] });
     /** Equipment base tier from the map tier: T15 at 1~3등급, one more every three tiers, T20 at 16등급. */
     const lootTier = tier => Math.min(20, 14 + Math.ceil(tier / 3));
 
     // ---------------------------------------------------------------- save boundary and the loop
     const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
+    const roomIds = value => [...new Set(Array.isArray(value) ? value : [])].filter(id => typeof id === 'string' && id.length <= 64).slice(0, 100);
+    /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, and the equipment count. */
+    function normalizeLoot(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const currencies = {};
+        for (const [key, value] of Object.entries(raw.currencies || {})) {
+            const amount = Math.floor(Number(value));
+            if (Object.hasOwn(ORB_DB, key) && amount > 0) currencies[key] = Math.min(Number.MAX_SAFE_INTEGER, amount);
+        }
+        return { currencies, equipmentCount: Math.max(0, Math.min(1e6, Math.floor(Number(raw.equipmentCount) || 0))) };
+    }
     function normalizeBonus(raw) {
         const bonus = ZERO();
         for (const key of Object.keys(bonus)) {
@@ -333,15 +371,17 @@ const atlas = (() => {
         const bonus = normalizeBonus(raw.bonus), portals = Math.floor(Number(raw.portals));
         return { map, portals: portals >= 1 && portals <= ATLAS.portals + bonus.portals ? portals : 1,
             drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, ATLAS.stashCap),
-            found: fragmentIds(raw.found, 50), fragments: fragmentIds(raw.fragments, 3), bonus,
-            encounters: [...new Set(Array.isArray(raw.encounters) ? raw.encounters : [])].filter(type => ATLAS.encounters[type]),
+            found: fragmentIds(raw.found, ATLAS.fragmentRules.held), fragments: fragmentIds(raw.fragments, ATLAS.fragments.length),
+            spent: fragmentIds(raw.spent, ATLAS.fragments.length), cleared: roomIds(raw.cleared), bonus,
+            encounters: [...new Set(Array.isArray(raw.encounters) ? raw.encounters : [])].filter(type => Object.hasOwn(ATLAS.encounters, type)),
             returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null };
     }
     function normalizeResult(raw) {
         if (!raw || !BY_ID.has(raw.nodeId) || !['complete', 'failed'].includes(raw.outcome)) return null;
         const count = value => Math.max(0, Math.min(ATLAS.stashCap, Math.floor(Number(value) || 0)));
         return { nodeId: raw.nodeId, tier: Math.max(1, Math.min(ATLAS.tierCap, Math.floor(Number(raw.tier) || 1))), outcome: raw.outcome,
-            first: raw.first === true, bonus: raw.bonus === true, drops: count(raw.drops), lost: count(raw.lost), fragments: count(raw.fragments) };
+            first: raw.first === true, bonus: raw.bonus === true, drops: count(raw.drops), lost: count(raw.lost), fragments: count(raw.fragments),
+            loot: normalizeLoot(raw.loot) };
     }
     function normalizeFragments(raw) {
         const counts = {};
@@ -372,7 +412,8 @@ const atlas = (() => {
             fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
             autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
-        next.nextUid = Math.max(Math.floor(Number(raw.nextUid) || 1), ...[...uids].map(uid => uid + 1), 1);
+        const savedNext = Math.floor(Number(raw.nextUid));
+        next.nextUid = Math.min(Number.MAX_SAFE_INTEGER, Math.max(Number.isSafeInteger(savedNext) ? savedNext : 1, ...[...uids].map(uid => uid + 1), 1));
         state.atlas = next;
         setLoadout(state, Array.isArray(raw.loadout) ? raw.loadout : []);
         return next;
@@ -388,7 +429,7 @@ const atlas = (() => {
     return Object.freeze({ nodes: NODES, links: LINKS, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle,
-        slots, setLoadout, beginReason, begin, cancel, complete, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill,
+        slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();

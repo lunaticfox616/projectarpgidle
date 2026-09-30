@@ -45,8 +45,9 @@ const contentMaps = (() => {
         if (zone.pinnacleTrack) return TRACK_BIOMES[zone.pinnacleTrack] || 'sanctum';
         return zone.rivalBlade ? 'ruins' : (zone.cosmosCapstone ? 'sanctum' : 'trunk');
     }
-    /** A data-defined boss zone with its arena attached (a copy — the data row stays untouched). */
-    const withArena = (zone, biome) => (zone ? { ...zone, exploration: arena(zone.id, biome) } : zone);
+    /** A data-defined boss zone with its arena attached (a copy — the data row stays untouched). A board fight (Cerberus's three
+     * phases of heads and body) keeps the 9×8 board. */
+    const withArena = (zone, biome) => (zone && !zone.boardFight ? { ...zone, exploration: arena(zone.id, biome) } : zone);
     /** 전직 시련: 함정이 번지는 연속 방 — 정예가 이끄는 방들을 지나 시련의 수호자에게(판의 정예 두 무리 → 보스와 같은 흐름). */
     const trialCorridor = zone => (zone ? { ...zone, exploration: spec('gauntlet', 'sanctum', 1, `trial:${zone.id}`) } : zone);
     return Object.freeze({ labyrinth, chaos, chaosRealm, skyTower, underworld, timeRift, arena, withArena, trialCorridor, bossBiome });

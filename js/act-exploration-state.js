@@ -146,14 +146,15 @@ const actExplorationState = (() => {
         return actExplorationMap.route(map,map.entry,cell,blocked).length>0;
     }
     /** Where the hero walks: the player's command first, then — auto-move on (mode direct/full) — the nearest pack
-     * the route wants; with auto-move off (mode manual) only commands move it. */
-    function destination(run,from) {
-        if(run.destination || run.mode==='manual')return run.destination;
+     * the route wants; with auto-move off (mode manual) only commands move it. mode: the effective mode
+     * (actExplorationProgress.runMode — offline replay walks even when auto-move is off). */
+    function destination(run,from,mode=run.mode) {
+        if(run.destination || mode==='manual')return run.destination;
         const map=actExplorationMap.forRun(run);
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
         const candidates=run.packs.filter(pack=>pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
-        const targets=run.mode==='full' && ordinary.length ? ordinary
+        const targets=mode==='full' && ordinary.length ? ordinary
             : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);
         let best=null,bestLength=Infinity;
         for(const pack of targets) {
@@ -254,9 +255,11 @@ const actExplorationState = (() => {
         state.nextEnemyId=Math.max(state.nextEnemyId,...ids.map(id=>id+1));
         return run;
     }
+    /** Where the settlement pause leads: a numbered zone, or the next atlas map (자동 지도 opened it before the pause). */
+    const validExit=zoneId=>(Number.isSafeInteger(zoneId) && zoneId>=0) || zoneId===ATLAS.zoneId;
     function validateDeparture(run) {
         const exit=run.departure;if(exit===null)return;
-        if(!exit || !run.completionApplied || !Number.isSafeInteger(exit.zoneId) || exit.zoneId<0
+        if(!exit || !run.completionApplied || !validExit(exit.zoneId)
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }

@@ -6,7 +6,7 @@ const combatLootReceipts = (() => {
     }
     /** Capture only synchronous loot production, excluding crafting, trade and unrelated side trips. */
     function capture(state, produce) {
-        if (!state.atlas.run) return produce();
+        if (!state.atlas.run || state.currentZoneId !== ATLAS.zoneId) return produce();
         if (!state.explorationLoot) reset(state);
         const previous = capturedState;
         capturedState = state;

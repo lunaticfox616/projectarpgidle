@@ -106,7 +106,8 @@ const ATLAS = Object.freeze({
         { id: 'treasure', name: '보물 각인', encounter: 'treasure' },
         { id: 'meteor', name: '운석 각인', encounter: 'meteor' }
     ].map(Object.freeze)),
-    fragmentRules: Object.freeze({ slots: 2, elite: 0.03, boss: 0.25, cap: 99 }),
+    // held: fragments one open map keeps for its boss (like its map drops) — the save boundary uses the same cap.
+    fragmentRules: Object.freeze({ slots: 2, elite: 0.03, boss: 0.25, cap: 99, held: 50 }),
     // 지도 속 콘텐츠 방: 정예가 이끄는 무리(보스 관문을 함께 봉인)에 그 콘텐츠의 적 보정이 붙고, 방을 비우면 그 콘텐츠의 재화를 맵
     // 전리품으로 받는다(쓰러지면 잃는다). 보상 [재화, 기본, 등급당] — 기대값의 소수부는 확률로 1개 더.
     // chance: 지도마다 그 방이 생길 기본 확률(%). 패시브 · 각인이 더한다. 지도마다 굴려 생기는 방은 encounterLimit개까지.

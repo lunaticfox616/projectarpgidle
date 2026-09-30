@@ -255,7 +255,8 @@ const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
     { id: 's2_boss_storm', name: '폭풍 군단장 볼타', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
-    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore' },
+    // boardFight: three phases of heads and body (combat generateEncounterPlan) — it keeps the 9×8 board, not an arena.
+    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', boardFight: true },
     // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.
     //  - 매 루프 다시 도전하는 고정 난이도 결투 — 루프 31 진입 시점의 성장 배율에 고정하고 bossMods로 개성을 조절한다.
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.

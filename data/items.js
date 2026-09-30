@@ -1029,7 +1029,18 @@ const ORB_DB = {
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
     oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
 };
-// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
+
+// Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
+const WALLET_CURRENCY_INFO = Object.freeze({
+    colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻습니다. 군락지 수호 칸을 여는 데 씁니다.' }),
+    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지 수호 칸을 여는 데 씁니다.' }),
+    astralCore: Object.freeze({ name: '성핵 조각', desc: '가진 개수만큼 완성된 별쐐기가 고유로 나올 확률이 오릅니다(개당 2%, 최대 35%). 별쐐기가 떨어질 때 하나 씁니다.' })
+});
+/** Name and description of any wallet currency: ORB_DB items first, then the wallet-only counters. */
+function getCurrencyInfo(key) {
+    if (Object.hasOwn(ORB_DB, key)) return ORB_DB[key];
+    return Object.hasOwn(WALLET_CURRENCY_INFO, key) ? WALLET_CURRENCY_INFO[key] : { name: String(key || ''), desc: '' };
+}// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
     ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
@@ -1106,4 +1117,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

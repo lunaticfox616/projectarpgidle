@@ -1149,6 +1149,7 @@ function enterNextEndlessChaosDepth() {
     game.combatHalted = false;
     game.runProgress = 0;
     addLog(`♾️ 혼돈 심화 ${game.abyssEndlessDepth}층 진입`, 'season-up');
+    enterAutomaticMapInterruptionAfterClear(null); // a ready grand breach or meteor postponed by the map's loot goes first
     startMoving(true);
     updateStaticUI();
 }
@@ -2690,6 +2691,8 @@ const defaultGame = {
     coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
     pendingLoopDecision: false,
     pendingLoopReady: false,
+    // The pending loop gate was reached in offline/background replay (js/loop-automation-ui.js does not auto-advance it).
+    loopGateOffline: false,
 
     skyGemEnhancements: {},
     recentDamageEvents: [],

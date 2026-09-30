@@ -1,4 +1,11 @@
 /** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
+/** 루프 관문 대기 플래그. 오프라인에서 채운 관문 표시는 관문이 남아 있을 때만 의미가 있다. */
+function normalizeLoopGateFlags(state) {
+    state.pendingLoopDecision = !!state.pendingLoopDecision;
+    state.pendingLoopReady = !!state.pendingLoopReady;
+    state.loopGateOffline = state.loopGateOffline === true && (state.pendingLoopDecision || state.pendingLoopReady);
+}
+
 /** 자동화 설정: 자동 이동(기본 켬) · 자동 환생(기본 끔) · 다음 루프 직업(매번 고르기 | 같은 직업 유지). */
 function normalizeAutomationSettings(settings) {
     settings.autoMove = settings.autoMove !== false;
@@ -1031,8 +1038,7 @@ function mergeDefaults(save) {
     merged.lastLoopAdvancePath = ['chaos', 'cosmos'].includes(merged.lastLoopAdvancePath) ? merged.lastLoopAdvancePath : null;
     merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared || (Array.isArray(merged.abyssClearedDepths) && merged.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
     if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
-    merged.pendingLoopDecision = !!merged.pendingLoopDecision;
-    merged.pendingLoopReady = !!merged.pendingLoopReady;
+    normalizeLoopGateFlags(merged);
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     normalizeSkillSlotsSave(merged);

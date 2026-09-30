@@ -77,8 +77,20 @@ const atlasUi = (() => {
         refresh();
         switchTab('tab-battle');
     }
-    function reenter() { atlasRun.reenter(); refresh(); switchTab('tab-battle'); }
-    function abandon() {
+    function reenter() {
+        const reason = atlasRun.reenter();
+        if (reason) return addLog(reason, 'attack-monster');
+        refresh();
+        switchTab('tab-battle');
+    }
+    /** 지도 닫기 asks first: the map item, its held map drops and fragments and the map's temporary loot are lost. */
+    async function abandon() {
+        const run = ledger().run;
+        if (!run) return;
+        const held = run.drops.length + run.found.length;
+        const message = `${nodeName(run.map.node)} 지도를 닫을까요?\n지도석${held ? `과 맵에서 얻은 지도석 · 각인 ${held}개` : ''}를 잃고, 맵 안의 임시 전리품도 사라집니다.`;
+        const ok = await requestGameConfirmation(message, { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
+        if (!ok || ledger().run !== run) return;
         if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다. 지도석과 맵 안에서 얻은 지도석 · 각인은 사라집니다.', 'attack-monster');
         queueImportantSave(200);
         refresh();
@@ -167,7 +179,7 @@ const atlasUi = (() => {
         return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows.join(' · ')} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>`;
     }
     function deviceHtml() {
-        const map = selectedMap(), lock = atlas.lockReason(game);
+        const map = selectedMap(), lock = atlas.lockReason(game) || atlasRun.blockReason();
         if (!map) return `<section class="atlas-device" aria-label="지도 장치"><h3>지도 장치</h3><p class="atlas-muted">${ledger().stash.length
             ? '보관함이나 노드에서 지도석을 고르세요.' : '지도석이 없습니다. 혼돈 20 이상에서 보스를 잡거나 이번 루프의 혼돈 20을 깨면 들어옵니다.'}</p>${fragmentsHtml()}</section>`;
         const crafts = CRAFT_ORDER.map(key => craftButtonHtml(map, key)).join('');
@@ -196,7 +208,7 @@ const atlasUi = (() => {
     }
     /** 정점: 입장권 4종 · 씨앗 · 열기. 지도석이 아니라 입장권으로 연다. */
     function pinnacleHtml(node) {
-        const tier = atlas.effectiveTier(game, node), reason = atlas.pinnacleReason(game), busy = !!ledger().run;
+        const tier = atlas.effectiveTier(game, node), reason = atlas.pinnacleReason(game) || atlasRun.blockReason(), busy = !!ledger().run;
         const tickets = ATLAS.pinnacle.tickets.map(key => `<span class="${(game.currencies[key] || 0) >= 1 ? 'is-on' : ''}">${TICKET(key)} ${Math.floor(game.currencies[key] || 0)}</span>`).join('');
         return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>정점 · 세계수 씨앗 ${ledger().seeds}/${ATLAS.seeds.max}</small><h3>${escapeHTML(node.name)}</h3>
             <p>${tier}등급 · 투기장 · 보스 ${ATLAS.pinnacle.stages}단계</p><div class="atlas-tickets">${tickets}</div>
@@ -216,8 +228,9 @@ const atlasUi = (() => {
             ${maps.length ? `<div class="atlas-stash-list">${maps.map(stashRowHtml).join('')}</div>` : '<p class="atlas-muted">비어 있습니다. 보관함은 루프마다 비워집니다.</p>'}</section>`;
     }
     function resultHtml() {
-        const result = ledger().lastResult, receipt = game.explorationLoot;
+        const result = ledger().lastResult;
         if (!result) return '';
+        const receipt = result.loot;
         const notes = [result.first && '첫 완료', result.bonus && '보너스 달성', result.drops && `지도석 ${result.drops}개`,
             result.fragments && `각인 ${result.fragments}개`].filter(Boolean).join(' · ');
         const currencies = receipt ? Object.entries(receipt.currencies).map(([key, n]) => `<span>${window.getStyledOrbName(key)} <b>+${n}</b></span>`).join('') : '';
@@ -242,8 +255,8 @@ const atlasUi = (() => {
         const panel = document.getElementById('ui-atlas');
         if (!panel || !panelOpen()) return;
         atlas.sync(game);
-        const craftWallet = CRAFT_ORDER.map(key => game.currencies[key] || 0);
-        const key = JSON.stringify([view, ledger(), selectedNode, selectedUid, craftWallet, game.explorationLoot, game.currentZoneId, getPersistentBuildSignature(game)]);
+        const wallet = [...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0);
+        const key = JSON.stringify([view, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, getPersistentBuildSignature(game)]);
         if (key === signature && panel.innerHTML) return;
         signature = key;
         const lock = atlas.lockReason(game);
@@ -255,7 +268,8 @@ const atlasUi = (() => {
     function updateHud(zone) {
         const host = document.getElementById('ui-atlas-combat');
         if (!host) return;
-        const run = ledger().run, show = !!run && zone && zone.type === 'atlasMap';
+        // The settlement pause still shows the cleared map; the next map's HUD waits until the hero enters it.
+        const run = ledger().run, show = !!run && zone && zone.type === 'atlasMap' && !actExplorationState.current(game)?.departure;
         host.toggleAttribute('hidden', !show);
         if (!show) { hudSignature = ''; return; }
         const key = JSON.stringify([run.map.uid, run.portals, run.drops.length, run.found.length]);

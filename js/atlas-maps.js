@@ -124,7 +124,7 @@ const atlasMaps = (() => {
         return mod ? mod.text.replace('{v}', String(modValue(mod, entry.roll))) : '';
     }
     function validHead(raw, validNode) {
-        if (!raw || typeof raw !== 'object' || !validNode(raw.node) || !ATLAS.rarities[raw.rarity]) return false;
+        if (!raw || typeof raw !== 'object' || !validNode(raw.node) || !Object.hasOwn(ATLAS.rarities, raw.rarity)) return false;
         return Number.isSafeInteger(raw.uid) && raw.uid >= 1 && Number.isInteger(raw.tier) && raw.tier >= 1 && raw.tier <= ATLAS.tierCap;
     }
     function validEntry(entry, seen) {

@@ -11,6 +11,7 @@ const atlasPassivesUi = (() => {
         const taken = game.atlas.passives.includes(id);
         const reason = taken ? atlasPassives.refund(game, id) : atlasPassives.allocate(game, id);
         if (reason) return addLog(reason, 'attack-monster');
+        atlas.setLoadout(game, game.atlas.loadout); // refunding the slot passive shrinks the loadout to the slots left
         queueImportantSave(200);
         atlasUi.refresh();
     }

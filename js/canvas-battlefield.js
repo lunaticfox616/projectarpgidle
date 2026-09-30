@@ -1760,6 +1760,11 @@ function drawShrineFallback(ctx, width, height, color) {
     ctx.fill();
 }
 
+/** The board's shrine cells lie anywhere on a wide map (often in walls, off camera): there the shrine waits beside the hero. */
+function shrineDrawCell(cell) {
+    return actExplorationState.current(game) ? { gx: game.gridPlayer.gx + 1, gy: game.gridPlayer.gy - 1 } : cell;
+}
+
 function drawBattlefieldShrine(ctx, gridProj, now, gridScale, cameraShake) {
     let encounter = typeof shrineRuntime !== 'undefined' ? shrineRuntime.getActiveEncounter() : null;
     if (!encounter || !gridProj) {
@@ -1767,7 +1772,7 @@ function drawBattlefieldShrine(ctx, gridProj, now, gridScale, cameraShake) {
         battleVisualState.shrineHovered = false;
         return;
     }
-    let pos = gridProj.cellToScreen(encounter.cell.gx, encounter.cell.gy);
+    let cell = shrineDrawCell(encounter.cell), pos = gridProj.cellToScreen(cell.gx, cell.gy);
     let height = Math.round(88 * clampNumber(gridScale, 0.72, 1.18));
     let width = Math.round(height * 0.8);
     let color = { power: '#ffbd55', guard: '#73d4ff', haste: '#d6f06b' }[encounter.blessing.id] || '#ffd36b';

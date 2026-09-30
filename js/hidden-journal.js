@@ -34,6 +34,13 @@ function startHiddenJournalBossRun(enemy, zone) {
     return true;
 }
 
+/** A wide map's boss is created with its room and waits there: the no-hit / no-flask count starts again when it wakes. */
+function restartHiddenJournalBossRun(enemy, zone) {
+    if (!enemy || !enemy.isBoss) return false;
+    game.hiddenJournalBossRun = null;
+    return startHiddenJournalBossRun(enemy, zone);
+}
+
 function trackHiddenJournalPlayerDamage(amount) {
     let run = game.hiddenJournalBossRun;
     let damage = Math.max(0, Math.floor(Number(amount) || 0));
@@ -78,6 +85,7 @@ function resetHiddenJournalBossRun() {
 
 safeExposeGlobals({
     startHiddenJournalBossRun,
+    restartHiddenJournalBossRun,
     trackHiddenJournalPlayerDamage,
     trackHiddenJournalFlaskUse,
     trackHiddenJournalAilment,

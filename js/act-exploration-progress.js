@@ -12,9 +12,11 @@ const actExplorationProgress = (() => {
         return true;
     }
     /** Foreground frames and offline combat ticks advance the same 20 ms movement clock. */
+    /** A live run walks; a cleared one (its boss down) only finishes the step it was taking, so the hero can still fight. */
+    const stepsLeft=run=>run.status==='active' || (run.status==='cleared' && !!run.motion);
     function tick(now,stats) {
         const run=actExplorationState.current(game);
-        if(!run || run.status!=='active')return;
+        if(!run || !stepsLeft(run))return;
         if(game.combatHalted || game.moveTimer>0) {
             actExplorationMotion.rebase(run,now);
             return;
@@ -31,15 +33,15 @@ const actExplorationProgress = (() => {
     }
     function step(run,stats) {
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
-        if(run.motion)return;
+        if(run.motion || run.status!=='active')return;
         const visible=actExplorationState.discover(run,game.gridPlayer),opened=actExplorationState.entrance(run);
-        actExplorationState.engage(game,visible,run.motionTimeMs);
+        wakeBosses(actExplorationState.engage(game,visible,run.motionTimeMs));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
         // The player stands still at the threshold while the boss rises. A fight pauses the automatic walk, never a command.
         if(entrance || (!run.destination && game.enemies.some(enemy=>enemy.hp>0)))return;
-        const target=actExplorationState.destination(run,game.gridPlayer);
+        const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
         walk(run,target,stats);
@@ -63,6 +65,11 @@ const actExplorationProgress = (() => {
         const pack=run.packs.find(row=>row.key===entrance.key);
         addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600});
         return entrance;
+    }
+    /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit, no flask) starts as they wake. */
+    function wakeBosses(woken) {
+        const zone=getZone(game.currentZoneId);
+        for(const enemy of woken)if(enemy.isBoss)restartHiddenJournalBossRun(enemy,zone);
     }
     /** Occupancy matters only when the authoritative hit cell crosses the tile boundary. */
     function canEnterMotionTile(run) {
@@ -99,11 +106,17 @@ const actExplorationProgress = (() => {
     function shouldTrackStall() {
         return !live() && game.moveTimer<=0 && game.enemies.length===0;
     }
+    /** Auto-move off (mode manual) is a choice made in front of the screen: offline replay always walks, with the saved
+     * route preference (직행 · 전체). The run keeps 'manual', so the hero stands again once the player is back. */
+    function runMode(run,state=game) {
+        if(run.mode!=='manual' || !state.isBackgroundCalculation)return run.mode;
+        return state.settings.actExplorationMode==='full' ? 'full' : 'direct';
+    }
     /** The hero neither chases nor sidesteps: a hazard asked for it, auto-move is off, or a move command is under way
      * (the command walks in step; the combat engagement only fights what is in reach). */
     function holdPosition(requested) {
         const run=actExplorationState.current(game);
-        return requested || !!(run && (run.mode==='manual' || run.destination));
+        return requested || !!(run && (runMode(run)==='manual' || run.destination));
     }
     function waiting(state) {
         const run=actExplorationState.current(state);
@@ -131,6 +144,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);actExplorationLoot.discard(run);run.status='failed';}
     }
-    return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

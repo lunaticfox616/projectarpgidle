@@ -94,12 +94,14 @@ assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'storage holds 50')
 assert.strictEqual(run(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0, 0, 0])})`), null, 'a full storage takes no drops');
 assert.strictEqual(run(`(() => { const id = game.stumpBox.board[12]; return stumpBox.unplace(game, id); })()`), false, 'nor items taken off the board');
 run('game.stumpBox.items = game.stumpBox.items.filter(item => item.color !== "chaos");');
-run('game.actExploration = { zoneId: game.currentZoneId }; Math.random = () => 0;');
+run('game.actExploration = { zoneId: game.currentZoneId, act: 1 }; Math.random = () => 0;');
 const before = run('game.stumpBox.items.length');
 run('stumpBox.onEnemyKilled(game, { isBoss: true });');
-assert.strictEqual(run('game.stumpBox.items.length'), before, 'expeditions escrow loot, so the box does not drop there');
+assert.strictEqual(run('game.stumpBox.items.length'), before, 'story-act expeditions escrow loot, so the box does not drop there');
+run('game.actExploration = { zoneId: game.currentZoneId, act: null }; stumpBox.onEnemyKilled(game, { isBoss: true });');
+assert.strictEqual(run('game.stumpBox.items.length'), before + 1, 'a generated map (chaos, realm, the atlas …) drops like the board');
 run('game.actExploration = null; stumpBox.onEnemyKilled(game, { isBoss: true });');
-assert.strictEqual(run('game.stumpBox.items.length'), before + 1, 'outside expeditions a kill can drop');
+assert.strictEqual(run('game.stumpBox.items.length'), before + 2, 'outside expeditions a kill can drop');
 
 // ── 나무꾼 전투 중에는 세팅을 바꾸지 않는다 ─────────────────────────────────────────
 run('game.woodsmanBuildLock = true;');

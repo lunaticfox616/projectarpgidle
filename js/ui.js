@@ -434,7 +434,14 @@ function isBackgroundCombatEligible(state) {
     if ((Number(state.playerHp) || 0) <= 0) return false;
     if (Array.isArray(state.enemies) && state.enemies.some(enemy => enemy && enemy.hp > 0)) return true;
     if (Number(state.moveTimer) > 0) return true;
-    return Array.isArray(state.encounterPlan) && state.encounterPlan.length > 0;
+    return hasBackgroundEncounterWork(state);
+}
+
+/** Work left for a hidden tab to replay: the board's encounter plan, or a wide map still being explored (walking between rooms,
+ * or its settlement pause) — its encounter plan stays empty. */
+function hasBackgroundEncounterWork(state) {
+    if (Array.isArray(state.encounterPlan) && state.encounterPlan.length > 0) return true;
+    return !!actExplorationState.current(state) && !actExplorationProgress.waiting(state);
 }
 
 function isOfflineCombatEligible(state) {
@@ -2753,8 +2760,7 @@ function getColonyWardSlotCost(slot) {
 
 function formatColonyWardCost(cost) {
     if (!cost) return '최대 해금';
-    let names = { colonyShard: '군락지 편린', colonyTrace: '군락지 흔적' };
-    return Object.keys(cost).map(key => `${names[key] || key} ${Math.floor(game.currencies[key] || 0)}/${cost[key]}`).join(' · ');
+    return Object.keys(cost).map(key => `${getCurrencyInfo(key).name} ${Math.floor(game.currencies[key] || 0)}/${cost[key]}`).join(' · ');
 }
 
 function canPayColonyWardCost(cost) {
@@ -6314,6 +6320,15 @@ function ensureInitialHeroSelection() {
         title: '시작 직업 선택',
         body: '첫 루프에서 사용할 직업을 선택하세요.'
     });
+}
+
+/** A save swapped in under an open class pick (a cloud save on a new device) that already has its class closes that stale pick;
+ * a pending loop class is asked again by loopAutomationUi. A save without a class keeps the start pick open. */
+function resetHeroSelectionForSave() {
+    const overlay = document.getElementById('loop-hero-select-overlay');
+    if (!game.heroSelectionInitialized || !overlay || !overlay.classList.contains('active')) return;
+    overlay.classList.remove('active');
+    loopHeroSelectionCallback = null;
 }
 
 function playLoopRewriteEffect() {
@@ -11015,7 +11030,7 @@ function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
 }
 
 function getStyledOrbName(orbKey) {
-    let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
+    let name = getCurrencyInfo(orbKey).name;
     if (orbKey === 'magicBud') return `<span class="orb-tone" style="--orb-tone:#9fd3ff;">${name}</span>`;
     if (orbKey === 'sapBud' || orbKey === 'blightSpore' || orbKey === 'blessing') return `<span class="orb-tone" style="--orb-tone:#ffe07a;">${name}</span>`;
     if (orbKey === 'formlessDew' || orbKey === 'pruningShears') return `<span class="orb-tone" style="--orb-tone:#ffbc8a;">${name}</span>`;
@@ -14338,6 +14353,7 @@ function applyExternalSave(snapshot, sourceStamp) {
         throw new Error('클라우드 저장을 로컬에 기록하지 못했습니다.');
     }
     recoverRuntimeState();
+    resetHeroSelectionForSave();
     refreshPassiveVisibility();
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
