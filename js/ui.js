@@ -12120,6 +12120,13 @@ function closePatchNotes() {
     if (overlay) overlay.classList.remove('active');
 }
 
+// Esc로 패치 노트를 닫는다(창 관리자의 Esc는 이 판이 떠 있으면 아래 창을 닫지 않고 비켜 준다).
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !document.getElementById('patch-notes-overlay')?.classList.contains('active')) return;
+    event.preventDefault();
+    closePatchNotes();
+});
+
 function renderPatchNotes() {
     if (__patchNotesCache) {
         applyPatchNotesHTML(buildPatchNotesHTML(__patchNotesCache));

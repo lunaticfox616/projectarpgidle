@@ -140,6 +140,10 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .equipment-preset-slot > span { display: none; }
 :root body[data-ui-skin] .equipment-preset-slot > :is(strong, small) { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 
+/* 패치 노트 · 자동 환생 안내: em 배율(9.6 · 10 · 10.7px)은 도트 글꼴이 번져 정수로 */
+:root body[data-ui-skin] :is(.patch-note-list li, .patch-note-empty, .patch-note-date, .loop-automation small) { font-size: 12px; }
+:root body[data-ui-skin] .patch-note-version { font-size: 15px; }
+
 /* 긴 글(이야기·대화·설명)은 갈무리 15px */
 :root body[data-ui-skin] :is(.tutorial-body, .story-journal-text, .journal-entry-text, .game-dialog-body) {
   font-family: var(--font-pixel-read);
