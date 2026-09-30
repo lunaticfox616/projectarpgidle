@@ -178,32 +178,38 @@ function insetFrame() {
         return depth === 1 ? (x + y < last ? '#0a0605' : WOOD[5]) : null;
     });
 }
-/** Tileable value noise: a cells×cells lattice over a size×size tile, smoothed. */
-function valueNoise(size, cells, seed) {
-    const at = (i, j) => speck(((i % cells) + cells) % cells, ((j % cells) + cells) % cells, seed);
+/** Tileable value noise over a w×h tile: a cx×cy lattice, smoothed. */
+function valueNoise(w, h, cx, cy, seed) {
+    const at = (i, j) => speck(((i % cx) + cx) % cx, ((j % cy) + cy) % cy, seed);
     const ease = v => v * v * (3 - 2 * v);
     return (x, y) => {
-        const fx = x / size * cells, fy = y / size * cells, i = Math.floor(fx), j = Math.floor(fy), u = ease(fx - i), v = ease(fy - j);
+        const fx = x / w * cx, fy = y / h * cy, i = Math.floor(fx), j = Math.floor(fy), u = ease(fx - i), v = ease(fy - j);
         const top = at(i, j) + (at(i + 1, j) - at(i, j)) * u, bottom = at(i, j + 1) + (at(i + 1, j + 1) - at(i, j + 1)) * u;
         return top + (bottom - top) * v;
     };
 }
-/** 창 바탕: 거친 판 한 장(64도트, 되풀이해도 이음새가 없게). 너비가 다른 판 셋 · 흐린 이음매 · 굽이치는 결 · 옅은 얼룩 · 옹이 하나. */
-const SLAB = 64, SEAMS = [0, 23, 44], KNOT_AT = { x: 34, y: 18 };
-function slab(shade) {
-    const blotch = valueNoise(SLAB, 4, 11), drift = valueNoise(SLAB, 8, 23), turn = 2 * Math.PI / SLAB;
-    return png(SLAB, SLAB, (x, y) => {
-        if (SEAMS.includes(x)) return tone(WOOD, 1 + shade);
-        const kx = x - KNOT_AT.x, ky = ((y - KNOT_AT.y + SLAB * 1.5) % SLAB) - SLAB / 2, knot = Math.hypot(kx * 1.7, ky);
-        const bend = knot < 9 ? 2.5 * Math.exp(-knot / 4) * Math.sign(kx || 1) : 0;
-        const wobble = .7 * Math.sin(y * turn + x * turn) + .45 * Math.sin(y * turn * 2 + 1.7) + bend;
-        const grain = Math.sin((x + wobble) * turn * 7 + drift(x, y) * 6);
-        let level = 3 + shade + Math.round((blotch(x, y) - .5) * 2.2);
-        if (grain > .9 && speck(x, y, 4) > .12) level -= 1;
-        if (SEAMS.includes(x - 1) && speck(x, y, 2) < .55) level += 1;
-        if (knot < 2.2) level -= knot < 1.2 ? 2 : 1;
-        if (speck(x, y, 7) < .025) level -= 1;
+const bayer4 = (x, y) => [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5][(y % 4) * 4 + (x % 4)] / 16;
+/** 창 바탕의 결(96도트, 되풀이해도 이음새 없음): 이음매 · 옹이 · 흠집 없이 느리게 휘는 가는 결과 아주 옅은 얼룩만.
+ * 눈에 띄는 무늬는 여기 두지 않는다 — 한 타일에 하나라도 있으면 큰 창에서 격자처럼 되풀이되어 보인다. */
+const GRAIN = 96;
+function woodGrain(shade) {
+    const drift = valueNoise(GRAIN, GRAIN, 8, 5, 23), turn = 2 * Math.PI / GRAIN;
+    return png(GRAIN, GRAIN, (x, y) => {
+        const grain = Math.sin(x * turn * 13 + .25 * Math.sin(y * turn + x * turn * 3) + drift(x, y) * 9);
+        let level = 3 + shade;
+        if (grain > .93 && speck(x, y, 4) > .3) level -= 1;
+        const grit = speck(x, y, 7);
+        if (grit < .03) level -= 1;
+        else if (grit > .985) level += 1;
         return tone(WOOD, level);
+    });
+}
+/** 결 위에 겹치는 얼룩 층(240×180도트, 아주 옅게): 크고 흐린 어둠만 드문드문 — 넓은 창에서도 같은 모양이 눈에 띄게 되풀이되지 않는다. */
+function woodStains() {
+    const w = 240, h = 180, stain = valueNoise(w, h, 5, 4, 31);
+    return png(w, h, (x, y) => {
+        const s = stain(x, y);
+        return s > .62 && bayer4(x, y) < (s - .62) * 1.6 ? '#00000014' : null;
     });
 }
 /** 단추 바탕: 가로 결 한 장(32×12). */
@@ -356,9 +362,10 @@ const FILES = {
     'frame-light.png': thinFrame(),
     // 움푹한 칸(입력 · 빈 슬롯): 6도트, 자르기 2.
     'frame-inset.png': insetFrame(),
-    // 바탕: 창의 거친 판(밝은 판 · 제목 줄과 HUD의 어두운 판), 단추의 가로 결 판(보통 · 올렸을 때).
-    'wood.png': slab(0),
-    'wood-dark.png': slab(-1),
+    // 바탕: 창의 결(밝은 판 · 제목 줄과 HUD의 어두운 판) + 주기가 다른 얼룩 층, 단추의 가로 결 판(보통 · 올렸을 때).
+    'wood.png': woodGrain(0),
+    'wood-dark.png': woodGrain(-1),
+    'wood-stains.png': woodStains(),
     'board.png': board(0),
     'board-hot.png': board(1),
     // 하단 HUD 둥근 테(1px 도트, 화면 크기 그대로): 쇠 테에 청동 볼트 여덟. 구슬 PC 96 · 휴대폰 68, 미니맵 PC 136 · 휴대폰 100.

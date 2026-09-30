@@ -40,8 +40,9 @@ body[data-ui-skin] {
   --px-frame-inset: url('../../assets/ui/pixel/frame-inset.png');
   --px-frame-plate: url('../../assets/ui/pixel/frame-plate.png');
   /* 나무: 창 바탕 세로 판자 · 제목 줄과 HUD의 어두운 판 · 버튼의 가로 결 판(올리면 밝은 판). 떠 있는 판은 무늬 없이 어둡게. */
-  --px-wood: url('../../assets/ui/pixel/wood.png') 0 0 / 128px 128px;
-  --px-wood-dark: url('../../assets/ui/pixel/wood-dark.png') 0 0 / 128px 128px;
+  /* 나무 = 두 층: 크고 아주 옅은 얼룩(240×180도트) 위, 무늬 없는 가는 결(96도트) 아래 — 큰 창에서도 되풀이가 눈에 띄지 않게. */
+  --px-wood: url('../../assets/ui/pixel/wood-stains.png') 0 0 / 480px 360px, url('../../assets/ui/pixel/wood.png') 0 0 / 192px 192px;
+  --px-wood-dark: url('../../assets/ui/pixel/wood-stains.png') 170px 110px / 480px 360px, url('../../assets/ui/pixel/wood-dark.png') 0 0 / 192px 192px;
   /* 창 안쪽 가장자리의 그늘: 흐림 없이 세 단(참고 그림의 깊이) */
   --px-inner-shade: inset 0 0 0 2px rgba(0, 0, 0, .3), inset 0 0 0 4px rgba(0, 0, 0, .18), inset 0 0 0 6px rgba(0, 0, 0, .09);
   --px-board: url('../../assets/ui/pixel/board.png') 0 0 / 64px 24px;
