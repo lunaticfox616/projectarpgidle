@@ -34,7 +34,11 @@
         root.setAttribute('role', 'dialog');
         root.setAttribute('aria-label', '젬 상세');
         root.innerHTML = '<div class="gem-selection-actions"></div><div class="gem-selection-content"></div>';
-        root.addEventListener('toggle', event => { if (event.newState === 'closed') close(); });
+        // 따라 하기 안내가 젬 카드와 상세의 '장착' 단추 사이로 표시를 옮긴다.
+        root.addEventListener('toggle', event => {
+            if (event.newState === 'closed') close();
+            if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
+        });
         root.addEventListener('click', act);
         document.getElementById('tab-skills').append(root);
         return root;

@@ -10698,6 +10698,13 @@ function retreatAfterActDefeat(zone) {
     return target.name;
 }
 
+/** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). */
+function withDirectionParticle(word) {
+    const text = String(word || ''), code = text.charCodeAt(text.length - 1) - 0xAC00;
+    const batchim = code >= 0 && code < 11172 ? code % 28 : 0;
+    return text + (batchim === 0 || batchim === 8 ? '로' : '으로');
+}
+
 /** 물러난 뒤 탐험을 마치면: 덜 올랐으면 지금 액트를 한 번 더, 충분히 올랐으면 기록을 지우고 평소처럼 앞으로 간다. */
 function holdActRetreat(zone) {
     const retreat = game.actRetreat;
@@ -10866,7 +10873,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         lostCurrencies: lostLoot.currencies,
         retreatZoneName: retreatAfterActDefeat(zone)
     };
-    if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${game.lastDeathLog.retreatZoneName}(으)로 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
+    if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);

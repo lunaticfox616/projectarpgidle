@@ -22,7 +22,8 @@ const tutorialActionUi = {
             completed: (current, before) => current > before
         },
         unlock_skills: {
-            selector: '#tab-skills .starter-gem-tutorial-target, #tab-skills .gem-library-card:not(.active):not(.equipment-blocked)',
+            // 젬 상세가 열려 있으면 그 '장착' 단추를, 아니면 첫 스킬 젬 카드를 가리킨다.
+            selector: ['#gem-selection .gem-equip-primary', '#tab-skills .starter-gem-tutorial-target, #tab-skills .gem-library-card:not(.active):not(.equipment-blocked)'],
             title: '스킬 젬 장착',
             body: '젬을 선택해 효과를 확인하고 ‘장착’을 누르세요. 선택한 젬에 따라 자동 전투가 달라집니다.',
             read: () => JSON.stringify([game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills]),
@@ -78,14 +79,22 @@ const tutorialActionUi = {
         const action = this.active;
         if (!action) return;
         if (action.guide.completed(action.guide.read(), action.before)) return this.finish(true);
-        const target = document.querySelector(action.guide.selector);
+        const target = this.findTarget(action.guide.selector);
         this.clearHighlight();
-        if (!target || !target.getClientRects().length) return;
+        if (!target) return;
         target.classList.add('tutorial-action-target');
         const describedBy = target.getAttribute('aria-describedby') || '';
         target.setAttribute('aria-describedby', (describedBy + ' tutorial-action-description').trim());
         this.highlighted = target;
         this.card.classList.toggle('at-top', target.getBoundingClientRect().top > innerHeight / 2);
+    },
+    /** 먼저 적은 자리부터 화면에 보이는 첫 요소(selector는 문자열 하나 또는 우선순위 배열). */
+    findTarget(selectors) {
+        for (const selector of [].concat(selectors)) {
+            const found = [...document.querySelectorAll(selector)].find(el => el.getClientRects().length);
+            if (found) return found;
+        }
+        return null;
     },
     clearHighlight() {
         const target = this.highlighted;

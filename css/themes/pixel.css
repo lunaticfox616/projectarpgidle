@@ -47,7 +47,8 @@ body[data-ui-skin] {
   --px-inner-shade: inset 0 0 0 1px rgba(0, 0, 0, .3), inset 0 0 0 2px rgba(0, 0, 0, .15);
   --px-board: url('../../assets/ui/pixel/hud-panel.png') 0 0 / 64px 64px;
   --px-board-hot: linear-gradient(rgba(236, 196, 118, .07), rgba(236, 196, 118, .07)), url('../../assets/ui/pixel/hud-panel.png') 0 0 / 64px 64px;
-  --px-panel: rgba(26, 24, 30, .96);
+  /* 가벼운 판(툴팁 · 안내 카드 · 목표 판)은 불투명: 4%만 비쳐도 아래 창의 밝은 글씨가 판 위에 겹쳐 보였다. */
+  --px-panel: #1a181e;
   /* 창 테: 모서리 매듭 조각 26도트를 한 도트 1px로(좁은 화면은 0.5px). 가벼운 판은 4도트 빗면, 판(HUD · 로고)은 창과 같은 테. */
   --px-window-border: 26px;
   --px-window-frame: var(--px-frame-heavy) 26 / var(--px-window-border) / 0 stretch;

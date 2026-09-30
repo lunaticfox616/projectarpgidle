@@ -47,6 +47,8 @@ test('a new warrior earns and equips the first gem through visible controls', as
         throw error;
     });
     await page.locator('.starter-gem-tutorial-target').click();
+    // The coach mark follows into the detail popover: its 장착 button is what the player presses next.
+    await expect(page.locator('#gem-selection .gem-equip-primary')).toHaveClass(/tutorial-action-target/);
     await page.locator('#gem-selection').getByRole('button', { name: '장착', exact: true }).click();
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
     await expect(page.locator('#game-toast-region')).toContainText('스킬 젬 장착 완료');

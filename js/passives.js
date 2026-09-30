@@ -6183,7 +6183,7 @@ function openDeathOverlay(log) {
     };
     document.getElementById('deathlog-title').innerText = '전투에서 쓰러졌습니다.';
     document.getElementById('deathlog-body').innerText = [describeDamage(), `경험치를 ${log.expLost} 잃었습니다.`, describeDeathLootLoss(log),
-        log.retreatZoneName ? `${log.retreatZoneName}(으)로 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.` : '', `죽기 전 상태이상: ${ailmentText}`].filter(Boolean).join('\n');
+        log.retreatZoneName ? `${withDirectionParticle(log.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.` : '', `죽기 전 상태이상: ${ailmentText}`].filter(Boolean).join('\n');
     document.querySelectorAll('[data-deathlog-view]').forEach(tab => { tab.onclick = () => setDeathLogView(tab.dataset.deathlogView); });
     setDeathLogView('element');
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
