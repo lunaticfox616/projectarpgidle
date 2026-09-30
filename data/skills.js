@@ -427,55 +427,6 @@ const SKILL_GRID_DB = {
 safeExposeData({ SKILL_GRID_DB });
 
 
-const CONDITION_GEM_DB = {
-  curse: [
-    { name:'재의 표식', type:'curse', castTime:1.1, duration:6, tags:['fire','curse'], desc:'화염 취약 저주.' },
-    { name:'빙결의 낙인', type:'curse', castTime:1.1, duration:6, tags:['cold','curse'], desc:'냉기 취약 저주.' },
-    { name:'감전 문양', type:'curse', castTime:1.1, duration:6, tags:['lightning','curse'], desc:'번개 취약 저주.' },
-    { name:'부패 각인', type:'curse', castTime:1.1, duration:6, tags:['chaos','curse'], desc:'카오스 취약 저주.' },
-    { name:'균열 저주', type:'curse', castTime:1.2, duration:7, tags:['physical','curse'], desc:'방어 약화 저주.' },
-    { name:'취약의 낙인', type:'curse', castTime:1.1, duration:7, tags:['physical','curse'], desc:'받는 피해 증가.' },
-    { name:'파멸 징표', type:'curse', castTime:1.3, duration:5, tags:['chaos','curse'], desc:'후반 폭증 저주.' },
-    { name:'쇠약의 기도', type:'curse', castTime:1.0, duration:8, tags:['cold','curse'], desc:'적 공세 둔화.' },
-    { name:'타오른 죄책', type:'curse', castTime:1.0, duration:7, tags:['fire','curse'], desc:'점화 증폭.' },
-    { name:'천둥 포박', type:'curse', castTime:1.2, duration:6, tags:['lightning','curse'], desc:'감전 확률 증가.' },
-    { name:'절단의 맹세', type:'curse', castTime:1.2, duration:6, tags:['physical','curse'], desc:'물리 취약.' },
-    { name:'심연 고리', type:'curse', castTime:1.2, duration:7, tags:['chaos','curse'], desc:'저항 침식.' },
-    { name:'상처 악화', type:'curse', castTime:1.0, duration:7, tags:['physical','curse'], desc:'생명력 재생 약화.' },
-    { name:'약점 조준', type:'curse', castTime:1.1, duration:6, tags:['projectile','curse'], desc:'투사체 취약 유발.' }
-  ],
-  warcry: [
-    { name:'전장의 함성', type:'warcry', castTime:1.8, duration:5, tags:['physical','warcry'], desc:'치명 버프.' },
-    { name:'피의 함성', type:'warcry', castTime:2.0, duration:6, tags:['chaos','warcry'], desc:'흡혈 버프.' },
-    { name:'추적자의 함성', type:'warcry', castTime:1.7, duration:4, tags:['lightning','warcry'], desc:'추적 강화.' },
-    { name:'용광의 외침', type:'warcry', castTime:1.9, duration:5, tags:['fire','warcry'], desc:'화염 강화.' },
-    { name:'빙하의 포효', type:'warcry', castTime:1.9, duration:5, tags:['cold','warcry'], desc:'냉기 강화.' },
-    { name:'폭풍의 고함', type:'warcry', castTime:1.8, duration:5, tags:['lightning','warcry'], desc:'번개 강화.' },
-    { name:'공허의 외침', type:'warcry', castTime:2.1, duration:5, tags:['chaos','warcry'], desc:'카오스 강화.' },
-    { name:'결전 신호', type:'warcry', castTime:2.2, duration:4, tags:['physical','warcry'], desc:'보스전 버프.' },
-    { name:'지진의 함성', type:'warcry', castTime:2.0, duration:5, tags:['physical','warcry','slam'], desc:'강타 후속 타격.' }
-  ],
-  guard: [
-    { name:'원소 장막', type:'guard', castTime:0.6, duration:2.2, tags:['elemental','guard'], desc:'원소 저항 보호막.' },
-    { name:'가시 방패', type:'guard', castTime:0.7, duration:3, tags:['physical','guard'], desc:'가시 반격 보호막.' },
-    { name:'현무 장막', type:'guard', castTime:0.6, duration:2.2, tags:['elemental','guard'], desc:'(구) 원소 장막.' },
-    { name:'응보 방패', type:'guard', castTime:0.7, duration:3, tags:['physical','guard'], desc:'(구) 가시 방패.' },
-    { name:'철의 맹세', type:'guard', castTime:0.6, duration:4, tags:['physical','guard'], desc:'물리 피해 감소.' },
-    { name:'서리 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['cold','guard'], desc:'냉기 보호막.' },
-    { name:'폭풍 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['lightning','guard'], desc:'번개 보호막.' },
-    { name:'심연 껍질', type:'guard', castTime:0.7, duration:2.8, tags:['chaos','guard'], desc:'카오스 보호막.' },
-    { name:'용암 벽', type:'guard', castTime:0.6, duration:2.6, tags:['fire','guard'], desc:'점화 대응 보호막.' },
-    { name:'이독제독', type:'guard', castTime:0.7, duration:3.2, tags:['chaos','guard'], desc:'중독 반전 보호막.' },
-    { name:'불멸의 힘', type:'guard', castTime:0.8, duration:4.0, tags:['physical','guard'], desc:'지연 재생 보호막.' },
-    { name:'에너지 과다', type:'guard', castTime:0.7, duration:3.5, tags:['lightning','guard'], desc:'에너지 보호막 과충전.' },
-    { name:'무혈', type:'guard', castTime:0.7, duration:3.0, tags:['physical','guard'], desc:'출혈 차단 보호막.' }
-  ],
-  utility: [
-    { name:'긴급 회피', type:'utility', castTime:0.18, duration:0, evadeRange:3, tags:['utility','mobility'], desc:'예고된 보스 공격 범위 밖의 안전한 칸으로 최대 3칸 이동합니다. 동결·기절·속박 중이거나 탈출로가 없으면 발동하지 않습니다. 무적 효과는 없습니다.' },
-    { name:'귀환 젬', type:'utility', castTime:1.6, duration:0, tags:['utility'], desc:'귀환 버튼과 동일하게 거점으로 돌아갑니다.' }
-  ]
-};
-
 const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
   { id:'hp_below', label:'생명력 이하', valueKind:'percent', unlock:{ loop:2 } },
   { id:'hp_above', label:'생명력 이상', valueKind:'percent', unlock:{ loop:2 } },
@@ -496,14 +447,15 @@ const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
 ]);
 
 const CONDITION_PATTERN_ACTION_DB = Object.freeze([
-  { id:'condition_gem', label:'컨디션 젬 시전', valueKind:'gem', unlock:{ loop:2 } },
   { id:'target_nearest', label:'가장 가까운 적 우선', valueKind:'none', tactic:{ targetPriority:'nearest' }, unlock:{ act:3 } },
   { id:'target_weakest', label:'약한 적 마무리', valueKind:'none', tactic:{ targetPriority:'weakest' }, unlock:{ loop:5 } },
   { id:'target_dangerous', label:'위험한 적 우선', valueKind:'none', tactic:{ targetPriority:'dangerous' }, unlock:{ loop:8 } },
   { id:'target_dense', label:'밀집 지역 우선', valueKind:'none', tactic:{ targetPriority:'dense' }, unlock:{ loop:10 } },
   { id:'position_auto', label:'기본 위치 운용', valueKind:'none', tactic:{ positionMode:'auto' }, unlock:{ act:3 } },
   { id:'position_pressure', label:'근접 압박', valueKind:'none', tactic:{ positionMode:'pressure' }, unlock:{ loop:8 } },
-  { id:'position_keep_range', label:'거리 유지', valueKind:'none', tactic:{ positionMode:'keepRange' }, unlock:{ loop:10 } }
+  { id:'position_keep_range', label:'거리 유지', valueKind:'none', tactic:{ positionMode:'keepRange' }, unlock:{ loop:10 } },
+  // 예전 귀환 젬: 조건이 맞으면 마을로 돌아간다(5초에 한 번, 열린 지도의 마지막 포털은 쓰지 않는다).
+  { id:'return_town', label:'마을로 귀환', valueKind:'none', cooldownMs:5000, unlock:{ act:3 } }
 ]);
 
-safeExposeData({ CONDITION_GEM_DB, CONDITION_PATTERN_TRIGGER_DB, CONDITION_PATTERN_ACTION_DB });
+safeExposeData({ CONDITION_PATTERN_TRIGGER_DB, CONDITION_PATTERN_ACTION_DB });

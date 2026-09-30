@@ -52,7 +52,8 @@ const contentUnlockUi = {
             }
             for (const route of def.routes || []) this.syncRoute(route, locked);
         }
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks']) this.syncRoute(route, !contentProgression.canOpen(route));
+        // 해금 목록 항목 없이 진행 조건으로만 열리는 경로(전술 규칙: 루프 2 · 액트 3 전술).
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'skill-tab-condition']) this.syncRoute(route, !contentProgression.canOpen(route));
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
         this.resetClosedSelection('skillSubtab', 'skill-tab-equip', '#tab-skills');
         this.resetClosedSelection('mapSubtab', 'map-tab-zones', '#tab-map');

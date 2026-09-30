@@ -41,7 +41,7 @@ const files = [
   'js/items.js',
   'js/equipment-crafting.js',
   'js/star-wedge.js', 'js/passives.js',
-  'js/loot.js',
+  'js/loot.js', 'js/gem-drop-rewards.js',
   'js/unique-hunt.js',
   'js/shrines.js',
   'js/growth-board.js',

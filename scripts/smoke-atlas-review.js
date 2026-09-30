@@ -90,11 +90,11 @@ assert.equal(run('game.atlas.run.portals'), portals, 'leaving during the pause s
 for (let n = 0; n < 200 && run('!!(game.actExploration && game.actExploration.departure)'); n++) advance();
 run('game.atlas.autoMap=false;');
 
-// ---------------------------------------------------------------- 귀환 젬, a closed map, the defeat order
+// ---------------------------------------------------------------- 마을 귀환 규칙(예전 귀환 젬), a closed map, the defeat order
 until(`game.currentZoneId === 'atlas_map' && game.moveTimer <= 0`, 400, 'in the next map');
-run('game.atlas.run.portals=1;returnToTownByConditionGem();');
-assert.equal(run('game.atlas.run && game.atlas.run.portals'), 1, '귀환 젬 never spends the last portal (it would close the map)');
-run('game.atlas.run.portals=2;returnToTownByConditionGem();');
+run('game.atlas.run.portals=1;returnToTownByRule();');
+assert.equal(run('game.atlas.run && game.atlas.run.portals'), 1, 'the return rule never spends the last portal (it would close the map)');
+run('game.atlas.run.portals=2;returnToTownByRule();');
 assert.equal(run('game.atlas.run.portals'), 1, 'with more left it returns as before');
 run(`game.atlas.run.portals=1;handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),'test',{noToast:true});`);
 assert.equal(run('game.atlas.run'), null, 'the last portal closes the map');

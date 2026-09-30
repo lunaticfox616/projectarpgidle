@@ -744,10 +744,6 @@ installRuntimeFunctionFallback("confirmLoopReady", function confirmLoopReadyFall
     // The real handler consumes pendingLoopReady. Keep the flag intact while this queued fallback waits.
 }, { queue: true });
 installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {}, { queue: true });
-installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {
-    return {};
-});
-
 installRuntimeFunctionFallback("getGemPresentation", function getGemPresentationFallback(name, isSupport) {
     let db = isSupport
         ? ((typeof SUPPORT_GEM_DB !== "undefined" && SUPPORT_GEM_DB && SUPPORT_GEM_DB[name]) || {})

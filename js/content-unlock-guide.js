@@ -61,17 +61,6 @@
         });
     }
 
-    function conditionGemGuide(state) {
-        if (Math.max(1, count(state.season) || 1) < 2 || state.conditionGemUnlocked) return null;
-        let bossClears = Array.isArray(state.clearedRootBosses) ? state.clearedRootBosses.length : 0;
-        return guide({
-            id: 'condition-gem', title: '컨디션 젬',
-            description: '루프 2의 뿌리 보스를 처음 처치하면 전투 조건 설정이 열립니다.',
-            requirements: [requirement('루프 2', true), requirement('뿌리 보스 처치', bossClears > 0)],
-            actionLabel: '뿌리 보스 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-root-boss'
-        });
-    }
-
     function eventUnlockGuide(state) {
         let loop = Math.max(1, count(state.season) || 1);
         if (loop >= 4 && !state.gemEnhanceUnlocked) return guide({
@@ -231,7 +220,7 @@
 
     function getNextLegacyContentUnlock(state) {
         let loop = Math.max(1, count(state.season) || 1);
-        const candidates = [conditionGemGuide, eventUnlockGuide, chaosRealmGuide, skyTowerGuide];
+        const candidates = [eventUnlockGuide, chaosRealmGuide, skyTowerGuide];
         if (loop >= 18) candidates.push(underworldGuide, coreGuide, cosmosGuide);
         if (tabUnlocked(state, 'map-tab-cosmos') && loop >= 31) candidates.push(astraGuide, pinnacleGuide);
         for (const candidate of candidates) {

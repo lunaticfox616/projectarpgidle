@@ -160,12 +160,17 @@ const effectsWith = (hp, enemies, extra = '') => json(`(() => { game.playerHp = 
 assert.deepStrictEqual(effectsWith(60, [{ id: 1, hp: 5 }]), [], 'no condition holds');
 assert.deepStrictEqual(effectsWith(40, [{ id: 1, hp: 5, isBoss: true }]),
     [['talisman:cry_boss', 'warcry', { pctDmg: 20 }], ['talisman:guard_low_life', 'guard', { dr: 9 }]], 'boss fight at low life');
+awake({ name: '약한 함성 부적', rarity: 'magic', lines: [{ kind: 'condition', id: 'cry_boss', value: 15 }] }, 18);
+assert.deepStrictEqual(effectsWith(40, [{ id: 1, hp: 5, isBoss: true }]),
+    [['talisman:cry_boss', 'warcry', { pctDmg: 20 }], ['talisman:guard_low_life', 'guard', { dr: 9 }]],
+    'the same line on two talismans does not stack: only the strongest applies (예전 같은 함성 재시전 규칙)');
 assert.deepStrictEqual(effectsWith(100, [{ id: 1, hp: 5 }, { id: 2, hp: 5 }, { id: 3, hp: 5 }, { id: 4, hp: 0 }]),
     [['talisman:cry_full_life', 'warcry', { crit: 3 }], ['talisman:cry_crowd', 'warcry', { aspd: 8 }]], 'three living enemies at full life (board order)');
 assert.deepStrictEqual(effectsWith(40, [{ id: 1, hp: 5, isBoss: true }], ', uniqueClosedEyes: true'), [], '질끈 감은 눈 shuts conditions off');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-assert(combatSource.includes('runConditionGemAutoRules(pStats); talismanCombat.applyHexes(pStats, getCombatTime());'), 'curses tick with the condition rules');
-assert(combatSource.includes('})).concat(talismanCombat.effects(pStats));'), 'guard and warcry lines join the condition effects');
+assert(combatSource.includes('expireConditionEffects(getCombatTime()); runReturnRules(pStats); talismanCombat.applyHexes(pStats, getCombatTime());'),
+    'curses expire and tick every combat tick');
+assert(combatSource.includes('let activeConditionEffects = talismanCombat.effects(pStats);'), 'guard and warcry lines are the condition effects');
 
 clearBoard();
 awake({ name: '저주 부적', rarity: 'rare', lines: [{ kind: 'condition', id: 'hex_vulnerable', value: 10 }, { kind: 'condition', id: 'hex_enfeeble', value: 10 }] }, 12);
@@ -239,6 +244,9 @@ const detail = run(`stumpTalismanUi.detailHtml(stumpBox.itemById(game, ${shown})
 assert(detail.includes('희귀 부적') && detail.includes('8초마다 적 하나를 저주: 6초 동안 원소 저항 −9') && detail.includes('talisman-wax'), 'detail: rarity, lines, wax');
 assert(!detail.includes('talisman-discard'), 'a placed talisman cannot be thrown away from the detail');
 assert(run('stumpTalismanUi.summaryHtml()').includes('깨어난 부적'));
+awake({ name: '함성 부적', rarity: 'magic', lines: [{ kind: 'condition', id: 'cry_battlefield', value: 80 }] }, 6);
+assert(run('stumpTalismanUi.summaryHtml()').includes('보스와 싸우는 동안 전장의 함성(위력 80%): 피해 +12.8%'),
+    'the summary describes gem lines (예전 컨디션 젬) that carry a delta instead of a text');
 const html = fs.readFileSync('index.html', 'utf8');
 assert(html.includes('id="stump-box-unseal"') && !html.includes('id="tab-talisman"') && !html.includes('btn-tab-talisman'), 'the talisman window is gone; unsealing lives in the stump box');
 

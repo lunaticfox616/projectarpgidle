@@ -3,11 +3,14 @@
  * main gem has nothing in reach but the mobility gem does (it closes the gap), then waits out its cooldown. The cast runs with the mobility gem's own stats, grid and native cast state — swapped into the
  * main slot for the synchronous call and swapped back — so every rule the gem already has applies unchanged, and the
  * main gem's casts in flight are never touched. Combat owns damage and movement; this only decides when to cast.
+ * 예전 긴급 회피(2026-09-30): 보스 예고 범위가 영웅의 칸에 걸리면 먼저 그 범위 밖 가장 가까운 칸(3칸 이내)으로 피하고,
+ * 이동 젬의 재사용 대기를 쓴다. 동결 · 기절 · 속박 중이거나 탈출로가 없으면 피하지 않고 대기도 쓰지 않는다.
  */
 const mobilitySkill = (() => {
     const DEFAULT_COOLDOWN_MS = 4000;
     const RETRY_MS = 400;
     const REQUEST_MS = 1500; // a pressed key waits this long for the caster to be free (a cast delay, a hazard)
+    const EVADE_RANGE = 3;
     let runtime = null, cooldownUntil = 0, lastStats = null, swappedMain = null, requestedAt = null;
 
     function isMobilityGem(name) {
@@ -59,12 +62,32 @@ const mobilitySkill = (() => {
         return !gate.blocked && wanted(gate, now) && now >= cooldownUntil && game.playerHp > 0 && !game.combatHalted
             && canUseSkillWithCurrentEquipment(name);
     }
+    /** The way out of a boss warning on the hero's cell: the nearest safe cell within reach, or null. */
+    function evadeRoute() {
+        if (!isPlayerThreatenedByBoss(game) || hasPlayerChannelBreakingAilment()) return null;
+        const route = findNearestSafeGridRoute(game.gridPlayer, getBossWarningCells(game, pendingEnemyCombatAttacks));
+        return route && route.distance > 0 && route.distance <= EVADE_RANGE ? route : null;
+    }
+    function evade(name, now) {
+        const route = evadeRoute();
+        if (!route) return false;
+        const from = { gx: game.gridPlayer.gx, gy: game.gridPlayer.gy };
+        actExplorationMotion.cancel(game.actExploration);
+        Object.assign(game.gridPlayer, route.destination, { gridMoveTimer: 0 });
+        combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + 180);
+        addBattleFx('playerMobility', { fromCell: from, toCell: route.destination, duration: 180 });
+        cooldownUntil = now + cooldownMs(name);
+        requestedAt = null;
+        return true;
+    }
     /** After the main attack loop. gate: { blocked, inRange, auto } — the main cast delay or a hazard, whether the main gem
      * already reaches an enemy, and whether auto-move is on (the gap-closer is part of moving by itself).
      * True when the mobility gem was cast. */
     function cast(gate) {
         const name = equipped(), now = getCombatTime();
-        if (!name || !ready(name, gate, now) || !reachable(name)) return false;
+        if (!name || now < cooldownUntil || game.playerHp <= 0 || game.combatHalted) return false;
+        if (evade(name, now)) return true;
+        if (!ready(name, gate, now) || !reachable(name)) return false;
         return withGem(name, () => {
             const stats = getPlayerStats(false);
             if (!getSkillTargets(stats).length) { cooldownUntil = now + RETRY_MS; return false; }

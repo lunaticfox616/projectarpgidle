@@ -77,10 +77,18 @@ const contentProgression = (() => {
         return owner.season >= 2 || owner.maxZoneId >= 1 || owner.unlocks.map || owner.contentProgression.legacy === true;
     }
 
+    // Menus that follow world progress instead of a catalog purchase.
+    const progressRoutes = {
+        'tab-map': canOpenMap,
+        'tab-season': owner => owner.season >= 2,
+        'tab-unlocks': owner => owner.season >= 2,
+        // 전술 규칙(예전 컨디션 젬 창의 자동 사용 규칙): 규칙 조건이 루프 2부터 열리고, 전술은 액트 3에서 배운다.
+        'skill-tab-condition': owner => owner.season >= 2 && !!owner.combatTacticsUnlocked
+    };
+
     function canOpen(route, owner = game) {
         if (!owner.contentProgression || !route || coreRoutes.has(route)) return true;
-        if (route === 'tab-map') return canOpenMap(owner);
-        if (route === 'tab-season' || route === 'tab-unlocks') return owner.season >= 2;
+        if (progressRoutes[route]) return progressRoutes[route](owner);
         const feature = routes.get(route);
         return !!feature && isUnlocked(feature, owner);
     }
@@ -127,17 +135,8 @@ const contentProgression = (() => {
         state.automatic = [...new Set([...state.automatic, ...automatic])];
     }
 
-    function grantConditionEntryReward(key, owner) {
-        if (!owner.conditionGemPool.includes(key)) owner.conditionGemPool.push(key);
-        owner.conditionGemLevels[key] = Math.max(1, owner.conditionGemLevels[key] || 1);
-        if (!owner.skillAutoRules.length) owner.skillAutoRules.push(normalizeConditionPatternRule({
-            id:'condition-starter', enabled:true, priority:1, triggerType:'boss_warning',
-            actionType:'condition_gem', skillName:key }));
-    }
-
     /** One-time entry rewards share the purchase transaction; load/loop changes never replay them. */
     function grantEntryReward(id, key, owner) {
-        if (id === 'condition') grantConditionEntryReward(key, owner);
         if (id === 'craft') owner.currencies[key]++;
         if (id === 'support') {
             if (hasSupportGemOwned(key, owner)) owner.currencies.gemShard += 8;
@@ -211,12 +210,6 @@ const contentProgression = (() => {
         next.inherited = [...new Set(next.inherited)];
     }
 
-    function migrateConditionEntryReward(record, next, owner) {
-        if ((Number(record.version) || 0) < 3 && [...next.unlocked, ...next.inherited].includes('condition')) {
-            grantConditionEntryReward('긴급 회피', owner);
-        }
-    }
-
     /** Only save-boundary arrays pass here; drop unknown/duplicate content IDs. */
     function savedIds(raw) {
         return [...new Set((Array.isArray(raw) ? raw : []).filter(id => definitions.has(id)))];
@@ -243,7 +236,6 @@ const contentProgression = (() => {
         if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => definitions.get(id).cost > 0)
             && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
-        migrateConditionEntryReward(record, next, owner);
         inheritSplitGrowth(record, next);
         if (next.highestLoop < 2) next.inherited = next.inherited.filter(id => !['flask', 'flaskUtility'].includes(id));
         return next;

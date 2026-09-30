@@ -40,8 +40,12 @@ const TALISMAN_STAT_POOL = Object.freeze([
     { id: 'resAll', min: 3, max: 8, step: 1 }
 ]);
 
-// 조건부 줄(예전 컨디션 젬의 수호 · 함성 · 저주): 수호 · 함성은 조건이 맞는 동안 능력치를 더하고, 저주는 일정 간격으로
-// 적 하나에 걸린다. text의 {v}는 굴린 값.
+// 조건부 줄(예전 컨디션 젬 자리): 수호 · 함성은 조건이 맞는 동안 효과를 더하고, 저주는 8초마다 적 하나에 6초 동안 걸린다.
+// 같은 줄(id)이 여럿이면 가장 센 하나만 쓴다(예전 젬처럼 겹치지 않는다). 두 가지 줄이 있다.
+//   한 가지 능력치 줄: stat(수호 · 함성) 또는 effect · form(저주)에 굴린 값 {v}가 그대로 들어간다.
+//   젬 줄: 예전 컨디션 젬의 효과표(delta)를 그대로 가지고, 굴린 값은 위력 %다(효과표 × 위력 / 100).
+// when: lowLife 생명력 50% 이하 · fullLife 생명력 가득 · boss 보스와 싸우는 중 · crowd 살아 있는 적 3마리 이상.
+const TALISMAN_CONDITION_POWER = Object.freeze({ min: 60, max: 100, step: 5 });
 const TALISMAN_CONDITION_POOL = Object.freeze([
     { id: 'guard_low_life', kind: 'guard', when: 'lowLife', stat: 'dr', min: 6, max: 14, step: 1,
         text: '생명력 50% 이하일 때 받는 물리 피해 감소 +{v}%' },
@@ -53,14 +57,80 @@ const TALISMAN_CONDITION_POOL = Object.freeze([
         text: '적이 3마리 이상이면 공격 속도 +{v}%' },
     { id: 'cry_full_life', kind: 'warcry', when: 'fullLife', stat: 'crit', min: 2, max: 5, step: 0.5,
         text: '생명력이 가득하면 치명타 확률 +{v}%' },
-    { id: 'hex_vulnerable', kind: 'curse', effect: 'enemyTakenMul', min: 5, max: 12, step: 1,
+    { id: 'hex_vulnerable', kind: 'curse', effect: 'enemyTakenMul', form: 'mulUp', min: 5, max: 12, step: 1,
         text: '8초마다 적 하나를 저주: 6초 동안 받는 피해 +{v}%' },
-    { id: 'hex_enfeeble', kind: 'curse', effect: 'enemyDmgMul', min: 6, max: 14, step: 1,
+    { id: 'hex_enfeeble', kind: 'curse', effect: 'enemyDmgMul', form: 'mulDown', min: 6, max: 14, step: 1,
         text: '8초마다 적 하나를 저주: 6초 동안 주는 피해 −{v}%' },
-    { id: 'hex_break', kind: 'curse', effect: 'enemyResShred', min: 6, max: 15, step: 1,
-        text: '8초마다 적 하나를 저주: 6초 동안 원소 저항 −{v}' }
+    { id: 'hex_break', kind: 'curse', effect: 'enemyResShred', form: 'flat', min: 6, max: 15, step: 1,
+        text: '8초마다 적 하나를 저주: 6초 동안 원소 저항 −{v}' },
+    // 수호(생명력 50% 이하)
+    { id: 'guard_elemental_veil', kind: 'guard', when: 'lowLife', name: '원소 장막', ...TALISMAN_CONDITION_POWER, delta: { dr: 22, resAll: 10, maxResAll: 4 } },
+    { id: 'guard_iron_oath', kind: 'guard', when: 'lowLife', name: '철의 맹세', ...TALISMAN_CONDITION_POWER, delta: { dr: 25, aspd: -8, armorMul: 0.2 } },
+    { id: 'guard_frost_wall', kind: 'guard', when: 'lowLife', name: '서리 장벽', ...TALISMAN_CONDITION_POWER,
+        delta: { dr: 14, cleanseChill: 1, cleanseFreeze: 1, immuneChill: 1, immuneFreeze: 1 } },
+    { id: 'guard_storm_wall', kind: 'guard', when: 'lowLife', name: '폭풍 장벽', ...TALISMAN_CONDITION_POWER, delta: { dr: 15, move: 16, aspd: 10, cleanseShock: 1, immuneShock: 1 } },
+    { id: 'guard_abyss_shell', kind: 'guard', when: 'lowLife', name: '심연 껍질', ...TALISMAN_CONDITION_POWER, delta: { dr: 20, regen: 1, resChaos: 12 } },
+    { id: 'guard_lava_wall', kind: 'guard', when: 'lowLife', name: '용암 벽', ...TALISMAN_CONDITION_POWER, delta: { dr: 15, cleanseIgnite: 1, immuneIgnite: 1 } },
+    { id: 'guard_poison_cure', kind: 'guard', when: 'lowLife', name: '이독제독', ...TALISMAN_CONDITION_POWER, delta: { dr: 18, poisonToHeal: 1 } },
+    { id: 'guard_undying', kind: 'guard', when: 'lowLife', name: '불멸의 힘', ...TALISMAN_CONDITION_POWER, delta: { delayedRegenFromTakenDamage: 0.25 } },
+    { id: 'guard_overcharge', kind: 'guard', when: 'lowLife', name: '에너지 과다', ...TALISMAN_CONDITION_POWER,
+        delta: { dr: 10, energyShieldRegen: 12.5, energyShieldRechargeDelayDelta: -0.5 } },
+    { id: 'guard_bloodless', kind: 'guard', when: 'lowLife', name: '무혈', ...TALISMAN_CONDITION_POWER, delta: { dr: 14, cleanseBleed: 1, immuneBleed: 1, disableEnemyLeech: 1 } },
+    // 함성
+    { id: 'cry_battlefield', kind: 'warcry', when: 'boss', name: '전장의 함성', ...TALISMAN_CONDITION_POWER, delta: { pctDmg: 16, aspd: 12, dr: 6, drCapBonus: 3, move: 8 } },
+    { id: 'cry_blood', kind: 'warcry', when: 'fullLife', name: '피의 함성', ...TALISMAN_CONDITION_POWER, delta: { pctDmg: 22, leech: 0.9 } },
+    { id: 'cry_tracker', kind: 'warcry', when: 'crowd', name: '추적자의 함성', ...TALISMAN_CONDITION_POWER, delta: { aspd: 14, targetAny: 1, crit: 6, move: 12 } },
+    { id: 'cry_furnace', kind: 'warcry', when: 'boss', name: '용광의 외침', ...TALISMAN_CONDITION_POWER, delta: { pctDmg: 15, fireBonus: 0.12, leech: 0.4, regen: 0.8 } },
+    { id: 'cry_glacier', kind: 'warcry', when: 'crowd', name: '빙하의 포효', ...TALISMAN_CONDITION_POWER,
+        delta: { pctDmg: 13, coldBonus: 0.12, dr: 8, drCapBonus: 3, energyShieldRegen: 2 } },
+    { id: 'cry_storm', kind: 'warcry', when: 'fullLife', name: '폭풍의 고함', ...TALISMAN_CONDITION_POWER, delta: { aspd: 16, crit: 5 } },
+    { id: 'cry_void', kind: 'warcry', when: 'boss', name: '공허의 외침', ...TALISMAN_CONDITION_POWER, delta: { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 } },
+    { id: 'cry_last_stand', kind: 'warcry', when: 'lowLife', name: '결전 신호', ...TALISMAN_CONDITION_POWER, delta: { pctDmg: 18, dr: -4, critDmg: 30, resPen: 6 } },
+    { id: 'cry_quake', kind: 'warcry', when: 'crowd', name: '지진의 함성', ...TALISMAN_CONDITION_POWER, delta: { slamEchoPct: 0.25, slamEchoDelaySec: 1 } },
+    // 저주
+    { id: 'hex_ash_mark', kind: 'curse', name: '재의 표식', ...TALISMAN_CONDITION_POWER, delta: { enemyResFShred: 10, igniteChanceAdd: 0.15, igniteTakenMul: 1.1 } },
+    { id: 'hex_frost_brand', kind: 'curse', name: '빙결의 낙인', ...TALISMAN_CONDITION_POWER,
+        delta: { enemyResCShred: 10, chillChanceAdd: 0.1, freezeChanceAdd: 0.1, chillTakenMul: 1.1, freezeTakenMul: 1.1 } },
+    { id: 'hex_shock_glyph', kind: 'curse', name: '감전 문양', ...TALISMAN_CONDITION_POWER, delta: { enemyResLShred: 10, shockChanceAdd: 0.1, shockTakenMul: 1.1 } },
+    { id: 'hex_rot_seal', kind: 'curse', name: '부패 각인', ...TALISMAN_CONDITION_POWER, delta: { enemyResChaosShred: 10, poisonChanceAdd: 0.1, poisonTakenMul: 1.1 } },
+    { id: 'hex_rift', kind: 'curse', name: '균열 저주', ...TALISMAN_CONDITION_POWER, delta: { enemyResShred: 15, enemyResChaosShred: 15 } },
+    { id: 'hex_frail_brand', kind: 'curse', name: '취약의 낙인', ...TALISMAN_CONDITION_POWER, delta: { enemyTakenMul: 1.1, enemyCritDmgTakenMul: 1.12 } },
+    { id: 'hex_withering', kind: 'curse', name: '쇠약의 기도', ...TALISMAN_CONDITION_POWER, delta: { enemyDmgMul: 0.9, enemyAspdSlow: 0.1 } },
+    { id: 'hex_burning_guilt', kind: 'curse', name: '타오른 죄책', ...TALISMAN_CONDITION_POWER, delta: { enemyResFShred: 8, fireDotTakenMul: 1.06, igniteTakenMul: 1.06 } },
+    { id: 'hex_thunder_bind', kind: 'curse', name: '천둥 포박', ...TALISMAN_CONDITION_POWER, delta: { enemyLightTakenMul: 1.1, enemyCritDmgTakenMul: 1.1 } },
+    { id: 'hex_severing', kind: 'curse', name: '절단의 맹세', ...TALISMAN_CONDITION_POWER, delta: { enemyPhysDrShred: 10, bleedChanceAdd: 0.1, bleedTakenMul: 1.15 } },
+    { id: 'hex_abyss_ring', kind: 'curse', name: '심연 고리', ...TALISMAN_CONDITION_POWER, delta: { enemyResChaosShred: 10, enemyChaosTakenMul: 1.1 } },
+    { id: 'hex_festering', kind: 'curse', name: '상처 악화', ...TALISMAN_CONDITION_POWER, delta: { enemyRegenRateMul: 0.6 } },
+    { id: 'hex_weak_point', kind: 'curse', name: '약점 조준', ...TALISMAN_CONDITION_POWER, delta: { enemyProjectileTakenMul: 1.1, projectileExtraHits: 2 } }
 ]);
-const TALISMAN_HEX_RULES = Object.freeze({ intervalMs: 8000, durationMs: 6000, lowLifePct: 50, crowdCount: 3 });
+// 젬 줄의 효과 이름과 표시 방식. fixed: 위력과 상관없이 그대로(한도 · 추가 타격 · 대상 수 · 지연 · 면역 같은 것).
+// form: pct(+v%) · fraction(+v×100%) · count(+v) · flag(이름만) · seconds(v초) · minus(−v) · mulUp(+(m−1)%) · mulDown(−(1−m)%).
+const TALISMAN_CONDITION_EFFECTS = Object.freeze({
+    pctDmg: ['피해', 'pct'], aspd: ['공격 속도', 'pct'], dr: ['받는 물리 피해 감소', 'pct'], drCapBonus: ['물리 피해 감소 한도', 'pct', 'fixed'],
+    move: ['이동 속도', 'pct'], leech: ['생명력 흡수', 'pct'], targetAny: ['스킬 대상', 'count', 'fixed'], crit: ['치명타 확률', 'pct'],
+    critDmg: ['치명타 피해', 'pct'], regen: ['초당 생명력 재생', 'pct'], resPen: ['저항 관통', 'pct'], resAll: ['모든 원소 저항', 'pct'],
+    maxResAll: ['원소 저항(한도 밖)', 'pct'], resChaos: ['카오스 저항', 'pct'], armorMul: ['물리 피해 감소에 방어도 비례 추가', 'fraction'],
+    fireBonus: ['화염 스킬 피해', 'fraction'], coldBonus: ['냉기 스킬 피해', 'fraction'], chaosBonus: ['카오스 스킬 피해', 'fraction'],
+    energyShieldRegen: ['에너지 보호막 재생', 'pct'], energyShieldRechargeDelayDelta: ['보호막 재충전 대기', 'seconds', 'fixed'],
+    delayedRegenFromTakenDamage: ['받은 피해를 4초에 걸쳐 되찾음', 'fraction'], poisonToHeal: ['중독이 회복으로 바뀜', 'flag', 'fixed'],
+    disableEnemyLeech: ['적의 흡혈 차단', 'flag', 'fixed'], immuneIgnite: ['점화 면역', 'flag', 'fixed'], immuneChill: ['냉각 면역', 'flag', 'fixed'],
+    immuneFreeze: ['동결 면역', 'flag', 'fixed'], immuneShock: ['감전 면역', 'flag', 'fixed'], immuneBleed: ['출혈 면역', 'flag', 'fixed'],
+    cleanseIgnite: ['', 'flag', 'fixed'], cleanseChill: ['', 'flag', 'fixed'], cleanseFreeze: ['', 'flag', 'fixed'], cleanseShock: ['', 'flag', 'fixed'],
+    cleanseBleed: ['', 'flag', 'fixed'], slamEchoPct: ['강타 후속 타격 피해', 'fraction'], slamEchoDelaySec: ['후속 타격 지연', 'seconds', 'fixed'],
+    enemyResShred: ['원소 저항', 'minus'], enemyResFShred: ['화염 저항', 'minus'], enemyResCShred: ['냉기 저항', 'minus'],
+    enemyResLShred: ['번개 저항', 'minus'], enemyResChaosShred: ['카오스 저항', 'minus'], enemyPhysDrShred: ['물리 피해 감소', 'minus'],
+    enemyTakenMul: ['받는 피해', 'mulUp'], enemyCritDmgTakenMul: ['받는 치명타 피해', 'mulUp'], enemyDmgMul: ['주는 피해', 'mulDown'],
+    enemyAspdSlow: ['공격 속도', 'fractionDown'], enemyRegenRateMul: ['생명력 재생', 'mulDown'], enemyProjectileTakenMul: ['받는 투사체 피해', 'mulUp'],
+    enemyLightTakenMul: ['받는 번개 피해', 'mulUp'], enemyChaosTakenMul: ['받는 카오스 피해', 'mulUp'], fireDotTakenMul: ['받는 화염 지속 피해', 'mulUp'],
+    projectileExtraHits: ['투사체 추가 타격', 'count', 'fixed'], igniteChanceAdd: ['점화 확률', 'fractionUp'], igniteTakenMul: ['점화 피해', 'mulUp'],
+    chillChanceAdd: ['냉각 확률', 'fractionUp'], chillTakenMul: ['냉각 효과', 'mulUp'], freezeChanceAdd: ['동결 확률', 'fractionUp'],
+    freezeTakenMul: ['동결 효과', 'mulUp'], shockChanceAdd: ['감전 확률', 'fractionUp'], shockTakenMul: ['감전 효과', 'mulUp'],
+    poisonChanceAdd: ['중독 확률', 'fractionUp'], poisonTakenMul: ['중독 피해', 'mulUp'], bleedChanceAdd: ['출혈 확률', 'fractionUp'],
+    bleedTakenMul: ['출혈 피해', 'mulUp']
+});
+const TALISMAN_CONDITION_WHEN = Object.freeze({ lowLife: '생명력 50% 이하일 때', fullLife: '생명력이 가득하면', boss: '보스와 싸우는 동안',
+    crowd: '적이 3마리 이상이면' });
+const TALISMAN_HEX_RULES = Object.freeze({ intervalMs: 8000, durationMs: 6000, lowLifePct: 50, fullLifePct: 99.5, crowdCount: 3 });
 
 // 고유 부적(예전 고유 부적 그대로, 이웃 효과는 그루터기 함 판의 상하좌우로 판정).
 const TALISMAN_UNIQUE_DB = Object.freeze([
@@ -100,4 +170,4 @@ const TALISMAN_ELEMENT_FOCUS = Object.freeze({
 });
 
 safeExposeData({ TALISMAN_UNSEAL_RULES, TALISMAN_SHARD_EXCHANGE, TALISMAN_WAX_COPY_PCT, TALISMAN_RARITY_TONES, TALISMAN_STAT_POOL,
-    TALISMAN_CONDITION_POOL, TALISMAN_HEX_RULES, TALISMAN_UNIQUE_DB, TALISMAN_ELEMENT_FOCUS });
+    TALISMAN_CONDITION_POOL, TALISMAN_CONDITION_EFFECTS, TALISMAN_CONDITION_WHEN, TALISMAN_HEX_RULES, TALISMAN_UNIQUE_DB, TALISMAN_ELEMENT_FOCUS });

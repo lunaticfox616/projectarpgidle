@@ -53,7 +53,7 @@ const stumpTalismanUi = (() => {
     function summaryHtml() {
         const summary = talismanEffects.summarize();
         const rows = Object.keys(summary.stats).filter(stat => stat !== 'cosmosLightningVariance').map(stat => statRow(stat, summary.stats[stat]))
-            .concat(summary.conditions.map(line => `<li class="is-condition">${esc(line.text.replace('{v}', line.value))}</li>`));
+            .concat(summary.conditions.map(line => `<li class="is-condition">${esc(talismans.describeLine({ kind: 'condition', id: line.id, value: line.value }))}</li>`));
         if (summary.bossFinalDmgBonusPct > 0) rows.push(`<li class="is-condition">보스 최종 피해 +${summary.bossFinalDmgBonusPct}% · 생명력 5% 이하 보스 처형</li>`);
         if (summary.stats.cosmosLightningVariance > 0) rows.push('<li class="is-condition">번개 피해가 타격마다 0.8~1.5배</li>');
         return rows.length ? `<h4 class="stump-talisman-title">깨어난 부적</h4><ul class="stump-stats">${rows.join('')}</ul>` : '';

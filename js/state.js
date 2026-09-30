@@ -2570,10 +2570,6 @@ const defaultGame = {
     itemSubtab: 'item-tab-equip',
     skillSubtab: 'skill-tab-equip',
     skillAutoRules: [],
-    conditionGemUnlocked: false,
-    conditionGemPool: [],
-    conditionGemLevels: {},
-    pendingConditionGemChoices: null,
     arcana: {
         version: 2, unlocked: false, sealedCards: 0, totalSealedFound: 0,
         cards: [], deckSlots: Array(ARCANA_DECK_SLOT_COUNT).fill(null),

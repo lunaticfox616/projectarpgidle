@@ -17,10 +17,6 @@ const context = {
     playerAilments: [{ type: 'ignite', time: 2, duration: 4, power: 0.2 }, { type: 'shock', time: 0, power: 0.1 }],
     woodsmanCurseActive: true,
     woodsmanCurseDamageTakenStacks: 125,
-    playerConditionBuffs: [
-      { name: '철벽', type: 'guard', expiresAt: 13000 },
-      { name: '만료된 함성', type: 'warcry', expiresAt: 9000 }
-    ],
     cosmosPlayerDebuffs: [{ type: 'cosmos_res_down', label: '저항 감소', value: 18, expiresAt: 14000 }],
     realmDeathWard: { amount: 70, maxAmount: 100 },
     realmInvulnerableBarrierUntil: 12000,
@@ -71,7 +67,10 @@ const context = {
   },
   getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크' }; },
   getMaxFlaskUtilitySlotCount() { return 1; },
-  getEffectivePlayerConditionBuffs() { return context.game.playerConditionBuffs; },
+  // 부적 조건부 줄(예전 컨디션 젬 버프): 최근 틱에 켜진 수호 · 함성 줄.
+  talismanCombat: { active: () => context.__activeConditions },
+  talismans: { conditionDef: id => ({ guard_iron_oath: { name: '철의 맹세', kind: 'guard' } })[id] || null, describeDelta: () => '' },
+  __activeConditions: [{ buff: { name: 'talisman:guard_iron_oath', type: 'guard' }, delta: { dr: 20 } }],
   hasKeystone(id) { return ownedKeystones.has(id); },
   isTalentCardActive(id) {
     return ['hero1__guardian', 'hero1__gladiator', 'hero2__gladiator', 'hero5__warrior'].includes(id) ? 1 : 0;
@@ -244,7 +243,7 @@ assert.strictEqual(receivedEnemyPayload.type, injectedType, 'enemy ailment type 
 assert.strictEqual(enemyHandlerContext.__effectInjected, undefined, 'enemy ailment type must not execute injected code');
 
 context.game.woodsmanCurseActive = false;
-context.game.playerConditionBuffs = [{ name: injectedType, type: 'guard', expiresAt: 13000 }];
+context.__activeConditions = [{ buff: { name: injectedType, type: 'guard' }, delta: {} }];
 context.game.cosmosPlayerDebuffs = [];
 let receivedBuffName;
 const buffHandlerContext = {
@@ -254,21 +253,6 @@ const buffHandlerContext = {
 vm.runInNewContext(getMouseEnterHandler(context.buildPlayerConditionEffectIcons(now)), buffHandlerContext);
 assert.strictEqual(receivedBuffName, injectedType, 'dynamic buff names must survive safe serialization');
 assert.strictEqual(buffHandlerContext.__effectInjected, undefined, 'dynamic buff names must not execute injected code');
-
-context.game.playerConditionBuffs = [
-  { name: '전장의 함성', type: 'warcry', expiresAt: 13000 },
-  { name: '피의 함성', type: 'warcry', expiresAt: 14000 }
-];
-context.getEffectivePlayerConditionBuffs = () => [context.game.playerConditionBuffs[1]];
-let suppressedWarcry;
-const warcryHandlerContext = {
-  event: {},
-  showPlayerBuffTooltip(...args) { suppressedWarcry = args[4]; }
-};
-const warcryMarkup = context.buildPlayerConditionEffectIcons(now);
-vm.runInNewContext(getMouseEnterHandler(warcryMarkup), warcryHandlerContext);
-assert.strictEqual(suppressedWarcry, true, 'older Earthshaker warcries must remain visible but report their intrinsic effect as suppressed');
-assert(warcryMarkup.includes('combat-effect-badge">×'), 'suppressed warcries need a compact inactive badge');
 
 let receivedNamedEffect;
 const namedHandlerContext = {

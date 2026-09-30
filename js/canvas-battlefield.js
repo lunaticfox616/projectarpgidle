@@ -1448,35 +1448,6 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     });
 }
 
-function getConditionGemVfxElement(name) {
-    let db = typeof CONDITION_GEM_DB !== 'undefined' ? CONDITION_GEM_DB : null;
-    let entry = db ? Object.values(db).reduce((found, rows) => found || (Array.isArray(rows) ? rows.find(row => row && row.name === name) : null), null) : null;
-    let tags = entry && Array.isArray(entry.tags) ? entry.tags : [];
-    return tags.includes('fire') ? 'fire' : (tags.includes('cold') ? 'cold' : (tags.includes('lightning') ? 'light' : (tags.includes('chaos') ? 'chaos' : 'phys')));
-}
-
-function drawConditionGemImageVfx(ctx, condCast, playerPos, targetPos, now) {
-    if (!condCast) return false;
-    let isCurse = condCast.type === 'curse';
-    let imageKey = isCurse ? SKILL_GEM_VFX_IMAGE_KEYS.dot : SKILL_GEM_VFX_IMAGE_KEYS.rune;
-    let image = getSkillGemVfxImage(imageKey);
-    let pos = isCurse ? targetPos : playerPos;
-    if (!image || !pos) return false;
-    let remaining = clampNumber(((condCast.expiresAt || getCombatTime()) - getCombatTime()) / 1100, 0, 1);
-    let progress = 1 - remaining;
-    let pulse = Math.sin(progress * Math.PI);
-    let size = (isCurse ? 72 : (condCast.type === 'guard' ? 68 : 88)) * (0.84 + progress * 0.22);
-    ctx.save();
-    ctx.translate(pos.x, pos.y - (isCurse ? 5 : 16));
-    ctx.rotate((condCast.type === 'warcry' ? -1 : 1) * progress * 0.34);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = (0.22 + pulse * 0.32) * Math.min(1, remaining / 0.2);
-    image = useFilteredVfxImage(ctx, image, getSkillGemVfxFilter(getConditionGemVfxElement(condCast.name), imageKey));
-    ctx.drawImage(image, -size / 2, -size / 2, size, size);
-    ctx.restore();
-    return true;
-}
-
 function getEnemyTelegraphColor(enemy) {
     let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
     if (element === 'fire') return { edge: '#ff7b4d', fill: 'rgba(255,76,38,0.18)' };
@@ -2552,37 +2523,6 @@ function renderBattlefield(forceWhenHidden) {
     battleVisualState.playerHpLastPct = playerHpPct;
     let playerHpGhostPct = clampNumber(battleVisualState.playerHpGhostPct, playerHpPct, 1);
     let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
-    let condCast = game.lastConditionGemCast;
-    if (condCast && (condCast.expiresAt || 0) > getCombatTime()) {
-        let pulse = 0.6 + Math.sin(now / 80) * 0.4;
-        let conditionTargetPos = condCast.targetId != null ? enemyPosMap[condCast.targetId] : null;
-        drawConditionGemImageVfx(ctx, condCast, playerPos, conditionTargetPos, now);
-        ctx.save();
-        if (condCast.type === 'warcry') {
-            ctx.strokeStyle = `rgba(255, 208, 96, ${0.45 + pulse * 0.35})`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(playerPos.x, playerPos.y - 14, 26 + pulse * 6, 0, Math.PI * 2);
-            ctx.stroke();
-        } else if (condCast.type === 'guard') {
-            ctx.fillStyle = `rgba(118, 197, 255, ${0.2 + pulse * 0.2})`;
-            ctx.beginPath();
-            ctx.arc(playerPos.x, playerPos.y - 18, 20 + pulse * 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(167, 224, 255, 0.8)';
-            ctx.stroke();
-        } else if (condCast.type === 'curse') {
-            let targetPos = enemyPosMap[condCast.targetId];
-            if (targetPos) {
-                ctx.strokeStyle = `rgba(181, 117, 255, ${0.5 + pulse * 0.35})`;
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(targetPos.x, targetPos.y - 28, 16 + pulse * 6, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-        }
-        ctx.restore();
-    }
     currentTargets = currentTargets.map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
 
     battleFx.filter(fx => !isGroundSkillCast(fx) && !fx.loot && !fx.groundLoot).forEach(fx => {

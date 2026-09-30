@@ -792,34 +792,11 @@ function rollGrowthItemDrop(enemy, growthDropChance) {
 
 
 
-function cleanupConditionGemStates(now) {
-    function triggerCurseExpireEffects(enemyId, deb) {
-        if (!deb || deb.name !== '파멸 징표') return;
-        let pending = game.enemyCurseExpirePayloads || {};
-        let row = pending[enemyId];
-        if (!row || !row.doomDamage) return;
-        let enemy = getAliveEnemyByRuntimeKey(enemyId);
-        if (!enemy) return;
-        let bonus = Math.max(0, Math.floor(row.doomDamage * 0.16));
-        if (bonus <= 0) return;
-        enemy.hp = Math.max(0, enemy.hp - bonus);
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`💀 파멸 징표 폭발: ${formatNumberKR(bonus)} 추가 피해`, 'attack-monster', { noToast: true });
-        if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
-        delete pending[enemyId];
-        game.enemyCurseExpirePayloads = pending;
-    }
-    game.playerConditionBuffs = (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now);
+/** Expires talisman curses every combat tick (and in grand breach runs). Rows from the removed condition gems carry no delta and go too. */
+function expireConditionEffects(now) {
     let map = game.enemyConditionDebuffs || {};
     Object.keys(map).forEach(id => {
-        let next = [];
-        (map[id] || []).forEach(deb => {
-            if (!deb || (deb.expiresAt || 0) <= now) {
-                triggerCurseExpireEffects(Number(id), deb);
-                return;
-            }
-            next.push(deb);
-        });
-        map[id] = next;
+        map[id] = (map[id] || []).filter(deb => deb && deb.delta && (deb.expiresAt || 0) > now);
         if (map[id].length === 0) delete map[id];
     });
     game.enemyConditionDebuffs = map;
@@ -846,78 +823,13 @@ function pruneEnemyRuntimeDebuffMaps() {
     game.rangerWeakpointMarks = pruneMap(game.rangerWeakpointMarks, 180);
     game.enemyUniqueChaosResDown = pruneMap(game.enemyUniqueChaosResDown, 180);
     game.enemyUniqueElementalResDown = pruneMap(game.enemyUniqueElementalResDown, 180);
-    game.enemyCurseExpirePayloads = pruneMap(game.enemyCurseExpirePayloads, 180);
+    game.enemyConditionDebuffs = pruneMap(game.enemyConditionDebuffs, 180);
     game.talentButcherMarks = pruneMap(game.talentButcherMarks, 180);
 }
 
-function getConditionGemLevel(name) {
-    let levels = game.conditionGemLevels || {};
-    return Math.max(1, Math.min(5, Math.floor(levels[name] || 1)));
-}
-
-function getConditionGemStatDelta(name, type) {
-    const PRESETS = {
-        // Curses
-        '재의 표식': { enemyResFShred: 10, igniteChanceAdd: 0.15, igniteTakenMul: 1.10 },
-        '빙결의 낙인': { enemyResCShred: 10, chillChanceAdd: 0.10, freezeChanceAdd: 0.10, chillTakenMul: 1.10, freezeTakenMul: 1.10 },
-        '감전 문양': { enemyResLShred: 10, shockChanceAdd: 0.10, shockTakenMul: 1.10 },
-        '부패 각인': { enemyResChaosShred: 10, poisonChanceAdd: 0.10, poisonTakenMul: 1.10 },
-        '균열 저주': { enemyResShred: 15, enemyResChaosShred: 15 },
-        '취약의 낙인': { enemyTakenMul: 1.10, enemyCritDmgTakenMul: 1.12 },
-        '파멸 징표': { doomMark: 1 },
-        '쇠약의 기도': { enemyDmgMul: 0.90, enemyAspdSlow: 0.10 },
-        '타오른 죄책': { enemyResFShred: 8, fireDotTakenMul: 1.06, igniteTakenMul: 1.06 },
-        '천둥 포박': { enemyLightTakenMul: 1.10, enemyCritDmgTakenMul: 1.10 },
-        '절단의 맹세': { enemyPhysDrShred: 10, bleedChanceAdd: 0.10, bleedTakenMul: 1.15 },
-        '심연 고리': { enemyResChaosShred: 10, enemyChaosTakenMul: 1.10 },
-        '상처 악화': { enemyRegenRateMul: 0.60 },
-        '약점 조준': { enemyProjectileTakenMul: 1.10, projectileExtraHits: 2 },
-        // Warcries
-        '전장의 함성': { pctDmg: 16, aspd: 12, dr: 6, drCapBonus: 3, move: 8 },
-        '피의 함성': { pctDmg: 22, leech: 0.9, hpSacrificePct: 6 },
-        '추적자의 함성': { aspd: 14, targetAny: 1, crit: 6, move: 12 },
-        '용광의 외침': { pctDmg: 15, fireBonus: 0.12, leech: 0.4, regen: 0.8 },
-        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, drCapBonus: 3, energyShieldRegen: 2 },
-        '폭풍의 고함': { aspd: 16, crit: 5 },
-        '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
-        '결전 신호': { pctDmg: 18, dr: -4, critDmg: 30, resPen: 6 },
-        '지진의 함성': { slamEchoPct: 0.25, slamEchoDelaySec: 1.0 },
-        // Guards
-        '원소 장막': { dr: 22, resAll: 10, maxResAll: 4 },
-        '가시 방패': { dr: 20, thorns: 0.26, physIgnore: 10 },
-        '현무 장막': { dr: 22, resAll: 10, maxResAll: 4 },
-        '응보 방패': { dr: 20, thorns: 0.26, physIgnore: 10 },
-        '철의 맹세': { dr: 25, aspd: -8, armorMul: 0.20 },
-        '서리 장벽': { dr: 14, coldGuard: 0.2, cleanseChill: 1, cleanseFreeze: 1, immuneChill: 1, immuneFreeze: 1 },
-        '폭풍 장벽': { dr: 15, move: 16, aspd: 10, cleanseShock: 1, immuneShock: 1 },
-        '심연 껍질': { dr: 20, chaosGuard: 0.28, regen: 1.0, resChaos: 12 },
-        '용암 벽': { dr: 15, fireGuard: 0.2, cleanseIgnite: 1, immuneIgnite: 1 },
-        '이독제독': { dr: 18, poisonToHeal: 1 },
-        '불멸의 힘': { delayedRegenFromTakenDamage: 0.25 },
-        '에너지 과다': { dr: 10, energyShieldRegen: 12.5, energyShieldRechargeDelayDelta: -0.5 },
-        '무혈': { dr: 14, cleanseBleed: 1, immuneBleed: 1, disableEnemyLeech: 1 },
-        // Utility
-        '귀환 젬': { }
-    };
-    let base = PRESETS[name] || (type === 'warcry' ? { pctDmg: 10, aspd: 8 } : (type === 'guard' ? { dr: 10, regen: 0.6 } : (type === 'curse' ? { enemyTakenMul: 1.1, enemyResShred: 6 } : {})));
-    let level = getConditionGemLevel(name);
-    let scale = 1 + ((level - 1) * 0.125);
-    let out = {};
-    Object.keys(base).forEach(key => {
-        let val = base[key];
-        if (typeof val !== 'number') { out[key] = val; return; }
-        if (key === 'drCapBonus') { out[key] = val; return; }
-        if (['enemyTakenMul', 'igniteTakenMul', 'chillTakenMul', 'freezeTakenMul', 'shockTakenMul', 'poisonTakenMul', 'bleedTakenMul', 'fireDotTakenMul', 'enemyProjectileTakenMul', 'enemyLightTakenMul', 'enemyChaosTakenMul', 'enemyCritDmgTakenMul', 'enemyDmgMul', 'enemyRegenRateMul'].includes(key)) {
-            out[key] = val >= 1 ? 1 + ((val - 1) * scale) : 1 - ((1 - val) * scale);
-        }
-        else out[key] = val * scale;
-    });
-    return out;
-}
-
-/** A curse entry's stat delta: talisman curses carry it, condition-gem curses resolve it by name. */
+/** A curse entry's stat delta (talisman curses carry it). */
 function getConditionDebuffDelta(deb) {
-    return deb.delta || getConditionGemStatDelta(deb.name, 'curse');
+    return deb.delta || {};
 }
 
 function getEnemyConditionDebuffFactor(enemy, pStats) {
@@ -970,26 +882,6 @@ function getKeystoneEnemyTakenMultiplier(enemy, hitElement) {
     return mul;
 }
 
-function getAllConditionGemEntriesForCombat() {
-    let db = window.CONDITION_GEM_DB || {};
-    return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
-}
-
-function getEffectivePlayerConditionBuffs(now) {
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    let buffs = (Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [])
-        .filter(buff => buff && (buff.expiresAt || 0) > timestamp);
-    if (typeof isTalentInstantWarcryActive !== 'function' || !isTalentInstantWarcryActive()) return buffs;
-    let latestWarcry = null;
-    buffs.forEach(buff => {
-        if (buff.type !== 'warcry') return;
-        let appliedAt = Number(buff.appliedAt) || 0;
-        if (!latestWarcry || appliedAt >= latestWarcry.appliedAt) latestWarcry = { buff, appliedAt };
-    });
-    if (!latestWarcry) return buffs;
-    return buffs.filter(buff => buff.type !== 'warcry' || buff === latestWarcry.buff);
-}
-
 function getConditionPhysicalReductionCap(conditionEffects) {
     let hasGuardCap = false;
     let warcryCapBonus = 0;
@@ -1017,130 +909,6 @@ function applyConditionPhysicalReductionEffects(pStats, conditionEffects) {
     pStats.rawDr = rawDr;
     pStats.dr = Math.min(cap, rawDr);
     return cap;
-}
-
-/** A successful condition-gem cast moves once; failed escapes spend no cooldown. */
-function tryConditionGemEvasion(entry, now, rule) {
-    if (hasPlayerChannelBreakingAilment()) return conditionGemFeedback.record(rule, 'immobilized');
-    const cells = getBossWarningCells(game, pendingEnemyCombatAttacks);
-    const route = findNearestSafeGridRoute(game.gridPlayer, cells);
-    if (!route || !route.distance || route.distance > entry.evadeRange) return conditionGemFeedback.record(rule, 'no-route');
-    const from = { gx: game.gridPlayer.gx, gy: game.gridPlayer.gy };
-    actExplorationMotion.cancel(game.actExploration);
-    Object.assign(game.gridPlayer, route.destination, { gridMoveTimer: 0 });
-    cancelCombatChannel(entry.name);
-    combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + 180);
-    addBattleFx('playerMobility', { fromCell: from, toCell: route.destination, duration: 180 });
-    return true;
-}
-
-function applyConditionGemCurse(entry, target, pStats, now) {
-    const gemName = entry.name;
-    let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
-    let list = game.enemyConditionDebuffs[target.id] || [];
-    let existingIdx = list.findIndex(row => row && row.name === gemName);
-    let durMul = 1 + Math.max(0, Number(pStats.uniqueConditionManual?.durationPct) || 0) / 100;
-    let nextExpire = now + Math.floor(entry.duration * 1000 * durMul);
-    if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero5__warlock')) nextExpire = Number.MAX_SAFE_INTEGER;
-    let durationMs = nextExpire - now;
-    if (existingIdx >= 0) {
-        list[existingIdx].expiresAt = nextExpire;
-        list[existingIdx].durationMs = durationMs;
-    } else {
-        list.push({ name: gemName, expiresAt: nextExpire, durationMs });
-    }
-    // 저주 최대치는 "서로 다른 저주 종류" 기준으로 제한
-    let seen = new Set();
-    list = list.filter(row => {
-        if (!row || !row.name) return false;
-        if (seen.has(row.name)) return false;
-        seen.add(row.name);
-        return true;
-    });
-    list = list.slice(-limit);
-    game.enemyConditionDebuffs[target.id] = list;
-    if (gemName === '파멸 징표') {
-        let store = game.enemyCurseExpirePayloads || {};
-        store[target.id] = { doomDamage: 0 };
-        game.enemyCurseExpirePayloads = store;
-    }
-}
-
-function getConditionGemForRule(rule, pStats, now) {
-    normalizeConditionPatternRule(rule);
-    if (rule.actionType !== 'condition_gem') return null;
-    if (!evaluateConditionPatternRule(rule, pStats, game, now)) return conditionGemFeedback.record(rule, 'unmatched');
-    const name = (rule.skillName || '').trim();
-    if (!(game.conditionGemPool || []).includes(name)) return conditionGemFeedback.record(rule, 'missing');
-    const entry = getAllConditionGemEntriesForCombat().find(row => row.name === name);
-    if (!entry) return conditionGemFeedback.record(rule, 'missing');
-    if (now < (game.conditionGemCooldowns[name] || 0)) return conditionGemFeedback.record(rule, 'cooldown');
-    return entry;
-}
-
-function runConditionGemAutoRules(pStats) {
-    let now = getCombatTime();
-    cleanupConditionGemStates(now);
-    // 조건 젬 시전 중에는 추가 자동 시전을 예약하지 않는다.
-    // (HP 50% 이하 같은 조건에서 함성/가드가 연쇄로 걸리면 일반 공격이 영구 차단될 수 있음)
-    if (now < Math.floor(game.playerCastDelayUntil || 0)) return;
-    if (!game.conditionGemUnlocked) return;
-    if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
-    game.conditionGemCooldowns = game.conditionGemCooldowns || {};
-    game.enemyConditionDebuffs = game.enemyConditionDebuffs || {};
-    game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
-    conditionGemFeedback.begin(game, now);
-    let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
-    for (let rule of rules) {
-        let entry = getConditionGemForRule(rule, pStats, now);
-        if (!entry) continue;
-        let gemName = entry.name;
-        if (entry.evadeRange && !tryConditionGemEvasion(entry, now, rule)) continue;
-        let castTargetId = null;
-        if (entry.type === 'curse') {
-            let bypassCurseImmunity = typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__warlock');
-            let target = (game.enemies || []).find(e => e && e.hp > 0 && (!e.curseImmune || bypassCurseImmunity));
-            if (!target) { conditionGemFeedback.record(rule, 'no-target'); continue; }
-            castTargetId = target.id;
-            applyConditionGemCurse(entry, target, pStats, now);
-        } else if (!entry.evadeRange) {
-            let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
-            let nextExpire = now + Math.floor((entry.duration || 4) * 1000 * durMul);
-            let durationMs = nextExpire - now;
-            // 저주와 동일하게, 같은 함성/가드/유틸 젬이 이미 걸려 있으면 중복으로 쌓지 않고
-            // 지속시간만 갱신한다(서로 다른 종류는 그대로 함께 유지되어 공명 등 보너스에 반영됨).
-            let existingBuff = game.playerConditionBuffs.find(b => b && b.name === gemName);
-            if (existingBuff) {
-                existingBuff.expiresAt = nextExpire;
-                existingBuff.durationMs = durationMs;
-                existingBuff.appliedAt = now;
-            } else {
-                game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire, durationMs, appliedAt: now });
-            }
-            let castDelta = getConditionGemStatDelta(gemName, entry.type);
-            if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
-        }
-        let cdr=Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.cdrPct)||0);
-        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor(((entry.castTime || 1) * 1000 + 2500) * (1 - cdr/100)));
-        if (gemName === '귀환 젬') returnToTownByConditionGem();
-        let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
-        if (entry.type === 'warcry' && typeof isTalentInstantWarcryActive === 'function' && isTalentInstantWarcryActive()) castDelayMs = 0;
-        if (entry.type === 'curse' && typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero10__warlock')) castDelayMs = 0;
-        game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
-        let triggerSummary = formatConditionPatternTriggerSummary(rule);
-        game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, triggerSummary, ruleId: rule.id, expiresAt: now + 1100 };
-        conditionGemFeedback.record(rule, 'cast');
-        addBattleFx('statusText', {
-            enemyId: castTargetId,
-            text: `${triggerSummary} → ${gemName}`,
-            color: entry.type === 'curse' ? '#c89cff' : '#bfe9ff',
-            duration: 900,
-            dedupeKey: `condition:${rule.triggerType}:${gemName}`,
-            dedupeWindowMs: 1100
-        });
-        if (!game.settings || game.settings.showCombatLog !== false) addLog(`[${gemName}] 발동 · ${triggerSummary}`, 'attack-monster', { noToast: true });
-        break;
-    }
 }
 
 
@@ -2695,14 +2463,12 @@ function coreLoop(nowMs) {
     if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
     if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
     if (!Number.isFinite(pTimer) || pTimer < 0) pTimer = 0;
-    if (!Number.isFinite(game.playerCastDelayUntil)) game.playerCastDelayUntil = 0;
     sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
     if (pStats.uniqueClosedEyes) {
-        game.playerConditionBuffs = [];
         game.enemyConditionDebuffs = {};
     } else {
-        runConditionGemAutoRules(pStats); talismanCombat.applyHexes(pStats, getCombatTime());
+        expireConditionEffects(getCombatTime()); runReturnRules(pStats); talismanCombat.applyHexes(pStats, getCombatTime());
     }
     advanceSkillGemCasts(pStats);
     updateCombatChannelRuntime(getCombatTime());
@@ -2719,10 +2485,7 @@ function coreLoop(nowMs) {
     });
     if (ailmentMap.chill) pStats.aspd *= 1 - 0.32 * (1 - clampNumber(pStats.chillEffectReducePct || 0, 0, 100) / 100);
     pStats.playerShockTakenDamageIncreasePct = activePlayerShock ? getPlayerShockTakenDamageIncreasePct(pStats, activePlayerShock.power) : 0;
-    let activeConditionEffects = getEffectivePlayerConditionBuffs(getCombatTime()).map(buff => ({
-        buff,
-        delta: getConditionGemStatDelta(buff.name, buff.type)
-    })).concat(talismanCombat.effects(pStats));
+    let activeConditionEffects = talismanCombat.effects(pStats);
     applyConditionPhysicalReductionEffects(pStats, activeConditionEffects);
     activeConditionEffects.forEach(({ delta }) => {
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
@@ -2906,9 +2669,8 @@ function coreLoop(nowMs) {
         tickEnemyAilments(pStats, 0.1);
         let nowCast = getCombatTime();
         let channelGate = getCombatChannelGate(pStats, nowCast);
-        let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
-        if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
-        if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
+        let castUntil = Math.max(0, Number(combatTacticsRuntime.attackDelayUntil) || 0);
+        if (castUntil > nowCast + 5000) castUntil = nowCast + 500;
         let castBlocked = nowCast < castUntil || hazardEvasion.avoiding;
         let inSkillRange = hazardEvasion.avoiding ? false : (channelGate.locked
             ? channelGate.hasTargets
@@ -4421,7 +4183,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
     let dotDurationMultiplier = 1;
-    if (uniqueWarcryResonancePct>0){ let now=getCombatTime(); let c=(Array.isArray(game.playerConditionBuffs)?game.playerConditionBuffs:[]).filter(b=>b&&b.type==='warcry'&&(b.expiresAt||0)>now).length; if(c>0) finalDamageMultiplier*=(1+(c*uniqueWarcryResonancePct)/100);}
     if (uniqueCurseCrownPerCursePct>0){ let e=(game.enemies||[]).find(x=>x&&x.hp>0); let n=0; if(e&&game.enemyConditionDebuffs&&Array.isArray(game.enemyConditionDebuffs[e.id])) n=game.enemyConditionDebuffs[e.id].length; if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
     if (cosmosVerdictSupportDamagePct > 0) finalDamageMultiplier *= (1 + (safeEquippedSupports.length * cosmosVerdictSupportDamagePct) / 100);
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
@@ -5721,7 +5482,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         uniqueUnderdogMorePct: uniqueUnderdogMorePct,
         uniqueInstakillNormalPct: uniqueInstakillNormalPct,
         uniqueProjExtraShotChance: uniqueProjExtraShotChance,
-        uniqueConditionManual: uniqueConditionManual,
+        uniqueConditionManual: uniqueConditionManual, uniqueWarcryResonancePct: uniqueWarcryResonancePct, cosmosGuardianAlways: cosmosGuardianConditionInstant,
         uniqueStackingElementalResDownOnHit: uniqueStackingElementalResDownOnHit,
         uniqueBleedingEnemyDamageMorePct: uniqueBleedingEnemyDamageMorePct,
         uniqueRiftWaveOnHit: uniqueRiftWaveOnHit,
@@ -8604,9 +8365,21 @@ function returnToTown() {
     updateStaticUI();
 }
 
-/** 귀환 젬: a condition rule never spends an open map's last portal (that would close the map without a death). */
-function returnToTownByConditionGem() {
+/** 전술 규칙의 마을 귀환(예전 귀환 젬): 규칙은 열린 지도의 마지막 포털을 쓰지 않는다(죽지 않고 지도가 닫히므로). */
+function returnToTownByRule() {
     if (!atlasRun.lastPortal()) returnToTown();
+}
+
+let returnRuleReadyAt = 0;
+/** Enabled 'return_town' rules: the first whose trigger holds sends the hero home, then the action's cooldown runs. */
+function runReturnRules(pStats, now = getCombatTime()) {
+    const action = CONDITION_PATTERN_ACTION_DB.find(row => row.id === 'return_town');
+    const wait = returnRuleReadyAt - now;
+    if (!game.combatTacticsUnlocked || (wait > 0 && wait <= action.cooldownMs)) return;
+    const rules = (game.skillAutoRules || []).filter(rule => rule && rule.enabled && rule.actionType === 'return_town');
+    if (!rules.some(rule => evaluateConditionPatternRule(rule, pStats, game, now))) return;
+    returnRuleReadyAt = now + action.cooldownMs;
+    returnToTownByRule();
 }
 
 function ensureEncounterRun() {
@@ -8849,7 +8622,7 @@ function tickGrandBreachRun(zone) {
     let g = v.grandRun;
     if (!g || !g.inRun) return;
     let now = getCombatTime();
-    cleanupConditionGemStates(now);
+    expireConditionEffects(now);
     g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
     let dt = Math.max(0, (now - g.lastTickAt) / 1000);
     g.lastTickAt = now;
@@ -9598,13 +9371,6 @@ function continueMapAfterClear(zone) {
     startMoving(false);
 }
 
-function unlockConditionGemsAfterRootBossClear() {
-    if (game.conditionGemUnlocked || (game.season || 1) < 2) return false;
-    game.conditionGemUnlocked = true;
-    addLog('🧠 컨디션 젬 시스템이 해금되었습니다!', 'loot-unique');
-    return true;
-}
-
 function grantGuaranteedTrialSkillGem() {
     game.skills = Array.isArray(game.skills) ? game.skills : [];
     game.gemData = game.gemData || {};
@@ -10004,7 +9770,6 @@ function finishEncounterRun() {
         let firstRootBossClear = !(game.clearedRootBosses || []).includes(zone.id);
         game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
         if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
-        unlockConditionGemsAfterRootBossClear();
         if (zone.rivalBlade) {
             markLoopSpecialBossKill(zone.id);
             if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
@@ -10629,8 +10394,7 @@ function performPlayerAttack(pStats, attackOptions) {
     let slamEchoGuaranteed = false;
     let passiveSlamEchoChance = Math.max(0, Math.min(100, pStats.slamEchoChance || 0)) / 100;
     if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, Math.max(0.25, (Number(pStats.slamEchoDamagePct || 0) / 100)));
-    getEffectivePlayerConditionBuffs(getCombatTime()).forEach(buff => {
-        let delta = getConditionGemStatDelta(buff.name, buff.type);
+    talismanCombat.active().forEach(({ delta }) => {
         if (delta.slamEchoPct) { slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct); slamEchoGuaranteed = true; }
         if (delta.slamEchoDelaySec) slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1000));
     });
@@ -11174,18 +10938,6 @@ function performPlayerAttack(pStats, attackOptions) {
             if (game.ascendClass === 'hunter' && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'hunterExpose' && (a.time || 0) > 0)) {
                 dmg = Math.floor(dmg * 1.2);
                 ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * 1.2);
-            }
-            let hasActiveDoomMark = false;
-            if (targetEnemy && targetEnemy.id) {
-                let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
-                hasActiveDoomMark = debs.some(deb => deb && deb.name === '파멸 징표' && (deb.expiresAt || 0) > getCombatTime());
-            }
-            if (targetEnemy && targetEnemy.id && dmg > 0 && hasActiveDoomMark) {
-                let curseStore = game.enemyCurseExpirePayloads || {};
-                let row = curseStore[targetEnemy.id] || { doomDamage: 0 };
-                row.doomDamage = Math.max(0, Math.floor(row.doomDamage || 0) + dmg);
-                curseStore[targetEnemy.id] = row;
-                game.enemyCurseExpirePayloads = curseStore;
             }
             if (targetEnemy && targetEnemy.id && pStats.uniqueCursedTakenAndRefresh) {
                 let refreshSec = Math.max(0, Number(pStats.uniqueCursedTakenAndRefresh.refreshSec || 0));
@@ -12764,7 +12516,7 @@ function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피')
     return true;
 }
 
-/** Boss warnings are escaped by condition gems; trial traps retain their movement policy. */
+/** Boss warnings are escaped by the mobility slot (js/mobility-skill.js); trial traps retain their movement policy. */
 function updateCombatHazardEvasion(pStats) {
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
     applyTrialTrapTick(pStats, true);
@@ -13127,13 +12879,8 @@ function triggerSeasonReset(options) {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
-    // 컨디션 젬과 전술 패턴은 영구 빌드 설정이다. 루프는 쿨타임만 비우고 규칙 자체는 보존한다.
-    game.pendingConditionGemChoices = null;
-    game.conditionGemCooldowns = {};
+    // 전술 규칙은 영구 빌드 설정이다. 루프는 적에게 걸린 저주만 비운다.
     game.enemyConditionDebuffs = {};
-    game.playerConditionBuffs = [];
-    game.lastConditionGemCast = null;
-    game.playerCastDelayUntil = 0;
     game.dotFxThrottle = {};
     game.sealedSkills = [];
     game.sealedSupports = [];
@@ -13298,6 +13045,4 @@ function chooseLoopAdvance(shouldLoop) {
 
 safeExposeGlobals({ estimateMapZonePowerRequirements });
 
-safeExposeGlobals({ getEffectivePlayerConditionBuffs });
-
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, getEnemyExperienceReward, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, getEnemyExperienceReward, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

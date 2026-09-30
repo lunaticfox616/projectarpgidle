@@ -6,7 +6,7 @@ const BUILD_STAT_FIELDS = [
     'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
     'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'mobilitySkill', 'skills', 'supports',
     'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
-    'skillAutoRules', 'conditionGemLevels', 'conditionGemPool',
+    'skillAutoRules',
     'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
     'growthBoard', 'growthInventory',
     'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',

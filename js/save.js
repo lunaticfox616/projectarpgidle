@@ -155,7 +155,6 @@ function createCloudSaveState(root) {
         rangerWeakpointMarks: {},
         enemyUniqueChaosResDown: {},
         enemyUniqueElementalResDown: {},
-        enemyCurseExpirePayloads: {},
         playerAilments: Array.isArray(root.playerAilments) ? root.playerAilments.slice(0, 40) : [],
         playerLeechInstances: Array.isArray(root.playerLeechInstances) ? root.playerLeechInstances.slice(0, 80) : [],
         realmDeathWard: null,

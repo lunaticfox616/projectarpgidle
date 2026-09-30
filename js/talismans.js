@@ -79,7 +79,8 @@ const talismans = (() => {
     }
 
     function lineName(line) {
-        if (line.kind === 'condition') return { guard: '수호', warcry: '함성', curse: '저주' }[conditionPool.get(line.id).kind];
+        const def = line.kind === 'condition' ? conditionPool.get(line.id) : null;
+        if (def) return def.name || { guard: '수호', warcry: '함성', curse: '저주' }[def.kind];
         return getStatName(line.id).replace(/\(%\)$/, '');
     }
 
@@ -204,12 +205,60 @@ const talismans = (() => {
         return true;
     }
 
+    // ── 조건부 줄의 효과 ────────────────────────────────────
+    const HEX_FORMS = Object.freeze({ mulUp: v => 1 + v / 100, mulDown: v => 1 - v / 100, flat: v => v });
+
+    // A multiplier around 1 (받는 피해 ×1.1) scales its distance from 1; everything else scales linearly.
+    function scaleEffect(key, base, power) {
+        const [, form, fixed] = TALISMAN_CONDITION_EFFECTS[key] || [];
+        if (fixed === 'fixed') return base;
+        const scaled = form === 'mulUp' || form === 'mulDown' ? 1 + (base - 1) * power / 100 : base * power / 100;
+        return Number(scaled.toFixed(4));
+    }
+
+    /** A conditional line's stat delta: a one-stat line puts its value in, a gem line scales the gem's table by its power %. */
+    function conditionDelta(line) {
+        const def = conditionPool.get(line.id);
+        if (def.delta) return Object.fromEntries(Object.entries(def.delta).map(([key, base]) => [key, scaleEffect(key, base, line.value)]));
+        if (def.kind !== 'curse') return { [def.stat]: line.value };
+        return { [def.effect]: HEX_FORMS[def.form](line.value) };
+    }
+
+    const round1 = value => Math.round(value * 10) / 10;
+    const signed = value => `${value < 0 ? '−' : '+'}${round1(Math.abs(value))}`;
+    const EFFECT_FORMATS = Object.freeze({
+        pct: (label, v) => `${label} ${signed(v)}%`, fraction: (label, v) => `${label} ${signed(v * 100)}%`, count: (label, v) => `${label} +${v}`,
+        flag: label => label, seconds: (label, v) => `${label} ${signed(v)}초`, minus: (label, v) => `${label} −${round1(v)}`,
+        mulUp: (label, m) => `${label} +${round1((m - 1) * 100)}%`, mulDown: (label, m) => `${label} −${round1((1 - m) * 100)}%`,
+        fractionUp: (label, v) => `${label} +${round1(v * 100)}%p`, fractionDown: (label, v) => `${label} −${round1(v * 100)}%`
+    });
+
+    function effectText(key, value) {
+        const [label, form] = TALISMAN_CONDITION_EFFECTS[key] || [key, 'pct'];
+        return label ? EFFECT_FORMATS[form](label, value) : '';
+    }
+
+    /** Readable effect list of a delta (the tooltip of a gem line, a HUD icon, an enemy curse). */
+    function describeDelta(delta) {
+        return Object.entries(delta || {}).map(([key, value]) => effectText(key, value)).filter(Boolean).join(' · ');
+    }
+
+    function describeCondition(line) {
+        const def = conditionPool.get(line.id);
+        if (!def.delta) return def.text.replace('{v}', line.value);
+        const head = def.kind === 'curse'
+            ? `${TALISMAN_HEX_RULES.intervalMs / 1000}초마다 적 하나에 ${def.name}(위력 ${line.value}%): ${TALISMAN_HEX_RULES.durationMs / 1000}초 동안`
+            : `${TALISMAN_CONDITION_WHEN[def.when]} ${def.name}(위력 ${line.value}%):`;
+        return `${head} ${describeDelta(conditionDelta(line))}`;
+    }
+
     function describeLine(line) {
-        if (line.kind === 'condition') return conditionPool.get(line.id).text.replace('{v}', line.value);
+        if (line.kind === 'condition') return describeCondition(line);
         return `${getStatName(line.id)} +${formatValue(line.id, line.value)}${line.wax ? ' (밀랍)' : ''}`;
     }
 
     return Object.freeze({ normalizeTalisman, rollNormal, rollUnique, roll, rerollStatLine, rollOtherUnique, fromCosmos, unseal, exchange, wax, waxPreview, turn, describeLine,
+        conditionDelta, describeDelta,
         isDirectional: item => !!item && DIRECTIONAL.has(item.special), directionName: dir => DIRECTION_NAMES[dir] || DIRECTION_NAMES[1],
         conditionDef: id => conditionPool.get(id), uniqueDef: id => uniquePool.get(id), statDef: id => statPool.get(id) });
 })();

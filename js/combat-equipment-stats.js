@@ -19,7 +19,6 @@ const combatEquipmentStats = (() => {
         snapshot.isBackgroundCalculation = true;
         snapshot.shrineBuff = null;
         snapshot.uniqueEliteTraitBuff = null;
-        snapshot.playerConditionBuffs = [];
         // Observed constellation is a persistent build choice until rerolled/looped, not a timed combat buff.
         return snapshot;
     }

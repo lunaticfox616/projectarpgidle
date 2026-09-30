@@ -60,7 +60,7 @@ assert.strictEqual(rollAt(chances.regular, chances.regular).drops, 0,
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const dropFunction = combatSource.slice(combatSource.indexOf('function rollGrowthItemDrop('),
-    combatSource.indexOf('function cleanupConditionGemStates'));
+    combatSource.indexOf('function expireConditionEffects'));
 assert.ok(!/equipmentDropChance|\*\s*0\.5/.test(dropFunction),
     '생장판 드랍 판정이 장비 확률이나 사후 0.5배에 다시 의존하면 안 된다');
 assert.ok(/rollGrowthItemDrop\(enemy, growthItemChance\)/.test(combatSource),

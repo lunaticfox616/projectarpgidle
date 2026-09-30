@@ -222,16 +222,15 @@ assert.strictEqual(withRandomSequence([0.6, 0.4], () => context.rollTalentSummon
 
 resetGame();
 equipCard('hero2__warrior', 10);
-const warcryName = vm.runInContext('CONDITION_GEM_DB.warcry[0].name', context);
-context.game.conditionGemUnlocked = true;
-context.game.season = 2;
-context.game.loopCount = 1;
-context.game.conditionGemPool = [warcryName];
-context.game.skillAutoRules = [{ enabled: true, priority: 0, skillName: warcryName, triggerType: 'hp_below', hpThreshold: 100 }];
-context.game.playerHp = 100;
-context.runConditionGemAutoRules({ maxHp: 100 });
-assert.ok(context.game.conditionGemCooldowns[warcryName] > Date.now(), '즉시 함성도 재사용 대기시간은 유지해야 한다');
-assert.ok(context.game.playerCastDelayUntil <= Date.now(), '땅울림은 함성 시전 지연을 남기면 안 된다');
+// 땅울림: 부적의 함성 줄이 조건 없이 늘 켜지지만 가장 센 함성 하나만 적용되고, 함성 수(함성 공명 허리띠)는 모두 센다.
+vm.runInContext(`game.stumpBox = stumpBox.empty(); game.stumpBox.acquired = true; game.enemies = []; game.playerHp = 50;
+    for (const [cell, line] of [[12, { kind: 'condition', id: 'cry_boss', value: 12 }], [13, { kind: 'condition', id: 'cry_crowd', value: 13 }]]) {
+        const item = stumpBox.addTalisman(game, { name: '함성 부적', rarity: 'magic', lines: [line] }, true);
+        item.xp = STUMP_BOX_GROWTH.need.talisman; item.ripe = true; stumpBox.place(game, item.id, cell);
+    }`, context);
+const quake = JSON.parse(vm.runInContext("JSON.stringify(talismanCombat.effects({ maxHp: 100, uniqueWarcryResonancePct: 10 }).map(row => [row.buff.name, row.delta]))", context));
+assert.deepStrictEqual(quake, [['talisman:cry_crowd', { aspd: 13 }], ['talisman:resonance', { pctDmg: 20 }]],
+    '땅울림은 조건 없이 가장 센 함성 하나(굴림 범위 대비)만 적용하고 공명은 두 함성을 모두 센다');
 assert.strictEqual(context.getTalentCardUniqEffects('hero2', 'warrior', 10).length, 0, '땅울림이 무관한 함성 공명 효과를 주면 안 된다');
 
 resetGame();

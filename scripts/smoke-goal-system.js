@@ -223,7 +223,7 @@ const baseGame = extra => ({
     }));
     m.refresh();
     const goal = m.presented[0];
-    assert.strictEqual(goal.id, 'major-unlock-condition-gem', '반복 액트에서는 스토리 대신 다음 주요 해금을 안내');
+    assert.strictEqual(goal.id, 'major-unlock-loop-3', '반복 액트에서는 스토리 대신 다음 주요 해금을 안내');
 
     const firstLoop = boot(baseGame({
         maxZoneId: 2, currentZoneId: 2, passivePoints: 4, ascendPoints: 2,

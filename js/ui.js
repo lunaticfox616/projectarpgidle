@@ -761,11 +761,6 @@ function handleBackgroundVisibilityChange() {
 
 safeExposeGlobals({ requestFasterBackgroundCombat });
 
-function getUiConditionGemStatDelta(name, type) {
-    let provider = getUiGlobalFunction('getConditionGemStatDelta');
-    return provider ? (callUiProvider('getConditionGemStatDelta', provider, [name, type]) || {}) : {};
-}
-
 function getUiGemPresentation(name, isSupport, stats) {
     let provider = getUiGlobalFunction('getGemPresentation');
     if (provider) return callUiProvider('getGemPresentation', provider, [name, isSupport, stats]) || {};
@@ -958,7 +953,6 @@ function isOverlayElementOpen(selector) {
 function isPauseSettingOverlayOpen() {
     let modalSelectors = [
         '.tutorial-overlay.active:not(#tutorial-overlay)',
-        '#condition-gem-overlay',
         '#act-exploration-dialog[open]',
         '#act-exploration-loot-dialog[open]',
         '#beehive-choice-overlay',
@@ -2106,27 +2100,27 @@ function getDefaultSkillAutoRule() {
         hpThreshold: 40,
         triggerValue: 40,
         triggerType: 'hp_below',
-        actionType: 'condition_gem',
-        skillName: ''
+        actionType: 'target_nearest'
     };
 }
 
-function addSkillAutoRule(name = '') {
-    if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
-    if (name && !(game.conditionGemPool || []).includes(name)) return;
+const TACTICS_RULES_LOCK_MESSAGE = '전술 규칙은 루프 2부터, 액트 3에서 전술을 배운 뒤 씁니다.';
+
+/** The rules panel (예전 컨디션 젬 창의 자동 사용 규칙) opens with the tactics it drives. */
+function isTacticsRulesOpen() {
+    return contentProgression.canOpen('skill-tab-condition');
+}
+
+function addSkillAutoRule() {
+    if (!isTacticsRulesOpen()) return addLog(TACTICS_RULES_LOCK_MESSAGE, 'attack-monster');
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-    const rule = getDefaultSkillAutoRule();
-    rule.skillName = name;
-    // Choosing a gem creates a draft: the player reviews its condition before enabling it.
-    if (name) rule.enabled = false;
-    if (name === '긴급 회피') rule.triggerType = 'boss_warning';
-    game.skillAutoRules.push(rule);
+    game.skillAutoRules.push(getDefaultSkillAutoRule());
     renderSkillAutoRulePanel();
     document.querySelector('#ui-skill-rules-panel .condition-pattern-rule:last-child')?.scrollIntoView({ block: 'nearest' });
 }
 
 function sortSkillAutoRules() {
-    if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
+    if (!isTacticsRulesOpen()) return addLog(TACTICS_RULES_LOCK_MESSAGE, 'attack-monster');
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
 
     game.skillAutoRules.sort((a, b) => (a.priority || 0) - (b.priority || 0));
@@ -2206,7 +2200,7 @@ function getSortedEquipmentInventoryRows(query) {
 }
 
 function moveSkillAutoRule(index, delta) {
-    if (!game.conditionGemUnlocked) return;
+    if (!isTacticsRulesOpen()) return;
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
     let from = Math.max(0, Math.min(game.skillAutoRules.length - 1, Math.floor(index || 0)));
     let to = Math.max(0, Math.min(game.skillAutoRules.length - 1, from + Math.sign(delta || 0)));
@@ -2217,137 +2211,8 @@ function moveSkillAutoRule(index, delta) {
     renderSkillAutoRulePanel();
 }
 
-function getAllConditionGemEntries() {
-    let db = window.CONDITION_GEM_DB || {};
-    return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
-}
-
-function getConditionGemTypePresentation(entry) {
-    let type = ['curse', 'warcry', 'guard', 'utility'].includes(entry && entry.type) ? entry.type : 'buff';
-    return { type, visual: getUiCombatEffectPresentation(type) };
-}
-
-function renderConditionGemIdentity(entry, options) {
-    let opts = options || {};
-    let presentation = getConditionGemTypePresentation(entry);
-    let level = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
-    let levelBadge = opts.showLevel === false ? '' : `<span class="condition-gem-level">Lv.${level}</span>`;
-    return `${renderCombatEffectIcon({ key: presentation.type, label: presentation.visual.label })}
-        <span class="condition-gem-copy"><small>${escapeHTML(presentation.visual.label)} 컨디션</small><strong>${escapeHTML(entry.name)}</strong><span class="gem-card-tags">${renderGemTagChips(entry, 4)}</span></span>${levelBadge}`;
-}
-
-function renderOwnedConditionGemCard(entry) {
-    let safeName = String(entry.name || '').replace(/'/g, "\\'");
-    let presentation = getConditionGemTypePresentation(entry);
-    return `<button type="button" class="condition-gem-card condition-gem-${presentation.type}" style="--condition-tone:${presentation.visual.color};" aria-label="${escapeHTML(entry.name)} 규칙 만들기" data-condition-gem="${escapeHTML(entry.name)}" data-info-tooltip-anchor="1" onclick="hideInfoTooltip(); addSkillAutoRule('${safeName}')" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()">${renderConditionGemIdentity(entry)}<span class="condition-gem-cooldown" hidden></span></button>`;
-}
-
-function renderConditionGemChoice(entry) {
-    let presentation = getConditionGemTypePresentation(entry);
-    return `<button type="button" class="condition-gem-choice condition-gem-${presentation.type}" style="--condition-tone:${presentation.visual.color};" onclick="pickConditionGem('${entry.name}')"><span class="condition-gem-choice-head">${renderConditionGemIdentity(entry)}</span><span class="condition-gem-choice-effect">${escapeHTML(getConditionGemDetail(entry))}</span></button>`;
-}
-
-function rollConditionGemChoices() {
-    if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
-    let all = getAllConditionGemEntries();
-    let ownedSet = new Set(Array.isArray(game.conditionGemPool) ? game.conditionGemPool : []);
-    let unownedPool = all.filter(entry => !ownedSet.has(entry.name));
-    let upgradablePool = all.filter(entry => ownedSet.has(entry.name) && Math.max(1, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))) < 5);
-    let pool = unownedPool.length > 0 ? unownedPool.slice() : upgradablePool.slice();
-    if (pool.length === 0) return addLog('해금/강화 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
-    game.currencies.bossCore--;
-    let choices = [];
-    while (choices.length < Math.min(3, pool.length)) {
-        let pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-        choices.push(pick);
-    }
-    game.pendingConditionGemChoices = choices;
-    renderSkillAutoRulePanel();
-    openConditionGemChoiceOverlay();
-}
-
-function getConditionGemDetail(entry) {
-    if (!entry) return '';
-    let d = getUiConditionGemStatDelta(entry.name, entry.type);
-    let out = [];
-    let pct = value => Math.round(Math.abs(value) * 100);
-    let signed = value => `${value > 0 ? '+' : ''}${Math.round(value)}`;
-    [
-        ['enemyTakenMul', '받는피해', value => `+${pct(value - 1)}%`],
-        ['enemyLightTakenMul', '번개 받는피해', value => `+${pct(value - 1)}%`],
-        ['enemyChaosTakenMul', '카오스 받는피해', value => `+${pct(value - 1)}%`],
-        ['enemyProjectileTakenMul', '투사체 받는피해', value => `+${pct(value - 1)}%`],
-        ['enemyCritDmgTakenMul', '치명타 피해 취약', value => `+${pct(value - 1)}%`],
-        ['igniteTakenMul', '점화 받는피해', value => `+${pct(value - 1)}%`],
-        ['chillTakenMul', '냉각 대상 피해', value => `+${pct(value - 1)}%`],
-        ['freezeTakenMul', '동결 대상 피해', value => `+${pct(value - 1)}%`],
-        ['shockTakenMul', '감전 받는피해', value => `+${pct(value - 1)}%`],
-        ['poisonTakenMul', '중독 받는피해', value => `+${pct(value - 1)}%`],
-        ['bleedTakenMul', '출혈 받는피해', value => `+${pct(value - 1)}%`],
-        ['fireDotTakenMul', '화염 지속피해', value => `+${pct(value - 1)}%`],
-        ['enemyDmgMul', '적 피해', value => `-${pct(1 - value)}%`],
-        ['enemyRegenRateMul', '적 재생 효율', value => `-${pct(1 - value)}%`]
-    ].forEach(row => { if (Number.isFinite(Number(d[row[0]]))) out.push(`${row[1]} ${row[2](Number(d[row[0]]))}`); });
-    [
-        ['enemyResShred', '모든 저항 감소'], ['enemyResFShred', '화염 저항 감소'], ['enemyResCShred', '냉기 저항 감소'],
-        ['enemyResLShred', '번개 저항 감소'], ['enemyResChaosShred', '카오스 저항 감소'], ['enemyPhysDrShred', '물리 피해감소 감소'],
-        ['resPen', '저항 관통'], ['resAll', '원소 저항'], ['maxResAll', '최대 원소 저항'], ['resChaos', '카오스 저항'],
-        ['physIgnore', '물피감 무시'], ['crit', '치명타 확률'], ['critDmg', '치명타 피해'], ['targetAny', '스킬 대상'],
-        ['projectileExtraHits', '투사체 추가 적중'], ['energyShieldRegen', '보호막 회복속도']
-    ].forEach(row => { if (d[row[0]]) out.push(`${row[1]} +${Math.round(d[row[0]] * 10) / 10}`); });
-    if (d.pctDmg) out.push(`피해 +${Math.round(d.pctDmg)}%`);
-    if (d.aspd) out.push(`공속 ${signed(d.aspd)}%`);
-    if (d.dr) out.push(`물피감 ${signed(d.dr)}%`);
-    if (d.drCapBonus) out.push(`물피감 최대치 +${Math.round(d.drCapBonus)}%`);
-    if (d.move) out.push(`이속 ${signed(d.move)}%`);
-    if (d.regen) out.push(`재생 +${d.regen}%/s`);
-    if (d.leech) out.push(`흡수 +${d.leech}%`);
-    if (d.fireBonus) out.push(`화염 스킬 증폭 +${pct(d.fireBonus)}%`);
-    if (d.coldBonus) out.push(`냉기 스킬 증폭 +${pct(d.coldBonus)}%`);
-    if (d.slamEchoPct) out.push(`강타 메아리 ${pct(d.slamEchoPct)}% 피해`);
-    if (d.thorns) out.push(`피격 반격 ${pct(d.thorns)}%`);
-    if (d.armorMul) out.push(`현재 물피감 추가 +${pct(d.armorMul)}%`);
-    if (d.delayedRegenFromTakenDamage) out.push(`피해 일부 지연회복 ${pct(d.delayedRegenFromTakenDamage)}%`);
-    if (d.hpSacrificePct) out.push(`시전 시 생명력 ${Math.round(d.hpSacrificePct)}% 소모`);
-    if (d.poisonToHeal) out.push('중독 피해를 회복으로 전환');
-    if (d.disableEnemyLeech) out.push('적 흡혈 차단');
-    if (d.doomMark) out.push('체력이 낮은 적에게 피해 증폭');
-    Object.entries({ Ignite: '점화', Shock: '감전', Chill: '냉각', Freeze: '동결', Poison: '중독', Bleed: '출혈' }).forEach(([key, label]) => {
-        if (d[`cleanse${key}`]) out.push(`${label} 해제`);
-        if (d[`immune${key}`]) out.push(`${label} 면역`);
-    });
-    return out.join(' · ') || (entry.desc || '조건부 전투 효과');
-}
-function getConditionGemTooltip(entry) {
-    if (!entry) return '';
-    let presentation = getConditionGemTypePresentation(entry);
-    let cast = Number(entry.castTime || 1).toFixed(1);
-    let duration = Number(entry.duration ?? 4).toFixed(1);
-    let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
-    return `${entry.name}\n유형: ${presentation.visual.label}\n시전 시간: ${cast}초\n지속 시간: ${duration}초\n쿨타임: ${cooldown}초\n효과: ${getConditionGemDetail(entry)}`;
-}
 
 
-function getConditionGemTooltipHtml(entry) {
-    if (!entry) return '';
-    let presentation = getConditionGemTypePresentation(entry);
-    let cast = Number(entry.castTime || 1).toFixed(1);
-    let duration = Number(entry.duration ?? 4).toFixed(1);
-    let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
-    let lv = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
-    let html = `<div class="tooltip-title">${entry.name} · Lv.${lv}</div>`;
-    html += `<div class="tooltip-line">${presentation.visual.label} · ${entry.desc || '컨디션 젬 효과'}</div>`;
-    html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
-    html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
-    if ((entry.tags || []).length > 0) html += `<div class="tooltip-line">태그: <span class="gem-card-tags gem-tooltip-tags">${renderGemTagChips(entry, entry.tags.length)}</span></div>`;
-    return html;
-}
-function showConditionGemTooltip(event, name) {
-    let entry = getAllConditionGemEntries().find(e => e.name === name);
-    if (!entry) return;
-    showInfoTooltipHtml(event.clientX, event.clientY, getConditionGemTooltipHtml(entry), '#ff5252');
-}
 
 function setConditionPatternTrigger(index, triggerType) {
     let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
@@ -2394,48 +2259,13 @@ function renderConditionPatternRoadmap() {
     return `<details class="condition-pattern-roadmap"><summary>다음 패턴 해금 ${entries.length}개</summary><div>${entries.map(text => `<span>${escapeHTML(text)}</span>`).join('')}</div></details>`;
 }
 
-function openConditionGemChoiceOverlay() {
-    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
-    if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
-    let html = `<div id="condition-gem-overlay" class="selection-overlay condition-gem-overlay" onclick="if(event.target===this)closeConditionGemChoiceOverlay()">
-        <div class="selection-overlay-panel condition-gem-overlay-panel">
-            <div class="selection-overlay-header"><strong class="selection-overlay-title">군주의 핵 컨디션 젬 가공</strong><button type="button" onclick="closeConditionGemChoiceOverlay()">닫기</button></div>
-            <div class="condition-gem-choice-grid">${pending.map(renderConditionGemChoice).join('')}</div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-function closeConditionGemChoiceOverlay() { let el = document.getElementById('condition-gem-overlay'); if (el) el.remove(); }
 
-function pickConditionGem(name) {
-    game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    game.conditionGemLevels = game.conditionGemLevels || {};
-    if (!game.conditionGemPool.includes(name)) {
-        game.conditionGemPool.push(name);
-        game.conditionGemLevels[name] = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
-        addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
-    } else {
-        let prev = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
-        let next = Math.min(5, prev + 1);
-        game.conditionGemLevels[name] = next;
-        addLog(next > prev ? `🔺 컨디션 젬 [${name}] 레벨 ${next} 달성!` : `ℹ️ 컨디션 젬 [${name}]은 이미 최대 레벨입니다.`, 'loot-rare');
-    }
-    game.pendingConditionGemChoices = null;
-    closeConditionGemChoiceOverlay();
-    renderSkillAutoRulePanel();
-}
-
-function renderConditionRuleStatus(rule, owned) {
-    let html = '';
-    if (rule.actionType === 'condition_gem' && !owned.includes(rule.skillName)) {
-        html += '<div class="condition-rule-warning">사용할 젬이 선택되지 않아 이 규칙은 실행되지 않습니다.</div>';
-    }
-    if (!rule.enabled) html += '<div class="condition-rule-draft">사용 중지 · 조건을 확인한 뒤 ‘사용’을 켜세요.</div>';
-    return html;
+function renderConditionRuleStatus(rule) {
+    return rule.enabled ? '' : '<div class="condition-rule-draft">사용 중지 · 조건을 확인한 뒤 ‘사용’을 켜세요.</div>';
 }
 
 function renderConditionPatternRule(rule, idx, options) {
-    const { triggers, actions, ownedEntries, owned } = options;
+    const { triggers, actions } = options;
     let trigger = triggers.find(row => row.id === rule.triggerType) || triggers[0];
     let action = actions.find(row => row.id === rule.actionType) || actions[0];
     return `
@@ -2443,7 +2273,6 @@ function renderConditionPatternRule(rule, idx, options) {
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label>
             <span>우선순위 ${idx + 1}</span>
-            ${rule.actionType === 'condition_gem' ? conditionFeedbackUi.markup(idx) : ''}
             <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
             <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === game.skillAutoRules.length - 1 ? 'disabled' : ''}>↓</button>
             <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button>
@@ -2454,54 +2283,33 @@ function renderConditionPatternRule(rule, idx, options) {
             ${renderConditionPatternValueControl(rule, idx, trigger)}
             <span>실행</span>
             <select aria-label="실행 행동" onchange="setConditionPatternAction(${idx},this.value);">${actions.map(row => `<option value="${row.id}" ${action && action.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
-            ${rule.actionType === 'condition_gem' ? `<select aria-label="사용할 컨디션 젬" onchange="game.skillAutoRules[${idx}].skillName=this.value; renderSkillAutoRulePanel();">
-                <option value="">사용할 젬 선택</option>
-                ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} · ${translateSkillTag(entry.type)}</option>`).join('')}
-            </select>` : ''}
         </div>
-        ${renderConditionRuleStatus(rule, owned)}
+        ${renderConditionRuleStatus(rule)}
     </div>`;
+}
+
+function paintSkillRulesPanel(panel, html) {
+    if (panel.__lastHtml === html) return;
+    panel.innerHTML = html;
+    panel.__lastHtml = html;
 }
 
 function renderSkillAutoRulePanel() {
     let panel = document.getElementById('ui-skill-rules-panel');
     if (!panel) return;
-    let unlocked = !!game.conditionGemUnlocked;
+    let unlocked = isTacticsRulesOpen();
     let addButton = document.getElementById('btn-condition-rule-add');
     let sortButton = document.getElementById('btn-condition-rule-sort');
     if (addButton) addButton.disabled = !unlocked;
     if (sortButton) sortButton.disabled = !unlocked;
-    let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
-    if (!unlocked) {
-        let html = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프 2부터 루프 탭에서 위기 대응을 선택해 해금할 수 있습니다.</div>`;
-        if (panel.__lastHtml !== html) {
-            panel.innerHTML = html;
-            panel.__lastHtml = html;
-        }
-        return;
-    }
+    if (!unlocked) return paintSkillRulesPanel(panel, `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: ${TACTICS_RULES_LOCK_MESSAGE}</div>`);
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules.map(normalizeConditionPatternRule) : [];
-    let summary = `<div class="condition-pattern-summary"><div><strong>전술 패턴</strong><span>위 규칙부터 검사해 처음 실행 가능한 행동을 적용합니다.</span></div><div>젬 <strong>${owned.length}</strong>/${getAllConditionGemEntries().length} · 군주의 핵 <strong>${game.currencies.bossCore || 0}</strong><button onclick="rollConditionGemChoices()">컨디션 젬 가공</button></div></div>${renderConditionPatternRoadmap()}`;
-    let choiceHtml = pending.length > 0 ? `<div class="condition-gem-choice-grid inline">${pending.map(renderConditionGemChoice).join('')}</div>` : '';
-    let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<details class="progression-workbench" open><summary>보유 컨디션 젬 ${ownedEntries.length}개</summary><div class="condition-gem-grid">${ownedEntries.map(renderOwnedConditionGemCard).join('')}</div></details>` : '';
-
+    let summary = `<div class="condition-pattern-summary"><div><strong>수호 · 함성 · 저주</strong><span>그루터기 함에서 깨어난 부적의 조건부 줄이 맡습니다.</span></div></div>${renderConditionPatternRoadmap()}`;
     if (game.skillAutoRules.length === 0) {
-        let html = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">보유 젬을 선택하면 규칙을 만들 수 있습니다.</div>`;
-        if (panel.__lastHtml !== html) {
-            panel.innerHTML = html;
-            panel.__lastHtml = html;
-        }
-        return;
+        return paintSkillRulesPanel(panel, summary + '<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">[규칙 추가]로 조건과 행동을 고르세요.</div>');
     }
-    let triggers = getConditionPatternTriggers(game, false);
-    let actions = getConditionPatternActions(game, false);
-    const options = { triggers, actions, ownedEntries, owned };
-    let html = summary + choiceHtml + game.skillAutoRules.map((rule, idx) => renderConditionPatternRule(rule, idx, options)).join('') + ownedHtml;
-    if (panel.__lastHtml === html) return;
-    panel.innerHTML = html;
-    panel.__lastHtml = html;
+    const options = { triggers: getConditionPatternTriggers(game, false), actions: getConditionPatternActions(game, false) };
+    paintSkillRulesPanel(panel, summary + game.skillAutoRules.map((rule, idx) => renderConditionPatternRule(rule, idx, options)).join(''));
 }
 
 safeExposeGlobals({ setConditionPatternTrigger, setConditionPatternAction, setConditionPatternValue });
@@ -6003,7 +5811,7 @@ document.addEventListener('mousemove', function(evt) {
     let tt = document.getElementById('info-tooltip');
     if (!tt || tt.style.display === 'none') return;
     let anchor = evt.target && evt.target.closest ? evt.target.closest('[data-info-tooltip-anchor="1"]') : null;
-    if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card, .condition-gem-card');
+    if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card');
     let overTooltip = evt.target && evt.target.closest ? evt.target.closest('#info-tooltip') : null;
     if (!anchor && !overTooltip) hideInfoTooltip();
     else positionTooltipElement(tt, evt.clientX, evt.clientY);
@@ -6106,13 +5914,20 @@ function showPlayerCosmosDebuffTooltip(event, type, value, remainSec, label) {
         + `<div class="tooltip-line">${safeLabel} -${Math.max(0, Number(value || 0)).toFixed(0)}%</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, visual.color);
 }
-function showPlayerBuffTooltip(event, name, type, remainSec, suppressed) {
-    let entry = getAllConditionGemEntries().find(row => row && row.name === name) || { name, type: type || 'buff' };
-    let typeLabel = { curse: '저주', warcry: '함성', guard: '가드', buff: '버프' }[type || entry.type] || (type || entry.type || '버프');
-    let detail = suppressed
-        ? '땅울림으로 고유 효과 무효 · 활성 함성 수 판정에는 포함'
-        : getConditionGemDetail(entry);
-    let html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">분류: ${escapeHTML(typeLabel)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${escapeHTML(detail)}</div>`;
+function findConditionEffectDelta(name, type) {
+    if (type !== 'curse') return (talismanCombat.active().find(row => row.buff.name === name) || {}).delta || null;
+    for (const rows of Object.values(game.enemyConditionDebuffs || {})) {
+        const row = (rows || []).find(entry => entry && entry.name === name);
+        if (row) return row.delta;
+    }
+    return null;
+}
+
+function showPlayerBuffTooltip(event, name, type, remainSec) {
+    const typeLabel = { curse: '저주', warcry: '함성', guard: '수호' }[type] || '효과';
+    let html = `<div class="tooltip-title">${escapeHTML(getConditionEffectTitle(name))}</div><div class="tooltip-line">분류: ${typeLabel} · 부적 조건부 줄</div>`;
+    if (Number(remainSec) > 0) html += `<div class="tooltip-line">남은 시간: ${Math.ceil(Number(remainSec))}초</div>`;
+    html += `<div class="tooltip-line">${escapeHTML(talismans.describeDelta(findConditionEffectDelta(name, type)) || '효과 없음')}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
 // 플라스크 발동은 전투 중 자주 반복되어 전투 로그에 띄우면 스팸이 되므로, 캐릭터 효과
@@ -8166,25 +7981,11 @@ function renderCombatFlaskHud() {
     host.innerHTML = buttons.join('');
 }
 
-/** Combat HUD skill tray: 주 공격, 장착 소환, 켜 둔 자동 사용 규칙의 컨디션 젬(재사용 대기 표시). */
+/** Combat HUD skill tray: 주 공격, 이동 스킬(재사용 대기 표시), 장착 소환. */
 const COMBAT_SKILL_HUD_LIMIT = 6;
-const COMBAT_SKILL_SLOT_LABELS = Object.freeze({ primary: '주 공격', mobility: '이동 스킬', summon: '소환', condition: '자동 사용' });
+const COMBAT_SKILL_SLOT_LABELS = Object.freeze({ primary: '주 공격', mobility: '이동 스킬', summon: '소환' });
 // 표시 전용: 재사용 시작 시각을 저장 상태에 늘리지 않고, readyAt이 바뀐 순간의 남은 시간(ms)을 전체 길이로 삼는다.
 const combatSkillCooldownSpans = new Map();
-
-function getCombatConditionHudEntries() {
-    if (!game.conditionGemUnlocked || !Array.isArray(game.skillAutoRules)) return [];
-    let pool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    let names = game.skillAutoRules
-        .filter(rule => rule && rule.enabled && rule.actionType === 'condition_gem' && pool.includes(rule.skillName))
-        .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-        .map(rule => rule.skillName);
-    let entries = getAllConditionGemEntries();
-    return Array.from(new Set(names))
-        .map(name => entries.find(entry => entry.name === name))
-        .filter(Boolean)
-        .map(entry => ({ kind: 'condition', name: entry.name, type: getConditionGemTypePresentation(entry).type }));
-}
 
 function getCombatSkillHudEntries() {
     let summons = (Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : []).filter(name => {
@@ -8197,7 +7998,7 @@ function getCombatSkillHudEntries() {
         .slice(0, 4)
         .map((name, index) => ({ kind: index === 0 ? 'primary' : 'summon', name }));
     let mobility = SKILL_DB[game.mobilitySkill] ? [{ kind: 'mobility', name: game.mobilitySkill, hotkey: getHotkeyLabel('combat:mobility') }] : [];
-    return gems.slice(0, 1).concat(mobility, gems.slice(1), getCombatConditionHudEntries()).slice(0, COMBAT_SKILL_HUD_LIMIT);
+    return gems.slice(0, 1).concat(mobility, gems.slice(1)).slice(0, COMBAT_SKILL_HUD_LIMIT);
 }
 
 /** Short key name of a PC hotkey action for HUD key caps ('' when unbound). */
@@ -8207,11 +8008,8 @@ function getHotkeyLabel(actionId) {
 
 function renderCombatSkillSlot(entry) {
     let name = escapeHTML(entry.name);
-    let condition = entry.kind === 'condition';
-    let art = condition
-        ? renderCombatEffectIcon({ key: entry.type, label: entry.name })
-        : renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
-    let cooldown = condition || entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
+    let art = renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
+    let cooldown = entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
     // 이동 스킬 칸은 누르거나 단축키(기본 E)로 쓴다: 키 표시는 플라스크 칸과 같다.
     let key = entry.hotkey ? escapeHTML(entry.hotkey) : '';
     let keyAttrs = key ? ` aria-keyshortcuts="${key}"` : '';
@@ -8221,15 +8019,13 @@ function renderCombatSkillSlot(entry) {
 
 function bindCombatSkillSlot(button) {
     let name = button.dataset.gemName;
-    let condition = button.dataset.slotKind === 'condition';
-    let show = event => (condition ? showConditionGemTooltip(event, name) : showGemTooltip(event, 'active', name));
+    let show = event => showGemTooltip(event, 'active', name);
     button.addEventListener('mouseenter', show);
     button.addEventListener('mousemove', show);
     button.addEventListener('mouseleave', hideInfoTooltip);
     button.addEventListener('click', () => {
         if (button.dataset.slotKind === 'mobility') { hotkeysUi.useMobility(button); return; }
         openTabPane('tab-skills');
-        if (condition) switchSkillSubtab('skill-tab-condition');
     });
 }
 
@@ -8256,12 +8052,6 @@ function paintCombatSkillCooldown(button, readyAt, now, justCast) {
 
 function refreshCombatSkillCooldowns(host) {
     let now = getCombatTime();
-    let last = game.lastConditionGemCast;
-    host.querySelectorAll('.player-hud-skill-slot.condition').forEach(button => {
-        let name = button.dataset.gemName;
-        let readyAt = Number(game.conditionGemCooldowns && game.conditionGemCooldowns[name]) || 0;
-        paintCombatSkillCooldown(button, readyAt, now, Boolean(last && last.name === name && last.expiresAt > now));
-    });
     host.querySelectorAll('.player-hud-skill-slot.mobility').forEach(button => paintCombatSkillCooldown(button, now + mobilitySkill.cooldownLeft(now), now, false));
 }
 
@@ -8272,7 +8062,7 @@ function renderCombatSkillHud() {
     let signature = entries.map(entry => `${entry.kind}:${entry.name}:${entry.hotkey || ''}`).join('|');
     if (host.dataset.signature !== signature) {
         entries.forEach(entry => {
-            const spec = entry.kind !== 'condition' && SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[entry.name]?.signature];
+            const spec = SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[entry.name]?.signature];
             if (spec) getSkillGemVfxImage(spec.asset);
         });
         host.dataset.signature = signature;
@@ -8532,6 +8322,14 @@ function buildPlayerAilmentEffectIcons() {
     }).join('');
 }
 
+/** Icon title of a condition effect: the talisman line's gem name (or its kind), or 함성 공명 for the belt. */
+function getConditionEffectTitle(name) {
+    const id = String(name || '').replace(/^talisman:/, '');
+    if (id === 'resonance') return '함성 공명';
+    const def = talismans.conditionDef(id);
+    return def ? (def.name || { guard: '수호', warcry: '함성', curse: '저주' }[def.kind]) : String(name || '');
+}
+
 function buildPlayerConditionEffectIcons(now) {
     let icons = [];
     if (game.woodsmanCurseActive) {
@@ -8539,17 +8337,11 @@ function buildPlayerConditionEffectIcons(now) {
         let tooltip = `showPlayerRuntimeEffectTooltip(event,'woodsmanCurse',${taken.toFixed(2)},0,0)`;
         icons.push(renderCombatEffectIcon({ key: 'woodsmanCurse', tooltip }));
     }
-    let activeBuffs = (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now);
-    let effectiveBuffs = typeof getEffectivePlayerConditionBuffs === 'function'
-        ? new Set(getEffectivePlayerConditionBuffs(now)) : new Set(activeBuffs);
-    activeBuffs.forEach(buff => {
-        let remain = Math.ceil(Math.max(0, ((buff.expiresAt || 0) - now) / 1000));
+    talismanCombat.active().forEach(({ buff }) => {
         let nameArg = escapeHTML(JSON.stringify(String(buff.name || '')));
         let typeArg = escapeHTML(JSON.stringify(String(buff.type || 'buff')));
-        let suppressed = buff.type === 'warcry' && !effectiveBuffs.has(buff);
-        let tooltip = `showPlayerBuffTooltip(event,${nameArg},${typeArg},${remain},${suppressed})`;
         let key = ['guard', 'warcry'].includes(buff.type) ? buff.type : 'buff';
-        icons.push(renderCombatEffectIcon({ key, label: buff.name, tooltip, badge: suppressed ? '×' : '', remainingSec: remain, durationSec: Number(buff.durationMs) / 1000 }));
+        icons.push(renderCombatEffectIcon({ key, label: getConditionEffectTitle(buff.name), tooltip: `showPlayerBuffTooltip(event,${nameArg},${typeArg},0)` }));
     });
     (game.cosmosPlayerDebuffs || []).filter(row => row && (row.expiresAt || 0) > now).forEach(row => {
         let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
@@ -8947,7 +8739,7 @@ function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
         let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
         let nameArg = escapeHTML(JSON.stringify(String(row.name || '')));
         let tooltip = `showPlayerBuffTooltip(event,${nameArg},'curse',${remain})`;
-        return renderCombatEffectIcon({ key: 'curse', label: row.name || '저주', tooltip, remainingSec: remain, durationSec: Number(row.durationMs) / 1000 });
+        return renderCombatEffectIcon({ key: 'curse', label: getConditionEffectTitle(row.name), tooltip, remainingSec: remain, durationSec: Number(row.durationMs) / 1000 });
     });
     return ailmentIcons.concat(curseIcons).join('') + buildEnemyRuntimeEffectIcons(enemy, now);
 }
@@ -9013,7 +8805,6 @@ function updateCombatUI(pStats) {
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     renderCombatFlaskHud();
     renderCombatSkillHud();
-    conditionFeedbackUi.refresh();
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
     if (!hpGhostBar && hpWrap) {

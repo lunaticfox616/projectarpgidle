@@ -10,46 +10,29 @@ const elements = {
 };
 runtime.document.getElementById = id => elements[id] || null;
 
-vm.runInContext('game.conditionGemUnlocked=false; game.skillAutoRules=[]; addSkillAutoRule(); renderSkillAutoRulePanel();', runtime);
-assert.strictEqual(vm.runInContext('game.skillAutoRules.length', runtime), 0, 'locked condition gems must not create rules');
+vm.runInContext('game.season=1; game.combatTacticsUnlocked=false; game.skillAutoRules=[]; addSkillAutoRule(); renderSkillAutoRulePanel();', runtime);
+assert.strictEqual(vm.runInContext('game.skillAutoRules.length', runtime), 0, 'locked tactics rules must not create rules');
 assert.strictEqual(elements['btn-condition-rule-add'].disabled, true, 'locked add action must be disabled');
 assert.strictEqual(elements['btn-condition-rule-sort'].disabled, true, 'locked sort action must be disabled');
 
 runtime.document.getElementById = () => null;
-vm.runInContext("game.conditionGemUnlocked=true; game.skillAutoRules=[{id:'a',priority:1},{id:'b',priority:2}]; moveSkillAutoRule(1,-1);", runtime);
-assert.strictEqual(vm.runInContext("game.skillAutoRules.map(rule=>rule.id).join(',')", runtime), 'b,a', 'condition rules must move without manual priority editing');
+vm.runInContext("game.season=2; game.combatTacticsUnlocked=true; game.skillAutoRules=[{id:'a',priority:1},{id:'b',priority:2}]; moveSkillAutoRule(1,-1);", runtime);
+assert.strictEqual(vm.runInContext("game.skillAutoRules.map(rule=>rule.id).join(',')", runtime), 'b,a', 'tactics rules must move without manual priority editing');
 assert.strictEqual(vm.runInContext("game.skillAutoRules.map(rule=>rule.priority).join(',')", runtime), '1,2', 'moved rules must receive contiguous priorities');
 
-const ownedPanel = { innerHTML: '' };
-runtime.document.getElementById = id => id === 'ui-skill-rules-panel' ? ownedPanel : null;
-vm.runInContext(`game.skillAutoRules=[]; game.conditionGemPool=[
-    CONDITION_GEM_DB.curse[0].name,
-    CONDITION_GEM_DB.warcry[0].name,
-    CONDITION_GEM_DB.guard[0].name,
-    CONDITION_GEM_DB.utility[0].name
-]; renderSkillAutoRulePanel();`, runtime);
-assert(ownedPanel.innerHTML.includes('<details class="progression-workbench" open>'), 'owned condition gems must stay expanded after a rerender');
-assert.strictEqual((ownedPanel.innerHTML.match(/class="condition-gem-card /g) || []).length, 4,
-    'each condition gem type must render as a visual card');
-assert.strictEqual((ownedPanel.innerHTML.match(/class="combat-effect-icon /g) || []).length, 4,
-    'condition gem cards must reuse the status icon atlas');
-['curse', 'warcry', 'guard', 'utility'].forEach(type => {
-    assert(ownedPanel.innerHTML.includes(`condition-gem-${type}`), `${type} gems must expose a distinct visual type`);
-    assert(ownedPanel.innerHTML.includes(`gem-tag--${type}`), `${type} tags must use their semantic chip style`);
-});
-const elementalTooltip = vm.runInContext("getConditionGemTooltipHtml({name:'시험 젬',tags:['physical','fire','cold','lightning','chaos'],desc:'',detail:{}})", runtime);
-['physical', 'fire', 'cold', 'lightning', 'chaos'].forEach(element => {
-    assert(elementalTooltip.includes(`gem-tag--${element}`), `${element} tooltip tag must use its element color`);
-});
-assert.strictEqual(vm.runInContext("translateSkillTag('curse')", runtime), '저주', 'condition gem type tags must be localized');
+const rulesPanel = { innerHTML: '' };
+runtime.document.getElementById = id => id === 'ui-skill-rules-panel' ? rulesPanel : null;
+vm.runInContext('game.skillAutoRules=[]; renderSkillAutoRulePanel();', runtime);
+assert(rulesPanel.innerHTML.includes('[규칙 추가]') && rulesPanel.innerHTML.includes('부적의 조건부 줄'), 'an empty panel explains how to start and where guards, warcries and curses went');
+assert(!rulesPanel.innerHTML.includes('컨디션 젬'), 'no condition gem wording is left');
+vm.runInContext('game.journalEntries = ["act_3"]; addSkillAutoRule();', runtime);
+assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(game.skillAutoRules.map(rule => [rule.actionType, rule.enabled]))', runtime)),
+    [['target_nearest', true]], 'a new rule starts on the first tactic, enabled');
+assert(rulesPanel.innerHTML.includes('value="return_town"'), 'the return-to-town action (예전 귀환 젬) is offered');
+assert.strictEqual(vm.runInContext("translateSkillTag('curse')", runtime), '저주', 'curse tags must be localized');
 assert.strictEqual(vm.runInContext("translateSkillTag('warcry')", runtime), '함성', 'warcry tags must be localized');
 assert.strictEqual(vm.runInContext("translateSkillTag('guard')", runtime), '수호', 'guard tags must be localized');
 assert.strictEqual(vm.runInContext("translateSkillTag('utility')", runtime), '기능', 'utility tags must be localized');
-vm.runInContext("addSkillAutoRule('긴급 회피');", runtime);
-assert.strictEqual(vm.runInContext('game.skillAutoRules[0].enabled', runtime), false, 'gem-first rule must stay inactive until reviewed');
-assert.strictEqual(vm.runInContext('game.skillAutoRules[0].triggerType', runtime), 'boss_warning', 'evasion draft must use the boss threat trigger');
-vm.runInContext("addSkillAutoRule('보유하지 않은 젬');", runtime);
-assert.strictEqual(vm.runInContext('game.skillAutoRules.length', runtime), 1, 'unknown gem must not create a partial rule');
 vm.runInContext("game.activeSkill='연속 베기'; game.equippedSummonSkills=[];", runtime);
 assert.strictEqual(vm.runInContext("gemSelectionUi.application('근접 물리 피해', getPlayerStats())", runtime), '적용: 주 공격');
 assert.strictEqual(vm.runInContext("gemSelectionUi.application('투사체 강화', getPlayerStats())", runtime), '현재 주 공격·소환 젬에 적용되지 않음');

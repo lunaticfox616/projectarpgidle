@@ -35,8 +35,13 @@ function normalizeTabLayoutSettings(settings) {
 }
 
 /** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
+/** 전술 규칙만 남긴다: 예전 컨디션 젬 규칙(행동이 없거나 condition_gem)은 버린다. */
+function normalizeSavedTacticRules(raw) {
+    const rules = Array.isArray(raw) ? raw.filter(rule => rule && typeof rule === 'object') : [];
+    return rules.filter(rule => rule.actionType && rule.actionType !== 'condition_gem').map(rule => normalizeConditionPatternRule({ ...rule }));
+}
+
 function normalizeContentProgressionSave(merged, save) {
-    if (!merged.conditionGemLevels || typeof merged.conditionGemLevels !== 'object') merged.conditionGemLevels = {};
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     contentProgression.sync(merged);
     if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
@@ -681,12 +686,10 @@ function mergeDefaults(save) {
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     Object.assign(merged, craftingWorkspaceState.restore(merged));
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
-    merged.skillAutoRules = Array.isArray(merged.skillAutoRules)
-        ? merged.skillAutoRules.filter(rule => rule && typeof rule === 'object').map(rule => normalizeConditionPatternRule({ ...rule }))
-        : [];
-    merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
-    merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
-    merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
+    merged.skillAutoRules = normalizeSavedTacticRules(merged.skillAutoRules);
+    // 컨디션 젬 → 부적 조건부 줄(2026-09-30): 젬 · 레벨 · 가공 선택 · 전투 중 버프 · 젬 규칙은 보상 없이 지운다. 전술 규칙은 남는다.
+    ['conditionGemUnlocked', 'conditionGemPool', 'conditionGemLevels', 'pendingConditionGemChoices', 'conditionGemCooldowns', 'playerConditionBuffs',
+        'lastConditionGemCast', 'playerCastDelayUntil', 'enemyCurseExpirePayloads'].forEach(key => delete merged[key]);
     merged.arcana = normalizeArcanaState(merged.arcana);
     let arcanaQuestMigration = reconcileArcanaQuestFromCosmos(merged);
     if (arcanaQuestMigration.completedNow) {
@@ -699,9 +702,6 @@ function mergeDefaults(save) {
     if (merged.arcana.unlocked) merged.unlocks.arcana = true;
     delete merged.worldDeck;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    // 과거 루프 정산 시 컨디션 젬 해금이 잘못 초기화되던 버그로 잠긴 기존 플레이어 복구:
-    // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
-    if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
     merged.mapSubtab = ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.mapExploreSubtab = ['map-explore-atlas', 'map-explore-worldtree', 'map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-beyond', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-atlas';
     delete merged.coreCube; delete merged.unlocks.cube; delete merged.noti.cube; // 코어 큐브 → 코어 칸(2026-09-30): 예전 진행은 보상 없이 지운다.
@@ -895,7 +895,6 @@ function mergeDefaults(save) {
     merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
     merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
     merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
-    merged.enemyCurseExpirePayloads = pruneEnemyRuntimeMap(merged.enemyCurseExpirePayloads, { maxKeys: 120 });
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
