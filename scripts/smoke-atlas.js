@@ -148,6 +148,10 @@ assert.ok(cleared.result.drops >= 1, 'the node boss always drops a map');
 const neighbours = copy(`atlas.neighbours('${first.node}').map(id => atlas.status(game, id))`);
 assert.ok(neighbours.every(status => status !== 'locked'), 'completing a node opens its neighbours');
 assert.equal(run(`atlas.points(game)`), 1 + Number(cleared.result.bonus));
+const held = run('game.atlas.stash.length');
+assert.match(run(`game.pendingLoopDecision=true;atlasRun.open(game.atlas.stash[0].uid)`), /루프 정산/, 'no map opens while the loop decision waits');
+assert.equal(run('game.atlas.stash.length'), held, 'and no map is spent');
+run('game.pendingLoopDecision=false;');
 
 // ---------------------------------------------------------------- auto-map
 run(`game.atlas.autoMap=true;game.atlas.stash=game.atlas.stash.filter(map=>map.tier===1);`);
