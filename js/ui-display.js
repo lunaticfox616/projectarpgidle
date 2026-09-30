@@ -76,7 +76,10 @@ const uiDisplay = (() => {
 
     function apply(value) {
         percent = normalizeUiScale(value);
-        const deviceScale = mobileDevice ? 1 : Math.max(1, window.devicePixelRatio || 1);
+        // PC: 디스플레이 배율의 정수 배는 살리고 소수 부분만 되돌린다 — 도트가 늘 기기 픽셀의 정수 배로 그려진다.
+        // (배율 전체를 되돌리면 Retina · 200% 화면에서 UI가 절반 크기였다: 2 → ×2, 1.25 → ×1, 2.5 → ×2)
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const deviceScale = mobileDevice ? 1 : dpr / Math.floor(dpr + 1e-6);
         const next = percent / 100 / deviceScale;
         const changed = Math.abs(next - factor) > 0.00001;
         factor = next;
