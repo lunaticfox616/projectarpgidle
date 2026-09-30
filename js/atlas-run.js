@@ -19,6 +19,16 @@ const atlasRun = (() => {
         const reason = atlas.beginReason(game, uid) || departureBlock();
         if (reason) return reason;
         atlas.begin(game, uid, game.currentZoneId);
+        return depart();
+    }
+    /** 정점: 뿌리 입장권 4종을 바치고 세계수의 그림자로 떠난다(떠나지 못하면 입장권은 돌아온다). */
+    function openPinnacle() {
+        const reason = atlas.pinnacleReason(game) || departureBlock();
+        if (reason) return reason;
+        atlas.beginPinnacle(game, game.currentZoneId);
+        return depart();
+    }
+    function depart() {
         combatLootReceipts.reset(game);
         changeZone(ATLAS.zoneId);
         if (inMap()) return '';
@@ -47,6 +57,7 @@ const atlasRun = (() => {
     function finish(zone) {
         const result = atlas.complete(game);
         if (!result) return;
+        grantSpoils(result);
         game.killsInZone = 0;
         const stop = game.settings.mapCompleteAction === 'stop';
         const next = stop ? null : atlas.nextAuto(game, result.tier);
@@ -61,6 +72,11 @@ const atlasRun = (() => {
         if (opened && actExplorationProgress.deferDeparture(game)) return;
         actExplorationProgress.reconcileDeparture(game);
         startMoving(false);
+    }
+    /** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. */
+    function grantSpoils(result) {
+        if (result.ticket) awardCurrency(result.ticket, 1);
+        for (const [key, amount] of result.rewards || []) awardCurrency(key, amount);
     }
     function halt() {
         actExplorationProgress.depart(game);
@@ -112,6 +128,6 @@ const atlasRun = (() => {
         const maps = atlas.sync(game);
         if (opened || maps.length) notify({ kind: 'starter', opened, count: maps.length });
     }
-    return Object.freeze({ open, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20 });
+    return Object.freeze({ open, openPinnacle, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20 });
 })();
 safeExposeGlobals({ atlasRun });

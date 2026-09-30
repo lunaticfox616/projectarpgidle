@@ -511,10 +511,12 @@ function createDefaultBeyondBoundaryState() {
     };
 }
 
+/** 경계의 관측자를 쓰러뜨리고, 루프 50 또는 세계수 아틀라스 씨앗 4개. */
 function isBeyondBoundaryUnlockRequirementMet(ownerState) {
     let source = ownerState || game;
     let cleared = Array.isArray(source.clearedRootBosses) ? source.clearedRootBosses : [];
-    return getEndgameProgressLoop(source) >= BEYOND_BOUNDARY_UNLOCK_LOOP
+    let seeds = Math.floor(Number(source.atlas && source.atlas.seeds) || 0);
+    return (getEndgameProgressLoop(source) >= BEYOND_BOUNDARY_UNLOCK_LOOP || seeds >= BEYOND_BOUNDARY_UNLOCK_SEEDS)
         && cleared.includes(BEYOND_BOUNDARY_UNLOCK_BOSS_ID);
 }
 

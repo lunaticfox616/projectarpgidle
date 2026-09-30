@@ -90,7 +90,7 @@ const atlasMaps = (() => {
         let roll = random() * outcomes.reduce((sum, key) => sum + weights[key], 0);
         const outcome = outcomes.find(key => (roll -= weights[key]) < 0) || 'none';
         map.corrupted = true;
-        if (outcome === 'tier') map.tier = Math.min(ATLAS.maxTier, map.tier + 1);
+        if (outcome === 'tier') map.tier = Math.min(ATLAS.tierCap, map.tier + 1);
         if (outcome === 'extra') addMod(map, random, true);
         if (outcome === 'reforge') reroll(map, 'rare', random, 5 + Math.floor(random() * 2));
         return outcome;
@@ -125,7 +125,7 @@ const atlasMaps = (() => {
     }
     function validHead(raw, validNode) {
         if (!raw || typeof raw !== 'object' || !validNode(raw.node) || !ATLAS.rarities[raw.rarity]) return false;
-        return Number.isSafeInteger(raw.uid) && raw.uid >= 1 && Number.isInteger(raw.tier) && raw.tier >= 1 && raw.tier <= ATLAS.maxTier;
+        return Number.isSafeInteger(raw.uid) && raw.uid >= 1 && Number.isInteger(raw.tier) && raw.tier >= 1 && raw.tier <= ATLAS.tierCap;
     }
     function validEntry(entry, seen) {
         const ok = !!entry && MODS.has(entry.id) && Number.isFinite(entry.roll) && entry.roll >= 0 && entry.roll <= 1 && !seen.has(entry.id);

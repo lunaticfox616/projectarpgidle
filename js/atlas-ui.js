@@ -71,6 +71,12 @@ const atlasUi = (() => {
         refresh();
         switchTab('tab-battle');
     }
+    function openPinnacle() {
+        const reason = atlasRun.openPinnacle();
+        if (reason) return addLog(reason, 'attack-monster');
+        refresh();
+        switchTab('tab-battle');
+    }
     function reenter() { atlasRun.reenter(); refresh(); switchTab('tab-battle'); }
     function abandon() {
         if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다. 지도석과 맵 안에서 얻은 지도석 · 각인은 사라집니다.', 'attack-monster');
@@ -87,6 +93,10 @@ const atlasUi = (() => {
     function chartHtml() {
         const rings = ATLAS.chart.radii.map(r => `<circle cx="50" cy="50" r="${r}"/>`).join('');
         const half = 180 / ATLAS.regions.length;
+        const wedges = ATLAS.regions.map((region, i) => {
+            const from = atlas.polar(i, -half, 47), to = atlas.polar(i, half, 47);
+            return `<path d="M50 50 L${from.x} ${from.y} A47 47 0 0 1 ${to.x} ${to.y} Z" style="fill:${region.tint}"/>`;
+        }).join('');
         const sectors = ATLAS.regions.map((_, i) => {
             const from = atlas.polar(i, half, 8), to = atlas.polar(i, half, 44);
             return `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}"/>`;
@@ -97,23 +107,25 @@ const atlasUi = (() => {
             return `<line class="${lit ? 'is-lit' : ''}" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}"/>`;
         }).join('');
         return `<div class="atlas-chart" role="group" aria-label="세계수 아틀라스 노드"><svg class="atlas-lines" viewBox="0 0 100 100" aria-hidden="true">
-            <g class="atlas-rings">${rings}</g><g class="atlas-sectors">${sectors}</g><g class="atlas-links">${links}</g></svg>
-            ${regionLabelsHtml()}${atlas.nodes.map(nodeHtml).join('')}<span class="atlas-core" aria-hidden="true"></span></div>`;
+            <g class="atlas-wedges">${wedges}</g><g class="atlas-rings">${rings}</g><g class="atlas-sectors">${sectors}</g><g class="atlas-links">${links}</g></svg>
+            ${atlas.nodes.map(nodeHtml).join('')}</div>`;
     }
-    function regionLabelsHtml() {
-        return ATLAS.regions.map((region, i) => {
-            const { x, y } = atlas.polar(i, 0, ATLAS.chart.labelRadius);
-            const side = x < 25 ? 'start' : (x > 75 ? 'end' : 'center');
-            return `<span class="atlas-region-label" data-side="${side}" style="--x:${x}%;--y:${y}%;--tint:${region.tint}">${region.name}</span>`;
-        }).join('');
+    /** Region legend: tint, name and how much of it is done (its maps and guardian). */
+    function legendHtml() {
+        return `<div class="atlas-legend" aria-label="지역">${ATLAS.regions.map(region => {
+            const nodes = atlas.nodes.filter(node => node.region === region.id);
+            const done = nodes.filter(node => ledger().completed.includes(node.id)).length;
+            return `<span style="--tint:${region.tint}"><i></i>${region.name} <small>${done}/${nodes.length}</small></span>`;
+        }).join('')}</div>`;
     }
     function nodeHtml(node) {
         const { x, y } = atlas.position(node), status = atlas.status(game, node.id);
         const held = ledger().stash.filter(map => map.node === node.id).length;
         const active = ledger().run?.map.node === node.id;
-        const classes = ['atlas-node', `is-${status}`, node.id === selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
+        const classes = ['atlas-node', `is-${status}`, `kind-${node.kind}`, node.id === selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
+        const tier = atlas.effectiveTier(game, node);
         return `<button class="${classes}" style="--x:${x}%;--y:${y}%" data-atlas-node="${node.id}" aria-pressed="${node.id === selectedNode}"
-            aria-label="${escapeHTML(node.name)} ${node.tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"><b>${node.tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
+            aria-label="${escapeHTML(node.name)} ${tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
     }
 
     // ---------------------------------------------------------------- side: open map, map device, node
@@ -169,15 +181,28 @@ const atlasUi = (() => {
         return `<button onclick="atlasUi.craft('${key}')" ${reason || have < 1 ? 'disabled' : ''} title="${escapeHTML(reason || atlasMaps.crafts[key].label)}">
             <span>${window.getStyledOrbName(key)}</span><small>${atlasMaps.crafts[key].label} · ${have}</small></button>`;
     }
+    const TICKET = key => ORB_DB[key].name.replace('우버 뿌리 입장권: ', '');
     function nodeDetailHtml() {
         const node = atlas.node(selectedNode);
         if (!node) return '<section class="atlas-node-detail"><p class="atlas-muted">노드를 누르면 정보가 보입니다. 완료한 노드의 이웃이 열립니다.</p></section>';
-        const region = ATLAS.regions.find(row => row.id === node.region), status = atlas.status(game, node.id);
+        if (node.kind === 'pinnacle') return pinnacleHtml(node);
+        const region = ATLAS.regions.find(row => row.id === node.region), status = atlas.status(game, node.id), tier = atlas.effectiveTier(game, node);
         const maps = ledger().stash.filter(map => map.node === node.id).sort((a, b) => b.tier - a.tier);
+        const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">지역 수호자 · 처치마다 뿌리 입장권(${node.ticket ? TICKET(node.ticket) : '가장 적은 것'}) · 지도석은 이 지역 ${ATLAS.guardianRules.minTier}등급 이상 보스가 떨어뜨립니다</p>` : '';
         return `<section class="atlas-node-detail" style="--tint:${region.tint}"><small>${region.name} · ${STATUS[status]}</small><h3>${escapeHTML(node.name)}</h3>
-            <p>${node.tier}등급 · ${STYLE[node.style]} · 보스 ${escapeHTML(node.boss)}</p>
-            <p class="atlas-muted">장비 T${atlas.lootTier(node.tier)}까지 · 혼돈 ${atlas.equivalentDepth(node.tier)} 상당</p>
+            <p>${tier}등급 · ${STYLE[node.style]} · 보스 ${escapeHTML(node.boss)}</p>${kind}
+            <p class="atlas-muted">장비 T${atlas.lootTier(tier)}까지 · 혼돈 ${atlas.equivalentDepth(tier)} 상당</p>
             ${maps.length ? `<div class="atlas-node-maps">${maps.map(stashRowHtml).join('')}</div>` : '<p class="atlas-muted">이 노드의 지도석이 없습니다.</p>'}</section>`;
+    }
+    /** 정점: 입장권 4종 · 씨앗 · 열기. 지도석이 아니라 입장권으로 연다. */
+    function pinnacleHtml(node) {
+        const tier = atlas.effectiveTier(game, node), reason = atlas.pinnacleReason(game), busy = !!ledger().run;
+        const tickets = ATLAS.pinnacle.tickets.map(key => `<span class="${(game.currencies[key] || 0) >= 1 ? 'is-on' : ''}">${TICKET(key)} ${Math.floor(game.currencies[key] || 0)}</span>`).join('');
+        return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>정점 · 세계수 씨앗 ${ledger().seeds}/${ATLAS.seeds.max}</small><h3>${escapeHTML(node.name)}</h3>
+            <p>${tier}등급 · 투기장 · 보스 ${ATLAS.pinnacle.stages}단계</p><div class="atlas-tickets">${tickets}</div>
+            <p class="atlas-muted">처치하면 세계수 씨앗 하나(최대 ${ATLAS.seeds.max}) — 씨앗마다 모든 노드 등급 +${ATLAS.seeds.tierStep}. 씨앗 ${BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
+            ${reason && !busy ? `<p class="atlas-lock">${reason}</p>` : ''}<div class="atlas-actions"><button class="atlas-primary" data-exploration-departure
+            onclick="atlasUi.openPinnacle()" ${reason ? 'disabled' : ''}>정점 열기</button></div></section>`;
     }
 
     // ---------------------------------------------------------------- stash, result, header
@@ -203,13 +228,13 @@ const atlasUi = (() => {
     function headerHtml() {
         const st = ledger(), total = atlas.nodes.length, free = atlasPassives.available(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
-        return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length}/${total} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
+        return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length} · 씨앗 ${st.seeds}/${ATLAS.seeds.max} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
             <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}</nav>
             <label class="atlas-auto"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
     function mapsViewHtml() {
-        return `<div class="atlas-main">${chartHtml()}<div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
+        return `<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
     function render() {
@@ -248,9 +273,14 @@ const atlasUi = (() => {
         if (detail.fragments.length) parts.push(`각인 ${detail.fragments.map(id => atlas.fragment(id).name).join(', ')}`);
         return `🗺️ ${parts.join(' · ')}`;
     }
+    function logClass(detail) {
+        if (detail.kind === 'failed') return 'death';
+        return detail.kind === 'complete' && (detail.first || detail.bonus || detail.seed) ? 'loot-unique' : 'season-up';
+    }
     function announce(detail) {
         const text = {
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? ' · 첫 완료' : ''}${detail.bonus ? ' · 보너스 달성' : ''}${detail.drops ? ` · 지도석 ${detail.drops}개` : ''}`
+                + (detail.ticket ? ` · ${ORB_DB[detail.ticket].name}` : '') + (detail.seed ? ` · 세계수 씨앗 ${detail.seeds}/${ATLAS.seeds.max}` : '')
                 + (detail.next ? ` → 다음 지도: ${nodeName(detail.next)}` : ''),
             portal: () => `🌀 ${REASON[detail.reason] || detail.reason} · 남은 포털 ${detail.portals}`,
             failed: () => `🗺️ ${REASON[detail.reason] || detail.reason} · 포털이 모두 닫혀 지도가 실패했습니다.`,
@@ -258,13 +288,13 @@ const atlasUi = (() => {
             starter: () => detail.opened ? `🌳 세계수 아틀라스가 열렸습니다${detail.count ? ` · 지도석 ${detail.count}개` : ''}` : `🌳 이번 루프의 지도석 ${detail.count}개가 보관함에 들어왔습니다.`
         }[detail.kind];
         if (!text) return;
-        addLog(text(), detail.kind === 'failed' ? 'death' : (detail.kind === 'complete' && (detail.first || detail.bonus) ? 'loot-unique' : 'season-up'));
+        addLog(text(), logClass(detail));
         if (detail.kind === 'complete' && detail.lost) addLog(`보관함이 가득 차 지도석 ${detail.lost}개를 잃었습니다.`, 'attack-monster');
         if (detail.kind === 'starter' && detail.opened) queueTutorialNotice('unlock_world_tree_atlas', '세계수 아틀라스',
             '혼돈 20 너머에서 세계수 아틀라스가 열렸습니다.\n‘지도 → 세계수 아틀라스’에서 지도석을 골라 지도 장치로 여세요. 보스를 잡으면 노드가 완료되고 이웃 노드가 열립니다.', 'tab-map', 'map-explore-worldtree');
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, selectNode, selectMap, craft, toggleFragment, open, reenter, abandon, toggleAuto });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, selectNode, selectMap, craft, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto });
 })();
 safeExposeGlobals({ atlasUi });

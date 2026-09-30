@@ -9,20 +9,23 @@ const copy = code => JSON.parse(run(`JSON.stringify(${code})`));
 
 // ---------------------------------------------------------------- the graph
 const graph = copy(`(() => {
-    const ids = atlas.nodes.map(node => node.id), open = new Set(atlas.nodes.filter(node => node.tier === 1).map(node => node.id));
+    const maps = atlas.nodes.filter(node => node.kind === 'map'), ids = atlas.nodes.map(node => node.id), open = new Set(maps.filter(node => node.tier === 1).map(node => node.id));
     for (let grew = true; grew;) { grew = false; for (const [a, b] of atlas.links) for (const [x, y] of [[a, b], [b, a]]) if (open.has(x) && !open.has(y)) { open.add(y); grew = true; } }
     const positions = atlas.nodes.map(node => atlas.position(node));
-    return { count: ids.length, unique: new Set(ids).size, reached: open.size, tiers: [...new Set(atlas.nodes.map(node => node.tier))].sort((a, b) => a - b),
+    return { count: maps.length, unique: new Set(ids).size, all: ids.length, reached: open.size, guardians: atlas.nodes.filter(node => node.kind === 'guardian').length,
+        tiers: [...new Set(maps.map(node => node.tier))].sort((a, b) => a - b),
         linksValid: atlas.links.every(([a, b]) => ids.includes(a) && ids.includes(b) && a !== b),
         inside: positions.every(({ x, y }) => x > 3 && x < 97 && y > 3 && y < 97),
-        regions: ATLAS.regions.map(region => atlas.nodes.filter(node => node.region === region.id).length) };
+        regions: ATLAS.regions.map(region => maps.filter(node => node.region === region.id).length) };
 })()`);
 assert.equal(graph.count, 45);
-assert.equal(graph.unique, 45);
+assert.equal(graph.unique, graph.all, 'unique ids');
+assert.equal(graph.all, 45 + 5 + 1, '45 maps, 5 guardians, the pinnacle');
+assert.equal(graph.guardians, 5);
 assert.deepEqual(graph.regions, [9, 9, 9, 9, 9], 'five regions of nine nodes');
 assert.deepEqual(graph.tiers, Array.from({ length: 16 }, (_, i) => i + 1), 'every tier 1..16 exists');
 assert.ok(graph.linksValid && graph.inside);
-assert.equal(graph.reached, 45, 'completing nodes outward from tier 1 can open the whole atlas');
+assert.equal(graph.reached, 50, 'completing nodes outward from tier 1 opens every map and guardian (the pinnacle opens with tickets)');
 
 // ---------------------------------------------------------------- map items and crafting
 run(`
@@ -68,9 +71,9 @@ assert.deepEqual(Object.entries(crafted).filter(([, ok]) => !ok).map(([key]) => 
 const outcomes = copy(`(() => {
     const seen = {};
     for (let i = 0; i < 400; i++) seen[atlasMaps.corrupt(atlasMaps.create('roots_4', 7, 'magic', seeded), seeded)] = true;
-    const top = atlasMaps.create('trunk_8', 16, 'normal', seeded);
-    for (let i = 0; i < 50 && top.tier === 16; i++) { top.corrupted = false; atlasMaps.corrupt(top, seeded); }
-    return { seen: Object.keys(seen).sort(), capped: top.tier === ATLAS.maxTier };
+    const top = atlasMaps.create('trunk_8', ATLAS.tierCap, 'normal', seeded);
+    for (let i = 0; i < 50; i++) { top.corrupted = false; atlasMaps.corrupt(top, seeded); }
+    return { seen: Object.keys(seen).sort(), capped: top.tier === ATLAS.tierCap };
 })()`);
 assert.deepEqual(outcomes.seen, ['extra', 'none', 'reforge', 'tier'], 'corruption can do nothing, raise the tier, add a mod past the limit or reforge');
 assert.ok(outcomes.capped, 'a corrupted map never goes past the top tier');

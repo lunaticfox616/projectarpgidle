@@ -4,7 +4,6 @@ const ATLAS = Object.freeze({
     zoneId: 'atlas_map',
     stashCap: 120,
     portals: 3,
-    maxTier: 16,
     // 등급 T의 몬스터 = 혼돈 깊이 D(T) = 20 + 2(T−1)을 그 깊이가 관문인 루프(D − 10)에서 만난 것과 같다.
     // 1등급은 아틀라스가 열리는 곳(루프 10 · 혼돈 20), 16등급은 루프 40 · 심화 50. 루프가 올라도 등급의 난이도는 그대로다.
     difficulty: Object.freeze({ baseDepth: 20, depthPerTier: 2, loopBehindDepth: 10 }),
@@ -122,9 +121,27 @@ const ATLAS = Object.freeze({
             rewards: Object.freeze([['meteorShard', 4, 0.5], ['skyEssence', 0.3, 0]]), mapChance: 0.2 })
     }),
     encounterLimit: 1,
+    // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].
+    // 수호자 지도석은 그 지역 13등급 이상 지도의 보스가 떨어뜨린다(수호자 노드가 열려 있을 때).
+    guardians: Object.freeze({
+        roots: Object.freeze(['수호자 「검은 뿌리」', 'uberRootTicketChaos', 9]),
+        trunk: Object.freeze(['수호자 「나이테 왕」', null, 7]),
+        canopy: Object.freeze(['수호자 「폭풍 날개」', 'uberRootTicketStorm', 8]),
+        garden: Object.freeze(['수호자 「잿불 정원사」', 'uberRootTicketFlame', 4]),
+        sanctum: Object.freeze(['수호자 「서리 눈」', 'uberRootTicketFrost', 3])
+    }),
+    guardianRules: Object.freeze({ tier: 16, minTier: 13, dropChance: 0.15, hpMul: 2.5, damageMul: 1.3, radius: 9 }),
+    // 정점: 뿌리 입장권 4종을 하나씩 바쳐 여는 세계수의 그림자(3단계 보스). 처치마다 씨앗 하나(최대 4).
+    pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, biome: 'root', stages: 3, hpMul: 4, damageMul: 1.5,
+        tickets: Object.freeze(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']),
+        rewards: Object.freeze([['goldenRule', 2], ['sapBud', 3], ['formlessDew', 8]]) }),
+    // 세계수 씨앗(보이드스톤): 하나마다 모든 노드 등급 +2(최대 4개 → 24등급). 4개면 경계 너머의 루프 50 조건을 대신한다
+    // (data/endgame-progression.js BEYOND_BOUNDARY_UNLOCK_SEEDS).
+    seeds: Object.freeze({ max: 4, tierStep: 2 }),
+    tierCap: 24,
     // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
-    chart: Object.freeze({ radii: Object.freeze([40, 31, 22.5, 14]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
-        offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]), labelRadius: 47.5 }),
+    chart: Object.freeze({ radii: Object.freeze([42, 33, 24.5, 16.5]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
+        offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]) }),
     // 바닥 위험 옵션이 쓰는 시련 함정 패턴(js/hazard-evasion.js).
     burningGround: Object.freeze({ pattern: 'pool', warningMs: 1700, intervalMs: 5200 })
 });
