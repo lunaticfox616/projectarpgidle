@@ -61,7 +61,7 @@ const stumpTalismanUi = (() => {
 
     function unsealButton(key) {
         const ready = owned(key) >= TALISMAN_UNSEAL_RULES[key].cost;
-        return `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>${shardName(key)} 풀기 · ${owned(key)}</button>`;
+        return `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>${shardName(key)} 풀기 (${owned(key)})</button>`;
     }
 
     function exchangeButton(row, index) {
@@ -73,8 +73,7 @@ const stumpTalismanUi = (() => {
     /** 봉인 풀기 · 편린 교환 (해금 목록의 '부적'을 연 뒤). */
     function unsealHtml() {
         if (!contentProgression.isUnlocked('talisman')) return '';
-        return '<h3>부적 풀기</h3><p class="stump-hint">봉인편린 하나로 부적 하나를 풉니다. 편린은 고대 미궁에서 떨어집니다. '
-            + '부적은 색이 없어 공명 · 억제에 끼지 않고, 판에서 처치로 깨어난 뒤 효과를 줍니다.</p>'
+        return '<h3>부적 풀기</h3><p class="stump-hint">봉인편린 하나로 부적 하나를 풉니다. 편린은 고대 미궁에서 떨어집니다.</p>'
             + `<div class="stump-talisman-unseal">${Object.keys(TALISMAN_UNSEAL_RULES).map(unsealButton).join('')}</div>`
             + `<div class="stump-talisman-unseal">${TALISMAN_SHARD_EXCHANGE.map(exchangeButton).join('')}</div>`;
     }
@@ -88,7 +87,7 @@ const stumpTalismanUi = (() => {
     function unseal(source) {
         const result = talismans.unseal(source);
         if (!result.ok) return refuse(result.reason) || null;
-        const item = result.item, text = item.lines.map(talismans.describeLine).join(' · ') || item.uniqueEffect || '';
+        const item = result.item, text = item.lines.map(talismans.describeLine).join(', ') || item.uniqueEffect || '';
         addLog(`🧿 부적 풀기: [${item.name}] ${text}`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare');
         return item;
     }

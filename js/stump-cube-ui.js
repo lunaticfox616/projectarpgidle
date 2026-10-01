@@ -26,7 +26,7 @@ const stumpCubeUi = (() => {
 
     function costText(cost) {
         const rows = Object.entries(cost || {}).map(([key, need]) => `${ORB_DB[key].name} ${need} (보유 ${Math.floor(game.currencies[key] || 0)})`);
-        return rows.length ? rows.join(' · ') : '비용 없음';
+        return rows.length ? rows.join(', ') : '비용 없음';
     }
 
     // ── 칸 ─────────────────────────────────────────────────
@@ -45,7 +45,7 @@ const stumpCubeUi = (() => {
     }
 
     function statusHtml(found, list) {
-        if (!list.length) return '<p class="stump-hint">빈 칸을 눌러 재료를 넣으세요. 조합법은 모양을 묻지 않고 무엇이 몇 개인지만 봅니다.</p>';
+        if (!list.length) return '<p class="stump-hint">빈 칸을 눌러 재료를 넣으세요.</p>';
         if (!found) return '<p class="stump-status">맞는 조합법이 없습니다. 아래 조합법 목록을 보세요.</p>';
         const lacking = stumpCube.missingCost(found.recipe).length > 0;
         return `<p class="stump-status is-good">${esc(found.recipe.name)} → ${esc(found.recipe.result)}</p>`

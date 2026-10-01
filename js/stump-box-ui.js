@@ -29,10 +29,10 @@ const stumpBoxUi = (() => {
     }
     function stumpGraftLabel(cell) {
         const rank = stumpBox.graftRank(game.stumpBox, cell);
-        return rank ? ` · 접붙이기 ${rank}단계(+${rank * STUMP_BOX_GRAFT.pctPerRank}%)` : '';
+        return rank ? `, 접붙이기 ${rank}단계(+${rank * STUMP_BOX_GRAFT.pctPerRank}%)` : '';
     }
     function stumpCellLabel(cell, item, open) {
-        if (!open) return `닫힌 칸 · 루프 ${stumpBox.opensAt(game, cell)}에 열림`;
+        if (!open) return `닫힌 칸, 루프 ${stumpBox.opensAt(game, cell)}에 열림`;
         return (item ? stumpBox.label(item) : '빈 칸') + stumpGraftLabel(cell);
     }
     function stumpCellClasses(item, open, result, cell) {
@@ -70,21 +70,21 @@ const stumpBoxUi = (() => {
     function stumpSummaryHtml(result) {
         const chips = COLORS.map(color => {
             const on = result.resonant.has(color);
-            return `<span class="stump-chip${on ? ' is-on' : ''}" style="--stump-tone:${stumpTone(color)}">${STUMP_BOX_COLORS[color].label} ${result.counts[color]}${on ? ' · 공명' : ''}</span>`;
+            return `<span class="stump-chip${on ? ' is-on' : ''}" style="--stump-tone:${stumpTone(color)}">${STUMP_BOX_COLORS[color].label} ${result.counts[color]}${on ? ' (공명)' : ''}</span>`;
         }).join('');
         const open = stumpBox.openCount(game), next = stumpBox.nextOpening(game);
-        const notes = [`열린 칸 ${open}/25`, next ? `루프 ${next.loop}에 ${next.cells}칸(판의 숫자 = 열리는 루프)` : '', result.suppressed.size ? `억제 ${result.suppressed.size}개` : '',
+        const notes = [`열린 칸 ${open}/25`, next ? `루프 ${next.loop}에 ${next.cells}칸` : '', result.suppressed.size ? `억제 ${result.suppressed.size}개` : '',
             stumpGraftNote()].filter(Boolean);
         const stats = Object.keys(result.stats).map(stat => `<li>${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
         return `<div class="stump-chips" title="다 자라고 억제되지 않은 색별 개수. ${STUMP_BOX_RESONANCE.count}개부터 공명 +${STUMP_BOX_RESONANCE.bonusPct}%">${chips}</div>`
-            + `<p class="stump-line">${notes.join(' · ')}</p>`
+            + `<p class="stump-line">${notes.join(', ')}</p>`
             + `<ul class="stump-stats">${stats || '<li class="is-empty">다 자란 아이템이 아직 없습니다.</li>'}</ul>`
             + stumpTalismanUi.summaryHtml();
     }
 
     function stumpGraftNote() {
         if (!stumpBox.graftOpen(game)) return '';
-        return `접붙이기 점수 ${stumpBox.graftPoints(game).free}(루프마다 +${STUMP_BOX_GRAFT.pointsPerLoop}, 칸 왼쪽 위 숫자 = 단계)`;
+        return `접붙이기 점수 ${stumpBox.graftPoints(game).free}`;
     }
 
     // ── 접붙이기 ───────────────────────────────────────────
@@ -154,7 +154,7 @@ const stumpBoxUi = (() => {
     }
     function stumpIdleHint() {
         const graft = stumpBox.graftOpen(game) ? ' 빈 칸을 누르면 그 칸을 접붙입니다.' : '';
-        return `<p class="stump-hint">보관함이나 판에서 아이템을 누르면 설명이 나옵니다.${graft}</p>`;
+        return `<p class="stump-hint">아이템이나 칸을 누르면 설명이 나옵니다.${graft}</p>`;
     }
     function stumpDetailHtml(result) {
         const item = selectedId === null ? null : stumpBox.itemById(game, selectedId);
@@ -175,7 +175,7 @@ const stumpBoxUi = (() => {
     function stumpStarterHtml() {
         const rows = stumpStarterRow('seed', '씨앗') + stumpStarterRow('sap', '수액');
         if (!rows) return '';
-        return '<h3>시작 선물</h3><p class="stump-hint">색을 골라 씨앗과 수액을 하나씩 받으세요. 한 번만 받습니다.</p>' + rows;
+        return '<h3>시작 선물</h3><p class="stump-hint">씨앗과 수액을 하나씩 고르세요. 한 번만 받습니다.</p>' + rows;
     }
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '', label = escStump(stumpBox.label(item));
@@ -358,7 +358,7 @@ const stumpBoxUi = (() => {
         announceStumpGraft();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
             '액트 10을 넘어선 보상으로 그루터기 함을 얻었습니다.\n씨앗과 수액을 판에 놓으면 처치할 때마다 자랍니다. 보관함에서는 자라지 않습니다.\n'
-            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기 · 번개와 카오스가 맞닿으면 둘 다 멈춥니다.\n먼저 ‘그루터기 함’에서 시작 선물로 씨앗과 수액의 색을 골라 받으세요.',
+            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.\n먼저 ‘그루터기 함’에서 시작 선물로 씨앗과 수액의 색을 골라 받으세요.',
             'tab-stump');
     }
     /** Once, when the reached loop opens grafting (loop 18; saves already past it see it after this update). */

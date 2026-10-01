@@ -275,7 +275,7 @@ const talismans = (() => {
 
     /** Readable effect list of a delta (the tooltip of a gem line, a HUD icon, an enemy curse). */
     function describeDelta(delta) {
-        return Object.entries(delta || {}).map(([key, value]) => effectText(key, value)).filter(Boolean).join(' · ');
+        return Object.entries(delta || {}).map(([key, value]) => effectText(key, value)).filter(Boolean).join(', ');
     }
 
     function describeCondition(line) {

@@ -301,7 +301,7 @@ lockTalisman();
 assert.strictEqual(run('stumpTalismanUi.unsealHtml()'), '', 'no unseal panel before the unlock');
 unlockTalisman();
 const panel = run('stumpTalismanUi.unsealHtml()');
-assert(panel.includes('봉인편린 풀기 · 2') && panel.includes('data-stump-action="talisman-unseal"'), 'the unseal panel shows the shards');
+assert(panel.includes('봉인편린 풀기 (2)') && panel.includes('data-stump-action="talisman-unseal"'), 'the unseal panel shows the shards');
 const shown = awake({ name: '보여 줄 부적', rarity: 'rare', lines: [line('pctDmg', 10), { kind: 'condition', id: 'hex_break', value: 9 }] }, 12);
 const detail = run(`stumpTalismanUi.detailHtml(stumpBox.itemById(game, ${shown}), 12)`);
 assert(detail.includes('희귀 부적') && detail.includes('8초마다 적 하나를 저주: 6초 동안 원소 저항 −9') && detail.includes('talisman-wax'), 'detail: rarity, lines, wax');
