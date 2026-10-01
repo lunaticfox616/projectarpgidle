@@ -413,6 +413,16 @@ function isTutorialPresentationBlocked() {
     return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen']
         .some(name => typeof window[name] === 'function' && window[name]());
 }
+/** 방치 결과 창이 뜰 때 이미 떠 있던 이야기 · 안내 카드는 접어 줄 맨 앞에 돌려놓는다 — 다시 불러온 뒤 이야기 카드 위에
+ * 결과 창이 겹쳤다(검토 6차). 결과를 닫으면 showNextTutorial이 다시 띄운다. */
+function yieldTutorialCardToResult() {
+    if (!activeTutorial) return;
+    tutorialQueue.unshift(activeTutorial);
+    document.getElementById('tutorial-overlay')?.classList.remove('active');
+    clearTutorialCallout();
+    activeTutorial = null;
+    activeTutorialStep = 0;
+}
 /** 휴대폰 전체 메뉴 서랍이나 확인 창(모달 dialog)이 열려 있으면 안내 카드는 닫힌 뒤에 뜬다 — 열린 서랍 위에 카드가 그려져 메뉴를 가렸다. */
 function tutorialYieldsToMenus() {
     return document.body.classList.contains('mobile-tab-drawer-open') || !!document.querySelector('dialog:modal');

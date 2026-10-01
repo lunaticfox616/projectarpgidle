@@ -56,6 +56,8 @@ const original=JSON.stringify({before,after});
 const highlights=policy.collectHighlights(before,after);
 assert.strictEqual(highlights.total,4,'includes new inventory, stash and equipped items');
 assert(highlights.items.some(row=>row.id===812 && row.location==='방치 보관함'));
+assert(highlights.items.some(row=>row.id===813 && row.location==='자동 착용'),'an auto-equipped reward says so (review 6)');
+assert(highlights.items.some(row=>row.id===811 && row.location==='장비창'));
 assert(!highlights.items.some(row=>row.id===801),'existing items cannot appear as new rewards');
 assert.strictEqual(highlights.items[0].reason,'목표 옵션 일치');
 assert.strictEqual(JSON.stringify({before,after}),original,'summary classification is read-only');

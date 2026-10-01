@@ -177,8 +177,8 @@
     /** 단추 글에도 까닭을 붙인다 — 휴대폰에는 title이 뜨지 않는다(검토 5차). */
     function getRecommendLabel(recommendation) {
         if (recommendation) return '추천 교체';
-        if (state.status === 'running') return '추천 · 분석 중';
-        return state.status === 'idle' ? '추천 · 분석 먼저' : '추천 장비 없음';
+        if (state.status === 'running') return '분석 중';
+        return state.status === 'idle' ? '분석 먼저' : '추천 없음';
     }
 
     function render() {

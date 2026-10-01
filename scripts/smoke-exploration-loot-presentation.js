@@ -49,6 +49,8 @@ while(pending.length) {
 run(`game=mergeDefaults({level:100,season:2,currentZoneId:0,settings:{showLootLog:false,autoEquipEmptySlots:false}});
     startEncounterRun();
     actExplorationLoot.capture(game,game.actExploration,()=>awardEnemyLootCurrency('goldenRule',7));
+    window.iconless=Object.keys(ORB_DB).find(key=>!ORB_DB[key].icon);
+    actExplorationLoot.capture(game,game.actExploration,()=>awardEnemyLootCurrency(window.iconless,2));
     for(const pack of game.actExploration.packs) {
         const enemies=pack.waiting.splice(0);
         for(const enemy of enemies){enemy.hp=0;actExplorationState.recordDeath(game,enemy);}
@@ -63,6 +65,11 @@ assert.equal(nodes.filter(n=>n.className==='battle-loot-drop'&&!n.removed).lengt
 assert.equal(ids.get('btn-exploration-loot-skip').hidden,false);
 const label=nodes.find(n=>n.className==='battle-loot-name');
 assert.match(label.innerHTML,/7/,'currency count is retained');
+// 검토 6차: 그림 없는 재화는 작은 보석 문양으로 날아간다 — 그림을 빼자 날아가는 연출이 빈 자리를 읽다 게임 루프 오류가 났다.
+now=60;
+run(`battleGroundLoot.actorContext(source,ctx,60,{actorGroundOffsetY:8,cellToScreen:(gx,gy)=>({x:gx*12,y:gy*12})})`);
+assert.equal(nodes.filter(n=>n.className==='battle-loot-drop'&&!n.removed).length,2,'the icon-less currency lands too');
+assert.ok(nodes.some(n=>n.className==='battle-loot-item battle-loot-glyph'),'it flies as a glyph');
 run('game.actExploration.departure={zoneId:1,remainingMs:5500}');
 for(const click of listeners.get('click'))click({target:{closest:selector=>selector==='#btn-exploration-loot-skip'?ids.get('btn-exploration-loot-skip'):null}});
 assert.equal(run('game.actExploration.departure.remainingMs'),0);

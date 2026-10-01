@@ -7,6 +7,7 @@
 .battle-loot-drop.landed::before{opacity:1}
 .battle-loot-flight{position:absolute;left:0;top:0;width:0;height:0;z-index:1}
 .battle-loot-item{position:absolute;width:28px;height:26px;max-width:none;object-fit:contain;left:-14px;top:-14px;filter:drop-shadow(1px 2px 1px #14130f);transform:rotate(var(--rest-angle,-15deg))}
+.battle-loot-glyph{width:12px;height:12px;left:-6px;top:-8px;background:var(--loot-color,#e8c46a);border:2px solid #14130f;transform:rotate(45deg)}
 .battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
 .battle-loot-drop::after{content:'';position:absolute;left:0;bottom:23px;width:1px;height:var(--label-lift,0px);background:linear-gradient(transparent,color-mix(in srgb,var(--loot-color) 55%,transparent));opacity:0;transition:opacity 220ms 90ms}
 .battle-loot-drop.landed::after{opacity:.7}

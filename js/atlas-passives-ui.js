@@ -63,30 +63,30 @@ const atlasPassivesUi = (() => {
         }
         atlasUi.refresh();
     }
-    function infoHtml(node) {
-        return `<div class="tooltip-title">${escapeHTML(node.name)}</div><div class="tooltip-line">${RANK_NAME[rankOf(node)]} · ${STATE_TEXT[status(node.id)]}</div>
-            <div class="tooltip-line">${escapeHTML(effectText(node.effect))}</div>`;
+    const NOTE_INTRO = '가운데 뿌리에서 줄기를 따라 찍습니다. 핵심 노드는 양옆 주요 노드 중 하나로 열립니다.';
+    function noteBody(node) {
+        if (!node) return NOTE_INTRO;
+        return `<strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]} · ${STATE_TEXT[status(node.id)]}</small>
+            <br>${escapeHTML(effectText(node.effect))}`;
     }
-    /** Hover card over a passive (the wheel's colour on its edge). */
+    /** Pointer or keyboard on a passive: the note beside the wheel reads it; leaving shows the pressed one again. A floating card
+     * covered that note (review 6). */
     function hint(event, id) {
-        const node = atlasPassives.nodes.get(id);
-        if (!node || typeof showInfoTooltipHtml !== 'function') return;
-        const wheel = ATLAS_PASSIVES.wheels.find(row => row.id === node.wheel);
-        showInfoTooltipHtml(event.clientX, event.clientY, infoHtml(node), wheel ? wheel.tint : '#d9b066');
+        const wheel = event.currentTarget.closest('.atlas-wheel'), note = wheel && wheel.querySelector('.atlas-wheel-note');
+        const node = atlasPassives.nodes.get(id || focusId);
+        if (note) note.innerHTML = noteBody(node && node.wheel === event.currentTarget.closest('.atlas-wheel-art').dataset.wheel ? node : null);
     }
     function nodeHtml(node, at) {
         const state = status(node.id), rank = rankOf(node);
         const label = `${node.name} · ${RANK_NAME[rank]} · ${effectText(node.effect)} · ${STATE_TEXT[state]}`;
         return `<button class="atlas-passive-node rank-${rank} is-${state}${node.id === focusId ? ' is-focus' : ''}" style="--x:${at.x}%;--y:${at.y}%"
-            aria-pressed="${state === 'taken'}" aria-label="${escapeHTML(label)}" data-info-tooltip-anchor="1" onclick="atlasPassivesUi.toggle('${node.id}')"
-            onmouseenter="atlasPassivesUi.hint(event,'${node.id}')" onmousemove="atlasPassivesUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"></button>`;
+            aria-pressed="${state === 'taken'}" aria-label="${escapeHTML(label)}" onclick="atlasPassivesUi.toggle('${node.id}')"
+            onmouseenter="atlasPassivesUi.hint(event,'${node.id}')" onfocus="atlasPassivesUi.hint(event,'${node.id}')"
+            onmouseleave="atlasPassivesUi.hint(event,null)" onblur="atlasPassivesUi.hint(event,null)"></button>`;
     }
     /** Under each wheel: the passive last pressed there (a phone has no hover), else how the wheel reads. */
     function noteHtml(wheel) {
-        const node = wheel.nodes.find(row => row.id === focusId);
-        if (!node) return '<p class="atlas-wheel-note">가운데 뿌리에서 줄기를 따라 찍습니다. 핵심 노드는 양옆 주요 노드 중 하나로 열립니다.</p>';
-        return `<p class="atlas-wheel-note" aria-live="polite"><strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]} · ${STATE_TEXT[status(node.id)]}</small>
-            <br>${escapeHTML(effectText(node.effect))}</p>`;
+        return `<p class="atlas-wheel-note">${noteBody(wheel.nodes.find(row => row.id === focusId))}</p>`;
     }
     /** 갈래는 한 번에 하나만 보인다: 바퀴 넷(2×2)이 창 높이를 넘어 둘째 줄과 노드 설명이 화면 밖이었다(검토 5차). */
     const shownWheelId = () => wheelId || ATLAS_PASSIVES.wheels[0].id;

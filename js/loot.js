@@ -315,7 +315,8 @@ safeExposeGlobals({ getCurrencyDrops });
             const info = highlight(item, before);
             if (!info) continue;
             const inStash = (after.offlineProgress?.stash || []).includes(item);
-            rows.push({ id: item.id, name: item.name, rarity: item.rarity, slot: item.slot, location: inStash ? '방치 보관함' : '장비창', ...info });
+            const worn = Object.values(after.equipment || {}).includes(item); // 빈 칸에 자동으로 입었다(검토 6차)
+            rows.push({ id: item.id, name: item.name, rarity: item.rarity, slot: item.slot, location: inStash ? '방치 보관함' : worn ? '자동 착용' : '장비창', ...info });
         }
         rows.sort((a, b) => b.priority - a.priority);
         return { items: rows.slice(0, 5), total: rows.length };

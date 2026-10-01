@@ -610,6 +610,7 @@ function formatBackgroundSkippedReward(skippedMs) {
 
 function showBackgroundCombatResult(result) {
     if (typeof document === 'undefined' || !document.body) return;
+    if (typeof yieldTutorialCardToResult === 'function') yieldTutorialCardToResult();
     let old = document.getElementById('background-combat-result-overlay');
     if (old) old.remove();
     let overlay = document.createElement('div');
@@ -9451,7 +9452,7 @@ function performUpdateStaticUI() {
     renderEquipmentInventoryInspector(equipmentPageRows);
     // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
     if (!equipmentInventoryInteraction.isCarrying()) {
-        renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
+        renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', getInventoryFilterToggleHtml());
         let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
         if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
     }
@@ -11967,6 +11968,18 @@ async function tryRestoreSupabaseOAuthSession() {
 
 /** "45%를"이 "45%" / "를 줍니다."로 갈리지 않게: %와 뒤 한글 사이는 유니코드 줄바꿈 규칙상 끊어도 되는 자리라 keep-all로도
  * 막히지 않는다(검토 5차) — 사이에 줄바꿈 금지 문자(U+2060)를 넣는다. 화면에 보이는 글에만 쓴다(속성 · 비교 키에는 쓰지 않는다). */
+/** 휴대폰 장비 창의 '필터 · 정렬' 단추는 검색 줄 끝에 둔다(한 줄을 따로 써서 격자가 화면 아래로 밀렸다 — 검토 5차). PC에서는 숨긴다.
+ * 펼침 상태는 인벤토리 판의 class가 기준이라, 검색 줄을 다시 그려도 단추 표시가 어긋나지 않는다. */
+function getInventoryFilterToggleHtml() {
+    const open = !!document.querySelector('.equipment-inventory-panel.filters-open');
+    return `<button type="button" class="inventory-filter-toggle" aria-expanded="${open}" onclick="toggleInventoryFilters(this)">필터 · 정렬</button>`;
+}
+function toggleInventoryFilters(button) {
+    const open = button.closest('.equipment-inventory-panel').classList.toggle('filters-open');
+    button.setAttribute('aria-expanded', String(open));
+}
+safeExposeGlobals({ toggleInventoryFilters });
+
 function keepKoreanUnitParticles(text) {
     return String(text).replace(/%(?=[가-힣])/g, '%\u2060');
 }
@@ -13564,25 +13577,33 @@ async function cloudPullNow() {
     }
 }
 
+/** 실행 중 오류: 전투 기록에는 짧은 한 줄만(1분에 한 번), 파일 경로가 든 스택은 콘솔에만 — 플레이어 기록을 스택으로
+ * 덮어썼다(검토 6차). 게임은 계속 돈다. */
+function noteRuntimeErrorInLog() {
+    if (typeof addLog !== 'function') return;
+    addLog('⚠️ 일시적인 오류가 있었습니다. 진행은 그대로 저장됩니다 — 계속되면 새로고침해 주세요.', 'attack-monster', { rateKey: 'runtime-error', minIntervalMs: 60000 });
+}
+
 function reportFatalError(stage, error) {
-    let message = error && error.message ? error.message : String(error);
-    let stack = error && error.stack ? String(error.stack).split('\n').slice(0, 4).join('\n') : '';
     console.error(stage + ' failed:', error);
+    if (stage === 'runtime') return noteRuntimeErrorInLog();
     try {
-        let label = document.getElementById('ui-progress-label');
-        if (label) label.innerText = '⚠️ 오류';
-        let pct = document.getElementById('ui-move-time-text');
-        if (pct) pct.innerText = stage;
-        let caption = document.getElementById('ui-battlefield-caption');
-        if (caption) caption.innerText = `${stage}: ${message}`;
-        let log = document.getElementById('log');
-        if (log) {
-            let detail = stack ? `<pre style="white-space:pre-wrap;margin:6px 0 0;color:#ff9f9f;font-size:12px;">${escapeHTML(stack)}</pre>` : '';
-            log.innerHTML = `<div class="log-item attack-monster">[${stage}] ${escapeHTML(message)}${detail}</div>`;
-        }
+        showStartFailure(error);
     } catch (uiError) {
         console.error('fatal error UI update failed:', uiError);
     }
+}
+
+/** 시작 실패: 게임이 돌지 않으니 문의용 내용을 남기되, 스택은 접힌 '자세히' 안에 둔다. */
+function showStartFailure(error) {
+    const message = String((error && error.message) || error);
+    const stack = String((error && error.stack) || '').split('\n').slice(0, 4).join('\n');
+    [['ui-progress-label', '⚠️ 오류'], ['ui-move-time-text', '시작 실패'], ['ui-battlefield-caption', '게임을 시작하지 못했습니다. 새로고침해 주세요.']]
+        .forEach(([id, text]) => { const node = document.getElementById(id); if (node) node.innerText = text; });
+    const log = document.getElementById('log');
+    if (!log) return;
+    const detail = stack ? `<details><summary>자세히</summary><pre style="white-space:pre-wrap;margin:6px 0 0;color:#ff9f9f;font-size:12px;">${escapeHTML(stack)}</pre></details>` : '';
+    log.innerHTML = `<div class="log-item attack-monster">⚠️ 게임을 시작하지 못했습니다: ${escapeHTML(message)}${detail}</div>`;
 }
 
 function recoverRuntimeState() {

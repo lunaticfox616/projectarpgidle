@@ -87,15 +87,18 @@ const battleGroundLoot = (() => {
         if (currency) currencyLabel(label, marker, receipt);
         else label.textContent = item.name;
         const flight = document.createElement('div'); flight.className = 'battle-loot-flight';
-        const art = lootArt(currency ? currency.icon : getInventoryItemVisualAsset(item, receipt.itemKind), item);
-        if (art) flight.append(art);
+        flight.append(lootArt(currency ? currency.icon : getInventoryItemVisualAsset(item, receipt.itemKind), item));
         marker.append(flight, label);
         return flight;
     }
 
-    /** 그림이 없는 재화(56종)는 이름 띠만 — src가 undefined인 그림을 만들어 /undefined 404가 났다(검토 5차). */
+    /** 그림이 없는 재화(56종)는 작은 보석 문양으로 날아간다 — src가 undefined인 그림이 /undefined 404를 냈고(검토 5차),
+     * 그림을 빼자 날아가는 연출이 빈 자리를 읽다 게임 루프 오류가 났다(검토 6차). */
     function lootArt(src, item) {
-        if (!src) return null;
+        if (!src) {
+            const glyph = document.createElement('span'); glyph.className = 'battle-loot-item battle-loot-glyph';
+            return glyph;
+        }
         const art = document.createElement('img'); art.className = 'battle-loot-item'; art.alt = '';
         art.src = src;
         if (item?.slot === '무기') art.classList.add('weapon');
@@ -152,7 +155,7 @@ const battleGroundLoot = (() => {
     function land(entry) {
         entry.marker.classList.add('landed');
         const contact = document.createElement('span'); contact.className = 'battle-loot-contact'; entry.marker.append(contact);
-        if (!reduced()) entry.marker.querySelector('img').animate([
+        if (!reduced()) entry.marker.querySelector('.battle-loot-item').animate([
             { translate: '0 0' }, { translate: '0 -4px', offset: .35 }, { translate: '0 0' }
         ], { duration: 190, easing: 'ease-out' });
         later(entry, () => contact.remove(), 550);
