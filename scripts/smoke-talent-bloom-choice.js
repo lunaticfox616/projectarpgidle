@@ -93,7 +93,11 @@ async function verifyFifthAscensionChoiceOverlay() {
     const chosen = await vm.runInContext('chooseTalentBloomHeroId()', context);
     const config = JSON.parse(vm.runInContext('JSON.stringify(game.__choiceConfig)', context));
     assert.strictEqual(chosen, 'hero3');
-    assert.strictEqual(config.title, '5차 전직 · 개화 재능 선택');
+    assert.strictEqual(config.title, '5차 전직: 개화 재능 선택');
+    const cardOf = id => vm.runInContext(`getTalentCardName('${id}', game.ascendClass).bloomName`, context);
+    const detailOf = id => config.choices.find(choice => choice.value === id).detailHtml;
+    assert.ok(detailOf('hero3').includes(`카드: ${cardOf('hero3')} (새 카드)`), 'each talent shows the card it makes with the current ascendancy');
+    assert.ok(/카드: .+ \(보유 Lv\.\d+\)/.test(detailOf('hero10')), 'an owned card shows its level');
     assert.strictEqual(config.choices.length, 10, 'fifth ascension must offer every bloom talent');
     assert.strictEqual(config.value, 'hero2', 'the overlay should initially focus the selected class recommendation');
 

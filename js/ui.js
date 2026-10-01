@@ -3996,27 +3996,35 @@ async function chooseTalentBloomHeroId() {
     let currentId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId]
         ? classDef.recommendedTalentHeroId : HERO_SELECTION_ORDER[0];
     return requestGameChoice({
-        title: '5차 전직 · 개화 재능 선택',
-        message: '이번 루프에서 사용할 개화 재능을 선택하세요. 5차 전직을 완료하면 선택한 재능의 보너스가 적용되며, 다음 루프에는 다시 선택합니다.',
+        title: '5차 전직: 개화 재능 선택',
+        message: '이번 루프의 개화 재능을 고르세요. 개화 시련을 깨면 그 재능과 지금 전직의 카드를 얻고, 다음 루프에는 다시 고릅니다.',
         value: currentId,
         choices: HERO_SELECTION_ORDER.map(id => ({
             value: id,
             label: HERO_SELECTION_DEFS[id].label,
-            detail: HERO_SELECTION_DEFS[id].talentsText
+            detailHtml: getTalentBloomChoiceDetailHtml(id)
         })),
         confirmLabel: '선택하고 도전'
     });
 }
 
+/** 개화 재능 선택지: 재능 효과와, 지금 전직과 합쳐 얻을 카드(가졌으면 레벨). */
+function getTalentBloomChoiceDetailHtml(heroId) {
+    const card = typeof getTalentCardName === 'function' && game.ascendClass ? getTalentCardName(heroId, game.ascendClass).bloomName : '';
+    const owned = (game.talentCards || {})[`${heroId}__${game.ascendClass}`];
+    const cardText = card ? `카드: ${card}${owned ? ` (보유 Lv.${Math.max(1, Math.floor(owned.level || 1))})` : ' (새 카드)'}` : '';
+    return `<span>${escapeHTML(HERO_SELECTION_DEFS[heroId].talentsText || '')}</span>${cardText ? `<span style="color:#d8b4ff;">${escapeHTML(cardText)}</span>` : ''}`;
+}
+
 async function enterTalentBloomTrial() {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!isWoodsmanEchoUnlocked()) return addLog('🔒 나무꾼의 잔상이 아직 열리지 않았습니다. 혼돈 밖 나무꾼을 100% 처치하세요.', 'attack-monster');
-    if (!game.ascendClass) return addLog('🔒 재능 개화는 직업(전직) 선택 후 도전할 수 있습니다.', 'attack-monster');
+    if (!game.ascendClass) return addLog('🔒 재능 개화는 전직을 고른 뒤 도전할 수 있습니다.', 'attack-monster');
     if ((game.currencies.chaosKey || 0) < 1 || (game.currencies.coreKey || 0) < 1) return addLog('🔒 카오스 키와 코어 키가 각각 1개씩 필요합니다.', 'attack-monster');
     let heroId = await chooseTalentBloomHeroId();
     if (!HERO_SELECTION_DEFS[heroId]) return;
     game.pendingTalentBloomHeroId = heroId;
-    addLog(`이번 루프 개화 재능: ${HERO_SELECTION_DEFS[heroId].label} · 5차 전직 완료 후 보너스 적용`, 'season-up');
+    addLog(`이번 루프 개화 재능: ${HERO_SELECTION_DEFS[heroId].label}, 5차 전직을 마치면 보너스 적용`, 'season-up');
     if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
     changeZone('trial_5');
 }
