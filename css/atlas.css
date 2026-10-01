@@ -116,6 +116,14 @@
 #ui-atlas .atlas-wheel-note strong{color:var(--atlas-ink);font-weight:600}
 #ui-atlas .atlas-wheel-note small{color:var(--atlas-muted)}
 @container (max-width:720px){#ui-atlas .atlas-wheels{grid-template-columns:minmax(0,1fr)}}
+/* 갈래는 한 번에 하나(위 단추로 고른다 — 바퀴 넷이 창 높이를 넘었다, 검토 5차). 넓은 창에서는 노드 설명을 바퀴 옆에 둔다. */
+#ui-atlas .atlas-wheel-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+#ui-atlas .atlas-wheel-tabs>button{min-height:36px;padding:4px 10px;font-size:12px}
+#ui-atlas .atlas-wheel-tabs>button span{margin-left:6px;color:var(--atlas-muted)}
+#ui-atlas .atlas-wheel-tabs>button[aria-pressed="true"]{color:#f3e2b5;box-shadow:inset 0 -3px 0 var(--tint)}
+#ui-atlas .atlas-wheels{grid-template-columns:minmax(0,1fr)}
+#ui-atlas .atlas-wheel[hidden]{display:none}
+@container (min-width:640px){#ui-atlas .atlas-wheel{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);column-gap:18px;align-items:center}#ui-atlas .atlas-wheel[hidden]{display:none}}
 #ui-atlas .atlas-epoch{padding:14px 18px}
 #ui-atlas .atlas-epoch-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;padding-bottom:12px;border-bottom:1px solid var(--atlas-line)}
 #ui-atlas .atlas-epoch-head h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}

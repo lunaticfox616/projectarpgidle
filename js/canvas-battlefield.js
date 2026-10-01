@@ -1557,9 +1557,11 @@ function drawBattlefieldPlayerHealthBar(ctx, scene) {
 
 // 정예는 일반 무리와 한눈에 구분되도록 체력바 위에 특성 이름표를 단다(보스는 상단 대형 바가 맡는다).
 // 일반 · 정예 막대는 칸보다 좁게: 이웃한 두 적의 막대가 맞붙어 한 줄로 읽혔다(검토 4차).
-function getEnemyFieldBarWidth(enemy) {
+/** 칸 폭을 넘지 않는다: 휴대폰은 칸이 좁아 이웃한 적의 막대가 한 줄로 이어져 보였다(검토 5차). */
+function getEnemyFieldBarWidth(enemy, tileW) {
     if (enemy.isBoss) return 96;
-    return enemy.isElite ? 54 : 40;
+    const base = enemy.isElite ? 54 : 40;
+    return tileW > 0 ? Math.min(base, Math.max(18, Math.floor(tileW * 0.84))) : base;
 }
 
 function getEnemyFieldBarEdge(enemy, targeted) {
@@ -1588,22 +1590,25 @@ function getEnemyFieldBarLift(enemy) {
     return wispActors.barLift(enemy) || 56;
 }
 
-function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
+function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
-        let width = getEnemyFieldBarWidth(enemy);
+        let width = getEnemyFieldBarWidth(enemy, tileW);
         let x = Math.round(entry.x - width / 2);
         let y = Math.round(entry.y - getEnemyFieldBarLift(enemy));
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
         ctx.globalAlpha = 0.96;
+        ctx.fillStyle = 'rgba(12, 8, 10, 0.82)'; // 빈 몫도 보이게: 깎인 막대끼리 이어 보이지 않는다
+        ctx.fillRect(x, y, width, 6);
         let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
         if (ghostPct > pct + 0.002) {
             ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
             ctx.fillRect(x + Math.round(width * pct), y, Math.max(2, Math.round(width * (ghostPct - pct))), 6);
         }
-        ctx.fillStyle = targeted ? '#f1c40f' : '#e94f64';
+        // 조준한 적도 체력은 같은 빨강: 노란 막대는 무엇인지 알 수 없었다(검토 5차) — 조준은 금빛 두꺼운 테로만 보인다.
+        ctx.fillStyle = '#e94f64';
         ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
         let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
         if (esPct > 0) {
@@ -1611,8 +1616,9 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
             ctx.fillRect(x, y - 4, Math.max(2, Math.round(width * esPct)), 3);
         }
         ctx.strokeStyle = getEnemyFieldBarEdge(enemy, targeted);
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 7);
+        let edge = targeted ? 1 : 0.5;
+        ctx.lineWidth = edge * 2;
+        ctx.strokeRect(x - edge, y - edge, width + edge * 2, 6 + edge * 2);
         ctx.restore();
         drawEliteNameplate(ctx, entry.x, y - (esPct > 0 ? 6 : 2), enemy);
         drawBossPatternLabel(ctx, entry, enemy);
@@ -2686,7 +2692,7 @@ function renderBattlefield(forceWhenHidden) {
             ctx.restore();
         }
     });
-    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets });
+    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW });
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
@@ -2769,7 +2775,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
     drawBattlefieldPlayerHealthBar(ctx, scene);
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets);
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets, scene.tileW);
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 

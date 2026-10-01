@@ -196,8 +196,10 @@ const stumpBoxUi = (() => {
         const filters = keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
             + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('');
         const empty = all.length ? '이 분류의 아이템이 없습니다.' : '비어 있습니다. 스토리 액트 밖의 처치에서 가끔 씨앗·수액이 나옵니다.';
+        // 빈 칸도 그린다: 아이템 몇 개만 있으면 보관함이 큰 빈 상자로 보였다(검토 5차). 분류를 고르면 고른 것만.
+        const slots = colorFilter === 'all' ? '<span class="stump-slot" aria-hidden="true"></span>'.repeat(Math.max(0, STUMP_BOX_STORAGE - all.length)) : '';
         return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${STUMP_BOX_STORAGE}</h3><div class="stump-filters">${filters}</div></div>`
-            + `<div class="stump-storage-grid">${items.map(stumpStorageCard).join('') || `<p class="stump-hint">${empty}</p>`}</div>`;
+            + `<div class="stump-storage-grid">${items.map(stumpStorageCard).join('') || `<p class="stump-hint">${empty}</p>`}${slots}</div>`;
     }
 
     // ── 그리기 ─────────────────────────────────────────────

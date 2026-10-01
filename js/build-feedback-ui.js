@@ -6,6 +6,10 @@
     let previousSignature = '';
     let previousStats = null;
     let chipTimer = null;
+    /** Phone: a change made while a tab covers the battlefield (no life orb on screen) waits here and shows above the orb
+     * on return — the chip otherwise sat on that tab's content (gem text) or, kept after closing it, on the minimap label.
+     * @type {{ before: number, after: number } | null} DPS before the first and after the last change while away. */
+    let heldDelta = null;
 
     function visibleRect(selector) {
         const node = document.querySelector(selector);
@@ -13,12 +17,13 @@
         const rect = node.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && getComputedStyle(node).visibility !== 'hidden' ? rect : null;
     }
-    /** The top of what sits right under the chip: the life orb, or on phones the collapsed combat log stacked on it. */
+    /** The top of what sits right under the chip: the life orb, or on phones the collapsed combat log stacked on it and the
+     * log notice shown above that log (#mobile-toast-root, drawn over the chip). */
     function floorTop(orb) {
-        const log = visibleRect('.combat-feed'), bar = visibleRect('#tab-header-bottom');
+        const log = visibleRect('.combat-feed'), bar = visibleRect('#tab-header-bottom'), notice = visibleRect('#mobile-toast-root');
         if (!orb) return bar ? bar.top : window.innerHeight - 96;
         const stacked = log && log.bottom <= orb.top + 12 && log.bottom > orb.top - 60 && log.left < orb.right;
-        return stacked ? log.top : orb.top;
+        return Math.min(stacked ? log.top : orb.top, notice ? notice.top : Infinity);
     }
     /** Where the chip's bottom edge sits (CSS px from the top, after the display zoom), and its left edge (null → centred):
      * above the life orb; above the phone tab bar when the orb is hidden; never under an open guide card it would overlap. */
@@ -48,13 +53,26 @@
         chipTimer = setTimeout(() => chip.remove(), 3200);
     }
 
+    function reportDpsChange(before, after) {
+        if (!isMobilePrimaryNavigationEnabled() || visibleRect('#ui-hp-bar')) return showDpsDelta(before, after);
+        heldDelta = { before: heldDelta ? heldDelta.before : before, after };
+    }
+    function showHeldDelta() {
+        if (!heldDelta || !visibleRect('#ui-hp-bar')) return;
+        const held = heldDelta;
+        heldDelta = null;
+        showDpsDelta(held.before, held.after);
+    }
+
     /** @param {ReturnType<typeof getPlayerStats>} stats Current displayed combat estimates. */
     function updateBuildFeedback(stats) {
         if (game.isBackgroundCalculation || stats.__uiFallbackStats) return;
         const signature = JSON.stringify([game.equipment, game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills, game.summonSkillCounts]);
+        if (previousGame !== game) heldDelta = null;
         if (previousGame === game && previousStats && previousSignature !== signature) {
-            showDpsDelta(previousStats.dps, stats.dps);
+            reportDpsChange(previousStats.dps, stats.dps);
         }
+        showHeldDelta();
         previousGame = game;
         previousSignature = signature;
         previousStats = { dps: stats.dps };

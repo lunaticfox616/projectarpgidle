@@ -157,16 +157,26 @@ const contentUnlockUi = {
                 { duration:420, delay:delay + 140 + depth * 70, fill:'backwards', easing:'ease-out' }));
         });
     },
-    milestone(loop) {
+    milestone(loop, end = loop) {
         const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop);
         const choices = rows.filter(row => row.cost > 0);
         const automatic = rows.filter(row => row.cost === 0);
         const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
-            <summary><strong>루프 ${loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}${this.milestoneTeaser(loop)}</span></summary>
+            <summary><strong>루프 ${end > loop ? `${loop}–${end}` : loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}${this.milestoneTeaser(loop)}</span></summary>
             <p class="unlock-loop-requirement">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>
             ${this.milestoneRows(automatic, '자동 개방')}${this.milestoneRows(choices, '성장 선택')}
             ${additions.length ? `<p class="unlock-expansion">${additions.map(escapeHTML).join('<br>')}</p>` : ''}</details>`;
+    },
+    /** 같은 예고만 이어지는 앞날의 루프는 한 줄로 묶는다(루프 21 ~ 24가 "심화: 혼돈 단계 상승" 네 줄이었다 — 검토 5차). */
+    milestoneRuns(loops) {
+        return loops.reduce((runs, loop) => {
+            const plain = loop > game.season && !CONTENT_UNLOCK_CATALOG.some(row => row.minLoop === loop);
+            const key = plain ? this.milestoneTeaser(loop) : null, last = runs[runs.length - 1];
+            if (key && last && last.key === key && last.end === loop - 1) last.end = loop;
+            else runs.push({ start: loop, end: loop, key });
+            return runs;
+        }, []);
     },
     /** 접힌 이정표 줄에도 그 루프에 열리는 것을 한두 개 보인다(빈 "예정" 줄만 늘어서 있었다 — 검토 4차). */
     milestoneTeaser(loop) {
@@ -201,7 +211,7 @@ const contentUnlockUi = {
         const toggle = this.showAllMilestones ? '현재·다음 이정표만' : '전체 이정표 보기';
         return `<div class="unlock-milestone-intro"><p>전투는 진행에 따라 열리고, 성장 수단은 직접 선택합니다.</p>
             <button type="button" data-unlock-horizon="toggle">${toggle}</button></div>
-            <div class="unlock-milestones">${shown.map(loop => this.milestone(loop)).join('') || this.milestone(game.season)}</div>`;
+            <div class="unlock-milestones">${this.milestoneRuns(shown).map(run => this.milestone(run.start, run.end)).join('') || this.milestone(game.season)}</div>`;
     },
     entryReward(def, status) {
         const reward = !status.unlocked && def.rewardText ? `<p class="unlock-reward">${escapeHTML(def.rewardText)}</p>` : '';

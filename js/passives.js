@@ -5923,7 +5923,7 @@ function openActReward(zoneId) {
 /** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림). 다른 보상은 그림 없이 글만. */
 function actRewardChoiceArt(choice) {
     if (choice.kind !== 'item') return '';
-    return `<img class="reward-choice-art" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
+    return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
 }
 /** 장비 선택지: 등급과, 맞는 장착 칸이 비어 있어 바로 장착되는지(액트 보상은 빈 칸에 자동 장착) 아니면 가방으로 가는지. */
 function actRewardItemPreview(choice) {

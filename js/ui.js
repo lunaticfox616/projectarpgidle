@@ -642,7 +642,7 @@ function showBackgroundCombatResult(result) {
         ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
         `총 처치: <strong>${formatNumberKR(summary.kills)}</strong>`,
         backgroundExpLine(summary),
-        `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
+        `사망 횟수: <strong>${summary.deaths || 0}</strong>${summary.deaths > 0 ? ' <span class="background-combat-exp-lost">(쓰러진 탐험에서 모은 임시 전리품은 사라집니다)</span>' : ''}`,
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
@@ -4149,7 +4149,7 @@ function renderAttackGemCard(name, highlightedName, stats) {
     return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
-        <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
+        <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '공격 스킬 젬'))}</p>
         ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
         <div class="gem-card-tags">${renderGemTagChips(def, 4)}</div>
         <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
@@ -4182,7 +4182,7 @@ function renderSupportGemCard(name, highlightedName, stats) {
     let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
     return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="gemSelectionUi.open(this,'support','${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();gemSelectionUi.open(this,'support','${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
         <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
-        <p>${escapeHTML(def.desc || '보조 젬 효과')}</p>
+        <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '보조 젬 효과'))}</p>
         <div class="gem-application-note">${escapeHTML(gemSelectionUi.application(name, stats))}</div>
         <div class="gem-card-tags"><span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span class="gem-tag gem-tag--resonance">${escapeHTML(resonanceStatus)}</span></div>
         <div class="gem-card-footer"><span class="gem-usage-state">${escapeHTML(usageState)}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
@@ -5940,7 +5940,7 @@ function showGemTooltip(event, type, name, target = null) {
     let info = getUiGemPresentation(name, type === 'support', stats);
     let html = `<div class="tooltip-title">${name}</div>`;
     if (type === 'support') {
-        html += `<div class="tooltip-line">${info.desc}</div>`;
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
         html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${valueText}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>`;
@@ -5972,7 +5972,7 @@ function showGemTooltip(event, type, name, target = null) {
         let skill = info.skill || SKILL_DB[name];
         let rawSkillTags = Array.isArray(skill.tags) ? skill.tags : [];
         let isSummonAttackTooltip = rawSkillTags.includes('summon_attack');
-        html += `<div class="tooltip-line">${info.desc}</div>`;
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
         if (!isSummonAttackTooltip && typeof describeSkillGridProfile === 'function') {
             html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
         }
@@ -11963,6 +11963,12 @@ async function tryRestoreSupabaseOAuthSession() {
         console.warn('supabase oauth session restore failed:', error);
         return false;
     }
+}
+
+/** "45%를"이 "45%" / "를 줍니다."로 갈리지 않게: %와 뒤 한글 사이는 유니코드 줄바꿈 규칙상 끊어도 되는 자리라 keep-all로도
+ * 막히지 않는다(검토 5차) — 사이에 줄바꿈 금지 문자(U+2060)를 넣는다. 화면에 보이는 글에만 쓴다(속성 · 비교 키에는 쓰지 않는다). */
+function keepKoreanUnitParticles(text) {
+    return String(text).replace(/%(?=[가-힣])/g, '%\u2060');
 }
 
 function escapeHTML(value) {

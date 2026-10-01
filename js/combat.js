@@ -10559,8 +10559,9 @@ function performPlayerAttack(pStats, attackOptions) {
     let firstResolvedSkillHit = !isStageReplay || Number(options.stageIndex) === 0;
     if (firstResolvedSkillHit && isCrit && hitSummary.totalDamage > 0) advanceEnergyShieldRechargeOnCrit(pStats, getCombatTime());
 
-    if (game.settings.showCombatLog) {
-        let line = `${getDamageElementIcon(swingElement)} ${formatNumberKR(hitSummary.totalDamage)} 피해`;
+    // 0 피해 줄은 남기지 않고, 어느 기술의 피해인지 붙인다(맨 숫자만 있던 줄 — 검토 5차).
+    if (game.settings.showCombatLog && hitSummary.totalDamage > 0) {
+        let line = `${getDamageElementIcon(swingElement)} ${skillName} · ${formatNumberKR(hitSummary.totalDamage)} 피해`;
         if (game.settings.showDetailedDamageLog === true) {
             let dotInfo = '';
             if (isDotSkill) {
@@ -11732,8 +11733,8 @@ function performMonsterAttacks(pStats) {
             }));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
             receiveSkillGemPlayerHit(dmg,pStats);
-            if (game.settings.showCombatLog) {
-                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${formatNumberKR(dmg)} 피해`;
+            if (game.settings.showCombatLog && dmg > 0) {
+                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격 · ${formatNumberKR(dmg)} 피해`;
                 if (game.settings.showDetailedDamageLog === true) {
                     let breakdownText = damageBreakdown
                         .filter(row => row.amount > 0)

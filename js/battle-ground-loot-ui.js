@@ -86,12 +86,20 @@ const battleGroundLoot = (() => {
         marker.style.setProperty('--loot-color', receipt.color || getRarityColor(marker.dataset.rarity));
         if (currency) currencyLabel(label, marker, receipt);
         else label.textContent = item.name;
-        const art = document.createElement('img'); art.className = 'battle-loot-item'; art.alt = '';
-        art.src = currency ? currency.icon : getInventoryItemVisualAsset(item, receipt.itemKind);
-        if (item?.slot === '무기') art.classList.add('weapon');
-        const flight = document.createElement('div'); flight.className = 'battle-loot-flight'; flight.append(art);
+        const flight = document.createElement('div'); flight.className = 'battle-loot-flight';
+        const art = lootArt(currency ? currency.icon : getInventoryItemVisualAsset(item, receipt.itemKind), item);
+        if (art) flight.append(art);
         marker.append(flight, label);
         return flight;
+    }
+
+    /** 그림이 없는 재화(56종)는 이름 띠만 — src가 undefined인 그림을 만들어 /undefined 404가 났다(검토 5차). */
+    function lootArt(src, item) {
+        if (!src) return null;
+        const art = document.createElement('img'); art.className = 'battle-loot-item'; art.alt = '';
+        art.src = src;
+        if (item?.slot === '무기') art.classList.add('weapon');
+        return art;
     }
 
     function beam(marker, receipt) {

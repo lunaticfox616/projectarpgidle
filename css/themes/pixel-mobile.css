@@ -160,6 +160,18 @@
     text-shadow: var(--px-text-edge);
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-main > .tab-btn.active { background: var(--px-board-hot), var(--px-stone-control); box-shadow: var(--px-bevel-pressed), inset 0 0 0 4px rgba(217, 176, 102, .5); color: var(--px-gold-bright); }
+  /* '완료 후 행동'은 메뉴가 아니라 설정: 한 줄을 다 쓰는 값 칸으로 — 메뉴 단추 틈에 끼어 "다음…"으로 잘렸다(검토 5차) */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main > #btn-map-complete-action-picker {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    padding-inline: 14px;
+    background: var(--px-panel);
+    box-shadow: inset 0 0 0 1px var(--px-bronze-lo);
+  }
+  /* 정예·보스 특성 줄(누르면 설명): 글줄이 18px이라 손가락 판정만 44px로 — 판은 그대로, 보이지 않는 판정 칸을 위아래로 덧댄다
+     (글이 줄을 바꾸니 잘라 낼 것이 없다: 넘침을 열어 덧댄 칸이 눌리게 한다 — 검토 5차) */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card:is(.enemy-boss, .enemy-elite) .enemy-traits { position: relative; overflow: visible; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card:is(.enemy-boss, .enemy-elite) .enemy-traits::after { content: ''; position: absolute; inset: -13px 0; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */

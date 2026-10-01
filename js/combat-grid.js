@@ -617,7 +617,8 @@ function getSkillStageFootprint(skillName, skill, stage, source) {
     return { cells: Array.from(new Map(cells.map(cell => [`${cell.gx},${cell.gy}`, { gx: cell.gx, gy: cell.gy }])).values()),
         shape: profile.shape, radius: profile.radius,
         cone: profile.kind === 'cone' ? getGridConeGeometry(profile, source, getClosestGridUnitCell(source, primary)) : null,
-        center: profile.kind === 'nova' ? { ...source } : { ...getClosestGridUnitCell(source, primary) } };
+        // 중심은 칸 좌표만: 보스 예고에서는 source가 보스 자신이라 { ...source }가 보스 전체(이전 예고 포함)를 겹겹이 복사했다(검토 5차).
+        center: profile.kind === 'nova' ? { gx: source.gx, gy: source.gy } : { ...getClosestGridUnitCell(source, primary) } };
 }
 
 /** 연쇄 스킬: 1차 대상에서 jump칸 이내 가장 가까운 적으로 targetCount까지 튄다. */

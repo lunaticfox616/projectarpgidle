@@ -61,6 +61,7 @@ const tutorialActionUi = {
         this.active = { notice, guide, before: guide.read() };
         this.ensureCard();
         this.card.hidden = false;
+        this.card.classList.remove('is-away');
         this.card.querySelector('strong').textContent = guide.title;
         // ‘장착’ 같은 단추 이름은 안내 판처럼 색 글씨로(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다).
         this.card.querySelector('p').innerHTML = tutorialMarkup(guide.body);
@@ -161,6 +162,11 @@ const tutorialActionUi = {
     reposition() {
         this.placedFor = null;
         this.refresh();
+    },
+    /** 따라 하기는 가리키는 화면에 있는 동안만 다음 안내 카드를 붙잡는다. 그 화면을 떠나면(한 줄 띠로 줄어듦) 쌓인 카드가 뜬다 —
+     * 첫 스킬트리 투자를 하지 않고 나가면 '지도 개방'(액트 1 보상으로 가는 안내)이 띠를 닫을 때까지 5분 넘게 숨어 있었다(검토 2026-10-01). */
+    holdsQueue() {
+        return !!this.active && !this.card.classList.contains('is-away');
     },
     /** 따라 하기가 화면을 바꾸면 멈춰 있던 마우스 밑으로 새 칸이 와서, 그 칸의 hover 툴팁('기본 공격')이 가리키는 칸을 덮었다
      * (검토 2026-10-01). 마우스가 실제로 움직이거나 누르거나 휠을 굴릴 때까지 그 자리의 hover 툴팁을 띄우지 않는다(hushesTooltipAt). */
@@ -403,9 +409,13 @@ function isTutorialPresentationBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
     // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
     if (backgroundCombatRuntime.processing || document.getElementById('background-combat-result-overlay')) return true;
-    if (tutorialWaitsForTitleCard()) return true;
+    if (tutorialWaitsForTitleCard() || tutorialYieldsToMenus()) return true;
     return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen']
         .some(name => typeof window[name] === 'function' && window[name]());
+}
+/** 휴대폰 전체 메뉴 서랍이나 확인 창(모달 dialog)이 열려 있으면 안내 카드는 닫힌 뒤에 뜬다 — 열린 서랍 위에 카드가 그려져 메뉴를 가렸다. */
+function tutorialYieldsToMenus() {
+    return document.body.classList.contains('mobile-tab-drawer-open') || !!document.querySelector('dialog:modal');
 }
 
 /** 떠 있는 안내 카드는 열린 창이 바뀌면 다시 자리를 잡는다 — 카드가 뜬 뒤 연 창(장비 등)의 내용을 덮고 있었다. */
@@ -420,7 +430,7 @@ function refreshTutorialCardPlacement() {
 
 function showNextTutorial() {
     refreshTutorialCardPlacement();
-    if (activeTutorial || tutorialActionUi.active || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
+    if (activeTutorial || tutorialActionUi.holdsQueue() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
     while (tutorialQueue.length) {
         const next = tutorialQueue.shift();
         if (storyJournalUi.allowsNotice(next.key) && contentProgression.canOpen(next.subtabId || next.tabId)) {
@@ -474,7 +484,7 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
         body: '레벨이 올라 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
-        body: '장비를 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 생명 구슬 위에 DPS 변화가 뜹니다.',
+        body: '장비를 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         starterDue: state => (state.inventory || []).some(Boolean) }
 ]);
 function queueStarterGuides(state) {

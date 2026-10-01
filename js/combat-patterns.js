@@ -131,7 +131,6 @@
         if (enemy.patternArea) state.area = enemy.patternArea;
         state.castStartedAt = enemy.patternTelegraphStartedAt;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;
-        enemy.lastPatternState = state;
         enemy.nextPatternState = getBossPatternPreview(enemy);
         enemy.patternTelegraphKey = null;
         enemy.patternTelegraphStartedAt = 0;

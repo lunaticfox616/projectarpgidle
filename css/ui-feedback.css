@@ -30,18 +30,11 @@ body { font-family: var(--font-body); }
 .build-dps-chip.is-up .build-dps-chip-value { color: #5fd38a; }
 .build-dps-chip.is-down .build-dps-chip-value { color: #e8645a; }
 @keyframes build-dps-chip { 0% { opacity: 0; translate: 0 6px; } 8% { opacity: 1; translate: 0 0; } 82% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -6px; } }
-/* 칩이 뜬 직후 다음 안내 판이 열리면(휴대폰: 첫 젬 장착 → 첫 스킬트리 포인트) 칩이 판의 아래 테 위에 그려졌다 — 안내 판(z 12000 · 휴대폰 13250)이 위.
-   휴대폰은 판이 화면 폭을 다 쓰므로 칩을 열린 판 바로 위로 올린다(판이 먼저 열려 있으면 js/build-feedback-ui.js chipAnchor가 두는 자리와 같다). */
+/* 칩이 뜬 직후 다음 안내 판이 열리면 칩이 판의 아래 테 위에 그려졌다 — 안내 판(z 12000 · 휴대폰 13250)이 위 */
 body:has(#tutorial-overlay.active) .build-dps-chip { z-index: 11990; }
-#tutorial-overlay .tutorial-card { anchor-name: --tutorial-card; }
-@supports (anchor-name: --tutorial-card) {
-  @media (max-width: 1080px) {
-    body:has(#tutorial-overlay.active:not(.is-story-scene)) .build-dps-chip {
-      /* 판이 열리기 전에 JS(chipAnchor)가 인라인 top으로 둔 자리(하단 메뉴 위)를 덮어쓴다 */
-      top: calc(anchor(--tutorial-card top) - 8px) !important;
-    }
-  }
-}
+/* 휴대폰: 칩은 전장의 생명 구슬 위에만 뜬다. 탭 창(장비 · 스킬 젬 …)이 전장을 덮으면 숨는다 — 창 내용(젬 글)이나 미니맵
+   이름 위에 남았다(검토 2026-10-01). 창이 열린 동안 바뀐 DPS는 전장으로 돌아올 때 띄운다(js/build-feedback-ui.js). */
+body.mobile-primary-navigation:not(:has(#tab-battle.active)) .build-dps-chip { visibility: hidden; }
 .game-toast.active { opacity: 1; transform: translateX(0); }
 /* 따라 하기 안내 카드(js/tutorial-ui.js tutorialActionUi): 자리는 JS가 가리키는 칸 · 곁 정보 · 툴팁을 비켜 정한다. 아래 기본 자리는
    그 한계(HUD 구슬 · 미니맵 · 하단 메뉴 위)이기도 하다. */

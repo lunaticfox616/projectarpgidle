@@ -19,6 +19,32 @@ function bossFixture(mode = 'slam') {
     return {...env, stats};
 }
 
+// 검토 5차(출시 차단): 격앙 보스의 특수 공격 예고(nova)가 중심에 보스 전체 사본을 담고, 보스가 직전 예고 상태를 들고 있어 특수 공격마다
+// 이전 상태가 겹겹이 쌓였다(단계가 바뀌면 기하급수: 20번이면 직렬화 실패). 1,000번 특수 공격 뒤에도 보스 상태는 작고, 중심은 칸 좌표다.
+{
+    const {runtime:r, enemy} = bossFixture('ramp');
+    Object.assign(enemy, { maxHp: 1000, hp: 400 });
+    const target = { gx: 3, gy: 4 };
+    let now = r.getCombatTime();
+    for (let attack = 0; attack < 1000; attack++) {
+        if (attack === 500) enemy.hp = 200;
+        enemy.attackTimer = 1;
+        r.updateBossPatternTelegraph(enemy, now, target);
+        now += 2000;
+        r.consumeBossPatternAttack(enemy);
+    }
+    enemy.attackTimer = 1;
+    r.updateBossPatternTelegraph(enemy, now, target);
+    assert.deepStrictEqual(Object.keys(enemy.patternArea.center).sort(), ['gx', 'gy'], 'the warning centre is a cell, not a copy of the boss');
+    assert(JSON.stringify(enemy).length < 20000, 'a thousand special attacks leave the boss state small');
+    // 예전 저장(겹친 사본)은 불러올 때 줄인다.
+    const nested = { ...enemy, lastPatternState: { area: { cells: [], center: { ...enemy, deep: { ...enemy } } } } };
+    nested.patternArea = { cells: [{ gx: 7, gy: 4 }], center: { ...nested } };
+    r.stripBossPatternRuntime(nested);
+    assert.strictEqual('lastPatternState' in nested, false);
+    assert.strictEqual(JSON.stringify(nested.patternArea.center), JSON.stringify({ gx: enemy.gx, gy: enemy.gy }));
+}
+
 {
     const {runtime:r, run, state, enemy, stats} = bossFixture();
     const start = r.getCombatTime();

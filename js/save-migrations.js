@@ -13,6 +13,16 @@ function normalizeAutomationSettings(settings) {
 }
 
 /** 없어진 창(7단계 2026-10-01: 가지치기 · 아르카나 · 전문가)의 메뉴 단추. 저장된 순서 · 배치에서 버린다. */
+/** 보스 특수 공격의 예고 상태는 저장에 싣지 않는다(다음 틱에 다시 계산한다). 예전 저장은 예고 영역의 중심에 보스 전체 사본이
+ * 겹겹이 들어가 특수 공격마다 커졌다(검토 5차: 20분 보스전에서 저장 1MB · 직렬화 실패) — 중심은 칸 좌표로 줄인다. 두 번 불러와도 같다. */
+function stripBossPatternRuntime(enemy) {
+    if (!enemy || typeof enemy !== 'object') return;
+    delete enemy.lastPatternState;
+    enemy.nextPatternState = null;
+    const center = enemy.patternArea && enemy.patternArea.center;
+    if (center) enemy.patternArea.center = { gx: Math.floor(Number(center.gx) || 0), gy: Math.floor(Number(center.gy) || 0) };
+}
+
 const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);
 
 /** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
@@ -1123,6 +1133,7 @@ function mergeDefaults(save) {
     const explorationPacks = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
     [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat()
         .forEach(enemy => { if (enemy) { delete enemy.isBountyTarget; delete enemy.bountyId; } });
+    [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(stripBossPatternRuntime);
     stripRemovedGrowthBoard(merged);
     stripRemovedFlasks(merged);
     stripRemovedStarWedges(merged);

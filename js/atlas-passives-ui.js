@@ -10,7 +10,7 @@ const atlasPassivesUi = (() => {
     const STEPS = Object.freeze({ 1: 1, 2: 2, N: 3, T: 4 });
     const RANK_NAME = Object.freeze({ root: '뿌리', small: '작은 노드', notable: '주요 노드', keystone: '핵심 노드' });
     const STATE_TEXT = Object.freeze({ taken: '찍음 · 다시 누르면 되돌립니다', open: '누르면 찍습니다', locked: '이어진 노드를 먼저 찍으세요' });
-    let focusId = null;
+    let focusId = null, wheelId = null;
     const effectText = effect => Object.entries(effect).map(([key, value]) => labels[key][1] === 'on' ? labels[key][0] : `${labels[key][0]} +${value}${labels[key][1]}`).join(' · ');
     const suffix = id => id.slice(id.indexOf('_') + 1);
     const rankOf = node => (suffix(node.id) === 'r' ? 'root' : node.rank);
@@ -78,7 +78,7 @@ const atlasPassivesUi = (() => {
         const state = status(node.id), rank = rankOf(node);
         const label = `${node.name} · ${RANK_NAME[rank]} · ${effectText(node.effect)} · ${STATE_TEXT[state]}`;
         return `<button class="atlas-passive-node rank-${rank} is-${state}${node.id === focusId ? ' is-focus' : ''}" style="--x:${at.x}%;--y:${at.y}%"
-            aria-pressed="${state === 'taken'}" aria-label="${escapeHTML(label)}" onclick="atlasPassivesUi.toggle('${node.id}')"
+            aria-pressed="${state === 'taken'}" aria-label="${escapeHTML(label)}" data-info-tooltip-anchor="1" onclick="atlasPassivesUi.toggle('${node.id}')"
             onmouseenter="atlasPassivesUi.hint(event,'${node.id}')" onmousemove="atlasPassivesUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"></button>`;
     }
     /** Under each wheel: the passive last pressed there (a phone has no hover), else how the wheel reads. */
@@ -88,10 +88,23 @@ const atlasPassivesUi = (() => {
         return `<p class="atlas-wheel-note" aria-live="polite"><strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]} · ${STATE_TEXT[status(node.id)]}</small>
             <br>${escapeHTML(effectText(node.effect))}</p>`;
     }
+    /** 갈래는 한 번에 하나만 보인다: 바퀴 넷(2×2)이 창 높이를 넘어 둘째 줄과 노드 설명이 화면 밖이었다(검토 5차). */
+    const shownWheelId = () => wheelId || ATLAS_PASSIVES.wheels[0].id;
+    function pick(id) {
+        wheelId = id;
+        hideInfoTooltip();
+        atlasUi.refresh();
+    }
+    function tabsHtml() {
+        return `<nav class="atlas-wheel-tabs" aria-label="패시브 갈래">${ATLAS_PASSIVES.wheels.map(wheel => {
+            const taken = wheel.nodes.filter(node => game.atlas.passives.includes(node.id)).length;
+            return `<button type="button" style="--tint:${wheel.tint}" aria-pressed="${wheel.id === shownWheelId()}" onclick="atlasPassivesUi.pick('${wheel.id}')">`
+                + `${escapeHTML(wheel.name)}<span>${taken}/${wheel.nodes.length}</span></button>`;
+        }).join('')}</nav>`;
+    }
     function wheelHtml(wheel) {
-        const taken = wheel.nodes.filter(node => game.atlas.passives.includes(node.id)).length;
         const at = new Map(wheel.nodes.map(node => [node.id, point(place(node))]));
-        return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(wheel.name)}"><h3>${escapeHTML(wheel.name)} <span>${taken}/${wheel.nodes.length}</span></h3>
+        return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(wheel.name)}"${wheel.id === shownWheelId() ? '' : ' hidden'}>
             <div class="atlas-wheel-art" data-wheel="${wheel.id}"><canvas aria-hidden="true"></canvas>${wheel.nodes.map(node => nodeHtml(node, at.get(node.id))).join('')}</div>
             ${noteHtml(wheel)}</section>`;
     }
@@ -102,8 +115,8 @@ const atlasPassivesUi = (() => {
     function html() {
         const used = game.atlas.passives.length, points = atlas.points(game);
         return `<div class="atlas-passives"><p class="atlas-muted">아틀라스 포인트 ${used}/${points} 사용 · 패시브는 루프를 넘어 남습니다.
-            열린 지도에는 연 순간의 패시브가 적용됩니다.</p>${totalsHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheelHtml).join('')}</div></div>`;
+            열린 지도에는 연 순간의 패시브가 적용됩니다.</p>${totalsHtml()}${tabsHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheelHtml).join('')}</div></div>`;
     }
-    return Object.freeze({ html, paint, toggle, hint });
+    return Object.freeze({ html, paint, toggle, hint, pick });
 })();
 safeExposeGlobals({ atlasPassivesUi });

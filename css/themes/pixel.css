@@ -648,7 +648,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #ui-atlas .atlas-chart-column > .atlas-legend { order: 1; margin-top: 8px; }
 @media (min-width: 1081px) {
   :root body[data-ui-skin] #ui-atlas .atlas-chart { width: min(100%, 660px, max(320px, calc(100dvh - 524px))); }
-  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 612px))); }
+  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 636px))); }
 }
 /* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
    고른 표시를 덮어 고른 것과 아닌 것이 똑같았다(검토 4차) */
@@ -690,6 +690,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 액트 보상 선택지: 장비는 부위 그림을 왼쪽에. 이름은 갈무리 15, 설명 · 미리보기는 물마루 12 */
 :root body[data-ui-skin] #reward-overlay .reward-choice:has(> .reward-choice-art) { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; align-items: center; }
 :root body[data-ui-skin] #reward-overlay .reward-choice > .reward-choice-art { grid-row: 1 / span 2; width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+/* 무기 그림은 세 칸 높이라 네모 칸에서 가는 선처럼 작아 보였다(검토 4차) → 대각선으로 눕혀 칸을 채운다 */
+:root body[data-ui-skin] #reward-overlay .reward-choice > .reward-choice-art.is-weapon { transform: rotate(45deg) scale(1.35); }
 :root body[data-ui-skin] #reward-overlay .reward-choice strong { font-family: var(--font-pixel-read); font-size: 15px; font-weight: 400; }
 :root body[data-ui-skin] #reward-overlay .reward-choice :is(span, small) { font-family: var(--font-pixel); font-size: 12px; }
 /* 전투 기록 글자색: 어두운 기록 판에서 4.5:1이 안 되던 보라(경험치 3.8:1) · 빨강(피격 4.4:1) · 진홍(사망)을 밝히고, 사망 줄의

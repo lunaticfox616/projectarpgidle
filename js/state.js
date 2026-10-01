@@ -61,11 +61,14 @@ window.GameModules.state = window.GameState;
 
 // Transient notices: domains enqueue data; the foreground UI decides when to present it.
 let tutorialQueue = [];
+// 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
+// 다시 띄웠다(검토 5차).
+const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear', unlock_char: 'tutorial_first_passive' });
 /** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
 function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
     game.seenTutorials = game.seenTutorials || [];
-    if (game.seenTutorials.includes(key)) return;
+    if (game.seenTutorials.includes(key) || game.seenTutorials.includes(TUTORIAL_SEEN_ALIASES[key])) return;
     game.seenTutorials.push(key);
     const extra = target && typeof target === 'object' ? target : { subtabId: target };
     tutorialQueue.push({ ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });

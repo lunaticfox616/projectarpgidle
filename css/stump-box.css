@@ -141,6 +141,7 @@
   }
   #tab-stump .stump-item img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
   #tab-stump .stump-item.is-selected { box-shadow: inset 0 0 0 2px #f3d28c; }
+  #tab-stump .stump-slot { min-height: 44px; aspect-ratio: 1; border: 2px solid #050404; background: #110d09; box-shadow: inset 0 0 0 1px #272016; }
 
   /* 부적(색 없는 계열): 희귀도 색 글자, 조건부 줄은 따로 물들인다 */
   .stump-talisman-rarity { margin: 4px 0 0; color: var(--stump-tone); font-size: 12px; }
