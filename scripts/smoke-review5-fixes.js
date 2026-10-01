@@ -92,4 +92,38 @@ const yielded = copy(`(() => {
 })()`);
 assert.deepEqual(yielded, { active: null, queue: ['story_act2_end', 'unlock_map'] });
 
+// 검토 7차: '안내 중 전투 일시 정지'는 따라 하기의 대상 화면이 열려 있는 동안에도 전투를 멈춘다(설정을 끄면 멈추지 않는다).
+const pause = copy(`(() => {
+    const original = tutorialActionUi.holdsQueue;
+    tutorialActionUi.holdsQueue = () => true;
+    game.settings.pauseGameOnOverlay = true;
+    const on = isTutorialPausingCombat();
+    game.settings.pauseGameOnOverlay = false;
+    const off = isTutorialPausingCombat();
+    tutorialActionUi.holdsQueue = () => false;
+    game.settings.pauseGameOnOverlay = true;
+    const away = isTutorialPausingCombat();
+    tutorialActionUi.holdsQueue = original;
+    return { on, off, away };
+})()`);
+assert.deepEqual(pause, { on: true, off: false, away: false });
+
+// 검토 7차: 빈 칸에 바로 입은 첫 장비에도 '첫 장비' 안내가 뜬다(가방이 비어 있어도).
+const gear = copy(`(() => {
+    tutorialQueue.length = 0;
+    const state = { season: 1, loopCount: 0, seenTutorials: [], inventory: [], equipment: { '무기': null, '갑옷': { id: 1, name: '수정 갑옷' } }, level: 1, passivePoints: 0 };
+    game.seenTutorials = [];
+    queueStarterGuides(state);
+    return tutorialQueue.map(row => row.key);
+})()`);
+assert.deepEqual(gear, ['tutorial_first_gear']);
+
+// 검토 7차: 방치 결과의 "+0" 경험치는 까닭을 붙인다(레벨이 지역보다 한참 높을 때).
+const expLine = copy(`(() => {
+    game.level = 95; game.currentZoneId = 0;
+    return { high: backgroundExpLine({ exp: 0, kills: 12, expLost: 0 }), none: backgroundExpLine({ exp: 0, kills: 0, expLost: 0 }), some: backgroundExpLine({ exp: 40, kills: 12, expLost: 0 }) };
+})()`);
+assert.ok(expLine.high.includes('레벨 차이로 이 지역 경험치가 거의 없습니다'), expLine.high);
+assert.ok(!expLine.none.includes('레벨 차이') && !expLine.some.includes('레벨 차이'), 'no reason when nothing was killed or EXP was earned');
+
 console.log('review 5 fixes smoke passed');

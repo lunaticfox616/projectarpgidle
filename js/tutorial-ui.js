@@ -494,8 +494,9 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
         body: '레벨이 올라 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
-        body: '장비를 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
-        starterDue: state => (state.inventory || []).some(Boolean) }
+        body: '장비를 얻었습니다. 빈 칸에 맞는 장비는 바로 착용합니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
+        // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차).
+        starterDue: state => (state.inventory || []).some(Boolean) || Object.values(state.equipment || {}).some(Boolean) }
 ]);
 function queueStarterGuides(state) {
     if ((state.season || 1) > 1 || (state.loopCount || 0) > 0) return;

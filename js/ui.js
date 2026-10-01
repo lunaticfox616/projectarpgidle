@@ -422,9 +422,8 @@ function isForegroundGameplayPausedForBackground() {
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
     let overlayPause = !!game?.settings?.pauseGameOnOverlay;
-    let tutorialOpen = typeof isTutorialOpen === 'function' && isTutorialOpen();
     let optionalOverlayOpen = typeof isPauseSettingOverlayOpen === 'function' && isPauseSettingOverlayOpen();
-    return !!(overlayPause && (tutorialOpen || optionalOverlayOpen));
+    return isTutorialPausingCombat() || !!(overlayPause && optionalOverlayOpen);
 }
 
 function isBackgroundCombatEligible(state) {
@@ -656,7 +655,17 @@ function showBackgroundCombatResult(result) {
 function backgroundExpLine(summary) {
     const lost = Number(summary.expLost) || 0;
     const lossNote = lost > 0 ? ` <span class="background-combat-exp-lost">(잃은 경험치 -${formatNumberKR(lost)})</span>` : '';
-    return `총 경험치: <strong>+${formatNumberKR(summary.exp)}</strong>${lossNote}`;
+    return `총 경험치: <strong>+${formatNumberKR(summary.exp)}</strong>${lossNote}${backgroundNoExpReason(summary)}`;
+}
+/** 처치했는데 경험치가 0이면 까닭을 붙인다: 레벨이 지역보다 높을수록 경험치가 줄어, 한참 높으면 처치당 0이 된다
+ * (검토 7차 — 까닭 없는 "+0"). */
+function backgroundNoExpReason(summary) {
+    if ((Number(summary.exp) || 0) > 0 || !((Number(summary.kills) || 0) > 0)) return '';
+    const zone = getZone(game.currentZoneId);
+    const rate = levelProgression.rewardMultiplier(zone, { level: levelProgression.areaLevel(zone) }, game.level, 'experience');
+    if (rate >= 1) return '';
+    const pct = Math.round(rate * 100);
+    return ` <span class="background-combat-exp-lost">(레벨 차이로 이 지역 경험치가 ${pct > 0 ? `${pct}%로 줄었습니다` : '거의 없습니다'} — 더 깊은 지역에서 오릅니다)</span>`;
 }
 
 function renderBackgroundStoryLine() {
@@ -13742,6 +13751,13 @@ function renderBattlefieldThrottled(frameNow) {
     renderBattlefield(false);
 }
 
+/** '안내 중 전투 일시 정지'(설정): 안내 카드가 떠 있거나, 따라 하기의 대상 화면(젬 · 스킬트리 …)이 열려 있는 동안 — 첫 젬을
+ * 따라 장착하는 사이 기본 공격으로 싸우다 쓰러졌다(검토 7차). 대상 화면을 떠나면(띠가 한 줄로 접히면) 전투가 다시 돈다. */
+function isTutorialPausingCombat() {
+    if (!(game.settings && game.settings.pauseGameOnOverlay)) return false;
+    return isTutorialOpen() || tutorialActionUi.holdsQueue();
+}
+
 function scheduleGameLoop() {
     if (gameLoopFrameHandle !== null || isStartupOverlayOpen()) return;
     gameLoopFrameHandle = requestAnimationFrame(gameLoop);
@@ -13756,7 +13772,7 @@ function gameLoop(frameNow = performance.now()) {
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
         // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
         showNextTutorial();
-        let tutorialPause = !!(game.settings && game.settings.pauseGameOnOverlay) && isTutorialOpen();
+        let tutorialPause = isTutorialPausingCombat();
         if (tutorialPause || isRewardOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {
                 let passiveNow = Date.now();

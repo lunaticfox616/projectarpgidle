@@ -2880,7 +2880,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelText(ctx, `BOSS · ${getElementLabel(banner.boss.ele)}`, mid, cy + 25, '#d98a6a');
+    fillPixelText(ctx, `보스 · ${getElementLabel(banner.boss.ele)}`, mid, cy + 25, '#d98a6a');
     ctx.restore();
 }
 

@@ -176,6 +176,13 @@
      (글이 줄을 바꾸니 잘라 낼 것이 없다: 넘침을 열어 덧댄 칸이 눌리게 한다 — 검토 5차) */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card:is(.enemy-boss, .enemy-elite) .enemy-traits { position: relative; overflow: visible; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card:is(.enemy-boss, .enemy-elite) .enemy-traits::after { content: ''; position: absolute; inset: -13px auto; left: 50%; width: max(100%, 44px); transform: translateX(-50%); }
+  /* 손가락 판정 44px(검토 7차): 젬 목록 이전/다음(도트 단추 재질이 높이를 35px로 눌렀다), 설정의 켜고 끄는 줄, 지도의 권장 전투력 칩
+     (누르면 설명 — 글줄 22px이라 위아래로 보이지 않는 판정 칸을 덧댄다) */
+  :root body[data-ui-skin] .gem-library-pager button,
+  :root body[data-ui-skin] #tab-settings .cfg-toggle { min-height: 44px; }
+  :root body[data-ui-skin] #tab-settings .cfg-toggle { display: flex; align-items: center; }
+  :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; }
+  :root body[data-ui-skin] #tab-map .map-power-estimate::after { content: ''; position: absolute; inset: -11px 0; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
