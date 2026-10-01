@@ -2182,7 +2182,7 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * on the 5×5 board (row-major, null = empty); xp counts kills toward the family's need (data/stump-box.js) and ripe
  * marks a grown item. Suppression, resonance and stats are recomputed from the board, never saved.
  * @typedef {{id:number, family:('seed'|'sap'), color:('fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'), xp:number, ripe:boolean, roll:number}} StumpBoxItem
- * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>}} StumpBoxState
+ * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>, graft:number[]}} StumpBoxState
  */
 /**
  * G1 expedition ledger. Rewards in history are already in the wallet, never claimable again.
@@ -2450,7 +2450,8 @@ const defaultGame = {
     underworldProgress: { highestFloor: 1, currentFloor: 1 },
     ocean: createDefaultOceanState(),
     /** @type {StumpBoxState} */
-    stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+    stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+        graft: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
     cores: { equipped: null, owned: [] },
     pendingLoopDecision: false,
     pendingLoopReady: false,

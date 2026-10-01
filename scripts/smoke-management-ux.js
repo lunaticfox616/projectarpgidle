@@ -48,7 +48,7 @@ assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season
 assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 25, 'milestone reconciliation must register every loop through 25 exactly once');
 [
     [2, '홀씨 제작'], [11, '심해 / 낚시'], [15, '군락지 / 군락지 액막이'],
-    [18, '가지치기'], [20, '코어 (지하계 10층 클리어)'], [25, '야생 부적 드랍']
+    [18, '접붙이기'], [20, '코어 (지하계 10층 클리어)'], [25, '야생 부적 드랍']
 ].forEach(([loop, label]) => {
     assert.strictEqual(vm.runInContext(`SEASON_CONTENT_ROADMAP[${loop}].features.some(line => line.includes('${label}'))`, runtime), true,
         `loop ${loop} milestone must list ${label}`);

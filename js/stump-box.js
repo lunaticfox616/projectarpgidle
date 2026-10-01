@@ -3,6 +3,8 @@
 // 설계: docs/stump-cube-game-design.md, 수치: data/stump-box.js. 공명·억제·능력치는 저장하지 않고 배치에서 계산한다.
 // 부적(family 'talisman')은 색 없는 세 번째 계열: 판에서 깨어나고(성장), 공명 · 억제 · 꽃 능력치에 끼지 않는다.
 // 부적의 줄과 이웃 효과는 talismans.js / talisman-effects.js가 맡고, 여기서는 보관 · 배치 · 깨어남 · 저장 경계만 다룬다.
+// 접붙이기(graft, 칸마다 0~5단계)는 칸에 붙는다: 아이템을 옮기면 새 칸의 단계를 따른다. 씨앗 · 수액 값은 여기서, 부적 줄은
+// talisman-effects.js가 graftMultiplier로 키운다.
 // 성장량 필드 이름이 xp인 것은 의도다: 영구 빌드 서명(getPersistentBuildSignature)이 xp를 빼므로 처치마다
 // 장비 분석 캐시가 깨지지 않고, 다 자라 능력치가 바뀌는 순간만 ripe가 바뀌어 캐시가 새로 계산된다.
 const stumpBox = (() => {
@@ -12,7 +14,8 @@ const stumpBox = (() => {
     let memo = { key: null, box: null, value: null };
 
     function empty() {
-        return { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: Array(CELLS).fill(null) };
+        return { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: Array(CELLS).fill(null),
+            graft: Array(CELLS).fill(0) };
     }
     /** @returns {object} The state's box, created empty when missing. */
     function of(state) {
@@ -145,12 +148,15 @@ const stumpBox = (() => {
 
     // ── 판정(계산만, 저장하지 않음) ─────────────────────────
     function signature(box) {
-        return box.board.map(id => {
+        return box.board.map((id, cell) => {
             const item = id === null ? null : findItem(box, id);
-            return item ? `${item.id}${item.color}${item.path || ''}${item.ripe ? 'R' : ''}${item.roll}` : '-';
+            return item ? `${item.id}${item.color}${item.path || ''}${item.ripe ? 'R' : ''}${item.roll}g${box.graft[cell]}` : '-';
         }).join('|');
     }
     function placedItems(box) { return box.board.filter(id => id !== null).map(id => findItem(box, id)).filter(Boolean); }
+    function placedCells(box) {
+        return box.board.map((id, cell) => ({ item: id === null ? null : findItem(box, id), cell })).filter(entry => entry.item);
+    }
     function suppressedIds(box) {
         const out = new Set();
         box.board.forEach((id, cell) => {
@@ -163,22 +169,22 @@ const stumpBox = (() => {
         });
         return out;
     }
-    function itemValue(item, resonant) {
+    function itemValue(item, resonant, graft) {
         const boost = resonant.has(item.color) ? 1 + STUMP_BOX_RESONANCE.bonusPct / 100 : 1;
-        return Math.round(yieldOf(item).value * item.roll * boost * 100) / 100;
+        return Math.round(yieldOf(item).value * item.roll * boost * graft * 100) / 100;
     }
     /** Suppression (opposite colours side by side), resonance (3+ grown, unsuppressed of a colour) and stat totals. */
     function evaluate(state) {
         const box = of(state), key = signature(box);
         if (memo.key === key && memo.box === box) return memo.value;
         const suppressed = suppressedIds(box), counts = Object.fromEntries(COLORS.map(color => [color, 0]));
-        const grown = placedItems(box).filter(item => isMature(item) && yieldOf(item) && !suppressed.has(item.id));
-        grown.forEach(item => { counts[item.color]++; });
+        const grown = placedCells(box).filter(({ item }) => isMature(item) && yieldOf(item) && !suppressed.has(item.id));
+        grown.forEach(({ item }) => { counts[item.color]++; });
         const resonant = new Set(COLORS.filter(color => counts[color] >= STUMP_BOX_RESONANCE.count));
         const stats = {}, values = {};
-        for (const item of grown) {
+        for (const { item, cell } of grown) {
             const stat = yieldOf(item).stat;
-            values[item.id] = itemValue(item, resonant);
+            values[item.id] = itemValue(item, resonant, graftMultiplier(box, cell));
             stats[stat] = Math.round(((stats[stat] || 0) + values[item.id]) * 100) / 100;
         }
         const value = { suppressed, counts, resonant, stats, values };
@@ -190,6 +196,49 @@ const stumpBox = (() => {
         if (!state.stumpBox || !state.stumpBox.acquired) return;
         const stats = evaluate(state).stats;
         Object.keys(stats).forEach(stat => addStatToBucket(bucket, stat, stats[stat]));
+    }
+
+    // ── 접붙이기(7단계, 가지치기 자리) ─────────────────────────
+    // 점수는 저장하지 않는다: 최고 도달 루프가 startLoop 이상이면 루프마다 pointsPerLoop점, 쓴 점수는 칸 단계의 합(n단계에 n점).
+    const graftCost = rank => rank * (rank + 1) / 2;
+    function graftRank(box, cell) { return box.graft[cell]; }
+    /** The effect multiplier for whatever sits on the cell (1 without a graft). */
+    function graftMultiplier(box, cell) { return 1 + box.graft[cell] * STUMP_BOX_GRAFT.pctPerRank / 100; }
+    function graftOpen(state) { return of(state).acquired && highestLoop(state) >= STUMP_BOX_GRAFT.startLoop; }
+    function graftEarned(state) {
+        return Math.max(0, highestLoop(state) - STUMP_BOX_GRAFT.startLoop + 1) * STUMP_BOX_GRAFT.pointsPerLoop;
+    }
+    /** @returns {{earned: number, spent: number, free: number}} graft points. */
+    function graftPoints(state) {
+        const earned = graftEarned(state), spent = of(state).graft.reduce((sum, rank) => sum + graftCost(rank), 0);
+        return { earned, spent, free: Math.max(0, earned - spent) };
+    }
+    /** '' when the cell can take one more rank, otherwise why not. */
+    function graftRaiseReason(state, cell) {
+        const next = of(state).graft[cell] + 1;
+        if (!graftOpen(state)) return `접붙이기는 루프 ${STUMP_BOX_GRAFT.startLoop}부터 할 수 있습니다.`;
+        if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
+        if (!isOpen(state, cell)) return '닫힌 칸입니다.';
+        if (next > STUMP_BOX_GRAFT.maxRank) return '이미 마지막 단계입니다.';
+        return graftPoints(state).free >= next ? '' : `접붙이기 점수가 부족합니다. ${next}단계에는 ${next}점이 필요합니다.`;
+    }
+    function graftRaise(state, cell) {
+        if (graftRaiseReason(state, cell)) return false;
+        of(state).graft[cell] += 1;
+        return true;
+    }
+    /** '' when one rank can be taken back for blight spores (its points return). */
+    function graftLowerReason(state, cell) {
+        if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
+        if (of(state).graft[cell] < 1) return '접붙이지 않은 칸입니다.';
+        const need = STUMP_BOX_GRAFT.refundSpores;
+        return (state.currencies.blightSpore || 0) >= need ? '' : `마름병 포자가 ${need}개 필요합니다.`;
+    }
+    function graftLower(state, cell) {
+        if (graftLowerReason(state, cell)) return false;
+        state.currencies.blightSpore -= STUMP_BOX_GRAFT.refundSpores;
+        of(state).graft[cell] -= 1;
+        return true;
     }
 
     // ── 성장·드랍 ───────────────────────────────────────────
@@ -276,6 +325,18 @@ const stumpBox = (() => {
         const ripe = xp >= STUMP_BOX_GROWTH.need[raw.family] && (raw.family === 'sap' || path !== null);
         return { id: raw.id, family: raw.family, color: raw.color, path, xp, ripe, roll: clampRoll(raw.roll) };
     }
+    /** Whole ranks 0..maxRank on every cell, never spending more than the reached loops earned (the highest ranks give way). */
+    function restoreGraft(raw, state) {
+        const source = Array.isArray(raw) ? raw : [];
+        const ranks = Array.from({ length: CELLS }, (_, cell) => Math.min(STUMP_BOX_GRAFT.maxRank, Math.max(0, Math.floor(Number(source[cell]) || 0))));
+        let over = ranks.reduce((sum, rank) => sum + graftCost(rank), 0) - graftEarned(state);
+        while (over > 0) {
+            const cell = ranks.lastIndexOf(Math.max(...ranks));
+            over -= ranks[cell];
+            ranks[cell] -= 1;
+        }
+        return ranks;
+    }
     function restoreItems(raw, box) {
         const seen = new Set();
         (Array.isArray(raw.items) ? raw.items : []).filter(validItem).forEach(item => {
@@ -297,6 +358,7 @@ const stumpBox = (() => {
             box.starter = { seed: !!(raw.starter && raw.starter.seed), sap: !!(raw.starter && raw.starter.sap) };
             restoreItems(raw, box);
             box.nextId = Math.max(Number.isSafeInteger(raw.nextId) ? raw.nextId : 1, ...box.items.map(item => item.id + 1), 1);
+            box.graft = restoreGraft(raw.graft, state);
         }
         state.stumpBox = box;
         sync(state, 'migration');
@@ -307,6 +369,7 @@ const stumpBox = (() => {
         empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, unplace, setPath,
         evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
+        graftRank, graftMultiplier, graftOpen, graftPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         itemById: (state, id) => findItem(of(state), id)
     };
 })();

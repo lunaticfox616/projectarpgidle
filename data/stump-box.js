@@ -45,6 +45,12 @@ const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 const STUMP_BOX_STORAGE = 50;
 const STUMP_BOX_RESONANCE = Object.freeze({ count: 3, bonusPct: 10 });
 
+// 접붙이기(2026-10-01, 보조 콘텐츠 통합 7단계 — 가지치기 자리, 사용자 결정 "칸 강화 5단계"): 최고 도달 루프가 startLoop 이상이면
+// 루프마다 pointsPerLoop점(저장하지 않고 루프에서 계산). 칸마다 maxRank단계, n단계에 n점. 단계마다 그 칸에 놓인 씨앗 · 수액의
+// 능력치와 부적 자신의 줄 +pctPerRank%. 마름병 포자 refundSpores개로 한 단계 되돌린다(점수는 돌아온다). 수치는 9단계에서 맞춘다.
+// startLoop를 바꾸면 data/maps.js 로드맵의 루프 18 줄도 함께 고친다.
+const STUMP_BOX_GRAFT = Object.freeze({ startLoop: 18, pointsPerLoop: 3, maxRank: 5, pctPerRank: 6, refundSpores: 1 });
+
 // 다 자란 아이템의 능력치(품질 100% 기준, 실제 = 값 × 품질). stat은 createEmptyStatBucket의 키.
 // 꽃 = 그 원소 스킬에만 붙는 피해(현재 공격 젬 태그 조건), 열매 = 전투 상황 조건, 호박석 = 고정 저항.
 const STUMP_BOX_YIELDS = Object.freeze({
@@ -83,5 +89,5 @@ const STUMP_BOX_STAGES = Object.freeze({
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
-    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
+    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
 });

@@ -4,6 +4,7 @@
 // 일반 줄을 한 번 더, 오만은 맞닿은 조각(계열 무관) 수에 따라, 찰나는 보스 최종 피해, 주베누비아의 선택은 표식이
 // 가로(오른쪽 · 왼쪽)면 젬 레벨 +2, 세로면 −2 · 보조 젬 한도 +2, 판결은 번개 피해 변동.
 // 야생 고유(예전 생장판 고유)는 판의 거리 · 가장자리 · 맞닿은 조각 · 다 자란 씨앗 · 수액의 색 · 억제를 읽는다(data/talismans.js 설명).
+// 접붙이기(7단계): 부적 자신의 줄(일반 · 조건부)은 놓인 칸의 단계만큼 커진다. 다른 부적의 줄을 빌리는 이웃 효과는 그대로다.
 const talismanEffects = (() => {
     const PRIDE_BY_NEIGHBORS = [[['gemLevel', 1], ['suppCap', 1]], [['suppCap', 1]], [['pctDmg', 15], ['aspd', 10]]];
     const CHOICE_BY_AXIS = [[['gemLevel', -2], ['suppCap', 2]], [['gemLevel', 2]]];
@@ -172,10 +173,10 @@ const talismanEffects = (() => {
     }
 
     function signature(box) {
-        return box.board.map(id => {
+        return box.board.map((id, cell) => {
             const item = id === null ? null : box.items.find(row => row.id === id);
             if (!item) return '-';
-            return item.family === 'talisman' ? `${item.id}${item.ripe ? 'R' : ''}${item.dir ?? ''}${item.lines.length}`
+            return item.family === 'talisman' ? `${item.id}${item.ripe ? 'R' : ''}${item.dir ?? ''}${item.lines.length}g${box.graft[cell]}`
                 : `${item.family[0]}${item.color}${item.ripe ? 'R' : ''}`;
         }).join('|');
     }
@@ -189,7 +190,7 @@ const talismanEffects = (() => {
             if (off.has(item.id)) return;
             const mul = repulsion && item.special !== 'cosmosRepulsion' ? 1.25 : 1;
             if (mul > 1) result.amplified.add(item.id);
-            addLines(result, item, mul, false);
+            addLines(result, item, mul * stumpBox.graftMultiplier(box, cell), false);
             if (SPECIAL_EFFECTS[item.special]) SPECIAL_EFFECTS[item.special](result, box, cell, off, state);
         });
         return result;

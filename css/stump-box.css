@@ -72,6 +72,23 @@
     box-shadow: 0 0 0 1px #050404;
     pointer-events: none;
   }
+  /* 접붙이기 단계: 칸 왼쪽 위의 작은 잎색 숫자(억제 X는 오른쪽 위, 성장 막대는 아래라 겹치지 않는다) */
+  .stump-graft-mark {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    min-width: 12px;
+    padding: 0 2px;
+    background: #1d2a12;
+    box-shadow: 0 0 0 1px #050404, inset 0 0 0 1px #5d8a35;
+    color: #b4e07e;
+    font-size: 12px;
+    line-height: 12px;
+    text-align: center;
+    pointer-events: none;
+  }
+  .stump-graft { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a2218; }
+  .stump-graft strong { color: #b4e07e; }
   .stump-bar { position: absolute; left: 12%; right: 12%; bottom: 7%; height: 4px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
   .stump-bar > i { display: block; height: 100%; background: var(--stump-tone, #d9b066); }
   .stump-bar.is-wide { position: static; display: block; height: 6px; margin: 2px 0 6px; }
