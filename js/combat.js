@@ -9071,7 +9071,7 @@ function finishEncounterRun() {
         if (!game.unlocks.traits) game.unlocks.traits = true;
         game.noti.traits = true;
         if (zone.id === 'trial_1' && isFirstClear) {
-            queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 직업을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
+            queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
         }
         checkUnlocks();
         if (zone.id !== 'trial_4') {

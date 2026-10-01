@@ -47,7 +47,7 @@ function renderCurrentTalentBloomContext(owned) {
     let current = getCurrentTalentBloomContext(owned);
     let state = !current.classKey ? '전직을 고르면 조합이 정해집니다.'
         : (!current.heroId ? '5차 전직 도전 시 이번 루프의 재능을 선택합니다.'
-            : (current.card ? `개화 완료 · Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '5차 전직 도전 중'));
+            : (current.card ? `개화 완료, Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '5차 전직 도전 중'));
     return `<section class="talent-current-combo ${current.card ? 'unlocked' : 'locked'}">
         <div><span>개화 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
         <i aria-hidden="true">×</i>
@@ -75,7 +75,7 @@ function renderTalentCombinationStatus(owned) {
         return `<div class="${classes}"${tooltip}><span>${escapeTalentHtml(counterpart)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
     }).join('');
     let focusLabel = dimension === 'talent' ? getHeroSelectionDef(focusId).label : CLASS_TEMPLATES[focusId].name;
-    return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(focusLabel)} 조합</strong><span>밝은 카드는 개화 완료 · 테두리는 현재 조합</span></div><div class="talent-combo-grid">${cells}</div></div>`;
+    return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(focusLabel)} 조합</strong><span>밝은 카드는 개화 완료, 테두리는 지금 조합</span></div><div class="talent-combo-grid">${cells}</div></div>`;
 }
 
 function buildTalentCombinationTooltipHtml(comboKey) {
@@ -87,7 +87,7 @@ function buildTalentCombinationTooltipHtml(comboKey) {
     let level = Math.max(1, Math.floor(card.level || 1));
     let effects = getTalentCardEffectLines(heroId, classKey, level);
     return `<div class="tooltip-title" style="color:#fff1a8;">${escapeTalentHtml(names.bloomName)}</div>`
-        + `<div class="tooltip-line" style="color:#cdb8df;">${escapeTalentHtml(names.heroLabel)} × ${escapeTalentHtml(names.classLabel)} · Lv.${level}</div>`
+        + `<div class="tooltip-line" style="color:#cdb8df;">${escapeTalentHtml(names.heroLabel)} × ${escapeTalentHtml(names.classLabel)} Lv.${level}</div>`
         + `<div class="tooltip-line">${effects.join('<br>')}</div>`;
 }
 
@@ -124,7 +124,7 @@ function renderTalentLoadoutSlot(index, unlocked, key, owned) {
     let { heroId, classKey } = parseTalentComboKey(key);
     let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
     let level = Math.max(1, Math.floor(owned[key].level || 1));
-    return `<div class="talent-slot filled" onclick="unequipTalentSlot(${index})" aria-label="${escapeTalentHtml(bloomName)} 장착 해제" data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"><strong>${escapeTalentHtml(bloomName)}</strong><span>${escapeTalentHtml(heroLabel)} × ${escapeTalentHtml(classLabel)} · Lv.${level}</span></div>`;
+    return `<div class="talent-slot filled" onclick="unequipTalentSlot(${index})" aria-label="${escapeTalentHtml(bloomName)} 장착 해제" data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"><strong>${escapeTalentHtml(bloomName)}</strong><span>${escapeTalentHtml(heroLabel)} × ${escapeTalentHtml(classLabel)} Lv.${level}</span></div>`;
 }
 
 function renderTalentCollectionCard(key, owned) {
@@ -141,9 +141,9 @@ function renderTalentCollectionCard(key, owned) {
             <span class="talent-card-title">${bloomName}</span>
             <span class="talent-card-level">Lv.${level}/${TALENT_CARD_MAX_LEVEL}</span>
         </div>
-        <div class="talent-card-sub">재능 ${heroLabel} · 전직 ${classLabel}</div>
+        <div class="talent-card-sub">재능 ${heroLabel}, 전직 ${classLabel}</div>
         <div class="talent-card-effects">${lines.join('<br>')}</div>
-        <div class="talent-card-foot">${equipped ? '장착됨 · ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))} · 개화 ${Math.max(0, Math.floor(card.count || 0))}회 · ${nextText}</div>
+        <div class="talent-card-foot">${equipped ? '장착됨, ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))}, 개화 ${Math.max(0, Math.floor(card.count || 0))}회, ${nextText}</div>
     </div>`;
 
 }
@@ -151,9 +151,9 @@ function renderTalentCollectionCard(key, owned) {
 function renderTalentScoreSummary(count) {
     let bd = getTalentBloomScoreBreakdown();
     let curScore = getTalentBloomScore();
-    return `보유 카드 <strong>${count}</strong> / ${TALENT_BLOOM_TOTAL_CARDS} · 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
+    return `보유 카드 <strong>${count}</strong> / ${TALENT_BLOOM_TOTAL_CARDS}, 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
         + `<br><span style="font-size:12px; color:var(--copy-bright);">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
-        + `<br><span style="font-size:12px; color:#9fe2b1;">한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
+        + `<br><span style="font-size:12px; color:#9fe2b1;">개화 카드는 루프가 지나도 사라지지 않습니다.</span>`;
 }
 
 function renderTalentTab() {
@@ -175,7 +175,7 @@ function renderTalentTab() {
         let key = loadout[i];
         slotHtml += renderTalentLoadoutSlot(i, unlocked, key, owned);
     }
-    let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);"> · 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
+    let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);">, 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
     let loadoutHtml = `${renderCurrentTalentBloomContext(owned)}${renderTalentBloomNavigator(owned)}<div class="talent-loadout-panel">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
             <strong>장착 슬롯</strong><span style="font-size:12px;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>

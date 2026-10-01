@@ -10514,7 +10514,7 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'none';
-        document.getElementById('ui-class-grid').innerHTML = getAscendanciesForClass(game.selectedClassId).map(key => `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</span><span style="display:block;font-size:12px; color:#aaa;">${CLASS_TEMPLATES[key].desc}</span></button>`).join('');
+        document.getElementById('ui-class-grid').innerHTML = getAscendanciesForClass(game.selectedClassId).map(renderAscendancyPickCard).join('');
     } else {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'block';
@@ -13897,8 +13897,8 @@ function checkUnlocks() {
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
-        queueContentNotice('unlock_traits', '전직', 'trials', { open: '직업을 고를 수 있게 되었습니다.\n‘스킬트리 → 전직’에서 직업을 선택하세요.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
-            locked: '직업을 고를 수 있게 되었습니다.\n‘해금’에서 전직을 열면 직업과 전직 패시브를 고를 수 있습니다.' }, 'tab-traits');
+        queueContentNotice('unlock_traits', '전직', 'trials', { open: '전직을 고를 수 있게 되었습니다.\n‘스킬트리 → 전직’에서 직업의 전직 셋 중 하나를 고르세요.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
+            locked: '전직을 고를 수 있게 되었습니다.\n‘해금’에서 전직을 열면 전직과 전직 패시브를 고를 수 있습니다.' }, 'tab-traits');
     }
     if (typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked() && !game.chaosInfuserUnlocked) {
         game.chaosInfuserUnlocked = true;
@@ -14259,6 +14259,14 @@ async function selectClass(key) {
         if (typeof clearAscendKeystoneRuntimeState === 'function') clearAscendKeystoneRuntimeState(previousKeystones, { force: true });
         updateStaticUI();
     }
+}
+
+/** 전직 고르기 카드: 이름, 한 줄 설명, 노드 능력치(m1, m2, d). 이번 루프에는 바꿀 수 없으니 고를 근거를 한 줄 더 준다. */
+function renderAscendancyPickCard(key) {
+    const template = CLASS_TEMPLATES[key];
+    const slots = { m1: template.m1, m2: template.m2, d: template.d, ...((ASCENDANCY_NODE_DEFS[key] || {}).slots || {}) };
+    const focus = [slots.m1, slots.m2, slots.d].map(stat => String(getStatName(stat)).replace(/\s*\(%\)$/, '')).join(', ');
+    return `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${template.name}</span><span style="display:block;font-size:12px; color:#aaa;">${template.desc}</span><span class="class-card-focus" style="display:block;font-size:12px; color:#9fd3ff; margin-top:6px;">노드: ${focus}</span></button>`;
 }
 
 function buyAscend(id) { if (!assertBuildEditable()) return;
