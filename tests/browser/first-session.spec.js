@@ -63,3 +63,26 @@ test('a new warrior earns and equips the first gem through visible controls', as
         contentType: 'application/json'
     });
 });
+
+// Review round 3 #1: a player who closes the first-gem card instead of following it (idle play) used to fight with the
+// basic attack and die repeatedly in acts 1-2. Closing the card equips the starter gem; 스킬 젬 can still change it.
+test('closing the first-gem card without following equips the starter gem', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').click();
+    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await expect.poll(async () => {
+        if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
+            const title = await page.locator('#tutorial-title').innerText();
+            await page.locator('#tutorial-dismiss-btn').click();
+            if (title === '첫 스킬 젬 장착') return 'closed';
+        }
+        return 'waiting';
+    }, { timeout: 45000, intervals: [250, 500] }).toBe('closed');
+    await expect.poll(() => page.evaluate(() => game.activeSkill)).toBe('연속 베기');
+    await expect(page.locator('#game-toast-region')).toContainText('[연속 베기] 젬을 장착했습니다');
+    expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
+    expect(errors).toEqual([]);
+});

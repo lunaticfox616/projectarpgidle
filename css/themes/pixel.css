@@ -551,6 +551,76 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { white-space: normal; text-overflow: clip; line-height: 1.35; }
 }
+
+/* ─── 도트 글꼴 크기 격자 (검토 2026-10-01) ───────────────────────────────────────────
+   도트 글꼴은 그려진 크기(물마루 12 · 24, 갈무리 15, DOS새물 16)에서만 또렷하다. 컴포넌트 CSS가 벡터 글꼴 시절에 정한 10 ~ 21px이
+   남아 창마다 번진 글자가 섞였다 → 창 안(전투 화면은 HUD가 따로 맞춘다)의 글자를 제목 · 소제목 15(갈무리) · 본문 12(물마루) 두 크기로
+   모은다. 창 안 제목에 DOS새물(넓은 글꼴)을 쓰면 "리"가 "ㄹ ㅣ"처럼 벌어져 읽혔다 — 제목과 소제목은 색 · 밑줄로 구분된다. */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) { font-family: var(--font-pixel-read); font-size: 15px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) * { font-family: inherit; font-size: inherit; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .records-stat-value, .codex-slot-heading, .journal-section-title, .gem-enhance-section-title,
+    .map-zone-group-title, .craft-spores-title, .stat-value) { font-family: var(--font-pixel-read); font-size: 15px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(p, li, label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
+    .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .skill-library-note, .gem-enhance-section-desc) { font-family: var(--font-pixel); font-size: 12px; }
+/* 소제목 · 접힘 제목 안의 보조 글(개수 · 설명 · 도구 이름)은 본문 크기 */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .codex-slot-heading, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
+    .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
+/* 카드 · 판의 이름 줄은 소제목 크기 */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong, .map-item--act .map-item-main > span, .equipment-preset-panel > header strong,
+    .passive-planner-primary > strong, .unique-hunt-panel > header strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
+    .character-ehp-stat strong) { font-family: var(--font-pixel-read); font-size: 15px; }
+/* 작은 이름표 · 값 · 안내 글 */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-card-head strong, .gem-research-card-head > span, .gem-resource-strip :is(span, strong), .skill-loadout-summary strong,
+    .market-exchange-quote :is(span, strong), .codex-card .item-actions > span, .unique-hunt-panel > header > b, .content-unlock-heading > span,
+    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked, .arcana-locked,
+    .expertise-panel, .expertise-panel > b, .talent-current-combo > i, #ui-star-wedge-panel div, #ui-star-wedge-panel strong) { font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) .map-item--act .map-item-main > span span { font-family: var(--font-pixel); font-size: 12px; }
+/* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
+   숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */
+:root body[data-ui-skin] .passive-effect-badge { flex: 1 1 160px; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--badge-edge, var(--px-bronze));
+    border-radius: 0; background: #141216; box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30; font-family: var(--font-pixel-read); font-size: 15px;
+    font-weight: 400; line-height: 1.35; }
+:root body[data-ui-skin] .passive-effect-badge .passive-effect-caption { margin-bottom: 2px; color: var(--px-copy-muted); font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] .equipment-slot-visual { border: 1px solid var(--px-ink); border-radius: 0; background: #141216;
+    box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30; }
+/* 안내 · 이야기 카드 본문이 넘치면 아래 끝을 흐리게, 끝까지 내리면 걷힌다 — 휴대폰에서 마지막 줄이 체크 상자 위에 반쯤 걸려 잘렸는데
+   더 있다는 표시가 없었다(검토 2026-10-01). 넘치지 않으면 스크롤 타임라인이 비활성이라 흐림도 없다. */
+@supports (animation-timeline: scroll()) {
+  :root body[data-ui-skin] #tutorial-body { animation: px-more-below linear both; animation-timeline: scroll(self); }
+}
+@keyframes px-more-below {
+  0%, 96% { -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent); mask-image: linear-gradient(#000 calc(100% - 32px), transparent); }
+  100% { -webkit-mask-image: none; mask-image: none; }
+}
+/* PC 목표 서랍: 펼친 서랍은 읽으려고 연 것이라 설명을 두 줄 말줄임("…장착하면 예상 능력치 변화…")으로 자르지 않는다 */
+:root body[data-ui-skin].desktop-windowed-ui #ui-goal-drawer .ui-goal-desc { display: block; max-height: none; overflow: visible; -webkit-line-clamp: unset; }
+/* 액트 보상 선택지: 장비는 부위 그림을 왼쪽에. 이름은 갈무리 15, 설명 · 미리보기는 물마루 12 */
+:root body[data-ui-skin] #reward-overlay .reward-choice:has(> .reward-choice-art) { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+:root body[data-ui-skin] #reward-overlay .reward-choice > .reward-choice-art { grid-row: 1 / span 2; width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+:root body[data-ui-skin] #reward-overlay .reward-choice strong { font-family: var(--font-pixel-read); font-size: 15px; font-weight: 400; }
+:root body[data-ui-skin] #reward-overlay .reward-choice :is(span, small) { font-family: var(--font-pixel); font-size: 12px; }
+/* 전투 기록 글자색: 어두운 기록 판에서 4.5:1이 안 되던 보라(경험치 3.8:1) · 빨강(피격 4.4:1) · 진홍(사망)을 밝히고, 사망 줄의
+   1.1em(격자 밖 크기) · 고유 · 레벨 업 줄의 번지는 빛 그림자는 도트 외곽선으로 */
+:root body[data-ui-skin] #log .exp-txt { color: #c9a3e8; }
+:root body[data-ui-skin] #log .attack-monster { color: #ff7f6e; }
+:root body[data-ui-skin] #log .death { color: #ff6b5b; font-size: inherit; }
+:root body[data-ui-skin] #log .loot-magic { color: #6cb6ff; }
+:root body[data-ui-skin] #log :is(.loot-unique, .level-up, .season-up) { text-shadow: var(--px-text-edge); }
+/* 젬 그림이 없는 기본 공격: 글자 기호(◇) 대신 메뉴 그림의 전투(칼) 아이콘(26px, menu-icons.png 0번) — HUD 주 스킬 칸 · 스킬 젬 창 */
+:root body[data-ui-skin] :is(#battle-column, .tab-content) .gem-art-fallback:not([hidden]) { width: 26px; height: 26px; margin: auto; overflow: hidden; color: transparent; font-size: 0;
+    background: var(--px-menu-icons) 0 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; text-shadow: none; image-rendering: pixelated; }
+/* 루프 패시브 노드 설명, 전투 미리보기 이름 */
+:root body[data-ui-skin] :is(.loop-node-tooltip b, .mobile-battle-dock-label) { font-size: 12px; }
+/* 도감 칸의 새 항목 표시: 둥근 알약 · 빛 번짐 · 0.68em(8px) 영어 "NEW" 대신 각진 꼬리표 "신규" */
+:root body[data-ui-skin] .codex-slot-new { padding: 0 3px; border: 1px solid var(--px-ink); border-radius: 0; background: #7a1f2b; box-shadow: none;
+    color: #ffe1a1; font-family: var(--font-pixel); font-size: 12px; font-weight: 400; }
+/* 큰 숫자(최대 생명 · 보호막 · 총 DPS)와 해금 상세 이름은 물마루 24 — 20 · 21px은 반 칸씩 번졌다. */
+:root body[data-ui-skin] :is(#tab-character :is(#ui-es, #ui-maxhp-stat, #ui-total-dps), .gem-research-resource > strong) { font-family: var(--font-pixel); font-size: 24px; }
+:root body[data-ui-skin] #content-unlock-panel .unlock-detail h3 { font-family: var(--font-pixel); font-size: 24px; }
+/* 전투 기록(PC는 창 밖)과 안내 카드 */
+:root body[data-ui-skin] #log .log-msg { font-size: 12px; }
+:root body[data-ui-skin] #tutorial-overlay #tutorial-title { font-size: 16px; }
+:root body[data-ui-skin] #tutorial-overlay :is(#tutorial-open-btn, #tutorial-dismiss-btn) { font-size: 12px; }
 }
 
 @layer components {

@@ -146,7 +146,7 @@
 
   /* 목표 서랍: 9px대로 줄어 있던 글자를 읽을 크기로 */
   body[data-ui-skin="rift"].desktop-windowed-ui #ui-goal-body .ui-goal-title { font-size: 12px; line-height: 1.4; }
-  body[data-ui-skin="rift"].desktop-windowed-ui #ui-goal-body :is(.ui-goal-desc, .ui-goal-notice-action, .ui-goal-notice-action span) { font-size: 11px; }
+  body[data-ui-skin="rift"].desktop-windowed-ui #ui-goal-body :is(.ui-goal-desc, .ui-goal-notice-action, .ui-goal-notice-action span) { font-size: 12px; }
 
 }
 /* 모바일 세로 화면: 전장 캔버스가 지역 줄 아래부터 화면 바닥까지 깔리고, 전투 기록·HUD가 그 아래쪽 위에 뜬다.

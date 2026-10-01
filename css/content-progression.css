@@ -70,8 +70,11 @@
 .unlock-requirements>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;color:var(--color-text-secondary);margin-bottom:8px}
 .unlock-requirements small{font-size:10px;color:var(--color-text-tertiary);flex-shrink:0}
 .unlock-requirements .is-met small{color:var(--color-success)}
-.unlock-detail-action{margin-top:auto}
-.unlock-detail-action>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7}
+/* 해금 단추는 창 본문 아래쪽에 붙어 늘 보인다(1366×768에서 스크롤 밖으로 밀려났다). 첫 보상 안내는 설명 바로 아래. */
+/* bottom이 음수인 까닭: sticky는 창 본문의 아래 여백(16~26px) 위에서 멈춰 그 틈으로 뒤 글자가 비쳤다 — 여백만큼 내려 덮는다 */
+.unlock-detail-action{position:sticky;bottom:-26px;z-index:2;margin:0 -16px -16px;padding:10px 16px 26px;border-top:1px solid var(--skin-line);background:var(--skin-panel)}
+.unlock-detail-reward:empty{display:none}
+.unlock-detail-reward>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7;margin:0}
 #content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;font-size:13px;border:1px solid var(--skin-accent);background:linear-gradient(120deg,rgba(157,127,59,.3),var(--skin-panel));white-space:normal}
 #content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);opacity:.65}
 #content-unlock-panel [data-unlock-content="craft"]:enabled{position:relative;margin-top:16px;overflow:visible}
@@ -80,7 +83,7 @@
 @media(prefers-reduced-motion:reduce){#content-unlock-panel [data-unlock-content="craft"]:enabled::after{animation:none;opacity:1}}
 .content-unlock-choice{display:grid;gap:8px;color:var(--color-text-secondary);font-size:12px;margin:12px 0}
 .content-unlock-choice select{width:100%;min-width:0;min-height:40px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:3px;padding:7px}
-.unlock-detail-action .unlock-reward{color:var(--skin-accent)}
+.unlock-detail-reward .unlock-reward{color:var(--skin-accent)}
 .unlock-milestone-intro{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 18px}
 .unlock-milestone-intro p{font-size:12px;color:var(--color-text-secondary);margin:0}
 #content-unlock-panel .unlock-milestone-intro button{font-size:11px;white-space:nowrap}
@@ -96,7 +99,7 @@
 @container(max-width:600px){
  .unlock-workspace{grid-template-columns:minmax(0,1fr)}
  .unlock-detail{border-left:0;border-top:1px solid var(--skin-line);display:grid;grid-template-columns:1fr 1fr;gap:18px}
- .unlock-detail-action{grid-column:1/-1;margin-top:0}
+ .unlock-detail-action,.unlock-detail-reward{grid-column:1/-1;margin-top:0}
  .unlock-detail-art{float:right;width:94px;height:105px;margin:0 0 10px 10px}
  .unlock-detail-art:before{width:62px;height:62px}.unlock-detail-art:after{width:74px;height:74px}
  .unlock-detail-art img{width:58px;height:58px}

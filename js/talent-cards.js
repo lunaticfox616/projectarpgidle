@@ -276,7 +276,7 @@ function getTalentUniqLabel(key, p) {
 
 function getTalentCardName(heroId, classKey) {
     let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
-    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
+    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '미전직';
     // 카드 이름 = 재능 + 전직을 융합한 전직명. (부제에 원본 재능/전직을 함께 표기)
     let def = getTalentCardDef(heroId, classKey);
     let bloomName = (def && def.name) ? def.name : `${heroLabel} ${classLabel}`;

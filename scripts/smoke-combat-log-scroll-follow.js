@@ -55,4 +55,9 @@ metrics.scrollTop = 300;
 assert.strictEqual(context.captureCombatLogScroll(hiddenLog).followsLatest, false,
     'after catching up, scrolling upward pauses following again');
 
+// A folded combat feed hides #log (display:none) on both layouts: same rule, nothing is measured until it opens again.
+const folded = { closest: selector => (selector === '.combat-feed.collapsed' ? {} : null) };
+['scrollHeight', 'clientHeight', 'scrollTop'].forEach(key => Object.defineProperty(folded, key, { get() { throw new Error('measured a folded log'); } }));
+assert.strictEqual(context.captureCombatLogScroll(folded), null, 'a folded log is not measured');
+
 console.log('smoke-combat-log-scroll-follow passed');

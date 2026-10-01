@@ -134,7 +134,7 @@ const tutorialActionUi = {
         if (completed) {
             game.seenTutorials.push('action_' + action.notice.key);
             showGameToast(action.guide.title + ' 완료', { tone: 'success' });
-        }
+        } else equipSkippedStarterGem(action.notice.key);
         setTimeout(showNextTutorial, 40);
     }
 };
@@ -374,6 +374,15 @@ function goBackTutorialStep() {
     activeTutorialStep -= 1;
     renderTutorialStep();
 }
+/** 첫 스킬 젬 안내를 따라 하지 않고 닫으면 그 젬을 대신 장착한다 — 방치하는 플레이어는 기본 공격으로 싸우며 초반에 거듭
+ * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬 젬'에서 언제든 바꾼다. */
+function equipSkippedStarterGem(key) {
+    const name = game.starterGemTutorialPending;
+    if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string' || game.activeSkill !== '기본 공격') return;
+    changeSkill(name);
+    if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다 · '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
+}
+
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
     const notice = activeTutorial, tabId = notice.tabId;
@@ -384,7 +393,10 @@ function dismissTutorial(openTarget) {
     setTutorialCallout(openTarget ? null : tabId, 6000);
     // Phone notices held while the card was up: after the next card (if any) has had its turn.
     setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
-    if (!openTarget) return setTimeout(showNextTutorial, 40);
+    if (!openTarget) {
+        equipSkippedStarterGem(notice.key);
+        return setTimeout(showNextTutorial, 40);
+    }
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
     openTutorialTarget(notice);
     setTimeout(showNextTutorial, 40);

@@ -28,3 +28,17 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     await page.screenshot({ path: info.outputPath('loop-one.png') });
 });
 
+
+// Review round 3 #4: at 1366×768 the 해금 window body ends above the HUD and the buy button sat below it, out of view.
+test('the unlock buy button stays visible in a small desktop window', async ({ page }, info) => {
+    test.skip(info.project.use.isMobile, 'Desktop window size');
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.evaluate(() => { game.season = 2; game.loopCount = 1; contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks'); });
+    const buy = page.locator('#content-unlock-panel .unlock-detail-action button');
+    await expect(buy).toBeVisible();
+    const hit = await buy.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        return document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest('button') === button;
+    });
+    expect(hit).toBe(true);
+});

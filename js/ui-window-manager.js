@@ -850,6 +850,14 @@
         drawer.querySelector('#ui-goal-action').addEventListener('click', openGoalDrawerTarget);
     }
 
+    /** 휴대폰에서 다른 화면으로 옮기면 열린 서랍을 접는다(고정했으면 그대로) — 펼친 서랍이 탭을 바꿔도 화면 절반을 덮은 채
+     * 남았다(검토 2026-10-01). 전투 화면에서 다른 곳을 누르는 것으로는 닫지 않는다(smoke-goal-drawer 3-2). */
+    function collapseGoalDrawerUnlessPinned() {
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (!drawer || !drawer.classList.contains('expanded') || layoutState.goals.pinned) return;
+        toggleGoalDrawer(false);
+    }
+
     function toggleGoalDrawer(force) {
         let drawer = document.getElementById('ui-goal-drawer');
         if (!drawer) return;
@@ -966,6 +974,7 @@
         if (!el) return;
         let cleanText = stripDecorativeEmoji(text);
         el.textContent = cleanText;
+        el.title = cleanText;
         el.style.display = cleanText ? '' : 'none';
     }
 
@@ -1119,7 +1128,10 @@
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
         window.switchTab = function windowedSwitchTab(tabId, options = {}) {
-            if (!isDesktopWindowed()) return originalSwitchTab(tabId);
+            if (!isDesktopWindowed()) {
+                collapseGoalDrawerUnlessPinned();
+                return originalSwitchTab(tabId);
+            }
             if (tabId === 'tab-battle') {
                 closeAllWindows();
                 return originalSwitchTab(tabId);

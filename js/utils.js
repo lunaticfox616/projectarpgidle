@@ -197,7 +197,7 @@ const COMPARE_STAT_META = {
     baseDmg: { label: '공격력', format: value => `${Math.floor(value)}` },
     aspd: { label: '공속', format: value => value.toFixed(2) },
     crit: { label: '치명타', format: value => `${value.toFixed(1)}%` },
-    critDmg: { label: '치피배', format: value => `${Math.floor(value)}%` },
+    critDmg: { label: '치명타 피해', format: value => `${Math.floor(value)}%` },
     maxHp: { label: '최대 생명력', format: value => `${Math.floor(value)}` },
     armor: { label: '방어도', format: value => `${Math.floor(value)}` },
     armorReduction: { label: '방어도 피해 감소', format: value => `${value.toFixed(1)}%` },
@@ -562,9 +562,10 @@ function getAdditiveDropBonusMultiplier(codexBonusPct, challengeBonusPct) {
     return 1 + codexRatio + challengeRatio;
 }
 
+/** 도트 UI에 섞이면 안 되는 컬러 그림 글자를 뺀다. 이모지 속성이 없는 그림 기호(U+1F56E 책 등)도 U+1F000 ~ 1FAFF 묶음으로 함께 뺀다. */
 function stripDecorativeEmoji(value) {
     return String(value == null ? '' : value)
-        .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '')
+        .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu, '')
         .replace(/\s{2,}/g, ' ')
         .trim();
 }

@@ -438,7 +438,7 @@
         {
             id: 'passive-points',
             matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char); },
-            build(g) { return buildNotice(`남은 패시브 포인트 ${clampCount(g.passivePoints)}`, 'tab-char'); }
+            build(g) { return buildNotice(`남은 스킬트리 포인트 ${clampCount(g.passivePoints)}`, 'tab-char'); }
         },
         {
             id: 'equippable-equipment',

@@ -32,7 +32,7 @@ function getCurrentTalentBloomContext(owned) {
     let key = heroId && classKey ? makeTalentComboKey(heroId, classKey) : null;
     let names = heroId ? getTalentCardName(heroId, classKey) : {
         heroLabel: '미선택',
-        classLabel: classKey ? CLASS_TEMPLATES[classKey].name : '무직',
+        classLabel: classKey ? CLASS_TEMPLATES[classKey].name : '미전직',
         bloomName: '5차 전직에서 선택'
     };
     return { heroId, classKey, key, names, card: key ? owned[key] : null };

@@ -187,7 +187,7 @@ const contentUnlockUi = {
     entryReward(def, status) {
         const reward = !status.unlocked && def.rewardText ? `<p class="unlock-reward">${escapeHTML(def.rewardText)}</p>` : '';
         const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(def.name)} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(row.label)}</option>`).join('')}</select></label>` : '';
-        const guide = def.id === 'craft' ? '<p class="unlock-craft-guide">노멀 장비가 없다면 사냥에서 획득하세요. 제련하지 않아도 다음 루프는 진행할 수 있습니다.</p>' : '';
+        const guide = def.id === 'craft' ? '<p class="unlock-craft-guide">일반 장비가 없다면 사냥에서 획득하세요. 제련하지 않아도 다음 루프는 진행할 수 있습니다.</p>' : '';
         return reward + picker + guide;
     },
     lockAttribute(id) {
@@ -210,11 +210,14 @@ const contentUnlockUi = {
         const action = status.unlocked ? this.openButton(def) : def.cost === 0
             ? '<button type="button" disabled>조건 달성 시 자동 개방</button>'
             : `<button type="button" data-unlock-content="${def.id}" ${status.available ? '' : 'disabled'}>${escapeHTML(status.reason)}</button>`;
+        // 첫 보상은 설명 바로 아래, 해금 단추는 맨 아래에서 창 본문 아래쪽에 붙어(sticky) 늘 보인다 — 작은 창(1366×768 ·
+        // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
         return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)} · ${def.cost ? '선택 해금' : '자동 개방'}</span>
             <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p></div>
+            <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
             ${this.lifecycle(def)}${this.relatedFeatures(def)}
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ' · ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
-            <div class="unlock-detail-action">${this.entryReward(def, status)}${action}</div>`;
+            <div class="unlock-detail-action">${action}</div>`;
     },
     openButton(def) {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));

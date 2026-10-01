@@ -240,8 +240,8 @@ const baseGame = extra => ({
     firstLoop.refresh();
     const firstGoal = firstLoop.presented[0];
     assert(firstGoal.id.startsWith('story-zone-'), '성장 기회가 첫 플레이 주 목표를 빼앗지 않음');
-    const passiveNotice = firstGoal.notices.find(n => n.text === '남은 패시브 포인트 4');
-    assert(passiveNotice, '남은 패시브 포인트 안내');
+    const passiveNotice = firstGoal.notices.find(n => n.text === '남은 스킬트리 포인트 4');
+    assert(passiveNotice, '남은 스킬트리 포인트 안내');
     assert.strictEqual(passiveNotice.actionTabId, 'tab-char');
     assert(firstGoal.notices.some(n => n.actionSubtabId === 'item-tab-equip'), '장착 가능한 장비는 장비 창으로 이동');
 }

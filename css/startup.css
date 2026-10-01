@@ -71,7 +71,10 @@
   color: var(--entry-gold); background: none; box-shadow: none; font: 400 11px/1.4 var(--font-body); text-shadow: none;
 }
 #startup-overlay .startup-patch-note-link:hover { color: #fff3d4; text-decoration: underline; }
-#startup-overlay .startup-latest-patch-date { color: var(--entry-muted); font-size: 10px; }
+#startup-overlay .startup-latest-patch-date { color: var(--entry-muted); font-size: 12px; }
+/* 저장이 없을 때 "새 모험" 아래 한 줄 — 제목만 있는 빈 상자처럼 보였다 */
+#startup-overlay .startup-summary-hint { margin: 8px 0 0; color: var(--entry-muted); font-size: 12px; line-height: 1.5; }
+#startup-overlay .startup-summary-hint[hidden] { display: none; }
 #startup-overlay .startup-panel.auth {
   align-self: center; width: 100%; padding: 30px; gap: 15px; box-sizing: border-box;
   border: 1px solid rgba(169,160,120,.29); border-top-color: rgba(217,189,130,.65); border-radius: 3px;

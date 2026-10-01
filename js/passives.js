@@ -5748,7 +5748,7 @@ const TUTORIAL_GUIDES = {
         { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존·화력 축을 보완', '장비: 방어도·회피·보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
     ],
     unlock_char: [
-        { title: '패시브 나무란?', body: '패시브 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
+        { title: '스킬트리란?', body: '스킬트리 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
         { title: '나무 구조 읽기', body: '아래의 루트에서 위쪽 수관으로 갈수록 전문 효과와 큰 보상이 등장합니다.', bullets: ['가지별 색과 배치는 테마를 구분합니다.', '노드에 마우스를 올리면 현재 경로가 강조됩니다.', '검색을 사용하면 원하는 스탯이 있는 가지를 찾을 수 있습니다.'], tip: '화면을 확대하면 선택 가능한 노드의 짧은 효과만 표시되어 글이 겹치지 않습니다.' },
         { title: '첫 포인트 사용', body: '원하는 시작점을 고르고 연결된 경로 노드를 차례로 활성화하세요.', bullets: ['현재 부족한 생존 수단을 먼저 확인합니다.', '사용 중인 스킬 태그와 맞는 공격 효과를 고릅니다.', '큰 노드까지 필요한 포인트 수를 경로로 계산합니다.'], tip: '마지막 단계에서 패시브 화면을 바로 열 수 있습니다.' }
     ],
@@ -5887,12 +5887,19 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
+/** 직업 카드 툴팁: 카드에 이미 있는 한 줄 설명을 되풀이하지 않고 고를 때 필요한 것 — 첫 처치 때 받는 시작 스킬 젬과
+ * 대표 무기(맨손일 때 든 그림, 제한은 아니다) (검토 2026-10-01). */
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
+    const gem = LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '연속 베기';
+    const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
+    const weaponSlug = HANA_WEAPON_COMBOS.classWeapons[classId];
+    const weapon = weaponSlug ? HANA_WEAPON_COMBOS.weapons[weaponSlug].label : '';
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">직업 특징</div>
-        <div class="tooltip-line">${escapeHTML(def.description)}</div>`;
+        <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬 · ${escapeHTML(gem)}</div>
+        ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
+        ${weapon ? `<div class="tooltip-line" style="color:#f6c461;">대표 무기 · ${escapeHTML(weapon)}</div><div class="tooltip-line">요구 능력치만 맞으면 어떤 무기든 낄 수 있고, 든 무기가 그림에 보입니다.</div>` : ''}`;
 }
 
 function showHeroChoiceTooltip(event, classId, experienced) {
@@ -6396,7 +6403,7 @@ function grantJournalBonus(entryId) {
     }
     else if (!game.journalBonuses.some(row => row && row.entryId === entryId)) game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
     game.journalBonusClaims[entryId] = true;
-    addLog(`🕮 저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
+    addLog(`저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
 }
 function unlockJournalEntry(entryId) {
     if (!entryId || !JOURNAL_DB[entryId]) return;
@@ -6445,16 +6452,28 @@ function openActReward(zoneId) {
     document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId).map((choice, index) => !isActRewardChoiceAvailable(choice) ? '' : `
         <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
-            <strong>${choice.label}</strong>
-            <span>${choice.desc}</span>
+            ${actRewardChoiceArt(choice)}<strong>${choice.label}</strong>
+            ${choice.desc ? `<span>${choice.desc}</span>` : ''}
             <small>${getActRewardPreview(choice)}</small>
         </button>
     `).join('');
     document.getElementById('reward-overlay').classList.add('active');
     lastTime = Date.now();
 }
+/** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림). 다른 보상은 그림 없이 글만. */
+function actRewardChoiceArt(choice) {
+    if (choice.kind !== 'item') return '';
+    return `<img class="reward-choice-art" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
+}
+/** 장비 선택지: 등급과, 맞는 장착 칸이 비어 있어 바로 장착되는지(액트 보상은 빈 칸에 자동 장착) 아니면 가방으로 가는지. */
+function actRewardItemPreview(choice) {
+    const slots = ({ 반지: ['반지1', '반지2'], 장갑: ['장갑1', '장갑2'] })[choice.slot] || [choice.slot];
+    const empty = slots.some(slot => Object.hasOwn(game.equipment, slot) && !game.equipment[slot]);
+    const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
+    return `${rarity ? rarity + ' 등급 · ' : ''}${empty ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
+}
 function getActRewardPreview(choice) {
-    if (choice.kind === 'item') return `${choice.slot} 계열 장비를 즉시 획득합니다.`;
+    if (choice.kind === 'item') return actRewardItemPreview(choice);
     if (choice.kind === 'skill') return `${choice.skill} 공격 젬을 획득합니다.`;
     if (choice.kind === 'support') return `${choice.gem} 보조 젬을 획득합니다.`;
     if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;

@@ -6698,7 +6698,7 @@ function handleTalentBloomClear(zone) {
     let isNewCombo = !game.talentBloomCombos.includes(comboKey);
     if (isNewCombo) game.talentBloomCombos.push(comboKey);
     let heroLabel = HERO_SELECTION_DEFS[heroId]?.label || heroId;
-    let classLabel = CLASS_TEMPLATES[classKey]?.name || '무직';
+    let classLabel = CLASS_TEMPLATES[classKey]?.name || '미전직';
     addLog(`재능 개화 성공: [${heroLabel} × ${classLabel}]${isNewCombo ? ' · 신규 조합' : ''}`, 'loot-unique');
     game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
     let firstEverBloomOfClass = classKey !== 'none' && !game.bloomedClasses.includes(classKey);
@@ -8900,9 +8900,19 @@ function grantBeyondBoundaryFocusedReward(result) {
     return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
 }
 
+/** Expedition equipment reaches the bag all at once when the act is cleared. With "빈 장비 슬롯 자동 장착" on it fills empty
+ * slots the way the 장비 창's 빈 칸 채우기 does (tier · rarity first, requirements met) — an idle player otherwise never wore
+ * expedition gear (review 2026-10-01). Occupied slots never change; with the setting off the build stays as it was. */
+function autoEquipActExplorationLoot(receipt) {
+    if (!receipt || !receipt.equipment.length || game.settings.autoEquipEmptySlots === false) return;
+    equipIntoEmptySlots(receipt.equipment);
+}
+
 function finishEncounterRun() {
     const settlement=actExplorationProgress.beginCompletion(getZone(game.currentZoneId));
     if(!settlement)return;
+    // Equip before the claim event so its listeners (currency-acquisition-ui) can say which rewards went straight on.
+    autoEquipActExplorationLoot(settlement.loot);
     combatLootReceipts.capture(game,()=>announceActExplorationLoot(settlement.loot));
     let zone = getZone(game.currentZoneId);
     dispatchRuntimeEvent('encounter-finished', {

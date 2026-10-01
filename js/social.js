@@ -124,7 +124,7 @@ function setMyNicknameLocal(name) {
 }
 function socialClassLabel(ascendClass) {
     if (ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[ascendClass]) return CLASS_TEMPLATES[ascendClass].name;
-    return '무직';
+    return '미전직';
 }
 // 색상값이 안전한 hex/rgb 인지 확인(스타일 속성 주입 방지). 아니면 기본색.
 function socialSafeColor(c, fallback) {
@@ -1220,7 +1220,7 @@ function renderProfileData(profile) {
     body.innerHTML = `
         <div class="social-profile-header">
             <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
-            <div class="social-profile-sub">Lv.${socialEscape(p.level || 1)} · ${socialEscape(p.className || '무직')} · 🔁 루프 ${socialEscape(socialComma(p.loop || 0))}${p.power ? ` · 전투력 ${socialEscape(socialComma(p.power))}` : ''}</div>
+            <div class="social-profile-sub">Lv.${socialEscape(p.level || 1)} · ${socialEscape(p.className || '미전직')} · 루프 ${socialEscape(socialComma(p.loop || 0))}${p.power ? ` · 전투력 ${socialEscape(socialComma(p.power))}` : ''}</div>
             ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
             ${duelAction}
         </div>

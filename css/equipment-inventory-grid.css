@@ -542,6 +542,8 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
     #item-tab-equip .equipment-triage-controls label { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; white-space: nowrap; }
     #item-tab-equip .equipment-triage-controls select { width: 100%; min-width: 0; }
     #item-tab-equip .equipment-triage-controls button { min-width: 0; padding: 4px 6px; font-size: 12px; }
+    /* 빈 칸 채우기는 아랫줄 혼자라 두 칸을 쓴다(첫 칸 폭에서 "빈 칸 채우기 6"이 잘렸다) */
+    #item-tab-equip .equipment-triage-controls .equipment-fill-empty { grid-column: span 2; }
     #item-tab-equip .inventory-browse-toolbar { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
     #item-tab-equip .inventory-browse-toolbar label { grid-column: span 3; font-size: 12px; }
     #item-tab-equip .inventory-browse-toolbar button { grid-column: span 2; min-width: 0; min-height: 44px; font-size: 12px; }

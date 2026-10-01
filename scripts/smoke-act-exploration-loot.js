@@ -30,7 +30,9 @@ assert.throws(()=>run('mergeDefaults(window.badLootSave)'),/탐험 재화 저장
 assert.deepEqual(copy('game.actExploration.loot'),loot,'invalid restore cannot mutate the live rewards');
 
 // The claim primitive receives a domain-authorised clear; combat progression tests exercise that transition.
-run(`game.actExploration.status='cleared';game.settings.autoEquipEmptySlots=true;
+// User decision 2026-10-01: with "빈 장비 슬롯 자동 장착" on, settlement fills empty slots only (smoke-empty-slot-fill.js checks
+// that path). With it off — this fixture — the build stays exactly as it was and overflow still keeps every reward.
+run(`game.actExploration.status='cleared';game.settings.autoEquipEmptySlots=false;
     game.inventory=Array.from({length:1000},(_,i)=>({...game.actExploration.loot.equipment[0],id:400000+i}));`);
 assert.equal(run('canStoreEquipmentItems(game.actExploration.loot.equipment,game)'),false,'fixture has no inventory capacity');
 run('finishEncounterRun();');
@@ -38,7 +40,7 @@ assert.equal(run('game.currencies.goldenRule'),(before.currencies.goldenRule||0)
 assert.equal(run('game.currencies.divine'),run('game.currencies.goldenRule'),'legacy currency accessors survive settlement');
 assert.deepEqual(copy('game.inventory.at(-1)'),loot.equipment[0]);
 assert.equal(run('game.inventory.length'),1001,'overflow cannot discard or auto-salvage pending equipment');
-assert.deepEqual(copy('game.equipment'),before.equipment,'settlement does not silently change the active build');
+assert.deepEqual(copy('game.equipment'),before.equipment,'with auto-equip off, settlement does not change the active build');
 const claimed=copy('({inventory:game.inventory,currencies:game.currencies})');
 run('finishEncounterRun();');
 assert.deepEqual(copy('({inventory:game.inventory,currencies:game.currencies})'),claimed,'repeat settlement grants nothing');

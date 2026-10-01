@@ -155,3 +155,28 @@ test('HUD gem hover details follow the mouse and never stay behind after a tap',
         await expect(page.locator('#info-tooltip')).toBeHidden();
     }
 });
+
+// Review round 3 #3: an opened goal drawer stayed over half of every tab. Outside taps on the battle screen keep it open by
+// design (smoke-goal-drawer 3-2); a screen change folds it unless pinned.
+test('the phone goal drawer folds on a screen change unless pinned', async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, 'Phone goal drawer');
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').tap();
+    await page.locator('[data-class-id="warrior"]').tap();
+    await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen());
+    await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
+    const opener = page.locator('#btn-combat-goal-toggle');
+    const drawer = page.locator('#ui-goal-drawer');
+    await expect(opener).toBeVisible({ timeout: 15000 });
+    await opener.tap();
+    await expect(drawer).toHaveClass(/expanded/);
+    await page.locator('#btn-tab-items').tap();
+    await expect(drawer).not.toHaveClass(/expanded/);
+    await page.locator('#btn-tab-battle').tap();
+    await opener.tap();
+    await expect(drawer).toHaveClass(/expanded/);
+    await page.locator('#ui-goal-pin').tap();
+    await page.locator('#btn-tab-skills').tap();
+    await expect(drawer).toHaveClass(/expanded/);
+});

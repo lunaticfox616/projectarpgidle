@@ -23,6 +23,9 @@
   /* 변수는 쓰는 곳(#mobile-toast-root)에만 둔다 — body에 두면 탭을 바꿀 때마다 문서 전체가 스타일을 다시 계산했다. */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: auto; bottom: calc(302px + env(safe-area-inset-bottom)); }
+  /* 전체 메뉴 서랍이나 확인 창이 열려 있는 동안 알림은 감춘다(닫으면 남은 알림이 다시 보인다) — 알림이 서랍의 기록 단추를
+     덮어, 누르면 기록이 아니라 알림만 닫혔다(검토 2026-10-01). */
+  :root body[data-ui-skin]:is(.mobile-tab-drawer-open, .game-dialog-open) :is(#mobile-toast-root, .game-toast-region) { visibility: hidden; }
   /* 안내 카드(z 13250)가 떠 있으면 전투 기록 알림은 카드 아래로 — 같은 뜻의 예전 규칙(ui-game-overhaul.css)은 알림 판의
      인라인 z-index 22000(js/ui.js getMobileToastRoot, 루프 오버레이보다 위)에 져서 알림이 카드 글과 확인 단추를 덮었다. */
   :root body[data-ui-skin]:has(#tutorial-overlay.active) #mobile-toast-root {
@@ -39,6 +42,15 @@
      지도 이동 · 설정 머리). 장비 가방 칸은 격자 크기가 곧 자리라 뺀다. */
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item) { min-height: 44px; }
   :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item) { min-width: 44px; }
+  /* 검색 칸 · 체크 상자 줄(고대비 모드 · 해금 조건 보기)도 같은 높이, 창 밖의 전체 메뉴 닫기 · 전투 기록 접기 · 시작 화면 약관 글줄도
+     (검토 2026-10-01: 32 ~ 40px, 약관 글줄은 14px) */
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), label:has(> input[type="checkbox"])) { min-height: 44px; }
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) label:has(> input[type="checkbox"]) { display: flex; align-items: center; }
+  :root body[data-ui-skin].mobile-primary-navigation :is(.mobile-tab-drawer-head button, #btn-combat-log-toggle) { min-height: 44px; min-width: 44px; }
+  :root body[data-ui-skin] .startup-policy-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+  /* 스킬트리 검색 필터 칩: 한 줄에 줄여 넣으면 "원소/카오스"가 42px 칸에서 잘렸다 → 제 폭을 지키고 다음 줄로 */
+  :root body[data-ui-skin] #passive-filter-row { flex-wrap: wrap; overflow-x: visible; }
+  :root body[data-ui-skin] #passive-filter-row > button { flex: 1 0 auto; }
   /* 스킬트리 노드 상세가 열려 있으면 안내 카드는 비켜 선다(상세의 "포인트 사용" 단추를 덮었다 — 표시는 그 단추로 옮겨 간다) */
   :root body[data-ui-skin]:has(#passive-mobile-detail:not([hidden])) .tutorial-action-card { visibility: hidden; }
   /* DPS 변화 칩은 생명 구슬 위에 뜬다: 전체 메뉴 서랍이 HUD를 덮으면 칩만 서랍 위에 떠 있었다 */

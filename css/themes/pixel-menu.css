@@ -111,7 +111,8 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     display: flex;
     flex-flow: row wrap;
     align-content: flex-start;
-    gap: 4px;
+    /* 네 글자 이름(48px)끼리 4px로는 "가지치기아르카나"처럼 붙어 읽혔다. 7px이면 1440px 화면에 메뉴 11개가 그대로 실린다(8px은 10개). */
+    gap: 7px;
     width: auto;
     height: calc(var(--px-key) + var(--px-key-caption));
     min-width: 0;
@@ -129,14 +130,25 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   }
   /* 단추는 미니맵 쪽으로 모인다(메뉴가 적을 때 빈자리는 바깥쪽). */
   /* 왼쪽 날개는 빈 플라스크 칸(2열)까지 쓴다 — 단추 밑 이름 때문에 한 칸이 넓어져 핵심 메뉴가 기타로 밀려났다. */
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-left { grid-column: 2 / 4; justify-content: flex-end; padding-left: calc(var(--px-key-slot) + 4px); }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-right { grid-column: 5; justify-content: flex-start; padding-right: calc(var(--px-key-slot) + 4px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-left { grid-column: 2 / 4; justify-content: flex-end; padding-left: calc(var(--px-key-slot) + 7px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-right { grid-column: 5; justify-content: flex-start; padding-right: calc(var(--px-key-slot) + 7px); }
   /* 정리는 왼쪽 날개 바깥 끝, 기타는 오른쪽 날개 바깥 끝(날개 안쪽 여백 자리에 겹쳐 놓는다). */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls { display: contents; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button { grid-row: 1; align-self: end; z-index: 4; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-close-all-windows { grid-column: 2; justify-self: start; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc { grid-column: 5; justify-self: end; }
 
+  /* 주인공 상태 아이콘: HUD 판 안, 왼쪽 메뉴 날개 위 빈 자리 — 판 위에 매달면 HUD 바로 위까지 오는 창의 아래 끝(테 · 능력치 줄)을
+     덮었다(검토 2026-10-01). 넘치면 위로 한 줄 더 쌓는다. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell > .player-combat-effect-strip {
+    top: auto;
+    right: auto;
+    bottom: calc(15px + var(--px-key) + var(--px-key-caption) + 8px);
+    left: calc(14px + var(--px-orb-size) + 16px);
+    max-width: calc(50% - var(--px-orb-size) - var(--px-map-size) / 2 - 40px);
+    justify-content: flex-start;
+    transform: none;
+  }
   /* 메뉴 단추: 네모 틀(scripts/build-hud-kit.cjs, 40도트) + 13도트 금빛 아이콘(2배) + 아래 이름 한 줄. 열린 창은 틀이 금빛.
      이름(검토 2026-10-01): 아이콘만으로는 열네 개를 가려보기 어려웠다. 판 위쪽이 비어 있어 아이콘 줄을 이름 높이만큼 올렸다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn,

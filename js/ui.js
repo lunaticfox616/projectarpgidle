@@ -4688,7 +4688,7 @@ function renderUniqueCodexUI() {
         let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
         let hasNewInSlot = entries.some(entry => !!newlyRegistered[`${slot}|${entry.name}`] && !!game.uniqueCodex[`${slot}|${entry.name}`]);
         let activeClass = slot === selectedSlot ? ' active' : '';
-        let newBadge = hasNewInSlot ? '<span class="codex-slot-new">NEW</span>' : '';
+        let newBadge = hasNewInSlot ? '<span class="codex-slot-new">신규</span>' : '';
         return `<button class="codex-slot-tab${activeClass}" onclick="setCodexSlotFilter('${slot}')"><span>${slot}</span><small>${slotStored}/${entries.length}</small>${newBadge}</button>`;
     }).join('');
     let selectedEntries = pool.filter(entry => (entry.slots || [])[0] === selectedSlot);
@@ -5153,9 +5153,11 @@ function captureCombatLogScroll(log) {
     };
 }
 
+/** Hidden tab (phone, another menu open) or a folded combat feed (#log is display:none there): measuring forces a style recalculation. */
 function isCombatLogHidden(log) {
-    const pane = typeof log.closest === 'function' ? log.closest('.tab-content') : null;
-    return !!pane && !pane.classList.contains('active');
+    if (typeof log.closest !== 'function') return false;
+    const pane = log.closest('.tab-content');
+    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.combat-feed.collapsed');
 }
 
 function restoreCombatLogScroll(log, scrollState) {
@@ -6649,7 +6651,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             html += `<div class="tooltip-line"><span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}${honeyLockText}</div>`;
         });
     } else {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">노멀 아이템: 추가 옵션 없음</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>`;
     }
     if (item.encroached) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#b084ff;">잠식 특수 옵션</div>`;
@@ -8734,6 +8736,37 @@ function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
     if (el.__esHtml !== html) { el.innerHTML = html; el.__esHtml = html; }
 }
 
+let hudShownLevel = 0;
+/** 경험치 구슬의 레벨 글자. 레벨이 오르면 구슬 위에 "레벨 업 · Lv N"을 잠깐 띄운다 — 기록 한 줄 · 0.5초 이펙트 · 메뉴 점만으로는
+ * 놓치기 쉬웠다(검토 2026-10-01). 처음 그릴 때와 방치 정산 중에는 띄우지 않는다. */
+function showHudLevel(level) {
+    setTextById('ui-exp-level-label', `Lv.${level}`);
+    const previous = hudShownLevel;
+    hudShownLevel = level;
+    if (!previous || level <= previous || game.isBackgroundCalculation) return;
+    playLevelUpCallout(level);
+}
+
+function playLevelUpCallout(level) {
+    const orb = document.querySelector('#battle-column .combat-exp-bar');
+    if (!orb || typeof orb.animate !== 'function') return;
+    let label = orb.querySelector('.level-up-callout');
+    if (!label) {
+        label = document.createElement('span');
+        label.className = 'level-up-callout';
+        label.setAttribute('aria-hidden', 'true');
+        orb.appendChild(label);
+    }
+    label.textContent = `레벨 업 · Lv ${level}`;
+    label.getAnimations().forEach(animation => animation.cancel());
+    label.animate([
+        { opacity: 0, translate: '0 6px' },
+        { opacity: 1, translate: '0 0', offset: 0.1 },
+        { opacity: 1, translate: '0 0', offset: 0.8 },
+        { opacity: 0, translate: '0 -6px' }
+    ], { duration: 2000, easing: 'steps(20, end)', fill: 'forwards' });
+}
+
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
@@ -8797,7 +8830,7 @@ function updateCombatUI(pStats) {
     let playerHudIdentity = getUiPlayerHudIdentity();
     setTextById('ui-player-name-label', playerHudIdentity.name);
     setTextById('ui-player-class-label', playerHudIdentity.className);
-    setTextById('ui-exp-level-label', `Lv.${game.level}`);
+    showHudLevel(game.level);
     setTextById('ui-exp-note', `${expPct.toFixed(1)}%`);
     updatePlayerCombatEffectHud(pStats, hpAilBar);
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
@@ -8963,6 +8996,8 @@ function updateCombatUI(pStats) {
                 ? getBossPatternDescription(focusedEnemy.patternMode) : '';
             let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join(' · ');
             updateUiEnemyTraitPanel(traitEl, traitLabels, traitDisplay, fullTooltip, enemyHudTier === 'boss');
+            // 특성 줄이 보이면 상태 이상 아이콘 줄은 그 아래로 내려간다(pixel-hud.css .has-trait-line)
+            enemyListEl.querySelector('.enemy-card.targeted').classList.toggle('has-trait-line', traitLabels.length > 0);
         }
     }
 }
@@ -11344,8 +11379,8 @@ function setupCanvasEvents() {
 
         let effectBadge = (label, accent, caption) => {
             let tone = accent || passiveAccent;
-            return `<div class="tooltip-line" style="flex:1 1 160px; margin-top:6px; padding:8px 10px; border-radius:9px; border:1px solid ${tone.activeOuter}; background:linear-gradient(135deg, ${tone.activeGlow || 'rgba(120,160,200,0.18)'}, rgba(8,12,20,0.72)); box-shadow:inset 0 0 14px rgba(255,255,255,0.04), 0 0 12px ${tone.previewGlow || 'rgba(120,160,200,0.12)'}; color:${tone.text}; font-weight:800; font-size:15px; line-height:1.35;">
-                <div style="font-size:12px; color:var(--copy-bright); font-weight:700; margin-bottom:2px;">${caption}</div>
+            return `<div class="tooltip-line passive-effect-badge" style="--badge-edge:${tone.activeOuter}; color:${tone.text};">
+                <div class="passive-effect-caption">${caption}</div>
                 ${label}
             </div>`;
         };
@@ -11846,6 +11881,7 @@ function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
     const card = document.querySelector('.startup-summary-card');
     if (!card) return;
     card.querySelector('.startup-summary-grid').hidden = !hasSave;
+    card.querySelector('.startup-summary-hint')?.toggleAttribute('hidden', hasSave);
     card.querySelector('.startup-summary-title').textContent = hasSave ? '이 기기 저장' : '새 모험';
 }
 
