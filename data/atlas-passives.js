@@ -61,9 +61,9 @@ const ATLAS_PASSIVES = Object.freeze({
             ['e_bN', '벌집 가지', ['e_b2'], { hive: 12, hiveReward: 50 }, true],
             ['e_c1', '반짝이는 흙', ['e_r'], { treasure: 8 }], ['e_c2', '반짝이는 흙', ['e_c1'], { treasure: 8 }],
             ['e_cN', '숨겨진 보물', ['e_c2'], { treasure: 12, treasureReward: 50 }, true],
-            ['e_k1', '떨어지는 별', ['e_aN', 'e_bN'], { meteor: 20, meteorReward: 50 }, 'key'],
+            ['e_k1', '떨어지는 별', ['e_aN', 'e_bN'], { meteor: 20, meteorReward: 50, constellation: 1 }, 'key'],
             ['e_k2', '겹치는 세계', ['e_bN', 'e_cN'], { encounterExtra: 1 }, 'key'],
-            ['e_aT', '깊은 균열', ['e_aN'], { breach: 10, breachReward: 25 }], ['e_bT', '여왕의 방', ['e_bN'], { hive: 10, hiveReward: 25 }],
+            ['e_aT', '깊은 균열', ['e_aN'], { breach: 10, breachReward: 25 }], ['e_bT', '여왕의 방', ['e_bN'], { hive: 10, hiveReward: 25, beeEvents: 1 }],
             ['e_cT', '보물 지도', ['e_cN'], { treasure: 10, treasureReward: 25 }],
             ['e_ab', '공허의 벌집', ['e_a2', 'e_b2'], { breach: 4, hive: 4 }], ['e_bc', '꿀과 흙', ['e_b2', 'e_c2'], { hive: 4, treasure: 4 }],
             ['e_ca', '균열 속 흙', ['e_c2', 'e_a2'], { treasure: 4, breach: 4 }],
@@ -79,7 +79,9 @@ const ATLAS_PASSIVES = Object.freeze({
         fragmentDrop: ['각인 드롭', '%'], bossMap: ['보스 추가 지도석', '%p'], bossRarity: ['보스 아이템 희귀도', '%'], fragmentKeep: ['각인 보존', '%p'],
         slots: ['각인 홈', '개'], bossLife: ['보스 생명력 · 피해', '%'], breach: ['공허 균열 방', '%p'], hive: ['벌집 방', '%p'],
         treasure: ['보물 방', '%p'], meteor: ['운석 분화구', '%p'], breachReward: ['공허 균열 보상', '%'], hiveReward: ['벌집 보상', '%'],
-        treasureReward: ['보물 보상', '%'], meteorReward: ['운석 보상', '%'], encounterExtra: ['지도마다 조우', '개']
+        treasureReward: ['보물 보상', '%'], meteorReward: ['운석 보상', '%'], encounterExtra: ['지도마다 조우', '개'],
+        // 켜기만 하는 효과(값 없이 이름만 보인다): 예전 양봉업자 · 천문학자 기능(2026-10-01).
+        beeEvents: ['지도 처치 중 벌 이벤트(꽃가루 10)', 'on'], constellation: ['운석 정산마다 별자리 관측(루프 후 유지)', 'on']
     })
 });
 safeExposeData({ ATLAS_PASSIVES });

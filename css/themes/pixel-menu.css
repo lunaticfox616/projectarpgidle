@@ -28,9 +28,6 @@ body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --p
 body[data-ui-skin] #btn-ui-rail-misc { --px-icon: 11; }
 body[data-ui-skin] #btn-close-all-windows { --px-icon: 12; }
 body[data-ui-skin] #btn-mobile-nav-more { --px-icon: 13; }
-body[data-ui-skin] #btn-tab-pruning { --px-icon: 14; }
-body[data-ui-skin] #btn-tab-arcana { --px-icon: 15; }
-body[data-ui-skin] #btn-tab-expertise { --px-icon: 16; }
 body[data-ui-skin] #btn-tab-talent { --px-icon: 17; }
 body[data-ui-skin] #btn-tab-social { --px-icon: 18; }
 body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }

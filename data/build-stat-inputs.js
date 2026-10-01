@@ -15,11 +15,8 @@ const BUILD_STAT_PARTS = {
     passiveSpecialization: ['revelation', 'keystoneChoices'],
     meteorSite: ['constellationBuff'],
     cores: ['equipped'],
-    arcana: ['unlocked', 'cards', 'deckSlots', 'equipmentSlots'],
-    pruningTree: ['unlocked', 'nodeRanks', 'prunedPenaltyRanks'],
     beyondBoundary: ['seals'], colony: ['wardEquipped', 'wardSlots'],
     cosmosAtlas: ['mastery', 'equippedStones', 'equippedStoneGalaxy', 'bossStoneOptions'],
     chaosRealm: ['permanentBonuses'],
-    skyTower: ['skyStone', 'gemBoosts'], ocean: ['permanentUpgrades'],
-    expertise: ['levels', 'nodes', 'favors']
+    skyTower: ['skyStone', 'gemBoosts'], ocean: ['permanentUpgrades']
 };

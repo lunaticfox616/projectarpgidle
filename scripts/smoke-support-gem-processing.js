@@ -31,12 +31,9 @@ const context = {
   getSupportTierCap(name) {
     return context.SUPPORT_GEM_DB[name] && context.SUPPORT_GEM_DB[name].noTiers ? 1 : 3;
   },
-  getExpertCombinedCostReduction() { return 0; },
-  getExpertLevel() { return 5; },
   addLog(message) { logs.push(message); },
   updateStaticUI() {},
   normalizeSupportLoadout() {},
-  grantExpertExpByAction() {},
   safeExposeGlobals(map) { Object.assign(context, map); }
 };
 context.window = context;

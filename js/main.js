@@ -107,7 +107,6 @@ function init() {
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
     checkUnlocks();
-    renderExpertiseUI();
     normalizeSupportLoadout(false);
     runUiGlobalFunction('ensureEncounterRun');
     runStartupSmokeChecks();

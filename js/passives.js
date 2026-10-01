@@ -2951,64 +2951,33 @@ function tryUnlockMeteorContentByProgress() {
 }
 
 
-function getAstronomerLevelForUnlocks() {
-    return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
-}
-
+/** 이상 현상: 운석 낙하 지점이 열리면 사냥 중 가끔 하늘 균열 게이지가 더 찬다(희귀하면 더 많이). */
 function triggerAstronomerAnomaly(zone, enemy) {
     if (!contentProgression.isUnlocked('meteorSite')) return false;
     let st = ensureMeteorSiteState();
-    let astroLv = getAstronomerLevelForUnlocks();
-    if (astroLv < 3) return false;
     let now = getCombatTime();
     if (now - (st.lastAnomalyAt || 0) < 12000) return false;
     let baseChance = enemy && enemy.isBoss ? 0.08 : (enemy && enemy.isElite ? 0.028 : 0.0045);
-    let bonus = Math.max(0, getExpertNodeEffectValue('anomalyChancePct')) / 100;
-    if (Math.random() >= baseChance * (1 + bonus)) return false;
+    if (Math.random() >= baseChance) return false;
     st.lastAnomalyAt = now;
-    let rare = astroLv >= 11 && Math.random() < 0.22;
+    let rare = Math.random() < 0.22;
     if (rare) {
-        awardCurrency('starDust', 2);
         st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + 8, 0, 100);
-        addLog('☄️ 희귀 이상 현상 관측! 별가루 +2, 균열 게이지 +8%', 'loot-unique');
+        addLog('☄️ 희귀 이상 현상 관측! 균열 게이지 +8%', 'loot-unique');
     } else {
-        awardCurrency('starDust', 1);
         st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + 3, 0, 100);
-        addLog('✨ 이상 현상 관측: 별가루 +1, 균열 게이지 +3%', 'loot-magic');
+        addLog('✨ 이상 현상 관측: 균열 게이지 +3%', 'loot-magic');
     }
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'anomaly_observe');
     return true;
 }
 
+/** 별자리 관측: 아틀라스 패시브 '떨어지는 별'이 있으면 운석 정산마다 능력치 하나를 관측한다. 루프가 바뀌어도 남는다. */
 function grantConstellationObservationReward() {
+    if (!atlasPassives.has(game, 'constellation')) return;
     let st = ensureMeteorSiteState();
-    let astroLv = getAstronomerLevelForUnlocks();
-    if (astroLv < 8) return;
-    let pool = [
-        { stat: 'pctDmg', label: '피해', val: astroLv >= 15 ? 7 : 4 },
-        { stat: 'flatHp', label: '최대 생명력', val: astroLv >= 15 ? 45 : 25 },
-        { stat: 'move', label: '이동 속도', val: astroLv >= 15 ? 5 : 3 },
-        { stat: 'crit', label: '치명타 확률', val: astroLv >= 15 ? 4 : 2 }
-    ];
-    let pick = rndChoice(pool);
-    // '핵심: 별자리 고정'(constellationLock): lock in the better candidate so a strong roll
-    // is never overwritten by a weaker observation.
-    let lockActive = typeof getExpertNodeEffectValue === 'function' && getExpertNodeEffectValue('constellationLock') > 0;
-    if (lockActive && st.constellationBuff && st.constellationBuff.stat
-        && getConstellationDesirability(st.constellationBuff) >= getConstellationDesirability(pick)) {
-        let kept = st.constellationBuff;
-        kept.observedAt = Date.now();
-        kept.permanent = astroLv >= 9;
-        addLog(`🌠 별자리 고정: ${kept.label} +${kept.val}${kept.stat === 'flatHp' ? '' : '%'} 유지`, 'loot-unique');
-        return;
-    }
-    st.constellationBuff = { stat: pick.stat, label: pick.label, val: pick.val, observedAt: Date.now(), permanent: astroLv >= 9 };
-    addLog(`🌠 별자리 관측: ${pick.label} +${pick.val}${pick.stat === 'flatHp' ? '' : '%'}${astroLv >= 9 ? ' (루프 후 유지)' : ''}`, 'loot-unique');
-}
-function getConstellationDesirability(buff) {
-    if (!buff || !buff.stat) return 0;
-    let weights = { pctDmg: 6, crit: 8, flatHp: 0.5, move: 3 };
-    return (weights[buff.stat] || 1) * Math.max(0, Number(buff.val || 0));
+    let pick = rndChoice(METEOR_CONSTELLATION_POOL);
+    st.constellationBuff = { stat: pick.stat, label: pick.label, val: pick.val, observedAt: Date.now(), permanent: true };
+    addLog(`🌠 별자리 관측: ${pick.label} +${pick.val}${pick.stat === 'flatHp' ? '' : '%'} (루프 후 유지)`, 'loot-unique');
 }
 
 function getSkyRiftGaugeTierCap(st) {
@@ -3023,15 +2992,12 @@ function getSkyRiftGaugeEffectiveTier(zone, st) {
 function getSkyRiftGaugeGain(zone, enemy, st) {
     let baseGain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
     let effectiveTier = getSkyRiftGaugeEffectiveTier(zone, st);
-    let gain = baseGain * Math.max(1, effectiveTier);
-    if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
-    return gain;
+    return baseGain * Math.max(1, effectiveTier);
 }
 
 function gainSkyRiftGaugeFromCombat(zone, enemy) {
     let st = ensureMeteorSiteState();
-    let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
-    if (astroLv < 1 || !st.unlocked || st.skyRiftReady) return;
+    if (!st.unlocked || st.skyRiftReady) return;
     if (!zone) return;
     let eligible = (zone.type === 'act' && zone.id >= METEOR_SITE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth' || zone.type === 'chaosRealm' || zone.type === 'skyTower' || zone.type === 'underworld' || zone.type === 'cosmos';
     if (!eligible) return;
@@ -3041,7 +3007,6 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     }
     if (zone.type !== 'cosmos') st.skyRiftAllCosmos = false;
     let gain = getSkyRiftGaugeGain(zone, enemy, st);
-    if (astroLv >= 2 && Math.random() < (enemy && enemy.isElite ? 0.035 : 0.006)) awardCurrency('starDust', 1, 'drop');
     triggerAstronomerAnomaly(zone, enemy);
     let nextGauge = (st.skyRiftGauge || 0) + gain;
     st.skyRiftGauge = clampNumber(nextGauge, 0, 100);
@@ -3050,7 +3015,7 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     if (st.skyRiftGauge >= 100 && !st.skyRiftReady) {
         let overflow = Math.max(0, nextGauge - 100);
         st.skyRiftGauge = 100;
-        st.skyRiftCarryGauge = astroLv >= 10 ? Math.min(99, Math.floor(overflow * 0.25)) : 0;
+        st.skyRiftCarryGauge = Math.min(99, Math.floor(overflow * 0.25));
         st.skyRiftReady = true;
         addLog('☄️ 하늘 균열이 완전히 벌어졌다. 운석 낙하 지점으로 향할 수 있다.', 'loot-rare');
         game.noti.map = true;
@@ -3682,23 +3647,14 @@ function grantMeteorEquipmentReward() {
     return item && addItemToInventory(item, { guaranteedKeep: true }) ? item : null;
 }
 
-/** 운석 낙하 정산(2026-10-01 정리): 희귀 이상 장비 하나 · 별가루. 운석 고유 '낙성의 발자취'는 이 지역 전용 드롭으로 따로 떨어진다.
- * 운석 파편 · 불완전한 별쐐기 · 별쐐기 · 성핵 조각은 별쐐기와 함께 없어졌다. */
+/** 운석 낙하 정산(2026-10-01 정리): 희귀 이상 장비 하나. 운석 고유 '낙성의 발자취'는 이 지역 전용 드롭으로 따로 떨어진다.
+ * 운석 파편 · 별쐐기 재료(6단계)와 별가루(7단계)는 없어졌다. 별자리 관측은 아틀라스 패시브 '떨어지는 별'. */
 function grantMeteorEncounterRewards() {
     let st = ensureMeteorSiteState();
-    let astroLv = getAstronomerLevelForUnlocks();
     let encounterTier = Math.max(1, Math.floor(st.activeMeteorTier || 1));
     const item = grantMeteorEquipmentReward();
-    const dust = 2 + Math.floor(Math.random() * (astroLv >= 15 ? 4 : 2));
-    awardCurrency('starDust', dust);
-    grantExpertExpByAction('astronomer', 'meteor_clear');
-    addLog(`☄️ 운석 ${encounterTier}단계 정산${item ? ` · [${item.name}]` : ''} · 별가루 +${dust}`, 'loot-rare', item ? { item } : {});
+    addLog(`☄️ 운석 ${encounterTier}단계 정산${item ? ` · [${item.name}]` : ''}`, 'loot-rare', item ? { item } : {});
     unlockJournalEntry('meteor_fall');
-    if (astroLv >= 14 && Math.random() < 0.35) {
-        let linked = rndChoice(['pollen', 'jewelShard', 'sporeFire', 'sporeCold', 'sporeLight'].filter(key => contentProgression.canDropCurrency(key)));
-        awardCurrency(linked, linked === 'pollen' ? 30 : 3);
-        addLog(`☄️ 전문가 연동 보상: ${ORB_DB[linked] ? ORB_DB[linked].name : linked} +${linked === 'pollen' ? 30 : 3}`, 'loot-magic');
-    }
     grantConstellationObservationReward();
 }
 
@@ -4421,15 +4377,12 @@ const TAB_UNLOCK_GATES = {
     'tab-unlocks': 'season',
     'tab-char': 'char',
     'tab-season': 'season',
-    'tab-pruning': 'pruning',
-    'tab-arcana': 'arcana',
     'tab-items': 'items',
     'tab-skills': 'skills',
     'tab-codex': 'codex',
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
-    'tab-expertise': 'expertise',
     'tab-stump': 'stump'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;
@@ -5257,10 +5210,6 @@ const TUTORIAL_GUIDES = {
     unlock_traits: [
         { title: '전직 화면 안내', body: '전직 화면에서는 직업을 선택하고 두 종류의 전직 포인트를 사용할 수 있습니다.', bullets: ['직업 선택: 캐릭터의 전문화 결정', '전직 패시브 포인트: 연결된 전직 노드 활성화', '키스톤 포인트: 빌드 규칙을 바꾸는 키스톤 활성화'], tip: '전직 패시브 포인트와 키스톤 포인트는 서로 다른 자원입니다.' }
     ],
-    unlock_expertise: [
-        { title: '전문가 시스템', body: '특정 콘텐츠에서 만난 전문가를 성장시켜 제작·수집·전투 보조 기능을 여는 시스템입니다.', bullets: ['전문가마다 경험치를 얻는 콘텐츠가 다릅니다.', '중앙 공용 노드와 전문가 전용 가지가 있습니다.', '해금 효과는 관련 콘텐츠 화면에도 반영됩니다.'], tip: '현재 가장 자주 플레이하는 콘텐츠의 전문가부터 성장시키세요.' },
-        { title: '전문가 노드 읽기', body: '각 가지의 요구 레벨과 선행 노드를 확인하고 포인트를 배분합니다.', bullets: ['상단: 천문·별쐐기', '좌우: 균류 제작·젬 각인', '하단: 양봉과 지도 보조'], tip: '여러 전문가를 얕게 올리기보다 필요한 기능까지 한 가지를 먼저 여는 편이 명확합니다.' }
-    ],
 };
 
 function escapeTutorialText(value) {
@@ -5270,7 +5219,6 @@ function escapeTutorialText(value) {
 function getTutorialGuide(notice) {
     if (!notice) return [];
     if (TUTORIAL_GUIDES[notice.key]) return TUTORIAL_GUIDES[notice.key];
-    if (String(notice.key).startsWith('unlock_expert_')) return TUTORIAL_GUIDES.unlock_expertise;
     if (String(notice.key).startsWith('unlock_talent')) return TUTORIAL_GUIDES.unlock_traits;
     return [{ title: notice.title, body: notice.body, bullets: [], tip: '마지막 단계에서 관련 화면을 바로 열 수 있습니다.' }];
 }
@@ -5281,7 +5229,7 @@ function getTutorialVisualKind(key, stepIndex) {
     if (['unlock_items', 'unlock_jewel', 'unlock_codex', 'unlock_market'].includes(key)) return 'items';
     if (key === 'unlock_skills') return 'skills-panel';
     if (['unlock_map', 'unlock_season_tab'].includes(key)) return 'map';
-    if (['unlock_traits', 'unlock_expertise'].includes(key) || String(key).startsWith('unlock_expert_')) return 'class';
+    if (key === 'unlock_traits') return 'class';
     if (String(key).startsWith('unlock_talent')) return 'class';
     return 'system';
 }
@@ -9444,8 +9392,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
 }
 
 function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
-    let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-    if (mycologistLv < 6 || !item || item.rarity === 'unique') return item;
+    if (!contentProgression.isUnlocked('fossilRestore') || !item || item.rarity === 'unique') return item;
     let chance = enemy && enemy.isBoss ? 0.12 : (enemy && enemy.isElite ? 0.06 : 0.018);
     if (Math.random() >= chance) return item;
     let pool = typeof getFossilExclusivePool === 'function'
@@ -9526,14 +9473,7 @@ function awardCurrency(currencyKey, amount, source = 'reward', deferGrant = null
     currencyKey = getCanonicalCurrencyKey(currencyKey);
     if (source === 'drop' && !contentProgression.canDropCurrency(currencyKey)) return 0;
     let gain = Number(amount || 0);
-    if (gain > 0 && typeof getExpertNodeEffectValue === 'function') {
-        let commonPct = Math.max(0, getExpertNodeEffectValue('expertCurrencyGainPct'));
-        if (commonPct > 0) gain *= (1 + (commonPct / 100));
-        const specificEffect = { pollen:'pollenGainPct', enchantedHoney:'honeyGainPct',
-            sporeFire:'mycoSporeGainPct', sporeCold:'mycoSporeGainPct', sporeLight:'mycoSporeGainPct' }[currencyKey];
-        if (specificEffect) gain *= 1 + Math.max(0, getExpertNodeEffectValue(specificEffect)) / 100;
-        gain = Math.max(1, Math.floor(gain));
-    }
+    if (gain > 0) gain = Math.max(1, Math.floor(gain));
     if (deferGrant && deferGrant(currencyKey, gain)) return gain;
     commitCurrencyGain(currencyKey, gain);
     return gain;
@@ -10292,15 +10232,16 @@ function cycleSporeCraftMode(currencyKey) {
 }
 
 
-function getMycologistLevelForCrafting() {
-    return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
+function getAvailableSporeCraftModes() {
+    let modes = ['none', 'fire', 'cold', 'light'];
+    if (contentProgression.isUnlocked('advancedSpores')) modes.push('chaos', 'damage');
+    return modes;
 }
 
-function getAvailableSporeCraftModes() {
-    let mycoLv = getMycologistLevelForCrafting();
-    let modes = ['none', 'fire', 'cold', 'light'];
-    if (mycoLv >= 10) modes.push('chaos', 'damage');
-    return modes;
+/** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
+function getSporeCraftBlockReason(item, actionKey, mode) {
+    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈 · 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
+    return equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
 }
 
 function isSporeCraftEquipment(item) {
@@ -10310,8 +10251,7 @@ function isSporeCraftEquipment(item) {
 }
 
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    let mycoLv = getMycologistLevelForCrafting();
-    if (mycoLv < 7) return addLog('부패 홀씨는 균사학자 Lv.7에 해금됩니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
@@ -10328,14 +10268,12 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
     let pick = rndChoice(candidates);
     let removed = item.stats.splice(pick.idx, 1)[0];
     updateItemName(item);
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
     addLog(`🍄 부패 홀씨 적용: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-rare');
     updateStaticUI();
 }
 
 function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    let mycoLv = getMycologistLevelForCrafting();
-    if (mycoLv < 9) return addLog('균열 홀씨는 균사학자 Lv.9에 해금됩니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
@@ -10356,7 +10294,6 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     item.stats.push(roll);
     item.rarity = item.rarity === 'normal' ? 'magic' : item.rarity;
     updateItemName(item);
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
     addLog(`🍄 균열 홀씨 적용: ${roll.statName || getStatName(roll.id)} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
     updateStaticUI();
 }
@@ -10430,11 +10367,7 @@ function getAnnulmentRemovableStats(item) {
 }
 
 function getSporeCraftCost() {
-    let cost = 10;
-    if (typeof getExpertCombinedCostReduction === 'function') {
-        cost = Math.max(1, Math.floor(cost * (1 - getExpertCombinedCostReduction('sporeCostReducePct'))));
-    }
-    return cost;
+    return 10;
 }
 
 function hasSporeCraftCost(mode) {
@@ -10506,7 +10439,7 @@ async function useCurrency(currencyKey) {
     game.sporeCraftModes = game.sporeCraftModes || {};
     // 홀씨 태그 보장은 장비 제작 전용이다.
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
-    const sporeBlock = equipmentCrafting.getSporeBlockReason(item, actionKey, sporeMode);
+    const sporeBlock = getSporeCraftBlockReason(item, actionKey, sporeMode);
     if (sporeBlock) return addLog(sporeBlock, 'attack-monster');
     function consumeSpore(mode) {
         if (mode === 'none') return true;
@@ -10566,8 +10499,7 @@ async function useCurrency(currencyKey) {
         guaranteedMod = getSporeGuaranteedMod(true);
         if (!guaranteedMod) return addLog('이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.', 'attack-monster');
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
-        if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-        consumedSpore = true;
+            consumedSpore = true;
     }
     let exaltedMod = null;
     if (actionKey === 'exalted') {
@@ -10575,7 +10507,7 @@ async function useCurrency(currencyKey) {
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
     }
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
-        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
         consumedSpore = true;
     }
     let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });

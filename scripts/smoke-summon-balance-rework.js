@@ -13,7 +13,6 @@ vm.runInContext(`(() => {
     game.ascendKeystones = [];
     game.cosmosTwinKeystones = [];
     game.equipment = {};
-    game.arcana = createDefaultArcanaState();
 })()`, runtime);
 
 // ── 1. 생명력 너프는 baseHp 자체에 반영되어야 한다(후처리 배율 아님) ──

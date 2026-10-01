@@ -1256,7 +1256,6 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.season = 4;
   context.game.currencies.skyEssence = 2;
   context.game.gemData['얼음 창'].skyEnhanceCap = 1;
-  context.getExpertLevel = () => 15;
   assert.strictEqual(context.applySkyGemEnhancementToActive('sky_projectile_focus'), true, '가득 찬 슬롯에서도 기존 발사 방식은 새 방식으로 바로 교체돼야 한다');
   assert.deepStrictEqual(Array.from(context.game.skyGemEnhancements['얼음 창']), ['sky_projectile_focus', null, null, null, null], '한 젬에는 주 발사 방식 하나만 남아야 한다');
   assert.strictEqual(context.game.currencies.skyEssence, 1, '발사 방식 교체는 각인 비용을 한 번만 소모해야 한다');

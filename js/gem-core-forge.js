@@ -43,7 +43,6 @@ const gemCoreForge = (() => {
         gem[before.track.levelKey] = before.level + Number(success);
         gem[before.track.pityKey] = success ? 0 : before.failures + 1;
         game.gemData[name] = gem;
-        if (success) grantExpertExpByAction('gemEngraver', materialKey === 'bossCore' ? 'boss_core_upgrade' : 'sky_core_upgrade');
         return { ...before, status: success ? 'success' : 'failure', next: inspect(name, materialKey) };
     }
 

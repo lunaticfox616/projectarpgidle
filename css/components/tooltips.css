@@ -8,10 +8,6 @@
         #info-tooltip { z-index: 13050; max-width: 340px; }
         .tooltip-title { font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 6px; }
         .tooltip-line { color: var(--copy-bright); }
-@media (max-width:1080px) {
-  .expert-mobile-node .tooltip-title { font-size:15px; margin-bottom:6px; }
-  .expert-mobile-node .tooltip-line { font-size:13px; line-height:1.55; white-space:normal; }
-}
 
 :root body #item-tooltip-box,:root 
 body #canvas-tooltip,:root 

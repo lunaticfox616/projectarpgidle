@@ -56,7 +56,7 @@ assert.ok(!queued().some(card => card.key === 'unlock_content_timerift'), 'a con
 
 // ── 아직 사지 않은 콘텐츠의 안내는 해금을 가리킨다(열 수 없는 창을 가리키면 보이지도 않고 사라졌다) ──
 fresh(20);
-run("queueContentNotice('unlock_arcana', '봉인된 카드', 'arcana', { open: 'OPEN', locked: 'LOCKED' }, 'tab-arcana')");
+run("queueContentNotice('unlock_gem_awakening', '젬 각성', 'gemAwakening', { open: 'OPEN', locked: 'LOCKED' }, 'tab-skills')");
 assert.deepStrictEqual(json('tutorialQueue.map(n => [n.body, n.tabId])'), [['LOCKED', 'tab-unlocks']]);
 assert.strictEqual(run('contentProgression.canOpen(tutorialQueue[0].tabId)'), true, 'the card is shown, not dropped');
 fresh(5);

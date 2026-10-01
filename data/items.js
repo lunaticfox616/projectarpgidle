@@ -876,8 +876,8 @@ const ORB_DB = {
     blessing: { name: '축복의 꽃잎', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
-    fossilPrimal: { name: '원시 화석', desc: '균사학자 Lv.4부터 미궁에서 발견되는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
-    fossilAncientPrimal: { name: '원시 고대 화석', desc: '균사학자 Lv.5부터 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
+    fossilPrimal: { name: '원시 화석', desc: '‘해금’의 화석 복원을 열면 미궁에서 발견되고, 남는 화석을 정제해도 얻는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
+    fossilAncientPrimal: { name: '원시 고대 화석', desc: '‘해금’의 화석 복원을 열면 미궁에서 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
     fossilPrimordial: { name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilBound: { name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
@@ -910,9 +910,8 @@ const ORB_DB = {
     enchantedHoney: { name: '마력 깃든 벌꿀', desc: '장비 옵션 1개를 영구 고정하는 매우 희귀 재화입니다.' },
     venomStinger: { name: '독벌침', desc: '무기에 랜덤 공격 옵션 한 줄을 추가/재설정합니다.' },
     pollen: { name: '꽃가루', desc: '벌집 열쇠/독벌침/벌꿀 제작에 사용하는 천장 재화입니다.' },
-    beeswax: { name: '밀랍', desc: '양봉업자 Lv.8부터 발견되는 벌 재화입니다. 고급 벌 이벤트와 제작 보조에 사용됩니다.' },
-    starDust: { name: '별가루', desc: '운석 낙하 지점 · 우주계 탐사 · 이상 현상에서 모이는 별 재화입니다.' },
-    awakenedEcho: { name: '각성 잔향', desc: '젬 각인사 Lv.12부터 발견되는 각성 재료입니다. Lv.15에서 공격 젬을 각성 젬으로 변환해 젬 자체 보너스를 부여할 때 사용됩니다. 각성 각인은 각성 젬이 아니어도 모든 공격 젬에 부여할 수 있습니다.' },
+    beeswax: { name: '밀랍', desc: '벌집 원정을 연 뒤 혼돈 사냥 · 벌집 원정과 아틀라스 ‘여왕의 방’의 지도 벌 이벤트에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).' },
+    awakenedEcho: { name: '각성 잔향', desc: '‘해금’의 젬 각성을 열면 정예 · 보스에게서 발견되는 각성 재료입니다. Lv.20 이상의 공격 젬을 각성 젬으로 변환해 젬 자체 보너스를 부여할 때 사용됩니다. 각성 각인은 각성 젬이 아니어도 모든 공격 젬에 부여할 수 있습니다.' },
     sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeCold: { name: '냉기 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeLight: { name: '번개 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
@@ -940,8 +939,7 @@ for (const [unlock, keys] of [
     ['research', ['gemShard']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
-    ['talisman', ['sealShard','strongSealShard','radiantSealShard']],
-    ['meteorSite', ['starDust']]
+    ['talisman', ['sealShard','strongSealShard','radiantSealShard']]
 ]) {
     for (const key of keys) ORB_DB[key].dropUnlocks = [unlock];
 }

@@ -39,7 +39,7 @@
         game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor, 100);
         game.underworldProgress.highestFloor = Math.max(game.underworldProgress.highestFloor, 30);
         game.journalEntries = [...new Set([...game.journalEntries, 'woodsman'])];
-        game.skyTower.unlocked = true; game.arcana.unlocked = true;
+        game.skyTower.unlocked = true;
         game.talentBloomClears = Math.max(game.talentBloomClears, 1);
     }
     function command(action, value) {

@@ -24,11 +24,15 @@ assert.strictEqual(vm.runInContext("restoredLayouts.desktop.tabPlacement['btn-ta
 assert.strictEqual(vm.runInContext("restoredLayouts.mobile.tabOrder[0]", runtime), 'btn-tab-char');
 assert.strictEqual(vm.runInContext("restoredLayouts.mobile.tabPlacement['btn-tab-items']", runtime), 'top');
 const damaged = vm.runInContext("JSON.stringify(normalizeTabLayoutSettings({tabLayouts:{desktop:null,mobile:{tabOrder:'broken',tabPlacement:null}}}))", runtime);
-const pruning = JSON.parse(vm.runInContext(`JSON.stringify(normalizeTabLayoutSettings({tabPlacement:{
-    'btn-tab-pruning':'bottom','btn-tab-items':'bottom'}}))`, runtime));
+// 없어진 창(가지치기 · 아르카나 · 전문가, 2026-10-01)의 순서 · 배치는 버리고, 나머지 사용자 배치는 그대로 둔다.
+const retiredTabs = ['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise'];
+const retired = JSON.parse(vm.runInContext(`JSON.stringify(normalizeTabLayoutSettings({
+    tabOrder:['btn-tab-arcana','btn-tab-items','btn-tab-expertise'],
+    tabPlacement:{'btn-tab-pruning':'bottom','btn-tab-arcana':'top','btn-tab-expertise':'bottom','btn-tab-items':'bottom'}}))`, runtime));
 for (const platform of ['desktop','mobile']) {
-    assert.strictEqual(pruning[platform].tabPlacement['btn-tab-pruning'],platform === 'desktop' ? 'top' : 'bottom');
-    assert.strictEqual(pruning[platform].tabPlacement['btn-tab-items'],'bottom','unrelated custom placements survive');
+    assert.deepStrictEqual(retired[platform].tabOrder, ['btn-tab-items'], 'retired tabs leave the saved order');
+    assert.deepStrictEqual(Object.keys(retired[platform].tabPlacement).filter(id => retiredTabs.includes(id)), [], 'retired tabs leave the saved placement');
+    assert.strictEqual(retired[platform].tabPlacement['btn-tab-items'],'bottom','unrelated custom placements survive');
 }
 assert.deepStrictEqual(JSON.parse(damaged).mobile, { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] });
 console.log('Platform menu migration and independent save roundtrip passed.');

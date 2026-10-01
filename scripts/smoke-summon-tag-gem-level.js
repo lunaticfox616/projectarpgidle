@@ -10,7 +10,6 @@ const tagResult = vm.runInContext(`(() => {
   let chaos = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => (node.effects || []).some(effect => effect.stat === 'chaosGemLevel'));
   if (!generic || !chaos) throw new Error('required passive gem-level nodes are missing');
   game.equipment = {};
-  game.arcana = createDefaultArcanaState();
   game.passives = [generic[0], chaos[0]];
   game.actRewardBonuses = [];
   game.journalBonuses = [];
@@ -90,9 +89,6 @@ assert.strictEqual(masterSummonerResult.previewLevel, masterSummonerResult.runti
 
 const equipmentResult = vm.runInContext(`(() => {
   game.passives = [];
-  game.arcana = createDefaultArcanaState();
-  game.arcana.cards.push({ uid:1, cardId:'star', obtainedLoop:1 });
-  game.arcana.equipmentSlots['무기'] = 1;
   game.equipment = { '무기':{
     slot:'무기', quality:20,
     baseStats:[{ id:'gemLevel', val:10 }],
@@ -100,52 +96,22 @@ const equipmentResult = vm.runInContext(`(() => {
     underEnchant:{ id:'fireGemLevel', val:1 },
     chaosInfusion:{ id:'summonGemLevel', val:2 }
   }};
-  let raw = getResolvedEquipmentStatLists('무기', game.equipment['무기'], game, false);
+  let raw = getResolvedEquipmentStatLists('무기', game.equipment['무기'], game);
   let rawTotal = [...raw.baseStats, ...raw.explicitStats]
     .filter(stat => ['gemLevel', 'elementalGemLevel', 'fireGemLevel', 'summonGemLevel'].includes(stat.id))
     .reduce((sum, stat) => sum + stat.val, 0);
-  let fireGemGear = getGemBonusSources('화염 위습 소환').gear;
-  let arcanaDamage = getArcanaGemDamageBonus('화염 위습 소환');
-  game.activeSkill = '화염 참격';
-  game.gemData['화염 참격'] = { level:5, quality:0 };
-  let activeSkillWithStar = getActiveSkillStats(getGemBonusSources('화염 참격').total);
-  let playerDpsWithStar = getPlayerStats().dps;
-  let summon = { gemName:'화염 위습 소환', ele:'fire', baseDamage:100, crit:0, critDmg:140, dmgRollMinPct:100 };
-  let summonStats = { summonPctDmg:0, summonEfficiency:0, summonCrit:0, summonCritDmg:0,
-    summonSharedPctDmg:0, summonSharedTaggedPctDmg:{}, resPen:0, physIgnore:0,
-    finalDamageMultiplier:1, bossDamageDealtMultiplier:1, uniqueSummonNonCritNoDamage:false };
-  let summonWithStar = getSummonHitDamageInfo(summon, summonStats, null, { rollOverridePct:100, forceCrit:false }).damage;
-  game.arcana.equipmentSlots['무기'] = null;
-  let activeSkillWithoutStar = getActiveSkillStats(getGemBonusSources('화염 참격').total);
-  let playerDpsWithoutStar = getPlayerStats().dps;
-  let summonWithoutStar = getSummonHitDamageInfo(summon, summonStats, null, { rollOverridePct:100, forceCrit:false }).damage;
-  return { rawTotal, fireGemGear, arcanaDamage,
-    activeArcanaPct:activeSkillWithStar.arcanaGemDamagePct, inactiveArcanaPct:activeSkillWithoutStar.arcanaGemDamagePct,
-    playerDpsWithStar, playerDpsWithoutStar, summonWithStar, summonWithoutStar };
+  return { rawTotal, fireGemGear: getGemBonusSources('화염 위습 소환').gear };
 })()`, runtime);
 
 assert.strictEqual(equipmentResult.rawTotal, 22.5,
-  'the shared equipment resolver must apply quality and Rift amplification before Arcana');
+  'the shared equipment resolver must apply quality and Rift amplification');
 assert(Math.abs(equipmentResult.fireGemGear - 24) < 1e-9,
-  'compound gem levels receive Rift amplification, but the Star must not amplify them again');
-assert.strictEqual(equipmentResult.arcanaDamage.gemLevels, 24,
-  'the Star must count the same resolved and compound gem-level lines used by combat');
-assert.strictEqual(equipmentResult.arcanaDamage.pct, 15,
-  'the Star damage bonus must respect its global 15% cap');
-assert.strictEqual(equipmentResult.activeArcanaPct, 15,
-  'the active gem must expose the Star bonus to the additive damage pipeline');
-assert.strictEqual(equipmentResult.inactiveArcanaPct, 0,
-  'removing the Star must remove its active gem damage contribution');
-assert(equipmentResult.playerDpsWithStar > equipmentResult.playerDpsWithoutStar,
-  'the additive Star contribution must increase the actual player DPS result');
-assert(equipmentResult.summonWithStar > equipmentResult.summonWithoutStar,
-  'the Star must increase actual summon gem hit damage without changing summon gem levels');
+  'compound gem levels receive Rift amplification exactly once');
 
 // 그루터기 함에서 깨어난 부적의 젬 레벨 줄(예전 생장판 자리)도 실제 젬 레벨에 들어간다.
 const talismanResult = vm.runInContext(`(() => {
   game.season = 25; game.contentProgression.inherited.push('talisman'); contentProgression.sync(game);
   game.equipment = {};
-  game.arcana = createDefaultArcanaState();
   stumpBox.sync(game, 'test');
   game.stumpBox.board = game.stumpBox.board.map(() => null);
   const before = getGemBonusSources('화염 위습 소환').reward;

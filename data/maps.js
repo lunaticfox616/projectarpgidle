@@ -80,6 +80,14 @@ const METEOR_SITE_UNLOCK_LOOP = 7;
 
 const METEOR_SITE_UNLOCK_ACT = 7;
 
+// 별자리 관측(아틀라스 패시브 '떨어지는 별'): 운석 정산마다 하나를 고르고 루프가 바뀌어도 남는다.
+const METEOR_CONSTELLATION_POOL = Object.freeze([
+    Object.freeze({ stat: 'pctDmg', label: '피해', val: 4 }),
+    Object.freeze({ stat: 'flatHp', label: '최대 생명력', val: 25 }),
+    Object.freeze({ stat: 'move', label: '이동 속도', val: 3 }),
+    Object.freeze({ stat: 'crit', label: '치명타 확률', val: 2 })
+]);
+
 const OCEAN_UNLOCK_LOOP = 11;
 
 const OCEAN_ZONE_ID = 'ocean_depth';
@@ -119,7 +127,7 @@ const COSMOS_GALAXY_ENVIRONMENT_DB = Object.freeze([
 // weight에 따라 결정적으로 뽑힌다. 완료 전 새로고침으로 신호를 재굴림할 수 없다.
 const COSMOS_EXPEDITION_DIRECTIVE_DB = Object.freeze([
     { id: 'survey', name: '안정 관측', signal: 'CALIBRATED', description: '위협을 낮춰 처음 연결하는 항로입니다.', weight: 0, enemyHpMul: 0.90, enemyDamageMul: 0.92, enemyAttackSpeedMul: 0.96, rewardMul: 0.82, jackpotChance: 0, jackpotBonusMul: 0 },
-    { id: 'salvage', name: '잔해 회수', signal: 'SALVAGE', description: '성간 잔해를 회수해 별가루 수익을 높입니다.', weight: 36, enemyHpMul: 1.10, enemyDamageMul: 1.05, enemyAttackSpeedMul: 1, rewardMul: 1.22, jackpotChance: 0.04, jackpotBonusMul: 0.75 },
+    { id: 'salvage', name: '잔해 회수', signal: 'SALVAGE', description: '성간 잔해를 회수해 탐사 보상을 높입니다.', weight: 36, enemyHpMul: 1.10, enemyDamageMul: 1.05, enemyAttackSpeedMul: 1, rewardMul: 1.22, jackpotChance: 0.04, jackpotBonusMul: 0.75 },
     { id: 'predator', name: '포식자 추적', signal: 'HUNT', description: '강한 개체를 추적해 밀도 높은 보상을 노립니다.', weight: 28, enemyHpMul: 1.23, enemyDamageMul: 1.14, enemyAttackSpeedMul: 1.08, rewardMul: 1.40, jackpotChance: 0.07, jackpotBonusMul: 1.10 },
     { id: 'rift', name: '균열 관통', signal: 'BREACH', description: '불안정한 균열을 가로질러 큰 수익을 노립니다.', weight: 18, enemyHpMul: 1.38, enemyDamageMul: 1.23, enemyAttackSpeedMul: 1.12, rewardMul: 1.62, jackpotChance: 0.11, jackpotBonusMul: 1.40 },
     { id: 'storm', name: '성운 폭풍', signal: 'STORM', description: '빨라지는 성운 폭풍 속에서 공명 잔광을 수확합니다.', weight: 18, enemyHpMul: 1.18, enemyDamageMul: 1.20, enemyAttackSpeedMul: 1.18, rewardMul: 1.48, jackpotChance: 0.08, jackpotBonusMul: 1.20 },
@@ -265,8 +273,7 @@ const JOURNAL_DB = {
     act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' }, requiresJournal: ['act_9'] },
     woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'], requiresJournal: ['act_10'] },
     woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라', requiresJournal: ['woodsman'] },
-    meteor_fall: { title: '운석 낙하 지점', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“식지 않은 분화구에는 별가루와, 별을 쫓던 이들이 두고 간 장비가 남아 있다.”'] },
-    arcana_first_seal: { title: '봉인된 아르카나', lines: ['“별길마다 남은 문양을 맞추자 이름 없는 패가 모습을 드러냈다.”', '“봉인은 힘을 감추는 동시에, 그 힘이 머물 자리를 고른다.”'], displayEffect: '아르카나 탭 해금', hidden: true, hint: '첫 우주계 탐험 후 서로 다른 별길을 충분히 조사하면 봉인된 패를 복원할 수 있다' },
+    meteor_fall: { title: '운석 낙하 지점', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“식지 않은 분화구에는 별을 쫓던 이들이 두고 간 장비가 남아 있다.”'] },
     immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
     beehive_queen: { title: '루프8 - 벌집 여왕', lines: ['“길은 셋으로 갈라졌지만, 독은 하나로 모였다.”', '“여왕의 날개 아래서 선택은 대가를 부른다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     void_grand_breach: { title: '루프9 - 큰 구멍', lines: ['“공허는 틈으로 시작해 심장으로 끝난다.”', '“쏟아지는 무리를 지나면, 공백도 얼굴을 드러낸다.”'], bonus: { stat: 'chaosPctDmg', value: 3, label: '카오스 피해 +3%' } },
@@ -293,6 +300,6 @@ const JOURNAL_DB = {
     pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'], requiresJournal: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'arcana_first_seal', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

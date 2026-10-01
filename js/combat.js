@@ -1198,20 +1198,10 @@ function getRepresentativeSummonAttackPower(summonStats, evaluation) {
         let gemLv = getSummonGemLevel(name, 'skill', summonStats, evaluation);
         let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
         let sharedInc = getSummonAverageSharedIncreasePct({ gemName: name }, summonStats);
-        let arcanaPct = getSummonArcanaGemDamagePct({ gemName: name }, summonStats);
-        let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
+        let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
         best = Math.max(best, base * ownMul * gemCoreForge.effects(game.gemData?.[name]).damage);
     });
     return Math.max(0, best);
-}
-
-function getSummonArcanaGemDamagePct(summon, pStats) {
-    let name = summon && summon.gemName;
-    let cached = pStats && pStats.summonArcanaGemDamagePctByName;
-    if (name && cached && Object.prototype.hasOwnProperty.call(cached, name)) {
-        return Math.max(0, Number(cached[name]) || 0);
-    }
-    return name ? getArcanaGemDamageBonusPct(name, game) : 0;
 }
 
 const SUMMON_REGEN_PCT_PER_SEC = 0.75;
@@ -1282,7 +1272,6 @@ function buildSummonRuntimeStats(row, pStats, now, gemLv = getSummonGemLevel(row
         crit: Math.max(0, profile.baseCrit || 0),
         critDmg: Math.max(100, profile.baseCritDmg || 140),
         dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40))),
-        arcanaGemDamagePct: getSummonArcanaGemDamagePct({ gemName: row.name }, pStats),
         gridRange: Math.max(1, Math.floor(profile.gridRange || 1)),
         alive: true,
         respawnAt: 0,
@@ -1374,8 +1363,6 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
     // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
     let talentSummonMul = typeof getTalentSummonDamageMultiplier === 'function' ? getTalentSummonDamageMultiplier() : 1;
-    let arcanaIncreasePct = Number.isFinite(Number(s.arcanaGemDamagePct))
-        ? Math.max(0, Number(s.arcanaGemDamagePct)) : getSummonArcanaGemDamagePct(s, pStats);
     let elementalCaller = 0;
     if (typeof getPreciseTalentRatio === 'function' && ['fire', 'cold', 'light'].includes(ele)) {
         let source = pStats.talentSourceStats || {};
@@ -1389,7 +1376,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (typeof getPreciseTalentRatio === 'function' && getPreciseTalentLevel('hero7__guardian') && (game.playerEnergyShield || 0) > 0) {
         citadelIncrease = 12 * getPreciseTalentRatio('hero7__guardian');
     }
-    let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct + arcanaIncreasePct
+    let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct
         + elementalCaller + targetLinkedBonus + citadelIncrease) / 100)
         * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul * gemCoreForge.forSkill(s.gemName).damage;
     if (s.role === 'attack' && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
@@ -1580,14 +1567,13 @@ function estimateSummonDps(pStats, includeBreakdowns = true, evaluation) {
 function buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare) {
     const { s, hit, dps } = estimate;
     const sharedInc = getSummonAverageSharedIncreasePct(s, pStats);
-    const arcanaPct = getSummonArcanaGemDamagePct(s, pStats);
-    const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
+    const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
     const ownAttackPower = (s.baseDamage * dmgMul * gemCoreForge.effects(game.gemData?.[s.gemName]).damage) + sbShare;
     const critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     const critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     const aps = 1000 / getSummonAttackIntervalMs(pStats, s);
     const penResPen = getLimitedSummonPenetrationStats(pStats, s).resPen;
-    return { gemLv: row.gemLevel, s, sharedInc, arcanaPct, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 };
+    return { gemLv: row.gemLevel, s, sharedInc, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 };
 }
 
 function describeSummonDps(rows, estimates, pStats, activeCount) {
@@ -1618,8 +1604,7 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('·');
     lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${elements}`);
     lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
-    let arcanaText = g.arcanaPct > 0 ? ` + 별 아르카나 ${Math.floor(g.arcanaPct)}%` : '';
-    lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc + g.arcanaPct)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%${arcanaText}) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
+    lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
     lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
     lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
     return lines;
@@ -2704,7 +2689,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let colonyWardBonus = {};
 
     let resolvedSources = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
-        [slotKey, item, getResolvedEquipmentStatLists(slotKey, item, game, true)]);
+        [slotKey, item, getResolvedEquipmentStatLists(slotKey, item, game)]);
     let resolvedStats = resolvedSources.map(([, , stats]) => stats);
     let excludedSlots = new Set();
     let barbarismKeystone = findAllocatedPassiveKeystone('야만');
@@ -2946,8 +2931,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
-    getArcanaDeckStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
-    getPruningTreeStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     getBeyondBoundaryGlobalStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     let heroDef = game.bloomedClassThisLoop === game.ascendClass
         ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
@@ -3003,8 +2986,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         skill = { ...skill, ele: 'fire', randomElementPool: ['fire', 'cold', 'light'] };
         skill.tags = Array.from(new Set([...(skill.tags || []), 'elemental']));
     }
-    let favorFx = (typeof getExpertFavorEffectTotals === 'function') ? getExpertFavorEffectTotals() : {};
-    Object.keys(favorFx).forEach(statKey => addStatToBucket(reward, statKey, favorFx[statKey] || 0));
     let authoredPassiveRules = typeof applyAuthoredPassiveStatRules === 'function'
         ? applyAuthoredPassiveStatRules({
             buckets: { gearBase, gearExplicit, passive, support, season, ascend, reward, starBlessing },
@@ -3130,16 +3111,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         + passive.weaponFlatDmgPct + season.weaponFlatDmgPct + ascend.weaponFlatDmgPct + reward.weaponFlatDmgPct);
     let gearFlatDmg = (gearBase.flatDmg * (1 + weaponBaseDmgPct / 100)) + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
-    let activeArcanaGemDamagePct = Math.max(0, Number(skill.arcanaGemDamagePct) || 0);
-    let summonArcanaGemDamagePctByName = {};
-    Array.from(new Set(Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [])).forEach(name => {
-        let def = SKILL_DB[name];
-        if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
-            summonArcanaGemDamagePctByName[name] = getArcanaGemDamageBonusPct(name, game);
-        }
-    });
-    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg + activeArcanaGemDamagePct;
-    let summonSharedGeneralPctDmg = Math.max(0, generalPctDmg - activeArcanaGemDamagePct);
+    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
+    let summonSharedGeneralPctDmg = Math.max(0, generalPctDmg);
     let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
     function sumAilmentChanceStat(statId) {
         return (gearBase[statId] || 0) + (gearExplicit[statId] || 0) + (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (support[statId] || 0) + (reward[statId] || 0) + (starBlessing[statId] || 0);
@@ -3912,7 +3885,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
                 summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
                 summonSharedPctDmg: summonSharedGeneralPctDmg,
-                summonArcanaGemDamagePctByName: summonArcanaGemDamagePctByName,
                 summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))]))
             };
             sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare, gemEvaluation);
@@ -4263,7 +4235,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 isSpellSkill ? null : makeSourceLine('패시브', passiveFlatDmg),
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('별 아르카나', activeArcanaGemDamagePct, '%', value => `${Number(value.toFixed(2))}%`),
                 makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),
                 talentLine('pctDmg'),
                 crusaderThunderDoctrinePct > 0 ? makeSourceLine('천뢰 교리(화염/냉기 → 번개)', crusaderThunderDoctrinePct, '%', value => `${Math.floor(value)}%`) : null,
@@ -4890,7 +4861,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + (((game.summonDeathDamageBuffExpiresAt || 0) > getCombatTime()) ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0)),
         summonSharedPctDmg: summonSharedGeneralPctDmg,
-        summonArcanaGemDamagePctByName: summonArcanaGemDamagePctByName,
         summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))])),
         summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus + (((game.summonCritAspdExpiresAt || 0) > getCombatTime()) ? Math.max(0, Math.floor(game.summonCritAspdStacks || 0)) * Math.max(0, Number(game.summonCritAspdPerStack || 0)) : 0)),
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
@@ -5010,7 +4980,6 @@ function getGemPresentation(name, isSupport, statsOverride) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).damage : 1);
     skill.spd *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).speed : 1);
-    skill.arcanaGemDamagePct = db.isGem ? getArcanaGemDamageBonusPct(name, game) : 0;
     let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
         ? stats.sSkill : null;
     let patternMode = activePattern && activePattern.projectilePattern
@@ -8052,9 +8021,6 @@ function grantExpAndGem(enemy, pStats) {
         const levels = gem ? gainGemExperience(gem, gemExp) : 0;
         if (levels > 0) {
             gemLeveled = true;
-            if (typeof grantExpertExpByAction === 'function') {
-                for (let i = 0; i < levels; i++) grantExpertExpByAction('gemEngraver', 'support_gem_upgrade');
-            }
             addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
         }
     });
@@ -8118,25 +8084,25 @@ function isBeeMappingZone(zone) {
     return !!zone && zone.type === 'abyss';
 }
 
-function maybeTriggerBeeMappingEvent(beeLv, enemy) {
-    if (beeLv < 10 || !enemy || enemy.isBoss) return;
+/** 벌 이벤트(2026-10-01 양봉업자 대신): 아틀라스 '여왕의 방' 패시브가 있으면 아틀라스 지도 처치 중 꽃가루 10개로 일어난다. */
+function maybeTriggerBeeMappingEvent(enemy) {
+    if (!enemy || enemy.isBoss) return;
     if ((game.currencies.pollen || 0) < 10) return;
     let chance = enemy.isElite ? 0.012 : 0.0025;
     if (Math.random() >= chance) return;
     game.currencies.pollen = Math.max(0, (game.currencies.pollen || 0) - 10);
     let roll = Math.random();
-    if (beeLv >= 14 && roll < 0.08) {
-        let bonusPct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('queenBeeRewardBonusPct') || 0) / 100 : 0;
-        let pollen = Math.max(1, Math.floor(25 * (1 + bonusPct)));
+    if (roll < 0.08) {
+        let pollen = 25;
         awardCurrency('pollen', pollen);
         awardCurrency('enchantedHoney', 1);
         awardCurrency('beeswax', 2);
         addLog(`👑 여왕벌 이벤트! 꽃가루 +${pollen}, 벌꿀 +1, 밀랍 +2`, 'loot-unique');
-    } else if (beeLv >= 12 && roll < 0.28) {
+    } else if (roll < 0.28) {
         awardCurrency('venomStinger', 1);
         if (Math.random() < 0.35) awardCurrency('beeswax', 1);
         addLog('🐝 독침벌 무리 이벤트! 독벌침 +1', 'loot-rare');
-    } else if (beeLv >= 11 && roll < 0.55) {
+    } else if (roll < 0.55) {
         awardCurrency('pollen', 15);
         awardCurrency('beeswax', 1);
         addLog('🐝 호박벌 이벤트! 꽃가루 +15, 밀랍 +1', 'loot-rare');
@@ -8208,11 +8174,11 @@ function grantEnemyGemFragments(amount) {
     return grantGemResearchFragments(amount,'drop',(key,gain)=>actExplorationLoot.currency(game,key,gain));
 }
 
-function rollEnemyGemReward(enemy,expertLevel) {
+function rollEnemyGemReward(enemy,awakening) {
     const shards=grantEnemyGemFragments(1),pending=actExplorationLoot.pending(game)?.gems||[];
     const duplicateShards=enemy.isBoss?3:enemy.isElite?2:1;
     if(!contentProgression.isUnlocked('support')||Math.random()<0.5) {
-        const gem=rollEnemyAttackGem(expertLevel,pending);
+        const gem=rollEnemyAttackGem(awakening,pending);
         const bonus=gem?0:grantEnemyGemFragments(duplicateShards+1);
         return {kind:'attack',gem,shards:shards+bonus};
     }
@@ -8223,30 +8189,26 @@ function rollEnemyGemReward(enemy,expertLevel) {
     return {kind:'support',name,gem,shards:shards+bonus};
 }
 
-function rollEnemyAttackGem(expertLevel,pending) {
+function rollEnemyAttackGem(awakening,pending) {
     const names=gemDropRewards.missingAttacks(game,pending);
     if(!names.length)return null;
-    const name=rndChoice(names),awakened=expertLevel>=13&&Math.random()<getAwakenedDropChance(0.035);
-    // Pity records a completed random draw, like equipment drop progress, even if its loot is later lost.
-    if(expertLevel>=13)bumpExpertAwakenedPity(awakened);
+    const name=rndChoice(names),awakened=!!awakening&&Math.random()<0.035;
     return {kind:'attack',name,awakened};
 }
 
 function rollLootForEnemy(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let contentDropMul = getContentDropRateMultiplier(zone);
-    let gemExpertLvForLoot = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
-    if (contentProgression.canDropCurrency('awakenedEcho') && gemExpertLvForLoot >= 12 && (enemy.isBoss || enemy.isElite)) {
+    let gemAwakening = contentProgression.isUnlocked('gemAwakening');
+    if (contentProgression.canDropCurrency('awakenedEcho') && gemAwakening && (enemy.isBoss || enemy.isElite)) {
         let echoChance = enemy.isBoss ? 0.045 : 0.004;
-        let bonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('awakenedGemDropPct') || 0) / 100 : 0;
-        if (Math.random() < echoChance * (1 + bonus) * contentDropMul) {
+        if (Math.random() < echoChance * contentDropMul) {
             awardEnemyLootCurrency('awakenedEcho', 1);
             if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
         }
     }
-    let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
-    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * contentDropMul * getEnemyGemDropMul(enemy)) {
-        const reward=rollEnemyGemReward(enemy,gemExpertLvForLoot);
+    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy)) {
+        const reward=rollEnemyGemReward(enemy,gemAwakening);
         if(reward.gem&&!actExplorationLoot.gem(game,reward.gem)) {
             gemDropRewards.grant(game,reward.gem,reward.kind==='support'?getEffectiveResonanceCap():0);
             checkUnlocks();
@@ -8269,17 +8231,6 @@ function rollLootForEnemy(enemy) {
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${gain}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });
 
-    let arcanaDrop = tryDropSealedArcanaCard(zone, enemy, game);
-    if (arcanaDrop.dropped) {
-        if (typeof unlockJournalEntry === 'function') unlockJournalEntry('arcana_first_seal');
-        if (arcanaDrop.unlockedNow && typeof queueTutorialNotice === 'function') {
-            queueContentNotice('unlock_arcana', '봉인된 카드', 'arcana', { open: '봉인된 카드를 발견했습니다.\n‘아르카나’에서 봉인을 풀고 덱이나 장비 칸에 놓으세요.',
-            locked: '봉인된 카드를 발견했습니다.\n‘해금’에서 아르카나를 열면 봉인을 풀어 덱이나 장비 칸에 놓을 수 있습니다.' }, 'tab-arcana');
-        }
-        addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#d5adff', tier: 'unique', duration: 1420 });
-        addLog('🂠 봉인된 아르카나 카드를 발견했습니다.', 'loot-unique');
-    }
-
     let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
     const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
     grantRealmBossUniqueLoot(enemy, zone);
@@ -8297,28 +8248,27 @@ function rollLootForEnemy(enemy) {
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
     let mappingZone = isBeeMappingZone(zone);
     if (beeUnlocked && mappingZone && !enemy.isBoss) {
-        let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
         let beeLootLogs = [];
-        if (beeLv >= 1 && Math.random() < 0.05) {
+        if (Math.random() < 0.05) {
             let pollenAmount = enemy.isElite ? 2 : 1;
             awardEnemyLootCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
-        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.0048) {
+        if (enemy.isElite && Math.random() < 0.0048) {
             awardEnemyLootCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
-        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.00064) {
+        if (enemy.isElite && Math.random() < 0.00064) {
             awardEnemyLootCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
-        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.0032) {
+        if (enemy.isElite && Math.random() < 0.0032) {
             awardEnemyLootCurrency('beeswax', 1);
             beeLootLogs.push('밀랍 +1');
         }
-        maybeTriggerBeeMappingEvent(beeLv, enemy);
         if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
+    if (zone && zone.type === 'atlasMap' && atlasPassives.has(game, 'beeEvents')) maybeTriggerBeeMappingEvent(enemy);
     if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002)) {
         awardEnemyLootCurrency('hiveKey', 1);
         if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
@@ -9165,14 +9115,12 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'labyrinth') {
-        let prevLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
         if (clearedFloor >= 10) unlockJournalEntry('labyrinth_10');
         game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
-        if (game.labyrinthUnlockedMaxFloor > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
         game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
-        let fossilDropMul = contentProgression.isUnlocked('fossil') ? 1 + Math.max(0, getExpertNodeEffectValue('fossilDropPct')) / 100 : 0;
-        let fossilRareMul = contentProgression.isUnlocked('fossil') ? 1 + Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) / 100 : 0;
+        let fossilDropMul = contentProgression.isUnlocked('fossil') ? 1 : 0;
+        let fossilRareMul = fossilDropMul;
         let fossilChances = getLabyrinthFossilDropChances(clearedFloor, fossilDropMul, fossilRareMul);
         let gotBaseFossil = Math.random() < fossilChances.base;
         if (gotBaseFossil) awardCurrency('fossil', 1);
@@ -9180,9 +9128,9 @@ function finishEncounterRun() {
         let rolledFossil = rndChoice(fossilDropPool);
         let gotTypedFossil = Math.random() < fossilChances.typed;
         if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
-        let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-        let gotPrimalFossil = mycologistLv >= 4 && Math.random() < fossilChances.primal;
-        let gotAncientPrimalFossil = mycologistLv >= 5 && Math.random() < fossilChances.ancient;
+        let primalFossils = contentProgression.isUnlocked('fossilRestore');
+        let gotPrimalFossil = primalFossils && Math.random() < fossilChances.primal;
+        let gotAncientPrimalFossil = primalFossils && Math.random() < fossilChances.ancient;
         if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
         if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
         if (Math.random() < fossilChances.abyssal) {
@@ -12228,9 +12176,6 @@ function triggerSeasonReset(options) {
     if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
     game.lastLoopAdvancePath = loopPath;
     game.season++;
-    let pruningAdvance = advancePruningTreeForLoop(game);
-    if (typeof resetExpertiseLoopCaps === 'function') resetExpertiseLoopCaps();
-    if (typeof grantLoopBaseExpertExp === 'function') grantLoopBaseExpertExp();
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     addLog(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
@@ -12243,11 +12188,6 @@ function triggerSeasonReset(options) {
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
-    if (game.season === PRUNING_TREE_UNLOCK_LOOP && typeof queueTutorialNotice === 'function') {
-        queueContentNotice('unlock_pruning_tree', '첫 나이테', 'pruning', { open: '나무에 첫 나이테가 생겼습니다.\n‘가지치기’에서 성장 방향과 감당할 부담을 고르세요.',
-            locked: '나무에 첫 나이테가 생겼습니다.\n‘해금’에서 가지치기를 열면 성장 방향과 감당할 부담을 고를 수 있습니다.' }, 'tab-pruning');
-    }
-    if (pruningAdvance.changed && game.season > PRUNING_TREE_UNLOCK_LOOP) addLog(`🌳 성장 나무가 자라 성장점 +${pruningAdvance.granted}`, 'season-up');
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     game.level = 1;
     game.exp = 0;

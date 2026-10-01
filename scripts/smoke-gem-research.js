@@ -46,7 +46,6 @@ const context = {
     hasSupportGemOwned(name) {
         return context.game.supports.includes(name) || context.game.sealedSupports.includes(name);
     },
-    getExpertLevel() { return 1; },
     awardCurrency(key, amount) {
         context.game.currencies[key] = (context.game.currencies[key] || 0) + amount;
     },
@@ -54,7 +53,6 @@ const context = {
     updateStaticUI() {},
     checkUnlocks() {},
     queueImportantSave() {},
-    grantExpertExpByAction() {},
     getPlayerStats() { return { suppCap: 1 }; },
     safeExposeGlobals(map) { Object.assign(context, map); }
 };

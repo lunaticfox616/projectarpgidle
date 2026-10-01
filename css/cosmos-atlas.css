@@ -154,78 +154,6 @@
   padding: 4px 2px;
 }
 
-.cosmos-arcana-quest {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, .75fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  background: var(--color-surface-raised);
-}
-
-.cosmos-arcana-quest > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.cosmos-arcana-quest span {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .13em;
-}
-
-.cosmos-arcana-quest strong {
-  overflow: hidden;
-  color: var(--color-text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cosmos-arcana-quest small {
-  color: var(--copy-muted);
-  font-size: 12px;
-}
-
-.cosmos-arcana-quest.dormant {
-  border-style: dashed;
-  opacity: .72;
-}
-
-.cosmos-arcana-quest.complete {
-  border-color: var(--color-line-strong);
-  background: var(--color-surface-raised);
-}
-
-.cosmos-arcana-progress b {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  text-align: right;
-}
-
-.cosmos-arcana-progress i {
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-surface-raised);
-}
-
-.cosmos-arcana-progress em {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
-}
-
-.cosmos-arcana-progress small {
-  text-align: right;
-}
-
 .cosmos-capstone-card {
   min-width: 0;
   padding: 9px;
@@ -1038,15 +966,6 @@
 
   .cosmos-summary > * {
     grid-column: 1 / -1;
-  }
-
-  .cosmos-arcana-quest {
-    grid-template-columns: 1fr;
-  }
-
-  .cosmos-arcana-progress b,
-  .cosmos-arcana-progress small {
-    text-align: left;
   }
 
   .cosmos-mode-tabs {

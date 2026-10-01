@@ -138,10 +138,8 @@ const sideEncounterUi = (() => {
             <div><dt>입장 비용</dt><dd>벌집 열쇠 1개 <small>보유 ${keys}개</small></dd></div></dl>
             ${power}<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startBeehiveRun()" ${keys>0?'':'disabled'}>벌집 입장</button>
             ${keys>0?'':'<span>벌집 열쇠가 필요합니다.</span>'}</div></div>`;
-        const level = getBeekeeperLevelForHive();
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${hive.queenActive?'여왕벌 전투':`갈림길 ${Math.min(10,hive.branchStep)}/10`}</strong>${power}</div>
             ${hiveSummary(hive)}${choices}<details class="map-expedition-details"><summary>원정 정보 · 보유 재료</summary>
-            <p>양봉업자 Lv.${level} · 형체 없는 이슬 Lv.3 · 황금률 Lv.5</p>
             <p>꽃가루 ${game.currencies.pollen||0} · 독벌침 ${game.currencies.venomStinger||0} · 벌꿀 ${game.currencies.enchantedHoney||0} · 밀랍 ${game.currencies.beeswax||0}</p></details>
             <div class="map-expedition-actions"><button type="button" onclick="switchTab('tab-battle')">전투 보기</button><button type="button" onclick="forfeitBeehiveRun()">원정 포기</button></div></div>`;
     }
@@ -180,7 +178,7 @@ const sideEncounterUi = (() => {
         const active = game.currentZoneId === METEOR_FALL_ZONE_ID;
         const ready = game.meteorSite.skyRiftReady;
         const percent = Math.min(100,Math.floor(game.meteorSite.skyRiftGauge || 0));
-        const reward = '희귀 이상 장비 · 별가루 · 운석 고유 장비(낮은 확률)';
+        const reward = '희귀 이상 장비 · 운석 고유 장비(낮은 확률)';
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${active?'운석 원정 진행 중':ready?'원정 준비 완료':`하늘의 균열 충전 ${percent}%`}</strong>${power}</div>
             <dl><div><dt>주요 전리품</dt><dd>${reward}</dd></div>
             <div><dt>난이도</dt><dd>티어 ${getZone(METEOR_FALL_ZONE_ID).tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div></dl>

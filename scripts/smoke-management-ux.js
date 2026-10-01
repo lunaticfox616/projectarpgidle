@@ -38,8 +38,6 @@ assert.strictEqual(vm.runInContext("gemSelectionUi.application('근접 물리 �
 assert.strictEqual(vm.runInContext("gemSelectionUi.application('투사체 강화', getPlayerStats())", runtime), '현재 주 공격·소환 젬에 적용되지 않음');
 vm.runInContext("game.activeSkill='기본 공격'; game.skills.push('냉기 위습 소환'); game.equippedSummonSkills=['냉기 위습 소환'];", runtime);
 assert(vm.runInContext("gemSelectionUi.application('원소 집중', getPlayerStats()).includes('냉기 위습 소환')", runtime), 'support must include an eligible equipped summon even when the main attack is physical');
-const favorHtml = vm.runInContext("game.expertise.levels.mycologist=10; game.expertise.favors.mycologist=getExpertFavorOptions('mycologist')[0].id; getExpertiseCardHtml('mycologist')", runtime);
-assert(favorHtml.includes('현재 선택') && favorHtml.includes('✓ 선택됨'), 'expert favor must name and badge the active choice');
 
 const equipmentCardHtml = runtime.renderInventoryCard({ id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] }, 0, 'equip');
 assert(!equipmentCardHtml.includes('<details'), 'equipment card actions must not be split behind a management disclosure');

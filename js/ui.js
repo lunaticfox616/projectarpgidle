@@ -1234,8 +1234,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'stump'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', detail: '전직과 키스톤을 선택합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
@@ -1246,7 +1246,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
-    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-unlocks', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-stump', 'tab-skills'] },
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
@@ -1824,7 +1824,6 @@ function getRenderingUiTabIds() {
 function renderVisibleManagementPanels(tabIds) {
     if (tabIds.has('tab-talent')) renderTalentTab();
     if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
-    if (tabIds.has('tab-expertise')) renderExpertiseUI();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
     else refreshBlackMarket(false);
 }
@@ -1996,7 +1995,6 @@ function switchTab(tabId) {
         return;
     }
     if (mergedEntry && !getSelectedMergedTabId(mergedEntry[0])) return;
-    syncDerivedTabUnlock(tabId);
     if (!isTabSurfaceAvailable(tabId)) {
         notifyLockedTab(tabId);
         return;
@@ -2792,16 +2790,11 @@ function spawnBeehiveWave(isBoss){
     if (isBoss) addLog('👑 10개 갈림길을 완료해 여왕벌이 등장했습니다. 여왕벌을 처치하면 벌집 원정이 완료됩니다.', 'loot-unique');
     else addLog(`🐝 벌떼 웨이브 시작! 진행도 ${Math.min(100, step * 10)}% · 남은 적을 모두 처치해야 다음 갈림길이 열립니다.`, 'attack-monster');
 }
-function getBeekeeperLevelForHive() {
-    return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
-}
-function getBeehiveRewardAmount(base, branchStep, expertLevel) {
+function getBeehiveRewardAmount(base, branchStep) {
     let depthBonus = Math.max(0, Math.floor(branchStep || 0)) * 0.08;
-    let expertBonus = Math.max(0, expertLevel - 1) * 0.03;
-    let nodeBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('beehiveRewardPct') || 0) / 100 : 0;
-    return Math.max(1, Math.floor(base * (1 + depthBonus + expertBonus + nodeBonus)));
+    return Math.max(1, Math.floor(base * (1 + depthBonus)));
 }
-function getBeehivePenaltyPool(expertLevel, branchStep) {
+function getBeehivePenaltyPool(branchStep) {
     let depth = Math.max(1, Math.floor(branchStep || 1));
     let pool = [
         { key: 'swarm', text: '군체 분노 +1', power: 1 },
@@ -2809,9 +2802,9 @@ function getBeehivePenaltyPool(expertLevel, branchStep) {
         { key: 'pollen_tax', text: '꽃가루 -6', power: 1 }
     ];
     if (depth >= 4) pool.push({ key: 'deep_swarm', text: '심층 군체 분노 +2', power: 2 });
-    if (expertLevel >= 4) pool.push({ key: 'venom_tax', text: '독벌침 1개 소모 확률 25%', power: 1 });
-    if (expertLevel >= 6) pool.push({ key: 'honey_tax', text: '벌꿀 1개 소모 확률 20%', power: 1 });
-    if (expertLevel >= 10) pool.push({ key: 'royal_swarm', text: '왕실 군체 분노 +3', power: 3 });
+    pool.push({ key: 'venom_tax', text: '독벌침 1개 소모 확률 25%', power: 1 },
+        { key: 'honey_tax', text: '벌꿀 1개 소모 확률 20%', power: 1 });
+    if (depth >= 6) pool.push({ key: 'royal_swarm', text: '왕실 군체 분노 +3', power: 3 });
     return pool.filter(canPayBeehivePenalty);
 }
 // Costs are resolved by saved key, never by closures or amounts supplied by a save.
@@ -2837,26 +2830,18 @@ function getBeehiveSelectableChoice(choices, key) {
     // fixed and visibly offer one combat penalty so the expedition cannot softlock.
     return { ...pick, penalty: { key: 'swarm', text: '군체 분노 +1', power: 1 } };
 }
-function getBeehiveRewardPool(expertLevel, branchStep) {
+function getBeehiveRewardPool(branchStep) {
     let depth = Math.max(1, Math.floor(branchStep || 1));
-    let pool = [
-        { type: 'pollen', weight: 42 },
-        { type: 'honey', weight: expertLevel >= 2 ? 18 : 8 },
-        { type: 'stinger', weight: expertLevel >= 4 ? 16 : 6 }
+    return [
+        { type: 'pollen', weight: 42 }, { type: 'honey', weight: 18 }, { type: 'stinger', weight: 16 },
+        { type: 'formlessDew', weight: 14 + Math.min(8, depth) }, { type: 'goldenRule', weight: 2 + Math.floor(depth / 4) },
+        { type: 'jewelShard', weight: 10 }, { type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 }, { type: 'bundle', weight: 4 }
     ];
-    if (expertLevel >= 3) pool.push({ type: 'formlessDew', weight: 14 + Math.min(8, depth) });
-    if (expertLevel >= 5) pool.push({ type: 'goldenRule', weight: 2 + Math.floor(depth / 4) + (expertLevel >= 13 ? 2 : 0) });
-    if (expertLevel >= 7 || depth >= 6) pool.push({ type: 'jewelShard', weight: 10 });
-    if (expertLevel >= 8) pool.push({ type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 });
-    if (expertLevel >= 15) pool.push({ type: 'bundle', weight: 4 });
-    let rarePct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0;
-    if (rarePct > 0) pool.forEach(row => { if (row.type === 'goldenRule' || row.type === 'bundle') row.weight = Math.max(0, (row.weight || 0) * (1 + rarePct / 100)); });
-    return pool;
 }
-function pickWeightedBeehiveReward(expertLevel, branchStep, usedTypes) {
+function pickWeightedBeehiveReward(branchStep, usedTypes) {
     let used = usedTypes || new Set();
-    let pool = getBeehiveRewardPool(expertLevel, branchStep).filter(row => !used.has(row.type));
-    if (pool.length <= 0) pool = getBeehiveRewardPool(expertLevel, branchStep);
+    let pool = getBeehiveRewardPool(branchStep).filter(row => !used.has(row.type));
+    if (pool.length <= 0) pool = getBeehiveRewardPool(branchStep);
     let total = pool.reduce((sum, row) => sum + Math.max(0, row.weight || 0), 0);
     let roll = Math.random() * Math.max(1, total);
     for (let row of pool) {
@@ -2868,18 +2853,16 @@ function pickWeightedBeehiveReward(expertLevel, branchStep, usedTypes) {
 function prepareBeehiveBranchChoices(b) {
     if (!b || !b.inRun || b.awaitingClear || b.queenActive) return;
     let nextStep = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
-    let lv = getBeekeeperLevelForHive();
     let used = new Set();
-    let immediate = pickWeightedBeehiveReward(lv, nextStep, used);
+    let immediate = pickWeightedBeehiveReward(nextStep, used);
     used.add(immediate);
-    let wave = pickWeightedBeehiveReward(lv, nextStep, used);
+    let wave = pickWeightedBeehiveReward(nextStep, used);
     used.add(wave);
-    let queen = pickWeightedBeehiveReward(lv, nextStep, used);
+    let queen = pickWeightedBeehiveReward(nextStep, used);
     b.pendingChoice = {
-        a: buildBeehiveChoiceOption(immediate, lv, nextStep, 'immediate'),
-        b: buildBeehiveChoiceOption(wave, lv, nextStep, 'wave'),
-        c: buildBeehiveChoiceOption(queen, lv, nextStep, 'queen'),
-        expertLevel: lv,
+        a: buildBeehiveChoiceOption(immediate, nextStep, 'immediate'),
+        b: buildBeehiveChoiceOption(wave, nextStep, 'wave'),
+        c: buildBeehiveChoiceOption(queen, nextStep, 'queen'),
         branchStep: nextStep
     };
 }
@@ -2907,23 +2890,22 @@ function scaleBeehiveRewardChance(baseChance, timing) {
     return chance;
 }
 
-function buildBeehiveChoiceOption(type, expertLevel, branchStep, timing = 'wave') {
-    let lv = Math.max(1, Math.floor(expertLevel || getBeekeeperLevelForHive()));
+function buildBeehiveChoiceOption(type, branchStep, timing = 'wave') {
     let step = Math.max(1, Math.floor(branchStep || ((game.beehive || {}).branchStep || 1)));
-    let penaltyPool = getBeehivePenaltyPool(lv, step);
+    let penaltyPool = getBeehivePenaltyPool(step);
     let penalty = penaltyPool[Math.floor(Math.random() * penaltyPool.length)];
     let label = getBeehiveRewardTimingLabel(timing);
-    let mk = (text, effect, amount, chance) => ({ text: `[${label}] ${text} / 대가: ${penalty.text}`, effect, amount, chance, penalty, expertLevel: lv, timing });
-    if (type === 'pollen') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(12 + Math.floor(Math.random() * 7), step, lv), timing); return mk(`꽃가루 +${amount}`, 'pollen', amount); }
-    if (type === 'honey') { let chance = scaleBeehiveRewardChance(lv >= 2 ? 0.30 : 0.12, timing); return mk(`벌꿀 획득 확률 ${Math.floor(chance * 100)}%`, 'honey', 1, chance); }
-    if (type === 'stinger') { let chance = scaleBeehiveRewardChance(lv >= 4 ? 0.38 : 0.14, timing); return mk(`독벌침 획득 확률 ${Math.floor(chance * 100)}%`, 'stinger', 1, chance); }
-    if (type === 'formlessDew') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step, lv), timing); return mk(`형체 없는 이슬 +${amount}`, 'formlessDew', amount); }
-    if (type === 'goldenRule') { let chance = scaleBeehiveRewardChance(lv >= 13 || step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '황금률 +1' : `황금률 획득 확률 ${Math.floor(chance * 100)}%`, 'goldenRule', 1, chance); }
-    if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv), timing); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
+    let mk = (text, effect, amount, chance) => ({ text: `[${label}] ${text} / 대가: ${penalty.text}`, effect, amount, chance, penalty, timing });
+    if (type === 'pollen') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(12 + Math.floor(Math.random() * 7), step), timing); return mk(`꽃가루 +${amount}`, 'pollen', amount); }
+    if (type === 'honey') { let chance = scaleBeehiveRewardChance(0.30, timing); return mk(`벌꿀 획득 확률 ${Math.floor(chance * 100)}%`, 'honey', 1, chance); }
+    if (type === 'stinger') { let chance = scaleBeehiveRewardChance(0.38, timing); return mk(`독벌침 획득 확률 ${Math.floor(chance * 100)}%`, 'stinger', 1, chance); }
+    if (type === 'formlessDew') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step), timing); return mk(`형체 없는 이슬 +${amount}`, 'formlessDew', amount); }
+    if (type === 'goldenRule') { let chance = scaleBeehiveRewardChance(step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '황금률 +1' : `황금률 획득 확률 ${Math.floor(chance * 100)}%`, 'goldenRule', 1, chance); }
+    if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
     if (type === 'beeswax') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`밀랍 +${amount}`, 'beeswax', amount); }
     if (type === 'spore') {
         let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']);
-        let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv), timing);
+        let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing);
         return mk(`${ORB_DB[sporeType].name} +${amount}`, sporeType, amount);
     }
     if (type === 'bundle') {
@@ -3014,7 +2996,7 @@ function resolveBeehiveChoice(key, displayedPenalty){
     if (!canResolveBeehiveChoice(b)) return;
     let pick = getBeehiveSelectableChoice(b.pendingChoice, key);
     let nextStep = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
-    if (!pick && (key === 'legacy_now' || key === 'legacy_later')) pick = buildBeehiveChoiceOption(key === 'legacy_now' ? 'pollen' : 'honey', getBeekeeperLevelForHive(), nextStep);
+    if (!pick && (key === 'legacy_now' || key === 'legacy_later')) pick = buildBeehiveChoiceOption(key === 'legacy_now' ? 'pollen' : 'honey', nextStep);
     if (!pick) return;
     if (!validateBeehiveChoicePayment(pick, displayedPenalty)) return;
     let penaltyText = applyBeehiveChoicePenalty(pick.penalty, b);
@@ -3036,7 +3018,6 @@ function resolveBeehiveChoice(key, displayedPenalty){
         b.pendingWaveRewardText = rewardText;
     }
     b.penaltyLedger.push(penaltyText || '');
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_branch_choice');
     b.pendingChoice = null;
     b.branchStep = nextStep;
     b.awaitingClear = true;
@@ -3096,7 +3077,6 @@ function completeBeehiveRun(){
         let item = levelProgression.stampItem(generateUniqueItem(tier, '무기', null, rewardZone), itemLevel);
         addItemToInventory(item);
     }
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_clear');
     addLog(`👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되고 벌집 패널티가 초기화되었습니다.${queenRewardResults.length ? ` 여왕벌 보상: ${queenRewardResults.join(' / ')}` : ''}`, 'level-up');
     updateStaticUI();
 }
@@ -3149,7 +3129,6 @@ async function forfeitBeehiveRun() {
         pendingBeehiveForfeits.delete(b);
     }
 }
-function craftBeehiveCurrency(type){ let beeLv=typeof getExpertLevel==='function'?Math.max(1,Math.floor(getExpertLevel('beekeeper')||1)):1; if(type==='wax'&&beeLv<8) return addLog('밀랍 제작은 양봉업자 Lv.8에 해금됩니다.', 'attack-monster'); if(type!=='key'&&type!=='wax'&&beeLv<6) return addLog('벌꿀/독벌침 교환은 양봉업자 Lv.6에 해금됩니다.', 'attack-monster'); let cost= type==='key'?200:type==='wax'?350:type==='stinger'?600:2000; let discount=typeof getExpertCombinedCostReduction==='function'?getExpertCombinedCostReduction(type==='wax'?'waxCostReducePct':null):0; cost=Math.max(1,Math.floor(cost*(1-discount))); if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') { game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; } if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(type==='wax') game.currencies.beeswax=(game.currencies.beeswax||0)+1; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_currency_craft'); updateStaticUI(); }
 function canAutoEnterGrandBreach(){
     if (actExplorationState.current(game)?.loot.phase === 'pending') return false;
     let v = game.voidRift;
@@ -4260,10 +4239,10 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
     return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(name)}</strong><small>Lv.${info.totalLevel} · 퀄리티 ${rec.quality || 0}% · 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
 }
 
-function renderGemResourceStrip(activeGem, gemExpertLv, condensedPower) {
+function renderGemResourceStrip(activeGem, condensedPower) {
     let root = document.getElementById('ui-gem-resource-strip');
     if (!root) return;
-    root.innerHTML = `<div><span>젬 각인사</span><strong>Lv.${gemExpertLv}</strong></div><div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>선택 젬</span><strong>${activeGem && activeGem.awakened ? '각성' : '일반'}</strong></div>`;
+    root.innerHTML = `<div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>선택 젬</span><strong>${activeGem && activeGem.awakened ? '각성' : '일반'}</strong></div>`;
 }
 
 function bindGemEngraveSlotControls(root) {
@@ -4350,14 +4329,13 @@ function getSkyEnhancementGroup(enhancement) {
     return { label: '기본', className: 'basic' };
 }
 
-function renderSkyEnhancementOption(enhancement, activeSlots, gemExpertLv, isGem) {
+function renderSkyEnhancementOption(enhancement, activeSlots, isGem) {
     let applied = activeSlots.includes(enhancement.id);
-    let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enhancement.id) : 1;
-    let locked = gemExpertLv < unlockLv;
+    let locked = !canUseSkyEnhancement(enhancement.id);
     let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
-    let actionLabel = applied ? (removeCost > 0 ? `다시 눌러 해제 · 창공 ${removeCost}` : '다시 눌러 무료 해제') : !compatible ? '투사체 젬 전용' : locked ? `각인사 Lv.${unlockLv}` : '빈 슬롯에 각인 · 창공 1';
+    let actionLabel = applied ? (removeCost > 0 ? `다시 눌러 해제 · 창공 ${removeCost}` : '다시 눌러 무료 해제') : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '빈 슬롯에 각인 · 창공 1';
     return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
 }
 
@@ -4370,14 +4348,13 @@ function closeGemEngraveSlotOverlay() {
     if (trigger && !trigger.disabled) trigger.focus({ preventScroll: true });
 }
 
-function renderGemEngraveOverlayOption(enhancement, slots, slotIndex, gemExpertLv) {
+function renderGemEngraveOverlayOption(enhancement, slots, slotIndex) {
     let current = slots[slotIndex] === enhancement.id;
     let usedElsewhere = slots.some((id, index) => index !== slotIndex && id === enhancement.id);
-    let unlockLv = getSkyEnhancementUnlockLevel(enhancement.id);
-    let locked = gemExpertLv < unlockLv;
+    let locked = !canUseSkyEnhancement(enhancement.id);
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
-    let state = current ? '현재 각인 · 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : !compatible ? '투사체 젬 전용' : locked ? `각인사 Lv.${unlockLv}` : '이 슬롯에 각인';
+    let state = current ? '현재 각인 · 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '이 슬롯에 각인';
     return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || !compatible || (locked && !current) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${state}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
 }
 
@@ -4394,7 +4371,6 @@ function openGemEngraveSlotOverlay(index) {
     game.gemEngraveSelectedSlot = slotIndex;
     let slots = getSkyEnhancementSlotsForSkill(active);
     let current = slots[slotIndex] && GEM_SKY_ENHANCEMENTS[slots[slotIndex]];
-    let expertLevel = getGemEngraverLevelForUnlocks();
     closeGemEngraveSlotOverlay();
     let overlay = document.createElement('div');
     overlay.id = 'gem-engrave-slot-overlay';
@@ -4404,7 +4380,7 @@ function openGemEngraveSlotOverlay(index) {
     overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
     overlay.dataset.triggerSlotIndex = String(slotIndex);
     overlay.tabIndex = -1;
-    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
+    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex)).join('')}</div></section>`;
     overlay.addEventListener('click', event => {
         if (event.target === overlay) return closeGemEngraveSlotOverlay();
         let button = event.target.closest('button[data-action]');
@@ -4426,7 +4402,7 @@ function openGemEngraveSlotOverlay(index) {
 window.openGemEngraveSlotOverlay = openGemEngraveSlotOverlay;
 window.closeGemEngraveSlotOverlay = closeGemEngraveSlotOverlay;
 
-function renderSupportGemProcessList(gemExpertLv) {
+function renderSupportGemProcessList() {
     let root = document.getElementById('ui-support-process-list');
     if (!root) return;
     let supports = Array.isArray(game.supports) ? game.supports : [];
@@ -4439,8 +4415,8 @@ function renderSupportGemProcessList(gemExpertLv) {
         let rec = state ? state.record : normalizeGemRecord(((game.supportGemData || {})[name]) || {});
         let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, rec.unlockedTier || 1) : `${rec.unlockedTier || 1}등급`;
         let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '젬 레벨 +1';
-        let disabled = gemExpertLv < 5 || !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
-        let actionLabel = state && state.maxed ? '최대 성장' : gemExpertLv < 5 ? '각인사 Lv.5 필요' : `${nextLabel} · ${state ? state.need : 0}`;
+        let disabled = !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
+        let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel} · ${state ? state.need : 0}`;
         return `<div class="gem-support-process-card"><div><small>${tierLabel} · Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${escapeHTML((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
     }).join('');
 }
@@ -9410,7 +9386,6 @@ function performUpdateStaticUI() {
         summarySkillTreeBtn.innerText = game.unlocks.char ? '스킬트리' : '스킬트리 (Lv.2)';
     }
     let activeTabId = getActiveUiTabId();
-    if (activeTabId) syncDerivedTabUnlock(activeTabId);
     // 포커스된 화면 하나가 아니라 "지금 보이는 화면 전부"를 그린다.
     let renderingTabIds = getRenderingUiTabIds();
     let isTabRendering = tabId => renderingTabIds.has(tabId);
@@ -9792,7 +9767,7 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[key] || 'none') : 'none';
-    const sporeBlock = equipmentCrafting.getSporeBlockReason(item, actionKey, sporeMode);
+    const sporeBlock = getSporeCraftBlockReason(item, actionKey, sporeMode);
     if (sporeBlock) return { enabled: false, reason: sporeBlock };
     if (['magicBud','sapBud','formlessDew'].includes(key)
         && typeof isSporeCraftEquipment === 'function'
@@ -9831,11 +9806,11 @@ function openSporeModeOverlay(currencyKey) {
         { id: 'fire', label: '화염' },
         { id: 'cold', label: '냉기' },
         { id: 'light', label: '번개' },
-        { id: 'chaos', label: '카오스', minMyco: 10 },
-        { id: 'damage', label: '피해', minMyco: 10 }
+        { id: 'chaos', label: '카오스', advanced: true },
+        { id: 'damage', label: '피해', advanced: true }
     ];
-    let mycoLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-    modeOptions = modeOptions.filter(opt => !opt.minMyco || mycoLv >= opt.minMyco);
+    let advancedSpores = contentProgression.isUnlocked('advancedSpores');
+    modeOptions = modeOptions.filter(opt => !opt.advanced || advancedSpores);
     game.sporeCraftModes = game.sporeCraftModes || {};
     let cur = game.sporeCraftModes[currencyKey] || 'none';
     let sporeCost = typeof getSporeCraftCost === 'function' ? getSporeCraftCost() : 10;
@@ -9850,7 +9825,7 @@ function openSporeModeOverlay(currencyKey) {
 
     let panel = document.createElement('div');
     panel.className = 'selection-overlay-panel spore-picker-panel';
-    panel.innerHTML = `<div class="selection-overlay-header"><div class="selection-overlay-title">홀씨 모드 선택</div><button id="spore-overlay-close">닫기</button></div><div class="selection-overlay-help">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${mycoLv >= 10 ? '' : ' 카오스/피해 태그는 균사학자 Lv.10에 해금됩니다.'}</div><div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`;
+    panel.innerHTML = `<div class="selection-overlay-header"><div class="selection-overlay-title">홀씨 모드 선택</div><button id="spore-overlay-close">닫기</button></div><div class="selection-overlay-help">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 ‘해금’의 고급 홀씨가 엽니다.'}</div><div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`;
 
     let buttons = document.createElement('div');
     buttons.className = 'selection-overlay-grid spore-mode-grid';
@@ -9928,7 +9903,7 @@ function getMobileCraftCurrencyUseState(key, item) {
 function buildSporeSummaryHtml() {
     const item = getSelectedCraftItem();
     const targetDisabled = !item || !isSporeCraftEquipment(item);
-    const level = getMycologistLevelForCrafting();
+    const advanced = contentProgression.isUnlocked('advancedSpores');
     const riftBlock = item ? equipmentCrafting.getBlockReason(item, 'fossil') : '';
     return `<div class="craft-spores">
             <div class="craft-spores-title">홀씨 보유량</div>
@@ -9938,8 +9913,8 @@ function buildSporeSummaryHtml() {
                 <div class="orb-tone" style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; --orb-tone:#ffe08a; font-size:12px;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || level < 7 ? 'disabled' : ''}>부패 홀씨 (각 8)</button>
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || level < 9 || riftBlock ? 'disabled' : ''}>균열 홀씨 (화석1+각5)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || !advanced ? 'disabled' : ''}>부패 홀씨 (각 8)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || !advanced || riftBlock ? 'disabled' : ''}>균열 홀씨 (화석1+각5)</button>
             </div>
         </div>`;
 }
@@ -10167,7 +10142,7 @@ function buildCraftActionButtons(item) {
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     __mark('midRender');
     renderVisibleManagementPanels(renderingTabIds);
-    __mark('market+expertise');
+    __mark('market');
 
     let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
     let activeMapExploreId = game.mapExploreSubtab || 'map-explore-hunting';
@@ -10443,8 +10418,6 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${ringNodes}${innerNodes}</div>`;
     }
 
-    if (isTabRendering('tab-pruning')) renderPruningTreePanel();
-    if (isTabRendering('tab-arcana')) renderArcanaPanel();
 
     if (isTabRendering('tab-traits')) {
     if (game.ascendClass) {
@@ -12784,23 +12757,6 @@ function countSavedStumpItems(snapshot) {
     return Array.isArray(items) ? items.length : 0;
 }
 
-function getSaveContentRichnessScore(snapshot) {
-    let s = snapshot || {};
-    let score = 0;
-    score += Array.isArray(s.inventory) ? Math.min(200, s.inventory.length) : 0;
-    score += Array.isArray(s.jewelInventory) ? Math.min(120, s.jewelInventory.length * 2) : 0;
-    score += Math.min(120, countSavedStumpItems(s) * 2);
-    score += (s.equipment && typeof s.equipment === 'object') ? Object.values(s.equipment).filter(Boolean).length * 8 : 0;
-    score += (s.gemData && typeof s.gemData === 'object') ? Object.keys(s.gemData).length * 3 : 0;
-    score += (s.supportGemData && typeof s.supportGemData === 'object') ? Object.keys(s.supportGemData).length * 3 : 0;
-    score += (s.uniqueCodex && typeof s.uniqueCodex === 'object') ? Math.min(300, Object.keys(s.uniqueCodex).length * 2) : 0;
-    score += (s.expertise && s.expertise.levels && typeof s.expertise.levels === 'object')
-        ? Object.values(s.expertise.levels).reduce((sum, v) => sum + Math.max(0, Math.floor(Number(v) || 0)), 0)
-        : 0;
-    score += Math.max(0, Math.floor(Number(s.abyssEndlessDepth) || 0));
-    score += Math.max(0, Math.floor(Number(s.labyrinthUnlockedMaxFloor) || 0));
-    return score;
-}
 
 function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
@@ -13778,179 +13734,6 @@ function gameLoop(frameNow = performance.now()) {
 
 // Phase-4 extracted unlock/class/tab helper block.
 
-function getExpertiseOverviewHtml(total, spent, free) {
-    const branchSummary = `균사 ${getExpertBranchSpent('mycologist')} · 젬 ${getExpertBranchSpent('gemEngraver')} · 천문 ${getExpertBranchSpent('astronomer')} · 양봉 ${getExpertBranchSpent('beekeeper')}`;
-    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="askResetExpertTree()" title="전문가 트리 전체 초기화 (마름병 포자 ${spent}개 소모)">트리 초기화${spent > 0 ? ` (마름병 포자 ${spent})` : ''}</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
-}
-
-function formatExpertFavorEffect(effect) {
-    let map = {
-        chillEffectReducePct:'냉각 효과 감소', freezeDurationReducePct:'동결 지속시간 감소', shockEffectReducePct:'감전 효과 감소',
-        igniteDamageReducePct:'점화 피해 감소', bleedDamageReducePct:'출혈 피해 감소', poisonDamageReducePct:'중독 피해 감소',
-        dotTakenDamageReducePct:'받는 지속 피해 감소', takenDamageReduceWhen2EnemiesPct:'적 2명+ 받는 피해 감소', takenDamageReduceWhen1EnemyPct:'적 1명 받는 피해 감소',
-        igniteChance:'점화 확률', igniteDamageMultiplierPct:'점화 피해', accuracyBonusPct:'정확도 보정', minDmgRoll:'최소 피해 보정',
-        projectilePctDmg:'투사체 피해', crit:'치명타 확률', critDmg:'치명타 피해 배율', aspd:'공격 속도', regen:'생명력 재생',
-        energyShieldPct:'에너지 보호막', evasionPct:'회피', pctDmg:'피해', armorPct:'방어도'
-    };
-    return Object.entries(effect||{}).map(([k,v])=>`${map[k]||k} +${v}%`).join('<br>');
-}
-function selectExpertFavor(expertId, optionId){
-    if (!expertId || !optionId) return;
-    if (typeof setSelectedExpertFavor !== 'function') return;
-    let ok = setSelectedExpertFavor(expertId, optionId);
-    if (!ok) return addLog('해당 호의 선택지는 아직 해금되지 않았습니다.', 'attack-monster');
-    addLog(`✨ 전문가의 호의 선택: ${(EXPERT_DEFS[expertId]||{}).name || expertId}`, 'loot-magic');
-    updateStaticUI();
-}
-function getExpertiseCardHtml(id) {
-    let d = EXPERT_DEFS[id], lv = getExpertLevel(id), cur = getCurrentExpertUnlock(id), next = getNextExpertUnlock(id), pt = Math.max(0, lv - 15);
-    let exp = getExpertExp(id), req = getExpertExpReq(lv);
-    let pct = Math.max(0, Math.min(100, req > 0 ? (exp / req) * 100 : 0));
-    let cap = ((game.expertise || {}).loopExpCaps || {});
-    let used = (((cap.total || {})[id]) || 0);
-    let loopCap = (((EXPERT_EXP_RULES || {})[id] || {}).loopCap) || 250;
-    let currentUnlockLine = cur ? `현재 적용 해금(Lv.${cur.level}): ${cur.title} - ${cur.desc}` : '해금 대기: 아직 해금된 컨텐츠가 없습니다.';
-    let nextUnlockLine = next ? `다음(Lv.${next.level}): ${next.title}` : '다음 해금 없음';
-    let history = typeof getExpertUnlockHistory === 'function' ? getExpertUnlockHistory(id) : getExpertUnlocks(id).filter(row => row.level <= lv);
-    let historyHtml = history.length > 0
-        ? `<div class="expertise-unlock-log"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">해금 기록</div>${history.map(row => `<div class="expertise-unlock-entry">Lv.${row.level} · <strong>${row.title}</strong><br><span>${row.desc || ''}</span></div>`).join('')}</div>`
-        : '<div class="expertise-muted">해금 기록 없음</div>';
-    let favorOptions = (typeof getExpertFavorOptions === 'function') ? getExpertFavorOptions(id) : [];
-    let favorSelected = (typeof getSelectedExpertFavor === 'function') ? getSelectedExpertFavor(id) : null;
-    let favorActiveOption = favorOptions.find(opt => opt.id === favorSelected);
-    let favorHtml = favorOptions.length > 0
-        ? `<div class="expertise-panel expert-favor-panel" style="margin-top:8px;"><div class="expert-favor-current"><span>현재 선택</span><strong>${favorActiveOption ? favorActiveOption.name : '선택 없음'}</strong><small>언제든 교체 가능</small></div><div class="expert-favor-grid">${favorOptions.map(opt => { let unlocked = lv >= (opt.level || 1); let active = favorSelected === opt.id; return `<button class="expert-favor-option ${active ? 'active' : ''}" ${unlocked ? `onclick="selectExpertFavor('${id}','${opt.id}')"` : 'disabled'}><span class="expert-favor-option-title">${opt.name}${active ? '<b>✓ 선택됨</b>' : ''}</span>${unlocked ? '' : `<small>(Lv.${opt.level} 필요)</small>`}<span class='expertise-muted'>${formatExpertFavorEffect(opt.effect)}</span></button>`; }).join('')}</div></div>`
-        : '';
-    let guideRows = ((typeof EXPERT_EXP_GUIDES !== 'undefined' && EXPERT_EXP_GUIDES[id]) || []).map(line => `<li>${line}</li>`).join('');
-    let guideHtml = guideRows ? `<div class="expertise-panel" style="margin-top:8px;"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">경험치 획득 가이드</div><ul style="margin:0 0 0 18px; padding:0; color:var(--copy-bright); line-height:1.55;">${guideRows}</ul></div>` : '';
-    return `<div class="expertise-card"><h4>${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4>${favorHtml}<div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${guideHtml}${historyHtml}</div>`;
-}
-
-const EXPERT_BRANCH_COLORS = { common:'#ffd36b', mycologist:'#6fcf72', gemEngraver:'#5cc8ff', astronomer:'#a98bff', beekeeper:'#f5c451' };
-function getExpertBranchTheme(branch) {
-    let color = EXPERT_BRANCH_COLORS[branch] || '#9fb4d1';
-    if (branch === 'common') return { label: '전문가 공통', icon: '🧠', color };
-    let d = EXPERT_DEFS[branch] || {};
-    return { label: d.name || branch, icon: d.icon || '🧠', color };
-}
-function buildExpertNodeTooltipHtml(node) {
-    let theme = getExpertBranchTheme(node.branch);
-    let cur = Math.max(0, Math.floor((game.expertise.nodes[node.id] || 0)));
-    let effectLines = Object.entries(node.effect || {}).map(([k, v]) => {
-        let unit = /Pct$/.test(k) ? '%' : '';
-        return `레벨당 +${v}${unit}${cur > 0 ? ` · 현재 합계 +${v * cur}${unit}` : ''}`;
-    }).join('<br>') || '효과 정보 없음';
-    let keystoneTag = node.requireBranchPoints ? `<div class="tooltip-line" style="color:#ffd36b;">★ 핵심 노드</div>` : '';
-    let reqLine = '';
-    if (node.requireBranchPoints) {
-        let spent = getExpertBranchSpent(node.branch);
-        let met = spent >= node.requireBranchPoints;
-        reqLine = `<div class="tooltip-line" style="color:${met ? '#7fe0a0' : '#ff9b9b'};">${met ? '✓ 할당 가능' : '✗ 할당 잠김'} · 조건: ${theme.label} 분기에 ${node.requireBranchPoints}포인트 투자 (현재 ${spent})</div>`;
-    }
-    return `<div class="tooltip-title" style="color:${theme.color};">${theme.icon} ${node.name}</div><div class="tooltip-line" style="color:${theme.color};">${theme.label} 영역</div>${keystoneTag}<div class="tooltip-line">${node.desc}</div><div class="tooltip-line" style="color:var(--copy-bright);">${effectLines}</div><div class="tooltip-line">투자 ${cur}/${node.max} · 포인트 비용 ${node.cost}</div>${reqLine}`;
-}
-function showExpertNodeTooltip(event, nodeId) {
-    let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
-    if (!node || typeof showInfoTooltipHtml !== 'function') return;
-    showInfoTooltipHtml(event.clientX, event.clientY, buildExpertNodeTooltipHtml(node), getExpertBranchTheme(node.branch).color);
-}
-async function askUntrainExpertNode(nodeId) {
-    let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
-    if (!node) return;
-    if ((game.currencies.blightSpore || 0) < 1) return addLog('전문가 노드 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
-    if (!canUntrainExpertNode(nodeId)) return addLog('핵심 노드 조건을 유지해야 하므로 이 노드는 반환할 수 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`[${node.name}] 노드를 반환하고 마름병 포자 1개를 소모합니다.`, {
-        title: '전문가 노드 반환',
-        tone: 'danger',
-        confirmLabel: '노드 반환'
-    })) return;
-    if (!untrainExpertNode(nodeId)) return;
-    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
-    addLog(`♻️ 전문가 노드 반환: ${node.name} (마름병 포자 1개 소모)`, 'season-up');
-    updateStaticUI();
-}
-async function askResetExpertTree() {
-    let cost = (typeof getExpertPointSpent === 'function') ? getExpertPointSpent() : 0;
-    if (cost <= 0) return;
-    if ((game.currencies.blightSpore || 0) < cost) return addLog(`전문가 트리 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`전문가 트리를 모두 초기화하고 마름병 포자 ${cost}개를 소모합니다.`, {
-        title: '전문가 트리 전체 초기화',
-        tone: 'danger',
-        confirmLabel: '전체 초기화'
-    })) return;
-    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - cost);
-    resetExpertTree();
-    addLog(`♻️ 전문가 트리 전체 초기화 (마름병 포자 ${cost}개 소모)`, 'season-up');
-    updateStaticUI();
-}
-function getExpertiseNodeButtonHtml(node) {
-    let lv = (game.expertise.nodes[node.id] || 0);
-    let can = canAllocateExpertNode(node.id);
-    let canUn = (typeof canUntrainExpertNode === 'function') && canUntrainExpertNode(node.id) && (game.currencies.blightSpore || 0) >= 1;
-    let keystoneCls = node.requireBranchPoints ? ' keystone' : '';
-    let reqHtml = '';
-    if (node.requireBranchPoints) {
-        let theme = getExpertBranchTheme(node.branch);
-        let spent = getExpertBranchSpent(node.branch);
-        let met = spent >= node.requireBranchPoints;
-        reqHtml = `<br><span class="expertise-node-req ${met ? 'met' : 'unmet'}">${met ? '✓' : '✕'} ${theme.label} 분기 ${spent}/${node.requireBranchPoints}</span>`;
-    }
-    // Use a `locked` class instead of the disabled attribute so hover tooltips still fire
-    // on nodes the player cannot yet allocate; the click handlers guard their own conditions.
-    let hover = `data-info-tooltip-anchor="1" onmouseenter="showExpertNodeTooltip(event,'${node.id}')" onmousemove="showExpertNodeTooltip(event,'${node.id}')" onmouseleave="hideInfoTooltip()"`;
-    return `<div class="expertise-node-row" ${hover}><button class="expertise-node branch-${node.branch}${keystoneCls}${can ? '' : ' locked'}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()">${node.requireBranchPoints ? '★ ' : ''}${node.name} (${lv}/${node.max}) · ${node.cost}pt${reqHtml}</button><button class="expertise-node-untrain${canUn ? '' : ' locked'}" onclick="askUntrainExpertNode('${node.id}')" title="반환 (마름병 포자 1개 소모)">−</button></div>`;
-}
-
-function renderExpertiseUI() {
-    ensureExpertiseState();
-    let ov = document.getElementById('ui-expertise-overview');
-    let subtabs = document.getElementById('ui-expert-subtabs');
-    let detail = document.getElementById('ui-expertise-detail');
-    let tree = document.getElementById('ui-expert-tree');
-    let treeTitle = document.getElementById('ui-expert-tree-title');
-    if (!ov || !subtabs || !detail || !tree) return;
-    const total = getExpertPointTotal(), spent = getExpertPointSpent(), free = getExpertPointFree();
-    ov.innerHTML = '';
-    let unlocked = EXPERT_IDS.filter(id => (game.expertise.unlockedExperts||[]).includes(id));
-    let treeUnlocked = hasExpertTreeUnlocked();
-    let validTabs = [...unlocked, '__tree'];
-    game.expertise.selectedExpertTab = validTabs.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || '__tree');
-    subtabs.innerHTML = expertiseMobileUi.navigation(unlocked, treeUnlocked);
-    let showingTree = game.expertise.selectedExpertTab === '__tree';
-    if (treeTitle) treeTitle.style.display = showingTree ? '' : 'none';
-    tree.style.display = showingTree ? '' : 'none';
-    if (!showingTree) {
-        ov.innerHTML = '';
-        detail.innerHTML = unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:var(--copy-muted);">아직 조우한 전문가가 없습니다.</div>';
-        tree.innerHTML = '';
-        return;
-    }
-    ov.innerHTML = '';
-    detail.innerHTML = '';
-    let treeOverview = getExpertiseOverviewHtml(total, spent, free);
-    if (!treeUnlocked) { tree.innerHTML = treeOverview + '<div class="expertise-panel" style="color:#c7b6d9;">전문가 노드 트리는 전문가 중 한 명이 Lv.16에 도달해 첫 전문가 포인트를 획득하면 해금됩니다.</div>'; return; }
-    let groups = { common:[], mycologist:[], gemEngraver:[], astronomer:[], beekeeper:[] };
-    EXPERT_TREE_NODES.forEach(n => { if (groups[n.branch]) groups[n.branch].push(n); });
-    tree.innerHTML = treeOverview + getExpertiseTreeHubHtml(groups);
-}
-
-function getExpertBranchZoneHtml(branch, groups, posClass) {
-    let theme = getExpertBranchTheme(branch);
-    let center = branch === 'common';
-    return `<div class="expert-zone-cell ${posClass}"><div class="expert-branch-zone branch-${branch}${center ? ' expert-hub-center' : ''}"><div class="expert-branch-head" style="color:${theme.color};">${theme.icon} ${theme.label}${center ? ' · 중앙 허브' : ''}</div>${(groups[branch] || []).map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
-}
-
-function getExpertiseTreeHubHtml(groups) {
-    if (uiDisplay.matches('(max-width: 1080px)')) return expertiseMobileUi.tree(groups);
-    return `<div class="expertise-tree-hub">`
-        + getExpertBranchZoneHtml('astronomer', groups, 'pos-top')
-        + getExpertBranchZoneHtml('mycologist', groups, 'pos-left')
-        + getExpertBranchZoneHtml('common', groups, 'pos-center')
-        + getExpertBranchZoneHtml('gemEngraver', groups, 'pos-right')
-        + getExpertBranchZoneHtml('beekeeper', groups, 'pos-bottom')
-        + `</div>`;
-}
-
 function isJewelTabUnlockReady() {
     return (game.season || 1) >= 5
         || (Array.isArray(game.jewelInventory) && game.jewelInventory.length > 0)
@@ -13968,11 +13751,6 @@ function isCodexTabUnlockReady() {
 function isJournalTabUnlockReady() {
     let entries = Array.isArray(game.journalEntries) ? game.journalEntries : [];
     return entries.some(id => id && id !== 'prologue') || !!(game.unlocks && game.unlocks.codex);
-}
-
-function syncDerivedTabUnlock(tabId) {
-    if (tabId === 'tab-pruning' && game.unlocks && ensurePruningTreeState(game).unlocked) game.unlocks.pruning = true;
-    if (tabId === 'tab-arcana' && game.unlocks && ensureArcanaState(game).unlocked) game.unlocks.arcana = true;
 }
 
 function checkUnlocks() {
@@ -14037,18 +13815,6 @@ function checkUnlocks() {
         game.noti.season = true;
         contentUnlockUi.announceLoop();
     }
-    if (ensurePruningTreeState(game).unlocked && !u.pruning) {
-        u.pruning = true;
-        game.noti.pruning = true;
-        queueContentNotice('unlock_pruning_tree', '첫 나이테', 'pruning', { open: '나무에 첫 나이테가 생겼습니다.\n‘가지치기’에서 성장 방향과 감당할 부담을 고르세요.',
-            locked: '나무에 첫 나이테가 생겼습니다.\n‘해금’에서 가지치기를 열면 성장 방향과 감당할 부담을 고를 수 있습니다.' }, 'tab-pruning');
-    }
-    if (ensureArcanaState(game).unlocked && !u.arcana) {
-        u.arcana = true;
-        game.noti.arcana = true;
-        queueContentNotice('unlock_arcana', '봉인된 카드', 'arcana', { open: '봉인된 카드를 발견했습니다.\n‘아르카나’에서 봉인을 풀고 덱이나 장비 칸에 놓으세요.',
-            locked: '봉인된 카드를 발견했습니다.\n‘해금’에서 아르카나를 열면 봉인을 풀어 덱이나 장비 칸에 놓을 수 있습니다.' }, 'tab-arcana');
-    }
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
@@ -14060,23 +13826,6 @@ function checkUnlocks() {
         game.noti.items = true;
         addLog('🧪 나무꾼의 흔적을 해석해 혼돈 주입이 열렸습니다. 장비 상세의 [주입]으로 희귀 장비에 한 줄을 더할 수 있습니다.', 'loot-unique');
     }
-    ensureExpertiseState();
-    const beforeExperts = new Set(game.expertise.unlockedExperts || []);
-    if ((game.season||1) >= 2 && (game.currencies.sporeFire||0) > 0) game.expertise.unlockedExperts.push('mycologist');
-    if (((game.season||1) >= 2 && (game.currencies.bossCore||0) > 0) || ((game.season||1) >= 4 && (game.currencies.skyEssence||0) > 0)) game.expertise.unlockedExperts.push('gemEngraver');
-    if ((game.season||1) >= 7 && ((game.meteorSite||{}).unlocked || getMeteorSiteUnlockReady())) game.expertise.unlockedExperts.push('astronomer');
-    if ((game.season||1) >= 8 && (((game.beehive||{}).unlockedPermanent) || (game.currencies.hiveKey||0) > 0)) game.expertise.unlockedExperts.push('beekeeper');
-    game.expertise.unlockedExperts = Array.from(new Set(game.expertise.unlockedExperts));
-    if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; }
-    let newlyUnlockedExperts = (game.expertise.unlockedExperts||[]).filter(id => !beforeExperts.has(id));
-    if (newlyUnlockedExperts.length > 0) game.noti.expertise = true;
-    if (game.unlocks.expertise) newlyUnlockedExperts.forEach(id => {
-        let key = `unlock_expert_${id}`;
-        if ((game.seenTutorials||[]).includes(key)) return;
-        let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
-        queueContentNotice(key, `${def.name} 조우`, 'experts', { open: `${def.desc}\n‘전문가’에서 레벨과 해금, 노드 트리를 확인하세요.`,
-            locked: `${def.desc}\n‘해금’에서 전문가를 열면 이 전문가의 기술을 키울 수 있습니다.` }, 'tab-expertise');
-    });
     if (game.level >= 200) unlockJournalEntry('level_200');
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
         game.unlockedTrials.push('trial_4');
@@ -14453,7 +14202,6 @@ function notifyLockedTab(tabId) {
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
-    if (tabId === 'tab-pruning') return `루프 ${PRUNING_TREE_UNLOCK_LOOP}에 도달하면 가지치기가 열립니다.`;
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';

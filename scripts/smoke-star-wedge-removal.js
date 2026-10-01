@@ -1,6 +1,6 @@
 // 보조 콘텐츠 통합 6단계(2026-10-01): 별쐐기 제거. 별쐐기 허브 9개는 공허 소켓이 되고, 고유 별쐐기 11종은 요정의 고리로
 // 굴리는 초월 공허 패시브로 옮겼다(블랙홀 · 안드로메다는 연결 규칙 그대로). 성좌 각성은 외곽 공허 소켓 여섯의 초월로 건다.
-// 운석 낙하 지점은 남기고 보상만 정리한다(희귀 이상 장비 · 별가루). 저장의 별쐐기 흔적은 보상 없이 사라진다(결정 4 · 8 · 9).
+// 운석 낙하 지점은 남기고 보상만 정리한다(희귀 이상 장비; 별가루는 7단계에서 없앴다). 저장의 별쐐기 흔적은 보상 없이 사라진다(결정 4 · 8 · 9).
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
@@ -17,7 +17,7 @@ assert.equal(run("'astralCore' in WALLET_CURRENCY_INFO"), false);
 assert.equal(run("CONTENT_UNLOCK_CATALOG.some(def => def.id === 'meteor')"), false);
 assert.equal(run("'starWedge' in defaultGame || ['meteorShard', 'astralCore'].some(key => key in defaultGame.currencies)"), false);
 assert.equal(run('typeof JOURNAL_DB.star_wedge'), 'undefined');
-assert.deepEqual(json("ORB_DB.starDust.dropUnlocks"), ['meteorSite'], 'star dust drops once the meteor site opens');
+assert.equal(run("'starDust' in ORB_DB"), false, 'star dust is gone (7단계)');
 
 // 트리: 허브 9개는 공허 소켓(외곽 여섯은 성좌 각성 자리), 성률 선택지 · 별쐐기 표식은 남지 않는다.
 const tree = json(`(() => {
@@ -55,8 +55,8 @@ assert.deepEqual({ ...loaded.site, constellationBuff: null }, { unlocked: true, 
     skyRiftAllCosmos: false, activeMeteorTier: 12, meteorReturnZoneId: 3, lastAnomalyAt: 0, skyRiftCarryGauge: 0, constellationBuff: null,
     entriesCleared: 2 }, 'gauge, tier, return zone and clears move to the meteor site');
 assert.deepEqual(loaded.site.constellationBuff, legacySave.starWedge.constellationBuff, 'a permanent observation survives the move');
-assert.deepEqual(['meteorShard', 'astralCore', 'incompleteStarWedge', 'starWedge'].filter(key => key in loaded.currencies), []);
-assert.equal(loaded.currencies.starDust, 7, 'star dust stays');
+assert.deepEqual(['meteorShard', 'astralCore', 'incompleteStarWedge', 'starWedge', 'starDust'].filter(key => key in loaded.currencies), [],
+    'star-wedge materials and star dust are dropped without compensation');
 assert.ok(loaded.journal.includes('meteor_fall') && !loaded.journal.includes('star_wedge'), 'the star-wedge record becomes the meteor-site record');
 assert.deepEqual(loaded.owned, ['craft'], 'the removed unlock entry drops out of the ledger');
 assert.ok(!loaded.crafts.some(id => id.startsWith('star_')) && !loaded.retired.some(id => id.startsWith('star_')),
@@ -67,13 +67,12 @@ const once = run('JSON.stringify(game)');
 run('game = mergeDefaults(JSON.parse(JSON.stringify(game)));');
 assert.equal(run('JSON.stringify(game)'), once, 'loading twice gives the same save');
 
-// 운석 낙하 정산: 희귀 이상 장비 · 별가루만. 첫 정산은 저널을 남긴다.
+// 운석 낙하 정산: 희귀 이상 장비만(재화 없음). 첫 정산은 저널을 남긴다.
 run(`game = mergeDefaults({ season: 8, level: 60, maxZoneId: 8 }); game.meteorSite.activeMeteorTier = 12;`);
 const before = json('game.currencies');
 run('grantMeteorEncounterRewards()');
 const after = json('game.currencies');
-assert.ok(after.starDust - (before.starDust || 0) >= 2);
-assert.deepEqual(Object.keys(after).filter(key => after[key] !== before[key]), ['starDust']);
+assert.deepEqual(Object.keys(after).filter(key => after[key] !== before[key]), [], 'the settlement pays no currency');
 assert.equal(run("game.journalEntries.includes('meteor_fall')"), true);
 
 // 초월 공허 패시브: 옛 고유 별쐐기 11종이 요정의 고리 목록에 있다.

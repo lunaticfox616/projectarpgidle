@@ -15,10 +15,12 @@ async function main() {
     })()`);
 
     run(`(function () {
-        getExpertLevel = () => 4;
         game.currencies.fossilJagged = 12;
         game.currencies.fossilPrimal = 0;
     })()`);
+    run("refineFossilSurplus('fossilJagged')");
+    assert.strictEqual(run('game.currencies.fossilJagged'), 12, 'surplus refining stays closed until 화석 복원 is unlocked');
+    run("game.contentProgression.inherited.push('fossilRestore')");
     assert.strictEqual(run("refineFossilSurplus('fossilJagged')"), true,
         'twelve common typed fossils should refine into a primal fossil');
     assert.strictEqual(run('game.currencies.fossilJagged'), 0,

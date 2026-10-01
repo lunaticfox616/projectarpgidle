@@ -32,7 +32,6 @@ const context = {
   addEventListener() {}, removeEventListener() {}, setTimeout() {}, clearTimeout() {},
   setInterval() {}, clearInterval() {}, requestAnimationFrame() {}, cancelAnimationFrame() {},
   addLog() {}, queueTutorialNotice() {},
-  getExpertLevel() { return 15; },
   performance: { now() { return 0; } }, Image: function Image() {}, Date, Math, JSON,
   Number, String, Boolean, Array, Object, Map, Set, WeakSet, RegExp, Error, URLSearchParams, structuredClone,
 };

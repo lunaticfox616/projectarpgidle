@@ -192,9 +192,7 @@
             suppCap: pStats.suppCap || 0,
             resonanceCap: effectiveResonanceCap,
             gemEnhanceUnlocked: !!game.gemEnhanceUnlocked,
-            gemEngraverLevel: typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1,
-            inscriptionCostReduction: typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0,
-            gemQualityCostReduction: typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0,
+            gemAwakening: contentProgression.isUnlocked('gemAwakening'),
             season: game.season || 1
         });
         if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
@@ -257,10 +255,9 @@
                 let activeEnh = getSkyEnhancementForSkill(active);
                 let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;
 
-                let gemExpertLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
-                let qualityDiscount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
-                let qualityNeed = activeGem ? Math.max(1, Math.floor((1 + Math.floor((activeGem.quality || 0) / 5)) * (1 - qualityDiscount))) : 1;
-                let awakenReady = !!(activeGem && !activeGem.awakened && (activeGem.level || 1) >= 20 && gemExpertLv >= 15);
+                let gemAwakening = contentProgression.isUnlocked('gemAwakening');
+                let qualityNeed = activeGem ? 1 + Math.floor((activeGem.quality || 0) / 5) : 1;
+                let awakenReady = !!(activeGem && !activeGem.awakened && (activeGem.level || 1) >= 20 && gemAwakening);
 
                 let engraveCap = activeGem ? (activeGem.skyEnhanceCap || 1) : 1;
                 let selectedSlot = typeof getSelectedGemEngraveSlot === 'function' ? getSelectedGemEngraveSlot() : 0;
@@ -281,21 +278,21 @@
                 document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">장착 중인 공격 젬 없음</span>'}</div>` + (isGem
                     ? `<div class="gem-target-profile element-${activeMeta.className}">${renderSkillGemArt(active, 'gem-target-profile-icon', { eager: true })}<div><small>현재 선택 · ${activeMeta.elementLabel} ${activeMeta.typeLabel}</small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div ${contentUnlockUi.lockAttribute('engraving')} class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
                     : '<div class="gem-process-empty">공격 젬을 선택하면 성장 정보가 표시됩니다.</div>');
-                renderGemResourceStrip(activeGem, gemExpertLv, condensedPower);
+                renderGemResourceStrip(activeGem, condensedPower);
                 renderGemEngraveSlots(activeSlots, engraveCap);
-                renderSupportGemProcessList(gemExpertLv);
+                renderSupportGemProcessList();
                 let currentTotalGemLevel = Math.max(1, Math.floor((activePresentation && activePresentation.totalLevel) || 1));
                 gemCoreForgeUi.renderSection(isGem ? active : null);
                 const upgrades = [
 
 
                     { title: '응축 창공 영구 강화', action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: `${game.skyTower.unlocked ? '루프 초기화 없음' : '창공의 탑 해금 필요'} · 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost}`, gain: 1 },
-                    { title: '젬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: gemExpertLv >= 8 && (game.currencies.bossCore || 0) >= qualityNeed, details: `젬 각인사 Lv.8 · 군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed} · 피해·속도 배율 +0.5%` },
-                    { title: '각성 젬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `각인사 Lv.15 · 기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }
+                    { title: '젬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: (game.currencies.bossCore || 0) >= qualityNeed, details: `군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed} · 피해·속도 배율 +0.5%` },
+                    { title: '각성 젬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `${gemAwakening ? '' : '‘젬 각성’ 해금 필요 · '}기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3`, gain: 2 }
                 ];
                 document.getElementById('ui-gem-upgrade-actions').innerHTML = isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 젬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 젬 장착하기</button></div>';
                 if ((game.season || 1) >= 4) {
-                    document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>각인을 누르면 빈 슬롯에 적용되고, 적용 중인 각인을 다시 누르면 해제됩니다. 특정 슬롯을 교체하려면 위 슬롯을 누르세요.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, gemExpertLv, isGem)).join('');
+                    document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>각인을 누르면 빈 슬롯에 적용되고, 적용 중인 각인을 다시 누르면 해제됩니다. 특정 슬롯을 교체하려면 위 슬롯을 누르세요.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, isGem)).join('');
                 } else {
                     document.getElementById('ui-gem-enhance-options').innerHTML = '<div class="gem-process-empty">창공 각인은 루프 4부터 해금됩니다.</div>';
                 }

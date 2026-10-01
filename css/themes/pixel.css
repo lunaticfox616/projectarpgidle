@@ -177,15 +177,14 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 @keyframes px-target-blink { 50% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-bronze); } }
 /* 젬 카드의 공격 범위 줄: 한 줄 말줄임("인접 단일 · 사거리 1…")으로 잘려 사거리가 안 보였다 — 두 줄까지 감싼다 */
 :root body[data-ui-skin] .gem-card-range { white-space: normal; overflow: visible; text-overflow: clip; }
-/* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감 · 전문가) */
+/* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감) */
 :root body[data-ui-skin] :is(.equipment-aux-store,
   #ui-season-tree strong, #ui-talent-card-grid :is(span, strong, .talent-slot), .talent-bloom-filter :is(strong, span),
   .talent-bloom-summary, .talent-bloom-summary :is(span, strong), #ui-talent-summary :is(span, strong),
   .offline-progress-upgrade button, #ui-codex-list :is(.item-title, .codex-hunt-toggle, .codex-slot-heading span),
-  .expertise-panel > button, .expertise-summary, #ui-records-body div > span) { font-size: 12px; }
+  #ui-records-body div > span) { font-size: 12px; }
 :root body[data-ui-skin] .loop-node-rank { font-size: 12px; line-height: 12px; }
 :root body[data-ui-skin] :is(.records-stat-value, #trait-season-section h2 span, #ui-season-text-tab span) { font-size: 15px; }
-:root body[data-ui-skin] #ui-expert-tree-title { font-size: 16px; }
 :root body[data-ui-skin] :is(#tab-talent .ui-window-body > p, .talent-bloom-view-tabs > button) { font-size: 12px; }
 /* 전투 기록 · 툴팁 줄: overflow-wrap:anywhere(와 word-break:break-word)는 줄이 좁아지면 한글 낱말 한가운데서 끊었다
    ("[마법 / 의 들바람 장화]") — 띄어쓰기에서 끊고, 한 낱말이 줄보다 길 때만 쪼갠다. */
@@ -356,7 +355,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.ui-context-dock-tab, #death-overlay .deathlog-tab):not(.active) { box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy-muted); }
 :root body[data-ui-skin] :is(.ui-context-dock-tab, #death-overlay .deathlog-tab).active { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 작은 머리글(예전 영문 대문자 자리): 한글이 되었으니 넓은 자간을 풀고 도트 12px */
-:root body[data-ui-skin] :is(.skill-panel-kicker, .cosmos-kicker, .ghost-duel-stage-label, .map-pvp-heading span, .beyond-head span, .beyond-farming header span, .arcana-vault-head span, .cosmos-arcana-quest span, .cosmos-mastery-card-head span, .gem-engrave-dialog-identity span, .equipment-preset-panel > header span) {
+:root body[data-ui-skin] :is(.skill-panel-kicker, .cosmos-kicker, .ghost-duel-stage-label, .map-pvp-heading span, .beyond-head span, .beyond-farming header span, .cosmos-mastery-card-head span, .gem-engrave-dialog-identity span, .equipment-preset-panel > header span) {
   color: var(--px-gold);
   font-size: 12px;
   letter-spacing: 0;
@@ -571,8 +570,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-card-head strong, .gem-research-card-head > span, .gem-resource-strip :is(span, strong), .skill-loadout-summary strong,
     .market-exchange-quote :is(span, strong), .codex-card .item-actions > span, .unique-hunt-panel > header > b, .content-unlock-heading > span,
-    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked, .arcana-locked,
-    .expertise-panel, .expertise-panel > b, .talent-current-combo > i) { font-family: var(--font-pixel); font-size: 12px; }
+    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
+    .talent-current-combo > i) { font-family: var(--font-pixel); font-size: 12px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) .map-item--act .map-item-main > span span { font-family: var(--font-pixel); font-size: 12px; }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
    숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */

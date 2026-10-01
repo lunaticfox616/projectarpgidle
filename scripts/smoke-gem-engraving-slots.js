@@ -38,10 +38,8 @@ const context = {
       skyEnhanceCap: Math.max(1, Math.min(5, Math.floor(Number(raw && raw.skyEnhanceCap) || 1)))
     };
   },
-  getExpertLevel() { return 7; },
   addLog(message) { logs.push(message); },
   updateStaticUI() {},
-  grantExpertExpByAction() {},
   safeExposeGlobals(map) { Object.assign(context, map); }
 };
 context.window = context;

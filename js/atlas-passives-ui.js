@@ -11,7 +11,7 @@ const atlasPassivesUi = (() => {
     const RANK_NAME = Object.freeze({ root: '뿌리', small: '작은 노드', notable: '주요 노드', keystone: '핵심 노드' });
     const STATE_TEXT = Object.freeze({ taken: '찍음 · 다시 누르면 되돌립니다', open: '누르면 찍습니다', locked: '이어진 노드를 먼저 찍으세요' });
     let focusId = null;
-    const effectText = effect => Object.entries(effect).map(([key, value]) => `${labels[key][0]} +${value}${labels[key][1]}`).join(' · ');
+    const effectText = effect => Object.entries(effect).map(([key, value]) => labels[key][1] === 'on' ? labels[key][0] : `${labels[key][0]} +${value}${labels[key][1]}`).join(' · ');
     const suffix = id => id.slice(id.indexOf('_') + 1);
     const rankOf = node => (suffix(node.id) === 'r' ? 'root' : node.rank);
     const status = id => atlasPassives.status(game, id);

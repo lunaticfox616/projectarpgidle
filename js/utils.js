@@ -588,6 +588,13 @@ var PASSIVE_WORLD_SCALE = 1.14;
 const MAX_PLAYER_LEVEL = 200;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
+// window.game은 언제나 지금의 game을 가리킨다. 불러오기 · 초기화로 game이 바뀌어도 낡은 객체를 보지 않는다
+// (예전에는 전문가 상태 함수가 부수 효과로 매번 맞춰 주었다 — 2026-10-01 전문가 제거). 먼저 놓인 window.game 값은 이어받는다.
+{
+    const preset = Object.getOwnPropertyDescriptor(window, 'game');
+    if (preset && 'value' in preset) game = preset.value;
+}
+Object.defineProperty(window, 'game', { configurable: true, get() { return game; }, set(value) { game = value; } });
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();

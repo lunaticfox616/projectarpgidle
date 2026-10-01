@@ -30,13 +30,10 @@
         'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
         'tab-skills': { title: '스킬 젬', defaultMaximized: true, dock: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-char': { title: '스킬트리 · 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
-        'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
         'tab-season': { title: '루프 패시브', x: 210, y: 70, width: 980, height: 800, minWidth: 500, minHeight: 380 },
-        'tab-pruning': { title: '가지치기', x: 210, y: 70, width: 980, height: 760, minWidth: 620, minHeight: 460 },
-        'tab-arcana': { title: '아르카나', x: 230, y: 72, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 },
         'tab-stump': { title: '그루터기 함', x: 240, y: 70, width: 940, height: 760, minWidth: 560, minHeight: 440 }

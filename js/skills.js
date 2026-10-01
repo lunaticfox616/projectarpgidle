@@ -39,9 +39,7 @@ function getGemResearchCollectionState() {
 }
 
 function getGemResearchCost(kind) {
-    let expertLevel = getGemEngraverLevelForUnlocks();
-    if (kind === 'support') return Math.max(5, 8 - Math.floor(Math.max(0, expertLevel - 1) / 4));
-    return Math.max(8, 12 - Math.floor(Math.max(0, expertLevel - 1) / 4));
+    return kind === 'support' ? 8 : 12;
 }
 
 /** Optional deferred grant receives the same resolved amount as ordinary enemy currency loot. */
@@ -90,7 +88,6 @@ function researchMissingGem(kind, name) {
     }
     game.noti = game.noti || {};
     game.noti.skills = true;
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'gem_research');
     if (typeof checkUnlocks === 'function') checkUnlocks();
     if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(false);
     addLog(`🔬 젬 연구 완료: ${isSupport ? '보조' : '공격'} 젬 [${name}] 해금 (젬 잔향 ${cost} 소모)`, isSupport ? 'loot-rare' : 'loot-magic');
@@ -101,23 +98,14 @@ function researchMissingGem(kind, name) {
 
 // Phase-3 extracted gem/skill progression handlers.
 
-function getGemEngraverLevelForUnlocks() {
-    return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
-}
-
-function getSkyEnhancementUnlockLevel(enhanceId) {
-    if (['sky_fury', 'sky_swiftness', 'sky_precision', 'sky_blood', 'sky_tempest', 'sky_keen', 'sky_blitz', 'sky_harmony', 'sky_sunder', 'sky_pierce'].includes(enhanceId)) return 1;
-    const byLevel = {
-        sky_projectile_split: 5, sky_projectile_focus: 8, sky_projectile_return: 11,
-        sky_gemcraft_edge: 2, sky_gemcraft_swift: 3, sky_gemcraft_focus: 4, sky_gemcraft_pierce: 5, sky_gemcraft_break: 6,
-        sky_gemcraft_vigor: 7, sky_gemcraft_echo: 8, sky_gemcraft_hybrid: 9, sky_gemcraft_dot: 10, sky_gemcraft_critical: 11,
-        sky_awakened_force: 12, sky_awakened_surge: 12, sky_awakened_focus: 13, sky_awakened_overdrive: 14, sky_awakened_resonance: 15
-    };
-    return byLevel[enhanceId] || 6;
+/** 각인은 '젬 각인' 해금과 함께 모두 열리고, 각성 각인만 '젬 각성' 해금이 따로 연다(2026-10-01, 젬 각인사 레벨 대신). */
+function getSkyEnhancementUnlockId(enhanceId) {
+    return String(enhanceId || '').startsWith('sky_awakened') ? 'gemAwakening' : null;
 }
 
 function canUseSkyEnhancement(enhanceId) {
-    return getGemEngraverLevelForUnlocks() >= getSkyEnhancementUnlockLevel(enhanceId);
+    const unlockId = getSkyEnhancementUnlockId(enhanceId);
+    return !unlockId || contentProgression.isUnlocked(unlockId);
 }
 
 function isAwakenedSkyEnhancement(enhanceId) {
@@ -194,7 +182,6 @@ function upgradeSkyEngraveCap() {
     }
     game.currencies.skyEssence -= need;
     gem.skyEnhanceCap = Math.min(5, gem.skyEnhanceCap + 1);
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'engrave_slot_expand');
     addLog(`☁️ [${active}] 창공 각인 슬롯이 ${gem.skyEnhanceCap}개로 확장되었습니다. (소모 ${need})`, 'loot-unique');
     updateStaticUI();
     return true;
@@ -318,7 +305,7 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
         return false;
     }
     if (!canUseSkyEnhancement(enhanceId)) {
-        addLog(`해당 각인은 젬 각인사 Lv.${getSkyEnhancementUnlockLevel(enhanceId)}에 해금됩니다.`, 'attack-monster');
+        addLog('각성 각인은 ‘해금’의 젬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
         return false;
     }
     let active = getGemEnhanceTargetSkill();
@@ -370,7 +357,6 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     if (previousPatternSlot >= 0) slots[previousPatternSlot] = null;
     slots[selectedSlot] = enhanceId;
     game.skyGemEnhancements[active] = slots;
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'engrave_apply');
     let previous = previousId && GEM_SKY_ENHANCEMENTS[previousId];
     addLog(`☁️ [${active}] ${selectedSlot + 1}번 슬롯에 '${enhance.name}' 각인을 ${previous ? `'${previous.name}'에서 교체` : '부여'}했습니다.`, 'loot-unique');
     updateStaticUI();
@@ -386,8 +372,8 @@ function toggleSkyGemEnhancement(enhanceId) {
 }
 
 function getSkyGemEnhancementRemoveCost() {
-    // 젬 각인사 Lv.7에서는 무료(자유 해제), 그 전에는 창공의 힘을 소모하여 해제할 수 있습니다.
-    return getGemEngraverLevelForUnlocks() >= 7 ? 0 : 2;
+    // 각인 해제는 창공의 힘 2를 쓴다(예전 젬 각인사 Lv.7의 무료 해제는 전문가와 함께 없어졌다).
+    return 2;
 }
 
 function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
@@ -413,19 +399,15 @@ function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
 
 
 function upgradeActiveGemQuality() {
-    let gemLv = getGemEngraverLevelForUnlocks();
-    if (gemLv < 8) return addLog('젬 퀄리티 강화는 젬 각인사 Lv.8에 해금됩니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
     if (!gem || !isEnhanceableAttackGem(active)) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
     if ((gem.quality || 0) >= 20) return addLog('젬 퀄리티는 최대 20%입니다.', 'attack-monster');
-    let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
-    let need = Math.max(1, Math.floor((1 + Math.floor((gem.quality || 0) / 5)) * (1 - discount)));
+    let need = 1 + Math.floor((gem.quality || 0) / 5);
     if ((game.currencies.bossCore || 0) < need) return addLog(`군주의 핵이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.bossCore -= need;
     gem.quality = Math.min(20, (gem.quality || 0) + 1);
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'boss_core_upgrade');
     addLog(`💎 [${active}] 퀄리티 +1% (현재 ${gem.quality}%, 소모 ${need})`, 'loot-unique');
     updateStaticUI();
 }
@@ -437,9 +419,7 @@ function getSupportGemSkyProcessState(name) {
     rec.unlockedTier = unlockedTier;
     rec.activeTier = Math.max(1, Math.min(unlockedTier, Math.floor(rec.activeTier || 1)));
     let improvingTier = unlockedTier < tierCap;
-    let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0;
-    let baseNeed = improvingTier ? unlockedTier + 1 : Math.max(3, Math.ceil((rec.level || 1) / 5));
-    let need = Math.max(1, Math.floor(baseNeed * (1 - discount)));
+    let need = improvingTier ? unlockedTier + 1 : Math.max(3, Math.ceil((rec.level || 1) / 5));
     return {
         record: rec,
         tierCap: tierCap,
@@ -452,8 +432,6 @@ function getSupportGemSkyProcessState(name) {
 
 function processSupportGemWithSkyEssence(name) {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    let gemLv = getGemEngraverLevelForUnlocks();
-    if (gemLv < 5) return addLog('보조 젬 창공 가공은 젬 각인사 Lv.5에 해금됩니다.', 'attack-monster');
     if (!SUPPORT_GEM_DB[name]) return addLog('가공할 보조 젬을 찾을 수 없습니다.', 'attack-monster');
     game.supports = Array.isArray(game.supports) ? game.supports : [];
     if (!game.supports.includes(name)) return addLog('보유한 보조 젬만 가공할 수 있습니다.', 'attack-monster');
@@ -473,15 +451,13 @@ function processSupportGemWithSkyEssence(name) {
         addLog(`☁️ 보조 젬 [${name}] 숙련 가공 완료: Lv.${rec.level} (소모 ${need})`, 'loot-unique');
     }
     game.supportGemData[name] = rec;
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'support_gem_upgrade');
     if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(false);
     updateStaticUI();
 }
 
 
 function awakenActiveGemCandidate() {
-    let gemLv = getGemEngraverLevelForUnlocks();
-    if (gemLv < 15) return addLog('각성 후보 변환은 젬 각인사 Lv.15에 해금됩니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('gemAwakening')) return addLog('각성 후보 변환은 ‘해금’의 젬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
@@ -493,7 +469,6 @@ function awakenActiveGemCandidate() {
     game.currencies.awakenedEcho -= echoNeed;
     gem.awakened = true;
     gem.skyEnhanceCap = Math.min(5, Math.max(gem.skyEnhanceCap || 1, 2));
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'engrave_apply');
     addLog(`🌌 [${active}] 각성 젬 변환 완료! 총 젬 레벨 +2 및 각인 슬롯 보정이 적용됩니다. 각성 각인은 각성 젬이 아니어도 부여할 수 있습니다.`, 'loot-unique');
     updateStaticUI();
 }
@@ -522,7 +497,6 @@ async function applyFossilCraft() {
         let randomFossil = rndChoice(refinablePool);
         game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
         gained[randomFossil.name] = (gained[randomFossil.name] || 0) + 1;
-        if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
     }
     let summary = Object.keys(gained).map(name => `[${name}] ${gained[name]}개`).join(', ');
     addLog(`🪨 기본 화석 ${count}개를 정제해 ${summary}를 획득했습니다.`, 'loot-magic');
@@ -548,12 +522,10 @@ function getFossilSurplusRefiningCost(fossilKey) {
 function refineFossilSurplus(fossilKey) {
     let cost = getFossilSurplusRefiningCost(fossilKey);
     if (!cost) return false;
-    let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-    if (mycologistLv < 4) return addLog('잉여 화석 정제는 균사학자 Lv.4에 해금됩니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 ‘해금’의 화석 복원을 열어야 쓸 수 있습니다.', 'attack-monster');
     if ((game.currencies[fossilKey] || 0) < cost) return addLog(`잉여 화석 정제에는 같은 화석 ${cost}개가 필요합니다.`, 'attack-monster');
     game.currencies[fossilKey] -= cost;
     awardCurrency('fossilPrimal', 1);
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
     let sourceName = fossilKey === 'fossil' ? '미궁 화석' : ((FOSSIL_DB.find(row => row.key === fossilKey) || {}).name || fossilKey);
     addLog(`🪨 ${sourceName} ${cost}개를 압축해 원시 화석 1개를 만들었습니다.`, 'loot-magic');
     updateStaticUI();
@@ -661,7 +633,7 @@ function applyFossilChaosCraft(fossilKey) {
     item.stats = newStats;
     item.rarity = 'rare';
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
-    game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
+    game.currencies[fossilKey]--;
     updateItemName(item);
     let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
     addLog(`🪨 ${fossil.name} 재련 성공! ${line}`, 'loot-magic');
@@ -671,8 +643,7 @@ function applyFossilChaosCraft(fossilKey) {
 function restorePrimalFossil(kind) {
     let key = kind === 'ancient' ? 'fossilAncientPrimal' : 'fossilPrimal';
     let isAncient = key === 'fossilAncientPrimal';
-    let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-    if (mycologistLv < (isAncient ? 5 : 4)) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 균사학자 Lv.${isAncient ? 5 : 4}에 해금됩니다.`, 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 ‘해금’의 화석 복원을 열어야 쓸 수 있습니다.`, 'attack-monster');
     if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? ORB_DB[key].name : key}이 부족합니다.`, 'attack-monster');
     game.currencies[key]--;
     let rewardLines = [];
@@ -700,18 +671,12 @@ function restorePrimalFossil(kind) {
         else if (currencyRoll < 0.24) { awardCurrency('formlessDew', 1); rewardLines.push('형체 없는 이슬 +1'); }
         else { awardCurrency('magicBud', 2); rewardLines.push('마법의 새싹 +2'); }
     }
-    let restoreBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilRestoreRewardPct') || 0) : 0;
-    let greatChance = (isAncient ? 0.16 : 0.07) + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilRestoreGreatChancePct') || 0) / 100 : 0);
-    if (restoreBonus > 0 && Math.random() < Math.min(0.75, restoreBonus / 100)) {
-        awardCurrency('formlessDew', 1);
-        rewardLines.push('복원 보너스: 형체 없는 이슬 +1');
-    }
+    let greatChance = isAncient ? 0.16 : 0.07;
     if (Math.random() < greatChance) {
         let bonus = isAncient ? 'goldenRule' : 'sapBud';
         awardCurrency(bonus, 1);
         rewardLines.push(`대성공: ${ORB_DB[bonus].name} +1`);
     }
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_restore');
     addLog(`🪨 ${ORB_DB[key].name} 복원 완료! [${rewardLines.join(' / ')}]`, isAncient ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
@@ -802,36 +767,6 @@ function getGemLevelValueFromStatLines(stats, activeTags) {
     return total;
 }
 
-function getArcanaGemDamageFromStats(stats, target, rule) {
-    if (!rule) return { gemLevels: 0, pct: 0, capPct: 0 };
-    let tags = getGemLevelTargetTags(target);
-    let gemLevels = Math.max(0, getGemLevelValueFromStatLines(stats, tags));
-    let capPct = Math.max(0, Number(rule.capPct) || 0);
-    let pct = Math.min(capPct, gemLevels * Math.max(0, Number(rule.perLevelPct) || 0));
-    return { gemLevels: Number(gemLevels.toFixed(4)), pct: Number(pct.toFixed(4)), capPct };
-}
-
-function getArcanaGemDamageBonus(target, ownerState) {
-    let source = ownerState || game;
-    let totalPct = 0;
-    let totalLevels = 0;
-    let capPct = 0;
-    Object.entries(source.equipment || {}).forEach(([slotKey, item]) => {
-        let rule = getArcanaEquipmentGemDamageRule(slotKey, source);
-        if (!item || !rule) return;
-        let resolved = getResolvedEquipmentStatLists(slotKey, item, source, false);
-        let result = getArcanaGemDamageFromStats([...resolved.baseStats, ...resolved.explicitStats], target, rule);
-        totalLevels += result.gemLevels;
-        totalPct += result.pct;
-        capPct = Math.max(capPct, result.capPct);
-    });
-    return { gemLevels: Number(totalLevels.toFixed(4)), pct: Number(Math.min(capPct, totalPct).toFixed(4)), capPct };
-}
-
-function getArcanaGemDamageBonusPct(target, ownerState) {
-    return getArcanaGemDamageBonus(target, ownerState).pct;
-}
-
 function getPassiveGemLevelEffects(node) {
     return getEffectivePassiveNodeEffects(node);
 }
@@ -845,7 +780,7 @@ function createGemBonusEvaluation(resolvedStats) {
     let sources = resolvedStats;
     if (!sources) {
         sources = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
-            getResolvedEquipmentStatLists(slotKey, item, game, true));
+            getResolvedEquipmentStatLists(slotKey, item, game));
     }
     const ids = new Set(['gemLevel', ...GEM_LEVEL_TAG_RULES.map(rule => rule.stat)]);
     const gearLines = sources.map(resolved => collectGemLevelStatLines([...resolved.baseStats, ...resolved.explicitStats], ids));
@@ -955,7 +890,6 @@ function getActiveSkillStats(bonusLevel) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
     stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
-    stats.arcanaGemDamagePct = skill.isGem ? getArcanaGemDamageBonusPct(game.activeSkill, game) : 0;
     if (usesGemProgression && gem.level >= 20) {
         if (game.activeSkill === '연속 베기') stats.spd *= 1.2;
         if (game.activeSkill === '흡혈 타격') stats.leech *= 2;
@@ -1005,12 +939,11 @@ function getActiveSkillStats(bonusLevel) {
 
 safeExposeGlobals({
     hasEquippedShield, canUseSkillWithCurrentEquipment, gainGemExperience,
-    getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage,
-    getArcanaGemDamageFromStats, getArcanaGemDamageBonus, getArcanaGemDamageBonusPct
+    getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
 });
 
 
-safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockId, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||[game.activeSkill, game.mobilitySkill].includes(name)) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); if((game.equippedSummonSkills||[]).includes(name)) return addLog('장착 중 소환수 젬은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }

@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const {run}=require('./lib/replay-fixture')(73);
 const copy=code=>JSON.parse(run(`JSON.stringify(${code})`));
 run(`game.season=30;game.level=100;game.settings.mapCompleteAction='stop';game.settings.showLootLog=false;
-    game.contentProgression.inherited=['support','research'];ensureExpertiseState().levels.gemEngraver=13;
+    game.contentProgression.inherited=['support','research','gemAwakening'];
     startEncounterRun(true);window.gemTestEnemy={...game.actExploration.packs[0].waiting[0],isBoss:true};
     window.originalGemRandom=Math.random;Math.random=()=>0;`);
 const before=copy('({skills:game.skills,gemData:game.gemData,supports:game.supports,supportGemData:game.supportGemData,currencies:game.currencies})');

@@ -1,4 +1,3 @@
-/** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
 /** 루프 관문 대기 플래그. 오프라인에서 채운 관문 표시는 관문이 남아 있을 때만 의미가 있다. */
 function normalizeLoopGateFlags(state) {
     state.pendingLoopDecision = !!state.pendingLoopDecision;
@@ -13,9 +12,13 @@ function normalizeAutomationSettings(settings) {
     settings.autoLoopClass = settings.autoLoopClass === 'keep' ? 'keep' : 'ask';
 }
 
+/** 없어진 창(7단계 2026-10-01: 가지치기 · 아르카나 · 전문가)의 메뉴 단추. 저장된 순서 · 배치에서 버린다. */
+const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);
+
+/** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
 function normalizeTabLayoutSettings(settings) {
     const normalizeOrder = (list, pattern) => Array.from(new Set(
-        (Array.isArray(list) ? list : []).filter(id => typeof id === 'string' && pattern.test(id))
+        (Array.isArray(list) ? list : []).filter(id => typeof id === 'string' && pattern.test(id) && !RETIRED_TAB_BUTTON_IDS.includes(id))
     ));
     const buttonId = /^btn-(tab-[a-z]+|map-complete-action-picker)$/;
     const layouts = {};
@@ -26,8 +29,7 @@ function normalizeTabLayoutSettings(settings) {
         layouts[platform] = {
             tabOrder: normalizeOrder(source.tabOrder, buttonId),
             tabPlacement: Object.fromEntries(Object.entries(placements)
-                .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place))
-                .map(([id, place]) => [id, id === 'btn-tab-pruning' && platform === 'desktop' ? 'top' : place])),
+                .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place) && !RETIRED_TAB_BUTTON_IDS.includes(id))),
             tabGroupOrder: normalizeOrder(source.tabGroupOrder, /^(character|growth|content|gear|etc)$/)
         };
     }
@@ -74,6 +76,34 @@ function stripRemovedStarWedges(merged) {
     Object.keys(merged.retiredVoidPassives || {}).filter(id => id.startsWith('star_')).forEach(id => delete merged.retiredVoidPassives[id]);
 }
 
+/** 7단계(2026-10-01): 아르카나 · 가지치기 · 전문가와 별가루를 보상 없이 지운다(결정 4 · 10 · 11). 해금 원장의 세 항목은
+ * content-progression이 모르는 항목으로 버리고 포인트를 돌려준다. 벌집 갈림길에 저장된 양봉업자 레벨도 지운다. 두 번 불러와도 같다. */
+function stripRemovedAuxSystems(merged) {
+    ['arcana', 'pruningTree', 'expertise'].forEach(key => delete merged[key]);
+    ['arcana', 'pruning', 'expertise'].forEach(key => { delete merged.unlocks[key]; delete merged.noti[key]; });
+    delete merged.currencies.starDust;
+    const choice = merged.beehive && merged.beehive.pendingChoice;
+    if (choice && typeof choice === 'object') {
+        delete choice.expertLevel;
+        ['a', 'b', 'c'].forEach(key => { if (choice[key] && typeof choice[key] === 'object') delete choice[key].expertLevel; });
+    }
+}
+
+/** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
+ * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨, 젬 각인사 Lv.12 각성 잔향 · 각성 각인. */
+const RETIRED_EXPERT_ACCESS = Object.freeze([
+    ['mycologist', 4, 'fossilRestore'], ['mycologist', 7, 'advancedSpores'], ['gemEngraver', 12, 'gemAwakening']
+]);
+
+function inheritRetiredExpertAccess(ledger, save) {
+    const levels = save && save.expertise && save.expertise.levels;
+    if (!levels || typeof levels !== 'object') return;
+    RETIRED_EXPERT_ACCESS.forEach(([expert, level, id]) => {
+        const owned = ledger.unlocked.includes(id) || ledger.inherited.includes(id);
+        if (!owned && (Number(levels[expert]) || 0) >= level) ledger.inherited.push(id);
+    });
+}
+
 /** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
  * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
 function stripRemovedFlasks(merged) {
@@ -85,6 +115,7 @@ function stripRemovedFlasks(merged) {
 /** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
+    inheritRetiredExpertAccess(merged.contentProgression, save);
     contentProgression.sync(merged);
     if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
         merged.currentZoneId = 0;
@@ -472,11 +503,6 @@ function mergeDefaults(save) {
     }
     delete merged.currencies.hiveTrace;
     merged.cosmosAtlas = (merged.cosmosAtlas && typeof merged.cosmosAtlas === 'object') ? { ...merged.cosmosAtlas } : {};
-    const legacyAtlasStarDust = Math.max(0, Math.floor(Number(merged.cosmosAtlas.starDust) || 0));
-    const hasSavedStarDustWallet = !!(save && save.currencies && Object.prototype.hasOwnProperty.call(save.currencies, 'starDust'));
-    merged.currencies.starDust = hasSavedStarDustWallet
-        ? Math.max(0, Math.floor(Number(merged.currencies.starDust) || 0))
-        : legacyAtlasStarDust;
     delete merged.cosmosAtlas.starDust;
     merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
     merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
@@ -693,16 +719,7 @@ function mergeDefaults(save) {
     // 컨디션 젬 → 부적 조건부 줄(2026-09-30): 젬 · 레벨 · 가공 선택 · 전투 중 버프 · 젬 규칙은 보상 없이 지운다. 전술 규칙은 남는다.
     ['conditionGemUnlocked', 'conditionGemPool', 'conditionGemLevels', 'pendingConditionGemChoices', 'conditionGemCooldowns', 'playerConditionBuffs',
         'lastConditionGemCast', 'playerCastDelayUntil', 'enemyCurseExpirePayloads'].forEach(key => delete merged[key]);
-    merged.arcana = normalizeArcanaState(merged.arcana);
-    let arcanaQuestMigration = reconcileArcanaQuestFromCosmos(merged);
-    if (arcanaQuestMigration.completedNow) {
-        merged.journalEntries = Array.isArray(merged.journalEntries) ? merged.journalEntries : [];
-        if (!merged.journalEntries.includes('arcana_first_seal')) merged.journalEntries.push('arcana_first_seal');
-    }
-    merged.pruningTree = normalizePruningTreeState(merged.pruningTree, merged);
-    advancePruningTreeForLoop(merged);
     merged.beyondBoundary = normalizeBeyondBoundaryState(merged.beyondBoundary, merged);
-    if (merged.arcana.unlocked) merged.unlocks.arcana = true;
     delete merged.worldDeck;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     merged.mapSubtab = ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
@@ -1109,6 +1126,7 @@ function mergeDefaults(save) {
     stripRemovedGrowthBoard(merged);
     stripRemovedFlasks(merged);
     stripRemovedStarWedges(merged);
+    stripRemovedAuxSystems(merged);
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);

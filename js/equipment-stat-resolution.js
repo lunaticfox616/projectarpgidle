@@ -91,17 +91,16 @@ function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, quality
 }
 
 /**
- * 품질·특수 제작·복제·아르카나를 포함한 아이템 옵션의 단일 해석 경계다.
+ * 품질·특수 제작·복제를 포함한 아이템 옵션의 단일 해석 경계다.
  * @param {string} slotKey
  * @param {object} item
  * @param {object} ownerState
- * @param {boolean} includeArcana
  * @returns {{baseStats:Array<object>, explicitStats:Array<object>, mirrorSourceItem:object|null, mirrorSourceSlot:string|null}}
  */
-function getResolvedEquipmentStatLists(slotKey, item, ownerState, includeArcana) {
+function getResolvedEquipmentStatLists(slotKey, item, ownerState) {
     let source = ownerState || game;
     const memo = getBackgroundBuildMemo(source);
-    const key = `equipment:${slotKey}:${includeArcana !== false}`;
+    const key = `equipment:${slotKey}`;
     const cached = memo?.get(key);
     if (cached && cached.item === item) return cached.result;
     let mirror = getEquipmentMirrorSource(slotKey, item, source);
@@ -109,10 +108,6 @@ function getResolvedEquipmentStatLists(slotKey, item, ownerState, includeArcana)
     let base = resolveEquipmentBaseStats(item, mirror.item, itemMultiplier);
     let baseStats = base.stats;
     let explicitStats = resolveEquipmentExplicitStats(item, mirror.item, itemMultiplier, base.qualityMode, base.qualityMultiplier);
-    if (includeArcana !== false) {
-        baseStats = applyArcanaSlotAmplification(baseStats, slotKey, source);
-        explicitStats = applyArcanaSlotAmplification(explicitStats, slotKey, source);
-    }
     let result = { baseStats, explicitStats, mirrorSourceItem: mirror.item, mirrorSourceSlot: mirror.slot };
     memo?.set(key, { item, result });
     return result;

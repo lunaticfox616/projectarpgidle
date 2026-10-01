@@ -150,8 +150,7 @@ const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '�
 // "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
 const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
-    'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
-    'tab-expertise': '전문가',
+    'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-codex': '도감',
     'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적'
 });
 function tutorialNoticeKind(notice) {

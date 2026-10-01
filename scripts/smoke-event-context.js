@@ -356,7 +356,7 @@ check('labyrinth rewards use the cleared floor for repeat and advance alike', ()
         for (const action of ['repeatZone', 'nextZone']) {
             reset(50);
             run(`window.game=game;game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(def=>def.id);
-                ensureExpertiseState().levels.mycologist=5;game.currentZoneId=LABYRINTH_ZONE_ID;
+                game.currentZoneId=LABYRINTH_ZONE_ID;
                 game.labyrinthFloor=29;game.labyrinthUnlockedMaxFloor=29;
                 game.settings.mapCompleteAction=${JSON.stringify(action)};Math.random=()=>${roll};
                 finishEncounterRun();`);
@@ -488,16 +488,16 @@ check('void reinforcements respect field capacity without discarding pending ene
 check('hive material costs are affordable before rewards and reject stale choices atomically', () => {
     reset();
     run(`game.currencies.pollen=0;game.currencies.venomStinger=0;game.currencies.enchantedHoney=0`);
-    assert.equal(run("getBeehivePenaltyPool(10,10).some(p=>getBeehivePenaltyCost(p))"), false);
+    assert.equal(run("getBeehivePenaltyPool(10).some(p=>getBeehivePenaltyCost(p))"), false);
     run(`game.currencies.pollen=6`);
-    assert.equal(run("getBeehivePenaltyPool(1,1).some(p=>p.key==='pollen_tax')"), true);
+    assert.equal(run("getBeehivePenaltyPool(1).some(p=>p.key==='pollen_tax')"), true);
     run(`game.currencies.hiveKey=1;startBeehiveRun();
         game.beehive.pendingChoice.a={effect:'pollen',amount:10,timing:'immediate',text:'[즉시 보상] 꽃가루 +10 / 대가: 꽃가루 -6',penalty:{key:'pollen_tax',text:'꽃가루 -6'}};
         game.currencies.pollen=5`);
     const before = run('JSON.stringify(game)');
     run("resolveBeehiveChoice('a','pollen_tax')");
     assert.equal(run('JSON.stringify(game)'), before);
-    run("resolveBeehiveChoice('expertLevel')");
+    run("resolveBeehiveChoice('constructor')");
     assert.equal(run('JSON.stringify(game)'), before);
     run(`game.currencies.pollen=6;game=mergeDefaults(JSON.parse(JSON.stringify(game)));resolveBeehiveChoice('a','pollen_tax')`);
     assert.equal(run('game.currencies.pollen'),10);

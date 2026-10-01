@@ -45,6 +45,8 @@ const atlasPassives = (() => {
         return total;
     }
     const effects = state => sum(taken(state));
+    /** A switch-like effect (e.g. bee events) is on once any taken passive grants it. Safe before the atlas state exists. */
+    const has = (state, key) => !!(state && state.atlas && Array.isArray(state.atlas.passives)) && (effects(state)[key] || 0) > 0;
     /** Save boundary: known, unique, supported (a keystone may have been kept by its later notable) and within the points. */
     function normalize(raw, points) {
         const wanted = [...new Set(Array.isArray(raw) ? raw : [])].filter(id => NODES.has(id)), list = [];
@@ -58,6 +60,6 @@ const atlasPassives = (() => {
         }
         return list;
     }
-    return Object.freeze({ nodes: NODES, effectKeys: EFFECT_KEYS, available, reason, allocate, refundReason, refund, status, sum, effects, normalize });
+    return Object.freeze({ nodes: NODES, effectKeys: EFFECT_KEYS, available, reason, allocate, refundReason, refund, status, sum, effects, has, normalize });
 })();
 safeExposeGlobals({ atlasPassives });

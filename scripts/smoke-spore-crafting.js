@@ -54,12 +54,26 @@ function makeBoots(id) {
 }
 
 function craftSnapshot() {
-    return run('JSON.stringify({item:game.inventory[0],currencies:game.currencies,expertise:game.expertise})');
+    return run('JSON.stringify({item:game.inventory[0],currencies:game.currencies})');
+}
+
+// 혼돈 · 피해 홀씨와 부패 · 균열 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 혼돈 선택도 쓰는 순간 막고, 아무것도 쓰거나 바꾸지 않는다.
+async function verifyAdvancedSporeLock() {
+    setCraftItem({...makeBoots(980102), slot:'무기'}, 'chaos');
+    run('game.currencies.fossil = 3;');
+    const locked = craftSnapshot();
+    assert.strictEqual(run("getCraftOrbUseState('formlessDew',game.inventory[0]).enabled"), false, 'a stored chaos mode stays closed before 고급 홀씨');
+    await run("useCurrency('formlessDew')");
+    assert.strictEqual(craftSnapshot(), locked, 'a locked spore mode spends and changes nothing');
+    run('applyCorruptSporeToSelectedItem(); applyRiftSporeToSelectedItem();');
+    assert.strictEqual(craftSnapshot(), locked, 'corrupt and rift spores stay closed before 고급 홀씨');
+    run("game.contentProgression.inherited.push('advancedSpores')");
+    assert.strictEqual(run("getCraftOrbUseState('formlessDew',game.inventory[0]).enabled"), true, 'the same stored mode opens with 고급 홀씨');
 }
 
 async function verifySporeSourceLimits() {
     setCraftItem({...makeBoots(980200),slot:'무기'},'fire');
-    run("game.currencies.sapBud=5; game.sporeCraftModes.sapBud='fire'; game.expertise.levels.mycologist=15;");
+    run("game.currencies.sapBud=5; game.sporeCraftModes.sapBud='fire';");
     await run("useCurrency('sapBud')");
     assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='spore').length"),1);
     let before=craftSnapshot();
@@ -152,6 +166,7 @@ function verifyCraftSourceSaveCompatibility() {
     const originalRandom = context.Math.random;
     try {
         loadUiFunction('getCraftOrbUseState');
+        await verifyAdvancedSporeLock();
         await verifySporeSourceLimits();
         verifyFossilSourceLimits();
         verifyCraftSourceSaveCompatibility();
@@ -180,7 +195,7 @@ function verifyCraftSourceSaveCompatibility() {
         const flatOnlyBoots = makeBoots(980101);
         flatOnlyBoots.stats = [{id:'fireFlatDmg',val:100},{id:'resC',val:10,lockedByHoney:true}];
         setCraftItem(flatOnlyBoots,'none');
-        run('game.expertise.levels.mycologist=15; applyCorruptSporeToSelectedItem()');
+        run('applyCorruptSporeToSelectedItem()');
         assert.strictEqual(run('game.inventory[0].stats.length'),1);
         assert.strictEqual(run('game.inventory[0].stats[0].id'),'resC');
         run(`game.currencies.magicBud = 1;`);

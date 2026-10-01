@@ -53,7 +53,7 @@ check('codex records precede purchase but bonuses do not', () => {
     assert.equal(run('getCodexBonusPct()'), 0.2);
 });
 
-check('meteor settlement pays rare equipment and star dust, never star-wedge material', () => {
+check('meteor settlement pays rare equipment only, never star dust or star-wedge material', () => {
     reset(7);
     run('game.currentZoneId=METEOR_FALL_ZONE_ID;ensureMeteorSiteState()');
     const currencies = json('game.currencies');
@@ -61,12 +61,13 @@ check('meteor settlement pays rare equipment and star dust, never star-wedge mat
     assert.equal(gear().length, 1);
     assert(['rare','unique'].includes(gear()[0].rarity));
     const after = json('game.currencies');
-    assert(after.starDust - (currencies.starDust || 0) >= 2, 'every settlement pays star dust');
-    assert.deepEqual(Object.keys(after).filter(key => after[key] !== currencies[key]), ['starDust'], 'nothing else is paid');
-    assert.equal(run('["meteorShard","incompleteStarWedge","starWedge","astralCore"].some(key => key in game.currencies)'), false);
+    assert.deepEqual(Object.keys(after).filter(key => after[key] !== currencies[key]), [], 'no currency is paid');
+    assert.equal(run('["meteorShard","incompleteStarWedge","starWedge","astralCore","starDust"].some(key => key in game.currencies)'), false);
     assert.equal(run('game.journalEntries.includes("meteor_fall")'), true, 'the first settlement records the meteor site journal');
-    run('grantMeteorEncounterRewards()');
+    assert.equal(run('game.meteorSite.constellationBuff'), null, 'no constellation is observed without the 떨어지는 별 atlas passive');
+    run('game.atlas.passives=["e_k1"];grantMeteorEncounterRewards()');
     assert.equal(gear().length, 2, 'each settlement pays one item');
+    assert.equal(run('game.meteorSite.constellationBuff.permanent'), true, 'the 떨어지는 별 atlas passive observes a lasting constellation');
 });
 
 check('offline meteor reward survives pickup filters in the offline stash', () => {

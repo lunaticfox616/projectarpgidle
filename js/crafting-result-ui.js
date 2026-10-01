@@ -80,7 +80,7 @@ const craftingResultUi = (() => {
         const label = `${name} 다시 사용 · ${payment.have}`;
         const mode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[result.meta.currencyKey] || 'none') : 'none';
         const action = equipmentCrafting.resolveAction(result.meta.currencyKey, item.rarity);
-        const reason = equipmentCrafting.getSporeBlockReason(item, action, mode);
+        const reason = getSporeCraftBlockReason(item, action, mode);
         return `<button type="button" data-repeat-craft="${result.meta.currencyKey}" onclick="craftingResultUi.repeat(${Number(item.id)})" ${payment.affordable && !reason ? '' : 'disabled'}>${escapeHTML(reason || label)}</button>`;
     }
 

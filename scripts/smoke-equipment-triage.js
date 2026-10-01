@@ -164,7 +164,7 @@ for (const mutation of [
     "game.talentCardLoadout[0] = 'hero1__warrior'",
     "game.cores.equipped = coreItems.roll()",
     "game.stumpBox.acquired = !game.stumpBox.acquired",
-    "game.pruningTree.nodeRanks.test = 1",
+    "game.meteorSite.constellationBuff = { stat: 'pctDmg', label: '피해', val: 4, permanent: true }",
     "game.cosmosAtlas = {mastery:{resonanceDrive:1}}",
     "game.ocean.permanentUpgrades.pressureResist = 1"
 ]) {
