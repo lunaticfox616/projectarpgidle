@@ -2862,7 +2862,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.save();
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
     // 도트 띠: 흐린 그라디언트 대신 납작한 어둠 + 위아래 2px 청동 선
-    ctx.fillStyle = 'rgba(6,4,4,0.72)';
+    ctx.fillStyle = 'rgba(6,4,4,0.9)'; // 뒤의 안내 글이 이름 뒤로 비쳤다(검토 9차)
     ctx.fillRect(0, cy - 36, width, 66);
     ctx.fillStyle = rift ? '#5d4a2e' : '#4a3a24';
     ctx.fillRect(0, cy - 38, width, 2);
