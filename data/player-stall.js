@@ -21,10 +21,10 @@ const PLAYER_STALL_RULES = Object.freeze({
     paymentDew: { formlessDew: 1, magicBud: 0.2, goldenRule: 100 }
 });
 const PLAYER_STALL_CUSTOMERS = Object.freeze([
-    { name: '여행하는 경비병', buyRate: 1.12, offerRate: 0.8, lowballRate: 0.65, premium: 1, flexibility: 0.55, art: 'guard', stats: ['flatHp','armor','armorPct','resAll','resF','resC','resL','resChaos','blockChance'], slots: ['방패','갑옷','투구'] },
-    { name: '뿌리길 사냥꾼', buyRate: 1, offerRate: 1, lowballRate: 1, premium: 1.12, flexibility: 0.6, art: 'hunter', stats: ['flatDmg','pctDmg','aspd','crit','critDmg','projectilePctDmg','dexterity'], slots: ['무기','장갑','신발'] },
-    { name: '떠돌이 학자', buyRate: 0.95, offerRate: 1.08, lowballRate: 0.65, premium: 1.16, flexibility: 0.7, art: 'scholar', stats: ['spellFlatPct','spellFlatDmg','energyShield','intelligence','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg'], slots: ['무기','목걸이','반지'] },
-    { name: '행상인의 견습생', buyRate: 0.88, offerRate: 1.15, lowballRate: 1.7, premium: 0.92, flexibility: 0.3, art: 'apprentice', stats: ['move','regen','flatHp','resAll','evasion'], slots: ['신발','허리띠','반지'] }
+    { name: '여행하는 경비병', buyRate: 1.12, offerRate: 0.8, lowballRate: 0.65, premium: 1, flexibility: 0.55, stats: ['flatHp','armor','armorPct','resAll','resF','resC','resL','resChaos','blockChance'], slots: ['방패','갑옷','투구'] },
+    { name: '뿌리길 사냥꾼', buyRate: 1, offerRate: 1, lowballRate: 1, premium: 1.12, flexibility: 0.6, stats: ['flatDmg','pctDmg','aspd','crit','critDmg','projectilePctDmg','dexterity'], slots: ['무기','장갑','신발'] },
+    { name: '떠돌이 학자', buyRate: 0.95, offerRate: 1.08, lowballRate: 0.65, premium: 1.16, flexibility: 0.7, stats: ['spellFlatPct','spellFlatDmg','energyShield','intelligence','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg'], slots: ['무기','목걸이','반지'] },
+    { name: '행상인의 견습생', buyRate: 0.88, offerRate: 1.15, lowballRate: 1.7, premium: 0.92, flexibility: 0.3, stats: ['move','regen','flatHp','resAll','evasion'], slots: ['신발','허리띠','반지'] }
 ]);
 // Initial NPC resale tuning, not player-market prices or DPS rankings. Higher T means stronger in this game.
 // Weights price one comparable tier/roll: build access > broad offense/survival > conditional utility.

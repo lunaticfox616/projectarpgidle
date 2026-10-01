@@ -45,12 +45,9 @@
     .stall-price-hint:empty { display: none; }
     .stall-counter { margin-top: 10px; padding-top: 8px; border-top: 1px solid #594931; }
     .stall-counter label,.stall-final-offer { display: block; color: #c3b7a1; font-size: 10px; margin-bottom: 6px; }
-    /* 구경 중인 손님 수(사용자 결정 2026-10-02): 걸어 다니는 띠 대신 진열대 아래 한 줄. 손님이 없으면 기다린다고 적는다. */
+    /* 구경 중인 손님 수(사용자 결정 2026-10-02): 걸어 다니는 띠 대신 진열대 아래 한 줄. 손님이 없으면 0명. */
     .stall-visitor-count { display: flex; align-items: center; gap: 8px; min-height: 34px; margin: 0; padding: 4px 10px; border: 1px solid #413729; border-top: 0; background: #17140f; color: #d8c79f; font-size: 12px; }
-    .stall-visitor-count:empty::before { content: '손님을 기다리는 중'; color: #7a6e57; }
-    .stall-visitor-faces { display: flex; gap: 2px; }
-    .stall-visitor { width: 16px; height: 24px; image-rendering: pixelated; }
-    .stall-visitor.is-buyer { filter: drop-shadow(0 0 2px #d6b46b); }
+    .stall-visitor-count:empty::after { content: '0명 구경 중'; color: #7a6e57; }
     .stall-ledger { margin-top: 16px; border-top: 1px solid #51422b; padding-top: 10px; }
     .stall-ledger > summary { color: var(--color-accent-gold); font-size: 11px; cursor: pointer; }
     .stall-sale { margin-top: 8px; padding: 10px; border: 1px solid #413729; background: #12110e; }

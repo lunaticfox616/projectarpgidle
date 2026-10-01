@@ -327,7 +327,7 @@ const playerStallUi = {
         this.paintVisitors(visible);
     },
     /** 구경 중인 손님은 몇 명인지만 한 줄로(사용자 결정 2026-10-02): 걸어 다니는 띠는 대부분 비어 자리만 차지했다.
-     * 손님마다 작은 그림 하나, 산 손님은 금빛 테. 손님이 없으면 비워 두고 CSS가 '손님을 기다리는 중'을 적는다. */
+     * 앞의 아이콘은 HUD 메뉴의 사람 아이콘(CSS). 손님이 없으면 비워 두고 CSS가 '0명 구경 중'을 적는다. */
     paintVisitors(visible) {
         const lane = document.getElementById('stall-visitors');
         if (!lane) return;
@@ -337,11 +337,7 @@ const playerStallUi = {
         lane.innerHTML = visible && this.visitors.length ? this.visitorCount() : '';
     },
     visitorCount() {
-        const faces = this.visitors.map(visitor => {
-            const customer = PLAYER_STALL_CUSTOMERS.find(row => row.name === visitor.event.customer);
-            return `<img class="stall-visitor${visitor.event.kind === 'sale' ? ' is-buyer' : ''}" src="assets/ui/stall-${customer?.art || 'guard'}.svg" alt="" draggable="false">`;
-        }).join('');
-        return `<span class="stall-visitor-faces" aria-hidden="true">${faces}</span><span>${this.visitors.length}명 구경 중</span>`;
+        return `<span class="stall-visitor-total">${this.visitors.length}명 구경 중</span>`;
     },
     saleRecord(sale) {
         const date = new Date(sale.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
