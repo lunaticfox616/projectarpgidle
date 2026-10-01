@@ -121,9 +121,13 @@ assert.deepEqual(gear, ['tutorial_first_gear']);
 // 검토 7차: 방치 결과의 "+0" 경험치는 까닭을 붙인다(레벨이 지역보다 한참 높을 때).
 const expLine = copy(`(() => {
     game.level = 95; game.currentZoneId = 0;
-    return { high: backgroundExpLine({ exp: 0, kills: 12, expLost: 0 }), none: backgroundExpLine({ exp: 0, kills: 0, expLost: 0 }), some: backgroundExpLine({ exp: 40, kills: 12, expLost: 0 }) };
+    const high = backgroundExpLine({ exp: 0, kills: 12, expLost: 0 }), one = backgroundExpLine({ exp: 1, kills: 22, expLost: 0 });
+    const none = backgroundExpLine({ exp: 0, kills: 0, expLost: 0 });
+    game.level = 1;
+    return { high, one, none, fair: backgroundExpLine({ exp: 40, kills: 12, expLost: 0 }) };
 })()`);
 assert.ok(expLine.high.includes('레벨 차이로 이 지역 경험치가 거의 없습니다'), expLine.high);
-assert.ok(!expLine.none.includes('레벨 차이') && !expLine.some.includes('레벨 차이'), 'no reason when nothing was killed or EXP was earned');
+assert.ok(expLine.one.includes('레벨 차이로'), 'a tiny total (+1) explains the gap too (review 8): ' + expLine.one);
+assert.ok(!expLine.none.includes('레벨 차이') && !expLine.fair.includes('레벨 차이'), 'no reason without kills or in a zone that fits the level');
 
 console.log('review 5 fixes smoke passed');

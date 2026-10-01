@@ -422,8 +422,10 @@ function isForegroundGameplayPausedForBackground() {
     if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
     if (actExplorationUi.departurePending()) return true;
     let overlayPause = !!game?.settings?.pauseGameOnOverlay;
+    // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
+    let tutorialOpen = isTutorialPausingCombat();
     let optionalOverlayOpen = typeof isPauseSettingOverlayOpen === 'function' && isPauseSettingOverlayOpen();
-    return isTutorialPausingCombat() || !!(overlayPause && optionalOverlayOpen);
+    return !!(overlayPause && (tutorialOpen || optionalOverlayOpen));
 }
 
 function isBackgroundCombatEligible(state) {
@@ -657,13 +659,14 @@ function backgroundExpLine(summary) {
     const lossNote = lost > 0 ? ` <span class="background-combat-exp-lost">(잃은 경험치 -${formatNumberKR(lost)})</span>` : '';
     return `총 경험치: <strong>+${formatNumberKR(summary.exp)}</strong>${lossNote}${backgroundNoExpReason(summary)}`;
 }
-/** 처치했는데 경험치가 0이면 까닭을 붙인다: 레벨이 지역보다 높을수록 경험치가 줄어, 한참 높으면 처치당 0이 된다
- * (검토 7차 — 까닭 없는 "+0"). */
+/** 레벨이 지역보다 높아 경험치가 크게 줄었으면 까닭을 붙인다: 레벨 차이가 클수록 줄어, 한참 높으면 처치당 0이 된다
+ * (검토 7차 "+0", 8차 "+1" — 합계가 딱 0일 때만 붙였다). 절반 밑으로 줄었을 때 적는다. */
+const BACKGROUND_EXP_NOTE_BELOW = 0.5;
 function backgroundNoExpReason(summary) {
-    if ((Number(summary.exp) || 0) > 0 || !((Number(summary.kills) || 0) > 0)) return '';
+    if (!((Number(summary.kills) || 0) > 0)) return '';
     const zone = getZone(game.currentZoneId);
     const rate = levelProgression.rewardMultiplier(zone, { level: levelProgression.areaLevel(zone) }, game.level, 'experience');
-    if (rate >= 1) return '';
+    if (rate >= BACKGROUND_EXP_NOTE_BELOW) return '';
     const pct = Math.round(rate * 100);
     return ` <span class="background-combat-exp-lost">(레벨 차이로 이 지역 경험치가 ${pct > 0 ? `${pct}%로 줄었습니다` : '거의 없습니다'} — 더 깊은 지역에서 오릅니다)</span>`;
 }

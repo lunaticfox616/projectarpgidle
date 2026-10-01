@@ -17,10 +17,11 @@ function normalizeAutomationSettings(settings) {
  * 겹겹이 들어가 특수 공격마다 커졌다(검토 5차: 20분 보스전에서 저장 1MB · 직렬화 실패) — 중심은 칸 좌표로 줄인다. 두 번 불러와도 같다. */
 function stripBossPatternRuntime(enemy) {
     if (!enemy || typeof enemy !== 'object') return;
+    // 다음 예고 미리보기(nextPatternState)는 영역이 없어 겹치지 않으니 그대로 둔다 — 지우면 불러온 탐험이 저장 전과 달라졌다.
     delete enemy.lastPatternState;
-    enemy.nextPatternState = null;
     const center = enemy.patternArea && enemy.patternArea.center;
-    if (center) enemy.patternArea.center = { gx: Math.floor(Number(center.gx) || 0), gy: Math.floor(Number(center.gy) || 0) };
+    const nested = center && typeof center === 'object' && ['hp', 'patternArea', 'lastPatternState'].some(key => key in center);
+    if (nested) enemy.patternArea.center = { gx: Math.floor(Number(center.gx) || 0), gy: Math.floor(Number(center.gy) || 0) };
 }
 
 const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);

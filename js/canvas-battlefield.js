@@ -2868,7 +2868,8 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillRect(0, cy - 38, width, 2);
     ctx.fillRect(0, cy + 30, width, 2);
     ctx.textAlign = 'center';
-    ctx.font = `32px ${BATTLE_TITLE_FONT}`;
+    // 좁은 화면(휴대폰)에서는 제목 글꼴의 자모가 벌어져 "잔ㄱㅏㅈㅣ"처럼 읽혔다(검토 8차) — 본문 도트 글꼴로.
+    ctx.font = width < 640 ? `26px ${BATTLE_PIXEL_FONT}` : `32px ${BATTLE_TITLE_FONT}`;
     const name = getEnemyDisplayName(banner.boss);
     const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
     const mid = Math.round(width / 2);
