@@ -146,6 +146,15 @@ const LOOP_GATE_ALT_COSMOS_PLANET_NAME = '에니프론';
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
 const ACT_LOOP_SCALE_CAP = 20;
 
+/** 몬스터 생명력 · 피해의 루프 배율(보조 콘텐츠 통합 9단계, 2026-10-02). 별쐐기 · 생장판 · 가지치기 · 전문가 · 아르카나 ·
+ * 플라스크가 빠진 힘 가운데 새 자리(부적 · 공허 소켓 · 코어 · 접붙이기 · 소켓)가 돌려주지 못한 몫을 몬스터 쪽에서 맞춘다.
+ * [루프, 배율] 사이는 직선 보간, 마지막 점 뒤로는 그 값. 루프 3(플라스크) · 7(별쐐기)부터 빠진 힘이 커졌다.
+ * 측정: docs/aux-consolidation-20260930.md 9단계. */
+const MONSTER_LOOP_POWER_SCALE = Object.freeze({
+    hp: Object.freeze([[1, 1], [3, 0.95], [7, 0.8], [10, 0.75], [25, 0.66], [50, 0.62]]),
+    damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]])
+});
+
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
@@ -302,4 +311,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
+safeExposeData({ MONSTER_LOOP_POWER_SCALE });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

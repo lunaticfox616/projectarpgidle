@@ -2715,18 +2715,19 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'impatience', name: '조급함', min: 8, max: 16, desc: v => `할당한 공허 패시브 하나당 이동 속도 +${v}%` },
     { id: 'immortalHero', name: '불멸의 영웅', fixed: 3000, desc: v => `생명력 +${Math.max(0, Math.floor(Number(v) || 0))} (획득 이후 사망 시마다 -30)` },
     { id: 'seasoned', name: '노련함', min: 4, max: 5, desc: v => `경험한 루프 1회마다 치명타 피해 배율 +${v}%` },
-    // 옛 고유 별쐐기 11종(2026-10-01). 트리를 바꾸던 변성 반경은 수치 효과로 옮겼고, 수치는 9단계(힘 균형)에서 다시 맞춘다.
+    // 옛 고유 별쐐기 11종(2026-10-01). 트리를 바꾸던 변성 반경은 수치 효과로 옮겼다. 다섯의 수치는 data/passives.js
+    // TRANSCENDENT_VOID_VALUES(9단계에서 맞춤).
     { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => `공허 패시브를 ${v}개 더 할당한 것으로 간주 (5개 확률 1/625)` },
     { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조 스킬 젬 한도 +${v}` },
     { id: 'darkMatter', name: '암흑물질', desc: () => '옵션이 한 줄인 다른 공허 패시브의 효과 +100% (초월 공허 제외)' },
     { id: 'sun', name: '태양', desc: () => '초월 직전 이 공허 패시브의 옵션을 3배로 유지' },
     { id: 'blackHole', name: '블랙홀', desc: () => '이 노드가 무료 연결 거점이 됩니다 — 시작점까지의 길을 되돌려도 이어진 패시브가 유지됩니다' },
     { id: 'andromeda', name: '안드로메다', desc: () => `이 노드 반경 ${TRANSCENDENT_ANDROMEDA_RADIUS} 안의 패시브는 길이 이어지지 않아도 할당할 수 있습니다` },
-    { id: 'comet', name: '혜성', fixed: 24, desc: v => `이동 속도 +${v}%` },
-    { id: 'asteroidBelt', name: '소행성대', min: 1, max: 2, desc: v => `이 노드 반경 ${TRANSCENDENT_ASTEROID_RADIUS} 안에 할당한 패시브 하나당 모든 피해 +${v}%` },
-    { id: 'zeroGravity', name: '무중력', min: 15, max: 25, desc: v => `회피 +${v}%` },
-    { id: 'satellite', name: '위성', min: 8, max: 12, desc: v => `공격 속도 +${v}%` },
-    { id: 'supernova', name: '초신성', min: 30, max: 50, desc: v => `다른 공허 패시브의 옵션 +${v}%` }
+    { id: 'comet', name: '혜성', ...TRANSCENDENT_VOID_VALUES.comet, desc: v => `이동 속도 +${v}%` },
+    { id: 'asteroidBelt', name: '소행성대', ...TRANSCENDENT_VOID_VALUES.asteroidBelt, desc: v => `이 노드 반경 ${TRANSCENDENT_ASTEROID_RADIUS} 안에 할당한 패시브 하나당 모든 피해 +${v}%` },
+    { id: 'zeroGravity', name: '무중력', ...TRANSCENDENT_VOID_VALUES.zeroGravity, desc: v => `회피 +${v}%` },
+    { id: 'satellite', name: '위성', ...TRANSCENDENT_VOID_VALUES.satellite, desc: v => `공격 속도 +${v}%` },
+    { id: 'supernova', name: '초신성', ...TRANSCENDENT_VOID_VALUES.supernova, desc: v => `다른 공허 패시브의 옵션 +${v}%` }
 ];
 
 /** 명왕성: 1개 80% · 2개 16% · 3개 3.2% · 4개 0.64% · 5개 0.16%(1/625). 옛 고유 별쐐기의 공허 생성 확률 그대로. */
@@ -2785,7 +2786,13 @@ function normalizeTranscendentVoidPassive(raw) {
     if (!def) return null;
     let value = Number.isFinite(Number(raw.value)) ? Number(raw.value) : (def.fixed || def.min || 0);
     let value2 = Number.isFinite(Number(raw.value2)) ? Number(raw.value2) : (def.min2 || 0);
-    return { id: def.id, value, value2 };
+    return { id: def.id, value: clampTranscendentValue(def, value), value2 };
+}
+
+/** 범위가 바뀐 옵션(9단계)은 불러올 때 새 범위로 맞춘다: 예전 범위의 낮은 값은 새 최솟값으로, 범위 안의 값은 그대로. */
+function clampTranscendentValue(def, value) {
+    if (!Number.isFinite(def.min) || !Number.isFinite(def.max)) return value;
+    return Math.min(def.max, Math.max(def.min, value));
 }
 
 function formatTranscendentVoidPassive(entry) {

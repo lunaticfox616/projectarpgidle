@@ -5751,6 +5751,24 @@ function getLoopDefenseScale(loopCount) {
     return scale;
 }
 
+/** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
+ * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
+function getMonsterLoopPowerScale(zone, kind) {
+    const inputs = getLoopDifficultyInputs(zone);
+    const loop = inputs.exempt ? Math.max(1, Math.floor(game.season || 1)) : inputs.seasonLoops + 1;
+    return interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE[kind], loop);
+}
+
+/** [[루프, 값], …] 사이를 직선으로 잇는다. 첫 점 앞은 첫 값, 마지막 점 뒤는 마지막 값. */
+function interpolateLoopCurve(points, loop) {
+    if (!Array.isArray(points) || !points.length) return 1;
+    if (loop <= points[0][0]) return points[0][1];
+    const next = points.findIndex(point => loop <= point[0]);
+    if (next < 0) return points[points.length - 1][1];
+    const [x0, y0] = points[next - 1], [x1, y1] = points[next];
+    return y0 + (y1 - y0) * (loop - x0) / (x1 - x0);
+}
+
 function getLoopHpScale(loopCount) {
     let loop = Math.max(0, loopCount || 0);
     const bands = [
@@ -5894,6 +5912,7 @@ function createEnemy(zone, marker, groupIndex) {
     hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
+    hp = Math.max(1, Math.floor(hp * getMonsterLoopPowerScale(zone, 'hp')));
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
     let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
@@ -6336,7 +6355,8 @@ function estimateMapZonePowerRequirements(zone) {
     let hp = ((56 + tier * 30) * 1.15)
         * (1 + seasonDepth * (0.08 + tierProgress * 0.52))
         * (1 + tierProgress * 9)
-        * getLoopHpScale(loopInputs.loopCount);
+        * getLoopHpScale(loopInputs.loopCount)
+        * getMonsterLoopPowerScale(zone, 'hp');
     if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
     let abyssScale = getAbyssMonsterScales(zone);
     let contentScale = resolveMapEstimateContentScale(zone);
@@ -11146,7 +11166,7 @@ function getMonsterBaseHitDamage(zone, seasonDepth, tierPressure, benchmarkProfi
     if (benchmarkProfile) dmg = Math.floor(dmg * benchmarkProfile.damage);
     else if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78 * getUnderworldEnemyDamageMultiplier(zone));
     if (zone.type === 'skyTower') dmg = Math.floor(dmg * 1.08);
-    return dmg;
+    return Math.max(1, Math.floor(dmg * getMonsterLoopPowerScale(zone, 'damage')));
 }
 
 function performMonsterAttacks(pStats) {

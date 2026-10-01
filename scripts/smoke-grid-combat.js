@@ -416,9 +416,12 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.loopCount = 30;
   const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
   const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
-  assert.ok(Math.min(...commonRivalHealth) >= 35000000 && Math.max(...commonRivalHealth) <= 80000000,
+  // 보조 콘텐츠 통합 9단계: 루프 31 빌드의 힘이 빠진 만큼 몬스터도 같은 배율로 낮췄다 — 기준 범위에 같은 배율을 곱한다.
+  const rivalHpScale = context.getMonsterLoopPowerScale(rivalZones[0], 'hp');
+  assert.ok(rivalHpScale > 0.5 && rivalHpScale < 1, 'the loop 31 benchmark uses the loop power curve');
+  assert.ok(Math.min(...commonRivalHealth) >= 35000000 * rivalHpScale && Math.max(...commonRivalHealth) <= 80000000 * rivalHpScale,
     '다섯 버려진 날은 루프 31 빌드가 즉시 처치할 수 없는 생명력을 가져야 한다');
-  assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000,
+  assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000 * rivalHpScale,
     '완성작은 선행 버려진 날보다 높은 최종 결투 생명력을 가져야 한다');
   context.game.season = 80;
   context.game.loopCount = 79;
@@ -497,9 +500,12 @@ const cfg = context.COMBAT_GRID_CONFIG;
   } finally {
     context.Math.random = originalRandom;
   }
-  assert.ok(baselineCosmosNormal.maxHp >= 4400000 && baselineCosmosNormal.maxHp <= 4500000,
+  // 보조 콘텐츠 통합 9단계의 루프 몬스터 배율을 기준 범위에 똑같이 곱한다(우주계는 루프 30 상한).
+  const cosmosHpScale = context.getMonsterLoopPowerScale(cosmosEntry, 'hp');
+  assert.ok(cosmosHpScale > 0.5 && cosmosHpScale <= 1, 'cosmos uses the loop power curve');
+  assert.ok(baselineCosmosNormal.maxHp >= 4400000 * cosmosHpScale && baselineCosmosNormal.maxHp <= 4500000 * cosmosHpScale,
     '우주계 G1 일반 몬스터는 기존 은하 난이도를 유지하면서 생명력이 보강되어야 한다');
-  assert.ok(baselineCosmosElite.maxHp >= 17000000 && baselineCosmosElite.maxHp <= 18000000,
+  assert.ok(baselineCosmosElite.maxHp >= 17000000 * cosmosHpScale && baselineCosmosElite.maxHp <= 18000000 * cosmosHpScale,
     `우주계 G1 정예는 일반보다 분명히 오래 버텨야 한다: ${JSON.stringify({hp:baselineCosmosElite.maxHp,name:baselineCosmosElite.name,ele:baselineCosmosElite.ele,trait:baselineCosmosElite.trait})}`);
   assert.ok(finalCosmosNormal.maxHp > baselineCosmosNormal.maxHp * 2,
     '뒤쪽 은하의 일반 몬스터 생명력은 G1보다 증가해야 한다');

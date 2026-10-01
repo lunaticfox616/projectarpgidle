@@ -361,4 +361,15 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
 ];
 
+/** 초월 공허 패시브 수치 가운데 옛 고유 별쐐기 자리 다섯(보조 콘텐츠 통합 9단계, 2026-10-02 측정으로 올림): 공허 소켓과
+ * 초월이 돌려주는 피해가 옛 별쐐기(+32~273%)보다 한참 적었다(+4~11%). min~max 사이에서 굴린다. */
+const TRANSCENDENT_VOID_VALUES = Object.freeze({
+    comet: Object.freeze({ fixed: 24 }),
+    asteroidBelt: Object.freeze({ min: 2, max: 3 }),
+    zeroGravity: Object.freeze({ min: 20, max: 30 }),
+    satellite: Object.freeze({ min: 10, max: 15 }),
+    supernova: Object.freeze({ min: 50, max: 80 })
+});
+
+safeExposeData({ TRANSCENDENT_VOID_VALUES });
 safeExposeData({ GEM_SKY_ENHANCEMENTS, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, TRANSCENDENT_ANDROMEDA_RADIUS, TRANSCENDENT_ASTEROID_RADIUS, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });

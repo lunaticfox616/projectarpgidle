@@ -1,5 +1,5 @@
 // 그루터기 함 접붙이기(2026-10-01, 보조 콘텐츠 통합 7단계 — 가지치기 자리, 사용자 결정 "칸 강화 5단계"):
-// 루프 18부터 루프마다 3점, 칸마다 5단계(n단계에 n점), 단계마다 그 칸에 놓인 씨앗 · 수액 · 부적 효과 +6%,
+// 루프 18부터 루프마다 3점, 칸마다 5단계(n단계에 n점), 단계마다 그 칸에 놓인 씨앗 · 수액 · 부적 효과 +10%(9단계에서 6 → 10),
 // 마름병 포자로 한 단계 되돌리기(점수 반환), 나무꾼 잠금, 저장 경계(손상 · 예산 초과), 영구 빌드 서명, 화면 조각.
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -39,14 +39,16 @@ assert.equal(ranks()[12], 5);
 assert.match(run('stumpBox.graftRaiseReason(game, 12)'), /마지막 단계/);
 assert.equal(points().spent, 15, '1 + 2 + 3 + 4 + 5');
 
-// ── 효과: 다 자란 씨앗 · 수액 값과 부적 자신의 줄이 단계마다 +6% ─────────────────────────
+// ── 효과: 다 자란 씨앗 · 수액 값과 부적 자신의 줄이 단계마다 +10% ─────────────────────────
 run(`game.stumpBox.board = game.stumpBox.board.map(() => null); game.stumpBox.items = [];
     window.grown = (spec, cell) => { const item = stumpBox.createItem(game, spec); item.xp = stumpBox.need(item); item.ripe = true;
         if (!stumpBox.place(game, item.id, cell, spec.path)) throw new Error('place ' + cell); return item.id; };
     window.sap = grown({ family: 'sap', color: 'fire', roll: 1 }, 12);
     window.plain = grown({ family: 'sap', color: 'cold', roll: 1 }, 6);`);
 const stats = json('stumpBox.evaluate(game).stats');
-assert.equal(stats.resF, 6.5, 'amber 5 × (1 + 5 × 6%) on the rank 5 cell');
+const graftPct = run('STUMP_BOX_GRAFT.pctPerRank');
+assert.equal(graftPct, 10, 'graft +10% per rank (consolidation phase 9)');
+assert.equal(stats.resF, 5 * (1 + 5 * graftPct / 100), 'amber 5 × (1 + 5 × 10%) on the rank 5 cell');
 assert.equal(stats.resC, 5, 'an ungrafted cell gives the plain value');
 run(`game.stumpBox.board[12] = null; game.stumpBox.board[18] = window.sap;`);
 assert.equal(json('stumpBox.evaluate(game).stats').resF, 5, 'the graft stays on the cell, not the item');
@@ -55,10 +57,10 @@ run(`game.stumpBox.board[18] = null; game.contentProgression.inherited.push('tal
         item.xp = STUMP_BOX_GROWTH.need.talisman; item.ripe = true; if (!stumpBox.place(game, item.id, 8)) throw new Error('place 8'); return item.id; })();`);
 assert.equal(json('talismanEffects.summarize(game).stats').pctDmg, 10);
 run('game.stumpBox.board[8] = null; game.stumpBox.board[12] = window.charm;');
-assert.ok(Math.abs(json('talismanEffects.summarize(game).stats').pctDmg - 13) < 1e-9, 'a talisman line × 1.3 on the rank 5 cell');
+assert.ok(Math.abs(json('talismanEffects.summarize(game).stats').pctDmg - 10 * (1 + 5 * graftPct / 100)) < 1e-9, 'a talisman line × 1.5 on the rank 5 cell');
 const before = run('getPlayerStats(false).dps');
 run('game.currencies.blightSpore = 1; stumpBox.graftLower(game, 12);');
-assert.ok(Math.abs(json('talismanEffects.summarize(game).stats').pctDmg - 12.4) < 1e-9);
+assert.ok(Math.abs(json('talismanEffects.summarize(game).stats').pctDmg - 10 * (1 + 4 * graftPct / 100)) < 1e-9);
 assert.ok(run('getPlayerStats(false).dps') < before, 'the real damage follows the graft');
 
 // ── 되돌리기: 마름병 포자 1개로 한 단계, 점수는 돌아온다 ─────────────────────────────────
@@ -104,7 +106,7 @@ run(`window.stumpNodes = {};
     window.stumpClick = data => stumpNode('tab-stump').onclick({ target: { closest: () => ({ dataset: data }) } });
     stumpBoxUi.refreshStumpTabNow();`);
 const part = id => run(`stumpNode('${id}').innerHTML`);
-assert.match(part('stump-box-board'), /접붙이기 1단계\(\+6%\)/, 'a grafted cell names its rank');
+assert.match(part('stump-box-board'), /접붙이기 1단계\(\+10%\)/, 'a grafted cell names its rank');
 assert.match(part('stump-box-board'), /class="stump-graft-mark"[^>]*>1</);
 assert.match(part('stump-box-summary'), /접붙이기 점수 2/);
 assert.match(part('stump-box-detail'), /빈 칸을 누르면 그 칸을 접붙입니다/);
