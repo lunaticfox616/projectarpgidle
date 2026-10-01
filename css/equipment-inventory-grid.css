@@ -531,8 +531,9 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
     :root body #item-tab-equip .equipment-inventory-panel { padding: 8px; }
     #item-tab-equip .inventory-management-row { gap: 6px; margin-bottom: 6px; padding-bottom: 0; border-bottom: 0; }
     #item-tab-equip .inventory-management-row :where(button, select) { min-height: 44px; }
-    /* 좁은 화면: 관리 버튼을 한 줄씩 쌓지 않고 두 줄 격자로 묶어 가방 격자를 첫 화면 안으로 올린다. */
-    #item-tab-equip .inventory-management-row { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: center; }
+    /* 좁은 화면: 관리 버튼을 한 줄씩 쌓지 않고 두 줄 격자로 묶어 가방 격자를 첫 화면 안으로 올린다.
+       일괄 해체는 아랫줄(빈 칸 채우기)에 맞춘다 — 가운데 맞춤이면 두 줄 사이에 떠 있었다. */
+    #item-tab-equip .inventory-management-row { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: end; }
     #item-tab-equip .inventory-management-row > .equipment-triage-host { grid-column: 1; grid-row: 1; min-width: 0; }
     #item-tab-equip .inventory-management-row > .equipment-bulk-menu { grid-column: 2; grid-row: 1; }
     #item-tab-equip .inventory-management-row .equipment-bulk-menu summary { justify-content: center; padding: 4px 6px; font-size: 12px; white-space: nowrap; }
@@ -572,7 +573,8 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
     .equipment-grid-item-badges span { padding-inline: 2px; }
 }
 
-.equipment-grid-slot-label { position: absolute; bottom: 3px; left: 0; right: 0; color: #eee5d7; font-family: inherit; font-size: 12px; line-height: 1.2; text-align: center; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* 한 칸 폭(휴대폰 35px) 아이템의 "목걸이"가 "목걸 / 이"로 갈라지지 않게 한 줄 — 양옆 2px까지 넘겨 쓴다 */
+.equipment-grid-slot-label { position: absolute; bottom: 3px; left: -2px; right: -2px; color: #eee5d7; font-family: inherit; font-size: 12px; line-height: 1.2; text-align: center; white-space: nowrap; text-shadow: 0 1px 2px #000; pointer-events: none; }
 .equipment-slot.equipment-requirements-unmet { filter: saturate(.3); }
 .equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:10px; line-height:1.4; pointer-events:none; }
 }
