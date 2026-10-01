@@ -6629,9 +6629,9 @@ function unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBl
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
     game.ascendRank = Math.max(game.ascendRank || 0, 5);
     if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_fifth_node', '5차 특화 노드', '이번 루프에 처음 피운 개화 조합으로 5차 특화 노드가 열렸습니다.\n‘스킬트리 → 전직’에서 재능·전직 특화 노드를 확인하세요.', 'tab-traits');
+        queueTutorialNotice('unlock_fifth_node', '5차 특화 노드', '이번 루프에 처음 피운 개화 조합으로 5차 특화 노드가 열렸습니다.\n‘스킬트리 → 전직’에서 재능과 전직 특화 노드를 확인하세요.', 'tab-traits');
     }
-    addLog(`[${classLabel}] 5차 특화 개방: 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
+    addLog(`[${classLabel}] 5차 특화 개방: 전직 포인트 +2, 키스톤 포인트 +1`, 'loot-unique');
     return true;
 }
 
@@ -6646,7 +6646,7 @@ function awardTalentBloomCard(comboKey, heroLabel, classLabel) {
         queueContentNotice('unlock_talent_tab', '재능 개화', 'talent', { open: '재능 개화 카드를 얻었습니다.\n‘재능’에서 가진 카드와 효과를 확인하세요.',
             locked: '재능 개화 카드를 얻었습니다.\n‘해금’에서 재능을 열면 카드와 효과를 관리할 수 있습니다.' }, 'tab-talent');
     }
-    addLog(`개화 카드 [${heroLabel} × ${classLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승' : ''}`, 'loot-unique');
+    addLog(`개화 카드 [${heroLabel} × ${classLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ', 레벨 상승' : ''}`, 'loot-unique');
     dispatchRuntimeEvent('talent-tab-refresh-requested');
 }
 
