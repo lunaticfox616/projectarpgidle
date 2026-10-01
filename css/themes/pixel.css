@@ -624,7 +624,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
     .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .skill-library-note, .gem-enhance-section-desc) { font-family: var(--font-pixel); font-size: 12px; }
 /* 단추처럼 쓰는 접힘 제목(장비 '일괄 해체', 해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
    소제목 크기(갈무리 15)라 옆 단추와 글꼴 · 크기가 달랐다(검토 4차) */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.equipment-bulk-menu, .unlock-lifetime, .unlock-related, #map-ready-destinations > details) > summary { font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.equipment-bulk-menu, .unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-stall details) > summary { font-family: var(--font-pixel); font-size: 12px; }
 /* 원정 입장 단추(벌집 입장 등)는 화면의 주 동작: 금 테 · 밝은 글(작고 흐린 단추라 눈에 띄지 않았다 — 검토 4차) */
 :root body[data-ui-skin] .map-expedition-actions > [data-exploration-departure]:not(:disabled) { padding: 9px 22px; box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 장비 창의 '필터 · 정렬' 단추는 좁은 화면에서만(아래 pixel-mobile.css) */

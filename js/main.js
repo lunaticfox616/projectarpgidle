@@ -221,9 +221,13 @@ function runGameTickOnce() {
 }
 
 function settlePlayerStall() {
+    playerStallUi.tickVisitors(Date.now());
     if (document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.snapshot
         || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || Date.now() - game.playerStall.lastAt < 15000) return;
-    if (playerStallUi.settleSales(Date.now()) > 0) pendingHeavyUiRefresh = true;
+    const stall = game.playerStall, sequence = stall.offerSequence;
+    const pending = stall.listings.filter(row => row.offer).length;
+    const paid = playerStallUi.settleSales(Date.now());
+    if (paid > 0 || sequence !== stall.offerSequence || pending !== stall.listings.filter(row => row.offer).length) pendingHeavyUiRefresh = true;
 }
 
 function refreshCombatTickUi() {

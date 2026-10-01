@@ -2,6 +2,7 @@ const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const ctx = buildGameRuntime();
+ctx.Math = Object.create(Math); ctx.Math.random = () => 0.999999;
 const run = code => vm.runInContext(code, ctx);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 const start = 1700000000000, hour = 3600000;
@@ -9,9 +10,8 @@ function fresh() {
     run(`game=mergeDefaults({season:2,contentProgression:JSON.parse(JSON.stringify(defaultGame.contentProgression))});
         contentProgression.sync(game); contentProgression.purchase('craft',game);
         playerStall.advance(game, ${start});
-        game.inventory=[createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='무기'), 'rare', 15)];
-        game.inventory[0].stats=[{id:'flatDmg',val:100,valMin:50,valMax:100,tier:15},
-            {id:'aspd',val:20,valMin:10,valMax:20,tier:15}, {id:'crit',val:10,valMin:5,valMax:10,tier:15}];
+        game.inventory=[createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='apocalypse_greatblade'), 'rare', 20,{affixTierCap:20})];
+        game.inventory[0].stats=['flatDmg','aspd','crit'].map(id=>rollAffixValueInTierRange(MOD_DB.find(mod=>mod.id===id&&mod.slots.includes('무기')),20,20));
         game.inventory[0]=normalizeItem(game.inventory[0]);`);
 }
 function list(price = 1) { return run(`playerStall.list(game,game.inventory[0].id,${price},${start}).ok`); }
@@ -54,7 +54,7 @@ assert(list());
 assert.deepStrictEqual(json('[game.inventory.length, game.playerStall.listings.length]'), [0,1], 'one exclusive escrow owner');
 assert.strictEqual(run(`playerStall.reprice(game,1,1,NaN)`), false);
 assert.strictEqual(run(`playerStall.reprice(game,1,1,${start-1})`), false, 'clock rollback cannot reset aging');
-run(`playerStall.advance(game,${start + 719999})`);
+run(`playerStall.advance(game,${start + 59999})`);
 assert.strictEqual(run('game.playerStall.proceeds'), 0, 'a minimum wait is mandatory');
 run(`playerStall.advance(game,${start + 4*hour})`);
 assert.strictEqual(run('game.playerStall.proceeds'), 1, 'an affordable item eventually sells for this saved random sequence');
@@ -148,14 +148,14 @@ fresh(); list();
 run('var stallToasts=[]; showGameToast=text=>stallToasts.push(text); game.noti.items=false');
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour})`), 1);
 assert.strictEqual(run('game.noti.items'), true, 'the 장비 menu shows a dot until opened');
-assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\] · 이슬 1개\. 장비 → 거래소 → 나의 가판대에서 수령하세요\.$/);
+assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\], 형체 없는 이슬 1개\. 장비 → 거래소 → 나의 가판대에서 수령하세요\.$/);
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour + 60000})`), 0);
 assert.strictEqual(run('stallToasts.length'), 1, 'no sale, no news');
 
 // DOM boundary: ordinary battle refreshes preserve the actual input/button nodes.
 fresh();
 let writes = 0, markup = '';
-const host = { contains: element => Boolean(element), get innerHTML() { return markup; },
+const host = { contains: element => Boolean(element), querySelectorAll: () => [], get innerHTML() { return markup; },
     set innerHTML(value) { writes++; markup=value; } };
 ctx.document.getElementById = id => id === 'market-panel-stall' ? host : null;
 ctx.document.activeElement = null;
@@ -167,5 +167,5 @@ assert.strictEqual(writes, 1, 'editing an asking price keeps the same input');
 ctx.document.activeElement = { tagName:'BUTTON' };
 run('playerStallUi.render()');
 assert.strictEqual(writes, 2, 'a previously clicked button must not freeze incoming sale updates');
-assert(markup.includes('이슬 8개'));
+assert(markup.includes('형체 없는 이슬 8'));
 console.log('player stall: appraisal, ownership, prices, timing, offline parity, payout, saves and loop protection passed');

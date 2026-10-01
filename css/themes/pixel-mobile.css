@@ -182,6 +182,8 @@
   :root body[data-ui-skin] #tab-settings .cfg-toggle { min-height: 44px; }
   :root body[data-ui-skin] #tab-settings .cfg-toggle { display: flex; align-items: center; }
   :root body[data-ui-skin] #tab-map .map-power-estimate { position: relative; padding-block: 12px; margin-block: -12px; }
+  /* 거래소 서비스 탭 넷은 한 줄로: '특수 서비스' · '나의 가판대'만 두 줄로 꺾여 높이가 들쭉날쭉했다 */
+  :root body[data-ui-skin] .market-tabs button { padding-inline: 2px; font-size: 12px; white-space: nowrap; }
   :root body[data-ui-skin] .mobile-menu-group-title { border-top: 1px solid var(--px-bronze-lo); color: var(--px-gold); font-size: 12px; text-shadow: var(--px-text-edge); }
 
   /* 휴대폰 탭 제목: 금빛 도트 제목 + 도트 밑줄 */
