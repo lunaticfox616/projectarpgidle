@@ -129,7 +129,7 @@ test('a class card shows its start gem before the pick and leaves no class toolt
     const overlay = page.locator('#loop-hero-select-overlay');
     const detail = overlay.locator('#loop-hero-select-detail');
     const start = overlay.locator('#loop-hero-select-start');
-    const gemLine = classId => page.evaluate(id => `시작 스킬 젬 · ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
+    const gemLine = classId => page.evaluate(id => `시작 스킬 젬: ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
     const started = () => page.evaluate(() => game.heroSelectionInitialized);
     if (mobile) {
         await expect(start).toBeDisabled();

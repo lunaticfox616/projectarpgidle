@@ -5237,10 +5237,10 @@ function buildHeroChoiceTooltipHtml(classId, experienced) {
     const weaponSlug = HANA_WEAPON_COMBOS.classWeapons[classId];
     const weapon = weaponSlug ? HANA_WEAPON_COMBOS.weapons[weaponSlug].label : '';
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬 · ${escapeHTML(gem)}</div>
+        <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬: ${escapeHTML(gem)}</div>
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
-        ${weapon ? `<div class="tooltip-line" style="color:#f6c461;">대표 무기 · ${escapeHTML(weapon)}</div><div class="tooltip-line">요구 능력치만 맞으면 어떤 무기든 낄 수 있고, 든 무기가 그림에 보입니다.</div>` : ''}`;
+        ${weapon ? `<div class="tooltip-line" style="color:#f6c461;">대표 무기: ${escapeHTML(weapon)}</div><div class="tooltip-line">요구 능력치만 맞으면 어떤 무기든 낄 수 있고, 든 무기가 그림에 보입니다.</div>` : ''}`;
 }
 
 /** 휴대폰 배치(1080px 이하)는 툴팁 대신 직업 확인 판(renderLoopHeroChoiceDetail)이 같은 내용을 보인다 — 탭이 마우스 진입을 흉내 내
