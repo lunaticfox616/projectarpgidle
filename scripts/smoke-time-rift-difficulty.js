@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const mapSource = fs.readFileSync('data/maps.js', 'utf8');
-const stateSource = fs.readFileSync('js/state.js', 'utf8');
+const stateSource = fs.readFileSync('js/state.js', 'utf8') + '\n' + fs.readFileSync('data/ascendancies.js', 'utf8') // 전직 정의는 2026-10-02 data로 옮겼다;
 
 const match = mapSource.match(/const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object\.freeze\((\[[^;]+\])\);/);
 assert(match, 'time-rift equivalent chaos depths must be explicit progression data');

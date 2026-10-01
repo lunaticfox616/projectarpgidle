@@ -1,4 +1,5 @@
-// 재능 개화 카드 정의 — 재능(10) × 전직(12) = 120개 (기획 엑셀 기준).
+// 재능 개화 카드 정의 — 재능(10) × 전직(18) = 180개. 처음 120개(전직 12)는 기획 엑셀 기준이고, 2026-10-02에 더한 전직 여섯의
+// 60개는 재능과 전직의 대표 능력치를 합친 능력치 카드다(수치 임시).
 // surface.desc는 기획 원문이며, 옛 surface 메타데이터는 마이그레이션 이력으로만 보존한다.
 // 실제 장착 수치와 고유 행동의 단일 계약은 TALENT_PRECISE_CARD_RULES 및 재능 런타임이 소유한다.
 const TALENT_BLOOM_CARD_DEFS = {
@@ -132,6 +133,76 @@ const TALENT_BLOOM_CARD_DEFS = {
     'hero10__catalyst': { name: "마그눔 오푸스", surface: {"desc": "점화·중독 피해 배율 +28%. 대신 점화·중독이 아닌 상태이상을 걸 수 없음", "uniq": [{"key": "igniteDamageMorePct", "perLevelParams": {"pct": 2.8}}, {"key": "poisonDamageMorePct", "perLevelParams": {"pct": 2.8}}], "runtime": {"key": "ailmentWhitelist", "allowed": ["ignite", "poison"]}}, hidden: [{"stat": "igniteChance", "lv10": 8}, {"stat": "poisonChance", "lv10": 8}] },
     'hero10__hunter': { name: "박제자", surface: {"desc": "보스 또는 정예에게 주는 피해 12% 증가. 해당 적이 상태이상에 걸려 있으면 치명타 피해 배율 +25%.", "dmg": {"perLevel": 1.2, "when": "vsBoss"}, "ops": [{"stat": "critDmg", "perLevel": 2.5}]}, hidden: [{"stat": "critDmg", "lv10": 10}] },
     'hero10__crusader': { name: "홀리 그레일", surface: {"desc": "생명력 흡수 +0.6%, 초당 생명력 재생 +1.2%, 에너지 보호막 재생속도 +20%, 에너지 보호막 재충전 시간 -0.2초. 대신 직접 피해 6% 감소.", "ops": [{"stat": "leech", "perLevel": 0.6}, {"stat": "regen", "perLevel": 1.2}, {"stat": "energyShieldPct", "perLevel": 2}, {"stat": "pctDmg", "perLevel": -0.6}]}, hidden: [{"stat": "regen", "lv10": 0.6}] },
+    // hero1 (궁수) × 2026-10-02 새 전직
+    'hero1__berserker': { name: "궁수의 광분", surface: { desc: "투사체 피해 +25%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero1__juggernaut': { name: "궁수의 파성추", surface: { desc: "투사체 피해 +25%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero1__bladedancer': { name: "궁수의 검무", surface: { desc: "투사체 피해 +25%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero1__stormarcher': { name: "궁수의 뇌전시", surface: { desc: "투사체 피해 +25%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero1__grovewarden': { name: "궁수의 서리이끼", surface: { desc: "투사체 피해 +25%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero1__bombardier': { name: "궁수의 폭약", surface: { desc: "투사체 피해 +25%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero2 (전사) × 2026-10-02 새 전직
+    'hero2__berserker': { name: "전사의 광분", surface: { desc: "근접 피해 +25%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero2__juggernaut': { name: "전사의 파성추", surface: { desc: "근접 피해 +25%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero2__bladedancer': { name: "전사의 검무", surface: { desc: "근접 피해 +25%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero2__stormarcher': { name: "전사의 뇌전시", surface: { desc: "근접 피해 +25%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero2__grovewarden': { name: "전사의 서리이끼", surface: { desc: "근접 피해 +25%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero2__bombardier': { name: "전사의 폭약", surface: { desc: "근접 피해 +25%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero3 (드루이드) × 2026-10-02 새 전직
+    'hero3__berserker': { name: "드루이드의 광분", surface: { desc: "원소 피해 +25%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero3__juggernaut': { name: "드루이드의 파성추", surface: { desc: "원소 피해 +25%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero3__bladedancer': { name: "드루이드의 검무", surface: { desc: "원소 피해 +25%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero3__stormarcher': { name: "드루이드의 뇌전시", surface: { desc: "원소 피해 +25%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero3__grovewarden': { name: "드루이드의 서리이끼", surface: { desc: "원소 피해 +25%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero3__bombardier': { name: "드루이드의 폭약", surface: { desc: "원소 피해 +25%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero4 (블레이드) × 2026-10-02 새 전직
+    'hero4__berserker': { name: "블레이드의 광분", surface: { desc: "치명타 피해 +30%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero4__juggernaut': { name: "블레이드의 파성추", surface: { desc: "치명타 피해 +30%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero4__bladedancer': { name: "블레이드의 검무", surface: { desc: "치명타 피해 +30%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero4__stormarcher': { name: "블레이드의 뇌전시", surface: { desc: "치명타 피해 +30%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero4__grovewarden': { name: "블레이드의 서리이끼", surface: { desc: "치명타 피해 +30%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero4__bombardier': { name: "블레이드의 폭약", surface: { desc: "치명타 피해 +30%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero5 (성기사) × 2026-10-02 새 전직
+    'hero5__berserker': { name: "성기사의 광분", surface: { desc: "방어도 +20%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero5__juggernaut': { name: "성기사의 파성추", surface: { desc: "방어도 +20%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero5__bladedancer': { name: "성기사의 검무", surface: { desc: "방어도 +20%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero5__stormarcher': { name: "성기사의 뇌전시", surface: { desc: "방어도 +20%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero5__grovewarden': { name: "성기사의 서리이끼", surface: { desc: "방어도 +20%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero5__bombardier': { name: "성기사의 폭약", surface: { desc: "방어도 +20%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero6 (저격수) × 2026-10-02 새 전직
+    'hero6__berserker': { name: "저격수의 광분", surface: { desc: "치명타 확률 +5%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero6__juggernaut': { name: "저격수의 파성추", surface: { desc: "치명타 확률 +5%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero6__bladedancer': { name: "저격수의 검무", surface: { desc: "치명타 확률 +5%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero6__stormarcher': { name: "저격수의 뇌전시", surface: { desc: "치명타 확률 +5%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero6__grovewarden': { name: "저격수의 서리이끼", surface: { desc: "치명타 확률 +5%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero6__bombardier': { name: "저격수의 폭약", surface: { desc: "치명타 확률 +5%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero7 (소환사) × 2026-10-02 새 전직
+    'hero7__berserker': { name: "소환사의 광분", surface: { desc: "소환수 피해 +25%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero7__juggernaut': { name: "소환사의 파성추", surface: { desc: "소환수 피해 +25%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero7__bladedancer': { name: "소환사의 검무", surface: { desc: "소환수 피해 +25%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero7__stormarcher': { name: "소환사의 뇌전시", surface: { desc: "소환수 피해 +25%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero7__grovewarden': { name: "소환사의 서리이끼", surface: { desc: "소환수 피해 +25%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero7__bombardier': { name: "소환사의 폭약", surface: { desc: "소환수 피해 +25%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero8 (수호자) × 2026-10-02 새 전직
+    'hero8__berserker': { name: "수호자의 광분", surface: { desc: "최대 생명력 +10%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero8__juggernaut': { name: "수호자의 파성추", surface: { desc: "최대 생명력 +10%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero8__bladedancer': { name: "수호자의 검무", surface: { desc: "최대 생명력 +10%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero8__stormarcher': { name: "수호자의 뇌전시", surface: { desc: "최대 생명력 +10%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero8__grovewarden': { name: "수호자의 서리이끼", surface: { desc: "최대 생명력 +10%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero8__bombardier': { name: "수호자의 폭약", surface: { desc: "최대 생명력 +10%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero9 (원소술사) × 2026-10-02 새 전직
+    'hero9__berserker': { name: "원소술사의 광분", surface: { desc: "저항 관통 +6%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero9__juggernaut': { name: "원소술사의 파성추", surface: { desc: "저항 관통 +6%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero9__bladedancer': { name: "원소술사의 검무", surface: { desc: "저항 관통 +6%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero9__stormarcher': { name: "원소술사의 뇌전시", surface: { desc: "저항 관통 +6%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero9__grovewarden': { name: "원소술사의 서리이끼", surface: { desc: "저항 관통 +6%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero9__bombardier': { name: "원소술사의 폭약", surface: { desc: "저항 관통 +6%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
+    // hero10 (연금술사) × 2026-10-02 새 전직
+    'hero10__berserker': { name: "연금술사의 광분", surface: { desc: "지속 피해 배율 +25%, 공격 속도 +8%" }, hidden: [{"stat":"leech","lv10":0.3}] },
+    'hero10__juggernaut': { name: "연금술사의 파성추", surface: { desc: "지속 피해 배율 +25%, 강타 피해 +30%" }, hidden: [{"stat":"armorPct","lv10":6}] },
+    'hero10__bladedancer': { name: "연금술사의 검무", surface: { desc: "지속 피해 배율 +25%, 회피 +15%" }, hidden: [{"stat":"aspd","lv10":3}] },
+    'hero10__stormarcher': { name: "연금술사의 뇌전시", surface: { desc: "지속 피해 배율 +25%, 번개 피해 +30%" }, hidden: [{"stat":"move","lv10":3}] },
+    'hero10__grovewarden': { name: "연금술사의 서리이끼", surface: { desc: "지속 피해 배율 +25%, 냉기 피해 +30%" }, hidden: [{"stat":"regen","lv10":0.3}] },
+    'hero10__bombardier': { name: "연금술사의 폭약", surface: { desc: "지속 피해 배율 +25%, 포션 스킬 피해 +30%" }, hidden: [{"stat":"aoePctDmg","lv10":6}] },
 };
 
 // 표면 효과의 실제 전투 계약. 기존 surface.ops/dmg/uniq는 초기 프로토타입 수치이므로
@@ -270,6 +341,76 @@ const TALENT_PRECISE_CARD_RULES = Object.freeze({
     'hero10__soulbinder': { mechanic: 'potionSupplier', stats: { regen: 2.5, summonHpPct: 15 } },
     'hero10__catalyst': { mechanic: 'magnumOpus', uniques: [{ key: 'igniteDamageMorePct', params: { pct: 28 } }, { key: 'poisonDamageMorePct', params: { pct: 28 } }] },
     'hero10__hunter': { mechanic: 'taxidermist' },
-    'hero10__crusader': { mechanic: 'holyGrail', stats: { leech: 0.6, regen: 1.2 } }
+    'hero10__crusader': { mechanic: 'holyGrail', stats: { leech: 0.6, regen: 1.2 } },
+    // hero1 (궁수) × 2026-10-02 새 전직
+    'hero1__berserker': { mechanic: 'statCard', stats: { projectilePctDmg: 25, aspd: 8 } },
+    'hero1__juggernaut': { mechanic: 'statCard', stats: { projectilePctDmg: 25, slamPctDmg: 30 } },
+    'hero1__bladedancer': { mechanic: 'statCard', stats: { projectilePctDmg: 25, evasionPct: 15 } },
+    'hero1__stormarcher': { mechanic: 'statCard', stats: { projectilePctDmg: 25, lightPctDmg: 30 } },
+    'hero1__grovewarden': { mechanic: 'statCard', stats: { projectilePctDmg: 25, coldPctDmg: 30 } },
+    'hero1__bombardier': { mechanic: 'statCard', stats: { projectilePctDmg: 25, potionPctDmg: 30 } },
+    // hero2 (전사) × 2026-10-02 새 전직
+    'hero2__berserker': { mechanic: 'statCard', stats: { meleePctDmg: 25, aspd: 8 } },
+    'hero2__juggernaut': { mechanic: 'statCard', stats: { meleePctDmg: 25, slamPctDmg: 30 } },
+    'hero2__bladedancer': { mechanic: 'statCard', stats: { meleePctDmg: 25, evasionPct: 15 } },
+    'hero2__stormarcher': { mechanic: 'statCard', stats: { meleePctDmg: 25, lightPctDmg: 30 } },
+    'hero2__grovewarden': { mechanic: 'statCard', stats: { meleePctDmg: 25, coldPctDmg: 30 } },
+    'hero2__bombardier': { mechanic: 'statCard', stats: { meleePctDmg: 25, potionPctDmg: 30 } },
+    // hero3 (드루이드) × 2026-10-02 새 전직
+    'hero3__berserker': { mechanic: 'statCard', stats: { elementalPctDmg: 25, aspd: 8 } },
+    'hero3__juggernaut': { mechanic: 'statCard', stats: { elementalPctDmg: 25, slamPctDmg: 30 } },
+    'hero3__bladedancer': { mechanic: 'statCard', stats: { elementalPctDmg: 25, evasionPct: 15 } },
+    'hero3__stormarcher': { mechanic: 'statCard', stats: { elementalPctDmg: 25, lightPctDmg: 30 } },
+    'hero3__grovewarden': { mechanic: 'statCard', stats: { elementalPctDmg: 25, coldPctDmg: 30 } },
+    'hero3__bombardier': { mechanic: 'statCard', stats: { elementalPctDmg: 25, potionPctDmg: 30 } },
+    // hero4 (블레이드) × 2026-10-02 새 전직
+    'hero4__berserker': { mechanic: 'statCard', stats: { critDmg: 30, aspd: 8 } },
+    'hero4__juggernaut': { mechanic: 'statCard', stats: { critDmg: 30, slamPctDmg: 30 } },
+    'hero4__bladedancer': { mechanic: 'statCard', stats: { critDmg: 30, evasionPct: 15 } },
+    'hero4__stormarcher': { mechanic: 'statCard', stats: { critDmg: 30, lightPctDmg: 30 } },
+    'hero4__grovewarden': { mechanic: 'statCard', stats: { critDmg: 30, coldPctDmg: 30 } },
+    'hero4__bombardier': { mechanic: 'statCard', stats: { critDmg: 30, potionPctDmg: 30 } },
+    // hero5 (성기사) × 2026-10-02 새 전직
+    'hero5__berserker': { mechanic: 'statCard', stats: { armorPct: 20, aspd: 8 } },
+    'hero5__juggernaut': { mechanic: 'statCard', stats: { armorPct: 20, slamPctDmg: 30 } },
+    'hero5__bladedancer': { mechanic: 'statCard', stats: { armorPct: 20, evasionPct: 15 } },
+    'hero5__stormarcher': { mechanic: 'statCard', stats: { armorPct: 20, lightPctDmg: 30 } },
+    'hero5__grovewarden': { mechanic: 'statCard', stats: { armorPct: 20, coldPctDmg: 30 } },
+    'hero5__bombardier': { mechanic: 'statCard', stats: { armorPct: 20, potionPctDmg: 30 } },
+    // hero6 (저격수) × 2026-10-02 새 전직
+    'hero6__berserker': { mechanic: 'statCard', stats: { crit: 5, aspd: 8 } },
+    'hero6__juggernaut': { mechanic: 'statCard', stats: { crit: 5, slamPctDmg: 30 } },
+    'hero6__bladedancer': { mechanic: 'statCard', stats: { crit: 5, evasionPct: 15 } },
+    'hero6__stormarcher': { mechanic: 'statCard', stats: { crit: 5, lightPctDmg: 30 } },
+    'hero6__grovewarden': { mechanic: 'statCard', stats: { crit: 5, coldPctDmg: 30 } },
+    'hero6__bombardier': { mechanic: 'statCard', stats: { crit: 5, potionPctDmg: 30 } },
+    // hero7 (소환사) × 2026-10-02 새 전직
+    'hero7__berserker': { mechanic: 'statCard', stats: { summonPctDmg: 25, aspd: 8 } },
+    'hero7__juggernaut': { mechanic: 'statCard', stats: { summonPctDmg: 25, slamPctDmg: 30 } },
+    'hero7__bladedancer': { mechanic: 'statCard', stats: { summonPctDmg: 25, evasionPct: 15 } },
+    'hero7__stormarcher': { mechanic: 'statCard', stats: { summonPctDmg: 25, lightPctDmg: 30 } },
+    'hero7__grovewarden': { mechanic: 'statCard', stats: { summonPctDmg: 25, coldPctDmg: 30 } },
+    'hero7__bombardier': { mechanic: 'statCard', stats: { summonPctDmg: 25, potionPctDmg: 30 } },
+    // hero8 (수호자) × 2026-10-02 새 전직
+    'hero8__berserker': { mechanic: 'statCard', stats: { pctHp: 10, aspd: 8 } },
+    'hero8__juggernaut': { mechanic: 'statCard', stats: { pctHp: 10, slamPctDmg: 30 } },
+    'hero8__bladedancer': { mechanic: 'statCard', stats: { pctHp: 10, evasionPct: 15 } },
+    'hero8__stormarcher': { mechanic: 'statCard', stats: { pctHp: 10, lightPctDmg: 30 } },
+    'hero8__grovewarden': { mechanic: 'statCard', stats: { pctHp: 10, coldPctDmg: 30 } },
+    'hero8__bombardier': { mechanic: 'statCard', stats: { pctHp: 10, potionPctDmg: 30 } },
+    // hero9 (원소술사) × 2026-10-02 새 전직
+    'hero9__berserker': { mechanic: 'statCard', stats: { resPen: 6, aspd: 8 } },
+    'hero9__juggernaut': { mechanic: 'statCard', stats: { resPen: 6, slamPctDmg: 30 } },
+    'hero9__bladedancer': { mechanic: 'statCard', stats: { resPen: 6, evasionPct: 15 } },
+    'hero9__stormarcher': { mechanic: 'statCard', stats: { resPen: 6, lightPctDmg: 30 } },
+    'hero9__grovewarden': { mechanic: 'statCard', stats: { resPen: 6, coldPctDmg: 30 } },
+    'hero9__bombardier': { mechanic: 'statCard', stats: { resPen: 6, potionPctDmg: 30 } },
+    // hero10 (연금술사) × 2026-10-02 새 전직
+    'hero10__berserker': { mechanic: 'statCard', stats: { dotPctDmg: 25, aspd: 8 } },
+    'hero10__juggernaut': { mechanic: 'statCard', stats: { dotPctDmg: 25, slamPctDmg: 30 } },
+    'hero10__bladedancer': { mechanic: 'statCard', stats: { dotPctDmg: 25, evasionPct: 15 } },
+    'hero10__stormarcher': { mechanic: 'statCard', stats: { dotPctDmg: 25, lightPctDmg: 30 } },
+    'hero10__grovewarden': { mechanic: 'statCard', stats: { dotPctDmg: 25, coldPctDmg: 30 } },
+    'hero10__bombardier': { mechanic: 'statCard', stats: { dotPctDmg: 25, potionPctDmg: 30 } },
 });
 if (typeof module !== 'undefined' && module.exports) { module.exports = { TALENT_BLOOM_CARD_DEFS }; }

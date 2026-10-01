@@ -34,7 +34,7 @@
     function renderFilters(owned) {
         const options = getTalentCardDimensionRows(owned).map(row => `<option value="${row.id}"${talentCardView.filterId === row.id ? ' selected' : ''}>${escapeTalentHtml(row.label)} · ${row.count}</option>`).join('');
         return `<div class="talent-mobile-filters">
-            <label>분류<select data-talent-dimension><option value="talent"${talentCardView.dimension === 'talent' ? ' selected' : ''}>재능별</option><option value="class"${talentCardView.dimension === 'class' ? ' selected' : ''}>직업별</option></select></label>
+            <label>분류<select data-talent-dimension><option value="talent"${talentCardView.dimension === 'talent' ? ' selected' : ''}>재능별</option><option value="class"${talentCardView.dimension === 'class' ? ' selected' : ''}>전직별</option></select></label>
             <label>항목<select data-talent-filter><option value="">전체</option>${options}</select></label>
             <form class="talent-mobile-search"><label>재능 검색<input type="search" data-talent-search value="${escapeHTML(search)}" placeholder="이름 · 재능 · 직업" enterkeyhint="search"></label><button type="submit">검색</button></form>
         </div>`;

@@ -1,6 +1,6 @@
 // ============================================================================
 // 재능 개화 카드 시스템 (P3)
-// 재능(10) × 직업(12) = 120종. 개화 시련 클리어로 카드를 획득/강화한다.
+// 재능(10) × 전직(18) = 180종(2026-10-02 전직 18종 개편 전 120). 개화 시련 클리어로 카드를 획득/강화한다.
 // 카드 점수는 계정 진행도(여러 무한 콘텐츠의 최고 도달 + 나무꾼 잔상 전투력)로 매겨지고,
 // 점수가 카드 레벨을 결정한다. 표면(직업 테마)·이면(재능 테마) 효과는 레벨에 비례한다.
 // 카드/조합 기록은 루프(시즌 리셋)로 초기화되지 않는다.
@@ -10,12 +10,12 @@
 // 카드 레벨 임계값(점수 기준). 점수는 "층 환산" 단위(무한 콘텐츠 최고층 합 + DPS 로그 환산).
 const TALENT_CARD_LEVEL_THRESHOLDS = [0, 20, 45, 80, 125, 180, 250, 340, 450, 600];
 const TALENT_CARD_MAX_LEVEL = TALENT_CARD_LEVEL_THRESHOLDS.length;
-const TALENT_BLOOM_TOTAL_CARDS = 120;
+const TALENT_BLOOM_TOTAL_CARDS = Object.keys(TALENT_BLOOM_CARD_DEFS).length; // 재능 10 × 전직 18 = 180(2026-10-02)
 
 // 나무꾼 잔상 전투력(최고 DPS)의 로그 환산 기준. DPS가 2배 될 때마다 +1점(층과 동일 스케일).
 const TALENT_BLOOM_DPS_BASE = 1000;
 
-// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(120개 조합 = 5차전직 1개당 표면 1 + 이면 1)에서 조회한다.
+// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(180개 조합 = 5차전직 1개당 표면 1 + 이면 1)에서 조회한다.
 function getTalentCardDef(heroId, classKey) {
     let key = makeTalentComboKey(heroId, classKey);
     if (typeof TALENT_BLOOM_CARD_DEFS !== 'undefined' && TALENT_BLOOM_CARD_DEFS[key]) return TALENT_BLOOM_CARD_DEFS[key];

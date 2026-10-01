@@ -29,7 +29,7 @@ const files = [
   'js/utils.js',
   'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
   'js/act-exploration-state.js',
-  'js/state.js',
+  'data/ascendancies.js', 'js/state.js',
   'js/combat-loot-receipts.js',
   'js/level-progression.js', 'js/combat-equipment-stats.js',
   'js/content-progression.js',

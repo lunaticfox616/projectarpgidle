@@ -35,8 +35,8 @@ vm.runInContext('game = window.game;', context);
 const defs = vm.runInContext('TALENT_BLOOM_CARD_DEFS', context);
 const rules = vm.runInContext('TALENT_PRECISE_CARD_RULES', context);
 const cardIds = Object.keys(defs);
-assert.strictEqual(cardIds.length, 120, '재능 카드 정의는 120종이어야 한다');
-assert.deepStrictEqual(Object.keys(rules), cardIds, '120개 카드 모두 같은 순서의 정밀 규칙을 가져야 한다');
+assert.strictEqual(cardIds.length, 180, '재능 카드 정의는 재능 10 × 전직 18 = 180종이어야 한다');
+assert.deepStrictEqual(Object.keys(rules), cardIds, '180개 카드 모두 같은 순서의 정밀 규칙을 가져야 한다');
 
 context.HERO_SELECTION_ORDER = ['hero1', 'hero2'];
 context.HERO_SELECTION_DEFS = { hero1: {}, hero2: {} };

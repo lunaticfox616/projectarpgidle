@@ -10508,7 +10508,7 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'none';
-        document.getElementById('ui-class-grid').innerHTML = Object.keys(CLASS_TEMPLATES).map(key => `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</span><span style="display:block;font-size:12px; color:#aaa;">${CLASS_TEMPLATES[key].desc}</span></button>`).join('');
+        document.getElementById('ui-class-grid').innerHTML = getAscendanciesForClass(game.selectedClassId).map(key => `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</span><span style="display:block;font-size:12px; color:#aaa;">${CLASS_TEMPLATES[key].desc}</span></button>`).join('');
     } else {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'block';
@@ -14241,9 +14241,11 @@ async function resetAscendNodes() { if (!assertBuildEditable()) return;
 }
 
 async function selectClass(key) {
-    if (await requestGameConfirmation(`[${CLASS_TEMPLATES[key].name}] 직업을 선택합니다.\n이번 루프에는 다시 변경할 수 없습니다.`, {
+    // 직업마다 전직 셋 중에서 고른다(2026-10-02 전직 18종).
+    if (!isAscendancyOfClass(key, game.selectedClassId)) return;
+    if (await requestGameConfirmation(`[${CLASS_TEMPLATES[key].name}] 전직을 선택합니다.\n이번 루프에는 다시 변경할 수 없습니다.`, {
         title: '전직 선택',
-        confirmLabel: '이 직업 선택'
+        confirmLabel: '이 전직 선택'
     })) {
         let previousKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones.slice() : [];
         game.ascendClass = key;

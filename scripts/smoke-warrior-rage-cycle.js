@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-const stateSource = fs.readFileSync('js/state.js', 'utf8');
+const stateSource = fs.readFileSync('js/state.js', 'utf8') + '\n' + fs.readFileSync('data/ascendancies.js', 'utf8') // 전직 정의는 2026-10-02 data로 옮겼다;
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const start = combatSource.indexOf('const WARRIOR_RAGE_STACK_MAX');
 const end = combatSource.indexOf('function clearAscendKeystoneRuntimeState', start);

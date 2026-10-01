@@ -11,9 +11,14 @@ function setTalentCardFilter(filterId) {
     renderTalentTab();
 }
 
+/** 전직을 직업 순서로(state.js getAscendancyOrder). 그 함수가 없는 좁은 실행 환경에서는 정의 순서. */
+function getTalentAscendancyOrder() {
+    return typeof getAscendancyOrder === 'function' ? getAscendancyOrder().filter(id => CLASS_TEMPLATES[id]) : Object.keys(CLASS_TEMPLATES);
+}
+
 function getTalentCardDimensionRows(owned) {
     let dimension = talentCardView.dimension;
-    let ids = dimension === 'talent' ? HERO_SELECTION_ORDER : Object.keys(CLASS_TEMPLATES);
+    let ids = dimension === 'talent' ? HERO_SELECTION_ORDER : getTalentAscendancyOrder();
     return ids.map(id => {
         let label = dimension === 'talent' ? getHeroSelectionDef(id).label : CLASS_TEMPLATES[id].name;
         let count = Object.keys(owned).filter(key => {
@@ -40,13 +45,13 @@ function getCurrentTalentBloomContext(owned) {
 
 function renderCurrentTalentBloomContext(owned) {
     let current = getCurrentTalentBloomContext(owned);
-    let state = !current.classKey ? '직업을 선택하면 조합이 확정됩니다.'
+    let state = !current.classKey ? '전직을 고르면 조합이 정해집니다.'
         : (!current.heroId ? '5차 전직 도전 시 이번 루프의 재능을 선택합니다.'
             : (current.card ? `개화 완료 · Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '5차 전직 도전 중'));
     return `<section class="talent-current-combo ${current.card ? 'unlocked' : 'locked'}">
         <div><span>개화 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
         <i aria-hidden="true">×</i>
-        <div><span>현재 직업</span><strong>${escapeTalentHtml(current.names.classLabel)}</strong></div>
+        <div><span>현재 전직</span><strong>${escapeTalentHtml(current.names.classLabel)}</strong></div>
         <div class="talent-current-result"><span>개화 조합</span><strong>${escapeTalentHtml(current.names.bloomName)}</strong><small>${state}</small></div>
     </section>`;
 }
@@ -55,8 +60,8 @@ function renderTalentCombinationStatus(owned) {
     let current = getCurrentTalentBloomContext(owned);
     let dimension = talentCardView.dimension;
     let focusId = talentCardView.filterId || (dimension === 'talent' ? (current.heroId || HERO_SELECTION_ORDER[0]) : current.classKey);
-    if (!focusId) return '<div class="talent-combo-empty">직업을 선택하면 조합 현황을 볼 수 있습니다.</div>';
-    let counterpartIds = dimension === 'talent' ? Object.keys(CLASS_TEMPLATES) : HERO_SELECTION_ORDER;
+    if (!focusId) return '<div class="talent-combo-empty">전직을 고르면 조합 현황이 보입니다.</div>';
+    let counterpartIds = dimension === 'talent' ? getTalentAscendancyOrder() : HERO_SELECTION_ORDER;
     let cells = counterpartIds.map(counterpartId => {
         let heroId = dimension === 'talent' ? focusId : counterpartId;
         let classKey = dimension === 'talent' ? counterpartId : focusId;
@@ -101,7 +106,7 @@ function renderTalentBloomNavigator(owned) {
     return `<details class="talent-bloom-navigator" data-ui-disclosure="talent-bloom-progress" open><summary><span><strong>개화 현황</strong><small>미개화 조합과 수집 진행도를 확인합니다.</small></span><b>${Object.keys(owned).length}/${TALENT_BLOOM_TOTAL_CARDS}</b></summary><div class="talent-bloom-navigator-body">
         <div class="talent-bloom-navigator-head"><div><strong>분류</strong><span>항목을 누르면 해당 조합만 모아 봅니다.</span></div><div class="talent-bloom-view-tabs">
             <button type="button" class="${talentCardView.dimension === 'talent' ? 'active' : ''}" onclick="setTalentCardView('talent')">재능별</button>
-            <button type="button" class="${talentCardView.dimension === 'class' ? 'active' : ''}" onclick="setTalentCardView('class')">직업별</button>
+            <button type="button" class="${talentCardView.dimension === 'class' ? 'active' : ''}" onclick="setTalentCardView('class')">전직별</button>
         </div></div><div class="talent-bloom-filter-grid">${chips}</div>${renderTalentCombinationStatus(owned)}</div></details>`;
 }
 
@@ -179,7 +184,7 @@ function renderTalentTab() {
     </div>`;
 
     if (ownedKeys.length === 0) {
-        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 현재 재능 × 직업 조합의 카드를 얻습니다.</div>`;
+        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 지금 재능 × 전직 조합의 카드를 얻습니다.</div>`;
         return;
     }
     // 레벨 내림차순 정렬

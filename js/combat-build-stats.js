@@ -26,6 +26,18 @@ function accumulateCombatAscendStats(bucket, nodeIds, ascendClass) {
         }
         addStatToBucket(bucket, node.stat, node.val);
     });
+    accumulateCombatKeystoneStats(bucket, game);
+}
+
+/** 능력치 줄로 동작하는 키스톤(2026-10-02에 더한 전직 여섯): 고른 키스톤과 우주계 쌍둥이 키스톤 중 hasKeystone이 참인 것. */
+function accumulateCombatKeystoneStats(bucket, owner) {
+    const ids = new Set([...(owner.ascendKeystones || []), ...(owner.cosmosTwinKeystones || [])]);
+    ids.forEach(id => {
+        if (!hasKeystone(id, owner)) return;
+        const ownerClass = getAscendKeystoneOwnerClass(id);
+        const def = ownerClass ? (CLASS_KEYSTONE_DEFS[ownerClass] || []).find(node => node.id === id) : null;
+        (def && Array.isArray(def.stats) ? def.stats : []).forEach(line => addStatToBucket(bucket, line.stat, line.val));
+    });
 }
 
 /** Investment points are converted in the same order as the final-stat calculation. */

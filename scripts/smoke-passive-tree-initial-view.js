@@ -19,7 +19,7 @@ const files = [
   'data/talent-cards.js',
   'data/endgame-progression.js',
   'js/utils.js',
-  'js/state.js',
+  'data/ascendancies.js', 'js/state.js',
   'js/passive-routing.js', 'js/passives.js',
 ];
 

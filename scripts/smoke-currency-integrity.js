@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const stateSource = fs.readFileSync('js/state.js', 'utf8');
+const stateSource = fs.readFileSync('js/state.js', 'utf8') + '\n' + fs.readFileSync('data/ascendancies.js', 'utf8') // 전직 정의는 2026-10-02 data로 옮겼다;
 const uiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 

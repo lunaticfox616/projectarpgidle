@@ -4064,148 +4064,50 @@ function scaleClassStat(statKey, baseValue, multiplier) {
     if (statKey === 'regen' || statKey === 'leech') return Math.max(0.1, Math.round(scaled * 10) / 10);
     return Math.max(1, Math.round(scaled));
 }
+/** 전직 노드(n1~n13d). 자리와 배율 · 전직마다 바꾸는 노드 · 궁극 · 핵심 · 개화 노드는 data/ascendancies.js가 정한다.
+ * 시련 4를 깨면 n11 · n12(둘 중 하나), 이번 루프에 이 전직으로 재능 개화를 했으면 n13a~d(재능 둘 · 전직 둘). */
 function getClassTreeDef(clsKey) {
-    let t = CLASS_TEMPLATES[clsKey];
-    if (!t) return {};
-    let entry1 = scaleClassStat(t.m1, getEntryStatBase(t.m1), 1.5);
-    let entry2 = scaleClassStat(t.m2, getEntryStatBase(t.m2), 1.5);
-    let entryDef = scaleClassStat(t.d, getEntryStatBase(t.d), 1.5);
-    let major1 = scaleClassStat(t.m1, getMajorStatBase(t.m1), 1.5);
-    let major2 = scaleClassStat(t.m2, getMajorStatBase(t.m2), 1.5);
-    let majorDef = scaleClassStat(t.d, getMajorStatBase(t.d), 1.5);
-    let final1 = scaleClassStat(t.m1, getMajorStatBase(t.m1), 2.2);
-    let final2 = scaleClassStat(t.m2, getMajorStatBase(t.m2), 2.2);
-    let finalDef = scaleClassStat(t.d, getMajorStatBase(t.d), 2.2);
-    let ultByClass = {
-        templar: { stat: 'resAll', val: 18 },
-        witch: { stat: 'aoePctDmg', val: 38 },
-        shadow: { stat: 'chaosPctDmg', val: 52 },
-        ranger: { stat: 'projectilePctDmg', val: 80 },
-        duelist: { stat: 'ds', val: 24 },
-        marauder: { stat: 'dr', val: 22 },
-        elementalist: { stat: 'elementalPctDmg', val: 56 },
-        assassin: { stat: 'critDmg', val: 90 },
-        berserker: { stat: 'physPctDmg', val: 60 },
-        guardian: { stat: 'armorPct', val: 28 },
-        necromancer: { stat: 'gemLevel', val: 2 }
-    };
-    let ult = ultByClass[clsKey] || { stat: 'pctDmg', val: 100 };
-    let tree = {
-        n1: { stat: t.m1, val: entry1, req: null },
-        n2: { stat: t.m2, val: entry2, req: 'n1' },
-        n3: { stat: t.d, val: entryDef, req: 'n1' },
-        n4: { stat: t.m1, val: major1, req: 'n2' },
-        n5: { stat: clsKey === 'ranger' ? 'aspd' : t.m2, val: clsKey === 'ranger' ? scaleClassStat('aspd', getMajorStatBase('aspd'), 1.55) : major2, req: ['n2', 'n3'] },
-        n6: { stat: clsKey === 'guardian' ? 'resAll' : t.d, val: clsKey === 'guardian' ? scaleClassStat('resAll', getMajorStatBase('resAll'), 1.65) : majorDef, req: 'n3' },
-        n7: { stat: t.m1, val: final1, req: 'n4' },
-        n8: { stat: t.m2, val: final2, req: 'n5' },
-        n9: { stat: t.d, val: finalDef, req: 'n6' },
-        n10: { stat: ult.stat, val: ult.val, req: ['n7', 'n8', 'n9'] }
-    };
-    if (clsKey === 'warrior') {
-        tree.n5 = { stat: 'critDmg', val: scaleClassStat('critDmg', getMajorStatBase('critDmg'), 1.15), req: ['n2', 'n3'] };
-        tree.n8 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.25), req: 'n5' };
-        tree.n10 = { stat: 'physIgnore', val: 16, req: ['n7', 'n8', 'n9'] };
-    } else if (clsKey === 'assassin') {
-        tree.n6 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.15), req: 'n3' };
-    } else if (clsKey === 'elementalist') {
-        tree.n6 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.2), req: 'n3' };
-        tree.n10 = { stat: 'resPen', val: 16, req: ['n7', 'n8', 'n9'] };
-    } else if (clsKey === 'warlock') {
-        // 워록의 지속 피해 배율(%) 노드(n2 진입 · n5 주요)에는 동일 수치의 주문 내장 피해 증가(%)를 함께 부여한다.
-        tree.n2 = { stats: [{ stat: 'dotPctDmg', val: entry2 }, { stat: 'spellFlatPct', val: entry2 }], req: 'n1' };
-        tree.n5 = { stats: [{ stat: 'dotPctDmg', val: major2 }, { stat: 'spellFlatPct', val: major2 }], req: ['n2', 'n3'] };
-        tree.n8 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.15), req: 'n5' };
-    } else if (clsKey === 'guardian') {
-        tree.n5 = { stat: 'armorPct', val: scaleClassStat('armorPct', getMajorStatBase('armorPct'), 1.6), req: ['n2', 'n3'] };
-        tree.n6 = { stat: 'resAll', val: scaleClassStat('resAll', getMajorStatBase('resAll'), 1.5), req: 'n3' };
-        tree.n8 = { stat: 'regen', val: scaleClassStat('regen', getMajorStatBase('regen'), 1.8), req: 'n5' };
-        tree.n10 = { stat: 'dr', val: 14, req: ['n7', 'n8', 'n9'] };
-    } else if (clsKey === 'inquisitor') {
-        tree.n9 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.3), req: 'n6' };
-        tree.n10 = { stat: 'resPen', val: 18, req: ['n7', 'n8', 'n9'] };
-    } else if (clsKey === 'soulbinder') {
-        tree.n1 = { stat: 'summonPctDmg', val: scaleClassStat('summonPctDmg', getEntryStatBase('summonPctDmg'), 1.5), req: null };
-        tree.n2 = { stat: 'summonHpPct', val: scaleClassStat('summonHpPct', getEntryStatBase('summonHpPct'), 1.5), req: 'n1' };
-        tree.n3 = { stat: 'summonAspd', val: scaleClassStat('summonAspd', getEntryStatBase('summonAspd'), 1.5), req: 'n1' };
-        tree.n4 = { stat: 'summonPctDmg', val: scaleClassStat('summonPctDmg', getMajorStatBase('summonPctDmg'), 1.5), req: 'n2' };
-        tree.n5 = { stat: 'summonHpPct', val: scaleClassStat('summonHpPct', getMajorStatBase('summonHpPct'), 1.5), req: ['n2', 'n3'] };
-        tree.n6 = { stat: 'summonAspd', val: scaleClassStat('summonAspd', getMajorStatBase('summonAspd'), 1.5), req: 'n3' };
-        tree.n7 = { stat: 'summonPctDmg', val: scaleClassStat('summonPctDmg', getMajorStatBase('summonPctDmg'), 2.2), req: 'n4' };
-        tree.n8 = { stat: 'summonHpPct', val: scaleClassStat('summonHpPct', getMajorStatBase('summonHpPct'), 2.2), req: 'n5' };
-        tree.n9 = { stat: 'summonAspd', val: scaleClassStat('summonAspd', getMajorStatBase('summonAspd'), 2.2), req: 'n6' };
-        tree.n10 = { stat: 'summonPctDmg', val: 100, req: ['n7', 'n8', 'n9'] };
-    } else if (clsKey === 'catalyst') {
-        tree.n1 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getEntryStatBase('dotPctDmg'), 1.5), req: null };
-        tree.n2 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getEntryStatBase('igniteDamageMultiplierPct'), 1.5), req: 'n1' };
-        tree.n3 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getEntryStatBase('poisonDamageMultiplierPct'), 1.5), req: 'n1' };
-        tree.n4 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 1.5), req: 'n2' };
-        tree.n5 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 1.5), req: ['n2', 'n3'] };
-        tree.n6 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 1.5), req: 'n3' };
-        tree.n7 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 2.2), req: 'n4' };
-        tree.n8 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 2.2), req: 'n5' };
-        tree.n9 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 2.2), req: 'n6' };
-        tree.n10 = { stat: 'dotPctDmg', val: 100, req: ['n7', 'n8', 'n9'] };
-    } else if (clsKey === 'crusader') {
-        tree.n1 = { stats: [
-            { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getEntryStatBase('physPctDmg'), 1.5) },
-            { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getEntryStatBase('lightPctDmg'), 1.5) }
-        ], req: null };
-        tree.n2 = { stat: 'armorPct', val: scaleClassStat('armorPct', getEntryStatBase('armorPct'), 1.5), req: 'n1' };
-        tree.n3 = { stat: 'resAll', val: scaleClassStat('resAll', getEntryStatBase('resAll'), 1.5), req: 'n1' };
-        tree.n4 = { stats: [
-            { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getMajorStatBase('physPctDmg'), 1.5) },
-            { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getMajorStatBase('lightPctDmg'), 1.5) }
-        ], req: 'n2' };
-        tree.n5 = { stat: 'energyShieldPct', val: scaleClassStat('energyShieldPct', getMajorStatBase('energyShieldPct'), 1.5), req: ['n2', 'n3'] };
-        tree.n6 = { stat: 'dr', val: scaleClassStat('dr', getMajorStatBase('dr'), 1.5), req: 'n3' };
-        tree.n7 = { stats: [
-            { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getMajorStatBase('physPctDmg'), 2.2) },
-            { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getMajorStatBase('lightPctDmg'), 2.2) }
-        ], req: 'n4' };
-        tree.n8 = { stat: 'armorPct', val: scaleClassStat('armorPct', getMajorStatBase('armorPct'), 2.2), req: 'n5' };
-        tree.n9 = { stat: 'resAll', val: scaleClassStat('resAll', getMajorStatBase('resAll'), 2.2), req: 'n6' };
-    }
-    if ((game.completedTrials || []).includes('trial_4')) {
-        const coreByClass = {
-            warrior: [{ stat: 'physPctDmg', val: 52 }, { stat: 'critDmg', val: 62 }],
-            gladiator: [{ stat: 'aspd', val: 22 }, { stat: 'ds', val: 40 }],
-            assassin: [{ stat: 'critDmg', val: 80 }, { stat: 'crit', val: 18 }],
-            ranger: [{ stat: 'projectilePctDmg', val: 50 }, { stat: 'move', val: 20 }],
-            elementalist: [{ stat: 'elementalPctDmg', val: 52 }, { stat: 'resPen', val: 16 }],
-            warlock: [{ stat: 'chaosPctDmg', val: 42 }, { stat: 'dotPctDmg', val: 28 }],
-            guardian: [{ stat: 'armorPct', val: 24 }, { stat: 'regen', val: 2.4 }],
-            inquisitor: [{ stat: 'suppCap', val: 1 }, { stat: 'gemLevel', val: 2 }]
-        };
-        let cores = coreByClass[clsKey] || [{ stat: 'pctDmg', val: 55 }, { stat: 'critDmg', val: 45 }];
-        tree.n11 = { stat: cores[0].stat, val: cores[0].val, req: 'n10', exclusive: 'n12' };
-        tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
-    }
-    // 5차 재능 개화 노드: 이번 루프의 5차 전직에서 확정한 재능×전직 조합으로 열린다.
-    // 선택과 효과는 해당 루프 동안 고정되며 다음 루프 시작 시 함께 초기화된다.
-    if (game.bloomedClassThisLoop === clsKey && TALENT_BLOOM_SPECIALIZATION_DEFS[game.bloomedTalentThisLoop]) {
-        const jobByClass = {
-            warrior: [{ stat: 'aspd', val: 16 }, { stat: 'dr', val: 12 }],
-            gladiator: [{ stat: 'critDmg', val: 55 }, { stat: 'evasionPct', val: 18 }],
-            assassin: [{ stat: 'move', val: 18 }, { stat: 'evasionPct', val: 20 }],
-            ranger: [{ stat: 'aspd', val: 18 }, { stat: 'critDmg', val: 55 }],
-            elementalist: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 50 }],
-            warlock: [{ stat: 'resPen', val: 14 }, { stat: 'pctHp', val: 22 }],
-            guardian: [{ stat: 'resAll', val: 14 }, { stat: 'regen', val: 2.0 }],
-            inquisitor: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 55 }],
-            soulbinder: [{ stat: 'summonPctDmg', val: 55 }, { stat: 'summonHpPct', val: 30 }],
-            catalyst: [{ stat: 'dotPctDmg', val: 55 }, { stat: 'igniteDamageMultiplierPct', val: 35 }],
-            hunter: [{ stat: 'projectilePctDmg', val: 55 }, { stat: 'aspd', val: 16 }],
-            crusader: [{ stat: 'lightPctDmg', val: 50 }, { stat: 'armorPct', val: 20 }]
-        };
-        let jobs = jobByClass[clsKey] || [{ stat: 'pctDmg', val: 40 }, { stat: 'pctHp', val: 20 }];
-        let talents = TALENT_BLOOM_SPECIALIZATION_DEFS[game.bloomedTalentThisLoop];
-        tree.n13a = { stat: talents[0].stat, val: talents[0].val, req: ['n11', 'n12'], exclusive: 'n13b' };
-        tree.n13b = { stat: talents[1].stat, val: talents[1].val, req: ['n11', 'n12'], exclusive: 'n13a' };
-        tree.n13c = { stat: jobs[0].stat, val: jobs[0].val, req: ['n11', 'n12'], exclusive: 'n13d' };
-        tree.n13d = { stat: jobs[1].stat, val: jobs[1].val, req: ['n11', 'n12'], exclusive: 'n13c' };
+    const template = CLASS_TEMPLATES[clsKey];
+    if (!template) return {};
+    const defs = ASCENDANCY_NODE_DEFS[clsKey] || {};
+    const tree = buildAscendancyBaseNodes(template, defs);
+    if ((game.completedTrials || []).includes('trial_4')) addAscendancyPairNodes(tree, ['n11', 'n12'], defs.core || ASCENDANCY_NODE_FALLBACK.core, 'n10');
+    const talents = TALENT_BLOOM_SPECIALIZATION_DEFS[game.bloomedTalentThisLoop];
+    // 5차 재능 개화 노드: 이번 루프의 5차 전직에서 확정한 재능×전직 조합으로 열린다(루프 동안 고정, 다음 루프에 초기화).
+    if (game.bloomedClassThisLoop === clsKey && talents) {
+        addAscendancyPairNodes(tree, ['n13a', 'n13b'], talents, ['n11', 'n12']);
+        addAscendancyPairNodes(tree, ['n13c', 'n13d'], defs.job || ASCENDANCY_NODE_FALLBACK.job, ['n11', 'n12']);
     }
     return tree;
+}
+
+function buildAscendancyBaseNodes(template, defs) {
+    const slots = { m1: template.m1, m2: template.m2, d: template.d, ...(defs.slots || {}) };
+    const nodes = defs.nodes || {};
+    const tree = {};
+    ASCENDANCY_NODE_LAYOUT.forEach(([id, slot, tier, mul, req]) => {
+        tree[id] = { ...resolveAscendancyNodeSpec(nodes[id] || { stat: slots[slot], tier, mul }), req };
+    });
+    tree.n10 = { ...resolveAscendancyNodeSpec(nodes.n10 || defs.ult || ASCENDANCY_NODE_FALLBACK.ult), req: ['n7', 'n8', 'n9'] };
+    return tree;
+}
+
+/** 두 노드 중 하나만 고르는 쌍(핵심 n11 · n12, 개화 n13a · n13b와 n13c · n13d). */
+function addAscendancyPairNodes(tree, ids, lines, req) {
+    tree[ids[0]] = { stat: lines[0].stat, val: lines[0].val, req, exclusive: ids[1] };
+    tree[ids[1]] = { stat: lines[1].stat, val: lines[1].val, req, exclusive: ids[0] };
+}
+
+function resolveAscendancyNodeSpec(spec) {
+    if (Array.isArray(spec.stats)) return { stats: spec.stats.map(resolveAscendancyStatLine) };
+    return resolveAscendancyStatLine(spec);
+}
+
+function resolveAscendancyStatLine(spec) {
+    if (Number.isFinite(spec.val)) return { stat: spec.stat, val: spec.val };
+    const key = spec.from || spec.stat;
+    const base = spec.tier === 'entry' ? getEntryStatBase(key) : getMajorStatBase(key);
+    return { stat: spec.stat, val: scaleClassStat(key, base, spec.mul) };
 }
 
 game = JSON.parse(JSON.stringify(defaultGame));
@@ -5336,6 +5238,7 @@ function buildHeroChoiceTooltipHtml(classId, experienced) {
     const weapon = weaponSlug ? HANA_WEAPON_COMBOS.weapons[weaponSlug].label : '';
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
         <div class="tooltip-line" style="color:#f6c461;">시작 스킬 젬 · ${escapeHTML(gem)}</div>
+        <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
         ${weapon ? `<div class="tooltip-line" style="color:#f6c461;">대표 무기 · ${escapeHTML(weapon)}</div><div class="tooltip-line">요구 능력치만 맞으면 어떤 무기든 낄 수 있고, 든 무기가 그림에 보입니다.</div>` : ''}`;
 }

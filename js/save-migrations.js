@@ -24,6 +24,29 @@ function stripBossPatternRuntime(enemy) {
     if (nested) enemy.patternArea.center = { gx: Math.floor(Number(center.gx) || 0), gy: Math.floor(Number(center.gy) || 0) };
 }
 
+/** 전직 저장 경계(2026-10-02, 전직 18종). 모르는 전직은 비우고 그 노드 · 키스톤에 쓴 포인트를 돌려준다(예전에는 검사하지 않아
+ * 전직 화면이 이름을 읽다 멈췄다). 직업과 맞지 않는 예전 저장(전직을 아무 직업이나 고르던 때)은 이번 루프만 그대로 둔다 — 전직은
+ * 루프마다 새로 고른다. 재능 개화 카드는 있는 조합만 남긴다. 두 번 불러와도 같다. */
+function normalizeAscendancySave(merged) {
+    merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
+    if (merged.ascendClass && !CLASS_TEMPLATES[merged.ascendClass]) {
+        merged.ascendPoints = Math.max(0, Math.floor(Number(merged.ascendPoints) || 0)) + merged.ascendNodes.length;
+        const keystones = Array.isArray(merged.ascendKeystones) ? merged.ascendKeystones.length : 0;
+        merged.ascendKeystonePoints = Math.max(0, Math.floor(Number(merged.ascendKeystonePoints) || 0)) + keystones;
+        merged.ascendClass = '';
+        merged.ascendNodes = [];
+        merged.ascendKeystones = [];
+    }
+    normalizeTalentCardKeys(merged);
+}
+
+function normalizeTalentCardKeys(merged) {
+    if (typeof TALENT_BLOOM_CARD_DEFS !== 'object' || !TALENT_BLOOM_CARD_DEFS) return;
+    const cards = merged.talentCards && typeof merged.talentCards === 'object' ? merged.talentCards : {};
+    merged.talentCards = Object.fromEntries(Object.entries(cards).filter(([key]) => TALENT_BLOOM_CARD_DEFS[key]));
+    if (Array.isArray(merged.talentCardLoadout)) merged.talentCardLoadout = merged.talentCardLoadout.map(key => (key && merged.talentCards[key] ? key : null));
+}
+
 const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);
 
 /** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
@@ -675,7 +698,7 @@ function mergeDefaults(save) {
             ? normalizeSkyGemEnhancementSlots(arr)
             : arr.slice(0, 5);
     });
-    merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
+    normalizeAscendancySave(merged);
     merged.bloomedClassThisLoop = CLASS_TEMPLATES[merged.bloomedClassThisLoop] ? merged.bloomedClassThisLoop : null;
     merged.bloomedTalentThisLoop = HERO_SELECTION_DEFS[merged.bloomedTalentThisLoop] ? merged.bloomedTalentThisLoop : null;
     if (merged.bloomedClassThisLoop && !merged.bloomedTalentThisLoop) merged.bloomedTalentThisLoop = merged.selectedHeroId;
@@ -1044,7 +1067,7 @@ function mergeDefaults(save) {
     if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
     normalizeLoopGateFlags(merged);
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
-    merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
+    merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 5))); // 재능 개화는 5
     normalizeSkillSlotsSave(merged);
     if (Array.isArray(merged.woodsmanBuildSnapshot?.skills)) normalizeSkillSlotsSave(merged.woodsmanBuildSnapshot);
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)

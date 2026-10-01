@@ -273,7 +273,7 @@ assert.ok(/id: 'tab-records'/.test(mainUiSource), '기록 그룹에 전적 탭�
 assert.ok(html.includes('id="tab-records"'), 'index.html에 전적 화면이 있어야 한다');
 assert.ok(html.includes('id="ui-records-body"'), '전적 본문 컨테이너가 있어야 한다');
 // 로드 순서 계약: 도메인은 state 뒤, 화면은 ui.js 뒤여야 한다.
-assert.ok(html.indexOf('js/state.js') < html.indexOf('js/records.js'), 'records.js는 state.js 뒤에 로드해야 한다');
+assert.ok(html.indexOf('data/ascendancies.js', 'js/state.js') < html.indexOf('js/records.js'), 'records.js는 state.js 뒤에 로드해야 한다');
 assert.ok(html.indexOf('js/ui.js') < html.indexOf('js/records-ui.js'), 'records-ui.js는 ui.js 뒤에 로드해야 한다');
 assert.ok(html.indexOf('js/records.js') < html.indexOf('js/records-ui.js'), '도메인이 화면보다 먼저 로드되어야 한다');
 

@@ -17,7 +17,7 @@ vm.createContext(context);
 // safeExposeGlobals 없이 순수 const로만 존재하는 값은 이렇게 해야 읽을 수 있다.
 const combinedSource = [
     'data/constants.js', 'data/maps.js', 'data/skills.js', 'data/items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js',
-    'js/utils.js', 'js/state.js', // js/state.js -> SUPPORT_GEM_DB
+    'js/utils.js', 'data/ascendancies.js', 'js/state.js', // js/state.js -> SUPPORT_GEM_DB
 ].map(file => fs.readFileSync(file, 'utf8')).join('\n;\n')
     // SUPPORT_GEM_DB는 safeExposeData/safeExposeGlobals를 거치지 않는 순수 최상위 const라
     // vm 컨텍스트 프로퍼티로 드러나지 않는다. 같은 스크립트 안에서 직접 옮겨 심는다.
