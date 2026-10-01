@@ -15,6 +15,8 @@ function accumulateCombatSeasonStats(bucket, nodeIds, levels) {
 
 /** Ascendancy nodes may contain one stat or multiple lines; keep their authored order. */
 function accumulateCombatAscendStats(bucket, nodeIds, ascendClass) {
+    // 키스톤 줄은 전직을 고르지 않았어도 우주계 쌍둥이 키스톤으로 들어올 수 있다.
+    accumulateCombatKeystoneStats(bucket, game);
     if (!ascendClass) return;
     const tree = getClassTreeDef(ascendClass);
     nodeIds.forEach(id => {
@@ -26,7 +28,6 @@ function accumulateCombatAscendStats(bucket, nodeIds, ascendClass) {
         }
         addStatToBucket(bucket, node.stat, node.val);
     });
-    accumulateCombatKeystoneStats(bucket, game);
 }
 
 /** 고른 키스톤과 우주계 쌍둥이 키스톤 중 hasKeystone이 참인 것의 정의를 하나씩 넘긴다. */
@@ -54,12 +55,25 @@ function getActiveAscendKeystoneUniqueEffects(owner = game) {
     return out;
 }
 
-/** getPlayerStats의 고유 효과 목록에 전직 키스톤(맨 앞)과 재능 개화 카드(맨 뒤)의 고유 효과를 더한다(둘 다 이 한 경로로만 들어간다).
- * 엔진의 여러 키는 나중 줄이 앞 줄을 덮으므로, 키스톤을 앞에 두어 같은 효과를 주는 고유 장비의 수치가 쓰이게 한다. */
+/** getPlayerStats의 고유 효과 목록에 전직 키스톤과 재능 개화 카드의 고유 효과를 더한다(둘 다 이 한 경로로만 들어간다).
+ * 키스톤이 쓰는 키는 같은 키가 여러 번 오면 엔진이 값마다 더 좋은 쪽으로 합치므로(mergeBetterUniqueParams) 순서는 상관없다. */
 function pushBuildKeystoneUniqueEffects(target, owner = game) {
-    target.unshift(...getActiveAscendKeystoneUniqueEffects(owner));
     const talent = typeof getActiveTalentKeystoneUniqueEffects === 'function' ? getActiveTalentKeystoneUniqueEffects() : [];
-    talent.forEach(effect => { if (effect && effect.key) target.push(effect); });
+    getActiveAscendKeystoneUniqueEffects(owner).concat(talent).forEach(effect => { if (effect && effect.key) target.push(effect); });
+}
+
+/** 작을수록 좋은 고유 효과 값(재사용 대기, 발동 최소 적 수). */
+const LOWER_IS_BETTER_UNIQUE_PARAMS = new Set(['cooldown', 'cooldownSec', 'icdSec', 'minEnemies']);
+
+/** 같은 고유 효과를 여러 곳(고유 장비, 전직 키스톤)에서 받으면 값마다 더 좋은 쪽을 쓴다. 예전에는 나중 줄이 앞 줄을 통째로 덮어
+ * 더 약한 고유 장비가 키스톤 효과를 깎았다(2026-10-02 검토). 두 값은 엔진이 기본값을 채운 숫자다. */
+function mergeBetterUniqueParams(previous, next) {
+    if (!previous) return next;
+    const merged = { ...previous };
+    Object.keys(next).forEach(name => {
+        merged[name] = LOWER_IS_BETTER_UNIQUE_PARAMS.has(name) ? Math.min(previous[name], next[name]) : Math.max(previous[name], next[name]);
+    });
+    return merged;
 }
 
 /** Investment points are converted in the same order as the final-stat calculation. */

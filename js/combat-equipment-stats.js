@@ -5,14 +5,21 @@ const combatEquipmentStats = (() => {
     // One synchronous game tick validates the build once; its helpers reuse that result.
     // It is the same tick-start snapshot the combat step already takes for player stats.
     let tickResults = null;
-    function missing(item, attributes, owner, maintaining) {
+    function missing(item, attributes, owner, maintaining, slot) {
         if (maintaining && item.legacyRequirementGrace) return [];
         const req = levelProgression.requirements(item), result = [];
         if (!item.inheritedLevelExempt && owner.level < req.level) result.push(`레벨 ${req.level}`);
         for (const [key, value] of Object.entries(req.attributes)) {
             if ((attributes[key] || 0) < value) result.push(`${getStatName(key)} ${value}`);
         }
+        const offhand = offhandWeaponRequirement(item, slot, owner);
+        if (offhand) result.push(offhand);
         return result;
+    }
+    /** 방패 칸의 무기는 쌍수 훈련 키스톤(w3, 고른 것이든 우주계 쌍둥이든)이 켜져 있을 때만 적용된다. 쌍둥이 주얼을 빼면
+     * 꺼진다(예전에는 다시 끼울 때까지 그대로 남았다, 2026-10-02 검토). */
+    function offhandWeaponRequirement(item, slot, owner) {
+        return slot === '방패' && item.slot === '무기' && typeof hasKeystone === 'function' && !hasKeystone('w3', owner) ? '쌍수 훈련 키스톤' : '';
     }
     function permanentSnapshot(owner) {
         const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [] }));
@@ -62,10 +69,10 @@ const combatEquipmentStats = (() => {
         let totals = attributes(snapshot, equipment);
         // Descending fixed point: each round only removes invalid items, so at most slot-count rounds.
         for (let round = 0; round < Object.keys(equipment).length; round++) {
-            const rejected = Object.entries(equipment).filter(([, item]) => item && missing(item, totals, owner, true).length);
+            const rejected = Object.entries(equipment).filter(([slot, item]) => item && missing(item, totals, owner, true, slot).length);
             if (!rejected.length) break;
             for (const [slot, item] of rejected) {
-                disabled[slot] = missing(item, totals, owner, true); equipment[slot] = null;
+                disabled[slot] = missing(item, totals, owner, true, slot); equipment[slot] = null;
             }
             totals = attributes(snapshot, equipment);
         }

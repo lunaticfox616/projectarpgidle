@@ -108,14 +108,87 @@ assert.deepEqual(immune.picked, [true, true], 'the picked keystone 불굴 makes 
 assert.deepEqual(immune.twin, ['immuneFreeze', 'immuneBleed'], 'a twin keystone brings its unique lines');
 assert.equal(immune.other, 0, 'a picked keystone of another ascendancy brings nothing');
 
-// 키스톤 줄은 고유 효과 목록 맨 앞에 들어간다: 나중 줄이 앞 줄을 덮는 키는 같은 효과를 주는 고유 장비의 수치가 남는다.
-const order = json(`(() => {
-    const list = [{ key: 'realmKillMoveStacks', params: { movePerStack: 10, maxStacks: 20, duration: 20, cooldownSec: 1 }, itemName: '장비' }];
-    pushBuildKeystoneUniqueEffects(list, { ascendClass: 'stormarcher', ascendKeystones: ['sa3', 'sa6'], cosmosTwinKeystones: [] });
-    return list.map(e => [e.key, e.itemName, e.params.movePerStack]);
+// 회귀(2026-10-02 검토): 같은 고유 효과를 고유 장비와 키스톤이 함께 주면 값마다 더 좋은 쪽이다. 예전에는 나중 줄이 통째로
+// 이겨서 폭군의 왕관(시체 폭발 8%, 12%)이 폭약술사 대폭발(15%, 20%)을 깎았다. 재사용 대기처럼 작을수록 좋은 값은 작은 쪽.
+const merged = json(`(() => {
+    const saved = { ...game.equipment };
+    game.equipment['투구'] = { slot: '투구', name: '시험 왕관', rarity: 'unique', stats: [], uniqueEffectKey: 'corpseExplodeOnKill', uniqueEffectParams: { chance: 8, lifePct: 12 } };
+    game.ascendClass = 'bombardier'; game.ascendKeystones = [];
+    const itemOnly = getPlayerStats(false).uniqueCorpseExplode;
+    game.ascendKeystones = ['bm1', 'bm4', 'bm7'];
+    const both = getPlayerStats(false).uniqueCorpseExplode;
+    game.equipment = saved; game.ascendClass = ''; game.ascendKeystones = []; getPlayerStats(false);
+    const ward = mergeBetterUniqueParams({ hpPct: 12, cooldown: 20 }, { hpPct: 10, cooldown: 30 });
+    const ward2 = mergeBetterUniqueParams({ hpPct: 12, cooldown: 20 }, { hpPct: 10, cooldown: 15 });
+    return { itemOnly, both, ward, ward2 };
 })()`);
-assert.deepEqual(order, [['realmKillMoveStacks', '전직 키스톤: 폭풍 걸음', 4], ['realmKillMoveStacks', '장비', 10]],
-    'the keystone line comes first, so the unique item (processed last) keeps its stronger numbers');
+assert.deepEqual(merged.itemOnly, { chance: 8, lifePct: 12 });
+assert.deepEqual(merged.both, { chance: 15, lifePct: 20 }, 'a weaker unique item no longer lowers the keystone');
+assert.deepEqual([merged.ward, merged.ward2], [{ hpPct: 12, cooldown: 20 }, { hpPct: 12, cooldown: 15 }], 'cooldowns keep the shorter one');
+const engineSource = fs.readFileSync('js/combat.js', 'utf8');
+for (const key of ['leechEfficiencyOnKill', 'lifeRecoupTakenDamage', 'realmDeathWard', 'guardianArmor', 'realmMeleeArmorAmp', 'evasionDanceOnEvade',
+    'deflectGrantShadowStealth', 'loneEvasionCounter', 'fewEnemyEvasionMore', 'projectileExtraShotChance', 'realmKillMoveStacks', 'shockTracerGreaves',
+    'realmRegenRateAndRegen', 'dragonVeinGuard', 'stackingElementalResDownOnHit', 'corpseExplodeOnKill', 'realmRiftWaveOnHit']) {
+    const line = engineSource.split('\n').find(row => row.includes(`effect.key === '${key}')`));
+    assert.ok(/= mergeBetterUniqueParams\(unique\w+, \{/.test(line), `${key}: keystone keys merge value by value in the engine`);
+}
+const keystoneKeys = new Set(Object.values(keystones).flat().flatMap(node => (node.uniques || []).map(unique => unique.key)));
+const mergedKeys = new Set(['leechEfficiencyOnKill', 'lifeRecoupTakenDamage', 'realmDeathWard', 'guardianArmor', 'realmMeleeArmorAmp', 'evasionDanceOnEvade',
+    'deflectGrantShadowStealth', 'loneEvasionCounter', 'fewEnemyEvasionMore', 'projectileExtraShotChance', 'realmKillMoveStacks', 'shockTracerGreaves',
+    'realmRegenRateAndRegen', 'dragonVeinGuard', 'stackingElementalResDownOnHit', 'corpseExplodeOnKill', 'realmRiftWaveOnHit']);
+for (const key of keystoneKeys) {
+    const line = engineSource.split('\n').find(row => row.includes(`effect.key === '${key}')`));
+    const objectAssign = /\) unique\w+ = (mergeBetterUniqueParams\()?\{/.test(line);
+    assert.ok(!objectAssign || mergedKeys.has(key), `${key}: a keystone key the engine overwrites must merge instead`);
+}
+
+// 회귀(2026-10-02 검토): 전직을 고르기 전에도 쌍둥이 키스톤의 능력치 줄이 들어간다(예전에는 노드 합산이 먼저 돌아가 빠졌다).
+const twinNoAsc = json(`(() => {
+    const ring = (slot, uniqueId) => ({ slot, name: '시험 반지', rarity: 'normal', stats: [], voidSocket: { open: true, jewel: { uniqueId, name: uniqueId, rarity: 'unique', cosmosKeystoneJewel: true, cosmosKeystone: 'bz2', stats: [] } } });
+    const saved = { ...game.equipment };
+    game.ascendClass = ''; game.ascendKeystones = []; game.cosmosTwinKeystones = [];
+    const plain = getPlayerStats(false).aspd;
+    game.equipment['반지1'] = ring('반지1', 'cbj_zubenubia_balance');
+    game.equipment['반지2'] = ring('반지2', 'cbj_zubenshamali_judgment');
+    getPlayerStats(false);
+    const twin = getPlayerStats(false).aspd;
+    game.equipment = saved; getPlayerStats(false);
+    return { plain, twin };
+})()`);
+assert.ok(twinNoAsc.twin > twinNoAsc.plain * 1.05, `a twin stat keystone works before an ascendancy is picked: ${twinNoAsc.plain} -> ${twinNoAsc.twin}`);
+
+// 회귀(2026-10-02 검토): 방패 칸의 무기는 쌍수 훈련(w3)이 켜져 있을 때만 적용된다. 쌍둥이 주얼로 받은 w3를 잃으면 꺼진다.
+const offhand = json(`(() => {
+    const saved = { ...game.equipment };
+    const weapon = () => createItemFromBase(BASE_ITEM_DB.find(base => base.slot === '무기' && base.reqTier === 1), 'normal', 1);
+    const socket = (slot, uniqueId) => { const item = createItemFromBase(BASE_ITEM_DB.find(base => base.slot === slot), 'normal', 1); item.baseStats = []; item.stats = [];
+        item.voidSocket = { open: true, jewel: { uniqueId, cosmosKeystoneJewel: true, cosmosKeystone: 'w3', stats: [] } }; return item; };
+    game.level = 100; game.ascendClass = 'berserker'; game.ascendKeystones = [];
+    game.equipment['무기'] = weapon(); game.equipment['방패'] = weapon();
+    getPlayerStats(false);
+    const without = { active: !!combatEquipmentStats.activeEquipment(game)['방패'], reason: (combatEquipmentStats.evaluate(game).disabled['방패'] || []).join(',') };
+    game.equipment['목걸이'] = socket('목걸이', 'cbj_zubenubia_balance');
+    game.equipment['허리띠'] = socket('허리띠', 'cbj_zubenshamali_judgment');
+    getPlayerStats(false); getPlayerStats(false);
+    const twin = !!combatEquipmentStats.activeEquipment(game)['방패'];
+    game.equipment['목걸이'].voidSocket.jewel = null;
+    getPlayerStats(false); getPlayerStats(false);
+    const lost = !!combatEquipmentStats.activeEquipment(game)['방패'];
+    game.ascendClass = 'warrior'; game.ascendKeystones = ['w3'];
+    getPlayerStats(false);
+    const picked = !!combatEquipmentStats.activeEquipment(game)['방패'];
+    game.equipment = saved; game.ascendClass = ''; game.ascendKeystones = []; getPlayerStats(false);
+    return { without, twin, lost, picked };
+})()`);
+assert.deepEqual(offhand.without, { active: false, reason: '쌍수 훈련 키스톤' }, 'an off-hand weapon without dual training does not count');
+assert.equal(offhand.twin, true, 'twin w3 lets the off-hand weapon count');
+assert.equal(offhand.lost, false, 'losing the twin jewel turns the off-hand weapon off again');
+assert.equal(offhand.picked, true, 'a picked w3 (warrior) keeps working');
+
+// 회귀(2026-10-02 검토): 전직 고르기 카드의 노드 줄은 실제 노드에서 뽑는다(크루세이더는 자리 규칙을 통째로 바꾼다).
+const focus = json(`Object.fromEntries(getAscendancyOrder().map(key => [key, getAscendancyNodeFocus(key)]))`);
+assert.ok(focus.crusader.includes('번개 피해') && !focus.crusader.includes('근접 피해'), `crusader: ${focus.crusader}`);
+for (const [key, labels] of Object.entries(focus)) assert.ok(labels.length >= 3 && new Set(labels).size === labels.length, `${key}: ${labels}`);
 
 // 회귀(2026-10-02): 쌍둥이 키스톤은 전직과 상관없이 켜진다. 기존 12종의 전투 코드가 전직까지 확인해서, 주얼 두 개가
 // 어쌔신 키스톤 a1(치명타 피해 +66, 치명타 확률 -6)을 줘도 글래디에이터에게는 효과가 없었다. 고른 키스톤은 여전히 그 전직일 때만.
@@ -238,4 +311,4 @@ assert.deepEqual(plan.saved, { ascendClass: 'berserker', nodes: ['n1', 'n13d'], 
 assert.equal(plan.unknown, null, 'an unknown ascendancy plan is dropped');
 assert.ok(fs.readFileSync('js/combat.js', 'utf8').includes('let clearedAscendKeystones = rememberLoopAscendancyPlan(game);'), 'the loop reset remembers the plan');
 
-console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), keystone lines before gear, twin pool, save boundary, 180 cards with 60 new unique cards, last-loop plan: OK');
+console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), merged unique values, twin stats before a pick, off-hand needs w3, pick card nodes, twin pool, save boundary, 180 cards with 60 new unique cards, last-loop plan: OK');

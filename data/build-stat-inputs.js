@@ -1,7 +1,7 @@
 // Shared persistent stat dependencies for equipment analysis and requirement evaluation.
 const BUILD_STAT_FIELDS = [
     'inventory', 'equipment', 'level', 'season', 'loopCount', 'maxZoneId',
-    'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones',
+    'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones', 'cosmosTwinKeystones',
     'passives', 'voidPassives', 'passiveAttributePreference', 'passiveAttributeChoices',
     'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
     'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'mobilitySkill', 'skills', 'supports',

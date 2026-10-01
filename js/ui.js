@@ -14269,11 +14269,23 @@ async function selectClass(key) {
     }
 }
 
-/** 전직 고르기 카드: 이름, 한 줄 설명, 노드 능력치(m1, m2, d). 이번 루프에는 바꿀 수 없으니 고를 근거를 한 줄 더 준다. */
+/** 전직 고르기 카드: 이름, 한 줄 설명, 노드 능력치. 이번 루프에는 바꿀 수 없으니 고를 근거를 한 줄 더 준다. */
+/** 노드 n1~n9가 주는 능력치 이름(처음 나온 순서, 같은 이름은 한 번, 넷까지). 자리 규칙을 통째로 바꾼 전직(크루세이더)도 실제 노드대로. */
+function getAscendancyNodeFocus(key) {
+    const tree = getClassTreeDef(key), labels = [];
+    ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9'].forEach(id => {
+        const node = tree[id];
+        (node ? (node.stats || [node]) : []).forEach(line => {
+            const label = String(getStatName(line.stat)).replace(/\s*\(%\)$/, '');
+            if (line.stat && !labels.includes(label)) labels.push(label);
+        });
+    });
+    return labels.slice(0, 4);
+}
+
 function renderAscendancyPickCard(key) {
     const template = CLASS_TEMPLATES[key];
-    const slots = { m1: template.m1, m2: template.m2, d: template.d, ...((ASCENDANCY_NODE_DEFS[key] || {}).slots || {}) };
-    const focus = [slots.m1, slots.m2, slots.d].map(stat => String(getStatName(stat)).replace(/\s*\(%\)$/, '')).join(', ');
+    const focus = getAscendancyNodeFocus(key).join(', ');
     return `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${template.name}</span><span style="display:block;font-size:12px; color:#aaa;">${template.desc}</span><span class="class-card-focus" style="display:block;font-size:12px; color:#9fd3ff; margin-top:6px;">노드: ${focus}</span></button>`;
 }
 
