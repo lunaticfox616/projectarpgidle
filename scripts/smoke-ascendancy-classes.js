@@ -1,7 +1,9 @@
-// 전직 18종(2026-10-02): 직업 6개마다 전직 3종. 직업별 전직 셋, 키스톤 구조 · id 고유, 기존 12종의 노드 값이 개편 전과 같음(지문),
-// 새 여섯의 키스톤이 능력치 줄로 실제 힘을 바꿈(고른 것 · 우주계 쌍둥이), 쌍둥이 키스톤 풀, 저장 경계, 재능 개화 카드 180종.
+// 전직 18종(2026-10-02): 직업 6개마다 전직 3종. 직업별 전직 셋, 키스톤 구조와 id 고유, 기존 12종의 노드 값이 개편 전과 같음(지문),
+// 새 여섯의 키스톤이 능력치 줄과 고유 효과 줄로 실제 힘을 바꿈(고른 것, 우주계 쌍둥이), 고유 효과 키는 전투 엔진에 있고
+// 장비보다 앞에 들어감, 쌍둥이 키스톤 풀, 저장 경계, 재능 개화 카드 180종(새 60장의 고유 효과).
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const fs = require('node:fs');
 const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const runtime = buildGameRuntime();
@@ -31,11 +33,21 @@ for (const [asc, list] of Object.entries(keystones)) {
     list.forEach(node => [node.req, ...(node.reqAny || [])].filter(Boolean).forEach(req => assert.ok(own.has(req), `${node.id} requires ${req} of ${asc}`)));
     assert.ok(list[8].fifthJobOnly, `${asc}: the ninth keystone needs the talent bloom`);
 }
-for (const asc of ['berserker', 'juggernaut', 'bladedancer', 'stormarcher', 'grovewarden', 'bombardier']) {
+// 고유 효과 키는 getPlayerStats의 고유 효과 엔진이 아는 키여야 하고, 수치는 0이 아닌 양수(엔진은 0을 기본값으로 바꾼다).
+const combatSource = fs.readFileSync('js/combat.js', 'utf8');
+const engineKnows = key => combatSource.includes(`effect.key === '${key}'`);
+const checkUniqueLine = (owner, unique) => {
+    assert.ok(engineKnows(unique.key), `${owner}: ${unique.key} is handled by the unique-effect engine`);
+    Object.entries(unique.params || {}).forEach(([name, value]) => assert.ok(Number.isFinite(value) && value > 0, `${owner}: ${unique.key}.${name} = ${value}`));
+};
+const NEW_SIX = ['berserker', 'juggernaut', 'bladedancer', 'stormarcher', 'grovewarden', 'bombardier'];
+for (const asc of NEW_SIX) {
     keystones[asc].forEach(node => {
-        assert.ok(node.desc && node.stats.length, `${node.id} has a description and stat lines`);
-        node.stats.forEach(line => assert.ok(statIds.has(line.stat) && Number.isFinite(line.val), `${node.id}: ${line.stat}`));
+        assert.ok(node.desc && (node.stats || []).length + (node.uniques || []).length > 0, `${node.id} has a description and stat or unique lines`);
+        (node.stats || []).forEach(line => assert.ok(statIds.has(line.stat) && Number.isFinite(line.val) && line.val !== 0, `${node.id}: ${line.stat}`));
+        (node.uniques || []).forEach(unique => checkUniqueLine(node.id, unique));
     });
+    assert.ok(keystones[asc].filter(node => (node.uniques || []).length).length >= 4, `${asc}: keystones 4-9 carry most of the unique effects`);
 }
 
 // 노드: 기존 12종은 개편 전 getClassTreeDef와 같은 값(지문), 새 여섯은 모든 노드가 아는 능력치의 양수 값.
@@ -79,6 +91,32 @@ assert.ok(power.picked > power.plain * 1.05, `a picked stat keystone raises DPS:
 assert.equal(power.twinAspd, 14, 'a twin stat keystone works for any ascendancy');
 assert.equal(power.otherAspd, 0, 'a picked keystone of another ascendancy does nothing');
 
+// 고유 효과 줄: 고른 키스톤(그 전직일 때)과 쌍둥이 키스톤이 실제 능력치에 닿고, 다른 전직의 고른 키스톤은 닿지 않는다.
+const immune = json(`(() => {
+    const read = () => { const s = getPlayerStats(false); return [!!s.immuneFreeze, !!s.immuneBleed]; };
+    game.ascendClass = 'juggernaut'; game.ascendKeystones = []; game.cosmosTwinKeystones = [];
+    const plain = read();
+    game.ascendKeystones = ['jg3', 'jg6'];
+    const picked = read();
+    const twin = getActiveAscendKeystoneUniqueEffects({ ascendClass: 'warrior', ascendKeystones: [], cosmosTwinKeystones: ['jg6'] }).map(e => e.key);
+    const other = getActiveAscendKeystoneUniqueEffects({ ascendClass: 'warrior', ascendKeystones: ['jg6'], cosmosTwinKeystones: [] }).length;
+    game.ascendClass = ''; game.ascendKeystones = [];
+    return { plain, picked, twin, other };
+})()`);
+assert.deepEqual(immune.plain, [false, false]);
+assert.deepEqual(immune.picked, [true, true], 'the picked keystone 불굴 makes the hero immune to freeze and bleed');
+assert.deepEqual(immune.twin, ['immuneFreeze', 'immuneBleed'], 'a twin keystone brings its unique lines');
+assert.equal(immune.other, 0, 'a picked keystone of another ascendancy brings nothing');
+
+// 키스톤 줄은 고유 효과 목록 맨 앞에 들어간다: 나중 줄이 앞 줄을 덮는 키는 같은 효과를 주는 고유 장비의 수치가 남는다.
+const order = json(`(() => {
+    const list = [{ key: 'realmKillMoveStacks', params: { movePerStack: 10, maxStacks: 20, duration: 20, cooldownSec: 1 }, itemName: '장비' }];
+    pushBuildKeystoneUniqueEffects(list, { ascendClass: 'stormarcher', ascendKeystones: ['sa3', 'sa6'], cosmosTwinKeystones: [] });
+    return list.map(e => [e.key, e.itemName, e.params.movePerStack]);
+})()`);
+assert.deepEqual(order, [['realmKillMoveStacks', '전직 키스톤: 폭풍 걸음', 4], ['realmKillMoveStacks', '장비', 10]],
+    'the keystone line comes first, so the unique item (processed last) keeps its stronger numbers');
+
 // 우주계 쌍둥이 주얼은 지금 직업이 고를 수 있는 전직 셋의 키스톤만 준다.
 const twinPool = json(`(() => { const seen = new Set(); let s = 1; Math.random = () => ((s = (s * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 400; i++) seen.add(getAscendKeystoneOwnerClass(pickRandomAscendKeystoneId('archer'))); Math.random = () => 0.37; return [...seen].sort(); })()`);
@@ -112,5 +150,33 @@ const heroes = json('HERO_SELECTION_ORDER');
 for (const hero of heroes) for (const asc of all) assert.ok(cards.includes(`${hero}__${asc}`), `card ${hero}__${asc}`);
 const rule = json(`TALENT_PRECISE_CARD_RULES['hero7__grovewarden']`);
 assert.deepEqual(rule.stats, { summonPctDmg: 25, coldPctDmg: 30 });
+assert.deepEqual(rule.uniques, [{ key: 'summonEfficiencyBonus', params: { pct: 10 } }]);
 
-console.log('ascendancies: 6 classes x 3, keystones, old node values, stat keystones (picked and twin), twin pool, save boundary, 180 cards: OK');
+// 새 카드 60장: 이름이 저마다 다르고, 고유 효과 하나는 엔진이 알고 화면 라벨이 있는 키다. 카드는 고유 효과 목록 맨 뒤에
+// 들어가므로 합산, 큰 값, 켜고 끄는 키만 쓴다(나중 줄이 이기는 키면 같은 효과의 장비 수치를 덮는다).
+const COMPOSABLE = new Set(['projectileDoubleStrikePct', 'projectileTargetBonus', 'hitShockedEnemyDamageMorePct', 'warcryResonanceBelt',
+    'dsAndTargetAnyBonus', 'cosmosSpeedBurst', 'genericTakenDamageReducePct', 'underdogNonMaxRollMorePct', 'cosmosSustain', 'realmAllMaxRes',
+    'cosmosPenetration', 'igniteDamageMorePct', 'overkillSplash', 'uniqueMinDmgRoll', 'uniqueDeflectDamageReduce', 'uniqueBlockChance',
+    'uniqueTakenReduceWhen2Enemies', 'chaosTakenDamageReducePct', 'overhealCapPct', 'uniqueTakenReduceWhen1Enemy', 'instakillNormalOnHitPct',
+    'summonEfficiencyBonus', 'summonCapBonus', 'lifePctAsEnergyShield', 'immuneIgnite', 'cosmosFinalDmg', 'instantLeechAndDoubleDamage',
+    'poisonDamageMorePct', 'realmPoisonDuration']);
+const cardDefs = json('TALENT_BLOOM_CARD_DEFS');
+const cardRules = json('TALENT_PRECISE_CARD_RULES');
+const labelled = new Set(json('Object.keys(TALENT_UNIQ_LABELS)'));
+const newCards = cards.filter(id => NEW_SIX.includes(id.split('__')[1]));
+assert.equal(newCards.length, 60);
+assert.equal(new Set(newCards.map(id => cardDefs[id].name)).size, 60, 'every new card has its own name');
+for (const id of newCards) {
+    const uniques = cardRules[id].uniques || [];
+    assert.equal(uniques.length, 1, `${id}: one unique effect`);
+    checkUniqueLine(id, uniques[0]);
+    assert.ok(labelled.has(uniques[0].key), `${id}: ${uniques[0].key} has a card label`);
+    assert.ok(COMPOSABLE.has(uniques[0].key), `${id}: ${uniques[0].key} sums, takes the larger value or is on/off`);
+    assert.ok(!/[·]/.test(cardDefs[id].surface.desc), `${id}: no middle dot in the card text`);
+}
+for (const asc of NEW_SIX) {
+    const keys = newCards.filter(id => id.endsWith('__' + asc)).map(id => cardRules[id].uniques[0].key);
+    assert.equal(new Set(keys).size, 10, `${asc}: its ten cards give ten different effects`);
+}
+
+console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), keystone lines before gear, twin pool, save boundary, 180 cards with 60 new unique cards: OK');

@@ -29,15 +29,37 @@ function accumulateCombatAscendStats(bucket, nodeIds, ascendClass) {
     accumulateCombatKeystoneStats(bucket, game);
 }
 
-/** 능력치 줄로 동작하는 키스톤(2026-10-02에 더한 전직 여섯): 고른 키스톤과 우주계 쌍둥이 키스톤 중 hasKeystone이 참인 것. */
-function accumulateCombatKeystoneStats(bucket, owner) {
+/** 고른 키스톤과 우주계 쌍둥이 키스톤 중 hasKeystone이 참인 것의 정의를 하나씩 넘긴다. */
+function forEachActiveKeystoneDef(owner, visit) {
     const ids = new Set([...(owner.ascendKeystones || []), ...(owner.cosmosTwinKeystones || [])]);
     ids.forEach(id => {
         if (!hasKeystone(id, owner)) return;
         const ownerClass = getAscendKeystoneOwnerClass(id);
         const def = ownerClass ? (CLASS_KEYSTONE_DEFS[ownerClass] || []).find(node => node.id === id) : null;
-        (def && Array.isArray(def.stats) ? def.stats : []).forEach(line => addStatToBucket(bucket, line.stat, line.val));
+        if (def) visit(def);
     });
+}
+
+/** 능력치 줄(stats)로 동작하는 키스톤(2026-10-02에 더한 전직 여섯). */
+function accumulateCombatKeystoneStats(bucket, owner) {
+    forEachActiveKeystoneDef(owner, def => (Array.isArray(def.stats) ? def.stats : []).forEach(line => addStatToBucket(bucket, line.stat, line.val)));
+}
+
+/** 키스톤의 고유 효과 줄(uniques). 고유 장비, 재능 개화 카드와 같은 고유 효과 엔진 키를 쓴다. */
+function getActiveAscendKeystoneUniqueEffects(owner = game) {
+    const out = [];
+    forEachActiveKeystoneDef(owner, def => (Array.isArray(def.uniques) ? def.uniques : []).forEach(unique => {
+        out.push({ key: unique.key, params: Object.assign({}, unique.params || {}), itemName: '전직 키스톤: ' + def.name, sourceSlot: 'ascendKeystone' });
+    }));
+    return out;
+}
+
+/** getPlayerStats의 고유 효과 목록에 전직 키스톤(맨 앞)과 재능 개화 카드(맨 뒤)의 고유 효과를 더한다(둘 다 이 한 경로로만 들어간다).
+ * 엔진의 여러 키는 나중 줄이 앞 줄을 덮으므로, 키스톤을 앞에 두어 같은 효과를 주는 고유 장비의 수치가 쓰이게 한다. */
+function pushBuildKeystoneUniqueEffects(target, owner = game) {
+    target.unshift(...getActiveAscendKeystoneUniqueEffects(owner));
+    const talent = typeof getActiveTalentKeystoneUniqueEffects === 'function' ? getActiveTalentKeystoneUniqueEffects() : [];
+    talent.forEach(effect => { if (effect && effect.key) target.push(effect); });
 }
 
 /** Investment points are converted in the same order as the final-stat calculation. */

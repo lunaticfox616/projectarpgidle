@@ -63,7 +63,7 @@ function sumStat(id) {
 resetGame();
 equipCard('hero1__ranger', 1);
 const mistralText = context.getTalentCardEffectLines('hero1', 'ranger', 1).join(' ');
-assert.ok(mistralText.includes('중첩당 공격 속도 +0.4%') && mistralText.includes('[이면] 이동 속도 +0.2%'), '미스트랄 카드가 런타임 효과와 이면 효과를 구분해 표시해야 한다');
+assert.ok(mistralText.includes('중첩마다 공격 속도 +0.4%') && mistralText.includes('[이면] 이동 속도 +0.2%'), '미스트랄 카드가 런타임 효과와 이면 효과를 구분해 표시해야 한다');
 assert.strictEqual(sumStat('aspd'), 0, '미스트랄은 공격 전 상시 공격 속도를 주지 않아야 한다');
 assert.strictEqual(sumStat('move'), 0.2, '미스트랄의 이면 이동 속도는 런타임 효과와 별도로 유지되어야 한다');
 vm.runInContext('recordTalentMistralAttack()', context);
@@ -171,7 +171,7 @@ assert.strictEqual(missedTarget[0].recentHitsTaken || 0, 0, '첫 타격이 빗�
 
 resetGame();
 equipCard('hero10__catalyst', 10);
-assert.ok(context.getTalentCardEffectLines('hero10', 'catalyst', 10).join(' ').includes('적에게 점화·중독만 부여 가능'), '마그눔 오푸스 제한을 현재 적용 문구에 표시해야 한다');
+assert.ok(context.getTalentCardEffectLines('hero10', 'catalyst', 10).join(' ').includes('적에게 점화와 중독만 걸 수 있음'), '마그눔 오푸스 제한을 현재 적용 문구에 표시해야 한다');
 assert.strictEqual(context.canTalentCardApplyEnemyAilment('ignite'), true, '마그눔 오푸스는 점화를 허용해야 한다');
 assert.strictEqual(context.canTalentCardApplyEnemyAilment('poison'), true, '마그눔 오푸스는 중독을 허용해야 한다');
 assert.strictEqual(context.canTalentCardApplyEnemyAilment('freeze'), false, '마그눔 오푸스는 동결 부여를 막아야 한다');

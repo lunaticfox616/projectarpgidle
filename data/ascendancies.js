@@ -5,6 +5,8 @@ if (typeof safeExposeData !== 'function') throw new Error('data/constants.js mus
 
 /** 키스톤 능력치 줄 하나(새 전직의 키스톤은 이 줄만으로 동작한다). */
 function ascendancyStatLine(stat, val) { return { stat, val }; }
+/** 고유 효과 줄: 고유 장비, 재능 카드와 같은 고유 효과 엔진 키(js/combat.js getPlayerStats). */
+function ascendancyUniqueLine(key, params) { return params ? { key, params } : { key }; }
 /** 기준값(진입 · 주요)에 배율을 곱하는 노드. from이 있으면 그 능력치의 기준값과 배율 규칙을 쓴다. */
 function ascendancyScaledNode(stat, tier, mul, from) { return from ? { stat, tier, mul, from } : { stat, tier, mul }; }
 
@@ -164,7 +166,7 @@ const CLASS_KEYSTONE_DEFS = {
 // ── 전직 18종(2026-10-02 개편): 직업 6개마다 전직 3종 ─────────────────────────────────────────────
 // 예전에는 전직 12종을 어느 직업이든 골랐다. 이제 직업마다 셋이고, 기존 12종은 성격대로 나누고 비는 여섯 자리는
 // 그 직업의 재능 성격을 이어받아 새로 만들었다(버서커 · 저거너트 · 검무사 · 폭풍궁수 · 숲지기 · 폭약술사).
-// 새 여섯의 키스톤은 능력치 줄(stats)만으로 동작한다(전투 코드에 분기가 없다) — 수치는 임시.
+// 새 여섯의 키스톤은 능력치 줄(stats)과 고유 효과 줄(uniques)로 동작한다(전투 코드에 전직별 분기가 없다). 수치는 임시.
 const ASCENDANCIES_BY_PLAYER_CLASS = Object.freeze({
     warrior: Object.freeze(['warrior', 'berserker', 'juggernaut']),
     wanderer: Object.freeze(['gladiator', 'assassin', 'bladedancer']),
@@ -177,7 +179,7 @@ const ASCENDANCIES_BY_PLAYER_CLASS = Object.freeze({
 Object.assign(CLASS_TEMPLATES, {
     berserker: { name: '버서커', desc: '흡혈과 공격 속도로 몰아치는 광전사', m1: 'meleePctDmg', m2: 'leech', d: 'pctHp' },
     juggernaut: { name: '저거너트', desc: '강타와 두꺼운 갑주로 밀고 나가는 파성추', m1: 'slamPctDmg', m2: 'armorPct', d: 'flatHp' },
-    bladedancer: { name: '검무사', desc: '회피와 빗겨내기 속에서 빠르게 베는 검객', m1: 'aspd', m2: 'evasionPct', d: 'deflectChance' },
+    bladedancer: { name: '검무사', desc: '회피와 비껴내기 속에서 빠르게 베는 검객', m1: 'aspd', m2: 'evasionPct', d: 'deflectChance' },
     stormarcher: { name: '폭풍궁수', desc: '번개 화살로 무리를 꿰뚫는 사수', m1: 'projectilePctDmg', m2: 'lightPctDmg', d: 'move' },
     grovewarden: { name: '숲지기', desc: '서리와 독초로 적을 묶고 오래 버티는 숲의 수호자', m1: 'coldPctDmg', m2: 'poisonChance', d: 'regen' },
     bombardier: { name: '폭약술사', desc: '포션 투척과 폭발로 무리를 쓸어 내는 폭약 전문가', m1: 'potionPctDmg', m2: 'aoePctDmg', d: 'igniteChance' }
@@ -188,12 +190,12 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
         { id: 'bz1', name: '피의 갈증', desc: '흡혈 +0.6%, 근접 피해 +30%', req: null, stats: [ascendancyStatLine('leech', 0.6), ascendancyStatLine('meleePctDmg', 30)] },
         { id: 'bz2', name: '광분', desc: '공격 속도 +14%', req: null, stats: [ascendancyStatLine('aspd', 14)] },
         { id: 'bz3', name: '상처투성이', desc: '최대 생명력 +12%, 생명력 재생 +0.6%', req: null, stats: [ascendancyStatLine('pctHp', 12), ascendancyStatLine('regen', 0.6)] },
-        { id: 'bz4', name: '찢어발기기', desc: '출혈 확률 +20%, 물리 피해 +35%', req: 'bz1', stats: [ascendancyStatLine('bleedChance', 20), ascendancyStatLine('physPctDmg', 35)] },
-        { id: 'bz5', name: '멈추지 않는 칼날', desc: '연속 타격 +10%, 공격 속도 +8%', req: 'bz2', stats: [ascendancyStatLine('ds', 10), ascendancyStatLine('aspd', 8)] },
-        { id: 'bz6', name: '고통 무시', desc: '받는 피해 -6%', req: 'bz3', stats: [ascendancyStatLine('dr', 6)] },
-        { id: 'bz7', name: '피의 축제', desc: '흡혈 +0.8%, 치명타 피해 +50%', reqAny: ['bz4', 'bz5'], stats: [ascendancyStatLine('leech', 0.8), ascendancyStatLine('critDmg', 50)] },
-        { id: 'bz8', name: '광전사의 분노', desc: '근접 피해 +90%, 공격 속도 +10%', req: 'bz7', stats: [ascendancyStatLine('meleePctDmg', 90), ascendancyStatLine('aspd', 10)] },
-        { id: 'bz9', name: '불사의 광기', desc: '근접 피해 +120%, 흡혈 +1%, 최대 생명력 +10%', fifthJobOnly: true, stats: [ascendancyStatLine('meleePctDmg', 120), ascendancyStatLine('leech', 1), ascendancyStatLine('pctHp', 10)] }
+        { id: 'bz4', name: '찢어발기기', desc: '출혈 확률 +20%, 출혈 중인 적에게 주는 피해 15% 증폭', req: 'bz1', stats: [ascendancyStatLine('bleedChance', 20)], uniques: [ascendancyUniqueLine('realmBleedingEnemyDamageMore', {morePct: 15})] },
+        { id: 'bz5', name: '멈추지 않는 칼날', desc: '공격 속도 +6%, 적을 처치하면 5초 동안 흡혈 효율 50% 증가', req: 'bz2', stats: [ascendancyStatLine('aspd', 6)], uniques: [ascendancyUniqueLine('leechEfficiencyOnKill', {duration: 5, efficiencyPct: 50})] },
+        { id: 'bz6', name: '고통 무시', desc: '몬스터에게 받은 생명력 피해의 15%를 4초에 걸쳐 되찾음', req: 'bz3', uniques: [ascendancyUniqueLine('lifeRecoupTakenDamage', {pct: 15, duration: 4})] },
+        { id: 'bz7', name: '피의 축제', desc: '치명타 피해 +40%, 흡혈의 10%를 바로 회복, 6% 확률로 피해 2배', reqAny: ['bz4', 'bz5'], stats: [ascendancyStatLine('critDmg', 40)], uniques: [ascendancyUniqueLine('instantLeechAndDoubleDamage', {instantLeechPct: 10, doubleDamageChance: 6})] },
+        { id: 'bz8', name: '광전사의 분노', desc: '근접 피해 +90%, 공격 속도 +10%, 대신 물리 피해 감소 -10%', req: 'bz7', stats: [ascendancyStatLine('meleePctDmg', 90), ascendancyStatLine('aspd', 10), ascendancyStatLine('dr', -10)] },
+        { id: 'bz9', name: '불사의 광기', desc: '근접 피해 +120%, 흡혈 +1%, 최대 생명력 10%의 보호막(깨지면 30초 뒤 다시 참)', fifthJobOnly: true, stats: [ascendancyStatLine('meleePctDmg', 120), ascendancyStatLine('leech', 1)], uniques: [ascendancyUniqueLine('realmDeathWard', {hpPct: 10, cooldown: 30})] }
     ],
     juggernaut: [
         { id: 'jg1', name: '대지 가르기', desc: '강타 피해 +35%', req: null, stats: [ascendancyStatLine('slamPctDmg', 35)] },
@@ -201,54 +203,54 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
         { id: 'jg3', name: '거구', desc: '최대 생명력 +12%', req: null, stats: [ascendancyStatLine('pctHp', 12)] },
         { id: 'jg4', name: '여진', desc: '강타 메아리 확률 +15%, 강타 피해 +20%', req: 'jg1', stats: [ascendancyStatLine('slamEchoChance', 15), ascendancyStatLine('slamPctDmg', 20)] },
         { id: 'jg5', name: '방패 벽', desc: '막기 확률 +8%, 방어도 +20%', req: 'jg2', stats: [ascendancyStatLine('blockChance', 8), ascendancyStatLine('armorPct', 20)] },
-        { id: 'jg6', name: '불굴', desc: '받는 피해 -6%', req: 'jg3', stats: [ascendancyStatLine('dr', 6)] },
-        { id: 'jg7', name: '파성추', desc: '강타 피해 +60%, 범위 피해 +25%', reqAny: ['jg4', 'jg5'], stats: [ascendancyStatLine('slamPctDmg', 60), ascendancyStatLine('aoePctDmg', 25)] },
-        { id: 'jg8', name: '멈출 수 없는 진군', desc: '방어도 +40%, 최대 생명력 +15%', req: 'jg7', stats: [ascendancyStatLine('armorPct', 40), ascendancyStatLine('pctHp', 15)] },
-        { id: 'jg9', name: '거신', desc: '강타 피해 +120%, 받는 피해 -8%', fifthJobOnly: true, stats: [ascendancyStatLine('slamPctDmg', 120), ascendancyStatLine('dr', 8)] }
+        { id: 'jg6', name: '불굴', desc: '물리 피해 감소 +4%, 빙결과 출혈에 걸리지 않음', req: 'jg3', stats: [ascendancyStatLine('dr', 4)], uniques: [ascendancyUniqueLine('immuneFreeze'), ascendancyUniqueLine('immuneBleed')] },
+        { id: 'jg7', name: '파성추', desc: '강타 피해 +60%, 방어도 1000마다 물리 스킬 피해 +3%', reqAny: ['jg4', 'jg5'], stats: [ascendancyStatLine('slamPctDmg', 60)], uniques: [ascendancyUniqueLine('realmArmorToPhysicalDamage', {pctPer1000: 3})] },
+        { id: 'jg8', name: '멈출 수 없는 진군', desc: '방어도 +40%, 최대 생명력 +15%, 몬스터에게 받는 피해 6% 감소(보스 10%), 대신 이동 속도 -8%', req: 'jg7', stats: [ascendancyStatLine('armorPct', 40), ascendancyStatLine('pctHp', 15), ascendancyStatLine('move', -8)], uniques: [ascendancyUniqueLine('guardianArmor', {takenLessPct: 6, bossTakenLessPct: 10})] },
+        { id: 'jg9', name: '거신', desc: '강타 피해 +120%, 근접 타격마다 2초 동안 방어도 5% 증폭(최대 3중첩)', fifthJobOnly: true, stats: [ascendancyStatLine('slamPctDmg', 120)], uniques: [ascendancyUniqueLine('realmMeleeArmorAmp', {ampPct: 5, maxStacks: 3, duration: 2})] }
     ],
     bladedancer: [
         { id: 'bd1', name: '흐르는 칼끝', desc: '공격 속도 +12%', req: null, stats: [ascendancyStatLine('aspd', 12)] },
         { id: 'bd2', name: '잔상', desc: '회피 +20%', req: null, stats: [ascendancyStatLine('evasionPct', 20)] },
-        { id: 'bd3', name: '빗겨내기', desc: '빗겨내기 확률 +8%', req: null, stats: [ascendancyStatLine('deflectChance', 8)] },
+        { id: 'bd3', name: '비껴내기', desc: '비껴내기 확률 +8%', req: null, stats: [ascendancyStatLine('deflectChance', 8)] },
         { id: 'bd4', name: '연무', desc: '연속 타격 +8%, 치명타 확률 +3%', req: 'bd1', stats: [ascendancyStatLine('ds', 8), ascendancyStatLine('crit', 3)] },
-        { id: 'bd5', name: '바람 걸음', desc: '이동 속도 +12%, 회피 +12%', req: 'bd2', stats: [ascendancyStatLine('move', 12), ascendancyStatLine('evasionPct', 12)] },
-        { id: 'bd6', name: '흘려보내기', desc: '빗겨내기 확률 +6%, 빗겨낸 피해 감소 +10%', req: 'bd3', stats: [ascendancyStatLine('deflectChance', 6), ascendancyStatLine('deflectDamageReduce', 10)] },
-        { id: 'bd7', name: '검무', desc: '치명타 피해 +50%, 공격 속도 +8%', reqAny: ['bd4', 'bd5'], stats: [ascendancyStatLine('critDmg', 50), ascendancyStatLine('aspd', 8)] },
-        { id: 'bd8', name: '칼바람', desc: '근접 피해 +70%, 연속 타격 +10%', req: 'bd7', stats: [ascendancyStatLine('meleePctDmg', 70), ascendancyStatLine('ds', 10)] },
-        { id: 'bd9', name: '천검의 춤', desc: '공격 속도 +18%, 회피 +25%, 치명타 피해 +50%', fifthJobOnly: true, stats: [ascendancyStatLine('aspd', 18), ascendancyStatLine('evasionPct', 25), ascendancyStatLine('critDmg', 50)] }
+        { id: 'bd5', name: '바람 걸음', desc: '회피할 때마다 4초 동안 회피 +4%, 이동 속도 +2%(최대 4중첩)', req: 'bd2', uniques: [ascendancyUniqueLine('evasionDanceOnEvade', {maxStacks: 4, evasionPctPerStack: 4, movePerStack: 2, duration: 4})] },
+        { id: 'bd6', name: '흘려보내기', desc: '비껴내기 확률 +4%, 비껴내면 3초 동안 이동 속도 +15%, 회피 +15%, 치명타 피해 +15%', req: 'bd3', stats: [ascendancyStatLine('deflectChance', 4)], uniques: [ascendancyUniqueLine('deflectGrantShadowStealth', {duration: 3, move: 15, evasionPct: 15, critDmg: 15})] },
+        { id: 'bd7', name: '검무', desc: '치명타 피해 +50%, 적이 둘 이하일 때 회피하면 3초 안의 다음 공격 피해 20% 증폭', reqAny: ['bd4', 'bd5'], stats: [ascendancyStatLine('critDmg', 50)], uniques: [ascendancyUniqueLine('loneEvasionCounter', {maxEnemies: 2, damageMorePct: 20, duration: 3})] },
+        { id: 'bd8', name: '칼바람', desc: '근접 피해 +70%, 연속 타격 +10%, 공격 대상 +1, 대신 최대 생명력 -10%', req: 'bd7', stats: [ascendancyStatLine('meleePctDmg', 70), ascendancyStatLine('pctHp', -10)], uniques: [ascendancyUniqueLine('dsAndTargetAnyBonus', {ds: 10, target: 1})] },
+        { id: 'bd9', name: '천검의 춤', desc: '공격 속도 +18%, 치명타 피해 +50%, 적이 둘 이하일 때 회피 40% 증폭', fifthJobOnly: true, stats: [ascendancyStatLine('aspd', 18), ascendancyStatLine('critDmg', 50)], uniques: [ascendancyUniqueLine('fewEnemyEvasionMore', {minEnemies: 1, maxEnemies: 2, morePct: 40})] }
     ],
     stormarcher: [
         { id: 'sa1', name: '번개 화살', desc: '번개 피해 +35%', req: null, stats: [ascendancyStatLine('lightPctDmg', 35)] },
         { id: 'sa2', name: '질풍 시위', desc: '투사체 피해 +30%', req: null, stats: [ascendancyStatLine('projectilePctDmg', 30)] },
         { id: 'sa3', name: '바람 발', desc: '이동 속도 +10%', req: null, stats: [ascendancyStatLine('move', 10)] },
-        { id: 'sa4', name: '감전', desc: '감전 확률 +20%', req: 'sa1', stats: [ascendancyStatLine('shockChance', 20)] },
-        { id: 'sa5', name: '연사', desc: '공격 속도 +12%', req: 'sa2', stats: [ascendancyStatLine('aspd', 12)] },
-        { id: 'sa6', name: '폭풍 회피', desc: '회피 +18%', req: 'sa3', stats: [ascendancyStatLine('evasionPct', 18)] },
-        { id: 'sa7', name: '뇌전 폭우', desc: '감전된 적에게 주는 피해 +15%, 번개 피해 +35%', reqAny: ['sa4', 'sa5'], stats: [ascendancyStatLine('shockedEnemyHitDamageMorePct', 15), ascendancyStatLine('lightPctDmg', 35)] },
-        { id: 'sa8', name: '폭풍의 눈', desc: '투사체 피해 +70%, 저항 관통 +10%', req: 'sa7', stats: [ascendancyStatLine('projectilePctDmg', 70), ascendancyStatLine('resPen', 10)] },
-        { id: 'sa9', name: '하늘을 가르는 화살', desc: '투사체 피해 +90%, 번개 피해 +90%, 저항 관통 +8%', fifthJobOnly: true, stats: [ascendancyStatLine('projectilePctDmg', 90), ascendancyStatLine('lightPctDmg', 90), ascendancyStatLine('resPen', 8)] }
+        { id: 'sa4', name: '감전', desc: '감전 확률 +20%, 감전된 적에게 주는 피해 10% 증폭', req: 'sa1', stats: [ascendancyStatLine('shockChance', 20), ascendancyStatLine('shockedEnemyHitDamageMorePct', 10)] },
+        { id: 'sa5', name: '연사', desc: '공격 속도 +6%, 투사체 공격의 8%가 두 번 더 나감', req: 'sa2', stats: [ascendancyStatLine('aspd', 6)], uniques: [ascendancyUniqueLine('projectileExtraShotChance', {chance: 8, shots: 2})] },
+        { id: 'sa6', name: '폭풍 걸음', desc: '회피 +10%, 적을 처치하면 6초 동안 이동 속도 +4%(최대 5중첩)', req: 'sa3', stats: [ascendancyStatLine('evasionPct', 10)], uniques: [ascendancyUniqueLine('realmKillMoveStacks', {movePerStack: 4, maxStacks: 5, duration: 6, cooldownSec: 1})] },
+        { id: 'sa7', name: '뇌전 폭우', desc: '번개 피해 +35%, 감전 효과 +15%, 감전된 적을 맞히면 그 타격 피해의 250%로 한 번 더 침(0.8초마다), 감전에 걸리지 않음', reqAny: ['sa4', 'sa5'], stats: [ascendancyStatLine('lightPctDmg', 35)], uniques: [ascendancyUniqueLine('shockTracerGreaves', {shockEffectPct: 15, strikeDamagePct: 250, icdSec: 0.8})] },
+        { id: 'sa8', name: '폭풍의 눈', desc: '투사체 피해 +70%, 저항 관통 +10%, 대신 방어도 -30%', req: 'sa7', stats: [ascendancyStatLine('projectilePctDmg', 70), ascendancyStatLine('resPen', 10), ascendancyStatLine('armorPct', -30)] },
+        { id: 'sa9', name: '하늘을 가르는 화살', desc: '투사체 피해 +90%, 번개 피해 +90%, 타격마다 감전 판정을 한 번 더 함', fifthJobOnly: true, stats: [ascendancyStatLine('projectilePctDmg', 90), ascendancyStatLine('lightPctDmg', 90)], uniques: [ascendancyUniqueLine('alwaysShock')] }
     ],
     grovewarden: [
         { id: 'gw1', name: '서리 이끼', desc: '냉기 피해 +35%', req: null, stats: [ascendancyStatLine('coldPctDmg', 35)] },
         { id: 'gw2', name: '독초', desc: '중독 확률 +20%', req: null, stats: [ascendancyStatLine('poisonChance', 20)] },
         { id: 'gw3', name: '수액 재생', desc: '생명력 재생 +0.8%', req: null, stats: [ascendancyStatLine('regen', 0.8)] },
-        { id: 'gw4', name: '얼음 포자', desc: '동결 확률 +10%', req: 'gw1', stats: [ascendancyStatLine('freezeChance', 10)] },
-        { id: 'gw5', name: '맹독 수액', desc: '중독 피해 +35%', req: 'gw2', stats: [ascendancyStatLine('poisonDamageMultiplierPct', 35)] },
-        { id: 'gw6', name: '뿌리 갑주', desc: '모든 저항 +10%, 방어도 +15%', req: 'gw3', stats: [ascendancyStatLine('resAll', 10), ascendancyStatLine('armorPct', 15)] },
-        { id: 'gw7', name: '숲의 분노', desc: '원소 피해 +45%, 지속 피해 +30%', reqAny: ['gw4', 'gw5'], stats: [ascendancyStatLine('elementalPctDmg', 45), ascendancyStatLine('dotPctDmg', 30)] },
-        { id: 'gw8', name: '고목의 맹세', desc: '최대 생명력 +15%, 생명력 재생 +1%', req: 'gw7', stats: [ascendancyStatLine('pctHp', 15), ascendancyStatLine('regen', 1)] },
-        { id: 'gw9', name: '세계수의 숨결', desc: '냉기 피해 +90%, 중독 피해 +60%, 모든 저항 +12%', fifthJobOnly: true, stats: [ascendancyStatLine('coldPctDmg', 90), ascendancyStatLine('poisonDamageMultiplierPct', 60), ascendancyStatLine('resAll', 12)] }
+        { id: 'gw4', name: '얼음 포자', desc: '빙결 확률 +10%, 한기와 빙결에 걸리지 않음', req: 'gw1', stats: [ascendancyStatLine('freezeChance', 10)], uniques: [ascendancyUniqueLine('frostSentinelBoots')] },
+        { id: 'gw5', name: '맹독 수액', desc: '중독 피해 +25%, 중독 최대 중첩 +1', req: 'gw2', uniques: [ascendancyUniqueLine('venomStride', {poisonMorePct: 25, poisonExtraStack: 1})] },
+        { id: 'gw6', name: '뿌리 갑주', desc: '모든 원소 저항 +10%, 생명력 재생 +1%, 재생 속도 +20%', req: 'gw3', stats: [ascendancyStatLine('resAll', 10)], uniques: [ascendancyUniqueLine('realmRegenRateAndRegen', {regenRatePct: 20, regen: 1})] },
+        { id: 'gw7', name: '숲의 분노', desc: '원소 피해 +45%, 지속 피해 +30%, 중독 지속 시간 +30%', reqAny: ['gw4', 'gw5'], stats: [ascendancyStatLine('elementalPctDmg', 45), ascendancyStatLine('dotPctDmg', 30)], uniques: [ascendancyUniqueLine('realmPoisonDuration', {durationPct: 30})] },
+        { id: 'gw8', name: '고목의 맹세', desc: '최대 생명력 +15%, 타격 시 15% 확률로 2초 동안 최대 생명력 6%의 보호막', req: 'gw7', stats: [ascendancyStatLine('pctHp', 15)], uniques: [ascendancyUniqueLine('dragonVeinGuard', {chance: 15, duration: 2, hpPct: 6})] },
+        { id: 'gw9', name: '세계수의 숨결', desc: '냉기 피해 +90%, 중독 피해 +60%, 원소 타격마다 그 적의 원소 저항 -2%(최대 -15%)', fifthJobOnly: true, stats: [ascendancyStatLine('coldPctDmg', 90), ascendancyStatLine('poisonDamageMultiplierPct', 60)], uniques: [ascendancyUniqueLine('stackingElementalResDownOnHit', {perHit: 2, max: 15})] }
     ],
     bombardier: [
         { id: 'bm1', name: '불붙은 병', desc: '포션 스킬 피해 +35%', req: null, stats: [ascendancyStatLine('potionPctDmg', 35)] },
         { id: 'bm2', name: '넓은 투척', desc: '범위 피해 +25%', req: null, stats: [ascendancyStatLine('aoePctDmg', 25)] },
         { id: 'bm3', name: '화약 냄새', desc: '점화 확률 +15%', req: null, stats: [ascendancyStatLine('igniteChance', 15)] },
         { id: 'bm4', name: '이중 폭발', desc: '피해 2배 확률 +6%', req: 'bm1', stats: [ascendancyStatLine('doubleDamageChance', 6)] },
-        { id: 'bm5', name: '파편', desc: '범위 피해 +35%', req: 'bm2', stats: [ascendancyStatLine('aoePctDmg', 35)] },
+        { id: 'bm5', name: '파편', desc: '범위 피해 +20%, 적을 처치하고 남은 피해가 다른 적 모두에게 튐', req: 'bm2', stats: [ascendancyStatLine('aoePctDmg', 20)], uniques: [ascendancyUniqueLine('overkillSplash')] },
         { id: 'bm6', name: '화상 연쇄', desc: '점화 피해 +35%', req: 'bm3', stats: [ascendancyStatLine('igniteDamageMultiplierPct', 35)] },
-        { id: 'bm7', name: '대폭발', desc: '포션 스킬 피해 +60%, 화염 피해 +35%', reqAny: ['bm4', 'bm5'], stats: [ascendancyStatLine('potionPctDmg', 60), ascendancyStatLine('firePctDmg', 35)] },
-        { id: 'bm8', name: '방폭 장비', desc: '받는 피해 -6%, 회피 +15%', req: 'bm7', stats: [ascendancyStatLine('dr', 6), ascendancyStatLine('evasionPct', 15)] },
-        { id: 'bm9', name: '연쇄 폭파', desc: '포션 스킬 피해 +120%, 범위 피해 +50%', fifthJobOnly: true, stats: [ascendancyStatLine('potionPctDmg', 120), ascendancyStatLine('aoePctDmg', 50)] }
+        { id: 'bm7', name: '대폭발', desc: '포션 스킬 피해 +60%, 화염 피해 +35%, 처치한 적이 15% 확률로 터져 다른 적에게 그 적 최대 생명력 20%의 피해', reqAny: ['bm4', 'bm5'], stats: [ascendancyStatLine('potionPctDmg', 60), ascendancyStatLine('firePctDmg', 35)], uniques: [ascendancyUniqueLine('corpseExplodeOnKill', {chance: 15, lifePct: 20})] },
+        { id: 'bm8', name: '방폭 장비', desc: '물리 피해 감소 +6%, 회피 +15%, 점화에 걸리지 않음', req: 'bm7', stats: [ascendancyStatLine('dr', 6), ascendancyStatLine('evasionPct', 15)], uniques: [ascendancyUniqueLine('immuneIgnite')] },
+        { id: 'bm9', name: '연쇄 폭파', desc: '포션 스킬 피해 +120%, 범위 피해 +50%, 타격 시 10% 확률로 준 피해의 60%를 다른 적 모두에게', fifthJobOnly: true, stats: [ascendancyStatLine('potionPctDmg', 120), ascendancyStatLine('aoePctDmg', 50)], uniques: [ascendancyUniqueLine('realmRiftWaveOnHit', {chance: 10, damagePct: 60})] }
     ]
 });
 

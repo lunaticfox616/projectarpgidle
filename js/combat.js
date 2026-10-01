@@ -2734,10 +2734,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
     let uniqueBlockRecoverEnergyShieldPct=0, uniqueBlockedDamageTakenPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null, uniqueOverhealCapPct=0;
-    // 재능 개화 표면 키스톤: 장착된 카드가 부여하는 고유 효과를 동일 파이프라인에 주입
-    if (typeof getActiveTalentKeystoneUniqueEffects === 'function') {
-        getActiveTalentKeystoneUniqueEffects().forEach(e => { if (e && e.key) equippedUniqueEffects.push(e); });
-    }
+    // 재능 개화 표면 키스톤과 전직 키스톤의 고유 효과를 같은 파이프라인에 주입(combat-build-stats.js)
+    pushBuildKeystoneUniqueEffects(equippedUniqueEffects);
     equippedUniqueEffects.forEach(effect => {
         if (!effect || !effect.key) return;
         let ep = effect.params || {};
