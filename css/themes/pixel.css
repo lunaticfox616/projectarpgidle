@@ -177,8 +177,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 @keyframes px-target-blink { 50% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-bronze); } }
 /* 젬 카드의 공격 범위 줄: 한 줄 말줄임("인접 단일 · 사거리 1…")으로 잘려 사거리가 안 보였다 — 두 줄까지 감싼다 */
 :root body[data-ui-skin] .gem-card-range { white-space: normal; overflow: visible; text-overflow: clip; }
-/* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감 · 전문가 · 별쐐기) */
-:root body[data-ui-skin] :is(.equipment-aux-store, #ui-star-wedge-panel button, #passive-star-wedge-drawer summary strong,
+/* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감 · 전문가) */
+:root body[data-ui-skin] :is(.equipment-aux-store,
   #ui-season-tree strong, #ui-talent-card-grid :is(span, strong, .talent-slot), .talent-bloom-filter :is(strong, span),
   .talent-bloom-summary, .talent-bloom-summary :is(span, strong), #ui-talent-summary :is(span, strong),
   .offline-progress-upgrade button, #ui-codex-list :is(.item-title, .codex-hunt-toggle, .codex-slot-heading span),
@@ -428,8 +428,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] :is(.search-filter-input, input, textarea, select):focus-visible { box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 var(--px-bronze); }
 
-/* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 별쐐기 · 검색 목록 · 전장 여백) */
-:root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #ui-star-wedge-panel, #passive-investment-summary) { background-color: var(--color-panel-bg); }
+/* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 검색 목록 · 전장 여백) */
+:root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #passive-investment-summary) { background-color: var(--color-panel-bg); }
 /* 진행 판(루프 패시브 · 전직 · 재능 · 일괄 정리의 접는 판)과 트리 요약: 옛 남색 유리 → 숯빛 판, 먹선 안쪽 어두운 청동 선 */
 :root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more, .trait-progress-summary, .loop10-panel, .loop10-entry-box) {
   border: 1px solid var(--px-ink);
@@ -481,8 +481,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.gem-engrave-top :is(em, b), .gem-forge-heading p, .gem-process-empty button, .gem-engrave-slot-guide :is(strong, span)) { font-size: 12px; }
 :root body[data-ui-skin] .gem-engrave-top em { border-radius: 0; }
 :root body[data-ui-skin] .gem-engrave-slot-guide strong { white-space: nowrap; }
-/* 패시브 트리 위 서랍(별쐐기 · 프리셋): 예전 보라 · 파랑 유리 판 → 가벼운 판, 머리띠는 청동 선 아래 어두운 판 */
-:root body[data-ui-skin] :is(.passive-star-wedge-drawer, .passive-preset-drawer) {
+/* 패시브 트리 위 프리셋 서랍: 예전 파랑 유리 판 → 가벼운 판, 머리띠는 청동 선 아래 어두운 판 */
+:root body[data-ui-skin] .passive-preset-drawer {
   border: var(--px-light-border) solid transparent;
   border-image: var(--px-light-frame);
   border-radius: 0;
@@ -492,9 +492,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   color: var(--px-copy);
   image-rendering: pixelated;
 }
-:root body[data-ui-skin] :is(.passive-star-wedge-drawer, .passive-preset-drawer) > summary { background: var(--px-wood-dark), var(--px-stone-raised); color: var(--px-gold); text-shadow: var(--px-text-edge); }
-:root body[data-ui-skin] :is(.passive-star-wedge-drawer, .passive-preset-drawer)[open] > summary { border-bottom: 1px solid var(--px-ink); box-shadow: 0 1px 0 var(--px-bronze); }
-:root body[data-ui-skin] .passive-star-wedge-drawer > summary span { color: var(--px-copy-muted); }
+:root body[data-ui-skin] .passive-preset-drawer > summary { background: var(--px-wood-dark), var(--px-stone-raised); color: var(--px-gold); text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] .passive-preset-drawer[open] > summary { border-bottom: 1px solid var(--px-ink); box-shadow: 0 1px 0 var(--px-bronze); }
 :root body[data-ui-skin] .passive-search-drawer > summary { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-board), var(--px-stone-control); box-shadow: var(--px-bevel); color: var(--px-copy); }
 :root body[data-ui-skin] .battlefield-wrap { background-color: var(--skin-canvas); }
 /* 지도 창의 목록 줄 머리 그림은 컬러 이모지(🔥 · 🌊 · 🌌 …)였다 — 지역 목록처럼 모든 지도 목록에서 뺀다(이름 · 상태 글이 뜻을 전한다) */
@@ -573,7 +572,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-card-head strong, .gem-research-card-head > span, .gem-resource-strip :is(span, strong), .skill-loadout-summary strong,
     .market-exchange-quote :is(span, strong), .codex-card .item-actions > span, .unique-hunt-panel > header > b, .content-unlock-heading > span,
     .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked, .arcana-locked,
-    .expertise-panel, .expertise-panel > b, .talent-current-combo > i, #ui-star-wedge-panel div, #ui-star-wedge-panel strong) { font-family: var(--font-pixel); font-size: 12px; }
+    .expertise-panel, .expertise-panel > b, .talent-current-combo > i) { font-family: var(--font-pixel); font-size: 12px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) .map-item--act .map-item-main > span span { font-family: var(--font-pixel); font-size: 12px; }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
    숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */

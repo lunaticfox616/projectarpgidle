@@ -923,8 +923,7 @@ function snapshotWoodsmanBuildState() {
         playerLeechInstances: game.playerLeechInstances || [],
         playerRecoupInstances: game.playerRecoupInstances || [],
         gemData: game.gemData || {},
-        jewelInventory: game.jewelInventory || [],
-        starWedge: game.starWedge || {}
+        jewelInventory: game.jewelInventory || []
     }));
 }
 
@@ -953,7 +952,6 @@ function enforceWoodsmanBuildLock() {
     game.playerRecoupInstances = JSON.parse(JSON.stringify(snap.playerRecoupInstances || []));
     game.gemData = JSON.parse(JSON.stringify(snap.gemData));
     game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
-    game.starWedge = JSON.parse(JSON.stringify(snap.starWedge));
 }
 
 function clearWoodsmanBuildLock() {
@@ -2915,45 +2913,17 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         }
     });
 
-    recalculateStarWedgeMutations();
-    let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
-    let disabledPassiveEffects = (game.starWedge && game.starWedge.disabledNodeEffects) || {};
-    let allocatedVoidCount = safePassives.filter(id => {
-        let node = PASSIVE_TREE.nodes[id];
-        return node && node.kind === 'void';
-    }).length;
-    let virtualVoidCount = allocatedVoidCount + (typeof getTranscendentVoidPassiveBonusValue === 'function' ? getTranscendentVoidPassiveBonusValue('trauma') : 0);
+    let virtualVoidCount = getVirtualVoidPassiveCount();
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
-        if (disabledPassiveEffects[String(id)]) return;
         if (node.kind === 'void') {
-            let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(id) : null;
-            starWedgeRules.voidStats(entry, game).forEach(line => {
-                if (line && line.id) addStatToBucket(passive, line.id, line.val);
-            });
-            let tr = entry && entry.transcendent;
-            if (tr && tr.id === 'paleBlueDot') addStatToBucket(passive, 'passivePoint', Number(tr.value || 10));
-            if (tr && tr.id === 'overflowingVigor') addStatToBucket(passive, 'pctHp', Number(tr.value || 0) * virtualVoidCount);
-            if (tr && tr.id === 'toughSoul') addStatToBucket(passive, 'energyShieldPct', Number(tr.value || 0) * virtualVoidCount);
-            if (tr && tr.id === 'defenseMechanism') { addStatToBucket(passive, 'blockChance', Number(tr.value || 0)); addStatToBucket(passive, 'blockChanceMax', Number(tr.value || 0)); }
-            if (tr && tr.id === 'blurredPresence') { addStatToBucket(passive, 'deflectChance', Number(tr.value || 0)); addStatToBucket(passive, 'deflectDamageReduce', Number(tr.value2 || 0)); }
-            if (tr && tr.id === 'innateTalent') { addStatToBucket(passive, 'doubleDamageChance', Number(tr.value || 0)); addStatToBucket(passive, 'doubleDamageMultiplierPct', Math.max(0, (Number(tr.value2 || 1.5) - 1) * 100)); }
-            if (tr && tr.id === 'wholehearted') addStatToBucket(passive, 'pctDmg', Number(tr.value || 0) * virtualVoidCount);
-            if (tr && tr.id === 'impatience') addStatToBucket(passive, 'move', Number(tr.value || 0) * virtualVoidCount);
-            if (tr && tr.id === 'immortalHero') addStatToBucket(passive, 'flatHp', Math.max(0, Number(tr.value || 0)));
-            if (tr && tr.id === 'seasoned') addStatToBucket(passive, 'critDmg', Number(tr.value || 0) * Math.max(0, Math.floor(game.loopCount || 0)));
+            let entry = getVoidPassiveCraft(id);
+            passiveRouting.voidStats(entry, game).forEach(line => addStatToBucket(passive, line.id, line.val));
+            getTranscendentVoidPassiveStats(id, entry, virtualVoidCount).forEach(line => addStatToBucket(passive, line.stat, line.val));
             return;
         }
-        let mut = mutationMap[id];
-        getEffectivePassiveNodeEffects(node, mut)
-            .forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
-    });
-    let ownedPassiveSet = new Set(safePassives);
-    Object.keys(mutationMap).forEach(nodeId => {
-        let mut = mutationMap[nodeId];
-        if (!mut || mut.lineIndex !== 3 || !mut.currentStat || ownedPassiveSet.has(nodeId) || disabledPassiveEffects[String(nodeId)]) return;
-        getPassiveNodeRawEffects(PASSIVE_TREE.nodes[nodeId], mut).forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
+        getEffectivePassiveNodeEffects(node).forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
     });
 
     accumulateCombatSeasonStats(season, safeSeasonNodes, game.seasonNodeLevels);
@@ -3023,7 +2993,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     if (game.shrineBuff && getCombatTime() > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
     if (game.shrineBuff && game.shrineBuff.stat) addStatToBucket(reward, game.shrineBuff.stat, game.shrineBuff.value || 0);
-    let constellation = game.starWedge && game.starWedge.constellationBuff;
+    let constellation = game.meteorSite && game.meteorSite.constellationBuff;
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
     let skill = getActiveSkillStats(gemSources.total);
     if (projectilePatternEffect && !skill.projectilePatternSource) skill = applyProjectilePatternMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source, projectilePatternEffect.damageMultiplier);
@@ -8713,7 +8683,7 @@ function onChaos20Cleared() {
 }
 
 function enterAutomaticMapInterruptionAfterClear(clearedZone) {
-    let star = game.starWedge || {};
+    let star = game.meteorSite || {};
     let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
     let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
     if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && (!clearedZone || clearedZone.type !== 'meteor')) {
@@ -8950,7 +8920,7 @@ function finishEncounterRun() {
 
     if (zone.type === 'meteor') {
         grantMeteorEncounterRewards();
-        let st = ensureStarWedgeState();
+        let st = ensureMeteorSiteState();
         st.entriesCleared = (st.entriesCleared || 0) + 1;
         st.activeMeteorTier = null;
         clearWoodsmanBuildLock();
@@ -10821,7 +10791,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.runProgress = 0;
     } else if (zone && zone.type === 'meteor') {
         addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
-        let st = ensureStarWedgeState();
+        let st = ensureMeteorSiteState();
         st.activeMeteorTier = null;
         let returnZoneId = st.meteorReturnZoneId;
         st.meteorReturnZoneId = null;
@@ -12230,12 +12200,9 @@ function triggerSeasonReset(options) {
     // 전적: 상태를 초기화하기 전에 이번 루프 기록(소요 시간·도달 액트·액트별 돌파 시간)을 닫는다.
     if (typeof closeLoopRecord === 'function') closeLoopRecord(loopPath);
     dispatchRuntimeEvent('loop-rewrite-started');
-    let prevStarWedge = (game.starWedge && typeof game.starWedge === 'object') ? game.starWedge : {};
-    let preservedEternalWedges = Array.isArray(prevStarWedge.wedges)
-        ? prevStarWedge.wedges.filter(w => w && w.eternal).map(w => JSON.parse(JSON.stringify(w)))
-        : [];
-    let preservedConstellationBuff = (prevStarWedge.constellationBuff && prevStarWedge.constellationBuff.permanent)
-        ? JSON.parse(JSON.stringify(prevStarWedge.constellationBuff))
+    let prevMeteorSite = ensureMeteorSiteState();
+    let preservedConstellationBuff = (prevMeteorSite.constellationBuff && prevMeteorSite.constellationBuff.permanent)
+        ? JSON.parse(JSON.stringify(prevMeteorSite.constellationBuff))
         : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
@@ -12364,9 +12331,8 @@ function triggerSeasonReset(options) {
     game.colony = JSON.parse(JSON.stringify(defaultGame.colony));
     clearBeehiveRuntimeState(game.beehive);
     Object.assign(game.voidRift, {active:false, activeKills:0, requiredKills:0, pendingWave:false, totalToSpawn:0, spawnedCount:0, spawnTick:0, grandRun:null});
-    game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
-    game.starWedge.wedges = preservedEternalWedges;
-    game.starWedge.constellationBuff = preservedConstellationBuff;
+    game.meteorSite = JSON.parse(JSON.stringify(defaultGame.meteorSite));
+    game.meteorSite.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
@@ -12402,8 +12368,6 @@ function triggerSeasonReset(options) {
     progressStallTicks = 0;
     clearCraftSelection();
     applySeasonContentProgression({ silent: false });
-    assignStarWedgeSockets();
-    recalculateStarWedgeMutations();
     calculateReachableNodes();
     refreshPassiveVisibility();
     let presetInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };

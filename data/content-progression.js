@@ -21,7 +21,6 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"labyrinth","name":"고대 미궁","group":"전투","minLoop":3,"cost":0,"description":"미궁을 등반해 전용 보상을 얻습니다.","routes":["map-explore-labyrinth"]},
     {"id":"jewel","after":"fossil","name":"주얼","group":"장비","minLoop":5,"cost":2,"description":"장비 소켓에 끼우는 주얼이 떨어집니다. 반지 · 목걸이 · 허리띠에는 소켓이 처음부터 있고, 다른 장비는 공허의 끌로 한 칸 뚫습니다.","action":{"tab":"tab-items","subtab":"item-tab-equip"},"lifecycle":{"label":"루프 초기화","kept":"","reset":"주얼 보관함 · 장비 소켓의 주얼(루프 봉인 장비는 유지) · 주얼 재료"}},
     {"id":"talisman","after":"jewel","name":"부적","group":"장비","minLoop":6,"cost":2,"requires":[],"description":"고대 미궁에서 봉인편린이 떨어지고, 그루터기 함에서 편린으로 부적을 풉니다. 부적은 판에서 처치로 깨어나고, 수호 · 함성 · 저주 같은 조건부 줄은 전투 중 조건이 맞을 때 작동합니다.","action":{"tab":"tab-stump"},"lifecycle":{"label":"일부 유지","kept":"그루터기 함의 부적과 배치(루프마다 다시 잠들어 처치로 깨어납니다)","reset":"봉인편린"}},
-    {"id":"meteor","after":"trials","name":"별쐐기","group":"영구 성장","minLoop":7,"cost":1,"description":"운석을 조사하고 별쐐기를 수집합니다.","routes":[],"sections":["#passive-star-wedge-drawer"],"progress":"meteor","action":{"tab":"tab-char"},"lifecycle":{"label":"일부 유지","kept":"영원의 별쐐기·영구 성좌 버프","reset":"일반 별쐐기와 운석 재료"}},
     {"id":"beehive","name":"벌집 원정","group":"전투","minLoop":8,"cost":0,"description":"벌집 원정의 위험과 보상을 선택합니다.","routes":["map-explore-beehive"],"lifecycle":{"label":"일부 유지","kept":"벌집 개방·클리어 기록","reset":"꿀·꽃가루·밀랍·벌침·벌집 열쇠 등 보상 재료"}},
     {"id":"voidrift","name":"공허 균열","group":"전투","minLoop":9,"cost":0,"description":"공허 균열에 도전해 전용 재료를 모읍니다.","routes":["map-explore-voidrift"],"lifecycle":{"label":"일부 유지","kept":"균열 클리어 횟수·대균열 개방 및 클리어 기록","reset":"공허 끌 등 보상 재료"}},
     {"id":"timerift","name":"시간의 균열","group":"전투","minLoop":13,"cost":0,"description":"시간압을 조절하고 장비 융합에 도전합니다.","routes":["map-explore-timerift"],"lifecycle":{"label":"일부 유지","kept":"시간압·융합 횟수·제단에 올려둔 장비","reset":"일반 인벤토리의 융합 장비. 루프 봉인 장비는 유지됩니다."}},
@@ -40,7 +39,7 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"beyond","name":"경계 너머","group":"전투","minLoop":31,"cost":0,"description":"최종 관문 이후의 도전과 인장을 관리합니다.","routes":["map-explore-beyond"],"progress":"beyond"},
     {"id":"deepTree","after":"loopTree","name":"심화 패시브","group":"영구 성장","minLoop":10,"cost":2,"description":"심화 포인트로 영구 능력치를 강화합니다. 해금 전에도 등반 보상 포인트는 누적됩니다.","sections":["#loop-deep-growth"],"action":{"tab":"tab-season","section":"loop-deep-growth"},"lifecycle":{"label":"성장 영구 유지","kept":"심화 포인트와 투자한 능력치","reset":""}},
     {"id":"battleTrials","name":"전직 시련","group":"전투","minLoop":3,"after":"trials","cost":0,"progress":"trials","description":"직업 전직 해금 후 액트 3부터 시련에 도전합니다. 후속 시련의 조건은 유지됩니다.","routes":["map-explore-trials"]},
-    {"id":"meteorSite","name":"운석 낙하 지점","group":"전투","minLoop":7,"cost":0,"progress":"meteor","description":"별쐐기 해금 전에는 장비를, 해금 후에는 운석 파편과 별쐐기를 얻습니다.","routes":["map-explore-meteor"]},
+    {"id":"meteorSite","name":"운석 낙하 지점","group":"전투","minLoop":7,"cost":0,"progress":"meteor","description":"사냥으로 하늘 균열 게이지를 채우면 한 번 들어가 희귀 이상 장비와 별가루를 얻습니다.","routes":["map-explore-meteor"]},
     {"id":"deepChaos","name":"심화 혼돈","group":"전투","minLoop":10,"cost":0,"progress":"deepChaos","description":"혼돈 20층 이후의 심화 등반이 열립니다.","routes":["map-explore-deep-chaos"]}
 ]);
 safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINTS_PER_LOOP });

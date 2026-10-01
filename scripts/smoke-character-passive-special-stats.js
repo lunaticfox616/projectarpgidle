@@ -51,8 +51,6 @@ vm.runInContext(`
   PASSIVE_TREE.nodes.ui_mystique_reserve_test = {
     id:'ui_mystique_reserve_test', kind:'path', effects:[{ stat:'mystique', val:1 }]
   };
-  game.starWedge.nodeMutations = {};
-  game.starWedge.disabledNodeEffects = {};
   game.passives = ['expansion_occult_grimoire_20'];
 `, context);
 assert.strictEqual(context.getGemBonusSources([]).passive, 0,
@@ -83,10 +81,13 @@ assert.strictEqual(context.renderPassiveSpecializationControls(), '', '관련 �
 assert.ok(!context.getAllocatedPassiveStatSummary().specialEffects.some(text => text.includes('성좌 각성')),
   '시작 단계에는 성좌 각성 0/6이 투자 효과로 나타나지 않는다.');
 vm.runInContext(`
-  game.passives.push(Object.values(PASSIVE_TREE.nodes).find(node => node.kind === 'star_option').id);
+  const outerVoid = Object.values(PASSIVE_TREE.nodes).find(node => node.kind === 'void' && node.voidRing === 'outer');
+  game.passives.push(outerVoid.id);
+  game.voidPassives = { [outerVoid.id]: { rarity:'transcendent', stats:[], transcendent:{ id:'comet', value:24, value2:0 } } };
 `, context);
-assert.ok(context.getAllocatedPassiveStatSummary().specialEffects.some(text => text.includes('성좌 각성 1/')),
-  '외곽 생성 패시브를 투자하면 실제 각성 진행을 표시한다.');
+assert.ok(context.getAllocatedPassiveStatSummary().specialEffects.some(text => text.includes('성좌 각성 1/6')),
+  '외곽 공허 소켓을 초월시키면 실제 각성 진행을 표시한다.');
+vm.runInContext('game.voidPassives = {};', context);
 vm.runInContext(`game.passives = [PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['지혜의 도약']];`, context);
 const wisdomControls = context.renderPassiveSpecializationControls();
 assert.ok(wisdomControls.includes('지혜의 도약') && wisdomControls.includes('투자한 노드 기준'));

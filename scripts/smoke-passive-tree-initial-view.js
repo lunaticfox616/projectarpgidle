@@ -20,7 +20,7 @@ const files = [
   'data/endgame-progression.js',
   'js/utils.js',
   'js/state.js',
-  'js/star-wedge.js', 'js/passives.js',
+  'js/passive-routing.js', 'js/passives.js',
 ];
 
 const treeContainer = {

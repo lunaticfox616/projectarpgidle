@@ -75,9 +75,9 @@ check('beehive entrance does not inherit past-loop depth or contaminate defaults
 });
 check('meteor tier is frozen independently of the next gauge', () => {
     reset();
-    run(`game.starWedge.skyRiftMinTier=35;game.starWedge.skyRiftAllCosmos=true;
+    run(`game.meteorSite.skyRiftMinTier=35;game.meteorSite.skyRiftAllCosmos=true;
         prepareMeteorEncounterEntry(8);game.currentZoneId=METEOR_FALL_ZONE_ID;
-        game.starWedge.skyRiftAllCosmos=false;game.starWedge.skyRiftMinTier=8`);
+        game.meteorSite.skyRiftAllCosmos=false;game.meteorSite.skyRiftMinTier=8`);
     assert.equal(run('getZone(METEOR_FALL_ZONE_ID).tier'), 35);
     run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
     assert.equal(run('getZone(METEOR_FALL_ZONE_ID).tier'), 35);
@@ -270,14 +270,14 @@ check('floor completion stop settles progress but does not move or auto-enter an
         reset(50);
         run(`window.game=game;${setup};game.currentZoneId=${JSON.stringify(id)};
             game.settings.mapCompleteAction='stop';game.settings.autoEnterMeteor=true;
-            Object.assign(ensureStarWedgeState(),{unlocked:true,skyRiftReady:true,skyRiftMinTier:20});
+            Object.assign(ensureMeteorSiteState(),{unlocked:true,skyRiftReady:true,skyRiftMinTier:20});
             finishEncounterRun();`);
         assert.equal(run('game.currentZoneId'), id, 'stop overrides automatic meteor entry');
         assert.equal(run('getZone(game.currentZoneId).floor'), 10, 'stop stays on the completed floor');
         assert.equal(run('game.combatHalted'), true, `${id} must obey completion stop`);
         assert.equal(run('game.moveTimer'), 0, 'movement must not restart a halted encounter');
         assert.equal(run(progress), 11, 'next floor unlock is still settled');
-        assert.equal(run('game.starWedge.skyRiftReady'), true, 'unconsumed event remains available');
+        assert.equal(run('game.meteorSite.skyRiftReady'), true, 'unconsumed event remains available');
         run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;');
         assert.equal(run('game.combatHalted'), true, 'saved stopped state remains stopped');
         assert.equal(run('game.currentZoneId'), id);

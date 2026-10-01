@@ -2846,7 +2846,7 @@ function getBeehiveRewardPool(expertLevel, branchStep) {
     ];
     if (expertLevel >= 3) pool.push({ type: 'formlessDew', weight: 14 + Math.min(8, depth) });
     if (expertLevel >= 5) pool.push({ type: 'goldenRule', weight: 2 + Math.floor(depth / 4) + (expertLevel >= 13 ? 2 : 0) });
-    if (expertLevel >= 7 || depth >= 6) pool.push({ type: 'jewelShard', weight: 10 }, { type: 'meteorShard', weight: 5 });
+    if (expertLevel >= 7 || depth >= 6) pool.push({ type: 'jewelShard', weight: 10 });
     if (expertLevel >= 8) pool.push({ type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 });
     if (expertLevel >= 15) pool.push({ type: 'bundle', weight: 4 });
     let rarePct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0;
@@ -2920,7 +2920,6 @@ function buildBeehiveChoiceOption(type, expertLevel, branchStep, timing = 'wave'
     if (type === 'formlessDew') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step, lv), timing); return mk(`형체 없는 이슬 +${amount}`, 'formlessDew', amount); }
     if (type === 'goldenRule') { let chance = scaleBeehiveRewardChance(lv >= 13 || step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '황금률 +1' : `황금률 획득 확률 ${Math.floor(chance * 100)}%`, 'goldenRule', 1, chance); }
     if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv), timing); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
-    if (type === 'meteorShard') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`운석 파편 +${amount}`, 'meteorShard', amount); }
     if (type === 'beeswax') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`밀랍 +${amount}`, 'beeswax', amount); }
     if (type === 'spore') {
         let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']);
@@ -4087,114 +4086,6 @@ function toggleSeasonBossRepeat() {
     addLog(`🗝️ 뿌리 보스 반복 도전: ${game.autoRepeatSeasonBoss ? '켜짐' : '꺼짐'}`, 'season-up');
     updateStaticUI();
 }
-
-function renderSocketedWedgeEffects(node, wedge, includeDescription = true) {
-    const outer = node.starWedgeMode === 'constellation';
-    const bands = outer ? [] : getStarWedgeMutationBands(wedge);
-    const colors = ['#dfbf79', '#79cbbd', '#b09ce0', '#e3d6af'];
-    const uniqueDef = includeDescription && wedge.unique && getStarWedgeUniqueDef(wedge.uniqueType);
-    const disableCore = wedge.uniqueType === 'satellite' || game.starWedge.disabledNodeEffects[node.id];
-    const rows = (wedge.lines || []).map((line, index) => ({ line, index }))
-        .filter(({ line, index }) => line?.stat && !line.disabled && !(disableCore && index === 3));
-    const lines = rows.map(({ line, index }) => {
-        const band = bands.find(entry => entry.lineIndex === index);
-        let label = index === 3 ? '슬롯 효과' : `구간 ${index + 1}`;
-        if (wedge.uniqueType === 'supernova') label = '핵심 노드';
-        else if (outer) label = index === 3 ? '핵심 노드' : `경로 ${index + 1} (${wedge.outerLayout.counts[index]}개)`;
-        else if (band) label += ` (${Math.round(band.inner * 10) / 10} ~ ${Math.round(band.outer * 10) / 10})`;
-        else if (index !== 3) return '';
-        const value = `${getStatName(line.stat)} +${formatValue(line.stat, line.val * (outer ? 2 : 1))}${P_STATS[line.stat]?.isPct ? '%' : ''}`;
-        return `<div class="passive-wedge-effect" style="--wedge-band:${colors[index]}"><small>${label}</small><strong>${value}</strong></div>`;
-    }).join('');
-    const voidCount = wedge.uniqueType === 'pluto' ? `<div class="tooltip-line">공허 패시브 ${wedge.voidCount}개</div>` : '';
-    return `${uniqueDef ? `<div class="tooltip-line">${uniqueDef.desc}</div>` : ''}${voidCount}<div class="passive-wedge-effects">${lines}</div>`;
-}
-
-function renderStarWedgeItemLines(wedge, socket) {
-    if (socket) return renderSocketedWedgeEffects(PASSIVE_TREE.nodes[socket.nodeId], wedge, false);
-    if (wedge.uniqueType === 'pluto') return `<strong>공허 패시브 ${wedge.voidCount}개</strong>`;
-    return wedge.lines.map((line, index) => {
-        if (line.disabled) return '';
-        const title = index === 3 ? '핵심 노드' : `${index + 1}경로`;
-        const suffix = P_STATS[line.stat]?.isPct ? '%' : '';
-        return `<div style="color:${line.boosted ? '#ffd36f' : '#d4deea'};">${title} ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}${suffix}</div>`;
-    }).join('');
-}
-
-function renderStarWedgePanel() {
-    let panel = document.getElementById('ui-star-wedge-panel');
-    if (!panel) return;
-    let drawer = document.getElementById('passive-star-wedge-drawer');
-    let loopUnlocked = (game.season || 1) >= STAR_WEDGE_UNLOCK_LOOP;
-    if (drawer) {
-        drawer.hidden = !loopUnlocked;
-        if (!loopUnlocked) drawer.open = false;
-    }
-    if (!loopUnlocked) return;
-    let st = ensureStarWedgeState();
-    tryUnlockMeteorContentByProgress();
-    st = ensureStarWedgeState();
-    recalculateStarWedgeMutations();
-    if (!st.unlocked) {
-        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프 ${STAR_WEDGE_UNLOCK_LOOP}에서 액트 ${STAR_WEDGE_UNLOCK_ACT} 이후에 도달하면 별쐐기와 운석 낙하 지점이 해금됩니다.</div>`;
-        return;
-    }
-    let astronomerLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
-    let rerollLockedAttr = astronomerLv >= 5 ? '' : 'disabled';
-    let rerollTitle = astronomerLv >= 5 ? '' : ' (천문학자 Lv.5 필요)';
-    let maxEquippedStarWedges = typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : MAX_STAR_WEDGES;
-    let constellationText = st.constellationBuff ? `${st.constellationBuff.label || getStatName(st.constellationBuff.stat)} +${st.constellationBuff.val}${st.constellationBuff.stat === 'flatHp' ? '' : '%'}${st.constellationBuff.permanent ? ' · 영원' : ''}` : '미관측';
-    let socketNodeText = (st.sockets || []).map(entry => {
-        let node = PASSIVE_TREE.nodes[entry.nodeId];
-        return node ? getPassiveNodeDisplayName(node) : entry.nodeId;
-    }).join(', ') || '미장착';
-    let wedgeCards = (st.wedges || []).slice(0, 12).map(wedge => {
-        let uniqueDef = wedge.unique && typeof getStarWedgeUniqueDef === 'function' ? getStarWedgeUniqueDef(wedge.uniqueType) : null;
-        let socketedEntry = (st.sockets || []).find(v => v.wedgeId === wedge.id) || null;
-        let lines = renderStarWedgeItemLines(wedge, socketedEntry);
-        let selecting = st.selectedWedgeId === wedge.id;
-        let eternalBadge = wedge.eternal ? '<span style="color:var(--copy-bright); font-size:12px;">영원</span>' : '';
-        let eternalLockedAttr = astronomerLv >= 12 && !wedge.eternal ? '' : 'disabled';
-        let eternalTitle = wedge.eternal ? '고정됨' : (astronomerLv >= 12 ? '별가루 25' : '천문학자 Lv.12 필요');
-        let affectedCount = Object.values(st.nodeMutations || {}).filter(mut => mut && mut.wedgeId === wedge.id).length;
-        let disabledCount = Object.values(st.disabledNodeEffectSources || {}).filter(ids => Array.isArray(ids) && ids.includes(wedge.id)).length;
-        let conflictCount = Object.values(st.mutationConflictSources || {}).filter(ids => Array.isArray(ids) && ids.includes(wedge.id)).length;
-        let recordedHub = wedge.recordedHubNodeId && PASSIVE_TREE.nodes[wedge.recordedHubNodeId];
-        let statusBits = socketedEntry
-            ? [`변성 ${affectedCount}`, disabledCount ? `비활성 ${disabledCount}` : '', conflictCount ? `충돌 ${conflictCount}` : ''].filter(Boolean)
-            : [];
-        let uniqueHtml = uniqueDef ? `<div style="margin:5px 0 7px; padding:7px 8px; border:1px solid rgba(191,132,255,.38); border-radius:7px; background:rgba(78,42,105,.2); color:#d9c3ef;"><strong style="color:#f0d7ff;">◆ ${uniqueDef.name}</strong><div style="margin-top:3px; font-size:12px; line-height:1.4;">${uniqueDef.desc}${recordedHub ? `<br><span style="color:#b99be0;">기록 슬롯: ${getPassiveNodeDisplayName(recordedHub)}</span>` : ''}</div></div>` : '';
-        return `<div style="border:1px solid #3e3352; border-radius:8px; padding:8px; background:#121224;">
-            <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">${uniqueDef ? uniqueDef.name : '별쐐기'} #${wedge.id % 10000} ${eternalBadge}</strong>${socketedEntry ? `<button style="min-height:24px; padding:3px 8px; font-size:12px; background:#5c3448; border-color:#81506b;" onclick="unsocketStarWedge('${socketedEntry.nodeId}')">장착 해제</button>` : ''}</div>
-            ${uniqueHtml}
-            ${lines}
-            ${statusBits.length ? `<div style="margin-top:6px; color:${conflictCount ? '#ffb58f' : '#8fd9c1'}; font-size:12px;">장착 효과 · ${statusBits.join(' · ')}</div>` : ''}
-            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
-                <button style="min-height:26px; padding:3px 8px; font-size:12px; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id}); this.closest('details').open=false">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="rerollStarWedge(${wedge.id})" ${rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>리롤${rerollTitle}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="rerollStarWedge(${wedge.id}, 'single')" ${!wedge.lines.length || rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>1줄 고정${rerollTitle}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="rerollStarWedge(${wedge.id}, 'double')" ${!wedge.lines.length || rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>2줄 고정 (파편x10)${rerollTitle}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="stabilizeStarWedge(${wedge.id})" ${eternalLockedAttr}>영원 고정 (${eternalTitle})</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:12px; background:#63383f; border-color:#8f5963;" onclick="destroyStarWedge(${wedge.id})" ${wedge.eternal ? 'disabled' : ''}>파괴하기</button>
-            </div>
-        </div>`;
-    }).join('');
-    panel.innerHTML = `
-        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
-            <div style="color:var(--copy-bright);">운석 파편: <strong style="color:#ffd36f;">${game.currencies.meteorShard || 0}</strong> · 별가루: <strong style="color:var(--copy-bright);">${game.currencies.starDust || 0}</strong> · 불완전한 별쐐기: <strong style="color:var(--copy-bright);">${game.currencies.incompleteStarWedge || 0}</strong> · 별쐐기: <strong style="color:#f0ccff;">${game.currencies.starWedge || 0}</strong></div>
-            <div style="color:var(--copy-muted);">장착 슬롯: ${(st.sockets || []).length}/${maxEquippedStarWedges} · ${socketNodeText} · 별자리: ${constellationText}</div>
-        </div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
-        <div style="color:var(--copy-muted); font-size:12px; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
-        <div style="display:grid; gap:8px;">${wedgeCards || '<div style="color:var(--copy-muted);">별쐐기가 없습니다. 운석 낙하 지점을 공략하거나 제작하세요.</div>'}</div>
-    `;
-}
-
-
-
-
-
-
 
 function toggleGemFoldMode(mode) {
     if (mode === 'all') {
@@ -9014,11 +8905,7 @@ function getPassiveStateSignature() {
     let passives = (game.passives || []).slice().sort().join('|');
     let discovered = Array.from(discoveredPassiveNodes || []).sort().join('|');
     let reachable = Array.from(reachableNodes || []).sort().join('|');
-    let starState = game.starWedge || {};
-    let virtual = Object.keys(starState.virtualLearnNodes || {}).sort().join('|');
-    let disabled = Object.keys(starState.disabledNodeEffects || {}).sort().join('|');
-    let conflicts = Object.keys(starState.mutationConflictSources || {}).sort().join('|');
-    return `${passives}::${discovered}::${reachable}::${virtual}::${disabled}::${conflicts}`;
+    return `${passives}::${discovered}::${reachable}`;
 }
 
 function rebuildPassiveStructureCache() {
@@ -9195,9 +9082,9 @@ function getJournalEntryAction(entryId) {
         let realmUnlocked = !!(game && game.chaosRealm && game.chaosRealm.unlocked);
         return mapUnlocked && realmUnlocked ? { label: '혼돈계 보기', tabId: 'tab-map', subtabId: 'map-tab-chaos-realm' } : null;
     }
-    if (entryId === 'star_wedge') {
-        let starUnlocked = !!(game && game.starWedge && game.starWedge.unlocked);
-        return charUnlocked && (starUnlocked || loop >= STAR_WEDGE_UNLOCK_LOOP) ? { label: '패시브 트리 보기', tabId: 'tab-char' } : null;
+    if (entryId === 'meteor_fall') {
+        let meteorUnlocked = !!(game && game.meteorSite && game.meteorSite.unlocked);
+        return mapUnlocked && meteorUnlocked ? { label: '운석 낙하 지점 보기', tabId: 'tab-map', subtabId: 'map-explore-meteor' } : null;
     }
     if (entryId === 'passive_star_evolution') {
         return charUnlocked ? { label: '성좌 확인', tabId: 'tab-char' } : null;
@@ -9244,7 +9131,7 @@ function getJournalEntryAvailability(entry, unlockedIds) {
 
 function getJournalContentUnlockHint(entryId) {
     if (entryId === 'woodsman') return '액트 10 클리어 후 혼돈 입성';
-    if (entryId === 'star_wedge') return `루프 ${STAR_WEDGE_UNLOCK_LOOP} · 액트 ${STAR_WEDGE_UNLOCK_ACT} 도달`;
+    if (entryId === 'meteor_fall') return `루프 ${METEOR_SITE_UNLOCK_LOOP} · 액트 ${METEOR_SITE_UNLOCK_ACT} 도달`;
     if (entryId === 'beehive_queen') return '루프 8 도달';
     if (entryId === 'void_grand_breach') return '루프 9 도달';
     if (entryId === 'labyrinth_10') return '루프 3 · 액트 5 도달';
@@ -9325,7 +9212,6 @@ function shouldRedrawPassiveTree(now) {
         game.startNode || '',
         game.ascendClass || '',
         game.season || 1,
-        (game.starWedge && game.starWedge._mutationSignature) || '',
         (game.settings && game.settings.passiveTreeSearch) || '',
         (game.settings && game.settings.passiveTreeFilter) || 'all',
         game.settings && game.settings.passiveTreeShowLabels === false ? 'labels-off' : 'labels-on'
@@ -9453,9 +9339,7 @@ function performUpdateStaticUI() {
     const __pm = [['start', __perfNow()]];
     const __mark = (n) => __pm.push([n, __perfNow()]);
 
-    ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
-    recalculateStarWedgeMutations();
     // 목표 선정은 js/goal-system.js가 담당한다(디바운스 포함).
     if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
     validateItemTooltipAnchor();
@@ -9467,8 +9351,7 @@ function performUpdateStaticUI() {
         (game.discoveredPassives || []).length,
         game.startNode || '',
         game.ascendClass || '',
-        game.season || 1,
-        (game.starWedge && game.starWedge._mutationSignature) || ''
+        game.season || 1
     ].join('|');
     if (passiveStateSig !== lastReachableSignature) {
         lastReachableSignature = passiveStateSig;
@@ -9511,7 +9394,6 @@ function performUpdateStaticUI() {
             drawPassiveTree();
             lastPassiveTreeDrawAt = drawNow;
         }
-        renderStarWedgePanel();
     }
     __mark('tree');
 
@@ -10405,7 +10287,7 @@ function buildCraftActionButtons(item) {
     if (deepChaosTabBtn) deepChaosTabBtn.style.display = 'none';
     if (game.mapExploreSubtab === 'map-explore-deep-chaos') switchMapExploreSubtab('map-explore-hunting');
 
-    let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
+    let meteorUnlocked = !!(game.meteorSite && game.meteorSite.unlocked);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-meteor', meteorUnlocked);
 
@@ -10663,7 +10545,7 @@ function buildCraftActionButtons(item) {
             prologue: '게임 시작',
             woodsman: '혼돈 5층 클리어',
             woodsman_echo: '혼돈 밖에서 나무꾼 완전 격파',
-            star_wedge: '별쐐기를 획득해 패시브 트리에 장착',
+            meteor_fall: '운석 낙하 지점 첫 정산',
             beehive_queen: '루프 8 벌집 여왕 격파',
             void_grand_breach: '루프 9 큰 구멍의 지배자 격파',
             labyrinth_10: '고대 미궁 10층 클리어',
@@ -10815,7 +10697,7 @@ function getPassiveTreeNodeCategory(node) {
     if (['flatDmg', 'pctDmg', 'meleePctDmg', 'physPctDmg', 'aoePctDmg', 'projectilePctDmg', 'crit', 'critDmg', 'ds', 'physIgnore', 'igniteChance', 'chillChance', 'freezeChance', 'shockChance', 'poisonChance', 'bleedChance'].includes(stat)) return 'offense';
     if (['flatHp', 'pctHp', 'regen', 'leech', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'energyShieldRegen', 'deflectChance', 'dr', 'blockChance', 'blockChancePct', 'resF', 'resC', 'resL', 'resAll', 'resChaos', 'ailResIgnite', 'ailResShock', 'ailResFreeze', 'ailResPoison', 'ailResBleed'].includes(stat)) return 'defense';
     if (['firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'elementalPctDmg', 'dotPctDmg', 'resPen'].includes(stat)) return 'element';
-    if (['aspd', 'move', 'suppCap', 'gemLevel', 'expGain'].includes(stat) || (node && node.socketType === 'star_wedge')) return 'utility';
+    if (['aspd', 'move', 'suppCap', 'gemLevel', 'expGain'].includes(stat)) return 'utility';
     return 'other';
 }
 
@@ -10885,30 +10767,28 @@ function syncPassiveTreeSearchControls() {
 function getAllocatedPassiveStatSummary() {
     const totals = {};
     const specialEffects = [];
-    const mutations = (game.starWedge && game.starWedge.nodeMutations) || {};
-    const disabled = (game.starWedge && game.starWedge.disabledNodeEffects) || {};
     const allocatedIds = Array.isArray(game.passives) ? game.passives : [];
+    const virtualVoidCount = getVirtualVoidPassiveCount();
     let voidCount = 0;
     const add = (stat, value) => {
         if (!stat || !P_STATS[stat] || !Number.isFinite(Number(value))) return;
         totals[stat] = (totals[stat] || 0) + Number(value);
     };
     allocatedIds.forEach(id => {
-        if (disabled[String(id)]) return;
         const node = PASSIVE_TREE.nodes[id];
         if (!node) return;
         if (node.kind === 'void') {
             voidCount++;
             const entry = game.voidPassives && game.voidPassives[String(id)];
-            starWedgeRules.voidStats(entry, game).forEach(line => add(line && line.id, line && line.val));
+            passiveRouting.voidStats(entry, game).forEach(line => add(line && line.id, line && line.val));
+            getTranscendentVoidPassiveStats(id, entry, virtualVoidCount).forEach(line => add(line.stat, line.val));
             if (entry && entry.transcendent) {
                 const def = (typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' ? TRANSCENDENT_VOID_PASSIVE_DB : []).find(row => row.id === entry.transcendent.id);
                 specialEffects.push(def ? `초월 · ${def.name}` : '초월 공허 효과');
             }
             return;
         }
-        const mutation = mutations[String(id)];
-        getEffectivePassiveNodeEffects(node, mutation).forEach(effect => add(effect.stat, effect.val));
+        getEffectivePassiveNodeEffects(node).forEach(effect => add(effect.stat, effect.val));
     });
     const specialization = typeof ensurePassiveSpecializationState === 'function' ? ensurePassiveSpecializationState() : null;
     if ((totals.mystique || 0) > 0) specialEffects.push(`신비 ${formatValue('mystique', totals.mystique)} · 최고 피해 속성 상태이상 강화`);
@@ -10923,8 +10803,8 @@ function getAllocatedPassiveStatSummary() {
             : '성좌 각성 · 별의 공명 영구 활성');
     } else if (typeof getPassiveConstellationAwakeningProgress === 'function') {
         const progress = getPassiveConstellationAwakeningProgress();
-        if (progress.mode === 'outer_constellation' && progress.completed > 0) {
-            specialEffects.push(`성좌 각성 ${progress.completed}/${progress.required} · 외곽 성률마다 생성 패시브 1개 투자`);
+        if (progress.mode === 'outer_void' && progress.allocated > 0) {
+            specialEffects.push(`성좌 각성 ${progress.completed}/${progress.required} · 외곽 공허 소켓을 요정의 고리로 초월`);
         }
     }
     return {
@@ -11152,6 +11032,15 @@ async function askRefundPassiveNode(id) {
     refundPassiveNode(id);
 }
 
+/** 공허 제작 창 안내: 세 오브가 하는 일과, 외곽 공허 소켓이면 성좌 각성 진행(초월은 이 창에서 시도한다). */
+function getVoidCraftGuide(node, active) {
+    if (!active) return '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.';
+    const base = '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다. 요정의 고리는 25% 확률로 초월시키고, 실패하면 옵션이 지워집니다. 황금률은 초월 수치를 다시 굴립니다.';
+    if (node.voidRing !== 'outer' || game.passiveStarEvolution) return base;
+    const progress = getPassiveConstellationAwakeningProgress();
+    return `${base}<br>외곽 공허 소켓 · 성좌 각성 ${progress.completed}/${progress.required}: 여섯을 모두 초월시키면 성좌가 각성합니다.`;
+}
+
 function openVoidPassiveCraftOverlay(nodeId) {
     closeVoidPassiveCraftOverlay();
     let node = PASSIVE_TREE.nodes[nodeId];
@@ -11170,7 +11059,7 @@ function openVoidPassiveCraftOverlay(nodeId) {
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
         </div>
         <div class="void-craft-effect">${effectLabel}</div>
-        <div class="void-craft-hint">${active ? '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
+        <div class="void-craft-hint">${getVoidCraftGuide(node, active)}</div>
         <div class="void-craft-actions">
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹 · 1~2줄 재굴림<br><span>보유 ${game.currencies.magicBud || 0}</span></button>
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${active && (game.currencies.fairyRing || 0) > 0 ? '' : 'disabled'}>요정의 고리<br><span>보유 ${game.currencies.fairyRing || 0}</span></button>
@@ -11204,7 +11093,6 @@ function normalizePassiveTooltipText(value) {
 
 function getPassiveTooltipDescription(node, effectLabels) {
     if (!node || !node.desc) return '';
-    if (node.socketType === 'star_wedge') return '';
     if (Array.isArray(node.effects) && node.effects.length > 0) return '';
     const description = normalizePassiveTooltipText(node.desc);
     if (!description) return '';
@@ -11306,8 +11194,6 @@ function setupCanvasEvents() {
         let cx = Math.floor(worldX / cellSize);
         let cy = Math.floor(worldY / cellSize);
         let candidates = [];
-        let starState = ensureStarWedgeState();
-        let selectingStarWedge = Number.isFinite(starState.selectedWedgeId);
         for (let ox = -1; ox <= 1; ox++) {
             for (let oy = -1; oy <= 1; oy++) {
                 let bucket = passiveRenderCache.hoverGrid.get(`${cx + ox},${cy + oy}`);
@@ -11315,23 +11201,16 @@ function setupCanvasEvents() {
             }
         }
         let nearbyNodes = (candidates.length > 0 ? candidates : passiveRenderCache.nodes);
-        let nearestStarSlot = null;
-        let nearestStarSlotDistance = Infinity;
         nearbyNodes.forEach(node => {
             if (getPassiveVisibility(node.id) === 'hidden') return;
             let radius = Math.max(getPassiveNodeVisualRadius(node) + 8, minRadius);
             let distance = Math.hypot(node.x - worldX, node.y - worldY);
             if (distance > radius) return;
-            if (selectingStarWedge && node.socketType === 'star_wedge' && distance < nearestStarSlotDistance) {
-                nearestStarSlot = node;
-                nearestStarSlotDistance = distance;
-            }
             if (!found || distance < foundDistance) {
                 found = node;
                 foundDistance = distance;
             }
         });
-        if (selectingStarWedge && nearestStarSlot) return nearestStarSlot;
         return found;
     }
 
@@ -11342,22 +11221,13 @@ function setupCanvasEvents() {
 
     function renderPassiveTooltip(node, clientX, clientY) {
         if (!canvasTooltip || !node) return;
-        recalculateStarWedgeMutations();
-        let starState = ensureStarWedgeState();
-        const socketedWedge = getSocketedStarWedge(node);
-        let mutation = (starState.nodeMutations || {})[node.id];
-        let virtualLearned = !!((starState.virtualLearnNodes || {})[node.id]);
-        let effectDisabled = !!((starState.disabledNodeEffects || {})[node.id]);
-        let mutationConflict = (starState.mutationConflictSources || {})[node.id];
         let passiveAccent = getPassiveStatAccent(typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat);
         let state = getPassiveVisibility(node.id);
         let route = getHoveredPassivePathNodeIds(node.id);
         let routeCost = Array.from(route).filter(id => !(game.passives || []).includes(id)
             && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start').length;
         let ownedApexCount = getPassiveApexNodeIds().filter(id => (game.passives || []).includes(id)).length;
-        let msg = virtualLearned
-            ? '블랙홀이 연결한 가상 거점 · 포인트 없이 인접 경로를 시작할 수 있습니다.'
-            : (game.passives || []).includes(node.id)
+        let msg = (game.passives || []).includes(node.id)
             ? '활성화됨'
             : (reachableNodes.has(node.id)
                 ? describeReachablePassiveNode(node)
@@ -11372,9 +11242,9 @@ function setupCanvasEvents() {
             msg = (game.passives || []).includes(node.id)
                 ? '✔️ 각성된 별자리를 이미 받아들였습니다.'
                 : '✨ 성좌 진화 이후 드러난 강력한 외곽 노드입니다.';
-        } else if (node.socketType === 'star_wedge') {
-            let hasSocket = (starState.sockets || []).find(entry => String(entry.nodeId) === String(node.id));
-            msg = hasSocket ? '별쐐기 장착 중' : '별쐐기 장착 가능';
+        } else if (node.voidRing === 'outer' && !game.passiveStarEvolution) {
+            const progress = getPassiveConstellationAwakeningProgress();
+            msg += ` · 성좌 각성 ${progress.completed}/${progress.required}: 외곽 공허 소켓 여섯을 모두 초월시키면 각성합니다.`;
         }
 
         let effectBadge = (label, accent, caption) => {
@@ -11387,23 +11257,11 @@ function setupCanvasEvents() {
         const primaryEffectLabel = getPassiveEffectLabel(node);
         const displayedEffectLabels = [primaryEffectLabel].filter(Boolean);
         let effectHtml = primaryEffectLabel ? effectBadge(primaryEffectLabel, passiveAccent, '효과') : '';
-        if (socketedWedge) {
-            effectHtml = renderSocketedWedgeEffects(node, socketedWedge);
-        } else if (mutation) {
-            let originalAccent = getPassiveStatAccent(mutation.originalStat);
-            let currentAccent = getPassiveStatAccent(mutation.currentStat);
-            let originalLabel = mutation.originalStat ? `${getStatName(mutation.originalStat)} +${formatValue(mutation.originalStat, mutation.originalVal)}${P_STATS[mutation.originalStat] && P_STATS[mutation.originalStat].isPct ? '%' : ''}` : '효과 없음';
-            let currentLabel = `${getStatName(mutation.currentStat)} +${formatValue(mutation.currentStat, mutation.currentVal)}${P_STATS[mutation.currentStat] && P_STATS[mutation.currentStat].isPct ? '%' : ''}`;
-            displayedEffectLabels.push(originalLabel, currentLabel);
-            effectHtml = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch;">${effectBadge(originalLabel, originalAccent, '기존 효과')}${effectBadge(currentLabel, currentAccent, '변성 효과')}</div>`;
-        }
-        if (effectDisabled) effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,122,122,.5); border-radius:8px; color:#ffb4b4; background:rgba(92,26,36,.28);">이 노드의 효과는 장착 중인 고유 별쐐기로 인해 비활성화되어 스탯에 적용되지 않습니다.</div>`;
         const activationState = getPassiveNodeActivationState(node);
         if (node.activationRequirement && !activationState.active) {
             const requiredName = activationState.statId === 'devotion' ? '계시' : getStatName(activationState.statId);
             effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,184,106,.48); border-radius:8px; color:#ffd0a2; background:rgba(91,52,20,.28);">${requiredName}가 ${activationState.required} 미만이면 이 노드의 모든 효과가 비활성화됩니다. 현재 ${activationState.available}</div>`;
         }
-        if (Array.isArray(mutationConflict) && mutationConflict.length > 1) effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,184,106,.48); border-radius:8px; color:#ffd0a2; background:rgba(91,52,20,.28);">별쐐기 변성 범위가 겹쳐 충돌했습니다. 이 노드에는 어느 변성도 적용되지 않습니다.</div>`;
         let voidCraftHtml = '';
         if (node.kind === 'void' && (game.passives || []).includes(node.id)) {
             voidCraftHtml = `<div class="tooltip-line" style="margin-top:8px; color:var(--copy-bright);">🕳️ 클릭하면 공허 제작 창이 열립니다.</div>`;
@@ -11455,24 +11313,6 @@ function setupCanvasEvents() {
         if (dragDist >= 10 || !hoverNode) return;
         const targetNode = hoverNode;
         const targetNodeId = targetNode.id;
-        let starState = ensureStarWedgeState();
-        if (Number.isFinite(starState.selectedWedgeId)) {
-            let hoveredNodeId = hoverNode && hoverNode.id;
-            let resolvedNode = hoveredNodeId != null ? (PASSIVE_TREE.nodes[hoveredNodeId] || PASSIVE_TREE.nodes[String(hoveredNodeId)] || null) : null;
-            let isStarWedgeSlot = !!(resolvedNode && resolvedNode.socketType === 'star_wedge');
-            if (!isStarWedgeSlot && hoveredNodeId != null) {
-                let hoveredKey = String(hoveredNodeId);
-                isStarWedgeSlot = !!Object.values(PASSIVE_TREE.nodes || {}).find(node => node && node.socketType === 'star_wedge' && String(node.id) === hoveredKey);
-            }
-            if (isStarWedgeSlot) {
-                socketStarWedgeOnNode(hoverNode.id, starState.selectedWedgeId);
-                starState.selectedWedgeId = null;
-                updateStaticUI();
-            } else {
-                addLog('별쐐기 슬롯을 클릭해 장착하세요.', 'attack-monster');
-            }
-            return;
-        }
         let activationPath = getPassiveActivationPath(targetNodeId);
         let canActivate = activationPath.length === 1 && reachableNodes.has(targetNodeId);
         let canPathActivate = activationPath.length > 1;
@@ -14224,7 +14064,7 @@ function checkUnlocks() {
     const beforeExperts = new Set(game.expertise.unlockedExperts || []);
     if ((game.season||1) >= 2 && (game.currencies.sporeFire||0) > 0) game.expertise.unlockedExperts.push('mycologist');
     if (((game.season||1) >= 2 && (game.currencies.bossCore||0) > 0) || ((game.season||1) >= 4 && (game.currencies.skyEssence||0) > 0)) game.expertise.unlockedExperts.push('gemEngraver');
-    if ((game.season||1) >= 7 && ((game.starWedge||{}).unlocked || getStarWedgeUnlockReady())) game.expertise.unlockedExperts.push('astronomer');
+    if ((game.season||1) >= 7 && ((game.meteorSite||{}).unlocked || getMeteorSiteUnlockReady())) game.expertise.unlockedExperts.push('astronomer');
     if ((game.season||1) >= 8 && (((game.beehive||{}).unlockedPermanent) || (game.currencies.hiveKey||0) > 0)) game.expertise.unlockedExperts.push('beekeeper');
     game.expertise.unlockedExperts = Array.from(new Set(game.expertise.unlockedExperts));
     if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; }
@@ -14276,9 +14116,9 @@ function canRefundPassiveNode(nodeId) {
     const node = PASSIVE_TREE.nodes[nodeId];
     if (nodeId === getPassiveTreeRootNodeId() || node?.kind === 'start' || !game.passives.includes(nodeId)) return false;
     const remaining = { ...game, passives: game.passives.filter(id => id !== nodeId) };
-    const connected = starWedgeRules.connected(remaining, PASSIVE_TREE, getStarWedgeRouting(remaining));
+    const connected = passiveRouting.connected(remaining, PASSIVE_TREE, getPassiveRouting(remaining));
     return connected.length === remaining.passives.length
-        && starWedgeRules.pointBudget(game) + starWedgeRules.paleBonus(remaining) >= remaining.passives.length;
+        && passiveRouting.pointBudget(game) + passiveRouting.paleBonus(remaining) >= remaining.passives.length;
 }
 
 function refundPassiveNode(id) { if (!assertBuildEditable()) return;
@@ -14287,12 +14127,12 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     if (!game.passives.includes(id) || (node && node.kind === 'start')) return;
     if ((game.currencies.blightSpore || 0) < 1) return addLog('패시브 노드 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
     if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
-    const budget = starWedgeRules.pointBudget(game);
+    const budget = passiveRouting.pointBudget(game);
     game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     game.passives = game.passives.filter(nodeId => nodeId !== id);
     if (typeof clearPassiveAttributeChoice === 'function') clearPassiveAttributeChoice(id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
-    starWedgeRules.settlePoints(game, budget);
+    passiveRouting.settlePoints(game, budget);
     calculateReachableNodes();
     addLog(`패시브 노드 반환: ${escapeHTML(getPassiveNodeDisplayName(node))} (마름병 포자 1개 소모)`, 'season-up');
     updateStaticUI();

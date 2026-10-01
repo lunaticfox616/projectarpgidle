@@ -5,7 +5,7 @@ const vm = require('vm');
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js', 'data/items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'data/atlas.js', 'data/atlas-passives.js', 'js/utils.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'data/atlas.js', 'data/atlas-passives.js', 'js/utils.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/state.js', 'js/passive-routing.js', 'js/passives.js',
   'data/act-exploration-maps.js', 'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
 ];
 
@@ -65,18 +65,18 @@ const layout = vm.runInContext(`(() => {
     startClasses: new Set(starts.map(node => node.startClassId)).size,
     startEffects: starts.reduce((sum, node) => sum + (node.effects || []).length, 0),
     isolatedCount: [...adjacency.values()].filter(count => count === 0).length,
-    centralStarWedges: nodes.filter(node => node.starWedgeMode === 'mutation').length,
-    outerStarWedges: nodes.filter(node => node.starWedgeMode === 'constellation').length,
-    starWedgeOptions: nodes.filter(node => node.kind === 'star_option').length,
+    voidSockets: nodes.filter(node => node.kind === 'void').length,
+    outerVoidSockets: nodes.filter(node => node.kind === 'void' && node.voidRing === 'outer').length,
+    starWedgeRemnants: nodes.filter(node => node.kind === 'hub' || node.kind === 'star_option' || node.starWedgeMode || node.socketType).length,
     builtCount: Object.keys(PASSIVE_TREE_V22.nodes).length,
     builtEdgeCount: PASSIVE_TREE_V22.edges.length,
     aspectRatio: (actualMaxX - actualMinX) / (actualMaxY - actualMinY),
   };
 })()`, context);
 
-assert.strictEqual(layout.starWedgeOptions, 24, 'six outer star wedges should expose four connected options each');
+assert.strictEqual(layout.starWedgeRemnants, 0, 'star wedges were removed: no hubs, sockets or generated options remain');
 assert.strictEqual(layout.count, layout.builtCount,
-  'the runtime tree should load every built node, including outer star-wedge options');
+  'the runtime tree should load every built node');
 assert.strictEqual(layout.edgeCount, layout.builtEdgeCount,
   'the runtime tree should preserve every built connection');
 assert.strictEqual(layout.startCount, 6, 'the replacement tree should expose six class starting points');
@@ -84,8 +84,8 @@ assert.strictEqual(layout.startClasses, 6, 'each class starting point should own
 assert.strictEqual(layout.startEffects, 0, 'class starting points must remain effect-free');
 assert.strictEqual(layout.isolatedCount, 0, 'the authored replacement tree must not contain isolated nodes');
 assert.strictEqual(layout.duplicateCoordinates, 0, 'the authored replacement tree must not contain exact coordinate duplicates');
-assert.strictEqual(layout.centralStarWedges, 3, 'the center should contain three mutation star-wedge sockets');
-assert.strictEqual(layout.outerStarWedges, 6, 'the outer ring should contain six constellation star-wedge sockets');
+assert.strictEqual(layout.voidSockets, 34, 'the nine former star-wedge hubs became void sockets beside the 25 original voids');
+assert.strictEqual(layout.outerVoidSockets, 6, 'the outer ring keeps six void sockets for the constellation awakening');
 assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the authored passive tree should retain its near-circular silhouette');
 
 vm.runInContext(fs.readFileSync('js/canvas-slash-vfx.js', 'utf8'), context, { filename: 'js/canvas-slash-vfx.js' });

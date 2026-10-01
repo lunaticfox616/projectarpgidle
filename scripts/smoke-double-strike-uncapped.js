@@ -25,7 +25,7 @@ const files = [
   'js/endgame-progression.js',
   'js/save.js',
   'js/items.js',
-  'js/star-wedge.js', 'js/passives.js',
+  'js/passive-routing.js', 'js/passives.js',
   'js/loot.js',
   'js/background-build-cache.js',
   'js/equipment-stat-resolution.js',

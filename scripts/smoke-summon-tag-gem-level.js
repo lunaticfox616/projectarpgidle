@@ -12,7 +12,6 @@ const tagResult = vm.runInContext(`(() => {
   game.equipment = {};
   game.arcana = createDefaultArcanaState();
   game.passives = [generic[0], chaos[0]];
-  game.starWedge = {};
   game.actRewardBonuses = [];
   game.journalBonuses = [];
   game.stumpBox = stumpBox.empty();
@@ -160,8 +159,7 @@ assert.strictEqual(talismanResult.after - talismanResult.before, 3, 'an awake ta
 const evaluationResult = vm.runInContext(`(() => {
   const nodes = Object.entries(PASSIVE_TREE.nodes).filter(([, node]) =>
     (node.effects || []).some(effect => effect.stat === 'gemLevel' || effect.stat === 'chaosGemLevel'));
-  game.passives = nodes.map(([id]) => id);
-  game.starWedge = { disabledNodeEffects: { [nodes[0][0]]: true }, nodeMutations: {} };
+  game.passives = nodes.slice(1).map(([id]) => id);
   const lists = [{ baseStats: [{id:'flatHp', val:9, extraStats:[{id:'gemLevel', val:0.1},
     {id:'chaosGemLevel',val:0.2,extraStats:[{id:'gemLevel',val:0.3}]}]}],
     explicitStats: [{id:'gemLevel',val:-0.2}, {id:'gemLevel',val:Infinity}] },
@@ -177,7 +175,7 @@ const evaluationResult = vm.runInContext(`(() => {
   const original = first.total;
   first.total = -999;
   const isolated = getTargetGemBonusSources(targets[0], undefined, lists, evaluation).total === original;
-  game.starWedge.disabledNodeEffects = {};
+  game.passives = nodes.map(([id]) => id);
   game.actRewardBonuses.push({stat:'gemLevel',value:2});
   const fresh = createGemBonusEvaluation(lists);
   const changed = getTargetGemBonusSources(targets[0], undefined, lists, fresh);
@@ -186,7 +184,7 @@ const evaluationResult = vm.runInContext(`(() => {
     changed, direct, original, empty: createGemBonusEvaluation([]).gearLines.length };
 })()`, runtime);
 evaluationResult.pairs.forEach(([direct, shared]) => assert.deepStrictEqual(shared, direct,
-  'shared inputs preserve recursive extra stats, fractional order, tags and disabled passives'));
+  'shared inputs preserve recursive extra stats, fractional order, tags and allocated passives'));
 evaluationResult.gearPairs.forEach(([filtered, recursive]) => assert.strictEqual(filtered, recursive,
   'filtered gear must equal the original recursive evaluator, including item grouping and non-finite values'));
 assert.deepStrictEqual(evaluationResult.changed, evaluationResult.direct);

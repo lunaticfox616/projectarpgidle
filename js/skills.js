@@ -832,8 +832,8 @@ function getArcanaGemDamageBonusPct(target, ownerState) {
     return getArcanaGemDamageBonus(target, ownerState).pct;
 }
 
-function getPassiveGemLevelEffects(node, mutation) {
-    return getEffectivePassiveNodeEffects(node, mutation);
+function getPassiveGemLevelEffects(node) {
+    return getEffectivePassiveNodeEffects(node);
 }
 
 /**
@@ -849,11 +849,8 @@ function createGemBonusEvaluation(resolvedStats) {
     }
     const ids = new Set(['gemLevel', ...GEM_LEVEL_TAG_RULES.map(rule => rule.stat)]);
     const gearLines = sources.map(resolved => collectGemLevelStatLines([...resolved.baseStats, ...resolved.explicitStats], ids));
-    const passiveEffects = (game.passives || []).flatMap(id => {
-        if (game.starWedge?.disabledNodeEffects?.[String(id)]) return [];
-        return getPassiveGemLevelEffects(PASSIVE_TREE.nodes[id], game.starWedge?.nodeMutations?.[id])
-            .filter(effect => ids.has(effect.stat));
-    });
+    const passiveEffects = (game.passives || []).flatMap(id => getPassiveGemLevelEffects(PASSIVE_TREE.nodes[id])
+        .filter(effect => ids.has(effect.stat)));
     return { gearLines, passiveEffects, memo: new Map() };
 }
 

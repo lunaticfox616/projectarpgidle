@@ -50,6 +50,30 @@ function stripRemovedGrowthBoard(merged) {
         .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
 }
 
+const METEOR_SITE_SAVE_KEYS = Object.freeze(['unlocked', 'skyRiftGauge', 'skyRiftReady', 'skyRiftMinTier', 'skyRiftAllCosmos',
+    'activeMeteorTier', 'meteorReturnZoneId', 'lastAnomalyAt', 'skyRiftCarryGauge', 'constellationBuff', 'entriesCleared']);
+const RETIRED_STAR_WEDGE_CURRENCIES = Object.freeze(['meteorShard', 'incompleteStarWedge', 'starWedge', 'astralCore']);
+
+/** 6단계(2026-10-01): 운석 낙하 지점 상태(게이지 · 단계 · 돌아갈 곳 · 별자리 관측)를 별쐐기 저장에서 meteorSite로 옮기고,
+ * 별쐐기 · 장착 · 변성 기록은 보상 없이 지운다(결정 4 · 8). 별쐐기 저널은 운석 낙하 지점 저널이 된다. 두 번 불러와도 같다. */
+function moveStarWedgeSaveToMeteorSite(merged, save) {
+    const legacy = save.starWedge && typeof save.starWedge === 'object' ? save.starWedge : null;
+    if (legacy && !(save.meteorSite && typeof save.meteorSite === 'object')) {
+        merged.meteorSite = Object.fromEntries(METEOR_SITE_SAVE_KEYS.filter(key => key in legacy).map(key => [key, legacy[key]]));
+    }
+    delete merged.starWedge;
+    ensureMeteorSiteState(merged);
+    if (Array.isArray(merged.journalEntries)) merged.journalEntries = merged.journalEntries.map(id => id === 'star_wedge' ? 'meteor_fall' : id);
+}
+
+/** 6단계(2026-10-01): 운석 파편 · 불완전한 별쐐기 · 별쐐기 · 성핵 조각과 나무꾼 잠금 사진의 별쐐기, 명왕성 별쐐기가 만들던
+ * 공허 노드(star_pluto_*)의 보관된 제작 기록을 지운다. 그 노드는 다시 생기지 않는다. */
+function stripRemovedStarWedges(merged) {
+    RETIRED_STAR_WEDGE_CURRENCIES.forEach(key => delete merged.currencies[key]);
+    if (merged.woodsmanBuildSnapshot && typeof merged.woodsmanBuildSnapshot === 'object') delete merged.woodsmanBuildSnapshot.starWedge;
+    Object.keys(merged.retiredVoidPassives || {}).filter(id => id.startsWith('star_')).forEach(id => delete merged.retiredVoidPassives[id]);
+}
+
 /** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
  * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
 function stripRemovedFlasks(merged) {
@@ -185,16 +209,15 @@ function mergeDefaults(save) {
             seen.add(id);
             const node = PASSIVE_TREE.nodes[id];
             if (node.kind === 'start') return;
-            if ((node.requiresEvolution && !passiveStarEvolution)
-                || ((node.kind === 'star_option' || node.starWedgeGenerated) && !node.starWedgeOptionActive)) {
+            if (node.requiresEvolution && !passiveStarEvolution) {
                 refunded++; return;
             }
             kept.push(id);
         });
         const candidate = { ...passiveSaveState, passives: kept };
-        const connected = starWedgeRules.connected(candidate, PASSIVE_TREE, getStarWedgeRouting(candidate));
-        const lostBonus = Math.max(0, starWedgeRules.paleBonus({ ...candidate, passives: rawList })
-            - starWedgeRules.paleBonus({ ...candidate, passives: connected }));
+        const connected = passiveRouting.connected(candidate, PASSIVE_TREE, getPassiveRouting(candidate));
+        const lostBonus = Math.max(0, passiveRouting.paleBonus({ ...candidate, passives: rawList })
+            - passiveRouting.paleBonus({ ...candidate, passives: connected }));
         return { passives: connected, refunded: refunded + kept.length - connected.length, lostBonus };
     }
     function migratePassiveSaveNodeReferences(state) {
@@ -204,17 +227,6 @@ function mergeDefaults(save) {
         state.passiveAttributeChoices = migratePassiveNodeIdRecord(state.passiveAttributeChoices);
         state.voidPassives = migratePassiveNodeIdRecord(state.voidPassives);
         state.retiredVoidPassives = migratePassiveNodeIdRecord(state.retiredVoidPassives);
-        let star = state.starWedge && typeof state.starWedge === 'object' ? { ...state.starWedge } : {};
-        star.wedges = (Array.isArray(star.wedges) ? star.wedges : []).map(wedge => wedge && typeof wedge === 'object'
-            ? { ...wedge, recordedHubNodeId: getCurrentPassiveNodeId(wedge.recordedHubNodeId) } : wedge);
-        star.sockets = (Array.isArray(star.sockets) ? star.sockets : []).map(socket => socket && typeof socket === 'object'
-            ? { ...socket, nodeId: getCurrentPassiveNodeId(socket.nodeId) } : socket);
-        ['nodeMutations', 'virtualLearnNodes', 'virtualLearnSources', 'disabledNodeEffects',
-            'disabledNodeEffectSources', 'mutationConflictSources'].forEach(key => {
-            star[key] = migratePassiveNodeIdRecord(star[key]);
-        });
-        delete star._mutationSignature;
-        state.starWedge = star;
     }
     function normalizeEncounterMarker(marker) {
         if (!marker || typeof marker !== 'object') return null;
@@ -392,19 +404,8 @@ function mergeDefaults(save) {
             if (item.uniqueEffectKey === 'rightRingSummonCap' && slot === '반지2') bonus += Number((item.uniqueEffectParams || {}).cap) || 1;
         });
         (state && Array.isArray(state.passives) ? state.passives : []).forEach(id => {
-            if (state.starWedge && state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
             let node = PASSIVE_TREE.nodes[id];
-            let mut = state.starWedge && state.starWedge.nodeMutations ? state.starWedge.nodeMutations[id] : null;
-            let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
-            let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
-            if (node && statId === 'summonCap') bonus += statVal || 0;
-        });
-        let ownedPassiveIds = new Set(state && Array.isArray(state.passives) ? state.passives.map(String) : []);
-        Object.keys((state && state.starWedge && state.starWedge.nodeMutations) || {}).forEach(id => {
-            let mut = state.starWedge.nodeMutations[id];
-            if (!mut || mut.lineIndex !== 3 || mut.currentStat !== 'summonCap' || ownedPassiveIds.has(String(id))) return;
-            if (state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
-            bonus += Number(mut.currentVal) || 0;
+            if (node && node.stat === 'summonCap') bonus += node.val || 0;
         });
         (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
         (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
@@ -522,8 +523,7 @@ function mergeDefaults(save) {
     const legacyPassiveRefundCount = Number(merged.passiveLayoutVersion || 0) < 22
         ? (Array.isArray(save.passives) ? save.passives.filter(id => id !== 'n0').length : 0)
         : 0;
-    ensureStarWedgeState(merged);
-    starWedgeRules.rebuild(PASSIVE_TREE, merged, false);
+    moveStarWedgeSaveToMeteorSite(merged, save);
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
@@ -663,31 +663,6 @@ function mergeDefaults(save) {
         let minExpectedPoints = Math.max(0, legacyKeystoneTotal - merged.ascendKeystones.length);
         merged.ascendKeystonePoints = Math.max(merged.ascendKeystonePoints, minExpectedPoints);
     }
-    merged.starWedge = (merged.starWedge && typeof merged.starWedge === 'object') ? merged.starWedge : {};
-    merged.starWedge.unlocked = !!merged.starWedge.unlocked;
-    merged.starWedge.unlockNoticeSeen = !!merged.starWedge.unlockNoticeSeen;
-    merged.starWedge.skyRiftGauge = clampFiniteNumber(merged.starWedge.skyRiftGauge, 0, 0, 100);
-    merged.starWedge.skyRiftReady = !!merged.starWedge.skyRiftReady;
-    merged.starWedge.skyRiftMinTier = Number.isFinite(merged.starWedge.skyRiftMinTier) ? Math.max(1, Math.floor(merged.starWedge.skyRiftMinTier)) : null;
-    merged.starWedge.activeMeteorTier = Number.isFinite(merged.starWedge.activeMeteorTier) ? Math.max(8, Math.min(40, Math.floor(merged.starWedge.activeMeteorTier))) : null;
-    let meteorReturnZoneId = merged.starWedge.meteorReturnZoneId;
-    merged.starWedge.meteorReturnZoneId = (typeof meteorReturnZoneId === 'number' || typeof meteorReturnZoneId === 'string') && meteorReturnZoneId !== METEOR_FALL_ZONE_ID ? meteorReturnZoneId : null;
-    merged.starWedge.lastAnomalyAt = Number.isFinite(merged.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(merged.starWedge.lastAnomalyAt)) : 0;
-    merged.starWedge.skyRiftCarryGauge = clampFiniteNumber(merged.starWedge.skyRiftCarryGauge, 0, 0, 99);
-    merged.starWedge.constellationBuff = (merged.starWedge.constellationBuff && typeof merged.starWedge.constellationBuff === 'object') ? merged.starWedge.constellationBuff : null;
-    merged.starWedge.entriesCleared = Math.max(0, Math.floor(clampFiniteNumber(merged.starWedge.entriesCleared, 0, 0)));
-    merged.starWedge.firstClearDone = !!merged.starWedge.firstClearDone;
-    merged.starWedge.selectedWedgeId = Number.isFinite(merged.starWedge.selectedWedgeId) ? merged.starWedge.selectedWedgeId : null;
-    // 보유 별쐐기는 잘라내지 않는다. 획득 경로(드랍·제작) 어디에도 보유 한도 검사가
-    // 없고 화면에도 한도 표시가 없는데, 여기서만 60개로 잘라 초과분이 조용히 사라졌다.
-    // 앞에서부터 남기므로 가장 최근에 얻은 것이 먼저 지워진다(별쐐기 하나가
-    // 운석 파편 77개 + 불완전한 별쐐기 1개다). 장비·주얼 보관함과 같이 그대로 둔다.
-    // 장착 수는 아래 sockets 상한(천문학자 레벨)이 계속 제한한다.
-    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)) : [];
-    let mergedAstronomerLevel = merged.expertise && merged.expertise.levels ? merged.expertise.levels.astronomer : 1;
-    let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
-    merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
-    merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
     let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
     let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
     merged.voidPassives = {};
@@ -824,7 +799,8 @@ function mergeDefaults(save) {
     let journalLoadState = rebuildJournalBonusStateForLoad(merged);
     let pendingJournalPassivePoints = Math.max(0, Math.floor(journalLoadState.pendingPassivePoints || 0));
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
-    const awakeningSources = new Set(['legacy_migrated', 'legacy_apex', 'outer_constellation']);
+    // outer_constellation: 별쐐기 성률로 각성한 옛 저장(각성은 영구히 유지). outer_void: 외곽 공허 소켓 여섯의 초월.
+    const awakeningSources = new Set(['legacy_migrated', 'legacy_apex', 'outer_constellation', 'outer_void']);
     merged.passiveStarEvolutionSource = merged.passiveStarEvolution
         ? (awakeningSources.has(merged.passiveStarEvolutionSource) ? merged.passiveStarEvolutionSource : 'legacy_migrated')
         : null;
@@ -940,7 +916,7 @@ function mergeDefaults(save) {
     merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
-    starWedgeRules.reconcile(merged, PASSIVE_TREE, getStarWedgeRouting(merged), starWedgeRules.pointBudget(merged) - passiveAllocationNormalization.lostBonus);
+    passiveRouting.reconcile(merged, PASSIVE_TREE, getPassiveRouting(merged), passiveRouting.pointBudget(merged) - passiveAllocationNormalization.lostBonus);
     delete merged.inventoryExpandLevel;
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
@@ -1117,8 +1093,8 @@ function mergeDefaults(save) {
         let keepLegacyDeepChaosSlot = (merged.season || 1) >= 10 && normalizedDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
         if ((normalizedDepth <= 20 && !keepLegacyDeepChaosSlot) || (merged.season || 1) < 10) merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
     }
-    if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
-        merged.starWedge.unlocked = true;
+    if ((merged.season || 1) >= METEOR_SITE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= METEOR_SITE_UNLOCK_ACT) {
+        merged.meteorSite.unlocked = true;
     }
     reconcileMapPrimaryContentUnlocks(merged);
     if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
@@ -1132,6 +1108,7 @@ function mergeDefaults(save) {
         .forEach(enemy => { if (enemy) { delete enemy.isBountyTarget; delete enemy.bountyId; } });
     stripRemovedGrowthBoard(merged);
     stripRemovedFlasks(merged);
+    stripRemovedStarWedges(merged);
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);

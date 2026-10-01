@@ -17,7 +17,7 @@ const files = [
   'data/endgame-progression.js',
   'js/utils.js',
   'js/state.js',
-  'js/star-wedge.js', 'js/passives.js',
+  'js/passive-routing.js', 'js/passives.js',
 ];
 
 function createElement() {
@@ -57,16 +57,16 @@ const treeShape = vm.runInContext(`
     edgeCount: PASSIVE_TREE.edges.length,
     builtNodeCount: Object.keys(PASSIVE_TREE_V22.nodes).length,
     builtEdgeCount: PASSIVE_TREE_V22.edges.length,
-    starWedgeOptionCount: nodes.filter(node => node.kind === 'star_option').length,
+    starWedgeRemnantCount: nodes.filter(node => node.kind === 'star_option' || node.kind === 'hub').length,
     startCount: starts.length,
     selectedRoot: getPassiveTreeRootNodeId(),
     allStarts: PASSIVE_TREE_V22.classStarts
   };
 })()
 `, context);
-assert.strictEqual(treeShape.starWedgeOptionCount, 24, '외곽 별쐐기 여섯 개는 각각 네 선택지를 만들어야 한다');
+assert.strictEqual(treeShape.starWedgeRemnantCount, 0, '별쐐기 허브 · 선택지는 남지 않는다(공허 소켓으로 바뀜)');
 assert.strictEqual(treeShape.nodeCount, treeShape.builtNodeCount,
-    '빌드된 패시브와 외곽 별쐐기 선택지가 런타임에 빠짐없이 로드되어야 한다');
+    '빌드된 패시브가 런타임에 빠짐없이 로드되어야 한다');
 assert.strictEqual(treeShape.edgeCount, treeShape.builtEdgeCount,
     '빌드된 패시브 연결선이 런타임에 빠짐없이 유지되어야 한다');
 assert.strictEqual(treeShape.startCount, 6, '직업별 시작점은 여섯 개여야 한다');

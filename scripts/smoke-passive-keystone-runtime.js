@@ -67,14 +67,10 @@ context.__distantDevotion = Object.values(context.PASSIVE_TREE.nodes).find(node 
     !devotionSpokes.includes(node.id) && node.effects.some(effect => effect.stat === 'devotion' && effect.val > 0)).id;
 run('game.passives = [...__stormNodes, __distantDevotion];');
 assert.strictEqual(context.getAllocatedPassiveStatValue('lightPctDmg'), 99);
-run(`game.passives = [...__stormNodes, 'n6edbwrjop1', 'n6edbwrjop1'];
-    game.starWedge.disabledNodeEffects.n6edbwrjop1 = true;`);
+run(`game.passives = [...__stormNodes, 'n6edbwrjop1', 'n6edbwrjop1'];`);
 assert.strictEqual(context.getEffectivePassiveNodeEffects(stormMajor)[0].val, 40);
-run('delete game.starWedge.disabledNodeEffects.n6edbwrjop1; game.passives = __stormNodes.slice();');
+run('game.passives = __stormNodes.slice();');
 assert.strictEqual(context.getEffectivePassiveNodeEffects(stormMajor)[0].val, 50, 'returning the spoke must restore the major');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(context.getEffectivePassiveNodeEffects(stormMajor,
-    { currentStat: 'flatHp', currentVal: 30 }))), [{ stat: 'flatHp', val: 30 }],
-    'a star-wedge replacement is a replacement effect, not the original damage bonus');
 
 // Re-investing a saved preset must compute the same penalty from its allocated IDs.
 run('game.passives = []; game.passivePoints = 100;');

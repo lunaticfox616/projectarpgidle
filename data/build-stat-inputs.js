@@ -13,7 +13,7 @@ const BUILD_STAT_FIELDS = [
 ];
 const BUILD_STAT_PARTS = {
     passiveSpecialization: ['revelation', 'keystoneChoices'],
-    starWedge: ['wedges', 'sockets', 'nodeMutations', 'disabledNodeEffects', 'constellationBuff'],
+    meteorSite: ['constellationBuff'],
     cores: ['equipped'],
     arcana: ['unlocked', 'cards', 'deckSlots', 'equipmentSlots'],
     pruningTree: ['unlocked', 'nodeRanks', 'prunedPenaltyRanks'],

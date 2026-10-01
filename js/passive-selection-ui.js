@@ -48,7 +48,7 @@ const passiveSelectionUi = (() => {
 
     function touch(node, point, actions) {
         if (dragDist >= 10 || !node) return;
-        if (uiDisplay.matches('(max-width: 1080px)') && !Number.isFinite(ensureStarWedgeState().selectedWedgeId)) {
+        if (uiDisplay.matches('(max-width: 1080px)')) {
             actions.preview(node, point.clientX, point.clientY);
             document.querySelector('[data-passive-confirm]').onclick = () => {
                 hide(); actions.activate({ clientX: point.clientX, clientY: point.clientY });

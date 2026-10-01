@@ -108,7 +108,7 @@ const sideEncounterUi = (() => {
         return [
             {id:'beehive',name:'벌집 원정',active:game.beehive.inRun,ready:!blocked && game.currencies.hiveKey>0},
             {id:'voidrift',name:'대균열',active:game.voidRift.grandRun?.inRun,ready:!blocked && game.voidRift.grandBreachUnlock},
-            {id:'meteor',name:'운석 낙하',active:game.currentZoneId===METEOR_FALL_ZONE_ID,ready:!blocked && game.starWedge.skyRiftReady}
+            {id:'meteor',name:'운석 낙하',active:game.currentZoneId===METEOR_FALL_ZONE_ID,ready:!blocked && game.meteorSite.skyRiftReady}
         ];
     }
 
@@ -178,9 +178,9 @@ const sideEncounterUi = (() => {
 
     function meteorPanel(power) {
         const active = game.currentZoneId === METEOR_FALL_ZONE_ID;
-        const ready = game.starWedge.skyRiftReady;
-        const percent = Math.min(100,Math.floor(game.starWedge.skyRiftGauge || 0));
-        const reward = contentProgression.isUnlocked('meteor') ? '운석 파편 · 불완전한 별쐐기 · 천문학자 성장에 따른 추가 전리품' : '희귀 이상 장비';
+        const ready = game.meteorSite.skyRiftReady;
+        const percent = Math.min(100,Math.floor(game.meteorSite.skyRiftGauge || 0));
+        const reward = '희귀 이상 장비 · 별가루 · 운석 고유 장비(낮은 확률)';
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${active?'운석 원정 진행 중':ready?'원정 준비 완료':`하늘의 균열 충전 ${percent}%`}</strong>${power}</div>
             <dl><div><dt>주요 전리품</dt><dd>${reward}</dd></div>
             <div><dt>난이도</dt><dd>티어 ${getZone(METEOR_FALL_ZONE_ID).tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div></dl>

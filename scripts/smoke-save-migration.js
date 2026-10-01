@@ -148,7 +148,6 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         discoveredPassives: ['poe2_22290', 'poe2_26725'],
         voidPassives: { poe2_26725: { stats: [{ id: 'flatHp', val: 12 }] } },
         retiredVoidPassives: { poe2_26196: { stats: [{ id: 'resAll', val: 3 }] } },
-        starWedge: { nodeMutations: { poe2_1207: { currentStat: 'flatHp', currentVal: 5 } } },
         settings: { passiveTreePlanner: { layoutVersion: 22, activeSlot: 0, presets: [
             { name: '옛 ID', nodeIds: ['poe2_22290', 'poe2_1207'], attributeChoices: {} }
         ] } }
@@ -158,7 +157,6 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.ok(g.discoveredPassives.includes('pt_void_south'), '발견한 공허 노드도 새 식별자로 복구해야 한다');
     assert.strictEqual(g.voidPassives.pt_void_south.stats[0].val, 12, '공허 패시브 옵션을 보존해야 한다');
     assert.ok(g.retiredVoidPassives.pt_void_southeast, '보관된 공허 패시브도 새 식별자로 복구해야 한다');
-    assert.ok(g.starWedge.nodeMutations.pt_base_path_001, '성률의 노드 참조도 새 식별자로 복구해야 한다');
     assert.deepStrictEqual(Array.from(g.settings.passiveTreePlanner.presets[0].nodeIds),
         ['pt_spine_warrior_left_01', 'pt_base_path_001'], '패시브 프리셋 순서와 노드를 보존해야 한다');
 }
@@ -195,43 +193,22 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         '옛 외형 필드는 저장 상태의 두 번째 출처로 남으면 안 된다');
 }
 
-// 별쐐기 보관함도 장착 슬롯 한도와 무관하게 전부 복원한다.
+// 별쐐기 제거(2026-10-01): 예전 외곽 성률 옵션 노드는 트리에서 사라졌다. 투자해 둔 포인트는 정확히 한 점씩 돌려주고,
+// 별쐐기 · 장착 기록은 보상 없이 지운다.
 {
-    const manyWedges = Array.from({ length: 70 }, (_, index) => ({
-        id: 900000 + index,
-        name: `wedge-${index}`,
-        lines: []
-    }));
     const g = merge({
-        level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
-        currencies: {}, unlocks: {}, settings: {},
-        starWedge: { wedges: manyWedges }
-    });
-    assert.strictEqual(g.starWedge.wedges.length, manyWedges.length,
-        '장착 한도를 넘긴 보유 별쐐기도 불러오기에서 모두 보존해야 한다');
-}
-
-// 외곽 성률 옵션은 트리 본체의 경로와 무관하게 1포인트로 사는 독립 노드다.
-// 장착한 별쐐기의 활성 옵션을 재접속 때 연결 끊김으로 오판해 환불하면 안 된다.
-{
-    const outerHub = Object.values(ctx.PASSIVE_TREE.nodes).find(node => node.starWedgeMode === 'constellation');
-    const option = Object.values(ctx.PASSIVE_TREE.nodes).find(node => node.kind === 'star_option'
-        && node.requiresStarWedgeSocketNodeId === outerHub.id && node.starWedgeLineIndex === 0);
-    const baseSave = {
         saveVersion: vm.runInContext('defaultGame.saveVersion', ctx), passiveLayoutVersion: 22,
         selectedClassId: 'warrior', inventory: [], equipment: {}, currencies: {}, unlocks: {},
-        passives: [option.id], passivePoints: 0,
+        passives: ['star_constellation_nh9myirl4b7_0'], passivePoints: 0,
         starWedge: {
             wedges: [{ id: 7001, lines: [{ stat: 'move', val: 7 }] }],
-            sockets: [{ nodeId: outerHub.id, wedgeId: 7001 }]
+            sockets: [{ nodeId: 'nh9myirl4b7', wedgeId: 7001 }]
         }
-    };
-    const active = merge(baseSave);
-    assert.ok(active.passives.includes(option.id), '장착 중인 외곽 성률 옵션 투자를 보존해야 한다');
-    assert.strictEqual(active.autoRefundedPassivePoints, 0, '활성 성률 옵션을 자동 환불하면 안 된다');
-    const inactive = merge({ ...baseSave, starWedge: { wedges: baseSave.starWedge.wedges, sockets: [] } });
-    assert.ok(!inactive.passives.includes(option.id), '소켓이 비어 사라진 성률 옵션은 제거해야 한다');
-    assert.strictEqual(inactive.autoRefundedPassivePoints, 1, '사라진 성률 옵션은 정확히 한 포인트 환불해야 한다');
+    });
+    assert.deepStrictEqual(Array.from(g.passives), [], '사라진 성률 옵션 투자는 남지 않는다');
+    assert.strictEqual(g.autoRefundedPassivePoints, 1, '사라진 성률 옵션은 정확히 한 포인트 환불해야 한다');
+    assert.strictEqual(g.passivePoints, 1);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(g, 'starWedge'), false, '별쐐기 저장은 남지 않는다');
 }
 
 // ── 손상된 저장은 조용히 넘어가지 않고 던진다 ────────────────────────────

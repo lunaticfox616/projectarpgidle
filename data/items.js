@@ -911,7 +911,7 @@ const ORB_DB = {
     venomStinger: { name: '독벌침', desc: '무기에 랜덤 공격 옵션 한 줄을 추가/재설정합니다.' },
     pollen: { name: '꽃가루', desc: '벌집 열쇠/독벌침/벌꿀 제작에 사용하는 천장 재화입니다.' },
     beeswax: { name: '밀랍', desc: '양봉업자 Lv.8부터 발견되는 벌 재화입니다. 고급 벌 이벤트와 제작 보조에 사용됩니다.' },
-    starDust: { name: '별가루', desc: '천문학자 Lv.2부터 관측 중 발견되는 별 재화입니다. 이상 현상과 별쐐기 보조 제작에 사용됩니다.' },
+    starDust: { name: '별가루', desc: '운석 낙하 지점 · 우주계 탐사 · 이상 현상에서 모이는 별 재화입니다.' },
     awakenedEcho: { name: '각성 잔향', desc: '젬 각인사 Lv.12부터 발견되는 각성 재료입니다. Lv.15에서 공격 젬을 각성 젬으로 변환해 젬 자체 보너스를 부여할 때 사용됩니다. 각성 각인은 각성 젬이 아니어도 모든 공격 젬에 부여할 수 있습니다.' },
     sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeCold: { name: '냉기 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
@@ -920,9 +920,6 @@ const ORB_DB = {
     sealShard: { name: '봉인편린', desc: '고대 미궁에서 떨어집니다. 그루터기 함에서 하나로 부적 하나를 풉니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 줄이 둘인 더 강한 부적을 풉니다.' },
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 줄이 둘~셋인 부적을 풀고, 고유 부적 확률이 높습니다.' },
-    meteorShard: { name: '운석 파편', desc: '운석 낙하 지점에서 얻는 검은 별 파편. 별쐐기 제작/리롤에 사용됩니다.' },
-    incompleteStarWedge: { name: '불완전한 별쐐기', desc: '미완성 별쐐기 코어. 운석 파편과 결합하면 완성할 수 있습니다.' },
-    starWedge: { name: '별쐐기', desc: '검은 별의 파편. 패시브 트리에 장착해 주변 노드 효과를 변성시킵니다.' },
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
     oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
 };
@@ -930,8 +927,7 @@ const ORB_DB = {
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
 const WALLET_CURRENCY_INFO = Object.freeze({
     colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻습니다. 군락지 수호 칸을 여는 데 씁니다.' }),
-    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지 수호 칸을 여는 데 씁니다.' }),
-    astralCore: Object.freeze({ name: '성핵 조각', desc: '가진 개수만큼 완성된 별쐐기가 고유로 나올 확률이 오릅니다(개당 2%, 최대 35%). 별쐐기가 떨어질 때 하나 씁니다.' })
+    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지 수호 칸을 여는 데 씁니다.' })
 });
 /** Name and description of any wallet currency: ORB_DB items first, then the wallet-only counters. */
 function getCurrencyInfo(key) {
@@ -945,7 +941,7 @@ for (const [unlock, keys] of [
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
     ['talisman', ['sealShard','strongSealShard','radiantSealShard']],
-    ['meteor', ['meteorShard','starDust']]
+    ['meteorSite', ['starDust']]
 ]) {
     for (const key of keys) ORB_DB[key].dropUnlocks = [unlock];
 }

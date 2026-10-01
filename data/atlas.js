@@ -119,7 +119,7 @@ const ATLAS = Object.freeze({
         treasure: Object.freeze({ name: '보물 방', chance: 10, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5 }),
         meteor: Object.freeze({ name: '운석 분화구', chance: 6, packExtra: 2, prefix: '별에 물든', enemy: Object.freeze({ hp: 1.6, damage: 1.2, attack: 1.1, exp: 1.6 }),
-            rewards: Object.freeze([['meteorShard', 4, 0.5], ['skyEssence', 0.3, 0]]), mapChance: 0.2 })
+            rewards: Object.freeze([['starDust', 1, 0.1], ['skyEssence', 0.3, 0]]), mapChance: 0.2 })
     }),
     encounterLimit: 1,
     // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].

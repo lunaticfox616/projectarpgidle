@@ -4,7 +4,7 @@ const actExplorationLoot=(()=>{
     let captureOwner=null;
     /** Escrow holds any wallet currency: ORB_DB items and wallet-only counters (군락지 흔적 · 성핵 …). */
     const isCurrency=key=>Object.hasOwn(ORB_DB,key) || Object.hasOwn(defaultGame.currencies,key);
-    function create(){return {version:9,phase:'pending',currencies:{},equipment:[],gems:[],cores:[],jewels:[],salvagedEquipment:[]};}
+    function create(){return {version:10,phase:'pending',currencies:{},equipment:[],gems:[],cores:[],jewels:[],salvagedEquipment:[]};}
     function reservedItems(state){
         const loot=state.actExploration?.loot;
         return loot ? [...loot.equipment,...loot.jewels,...loot.cores,...loot.salvagedEquipment.map(row=>row.item)] : [];
@@ -72,7 +72,7 @@ const actExplorationLoot=(()=>{
         return true;
     }
     function validate(loot) {
-        if(!loot || loot.version!==9 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
+        if(!loot || loot.version!==10 || !['pending','claimed','lost'].includes(loot.phase))throw Error('지원하지 않는 탐험 보상 저장');
         validateCurrencies(loot.currencies);
         gemDropRewards.validate(loot.gems);
         validateItemList(loot.equipment,validEquipment);
@@ -182,7 +182,13 @@ const actExplorationLoot=(()=>{
             loot.version=8;
         },
         // v8 held flask discoveries and alchemy glass. Flasks were removed (2026-10-01); they go without compensation.
-        8:loot=>{delete loot.flasks;delete loot.alchemyGlass;loot.version=9;}
+        8:loot=>{delete loot.flasks;delete loot.alchemyGlass;loot.version=9;},
+        // v9 could hold meteor shards (atlas meteor craters) and other star-wedge currencies. Star wedges were removed
+        // (2026-10-01); those currencies go without compensation.
+        9:loot=>{
+            if(loot.currencies&&typeof loot.currencies==='object')['meteorShard','incompleteStarWedge','starWedge','astralCore'].forEach(key=>delete loot.currencies[key]);
+            loot.version=10;
+        }
     };
     function migrateLegacyLoot(run) {
         // Earlier opt-in review saves already granted their drops; never reconstruct them.

@@ -9,7 +9,7 @@ run(`(${configure.toString()})()`);
 const names = ['getPlayerStats', 'getResolvedEquipmentStatLists',
     'getEffectivePassiveNodeEffects', 'getGemBonusSources', 'getTargetGemBonusSources',
     'getEquippedJewelGemLevelBonusSources', 'estimateSummonDps', 'getActiveSkillStats',
-    'getArcanaGemDamageBonus', 'getPreciseTalentRatio', 'recalculateStarWedgeMutations'];
+    'getArcanaGemDamageBonus', 'getPreciseTalentRatio', 'getTranscendentVoidPassiveStats'];
 const results = {};
 for (const name of names) {
     const original = runtime[name];

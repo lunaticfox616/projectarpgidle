@@ -625,8 +625,8 @@ function getTimeRiftDifficultyTier(pressure) {
 
 
 
-function getStarWedgeUnlockReady() {
-    return (game.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (game.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT;
+function getMeteorSiteUnlockReady() {
+    return (game.season || 1) >= METEOR_SITE_UNLOCK_LOOP && (game.maxZoneId || 0) >= METEOR_SITE_UNLOCK_ACT;
 }
 
 function getClearedSkyTowerFloor(source) {
@@ -859,7 +859,7 @@ function getZone(id) {
         if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
     }
     if (id === METEOR_FALL_ZONE_ID) {
-        let star = (game && game.starWedge) || {};
+        let star = (game && game.meteorSite) || {};
         let allowBeyond20 = !!star.skyRiftAllCosmos;
         let tierCap = allowBeyond20 ? 40 : 20;
         let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
@@ -2105,7 +2105,7 @@ safeExposeGlobals({
     isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked,
     reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition
 });
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getMeteorSiteUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
@@ -2594,7 +2594,7 @@ const defaultGame = {
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
     craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
-    currencies: { timeRemnant: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { timeRemnant: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
         offlineProgress: { version: 1, recognitionLevel: 0, efficiencyLevel: 0, stashLevel: 0, huntDirectiveUnlocked: false, safeReturnUnlocked: false, lootDirectiveUnlocked: false, rewardedThroughLoop: 0, lifetimeGranted: 0, huntMode: 'push', safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [], protectedOverflow: [] },
     ascendClass: null,
     ascendPoints: 0,
@@ -2682,9 +2682,9 @@ const defaultGame = {
     codexSubtab: 'main',
     codexSelectedSlot: '무기',
     uniqueCodexCompletedRewardClaimed: false,
-    starWedge: {
+    // 운석 낙하 지점(2026-10-01 별쐐기 저장에서 분리): 하늘 균열 게이지 · 들어갈 단계 · 돌아갈 사냥터 · 별자리 관측.
+    meteorSite: {
         unlocked: false,
-        unlockNoticeSeen: false,
         skyRiftGauge: 0,
         skyRiftReady: false,
         skyRiftMinTier: null,
@@ -2694,12 +2694,7 @@ const defaultGame = {
         lastAnomalyAt: 0,
         skyRiftCarryGauge: 0,
         constellationBuff: null,
-        entriesCleared: 0,
-        firstClearDone: false,
-        wedges: [],
-        sockets: [],
-        nodeMutations: {},
-        selectedWedgeId: null
+        entriesCleared: 0
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },

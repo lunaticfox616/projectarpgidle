@@ -45,17 +45,6 @@ const equipmentCardHtml = runtime.renderInventoryCard({ id: 9910, slot: 'weapon'
 assert(!equipmentCardHtml.includes('<details'), 'equipment card actions must not be split behind a management disclosure');
 // Equipment action behavior is checked in the real browser when that screen changes.
 
-const starWedgeDrawer = { hidden: false, open: true };
-const starWedgePanel = { innerHTML: '' };
-runtime.document.getElementById = id => id === 'passive-star-wedge-drawer' ? starWedgeDrawer
-    : (id === 'ui-star-wedge-panel' ? starWedgePanel : null);
-vm.runInContext('game.season=6; game.maxZoneId=10; renderStarWedgePanel();', runtime);
-assert.strictEqual(starWedgeDrawer.hidden, true, 'star-wedge management must stay hidden before loop 7');
-assert.strictEqual(starWedgeDrawer.open, false, 'a loop reset below 7 must close an already open star-wedge drawer');
-vm.runInContext('game.season=7; game.maxZoneId=0; renderStarWedgePanel();', runtime);
-assert.strictEqual(starWedgeDrawer.hidden, false, 'star-wedge management must appear as soon as loop 7 begins');
-assert(starWedgePanel.innerHTML.includes('잠금 상태'), 'loop 7 may show the button before the separate act requirement is met');
-runtime.document.getElementById = () => null;
 vm.runInContext('game.season=25; game.unlockedSeasonContents=[]; game.seenSeasonContentNotices=[]; applySeasonContentProgression({silent:true});', runtime);
 assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_25')", runtime), true, 'loop milestones must extend through the loop 25 wild talisman drops');
 assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 25, 'milestone reconciliation must register every loop through 25 exactly once');

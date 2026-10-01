@@ -53,20 +53,20 @@ check('codex records precede purchase but bonuses do not', () => {
     assert.equal(run('getCodexBonusPct()'), 0.2);
 });
 
-check('meteor always pays and first star-wedge reward waits for its unlock', () => {
+check('meteor settlement pays rare equipment and star dust, never star-wedge material', () => {
     reset(7);
-    run('game.currentZoneId=METEOR_FALL_ZONE_ID;ensureStarWedgeState()');
+    run('game.currentZoneId=METEOR_FALL_ZONE_ID;ensureMeteorSiteState()');
     const currencies = json('game.currencies');
     run('grantMeteorEncounterRewards()');
     assert.equal(gear().length, 1);
     assert(['rare','unique'].includes(gear()[0].rarity));
-    assert.deepEqual(json('game.currencies'), currencies);
-    assert.equal(run('game.starWedge.firstClearDone'), false);
-    run('game.contentProgression.inherited.push("meteor");grantMeteorEncounterRewards()');
-    assert(run('game.currencies.meteorShard>0'));
-    assert.equal(run('game.currencies.incompleteStarWedge'), 1);
-    assert.equal(run('game.starWedge.firstClearDone'), true);
-    assert.equal(gear().length, 1, 'the existing unlocked reward is not inflated with extra equipment');
+    const after = json('game.currencies');
+    assert(after.starDust - (currencies.starDust || 0) >= 2, 'every settlement pays star dust');
+    assert.deepEqual(Object.keys(after).filter(key => after[key] !== currencies[key]), ['starDust'], 'nothing else is paid');
+    assert.equal(run('["meteorShard","incompleteStarWedge","starWedge","astralCore"].some(key => key in game.currencies)'), false);
+    assert.equal(run('game.journalEntries.includes("meteor_fall")'), true, 'the first settlement records the meteor site journal');
+    run('grantMeteorEncounterRewards()');
+    assert.equal(gear().length, 2, 'each settlement pays one item');
 });
 
 check('offline meteor reward survives pickup filters in the offline stash', () => {
@@ -75,8 +75,7 @@ check('offline meteor reward survives pickup filters in the offline stash', () =
     run('game.settings.itemFilterEnabled=true;game.settings.itemFilterRarities={normal:false,magic:false,rare:false,unique:false}');
     run('grantMeteorEncounterRewards()');
     assert.equal(run('game.offlineProgress.stash.length'), 1);
-    assert.equal(run('game.currencies.meteorShard'), 0);
-    assert.equal(run('game.starWedge.firstClearDone'), false);
+    assert.equal(run('"meteorShard" in game.currencies'), false);
 });
 
 check('boundary selection and entry reject unavailable rewards before spending', () => {

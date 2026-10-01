@@ -11,7 +11,7 @@ const equivalentDepths = JSON.parse(match[1]);
 assert.deepStrictEqual(equivalentDepths, [1, 6, 11, 16, 22, 29, 37, 47, 62, 90]);
 
 const start = stateSource.indexOf('function getTimeRiftEquivalentChaosDepth');
-const end = stateSource.indexOf('function getStarWedgeUnlockReady', start);
+const end = stateSource.indexOf('function getMeteorSiteUnlockReady', start);
 assert(start >= 0 && end > start, 'time-rift difficulty helpers must remain available');
 const context = {
   Number,

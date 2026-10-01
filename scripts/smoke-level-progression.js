@@ -126,9 +126,9 @@ for(const level of [9,10,19,20,49,50,99,100]) {
     assert.ok(run(`getExpReq(${level+1})>getExpReq(${level})`),'required experience must not fall at curve boundaries');
 }
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;
-    game.starWedge.constellationBuff={stat:'strength',val:52,permanent:false};`);
+    game.meteorSite.constellationBuff={stat:'strength',val:52,permanent:false};`);
 assert.equal(run('combatEquipmentStats.inspect(weapon,"무기").ok'),true,'observed constellation is a stable build choice within the loop');
-run('game.starWedge.constellationBuff.val=51');
+run('game.meteorSite.constellationBuff.val=51');
 assert.equal(run('combatEquipmentStats.inspect(weapon,"무기").ok'),false,'re-observation invalidates cached attribute eligibility');
 for (const [id, stat] of [['nova_rod','intelligence'], ['ember_wand','intelligence'],
     ['needle_recurve','dexterity'], ['seeker_railgun','dexterity']]) {

@@ -97,9 +97,9 @@ run(`game=mergeDefaults({level:100,season:3,settings:{showLootLog:false,pauseGam
     startEncounterRun(true);window.v8LootSave=JSON.parse(serializeSaveState(game));
     Object.assign(window.v8LootSave.actExploration.loot,{version:8,flasks:['h2','granite1'],alchemyGlass:4});`);
 const upgradedLoot=copy('mergeDefaults(window.v8LootSave).actExploration.loot');
-assert.equal(upgradedLoot.version,9);
+assert.equal(upgradedLoot.version,10);
 assert(!('flasks' in upgradedLoot)&&!('alchemyGlass' in upgradedLoot),'pending flask discoveries and glass are dropped');
 run(`window.oldLootSave=JSON.parse(serializeSaveState(game));window.oldLootSave.actExploration.loot.version=1;`);
 const fromV1=copy('mergeDefaults(window.oldLootSave).actExploration.loot');
-assert(fromV1.version===9&&!('flasks' in fromV1),'legacy immediate flask rewards are never regenerated');
+assert(fromV1.version===10&&!('flasks' in fromV1),'legacy immediate flask rewards are never regenerated');
 console.log('act exploration loot smoke passed');

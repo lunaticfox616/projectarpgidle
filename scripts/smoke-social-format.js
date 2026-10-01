@@ -75,7 +75,6 @@ context.getJewelStats = jewel => jewel.stats || [];
 context.stumpBox = { itemById: (state, id) => (state.stumpBox.items || []).find(item => item.id === id) || null };
 context.talismans = { describeLine: line => `${line.id} +${line.value}` };
 context.getStatName = stat => stat;
-context.getStarWedgeUniqueDef = type => type === 'sun' ? { name: '태양', desc: '핵심 옵션 증폭' } : null;
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const chatSizeStart = uiSource.indexOf('function applyChatMessageSize(');
 const chatSizeEnd = uiSource.indexOf('function updateSettings()', chatSizeStart);
@@ -100,6 +99,7 @@ context.game = {
   },
   starWedge: { wedges: [{ id: 30, unique: true, uniqueType: 'sun', lines: [{ stat: 'flatHp', val: 8 }] }] }
 };
+// 별쐐기는 없어졌다(2026-10-01): 옛 저장에 남은 별쐐기가 있어도 채팅에 걸 수 없다.
 const profileSnapshot = context.buildProfileSnapshot();
 assert.strictEqual(profileSnapshot.version, 7, '그루터기 함 부적 목록을 싣고 생장판 배치도는 없는 프로필 형식이어야 한다');
 assert.deepStrictEqual(['growthItems', 'growthBoardW', 'growthBoardH', 'growthUnlockedCells'].filter(key => key in profileSnapshot), [],
@@ -118,14 +118,13 @@ assert.strictEqual(context.getChatAttachSnapshot('talisman', 12), null, 'seeds a
 const talismanProfileHtml = vm.runInContext("socialState.profileTab = 'talismans'; renderProfileItemsArea();", context);
 assert.ok(talismanProfileHtml.includes('배치 부적'), '부적 탭은 판에 놓인 부적을 보여야 한다');
 assert.strictEqual(context.getChatAttachSnapshot('growthPlaced', 21), null, 'growth links are gone');
-assert.strictEqual(context.getChatAttachSnapshot('starWedge', 30).name, '태양 #30');
+assert.strictEqual(context.getChatAttachSnapshot('starWedge', 30), null, 'star-wedge links are gone');
 const pickerGroups = context.getChatItemPickerGroups();
 assert.deepStrictEqual(Array.from(pickerGroups, group => group.title),
-  ['장착 장비', '장비 인벤토리', '주얼', '부적', '별쐐기']);
+  ['장착 장비', '장비 인벤토리', '주얼', '부적']);
 assert.ok(context.renderChatItemPickerGroup(pickerGroups[2]).includes("attachChatItem('jewel',0)"), 'stored jewels should be selectable in the chat picker');
 assert.deepStrictEqual(Array.from(pickerGroups[3].entries, entry => [entry.key, entry.label]), [[10, '[판]'], [11, '[보관]']],
   'the talisman picker lists the stump box talismans, placed or stored');
-assert.ok(context.renderChatItemPickerGroup(pickerGroups[4]).includes('태양 #30'), 'star wedges should render as item links with their unique name');
 
 const socialRoot = { innerHTML: '' };
 const socialHost = { querySelector() { return socialRoot; }, classList: { contains() { return false; } } };

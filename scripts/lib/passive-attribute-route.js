@@ -5,7 +5,7 @@ module.exports = function findAttributeRoute(targets, totals) {
         if (!getPassiveNodeRawEffects(node).some(effect => targets[effect.stat] > (totals[effect.stat] || 0))) continue;
         const path = getPassiveActivationPath(node.id);
         if (!path.length || path.length > game.passivePoints || getPassiveKeystoneConflict(path)) continue;
-        if (path.some(id => ['keystone', 'star_option'].includes(PASSIVE_TREE.nodes[id].kind))) continue;
+        if (path.some(id => PASSIVE_TREE.nodes[id].kind === 'keystone')) continue;
         const gained = {};
         for (const id of path) for (const effect of getPassiveNodeRawEffects(PASSIVE_TREE.nodes[id])) {
             gained[effect.stat] = (gained[effect.stat] || 0) + effect.val;

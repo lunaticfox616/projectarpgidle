@@ -445,7 +445,7 @@ const baseGame = extra => ({
         maxZoneId: 12, currentZoneId: 12, season: 20, loopCount: 19,
         unlocks: { map: true, season: true, skills: true, talisman: true },
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
-        starWedge: { unlocked: true }, skyTower: { unlocked: true },
+        meteorSite: { unlocked: true }, skyTower: { unlocked: true },
         chaosRealm: { unlocked: true }, clearedRootBosses: ['s6_beast_cerberus'],
         abyssEndlessDepth: 27, abyssUnlockedDepths: [21, 27], labyrinthUnlockedMaxFloor: 64,
         loopProgressCurrent: { bestAbyssDepth: 20 }
@@ -466,7 +466,7 @@ const baseGame = extra => ({
         unlocks: { map: true, season: true, skills: true, talisman: true },
         unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
-        starWedge: { unlocked: true }, skyTower: { unlocked: true, highestFloor: 1 },
+        meteorSite: { unlocked: true }, skyTower: { unlocked: true, highestFloor: 1 },
         chaosRealm: { unlocked: true },
         clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra'],
         underworldProgress: { highestFloor: 18 }, cosmosAtlas: { unlocked: true },
@@ -487,7 +487,7 @@ const baseGame = extra => ({
         unlocks: { map: true, season: true, skills: true, talisman: true },
         unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
-        starWedge: { unlocked: true }, skyTower: { unlocked: true }, chaosRealm: { unlocked: true },
+        meteorSite: { unlocked: true }, skyTower: { unlocked: true }, chaosRealm: { unlocked: true },
         underworldProgress: { highestFloor: 11 },
         clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'],
         loopProgressCurrent: { bestAbyssDepth: 42 }

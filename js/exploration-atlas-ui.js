@@ -142,7 +142,7 @@ const explorationAtlasUi = (() => {
         if (route === 'map-explore-trials') return trialRouteSummary();
         if (route === 'map-explore-beehive') return hiveRouteSummary();
         if (route === 'map-explore-colony') return colonyRouteSummary();
-        if (route === 'map-explore-meteor') return {status:game.starWedge.skyRiftReady ? '하늘의 균열 충전 완료' : `하늘의 균열 ${Math.min(100,Math.floor(game.starWedge.skyRiftGauge))}%`};
+        if (route === 'map-explore-meteor') return {status:game.meteorSite.skyRiftReady ? '하늘의 균열 충전 완료' : `하늘의 균열 ${Math.min(100,Math.floor(game.meteorSite.skyRiftGauge))}%`};
         return {status:''};
     }
     function trialRouteSummary() {
@@ -232,8 +232,10 @@ const explorationAtlasUi = (() => {
         banner.hidden = !region;
         if (banner.hidden) return;
         const hunting = route === 'map-explore-hunting';
+        // 주변 콘텐츠(운석 낙하 · 벌집 …)는 지역 층수 대신 그 콘텐츠의 진행을 보여 준다.
+        const sideStatus = region.sideRoutes.includes(route) && routeSummary(route).status;
         const progress = hunting ? `<div class="atlas-hunt-destination">${buildMapRouteSummaryHtml(getZone(game.currentZoneId),getZone(Math.min(STORY_ACTS.length-1,game.maxZoneId)))}</div>`
-            : `<p>${escapeHTML(regionProgress(region))}</p>`;
+            : `<p>${escapeHTML(sideStatus || regionProgress(region))}</p>`;
         const html = `<img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div>
             <h2>${escapeHTML(hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
         if (banner.innerHTML !== html) {banner.className='atlas-theme-'+region.id;banner.innerHTML=html;}

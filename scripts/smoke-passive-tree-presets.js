@@ -5,7 +5,7 @@ const vm = require('vm');
 const files = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/star-wedge.js', 'js/passives.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passive-routing.js', 'js/passives.js',
 ];
 const emptyElement = () => ({
   style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
@@ -67,26 +67,21 @@ vm.runInContext(`
   Object.keys(PASSIVE_TREE.nodes).forEach(id => delete PASSIVE_TREE.nodes[id]);
   PASSIVE_TREE.edges.length = 0;
   PASSIVE_TREE.nodes.n0 = { id:'n0', kind:'start', x:-200, y:0, stat:null, val:0 };
-  PASSIVE_TREE.nodes.h1 = { id:'h1', kind:'hub', socketType:'star_wedge', x:0, y:0, stat:'pctDmg', val:5 };
-  PASSIVE_TREE.nodes.h2 = { id:'h2', kind:'hub', socketType:'star_wedge', x:300, y:0, stat:'pctHp', val:5 };
+  PASSIVE_TREE.nodes.bh = { id:'bh', kind:'void', x:300, y:0 };
   PASSIVE_TREE.nodes.supp = { id:'supp', kind:'path', x:400, y:0, stat:'suppCap', val:1 };
-  PASSIVE_TREE.edges.push({from:'n0',to:'h1'}, {from:'h2',to:'supp'});
-  game.passives = ['n0']; game.passivePoints = 1;
-  game.starWedge = {
-    wedges: [{ id:1, unique:true, uniqueType:'black_hole', recordedHubNodeId:'h2', lines:[] }],
-    sockets: [{ nodeId:'h1', wedgeId:1 }]
-  };
+  PASSIVE_TREE.edges.push({from:'bh',to:'supp'});
+  game.passives = ['n0', 'bh']; game.passivePoints = 1;
+  game.voidPassives = { bh: { rarity:'transcendent', stats:[], transcendent:{ id:'blackHole', value:0, value2:0 } } };
   game.settings.passiveTreePlanner = {
     layoutVersion:PASSIVE_LAYOUT_VERSION, activeSlot:0, autoInvest:true,
-    presets:[{name:'가상 거점 경로',nodeIds:['h2','supp'],attributeChoices:{}},null,null]
+    presets:[{name:'블랙홀 거점 경로',nodeIds:['bh','supp'],attributeChoices:{}},null,null]
   };
-  recalculateStarWedgeMutations(true);
   calculateReachableNodes();
 `, context);
-const virtualHubInvest = vm.runInContext('runPassiveTreeAutoInvest()', context);
-assert.deepStrictEqual({ nodes: virtualHubInvest.nodes, points: virtualHubInvest.points }, { nodes: 1, points: 1 },
-  '프리셋의 무료 연결 거점은 소비된 대상으로 보고 다음 능력치 노드를 계속 투자해야 한다');
+const blackHoleInvest = vm.runInContext('runPassiveTreeAutoInvest()', context);
+assert.deepStrictEqual({ nodes: blackHoleInvest.nodes, points: blackHoleInvest.points }, { nodes: 1, points: 1 },
+  '블랙홀 공허는 시작점과 이어지지 않아도 연결 거점이라 프리셋의 다음 노드를 투자해야 한다');
 assert.ok(vm.runInContext("game.passives.includes('supp')", context),
-  '가상 연결 거점 뒤의 보조 젬 한도 노드는 실제 패시브로 활성화되어야 한다');
+  '블랙홀 거점 뒤의 보조 젬 한도 노드는 실제 패시브로 활성화되어야 한다');
 
 console.log('smoke-passive-tree-presets passed');

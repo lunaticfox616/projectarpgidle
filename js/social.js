@@ -200,26 +200,6 @@ function buildTalismanSnapshot(t) {
     return { kind: 'talisman', name: t.name || '부적', rarity: t.rarity || 'magic', stats, effects };
 }
 
-function buildStarWedgeSnapshot(wedge) {
-    if (!wedge) return null;
-    let uniqueDef = wedge.unique && typeof getStarWedgeUniqueDef === 'function' ? getStarWedgeUniqueDef(wedge.uniqueType) : null;
-    let effects = uniqueDef ? [uniqueDef.desc] : [];
-    let stats = (wedge.lines || []).map((line, index) => {
-        let path = index === 3 ? '핵심노드' : `${index + 1}경로`;
-        if (!line || line.disabled) { effects.push(`${path} · 적용 안 됨`); return null; }
-        let statName = typeof getStatName === 'function' ? getStatName(line.stat) : line.stat;
-        return { id: line.stat, val: line.val, statName: `${path} · ${statName}${line.boosted ? ' ★' : ''}` };
-    }).filter(Boolean);
-    if (wedge.eternal) effects.push('영원 고정');
-    return {
-        kind: 'starWedge',
-        name: `${uniqueDef ? uniqueDef.name : '별쐐기'} #${Number(wedge.id || 0) % 10000}`,
-        rarity: wedge.unique ? 'unique' : 'rare',
-        stats,
-        effects
-    };
-}
-
 // 캐릭터 스탯 색상(타입별)
 const SOCIAL_STAT_COLORS = {
     loop: '#c9a8ff', hp: '#7fd99a', regen: '#7fd99a', dps: '#ff8f6b', dmg: '#ff8f6b',
@@ -771,9 +751,6 @@ function getChatAttachSnapshot(source, key) {
     if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
     if (source === 'jewel') return buildJewelSnapshot((state.jewelInventory || [])[Number(key)]);
     if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
-    if (source === 'starWedge') {
-        return buildStarWedgeSnapshot((((state.starWedge || {}).wedges) || []).find(wedge => String(wedge.id) === String(key)));
-    }
     return null;
 }
 function attachChatItem(source, idx) {
@@ -825,13 +802,11 @@ function getChatItemPickerGroups() {
     let stump = state.stumpBox || { items: [], board: [] };
     let talismanEntries = stump.items.filter(item => item.family === 'talisman')
         .map(item => ({ source: 'talisman', key: item.id, label: stump.board.includes(item.id) ? '[판]' : '[보관]' }));
-    let wedges = ((((state.starWedge || {}).wedges) || [])).map(wedge => ({ source: 'starWedge', key: wedge.id, label: wedge.eternal ? '[영원]' : '[보유]' }));
     return [
         { title: '장착 장비', entries: equipment },
         { title: '장비 인벤토리', entries: entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`) },
         { title: '주얼', entries: jewels.slice(0, 300) },
-        { title: '부적', entries: talismanEntries.slice(0, 300) },
-        { title: '별쐐기', entries: wedges }
+        { title: '부적', entries: talismanEntries.slice(0, 300) }
     ];
 }
 function renderChatItemPickerGroup(group) {

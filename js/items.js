@@ -759,7 +759,7 @@ function resolveTimeRiftFusion() {
 // Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free.
 // Automatic interruptions pass their own explicit return destination.
 function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
-    let st = ensureStarWedgeState();
+    let st = ensureMeteorSiteState();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
     st.skyRiftReady = false;
@@ -792,7 +792,7 @@ function changeZone(id) {
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
     if (id === METEOR_FALL_ZONE_ID) {
-        let st = ensureStarWedgeState();
+        let st = ensureMeteorSiteState();
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
         prepareMeteorEncounterEntry();
@@ -867,7 +867,7 @@ async function marketResetPassiveTreeByDivine() {
     }
     game.currencies.goldenRule -= 1;
     // 직업 시작점은 소유 목록에 넣지 않아도 항상 무료 연결점으로 계산된다.
-    const grantedPoints = starWedgeRules.paleBonus(game);
+    const grantedPoints = passiveRouting.paleBonus(game);
     game.passives = [];
     game.passiveAttributeChoices = {};
     game.passivePoints = Math.max(0, game.passivePoints + spentNodes - grantedPoints);

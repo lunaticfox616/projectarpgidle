@@ -44,7 +44,6 @@ const visualContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
             dexterity: getPassiveNodeIconFamily({ stat: 'dexterity' }),
             intelligence: getPassiveNodeIconFamily({ stat: 'intelligence' }),
             void: getPassiveNodeIconFamily({ kind: 'void' }),
-            constellation: getPassiveNodeIconFamily({ kind: 'hub', socketType: 'star_wedge' }),
             warriorStart: getPassiveNodeIconFamily({ kind: 'start', startClassId: 'warrior' })
         }
     };
@@ -72,7 +71,7 @@ assert.deepStrictEqual(visualContract.icons, {
     mystique: 'mystique', revelation: 'devotion', cycle: 'cycle',
     shield: 'shield', bow: 'projectile', potion: 'potion',
     strength: 'strength', dexterity: 'dexterity', intelligence: 'intelligence',
-    void: 'void', constellation: 'constellation', warriorStart: 'blade'
+    void: 'void', warriorStart: 'blade'
 }, 'recognizable build families should map to distinct node glyphs');
 
 const missingEffectGlyphStats = vm.runInContext(`(() => {
@@ -228,30 +227,22 @@ assert.deepStrictEqual({
 const structuralPassiveTooltipContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     game = JSON.parse(JSON.stringify(defaultGame));
     const start = PASSIVE_TREE.nodes.pt_start_warrior;
-    const hub = PASSIVE_TREE.nodes.n06xz25l4b7;
-    const inactiveOption = PASSIVE_TREE.nodes.star_constellation_n06xz25l4b7_0;
-    const activeOption = {
-        ...inactiveOption,
-        stat: 'move', val: 7,
-        effects: [{ stat: 'move', val: 7 }],
-        desc: '이동 속도 +7%'
-    };
+    const outerVoid = PASSIVE_TREE.nodes.n06xz25l4b7;
+    const effectNode = { id: 'effect_test', kind: 'path', stat: 'move', val: 7, effects: [{ stat: 'move', val: 7 }], desc: '이동 속도 +7%' };
     const keystone = PASSIVE_TREE.nodes.pt_core_keystone_01;
     const describe = node => getPassiveTooltipDescription(node, [getPassiveEffectLabel(node)]);
     return {
         start: [getPassiveEffectLabel(start), describe(start)],
-        hub: [getPassiveEffectLabel(hub), describe(hub)],
-        inactiveOption: [getPassiveEffectLabel(inactiveOption), describe(inactiveOption)],
-        activeOption: [getPassiveEffectLabel(activeOption), describe(activeOption)],
+        outerVoid: [getPassiveEffectLabel(outerVoid).replace(/<[^>]*>/g, ''), describe(outerVoid), getPassiveKindLabel(outerVoid)],
+        effectNode: [getPassiveEffectLabel(effectNode), describe(effectNode)],
         keystone: [getPassiveEffectLabel(keystone) === keystone.desc, describe(keystone)]
     };
 })())`, context));
 
 assert.deepStrictEqual(structuralPassiveTooltipContract, {
     start: ['', '전사 패시브 시작점'],
-    hub: ['', '별쐐기를 장착하면 별쐐기 옵션을 가진 투자 가능한 패시브가 새로 나타납니다.'],
-    inactiveOption: ['', '외곽 성률에 별쐐기를 장착하면 이 패시브가 나타납니다.'],
-    activeOption: ['이동 속도 +7%', ''],
+    outerVoid: ['공허 옵션 없음 (오브로 최대 2줄 부여)', '', '외곽 공허 소켓'],
+    effectNode: ['이동 속도 +7%', ''],
     keystone: [true, '']
 }, 'structural passives should show guidance once while effect-bearing passives use one effect source');
 
@@ -259,10 +250,8 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const atlas = { complete: true, naturalWidth: 640, naturalHeight: 512 };
     const frame = { complete: true, naturalWidth: 128, naturalHeight: 128 };
     const voidSlot = { complete: true, naturalWidth: 128, naturalHeight: 128 };
-    const constellationSlot = { complete: true, naturalWidth: 128, naturalHeight: 128 };
     battleAssets.images.passiveTreeIcons = atlas;
     battleAssets.images.passiveTreeVoidSlot = voidSlot;
-    battleAssets.images.passiveTreeConstellationSlot = constellationSlot;
     battleAssets.images.passiveTreeCustom_custom = frame;
     const calls = { images: [], strokes: 0, fills: 0 };
     const ctx = {
@@ -274,7 +263,6 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const normal = { id: 'mystique', x: 20, y: 40, kind: 'normal', tier: 2, stat: 'mystique' };
     const major = { id: 'major', x: 60, y: 80, kind: 'major', tier: 3, stat: 'flatHp' };
     const voidNode = { id: 'void', x: 80, y: 100, kind: 'void', tier: 3 };
-    const constellationNode = { id: 'constellation', x: 100, y: 120, kind: 'hub', tier: 3 };
     const customNode = { id: 'custom', x: 120, y: 140, kind: 'normal', tier: 2, stat: 'flatHp', iconAsset: 'assets/ui/passive-custom-icons/custom.webp' };
     const normalIcon = drawPassiveNodeImageArt(ctx, normal, 12, 0.8);
     const normalBottomGap = normal.y + 12 - (calls.images[0][5] + calls.images[0][7]);
@@ -293,18 +281,14 @@ const imageArtContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const strokesBeforeSlots = calls.strokes;
     drawPassiveNodeShape(ctx, voidNode, 21, getPassiveNodePalette(voidNode, false, true, 'discovered'),
         false, true, 'discovered', 1, { lightweight: false, imageSlot: true });
-    drawPassiveNodeShape(ctx, constellationNode, 23, getPassiveNodePalette(constellationNode, false, true, 'discovered'),
-        false, true, 'discovered', 1, { lightweight: false, imageSlot: true });
     const voidIcon = drawPassiveNodeImageArt(ctx, voidNode, 21, 1);
-    const constellationIcon = drawPassiveNodeImageArt(ctx, constellationNode, 23, 1);
     const customIcon = drawPassiveNodeImageArt(ctx, customNode, 12, 1);
     return {
         normalIcon, normalFrame, majorFrame, majorFrameStrokes, images: calls.images, normalBottomGap,
         framedMajorLegacyStrokes, dragImageVisible,
         clusterPlateType: typeof drawPassiveClusterPlate,
-        voidIcon, constellationIcon, customIcon,
+        voidIcon, customIcon,
         voidFrame: drawPassiveNodeFrameArt(ctx, voidNode, 21, false, 1),
-        constellationFrame: drawPassiveNodeFrameArt(ctx, constellationNode, 23, false, 1),
         slotFills: calls.fills - fillsBeforeSlots,
         slotStrokes: calls.strokes - strokesBeforeSlots
     };
@@ -315,7 +299,7 @@ assert.strictEqual(imageArtContract.normalFrame, false, 'small nodes should not 
 assert.strictEqual(imageArtContract.majorFrame, true, 'major nodes should receive a dedicated medallion frame');
 assert.ok(imageArtContract.majorFrameStrokes >= 3,
     'the major medallion should be drawn as clean vector bands (rim, band and inner line), not a spiked frame image');
-assert.strictEqual(imageArtContract.images.length, 5, 'regular, dragged, special-slot, and custom art should be the only images; the medallion frame is vector');
+assert.strictEqual(imageArtContract.images.length, 4, 'regular, dragged, void-slot, and custom art should be the only images; the medallion frame is vector');
 assert.strictEqual(imageArtContract.customIcon, true, 'an editor-uploaded node icon should override its atlas cell');
 assert.deepStrictEqual(imageArtContract.images[0].slice(0, 4), [0, 128, 128, 128],
     'the mystique family should crop the eye cell from the semantic atlas');
@@ -329,16 +313,14 @@ assert.strictEqual(imageArtContract.dragImageVisible, true,
     'semantic images should remain drawable while the passive tree is being dragged');
 assert.deepStrictEqual({
     voidIcon: imageArtContract.voidIcon,
-    constellationIcon: imageArtContract.constellationIcon,
     voidFrame: imageArtContract.voidFrame,
-    constellationFrame: imageArtContract.constellationFrame,
     slotFills: imageArtContract.slotFills,
     slotStrokes: imageArtContract.slotStrokes
 }, {
-    voidIcon: true, constellationIcon: true,
-    voidFrame: false, constellationFrame: false,
+    voidIcon: true,
+    voidFrame: false,
     slotFills: 0, slotStrokes: 0
-}, 'void and constellation images should be self-contained slots without legacy square or frame rendering');
+}, 'void images should be self-contained slots without legacy square or frame rendering');
 
 const generatedAtlasContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     battleAssets.images.passiveTreeKeystoneIcons = { complete: true, naturalWidth: 768, naturalHeight: 640 };

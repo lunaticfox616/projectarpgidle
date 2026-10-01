@@ -75,15 +75,10 @@ const GRAND_BREACH_ENCOUNTER = Object.freeze({
     capacities: Object.freeze([16,24,32])
 });
 
-const MAX_STAR_WEDGES = 3;
+// 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.
+const METEOR_SITE_UNLOCK_LOOP = 7;
 
-const MAX_STAR_WEDGES_HARD_CAP = 8;
-
-const STAR_WEDGE_RADIUS_TIERS = Object.freeze([160, 240, 320]);
-
-const STAR_WEDGE_UNLOCK_LOOP = 7;
-
-const STAR_WEDGE_UNLOCK_ACT = 7;
+const METEOR_SITE_UNLOCK_ACT = 7;
 
 const OCEAN_UNLOCK_LOOP = 11;
 
@@ -157,47 +152,6 @@ const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 3
 // 불안정(유실 2) = max(unstableMin, unstableBase - unstablePerPressure×(시간압-1)). 나머지는 보통(유실 1).
 const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
 
-const STAR_WEDGE_OPTION_POOL = [
-    { stat: 'pctDmg', min: 10, max: 16 },
-    { stat: 'flatHp', min: 56, max: 96 },
-    { stat: 'aspd', min: 4, max: 8 },
-    { stat: 'crit', min: 2, max: 9 },
-    { stat: 'critDmg', min: 16, max: 28 },
-    { stat: 'dr', min: 3, max: 7 },
-    { stat: 'move', min: 4, max: 9 },
-    { stat: 'physIgnore', min: 4, max: 8 },
-    { stat: 'resPen', min: 4, max: 8 },
-    { stat: 'regen', min: 0.6, max: 1.2, step: 0.1 },
-    { stat: 'chaosPctDmg', min: 10, max: 18 },
-    { stat: 'resF', min: 6, max: 14 },
-    { stat: 'resC', min: 6, max: 14 },
-    { stat: 'resL', min: 6, max: 14 },
-    { stat: 'resChaos', min: 3, max: 7 },
-    { stat: 'armorPct', min: 10, max: 18 },
-    { stat: 'evasionPct', min: 10, max: 18 },
-    { stat: 'energyShieldPct', min: 10, max: 18 },
-    { stat: 'maxResF', min: 1, max: 1 },
-    { stat: 'maxResC', min: 1, max: 1 },
-    { stat: 'maxResL', min: 1, max: 1 }
-];
-
-const STAR_WEDGE_CORE_OPTION_POOL = [
-    { stat: 'flatDmg', min: 16, max: 32 },
-    { stat: 'pctHp', min: 9, max: 16 },
-    { stat: 'elementalPctDmg', min: 14, max: 24 },
-    { stat: 'physPctDmg', min: 14, max: 24 },
-    { stat: 'projectilePctDmg', min: 14, max: 24 },
-    { stat: 'meleePctDmg', min: 14, max: 24 },
-    { stat: 'dotPctDmg', min: 14, max: 24 },
-    { stat: 'resAll', min: 4, max: 7 },
-    { stat: 'ds', min: 8, max: 14 },
-    { stat: 'minDmgRoll', min: 5, max: 9 },
-    { stat: 'maxDmgRoll', min: 7, max: 12 },
-    { stat: 'energyShieldPct', min: 14, max: 21 },
-    { stat: 'armorPct', min: 14, max: 21 },
-    { stat: 'evasionPct', min: 14, max: 21 }
-];
-
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
     2: { title: '루프 2', features: ['해금: 홀씨 제작', '해금: 전술 규칙 (스킬 젬 → 전술 규칙)', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
@@ -205,7 +159,7 @@ const SEASON_CONTENT_ROADMAP = {
     4: { title: '루프 4', features: ['해금: 창공 강화'] },
     5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },
     6: { title: '루프 6', features: ['해금: 부적 시스템'] },
-    7: { title: '루프 7', features: ['해금: 별쐐기 / 운석 낙하 지점'] },
+    7: { title: '루프 7', features: ['해금: 운석 낙하 지점'] },
     8: { title: '루프 8', features: ['해금: 벌집'] },
     9: { title: '루프 9', features: ['해금: 균열'] },
     10: { title: '루프 10', features: ['해금: 심화 혼돈'] },
@@ -311,7 +265,7 @@ const JOURNAL_DB = {
     act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' }, requiresJournal: ['act_9'] },
     woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'], requiresJournal: ['act_10'] },
     woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라', requiresJournal: ['woodsman'] },
-    star_wedge: { title: '별쐐기', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“패시브 트리에 박아 넣으면 주변 노드의 성장 규칙을 비틀 수 있다.”'] },
+    meteor_fall: { title: '운석 낙하 지점', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“식지 않은 분화구에는 별가루와, 별을 쫓던 이들이 두고 간 장비가 남아 있다.”'] },
     arcana_first_seal: { title: '봉인된 아르카나', lines: ['“별길마다 남은 문양을 맞추자 이름 없는 패가 모습을 드러냈다.”', '“봉인은 힘을 감추는 동시에, 그 힘이 머물 자리를 고른다.”'], displayEffect: '아르카나 탭 해금', hidden: true, hint: '첫 우주계 탐험 후 서로 다른 별길을 충분히 조사하면 봉인된 패를 복원할 수 있다' },
     immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
     beehive_queen: { title: '루프8 - 벌집 여왕', lines: ['“길은 셋으로 갈라졌지만, 독은 하나로 모였다.”', '“여왕의 날개 아래서 선택은 대가를 부른다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
@@ -339,6 +293,6 @@ const JOURNAL_DB = {
     pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'], requiresJournal: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'arcana_first_seal', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'arcana_first_seal', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS_TIERS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
