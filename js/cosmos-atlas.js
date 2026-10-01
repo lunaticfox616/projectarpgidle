@@ -589,7 +589,7 @@
                 kind: 'asteroid',
                 name: `소행성 ${formatAsteroidNo(no)}`,
                 source: `Asteroid #${no}`,
-                theme: '소행성 지대 / 재료·창공의 힘',
+                theme: '소행성 지대 / 재료·창공의 정수',
                 tag: 'asteroid',
                 baseTag: 'asteroid',
                 orbit: galaxy,
@@ -652,7 +652,7 @@
         return Math.max(0, Math.floor(Number(game.currencies.skyEssence) || 0));
     }
 
-    /** 탐사 보상(2026-10-01 별가루 대신 창공의 힘): 예전 별가루 계산값의 1/5 안팎, 최소 1. 지갑에 한 번만 더한다. */
+    /** 탐사 보상(2026-10-01 별가루 대신 창공의 정수): 예전 별가루 계산값의 1/5 안팎, 최소 1. 지갑에 한 번만 더한다. */
     function grantCosmosSkyPower(rewardPoints) {
         const gain = Math.max(1, Math.round(Math.max(0, Number(rewardPoints) || 0) / COSMOS_SKY_POWER_PER_REWARD));
         const balance = getSkyPowerBalance();
@@ -1620,7 +1620,7 @@
                 <div><span>탐사 완료</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
                 <div><span>개별 탐사 가능</span><strong>${unlocked ? available : 0}<small>개</small></strong></div>
                 <div><span>성도술</span><strong>${getCosmosMasteryFreePoints()}<small> / ${getCosmosMasteryTotalPoints()}</small></strong></div>
-                <div title="창공의 힘은 우주계 탐사 · 은하 보스에서 얻고 젬 각인 · 창공 가공에 씁니다."><span>창공의 힘</span><strong>${getSkyPowerBalance()}</strong></div>
+                <div title="창공의 정수는 우주계 탐사 · 은하 보스에서 얻고 젬 각인 · 창공 가공에 씁니다."><span>창공의 정수</span><strong>${getSkyPowerBalance()}</strong></div>
             </div>
             <div class="cosmos-progress-overview"><div class="cosmos-galaxy-progress">${galaxyProgress}</div>
                 <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50 · 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length} · 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div></div>
@@ -1709,7 +1709,7 @@
         const status = getNodeStatus(node);
         const available = canChallengeNode(node) && !cosmosRouteRuntime.active(game);
         const reward = node.tag === 'boss' ? `첫 격파 · ${getBossStoneName(node)}`
-            : `창공의 힘 · ${node.kind === 'planet' ? '행성 보상' : '제작 재료'}`;
+            : `창공의 정수 · ${node.kind === 'planet' ? '행성 보상' : '제작 재료'}`;
         ATLAS.detail.innerHTML = `
             <div class="cosmos-detail-hero"><div class="cosmos-detail-title">${escapeHtml(node.name)}</div>
                 <span class="cosmos-status ${status}">${getStatusLabel(status)}</span></div>
@@ -1785,8 +1785,8 @@
         const skyPower = grantCosmosSkyPower(reward + jackpotBonus);
         const jackpotPower = jackpot ? Math.max(1, Math.round(jackpotBonus / COSMOS_SKY_POWER_PER_REWARD)) : 0;
         if (typeof window.addLog === 'function') {
-            window.addLog(`${node.tag === 'boss' ? '👑 우주계 은하 보스 격파' : '🌠 우주계 탐사 완료'}: ${node.name} · ${directive.name || '기본 탐사'} · 창공의 힘 +${skyPower}${node.tag === 'boss' ? ` · 난이도 바닥 Tier ${getCosmosTierFloor()} 적용` : ''}`, node.tag === 'boss' ? 'season-up' : (node.kind === 'planet' ? 'loot-unique' : 'loot-magic'));
-            if (jackpot) window.addLog(`🌌 공명 잭팟! ${directive.name || '탐사 신호'} 보상 증가(창공의 힘 +${jackpotPower} 포함)`, 'loot-unique');
+            window.addLog(`${node.tag === 'boss' ? '👑 우주계 은하 보스 격파' : '🌠 우주계 탐사 완료'}: ${node.name} · ${directive.name || '기본 탐사'} · 창공의 정수 +${skyPower}${node.tag === 'boss' ? ` · 난이도 바닥 Tier ${getCosmosTierFloor()} 적용` : ''}`, node.tag === 'boss' ? 'season-up' : (node.kind === 'planet' ? 'loot-unique' : 'loot-magic'));
+            if (jackpot) window.addLog(`🌌 공명 잭팟! ${directive.name || '탐사 신호'} 보상 증가(창공의 정수 +${jackpotPower} 포함)`, 'loot-unique');
             if (node.tag === 'boss') {
                 const kills = Math.max(0, Math.floor(state.bossKills[node.id] || 0));
                 if (kills === 1) window.addLog(`💠 ${node.name} 첫 격파: ${getBossStoneName(node)} 획득`, 'loot-unique');
@@ -1796,7 +1796,7 @@
             }
         }
         if (jackpot && typeof window.showGameToast === 'function') {
-            window.showGameToast(`공명 잭팟 · 창공의 힘 +${jackpotPower}`, { tone: 'success', duration: 3800 });
+            window.showGameToast(`공명 잭팟 · 창공의 정수 +${jackpotPower}`, { tone: 'success', duration: 3800 });
         }
         if (node.tag === 'boss') grantCosmosBossExclusiveDrops(node);
         finalizeCosmosExploration(state, node, skyPower);

@@ -39,7 +39,7 @@ for (const file of ['data/constants.js', 'data/cosmos-route.js', 'js/cosmos-rout
 }
 vm.runInContext(cosmosSource, context, { filename: 'js/cosmos-atlas.js' });
 
-// 우주계 탐사 보상은 창공의 힘: 예전 별가루 계산값의 1/5(최소 1)을 지갑에 한 번만 더한다.
+// 우주계 탐사 보상은 창공의 정수: 예전 별가루 계산값의 1/5(최소 1)을 지갑에 한 번만 더한다.
 assert.strictEqual(context.grantCosmosSkyPower(25), 5);
 assert.strictEqual(context.game.currencies.skyEssence, 16, 'cosmos rewards must increment the authoritative wallet exactly once');
 assert.strictEqual(context.grantCosmosSkyPower(1), 1, 'every exploration pays at least one');
@@ -49,6 +49,6 @@ assert.strictEqual(context.grantCosmosSkyPower(10), 2, 'a save without a wallet 
 assert.strictEqual(context.game.currencies.skyEssence, 2);
 
 assert(!/starDust\s*=/.test(cosmosSource), 'no star dust balance is written any more');
-assert(cosmosSource.includes('창공의 힘은 우주계 탐사'), 'the atlas must explain the currency source and sink');
+assert(cosmosSource.includes('창공의 정수는 우주계 탐사'), 'the atlas must explain the currency source and sink');
 
 console.log('smoke-currency-integrity passed');

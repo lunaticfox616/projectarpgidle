@@ -294,13 +294,13 @@ const sideEncounterUi = (() => {
         const ready = canEnterSkyTower();
         const rewardText = first ? `${reward}개 확정` : `${Math.max(1,Math.floor(reward*.35))}개 · 16% 확률`;
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${floor}층 ${current?'탐험 중':'입장 준비'}</strong>${buildMapPowerEstimateHtml(getZone(SKY_TOWER_ZONE_ID))}</div>
-            <dl><div><dt>${first?'첫 돌파 보상':'반복 돌파 보상'}</dt><dd>응축된 창공의 힘<small>${remaining?rewardText:'이번 루프 보상 소진 · 다음 루프에 재개'}</small></dd></div>
+            <dl><div><dt>${first?'첫 돌파 보상':'반복 돌파 보상'}</dt><dd>응축된 창공의 정수<small>${remaining?rewardText:'이번 루프 보상 소진 · 다음 루프에 재개'}</small></dd></div>
             <div><dt>이번 루프 남은 보상 전투</dt><dd>${remaining} / ${getSkyTowerLoopClearLimit()}회<small>첫 돌파·반복 돌파 모두 1회 사용</small></dd></div></dl>
             <div class="map-expedition-result"><span>영구 기록</span><strong>${tower.clearedFloors.length}개 층 돌파</strong><span>최고 입장 ${tower.highestFloor}층</span></div>
             ${ready?'':'<p>이번 루프 혼돈 입성 후 입장할 수 있습니다.</p>'}
             <details class="map-expedition-details" id="sky-tower-guide"><summary>등반 · 보상 규칙</summary>
             <p>일반 지역의 5배 길이입니다. 새 층을 돌파하면 다음 층이 열립니다. 25회 소진 후에는 등반 기록과 응축 보상이 늘지 않습니다.</p>
-            <p>돌파 기록·응축된 창공의 힘·영구 강화는 루프를 넘어 유지됩니다. 보상 전투 횟수만 루프마다 회복됩니다.</p></details>
+            <p>돌파 기록·응축된 창공의 정수·영구 강화는 루프를 넘어 유지됩니다. 보상 전투 횟수만 루프마다 회복됩니다.</p></details>
             <div class="map-expedition-actions">${skyEntryActions(tower,remaining)}</div></div>`;
     }
 
@@ -316,7 +316,7 @@ const sideEncounterUi = (() => {
         const max = getSkyStoneMaxLevel();
         const cost = getSkyStoneNextCost();
         const gemUnlocked = contentProgression.isUnlocked('gemForge');
-        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>영구 강화</strong><span>응축된 창공의 힘 ${tower.condensedPower}개</span></div>
+        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>영구 강화</strong><span>응축된 창공의 정수 ${tower.condensedPower}개</span></div>
             <dl><div><dt>창공석 · ${level}/${max}</dt><dd>지하계 패널티 감소 ${getSkyStoneReductionPct()}%<small>${level>=max?'최대 강화':`다음 단계 ${getSkyStoneReductionPct()+5}% · 필요 ${cost}개`}</small></dd></div>
             <div><dt>공격 젬 영구 강화</dt><dd>젬 레벨 최대 +${getSkyTowerGemBoostMaxLevel()}<small>${gemUnlocked?'젬별 60 → 120 → 240개':'젬 강화 해금 필요'}</small></dd></div></dl>
             <div class="map-expedition-actions"><button onclick="upgradeSkyStone()" ${level>=max||tower.condensedPower<cost?'disabled':''}>창공석 ${level?'강화':'제작'}</button>

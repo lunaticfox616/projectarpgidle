@@ -8978,8 +8978,8 @@ function finishEncounterRun() {
             if (reward > 0) st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + reward;
             st.clearedThisLoop = Math.min(getSkyTowerLoopClearLimit(), Math.max(0, Math.floor(st.clearedThisLoop || 0)) + 1);
             let rewardText = firstClear
-                ? `최초 클리어 보상: 응축된 창공의 힘 +${reward}`
-                : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 힘 +${reward}` : '반복 클리어: 응축된 창공의 힘 미발견');
+                ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
+                : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
             addLog(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText} · 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
         } else {
             addLog(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
@@ -10561,7 +10561,7 @@ function performPlayerAttack(pStats, attackOptions) {
 
     // 0 피해 줄은 남기지 않고, 어느 기술의 피해인지 붙인다(맨 숫자만 있던 줄 — 검토 5차).
     if (game.settings.showCombatLog && hitSummary.totalDamage > 0) {
-        let line = `${getDamageElementIcon(swingElement)} ${skillName} · ${formatNumberKR(hitSummary.totalDamage)} 피해`;
+        let line = `${getDamageElementIcon(swingElement)} ${skillName} ${formatNumberKR(hitSummary.totalDamage)} 피해`;
         if (game.settings.showDetailedDamageLog === true) {
             let dotInfo = '';
             if (isDotSkill) {
@@ -11734,7 +11734,7 @@ function performMonsterAttacks(pStats) {
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
             receiveSkillGemPlayerHit(dmg,pStats);
             if (game.settings.showCombatLog && dmg > 0) {
-                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격 · ${formatNumberKR(dmg)} 피해`;
+                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격으로 ${formatNumberKR(dmg)} 피해`;
                 if (game.settings.showDetailedDamageLog === true) {
                     let breakdownText = damageBreakdown
                         .filter(row => row.amount > 0)

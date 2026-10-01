@@ -126,7 +126,7 @@ assert.strictEqual(context.game.cosmosAtlas.activeChallenge.directive.id, riskyD
     '선택한 탐사 신호가 실제 전투 계약에 고정되어야 한다');
 vm.runInContext('Math.random = () => 0;', context);
 context.exploreSelectedCosmosNode(expeditionNodeId);
-assert(context.game.currencies.skyEssence >= 2, '위험 탐사와 공명 잭팟은 실제 탐사 보상(창공의 힘)을 늘려야 한다');
+assert(context.game.currencies.skyEssence >= 2, '위험 탐사와 공명 잭팟은 실제 탐사 보상(창공의 정수)을 늘려야 한다');
 assert.strictEqual(context.game.cosmosAtlas.directiveCycles[expeditionNodeId], 1,
     '탐사를 완료한 뒤에만 해당 노드 신호 주기가 증가해야 한다');
 assert.strictEqual(context.game.cosmosAtlas.selectedDirectives[expeditionNodeId], undefined,

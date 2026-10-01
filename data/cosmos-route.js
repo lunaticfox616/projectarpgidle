@@ -37,6 +37,6 @@ const COSMOS_ROUTE_GALAXIES = Object.freeze((() => {
     }));
 })());
 const COSMOS_GRAVITY_FIELD = Object.freeze({nodeId:'planet-0',gx:4,gy:3,intervalMs:600,restMs:4800,warningMs:1200,steps:3});
-// 우주계 탐사 보상(2026-10-01 별가루 대신 창공의 힘): 예전 별가루 계산값을 이 수로 나눠 준다.
+// 우주계 탐사 보상(2026-10-01 별가루 대신 창공의 정수): 예전 별가루 계산값을 이 수로 나눠 준다.
 const COSMOS_SKY_POWER_PER_REWARD = 5;
 safeExposeData({ COSMOS_ROUTE_GALAXIES, COSMOS_GRAVITY_FIELD, COSMOS_SKY_POWER_PER_REWARD });

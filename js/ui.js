@@ -668,7 +668,7 @@ function backgroundNoExpReason(summary) {
     const rate = levelProgression.rewardMultiplier(zone, { level: levelProgression.areaLevel(zone) }, game.level, 'experience');
     if (rate >= BACKGROUND_EXP_NOTE_BELOW) return '';
     const pct = Math.round(rate * 100);
-    return ` <span class="background-combat-exp-lost">(레벨 차이로 이 지역 경험치가 ${pct > 0 ? `${pct}%로 줄었습니다` : '거의 없습니다'} — 더 깊은 지역에서 오릅니다)</span>`;
+    return ` <span class="background-combat-exp-lost">(레벨 차이로 이 지역 경험치가 ${pct > 0 ? `${pct}%로 줄었습니다` : '거의 없습니다'})</span>`;
 }
 
 function renderBackgroundStoryLine() {
@@ -3439,7 +3439,7 @@ function renderUnderworldMapPanel() {
     let skyStonePct = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
     let skyStoneCost = typeof getSkyStoneNextCost === 'function' ? getSkyStoneNextCost() : 20;
     let skyStoneMaxed = skyStoneLevel >= (typeof getSkyStoneMaxLevel === 'function' ? getSkyStoneMaxLevel() : 15);
-    let skyStonePanel = `<section class="underworld-upgrade-card"><div><strong>창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '미제작'}</strong><span>중력 패널티 감소 ${skyStonePct}% / 75%</span></div><div><span>응축된 창공의 힘 ${Math.floor(skyTower.condensedPower || 0)}</span><button onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '강화' : '제작'} · ${skyStoneMaxed ? '최대' : skyStoneCost}</button></div></section>`;
+    let skyStonePanel = `<section class="underworld-upgrade-card"><div><strong>창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '미제작'}</strong><span>중력 패널티 감소 ${skyStonePct}% / 75%</span></div><div><span>응축된 창공의 정수 ${Math.floor(skyTower.condensedPower || 0)}</span><button onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '강화' : '제작'} · ${skyStoneMaxed ? '최대' : skyStoneCost}</button></div></section>`;
     let slots = Array.from({ length: 6 }).map((_, idx) => {
         let no = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : [])[idx];
         let unlocked = idx < Math.max(0, Math.floor(runeState.unlockedSlots || 0));
@@ -3900,7 +3900,7 @@ function upgradeSkyStone() {
     let lv = Math.max(0, Math.floor(((st.skyStone || {}).level) || 0));
     if (lv >= max) return addLog('창공석은 이미 최종 강화 상태입니다.', 'attack-monster');
     let cost = getSkyStoneNextCost();
-    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 정수가 부족합니다. (필요: ${cost})`, 'attack-monster');
     st.condensedPower -= cost;
     st.skyStone = st.skyStone || { crafted: false, level: 0 };
     st.skyStone.crafted = true;
@@ -4255,7 +4255,7 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
 function renderGemResourceStrip(activeGem, condensedPower) {
     let root = document.getElementById('ui-gem-resource-strip');
     if (!root) return;
-    root.innerHTML = `<div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 젬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
+    root.innerHTML = `<div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 정수</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 젬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
 }
 
 function bindGemEngraveSlotControls(root) {
@@ -4306,7 +4306,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
             : unlocked
                 ? `${index + 1}번 빈 각인 슬롯 · 눌러서 각인 선택`
                 : nextUnlock
-                    ? `${index + 1}번 슬롯 해금 · 창공의 힘 ${index + 1}${unlockReady ? '' : ' · 재화 부족'}`
+                    ? `${index + 1}번 슬롯 해금 · 창공의 정수 ${index + 1}${unlockReady ? '' : ' · 재화 부족'}`
                     : `${index + 1}번 잠긴 슬롯 · 앞 슬롯부터 해금 필요`;
         let group = enhancement ? getSkyEnhancementGroup(enhancement) : null;
         let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '' : nextUnlock ? '+' : '×';
@@ -4763,7 +4763,7 @@ function wearMobilityGem(name) {
 }
 
 function openEquippedGemManagement(name) {
-    if (!game.gemEnhanceUnlocked) return addLog('젬 강화는 군주의 핵 또는 창공의 힘을 획득하면 개방됩니다.', 'attack-monster');
+    if (!game.gemEnhanceUnlocked) return addLog('젬 강화는 군주의 핵 또는 창공의 정수를 획득하면 개방됩니다.', 'attack-monster');
     let equipped = typeof getEquippedEnhanceableGemNames === 'function' ? getEquippedEnhanceableGemNames() : [];
     if (!equipped.includes(name)) return addLog('장착 중인 공격 젬만 강화할 수 있습니다.', 'attack-monster');
     game.gemEnhanceTargetSkill = name;
@@ -6062,14 +6062,14 @@ function showGemTooltip(event, type, name, target = null) {
         let gemBonusSources = info.gemBonusSources || stats.gemBonusSources;
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         const sources = [['패시브', gemBonusSources.passive], ['장비', gemBonusSources.gear], ['보상', gemBonusSources.reward],
-            ['재능', info.talentBonus], ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 힘', info.skyCoreLevel === 5 ? 1 : 0],
+            ['재능', info.talentBonus], ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 정수', info.skyCoreLevel === 5 ? 1 : 0],
             ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
         levels.unshift(`젬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
         html += `<div class="tooltip-line">${levels.join(' · ')}</div>`;
     }
     if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
-    if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 힘 공격·시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;
+    if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 정수 공격·시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
     gemTooltipCache = { key: cacheKey, html: html, border: border, stats: stats };
     if (target) { target.innerHTML = html; return; }
@@ -13593,7 +13593,7 @@ async function cloudPullNow() {
  * 덮어썼다(검토 6차). 게임은 계속 돈다. */
 function noteRuntimeErrorInLog() {
     if (typeof addLog !== 'function') return;
-    addLog('⚠️ 일시적인 오류가 있었습니다. 진행은 그대로 저장됩니다 — 계속되면 새로고침해 주세요.', 'attack-monster', { rateKey: 'runtime-error', minIntervalMs: 60000 });
+    addLog('⚠️ 일시적인 오류가 있었습니다. 반복되면 새로고침해 주세요.', 'attack-monster', { rateKey: 'runtime-error', minIntervalMs: 60000 });
 }
 
 function reportFatalError(stage, error) {

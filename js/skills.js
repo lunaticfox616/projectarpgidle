@@ -151,7 +151,7 @@ function upgradeActiveGemWithCondensedSkyPower() {
     let current = getSkyTowerGemBoostLevel(active);
     if (current >= getSkyTowerGemBoostMaxLevel()) return addLog('해당 젬의 응축 창공 강화는 최대 단계입니다.', 'attack-monster');
     let cost = getSkyTowerGemBoostCost(active);
-    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 정수가 부족합니다. (필요: ${cost})`, 'attack-monster');
     st.condensedPower -= cost;
     st.gemBoosts[active] = current + 1;
     queueImportantSave(200);
@@ -177,7 +177,7 @@ function upgradeSkyEngraveCap() {
     }
     let need = gem.skyEnhanceCap + 1;
     if ((game.currencies.skyEssence || 0) < need) {
-        addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
+        addLog(`창공의 정수가 부족합니다. (필요: ${need})`, 'attack-monster');
         return false;
     }
     game.currencies.skyEssence -= need;
@@ -297,11 +297,11 @@ function getGemSkyEnhanceGemLevelBonus(skillName) {
 
 function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
-        addLog('창공의 힘은 루프4부터 사용할 수 있습니다.', 'attack-monster');
+        addLog('창공의 정수는 루프4부터 사용할 수 있습니다.', 'attack-monster');
         return false;
     }
     if ((game.currencies.skyEssence || 0) <= 0) {
-        addLog('창공의 힘이 부족합니다.', 'attack-monster');
+        addLog('창공의 정수가 부족합니다.', 'attack-monster');
         return false;
     }
     if (!canUseSkyEnhancement(enhanceId)) {
@@ -372,7 +372,7 @@ function toggleSkyGemEnhancement(enhanceId) {
 }
 
 function getSkyGemEnhancementRemoveCost() {
-    // 각인 해제는 창공의 힘 2를 쓴다(예전 젬 각인사 Lv.7의 무료 해제는 전문가와 함께 없어졌다).
+    // 각인 해제는 창공의 정수 2를 쓴다(예전 젬 각인사 Lv.7의 무료 해제는 전문가와 함께 없어졌다).
     return 2;
 }
 
@@ -385,14 +385,14 @@ function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
     if (selectedSlot < 0) return false;
     let cost = getSkyGemEnhancementRemoveCost();
     if (cost > 0 && (game.currencies.skyEssence || 0) < cost) {
-        addLog(`각인 해제에 필요한 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
+        addLog(`각인 해제에 필요한 창공의 정수가 부족합니다. (필요: ${cost})`, 'attack-monster');
         return false;
     }
     if (cost > 0) game.currencies.skyEssence -= cost;
     slots[selectedSlot] = null;
     game.skyGemEnhancements[active] = slots;
     let enh = GEM_SKY_ENHANCEMENTS[enhanceId];
-    addLog(`☁️ [${active}] ${enh ? enh.name : '각인'} 옵션을 해제했습니다.${cost > 0 ? ` (창공의 힘 ${cost} 소모)` : ''}`, 'attack-monster');
+    addLog(`☁️ [${active}] ${enh ? enh.name : '각인'} 옵션을 해제했습니다.${cost > 0 ? ` (창공의 정수 ${cost} 소모)` : ''}`, 'attack-monster');
     updateStaticUI();
     return true;
 }
@@ -441,7 +441,7 @@ function processSupportGemWithSkyEssence(name) {
     let improvingTier = processState.improvingTier;
     let need = processState.need;
     if (processState.maxed) return addLog('해당 보조 젬은 이미 최대 등급·레벨입니다.', 'attack-monster');
-    if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
+    if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 정수가 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.skyEssence -= need;
     if (improvingTier) {
         rec.unlockedTier = Math.min(processState.tierCap, Math.floor(rec.unlockedTier || 1) + 1);
