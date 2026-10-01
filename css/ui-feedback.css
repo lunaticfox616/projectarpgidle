@@ -30,17 +30,42 @@ body { font-family: var(--font-body); }
 .build-dps-chip.is-up .build-dps-chip-value { color: #5fd38a; }
 .build-dps-chip.is-down .build-dps-chip-value { color: #e8645a; }
 @keyframes build-dps-chip { 0% { opacity: 0; translate: 0 6px; } 8% { opacity: 1; translate: 0 0; } 82% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -6px; } }
+/* 칩이 뜬 직후 다음 안내 판이 열리면(휴대폰: 첫 젬 장착 → 첫 스킬트리 포인트) 칩이 판의 아래 테 위에 그려졌다 — 안내 판(z 12000 · 휴대폰 13250)이 위.
+   휴대폰은 판이 화면 폭을 다 쓰므로 칩을 열린 판 바로 위로 올린다(판이 먼저 열려 있으면 js/build-feedback-ui.js chipAnchor가 두는 자리와 같다). */
+body:has(#tutorial-overlay.active) .build-dps-chip { z-index: 11990; }
+#tutorial-overlay .tutorial-card { anchor-name: --tutorial-card; }
+@supports (anchor-name: --tutorial-card) {
+  @media (max-width: 1080px) {
+    body:has(#tutorial-overlay.active:not(.is-story-scene)) .build-dps-chip {
+      /* 판이 열리기 전에 JS(chipAnchor)가 인라인 top으로 둔 자리(하단 메뉴 위)를 덮어쓴다 */
+      top: calc(anchor(--tutorial-card top) - 8px) !important;
+    }
+  }
+}
 .game-toast.active { opacity: 1; transform: translateX(0); }
+/* 따라 하기 안내 카드(js/tutorial-ui.js tutorialActionUi): 자리는 JS가 가리키는 칸 · 곁 정보 · 툴팁을 비켜 정한다. 아래 기본 자리는
+   그 한계(HUD 구슬 · 미니맵 · 하단 메뉴 위)이기도 하다. */
 .tutorial-action-card { position: fixed; z-index: 20500; right: 20px; bottom: 100px; width: min(320px, calc(100vw - 32px)); padding: 14px; border: 1px solid var(--color-line-strong); border-radius: 8px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 8px 28px #0008; font: 13px/1.6 var(--font-body); }
 .tutorial-action-card[hidden] { display: none; }
 body:has(.tutorial-overlay.active, dialog:modal) .tutorial-action-card { visibility: hidden; }
-.tutorial-action-card.at-top { top: 66px; bottom: auto; }
+/* 둘 곳이 없으면(휴대폰에서 젬 상세가 화면을 채울 때) 비켜 선다 — 표시는 가리키는 칸에 남는다 */
+.tutorial-action-card.is-covered { visibility: hidden; }
+/* 툴팁은 카드를 비켜 뜨고(js/ui.js applyTooltipPosition), 비킬 곳이 없을 때만 카드 위에 그린다 — 카드가 노드 툴팁을 덮었다 */
+body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip, #item-tooltip-box) { z-index: 20600; }
 .tutorial-action-card > strong { font-size: 14px; color: var(--color-accent-gold); }
 .tutorial-action-card p { margin: 8px 0 12px; }
+/* ‘장착’ 같은 단추 이름: 안내 판(시작 안내)과 같은 색 글씨. 따옴표는 빠진다(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다). */
+.tutorial-action-card .tutorial-ui { color: #9cc98a; }
 .tutorial-action-card > div { display: flex; justify-content: flex-end; gap: 8px; }
 .tutorial-action-card button { min-height: 36px; font: inherit; }
 .tutorial-action-target { outline-offset: -3px; }
 @media (max-width: 1080px) { .tutorial-action-card { right: 16px; bottom: 86px; } }
+/* 첫 스킬트리 안내(js/canvas-passive-tree.js passiveTreeGuide): 지금 찍을 수 있는 노드의 금빛 고리, 바깥 고리가 퍼지며 사라진다.
+   트리 겹판은 배율로 커지므로 위치 · 크기는 JS가 월드 좌표로 주고, 굵기는 --guide-px(화면 1px)로 맞춘다. */
+.passive-guide-ring { position: absolute; box-sizing: border-box; border: calc(2 * var(--guide-px, 1px)) solid #f3d28c; box-shadow: 0 0 0 var(--guide-px, 1px) #050404, inset 0 0 0 var(--guide-px, 1px) #050404; pointer-events: none; }
+.passive-guide-ring::after { content: ''; position: absolute; inset: calc(-2 * var(--guide-px, 1px)); border: inherit; animation: passive-guide-wave 1.2s steps(4, end) infinite; }
+@keyframes passive-guide-wave { from { scale: 1; opacity: .9; } to { scale: 1.7; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .passive-guide-ring::after { animation: none; opacity: 0; } }
 .game-toast-mark { display: grid; place-items: center; width: 12px; color: var(--toast-tone); font-size: 11px; line-height: 1; }
 /* 휴대폰 전투 로그 알림(js/ui.js showNextMobileToast): 같은 반투명 돌판, 누르면 바로 다음 알림으로 */
 .mobile-log-toast { --toast-tone: #d9b066; padding: 7px 11px 7px 12px; border: 2px solid rgba(5,4,4,.85); background: rgba(18,16,13,.72); box-shadow: inset 0 0 0 1px rgba(93,74,46,.8), inset 3px 0 0 var(--toast-tone), 3px 3px 0 rgba(0,0,0,.3); color: #e6dcc6; font: 13px/1.45 var(--font-pixel-read, var(--font-body)); text-shadow: 1px 1px 0 #000; cursor: pointer; pointer-events: auto; }
@@ -56,4 +81,6 @@ body:has(.tutorial-overlay.active, dialog:modal) .tutorial-action-card { visibil
 } }
 
 @layer overrides {
-.tutorial-action-target { outline: 2px solid var(--color-accent-gold); } }
+.tutorial-action-target { outline: 2px solid var(--color-accent-gold); }
+/* 도트 스킨은 모서리를 모두 각지게 한다(themes/pixel.css) — 둥근 노드를 감싸는 안내 고리는 호버 고리처럼 둥글게 */
+#tree-container .passive-guide-ring, #tree-container .passive-guide-ring::after { border-radius: 50%; } }

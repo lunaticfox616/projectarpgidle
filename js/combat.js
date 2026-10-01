@@ -7997,7 +7997,8 @@ function grantExpAndGem(enemy, pStats) {
     let gemLeveled = false;
     let exp = getEnemyExperienceReward(enemy, pStats);
     game.exp += exp;
-    if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
+    // 낮은 지역에서 처치마다 쌓이던 '경험치 +0' 줄은 남기지 않는다(검토 4차).
+    if (game.settings.showExpLog && exp > 0) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
     let gemExp = Math.floor(exp * 0.45);
     for (const name of grantWornGemExp(gemExp, pStats)) {

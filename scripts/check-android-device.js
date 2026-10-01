@@ -36,6 +36,11 @@ async function review(page) {
     assert.equal(await page.evaluate(() => appPlatform.active), true);
     if (await page.locator('#btn-startup-guest').isVisible()) await tap(page, '#btn-startup-guest');
     if (await page.locator('[data-class-id="warrior"]').isVisible()) await tap(page, '[data-class-id="warrior"]');
+    // 휴대폰은 첫 누름이 고르기다: 직업 확인 판의 "이 직업으로 시작"으로 정한다.
+    if (await page.locator('#loop-hero-select-start').isVisible()) {
+        await page.locator('#loop-hero-select-start:enabled').waitFor();
+        await tap(page, '#loop-hero-select-start');
+    }
     await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen());
     if (await page.locator('#background-combat-result-overlay').isVisible()) {
         await tap(page, '#background-combat-result-overlay button:last-child');

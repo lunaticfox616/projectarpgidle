@@ -85,7 +85,7 @@ const contentUnlockUi = {
     },
     art(def) {
         const root = CONTENT_UNLOCK_CATALOG.find(row => row.id === this.branchRoot(def));
-        return 'assets/' + (def.art || root.art || 'ui/currency/sap-bud.png');
+        return pixelIconPath('assets/' + (def.art || root.art || 'ui/currency/sap-bud.png'));
     },
     node(def) {
         const status = contentProgression.status(def.id);
@@ -163,10 +163,29 @@ const contentUnlockUi = {
         const automatic = rows.filter(row => row.cost === 0);
         const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
-            <summary><strong>루프 ${loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}</span></summary>
+            <summary><strong>루프 ${loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}${this.milestoneTeaser(loop)}</span></summary>
             <p class="unlock-loop-requirement">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>
             ${this.milestoneRows(automatic, '자동 개방')}${this.milestoneRows(choices, '성장 선택')}
             ${additions.length ? `<p class="unlock-expansion">${additions.map(escapeHTML).join('<br>')}</p>` : ''}</details>`;
+    },
+    /** 접힌 이정표 줄에도 그 루프에 열리는 것을 한두 개 보인다(빈 "예정" 줄만 늘어서 있었다 — 검토 4차). */
+    milestoneTeaser(loop) {
+        if (loop === game.season) return '';
+        const names = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop).map(row => row.name);
+        const first = names.length ? names.slice(0, 2).join(' · ') + (names.length > 2 ? ` 외 ${names.length - 2}` : '')
+            : (SEASON_CONTENT_ROADMAP[loop]?.features || [])[0];
+        return first ? ` · ${escapeHTML(first)}` : '';
+    },
+    /** 진행 · 이정표에서 아직 고른 항목이 없을 때의 오른쪽 설명(앞 화면에서 고른 항목이 남아 있었다 — 검토 4차). */
+    loopSummary() {
+        const next = game.season + 1;
+        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">진행 · 이정표</span><h3>루프 ${game.season}</h3>
+            <p>루프마다 자동으로 열리는 전투 콘텐츠와 고를 수 있는 성장 수단입니다. 목록의 항목을 누르면 설명이 여기에 나옵니다.</p></div>
+            <div class="unlock-requirements"><h4>다음 루프 ${next}</h4><div><span>${escapeHTML(getLoopAbyssRequirementText(next))}</span></div></div>`;
+    },
+    setView(view) {
+        this.view = view;
+        this.selectedId = view === 'choice' ? this.selectedId || 'craft' : null;
     },
     milestoneRows(rows, label) {
         if (!rows.length) return '';
@@ -244,7 +263,7 @@ const contentUnlockUi = {
         root.innerHTML = `<header class="content-unlock-heading"><span>루프 ${game.season}</span>${this.pointBalanceHtml()}</header>
             <div class="unlock-toolbar"><nav aria-label="해금 방식"><button type="button" data-unlock-view="choice" aria-pressed="${this.view === 'choice'}">선택 해금</button><button type="button" data-unlock-view="progress" aria-pressed="${this.view === 'progress'}">진행 · 이정표</button></nav></div>
             <div class="unlock-workspace"><div class="unlock-content">${this.view === 'choice' ? this.choiceMap() : this.progressionMap()}</div>
-            <aside class="unlock-detail" aria-label="선택한 콘텐츠">${this.detail(selected)}</aside></div>`;
+            <aside class="unlock-detail" aria-label="선택한 콘텐츠">${selected ? this.detail(selected) : this.loopSummary()}</aside></div>`;
         restoreUiDisclosureState(root);
         scroll.forEach(([name, left, top]) => root.getElementsByClassName(name)[0]?.scrollTo({ left, top }));
         this.revealBranches(root, starter);
@@ -253,7 +272,7 @@ const contentUnlockUi = {
         if (!control) return;
         const data = control.dataset;
         if (data.unlockSelect) { this.select(data.unlockSelect); return; }
-        if (data.unlockView) this.view = data.unlockView;
+        if (data.unlockView) this.setView(data.unlockView);
         if (data.unlockGroup) this.group = data.unlockGroup;
         if (data.unlockHorizon) this.showAllMilestones = !this.showAllMilestones;
         this.render();
@@ -264,7 +283,7 @@ const contentUnlockUi = {
         this.render();
         const root = document.getElementById('content-unlock-panel');
         root.querySelector(`[data-unlock-select="${id}"]`)?.focus({ preventScroll:true });
-        if (root.clientWidth < 600) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
+        if (root.clientWidth < 840) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
     },
     purchase(id) {
         const key = document.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();

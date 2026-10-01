@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 // 균열 등불(rift) 스킨의 "전장 전체 화면" 배치 계약.
 // 전장 캔버스가 화면을 채우고, 기록·HUD(미니맵·메뉴 포함)·관리 창은 그 위에 겹친다(전장 크기는 바뀌지 않음).
@@ -9,7 +10,7 @@ async function openGame(page, info) {
     await page.goto('/');
     const tap = info.project.use.isMobile ? 'tap' : 'click';
     await page.locator('#btn-startup-guest')[tap]();
-    await page.locator('[data-class-id="warrior"]')[tap]();
+    await pickClass(page, 'warrior', { tap: tap === 'tap' });
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;

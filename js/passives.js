@@ -2885,6 +2885,19 @@ function syncPaleBlueDotPassivePoints(previousEntry, nextEntry) {
     passiveRouting.reconcile(game, PASSIVE_TREE, getPassiveRouting(), budget);
 }
 
+/** 요정의 고리는 잃을 것이 있는 공허 패시브(옵션 또는 초월)에만 쓴다 — 빈 소켓에 쓰면 실패해도 잃는 게 없는 공짜 도박이 되고,
+ * 검토 4차에서 아무 변화 없이 재화만 사라진 것처럼 보였다. */
+function rollFairyRingOnCraftedVoid(entry, nodeId) {
+    if (!entry.transcendent && !(entry.stats || []).length) {
+        return { text: '요정의 고리는 옵션이 있는 공허 패시브에만 쓸 수 있습니다. 마법의 새싹으로 먼저 옵션을 굴리세요.', tone: 'attack-monster' };
+    }
+    game.currencies.fairyRing--;
+    rollFairyRingOnVoid(entry, nodeId);
+    return entry.transcendent
+        ? { text: `🌌 공허 패시브 초월: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`, tone: 'loot-unique' }
+        : { text: '💥 요정의 고리: 초월에 실패해 공허 패시브의 옵션이 지워졌습니다.', tone: 'attack-monster' };
+}
+
 function applyVoidPassiveCurrency(nodeId, currencyKey) {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let node = PASSIVE_TREE.nodes[nodeId];
@@ -2894,9 +2907,8 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
     if (currencyKey === 'fairyRing') {
-        game.currencies.fairyRing--;
-        rollFairyRingOnVoid(entry, node.id);
-        addLog(entry.transcendent ? `🌌 공허 패시브 초월: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}` : '💥 요정의 고리: 공허 패시브가 아무 옵션도 없는 노드로 변했습니다.', entry.transcendent ? 'loot-unique' : 'attack-monster');
+        const outcome = rollFairyRingOnCraftedVoid(entry, node.id);
+        addLog(outcome.text, outcome.tone);
         unlockPassiveStarEvolution();
         updateStaticUI();
         return;
@@ -5321,9 +5333,37 @@ function buildHeroChoiceTooltipHtml(classId, experienced) {
         ${weapon ? `<div class="tooltip-line" style="color:#f6c461;">대표 무기 · ${escapeHTML(weapon)}</div><div class="tooltip-line">요구 능력치만 맞으면 어떤 무기든 낄 수 있고, 든 무기가 그림에 보입니다.</div>` : ''}`;
 }
 
+/** 휴대폰 배치(1080px 이하)는 툴팁 대신 직업 확인 판(renderLoopHeroChoiceDetail)이 같은 내용을 보인다 — 탭이 마우스 진입을 흉내 내
+ * 툴팁이 판 위에 겹쳤다. */
 function showHeroChoiceTooltip(event, classId, experienced) {
-    if (typeof showInfoTooltipHtml !== 'function') return;
+    if (typeof showInfoTooltipHtml !== 'function' || uiDisplay.matches('(max-width: 1080px)')) return;
     showInfoTooltipHtml(event.clientX, event.clientY, buildHeroChoiceTooltipHtml(classId, !!experienced), '#f6c461');
+}
+
+/** 직업 확인 판(index.html #loop-hero-select-overlay .hero-choice-confirm, 휴대폰 배치에서만 보인다): 고른 카드 표시, 툴팁과 같은
+ * 시작 스킬 젬 · 대표 무기, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
+ * classId가 없으면 고르기 전(안내 문구, 단추 잠김)으로 되돌린다. 판이 없는 DOM(노드 스모크)에서는 하는 일이 없다. */
+function renderLoopHeroChoiceDetail(classId, experienced) {
+    let detail = document.getElementById('loop-hero-select-detail');
+    let start = document.getElementById('loop-hero-select-start');
+    if (!detail || !start) return;
+    detail.innerHTML = classId ? buildHeroChoiceTooltipHtml(classId, !!experienced) : '';
+    start.value = classId || '';
+    start.disabled = !classId;
+    if (!classId) return;
+    document.querySelectorAll('#loop-hero-select-grid [data-class-id]').forEach(card => {
+        let selected = card.dataset.classId === classId;
+        card.setAttribute('aria-pressed', String(selected));
+        if (selected) card.scrollIntoView({ block: 'nearest' });
+    });
+}
+
+/** 직업 카드 누름. PC는 바로 정한다. 휴대폰 배치는 툴팁이 없어 직업을 모르고 골랐다(검토 2026-10-01) — 첫 누름은 카드를 고르고
+ * 판에 시작 스킬 젬 · 대표 무기를 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
+function pressLoopHeroChoice(classId, experienced) {
+    let start = document.getElementById('loop-hero-select-start');
+    if (!uiDisplay.matches('(max-width: 1080px)') || start.value === classId) return chooseLoopHero(classId);
+    renderLoopHeroChoiceDetail(classId, experienced);
 }
 
 function openLoopHeroSelection(onSelect, options = {}) {
@@ -5346,8 +5386,10 @@ function openLoopHeroSelection(onSelect, options = {}) {
         let experienced = experiencedSet.has(id);
         let summary = def.description || '';
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
+        let args = `'${id}',${experienced}`;
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
+    renderLoopHeroChoiceDetail(null);
     overlay.classList.add('active');
     return true;
 }

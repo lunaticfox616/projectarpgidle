@@ -278,7 +278,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 /* 주 동작(시작·확인)은 금 테 밝은 판 */
 :root body[data-ui-skin] #startup-overlay .startup-primary,
-:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary {
+:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary,
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start {
   border: 1px solid var(--px-ink);
   background: var(--px-board-hot), #2a2420;
   box-shadow: var(--px-gold-rim);
@@ -286,8 +287,12 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   text-shadow: var(--px-text-edge);
 }
 :root body[data-ui-skin] #startup-overlay .startup-primary:hover:not(:disabled),
-:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary:hover:not(:disabled) { background: var(--px-board-hot), #33291f; color: #fff4d6; }
-:root body[data-ui-skin] :is(.game-dialog-btn, #startup-overlay :is(.startup-primary, .startup-secondary, .startup-ghost)):active:not(:disabled) { box-shadow: var(--px-bevel-pressed); }
+:root body[data-ui-skin] .game-dialog-btn.game-dialog-btn-primary:hover:not(:disabled),
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start:hover:not(:disabled) { background: var(--px-board-hot), #33291f; color: #fff4d6; }
+:root body[data-ui-skin] :is(.game-dialog-btn, #startup-overlay :is(.startup-primary, .startup-secondary, .startup-ghost)):active:not(:disabled),
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start:active:not(:disabled) { box-shadow: var(--px-bevel-pressed); }
+/* 고르기 전의 "이 직업으로 시작": 금 테 없는 납작한 판 · 흐린 글(오버레이 단추의 올림 빛도 받지 않는다) */
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start:disabled { background: var(--px-stone); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy-muted); }
 /* 설정: 지금 저장은 주 동작(금 테), 초기화 · 삭제는 붉은 빗면(예전 초록 · 적갈 유리 판 대신) */
 :root body[data-ui-skin] .cfg-btn--save { border: 1px solid var(--px-ink); background: var(--px-board-hot), #2a2420; box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); text-shadow: var(--px-text-edge); }
 :root body[data-ui-skin] :is(.cfg-btn--danger, .cfg-btn--danger-reset) {
@@ -319,7 +324,18 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #startup-overlay #btn-startup-google { font-family: 'Google Sans', sans-serif; }
 :root body[data-ui-skin] #startup-overlay .startup-policy-scroll .effective { color: var(--px-copy-muted); font-size: 12px; }
 /* 시작 화면의 로그인 판·저장 정보 */
-:root body[data-ui-skin] #startup-overlay :is(.startup-panel.auth, .startup-summary-card) {
+/* 로그인 판은 로고 판과 같은 매듭 테(검토 4차: 로그인 판만 매듭 모서리가 없었다), 안내 판은 가벼운 테 */
+:root body[data-ui-skin] #startup-overlay .startup-panel.auth {
+  padding: 10px 14px;
+  border: var(--px-plate-border) solid transparent;
+  border-image: var(--px-plate-frame);
+  border-radius: 0;
+  background: var(--px-wood-dark), var(--px-stone);
+  background-clip: padding-box;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #startup-overlay .startup-summary-card {
   border: var(--px-light-border) solid transparent;
   border-image: var(--px-light-frame);
   border-radius: 0;
@@ -538,16 +554,62 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { color: var(--px-copy); font-family: var(--font-pixel); font-size: 12px; text-shadow: var(--px-text-edge); }
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-badge { border: 1px solid var(--px-bronze); border-radius: 0; background: var(--px-stone); color: var(--px-gold); font-size: 12px; }
+/* 고른 카드(휴대폰 배치의 첫 누름): 두 도트 금 테와 금빛 이름 띠. 손을 뗀 뒤에도 :hover가 남는 휴대폰에서도 고른 표시가 이긴다. */
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice[aria-pressed="true"],
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--px-gold-bright);
+  box-shadow: inset 0 0 0 2px var(--px-gold-bright), inset 0 0 0 3px var(--px-ink);
+}
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice[aria-pressed="true"] strong { border-top-color: var(--px-gold-bright); background: #2a2014; }
+/* 직업 확인 판(js/passives.js pressLoopHeroChoice)은 휴대폰 배치에서만 — PC는 카드를 한 번 눌러 정하고 툴팁으로 본다. */
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { display: none; }
 @media (max-width: 1080px) {
   /* 휴대폰: 고르는 오버레이(직업 · 루프 · 보상 · 사망 · 패치 노트)는 하단 메뉴 띠(z 13100)보다 위 — 아래 줄 카드가 메뉴에 가려
      누를 수 없던 문제. 판은 화면 안에서 스크롤한다. 안내 카드(#tutorial-overlay)는 화면을 막지 않도록 그대로 둔다. */
   :root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) { z-index: 13200; }
-  :root body[data-ui-skin] :is(#loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) .tutorial-card { max-height: calc(100dvh - 16px); overflow-y: auto; }
+  :root body[data-ui-skin] :is(#loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) .tutorial-card { max-height: calc(100dvh - 16px); overflow-y: auto; }
+  /* 직업 선택: 카드 목록만 스크롤하고 확인 판("이 직업으로 시작")은 늘 판 아래에 보인다. 노치 · 홈 막대(안전 영역)는 비운다. */
+  :root body[data-ui-skin] #loop-hero-select-overlay { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  :root body[data-ui-skin] #loop-hero-select-overlay .tutorial-card { display: flex; flex-direction: column; box-sizing: border-box; max-height: calc(100% - 16px); overflow: hidden; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { display: flex; flex: none; flex-direction: column; gap: 8px; margin-top: 10px; }
+  :root body[data-ui-skin] #loop-hero-select-overlay :is(.hero-choice-detail, .hero-choice-hint) {
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--px-ink);
+    background: var(--px-panel);
+    box-shadow: inset 0 0 0 1px var(--px-bronze-lo);
+    color: var(--px-copy);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  :root body[data-ui-skin] #loop-hero-select-overlay :is(.hero-choice-detail:empty, .hero-choice-detail:not(:empty) + .hero-choice-hint) { display: none; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-hint { color: var(--px-copy-muted); }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-detail .tooltip-title {
+    margin: 0 0 4px;
+    padding: 0 0 4px;
+    border-bottom: 1px solid var(--px-bronze-lo);
+    color: var(--px-gold-bright);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 400;
+    text-shadow: var(--px-text-bold);
+  }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-detail .tooltip-line { margin: 0; color: var(--px-copy); line-height: 1.5; text-shadow: var(--px-text-edge); }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start { width: 100%; min-height: 44px; font-size: 12px; }
 }
 @media (max-width: 760px) {
   /* 좁은 화면: 초상은 작게, 설명은 한 줄 말줄임 대신 여러 줄 */
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong small { white-space: normal; text-overflow: clip; line-height: 1.35; }
+}
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  /* 가로로 눕힌 휴대폰: 아래 확인 판이 카드 목록 높이를 다 먹었다 — 판을 목록 오른쪽에 세우고 긴 설명은 판 안에서 스크롤한다 */
+  :root body[data-ui-skin] #loop-hero-select-overlay .tutorial-card { flex-direction: row; gap: 12px; padding: 12px; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-scroll { min-width: 0; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { width: min(260px, 38%); margin-top: 0; }
+  :root body[data-ui-skin] #loop-hero-select-overlay :is(.hero-choice-detail, .hero-choice-hint) { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
 }
 
 /* ─── 도트 글꼴 크기 격자 (검토 2026-10-01) ───────────────────────────────────────────
@@ -560,6 +622,38 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
     .map-zone-group-title, .craft-spores-title, .stat-value) { font-family: var(--font-pixel-read); font-size: 15px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(p, li, label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
     .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .skill-library-note, .gem-enhance-section-desc) { font-family: var(--font-pixel); font-size: 12px; }
+/* 단추처럼 쓰는 접힘 제목(장비 '일괄 해체', 해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
+   소제목 크기(갈무리 15)라 옆 단추와 글꼴 · 크기가 달랐다(검토 4차) */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.equipment-bulk-menu, .unlock-lifetime, .unlock-related, #map-ready-destinations > details) > summary { font-family: var(--font-pixel); font-size: 12px; }
+/* 원정 입장 단추(벌집 입장 등)는 화면의 주 동작: 금 테 · 밝은 글(작고 흐린 단추라 눈에 띄지 않았다 — 검토 4차) */
+:root body[data-ui-skin] .map-expedition-actions > [data-exploration-departure]:not(:disabled) { padding: 9px 22px; box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
+/* 장비 창의 '필터 · 정렬' 단추는 좁은 화면에서만(아래 pixel-mobile.css) */
+:root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle { display: none; }
+/* 젬 설명은 어절 단위로 줄을 바꾼다 — "피해의 45%" / "를 줍니다."처럼 숫자와 조사가 갈렸다(검토 4차) */
+:root body[data-ui-skin] :is(.gem-library-card > p, .gem-selection-content) { word-break: keep-all; overflow-wrap: anywhere; }
+/* 하위 탭이 하나뿐이면 줄을 숨긴다(js/ui.js syncSingleSubtabRows) */
+:root body[data-ui-skin] .tab-content .subtab-row[hidden] { display: none; }
+/* 목표 서랍: 제목 · 알림 앞의 4px 가로줄 장식은 "- "처럼 읽히고 단추 모서리에 떠 보였다(검토 4차) → 없애고 글을 왼쪽에 맞춘다 */
+:root body[data-ui-skin] #ui-goal-drawer :is(.ui-goal-title, .ui-goal-notice-action, .ui-goal-notice-text)::before { content: none; }
+:root body[data-ui-skin] #ui-goal-drawer .ui-goal-title { padding-left: 0; }
+:root body[data-ui-skin] #ui-goal-drawer .ui-goal-desc { margin-left: 0; }
+/* 세계수 아틀라스: 머리 제목에 판 테가 겹쳐 입력 칸처럼 보였다 → 맨 글자. 원판 · 패시브 바퀴는 PC 창 높이에 맞춰
+   줄여 반쯤 잘리지 않게(기본 창 본문 약 550px — 검토 4차) */
+:root body[data-ui-skin] #ui-atlas .atlas-head h2 { padding: 0; border: 0; background: none; box-shadow: none; }
+/* 창 높이(HUD 위 약 550px 본문)에 원판이 다 들어오게: 세계수 화면에서는 위 지역 띠(같은 이름을 한 번 더 썼다)를 숨기고,
+   자동 지도 설명은 단추 설명(title)으로, 지역 범례는 원판 아래로 */
+:root body[data-ui-skin] #tab-map:has(#map-explore-worldtree.active) #exploration-region-banner { display: none; }
+:root body[data-ui-skin] #ui-atlas .atlas-auto small { display: none; }
+:root body[data-ui-skin] #ui-atlas .atlas-chart-column { display: flex; flex-direction: column; }
+:root body[data-ui-skin] #ui-atlas .atlas-chart-column > .atlas-legend { order: 1; margin-top: 8px; }
+@media (min-width: 1081px) {
+  :root body[data-ui-skin] #ui-atlas .atlas-chart { width: min(100%, 660px, max(320px, calc(100dvh - 524px))); }
+  :root body[data-ui-skin] #ui-atlas .atlas-wheel-art { width: min(100%, 360px, max(240px, calc(100dvh - 612px))); }
+}
+/* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
+   고른 표시를 덮어 고른 것과 아닌 것이 똑같았다(검토 4차) */
+:root body[data-ui-skin] :is(.mobile-section-navigation, .equipment-mobile-switch, .skill-mobile-library-navigation) > button[aria-selected="true"],
+:root body[data-ui-skin] #act-exploration-dialog .act-exploration-modes > button[aria-pressed="true"] { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 소제목 · 접힘 제목 안의 보조 글(개수 · 설명 · 도구 이름)은 본문 크기 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .codex-slot-heading, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
@@ -582,13 +676,14 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .equipment-slot-visual { border: 1px solid var(--px-ink); border-radius: 0; background: #141216;
     box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30; }
 /* 안내 · 이야기 카드 본문이 넘치면 아래 끝을 흐리게, 끝까지 내리면 걷힌다 — 휴대폰에서 마지막 줄이 체크 상자 위에 반쯤 걸려 잘렸는데
-   더 있다는 표시가 없었다(검토 2026-10-01). 넘치지 않으면 스크롤 타임라인이 비활성이라 흐림도 없다. */
+   더 있다는 표시가 없었다(검토 2026-10-01). 넘치지 않으면 스크롤 타임라인이 비활성이라 흐림도 없다. 남은 양이 24px 이하면(마지막
+   줄이 몇 px 걸친 정도) 흐리지 않는다: 9px 넘친 프롤로그 카드에서 32px 흐림이 마지막 줄 "정원사에게 복수하세요."를 지웠다.
+   흐림은 스크롤 0 ~ (끝 - 24px) 구간에서만 걸리고(forwards 채움 없음), 넘친 양이 24px보다 작으면 그 구간이 비어 늘 걷혀 있다. */
 @supports (animation-timeline: scroll()) {
-  :root body[data-ui-skin] #tutorial-body { animation: px-more-below linear both; animation-timeline: scroll(self); }
+  :root body[data-ui-skin] #tutorial-body { animation: px-more-below linear backwards; animation-timeline: scroll(self); animation-range: 0% calc(100% - 24px); }
 }
 @keyframes px-more-below {
-  0%, 96% { -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent); mask-image: linear-gradient(#000 calc(100% - 32px), transparent); }
-  100% { -webkit-mask-image: none; mask-image: none; }
+  from, to { -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent); mask-image: linear-gradient(#000 calc(100% - 32px), transparent); }
 }
 /* PC 목표 서랍: 펼친 서랍은 읽으려고 연 것이라 설명을 두 줄 말줄임("…장착하면 예상 능력치 변화…")으로 자르지 않는다 */
 :root body[data-ui-skin].desktop-windowed-ui #ui-goal-drawer .ui-goal-desc { display: block; max-height: none; overflow: visible; -webkit-line-clamp: unset; }

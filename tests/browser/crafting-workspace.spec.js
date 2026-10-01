@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 async function setup(page) {
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     page.on('console',message=>{if(message.type()==='error'&&/crafting.*failed/i.test(message.text()))errors.push(message.text());});
@@ -6,7 +7,7 @@ async function setup(page) {
     await page.route('https://**', route => route.fulfill({status:204,body:''}));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await page.locator('[data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle=null;

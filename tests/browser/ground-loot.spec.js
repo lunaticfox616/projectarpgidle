@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 async function openBattle(page) {
     const errors = [];
@@ -8,7 +9,7 @@ async function openBattle(page) {
     await page.locator('#btn-startup-guest').click();
     await expect(page.locator('#startup-overlay')).not.toHaveClass(/active/, { timeout: 30000 });
     if (await page.evaluate(() => !game.heroSelectionInitialized)) {
-        await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
+        await pickClass(page);
     }
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;

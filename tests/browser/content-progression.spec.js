@@ -1,10 +1,11 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 test.beforeEach(async ({ page }) => {
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await page.locator('[data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
@@ -41,4 +42,24 @@ test('the unlock buy button stays visible in a small desktop window', async ({ p
         return document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest('button') === button;
     });
     expect(hit).toBe(true);
+});
+
+// Review round 4 #2 #16: the unlock tree's step columns fit the window (6단계 '젬 각성' hid under the detail panel behind a
+// scrollbar below the fold), and phones list the steps top to bottom instead of a hidden sideways scroll.
+test('the unlock tree fits its window without hidden columns', async ({ page }, info) => {
+    await page.evaluate(() => {
+        game.season = 20; game.contentProgression.highestLoop = 20;
+        for (const row of CONTENT_UNLOCK_CATALOG) {
+            if (row.id === 'gemAwakening' || game.contentProgression.unlocked.includes(row.id)) continue;
+            game.contentProgression.unlocked.push(row.id); game.contentProgression.paidCosts[row.id] = row.cost;
+        }
+        contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks');
+    });
+    const map = page.locator('#content-unlock-panel .unlock-map');
+    await expect(map).toBeVisible();
+    const fit = await map.evaluate(el => ({ overflow: el.scrollWidth - el.clientWidth,
+        node: el.querySelector('[data-unlock-select="gemAwakening"]').getBoundingClientRect().right, edge: el.getBoundingClientRect().right }));
+    expect(fit.overflow).toBeLessThanOrEqual(1);
+    expect(fit.node).toBeLessThanOrEqual(fit.edge + 1);
+    await page.screenshot({ path: info.outputPath('unlock-tree.png') });
 });

@@ -65,7 +65,8 @@ assert(policyContent.includes('최대 3일') && policyContent.includes('최대 3
     'privacy retention periods must match chat and telemetry cleanup behavior');
 assert(vfxServer.includes("'legal'"), 'the local VFX game preview must serve policy pages linked from the game');
 const latestPatchParts = (changelog.match(/^##\s+.+?\s+[—–-]\s+(\d{4})-(\d{2})-(\d{2})/m) || []).slice(1);
-const latestPatchDate = latestPatchParts.length === 3 ? `${latestPatchParts[0].slice(2)}-${latestPatchParts[1]}-${latestPatchParts[2]}` : '';
+// 연도는 네 자리로 쓴다("26-10-01"은 무슨 날짜인지 바로 읽히지 않았다 — 검토 4차).
+const latestPatchDate = latestPatchParts.length === 3 ? `${latestPatchParts[0]}.${latestPatchParts[1]}.${latestPatchParts[2]}` : '';
 assert(latestPatchDate && html.includes(`aria-hidden="true">(${latestPatchDate})</span>`),
     'the startup patch date must match the latest documented changelog entry');
 

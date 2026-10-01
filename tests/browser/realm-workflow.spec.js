@@ -1,10 +1,11 @@
 const {test, expect} = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 async function openRealms(page) {
     await page.route('https://**', route=>route.fulfill({status:204,body:''}));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
+    await pickClass(page);
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
     await page.evaluate(()=>{
         clearInterval(gameTickHandle);gameTickHandle=null;

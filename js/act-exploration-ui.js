@@ -16,8 +16,10 @@ const actExplorationUi=(()=>{
         if(run===lastRun&&key===lastKey)return;lastRun=run;lastKey=key;
         renderModes(run);
         const seal=document.getElementById('act-exploration-seal');
-        seal.textContent=remaining?'봉인 '+remaining:'개방';
-        seal.setAttribute('aria-label',remaining?'남은 정예 몬스터 수: '+remaining:'보스 관문 개방');
+        // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
+        seal.textContent=remaining?'정예 '+remaining:'관문 개방';
+        seal.title=remaining?`남은 정예 ${remaining} · 모두 처치하면 보스 관문이 열립니다`:'보스 관문이 열렸습니다';
+        seal.setAttribute('aria-label',seal.title);
         draw(document.getElementById('act-exploration-map'),run);
         draw(document.getElementById('act-exploration-map-large'),run);
         renderProgress(run);

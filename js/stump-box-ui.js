@@ -99,8 +99,10 @@ const stumpBoxUi = (() => {
         const raise = rank < max ? stumpGraftButton('graft-raise', cell, `접붙이기 (${rank + 1}점)`, raiseReason) : '';
         const lower = rank > 0 ? stumpGraftButton('graft-lower', cell, `되돌리기 (마름병 포자 ${STUMP_BOX_GRAFT.refundSpores})`,
             stumpBox.graftLowerReason(game, cell)) : '';
-        return `<div class="stump-graft"><p class="stump-line"><strong>접붙이기 ${rank}/${max}단계</strong> · 이 칸에 놓인 것의 효과 +${rank * STUMP_BOX_GRAFT.pctPerRank}%`
-            + ` · 남은 점수 ${free}</p>${raiseReason ? `<p class="stump-hint">${escStump(raiseReason)}</p>` : ''}<div class="stump-actions">${raise}${lower}</div></div>`;
+        // 0단계면 효과(+0%)는 빼고, '남은 점수 9'는 한 줄에(숫자만 다음 줄로 떨어졌다 — 검토 4차)
+        const effect = rank ? ` · 이 칸에 놓인 것의 효과 +${rank * STUMP_BOX_GRAFT.pctPerRank}%` : '';
+        return `<div class="stump-graft"><p class="stump-line"><strong>접붙이기 ${rank}/${max}단계</strong>${effect} · 남은 점수\u00a0${free}</p>`
+            + `${raiseReason ? `<p class="stump-hint">${escStump(raiseReason)}</p>` : ''}<div class="stump-actions">${raise}${lower}</div></div>`;
     }
     function stumpCellDetailHtml(cell) {
         return '<p class="stump-line"><strong>빈 칸</strong> · 접붙이기는 칸에 남아 이 칸에 놓는 씨앗 · 수액 · 부적의 효과를 키웁니다.</p>'
@@ -250,6 +252,7 @@ const stumpBoxUi = (() => {
         if (item && item.path) pendingPath = item.path;
         renderStumpBoxTab(true);
         if (item && game.stumpBox.board.indexOf(item.id) < 0) showStumpBoardOnPhone();
+        else if (item) revealStumpDetailOnPhone();
     }
     function stumpRefusal(item) {
         if (game.woodsmanBuildLock) return '나무꾼 전투 중에는 그루터기 함 배치를 바꿀 수 없습니다.';
@@ -264,6 +267,12 @@ const stumpBoxUi = (() => {
     function selectStumpCell(cell) {
         selectedCell = selectedCell === cell ? null : cell;
         renderStumpBoxTab(true);
+        if (selectedCell !== null) revealStumpDetailOnPhone();
+    }
+    /** 휴대폰: 판에서 고르면 바로 아래 설명(접붙이기 단추)을 화면 안으로 — 화면 밖 한참 아래에 떠서 누른 반응이 없는 것처럼 보였다(검토 4차). */
+    function revealStumpDetailOnPhone() {
+        if (!uiDisplay.matches('(max-width: 1080px)')) return;
+        document.getElementById('stump-box-detail')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
     function clickStumpCell(cell) {
         const occupant = game.stumpBox.board[cell];

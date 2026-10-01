@@ -71,6 +71,9 @@
         document.getElementById('btn-startup-guest').click();
         await waitFor(() => document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]'));
         document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+        // 휴대폰 배치에서는 첫 누름이 고르기만 한다: 보이는 '이 직업으로 시작'을 눌러 정한다.
+        const start = document.getElementById('loop-hero-select-start');
+        if (start && !start.disabled && start.offsetParent) start.click();
         await waitFor(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
         clearInterval(gameTickHandle); gameTickHandle = null;
         new MutationObserver(skipNotices).observe(document.getElementById('tutorial-overlay'), { attributes:true, attributeFilter:['class'] });

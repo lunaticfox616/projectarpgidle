@@ -1556,9 +1556,10 @@ function drawBattlefieldPlayerHealthBar(ctx, scene) {
 }
 
 // 정예는 일반 무리와 한눈에 구분되도록 체력바 위에 특성 이름표를 단다(보스는 상단 대형 바가 맡는다).
+// 일반 · 정예 막대는 칸보다 좁게: 이웃한 두 적의 막대가 맞붙어 한 줄로 읽혔다(검토 4차).
 function getEnemyFieldBarWidth(enemy) {
     if (enemy.isBoss) return 96;
-    return enemy.isElite ? 60 : 46;
+    return enemy.isElite ? 54 : 40;
 }
 
 function getEnemyFieldBarEdge(enemy, targeted) {

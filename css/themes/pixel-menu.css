@@ -74,7 +74,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
      창 위(z 1300)로 올라와 창 오른쪽 내용을 가렸다. 창을 닫거나 접으면 그 자리에 그대로 보인다. */
   :root body[data-ui-skin="rift"].desktop-windowed-ui.community-dock-open #tab-social.ui-community-dock { z-index: 1100; }
   /* 따라 하기 안내 카드는 HUD 상자 위(전투 기록과 같은 높이)에 — 아래 100px 자리는 경험치 구슬 · 젬 칸을 덮었다 */
-  body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .tutorial-action-card:not(.at-top) { bottom: calc(var(--px-map-size) + var(--px-map-lift) + 48px * var(--px-hud-dot) + 35px); }
+  body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .tutorial-action-card { bottom: calc(var(--px-map-size) + var(--px-map-lift) + 48px * var(--px-hud-dot) + 35px); }
   /* 대상 적 체력바도 같은 세로축(주인공 · 미니맵)에 */
   :root body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #battle-column #enemy-area { left: 50%; }
   /* 창을 열어도 메뉴는 흐려지지 않는다(창은 HUD 위까지만 온다). */

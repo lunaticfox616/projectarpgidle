@@ -168,6 +168,12 @@
         return ranked[0] || null;
     }
 
+    /** 꺼진 '추천 교체'는 까닭을 말한다(검토 4차): 분석 전이면 분석부터, 분석했는데 없으면 지금 장비가 낫다. */
+    function getRecommendTitle(recommendation) {
+        if (recommendation) return state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.';
+        return state.status === 'idle' ? '먼저 일괄 분석을 하면 추천이 나옵니다.' : '지금 장비보다 나은 추천 장비가 없습니다.';
+    }
+
     function render() {
         const host = document.getElementById('ui-equipment-triage');
         if (!host) return;
@@ -183,7 +189,7 @@
             <div class="equipment-triage-controls">
                 <label>판단 <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
                 <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? '분석 중단' : (state.status === 'idle' ? '일괄 분석' : '다시 분석')}</button>
-                <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} title="${state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.'}">추천 교체</button>
+                <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} title="${getRecommendTitle(recommendation)}">추천 교체</button>
                 ${fillButton}${autoSalvageButton}
             </div>`;
         const renderSignature = `${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}|${fillable}`;

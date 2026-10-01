@@ -1,6 +1,7 @@
 // Same controlled battlefield, real combat hits and renderer; no composited game art.
 const fs = require('fs');
 const { chromium, devices } = require('@playwright/test');
+const { pickClass } = require('../tests/browser/helpers');
 process.env.PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT || '4210';
 const startServer = require('./serve-test');
 
@@ -23,7 +24,7 @@ async function capture(browser, variant, mobile) {
     }
     await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     const result = await page.evaluate(() => {
         tutorialQueue.length = 0;

@@ -29,7 +29,7 @@
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
         'tab-skills': { title: '스킬 젬', defaultMaximized: true, dock: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
-        'tab-char': { title: '스킬트리 · 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
+        'tab-char': { title: '스킬트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
         'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
@@ -190,7 +190,7 @@
         while (el.firstChild) body.appendChild(el.firstChild);
         let titlebar = document.createElement('div');
         titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="기본 위치로 초기화">↺</button><button type="button" data-window-action="minimize" aria-label="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 복원">□</button><button type="button" data-window-action="close" aria-label="닫기">✕</button></div>`;
+        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" title="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" title="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" title="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" title="닫기 (Esc)">✕</button></div>`;
         let resize = document.createElement('div');
         resize.className = 'ui-window-resize';
         el.classList.add('ui-window');
@@ -966,6 +966,12 @@
         return stripDecorativeEmoji(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     }
 
+    /** 같은 알림이면 다시 그리지 않는다 — 1~10초마다 같은 두 단추를 새로 만들었다(검토 4차). */
+    function setGoalNoticesHtml(notices, html) {
+        if (notices.__goalHtml !== html) { notices.innerHTML = html; notices.__goalHtml = html; }
+        notices.style.display = html ? '' : 'none';
+    }
+
     function setGoalDrawerText(id, text) {
         let el = document.getElementById(id);
         if (!el) return;
@@ -1017,17 +1023,14 @@
             action.style.display = usable ? '' : 'none';
         }
         let notices = document.getElementById('ui-goal-notices');
-        if (notices) {
-            notices.innerHTML = rows.map((notice, index) => {
+        if (notices) setGoalNoticesHtml(notices, rows.map((notice, index) => {
                 let normalized = typeof notice === 'string' ? { text: notice } : (notice || {});
                 let label = escapeGoalText(normalized.text || normalized.label || '');
                 if (!label) return '';
                 return normalized.actionTabId
                     ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span></button>`
                     : `<div class="ui-goal-notice-text">${label}</div>`;
-            }).join('');
-            notices.style.display = notices.innerHTML ? '' : 'none';
-        }
+            }).join(''));
         // 접힌 상태에는 목표 개수만 남겨 화면을 가리지 않는다. 제목과 진행도는 펼친 목록에서 본다.
         setGoalDrawerText('ui-goal-handle-icon', '');
         setGoalDrawerText('ui-goal-handle-title', '목표');

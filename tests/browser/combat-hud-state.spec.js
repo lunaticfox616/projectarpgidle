@@ -1,8 +1,9 @@
 const {test,expect}=require('@playwright/test');
+const {pickClass}=require('./helpers');
 test('attacking with life leech keeps health finite and visible through recovery ticks',async({page})=>{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
-    await page.goto('/');await page.locator('#btn-startup-guest').click();await page.locator('[data-class-id="warrior"]').click();
+    await page.goto('/');await page.locator('#btn-startup-guest').click();await pickClass(page,'warrior');
     await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
     const result=await page.evaluate(()=>{
         clearInterval(gameTickHandle);gameTickHandle=null;
@@ -35,7 +36,7 @@ test('attacking with life leech keeps health finite and visible through recovery
 test('painting combat HUD never changes player health or applies a stale recovery cap',async({page})=>{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
-    await page.goto('/');await page.locator('#btn-startup-guest').click();await page.locator('[data-class-id="warrior"]').click();
+    await page.goto('/');await page.locator('#btn-startup-guest').click();await pickClass(page,'warrior');
     await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
     const result=await page.evaluate(()=>{
         clearInterval(gameTickHandle);gameTickHandle=null;

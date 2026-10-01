@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 // Review 2026-10-01: a new character kept the default class's reachable nodes, so the first skill-tree open fitted
 // half the tree at the minimum zoom with the start node off screen; phone taps also had to land within ~5 px of a node.
@@ -7,7 +8,7 @@ async function openTreeAsPlayer(page, touch) {
     await page.goto('/');
     const press = locator => touch ? locator.tap() : locator.click();
     await press(page.locator('#btn-startup-guest'));
-    await press(page.locator('[data-class-id="warrior"]'));
+    await pickClass(page, 'warrior', { tap: touch });
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;

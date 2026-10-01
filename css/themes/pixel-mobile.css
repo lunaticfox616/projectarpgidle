@@ -60,7 +60,7 @@
   :root body[data-ui-skin] .tutorial-action-card.is-away > p { display: none; }
   :root body[data-ui-skin] .tutorial-action-card.is-away > strong { flex: 1 1 auto; min-width: 0; }
   /* 따라 하기 안내 카드도 HUD 판(생명 구슬 · 미니맵)을 덮지 않게 기록 막대 위로 */
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card:not(.at-top) { bottom: calc(254px + env(safe-area-inset-bottom)); }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card { bottom: calc(254px + env(safe-area-inset-bottom)); }
   /* 진행 막대가 숨은 지역(액트 · 제 지도가 있는 콘텐츠)은 이름이 그 칸까지 쓴다 — 빈 칸 때문에 "뿌리끝 …"으로 잘리던 문제 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-row:has(> #ui-map-progress-row[hidden]) {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -108,6 +108,19 @@
     color: var(--px-gold-bright);
   }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > :is(.tab-btn, .mobile-nav-more) > .noti-dot {
+    width: 8px;
+    height: 8px;
+    border: 2px solid #000;
+    border-radius: 0;
+    background: #e4a44b;
+    box-shadow: none;
+  }
+  /* 장비 창(좁은 화면): 등급 · 슬롯 · 정렬 줄은 '필터 · 정렬' 단추로 펼친다 — 그리드 전에 화면의 60%를 차지했다(검토 4차) */
+  :root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle { display: block; width: 100%; min-height: 44px; margin: 0 0 8px; }
+  :root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle[aria-expanded="true"] { color: var(--px-gold-bright); box-shadow: var(--px-gold-rim); }
+  :root body[data-ui-skin] .equipment-inventory-panel:not(.filters-open) :is(.inventory-rarity-row, .inventory-browse-toolbar) { display: none; }
+  /* 전체 메뉴 서랍의 알림 표시도 하단 메뉴와 같은 주황 네모(빨간 네모와 섞여 있었다 — 검토 4차) */
+  :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main .tab-btn > .noti-dot {
     width: 8px;
     height: 8px;
     border: 2px solid #000;
@@ -165,7 +178,7 @@
   /* 알림: 세로용 자리(기록 막대 위 254 · 302px)는 가로에서 HUD와 지역 줄을 덮는다 — 기록은 메뉴 띠 위, 게임 알림은 전장 오른쪽 위 */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(84px + env(safe-area-inset-bottom)); }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: 84px; bottom: auto; }
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card:not(.at-top) { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 339px) and (pointer: coarse) {
   /* 주소창이 보이는 가로 휴대폰(높이 293px 안팎)은 지역 줄 · HUD · 전장 · 메뉴 띠가 들어갈 수 없다 — 세로로 돌리라는 안내만.

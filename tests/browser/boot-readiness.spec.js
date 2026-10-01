@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 test('an early resize waits for deferred combat dependencies before drawing', async ({page}) => {
     const errors = [];
@@ -16,7 +17,7 @@ test('an early resize waits for deferred combat dependencies before drawing', as
     } finally { release(); }
     await navigation;
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await expect(page.locator('#battlefield-canvas')).toBeVisible();
     expect(await page.locator('#battlefield-canvas').evaluate(canvas => canvas.width > 0 && canvas.height > 0)).toBe(true);

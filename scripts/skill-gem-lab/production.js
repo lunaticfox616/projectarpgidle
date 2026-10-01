@@ -25,6 +25,7 @@ const newSkillLab = (() => {
         document.getElementById('btn-startup-guest').click();
         await wait(()=>document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]'));
         document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+        const start=document.getElementById('loop-hero-select-start');if(start.getClientRects().length)start.click();
         await wait(()=>battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
         clearInterval(gameTickHandle);gameTickHandle=null;quiet();
         game.season=2;game.level=30;

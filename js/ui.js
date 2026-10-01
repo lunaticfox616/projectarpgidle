@@ -4242,7 +4242,7 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
 function renderGemResourceStrip(activeGem, condensedPower) {
     let root = document.getElementById('ui-gem-resource-strip');
     if (!root) return;
-    root.innerHTML = `<div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>선택 젬</span><strong>${activeGem && activeGem.awakened ? '각성' : '일반'}</strong></div>`;
+    root.innerHTML = `<div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 젬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
 }
 
 function bindGemEngraveSlotControls(root) {
@@ -5507,7 +5507,7 @@ function syncMapCompleteActionQuickControl() {
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
     button.textContent = `전투 완료: ${option.label}`;
     // 전체 메뉴 서랍에는 짧은 이름이 뜬다: "다음 지역"만으로는 이동 단추로 읽혀 무엇을 고르는 칸인지 붙인다.
-    button.dataset.mobileLabel = `완료 후 ${option.label}`;
+    button.dataset.mobileLabel = `완료 후 행동: ${option.label}`;
     button.setAttribute('aria-label', `전투 완료 후 행동: ${option.label}`);
     button.title = `현재: ${option.label} · ${option.detail}`;
 }
@@ -5659,6 +5659,7 @@ function applyTooltipPosition(el, x, y) {
     if (top + size.height > window.innerHeight - 10) top = y - size.height - 18;
     left = clampNumber(left, 8, Math.max(8, window.innerWidth - size.width - 8));
     top = clampNumber(top, 8, Math.max(8, window.innerHeight - size.height - 8));
+    ({ left, top } = tutorialActionUi.clearTooltipSpot({ left, top, width: size.width, height: size.height }, x, y));
     const deviceScale = Math.max(1, Number(window.devicePixelRatio) || 1);
     const snappedLeft = Math.round(left * deviceScale) / deviceScale;
     const snappedTop = Math.round(top * deviceScale) / deviceScale;
@@ -5700,6 +5701,7 @@ function clearActiveTooltip(id) {
 }
 
 function showInfoTooltipHtml(x, y, html, borderColor, contentToken) {
+    if (tutorialActionUi.hushesTooltipAt(x, y)) return;
     let tt = document.getElementById('info-tooltip');
     let hadComparison = tt.classList.contains('item-compare-tooltip');
     if (hadComparison) tt.classList.remove('item-compare-tooltip');
@@ -9304,11 +9306,20 @@ function matchSearchQuery(raw, query) {
     return q.split(/\s+/).filter(Boolean).every(token => text.includes(token));
 }
 
+/** 고를 것이 하나뿐인 하위 탭 줄(초반 '장비 창'만 있는 장비 창 등)은 숨긴다 — 한 줄을 차지만 했다(검토 4차). */
+function syncSingleSubtabRows() {
+    document.querySelectorAll('.tab-content .subtab-row:not(.merged-tab-subtabs)').forEach(row => {
+        const open = [...row.children].filter(button => !button.hasAttribute('data-content-locked') && !button.hidden && button.style.display !== 'none');
+        row.hidden = open.length < 2;
+    });
+}
+
 function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
     updateInventoryFullWarnings();
     announceMapPrimaryContentUnlocks();
     syncMapPrimaryContentTabs();
+    syncSingleSubtabRows();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
     const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
@@ -10984,9 +10995,24 @@ function getVoidPassiveRefundState(nodeId) {
     };
 }
 
+/** 제작 창은 쓴 결과를 창 안 한 줄과 알림으로 보여 준다(전투 기록만으로는 아무 일도 없던 것처럼 보였다 — 검토 4차). */
 function craftVoidPassiveFromOverlay(nodeId, currencyKey) {
-    if (typeof applyVoidPassiveCurrency === 'function') applyVoidPassiveCurrency(nodeId, currencyKey);
-    openVoidPassiveCraftOverlay(nodeId);
+    const before = game.currencies[currencyKey] || 0;
+    applyVoidPassiveCurrency(nodeId, currencyKey);
+    const result = (game.currencies[currencyKey] || 0) < before ? getVoidCraftResultText(nodeId, currencyKey) : '';
+    if (result) showGameToast(result, { tone: 'info' });
+    openVoidPassiveCraftOverlay(nodeId, result);
+}
+
+function canUseFairyRingOnVoid(entry, active) {
+    return active && (game.currencies.fairyRing || 0) > 0 && (!!entry.transcendent || (entry.stats || []).length > 0);
+}
+
+function getVoidCraftResultText(nodeId, currencyKey) {
+    const entry = getVoidPassiveCraft(nodeId), name = ORB_DB[currencyKey].name;
+    if (entry.transcendent) return `${name} · ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`;
+    if (currencyKey === 'fairyRing') return `${name} · 초월 실패, 옵션이 지워졌습니다.`;
+    return `${name} · 새 옵션: ${getVoidPassiveEffectLabel(nodeId).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}`;
 }
 
 function refundVoidPassiveFromOverlay(nodeId) {
@@ -11008,13 +11034,13 @@ async function askRefundPassiveNode(id) {
 /** 공허 제작 창 안내: 세 오브가 하는 일과, 외곽 공허 소켓이면 성좌 각성 진행(초월은 이 창에서 시도한다). */
 function getVoidCraftGuide(node, active) {
     if (!active) return '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.';
-    const base = '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다. 요정의 고리는 25% 확률로 초월시키고, 실패하면 옵션이 지워집니다. 황금률은 초월 수치를 다시 굴립니다.';
+    const base = '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다. 요정의 고리는 옵션이 있는 공허를 25% 확률로 초월시키고, 실패하면 옵션이 지워집니다. 황금률은 초월 수치를 다시 굴립니다.';
     if (node.voidRing !== 'outer' || game.passiveStarEvolution) return base;
     const progress = getPassiveConstellationAwakeningProgress();
     return `${base}<br>외곽 공허 소켓 · 성좌 각성 ${progress.completed}/${progress.required}: 여섯을 모두 초월시키면 성좌가 각성합니다.`;
 }
 
-function openVoidPassiveCraftOverlay(nodeId) {
+function openVoidPassiveCraftOverlay(nodeId, result = '') {
     closeVoidPassiveCraftOverlay();
     let node = PASSIVE_TREE.nodes[nodeId];
     if (!node || node.kind !== 'void') return addLog('공허 패시브만 제작할 수 있습니다.', 'attack-monster');
@@ -11032,10 +11058,11 @@ function openVoidPassiveCraftOverlay(nodeId) {
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
         </div>
         <div class="void-craft-effect">${effectLabel}</div>
+        ${result ? `<div class="void-craft-result" role="status">${escapeHTML(result)}</div>` : ''}
         <div class="void-craft-hint">${getVoidCraftGuide(node, active)}</div>
         <div class="void-craft-actions">
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹 · 1~2줄 재굴림<br><span>보유 ${game.currencies.magicBud || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${active && (game.currencies.fairyRing || 0) > 0 ? '' : 'disabled'}>요정의 고리<br><span>보유 ${game.currencies.fairyRing || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${canUseFairyRingOnVoid(entry, active) ? '' : 'disabled'}>요정의 고리<br><span>보유 ${game.currencies.fairyRing || 0}</span></button>
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span>보유 ${game.currencies.goldenRule || 0}</span></button>
         </div>
         <div class="void-craft-footer">

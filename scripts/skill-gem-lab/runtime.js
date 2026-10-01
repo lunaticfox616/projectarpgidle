@@ -90,6 +90,9 @@ const newSkillLab = (() => {
         document.getElementById('btn-startup-guest').click();
         await wait(() => document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]'));
         document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+        // 좁은 화면(휴대폰 배치)은 첫 누름이 고르기다: 보이는 "이 직업으로 시작"으로 정한다.
+        const start = document.getElementById('loop-hero-select-start');
+        if (start.getClientRects().length) start.click();
         await wait(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
         clearInterval(gameTickHandle); gameTickHandle = null; quiet();
         game.season = 2; game.level = 30;

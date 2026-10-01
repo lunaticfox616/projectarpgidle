@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 async function openMobile(page, native = false) {
     await page.setViewportSize({ width: 412, height: 915 });
@@ -19,7 +20,7 @@ async function openMobile(page, native = false) {
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').tap();
-    await page.locator('[data-class-id="warrior"]').tap();
+    await pickClass(page, 'warrior', { tap: true });
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
@@ -117,15 +118,43 @@ test('the phone dock keeps its cells when the map unlocks', async ({ page }, inf
     await expect(page.locator('#tab-map')).toBeVisible();
 });
 
-test('picking a class by touch leaves no class tooltip over the battle HUD', async ({ page }, info) => {
-    test.skip(!info.project.use.isMobile, 'Touch fires the hover tooltip before the click');
-    // Review 2026-10-01: the tapped class card tooltip stayed over the HUD after the battle started.
+// Review 2026-10-01: the tapped class card tooltip stayed over the HUD after the battle started.
+// QA 2026-10-01: one tap on a phone started the game while the start gem and weapon lived only in the hover tooltip, so the
+// class was chosen blind. Phones select on the first tap and start from "이 직업으로 시작"; PC keeps one click and the tooltip.
+test('a class card shows its start gem before the pick and leaves no class tooltip over the battle HUD', async ({ page }, info) => {
+    const mobile = !!info.project.use.isMobile;
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
-    await page.locator('#btn-startup-guest').tap();
-    await page.locator('[data-class-id="warrior"]').tap();
+    await page.locator('#btn-startup-guest')[mobile ? 'tap' : 'click']();
+    const overlay = page.locator('#loop-hero-select-overlay');
+    const detail = overlay.locator('#loop-hero-select-detail');
+    const start = overlay.locator('#loop-hero-select-start');
+    const gemLine = classId => page.evaluate(id => `시작 스킬 젬 · ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
+    const started = () => page.evaluate(() => game.heroSelectionInitialized);
+    if (mobile) {
+        await expect(start).toBeDisabled();
+        await overlay.locator('[data-class-id="occultist"]').tap();
+        await expect(detail).toContainText(await gemLine('occultist'));
+        await expect(overlay).toHaveClass(/active/);
+        expect(await started()).toBe(false);
+        await expect(page.locator('#info-tooltip')).toBeHidden();
+        await overlay.locator('[data-class-id="warrior"]').tap();
+        await expect(detail).toContainText(await gemLine('warrior'));
+        await expect(overlay.locator('[aria-pressed="true"]')).toHaveAttribute('data-class-id', 'warrior');
+        expect(await started()).toBe(false);
+        await expect(start).toBeInViewport({ ratio: 1 });
+        expect((await start.boundingBox()).height).toBeGreaterThanOrEqual(44);
+        await start.tap();
+    } else {
+        await expect(start).toBeHidden();
+        await overlay.locator('[data-class-id="warrior"]').hover();
+        await expect(page.locator('#info-tooltip')).toContainText(await gemLine('warrior'));
+        await overlay.locator('[data-class-id="warrior"]').click();
+    }
+    await expect(overlay).not.toHaveClass(/active/);
+    expect(await page.evaluate(() => [game.heroSelectionInitialized, game.selectedClassId])).toEqual([true, 'warrior']);
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await expect(page.locator('#info-tooltip')).toBeHidden();
+    if (mobile) await expect(page.locator('#info-tooltip')).toBeHidden();
 });
 
 test('HUD gem hover details follow the mouse and never stay behind after a tap', async ({ page }, info) => {
@@ -136,7 +165,7 @@ test('HUD gem hover details follow the mouse and never stay behind after a tap',
         await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
         await page.goto('/');
         await page.locator('#btn-startup-guest').click();
-        await page.locator('[data-class-id="warrior"]').click();
+        await pickClass(page, 'warrior');
         await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
         await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
     }
@@ -163,7 +192,7 @@ test('the phone goal drawer folds on a screen change unless pinned', async ({ pa
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').tap();
-    await page.locator('[data-class-id="warrior"]').tap();
+    await pickClass(page, 'warrior', { tap: true });
     await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen());
     await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
     const opener = page.locator('#btn-combat-goal-toggle');

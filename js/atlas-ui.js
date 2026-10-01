@@ -275,7 +275,7 @@ const atlasUi = (() => {
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length} · 씨앗 ${st.seeds}/${ATLAS.seeds.max} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
             <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('epoch', '시대')}</nav>
-            <label class="atlas-auto"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
+            <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
     function mapsViewHtml() {

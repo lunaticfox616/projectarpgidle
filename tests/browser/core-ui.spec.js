@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
@@ -13,7 +14,7 @@ async function openLocalGame(page, path = '/') {
     if (needsHeroSelection) {
         await expect(heroOverlay).toBeVisible();
         await expect(heroOverlay.locator('[data-class-id]')).toHaveCount(6);
-        await heroOverlay.locator('[data-class-id]').first().click();
+        await pickClass(page);
         await expect(heroOverlay).not.toHaveClass(/active/);
     }
     await dismissVisibleTutorials(page);
@@ -84,7 +85,7 @@ test('login preloads bounded battle assets without frame polling and resumes aft
     await expect(page.locator('#btn-startup-google')).toBeHidden();
     await page.locator('#btn-startup-guest').click();
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
-    await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
+    await pickClass(page);
     await dismissVisibleTutorials(page);
     expect(battleRequests.length).toBe(preparedRequests);
     const playingFrames = await page.evaluate(() => observedFrames);

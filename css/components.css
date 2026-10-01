@@ -1921,6 +1921,7 @@ html, body { overflow: hidden; }
 #void-craft-title { color: var(--color-accent); font-size: 18px; font-weight: 800; }
 .void-craft-subtitle, .void-craft-hint { color: var(--color-text-secondary); }
 .void-craft-effect { padding: 12px; margin-bottom: 12px; background: var(--color-surface-raised); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+.void-craft-result { margin: -4px 0 12px; padding: 6px 10px; border-left: 2px solid var(--color-accent-gold, #d9b066); color: var(--color-text); font-size: 12px; line-height: 1.6; }
 .void-craft-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 12px 0; }
 .void-craft-dialog button { min-height: 40px; white-space: normal; line-height: 1.5; }
 .void-craft-actions span { font-size: 12px; font-weight: 400; }

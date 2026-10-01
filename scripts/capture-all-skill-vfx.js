@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const { chromium, devices } = require('@playwright/test');
+const { pickClass } = require('../tests/browser/helpers');
 process.env.PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT || '4212';
 const startServer = require('./serve-test');
 const output = path.resolve(process.env.VFX_CAPTURE_OUTPUT || 'artifacts/all-skill-vfx');
@@ -75,7 +76,7 @@ async function capture(browser, mobile) {
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     const names = await page.evaluate(() => {
         // The fixture owns the clock. combatHalted alone is cleared by normal-zone recovery.

@@ -1,3 +1,9 @@
+/** Coach card spacing in px: from what it points at, and from the screen edges. */
+const TUTORIAL_CARD_GAP = 12, TUTORIAL_CARD_EDGE = 8;
+/** Hover tooltips the coach card is placed clear of (they in turn avoid the card, see clearTooltipSpot). */
+const TUTORIAL_TOOLTIPS = Object.freeze(['#info-tooltip', '#canvas-tooltip', '#item-tooltip-box']);
+/** Pointer input that ends a hover hush (see hushHover). */
+const TUTORIAL_HUSH_WAKERS = Object.freeze(['pointermove', 'pointerdown', 'wheel']);
 /**
  * Optional action guidance owned by the UI. Reads real loadouts; never equips or
  * spends points. Each notice offers one action and can be skipped immediately.
@@ -6,6 +12,10 @@ const tutorialActionUi = {
     active: null,
     highlighted: null,
     card: null,
+    /** { target, pinned } the card was last placed for: the card stays put while it keeps clear of them. */
+    placedFor: null,
+    /** { at: pointer position when a guide changed the screen, wake: listener } while hover tooltips are hushed. */
+    hush: null,
     guides: {
         unlock_items: {
             selector: '#ui-inventory-list .equipment-grid-item',
@@ -20,7 +30,11 @@ const tutorialActionUi = {
             title: '첫 스킬트리 투자',
             body: '연결된 시작 노드의 효과를 살펴보고, 원하는 노드에 포인트를 투자해 보세요.',
             read: () => game.passives.length,
-            completed: (current, before) => current > before
+            completed: (current, before) => current > before,
+            // 6~8px 노드는 연결선 강조만으로 보이지 않았다: 찍을 수 있는 노드에 고리를 켜고, 카드는 캔버스 대신 그 노드 무리 옆에 둔다
+            // (트리는 탭을 연 뒤 40ms에 처음 그려지므로 그때 카드 자리를 다시 잡는다).
+            spotlight: (on, whenDrawn) => passiveTreeGuide.show(on, whenDrawn),
+            focus: target => (target.id === 'tree-canvas' ? passiveTreeGuide.screenRect() : null)
         },
         unlock_skills: {
             // 젬 상세가 열려 있으면 그 '장착' 단추를, 아니면 첫 스킬 젬 카드를 가리킨다.
@@ -28,7 +42,9 @@ const tutorialActionUi = {
             title: '스킬 젬 장착',
             body: '젬을 선택해 효과를 확인하고 ‘장착’을 누르세요. 선택한 젬에 따라 자동 전투가 달라집니다.',
             read: () => JSON.stringify([game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills]),
-            completed: (current, before) => current !== before
+            completed: (current, before) => current !== before,
+            // 젬 상세와 고른 젬 카드도 덮지 않는다(카드가 고른 젬 위로 올라와 설명을 가렸다).
+            keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected']
         }
     },
     aliases: { tutorial_starter_gem_equip: 'unlock_skills', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items' },
@@ -46,7 +62,10 @@ const tutorialActionUi = {
         this.ensureCard();
         this.card.hidden = false;
         this.card.querySelector('strong').textContent = guide.title;
-        this.card.querySelector('p').textContent = guide.body;
+        // ‘장착’ 같은 단추 이름은 안내 판처럼 색 글씨로(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다).
+        this.card.querySelector('p').innerHTML = tutorialMarkup(guide.body);
+        this.rest();
+        if (guide.spotlight) guide.spotlight(true, () => this.reposition());
         this.openTarget();
     },
     ensureCard() {
@@ -64,6 +83,8 @@ const tutorialActionUi = {
     openTarget() {
         const action = this.active;
         if (!action) return;
+        this.hushHover();
+        hideInfoTooltip();
         const group = getMergedTabGroup(action.notice.tabId);
         if (group) switchMergedTabSubtab(group[0], action.notice.tabId);
         else switchTab(action.notice.tabId, { keepWindowOpen: true });
@@ -74,8 +95,8 @@ const tutorialActionUi = {
         requestAnimationFrame(() => {
             this.refresh();
             if (!this.highlighted) return;
-            this.highlighted.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-            this.placeCard(this.highlighted);
+            revealTutorialTarget(this.highlighted);
+            this.placeCard(this.highlighted, true);
         });
     },
     refresh() {
@@ -86,27 +107,92 @@ const tutorialActionUi = {
         this.clearHighlight();
         // 가리킬 칸이 다른 화면에 있으면(전투 화면으로 돌아옴) 제목 · 단추만 한 줄로 기본 자리에 둔다.
         this.card.classList.toggle('is-away', !target);
-        if (!target) { this.card.style.top = this.card.style.bottom = ''; return; }
+        if (!target) return this.rest();
         target.classList.add('tutorial-action-target');
         const describedBy = target.getAttribute('aria-describedby') || '';
         target.setAttribute('aria-describedby', (describedBy + ' tutorial-action-description').trim());
         this.highlighted = target;
         this.placeCard(target);
     },
-    /** PC는 화면 구석(가리키는 칸이 아래 절반이면 위쪽)이되 그 자리가 칸을 덮으면, 휴대폰은 늘(카드가 화면 폭을 다 쓴다)
-     * 가리키는 칸 바로 위(아래 절반) 또는 바로 아래(위 절반)에 붙인다 — 화면 맨 위에 두면 장비 창 머리의 판단 · 일괄 분석 줄을 덮었다. */
-    placeCard(target) {
-        const card = this.card, rect = target.getBoundingClientRect(), lower = rect.top > innerHeight / 2;
-        card.classList.toggle('at-top', lower);
-        card.style.top = card.style.bottom = '';
-        const corner = card.getBoundingClientRect(), phone = isMobilePrimaryNavigationEnabled();
-        // PC는 구석이 칸을 덮을 때만 옮기되, 트리 캔버스처럼 화면 절반이 넘는 대상은 어디에 두어도 겹치니 구석에 둔다.
-        if (!phone && (!rectsOverlap(corner, rect) || rect.height > innerHeight / 2)) return;
-        const factor = uiDisplay.factor || 1, height = corner.height;
-        const floor = document.getElementById('tab-header-bottom')?.getBoundingClientRect().top || innerHeight;
-        const top = lower ? rect.top - 12 - height : rect.bottom + 12;
-        card.style.top = `${Math.max(8, Math.min(floor - height - 8, top)) / factor}px`;
-        card.style.bottom = 'auto';
+    /** 카드는 가리키는 칸(트리는 찍을 수 있는 노드 무리)과 안내가 함께 지키는 곁 정보(젬 상세 · 고른 젬)를 덮지 않는다.
+     * PC는 칸이 든 창 바깥의 빈 전장(칸과 같은 높이) → 칸의 왼쪽 · 오른쪽 → 아래 · 위 → 기본 자리 순, 휴대폰은 칸의 위 · 아래.
+     * 한 번 둔 자리는 계속 비켜 있는 한 그대로 둔다(누르려던 자리로 카드가 옮겨 오지 않게). fresh는 화면을 연 직후 · 창 크기 변경. */
+    placeCard(target, fresh) {
+        const guide = this.active.guide, pinned = guide.focus ? guide.focus(target) : null;
+        const focus = pinned || target.getBoundingClientRect(), avoid = this.avoidRects(focus, fresh);
+        const placed = { target, pinned: !!pinned };
+        if (!fresh && tutorialSamePlacement(this.placedFor, placed) && this.keepsClear(avoid)) return;
+        const home = this.homeRect();
+        const spot = tutorialCardSpots(focus, target, home).find(rect => !avoid.some(other => rectsOverlap(rect, other)));
+        this.placedFor = placed;
+        // 둘 곳이 없으면(휴대폰에서 젬 상세가 화면을 채울 때) 잠시 비켜 선다. 표시는 가리키는 칸에 남는다.
+        this.card.classList.toggle('is-covered', !spot);
+        if (!spot) return;
+        const factor = uiDisplay.factor || 1, style = this.card.style;
+        style.left = `${spot.left / factor}px`;
+        style.top = `${spot.top / factor}px`;
+        style.right = style.bottom = 'auto';
+    },
+    /** 카드가 덮으면 안 되는 사각형: 곁 정보, 가리키는 칸(트리 캔버스처럼 화면 절반이 넘으면 어디에 두어도 겹치니 뺀다),
+     * 새로 둘 때는 떠 있는 툴팁까지. */
+    avoidRects(focus, withTooltips) {
+        const rects = tutorialVisibleRects(this.active.guide.keepClear || []);
+        if (focus.height <= innerHeight / 2) rects.push(focus);
+        if (withTooltips) rects.push(...tutorialVisibleRects(TUTORIAL_TOOLTIPS));
+        return rects;
+    },
+    keepsClear(avoid) {
+        const box = this.card.getBoundingClientRect();
+        if (this.card.classList.contains('is-covered') || box.top < 0 || box.bottom > innerHeight) return false;
+        return !avoid.some(rect => rectsOverlap(box, rect));
+    },
+    /** CSS 기본 자리(오른쪽 아래, HUD 구슬 · 미니맵 · 하단 메뉴 위)로 돌려 그 사각형을 돌려준다. 그 아래 변이 카드의 바닥이다. */
+    homeRect() {
+        const style = this.card.style;
+        style.left = style.top = style.right = style.bottom = '';
+        return this.card.getBoundingClientRect();
+    },
+    rest() {
+        this.placedFor = null;
+        this.card.classList.remove('is-covered');
+        this.homeRect();
+    },
+    /** 처음부터 다시 자리를 잡는다(창 크기가 바뀌었거나 트리가 처음 그려져 노드 자리가 생겼을 때). */
+    reposition() {
+        this.placedFor = null;
+        this.refresh();
+    },
+    /** 따라 하기가 화면을 바꾸면 멈춰 있던 마우스 밑으로 새 칸이 와서, 그 칸의 hover 툴팁('기본 공격')이 가리키는 칸을 덮었다
+     * (검토 2026-10-01). 마우스가 실제로 움직이거나 누르거나 휠을 굴릴 때까지 그 자리의 hover 툴팁을 띄우지 않는다(hushesTooltipAt). */
+    hushHover() {
+        this.unhush();
+        if (!matchMedia('(hover: hover)').matches) return;
+        const at = { x: mouseX, y: mouseY };
+        const wake = event => {
+            if (event.type !== 'pointermove' || event.clientX !== at.x || event.clientY !== at.y) this.unhush();
+        };
+        this.hush = { at, wake };
+        TUTORIAL_HUSH_WAKERS.forEach(type => window.addEventListener(type, wake, true));
+    },
+    unhush() {
+        if (!this.hush) return;
+        TUTORIAL_HUSH_WAKERS.forEach(type => window.removeEventListener(type, this.hush.wake, true));
+        this.hush = null;
+    },
+    /** 툴팁 함수(js/ui.js showInfoTooltipHtml)가 묻는다: 이 마우스 좌표의 hover 툴팁을 지금은 띄우지 않나. */
+    hushesTooltipAt(x, y) {
+        return !!this.hush && x === this.hush.at.x && y === this.hush.at.y;
+    },
+    /** 툴팁(js/ui.js applyTooltipPosition)이 안내 카드를 덮게 되면 커서의 다른 쪽으로 보낸다 — 스킬트리 노드 툴팁이 카드 밑에
+     * 깔렸다(검토 2026-10-01). 비는 쪽이 없으면 그대로 둔다(그때는 툴팁이 카드 위에 그려진다, css/ui-feedback.css).
+     * spot: { left, top, width, height } (px), x · y: 커서. */
+    clearTooltipSpot(spot, x, y) {
+        const card = this.card;
+        if (!this.active || card.hidden || getComputedStyle(card).visibility !== 'visible') return spot;
+        const box = card.getBoundingClientRect();
+        const left = x - spot.width - 18, top = y - spot.height - 18;
+        const sides = [spot, { ...spot, left }, { ...spot, top }, { ...spot, left, top }, { ...spot, left: x + 18 }, { ...spot, top: y + 18 }];
+        return sides.find(side => tutorialRectFits(side) && !rectsOverlap(box, tutorialRectOf(side))) || spot;
     },
     /** 먼저 적은 자리부터 화면에 보이는 첫 요소(selector는 문자열 하나 또는 우선순위 배열). */
     findTarget(selectors) {
@@ -128,9 +214,11 @@ const tutorialActionUi = {
     finish(completed) {
         const action = this.active;
         this.active = null;
+        this.placedFor = null;
         this.clearHighlight();
         if (this.card) this.card.hidden = true;
         if (!action) return;
+        if (action.guide.spotlight) action.guide.spotlight(false);
         if (completed) {
             game.seenTutorials.push('action_' + action.notice.key);
             showGameToast(action.guide.title + ' 완료', { tone: 'success' });
@@ -142,6 +230,67 @@ const tutorialActionUi = {
 function rectsOverlap(a, b) {
     return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 }
+/** The card still sits where it was placed for this target and the same kind of focus (a pinned spot such as the tree's
+ * node cluster, or the whole target — the cluster has no screen position until the tree is first drawn). */
+function tutorialSamePlacement(placed, next) {
+    return !!placed && placed.target === next.target && placed.pinned === next.pinned;
+}
+function tutorialRectOf(box) {
+    return { left: box.left, top: box.top, right: box.left + box.width, bottom: box.top + box.height };
+}
+function tutorialRectFits(box) {
+    const edge = TUTORIAL_CARD_EDGE;
+    return box.left >= edge && box.top >= edge && box.left + box.width <= innerWidth - edge && box.top + box.height <= innerHeight - edge;
+}
+/** Rects of the selectors' first matches that are on screen. */
+function tutorialVisibleRects(selectors) {
+    return selectors.map(selector => document.querySelector(selector))
+        .filter(node => node && node.getClientRects().length).map(node => node.getBoundingClientRect());
+}
+/** Coach card spots in order of preference (see tutorialActionUi.placeCard): beside the target's window on the free
+ * battlefield, left / right of the focus, below / above it, then the CSS home. Below comes first: on phones the tree's
+ * start sits low with its branches above, and a target too low for the card below gets it above. Spots stay on screen
+ * and above home's bottom edge, which CSS keeps clear of the HUD orbs, the minimap and the phone tab bar. */
+function tutorialCardSpots(focus, target, home) {
+    const width = home.width, height = home.height, gap = TUTORIAL_CARD_GAP;
+    const frame = target.closest('.ui-window-open');
+    const pane = frame ? frame.getBoundingClientRect() : null;
+    const row = Math.max(TUTORIAL_CARD_EDGE, Math.min(home.bottom - height, focus.top));
+    const column = Math.max(TUTORIAL_CARD_EDGE, Math.min(innerWidth - TUTORIAL_CARD_EDGE - width, focus.left));
+    const spots = [
+        ...(pane ? [{ left: pane.left - gap - width, top: row }, { left: pane.right + gap, top: row }] : []),
+        { left: focus.left - gap - width, top: row }, { left: focus.right + gap, top: row },
+        { left: column, top: focus.bottom + gap }, { left: column, top: focus.top - gap - height },
+        { left: home.left, top: home.top }
+    ];
+    return spots.map(spot => tutorialRectOf({ ...spot, width, height }))
+        .filter(rect => rect.left >= TUTORIAL_CARD_EDGE && rect.top >= TUTORIAL_CARD_EDGE && rect.right <= innerWidth - TUTORIAL_CARD_EDGE && rect.bottom <= home.bottom);
+}
+/** 안내가 연 창은 맨 위에서 시작해(남아 있던 스크롤에 창 머리가 잘려 보였다) 가리키는 칸이 다 보일 만큼만 내린다. */
+function revealTutorialTarget(target) {
+    const scroller = tutorialScrollParent(target);
+    if (scroller) scroller.scrollTop = 0;
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (scroller && scroller.classList.contains('ui-window-body')) tidyTutorialScroll(scroller, target);
+}
+function tutorialScrollParent(node) {
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        if (parent.scrollHeight > parent.clientHeight && /(auto|scroll)/.test(getComputedStyle(parent).overflowY)) return parent;
+    }
+    return null;
+}
+/** 창 몸통의 맨 윗줄(직계 자식)이 반쯤 잘려 보이면 칸이 다 보이는 한 그 줄을 통째로 넘긴다 — 1440×900의 스킬 젬 창은 첫 젬
+ * 카드가 다 보이려면 44px을 내려야 해 '현재 전투 세팅' 단추가 반으로 잘렸다(검토 2026-10-01). */
+function tidyTutorialScroll(scroller, target) {
+    const offset = scroller.scrollTop, top = scroller.getBoundingClientRect().top + scroller.clientTop;
+    const span = node => { const rect = node.getBoundingClientRect(); return { start: offset + rect.top - top, end: offset + rect.bottom - top }; };
+    const rows = [...scroller.children].filter(node => node.getClientRects().length).map(span);
+    const index = rows.findIndex(row => row.end > offset), cut = rows[index], next = rows[index + 1];
+    if (!offset || !cut || cut.start >= offset || !next) return;
+    const clean = Math.max(cut.end, next.start - parseFloat(getComputedStyle(scroller).paddingTop));
+    if (clean <= span(target).start) scroller.scrollTop = clean;
+}
+window.addEventListener('resize', () => tutorialActionUi.reposition());
 
 // 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프). 이야기 장면은 storyJournalUi가 그린다.
 const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'tutorial_first_passive', 'tutorial_first_gear',
