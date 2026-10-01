@@ -10468,7 +10468,7 @@ function buildCraftActionButtons(item) {
             }).join('<br>');
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
             let title = id === 'n10' ? '궁극기' : ((id === 'n11' || id === 'n12') ? '4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '재능특화' : ((id === 'n13c' || id === 'n13d') ? '전직특화' : titleText)));
-            let stateText = active ? '선택됨 · 클릭하여 반환' : (reqMet ? '선택 가능' : '선행 노드 필요');
+            let stateText = active ? '선택됨, 클릭하면 반환' : (reqMet ? '선택 가능' : '선행 노드 필요');
             let action = active ? `askRefundAscendNode('${id}')` : (!reqMet ? '' : `buyAscend('${id}')`);
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" role="button" tabindex="${action ? '0' : '-1'}" aria-disabled="${action ? 'false' : 'true'}" ${action ? `onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action};}"` : ''}><div class="trait-title">${title}</div><div class="trait-desc">${desc}<span class="trait-card-state">${stateText}</span></div></div>`;
         };
@@ -10478,7 +10478,7 @@ function buildCraftActionButtons(item) {
         let bloomStatus = game.bloomedClassThisLoop === game.ascendClass && bloomTalent
             ? `5차 개화 · ${bloomTalent.label} 조합`
             : ((game.completedTrials || []).includes('trial_4') ? '4차 핵심 노드 해금' : '시련 진행으로 추가 해금');
-        let ascendSummary = `<div class="trait-progress-summary"><div><strong>${game.ascendNodes.length}개 노드 선택</strong><span>${CLASS_TEMPLATES[game.ascendClass].name} 전직 패시브</span></div><div><strong>${Math.max(0, Math.floor(game.ascendPoints || 0))} 포인트</strong><span>${bloomStatus}</span></div></div>`;
+        let ascendSummary = `<div class="trait-progress-summary"><div><strong>${game.ascendNodes.length}개 노드 선택</strong><span>${CLASS_TEMPLATES[game.ascendClass].name} 전직 패시브</span></div><div><strong>${Math.max(0, Math.floor(game.ascendPoints || 0))} 포인트</strong><span>${bloomStatus}</span></div></div>${getAscendancyPlanContinueHtml()}`;
         document.getElementById('ui-ascend-tree-container').innerHTML = ascendSummary + `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}${bloomRow}`;
         let kDefs = getClassKeystoneDefs(game.ascendClass);
         if (kDefs.length > 0) {
@@ -10514,7 +10514,7 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'none';
-        document.getElementById('ui-class-grid').innerHTML = getAscendanciesForClass(game.selectedClassId).map(renderAscendancyPickCard).join('');
+        fillAscendancyPickScreen();
     } else {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'block';
@@ -14267,6 +14267,74 @@ function renderAscendancyPickCard(key) {
     const slots = { m1: template.m1, m2: template.m2, d: template.d, ...((ASCENDANCY_NODE_DEFS[key] || {}).slots || {}) };
     const focus = [slots.m1, slots.m2, slots.d].map(stat => String(getStatName(stat)).replace(/\s*\(%\)$/, '')).join(', ');
     return `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${template.name}</span><span style="display:block;font-size:12px; color:#aaa;">${template.desc}</span><span class="class-card-focus" style="display:block;font-size:12px; color:#9fd3ff; margin-top:6px;">노드: ${focus}</span></button>`;
+}
+
+/** 전직 고르기 화면: 지난 루프의 전직이 이 직업의 것이면 격자 위에 '지난 루프처럼' 카드, 격자에는 전직 셋. */
+function fillAscendancyPickScreen() {
+    const planBox = document.getElementById('ui-class-plan');
+    if (planBox) planBox.innerHTML = renderLastLoopPlanCard();
+    document.getElementById('ui-class-grid').innerHTML = getAscendanciesForClass(game.selectedClassId).map(renderAscendancyPickCard).join('');
+}
+
+function renderLastLoopPlanCard() {
+    const plan = getUsableLastLoopAscendPlan();
+    return plan ? `<button type="button" class="class-card ascend-plan-card" style="width:100%; text-align:left;" onclick="chooseLastLoopAscendPlan()"><span style="display:block;font-weight:bold; color:#8fe7b0; margin-bottom:5px;">지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</span><span style="display:block;font-size:12px; color:#aaa;">노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 고릅니다.</span></button>` : '';
+}
+
+/** 루프 초기화 때 기억한 전직 배치(state.js rememberLoopAscendancyPlan). 지금 직업이 고를 수 있는 전직일 때만 쓴다. */
+function getUsableLastLoopAscendPlan() {
+    const plan = game.lastLoopAscendPlan;
+    return plan && CLASS_TEMPLATES[plan.ascendClass] && isAscendancyOfClass(plan.ascendClass, game.selectedClassId) ? plan : null;
+}
+
+/** 계획의 노드와 키스톤을 순서대로, 포인트와 선행 조건이 허락하는 것만 산다(살 수 없는 줄은 건너뛰어 기록을 남기지 않는다). */
+function allocateLastLoopAscendPlan(plan) {
+    let placed = 0;
+    plan.nodes.forEach(id => {
+        const node = getClassTreeDef(game.ascendClass)[id];
+        const blocked = !node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || (node.exclusive && game.ascendNodes.includes(node.exclusive));
+        if (blocked || !isAscendNodeRequirementMet(node)) return;
+        buyAscend(id);
+        placed += game.ascendNodes.includes(id) ? 1 : 0;
+    });
+    plan.keystones.forEach(id => {
+        const node = getClassKeystoneDefs(game.ascendClass).find(row => row.id === id);
+        const blocked = !node || game.ascendKeystonePoints <= 0 || game.ascendKeystones.includes(id) || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT;
+        if (blocked || !isAscendKeystoneRequirementMet(node)) return;
+        buyAscendKeystone(id);
+        placed += game.ascendKeystones.includes(id) ? 1 : 0;
+    });
+    return placed;
+}
+
+async function chooseLastLoopAscendPlan() {
+    const plan = getUsableLastLoopAscendPlan();
+    if (!plan || game.ascendClass || !assertBuildEditable()) return;
+    const name = CLASS_TEMPLATES[plan.ascendClass].name;
+    if (!await requestGameConfirmation(`[${name}] 전직을 선택하고 지난 루프의 배치를 다시 고릅니다.\n이번 루프에는 전직을 다시 변경할 수 없습니다.`, { title: '지난 루프처럼', confirmLabel: '이 전직 선택' })) return;
+    game.ascendClass = plan.ascendClass;
+    game.ascendKeystones = [];
+    game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
+    const placed = allocateLastLoopAscendPlan(plan);
+    addLog(`[${name}] 지난 루프 배치: ${placed}개를 다시 골랐습니다.`, 'season-up');
+    updateStaticUI();
+}
+
+/** 트리 요약 아래 '이어 하기': 지난 루프와 같은 전직이고, 계획에 남은 줄과 쓸 포인트가 있을 때만. */
+function getAscendancyPlanContinueHtml() {
+    const plan = getUsableLastLoopAscendPlan();
+    if (!plan || plan.ascendClass !== game.ascendClass) return '';
+    const nodesLeft = game.ascendPoints > 0 && plan.nodes.some(id => !game.ascendNodes.includes(id));
+    const keystonesLeft = game.ascendKeystonePoints > 0 && plan.keystones.some(id => !game.ascendKeystones.includes(id));
+    return nodesLeft || keystonesLeft ? '<button type="button" class="ascend-plan-continue" style="font-size:12px; margin:0 0 10px;" onclick="continueLastLoopAscendPlan()">지난 루프 배치 이어 하기</button>' : '';
+}
+
+function continueLastLoopAscendPlan() {
+    const plan = getUsableLastLoopAscendPlan();
+    if (!plan || plan.ascendClass !== game.ascendClass || !assertBuildEditable()) return;
+    const placed = allocateLastLoopAscendPlan(plan);
+    addLog(placed > 0 ? `지난 루프 배치: ${placed}개를 더 골랐습니다.` : '지금 고를 수 있는 다음 노드나 키스톤이 없습니다.', placed > 0 ? 'season-up' : 'attack-monster');
+    updateStaticUI();
 }
 
 function buyAscend(id) { if (!assertBuildEditable()) return;

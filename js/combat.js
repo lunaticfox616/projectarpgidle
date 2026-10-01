@@ -12258,7 +12258,7 @@ function triggerSeasonReset(options) {
     game.unlockedTrials = [];
     game.ascendNodes = [];
     game.ascendPoints = 0;
-    let clearedAscendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones.slice() : [];
+    let clearedAscendKeystones = rememberLoopAscendancyPlan(game);
     clearAscendKeystoneRuntimeState(clearedAscendKeystones, { force: true, forceAll: true });
     game.ascendKeystones = [];
     game.ascendKeystonePoints = 0;

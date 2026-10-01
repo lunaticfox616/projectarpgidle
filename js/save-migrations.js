@@ -26,7 +26,7 @@ function stripBossPatternRuntime(enemy) {
 
 /** 전직 저장 경계(2026-10-02, 전직 18종). 모르는 전직은 비우고 그 노드 · 키스톤에 쓴 포인트를 돌려준다(예전에는 검사하지 않아
  * 전직 화면이 이름을 읽다 멈췄다). 직업과 맞지 않는 예전 저장(전직을 아무 직업이나 고르던 때)은 이번 루프만 그대로 둔다 — 전직은
- * 루프마다 새로 고른다. 재능 개화 카드는 있는 조합만 남긴다. 두 번 불러와도 같다. */
+ * 루프마다 새로 고른다. 재능 개화 카드는 있는 조합만 남긴다. 지난 루프 전직 배치도 검사한다. 두 번 불러와도 같다. */
 function normalizeAscendancySave(merged) {
     merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
     if (merged.ascendClass && !CLASS_TEMPLATES[merged.ascendClass]) {
@@ -38,6 +38,15 @@ function normalizeAscendancySave(merged) {
         merged.ascendKeystones = [];
     }
     normalizeTalentCardKeys(merged);
+    merged.lastLoopAscendPlan = normalizeLastLoopAscendPlan(merged.lastLoopAscendPlan);
+}
+
+/** 지난 루프 전직 배치: 있는 전직, 노드 id 모양(n1~n13d), 그 전직의 키스톤만 남긴다. */
+function normalizeLastLoopAscendPlan(raw) {
+    if (!raw || typeof raw !== 'object' || !CLASS_TEMPLATES[raw.ascendClass]) return null;
+    const keystoneIds = new Set((CLASS_KEYSTONE_DEFS[raw.ascendClass] || []).map(node => node.id));
+    const keepIds = (value, keep) => Array.from(new Set((Array.isArray(value) ? value : []).filter(id => typeof id === 'string' && keep(id)))).slice(0, 32);
+    return { ascendClass: raw.ascendClass, nodes: keepIds(raw.nodes, id => /^n\d{1,2}[a-d]?$/.test(id)), keystones: keepIds(raw.keystones, id => keystoneIds.has(id)) };
 }
 
 function normalizeTalentCardKeys(merged) {

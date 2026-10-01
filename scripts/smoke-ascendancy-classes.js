@@ -201,4 +201,41 @@ for (const asc of NEW_SIX) {
     assert.equal(new Set(keys).size, 10, `${asc}: its ten cards give ten different effects`);
 }
 
-console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), keystone lines before gear, twin pool, save boundary, 180 cards with 60 new unique cards: OK');
+// 지난 루프처럼: 루프 초기화가 전직 배치를 기억하고, 같은 직업이면 고르기 화면이 그 전직을 내놓고 포인트만큼 같은 순서로 다시 산다.
+const plan = json(`(() => {
+    game = mergeDefaults({ heroSelectionInitialized: true, selectedHeroId: 'hero2', selectedClassId: 'warrior' }); window.game = game;
+    game.ascendClass = 'berserker'; game.ascendNodes = ['n1', 'n2', 'n3', 'n4']; game.ascendKeystones = ['bz2', 'bz1'];
+    const cleared = rememberLoopAscendancyPlan(game);
+    const remembered = JSON.parse(JSON.stringify(game.lastLoopAscendPlan));
+    game.ascendClass = ''; game.ascendNodes = []; game.ascendKeystones = [];
+    rememberLoopAscendancyPlan(game);
+    const kept = game.lastLoopAscendPlan.ascendClass;
+    const offered = renderLastLoopPlanCard().includes('지난 루프처럼: 버서커');
+    game.ascendClass = 'berserker'; game.ascendPoints = 3; game.ascendKeystonePoints = 1;
+    const placed = allocateLastLoopAscendPlan(game.lastLoopAscendPlan);
+    const first = { nodes: game.ascendNodes.slice(), keystones: game.ascendKeystones.slice(), button: getAscendancyPlanContinueHtml() };
+    game.ascendPoints = 2; game.ascendKeystonePoints = 1;
+    const offerMore = getAscendancyPlanContinueHtml().includes('이어 하기');
+    allocateLastLoopAscendPlan(game.lastLoopAscendPlan);
+    const second = { nodes: game.ascendNodes.slice(), keystones: game.ascendKeystones.slice(), points: game.ascendPoints, button: getAscendancyPlanContinueHtml() };
+    game.selectedClassId = 'archer'; game.ascendClass = '';
+    const otherClass = renderLastLoopPlanCard().includes('지난 루프처럼');
+    const saved = mergeDefaults({ heroSelectionInitialized: true, selectedClassId: 'warrior', lastLoopAscendPlan: { ascendClass: 'berserker', nodes: ['n1', 'x9', 'n13d', 'n1'], keystones: ['bz1', 'w8', 'bz9'] } }).lastLoopAscendPlan;
+    const unknown = mergeDefaults({ heroSelectionInitialized: true, lastLoopAscendPlan: { ascendClass: 'templar', nodes: ['n1'], keystones: [] } }).lastLoopAscendPlan;
+    return { cleared, remembered, kept, offered, placed, first, offerMore, second, otherClass, saved, unknown };
+})()`);
+assert.deepEqual(plan.cleared, ['bz2', 'bz1'], 'the loop reset still gets the keystones to clear');
+assert.deepEqual(plan.remembered, { ascendClass: 'berserker', nodes: ['n1', 'n2', 'n3', 'n4'], keystones: ['bz2', 'bz1'] });
+assert.equal(plan.kept, 'berserker', 'a loop without an ascendancy keeps the older plan');
+assert.ok(plan.offered, 'the pick screen offers the remembered ascendancy of the same class');
+assert.deepEqual([plan.first.nodes, plan.first.keystones, plan.placed], [['n1', 'n2', 'n3'], ['bz2'], 4], 'the remembered order, as far as points last');
+assert.equal(plan.first.button, '', 'no continue button without points');
+assert.ok(plan.offerMore, 'more points from a later trial bring the continue button');
+assert.deepEqual([plan.second.nodes, plan.second.keystones, plan.second.points], [['n1', 'n2', 'n3', 'n4'], ['bz2', 'bz1'], 1]);
+assert.equal(plan.second.button, '', 'nothing left in the plan, no button');
+assert.equal(plan.otherClass, false, 'another class does not see the plan');
+assert.deepEqual(plan.saved, { ascendClass: 'berserker', nodes: ['n1', 'n13d'], keystones: ['bz1', 'bz9'] }, 'loading keeps only node ids and this ascendancy\'s keystones');
+assert.equal(plan.unknown, null, 'an unknown ascendancy plan is dropped');
+assert.ok(fs.readFileSync('js/combat.js', 'utf8').includes('let clearedAscendKeystones = rememberLoopAscendancyPlan(game);'), 'the loop reset remembers the plan');
+
+console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), keystone lines before gear, twin pool, save boundary, 180 cards with 60 new unique cards, last-loop plan: OK');
