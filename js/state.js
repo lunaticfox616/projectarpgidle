@@ -1212,8 +1212,8 @@ function getAllAscendKeystoneDefs() {
     });
     return out;
 }
-/** 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여하는 키스톤: 지금 직업이 고를 수 있는 전직 셋의 키스톤.
- * 예전에는 모든 전직에서 골라, 고를 수 없는 전직의 키스톤이 나오면 아무 효과가 없었다(2026-10-02). */
+/** 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여하는 키스톤: 지금 직업이 고를 수 있는 전직 셋의 키스톤(2026-10-02).
+ * 받은 키스톤은 그 셋 중 어느 전직을 골랐든 켜진다(js/combat.js hasKeystone). */
 function pickRandomAscendKeystoneId(classId = game.selectedClassId) {
     const allowed = new Set(getAscendanciesForClass(classId));
     let defs = Object.keys(CLASS_KEYSTONE_DEFS).filter(cls => allowed.has(cls)).flatMap(cls => CLASS_KEYSTONE_DEFS[cls] || []);

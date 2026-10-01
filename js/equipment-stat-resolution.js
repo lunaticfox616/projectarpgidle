@@ -37,8 +37,8 @@ function scaleEquipmentStatLines(stats, multiplier) {
 function getEquipmentStatMultiplier(item, ownerState) {
     // Only a warrior-w6 weapon can differ from 1. Check that first: resolving the active
     // equipment re-validates the whole build and this runs for every item in every stat pass.
-    let warriorKeystone = ownerState.ascendClass === 'warrior'
-        && ((ownerState.ascendKeystones || []).includes('w6') || (ownerState.cosmosTwinKeystones || []).includes('w6'));
+    let warriorKeystone = (ownerState.ascendClass === 'warrior' && (ownerState.ascendKeystones || []).includes('w6'))
+        || (ownerState.cosmosTwinKeystones || []).includes('w6');
     if (item.slot !== '무기' || !warriorKeystone) return 1;
     let equipment = combatEquipmentStats.activeEquipment(ownerState);
     let offhand = equipment && equipment['방패'];

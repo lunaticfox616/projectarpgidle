@@ -4700,7 +4700,7 @@ function getEquippedSummonCount() {
 function getSummonEquipCapFromStats(stats) {
     let maximum = typeof getSummonCapMaximum === 'function'
         ? getSummonCapMaximum()
-        : (game.ascendClass === 'soulbinder' && typeof hasKeystone === 'function' && hasKeystone('sb9') ? 12 : 8);
+        : (typeof hasKeystone === 'function' && hasKeystone('sb9') ? 12 : 8);
     return Math.max(1, Math.min(maximum, Math.floor((stats && stats.summonCap) || 1)));
 }
 
@@ -8263,7 +8263,7 @@ function buildPlayerRecoveryEffectIcons(pStats) {
 function buildPlayerAscendStackEffectIcons(now) {
     let icons = [];
     let owns = id => typeof hasKeystone === 'function' && hasKeystone(id);
-    if (game.ascendClass === 'warrior' && owns('w2')) {
+    if (owns('w2')) {
         let crit = Number(game.warriorRhythmExpiresAt) > now ? Math.min(5, Math.floor(game.warriorRhythmStacks || 0)) : 0;
         let chain = Number(game.warriorRhythmDoubleExpiresAt) > now ? Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0)) : 0;
         if (crit + chain > 0) {
@@ -8271,18 +8271,18 @@ function buildPlayerAscendStackEffectIcons(now) {
             icons.push(renderUiRuntimeEffectIcon({ key: 'warriorRhythm', value: crit, maxValue: chain, expiresAt, badge: `${crit + chain}` }, now));
         }
     }
-    if (game.ascendClass === 'gladiator' && owns('g2') && Number(game.gladiatorFlurryExpiresAt) > now) {
+    if (owns('g2') && Number(game.gladiatorFlurryExpiresAt) > now) {
         let stacks = Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0));
         if (stacks > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'gladiatorFlurry', value: stacks, expiresAt: game.gladiatorFlurryExpiresAt, badge: `${stacks}` }, now));
     }
-    if (game.ascendClass === 'gladiator' && owns('g3') && Number(game.gladiatorVeteranCritBonus) > 0) {
+    if (owns('g3') && Number(game.gladiatorVeteranCritBonus) > 0) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'gladiatorVeteran', value: game.gladiatorVeteranCritBonus, badge: `${Math.floor(game.gladiatorVeteranCritBonus)}` }, now));
     }
-    if (game.ascendClass === 'elementalist' && owns('e8') && Number(game.elementalistOverloadStacks) > 0) {
+    if (owns('e8') && Number(game.elementalistOverloadStacks) > 0) {
         let stacks = Math.floor(game.elementalistOverloadStacks);
         icons.push(renderUiRuntimeEffectIcon({ key: 'elementalistOverload', value: stacks, badge: `${stacks}` }, now));
     }
-    if (game.ascendClass === 'guardian' && owns('gd6') && Number(game.guardianEnduranceExpiresAt) > now) {
+    if (owns('gd6') && Number(game.guardianEnduranceExpiresAt) > now) {
         let stacks = Math.min(5, Math.floor(game.guardianEnduranceStacks || 0));
         if (stacks > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'guardianEndurance', value: stacks, expiresAt: game.guardianEnduranceExpiresAt, badge: `${stacks}` }, now));
     }
@@ -8292,16 +8292,16 @@ function buildPlayerAscendStackEffectIcons(now) {
 function buildPlayerAscendReadyEffectIcons(now) {
     let icons = [];
     let owns = id => typeof hasKeystone === 'function' && hasKeystone(id);
-    if (game.ascendClass === 'gladiator' && owns('g5') && (game.gladiatorSwiftOpeningReady || game.gladiatorSwiftGuardReady)) {
+    if (owns('g5') && (game.gladiatorSwiftOpeningReady || game.gladiatorSwiftGuardReady)) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'gladiatorSwift', value: game.gladiatorSwiftOpeningReady ? 1 : 0, maxValue: game.gladiatorSwiftGuardReady ? 1 : 0 }, now));
     }
-    if (game.ascendClass === 'assassin' && owns('a2') && game.assassinBlurred) {
+    if (owns('a2') && game.assassinBlurred) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'assassinBlurred' }, now));
     }
-    if (game.ascendClass === 'catalyst' && owns('ct4') && game.catalystEvadeBoostReady) {
+    if (owns('ct4') && game.catalystEvadeBoostReady) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'catalystEvade' }, now));
     }
-    if (game.ascendClass === 'crusader' && owns('cr8') && Number(game.crusaderLightningAegisUntil) > now) {
+    if (owns('cr8') && Number(game.crusaderLightningAegisUntil) > now) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'crusaderLightningAegis', expiresAt: game.crusaderLightningAegisUntil }, now));
     }
     return icons.join('');
@@ -8355,7 +8355,7 @@ function buildPlayerRealmEffectIcons(pStats, now) {
         let remain = Math.ceil((game.realmInvulnerableBarrierUntil - now) / 1000);
         icons.push(renderCombatEffectIcon({ key: 'invulnerableBarrier', tooltip: `showPlayerRuntimeEffectTooltip(event,'invulnerableBarrier',0,0,${remain})`, remainingSec: remain, durationSec: 1.5 }));
     }
-    if (game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w5')) {
+    if (typeof hasKeystone === 'function' && hasKeystone('w5')) {
         let stacks = typeof getWarriorRageStacks === 'function' ? getWarriorRageStacks(now) : 0;
         if (stacks > 0) {
             let remain = Math.ceil(Math.max(0, (game.warriorRageExpiresAt - now) / 1000));
@@ -9726,6 +9726,17 @@ function getStyledOrbName(orbKey) {
     return name;
 }
 
+/** 우주계 쌍둥이 주얼의 배정 키스톤 줄: 이름과 그 키스톤의 전직(쌍둥이 키스톤은 전직과 상관없이 켜진다), 할당 여부. */
+function getCosmosKeystoneTooltipLine(jewel) {
+    if (!jewel.cosmosKeystoneJewel || !jewel.cosmosKeystone) return '';
+    const id = jewel.cosmosKeystone;
+    const ksName = typeof getAscendKeystoneName === 'function' ? getAscendKeystoneName(id) : id;
+    const owner = typeof getAscendKeystoneOwnerClass === 'function' ? getAscendKeystoneOwnerClass(id) : null;
+    const ascName = owner && CLASS_TEMPLATES[owner] ? `(${CLASS_TEMPLATES[owner].name})` : '';
+    const active = Array.isArray(game.cosmosTwinKeystones) && game.cosmosTwinKeystones.includes(id);
+    return `<div class="tooltip-line" style="color:${active ? '#8fe7b0' : '#ffd68a'};">🔯 배정 키스톤: ${escapeHTML(ksName)}${ascName}${active ? ', 할당 중' : ', 짝 주얼의 키스톤과 같으면 할당'}</div>`;
+}
+
 const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel) {
     if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
     let stats = getJewelStats(jewel);
@@ -9746,12 +9757,7 @@ const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel) 
     let tierLine = tierSummary ? `<div class="tooltip-line" style="color:var(--copy-bright);">옵션 평균 티어: T${tierSummary.toFixed(1)}</div>` : '';
     let fixedTierLine = jewel.rarity === 'unique' ? `<div class="tooltip-line" style="color:#bca7dc;">고유 고정 옵션 · 티어 평가 제외</div>` : '';
     let uniqueLine = jewel.rarity === 'unique' && jewel.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(jewel.uniqueEffect)}</div>` : '';
-    let keystoneLine = '';
-    if (jewel.cosmosKeystoneJewel && jewel.cosmosKeystone) {
-        let ksName = typeof getAscendKeystoneName === 'function' ? getAscendKeystoneName(jewel.cosmosKeystone) : jewel.cosmosKeystone;
-        let active = Array.isArray(game.cosmosTwinKeystones) && game.cosmosTwinKeystones.includes(jewel.cosmosKeystone);
-        keystoneLine = `<div class="tooltip-line" style="color:${active ? '#8fe7b0' : '#ffd68a'};">🔯 배정 키스톤: ${escapeHTML(ksName)}${active ? ' (할당 중)' : ' · 쌍둥이 주얼과 일치 시 할당'}</div>`;
-    }
+    let keystoneLine = getCosmosKeystoneTooltipLine(jewel);
     let main = `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${keystoneLine}${fixedTierLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
     return main;
 };

@@ -153,7 +153,7 @@ function accumulateCombatSocketJewels(bucket, item) {
 // 심연 군주(워록 wlk8)와 재물욕(초월 공허)은 예전의 주얼 슬롯 추가 대신 장비 소켓 주얼의 옵션을 키운다(2026-09-30).
 const SOCKET_JEWEL_BONUS = Object.freeze({ warlockLord: 0.25, greed: 0.1 });
 function getSocketJewelMultiplier(owner = game) {
-    const lord = owner.ascendClass === 'warlock' && hasKeystone('wlk8', owner) ? SOCKET_JEWEL_BONUS.warlockLord : 0;
+    const lord = hasKeystone('wlk8', owner) ? SOCKET_JEWEL_BONUS.warlockLord : 0;
     const greed = getTranscendentVoidPassiveCount('greed', owner) > 0 ? SOCKET_JEWEL_BONUS.greed : 0;
     return 1 + lord + greed;
 }

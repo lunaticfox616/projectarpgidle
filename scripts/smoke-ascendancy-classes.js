@@ -117,6 +117,28 @@ const order = json(`(() => {
 assert.deepEqual(order, [['realmKillMoveStacks', '전직 키스톤: 폭풍 걸음', 4], ['realmKillMoveStacks', '장비', 10]],
     'the keystone line comes first, so the unique item (processed last) keeps its stronger numbers');
 
+// 회귀(2026-10-02): 쌍둥이 키스톤은 전직과 상관없이 켜진다. 기존 12종의 전투 코드가 전직까지 확인해서, 주얼 두 개가
+// 어쌔신 키스톤 a1(치명타 피해 +66, 치명타 확률 -6)을 줘도 글래디에이터에게는 효과가 없었다. 고른 키스톤은 여전히 그 전직일 때만.
+const twinOld = json(`(() => {
+    const ring = (slot, uniqueId) => ({ slot, name: '시험 반지', rarity: 'normal', stats: [], voidSocket: { open: true, jewel: { uniqueId, name: uniqueId, rarity: 'unique', cosmosKeystoneJewel: true, cosmosKeystone: 'a1', stats: [] } } });
+    const read = () => getPlayerStats(false).critDmg;
+    const saved = { ...game.equipment };
+    game.ascendClass = 'gladiator'; game.ascendKeystones = []; game.cosmosTwinKeystones = [];
+    const plain = read();
+    game.ascendKeystones = ['a1'];
+    const pickedOther = read();
+    game.ascendKeystones = [];
+    game.equipment['반지1'] = ring('반지1', 'cbj_zubenubia_balance');
+    game.equipment['반지2'] = ring('반지2', 'cbj_zubenshamali_judgment');
+    const twin = read();
+    const granted = game.cosmosTwinKeystones.slice();
+    game.equipment = saved; game.ascendClass = ''; read();
+    return { plain, pickedOther, twin, granted };
+})()`);
+assert.deepEqual(twinOld.granted, ['a1'], 'two matching twin jewels grant their keystone');
+assert.equal(twinOld.twin - twinOld.plain, 66, `a twin assassin keystone works for a gladiator: ${twinOld.plain} -> ${twinOld.twin}`);
+assert.equal(twinOld.pickedOther, twinOld.plain, 'a picked keystone of another ascendancy stays off');
+
 // 우주계 쌍둥이 주얼은 지금 직업이 고를 수 있는 전직 셋의 키스톤만 준다.
 const twinPool = json(`(() => { const seen = new Set(); let s = 1; Math.random = () => ((s = (s * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 400; i++) seen.add(getAscendKeystoneOwnerClass(pickRandomAscendKeystoneId('archer'))); Math.random = () => 0.37; return [...seen].sort(); })()`);

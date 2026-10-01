@@ -380,7 +380,7 @@ function getEquipCandidateSlots(item, targetGame = game) {
     if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
     if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
-    let warriorDualTrain = targetGame.ascendClass === 'warrior' && hasKeystone('w3', targetGame);
+    let warriorDualTrain = hasKeystone('w3', targetGame);
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
 }
@@ -443,7 +443,7 @@ function pickEquipSlot(item, preferredSlot) {
         return null;
     }
     if (item.slot === '무기') {
-        let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+        let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
         if (warriorDualTrain && !preferredSlot) {
             if (game.equipment['무기'] && !game.equipment['방패']) return '방패';
             if (!game.equipment['무기']) return '무기';
@@ -458,7 +458,7 @@ function pickEquipSlot(item, preferredSlot) {
 
 function isDualSlotItem(slotName) {
     if (slotName === '반지' || slotName === '장갑') return true;
-    return slotName === '무기' && game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    return slotName === '무기' && typeof hasKeystone === 'function' && hasKeystone('w3');
 }
 
 function getDualSlotDisplayLabel(targetSlot) {
@@ -486,7 +486,7 @@ function equipItem(idx, preferredSlot) {
     if (!item) return;
     const restriction = getPassiveEquipmentRestriction(item);
     if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
         return;
