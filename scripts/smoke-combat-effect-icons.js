@@ -108,7 +108,7 @@ assert.strictEqual((playerMarkup.match(/class="combat-effect-icon/g) || []).leng
   'every active player ailment and runtime effect must receive one icon');
 expectedPlayerEffects.forEach(key => assert(playerMarkup.includes(`effect-${key}`), `${key} must be represented`));
 assert(playerMarkup.includes('남은 생명력 회복 30 / 저장 한도 200 · 현재 초당 10 · 개별 초당 상한 20')
-  && playerMarkup.includes('남은 ES 회복 20 / 저장 한도 100 · 현재 초당 5 · 개별 초당 상한 10'),
+  && playerMarkup.includes('남은 보호막 회복 20 / 저장 한도 100 · 현재 초당 5 · 개별 초당 상한 10'),
   'leech tooltips must compare current recovery with the real resource caps');
 assert(playerMarkup.includes('combat-effect-art') && !playerMarkup.includes('combat-effect-glyph'),
   'status effects must use the generated image atlas instead of text glyphs');

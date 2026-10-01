@@ -640,14 +640,30 @@ function showBackgroundCombatResult(result) {
     let rewards = [
         formatBackgroundSkippedReward(result.skippedMs),
         ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
-        `총 처치: <strong>${summary.kills || 0}</strong>`,
-        `총 경험치: <strong>+${summary.exp || 0}</strong> <span class="background-combat-exp-lost">(잃은 경험치 -${summary.expLost || 0})</span>`,
+        `총 처치: <strong>${formatNumberKR(summary.kills)}</strong>`,
+        backgroundExpLine(summary),
         `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
-    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다 · 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
+    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다 · 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${renderBackgroundStoryLine()}${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
     document.body.appendChild(overlay);
+}
+
+/** 자리를 비운 동안 지나온 이야기(한 장씩 띄우지 않고 기록으로): "지난 이야기 2편이 기록에 실렸습니다" + 기록 열기. */
+/** 방치 결과의 경험치 줄: 잃은 경험치가 없으면 "(잃은 경험치 -0)"을 붙이지 않는다. */
+function backgroundExpLine(summary) {
+    const lost = Number(summary.expLost) || 0;
+    const lossNote = lost > 0 ? ` <span class="background-combat-exp-lost">(잃은 경험치 -${formatNumberKR(lost)})</span>` : '';
+    return `총 경험치: <strong>+${formatNumberKR(summary.exp)}</strong>${lossNote}`;
+}
+
+function renderBackgroundStoryLine() {
+    const scenes = typeof storyJournalUi === 'object' ? storyJournalUi.foldPassedScenes() : [];
+    if (!scenes.length) return '';
+    const names = scenes.slice(0, 2).map(scene => `${scene.kicker} · ${scene.title}`).join(', ') + (scenes.length > 2 ? ` 외 ${scenes.length - 2}편` : '');
+    return `<p class="background-result-story"><span>지난 이야기 ${scenes.length}편이 기록에 실렸습니다: ${escapeHTML(names)}</span>
+        <button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-journal')">기록에서 읽기</button></p>`;
 }
 
 function shouldApplyBackgroundCombatResult(signature) {
@@ -878,6 +894,11 @@ function updateMobileBattlePipVisibility() {
             src.height = 540;
         }
     }
+}
+
+function refreshMobileBattlePip() {
+    renderBattlefield(true);
+    renderMobileBattlePipFrame();
 }
 
 function isMobileBattlePipVisible() {
@@ -1216,7 +1237,7 @@ let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'expertise', 'stump'];
 const MERGED_TAB_GROUPS = Object.freeze({
-    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
+    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', detail: '전직과 키스톤을 선택합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
@@ -1956,6 +1977,15 @@ function renderMergedTabSubtabs(tabId) {
     renderMergedTabPanels(tabId);
 }
 
+/** 휴대폰: 메뉴 띠가 옆으로 넘칠 때만 고른 단추를 가운데로 굴린다. 화면을 그린 뒤에 재므로 탭 전환이 강제 레이아웃을
+ * 기다리지 않는다(전환마다 부르던 scrollIntoView가 CPU 4배 감속 휴대폰에서 한 번에 약 40ms였다 — 지금 하단 메뉴는 넘치지 않는다). */
+function revealActiveTabButton(button) {
+    requestAnimationFrame(() => setTimeout(() => {
+        const bar = button.parentElement;
+        if (bar && bar.scrollWidth > bar.clientWidth + 1) button.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }, 0));
+}
+
 function switchTab(tabId) {
     hideInfoTooltip();
     hideItemTooltip();
@@ -1994,13 +2024,7 @@ function switchTab(tabId) {
     activeBtn.classList.add('active');
     if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
     syncMergedTabLauncherState();
-    if (activeBtn && activeBtn.scrollIntoView && uiDisplay.matches('(max-width: 1080px)')) {
-        try {
-            activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-        } catch (error) {
-            activeBtn.scrollIntoView();
-        }
-    }
+    if (activeBtn && activeBtn.scrollIntoView && uiDisplay.matches('(max-width: 1080px)')) revealActiveTabButton(activeBtn);
     // 2단 그룹핑: 이동한 탭이 속한 그룹을 활성화하고 카테고리 바를 갱신.
     if (isTabGroupingActive()) {
         game.settings = game.settings || {};
@@ -2026,7 +2050,8 @@ function switchTab(tabId) {
     updateMobileBattlePipVisibility();
     // 탭 전환 직후 PiP가 보이면 한 번 즉시 갱신해, 적응형 루프 다음 주기를
     // 기다리는 동안 직전 프레임이 잠깐 남아 보이는 것을 막는다.
-    if (isMobileBattlePipVisible()) { renderBattlefield(true); renderMobileBattlePipFrame(); }
+    // 다음 프레임(그리기 전)에 그린다 — 여기서 그리면 전장 크기를 재느라 바뀐 탭의 스타일을 미리 한 번 더 계산했다.
+    if (isMobileBattlePipVisible()) requestAnimationFrame(refreshMobileBattlePip);
     updateStaticUI();
     if (tabId === 'tab-char') {
         setTimeout(function() {
@@ -3183,7 +3208,7 @@ function renderChaosRealmMapPanel() {
     let affixes = getChaosRealmAffixes(floor);
     let bonus = st.permanentBonuses || {};
     let bonusLine = [`피해 +${(bonus.pctDmg||0).toFixed(1)}%`, `이속 +${(bonus.move||0).toFixed(1)}%`, `생명력 +${(bonus.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(bonus.resChaos||0)}%`, `치명 +${Math.floor(bonus.crit||0)}%`, `관통 +${Math.floor(bonus.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(bonus.armorPct||0)}%`, `치피 +${Math.floor(bonus.critDmg||0)}%`, `공속 +${Math.floor(bonus.aspd||0)}%`].join(' · ');
-    panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#efd6ff; font-size:1.05em;">혼돈계 영구 레이어</div><div style="color:var(--copy-bright); margin-top:4px;">루프로 초기화되지 않습니다. 최고 입장층 <strong style="color:#ffd36b;">${highest}층</strong> · 클리어 ${st.clearedFloors.length}층 · 나무꾼 최고 피해율 ${best.toFixed(1)}%</div></div><button data-exploration-departure onclick="enterChaosRealmPrompt()" ${entryReady ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:8px; color:${entryReady ? '#d6e4ff' : '#ffcf8a'};">${entryReady ? `영구 보너스: ${bonusLine}` : '입장 조건: 이번 루프에서 혼돈 20 클리어 필요 · 진행도/보너스는 보존됨'}</div><div style="margin-top:8px; color:#bda8ff;">현재 선택층 특징: ${affixes.map(a => `${a.name}(${a.desc})`).join(' · ')}</div>${highest >= 10 ? '<div style="margin-top:6px; color:#7dffb2;">혼돈계 10층 효과 활성: 모든 액트 구간 지도 길이 50% 축소</div>' : ''}`;
+    panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#efd6ff; font-size:15px;">혼돈계 영구 레이어</div><div style="color:var(--copy-bright); margin-top:4px;">루프로 초기화되지 않습니다. 최고 입장층 <strong style="color:#ffd36b;">${highest}층</strong> · 클리어 ${st.clearedFloors.length}층 · 나무꾼 최고 피해율 ${best.toFixed(1)}%</div></div><button data-exploration-departure onclick="enterChaosRealmPrompt()" ${entryReady ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:8px; color:${entryReady ? '#d6e4ff' : '#ffcf8a'};">${entryReady ? `영구 보너스: ${bonusLine}` : '입장 조건: 이번 루프에서 혼돈 20 클리어 필요 · 진행도/보너스는 보존됨'}</div><div style="margin-top:8px; color:#bda8ff;">현재 선택층 특징: ${affixes.map(a => `${a.name}(${a.desc})`).join(' · ')}</div>${highest >= 10 ? '<div style="margin-top:6px; color:#7dffb2;">혼돈계 10층 효과 활성: 모든 액트 구간 지도 길이 50% 축소</div>' : ''}`;
     let zone = getZone(CHAOS_REALM_ZONE_ID);
     let echo = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : { bestDps: 0 };
     let woodsmanEchoUnlocked = Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo');
@@ -3949,7 +3974,7 @@ async function enterUnderworldPrompt(){
 safeExposeGlobals({ enterUnderworldFloor, enterUnderworldPrompt });
 
 function enterTrialWithTicket(trialId) {
-    if (!contentProgression.isUnlocked('battleTrials')) return addLog('루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('battleTrials')) return addLog('루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.', 'attack-monster');
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
     if ((game.currencies.trialKey3 || 0) <= 0) return addLog('시련의 증표가 부족합니다.', 'attack-monster');
@@ -4128,7 +4153,7 @@ function renderStarWedgePanel() {
         let socketedEntry = (st.sockets || []).find(v => v.wedgeId === wedge.id) || null;
         let lines = renderStarWedgeItemLines(wedge, socketedEntry);
         let selecting = st.selectedWedgeId === wedge.id;
-        let eternalBadge = wedge.eternal ? '<span style="color:var(--copy-bright); font-size:0.8em;">영원</span>' : '';
+        let eternalBadge = wedge.eternal ? '<span style="color:var(--copy-bright); font-size:12px;">영원</span>' : '';
         let eternalLockedAttr = astronomerLv >= 12 && !wedge.eternal ? '' : 'disabled';
         let eternalTitle = wedge.eternal ? '고정됨' : (astronomerLv >= 12 ? '별가루 25' : '천문학자 Lv.12 필요');
         let affectedCount = Object.values(st.nodeMutations || {}).filter(mut => mut && mut.wedgeId === wedge.id).length;
@@ -4138,19 +4163,19 @@ function renderStarWedgePanel() {
         let statusBits = socketedEntry
             ? [`변성 ${affectedCount}`, disabledCount ? `비활성 ${disabledCount}` : '', conflictCount ? `충돌 ${conflictCount}` : ''].filter(Boolean)
             : [];
-        let uniqueHtml = uniqueDef ? `<div style="margin:5px 0 7px; padding:7px 8px; border:1px solid rgba(191,132,255,.38); border-radius:7px; background:rgba(78,42,105,.2); color:#d9c3ef;"><strong style="color:#f0d7ff;">◆ ${uniqueDef.name}</strong><div style="margin-top:3px; font-size:.8em; line-height:1.4;">${uniqueDef.desc}${recordedHub ? `<br><span style="color:#b99be0;">기록 슬롯: ${getPassiveNodeDisplayName(recordedHub)}</span>` : ''}</div></div>` : '';
+        let uniqueHtml = uniqueDef ? `<div style="margin:5px 0 7px; padding:7px 8px; border:1px solid rgba(191,132,255,.38); border-radius:7px; background:rgba(78,42,105,.2); color:#d9c3ef;"><strong style="color:#f0d7ff;">◆ ${uniqueDef.name}</strong><div style="margin-top:3px; font-size:12px; line-height:1.4;">${uniqueDef.desc}${recordedHub ? `<br><span style="color:#b99be0;">기록 슬롯: ${getPassiveNodeDisplayName(recordedHub)}</span>` : ''}</div></div>` : '';
         return `<div style="border:1px solid #3e3352; border-radius:8px; padding:8px; background:#121224;">
-            <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">${uniqueDef ? uniqueDef.name : '별쐐기'} #${wedge.id % 10000} ${eternalBadge}</strong>${socketedEntry ? `<button style="min-height:24px; padding:3px 8px; font-size:0.72em; background:#5c3448; border-color:#81506b;" onclick="unsocketStarWedge('${socketedEntry.nodeId}')">장착 해제</button>` : ''}</div>
+            <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">${uniqueDef ? uniqueDef.name : '별쐐기'} #${wedge.id % 10000} ${eternalBadge}</strong>${socketedEntry ? `<button style="min-height:24px; padding:3px 8px; font-size:12px; background:#5c3448; border-color:#81506b;" onclick="unsocketStarWedge('${socketedEntry.nodeId}')">장착 해제</button>` : ''}</div>
             ${uniqueHtml}
             ${lines}
-            ${statusBits.length ? `<div style="margin-top:6px; color:${conflictCount ? '#ffb58f' : '#8fd9c1'}; font-size:.76em;">장착 효과 · ${statusBits.join(' · ')}</div>` : ''}
+            ${statusBits.length ? `<div style="margin-top:6px; color:${conflictCount ? '#ffb58f' : '#8fd9c1'}; font-size:12px;">장착 효과 · ${statusBits.join(' · ')}</div>` : ''}
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id}); this.closest('details').open=false">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})" ${rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>리롤${rerollTitle}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')" ${!wedge.lines.length || rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>1줄 고정${rerollTitle}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')" ${!wedge.lines.length || rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>2줄 고정 (파편x10)${rerollTitle}</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="stabilizeStarWedge(${wedge.id})" ${eternalLockedAttr}>영원 고정 (${eternalTitle})</button>
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; background:#63383f; border-color:#8f5963;" onclick="destroyStarWedge(${wedge.id})" ${wedge.eternal ? 'disabled' : ''}>파괴하기</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:12px; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id}); this.closest('details').open=false">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="rerollStarWedge(${wedge.id})" ${rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>리롤${rerollTitle}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="rerollStarWedge(${wedge.id}, 'single')" ${!wedge.lines.length || rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>1줄 고정${rerollTitle}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="rerollStarWedge(${wedge.id}, 'double')" ${!wedge.lines.length || rerollLockedAttr || wedge.eternal || starWedgeRules.fixedTypes.has(wedge.uniqueType) ? 'disabled' : ''}>2줄 고정 (파편x10)${rerollTitle}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:12px;" onclick="stabilizeStarWedge(${wedge.id})" ${eternalLockedAttr}>영원 고정 (${eternalTitle})</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:12px; background:#63383f; border-color:#8f5963;" onclick="destroyStarWedge(${wedge.id})" ${wedge.eternal ? 'disabled' : ''}>파괴하기</button>
             </div>
         </div>`;
     }).join('');
@@ -4160,7 +4185,7 @@ function renderStarWedgePanel() {
             <div style="color:var(--copy-muted);">장착 슬롯: ${(st.sockets || []).length}/${maxEquippedStarWedges} · ${socketNodeText} · 별자리: ${constellationText}</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
-        <div style="color:var(--copy-muted); font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
+        <div style="color:var(--copy-muted); font-size:12px; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
         <div style="display:grid; gap:8px;">${wedgeCards || '<div style="color:var(--copy-muted);">별쐐기가 없습니다. 운석 낙하 지점을 공략하거나 제작하세요.</div>'}</div>
     `;
 }
@@ -4535,7 +4560,7 @@ function tryGrantCodexCompletionReward() {
     if (progress.total <= 0 || progress.stored < progress.total) return;
     if (game.uniqueCodexCompletedRewardClaimed) return;
     game.uniqueCodexCompletedRewardClaimed = true;
-    addLog('📚 도감 완성! 다음 루프 환생부터 부위별 최하위 고유 선택 특전이 활성화됩니다.', 'loot-unique');
+    addLog('📚 도감 완성! 다음 루프부터 부위별 최하위 고유 선택 특전이 활성화됩니다.', 'loot-unique');
 }
 
 function storeUniqueToCodexByItemId(itemId) {
@@ -4674,7 +4699,7 @@ function renderUniqueCodexUI() {
         let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : `미등록${source ? ` · ${escapeHTML(source.label)}` : ''}`;
         let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
         let isNew = stored && newlyRegistered[key];
-        let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
+        let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:12px;">● NEW</span>` : '';
         let statusHtml = stored ? `<span class="codex-registered">등록됨</span>` : `<span style="color:var(--copy-muted);">미등록</span>`;
         let huntAction = typeof uniqueHuntUi !== 'undefined' ? uniqueHuntUi.renderCardAction(entry) : '';
         return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${entry.name}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '획득하면 옵션 정보가 공개됩니다.'}</div></div><div class="item-actions">${statusHtml}${huntAction}</div></div>`;
@@ -5116,16 +5141,26 @@ function decorateCombatLogMessage(message, cls, options) {
     return `${icon}${cleanMessage}`;
 }
 
+/** null while the log sits in a hidden tab (phone, another menu open): measuring it then forced a style recalculation of
+ * the page twice per flush (about 20 ms each on a 4x-throttled phone). Rows added meanwhile show from the latest. */
 function captureCombatLogScroll(log) {
+    if (isCombatLogHidden(log)) return null;
     let bottomGap = log.scrollHeight - log.scrollTop - log.clientHeight;
     return {
-        followsLatest: bottomGap <= 24,
+        followsLatest: bottomGap <= 24 || log.followLatestPending === true,
         scrollTop: log.scrollTop,
         scrollHeight: log.scrollHeight
     };
 }
 
+function isCombatLogHidden(log) {
+    const pane = typeof log.closest === 'function' ? log.closest('.tab-content') : null;
+    return !!pane && !pane.classList.contains('active');
+}
+
 function restoreCombatLogScroll(log, scrollState) {
+    log.followLatestPending = !scrollState;
+    if (!scrollState) return;
     if (scrollState.followsLatest) {
         log.scrollTop = log.scrollHeight;
         return;
@@ -8097,7 +8132,7 @@ const UI_RUNTIME_EFFECT_DETAILS = Object.freeze({
     shadowStealth: value => `이동 속도·회피·치명타 피해 +${Number(value || 0).toFixed(0)}%`,
     leechEfficiency: value => `모든 흡혈 효율 +${Number(value || 0).toFixed(0)}%`,
     lifeLeech: (value, rate) => `남은 회복 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
-    energyShieldLeech: (value, rate) => `남은 ES 회복 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
+    energyShieldLeech: (value, rate) => `남은 보호막 회복 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
     lifeRecoup: (value, rate) => `남은 회생 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
     meleeArmorAmp: (stacks, perStack) => `방어도 ${Math.floor(stacks || 0)}중첩 · 중첩당 ${Number(perStack || 0).toFixed(0)}% 증폭`,
     killMoveStacks: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 이동 속도 +${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
@@ -8319,7 +8354,7 @@ function buildPlayerUniqueEffectIcons(pStats, now) {
 }
 
 function getUiLeechEffectDetail(summary, pStats, target) {
-    let resource = target === 'energyShield' ? 'ES' : '생명력';
+    let resource = target === 'energyShield' ? '보호막' : '생명력';
     let remaining = Math.floor(summary.remaining || 0);
     let rate = Math.floor(summary.rate || 0);
     if (typeof getLeechCaps !== 'function') return `남은 ${resource} 회복 ${remaining} · 초당 ${rate}`;
@@ -8690,12 +8725,12 @@ function markPlayerEnergyShieldRow(hpTrack, hasEnergyShield) {
     if (frame) frame.toggleAttribute('data-energy-shield', hasEnergyShield);
 }
 
-/** 생명 구슬 안 보호막 글자: "ES 현재" + 최대. 휴대폰의 작은 구슬(50px)에서는 CSS가 최대를 숨긴다(pixel-hud.css). */
+/** 생명 구슬 안 보호막 글자: "보호막 현재/최대". 휴대폰의 작은 구슬(50px)에서는 CSS가 이름과 최대를 숨기고 파란 현재값만 남긴다(pixel-hud.css). */
 function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
     if (!el) return;
     el.style.display = hasEnergyShield ? '' : 'none';
     if (!hasEnergyShield) return;
-    const html = `ES ${Math.floor(current || 0)}<span class="combat-es-max">/${Math.floor(max || 0)}</span>`;
+    const html = `<span class="combat-es-label">보호막 </span>${Math.floor(current || 0)}<span class="combat-es-max">/${Math.floor(max || 0)}</span>`;
     if (el.__esHtml !== html) { el.innerHTML = html; el.__esHtml = html; }
 }
 
@@ -8913,8 +8948,8 @@ function updateCombatUI(pStats) {
             let zoneNow = getZone(game.currentZoneId);
             if (zoneNow && zoneNow.type === 'woodsmanEcho') {
                 let totalDealt = Math.max(0, Math.floor((focusedEnemy.echoStartHp || focusedEnemy.maxHp || 0) - Math.max(0, focusedEnemy.hp || 0)));
-                setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`);
-            } else setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`);
+                setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`);
+            } else setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`);
         }
         if (ailmentEl && ailmentEl.__lastHtml !== effectMarkup) {
             ailmentEl.innerHTML = effectMarkup;
@@ -9981,9 +10016,9 @@ function buildSporeSummaryHtml() {
     return `<div class="craft-spores">
             <div class="craft-spores-title">홀씨 보유량</div>
             <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
-                <div class="orb-tone" style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; --orb-tone:#ff9f9f; font-size:0.86em;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
-                <div class="orb-tone" style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; --orb-tone:#9fd6ff; font-size:0.86em;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
-                <div class="orb-tone" style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; --orb-tone:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; --orb-tone:#ff9f9f; font-size:12px;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; --orb-tone:#9fd6ff; font-size:12px;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; --orb-tone:#ffe08a; font-size:12px;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
                 <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || level < 7 ? 'disabled' : ''}>부패 홀씨 (각 8)</button>
@@ -10028,7 +10063,7 @@ function getCraftPickerItemLines(item) {
     (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
     if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
     if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
-    return rows.map(row => `<div class="craft-picker-stat" style="color:var(--copy-bright); font-size:.7em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
+    return rows.map(row => `<div class="craft-picker-stat" style="color:var(--copy-bright); font-size:12px; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
 }
 
 function getCraftPickerCardHtml(item, options) {
@@ -10041,8 +10076,8 @@ function getCraftPickerCardHtml(item, options) {
     let extraClass = options.extraClass || '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
-        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${exceptionalStars}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
-        <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
+        <div class="item-title ${rarity}" style="font-size:12px;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${exceptionalStars}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-base-line" style="font-size:12px;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
     </button>`;
 }
@@ -10405,9 +10440,9 @@ function buildCraftActionButtons(item) {
                 let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
                 let deepStats = game.loopDeepStats || {};
                 let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
-                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:0.82em;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
+                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:15px;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:12px;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div class="loop10-entry-box">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
                     <div style="margin-top:6px; color:var(--copy-bright);">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button data-exploration-departure onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:var(--copy-bright);">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
@@ -10434,9 +10469,9 @@ function buildCraftActionButtons(item) {
         let hiddenStyle = collapsePast && unlocked && !current ? 'display:none;' : '';
         return `<div style="${hiddenStyle}background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
-                <strong style="color:${stateColor};">${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
+                <strong style="color:${stateColor};">${def.title}</strong><span style="color:${stateColor}; font-size:12px;">${stateText}</span>
             </div>
-            <div style="color:var(--copy-bright); font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
+            <div style="color:var(--copy-bright); font-size:12px; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
     }).join('');
     document.getElementById('ui-season-content-roadmap').innerHTML = collapsedRoadmapSummary + roadmapCards
@@ -10512,7 +10547,7 @@ function buildCraftActionButtons(item) {
                 return line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
             }).join('<br>');
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
-            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '🌸 재능특화' : ((id === 'n13c' || id === 'n13d') ? '🌸 전직특화' : titleText)));
+            let title = id === 'n10' ? '궁극기' : ((id === 'n11' || id === 'n12') ? '4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '재능특화' : ((id === 'n13c' || id === 'n13d') ? '전직특화' : titleText)));
             let stateText = active ? '선택됨 · 클릭하여 반환' : (reqMet ? '선택 가능' : '선행 노드 필요');
             let action = active ? `askRefundAscendNode('${id}')` : (!reqMet ? '' : `buyAscend('${id}')`);
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" role="button" tabindex="${action ? '0' : '-1'}" aria-disabled="${action ? 'false' : 'true'}" ${action ? `onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action};}"` : ''}><div class="trait-title">${title}</div><div class="trait-desc">${desc}<span class="trait-card-state">${stateText}</span></div></div>`;
@@ -10538,7 +10573,7 @@ function buildCraftActionButtons(item) {
             let kTiers = [];
             kDefs.forEach(k => { let d = depthOf(k.id); (kTiers[d] = kTiers[d] || []).push(k); });
             let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
-            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:var(--copy-bright); margin-top:4px;">해제 비용: 마름병 포자 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
+            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:12px;">키스톤 초기화</button></div><div style="font-size:12px; color:var(--copy-bright); margin-top:4px;">해제 비용: 마름병 포자 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
                 let active = game.ascendKeystones.includes(k.id);
                 let reqMet = isAscendKeystoneRequirementMet(k);
                 let reqIds = reqIdsOf(k);
@@ -10559,7 +10594,7 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'none';
-        document.getElementById('ui-class-grid').innerHTML = Object.keys(CLASS_TEMPLATES).map(key => `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</span><span style="display:block;font-size:0.85em; color:#aaa;">${CLASS_TEMPLATES[key].desc}</span></button>`).join('');
+        document.getElementById('ui-class-grid').innerHTML = Object.keys(CLASS_TEMPLATES).map(key => `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</span><span style="display:block;font-size:12px; color:#aaa;">${CLASS_TEMPLATES[key].desc}</span></button>`).join('');
     } else {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'block';
@@ -11309,8 +11344,8 @@ function setupCanvasEvents() {
 
         let effectBadge = (label, accent, caption) => {
             let tone = accent || passiveAccent;
-            return `<div class="tooltip-line" style="flex:1 1 160px; margin-top:6px; padding:8px 10px; border-radius:9px; border:1px solid ${tone.activeOuter}; background:linear-gradient(135deg, ${tone.activeGlow || 'rgba(120,160,200,0.18)'}, rgba(8,12,20,0.72)); box-shadow:inset 0 0 14px rgba(255,255,255,0.04), 0 0 12px ${tone.previewGlow || 'rgba(120,160,200,0.12)'}; color:${tone.text}; font-weight:800; font-size:1.04em; line-height:1.35;">
-                <div style="font-size:0.72em; color:var(--copy-bright); font-weight:700; margin-bottom:2px;">${caption}</div>
+            return `<div class="tooltip-line" style="flex:1 1 160px; margin-top:6px; padding:8px 10px; border-radius:9px; border:1px solid ${tone.activeOuter}; background:linear-gradient(135deg, ${tone.activeGlow || 'rgba(120,160,200,0.18)'}, rgba(8,12,20,0.72)); box-shadow:inset 0 0 14px rgba(255,255,255,0.04), 0 0 12px ${tone.previewGlow || 'rgba(120,160,200,0.12)'}; color:${tone.text}; font-weight:800; font-size:15px; line-height:1.35;">
+                <div style="font-size:12px; color:var(--copy-bright); font-weight:700; margin-bottom:2px;">${caption}</div>
                 ${label}
             </div>`;
         };
@@ -13677,7 +13712,7 @@ function reportFatalError(stage, error) {
         if (caption) caption.innerText = `${stage}: ${message}`;
         let log = document.getElementById('log');
         if (log) {
-            let detail = stack ? `<pre style="white-space:pre-wrap;margin:6px 0 0;color:#ff9f9f;font-size:0.78em;">${escapeHTML(stack)}</pre>` : '';
+            let detail = stack ? `<pre style="white-space:pre-wrap;margin:6px 0 0;color:#ff9f9f;font-size:12px;">${escapeHTML(stack)}</pre>` : '';
             log.innerHTML = `<div class="log-item attack-monster">[${stage}] ${escapeHTML(message)}${detail}</div>`;
         }
     } catch (uiError) {
@@ -14075,7 +14110,7 @@ function checkUnlocks() {
     if (game.level >= 2 && !u.char) {
         u.char = true;
         game.noti.char = true;
-        queueTutorialNotice('unlock_char', '스킬트리', '레벨 2가 되어 패시브 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.', 'tab-char');
+        queueTutorialNotice('unlock_char', '스킬트리', '레벨 2가 되어 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.', 'tab-char');
     }
     if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
         u.items = true;
@@ -14106,7 +14141,7 @@ function checkUnlocks() {
     if (game.maxZoneId >= 1 && !u.map) {
         u.map = true;
         game.noti.map = true;
-        queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n‘지도’에서 지역을 골라 이동하면 드랍과 몬스터 속성을 고를 수 있습니다.', 'tab-map');
+        queueTutorialNotice('unlock_map', '지도 개방', '다음 액트가 열렸습니다.\n‘지도’에서 지나온 액트로 돌아가 다시 사냥하거나, 마친 액트의 보상을 받을 수 있습니다.', 'tab-map');
     }
     reconcileBeyondBoundaryUnlock(game);
     let boundaryState = ensureBeyondBoundaryState(game);
@@ -14141,8 +14176,8 @@ function checkUnlocks() {
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
-        queueContentNotice('unlock_traits', '직업전직', 'trials', { open: '직업을 고를 수 있게 되었습니다.\n‘스킬트리 → 직업전직’에서 직업을 선택하세요.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
-            locked: '직업을 고를 수 있게 되었습니다.\n‘해금’에서 직업 전직을 열면 직업과 전직 패시브를 고를 수 있습니다.' }, 'tab-traits');
+        queueContentNotice('unlock_traits', '전직', 'trials', { open: '직업을 고를 수 있게 되었습니다.\n‘스킬트리 → 전직’에서 직업을 선택하세요.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
+            locked: '직업을 고를 수 있게 되었습니다.\n‘해금’에서 전직을 열면 직업과 전직 패시브를 고를 수 있습니다.' }, 'tab-traits');
     }
     if (typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked() && !game.chaosInfuserUnlocked) {
         game.chaosInfuserUnlocked = true;
@@ -14547,7 +14582,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
     if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
-    if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
+    if (tabId === 'tab-traits') return '전직 시련을 통과하면 전직 탭이 열립니다.';
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }

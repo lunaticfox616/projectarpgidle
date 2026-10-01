@@ -20,7 +20,8 @@
   }
   /* 전투 탭의 알림은 전투 기록 막대 위로(.mobile-battle-tab은 휴대폰 배치라는 뜻이라 전투 탭이 열린 때만 :has로 고른다) — 예전 자리(아래 84 · 132px)는 HUD 판(생명 구슬 · 이름)을 덮었다.
      메뉴 띠 + HUD 판 + 기록 막대가 248px로 기종이 달라도 같다. 게임 알림은 전투 기록 알림(37px) 위에 쌓는다. */
-  body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
+  /* 변수는 쓰는 곳(#mobile-toast-root)에만 둔다 — body에 두면 탭을 바꿀 때마다 문서 전체가 스타일을 다시 계산했다. */
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: auto; bottom: calc(302px + env(safe-area-inset-bottom)); }
   /* 안내 카드(z 13250)가 떠 있으면 전투 기록 알림은 카드 아래로 — 같은 뜻의 예전 규칙(ui-game-overhaul.css)은 알림 판의
      인라인 z-index 22000(js/ui.js getMobileToastRoot, 루프 오버레이보다 위)에 져서 알림이 카드 글과 확인 단추를 덮었다. */
@@ -34,6 +35,10 @@
   /* 목표 단추는 전장 오른쪽 위 모서리에서 6px 안쪽이라(전장은 넘친 것을 자른다) 아래 · 왼쪽으로 넓힌다 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle #btn-combat-goal-toggle::after { content: ''; position: absolute; inset: -6px -6px -16px -8px; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
+  /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(젬 필터 · 등급 칩 ·
+     지도 이동 · 설정 머리). 장비 가방 칸은 격자 크기가 곧 자리라 뺀다. */
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) :is(button, select, summary):not(.equipment-grid-cell, .equipment-grid-item) { min-height: 44px; }
+  :root body[data-ui-skin].mobile-primary-navigation .tab-content:not(#tab-battle) button:not(.equipment-grid-cell, .equipment-grid-item) { min-width: 44px; }
   /* 스킬트리 노드 상세가 열려 있으면 안내 카드는 비켜 선다(상세의 "포인트 사용" 단추를 덮었다 — 표시는 그 단추로 옮겨 간다) */
   :root body[data-ui-skin]:has(#passive-mobile-detail:not([hidden])) .tutorial-action-card { visibility: hidden; }
   /* DPS 변화 칩은 생명 구슬 위에 뜬다: 전체 메뉴 서랍이 HUD를 덮으면 칩만 서랍 위에 떠 있었다 */
@@ -146,7 +151,7 @@
     box-shadow: var(--px-drop);
   }
   /* 알림: 세로용 자리(기록 막대 위 254 · 302px)는 가로에서 HUD와 지역 줄을 덮는다 — 기록은 메뉴 띠 위, 게임 알림은 전장 오른쪽 위 */
-  body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) { --mobile-toast-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(84px + env(safe-area-inset-bottom)); }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: 84px; bottom: auto; }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card:not(.at-top) { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }

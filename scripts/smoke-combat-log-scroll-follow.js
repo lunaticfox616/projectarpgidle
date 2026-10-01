@@ -31,4 +31,28 @@ prunedLog.scrollHeight = 700;
 context.restoreCombatLogScroll(prunedLog, prunedState);
 assert.strictEqual(prunedLog.scrollTop, 0, 'history pruning should clamp a preserved position to the remaining range');
 
+// Phone with another menu open (review 2026-10-01): the log sits in a hidden tab. Reading its scroll metrics forced a style
+// recalculation of the page on every flush, so nothing may be read; once the tab shows again the log follows the latest row.
+const pane = { active: false, classList: { contains: name => name === 'active' && pane.active } };
+const metrics = { scrollHeight: 1000, clientHeight: 200, scrollTop: 300 };
+const hiddenLog = { closest: selector => (selector === '.tab-content' ? pane : null) };
+for (const key of Object.keys(metrics)) {
+    Object.defineProperty(hiddenLog, key, {
+        get() { if (!pane.active) throw new Error('read ' + key + ' while hidden'); return metrics[key]; },
+        set(value) { if (!pane.active) throw new Error('wrote ' + key + ' while hidden'); metrics[key] = value; }
+    });
+}
+const hiddenState = context.captureCombatLogScroll(hiddenLog);
+assert.strictEqual(hiddenState, null, 'a hidden log is not measured');
+context.restoreCombatLogScroll(hiddenLog, hiddenState);
+pane.active = true;
+const shownState = context.captureCombatLogScroll(hiddenLog);
+assert.strictEqual(shownState.followsLatest, true, 'rows added while hidden show from the latest once the log is visible');
+metrics.scrollHeight = 1100;
+context.restoreCombatLogScroll(hiddenLog, shownState);
+assert.strictEqual(metrics.scrollTop, 1100);
+metrics.scrollTop = 300;
+assert.strictEqual(context.captureCombatLogScroll(hiddenLog).followsLatest, false,
+    'after catching up, scrolling upward pauses following again');
+
 console.log('smoke-combat-log-scroll-follow passed');

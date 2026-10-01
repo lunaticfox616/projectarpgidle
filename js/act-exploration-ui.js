@@ -16,7 +16,7 @@ const actExplorationUi=(()=>{
         if(run===lastRun&&key===lastKey)return;lastRun=run;lastKey=key;
         renderModes(run);
         const seal=document.getElementById('act-exploration-seal');
-        seal.textContent=remaining?'🔒 '+remaining:'🔓 개방';
+        seal.textContent=remaining?'봉인 '+remaining:'개방';
         seal.setAttribute('aria-label',remaining?'남은 정예 몬스터 수: '+remaining:'보스 관문 개방');
         draw(document.getElementById('act-exploration-map'),run);
         draw(document.getElementById('act-exploration-map-large'),run);

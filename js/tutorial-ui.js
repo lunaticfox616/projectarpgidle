@@ -17,7 +17,7 @@ const tutorialActionUi = {
         unlock_char: {
             // 휴대폰에서 노드 상세가 열려 있으면 그 "포인트 사용" 단추를, 아니면 트리 캔버스를 가리킨다.
             selector: ['#passive-mobile-detail:not([hidden]) [data-passive-confirm]:not(:disabled)', '#tree-canvas'],
-            title: '첫 패시브 투자',
+            title: '첫 스킬트리 투자',
             body: '연결된 시작 노드의 효과를 살펴보고, 원하는 노드에 포인트를 투자해 보세요.',
             read: () => game.passives.length,
             completed: (current, before) => current > before
@@ -150,7 +150,7 @@ const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '�
 // "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
 const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-character': '캐릭터', 'tab-char': '스킬트리', 'tab-items': '장비', 'tab-skills': '스킬 젬', 'tab-map': '지도', 'tab-unlocks': '해금',
-    'tab-season': '루프 패시브', 'tab-traits': '직업전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
+    'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-pruning': '가지치기', 'tab-arcana': '아르카나', 'tab-codex': '도감',
     'tab-expertise': '전문가',
     'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적'
 });
@@ -322,8 +322,8 @@ function setTutorialCallout(tabId, holdMs) {
 /** First passive point and first piece of gear for a new character: the old tab-unlock notices that carried these
  * guides never fire now (the tabs start open). Saves that saw those notices (seenAs), and later loops, skip them. */
 const TUTORIAL_STARTER_GUIDES = Object.freeze([
-    { key: 'tutorial_first_passive', seenAs: 'unlock_char', tabId: 'tab-char', title: '첫 패시브 포인트',
-        body: '레벨이 올라 패시브 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
+    { key: 'tutorial_first_passive', seenAs: 'unlock_char', tabId: 'tab-char', title: '첫 스킬트리 포인트',
+        body: '레벨이 올라 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n착용하면 생명 구슬 위에 DPS 변화가 뜹니다.',

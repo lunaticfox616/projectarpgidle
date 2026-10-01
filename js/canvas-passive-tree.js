@@ -765,6 +765,13 @@ function highlightEquipTextLocal(text, query) {
     return out;
 }
 
+/** 장착 칸 이름: 칸이 좁아(약 68px) "마법의 녹…"처럼 등급 수식어만 남았다 — 등급은 글자색이 말해 주니 바탕 이름을 쓴다.
+ * 고유 · 특수 이름 장비는 그 이름이 곧 정체라 그대로(전체 이름은 title과 툴팁). */
+function paperdollItemLabel(item) {
+    if (item.rarity === 'unique' || !item.baseName) return item.name || item.baseName || '장비';
+    return item.baseName;
+}
+
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
     let query = getEquipSearchQueryLocal();
@@ -793,7 +800,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span>${displaySlot}</span>${equipmentSocketsUi.pipsHtml(item)}</div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
-                <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}</div>
+                <div class="item-title equipment-slot-name ${item.rarity}" title="${escapeHTML(item.name)}">${hi(paperdollItemLabel(item))}</div>
                 ${footer}
             </div>`;
         } else {
@@ -931,7 +938,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
         }
         return highlightEquipTextLocal(text, query);
     };
-    let lockIcon = item.locked ? ' 🔒' : '';
+    let lockIcon = item.locked ? ' (잠금)' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined'
         && equipmentLoadoutRuntime.isReferenced(item);

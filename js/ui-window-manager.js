@@ -18,6 +18,10 @@
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
     const WORKSPACE_EDGE = 8;
+    // PC HUD 메뉴 이름(아이콘 아래 한 줄)은 네 글자 폭에 맞춘다. 긴 이름은 줄이고, 전체 이름은 올려 두면 뜨는 이름표에 남는다.
+    const RAIL_SHORT_CAPTIONS = Object.freeze({ 'btn-tab-season': '루프', 'btn-tab-stump': '그루터기' });
+    // 바에 다 못 실을 때 기타로 보내는 순서: 나중에 열리는 부가 메뉴(뒤쪽부터)가 먼저, 이 핵심 창들은 마지막까지 바에 남는다.
+    const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-journal']);
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
@@ -526,6 +530,10 @@
         return ordered;
     }
 
+    function railCaption(id, label) {
+        return RAIL_SHORT_CAPTIONS[id] || label;
+    }
+
     function wrapRailButtonLabel(button) {
         if (!button || !button.childNodes || button.querySelector(':scope > .ui-rail-label')) return;
         let textNodes = Array.from(button.childNodes)
@@ -534,6 +542,7 @@
         let label = document.createElement('span');
         label.className = 'ui-rail-label';
         label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
+        button.dataset.caption = railCaption(button.id, label.textContent);
         if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);
@@ -726,9 +735,20 @@
         let leftRoom = countRailWingRoom(left, shown);
         shown.forEach(button => right.appendChild(button));
         let rightRoom = countRailWingRoom(right, shown);
-        let leftCount = Math.min(leftRoom, Math.max(Math.ceil(shown.length / 2), shown.length - rightRoom));
-        shown.slice(0, leftCount).forEach(button => left.appendChild(button));
-        return shown.slice(leftCount + rightRoom);
+        let overflow = pickRailOverflow(shown, leftRoom + rightRoom);
+        let kept = shown.filter(button => !overflow.includes(button));
+        let leftCount = Math.min(leftRoom, Math.max(Math.ceil(kept.length / 2), kept.length - rightRoom));
+        kept.slice(0, leftCount).forEach(button => left.appendChild(button));
+        return overflow;
+    }
+
+    /** The buttons that go to 기타 when only `room` fit on the bar: auxiliary tabs from the back first, core windows last. */
+    function pickRailOverflow(shown, room) {
+        let spare = shown.length - room;
+        if (spare <= 0) return [];
+        let auxiliary = shown.filter(button => !RAIL_CORE_TAB_IDS.has(button.id)).reverse();
+        let core = shown.filter(button => RAIL_CORE_TAB_IDS.has(button.id)).reverse();
+        return [...auxiliary, ...core].slice(0, spare);
     }
 
     function measureRailOverflow(tabLayer, visible) {

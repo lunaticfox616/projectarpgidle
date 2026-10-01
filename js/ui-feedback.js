@@ -323,6 +323,11 @@
         setTimeout(() => toast.remove(), fadeMs);
     }
 
+    /** 알림 글: 도트 UI에 컬러 이모지를 섞지 않는다(기록 줄은 decorateCombatLogMessage가 같은 일을 한다). */
+    function toastText(message) {
+        return typeof stripDecorativeEmoji === 'function' ? stripDecorativeEmoji(message) : String(message);
+    }
+
     function showGameToast(message, options) {
         if (!message) return null;
         ensureFeedbackRoot();
@@ -331,7 +336,7 @@
         let toast = document.createElement('div');
         let tone = opts.tone || 'info';
         toast.className = `game-toast game-toast-${tone}`;
-        toast.innerHTML = `<span class="game-toast-mark">${tone === 'success' ? '✓' : tone === 'danger' ? '!' : tone === 'warning' ? '△' : '◆'}</span><span>${escapeFeedbackHtml(message)}</span>`;
+        toast.innerHTML = `<span class="game-toast-mark">${tone === 'success' ? '✓' : tone === 'danger' ? '!' : tone === 'warning' ? '△' : '◆'}</span><span>${escapeFeedbackHtml(toastText(message))}</span>`;
         region.appendChild(toast);
         while (region.children.length > 4) region.firstElementChild.remove();
         requestAnimationFrame(() => toast.classList.add('active'));

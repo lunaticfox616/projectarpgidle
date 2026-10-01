@@ -57,7 +57,8 @@ body[data-ui-skin] {
   --px-plate-border: 26px;
   --px-plate-frame: var(--px-frame-plate) 26 / var(--px-plate-border) / 0 stretch;
   font-family: var(--font-body);
-  font-synthesis-weight: none;
+  /* 도트 글꼴은 400 한 벌뿐: 굵기 · 기울임을 브라우저가 흉내 내면 획이 두 겹으로 번진다(속성 한 벌만 아는 웹뷰도 막게 줄임 속성으로) */
+  font-synthesis: none;
   /* 도트 글꼴은 글자 폭이 넓어 줄이 자주 넘는다: 한글 단어 중간("초기/화")이 아니라 띄어쓰기에서 끊고, 한 단어가 줄보다 길 때만 쪼갠다. */
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -174,6 +175,36 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] #btn-tab-skills.starter-gem-tutorial-pending { box-shadow: inset 3px 0 var(--px-gold-bright); }
 @keyframes px-target-blink { 50% { box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-bronze); } }
+/* 젬 카드의 공격 범위 줄: 한 줄 말줄임("인접 단일 · 사거리 1…")으로 잘려 사거리가 안 보였다 — 두 줄까지 감싼다 */
+:root body[data-ui-skin] .gem-card-range { white-space: normal; overflow: visible; text-overflow: clip; }
+/* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감 · 전문가 · 별쐐기) */
+:root body[data-ui-skin] :is(.equipment-aux-store, #ui-star-wedge-panel button, #passive-star-wedge-drawer summary strong,
+  #ui-season-tree strong, #ui-talent-card-grid :is(span, strong, .talent-slot), .talent-bloom-filter :is(strong, span),
+  .talent-bloom-summary, .talent-bloom-summary :is(span, strong), #ui-talent-summary :is(span, strong),
+  .offline-progress-upgrade button, #ui-codex-list :is(.item-title, .codex-hunt-toggle, .codex-slot-heading span),
+  .expertise-panel > button, .expertise-summary, #ui-records-body div > span) { font-size: 12px; }
+:root body[data-ui-skin] .loop-node-rank { font-size: 12px; line-height: 12px; }
+:root body[data-ui-skin] :is(.records-stat-value, #trait-season-section h2 span, #ui-season-text-tab span) { font-size: 15px; }
+:root body[data-ui-skin] #ui-expert-tree-title { font-size: 16px; }
+:root body[data-ui-skin] :is(#tab-talent .ui-window-body > p, .talent-bloom-view-tabs > button) { font-size: 12px; }
+/* 전투 기록 · 툴팁 줄: overflow-wrap:anywhere(와 word-break:break-word)는 줄이 좁아지면 한글 낱말 한가운데서 끊었다
+   ("[마법 / 의 들바람 장화]") — 띄어쓰기에서 끊고, 한 낱말이 줄보다 길 때만 쪼갠다. */
+:root body[data-ui-skin] :is(.log-msg, .tooltip-line, .item-description) { word-break: keep-all; overflow-wrap: break-word; }
+/* 보스 특성: 옛 장식 틀의 칸(막대 한가운데, 7 ~ 10px 글씨)에 절대 위치로 얹혀 체력 숫자를 가렸다 — 정예처럼 막대 아래 한 줄(12px) */
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .enemy-traits,
+:root body[data-ui-skin].mobile-battle-tab #tab-battle .enemy-card.enemy-boss .enemy-traits {
+  position: static;
+  width: fit-content;
+  max-width: 92%;
+  height: auto;
+  margin: 3px auto 0;
+  padding: 2px 7px;
+  background: rgba(15, 10, 12, .55);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  text-shadow: var(--px-text-edge);
+}
 /* 적 체력 막대의 붉은 번짐(휴대폰 · PC 대상 적): 윗면 밝은 한 줄만 남긴다 */
 :root body[data-ui-skin] .hp-bar-fill.enemy,
 :root body[data-ui-skin].mobile-battle-tab #tab-battle .hp-bar-fill.enemy,
@@ -299,7 +330,12 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   image-rendering: pixelated;
 }
 /* 방치 전투 결과: 비운 시간 → 전투 진행 계산식 한 줄 */
-:root body[data-ui-skin] .background-result-formula { margin: 6px 0 0; color: var(--px-copy-muted); font-size: 12px; line-height: 1.5; }
+/* 계산식은 흐린 회색이면 "8시간에 18분"의 까닭을 못 읽는다 — 본문 글빛 */
+:root body[data-ui-skin] .background-result-formula { margin: 6px 0 0; color: var(--px-copy); font-size: 12px; line-height: 1.5; }
+/* 자리를 비운 동안 지나온 이야기: 한 줄 알림 + 기록 열기 */
+:root body[data-ui-skin] .background-result-story { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--px-ink); background: #141216; box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30; color: var(--px-gold-bright); font-size: 12px; line-height: 1.6; }
+:root body[data-ui-skin] .background-result-story > span { flex: 1 1 auto; min-width: 0; word-break: keep-all; overflow-wrap: break-word; }
+:root body[data-ui-skin] .background-result-story button { flex: none; font-size: 12px; }
 /* 첫 실행: 직업 선택판은 부팅 때 열려 있어 불러오기 판 뒤로 흐리게 비쳤다 — 불러오는 동안은 감춘다 */
 :root body[data-ui-skin].loading-active #loop-hero-select-overlay { visibility: hidden; }
 :root body[data-ui-skin] #startup-overlay .startup-summary-grid[hidden] { display: none; }

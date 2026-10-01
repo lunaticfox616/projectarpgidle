@@ -6167,6 +6167,11 @@ function setDeathLogView(view) {
         : renderDeathElementView(activeDeathLog);
 }
 
+/** 잃은 경험치 줄: 잃은 것이 없으면(레벨 1 첫 사망 등) "0 잃었습니다" 대신 줄을 뺀다. */
+function describeDeathExpLoss(log) {
+    return log.expLost > 0 ? `경험치를 ${log.expLost} 잃었습니다.` : '';
+}
+
 /** 탐험 중 쓰러지면 모아 둔 전리품이 사라지고 지도를 처음부터 다시 밝힌다 — 보고서에 그 사실을 적는다. */
 function describeDeathLootLoss(log) {
     if (!log.lostItems && !log.lostCurrencies) return '';
@@ -6190,7 +6195,7 @@ function openDeathOverlay(log) {
         return `마지막 피해: ${source}\n최근 주요 피해: ${recent}`;
     };
     document.getElementById('deathlog-title').innerText = '전투에서 쓰러졌습니다.';
-    document.getElementById('deathlog-body').innerText = [describeDamage(), `경험치를 ${log.expLost} 잃었습니다.`, describeDeathLootLoss(log),
+    document.getElementById('deathlog-body').innerText = [describeDamage(), describeDeathExpLoss(log), describeDeathLootLoss(log),
         log.retreatZoneName ? `${withDirectionParticle(log.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.` : '', `죽기 전 상태이상: ${ailmentText}`].filter(Boolean).join('\n');
     document.querySelectorAll('[data-deathlog-view]').forEach(tab => { tab.onclick = () => setDeathLogView(tab.dataset.deathlogView); });
     setDeathLogView('element');
@@ -9385,7 +9390,7 @@ function openEncroachmentLiberationOverlay(item, options) {
         return `<button id="encroach-opt-${idx}" onclick="confirmEncroachmentLiberation(${idx})" disabled style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;pointer-events:none;display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid #5a3f8f;border-radius:10px;background:linear-gradient(90deg,rgba(40,24,64,.92),rgba(24,16,40,.92));color:#e7d8ff;font-size:15px;cursor:pointer;"><span>${label}</span><span style="color:#b79bff;font-size:12px;">[T${stat.tier || 10}]</span></button>`;
     }).join('');
     overlay.innerHTML = `<div style="width:min(520px,calc(95vw / var(--scale-display-factor, 1)));background:#120c1e;border:1px solid #6a47b3;border-radius:14px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.6);">`
-        + `<div style="color:#caa6ff;font-size:19px;font-weight:700;margin-bottom:4px;">🕳️ 잠식 해방</div>`
+        + `<div style="color:#caa6ff;font-size:19px;font-weight:700;margin-bottom:4px;">잠식 해방</div>`
         + `<div style="color:#b9a7d8;font-size:13px;margin-bottom:14px;line-height:1.5;">[${item.name}] · 최고 티어 옵션 셋 중 <strong style="color:#e7d8ff;">반드시 하나</strong>를 선택해야 합니다.</div>`
         + `<div style="display:grid;gap:10px;">${rows}</div>`
         + `<div id="encroach-hint" style="opacity:0;transition:opacity .5s ease;margin-top:12px;color:#9b86c4;font-size:12px;text-align:center;">옵션이 모두 드러나면 하나를 선택하세요.</div>`
@@ -9775,7 +9780,7 @@ function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return
     if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
     game.currencies.ouroboros--;
     item.loopSealed = true;
-    addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프(환생)가 진행되어도 사라지지 않습니다.`, 'loot-unique');
+    addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.`, 'loot-unique');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -10134,7 +10139,7 @@ function addItemToInventory(item, options) {
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
     if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
-        const label = result.kind === 'overflow' ? '🎒 공간 부족 자동해체' : '🧪 자동해체';
+        const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
         addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
     }
     return result.accepted;

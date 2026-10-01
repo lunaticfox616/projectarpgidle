@@ -130,6 +130,17 @@ const storyJournalUi = (() => {
         document.body.appendChild(reader);
         reader.showModal();
     }
-    return {sync,renderTutorial,openEntry,filter,refreshArchiveFilter,setAutoShow,allowsNotice};
+    /** 방치 복귀: 자리를 비운 동안 지나온 액트의 장면은 한 장씩 띄우지 않는다 — 가장 최근 장면만 남기고 나머지는 본 것으로
+     * 표시한다(지나온 액트는 깼으니 기록에서 읽을 수 있다). Returns the folded scenes' headings for the result card. */
+    function foldPassedScenes() {
+        const queued = new Set(tutorialQueue.map(notice => notice.key));
+        const pending = STORY_JOURNAL_SCENES.filter(scene => scene.id !== 'prologue'
+            && (queued.has('story_'+scene.id) || (available(scene) && !game.seenTutorials.includes('story_'+scene.id))));
+        const passed = pending.slice(0, -1), keys = new Set(passed.map(scene => 'story_'+scene.id));
+        keys.forEach(key => { if (!game.seenTutorials.includes(key)) game.seenTutorials.push(key); });
+        for (let i = tutorialQueue.length - 1; i >= 0; i--) if (keys.has(tutorialQueue[i].key)) tutorialQueue.splice(i, 1);
+        return passed.map(sceneHeading);
+    }
+    return {sync,renderTutorial,openEntry,filter,refreshArchiveFilter,setAutoShow,allowsNotice,foldPassedScenes};
 })();
 safeExposeGlobals({ storyJournalUi });

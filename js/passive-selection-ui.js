@@ -32,7 +32,7 @@ const passiveSelectionUi = (() => {
         let panel = document.getElementById('passive-mobile-detail');
         if (!panel) {
             panel = document.createElement('section'); panel.id = 'passive-mobile-detail';
-            panel.setAttribute('aria-label', '선택한 패시브');
+            panel.setAttribute('aria-label', '선택한 노드');
             document.getElementById('tab-char').appendChild(panel);
         }
         const owned = game.passives.includes(node.id);
@@ -40,7 +40,7 @@ const passiveSelectionUi = (() => {
         const cost = path.length;
         const enabled = canAct(node, cost);
         const label = confirmLabel(node, owned, cost);
-        panel.innerHTML = `<header><strong>선택한 패시브</strong><button type="button" data-passive-close>닫기</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><button type="button" data-passive-confirm ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
+        panel.innerHTML = `<header><strong>선택한 노드</strong><button type="button" data-passive-close>닫기</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><button type="button" data-passive-confirm ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
         panel.hidden = false;
         panel.querySelector('[data-passive-close]').onclick = hide;
         refreshGuide();

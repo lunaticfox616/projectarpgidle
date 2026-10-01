@@ -138,7 +138,7 @@ function renderTalentCollectionCard(key, owned) {
         </div>
         <div class="talent-card-sub">재능 ${heroLabel} · 전직 ${classLabel}</div>
         <div class="talent-card-effects">${lines.join('<br>')}</div>
-        <div class="talent-card-foot">${equipped ? '✅ 장착됨 · ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))} · 개화 ${Math.max(0, Math.floor(card.count || 0))}회 · ${nextText}</div>
+        <div class="talent-card-foot">${equipped ? '장착됨 · ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))} · 개화 ${Math.max(0, Math.floor(card.count || 0))}회 · ${nextText}</div>
     </div>`;
 
 }
@@ -147,8 +147,8 @@ function renderTalentScoreSummary(count) {
     let bd = getTalentBloomScoreBreakdown();
     let curScore = getTalentBloomScore();
     return `보유 카드 <strong>${count}</strong> / ${TALENT_BLOOM_TOTAL_CARDS} · 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
-        + `<br><span style="font-size:0.85em; color:var(--copy-bright);">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
-        + `<br><span style="font-size:0.82em; color:#9fe2b1;">한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
+        + `<br><span style="font-size:12px; color:var(--copy-bright);">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
+        + `<br><span style="font-size:12px; color:#9fe2b1;">한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
 }
 
 function renderTalentTab() {
@@ -173,13 +173,13 @@ function renderTalentTab() {
     let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);"> · 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
     let loadoutHtml = `${renderCurrentTalentBloomContext(owned)}${renderTalentBloomNavigator(owned)}<div class="talent-loadout-panel">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
-            <strong>장착 슬롯</strong><span style="font-size:0.82em;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>
+            <strong>장착 슬롯</strong><span style="font-size:12px;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>
         </div>
         <div class="talent-slot-row">${slotHtml}</div>
     </div>`;
 
     if (ownedKeys.length === 0) {
-        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 🌸 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 현재 재능 × 직업 조합의 카드를 얻습니다.</div>`;
+        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 현재 재능 × 직업 조합의 카드를 얻습니다.</div>`;
         return;
     }
     // 레벨 내림차순 정렬

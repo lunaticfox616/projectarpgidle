@@ -3075,7 +3075,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
-    let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `🌸 재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
+    let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
 
     const damageSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
     let gearTagged = getTaggedDamageBreakdown(gearBase, damageSkill);
@@ -6664,7 +6664,7 @@ function unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBl
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
     game.ascendRank = Math.max(game.ascendRank || 0, 5);
     if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_fifth_node', '5차 특화 노드', '이번 루프에 처음 피운 개화 조합으로 5차 특화 노드가 열렸습니다.\n‘스킬트리 → 직업전직’에서 재능·전직 특화 노드를 확인하세요.', 'tab-traits');
+        queueTutorialNotice('unlock_fifth_node', '5차 특화 노드', '이번 루프에 처음 피운 개화 조합으로 5차 특화 노드가 열렸습니다.\n‘스킬트리 → 전직’에서 재능·전직 특화 노드를 확인하세요.', 'tab-traits');
     }
     addLog(`[${classLabel}] 5차 특화 개방: 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
     return true;
@@ -9114,7 +9114,7 @@ function finishEncounterRun() {
         if (!game.unlocks.traits) game.unlocks.traits = true;
         game.noti.traits = true;
         if (zone.id === 'trial_1' && isFirstClear) {
-            queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 직업전직’에서 직업을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
+            queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 직업을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
         }
         checkUnlocks();
         if (zone.id !== 'trial_4') {

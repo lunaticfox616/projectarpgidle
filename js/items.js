@@ -772,7 +772,7 @@ function getZoneTravelBlockReason(id) {
     const atlasReason = atlas.travelReason(game, id);
     if (atlasReason) return atlasReason;
     if (getZone(id)?.type === 'trial' && !contentProgression.isUnlocked('battleTrials')) {
-        return '루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
+        return '루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
     }
     if (game.pendingLoopReady) {
         return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
@@ -1244,7 +1244,7 @@ function buildBlackMarketOffer(index) {
 function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
     let effect = (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || '';
     let sourceStats = Array.isArray(offer && offer.uniqueStats) ? offer.uniqueStats : (uniq && uniq.stats);
-    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(effect)}</div>` : '';
+    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">고유 효과: ${escapeHTML(effect)}</div>` : '';
     let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
         let statId = stat.id;
         let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
@@ -1333,8 +1333,8 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
         let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
-        let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">🌠 체이싱 유니크 암거래 품목</div>' : '';
-        let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">🎯 시장 정보로 확보한 표적 고유</div>' : '';
+        let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">체이싱 유니크 암거래 품목</div>' : '';
+        let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">시장 정보로 확보한 표적 고유</div>' : '';
         return `<div class="tooltip-title">도감 고유 정보 · ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';

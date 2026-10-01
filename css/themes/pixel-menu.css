@@ -9,6 +9,9 @@ body[data-ui-skin] {
   --px-menu-icons: url('../../assets/ui/pixel/menu-icons.png');
   --px-icon-count: 21;
   --px-key: 40px;
+  /* PC HUD 메뉴 단추 한 칸: 아이콘 틀(40) + 그 아래 이름 한 줄(14). 폭은 네 글자(48px). */
+  --px-key-slot: 48px;
+  --px-key-caption: 14px;
   --px-key-frame: url('../../assets/ui/pixel/hud-key.png');
   --px-key-frame-on: url('../../assets/ui/pixel/hud-key-on.png');
 }
@@ -88,9 +91,9 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   /* [생명 구슬][플라스크][정리 · 메뉴 날개][미니맵][메뉴 날개 · 기타][젬][경험치 구슬] — 양쪽 칸 폭이 같아 미니맵이 바 한가운데.
      둥근 셋은 아래 장식이 판 안에 들도록 올라앉고 윗부분이 솟는다. 나머지는 메뉴 단추(40px) 줄에 가운데 맞춘다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell #act-exploration-panel { grid-column: 4; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing { grid-column: 2; justify-self: start; margin-bottom: 4px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing { grid-column: 2; justify-self: start; margin-bottom: calc(4px + var(--px-key-caption)); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { display: none; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 6; justify-self: end; margin-bottom: 2px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 6; justify-self: end; margin-bottom: calc(2px + var(--px-key-caption)); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slots { flex-wrap: nowrap; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 32px; width: 32px; height: 32px; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 36px; width: 36px; height: 36px; }
@@ -110,7 +113,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     align-content: flex-start;
     gap: 4px;
     width: auto;
-    height: var(--px-key);
+    height: calc(var(--px-key) + var(--px-key-caption));
     min-width: 0;
     min-height: 0;
     margin: 0;
@@ -125,21 +128,23 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     clip-path: inset(-80px -80px 0 -80px);
   }
   /* 단추는 미니맵 쪽으로 모인다(메뉴가 적을 때 빈자리는 바깥쪽). */
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-left { grid-column: 3; justify-content: flex-end; padding-left: calc(var(--px-key) + 4px); }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-right { grid-column: 5; justify-content: flex-start; padding-right: calc(var(--px-key) + 4px); }
+  /* 왼쪽 날개는 빈 플라스크 칸(2열)까지 쓴다 — 단추 밑 이름 때문에 한 칸이 넓어져 핵심 메뉴가 기타로 밀려났다. */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-left { grid-column: 2 / 4; justify-content: flex-end; padding-left: calc(var(--px-key-slot) + 4px); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-wing-right { grid-column: 5; justify-content: flex-start; padding-right: calc(var(--px-key-slot) + 4px); }
   /* 정리는 왼쪽 날개 바깥 끝, 기타는 오른쪽 날개 바깥 끝(날개 안쪽 여백 자리에 겹쳐 놓는다). */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls { display: contents; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button { grid-row: 1; align-self: end; z-index: 4; }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-close-all-windows { grid-column: 3; justify-self: start; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-close-all-windows { grid-column: 2; justify-self: start; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc { grid-column: 5; justify-self: end; }
 
-  /* 메뉴 단추: 네모 틀(scripts/build-hud-kit.cjs, 40도트) + 13도트 금빛 아이콘(2배). 열린 창은 틀이 금빛. */
+  /* 메뉴 단추: 네모 틀(scripts/build-hud-kit.cjs, 40도트) + 13도트 금빛 아이콘(2배) + 아래 이름 한 줄. 열린 창은 틀이 금빛.
+     이름(검토 2026-10-01): 아이콘만으로는 열네 개를 가려보기 어려웠다. 판 위쪽이 비어 있어 아이콘 줄을 이름 높이만큼 올렸다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn,
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button {
     position: relative;
-    flex: 0 0 var(--px-key);
-    width: var(--px-key);
-    height: var(--px-key);
+    flex: 0 0 var(--px-key-slot);
+    width: var(--px-key-slot);
+    height: calc(var(--px-key) + var(--px-key-caption));
     min-width: 0;
     min-height: 0;
     margin: 0;
@@ -147,7 +152,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     border: 0;
     overflow: visible;
     border-radius: 0;
-    background: var(--px-key-frame) center / 100% 100% no-repeat;
+    background: var(--px-key-frame) top center / var(--px-key) var(--px-key) no-repeat;
     box-shadow: none;
     color: transparent;
     font-size: 12px;
@@ -157,15 +162,45 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     cursor: pointer;
     transform: none;
   }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button { font-size: 0; }
+  /* 정리 · 기타는 단추 글자가 곧 이름이다(아이콘 틀 아래로 내린다). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button { display: block; padding-top: var(--px-key); color: var(--px-copy-muted); font-family: var(--font-pixel); font-size: 12px; line-height: var(--px-key-caption); text-align: center; white-space: nowrap; text-shadow: var(--px-text-edge); }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn::before {
+    content: attr(data-caption);
+    position: absolute;
+    top: auto;
+    right: -4px;
+    bottom: 0;
+    left: -4px;
+    /* components/tabs.css가 옛 이모지 아이콘을 숨기려고 모든 탭 단추의 ::before를 display:none !important로 끈다 — 이 HUD 메뉴 이름만 되살린다 */
+    display: block !important;
+    width: auto;
+    height: var(--px-key-caption);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--px-copy-muted);
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    line-height: var(--px-key-caption);
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: var(--px-text-edge);
+    transform: none;
+    pointer-events: none;
+  }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(:hover, :focus-visible, .ui-window-open, [aria-pressed='true'])::before,
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:is(:hover, :focus-visible, [aria-expanded='true']) { color: var(--px-gold-bright); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn::after,
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button::after {
     content: '';
     position: absolute;
-    inset: 7px;
+    inset: 7px calc((var(--px-key-slot) - var(--px-key)) / 2 + 7px) auto;
     display: block;
     width: auto;
-    height: auto;
+    height: calc(var(--px-key) - 14px);
     margin: 0;
     padding: 0;
     border: 0;
@@ -180,13 +215,13 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:is(:hover, :focus-visible)::after { filter: brightness(1.22); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(.ui-window-open, [aria-pressed='true']),
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc[aria-expanded='true'] {
-    background: var(--px-key-frame-on) center / 100% 100% no-repeat;
+    background: var(--px-key-frame-on) top center / var(--px-key) var(--px-key) no-repeat;
     box-shadow: none;
   }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:is(.ui-window-open, [aria-pressed='true'])::after,
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > #btn-ui-rail-misc[aria-expanded='true']::after { filter: brightness(1.18); }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn:active::after,
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:active::after { inset: 8px 7px 6px; }
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-external-controls > button:active::after { top: 8px; }
 
   /* 이름표: 단추에 올리면 위에 뜬다(단축키가 있으면 옆에). 기타·정리는 aria-label을 쓴다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn > .ui-rail-label,
@@ -229,7 +264,7 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > :is(.ui-rail-tab-layer, .ui-rail-external-controls) > :is(.tab-btn, button) > .noti-dot {
     position: absolute;
     top: 1px;
-    right: 1px;
+    right: calc((var(--px-key-slot) - var(--px-key)) / 2 + 1px);
     left: auto;
     z-index: 2;
     width: 8px;
@@ -335,7 +370,10 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
 
 /* ─── 휴대폰: 하단 메뉴 띠 = HUD 돌판의 아랫단 ─────────────────────────────────── */
 @media (max-width: 1080px) {
-  body[data-ui-skin].mobile-primary-navigation { --mobile-primary-nav-height: 66px; }
+  /* 메뉴 칸이 손가락 크기(44px 이상)가 되게: 전투 화면이 아닐 때는 띠 위 테(13px)까지 있어 66px에서는 칸이 38px였다 */
+  body[data-ui-skin].mobile-primary-navigation { --mobile-primary-nav-height: 72px; }
+  /* 테(13px) 안쪽 위아래 여백 3px도 칸 높이로(안전 영역 여백은 그대로) — 칸 46px */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom { padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom {
     border: var(--px-plate-border) solid transparent;
     border-image: var(--px-plate-frame);
