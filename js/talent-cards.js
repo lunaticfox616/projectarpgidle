@@ -218,6 +218,7 @@ function getTalentCardEffectLines(heroId, classKey, level) {
 
 // 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
 const TALENT_UNIQ_LABELS = {
+    projectilePatternMode: p => `투사체 패턴: ${typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[p.mode] ? PROJECTILE_PATTERN_MODE_DB[p.mode].label : p.mode}`,
     cosmosPenetration: p => `저항 관통 +${p.pen}%`,
     poisonDamageMorePct: p => `중독 피해 +${p.pct}%`,
     igniteDamageMorePct: p => `점화 피해 +${p.pct}%`,

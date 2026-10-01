@@ -111,6 +111,9 @@ cardIds.forEach(cardId => {
     `${cardId}: 장착 슬롯에서 고유 효과가 유실됐다`);
 });
 
+const uniqueLabels = vm.runInContext('Object.keys(TALENT_UNIQ_LABELS)', context);
+declaredUniqueKeys.forEach(key => assert.ok(uniqueLabels.includes(key), `${key}: 카드 효과 문구가 있어야 한다(없으면 키 이름이 그대로 보인다)`));
+
 declaredStats.forEach(stat => {
   const bucket = context.createEmptyStatBucket();
   const before = JSON.stringify(bucket);
