@@ -213,6 +213,8 @@
   .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
   .gem-target-list { max-height: none; }
   .craft-picker-overlay { z-index: 24000; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 8px; }
+  /* 선택 창(코어 · 주얼 보관함 · 혼돈 주입 · 큐브 고르기)도 메뉴 띠 위에: 아래 메뉴를 누르면 창이 남은 채 탭만 바뀌었다 */
+  .selection-overlay { z-index: 24000; padding: 8px; }
   .craft-picker-grid { grid-template-columns: minmax(0, 1fr); }
   .craft-picker-card .craft-picker-stat { line-height: 1.4; }
   .craft-picker-search { display: flex; gap: 6px; margin: 8px 0; }

@@ -214,6 +214,20 @@ async function main() {
     assert.strictEqual(run("battleFx.filter(fx => fx.type === 'hit').length"), 3,
         'small fights must retain individual hit feedback');
 
+// 권장 전투력의 보스 피해도 실제 전투와 같은 루프 피해 곡선을 쓴다(PR #1030 리뷰: 전에는 곡선을 빼서 루프 26 이상에서 1.3배쯤 높았다).
+{
+    const estimate = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+        game.season = 26; game.loopCount = 25;
+        const zone = getZone(9), keep = getMonsterLoopPowerScale, scale = keep(zone, 'damage');
+        const real = estimateMapZonePowerRequirements(zone);
+        getMonsterLoopPowerScale = (z, kind) => kind === 'damage' ? 1 : keep(z, kind);
+        const flat = estimateMapZonePowerRequirements(zone);
+        getMonsterLoopPowerScale = keep;
+        return { scale, real: real.peakHit, flat: flat.peakHit };
+    })())`, context));
+    assert.ok(Math.abs(estimate.scale - 1) > 0.05, 'loop 26 changes monster damage');
+    assert.notStrictEqual(estimate.real, estimate.flat, 'the estimate reads the monster damage curve');
+}
     console.log('smoke-endgame-resource-pressure passed');
 }
 

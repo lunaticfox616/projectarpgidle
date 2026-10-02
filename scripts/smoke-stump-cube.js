@@ -86,6 +86,20 @@ assert.deepStrictEqual(json('cubeView()'), [['equipment', 0, 0, 2, 2]], 'the soc
 run('stumpCube.clear(game); game.currencies.voidChisel = 1; globalThis.ring2 = makeGear("반지", "rare"); globalThis.j2 = generateJewelDrop(6); game.jewelInventory.push(j2); putIn("equipment", ring2); putIn("jewel", j2);');
 assert.strictEqual(run('stumpCube.match(game)'), null, 'a ring already has its socket: nothing to chisel');
 
+// 소모되는 장비에 박힌 주얼은 주얼 보관함으로 돌아온다(전에는 장비와 함께 사라졌다). 보관함이 가득하면 조합하지 않는다.
+run(`stumpCube.clear(game); game.inventory = []; game.jewelInventory = []; globalThis.jewelRing = makeGear('반지', 'magic', 5);
+    globalThis.ringJewel = generateJewelDrop(6); game.jewelInventory.push(ringJewel); equipmentSockets.insert(jewelRing, ringJewel.id, game);
+    putIn('equipment', jewelRing); putIn('stump', ripe('seed', 'fire'));`);
+assert.strictEqual(run('stumpCube.match(game).recipe.id'), 'equip_magic_upgrade');
+run('game.jewelInventory = Array.from({ length: getJewelInventoryLimit() }, () => generateJewelDrop(1));');
+const fullRefusal = json('stumpCube.transmute(game)');
+assert.strictEqual(fullRefusal.ok, false, 'no room for the socketed jewel: the cube refuses');
+assert(json('game.inventory.includes(jewelRing)') && json('equipmentSockets.list(jewelRing).some(row => row.jewel && row.jewel.id === ringJewel.id)'),
+    'the refused ring keeps its jewel');
+run('game.jewelInventory = [];');
+assert.strictEqual(run('stumpCube.transmute(game).ok'), true);
+assert.deepStrictEqual(json('game.jewelInventory.map(jewel => jewel.id)'), [run('ringJewel.id')], 'the consumed ring gave its jewel back');
+
 // ── 그루터기: 합치기 · 부적 ─────────────────────────────────────────────────────
 run(`stumpCube.clear(game); game.stumpBox.items = []; game.stumpBox.board = game.stumpBox.board.map(() => null);
     globalThis.seeds = [1, 1.2, 1.1].map(roll => stumpBox.createItem(game, { family: 'seed', color: 'fire', roll }));

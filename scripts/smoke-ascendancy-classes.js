@@ -342,6 +342,15 @@ for (const id of newCards) {
     assert.ok(!/[·]/.test(cardDefs[id].surface.desc), `${id}: no middle dot in the card text`);
 }
 
+// 실제 루프 초기화도 전직 노드를 비우기 전에 기억한다(PR #1030 리뷰: 노드를 먼저 비워서 키스톤만 기억했다).
+const resetPlan = json(`(() => {
+    showGameToast = () => {};
+    game = mergeDefaults({ heroSelectionInitialized: true, selectedHeroId: 'hero2', selectedClassId: 'warrior', season: 5, level: 60 }); window.game = game;
+    game.ascendClass = 'berserker'; game.ascendNodes = ['n1', 'n2', 'n3']; game.ascendKeystones = ['bz1'];
+    triggerSeasonReset('chaos');
+    return game.lastLoopAscendPlan;
+})()`);
+assert.deepEqual(resetPlan, { ascendClass: 'berserker', nodes: ['n1', 'n2', 'n3'], keystones: ['bz1'] }, 'the loop reset remembers nodes and keystones');
 // 지난 루프처럼: 루프 초기화가 전직 배치를 기억하고, 같은 직업이면 고르기 화면이 그 전직을 내놓고 포인트만큼 같은 순서로 다시 산다.
 const plan = json(`(() => {
     game = mergeDefaults({ heroSelectionInitialized: true, selectedHeroId: 'hero2', selectedClassId: 'warrior' }); window.game = game;

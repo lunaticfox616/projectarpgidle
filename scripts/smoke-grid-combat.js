@@ -533,8 +533,11 @@ const cfg = context.COMBAT_GRID_CONFIG;
     assert.ok(cosmosRecommendedEhp[index + 1] > cosmosRecommendedEhp[index],
       `G${index + 2} 개인화 권장 EHP는 이전 은하보다 높아야 한다`);
   });
+  // 권장 전투력도 실제 전투와 같은 루프 피해 곡선을 쓴다(PR #1030 리뷰): 생명력 구간처럼 기준 구간에 같은 배율을 곱한다.
+  const cosmosDamageScale = context.getMonsterLoopPowerScale(cosmosEntry, 'damage');
+  assert.ok(cosmosDamageScale > 0.5 && cosmosDamageScale <= 1, 'cosmos damage uses the loop power curve');
   cosmosRecommendedEhp.forEach((ehp, index) => {
-    const [min, max] = cosmosEhpBands[index];
+    const [min, max] = cosmosEhpBands[index].map(value => value * cosmosDamageScale);
     assert.ok(ehp >= min && ehp <= max,
       `G${index + 1} 권장 EHP ${Math.round(ehp)}는 ${min}~${max} 성장 구간 안이어야 한다`);
   });

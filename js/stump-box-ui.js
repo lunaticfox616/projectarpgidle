@@ -126,15 +126,15 @@ const stumpBoxUi = (() => {
         return `<p class="stump-yield">${stumpBox.isMature(item) ? '' : '다 자라면 '}${escStump(gain.text.replace('{v}', stumpNumber(value)))}</p>`;
     }
     function stumpStatusLine(item, result, cell) {
-        if (cell < 0) return '<p class="stump-status">보관함에 있습니다 · 보관함에서는 자라지 않습니다.</p>';
+        if (cell < 0) return '<p class="stump-status">보관함에 있어 자라지 않습니다.</p>';
         if (result.suppressed.has(item.id)) {
             const rival = STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label;
-            return `<p class="stump-status is-bad">억제됨 — 상하좌우로 맞닿은 ${rival} 아이템 때문에 자라지 않고 능력치도 없습니다.</p>`;
+            return `<p class="stump-status is-bad">상하좌우로 맞닿은 ${rival} 아이템에 억제되어 자라지 않고 능력치도 없습니다.</p>`;
         }
         if (stumpBox.isMature(item) && result.resonant.has(item.color)) {
-            return `<p class="stump-status is-good">공명 — 다 자란 ${STUMP_BOX_COLORS[item.color].label} ${result.counts[item.color]}개 · 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%</p>`;
+            return `<p class="stump-status is-good">다 자란 ${STUMP_BOX_COLORS[item.color].label} ${result.counts[item.color]}개가 공명해 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%</p>`;
         }
-        return '<p class="stump-status">판 위에 있습니다 · 처치할 때마다 자랍니다.</p>';
+        return '<p class="stump-status">판 위에서 처치할 때마다 자랍니다.</p>';
     }
     function stumpPathPicker(item) {
         if (item.family !== 'seed' || item.xp > 0) return '';

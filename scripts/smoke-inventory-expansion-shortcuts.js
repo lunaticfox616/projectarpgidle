@@ -17,7 +17,7 @@ assert(!storeFooter().includes('+5칸'), 'the jewel store offers no expansion be
 assert.strictEqual(run("typeof syncInventoryExpansionShortcuts"), 'undefined', 'no growth storage shortcut is left');
 run("contentProgression.purchase('craft');game.contentProgression.inherited.push('jewel');contentProgression.sync();");
 const open = storeFooter();
-assert(open.includes('+5칸 · 황금률') && open.includes('보유 100') && !jewelExpandDisabled(open), 'the jewel store offers the expansion');
+assert(open.includes('+5칸 (황금률') && open.includes('보유 100') && !jewelExpandDisabled(open), 'the jewel store offers the expansion');
 run('game.currencies.goldenRule=0;');
 const poor = storeFooter();
 assert(jewelExpandDisabled(poor) && poor.includes('보유 0'), 'an unaffordable expansion is disabled');

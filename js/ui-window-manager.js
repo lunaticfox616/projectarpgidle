@@ -1249,6 +1249,9 @@
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (document.querySelector('dialog:modal')) return;
+        // 선택 창(코어 · 주얼 보관함 · 혼돈 주입 · 큐브 고르기)이 떠 있으면 맨 위 것만 닫는다: 바깥을 누른 것과 같은 닫기.
+        const selections = document.querySelectorAll('.selection-overlay');
+        if (selections.length) { selections[selections.length - 1].click(); return; }
         if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
         if (document.body.classList.contains('community-overlay-open') || document.body.classList.contains('community-dock-open')) {
             closeCommunityDock();

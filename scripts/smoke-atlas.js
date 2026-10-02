@@ -200,19 +200,20 @@ const migrated = copy(`(() => {
     legacy.worldTreeJourney = { version: 2, unlocked: true, guardians: [1, 2], stage: 2, cleared: ['2:worldtree_root'] };
     legacy.currentZoneId = 'worldtree_grove';
     const state = mergeDefaults(legacy);
-    return { unlocked: state.atlas.unlocked, journey: 'worldTreeJourney' in state, zone: state.currentZoneId, stash: state.atlas.stash.length };
+    return { unlocked: state.atlas.unlocked, journey: 'worldTreeJourney' in state, zone: state.currentZoneId, stash: state.atlas.stash.length,
+        progressZone: getAutoProgressZoneId(state.maxZoneId) };
 })()`);
 assert.equal(migrated.unlocked, true, 'the journey unlock carries over to the atlas');
 assert.equal(migrated.journey, false, 'the journey ledger is gone');
-assert.equal(migrated.zone, 0, 'a save standing in a journey node is moved to a valid zone');
+assert.equal(migrated.zone, migrated.progressZone, 'a save standing in a journey node is moved to its furthest progress zone (not back to act 1)');
 
 run(`game.currentZoneId=29;atlasRun.open(game.atlas.stash[0].uid);`);
 assert.equal(run('game.currentZoneId'), 'atlas_map');
 const inMapSave = copy(`(() => { const state = mergeDefaults(JSON.parse(serializeSaveState(game))); return { zone: state.currentZoneId, run: !!state.atlas.run }; })()`);
 assert.deepEqual(inMapSave, { zone: 'atlas_map', run: true }, 'a save inside a map resumes the map');
 const brokenRun = copy(`(() => { const raw = JSON.parse(serializeSaveState(game)); raw.atlas.run.map.node = 'nowhere'; const state = mergeDefaults(raw);
-    return { zone: state.currentZoneId, run: state.atlas.run }; })()`);
-assert.deepEqual(brokenRun, { zone: 0, run: null }, 'a corrupt open map is refused and the hero stands in a valid zone');
+    return { zone: state.currentZoneId, run: state.atlas.run, progressZone: getAutoProgressZoneId(state.maxZoneId) }; })()`);
+assert.deepEqual(brokenRun, { zone: brokenRun.progressZone, run: null, progressZone: brokenRun.progressZone }, 'a corrupt open map is refused and the hero stands in their furthest progress zone');
 
 const kept = copy('{completed:game.atlas.completed,bonus:game.atlas.bonus,unlocked:game.atlas.unlocked,auto:game.atlas.autoMap}');
 run('atlas.onLoopReset(game);');

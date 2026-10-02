@@ -16,7 +16,7 @@ const hotkeysUi = (() => {
         if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.repeat) return true;
         if (document.body.classList.contains('startup-active')) return true;
         const typing = event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]');
-        return !!typing || !!document.querySelector('dialog:modal, .tutorial-overlay.active');
+        return !!typing || !!document.querySelector('dialog:modal, .tutorial-overlay.active, .selection-overlay');
     }
 
     function flashHudButton(button, ok) {
@@ -86,7 +86,7 @@ const hotkeysUi = (() => {
 
     function startCapture(actionId) {
         capturing = actionId;
-        notice = '새 키를 누르세요. Esc 취소 · Backspace 키 없음';
+        notice = '새 키를 누르세요 (Esc 취소, Backspace 키 없음)';
         render();
         document.querySelector(`#ui-hotkey-settings [data-hotkey-action="${actionId}"]`)?.focus();
     }
@@ -113,8 +113,8 @@ const hotkeysUi = (() => {
         if (!host) return;
         const bindings = hotkeyBindings.effective(overrides());
         const group = kind => hotkeyBindings.actions.filter(action => action.kind === kind).map(action => rowHtml(action, bindings)).join('');
-        host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">창 열기·닫기</div>${group('window')}</div>`
-            + `<div class="hotkey-section"><div class="hotkey-section-title">전투 · 이동</div>${group('combat')}</div>`
+        host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">창 열고 닫기</div>${group('window')}</div>`
+            + `<div class="hotkey-section"><div class="hotkey-section-title">전투와 이동</div>${group('combat')}</div>`
             + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${escapeHTML(notice)}</span>`
             + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>기본값으로</button></div>`;
     }

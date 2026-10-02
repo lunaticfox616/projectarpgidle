@@ -232,4 +232,11 @@ for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
     assert.strictEqual(ctx.__loaded.saveMeta.cloudResetRevision, value === 8 ? 8 : 0);
 }
 
+// 없어진 지역(예전 세계수 지역)에서 저장했으면 액트 1이 아니라 도달한 진행 지역에서 이어 한다(PR #1030 리뷰).
+{
+    const merged = ctx.mergeDefaults({ heroSelectionInitialized: true, season: 12, maxZoneId: 29, currentZoneId: 'worldtree_root' });
+    assert.strictEqual(merged.currentZoneId, ctx.getAutoProgressZoneId(29), 'a save in a removed zone resumes at the furthest progress zone');
+    assert.notStrictEqual(merged.currentZoneId, 0);
+}
+
 console.log('smoke-save-migration passed');

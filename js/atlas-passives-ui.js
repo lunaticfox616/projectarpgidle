@@ -9,7 +9,7 @@ const atlasPassivesUi = (() => {
     const BRANCH = Object.freeze({ a: -90, b: 30, c: 150 }), RINGS = Object.freeze([0, 12, 24, 35, 46]);
     const STEPS = Object.freeze({ 1: 1, 2: 2, N: 3, T: 4 });
     const RANK_NAME = Object.freeze({ root: '뿌리', small: '작은 노드', notable: '주요 노드', keystone: '핵심 노드' });
-    const STATE_TEXT = Object.freeze({ taken: '찍음 · 다시 누르면 되돌립니다', open: '누르면 찍습니다', locked: '이어진 노드를 먼저 찍으세요' });
+    const STATE_TEXT = Object.freeze({ taken: '찍음 (다시 누르면 되돌립니다)', open: '누르면 찍습니다', locked: '이어진 노드를 먼저 찍으세요' });
     let focusId = null, wheelId = null;
     const effectText = effect => Object.entries(effect).map(([key, value]) => labels[key][1] === 'on' ? labels[key][0] : `${labels[key][0]} +${value}${labels[key][1]}`).join(' · ');
     const suffix = id => id.slice(id.indexOf('_') + 1);
@@ -114,7 +114,7 @@ const atlasPassivesUi = (() => {
     }
     function html() {
         const used = game.atlas.passives.length, points = atlas.points(game);
-        return `<div class="atlas-passives"><p class="atlas-muted">아틀라스 포인트 ${used}/${points} 사용 · 패시브는 루프를 넘어 남습니다.
+        return `<div class="atlas-passives"><p class="atlas-muted">아틀라스 포인트 ${used}/${points} 사용. 패시브는 루프를 넘어 남습니다.
             열린 지도에는 연 순간의 패시브가 적용됩니다.</p>${totalsHtml()}${tabsHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheelHtml).join('')}</div></div>`;
     }
     return Object.freeze({ html, paint, toggle, hint, pick });

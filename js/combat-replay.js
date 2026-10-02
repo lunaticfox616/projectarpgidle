@@ -84,7 +84,8 @@ function createCombatReplay(elapsedMs, snapshot, startNowMs) {
         skippedMs: 0, accelerationTier: 0,
         simulatedNow: state.combatTimeMs || startNowMs || Date.now(),
         metrics: createBackgroundCombatMetrics(state),
-        runtime: JSON.parse(JSON.stringify(captureCombatRuntime()))
+        // structuredClone keeps the stage rows of one cast sharing their wave/whirl state (one hit per monster).
+        runtime: structuredClone(captureCombatRuntime())
     };
 }
 

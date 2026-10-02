@@ -167,8 +167,19 @@ const stumpCube = (() => {
     }
 
     // ── 조합 ──────────────────────────────────────────────
+    /** Sockets of a piece of gear that hold a jewel. */
+    const socketedJewels = item => equipmentSockets.list(item).filter(row => row.jewel);
+    /** Consumed gear gives its jewels back to the jewel inventory; refuse when they would not fit (they used to vanish). */
+    function jewelReturnRefusal(state, consumed) {
+        const back = consumed.reduce((sum, entry) => sum + (entry.kind === 'equipment' ? socketedJewels(entry.item).length : 0), 0);
+        const room = getJewelInventoryLimit() - (state.jewelInventory || []).length;
+        return back > room ? '주얼 보관함이 가득 차서 장비에 박힌 주얼을 돌려받을 수 없습니다.' : '';
+    }
     const REMOVERS = Object.freeze({
-        equipment: (state, item) => { state.inventory = state.inventory.filter(row => row !== item); },
+        equipment: (state, item) => {
+            socketedJewels(item).forEach(row => equipmentSockets.remove(item, row.kind, row.index, state));
+            state.inventory = state.inventory.filter(row => row !== item);
+        },
         stump: (state, item) => { state.stumpBox.items = state.stumpBox.items.filter(row => row !== item); },
         jewel: (state, item) => { state.jewelInventory = state.jewelInventory.filter(row => row !== item); },
         core: (state, item) => { state.cores.owned = state.cores.owned.filter(row => row !== item); }
@@ -198,6 +209,8 @@ const stumpCube = (() => {
         if (reason) return { ok: false, reason };
         const result = stumpCubeRecipes.run(found.recipe.id, found.groups, state, random);
         if (!result.ok) return result;
+        const full = jewelReturnRefusal(state, result.consumed);
+        if (full) return { ok: false, reason: full };
         result.consumed.forEach(entry => REMOVERS[entry.kind](state, entry.item));
         Object.entries(found.recipe.cost || {}).forEach(([key, need]) => { state.currencies[key] -= need; });
         const made = result.outputs.map(output => ({ kind: output.kind, item: output.existing || STORERS[output.kind](state, output) }));

@@ -52,7 +52,7 @@ vm.createContext(context);
 require('./lib/load-ui-display')(context);
 
 const varsSource = uiSource.slice(uiSource.indexOf('let mobileToastQueue ='), uiSource.indexOf('function shouldShowMobileToast'));
-const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast', 'releaseMobileToast'];
+const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast', 'releaseMobileToast', 'resumeMobileToastsAfterResult'];
 const combined = varsSource + fnNames.map(name => readFunctionSource(uiSource, name)).join('\n') + '\n'
     + fnNames.map(name => `this.${name} = ${name};`).join('\n')
     + '\nthis.getMobileToastQueue = function(){ return mobileToastQueue; };'
@@ -115,4 +115,17 @@ runTimeouts(entry => firstAutoTimers.includes(entry));
 assert.strictEqual(context.getMobileToastActiveCount(), 1, '첫째 알림의 자동 타이머가 와도 활성 개수를 또 줄이지 않는다');
 assert.ok(!pendingTimeouts.some(entry => entry.ms === 220), '이미 풀린 알림은 다시 사라지는 애니메이션을 걸지 않는다');
 
+
+// 방치 전투 결과 창이 떠 있는 동안은 알림을 그리지 않고 기다렸다가, 창이 닫히면 이어서 보인다(PR #1030 리뷰).
+flushAllTimeouts();
+context.getMobileToastQueue().length = 0;
+const resultCard = { id: 'background-combat-result-overlay' };
+createdElements.push(resultCard);
+const activeBefore = context.getMobileToastActiveCount();
+context.enqueueMobileToast('결과 창 뒤 알림', 'attack-monster');
+assert.strictEqual(context.getMobileToastActiveCount(), activeBefore, 'no notice is drawn over the offline result card');
+assert.strictEqual(context.getMobileToastQueue().length, 1, 'it waits in the queue');
+createdElements.splice(createdElements.indexOf(resultCard), 1);
+pendingTimeouts.splice(0).forEach(entry => entry.fn());
+assert.strictEqual(context.getMobileToastQueue().length, 0, 'after the card closes the notice shows');
 console.log('smoke-mobile-toast-burst passed');

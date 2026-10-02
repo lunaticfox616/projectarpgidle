@@ -1192,7 +1192,8 @@ function mergeDefaults(save) {
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
     atlas.normalize(merged);
-    if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = 0;
+    // 없어진 지역(예: 예전 세계수 지역)에서 저장했으면 액트 1이 아니라 도달한 진행 지역으로.
+    if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === BEYOND_BOUNDARY_ZONE_ID && !merged.beyondBoundary.activeRun) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
     if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {

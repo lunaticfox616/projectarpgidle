@@ -4840,7 +4840,8 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
 }
 
 
-let mobileToastQueue = [];
+let mobileToastQueue = [];
+let mobileToastResultHoldTimer = null;
 let mobileToastActiveCount = 0;
 const MOBILE_TOAST_MAX_CONCURRENT = 1;
 
@@ -4893,9 +4894,19 @@ function enqueueMobileToast(msg, cls) {
 // 알림이 많이 밀려 있을수록: (1) 동시에 최대 1개까지만 보여 화면을 가리지 않고, (2) 쌓인 개수가 많을수록
 // 표시 시간을 점점 줄여 더 빨리 다음 알림이 나오게 한다(밀린 알림이 한 줄씩 느긋하게
 // 빠지는 대신, 밀린 만큼 더 빠르게 소화됨).
+/** The offline result card covers the phone screen: notices wait and are looked at again shortly after. */
+function resumeMobileToastsAfterResult() {
+    mobileToastResultHoldTimer = null;
+    pumpMobileToastQueue();
+}
+
 function pumpMobileToastQueue() {
     // A guide card sits where these notices appear on phones: hold them until it closes (dismissTutorial pumps again).
     if (typeof isTutorialOpen === 'function' && isTutorialOpen()) return;
+    if (document.getElementById('background-combat-result-overlay')) {
+        mobileToastResultHoldTimer = mobileToastResultHoldTimer || setTimeout(resumeMobileToastsAfterResult, 600);
+        return;
+    }
     while (mobileToastActiveCount < MOBILE_TOAST_MAX_CONCURRENT && mobileToastQueue.length > 0) {
         showNextMobileToast();
     }
@@ -8601,7 +8612,7 @@ function playLevelUpCallout(level) {
         label.setAttribute('aria-hidden', 'true');
         orb.appendChild(label);
     }
-    label.textContent = `레벨 업 · Lv ${level}`;
+    label.textContent = `레벨 업 Lv ${level}`;
     label.getAnimations().forEach(animation => animation.cancel());
     label.animate([
         { opacity: 0, translate: '0 6px' },
@@ -11125,7 +11136,7 @@ function describeReachablePassiveNode(node) {
 }
 
 function describeBlockedPassiveNode(node) {
-    return node.kind === 'start' ? '시작점은 이미 열려 있습니다 · 이어진 노드를 눌러 포인트를 쓰세요.' : '연결된 노드가 아니라 활성화할 수 없습니다.';
+    return node.kind === 'start' ? '시작점은 이미 열려 있습니다. 이어진 노드를 눌러 포인트를 쓰세요.' : '연결된 노드가 아니라 활성화할 수 없습니다.';
 }
 
 function setupCanvasEvents() {

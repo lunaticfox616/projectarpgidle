@@ -16,7 +16,7 @@
     if (!document.querySelector('link[href*="css/cosmos-atlas.css"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent2';
+      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent2&release=20261003-1';
       document.head.appendChild(link);
     }
     if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {

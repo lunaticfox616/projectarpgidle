@@ -61,7 +61,7 @@ const equipmentSocketsUi = (() => {
     /** 보관함 +5칸(황금률, 거래소가 열린 뒤): 예전 주얼 창의 확장 단추. 확인 · 지불은 marketExpandJewelInventoryByDivine. */
     function expandHtml() {
         const cost = getJewelMarketExpandCost(), owned = Math.floor(game.currencies.goldenRule || 0);
-        return `<button type="button" onclick="equipmentSocketsUi.expand()" ${owned >= cost ? '' : 'disabled'}>+5칸 · 황금률 ${cost} / 보유 ${owned}</button>`;
+        return `<button type="button" onclick="equipmentSocketsUi.expand()" ${owned >= cost ? '' : 'disabled'}>+5칸 (황금률 ${cost}, 보유 ${owned})</button>`;
     }
 
     function storeHtml(item) {
@@ -74,7 +74,7 @@ const equipmentSocketsUi = (() => {
         const expand = isMarketUnlocked() ? expandHtml() : '';
         return `<div class="selection-overlay-section-title">주얼 보관함 ${store.length}/${getJewelInventoryLimit()}</div>
             <div class="socket-jewel-list">${cards || '<p class="selection-overlay-help">보관 중인 주얼이 없습니다. 정예 · 보스가 가끔 떨어뜨립니다.</p>'}</div>
-            <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 · 결정 ${REFINE_COST}</button>${expand}</div>`;
+            <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 (결정 ${REFINE_COST})</button>${expand}</div>`;
     }
 
     function render() {

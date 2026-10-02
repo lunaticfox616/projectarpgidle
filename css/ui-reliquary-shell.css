@@ -1937,6 +1937,7 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.expanded #ui-goal-b
   top: 36px;
   right: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   width: 254px;
   box-sizing: border-box;
   gap: 8px;

@@ -412,3 +412,18 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     expect(failures).toEqual([]);
 });
 
+
+// PR #1030 리뷰: 선택 창(코어 · 주얼 보관함 · 혼돈 주입 · 큐브 고르기)이 떠 있으면 단축키는 기다리고, Esc는 그 창만 닫는다.
+// 전에는 C가 캐릭터 창을 밑에 열었고, Esc가 뒤의 장비 창을 닫아 선택 창만 떠 있었다.
+test('selection overlays hold the keyboard: hotkeys wait and Esc closes only the overlay', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => { switchTab('tab-items'); coreItemsUi.open(); });
+    await expect(page.locator('.selection-overlay')).toHaveCount(1);
+    await page.keyboard.press('c');
+    await expect(page.locator('#tab-character')).not.toHaveClass(/active/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.selection-overlay')).toHaveCount(0);
+    await expect(page.locator('#tab-items')).toHaveClass(/active/);
+    expect(failures).toEqual([]);
+});

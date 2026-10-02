@@ -12,7 +12,7 @@ const atlasRun = (() => {
     }
     function departureBlock() {
         if (game.pendingLoopReady || game.pendingLoopDecision) return '루프 정산 화면에서 먼저 결정하세요(루프 진행 또는 나중에 루프).';
-        return isBeehiveRunLockedForMapTravel() || game.beyondBoundary.activeRun ? '진행 중인 도전을 마친 뒤 지도를 여세요.' : '';
+        return isBeehiveRunLockedForMapTravel() || game.beyondBoundary.activeRun || game.woodsmanBuildLock ? '진행 중인 도전을 마친 뒤 지도를 여세요.' : '';
     }
     /** 지도 장치: 지도석을 소모해 지도를 열고 그 맵으로 떠난다(떠나지 못하면 지도석은 보관함으로 돌아간다).
      * @returns {string} '' when the map opened, otherwise why not. */

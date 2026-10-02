@@ -21,7 +21,7 @@ const stumpTalismanUi = (() => {
         if (!stumpBox.isMature(item)) return '<p class="stump-status">판 위에서 처치할 때마다 깨어납니다. 새 루프에는 다시 잠듭니다.</p>';
         if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">척력과 맞닿아 효과가 없습니다.</p>';
         if (summary.amplified.has(item.id)) return '<p class="stump-status is-good">깨어남 · 척력으로 효과 +25%</p>';
-        return '<p class="stump-status is-good">깨어나 효과를 주고 있습니다 · 새 루프에 다시 잠듭니다.</p>';
+        return '<p class="stump-status is-good">깨어나 효과를 주고 있습니다. 새 루프에 다시 잠듭니다.</p>';
     }
 
     function toolsHtml(item, cell) {

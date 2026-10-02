@@ -1115,11 +1115,17 @@ function hasEmptyThroneSoloBonus() {
         && equipped.every(entry => entry && entry.jewel && entry.jewel.uniqueId === 'uj_crown_empty');
 }
 
+/** "모든 스킬 젬 레벨 +N" (uniqueGemLevelBonus) on the equipped unique items that count for stats. */
+function getEquippedUniqueGemLevelBonus() {
+    return getPlayerStatSourceItemEntries().reduce((sum, [, item]) => sum
+        + (item && item.rarity === 'unique' && item.uniqueEffectKey === 'uniqueGemLevelBonus' ? Number((item.uniqueEffectParams || {}).level || 1) : 0), 0);
+}
+
 /** resolvedStats, when supplied, belongs to the current synchronous equipment evaluation only. */
 function getTargetGemBonusSources(target, fallbackSources, resolvedStats, evaluation) {
     let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target, resolvedStats, evaluation) : fallbackSources;
     sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
-    let jewelGemLevel = getEquippedJewelGemLevelBonusSources(target);
+    let jewelGemLevel = getEquippedJewelGemLevelBonusSources(target) + getEquippedUniqueGemLevelBonus();
     sources.gear = Number(sources.gear || 0) + jewelGemLevel;
     sources.total = Number(sources.total || 0) + jewelGemLevel;
     if (hasEmptyThroneSoloBonus()) {
@@ -6334,7 +6340,7 @@ function estimateMapZonePowerRequirements(zone) {
         * contentScale.damage * (bossMods.damageMul || 1) * (zone.mapDamageMul || 1)
         * (cosmosTrait && cosmosTrait.damageMul ? cosmosTrait.damageMul : 1);
     if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
-    bossHit *= underworldEntryTuning.damage;
+    bossHit *= underworldEntryTuning.damage * getMonsterLoopPowerScale(zone, 'damage');
     const threatMods = cosmosTrait ? {
         ...bossMods,
         penetration: Number(bossMods.penetration || 0) + Number(cosmosTrait.penetration || 0),
@@ -12100,9 +12106,10 @@ function triggerSeasonReset(options) {
     game.resonancePower = 10;
     game.completedTrials = [];
     game.unlockedTrials = [];
+    // 지난 루프의 전직 배치는 노드를 비우기 전에 기억한다('지난 루프처럼'이 키스톤만 되살리던 문제).
+    let clearedAscendKeystones = rememberLoopAscendancyPlan(game);
     game.ascendNodes = [];
     game.ascendPoints = 0;
-    let clearedAscendKeystones = rememberLoopAscendancyPlan(game);
     clearAscendKeystoneRuntimeState(clearedAscendKeystones, { force: true, forceAll: true });
     game.ascendKeystones = [];
     game.ascendKeystonePoints = 0;
