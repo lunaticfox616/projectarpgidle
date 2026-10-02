@@ -64,8 +64,7 @@ const talismanCombat = (() => {
     }
 
     function hexTarget() {
-        const ignoreImmunity = typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__warlock');
-        return (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && (!enemy.curseImmune || ignoreImmunity)) || null;
+        return (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && !enemy.curseImmune) || null;
     }
 
     function applyHex(target, line, pStats, now) {
@@ -80,8 +79,7 @@ const talismanCombat = (() => {
 
     function hexInterval(pStats) {
         const cdr = Math.min(0.9, Math.max(0, Number((pStats.uniqueConditionManual || {}).cdrPct) || 0) / 100);
-        const fast = typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero10__warlock') ? 0.5 : 1;
-        return Math.floor(TALISMAN_HEX_RULES.intervalMs * (1 - cdr) * fast);
+        return Math.floor(TALISMAN_HEX_RULES.intervalMs * (1 - cdr));
     }
 
     /** Curse lines: each fires on its own interval at the first living target. */

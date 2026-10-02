@@ -183,17 +183,9 @@ function getTalentRuntimeAppliedText(runtime, level) {
     }
     if (runtime.key === 'moonReturn') return `단일 적에게 원 피해의 ${runtime.damagePct}% 추가 타격`;
     if (runtime.key === 'ailmentWhitelist') return '적에게 점화와 중독만 걸 수 있음';
-    if (runtime.key === 'shadowSlayer') return `치명타 피해 배율 무작위 ×1.0~×${(1 + (runtime.maxMultiplierAtLevel10 - 1) * levelRatio).toFixed(2)}`;
-    if (runtime.key === 'summonCritLucky') return '소환수 치명타 확률 행운 판정';
     if (runtime.key === 'instantWarcry') return runtime.latestEffectOnly
         ? '함성 시전 시간 0초, 마지막 함성 하나의 고유 효과만 유효, 활성 함성 수는 모두 셈'
         : '함성 시전 시간 0초';
-    if (runtime.key === 'rangerCharge') return `돌격 명중 시 공격 속도와 이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
-    if (runtime.key === 'fenrirTooth') return `펜리르의 맹독: 중독 확률 +${runtime.poisonChanceAtLevel10 * levelRatio}%`;
-    if (runtime.key === 'executionOrder') return `집행 명령 대상이 받는 피해 +${runtime.damagePctAtLevel10 * levelRatio}%`;
-    if (runtime.key === 'vanguardBanner') return `소환수 피해 ${runtime.summonDamagePctAtLevel10 * levelRatio}% 증폭`;
-    if (runtime.key === 'quicksilver') return `공격 속도와 이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
-    if (runtime.key === 'sunOath') return `생명력 ${runtime.lifeThresholdPct}% 이하에서 받는 피해 ${runtime.takenLessPctAtLevel10 * levelRatio}% 감소`;
     return '';
 }
 
@@ -472,142 +464,8 @@ function getActiveTalentRuntimeConfig(comboKey) {
     return config ? { config, level, levelRatio: level / TALENT_CARD_MAX_LEVEL } : null;
 }
 
-function getTalentShadowCritDamageMultiplier(isCrit) {
-    let active = isCrit ? getActiveTalentRuntimeConfig('hero1__assassin') : null;
-    if (!active) return 1;
-    let upper = 1 + (Math.max(1, Number(active.config.maxMultiplierAtLevel10) || 1) - 1) * active.levelRatio;
-    return 1 + Math.random() * (upper - 1);
-}
-
-function getTalentSummonCritChance(baseChance) {
-    let chance = Math.max(0, Math.min(1, Number(baseChance) || 0));
-    if (!getActiveTalentRuntimeConfig('hero1__soulbinder')) return chance;
-    return 1 - ((1 - chance) * (1 - chance));
-}
-
-function rollTalentSummonCrit(baseChance) {
-    let chance = Math.max(0, Math.min(1, Number(baseChance) || 0));
-    if (!getActiveTalentRuntimeConfig('hero1__soulbinder')) return Math.random() < chance;
-    return Math.random() < chance || Math.random() < chance;
-}
-
 function isTalentInstantWarcryActive() {
     return !!getActiveTalentRuntimeConfig('hero2__warrior');
-}
-
-function getTalentSummonDamageMultiplier() {
-    let active = getActiveTalentRuntimeConfig('hero2__soulbinder');
-    if (!active) return 1;
-    return 1 + Math.max(0, Number(active.config.summonDamagePctAtLevel10) || 0) * active.levelRatio / 100;
-}
-
-function getTalentQuicksilverConfig() {
-    let active = getActiveTalentRuntimeConfig('hero2__catalyst');
-    if (!active) return null;
-    return {
-        speedMultiplier: 1 + active.config.speedPctAtLevel10 * active.levelRatio / 100,
-        regenMultiplier: 1 - active.config.regenLessPctAtLevel10 * active.levelRatio / 100,
-        regenPointPenalty: active.config.regenPointPenaltyAtLevel10 * active.levelRatio
-    };
-}
-
-function getTalentConditionalDamageTakenMultiplier(maxHp) {
-    let active = getActiveTalentRuntimeConfig('hero2__crusader');
-    if (!active) return 1;
-    let lifeRatio = Math.max(0, Number(game.playerHp) || 0) / Math.max(1, Number(maxHp) || 1) * 100;
-    if (lifeRatio > active.config.lifeThresholdPct) return 1;
-    return 1 - active.config.takenLessPctAtLevel10 * active.levelRatio / 100;
-}
-
-function tickTalentRangerCharge(now) {
-    let active = getActiveTalentRuntimeConfig('hero2__ranger');
-    let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    if (!active) return clearTalentRangerChargeState(runtime);
-    let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
-    if (!alive.some(enemy => enemy.id === runtime.rangerChargeTargetId)) {
-        delete runtime.rangerChargeTargetId;
-        delete runtime.rangerChargeTargetPending;
-    }
-    if (!runtime.rangerChargeNextAt) runtime.rangerChargeNextAt = timestamp + active.config.intervalMs;
-    if (alive.length > 0 && timestamp >= runtime.rangerChargeNextAt) {
-        runtime.rangerChargeTargetId = alive[Math.floor(Math.random() * alive.length)].id;
-        runtime.rangerChargeTargetPending = true;
-        runtime.rangerChargeNextAt = timestamp + active.config.intervalMs;
-    }
-    if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) delete runtime.rangerChargeBuffUntil;
-}
-
-function clearTalentRangerChargeState(runtime) {
-    delete runtime.rangerChargeTargetId;
-    delete runtime.rangerChargeTargetPending;
-    delete runtime.rangerChargeNextAt;
-    delete runtime.rangerChargeBuffUntil;
-    delete runtime.rangerChargeBuffPct;
-}
-
-function getTalentRangerChargeTarget(enemies) {
-    let runtime = game.talentCardRuntime;
-    if (!getActiveTalentRuntimeConfig('hero2__ranger') || !runtime || !runtime.rangerChargeTargetPending) return null;
-    return (Array.isArray(enemies) ? enemies : game.enemies || [])
-        .find(enemy => enemy && enemy.hp > 0 && enemy.id === runtime.rangerChargeTargetId) || null;
-}
-
-function isTalentRangerGuaranteedTarget(target) {
-    let runtime = getTalentCardRuntimeState();
-    return !!(getActiveTalentRuntimeConfig('hero2__ranger') && runtime.rangerChargeTargetPending
-        && target && target.id === runtime.rangerChargeTargetId);
-}
-
-function recordTalentRangerChargeHit(target, now) {
-    if (!isTalentRangerGuaranteedTarget(target)) return false;
-    let active = getActiveTalentRuntimeConfig('hero2__ranger');
-    let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    runtime.rangerChargeTargetPending = false;
-    delete runtime.rangerChargeTargetId;
-    runtime.rangerChargeBuffUntil = timestamp + active.config.buffDurationMs;
-    runtime.rangerChargeBuffPct = active.config.speedPctAtLevel10 * active.levelRatio;
-    return true;
-}
-
-function getTalentRangerChargeSpeedMultiplier(now) {
-    let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) return 1;
-    return 1 + Math.max(0, Number(runtime.rangerChargeBuffPct) || 0) / 100;
-}
-
-function getTalentExecutionOrderMultiplier(target) {
-    let active = getActiveTalentRuntimeConfig('hero2__inquisitor');
-    let marked = target && getTalentCardRuntimeState().executionOrders;
-    if (!active || !marked || !marked[target.id]) return 1;
-    return 1 + active.config.damagePctAtLevel10 * active.levelRatio / 100;
-}
-
-function markTalentExecutionOrder(target) {
-    if (!getActiveTalentRuntimeConfig('hero2__inquisitor') || !target || !(target.isBoss || target.isElite || target.elite)) return false;
-    let runtime = getTalentCardRuntimeState();
-    runtime.executionOrders = runtime.executionOrders || {};
-    if (runtime.executionOrders[target.id]) return false;
-    runtime.executionOrders[target.id] = true;
-    return true;
-}
-
-function getTalentFenrirConfig() {
-    return getActiveTalentRuntimeConfig('hero2__warlock');
-}
-
-function applyTalentFenrirSkill(skill, skillName) {
-    if (skillName !== '기본 공격') return skill;
-    const active = getTalentFenrirConfig();
-    if (!active) return skill;
-    return { ...skill, name: '펜리르의 독니', visualName: '펜리르의 독니', fenrirTooth: true,
-        dmg: skill.dmg * (1 + active.config.directDamageMorePctAtLevel10 * active.levelRatio / 100) };
-}
-
-function isTalentFenrirEngravingEnabled(skillName) {
-    return skillName === '기본 공격' && !!getTalentFenrirConfig();
 }
 
 function clearTalentCardRuntimeState() {
@@ -676,45 +534,9 @@ function talentOnPlayerAttack(pStats, isCrit) {
     }
 }
 
-// 23 산맥추적자: 생명력이 최대인 적 첫 타격 시 적 최대 생명력 비례 추가 피해(보스 4%, 그 외 8%).
-function getTalentFullLifeBurst(enemy, wasFull) {
-    if (!wasFull || !enemy || enemy.talentFullLifeBurstConsumed) return 0;
-    let lv = isTalentCardActive('hero2__hunter');
-    if (!lv) return 0;
-    enemy.talentFullLifeBurstConsumed = true;
-    let pct = (enemy.isBoss ? 0.04 : 0.08) * (lv / TALENT_CARD_MAX_LEVEL);
-    return Math.max(0, Math.floor((enemy.maxHp || enemy.hp || 0) * pct));
-}
-
-// 상태이상 시너지형 표면효과: 적이 받는 피해 배율(라이브 판정, 적 상태이상 기반).
-//  5 프리즈믹 아처 / 29 브리지트 / 99 서리암살자
-function getTalentEnemyTakenMul(enemy, ele, crit) {
-    let a = (enemy && Array.isArray(enemy.ailments)) ? enemy.ailments : [];
-    let has = t => a.some(x => x && x.type === t && (x.time || 0) > 0);
-    let m = 1;
-    if (isTalentCardActive('hero1__elementalist') && ele === 'fire' && has('scorch')) {
-        m *= 1 + 0.20 * isTalentCardActive('hero1__elementalist') / TALENT_CARD_MAX_LEVEL;
-    }
-    if (isTalentCardActive('hero3__elementalist') && ele !== 'phys' && ele !== 'chaos'
-        && has('warmSeed') && has('frostSeed') && has('stormSeed')) {
-        m *= 1 + 0.20 * isTalentCardActive('hero3__elementalist') / TALENT_CARD_MAX_LEVEL;
-    }
-    if (isTalentCardActive('hero9__assassin') && (has('chill') || has('freeze'))) { // 99: 냉각된 적 받는 피해 +
-        m *= 1 + 0.12 * isTalentCardActive('hero9__assassin') / TALENT_CARD_MAX_LEVEL;
-    }
-    return m;
-}
-
 // 26 숲마당 투사: 플레이어 공격이 반드시 명중(적 회피 무시).
 function getTalentAlwaysHit() {
     return isTalentCardActive('hero3__gladiator') > 0;
-}
-
-// 재능 처형: 활성 카드 중 "낮은 체력 일반 몬스터 마무리" 임계값(체력 비율). 없으면 0.
-function getTalentExecuteThreshold() {
-    let t = 0;
-    if (isTalentCardActive('hero6__hunter')) t = Math.max(t, 0.25);   // 71 하운드
-    return t;
 }
 
 // 이번 공격에 적용할 재능 정밀 피해 배율(calcDamage에서 곱).
@@ -780,27 +602,11 @@ safeExposeGlobals({
     grantTalentStoneShield,
     getTalentMoonReturnConfig,
     canTalentCardApplyEnemyAilment,
-    getTalentShadowCritDamageMultiplier,
-    getTalentSummonCritChance,
-    rollTalentSummonCrit,
     isTalentInstantWarcryActive,
-    getTalentSummonDamageMultiplier,
-    getTalentQuicksilverConfig,
-    getTalentConditionalDamageTakenMultiplier,
-    tickTalentRangerCharge,
-    getTalentRangerChargeTarget,
-    isTalentRangerGuaranteedTarget,
-    recordTalentRangerChargeHit,
-    getTalentRangerChargeSpeedMultiplier,
-    getTalentExecutionOrderMultiplier,
-    markTalentExecutionOrder,
-    getTalentFenrirConfig,
-    applyTalentFenrirSkill,
     getTalentBloomHeroIdForAscendancy,
     getTalentBloomCardKeyForAscendancy,
     getTalentBloomCardKeys,
     refreshGrantedBloomMechanics,
     getGrantedBloomMechanics,
-    isTalentFenrirEngravingEnabled,
     clearTalentCardRuntimeState
 });

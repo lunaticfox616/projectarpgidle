@@ -6047,7 +6047,7 @@ function showGemTooltip(event, type, name, target = null) {
         let gemBonusSources = info.gemBonusSources || stats.gemBonusSources;
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         const sources = [['패시브', gemBonusSources.passive], ['장비', gemBonusSources.gear], ['보상', gemBonusSources.reward],
-            ['재능', info.talentBonus], ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 정수', info.skyCoreLevel === 5 ? 1 : 0],
+            ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 정수', info.skyCoreLevel === 5 ? 1 : 0],
             ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
         levels.unshift(`젬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
@@ -7967,7 +7967,6 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     catalystEvade: { sprite: 37, label: '연막 포션', color: '#b8c3ca' },
     crusaderLightningAegis: { sprite: 38, label: '번개 불사', color: '#ffe08a' },
     guardianEndurance: { sprite: 39, label: '인내 장전', color: '#d1bd9d' },
-    talentAegis: { sprite: 40, label: '에이기스', color: '#c8d5ee' },
     colosseumReady: { sprite: 41, label: '투기장 일격 준비', color: '#e0ad78' },
     summonDeathDamageBuff: { sprite: 42, label: '소환수 사망 피해 강화', color: '#b7d8e5' },
     summonCritAspd: { sprite: 43, label: '소환수 치명타 공속', color: '#c4a7e8' },
@@ -7987,7 +7986,6 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     fletcherCharge: { sprite: 34, label: '플레쳐', color: '#d9ae76' },
     colosseumCharge: { sprite: 41, label: '관중의 함성', color: '#e0ad78' },
     queenBeeSwarm: { sprite: 43, label: '여왕벌', color: '#e4c45f' },
-    dawnSeal: { sprite: 44, label: '새벽의 기사', color: '#e4cf87' },
     enemySkillDot: { sprite: 46, label: '지속 피해', color: '#a4c7df' }
 });
 
@@ -8014,7 +8012,6 @@ const UI_RUNTIME_EFFECT_DETAILS = Object.freeze({
     catalystEvade: () => '다음 회피 판정이 30% 증폭됩니다.',
     crusaderLightningAegis: () => '초당 최대 ES 25% 회복 · 번개 피해 +75%',
     guardianEndurance: stacks => `${Math.floor(stacks || 0)}/5중첩 · 방어도 +${Math.floor(stacks || 0) * 11}%`,
-    talentAegis: (evadeReady, blockBonus) => `다음 회피 +${evadeReady ? '10%' : '0%'} · 다음 막기 +${Math.floor(blockBonus || 0)}%p`,
     colosseumReady: () => '다음 공격이 투기장 일격으로 강화됩니다.',
     summonDeathDamageBuff: value => `소환수 피해 +${Number(value || 0).toFixed(0)}%`,
     summonCritAspd: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 소환수 공격 속도 +${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
@@ -8031,8 +8028,7 @@ const UI_RUNTIME_EFFECT_DETAILS = Object.freeze({
     riderCompassReady: () => '이동 후 첫 타격 피해 +100%',
     fletcherCharge: value => `${Math.floor(value || 0)}/3회 공격 · 3번째 공격 피해 +33%`,
     colosseumCharge: value => `${Math.floor(value || 0)}/5중첩 · 5중첩 시 다음 공격 강화`,
-    queenBeeSwarm: (count, attacksLeft) => `${Math.floor(count || 0)}마리 · 남은 공격 ${Math.floor(attacksLeft || 0)}회`,
-    dawnSeal: value => `첫 3타 제약 ${Math.floor(value || 0)}/3회 소모`
+    queenBeeSwarm: (count, attacksLeft) => `${Math.floor(count || 0)}마리 · 남은 공격 ${Math.floor(attacksLeft || 0)}회`
 });
 
 function getUiCombatEffectPresentation(key) {
@@ -8296,9 +8292,6 @@ function buildPlayerTalentAndSummonEffectIcons(now) {
     let icons = [];
     let talent = game.talentRuntime && typeof game.talentRuntime === 'object' ? game.talentRuntime : {};
     let talentActive = id => typeof isTalentCardActive !== 'function' || isTalentCardActive(id);
-    if (talentActive('hero1__guardian') && (talent.aegisEvadeAmp || Number(talent.aegisBlockBonus) > 0)) {
-        icons.push(renderUiRuntimeEffectIcon({ key: 'talentAegis', value: talent.aegisEvadeAmp ? 1 : 0, maxValue: talent.aegisBlockBonus }, now));
-    }
     let fletcherCount = Math.max(0, Math.min(3, Math.floor(talent.fletcherCount || 0)));
     if (talentActive('hero1__gladiator') && fletcherCount > 0) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'fletcherCharge', value: fletcherCount, badge: `${fletcherCount}` }, now));
@@ -8550,11 +8543,6 @@ function buildEnemyRuntimeEffectIcons(enemy, now) {
     if (!enemy || enemy.id == null) return '';
     let icons = [];
     let id = enemy.id;
-    let dawnHits = Math.max(0, Math.min(3, Math.floor(Number((game.talentDawnHits || {})[id]) || 0)));
-    let dawnActive = typeof isTalentCardActive !== 'function' || isTalentCardActive('hero5__warrior');
-    if (dawnActive && dawnHits > 0 && dawnHits < 3) {
-        icons.push(renderUiRuntimeEffectIcon({ key: 'dawnSeal', value: dawnHits, badge: `${3 - dawnHits}` }, now));
-    }
     let dot = enemy.dotState && typeof enemy.dotState === 'object' ? enemy.dotState : null;
     if (dot && Number(dot.timeLeft) > 0 && dot.skillName !== '화염 부패') {
         let stacks = Math.max(1, Math.floor(Number(dot.stacks) || Number(enemy.dotStacks) || 1));

@@ -117,16 +117,8 @@ declaredStats.forEach(stat => {
   Object.values(bucket).forEach(value => assert.ok(Number.isFinite(value), `${stat}: 스탯 합산 결과가 유한수여야 한다`));
 });
 
-assert.strictEqual(context.getTalentCardUniqEffects('hero1', 'warrior', 10).length, 0,
-  '아방가르드 관통은 전용 경로만 사용하고 범용 초과 피해 효과와 중복되면 안 된다');
-const raven = context.getTalentCardUniqEffects('hero6', 'assassin', 10)[0];
-assert.strictEqual(raven.params.ds, 0, '레이븐은 타겟 수만 늘리고 연속타격을 부여하면 안 된다');
-const heavy = context.getTalentCardUniqEffects('hero10', 'gladiator', 10)[0];
-assert.strictEqual(heavy.params.ds, 0, '헤비플라스크는 타겟 수만 늘리고 연속타격을 부여하면 안 된다');
-assert.strictEqual(context.getTalentCardStatBonuses('hero7', 'inquisitor', 10)
-  .find(row => row.stat === 'suppCap').val, 1, '파문심문관은 보조 젬 한도 +1을 실제 스탯으로 줘야 한다');
-assert.strictEqual(context.getTalentCardStatBonuses('hero10', 'warrior', 10)
-  .find(row => row.stat === 'physIgnore').val, 8, '강철술사는 물리 피해 감소 무시 +8%를 줘야 한다');
+// 2026-10-02 재능 정리: 정의는 얻을 수 있는 18장과 효과를 키스톤이나 고유 주얼로 옮긴 20장(smoke-ascendancy-classes)뿐이다.
+assert.strictEqual(cardIds.length, 38, '정의는 18장과 효과를 옮긴 20장이어야 한다');
 
 context.game.talentCards = { hero2__warrior: { level: 3, score: 20, count: 1 } };
 context.game.ascendClass = 'berserker';

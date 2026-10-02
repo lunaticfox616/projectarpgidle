@@ -113,8 +113,7 @@ function isAwakenedSkyEnhancement(enhanceId) {
 }
 
 function isEnhanceableAttackGem(name) {
-    if (name && SKILL_DB[name] && SKILL_DB[name].isGem) return true;
-    return typeof isTalentFenrirEngravingEnabled === 'function' && isTalentFenrirEngravingEnabled(name);
+    return !!(name && SKILL_DB[name] && SKILL_DB[name].isGem);
 }
 
 function getEquippedEnhanceableGemNames() {
@@ -872,7 +871,7 @@ function getActiveSkillStats(bonusLevel) {
         game.activeSkill = '기본 공격';
         skill = SKILL_DB['기본 공격'];
     }
-    let usesGemProgression = skill.isGem || (typeof isTalentFenrirEngravingEnabled === 'function' && isTalentFenrirEngravingEnabled(game.activeSkill));
+    let usesGemProgression = !!skill.isGem;
     if (!usesGemProgression && !skill.levelable) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);

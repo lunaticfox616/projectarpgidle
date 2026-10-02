@@ -91,14 +91,16 @@ assert.strictEqual(context.getEffectivePassiveNodeEffects(stormMajor)[1].val, 40
 run('setPassiveTreeAutoInvest(false);');
 
 // Hidden elemental branches must add their own element, never generic damage.
+// generalPct is the summed generic damage increase (summonSharedPctDmg carries it unchanged).
+const elementProbe = '(stats => ({ ...stats.talentSourceStats, generalPct: stats.summonSharedPctDmg }))(getPlayerStats())';
 run('game.passives = [];');
-const baseline = run('getPlayerStats().talentSourceStats');
+const baseline = run(elementProbe);
 for (const [id, field, amount] of [
     ['nhenzv8gp4i', 'firePct', 30], ['ndru1xggqhg', 'lightPct', 25], ['nlwk06igprm', 'coldPct', 30]
 ]) {
     context.__elementNodeId = id;
     run('game.passives = [__elementNodeId];');
-    const stats = run('getPlayerStats().talentSourceStats');
+    const stats = run(elementProbe);
     for (const stat of ['generalPct', 'firePct', 'lightPct', 'coldPct']) {
         assert.strictEqual(stats[stat] - baseline[stat], stat === field ? amount : 0,
             `${id}: ${stat} must only increase for the corresponding element`);

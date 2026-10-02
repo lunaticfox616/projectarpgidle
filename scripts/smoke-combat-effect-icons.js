@@ -39,7 +39,7 @@ const context = {
     warriorRhythmExpiresAt: 12000,
     warriorRhythmDoubleStacks: 1,
     warriorRhythmDoubleExpiresAt: 13000,
-    talentRuntime: { aegisEvadeAmp: true, aegisBlockBonus: 5, fletcherCount: 2, colosseumReady: true },
+    talentRuntime: { fletcherCount: 2, colosseumReady: true },
     bloomTrialRegenSuppress: 0.25,
     delayedGuardHealPool: 60,
     queenBees: [{ expiresAt: 14000, attacksLeft: 2 }, { expiresAt: 15000, attacksLeft: 1 }],
@@ -63,7 +63,7 @@ const context = {
   __activeConditions: [{ buff: { name: 'talisman:guard_iron_oath', type: 'guard' }, delta: { dr: 20 } }],
   hasKeystone(id) { return ownedKeystones.has(id); },
   isTalentCardActive(id) {
-    return ['hero1__guardian', 'hero1__gladiator', 'hero2__gladiator', 'hero5__warrior'].includes(id) ? 1 : 0;
+    return ['hero1__gladiator', 'hero2__gladiator'].includes(id) ? 1 : 0;
   },
   getWarriorRageStacks() { return 3; },
   getStatName() { return '피해'; },
@@ -101,7 +101,7 @@ const playerMarkup = context.buildPlayerCombatEffectIcons(playerStats, now);
 const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_down',
   'playerUniqueGuard', 'shadowStealth', 'leechEfficiency', 'meleeArmorAmp',
   'killMoveStacks', 'riderCompassReady', 'shrineBuff', 'eliteTraitBuff', 'lifeLeech', 'energyShieldLeech',
-  'lifeRecoup', 'delayedGuardHeal', 'warriorRhythm', 'talentAegis', 'fletcherCharge', 'colosseumReady',
+  'lifeRecoup', 'delayedGuardHeal', 'warriorRhythm', 'fletcherCharge', 'colosseumReady',
   'bloomRegenSuppress', 'queenBeeSwarm', 'summonDeathDamageBuff', 'summonCritAspd',
   'deathWard', 'invulnerableBarrier', 'warriorRage'];
 assert.strictEqual((playerMarkup.match(/class="combat-effect-icon/g) || []).length, expectedPlayerEffects.length,
@@ -138,7 +138,7 @@ assert(context.buildPlayerTalentAndSummonEffectIcons(now).includes('effect-colos
 const activeTalentLookup = context.isTalentCardActive;
 context.isTalentCardActive = () => 0;
 const staleTalentMarkup = context.buildPlayerTalentAndSummonEffectIcons(now);
-assert(!staleTalentMarkup.includes('effect-talentAegis') && !staleTalentMarkup.includes('effect-fletcherCharge')
+assert(!staleTalentMarkup.includes('effect-fletcherCharge')
   && !staleTalentMarkup.includes('effect-colosseumCharge'), 'unequipped talent cards must not leave stale effect icons');
 context.isTalentCardActive = activeTalentLookup;
 context.game.talentRuntime.colosseumReady = true;
@@ -180,7 +180,6 @@ const enemy = {
   skillSlowPct: 12,
   dotState: { stacks: 3, rawTickDamage: 44, timeLeft: 2.5, skillName: '빙결 침식' }
 };
-context.game.talentDawnHits = { 7: 1 };
 context.game.enemyWitherStacks = { 7: 4 };
 context.game.enemyUniqueChaosResDown = { 7: { stacks: 3, perHit: 2 } };
 context.game.enemyUniqueElementalResDown = { 7: { stacks: 2, perHit: 3 } };
@@ -192,7 +191,7 @@ const enemyMarkup = context.buildEnemyCombatEffectIcons([
   { type: 'assassinWeakness', time: 5, power: 4 },
   { type: 'freeze', time: 0, power: 0 }
 ], [{ name: '쇠약', expiresAt: 13000 }, { name: '만료', expiresAt: 9000 }], now, enemy);
-const enemyRuntimeKeys = ['dawnSeal', 'enemySkillDot', 'enemyWither', 'enemyChaosResDown', 'enemyElementalResDown',
+const enemyRuntimeKeys = ['enemySkillDot', 'enemyWither', 'enemyChaosResDown', 'enemyElementalResDown',
   'talentInquisitorMark', 'talentButcherMark', 'rangerWeakpointMark', 'chaosErosion', 'regenSuppress'];
 assert.strictEqual((enemyMarkup.match(/class="combat-effect-icon/g) || []).length, 3 + enemyRuntimeKeys.length,
   'enemy ailments, curses, marks, and runtime debuffs must share one active icon strip');

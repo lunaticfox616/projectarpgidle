@@ -43,7 +43,7 @@ assert.strictEqual(tagResult.voidLevel, 5 + tagResult.genericValue + tagResult.c
 assert.strictEqual(tagResult.materialLevel, 4 + tagResult.genericValue + 2,
   'partial core enhancements grant effects, while awakening still grants two summon levels');
 
-const masterSummonerResult = vm.runInContext(`(() => {
+const summonLevelResult = vm.runInContext(`(() => {
   game.currentZoneId = 0;
   game.equipment = {};
   game.passives = [];
@@ -55,8 +55,6 @@ const masterSummonerResult = vm.runInContext(`(() => {
   game.gemData['화염 참격'] = { level:5, quality:0 };
   game.skills = Array.from(new Set([...(game.skills || []), '번개 위습 소환']));
   game.equippedSummonSkills = ['번개 위습 소환'];
-  game.talentCards = { hero7__soulbinder:{ level:10, score:600, count:1 } };
-  game.talentCardLoadout = ['hero7__soulbinder', null, null, null, null, null];
   let stats = getPlayerStats();
   let presentation = getGemPresentation('번개 위습 소환', false, stats);
   let directPresentation = getGemPresentation('화염 참격', false, stats);
@@ -64,27 +62,18 @@ const masterSummonerResult = vm.runInContext(`(() => {
   ensureSummonRuntime(stats);
   let runtimeSummon = (game.summons || []).find(row => row && row.gemName === '번개 위습 소환');
   return {
-    talentBonus:stats.talentSummonGemLevelBonus,
     presentationLevel:presentation.finalLevel,
-    presentationTalentBonus:presentation.talentBonus,
     directPresentationLevel:directPresentation.finalLevel,
-    directPresentationTalentBonus:directPresentation.talentBonus,
     previewLevel:preview.gemLevel,
     runtimeLevel:runtimeSummon && runtimeSummon.gemLevel
   };
 })()`, runtime);
 
-assert.strictEqual(masterSummonerResult.talentBonus, 2,
-  'Master Summoner must expose its +2 summon attack gem level to player stats');
-assert.strictEqual(masterSummonerResult.presentationTalentBonus, 2,
-  'summon gem presentation must identify the Master Summoner contribution');
-assert.strictEqual(masterSummonerResult.presentationLevel, 7,
-  'summon gem presentation must include the Master Summoner +2 levels');
-assert.strictEqual(masterSummonerResult.directPresentationTalentBonus, 0,
-  'Master Summoner must not grant gem levels to direct attack gems');
-assert.strictEqual(masterSummonerResult.directPresentationLevel, 5,
-  'direct attack gem presentation must keep its original level under Master Summoner');
-assert.strictEqual(masterSummonerResult.previewLevel, masterSummonerResult.runtimeLevel,
+assert.strictEqual(summonLevelResult.presentationLevel, 5,
+  'summon gem presentation must show the gem level without a talent card bonus');
+assert.strictEqual(summonLevelResult.directPresentationLevel, 5,
+  'direct attack gem presentation must keep its original level');
+assert.strictEqual(summonLevelResult.previewLevel, summonLevelResult.runtimeLevel,
   'summon tooltip and live summon runtime must use the same effective level');
 
 const equipmentResult = vm.runInContext(`(() => {
