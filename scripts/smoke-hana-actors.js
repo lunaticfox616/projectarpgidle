@@ -5,8 +5,12 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
+const { isPrivateAssetDirMissingInCi } = require('./lib/private-assets');
 
 const root = path.resolve(__dirname, '..');
+// 공개 저장소 CI에는 Hana 시트가 없다: 시트 파일 검사만 건너뛰고 규격 · 시점 검사는 그대로 한다.
+const sheetsMissingInCi = isPrivateAssetDirMissingInCi('assets/playable/hana');
+if (sheetsMissingInCi) console.log('smoke-hana-actors: 공개 저장소 CI라 Hana 시트 파일 검사는 건너뜀');
 const runtime = buildGameRuntime();
 const run = code => vm.runInContext(code, runtime);
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -27,6 +31,7 @@ for (const [classId, def] of Object.entries(sprites.classes)) {
         const clip = def.motions[motion];
         assert(clip, `${classId} is missing ${motion}`);
         assert.strictEqual(clip.ms.length, clip.frames, `${classId} ${motion}: one duration per frame`);
+        if (sheetsMissingInCi) continue;
         const file = path.join(root, 'assets/playable/hana', classId, `${motion}.png`);
         assert(fs.existsSync(file), `${file} must exist`);
         const size = pngSize(file);
@@ -91,9 +96,11 @@ assert.deepStrictEqual(Object.keys(combos.classWeapons).sort(), classIds.slice()
 for (const classId of classIds) {
     for (const [weapon, info] of Object.entries(combos.weapons)) {
         const file = path.join(root, 'assets/playable/hana/combos', classId, `${weapon}.png`);
-        assert(fs.existsSync(file), `${file} must exist`);
-        assert.deepStrictEqual(pngSize(file), { w: combos.layers.length * combos.maxFrames * cropW, h: combos.motions.length * combos.dirs.length * cropH },
-            `${classId} × ${weapon}: layer columns × motion/direction rows`);
+        if (!sheetsMissingInCi) {
+            assert(fs.existsSync(file), `${file} must exist`);
+            assert.deepStrictEqual(pngSize(file), { w: combos.layers.length * combos.maxFrames * cropW, h: combos.motions.length * combos.dirs.length * cropH },
+                `${classId} × ${weapon}: layer columns × motion/direction rows`);
+        }
         const spec = combos.combos[`${classId}|${weapon}`];
         for (const motion of combos.motions) assert(spec[motion].ms.length <= combos.maxFrames, `${classId} × ${weapon} ${motion}: fits the sheet`);
         assert(info.hitFrame > 0 && info.hitFrame < spec.attack.ms.length, `${weapon}: hit frame inside the attack clip`);

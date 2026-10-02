@@ -8,6 +8,11 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.resolve(__dirname, '..');
+// 인계 원본은 비공개 저장소에만 있다: 공개 저장소 CI에서는 비교할 원본이 없어 이 검사 전체를 건너뛴다.
+if (require('./lib/private-assets').isPrivateAssetDirMissingInCi('docs/skill-assets-hana/reference')) {
+    console.log('smoke-redrawn-skill-art: 공개 저장소 CI라 인계 원본이 없어 건너뜀');
+    process.exit(0);
+}
 const reference = vm.createContext({ Math, Object, Array, Map, Set, Number, String });
 vm.runInContext(fs.readFileSync(path.join(root, 'docs/skill-assets-hana/reference/void_fx.js.txt'), 'utf8'), reference);
 const portContext = vm.createContext({ Math, Object, Array, Map, Set, Number, String, safeExposeGlobals(map) { Object.assign(portContext, map); } });

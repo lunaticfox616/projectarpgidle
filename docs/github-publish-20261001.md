@@ -39,3 +39,7 @@ Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이�
   같은 이름은 이력이 달라 거절되지만, 다른 브랜치 이름으로 올리면 그대로 올라간다.
 - Hana 그림을 새 경로에 추가하면 `PRIVATE_PATHS`에 넣는다. 옛 커밋이 다시 쓰이므로 그다음 한 번은 `--force-public`이 필요하다.
 - 새 PC에서 전체 게임을 받으려면 공개 `rignin-next`를 받은 뒤 비공개 저장소의 `assets`, `docs` 폴더를 그 위에 복사한다.
+- 공개 저장소 CI(`.github/workflows/test.yml`)에는 비공개 경로가 없다. 그 파일을 읽는 검사(`smoke-hana-actors`의 시트 파일 검사,
+  `smoke-redrawn-skill-art` 전체)는 `CI` 환경 변수가 있고 그 폴더가 통째로 없을 때만 건너뛴다(`scripts/lib/private-assets.js`).
+  로컬에서는 예전처럼 빠진 파일이 실패로 잡힌다. 2026-09-30 공개 CI 실패 두 건이 이것이었다(2026-10-02 고침).
+  공개 상태를 미리 보려면 `git archive HEAD`에서 비공개 경로를 지운 복사본에서 `CI=true npm test`.
