@@ -362,12 +362,8 @@ for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
 }
 assert.ok(fs.existsSync('assets/background/chaos/loop-final.png'), 'chaos loop-final backdrop should exist');
-[
-  'wood-slimes.png', 'root-spider.png', 'sap-leeches.png'
-].forEach(file => assert.ok(fs.existsSync(`assets/enemies/wood/${file}`), `wood monster sheet ${file} should exist`));
-for (let index = 0; index < 9; index++) {
-  assert.ok(fs.existsSync(`assets/enemies/wood/wood-puppet/frame_${String(index).padStart(3, '0')}.png`), `wood puppet frame ${index} should exist`);
-}
+['bugs/act1-ant-idle.png', 'bugs/act5-slime-attack.png', 'deacons/act2-melee-idle.png', 'deacons/act8-ranged-attack.png']
+  .forEach(file => assert.ok(fs.existsSync(`assets/enemies/${file}`), `act monster sheet ${file} should exist`));
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="chk-camera-shake"'), 'settings should expose the camera shake checkbox');
 assert.ok(fs.existsSync('assets/ui/window-frame-luxe-v1.png'), 'generated window frame should exist');
 assert.ok(fs.existsSync('assets/effects/boss-telegraph-ring-v1.png'), 'generated boss ring telegraph should exist');
@@ -477,10 +473,9 @@ assert.deepStrictEqual([venomVfxBytes.readUInt32BE(16), venomVfxBytes.readUInt32
   'the supplied pixel venom projectile must keep its authored combat dimensions');
 assert.strictEqual(venomVfxBytes.readUInt8(25), 6, 'the supplied venom projectile must retain RGBA transparency');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
-assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
-assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
-assert.ok(passiveSource.includes('normal: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants)'),
-  'normal monster variants should keep the supplied wood roster alongside wisps');
+assert.ok(!passiveSource.includes('assets/enemies/wood/'), 'the retired wood monster sheets must not be preloaded any more');
+assert.ok(passiveSource.includes('normal: wispEnemyVariants.length ? wispEnemyVariants'),
+  'act monsters draw from their own sheets; the atlas pool is only the wisp fallback');
 assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the dedicated legacy and act-boss pool');
 const passiveCanvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 const passiveDrawCalls = JSON.parse(vm.runInContext(`JSON.stringify((() => {

@@ -2164,11 +2164,13 @@ function drawBattleEnemyActor(ctx, entry, state) {
     ctx.restore();
 }
 
-/** Wisps draw from their own 16-dot sheets (js/canvas-wisp-actors.js); every other enemy keeps its atlas sprite. */
+/** Wisps and act monsters draw from their own 16-dot sheets (js/canvas-wisp-actors.js, js/canvas-monster-actors.js);
+ * realm sets and bosses keep their atlas sprites. */
 function drawEnemyActorSprite(ctx, entry, state, pose) {
     const enemy = entry.enemy, flash = state.flashingEnemyIds.has(enemy.id), facing = resolveEnemyFacingDirection(entry, state.playerPos);
     const tile = state.gridProj && state.gridProj.tileW;
-    if (wispActors.draw(ctx, enemy, { x: entry.x, y: pose.y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale })) return;
+    const sheetPose = { x: entry.x, y: pose.y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale, moving: entry.moving === true };
+    if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     drawEnemySprite(ctx, enemy, entry.x, pose.y, pose.scale, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 

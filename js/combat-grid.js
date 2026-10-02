@@ -175,16 +175,24 @@ function assignEnemyGridSpawn(enemy, blocked) {
     getGridFootprintCells(cell.gx, cell.gy, footprint).forEach(occupied => blocked.add(gridCellKey(occupied.gx, occupied.gy)));
 }
 
+/** 그림이 공격 방식을 정한 외형이면 true(근접) · false(원거리), 아니면 null(액트 몬스터 · 위습은 data/bosses.js). */
+function getEnemyPictureMelee(enemy) {
+    const kind = typeof getMonsterVisualAttackKind === 'function' ? getMonsterVisualAttackKind(enemy.spriteVariantId) : null;
+    return kind ? kind === 'melee' : null;
+}
+
 /**
  * 적의 근접/원거리 유형과 사거리를 배정한다. 보스는 항상 원거리(사실상 무제한 사거리),
- * 일반/정예는 같은 외형 종류에 같은 유형을 배정한다. 외형 정보 없는 이전 적은 기존 확률을 사용한다.
+ * 일반/정예는 그림이 정한 방식을 따르고(2026-10-02), 정하지 않은 외형(영역 세트)은 외형 종류마다 같은 확률 유형을 쓴다.
+ * 외형 정보 없는 이전 적은 기존 확률을 사용한다.
  */
 function rollEnemyGridCombatProfile(enemy) {
     const cfg = COMBAT_GRID_CONFIG;
     if (enemy.monsterArchetype === 'wisp') return {melee:false,range:cfg.rangedEnemyMinRange};
     const identity = enemy.monsterVisualId || enemy.spriteVariantId;
     const random = identity ? createSeededRng('enemy-attack:' + identity) : Math.random;
-    const melee = random() < cfg.meleeEnemyChance;
+    const rolled = random() < cfg.meleeEnemyChance, picture = getEnemyPictureMelee(enemy);
+    const melee = picture === null ? rolled : picture;
     return {melee,range:melee ? cfg.meleeAttackRange
         : cfg.rangedEnemyMinRange+Math.floor(random()*(cfg.rangedEnemyMaxRange-cfg.rangedEnemyMinRange+1))};
 }

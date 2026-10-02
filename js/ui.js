@@ -5266,19 +5266,22 @@ function onHeroSelectionChanged() {
 }
 
 // ── 몬스터 외형 수집 시스템 ──
-// 일반 잡몹/정예가 사용하는 스프라이트 시트 프레임(아틀라스 enemies.frames)과
-// 보스 전용 이미지(BOSS_ASSET_MANIFEST)를 플레이어 외형으로 수집/적용한다.
+// 액트 몬스터(data/bosses.js ACT_MONSTER_VISUALS, 그림은 js/canvas-monster-actors.js) · 영역 세트 · 위습과
+// 보스 전용 이미지(BOSS_ASSET_MANIFEST)를 플레이어 외형으로 수집/적용한다. 예전 목재 몬스터 넷은 저장을 불러올 때
+// 새 몬스터로 바뀐다(js/save-migrations.js migrateRetiredWoodMonsters).
 const MONSTER_SKIN_FRAME_DEFS = [
-    { id: 'woodSlime', label: '수액 응집체' },
-    { id: 'rootSpider', label: '뿌리 거미' },
-    { id: 'sapLeech', label: '수액 흡충' },
-    { id: 'woodPuppet', label: '목각 인형' },
     { id: 'boss', label: '마수 군주' }
 ];
 
+/** 이름표가 정해진 외형(마수 군주, 액트 몬스터)의 이름. */
+function getNamedMonsterSkinLabel(id) {
+    const frameDef = MONSTER_SKIN_FRAME_DEFS.find(def => def.id === id);
+    return frameDef ? frameDef.label : (ACT_MONSTER_VISUAL_BY_ID[id] || {}).name;
+}
+
 function getMonsterSkinLabel(id) {
-    let frameDef = MONSTER_SKIN_FRAME_DEFS.find(def => def.id === id);
-    if (frameDef) return frameDef.label;
+    let named = getNamedMonsterSkinLabel(id);
+    if (named) return named;
     const wispDef = typeof WISP_MONSTER_VISUALS !== 'undefined'
         ? WISP_MONSTER_VISUALS.find(def => def.id === id)
         : null;
@@ -5303,6 +5306,7 @@ function getMonsterSkinLabel(id) {
 
 function getMonsterSkinDefs() {
     let defs = MONSTER_SKIN_FRAME_DEFS.map(def => ({ id: def.id, label: def.label, type: 'frame' }));
+    ACT_MONSTER_VISUALS.forEach(def => defs.push({ id: def.id, label: def.name, type: 'frame' }));
     if (typeof REALM_MONSTER_VISUAL_SETS !== 'undefined') {
         Object.values(REALM_MONSTER_VISUAL_SETS).forEach(set => {
             set.members.forEach(member => defs.push({ id: member.id, label: member.name, type: 'frame' }));
@@ -5322,18 +5326,12 @@ function getMonsterSkinDefs() {
 function getEnemySkinId(enemy) {
     if (!enemy) return null;
     if (enemy.bossAssetKey) return enemy.bossAssetKey;
+    if (ACT_MONSTER_VISUAL_BY_ID[enemy.spriteVariantId]) return enemy.spriteVariantId;
     if (battleAssets && battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         const renderedVariant = pickBattleEnemyVariant(enemy, battleAssets.atlas.enemies);
         if (renderedVariant && renderedVariant.skinId) return renderedVariant.skinId;
     }
-    let normalPool = ['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'];
-    let elitePool = normalPool;
-    let bossPool = ['boss'];
-    let pool = enemy.isBoss ? bossPool : (enemy.isElite ? elitePool : normalPool);
-    if (pool.length === 0) return null;
-    let variantSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
-    let elementOffset = enemy.ele === 'fire' ? 1 : (enemy.ele === 'cold' ? 2 : (enemy.ele === 'light' ? 3 : (enemy.ele === 'chaos' ? 4 : 0)));
-    return pool[(variantSeed + elementOffset) % pool.length];
+    return enemy.isBoss ? 'boss' : null;
 }
 
 function resolveMonsterSkinSprite(id) {

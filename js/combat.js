@@ -5867,7 +5867,7 @@ function createEnemy(zone, marker, groupIndex) {
         ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed)
         : null;
     let monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
-        ? getMonsterVariantDefinition(variantSeed, enemyEle)
+        ? getMonsterVariantDefinition(variantSeed, enemyEle, zone)
         : null;
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
     const wispVisual = wispDefense.isWisp ? monsterVariant : null;

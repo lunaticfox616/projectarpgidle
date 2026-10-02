@@ -41,7 +41,7 @@ async function capture(browser, variant, mobile) {
         game.enemies = cells.map(([gx, gy], index) => {
             const enemy = createEnemy(getZone(1), { at: 20, count: 4 }, index);
             return Object.assign(enemy, { gx, gy, hp: 1000, maxHp: 1000,
-                spriteVariantId: 'woodPuppet-0', spawnStamp: 0, gridMoveTimer: 0 });
+                spriteVariantId: 'deacon-act2-melee', spawnStamp: 0, gridMoveTimer: 0 });
         });
         clearBattleVisualBacklog();
         battleVisualState.enemySmoothPos = {};

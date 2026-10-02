@@ -149,14 +149,14 @@ const cfg = context.COMBAT_GRID_CONFIG;
 // 렌더 스프라이트와 전투 이름은 같은 안정적인 변형 id를 사용해야 한다.
 {
   resetGame();
-  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 56, '목재 몬스터 38종과 위습 18종에 이름이 지정되어야 한다');
+  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 38, '액트 몬스터 20종과 위습 18종에 이름이 지정되어야 한다');
   assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
   const fireWisp = context.getMonsterVariantDefinition(5, 'fire');
   assert(fireWisp.id.startsWith('wisp-'), '일반 구역에서도 위습이 일정 비율로 등장해야 한다');
   assert(context.WISP_MONSTER_VISUALS.find(wisp => wisp.id === fireWisp.id).elements.includes('fire'),
     '위습의 이름과 외형은 실제 몬스터 속성과 맞아야 한다');
   assert(!context.getMonsterVariantDefinition(4, 'fire').id.startsWith('wisp-'),
-    '위습이 기존 목재 몬스터를 전부 대체하면 안 된다');
+    '위습이 액트 몬스터를 전부 대체하면 안 된다');
   const fireDefense = JSON.parse(JSON.stringify(context.getWispEnemyDefenseBonuses(
     context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'B02'))));
   assert.deepStrictEqual(fireDefense, {
@@ -190,7 +190,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '정예 몬스터는 특성과 스프라이트 종명을 결합해야 한다');
   assert.strictEqual(elite.traitOutlineColor, elite.trait.outlineColor,
     '정예 외곽선 색은 이름에 사용된 특성 정의를 따라야 한다');
-  assert.strictEqual(context.getMonsterVariantDefinition(normal.variantSeed, normal.ele).id, normal.spriteVariantId,
+  assert.strictEqual(context.getMonsterVariantDefinition(normal.variantSeed, normal.ele, zone).id, normal.spriteVariantId,
     '이름에 사용한 변형 id와 렌더 선택 id가 같아야 한다');
 
   const realmZones = [

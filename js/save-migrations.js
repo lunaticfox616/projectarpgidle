@@ -182,6 +182,29 @@ function stripRemovedFlasks(merged) {
         .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
 }
 
+/** 2026-10-02: 목재 몬스터 넷(수액 응집체 · 뿌리 거미 · 수액 흡충 · 목각 인형)의 그림을 내렸다. 모은 외형은 가장 닮은
+ * 새 몬스터로(data/bosses.js RETIRED_WOOD_MONSTER_SKINS), 싸우던 적은 그 지역의 새 외형 · 이름으로 바꾸고 공격 방식을
+ * 다시 정하게 한다(그림을 따른다, js/combat-grid.js). 두 번 불러와도 같다. */
+function migrateRetiredWoodMonsters(merged) {
+    const skins = merged.unlockedMonsterSkins;
+    if (skins && typeof skins === 'object') Object.entries(RETIRED_WOOD_MONSTER_SKINS).forEach(([old, next]) => {
+        if (skins[old]) skins[next] = true;
+        delete skins[old];
+    });
+    merged.selectedMonsterSkin = RETIRED_WOOD_MONSTER_SKINS[merged.selectedMonsterSkin] || merged.selectedMonsterSkin;
+    const zone = Number.isInteger(merged.currentZoneId) && merged.currentZoneId < ACT_ZONE_COUNT ? MAP_ZONES[merged.currentZoneId] : null;
+    const packs = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
+    [merged.enemies, ...packs.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(enemy => retireWoodMonsterVisual(enemy, zone));
+}
+
+function retireWoodMonsterVisual(enemy, zone) {
+    if (!enemy || !/^(woodSlime|rootSpider|sapLeech|woodPuppet)-\d+$/.test(enemy.spriteVariantId || '')) return;
+    const pool = getActMonsterPool(zone), def = ACT_MONSTER_VISUAL_BY_ID[pool[Math.abs(Math.floor(Number(enemy.variantSeed) || 0)) % pool.length]];
+    if (enemy.baseMonsterName && typeof enemy.name === 'string') enemy.name = enemy.name.replace(enemy.baseMonsterName, def.name);
+    Object.assign(enemy, { spriteVariantId: def.id, baseMonsterName: def.name });
+    ['attackKind', 'attackRange', 'attackDelivery', 'projectileToEdge', 'attackCastMs', 'attackLabel'].forEach(key => delete enemy[key]);
+}
+
 /** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
@@ -1198,6 +1221,7 @@ function mergeDefaults(save) {
     stripRemovedFlasks(merged);
     stripRemovedStarWedges(merged);
     stripRemovedAuxSystems(merged);
+    migrateRetiredWoodMonsters(merged);
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);

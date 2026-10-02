@@ -19,7 +19,7 @@ function captureSkill(request) {
     const enemyCells = [[4, 4], [4, 3], [5, 4], [5, 5]].slice(0, request.targetCount || 4);
     game.enemies = enemyCells.map(([gx, gy], index) =>
         Object.assign(createEnemy(getZone(1), { at: 20, count: 4 }, index),
-            { gx, gy, hp: 100000, maxHp: 100000, spriteVariantId: 'woodPuppet-0', spawnStamp: 0 }));
+            { gx, gy, hp: 100000, maxHp: 100000, spriteVariantId: 'deacon-act2-melee', spawnStamp: 0 }));
     battleVisualState.enemySmoothPos = {};
     battleVisualState.playerGridMotion = null;
     battleVisualState.playerFacingDirection = 'east';

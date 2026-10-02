@@ -194,28 +194,41 @@ const ENEMY_TRAIT_POOL = [
     { id: 'currentSwift', name: '급류 가속', outlineColor: '#46b7cf', atkMul: 1.2, attackSpeedVarMul: 1.16 }
 ];
 
-const WOOD_MONSTER_VARIANT_DEFS = Object.freeze([
-    ['woodSlime-0', '갈색 수액방울'], ['woodSlime-1', '늘어진 수액방울'],
-    ['woodSlime-2', '잔가지 수액괴'], ['woodSlime-3', '껍질 수액괴'],
-    ['woodSlime-4', '포자 수액괴'], ['woodSlime-5', '유충 수액괴'],
-    ['woodSlime-6', '가시 수액괴'], ['woodSlime-7', '왕관 수액괴'],
-    ['woodSlime-8', '꽃가루 수액괴'], ['woodSlime-9', '톱니 수액괴'],
-    ['woodSlime-10', '암석 수액괴'], ['woodSlime-11', '뿌리가시 수액괴'],
-    ...Array.from({ length: 8 }, (_, index) => [`rootSpider-${index}`, '뿌리거미']),
-    ['sapLeech-0', '그을린 뿌리관'], ['sapLeech-1', '가지 뿌리관'],
-    ['sapLeech-2', '이끼 뿌리관'], ['sapLeech-3', '쌍둥이 뿌리관'],
-    ['sapLeech-4', '뒤틀린 뿌리매듭'], ['sapLeech-5', '잿불 뿌리매듭'],
-    ['sapLeech-6', '껍질 뿌리매듭'], ['sapLeech-7', '속빈 뿌리매듭'],
-    ['sapLeech-8', '늪지 뿌리매듭'], ['sapLeech-9', '육종 뿌리매듭'],
-    ['sapLeech-10', '가시눈 뿌리령'], ['sapLeech-11', '벌집 뿌리령'],
-    ['sapLeech-12', '잠복 뿌리령'], ['sapLeech-13', '뿌리갑충'],
-    ['woodPuppet-0', '껍질 목각병'], ['woodPuppet-1', '백목 목각병'],
-    ['woodPuppet-2', '이끼 목각병'], ['woodPuppet-3', '철목 목각병']
-].map(([id, name]) => Object.freeze({ id, name })));
+// 액트 일반·정예 몬스터(2026-10-02, 받은 묶음 둘): 뿌리층 슬라임 · 웜 · 개미(rignin-monsters-idle-attack-v1, 액트 1 · 3 · 4 · 5)와
+// 철퇴 부제사 · 성수 부제녀(rignin-deacons-idle-attack-v2, 액트 2 · 6 · 7 · 8 팔레트). 액트 9 · 10은 장막(액트 8) 팔레트,
+// 혼돈 이후 콘텐츠(액트도 영역 세트도 아닌 곳 전부)는 부제 네 팔레트를 섞는다. 공격 방식은 그림을 따른다(사용자 결정
+// 2026-10-02): 근접 = 몸통 돌진 · 물기 · 철퇴, 원거리 = 성수. 그림 시트 규격은 data/monster-sprites.js.
+const ACT_MONSTER_VISUALS = Object.freeze([
+    ['act1-slime', '수액 슬라임', 'melee'], ['act1-worm', '뿌리 웜', 'melee'], ['act1-ant', '뿌리 일개미', 'melee'],
+    ['act3-slime', '포자 슬라임', 'melee'], ['act3-worm', '부패 웜', 'melee'], ['act3-ant', '균사 개미', 'melee'],
+    ['act4-slime', '수지 슬라임', 'melee'], ['act4-worm', '수피 웜', 'melee'], ['act4-ant', '뿌리 병정개미', 'melee'],
+    ['act5-slime', '심핵 슬라임', 'melee'], ['act5-worm', '고대 천공웜', 'melee'], ['act5-ant', '고목 개미', 'melee'],
+    ['deacon-act2-melee', '중정 철퇴 부제사', 'melee'], ['deacon-act2-ranged', '중정 성수 부제녀', 'ranged'],
+    ['deacon-act6-melee', '고갈 철퇴 부제사', 'melee'], ['deacon-act6-ranged', '고갈 성수 부제녀', 'ranged'],
+    ['deacon-act7-melee', '고목 철퇴 부제사', 'melee'], ['deacon-act7-ranged', '고목 성수 부제녀', 'ranged'],
+    ['deacon-act8-melee', '장막 철퇴 부제사', 'melee'], ['deacon-act8-ranged', '장막 성수 부제녀', 'ranged']
+].map(([id, name, attack]) => Object.freeze({ id, name, attack })));
+const ACT_MONSTER_VISUAL_BY_ID = Object.freeze(Object.fromEntries(ACT_MONSTER_VISUALS.map(def => [def.id, def])));
+
+/** 액트 번호(1~10) → 그 액트의 몬스터 외형. postChaos = 혼돈 이후. */
+const ACT_MONSTER_POOLS = (() => {
+    const bugs = act => Object.freeze([`act${act}-slime`, `act${act}-worm`, `act${act}-ant`]);
+    const deacons = act => Object.freeze([`deacon-act${act}-melee`, `deacon-act${act}-ranged`]);
+    return Object.freeze({
+        1: bugs(1), 2: deacons(2), 3: bugs(3), 4: bugs(4), 5: bugs(5),
+        6: deacons(6), 7: deacons(7), 8: deacons(8), 9: deacons(8), 10: deacons(8),
+        postChaos: Object.freeze([2, 6, 7, 8].flatMap(deacons))
+    });
+})();
+
+/** 예전 목재 몬스터(수액 응집체 · 뿌리 거미 · 수액 흡충 · 목각 인형) → 그림이 가장 닮은 새 몬스터. 저장 변환(js/save-migrations.js)이 쓴다. */
+const RETIRED_WOOD_MONSTER_SKINS = Object.freeze({
+    woodSlime: 'act1-slime', rootSpider: 'act1-ant', sapLeech: 'act1-worm', woodPuppet: 'deacon-act2-melee'
+});
 
 const MONSTER_VARIANT_DEFS = Object.freeze([
-    ...WOOD_MONSTER_VARIANT_DEFS,
-    ...WISP_MONSTER_VISUALS.map(wisp => Object.freeze({ id: wisp.id, name: wisp.name }))
+    ...ACT_MONSTER_VISUALS,
+    ...WISP_MONSTER_VISUALS.map(wisp => Object.freeze({ id: wisp.id, name: wisp.name, attack: 'ranged' }))
 ]);
 
 function getWispMonsterVisualDefinition(variantSeed, element) {
@@ -225,16 +238,33 @@ function getWispMonsterVisualDefinition(variantSeed, element) {
     return candidates[Math.floor(seed / WISP_ENEMY_RULES.spawnOneIn) % candidates.length];
 }
 
-function getMonsterVariantDefinition(variantSeed, element) {
+/** 이 지역의 일반·정예 외형 목록: 스토리 액트는 그 액트 몫, 나머지(혼돈 이후)는 부제 네 팔레트. */
+function getActMonsterPool(zone) {
+    const act = zone && zone.type === 'act' && Number.isInteger(Number(zone.id)) ? Number(zone.id) + 1 : 0;
+    return ACT_MONSTER_POOLS[act] || ACT_MONSTER_POOLS.postChaos;
+}
+
+/** 일반·정예 외형: 다섯에 하나는 원소 위습, 나머지는 지역 목록에서 시드와 원소로 고른다. */
+function getMonsterVariantDefinition(variantSeed, element, zone) {
     const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
     if (seed % WISP_ENEMY_RULES.spawnOneIn === 0) return getWispMonsterVisualDefinition(seed, element);
     const elementOffset = element === 'fire' ? 1 : (element === 'cold' ? 2 : (element === 'light' ? 3 : (element === 'chaos' ? 4 : 0)));
-    return WOOD_MONSTER_VARIANT_DEFS[(seed + elementOffset) % WOOD_MONSTER_VARIANT_DEFS.length];
+    const pool = getActMonsterPool(zone);
+    return ACT_MONSTER_VISUAL_BY_ID[pool[(seed + elementOffset) % pool.length]];
+}
+
+/** 그림이 정한 공격 방식('melee' · 'ranged'). 영역 세트처럼 정하지 않은 외형은 null. */
+function getMonsterVisualAttackKind(visualId) {
+    const def = ACT_MONSTER_VISUAL_BY_ID[visualId];
+    if (def) return def.attack;
+    return typeof visualId === 'string' && visualId.startsWith('wisp-') ? 'ranged' : null;
 }
 
 safeExposeData({
     ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT,
     getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
+    ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, getActMonsterPool,
+    getMonsterVisualAttackKind,
     WISP_ENEMY_RULES, WISP_NEUTRAL_RULES, WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getWispMonsterVisualDefinition,
     REALM_MONSTER_VISUAL_SETS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition,
     getRealmMonsterVisualDefinitionById

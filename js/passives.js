@@ -6041,7 +6041,6 @@ function shouldPreserveOriginalBattleSheet(key) {
         || key === 'shrineInteractable'
         || key.startsWith('hero')
         || key.startsWith('playerClass')
-        || key.startsWith('woodEnemy')
         || key.startsWith('realmEnemy')
         || key.startsWith('bossTelegraph')
         || key.startsWith('skillFx')
@@ -6210,18 +6209,6 @@ function initBattleAssets() {
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
-        woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png',
-        woodEnemySpider: 'assets/enemies/wood/root-spider.png',
-        woodEnemyLeeches: 'assets/enemies/wood/sap-leeches.png',
-        woodEnemyPuppet0: 'assets/enemies/wood/wood-puppet/frame_000.png',
-        woodEnemyPuppet1: 'assets/enemies/wood/wood-puppet/frame_001.png',
-        woodEnemyPuppet2: 'assets/enemies/wood/wood-puppet/frame_002.png',
-        woodEnemyPuppet3: 'assets/enemies/wood/wood-puppet/frame_003.png',
-        woodEnemyPuppet4: 'assets/enemies/wood/wood-puppet/frame_004.png',
-        woodEnemyPuppet5: 'assets/enemies/wood/wood-puppet/frame_005.png',
-        woodEnemyPuppet6: 'assets/enemies/wood/wood-puppet/frame_006.png',
-        woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
-        woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
         ...realmMonsterManifest,
         ...wispMonsterManifest,
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
@@ -6312,7 +6299,7 @@ function initBattleAssets() {
     const selectedHeroKeys = new Set(Object.values((selectedHeroDef || {}).strips || {})
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
-    const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', 'bgAct1', getBattleBackdropKeyForZone(getZone(game.currentZoneId)), ...selectedHeroKeys]);
+    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', 'bgAct1', getBattleBackdropKeyForZone(getZone(game.currentZoneId)), ...selectedHeroKeys]);
     const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill, battleAssets.backdrops);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;
@@ -7760,81 +7747,6 @@ function buildBattleAssetAtlas() {
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
-    function woodCellFrame(cellX, cellY, cellSize) {
-        return {
-            x: cellX * cellSize,
-            y: cellY * cellSize,
-            width: cellSize,
-            height: cellSize,
-            anchorX: cellSize * 0.5,
-            anchorY: cellSize,
-            basisHeight: cellSize
-        };
-    }
-    function buildNineFrameWoodSpecies(image, family, label, localCells) {
-        if (!image) return [];
-        return (localCells || []).map((cell, speciesIndex) => {
-            const frames = Array.from({ length: 9 }, (_, frameIndex) => ({
-                image,
-                frame: woodCellFrame((frameIndex % 3) * 4 + cell[0], Math.floor(frameIndex / 3) * 4 + cell[1], 64)
-            }));
-            return {
-                id: `${family}-${speciesIndex}`,
-                family,
-                skinId: family,
-                label,
-                image,
-                frame: frames[0].frame,
-                frames
-            };
-        });
-    }
-    function buildDirectionalWoodSpecies(image) {
-        if (!image) return [];
-        const directionBlocks = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2]];
-        return directionBlocks.map((block, directionIndex) => {
-            const frames = Array.from({ length: 16 }, (_, frameIndex) => ({
-                image,
-                frame: woodCellFrame(block[0] * 4 + (frameIndex % 4), block[1] * 4 + Math.floor(frameIndex / 4), 64)
-            }));
-            return {
-                id: `rootSpider-${directionIndex}`,
-                family: 'rootSpider',
-                skinId: 'rootSpider',
-                label: '뿌리 거미',
-                image,
-                frame: frames[0].frame,
-                frames
-            };
-        });
-    }
-    function buildWoodPuppetSpecies() {
-        const images = Array.from({ length: 9 }, (_, index) => battleAssets.images[`woodEnemyPuppet${index}`]).filter(Boolean);
-        if (images.length !== 9) return [];
-        return Array.from({ length: 4 }, (_, variantIndex) => {
-            const cellX = variantIndex % 2;
-            const cellY = Math.floor(variantIndex / 2);
-            const frames = images.map(image => ({ image, frame: woodCellFrame(cellX, cellY, 128) }));
-            return {
-                id: `woodPuppet-${variantIndex}`,
-                family: 'woodPuppet',
-                skinId: 'woodPuppet',
-                label: '목각 인형',
-                image: frames[0].image,
-                frame: frames[0].frame,
-                frames
-            };
-        });
-    }
-    const woodEnemyVariants = []
-        .concat(buildNineFrameWoodSpecies(battleAssets.images.woodEnemySlimes, 'woodSlime', '수액 응집체', [
-            [0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [2, 3]
-        ]))
-        .concat(buildDirectionalWoodSpecies(battleAssets.images.woodEnemySpider))
-        .concat(buildNineFrameWoodSpecies(battleAssets.images.woodEnemyLeeches, 'sapLeech', '수액 흡충', [
-            [0, 0], [2, 0], [3, 0], [0, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [1, 3], [2, 3], [3, 3]
-        ]))
-        .concat(buildWoodPuppetSpecies());
     const wispEnemyVariants = buildWispEnemyVariants(battleAssets.images);
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
@@ -7862,14 +7774,15 @@ function buildBattleAssetAtlas() {
         return base;
     }
     let enemyVariantPools = {
-        // 일반과 정예는 같은 목재 생물군을 사용하고, 정예 여부는 렌더 외곽선과 크기로 구분한다.
-        normal: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants) : [
+        // 일반과 정예는 자기 시트로 그린다(액트 몬스터 js/canvas-monster-actors.js, 위습 js/canvas-wisp-actors.js).
+        // 이 아틀라스 목록은 그 시트를 못 불러왔을 때의 대체 그림이다.
+        normal: wispEnemyVariants.length ? wispEnemyVariants : [
             { image: enemySpriteImage, frame: enemyFrames.slime },
             { image: enemySpriteImage, frame: enemyFrames.bandit },
             { image: enemySpriteImage, frame: enemyFrames.shadow },
             { image: enemySpriteImage, frame: enemyFrames.wraith }
         ].filter(entry => hasUsableFrame(entry.frame)),
-        elite: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants) : [
+        elite: wispEnemyVariants.length ? wispEnemyVariants : [
             { image: enemySpriteImage, frame: enemyFrames.knight },
             { image: enemySpriteImage, frame: enemyFrames.skeleton }
         ].filter(entry => hasUsableFrame(entry.frame)),
@@ -7905,7 +7818,6 @@ function buildBattleAssetAtlas() {
             realmVariants: realmEnemyVariantSets,
             bossImages: bossImages,
             skinVariants: {
-                ...Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
                 ...Object.fromEntries(wispEnemyVariants.map(entry => [entry.skinId, entry])),
                 ...realmEnemySkinVariants
             },

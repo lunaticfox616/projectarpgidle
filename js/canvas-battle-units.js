@@ -9,16 +9,30 @@ function canDrawHanaPlayer() {
     return !getSelectedMonsterSkinId() && hanaActors.isReady(getHeroAppearanceId());
 }
 
-/** Legacy strips face east and are mirrored for west poses; Hana sheets carry their own west row. */
+/** A collected act-monster look (data/monster-sprites.js) draws from its own sheet, like the enemy. */
+function getSheetMonsterSkinId() {
+    const id = getSelectedMonsterSkinId();
+    return id && monsterActors.isSheetMonster(id) ? id : null;
+}
+
+/** Legacy strips face east and are mirrored for west poses; Hana and monster sheets carry their own west row. */
 function isBattlePlayerMirrored(motion) {
-    if (canDrawHanaPlayer()) return false;
+    if (canDrawHanaPlayer() || getSheetMonsterSkinId()) return false;
     let pose = motion.facingDirection || motion.attackDirection || 'east';
     return motion.advanceBlend <= 0.08 && pose === 'west';
 }
 
 function drawBattlePlayerFigure(ctx, state, position) {
     if (canDrawHanaPlayer() && drawHanaPlayerBody(ctx, state, position)) return;
+    if (drawSheetMonsterSkin(ctx, state, position)) return;
     drawBattlePlayerBody(ctx, state, position);
+}
+
+function drawSheetMonsterSkin(ctx, state, position) {
+    const id = getSheetMonsterSkinId(), motion = state.motionState;
+    if (!id) return false;
+    return monsterActors.drawSkin(ctx, id, { x: position.x, y: position.y, tile: state.gridProj.tileW, now: state.now, flash: state.playerFlash,
+        facing: motion.facingDirection || motion.attackDirection || 'east', moving: motion.advanceBlend > 0.08 });
 }
 
 function drawHanaPlayerBody(ctx, state, position) {
