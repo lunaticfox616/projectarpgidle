@@ -224,8 +224,10 @@ const atlasEndgame = (() => {
     /** 시대 재생: 후반부 진행(깨어남, 처치, 재료, 마름, 목격)도 되돌린다. */
     function reset(state) { state.atlas.endgame = defaults(); }
     /** Everything the late-atlas view shows. */
+    /** lock: the unlock condition a card shows once the atlas is awake and the fight is still closed (asleep, the view's head says it). */
+    const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(row) : '');
     function overview(state) {
-        const fight = row => ({ row, unlocked: unlocked(state, row), reason: entryReason(state, row.id), kills: kills(state, row.id),
+        const fight = row => ({ row, unlocked: unlocked(state, row), reason: entryReason(state, row.id), lock: lockOf(state, row), kills: kills(state, row.id),
             entry: entryOf(row).map(([item, need]) => ({ item, name: E.items[item].name, have: count(state, item), need })) });
         const book = ledger(state);
         return { awakened: awakened(state), apexes: E.apexes.map(row => fight({ ...row, kind: 'apex' })), leagues: E.leagues.map(row => fight({ ...row, kind: 'league' })),

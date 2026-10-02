@@ -166,4 +166,15 @@ assert.equal(run(`getZone(ATLAS.zoneId) ? 1 : 0`), 0);
 const exarchZone = copy(`(() => { game.atlas.endgame.items.ember = 10; atlasRun.openEndgame('apex_exarch'); const zone = getZone(game.currentZoneId);
     const out = { elements: zone.trapElements, name: zone.trapName }; atlas.cancel(game); game.currentZoneId = 29; return out; })()`);
 assert.deepEqual(exarchZone, { elements: ['fire'], name: '바닥 함정' }, 'a late floor hazard burns with its boss’s element under its own name');
-console.log('atlas endgame: awakening, shears, gardener three stages in the real loop, blight + apostles, altars and league rooms held, weaver echoes, saves, epoch, review fixes: OK');
+// ---------------------------------------------------------------- the late view (js/atlas-endgame-ui.js)
+const lateView = copy(`(() => { game.atlas.endgame.kills = { pinnacle: 1 }; game.atlas.endgame.items = { ember: 10 };
+    const ready = atlasEndgameUi.html(); atlasRun.openEndgame('apex_exarch'); const busy = atlasEndgameUi.html(); atlas.cancel(game); game.currentZoneId = 29;
+    const count = html => (html.match(/atlas-late-card is-ready/g) || []).length;
+    return { ready: count(ready), busy: count(busy), blockLine: busy.includes('열린 지도를 마치거나 닫으면'), elderLock: ready.includes('정원사의 메아리 처치 뒤에 열립니다'),
+        named: (ready.match(/aria-label="[^"]+ 도전"/g) || []).length }; })()`);
+assert.deepEqual(lateView, { ready: 1, busy: 0, blockLine: true, elderLock: true, named: 9 },
+    'the late view: the one affordable fight is ready, an open map blocks all of them in one line, the elder says what opens it, every button is named');
+run(`tutorialQueue.length = 0; game.seenTutorials = (game.seenTutorials || []).filter(key => key !== 'atlas_awakened'); atlasEndgameUi.noticeAwakened(); atlasEndgameUi.noticeAwakened();`);
+assert.deepEqual(copy(`tutorialQueue.filter(row => row.key === 'atlas_awakened').map(row => [row.subtabId, row.atlasView])`), [['map-explore-worldtree', 'late']],
+    'the awakening card follows the state (once) and opens the late view');
+console.log('atlas endgame: awakening, shears, gardener three stages in the real loop, blight + apostles, altars and league rooms held, weaver echoes, saves, epoch, review fixes, late view: OK');

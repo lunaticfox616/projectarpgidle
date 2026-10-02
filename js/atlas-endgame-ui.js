@@ -13,22 +13,31 @@ const atlasEndgameUi = (() => {
     function entryHtml(entry) {
         return entry.map(row => `<span class="${row.have >= row.need ? 'is-on' : ''}">${escapeHTML(row.name)} ${row.have}/${row.need}</span>`).join('');
     }
-    /** One fight: who and where, the offering (have/need) and where it comes from, its unique, and the challenge. */
-    function fightHtml(fight) {
-        const row = fight.row, tier = atlas.effectiveTier(game, atlas.node(row.id));
-        const who = row.kind === 'league' ? row.boss : row.stages[0].name, where = row.kind === 'league' ? row.name : row.domain;
-        return `<div class="atlas-late-card${fight.reason ? '' : ' is-ready'}${fight.unlocked ? '' : ' is-locked'}">
+    /** [who, where]: a league names its boss and its room, an apex its first stage and its domain. */
+    const titleOf = row => (row.kind === 'league' ? [row.boss, row.name] : [row.stages[0].name, row.domain]);
+    /** One fight: who and where, the offering (have/need) and where it comes from, its unique, the unlock condition and the challenge.
+     * block: why nothing can depart now (an open map, another content's run), said once above the cards. */
+    function fightHtml(fight, block) {
+        const row = fight.row, tier = atlas.effectiveTier(game, atlas.node(row.id)), why = fight.reason || block, [who, where] = titleOf(row);
+        const lockId = `atlas-late-lock-${row.id}`;
+        return `<div class="atlas-late-card${why ? '' : ' is-ready'}${fight.unlocked ? '' : ' is-locked'}">
             <strong>${escapeHTML(who)}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? `, 처치 ${fight.kills}회` : ''}</small>
             <div class="atlas-late-entry">${entryHtml(fight.entry)}</div><p class="atlas-muted">${escapeHTML(row.how)}</p>
-            <p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}</p>${fight.unlocked ? '' : `<p class="atlas-lock">${escapeHTML(fight.reason)}</p>`}
-            <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')"
-                ${fight.reason ? `disabled title="${escapeHTML(fight.reason)}"` : ''}>도전</button></div>`;
+            <p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}</p>${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
+            <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')" aria-label="${escapeHTML(who)} 도전"
+                ${fight.lock ? `aria-describedby="${lockId}"` : ''} ${why ? `disabled title="${escapeHTML(why)}"` : ''}>도전</button></div>`;
     }
-    function headHtml(view) {
+    /** Why no late fight can depart right now (said once): the atlas's own lock, an open map, or another content's run. */
+    function departBlock() {
+        if (game.atlas.run) return '열린 지도를 마치거나 닫으면 도전할 수 있습니다.';
+        return atlas.lockReason(game) || atlasRun.blockReason();
+    }
+    function headHtml(view, block) {
         if (!view.awakened) return `<section class="atlas-late-head"><h3>잠든 아틀라스</h3>
             <p class="atlas-muted">세계수의 그림자(정점)를 처음 쓰러뜨리면 깨어나 아래 싸움이 열립니다.</p></section>`;
         return `<section class="atlas-late-head"><h3>깨어난 아틀라스</h3>
-            <p class="atlas-muted">나이테가 목격한 처치 ${view.witness}회, 다음 초대장까지 ${view.witness % view.witnessPer}/${view.witnessPer}</p></section>`;
+            <p class="atlas-muted">나이테가 목격한 처치 ${view.witness}회, 다음 초대장까지 ${view.witness % view.witnessPer}/${view.witnessPer}</p>
+            ${block ? `<p class="atlas-lock">${escapeHTML(block)}</p>` : ''}</section>`;
     }
     /** 마름: only once the gardener has fallen (it spreads from then on). */
     function blightHtml(view) {
@@ -38,14 +47,21 @@ const atlasEndgameUi = (() => {
             <div class="atlas-late-blight">${chips}</div></section>`;
     }
     function html() {
-        const view = atlasEndgame.overview(game);
-        return `<div class="atlas-late">${headHtml(view)}
-            <section class="atlas-late-group"><h3>최종 보스</h3><div class="atlas-late-cards">${view.apexes.map(fightHtml).join('')}</div></section>
-            <section class="atlas-late-group"><h3>리그 우두머리</h3><div class="atlas-late-cards">${view.leagues.map(fightHtml).join('')}</div></section>
+        const view = atlasEndgame.overview(game), block = view.awakened ? departBlock() : '', cards = list => list.map(fight => fightHtml(fight, block)).join('');
+        return `<div class="atlas-late">${headHtml(view, block)}
+            <section class="atlas-late-group"><h3>최종 보스</h3><div class="atlas-late-cards">${cards(view.apexes)}</div></section>
+            <section class="atlas-late-group"><h3>리그 우두머리</h3><div class="atlas-late-cards">${cards(view.leagues)}</div></section>
             ${blightHtml(view)}</div>`;
     }
 
-    // ---------------------------------------------------------------- log lines (js/atlas-run.js 'complete' carries result.endgame)
+    // ---------------------------------------------------------------- notices and log lines (js/atlas-run.js 'complete' carries result.endgame)
+    /** The awakening card follows the state (once, by seenTutorials): an awakening in background replay or an old save still gets it.
+     * Called from atlasUi.render on every static refresh; the card opens the atlas's late view. */
+    function noticeAwakened() {
+        if (!atlasEndgame.awakened(game)) return;
+        queueTutorialNotice('atlas_awakened', '깨어난 아틀라스', '아틀라스의 최종 보기에서 최종 보스와 리그 우두머리에게 도전할 수 있습니다.', 'tab-map',
+            { subtabId: 'map-explore-worldtree', atlasView: 'late' });
+    }
     function spoilsText(spoils) {
         const parts = [...spoils.rewards.map(([key, amount]) => `${ORB_DB[key].name} ${amount}`),
             ...spoils.items.map(([id, amount]) => `${atlasEndgame.itemName(id)} ${amount}`)];
@@ -55,15 +71,13 @@ const atlasEndgameUi = (() => {
     function announce(detail) {
         const spoils = detail.kind === 'complete' ? detail.endgame : null;
         if (!spoils) return;
-        if (spoils.awakened) {
-            addLog('🌳 세계수의 그림자가 쓰러져 아틀라스가 깨어났습니다.', 'loot-unique');
-            queueTutorialNotice('atlas_awakened', '깨어난 아틀라스', '아틀라스의 최종 보기에서 최종 보스와 리그 우두머리에게 도전할 수 있습니다.', 'tab-map', 'map-explore-worldtree');
-        }
+        if (spoils.awakened) addLog('🌳 세계수의 그림자가 쓰러져 아틀라스가 깨어났습니다.', 'loot-unique');
+        noticeAwakened();
         const text = spoilsText(spoils);
         if (text) addLog(`🌳 후반부 보상: ${text}`, 'season-up');
         if (spoils.unique) addLog(`👑 고유 장비 <span class='loot-unique'>[${escapeHTML(spoils.unique)}]</span>`, 'loot-unique');
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ html, challenge });
+    return Object.freeze({ html, challenge, noticeAwakened });
 })();
 safeExposeGlobals({ atlasEndgameUi });

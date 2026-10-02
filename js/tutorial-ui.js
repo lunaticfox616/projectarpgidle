@@ -338,7 +338,14 @@ function openTutorialTarget(notice) {
     const { tabId, subtabId } = notice;
     if (tabId) switchTab(tabId, { keepWindowOpen: true });
     if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
-    if (subtabId && tabId === 'tab-map') switchMapSubtab(subtabId);
+    if (subtabId && tabId === 'tab-map') openMapTutorialTarget(subtabId);
+    if (notice.atlasView && typeof atlasUi === 'object') atlasUi.setView(notice.atlasView);
+}
+/** A map card may aim at an explore sub-tab (map-explore-*): open the zones tab, then that explore tab. */
+function openMapTutorialTarget(subtabId) {
+    if (!subtabId.startsWith('map-explore-')) return switchMapSubtab(subtabId);
+    switchMapSubtab('map-tab-zones');
+    switchMapExploreSubtab(subtabId);
 }
 /** "다음 안내 N": how many more cards will follow this one. The counter sits in the card's top-right corner. */
 function syncTutorialQueueCount() {

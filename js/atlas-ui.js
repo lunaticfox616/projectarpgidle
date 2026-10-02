@@ -25,8 +25,11 @@ const atlasUi = (() => {
         updateStaticUI();
     }
     function setView(next) {
+        const keyboard = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#ui-atlas') : null;
         view = ['passives', 'epoch', 'late'].includes(next) ? next : 'maps';
         refresh();
+        // The panel is rebuilt: a tab pressed from inside it keeps the focus on the (new) pressed tab.
+        if (keyboard) document.querySelector('#ui-atlas .atlas-view.is-on')?.focus();
     }
     function selectNode(id) {
         if (!atlas.node(id)) return;
@@ -178,6 +181,9 @@ const atlasUi = (() => {
 
     // ---------------------------------------------------------------- side: open map, map device, node
     function mapCardHtml(map, extra = '') {
+        // 지도석 없이 연 싸움(정점, 최종 보스, 리그 우두머리)은 희귀도 · 옵션 · 수량 없이 무엇인지만.
+        const special = RUN_KIND[atlas.node(map.node)?.kind];
+        if (special) return `<div class="atlas-map-card"><strong>${escapeHTML(nodeName(map.node))}</strong><span class="atlas-map-tags">${map.tier}등급, ${special}</span>${extra}</div>`;
         const fx = atlasMaps.effects(map), rule = ATLAS.rarities[map.rarity];
         const mods = map.mods.map(entry => `<li>${escapeHTML(atlasMaps.describe(entry))}</li>`).join('');
         const tags = [`${map.tier}등급`, rule.name, map.quality ? `품질 ${map.quality}%` : '', map.corrupted ? '타락' : ''].filter(Boolean).join(' · ');
@@ -296,6 +302,7 @@ const atlasUi = (() => {
     }
     const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html() };
     function render() {
+        atlasEndgameUi.noticeAwakened(); // every static refresh, panel open or not (the card follows the state)
         const panel = document.getElementById('ui-atlas');
         if (!panel || !panelOpen()) return;
         atlas.sync(game);

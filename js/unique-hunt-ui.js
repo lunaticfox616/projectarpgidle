@@ -10,7 +10,7 @@ const UNIQUE_HUNT_SOURCE_TYPES = Object.freeze({
     meteor: { label: '운석 낙하 지점', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-meteor' },
     seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' },
     // 깨어난 아틀라스의 최종 보스와 리그 우두머리만 주는 고유(data/atlas-endgame.js, 아틀라스의 최종 보기).
-    atlasLate: { label: '깨어난 아틀라스 보스', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-worldtree' }
+    atlasLate: { label: '깨어난 아틀라스 보스', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-worldtree', atlasView: 'late' }
 });
 const UNIQUE_HUNT_SOURCE_IDS = Object.freeze({
     grand_breach_run: { label: '대균열', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-voidrift' },
@@ -107,6 +107,7 @@ function navigateToUniqueHuntSource(encodedKey) {
         let exploreButton = document.getElementById(`btn-${source.exploreSubtab}`);
         if (exploreButton && exploreButton.style.display !== 'none') switchMapExploreSubtab(source.exploreSubtab);
     }
+    if (source.atlasView) atlasUi.setView(source.atlasView); // the atlas's late view (아틀라스 후반부 고유)
     return true;
 }
 

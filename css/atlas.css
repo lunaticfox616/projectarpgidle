@@ -63,7 +63,7 @@
 #ui-atlas .atlas-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 #ui-atlas .atlas-actions button{min-height:34px;padding:6px 12px}
 #ui-atlas .atlas-primary{background:#cfb887;border-color:#e6cf9f;color:#17140f;font-weight:700;box-shadow:inset 1px 1px 0 #fff3cf,inset -1px -1px 0 #7a6440,2px 2px 0 #000}
-#ui-atlas .atlas-actions .atlas-primary:hover:not(:disabled){background:#dcc697}
+#ui-atlas .atlas-primary:hover:not(:disabled){background:#dcc697}
 #ui-atlas .atlas-node-detail small{color:color-mix(in srgb,var(--tint) 45%,#d5cfbd);font-size:11px}
 #ui-atlas .atlas-node-detail h3{margin:2px 0 4px;font-size:15px;color:var(--atlas-ink)}
 #ui-atlas .atlas-node-detail p{margin:3px 0;font-size:12px}
