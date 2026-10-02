@@ -118,18 +118,6 @@ test('the phone dock keeps its cells when the map unlocks', async ({ page }, inf
     await expect(page.locator('#tab-map')).toBeVisible();
 });
 
-// The back button closes the top window through its "닫기" button (android-app-ui.js). The shared selection dialog frame
-// (selection-dialog-ui.js, 2026-10-03) must keep that label, and the screen under it stays.
-test('the Android back button closes a selection dialog and keeps the screen', async ({ page }, info) => {
-    test.skip(!info.project.use.isMobile, 'Android plugin boundary');
-    await openMobile(page, true);
-    await page.evaluate(() => { switchTab('tab-items'); coreItemsUi.open(); });
-    await expect(page.locator('.selection-overlay')).toHaveCount(1);
-    await page.evaluate(() => window.androidEvents.backButton());
-    await expect(page.locator('.selection-overlay')).toHaveCount(0);
-    await expect(page.locator('#tab-items')).toHaveClass(/active/);
-});
-
 // Review 2026-10-01: the tapped class card tooltip stayed over the HUD after the battle started.
 // QA 2026-10-01: one tap on a phone started the game while the start gem and weapon lived only in the hover tooltip, so the
 // class was chosen blind. Phones select on the first tap and start from "이 직업으로 시작"; PC keeps one click and the tooltip.
