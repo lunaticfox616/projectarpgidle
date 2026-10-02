@@ -124,7 +124,7 @@ const actExplorationMap = (() => {
         return parents;
     }
     /** Visible floor plus bordering wall tiles, reached through floor rather than through walls. */
-    function visibleCells(map,from,radius=5) {
+    function visibleCells(map,from,radius=ACT_EXPLORATION_VISION.radius) {
         if(!walkable(map,from))return [];
         const queue=[{...from,distance:0}],seen=new Set();
         for(let cursor=0;cursor<queue.length;cursor++) {

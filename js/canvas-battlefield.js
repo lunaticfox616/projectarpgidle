@@ -1463,7 +1463,7 @@ function drawBossPatternLabel(ctx, entry, enemy) {
     const width = enemy.isBoss ? 84 : 60;
     const viewWidth = ctx.canvas.width / ctx.getTransform().a;
     const x = Math.round(clampNumber(entry.x-width/2,6,Math.max(6,viewWidth-width-6)));
-    const y = Math.round(Math.max(6,entry.y-(enemy.isBoss ? 106 : 56)-13));
+    const y = Math.round(Math.max(6,entry.y-getEnemyFieldBarLift(enemy)-13));
     const edge = cast.cancelled ? '#a8706a' : '#8e7951';
     ctx.globalAlpha = 0.96;
     ctx.fillStyle = '#111310';
@@ -1582,10 +1582,16 @@ function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     ctx.restore();
 }
 
-/** Bar height above the feet: fixed for bosses and atlas monsters; a wisp floats its body higher (js/canvas-wisp-actors.js). */
+/** Atlas sprites' drawn height this frame (js/ui.js drawEnemySprite), weakly keyed so dead enemies drop out. */
+const enemyDrawnHeights = new WeakMap();
+function noteEnemyDrawnHeight(enemy, height) { if (enemy && height > 0) enemyDrawnHeights.set(enemy, height); }
+
+/** Bar height above the feet: clear of the drawn sprite (bosses grow with the tile), never below the old fixed lift; a wisp
+ * floats its body higher (js/canvas-wisp-actors.js). */
 function getEnemyFieldBarLift(enemy) {
-    if (enemy.isBoss) return 106;
-    return wispActors.barLift(enemy) || 56;
+    const base = enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56);
+    const drawn = enemyDrawnHeights.get(enemy) || 0;
+    return Math.max(base, Math.round(drawn + 10));
 }
 
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {

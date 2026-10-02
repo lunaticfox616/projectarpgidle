@@ -544,7 +544,8 @@ assert.ok(!battlefieldSource.includes('전진이 막혔습니다'), 'the verbose
 assert.ok(battlefieldSource.includes('caption = `몬스터 수 ${enemies.length}마리`;'), 'battlefield status must report the current monster count');
 assert.ok(!battlefieldSource.includes('기와 교전 중') && !battlefieldSource.includes('지역 탐색 중'), 'legacy encounter captions must not remain');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
-assert.ok(battlefieldSource.includes('enemy.isBoss ? 106 : 56'), '2x2 boss health bars should clear the enlarged sprite');
+assert.ok(battlefieldSource.includes('enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56)') && battlefieldSource.includes('enemyDrawnHeights.get(enemy)'),
+  '2x2 boss health bars should clear the enlarged sprite (the old lift, or above the drawn sprite when the tile grows it)');
 assert.ok(!battlefieldSource.includes('tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx')
     && !battlefieldSource.includes('tilePath(COMBAT_GRID_CONFIG.bossSpawn.gx'),
   'the battlefield should not paint permanent blue player or red boss spawn markers');

@@ -14,8 +14,7 @@ body[data-ui-skin] {
   --px-orb-amber-top: url('../../assets/ui/pixel/hud-orb-amber-top.png');
   --px-orb-amber-empty: url('../../assets/ui/pixel/hud-orb-amber-empty.png');
   --px-orb-amber-liquid: url('../../assets/ui/pixel/hud-orb-amber-liquid.png');
-  --px-shield: linear-gradient(90deg, rgba(0, 0, 0, .28) 0 16%, transparent 16% 84%, rgba(0, 0, 0, .28) 84%),
-    linear-gradient(180deg, rgba(126, 206, 255, .72) 0 14%, rgba(62, 146, 226, .62) 14% 60%, rgba(34, 92, 176, .62) 60%);
+  --px-orb-life-shield: url('../../assets/ui/pixel/hud-orb-life-shield.png');
 }
 
 /* ─── 하단 HUD: [생명 구슬] [이름 / 경험치] [젬] ─────────────── */
@@ -144,13 +143,14 @@ body[data-ui-skin] {
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-hp-bar.player-danger { animation: px-orb-danger 1s steps(2, jump-none) infinite; }
 @keyframes px-orb-danger { from { opacity: 1; } to { opacity: .62; } }
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-overlay { z-index: 2; overflow: hidden; border: 0; background: none; }
-/* 보호막은 생명 위에 반쯤 비치는 막: 다 차도 붉은 생명이 보여야 한다(불투명이면 구슬이 통째로 파래져 마나 구슬처럼 읽혔다). */
+/* 보호막은 유리 안쪽 가장자리를 두르는 파란 막(scripts/build-hud-kit.cjs orbShield), 액체처럼 아래에서 위로 찬다. 다 차도 가운데의
+   붉은 생명이 보인다(통째로 파라면 마나 구슬처럼 읽혔다). 예전의 반투명 파란 막은 붉은 생명과 섞여 보라색으로 보였다(2026-10-02). */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-es-bar {
   position: absolute;
   inset: 0;
   height: auto;
-  opacity: .35;
-  background: var(--px-shield);
+  background: var(--px-orb-life-shield) var(--orb-at) / var(--orb-art) no-repeat;
+  image-rendering: pixelated;
   clip-path: inset(calc(100% - var(--gauge-fill, 0%)) 0 0 0);
 }
 /* 레벨 업 알림: 경험치 구슬 위에 잠깐(js/ui.js playLevelUpCallout이 Web Animations로 움직인다) */

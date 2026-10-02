@@ -183,11 +183,12 @@
 }
 
 @media (min-width: 1081px) {
-  body.desktop-windowed-ui.combat-log-collapsed:not(.community-dock-open) {
+  /* 예전 오른쪽 열 배치의 세로 띠 접기. 균열(rift) 무대는 rift-stage.css에서 제목 줄만 남긴다. */
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]).combat-log-collapsed:not(.community-dock-open) {
     --combat-log-width: 52px;
   }
 
-  body.desktop-windowed-ui .combat-feed.collapsed {
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed {
     top: 24px;
     bottom: auto;
     width: 52px;
@@ -198,19 +199,19 @@
     border-image-width: 4px;
   }
 
-  body.desktop-windowed-ui .combat-feed.collapsed .combat-feed-title {
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed .combat-feed-title {
     display: grid;
     gap: 4px;
     margin: 0;
     border: 0;
   }
 
-  body.desktop-windowed-ui .combat-feed.collapsed #log,
-  body.desktop-windowed-ui .combat-feed.collapsed .ui-context-dock-tab:first-child {
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed #log,
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed .ui-context-dock-tab:first-child {
     display: none;
   }
 
-  body.desktop-windowed-ui .combat-feed.collapsed :is(#btn-combat-chat-tab, #btn-combat-log-toggle) {
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed :is(#btn-combat-chat-tab, #btn-combat-log-toggle) {
     width: 38px;
     min-width: 0;
     min-height: 40px;
@@ -219,7 +220,7 @@
     border: 0;
   }
 
-  body.desktop-windowed-ui .combat-feed.collapsed #btn-combat-log-toggle::after { content: none; }
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed #btn-combat-log-toggle::after { content: none; }
 
 }
 }
@@ -391,7 +392,7 @@
 
 @media (min-width: 1081px) {
 
-  body.desktop-windowed-ui .combat-feed.collapsed :is(#btn-combat-chat-tab, #btn-combat-log-toggle) {
+  body.desktop-windowed-ui:not([data-ui-skin="rift"]) .combat-feed.collapsed :is(#btn-combat-chat-tab, #btn-combat-log-toggle) {
     font-size: 10px;
   }
 

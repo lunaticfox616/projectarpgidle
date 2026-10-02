@@ -5,6 +5,9 @@
    테 그림은 scripts/build-hud-kit.cjs가 사용자 HUD 그림에서 만든다. 금빛 제목, 구슬 · 미니맵(themes/pixel-hud.css). */
 
 body[data-ui-skin] {
+  /* 도트 글꼴은 보통 굵기 한 벌뿐이라 굵게(600~900)를 주면 브라우저가 획을 옆으로 번지게 덧그렸다(가짜 굵기, 2026-10-02 "폰트가
+     흐릿하다"). 굵기 대신 색 · 크기 · 겹쳐 찍기(--px-text-bold)로 구분한다. */
+  font-synthesis: none;
   /* 도트 글꼴의 제 크기: 물마루 12px(UI 전반), 갈무리 15px(긴 글), DOS새물 16px(제목). 그 배수에서 가장 또렷하다. */
   --font-pixel: 'MulmaruMono', 'Galmuri14', 'Malgun Gothic', sans-serif;
   --font-pixel-read: 'Galmuri14', 'MulmaruMono', 'Malgun Gothic', sans-serif;
@@ -208,6 +211,11 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .hp-bar-fill.enemy,
 :root body[data-ui-skin].mobile-battle-tab #tab-battle .hp-bar-fill.enemy,
 :root body[data-ui-skin].desktop-windowed-ui .enemy-card.targeted .hp-bar-fill.enemy { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); }
+
+/* PC: 윈도우의 서브픽셀(ClearType식) 글자 다듬기는 도트 글꼴의 세로 획 양옆에 파랗고 붉은 띠를 내 흐릿하게 보였다. 본문을 합성
+   층으로 올리면 크롬이 회색 다듬기로 그린다(2026-10-02). 본문은 화면과 같은 크기로 스크롤하지 않아 고정 위치 요소의 기준 상자는
+   그대로다. 휴대폰은 원래 회색 다듬기라 두지 않는다. */
+:root body[data-ui-skin].desktop-windowed-ui { will-change: transform; }
 
 /* 패치 노트 · 자동 환생 안내: em 배율(9.6 · 10 · 10.7px)은 도트 글꼴이 번져 정수로 */
 :root body[data-ui-skin] :is(.patch-note-list li, .patch-note-empty, .patch-note-date, .loop-automation small) { font-size: 12px; }

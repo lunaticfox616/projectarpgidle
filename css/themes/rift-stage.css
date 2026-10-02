@@ -118,6 +118,10 @@
     top: 16px;
     right: calc(10px + (var(--stage-feed-width) - var(--minimap-size)) / 2);
   }
+  /* 접은 기록은 같은 자리, 같은 폭에 제목 줄(전투 로그, 채팅, 펼치기)만 남는다. 아래 판 높이(44vh)가 접힘 높이를 덮어
+     빈 판이 남았다(2026-10-02). 아래 변은 그대로라 펼치면 위로 열린다. */
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed.collapsed { height: auto; }
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed.collapsed #btn-combat-log-toggle::after { content: none; }
   /* 전투 기록은 아래쪽에 붙은 낮은 판(화면 높이의 44%까지). 그 위 빈자리로 전장이 보인다. */
   body[data-ui-skin="rift"].desktop-windowed-ui .combat-feed {
     top: auto;

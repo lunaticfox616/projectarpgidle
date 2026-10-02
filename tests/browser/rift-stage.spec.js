@@ -66,6 +66,19 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     await page.locator('#btn-combat-log-toggle').click();
     await expect(page.locator('#log')).toBeHidden();
     expect((await rectOf(page, '#battlefield-wrap')).width).toBeCloseTo(field.width, 0);
+    // 접은 기록은 같은 자리, 같은 폭의 제목 줄만 남는다(빈 판이 그대로 남고 단추가 세로로 갈라졌다, 2026-10-02).
+    const folded = await rectOf(page, '.combat-feed');
+    expect(folded.height).toBeLessThan(90);
+    expect(folded.width).toBeCloseTo(feed.width, 0);
+    expect(folded.bottom).toBeCloseTo(feed.bottom, 0);
+    await expect(page.locator('.combat-feed-title .ui-context-dock-tab').first()).toBeVisible();
+    await expect(page.locator('#btn-combat-log-toggle')).toHaveText('펼치기');
+    expect((await rectOf(page, '#btn-combat-log-toggle')).height).toBeLessThan(40);
+    await page.locator('#btn-combat-log-toggle').click();
+    await expect(page.locator('#log')).toBeVisible();
+    expect((await rectOf(page, '.combat-feed')).height).toBeCloseTo(feed.height, 0);
+    await page.locator('#btn-combat-log-toggle').click();
+    await expect(page.locator('#log')).toBeHidden();
     await page.evaluate(() => switchTab('tab-items'));
     await expect(page.locator('#tab-items')).toBeVisible();
     const window = await rectOf(page, '#tab-items');

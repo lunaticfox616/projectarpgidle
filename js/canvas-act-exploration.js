@@ -75,11 +75,12 @@ const actExplorationView=(()=>{
         if(!run || lastOrigin?.run!==run || !point)return null;
         return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.tile)};
     }
-    /** Discovered ground dims with distance (≤48%). Undiscovered ground is not a wall of black: just past the
-     * discovered edge it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
+    /** Discovered ground dims with distance (≤48%) from one tile inside the sight radius. Undiscovered ground is not a wall of
+     * black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
     function fogAlpha(discovered,distance) {
-        if(discovered)return Math.min(.48,Math.max(0,(distance-4)/7));
-        return Math.min(.97,.66+Math.max(0,distance-5)*.05);
+        const sight=ACT_EXPLORATION_VISION.radius;
+        if(discovered)return Math.min(.48,Math.max(0,(distance-(sight-1))/7));
+        return Math.min(.97,.66+Math.max(0,distance-sight)*.05);
     }
     /** Tiles from the hero; while the hero is at the boss room, every tile of the room (and its walls) counts as right here. */
     function fogDistance(map,i,lit) {

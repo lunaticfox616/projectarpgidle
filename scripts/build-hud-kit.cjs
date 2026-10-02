@@ -120,6 +120,21 @@ function sliceAmber(img, geometry) {
     return { top: stack(frameOf(img, geometry), glint), empty, liquid };
 }
 
+/** Energy shield: a blue film along the inside of the glass (three dots and a dithered fourth), white along the top left.
+ * CSS lays it over the life liquid and cuts it from the bottom like the liquid. A blue wash over the whole glass mixed with the
+ * red into purple (2026-10-02). */
+function orbShield(img, { cx, cy, r }) {
+    const out = blank(img.w, img.h), test = inGlass({ cx, cy, r }), tones = ['#d4f0ff', '#8fd6ff', '#4aa8f0', '#2f7fd0'];
+    each(out, (x, y) => {
+        if (!test(x, y)) return;
+        const dx = x + 0.5 - cx, dy = y + 0.5 - cy, depth = Math.floor(r - Math.hypot(dx, dy));
+        if (depth > 3 || (depth === 3 && (x + y) % 2)) return;
+        const lit = depth === 0 && dx < -r * 0.3 && dy < -r * 0.3;
+        put(out, x, y, parse(lit ? '#ffffff' : tones[depth]));
+    });
+    return out;
+}
+
 // ─── 미니맵 테 ─────────────────────────────────────────────────────────
 /** The rim with its window cleared, pushed `grow` dots outward along each ray so the window becomes r + grow. */
 function mapRim(img, { cx, cy, r, grow }) {
@@ -246,6 +261,7 @@ function build() {
         'hud-orb-life-top.png': lifeParts.top,
         'hud-orb-life-empty.png': lifeParts.empty,
         'hud-orb-life-liquid.png': lifeParts.liquid,
+        'hud-orb-life-shield.png': orbShield(life, GEOMETRY.life),
         'hud-orb-amber-top.png': amberParts.top,
         'hud-orb-amber-empty.png': amberParts.empty,
         'hud-orb-amber-liquid.png': amberParts.liquid,

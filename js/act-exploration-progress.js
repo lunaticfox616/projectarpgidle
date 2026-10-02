@@ -34,8 +34,9 @@ const actExplorationProgress = (() => {
     function step(run,stats) {
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         if(run.motion || run.status!=='active')return;
-        const visible=actExplorationState.discover(run,game.gridPlayer),opened=actExplorationState.entrance(run);
-        wakeBosses(actExplorationState.engage(game,visible,run.motionTimeMs));
+        actExplorationState.discover(run,game.gridPlayer);
+        const opened=actExplorationState.entrance(run);
+        wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);

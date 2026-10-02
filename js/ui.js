@@ -7415,7 +7415,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
         let outlineColor = enemy.isBoss
             ? '#a84e49'
             : (enemy.isElite ? (enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || '#e2b94f') : null);
-        drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
+        drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)); noteEnemyDrawnHeight(enemy, drawSize);
         let bossScaleRatio = enemy.isBoss ? scale / 2.55 : 1;
         drawPixelShadow(ctx, x, groundY, enemy.isBoss ? 22 * bossScaleRatio : 9, enemy.isBoss ? 7 * bossScaleRatio : 4, 0.17);
         ctx.save();

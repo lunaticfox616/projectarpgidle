@@ -176,4 +176,9 @@ const ACT_EXPLORATION_BACKDROPS = Object.freeze({
     'three-confluences':Object.freeze({map:'assets/exploration/act9-map.png',gate:'assets/exploration/act9-gate.png',gateOffset:Object.freeze([-22,-28])}),
     'crown-wheel':Object.freeze({map:'assets/exploration/act10-map.png',gate:'assets/exploration/act10-gate.png',gateOffset:Object.freeze([-22,-28])})
 });
-safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS});
+// Sight around the hero in tiles (walked through floor, js/act-exploration-map.js visibleCells). The fog dims seen ground from one
+// tile inside it and unseen ground beyond it (js/canvas-act-exploration.js fogAlpha). 2026-10-02: 5 → 6 (user: the view felt cramped).
+// Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
+// before it charges, and the fights a route takes stay the same.
+const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5});
+safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_VISION});

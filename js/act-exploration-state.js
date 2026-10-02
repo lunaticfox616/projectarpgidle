@@ -10,7 +10,7 @@ const actExplorationState = (() => {
     const entrances=new WeakMap();
     // Discovery geometry is static at a tile. Keep this transient memo outside saves;
     // engagement still runs every step so deaths/elite gates can activate waiting packs.
-    const discoveryMemos=new WeakMap();
+    const discoveryMemos=new WeakMap(),noticeMemos=new WeakMap();
     function current(state) {
         const run=state.actExploration;
         return run && run.zoneId===state.currentZoneId ? run : null;
@@ -49,6 +49,14 @@ const actExplorationState = (() => {
         }
         discoveryMemos.set(run,{key,visible,discovered:run.discovered,visited:run.visitedRooms});
         return visible;
+    }
+    /** Cells whose monsters notice the hero and join the fight: a tile inside the sight (ACT_EXPLORATION_VISION), memoized per cell. */
+    function notice(run,cell) {
+        const key=`${run.layoutId}:${cell.gx},${cell.gy}`,prior=noticeMemos.get(run);
+        if(prior?.key===key)return prior.cells;
+        const cells=Object.freeze(actExplorationMap.visibleCells(actExplorationMap.forRun(run),cell,ACT_EXPLORATION_VISION.engageRadius));
+        noticeMemos.set(run,{key,cells});
+        return cells;
     }
     function bossReady(run,pack) {
         if(pack.stage===null)return true;
@@ -263,6 +271,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,packRooms,discover,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
+    return {settlementMs,current,create,packRooms,discover,notice,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
 })();
 safeExposeGlobals({actExplorationState});
