@@ -396,6 +396,7 @@ function getActiveTalentCardStatBonuses() {
         let level = Math.max(1, Math.floor(owned[key].level || 1));
         getTalentCardStatBonuses(heroId, classKey, level).forEach(b => out.push({ id: b.stat, val: b.val }));
     }
+    pushGrantedBloomMechanicStats(out);
     let mistralLevel = isTalentCardActive('hero1__ranger');
     let mistralRuntime = getTalentCardRuntimeDefinition('hero1__ranger');
     let mistralStacks = getTalentMistralStackCount();
@@ -614,6 +615,7 @@ function clearTalentCardRuntimeState() {
 }
 
 // 특정 조합 카드가 "열린 슬롯"에 장착돼 있으면 그 레벨을 반환(아니면 0). 정밀 메커니즘 게이트용.
+// 키스톤이나 고유 주얼이 켠 옛 카드 효과(아래 getGrantedBloomMechanics)는 최대 레벨로 답한다.
 function isTalentCardActive(comboKey) {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
     let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
@@ -621,7 +623,43 @@ function isTalentCardActive(comboKey) {
     for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
         if (loadout[i] === comboKey && owned[comboKey]) return Math.max(1, Math.floor(owned[comboKey].level || 1));
     }
-    return 0;
+    return getGrantedBloomMechanics(game).has(comboKey) ? TALENT_CARD_MAX_LEVEL : 0;
+}
+
+// ── 카드가 아닌 곳에서 켜지는 옛 카드 효과(2026-10-02 재능 정리) ──
+// 얻을 수 없게 된 옛 카드 중 살린 효과는 전직 키스톤(CLASS_KEYSTONE_DEFS의 bloomMechanic)이나 고유 주얼(UNIQUE_JEWEL_DB의
+// bloomMechanic)이 켠다. 효과 코드는 카드 id로 켜졌는지 묻기 때문에(isTalentCardActive) 그대로 두고, 그 id를 최대 레벨로 켠 것처럼
+// 답한다. 정밀 규칙의 능력치 줄과 고유 효과 줄도 최대 레벨로 들어가고, 카드의 이면 효과는 들어가지 않는다.
+const talentGrantedMechanicsByOwner = new WeakMap();
+
+function collectGrantedBloomMechanics(owner) {
+    const keys = new Set();
+    if (typeof forEachActiveKeystoneDef === 'function') forEachActiveKeystoneDef(owner, def => { if (def.bloomMechanic) keys.add(def.bloomMechanic); });
+    const rows = typeof collectSocketedJewels === 'function' && typeof UNIQUE_JEWEL_DB !== 'undefined' ? collectSocketedJewels(owner.equipment) : [];
+    rows.forEach(row => {
+        const unique = row.jewel && row.jewel.uniqueId ? UNIQUE_JEWEL_DB.find(entry => entry.id === row.jewel.uniqueId) : null;
+        if (unique && unique.bloomMechanic) keys.add(unique.bloomMechanic);
+    });
+    return keys;
+}
+
+/** getPlayerStats가 장비와 키스톤을 읽을 때(recomputeCosmosTwinKeystones) 다시 센다. */
+function refreshGrantedBloomMechanics(owner = game) {
+    const keys = collectGrantedBloomMechanics(owner);
+    talentGrantedMechanicsByOwner.set(owner, keys);
+    return keys;
+}
+
+/** 키스톤과 고유 주얼이 켠 옛 카드 효과 id. 아직 센 적이 없으면 지금 센다. */
+function getGrantedBloomMechanics(owner = game) {
+    return owner && typeof owner === 'object' ? (talentGrantedMechanicsByOwner.get(owner) || refreshGrantedBloomMechanics(owner)) : new Set();
+}
+
+function pushGrantedBloomMechanicStats(out) {
+    getGrantedBloomMechanics(game).forEach(key => {
+        const rule = getTalentPreciseRule(key);
+        Object.entries((rule && rule.stats) || {}).forEach(([stat, value]) => out.push({ id: stat, val: Number(value) || 0 }));
+    });
 }
 
 // 플레이어 공격 1회 발생 시 호출(combat.performPlayerAttack). 카운터/스택 등 정밀 메커니즘의 런타임 상태만 갱신(제어흐름 변경 없음).
@@ -722,7 +760,6 @@ function getActiveTalentKeystoneUniqueEffects() {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
     let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
     let unlocked = getUnlockedTalentSlotCount();
-    if (unlocked <= 0) return [];
     let out = [];
     for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
         let key = loadout[i];
@@ -730,6 +767,11 @@ function getActiveTalentKeystoneUniqueEffects() {
         let { heroId, classKey } = parseTalentComboKey(key);
         out.push(...getTalentCardUniqEffects(heroId, classKey, owned[key].level));
     }
+    // 키스톤과 고유 주얼이 켠 옛 카드 효과의 고유 효과 줄(최대 레벨)
+    getGrantedBloomMechanics(game).forEach(key => {
+        let { heroId, classKey } = parseTalentComboKey(key);
+        out.push(...getTalentCardUniqEffects(heroId, classKey, TALENT_CARD_MAX_LEVEL));
+    });
     return out;
 }
 
@@ -757,6 +799,8 @@ safeExposeGlobals({
     getTalentBloomHeroIdForAscendancy,
     getTalentBloomCardKeyForAscendancy,
     getTalentBloomCardKeys,
+    refreshGrantedBloomMechanics,
+    getGrantedBloomMechanics,
     isTalentFenrirEngravingEnabled,
     clearTalentCardRuntimeState
 });

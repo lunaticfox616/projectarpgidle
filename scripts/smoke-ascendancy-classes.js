@@ -47,8 +47,33 @@ for (const asc of NEW_SIX) {
         (node.stats || []).forEach(line => assert.ok(statIds.has(line.stat) && Number.isFinite(line.val) && line.val !== 0, `${node.id}: ${line.stat}`));
         (node.uniques || []).forEach(unique => checkUniqueLine(node.id, unique));
     });
-    assert.ok(keystones[asc].filter(node => (node.uniques || []).length).length >= 4, `${asc}: keystones 4-9 carry most of the unique effects`);
+    assert.ok(keystones[asc].filter(node => (node.uniques || []).length || node.bloomMechanic).length >= 4, `${asc}: keystones 4-9 carry most of the unique effects`);
 }
+
+// 옛 재능 카드 효과를 켜는 키스톤(bloomMechanic, 2026-10-02 재능 정리): 효과 정의가 있고 얻을 수 있는 카드가 아니며, 찍으면(그
+// 전직일 때, 또는 쌍둥이 키스톤으로) 그 효과가 최대 레벨로 켜진다. 예: 저거너트 방패 벽 → 스톤쉴드(막기 후 최대 생명력 10% 돌 보호막).
+const mechanicKeystones = Object.values(keystones).flat().filter(node => node.bloomMechanic);
+assert.equal(mechanicKeystones.length, 6, 'one signature effect per new ascendancy');
+const bloomCardKeys = new Set(json('getTalentBloomCardKeys()'));
+mechanicKeystones.forEach(node => {
+    assert.ok(run(`!!TALENT_BLOOM_CARD_DEFS['${node.bloomMechanic}']`), `${node.id}: ${node.bloomMechanic} has an effect definition`);
+    assert.ok(!bloomCardKeys.has(node.bloomMechanic), `${node.id}: ${node.bloomMechanic} is not an obtainable card`);
+});
+const stone = json(`(() => {
+    const level = () => { getPlayerStats(false); return isTalentCardActive('hero2__guardian'); };
+    game.ascendClass = 'juggernaut'; game.ascendKeystones = ['jg2']; game.cosmosTwinKeystones = [];
+    const without = level();
+    game.ascendKeystones = ['jg2', 'jg5'];
+    const picked = level();
+    const shield = grantTalentStoneShield(1000, 0);
+    game.ascendClass = 'warrior'; game.ascendKeystones = ['jg2', 'jg5'];
+    const otherAscendancy = level();
+    game.ascendClass = ''; game.ascendKeystones = []; getPlayerStats(false);
+    return { without, picked, shield: shield && shield.amount, otherAscendancy };
+})()`);
+assert.deepEqual(stone, { without: 0, picked: 10, shield: 100, otherAscendancy: 0 }, 'the keystone switches the stone shield on at full strength, only in its ascendancy');
+assert.equal(run(`[...getGrantedBloomMechanics({ ascendClass: 'warrior', ascendKeystones: [], cosmosTwinKeystones: ['jg5'], equipment: {} })].join()`), 'hero2__guardian',
+    'a twin keystone grants its effect in any ascendancy');
 
 // 노드: 기존 12종은 개편 전 getClassTreeDef와 같은 값(지문), 새 여섯은 모든 노드가 아는 능력치의 양수 값.
 const trees = json(`(() => {

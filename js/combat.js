@@ -675,6 +675,8 @@ function recomputeCosmosTwinKeystones() {
     let judgment = slots.find(j => j && j.uniqueId === 'cbj_zubenshamali_judgment' && j.cosmosKeystone);
     if (balance && judgment && balance.cosmosKeystone === judgment.cosmosKeystone) granted.push(balance.cosmosKeystone);
     game.cosmosTwinKeystones = granted;
+    // 키스톤과 고유 주얼이 켜는 옛 재능 카드 효과도 같은 때 다시 센다(js/talent-cards.js, 2026-10-02 재능 정리).
+    if (typeof refreshGrantedBloomMechanics === 'function') refreshGrantedBloomMechanics(game);
     return granted;
 }
 
