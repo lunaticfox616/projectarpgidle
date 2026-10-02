@@ -162,7 +162,6 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '작살화살': {family:'worldTree',scale:1,impactVfx:false},
     '공중강타': {family:'worldTree',scale:1,impactVfx:false},
     '기본 공격': { family: 'slash', scale: 0.82 },
-    '펜리르의 독니': { family: 'bite', scale: 0.86, impactAccentVfx: false },
     '연속 베기': { family: 'continuousSlash', scale: 1, repeats: 1, impactAccentVfx: false },
     '묵직한 강타': { family: 'slam', scale: 0.92, sigil: 2 },
     '흡혈 타격': { family: 'slash', scale: 0.78, accent: 'blood', sigil: 3 },
@@ -221,7 +220,6 @@ safeExposeData({ SKILL_GEM_VFX_PROFILES });
 const SKILL_AREA_VFX_ASSETS = Object.freeze({
     skillFxWorldTree: 'assets/effects/world-tree-skills-v338.webp',
     skillFxBasicSlash: 'assets/effects/basic-slash-sheet.png',
-    skillFxFenrirFang: 'assets/effects/fenrir-fang-sheet.png',
     skillFxDoubleSlash: 'assets/effects/double-slash-sheet.png',
     skillFxGravitySheet: 'assets/effects/pixel-gravity-sheet-v1.png',
     skillFxFrostErosionSheet: 'assets/effects/pixel-frost-erosion-sheet-v2.png',

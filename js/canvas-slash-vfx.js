@@ -84,20 +84,4 @@ function drawSwordSlashVfx(ctx, effect, image, t) {
     ctx.restore();
 }
 
-/** Four authored frames, one image draw per contact; the bite points at the actual victim. */
-function drawFenrirBiteVfx(ctx, effect, image, progress) {
-    if (!image) return;
-    const angle = Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX);
-    const size = effect.size * 1.8;
-    const frame = Math.min(3, Math.floor(progress * 4));
-    ctx.save();
-    ctx.globalAlpha = 0.98;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.filter = 'none';
-    ctx.imageSmoothingEnabled = false;
-    ctx.translate(effect.x, effect.y - 12);
-    ctx.rotate(angle);
-    drawSkillSpriteFrame(ctx, image, frame, {columns:2, rows:2, x:-size * 0.22, y:0, width:size, height:size, angle:0});
-    ctx.restore();
-}
-safeExposeGlobals({ queueContinuousSlashVfx, drawSwordSlashVfx, drawFenrirBiteVfx });
+safeExposeGlobals({ queueContinuousSlashVfx, drawSwordSlashVfx });

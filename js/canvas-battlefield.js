@@ -205,7 +205,6 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     meteorGround: 'skillFxMeteorGround',
     slash: 'skillFxContinuousSlash',
     basicSlash: 'skillFxBasicSlash',
-    bite: 'skillFxFenrirFang',
     continuousSlash: 'skillFxDoubleSlash',
     slam: 'skillFxSlamPrimary',
     projectile: 'skillFxProjectile',
@@ -300,7 +299,6 @@ function drawElementProjectileVfx(ctx, style, width, height, progress) {
 }
 
 function getSkillGemVfxFilter(element, imageKey) {
-    if (imageKey === 'skillFxFenrirFang') return 'none';
     let key = normalizeSkillGemVfxElement(element);
     if (imageKey === 'skillFxChainPrimary' || imageKey === 'skillFxChainJump') {
         if (key === 'light') return 'none';
@@ -1376,7 +1374,7 @@ function drawSkillImpactImage(ctx, image, effect, progress) {
 function drawFootprintSkillImpact(ctx, effect, image, progress) {
     if (drawSkillSignatureImpact(ctx, effect, progress)) return true;
     let footprint = effect.footprint;
-    if (!footprint || ['projectile', 'chain', 'summon', 'stormStrike', 'bite'].includes(effect.family)) return false;
+    if (!footprint || ['projectile', 'chain', 'summon', 'stormStrike'].includes(effect.family)) return false;
     ctx.save();
     let fade = Math.min(1, progress / 0.045) * Math.pow(1 - progress, 1.1);
     drawSkillFootprintGround(ctx, footprint, getElementColor(effect.element), fade);
@@ -1399,7 +1397,7 @@ function drawSkillGemVfxLayer(ctx, now, gridProj) {
     worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
     let list = battleVisualState.skillEffects || [];
     worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
-    const spriteRenderers = {continuousSlash:drawSwordSlashVfx, bite:drawFenrirBiteVfx};
+    const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
         let elapsed = now - effect.startAt;
