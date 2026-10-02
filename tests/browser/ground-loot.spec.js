@@ -42,12 +42,15 @@ test('actual equipment roll is kept once and animates behind actors without x1',
         return { id: item.id, name: item.name, x: source.x / canvas.clientWidth, y: source.y / canvas.clientHeight,
             golden: game.currencies.goldenRule, inventory: game.inventory.length };
     });
+    // One kill drops one pile (2026-10-03): one picture, the three names stacked over it.
     const drops = page.locator('.battle-loot-drop');
-    await expect(drops).toHaveCount(3);
-    await expect(page.locator('.battle-loot-drop.landed')).toHaveCount(3);
+    await expect(drops).toHaveCount(1);
+    await expect(page.locator('.battle-loot-drop.landed')).toHaveCount(1);
+    await expect(drops.locator('.battle-loot-name')).toHaveCount(3);
     const golden = page.locator('.battle-loot-drop[data-currency="goldenRule"]');
-    await expect(golden.locator('.battle-loot-name')).toHaveText('황금률');
-    await expect(golden.locator('.orb-tone')).toHaveCSS('border-top-color', 'rgb(122, 31, 31)');
+    const goldenName = golden.locator('.battle-loot-name[data-currency="goldenRule"]');
+    await expect(goldenName).toHaveText('황금률');
+    await expect(goldenName.locator('.orb-tone')).toHaveCSS('border-top-color', 'rgb(122, 31, 31)');
     await expect(golden).toHaveCSS('opacity', '0.82');
     const point = await golden.evaluate(marker => ({ x: Number(marker.dataset.sourceX), y: Number(marker.dataset.sourceY) }));
     expect(point.x).toBeCloseTo(receipt.x, 2); expect(point.y).toBeCloseTo(receipt.y, 2);
