@@ -12002,6 +12002,19 @@ function getSeasonResetBlockReason(loopPath) {
         : getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.';
 }
 
+/** Sealed gear survives the loop wherever it waits: in the bag or in the temporary storage. */
+function collectLoopSealedBagItems(owner) {
+    return [...(owner.inventory || []), ...(owner.equipmentTemporaryStorage || [])]
+        .filter(item => item && item.loopSealed).map(item => JSON.parse(JSON.stringify(item)));
+}
+
+/** A new loop starts with an empty bag and an empty temporary storage; sealed gear comes back into the bag afterwards.
+ * The temporary storage had no cap and survived loops, so it could grow past the browser's save quota (user, 2026-10-03). */
+function clearLoopItemStorage(owner) {
+    owner.inventory = [];
+    owner.equipmentTemporaryStorage = [];
+}
+
 function triggerSeasonReset(options) {
     let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
     let blockedReason = getSeasonResetBlockReason(loopPath);
@@ -12043,7 +12056,7 @@ function triggerSeasonReset(options) {
         let it = game.equipment[slot];
         if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
-    let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    let preservedSealedInventory = collectLoopSealedBagItems(game);
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
     let preservedTimeRemnant = Math.max(0, Math.floor((game.currencies && game.currencies.timeRemnant) || 0));
     let preservedOfflineProgress = typeof ensureOfflineProgressState === 'function' ? JSON.parse(JSON.stringify(ensureOfflineProgressState(game))) : null;
@@ -12122,7 +12135,7 @@ function triggerSeasonReset(options) {
     game.bloomedClassThisLoop = null;
     game.bloomedTalentThisLoop = null;
     game.pendingTalentBloomHeroId = null;
-    game.inventory = [];
+    clearLoopItemStorage(game);
     game.equipment = { ...defaultGame.equipment };
     craftingWorkspaceState.capture(game);
     game.currencies = { ...defaultGame.currencies };

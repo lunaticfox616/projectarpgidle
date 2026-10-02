@@ -183,7 +183,7 @@
             let footprint = getEquipmentInventoryFootprint(item);
             return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${footprint.columns}×${footprint.rows} · 회수</small></button>`;
         }).join('');
-        root.innerHTML = `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요.</p><div>${cards}</div>`;
+        root.innerHTML = `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요. 루프가 끝나면 비워집니다.</p><div>${cards}</div>`;
     }
 
     function restoreTemporaryItem(itemKey) {

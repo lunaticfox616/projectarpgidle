@@ -69,7 +69,8 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(Array.from(context.game.enemyKeystoneDebuffs[1], row => row.type), ['other']);
 assert.strictEqual(context.game.enemyKeystoneDebuffs[2], undefined);
 
-const loopResetBlock = extract(combatSource, 'game.completedTrials = [];', 'game.inventory = [];');
+// The bag and the temporary storage empty together since 2026-10-03 (clearLoopItemStorage ends the keystone part of the reset).
+const loopResetBlock = extract(combatSource, 'game.completedTrials = [];', 'clearLoopItemStorage(game);');
 assert(loopResetBlock.includes('game.ascendKeystones = [];'), 'loop reset must clear allocated keystones');
 assert(loopResetBlock.includes('game.ascendKeystonePoints = 0;'), 'loop reset must clear unspent keystone points');
 assert(loopResetBlock.includes('game.cosmosTwinKeystones = [];'), 'loop reset must clear jewel-granted keystones');
