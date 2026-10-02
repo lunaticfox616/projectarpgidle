@@ -1,10 +1,5 @@
-let talentCardView = { dimension: 'talent', filterId: null };
-
-function setTalentCardView(dimension) {
-    if (dimension !== 'talent' && dimension !== 'class') return;
-    talentCardView = { dimension, filterId: null };
-    renderTalentTab();
-}
+// 카드는 전직마다 한 장(2026-10-02 재능 정리)이라 보기는 직업별 하나다: filterId는 직업 id(그 직업의 전직 카드 셋).
+let talentCardView = { filterId: null };
 
 function setTalentCardFilter(filterId) {
     talentCardView.filterId = talentCardView.filterId === filterId ? null : filterId;
@@ -16,66 +11,47 @@ function getTalentAscendancyOrder() {
     return typeof getAscendancyOrder === 'function' ? getAscendancyOrder().filter(id => CLASS_TEMPLATES[id]) : Object.keys(CLASS_TEMPLATES);
 }
 
-function getTalentCardDimensionRows(owned) {
-    let dimension = talentCardView.dimension;
-    let ids = dimension === 'talent' ? HERO_SELECTION_ORDER : getTalentAscendancyOrder();
-    return ids.map(id => {
-        let label = dimension === 'talent' ? getHeroSelectionDef(id).label : CLASS_TEMPLATES[id].name;
-        let count = Object.keys(owned).filter(key => {
-            let parsed = parseTalentComboKey(key);
-            return dimension === 'talent' ? parsed.heroId === id : parsed.classKey === id;
-        }).length;
-        return { id, label, count, total: dimension === 'talent' ? Object.keys(CLASS_TEMPLATES).length : HERO_SELECTION_ORDER.length };
+/** 직업마다 카드 몇 장을 모았는지(직업 순서). */
+function getTalentCardClassRows(owned) {
+    return Object.entries(ASCENDANCIES_BY_PLAYER_CLASS).map(([classId, ascendIds]) => {
+        const keys = ascendIds.map(getTalentBloomCardKeyForAscendancy).filter(Boolean);
+        return { id: classId, label: PLAYER_CLASS_DEFS[classId].label, count: keys.filter(key => owned[key]).length, total: keys.length };
     });
 }
 
 function getCurrentTalentBloomContext(owned) {
     let classKey = game.ascendClass && CLASS_TEMPLATES[game.ascendClass] ? game.ascendClass : null;
-    let locked = game.bloomedClassThisLoop === classKey && HERO_SELECTION_DEFS[game.bloomedTalentThisLoop];
-    let pending = HERO_SELECTION_DEFS[game.pendingTalentBloomHeroId];
-    let heroId = locked ? game.bloomedTalentThisLoop : (pending ? game.pendingTalentBloomHeroId : null);
-    let key = heroId && classKey ? makeTalentComboKey(heroId, classKey) : null;
-    let names = heroId ? getTalentCardName(heroId, classKey) : {
-        heroLabel: '미선택',
-        classLabel: classKey ? CLASS_TEMPLATES[classKey].name : '미전직',
-        bloomName: '5차 전직에서 선택'
-    };
+    let heroId = classKey ? getTalentBloomHeroIdForAscendancy(classKey) : null;
+    let key = classKey ? getTalentBloomCardKeyForAscendancy(classKey) : null;
+    let names = key ? getTalentCardName(heroId, classKey) : { heroLabel: '직업 재능', classLabel: '미전직', bloomName: '전직을 고르면 정해짐' };
     return { heroId, classKey, key, names, card: key ? owned[key] : null };
 }
 
 function renderCurrentTalentBloomContext(owned) {
     let current = getCurrentTalentBloomContext(owned);
-    let state = !current.classKey ? '전직을 고르면 조합이 정해집니다.'
-        : (!current.heroId ? '5차 전직 도전 시 이번 루프의 재능을 선택합니다.'
-            : (current.card ? `개화 완료, Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '5차 전직 도전 중'));
+    let state = !current.key ? '전직을 고르면 카드가 정해집니다.'
+        : (current.card ? `개화 완료, Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '개화 시련을 클리어하면 얻습니다.');
     return `<section class="talent-current-combo ${current.card ? 'unlocked' : 'locked'}">
-        <div><span>개화 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
+        <div><span>직업 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
         <i aria-hidden="true">×</i>
         <div><span>현재 전직</span><strong>${escapeTalentHtml(current.names.classLabel)}</strong></div>
-        <div class="talent-current-result"><span>개화 조합</span><strong>${escapeTalentHtml(current.names.bloomName)}</strong><small>${state}</small></div>
+        <div class="talent-current-result"><span>개화 카드</span><strong>${escapeTalentHtml(current.names.bloomName)}</strong><small>${state}</small></div>
     </section>`;
 }
 
+/** 고른 직업(없으면 지금 전직의 직업)의 전직 카드 셋. */
 function renderTalentCombinationStatus(owned) {
     let current = getCurrentTalentBloomContext(owned);
-    let dimension = talentCardView.dimension;
-    let focusId = talentCardView.filterId || (dimension === 'talent' ? (current.heroId || HERO_SELECTION_ORDER[0]) : current.classKey);
-    if (!focusId) return '<div class="talent-combo-empty">전직을 고르면 조합 현황이 보입니다.</div>';
-    let counterpartIds = dimension === 'talent' ? getTalentAscendancyOrder() : HERO_SELECTION_ORDER;
-    let cells = counterpartIds.map(counterpartId => {
-        let heroId = dimension === 'talent' ? focusId : counterpartId;
-        let classKey = dimension === 'talent' ? counterpartId : focusId;
-        let key = makeTalentComboKey(heroId, classKey);
-        let card = owned[key];
-        let names = getTalentCardName(heroId, classKey);
-        let counterpart = dimension === 'talent' ? names.classLabel : names.heroLabel;
-        let isCurrent = current.key === key;
-        let classes = `talent-combo-cell ${card ? 'unlocked' : 'locked'}${isCurrent ? ' current' : ''}`;
+    let focusId = talentCardView.filterId || (current.classKey ? getTalentBloomClassOfAscendancy(current.classKey) : null) || Object.keys(ASCENDANCIES_BY_PLAYER_CLASS)[0];
+    let cells = ASCENDANCIES_BY_PLAYER_CLASS[focusId].map(classKey => {
+        let key = getTalentBloomCardKeyForAscendancy(classKey);
+        let card = key ? owned[key] : null;
+        let names = getTalentCardName(getTalentBloomHeroIdForAscendancy(classKey), classKey);
+        let classes = `talent-combo-cell ${card ? 'unlocked' : 'locked'}${current.key === key ? ' current' : ''}`;
         let tooltip = card ? ` data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"` : '';
-        return `<div class="${classes}"${tooltip}><span>${escapeTalentHtml(counterpart)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
+        return `<div class="${classes}"${tooltip}><span>${escapeTalentHtml(names.classLabel)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
     }).join('');
-    let focusLabel = dimension === 'talent' ? getHeroSelectionDef(focusId).label : CLASS_TEMPLATES[focusId].name;
-    return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(focusLabel)} 조합</strong><span>밝은 카드는 개화 완료, 테두리는 지금 조합</span></div><div class="talent-combo-grid">${cells}</div></div>`;
+    return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(PLAYER_CLASS_DEFS[focusId].label)} 카드</strong><span>밝은 카드는 개화 완료, 테두리는 지금 전직</span></div><div class="talent-combo-grid">${cells}</div></div>`;
 }
 
 function buildTalentCombinationTooltipHtml(comboKey) {
@@ -98,24 +74,18 @@ function showTalentCombinationTooltip(event, comboKey) {
 }
 
 function renderTalentBloomNavigator(owned) {
-    let rows = getTalentCardDimensionRows(owned);
+    let rows = getTalentCardClassRows(owned);
     let chips = rows.map(row => {
         let active = talentCardView.filterId === row.id;
         return `<button type="button" class="talent-bloom-filter${active ? ' active' : ''}" aria-pressed="${active}" onclick="setTalentCardFilter('${row.id}')"><strong>${escapeTalentHtml(row.label)}</strong><span>${row.count}/${row.total}</span></button>`;
     }).join('');
-    return `<details class="talent-bloom-navigator" data-ui-disclosure="talent-bloom-progress" open><summary><span><strong>개화 현황</strong><small>미개화 조합과 수집 진행도를 확인합니다.</small></span><b>${Object.keys(owned).length}/${TALENT_BLOOM_TOTAL_CARDS}</b></summary><div class="talent-bloom-navigator-body">
-        <div class="talent-bloom-navigator-head"><div><strong>분류</strong><span>항목을 누르면 해당 조합만 모아 봅니다.</span></div><div class="talent-bloom-view-tabs">
-            <button type="button" class="${talentCardView.dimension === 'talent' ? 'active' : ''}" onclick="setTalentCardView('talent')">재능별</button>
-            <button type="button" class="${talentCardView.dimension === 'class' ? 'active' : ''}" onclick="setTalentCardView('class')">전직별</button>
-        </div></div><div class="talent-bloom-filter-grid">${chips}</div>${renderTalentCombinationStatus(owned)}</div></details>`;
+    return `<details class="talent-bloom-navigator" data-ui-disclosure="talent-bloom-progress" open><summary><span><strong>개화 현황</strong><small>직업마다 전직 카드 셋</small></span><b>${Object.keys(owned).length}/${TALENT_BLOOM_TOTAL_CARDS}</b></summary><div class="talent-bloom-navigator-body">
+        <div class="talent-bloom-navigator-head"><div><strong>직업</strong><span>누르면 그 직업의 카드만 봅니다.</span></div></div><div class="talent-bloom-filter-grid">${chips}</div>${renderTalentCombinationStatus(owned)}</div></details>`;
 }
 
 function matchesTalentCardView(key) {
     if (!talentCardView.filterId) return true;
-    let parsed = parseTalentComboKey(key);
-    return talentCardView.dimension === 'talent'
-        ? parsed.heroId === talentCardView.filterId
-        : parsed.classKey === talentCardView.filterId;
+    return (ASCENDANCIES_BY_PLAYER_CLASS[talentCardView.filterId] || []).includes(parseTalentComboKey(key).classKey);
 }
 
 function renderTalentLoadoutSlot(index, unlocked, key, owned) {
@@ -184,7 +154,7 @@ function renderTalentTab() {
     </div>`;
 
     if (ownedKeys.length === 0) {
-        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 지금 재능 × 전직 조합의 카드를 얻습니다.</div>`;
+        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 지금 전직의 카드를 얻습니다.</div>`;
         return;
     }
     // 레벨 내림차순 정렬
@@ -194,4 +164,4 @@ function renderTalentTab() {
     gridEl.innerHTML = loadoutHtml + (cardsHtml || '<div class="talent-bloom-empty">이 항목으로 개화한 조합이 아직 없습니다.</div>');
 }
 
-safeExposeGlobals({ setTalentCardView, setTalentCardFilter, showTalentCombinationTooltip });
+safeExposeGlobals({ setTalentCardFilter, showTalentCombinationTooltip });

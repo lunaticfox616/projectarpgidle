@@ -27,7 +27,7 @@ context.game = {
 };
 vm.createContext(context);
 require('./lib/load-combat-clock')(context);
-['data/talent-cards.js', 'js/utils.js', 'js/talent-cards.js', 'js/talent-ui.js'].forEach(file => {
+['data/constants.js', 'js/utils.js', 'data/passives.js', 'data/ascendancies.js', 'data/talent-cards.js', 'js/talent-cards.js', 'js/talent-ui.js'].forEach(file => {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 });
 vm.runInContext('game = window.game;', context);
@@ -35,39 +35,34 @@ vm.runInContext('game = window.game;', context);
 const defs = vm.runInContext('TALENT_BLOOM_CARD_DEFS', context);
 const rules = vm.runInContext('TALENT_PRECISE_CARD_RULES', context);
 const cardIds = Object.keys(defs);
-assert.strictEqual(cardIds.length, 180, '재능 카드 정의는 재능 10 × 전직 18 = 180종이어야 한다');
-assert.deepStrictEqual(Object.keys(rules), cardIds, '180개 카드 모두 같은 순서의 정밀 규칙을 가져야 한다');
+assert.deepStrictEqual(Object.keys(rules), cardIds, '카드 정의마다 같은 순서의 정밀 규칙을 가져야 한다');
+// 2026-10-02 재능 정리: 얻을 수 있는 카드는 전직마다 한 장(직업의 대표 재능 × 전직) 18장이다.
+const bloomKeys = vm.runInContext('getTalentBloomCardKeys()', context);
+assert.strictEqual(bloomKeys.length, 18, '개화 카드는 전직마다 한 장, 18장이어야 한다');
+assert.strictEqual(vm.runInContext('TALENT_BLOOM_TOTAL_CARDS', context), 18);
+bloomKeys.forEach(key => assert.ok(defs[key] && rules[key], `${key}: 카드 정의와 규칙이 있어야 한다`));
 
-context.HERO_SELECTION_ORDER = ['hero1', 'hero2'];
-context.HERO_SELECTION_DEFS = { hero1: {}, hero2: {} };
-context.CLASS_TEMPLATES = { warrior: { name: '전사' }, ranger: { name: '레인저' } };
-context.getHeroSelectionDef = heroId => ({ label: heroId === 'hero1' ? '궁수' : '전사 재능' });
-context.game.selectedHeroId = 'hero1';
+const heroDefs = vm.runInContext('HERO_SELECTION_DEFS', context);
+context.getHeroSelectionDef = heroId => heroDefs[heroId];
 context.game.ascendClass = 'warrior';
 context.game.talentCards = {
-  hero1__warrior: { level: 3, score: 20, count: 1 },
-  hero2__warrior: { level: 2, score: 10, count: 1 },
+  hero2__warrior: { level: 3, score: 20, count: 1 },
+  hero2__berserker: { level: 2, score: 10, count: 1 },
 };
-context.setTalentCardView('talent');
-let dimensionRows = JSON.parse(vm.runInContext('JSON.stringify(getTalentCardDimensionRows(game.talentCards))', context));
-assert.deepStrictEqual(dimensionRows.map(row => [row.id, row.count]), [['hero1', 1], ['hero2', 1]],
-  '재능별 현황은 각 재능의 개화 조합 수를 보여야 한다');
-context.setTalentCardView('class');
-dimensionRows = JSON.parse(vm.runInContext('JSON.stringify(getTalentCardDimensionRows(game.talentCards))', context));
-assert.deepStrictEqual(dimensionRows.map(row => [row.id, row.count]), [['warrior', 2], ['ranger', 0]],
-  '직업별 현황은 미개화 직업도 0건으로 함께 보여야 한다');
-const slotHtml = vm.runInContext("renderTalentLoadoutSlot(0, true, 'hero1__warrior', game.talentCards)", context);
-assert(slotHtml.includes('아방가르드') && slotHtml.includes('궁수 × 전사'),
-  '장착 슬롯은 혼합 재능명과 원본 재능·직업을 함께 표시해야 한다');
+const classRows = JSON.parse(vm.runInContext('JSON.stringify(getTalentCardClassRows(game.talentCards))', context));
+assert.deepStrictEqual(classRows.map(row => [row.id, row.count, row.total]),
+  [['warrior', 2, 3], ['wanderer', 0, 3], ['archer', 0, 3], ['cleric', 0, 3], ['occultist', 0, 3], ['alchemist', 0, 3]],
+  '직업별 현황은 직업마다 전직 카드 셋 중 모은 수를 보여야 한다');
+const slotHtml = vm.runInContext("renderTalentLoadoutSlot(0, true, 'hero2__warrior', game.talentCards)", context);
+assert(slotHtml.includes('땅울림') && slotHtml.includes('전사 × 워리어'),
+  '장착 슬롯은 카드 이름과 재능, 전직을 함께 표시해야 한다');
 
-context.game.talentCards = Object.fromEntries(Array.from({ length: 39 }, (_, index) => [`owned-${index}`, { level: 1 }]));
-assert.strictEqual(context.getUnlockedTalentSlotCount(), 4, '개화 카드 39장까지는 장착 슬롯 4칸이어야 한다');
-context.game.talentCards['owned-39'] = { level: 1 };
-assert.strictEqual(context.getUnlockedTalentSlotCount(), 5, '개화 카드 40장에서 5번째 슬롯이 열려야 한다');
-for (let index = 40; index < 59; index += 1) context.game.talentCards[`owned-${index}`] = { level: 1 };
-assert.strictEqual(context.getUnlockedTalentSlotCount(), 5, '개화 카드 59장까지는 장착 슬롯 5칸이어야 한다');
-context.game.talentCards['owned-59'] = { level: 1 };
-assert.strictEqual(context.getUnlockedTalentSlotCount(), 6, '개화 카드 60장에서 6번째 슬롯이 열려야 한다');
+const slotsAt = count => {
+  context.game.talentCards = Object.fromEntries(Array.from({ length: count }, (_, index) => [`owned-${index}`, { level: 1 }]));
+  return context.getUnlockedTalentSlotCount();
+};
+assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 18].map(slotsAt), [0, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+  '장착 칸은 카드 1, 2, 4, 6, 9, 12장에서 하나씩 열린다(18장 기준)');
 
 const declaredStats = new Set();
 const declaredUniqueKeys = new Set();
@@ -133,15 +128,15 @@ assert.strictEqual(context.getTalentCardStatBonuses('hero7', 'inquisitor', 10)
 assert.strictEqual(context.getTalentCardStatBonuses('hero10', 'warrior', 10)
   .find(row => row.stat === 'physIgnore').val, 8, '강철술사는 물리 피해 감소 무시 +8%를 줘야 한다');
 
-context.game.talentCards = { hero1__warrior: { level: 3, score: 20, count: 1 } };
-context.setTalentCardView('talent');
+context.game.talentCards = { hero2__warrior: { level: 3, score: 20, count: 1 } };
+context.game.ascendClass = 'berserker';
 const combinationHtml = context.renderTalentCombinationStatus(context.game.talentCards);
-assert(combinationHtml.includes("showTalentCombinationTooltip(event,'hero1__warrior')"),
-  '개화 완료 조합은 커스텀 효과 툴팁 호버를 제공해야 한다');
+assert(combinationHtml.includes("showTalentCombinationTooltip(event,'hero2__warrior')") && combinationHtml.includes('대지 분쇄자'),
+  '직업 카드 현황은 지금 전직의 직업 카드 셋을 보이고, 개화한 카드는 효과 툴팁을 준다');
 let talentTooltip = null;
 context.showInfoTooltipHtml = (x, y, html) => { talentTooltip = { x, y, html }; };
-context.showTalentCombinationTooltip({ clientX: 12, clientY: 34 }, 'hero1__warrior');
-assert(talentTooltip && talentTooltip.html.includes('아방가르드') && talentTooltip.html.includes('[표면]'),
-  '개화 현황 툴팁은 조합명과 원문 효과를 보여야 한다');
+context.showTalentCombinationTooltip({ clientX: 12, clientY: 34 }, 'hero2__warrior');
+assert(talentTooltip && talentTooltip.html.includes('땅울림') && talentTooltip.html.includes('[표면]'),
+  '개화 현황 툴팁은 카드 이름과 원문 효과를 보여야 한다');
 
 console.log(`smoke-talent-card-coverage passed (${cardIds.length} cards, ${declaredStats.size} stats, ${declaredUniqueKeys.size} unique effects)`);

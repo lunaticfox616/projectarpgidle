@@ -6611,13 +6611,12 @@ function primeTrialHazardTimer(zone) {
     };
 }
 
+/** 개화 재능은 지금 전직이 속한 직업의 대표 재능이다(2026-10-02 재능 정리). 카드도 그 재능 × 전직으로 정해진다. */
 function resolveTalentBloomHeroId() {
-    if (game.bloomedClassThisLoop === game.ascendClass && HERO_SELECTION_DEFS[game.bloomedTalentThisLoop]) {
-        return game.bloomedTalentThisLoop;
-    }
+    const heroId = typeof getTalentBloomHeroIdForAscendancy === 'function' ? getTalentBloomHeroIdForAscendancy(game.ascendClass) : null;
+    if (heroId) return heroId;
     if (HERO_SELECTION_DEFS[game.pendingTalentBloomHeroId]) return game.pendingTalentBloomHeroId;
-    if (HERO_SELECTION_DEFS[game.selectedHeroId]) return game.selectedHeroId;
-    return 'hero1';
+    return HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : 'hero1';
 }
 
 function unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBloomOfClass) {

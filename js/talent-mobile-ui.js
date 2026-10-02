@@ -32,11 +32,10 @@
     }
 
     function renderFilters(owned) {
-        const options = getTalentCardDimensionRows(owned).map(row => `<option value="${row.id}"${talentCardView.filterId === row.id ? ' selected' : ''}>${escapeTalentHtml(row.label)} (${row.count})</option>`).join('');
+        const options = getTalentCardClassRows(owned).map(row => `<option value="${row.id}"${talentCardView.filterId === row.id ? ' selected' : ''}>${escapeTalentHtml(row.label)} (${row.count}/${row.total})</option>`).join('');
         return `<div class="talent-mobile-filters">
-            <label>분류<select data-talent-dimension><option value="talent"${talentCardView.dimension === 'talent' ? ' selected' : ''}>재능별</option><option value="class"${talentCardView.dimension === 'class' ? ' selected' : ''}>전직별</option></select></label>
-            <label>항목<select data-talent-filter><option value="">전체</option>${options}</select></label>
-            <form class="talent-mobile-search"><label>재능 검색<input type="search" data-talent-search value="${escapeHTML(search)}" placeholder="이름, 재능, 전직" enterkeyhint="search"></label><button type="submit">검색</button></form>
+            <label>직업<select data-talent-filter><option value="">전체</option>${options}</select></label>
+            <form class="talent-mobile-search"><label>카드 검색<input type="search" data-talent-search value="${escapeHTML(search)}" placeholder="이름, 전직" enterkeyhint="search"></label><button type="submit">검색</button></form>
         </div>`;
     }
 
@@ -65,8 +64,7 @@
         const root = document.getElementById('ui-talent-card-grid');
         root.addEventListener('change', event => {
             const target = event.target;
-            if (target.hasAttribute('data-talent-dimension')) setTalentCardView(target.value);
-            else if (target.hasAttribute('data-talent-filter')) setTalentCardFilter(target.value || null);
+            if (target.hasAttribute('data-talent-filter')) setTalentCardFilter(target.value || null);
         });
         root.addEventListener('submit', event => {
             if (!event.target.matches('.talent-mobile-search')) return;

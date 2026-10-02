@@ -237,30 +237,48 @@ assert.deepEqual(loaded.cards, ['hero1__ranger']);
 assert.deepEqual(loaded.loadout, ['hero1__ranger', null]);
 assert.equal(loaded.again, loaded.first, 'loading twice gives the same ascendancy and cards (no second refund)');
 
-// 재능 개화 카드: 재능 10 × 전직 18 = 180, 모든 조합이 있고 새 카드는 능력치 규칙을 가진다.
-const cards = json('Object.keys(TALENT_BLOOM_CARD_DEFS)');
-assert.equal(cards.length, 180);
-assert.equal(run('TALENT_BLOOM_TOTAL_CARDS'), 180);
-const heroes = json('HERO_SELECTION_ORDER');
-for (const hero of heroes) for (const asc of all) assert.ok(cards.includes(`${hero}__${asc}`), `card ${hero}__${asc}`);
-const rule = json(`TALENT_PRECISE_CARD_RULES['hero7__grovewarden']`);
-assert.deepEqual(rule.stats, { summonPctDmg: 25, coldPctDmg: 30 });
-assert.deepEqual(rule.uniques, [{ key: 'summonEfficiencyBonus', params: { pct: 10 } }]);
+// 재능 개화 카드(2026-10-02 재능 정리): 전직마다 한 장, 그 전직이 속한 직업의 대표 재능 × 전직. 18장, 이름이 저마다 다르다.
+const bloomKeys = json('getTalentBloomCardKeys()');
+assert.equal(bloomKeys.length, 18);
+assert.equal(run('TALENT_BLOOM_TOTAL_CARDS'), 18);
+for (const [cls, ascs] of Object.entries(byClass)) {
+    const hero = run(`PLAYER_CLASS_DEFS['${cls}'].recommendedTalentHeroId`);
+    for (const asc of ascs) assert.equal(run(`getTalentBloomCardKeyForAscendancy('${asc}')`), `${hero}__${asc}`, `${asc}: the class talent's card`);
+}
+const cardDefs = json('TALENT_BLOOM_CARD_DEFS');
+const cardRules = json('TALENT_PRECISE_CARD_RULES');
+assert.equal(new Set(bloomKeys.map(id => cardDefs[id].name)).size, 18, 'every card has its own name');
+assert.deepEqual(cardRules.hero10__grovewarden, { mechanic: 'statCard', stats: { dotPctDmg: 25, coldPctDmg: 30 }, uniques: [{ key: 'poisonDamageMorePct', params: { pct: 15 } }] });
+const strayNew = Object.keys(cardDefs).filter(id => NEW_SIX.includes(id.split('__')[1]) && !bloomKeys.includes(id));
+assert.deepEqual(strayNew, [], 'a new ascendancy has only its class talent card');
 
-// 새 카드 60장: 이름이 저마다 다르고, 고유 효과 하나는 엔진이 알고 화면 라벨이 있는 키다. 카드는 고유 효과 목록 맨 뒤에
-// 들어가므로 합산, 큰 값, 켜고 끄는 키만 쓴다(나중 줄이 이기는 키면 같은 효과의 장비 수치를 덮는다).
+// 저장(2026-10-02 재능 정리): 한 전직의 카드는 그 전직의 카드 하나로 합친다(레벨, 점수는 큰 쪽, 개화 횟수는 더함). 장착 칸과
+// 개화 기록도 옮기고 겹치면 하나만, 이번 루프의 개화 재능은 직업 재능으로. 두 번 불러와도 같다.
+const folded = json(`(() => {
+    const save = mergeDefaults({ heroSelectionInitialized: true, selectedClassId: 'warrior', ascendClass: 'warrior', bloomedClassThisLoop: 'warrior', bloomedTalentThisLoop: 'hero3',
+        talentCards: { hero3__warrior: { score: 80, level: 4, count: 2 }, hero2__warrior: { score: 20, level: 2, count: 1 }, hero7__berserker: { score: 125, level: 5, count: 1 } },
+        talentCardLoadout: ['hero3__warrior', 'hero2__warrior', 'hero7__berserker', null, null, null], talentBloomCombos: ['hero3__warrior', 'hero2__warrior'] });
+    const again = mergeDefaults(JSON.parse(JSON.stringify(save)));
+    const pick = state => JSON.stringify([state.talentCards, state.talentCardLoadout, state.talentBloomCombos, state.bloomedTalentThisLoop]);
+    return { cards: save.talentCards, loadout: save.talentCardLoadout, combos: save.talentBloomCombos, talent: save.bloomedTalentThisLoop, same: pick(again) === pick(save) };
+})()`);
+assert.deepEqual(folded.cards, { hero2__warrior: { score: 80, level: 4, count: 3 }, hero2__berserker: { score: 125, level: 5, count: 1 } });
+assert.deepEqual(folded.loadout, ['hero2__warrior', null, 'hero2__berserker', null, null, null]);
+assert.deepEqual(folded.combos, ['hero2__warrior']);
+assert.equal(folded.talent, 'hero2', 'the loop bloom talent becomes the class talent (n13a, n13b)');
+assert.equal(folded.same, true, 'loading twice folds nothing more');
+
+// 새 전직 여섯의 카드: 고유 효과 하나는 엔진이 알고 화면 라벨이 있는 키다. 카드는 고유 효과 목록 맨 뒤에 들어가므로 합산,
+// 큰 값, 켜고 끄는 키만 쓴다.
 const COMPOSABLE = new Set(['projectileDoubleStrikePct', 'projectileTargetBonus', 'hitShockedEnemyDamageMorePct', 'warcryResonanceBelt',
     'dsAndTargetAnyBonus', 'cosmosSpeedBurst', 'genericTakenDamageReducePct', 'underdogNonMaxRollMorePct', 'cosmosSustain', 'realmAllMaxRes',
     'cosmosPenetration', 'igniteDamageMorePct', 'overkillSplash', 'uniqueMinDmgRoll', 'uniqueDeflectDamageReduce', 'uniqueBlockChance',
     'uniqueTakenReduceWhen2Enemies', 'chaosTakenDamageReducePct', 'overhealCapPct', 'uniqueTakenReduceWhen1Enemy', 'instakillNormalOnHitPct',
     'summonEfficiencyBonus', 'summonCapBonus', 'lifePctAsEnergyShield', 'immuneIgnite', 'cosmosFinalDmg', 'instantLeechAndDoubleDamage',
     'poisonDamageMorePct', 'realmPoisonDuration']);
-const cardDefs = json('TALENT_BLOOM_CARD_DEFS');
-const cardRules = json('TALENT_PRECISE_CARD_RULES');
 const labelled = new Set(json('Object.keys(TALENT_UNIQ_LABELS)'));
-const newCards = cards.filter(id => NEW_SIX.includes(id.split('__')[1]));
-assert.equal(newCards.length, 60);
-assert.equal(new Set(newCards.map(id => cardDefs[id].name)).size, 60, 'every new card has its own name');
+const newCards = bloomKeys.filter(id => NEW_SIX.includes(id.split('__')[1]));
+assert.equal(newCards.length, 6);
 for (const id of newCards) {
     const uniques = cardRules[id].uniques || [];
     assert.equal(uniques.length, 1, `${id}: one unique effect`);
@@ -268,10 +286,6 @@ for (const id of newCards) {
     assert.ok(labelled.has(uniques[0].key), `${id}: ${uniques[0].key} has a card label`);
     assert.ok(COMPOSABLE.has(uniques[0].key), `${id}: ${uniques[0].key} sums, takes the larger value or is on/off`);
     assert.ok(!/[·]/.test(cardDefs[id].surface.desc), `${id}: no middle dot in the card text`);
-}
-for (const asc of NEW_SIX) {
-    const keys = newCards.filter(id => id.endsWith('__' + asc)).map(id => cardRules[id].uniques[0].key);
-    assert.equal(new Set(keys).size, 10, `${asc}: its ten cards give ten different effects`);
 }
 
 // 지난 루프처럼: 루프 초기화가 전직 배치를 기억하고, 같은 직업이면 고르기 화면이 그 전직을 내놓고 포인트만큼 같은 순서로 다시 산다.
@@ -311,4 +325,4 @@ assert.deepEqual(plan.saved, { ascendClass: 'berserker', nodes: ['n1', 'n13d'], 
 assert.equal(plan.unknown, null, 'an unknown ascendancy plan is dropped');
 assert.ok(fs.readFileSync('js/combat.js', 'utf8').includes('let clearedAscendKeystones = rememberLoopAscendancyPlan(game);'), 'the loop reset remembers the plan');
 
-console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), merged unique values, twin stats before a pick, off-hand needs w3, pick card nodes, twin pool, save boundary, 180 cards with 60 new unique cards, last-loop plan: OK');
+console.log('ascendancies: 6 classes x 3, keystones, old node values, stat and unique keystones (picked and twin), merged unique values, twin stats before a pick, off-hand needs w3, pick card nodes, twin pool, save boundary, 18 bloom cards (class talent x ascendancy) and the save fold, last-loop plan: OK');

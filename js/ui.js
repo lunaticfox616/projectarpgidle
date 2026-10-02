@@ -3988,32 +3988,9 @@ function canEnterTalentBloomTrial() {
     return isWoodsmanEchoUnlocked() && !!game.ascendClass
         && (game.currencies.chaosKey || 0) >= 1 && (game.currencies.coreKey || 0) >= 1;
 }
+/** 개화 재능은 고르지 않는다: 지금 전직이 속한 직업의 대표 재능(2026-10-02 재능 정리). */
 async function chooseTalentBloomHeroId() {
-    let lockedTalent = game.bloomedClassThisLoop === game.ascendClass
-        ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
-    if (lockedTalent) return game.bloomedTalentThisLoop;
-    let classDef = PLAYER_CLASS_DEFS[game.selectedClassId];
-    let currentId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId]
-        ? classDef.recommendedTalentHeroId : HERO_SELECTION_ORDER[0];
-    return requestGameChoice({
-        title: '5차 전직: 개화 재능 선택',
-        message: '이번 루프의 개화 재능을 고르세요. 개화 시련을 깨면 그 재능과 지금 전직의 카드를 얻고, 다음 루프에는 다시 고릅니다.',
-        value: currentId,
-        choices: HERO_SELECTION_ORDER.map(id => ({
-            value: id,
-            label: HERO_SELECTION_DEFS[id].label,
-            detailHtml: getTalentBloomChoiceDetailHtml(id)
-        })),
-        confirmLabel: '선택하고 도전'
-    });
-}
-
-/** 개화 재능 선택지: 재능 효과와, 지금 전직과 합쳐 얻을 카드(가졌으면 레벨). */
-function getTalentBloomChoiceDetailHtml(heroId) {
-    const card = typeof getTalentCardName === 'function' && game.ascendClass ? getTalentCardName(heroId, game.ascendClass).bloomName : '';
-    const owned = (game.talentCards || {})[`${heroId}__${game.ascendClass}`];
-    const cardText = card ? `카드: ${card}${owned ? ` (보유 Lv.${Math.max(1, Math.floor(owned.level || 1))})` : ' (새 카드)'}` : '';
-    return `<span>${escapeHTML(HERO_SELECTION_DEFS[heroId].talentsText || '')}</span>${cardText ? `<span style="color:#d8b4ff;">${escapeHTML(cardText)}</span>` : ''}`;
+    return getTalentBloomHeroIdForAscendancy(game.ascendClass) || HERO_SELECTION_ORDER[0];
 }
 
 async function enterTalentBloomTrial() {
@@ -4024,7 +4001,7 @@ async function enterTalentBloomTrial() {
     let heroId = await chooseTalentBloomHeroId();
     if (!HERO_SELECTION_DEFS[heroId]) return;
     game.pendingTalentBloomHeroId = heroId;
-    addLog(`이번 루프 개화 재능: ${HERO_SELECTION_DEFS[heroId].label}, 5차 전직을 마치면 보너스 적용`, 'season-up');
+    addLog(`개화 시련 도전: [${getTalentCardName(heroId, game.ascendClass).bloomName}] (${HERO_SELECTION_DEFS[heroId].label} 재능 × ${CLASS_TEMPLATES[game.ascendClass].name})`, 'season-up');
     if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
     changeZone('trial_5');
 }

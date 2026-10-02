@@ -49,11 +49,38 @@ function normalizeLastLoopAscendPlan(raw) {
     return { ascendClass: raw.ascendClass, nodes: keepIds(raw.nodes, id => /^n\d{1,2}[a-d]?$/.test(id)), keystones: keepIds(raw.keystones, id => keystoneIds.has(id)) };
 }
 
+/** 재능 개화 카드(2026-10-02 재능 정리): 카드를 그 전직의 카드(직업의 대표 재능 × 전직)로 옮겨 합친다. 레벨과 점수는 큰 쪽,
+ * 개화 횟수는 더한다. 장착 칸과 개화 기록도 옮기고 겹치면 하나만 남긴다. 모르는 전직의 카드는 버린다. 두 번 불러와도 같다. */
 function normalizeTalentCardKeys(merged) {
-    if (typeof TALENT_BLOOM_CARD_DEFS !== 'object' || !TALENT_BLOOM_CARD_DEFS) return;
+    if (typeof TALENT_BLOOM_CARD_DEFS !== 'object' || !TALENT_BLOOM_CARD_DEFS || typeof getTalentBloomCardKeyForAscendancy !== 'function') return;
+    const bloomCardOf = key => getTalentBloomCardKeyForAscendancy(String(key || '').split('__')[1]);
     const cards = merged.talentCards && typeof merged.talentCards === 'object' ? merged.talentCards : {};
-    merged.talentCards = Object.fromEntries(Object.entries(cards).filter(([key]) => TALENT_BLOOM_CARD_DEFS[key]));
-    if (Array.isArray(merged.talentCardLoadout)) merged.talentCardLoadout = merged.talentCardLoadout.map(key => (key && merged.talentCards[key] ? key : null));
+    const folded = {};
+    Object.entries(cards).forEach(([key, card]) => {
+        const to = bloomCardOf(key);
+        if (to && card && typeof card === 'object') folded[to] = mergeTalentCardRecords(folded[to], card);
+    });
+    merged.talentCards = folded;
+    if (Array.isArray(merged.talentCardLoadout)) {
+        const moved = merged.talentCardLoadout.map(key => (key ? bloomCardOf(key) : null));
+        merged.talentCardLoadout = moved.map((key, index) => (key && folded[key] && moved.indexOf(key) === index ? key : null));
+    }
+    if (Array.isArray(merged.talentBloomCombos)) merged.talentBloomCombos = Array.from(new Set(merged.talentBloomCombos.map(bloomCardOf).filter(Boolean)));
+    alignBloomLoopTalent(merged);
+}
+
+/** 이번 루프의 개화 재능 기록도 직업의 대표 재능으로 맞춘다(5차 노드 n13a, n13b가 이 값을 읽는다). */
+function alignBloomLoopTalent(merged) {
+    const classTalent = getTalentBloomHeroIdForAscendancy(merged.ascendClass);
+    if (!classTalent) return;
+    if (merged.bloomedTalentThisLoop) merged.bloomedTalentThisLoop = classTalent;
+    if (merged.pendingTalentBloomHeroId) merged.pendingTalentBloomHeroId = classTalent;
+}
+
+function mergeTalentCardRecords(previous, card) {
+    if (!previous) return { ...card };
+    return { ...previous, level: Math.max(Number(previous.level) || 1, Number(card.level) || 1), score: Math.max(Number(previous.score) || 0, Number(card.score) || 0),
+        count: (Number(previous.count) || 0) + (Number(card.count) || 0) };
 }
 
 const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);

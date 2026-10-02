@@ -1,6 +1,7 @@
 // ============================================================================
 // 재능 개화 카드 시스템 (P3)
-// 재능(10) × 전직(18) = 180종(2026-10-02 전직 18종 개편 전 120). 개화 시련 클리어로 카드를 획득/강화한다.
+// 카드는 전직마다 한 장(18종): 그 전직이 속한 직업의 대표 재능 × 전직(2026-10-02 재능 정리, 그 전에는 재능 10 × 전직 12).
+// 개화 시련 클리어로 카드를 획득/강화한다.
 // 카드 점수는 계정 진행도(여러 무한 콘텐츠의 최고 도달 + 나무꾼 잔상 전투력)로 매겨지고,
 // 점수가 카드 레벨을 결정한다. 표면(전직 테마)과 이면(재능 테마) 효과는 레벨에 비례한다.
 // 카드/조합 기록은 루프(시즌 리셋)로 초기화되지 않는다.
@@ -10,12 +11,37 @@
 // 카드 레벨 임계값(점수 기준). 점수는 "층 환산" 단위(무한 콘텐츠 최고층 합 + DPS 로그 환산).
 const TALENT_CARD_LEVEL_THRESHOLDS = [0, 20, 45, 80, 125, 180, 250, 340, 450, 600];
 const TALENT_CARD_MAX_LEVEL = TALENT_CARD_LEVEL_THRESHOLDS.length;
-const TALENT_BLOOM_TOTAL_CARDS = Object.keys(TALENT_BLOOM_CARD_DEFS).length; // 재능 10 × 전직 18 = 180(2026-10-02)
+// 전직마다 한 장 = 18(2026-10-02 재능 정리). 직업, 전직 정의가 없는 좁은 실행 환경에서는 카드 정의 수.
+const TALENT_BLOOM_TOTAL_CARDS = typeof ASCENDANCIES_BY_PLAYER_CLASS === 'object' && typeof PLAYER_CLASS_DEFS === 'object'
+    ? getTalentBloomCardKeys().length : Object.keys(TALENT_BLOOM_CARD_DEFS).length;
 
 // 나무꾼 잔상 전투력(최고 DPS)의 로그 환산 기준. DPS가 2배 될 때마다 +1점(층과 동일 스케일).
 const TALENT_BLOOM_DPS_BASE = 1000;
 
-// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(180개 조합 = 5차전직 1개당 표면 1 + 이면 1)에서 조회한다.
+/** 전직이 속한 직업(data/ascendancies.js ASCENDANCIES_BY_PLAYER_CLASS). */
+function getTalentBloomClassOfAscendancy(ascendId) {
+    return Object.keys(ASCENDANCIES_BY_PLAYER_CLASS).find(classId => ASCENDANCIES_BY_PLAYER_CLASS[classId].includes(ascendId)) || null;
+}
+
+/** 개화 재능은 직업이 정한다(2026-10-02 재능 정리): 전직이 속한 직업의 대표 재능. 개화 시련에서 고르지 않는다. */
+function getTalentBloomHeroIdForAscendancy(ascendId) {
+    const classDef = PLAYER_CLASS_DEFS[getTalentBloomClassOfAscendancy(ascendId)];
+    return classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : null;
+}
+
+/** 전직의 개화 카드(직업의 대표 재능 × 전직). 카드 정의가 없으면 null. */
+function getTalentBloomCardKeyForAscendancy(ascendId) {
+    const heroId = getTalentBloomHeroIdForAscendancy(ascendId);
+    const key = heroId ? makeTalentComboKey(heroId, ascendId) : null;
+    return key && TALENT_BLOOM_CARD_DEFS[key] ? key : null;
+}
+
+/** 얻을 수 있는 카드 열여덟 장(직업 순서). */
+function getTalentBloomCardKeys() {
+    return Object.values(ASCENDANCIES_BY_PLAYER_CLASS).flat().map(getTalentBloomCardKeyForAscendancy).filter(Boolean);
+}
+
+// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(표면 1 + 이면 1)에서 조회한다.
 function getTalentCardDef(heroId, classKey) {
     let key = makeTalentComboKey(heroId, classKey);
     if (typeof TALENT_BLOOM_CARD_DEFS !== 'undefined' && TALENT_BLOOM_CARD_DEFS[key]) return TALENT_BLOOM_CARD_DEFS[key];
@@ -299,8 +325,8 @@ function getOwnedTalentCardCount() {
 }
 
 // ---- 장착 슬롯 (P4) ----
-// 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다.
-const TALENT_CARD_SLOT_UNLOCKS = [1, 4, 12, 25, 40, 60];
+// 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다. 카드 18장 기준(2026-10-02 재능 정리, 120장일 때 1, 4, 12, 25, 40, 60).
+const TALENT_CARD_SLOT_UNLOCKS = [1, 2, 4, 6, 9, 12];
 const TALENT_CARD_SLOT_COUNT = TALENT_CARD_SLOT_UNLOCKS.length;
 
 function ensureTalentCardLoadout() {
@@ -728,6 +754,9 @@ safeExposeGlobals({
     markTalentExecutionOrder,
     getTalentFenrirConfig,
     applyTalentFenrirSkill,
+    getTalentBloomHeroIdForAscendancy,
+    getTalentBloomCardKeyForAscendancy,
+    getTalentBloomCardKeys,
     isTalentFenrirEngravingEnabled,
     clearTalentCardRuntimeState
 });

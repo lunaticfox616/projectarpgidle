@@ -57,13 +57,14 @@ const first = JSON.parse(vm.runInContext(`JSON.stringify({
     pending: game.pendingTalentBloomHeroId,
     talentNodes: [getClassTreeDef('warrior').n13a, getClassTreeDef('warrior').n13b]
 })`, context));
-assert.deepStrictEqual(first.combos, ['hero10__warrior'], 'the explicitly chosen talent must form the bloom card key');
+// 2026-10-02 재능 정리: 개화 재능은 전직이 속한 직업의 대표 재능(워리어는 전사 직업 → 전사 재능 hero2). 남아 있던 다른 선택은 쓰지 않는다.
+assert.deepStrictEqual(first.combos, ['hero2__warrior'], 'the class talent forms the bloom card key');
 assert.strictEqual(first.classId, 'warrior');
-assert.strictEqual(first.talentId, 'hero10', 'the first bloom must lock the fifth-job talent specialization');
+assert.strictEqual(first.talentId, 'hero2', 'the first bloom locks the class talent specialization');
 assert.strictEqual(first.ascendPoints, 2);
 assert.strictEqual(first.keystonePoints, 1);
 assert.strictEqual(first.pending, null, 'the pending choice must be consumed after victory');
-assert.deepStrictEqual(first.talentNodes.map(node => node.stat), ['dotPctDmg', 'evasionPct']);
+assert.deepStrictEqual(first.talentNodes.map(node => node.stat), ['physPctDmg', 'pctHp'], 'n13a and n13b follow the class talent');
 
 vm.runInContext(`
     game.pendingTalentBloomHeroId = 'hero9';
@@ -76,9 +77,9 @@ const second = JSON.parse(vm.runInContext(`JSON.stringify({
     ascendPoints: game.ascendPoints,
     keystonePoints: game.ascendKeystonePoints
 })`, context));
-assert.deepStrictEqual(second.combos, ['hero10__warrior'],
-    'later clears in the same loop must keep using the talent chosen for fifth ascension');
-assert.strictEqual(second.talentId, 'hero10', 'later clears must not change the loop bloom talent');
+assert.deepStrictEqual(second.combos, ['hero2__warrior'],
+    'later clears in the same loop keep the class talent card');
+assert.strictEqual(second.talentId, 'hero2', 'later clears must not change the loop bloom talent');
 assert.strictEqual(second.ascendPoints, 2, 'new card combinations in the same loop must not farm ascendancy points');
 assert.strictEqual(second.keystonePoints, 1, 'new card combinations in the same loop must not farm keystone points');
 
@@ -88,26 +89,21 @@ async function verifyFifthAscensionChoiceOverlay() {
         game.bloomedClassThisLoop = null;
         game.bloomedTalentThisLoop = null;
         game.__choiceConfig = null;
-        requestGameChoice = async function (config) { game.__choiceConfig = config; return 'hero3'; };
+        requestGameChoice = async function () { throw new Error('the bloom must not ask for a talent (2026-10-02 talent cleanup)'); };
     `, context);
-    const chosen = await vm.runInContext('chooseTalentBloomHeroId()', context);
-    const config = JSON.parse(vm.runInContext('JSON.stringify(game.__choiceConfig)', context));
-    assert.strictEqual(chosen, 'hero3');
-    assert.strictEqual(config.title, '5차 전직: 개화 재능 선택');
-    const cardOf = id => vm.runInContext(`getTalentCardName('${id}', game.ascendClass).bloomName`, context);
-    const detailOf = id => config.choices.find(choice => choice.value === id).detailHtml;
-    assert.ok(detailOf('hero3').includes(`카드: ${cardOf('hero3')} (새 카드)`), 'each talent shows the card it makes with the current ascendancy');
-    assert.ok(/카드: .+ \(보유 Lv\.\d+\)/.test(detailOf('hero10')), 'an owned card shows its level');
-    assert.strictEqual(config.choices.length, 10, 'fifth ascension must offer every bloom talent');
-    assert.strictEqual(config.value, 'hero2', 'the overlay should initially focus the selected class recommendation');
+    for (const [ascend, talent] of [['warrior', 'hero2'], ['ranger', 'hero1'], ['soulbinder', 'hero9'], ['grovewarden', 'hero10']]) {
+        vm.runInContext(`game.ascendClass = '${ascend}';`, context);
+        assert.strictEqual(await vm.runInContext('chooseTalentBloomHeroId()', context), talent, `${ascend}: the class talent, no choice`);
+    }
+    vm.runInContext("game.ascendClass = 'warrior';", context);
 
     vm.runInContext(`
         game.bloomedClassThisLoop = 'warrior';
         game.bloomedTalentThisLoop = 'hero10';
-        requestGameChoice = async function () { throw new Error('locked bloom must not reopen the overlay'); };
+        requestGameChoice = async function () { throw new Error('a bloomed loop must not open a talent choice'); };
     `, context);
-    assert.strictEqual(await vm.runInContext('chooseTalentBloomHeroId()', context), 'hero10',
-        'the chosen bloom talent must remain fixed for the rest of the loop');
+    assert.strictEqual(await vm.runInContext('chooseTalentBloomHeroId()', context), 'hero2',
+        'an old talent left in the loop state does not replace the class talent');
 
     vm.runInContext('triggerSeasonReset()', context);
     const resetState = JSON.parse(vm.runInContext(`JSON.stringify({
