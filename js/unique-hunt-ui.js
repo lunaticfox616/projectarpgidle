@@ -8,7 +8,9 @@ const UNIQUE_HUNT_SOURCE_TYPES = Object.freeze({
     trial: { label: '전직 시련', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-trials' },
     labyrinth: { label: '고대 미궁', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-labyrinth' },
     meteor: { label: '운석 낙하 지점', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-meteor' },
-    seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' }
+    seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' },
+    // 깨어난 아틀라스의 최종 보스와 리그 우두머리만 주는 고유(data/atlas-endgame.js, 아틀라스의 최종 보기).
+    atlasLate: { label: '깨어난 아틀라스 보스', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-worldtree' }
 });
 const UNIQUE_HUNT_SOURCE_IDS = Object.freeze({
     grand_breach_run: { label: '대균열', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-voidrift' },
