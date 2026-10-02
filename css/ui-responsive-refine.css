@@ -130,11 +130,6 @@
     padding: 2px 3px;
   }
 
-  body.mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip .combat-effect-icon {
-    padding: 0;
-    border-radius: 4px;
-  }
-
   body.mobile-battle-tab #tab-battle #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip .combat-effect-time {
     display: none;
   }

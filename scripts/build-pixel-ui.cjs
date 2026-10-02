@@ -174,6 +174,31 @@ function iconStrip() {
     return png(13 * ORDER.length, 13, (x, y) => PALETTE[ICONS[ORDER[Math.floor(x / 13)]][y][x % 13]] || null);
 }
 
+/** One status icon drawing (scripts/pixel-status-icons.cjs) with a 1-dot outline: (size + 2)² colours, row by row. */
+function outlinedStatusIcon(icon, size) {
+    if (icon.rows.length !== size || icon.rows.some(row => row.length !== size)) throw new Error(`상태 아이콘 ${icon.index}: ${size}×${size}가 아님`);
+    const dot = (x, y) => x >= 0 && y >= 0 && x < size && y < size && icon.rows[y][x] !== '.';
+    const near = (x, y) => dot(x + 1, y) || dot(x - 1, y) || dot(x, y + 1) || dot(x, y - 1);
+    const out = [];
+    for (let y = -1; y <= size; y++) for (let x = -1; x <= size; x++) {
+        const letter = dot(x, y) ? icon.rows[y][x] : null;
+        if (letter && !icon.palette[letter]) throw new Error(`상태 아이콘 ${icon.index}: 색 '${letter}' 없음`);
+        out.push(letter ? icon.palette[letter] : (near(x, y) ? icon.outline : null));
+    }
+    return out;
+}
+
+/** Status effect icons in a 7×7 board of 17-dot cells (sprite number = cell); CSS shows one cell 2× with background-size 700%. */
+function statusIconAtlas() {
+    const { ICONS, SIZE, COLUMNS } = require('./pixel-status-icons.cjs');
+    const cell = SIZE + 2, side = cell * COLUMNS, board = new Array(side * side).fill(null);
+    ICONS.forEach(icon => outlinedStatusIcon(icon, SIZE).forEach((color, i) => {
+        const x = (icon.index % COLUMNS) * cell + (i % cell), y = Math.floor(icon.index / COLUMNS) * cell + Math.floor(i / cell);
+        board[y * side + x] = color;
+    }));
+    return png(side, side, (x, y) => board[y * side + x]);
+}
+
 /** Box-filter the source down to n×n dots, drop edges fainter than `cut` (lower keeps thin strokes at small sizes), repaint by brightness with a gold ramp. */
 function pixelLogo(source, n, cut) {
     const ramp = ['#4a3418', '#7a5628', '#a87c3e', '#d4a95c', '#f3d492'];
@@ -211,6 +236,8 @@ const FILES = {
     'board-hot.png': board(1),
     // 메뉴 아이콘: 한 줄 그림(13도트 × 개수).
     'menu-icons.png': iconStrip(),
+    // 전투 상태 효과 아이콘(15도트 + 윤곽 = 17도트 칸 7×7): scripts/pixel-status-icons.cjs.
+    'status-icons.png': statusIconAtlas(),
     'rignin-logo-52.png': pixelLogo(logo, 52, .2),
     'rignin-logo-120.png': pixelLogo(logo, 120, .3)
 };

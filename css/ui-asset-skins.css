@@ -60,30 +60,31 @@
   pointer-events: auto;
 }
 
+/* 상태 효과 아이콘(2026-10-02 도트로 새로 그림): 17도트 그림(scripts/pixel-status-icons.cjs → assets/ui/pixel/status-icons.png)을
+   2배(34px)로 청동 2px 테 안에 둔다. 휴대폰은 테를 1px로 줄인다(--effect-frame). */
 .combat-effect-icon {
+  --effect-frame: 2px;
   position: relative;
   z-index: 1;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: clamp(30px, 2.55vw, 34px);
-  height: clamp(30px, 2.55vw, 34px);
-  padding: 1px;
+  width: 38px;
+  height: 38px;
+  padding: var(--effect-frame);
   box-sizing: border-box;
   overflow: visible;
-  border: 1px solid var(--effect-color, #b9a8a3);
-  border-radius: 7px;
-  background: radial-gradient(circle at 50% 42%, rgba(38, 30, 38, .82), rgba(5, 7, 11, .92));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .32), 0 0 12px color-mix(in srgb, var(--effect-color, #b9a8a3) 78%, transparent);
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .92));
+  border: 0;
+  border-radius: 0;
+  background: #0d0a08;
+  box-shadow: inset 0 0 0 var(--effect-frame) #6e5226, 0 0 0 1px #050404;
   cursor: help;
 }
 
 .combat-effect-icon:hover {
   z-index: 6;
-  transform: scale(1.12);
-  filter: brightness(1.12) drop-shadow(0 2px 3px rgba(0, 0, 0, .94));
+  box-shadow: inset 0 0 0 var(--effect-frame) #dcb068, 0 0 0 1px #050404;
 }
 
 .combat-effect-art {
@@ -92,39 +93,25 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 5px;
-  isolation: isolate;
 }
 
 .combat-effect-art::before {
   content: '';
   position: absolute;
-  inset: 1px;
-  background-image: url('../assets/ui/status-effects-atlas-v1.png');
+  inset: 0;
+  background-image: url('../assets/ui/pixel/status-icons.png');
   background-repeat: no-repeat;
   background-position: var(--effect-sprite-x) var(--effect-sprite-y);
   background-size: 700% 700%;
-  border-radius: 3px;
-  clip-path: inset(0 0 5.5% 0);
   image-rendering: pixelated;
-  filter: brightness(1.55) saturate(1.4) contrast(1.28);
-}
-
-.effect-leechEfficiency .combat-effect-art::before,
-.effect-lifeLeech .combat-effect-art::before,
-.effect-energyShieldLeech .combat-effect-art::before,
-.effect-gladiatorFlurry .combat-effect-art::before {
-  transform: scale(.94);
 }
 
 .combat-effect-icon.timed::after {
   content: '';
   position: absolute;
-  inset: 1px;
+  inset: var(--effect-frame);
   z-index: 3;
-  border-radius: 4px;
-  background: conic-gradient(from 0deg, transparent 0 var(--effect-remaining-angle), rgba(2, 5, 9, .36) var(--effect-remaining-angle) 360deg);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--effect-color, #b9a8a3) 42%, transparent);
+  background: conic-gradient(from 0deg, transparent 0 var(--effect-remaining-angle), rgba(2, 5, 9, .5) var(--effect-remaining-angle) 360deg);
   pointer-events: none;
 }
 
@@ -136,7 +123,7 @@
   color: #fff;
   font-family: Arial, sans-serif;
   padding: 1px 2px;
-  border-radius: 3px;
+  border-radius: 0;
   background: rgba(0, 0, 0, .78);
   font-size: 9px;
   font-weight: 900;
@@ -154,8 +141,8 @@
   height: 12px;
   padding: 0 1px;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 220, 196, .72);
-  border-radius: 7px;
+  border: 1px solid #b08540;
+  border-radius: 0;
   color: #fff7ef;
   background: rgba(27, 12, 16, .96);
   font-size: 8px;
@@ -185,11 +172,11 @@
 }
 
 .player-hud-shell > .player-combat-effect-strip .combat-effect-icon {
-  flex: 0 0 32px;
-  width: 32px;
-  min-width: 32px;
-  max-width: 32px;
-  height: 32px;
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
 }
 
 .player-exp-percent {
@@ -532,8 +519,8 @@
 }
 
 #enemy-area .enemy-card.targeted > .enemy-combat-effect-strip .combat-effect-icon {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
 }
 
 @media (max-width: 1080px) {
@@ -549,7 +536,7 @@
   }
   body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row strong,
   body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row span { flex: 0 1 auto; }
-  body.mobile-battle-tab #tab-battle .combat-effect-icon { width: clamp(24px, 5.8vw, 28px); height: clamp(24px, 5.8vw, 28px); }
+  body.mobile-battle-tab #tab-battle .combat-effect-icon { --effect-frame: 1px; width: clamp(24px, 5.8vw, 28px); height: clamp(24px, 5.8vw, 28px); }
   body.mobile-battle-tab #tab-battle .player-combat-effect-strip .combat-effect-icon {
     flex: 0 0 clamp(24px, 5.8vw, 28px);
     width: clamp(24px, 5.8vw, 28px);

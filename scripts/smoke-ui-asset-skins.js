@@ -133,11 +133,15 @@ assert.strictEqual(skinContext.normalizeUiSkin('reliquary'), 'rift', 'the old de
 skinContext.applyUiSkin('crimson');
 assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'rift', 'skin application must update one body-level theme boundary');
 assert.ok(!/<option value="(?:reliquary|verdigris|crimson)"/.test(html), 'settings must not offer a retired skin');
-assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
-const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
-assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must remain square');
-assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
-assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
+// 2026-10-02: the painted atlas (rows 169px apart, the CSS assumed 180) became a drawn pixel board with even 17-dot cells.
+assert.ok(css.includes("pixel/status-icons.png") && fs.existsSync('assets/ui/pixel/status-icons.png'), 'active effects must use the drawn pixel icon board');
+assert.ok(!fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'the painted effect atlas must stay removed');
+const effectAtlasSize = readPngSize('assets/ui/pixel/status-icons.png');
+assert.deepStrictEqual(effectAtlasSize, [119, 119], 'effect board must be seven 17-dot cells each way');
+assert.strictEqual(readPngColorType('assets/ui/pixel/status-icons.png'), 6, 'effect board must retain RGBA transparency');
+const { ICONS: statusIcons } = require('./pixel-status-icons.cjs');
+const usedSprites = new Set([...ui.matchAll(/^\s+\w+: \{ sprite: (\d+), label:/gm)].map(match => Number(match[1])).concat(48));
+usedSprites.forEach(sprite => assert.ok(statusIcons.some(icon => icon.index === sprite), `effect sprite ${sprite} must be drawn`));
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
 assert.ok(ui.includes('onmouseenter="showEnemyTraitTooltip(event)"') && !ui.includes('traitEl.title ='),
   'boss trait hover must use the shared custom tooltip without a native title fallback');
