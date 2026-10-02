@@ -2072,7 +2072,9 @@ const defaultGame = {
     // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
     // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
     // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
-    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} } },
+    // endgame: the awakened late atlas (js/atlas-endgame.js) — kills, materials, blight, witness; survives loops, not the epoch.
+    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
+        endgame: { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] } },
     // Last map's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,

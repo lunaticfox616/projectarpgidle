@@ -3,8 +3,8 @@ const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const runtime = buildGameRuntime(), run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
-assert.equal(run('UNIQUE_DB.length'), 207);
-assert.equal(run('Object.keys(UNIQUE_EQUIPMENT_RULES).length'), 207);
+assert.equal(run('UNIQUE_DB.length'), 213); // 207 + 6 atlas late-boss uniques (2026-10-02)
+assert.equal(run('Object.keys(UNIQUE_EQUIPMENT_RULES).length'), 213);
 for (const unique of json('UNIQUE_DB')) {
     runtime.uniqueName = unique.name;
     const row = json(`(() => {

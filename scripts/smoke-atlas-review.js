@@ -54,7 +54,8 @@ const shares = copy(`(() => {
     const bonus = { encounterExtra: 0 }, counts = {};
     for (const type of atlasEncounters.types) { bonus[type] = 40 - ATLAS.encounters[type].chance; counts[type] = 0; }
     let seed = 5; const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000);
-    for (let i = 0; i < 20000; i++) for (const type of atlasEncounters.roll(bonus, [], random)) counts[type]++;
+    // awake: the late altars (js/atlas-endgame.js) join the same fair roll once the atlas has woken.
+    for (let i = 0; i < 20000; i++) for (const type of atlasEncounters.roll(bonus, [], random, Infinity, true)) counts[type]++;
     return Object.values(counts);
 })()`);
 const mean = shares.reduce((a, b) => a + b) / shares.length;

@@ -138,6 +138,27 @@
 #ui-atlas .atlas-perk strong span{margin-left:4px;color:var(--atlas-muted);font-weight:400}
 #ui-atlas .atlas-perk small{display:block;margin-top:2px;font-size:10px;color:var(--atlas-muted)}
 #ui-atlas .atlas-perk button{flex:0 0 auto;min-height:30px;padding:4px 10px;font-size:11px}
+/* 최종 보기(js/atlas-endgame-ui.js): 최종 보스와 리그 우두머리 카드, 바칠 재료 칩, 지역 마름. */
+#ui-atlas .atlas-late{padding:14px 18px}
+#ui-atlas .atlas-late-head{padding-bottom:10px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-late h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}
+#ui-atlas .atlas-late-group{margin-top:14px}
+#ui-atlas .atlas-late-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+#ui-atlas .atlas-late-card{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--atlas-line);background:var(--atlas-panel)}
+#ui-atlas .atlas-late-card.is-ready{border-color:var(--atlas-gold)}
+#ui-atlas .atlas-late-card.is-locked{opacity:.72}
+#ui-atlas .atlas-late-card strong{font-size:13px;color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-late-card>small{font-size:11px;color:var(--atlas-muted)}
+#ui-atlas .atlas-late-card .atlas-muted{margin:2px 0;font-size:11px}
+#ui-atlas .atlas-late-card .atlas-lock{margin:2px 0;padding:6px 8px;border:0;font-size:11px}
+#ui-atlas .atlas-late-unique{margin:0;font-size:11px;color:#ff9f43}
+#ui-atlas .atlas-late-card button{margin-top:auto;min-height:32px}
+#ui-atlas .atlas-late-entry{display:flex;flex-wrap:wrap;gap:3px}
+#ui-atlas .atlas-late-entry span{padding:1px 4px;border:1px solid var(--atlas-line);background:var(--atlas-raised);font-size:10px;color:var(--atlas-muted)}
+#ui-atlas .atlas-late-entry span.is-on{border-color:#6f8a57;color:#cfe3b0}
+#ui-atlas .atlas-late-blight{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
+#ui-atlas .atlas-late-blight span{display:inline-flex;align-items:center;gap:6px}
+#ui-atlas .atlas-late-blight i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
 #ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 #ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #5d4a2e;background:#17130e;box-shadow:2px 2px 0 #000;color:#ece4cf;grid-column:1/-1}
 #ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}

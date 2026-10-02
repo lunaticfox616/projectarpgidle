@@ -10,7 +10,7 @@ const atlasEpochUi = (() => {
         const why = atlasEpoch.reason(game);
         if (why) return addLog(why, 'attack-monster');
         const gained = atlasEpoch.essenceFor(game);
-        const accepted = await requestGameConfirmation(`아틀라스 완료 · 보너스 · 패시브 · 씨앗과 이번 루프의 지도석 · 각인이 사라지고, 세계수 정수 ${gained}개를 받습니다. 특전 · 해금 · 자동 지도 설정은 남습니다.`,
+        const accepted = await requestGameConfirmation(`아틀라스 완료, 보너스, 패시브, 씨앗, 후반부 진행(깨어남과 재료)과 이번 루프의 지도석, 각인이 사라지고, 세계수 정수 ${gained}개를 받습니다. 특전, 해금, 자동 지도 설정은 남습니다.`,
             { title: '시대 재생', tone: 'danger', confirmLabel: '재생', cancelLabel: '그만두기' });
         if (!accepted) return;
         const reason = atlasEpoch.rebirth(game);
@@ -35,7 +35,7 @@ const atlasEpochUi = (() => {
         const epoch = game.atlas.epoch, why = atlasEpoch.reason(game);
         return `<div class="atlas-epoch"><section class="atlas-epoch-head"><div><h3>시대 재생 <span>${epoch.count}회</span></h3>
             <p class="atlas-muted">세계수 씨앗 ${game.atlas.seeds}/${ATLAS.seeds.max} · 지금 재생하면 세계수 정수 ${atlasEpoch.essenceFor(game)}개 (기본 ${ATLAS.epoch.essence.base} + 완료 · 보너스 · 씨앗)</p>
-            <p class="atlas-muted">되돌리는 것: 완료 · 보너스 · 패시브 · 씨앗 · 이번 루프의 지도석과 각인. 남는 것: 특전 · 해금 · 자동 지도 · 각인 홈 설정.</p></div>
+            <p class="atlas-muted">되돌리는 것: 완료, 보너스, 패시브, 씨앗, 후반부 진행, 이번 루프의 지도석과 각인. 남는 것: 특전, 해금, 자동 지도, 각인 홈 설정.</p></div>
             <div class="atlas-epoch-action"><strong>세계수 정수 ${epoch.essence}</strong>${why ? `<p class="atlas-lock">${why}</p>` : ''}
             <button class="atlas-primary" onclick="atlasEpochUi.rebirth()" ${why ? 'disabled' : ''}>시대 재생</button></div></section>
             <div class="atlas-perks">${ATLAS.epoch.perks.map(perkHtml).join('')}</div></div>`;

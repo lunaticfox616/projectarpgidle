@@ -7412,6 +7412,7 @@ function createActExplorationPack(zone,room,stage,encounter=null) {
         const marker={at:0,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
+        if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
         Object.assign(enemy,{gx:room.gx+dx,gy:room.gy+dy,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });

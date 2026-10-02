@@ -6,7 +6,7 @@ const atlasEpoch = (() => {
     const PERKS = new Map(ATLAS.epoch.perks.map(perk => [perk.id, perk]));
     const ledger = state => state.atlas.epoch;
     const rank = (state, id) => ledger(state).perks[id] || 0;
-    const mapNodes = state => state.atlas.completed.filter(id => !id.endsWith('_g') && id !== 'pinnacle').length;
+    const mapNodes = state => state.atlas.completed.filter(id => (atlas.node(id) || {}).kind === 'map').length;
 
     function reason(state) {
         if (state.atlas.seeds < ATLAS.seeds.max) return `세계수 씨앗 ${ATLAS.seeds.max}개가 필요합니다(지금 ${state.atlas.seeds}개). 정점을 쓰러뜨리면 하나씩 얻습니다.`;
@@ -25,6 +25,7 @@ const atlasEpoch = (() => {
         epoch.count += 1;
         epoch.essence += gained;
         Object.assign(state.atlas, { completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, lastResult: null, starterSeason: 0 });
+        atlasEndgame.reset(state); // 후반부(깨어남 · 처치 · 재료 · 마름 · 목격)도 처음부터
         atlas.setLoadout(state, state.atlas.loadout); // the passive slot is gone with the passives
         return '';
     }

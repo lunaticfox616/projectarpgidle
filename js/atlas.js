@@ -17,7 +17,13 @@ const atlas = (() => {
     const PINNACLE = Object.freeze({ id: 'pinnacle', kind: 'pinnacle', region: null, regionIndex: -1, slot: -1, name: ATLAS.pinnacle.name,
         tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });
     const NODES = Object.freeze([...MAP_NODES, ...GUARDIANS, PINNACLE]);
-    const BY_ID = new Map(NODES.map(node => [node.id, node]));
+    // 후반부 싸움(data/atlas-endgame.js, js/atlas-endgame.js): 그래프 밖의 투기장. 지도 장치 런 · 포털 · 정산은 같은 길을 쓴다.
+    const lateNode = (row, kind, name) => Object.freeze({ id: row.id, kind, region: null, regionIndex: -1, slot: -1, name, tier: row.tier,
+        boss: row.stages[0].name || row.boss, arena: true, act: row.act, bossAct: row.bossAct, ele: row.ele,
+        rules: Object.freeze({ stages: row.stages.length, hpMul: row.hpMul, damageMul: row.damageMul }) });
+    const LATE_NODES = Object.freeze([...ATLAS_ENDGAME.apexes.map(row => lateNode(row, 'apex', row.domain)),
+        ...ATLAS_ENDGAME.leagues.map(row => lateNode(row, 'league', `${row.name}: ${row.boss}`))]);
+    const BY_ID = new Map([...NODES, ...LATE_NODES].map(node => [node.id, node]));
     // Inside a region: the outer arc, each node to the ring within, and across rings. Between regions: each ring closes into a circle.
     const INNER_LINKS = [[0, 1], [1, 2], [0, 3], [1, 3], [1, 4], [2, 4], [3, 4], [3, 5], [4, 6], [5, 6], [5, 7], [6, 8], [7, 8], [7, 'g'], [8, 'g']];
     const OUTER_LINKS = [[2, 0], [4, 3], [6, 5], [8, 7]];
@@ -44,7 +50,7 @@ const atlas = (() => {
     }
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
-            run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} } };
+            run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} }, endgame: atlasEndgame.defaults() };
     }
     /** 세계수 씨앗 하나마다 모든 노드가 2등급 오른다(24등급까지). */
     const effectiveTier = (state, node) => Math.min(ATLAS.tierCap, node.tier + state.atlas.seeds * ATLAS.seeds.tierStep);
@@ -169,7 +175,17 @@ const atlas = (() => {
         const rooms = encounterRooms(map), { used, spent } = useFragments(state, rooms, random), bonus = bonusOf(state, used);
         const forced = used.map(id => FRAGMENTS.get(id).encounter).filter(Boolean);
         state.atlas.run = { map, portals: ATLAS.portals + bonus.portals, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
-            encounters: atlasEncounters.roll(bonus, forced, random, rooms), returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null };
+            encounters: atlasEncounters.roll(bonus, forced, random, rooms, atlasEndgame.awakened(state)),
+            returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: atlasEndgame.runExtra(state, BY_ID.get(map.node), random) };
+    }
+    /** 후반부 싸움(최종 보스 · 리그 우두머리): 재료는 js/atlas-endgame.js가 이미 받았다. 지도석 대신 그 노드의 투기장 지도를 연다. */
+    function beginSpecial(state, nodeId, returnZoneId, random = Math.random) {
+        const node = BY_ID.get(nodeId);
+        if (!node || !node.rules) return '없는 싸움입니다.';
+        const map = atlasMaps.create(node.id, effectiveTier(state, node), 'normal', random);
+        map.uid = state.atlas.nextUid++;
+        startRun(state, map, returnZoneId, random);
+        return '';
     }
     function pinnacleReason(state) {
         const reason = lockReason(state);
@@ -205,6 +221,7 @@ const atlas = (() => {
         const run = state.atlas.run;
         if (!run) return;
         if (run.map.node === PINNACLE.id) for (const key of ATLAS.pinnacle.tickets) state.currencies[key] += 1;
+        else if (atlasEndgame.isFight(run.map.node)) atlasEndgame.refund(state, run.map.node);
         else state.atlas.stash.unshift(run.map);
         addFragments(state, run.spent);
         state.atlas.run = null;
@@ -222,7 +239,8 @@ const atlas = (() => {
         state.atlas.run = null;
         state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
             lost: run.drops.length - stored, fragments: run.found.length };
-        return { ...state.atlas.lastResult, ...bossSpoils(state, BY_ID.get(id)), returnZoneId: run.returnZoneId };
+        const endgame = atlasEndgame.onComplete(state, BY_ID.get(id), run);
+        return { ...state.atlas.lastResult, ...bossSpoils(state, BY_ID.get(id)), endgame, returnZoneId: run.returnZoneId };
     }
     /** An ordinary room emptied in the open map stays empty when a portal re-enters it: it is the same map. */
     function markCleared(state, roomId) {
@@ -313,30 +331,32 @@ const atlas = (() => {
         return zones.get(run);
     }
     const BOSS_RULES = { map: { hpMul: 1, damageMul: 1, stages: 1 }, guardian: { ...ATLAS.guardianRules, stages: 1 }, pinnacle: ATLAS.pinnacle };
+    /** A node's boss rules: late fights carry their own (stages, life, damage). */
+    const rulesOf = node => node.rules || BOSS_RULES[node.kind];
     /** The wide-map spec of a map item (js/exploration-layouts.js): its node's painted act map — guardians and the pinnacle start
      * at their arena's boss gate — the same map for every entry through its portals. */
     function explorationSpec(map) {
-        const node = BY_ID.get(map.node), spec = { style: 'act', act: node.act, seed: `atlas:${map.uid}`, bossStages: BOSS_RULES[node.kind].stages };
+        const node = BY_ID.get(map.node), spec = { style: 'act', act: node.act, seed: `atlas:${map.uid}`, bossStages: rulesOf(node).stages };
         return node.arena ? { ...spec, arena: true } : spec;
     }
     /** Ordinary rooms of the map's layout: how many content rooms it can hold. */
     const encounterRooms = map => atlasEncounters.hostRooms(actExplorationMap.forRun({ source: explorationSpec(map) })).length;
     function buildZone(run) {
         const { map, bonus } = run, node = BY_ID.get(map.node), fx = atlasMaps.effects(map), depth = equivalentDepth(map.tier);
-        const more = key => 1 + bonus[key] / 100, boss = BOSS_RULES[node.kind];
+        const more = key => 1 + bonus[key] / 100, boss = rulesOf(node), boost = atlasEndgame.bossBoost(run);
         return {
             id: ATLAS.zoneId, name: node.name, type: 'atlasMap', tier: getAbyssZoneTier(depth), maxKills: 1, ele: node.ele,
             areaLevel: ATLAS.areaLevel.base + (map.tier - 1) * ATLAS.areaLevel.perTier,
             // 루프 인플레이션 대신 등급이 정한 고정 루프 · 깊이 (combat getLoopDifficultyInputs · state getAbyssMonsterScales).
             fixedSeason: depth - ATLAS.difficulty.loopBehindDepth, equivalentDepth: depth, equivalentChaosDepth: depth,
             mapHpMul: fx.hp * more('monsterLife'), mapDamageMul: fx.damage * more('monsterDamage'),
-            bossMods: { hpMul: fx.bossHp * more('bossLife') * boss.hpMul, damageMul: fx.bossDamage * more('bossLife') * boss.damageMul },
+            bossMods: { hpMul: fx.bossHp * more('bossLife') * boss.hpMul * boost.hp, damageMul: fx.bossDamage * more('bossLife') * boss.damageMul * boost.damage },
             trialHazard: fx.hazard ? { ...ATLAS.burningGround } : undefined,
             atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
             atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, atlasCleared: run.cleared,
-            atlasKind: node.kind, exploration: explorationSpec(map)
+            atlasKind: node.kind, exploration: explorationSpec(map), ...atlasEndgame.zoneExtras(run, node)
         };
     }
     /** What a stash map would be with the current passives and loadout (the device card). */
@@ -374,7 +394,8 @@ const atlas = (() => {
             found: fragmentIds(raw.found, ATLAS.fragmentRules.held), fragments: fragmentIds(raw.fragments, ATLAS.fragments.length),
             spent: fragmentIds(raw.spent, ATLAS.fragments.length), cleared: roomIds(raw.cleared), bonus,
             encounters: [...new Set(Array.isArray(raw.encounters) ? raw.encounters : [])].filter(type => Object.hasOwn(ATLAS.encounters, type)),
-            returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null };
+            returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null,
+            endgame: atlasEndgame.normalizeRun(raw.endgame) };
     }
     function normalizeResult(raw) {
         if (!raw || !BY_ID.has(raw.nodeId) || !['complete', 'failed'].includes(raw.outcome)) return null;
@@ -408,8 +429,8 @@ const atlas = (() => {
         const epoch = atlasEpoch.normalize(raw.epoch), epochPoints = atlasEpoch.points({ atlas: { epoch } });
         const next = { ...defaults(), unlocked: raw.unlocked === true || journeyUnlocked, completed: done, bonus,
             passives: atlasPassives.normalize(raw.passives, done.length + bonus.length + epochPoints), epoch,
-            stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && map.node !== PINNACLE.id).slice(0, ATLAS.stashCap),
-            fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult),
+            stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && NODES.includes(BY_ID.get(map.node)) && map.node !== PINNACLE.id).slice(0, ATLAS.stashCap),
+            fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult), endgame: atlasEndgame.normalize(raw.endgame),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
             autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
         const savedNext = Math.floor(Number(raw.nextUid));
@@ -428,7 +449,7 @@ const atlas = (() => {
     }
     return Object.freeze({ nodes: NODES, links: LINKS, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
-        effectiveTier, hasTickets, pinnacleReason, beginPinnacle,
+        effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason,
         inMap: state => state.currentZoneId === ATLAS.zoneId });

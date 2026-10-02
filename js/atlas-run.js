@@ -30,6 +30,14 @@ const atlasRun = (() => {
         atlas.beginPinnacle(game, game.currentZoneId);
         return depart();
     }
+    /** 후반부 싸움(최종 보스 · 리그 우두머리, js/atlas-endgame.js): 재료를 바치고 그 투기장으로 떠난다(떠나지 못하면 재료는 돌아온다). */
+    function openEndgame(id) {
+        const reason = atlasEndgame.entryReason(game, id) || departureBlock();
+        if (reason) return reason;
+        atlasEndgame.spend(game, id);
+        atlas.beginSpecial(game, id, game.currentZoneId);
+        return depart();
+    }
     function depart() {
         combatLootReceipts.reset(game);
         changeZone(ATLAS.zoneId);
@@ -89,6 +97,14 @@ const atlasRun = (() => {
     function grantSpoils(result) {
         if (result.ticket) awardCurrency(result.ticket, 1);
         for (const [key, amount] of result.rewards || []) awardCurrency(key, amount);
+        if (result.endgame) grantEndgameSpoils(result.endgame, result.tier);
+    }
+    /** 후반부 보스의 보상: 재화는 지갑으로, 고유 장비는 가방으로(가득 차도 남긴다). */
+    function grantEndgameSpoils(spoils, tier) {
+        for (const [key, amount] of spoils.rewards) awardCurrency(key, amount);
+        if (!spoils.unique) return;
+        const item = generateUniqueItem(tier, null, spoils.unique);
+        if (item) addItemToInventory(item, { guaranteedKeep: true });
     }
     function halt() {
         actExplorationProgress.depart(game);
@@ -125,8 +141,10 @@ const atlasRun = (() => {
         const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);
         const room = zone && zone.type === 'atlasMap' && game.atlas.run ? emptyRoom(enemy) : null;
         const rewards = room ? clearRoom(zone, room, maps) : [];
+        // 깨어난 뒤에는 제단의 잉걸 · 허기의 즙과 리그 조각도(보스를 잡을 때까지 런이 들고 있다, js/atlas-endgame.js).
+        const late = room ? atlasEndgame.roomItems(game, zone, room) : [];
         if (!maps.length && !fragments.length && !room) return;
-        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards });
+        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards, late });
     }
     /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
     function emptyRoom(enemy) {
@@ -147,7 +165,7 @@ const atlasRun = (() => {
         const maps = atlas.sync(game);
         if (opened || maps.length) notify({ kind: 'starter', opened, count: maps.length });
     }
-    return Object.freeze({ open, openPinnacle, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
+    return Object.freeze({ open, openPinnacle, openEndgame, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
         blockReason: departureBlock });
 })();
 safeExposeGlobals({ atlasRun });

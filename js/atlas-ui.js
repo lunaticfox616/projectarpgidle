@@ -25,7 +25,7 @@ const atlasUi = (() => {
         updateStaticUI();
     }
     function setView(next) {
-        view = ['passives', 'epoch'].includes(next) ? next : 'maps';
+        view = ['passives', 'epoch', 'late'].includes(next) ? next : 'maps';
         refresh();
     }
     function selectNode(id) {
@@ -89,8 +89,11 @@ const atlasUi = (() => {
     async function abandon() {
         const run = ledger().run;
         if (!run) return;
-        const held = run.drops.length + run.found.length;
-        const message = `${nodeName(run.map.node)} 지도를 닫을까요?\n지도석${held ? `과 맵에서 얻은 지도석 · 각인 ${held}개` : ''}를 잃고, 맵 안의 임시 전리품도 사라집니다.`;
+        const held = run.drops.length + run.found.length, kind = atlas.node(run.map.node)?.kind;
+        // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료).
+        const offering = kind === 'pinnacle' ? '바친 입장권' : (RUN_KIND[kind] ? '바친 재료' : '지도석');
+        const lost = [offering, held ? `맵에서 얻은 지도석과 각인 ${held}개` : '', '맵 안의 임시 전리품'].filter(Boolean).join(', ');
+        const message = `${nodeName(run.map.node)} 지도를 닫을까요?\n잃는 것: ${lost}`;
         const ok = await requestGameConfirmation(message, { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
         if (!ok || ledger().run !== run) return;
         if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다. 지도석과 맵 안에서 얻은 지도석 · 각인은 사라집니다.', 'attack-monster');
@@ -135,8 +138,8 @@ const atlasUi = (() => {
         if (!canvas || !box.clientWidth) return;
         atlasChartArt.paint(canvas, Math.max(120, Math.round(box.clientWidth / 2)), chartModel());
     }
-    /** The dot drawings of the current view: the chart, the passive wheels (the epoch view has none). */
-    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {} };
+    /** The dot drawings of the current view: the chart, the passive wheels (the epoch and late views have none). */
+    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {} };
     /** Drawings follow the panel's width: repaint the current view whenever the panel resizes. */
     function watchPanel(panel) {
         if (panelObserver || typeof ResizeObserver !== 'function') return;
@@ -207,8 +210,10 @@ const atlasUi = (() => {
         return Object.entries(fragment.effect).map(([key, value]) => `${ATLAS_PASSIVES.labels[key][0]} +${value}${ATLAS_PASSIVES.labels[key][1]}`).join(' · ');
     }
     function chancesHtml() {
-        const bonus = atlasPassives.effects(game);
-        const rows = atlasEncounters.types.map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%`);
+        const bonus = atlasPassives.effects(game), awake = atlasEndgame.awakened(game);
+        // 제단은 아틀라스가 깨어난 뒤에만 생긴다(js/atlas-encounters.js roll).
+        const rows = atlasEncounters.types.filter(type => awake || !ATLAS.encounters[type].late)
+            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%`);
         return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows.join(' · ')} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>`;
     }
     function deviceHtml() {
@@ -245,7 +250,8 @@ const atlasUi = (() => {
         const tickets = ATLAS.pinnacle.tickets.map(key => `<span class="${(game.currencies[key] || 0) >= 1 ? 'is-on' : ''}">${TICKET(key)} ${Math.floor(game.currencies[key] || 0)}</span>`).join('');
         return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>정점 · 세계수 씨앗 ${ledger().seeds}/${ATLAS.seeds.max}</small><h3>${escapeHTML(node.name)}</h3>
             <p>${tier}등급 · 투기장 · 보스 ${ATLAS.pinnacle.stages}단계</p><div class="atlas-tickets">${tickets}</div>
-            <p class="atlas-muted">처치하면 세계수 씨앗 하나(최대 ${ATLAS.seeds.max}) — 씨앗마다 모든 노드 등급 +${ATLAS.seeds.tierStep}. 씨앗 ${BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
+            <p class="atlas-muted">처치하면 세계수 씨앗 하나(최대 ${ATLAS.seeds.max}). 씨앗마다 모든 노드 등급 +${ATLAS.seeds.tierStep}. 씨앗 ${BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
+            ${atlasEndgame.awakened(game) ? '' : '<p class="atlas-muted">처음 쓰러뜨리면 아틀라스가 깨어나 최종 보스가 열립니다.</p>'}
             ${reason && !busy ? `<p class="atlas-lock">${reason}</p>` : ''}<div class="atlas-actions"><button class="atlas-primary" data-exploration-departure
             onclick="atlasUi.openPinnacle()" ${reason ? 'disabled' : ''}>정점 열기</button></div></section>`;
     }
@@ -272,10 +278,11 @@ const atlasUi = (() => {
             ${receipt ? `<p class="atlas-muted">장비 ${receipt.equipmentCount}개</p>` : ''}</details>`;
     }
     function headerHtml() {
-        const st = ledger(), total = atlas.nodes.length, free = atlasPassives.available(game);
+        // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).
+        const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.available(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length} · 씨앗 ${st.seeds}/${ATLAS.seeds.max} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('epoch', '시대')}</nav>
+            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('epoch', '시대')}</nav>
             <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
@@ -283,7 +290,7 @@ const atlasUi = (() => {
         return `<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
-    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html() };
+    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html() };
     function render() {
         const panel = document.getElementById('ui-atlas');
         if (!panel || !panelOpen()) return;
@@ -300,6 +307,12 @@ const atlasUi = (() => {
     }
 
     // ---------------------------------------------------------------- combat HUD and log lines
+    /** Fights opened without a map item say what they are instead of the (always normal) rarity. */
+    const RUN_KIND = { pinnacle: '정점', apex: '최종 보스', league: '리그 우두머리' };
+    function hudTags(run) {
+        const rooms = run.encounters.length ? ` · ${encounterNames(run.encounters)}` : '';
+        return `${run.map.tier}등급 · ${RUN_KIND[atlas.node(run.map.node)?.kind] || ATLAS.rarities[run.map.rarity].name}${rooms}`;
+    }
     function updateHud(zone) {
         const host = document.getElementById('ui-atlas-combat');
         if (!host) return;
@@ -310,8 +323,7 @@ const atlasUi = (() => {
         const key = JSON.stringify([run.map.uid, run.portals, run.drops.length, run.found.length]);
         if (key === hudSignature) return;
         hudSignature = key;
-        const rooms = run.encounters.length ? ` · ${encounterNames(run.encounters)}` : '';
-        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${run.map.tier}등급 · ${ATLAS.rarities[run.map.rarity].name}${rooms}</span></strong>
+        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${hudTags(run)}</span></strong>
             <span>포털 ${run.portals}/${ATLAS.portals + run.bonus.portals} · 지도석 ${run.drops.length} · 각인 ${run.found.length} 보관 중</span></div>
             <div class="atlas-hud-actions"><button onclick="atlasUi.openPanel()">아틀라스</button></div>`;
     }
@@ -321,6 +333,8 @@ const atlasUi = (() => {
         if (detail.room) parts.push(`${ATLAS.encounters[detail.room].name} 정리: ${detail.rewards.map(([key, n]) => `${ORB_DB[key].name} ${n}`).join(', ') || '보상 없음'}`);
         if (detail.maps.length) parts.push(`지도석 ${detail.maps.map(map => `${nodeName(map.node)}(${map.tier})`).join(', ')}`);
         if (detail.fragments.length) parts.push(`각인 ${detail.fragments.map(id => atlas.fragment(id).name).join(', ')}`);
+        // 깨어난 뒤 제단 · 리그 방의 재료(js/atlas-endgame.js roomItems): 보스를 잡아야 보관함에 들어온다.
+        if (detail.late && detail.late.length) parts.push(`${detail.late.map(([id, n]) => `${atlasEndgame.itemName(id)} ${n}`).join(', ')} (보스를 잡으면 받음)`);
         return `🗺️ ${parts.join(' · ')}`;
     }
     function logClass(detail) {

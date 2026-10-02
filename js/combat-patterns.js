@@ -7,7 +7,8 @@
         slam: '파쇄 강타',
         ramp: '격앙',
         cosmos: '성좌 순환',
-        cosmosBoss: '은하 고유 기믹'
+        cosmosBoss: '은하 고유 기믹',
+        apex: '최종 보스 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
         intro: '3번째 공격마다 예고한 한 칸을 강타합니다. 이동 스킬 칸에 이동 젬을 끼우면 예고 범위를 벗어납니다.',
@@ -15,7 +16,8 @@
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다.',
         cosmos: '연속 참격·파쇄 강타·격앙을 차례로 순환합니다.',
-        cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.'
+        cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.',
+        apex: '아틀라스 최종 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.'
     });
     const BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS = Object.freeze({
         intro: 1.15,
@@ -104,13 +106,21 @@
         return null;
     }
 
+    // Bosses that carry their own special table: cosmos galaxy bosses (js/cosmos-rules.js) and the awakened atlas's late bosses
+    // (js/atlas-endgame.js, a named special every n-th attack per stage).
+    const OWN_PATTERN_MODES = new Set(['cosmosBoss', 'apex']);
+    function getOwnPatternState(mode, enemy, attackNumber) {
+        if (mode === 'cosmosBoss') {
+            return typeof globalThis.getCosmosBossPatternState === 'function' ? globalThis.getCosmosBossPatternState(enemy.cosmosBossId, attackNumber) : null;
+        }
+        return globalThis.atlasEndgame ? globalThis.atlasEndgame.patternState(enemy.apexMechanic, attackNumber) : null;
+    }
+
     function getBossPatternPreview(enemy) {
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
         let mode = String(enemy.patternMode);
-        if (mode === 'cosmosBoss' && typeof globalThis.getCosmosBossPatternState === 'function') {
-            return globalThis.getCosmosBossPatternState(enemy.cosmosBossId, attackNumber);
-        }
+        if (OWN_PATTERN_MODES.has(mode)) return getOwnPatternState(mode, enemy, attackNumber);
         if (mode === 'cosmos') {
             let cycle = ['burst', 'slam', 'ramp'];
             let resolvedMode = cycle[(attackNumber - 1) % cycle.length];

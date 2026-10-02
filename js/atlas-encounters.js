@@ -1,4 +1,5 @@
-/** 지도 속 콘텐츠 방 (docs/atlas-endgame-20260930.md 3절 · data/atlas.js encounters): 공허 균열 · 벌집 · 보물 방 · 운석 분화구.
+/** 지도 속 콘텐츠 방 (docs/atlas-endgame-20260930.md 3절 · data/atlas.js encounters): 공허 균열 · 벌집 · 보물 방 · 운석 분화구,
+ * 아틀라스가 깨어난 뒤의 붉은 제단 · 푸른 제단(docs/atlas-pinnacles-20261002.md).
  * 지도를 열 때 어떤 방이 생길지 정하고(각인은 확정, 나머지는 확률), 맵이 만들어질 때 보통 방 하나에 그 콘텐츠의 무리를 둔다.
  * 무리는 정예가 이끌어 보스 관문을 함께 봉인하고, 방을 비우는 처치가 그 콘텐츠의 재화를 맵 전리품으로 준다(쓰러지면 잃는다).
  */
@@ -6,11 +7,12 @@ const atlasEncounters = (() => {
     const TYPES = Object.freeze(Object.keys(ATLAS.encounters));
     /** Forced rooms (fragments) first, then the other types — in a random order, so none is starved by the list order — roll
      * their chance (base + passives) up to the map's limit; never more rooms than the map has ordinary rooms for. */
-    function roll(bonus, forced, random, capacity = Infinity) {
+    function roll(bonus, forced, random, capacity = Infinity, awake = false) {
         const fixed = [...new Set(forced)].filter(type => Object.hasOwn(ATLAS.encounters, type));
         const limit = ATLAS.encounterLimit + bonus.encounterExtra;
-        const rolled = shuffledTypes(TYPES.filter(type => !fixed.includes(type)), random)
-            .filter(type => random() * 100 < ATLAS.encounters[type].chance + bonus[type]);
+        // 제단(late)은 아틀라스가 깨어난 뒤에만 굴린다(js/atlas-endgame.js). 패시브가 없는 종류의 보너스는 0.
+        const rolled = shuffledTypes(TYPES.filter(type => !fixed.includes(type) && (awake || !ATLAS.encounters[type].late)), random)
+            .filter(type => random() * 100 < ATLAS.encounters[type].chance + (bonus[type] || 0));
         return [...fixed, ...rolled.slice(0, limit)].slice(0, capacity);
     }
     function shuffledTypes(list, random) {

@@ -208,7 +208,14 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['두 번째 심장','blood_girdle',49,40,0,40],
     ['오차 없는 천칭','gen__armor_energyShield_t20_1',72,95,0,95],
     ['최후통첩','cosmos_core_amulet',78,40,0,60],
-    ['빛보다 먼저','gen__evasion_t20_2',78,0,150,0]
+    ['빛보다 먼저','gen__evasion_t20_2',78,0,150,0],
+    // 아틀라스 후반부(data/atlas-endgame.js)
+    ['정원사의 가지 왕관','void_crown',70,0,0,110],
+    ['장로의 썩은 심장','star_pendant',70,0,0,60],
+    ['엮인 나이테','opal_ring',72,0,0,0],
+    ['총주교의 성화 장갑','ward_gauntlets',70,60,0,60],
+    ['포식자의 이빨띠','war_belt',70,80,0,0],
+    ['금고지기의 열쇠꾸러미','copper_ring',60,0,40,0]
 ].map(([name, baseId, level, strength, dexterity, intelligence, slot]) => [name, Object.freeze({
     baseId, level, slot, attributes: Object.freeze(Object.fromEntries(Object.entries({strength, dexterity, intelligence}).filter(([,value]) => value > 0)))
 })])));
