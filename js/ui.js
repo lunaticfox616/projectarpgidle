@@ -7400,6 +7400,14 @@ function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion
     };
 }
 
+/** Sprite rim (data BATTLE_SPRITE_OUTLINES): bosses a stronger red, elites their trait colour, every other monster red. */
+function getEnemyOutlineStyle(enemy) {
+    if (enemy.isBoss) return BATTLE_SPRITE_OUTLINES.boss;
+    if (!enemy.isElite) return BATTLE_SPRITE_OUTLINES.enemy;
+    const color = enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || BATTLE_SPRITE_OUTLINES.elite.color;
+    return { ...BATTLE_SPRITE_OUTLINES.elite, color };
+}
+
 function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMotion, facingDirection) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
@@ -7412,9 +7420,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
         let frame = animatedEntry.frame || variantEntry.frame || enemyAtlas.frames.bandit || enemyAtlas.frames.slime;
         let frameImage = animatedEntry.image || variantEntry.image || enemyAtlas.image;
         let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 52 : 44);
-        let outlineColor = enemy.isBoss
-            ? '#a84e49'
-            : (enemy.isElite ? (enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || '#e2b94f') : null);
+        let outline = getEnemyOutlineStyle(enemy);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)); noteEnemyDrawnHeight(enemy, drawSize);
         let bossScaleRatio = enemy.isBoss ? scale / 2.55 : 1;
         drawPixelShadow(ctx, x, groundY, enemy.isBoss ? 22 * bossScaleRatio : 9, enemy.isBoss ? 7 * bossScaleRatio : 4, 0.17);
@@ -7422,9 +7428,9 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
         if (enemy.bossVisualTint != null) ctx.filter = `hue-rotate(${enemy.bossVisualTint}deg) saturate(1.28) brightness(1.08)`;
         drawBattleSprite(ctx, frameImage, frame, x, groundY, drawSize, {
             smoothing: enemy.bossAssetKey ? 'high' : 'low',
-            outlineColor: outlineColor,
-            outlineThickness: 1.35,
-            outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
+            outlineColor: outline.color,
+            outlineThickness: outline.thickness,
+            outlineAlpha: outline.alpha
         });
         ctx.restore();
         if (flash) {

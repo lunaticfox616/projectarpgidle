@@ -181,4 +181,10 @@ const ACT_EXPLORATION_BACKDROPS = Object.freeze({
 // Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
 // before it charges, and the fights a route takes stay the same.
 const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5});
-safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_VISION});
+// Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
+// desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
+const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
+// A light lift for the dark backdrops, applied once per map (js/canvas-exploration-art.js graded): midtones brighter through a gamma
+// below 1, colours a little fuller, black stays black. 2026-10-02 (user: "약간만 화사하게").
+const ACT_EXPLORATION_GRADE = Object.freeze({gamma:0.86,saturation:1.12});
+safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA,ACT_EXPLORATION_GRADE});

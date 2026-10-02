@@ -48,4 +48,24 @@ const pixel = fs.readFileSync('css/themes/pixel.css', 'utf8');
 assert.ok(/body\[data-ui-skin\] \{[^}]*font-synthesis: none;/.test(pixel), 'pixel fonts are never synthesised bold');
 assert.ok(pixel.includes(':root body[data-ui-skin].desktop-windowed-ui { will-change: transform; }'), 'desktop text renders with grayscale antialiasing');
 
+// 카메라: 최대 ×4(125% PC 화면에서 ×5 칸이 80px라 캐릭터가 너무 커 보였다). 휴대폰 ×3은 그대로.
+assert.deepStrictEqual(JSON.parse(run('JSON.stringify(ACT_EXPLORATION_CAMERA)')), { minZoom: 3, maxZoom: 4 });
+assert.ok(fs.readFileSync('js/canvas-act-exploration.js', 'utf8').includes('Math.max(minZoom,Math.min(maxZoom,'), 'the camera zoom comes from the data bounds');
+
+// 테두리: 적은 붉은색, 정예는 특성 색, 보스는 더 진한 붉은색, 내 캐릭터는 크림색 한 도트(몸통보다 먼저 그려 가장자리만 보인다).
+const outlines = JSON.parse(run(`JSON.stringify([
+    getEnemyOutlineStyle({ id: 1 }), getEnemyOutlineStyle({ id: 2, isBoss: true }),
+    getEnemyOutlineStyle({ id: 3, isElite: true, traitOutlineColor: '#55aaff' }), getEnemyOutlineStyle({ id: 4, isElite: true })])`));
+assert.deepStrictEqual(outlines.map(row => row.color), ['#cf5444', '#e8493b', '#55aaff', '#e2b94f']);
+assert.ok(outlines.every(row => row.alpha > 0 && row.thickness >= 1), 'every monster gets a visible rim');
+const hana = fs.readFileSync('js/canvas-hana-actors.js', 'utf8');
+const body = hana.slice(hana.indexOf('function drawPlayer('));
+assert.ok(body.indexOf('rim(ctx, frame, dest, alpha);') > 0 && body.indexOf('rim(ctx, frame, dest, alpha);') < body.indexOf('frame.srcs.forEach(src => blit(ctx, frame.img, src, dest));'),
+    'the hero rim is stamped behind the body');
+
+// 지도 보정: 약간만(감마 1보다 조금 아래, 채도 조금 위). 크게 바꾸면 이전 피드백(지도는 차분하게)과 어긋난다.
+const grade = JSON.parse(run('JSON.stringify(ACT_EXPLORATION_GRADE)'));
+assert.ok(grade.gamma >= 0.8 && grade.gamma < 1 && grade.saturation > 1 && grade.saturation <= 1.2, `a gentle map grade: ${JSON.stringify(grade)}`);
+assert.ok(fs.readFileSync('js/canvas-exploration-art.js', 'utf8').includes('return graded(image);'), 'the backdrop is drawn graded');
+
 console.log('smoke-battle-view-polish passed');

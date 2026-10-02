@@ -2737,27 +2737,28 @@ function getBattleCameraShake(now) {
     };
 }
 
+/** Edge shading over the battlefield. 2026-10-02: a little lighter (sides 0.44, top 0.34, bottom 0.5 before) so the map reads brighter. */
 function drawBattleScreenGrade(ctx, width, height, now) {
     ctx.save();
     let edgeSizeX = Math.max(72, width * 0.2);
     let edgeSizeY = Math.max(58, height * 0.18);
     let leftEdge = ctx.createLinearGradient(0, 0, edgeSizeX, 0);
-    leftEdge.addColorStop(0, 'rgba(1,3,7,0.44)');
+    leftEdge.addColorStop(0, 'rgba(1,3,7,0.32)');
     leftEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = leftEdge;
     ctx.fillRect(0, 0, edgeSizeX, height);
     let rightEdge = ctx.createLinearGradient(width, 0, width - edgeSizeX, 0);
-    rightEdge.addColorStop(0, 'rgba(1,3,7,0.44)');
+    rightEdge.addColorStop(0, 'rgba(1,3,7,0.32)');
     rightEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = rightEdge;
     ctx.fillRect(width - edgeSizeX, 0, edgeSizeX, height);
     let topEdge = ctx.createLinearGradient(0, 0, 0, edgeSizeY);
-    topEdge.addColorStop(0, 'rgba(1,3,7,0.34)');
+    topEdge.addColorStop(0, 'rgba(1,3,7,0.24)');
     topEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = topEdge;
     ctx.fillRect(0, 0, width, edgeSizeY);
     let bottomEdge = ctx.createLinearGradient(0, height, 0, height - edgeSizeY);
-    bottomEdge.addColorStop(0, 'rgba(1,3,7,0.5)');
+    bottomEdge.addColorStop(0, 'rgba(1,3,7,0.38)');
     bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = bottomEdge;
     ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
@@ -2799,8 +2800,9 @@ function drawBattleLightingPass(ctx, scene) {
     ctx.save();
     const dark = ctx.createRadialGradient(focus.x, focus.y, focus.inner, focus.x, focus.y, focus.outer);
     dark.addColorStop(0, 'rgba(4,5,7,0)');
-    dark.addColorStop(0.42, 'rgba(4,5,7,0.24)');
-    dark.addColorStop(1, 'rgba(3,4,6,0.62)');
+    // 2026-10-02: a little lighter (0.24 / 0.62) so the map reads brighter; the hero's pool of light stays the same.
+    dark.addColorStop(0.42, 'rgba(4,5,7,0.16)');
+    dark.addColorStop(1, 'rgba(3,4,6,0.48)');
     ctx.fillStyle = dark;
     ctx.fillRect(-40, -40, width + 80, height + 80);
     const glowRadius = inner * 1.5;

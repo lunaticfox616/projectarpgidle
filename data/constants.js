@@ -13,6 +13,15 @@ const CLOUD_SYNC_MIN_INTERVAL_MS = 300000;
 const CLOUD_REMOTE_TIME_SKEW_MS = 60 * 1000;
 const CLOUD_STALE_OVERWRITE_GUARD_MS = 5000;
 const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
+// Sprite rims so actors read on the dark maps (2026-10-02, the user picked coloured rims over dark ones): the hero a warm cream one
+// sprite dot wide (js/canvas-hana-actors.js rim), monsters red, elites their trait colour, bosses a stronger red (canvas px,
+// cached outline surfaces in js/passives.js).
+const BATTLE_SPRITE_OUTLINES = Object.freeze({
+    hero: Object.freeze({ color: '#f0dca6', alpha: 0.72 }),
+    enemy: Object.freeze({ color: '#cf5444', alpha: 0.72, thickness: 2 }),
+    elite: Object.freeze({ color: '#e2b94f', alpha: 0.85, thickness: 2 }),
+    boss: Object.freeze({ color: '#e8493b', alpha: 0.85, thickness: 2 })
+});
 const EMPTY_TRAVEL_PROGRESS_MULTIPLIER = 2;
 /** 스토리 액트에서 살아 있는 적이 없을 때(방과 방 사이) 초당 회복하는 최대 생명 비율(%, 0.1초 틱마다 1/10).
  * 초반 사망은 거의 모두 앞 전투에서 깎인 생명으로 다음 무리를 맞는 소모전이었다(측정 2026-10-01). */
@@ -92,7 +101,7 @@ const COMBAT_GRID_CONFIG = {
 safeExposeData({
   PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEYS, CLOUD_SESSION_STORAGE_KEY,
   CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
-  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG,
+  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG,
   EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
   EQUIPMENT_INVENTORY_CELLS_PER_PAGE
 });

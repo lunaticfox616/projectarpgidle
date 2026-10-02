@@ -212,6 +212,19 @@ const explorationArt=(()=>{
         }
         return null;
     }
+    /** The backdrop with the map grade (data ACT_EXPLORATION_GRADE) baked in once; frames only copy it. */
+    function graded(image) {
+        const {gamma,saturation}=ACT_EXPLORATION_GRADE,c=canvas(image.width,image.height),ctx=c.getContext('2d',{willReadFrequently:true});
+        ctx.drawImage(image,0,0);
+        const pixels=ctx.getImageData(0,0,c.width,c.height),d=pixels.data,curve=new Uint8ClampedArray(256);
+        for(let v=0;v<256;v++)curve[v]=Math.round(255*Math.pow(v/255,gamma));
+        for(let i=0;i<d.length;i+=4) {
+            const r=curve[d[i]],g=curve[d[i+1]],b=curve[d[i+2]],luma=.299*r+.587*g+.114*b;
+            d[i]=luma+(r-luma)*saturation;d[i+1]=luma+(g-luma)*saturation;d[i+2]=luma+(b-luma)*saturation;
+        }
+        ctx.putImageData(pixels,0,0);
+        return c;
+    }
     async function loadBackdrop(layout) {
         const entry=backdropFor(layout);if(!entry)return null;
         const [image,gateSheet]=await Promise.all([decodeWithRetry(entry.map),entry.gate?decodeWithRetry(entry.gate):null]);
@@ -219,8 +232,8 @@ const explorationArt=(()=>{
         if(image.width!==layout.columns*BACKDROP_PX||image.height!==layout.rows*BACKDROP_PX) {
             console.warn('exploration backdrop size mismatch:',entry.map,image.width,image.height);return null;
         }
-        if(gateSheet)gateSheets.set(layout.id,{image:gateSheet,offset:entry.gateOffset||[-gateSheet.width/4,-gateSheet.height]});
-        return image;
+        if(gateSheet)gateSheets.set(layout.id,{image:graded(gateSheet),offset:entry.gateOffset||[-gateSheet.width/4,-gateSheet.height]});
+        return graded(image);
     }
     // Backdrop maps get a gate frame at the backdrop's own pixel scale (drawn at tile/16, never resampled).
     function backdropGate(closed,layout) {

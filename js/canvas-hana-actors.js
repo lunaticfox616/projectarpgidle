@@ -265,6 +265,16 @@ const hanaActors = (() => {
         ctx.globalAlpha = strength;
         frame.srcs.forEach(src => blit(ctx, silhouette(frame.img, colour), src, dest));
     }
+    /** A one-dot rim round the figure (data BATTLE_SPRITE_OUTLINES.hero): the silhouette stamped a dot off in four directions,
+     * drawn before the body so only the edge shows. */
+    function rim(ctx, frame, dest, alpha) {
+        const style = BATTLE_SPRITE_OUTLINES.hero, sheet = silhouette(frame.img, style.color);
+        ctx.globalAlpha = alpha * style.alpha;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const shifted = { ...dest, x: dest.x + dx * dest.dot, y: dest.y + dy * dest.dot };
+            frame.srcs.forEach(src => blit(ctx, sheet, src, shifted));
+        }
+    }
     function drawDotShadow(ctx, foot, dot, alpha) {
         const rows = [[-4, 4], [-5, 5], [-4, 4]];
         ctx.save();
@@ -315,6 +325,7 @@ const hanaActors = (() => {
         ctx.imageSmoothingEnabled = false;
         drawDotShadow(ctx, { x, y }, dot, 0.26 * alpha);
         if (frame.flip) { ctx.translate(x * 2, 0); ctx.scale(-1, 1); }
+        rim(ctx, frame, dest, alpha);
         ctx.globalAlpha = alpha;
         frame.srcs.forEach(src => blit(ctx, frame.img, src, dest));
         remember(frame, dest, pose, { foot: { x, y }, now, projection: state.projection, classId: state.classId });

@@ -2,13 +2,14 @@
 const actExplorationView=(()=>{
     const FOG_VIEW_PX=12; // pre-softened fog resolution per tile; drawn with cheap bilinear scaling
     let cache=null,lastOrigin=null;
-    /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 or ×5 once the view keeps about
-     * 16×12 tiles — on a desktop window the corridor then fills the screen instead of floating in black.
+    /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
+     * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).
      * The tile is sized so one art pixel is a whole number of canvas pixels at the battle render scale
      * (48 CSS px at scale 1, 48.76 on a 2.625 phone drawing 4 canvas px per art pixel). */
     function renderScale() { return typeof uiDisplay==='object'?uiDisplay.battleRenderScale:1; }
     function tileSize(width,height) {
-        const zoom=Math.max(3,Math.min(5,Math.floor(Math.min(width/16,height/12)/16))),scale=renderScale();
+        const {minZoom,maxZoom}=ACT_EXPLORATION_CAMERA,scale=renderScale();
+        const zoom=Math.max(minZoom,Math.min(maxZoom,Math.floor(Math.min(width/16,height/12)/16)));
         return 16*Math.max(1,Math.floor(zoom*scale+.25))/scale;
     }
     /** The map origin on the canvas pixel grid, so the terrain, the characters and the re-dotted effects share it
@@ -79,8 +80,8 @@ const actExplorationView=(()=>{
      * black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
     function fogAlpha(discovered,distance) {
         const sight=ACT_EXPLORATION_VISION.radius;
-        if(discovered)return Math.min(.48,Math.max(0,(distance-(sight-1))/7));
-        return Math.min(.97,.66+Math.max(0,distance-sight)*.05);
+        if(discovered)return Math.min(.4,Math.max(0,(distance-(sight-1))/7));
+        return Math.min(.95,.6+Math.max(0,distance-sight)*.05);
     }
     /** Tiles from the hero; while the hero is at the boss room, every tile of the room (and its walls) counts as right here. */
     function fogDistance(map,i,lit) {
