@@ -160,22 +160,26 @@ const ACT_EXPLORATION_ART = Object.freeze({
         regions:[[0,0,690,675],[690,0,605,675],[0,675,690,539],[690,675,605,539]]
     }
 });
-// Whole-map backdrops drawn at 16px per tile (shown at tile/16 = 3x at 48px). Walkability still comes from the map
-// data above. gate: closed|open frames side by side at the same pixel scale; gateOffset = art px from the gate tile's
-// centre to the frame's top-left. Source: scripts/build-act-maps.cjs (node, --write) — the old battle dioramas' look, top-down.
+// Whole-map backdrops drawn at 16px per tile (shown at a whole-number zoom of the 16px art). Walkability still comes from the
+// map data above. gate: closed|open frames side by side at the same pixel scale; gateOffset = art px from the gate tile's
+// centre to the frame's top-left; shade = the art's own darkness (the fog and the canvas around the map use it).
+// Source: scripts/build-act-maps.cjs (node, --write), the painted look of 2026-10-02 (act looks: scripts/act-maps/looks.cjs).
 // Maps without an entry keep the material/prop renderer.
 const ACT_EXPLORATION_BACKDROPS = Object.freeze({
-    'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateOffset:Object.freeze([-22,-28])}),
-    'garden-circuit':Object.freeze({map:'assets/exploration/act2-map.png',gate:'assets/exploration/act2-gate.png',gateOffset:Object.freeze([-22,-28])}),
-    'suspended-spans':Object.freeze({map:'assets/exploration/act3-map.png',gate:'assets/exploration/act3-gate.png',gateOffset:Object.freeze([-10,-42])}),
-    'braided-maze':Object.freeze({map:'assets/exploration/act4-map.png',gate:'assets/exploration/act4-gate.png',gateOffset:Object.freeze([-10,-42])}),
-    'silent-nave':Object.freeze({map:'assets/exploration/act5-map.png',gate:'assets/exploration/act5-gate.png',gateOffset:Object.freeze([-22,-28])}),
-    'broken-courtyard':Object.freeze({map:'assets/exploration/act6-map.png',gate:'assets/exploration/act6-gate.png',gateOffset:Object.freeze([-22,-28])}),
-    'hollow-spiral':Object.freeze({map:'assets/exploration/act7-map.png',gate:'assets/exploration/act7-gate.png',gateOffset:Object.freeze([-22,-44])}),
-    'offset-veils':Object.freeze({map:'assets/exploration/act8-map.png',gate:'assets/exploration/act8-gate.png',gateOffset:Object.freeze([-10,-42])}),
-    'three-confluences':Object.freeze({map:'assets/exploration/act9-map.png',gate:'assets/exploration/act9-gate.png',gateOffset:Object.freeze([-22,-28])}),
-    'crown-wheel':Object.freeze({map:'assets/exploration/act10-map.png',gate:'assets/exploration/act10-gate.png',gateOffset:Object.freeze([-22,-28])})
+    'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([20,16,24])}),
+    'garden-circuit':Object.freeze({map:'assets/exploration/act2-map.png',gate:'assets/exploration/act2-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([14,18,21])}),
+    'suspended-spans':Object.freeze({map:'assets/exploration/act3-map.png',gate:'assets/exploration/act3-gate.png',gateOffset:Object.freeze([-10,-42]),shade:Object.freeze([7,8,13])}),
+    'braided-maze':Object.freeze({map:'assets/exploration/act4-map.png',gate:'assets/exploration/act4-gate.png',gateOffset:Object.freeze([-10,-42]),shade:Object.freeze([18,11,13])}),
+    'silent-nave':Object.freeze({map:'assets/exploration/act5-map.png',gate:'assets/exploration/act5-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([17,13,12])}),
+    'broken-courtyard':Object.freeze({map:'assets/exploration/act6-map.png',gate:'assets/exploration/act6-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([16,13,11])}),
+    'hollow-spiral':Object.freeze({map:'assets/exploration/act7-map.png',gate:'assets/exploration/act7-gate.png',gateOffset:Object.freeze([-22,-44]),shade:Object.freeze([18,12,8])}),
+    'offset-veils':Object.freeze({map:'assets/exploration/act8-map.png',gate:'assets/exploration/act8-gate.png',gateOffset:Object.freeze([-10,-42]),shade:Object.freeze([10,8,16])}),
+    'three-confluences':Object.freeze({map:'assets/exploration/act9-map.png',gate:'assets/exploration/act9-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([18,11,16])}),
+    'crown-wheel':Object.freeze({map:'assets/exploration/act10-map.png',gate:'assets/exploration/act10-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([5,5,11])})
 });
+// Version of the backdrop and gate pictures, added to their URLs (js/canvas-exploration-art.js) so a redrawn map is never
+// served from the browser's image cache. Bump it with every --write.
+const ACT_EXPLORATION_ART_VERSION = '20261002p';
 // Sight around the hero in tiles (walked through floor, js/act-exploration-map.js visibleCells). The fog dims seen ground from one
 // tile inside it and unseen ground beyond it (js/canvas-act-exploration.js fogAlpha). 2026-10-02: 5 → 6 (user: the view felt cramped).
 // Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
@@ -184,7 +188,4 @@ const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
-// A light lift for the dark backdrops, applied once per map (js/canvas-exploration-art.js graded): midtones brighter through a gamma
-// below 1, colours a little fuller, black stays black. 2026-10-02 (user: "약간만 화사하게").
-const ACT_EXPLORATION_GRADE = Object.freeze({gamma:0.86,saturation:1.12});
-safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA,ACT_EXPLORATION_GRADE});
+safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA});

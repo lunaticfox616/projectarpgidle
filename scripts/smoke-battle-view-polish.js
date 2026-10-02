@@ -63,9 +63,11 @@ const body = hana.slice(hana.indexOf('function drawPlayer('));
 assert.ok(body.indexOf('rim(ctx, frame, dest, alpha);') > 0 && body.indexOf('rim(ctx, frame, dest, alpha);') < body.indexOf('frame.srcs.forEach(src => blit(ctx, frame.img, src, dest));'),
     'the hero rim is stamped behind the body');
 
-// 지도 보정: 약간만(감마 1보다 조금 아래, 채도 조금 위). 크게 바꾸면 이전 피드백(지도는 차분하게)과 어긋난다.
-const grade = JSON.parse(run('JSON.stringify(ACT_EXPLORATION_GRADE)'));
-assert.ok(grade.gamma >= 0.8 && grade.gamma < 1 && grade.saturation > 1 && grade.saturation <= 1.2, `a gentle map grade: ${JSON.stringify(grade)}`);
-assert.ok(fs.readFileSync('js/canvas-exploration-art.js', 'utf8').includes('return graded(image);'), 'the backdrop is drawn graded');
+// 지도 그림(2026-10-02 그린 화풍): 색은 그림에 다 들어 있어 불러온 그대로 그린다(예전 어두운 그림용 밝기 보정은 없앴다).
+// 다시 그린 그림이 브라우저 캐시에서 나오지 않게 주소에 판 번호를 붙이고, 안개와 지도 바깥은 그 액트 그림의 어둠 색을 쓴다.
+const art = fs.readFileSync('js/canvas-exploration-art.js', 'utf8'), view = fs.readFileSync('js/canvas-act-exploration.js', 'utf8');
+assert.ok(!art.includes('graded(') && art.includes('return image;'), 'the backdrop is drawn as painted');
+assert.ok(art.includes('?v=${ACT_EXPLORATION_ART_VERSION}') && /^\d{8}\w*$/.test(run('ACT_EXPLORATION_ART_VERSION')), 'the picture URL carries the art version');
+assert.ok(view.includes('pixels.data.set([r,g,b,') && view.includes('ctx.fillStyle=`rgb(${shadeOf(map).join(\',\')})`'), 'the fog and the canvas around the map use the act shade');
 
 console.log('smoke-battle-view-polish passed');

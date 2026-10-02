@@ -46,7 +46,7 @@ const actExplorationView=(()=>{
     function background(ctx,width,height,p) {
         const run=actExplorationState.current(game);if(!run)return false;
         const map=actExplorationMap.forRun(run);prepare(map);
-        ctx.save();ctx.fillStyle='#080e0c';ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
+        ctx.save();ctx.fillStyle=`rgb(${shadeOf(map).join(',')})`;ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
         if(cache.surface)ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
         else {
             // 지도를 만드는 동안 전장 한가운데에 도트 글씨로(점 셋이 차례로 찬다). 실패하면 까닭을 적는다.
@@ -83,6 +83,9 @@ const actExplorationView=(()=>{
         if(discovered)return Math.min(.4,Math.max(0,(distance-(sight-1))/7));
         return Math.min(.95,.6+Math.max(0,distance-sight)*.05);
     }
+    /** The act art's own darkness (data ACT_EXPLORATION_BACKDROPS shade): the fog and the canvas around the map use it,
+     * so unexplored ground sinks into the same dark as the map's edges. */
+    function shadeOf(map) { return ACT_EXPLORATION_BACKDROPS[map.id]?.shade||[8,14,12]; }
     /** Tiles from the hero; while the hero is at the boss room, every tile of the room (and its walls) counts as right here. */
     function fogDistance(map,i,lit) {
         const gx=i%map.columns,gy=Math.floor(i/map.columns);
@@ -94,9 +97,9 @@ const actExplorationView=(()=>{
         if(cache.fogKey===key)return;cache.fogKey=key;
         if(!cache.fog){cache.fog=document.createElement('canvas');cache.fog.width=map.columns;cache.fog.height=map.rows;}
         const ctx=cache.fog.getContext('2d'),pixels=ctx.createImageData(map.columns,map.rows),seen=new Set(run.discovered);
-        const lit=actExplorationState.bossRoomAt(run,game.gridPlayer);
+        const lit=actExplorationState.bossRoomAt(run,game.gridPlayer),[r,g,b]=shadeOf(map);
         for(let i=0;i<map.tiles.length;i++) {
-            pixels.data.set([8,14,12,Math.round(fogAlpha(seen.has(i),fogDistance(map,i,lit))*255)],i*4);
+            pixels.data.set([r,g,b,Math.round(fogAlpha(seen.has(i),fogDistance(map,i,lit))*255)],i*4);
         }
         ctx.putImageData(pixels,0,0);
         // Upscaling one pixel per tile with smoothing was the most expensive draw of every

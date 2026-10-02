@@ -99,4 +99,15 @@ function wallRegions(cv, g, faceH, jitterOn = true) {
     Object.assign(g, { below, above, face, top, openDist: edt(top, w, h) });
 }
 
-module.exports = { roomBox, roomCenter, terrain, wallRegions };
+/** 벽 재기: 바닥까지 거리(toFloor), 바로 아래 앞면까지 몇 줄 위인지(aboveFace), 앞면 맨 윗줄에서 몇 줄 내려왔는지(faceTop). */
+function measure(cv, g) {
+    const { w, h } = cv, toFloor = edt(g.wall, w, h), aboveFace = new Int16Array(w * h).fill(99), faceTop = new Int16Array(w * h).fill(99);
+    for (let x = 0; x < w; x++) {
+        let run = 99, fromTop = 99;
+        for (let y = h - 1; y >= 0; y--) { const i = y * w + x; run = g.face[i] ? 0 : Math.min(run + 1, 9999); if (!g.face[i]) aboveFace[i] = run; }
+        for (let y = 0; y < h; y++) { const i = y * w + x; fromTop = g.face[i] ? (y > 0 && g.face[i - w] ? fromTop + 1 : 0) : 99; faceTop[i] = fromTop; }
+    }
+    Object.assign(g, { toFloor, aboveFace, faceTop });
+}
+
+module.exports = { roomBox, roomCenter, terrain, wallRegions, measure };
