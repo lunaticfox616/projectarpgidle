@@ -1,10 +1,11 @@
 // Authored topology, not a random generator. Rooms use [id, centerX, centerY, radiusX, radiusY, role].
+// terrain = the short name of the painted map; contents and atlas maps reuse these ten maps (js/exploration-layouts.js).
 // Links use [from, to, optional orthogonal bend points]. Rotation is clockwise quarter turns.
 // Every boss chamber has exactly one one-cell threshold; ordinary passages stay wider.
 // Boss chambers are 9×5 (act 7: 7×5 — its deadwood room sits one wall column away) so a 2×2 boss has room to move.
 const ACT_EXPLORATION_MAPS = Object.freeze([
     {
-        act:1, id:'root-branches', biome:'root', width:39, height:35, rotation:0,
+        act:1, id:'root-branches', terrain:'뿌리 동굴', biome:'root', width:39, height:35, rotation:0,
         gate:[19,7], approach:'crown',
         rooms:[['entry',19,31,2,2,'entry'],['hall',19,25,4,2,'battle'],
             ['fork',19,18,3,3,'battle'],['west',7,18,4,3,'elite'],
@@ -14,7 +15,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['east','twig'],['west','hollow'],['fork','crown']]
     },
     {
-        act:2, id:'garden-circuit', biome:'courtyard', width:43, height:35, rotation:0,
+        act:2, id:'garden-circuit', terrain:'생울타리 중정', biome:'courtyard', width:43, height:35, rotation:0,
         gate:[21,7], approach:'balcony',
         rooms:[['entry',21,31,2,2,'entry'],['south',21,25,4,2,'battle'],
             ['west',8,25,3,2,'battle'],['east',34,25,3,2,'battle'],
@@ -26,7 +27,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['west','alcove',[[3,25]]],['east','arbor',[[39,25]]]]
     },
     {
-        act:3, id:'suspended-spans', biome:'aerial', width:35, height:49, rotation:1,
+        act:3, id:'suspended-spans', terrain:'허공 널다리', biome:'aerial', width:35, height:49, rotation:1,
         gate:[17,7], approach:'summit', passage:1,
         rooms:[['entry',7,44,3,2,'entry'],['isleSouth',25,39,3,2,'battle'],
             ['isleWest',8,31,3,2,'elite'],['isleEast',25,22,3,2,'elite'],
@@ -37,7 +38,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['isleWest','spur'],['isleEast','ledge',[[5,22]]]]
     },
     {
-        act:4, id:'braided-maze', biome:'maze', width:47, height:39, rotation:3,
+        act:4, id:'braided-maze', terrain:'책장 미궁', biome:'maze', width:47, height:39, rotation:3,
         gate:[23,7], approach:'threshold',
         rooms:[['entry',23,35,2,2,'entry'],['cross',23,28,2,2,'battle'],
             ['westLow',8,28,2,2,'battle'],['eastLow',38,28,2,2,'battle'],
@@ -50,7 +51,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['westLow','blindWest',[[3,28]]],['eastLow','blindEast',[[43,28]]]]
     },
     {
-        act:5, id:'silent-nave', biome:'sanctum', width:35, height:43, rotation:0,
+        act:5, id:'silent-nave', terrain:'검은 물 신전', biome:'sanctum', width:35, height:43, rotation:0,
         gate:[17,7], approach:'altar',
         rooms:[['entry',17,39,2,2,'entry'],['naveSouth',17,32,3,3,'battle'],
             ['naveNorth',17,20,3,3,'battle'],['choir',6,30,3,3,'elite'],
@@ -61,7 +62,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['choir','crypt',[[6,12]]],['naveSouth','archive',[[29,32]]]]
     },
     {
-        act:6, id:'broken-courtyard', biome:'ruins', width:43, height:35, rotation:0,
+        act:6, id:'broken-courtyard', terrain:'무너진 중정', biome:'ruins', width:43, height:35, rotation:0,
         gate:[21,7], approach:'balcony',
         rooms:[['entry',21,31,2,2,'entry'],['south',21,25,4,2,'battle'],
             ['west',8,25,3,2,'battle'],['east',34,25,3,2,'elite'],
@@ -73,7 +74,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['breach','balcony'],['hedgeWest','balcony',[[8,11]]]]
     },
     {
-        act:7, id:'hollow-spiral', biome:'trunk', width:45, height:45, rotation:2,
+        act:7, id:'hollow-spiral', terrain:'줄기 속 나선', biome:'trunk', width:45, height:45, rotation:2,
         gate:[22,7], approach:'heart',
         rooms:[['entry',5,40,2,2,'entry'],['rimSouth',38,39,3,2,'battle'],
             ['rimEast',38,13,3,3,'elite'],['rimNorth',7,13,3,3,'battle'],
@@ -85,7 +86,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['innerEast','heart',[[25,11]]],['innerWest','hollow',[[15,30]]],['rimNorth','deadwood',[[15,13]]]]
     },
     {
-        act:8, id:'offset-veils', biome:'veil', width:49, height:39, rotation:1,
+        act:8, id:'offset-veils', terrain:'보라 장막 섬', biome:'veil', width:49, height:39, rotation:1,
         gate:[24,7], approach:'veilEnd',
         rooms:[['entry',5,30,2,2,'entry'],['southEast',42,29,3,2,'battle'],
             ['middleEast',42,20,3,2,'elite'],['middleWest',13,20,3,2,'battle'],
@@ -96,7 +97,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['middleEast','foldNorth']]
     },
     {
-        act:9, id:'three-confluences', biome:'canopy', width:53, height:37, rotation:0,
+        act:9, id:'three-confluences', terrain:'꽃덤불 교차로', biome:'canopy', width:53, height:37, rotation:0,
         gate:[26,7], approach:'cocoon',
         rooms:[['entry',26,33,3,2,'entry'],['fork',26,27,3,2,'battle'],
             ['west',7,25,3,3,'elite'],['east',45,25,3,3,'elite'],
@@ -108,7 +109,7 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['eastHigh','cocoon',[[45,11]]],['center','cocoon'],['west','sapWest',[[16,25]]],['east','sapEast',[[36,25]]]]
     },
     {
-        act:10, id:'crown-wheel', biome:'crown', width:49, height:43, rotation:0,
+        act:10, id:'crown-wheel', terrain:'별빛 차륜', biome:'crown', width:49, height:43, rotation:0,
         gate:[24,7], approach:'axis',
         rooms:[['entry',24,39,2,2,'entry'],['south',24,33,3,2,'battle'],
             ['southWest',9,31,3,2,'battle'],['southEast',39,31,3,2,'battle'],
@@ -122,49 +123,12 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['northWest','axis'],['northEast','axis'],['south','innerWest',[[17,33]]],['south','innerEast',[[31,33]]]]
     }
 ]);
-// Visual profiles are independent of walkability, enemy placement and saved progress.
-const ACT_EXPLORATION_ART = Object.freeze({
-    root: {
-        material:'assets/exploration/root-materials.png',props:'assets/exploration/root-props.png',paving:0,
-        regions:[[0,0,448,592],[448,0,352,592],[800,0,416,592],[1216,0,320,592],
-            [0,592,416,432],[416,592,400,432],[816,592,400,432],[1216,592,320,432]]
-    },
-    courtyard: {
-        material:'assets/exploration/courtyard-materials.png',props:'assets/exploration/courtyard-props.png',paving:.72,
-        landmarkWidths:[2.2,1.05,2.3,1.25],
-        regions:[[0,0,627,627],[627,0,627,627],[0,627,627,627],[627,627,627,627]]
-    },
-    aerial: {
-        material:'assets/exploration/wood-materials.png',props:'assets/exploration/aerial-props.png',surface:'suspended',
-        platformWidths:[.7,1.8,1.6,1.1],
-        regions:[[0,0,670,670],[670,0,584,670],[0,670,700,584],[700,670,554,584]]
-    },
-    maze: {
-        material:'assets/exploration/maze-materials.png',props:'assets/exploration/maze-props.png',paving:.55,
-        landmarkWidths:[1.2,1,1.8,1.3],
-        regions:[[0,0,627,790],[627,0,627,790],[0,790,627,464],[627,790,627,464]]
-    },
-    sanctum: {
-        material:'assets/exploration/sanctum-materials.png',props:'assets/exploration/sanctum-props.png',surface:'suspended',
-        platformWidths:[.95,1.1,1.6,1.3],
-        regions:[[0,0,656,670],[656,0,656,670],[0,670,656,529],[656,670,656,529]]
-    },
-    ruins: {
-        material:'assets/exploration/ruins-materials.png',props:'assets/exploration/ruins-props.png',paving:.35,
-        landmarkWidths:[1.6,1.1,2,1.8],
-        regions:[[0,0,627,730],[627,0,627,730],[0,730,627,524],[627,730,627,524]]
-    },
-    trunk: {
-        material:'assets/exploration/trunk-materials.png',props:'assets/exploration/trunk-props.png',paving:.8,
-        landmarkWidths:[1.8,.8,2.1,1.65],
-        regions:[[0,0,690,675],[690,0,605,675],[0,675,690,539],[690,675,605,539]]
-    }
-});
 // Whole-map backdrops drawn at 16px per tile (shown at a whole-number zoom of the 16px art). Walkability still comes from the
 // map data above. gate: closed|open frames side by side at the same pixel scale; gateOffset = art px from the gate tile's
 // centre to the frame's top-left; shade = the art's own darkness (the fog and the canvas around the map use it).
 // Source: scripts/build-act-maps.cjs (node, --write), the painted look of 2026-10-02 (act looks: scripts/act-maps/looks.cjs).
-// Maps without an entry keep the material/prop renderer.
+// Every wide map is one of these ten (contents and atlas maps reuse them, js/exploration-layouts.js); a picture that fails to load
+// falls back to a flat stand-in (js/canvas-exploration-art.js plain).
 const ACT_EXPLORATION_BACKDROPS = Object.freeze({
     'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([20,16,24])}),
     'garden-circuit':Object.freeze({map:'assets/exploration/act2-map.png',gate:'assets/exploration/act2-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([14,18,21])}),
@@ -188,4 +152,4 @@ const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
-safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_ART,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA});
+safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA});

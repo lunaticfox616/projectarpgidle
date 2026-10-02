@@ -245,6 +245,18 @@ const actExplorationState = (() => {
         if(new Set(bosses.map(pack=>pack.stage)).size!==bosses.length)throw Error('탐험 저장의 보스 단계가 중복되었습니다.');
         if(bosses.some(pack=>!Number.isInteger(pack.stage) || pack.stage<0 || pack.stage>=bosses.length))throw Error('탐험 저장의 보스 순서가 잘못되었습니다.');
     }
+    /** 2026-10-02: generated mazes, isles and shafts became the painted act maps (js/exploration-layouts.js). A save that walked one
+     * loses that run without its temporary loot, and the zone starts over on its new map (ensureEncounterRun opens it next tick).
+     * The save boundary (mergeDefaults) calls this before it validates the run. */
+    function dropRetired(state) {
+        const run=state.actExploration;
+        if(!run || !run.source || explorationLayouts.supports(run.source))return false;
+        console.warn('retired generated map dropped on load:', run.source.style);
+        state.actExploration=null;
+        state.enemies=(state.enemies||[]).filter(enemy=>!enemy || !enemy.explorationPack);
+        state.encounterPlan=[];
+        return true;
+    }
     function restore(state) {
         const run=state.actExploration;if(run===null || run===undefined)return null;
         // 다른 지역에 남은 탐험은 실행 중에도 current()가 무시하고 다음 출발 때 버려진다(reconcileDeparture).
@@ -271,6 +283,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,packRooms,discover,notice,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore};
+    return {settlementMs,current,create,packRooms,discover,notice,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired};
 })();
 safeExposeGlobals({actExplorationState});

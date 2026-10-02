@@ -4,7 +4,8 @@
 const atlasUi = (() => {
     let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps', panelObserver = null;
     const STATUS = { locked: '잠김', open: '열림', complete: '완료', bonus: '보너스' };
-    const STYLE = { rooms: '방과 복도', maze: '미로', descent: '하강 갱도', islands: '떠 있는 섬', gauntlet: '연속 방', arena: '투기장' };
+    /** The painted act map a node walks (data/act-exploration-maps.js terrain). */
+    const terrainOf = node => (ACT_EXPLORATION_MAPS.find(map => map.act === node.act) || {}).terrain || '';
     const CRAFT_ORDER = ['magicBud', 'sapBud', 'formlessDew', 'blightSpore', 'pruningShears', 'goldenRule', 'deepWhetstone', 'emberBranch'];
     const ledger = () => game.atlas;
     const nodeName = id => atlas.node(id)?.name || '';
@@ -147,7 +148,7 @@ const atlasUi = (() => {
         const node = atlas.node(id);
         if (!node || typeof showInfoTooltipHtml !== 'function') return;
         const region = ATLAS.regions.find(row => row.id === node.region);
-        const kind = node.kind === 'map' ? STYLE[node.style] : (node.kind === 'guardian' ? '지역 수호자 · 투기장' : '정점 · 투기장');
+        const kind = node.kind === 'map' ? terrainOf(node) : `${node.kind === 'guardian' ? '지역 수호자' : '정점'}(${terrainOf(node)})`;
         const where = region ? ` · ${region.name}` : '';
         showInfoTooltipHtml(event.clientX, event.clientY, `<div class="tooltip-title">${escapeHTML(node.name)}</div>
             <div class="tooltip-line">${atlas.effectiveTier(game, node)}등급 · ${STATUS[atlas.status(game, id)]}${where}</div>
@@ -234,7 +235,7 @@ const atlasUi = (() => {
         const maps = ledger().stash.filter(map => map.node === node.id).sort((a, b) => b.tier - a.tier);
         const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">지역 수호자 · 처치마다 뿌리 입장권(${node.ticket ? TICKET(node.ticket) : '가장 적은 것'}) · 지도석은 이 지역 ${ATLAS.guardianRules.minTier}등급 이상 보스가 떨어뜨립니다</p>` : '';
         return `<section class="atlas-node-detail" style="--tint:${region.tint}"><small>${region.name} · ${STATUS[status]}</small><h3>${escapeHTML(node.name)}</h3>
-            <p>${tier}등급 · ${STYLE[node.style]} · 보스 ${escapeHTML(node.boss)}</p>${kind}
+            <p>${tier}등급 · ${terrainOf(node)} · 보스 ${escapeHTML(node.boss)}</p>${kind}
             <p class="atlas-muted">장비 T${atlas.lootTier(tier)}까지 · 혼돈 ${atlas.equivalentDepth(tier)} 상당</p>
             ${maps.length ? `<div class="atlas-node-maps">${maps.map(stashRowHtml).join('')}</div>` : '<p class="atlas-muted">이 노드의 지도석이 없습니다.</p>'}</section>`;
     }

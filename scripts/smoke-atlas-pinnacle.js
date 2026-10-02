@@ -42,8 +42,8 @@ run(`game.atlas.stash.push(Object.assign(atlasMaps.create('roots_g', 16, 'normal
 const guardianUid = run('game.atlas.stash.at(-1).uid');
 const chaosTickets = run('game.currencies.uberRootTicketChaos || 0');
 assert.equal(run(`atlasRun.open(${guardianUid})`), '');
-const arena = copy(`(() => { const zone = getZone(game.currentZoneId); return { kind: zone.atlasKind, style: zone.exploration.style, hp: zone.bossMods.hpMul, boss: zone.bossName }; })()`);
-assert.deepEqual([arena.kind, arena.style], ['guardian', 'arena'], 'a guardian is fought in an arena');
+const arena = copy(`(() => { const zone = getZone(game.currentZoneId); return { kind: zone.atlasKind, arena: zone.exploration.arena, act: zone.exploration.act, hp: zone.bossMods.hpMul, boss: zone.bossName }; })()`);
+assert.deepEqual([arena.kind, arena.arena, arena.act], ['guardian', true, 1], 'a guardian waits at the gate of its region map (deep roots: the root cave)');
 assert.equal(arena.hp, 2.5);
 clearOpenMap();
 assert.equal(run('game.atlas.lastResult && game.atlas.lastResult.outcome'), 'complete', 'the guardian falls in the real combat loop');

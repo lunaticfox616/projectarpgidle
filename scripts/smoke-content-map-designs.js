@@ -1,6 +1,7 @@
-// 콘텐츠별 맵 디자인 (js/content-maps.js, docs/atlas-endgame-20260930.md 4절): progress-bar contents walk their own wide map
-// (chaos descent, realm and tower islands, underworld shafts, time-rift rooms shared by both eras), boss contents fight in an arena,
-// wave and timed contents keep their board; the real combat loop clears them, and wide-map loot escrow holds wallet-only currencies.
+// 콘텐츠별 맵 디자인 (js/content-maps.js, docs/atlas-pinnacles-20261002.md 1절): progress-bar contents walk the painted act maps of
+// their mood (chaos through all ten, realm ruins and stars, tower isles over the void, underworld trunk and roots, the rift's courtyard in two
+// eras), boss contents start at an arena gate, wave and timed contents keep their board; the real combat loop clears them, and wide-map loot
+// escrow holds wallet-only currencies.
 const assert = require('node:assert/strict');
 const fixture = require('./lib/replay-fixture');
 const { run } = fixture(71);
@@ -19,7 +20,7 @@ setup();
 
 // ---------------------------------------------------------------- which content walks which map
 const designs = copy(`(() => {
-    const look = id => { const zone = getZone(id); return zone && zone.exploration ? [zone.exploration.style, zone.exploration.biome, zone.packExtra || 0] : null; };
+    const look = id => { const zone = getZone(id); return zone && zone.exploration ? [zone.exploration.act, !!zone.exploration.arena, zone.packExtra || 0] : null; };
     game.chaosRealm.currentFloor = 3; ensureSkyTowerState().currentFloor = 4; game.underworldProgress.currentFloor = 2;
     return {
         chaos: look(getAbyssZoneIdForDepth(5)), deep: look(getAbyssZoneIdForDepth(24)), realm: look(CHAOS_REALM_ZONE_ID), sky: look(SKY_TOWER_ZONE_ID),
@@ -28,23 +29,21 @@ const designs = copy(`(() => {
         woodsman: look(OUTSIDE_CHAOS_ZONE_ID), breach: look('grand_breach_run'), echo: look(WOODSMAN_ECHO_ZONE_ID), ocean: look(OCEAN_ZONE_ID)
     };
 })()`);
-assert.deepEqual(designs.chaos, ['descent', 'root', 3], 'chaos descends a root shaft with dense rooms');
-assert.deepEqual(designs.deep, ['descent', 'root', 4], 'deep chaos packs its rooms tighter still');
-assert.deepEqual(designs.realm.slice(0, 2), ['islands', 'ruins'], 'the chaos realm crosses ruined islands');
-assert.deepEqual(designs.sky.slice(0, 2), ['islands', 'aerial'], 'the sky tower climbs floating platforms');
-assert.deepEqual(designs.under.slice(0, 2), ['descent', 'trunk'], 'the underworld is a short shaft');
-assert.deepEqual([designs.past[0], designs.past[1], designs.future[1]], ['rooms', 'ruins', 'sanctum'], 'the rift shows the same rooms in two eras');
-assert.equal(designs.lab[0], 'maze');
-assert.deepEqual(designs.trial.slice(0, 2), ['gauntlet', 'sanctum'], 'a class trial is a trap corridor of elite-led rooms before its guardian');
-for (const key of ['boss', 'rival', 'sea', 'meteor']) assert.equal(designs[key][0], 'arena', `${key} is fought in an arena`);
-assert.deepEqual([designs.boss[1], designs.rival[1], designs.sea[1]], ['trunk', 'ruins', 'courtyard'], 'arenas take their content look');
+assert.deepEqual(designs.chaos, [8, false, 3], 'chaos 5 walks the fifth map of the cycle with dense rooms');
+assert.deepEqual(designs.deep, [5, false, 4], 'deep chaos packs its rooms tighter still');
+assert.deepEqual(designs.realm.slice(0, 2), [8, false], 'the chaos realm walks ruins, stars and veils');
+assert.deepEqual(designs.sky.slice(0, 2), [3, false], 'the sky tower climbs isles over the void');
+assert.deepEqual(designs.under.slice(0, 2), [1, false], 'the underworld walks the trunk, the roots and the black water');
+assert.deepEqual([designs.past[0], designs.future[0]], [2, 6], 'the rift shows one courtyard in two eras');
+assert.equal(designs.lab[0], 4, 'the labyrinth starts in the bookshelf maze');
+assert.deepEqual(designs.trial.slice(0, 2), [5, false], 'a class trial walks elite-led rooms before its guardian');
+for (const key of ['boss', 'rival', 'sea', 'meteor']) assert.equal(designs[key][1], true, `${key} starts at an arena gate`);
+assert.deepEqual([designs.boss[0], designs.rival[0], designs.sea[0]], [7, 6, 2], 'arenas take the map of their content look');
 for (const key of ['woodsman', 'breach', 'echo', 'ocean']) assert.equal(designs[key], null, `${key} keeps its board (waves, timers, depth)`);
 assert.equal(run('SEASON_BOSS_ZONES[0].exploration === undefined'), true, 'the data rows stay untouched');
 
-const eras = copy(`(() => { ensureTimeRiftState().pressure = 3; return [getZone(TIME_RIFT_PAST_ZONE_ID).exploration.seed, getZone(TIME_RIFT_FUTURE_ZONE_ID).exploration.seed]; })()`);
-assert.equal(eras[0], eras[1], 'past and future of one pressure share a layout');
 const twice = copy('[getZone(getAbyssZoneIdForDepth(5)).exploration.seed, (game.nextEnemyId += 5, getZone(getAbyssZoneIdForDepth(5)).exploration.seed)]');
-assert.notEqual(twice[0], twice[1], 'every chaos run digs a new shaft');
+assert.notEqual(twice[0], twice[1], 'every chaos run seeds new packs on its map');
 
 // ---------------------------------------------------------------- the real loop clears them
 function clearsVia(label, entry, probe) {
@@ -69,4 +68,4 @@ run(`actExplorationLoot.capture(game, actExplorationState.current(game), () => a
 assert.equal(copy('game.actExploration.loot.currencies.colonyTrace'), 1, 'a deep-chaos colony trace waits with the map loot instead of crashing it');
 const restored = copy('mergeDefaults(JSON.parse(serializeSaveState(game))).actExploration.loot.currencies.colonyTrace');
 assert.equal(restored, 1, 'and survives a reload');
-console.log('content map designs: chaos/deep/realm/sky/underworld/rift/labyrinth maps, boss arenas, boards kept, real clears, escrow: OK');
+console.log('content map designs: chaos/deep/realm/sky/underworld/rift/labyrinth on painted act maps, arena gates, boards kept, real clears, escrow: OK');

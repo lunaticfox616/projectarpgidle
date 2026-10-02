@@ -112,11 +112,6 @@ const actExplorationView=(()=>{
     function appendScenery(actors,state) {
         const run=actExplorationState.current(game);if(!run || !cache?.surface)return;
         const map=cache.map,seen=new Set(run.discovered),p=state.gridProj;
-        for(const prop of cache.scenery) {
-            const [,x,y]=prop.placement;
-            if(!seen.has(Math.floor(y)*map.columns+Math.floor(x)))continue;
-            actors.push({kind:'scenery',id:-100-prop.id,y:p.mapY+y*p.tileH,prop});
-        }
         if(seen.has(actExplorationMap.index(map,map.gate))) {
             const point=p.cellToScreen(map.gate.gx,map.gate.gy),box=gateBox(point,p);
             actors.push({kind:'gate',id:-2,y:box?box.base:point.y+p.actorGroundOffsetY,point});
@@ -150,18 +145,12 @@ const actExplorationView=(()=>{
     function drawScenery(ctx,actor,state) {
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;
-        if(actor.kind==='gate') {
-            const point=actor.point,box=gateBox(point,p)||{x:point.x-76,y:point.y-158,w:152,h:190,base:actor.y};
-            const occluded=player.y<box.base&&player.y>box.y&&Math.abs(player.x-point.x)<box.w/2;
-            ctx.globalAlpha=occluded?.38:1;
-            const locked=actExplorationState.remainingElites(game.actExploration)>0;
-            ctx.drawImage(locked?cache.closed:cache.open,box.x,box.y,box.w,box.h);
-        } else {
-            const [,x,y,wide]=actor.prop.placement,px=p.mapX+x*p.tileW,py=p.mapY+y*p.tileH;
-            const occluded=player.y<py&&player.y>py-wide*p.tileH*1.6&&Math.abs(player.x-px)<wide*p.tileW*.45;
-            ctx.globalAlpha=occluded?.4:1;
-            ctx.translate(p.mapX,p.mapY);ctx.scale(p.tileW/32,p.tileH/32);explorationArt.prop(ctx,actor.prop.placement,cache.map.biome);
-        }
+        // The only scenery actor left is the boss gate (painted maps carry their props in the picture).
+        const point=actor.point,box=gateBox(point,p)||{x:point.x-76,y:point.y-158,w:152,h:190,base:actor.y};
+        const occluded=player.y<box.base&&player.y>box.y&&Math.abs(player.x-point.x)<box.w/2;
+        ctx.globalAlpha=occluded?.38:1;
+        const locked=actExplorationState.remainingElites(game.actExploration)>0;
+        ctx.drawImage(locked?cache.closed:cache.open,box.x,box.y,box.w,box.h);
         ctx.restore();
     }
     return {projection,background,appendScenery,waitingEnemies,drawScenery,bossRoomGlow,cellAt};

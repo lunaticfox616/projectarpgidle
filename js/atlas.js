@@ -5,17 +5,17 @@
  */
 const atlas = (() => {
     const MAP_NODES = ATLAS.regions.flatMap((region, regionIndex) => ATLAS.nodes[region.id].map((row, slot) => Object.freeze({
-        id: `${region.id}_${slot}`, kind: 'map', region: region.id, regionIndex, slot, name: row[0], tier: row[1], boss: row[2], style: row[3],
-        biome: row[4] || region.biome, bossAct: row[5], ele: region.ele
+        id: `${region.id}_${slot}`, kind: 'map', region: region.id, regionIndex, slot, name: row[0], tier: row[1], boss: row[2], act: row[3],
+        bossAct: row[4], ele: region.ele
     })));
     // A guardian closes each region's innermost pair (slots 7 · 8); the pinnacle sits in the centre, opened with the four tickets.
     const GUARDIANS = ATLAS.regions.map((region, regionIndex) => {
         const [name, ticket, bossAct] = ATLAS.guardians[region.id];
         return Object.freeze({ id: `${region.id}_g`, kind: 'guardian', region: region.id, regionIndex, slot: 9, name, tier: ATLAS.guardianRules.tier,
-            boss: name, style: 'arena', biome: region.biome, bossAct, ele: region.ele, ticket });
+            boss: name, arena: true, act: region.act, bossAct, ele: region.ele, ticket });
     });
     const PINNACLE = Object.freeze({ id: 'pinnacle', kind: 'pinnacle', region: null, regionIndex: -1, slot: -1, name: ATLAS.pinnacle.name,
-        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, style: 'arena', biome: ATLAS.pinnacle.biome, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });
+        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });
     const NODES = Object.freeze([...MAP_NODES, ...GUARDIANS, PINNACLE]);
     const BY_ID = new Map(NODES.map(node => [node.id, node]));
     // Inside a region: the outer arc, each node to the ring within, and across rings. Between regions: each ring closes into a circle.
@@ -305,7 +305,6 @@ const atlas = (() => {
 
     // ---------------------------------------------------------------- the combat zone of the open map
     const equivalentDepth = tier => ATLAS.difficulty.baseDepth + (tier - 1) * ATLAS.difficulty.depthPerTier;
-    const sizeFor = tier => 1 + ATLAS.sizeBands.filter(band => tier >= band).length;
     /** The zone getZone(ATLAS.zoneId) returns while a map is open (memoized per run: its map and bonus never change). */
     function zone(state) {
         const run = state.atlas && state.atlas.run;
@@ -314,10 +313,11 @@ const atlas = (() => {
         return zones.get(run);
     }
     const BOSS_RULES = { map: { hpMul: 1, damageMul: 1, stages: 1 }, guardian: { ...ATLAS.guardianRules, stages: 1 }, pinnacle: ATLAS.pinnacle };
-    /** The generated-map spec of a map item (js/exploration-layouts.js): the same map for every entry through its portals. */
+    /** The wide-map spec of a map item (js/exploration-layouts.js): its node's painted act map — guardians and the pinnacle start
+     * at their arena's boss gate — the same map for every entry through its portals. */
     function explorationSpec(map) {
-        const node = BY_ID.get(map.node);
-        return { style: node.style, biome: node.biome, size: sizeFor(map.tier), seed: `atlas:${map.uid}`, bossStages: BOSS_RULES[node.kind].stages };
+        const node = BY_ID.get(map.node), spec = { style: 'act', act: node.act, seed: `atlas:${map.uid}`, bossStages: BOSS_RULES[node.kind].stages };
+        return node.arena ? { ...spec, arena: true } : spec;
     }
     /** Ordinary rooms of the map's layout: how many content rooms it can hold. */
     const encounterRooms = map => atlasEncounters.hostRooms(actExplorationMap.forRun({ source: explorationSpec(map) })).length;
