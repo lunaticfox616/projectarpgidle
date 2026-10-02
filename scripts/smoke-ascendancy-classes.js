@@ -75,6 +75,35 @@ assert.deepEqual(stone, { without: 0, picked: 10, shield: 100, otherAscendancy: 
 assert.equal(run(`[...getGrantedBloomMechanics({ ascendClass: 'warrior', ascendKeystones: [], cosmosTwinKeystones: ['jg5'], equipment: {} })].join()`), 'hero2__guardian',
     'a twin keystone grants its effect in any ascendancy');
 
+// 옛 재능 카드 효과를 켜는 고유 주얼(일반 고유 풀): 효과 정의, 알려진 능력치, 키스톤과 겹치지 않음. 소켓에 끼우면 켜지고 빼면 꺼진다.
+const mechanicJewels = json('UNIQUE_JEWEL_DB.filter(row => row.bloomMechanic)');
+assert.equal(mechanicJewels.length, 14);
+const movedMechanics = [...mechanicKeystones.map(node => node.bloomMechanic), ...mechanicJewels.map(row => row.bloomMechanic)];
+assert.equal(new Set(movedMechanics).size, 20, 'twenty different effects moved (six keystones, fourteen jewels)');
+mechanicJewels.forEach(row => {
+    assert.ok(run(`!!TALENT_BLOOM_CARD_DEFS['${row.bloomMechanic}']`) && !bloomCardKeys.has(row.bloomMechanic), `${row.id}: ${row.bloomMechanic}`);
+    assert.ok(!row.ultra && row.uniqueEffect && !/[·]/.test(row.uniqueEffect), `${row.id}: ordinary pool, effect text`);
+    row.stats.forEach(stat => assert.ok(statIds.has(stat.id) && stat.val > 0, `${row.id}: ${stat.id}`));
+});
+const socketed = json(`(() => {
+    const saved = { ...game.equipment };
+    const ring = uniqueId => ({ slot: '반지1', name: '시험 반지', rarity: 'normal', stats: [], voidSocket: { open: true, jewel: { uniqueId, name: uniqueId, rarity: 'unique', stats: [] } } });
+    game.ascendClass = ''; game.ascendKeystones = []; game.cosmosTwinKeystones = [];
+    getPlayerStats(false);
+    const before = isTalentCardActive('hero6__ranger');
+    game.equipment['반지1'] = ring('uj_marksman_eye');
+    getPlayerStats(false);
+    const withJewel = isTalentCardActive('hero6__ranger');
+    game.equipment['반지1'] = ring('uj_three_way');
+    getPlayerStats(false);
+    const deadeye = getActiveTalentKeystoneUniqueEffects().map(effect => effect.key);
+    game.equipment = saved; getPlayerStats(false);
+    const after = isTalentCardActive('hero6__ranger');
+    return { before, withJewel, deadeye, after };
+})()`);
+assert.deepEqual([socketed.before, socketed.withJewel, socketed.after], [0, 10, 0], 'a socketed mechanic jewel switches its effect on at full strength, and off when removed');
+assert.deepEqual(socketed.deadeye, ['projectilePatternMode', 'projectileDoubleStrikePct', 'projectileExtraShotBonus'], 'a jewel brings the effect\'s unique lines too');
+
 // 노드: 기존 12종은 개편 전 getClassTreeDef와 같은 값(지문), 새 여섯은 모든 노드가 아는 능력치의 양수 값.
 const trees = json(`(() => {
     const out = {};
