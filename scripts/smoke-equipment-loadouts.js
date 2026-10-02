@@ -188,4 +188,21 @@ function loadGame(save = {}) {
     assert.strictEqual(writes, 1, 'unchanged UI refreshes must not replace the loadout preset controls');
 }
 
+// 칸이 커진 무기(2026-10-03 대검 2×3)가 불러오기 때 임시 보관함으로 밀려나도 세팅은 '보유하지 않음'이 아니라 '임시 보관함'이라고 알린다.
+{
+    const blades = Array.from({ length: 40 }, (_, i) => ({ id: 9100 + i, instanceId: 'blade-' + i, name: '희귀한 처형자의 검', slot: '무기',
+        baseId: 'executioner_blade', baseName: '처형자의 검', rarity: 'rare', baseStats: [], stats: [], itemTier: 14, hiddenTier: 14 }));
+    const placements = Object.fromEntries(blades.map((blade, i) => [blade.instanceId, { column: i % 10, row: Math.floor(i / 10) * 3 }]));
+    loadGame({ inventory: blades, equipmentInventoryPlacements: placements, equipmentLoadouts: { selectedSlot: 0,
+        presets: [{ name: '대검', slots: { '무기': { id: 9139, instanceId: 'blade-39', name: '희귀한 처형자의 검' } } }] } });
+    run('equipmentInventoryGridRuntime.ensureState(game);');
+    const stored = run("(game.equipmentTemporaryStorage || []).some(item => item.instanceId === 'blade-39')");
+    assert.strictEqual(stored, true, 'the bag re-fit moved the last 2×3 blade to temporary storage');
+    const inspection = copy(run('equipmentLoadoutRuntime.inspect(0)'));
+    assert.deepStrictEqual(inspection.missing.map(row => row.stored), [true], 'the preset knows the blade waits in temporary storage');
+    const applied = copy(run('equipmentLoadoutRuntime.apply(0)'));
+    assert.strictEqual(applied.ok, false);
+    assert(applied.reason.startsWith('임시 보관함에서 먼저 꺼내 주세요'), applied.reason);
+}
+
 console.log('smoke-equipment-loadouts passed');

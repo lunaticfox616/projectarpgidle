@@ -6041,7 +6041,6 @@ function shouldPreserveOriginalBattleSheet(key) {
         || key === 'shrineInteractable'
         || key.startsWith('hero')
         || key.startsWith('playerClass')
-        || key.startsWith('realmEnemy')
         || key.startsWith('bossTelegraph')
         || key.startsWith('skillFx')
         || key.startsWith('passiveTree');
@@ -6071,9 +6070,6 @@ function initBattleAssets() {
     battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
-    const realmMonsterManifest = typeof REALM_MONSTER_VISUAL_SETS === 'undefined'
-        ? {}
-        : Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => [set.assetKey, set.src]));
     const wispMonsterManifest = typeof WISP_MONSTER_ASSET_MANIFEST === 'undefined'
         ? {}
         : WISP_MONSTER_ASSET_MANIFEST;
@@ -6209,7 +6205,6 @@ function initBattleAssets() {
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
-        ...realmMonsterManifest,
         ...wispMonsterManifest,
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
@@ -6289,7 +6284,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('realmEnemy') || key.startsWith('wispEnemy') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -6876,34 +6871,6 @@ function resolveHeroMotionStripAnchor(baseAnchor, motionAnchors, motion, variant
         : (motionAnchors && motionAnchors[motion]);
     if (!Number.isFinite(configured)) return baseAnchor;
     return { ...baseAnchor, anchorY: configured };
-}
-
-function getRealmMonsterAtlasCellFrame(cell) {
-    const cellSize = 128;
-    return {
-        x: (cell % 4) * cellSize,
-        y: Math.floor(cell / 4) * cellSize,
-        width: cellSize,
-        height: cellSize,
-        anchorX: cellSize * 0.5,
-        anchorY: 120,
-        basisHeight: 112
-    };
-}
-
-function buildRealmEnemyVariantSets(images) {
-    if (typeof REALM_MONSTER_VISUAL_SETS === 'undefined') return {};
-    return Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => {
-        const pools = { normal: [], elite: [], boss: [] };
-        const image = images[set.assetKey];
-        if (image) {
-            set.members.forEach(member => {
-                const frame = getRealmMonsterAtlasCellFrame(member.cell);
-                pools[member.role].push({ id: member.id, skinId: member.id, label: member.name, image, frame });
-            });
-        }
-        return [set.id, pools];
-    }));
 }
 
 function getWispAtlasFrame(cell, motion, directionIndex, frameIndex) {
@@ -7790,10 +7757,6 @@ function buildBattleAssetAtlas() {
             { image: enemySpriteImage, frame: enemyFrames.boss },
         ].filter(entry => hasUsableFrame(entry.frame))
     };
-    const realmEnemyVariantSets = buildRealmEnemyVariantSets(battleAssets.images);
-    const realmEnemySkinVariants = Object.fromEntries(Object.values(realmEnemyVariantSets)
-        .flatMap(pools => ['normal', 'elite', 'boss'].flatMap(role => pools[role] || []))
-        .map(entry => [entry.skinId, entry]));
     // 배경 불투명 스프라이트가 섞이는 현상을 방지하기 위해
     // 자동 감지 풀(2/3번 시트)은 기본값에서 제외한다.
     // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
@@ -7815,12 +7778,8 @@ function buildBattleAssetAtlas() {
         enemies: {
             image: enemySpriteImage,
             variants: enemyVariantPools,
-            realmVariants: realmEnemyVariantSets,
             bossImages: bossImages,
-            skinVariants: {
-                ...Object.fromEntries(wispEnemyVariants.map(entry => [entry.skinId, entry])),
-                ...realmEnemySkinVariants
-            },
+            skinVariants: Object.fromEntries(wispEnemyVariants.map(entry => [entry.skinId, entry])),
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,
@@ -8365,7 +8324,13 @@ function registerUniqueToCodexOnAcquire(item) {
 
 const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
 
-function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}) {
+/** 뿌리촉수 드랍: 후보에 그 무기 대분류 바탕이 있으면 그것만 남긴다(그 지역 단계에 없으면 후보 그대로). */
+function keepWeaponCategoryBases(candidates, weaponCategory) {
+    const own = weaponCategory ? candidates.filter(base => getWeaponCategoryOfBase(base.id) === weaponCategory) : [];
+    return own.length > 0 ? own : candidates;
+}
+
+function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}, weaponCategory) {
     const zoneRealm = zone.type === 'chaosRealm' ? 'chaos' : (zone.type === 'underworld' ? 'underworld' : (zone.type === 'cosmos' ? 'cosmos' : null));
     let candidates = BASE_ITEM_DB.filter(base => {
         // Realm bases retain their equip tier while using the realm's reachable drop tier.
@@ -8378,11 +8343,12 @@ function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}
         return true;
     });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
+    candidates = keepWeaponCategoryBases(candidates, weaponCategory);
     // 최종 단계 베이스는 드랍 가중치를 크게 낮춘다(일반 베이스의 1/25 수준).
     // 6단계 싱글 체인의 6단계, 또는 최상위 T20 베이스(듀얼 방어구의 4단계 등)가 대상.
     let weights = candidates.map(base => {
         let info = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
-        let isFinal = (info && info.step >= 6) || (base.reqTier || 0) >= 20;
+        let isFinal = getBaseChainRank(info) >= 6 || (base.reqTier || 0) >= 20;
         return isFinal ? 0.04 : 1;
     });
     let totalWeight = weights.reduce((sum, w) => sum + w, 0);
@@ -9276,8 +9242,11 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     return item;
 }
 
-function getEquipmentDropSlot(options) {
-    return EQUIPMENT_DROP_SLOTS.includes(options?.slot) ? options.slot : rndChoice(EQUIPMENT_DROP_SLOTS);
+/** 정해 준 칸, 아니면 아무 칸. 뿌리촉수는 ROOT_MONSTER_RULES.weaponDropChance 확률로 무기 칸(data/bosses.js). */
+function getEquipmentDropSlot(options, enemy) {
+    if (EQUIPMENT_DROP_SLOTS.includes(options?.slot)) return options.slot;
+    if (!getRootMonsterWeapon(enemy)) return rndChoice(EQUIPMENT_DROP_SLOTS);
+    return Math.random() < ROOT_MONSTER_RULES.weaponDropChance ? '무기' : rndChoice(EQUIPMENT_DROP_SLOTS.filter(slot => slot !== '무기'));
 }
 
 function generateEquipmentDrop(enemy, options) {
@@ -9287,8 +9256,8 @@ function generateEquipmentDrop(enemy, options) {
     let dropTier = Math.min(rollRealmItemDropTier(zone, enemy), levelProgression.maxDropTier(itemLevel));
     let affixTierCap = Math.min(levelProgression.affixCap(itemLevel), getRealmEquipmentAffixTierCap(zone, dropTier));
     let affixTierRange = getDroppedAffixTierRange(affixTierCap);
-    let slot = getEquipmentDropSlot(options);
-    let base = chooseItemBase(slot, dropTier, zone);
+    let slot = getEquipmentDropSlot(options, enemy);
+    let base = chooseItemBase(slot, dropTier, zone, getRootMonsterWeapon(enemy));
     let rarity = getEquipmentDropRarity(enemy, Math.random());
     if (rarity === 'unique') return levelProgression.stampItem(generateUniqueItem(hiddenTierCap, slot, null, zone), itemLevel);
     let minimumRarity = options && ['normal', 'magic', 'rare'].includes(options.minimumRarity) ? options.minimumRarity : null;
@@ -9753,7 +9722,7 @@ function generateJewelDrop(zoneOrTier) {
         if (petite) stats.push(petite);
         return { id: ++itemIdCounter, uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
-    // 주얼 제작이 없어졌으므로(2026-09-30) 옵션 없는 일반 주얼은 떨어지지 않는다: 매직 1~2줄 85%, 희귀 2~4줄 15%.
+    // 주얼 제작이 없어졌으므로(2026-09-30) 옵션 없는 일반 주얼은 떨어지지 않는다: 마법 1~2줄 85%, 희귀 2~4줄 15%.
     let rarity = Math.random() > 0.85 ? 'rare' : 'magic';
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (1 + Math.floor(Math.random() * 2));
     let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
@@ -9786,7 +9755,7 @@ function getJewelStats(jewel) {
 function getJewelRarityLabel(rarity) {
     if (rarity === 'unique') return '고유';
     if (rarity === 'rare') return ITEM_RARITY_LABELS.rare;
-    if (rarity === 'magic') return '매직';
+    if (rarity === 'magic') return ITEM_RARITY_LABELS.magic;
     return '일반';
 }
 
@@ -10364,7 +10333,7 @@ async function useCurrency(currencyKey) {
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
-    // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 매직
+    // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 마법
     // 아이템에서 이 경로를 타게 되면서, 두 목록에 함께 넣지 않으면 홀씨 모드를
     // 켜도 아무 일 없이 지나가 버린다(소모도 보장도 없음).
     let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];

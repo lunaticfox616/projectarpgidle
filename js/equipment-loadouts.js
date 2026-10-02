@@ -39,6 +39,19 @@ function normalizeEquipmentLoadoutPreset(preset, index) {
     return { name, slots, savedAtLoop: Math.max(1, Math.floor(Number(preset.savedAtLoop) || 1)) };
 }
 
+/** True when a preset's item sits in temporary storage (a bag re-fit moved it there when its footprint grew). */
+function isEquipmentLoadoutItemStored(targetGame, identity) {
+    return !!identity && (targetGame.equipmentTemporaryStorage || []).some(item => getEquipmentLoadoutItemIdentity(item) === identity);
+}
+
+/** Why a preset cannot be applied because of missing items: gone, or waiting in temporary storage. */
+function describeMissingLoadoutItems(missing) {
+    const names = rows => rows.map(row => row.name).join(', ');
+    const lost = missing.filter(row => !row.stored);
+    if (lost.length > 0) return `보유하지 않은 장비가 있습니다: ${names(lost)}`;
+    return `임시 보관함에서 먼저 꺼내 주세요: ${names(missing)}`;
+}
+
 function getEquipmentLoadoutOwnedItems(targetGame) {
     return Array.from(new Set((targetGame.inventory || []).concat(Object.values(targetGame.equipment || {}).filter(Boolean))));
 }
@@ -132,7 +145,7 @@ function getEquipmentLoadoutInspection(slotIndex, targetGame = game) {
         if (!saved) return;
         count++;
         let item = savedIdentity ? owned.get(savedIdentity) : null;
-        if (!item) missing.push({ slot, name: saved.name });
+        if (!item) missing.push({ slot, name: saved.name, stored: isEquipmentLoadoutItemStored(targetGame, savedIdentity) });
         else if (typeof getEquipCandidateSlots === 'function' && !getEquipCandidateSlots(item, targetGame).includes(slot)) {
             incompatible.push({ slot, name: saved.name });
         }
@@ -166,7 +179,7 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
     let desiredIdentities = new Set(desiredRows.map(getEquipmentLoadoutSavedIdentity).filter(Boolean));
     if (desiredIdentities.size !== desiredRows.length) return { ok: false, reason: '프리셋에 식별할 수 없거나 같은 장비가 두 슬롯 이상 저장되어 있습니다.' };
     let inspection = getEquipmentLoadoutInspection(slotIndex, targetGame);
-    if (inspection.missing.length > 0) return { ok: false, reason: `보유하지 않은 장비가 있습니다: ${inspection.missing.map(row => row.name).join(', ')}` };
+    if (inspection.missing.length > 0) return { ok: false, reason: describeMissingLoadoutItems(inspection.missing) };
     if (inspection.incompatible.length > 0) return { ok: false, reason: `현재 직업으로 장착할 수 없는 장비가 있습니다: ${inspection.incompatible.map(row => row.name).join(', ')}` };
     let nextEquipment = {};
     EQUIPMENT_LOADOUT_SLOT_KEYS.forEach(slot => {

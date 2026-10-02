@@ -2167,8 +2167,17 @@ function drawBattleEnemyActor(ctx, entry, state) {
     ctx.restore();
 }
 
-/** Wisps and act monsters draw from their own 16-dot sheets (js/canvas-wisp-actors.js, js/canvas-monster-actors.js);
- * realm sets and bosses keep their atlas sprites. */
+/** An enemy drawn once more after it left the field (death dissolve, pending-hit ghost): sheet monsters from their sheets,
+ * the rest from the atlas. pose = { x, y, scale (atlas), flash, gridProj, now, facing }. */
+function drawEnemyAfterimage(ctx, enemy, pose) {
+    const tile = pose.gridProj && pose.gridProj.tileW;
+    const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash };
+    if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
+    drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale, !!pose.flash, pose.now);
+}
+
+/** Wisps, act monsters, roots and realm sets draw from their own 16-dot sheets (js/canvas-wisp-actors.js,
+ * js/canvas-monster-actors.js); story bosses keep their atlas sprites. */
 function drawEnemyActorSprite(ctx, entry, state, pose) {
     const enemy = entry.enemy, flash = state.flashingEnemyIds.has(enemy.id), facing = resolveEnemyFacingDirection(entry, state.playerPos);
     const tile = state.gridProj && state.gridProj.tileW;
@@ -2515,7 +2524,8 @@ function renderBattlefield(forceWhenHidden) {
         let ghost = battleVisualState.enemyGhostPos[fx.enemyId];
         if (!ghost || !ghost.enemy) return;
         pendingGhostIds.add(fx.enemyId);
-        drawEnemySprite(ctx, ghost.enemy, ghost.x, ghost.y, (ghost.enemy.isBoss ? 3.65 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale, false, now);
+        drawEnemyAfterimage(ctx, ghost.enemy, { x: ghost.x, y: ghost.y, scale: (ghost.enemy.isBoss ? 3.65 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale,
+            gridProj, now, facing: resolveEnemyFacingDirection(ghost, playerPos) });
     });
 
     // 반투명 스킬 이미지는 몬스터 위에 표시해 투사체 이동과 적중점을 읽기 쉽게 한다.
@@ -2605,7 +2615,8 @@ function renderBattlefield(forceWhenHidden) {
             ctx.translate(deathMotion.x, deathMotion.y);
             ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
             ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
-            drawEnemySprite(ctx, deathEnemy, 0, 0, isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), deathMotion.impactAlpha > 0.45, now);
+            drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
+                gridProj, now, facing: resolveEnemyFacingDirection(enemy, playerPos) });
             ctx.restore();
             ctx.save();
             const moteCount = isBossDeath ? 18 : (fx.elite ? 11 : 6);

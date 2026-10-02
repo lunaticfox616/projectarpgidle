@@ -45,7 +45,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['현자의 시선','sage_amulet',13,0,0,15],
     ['분광 고리','opal_ring',13,0,0,0],
     ['카옴의 심장','fortress_plate',21,45,0,0],
-    ['절단자의 송곳니','root_blade_fang',21,40,0,0],
+    ['절단자의 송곳니','root_blade_fang',21,25,25,0],
     ['불멸의 띠','war_belt',25,25,0,0],
     ['분광 천칭','sage_amulet',21,0,0,0],
     ['광전사의 손길','gen__armor_t8',25,50,0,0],
@@ -86,7 +86,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['영겁의 손아귀','warhands',37,80,0,0],
     ['황혼의 왕관','oracle_circlet',49,0,0,115],
     ['기수의 나침반','valor_amulet',29,0,35,0],
-    ['쐐기 파편','bloodletter_blade',25,45,0,0],
+    ['쐐기 파편','bloodletter_blade',25,25,25,0],
     ['절대 하한','grip_gauntlets',29,50,0,0],
     ['천정 파쇄','executioner_blade',37,80,0,0],
     ['가호의 갑피','fortress_plate',37,80,0,0],
@@ -119,7 +119,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['무한한 허기','underworld_chain',75,0,0,0],
     ['거울 반지','mirror_ring',75,0,0,0],
     ['아스트라의 파편','cosmos_core_amulet',80,0,0,0],
-    ['파열의 언약','bloodletter_blade',37,75,0,0],
+    ['파열의 언약','bloodletter_blade',37,45,45,0],
     ['균열의 정수','phantom_guard_helm',37,50,50,0],
     ['공허의 갈고리','root_blade_fang',41,45,35,0,'무기'],
     ['타락각 투구','nightveil_hood',37,0,75,0,'투구'],
@@ -163,7 +163,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['좀먹는 독니','sageking_charm',72,0,45,60],
     ['피를 마시는 고리','void_loop_ring',69,60,35,0],
     ['시체밭','graveknot_belt',72,60,0,45],
-    ['끊어진 회복','chaos_realm_fang',69,130,0,0],
+    ['끊어진 회복','chaos_realm_fang',69,80,80,0],
     ['메아리의 주문서','abyss_chant_staff',72,0,0,135,'무기'],
     ['거인의 심장','gen__armor_t20_1',72,145,0,0],
     ['깜빡이는 보호막','gen__energyShield_t20_2',72,0,0,140],
@@ -215,7 +215,14 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['엮인 나이테','opal_ring',72,0,0,0],
     ['총주교의 성화 장갑','ward_gauntlets',70,60,0,60],
     ['포식자의 이빨띠','war_belt',70,80,0,0],
-    ['금고지기의 열쇠꾸러미','copper_ring',60,0,40,0]
+    ['금고지기의 열쇠꾸러미','copper_ring',60,0,40,0],
+    // 플라스크 · 향로(2026-10-03)
+    ['넘치는 시약병','catalyst_flask',9,0,10,10],
+    ['갈라지는 증류병','alchemist_retort',41,0,45,45],
+    ['현자의 불꽃 증류기','philosopher_flask',69,0,80,80],
+    ['순례자의 향로','incense_censer',5,5,0,5],
+    ['성가대의 사슬','chapel_censer',37,40,0,40],
+    ['새벽 성화의 향로','sunrise_censer',69,80,0,80]
 ].map(([name, baseId, level, strength, dexterity, intelligence, slot]) => [name, Object.freeze({
     baseId, level, slot, attributes: Object.freeze(Object.fromEntries(Object.entries({strength, dexterity, intelligence}).filter(([,value]) => value > 0)))
 })])));

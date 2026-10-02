@@ -17,7 +17,11 @@ assert.deepStrictEqual(footprint({ slot: '장갑' }), { columns: 2, rows: 2 });
 assert.deepStrictEqual(footprint({ slot: '갑옷' }), { columns: 2, rows: 2 });
 assert.deepStrictEqual(footprint({ slot: '무기', baseName: '잿불 완드' }), { columns: 1, rows: 2 });
 assert.deepStrictEqual(footprint({ slot: '무기', baseName: '녹슨 검' }), { columns: 1, rows: 3 });
-assert.deepStrictEqual(footprint({ slot: '무기', baseName: '돌풍 장궁' }), { columns: 1, rows: 4 });
+// 무기 칸(2026-10-03): 대검 대분류는 2×3, 세로 4칸 무기는 없다(활 · 창 · 지팡이도 3칸).
+assert.deepStrictEqual(footprint({ slot: '무기', baseName: '돌풍 장궁' }), { columns: 1, rows: 3 });
+assert.deepStrictEqual(footprint({ slot: '무기', baseId: 'executioner_blade', baseName: '처형자의 검' }), { columns: 2, rows: 3 });
+assert.deepStrictEqual(footprint({ slot: '무기', baseName: '심연의 창' }), { columns: 2, rows: 3 }, 'spears are greatswords too');
+assert.deepStrictEqual(footprint({ slot: '무기', baseName: '의식 사역마 지팡이' }), { columns: 1, rows: 3 });
 assert.deepStrictEqual(footprint({ slot: '무기', baseName: '사냥꾼의 도끼' }), { columns: 1, rows: 3 });
 assert.strictEqual(context.getEquipmentInventoryPageCount({ season: 1, loopCount: 0 }), 1, 'the first loop must start with one storage page');
 assert.strictEqual(context.getEquipmentInventoryPageCount({ season: 5, loopCount: 4 }), 2, 'loop 5 must unlock the second storage page');
@@ -98,7 +102,7 @@ const layout = plain(context.equipmentInventoryGridRuntime.ensureState());
 assert.strictEqual(layout.columns, 10, 'the saved logical grid must always use ten columns');
 assert.strictEqual(layout.rowsPerPage, 12, 'one inventory page must contain twelve rows');
 assert.strictEqual(layout.pageCount, 1, 'the first loop test state must render one page');
-assert.strictEqual(context.getInventoryUsedCellCount(vm.runInContext('game', context)), 9, 'capacity usage must count occupied cells rather than item entries');
+assert.strictEqual(context.getInventoryUsedCellCount(vm.runInContext('game', context)), 8, 'capacity usage must count occupied cells rather than item entries (bow 3 + armour 4 + ring 1)');
 assert.strictEqual(Object.keys(vm.runInContext('game.equipmentInventoryPlacements', context)).length, 3, 'every item must receive one persisted placement');
 const occupied = new Set();
 layout.entries.forEach(entry => {
@@ -249,8 +253,8 @@ assert.deepStrictEqual(plain(repaired.equipmentInventoryPlacements['repair-ring'
 const item = vm.runInContext(`game.inventory.find(candidate => candidate && candidate.instanceId === 'grid-bow')`, context);
 const bowPlacement = context.equipmentInventoryGridRuntime.ensureState().entries.find(entry => entry.key === 'grid-bow');
 const html = context.renderEquipmentGridItem(item, 0, null, bowPlacement);
-assert(html.includes('--item-grid-columns:1;--item-grid-rows:4;'), 'a bow must visibly occupy a 1x4 footprint');
-assert(html.includes(`grid-column:${bowPlacement.column + 1}/span 1;grid-row:${bowPlacement.row + 1}/span 4;`), 'the renderer must use the saved top-left grid position');
+assert(html.includes('--item-grid-columns:1;--item-grid-rows:3;'), 'a bow must visibly occupy a 1x3 footprint');
+assert(html.includes(`grid-column:${bowPlacement.column + 1}/span 1;grid-row:${bowPlacement.row + 1}/span 3;`), 'the renderer must use the saved top-left grid position');
 assert(html.includes('illustrated/windlash_bow.webp'), 'the grid must render footprint-matched clean artwork');
 assert(html.includes('equipmentInventoryInteraction.handleItemDoubleClick'),
     'an item resting in its own cell must retain guarded double-click equip');

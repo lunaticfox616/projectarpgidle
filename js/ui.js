@@ -3382,7 +3382,7 @@ const renderSeaGiftTarget = function () {
     let selected = getSelectedCraftItem();
     let item = getSelectedSeaGiftEquipmentTarget();
     let target = item
-        ? `<div><small>현재 제작 대상</small><strong class="item-title ${item.rarity || 'normal'}">[${item.slot || '장비'}] ${item.name}</strong><span>추가 옵션 ${(item.stats || []).length}줄 · 바다의 선물 장비 가공은 이 대상에만 적용됩니다.</span></div>`
+        ? `<div><small>현재 제작 대상</small><strong class="item-title ${item.rarity || 'normal'}">[${getItemSlotDisplayLabel(item, '장비')}] ${item.name}</strong><span>추가 옵션 ${(item.stats || []).length}줄 · 바다의 선물 장비 가공은 이 대상에만 적용됩니다.</span></div>`
         : selected
             ? `<div><small>현재 제작 대상</small><strong>일반 장비가 아님</strong><span>장비가 아닌 대상에는 바다의 선물 장비 가공을 사용할 수 없습니다.</span></div>`
             : `<div><small>현재 제작 대상</small><strong>선택된 장비 없음</strong><span>장비 가공 레시피를 사용하려면 대상을 먼저 선택하세요.</span></div>`;
@@ -5326,7 +5326,8 @@ function getMonsterSkinDefs() {
 function getEnemySkinId(enemy) {
     if (!enemy) return null;
     if (enemy.bossAssetKey) return enemy.bossAssetKey;
-    if (ACT_MONSTER_VISUAL_BY_ID[enemy.spriteVariantId]) return enemy.spriteVariantId;
+    const sheetId = enemy.spriteVariantId || enemy.monsterVisualId;
+    if (MONSTER_SPRITE_SHEETS[sheetId]) return sheetId;
     if (battleAssets && battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         const renderedVariant = pickBattleEnemyVariant(enemy, battleAssets.atlas.enemies);
         if (renderedVariant && renderedVariant.skinId) return renderedVariant.skinId;
@@ -6102,7 +6103,7 @@ function getItemSlotDisplayLabel(item, fallbackLabel) {
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
     let label = rawSlot !== null ? rawSlot : (fallbackLabel || '장비');
-    return String(label || '장비').replace(/[12]$/, '');
+    return weaponCategorySlotLabel(item, String(label || '장비').replace(/[12]$/, ''));
 }
 
 
@@ -7317,24 +7318,8 @@ function getBossAssetVariantEntry(enemy, enemyAtlas) {
     };
 }
 
-function getRealmBattleEnemyPool(enemy, enemyAtlas) {
-    if (!enemy || !enemy.monsterVisualSetId || !enemyAtlas) return [];
-    const sets = enemyAtlas.realmVariants || {};
-    const pools = sets[enemy.monsterVisualSetId];
-    if (!pools) return [];
-    const role = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
-    return pools[role] || [];
-}
-
 function pickBattleEnemyVariant(enemy, enemyAtlas) {
     if (!enemyAtlas) return null;
-    const realmPool = getRealmBattleEnemyPool(enemy, enemyAtlas);
-    if (realmPool.length > 0) {
-        const assigned = realmPool.find(entry => entry && entry.id === enemy.monsterVisualId);
-        if (assigned) return assigned;
-        const realmSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
-        return realmPool[realmSeed % realmPool.length];
-    }
     let pools = enemyAtlas.variants || {};
     let frames = enemyAtlas.frames || {};
     let baseImage = enemyAtlas.image;
@@ -9283,7 +9268,7 @@ function getEquipmentSearchText(item) {
     const base = (item.baseStats || []).map(stat => getEquipmentSearchStatText(stat, false)).join(' ');
     const stats = (item.stats || []).map(stat => getEquipmentSearchStatText(stat, true)).join(' ');
     const under = item.underEnchant ? `${getEquipmentSearchStatText(item.underEnchant, true)} ${item.underEnchant.val || ''}` : '';
-    return `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`;
+    return `${item.name || ''} ${item.slot || ''} ${getWeaponCategoryName(item)} ${item.rarity || ''} ${base} ${stats} ${under}`;
 }
 function getSearchTokens(query) {
     return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -9658,7 +9643,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     const targetItems = (game.inventory || []).filter(item => {
         if (!item) return false;
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
-        const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
+        const hay = `${item.name || ''} ${item.slot || ''} ${getWeaponCategoryName(item)} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         const matched = matchSearchQuery(hay, sf.equip);
         return shouldBulkSalvageBySearch(matched, !!salvageUnmatched) && !isBulkSalvageProtectedItem(item);
     });

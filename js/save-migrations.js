@@ -194,7 +194,17 @@ function migrateRetiredWoodMonsters(merged) {
     merged.selectedMonsterSkin = RETIRED_WOOD_MONSTER_SKINS[merged.selectedMonsterSkin] || merged.selectedMonsterSkin;
     const zone = Number.isInteger(merged.currentZoneId) && merged.currentZoneId < ACT_ZONE_COUNT ? MAP_ZONES[merged.currentZoneId] : null;
     const packs = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
-    [merged.enemies, ...packs.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(enemy => retireWoodMonsterVisual(enemy, zone));
+    [merged.enemies, ...packs.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(enemy => {
+        retireWoodMonsterVisual(enemy, zone);
+        resetRedrawnRealmAttack(enemy);
+    });
+}
+
+/** Realm sets fight as drawn since 2026-10-03: a realm enemy saved with the old per-visual roll picks its attack again. */
+function resetRedrawnRealmAttack(enemy) {
+    const kind = enemy && enemy.monsterVisualId ? getMonsterVisualAttackKind(enemy.monsterVisualId) : null;
+    if (!kind || !enemy.attackKind || enemy.isBoss || enemy.attackKind === kind) return;
+    ['attackKind', 'attackRange', 'attackDelivery', 'projectileToEdge', 'attackCastMs', 'attackLabel'].forEach(key => delete enemy[key]);
 }
 
 function retireWoodMonsterVisual(enemy, zone) {

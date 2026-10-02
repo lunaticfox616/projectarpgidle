@@ -851,6 +851,12 @@ function renderPaperdoll(targetId, forCrafting) {
     if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }
 
+/** The small label under a grid item: its slot, or a weapon's category. Four-letter names (플라스크) take the narrow style. */
+function equipmentGridSlotLabelHtml(item) {
+    const label = getItemSlotDisplayLabel(item);
+    return `<span class="equipment-grid-slot-label${label.length > 3 ? ' is-long' : ''}">${escapeHTML(label)}</span>`;
+}
+
 function renderEquipmentGridItem(item, idx, triageResult, placement, filterState) {
     let size = getEquipmentInventoryFootprint(item);
     let footprint = placement || { column: 0, row: 0, columns: size.columns, rows: size.rows };
@@ -876,7 +882,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
         onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-        <img src="${asset}" alt="" aria-hidden="true" draggable="false"><span class="equipment-grid-slot-label">${escapeHTML(item.slot)}</span><span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
+        <img src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentGridSlotLabelHtml(item)}<span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
 }
@@ -948,7 +954,7 @@ function renderEquipmentInventoryInspector(rows) {
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
     let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
     let html = `<div class="equipment-grid-inspector-copy rarity-${item.rarity || 'normal'}">
-        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel} · ${escapeHTML(item.slot || '장비')} · ${footprint.columns}×${footprint.rows}칸</span>
+        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel} · ${escapeHTML(getItemSlotDisplayLabel(item, '장비'))} · ${footprint.columns}×${footprint.rows}칸</span>
         <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
     </div><div class="equipment-grid-inspector-actions">
         ${renderEquipmentInspectorActions(item, slot, presetProtected)}

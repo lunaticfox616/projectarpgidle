@@ -113,7 +113,7 @@ for (const classId of classIds) {
     }
 }
 
-// The weapon in hand follows the equipped weapon's base: every weapon base in the game maps to a drawn weapon.
+// The weapon in hand is the equipped weapon's category (data/weapon-categories.js), whatever the class.
 const weapons = plain(run(`(function () {
     const item = id => ({ slot: '무기', baseId: id, baseName: BASE_ITEM_DB.find(b => b.id === id).name });
     return [
@@ -123,13 +123,14 @@ const weapons = plain(run(`(function () {
         hanaActors.weaponFor('warrior', item('nova_rod')), hanaActors.weaponFor('cleric', item('void_archon_staff')),
         hanaActors.weaponFor('alchemist', item('ember_wand')), hanaActors.weaponFor('archer', null),
         hanaActors.weaponFor('warrior', { slot: '무기', name: '세계파쇄자', rarity: 'unique' }),
-        hanaActors.weaponFor('archer', item('rusted_blade'), 'class'), hanaActors.weaponFor('archer', null, 'censer')
+        hanaActors.weaponFor('archer', item('rusted_blade'), 'class'), hanaActors.weaponFor('archer', null, 'censer'),
+        hanaActors.weaponFor('warrior', item('cracked_flask')), hanaActors.weaponFor('archer', item('sunrise_censer'))
     ];
 })()`));
-assert.deepStrictEqual(weapons, ['scimitar', 'greatsword', 'scimitar', 'greatsword', 'shortbow', 'shortbow', 'orb', 'censer', 'flask',
-    'shortbow', 'greatsword', 'shortbow', 'censer'],
-    'equipped weapon → drawn weapon: blades/axes, greatswords/polearms, bows/launchers, casting weapons by class; unarmed keeps the class weapon');
-const unmapped = plain(run(`BASE_ITEM_DB.filter(b => b.slot === '무기').filter(b => hanaActors.weaponFor('warrior', { slot: '무기', baseId: b.id, baseName: b.name }) === 'greatsword' && !/great|doom|executioner|spear|pike|lance|glaive|대검|창|글레이브/.test(b.id + b.name)).map(b => b.id)`));
-assert.deepStrictEqual(unmapped, [], 'no weapon base falls through to the warrior default by accident');
+assert.deepStrictEqual(weapons, ['scimitar', 'greatsword', 'scimitar', 'greatsword', 'shortbow', 'shortbow', 'orb', 'orb', 'orb',
+    'shortbow', 'greatsword', 'shortbow', 'censer', 'flask', 'censer'],
+    'equipped weapon → its category is drawn (casting weapons are orbs for every class); unarmed keeps the class weapon');
+const unmapped = plain(run(`BASE_ITEM_DB.filter(b => b.slot === '무기').filter(b => !WEAPON_BASE_CATEGORIES[b.id] || hanaActors.weaponFor('alchemist', { slot: '무기', baseId: b.id, baseName: b.name }) !== WEAPON_BASE_CATEGORIES[b.id]).map(b => b.id)`));
+assert.deepStrictEqual(unmapped, [], 'every weapon base has a category and the hero draws that category');
 
 console.log('hana actors ok');

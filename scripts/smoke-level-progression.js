@@ -7,7 +7,7 @@ r.hideItemTooltip=()=>{}; r.updateStaticUI=()=>{}; // DOM boundaries; equipment 
 const json=code=>JSON.parse(run(`JSON.stringify(${code})`));
 run(`game=JSON.parse(JSON.stringify(defaultGame)); game.level=100;
     game.actRewardBonuses=[{stat:'strength',value:52}];
-    var weapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+    var weapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
     weapon.stats=[{id:'strength',val:20},{id:'gemLevel',val:3}];game.inventory=[weapon];`);
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),true);
 assert.equal(run('equipItemById(weapon.id)'),true);
@@ -91,10 +91,10 @@ run('game.isBackgroundCalculation=true');
 assert.equal(run('getEnemyExperienceReward({level:5}, {expGain:0})'),Math.floor(xp*Math.exp(-3)));
 assert.deepEqual(json("levelProgression.filterCurrencyDrops([['coreKey',1],['trialKey3',1],['magicBud',1]],0)"),[['coreKey',1],['trialKey3',1]]);
 assert.equal(run("levelProgression.requirements({baseId:'rusted_blade',slot:'무기'}).level"),1);
-assert.deepEqual(json("levelProgression.requirements({baseId:'rusted_blade',slot:'무기'}).attributes"),{strength:0});
+assert.deepEqual(json("levelProgression.requirements({baseId:'rusted_blade',slot:'무기'}).attributes"),{strength:0,dexterity:0},'scimitars ask for strength and dexterity');
 assert.equal(run('levelProgression.stampItem({itemLevel:Infinity,hiddenTier:3}).itemLevel'),9,'invalid saved item levels recover from existing provenance');
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;
-    weapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+    weapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
     weapon.stats=[{id:'strength',val:20}];game.equipment['무기']=weapon;
     game.actRewardBonuses=[{stat:'strength',value:52}];equipmentLoadoutRuntime.save(0,'요구조건',game);
     unequipItem('무기');game.actRewardBonuses[0].value=32;`);
@@ -205,14 +205,15 @@ for (const { base, req } of baseRequirements) {
     if (['반지','목걸이','허리띠'].includes(base.slot)) assert.deepEqual(req.attributes, {}, base.id);
     if (base.reqTier === 20 && Object.keys(req.attributes).length === 1) assert.equal(Object.values(req.attributes)[0], 130, base.id);
 }
-for (const [id, expected] of [['hunter_axe',6],['war_helm',10],['bastion_helm',36],['bloodletter_blade',52],
+assert.deepEqual(json("levelProgression.requirements({baseId:'bloodletter_blade'}).attributes"),{strength:31,dexterity:31});
+for (const [id, expected] of [['hunter_axe',4],['war_helm',10],['bastion_helm',36],['warden_greatsword',52],
     ['obsidian_helm',70],['executioner_blade',86],['dread_plate',102],['apocalypse_greatblade',130]]) {
     assert.equal(run(`levelProgression.requirements({baseId:'${id}'}).attributes.strength`), expected, id);
 }
 assert.deepEqual(json("levelProgression.requirements({baseId:'gen__armor_energyShield_t20_1'}).attributes"),{strength:92,intelligence:92});
 assert.deepEqual(json("levelProgression.requirements({baseId:'tempestlord_lance'}).attributes"),{strength:78,dexterity:78});
 assert.deepEqual(json("levelProgression.requirements({baseId:'cosmos_prism_lance'}).attributes"),{strength:84,dexterity:84});
-assert.deepEqual(json("levelProgression.requirements({baseId:'rusted_blade',hiddenTier:20,itemLevel:100})"),{level:1,attributes:{strength:0}},'affix/drop tier never raises base requirements');
+assert.deepEqual(json("levelProgression.requirements({baseId:'rusted_blade',hiddenTier:20,itemLevel:100})"),{level:1,attributes:{strength:0,dexterity:0}},'affix/drop tier never raises base requirements');
 run(`game=JSON.parse(JSON.stringify(defaultGame));game.level=100;game.settings.autoEquipEmptySlots=false;
     var finalWeapon=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='apocalypse_greatblade'),'normal',20);
     finalWeapon.stats=[{id:'strength',val:20}];game.inventory=[finalWeapon];

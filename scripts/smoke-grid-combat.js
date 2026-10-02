@@ -16,12 +16,12 @@ const files = [
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
-  'data/items.js',
+  'data/items.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
   'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
-  'data/bosses.js',
+  'data/bosses.js', 'data/monster-sprites.js',
   'data/rewards.js',
   'data/talent-cards.js',
   'data/content-progression.js',
@@ -37,7 +37,7 @@ const files = [
   'js/endgame-progression.js',
   'js/crafting-workspace-state.js',
   'js/save.js',
-  'js/items.js',
+  'js/items.js', 'js/weapon-categories.js',
   'js/equipment-crafting.js',
   'js/passive-routing.js', 'js/passives.js',
   'js/loot.js', 'js/gem-drop-rewards.js',
@@ -149,7 +149,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
 // 렌더 스프라이트와 전투 이름은 같은 안정적인 변형 id를 사용해야 한다.
 {
   resetGame();
-  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 38, '액트 몬스터 20종과 위습 18종에 이름이 지정되어야 한다');
+  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 44, '액트 몬스터 20종, 무기 뿌리촉수 6종, 위습 18종에 이름이 지정되어야 한다');
   assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
   const fireWisp = context.getMonsterVariantDefinition(5, 'fire');
   assert(fireWisp.id.startsWith('wisp-'), '일반 구역에서도 위습이 일정 비율로 등장해야 한다');
@@ -213,16 +213,15 @@ const cfg = context.COMBAT_GRID_CONFIG;
       `${setId} 정예 몬스터 이름은 특성과 이미지 종명을 함께 표시해야 한다`);
   });
 
-  const realmImages = Object.fromEntries(Object.values(context.REALM_MONSTER_VISUAL_SETS)
-    .map(set => [set.assetKey, { width: 512, height: 256 }]));
-  const realmAtlasSets = context.buildRealmEnemyVariantSets(realmImages);
-  Object.values(realmAtlasSets).forEach(pools => {
-    assert.deepStrictEqual([pools.normal.length, pools.elite.length, pools.boss.length], [4, 2, 1],
-      '각 테마 아틀라스는 일반 4·정예 2·보스 1칸을 고정 배치해야 한다');
-    assert.strictEqual(pools.normal[0].frame.x, 0, '첫 몬스터는 첫 번째 128px 칸에서 시작해야 한다');
-    assert.strictEqual(pools.normal[0].frame.width, 128, '몬스터 프레임은 옆 칸을 침범하지 않아야 한다');
-    assert.strictEqual(pools.boss[0].frame.x, 256, '보스는 둘째 줄 세 번째 칸에 고정되어야 한다');
-    assert.strictEqual(pools.boss[0].frame.y, 128, '보스는 둘째 줄에서만 잘라야 한다');
+  Object.values(context.REALM_MONSTER_VISUAL_SETS).forEach(set => {
+    assert.deepStrictEqual(['normal', 'elite', 'boss'].map(role => set.members.filter(member => member.role === role).length), [4, 2, 1],
+      '각 영역 세트는 일반 4·정예 2·보스 1종이다');
+    set.members.forEach(member => {
+      const sheet = context.MONSTER_SPRITE_SHEETS[member.id];
+      assert(sheet, `${member.id}는 제 시트로 그린다`);
+      assert.strictEqual(context.MONSTER_SPRITE_KINDS[sheet.kind].frame, member.role === 'boss' ? 64 : 48,
+        `${member.id} 칸 크기(보스 64, 나머지 48)`);
+    });
   });
 
   const wispVariants = context.buildWispEnemyVariants({

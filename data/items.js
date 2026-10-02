@@ -20,7 +20,7 @@ const EQUIPMENT_DROP_RARITY_THRESHOLDS = Object.freeze({
 });
 
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
-const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '매직', rare: '희귀', unique: '고유' });
+const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
@@ -309,6 +309,23 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
             tempestlord_lance: 'assets/items/illustrated/tempestlord_lance.webp',
             meteor_repeater: 'assets/items/illustrated/meteor_repeater.webp',
             genesis_void_staff: 'assets/items/illustrated/genesis_void_staff.webp',
+            cracked_flask: 'assets/items/illustrated/pixel/cracked_flask.webp',
+            catalyst_flask: 'assets/items/illustrated/pixel/catalyst_flask.webp',
+            volatile_flask: 'assets/items/illustrated/pixel/volatile_flask.webp',
+            alchemist_retort: 'assets/items/illustrated/pixel/alchemist_retort.webp',
+            philosopher_flask: 'assets/items/illustrated/pixel/philosopher_flask.webp',
+            tin_censer: 'assets/items/illustrated/pixel/tin_censer.webp',
+            incense_censer: 'assets/items/illustrated/pixel/incense_censer.webp',
+            ember_censer: 'assets/items/illustrated/pixel/ember_censer.webp',
+            chapel_censer: 'assets/items/illustrated/pixel/chapel_censer.webp',
+            sunrise_censer: 'assets/items/illustrated/pixel/sunrise_censer.webp',
+            crescent_scimitar: 'assets/items/illustrated/pixel/crescent_scimitar.webp',
+            blackiron_scimitar: 'assets/items/illustrated/pixel/blackiron_scimitar.webp',
+            eclipse_scimitar: 'assets/items/illustrated/pixel/eclipse_scimitar.webp',
+            dull_greatsword: 'assets/items/illustrated/pixel/dull_greatsword.webp',
+            iron_greatsword: 'assets/items/illustrated/pixel/iron_greatsword.webp',
+            warden_greatsword: 'assets/items/illustrated/pixel/warden_greatsword.webp',
+            hunting_shortbow: 'assets/items/illustrated/pixel/hunting_shortbow.webp',
             tempest_volley: 'assets/items/illustrated/tempest_volley.webp',
             nova_rod: 'assets/items/illustrated/nova_rod.webp',
             rift_scepter: 'assets/items/illustrated/rift_scepter.webp',
@@ -471,7 +488,14 @@ const UNIQUE_DB = [
     { name: "엮인 나이테", slots: ["반지"], reqTier: 22, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "반대편 반지의 모든 효과를 복사", uniqueEffectKey: "mirrorOppositeRing", stats: [] },
     { name: "총주교의 성화 장갑", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "firePctDmg", min: 30, max: 45 }, { id: "resF", min: 20, max: 30 }, { id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }] },
     { name: "포식자의 이빨띠", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "흡혈의 15% 즉시 적용, 8% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 15, doubleDamageChance: 8 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "leech", min: 1, max: 1.6 }, { id: "resChaos", min: 15, max: 25 }, { id: "armorPct", min: 20, max: 30 }] },
-    { name: "금고지기의 열쇠꾸러미", slots: ["반지"], reqTier: 16, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "resAll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 90 }] }
+    { name: "금고지기의 열쇠꾸러미", slots: ["반지"], reqTier: 16, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "resAll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 90 }] },
+    // 플라스크 · 향로 고유 장비(2026-10-03).
+    { name: "넘치는 시약병", slots: ["무기"], reqTier: 5, uniqueEffect: "적 처치 시 초과 피해를 주변 적에게 전달", uniqueEffectKey: "overkillSplash", stats: [{ id: "flatDmg", min: 18, max: 26 }, { id: "potionPctDmg", min: 20, max: 30 }, { id: "aoePctDmg", min: 15, max: 22 }, { id: "poisonChance", min: 8, max: 12 }] },
+    { name: "갈라지는 증류병", slots: ["무기"], reqTier: 13, uniqueEffect: "투사체 공격 시 25% 확률로 투사체 +1", uniqueEffectKey: "projectileExtraShotChance", uniqueEffectParams: { chance: 25, shots: 1 }, stats: [{ id: "flatDmg", min: 60, max: 80 }, { id: "potionPctDmg", min: 30, max: 45 }, { id: "projectilePctDmg", min: 20, max: 30 }, { id: "critDmg", min: 40, max: 55 }] },
+    { name: "현자의 불꽃 증류기", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "flatDmg", min: 110, max: 150 }, { id: "potionPctDmg", min: 40, max: 60 }, { id: "firePctDmg", min: 30, max: 45 }, { id: "igniteChance", min: 15, max: 25 }, { id: "aoePctDmg", min: 20, max: 30 }] },
+    { name: "순례자의 향로", slots: ["무기"], reqTier: 4, uniqueEffect: "이 무기는 항상 감전 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "flatDmg", min: 16, max: 24 }, { id: "lightPctDmg", min: 18, max: 26 }, { id: "regen", min: 0.4, max: 0.7 }, { id: "shockEffect", min: 20, max: 30 }] },
+    { name: "성가대의 사슬", slots: ["무기"], reqTier: 12, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "flatDmg", min: 55, max: 75 }, { id: "lightPctDmg", min: 28, max: 40 }, { id: "regen", min: 0.8, max: 1.2 }, { id: "resAll", min: 12, max: 18 }] },
+    { name: "새벽 성화의 향로", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "원소 타격마다 적의 원소 저항 −2%(최대 −20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "flatDmg", min: 120, max: 160 }, { id: "lightPctDmg", min: 40, max: 55 }, { id: "elementalPctDmg", min: 30, max: 40 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "flatHp", min: 80, max: 120 }] }
 ];
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
@@ -863,8 +887,8 @@ function getCanonicalCurrencyKey(currencyKey) {
 
 const ORB_DB = {
     timeRemnant: { name: '시간의 잔재', desc: '영구 방치 성장의 업그레이드와 지시 해금에 사용하는 메타 재화입니다.' },
-    magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템의 옵션은 1~2줄로 다시 굴립니다.' },
-    sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
+    magicBud: { name: '마법의 새싹', desc: '일반 아이템을 마법 아이템으로 만들고 옵션을 부여합니다. 마법 아이템의 옵션은 1~2줄로 다시 굴립니다.' },
+    sapBud: { name: '수액 봉오리', desc: '마법 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
     formlessDew: { name: '형체 없는 이슬', desc: '일반 아이템을 희귀로 만들거나, 희귀 아이템의 옵션을 모두 다시 굴립니다.' },
     goldenRule: { name: '황금률', desc: '아이템 옵션 수치를 다시 굴립니다.' },
     fairyRing: { name: '요정의 고리', desc: '일반 장비를 25% 확률로 파괴하거나 같은 부위의 고유 장비로 진화시킵니다. 공허 패시브에는 초월 시도에 사용합니다.' },

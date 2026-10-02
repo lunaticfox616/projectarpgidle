@@ -76,9 +76,10 @@ function getEquipmentInventoryFootprint(item) {
     if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
     if (slot === '갑옷') return { columns: 2, rows: 2 };
     if (slot !== '무기') return { columns: 1, rows: 1 };
+    // 무기: 대검 대분류는 2×3, 완드 · 로드 · 홀 · 초점봉은 1×2, 나머지는 1×3(세로 4칸 무기는 없다, 2026-10-03).
+    if (getWeaponCategoryId(item) === 'greatsword') return { columns: 2, rows: 3 };
     let label = `${item && item.baseId || ''} ${item && item.baseName || ''} ${item && item.name || ''}`.toLowerCase();
     if (/완드|wand|scepter|셉터|초점|focus|로드|rod|봉|홀$/.test(label)) return { columns: 1, rows: 2 };
-    if (/활|궁|bow|석궁|crossbow|발리스타|ballista|창|spear|pike|lance|staff|지팡이|대검|great|glaive|글레이브|railgun|레일건|launcher|발사기|repeater|연사/.test(label)) return { columns: 1, rows: 4 };
     return { columns: 1, rows: 3 };
 }
 
@@ -973,11 +974,14 @@ function getBaseUpgradeCandidates(currentBase) {
     let currentProfile = getBaseDefenseProfile(currentBase);
     let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
     let currentArchetype = getBaseBuildArchetype(currentBase);
+    let currentCategory = getWeaponCategoryOfBase(currentBase.id);
     let isArmorSlot = ['투구','갑옷','장갑','신발','방패'].includes(currentBase.slot);
     let candidates = BASE_ITEM_DB
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
         .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
         .filter(base => getBaseBuildArchetype(base) === currentArchetype)
+        // 무기는 같은 대분류 안에서만 승급한다(곡도가 대검이 되지 않게).
+        .filter(base => getWeaponCategoryOfBase(base.id) === currentCategory)
         .sort((a,b)=>a.reqTier-b.reqTier);
     // 방어구는 방어 프로파일(방어도/회피/보호막)이 정체성이다. 저항 같은 부가 옵션은
     // 부수적이므로, 같은 프로파일끼리 티어 순서대로 이어 준다(저항이 달라도 무방).
@@ -1057,6 +1061,11 @@ function getBaseChainInfo(base) {
     if (!_baseChainInfoCache) buildBaseChainInfoCache();
     return _baseChainInfoCache[base.id] || null;
 }
+/** A base's step counted as in a six-step chain: a longer chain's top is 6 and the step below it 5 (the bow line has seven).
+ * Upgrade cost floors and the rare drop weight of chain tops read this. */
+function getBaseChainRank(info) {
+    return info ? info.step - Math.max(0, info.total - 6) : 0;
+}
 function getItemBaseChainInfo(item) {
     if (!item) return null;
     let base = BASE_ITEM_DB.find(b => b && item.baseId && b.id === item.baseId)
@@ -1079,9 +1088,10 @@ function getBaseUpgradeCost(nextBase) {
     let targetTier = Math.max(1, Math.floor(Number(nextBase.reqTier) || 1));
     let totalDewValue = Math.max(10,
         Math.ceil((5 + targetTier + targetTier * targetTier * 0.5) / 5) * 5);
-    let chainInfo = getBaseChainInfo(nextBase);
-    if (chainInfo && chainInfo.step >= 6) totalDewValue = Math.max(totalDewValue, 625);
-    else if (chainInfo && chainInfo.step === 5) totalDewValue = Math.max(totalDewValue, 225);
+    let chainRank = getBaseChainRank(getBaseChainInfo(nextBase));
+    // 6단계 체인의 맨 위, 그리고 20단계 무기(다섯 단계 체인인 플라스크 · 향로 포함)는 같은 625.
+    if (chainRank >= 6 || (nextBase.slot === '무기' && targetTier >= 20)) totalDewValue = Math.max(totalDewValue, 625);
+    else if (chainRank === 5) totalDewValue = Math.max(totalDewValue, 225);
     let goldenRule = Math.floor(totalDewValue / dewPerGoldenRule);
     return {
         formlessDew: totalDewValue - goldenRule * dewPerGoldenRule,

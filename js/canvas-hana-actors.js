@@ -90,32 +90,11 @@ const hanaActors = (() => {
     }
 
     // ------------------------------------------------------------------ which weapon is in hand
-    // Equipped weapon base → the Hana weapon drawn (the kit has six). First match wins: two-handers and polearms
-    // before one-handed blades ("executioner_blade" is a greatsword), bows and launchers before everything.
-    // Casting weapons (wands, rods, sceptres, staves) show the class's own casting prop — orb, censer or flask.
-    const WEAPON_FAMILIES = [
-        { weapon: 'shortbow', terms: ['bow', 'recurve', 'volley', 'launcher', 'ballista', 'railgun', 'repeater', '활', '궁', '발사', '발리스타', '레일건', '연사'] },
-        { weapon: 'caster', terms: ['wand', 'rod', 'scepter', 'focus', 'staff', '완드', '봉', '홀', '로드', '지팡이', '초점'] },
-        { weapon: 'greatsword', terms: ['greatblade', 'doomcleaver', 'executioner', 'spear', 'pike', 'lance', 'glaive', '대검', '창', '글레이브'] },
-        { weapon: 'scimitar', terms: ['blade', 'fang', 'axe', '검', '송곳', '도끼'] }
-    ];
-    const CASTING_PROPS = ['orb', 'censer', 'flask'];
-    /** The base an equipped weapon was made from (uniques name theirs in UNIQUE_EQUIPMENT_RULES). */
-    function weaponBaseLabel(item) {
-        const rule = typeof UNIQUE_EQUIPMENT_RULES === 'object' && item.name ? UNIQUE_EQUIPMENT_RULES[item.name] : null;
-        return `${item.baseId || (rule && rule.baseId) || ''} ${item.baseName || ''}`.toLowerCase();
-    }
-    function weaponFamily(item) {
-        if (!item) return null;
-        const label = weaponBaseLabel(item);
-        const found = WEAPON_FAMILIES.find(row => row.terms.some(term => label.includes(term)));
-        return found ? found.weapon : null;
-    }
     /**
-     * The weapon a class holds (a weapon slug of data/hana-weapon-combos.js), from the weapon it has equipped:
-     * blades and axes → scimitar, greatswords and polearms → greatsword, bows and launchers → shortbow, casting
-     * weapons → the class's casting prop (orb · censer · flask, orb for the others). Unarmed or unknown: the class
-     * weapon. mode 'class': always the class weapon; a weapon slug: always that weapon (test panel).
+     * The weapon a class holds (a weapon slug of data/hana-weapon-combos.js): the category of the weapon it has
+     * equipped (data/weapon-categories.js, the six category ids are the six drawn weapons), whatever the class.
+     * Unarmed or unknown: the class weapon. mode 'class': always the class weapon; a weapon slug: always that
+     * weapon (test panel).
      * @param {string} classId
      * @param {?object} item the equipped '무기' item
      * @param {string} [mode='auto']
@@ -126,9 +105,8 @@ const hanaActors = (() => {
         if (!own) return null;
         if (table.weapons[mode]) return mode;
         if (mode === 'class') return own;
-        const family = weaponFamily(item);
-        if (family === 'caster') return CASTING_PROPS.includes(own) ? own : 'orb';
-        return family || own;
+        const category = getWeaponCategoryId(item);
+        return category && table.weapons[category] ? category : own;
     }
     /** Clip timing of one class × weapon sheet, in the per-class clip shape (walking plays the run cycle). */
     function comboDef(classId, weapon) {

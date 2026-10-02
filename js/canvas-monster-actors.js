@@ -1,4 +1,4 @@
-// 액트 몬스터 그리기(data/monster-sprites.js): 대기 반복 · 공격 1회를 16도트 칸 격자(도트 = 칸/16)로 찍는다.
+// 액트 몬스터 · 뿌리촉수 · 영역 몬스터 그리기(data/monster-sprites.js): 대기 반복 · 공격 1회를 16도트 칸 격자(도트 = 칸/16)로 찍는다.
 // 공격 클립의 타격 프레임을 실제로 때린 순간(근접 enemyAttack 효과) 또는 투사체가 떠난 순간(원거리 combatTravel 효과)에
 // 맞추고, 공격 게이지 0.8→1 구간에서는 준비 프레임을 보인다. 걷는 동안은 대기를 빠르게 돌리며 한 도트씩 튄다(걷기 그림 없음).
 // 테두리는 주인공처럼 그림 실루엣을 한 도트씩 네 방향으로 찍는다(색 = getEnemyOutlineStyle). 그림만 그린다.
@@ -79,11 +79,13 @@ const monsterActors = (() => {
         if (silhouettes.size > SILHOUETTE_LIMIT) silhouettes.delete(silhouettes.keys().next().value);
         return canvas;
     }
-    /** Where one frame lands: source rect in the sheet and destination box (feet on (x, y)). */
+    /** Where one frame lands: source rect in the sheet and destination box (feet on (x, y)). A sheet may set its own feet,
+     * one pair for every direction or one per direction. */
     function placement(pair, frame, row, p) {
-        const kind = pair.kind, cell = kind.frame, dot = p.tile / 16 * (p.spawnScale || 1);
+        const kind = pair.kind, cell = kind.frame, dot = p.tile / 16 * (p.spawnScale || 1), own = pair.spec.feet;
+        const feet = (own && (own[row] || own)) || kind.feet;
         const src = [frame.index * cell, kind.rows.indexOf(row) * cell, cell, cell];
-        const left = snap(p.x - kind.feet[0] * dot), top = snap(p.y - (kind.feet[1] + frame.bob) * dot);
+        const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
         return { src, left, top, size: cell * dot, dot };
     }
     function stamp(ctx, image, at, dx = 0, dy = 0) {
@@ -107,10 +109,11 @@ const monsterActors = (() => {
         }
         ctx.restore();
     }
-    /** Draws an act monster. p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these (or its sheet failed). */
+    /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId).
+     * p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these (or its sheet failed). */
     function draw(ctx, enemy, p) {
         if (!enemy || !(p.tile > 0) || typeof Image !== 'function') return false;
-        const pair = sheetFor(enemy.spriteVariantId);
+        const pair = sheetFor(enemy.spriteVariantId || enemy.monsterVisualId);
         if (!pair) return false;
         drawPixelShadow(ctx, p.x, p.y + 2, p.tile * (pair === 'loading' ? 0.3 : pair.kind.shadow), p.tile * 0.09, 0.2);
         if (pair === 'loading') return true;

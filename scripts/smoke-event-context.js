@@ -179,7 +179,7 @@ check('boundary completes five encounters once and paid retry survives defeat an
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         game.beyondBoundary.unlocked=true;game.beyondBoundary.selectedIntensityId='etched';
         game.currencies.formlessDew=9;game.actRewardBonuses=[{stat:'strength',value:52}];
-        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
         enterBeyondBoundaryRun();enterBeyondBoundaryRun();`);
     assert.equal(run('game.currencies.formlessDew'), 6);
     const itemId = run("game.equipment['무기'].id");
@@ -227,7 +227,7 @@ check('ocean guardian rewards and oxygen retreat keep progress and equipment acr
     reset(50);
     run(`window.game=game;game.level=100;game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         game.actRewardBonuses=[{stat:'strength',value:52}];
-        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
         enterOceanDive();game.ocean.depthM=500;game.ocean.checkpointM=500;game.oceanBossRunPending=true;
         game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;startEncounterRun();finishEncounterRun();`);
     assert.equal(run('game.ocean.bossClearM'), 500);
@@ -329,7 +329,7 @@ check('ticketed side runs preserve legal equipment across save, defeat and paid 
         reset(50);
         run(`window.game=game;game.level=100;game.settings.showDeathNotice=false;
             game.actRewardBonuses=[{stat:'strength',value:52}];
-            game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+            game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
             game.currencies[${JSON.stringify(currency)}]=2;${entry};${entry};`);
         assert.equal(run(`game.currencies[${JSON.stringify(currency)}]`), 1, 'duplicate entry consumes only one ticket');
         const itemId = run("game.equipment['무기'].id");

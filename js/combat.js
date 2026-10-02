@@ -7428,13 +7428,20 @@ const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
 function emptiedExplorationPack(room) {
     return {key:explorationPackKey(room,null),roomId:room.id,stage:null,waiting:[],aliveIds:[],eliteIds:[]};
 }
+/** A pack's spawn offset (0~99) for the visual seed, so wisps, roots, act monsters and elite traits differ room by room
+ * (a room always gets the same seed). Boss stages keep 0 (their art variant). With 0 everywhere every room of a zone repeated them. */
+function explorationPackSpawnAt(zone,key,stage) {
+    if(stage!==null)return 0;
+    return Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${key}`))%100;
+}
+
 function createActExplorationPack(zone,room,stage,encounter=null) {
-    const key=explorationPackKey(room,stage),waiting=[];
+    const key=explorationPackKey(room,stage),waiting=[],at=explorationPackSpawnAt(zone,key,stage);
     const extra=(zone.packExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
     const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,Math.min(EXPLORATION_PACK_OFFSETS.length,3+extra)) : [[0,0]];
     const elite=room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room);
     offsets.forEach(([dx,dy],index)=>{
-        const marker={at:0,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
+        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);

@@ -38,7 +38,7 @@ salvageContext.Math.random = () => 0.99;
 vm.createContext(salvageContext);
 vm.runInContext(salvageBlock, salvageContext, { filename: 'salvage-economy.js' });
 
-let rewards = salvageContext.salvageItemObject({ rarity: 'magic', name: '매직', stats: [], hiddenTier: 1 }, true);
+let rewards = salvageContext.salvageItemObject({ rarity: 'magic', name: '마법', stats: [], hiddenTier: 1 }, true);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(rewards)), { magicBud: 1 }, 'magic salvage must return the consolidated magic currency');
 
 rewards = salvageContext.salvageItemObject({ rarity: 'rare', name: '레어', stats: [{}, {}, {}, {}, {}, {}], hiddenTier: 20 }, true);
