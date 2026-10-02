@@ -352,7 +352,8 @@ const atlas = (() => {
             fixedSeason: depth - ATLAS.difficulty.loopBehindDepth, equivalentDepth: depth, equivalentChaosDepth: depth,
             mapHpMul: fx.hp * more('monsterLife'), mapDamageMul: fx.damage * more('monsterDamage'),
             bossMods: { hpMul: fx.bossHp * more('bossLife') * boss.hpMul * boost.hp, damageMul: fx.bossDamage * more('bossLife') * boss.damageMul * boost.damage },
-            trialHazard: fx.hazard ? { ...ATLAS.burningGround } : undefined,
+            // 불타는 땅: 불길 웅덩이(옵션 문구 그대로 불 원소로 터진다).
+            ...(fx.hazard ? { trialHazard: { ...ATLAS.burningGround }, trapElements: ['fire'] } : {}),
             atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,

@@ -1455,14 +1455,17 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const frostTargets = [makeEnemy(341, 3, 4), makeEnemy(342, 4, 4), makeEnemy(343, 4, 5),
     makeEnemy(344, 5, 4), makeEnemy(345, 5, 5)].map(enemy => ({ enemy, mult: 1 }));
   const frostBurst = context.buildSkillHitSequence('서리 폭발', context.SKILL_DB['서리 폭발'], frostTargets);
-  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 90, 127, 180, 201],
-    '서리 폭발 피해는 중심에서 파동이 실제 거리에 도달하는 순서로 발생해야 한다');
+  // 2026-10-02: 파동 앞면이 반 칸 넓어질 때마다 한 단계, 몹이 지금 서 있는 곳으로 판정한다(3-1c가 움직이는 몹으로 확인).
+  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 45, 90, 135, 180, 225],
+    '서리 폭발 피해는 중심에서 퍼지는 파동 앞면을 따라 반 칸마다 판정해야 한다');
   assert.ok(frostBurst.every(stage => stage.kind === 'radialBurstWave' && stage.damageMultiplier === 1),
     '서리 파동의 시간차만 추가하고 각 대상의 기존 총 피해는 유지해야 한다');
   assert.ok(frostBurst.every(stage => stage.waveDurationMs === 225),
     '시각 파동과 판정 파동은 반경 끝까지 같은 시간을 사용해야 한다');
-  assert.strictEqual(frostBurst.flatMap(stage => stage.targets).length, frostTargets.length,
-    '시간차 판정으로 기존 범위 대상이 누락되면 안 된다');
+  assert.ok(frostBurst.every(stage => stage.wave === frostBurst[0].wave && stage.targets.length === frostTargets.length),
+    '한 파동의 단계들은 한 파동 상태(맞은 몹)를 함께 쓰고, 시전 때 고른 대상이 누락되면 안 된다');
+  assert.deepStrictEqual([frostBurst[0].wave.reach, frostBurst[0].wave.msPerCell], [2.5, 90],
+    '판정 고리는 그림 고리처럼 0.09초에 한 칸, 반경 끝(2.5칸)까지 넓어진다');
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
 
   const boomerang = context.buildSkillHitSequence('독니 사출', context.SKILL_DB['독니 사출'], targets);
@@ -1570,6 +1573,65 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(target.hp < target.maxHp,
     '지혜의 도약에서 공허를 선택한 후 카오스 주력 스킬이 0 피해를 주면 안 된다');
+}
+
+// ── 3-1c. 서리 폭발: 그려진 고리가 그려진 몹에 닿으면 맞는다(퍼지며 닿는 순서 그대로) ──
+// (2026-10-02 사용자: 쓰자마자 몹이 범위 안에서 움직이면 회피처럼 빗나가는 게 불쾌하다. 이펙트가 닿으면 맞게.)
+{
+  resetGame();
+  context.game.activeSkill = '서리 폭발';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '서리 폭발']));
+  context.game.gemData['서리 폭발'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 0, gy: 4, gridMoveTimer: 0 };
+  const sturdy = { hp: 1000000, maxHp: 1000000, armor: 0, evasion: 0, evasionChance: 0, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0 };
+  // How many times this cast's wave struck a monster (its hit effects), whatever the damage.
+  const hits = enemy => vm.runInContext(`battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === ${enemy.id}).length`, context);
+  /** Run the combat clock to untilMs after the wave starts; the rows due by then resolve. */
+  const advanceWave = untilMs => {
+    context.game.combatTimeMs = context.__waveStart + Math.min(untilMs, 5000);
+    vm.runInContext('processPendingSkillStageHits();', context);
+  };
+  /** Cast at the first monster (the burst's centre), move monsters (they can read __waveStart), then run the wave to untilMs. */
+  const castFrost = (enemies, move, untilMs = Infinity) => {
+    context.game.enemies = enemies;
+    context.game.combatTimeMs = 1000000000000;
+    vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+    const stats = context.getPlayerStats();
+    Object.assign(stats, { minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000, crit: 0 });
+    context.performPlayerAttack(stats);
+    context.__waveStart = vm.runInContext('Math.min(...pendingSkillStageHits.filter(row => row.wave).map(row => row.at))', context);
+    move();
+    advanceWave(untilMs);
+  };
+  const finishWave = () => advanceWave(Infinity);
+
+  const walker = makeEnemy(361, 4, 4, sturdy);
+  castFrost([walker], () => { walker.gx = 5; });
+  assert.ok(walker.hp < walker.maxHp && hits(walker) === 1, '중심의 몹이 범위 안에서 한 칸 움직여도 고리가 닿을 때 정확히 한 번 맞아야 한다');
+  const leaver = makeEnemy(362, 4, 4, sturdy);
+  castFrost([leaver], () => { leaver.gx = 8; });
+  assert.ok(leaver.hp === leaver.maxHp && hits(leaver) === 0, '고리가 닿기 전에 범위를 벗어난 몹은 맞지 않는다');
+
+  const centre = makeEnemy(363, 4, 4, sturdy), near = makeEnemy(364, 5, 4, sturdy), far = makeEnemy(365, 6, 4, sturdy);
+  castFrost([centre, near, far], () => {}, 90);
+  assert.deepStrictEqual([hits(centre), hits(near), hits(far)], [1, 1, 0], '고리는 닿는 순서대로: 0.09초에 한 칸 거리까지, 두 칸 거리는 아직');
+  finishWave();
+  assert.deepStrictEqual([hits(centre), hits(near), hits(far)], [1, 1, 1], '고리가 두 칸 거리에 닿으면 그 몹도 맞고, 한 파동은 한 몹을 한 번만 맞힌다');
+
+  const target = makeEnemy(366, 4, 4, sturdy), comer = makeEnemy(367, 6, 4, sturdy);
+  castFrost([target, comer], () => { comer.gx = 4; comer.gy = 5; }, 90);
+  assert.strictEqual(hits(comer), 1, '바깥쪽에서 중심 쪽으로 들어온 몹은 고리가 지금 위치에 닿을 때 맞는다');
+  finishWave();
+  assert.strictEqual(hits(comer), 1, '그리고 다시 맞지 않는다');
+
+  // Drawn position: it steps from (6,4) to (7,4) at 0.185 s, just after the ring reached (6,4) at 0.18 s. Its cell is out of reach
+  // (three cells), but it was still drawn on (6,4) when the ring touched it, so it is struck; the sampling between ticks finds it.
+  const anchor = makeEnemy(368, 4, 4, sturdy), stepper = makeEnemy(369, 7, 4, sturdy);
+  castFrost([anchor, stepper], () => { Object.assign(stepper, { gridStepFrom: { gx: 6, gy: 4 }, gridStepAt: context.__waveStart + 185 }); });
+  assert.strictEqual(hits(stepper), 1, '고리가 닿은 순간 아직 옛 칸에 그려져 있던 몹은 걸음을 옮긴 뒤에도 맞는다');
+  const runner = makeEnemy(371, 7, 4, sturdy);
+  castFrost([makeEnemy(370, 4, 4, sturdy), runner], () => { Object.assign(runner, { gridStepFrom: { gx: 6, gy: 4 }, gridStepAt: context.__waveStart + 100 }); });
+  assert.strictEqual(hits(runner), 0, '고리가 닿기 전에 걸어 나간 몹은(그림도 이미 밖) 맞지 않는다');
 }
 
 // ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──

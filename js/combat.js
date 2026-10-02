@@ -2173,6 +2173,31 @@ function pickWhirlSpinTargets(row) {
     return [{ enemy: pick.enemy, mult: getGridSkillTargetMult('whirl', struck.length - 1) }];
 }
 
+/** 서리 폭발 · 불멸의 진동 (js/combat-grid.js buildRadialBurstHitSequence): the monsters the drawn ring has touched since the last
+ * check. The ring grows one cell per msPerCell from the wave's start up to its reach; the time since the last check is sampled every
+ * COMBAT_GRID_CONFIG.waveContactSampleMs against where each monster was drawn then (just after a step it glides between its cells).
+ * One wave strikes a monster once, first touched first, up to the skill's targets. Stepping inside the burst no longer dodges it. */
+function pickWaveFrontTargets(row) {
+    const wave = row.wave, now = getCombatTime(), start = row.at - (Number(row.options.stageDelayMs) || 0);
+    const span = { start, from: Math.min(now, Math.max(start, wave.checkedAt ?? start)), now };
+    wave.checkedAt = now;
+    const reached = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0 && !wave.struck.includes(enemy.id))
+        .map(enemy => ({ enemy, touchedAt: waveTouchTime(wave, enemy, span) }))
+        .filter(entry => entry.touchedAt !== null).sort((a, b) => a.touchedAt - b.touchedAt)
+        .slice(0, Math.max(0, wave.limit - wave.struck.length));
+    reached.forEach(entry => wave.struck.push(entry.enemy.id));
+    return reached.map(entry => ({ enemy: entry.enemy, mult: wave.mults[entry.enemy.id] ?? 1 }));
+}
+/** The first sampled moment in span when the ring (radius = time since start / msPerCell, at most reach) touches the drawn enemy. */
+function waveTouchTime(wave, enemy, span) {
+    const step = Math.max(1, COMBAT_GRID_CONFIG.waveContactSampleMs);
+    for (let t = span.from; ; t = Math.min(span.now, t + step)) {
+        const ring = Math.min(wave.reach, Math.max(0, t - span.start) / wave.msPerCell);
+        if (getGridWaveDrawnDistance(wave, enemy, t) <= ring) return t;
+        if (t >= span.now) return null;
+    }
+}
+
 function getPendingSkillImpactTargets(row) {
     if (!row || row.delivery === 'instantTarget' || row.delivery === 'projectileTarget') {
         return (row && row.targetEntries || []).map(entry => {
@@ -2371,7 +2396,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,
             launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
-            contactState: {resolved: false}, whirl: stage.whirl,
+            contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave,
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
@@ -2416,7 +2441,7 @@ function processPendingSkillStageHits() {
     ready.sort((a, b) => a.at - b.at).forEach(row => {
         if (row && row.contactState) row.contactState.resolved = true;
         if (!row || row.zoneId !== game.currentZoneId || !row.pStats) return;
-        let targets = row.whirl ? pickWhirlSpinTargets(row) : getPendingSkillImpactTargets(row);
+        let targets = row.whirl ? pickWhirlSpinTargets(row) : (row.wave ? pickWaveFrontTargets(row) : getPendingSkillImpactTargets(row));
         if (targets.length <= 0) return;
         performPlayerAttack(row.pStats, {
             ...(row.options || {}),
@@ -11756,7 +11781,7 @@ function resolveTrialHazardImpact(zone, pStats, hazard, now) {
         targetCells: hazard.cells,
         color: barrierActive ? '#c49bff' : hazard.color,
         element: hazard.element,
-        duration: 520
+        duration: 760 // eight frames of the trap's art (js/canvas-trial-traps.js): rise, hold, fall back
     });
     if (!playerHit) {
         addBattleFx('statusText', { text: '함정 회피', color: '#b8f5c4', duration: 360 });

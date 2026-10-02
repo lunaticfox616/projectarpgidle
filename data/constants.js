@@ -81,6 +81,8 @@ const COMBAT_GRID_CONFIG = {
     rangedEnemyMaxRange: 5,         // 원거리형 최대 사거리(칸)
     bossAttackRange: 99,            // 보스는 특수 케이스 제외 항상 원거리(사실상 무제한)
     enemyMoveIntervalSec: 0.5,      // 적이 1칸 이동하는 데 걸리는 기본 시간(초)
+    enemyGlideRate: 20,             // 걸음 뒤 그림이 새 칸으로 다가가는 비율(초당, js/canvas-battlefield.js). 파동 판정도 같은 값으로 그려진 위치를 셈
+    waveContactSampleMs: 10,        // 파동 판정이 두 전투 틱 사이를 훑는 간격(밀리초): 그 사이에 고리가 스친 몹도 맞는다
     playerMoveIntervalSec: 0.6,     // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준 — 이속 스탯에 반비례)
     summonMoveIntervalSec: 0.4,     // 소환수 1칸 이동 시간(초)
     chainJumpRange: 2,              // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)

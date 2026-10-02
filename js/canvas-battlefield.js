@@ -1114,6 +1114,7 @@ function isGroundSkillCast(fx) {
 function drawBattleGroundLayer(ctx, effects, view) {
     drawRiftPlayerRing(ctx, view.gridProj, view.playerPos);
     sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
+    trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
     fxRemake.begin(ctx, view.gridProj);
     worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
     worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
@@ -1303,6 +1304,8 @@ function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
 function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
     if (fx.type === 'bossAreaImpact') return drawBossPatternArea(ctx, fx.footprint, gridProj, (1 - progress) * 5);
     if (!gridProj || !Array.isArray(fx.targetCells)) return;
+    // 원소마다 바닥에서 솟는 실체(js/canvas-trial-traps.js; 바닥 부분은 drawBattleGroundLayer가 인물 아래에 그렸다).
+    if (trialTrapArt.drawRise(ctx, fx, progress, gridProj, warning)) return;
     let halfW = gridProj.tileW / 2;
     let halfH = gridProj.tileH / 2;
     let pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
@@ -2339,8 +2342,9 @@ function renderBattlefield(forceWhenHidden) {
             smooth = { x: entry.x, y: entry.y };
             battleVisualState.enemySmoothPos[entry.enemy.id] = smooth;
         } else {
-            smooth.x = approachNumber(smooth.x, entry.x, 20.0, deltaSec);
-            smooth.y = approachNumber(smooth.y, entry.y, 20.0, deltaSec);
+            // The wave judgement (js/combat.js pickWaveFrontTargets) counts with the same glide to know where a monster is drawn.
+            smooth.x = approachNumber(smooth.x, entry.x, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
+            smooth.y = approachNumber(smooth.y, entry.y, COMBAT_GRID_CONFIG.enemyGlideRate, deltaSec);
         }
         const movingDistance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
         if (movingDistance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }

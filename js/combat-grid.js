@@ -329,9 +329,16 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
+    let from = { gx: unit.gx, gy: unit.gy };
     let moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
     unit.gridMoveTimer = moved ? 0 : interval;
+    markGridStep(unit, from, moved);
     return moved;
+}
+
+/** A unit that stepped remembers the cell it left and when: the drawn unit glides between the two for a moment (getGridUnitDrawnDelta). */
+function markGridStep(unit, from, moved) {
+    if (moved) Object.assign(unit, { gridStepFrom: from, gridStepAt: getCombatTime() });
 }
 
 function beginExplorationGridStep(target,interval) {
@@ -393,6 +400,7 @@ function advanceGridHazardEscape(unit, hazardCells, dtSec, intervalSec) {
     unit.gx = route.next.gx;
     unit.gy = route.next.gy;
     unit.gridMoveTimer = 0;
+    markGridStep(unit, from, true);
     return {
         moved: true,
         safe: route.distance === 1,
@@ -433,6 +441,7 @@ function advanceGridTacticalMovement(unit, target, options) {
     const moved = !!cell;
     if (cell) Object.assign(unit,cell);
     unit.gridMoveTimer = moved ? 0 : interval;
+    markGridStep(unit, from, moved);
     return { moved, from, to: { gx: unit.gx, gy: unit.gy }, retreat: moved && config.direction === 'away' };
 }
 
@@ -793,24 +802,24 @@ function getGridUnitDistanceFromCell(origin, unit) {
         Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
 }
 
-function buildRadialBurstHitSequence(skillName, skill, targets, attacker, primary) {
-    if (!attacker || !primary) return null;
+/** 서리 폭발 · 불멸의 진동: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
+ * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
+ * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,
+ * so a monster that stepped to another cell inside the burst right after the cast was missed as if it had dodged (2026-10-02).
+ * @param {{attacker:object, primary:object, impactCells:Array<{gx:number,gy:number}>}} area */
+function buildRadialBurstHitSequence(skillName, skill, targets, area) {
+    if (!area.attacker || !area.primary) return null;
     let gridProfile = getSkillGridProfile(skillName, skill);
-    let center = gridProfile.kind === 'nova' ? { ...attacker } : getClosestGridUnitCell(attacker, primary);
+    let center = gridProfile.kind === 'nova' ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
     let radius = Math.max(1, Number(gridProfile && gridProfile.radius) || 1);
     let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90));
-    let waveDurationMs = Math.round((gridProfile.shape === 'circle' ? radius + 0.5 : radius) * msPerCell);
-    let groups = new Map();
-    targets.forEach(entry => {
-        let distance = getGridWaveDistance(center, entry.enemy, gridProfile.shape);
-        let delayMs = Math.round(distance * msPerCell);
-        if (!groups.has(delayMs)) groups.set(delayMs, []);
-        groups.get(delayMs).push(entry);
-    });
-    return Array.from(groups.entries()).sort((a, b) => a[0] - b[0]).map(([delayMs, rows], index) => ({
-        kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`,
-        delayMs, damageMultiplier: 1, singleRepeat: true,
-        aimCell: center, waveDurationMs, targets: rows
+    let reach = gridProfile.shape === 'circle' ? radius + 0.5 : radius, waveDurationMs = Math.round(reach * msPerCell);
+    let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null,
+        limit: Math.max(1, Number(skill.targets) || targets.length), mults: Object.fromEntries(targets.map(entry => [entry.enemy.id, entry.mult])) };
+    let checks = Array.from({ length: Math.round(reach * 2) + 1 }, (_, step) => step / 2);
+    return checks.map((front, index) => ({
+        kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`, delayMs: Math.round(front * msPerCell), damageMultiplier: 1,
+        singleRepeat: true, aimCell: center, waveDurationMs, targets, wave, impactCells: area.impactCells
     }));
 }
 
@@ -826,10 +835,22 @@ function buildEarthSpikeHitSequence(skill, targets, primary, impactCells) {
     ];
 }
 
-/** Wavefront timing follows the same diamond/circular metric as its drawn expansion. */
-function getGridWaveDistance(center, unit, shape) {
-    if (shape !== 'diamond') return getGridUnitDistanceFromCell(center, unit);
-    return Math.min(...getGridUnitCells(unit).map(cell => Math.abs(cell.gx-center.gx)+Math.abs(cell.gy-center.gy)));
+/** How far the drawn unit still trails its cell at time t (combat ms): the renderer glides it from the cell it left
+ * (js/canvas-battlefield.js approachNumber at COMBAT_GRID_CONFIG.enemyGlideRate), so just after a step it stands between the two. */
+function getGridUnitDrawnDelta(unit, t) {
+    const from = unit.gridStepFrom, at = Number(unit.gridStepAt);
+    if (!from || !Number.isFinite(at)) return { dx: 0, dy: 0 };
+    const lag = Math.exp(-COMBAT_GRID_CONFIG.enemyGlideRate * Math.max(0, t - at) / 1000);
+    return { dx: (from.gx - unit.gx) * lag, dy: (from.gy - unit.gy) * lag };
+}
+
+/** The wave's distance to the drawn unit at time t, in the drawn ring's metric (circle or diamond), to its nearest cell. */
+function getGridWaveDrawnDistance(wave, unit, t) {
+    const delta = getGridUnitDrawnDelta(unit, t);
+    return Math.min(...getGridUnitCells(unit).map(cell => {
+        const x = cell.gx + delta.dx - wave.center.gx, y = cell.gy + delta.dy - wave.center.gy;
+        return wave.shape === 'diamond' ? Math.abs(x) + Math.abs(y) : Math.hypot(x, y);
+    }));
 }
 
 /** Authored phases share one frozen aim; each phase owns its collision and visual geometry.
@@ -880,7 +901,7 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
         ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
     if (pattern.kind === 'earthSpikes') return buildEarthSpikeHitSequence(skill, targets, primary, impactCells);
     if (pattern.kind === 'radialBurst') {
-        return buildRadialBurstHitSequence(skillName, skill, targets, attacker, primary);
+        return buildRadialBurstHitSequence(skillName, skill, targets, { attacker, primary, impactCells });
     }
     if (pattern.kind === 'meteor') return buildMeteorSkillHitSequence(pattern, impactCells, targets);
     if (pattern.kind === 'field') {
