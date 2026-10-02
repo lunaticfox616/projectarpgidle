@@ -9799,7 +9799,7 @@ function renderTimeRiftPanel() {
 function sporeModeDialogBody(modeOptions, cur, sporeCost, advancedSpores) {
     let buttons = modeOptions.map(opt => `<button type="button" class="selection-overlay-option${cur === opt.id ? ' selected' : ''}" data-spore-mode="${opt.id}">${opt.label}${cur === opt.id ? ' ✓' : ''}</button>`).join('');
     return `<div class="selection-overlay-help">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 ‘해금’의 고급 홀씨가 엽니다.'}</div>`
-        + `<div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`
+        + `<div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0}, 냉기 ${game.currencies.sporeCold || 0}, 번개 ${game.currencies.sporeLight || 0}</div>`
         + `<div class="selection-overlay-grid spore-mode-grid">${buttons}</div>`;
 }
 

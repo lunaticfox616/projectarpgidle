@@ -34,7 +34,7 @@ const coreItemsUi = (() => {
                <button type="button" class="core-item-discard" onclick="coreItemsUi.discard(${core.id})">버리기</button>`;
         return `<article class="core-item-card${equipped ? ' is-equipped' : ''}">
             <img src="${coreItems.icon(core)}" alt="" aria-hidden="true">
-            <div><strong>${escapeHTML(core.name)}${equipped ? ' · 장착 중' : ''}</strong>${linesHtml(core)}</div>
+            <div><strong>${escapeHTML(core.name)}${equipped ? ' (장착 중)' : ''}</strong>${linesHtml(core)}</div>
             <div class="core-item-actions">${actions}</div>
         </article>`;
     }

@@ -27,7 +27,7 @@ const chaosInfusionUi = (() => {
         if (!infusion) return '<p class="chaos-infusion-current">현재 주입 없음</p>';
         const range = `${formatValue(infusion.id, infusion.valMin)}~${formatValue(infusion.id, infusion.valMax)}`;
         return `<p class="chaos-infusion-current">현재 주입: <strong>${infusionText(infusion)}</strong> <small>(${range})</small>
-            <button type="button" onclick="chaosInfusionUi.remove()" ${(game.currencies.blightSpore || 0) > 0 ? '' : 'disabled'}>제거 · 마름병 포자 1</button></p>`;
+            <button type="button" onclick="chaosInfusionUi.remove()" ${(game.currencies.blightSpore || 0) > 0 ? '' : 'disabled'}>제거 (마름병 포자 1)</button></p>`;
     }
 
     function optionHtml(item, option) {
@@ -52,7 +52,7 @@ const chaosInfusionUi = (() => {
         const item = getSelectedCraftItem();
         if (!item) return close();
         selectionDialog.show({ id: OVERLAY_ID, title: '혼돈 주입', panelClass: 'chaos-infusion-panel', body: `<div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}</strong><br>
-                희귀 장비에 T5급 범위 옵션 한 줄을 더합니다. 추가 옵션 ${getItemExplicitOptionCount(item)}/6 · 교체와 제거에는 마름병 포자 1개가 더 듭니다.</div>
+                희귀 장비에 T5급 범위 옵션 한 줄을 더합니다. 추가 옵션 ${getItemExplicitOptionCount(item)}/6. 교체와 제거에는 마름병 포자 1개가 더 듭니다.</div>
             ${currentHtml(item)}${optionsHtml(item)}` });
     }
 

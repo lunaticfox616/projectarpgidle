@@ -52,9 +52,9 @@ const equipmentSocketsUi = (() => {
             ${row.jewel ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">빼기</button>` : ''}</div>`).join('');
         const chisels = game.currencies.voidChisel || 0;
         const chisel = equipmentSockets.canChisel(item)
-            ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>공허의 끌로 소켓 뚫기 · 보유 ${chisels}</button>` : '';
+            ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>공허의 끌로 소켓 뚫기 (보유 ${chisels})</button>` : '';
         const bonus = Math.round((getSocketJewelMultiplier() - 1) * 100);
-        const bonusNote = bonus > 0 ? `<p class="selection-overlay-help">소켓 주얼 옵션 +${bonus}% (심연 군주 · 재물욕)</p>` : '';
+        const bonusNote = bonus > 0 ? `<p class="selection-overlay-help">소켓 주얼 옵션 +${bonus}% (심연 군주, 재물욕)</p>` : '';
         return `${rows || '<p class="selection-overlay-help">이 장비에는 아직 소켓이 없습니다.</p>'}${chisel}${bonusNote}`;
     }
 
@@ -73,7 +73,7 @@ const equipmentSocketsUi = (() => {
         const shards = game.currencies.jewelShard || 0;
         const expand = isMarketUnlocked() ? expandHtml() : '';
         return `<div class="selection-overlay-section-title">주얼 보관함 ${store.length}/${getJewelInventoryLimit()}</div>
-            <div class="socket-jewel-list">${cards || '<p class="selection-overlay-help">보관 중인 주얼이 없습니다. 정예 · 보스가 가끔 떨어뜨립니다.</p>'}</div>
+            <div class="socket-jewel-list">${cards || '<p class="selection-overlay-help">보관 중인 주얼이 없습니다. 정예와 보스가 가끔 떨어뜨립니다.</p>'}</div>
             <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 (결정 ${REFINE_COST})</button>${expand}</div>`;
     }
 
@@ -81,8 +81,8 @@ const equipmentSocketsUi = (() => {
     function render() {
         const item = mode === 'item' ? getSelectedCraftItem() : null;
         if (mode === 'item' && !item) return close();
-        const title = item ? `소켓 · [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}` : '주얼 보관함';
-        selectionDialog.show({ id: OVERLAY_ID, title, panelClass: 'equipment-socket-panel', body: `${item ? socketsHtml(item) : '<p class="selection-overlay-help">주얼은 장비의 소켓에 끼웁니다. 장비를 선택해 [소켓]을 누르세요. 반지 · 목걸이 · 허리띠에는 소켓이 처음부터 있습니다.</p>'}
+        const title = item ? `소켓: [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}` : '주얼 보관함';
+        selectionDialog.show({ id: OVERLAY_ID, title, panelClass: 'equipment-socket-panel', body: `${item ? socketsHtml(item) : '<p class="selection-overlay-help">주얼은 장비의 소켓에 끼웁니다. 장비를 선택해 [소켓]을 누르세요. 반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.</p>'}
             ${storeHtml(item)}` });
     }
 
