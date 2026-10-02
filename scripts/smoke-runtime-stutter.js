@@ -143,6 +143,8 @@ async function exerciseCloudUpload() {
     canPersistLocalSave() { return true; },
     getLocalSaveStatus() { return { message: '' }; },
     fetchCloudSaveRecord: async () => null,
+    fetchCloudSaveSummary: async () => null,
+    cloudSaveFingerprint(saveData) { return saveContext.cloudSaveFingerprint(saveData); },
     shouldBlockLocalPushForRemoteLoop() { return { blocked: false }; },
     persistLocalSave() { localPersistCalls += 1; return true; },
     createCloudSaveRequestBody(userId, sourceGame) { return saveContext.createCloudSaveRequestBody(userId, sourceGame); },

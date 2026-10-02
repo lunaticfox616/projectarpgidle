@@ -12684,6 +12684,44 @@ async function fetchLatestCloudSaveRow(userId, select) {
     })[0] || null;
 }
 
+/** What every server read leaves behind: revision, update time and the remote loop for the guards and the cloud panel. */
+function rememberCloudRecord(record) {
+    cloudState.isLoaded = true;
+    cloudState.lastRemoteCheckedAt = Date.now();
+    if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
+    cloudState.lastRemoteRevision = record ? Math.max(0, Math.floor(Number(record.revision) || 0)) : 0;
+    if (record && record.save_data) updateRemoteLoopFromRecord(record);
+    updateCloudSaveUI();
+    return record;
+}
+
+// 업로드 전 확인은 세이브에서 루프, 초기화 번호, 저장 시각만 읽는다. 그 값만 받고(세이브 전체는 수백 KB), 전체는 불러올 때만 받는다.
+const CLOUD_SAVE_SUMMARY_FIELDS = 'season:save_data->season,loopCount:save_data->loopCount,saveMeta:save_data->saveMeta';
+
+/** A summary row as a record whose save_data holds only season, loopCount and saveMeta. A full row passes through. */
+function cloudSummaryRecord(row) {
+    if (!row || row.save_data !== undefined) return row;
+    let empty = row.season == null && row.loopCount == null && row.saveMeta == null;
+    return { user_id: row.user_id, updated_at: row.updated_at, revision: row.revision, summaryOnly: true,
+        save_data: empty ? null : { season: row.season, loopCount: row.loopCount, saveMeta: row.saveMeta || {} } };
+}
+
+/** The upload checks' read: a few hundred bytes instead of the whole save. Any doubt (old schema, odd row) reads the full save. */
+async function fetchCloudSaveSummary() {
+    if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    let row;
+    try {
+        row = await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
+    } catch (error) {
+        console.warn('cloud summary read failed, reading the full save:', error);
+        return await fetchCloudSaveRecord();
+    }
+    let record = cloudSummaryRecord(row);
+    if (row && !record.save_data) return await fetchCloudSaveRecord();
+    cloudState.revisionSupported = true;
+    return rememberCloudRecord(record);
+}
+
 async function fetchCloudSaveRecord() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
     try {
@@ -12698,13 +12736,7 @@ async function fetchCloudSaveRecord() {
             record = await fetchLatestCloudSaveRow(userId, 'user_id,save_data,updated_at');
             if (record) record.revision = 0;
         }
-        cloudState.isLoaded = true;
-        cloudState.lastRemoteCheckedAt = Date.now();
-        if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
-        cloudState.lastRemoteRevision = record ? Math.max(0, Math.floor(Number(record.revision) || 0)) : 0;
-        if (record && record.save_data) updateRemoteLoopFromRecord(record);
-        updateCloudSaveUI();
-        return record;
+        return rememberCloudRecord(record);
     } catch (error) {
         cloudState.isLoaded = false;
         updateCloudSaveUI();
@@ -12805,14 +12837,15 @@ function shouldPreferRemoteOverBootstrapLocal(record) {
 }
 
 async function guardAgainstStaleLocalOverwrite(options = {}) {
-    let record = await fetchCloudSaveRecord();
+    let record = await fetchCloudSaveSummary();
     if (!record || !record.save_data) return { record, status: 'no-remote' };
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
     let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
     if (loopGuard.blocked) {
-        applyExternalSave(record.save_data, remoteStamp);
+        record = await readFullCloudSaveForPull();
+        applyExternalSave(record.save_data, getRemoteSaveStamp(record));
         setCloudMessage(loopGuard.message);
         if (!options.silentLog) addLog(loopGuard.message, 'loot-magic');
         return { record, status: 'pulled-remote-higher-loop' };
@@ -12821,12 +12854,20 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
         return { record, status: 'safe-to-push-higher-loop' };
     }
     if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
-        applyExternalSave(record.save_data, remoteStamp);
+        record = await readFullCloudSaveForPull();
+        applyExternalSave(record.save_data, getRemoteSaveStamp(record));
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
         if (!options.silentLog) addLog('클라우드가 더 최신이라 자동으로 불러왔습니다.', 'loot-magic');
         return { record, status: 'pulled-remote' };
     }
     return { record, status: 'safe-to-push' };
+}
+
+/** The summary decided to pull: read the whole save once (a summary is never applied). */
+async function readFullCloudSaveForPull() {
+    let record = await fetchCloudSaveRecord();
+    if (!record || !record.save_data) throw new Error('서버 저장을 다시 읽지 못해 불러오기를 멈췄습니다. 잠시 뒤 다시 확인합니다.');
+    return record;
 }
 
 async function commitCloudSavePayload(payload, legacyBody, options = {}) {
@@ -12856,6 +12897,14 @@ async function commitCloudSavePayload(payload, legacyBody, options = {}) {
     };
 }
 
+/** After a commit the server matches this device: its time, loop and content print (the next unchanged auto upload is skipped). */
+function rememberCloudUpload(saveData, syncedAt) {
+    cloudState.lastRemoteUpdatedAt = syncedAt;
+    cloudState.lastRemoteLoop = getSaveLoopNumber(game);
+    cloudState.lastCloudCommitAt = Date.now();
+    cloudState.lastUploadedFingerprint = cloudSaveFingerprint(saveData);
+}
+
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) {
@@ -12865,7 +12914,7 @@ async function pushCloudSave(options = {}) {
     let t0 = Date.now();
     let remoteRecord = null;
     try {
-        remoteRecord = await fetchCloudSaveRecord();
+        remoteRecord = await fetchCloudSaveSummary();
     } catch (loadError) {
         console.warn('cloud push preflight remote load failed:', loadError);
         throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
@@ -12903,8 +12952,7 @@ async function pushCloudSave(options = {}) {
         cloudState.lastRemoteRevision = getLocalCloudRevision();
     }
     game.saveMeta.lastCloudSyncAt = syncedAt;
-    cloudState.lastRemoteUpdatedAt = syncedAt;
-    cloudState.lastRemoteLoop = getSaveLoopNumber(game);
+    rememberCloudUpload(request.save_data, syncedAt);
     persistLocalSave({ touchModifiedAt: false });
     let fetchMs = Math.max(0, tFetch - t0);
     let serializeMs = Math.max(0, tSerialize - tFetch);
@@ -13066,8 +13114,19 @@ function isCloudSaveDirty() {
     let syncedStamp = Math.max(0, Number(cloudState.lastSyncedLocalModifiedAt || 0));
     return localStamp > syncedStamp;
 }
+/** Only clocks moved since the last upload: an upload would change nothing on the server. */
+function isCloudSaveUnchangedSinceUpload() {
+    return !!cloudState.lastUploadedFingerprint && cloudSaveFingerprint(createCloudSaveState(game)) === cloudState.lastUploadedFingerprint;
+}
+
+function markCloudSaveUnchanged() {
+    cloudState.lastSyncAttemptAt = Date.now();
+    cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0));
+}
+
 function scheduleCloudAutoSync() {
-    if (!cloudState.configured || !cloudState.user || cloudState.busy || isStartupOverlayOpen()) return;
+    // 숨겨진 화면에서는 게임이 멈춰 있어 올릴 것이 없다(숨겨지는 순간의 업로드는 pushCloudSaveOnPageExit가 한다).
+    if (!cloudState.configured || !cloudState.user || cloudState.busy || isStartupOverlayOpen() || document.hidden) return;
     if (!isCloudSaveDirty()) {
         cloudState.pendingAutoSyncDirty = false;
         return;
@@ -13078,8 +13137,9 @@ function scheduleCloudAutoSync() {
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(() => {
         cloudSyncTimer = null;
-        if (!cloudState.pendingAutoSyncDirty || !isCloudSaveDirty()) return;
+        if (!cloudState.pendingAutoSyncDirty || !isCloudSaveDirty() || document.hidden) return;
         cloudState.pendingAutoSyncDirty = false;
+        if (isCloudSaveUnchangedSinceUpload()) return markCloudSaveUnchanged();
         syncCloudSave({ automatic: true }).catch(error => {
             console.warn('auto cloud sync failed:', error);
             setCloudMessage('자동 클라우드 저장 실패: ' + (error.message || error));
@@ -13367,7 +13427,7 @@ function requestImmediateCloudSave(reason) {
 }
 
 
-function applyPageExitCloudSaveResult(text, exitSave) {
+function applyPageExitCloudSaveResult(text, exitSave, fingerprint) {
     if (cloudState.busy || game !== exitSave || !text) return;
     let result = JSON.parse(text);
     result = Array.isArray(result) ? result[0] : result;
@@ -13377,7 +13437,55 @@ function applyPageExitCloudSaveResult(text, exitSave) {
     game.saveMeta.lastCloudSyncAt = result.saved_at ? (new Date(result.saved_at).getTime() || Date.now()) : Date.now();
     cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
     cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+    cloudState.lastCloudCommitAt = Date.now();
+    cloudState.lastUploadedFingerprint = fingerprint;
     persistLocalSave({ touchModifiedAt: false });
+}
+
+/** Body, headers and endpoint of the page-exit upload (the same RPC as a normal sync), with the content print. */
+function buildPageExitCloudRequest(config) {
+    let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
+    let revisionEnabled = cloudState.revisionSupported === true;
+    let body = JSON.stringify(revisionEnabled
+        ? { expected_revision: getLocalCloudRevision(), next_save_data: payload }
+        : { user_id: cloudState.user.id, save_data: payload });
+    let headers = {
+        apikey: config.supabaseAnonKey,
+        Authorization: `Bearer ${cloudState.session.access_token}`,
+        'Content-Type': 'application/json',
+        Prefer: revisionEnabled ? 'return=representation' : 'resolution=merge-duplicates,return=minimal'
+    };
+    let endpoint = config.supabaseUrl + (revisionEnabled ? '/rest/v1/rpc/commit_cloud_save' : '/rest/v1/cloud_saves');
+    return { body, headers, endpoint, revisionEnabled, fingerprint: cloudSaveFingerprint(createCloudSaveState(game)) };
+}
+
+/** Uploaded a moment ago, or only clocks moved since the last upload: switching apps back and forth uploads once. */
+function isPageExitCloudPushRedundant(fingerprint) {
+    return fingerprint === cloudState.lastUploadedFingerprint || Date.now() - (cloudState.lastCloudCommitAt || 0) < CLOUD_EXIT_UPLOAD_MIN_GAP_MS;
+}
+
+/** Browsers refuse keepalive bodies over 64 KiB (most saves). A bigger save goes as a normal request: when the page is
+ * only hidden (switching tabs or apps) it still finishes. sendBeacon cannot carry the Supabase auth headers. */
+function sendPageExitCloudSave(request, reason, exitSave) {
+    fetch(request.endpoint, {
+        method: 'POST',
+        headers: request.headers,
+        body: request.body,
+        keepalive: new Blob([request.body]).size <= CLOUD_KEEPALIVE_BODY_LIMIT
+    }).then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+    }).then(text => {
+        if (request.revisionEnabled) applyPageExitCloudSaveResult(text, exitSave, request.fingerprint);
+    }).catch(error => {
+        let msg = String((error && error.message) || error || '');
+        let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
+        if (expectedAbort && reason === 'visibilitychange') {
+            console.debug(`cloud save on ${reason} skipped by browser lifecycle:`, error);
+        } else {
+            console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
+        }
+    });
 }
 
 function pushCloudSaveOnPageExit(reason) {
@@ -13404,39 +13512,9 @@ function pushCloudSaveOnPageExit(reason) {
         markCurrentSaveCloudOwner();
         if (!persistLocalSave({ touchModifiedAt: true })) return false;
         ensureSaveMeta();
-        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-        let revisionEnabled = cloudState.revisionSupported === true;
-        let body = JSON.stringify(revisionEnabled
-            ? { expected_revision: getLocalCloudRevision(), next_save_data: payload }
-            : { user_id: cloudState.user.id, save_data: payload });
-        let headers = {
-            apikey: config.supabaseAnonKey,
-            Authorization: `Bearer ${cloudState.session.access_token}`,
-            'Content-Type': 'application/json',
-            Prefer: revisionEnabled ? 'return=representation' : 'resolution=merge-duplicates,return=minimal'
-        };
-        let endpoint = config.supabaseUrl + (revisionEnabled ? '/rest/v1/rpc/commit_cloud_save' : '/rest/v1/cloud_saves');
-        // NOTE: sendBeacon cannot attach Authorization/apikey headers required by Supabase RLS.
-        // Always use authenticated keepalive fetch on exit path to avoid silent unauthenticated drops.
-        fetch(endpoint, {
-            method: 'POST',
-            headers,
-            body,
-            keepalive: true
-        }).then(response => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.text();
-        }).then(text => {
-            if (revisionEnabled) applyPageExitCloudSaveResult(text, exitSave);
-        }).catch(error => {
-            let msg = String((error && error.message) || error || '');
-            let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
-            if (expectedAbort && reason === 'visibilitychange') {
-                console.debug(`cloud save on ${reason} skipped by browser lifecycle:`, error);
-            } else {
-                console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
-            }
-        });
+        let request = buildPageExitCloudRequest(config);
+        if (isPageExitCloudPushRedundant(request.fingerprint)) return false;
+        sendPageExitCloudSave(request, reason, exitSave);
         lastPageExitCloudPushAt = exitPushStartedAt;
         cloudState.lastSyncAttemptAt = exitPushStartedAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');

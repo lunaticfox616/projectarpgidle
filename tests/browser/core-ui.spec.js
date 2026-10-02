@@ -561,3 +561,55 @@ test('on phones a selection dialog covers the bottom menu', async ({ page }, tes
     await expect(page.locator('#tab-items')).toHaveClass(/active/);
     expect(failures).toEqual([]);
 });
+
+// 클라우드 부담 줄이기(2026-10-03, Supabase 무료 플랜의 전송량): 업로드 전 확인은 세이브 요약만 받는다. 전에는 자동 업로드
+// 한 번마다 세이브 전체를 두 번 내려받았다. 64KiB를 넘는 세이브도 화면이 숨겨지는 순간 올라간다(전에는 keepalive라 브라우저가 막았다).
+test('cloud sync reads only a save summary before uploading, and a big save still uploads when the page hides', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await page.route('**/cloud-save-config.js*', route => route.fulfill({
+        contentType: 'text/javascript',
+        body: "window.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://traffic-test.invalid', supabaseAnonKey: 'test-only' };"
+    }));
+    const reads = [];
+    const commits = [];
+    let revision = 2;
+    await page.route('https://traffic-test.invalid/**', async route => {
+        const request = route.request();
+        const url = decodeURIComponent(request.url());
+        if (request.method() === 'GET' && url.includes('/cloud_saves?')) {
+            reads.push(url);
+            const row = { user_id: 'traffic-account', updated_at: '2026-10-01T00:00:00Z', revision };
+            const save = { season: 1, loopCount: 0, saveMeta: { cloudRevision: revision } };
+            return route.fulfill({ json: [url.includes('save_data->') ? { ...row, ...save } : { ...row, save_data: save }] });
+        }
+        if (url.endsWith('/rpc/commit_cloud_save')) {
+            commits.push(Buffer.byteLength(request.postData() || ''));
+            revision += 1;
+            return route.fulfill({ json: [{ committed: true, current_revision: revision, saved_at: new Date().toISOString() }] });
+        }
+        return route.fulfill({ json: [] });
+    });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        cloudState.configured = true;
+        applyCloudSession({ access_token: 'traffic-token', refresh_token: 'traffic-refresh', expires_at: 4102444800,
+            user: { id: 'traffic-account', email: 'traffic@example.invalid' } });
+        game.saveMeta.cloudUserId = 'traffic-account';
+        game.saveMeta.cloudRevision = 2;
+        game.level = Math.max(game.level, 5);
+        saveGame({ skipCloudSync: true });
+    });
+    await page.evaluate(() => syncCloudSave({ automatic: true }));
+    await expect.poll(() => commits.length).toBe(1);
+    expect(reads.length).toBeGreaterThan(0);
+    expect(reads.filter(url => /[=,]save_data(?=[,&]|$)/.test(url)), 'no read before an upload selects the whole save').toEqual([]);
+
+    await page.evaluate(() => {
+        game.records = { ...(game.records || {}), trafficPad: 'x'.repeat(90000) };
+        cloudState.lastCloudCommitAt = 0;
+        return pushCloudSaveOnPageExit('visibilitychange');
+    });
+    await expect.poll(() => commits.length).toBe(2);
+    expect(commits[1]).toBeGreaterThan(64 * 1024);
+    expect(failures).toEqual([]);
+});

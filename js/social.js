@@ -449,7 +449,7 @@ async function sendPresenceHeartbeat() {
 function ensureHeartbeat() {
     if (!socialCloudReady() || !getMyNickname()) return;
     if (socialState.heartbeatTimer) return;
-    socialState.heartbeatTimer = setInterval(() => { if (socialCloudReady() && getMyNickname()) sendPresenceHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
+    socialState.heartbeatTimer = setInterval(() => { if (socialCloudReady() && getMyNickname() && !isSocialPageHidden()) sendPresenceHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
     sendPresenceHeartbeat();
 }
 function stopHeartbeat() {
@@ -603,9 +603,18 @@ function syncSocialChatNotificationSetting() {
     Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification setting sync failed:', error));
 }
 
+/** Polls rest while the page is hidden: nobody sees the chat dot or the online list there, and each poll is a server request. */
+function isSocialPageHidden() {
+    return typeof document !== 'undefined' && document.hidden === true;
+}
+
+function pollSocialChatNotification() {
+    if (!isSocialPageHidden()) return checkSocialChatNotification();
+}
+
 function ensureSocialNotificationPolling() {
     if (!socialCloudReady() || socialState.bgNotificationTimer) return;
-    socialState.bgNotificationTimer = setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
+    socialState.bgNotificationTimer = setInterval(pollSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
     Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
 }
 
@@ -936,11 +945,11 @@ function startChatPolling() {
     refreshOnlineUsers();
     socialState.chatPollTimer = setInterval(() => {
         if (!isSocialTabActive()) { stopChatPolling(); return; }
-        refreshChatPanel(false);
+        if (!isSocialPageHidden()) refreshChatPanel(false);
     }, SOCIAL_CHAT_POLL_MS);
     socialState.onlinePollTimer = setInterval(() => {
         if (!isSocialTabActive()) { stopChatPolling(); return; }
-        refreshOnlineUsers();
+        if (!isSocialPageHidden()) refreshOnlineUsers();
     }, SOCIAL_ONLINE_POLL_MS);
 }
 function stopChatPolling() {

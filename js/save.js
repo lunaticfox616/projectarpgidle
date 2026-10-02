@@ -170,6 +170,16 @@ function createCloudSaveRequestBody(userId, sourceGame) {
     return JSON.stringify({ user_id: userId, save_data: payload });
 }
 
+/** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
+ * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
+function cloudSaveFingerprint(saveData) {
+    const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
+    const text = JSON.stringify({ ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall });
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+    return `${text.length}:${hash >>> 0}`;
+}
+
 function sanitizeForSave(value, seen = new WeakSet()) {
     if (value === null || value === undefined) return value;
     if (typeof value === 'function' || typeof value === 'symbol') return undefined;
