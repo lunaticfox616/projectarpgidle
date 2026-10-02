@@ -74,11 +74,12 @@ const atlas = (() => {
         if (completed(state, id)) return 'complete';
         const node = BY_ID.get(id);
         if (node && node.kind === 'pinnacle') return hasTickets(state) ? 'open' : 'locked';
-        return node && (node.tier === 1 || NEIGHBOURS.get(id).some(other => completed(state, other))) ? 'open' : 'locked';
+        return node && (node.tier === 1 || (NEIGHBOURS.get(id) || []).some(other => completed(state, other))) ? 'open' : 'locked';
     }
     const reachable = (state, id) => status(state, id) !== 'locked';
     const points = state => state.atlas.completed.length + state.atlas.bonus.length + atlasEpoch.points(state);
-    const bestTier = state => Math.max(0, ...state.atlas.completed.map(id => effectiveTier(state, BY_ID.get(id))));
+    /** The highest completed graph node (late fights do not raise the next loop's starter maps). */
+    const bestTier = state => Math.max(0, ...state.atlas.completed.map(id => BY_ID.get(id)).filter(node => NODES.includes(node)).map(node => effectiveTier(state, node)));
 
     /** The highest reachable map tier at or below `tier`, a random node of it (guardians drop by their own rule). Seeds lift
      * every node, so below the lowest reachable tier the drop takes that lowest tier (the way back in never comes up empty). */
@@ -430,7 +431,7 @@ const atlas = (() => {
         const next = { ...defaults(), unlocked: raw.unlocked === true || journeyUnlocked, completed: done, bonus,
             passives: atlasPassives.normalize(raw.passives, done.length + bonus.length + epochPoints), epoch,
             stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && NODES.includes(BY_ID.get(map.node)) && map.node !== PINNACLE.id).slice(0, ATLAS.stashCap),
-            fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult), endgame: atlasEndgame.normalize(raw.endgame),
+            fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult), endgame: atlasEndgame.normalize(raw.endgame, done.includes(PINNACLE.id)),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
             autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
         const savedNext = Math.floor(Number(raw.nextUid));
@@ -441,6 +442,9 @@ const atlas = (() => {
     }
     /** 새 루프: 지도석 · 각인 · 열린 지도를 비우고, 시대 재생 특전의 시작 보급을 빈 지갑에 넣는다(지갑 초기화 뒤에 불린다). */
     function onLoopReset(state) {
+        // 후반부 재료는 루프를 넘어 남으니 끝나지 않은 싸움에 바친 것은 돌려준다(지도석과 입장권은 루프마다 비워진다).
+        const run = state.atlas.run;
+        if (run && atlasEndgame.isFight(run.map.node)) atlasEndgame.refund(state, run.map.node);
         Object.assign(state.atlas, { stash: [], fragments: {}, run: null, lastResult: null });
         for (const [key, amount] of atlasEpoch.supply(state)) state.currencies[key] = (state.currencies[key] || 0) + amount;
     }

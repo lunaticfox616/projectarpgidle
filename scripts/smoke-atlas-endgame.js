@@ -1,4 +1,4 @@
-// 아틀라스 후반부 (data/atlas-endgame.js · js/atlas-endgame.js, docs/atlas-pinnacles-20261002.md 3~4절): the first kill of the shadow wakes the
+// 아틀라스 후반부 (data/atlas-endgame.js · js/atlas-endgame.js, docs/atlas-pinnacles-20261002.md 2-1, 3절): the first kill of the shadow wakes the
 // atlas; guardians then give their shears, the gardener's echo opens with all five and falls in three named stages through the real combat loop;
 // the gardener's fall starts the blight, whose apostles hold blighted maps and give the elder's shards; late kills are witnessed into the weaver's
 // invitations (her fight replays the newest witnessed bosses); altar and league rooms hold their materials until the boss falls; saves, refunds
@@ -46,6 +46,7 @@ assert.equal(run(`atlasEndgame.kills(game, 'pinnacle')`), 1);
 assert.equal(run(`window.__late.filter(row => row.kind === 'complete').pop().endgame.awakened`), true, 'the result says the atlas woke');
 
 // ---------------------------------------------------------------- guardians give shears; the gardener's echo
+assert.match(run(`atlasEndgame.entryReason(game, 'apex_elder')`), /정원사의 메아리 처치 뒤에/, 'the elder waits for the gardener');
 for (const region of ['roots', 'trunk', 'canopy', 'garden', 'sanctum']) { assert.equal(openNode(`${region}_g`, 16), ''); clearOpenMap(); }
 assert.deepEqual(copy(`['shearRoots','shearTrunk','shearCanopy','shearGarden','shearSanctum'].map(id => atlasEndgame.count(game, id))`), [1, 1, 1, 1, 1],
     'each guardian gives its region’s shear once the atlas is awake');
@@ -77,7 +78,7 @@ assert.equal(fell.unique, true, 'the first kill always drops its unique');
 assert.equal(fell.done, true, 'and it counts as a completed node (an atlas point)');
 
 // ---------------------------------------------------------------- blight and the elder's apostles
-assert.doesNotMatch(run(`atlasEndgame.entryReason(game, 'apex_elder')`), /쓰러뜨리면/, 'the elder opens once the gardener has fallen');
+assert.doesNotMatch(run(`atlasEndgame.entryReason(game, 'apex_elder')`), /처치 뒤에/, 'the elder opens once the gardener has fallen');
 assert.equal(openNode('roots_0', 3), '');
 clearOpenMap();
 assert.equal(run('game.atlas.endgame.blight.roots'), 1, 'completing a map spreads blight in its region');
@@ -135,4 +136,34 @@ assert.equal(run('atlasEndgame.awakened(game)'), true, 'the late atlas survives 
 run('game.atlas.seeds = 4; atlasEpoch.rebirth(game);');
 assert.equal(run('atlasEndgame.awakened(game)'), false, 'the epoch puts it back to sleep');
 assert.equal(run(`atlasEndgame.count(game, 'ringInvite')`), 0);
-console.log('atlas endgame: awakening, shears, gardener three stages in the real loop, blight + apostles, altars and league rooms held, weaver echoes, saves, epoch: OK');
+
+// ---------------------------------------------------------------- review fixes (2026-10-02)
+assert.equal(run(`(() => { const raw = JSON.parse(serializeSaveState(game)); delete raw.atlas.endgame;
+    raw.atlas.completed = ['roots_0', 'pinnacle']; return atlasEndgame.awakened(mergeDefaults(raw)); })()`), true, 'a save from before the late atlas that beat the shadow loads awake');
+run(`game.atlas.endgame.kills.pinnacle = 1; game.atlas.endgame.items.ember = 10;`);
+assert.equal(run(`atlasRun.openEndgame('apex_exarch')`), '');
+assert.equal(run(`atlasEndgame.count(game, 'ember')`), 0);
+run('atlas.onLoopReset(game); game.currentZoneId = 29;');
+assert.deepEqual([run(`atlasEndgame.count(game, 'ember')`), run('game.atlas.run')], [10, null], 'a loop reset hands the open late fight’s offering back');
+assert.deepEqual(copy(`(() => { game.atlas.endgame.items.ember = 95;
+    const out = atlasEndgame.onComplete(game, atlas.node('roots_0'), { endgame: { items: { ember: 10 } } });
+    return { told: out.items, stock: atlasEndgame.count(game, 'ember') }; })()`), { told: [['ember', 4]], stock: 99 }, 'at the cap the result tells what really came in');
+run(`game.atlas.completed = ['roots_0', 'apex_maven'];`);
+assert.equal(run('atlas.bestTier(game)'), run(`atlas.effectiveTier(game, atlas.node('roots_0'))`), 'late fights do not raise the next loop’s starter maps');
+assert.ok(run('Object.values(ATLAS_ENDGAME.mechanics).every(rule => rule.damageMul <= getMaximumBossPatternDamageMultiplier())'),
+    'no late special out-hits the boss pattern peak the power estimate assumes');
+// (test pieces without level or attribute requirements: the elder's numbers on the amulet, 공허의 첨탑's on the ring processed after it)
+assert.deepEqual(copy(`(() => { const piece = (id, slot, perHit, maxStacks) => ({ id, slot, name: '시험 ' + slot, rarity: 'unique', baseStats: [], stats: [],
+        uniqueEffect: '시험', uniqueEffectKey: 'hitApplyChaosResDown', uniqueEffectParams: { perHit, maxStacks } });
+    game.equipment['목걸이'] = piece(90011, '목걸이', 3, 12); game.equipment['반지1'] = piece(90012, '반지', 1, 10);
+    const stat = getPlayerStats().uniqueChaosResDownOnHit; game.equipment['목걸이'] = null; game.equipment['반지1'] = null; return stat; })()`),
+    { perHit: 3, maxStacks: 12 }, 'two chaos-shred uniques keep the better of each number (the last one used to win)');
+const lonelyEchoes = copy(`(() => { game.atlas.endgame.witnessed = []; game.atlas.endgame.items.ringInvite = 1; atlasRun.openEndgame('apex_maven');
+    const tints = game.actExploration.packs.filter(pack => pack.stage === 1 || pack.stage === 2).map(pack => pack.waiting[0].bossVisualTint);
+    atlas.cancel(game); game.currentZoneId = 29; return tints; })()`);
+assert.deepEqual(lonelyEchoes, [200, 200], 'echo stages stay (weaker, tinted) echoes even with nothing witnessed');
+assert.equal(run(`getZone(ATLAS.zoneId) ? 1 : 0`), 0);
+const exarchZone = copy(`(() => { game.atlas.endgame.items.ember = 10; atlasRun.openEndgame('apex_exarch'); const zone = getZone(game.currentZoneId);
+    const out = { elements: zone.trapElements, name: zone.trapName }; atlas.cancel(game); game.currentZoneId = 29; return out; })()`);
+assert.deepEqual(exarchZone, { elements: ['fire'], name: '바닥 함정' }, 'a late floor hazard burns with its boss’s element under its own name');
+console.log('atlas endgame: awakening, shears, gardener three stages in the real loop, blight + apostles, altars and league rooms held, weaver echoes, saves, epoch, review fixes: OK');

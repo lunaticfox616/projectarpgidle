@@ -1,4 +1,4 @@
-// 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 3~4절): 세계수의 그림자(정점)를 처음 쓰러뜨리면 아틀라스가 깨어나 넓어진다.
+// 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 2-1, 3절): 세계수의 그림자(정점)를 처음 쓰러뜨리면 아틀라스가 깨어나 넓어진다.
 // PoE의 최종 보스 다섯(쉐이퍼 · 엘더 · 메이븐 · 총주교 · 포식자)을 리그닌 이야기에 맞춰 옮긴 최종 보스와, 지도 속 콘텐츠 방마다의
 // 리그 우두머리. 싸움은 아틀라스 지도 장치 런 그대로다(포털 · 보관 · 정산, js/atlas-run.js) — 다만 지도석 대신 재료를 바친다.
 // 재료(items)와 진행(처치, 마름, 목격)은 루프를 넘어 남고 시대 재생 때 사라진다. 수치는 모두 첫 제안값이다.
@@ -24,6 +24,8 @@ const ATLAS_ENDGAME = Object.freeze({
         starShard: Object.freeze({ name: '별 조각', from: '지도 속 운석 분화구' })
     }),
     itemCap: 99,
+    // 투기장 바닥 위험(시련 함정 양식, apexes[].hazard)이 기록과 쓰러짐 문구에 남는 이름. 원소는 그 보스의 ele.
+    hazardName: '바닥 함정',
     // 지역 수호자 → 깨어난 뒤 처치마다 주는 가위 조각(지역 id).
     guardianShears: Object.freeze({ roots: 'shearRoots', trunk: 'shearTrunk', canopy: 'shearCanopy', garden: 'shearGarden', sanctum: 'shearSanctum' }),
     // 특수기: every 번째 공격마다 telegraph 모양(data/constants.js bossPatternProfiles)으로 피해 × damageMul. 나머지 공격은 전조.
@@ -43,7 +45,7 @@ const ATLAS_ENDGAME = Object.freeze({
         blackSun: Object.freeze({ name: '검은 태양', every: 3, telegraph: 'beam', damageMul: 1.55 }),
         gnaw: Object.freeze({ name: '갉아먹기', every: 3, telegraph: 'charge', damageMul: 1.5 }),
         tendril: Object.freeze({ name: '뿌리 촉수', every: 3, telegraph: 'lane', damageMul: 1.4 }),
-        hunger: Object.freeze({ name: '끝없는 허기', every: 2, telegraph: 'pulse', damageMul: 1.4 }),
+        hunger: Object.freeze({ name: '모두 삼키기', every: 2, telegraph: 'pulse', damageMul: 1.4 }),
         rift: Object.freeze({ name: '공허 가르기', every: 3, telegraph: 'beam', damageMul: 1.45 }),
         sting: Object.freeze({ name: '여왕의 독침', every: 3, telegraph: 'split', damageMul: 1.4 }),
         vault: Object.freeze({ name: '금고 봉인', every: 4, telegraph: 'ring', damageMul: 1.5 }),
@@ -104,7 +106,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30]]), unique: '총주교의 성화 장갑'
         }),
         Object.freeze({
-            id: 'apex_eater', name: '세계를 삼키는 포식자', analog: '포식자', domain: '끝없는 허기', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
+            id: 'apex_eater', name: '세계를 삼키는 포식자', analog: '포식자', domain: '허기의 둥지', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
             how: '지도 속 푸른 제단을 비우면 허기의 즙을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ichor', 10]]),
             hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'block', warningMs: 1550, intervalMs: 4800 }),
@@ -117,11 +119,12 @@ const ATLAS_ENDGAME = Object.freeze({
         })
     ]),
     // 리그 우두머리: 지도 속 콘텐츠 방(data/atlas.js encounters)이 깨어난 뒤 그 리그의 조각도 준다. 조각 need개로 우두머리와 싸운다.
+    // need는 제단 재료(잉걸 10)와 지도 수가 비슷하도록: 방이 제단보다 드물고(5~9 %), 방마다 조각 3 + 0.15 × 등급.
     leagues: Object.freeze([
         Object.freeze({
             id: 'league_breach', room: 'breach', name: '공허 균열', boss: '공허를 여는 자', act: 8, bossAct: 7, ele: 'chaos', tier: 16,
             how: '지도 속 공허 균열을 비우면 공허 조각을 줍니다.',
-            item: 'voidSplinter', need: 24, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
+            item: 'voidSplinter', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '공허를 여는 자', bossAct: 7, mechanic: 'rift' }),
                 Object.freeze({ name: '열린 공허의 군주', bossAct: 7, mechanic: 'rift' })
@@ -131,7 +134,7 @@ const ATLAS_ENDGAME = Object.freeze({
         Object.freeze({
             id: 'league_hive', room: 'hive', name: '벌집', boss: '벌집 여왕', act: 9, bossAct: 8, ele: 'chaos', tier: 16,
             how: '지도 속 벌집을 비우면 왕실 꿀을 줍니다.',
-            item: 'royalHoney', need: 24, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
+            item: 'royalHoney', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '벌집 여왕', bossAct: 8, mechanic: 'sting' }),
                 Object.freeze({ name: '분노한 벌집 여왕', bossAct: 8, mechanic: 'sting' })
@@ -141,7 +144,7 @@ const ATLAS_ENDGAME = Object.freeze({
         Object.freeze({
             id: 'league_treasure', room: 'treasure', name: '보물 방', boss: '금고지기', act: 4, bossAct: 3, ele: 'phys', tier: 16,
             how: '지도 속 보물 방을 비우면 금고 열쇠 조각을 줍니다.',
-            item: 'vaultKey', need: 24, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
+            item: 'vaultKey', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '금고지기', bossAct: 3, mechanic: 'vault' }),
                 Object.freeze({ name: '봉인을 푼 금고지기', bossAct: 3, mechanic: 'vault' })
@@ -151,7 +154,7 @@ const ATLAS_ENDGAME = Object.freeze({
         Object.freeze({
             id: 'league_meteor', room: 'meteor', name: '운석 분화구', boss: '검은 별의 심장', act: 7, bossAct: 9, ele: 'light', tier: 16,
             how: '지도 속 운석 분화구를 비우면 별 조각을 줍니다.',
-            item: 'starShard', need: 24, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
+            item: 'starShard', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '검은 별의 심장', bossAct: 9, mechanic: 'starfall' }),
                 Object.freeze({ name: '타오르는 검은 별', bossAct: 9, mechanic: 'starfall' })
@@ -169,9 +172,10 @@ const ATLAS_ENDGAME = Object.freeze({
         Object.freeze({ id: 'apostleSap', name: '수액의 사도', item: 'rotSap', bossAct: 4, regions: Object.freeze(['garden']) })
     ]),
     // 나이테를 엮는 자는 깨어난 뒤의 후반부 보스(수호자 · 정점 · 사도 · 최종 보스 · 리그 우두머리) 처치를 목격한다.
-    // per번마다 초대장 하나(재료 한도까지). 싸움의 메아리는 가장 최근에 목격한 보스들이다(keep개를 기억).
-    witness: Object.freeze({ per: 5, keep: 6 }),
-    // 제단: 깨어난 뒤 지도마다 chance %로 붉은 제단(총주교)과 푸른 제단(포식자) 방이 생긴다(data/atlas.js encounters). 방을 비우면 그 재료.
+    // per번마다 초대장 하나(재료 한도까지). 싸움의 메아리는 가장 최근에 목격한 보스들이다(keep개를 기억, 생명력 × echoHpMul).
+    witness: Object.freeze({ per: 5, keep: 6, echoHpMul: 0.6 }),
+    // 제단: 깨어난 뒤 지도마다 chance %로 붉은 제단(총주교)과 푸른 제단(포식자) 방이 콘텐츠 방과 따로 altarLimit개까지 생긴다
+    // (data/atlas.js encounters, js/atlas-encounters.js roll). 방을 비우면 그 재료.
     altars: Object.freeze({
         exarch: Object.freeze({ item: 'ember', amount: Object.freeze([2, 0.12]) }),
         eater: Object.freeze({ item: 'ichor', amount: Object.freeze([2, 0.12]) })

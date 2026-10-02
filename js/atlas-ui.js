@@ -92,11 +92,11 @@ const atlasUi = (() => {
         const held = run.drops.length + run.found.length, kind = atlas.node(run.map.node)?.kind;
         // 지도석 없이 연 싸움은 바친 것을 잃는다(정점은 입장권, 최종 보스와 리그 우두머리는 재료).
         const offering = kind === 'pinnacle' ? '바친 입장권' : (RUN_KIND[kind] ? '바친 재료' : '지도석');
-        const lost = [offering, held ? `맵에서 얻은 지도석과 각인 ${held}개` : '', '맵 안의 임시 전리품'].filter(Boolean).join(', ');
+        const lost = [offering, held ? `맵에서 얻은 지도석과 각인 ${held}개` : '', heldLate(run), '맵 안의 임시 전리품'].filter(Boolean).join(', ');
         const message = `${nodeName(run.map.node)} 지도를 닫을까요?\n잃는 것: ${lost}`;
         const ok = await requestGameConfirmation(message, { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
         if (!ok || ledger().run !== run) return;
-        if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다. 지도석과 맵 안에서 얻은 지도석 · 각인은 사라집니다.', 'attack-monster');
+        if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다.', 'attack-monster');
         queueImportantSave(200);
         refresh();
     }
@@ -185,13 +185,16 @@ const atlasUi = (() => {
             <span class="atlas-map-tags">${tags}</span>${mods ? `<ul class="atlas-mods">${mods}</ul>` : '<p class="atlas-muted">옵션 없음</p>'}
             <p class="atlas-rewards">아이템 수량 +${fx.quantity}% · 희귀도 +${fx.rarity}%${fx.packExtra ? ` · 무리 +${fx.packExtra}` : ''}</p>${extra}</div>`;
     }
+    /** Late materials the open map holds until its boss falls (js/atlas-endgame.js roomItems), as "성화 잉걸 8, 공허 조각 3". */
+    const heldLate = run => Object.entries((run.endgame && run.endgame.items) || {}).map(([id, n]) => `${atlasEndgame.itemName(id)} ${n}`).join(', ');
     function runHtml(run) {
-        const total = ATLAS.portals + run.bonus.portals;
+        const total = ATLAS.portals + run.bonus.portals, late = heldLate(run);
         const portals = Array.from({ length: total }, (_, i) => `<i class="${i < run.portals ? 'is-on' : ''}"></i>`).join('');
         const inside = atlas.inMap(game), rooms = run.encounters.length ? `<p class="atlas-encounters">콘텐츠 방: ${encounterNames(run.encounters)}</p>` : '';
         return `<section class="atlas-device is-running" aria-label="열린 지도"><h3>열린 지도</h3>
             ${mapCardHtml(run.map, `${rooms}<p class="atlas-portals" aria-label="남은 포털 ${run.portals}">포털 ${portals}</p>
-            <p class="atlas-muted">맵에서 얻은 지도석 ${run.drops.length}개 · 각인 ${run.found.length}개 · 보스를 잡으면 보관함으로</p>`)}
+            <p class="atlas-muted">맵에서 얻은 지도석 ${run.drops.length}개 · 각인 ${run.found.length}개 · 보스를 잡으면 보관함으로</p>
+            ${late ? `<p class="atlas-muted">후반부 재료 ${late} (보스를 잡으면 받음)</p>` : ''}`)}
             <div class="atlas-actions">${inside ? '<button class="atlas-primary" onclick="switchTab(\'tab-battle\')">전투 보기</button>'
                 : '<button class="atlas-primary" data-exploration-departure onclick="atlasUi.reenter()">다시 들어가기</button>'}
             <button onclick="atlasUi.abandon()">지도 닫기</button></div></section>`;
@@ -210,11 +213,12 @@ const atlasUi = (() => {
         return Object.entries(fragment.effect).map(([key, value]) => `${ATLAS_PASSIVES.labels[key][0]} +${value}${ATLAS_PASSIVES.labels[key][1]}`).join(' · ');
     }
     function chancesHtml() {
-        const bonus = atlasPassives.effects(game), awake = atlasEndgame.awakened(game);
-        // 제단은 아틀라스가 깨어난 뒤에만 생긴다(js/atlas-encounters.js roll).
-        const rows = atlasEncounters.types.filter(type => awake || !ATLAS.encounters[type].late)
-            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%`);
-        return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows.join(' · ')} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>`;
+        const bonus = atlasPassives.effects(game);
+        const rows = late => atlasEncounters.types.filter(type => !!ATLAS.encounters[type].late === late)
+            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%`).join(' · ');
+        // 제단은 아틀라스가 깨어난 뒤에만, 콘텐츠 방과 따로 생긴다(js/atlas-encounters.js roll).
+        const altars = atlasEndgame.awakened(game) ? `<p class="atlas-encounters">제단 확률: ${rows(true)} (지도마다 ${ATLAS.altarLimit}개까지)</p>` : '';
+        return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows(false)} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>${altars}`;
     }
     function deviceHtml() {
         const map = selectedMap(), lock = atlas.lockReason(game) || atlasRun.blockReason();

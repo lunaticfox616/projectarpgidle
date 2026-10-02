@@ -10,10 +10,12 @@ const atlasEncounters = (() => {
     function roll(bonus, forced, random, capacity = Infinity, awake = false) {
         const fixed = [...new Set(forced)].filter(type => Object.hasOwn(ATLAS.encounters, type));
         const limit = ATLAS.encounterLimit + bonus.encounterExtra;
-        // 제단(late)은 아틀라스가 깨어난 뒤에만 굴린다(js/atlas-endgame.js). 패시브가 없는 종류의 보너스는 0.
-        const rolled = shuffledTypes(TYPES.filter(type => !fixed.includes(type) && (awake || !ATLAS.encounters[type].late)), random)
+        // 패시브가 없는 종류의 보너스는 0.
+        const passing = late => shuffledTypes(TYPES.filter(type => !fixed.includes(type) && !!ATLAS.encounters[type].late === late), random)
             .filter(type => random() * 100 < ATLAS.encounters[type].chance + (bonus[type] || 0));
-        return [...fixed, ...rolled.slice(0, limit)].slice(0, capacity);
+        // 제단(late)은 아틀라스가 깨어난 뒤에만, 콘텐츠 방 자리와 따로 굴린다(js/atlas-endgame.js): 깨어나도 기존 방이 줄지 않는다.
+        const altars = awake ? passing(true).slice(0, ATLAS.altarLimit) : [];
+        return [...fixed, ...passing(false).slice(0, limit), ...altars].slice(0, capacity);
     }
     function shuffledTypes(list, random) {
         const out = [...list];

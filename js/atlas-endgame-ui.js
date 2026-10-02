@@ -1,4 +1,4 @@
-/** 아틀라스 최종 보기 (js/atlas-endgame.js, docs/atlas-pinnacles-20261002.md 3~4절): 최종 보스 다섯과 리그 우두머리에게 도전하고,
+/** 아틀라스 최종 보기 (js/atlas-endgame.js, docs/atlas-pinnacles-20261002.md 2-1, 3절): 최종 보스 다섯과 리그 우두머리에게 도전하고,
  * 바칠 재료와 마름을 본다. 깨어나기 전에는 무엇이 열리는지만 보인다. 깨어남과 후반부 보상은 기록에도 남긴다.
  */
 const atlasEndgameUi = (() => {
@@ -28,7 +28,7 @@ const atlasEndgameUi = (() => {
         if (!view.awakened) return `<section class="atlas-late-head"><h3>잠든 아틀라스</h3>
             <p class="atlas-muted">세계수의 그림자(정점)를 처음 쓰러뜨리면 깨어나 아래 싸움이 열립니다.</p></section>`;
         return `<section class="atlas-late-head"><h3>깨어난 아틀라스</h3>
-            <p class="atlas-muted">후반부 보스 처치 ${view.witness}회, 다음 나이테 초대장까지 ${view.witness % view.witnessPer}/${view.witnessPer}</p></section>`;
+            <p class="atlas-muted">나이테가 목격한 처치 ${view.witness}회, 다음 초대장까지 ${view.witness % view.witnessPer}/${view.witnessPer}</p></section>`;
     }
     /** 마름: only once the gardener has fallen (it spreads from then on). */
     function blightHtml(view) {

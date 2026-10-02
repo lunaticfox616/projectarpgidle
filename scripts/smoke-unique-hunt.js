@@ -87,6 +87,9 @@ function loadGame(save) {
     assert.strictEqual(late.length, 6, '깨어난 아틀라스 보스의 고유 6종');
     assert.ok(late.every(entry => context.uniqueHuntUi.getSource(entry).exploreSubtab === 'map-explore-worldtree' && context.uniqueHuntUi.getSource(entry).label.includes('아틀라스')),
         '아틀라스 후반부 고유는 사냥터가 아니라 아틀라스를 안내해야 한다');
+    const crown = context.UNIQUE_DB.find(entry => entry && entry.name === '대균열의 왕관');
+    assert.ok(context.uniqueHuntUi.getSource(crown).label.includes('대균열') && context.uniqueHuntUi.getSource(crown).label.includes('공허를 여는 자'),
+        '리그 우두머리도 주는 고유는 원래 자리와 그 우두머리를 함께 안내해야 한다');
 }
 
 console.log('smoke-unique-hunt passed');

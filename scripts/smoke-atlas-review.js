@@ -51,15 +51,22 @@ assert.deepEqual(copy('game.atlas.fragments'), { breach: 1, maps: 1 }, 'and canc
 run('game.atlas.passives=[];game.atlas.stash=[];game.atlas.fragments={};game.atlas.loadout=[];');
 
 const shares = copy(`(() => {
-    const bonus = { encounterExtra: 0 }, counts = {};
-    for (const type of atlasEncounters.types) { bonus[type] = 40 - ATLAS.encounters[type].chance; counts[type] = 0; }
+    const bonus = { encounterExtra: 0 }, asleep = {}, awake = {};
+    for (const type of atlasEncounters.types) { bonus[type] = 40 - ATLAS.encounters[type].chance; asleep[type] = 0; awake[type] = 0; }
     let seed = 5; const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000);
-    // awake: the late altars (js/atlas-endgame.js) join the same fair roll once the atlas has woken.
-    for (let i = 0; i < 20000; i++) for (const type of atlasEncounters.roll(bonus, [], random, Infinity, true)) counts[type]++;
-    return Object.values(counts);
+    for (let i = 0; i < 20000; i++) for (const type of atlasEncounters.roll(bonus, [], random)) asleep[type]++;
+    // awake: the late altars (js/atlas-endgame.js) roll their own slot, so the content rooms keep their share.
+    for (let i = 0; i < 20000; i++) for (const type of atlasEncounters.roll(bonus, [], random, Infinity, true)) awake[type]++;
+    const late = type => !!ATLAS.encounters[type].late;
+    return { rooms: atlasEncounters.types.filter(type => !late(type)).map(type => [asleep[type], awake[type]]),
+        altars: atlasEncounters.types.filter(late).map(type => [asleep[type], awake[type]]) };
 })()`);
-const mean = shares.reduce((a, b) => a + b) / shares.length;
-assert.ok(shares.every(count => Math.abs(count - mean) < mean * 0.08), 'equal chances give equal rooms, whatever the list order: ' + shares);
+const roomCounts = shares.rooms.map(([asleep]) => asleep), mean = roomCounts.reduce((a, b) => a + b) / roomCounts.length;
+assert.ok(roomCounts.every(count => Math.abs(count - mean) < mean * 0.08), 'equal chances give equal rooms, whatever the list order: ' + roomCounts);
+assert.ok(shares.rooms.every(([asleep, awake]) => Math.abs(asleep - awake) < asleep * 0.08), 'waking the atlas does not thin the content rooms: ' + JSON.stringify(shares.rooms));
+assert.ok(shares.altars.every(([asleep]) => asleep === 0), 'no altar while the atlas sleeps');
+const altarMean = shares.altars.reduce((sum, [, awake]) => sum + awake, 0) / shares.altars.length;
+assert.ok(altarMean > 0 && shares.altars.every(([, awake]) => Math.abs(awake - altarMean) < altarMean * 0.08), 'the altars share their own slot fairly: ' + JSON.stringify(shares.altars));
 
 // ---------------------------------------------------------------- a real map: rooms stay empty across a portal
 const mapA = copy(`stamp('roots_0', 1).uid`);

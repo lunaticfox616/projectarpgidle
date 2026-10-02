@@ -1,4 +1,4 @@
-/** 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 3~4절, data/atlas-endgame.js): 깨어남, 최종 보스 다섯과 리그 우두머리를 여는 조건과
+/** 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 2-1, 3절, data/atlas-endgame.js): 깨어남, 최종 보스 다섯과 리그 우두머리를 여는 조건과
  * 재료, 지도 속 마름의 사도 · 제단 · 리그 조각, 나이테의 목격, 보스 처치 보상과 단계별 특수기.
  * 상태는 game.atlas.endgame {kills, items, blight, witness, witnessed}: 루프를 넘어 남고 시대 재생 때 비운다.
  * 지도 장치 런(js/atlas.js · js/atlas-run.js)과 넓은 맵 무리(js/combat.js createActExplorationPack)가 이 모듈의 규칙을 부른다.
@@ -33,7 +33,7 @@ const atlasEndgame = (() => {
         return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
     }
     function lockText(row) {
-        if (row.unlock && row.unlock.kill) return `${def(row.unlock.kill).stages[0].name}을(를) 쓰러뜨리면 열립니다.`;
+        if (row.unlock && row.unlock.kill) return `${def(row.unlock.kill).stages[0].name} 처치 뒤에 열립니다.`;
         return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
     }
     const missingOf = (state, row) => entryOf(row).filter(([item, need]) => count(state, item) < need);
@@ -105,21 +105,23 @@ const atlasEndgame = (() => {
         if (!row) return {};
         const echoes = extra.echoes || [], names = row.stages.map(stage => stageName(row, stage, echoes));
         const out = { bossName: names[0], bossStageNames: names, atlasStages: row.id, atlasEchoes: echoes };
-        if (row.hazard) out.trialHazard = { ...row.hazard };
+        // 바닥 위험은 시련 함정 양식이지만 그 보스의 원소로 터지고 기록에도 제 이름으로 남는다(js/combat.js dealTrialTrapDamage).
+        if (row.hazard) Object.assign(out, { trialHazard: { ...row.hazard }, trapElements: [row.ele], trapName: E.hazardName });
         return out;
     }
     /** A late fight's stage body (js/combat.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
     function tuneStage(enemy, zone, stage) {
         const row = def(zone.atlasStages), body = row && row.stages[stage];
         if (!body) return enemy;
-        const echo = Number.isInteger(body.echo) ? (zone.atlasEchoes || [])[body.echo] : null;
+        // An echo stage stays an echo (weaker, tinted) even when fewer bosses were witnessed than it has echoes (it copies the weaver then).
+        const isEcho = Number.isInteger(body.echo), echo = isEcho ? (zone.atlasEchoes || [])[body.echo] : null;
         const art = echo ? echo[1] : (Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct);
         enemy.name = `👿 ${zone.bossStageNames[stage]}`;
         enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
-        enemy.bossVisualTint = echo ? 200 : null;
+        enemy.bossVisualTint = isEcho ? 200 : null;
         enemy.patternMode = 'apex';
         enemy.apexMechanic = body.mechanic;
-        if (echo) { enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * 0.6)); enemy.hp = enemy.maxHp; }
+        if (isEcho) { enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * E.witness.echoHpMul)); enemy.hp = enemy.maxHp; }
         return enemy;
     }
     /** Pattern state of a late boss's special (js/combat-patterns.js 'apex' mode): every n-th attack, the rest are its warning. */
@@ -158,7 +160,10 @@ const atlasEndgame = (() => {
     }
     function keepHeld(state, run, out) {
         const extra = run.endgame || {};
-        for (const [item, amount] of Object.entries(extra.items || {})) if (give(state, item, amount)) out.items.push([item, amount]);
+        for (const [item, amount] of Object.entries(extra.items || {})) {
+            const got = give(state, item, amount); // at the cap only part of it fits: tell what really came in
+            if (got) out.items.push([item, got]);
+        }
     }
     /** The material a late boss gives on top of its fight's spoils: guardians their shear, apostles their rot shard. */
     function bossMaterial(state, node, run, out) {
@@ -207,9 +212,11 @@ const atlasEndgame = (() => {
 
     // ---------------------------------------------------------------- save boundary, epoch, view
     const KILL_IDS = Object.freeze([...DEFS.keys(), ...APOSTLES.keys(), 'pinnacle', ...ATLAS.regions.map(region => `${region.id}_g`)]);
-    function normalize(raw) {
-        const source = raw && typeof raw === 'object' ? raw : {};
-        return { kills: capped(source.kills, KILL_IDS, 1e6), items: capped(source.items, ITEM_IDS, E.itemCap),
+    /** @param {boolean} pinnacleDone the shadow is a completed node: a save from before the late atlas (or one that lost it) wakes. */
+    function normalize(raw, pinnacleDone = false) {
+        const source = raw && typeof raw === 'object' ? raw : {}, kills = capped(source.kills, KILL_IDS, 1e6);
+        if (pinnacleDone && !kills.pinnacle) kills.pinnacle = 1;
+        return { kills, items: capped(source.items, ITEM_IDS, E.itemCap),
             blight: capped(source.blight, ATLAS.regions.map(region => region.id), E.blight.max),
             witness: Math.max(0, Math.min(1e6, Math.floor(Number(source.witness) || 0))),
             witnessed: (Array.isArray(source.witnessed) ? source.witnessed : []).filter(validEcho).slice(-E.witness.keep) };

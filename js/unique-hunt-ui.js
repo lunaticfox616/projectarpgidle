@@ -21,6 +21,14 @@ const UNIQUE_HUNT_COSMOS_BOSSES = Object.freeze({
     'planet-48': '주베누비아', 'planet-49': '주벤샤말'
 });
 
+/** 깨어난 아틀라스의 리그 우두머리도 주는 고유(data/atlas-endgame.js leagues): 원래 자리에 더해 그 우두머리를 적는다. */
+function describeUniqueHuntSource(entry) {
+    let source = getUniqueHuntSource(entry);
+    let league = ATLAS_ENDGAME.leagues.find(row => row.unique === (entry && entry.name));
+    if (league && source.exploreSubtab !== 'map-explore-worldtree') source.label += `, 아틀라스 ${league.boss}`;
+    return source;
+}
+
 function getUniqueHuntSource(entry) {
     let drop = entry && entry.dropOnly && typeof entry.dropOnly === 'object' ? entry.dropOnly : null;
     if (drop && UNIQUE_HUNT_SOURCE_IDS[drop.id]) return { ...UNIQUE_HUNT_SOURCE_IDS[drop.id] };
@@ -38,7 +46,7 @@ function getUniqueHuntSource(entry) {
 function renderUniqueHuntTargetCard(entry) {
     let key = uniqueHuntRuntime.getKey(entry);
     let encoded = encodeURIComponent(key).replace(/'/g, '%27');
-    let source = getUniqueHuntSource(entry);
+    let source = describeUniqueHuntSource(entry);
     let registered = !!(game.uniqueCodex && game.uniqueCodex[key]);
     let chase = entry.ultraRare || entry.cosmosChase;
     return `<article class="unique-hunt-target${chase ? ' is-chase' : ''}">
@@ -87,7 +95,7 @@ function toggleUniqueHuntFromUi(encodedKey) {
 function navigateToUniqueHuntSource(encodedKey) {
     let entry = uniqueHuntRuntime.getEntry(decodeURIComponent(encodedKey));
     if (!entry) return false;
-    let source = getUniqueHuntSource(entry);
+    let source = describeUniqueHuntSource(entry);
     let tabButton = document.getElementById(`btn-${source.mapSubtab}`);
     if (!tabButton || tabButton.style.display === 'none') {
         if (typeof showGameToast === 'function') showGameToast(`${source.label} 콘텐츠가 아직 해금되지 않았습니다.`, { tone: 'warning' });
@@ -111,7 +119,7 @@ function refreshUniqueHuntUi() {
 const uniqueHuntUi = Object.freeze({
     renderPanel: renderUniqueHuntPanel,
     renderCardAction: renderUniqueHuntCardAction,
-    getSource: getUniqueHuntSource,
+    getSource: describeUniqueHuntSource,
     toggle: toggleUniqueHuntFromUi,
     navigate: navigateToUniqueHuntSource
 });

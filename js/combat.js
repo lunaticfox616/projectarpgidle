@@ -2713,7 +2713,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 damageMultiplier: Number.isFinite(Number(ep.damageMultiplier)) ? Number(ep.damageMultiplier) : null
             };
         }
-        else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) };
+        else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = mergeBetterUniqueParams(uniqueChaosResDownOnHit, { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) });
         else if (effect.key === 'corpseExplodeOnKill') uniqueCorpseExplode = mergeBetterUniqueParams(uniqueCorpseExplode, { chance: Number(ep.chance || 15), lifePct: Number(ep.lifePct || 25) });
         else if (effect.key === 'instantLeechAndDoubleDamage') { uniqueInstantLeechPct += Number(ep.instantLeechPct || 25); uniqueDoubleDamageChancePct += Number(ep.doubleDamageChance || 20); }
         else if (effect.key === 'riderCompass') uniqueRiderCompass = true;
@@ -11721,8 +11721,11 @@ function updateCombatHazardEvasion(pStats) {
     return { avoiding: avoiding || frozen, holdPosition };
 }
 
+/** The trap's name in the log and the defeat line: a trial's '시련 함정', or the zone's own (the atlas late arenas' '바닥 함정'). */
+const trialTrapName = zone => zone.trapName || '시련 함정';
+
 function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
-    let remaining = floorIncomingDamage(trapDamage);
+    let remaining = floorIncomingDamage(trapDamage), trapName = trialTrapName(zone);
     game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
     let energyShieldBeforeTrap = game.playerEnergyShield;
     if (remaining > 0 && game.playerEnergyShield > 0) {
@@ -11735,14 +11738,14 @@ function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
     if (remaining > 0) remaining = absorbDamageWithRealmDeathWard(remaining, pStats);
     game.playerHp = Math.floor(game.playerHp - remaining);
     game.playerEsLastHitAt = getCombatTime();
-    recordIncomingDamage(hazard.element, trapDamage, '시련 함정');
+    recordIncomingDamage(hazard.element, trapDamage, trapName);
     if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
         game.bloomTrialRegenSuppress = getBloomTrialRegenSuppressNext(zone, game.bloomTrialRegenSuppress);
         addLog(`혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
     }
-    addLog(`시련 함정 발동 [${getDamageElementLabel(hazard.element)}] (${trapDamage} 피해)`, 'attack-monster', { noToast:true, element:hazard.element });
+    addLog(`${trapName} 발동 [${getDamageElementLabel(hazard.element)}] (${trapDamage} 피해)`, 'attack-monster', { noToast:true, element:hazard.element });
     if (game.playerHp <= 0) {
-        handlePlayerDefeat(zone, pStats, '시련 함정에 쓰러졌습니다. 마을로 귀환합니다.', { fatalElement: hazard.element, sourceName: '시련 함정', noToast: true });
+        handlePlayerDefeat(zone, pStats, `${trapName}에 쓰러졌습니다. 마을로 귀환합니다.`, { fatalElement: hazard.element, sourceName: trapName, noToast: true });
     }
 }
 
