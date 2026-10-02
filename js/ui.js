@@ -990,12 +990,10 @@ function isPauseSettingOverlayOpen() {
         '#act-exploration-dialog[open]',
         '#act-exploration-loot-dialog[open]',
         '#beehive-choice-overlay',
-        '#spore-mode-overlay',
+        // 선택 창 다섯(코어, 주얼 보관함과 소켓, 혼돈 주입, 조합창 재료, 홀씨 모드). 없어진 예전 주얼 창들의 자리도 이것이 맡는다.
+        '.selection-overlay',
         '#mobile-craft-currency-overlay',
-        '#craft-item-picker-overlay',
-        '#void-jewel-overlay',
-        '#jewel-fusion-overlay',
-        '#void-socket-jewel-overlay'
+        '#craft-item-picker-overlay'
     ];
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }

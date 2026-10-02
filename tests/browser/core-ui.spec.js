@@ -441,14 +441,19 @@ const SELECTION_DIALOG_OPENERS = [
     ['홀씨 모드 선택', "(() => { selectForCrafting(null, false); openSporeModeOverlay('magicBud'); })()"]
 ];
 
+// "창을 열면 게임 진행 일시 정지"를 켜 두면 다섯 창 모두 게임을 멈춘다. 전에는 홀씨 모드 창만 멈췄다.
+const isGamePaused = page => page.evaluate(() => isForegroundGameplayPausedForBackground());
+
 test('selection dialogs share one frame: focus moves in, Tab stays inside, Esc closes only the dialog', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
-    await page.evaluate(() => switchTab('tab-items'));
+    await page.evaluate(() => { game.settings.pauseGameOnOverlay = true; switchTab('tab-items'); });
     for (const [title, opener] of SELECTION_DIALOG_OPENERS) {
+        expect(await isGamePaused(page), `${title}: the game runs before the dialog opens`).toBe(false);
         await page.evaluate(opener);
         const panel = page.locator('.selection-overlay .selection-overlay-panel');
         await expect(panel).toHaveCount(1);
+        expect(await isGamePaused(page), `${title}: the overlay-pause setting pauses the game`).toBe(true);
         await expect(panel).toHaveAttribute('role', 'dialog');
         await expect(panel).toHaveAttribute('aria-modal', 'true');
         await expect(page.locator(`#${await panel.getAttribute('aria-labelledby')}`)).toContainText(title);
@@ -465,6 +470,8 @@ test('selection dialogs share one frame: focus moves in, Tab stays inside, Esc c
         await expect(page.locator('.selection-overlay')).toHaveCount(0);
         await expect(page.locator('#tab-items')).toHaveClass(/active/);
     }
+    await page.evaluate(() => { game.settings.pauseGameOnOverlay = false; coreItemsUi.open(); });
+    expect(await isGamePaused(page), 'with the setting off the game keeps running under a dialog').toBe(false);
     expect(failures).toEqual([]);
 });
 
