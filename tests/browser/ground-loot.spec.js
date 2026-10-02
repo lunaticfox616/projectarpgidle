@@ -48,10 +48,9 @@ test('actual equipment roll is kept once and animates behind actors without x1',
     await expect(page.locator('.battle-loot-drop.landed')).toHaveCount(1);
     await expect(drops.locator('.battle-loot-name')).toHaveCount(3);
     const golden = page.locator('.battle-loot-drop[data-currency="goldenRule"]');
-    const goldenName = golden.locator('.battle-loot-name[data-currency="goldenRule"]');
-    await expect(goldenName).toHaveText('황금률');
-    await expect(goldenName.locator('.orb-tone')).toHaveCSS('border-top-color', 'rgb(122, 31, 31)');
-    await expect(golden).toHaveCSS('opacity', '0.82');
+    await expect(golden.locator('.battle-loot-name[data-currency="goldenRule"]')).toHaveText('황금률');
+    // Pictures stay translucent behind the hero; the names are drawn opaque above every picture (2026-10-03).
+    await expect(golden.locator('.battle-loot-flight')).toHaveCSS('opacity', '0.82');
     const point = await golden.evaluate(marker => ({ x: Number(marker.dataset.sourceX), y: Number(marker.dataset.sourceY) }));
     expect(point.x).toBeCloseTo(receipt.x, 2); expect(point.y).toBeCloseTo(receipt.y, 2);
     const depths = await page.evaluate(() => ['.battle-loot-layer', '.battle-loot-foreground', '.battle-loot-air']

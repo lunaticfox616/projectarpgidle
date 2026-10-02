@@ -11,8 +11,9 @@ const battleGroundLoot = (() => {
     const isMajor = receipt => receipt.currency === 'goldenRule' || receipt.item?.rarity === 'unique' || !!receipt.highlight;
     /** A pile shows its most important drop: golden rule, uniques and highlighted items first, then by rarity. */
     const importance = receipt => (isMajor(receipt) ? 100 : 0) + getRarityRank(receipt.item?.rarity || 'normal');
-    /** Name rows per pile before the rest fold into one "외 N개" row; phones get fewer so the column stays off the fight. */
-    const labelRows = () => canvas.clientWidth < 600 ? 3 : 6;
+    /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
+     * down arms. Drops beyond every arm stay unnamed: never a "외 N개" row (user, 2026-10-03). */
+    const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
 
     function later(entry, action, delay) {
         const timer = setTimeout(() => { entry.timers.delete(timer); action(); }, delay);
@@ -57,8 +58,11 @@ const battleGroundLoot = (() => {
         const row = labels.firstElementChild?.offsetHeight || 20;
         const height = labels.offsetHeight || labels.children.length * (row + 2);
         const half = labels.offsetWidth / 2 + 8;
-        const x = Math.max(half, Math.min(canvas.clientWidth - half, Number(marker.dataset.x) * canvas.clientWidth));
-        const y = Math.max(42 + height, Math.min(canvas.clientHeight - 25, Number(marker.dataset.y) * canvas.clientHeight));
+        const reach = side => { const arm = marker.querySelector(`.battle-loot-labels.is-${side}`); return arm ? 30 + arm.offsetWidth : 0; };
+        const down = marker.querySelector('.battle-loot-labels.is-down');
+        const left = Math.max(half, reach('left')), right = Math.max(half, reach('right'));
+        const x = Math.max(left, Math.min(canvas.clientWidth - right, Number(marker.dataset.x) * canvas.clientWidth));
+        const y = Math.max(49 + height, Math.min(canvas.clientHeight - 25 - (down ? 24 + down.offsetHeight : 0), Number(marker.dataset.y) * canvas.clientHeight));
         marker.style.left = x + 'px'; marker.style.top = y + 'px';
         stackLabel(marker, { x, y, half: labels.offsetWidth / 2, height, row });
     }
@@ -72,13 +76,36 @@ const battleGroundLoot = (() => {
             return top < otherTop + Number(other.dataset.labelHeight) + 2 && otherTop < top + box.height + 2
                 && Math.abs(parseFloat(other.style.left) - box.x) < box.half + Number(other.dataset.labelHalf) + 4;
         });
-        const base = box.y - 23 - box.height;
+        const base = box.y - 30 - box.height;
         let lift = 0;
         while (lift < box.row * 5 && base - lift > 4 && overlaps(base - lift)) lift += box.row + 2;
         marker.dataset.labelTop = String(base - lift);
         marker.dataset.labelHeight = String(box.height);
         marker.dataset.labelHalf = String(box.half);
         marker.style.setProperty('--label-lift', lift + 'px');
+    }
+
+    /** Canvas boxes of a pile's shown name arms, from its placed spot (the up arm includes its lift). */
+    function armBoxes(marker) {
+        const x = parseFloat(marker.style.left), y = parseFloat(marker.style.top);
+        const lift = parseFloat(marker.style.getPropertyValue('--label-lift')) || 0;
+        return [...marker.children]
+            .filter(arm => String(arm.className).startsWith('battle-loot-labels') && !arm.hidden).map(arm => {
+                const w = arm.offsetWidth, h = arm.offsetHeight || arm.children.length * 25;
+                const side = arm.className.replace('battle-loot-labels', '').trim();
+                if (side === 'is-right') return { arm, side, left: x + 26, right: x + 26 + w, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
+                if (side === 'is-left') return { arm, side, left: x - 26 - w, right: x - 26, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
+                if (side === 'is-down') return { arm, side, left: x - w / 2, right: x + w / 2, top: y + 24, bottom: y + 24 + h };
+                return { arm, side: 'up', left: x - w / 2, right: x + w / 2, top: y - 30 - lift - h, bottom: y - 30 - lift };
+            });
+    }
+
+    /** A later pile's side and down names give way where they would cover names already on the ground: the earlier, more
+     * important pile keeps its place, and a hidden arm is fine (no "외 N개", user 2026-10-03). */
+    function yieldCrowdedArms(marker) {
+        const taken = [...entries.keys()].filter(other => other !== marker).flatMap(armBoxes);
+        const hits = box => taken.some(other => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom);
+        armBoxes(marker).filter(box => box.side !== 'up' && hits(box)).forEach(box => { box.arm.hidden = true; });
     }
 
     function currencyRow(label, receipt) {
@@ -88,8 +115,11 @@ const battleGroundLoot = (() => {
         if (tone) label.style.setProperty('--loot-color', tone.style.getPropertyValue('--orb-tone'));
     }
 
-    function nameRow(receipt) {
+    /** One name; --row staggers the landing pop (nearest the picture first), majors get one shine. */
+    function nameRow(receipt, index) {
         const label = document.createElement('span'); label.className = 'battle-loot-name';
+        if (isMajor(receipt)) label.classList.add('is-major');
+        label.style.setProperty('--row', String(index));
         label.dataset.rarity = receipt.item?.rarity || 'normal';
         label.style.setProperty('--loot-color', receipt.color || getRarityColor(label.dataset.rarity));
         if (receipt.currency && ORB_DB[receipt.currency]) currencyRow(label, receipt);
@@ -97,30 +127,35 @@ const battleGroundLoot = (() => {
         return label;
     }
 
-    /** PoE-style name column over the pile: the most important name nearest the item, the others above it, then "외 N개". */
-    function labelColumn(receipts) {
-        const column = document.createElement('div'); column.className = 'battle-loot-labels';
-        const limit = labelRows(), shown = receipts.length > limit ? limit - 1 : receipts.length;
-        receipts.slice(0, shown).forEach(receipt => column.append(nameRow(receipt)));
-        if (shown < receipts.length) {
-            const more = document.createElement('span'); more.className = 'battle-loot-name is-more';
-            more.textContent = `외 ${receipts.length - shown}개`;
-            column.append(more);
-        }
-        return column;
+    /** PoE-style name cross around the pile, in importance order: up over the picture first, then the emptier side, then down. */
+    function labelArms(receipts) {
+        const limits = canvas.clientWidth < 600 ? ARM_ROWS.narrow : ARM_ROWS.wide;
+        const arms = { up: [], right: [], left: [], down: [] };
+        receipts.forEach((receipt, index) => {
+            const sides = arms.right.length <= arms.left.length ? ['right', 'left'] : ['left', 'right'];
+            const side = ['up', ...sides, 'down'].find(name => arms[name].length < limits[name]);
+            if (side) arms[side].push(nameRow(receipt, index));
+        });
+        return ['up', 'right', 'left', 'down'].filter(side => arms[side].length).map(side => {
+            const arm = document.createElement('div');
+            arm.className = side === 'up' ? 'battle-loot-labels' : `battle-loot-labels is-${side}`;
+            arms[side].forEach(row => arm.append(row));
+            return arm;
+        });
     }
 
-    /** One item picture for the pile (its most important drop) under the name column. */
+    /** One item picture for the pile (its most important drop) under the name cross. tier drives the glow, pop and sound. */
     function appearance(marker, receipts) {
         const lead = receipts[0], item = lead.item, currency = lead.currency && ORB_DB[lead.currency];
         marker.dataset.rarity = item?.rarity || 'normal';
         marker.dataset.kind = currency ? 'currency' : 'equipment';
+        marker.dataset.tier = isMajor(lead) ? 'major' : getRarityRank(marker.dataset.rarity) >= 2 ? 'rare' : 'plain';
         if (currency) marker.dataset.currency = lead.currency;
-        const labels = labelColumn(receipts);
-        marker.style.setProperty('--loot-color', labels.firstElementChild.style.getPropertyValue('--loot-color'));
+        const arms = labelArms(receipts);
+        marker.style.setProperty('--loot-color', arms[0].firstElementChild.style.getPropertyValue('--loot-color'));
         const flight = document.createElement('div'); flight.className = 'battle-loot-flight';
         flight.append(lootArt(currency ? currency.icon : getInventoryItemVisualAsset(item, lead.itemKind), item));
-        marker.append(flight, labels);
+        marker.append(flight, ...arms);
         return flight;
     }
 
@@ -167,7 +202,7 @@ const battleGroundLoot = (() => {
         marker.dataset.y = (point.y + Math.sin(angle) * radius) / canvas.clientHeight;
         marker.dataset.sourceX = point.x / canvas.clientWidth; marker.dataset.sourceY = point.y / canvas.clientHeight;
         marker.style.setProperty('--rest-angle', (receipts[0].item?.slot === '무기' ? 54 + index * 7 : -16 + index * 9) + 'deg');
-        const flight = appearance(marker, receipts); beam(marker, receipts[0]); ground.append(marker); place(marker);
+        const flight = appearance(marker, receipts); beam(marker, receipts[0]); ground.append(marker); place(marker); yieldCrowdedArms(marker);
         const entry = { marker, timers: new Set() }; entries.set(marker, entry);
         launch(entry, flight, point);
         later(entry, () => absorb(entry), important ? 3300 : 2400);
@@ -187,10 +222,20 @@ const battleGroundLoot = (() => {
     function land(entry) {
         entry.marker.classList.add('landed');
         const contact = document.createElement('span'); contact.className = 'battle-loot-contact'; entry.marker.append(contact);
-        if (!reduced()) entry.marker.querySelector('.battle-loot-item').animate([
-            { translate: '0 0' }, { translate: '0 -4px', offset: .35 }, { translate: '0 0' }
-        ], { duration: 190, easing: 'ease-out' });
+        const tier = entry.marker.dataset.tier;
+        if (tier !== 'plain' && typeof playLootDropSound === 'function') playLootDropSound(tier === 'major');
+        if (!reduced()) landingPop(entry.marker.querySelector('.battle-loot-item'), tier);
         later(entry, () => contact.remove(), 550);
+    }
+
+    /** The picture squashes on the ground and springs back; rare and better flash white for a moment. */
+    function landingPop(art, tier) {
+        const shadow = 'drop-shadow(1px 2px 1px #14130f)', flash = tier === 'plain' ? 1 : 2;
+        art.animate([
+            { translate: '0 0', scale: '1.3 .76', filter: `${shadow} brightness(${flash})` },
+            { translate: '0 -7px', scale: '.9 1.12', offset: .38 },
+            { translate: '0 0', scale: '1 1', filter: `${shadow} brightness(1)` }
+        ], { duration: 280, easing: 'ease-out' });
     }
 
     function absorb(entry) {

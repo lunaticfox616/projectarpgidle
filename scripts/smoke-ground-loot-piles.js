@@ -1,5 +1,6 @@
-// 드랍 연출(2026-10-03 사용자 요청): 한 처치의 드랍은 한 자리에 한 더미로 떨어진다. 대표 그림 하나 위에 PoE처럼
-// 이름표가 쌓이고(가장 중요한 이름이 그림 바로 위), 넘치면 "외 N개" 한 줄이다. 빛기둥은 더미 단위, 겹치는 묶음은 위로 비킨다.
+// 드랍 연출(2026-10-03 사용자 요청): 한 처치의 드랍은 한 자리에 한 더미로 떨어진다. 대표 그림 하나 둘레에 PoE처럼
+// 이름표가 십자로 놓이고(위 팔이 그림 바로 위, 많으면 좌우와 아래), 넘치는 드랍은 이름을 생략한다("외 N개"는 쓰지 않는다).
+// 빛기둥은 더미 단위, 겹치는 위 팔은 위로 비킨다.
 // 전에는 처치 하나의 드랍이 원형으로 흩어져 드랍마다 그림과 이름표가 따로 떴다.
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -47,8 +48,9 @@ while (pending.length) {
 
 const frame = () => run(`battleGroundLoot.actorContext(source, ctx, ${now}, { actorGroundOffsetY: 8, cellToScreen: (gx, gy) => ({ x: gx * 48, y: gy * 48 }) })`);
 const live = () => nodes.filter(node => node.className === 'battle-loot-drop' && !node.removed);
-const part = (pile, className) => pile.children.find(child => child.className === className);
-const rows = pile => part(pile, 'battle-loot-labels').children.map(row => row.dataset.currency || `${row.dataset.rarity || 'more'}:${row.textContent}`);
+const arms = pile => pile.children.filter(child => String(child.className).startsWith('battle-loot-labels'));
+const rows = pile => arms(pile).flatMap(arm => arm.children.map(row => row.dataset.currency || `${row.dataset.rarity}:${row.textContent}`));
+const armNames = pile => arms(pile).map(arm => arm.className.replace('battle-loot-labels', '').trim() || 'up');
 const iconCurrencies = count => run(`JSON.stringify(Object.keys(ORB_DB).filter(key => ORB_DB[key].icon && key !== 'goldenRule').slice(0, ${count}))`);
 
 run(`game = mergeDefaults({ level: 30, currentZoneId: 1, settings: { showLootLog: false } });
@@ -70,15 +72,40 @@ assert.ok(golden && plenty);
 assert.equal(golden.children.filter(child => child.className === 'battle-loot-flight').length, 1, 'one item picture per pile');
 assert.deepEqual(rows(golden), ['goldenRule', `rare:${run('ring.name')}`, 'magicBud'],
     'names stack by importance: golden rule, then rarity (the first row sits nearest the picture)');
+assert.deepEqual(armNames(golden), ['up']);
+assert.equal(golden.dataset.tier, 'major');
 assert.equal(golden.dataset.beam, 'true', 'a pile holding a major drop gets the beam');
 assert.equal(plenty.dataset.beam, undefined);
-const wide = rows(plenty);
-assert.equal(wide.length, 6, 'a wide battlefield shows six rows');
-assert.equal(wide.at(-1), 'more:외 3개', 'the rest fold into one row');
+// Eight names on a wide battlefield: six over the picture, then one to each side. Never a "외 N개" row (user, 2026-10-03).
+assert.equal(rows(plenty).length, 8, 'every drop keeps its name');
+assert.deepEqual(armNames(plenty), ['up', 'is-right', 'is-left'], 'the names spread out in a cross');
+assert.ok(!rows(plenty).some(row => row.includes('외')), 'no fold row');
 assert.ok(parseFloat(plenty.style.getPropertyValue('--label-lift')) > 0, 'an overlapping name column moves up instead of covering the other');
 assert.equal(golden.style.getPropertyValue('--label-lift'), '0px');
 
-// Phones get three rows: two names and the fold.
+// A huge pile fills every arm (6, 2, 2, 3) and leaves the rest unnamed rather than folding them.
+now += 100;
+run(`window.killD = { id: 9004, gx: 12, gy: 3 }; battleVisualState.enemySmoothPos[9004] = { x: 620, y: 260 };
+    for (let i = 0; i < 20; i++) queueEnemyGroundLoot(killD, { currency: 'magicBud', count: i + 1 });`);
+frame();
+const huge = live().find(pile => !piles.includes(pile));
+assert.deepEqual(armNames(huge), ['up', 'is-right', 'is-left', 'is-down']);
+assert.equal(rows(huge).length, 13, 'six up, two each side, three down');
+piles.push(huge);
+
+// Two piles side by side: the later pile's left arm would cover the earlier pile's right arm, so it is left out.
+now += 100;
+run(`window.killE = { id: 9005, gx: 1, gy: 9 }; window.killF = { id: 9006, gx: 3, gy: 9 };
+    battleVisualState.enemySmoothPos[9005] = { x: 100, y: 520 }; battleVisualState.enemySmoothPos[9006] = { x: 180, y: 520 };
+    for (const kill of [killE, killF]) for (let i = 0; i < 8; i++) queueEnemyGroundLoot(kill, { currency: 'sapBud', count: i + 1 });`);
+frame();
+const [earlier, later] = live().filter(pile => !piles.includes(pile));
+const shown = pile => arms(pile).filter(arm => !arm.hidden).map(arm => arm.className.replace('battle-loot-labels', '').trim() || 'up');
+assert.deepEqual(shown(earlier), ['up', 'is-right', 'is-left'], 'the earlier pile keeps its whole cross');
+assert.deepEqual(shown(later), ['up', 'is-right'], 'the later left arm gives way instead of covering names');
+piles.push(earlier, later);
+
+// Phones: three up, one each side, two down.
 width = 500;
 now += 100;
 run(`window.killC = { id: 9003, gx: 2, gy: 2 }; battleVisualState.enemySmoothPos[9003] = { x: 120, y: 420 };
@@ -86,6 +113,7 @@ run(`window.killC = { id: 9003, gx: 2, gy: 2 }; battleVisualState.enemySmoothPos
 frame();
 const phone = live().find(pile => !piles.includes(pile));
 assert.ok(phone, 'the next kill drops its own pile');
-assert.deepEqual(rows(phone).length, 3);
-assert.equal(rows(phone).at(-1), 'more:외 6개');
-console.log('Ground loot piles: one picture per kill, stacked names by importance, fold row, beam per pile, column lift: OK');
+assert.deepEqual(armNames(phone), ['up', 'is-right', 'is-left', 'is-down']);
+assert.equal(rows(phone).length, 7);
+assert.ok(!rows(phone).some(row => row.includes('외')));
+console.log('Ground loot piles: one picture per kill, names by importance in a cross, no fold row, beam per pile, column lift: OK');

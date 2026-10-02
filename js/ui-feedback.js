@@ -6,6 +6,7 @@
     let previousFocus = null;
     let audioContext = null;
     let lastCombatDeathSoundAt = -Infinity;
+    let lastLootDropSoundAt = -Infinity;
 
     function escapeFeedbackHtml(value) {
         return String(value == null ? '' : value)
@@ -74,16 +75,18 @@
                 confirm: [520, 0.024, 0.07],
                 cancel: [220, 0.018, 0.055],
                 danger: [145, 0.028, 0.09],
-                success: [660, 0.022, 0.08],
-                kill: [115, 0.012, 0.045],
-                killElite: [155, 0.017, 0.065],
-                killBoss: [92, 0.024, 0.12]
+                // [시작 Hz, 크기, 길이 초, 끝 Hz]: 끝 Hz가 있으면 그쪽으로 미끄러진다.
+                success: [660, 0.022, 0.08, 880],
+                kill: [115, 0.012, 0.045, 115 * 0.55],
+                killElite: [155, 0.017, 0.065, 155 * 0.55],
+                killBoss: [92, 0.024, 0.12, 92 * 0.55],
+                lootRare: [988, 0.013, 0.09, 1480],
+                lootMajor: [784, 0.022, 0.2, 1568]
             };
             let spec = map[kind] || map.open;
             osc.type = kind === 'danger' ? 'sawtooth' : (String(kind).startsWith('kill') ? 'triangle' : 'sine');
             osc.frequency.setValueAtTime(spec[0], now);
-            if (kind === 'success') osc.frequency.exponentialRampToValueAtTime(880, now + spec[2]);
-            else if (String(kind).startsWith('kill')) osc.frequency.exponentialRampToValueAtTime(spec[0] * 0.55, now + spec[2]);
+            if (spec[3]) osc.frequency.exponentialRampToValueAtTime(spec[3], now + spec[2]);
             gain.gain.setValueAtTime(spec[1], now);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + spec[2]);
             osc.connect(gain);
@@ -382,7 +385,15 @@
         return close;
     }
 
-    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker, showGameToast, playUiFeedbackSound };
+    /** A rare or better loot pile lands: a short rising tone, brighter for golden rule and uniques. At most one per 90 ms. */
+    function playLootDropSound(major) {
+        let at = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+        if (!major && at - lastLootDropSoundAt < 90) return;
+        lastLootDropSoundAt = at;
+        playUiFeedbackSound(major ? 'lootMajor' : 'lootRare');
+    }
+
+    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker, showGameToast, playUiFeedbackSound, playLootDropSound };
     if (typeof safeExposeGlobals === 'function') safeExposeGlobals(exports);
     else Object.assign(window, exports);
 }());
