@@ -9796,6 +9796,13 @@ function renderTimeRiftPanel() {
     sideEncounterUi.timeRiftPanel(host, ensureTimeRiftState());
 }
 
+function sporeModeDialogBody(modeOptions, cur, sporeCost, advancedSpores) {
+    let buttons = modeOptions.map(opt => `<button type="button" class="selection-overlay-option${cur === opt.id ? ' selected' : ''}" data-spore-mode="${opt.id}">${opt.label}${cur === opt.id ? ' ✓' : ''}</button>`).join('');
+    return `<div class="selection-overlay-help">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 ‘해금’의 고급 홀씨가 엽니다.'}</div>`
+        + `<div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`
+        + `<div class="selection-overlay-grid spore-mode-grid">${buttons}</div>`;
+}
+
 function openSporeModeOverlay(currencyKey) {
     let allowed = ['magicBud','sapBud','formlessDew'];
     if (!allowed.includes(currencyKey)) return;
@@ -9818,39 +9825,14 @@ function openSporeModeOverlay(currencyKey) {
     let cur = game.sporeCraftModes[currencyKey] || 'none';
     let sporeCost = typeof getSporeCraftCost === 'function' ? getSporeCraftCost() : 10;
     if (!modeOptions.some(opt => opt.id === cur)) cur = 'none';
-    let old = document.getElementById('spore-mode-overlay');
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    let overlay = document.createElement('div');
-    overlay.id = 'spore-mode-overlay';
-    overlay.className = 'selection-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    let panel = document.createElement('div');
-    panel.className = 'selection-overlay-panel spore-picker-panel';
-    panel.innerHTML = `<div class="selection-overlay-header"><div class="selection-overlay-title">홀씨 모드 선택</div><button id="spore-overlay-close">닫기</button></div><div class="selection-overlay-help">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 ‘해금’의 고급 홀씨가 엽니다.'}</div><div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`;
-
-    let buttons = document.createElement('div');
-    buttons.className = 'selection-overlay-grid spore-mode-grid';
-    modeOptions.forEach(opt => {
-        let btn = document.createElement('button');
-        let selected = cur === opt.id;
-        btn.type = 'button';
-        btn.textContent = opt.label + (selected ? ' ✓' : '');
-        btn.className = `selection-overlay-option${selected ? ' selected' : ''}`;
-        btn.onclick = () => {
-            game.sporeCraftModes[currencyKey] = opt.id;
-            updateStaticUI();
-            overlay.remove();
-        };
-        buttons.appendChild(btn);
-    });
-
-    panel.appendChild(buttons);
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
-    let closeBtn = panel.querySelector('#spore-overlay-close');
-    if (closeBtn) closeBtn.onclick = () => overlay.remove();
+    let panel = selectionDialog.show({ id: 'spore-mode-overlay', title: '홀씨 모드 선택', panelClass: 'spore-picker-panel', body: sporeModeDialogBody(modeOptions, cur, sporeCost, advancedSpores) });
+    panel.querySelector('.spore-mode-grid').onclick = event => {
+        let button = event.target.closest('[data-spore-mode]');
+        if (!button) return;
+        game.sporeCraftModes[currencyKey] = button.dataset.sporeMode;
+        updateStaticUI();
+        selectionDialog.close('spore-mode-overlay');
+    };
 }
 window.openSporeModeOverlay = openSporeModeOverlay;
 

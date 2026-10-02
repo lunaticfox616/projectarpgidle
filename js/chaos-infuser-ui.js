@@ -15,7 +15,7 @@ const chaosInfusionUi = (() => {
     }
 
     function close() {
-        document.getElementById(OVERLAY_ID)?.remove();
+        selectionDialog.close(OVERLAY_ID);
     }
 
     function infusionText(infusion) {
@@ -47,21 +47,13 @@ const chaosInfusionUi = (() => {
             : '<p class="chaos-infusion-blocked">이 부위에 더할 수 있는 주입 옵션이 없습니다.</p>';
     }
 
+    /** Opens the dialog, or redraws it in place after a change. */
     function render() {
-        close();
         const item = getSelectedCraftItem();
-        if (!item) return;
-        const overlay = document.createElement('div');
-        overlay.id = OVERLAY_ID;
-        overlay.className = 'selection-overlay';
-        overlay.onclick = event => { if (event.target === overlay) close(); };
-        overlay.innerHTML = `<div class="selection-overlay-panel chaos-infusion-panel" role="dialog" aria-modal="true" aria-labelledby="chaos-infusion-title">
-            <div class="selection-overlay-header"><div class="selection-overlay-title" id="chaos-infusion-title">혼돈 주입</div>
-                <button type="button" onclick="chaosInfusionUi.close()">닫기</button></div>
-            <div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}</strong><br>
+        if (!item) return close();
+        selectionDialog.show({ id: OVERLAY_ID, title: '혼돈 주입', panelClass: 'chaos-infusion-panel', body: `<div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}</strong><br>
                 희귀 장비에 T5급 범위 옵션 한 줄을 더합니다. 추가 옵션 ${getItemExplicitOptionCount(item)}/6 · 교체와 제거에는 마름병 포자 1개가 더 듭니다.</div>
-            ${currentHtml(item)}${optionsHtml(item)}</div>`;
-        document.body.append(overlay);
+            ${currentHtml(item)}${optionsHtml(item)}` });
     }
 
     // 확인 창은 화면 스냅숏만 갖는다. 확정 전에 대상이나 주입 줄이 바뀌었으면 다시 비교하게 한다.
@@ -76,7 +68,7 @@ const chaosInfusionUi = (() => {
         if (getSelectedCraftItem() !== item || JSON.stringify(item.chaosInfusion) !== previous) {
             addLog('대상 또는 주입 옵션이 변경되었습니다. 다시 비교하세요.', 'attack-monster');
         } else applyChaosInfusionToSelectedItem(optionId);
-        if (document.getElementById(OVERLAY_ID)) render();
+        if (selectionDialog.isOpen(OVERLAY_ID)) render();
     }
 
     function remove() {

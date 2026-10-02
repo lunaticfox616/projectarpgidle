@@ -85,38 +85,28 @@ const stumpCubeUi = (() => {
             + `<img src="${ICONS[kind](item)}" alt="" draggable="false"><span>${esc(name)}</span></button>`;
     }
 
-    function pickerHtml() {
+    function pickerBodyHtml() {
         const tabs = stumpCube.KINDS.map(kind => `<button type="button" class="${kind === pickerKind ? 'is-on' : ''}" aria-pressed="${kind === pickerKind}"`
             + ` onclick="stumpCubeUi.openCubePicker('${kind}')">${KIND_LABELS[kind]} ${stumpCube.candidates(kind).length}</button>`).join('');
         const list = stumpCube.candidates(pickerKind).map((item, index) => candidateHtml(pickerKind, item, index)).join('');
-        return `<div class="selection-overlay-panel stump-cube-picker-panel" role="dialog" aria-modal="true" aria-labelledby="stump-cube-picker-title">
-            <div class="selection-overlay-header"><div class="selection-overlay-title" id="stump-cube-picker-title">조합창에 넣을 재료</div>
-                <button type="button" onclick="stumpCubeUi.closeCubePicker()">닫기</button></div>
-            <p class="selection-overlay-help">누르면 조합창의 빈 자리에 들어갑니다. 재료는 조합하기 전까지 원래 보관 자리에 그대로 있습니다.
+        return `<p class="selection-overlay-help">누르면 조합창의 빈 자리에 들어갑니다. 재료는 조합하기 전까지 원래 보관 자리에 그대로 있습니다.
                 잠근 장비 · 장비 세팅에 든 장비 · 판에 놓인 그루터기 아이템은 넣을 수 없습니다.</p>
             <div class="stump-cube-picker-tabs">${tabs}</div>
-            <div class="stump-cube-candidates">${list || '<p class="selection-overlay-help">넣을 수 있는 아이템이 없습니다.</p>'}</div></div>`;
+            <div class="stump-cube-candidates">${list || '<p class="selection-overlay-help">넣을 수 있는 아이템이 없습니다.</p>'}</div>`;
     }
 
+    /** Opens the picker, or redraws it in place (another kind, or after putting an item in). */
     function openCubePicker(kind) {
         if (stumpCube.KINDS.includes(kind)) pickerKind = kind;
-        let overlay = document.getElementById(OVERLAY_ID);
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = OVERLAY_ID;
-            overlay.className = 'selection-overlay';
-            overlay.onclick = event => { if (event.target === overlay) closeCubePicker(); };
-            document.body.append(overlay);
-        }
-        overlay.innerHTML = pickerHtml();
+        selectionDialog.show({ id: OVERLAY_ID, title: '조합창에 넣을 재료', panelClass: 'stump-cube-picker-panel', body: pickerBodyHtml() });
     }
 
     function closeCubePicker() {
-        document.getElementById(OVERLAY_ID)?.remove();
+        selectionDialog.close(OVERLAY_ID);
     }
 
     function refreshCube() {
-        if (document.getElementById(OVERLAY_ID)) openCubePicker(pickerKind);
+        if (selectionDialog.isOpen(OVERLAY_ID)) openCubePicker(pickerKind);
         stumpBoxUi.refreshStumpTabNow();
     }
 

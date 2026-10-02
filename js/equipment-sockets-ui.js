@@ -77,21 +77,13 @@ const equipmentSocketsUi = (() => {
             <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 (결정 ${REFINE_COST})</button>${expand}</div>`;
     }
 
+    /** Opens the dialog, or redraws it in place after a change. */
     function render() {
-        close();
         const item = mode === 'item' ? getSelectedCraftItem() : null;
-        if (mode === 'item' && !item) return;
-        const overlay = document.createElement('div');
-        overlay.id = OVERLAY_ID;
-        overlay.className = 'selection-overlay';
-        overlay.onclick = event => { if (event.target === overlay) close(); };
+        if (mode === 'item' && !item) return close();
         const title = item ? `소켓 · [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}` : '주얼 보관함';
-        overlay.innerHTML = `<div class="selection-overlay-panel equipment-socket-panel" role="dialog" aria-modal="true" aria-labelledby="equipment-socket-title">
-            <div class="selection-overlay-header"><div class="selection-overlay-title" id="equipment-socket-title">${title}</div>
-                <button type="button" onclick="equipmentSocketsUi.close()">닫기</button></div>
-            ${item ? socketsHtml(item) : '<p class="selection-overlay-help">주얼은 장비의 소켓에 끼웁니다. 장비를 선택해 [소켓]을 누르세요. 반지 · 목걸이 · 허리띠에는 소켓이 처음부터 있습니다.</p>'}
-            ${storeHtml(item)}</div>`;
-        document.body.append(overlay);
+        selectionDialog.show({ id: OVERLAY_ID, title, panelClass: 'equipment-socket-panel', body: `${item ? socketsHtml(item) : '<p class="selection-overlay-help">주얼은 장비의 소켓에 끼웁니다. 장비를 선택해 [소켓]을 누르세요. 반지 · 목걸이 · 허리띠에는 소켓이 처음부터 있습니다.</p>'}
+            ${storeHtml(item)}` });
     }
 
     function open(ref, isEquip) {
@@ -105,7 +97,7 @@ const equipmentSocketsUi = (() => {
     }
 
     function close() {
-        document.getElementById(OVERLAY_ID)?.remove();
+        selectionDialog.close(OVERLAY_ID);
     }
 
     function report(result, message) {

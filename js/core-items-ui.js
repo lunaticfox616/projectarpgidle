@@ -39,27 +39,19 @@ const coreItemsUi = (() => {
         </article>`;
     }
 
+    /** Opens the store, or redraws it in place after a change. */
     function openStore() {
-        close();
         const store = coreItems.ensure();
-        const overlay = document.createElement('div');
-        overlay.id = OVERLAY_ID;
-        overlay.className = 'selection-overlay';
-        overlay.onclick = event => { if (event.target === overlay) close(); };
         const owned = store.owned.map(core => cardHtml(core, false)).join('')
             || '<p class="selection-overlay-help">보관 중인 코어가 없습니다. 지하계 10층을 넘긴 뒤 지하계 적에게서 떨어집니다.</p>';
-        overlay.innerHTML = `<div class="selection-overlay-panel core-item-panel" role="dialog" aria-modal="true" aria-labelledby="core-item-title">
-            <div class="selection-overlay-header"><div class="selection-overlay-title" id="core-item-title">코어</div>
-                <button type="button" onclick="coreItemsUi.close()">닫기</button></div>
-            <div class="selection-overlay-help">코어 칸에는 코어 하나를 낍니다. 코어는 옵션 네 줄을 가지며 루프를 넘기면 장비처럼 사라집니다.</div>
+        selectionDialog.show({ id: OVERLAY_ID, title: '코어', panelClass: 'core-item-panel', body: `<div class="selection-overlay-help">코어 칸에는 코어 하나를 낍니다. 코어는 옵션 네 줄을 가지며 루프를 넘기면 장비처럼 사라집니다.</div>
             ${store.equipped ? cardHtml(store.equipped, true) : '<p class="core-item-empty">코어 칸이 비어 있습니다.</p>'}
             <div class="selection-overlay-section-title">보관함 ${store.owned.length}/${CORE_ITEM_RULES.capacity}</div>
-            <div class="core-item-list">${owned}</div></div>`;
-        document.body.append(overlay);
+            <div class="core-item-list">${owned}</div>` });
     }
 
     function close() {
-        document.getElementById(OVERLAY_ID)?.remove();
+        selectionDialog.close(OVERLAY_ID);
     }
 
     function reopenStoreAfter(changed) {

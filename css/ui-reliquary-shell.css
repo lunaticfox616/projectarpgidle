@@ -1825,11 +1825,22 @@ body .equipment-preset-slot > strong {
   background: rgba(3, 4, 3, .78);
 }
 
+/* 아래 메뉴 띠(#tab-header-bottom, 층 13100)가 있는 화면에서는 그 위에 뜬다. 띠가 창 위에 남아 누르면 탭만 바뀌었다.
+   펼친 목표 칸(13150)도 덮고, 보상, 사망, 루프 결정 창(13200)과 알림(21000, 22000)은 전처럼 이 창 위에 남는다. */
+body.has-bottom-tabs .selection-overlay {
+  z-index: 13160;
+}
+
 .selection-overlay-panel {
   width: min(560px, 94vw);
   max-height: 86vh;
   padding: 14px;
   overflow-y: auto;
+}
+
+/* 창을 열면 포커스가 창 자체로 온다(키보드 순서의 시작점). 틀에는 ui-luxe.css의 전역 포커스 테두리를 그리지 않는다. */
+:root body .selection-overlay-panel:focus {
+  outline: none;
 }
 
 .selection-overlay-header {

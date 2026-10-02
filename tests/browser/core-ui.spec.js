@@ -427,3 +427,130 @@ test('selection overlays hold the keyboard: hotkeys wait and Esc closes only the
     await expect(page.locator('#tab-items')).toHaveClass(/active/);
     expect(failures).toEqual([]);
 });
+
+// 선택 창 공통 틀(js/selection-dialog-ui.js, 2026-10-03): 다섯 창이 같은 틀과 키보드 동작을 쓴다. 전에는 창을 열어도 포커스가
+// 뒤 화면에 남아 Tab이 뒤의 단추로 갔고, 홀씨 창에는 대화 상자 표시가 없었다.
+const SELECTION_DIALOG_OPENERS = [
+    ['코어', 'coreItemsUi.open()'],
+    ['주얼 보관함', 'equipmentSocketsUi.openStore()'],
+    ['소켓', `(() => { const ring = createItemFromBase(BASE_ITEM_DB.find(base => base.slot === '반지'), 'rare', 20, {});
+        game.inventory.push(ring); equipmentSocketsUi.open(ring.id, false); })()`],
+    ['혼돈 주입', `(() => { const armor = createItemFromBase(BASE_ITEM_DB.find(base => base.slot === '갑옷'), 'rare', 20, {});
+        game.inventory.push(armor); chaosInfusionUi.open(armor.id, false); })()`],
+    ['조합창에 넣을 재료', "stumpCubeUi.openCubePicker('equipment')"],
+    ['홀씨 모드 선택', "(() => { selectForCrafting(null, false); openSporeModeOverlay('magicBud'); })()"]
+];
+
+test('selection dialogs share one frame: focus moves in, Tab stays inside, Esc closes only the dialog', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => switchTab('tab-items'));
+    for (const [title, opener] of SELECTION_DIALOG_OPENERS) {
+        await page.evaluate(opener);
+        const panel = page.locator('.selection-overlay .selection-overlay-panel');
+        await expect(panel).toHaveCount(1);
+        await expect(panel).toHaveAttribute('role', 'dialog');
+        await expect(panel).toHaveAttribute('aria-modal', 'true');
+        await expect(page.locator(`#${await panel.getAttribute('aria-labelledby')}`)).toContainText(title);
+        await expect(panel, `${title}: opening moves focus into the dialog`).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        const wrappedToLast = await page.evaluate(() => {
+            const items = [...document.querySelectorAll('.selection-overlay-panel :is(button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]))')];
+            return document.activeElement === items[items.length - 1];
+        });
+        expect(wrappedToLast, `${title}: Shift+Tab wraps to the last control`).toBe(true);
+        await page.keyboard.press('Tab');
+        await expect(panel.locator('[data-selection-close]'), `${title}: Tab wraps back to the close button`).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.selection-overlay')).toHaveCount(0);
+        await expect(page.locator('#tab-items')).toHaveClass(/active/);
+    }
+    expect(failures).toEqual([]);
+});
+
+// 장착처럼 창 안에서 바꾸면 같은 창을 그 자리에서 다시 그린다. 전에는 창을 지우고 새로 만들어 목록이 맨 위로 올라가고
+// 포커스가 사라졌다.
+test('a selection dialog redraws in place: scroll and keyboard focus stay put', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const before = await page.evaluate(() => {
+        switchTab('tab-items');
+        game.cores = coreItems.normalize({ equipped: null, owned: [] });
+        for (let i = 0; i < CORE_ITEM_RULES.capacity; i++) game.cores.owned.push(coreItems.roll());
+        coreItemsUi.open();
+        const overlay = document.querySelector('.selection-overlay');
+        const panel = overlay.querySelector('.selection-overlay-panel');
+        overlay.dataset.redrawProbe = 'kept';
+        panel.scrollTop = panel.scrollHeight;
+        [...panel.querySelectorAll('.core-item-equip')].pop().focus();
+        return { scroll: panel.scrollTop, max: panel.scrollHeight - panel.clientHeight };
+    });
+    expect(before.max).toBeGreaterThan(100);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.core-item-card.is-equipped')).toHaveCount(1);
+    const after = await page.evaluate(() => {
+        const overlay = document.querySelector('.selection-overlay');
+        const panel = overlay.querySelector('.selection-overlay-panel');
+        return { probe: overlay.dataset.redrawProbe, scroll: panel.scrollTop, max: panel.scrollHeight - panel.clientHeight,
+            focusInside: panel.contains(document.activeElement) && document.activeElement !== panel };
+    });
+    expect(after.probe).toBe('kept');
+    expect(after.scroll).toBeGreaterThan(0);
+    expect(Math.abs(after.scroll - Math.min(before.scroll, after.max))).toBeLessThanOrEqual(1);
+    expect(after.focusInside).toBe(true);
+    expect(failures).toEqual([]);
+});
+
+// 선택 창 위의 확인 창(코어 버리기)이 Esc를 먼저 받고, 선택 창을 닫으면 포커스가 연 단추로 돌아간다.
+test('a confirmation over a selection dialog takes Esc first, and closing returns focus to the opener', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile-chromium', 'Esc and keyboard focus belong to the desktop (phones tap the core card itself)');
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.contentProgression.inherited.push('cube');
+        contentProgression.sync(game);
+        game.cores = coreItems.normalize({ equipped: null, owned: [] });
+        game.cores.owned.push(coreItems.roll());
+        switchTab('tab-items');
+        updateStaticUI();
+    });
+    const opener = page.locator('.core-item-slot .equipment-slot-action');
+    await opener.click();
+    await expect(page.locator('.selection-overlay')).toHaveCount(1);
+    await page.locator('.core-item-discard').click();
+    await expect(page.locator('#game-dialog-overlay')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#game-dialog-overlay')).toBeHidden();
+    await expect(page.locator('.selection-overlay')).toHaveCount(1);
+    await expect(page.locator('.core-item-list .core-item-card')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.selection-overlay')).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    expect(failures).toEqual([]);
+});
+
+// 휴대폰: 선택 창이 아래 메뉴 띠 위에 뜬다. 전에는 띠가 창 위에 남아(mobile.css의 규칙이 나중 파일에 덮였다) 누르면
+// 창이 뜬 채 탭만 바뀌었다.
+test('on phones a selection dialog covers the bottom menu', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chromium', 'the bottom menu belongs to the phone layout');
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => { switchTab('tab-items'); coreItemsUi.open(); });
+    const point = await page.evaluate(() => {
+        const box = document.getElementById('tab-header-bottom').getBoundingClientRect();
+        const x = box.left + box.width / 2, y = box.top + box.height / 2;
+        return { x, y, onTop: !!document.elementFromPoint(x, y)?.closest('.selection-overlay') };
+    });
+    expect(point.onTop).toBe(true);
+    // 알림은 전처럼 선택 창 위에 보인다(창을 메뉴 띠 위로 올리며 알림까지 덮지 않게).
+    await page.evaluate(() => showGameToast('선택 창 위 알림', { tone: 'warning', duration: 8000 }));
+    const toast = page.locator('#game-toast-region .game-toast', { hasText: '선택 창 위 알림' });
+    await expect(toast).toBeVisible();
+    expect(await toast.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+    })).toBe(true);
+    await page.mouse.click(point.x, point.y);
+    await expect(page.locator('#tab-items')).toHaveClass(/active/);
+    expect(failures).toEqual([]);
+});
