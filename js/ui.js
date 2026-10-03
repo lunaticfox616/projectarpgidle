@@ -12204,11 +12204,18 @@ async function cloudJsonRequest(path, options = {}) {
             data = text;
         }
     }
-    if (!response.ok) {
-        let message = data && (data.msg || data.error_description || data.message || data.error);
-        throw new Error(message || `HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(describeCloudServerError(data, response.status));
     return data;
+}
+
+// 서버 오류 코드 중 플레이어가 알아야 할 것은 문구로 바꾼다(db/operations-and-ghost.sql의 commit_cloud_save).
+const CLOUD_SERVER_ERROR_TEXT = Object.freeze({
+    SAVE_TOO_LARGE: '클라우드 저장이 너무 커서 서버가 받지 않았습니다(8MB). 가방과 보관함을 정리한 뒤 다시 저장해 주세요.'
+});
+
+function describeCloudServerError(data, status) {
+    const message = data && (data.msg || data.error_description || data.message || data.error);
+    return CLOUD_SERVER_ERROR_TEXT[message] || message || `HTTP ${status}`;
 }
 
 function collectCloudCredentials() {

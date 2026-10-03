@@ -23,17 +23,15 @@ drop policy if exists "cloud_saves_select_own" on public.cloud_saves;
 create policy "cloud_saves_select_own" on public.cloud_saves
     for select to authenticated using (auth.uid() = user_id);
 
-drop policy if exists "cloud_saves_insert_own" on public.cloud_saves;
-create policy "cloud_saves_insert_own" on public.cloud_saves
-    for insert to authenticated with check (auth.uid() = user_id);
-
-drop policy if exists "cloud_saves_update_own" on public.cloud_saves;
-create policy "cloud_saves_update_own" on public.cloud_saves
-    for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- 세이브 쓰기는 commit_cloud_save(보안 정의자 함수)로만 한다(2026-10-03). 예전에는 자기 행을 직접 쓸 수 있어서
+-- 리비전 확인과 크기 상한을 건너뛸 수 있었다.
+revoke all on public.cloud_saves from anon, authenticated;
+grant select on public.cloud_saves to authenticated;
 
 create or replace function public.commit_cloud_save(expected_revision bigint, next_save_data jsonb)
 returns table(committed boolean, current_revision bigint, saved_at timestamptz)
 language plpgsql
+security definer
 set search_path = public
 as $$
 declare
@@ -41,6 +39,7 @@ declare
 begin
     if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
     if next_save_data is null then raise exception 'SAVE_DATA_REQUIRED'; end if;
+    if pg_column_size(next_save_data) > 8388608 then raise exception 'SAVE_TOO_LARGE'; end if;
 
     select revision into stored_revision
       from public.cloud_saves
@@ -70,6 +69,7 @@ begin
 end;
 $$;
 
+revoke all on function public.commit_cloud_save(bigint, jsonb) from public, anon;
 grant execute on function public.commit_cloud_save(bigint, jsonb) to authenticated;
 
 create table if not exists public.playtest_runs (

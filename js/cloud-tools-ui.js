@@ -39,7 +39,7 @@ function renderCloudHistoryRows(rows) {
             ? '<span class="cloud-current-badge">현재</span>'
             : `<button type="button" onclick="restoreCloudSaveVersion(${Number(row.revision) || 0})">복구</button>`;
         return `<div class="cloud-history-row"><div><strong>리비전 ${cloudToolsNumber(row.revision)}</strong><small>루프 ${cloudToolsNumber(row.loop_number)} · ${cloudToolsEscape(time)}</small></div>${action}</div>`;
-    }).join('')}</div><p class="cloud-tools-note">정상적으로 완료된 클라우드 저장의 이전 버전만 최대 5개 보관합니다.</p>`;
+    }).join('')}</div><p class="cloud-tools-note">정상적으로 완료된 클라우드 저장의 이전 버전을 약 30분 간격으로 최대 2개 보관합니다.</p>`;
 }
 
 async function openCloudSaveHistory() {
