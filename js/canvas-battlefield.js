@@ -2073,7 +2073,7 @@ function drawPlayerReturnWhiteShroud(ctx, position, strength, frontLayer) {
 
 function drawBattlePlayerActor(ctx, state) {
     state = worldTreeSkillFx.actorState(state);
-    let position = state.playerPos;
+    let position = getPlayerHurtPosition(state);
     let returnWarp = state.returnWarp;
     let returnDeparture = state.returnDeparture;
     let warpPosition = returnWarp && returnWarp.position ? returnWarp.position : position;
@@ -2119,6 +2119,65 @@ function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
     if (length < 0.01) return { progress, x: 0, y: 0 };
     let stride = Math.sin(progress * Math.PI) * Math.max(0, Number(distance) || 0);
     return { progress, x: dx / length * stride, y: dy / length * stride };
+}
+
+// 타격감(2026-10-04): a struck enemy flinches away from the hero for a moment, further on a crit or a heavy blow (tiles).
+const ENEMY_HIT_RECOIL = Object.freeze({ ms: 150, normal: 0.05, crit: 0.09, heavy: 0.12 });
+// 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
+const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
+
+/** Out fast, back slowly: 0 to 1 over the first fifth of the flinch, then eases home. */
+function getHitRecoilCurve(t) {
+    if (!(t >= 0 && t < 1)) return 0;
+    return t < 0.2 ? t / 0.2 : Math.pow(1 - (t - 0.2) / 0.8, 2);
+}
+
+/** Offset of `at` pushed away from `from` by `reach` px. The board is seen from above at a slant, so a vertical push is shorter. */
+function getRecoilOffset(at, from, reach) {
+    const dx = at.x - from.x, dy = at.y - from.y, length = Math.hypot(dx, dy);
+    if (!(length > 0.01) || !(reach > 0)) return null;
+    return { x: dx / length * reach, y: dy / length * reach * 0.6 };
+}
+
+function getEnemyHitRecoilReach(fx) {
+    if (fx.impactTier === 'heavy' || fx.impactTier === 'annihilate') return ENEMY_HIT_RECOIL.heavy;
+    return fx.crit ? ENEMY_HIT_RECOIL.crit : ENEMY_HIT_RECOIL.normal;
+}
+
+function getEnemyHitRecoil(fx, state, tile) {
+    const entry = fx.type === 'hit' && !fx.dot && state.enemyPosMap[fx.enemyId];
+    const push = entry ? getHitRecoilCurve((state.now - fx.start) / ENEMY_HIT_RECOIL.ms) : 0;
+    return push > 0 ? getRecoilOffset(entry, state.playerPos, tile * getEnemyHitRecoilReach(fx) * push) : null;
+}
+
+/** Each enemy's flinch this frame, from its latest direct hit (damage over time does not flinch). */
+function buildEnemyHitRecoilMap(effects, state) {
+    const result = {}, tile = state.gridProj ? state.gridProj.tileW : 48;
+    for (let index = (effects || []).length - 1; index >= 0; index--) {
+        const fx = effects[index], offset = fx && !(fx.enemyId in result) && getEnemyHitRecoil(fx, state, tile);
+        if (offset) result[fx.enemyId] = offset;
+    }
+    return result;
+}
+
+/** The newest effect of a type that started within the last `withinMs`. */
+function findRecentBattleFx(type, now, withinMs) {
+    for (let index = battleFx.length - 1; index >= 0; index--) {
+        const fx = battleFx[index];
+        if (fx && fx.type === type && now >= fx.start && now - fx.start < withinMs) return fx;
+    }
+    return null;
+}
+
+/** Where the hero is drawn while a hit knocks it back from its attacker. */
+function getPlayerHurtPosition(state) {
+    const at = state.playerPos, hit = findRecentBattleFx('playerHit', state.now, PLAYER_HURT_RECOIL.ms);
+    const from = hit && Number(hit.damage) > 0 && state.enemyPosMap && state.enemyPosMap[hit.enemyId];
+    if (!from) return at;
+    const life = clampNumber(PLAYER_HURT_RECOIL.min + (Number(hit.damageRatio) || 0) * PLAYER_HURT_RECOIL.perLife, PLAYER_HURT_RECOIL.min, PLAYER_HURT_RECOIL.max);
+    const push = getHitRecoilCurve((state.now - hit.start) / PLAYER_HURT_RECOIL.ms);
+    const offset = getRecoilOffset(at, from, (state.gridProj ? state.gridProj.tileW : 48) * life * push);
+    return offset ? { ...at, x: at.x + offset.x, y: at.y + offset.y } : at;
 }
 
 function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
@@ -2180,13 +2239,15 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
  * js/canvas-monster-actors.js); story bosses keep their atlas sprites. */
 function drawEnemyActorSprite(ctx, entry, state, pose) {
     const enemy = entry.enemy, flash = state.flashingEnemyIds.has(enemy.id), facing = resolveEnemyFacingDirection(entry, state.playerPos);
-    const tile = state.gridProj && state.gridProj.tileW;
-    const sheetPose = { x: entry.x, y: pose.y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale, moving: entry.moving === true };
+    const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
+    const x = entry.x + recoil.x, y = pose.y + recoil.y;
+    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale, moving: entry.moving === true };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
-    drawEnemySprite(ctx, enemy, entry.x, pose.y, pose.scale, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
+    drawEnemySprite(ctx, enemy, x, y, pose.scale, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
 function drawBattleActorLayer(ctx, enemyEntries, state) {
+    state = { ...state, enemyHitRecoil: buildEnemyHitRecoilMap(battleFx, state) };
     const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj);
     let actors = (enemyEntries || []).concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
@@ -2430,6 +2491,7 @@ function renderBattlefield(forceWhenHidden) {
             }
             handled = true;
         } else if (fx.type === 'playerHit') {
+            requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
@@ -2743,7 +2805,7 @@ function getBattleCameraShake(now) {
             ? (fx.boss ? 8.2 : (fx.elite ? 3.1 : 0.8))
             : (fx.type === 'enemySpawn'
                 ? (fx.boss ? 2.8 : (fx.elite ? 0.8 : 0))
-                : (fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32) : hitStrength));
+                : hitStrength);
         amplitude = Math.max(amplitude, strength * (1 - age / duration));
     });
     // Whole device pixels: a fractional offset would resample every nearest-neighbour sprite and tile unevenly.
@@ -2755,6 +2817,22 @@ function getBattleCameraShake(now) {
 }
 
 /** Edge shading over the battlefield. 2026-10-02: a little lighter (sides 0.44, top 0.34, bottom 0.5 before) so the map reads brighter. */
+// 피격감(2026-10-04): every hit on the hero flashes the screen edge red for a moment, stronger the more life it took.
+const PLAYER_HURT_EDGE = Object.freeze({ ms: 300, min: 0.16, perLife: 3, max: 0.7 });
+function drawPlayerHurtEdge(ctx, width, height, now) {
+    const hit = findRecentBattleFx('playerHit', now, PLAYER_HURT_EDGE.ms);
+    if (!hit || !(Number(hit.damage) > 0)) return;
+    const fade = 1 - (now - hit.start) / PLAYER_HURT_EDGE.ms;
+    const strength = clampNumber(PLAYER_HURT_EDGE.min + (Number(hit.damageRatio) || 0) * PLAYER_HURT_EDGE.perLife, PLAYER_HURT_EDGE.min, PLAYER_HURT_EDGE.max);
+    const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.3, width / 2, height / 2, Math.max(width, height) * 0.72);
+    edge.addColorStop(0, 'rgba(150,12,18,0)');
+    edge.addColorStop(1, `rgba(176,16,24,${(strength * fade * fade).toFixed(3)})`);
+    ctx.save();
+    ctx.fillStyle = edge;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+}
+
 function drawBattleScreenGrade(ctx, width, height, now) {
     ctx.save();
     let edgeSizeX = Math.max(72, width * 0.2);
@@ -2780,6 +2858,7 @@ function drawBattleScreenGrade(ctx, width, height, now) {
     ctx.fillStyle = bottomEdge;
     ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
     ctx.restore();
+    drawPlayerHurtEdge(ctx, width, height, now);
 }
 
 // 균열 등불(rift) 스킨의 조명 패스. 플레이어 주변만 밝히고 바깥을 눌러 시선을 전투로 모은다.

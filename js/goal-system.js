@@ -440,7 +440,10 @@
         },
         {
             id: 'season-points',
-            matches(g) { return clampCount(g.seasonPoints) > 0 && !!(g.unlocks && g.unlocks.season); },
+            matches(g) {
+                return clampCount(g.seasonPoints) > 0 && !!(g.unlocks && g.unlocks.season)
+                    && (typeof hasSpendableSeasonPoint !== 'function' || hasSpendableSeasonPoint());
+            },
             build(g) { return buildNotice(`사용하지 않은 루프 포인트 ${clampCount(g.seasonPoints)}`, 'tab-season'); }
         },
         {

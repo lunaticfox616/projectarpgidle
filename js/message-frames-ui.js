@@ -1,6 +1,7 @@
 // 전투 기록과 채팅 창(PC, 2026-10-03 사용자 요청, 라그나로크와 마비노기 채팅창처럼). 작은 창 하나에 [전투][채팅] 탭이 있고,
-// 탭을 창 밖으로 끌거나 ⇱를 누르면 보던 탭이 따로 창이 된다. ⇲로 다시 합친다. 두 창 모두 탭 줄을 끌어 옮기고 오른쪽 아래
-// 모서리로 크기를 바꾼다. 범위는 관리 창과 같은 작업 영역(하단 HUD 메뉴 줄 바로 위까지)이고, 관리 창보다는 아래에 깔린다.
+// 탭을 창 밖으로 끌거나 ⇱를 누르면 보던 탭이 따로 창이 된다. ⇲로 다시 합친다. 두 창 모두 탭 줄을 끌어 옮기고 테두리(위, 아래,
+// 양옆, 네 모서리)로 크기를 바꾼다. 범위는 떠 있는 관리 창과 같아서(js/ui-window-manager.js getFreeWindowRect) 하단 HUD를 덮고
+// 화면 아래 끝까지 둘 수 있고(2026-10-03, 2026-10-04 사용자 요청), 관리 창보다는 아래에 깔린다.
 // 전투 기록(#log)과 채팅(#tab-social)은 원래 요소를 창으로 옮겨 쓰고, 휴대폰 배치에서는 원래 자리로 돌려놓는다.
 // 채팅 설정(닉네임, 프로필, 동기화, 접속자)은 ⚙ 하나(social.js openChatSettings)에 모았다.
 const messageFrames = (() => {
@@ -15,6 +16,8 @@ const messageFrames = (() => {
     const DEFAULT_WIDTH = 300;
     const DEFAULT_HEIGHT = 420;
     const GAP = 10;
+    // 크기 조절 테두리: 오른쪽 아래 모서리(보이는 손잡이) 말고도 위, 아래, 양옆과 나머지 세 모서리.
+    const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw']);
     const homes = new Map();
     let state = readFrameState();
     let env = null;
@@ -80,6 +83,7 @@ const messageFrames = (() => {
         return mounted && FRAMES.some(frame => shownTab(frame) === tab);
     }
 
+    /** Where a frame may go: the floating windows' range, down over the bottom HUD to the screen edge (a layer above the HUD). */
     function frameWorkspace() {
         if (env && typeof env.workspaceRect === 'function') return env.workspaceRect();
         return { left: 8, top: 8, width: window.innerWidth / frameScale() - 16, height: window.innerHeight / frameScale() - 16 };
@@ -251,13 +255,29 @@ const messageFrames = (() => {
             () => saveFrameState());
     }
 
-    function beginResize(event, frame) {
+    /** One axis of a resize: the dragged edge moves, the other stays. The size keeps its minimum and the workspace. */
+    function frameResizeAxis(pos, size, delta, movesStart, limits) {
+        const [min, lo, hi] = limits;
+        if (!movesStart) return [pos, Math.max(Math.min(min, hi - pos), Math.min(hi - pos, size + delta))];
+        const end = pos + size, start = Math.max(lo, Math.min(end - min, pos + delta));
+        return [start, end - start];
+    }
+
+    /** The rect after dragging the given edges (n, s, e, w or a corner such as nw) by dx, dy. */
+    function frameResizedRect(rect, edges, dx, dy) {
+        const ws = frameWorkspace();
+        const [x, width] = /[ew]/.test(edges) ? frameResizeAxis(rect.x, rect.width, dx, edges.includes('w'), [MIN_WIDTH, ws.left, ws.left + ws.width]) : [rect.x, rect.width];
+        const [y, height] = /[ns]/.test(edges) ? frameResizeAxis(rect.y, rect.height, dy, edges.includes('n'), [MIN_HEIGHT, ws.top, ws.top + ws.height]) : [rect.y, rect.height];
+        return { x, y, width, height };
+    }
+
+    function beginResize(event, frame, edges) {
         if (event.button !== undefined && event.button !== 0) return;
         event.preventDefault();
         event.stopPropagation();
         const start = { x: event.clientX, y: event.clientY, rect: { ...rectFor(frame) } };
-        trackPointer(move => setRect(frame, { ...start.rect, width: start.rect.width + (move.clientX - start.x) / frameScale(),
-            height: start.rect.height + (move.clientY - start.y) / frameScale() }, true), () => saveFrameState());
+        trackPointer(move => setRect(frame, frameResizedRect(start.rect, edges, (move.clientX - start.x) / frameScale(), (move.clientY - start.y) / frameScale()), true),
+            () => saveFrameState());
     }
 
     function leftFrame(event, frame) {
@@ -300,9 +320,10 @@ const messageFrames = (() => {
         el.className = 'message-frame';
         el.setAttribute('aria-label', frame === 'main' ? '전투 기록과 채팅' : '따로 띄운 탭');
         el.innerHTML = '<div class="message-frame-bar"><div class="message-frame-tabs" role="tablist"></div><div class="message-frame-actions"></div></div>'
-            + '<div class="message-frame-body"></div><div class="message-frame-resize" aria-hidden="true"></div>';
+            + '<div class="message-frame-body"></div><div class="message-frame-resize" data-edges="se" aria-hidden="true"></div>'
+            + EDGES.map(edges => `<div class="message-frame-edge" data-edges="${edges}" aria-hidden="true"></div>`).join('');
         el.querySelector('.message-frame-bar').addEventListener('pointerdown', event => onBarPointerDown(event, frame));
-        el.querySelector('.message-frame-resize').addEventListener('pointerdown', event => beginResize(event, frame));
+        el.querySelectorAll('[data-edges]').forEach(handle => handle.addEventListener('pointerdown', event => beginResize(event, frame, handle.dataset.edges)));
         el.addEventListener('click', event => onFrameClick(event, frame));
         return el;
     }

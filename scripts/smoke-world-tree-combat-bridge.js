@@ -14,8 +14,9 @@ function recorder(){
  return {ctx,rows};
 }
 function compare(fx,expected,label){
- // Transport geometry is sampled historically here; live contact gating is checked separately.
- const {contactSchedule,...historicalFx}=fx;
+ // Transport geometry is sampled historically here; live contact gating, and the hand height and even speed of straight shots
+ // (travelCellMs, 2026-10-04), are checked separately in smoke-skill-contact-feedback.
+ const {contactSchedule,travelCellMs,...historicalFx}=fx;
  if(fx.resolvedSkillContact)expected=expected.filter(event=>event.kind!=='hit');
  // The authored gallery supersedes the optional bridge's generic hit durations for slash.
  if(fx.skillName==='연속 베기')expected=expected.map(event=>({...event,duration:slashGallery.events.find(row=>row.kind===event.kind).duration}));

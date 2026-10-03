@@ -28,10 +28,17 @@ const {fx,rows}=cast();
 assert.strictEqual(rows.length,2);
 assert.strictEqual(fx.contactSchedule[0].state,rows[0].contactState);
 const before=run('JSON.stringify(game)');
-const late=fx.start+fx.releaseDelayMs+fx.flightMs+80;
-const held=positions(fx,late);
-assert(held.length>0,'the projectile must not disappear while its contact is pending');
-assert(held[0].x<=projection.cellToScreen(3,4).x+1,'native tip cannot overshoot a pending victim beyond pixel rounding');
+// 2026-10-04 사용자 "투사체가 몬스터 맞고 더 빨라진다, 일정하게": the image used to wait on each victim until the 100ms combat step
+// landed the hit, then jump ahead. It now keeps one speed past pending victims; the fixed launch part of the travel time waits
+// before the release instead of slowing the first cell.
+const release=fx.start+fx.releaseDelayMs,track=[];
+for(let t=release;t<=release+fx.flightMs+80;t+=3){const p=positions(fx,t)[0];if(p)track.push({t,x:p.x});}
+const first=track[0],last=track.at(-1),speed=(last.x-first.x)/(last.t-first.t);
+assert(track.length>10 && first.t>release,'the shot leaves after the launch hold');
+assert(track.every(p=>Math.abs(first.x+(p.t-first.t)*speed-p.x)<=1.5),'one speed from the hand to the end of the ray');
+assert(Math.abs(speed-48/fx.travelCellMs)<0.1,`the skill's per-cell speed: ${speed}`);
+assert(last.x>projection.cellToScreen(5,4).x && rows.every(row=>!row.contactState.resolved),'pending victims do not stop the image');
+assert.strictEqual(positions(fx,release+fx.flightMs+80).length,0,'a pierce ends at its range before the step lands its hits');
 assert.strictEqual(run('JSON.stringify(game)'),before,'drawing cannot deal damage');
 run(`game.combatTimeMs=${rows[0].at-1};processPendingSkillStageHits();`);
 assert.strictEqual(run('game.enemies[0].hp'),1000000);
@@ -58,6 +65,17 @@ run('game.enemies.forEach(enemy=>enemy.gy=0);');
 run(`game.combatTimeMs=${miss.rows.at(-1).at};processPendingSkillStageHits();`);
 assert(miss.rows.every(row=>row.contactState.resolved),'empty contacts also release the travelling image');
 assert.strictEqual(run('battleFx.filter(fx=>fx.type==="hit").length'),0,'an image cannot invent a hit');
+
+// A shot whose route ends on its victim waits there until the hit lands (never gone before its damage), then leaves.
+const single={delivery:'projectileTarget',sourceCell:{gx:2,gy:4},targetCells:[{gx:5,gy:4}],targetEntries:[{enemyId:-5}],
+ options:{},launchAt:clock+100,at:clock+200,pStats:{sSkill:run('SKILL_DB["얼음 창"]')}};
+single.contactSchedule=[{offsetMs:100,state:{resolved:false}}];
+r.addPendingSkillTravelFx(single,{skillName:'얼음 창'},clock);
+const singleFx=run('battleFx[battleFx.length-1]'),afterFlight=singleFx.start+singleFx.releaseDelayMs+singleFx.flightMs+300;
+const waiting=positions(singleFx,afterFlight);
+assert(waiting.length>0 && Math.abs(waiting[0].x-projection.cellToScreen(5,4).x)<1,'a shot that ends on its victim waits there');
+single.contactSchedule[0].state.resolved=true;
+assert.strictEqual(positions(singleFx,afterFlight).length,0,'and leaves once the hit lands');
 assert.strictEqual(positions(miss.fx,miss.fx.start+miss.fx.duration+1).length,0,'missed shots expire normally');
 console.log('skill contact feedback: passage, fixed tick boundary, hit stop, no duplicate image, miss and no double damage passed');
 run(`resetCombatChannelRuntime();pendingSkillStageHits=[];battleFx=[];game.combatTimeMs=200000;

@@ -648,7 +648,24 @@ assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['뇌운 낙뢰'].sigilVfx, fal
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['뇌운 낙뢰'].impactAccentVfx, false, 'thundercloud strike should not inherit the generic circular heavy-hit accent');
 assert.ok(battlefieldSource.includes('if (!enemy.isElite) return;'), 'ordinary monsters should not render ground aura telegraphs');
 assert.ok(combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss entrance feedback should remain separate from pattern telegraphs');
-assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
+// 피격감(2026-10-04): the hero's hurt shake and hit stop follow the life a hit took, so chip damage stays light.
+const hurtFeel = JSON.parse(vm.runInContext(`JSON.stringify([0.02, 0.25].map(ratio => getBattleFeedbackProfile({ type: 'playerHit', damageRatio: ratio })))`, context));
+assert.ok(hurtFeel[0].shake < 1.5 && hurtFeel[0].hitStopMs === 0, 'chip hits on the hero stay light');
+assert.ok(hurtFeel[1].shake > hurtFeel[0].shake * 2 && hurtFeel[1].hitStopMs > 0, 'a hit worth a quarter of life holds and shakes like a heavy blow');
+assert.ok(combatSource.includes('targetMaxHp: getPlayerHpCap(pStats)'), 'hurt feedback is measured against the hero, not the attacker');
+// 타격감(2026-10-04): a struck enemy flinches away from the hero (further on a crit), and a hit knocks the hero back from its attacker.
+const flinch = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+  battleFx = [{ type: 'hit', enemyId: 7, start: 1000, damage: 5 }, { type: 'hit', enemyId: 8, start: 1000, damage: 5, crit: true },
+    { type: 'hit', enemyId: 9, start: 1000, damage: 5, dot: true }];
+  const state = { now: 1030, gridProj: { tileW: 48 }, playerPos: { x: 100, y: 100 },
+    enemyPosMap: { 7: { x: 148, y: 100 }, 8: { x: 148, y: 100 }, 9: { x: 148, y: 100 } } };
+  const map = buildEnemyHitRecoilMap(battleFx, state);
+  battleFx = [{ type: 'playerHit', enemyId: 7, start: 1000, damage: 30, damageRatio: 0.2 }];
+  return { map, hero: getPlayerHurtPosition(state), later: getPlayerHurtPosition({ ...state, now: 1300 }) };
+})())`, context));
+assert.ok(flinch.map[7].x > 0 && flinch.map[8].x > flinch.map[7].x, 'enemies flinch away from the hero, further on a crit');
+assert.ok(!flinch.map[9], 'damage over time does not flinch');
+assert.ok(flinch.hero.x < 100 && flinch.later.x === 100, 'a hit knocks the hero back from its attacker, then it returns');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
 assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');

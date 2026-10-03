@@ -156,6 +156,15 @@
         return { left: railInset, top: WORKSPACE_EDGE, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - WORKSPACE_EDGE - hudInset) };
     }
 
+    // 떠 있는 창과 최대화한 창은 하단 HUD를 덮고 화면 아래 끝까지 간다(2026-10-04 사용자 요청: "hud 위에 덮어서 hud 아래 전체까지",
+    // "최대화 하면 당연히 다 덮어야지"). 창 층(#right-pane)이 HUD보다 위라 겹치면 창이 HUD를 가린다. 오른쪽에 붙인 창은
+    // getWorkspaceRect(HUD 판 윗변까지)라 전투 화면 옆에 둔 채로 HUD가 보인다. 채팅과 전투 기록 창(js/message-frames-ui.js)도 이 범위다.
+    function getFreeWindowRect() {
+        let rect = getWorkspaceRect();
+        let viewBottom = Math.max(260, window.innerHeight / uiDisplay.factor || 720) - WORKSPACE_EDGE;
+        return { ...rect, height: Math.max(rect.height, viewBottom - rect.top) };
+    }
+
     function getDockRect() {
         let rect = getWorkspaceRect();
         let width = clampNumberLocal(rect.width * DOCK_RATIO, DOCK_MIN_WIDTH, DOCK_MAX_WIDTH, DOCK_MIN_WIDTH);
@@ -167,7 +176,9 @@
     function resolveWindowPlacement(box, rect, maximized, docked) {
         let dockRect = docked && !maximized ? getDockRect() : null;
         if (dockRect) return { box: dockRect, dockActive: true };
-        if (maximized || docked) return { box: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }, dockActive: false };
+        // 최대화는 HUD까지 다 덮는다. 붙이려는데 전장 폭이 모자란 창은 작업 영역 전체(HUD 판 윗변까지)다.
+        let area = maximized ? getFreeWindowRect() : rect;
+        if (maximized || docked) return { box: { x: area.left, y: area.top, width: area.width, height: area.height }, dockActive: false };
         return { box, dockActive: false };
     }
 
@@ -178,13 +189,13 @@
     function getWindowState(tabId) {
         let def = WINDOW_DEFS[tabId];
         let stored = layoutState.windows[tabId] || {};
-        let rect = getWorkspaceRect();
-        let minWidth = Math.min(def.minWidth, rect.width);
-        let minHeight = Math.min(def.minHeight, rect.height);
-        let width = clampNumberLocal(stored.width, minWidth, rect.width, Math.min(def.width, rect.width));
-        let height = clampNumberLocal(stored.height, minHeight, rect.height, Math.min(def.height, rect.height));
-        let x = clampNumberLocal(stored.x, rect.left, rect.left + rect.width - width, Math.min(def.x, rect.left + rect.width - width));
-        let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - height, Math.min(def.y, rect.top + rect.height - height));
+        let rect = getWorkspaceRect(), free = getFreeWindowRect();
+        let minWidth = Math.min(def.minWidth, free.width);
+        let minHeight = Math.min(def.minHeight, free.height);
+        let width = clampNumberLocal(stored.width, minWidth, free.width, Math.min(def.width, rect.width));
+        let height = clampNumberLocal(stored.height, minHeight, free.height, Math.min(def.height, rect.height));
+        let x = clampNumberLocal(stored.x, free.left, free.left + free.width - width, Math.min(def.x, rect.left + rect.width - width));
+        let y = clampNumberLocal(stored.y, free.top, free.top + free.height - height, Math.min(def.y, rect.top + rect.height - height));
         let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
         let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
         let docked = isDockPreferred(tabId, stored);
@@ -346,7 +357,7 @@
 
     function toggleMaximizeWindow(tabId) {
         let st = getWindowState(tabId);
-        let rect = getWorkspaceRect();
+        let rect = getFreeWindowRect();
         if (st.maximized) {
             persistWindowState(tabId, { ...(st.restoreRect || {}), maximized: false, restoreRect: null });
         } else {
@@ -393,7 +404,7 @@
         focusWindow(tabId);
         titlebar.setPointerCapture(event.pointerId);
         let move = moveEvent => {
-            let rect = getWorkspaceRect();
+            let rect = getFreeWindowRect();
             let x = clampNumberLocal(st.x + (moveEvent.clientX - startX) / uiDisplay.factor, rect.left, rect.left + rect.width - st.width, st.x);
             let y = clampNumberLocal(st.y + (moveEvent.clientY - startY) / uiDisplay.factor, rect.top, rect.top + rect.height - st.height, st.y);
             el.style.left = `${x}px`;
@@ -429,7 +440,7 @@
         delete el.dataset.pendingHeight;
         handle.setPointerCapture(event.pointerId);
         let move = moveEvent => {
-            let rect = getWorkspaceRect();
+            let rect = getFreeWindowRect();
             let width = clampNumberLocal(st.width + (moveEvent.clientX - startX) / uiDisplay.factor, Math.min(def.minWidth, rect.width), rect.left + rect.width - st.x, st.width);
             let height = clampNumberLocal(st.height + (moveEvent.clientY - startY) / uiDisplay.factor, Math.min(def.minHeight, rect.height), rect.top + rect.height - st.y, st.height);
             el.style.width = `${width}px`;
@@ -1191,7 +1202,7 @@
         installDesktopRailMenu();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         // 전투 기록과 채팅 창은 메뉴가 HUD에 들어간 뒤 놓는다(작업 영역의 아래 끝이 HUD 메뉴 줄로 정해진 뒤).
-        if (typeof messageFrames === 'object') messageFrames.sync({ desktop: true, workspaceRect: getWorkspaceRect });
+        if (typeof messageFrames === 'object') messageFrames.sync({ desktop: true, workspaceRect: getFreeWindowRect });
         requestCanvasResize();
         syncWorkspacePresentation();
     }

@@ -294,4 +294,25 @@ assert(!run("contentProgression.purchase('craft').ok"));
 assert.deepEqual(json('game'),before,'completed purchases cannot replay entry rewards');
 run("game=mergeDefaults({season:4,bountyHunt:{version:5,remaining:0,pending:{id:'x',status:'reward',offerIds:[]},completed:3}})");
 assert.equal(run("'bountyHunt' in game"),false,'removed treasure-hunt state is discarded without a reward');
+// 루프 2의 2점 중 장비 제련(1점)을 고르면 1점이 남고, 나머지 루프 2 해금(보조 젬, 루프 패시브)은 2점이다.
+// 목표는 고를 수 없는 선택을 재촉하지 않고 다음 해금까지 남은 점수를 센다(2026-10-04 사용자 보고).
+run('game=mergeDefaults({});game.season=2;game.contentProgression.inherited=[];contentProgression.sync()');
+assert.equal(run('contentProgression.balance()'),2);
+assert.equal(run('getNextMajorContentUnlock(game).requirements[0].met'),true,'two points buy the one-point 장비 제련');
+assert(run("contentProgression.purchase('craft').ok"));
+assert.equal(run('contentProgression.cheapestOpen(game).cost'),2);
+const waiting=json('getNextMajorContentUnlock(game)');
+assert.deepEqual(waiting.requirements[0],{label:'해금 포인트',met:false,current:1,target:2},'one point waits for the next unlock');
+assert(waiting.description.includes('2점이 필요') && !waiting.description.includes('선택하세요'),waiting.description);
+run('game.season=3;contentProgression.sync()');
+assert.equal(run('getNextMajorContentUnlock(game).requirements[0].met'),true,'the next loop makes the choice actionable again');
+// 루프 포인트 알림(js/goal-system.js)은 지금 살 노드가 있을 때만 뜬다: 다음 고리가 루프 5를 기다리거나 루프 패시브가 잠겨 있으면 조용하다.
+run("game=mergeDefaults({});game.season=3;game.contentProgression.inherited=['craft','loopTree'];contentProgression.sync();game.seasonPoints=1");
+assert.equal(run('hasSpendableSeasonPoint()'),true);
+run('game.seasonNodes=SEASON_NODE_ROWS.slice(0,4).flat()');
+assert.equal(run('hasSpendableSeasonPoint()'),false,'the next ring waits for loop 5');
+run('game.season=5');
+assert.equal(run('hasSpendableSeasonPoint()'),true);
+run("game.contentProgression.inherited=['craft'];contentProgression.sync()");
+assert.equal(run('hasSpendableSeasonPoint()'),false,'points saved before the loop passive opens are not a goal');
 console.log('smoke-content-progression passed');

@@ -497,4 +497,17 @@ const baseGame = extra => ({
     assert.strictEqual(m.presented[0].nextUnlock.requirements[0].target, 45);
 }
 
+// 남은 루프 포인트는 지금 살 노드가 있을 때만 알린다(다음 노드가 루프 5를 기다리는 동안 등, 2026-10-04).
+{
+    const loopGame = () => baseGame({ maxZoneId: 2, currentZoneId: 2, season: 3, loopCount: 2, seasonPoints: 1,
+        unlocks: { map: true, char: true, season: true, items: true, skills: true } });
+    const notices = spendable => {
+        const m = boot(loopGame(), { hasSpendableSeasonPoint: () => spendable });
+        m.refresh();
+        return m.presented[0].notices.map(n => n.text);
+    };
+    assert(notices(true).includes('사용하지 않은 루프 포인트 1'));
+    assert(!notices(false).some(text => text.includes('루프 포인트')), 'an unspendable point is not a goal');
+}
+
 console.log('smoke-goal-system passed');

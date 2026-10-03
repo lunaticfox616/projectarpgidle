@@ -117,6 +117,25 @@ const actExplorationState = (() => {
         state.enemies.push(...added);
         return added;
     }
+    /** Ordinary monsters that have not noticed the hero yet, within reach tiles of cell (Chebyshev). Bosses wait for their entrance. */
+    function dormantNear(state,cell,reach) {
+        const run=current(state);if(!run || run.status!=='active')return [];
+        return run.packs.filter(pack=>pack.stage===null).flatMap(pack=>pack.waiting)
+            .filter(enemy=>enemy.hp>0 && Math.max(Math.abs(enemy.gx-cell.gx),Math.abs(enemy.gy-cell.gy))<=reach);
+    }
+    /** An attack reached these monsters: the ones still waiting join the fight, like noticed ones. Others are left alone. */
+    function wake(state,enemies) {
+        const run=current(state);if(!run || !enemies.length)return [];
+        const ids=new Set(enemies.map(enemy=>enemy.id)),added=[];
+        for(const pack of run.packs.filter(row=>row.stage===null)) {
+            const struck=pack.waiting.filter(enemy=>ids.has(enemy.id));
+            if(!struck.length)continue;
+            pack.waiting=pack.waiting.filter(enemy=>!ids.has(enemy.id));
+            added.push(...struck);
+        }
+        state.enemies.push(...added);
+        return added;
+    }
     /** Death is idempotent; waiting enemies cannot be killed by an unrelated event. */
     function recordDeath(state,enemy) {
         const run=current(state);
@@ -283,6 +302,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,packRooms,discover,notice,engage,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired};
+    return {settlementMs,current,create,packRooms,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired};
 })();
 safeExposeGlobals({actExplorationState});

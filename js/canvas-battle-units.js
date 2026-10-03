@@ -80,6 +80,14 @@ function isHeavyPlayerHit(hit, stats) {
     return Number(hit.damage) >= Math.max(1, Number(stats.maxHp) || 0) * 0.06;
 }
 
+/** How fast the legs run (1 = the base step, COMBAT_GRID_CONFIG.playerMoveIntervalSec): on a map exploration the actual time the
+ * hero takes for this tile, elsewhere the movement speed. Above HERO_RUN_RATE_MAX the cycle would flicker, so it stops there. */
+function getHeroRunRate(move) {
+    const run = actExplorationState.current(game), step = COMBAT_GRID_CONFIG.playerMoveIntervalSec * 1000;
+    const rate = run && run.motion ? step / run.motion.duration : move / 100;
+    return clampNumber(rate, 0.8, HERO_RUN_RATE_MAX);
+}
+
 /** Timing the Hana sprite needs. Its attack clip outlives the legacy swing window, so it reads battleFx directly. */
 function collectHanaPlayerMotion(motion, now) {
     let found = { swing: null, hit: null, down: null };
@@ -95,7 +103,7 @@ function collectHanaPlayerMotion(motion, now) {
         hurtHeavy: isHeavyPlayerHit(found.hit, stats),
         downProgress: found.down ? clampNumber((now - found.down.start) / Math.max(1, found.down.duration), 0, 1) : null,
         running: move >= 90,
-        moveRate: clampNumber(move / 100, 0.8, 1.8)
+        moveRate: getHeroRunRate(move)
     };
 }
 

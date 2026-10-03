@@ -201,15 +201,26 @@
         });
     }
 
+    /** Points call for a choice only when they buy something now. At loop 2 the 1-point 장비 제련 leaves 1 of the 2 points,
+     * and the other loop-2 unlocks cost 2: the goal then counts toward the next unlock instead (2026-10-04). */
     function contentChoiceGuide(state) {
         const points = contentProgression.points(state);
         if (points.complete) return null;
+        const next = contentProgression.cheapestOpen(state);
+        const ready = points.balance > 0 && !!next && next.cost <= points.balance;
         return guide({
             id: 'content-choice', title: '콘텐츠 선택 해금',
-            description: points.balance > 0 ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : `다음 루프에 도달하면 해금 포인트를 ${points.nextAward}점 얻습니다.`,
-            requirements: [requirement('해금 포인트', points.balance > 0, points.balance, 1)],
+            description: ready ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : contentWaitText(points, next),
+            requirements: [requirement('해금 포인트', ready, points.balance, next ? Math.max(1, next.cost) : 1)],
             actionLabel: '콘텐츠 선택', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
         });
+    }
+
+    function contentWaitText(points, next) {
+        const award = points.nextAward > 0 ? `다음 루프에 도달하면 해금 포인트를 ${points.nextAward}점 얻습니다.` : '';
+        if (points.balance <= 0) return award;
+        const need = next ? `다음 해금에는 ${next.cost}점이 필요합니다.` : '지금 고를 수 있는 해금이 없습니다.';
+        return [need, award || '남은 해금은 조건을 채우면 열립니다.'].join(' ');
     }
 
     function getNextMajorContentUnlock(state) {

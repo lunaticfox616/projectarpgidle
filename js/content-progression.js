@@ -105,6 +105,13 @@ const contentProgression = (() => {
         return points(owner).balance;
     }
 
+    /** The cheapest paid unlock whose conditions are met now, or null while every remaining one waits for a loop or progress. */
+    function cheapestOpen(owner = game) {
+        return CONTENT_UNLOCK_CATALOG.filter(def => def.cost > 0 && owner.season >= def.minLoop && !isUnlocked(def.id, owner)
+            && requirements(def.id, owner).every(row => row.met))
+            .reduce((best, def) => (!best || def.cost < best.cost ? def : best), null);
+    }
+
     function status(id, owner = game) {
         const def = definitions.get(id);
         if (!def) return { available: false, reason: '알 수 없는 콘텐츠입니다.' };
@@ -241,6 +248,6 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, balance, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, balance, cheapestOpen, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });
