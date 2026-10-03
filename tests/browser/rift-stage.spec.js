@@ -59,6 +59,13 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(zone.right).toBeLessThanOrEqual(feed.left);
     expect(zone.bottom).toBeLessThanOrEqual(hud.top);
     expect(feed.bottom).toBeLessThanOrEqual(hud.top + 1);
+    // 기록 글은 예전 기록 판처럼 보통 굵기, 줄 높이 1.5다(창으로 옮기며 굵고 빽빽해져 흰 글이 덩어리로 보였다, 2026-10-03).
+    const logText = await page.locator('#log .log-msg').first().evaluate(el => {
+        const style = getComputedStyle(el);
+        return { weight: style.fontWeight, lineHeight: parseFloat(style.lineHeight) / parseFloat(style.fontSize) };
+    });
+    expect(logText.weight).toBe('400');
+    expect(logText.lineHeight).toBeCloseTo(1.5, 1);
     expect(hud.left).toBeGreaterThanOrEqual(0);
     expect(hud.right).toBeLessThanOrEqual(viewport.width);
     expect(hud.bottom).toBeLessThanOrEqual(viewport.height);
