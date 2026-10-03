@@ -2154,8 +2154,17 @@ function getCombatTravelMs(sourceCell, targetCell, skill) {
     let distance = sourceCell && targetCell
         ? gridChebyshevDist(sourceCell.gx, sourceCell.gy, targetCell.gx, targetCell.gy) : 0;
     let baseTravelMs = COMBAT_PROJECTILE_MIN_TRAVEL_MS + distance * COMBAT_PROJECTILE_MS_PER_CELL;
-    let multiplier = clampNumber(Number(skill && skill.projectileTravelTimeMultiplier) || 1, 0.15, 2);
-    return Math.max(36, Math.round(baseTravelMs * multiplier));
+    return Math.max(36, Math.round(baseTravelMs * getCombatTravelMultiplier(skill)));
+}
+
+function getCombatTravelMultiplier(skill) {
+    return clampNumber(Number(skill && skill.projectileTravelTimeMultiplier) || 1, 0.15, 2);
+}
+
+/** How long a projectile takes per cell on screen: the distance part of getCombatTravelMs. The renderer holds the fixed part
+ * back before the release, so the image keeps one speed from the hand to its last cell (js/canvas-world-tree-fx.js). */
+function getCombatTravelCellMs(skill) {
+    return COMBAT_PROJECTILE_MS_PER_CELL * getCombatTravelMultiplier(skill);
 }
 
 function getPendingSkillCollisionCells(row) {
@@ -2236,6 +2245,11 @@ function getSkillTravelVisualEndpoints(row) {
     return { sourceCell: hasGridCell(source) ? getGridUnitCenter(source) : row.sourceCell, targetCells };
 }
 
+/** Projectile rows only; ground waves and areas keep their scheduled motion. */
+function getPendingSkillTravelCellMs(row) {
+    return row.delivery?.startsWith('projectile') ? getCombatTravelCellMs(row.pStats && row.pStats.sSkill) : 0;
+}
+
 function addPendingSkillTravelFx(row, attackContext, now) {
     if (!row || row.delivery === 'instantTarget') return;
     if (['field', 'channel', 'meteor'].includes(row.patternKind) && row.options.stageIndex > 0) return;
@@ -2264,6 +2278,7 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         element: row.options.forcedElement,
         releaseDelayMs: Math.max(0, row.launchAt - now),
         flightMs: Math.max(1, row.at - row.launchAt),
+        travelCellMs: getPendingSkillTravelCellMs(row),
         waveDurationMs: Math.max(0, Number(row.waveDurationMs) || 0),
         duration: row.fieldDurationMs || Math.max(260, row.at - now + 260)
     };
@@ -2373,6 +2388,26 @@ function queuePlayerAttackSequence(pStats, stages, context) {
     });
 }
 
+/** When a stage leaves and lands. A pierce is one shot: a victim past the first is hit when that shot reaches it, timed from the
+ * caster's release. It used to be a new shot from the previous victim 30ms later, which paid the fixed launch time again, so the
+ * later hits landed early and the image darted through them (2026-10-04, "맞고 더 빨라진다"). Collision still runs from the
+ * previous victim (row.sourceCell).
+ * @returns {{stageDelay:number, launchAt:number, at:number}} */
+function getPendingStageTimes(stage, delivery, cells, timing) {
+    const { now, baseDelay, skill } = timing;
+    const through = delivery.startsWith('projectile') && stage.kind === 'pierceThrough';
+    const stageDelay = through ? 0 : Math.max(0, Math.floor(stage.delayMs));
+    if (delivery.startsWith('projectile')) {
+        const launchAt = now + Math.floor(baseDelay * 0.55) + stageDelay;
+        return { stageDelay, launchAt, at: launchAt + getCombatTravelMs(through ? game.gridPlayer : cells.source, cells.target, skill) };
+    }
+    if (delivery === 'magicMoving') {
+        const launchAt = now + baseDelay + stageDelay;
+        return { stageDelay, launchAt, at: launchAt + Math.max(80, Number(skill.combatPattern.intervalMs) || 160) };
+    }
+    return { stageDelay, launchAt: now, at: now + baseDelay + stageDelay };
+}
+
 function queuePendingSkillStageHits(stages, pStats, attackContext) {
     let now = getCombatTime();
     let baseDelay = Number(attackContext.baseDelayMs) || 0;
@@ -2390,17 +2425,11 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             : stage.targets.map(entry => ({ ...copyCombatGridCell(entry.enemy), mult: Math.max(0, Number(entry.mult) || 1) })).filter(cell => Number.isInteger(cell.gx));
         let chainSource = stage.chainFromEnemyId != null ? (game.enemies || []).find(enemy => enemy && enemy.id === stage.chainFromEnemyId) : null;
         let sourceCell = copyCombatGridCell(chainSource || game.gridPlayer);
-        let stageDelay = Math.max(0, Math.floor(stage.delayMs));
         let stageDelivery = stage.delivery || (stage.kind.startsWith('moving') ? 'magicMoving' : delivery);
-        let releaseDelay = stageDelivery.startsWith('projectile') ? Math.floor(baseDelay * 0.55)
-            : (stageDelivery === 'magicMoving' ? baseDelay + stageDelay : 0);
-        let launchAt = now + releaseDelay + stageDelay;
-        if (stageDelivery === 'magicMoving') launchAt = now + releaseDelay;
-        let travelMs = stageDelivery.startsWith('projectile') ? getCombatTravelMs(sourceCell, targetCells[0], pStats.sSkill)
-            : (stageDelivery === 'magicMoving' ? Math.max(80, Number(pStats.sSkill.combatPattern.intervalMs) || 160) : baseDelay);
+        let { stageDelay, launchAt, at } = getPendingStageTimes(stage, stageDelivery, { source: sourceCell, target: targetCells[0] },
+            { now, baseDelay, skill: pStats.sSkill });
         let row = {
-            at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,
-            launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
+            at, launchAt,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
             contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave,
             aimCell: copyCombatGridCell(stage.aimCell),
@@ -11626,7 +11655,8 @@ function performMonsterAttacks(pStats) {
                 sourceId: enemy.id,
                 sourceName: enemy.name
             }));
-            addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
+            addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected,
+                targetMaxHp: getPlayerHpCap(pStats) });
             receiveSkillGemPlayerHit(dmg,pStats);
             if (game.settings.showCombatLog && dmg > 0) {
                 let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${enemy.name}의 공격으로 ${formatNumberKR(dmg)} 피해`;

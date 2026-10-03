@@ -159,8 +159,16 @@ const worldTreeSkillFx = (() => {
     }
 
     function projectileEvents(fx,shared,launch,flight) {
-        const event={...shared,kind:'travel',travelPath:fx.travelPath,contactSchedule:fx.contactSchedule,at:launch,duration:flight};
-        if(SKILL_FX_ATLAS[fx.skillName].id!==25)return [event];
+        const route=straightShot(fx) ? flightRoute(fx,flight) : null,steady=route && steadyFlight(fx,aloft(route),flight);
+        const event=steady ? {...shared,kind:'travel',sourceCell:steady.path[0],targetCells:fx.targetCells.map(lifted),
+            travelPath:fx.travelPath?.length>1 ? steady.path : undefined,contactSchedule:steady.contacts,
+            at:launch+steady.hold,duration:steady.flight}
+            : {...shared,kind:'travel',travelPath:fx.travelPath,contactSchedule:fx.contactSchedule,at:launch,duration:flight};
+        return SKILL_FX_ATLAS[fx.skillName].id===25 ? fanRays(fx,event,steady) : [event];
+    }
+
+    /** 연발 사격: one arrow to the far cell of each direction the fan covers; a straight shot's arrows keep its speed and height. */
+    function fanRays(fx,event,steady) {
         const rays=new Map(),source=fx.sourceCell;
         for(const cell of fx.attackFootprint?.cells || fx.targetCells) {
             const dx=cell.gx-source.gx,dy=cell.gy-source.gy;
@@ -168,7 +176,49 @@ const worldTreeSkillFx = (() => {
             const key=`${Math.sign(dx)},${Math.sign(dy)}`,previous=rays.get(key);
             if(!previous || Math.hypot(dx,dy)>Math.hypot(previous.gx-source.gx,previous.gy-source.gy))rays.set(key,cell);
         }
-        return [...rays.values()].map(cell=>({...event,travelPath:undefined,targetCells:[cell]}));
+        return [...rays.values()].map(cell=>{
+            if(!steady)return {...event,travelPath:undefined,targetCells:[cell]};
+            const [from,to]=aloft([{...source,offsetMs:0},{...cell,offsetMs:0}]);
+            return {...event,sourceCell:from,targetCells:[to],travelPath:undefined,contactSchedule:undefined,
+                duration:Math.max(1,Math.hypot(to.gx-from.gx,to.gy-from.gy)*steady.cellMs)};
+        });
+    }
+
+    // ------------------------------------------------------------------ straight shots: hand height, one speed
+    /** Spears, arrows, fangs and shields (js/combat.js gives their travel a travelCellMs); thrown flasks keep their ground arc. */
+    function straightShot(fx) {
+        return fx.travelCellMs>0 && SKILL_DB[fx.skillName]?.projectilePattern?.mode!=='lob';
+    }
+    /** The scheduled route in cells: the combat's own ray, else a line to the first target. Offsets are ms after the launch. */
+    function flightRoute(fx,flight) {
+        if(fx.travelPath?.length>1)return fx.travelPath.map(point=>({...point}));
+        const to=fx.targetCells?.[0];
+        return fx.sourceCell && to ? [{gx:fx.sourceCell.gx,gy:fx.sourceCell.gy,offsetMs:0},{gx:to.gx,gy:to.gy,offsetMs:flight}] : null;
+    }
+    function lifted(cell) {return {...cell,gy:cell.gy-PROJECTILE_FLIGHT_LIFT};}
+    /** Raises the route to the hand and starts it a little in front of the body (at most half of the first leg). */
+    function aloft(route) {
+        const [a,b]=route,length=Math.hypot(b.gx-a.gx,b.gy-a.gy);
+        const step=length>0 ? Math.min(PROJECTILE_HAND_REACH,length/2)/length : 0;
+        return [{...a,gx:a.gx+(b.gx-a.gx)*step,gy:a.gy+(b.gy-a.gy)*step},...route.slice(1)].map(lifted);
+    }
+    /** Combat times a shot as a fixed launch part plus a time per cell (getCombatTravelMs), and its 100ms step lands each hit a
+     * little after the image arrives. On screen the shot keeps the per-cell speed from the hand to its last cell: the fixed part
+     * waits before the release (hold), and no victim is reached later than its scheduled hit. */
+    function steadyFlight(fx,route,flight) {
+        let length=0;
+        const cells=route.map((point,i)=>i ? (length+=Math.hypot(point.gx-route[i-1].gx,point.gy-route[i-1].gy)) : 0);
+        const reach=(fx.contactSchedule || []).map(contact=>({contact,cells:routeCellsAt(route,cells,contact.offsetMs)}));
+        const hold=Math.max(0,Math.min(flight-length*fx.travelCellMs,...reach.map(r=>r.contact.offsetMs-r.cells*fx.travelCellMs)));
+        const cellMs=Math.max(.001,Math.min(fx.travelCellMs,...reach.filter(r=>r.cells>0).map(r=>(r.contact.offsetMs-hold)/r.cells)));
+        return {hold,cellMs,flight:Math.max(1,length*cellMs),path:route.map((point,i)=>({...point,offsetMs:cells[i]*cellMs})),
+            contacts:reach.map(r=>({offsetMs:r.cells*cellMs,state:r.contact.state}))};
+    }
+    function routeCellsAt(route,cells,ms) {
+        let i=0;
+        while(i<route.length-2 && route[i+1].offsetMs<=ms)i++;
+        const span=Math.max(1,route[i+1].offsetMs-route[i].offsetMs),u=Math.max(0,Math.min(1,(ms-route[i].offsetMs)/span));
+        return cells[i]+(cells[i+1]-cells[i])*u;
     }
 
     function travel(ctx,fx,now,projection) {
@@ -179,8 +229,9 @@ const worldTreeSkillFx = (() => {
         return true;
     }
 
-    /** The image cannot cross an unresolved combat contact, even between fixed simulation ticks.
-     * Confirmed contacts advance it to the same waypoint as damage, including during hit stop.
+    /** The image keeps one speed past the victims on its way (2026-10-04: it used to wait on each one until the 100ms combat step
+     * landed the hit, then jump ahead, and read as speeding up after the first hit). A shot whose route ends on its victim stays
+     * there until that hit lands, and a confirmed contact still advances the image to its victim when hit stop held it back.
      * Rendering only reads the schedule; it never applies damage or resolves a contact.
      */
     function contactPlaybackTime(event,now) {
@@ -188,7 +239,7 @@ const worldTreeSkillFx = (() => {
         let elapsed=now-event.at;
         for(const contact of event.contactSchedule) {
             if(contact.state?.resolved)elapsed=Math.max(elapsed,contact.offsetMs);
-            else {elapsed=Math.min(elapsed,contact.offsetMs-.001);break;}
+            else if(contact.offsetMs>=event.duration-.5){elapsed=Math.min(elapsed,contact.offsetMs-.001);break;}
         }
         return event.at+elapsed;
     }

@@ -98,6 +98,8 @@ assert.strictEqual(read('JSON.stringify(game)'), before, 'presentation grouping 
                 }};
             const assertContact=(expected,message)=>assert(contacts.length &&
                 Math.hypot(contacts[0][0]-expected[0],contacts[0][1]-expected[1])<1,message);
+            // A straight shot flies at hand height (PROJECTILE_FLIGHT_LIFT, 2026-10-04); the ground wave stays on the floor.
+            const flightY=(4-(skillName==='번개 창' ? run('PROJECTILE_FLIGHT_LIFT') : 0))*40;
             const castAt = run('game.combatTimeMs');
             for (const row of pending) {
                 run(`game.combatTimeMs=${row.at};processPendingSkillStageHits();`);
@@ -105,7 +107,7 @@ assert.strictEqual(read('JSON.stringify(game)'), before, 'presentation grouping 
                 contacts.length=0;
                 r.worldTreeSkillFx.beginFrame();
                 r.drawCombatTravelFx(ctx,fx,fx.start+row.at-castAt,projection,{x:120,y:150},{});
-                assertContact([row.targetCells[0].gx*40,160],
+                assertContact([row.targetCells[0].gx*40,flightY],
                     'the native contact anchor crosses each enemy when its original damage stage occurs');
                 assert.strictEqual(run('JSON.stringify(game)'),state,'visual travel is read-only');
             }
@@ -114,7 +116,7 @@ assert.strictEqual(read('JSON.stringify(game)'), before, 'presentation grouping 
             r.worldTreeSkillFx.beginFrame();
             const endAt=fx.start+fx.releaseDelayMs+fx.flightMs;
             r.drawCombatTravelFx(ctx,fx,endAt-.01,projection,{x:120,y:150},{});
-            assertContact([320,160],'the same native contact anchor reaches the range endpoint');
+            assertContact([320,flightY],'the same native contact anchor reaches the range endpoint');
             assert.strictEqual(run('JSON.stringify(game)'),state,'visual travel is read-only');
         }
     }

@@ -4425,15 +4425,26 @@ function getBattleHitFeedback(data) {
     return { damageRatio, impactTier, targetMaxHp: maxHp };
 }
 
+// 타격감(2026-10-04): crits and heavy blows hold the frame and shake a little longer than before (24/40ms, 2.5/4.8).
 const BATTLE_FEEDBACK_PROFILES = Object.freeze({
     normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
-    crit: Object.freeze({ hitStopMs: 24, shake: 2.5, duration: 155 }),
-    heavy: Object.freeze({ hitStopMs: 40, shake: 4.8, duration: 205 }),
-    annihilate: Object.freeze({ hitStopMs: 34, shake: 3.8, duration: 170 })
+    crit: Object.freeze({ hitStopMs: 32, shake: 3, duration: 170 }),
+    heavy: Object.freeze({ hitStopMs: 50, shake: 5.4, duration: 220 }),
+    annihilate: Object.freeze({ hitStopMs: 40, shake: 4.2, duration: 180 })
 });
+// 피격감(2026-10-04): getting hit answers in proportion to the life it took (damageRatio against the hero's life, set in
+// combat.js). Chip hits shake a little; from an eighth of life the frame also holds, like a heavy blow on an enemy.
+const PLAYER_HURT_FEEDBACK = Object.freeze({ shakeMin: 0.8, shakePerLife: 16, shakeMax: 5, heavyRatio: 0.125, hitStopMs: 45, duration: 240 });
+
+function getPlayerHurtProfile(fx) {
+    const ratio = Math.max(0, Number(fx.damageRatio) || 0), feel = PLAYER_HURT_FEEDBACK;
+    return { hitStopMs: ratio >= feel.heavyRatio ? feel.hitStopMs : 0, shake: Math.min(feel.shakeMax, feel.shakeMin + ratio * feel.shakePerLife),
+        duration: feel.duration };
+}
 
 function getBattleFeedbackProfile(fx) {
     if (!fx || fx.dot) return BATTLE_FEEDBACK_PROFILES.normal;
+    if (fx.type === 'playerHit') return getPlayerHurtProfile(fx);
     if (fx.impactTier === 'annihilate') return BATTLE_FEEDBACK_PROFILES.annihilate;
     if (fx.impactTier === 'heavy') return BATTLE_FEEDBACK_PROFILES.heavy;
     if (fx.crit) return BATTLE_FEEDBACK_PROFILES.crit;

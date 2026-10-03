@@ -238,17 +238,22 @@ const fxRemake = (() => {
         c.clearRect(0, 0, size, size);
         return c;
     }
-    function drawSprite(c, sprite, at, angle) {
-        const w = sprite.canvas.width, h = sprite.canvas.height;
+    /** A shot is drawn at PROJECTILE_SPRITE_SCALE of the effect dot (0.8 = the hero's own dot). `tail`: buffer px it has left its
+     * start by; until the whole sprite is out, the part behind the start is not drawn, so the shot comes out of the hand. */
+    function drawSprite(c, sprite, at, angle, tail = Infinity) {
+        const w = sprite.canvas.width, h = sprite.canvas.height, k = BLOCK * PROJECTILE_SPRITE_SCALE;
+        const left = -Math.round(w * 0.62) * k, top = -Math.floor(h / 2) * k, emerging = tail < -left;
         c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.imageSmoothingEnabled = false;
         c.translate(at.x, at.y); c.rotate(angle);
-        c.drawImage(sprite.canvas, -Math.round(w * 0.62) * BLOCK, -Math.floor(h / 2) * BLOCK, w * BLOCK, h * BLOCK);
+        if (emerging) { c.save(); c.beginPath(); c.rect(-tail, top - 1, w * k + 1, h * k + 2); c.clip(); }
+        c.drawImage(sprite.canvas, left, top, w * k, h * k);
+        if (emerging) c.restore();
         c.setTransform(1, 0, 0, 1, 0, 0);
     }
     /** Draws the sprite on a scratch square around (x, y), erases the caster's opaque pixels from it, then copies it in. */
     function drawBehindBody(sprite, box, cut) {
         const size = box.reach * 2, left = box.x - box.reach, top = box.y - box.reach, c = scratchCanvas(size);
-        drawSprite(c, sprite, { x: box.reach, y: box.reach }, box.angle);
+        drawSprite(c, sprite, { x: box.reach, y: box.reach }, box.angle, box.tail);
         c.globalCompositeOperation = 'destination-out'; c.imageSmoothingEnabled = false;
         for (const src of cut.srcs) c.drawImage(cut.image, src.x, src.y, src.w, src.h, cut.x - left, cut.y - top, src.w * cut.size, src.h * cut.size);
         c.globalCompositeOperation = 'source-over';
@@ -262,10 +267,11 @@ const fxRemake = (() => {
         const age = now - e.at;
         if (!sprite || !(age >= 0 && age < e.duration)) return false;
         const p = travelPoint(e, age), angle = Math.round(p.angle / (Math.PI / 16)) * (Math.PI / 16);
-        const x = Math.round(p.x) - scope.ox, y = Math.round(p.y) - scope.oy;
-        const reach = Math.ceil(Math.hypot(sprite.canvas.width, sprite.canvas.height) * BLOCK), cut = bodyCut();
-        if (cut) drawBehindBody(sprite, { x, y, reach, angle }, cut);
-        else drawSprite(surfaces.fullCtx, sprite, { x, y }, angle);
+        const x = Math.round(p.x) - scope.ox, y = Math.round(p.y) - scope.oy, start = travelPoint(e, 0);
+        const reach = Math.ceil(Math.hypot(sprite.canvas.width, sprite.canvas.height) * BLOCK * PROJECTILE_SPRITE_SCALE), cut = bodyCut();
+        const tail = Math.hypot(p.x - start.x, p.y - start.y);
+        if (cut) drawBehindBody(sprite, { x, y, reach, angle, tail }, cut);
+        else drawSprite(surfaces.fullCtx, sprite, { x, y }, angle, tail);
         markDirty(x - reach, y - reach, x + reach, y + reach);
         return true;
     }
