@@ -1,0 +1,61 @@
+@layer overrides {
+/* 공개 프로필(js/social.js renderProfileData, 2026-10-03): 머리 줄 칩, 스킬 탭, 프로필 위에 겹쳐 뜨는 아이템 카드.
+   아이템 카드는 예전 남색 판 대신 게임 툴팁과 같은 숯빛 판에 희귀도 색 테다. */
+.social-profile-sub { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.social-profile-chip {
+  padding: 2px 7px;
+  border: 1px solid var(--px-bronze-lo, #483239);
+  background: var(--px-stone, #1e1c22);
+  color: var(--px-copy, #dbd0b9);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.social-skill-list { display: grid; gap: 4px; }
+
+.social-skill-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border: 1px solid var(--color-line, #3d382e);
+  background: var(--color-surface-raised, #1e1c22);
+  font-size: 12px;
+}
+
+.social-skill-label { color: var(--px-copy-muted, #9d927d); }
+.social-skill-row > strong { min-width: 0; overflow-wrap: anywhere; color: var(--px-gold-bright, #e0c283); }
+.social-skill-level { color: var(--px-copy, #dbd0b9); white-space: nowrap; }
+
+.social-item-card {
+  border-radius: 0;
+  background: var(--px-panel, #1a181e);
+  box-shadow: none;
+}
+
+.social-item-detail {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 4, 3, .72);
+}
+
+.social-item-detail[hidden] { display: none; }
+
+.social-item-detail-card {
+  display: grid;
+  gap: 8px;
+  width: min(380px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  box-shadow: var(--px-drop, 4px 4px 0 rgba(0, 0, 0, .55));
+}
+
+.social-item-detail-card > button { justify-self: end; }
+}

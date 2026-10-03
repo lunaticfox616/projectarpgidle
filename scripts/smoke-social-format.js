@@ -97,11 +97,44 @@ context.game = {
     ],
     board: [null, 12, 10].concat(Array(22).fill(null))
   },
-  starWedge: { wedges: [{ id: 30, unique: true, uniqueType: 'sun', lines: [{ stat: 'flatHp', val: 8 }] }] }
+  starWedge: { wedges: [{ id: 30, unique: true, uniqueType: 'sun', lines: [{ stat: 'flatHp', val: 8 }] }] },
+  // 프로필 형식 8(2026-10-03): 직업과 전직, 스킬 젬 구성.
+  selectedClassId: 'warrior', ascendClass: 'berserker', level: 31,
+  activeSkill: '회오리바람', mobilitySkill: '방패 돌진', equippedSupports: ['날카로움'], equippedSummonSkills: ['벌떼 소환'],
+  gemData: { '회오리바람': { level: 12, quality: 5 }, '방패 돌진': { level: 4 }, '벌떼 소환': { level: 7 } },
+  supportGemData: { '날카로움': { level: 3 } }, summonSkillCounts: { '벌떼 소환': 3 }
 };
+context.PLAYER_CLASS_DEFS = { warrior: { label: '전사' } };
+context.CLASS_TEMPLATES = { berserker: { name: '버서커' } };
+context.getWeaponCategoryName = item => (item && item.name === '검' ? '대검' : '');
+// 게임의 비교 표(COMPARE_STAT_META)를 흉내 낸다: 이름은 키 그대로, 값은 문자열.
+context.COMPARE_STAT_META = new Proxy({}, { get: (target, key) => ({ label: `이름:${String(key)}`, format: value => String(value) }) });
+let playerStats = { dps: 100, summonDps: 40, totalDps: 140, baseDmg: 20 };
+context.getPlayerStats = () => playerStats;
 // 별쐐기는 없어졌다(2026-10-01): 옛 저장에 남은 별쐐기가 있어도 채팅에 걸 수 없다.
 const profileSnapshot = context.buildProfileSnapshot();
-assert.strictEqual(profileSnapshot.version, 7, '그루터기 함 부적 목록을 싣고 생장판 배치도는 없는 프로필 형식이어야 한다');
+assert.strictEqual(profileSnapshot.version, 8, '직업과 전직, 스킬 젬, 무기 갈래를 싣는 프로필 형식이어야 한다');
+assert.deepStrictEqual([profileSnapshot.heroClassName, profileSnapshot.className], ['전사', '버서커'], '직업(6종)과 전직을 함께 싣는다');
+assert.strictEqual(profileSnapshot.power, 140, '총 DPS는 직접 DPS와 소환 DPS의 합(게임의 권장 전투력 비교와 같은 값)');
+assert.ok(profileSnapshot.stats.some(row => row.key === 'summonDps'), '소환수가 있으면 소환 DPS 줄이 있다');
+assert.ok(profileSnapshot.stats.every(row => row.label.includes('이름:')), '능력치 이름은 게임의 비교 표에서 가져온다');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(profileSnapshot.skills)), {
+  active: { name: '회오리바람', level: 12, quality: 5 }, supports: [{ name: '날카로움', level: 3 }],
+  mobility: { name: '방패 돌진', level: 4, quality: 0 }, summons: [{ name: '벌떼 소환', level: 7, quality: 0, count: 3 }]
+}, '스킬은 주 스킬과 보조 젬, 이동 스킬, 소환수(수)를 싣는다');
+assert.strictEqual(profileSnapshot.equipment[0].category, '대검', '무기는 갈래를 싣는다');
+playerStats = { dps: 100, summonDps: 0, totalDps: 100 };
+assert.ok(!context.buildProfileSnapshot().stats.some(row => row.key === 'summonDps'), '소환수가 없으면 소환 DPS 줄은 없다');
+const chips = context.renderProfileIdentityChips(profileSnapshot);
+assert.ok(['Lv.31', '전사', '버서커', '총 DPS 140'].every(text => chips.includes(text)) && !chips.includes('·'), '머리 줄은 가운뎃점 없는 칩이다');
+assert.ok(context.renderProfileIdentityChips({ version: 7, level: 3, className: '워리어', power: 50 }).includes('전투력 50'), '예전 프로필의 값은 전처럼 전투력이다');
+const skillsHtml = context.renderProfileSkills(profileSnapshot.skills);
+assert.ok(['주 스킬', '회오리바람', 'Lv.12', '품질 5', '보조', '날카로움', '이동', '방패 돌진', '소환', '3마리'].every(text => skillsHtml.includes(text)), '스킬 탭은 젬 구성을 보여 준다');
+assert.ok(context.renderProfileSkills(undefined).includes('예전 프로필'), '스킬 정보가 없는 예전 프로필도 깨지지 않는다');
+assert.ok(context.renderProfileItemCard(profileSnapshot.equipment[0]).includes('[대검] 검'), '무기 카드 제목은 갈래를 쓴다(게임 툴팁과 같다)');
+vm.runInContext("socialState.currentProfileUserId = 'other-player';", context);
+context.renderProfileData(profileSnapshot);
+assert.ok(!/[·—]/.test(profileBody.innerHTML), '프로필 창 글에는 가운뎃점과 줄표가 없다');
 assert.deepStrictEqual(['growthItems', 'growthBoardW', 'growthBoardH', 'growthUnlockedCells'].filter(key => key in profileSnapshot), [],
   '프로필에 생장판 필드를 싣지 않는다');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(profileSnapshot.talismans)), [{ kind: 'talisman', name: '배치 부적', rarity: 'rare',
