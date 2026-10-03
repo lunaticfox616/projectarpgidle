@@ -45,8 +45,10 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
     --px-orb-lift: 16px;
     --px-map-lift: 33px;
   }
+  /* 창(#right-pane 층 1000)은 HUD 판 윗변까지 내려와 솟은 미니맵과 구슬을 덮는다(2026-10-03 사용자 요청). 메뉴 단추 줄은
+     창 아래 끝보다 아래라 늘 보인다. 기타 메뉴 판이 열려 있을 때만 HUD가 창 위로 올라와 판이 창에 가리지 않는다. */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud {
-    z-index: 1500;
+    z-index: 990;
     width: min(1040px, calc(100vw - var(--stage-feed-width, var(--combat-log-width, 260px)) - 40px));
     max-width: 1040px;
   }
@@ -77,7 +79,8 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked .tutorial-action-card { bottom: calc(var(--px-map-size) + var(--px-map-lift) + 48px * var(--px-hud-dot) + 35px); }
   /* 대상 적 체력바도 같은 세로축(주인공 · 미니맵)에 */
   :root body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #battle-column #enemy-area { left: 50%; }
-  /* 창을 열어도 메뉴는 흐려지지 않는다(창은 HUD 위까지만 온다). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked:has(#ui-rail-misc-panel:not([hidden])) #battle-column .player-hud { z-index: 1500; }
+  /* 창을 열어도 메뉴는 흐려지지 않는다(창은 HUD 판 윗변까지만 온다). */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked.ui-management-mode #battle-column .player-hud { opacity: 1; }
 
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #battle-column .player-hud-shell {

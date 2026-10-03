@@ -1,0 +1,121 @@
+@layer overrides {
+/* 공개 프로필(js/social.js renderProfileData, 2026-10-03): 머리 줄 칩, 스킬 탭, 프로필 위에 겹쳐 뜨는 아이템 카드.
+   아이템 카드는 예전 남색 판 대신 게임 툴팁과 같은 숯빛 판에 희귀도 색 테다. */
+.social-profile-sub { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.social-profile-chip {
+  padding: 2px 7px;
+  border: 1px solid var(--px-bronze-lo, #483239);
+  background: var(--px-stone, #1e1c22);
+  color: var(--px-copy, #dbd0b9);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.social-skill-list { display: grid; gap: 4px; }
+
+.social-skill-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border: 1px solid var(--color-line, #3d382e);
+  background: var(--color-surface-raised, #1e1c22);
+  font-size: 12px;
+}
+
+.social-skill-label { color: var(--px-copy-muted, #9d927d); }
+.social-skill-row > strong { min-width: 0; overflow-wrap: anywhere; color: var(--px-gold-bright, #e0c283); }
+.social-skill-level { color: var(--px-copy, #dbd0b9); white-space: nowrap; }
+
+.social-item-card {
+  border-radius: 0;
+  background: var(--px-panel, #1a181e);
+  box-shadow: none;
+}
+
+.social-item-detail {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 4, 3, .72);
+}
+
+.social-item-detail[hidden] { display: none; }
+
+.social-item-detail-card {
+  display: grid;
+  gap: 8px;
+  width: min(380px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  box-shadow: var(--px-drop, 4px 4px 0 rgba(0, 0, 0, .55));
+}
+
+.social-item-detail-card > button { justify-self: end; }
+
+/* 게임 툴팁처럼 옵션 묶음 제목, 복합 옵션의 둘째 줄 들여쓰기, 주얼이 박힌 소켓 줄. 주얼 칸 아래에는 자리(어느 장비의 어느 소켓)를 작게. */
+.social-item-section {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--px-bronze-lo, #483239);
+  color: var(--px-copy-muted, #9d927d);
+  font-size: 11px;
+}
+
+.social-item-stat.is-continued { padding-left: 14px; }
+.social-item-socket { color: var(--copy-bright, #c8bfaa); font-size: 12px; line-height: 1.4; }
+.social-mini-card small { display: block; margin-top: 2px; color: var(--copy-muted, #8b8478); font-size: 11px; font-weight: 400; }
+
+/* 그루터기 함 탭: 게임 판(css/stump-box.css)처럼 5×5 칸. 닫힌 칸은 체크 무늬, 공명은 색 테, 억제는 흐린 그림에 붉은 X,
+   접붙이기 단계는 왼쪽 위 숫자, 자라는 중이면 아래 막대. 칸은 손가락 크기(46px)다. */
+.social-stump-board {
+  display: grid;
+  grid-template-columns: repeat(5, 46px);
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid var(--px-bronze-lo, #483239);
+  background: rgba(10, 8, 6, .55);
+}
+
+.social-stump-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  background: rgba(30, 26, 20, .9);
+  box-shadow: inset 0 0 0 1px rgba(243, 210, 140, .14);
+}
+
+.social-stump-cell.is-locked { background: repeating-conic-gradient(#0b0907 0 25%, #16110c 0 50%) 0 0 / 4px 4px; box-shadow: none; }
+.social-stump-cell.is-filled { cursor: pointer; box-shadow: inset 0 0 0 1px var(--stump-tone); }
+.social-stump-cell.is-resonant { box-shadow: inset 0 0 0 2px var(--stump-tone), inset 0 0 10px color-mix(in srgb, var(--stump-tone) 45%, transparent); }
+.social-stump-cell.is-filled:hover { box-shadow: inset 0 0 0 2px #f3d28c; }
+.social-stump-cell img { width: 34px; height: 34px; image-rendering: pixelated; pointer-events: none; }
+.social-stump-cell.is-suppressed img { filter: grayscale(.6) brightness(.78); }
+
+.social-stump-cell.is-suppressed::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(45deg, transparent 38%, #e0503f 38% 62%, transparent 62%),
+    linear-gradient(-45deg, transparent 38%, #e0503f 38% 62%, transparent 62%), #140c0a;
+  box-shadow: 0 0 0 1px #050404;
+  pointer-events: none;
+}
+
+.social-stump-graft { position: absolute; top: 1px; left: 3px; color: var(--px-gold-bright, #e0c283); font-size: 10px; line-height: 1.2; }
+.social-stump-bar { position: absolute; right: 5px; bottom: 3px; left: 5px; height: 3px; background: rgba(0, 0, 0, .65); }
+.social-stump-bar > i { display: block; height: 100%; background: var(--stump-tone); }
+}

@@ -41,9 +41,10 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(Math.abs(canvasPixels - field.width)).toBeLessThan(2);
 
     // 메뉴는 하단 HUD 안(미니맵 양옆 두 날개)에 있고, 지역 줄·HUD·전투 기록은 화면 안에서 서로 겹치지 않고 전장 위에 떠 있다.
+    // 전투 기록은 옮기고 크기를 바꾸는 창이다(js/message-frames-ui.js, 2026-10-03). 처음 자리는 예전 기록 판 자리다.
     const zone = await rectOf(page, '.combat-zone-row');
     const hud = await rectOf(page, '.player-hud');
-    const feed = await rectOf(page, '.combat-feed');
+    const feed = await rectOf(page, '#message-frame-main');
     const map = await rectOf(page, '#act-exploration-panel');
     for (const wing of ['.ui-rail-wing-left', '.ui-rail-wing-right']) {
         const menu = await rectOf(page, wing);
@@ -63,28 +64,38 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(hud.bottom).toBeLessThanOrEqual(viewport.height);
 
     // 전투 기록을 접어도, 장비 창(도킹)을 열어도 전장 크기는 그대로다.
-    await page.locator('#btn-combat-log-toggle').click();
+    const fold = page.locator('#message-frame-main [data-message-action="collapse"]');
+    await fold.click();
     await expect(page.locator('#log')).toBeHidden();
     expect((await rectOf(page, '#battlefield-wrap')).width).toBeCloseTo(field.width, 0);
-    // 접은 기록은 같은 자리, 같은 폭의 제목 줄만 남는다(빈 판이 그대로 남고 단추가 세로로 갈라졌다, 2026-10-02).
-    const folded = await rectOf(page, '.combat-feed');
+    // 접은 기록은 같은 자리, 같은 폭의 탭 줄만 남는다(빈 판이 그대로 남고 단추가 세로로 갈라졌다, 2026-10-02).
+    const folded = await rectOf(page, '#message-frame-main');
     expect(folded.height).toBeLessThan(90);
     expect(folded.width).toBeCloseTo(feed.width, 0);
     expect(folded.bottom).toBeCloseTo(feed.bottom, 0);
-    await expect(page.locator('.combat-feed-title .ui-context-dock-tab').first()).toBeVisible();
-    await expect(page.locator('#btn-combat-log-toggle')).toHaveText('펼치기');
-    expect((await rectOf(page, '#btn-combat-log-toggle')).height).toBeLessThan(40);
-    await page.locator('#btn-combat-log-toggle').click();
+    await expect(page.locator('#message-frame-main [data-message-tab]').first()).toBeVisible();
+    await expect(fold).toHaveAttribute('title', '펼치기');
+    await fold.click();
     await expect(page.locator('#log')).toBeVisible();
-    expect((await rectOf(page, '.combat-feed')).height).toBeCloseTo(feed.height, 0);
-    await page.locator('#btn-combat-log-toggle').click();
+    expect((await rectOf(page, '#message-frame-main')).height).toBeCloseTo(feed.height, 0);
+    // 보던 탭을 따로 띄우면(⇱) 기록과 채팅이 두 창으로 함께 보이고, 합치면(⇲) 한 창으로 돌아온다.
+    await page.locator('#message-frame-main [data-message-action="split"]').click();
+    await expect(page.locator('#message-frame-side')).toBeVisible();
+    await expect(page.locator('#log')).toBeVisible();
+    await expect(page.locator('#tab-social')).toBeVisible();
+    await page.locator('#message-frame-side [data-message-action="merge"]').click();
+    await expect(page.locator('#message-frame-side')).toBeHidden();
+    await expect(page.locator('#log')).toBeVisible();
+    await fold.click();
     await expect(page.locator('#log')).toBeHidden();
     await page.evaluate(() => switchTab('tab-items'));
     await expect(page.locator('#tab-items')).toBeVisible();
     const window = await rectOf(page, '#tab-items');
     expect(window.left).toBeGreaterThanOrEqual(0);
-    // 창은 HUD 위까지만 온다: 메뉴 단추가 가려지지 않는다.
-    expect(window.bottom).toBeLessThanOrEqual(hud.top);
+    // 창은 HUD 판 윗변까지 내려와 솟은 미니맵을 덮는다(2026-10-03 사용자 요청). 메뉴 단추 줄은 가려지지 않는다.
+    const menu = await rectOf(page, '.ui-rail-wing-left');
+    expect(window.bottom).toBeGreaterThan(hud.top);
+    expect(window.bottom).toBeLessThanOrEqual(menu.top);
     await expect(page.locator('#btn-tab-character')).toBeVisible();
     const docked = await rectOf(page, '#battlefield-wrap');
     expect(docked.width).toBeCloseTo(field.width, 0);

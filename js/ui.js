@@ -1680,7 +1680,7 @@ function getTabHeaderUiSignature() {
 function updateTabNotificationDots() {
     // 데스크톱 창형 모드에서 커뮤니티는 탭 전환 없이 도킹 패널로 열리므로,
     // 패널이 열려 있는 동안은 채팅을 읽고 있는 것으로 간주해 알림을 꺼 둔다.
-    if (document.body.classList.contains('community-dock-open')) game.noti.social = false;
+    if (typeof isSocialTabActive === 'function' && isSocialTabActive()) game.noti.social = false;
     TAB_HEADER_NOTI_KEYS.forEach(key => {
         // 이미 보고 있는 탭에서 계속 발생하는 이벤트(전투 중 드랍 등)가 알림을 되살리지 않도록,
         // 활성 탭에 해당하는 알림은 매 갱신마다 계속 꺼둔다.
@@ -5027,11 +5027,12 @@ function captureCombatLogScroll(log) {
     };
 }
 
-/** Hidden tab (phone, another menu open) or a folded combat feed (#log is display:none there): measuring forces a style recalculation. */
+/** Hidden tab (phone, another menu open), a folded combat feed, or the PC message frames' stash (the other tab is showing, or the
+ * frame is folded; js/message-frames-ui.js): #log is display:none there and measuring forces a style recalculation. */
 function isCombatLogHidden(log) {
     if (typeof log.closest !== 'function') return false;
     const pane = log.closest('.tab-content');
-    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.combat-feed.collapsed');
+    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.combat-feed.collapsed') || !!log.closest('.message-frame-stash');
 }
 
 function restoreCombatLogScroll(log, scrollState) {
@@ -6418,35 +6419,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
         html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? ` · [${escapeHTML(item.fusedRareName)}]의 기억` : ''} — 황금률·잿불가지·축복의 꽃잎만 사용 가능</div>`;
     }
-    function getItemDefenseView(target) {
-        let base = { armor: 0, evasion: 0, energyShield: 0 };
-        let flat = { armor: 0, evasion: 0, energyShield: 0 };
-        let pct = { armor: 0, evasion: 0, energyShield: 0 };
-        (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
-        let explicitSources = (target.stats || []).slice();
-        if (target.chaosInfusion) explicitSources.push(target.chaosInfusion);
-        if (typeof getImmutableItemSpecialStats === 'function') explicitSources.push(...getImmutableItemSpecialStats(target));
-        let explicitForDefense = [];
-        // 잠식 특수 옵션과 복합 옵션도 실제 전투 계산과 같은 방식으로 베이스 방어 수치에 반영한다.
-        explicitSources.forEach(stat => {
-            if (!stat) return;
-            explicitForDefense.push(stat);
-            if (Array.isArray(stat.extraStats)) explicitForDefense.push(...stat.extraStats);
-        });
-        explicitForDefense.forEach(stat => {
-            if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
-            if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
-            if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
-            if (stat.id === 'energyShieldPct') pct.energyShield += Number(stat.val || 0);
-        });
-        return {
-            armor: Math.floor((base.armor + flat.armor) * (1 + pct.armor / 100)),
-            evasion: Math.floor((base.evasion + flat.evasion) * (1 + pct.evasion / 100)),
-            energyShield: Math.floor((base.energyShield + flat.energyShield) * (1 + pct.energyShield / 100)),
-            base: base
-        };
-    }
-    let defenseView = getItemDefenseView(item);
+    let defenseView = itemTooltipRules.defenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>`;
         item.baseStats.forEach(stat => {
@@ -6481,25 +6454,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let explicitStats = (item.stats || []).slice();
     if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
     if (explicitStats.length > 0) {
-        function getItemTooltipGroupOrder(statId) {
-            let key = String(statId || '').toLowerCase();
-            if (['energyshield', 'energyshieldpct', 'energyshieldregen'].includes(key) || key.includes('energyshield') || key === 'es') return 1;
-            if (['armor', 'armorpct', 'dr'].includes(key) || key.includes('armor')) return 2;
-            if (['evasion', 'evasionpct', 'deflectchance', 'deflectdamagereduce'].includes(key) || key.includes('evasion') || key.includes('deflect')) return 3;
-            if (['flathp', 'pcthp', 'regen', 'regenflat'].includes(key) || key.includes('hp') || key.includes('life')) return 4;
-            if (['resf', 'resc', 'resl', 'resall', 'reschaos'].includes(key) || key.includes('res')) return 5;
-            if (['firepctdmg', 'coldpctdmg', 'lightpctdmg', 'chaospctdmg', 'dotpctdmg', 'pctdmg'].includes(key) || key.includes('dmg') || key.includes('dot')) return 6;
-            if (['crit', 'critdmg'].includes(key) || key.includes('crit')) return 7;
-            if (['aspd', 'move'].includes(key) || key.includes('speed') || key.includes('move')) return 8;
-            return 99;
-        }
-        explicitStats.sort((a, b) => {
-            let aKey = a && (a.id || a.stat);
-            let bKey = b && (b.id || b.stat);
-            let g = getItemTooltipGroupOrder(aKey) - getItemTooltipGroupOrder(bKey);
-            if (g !== 0) return g;
-            return String(aKey || '').localeCompare(String(bKey || ''));
-        });
+        explicitStats.sort(itemTooltipRules.compareStats);
         html += `<div class="tooltip-line tooltip-section tooltip-section-explicit">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
@@ -12074,15 +12029,8 @@ function loadStoredCloudSession() {
 function refreshSocialAfterCloudStateChange() {
     if (typeof syncSocialBackgroundTasks === 'function') syncSocialBackgroundTasks();
     if (typeof renderSocialTab !== 'function') return;
-    let socialTab = document.getElementById('tab-social');
-    let socialVisible = socialTab && (
-        socialTab.classList.contains('active')
-        || socialTab.classList.contains('ui-community-dock')
-        || socialTab.classList.contains('ui-community-overlay')
-        || document.body.classList.contains('community-dock-open')
-        || document.body.classList.contains('community-overlay-open')
-    );
-    if (socialVisible) renderSocialTab();
+    // 채팅이 화면에 있으면(PC 전투 기록 창의 채팅 탭, 휴대폰 채팅 탭) 새 로그인 상태로 다시 그린다.
+    if (typeof isSocialTabActive === 'function' && isSocialTabActive()) renderSocialTab();
     if (cloudState.user && typeof checkSocialChatNotification === 'function') {
         Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
     }
@@ -12204,11 +12152,18 @@ async function cloudJsonRequest(path, options = {}) {
             data = text;
         }
     }
-    if (!response.ok) {
-        let message = data && (data.msg || data.error_description || data.message || data.error);
-        throw new Error(message || `HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(describeCloudServerError(data, response.status));
     return data;
+}
+
+// 서버 오류 코드 중 플레이어가 알아야 할 것은 문구로 바꾼다(db/operations-and-ghost.sql의 commit_cloud_save).
+const CLOUD_SERVER_ERROR_TEXT = Object.freeze({
+    SAVE_TOO_LARGE: '클라우드 저장이 너무 커서 서버가 받지 않았습니다(8MB). 가방과 보관함을 정리한 뒤 다시 저장해 주세요.'
+});
+
+function describeCloudServerError(data, status) {
+    const message = data && (data.msg || data.error_description || data.message || data.error);
+    return CLOUD_SERVER_ERROR_TEXT[message] || message || `HTTP ${status}`;
 }
 
 function collectCloudCredentials() {
@@ -12342,14 +12297,7 @@ async function startGuestMode() {
         tone: 'warning',
         confirmLabel: '로컬 저장으로 시작'
     })) return;
-    if (cloudState.user) {
-        markSkipOAuthRestoreOnce();
-        clearSupabasePersistedSession();
-        applyCloudSession(null);
-        cloudState.linkedProviders = [];
-        cloudState.lastRemoteUpdatedAt = 0;
-        cloudState.lastRemoteLoop = 0;
-    }
+    if (cloudState.user) detachCloudSessionLocally();
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
     setLoadingOverlayState(true, {
         title: '게스트 세션을 준비하는 중...',
@@ -13019,10 +12967,10 @@ async function reconcileCloudSaveState(options = {}) {
     // A temporary network failure must not erase an otherwise recoverable local cache.
     let record = await fetchCloudSaveRecord();
     let localPreparation = prepareLocalSaveForCloudSession({
-        allowUnownedLocal: options.allowLocalBootstrap === true
+        allowUnownedLocal: await settleUnlinkedLocalSave(record, options)
     });
     if (!record || !record.save_data) {
-        if (options.createRemoteFromLocal && (!localPreparation.replaced || localPreparation.adoptedUnowned)) {
+        if (localPreparation.adoptedUnowned || (options.createRemoteFromLocal && !localPreparation.replaced)) {
             await pushCloudSave({ touchModifiedAt: false });
             setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
             return 'pushed-local';
@@ -13103,6 +13051,61 @@ async function reconcileCloudSaveState(options = {}) {
     setCloudMessage('로컬과 클라우드 저장 시간이 같거나 클라우드가 근소하게 최신이라 클라우드 저장을 우선 적용했습니다.');
     if (!options.silent) addLog('저장 시간 차이가 작아 클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
     return 'pulled-remote-within-skew';
+}
+
+/** This device's guest save (unlinked, with progress) when an account takes the save slot (2026-10-03). It moves into the
+ * account (only an account without a cloud save, and only past the simple tamper check in js/guest-save-check.js) or it is
+ * deleted after asking. Nothing is copied aside, so one guest save never ends up in two accounts. Cancelling keeps the guest
+ * save and drops the account link on this device. Returns whether the account adopts it. */
+async function settleUnlinkedLocalSave(record, options) {
+    if (getCloudSaveOwnerId() || isLikelyBootstrapLocalSave(game)) return options.allowLocalBootstrap === true;
+    let fate = await chooseGuestSaveFate(record, options);
+    if (fate !== 'keep') return fate === 'move';
+    detachCloudSessionLocally();
+    throw new Error('게스트 저장을 지키려고 계정 연결을 취소했습니다.');
+}
+
+async function chooseGuestSaveFate(record, options) {
+    let label = `루프 ${getSaveLoopNumber(game)}, 레벨 ${Math.floor(Number(game.level) || 1)}`;
+    if (record && record.save_data) return await confirmGuestSaveDeletion(`이 계정에는 이미 저장이 있어 이 기기의 게스트 저장(${label})은 옮길 수 없습니다.`);
+    if (options.allowLocalBootstrap !== true) {
+        let fate = await askGuestSaveFate(label);
+        if (fate !== 'move') return fate;
+    }
+    let verdict = guestSaveCheck.inspect(game, Date.now());
+    if (verdict.ok) return 'move';
+    return await confirmGuestSaveDeletion(`정상 플레이로는 나올 수 없는 값이 있어 게스트 저장(${label})을 옮길 수 없습니다: ${verdict.problems.join(', ')}`);
+}
+
+async function askGuestSaveFate(label) {
+    let fate = await requestGameChoice({
+        kicker: '게스트 저장',
+        title: '이 기기의 게스트 저장을 어떻게 할까요?',
+        message: `게스트 저장(${label})은 계정 하나로 한 번만 옮길 수 있습니다.`,
+        submitOnChoice: true,
+        cancelLabel: '게스트로 계속',
+        choices: [
+            { value: 'move', label: '이 계정으로 옮기기', detail: '옮긴 저장은 다른 계정으로 옮길 수 없습니다.' },
+            { value: 'discard', label: '지우고 새로 시작', detail: '게스트 저장은 지워집니다.' }
+        ]
+    });
+    return fate || 'keep';
+}
+
+async function confirmGuestSaveDeletion(reason) {
+    let accepted = await requestGameConfirmation(`${reason}\n계속하면 게스트 저장은 지워집니다.`,
+        { title: '게스트 저장 지우기', tone: 'danger', confirmLabel: '지우고 계속', cancelLabel: '게스트로 계속' });
+    return accepted ? 'discard' : 'keep';
+}
+
+/** Leave the signed-in account on this device only (the server session is not revoked) and keep using this device's save. */
+function detachCloudSessionLocally() {
+    markSkipOAuthRestoreOnce();
+    clearSupabasePersistedSession();
+    applyCloudSession(null);
+    cloudState.linkedProviders = [];
+    cloudState.lastRemoteUpdatedAt = 0;
+    cloudState.lastRemoteLoop = 0;
 }
 
 let cloudSyncTimer = null;

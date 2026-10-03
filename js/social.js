@@ -139,17 +139,33 @@ function socialRarityColor(rarity) {
 // 스냅샷 빌드(장비/주얼/부적) — 옵션에 티어·롤범위 포함
 // ============================================================================
 function snapStat(st) {
-    let o = { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
-    // 특수 표기 플래그도 보존한다: 특출 베이스(✦), 고정 옵션(벌꿀/균열 — 제작에서 제거 불가), 융합 계승 옵션.
-    if (st.exceptional) o.exceptional = true;
-    if (st.lockedByHoney || st.lockedByRift) o.locked = true;
-    if (st.fusedFromRare) o.fusedFromRare = true;
-    return o;
+    let o = { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier,
+        valMin: st.valMin, valMax: st.valMax, baseRollMin: st.baseRollMin, baseRollMax: st.baseRollMax };
+    return Object.assign(o, snapStatMarks(st));
+}
+/** 줄 옆 표시(게임 툴팁과 같다): 특출 베이스 ✦, 고정 옵션 [T0], 제작 출처(홀씨, 화석, 이식), 벌꿀 고정. 주얼은 쁘띠와 밀랍. */
+function snapStatMarks(st) {
+    let marks = {
+        exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus,
+        fixed: typeof isFixedEquipmentAffix === 'function' && isFixedEquipmentAffix(st),
+        source: typeof equipmentCrafting === 'object' ? equipmentCrafting.getLabel(st) : ''
+    };
+    return Object.fromEntries(Object.entries(marks).filter(([, value]) => value));
+}
+/** A weapon's category (대검, 곡도 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). */
+function profileItemCategory(item, slot) {
+    return slot === '무기' && typeof getWeaponCategoryName === 'function' ? getWeaponCategoryName(item) || undefined : undefined;
+}
+/** The tag before an item's name: a weapon's category, otherwise its slot without the 1, 2, 3 of paired slots. */
+function profileItemTag(item) {
+    return item.category || String(item.slot || '').replace(/[123]$/, '');
 }
 function buildItemSnapshot(item, slotOverride) {
     if (!item) return null;
+    let slot = slotOverride || item.slot || '';
     let snap = {
-        slot: slotOverride || item.slot || '',
+        slot,
+        category: profileItemCategory(item, slot),
         name: item.name || '',
         rarity: item.rarity || 'normal',
         baseName: item.baseName || '',
@@ -182,85 +198,181 @@ function buildItemSnapshot(item, slotOverride) {
             chosen: (item.encroached.liberated && item.encroached.chosen) ? snapStat(item.encroached.chosen) : null
         };
     }
-    return snap;
+    return Object.assign(snap, buildItemMetaSnapshot(item));
 }
+
+/** What the game's item tooltip shows above the options (js/ui.js showItemTooltip): base step, item level and grade,
+ * requirements and sockets. Read on the owner's device, so a viewer sees the owner's numbers. */
+function buildItemMetaSnapshot(item) {
+    let chain = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
+    return {
+        baseStep: chain && chain.total > 1 ? [chain.step, chain.total] : undefined,
+        itemLevel: profileItemLevel(item),
+        grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
+        requirements: buildRequirementSnapshot(item),
+        sockets: buildSocketSnapshots(item)
+    };
+}
+
+/** 아이템 레벨(게임 툴팁과 같은 값): 저장된 레벨이 없으면 등급에서 계산한다. */
+function profileItemLevel(item) {
+    if (item.itemLevel) return Math.floor(Number(item.itemLevel)) || undefined;
+    if (typeof levelProgression !== 'object') return undefined;
+    return Math.floor(Number(levelProgression.tierLevel(item.hiddenTier || item.itemTier)) || 0) || undefined;
+}
+
+function buildRequirementSnapshot(item) {
+    if (typeof levelProgression !== 'object' || typeof levelProgression.requirements !== 'function') return undefined;
+    let required = levelProgression.requirements(item);
+    return { level: required.level, attributes: required.attributes, exempt: !!item.inheritedLevelExempt };
+}
+
+/** Sockets with the jewel in each, as the game's item tooltip lists them once jewels are open. */
+function buildSocketSnapshots(item) {
+    let unlocked = typeof contentProgression === 'object' && contentProgression.isUnlocked('jewel');
+    let rows = unlocked && typeof equipmentSockets === 'object' ? equipmentSockets.list(item) : [];
+    if (!rows.length) return undefined;
+    return rows.map(row => ({ label: row.kind === 'void' ? '공허 소켓' : `심연 소켓 ${row.index + 1}`, jewel: buildJewelSnapshot(row.jewel) }));
+}
+
+/** 우주계 쌍둥이 주얼의 배정 키스톤(게임 툴팁 getCosmosKeystoneTooltipLine과 같은 정보). */
+function buildJewelKeystoneSnapshot(jewel) {
+    if (!jewel.cosmosKeystoneJewel || !jewel.cosmosKeystone) return undefined;
+    let id = jewel.cosmosKeystone;
+    let owner = typeof getAscendKeystoneOwnerClass === 'function' ? getAscendKeystoneOwnerClass(id) : null;
+    let ascend = owner && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[owner] ? CLASS_TEMPLATES[owner].name : '';
+    let active = (Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones : []).includes(id);
+    return { name: typeof getAscendKeystoneName === 'function' ? getAscendKeystoneName(id) : String(id), ascend, active };
+}
+
 function buildJewelSnapshot(jewel) {
     if (!jewel) return null;
     let stats = [];
     try {
         if (typeof getJewelStats === 'function') getJewelStats(jewel).forEach(st => stats.push(snapStat(st)));
     } catch (e) { /* 무시 */ }
-    return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8) };
+    return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8),
+        uniqueEffect: jewel.uniqueEffect || undefined, keystone: buildJewelKeystoneSnapshot(jewel) };
 }
+/** 부적(게임 그루터기 함의 부적 설명과 같은 구성): 줄은 게임과 같은 문장, 고유 효과, 순간 부적의 보스 처형, 판 위 상태. */
 function buildTalismanSnapshot(t) {
     if (!t || !Array.isArray(t.lines)) return null;
-    let stats = t.lines.filter(line => line.kind === 'stat').map(line => ({ id: line.id, val: line.value }));
-    let effects = t.lines.filter(line => line.kind === 'condition').map(talismans.describeLine);
-    if (t.uniqueEffect) effects.unshift(t.uniqueEffect);
-    return { kind: 'talisman', name: t.name || '부적', rarity: t.rarity || 'magic', stats, effects };
+    let lines = t.lines.map(line => ({ text: talismans.describeLine(line), condition: line.kind === 'condition' }));
+    if (t.special === 'moment') lines.push({ text: `보스에게 주는 최종 피해 +${t.moment}%, 생명력 5% 이하 보스 처형`, condition: true });
+    return { kind: 'talisman', name: t.name || '부적', rarity: t.rarity || 'magic', uniqueEffect: t.uniqueEffect || undefined, lines, state: talismanStateFor(t) };
 }
 
-// 캐릭터 스탯 색상(타입별)
-const SOCIAL_STAT_COLORS = {
-    loop: '#c9a8ff', hp: '#7fd99a', regen: '#7fd99a', dps: '#ff8f6b', dmg: '#ff8f6b',
-    crit: '#ffb36b', aspd: '#ffd27a', def: '#7fb5ff', resF: '#ff7a5c', resC: '#6fc6ff',
-    resL: '#ffd24a', resChaos: '#c08bff'
-};
+/** 부적의 지금 상태(게임 부적 설명 stateLine과 같은 갈래): 보관, 잠듦, 척력에 막힘, 척력으로 강화, 깨어남. */
+function talismanStateFor(item) {
+    if (game.stumpBox.board.indexOf(item.id) < 0) return 'stored';
+    if (!stumpBox.isMature(item)) return 'asleep';
+    let summary = talismanEffects.summarize();
+    if (summary.suppressed.has(item.id)) return 'suppressed';
+    return summary.amplified.has(item.id) ? 'amplified' : 'awake';
+}
+
+// 프로필 능력치(2026-10-03): 게임의 비교 표(COMPARE_STAT_META, js/utils.js)와 같은 이름과 형식이다. 소환 DPS는 소환수가 있을 때만.
+const PROFILE_STAT_KEYS = Object.freeze([
+    ['dps', '⚔️'], ['summonDps', '⚔️'], ['baseDmg', '💥'], ['aspd', '⚡'], ['crit', '🎯'], ['critDmg', '🔥'], ['maxHp', '❤️'],
+    ['energyShield', '🔵'], ['armor', '🛡️'], ['evasion', '💨'], ['deflectChance', '🛡️'], ['blockChance', '🛑'], ['dr', '🧱'],
+    ['regen', '🩹'], ['resF', '🔥'], ['resC', '❄️'], ['resL', '⚡'], ['resChaos', '☠️']
+]);
+
+function buildProfileStats() {
+    let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
+    if (!s) return { stats: [], power: 0 };
+    let rows = PROFILE_STAT_KEYS.filter(([key]) => key !== 'summonDps' || Number(s.summonDps) > 0)
+        .map(([key, icon]) => ({ key, label: `${icon} ${COMPARE_STAT_META[key].label}`, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
+    // 총 DPS(직접 + 소환)는 게임의 권장 전투력 비교와 같은 값이다(js/combat-ehp.js getMapPowerReadiness).
+    let power = Math.floor(Number(s.totalDps) || (Number(s.dps) || 0) + (Number(s.summonDps) || 0));
+    return { stats: rows, power };
+}
+
+/** The gems a build fights with: main skill and its supports, the movement skill, summons with their counts. */
+function buildSkillSnapshot(state) {
+    let gem = name => ({ name, level: Math.max(1, Math.floor(Number(state.gemData?.[name]?.level) || 1)), quality: Math.max(0, Math.floor(Number(state.gemData?.[name]?.quality) || 0)) });
+    let support = name => ({ name, level: Math.max(1, Math.floor(Number(state.supportGemData?.[name]?.level) || 1)) });
+    let summon = name => ({ ...gem(name), count: Math.max(1, Math.floor(Number(state.summonSkillCounts?.[name]) || 1)) });
+    return {
+        active: state.activeSkill ? gem(state.activeSkill) : null,
+        supports: (state.equippedSupports || []).filter(Boolean).slice(0, 8).map(support),
+        mobility: state.mobilitySkill ? gem(state.mobilitySkill) : null,
+        summons: (state.equippedSummonSkills || []).filter(Boolean).slice(0, 6).map(summon)
+    };
+}
+
+/** 직업(6종, 2026-09)과 전직. 전직 전이면 전직 칸은 미전직이다(HUD getUiPlayerHudIdentity와 같다). */
+function buildProfileIdentity(state) {
+    let classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[state.selectedClassId] : null;
+    return { classId: state.selectedClassId || '', heroClassName: classDef ? classDef.label : '', ascendClass: state.ascendClass || '', className: socialClassLabel(state.ascendClass) };
+}
+
+/** 장착 구성: 장비(주얼은 소켓 줄에), 코어 칸, 그루터기 함 판(부적은 판 칸에). 예전 프로필의 jewels와 talismans 목록은 그리기만 한다. */
+function buildProfileGear(state) {
+    let equipment = [];
+    let eq = state.equipment || {};
+    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
+    return { equipment: equipment.slice(0, 16), core: buildCoreSnapshot(state), stump: buildStumpSnapshot(state) };
+}
+
+/** 장비창 왼쪽 위 코어 칸: 코어를 열고 하나를 끼고 있을 때만. 게임 코어 툴팁과 같은 이름과 줄. */
+function buildCoreSnapshot(state) {
+    let core = state.cores && state.cores.equipped;
+    if (!core || typeof coreItems !== 'object' || !contentProgression.isUnlocked('cube', state)) return undefined;
+    return { kind: 'core', name: core.name, lines: core.lines.map(line => coreItems.describe(line)) };
+}
+
+/** 그루터기 함 판(2026-10-03): 함을 얻고 판에 하나라도 놓았을 때만. 칸마다 열림, 접붙이기 단계, 놓인 것과 그 성장. */
+function buildStumpSnapshot(state) {
+    let box = state.stumpBox;
+    if (!box || !box.acquired || typeof stumpBox !== 'object' || box.board.every(id => id === null)) return undefined;
+    let result = stumpBox.evaluate(state);
+    return { cells: box.board.map((id, cell) => buildStumpCellSnapshot(state, result, id, cell)) };
+}
+
+/** 닫힌 칸은 null. 열린 칸은 접붙이기 단계와 놓인 것(게임 판과 같은 그림 단계와 성장, 카드 내용). */
+function buildStumpCellSnapshot(state, result, id, cell) {
+    if (!stumpBox.isOpen(state, cell)) return null;
+    let rank = stumpBox.graftRank(state.stumpBox, cell);
+    let row = rank ? { graft: rank, graftPct: rank * STUMP_BOX_GRAFT.pctPerRank } : {};
+    let item = id === null ? null : stumpBox.itemById(state, id);
+    if (!item) return row;
+    let card = item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
+    row.item = Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
+    return row;
+}
+
+/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 다 자라면 주는 것, 억제와 공명. */
+function buildStumpItemSnapshot(item, result) {
+    let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
+    let value = result.values[item.id] ?? (gain ? gain.value * item.roll : 0);
+    return { kind: 'stump', family: item.family, color: item.color, name: stumpBox.label(item), quality: Math.round(item.roll * 100),
+        yieldText: gain ? gain.text.replace('{v}', String(Math.round(value * 10) / 10)) : '', suppressed,
+        resonant: !suppressed && stumpBox.isMature(item) && result.resonant.has(item.color), note: stumpItemNote(item, result) };
+}
+
+/** 게임 그루터기 함의 상태 줄(stumpStatusLine)과 같은 문장. 억제되었거나 공명할 때만. */
+function stumpItemNote(item, result) {
+    if (result.suppressed.has(item.id)) {
+        return `상하좌우로 맞닿은 ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 아이템에 억제되어 자라지 않고 능력치도 없습니다.`;
+    }
+    if (!stumpBox.isMature(item) || !result.resonant.has(item.color)) return '';
+    return `다 자란 ${STUMP_BOX_COLORS[item.color].label} ${result.counts[item.color]}개가 공명해 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`;
+}
 
 function buildProfileSnapshot() {
-    let stats = [];
-    let power = 0;
-    let loop = (typeof getSaveLoopNumber === 'function' && typeof game !== 'undefined') ? getSaveLoopNumber(game) : 0;
-    try {
-        let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
-        if (s) {
-            power = Math.floor(Number(s.dps) || Number(s.hitDps) || 0);
-            let C = SOCIAL_STAT_COLORS;
-            let pct = v => `${(Number(v) || 0).toFixed(1)}%`;
-            stats = [
-                { label: '🔁 루프 횟수', value: socialComma(loop), color: C.loop },
-                { label: '❤️ 최대 생명력', value: socialComma(s.maxHp), color: C.hp },
-                { label: '⚔️ DPS', value: socialComma(s.dps || s.hitDps), color: C.dps },
-                { label: '💥 기본 공격력', value: socialComma(s.baseDmg), color: C.dmg },
-                { label: '🎯 치명타 확률', value: pct(s.crit), color: C.crit },
-                { label: '🔥 치명타 피해', value: `${socialComma(s.critDmg)}%`, color: C.crit },
-                { label: '⚡ 공격 속도', value: `${(Number(s.aspd) || 0).toFixed(2)}`, color: C.aspd },
-                { label: '🛡️ 방어도', value: socialComma(s.armor), color: C.def },
-                { label: '💨 회피', value: socialComma(s.evasion), color: C.def },
-                { label: '🔵 에너지 보호막', value: socialComma(s.energyShield), color: C.def },
-                { label: '🩹 재생', value: `${(Number(s.regen) || 0).toFixed(1)}%`, color: C.regen },
-                { label: '🧱 받는 피해 감소', value: pct(s.dr), color: C.def },
-                { label: '🛑 막기', value: pct(s.blockChance), color: C.def },
-                { label: '🔥 화염 저항', value: `${socialComma(s.resF)}%`, color: C.resF },
-                { label: '❄️ 냉기 저항', value: `${socialComma(s.resC)}%`, color: C.resC },
-                { label: '⚡ 번개 저항', value: `${socialComma(s.resL)}%`, color: C.resL },
-                { label: '☠️ 카오스 저항', value: `${socialComma(s.resChaos)}%`, color: C.resChaos }
-            ];
-        }
-    } catch (e) { console.warn('프로필 스탯 계산 실패:', e); }
-
-    let equipment = [];
-    let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
-    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
-
-    let jewels = [];
-    let socketed = (typeof game !== 'undefined' && typeof collectSocketedJewels === 'function') ? collectSocketedJewels(game.equipment) : [];
-    socketed.forEach(row => { let s = buildJewelSnapshot(row.jewel); if (s) jewels.push(s); });
-
-    // 부적: 그루터기 함 판에 놓인 부적(판 순서).
-    let talismanRows = (typeof game !== 'undefined' && game.stumpBox ? game.stumpBox.board : [])
-        .map(id => id === null ? null : stumpBox.itemById(game, id)).filter(item => item && item.family === 'talisman').map(buildTalismanSnapshot);
-
+    let state = typeof game !== 'undefined' && game ? game : {};
+    let numbers = { stats: [], power: 0 };
+    try { numbers = buildProfileStats(); } catch (e) { console.warn('프로필 스탯 계산 실패:', e); }
     return {
-        version: 7,
+        version: 8,
         nickname: getMyNickname(),
-        level: (typeof game !== 'undefined' && game.level) ? game.level : 1,
-        ascendClass: (typeof game !== 'undefined') ? (game.ascendClass || '') : '',
-        className: socialClassLabel(typeof game !== 'undefined' ? game.ascendClass : ''),
-        loop, power, stats,
-        equipment: equipment.slice(0, 16),
-        jewels: jewels.slice(0, 8),
-        talismans: talismanRows,
+        level: state.level || 1,
+        ...buildProfileIdentity(state),
+        loop: typeof getSaveLoopNumber === 'function' ? getSaveLoopNumber(state) : 0,
+        ...numbers,
+        ...buildProfileGear(state),
+        skills: buildSkillSnapshot(state),
         updatedAt: Date.now()
     };
 }
@@ -402,6 +514,7 @@ async function promptAndSetNickname() {
         socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';
         renderSocialTab();
+        refreshChatSettings();
         refreshChatPanel(false);
     } catch (e) {
         setMyNicknameLocal(prev);
@@ -530,15 +643,11 @@ function setLastSeenChatId(id) {
     if (cur != null && n <= cur) return;
     try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
 }
+/** Chat on screen: the chat tab of a PC message frame (js/message-frames-ui.js), or the phone chat tab. */
 function isSocialTabActive() {
+    if (typeof messageFrames === 'object' && messageFrames.isActive()) return messageFrames.isTabVisible('chat');
     let tabEl = document.getElementById('tab-social');
-    return !!(tabEl && (
-        tabEl.classList.contains('active')
-        || tabEl.classList.contains('ui-community-dock')
-        || tabEl.classList.contains('ui-community-overlay')
-        || document.body.classList.contains('community-dock-open')
-        || document.body.classList.contains('community-overlay-open')
-    ));
+    return !!(tabEl && tabEl.classList.contains('active'));
 }
 function isSocialChatNotificationEnabled() {
     return !(typeof game !== 'undefined' && game && game.settings && game.settings.socialChatNotifications === false);
@@ -1009,6 +1118,8 @@ function hideSocialTip() { let t = document.getElementById('social-tooltip'); if
 function openTipModal(scope, key) {
     let html = tipMapByScope(scope)[key];
     if (!html) return;
+    hideSocialTip();
+    if (scope === 'profile' && showProfileItemDetail(html)) return;
     let modal = ensureProfileModal();
     modal.style.display = 'flex';
     let body = document.getElementById('social-profile-body');
@@ -1018,82 +1129,308 @@ function openTipModal(scope, key) {
 // ============================================================================
 // 카드 렌더러(티어·롤범위·색상 포함)
 // ============================================================================
-function socialStatLineHtml(st, opts) {
-    opts = opts || {};
-    if (!st || st.id == null) return '';
-    let id = st.id;
-    let name = st.statName || (typeof getStatName === 'function' ? getStatName(id) : id) || id;
-    let val = (typeof formatValue === 'function') ? formatValue(id, st.val) : st.val;
-    let toneFn = opts.jewel && typeof getJewelStatToneColor === 'function' ? getJewelStatToneColor : (typeof getItemStatToneColor === 'function' ? getItemStatToneColor : null);
-    let tone = socialSafeColor(toneFn ? toneFn(id) : null, '#cfe0f5');
-    // 베이스 옵션에는 티어를 표시하지 않는다(베이스도 tier:0 이라 [U]로 잘못 표기되는 것 방지).
-    let tierHtml = (!opts.base && st.tier != null && typeof getTierBadgeHtml === 'function') ? ' ' + getTierBadgeHtml(Math.floor(st.tier), 'T') : '';
-    let range = '';
-    if (opts.range !== false) {
-        let mn = st.valMin, mx = st.valMax;
-        if ((mn == null || mx == null) && opts.estimate) { let c = Number(st.val || 0); mn = Number((c * 0.8).toFixed(2)); mx = Number((c * 1.2).toFixed(2)); }
-        if (mn != null && mx != null) {
-            let fmn = (typeof formatValue === 'function') ? formatValue(id, mn) : mn;
-            let fmx = (typeof formatValue === 'function') ? formatValue(id, mx) : mx;
-            range = ` <span class="social-roll">(${socialEscape(fmn)}~${socialEscape(fmx)})</span>`;
-        }
-    }
-    let cls = opts.base ? 'social-item-stat base' : 'social-item-stat';
-    let colorStyle = opts.base ? '' : `style="color:${tone};"`;
-    // 특수 표기: 고정 옵션(제작 제거 불가), 융합 계승 옵션, 특출 베이스(✦+20%).
-    let lockMark = st.locked ? `<span style="color:#ffd166;font-weight:700;">[고정] </span>` : '';
-    let fusedMark = st.fusedFromRare ? `<span style="color:#8fd8ff;">⌛</span> ` : '';
-    let exMark = st.exceptional ? ` <span style="color:#ffb454;font-weight:700;">✦+20%</span>` : '';
-    return `<div class="${cls}" ${colorStyle}>${lockMark}${fusedMark}${socialEscape(name)} +${socialEscape(val)}${tierHtml}${range}${exMark}</div>`;
+function profileStatLabel(st) {
+    return st.statName || (typeof getStatName === 'function' ? getStatName(st.id) : st.id) || st.id;
 }
+function profileStatTone(id) {
+    return socialSafeColor(typeof window.getItemStatToneColor === 'function' ? window.getItemStatToneColor(id) : null, '#cfe0f5');
+}
+function profileValue(id, value) {
+    return typeof formatValue === 'function' ? formatValue(id, value) : value;
+}
+
+/** 장비 카드(2026-10-03): 게임 툴팁(js/ui.js showItemTooltip)과 같은 순서다. 머리 줄, 전당, 베이스, 레벨과 요구, 고유 효과,
+ * 주얼이 박힌 소켓, 융합, "베이스 옵션", "추가 옵션 (n/6)", 잠식. 주얼, 부적, 코어, 그루터기 아이템은 각자의 카드로 보낸다.
+ * 전당과 채팅 첨부도 이 카드를 쓴다. */
 function renderProfileItemCard(item) {
     if (!item) return '';
-    if (item.kind) return renderSimpleCard(item);
+    if (item.kind) return renderProfileKindCard(item);
     let color = socialRarityColor(item.rarity);
-    let lines = '';
-    (item.baseStats || []).forEach(st => { lines += socialStatLineHtml(st, { base: true, estimate: true }); });
-    (item.stats || []).forEach(st => {
-        lines += socialStatLineHtml(st, {});
-        (st.extraStats || []).forEach(ex => { lines += socialStatLineHtml(ex, {}); });
-    });
-    // 혼돈 주입 옵션(별도 필드) — 실제 툴팁처럼 [주입] 접두사로 표시.
-    let statLabel = st => st.statName || (typeof getStatName === 'function' ? getStatName(st.id) : st.id) || st.id;
-    if (item.chaosInfusion) {
-        lines += socialStatLineHtml({ ...item.chaosInfusion, statName: `[주입] ${statLabel(item.chaosInfusion)}` }, {});
-    }
-    // 잠식 특수 옵션 — 해방 후에만 실제 옵션이 붙는다.
-    if (item.encroached) {
-        lines += item.encroached.chosen
-            ? socialStatLineHtml({ ...item.encroached.chosen, statName: `[잠식] ${statLabel(item.encroached.chosen)}` }, {})
-            : `<div class="social-item-stat" style="color:#8d7bb3;">[잠식] 해방 전 — 효과 없음</div>`;
-    }
-    let unique = item.uniqueEffect ? `<div class="social-item-unique">✨ ${socialEscape(item.uniqueEffect)}</div>` : '';
-    let corrupt = item.corrupted ? ` <span style="color:#e74c3c;">(타락)</span>` : '';
-    let encroachBadge = item.encroached ? ` <span style="color:#b084ff;">(잠식)</span>` : '';
-    let sealBadge = item.loopSealed ? ` <span style="color:#7fd99a;">🌿봉인</span>` : '';
-    let hallBadge = item.hallReplica ? ` <span style="color:#e9cf8e;">🏛️전당 소장품</span>` : '';
-    let hallProvenance = item.hallReplica
-        ? `<div class="social-item-stat" style="color:#d2b878;">전시자 ${socialEscape(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`
-        : (item.hallRelistBlocked ? '<div class="social-item-stat" style="color:#bda979;">전당 복제 이력 · 재등록 불가</div>' : '');
-    // 고유 융합 유물(시간의 균열): 융합 등급 + 계승 원본 표시.
-    let fusion = '';
-    if (item.fusedRelic) {
-        let gradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
-        fusion = `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? ` · [${socialEscape(item.fusedRareName)}]의 기억` : ''}</div>`;
-    }
-    return `<div class="social-item-card" style="border-color:${color};">`
-        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${encroachBadge}${corrupt}${sealBadge}${hallBadge}</div>`
-        + (item.baseName ? `<div class="social-item-base">${socialEscape(item.baseName)}</div>` : '')
-        + hallProvenance + fusion + unique + lines + `</div>`;
+    return `<div class="social-item-card" style="border-color:${color};">${profileItemTitleHtml(item, color)}${profileItemHallHtml(item)}`
+        + `${profileBaseLineHtml(item)}${profileLevelLineHtml(item)}${profileItemUniqueHtml(item)}${profileItemSocketsHtml(item)}`
+        + `${profileItemFusionHtml(item)}${profileItemOptionsHtml(item)}</div>`;
 }
+
+function renderProfileKindCard(item) {
+    if (item.kind === 'jewel') return renderProfileJewelCard(item);
+    if (item.kind === 'talisman') return renderProfileTalismanCard(item);
+    if (item.kind === 'core') return renderProfileCoreCard(item);
+    return item.kind === 'stump' ? renderProfileStumpCard(item) : renderSimpleCard(item);
+}
+
+function profileItemTitleHtml(item, color) {
+    let stars = typeof getExceptionalBaseStars === 'function' ? getExceptionalBaseStars(item) : '';
+    let badges = (item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : '') + (item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : '')
+        + (item.loopSealed ? ' <span style="color:#7fd99a;">🌿봉인</span>' : '');
+    return `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(profileItemTag(item))}] ` : ''}${socialEscape(item.name)}`
+        + `${stars ? ` <span style="color:#ffb454;">${stars}</span>` : ''}${badges}</div>`;
+}
+
+/** 전당 소장품이나 복제 이력(게임 툴팁의 전당 줄). */
+function profileItemHallHtml(item) {
+    if (item.hallReplica) {
+        return `<div class="social-item-stat" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${socialEscape(item.hallCuratorName || '익명')}, `
+            + `감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()}, 제작과 재등록 불가</div>`;
+    }
+    return item.hallRelistBlocked ? '<div class="social-item-stat" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>' : '';
+}
+
+function profileBaseLineHtml(item) {
+    if (!item.baseName) return '';
+    let step = Array.isArray(item.baseStep)
+        ? ` <span style="color:#7fd1a8;">[${Math.floor(Number(item.baseStep[0]) || 0)}/${Math.floor(Number(item.baseStep[1]) || 0)}]</span>` : '';
+    return `<div class="social-item-base">베이스: ${socialEscape(item.baseName)}${step}</div>`;
+}
+
+/** 아이템 레벨과 등급, 요구 조건. 예전 프로필에는 없다. */
+function profileLevelLineHtml(item) {
+    let level = Math.floor(Number(item.itemLevel) || 0), grade = Math.floor(Number(item.grade) || 0);
+    let gradeHtml = grade && typeof getTierBadgeHtml === 'function' ? ` 등급 ${getTierBadgeHtml(grade, 'T')}` : '';
+    let requirement = profileRequirementText(item.requirements);
+    return (level ? `<div class="social-item-base">아이템 Lv.${level}${gradeHtml}</div>` : '')
+        + (requirement ? `<div class="social-item-base">${socialEscape(requirement)}</div>` : '');
+}
+
+function profileRequirementText(req) {
+    if (!req || typeof req !== 'object') return '';
+    let attributes = Object.entries(req.attributes || {}).filter(([, value]) => Number(value) > 0)
+        .map(([key, value]) => `${profileStatLabel({ id: key })} ${Math.floor(Number(value))}`);
+    return [req.exempt ? '계승, 요구 레벨 면제' : `요구 Lv.${Math.max(1, Math.floor(Number(req.level) || 1))}`, ...attributes].join(', ');
+}
+
+function profileItemUniqueHtml(item) {
+    return item.uniqueEffect ? `<div class="social-item-unique">✨ 고유 효과: ${socialEscape(item.uniqueEffect)}</div>` : '';
+}
+
+/** 주얼이 박힌 소켓 줄(게임 equipmentSocketsUi.tooltipHtml과 같은 모양). 빈 소켓은 보여 주지 않는다. */
+function profileItemSocketsHtml(item) {
+    return (Array.isArray(item.sockets) ? item.sockets : []).filter(row => row && row.jewel).map(row => `<div class="social-item-socket">◆ ${socialEscape(row.label)}: `
+        + `<span style="color:${socialRarityColor(row.jewel.rarity)};">${socialEscape(row.jewel.name)}</span>${socialEscape(profileJewelSummary(row.jewel))}</div>`).join('');
+}
+
+function profileJewelValue(id, value) {
+    if (typeof formatJewelStatValue === 'function') return formatJewelStatValue(id, value);
+    return profileValue(id, value);
+}
+
+function profileJewelSummary(jewel) {
+    let lines = (jewel.stats || []).filter(st => st && st.id != null)
+        .map(st => `${st.petite ? '쁘띠 ' : ''}${profileStatLabel({ id: st.id })} +${profileJewelValue(st.id, st.val)}`);
+    return lines.length ? `, ${lines.join(', ')}` : '';
+}
+
+/** 고유 융합 유물(시간의 균열): 융합 등급과 계승 원본. */
+function profileItemFusionHtml(item) {
+    if (!item.fusedRelic) return '';
+    let gradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
+    return `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? `, [${socialEscape(item.fusedRareName)}]의 기억` : ''}</div>`;
+}
+
+/** 게임 툴팁처럼 "베이스 옵션"(방어도, 회피, 에너지 보호막은 최종값과 베이스), "추가 옵션 (n/6)"(게임과 같은 순서, 혼돈 주입 포함), 잠식. */
+function profileItemOptionsHtml(item) {
+    let explicit = profileExplicitStats(item);
+    let html = explicit.length
+        ? `<div class="social-item-section">추가 옵션 (${explicit.length}/6)</div>${explicit.map(profileExplicitLineHtml).join('')}`
+        : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
+    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item);
+}
+
+function profileExplicitStats(item) {
+    let rows = (Array.isArray(item.stats) ? item.stats : []).filter(st => st && st.id != null);
+    if (item.chaosInfusion && item.chaosInfusion.id != null) rows.push({ ...item.chaosInfusion, statName: `[주입] ${profileStatLabel(item.chaosInfusion)}` });
+    return typeof itemTooltipRules === 'object' ? rows.sort(itemTooltipRules.compareStats) : rows;
+}
+
+function profileBaseOptionsHtml(item) {
+    let base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter(st => st && st.id != null);
+    if (!base.length) return '';
+    let defenseIds = typeof itemTooltipRules === 'object' ? itemTooltipRules.DEFENSE_IDS : [];
+    let lines = base.filter(st => !defenseIds.includes(st.id)).map(profileBaseStatHtml).join('');
+    return `<div class="social-item-section">베이스 옵션</div>${lines}${profileDefenseLinesHtml(item, base)}`;
+}
+
+/** 베이스 옵션 한 줄(게임과 같다): 이름 +값 (굴림 범위). 특출 베이스는 값이 주황이고 ✦+20%. */
+function profileBaseStatHtml(st) {
+    let tone = profileStatTone(st.id);
+    return `<div class="social-item-stat"><span style="color:${tone};">${socialEscape(profileStatLabel(st))} </span>`
+        + `<span style="color:${st.exceptional ? '#ffb454' : tone};">+${socialEscape(profileValue(st.id, st.val))}</span>${profileRollRangeHtml(st, true)}${profileExceptionalMark(st)}</div>`;
+}
+
+/** 방어도, 회피, 에너지 보호막(게임과 같다): 최종값, 옵션으로 달라졌으면 괄호에 베이스, 그다음 굴림 범위. */
+function profileDefenseLinesHtml(item, base) {
+    if (typeof itemTooltipRules !== 'object') return '';
+    let view = itemTooltipRules.defenseView(item);
+    return itemTooltipRules.DEFENSE_IDS.map(id => {
+        let total = Math.floor(view[id]), baseValue = Math.floor(view.base[id]);
+        if (!(total > 0) && !(baseValue > 0)) return '';
+        let src = base.find(st => st.id === id) || { id };
+        let value = total === baseValue ? `${baseValue}</span>` : `${total}</span> <span style="color:var(--copy-bright);">(${baseValue})</span>`;
+        return `<div class="social-item-stat">${socialEscape(profileStatLabel({ id }))}: <span style="color:${src.exceptional ? '#ffb454' : profileStatTone(id)};">${value}`
+            + `${src.val != null ? profileRollRangeHtml(src, true) : ''}${profileExceptionalMark(src)}</div>`;
+    }).join('');
+}
+
+/** 추가 옵션 한 줄(게임과 같다): 이름 +값 (굴림 범위) [티어], 제작 출처, 벌꿀 고정. 복합 옵션은 두 개씩 한 줄에 쓰고 다음 줄은 들여 쓴다. */
+function profileExplicitLineHtml(st) {
+    let parts = profileAffixParts(st), suffix = profileAffixSuffixHtml(st), html = '';
+    for (let i = 0; i < parts.length; i += 2) {
+        html += `<div class="social-item-stat${i ? ' is-continued' : ''}">${parts.slice(i, i + 2).join(', ')}${i ? '' : suffix}</div>`;
+    }
+    return html;
+}
+
+function profileAffixParts(st) {
+    let extras = Array.isArray(st.extraStats) ? st.extraStats.filter(ex => ex && ex.id != null) : [];
+    let label = part => (extras.length ? profileStatLabel({ id: part.id }) : profileStatLabel(part));
+    return [st].concat(extras).map(part => `<span style="color:${profileStatTone(part.id)};">${socialEscape(label(part))} +${socialEscape(profileValue(part.id, part.val))}</span>`);
+}
+
+function profileAffixSuffixHtml(st) {
+    let source = st.source ? ` <span class="equipment-craft-source">${socialEscape(st.source)}</span>` : '';
+    let honey = st.honey ? ' <span class="item-affix-lock item-affix-lock--honey">🍯 벌꿀 고정</span>' : '';
+    return `${profileRollRangeHtml(st, false)}${profileTierHtml(st)}${source}${honey}`;
+}
+
+/** 티어(게임 getItemAffixTierHtml과 같다): 고정 옵션은 [T0], 티어가 있으면 [T#](0은 고유 확정 [U]). */
+function profileTierHtml(st) {
+    if (st.fixed) return ' <span class="tier-badge tier-badge-fixed">[T0]</span>';
+    return st.tier !== undefined && typeof getTierBadgeHtml === 'function' ? ` ${getTierBadgeHtml(Math.floor(Number(st.tier)), 'T')}` : '';
+}
+
+/** 굴림 범위의 끝(게임 getItemStatRollRange와 같다): 옵션의 범위, 없으면 베이스 굴림 범위. */
+function profileRollBound(value, fallback) {
+    return Number.isFinite(Number(value)) ? Number(value) : Number(fallback);
+}
+
+/** 굴림 범위(게임 getItemStatRollRangeHtml과 같다). 베이스 옵션은 범위가 없으면 값의 0.8~1.2배로 어림한다. */
+function profileRollRangeHtml(st, estimate) {
+    let min = profileRollBound(st.valMin, st.baseRollMin), max = profileRollBound(st.valMax, st.baseRollMax);
+    if (estimate && (!Number.isFinite(min) || !Number.isFinite(max))) {
+        min = Number((Number(st.val || 0) * 0.8).toFixed(2));
+        max = Number((Number(st.val || 0) * 1.2).toFixed(2));
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return '';
+    return ` <span class="social-roll">(${socialEscape(profileValue(st.id, Math.min(min, max)))}~${socialEscape(profileValue(st.id, Math.max(min, max)))})</span>`;
+}
+
+function profileExceptionalMark(st) {
+    return st.exceptional ? ' <span style="color:#ffb454;font-weight:700;">✦+20%</span>' : '';
+}
+
+/** 잠식 특수 옵션(게임과 같다): 해방하면 고른 옵션과 티어, 아니면 효과 없음. */
+function profileItemEncroachHtml(item) {
+    let encroached = item.encroached;
+    if (!encroached) return '';
+    let chosen = encroached.liberated && encroached.chosen;
+    let line = chosen && chosen.id != null
+        ? `<div class="social-item-stat" style="color:#d7b8ff;">[잠식] ${socialEscape(profileStatLabel(chosen))} +${socialEscape(profileValue(chosen.id, chosen.val))}${profileTierHtml({ tier: Number(chosen.tier) || 10 })}</div>`
+        : '<div class="social-item-stat" style="color:#8d7bb3;">해방 전에는 효과 없음, 모든 제작으로도 변하지 않음</div>';
+    return `<div class="social-item-section" style="color:#b084ff;">잠식 특수 옵션</div>${line}`;
+}
+
+// ── 주얼 카드: 게임 createJewelRangeTooltipHtml과 같은 구성 ─────────────────
+function renderProfileJewelCard(jewel) {
+    let color = socialRarityColor(jewel.rarity);
+    let lines = (jewel.stats || []).map(profileJewelLineHtml).join('');
+    return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${socialEscape(jewel.name || '주얼')}</div>`
+        + `${profileJewelHeadHtml(jewel)}${lines || '<div class="social-item-stat" style="color:var(--copy-muted);">옵션 정보 없음</div>'}</div>`;
+}
+
+function profileJewelHeadHtml(jewel) {
+    let unique = jewel.uniqueEffect ? `<div class="social-item-unique">✨ 고유 효과: ${socialEscape(jewel.uniqueEffect)}</div>` : '';
+    let key = jewel.keystone;
+    let keystone = key && key.name
+        ? `<div class="social-item-stat" style="color:${key.active ? '#8fe7b0' : '#ffd68a'};">🔯 배정 키스톤: ${socialEscape(key.name)}${key.ascend ? `(${socialEscape(key.ascend)})` : ''}`
+            + `${key.active ? ', 할당 중' : ', 짝 주얼의 키스톤과 같으면 할당'}</div>`
+        : '';
+    return unique + keystone + profileJewelTierHtml(jewel);
+}
+
+function profileJewelTierHtml(jewel) {
+    if (jewel.rarity === 'unique') return '<div class="social-item-base">고유 고정 옵션, 티어 평가 제외</div>';
+    let core = (jewel.stats || []).filter(st => st && !st.petite);
+    if (!core.length) return '';
+    let average = core.reduce((sum, st) => sum + Math.max(1, Math.floor(Number(st.tier) || 1)), 0) / core.length;
+    return `<div class="social-item-base">옵션 평균 티어: T${average.toFixed(1)}</div>`;
+}
+
+/** 주얼 한 줄(게임과 같다): [밀랍] [쁘띠] 이름: +값 T#, 고정 범위. 범위가 없으면 값 그대로. */
+function profileJewelLineHtml(st) {
+    if (!st || st.id == null) return '';
+    let tone = socialSafeColor(typeof window.getJewelStatToneColor === 'function' ? window.getJewelStatToneColor(st.id) : null, '#cfe0f5');
+    let marks = (st.wax ? '<span style="color:#ffd98a;">밀랍 </span>' : '') + (st.petite ? '<span style="color:var(--copy-bright);">쁘띠 </span>' : '');
+    let tier = Number.isFinite(Number(st.tier)) && !st.petite ? ` <span style="color:#ffd68a;">T${Math.floor(Number(st.tier))}</span>` : '';
+    let min = profileJewelValue(st.id, st.valMin ?? st.val), max = profileJewelValue(st.id, st.valMax ?? st.val);
+    return `<div class="social-item-stat"><span style="color:${tone};">${marks}${socialEscape(profileStatLabel({ id: st.id }))}: +${socialEscape(profileJewelValue(st.id, st.val))}${tier}</span>`
+        + ` <span class="social-roll">(고정 범위 ${socialEscape(min)}~${socialEscape(max)})</span></div>`;
+}
+
+// ── 부적 카드: 게임 그루터기 함의 부적 설명과 같은 구성 ───────────────────────
+const PROFILE_TALISMAN_STATES = Object.freeze({
+    awake: '깨어나 효과를 주고 있습니다.', asleep: '판 위에서 처치할 때마다 깨어납니다.', suppressed: '척력과 맞닿아 효과가 없습니다.',
+    amplified: '깨어남, 척력으로 효과 +25%', stored: '보관함에 있습니다. 판에 놓아야 깨어납니다.'
+});
+const PROFILE_TALISMAN_RARITY = Object.freeze({ magic: '마법', rare: '희귀', unique: '고유' });
+const profileOwn = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : '');
+
+/** 부적 카드: 이름, 판 위에서 깨어나는 중이면 그 진행, 희귀도, 고유 효과, 줄(조건부는 보라색), 상태, 접붙이기. */
+function renderProfileTalismanCard(t) {
+    if (!Array.isArray(t.lines)) return renderSimpleCard(t);
+    let tone = profileTalismanTone(t);
+    let effect = t.uniqueEffect ? `<div class="social-item-unique">${socialEscape(t.uniqueEffect)}</div>` : '';
+    let lines = t.lines.map(line => `<div class="social-item-stat"${line && line.condition ? ' style="color:#d7b8ff;"' : ''}>${socialEscape(line && line.text)}</div>`).join('');
+    let growth = profileGrowthText(t, '깨어남');
+    let notes = [profileOwn(PROFILE_TALISMAN_STATES, t.state), profileGraftText(t)].filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
+    return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(t.name || '부적')}</div>`
+        + `${growth ? `<div class="social-item-base">${socialEscape(growth)}</div>` : ''}`
+        + `<div class="social-item-base" style="color:${tone};">${profileOwn(PROFILE_TALISMAN_RARITY, t.rarity) || '마법'} 부적</div>${effect}${lines}${notes}</div>`;
+}
+
+function profileTalismanTone(t) {
+    return socialSafeColor(typeof TALISMAN_RARITY_TONES === 'object' ? profileOwn(TALISMAN_RARITY_TONES, t.rarity) : null, socialRarityColor(t.rarity));
+}
+
+/** 판 위에서 자라는 중이면 "성장 120 / 400"(부적은 "깨어남"). 다 자랐거나 성장 정보가 없으면 빈 글. */
+function profileGrowthText(item, verb) {
+    let need = Math.floor(Number(item.need) || 0);
+    return item.ripe || need <= 0 ? '' : `${verb} ${Math.floor(Number(item.xp) || 0)} / ${need}`;
+}
+
+function profileGraftText(item) {
+    let rank = Math.floor(Number(item.graft) || 0);
+    return rank > 0 ? `접붙이기 ${rank}단계, 이 칸에 놓인 것의 효과 +${Math.floor(Number(item.graftPct) || 0)}%` : '';
+}
+
+// ── 코어 카드: 게임 코어 툴팁(core-items-ui.js)과 같은 이름과 줄 ─────────────
+const PROFILE_CORE_TONE = '#6d8fa8';
+function renderProfileCoreCard(core) {
+    let lines = (Array.isArray(core.lines) ? core.lines : []).map(line => `<div class="social-item-stat">${socialEscape(line)}</div>`).join('');
+    return `<div class="social-item-card" style="border-color:${PROFILE_CORE_TONE};"><div class="social-item-title">${socialEscape(core.name || '코어')}</div>${lines}</div>`;
+}
+
+// ── 씨앗과 수액 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
+function renderProfileStumpCard(item) {
+    let tone = profileStumpTone(item);
+    let gain = item.yieldText ? `${item.ripe ? '' : '다 자라면 '}${item.yieldText}` : '';
+    let rows = [`품질 ${Math.floor(Number(item.quality) || 0)}%`, item.ripe ? '다 자랐습니다.' : profileGrowthText(item, '성장'), gain, item.note, profileGraftText(item)];
+    return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(item.name || '그루터기 아이템')}</div>`
+        + rows.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('') + '</div>';
+}
+
+function profileStumpTone(item) {
+    if (item.kind === 'talisman') return profileTalismanTone(item);
+    let color = typeof STUMP_BOX_COLORS === 'object' ? profileOwn(STUMP_BOX_COLORS, item.color) : '';
+    return socialSafeColor(color && color.tone, '#9d927d');
+}
+
+/** 예전 형식(부적의 stats와 effects): 이름 +값 줄과 효과 문장. */
 function renderSimpleCard(snap) {
     let color = socialRarityColor(snap.rarity);
-    let lines = '';
-    (snap.stats || []).forEach(st => { lines += socialStatLineHtml(st, { jewel: snap.kind === 'jewel', range: snap.kind === 'jewel' }); });
-    (snap.effects || []).forEach(e => { lines += `<div class="social-item-stat" style="color:#d7b8ff;">${socialEscape(e)}</div>`; });
-    return `<div class="social-item-card" style="border-color:${color};">`
-        + `<div class="social-item-title" style="color:${color};">${socialEscape(snap.name)}</div>`
-        + (lines || `<div class="social-item-stat" style="color:var(--copy-muted);">옵션 없음</div>`) + `</div>`;
+    let lines = (snap.stats || []).filter(st => st && st.id != null)
+        .map(st => `<div class="social-item-stat" style="color:${profileStatTone(st.id)};">${socialEscape(profileStatLabel(st))} +${socialEscape(profileValue(st.id, st.val))}</div>`)
+        .concat((snap.effects || []).map(effect => `<div class="social-item-stat" style="color:#d7b8ff;">${socialEscape(effect)}</div>`)).join('');
+    return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${socialEscape(snap.name)}</div>`
+        + (lines || '<div class="social-item-stat" style="color:var(--copy-muted);">옵션 없음</div>') + '</div>';
 }
 
 // ============================================================================
@@ -1114,6 +1451,7 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
+    selectionDialog.close(CHAT_SETTINGS_ID);
     if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     await restoreNicknameFromServer();
     if (!getMyNickname()) await promptAndSetNickname();
@@ -1128,38 +1466,138 @@ async function openMyProfilePreview() {
     openPlayerProfile(socialLoggedInUserId());
 }
 
-// 장비: 고정 슬롯만 표시한다.
-function renderProfileEquipPaperdoll(equipment) {
-    let rows = (equipment || []).filter(Boolean);
-    let legacySlots = new Set(SOCIAL_EQUIP_SLOTS.concat(['반지3']));
-    return renderProfileLegacyPaperdoll(rows.filter(it => legacySlots.has(it.slot)));
+/** 머리 줄: 레벨, 직업, 전직, 루프, 총 DPS를 칩으로(가운뎃점 없이). 예전 프로필(직업 없음)은 전직만 나온다. */
+function renderProfileIdentityChips(p) {
+    let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || '미전직', `루프 ${socialComma(p.loop || 0)}`];
+    if (p.power) chips.push(`${p.version >= 8 ? '총 DPS' : '전투력'} ${socialComma(p.power)}`);
+    return chips.filter(Boolean).map(chip => `<span class="social-profile-chip">${socialEscape(chip)}</span>`).join('');
 }
 
-function renderProfileLegacyPaperdoll(equipment) {
-    let bySlot = {};
-    (equipment || []).forEach(it => { if (it && it.slot) bySlot[it.slot] = it; });
-    let slots = SOCIAL_EQUIP_SLOTS.slice();
-    if (bySlot['반지3'] && slots.indexOf('반지3') === -1) slots.push('반지3');
-    return `<div class="paperdoll social-paperdoll">` + slots.map(slot => {
-        let it = bySlot[slot];
-        let baseLabel = slot.replace(/[123]$/, '');
-        if (!it) return `<div class="slot-box slot-${slot} social-slot empty"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:var(--copy-muted);">비어있음</div></div>`;
-        let color = socialRarityColor(it.rarity);
-        let key = `eq:${slot}`;
-        socialState.profileTips[key] = renderProfileItemCard(it);
-        return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:var(--color-text);">${socialEscape(it.name)}</div></div>`;
-    }).join('') + `</div>`;
+function renderProfileGemRow(label, gem, extra) {
+    if (!gem || !gem.name) return '';
+    let quality = gem.quality ? ` 품질 ${gem.quality}` : '';
+    return `<div class="social-skill-row"><span class="social-skill-label">${socialEscape(label)}</span>`
+        + `<strong>${socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${socialEscape(gem.level || 1)}${quality}${extra || ''}</span></div>`;
 }
-// 부적: 실제 배치도(8x8 보드) 형태
-// 예전 프로필(부적 판 배치도)도 부적 목록만 그린다.
-function renderProfileTalismans(profile) {
-    let rows = profile.talismans || [];
-    if (!rows.length) return `<div class="social-profile-empty">장착한 부적 없음</div>`;
-    return `<div class="social-mini-grid">` + rows.map((t, i) => {
-        let key = `tl:${i}`; socialState.profileTips[key] = renderSimpleCard(t);
-        let color = socialRarityColor(t.rarity);
-        return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${socialEscape(t.name || '부적')}</div>`;
-    }).join('') + `</div>`;
+
+/** 스킬 탭(2026-10-03): 주 스킬과 연결한 보조 젬, 이동 스킬, 소환수. 예전 프로필에는 스킬 정보가 없다. */
+function renderProfileSkills(skills) {
+    if (!skills || !skills.active) return '';
+    let rows = [renderProfileGemRow('주 스킬', skills.active)]
+        .concat((skills.supports || []).map(gem => renderProfileGemRow('보조', gem)))
+        .concat([renderProfileGemRow('이동', skills.mobility)])
+        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, gem.count > 1 ? ` ${gem.count}마리` : '')));
+    return `<div class="social-skill-list">${rows.join('')}</div>`;
+}
+
+/** 프로필 안의 아이템 카드는 프로필 위에 겹쳐 띄운다. 예전에는 프로필 내용을 카드로 바꿔 버려 닫으면 프로필도 사라졌다. */
+function showProfileItemDetail(html) {
+    let box = document.querySelector('#social-profile-modal .social-modal-box');
+    if (!box) return false;
+    let layer = box.querySelector(':scope > .social-item-detail');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.className = 'social-item-detail';
+        layer.onclick = event => { if (event.target === layer || event.target.closest('[data-item-detail-close]')) layer.hidden = true; };
+        box.appendChild(layer);
+    }
+    layer.innerHTML = `<div class="social-item-detail-card">${html}<button type="button" data-item-detail-close>닫기</button></div>`;
+    layer.hidden = false;
+    return true;
+}
+
+// 장비 탭: 끼고 있는 장비만 장비창의 제자리에 그린다(빈 칸은 그리지 않는다). 코어를 끼고 있으면 왼쪽 위 코어 칸도.
+function renderProfileEquipPaperdoll(p) {
+    let bySlot = new Map((p.equipment || []).filter(it => it && it.slot).map(it => [it.slot, it]));
+    let cards = SOCIAL_EQUIP_SLOTS.concat(['반지3']).filter(slot => bySlot.has(slot))
+        .map(slot => profileSlotHtml(slot, bySlot.get(slot), profileItemTag(bySlot.get(slot))));
+    if (p.core && typeof p.core === 'object' && p.core.name) cards.unshift(profileSlotHtml('코어', { ...p.core, kind: 'core' }, '코어'));
+    return cards.length ? `<div class="paperdoll social-paperdoll">${cards.join('')}</div>` : '<div class="social-profile-empty">장착한 장비 없음</div>';
+}
+
+function profileSlotHtml(slot, it, tag) {
+    let key = `eq:${slot}`;
+    socialState.profileTips[key] = renderProfileItemCard(it);
+    let color = it.kind === 'core' ? PROFILE_CORE_TONE : socialRarityColor(it.rarity);
+    return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
+        + `<div class="social-slot-tag">[${socialEscape(tag)}]</div><div class="social-slot-name" style="color:var(--color-text);">${socialEscape(it.name)}</div></div>`;
+}
+
+/** 주얼 탭의 줄: 장비 소켓에 박힌 주얼과 그 자리([단궁] 심연 소켓 1). 소켓 정보가 없는 예전 프로필은 주얼 목록만. */
+function profileJewelRows(p) {
+    let rows = [];
+    (p.equipment || []).forEach(item => (item && Array.isArray(item.sockets) ? item.sockets : []).forEach(row => {
+        if (row && row.jewel) rows.push({ jewel: row.jewel, where: `[${profileItemTag(item)}] ${row.label}` });
+    }));
+    return rows.length ? rows : (p.jewels || []).filter(Boolean).map(jewel => ({ jewel, where: '' }));
+}
+
+function renderProfileJewels(p) {
+    return `<div class="social-mini-grid">${profileJewelRows(p).map((row, i) => profileMiniCardHtml(`jw:${i}`, row.jewel, row.jewel.name || '주얼', row.where)).join('')}</div>`;
+}
+
+/** 판 정보가 없는 예전 프로필의 부적 목록. */
+function renderProfileTalismans(p) {
+    return `<div class="social-mini-grid">${(p.talismans || []).filter(Boolean).map((t, i) => profileMiniCardHtml(`tl:${i}`, t, t.name || '부적', '')).join('')}</div>`;
+}
+
+const PROFILE_STUMP_CELLS = 25; // 그루터기 함 판 5×5(data/stump-box.js STUMP_BOX_SIZE)
+
+function profileStumpFilled(stump) {
+    return !!stump && Array.isArray(stump.cells) && stump.cells.some(row => row && row.item);
+}
+
+/** 그루터기 함 탭: 게임 판과 같은 5×5 자리. 닫힌 칸은 체크 무늬, 놓인 것은 그림과 성장 막대, 접붙이기 단계는 왼쪽 위 숫자. 누르면 카드. */
+function renderProfileStump(stump) {
+    return `<div class="social-stump-board">${stump.cells.slice(0, PROFILE_STUMP_CELLS).map(profileStumpCellHtml).join('')}</div>`;
+}
+
+function profileStumpCellHtml(row, cell) {
+    if (!row || typeof row !== 'object') return '<span class="social-stump-cell is-locked"></span>';
+    let rank = Math.floor(Number(row.graft) || 0);
+    let mark = rank > 0 ? `<span class="social-stump-graft">${rank}</span>` : '';
+    let item = row.item;
+    if (!item || typeof item !== 'object') return `<span class="social-stump-cell">${mark}</span>`;
+    let key = `st:${cell}`;
+    socialState.profileTips[key] = renderProfileItemCard({ ...item, graft: row.graft, graftPct: row.graftPct });
+    let state = (item.suppressed || item.state === 'suppressed' ? ' is-suppressed' : '') + (item.resonant ? ' is-resonant' : '');
+    return `<span class="social-stump-cell is-filled${state}" style="--stump-tone:${profileStumpTone(item)};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
+        + `${profileStumpIconHtml(item)}${profileStumpBarHtml(item)}${mark}</span>`;
+}
+
+/** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
+function profileStumpIconHtml(item) {
+    let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '';
+    let tint = item.kind === 'talisman' ? profileOwn(PROFILE_TALISMAN_RARITY, item.rarity) && item.rarity
+        : typeof STUMP_BOX_COLORS === 'object' && profileOwn(STUMP_BOX_COLORS, item.color) && item.color;
+    return stage && tint ? `<img src="assets/px/stump/${stage.icon}-${tint}.png" alt="" draggable="false">` : '';
+}
+
+function profileStumpBarHtml(item) {
+    let need = Number(item.need) || 0;
+    if (item.ripe || need <= 0) return '';
+    return `<span class="social-stump-bar"><i style="width:${Math.max(0, Math.min(100, Math.round((Number(item.xp) || 0) / need * 100)))}%"></i></span>`;
+}
+
+function profileMiniCardHtml(key, snap, name, sub) {
+    socialState.profileTips[key] = renderProfileItemCard(snap);
+    let color = socialRarityColor(snap && snap.rarity);
+    return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
+        + `${socialEscape(name)}${sub ? `<small>${socialEscape(sub)}</small>` : ''}</div>`;
+}
+
+/** 탭(2026-10-03): 내용이 있는 것만 보인다. 해금하지 않았거나 끼지 않은 것은 탭도 없다. 장비 탭은 늘 있다. */
+function profileTabList(p) {
+    let tabs = [['equipment', '장비']];
+    if (p.skills && p.skills.active) tabs.push(['skills', '스킬']);
+    if (profileJewelRows(p).length) tabs.push(['jewels', '주얼']);
+    if (profileStumpFilled(p.stump)) tabs.push(['stump', '그루터기 함']);
+    else if ((p.talismans || []).length) tabs.push(['stump', '부적']);
+    return tabs;
+}
+
+function profileTabsHtml(p) {
+    return profileTabList(p).map(([cat, label], i) => `<button data-cat="${cat}"${i ? '' : ' class="active"'} onclick="switchProfileTab('${cat}')">${label}</button>`).join('');
 }
 
 function renderProfileItemsArea() {
@@ -1167,16 +1605,10 @@ function renderProfileItemsArea() {
     if (!p) return '';
     socialState.profileTips = {};
     let cat = socialState.profileTab;
-    if (cat === 'equipment') return renderProfileEquipPaperdoll(p.equipment);
-    if (cat === 'talismans') return renderProfileTalismans(p);
-    // jewels
-    let jewels = p.jewels || [];
-    if (!jewels.length) return `<div class="social-profile-empty">장착한 주얼 없음</div>`;
-    return `<div class="social-mini-grid">` + jewels.map((it, i) => {
-        let key = `jw:${i}`; socialState.profileTips[key] = renderSimpleCard(it);
-        let color = socialRarityColor(it.rarity);
-        return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${socialEscape(it.name)}</div>`;
-    }).join('') + `</div>`;
+    if (cat === 'skills') return renderProfileSkills(p.skills);
+    if (cat === 'jewels') return renderProfileJewels(p);
+    if (cat === 'stump') return profileStumpFilled(p.stump) ? renderProfileStump(p.stump) : renderProfileTalismans(p);
+    return renderProfileEquipPaperdoll(p);
 }
 function switchProfileTab(cat) {
     socialState.profileTab = cat;
@@ -1200,11 +1632,11 @@ function renderProfileData(profile) {
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId();
-    let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 · 대전 탭으로 이동합니다.</small></div>` : '';
+    let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
     body.innerHTML = `
         <div class="social-profile-header">
             <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
-            <div class="social-profile-sub">Lv.${socialEscape(p.level || 1)} · ${socialEscape(p.className || '미전직')} · 루프 ${socialEscape(socialComma(p.loop || 0))}${p.power ? ` · 전투력 ${socialEscape(socialComma(p.power))}` : ''}</div>
+            <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
             ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
             ${duelAction}
         </div>
@@ -1215,17 +1647,14 @@ function renderProfileData(profile) {
             </div>
             <div class="social-profile-col">
                 <h3>장착 구성</h3>
-                <div id="social-profile-tabs" class="social-profile-tabs">
-                    <button data-cat="equipment" class="active" onclick="switchProfileTab('equipment')">장비</button>
-                    <button data-cat="jewels" onclick="switchProfileTab('jewels')">주얼</button>
-                    <button data-cat="talismans" onclick="switchProfileTab('talismans')">부적</button>
-                </div>
+                <div id="social-profile-tabs" class="social-profile-tabs">${profileTabsHtml(p)}</div>
                 <div id="social-profile-items">${renderProfileItemsArea()}</div>
             </div>
         </div>`;
 }
 async function openPlayerProfile(userId) {
     if (!userId) return;
+    selectionDialog.close(CHAT_SETTINGS_ID);
     if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     socialState.currentProfileUserId = String(userId);
     let modal = ensureProfileModal();
@@ -1270,22 +1699,14 @@ function renderSocialTab() {
         let checkingCloud = typeof cloudState !== 'undefined' && cloudState
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
-            ? `<h2>커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<h2>커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+            ? `<div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
+            : `<div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필을 바로 쓸 수 있습니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
         stopChatPolling();
         return;
     }
+    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
     root.innerHTML = `
-        <h2>커뮤니티</h2>
-        <div class="social-toolbar">
-            <div class="social-profile-summary"><span>현재 사용자</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong></div>
-            <div class="social-toolbar-actions">
-                <button onclick="promptAndSetNickname()">${nickname ? '닉네임' : '닉네임 설정'}</button>
-                <button onclick="openMyProfilePreview()">프로필</button>
-                <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">동기화</button>
-            </div>
-        </div>
-        <div id="social-online" class="social-online" style="display:none;"></div>
+        ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
         <div class="social-chat-wrap">
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
@@ -1307,6 +1728,38 @@ function renderSocialTab() {
     ensureHeartbeat();
     startChatPolling();
     restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
+}
+
+// ============================================================================
+// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 접속자 목록을 ⚙ 하나로 연다.
+// ============================================================================
+const CHAT_SETTINGS_ID = 'chat-settings-overlay';
+
+function chatSettingsBody() {
+    if (!socialCloudReady()) {
+        return '<div class="chat-settings"><p class="social-notice">로그인하면 닉네임, 공개 프로필, 접속자 목록을 쓸 수 있습니다.</p>'
+            + `<button type="button" onclick="selectionDialog.close('${CHAT_SETTINGS_ID}'); closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+    }
+    let nickname = getMyNickname();
+    return `<div class="chat-settings">
+        <div class="chat-settings-row"><span>닉네임</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong>
+            <button type="button" onclick="promptAndSetNickname()">${nickname ? '바꾸기' : '정하기'}</button></div>
+        <div class="chat-settings-row"><span>공개 프로필</span>
+            <button type="button" onclick="openMyProfilePreview()">보기</button>
+            <button type="button" onclick="syncPlayerProfile()" title="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
+        <div id="social-online" class="social-online" style="display:none;"></div>
+    </div>`;
+}
+
+function openChatSettings() {
+    selectionDialog.show({ id: CHAT_SETTINGS_ID, title: '채팅 설정', panelClass: 'chat-settings-panel', body: chatSettingsBody() });
+    if (!socialCloudReady()) return;
+    socialState.lastOnlineRenderKey = '';
+    refreshOnlineUsers();
+}
+
+function refreshChatSettings() {
+    if (selectionDialog.isOpen(CHAT_SETTINGS_ID)) openChatSettings();
 }
 
 // ============================================================================

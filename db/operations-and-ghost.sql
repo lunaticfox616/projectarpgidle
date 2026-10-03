@@ -40,14 +40,17 @@ as $$
 declare
     account_id uuid := auth.uid();
     stored_revision bigint;
-    stored_data jsonb;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     if next_save_data is null or jsonb_typeof(next_save_data) <> 'object' then
         raise exception 'INVALID_SAVE_DATA';
     end if;
+    -- 세이브 하나는 8MiB까지(2026-10-03). 가장 큰 정상 세이브(모든 칸을 채운 엔드게임)도 이 기준으로 약 2.3MB라
+    -- 정상 플레이는 막지 않고, 비정상으로 커지거나 일부러 키운 세이브가 무료 DB(500MB)를 채우지 못하게 한다.
+    if pg_column_size(next_save_data) > 8388608 then raise exception 'SAVE_TOO_LARGE'; end if;
 
-    select revision, save_data into stored_revision, stored_data
+    -- 리비전만 잠가 읽는다. 예전에는 쓰지도 않는 지난 세이브 전체를 함께 읽었다.
+    select revision into stored_revision
       from public.cloud_saves where user_id = account_id for update;
 
     if not found then
@@ -67,10 +70,15 @@ begin
         return;
     end if;
 
-    insert into public.cloud_save_versions(user_id, revision, save_data, created_at)
-    select account_id, stored_revision, stored_data, updated_at
-      from public.cloud_saves where user_id = account_id
-    on conflict (user_id, revision) do nothing;
+    -- 저장 기록: 이전 세이브는 약 30분에 한 번만 남기고 2개까지 둔다(2026-10-03). 예전에는 자동 저장마다 남기고 5개를 두어,
+    -- 저장 한 번이 세이브 두 벌을 쓰고 계정마다 세이브가 여섯 벌까지 쌓였다.
+    if not exists (select 1 from public.cloud_save_versions recent
+                    where recent.user_id = account_id and recent.created_at > now() - interval '30 minutes') then
+        insert into public.cloud_save_versions(user_id, revision, save_data, created_at)
+        select account_id, stored_revision, save_data, updated_at
+          from public.cloud_saves where user_id = account_id
+        on conflict (user_id, revision) do nothing;
+    end if;
 
     update public.cloud_saves
        set save_data = next_save_data, revision = stored_revision + 1, updated_at = now()
@@ -80,7 +88,7 @@ begin
      where history.user_id = account_id
        and history.id not in (
            select keep.id from public.cloud_save_versions keep
-            where keep.user_id = account_id order by keep.revision desc limit 5
+            where keep.user_id = account_id order by keep.revision desc limit 2
        );
 
     return query select true, stored_revision + 1, now();
@@ -105,7 +113,7 @@ as $$
             from public.cloud_save_versions history where history.user_id = auth.uid()
       ) row_data
      order by row_data.revision desc
-     limit 6;
+     limit 3;
 $$;
 
 create or replace function public.restore_cloud_save_version(target_revision bigint, expected_revision bigint)
@@ -144,7 +152,7 @@ begin
      where history.user_id = account_id
        and history.id not in (
            select keep.id from public.cloud_save_versions keep
-            where keep.user_id = account_id order by keep.revision desc limit 5
+            where keep.user_id = account_id order by keep.revision desc limit 2
        );
     return query select true, stored_revision + 1, now();
 end;

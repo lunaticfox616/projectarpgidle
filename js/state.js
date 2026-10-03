@@ -2404,7 +2404,7 @@ const defaultGame = {
         entriesCleared: 0
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0, maxSeenAt: 0 },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, jewel: false, stump: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},

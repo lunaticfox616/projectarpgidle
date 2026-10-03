@@ -122,11 +122,19 @@ revoke all on public.hall_listings from anon, authenticated;
 revoke all on public.hall_purchases from anon, authenticated;
 revoke all on public.hall_curator_profiles from anon, authenticated;
 
+-- 가방 한도는 클라이언트 getInventoryLimit(js/utils.js)과 같다: 루프에 따라 1~12쪽, 쪽마다 120칸.
+-- 장비 하나가 한 칸 이상을 쓰므로 개수로 재면 넉넉하고, 칸이 모자라면 클라이언트가 남는 장비를 임시 보관함으로 옮긴다.
+-- 예전에는 세이브 이전(js/save-migrations.js)이 지우는 inventoryExpandLevel을 읽어 늘 30이라,
+-- 장비가 30개를 넘으면 전당에서 사거나 꺼낼 수 없었다(2026-10-03 수정).
 create or replace function public.hall_inventory_limit(save_data jsonb)
 returns integer language sql immutable set search_path = public as $$
-    select 30 + greatest(0, coalesce(
-        case when jsonb_typeof(save_data -> 'inventoryExpandLevel') = 'number'
-             then (save_data ->> 'inventoryExpandLevel')::integer end, 0)) * 5;
+    select (least(12, 1 + case when loop_row.loop_number < 30 then floor(loop_row.loop_number / 5)
+                               else 6 + floor((loop_row.loop_number - 30) / 10) end) * 120)::integer
+      from (select greatest(1,
+                case when jsonb_typeof(save_data -> 'season') = 'number'
+                     then floor((save_data ->> 'season')::numeric) else 1 end,
+                case when jsonb_typeof(save_data -> 'loopCount') = 'number'
+                     then floor((save_data ->> 'loopCount')::numeric) + 1 else 1 end) as loop_number) loop_row;
 $$;
 
 create or replace function public.hall_number(value_data jsonb, fallback_value numeric, min_value numeric, max_value numeric)

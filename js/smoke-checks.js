@@ -11,14 +11,10 @@
       || (typeof MAP_ZONES !== 'undefined' && MAP_ZONES !== null);
   }
 
+  // The atlas stylesheet arrives through css/main.css (and the one hashed CSS file of the web bundle), so only the
+  // script is checked. Linking css/cosmos-atlas.css again loaded it twice and was a 404 in the Pages bundle.
   function ensureCosmosAtlasAssets() {
     if (typeof document === 'undefined') return;
-    if (!document.querySelector('link[href*="css/cosmos-atlas.css"]')) {
-      var link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent2&release=20261003-1';
-      document.head.appendChild(link);
-    }
     if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {
       var script = document.createElement('script');
       script.defer = true;
