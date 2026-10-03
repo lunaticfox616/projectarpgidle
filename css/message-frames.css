@@ -1,6 +1,6 @@
 @layer overrides {
 /* 전투 기록과 채팅 창(PC, js/message-frames-ui.js, 2026-10-03). 라그나로크와 마비노기 채팅창처럼 빈 공간 없이 탭 줄과 글만 둔다.
-   관리 창(z 1200 이상)보다 아래, 전장과 하단 HUD보다 위. 예전 전투 기록 판(.combat-feed)은 이 창이 대신한다. */
+   관리 창(z 1200 이상)보다 아래, 전장과 하단 HUD보다 위(HUD 위로 내려 겹쳐 둘 수 있다). 예전 전투 기록 판(.combat-feed)은 이 창이 대신한다. */
 body.message-frames-on .combat-feed { display: none; }
 
 .message-frame {
@@ -11,7 +11,6 @@ body.message-frames-on .combat-feed { display: none; }
   box-sizing: border-box;
   min-width: 0;
   padding: 0;
-  overflow: hidden;
   border: var(--px-light-border, 4px) solid transparent;
   border-image: var(--px-light-frame, none);
   background: color-mix(in srgb, var(--px-panel, #1a181e) 92%, transparent);
@@ -27,7 +26,7 @@ body.message-frames-on .combat-feed { display: none; }
   display: flex;
   align-items: stretch;
   gap: 4px;
-  min-height: 24px;
+  min-height: 26px;
   padding: 0 2px;
   border-bottom: 1px solid var(--px-ink, #080508);
   cursor: move;
@@ -36,11 +35,11 @@ body.message-frames-on .combat-feed { display: none; }
 }
 
 .message-frame.collapsed .message-frame-bar { border-bottom: 0; }
-.message-frame-tabs { flex: 1 1 auto; display: flex; align-items: stretch; gap: 2px; min-width: 0; }
+.message-frame-tabs { flex: 1 1 auto; display: flex; align-items: stretch; gap: 2px; min-width: 0; overflow: hidden; }
 
 .message-frame-tab {
   position: relative;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -50,25 +49,39 @@ body.message-frames-on .combat-feed { display: none; }
   cursor: pointer;
 }
 
-.message-frame-tab.active { color: var(--px-gold-bright, #e0c283); box-shadow: inset 0 -2px 0 var(--px-gold, #c69f5e); }
+.message-frame-tab.active { color: var(--px-gold-bright, #e0c283); background: rgba(224, 194, 131, .08); box-shadow: inset 0 -2px 0 var(--px-gold, #c69f5e); }
 .message-frame-tab .noti-dot { position: absolute; top: 2px; right: 1px; }
 .message-frame-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; }
 
 .message-frame-actions button {
-  width: 22px;
-  height: 20px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--px-copy-muted, #9d927d);
-  font-size: 12px;
-  line-height: 20px;
+  color: #b3a588;
+  font-size: 13px;
+  line-height: 1;
   cursor: pointer;
 }
 
 .message-frame-actions button:hover,
 .message-frame-tab:hover { color: var(--px-gold-bright, #e0c283); }
+.message-frame-actions button:hover { background-color: rgba(224, 194, 131, .12); }
+
+/* ⚙(채팅 설정)는 메뉴의 설정과 같은 도트 톱니(menu-icons.png 19번)를 13도트 그대로 그린다. */
+body[data-ui-skin] .message-frame-actions [data-message-action="settings"] { font-size: 0; }
+body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::before {
+  content: '';
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+  background: var(--px-menu-icons) calc(19 * -13px) 0 / calc(var(--px-icon-count) * 13px) 13px no-repeat;
+  image-rendering: pixelated;
+}
 .message-frame-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 2px 4px 4px; }
 
 .message-frame.collapsed .message-frame-body,
@@ -76,6 +89,7 @@ body.message-frames-on .combat-feed { display: none; }
 
 .message-frame-resize {
   position: absolute;
+  z-index: 2;
   right: 0;
   bottom: 0;
   width: 14px;
@@ -84,6 +98,20 @@ body.message-frames-on .combat-feed { display: none; }
   touch-action: none;
   background: linear-gradient(135deg, transparent 50%, var(--px-bronze, #845f42) 50% 58%, transparent 58% 70%, var(--px-bronze, #845f42) 70% 78%, transparent 78%);
 }
+
+/* 테두리 어디서든 크기를 바꾼다. 화면 아래에 둔 창도 위로 키울 수 있다. 보이는 손잡이는 오른쪽 아래 하나다. */
+.message-frame-edge { position: absolute; z-index: 1; touch-action: none; }
+.message-frame-edge:is([data-edges="n"], [data-edges="s"]) { right: 8px; left: 8px; height: 8px; cursor: ns-resize; }
+.message-frame-edge:is([data-edges="e"], [data-edges="w"]) { top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
+.message-frame-edge:is([data-edges="nw"], [data-edges="ne"], [data-edges="sw"]) { width: 12px; height: 12px; }
+.message-frame-edge[data-edges="n"] { top: -4px; }
+.message-frame-edge[data-edges="s"] { bottom: -4px; }
+.message-frame-edge[data-edges="e"] { right: -4px; }
+.message-frame-edge[data-edges="w"] { left: -4px; }
+.message-frame-edge[data-edges="nw"] { top: -4px; left: -4px; cursor: nwse-resize; }
+.message-frame-edge[data-edges="ne"] { top: -4px; right: -4px; cursor: nesw-resize; }
+.message-frame-edge[data-edges="sw"] { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.message-frame.collapsed .message-frame-edge { display: none; }
 
 /* 옮겨 온 기록과 채팅: 원래 판의 테와 자리(오른쪽 고정, 두꺼운 테) 규칙은 끄고 글만 쓴다. */
 :root body .message-frame-body > #log {
@@ -102,6 +130,9 @@ body.message-frames-on .combat-feed { display: none; }
   scrollbar-color: #514631 #0a0b0a;
   scrollbar-width: thin;
 }
+
+/* 기록 줄마다 있던 구분선과 아래 여백(css/layout.css .log-msg)을 뺀다. 같은 높이에 줄이 더 많이 보인다. */
+:root body .message-frame-body > #log .log-msg { margin: 0; padding: 1px 0; border-bottom: 0; }
 
 :root body.desktop-windowed-ui .message-frame-body > #tab-social.ui-community-dock {
   position: relative;
@@ -133,6 +164,10 @@ body.message-frames-on .combat-feed { display: none; }
 .message-frame .social-chat-time { float: right; margin: 2px 0 0 6px; }
 .message-frame .social-chat-body { display: inline; margin: 0 0 0 4px; }
 .message-frame .social-chat-inputbar { gap: 4px; padding-top: 4px; }
+/* 입력 줄은 마우스로 쓰는 PC 창이라 낮게(30px). 글자 수 칸이 없으니 오른쪽 여백을 줄여 안내 글이 다 보이고, 전송은 테마의 청동 단추. */
+.message-frame .social-chat-input-shell input { min-height: 30px; padding: 4px 8px; }
+.message-frame .social-chat-inputbar button { min-height: 30px; }
+.message-frame .social-send-btn { min-width: 44px; padding: 0 10px; }
 /* 채팅은 탭 내용(.tab-content)이라 도트 스킨의 탭 글자 규칙(:not(#tab-battle)로 id 하나 무게)이 단추 글자를 12px로 되돌린다. id 둘로 덮는다. */
 .message-frame .social-attach-btn,
 #right-pane .message-frame-body > #tab-social .social-attach-btn { min-width: 0; padding: 0 9px; font-size: 0; }
@@ -140,8 +175,17 @@ body.message-frames-on .combat-feed { display: none; }
 #right-pane .message-frame-body > #tab-social .social-attach-btn > span { font-size: 14px; }
 .message-frame .social-chat-counter { display: none; }
 
-/* 휴대폰 채팅 머리: ⚙는 닫기 바로 옆에. */
+/* 휴대폰 채팅 머리: ⚙는 닫기 바로 옆에, 메뉴의 설정과 같은 도트 톱니(26px, menu-icons.png 19번).
+   도트 스킨의 탭 글자 규칙(id 하나 무게)이 글자 크기를 되돌리므로 id 둘로 덮는다. */
 .social-mobile-sheet-header > .social-mobile-settings { margin-left: auto; }
+body[data-ui-skin] #tab-social #social-mobile-settings { display: grid; place-items: center; font-size: 0; }
+body[data-ui-skin] #tab-social #social-mobile-settings::before {
+  content: '';
+  width: 26px;
+  height: 26px;
+  background: var(--px-menu-icons) calc(19 * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+  image-rendering: pixelated;
+}
 
 /* 채팅 설정 창(⚙, social.js openChatSettings): 닉네임, 공개 프로필, 접속자를 한 판에. */
 .chat-settings { display: grid; gap: 10px; min-width: min(360px, 80vw); }

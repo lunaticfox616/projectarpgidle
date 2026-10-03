@@ -1804,7 +1804,7 @@ function injectSocialStyles() {
     .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:44px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
     .social-attach-btn{background:#16243a;border:1px solid #2f5180;color:#ffffff;cursor:pointer;}
     .social-attach-btn span{font-size:15px;line-height:0;}
-    .social-send-btn{min-width:58px!important;background:linear-gradient(180deg,#315b7c,#203d58)!important;border-color:#4d7898!important;color:var(--copy-bright)!important;}
+    .social-chat-inputbar .social-send-btn{min-width:58px;background:linear-gradient(180deg,#315b7c,#203d58);border-color:#4d7898;color:var(--copy-bright);}
     .social-chat-counter{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--copy-muted);pointer-events:none;text-align:right;}
     .social-pending-items{display:flex;flex-wrap:wrap;gap:6px;}
     .social-pending-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#0f1a28;border:1px solid;border-radius:14px;padding:2px 6px 2px 9px;}

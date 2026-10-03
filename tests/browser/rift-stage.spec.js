@@ -86,6 +86,29 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     await page.locator('#message-frame-side [data-message-action="merge"]').click();
     await expect(page.locator('#message-frame-side')).toBeHidden();
     await expect(page.locator('#log')).toBeVisible();
+    // 기록 창은 하단 HUD 위로도 내려간다(2026-10-03 사용자 요청). 탭 줄을 화면 맨 아래로 끌면 메뉴 줄까지 덮고,
+    // 위 테두리를 끌어 아래 끝은 그대로 둔 채 키울 수 있다.
+    const menuRow = await rectOf(page, '.ui-rail-wing-left');
+    // 탭 줄의 빈 곳(마지막 탭과 단추 사이)을 잡는다.
+    const bar = await rectOf(page, '#message-frame-main .message-frame-bar');
+    const grabX = ((await rectOf(page, '#message-frame-main .message-frame-tabs > :last-child')).right
+        + (await rectOf(page, '#message-frame-main .message-frame-actions')).left) / 2;
+    await page.mouse.move(grabX, bar.top + bar.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(grabX, viewport.height - 1, { steps: 6 });
+    await page.mouse.up();
+    const lowered = await rectOf(page, '#message-frame-main');
+    expect(lowered.bottom).toBeGreaterThan(menuRow.top);
+    expect(lowered.bottom).toBeLessThanOrEqual(viewport.height);
+    expect(lowered.height).toBeCloseTo(feed.height, 0);
+    const topEdge = await rectOf(page, '#message-frame-main .message-frame-edge[data-edges="n"]');
+    await page.mouse.move(topEdge.left + topEdge.width / 2, topEdge.top + topEdge.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(topEdge.left + topEdge.width / 2, topEdge.top + topEdge.height / 2 - 120, { steps: 6 });
+    await page.mouse.up();
+    const taller = await rectOf(page, '#message-frame-main');
+    expect(taller.height).toBeCloseTo(lowered.height + 120, 0);
+    expect(taller.bottom).toBeCloseTo(lowered.bottom, 0);
     await fold.click();
     await expect(page.locator('#log')).toBeHidden();
     await page.evaluate(() => switchTab('tab-items'));
