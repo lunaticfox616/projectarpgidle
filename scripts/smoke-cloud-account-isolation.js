@@ -19,9 +19,11 @@ const staleGuardSource = sourceBetween('async function guardAgainstStaleLocalOve
 const revisionResolutionSource = sourceBetween('async function resolveCloudRevisionConflict', 'async function reconcileCloudSaveState');
 const reconcileSource = sourceBetween('async function reconcileCloudSaveState', 'let cloudSyncTimer');
 
-function createContext(localSave, remoteRecord) {
+function createContext(localSave, remoteRecord, flow = {}) {
   const writes = [];
   const confirmations = [];
+  const choices = [];
+  const detached = [];
   let pushes = 0;
   let fullReads = 0;
   let summaryReads = 0;
@@ -71,7 +73,13 @@ function createContext(localSave, remoteRecord) {
       context.persistLocalSave();
     },
     pushCloudSave: async () => { pushes += 1; },
-    requestGameConfirmation: async (message, options) => { confirmations.push({ message, options }); return false; },
+    requestGameConfirmation: async (message, options) => { confirmations.push({ message, options }); return flow.confirm === true; },
+    // Guest save adoption (2026-10-03): the real check has its own smoke (smoke-guest-save-check); here it answers per case.
+    guestSaveCheck: { inspect: () => flow.verdict || { ok: true, keys: [], problems: [] } },
+    requestGameChoice: async options => { choices.push(options); return flow.fate === undefined ? null : flow.fate; },
+    markSkipOAuthRestoreOnce() {},
+    clearSupabasePersistedSession() {},
+    applyCloudSession(session) { detached.push(session); context.cloudState.user = session ? session.user : null; },
     formatCloudTime(value) { return new Date(value).toISOString(); },
     setCloudMessage() {},
     addLog() {},
@@ -84,7 +92,7 @@ function createContext(localSave, remoteRecord) {
   vm.runInContext(staleGuardSource, context, { filename: 'cloud-stale-guard.js' });
   vm.runInContext(revisionResolutionSource, context, { filename: 'cloud-revision-resolution.js' });
   vm.runInContext(reconcileSource, context, { filename: 'cloud-reconcile.js' });
-  return { context, writes, confirmations, getPushes: () => pushes, getFullReads: () => fullReads, getSummaryReads: () => summaryReads };
+  return { context, writes, confirmations, choices, detached, getPushes: () => pushes, getFullReads: () => fullReads, getSummaryReads: () => summaryReads };
 }
 
 async function run() {
@@ -125,6 +133,61 @@ async function run() {
   assert.strictEqual(signupCase.context.game.level, 42, 'a newly created account may explicitly adopt an unlinked guest save');
   assert.strictEqual(signupCase.context.game.saveMeta.cloudUserId, 'account-b');
   assert.strictEqual(signupCase.getPushes(), 1);
+  assert.strictEqual(signupCase.choices.length, 0, 'sign-up moves the guest save without asking');
+
+  // 게스트 저장(2026-10-03): 이메일 인증 뒤 로그인, Google, 카카오는 로그인 경로라 예전에는 게스트 저장을 확인 없이 지웠다.
+  // 이제 옮기거나(서버 저장이 없는 계정, 조작 검사 통과), 묻고 지우거나, 계정 연결을 끊고 게스트로 남는다.
+  // 따로 남기는 사본은 없어서 게스트 저장 하나가 두 계정으로 갈 수 없다.
+  const loginOptions = '{ preferRemoteOnResume: true, strictRemoteResume: true }';
+  const login = made => vm.runInContext(`reconcileCloudSaveState(${loginOptions})`, made.context);
+
+  const moveCase = createContext(guestLocal, null, { fate: 'move' });
+  assert.strictEqual(await login(moveCase), 'pushed-local');
+  assert.strictEqual(moveCase.choices.length, 1, 'a login asks what to do with the guest save');
+  assert.match(moveCase.choices[0].message, /레벨 42/);
+  assert.strictEqual(moveCase.context.game.level, 42, 'moving makes it the account save');
+  assert.strictEqual(moveCase.context.game.saveMeta.cloudUserId, 'account-b', 'marked, so it can never move to another account');
+  assert.strictEqual(moveCase.getPushes(), 1, 'and it goes up as the first cloud save');
+
+  const discardCase = createContext(guestLocal, null, { fate: 'discard' });
+  assert.strictEqual(await login(discardCase), 'no-remote');
+  assert.strictEqual(discardCase.context.game.level, 1, 'deleting starts the account fresh and leaves no guest copy');
+  assert.strictEqual(discardCase.getPushes(), 0);
+
+  const keepCase = createContext(guestLocal, null, {});
+  await assert.rejects(login(keepCase), /계정 연결을 취소/);
+  assert.strictEqual(keepCase.context.game.level, 42, 'cancelling keeps the guest save as it was');
+  assert.strictEqual(keepCase.context.game.saveMeta.cloudUserId, undefined);
+  assert.strictEqual(keepCase.writes.length, 0);
+  assert.deepStrictEqual([keepCase.detached, keepCase.context.cloudState.user], [[null], null], 'and drops the account link on this device');
+
+  const tamperedVerdict = { ok: false, keys: ['currency'], problems: ['화폐'] };
+  const tamperedCase = createContext(guestLocal, null, { fate: 'move', verdict: tamperedVerdict, confirm: true });
+  assert.strictEqual(await login(tamperedCase), 'no-remote');
+  assert.strictEqual(tamperedCase.getPushes(), 0, 'a save that fails the check never reaches the account');
+  assert.match(tamperedCase.confirmations[0].message, /화폐/, 'the player is told why before it is deleted');
+  assert.strictEqual(tamperedCase.context.game.level, 1);
+
+  const tamperedKeepCase = createContext(guestLocal, null, { fate: 'move', verdict: tamperedVerdict, confirm: false });
+  await assert.rejects(login(tamperedKeepCase), /계정 연결을 취소/);
+  assert.strictEqual(tamperedKeepCase.context.game.level, 42);
+
+  const signupTamperedCase = createContext(guestLocal, null, { verdict: { ok: false, keys: ['clock'], problems: ['기기 시간'] }, confirm: true });
+  const signupTamperedStatus = await vm.runInContext('reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true })', signupTamperedCase.context);
+  assert.strictEqual(signupTamperedStatus, 'no-remote');
+  assert.strictEqual(signupTamperedCase.getPushes(), 0, 'sign-up checks the guest save too');
+  assert.strictEqual(signupTamperedCase.context.game.level, 1);
+
+  const guestWithRemoteCase = createContext(guestLocal, remoteRecord, { confirm: true });
+  assert.strictEqual(await login(guestWithRemoteCase), 'pulled-remote-strict-resume');
+  assert.strictEqual(guestWithRemoteCase.choices.length, 0, 'an account with a cloud save never takes a guest save');
+  assert.match(guestWithRemoteCase.confirmations[0].message, /이미 저장이 있어/, 'deleting it is asked first');
+  assert.strictEqual(guestWithRemoteCase.context.game.level, 7);
+
+  const guestWithRemoteKeepCase = createContext(guestLocal, remoteRecord, { confirm: false });
+  await assert.rejects(login(guestWithRemoteKeepCase), /계정 연결을 취소/);
+  assert.strictEqual(guestWithRemoteKeepCase.context.game.level, 42);
+  assert.strictEqual(guestWithRemoteKeepCase.writes.length, 0);
 
   const remoteStamp = new Date(remoteRecord.updated_at).getTime();
   const newerOwnedLocal = { level: 42, season: 3, saveMeta: { lastModifiedAt: remoteStamp + 1000, cloudUserId: 'account-b' } };

@@ -12349,14 +12349,7 @@ async function startGuestMode() {
         tone: 'warning',
         confirmLabel: '로컬 저장으로 시작'
     })) return;
-    if (cloudState.user) {
-        markSkipOAuthRestoreOnce();
-        clearSupabasePersistedSession();
-        applyCloudSession(null);
-        cloudState.linkedProviders = [];
-        cloudState.lastRemoteUpdatedAt = 0;
-        cloudState.lastRemoteLoop = 0;
-    }
+    if (cloudState.user) detachCloudSessionLocally();
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
     setLoadingOverlayState(true, {
         title: '게스트 세션을 준비하는 중...',
@@ -13026,10 +13019,10 @@ async function reconcileCloudSaveState(options = {}) {
     // A temporary network failure must not erase an otherwise recoverable local cache.
     let record = await fetchCloudSaveRecord();
     let localPreparation = prepareLocalSaveForCloudSession({
-        allowUnownedLocal: options.allowLocalBootstrap === true
+        allowUnownedLocal: await settleUnlinkedLocalSave(record, options)
     });
     if (!record || !record.save_data) {
-        if (options.createRemoteFromLocal && (!localPreparation.replaced || localPreparation.adoptedUnowned)) {
+        if (localPreparation.adoptedUnowned || (options.createRemoteFromLocal && !localPreparation.replaced)) {
             await pushCloudSave({ touchModifiedAt: false });
             setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
             return 'pushed-local';
@@ -13110,6 +13103,61 @@ async function reconcileCloudSaveState(options = {}) {
     setCloudMessage('로컬과 클라우드 저장 시간이 같거나 클라우드가 근소하게 최신이라 클라우드 저장을 우선 적용했습니다.');
     if (!options.silent) addLog('저장 시간 차이가 작아 클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
     return 'pulled-remote-within-skew';
+}
+
+/** This device's guest save (unlinked, with progress) when an account takes the save slot (2026-10-03). It moves into the
+ * account (only an account without a cloud save, and only past the simple tamper check in js/guest-save-check.js) or it is
+ * deleted after asking. Nothing is copied aside, so one guest save never ends up in two accounts. Cancelling keeps the guest
+ * save and drops the account link on this device. Returns whether the account adopts it. */
+async function settleUnlinkedLocalSave(record, options) {
+    if (getCloudSaveOwnerId() || isLikelyBootstrapLocalSave(game)) return options.allowLocalBootstrap === true;
+    let fate = await chooseGuestSaveFate(record, options);
+    if (fate !== 'keep') return fate === 'move';
+    detachCloudSessionLocally();
+    throw new Error('게스트 저장을 지키려고 계정 연결을 취소했습니다.');
+}
+
+async function chooseGuestSaveFate(record, options) {
+    let label = `루프 ${getSaveLoopNumber(game)}, 레벨 ${Math.floor(Number(game.level) || 1)}`;
+    if (record && record.save_data) return await confirmGuestSaveDeletion(`이 계정에는 이미 저장이 있어 이 기기의 게스트 저장(${label})은 옮길 수 없습니다.`);
+    if (options.allowLocalBootstrap !== true) {
+        let fate = await askGuestSaveFate(label);
+        if (fate !== 'move') return fate;
+    }
+    let verdict = guestSaveCheck.inspect(game, Date.now());
+    if (verdict.ok) return 'move';
+    return await confirmGuestSaveDeletion(`정상 플레이로는 나올 수 없는 값이 있어 게스트 저장(${label})을 옮길 수 없습니다: ${verdict.problems.join(', ')}`);
+}
+
+async function askGuestSaveFate(label) {
+    let fate = await requestGameChoice({
+        kicker: '게스트 저장',
+        title: '이 기기의 게스트 저장을 어떻게 할까요?',
+        message: `게스트 저장(${label})은 계정 하나로 한 번만 옮길 수 있습니다.`,
+        submitOnChoice: true,
+        cancelLabel: '게스트로 계속',
+        choices: [
+            { value: 'move', label: '이 계정으로 옮기기', detail: '옮긴 저장은 다른 계정으로 옮길 수 없습니다.' },
+            { value: 'discard', label: '지우고 새로 시작', detail: '게스트 저장은 지워집니다.' }
+        ]
+    });
+    return fate || 'keep';
+}
+
+async function confirmGuestSaveDeletion(reason) {
+    let accepted = await requestGameConfirmation(`${reason}\n계속하면 게스트 저장은 지워집니다.`,
+        { title: '게스트 저장 지우기', tone: 'danger', confirmLabel: '지우고 계속', cancelLabel: '게스트로 계속' });
+    return accepted ? 'discard' : 'keep';
+}
+
+/** Leave the signed-in account on this device only (the server session is not revoked) and keep using this device's save. */
+function detachCloudSessionLocally() {
+    markSkipOAuthRestoreOnce();
+    clearSupabasePersistedSession();
+    applyCloudSession(null);
+    cloudState.linkedProviders = [];
+    cloudState.lastRemoteUpdatedAt = 0;
+    cloudState.lastRemoteLoop = 0;
 }
 
 let cloudSyncTimer = null;

@@ -202,9 +202,16 @@ function sanitizeForSave(value, seen = new WeakSet()) {
     return out;
 }
 
+/** The latest device time this save has seen. Moving the clock forward and back leaves it ahead of now, while lastModifiedAt is
+ * overwritten by the next save; the guest save check (js/guest-save-check.js) reads it before a guest save moves into an account. */
+function noteSaveClock(meta) {
+    meta.maxSeenAt = Math.max(Number(meta.maxSeenAt) || 0, Date.now());
+}
+
 function persistLocalSave(options = {}) {
     if (!canPersistLocalSave(options)) return false;
     ensureSaveMeta();
+    noteSaveClock(game.saveMeta);
     if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
     try {
         localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game));

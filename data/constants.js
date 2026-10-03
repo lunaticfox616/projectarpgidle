@@ -18,6 +18,22 @@ const CLOUD_KEEPALIVE_BODY_LIMIT = 60 * 1024;
 const HERO_SIZE_SCALE = 0.8;
 // 나가는 순간 업로드는 마지막으로 올린 뒤 이만큼 지나야 다시 한다(앱을 자주 오가도 매번 올리지 않게).
 const CLOUD_EXIT_UPLOAD_MIN_GAP_MS = 60 * 1000;
+// 게스트 저장을 계정으로 옮기기 전의 간단한 조작 검사(js/guest-save-check.js, 2026-10-03). 정상 플레이로는 나올 수 없는 값만
+// 잡도록 넉넉하게 둔다. 화폐는 한 번에 1~20개씩 쌓여 천만에 닿지 않는다. 젬 레벨은 경험치로 20, 숙련 가공으로 30까지, 품질은 20까지다.
+// 장비 수치는 자기 굴림 범위 최댓값의 2배나 천만을 넘으면 걸린다. 패시브 포인트는 레벨 업마다 1에 일지, 액트 보상,
+// 창백한 푸른 점(공허 하나에 10)과 여유 5를 더한 만큼까지다. 저장에 남은 가장 늦은 시각이 지금보다 10분 넘게 앞서면 기기 시간이 걸린다.
+const GUEST_SAVE_CHECK = Object.freeze({
+    currencyMax: 10000000,
+    gemLevelMax: 30,
+    gemQualityMax: 20,
+    statRangeMul: 2,
+    statValueMax: 10000000,
+    statTierMax: 20,
+    statLinesMax: 12,
+    passivePerPaleVoid: 10,
+    passiveSlack: 5,
+    clockSlackMs: 10 * 60 * 1000
+});
 const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
 // Sprite rims so actors read on the dark maps (2026-10-02, the user picked coloured rims over dark ones): the hero a warm cream one
 // sprite dot wide (js/canvas-hana-actors.js rim), monsters red, elites their trait colour, bosses a stronger red (canvas px,
@@ -108,7 +124,7 @@ const COMBAT_GRID_CONFIG = {
 
 safeExposeData({
   PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEYS, CLOUD_SESSION_STORAGE_KEY,
-  CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, CLOUD_KEEPALIVE_BODY_LIMIT, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, HERO_SIZE_SCALE, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
+  CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, CLOUD_KEEPALIVE_BODY_LIMIT, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, HERO_SIZE_SCALE, GUEST_SAVE_CHECK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
   COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG,
   EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
   EQUIPMENT_INVENTORY_CELLS_PER_PAGE
