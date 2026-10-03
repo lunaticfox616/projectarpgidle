@@ -711,13 +711,19 @@ function selectGridPrimaryCandidate(candidates, profile, attackerCell, options) 
  * @param {{targetPriority?:string, preferredEnemyId?:number|string}} [options]
  * @returns {Array<{enemy:object, mult:number}>}
  */
+/** Monsters that have not noticed the hero (options.splashOnly) can be caught by an area, a chain or a spill, never aimed at. */
+function getGridPrimaryPool(candidates, options) {
+    let splashOnly = options && options.splashOnly;
+    return splashOnly ? candidates.filter(row => !splashOnly.has(row.enemy)) : candidates;
+}
+
 function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options) {
     if (!attackerCell || !isGridCellInBounds(attackerCell.gx, attackerCell.gy)) return [];
     let profile = getSkillGridProfile(skillName, skill);
     let candidates = (enemies || []).filter(hasGridCell)
         .map(enemy => ({ enemy, dist: getGridUnitDistance(attackerCell, enemy) }))
         .sort(compareGridCandidateTie);
-    let primary = selectGridPrimaryCandidate(candidates, profile, attackerCell, options);
+    let primary = selectGridPrimaryCandidate(getGridPrimaryPool(candidates, options), profile, attackerCell, options);
     if (!primary) return [];
     let orderedCandidates = [primary].concat(candidates.filter(row => row !== primary));
     let targetCount = Math.max(1, Math.floor(skill.targets || 1));

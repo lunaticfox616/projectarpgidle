@@ -144,11 +144,13 @@ const ACT_EXPLORATION_BACKDROPS = Object.freeze({
 // Version of the backdrop and gate pictures, added to their URLs (js/canvas-exploration-art.js) so a redrawn map is never
 // served from the browser's image cache. Bump it with every --write.
 const ACT_EXPLORATION_ART_VERSION = '20261002p';
-// Sight around the hero in tiles (walked through floor, js/act-exploration-map.js visibleCells). The fog dims seen ground from one
-// tile inside it and unseen ground beyond it (js/canvas-act-exploration.js fogAlpha). 2026-10-02: 5 → 6 (user: the view felt cramped).
+// Sight around the hero in tiles (walked through floor, js/act-exploration-map.js visibleCells). Ground inside it is clear and the
+// fog starts past it (js/canvas-act-exploration.js fogAlpha). 2026-10-02: 5 → 6 (user: the view felt cramped). 2026-10-04: the sixth
+// tile was still dimmed (the fog began a tile inside and the unseen fog bled over it), so only the monsters showed there.
 // Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
-// before it charges, and the fights a route takes stay the same.
-const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5});
+// before it charges, and the fights a route takes stay the same. An area attack also reaches monsters that have not noticed the hero,
+// within splashReach tiles of him (Chebyshev, js/combat.js getAttackTargets), and the strike pulls them into the fight (2026-10-04).
+const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReach:12});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});

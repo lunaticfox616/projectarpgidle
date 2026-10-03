@@ -1,6 +1,9 @@
 // Read-only large-map rendering. The player's saved fractional position also owns the camera.
 const actExplorationView=(()=>{
     const FOG_VIEW_PX=12; // pre-softened fog resolution per tile; drawn with cheap bilinear scaling
+    // Unseen tiles that touch seen ground: the fog is smoothed between tile centres, so a full-strength tile there darkened the
+    // outer half of the last seen tile. A lighter shade keeps the sight's edge readable and still shows the ground ahead dimly.
+    const FOG_BORDER_ALPHA=.35;
     let cache=null,lastOrigin=null;
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
      * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).
@@ -76,12 +79,20 @@ const actExplorationView=(()=>{
         if(!run || lastOrigin?.run!==run || !point)return null;
         return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.tile)};
     }
-    /** Discovered ground dims with distance (≤48%) from one tile inside the sight radius. Undiscovered ground is not a wall of
-     * black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
+    /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
+     * of black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
     function fogAlpha(discovered,distance) {
         const sight=ACT_EXPLORATION_VISION.radius;
-        if(discovered)return Math.min(.4,Math.max(0,(distance-(sight-1))/7));
+        if(discovered)return Math.min(.4,Math.max(0,(distance-sight)/7));
         return Math.min(.95,.6+Math.max(0,distance-sight)*.05);
+    }
+    function touchesSeen(map,seen,i) {
+        const gx=i%map.columns;
+        return (gx>0 && seen.has(i-1)) || (gx<map.columns-1 && seen.has(i+1)) || seen.has(i-map.columns) || seen.has(i+map.columns);
+    }
+    function tileFogAlpha(map,seen,i,lit) {
+        const discovered=seen.has(i),alpha=fogAlpha(discovered,fogDistance(map,i,lit));
+        return discovered || !touchesSeen(map,seen,i) ? alpha : Math.min(alpha,FOG_BORDER_ALPHA);
     }
     /** The act art's own darkness (data ACT_EXPLORATION_BACKDROPS shade): the fog and the canvas around the map use it,
      * so unexplored ground sinks into the same dark as the map's edges. */
@@ -99,7 +110,7 @@ const actExplorationView=(()=>{
         const ctx=cache.fog.getContext('2d'),pixels=ctx.createImageData(map.columns,map.rows),seen=new Set(run.discovered);
         const lit=actExplorationState.bossRoomAt(run,game.gridPlayer),[r,g,b]=shadeOf(map);
         for(let i=0;i<map.tiles.length;i++) {
-            pixels.data.set([r,g,b,Math.round(fogAlpha(seen.has(i),fogDistance(map,i,lit))*255)],i*4);
+            pixels.data.set([r,g,b,Math.round(tileFogAlpha(map,seen,i,lit)*255)],i*4);
         }
         ctx.putImageData(pixels,0,0);
         // Upscaling one pixel per tile with smoothing was the most expensive draw of every

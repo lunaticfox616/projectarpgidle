@@ -4949,7 +4949,9 @@ function getGemPresentation(name, isSupport, statsOverride) {
     return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, permanentSkyBonus: permanentSkyBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
 }
 
-function getSkillTargets(pStats) {
+/** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
+ * passes (getAttackTargets): they can be caught by the area, never aimed at. Checks and previews leave them out. */
+function getSkillTargets(pStats, dormant = []) {
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
     if (alive.length === 0) return [];
     ensureCombatGridRuntime();
@@ -4965,7 +4967,7 @@ function getSkillTargets(pStats) {
         targetPriority: tactics.targetPriority,
         preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
     } : null;
-    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, options);
+    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant });
     if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
         combatTacticsRuntime.targetId = targets[0].enemy.id;
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
@@ -4973,9 +4975,25 @@ function getSkillTargets(pStats) {
     return targets;
 }
 
+/** options.dormant: monsters that have not noticed the hero, which the area may catch but the gem never aims at. */
 function selectCombatGemTargets(name,skill,source,enemies,options) {
     if (skill.nativeCastId) return skillGemCasts.targets(skill.nativeCastId,source,enemies,skillEffectExpansion.extra(skill)).map(enemy=>({enemy,mult:1}));
-    return selectGridSkillTargets(name,skill,source,enemies,options);
+    const dormant=options && options.dormant;
+    if (!dormant || !dormant.length) return selectGridSkillTargets(name,skill,source,enemies,options);
+    return selectGridSkillTargets(name,skill,source,enemies.concat(dormant),{...options,splashOnly:new Set(dormant)});
+}
+
+/** Monsters near the hero that have not noticed him (data ACT_EXPLORATION_VISION splashReach, 2026-10-04 user): an area attack that
+ * lands on unseen ground hits whatever stands there. Empty outside a map exploration. */
+function getSplashDormantEnemies() {
+    return actExplorationState.dormantNear(game,game.gridPlayer,ACT_EXPLORATION_VISION.splashReach);
+}
+
+/** The attack's own targets: its area may catch monsters that have not noticed the hero, and the strike pulls them into the fight. */
+function getAttackTargets(pStats) {
+    let targets = getSkillTargets(pStats, getSplashDormantEnemies());
+    actExplorationState.wake(game, targets.map(hit => hit.enemy));
+    return targets;
 }
 
 function getPlayerTacticalMovePlan(pStats, target) {
@@ -9448,7 +9466,7 @@ function updateSkillGemCombat(stats) {
         skillGemCombatRuntime=null;cancelCombatChannel();return;
     }
     syncSkillGemChannel(runtime);
-    const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies,now:getCombatTime()});
+    const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies.concat(getSplashDormantEnemies()),now:getCombatTime()});
     for (const command of commands) applySkillGemCommand(command,stats);
 }
 
@@ -9482,6 +9500,7 @@ function applySkillGemCommand(command,stats) {
         addBattleFx('playerMobility',{skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180});
         return;
     }
+    actExplorationState.wake(game,getSplashDormantEnemies().filter(e=>command.targets.includes(e.id)));
     const targets=game.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
     if (command.type==='mist') {
         for (const enemy of targets) enemy.holyMistUntil=command.at+4000;
@@ -9562,7 +9581,7 @@ function performPlayerAttack(pStats, attackOptions) {
     let targets = isStageReplay ? (options.targetEntries || []).map(entry => {
         let enemy = (game.enemies || []).find(row => row && row.id === entry.enemyId && row.hp > 0);
         return enemy ? { enemy: enemy, mult: Math.max(0, Number(entry.mult) || 1) } : null;
-    }).filter(Boolean) : getSkillTargets(pStats);
+    }).filter(Boolean) : getAttackTargets(pStats);
     if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
     let passiveKarmaContext = options.passiveKarmaContext || null;

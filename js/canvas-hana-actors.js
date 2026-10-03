@@ -194,7 +194,7 @@ const hanaActors = (() => {
     function movePose(def, state, now) {
         if (!state.moving) return null;
         const motion = state.running ? 'run' : 'walk';
-        const rate = Math.max(0.6, Math.min(2.2, Number(state.moveRate) || 1));
+        const rate = Math.max(0.6, Math.min(HERO_RUN_RATE_MAX, Number(state.moveRate) || 1));
         return { motion, frame: frameAt(def.motions[motion].ms, now * rate, true), dir: state.moveDirection || state.facing };
     }
     function hurtPose(def, state, now) {

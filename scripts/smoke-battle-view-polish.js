@@ -9,7 +9,7 @@ const context = buildGameRuntime();
 const run = code => vm.runInContext(code, context);
 
 // 시야는 6칸, 몬스터가 알아채는 거리는 예전 5칸: 다음 무리가 한 칸 먼저 보이고, 길에서 붙는 싸움은 그대로다.
-assert.deepStrictEqual(JSON.parse(run('JSON.stringify(ACT_EXPLORATION_VISION)')), { radius: 6, engageRadius: 5 });
+assert.deepStrictEqual(JSON.parse(run('JSON.stringify(ACT_EXPLORATION_VISION)')), { radius: 6, engageRadius: 5, splashReach: 12 });
 const sight = JSON.parse(run(`JSON.stringify((() => {
     const map = actExplorationMap.forRun({ version: 1, act: 1, zoneId: 0 });
     const run = { layoutId: map.id, act: 1, version: 1, zoneId: 0 };
