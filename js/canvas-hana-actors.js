@@ -1,5 +1,6 @@
 /** Hana +6 player sprites (data/hana-sprites.js, data/hana-weapon-combos.js) and the wisp summons (data/wisp-summons.js).
- * One sprite pixel is one battle dot = tile/16 CSS px, the same grid the remade skill effects use.
+ * A battle dot is tile/16 CSS px, the grid the remade skill effects use. The hero is drawn at HERO_SIZE_SCALE of it
+ * (tile/20 since 2026-10-03: the user wanted the character smaller against the cell); summons keep one sprite pixel per dot.
  * Frames are drawn nearest-neighbour and snapped to device pixels. The attack clip is timed so its
  * authored hit frame lands on the swing's impactAt. The class holds the weapon that fits the skill in use
  * (6 classes × 6 weapons, layered so a gem's own art can take the prop out of the hand).
@@ -296,7 +297,7 @@ const hanaActors = (() => {
         if (!source) return false;
         const pose = pickPose(source.def, state, now), frame = source.frame(pose);
         if (!loaded(frame.img)) return false;
-        const dot = dotSize(state.tile), alpha = Math.max(0, Math.min(1, state.alpha ?? 1));
+        const dot = dotSize(state.tile) * HERO_SIZE_SCALE, alpha = Math.max(0, Math.min(1, state.alpha ?? 1));
         const sink = Number.isFinite(state.downProgress) ? state.downProgress * dot * 2 : 0;
         const dest = { x: x - (frame.centerX - frame.x0) * dot, y: y - (frame.feetY + 1 - frame.y0) * dot + sink, dot };
         ctx.save();

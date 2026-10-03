@@ -1535,7 +1535,7 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
  * cut across the face on large screens. Legacy sprites keep the old offset. */
 function drawBattlefieldPlayerHealthBar(ctx, scene) {
     const width = 64, height = 6, head = hanaActors.headY(scene.now), playerPos = scene.light;
-    const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 : head - 10);
+    const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10);
     ctx.save();
     ctx.globalAlpha = 0.97;
     ctx.fillStyle = 'rgba(6, 5, 4, 0.72)';

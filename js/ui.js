@@ -7209,8 +7209,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let heroScaleBoost = localHeroTuning.scaleBoost;
         let normalizedHeroSize = (localHeroTuning.baseHeight * heroScaleBoost) - downBlend * localHeroTuning.downShrink;
         let scaledMinHeight = localHeroTuning.minHeight * Math.min(1, heroScaleBoost);
-        normalizedHeroSize = clampNumber(normalizedHeroSize, scaledMinHeight, localHeroTuning.maxHeight);
-        drawPixelShadow(ctx, x, y + 2, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
+        normalizedHeroSize = clampNumber(normalizedHeroSize, scaledMinHeight, localHeroTuning.maxHeight) * HERO_SIZE_SCALE;
+        drawPixelShadow(ctx, x, y + 2, localHeroTuning.shadowWidth * heroScaleBoost * HERO_SIZE_SCALE, localHeroTuning.shadowHeight * heroScaleBoost * HERO_SIZE_SCALE, localHeroTuning.shadowAlpha);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'high',
