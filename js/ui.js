@@ -6419,35 +6419,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
         html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? ` · [${escapeHTML(item.fusedRareName)}]의 기억` : ''} — 황금률·잿불가지·축복의 꽃잎만 사용 가능</div>`;
     }
-    function getItemDefenseView(target) {
-        let base = { armor: 0, evasion: 0, energyShield: 0 };
-        let flat = { armor: 0, evasion: 0, energyShield: 0 };
-        let pct = { armor: 0, evasion: 0, energyShield: 0 };
-        (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
-        let explicitSources = (target.stats || []).slice();
-        if (target.chaosInfusion) explicitSources.push(target.chaosInfusion);
-        if (typeof getImmutableItemSpecialStats === 'function') explicitSources.push(...getImmutableItemSpecialStats(target));
-        let explicitForDefense = [];
-        // 잠식 특수 옵션과 복합 옵션도 실제 전투 계산과 같은 방식으로 베이스 방어 수치에 반영한다.
-        explicitSources.forEach(stat => {
-            if (!stat) return;
-            explicitForDefense.push(stat);
-            if (Array.isArray(stat.extraStats)) explicitForDefense.push(...stat.extraStats);
-        });
-        explicitForDefense.forEach(stat => {
-            if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
-            if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
-            if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
-            if (stat.id === 'energyShieldPct') pct.energyShield += Number(stat.val || 0);
-        });
-        return {
-            armor: Math.floor((base.armor + flat.armor) * (1 + pct.armor / 100)),
-            evasion: Math.floor((base.evasion + flat.evasion) * (1 + pct.evasion / 100)),
-            energyShield: Math.floor((base.energyShield + flat.energyShield) * (1 + pct.energyShield / 100)),
-            base: base
-        };
-    }
-    let defenseView = getItemDefenseView(item);
+    let defenseView = itemTooltipRules.defenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>`;
         item.baseStats.forEach(stat => {
@@ -6482,25 +6454,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let explicitStats = (item.stats || []).slice();
     if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
     if (explicitStats.length > 0) {
-        function getItemTooltipGroupOrder(statId) {
-            let key = String(statId || '').toLowerCase();
-            if (['energyshield', 'energyshieldpct', 'energyshieldregen'].includes(key) || key.includes('energyshield') || key === 'es') return 1;
-            if (['armor', 'armorpct', 'dr'].includes(key) || key.includes('armor')) return 2;
-            if (['evasion', 'evasionpct', 'deflectchance', 'deflectdamagereduce'].includes(key) || key.includes('evasion') || key.includes('deflect')) return 3;
-            if (['flathp', 'pcthp', 'regen', 'regenflat'].includes(key) || key.includes('hp') || key.includes('life')) return 4;
-            if (['resf', 'resc', 'resl', 'resall', 'reschaos'].includes(key) || key.includes('res')) return 5;
-            if (['firepctdmg', 'coldpctdmg', 'lightpctdmg', 'chaospctdmg', 'dotpctdmg', 'pctdmg'].includes(key) || key.includes('dmg') || key.includes('dot')) return 6;
-            if (['crit', 'critdmg'].includes(key) || key.includes('crit')) return 7;
-            if (['aspd', 'move'].includes(key) || key.includes('speed') || key.includes('move')) return 8;
-            return 99;
-        }
-        explicitStats.sort((a, b) => {
-            let aKey = a && (a.id || a.stat);
-            let bKey = b && (b.id || b.stat);
-            let g = getItemTooltipGroupOrder(aKey) - getItemTooltipGroupOrder(bKey);
-            if (g !== 0) return g;
-            return String(aKey || '').localeCompare(String(bKey || ''));
-        });
+        explicitStats.sort(itemTooltipRules.compareStats);
         html += `<div class="tooltip-line tooltip-section tooltip-section-explicit">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
