@@ -9,51 +9,24 @@ async function main() {
     await checkPendingFossilRefining();
     run(`(function () {
         game.season = 30;
-        game.contentProgression.inherited.push('cube', 'growth', 'craft');
-        game.unlocks.cube = true;
+        game.contentProgression.inherited.push('craft');
         game.underworldProgress = { highestFloor: 300 };
-        game.coreCube = null;
-        let cube = ensureCoreCubeState();
-        cube.unlocked = true;
-        cube.everUnlocked = true;
-        cube.relockUntilDrop = false;
-        cube.powers = { 7: 5 };
         Math.random = () => 0;
     })()`);
-    assert.strictEqual(run('transmuteCoreCubePower(7)'), 1,
-        'duplicate power conversion should prefer the first never-owned power');
-    assert.strictEqual(run('ensureCoreCubeState().powers[7] || 0'), 0,
-        'power conversion must consume five copies of the source');
-    assert.strictEqual(run('ensureCoreCubeState().powers[1] || 0'), 1,
-        'power conversion must grant exactly one replacement');
 
     run(`(function () {
-        getExpertLevel = () => 4;
         game.currencies.fossilJagged = 12;
         game.currencies.fossilPrimal = 0;
     })()`);
+    run("refineFossilSurplus('fossilJagged')");
+    assert.strictEqual(run('game.currencies.fossilJagged'), 12, 'surplus refining stays closed until 화석 복원 is unlocked');
+    run("game.contentProgression.inherited.push('fossilRestore')");
     assert.strictEqual(run("refineFossilSurplus('fossilJagged')"), true,
         'twelve common typed fossils should refine into a primal fossil');
     assert.strictEqual(run('game.currencies.fossilJagged'), 0,
         'surplus refining must consume the full source cost');
     assert.strictEqual(run('game.currencies.fossilPrimal'), 1,
         'surplus refining must award one restoration-only fossil');
-
-    run(`(function () {
-        requestGameConfirmation = async () => true;
-        renderGrowthTab = () => {};
-        game.currencies.growthEssence = 300;
-        game.growthEssenceExpandLevel = 0;
-        game.growthInventoryExpandLevel = 0;
-    })()`);
-    assert.strictEqual(await vm.runInContext('expandGrowthInventoryWithEssence()', context), true,
-        'growth essence should buy a permanent five-slot expansion');
-    assert.strictEqual(run('game.currencies.growthEssence'), 0,
-        'the first expansion must spend its advertised 300 essence');
-    assert.strictEqual(run('getGrowthInventoryLimit()'), 45,
-        'the paid growth expansion must change the actual storage limit');
-    assert.strictEqual(run('getGrowthEssenceExpansionCost()'), 550,
-        'later essence expansions must become progressively more expensive');
 
     const profile = JSON.parse(run("JSON.stringify(getZoneEncounterProfile({ type: 'underworld', floor: 300 }))"));
     assert.deepStrictEqual(profile, {
@@ -100,11 +73,11 @@ async function main() {
     assert(chances.normal.fossil < chances.elite.fossil && chances.elite.fossil < chances.boss.fossil,
         'underworld resources should be concentrated on elite and boss enemies');
     assert.deepStrictEqual({
-        normal: chances.normal.blurredPower,
-        elite: chances.elite.blurredPower,
-        boss: chances.boss.blurredPower
+        normal: chances.normal.core,
+        elite: chances.elite.core,
+        boss: chances.boss.core
     }, { normal: 0.00005, elite: 0.0005, boss: 0.01 },
-        'core-cube power sources must be a long-term chase rather than a per-run flood');
+        'cores must be a long-term chase rather than a per-run flood');
     assert.deepStrictEqual({
         normal: chances.normal.rune,
         elite: chances.elite.rune,
@@ -241,21 +214,20 @@ async function main() {
     assert.strictEqual(run("battleFx.filter(fx => fx.type === 'hit').length"), 3,
         'small fights must retain individual hit feedback');
 
-    run(`(function () {
-        let growth = { id: 99001, name: '균열 금지 생장판', rarity: 'rare', slot: '무기',
-            growthCategory: 'flower', growthShapeId: 'dot1', baseStats: [], stats: [] };
-        game.growthInventory = [growth];
-        let rift = ensureTimeRiftState();
-        rift.altarOpen = true;
-        rift.altarRare = null;
-        selectForCrafting(growth.id, false);
-        placeItemOnTimeAltar();
-    })()`);
-    assert.strictEqual(run('ensureTimeRiftState().altarRare'), null,
-        'growth-board items must be rejected by the time-rift altar');
-    assert.strictEqual(run('game.growthInventory.length'), 1,
-        'a rejected time-rift placement must not remove the growth item');
-
+// 권장 전투력의 보스 피해도 실제 전투와 같은 루프 피해 곡선을 쓴다(PR #1030 리뷰: 전에는 곡선을 빼서 루프 26 이상에서 1.3배쯤 높았다).
+{
+    const estimate = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+        game.season = 26; game.loopCount = 25;
+        const zone = getZone(9), keep = getMonsterLoopPowerScale, scale = keep(zone, 'damage');
+        const real = estimateMapZonePowerRequirements(zone);
+        getMonsterLoopPowerScale = (z, kind) => kind === 'damage' ? 1 : keep(z, kind);
+        const flat = estimateMapZonePowerRequirements(zone);
+        getMonsterLoopPowerScale = keep;
+        return { scale, real: real.peakHit, flat: flat.peakHit };
+    })())`, context));
+    assert.ok(Math.abs(estimate.scale - 1) > 0.05, 'loop 26 changes monster damage');
+    assert.notStrictEqual(estimate.real, estimate.flat, 'the estimate reads the monster damage curve');
+}
     console.log('smoke-endgame-resource-pressure passed');
 }
 

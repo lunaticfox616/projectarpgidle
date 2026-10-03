@@ -86,4 +86,13 @@ vm.runInContext("game.voidPassives[testVoidId].stats=[{id:'strength',val:16}]",c
 assert.equal(vm.runInContext('getPlayerStats().strength',context)-beforeAttributes,16);
 assert(pool.find(row=>row.id==='pctDmg').min>=5);
 assert(pool.find(row=>row.id==='resPen').max>=4);
+// 요정의 고리는 잃을 것이 있는 공허(옵션 또는 초월)에만 쓴다: 빈 소켓에는 재화가 그대로 남고 제작 창 단추도 꺼진다(검토 4차).
+vm.runInContext(`game.currencies.fairyRing = 2; game.voidPassives[testVoidId] = { rarity: 'normal', stats: [], transcendent: null };
+    applyVoidPassiveCurrency(testVoidId, 'fairyRing');`, context);
+assert.strictEqual(vm.runInContext('game.currencies.fairyRing', context), 2, 'an empty void socket does not take a fairy ring');
+assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(game.voidPassives[testVoidId].stats)', context)), []);
+vm.runInContext(`game.voidPassives[testVoidId].stats = [{ id: 'flatHp', val: 20 }];
+    window.__fairyRandom = Math.random; Math.random = () => 0.9; applyVoidPassiveCurrency(testVoidId, 'fairyRing'); Math.random = window.__fairyRandom;`, context);
+assert.strictEqual(vm.runInContext('game.currencies.fairyRing', context), 1, 'a void with options takes the gamble');
+assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(game.voidPassives[testVoidId].stats)', context)), [], 'a failed transcendence clears the options');
 console.log('smoke-void-passive-crafting passed');

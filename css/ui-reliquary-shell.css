@@ -45,55 +45,8 @@ body[data-ui-skin="crimson"] {
 }
 
 /* Light mode keeps the same hierarchy with parchment surfaces and dark ink. */
-body.light-mode {
-  color-scheme: light;
-  --skin-canvas: #e9e4da;
-  --skin-panel: #f6f2e9;
-  --skin-panel-raised: #fffcf5;
-  --skin-control: #e8dfcf;
-  --skin-line: #c5b9a4;
-  --skin-line-strong: #917752;
-  --skin-accent: #795824;
-  --skin-accent-strong: #644619;
-  --skin-focus: rgba(121, 88, 36, .65);
-  --color-canvas: var(--skin-canvas);
-  --color-surface: var(--skin-panel);
-  --color-surface-raised: var(--skin-panel-raised);
-  --color-control: var(--skin-control);
-  --color-line: var(--skin-line);
-  --color-line-strong: var(--skin-line-strong);
-  --color-text: #29271f;
-  --color-text-secondary: #514b3f;
-  --color-text-tertiary: #716959;
-  --color-accent: var(--skin-accent);
-  --color-accent-strong: var(--skin-accent-strong);
-  --color-accent-gold: var(--skin-accent);
-  --copy-bright: var(--color-text);
-  --copy-muted: var(--color-text-secondary);
-  --color-danger: #a32f3a;
-  --color-success: #206342;
-  background: var(--color-canvas);
-  color: var(--color-text);
-}
-body.light-mode:not(.desktop-windowed-ui) #right-pane,
-body.light-mode :is(.panel, .tab-content, .ui-rail-misc-panel) {
-  background: var(--color-surface); border-color: var(--color-line); color: var(--color-text);
-}
-body.light-mode.desktop-windowed-ui #right-pane { background: transparent; }
-body.light-mode.desktop-windowed-ui .ui-window-title { color: var(--color-text); text-shadow: none; }
-body.light-mode #tab-settings .cfg-group { background: var(--color-surface); border-color: var(--color-line); }
-body.light-mode #tab-settings .cfg-group--danger { background: #f6e6df; }
-body.light-mode #tab-settings :is(.cfg-label, .cfg-toggle--header) { color: var(--color-text); }
-body.light-mode #tab-settings :is(.cfg-select, .cfg-number) {
-  background: var(--color-surface-raised); color: var(--color-text); border-color: var(--color-line);
-}
-body.light-mode #tab-settings button:not(.cfg-btn--danger):not(.cfg-btn--danger-reset) {
-  background: var(--color-control); color: var(--color-text); border-color: var(--color-line-strong); box-shadow: none;
-}
-body.light-mode #tab-settings button:disabled { opacity: .45; cursor: not-allowed; }
-body.light-mode #tab-settings .cfg-disclosure > summary:hover { background: var(--color-control); color: var(--color-text); }
 
-body:not(.light-mode) {
+:root body {
   --color-shell-ink: var(--skin-canvas);
   --color-shell-panel: var(--skin-panel);
   --color-shell-raised: var(--skin-panel-raised);
@@ -233,12 +186,11 @@ body #death-overlay .deathlog-bar { background: var(--color-control); border-col
     --menu-rail-width: 140px;
   }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window,
-body.light-mode.desktop-windowed-ui .tab-content.ui-window {
+:root body.desktop-windowed-ui .tab-content.ui-window {
   border-radius: 3px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
+:root body.desktop-windowed-ui .tab-content.ui-window {
   border-color: #5b4932;
   color: var(--color-shell-copy);
   background:
@@ -247,61 +199,57 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
   box-shadow: 0 24px 76px rgba(0, 0, 0, .68), inset 0 0 0 1px rgba(112, 89, 56, .16);
 }
 
-  body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window.ui-window-active {
+  :root body.desktop-windowed-ui .tab-content.ui-window.ui-window-active {
     border-color: #a0783f;
     box-shadow: 0 26px 80px rgba(0, 0, 0, .72), 0 0 0 1px rgba(215, 179, 111, .14);
   }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar,
-  body:not(.light-mode).desktop-windowed-ui .ui-window-active .ui-window-titlebar,
-body.light-mode.desktop-windowed-ui .ui-window-titlebar,
-  body.light-mode.desktop-windowed-ui .ui-window-active .ui-window-titlebar {
+:root body.desktop-windowed-ui .ui-window-titlebar,:root 
+  body.desktop-windowed-ui .ui-window-active .ui-window-titlebar {
   min-height: 42px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar,
-  body:not(.light-mode).desktop-windowed-ui .ui-window-active .ui-window-titlebar {
+:root body.desktop-windowed-ui .ui-window-titlebar,:root 
+  body.desktop-windowed-ui .ui-window-active .ui-window-titlebar {
   border-bottom-color: #59482f;
   background:
       linear-gradient(90deg, rgba(101, 73, 37, .18), transparent 36%),
       linear-gradient(180deg, #1d1c18, #0b0c0a);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-title,
-body.light-mode.desktop-windowed-ui .ui-window-title {
+:root body.desktop-windowed-ui .ui-window-title {
   font-size: 13px;
   letter-spacing: .02em;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-title {
+:root body.desktop-windowed-ui .ui-window-title {
   color: #eadfcf;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button,
-body.light-mode.desktop-windowed-ui .ui-window-actions button {
+:root body.desktop-windowed-ui .ui-window-actions button {
   border-radius: 2px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button {
+:root body.desktop-windowed-ui .ui-window-actions button {
   border-color: #4c4234;
   color: #cfc5b5;
   background: linear-gradient(180deg, #24231e, #10110e);
 }
 
-  body:not(.light-mode).desktop-windowed-ui .ui-window-actions button:hover {
+  :root body.desktop-windowed-ui .ui-window-actions button:hover {
     border-color: #99703c;
     color: #f3dfbd;
     background: #2b2419;
   }
 
-  body:not(.light-mode).desktop-windowed-ui .ui-window-body {
+  :root body.desktop-windowed-ui .ui-window-body {
     background:
       radial-gradient(circle at 50% 0, rgba(181, 138, 72, .035), transparent 36%),
       #090a09;
     scrollbar-color: #5c4a33 #090a09;
   }
 
-  body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar::after {
+  :root body.desktop-windowed-ui .ui-window-titlebar::after {
     background: linear-gradient(90deg, transparent, rgba(215, 179, 111, .34), transparent);
   }
   body.desktop-windowed-ui #ui-rail-logo {
@@ -373,14 +321,13 @@ body:not(.light-mode).desktop-windowed-ui .ui-window-actions button {
     bottom: 46px;
   }
 
-body:not(.light-mode).desktop-windowed-ui .combat-panel,
-body.light-mode.desktop-windowed-ui .combat-panel {
+:root body.desktop-windowed-ui .combat-panel {
   border-width: 1px;
   border-style: solid;
   border-radius: 0;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-panel {
+:root body.desktop-windowed-ui .combat-panel {
   border-color: color-mix(in srgb, var(--color-shell-line), transparent 20%);
   background:
       radial-gradient(circle at 46% 38%, rgba(93, 70, 37, .08), transparent 42%),
@@ -405,8 +352,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-panel {
     box-shadow: 0 20px 52px rgba(0, 0, 0, .5);
   }
 
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row,
-body.light-mode.desktop-windowed-ui .combat-zone-row {
+:root body.desktop-windowed-ui .combat-zone-row {
   left: 8px;
   right: calc(var(--combat-log-width) + 18px);
   top: 8px;
@@ -417,7 +363,7 @@ body.light-mode.desktop-windowed-ui .combat-zone-row {
   border-radius: 0;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
+:root body.desktop-windowed-ui .combat-zone-row {
   border-color: var(--color-shell-line);
   color: var(--color-shell-copy);
   background: linear-gradient(180deg, rgba(23, 23, 20, .96), rgba(8, 9, 8, .96));
@@ -475,8 +421,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
     flex-direction: column;
   }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer,
-body.light-mode.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer {
+:root body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer {
   position: absolute;
   inset: 12px 12px auto auto;
   z-index: 80;
@@ -486,8 +431,7 @@ body.light-mode.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer {
   pointer-events: auto;
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel,
-body.light-mode.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel {
+:root body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -497,14 +441,14 @@ body.light-mode.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal
   border-radius: 2px;
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel {
+:root body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel {
   border-color: #54452f;
   color: var(--color-shell-copy);
   background: linear-gradient(180deg, rgba(25, 23, 19, .94), rgba(9, 10, 8, .96));
   box-shadow: 0 8px 22px rgba(0, 0, 0, .46), inset 0 1px rgba(255, 255, 255, .035);
 }
 
-  body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
+  :root body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
     border-color: #8c6938;
     box-shadow: inset 3px 0 #b88a46, inset 0 1px rgba(255, 255, 255, .035);
   }
@@ -741,24 +685,20 @@ body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .u
     scrollbar-color: #514631 #0a0b0a;
   }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed #log,
-  body:not(.light-mode).desktop-windowed-ui #tab-social.ui-community-dock .social-root,
-body.light-mode.desktop-windowed-ui .combat-feed #log,
-  body.light-mode.desktop-windowed-ui #tab-social.ui-community-dock .social-root {
+:root body.desktop-windowed-ui .combat-feed #log,:root 
+  body.desktop-windowed-ui #tab-social.ui-community-dock .social-root {
   font-family: var(--font-body, 'Galmuri14', 'Malgun Gothic', sans-serif);
   font-size: 13px;
   line-height: 1.5;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed #log,
-  body:not(.light-mode).desktop-windowed-ui #tab-social.ui-community-dock .social-root {
+:root body.desktop-windowed-ui .combat-feed #log,:root 
+  body.desktop-windowed-ui #tab-social.ui-community-dock .social-root {
   text-rendering: optimizeLegibility;
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed .log-msg,
-  body:not(.light-mode).desktop-windowed-ui #tab-social.ui-community-dock .social-chat-body,
-body.light-mode.desktop-windowed-ui .combat-feed .log-msg,
-  body.light-mode.desktop-windowed-ui #tab-social.ui-community-dock .social-chat-body {
+:root body.desktop-windowed-ui .combat-feed .log-msg,:root 
+  body.desktop-windowed-ui #tab-social.ui-community-dock .social-chat-body {
   font-family: inherit;
   font-weight: 400;
   letter-spacing: 0;
@@ -1032,233 +972,218 @@ body.light-mode.desktop-windowed-ui .combat-feed .log-msg,
 
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-paperdoll,
-body.light-mode #item-tab-equip .equipment-paperdoll {
+:root body #item-tab-equip .equipment-paperdoll {
   border-radius: 5px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-paperdoll {
+:root body #item-tab-equip .equipment-paperdoll {
   border-color: #493f31;
   background:
     radial-gradient(ellipse at 50% 44%, rgba(137, 101, 51, .08), transparent 48%),
     linear-gradient(180deg, rgba(8, 9, 8, .94), rgba(13, 13, 11, .96));
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot,
-body.light-mode #item-tab-equip .equipment-slot {
+:root body #item-tab-equip .equipment-slot {
   border-radius: 3px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot {
+:root body #item-tab-equip .equipment-slot {
   border-color: #493f31;
   background: linear-gradient(155deg, #181713, #0c0d0b);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot-icon {
+:root body #item-tab-equip .equipment-slot-icon {
   border-color: #5a4a34;
   color: #d7c9b2;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot-action,
-body.light-mode #item-tab-equip .equipment-slot-action {
+:root body #item-tab-equip .equipment-slot-action {
   border-radius: 2px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot-action {
+:root body #item-tab-equip .equipment-slot-action {
   border-color: #55452f;
   color: #d8cdbb;
   background: #171713;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-item-card,
-body.light-mode #item-tab-equip .equipment-item-card {
+:root body #item-tab-equip .equipment-item-card {
   border-radius: 3px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-item-card {
+:root body #item-tab-equip .equipment-item-card {
   border-color: #42392e;
   background: linear-gradient(165deg, #171713, #0c0d0b);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-meta-chip,
-body:not(.light-mode) #item-tab-equip .equipment-card-slot,
-body.light-mode #item-tab-equip .equipment-meta-chip,
-body.light-mode #item-tab-equip .equipment-card-slot {
+:root body #item-tab-equip .equipment-meta-chip,:root 
+body #item-tab-equip .equipment-card-slot {
   border-radius: 2px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-meta-chip,
-body:not(.light-mode) #item-tab-equip .equipment-card-slot {
+:root body #item-tab-equip .equipment-meta-chip,:root 
+body #item-tab-equip .equipment-card-slot {
   border-color: #504330;
   color: #c9beae;
   background: #10110f;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-card-actions button,
-body.light-mode #item-tab-equip .equipment-card-actions button {
+:root body #item-tab-equip .equipment-card-actions button {
   border-radius: 2px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-card-actions .equipment-card-primary {
+:root body #item-tab-equip .equipment-card-actions .equipment-card-primary {
   border-color: #956f3b;
   color: #f4dfbc;
   background: linear-gradient(180deg, #5c421f, #281e12);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-panel,
-body.light-mode #item-tab-equip .equipment-preset-panel {
+:root body #item-tab-equip .equipment-preset-panel {
   border-radius: 5px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-panel {
+:root body #item-tab-equip .equipment-preset-panel {
   border-color: #4b4031;
   background: linear-gradient(145deg, #171713, #0b0c0a);
   box-shadow: inset 0 1px rgba(255, 255, 255, .025);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-panel > header span {
+:root body #item-tab-equip .equipment-preset-panel > header span {
   color: #cda65e;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-panel > header strong {
+:root body #item-tab-equip .equipment-preset-panel > header strong {
   color: #eadfce;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-slot,
-body.light-mode #item-tab-equip .equipment-preset-slot {
+:root body #item-tab-equip .equipment-preset-slot {
   border-radius: 3px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-slot {
+:root body #item-tab-equip .equipment-preset-slot {
   border-color: #473d30;
   color: #c8beae;
   background: #10110f;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-slot > span {
+:root body #item-tab-equip .equipment-preset-slot > span {
   color: #b28a4c;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-slot > strong {
+:root body #item-tab-equip .equipment-preset-slot > strong {
   color: #ded3c3;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-slot.selected {
+:root body #item-tab-equip .equipment-preset-slot.selected {
   border-color: #a3793f;
   background: #2a2115;
   box-shadow: inset 3px 0 #c99b53;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-preset-actions button.primary {
+:root body #item-tab-equip .equipment-preset-actions button.primary {
   border-color: #956f3b;
   color: #f4dfbc;
   background: linear-gradient(180deg, #5c421f, #281e12);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-triage-host {
+:root body #item-tab-equip .equipment-triage-host {
   border-color: #4a4032;
   background: #10110f;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-triage-controls :where(select, button) {
+:root body #item-tab-equip .equipment-triage-controls :where(select, button) {
   border-color: #51442f;
   color: #d7cbbb;
   background: #171713;
 }
 
-body:not(.light-mode) #tab-skills .skill-loadout-summary,
-body:not(.light-mode) #tab-skills .gem-research-panel,
-body:not(.light-mode) #tab-skills .skill-library-toolbar,
-body:not(.light-mode) #tab-skills .skill-library-panel,
-body:not(.light-mode) #tab-skills .search-filter-panel,
-body.light-mode #tab-skills .skill-loadout-summary,
-body.light-mode #tab-skills .gem-research-panel,
-body.light-mode #tab-skills .skill-library-toolbar,
-body.light-mode #tab-skills .skill-library-panel,
-body.light-mode #tab-skills .search-filter-panel {
+:root body #tab-skills .skill-loadout-summary,:root 
+body #tab-skills .gem-research-panel,:root 
+body #tab-skills .skill-library-toolbar,:root 
+body #tab-skills .skill-library-panel,:root 
+body #tab-skills .search-filter-panel {
   border-radius: 4px;
 }
 
-body:not(.light-mode) #tab-skills .skill-loadout-summary,
-body:not(.light-mode) #tab-skills .gem-research-panel,
-body:not(.light-mode) #tab-skills .skill-library-toolbar,
-body:not(.light-mode) #tab-skills .skill-library-panel,
-body:not(.light-mode) #tab-skills .search-filter-panel {
+:root body #tab-skills .skill-loadout-summary,:root 
+body #tab-skills .gem-research-panel,:root 
+body #tab-skills .skill-library-toolbar,:root 
+body #tab-skills .skill-library-panel,:root 
+body #tab-skills .search-filter-panel {
   border-color: #473d30;
   background: linear-gradient(155deg, #171713, #0b0c0a);
   box-shadow: inset 0 1px rgba(255, 255, 255, .025);
 }
 
-body:not(.light-mode) #tab-skills .skill-loadout-summary > div {
+:root body #tab-skills .skill-loadout-summary > div {
   border-left-color: #3d352b;
 }
 
-body:not(.light-mode) #tab-skills .skill-panel-kicker,
-body:not(.light-mode) #tab-skills .skill-library-note,
-body:not(.light-mode) #tab-skills .skill-library-toolbar > span {
+:root body #tab-skills .skill-panel-kicker,:root 
+body #tab-skills .skill-library-note,:root 
+body #tab-skills .skill-library-toolbar > span {
   color: #a79e91;
 }
 
-body:not(.light-mode) #tab-skills .skill-library-toolbar button,
-body:not(.light-mode) #tab-skills .search-action-row button,
-body:not(.light-mode) #tab-skills .gem-card-utility {
+:root body #tab-skills .skill-library-toolbar button,:root 
+body #tab-skills .search-action-row button,:root 
+body #tab-skills .gem-card-utility {
   border-color: #4c4030;
   color: #cfc4b4;
   background: #151612;
 }
 
-body:not(.light-mode) #tab-skills .skill-library-toolbar button.active {
+:root body #tab-skills .skill-library-toolbar button.active {
   border-color: #97703b;
   color: #f0d8ac;
   background: #302414;
 }
 
-body:not(.light-mode) #tab-skills .gem-library-card,
-body.light-mode #tab-skills .gem-library-card {
+:root body #tab-skills .gem-library-card {
   border-radius: 3px;
 }
 
-body:not(.light-mode) #tab-skills .gem-library-card {
+:root body #tab-skills .gem-library-card {
   border-color: #42392e;
   border-left-color: var(--gem-accent);
   color: #e6ddd0;
   background: linear-gradient(150deg, #181814, #0b0c0a);
 }
 
-body:not(.light-mode) #tab-skills .gem-library-card.active {
+:root body #tab-skills .gem-library-card.active {
   border-color: var(--gem-accent);
   background: linear-gradient(150deg, color-mix(in srgb, var(--gem-accent) 12%, #181814), #0b0c0a);
   box-shadow: inset 3px 0 color-mix(in srgb, var(--gem-accent) 65%, transparent);
 }
 
-body:not(.light-mode) #tab-skills .gem-card-sigil,
-body:not(.light-mode) #tab-skills .gem-level-badge {
+:root body #tab-skills .gem-card-sigil,:root 
+body #tab-skills .gem-level-badge {
   border-color: #493f31;
   background: #0b0c0a;
 }
 
-body:not(.light-mode) #tab-map .vertical-tab-panels {
+:root body #tab-map .vertical-tab-panels {
   border-color: #443a2d;
   border-radius: 5px;
   background: linear-gradient(180deg, #12130f, #090a09);
 }
 
-body:not(.light-mode) #tab-map .vertical-tab-sidebar {
+:root body #tab-map .vertical-tab-sidebar {
   border-radius: 5px;
 }
 
-body:not(.light-mode) #tab-map .map-explore-layout .vertical-tab-btn:not(.active) {
+:root body #tab-map .map-explore-layout .vertical-tab-btn:not(.active) {
   border-color: #39332a;
   color: #b9b0a3;
   background: linear-gradient(180deg, #171713, #0d0e0c);
 }
 
-body:not(.light-mode) #tab-map .map-explore-layout .vertical-tab-btn:not(.active):hover {
+:root body #tab-map .map-explore-layout .vertical-tab-btn:not(.active):hover {
   border-color: #6d5637;
   background: #201c15;
 }
 
-body:not(.light-mode) #tab-map .vertical-tab-panel > h2 {
+:root body #tab-map .vertical-tab-panel > h2 {
   padding: 8px 12px;
   border: 1px solid #51432f;
   border-radius: 3px;
@@ -1266,22 +1191,22 @@ body:not(.light-mode) #tab-map .vertical-tab-panel > h2 {
   background: linear-gradient(180deg, #1d1b16, #10110e);
 }
 
-body:not(.light-mode) #tab-map .map-route-summary {
+:root body #tab-map .map-route-summary {
   border-color: #7e6035;
   border-radius: 4px;
   background: linear-gradient(135deg, rgba(79, 58, 29, .7), rgba(16, 16, 13, .96) 68%);
 }
 
-body:not(.light-mode) #tab-map .map-route-action,
-body:not(.light-mode) #tab-map .map-enter-btn {
+:root body #tab-map .map-route-action,:root 
+body #tab-map .map-enter-btn {
   border-color: #594931;
   border-radius: 2px;
   color: #e1d5c2;
   background: linear-gradient(180deg, #242119, #11120f);
 }
 
-body:not(.light-mode) #map-tab-zones .map-zone-group-header,
-body:not(.light-mode) #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header {
+:root body #map-tab-zones .map-zone-group-header,:root 
+body #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header {
   border-color: #795d36;
   border-radius: 4px;
   color: #ead7b5;
@@ -1289,9 +1214,9 @@ body:not(.light-mode) #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-g
   box-shadow: inset 0 1px rgba(255, 238, 198, .04);
 }
 
-body:not(.light-mode) #tab-map .map-item,
-body:not(.light-mode) #tab-map .map-item.current,
-body:not(.light-mode) #tab-map .map-item[role="group"].is-cleared:not(.current) {
+:root body #tab-map .map-item,:root 
+body #tab-map .map-item.current,:root 
+body #tab-map .map-item[role="group"].is-cleared:not(.current) {
   border-color: #493e30;
   border-radius: 3px;
   color: #d8cdbd;
@@ -1299,56 +1224,56 @@ body:not(.light-mode) #tab-map .map-item[role="group"].is-cleared:not(.current) 
   box-shadow: none;
 }
 
-body:not(.light-mode) #tab-map .map-item.current {
+:root body #tab-map .map-item.current {
   border-color: #c89a51;
   color: #f4dfbd;
   background: linear-gradient(155deg, #322617, #13120f);
   box-shadow: inset 3px 0 #d0a258;
 }
 
-body:not(.light-mode) #tab-map .map-item.trial-pending:not(.current) {
+:root body #tab-map .map-item.trial-pending:not(.current) {
   border-color: #9b7435;
   color: #e7c477;
   background: linear-gradient(155deg, #2a2112, #11100c);
   box-shadow: inset 3px 0 #c69643;
 }
 
-body:not(.light-mode) #tab-map .map-item.trial-completed:not(.current) {
+:root body #tab-map .map-item.trial-completed:not(.current) {
   border-color: #4f765b;
   color: #b6d9bf;
   background: linear-gradient(155deg, #18251b, #0c100d);
   box-shadow: inset 3px 0 #60936e;
 }
 
-body:not(.light-mode) #tab-map .trial-pending .trial-state-badge {
+:root body #tab-map .trial-pending .trial-state-badge {
   border-color: #9b7435;
   color: #efca76;
   background: rgba(92, 66, 23, .44);
 }
 
-body:not(.light-mode) #tab-map .trial-completed .trial-state-badge {
+:root body #tab-map .trial-completed .trial-state-badge {
   border-color: #50745a;
   color: #bde1c5;
   background: rgba(31, 69, 42, .5);
 }
 
-body:not(.light-mode) #tab-map .map-state-badge {
+:root body #tab-map .map-state-badge {
   border-color: #4b4032;
   border-radius: 2px;
   color: #bcb2a4;
   background: #12130f;
 }
 
-body:not(.light-mode) #tab-map .map-state-badge.current,
-body:not(.light-mode) #tab-map .map-state-badge.recommended {
+:root body #tab-map .map-state-badge.current,:root 
+body #tab-map .map-state-badge.recommended {
   border-color: #8f6b39;
   color: #f0d5a4;
   background: #2c2114;
 }
 
 @media (max-width: 1080px) {
-  body:not(.light-mode) #right-pane,
-  body:not(.light-mode) #right-pane > .tab-content.active {
+  :root body #right-pane,:root 
+  body #right-pane > .tab-content.active {
     border-color: #393329;
     color: var(--color-shell-copy);
   }
@@ -1457,7 +1382,7 @@ body:not(.light-mode) #tab-map .map-state-badge.recommended {
     background: linear-gradient(180deg, #272117, #10110e);
   }
 
-  body:not(.light-mode) #item-tab-equip .equipment-mobile-switch button {
+  :root body #item-tab-equip .equipment-mobile-switch button {
     border-color: #4d4233;
     color: #bdb3a5;
     background: #131411;
@@ -1811,33 +1736,28 @@ body:not(.light-mode) #tab-map .map-state-badge.recommended {
 
 /* Retire the old navy chrome without changing semantic cold/magic/ES colors. */
 
-body:not(.light-mode) .passive-search-panel {
+:root body .passive-search-panel {
   border-radius: 4px;
 }
 
-body:not(.light-mode) .equipment-preset-panel,
-body:not(.light-mode) .player-exchange-card,
-body:not(.light-mode) .time-rift-panel,
-body:not(.light-mode) .time-rift-altar,
-body:not(.light-mode) .selection-overlay-panel,
-body.light-mode .equipment-preset-panel,
-body.light-mode .player-exchange-card,
-body.light-mode .time-rift-panel,
-body.light-mode .time-rift-altar,
-body.light-mode .selection-overlay-panel {
+:root body .equipment-preset-panel,:root 
+body .player-exchange-card,:root 
+body .time-rift-panel,:root 
+body .time-rift-altar,:root 
+body .selection-overlay-panel {
   border-width: 1px;
   border-style: solid;
 }
 
-body:not(.light-mode) .equipment-preset-panel,
-body:not(.light-mode) .player-exchange-card,
-body:not(.light-mode) .time-rift-panel,
-body:not(.light-mode) .time-rift-altar,
-body:not(.light-mode) .selection-overlay-panel {
+:root body .equipment-preset-panel,:root 
+body .player-exchange-card,:root 
+body .time-rift-panel,:root 
+body .time-rift-altar,:root 
+body .selection-overlay-panel {
   color: var(--color-text);
 }
 
-body:not(.light-mode) .time-rift-panel {
+:root body .time-rift-panel {
   margin-bottom: 10px;
   padding: 10px;
 }
@@ -1852,44 +1772,42 @@ body:not(.light-mode) .time-rift-panel {
   justify-content: flex-start;
 }
 
-body:not(.light-mode) .equipment-preset-panel,
-body.light-mode .equipment-preset-panel {
+:root body .equipment-preset-panel {
   order: 5;
   margin: 12px 0 0;
 }
 
-body:not(.light-mode) .equipment-preset-panel > header span,
-body:not(.light-mode) .equipment-preset-slot > span {
+:root body .equipment-preset-panel > header span,:root 
+body .equipment-preset-slot > span {
   color: var(--skin-accent);
 }
 
-body:not(.light-mode) .equipment-preset-panel > header strong,
-body:not(.light-mode) .equipment-preset-slot > strong {
+:root body .equipment-preset-panel > header strong,:root 
+body .equipment-preset-slot > strong {
   color: var(--color-text);
 }
 
-body:not(.light-mode) .equipment-preset-slot,
-body.light-mode .equipment-preset-slot {
+:root body .equipment-preset-slot {
   border-radius: 3px;
 }
 
-body:not(.light-mode) .equipment-preset-slot {
+:root body .equipment-preset-slot {
   border-color: var(--skin-line);
   background: color-mix(in srgb, var(--skin-panel), #000 18%);
 }
 
-body:not(.light-mode) .equipment-preset-slot.selected {
+:root body .equipment-preset-slot.selected {
   border-color: var(--skin-line-strong);
   background: color-mix(in srgb, var(--skin-accent-strong), var(--skin-panel) 76%);
   box-shadow: inset 3px 0 var(--skin-accent);
 }
 
-body:not(.light-mode) .player-exchange-card > header {
+:root body .player-exchange-card > header {
   border-color: var(--skin-line);
   background: color-mix(in srgb, var(--skin-panel-raised), var(--skin-accent) 5%);
 }
 
-body:not(.light-mode) .player-trade-item {
+:root body .player-trade-item {
   border-color: color-mix(in srgb, var(--trade-rarity), var(--skin-line) 62%);
   border-left-color: var(--trade-rarity);
   border-radius: 3px;
@@ -1907,11 +1825,22 @@ body:not(.light-mode) .player-trade-item {
   background: rgba(3, 4, 3, .78);
 }
 
+/* 아래 메뉴 띠(#tab-header-bottom, 층 13100)가 있는 화면에서는 그 위에 뜬다. 띠가 창 위에 남아 누르면 탭만 바뀌었다.
+   펼친 목표 칸(13150)도 덮고, 보상, 사망, 루프 결정 창(13200)과 알림(21000, 22000)은 전처럼 이 창 위에 남는다. */
+body.has-bottom-tabs .selection-overlay {
+  z-index: 13160;
+}
+
 .selection-overlay-panel {
   width: min(560px, 94vw);
   max-height: 86vh;
   padding: 14px;
   overflow-y: auto;
+}
+
+/* 창을 열면 포커스가 창 자체로 온다(키보드 순서의 시작점). 틀에는 ui-luxe.css의 전역 포커스 테두리를 그리지 않는다. */
+:root body .selection-overlay-panel:focus {
+  outline: none;
 }
 
 .selection-overlay-header {
@@ -1984,18 +1913,16 @@ body.desktop-windowed-ui .battlefield-wrap > #ui-goal-drawer {
   width: 106px;
   max-width: 106px;
 }
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel,
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel,
-body.light-mode.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel,
-body.light-mode.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
+:root body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel,:root 
+body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
   position: relative;
   display: block;
   overflow: visible;
   border-width: 0;
 }
 
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel,
-body:not(.light-mode).desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
+:root body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-panel,:root 
+body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel {
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
@@ -2021,6 +1948,7 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.expanded #ui-goal-b
   top: 36px;
   right: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   width: 254px;
   box-sizing: border-box;
   gap: 8px;
@@ -2150,106 +2078,6 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
   white-space: nowrap;
 }
 
-.player-hud-flask-rack {
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.player-hud-flask-rack .combat-flask-mini {
-  --flask-liquid: #79509f;
-  --flask-liquid-dark: #38234d;
-  --flask-slot-edge: #8b6839;
-  flex: 0 0 clamp(18px, 2.1vw, 23px);
-  isolation: isolate;
-}
-
-.player-hud-flask-rack .combat-flask-mini.heal,
-.player-hud-flask-rack .combat-flask-mini.boot-heal,
-.player-hud-flask-rack .combat-flask-mini.flask-heal {
-  --flask-liquid: #b93239;
-  --flask-liquid-dark: #5c0d17;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-granite {
-  --flask-liquid: #8b8177;
-  --flask-liquid-dark: #403b37;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-quicksilver {
-  --flask-liquid: #70b7c1;
-  --flask-liquid-dark: #244d59;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-amethyst {
-  --flask-liquid: #9451b0;
-  --flask-liquid-dark: #432052;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-bismuth {
-  --flask-liquid: #c18e45;
-  --flask-liquid-dark: #5c3a19;
-}
-
-.player-hud-flask-rack .combat-flask-mini.flask-sulphur {
-  --flask-liquid: #d17a35;
-  --flask-liquid-dark: #642d13;
-}
-
-.player-hud-flask-rack .combat-flask-mini::before {
-  content: '';
-  position: absolute;
-  z-index: 2;
-  top: 20%;
-  right: 15%;
-  bottom: 7%;
-  left: 15%;
-  clip-path: polygon(37% 0, 63% 0, 63% 17%, 78% 28%, 89% 49%, 86% 83%, 72% 100%, 28% 100%, 14% 83%, 11% 49%, 22% 28%, 37% 17%);
-  background:
-    linear-gradient(108deg, transparent 0 25%, rgba(255, 255, 255, .58) 28% 35%, transparent 39% 100%),
-    radial-gradient(circle at 66% 72%, rgba(255, 255, 255, .34) 0 5%, transparent 7%),
-    linear-gradient(180deg, rgba(205, 222, 216, .3) 0 39%, var(--flask-liquid) 42% 73%, var(--flask-liquid-dark) 100%);
-  box-shadow:
-    inset 0 1px rgba(255, 255, 255, .45),
-    inset 0 -3px rgba(0, 0, 0, .55);
-  filter:
-    drop-shadow(0 0 1px rgba(244, 228, 197, .92))
-    drop-shadow(0 0 4px color-mix(in srgb, var(--flask-liquid), transparent 45%));
-  pointer-events: none;
-}
-
-.player-hud-flask-rack .combat-flask-mini::after {
-  content: '';
-  position: absolute;
-  z-index: 3;
-  top: 5%;
-  left: 36%;
-  width: 28%;
-  height: 24%;
-  border: 1px solid rgba(219, 199, 160, .72);
-  border-radius: 2px 2px 1px 1px;
-  background: linear-gradient(180deg, #c39b60 0 25%, #66482a 27% 43%, rgba(205, 222, 216, .3) 45% 100%);
-  box-shadow:
-    inset 0 1px rgba(255, 238, 196, .45),
-    inset 1px 0 rgba(255, 255, 255, .14),
-    0 1px 1px rgba(0, 0, 0, .88);
-  pointer-events: none;
-}
-
-.player-hud-flask-rack .combat-flask-mini > span { display: none; }
-
-.player-hud-flask-rack .combat-flask-mini > b {
-  right: -3px;
-  bottom: -3px;
-  z-index: 4;
-  min-width: 13px;
-  height: 13px;
-  border-color: #695237;
-  color: #f1e7d7;
-  background: #090a08;
-  font-size: 8px;
-}
-
 .player-hud-skill-rack {
   display: grid;
   align-content: center;
@@ -2292,7 +2120,33 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
 
 .player-hud-skill-slot.primary { border-color: #a87c3e; }
 .player-hud-skill-slot.summon { border-color: #725188; }
+.player-hud-skill-slot.mobility { border-color: #56794f; }
 .player-hud-skill-slot:hover { filter: brightness(1.18); }
+/* 자동 사용 젬 재사용 대기: 남은 비율만큼 시계 방향으로 어둡게 덮고 남은 초를 가운데에 쓴다(값은 js/ui.js refreshCombatSkillCooldowns). */
+.player-hud-skill-slot.cooling::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: conic-gradient(rgba(3, 4, 5, .62) calc(var(--cooldown, 0) * 1turn), rgba(3, 4, 5, .14) 0);
+  pointer-events: none;
+}
+.player-hud-skill-cooldown:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  color: #f3e6c8;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+  pointer-events: none;
+}
+.player-hud-skill-slot.just-cast { box-shadow: 0 0 0 1px #f3cf7a, 0 0 12px rgba(243, 207, 122, .7); }
 
 .combat-skill-gem-art,
 .combat-skill-gem-art img,
@@ -2341,30 +2195,6 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
     max-width: 82px;
   }
 
-  body.desktop-windowed-ui .player-hud-flask-rack {
-    z-index: 5;
-    aspect-ratio: 900 / 230;
-    box-sizing: border-box;
-    background-image: var(--combat-hud-flask-rack-art);
-    background-position: 1.887% 43.927%;
-    background-repeat: no-repeat;
-    background-size: 241.333% 314.783%;
-    filter: var(--combat-hud-frame-filter);
-  }
-
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini {
-    flex: none;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-  }
-
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini::before {
-    top: 18%;
-    right: 14%;
-    bottom: 6%;
-    left: 14%;
-  }
-
   body.desktop-windowed-ui .player-hud-skill-rack {
     align-content: center;
   }
@@ -2395,9 +2225,6 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
     align-items: center;
     padding: 5px 7px;
   }
-  body.mobile-battle-tab .player-hud-flask-rack .combat-flask-mini {
-    flex-basis: 18px;
-  }
 
   body.mobile-battle-tab .player-hud-skill-rack {
     grid-column: 2;
@@ -2416,36 +2243,32 @@ body.desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer :where(
 
 @layer overrides {
 
-body:not(.light-mode) :where(#background-combat-progress-bar-fill, .equipment-capacity-track > span) {
+:root body :where(#background-combat-progress-bar-fill, .equipment-capacity-track > span) {
   background: linear-gradient(90deg, var(--skin-accent-strong), var(--skin-accent));
 }
-body.light-mode #death-overlay .deathlog-monster-value { color: var(--color-text); }
 
-body:not(.light-mode) #loop-hero-select-overlay .tutorial-card,
-body:not(.light-mode) .hero-choice {
+:root body #loop-hero-select-overlay .tutorial-card,:root 
+body .hero-choice {
   border-color: var(--skin-line);
   background:
     radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--skin-accent), transparent 93%), transparent 38%),
     linear-gradient(155deg, var(--skin-panel-raised), var(--skin-canvas));
 }
 
-body:not(.light-mode) .hero-choice::before {
+:root body .hero-choice::before {
   border-color: color-mix(in srgb, var(--skin-line), transparent 28%);
 }
 
-body:not(.light-mode) :where(#left-pane-collapse-toggle, #left-pane-floating-toggle, #left-pane-expand-fab) {
+:root body :where(#left-pane-collapse-toggle, #left-pane-floating-toggle, #left-pane-expand-fab) {
   border-color: var(--skin-line);
   color: var(--color-text-secondary);
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
 }
-body:not(.light-mode) :where(
+:root body :where(
   .talent-card,
   .talent-combo-cell,
-  .jewel-salvage-bar,
   .craft-selected-summary,
   .craft-actions .craft-orb-card,
-  .expertise-panel,
-  .expertise-card,
   .codex-slot-tabs,
   .market-shell,
   .market-locked,
@@ -2458,7 +2281,7 @@ body:not(.light-mode) :where(
   box-shadow: inset 0 1px rgba(255, 255, 255, .03), 0 8px 20px rgba(0, 0, 0, .18);
 }
 
-body:not(.light-mode) :where(
+:root body :where(
   #map-tab-zones h2,
   #map-tab-zones .map-zone-group-header,
   .codex-slot-tab
@@ -2470,8 +2293,8 @@ body:not(.light-mode) :where(
   box-shadow: inset 0 1px rgba(255, 255, 255, .03);
 }
 
-body:not(.light-mode) #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header,
-body:not(.light-mode) .codex-slot-tab.active {
+:root body #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header,:root 
+body .codex-slot-tab.active {
   border-color: var(--skin-line-strong);
   /* Selected headings must also outrank the inline heading-color exception above. */
   color: #fff0d2 !important;
@@ -2479,7 +2302,7 @@ body:not(.light-mode) .codex-slot-tab.active {
   box-shadow: inset 3px 0 var(--skin-accent);
 }
 
-body:not(.light-mode) :where(
+:root body :where(
   .market-shell select,
   .market-shell input,
   .offline-progress-upgrade button,
@@ -2620,24 +2443,21 @@ body:not(.light-mode) :where(
 
 }
 
-body:not(.light-mode) #tab-skills .skill-library-toolbar button,
-body:not(.light-mode) #tab-skills .search-action-row button,
-body:not(.light-mode) #tab-skills .gem-card-utility,
-body.light-mode #tab-skills .skill-library-toolbar button,
-body.light-mode #tab-skills .search-action-row button,
-body.light-mode #tab-skills .gem-card-utility {
+:root body #tab-skills .skill-library-toolbar button,:root 
+body #tab-skills .search-action-row button,:root 
+body #tab-skills .gem-card-utility {
   border-radius: 2px;
 }
 
-body:not(.light-mode) #tab-map .vertical-tab-sidebar {
+:root body #tab-map .vertical-tab-sidebar {
   border-color: var(--skin-line);
   background: linear-gradient(180deg, var(--skin-panel-raised), var(--skin-panel));
   box-shadow: inset 0 1px rgba(255, 255, 255, .03), 0 8px 20px rgba(0, 0, 0, .2);
 }
 
 @media (max-width: 1080px) {
-  body:not(.light-mode) #right-pane,
-  body:not(.light-mode) #right-pane > .tab-content.active {
+  :root body #right-pane,:root 
+  body #right-pane > .tab-content.active {
     background: #080a09;
   }
 
@@ -2811,23 +2631,7 @@ body:not(.light-mode) #tab-map .vertical-tab-sidebar {
     background: linear-gradient(180deg, #49351d, #22180f);
   }
 }
-body:not(.light-mode) :where(
-  .cfg-select,
-  .cfg-number,
-  .inventory-browse-toolbar select,
-  .inventory-browse-toolbar button,
-  .equipment-grid-inspector-actions button,
-  .equipment-preset-actions button,
-  .equipment-triage-controls button,
-  .equipment-triage-controls select,
-  .equipment-mobile-switch button,
-  .bulk-manager button,
-  .inventory-expand-shortcut,
-  .selection-overlay-panel button,
-  .player-exchange-card button
-),
-/* Retire the old navy chrome without changing semantic cold/magic/ES colors. */
-body.light-mode :where(
+:root body :where(
   .cfg-select,
   .cfg-number,
   .inventory-browse-toolbar select,
@@ -2844,7 +2648,7 @@ body.light-mode :where(
 ) {
   border-radius: var(--radius-sm);
 }
-body:not(.light-mode) :where(
+:root body :where(
   .cfg-select,
   .cfg-number,
   .inventory-browse-toolbar select,
@@ -2865,53 +2669,52 @@ body:not(.light-mode) :where(
   box-shadow: inset 0 1px rgba(255, 255, 255, .035);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button {
+:root body.desktop-windowed-ui .ui-window-actions button {
   border-color: var(--skin-line);
   color: var(--color-text-secondary);
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
   box-shadow: inset 0 1px rgba(255, 255, 255, .035);
 }
 
-body:not(.light-mode) :where(#btn-item-tab-equip, #btn-skill-tab-equip) {
+:root body :where(#btn-item-tab-equip, #btn-skill-tab-equip) {
   border-color: transparent;
 }
 
-body:not(.light-mode) :where(#btn-item-tab-equip, #btn-skill-tab-equip).active {
+:root body :where(#btn-item-tab-equip, #btn-skill-tab-equip).active {
   border-color: var(--skin-line-strong);
 }
 
-body:not(.light-mode) :where(.search-filter-input, .social-chat-inputbar input) {
+:root body :where(.search-filter-input, .social-chat-inputbar input) {
   border-color: var(--skin-line);
   color: var(--color-text);
   background: color-mix(in srgb, var(--skin-panel), #000 16%);
   box-shadow: inset 0 1px 4px rgba(0, 0, 0, .58);
 }
 
-body:not(.light-mode) :where(.search-action-row button, .search-filter-panel button) {
+:root body :where(.search-action-row button, .search-filter-panel button) {
   border-color: var(--skin-line);
   color: var(--color-text-secondary);
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
 }
 
-body:not(.light-mode) #item-tab-equip .inventory-browse-toolbar {
+:root body #item-tab-equip .inventory-browse-toolbar {
   border: 0;
   background: transparent;
   box-shadow: none;
 }
 
-body:not(.light-mode) :is(.bulk-manager, .equipment-grid-inspector-actions) button[aria-pressed="true"],
-body:not(.light-mode) .equipment-preset-actions button.primary {
+:root body :is(.bulk-manager, .equipment-grid-inspector-actions) button[aria-pressed="true"],:root 
+body .equipment-preset-actions button.primary {
   border-color: var(--skin-line-strong);
   color: var(--skin-accent);
   background: var(--skin-control);
 }
 
-body:not(.light-mode) :where(.cfg-group, .cloud-panel),
-body.light-mode :where(.cfg-group, .cloud-panel) {
+:root body :where(.cfg-group, .cloud-panel) {
   border-radius: 4px;
 }
 
-body:not(.light-mode) :where(.cfg-group, .cloud-panel) {
+:root body :where(.cfg-group, .cloud-panel) {
   border-color: var(--skin-line);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--skin-accent), transparent 96%), transparent 40%),
@@ -2919,12 +2722,12 @@ body:not(.light-mode) :where(.cfg-group, .cloud-panel) {
   box-shadow: inset 0 1px rgba(255, 255, 255, .03);
 }
 
-body:not(.light-mode) .cfg-group--danger {
+:root body .cfg-group--danger {
   border-color: #57332f;
   background: linear-gradient(180deg, #1b1010, #0e0909);
 }
 
-body:not(.light-mode) :where(.cfg-btn--neutral, .cloud-panel button:not(.social-login-image-btn), .patch-notes-open-btn) {
+:root body :where(.cfg-btn--neutral, .cloud-panel button:not(.social-login-image-btn), .patch-notes-open-btn) {
   border-color: var(--skin-line);
   color: var(--color-text-secondary);
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
@@ -2932,31 +2735,31 @@ body:not(.light-mode) :where(.cfg-btn--neutral, .cloud-panel button:not(.social-
 }
 
 
-body:not(.light-mode) .cfg-btn--save {
+:root body .cfg-btn--save {
   border-color: #3d6b4b;
   color: #9bd0a8;
   background: linear-gradient(180deg, #183322, #0d1d13);
 }
 
-body:not(.light-mode) :where(.cfg-btn--danger, .cfg-btn--danger-reset) {
+:root body :where(.cfg-btn--danger, .cfg-btn--danger-reset) {
   border-color: #74352f;
   color: #e49a91;
   background: linear-gradient(180deg, #321511, #1a0c0a);
 }
 
-body:not(.light-mode) .passive-search-panel {
+:root body .passive-search-panel {
   border-color: var(--skin-line);
   background: color-mix(in srgb, var(--skin-panel), #000 10%);
   box-shadow: 0 7px 18px rgba(0, 0, 0, .36);
 }
 
-body:not(.light-mode) .passive-search-panel > input {
+:root body .passive-search-panel > input {
   border-color: var(--skin-line);
   color: var(--color-text);
   background: var(--skin-canvas);
 }
 
-body:not(.light-mode) .passive-search-panel button {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
+:root body .passive-search-panel button {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
   border-color: var(--skin-line) !important;
   /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
   color: var(--color-text-secondary) !important;
@@ -2964,7 +2767,7 @@ body:not(.light-mode) .passive-search-panel button {/* Overrides inline presenta
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel)) !important;
 }
 
-body:not(.light-mode) :where(
+:root body :where(
   .equipment-mobile-switch button[aria-pressed="true"],
   .selection-overlay-option.selected,
   .player-exchange-card button.active
@@ -2975,24 +2778,19 @@ body:not(.light-mode) :where(
   box-shadow: inset 0 -2px var(--skin-accent);
 }
 
-body:not(.light-mode) .equipment-preset-panel,
-body:not(.light-mode) .player-exchange-card,
-body:not(.light-mode) .time-rift-panel,
-body:not(.light-mode) .time-rift-altar,
-body:not(.light-mode) .selection-overlay-panel,
-body.light-mode .equipment-preset-panel,
-body.light-mode .player-exchange-card,
-body.light-mode .time-rift-panel,
-body.light-mode .time-rift-altar,
-body.light-mode .selection-overlay-panel {
+:root body .equipment-preset-panel,:root 
+body .player-exchange-card,:root 
+body .time-rift-panel,:root 
+body .time-rift-altar,:root 
+body .selection-overlay-panel {
   border-radius: 4px;
 }
 
-body:not(.light-mode) .equipment-preset-panel,
-body:not(.light-mode) .player-exchange-card,
-body:not(.light-mode) .time-rift-panel,
-body:not(.light-mode) .time-rift-altar,
-body:not(.light-mode) .selection-overlay-panel {
+:root body .equipment-preset-panel,:root 
+body .player-exchange-card,:root 
+body .time-rift-panel,:root 
+body .time-rift-altar,:root 
+body .selection-overlay-panel {
   border-color: var(--skin-line);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--skin-accent), transparent 95%), transparent 38%),
@@ -3000,13 +2798,13 @@ body:not(.light-mode) .selection-overlay-panel {
   box-shadow: inset 0 1px rgba(255, 255, 255, .03), 0 12px 30px rgba(0, 0, 0, .26);
 }
 
-body:not(.light-mode) .equipment-preset-actions button.primary {
+:root body .equipment-preset-actions button.primary {
   border-color: var(--skin-line-strong);
   color: #fff0d2;
   background: linear-gradient(180deg, var(--skin-accent-strong), #2a1c10);
 }
 
-body:not(.light-mode) :where(.map-item.current, .map-item[aria-current="true"]) {
+:root body :where(.map-item.current, .map-item[aria-current="true"]) {
   border-color: var(--skin-line-strong);
   color: #fff0d2;
   background: linear-gradient(135deg, color-mix(in srgb, var(--skin-accent-strong), #24180e 42%), #17120c);
@@ -3064,39 +2862,6 @@ body:not(.light-mode) :where(.map-item.current, .map-item[aria-current="true"]) 
   color: #d6b572;
 }
 
-.player-hud-flask-rack {
-  position: static;
-  display: flex;
-  width: 100%;
-  height: clamp(18px, 2.1vw, 23px);
-  max-width: none;
-  overflow: visible;
-  pointer-events: auto;
-}
-
-.player-hud-flask-rack .combat-flask-mini {
-  position: relative;
-  top: auto;
-  right: auto;
-  bottom: auto;
-  left: auto;
-  width: clamp(18px, 2.1vw, 23px);
-  min-width: clamp(18px, 2.1vw, 23px);
-  height: clamp(18px, 2.1vw, 23px);
-  min-height: clamp(18px, 2.1vw, 23px);
-  padding: 0;
-  overflow: visible;
-  border: 1px solid #8b6839;
-  border-radius: 50%;
-  background: radial-gradient(circle, #17130f 0 56%, #050605 59% 100%);
-  box-shadow:
-    inset 0 0 0 1px #090a08,
-    inset 0 0 5px #000,
-    0 0 0 2px #070806,
-    0 0 0 3px var(--flask-slot-edge),
-    0 2px 5px rgba(0, 0, 0, .78);
-}
-
 @media (min-width: 1081px) {
   body.desktop-windowed-ui .player-hud {
     left: calc((100% - var(--combat-log-width) - 24px) / 2);
@@ -3120,35 +2885,54 @@ body:not(.light-mode) :where(.map-item.current, .map-item[aria-current="true"]) 
     overflow: hidden;
   }
 
-  body.desktop-windowed-ui .player-hud-flask-rack {
-    position: absolute;
-    top: auto;
-    bottom: calc(100% - 1px);
-    left: -47%;
-    display: block;
-    width: 191%;
-    height: auto;
-    padding: 0;
+  /* 스킬 받침: 오른쪽 날개에는 주 공격만 크게 두고, 소환·자동 사용 젬은 플라스크 받침을 좌우로 뒤집은 위쪽 받침에 놓는다.
+     cqw는 스킬 칸 틀 너비의 1%. 받침 그림과 소켓 중심은 플라스크 받침(너비 191%, 소켓 26/41.8/57.7/73.6/89.5%, 높이 54%)의 거울상이다. */
+  body.desktop-windowed-ui .player-hud-skill-rack {
+    container-type: inline-size;
     overflow: visible;
   }
 
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini {
+  body.desktop-windowed-ui .player-hud-skill-rack:has(.player-hud-skill-slot:nth-child(2))::before {
+    content: '';
     position: absolute;
-    top: 54%;
-    width: 13.1%;
-    min-width: 0;
-    height: auto;
-    min-height: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
+    right: -44%;
+    bottom: calc(100% - 1px);
+    width: 191%;
+    aspect-ratio: 900 / 230;
+    background-image: var(--combat-hud-flask-rack-art);
+    background-position: 1.887% 43.927%;
+    background-repeat: no-repeat;
+    background-size: 241.333% 314.783%;
+    filter: var(--combat-hud-frame-filter);
+    transform: scaleX(-1);
+    pointer-events: none;
   }
 
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(1) { left: 26%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(2) { left: 41.8%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(3) { left: 57.7%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(4) { left: 73.6%; }
-  body.desktop-windowed-ui .player-hud-flask-rack .combat-flask-mini:nth-child(5) { left: 89.5%; }
+  body.desktop-windowed-ui .player-hud-skill-rack .player-hud-skill-slots { position: static; }
+
+  body.desktop-windowed-ui .player-hud-skill-slot.primary {
+    flex: 0 0 40cqw;
+    width: 40cqw;
+    min-height: 0;
+    height: 40cqw;
+  }
+
+  body.desktop-windowed-ui .player-hud-skill-slot:not(:first-child) {
+    position: absolute;
+    bottom: calc(100% - 1px + 9.95cqw);
+    width: 25cqw;
+    min-width: 0;
+    height: 25cqw;
+    min-height: 0;
+    border-radius: 50%;
+  }
+
+  body.desktop-windowed-ui .player-hud-skill-slot:nth-child(2) { left: -39.44cqw; }
+  body.desktop-windowed-ui .player-hud-skill-slot:nth-child(3) { left: -9.08cqw; }
+  body.desktop-windowed-ui .player-hud-skill-slot:nth-child(4) { left: 21.29cqw; }
+  body.desktop-windowed-ui .player-hud-skill-slot:nth-child(5) { left: 51.66cqw; }
+  body.desktop-windowed-ui .player-hud-skill-slot:nth-child(6) { left: 81.84cqw; }
+  body.desktop-windowed-ui .player-hud-skill-slot:not(:first-child) :is(.combat-skill-gem-art, .combat-skill-gem-art img, .combat-effect-icon) { border-radius: 50%; }
 }
 
 @media (max-width: 1080px) {
@@ -3166,13 +2950,5 @@ body:not(.light-mode) :where(.map-item.current, .map-item[aria-current="true"]) 
 
   body.mobile-battle-tab .player-hud-left-wing .player-hud-identity-row span {
     font-size: 10px;
-  }
-
-  body.mobile-battle-tab .player-hud-flask-rack { width: auto; }
-  body.mobile-battle-tab .player-hud-flask-rack .combat-flask-mini {
-    width: 18px;
-    min-width: 18px;
-    height: 18px;
-    min-height: 18px;
   }
 } }

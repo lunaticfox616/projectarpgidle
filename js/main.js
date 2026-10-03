@@ -11,6 +11,22 @@ function runForegroundCombat(nowMs) {
     }
     return executed;
 }
+function runForegroundExplorationFrame(nowMs) {
+    const run = actExplorationState.current(game);
+    if (!run || document.hidden || backgroundCombatRuntime.appInactive) return;
+    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground()) return;
+    const sinceTick = foregroundCombatClock.lastAtMs === null ? 0 : Math.max(0, nowMs - foregroundCombatClock.lastAtMs);
+    // The pending fraction and time since the last 100 ms callback can each approach
+    // 100 ms. Clamping their sum to 100 freezes walking until the next combat tick.
+    const remainder = Math.min(200, foregroundCombatClock.remainderMs + sinceTick);
+    const motionNow = getCombatTime() + remainder;
+    if (motionNow - run.motionTimeMs < 20) return;
+    // Walking shares the combat tick's current stats. A high-refresh display must not
+    // re-evaluate the character build on every RAF, including frames with no motion step.
+    const stats = game.lastCombatStats || getPlayerStats();
+    advancePlayerExplorationFrame(motionNow, stats);
+}
+safeExposeGlobals({runForegroundExplorationFrame});
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
     if (!window.__startupFirstPaintDone) {
@@ -20,6 +36,7 @@ function init() {
         renderPatchNotes();
         setLoadingOverlayState(false);
         let localSaveStatus = loadGame();
+        playerStallUi.settleSales(Date.now());
         if (localSaveStatus.writable === false) {
             setCloudMessage(localSaveStatus.message);
             addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
@@ -33,15 +50,6 @@ function init() {
     }
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
-    // 생장판(추가 시스템) 상태 정규화. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
-    try {
-        ensureGrowthBoardState();
-        syncGrowthBoardUnlocks({ silent: true });
-        validateGrowthPlacements();
-    } catch (error) {
-        console.error('growth board init failed:', error);
-        addLog('⚠️ 생장판 초기화 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
-    }
     unlockPassiveStarEvolution({ silent: true });
     window.__battleAssetAutoloadEnabled = false;
     refreshPassiveVisibility();
@@ -85,10 +93,12 @@ function init() {
     document.getElementById('chk-loop-disable-item-automation').checked = game.settings.disableItemAutomationAfterLoop !== false;
     document.getElementById('sel-loop-map-complete-action').value = getMapCompleteActionOption(game.settings.postLoopMapCompleteAction).value;
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
-    document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     document.getElementById('sel-ui-skin').value = normalizeUiSkin(game.settings.uiSkin);
-    applyThemeMode(game.settings.themeMode);
+    document.getElementById('chk-high-contrast').checked = game.settings.highContrast === true;
+    iconArtUi.sync();
     applyUiSkin(game.settings.uiSkin);
+    applyHighContrast(game.settings.highContrast);
+    hotkeysUi.init();
     uiDisplay.apply(game.settings.uiScale);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
@@ -96,11 +106,9 @@ function init() {
     renderMonsterSkinControls();
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
-    syncJewelSalvageControlsFromSettings();
     checkUnlocks();
-    renderExpertiseUI();
     normalizeSupportLoadout(false);
-    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) runUiStartEncounter();
+    runUiGlobalFunction('ensureEncounterRun');
     runStartupSmokeChecks();
     const passiveRootId = getPassiveTreeRootNodeId(game);
     if (!(game.discoveredPassives || []).includes(passiveRootId)) game.discoveredPassives.push(passiveRootId);
@@ -187,7 +195,12 @@ function init() {
 }
 
 function runGameTick() {
+    combatEquipmentStats.withinTick(runGameTickOnce);
+}
+
+function runGameTickOnce() {
     try {
+        settlePlayerStall();
         if (runForegroundCombat(performance.now()) === 0) return;
         ensureLoopChallengeState();
         let now = Date.now();
@@ -205,6 +218,16 @@ function runGameTick() {
         try { refreshCombatTickUi(); }
         catch (uiError) { console.error('tick UI recovery failed:', uiError); }
     }
+}
+
+function settlePlayerStall() {
+    playerStallUi.tickVisitors(Date.now());
+    if (document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.snapshot
+        || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || Date.now() - game.playerStall.lastAt < 15000) return;
+    const stall = game.playerStall, sequence = stall.offerSequence;
+    const pending = stall.listings.filter(row => row.offer).length;
+    const paid = playerStallUi.settleSales(Date.now());
+    if (paid > 0 || sequence !== stall.offerSequence || pending !== stall.listings.filter(row => row.offer).length) pendingHeavyUiRefresh = true;
 }
 
 function refreshCombatTickUi() {

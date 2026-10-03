@@ -15,8 +15,10 @@ async function run() {
         const canonical = value=>JSON.stringify(value, (key,v)=>key==='spawnStamp'?undefined:v);
         assert.equal(canonical(result.game), canonical(direct.game), 'retained duration uses exact combat and rewards');
     }
-    const {runtime, state} = fixture(21);
-    runtime.performance.now = (()=>{let n=0;return ()=>++n*10;})();
+    const {runtime, state, run:evaluate} = fixture(21);
+    // Every clock read jumps past one slice budget, so each slice runs exactly one 100 ms step.
+    const clockStep = evaluate('BACKGROUND_REPLAY_SLICE_MS') + 2;
+    runtime.performance.now = (()=>{let n=0;return ()=>++n*clockStep;})();
     let tier=0, finish=false, callbacks=0, lastDone=0;
     const result = await runtime.simulateBackgroundCombatChunked({snapshot:state, elapsedMs:16000,
         getControl:()=>({tier, finish}), onProgress(done,total,skipped) {

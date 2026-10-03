@@ -17,7 +17,24 @@ const loopSettlementUi = {
         return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
             <h2>루프 ${loop} 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>
-            <section class="loop-settlement-next"><h3>다음 루프 · ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>`;
+            <section class="loop-settlement-next"><h3>다음 루프 · ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+    },
+    /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew. */
+    resetButtonAttr(ready) {
+        return ready && !playerStall.loopBlockReason(game) ? '' : 'disabled';
+    },
+    /** A refused loop click flashes the warning: toasts are hidden while the loop screen is up. */
+    nudgeStallWarning() {
+        document.querySelectorAll('.loop-settlement-warning').forEach(node => {
+            node.classList.remove('is-nudged');
+            node.getBoundingClientRect(); // restart the animation
+            node.classList.add('is-nudged');
+        });
+    },
+    /** Gear or dew left on the stall blocks the reset (triggerSeasonReset): say so where the loop button is. */
+    stallWarningHtml() {
+        const reason = playerStall.loopBlockReason(game);
+        return reason ? `<p class="loop-settlement-warning" role="alert">${escapeHTML(reason)}</p>` : '';
     },
     render() {
         const ready = !!game.pendingLoopReady;
@@ -27,7 +44,7 @@ const loopSettlementUi = {
         overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
         document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
-        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}`;
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${playerStall.loopBlockReason(game)}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
         if (key === this.renderedKey) return;
         this.renderedKey = key;
         const html = this.summaryHtml();
@@ -38,6 +55,8 @@ const loopSettlementUi = {
         this.dismissedReadyLoop = game.season;
         this.render();
         switchTab('tab-items');
+        // When the stall is what blocks the loop, open it directly.
+        if (playerStall.loopBlockReason(game)) { switchItemSubtab('item-tab-market'); marketUi.show('stall'); }
     },
     reopen() {
         this.dismissedReadyLoop = 0;
@@ -88,10 +107,13 @@ const loopSettlementUi = {
         }
     }
 
-    async function requestManualLoopAdvanceConfirmation() {
-        if (!bountyRuntime.canAdvanceLoop()) {
-            await bountyUi.openTreasure();
-            return false;
+    function requestManualLoopAdvanceConfirmation() {
+        // The reset would be refused anyway: show why instead of asking to confirm.
+        const stallReason = playerStall.loopBlockReason(game);
+        if (stallReason) {
+            if (typeof addLog === 'function') addLog(stallReason, 'attack-monster', { toast: true });
+            loopSettlementUi.nudgeStallWarning();
+            return Promise.resolve(false);
         }
         return requestGameConfirmation(
             '정말 지금 루프하시겠습니까?\n현재 루프를 정산하고 다음 루프로 이동합니다.',

@@ -23,6 +23,8 @@ function createContext(localSave, remoteRecord) {
   const writes = [];
   const confirmations = [];
   let pushes = 0;
+  let fullReads = 0;
+  let summaryReads = 0;
   const context = {
     JSON, Math, Number, Date,
     game: JSON.parse(JSON.stringify(localSave)),
@@ -42,10 +44,22 @@ function createContext(localSave, remoteRecord) {
     },
     persistLocalSave() { writes.push(JSON.parse(JSON.stringify(context.game))); return true; },
     fetchCloudSaveRecord: async () => {
+      fullReads += 1;
       if (remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision')) {
         context.cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(remoteRecord.revision) || 0));
       }
       return remoteRecord;
+    },
+    // The upload checks read only this summary (2026-10-03): the full save is read only to pull it.
+    fetchCloudSaveSummary: async () => {
+      summaryReads += 1;
+      if (remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision')) {
+        context.cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(remoteRecord.revision) || 0));
+      }
+      if (!remoteRecord) return null;
+      const save = remoteRecord.save_data || {};
+      return { updated_at: remoteRecord.updated_at, revision: remoteRecord.revision, summaryOnly: true,
+        save_data: { season: save.season, loopCount: save.loopCount, saveMeta: save.saveMeta || {} } };
     },
     getLocalSaveStamp() { return context.game.saveMeta.lastModifiedAt || 0; },
     getLocalCloudRevision() { context.ensureSaveMeta(); return context.game.saveMeta.cloudRevision; },
@@ -70,7 +84,7 @@ function createContext(localSave, remoteRecord) {
   vm.runInContext(staleGuardSource, context, { filename: 'cloud-stale-guard.js' });
   vm.runInContext(revisionResolutionSource, context, { filename: 'cloud-revision-resolution.js' });
   vm.runInContext(reconcileSource, context, { filename: 'cloud-reconcile.js' });
-  return { context, writes, confirmations, getPushes: () => pushes };
+  return { context, writes, confirmations, getPushes: () => pushes, getFullReads: () => fullReads, getSummaryReads: () => summaryReads };
 }
 
 async function run() {
@@ -165,10 +179,31 @@ async function run() {
   assert.strictEqual(monotonicResumeCase.context.game.season, 8, 'a newer cloud timestamp must never roll back a higher-loop local save');
   assert.strictEqual(monotonicResumeCase.getPushes(), 1, 'the higher-loop local save should repair the stale cloud save');
 
+  const sameLoopRemoteForGuard = {
+    updated_at: '2026-07-25T00:00:00Z', revision: 8,
+    save_data: { level: 70, season: 8, loopCount: 7, maxZoneId: 12, saveMeta: { lastModifiedAt: 800, cloudRevision: 8 } }
+  };
   const autoSyncGuardCase = createContext(higherLoopOlderLocal, lowerLoopNewerRemote);
   const autoSyncGuard = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', autoSyncGuardCase.context);
   assert.strictEqual(autoSyncGuard.status, 'safe-to-push-higher-loop');
   assert.strictEqual(autoSyncGuardCase.context.game.season, 8, 'automatic sync must not replace a higher-loop local save by timestamp');
+  assert.strictEqual(autoSyncGuardCase.getSummaryReads(), 1, 'the automatic upload check reads the save summary');
+  assert.strictEqual(autoSyncGuardCase.getFullReads(), 0, 'the automatic upload check must not download the whole save');
+
+  // The summary decides, the full save is applied: a pull never applies the few summary fields.
+  const guardPullCase = createContext(newerLowerLoopLocal, higherLoopRemote);
+  const guardPull = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', guardPullCase.context);
+  assert.strictEqual(guardPull.status, 'pulled-remote-higher-loop');
+  assert.strictEqual(guardPullCase.getFullReads(), 1, 'pulling a higher-loop cloud save reads the whole save once');
+  assert.strictEqual(guardPullCase.context.game.level, 30, 'the pulled save is the full remote save');
+  assert.strictEqual(guardPullCase.context.game.maxZoneId, 10, 'fields outside the summary arrive with the pull');
+  const olderSameLoopLocal = { level: 90, season: 8, loopCount: 7,
+    saveMeta: { lastModifiedAt: new Date('2026-07-20T00:00:00Z').getTime(), cloudUserId: 'account-b', cloudRevision: 8 } };
+  const newerRemoteCase = createContext(olderSameLoopLocal, { ...sameLoopRemoteForGuard });
+  const newerRemote = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', newerRemoteCase.context);
+  assert.strictEqual(newerRemote.status, 'pulled-remote');
+  assert.strictEqual(newerRemoteCase.getFullReads(), 1);
+  assert.strictEqual(newerRemoteCase.context.game.level, 70, 'a newer same-loop cloud save is pulled in full');
 
   const revisionConflictLocal = JSON.parse(JSON.stringify(higherLoopOlderLocal));
   revisionConflictLocal.saveMeta.cloudRevision = 7;

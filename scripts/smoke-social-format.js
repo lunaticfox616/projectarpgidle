@@ -71,15 +71,11 @@ assert.strictEqual(context.isSocialChatMessageCurrent({ created_at: '2026-08-08T
 assert.strictEqual(context.isSocialChatMessageCurrent({ created_at: '2026-08-08T12:00:00Z' }, presenceNow), false, 'messages reaching three days should expire');
 
 context.getJewelStats = jewel => jewel.stats || [];
-context.getTalismanDisplayName = talisman => talisman.name;
+// 부적은 그루터기 함 아이템이다(2026-09-30).
+context.stumpBox = { itemById: (state, id) => (state.stumpBox.items || []).find(item => item.id === id) || null };
+context.talismans = { describeLine: line => `${line.id} +${line.value}` };
 context.getStatName = stat => stat;
-context.getStarWedgeUniqueDef = type => type === 'sun' ? { name: '태양', desc: '핵심 옵션 증폭' } : null;
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const talismanNameContext = require('./lib/game-runtime').buildGameRuntime();
-assert.strictEqual(talismanNameContext.getGeneratedTalismanName({ stat: 'flatHp', shape: 'L' }), '생명의 모서리',
-  'ordinary talismans must receive a stat-and-shape name instead of displaying only their option');
-assert.strictEqual(talismanNameContext.getGeneratedTalismanName({ statName: '막기 확률(%)', shape: 'T' }), '막기 확률의 갈림쇠',
-  'unknown future talisman stats must still generate a readable fallback name');
 const chatSizeStart = uiSource.indexOf('function applyChatMessageSize(');
 const chatSizeEnd = uiSource.indexOf('function updateSettings()', chatSizeStart);
 const chatSizeContext = { document: { body: { dataset: {} } } };
@@ -91,46 +87,44 @@ assert.strictEqual(chatSizeContext.applyChatMessageSize('invalid'), 'medium', 'd
 context.game = {
   equipment: { 무기: { name: '검', rarity: 'rare', stats: [] } },
   inventory: [{ name: '장갑', slot: '장갑', rarity: 'magic', stats: [] }],
-  jewelSlots: [{ name: '장착 주얼', rarity: 'rare', stats: [{ id: 'crit', val: 3 }] }],
   jewelInventory: [{ name: '보관 주얼', rarity: 'magic', stats: [] }],
-  talismanPlacements: { 10: { talisman: { id: 10, name: '배치 부적', rarity: 'rare', stat: 'flatHp', value: 4 } } },
-  talismanInventory: [{ id: 11, name: '보관 부적', rarity: 'magic', stat: 'crit', value: 2 }],
-  growthInventory: [{ id: 20, name: '보관 생장판', rarity: 'rare', growthCategory: 'flower', growthShapeId: 'dot1', stats: [] }],
+  stumpBox: {
+    items: [
+      { id: 10, family: 'talisman', name: '배치 부적', rarity: 'rare', ripe: true,
+        lines: [{ kind: 'stat', id: 'flatHp', value: 4 }, { kind: 'condition', id: 'cry_boss', value: 12 }] },
+      { id: 11, family: 'talisman', name: '보관 부적', rarity: 'magic', lines: [{ kind: 'stat', id: 'crit', value: 2 }] },
+      { id: 12, family: 'seed', color: 'fire' }
+    ],
+    board: [null, 12, 10].concat(Array(22).fill(null))
+  },
   starWedge: { wedges: [{ id: 30, unique: true, uniqueType: 'sun', lines: [{ stat: 'flatHp', val: 8 }] }] }
 };
-context.GROWTH_BOARD_W = 8;
-context.GROWTH_BOARD_H = 4;
-context.GROWTH_CATEGORY_INFO = { flower: { label: '꽃', icon: '🌸' } };
-context.isGrowthCellUnlocked = (x, y) => y < 2 && x >= 2 && x <= 5;
-context.getPlacedGrowthEntries = () => [{
-  item: { id: 21, name: '배치 생장판', rarity: 'unique', growthCategory: 'flower', growthShapeId: 'domino2', stats: [] },
-  placement: { x: 3, y: 1, rotation: 0 },
-  cells: [[3, 1], [4, 1]]
-}];
+// 별쐐기는 없어졌다(2026-10-01): 옛 저장에 남은 별쐐기가 있어도 채팅에 걸 수 없다.
 const profileSnapshot = context.buildProfileSnapshot();
-assert.strictEqual(profileSnapshot.version, 5, '생장판 배치도를 지원하는 프로필 형식이어야 한다');
-assert.deepStrictEqual(Array.from(profileSnapshot.equipment, item => item.name), ['검'], '장비 스냅샷에 생장판을 뒤에 붙이면 안 된다');
-assert.strictEqual(profileSnapshot.growthItems[0].name, '배치 생장판');
-assert.deepStrictEqual(Array.from(profileSnapshot.growthItems[0].cells, cells => Array.from(cells)), [[3, 1], [4, 1]],
-  '프로필에는 활성 세팅의 실제 점유 칸을 저장해야 한다');
+assert.strictEqual(profileSnapshot.version, 7, '그루터기 함 부적 목록을 싣고 생장판 배치도는 없는 프로필 형식이어야 한다');
+assert.deepStrictEqual(['growthItems', 'growthBoardW', 'growthBoardH', 'growthUnlockedCells'].filter(key => key in profileSnapshot), [],
+  '프로필에 생장판 필드를 싣지 않는다');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(profileSnapshot.talismans)), [{ kind: 'talisman', name: '배치 부적', rarity: 'rare',
+  stats: [{ id: 'flatHp', val: 4 }], effects: ['cry_boss +12'] }], '프로필 부적은 판에 놓인 부적만, 조건부 줄은 효과 문장으로 싣는다');
+assert.deepStrictEqual(Array.from(profileSnapshot.equipment, item => item.name), ['검'], '장비 스냅샷은 장착 장비만');
 context.profileSnapshotForTest = profileSnapshot;
 const equipmentProfileHtml = vm.runInContext("socialState.currentProfile = profileSnapshotForTest; socialState.profileTab = 'equipment'; renderProfileItemsArea();", context);
-assert.ok(!equipmentProfileHtml.includes('배치 생장판'), '장비 탭 아래에 생장판을 표시하면 안 된다');
-const growthProfileHtml = vm.runInContext("socialState.profileTab = 'growth'; renderProfileItemsArea();", context);
-assert.ok(growthProfileHtml.includes('social-growth-board') && growthProfileHtml.includes('배치 1개'), '생장판 탭은 배치 보드와 개수를 표시해야 한다');
-assert.strictEqual((growthProfileHtml.match(/data-growth="0"/g) || []).length, 2, '다칸 생장판의 형태를 보드에 그대로 보여야 한다');
-assert.ok(vm.runInContext("socialState.profileTips['gb:0']", context).includes('배치 생장판'), '배치도의 생장판은 상세 툴팁을 열어야 한다');
-const legacyGrowthProfile = { equipment: [{ name: '예전 생장판', slot: '꽃', rarity: 'rare', stats: [] }] };
-assert.ok(context.renderProfileGrowthBoard(legacyGrowthProfile).includes('이전 프로필 형식'), '이전 프로필은 다음 동기화 전까지 목록으로 호환 표시해야 한다');
+assert.ok(equipmentProfileHtml.includes('검'), '장비 탭은 장착 장비를 보여 준다');
+assert.ok(!require('fs').readFileSync('js/social.js', 'utf8').includes("switchProfileTab('growth')"), 'the profile has no growth board tab');
 assert.strictEqual(context.getChatAttachSnapshot('jewel', 0).kind, 'jewel');
-assert.strictEqual(context.getChatAttachSnapshot('talismanPlaced', 10).kind, 'talisman');
-assert.strictEqual(context.getChatAttachSnapshot('growthPlaced', 21).name, '배치 생장판');
-assert.strictEqual(context.getChatAttachSnapshot('starWedge', 30).name, '태양 #30');
+assert.strictEqual(context.getChatAttachSnapshot('talisman', 10).kind, 'talisman');
+assert.strictEqual(context.getChatAttachSnapshot('talisman', 11).name, '보관 부적', 'stored talismans can be linked too');
+assert.strictEqual(context.getChatAttachSnapshot('talisman', 12), null, 'seeds are not talismans');
+const talismanProfileHtml = vm.runInContext("socialState.profileTab = 'talismans'; renderProfileItemsArea();", context);
+assert.ok(talismanProfileHtml.includes('배치 부적'), '부적 탭은 판에 놓인 부적을 보여야 한다');
+assert.strictEqual(context.getChatAttachSnapshot('growthPlaced', 21), null, 'growth links are gone');
+assert.strictEqual(context.getChatAttachSnapshot('starWedge', 30), null, 'star-wedge links are gone');
 const pickerGroups = context.getChatItemPickerGroups();
 assert.deepStrictEqual(Array.from(pickerGroups, group => group.title),
-  ['장착 장비', '장비 인벤토리', '주얼', '부적', '생장판', '별쐐기']);
-assert.ok(context.renderChatItemPickerGroup(pickerGroups[2]).includes("attachChatItem('jewelSlot',0)"), 'equipped jewels should be selectable in the chat picker');
-assert.ok(context.renderChatItemPickerGroup(pickerGroups[5]).includes('태양 #30'), 'star wedges should render as item links with their unique name');
+  ['장착 장비', '장비 인벤토리', '주얼', '부적']);
+assert.ok(context.renderChatItemPickerGroup(pickerGroups[2]).includes("attachChatItem('jewel',0)"), 'stored jewels should be selectable in the chat picker');
+assert.deepStrictEqual(Array.from(pickerGroups[3].entries, entry => [entry.key, entry.label]), [[10, '[판]'], [11, '[보관]']],
+  'the talisman picker lists the stump box talismans, placed or stored');
 
 const socialRoot = { innerHTML: '' };
 const socialHost = { querySelector() { return socialRoot; }, classList: { contains() { return false; } } };

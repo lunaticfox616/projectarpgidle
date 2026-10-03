@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/items.js', 'utf8');
-const stateSource = fs.readFileSync('js/state.js', 'utf8');
+const stateSource = fs.readFileSync('js/state.js', 'utf8') + '\n' + fs.readFileSync('data/ascendancies.js', 'utf8') // 전직 정의는 2026-10-02 data로 옮겼다;
 
 function extract(startNeedle, endNeedle) {
     const start = source.indexOf(startNeedle);

@@ -33,7 +33,7 @@ const SKILL_DB = {
     '묵직한 강타': { isGem: true, baseDmg: 2.5, baseSpd: 0.5, leech: 0, crit: 5, dmgScale: 0.15, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, aftershockDamagePct: 38, aftershockDelayMs: 420, desc: '총 피해의 62%를 본 타격으로 주고, 0.42초 후 나머지 38%를 여진으로 가합니다.', tags: ['attack', 'melee', 'physical', 'slam'] },
     '흡혈 타격': { isGem: true, baseDmg: 1.05, baseSpd: 1.0, leech: 0.5, instantLeech: true, crit: 0, dmgScale: 0.05, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '카오스 피해와 흡혈이 붙은 일격입니다. 이 젬을 사용해서 주는 피해에는 흡혈이 즉시 적용됩니다.', tags: ['attack', 'melee', 'chaos'] },
     '암살자의 일격': { isGem: true, baseDmg: 1.35, baseSpd: 0.9, leech: 0, crit: 15, dmgScale: 0.05, spdScale: 0.01, ele: 'phys', fullLifeDamageMorePct: 35, targetMode: 'single', targets: 1, desc: '생명력이 가득 찬 적에게 35% 증폭된 피해를 주는 선제 처형기입니다.', tags: ['attack', 'melee', 'physical'] },
-    '회오리바람': { isGem: true, baseDmg: 0.34, baseSpd: 1.65, leech: 0, crit: 0, dmgScale: 0.014, spdScale: 0.04, ele: 'phys', crowdDamageMorePerEnemyPct: 4, crowdDamageMoreCapPct: 28, targetMode: 'whirl', targets: 8, desc: '주변을 순차 타격하며, 자신을 포위한 적 한 기당 피해가 4%씩 최대 28% 증폭됩니다.', tags: ['attack', 'melee', 'physical', 'aoe'] },
+    '회오리바람': { isGem: true, baseDmg: 0.34, baseSpd: 1.65, leech: 0, crit: 0, dmgScale: 0.014, spdScale: 0.04, ele: 'phys', crowdDamageMorePerEnemyPct: 4, crowdDamageMoreCapPct: 28, targetMode: 'whirl', targets: 8, desc: '0.08초마다 회전하며 그 순간 서 있는 칸 둘레의 아직 베지 않은 적을 하나씩 벱니다(움직이는 중에도 이어짐). 자신을 포위한 적 한 기당 피해가 4%씩 최대 28% 증폭됩니다.', tags: ['attack', 'melee', 'physical', 'aoe'] },
     '번개 타격': { isGem: true, baseDmg: 1.15, baseSpd: 1.15, leech: 0, crit: 5, dmgScale: 0.06, spdScale: 0.03, ele: 'light', chainStepDamagePct: -12, ailmentChanceBonus: { shock: 25 }, targetMode: 'chain', targets: 3, desc: '첫 대상을 강하게 타격한 뒤 연쇄됩니다. 도약마다 피해가 12% 감소하고 감전 확률이 25% 증가합니다.', tags: ['attack', 'melee', 'elemental', 'lightning', 'chain'] },
     '얼음 창': { isGem: true, baseDmg: 1.7, baseSpd: 0.75, leech: 0, crit: 8, critScale: 0.5, dmgScale: 0.1, spdScale: 0, ele: 'cold', projectileTravelTimeMultiplier: 0.28, projectilePattern: { mode: 'pierce', kind: 'line' }, targetMode: 'pierce', targets: 2, desc: '매우 빠른 빙창이 적 둘을 꿰뚫습니다. 추가 치명타는 젬 레벨에 따라 성장합니다.', tags: ['attack', 'projectile', 'elemental', 'cold'] },
     '화염 참격': { isGem: true, baseDmg: 1.16, baseSpd: 1.05, leech: 0, crit: 5, dmgScale: 0.065, spdScale: 0.02, ele: 'fire', targetMode: 'cleave', targets: 2, ailmentChanceBonus: { ignite: 25 }, activeAilmentDamageMore: { type: 'ignite', pct: 15 }, desc: '점화 확률 +25%. 점화 중인 적에게 주는 적중 피해가 15% 증폭됩니다.', tags: ['attack', 'melee', 'elemental', 'fire'] },
@@ -66,21 +66,20 @@ const SKILL_DB = {
     '난타 눈보라': { isGem: true, baseDmg: 0.52, baseSpd: 0.88, leech: 0, crit: 5, dmgScale: 0.026, spdScale: 0.016, ele: 'cold', multiHit: 4, randomTargetEachHit: true, targetMode: 'all', targets: 7, spellFlatBase: 22, spellFlatScale: 4.7, combatPattern: { kind: 'field', hits: 4, intervalMs: 300 }, desc: '마름모 지대에 바람과 고드름이 교차합니다. 목표 지역에 눈보라를 유지해 0.3초 간격으로 무작위 적을 4회 타격합니다.', tags: ['spell', 'cold', 'aoe'] },
     '방패 투척': { isGem: true, baseDmg: 1.22, baseSpd: 0.92, leech: 0, crit: 7, dmgScale: 0.065, spdScale: 0.015, ele: 'phys', projectilePattern: { mode: 'return', kind: 'line' }, targetMode: 'pierce', targets: 3, combatPattern: { kind: 'boomerang', returnDelayMs: 180 }, shieldDamageBonusPct: 28, desc: '방패를 직선으로 던져 왕복 타격합니다. 방패 장착 시 피해가 28% 증폭되며, 왕복 타격은 각각 피해의 50%를 줍니다.', tags: ['attack', 'projectile', 'physical', 'shield'] },
     '룬 지뢰': { isGem: true, baseDmg: 1.46, baseSpd: 0.72, leech: 0, crit: 8, dmgScale: 0.075, spdScale: 0.012, ele: 'light', targetMode: 'cleave', targets: 4, spellFlatBase: 28, spellFlatScale: 5.4, combatPattern: { kind: 'mine', armDelayMs: 460 }, ailmentChanceBonus: { shock: 20 }, desc: '가장 밀집된 목표 지역에 룬 지뢰를 설치합니다. 0.46초 뒤 십자 범위가 폭발하며 감전 확률이 20% 증가합니다.', tags: ['spell', 'lightning', 'aoe', 'mine'] },
-    '원소 포션 투척': { isGem: true, baseDmg: 0.84, baseSpd: 1.04, leech: 0, crit: 6, dmgScale: 0.045, spdScale: 0.025, ele: 'fire', randomElementPool: ['fire', 'cold', 'light'], targetMode: 'cleave', targets: 4, spellFlatBase: 22, spellFlatScale: 4.8, projectileTravelTimeMultiplier: 0.5556, projectilePattern: { mode: 'lob', kind: 'blast' }, combatPattern: { kind: 'field', hits: 3, intervalMs: 240, damagePct: 34 }, desc: '포션을 포물선으로 던져 반경 1칸의 원소 웅덩이를 남깁니다. 연금술 포션을 투척해 화염·냉기·번개 중 하나의 웅덩이를 만듭니다. 0.24초 간격으로 3회 타격합니다.', tags: ['spell', 'projectile', 'elemental', 'aoe', 'potion'] },
+    '원소 포션 투척': { isGem: true, baseDmg: 0.84, baseSpd: 1.04, leech: 0, crit: 6, dmgScale: 0.045, spdScale: 0.025, ele: 'light', targetMode: 'cleave', targets: 4, spellFlatBase: 22, spellFlatScale: 4.8, projectileTravelTimeMultiplier: 0.5556, projectilePattern: { mode: 'lob', kind: 'blast' }, combatPattern: { kind: 'field', hits: 3, intervalMs: 240, damagePct: 34 }, desc: '포션을 포물선으로 던져 반경 1칸의 원소 웅덩이를 남깁니다. 연금술 포션을 투척해 화염·냉기·번개 중 하나의 웅덩이를 만듭니다. 0.24초 간격으로 3회 타격합니다.', tags: ['spell', 'projectile', 'elemental', 'aoe', 'potion'] },
     '방패 돌진': { isGem: true, baseDmg: 1.42, baseSpd: 0.74, leech: 0, crit: 4, dmgScale: 0.075, spdScale: 0.012, ele: 'phys', targetMode: 'cleave', targets: 3, mobilityPattern: { kind: 'charge', maxCells: 3 }, requiresShield: true, shieldArmorDamageRatio: 0.8, desc: '방패 장착 시에만 사용 가능합니다. 최대 3칸 안의 적에게 돌진하며, 방패 방어도의 80%를 기본 물리 피해로 사용합니다. 방패의 회피·에너지 보호막은 피해에 적용되지 않습니다.', tags: ['attack', 'melee', 'physical', 'aoe', 'mobility', 'shield'] },
     '그림자 점멸': { isGem: true, baseDmg: 1.68, baseSpd: 0.56, leech: 0, crit: 14, dmgScale: 0.085, spdScale: 0.008, ele: 'chaos', targetMode: 'single', targets: 1, mobilityPattern: { kind: 'blink', maxCells: 6 }, desc: '최대 6칸 안의 적 옆으로 점멸해 베어냅니다. 같은 칸을 반복 왕복하지 않으며 낮은 공격 속도로 재사용을 제한합니다.', tags: ['attack', 'melee', 'chaos', 'mobility'] },
     '집중 광선': { isGem: true, baseDmg: 0.54, baseSpd: 0.64, leech: 0, crit: 9, dmgScale: 0.03, spdScale: 0.01, ele: 'light', targetMode: 'pierce', targets: 4, spellFlatBase: 20, spellFlatScale: 4.6, combatPattern: { kind: 'channel', hits: 5, intervalMs: 180, damagePct: 22 }, desc: '이동을 멈추고 직선 광선을 0.18초 간격으로 5회 집중합니다. 동결·기절·속박에 걸리면 남은 집중이 취소됩니다.', tags: ['spell', 'lightning', 'channeling'] },
-    '용화 숨결': { isGem: true, baseDmg: 0.5, baseSpd: 0.68, leech: 0, crit: 5, dmgScale: 0.027, spdScale: 0.012, ele: 'fire', targetMode: 'spread', targets: 5, spellFlatBase: 19, spellFlatScale: 4.4, combatPattern: { kind: 'channel', hits: 4, intervalMs: 220, damagePct: 27 }, ailmentChanceBonus: { ignite: 25 }, desc: '이동을 멈추고 전방 부채꼴에 불길을 4회 내뿜습니다. 군중 제어에 걸리면 남은 숨결이 취소됩니다.', tags: ['spell', 'fire', 'aoe', 'channeling'] },
-    '공허 절삭광': { isGem: true, baseDmg: 0.62, baseSpd: 0.6, spellLeech: 0.2, crit: 7, dmgScale: 0.034, spdScale: 0.008, ele: 'chaos', targetMode: 'pierce', targets: 3, spellFlatBase: 23, spellFlatScale: 5.0, combatPattern: { kind: 'channel', hits: 4, intervalMs: 240, damagePct: 29 }, desc: '좁은 직선 절삭로를 따라 톱니 같은 공허 칼날이 반복 통과합니다. 이동을 멈추고 천천히 회전하는 공허 칼날을 4회 유지합니다. 군중 제어에 걸리면 남은 집중이 취소됩니다.', tags: ['spell', 'chaos', 'channeling'] }
+    '용화 숨결': { isGem: true, baseDmg: 0.5, baseSpd: 0.68, leech: 0, crit: 5, dmgScale: 0.027, spdScale: 0.012, ele: 'fire', targetMode: 'spread', targets: 5, spellFlatBase: 19, spellFlatScale: 4.4, combatPattern: { kind: 'channel', hits: 4, intervalMs: 220, damagePct: 27 }, ailmentChanceBonus: { ignite: 25 }, desc: '이동을 멈추고 전방 부채꼴을 좌우로 오가는 불길로 4회 쓸어냅니다. 군중 제어에 걸리면 남은 숨결이 취소됩니다.', tags: ['spell', 'fire', 'aoe', 'channeling'] },
+    '공허 절삭광': { isGem: true, baseDmg: 0.62, baseSpd: 0.6, spellLeech: 0.2, crit: 7, dmgScale: 0.034, spdScale: 0.008, ele: 'chaos', targetMode: 'pierce', targets: 3, spellFlatBase: 23, spellFlatScale: 5.0, combatPattern: { kind: 'channel', hits: 4, intervalMs: 240, damagePct: 29 }, desc: '이동을 멈추고 좁은 직선으로 갈라지는 공허 광선을 뿜어, 관통한 적을 4회 절삭합니다. 군중 제어에 걸리면 남은 집중이 취소됩니다.', tags: ['spell', 'chaos', 'channeling'] }
     ,
-    '서리늑대 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'cold', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 빠른 공격 속도를 가진 서리늑대를 소환합니다. 소환수가 냉기 피해로 공격합니다. 소환수 전용 스탯과 일반 피해 증가 및 젬 태그에 맞는 피해 증가가 적용됩니다.', tags: ['summon', 'summon_attack', 'cold', 'elemental'] },
-    '불곰 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 공격은 느리지만 1타 피해가 강한 불곰을 소환합니다. 소환수가 화염 피해로 공격합니다.', tags: ['summon', 'summon_attack', 'fire', 'elemental'] },
-    '벼락멧돼지 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 자체 저항 관통이 높은 벼락멧돼지를 소환합니다. 소환수가 번개 피해로 공격합니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental'] },
-    '칼날까마귀 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 치명타 확률과 치명타 피해가 높은 칼날까마귀를 소환합니다. 소환수가 물리 피해로 공격합니다.', tags: ['summon', 'summon_attack', 'physical'] },
-    '공허 유충 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 카오스 저항 관통에 특화된 공허 유충을 소환합니다. 소환수가 카오스 피해로 공격합니다.', tags: ['summon', 'summon_attack', 'chaos'] },
-    '벌떼 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 매우 빠르게 공격하는 벌떼를 소환합니다. 소환수가 카오스 피해로 공격합니다.', tags: ['summon', 'summon_attack', 'chaos'] },
-    '폭풍 정령 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 먼 거리에서 빠른 번개를 발사하는 폭풍 정령을 소환합니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental'] },
-    '철갑 거북 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 느리지만 생명력과 방어도가 높은 철갑 거북을 소환합니다.', tags: ['summon', 'summon_attack', 'physical'] }
+    // 위습 정령 소환 6종 (스킬 변경분 2, 2026-09-30): 동물 소환 8종을 대신한다. 시트·비행 시간 data/wisp-summons.js, 수치 combat.js getSummonProfile.
+    '화염 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'fire', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 상하좌우로 불꽃 꼬리가 달린 화염 위습 정령을 소환합니다. 위습이 불덩이를 포물선으로 던져 화염 피해를 줍니다.', tags: ['summon', 'summon_attack', 'fire', 'elemental'] },
+    '냉기 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'cold', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 얼음 수정 모양의 냉기 위습 정령을 소환합니다. 위습이 얼음 조각을 곧게 던져 냉기 피해를 줍니다.', tags: ['summon', 'summon_attack', 'cold', 'elemental'] },
+    '번개 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전기 구체 모양의 번개 위습 정령을 소환합니다. 위습이 대상에게 전류를 흘려 감전시키는 번개 피해를 줍니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental'] },
+    '물리 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 고목 씨앗 모양의 물리 위습 정령을 소환합니다. 위습이 땅속으로 뿌리를 보내 대상을 옭아매는 물리 피해를 줍니다.', tags: ['summon', 'summon_attack', 'physical'] },
+    '카오스 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 눈이 하나 있는 보라빛 구체의 카오스 위습 정령을 소환합니다. 위습이 공허 구슬을 포물선으로 던지고 떨어진 자리에 카오스 안개를 남깁니다.', tags: ['summon', 'summon_attack', 'chaos'] },
+    '분광 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', elementLabel: '삼원소', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 화염·냉기·번개 세 구체가 서로 도는 분광 위습 정령을 소환합니다. 위습이 삼원소가 꼬인 광선을 쏘아 공격마다 화염·냉기·번개 중 하나로 피해를 줍니다.', tags: ['summon', 'summon_attack', 'elemental'] }
 };
 
 // 루프 시작 후 첫 처치에 재능(시작 캐릭터)별로 확정 지급되는 스킬 젬.
@@ -93,7 +92,7 @@ const LOOP_STARTER_GEM_BY_HERO = {
     hero4: '흡혈 타격',    // 블레이드 (카오스) — 카오스 태그 중 하위권 화력, 컨셉(흡혈)은 유지
     hero5: '번개 타격',    // 성기사 (물리+번개) — 전사/수호자와 겹치지 않게 번개 계열로 차별화
     hero6: '독니 사출',    // 저격수 (투사체) — 궁수와 다른 투사체 젬
-    hero7: '칼날까마귀 소환', // 소환사 (소환) — 물리 속성 소환수로 변경
+    hero7: '물리 위습 소환', // 소환사 (소환) — 물리 속성 소환수
     hero8: '중력 붕괴',    // 수호자 (근접·물리) — 전사와 다른 물리 젬(주문형)
     hero9: '서리 폭발',    // 원소술사 (원소) — 원소 태그 중 하위권 화력
     hero10: '빙결 침식'    // 연금술사 (지속피해) — 지속피해 태그 중 하위권 화력
@@ -101,22 +100,49 @@ const LOOP_STARTER_GEM_BY_HERO = {
 
 // v3.38 gem balance: coefficients are per confirmed contact.
 Object.assign(SKILL_DB, {
-    "탄성 플라스크": {"isGem":true,"ele":"chaos","baseSpd":0.5,"desc":"최대 4번 튕기는 카오스 플라스크","tags":["spell","projectile","chaos"],"combatPattern":{"kind":"bouncingFlask","hits":4},"baseDmg":0.7,"dmgScale":0.038,"spdScale":0.008,"spellFlatBase":20,"spellFlatScale":4.4,"crit":6,"nativeCastId":44,"leech":0,"targets":99,"category":"spell","rangeText":"최대 4회 연쇄"},
+    "탄성 플라스크": {"isGem":true,"ele":"chaos","baseSpd":0.5,"desc":"최대 4번 튕기는 카오스 플라스크","tags":["spell","projectile","chaos","potion"],"combatPattern":{"kind":"bouncingFlask","hits":4},"baseDmg":0.7,"dmgScale":0.038,"spdScale":0.008,"spellFlatBase":20,"spellFlatScale":4.4,"crit":6,"nativeCastId":44,"leech":0,"targets":99,"category":"spell","rangeText":"최대 4회 연쇄"},
     "광창 강림": {"isGem":true,"category":"attack","ele":"light","baseSpd":0.68,"desc":"주변 3칸의 적 위치에 광창 낙하","tags":["attack","lightning","aoe","elemental"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"radiantLance","hits":1},"baseDmg":2.65,"dmgScale":0.15,"spdScale":0.01,"crit":6,"nativeCastId":45,"leech":0,"targets":99,"rangeText":"주변 3칸 · 적이 있는 칸에 낙하"},
     "시간 가속": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":1,"damageType":"dot","desc":"5초간 자신을 따라오는 카오스 지속 피해","tags":["spell","chaos","aoe","dot","duration"],"targetMode":"all-enemies-around-caster","combatPattern":{"kind":"timeAcceleration","durationMs":5000,"intervalMs":1000,"ticks":5,"initialTick":false},"baseDmg":0.7,"dmgScale":0.038,"spdScale":0,"spellFlatBase":24,"spellFlatScale":5,"crit":0,"nativeCastId":46,"leech":0,"targets":99,"rangeText":"원형 반경 3칸 · 1초마다 5회"},
-    "폭발 혼합물": {"isGem":true,"category":"attack","ele":"fire","baseSpd":0.78,"desc":"투척 지점 3×3 화염 폭발","tags":["attack","projectile","fire","aoe","elemental"],"targetMode":"aimed-cell","combatPattern":{"kind":"explosiveMixture","impacts":1,"homing":false},"baseDmg":2.5,"dmgScale":0.15,"spdScale":0.014,"crit":6,"nativeCastId":47,"leech":0,"targets":99,"rangeText":"사거리 4칸 · 착지 지점 3×3"},
-    "과냉각 혼합물": {"isGem":true,"category":"attack","ele":"cold","baseSpd":0.76,"desc":"적에게 직접 투척 · 착지 타격과 바깥으로 퍼지는 냉기 고리","tags":["attack","projectile","cold","aoe","elemental"],"targetMode":"aimed-annuli","combatPattern":{"kind":"supercooledMixture","impacts":3,"radii":[1,2,3],"centerHit":true},"baseDmg":2.65,"dmgScale":0.14,"spdScale":0.012,"crit":6,"nativeCastId":48,"leech":0,"targets":99,"rangeText":"사거리 4칸 · 반경 1→2→3 고리"},
-    "빈 플라스크": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.78,"desc":"빈 병 적중 후 유리 파편 1~4개 발사","tags":["attack","projectile","physical"],"targetMode":"flask-then-shards","combatPattern":{"kind":"emptyFlask","baseShards":[1,4],"extraProjectileChance":true},"baseDmg":0.48,"dmgScale":0.032,"spdScale":0.012,"crit":6,"nativeCastId":49,"leech":0,"targets":99,"rangeText":"사거리 4칸 · 파편 사거리 3칸"},
+    "폭발 혼합물": {"isGem":true,"category":"attack","ele":"fire","baseSpd":0.78,"desc":"투척 지점 3×3 화염 폭발","tags":["attack","projectile","fire","aoe","elemental","potion"],"targetMode":"aimed-cell","combatPattern":{"kind":"explosiveMixture","impacts":1,"homing":false},"baseDmg":2.5,"dmgScale":0.15,"spdScale":0.014,"crit":6,"nativeCastId":47,"leech":0,"targets":99,"rangeText":"사거리 4칸 · 착지 지점 3×3"},
+    "과냉각 혼합물": {"isGem":true,"category":"attack","ele":"cold","baseSpd":0.76,"desc":"적에게 직접 투척 · 착지 타격과 바깥으로 퍼지는 냉기 고리","tags":["attack","projectile","cold","aoe","elemental","potion"],"targetMode":"aimed-annuli","combatPattern":{"kind":"supercooledMixture","impacts":3,"radii":[1,2,3],"centerHit":true},"baseDmg":2.65,"dmgScale":0.14,"spdScale":0.012,"crit":6,"nativeCastId":48,"leech":0,"targets":99,"rangeText":"사거리 4칸 · 반경 1→2→3 고리"},
+    "빈 플라스크": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.78,"desc":"빈 병 적중 후 유리 파편 1~4개 발사","tags":["attack","projectile","physical","potion"],"targetMode":"flask-then-shards","combatPattern":{"kind":"emptyFlask","baseShards":[1,4],"extraProjectileChance":true},"baseDmg":0.48,"dmgScale":0.032,"spdScale":0.012,"crit":6,"nativeCastId":49,"leech":0,"targets":99,"rangeText":"사거리 4칸 · 파편 사거리 3칸"},
     "신성한 안개": {"isGem":true,"category":"spell","ele":"fire","baseSpd":0.9,"desc":"인접 8칸 화염 주문 · 받는 화염 피해 +20%, 4초","tags":["spell","fire","aoe","debuff","elemental"],"targetMode":"self-adjacent","combatPattern":{"kind":"holyMist","radius":1,"hits":1},"baseDmg":1.4,"dmgScale":0.072,"spdScale":0.016,"spellFlatBase":22,"spellFlatScale":4.8,"crit":6,"nativeCastId":50,"leech":0,"targets":99,"rangeText":"주변 1칸 · 인접 8칸"},
-    "파문심판": {"isGem":true,"category":"attack","ele":"light","baseSpd":0.78,"desc":"전방 2칸 지점의 십자형 번개 타격","tags":["attack","light","aoe","elemental"],"targetMode":"forward-two-cross","combatPattern":{"kind":"rippleJudgment","forwardCells":2,"crossRadius":1},"baseDmg":2.5,"dmgScale":0.14,"spdScale":0.014,"crit":8,"nativeCastId":51,"leech":0,"targets":99,"rangeText":"전방 2칸 · 십자 5칸"},
-    "암살": {"isGem":true,"ele":"phys","category":"attack","baseSpd":0.74,"targetMode":"behind-target","targets":99,"desc":"적 뒤로 순간이동 후 찌르기 · 중독 또는 출혈 30%","tags":["attack","melee","physical","mobility","dagger"],"combatPattern":{"kind":"assassination","range":4},"baseDmg":2.85,"dmgScale":0.16,"spdScale":0.012,"crit":10,"nativeCastId":52,"leech":0,"rangeText":"사거리 4칸 · 후방 칸이 비어 있어야 함"},
+    "파문심판": {"isGem":true,"category":"attack","ele":"light","baseSpd":0.78,"desc":"향로를 앞으로 휘둘러, 전방 2칸 지점 십자 5칸에 번개를 떨어뜨립니다","tags":["attack","light","aoe","elemental"],"targetMode":"forward-two-cross","combatPattern":{"kind":"rippleJudgment","forwardCells":2,"crossRadius":1},"baseDmg":2.5,"dmgScale":0.14,"spdScale":0.014,"crit":8,"nativeCastId":51,"leech":0,"targets":99,"rangeText":"전방 2칸 · 십자 5칸"},
+    "암살": {"isGem":true,"ele":"phys","category":"attack","baseSpd":0.74,"targetMode":"behind-target","targets":99,"desc":"적 뒤로 순간이동 후 찌르기(뒤가 막히면 가까운 옆, 그다음 반대쪽 옆) · 중독 또는 출혈 30%","tags":["attack","melee","physical","mobility","dagger"],"combatPattern":{"kind":"assassination","range":4},"baseDmg":2.85,"dmgScale":0.16,"spdScale":0.012,"crit":10,"nativeCastId":52,"leech":0,"rangeText":"사거리 4칸 · 뒤·좌우 칸 중 한 곳이 비어 있어야 함"},
     "인과": {"isGem":true,"category":"attack","ele":"phys","baseSpd":1,"desc":"집중 유지 중 유효한 피격 5회마다 물리 폭발 · 집중 중단 시 누적 초기화","tags":["attack","physical","aoe","channeling"],"targetMode":"area","combatPattern":{"kind":"channel"},"baseDmg":12,"dmgScale":0.7,"spdScale":0,"crit":0,"nativeCastId":53,"leech":0,"targets":99,"rangeText":"원형 반경 4칸 · 5회 피격"}
 });
+// 이동기 4종 (스킬 변경분 2, 2026-09-30 · 인계 mob4_core.js). Worn in the 이동 스킬 slot (js/mobility-skill.js) and cast
+// by js/skill-gem-casts.js. Damage and cooldowns are provisional (handoff §8-5); 향로구름 deals no damage.
+Object.assign(SKILL_DB, {
+    "차원찢기": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":0.8,"targetMode":"aimed-cell","targets":99,"nativeCastId":54,
+        "desc":"오브로 허공을 갈라 차원의 틈을 열고 들어가, 최대 4칸 떨어진 빈 칸의 틈에서 나옵니다. 두 틈이 닫히는 순간 도착 칸 둘레 8칸의 적에게 카오스 피해를 줍니다.",
+        "tags":["spell","chaos","aoe","mobility"],"baseDmg":1.6,"dmgScale":0.085,"spdScale":0.01,"spellFlatBase":22,"spellFlatScale":4.8,"crit":6,"leech":0,
+        "mobilityCooldownMs":4000,"rangeText":"사거리 4칸 · 도착 칸 둘레 8칸"},
+    "향로구름": {"isGem":true,"category":"spell","ele":"fire","baseSpd":0.9,"targetMode":"nearest-enemy","targets":99,"nativeCastId":55,
+        "desc":"향로를 휘둘러 연막 구름에 몸을 숨기고, 최대 5칸 안의 적 곁 빈 칸으로 순간이동합니다. 도착한 자리에도 연막이 피어오릅니다. 피해 없음.",
+        "tags":["spell","mobility"],"baseDmg":0,"dmgScale":0,"spdScale":0.01,"crit":0,"leech":0,
+        "mobilityCooldownMs":3000,"rangeText":"사거리 5칸 · 적 곁으로 순간이동 · 피해 없음"},
+    "작살화살": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":56,
+        "desc":"줄이 달린 작살화살을 쏴 최대 5칸 안의 적에게 물리 피해를 주고, 줄을 당겨 그 적 바로 앞 칸까지 끌려갑니다. 이미 붙어 있으면 끌려가지 않습니다.",
+        "tags":["attack","projectile","physical","mobility"],"baseDmg":1.7,"dmgScale":0.09,"spdScale":0.01,"crit":8,"leech":0,
+        "mobilityCooldownMs":4000,"rangeText":"사거리 5칸 · 적 앞 칸까지 끌려감"},
+    "공중강타": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.72,"targetMode":"aimed-cell","targets":99,"nativeCastId":57,
+        "desc":"포물선을 그리며 최대 3칸 뛰어올라 대검으로 내려찍어, 착지 칸 둘레 8칸의 적에게 물리 피해를 줍니다. 조준한 칸에 적이 있으면 그 앞 빈 칸에 착지합니다.",
+        "tags":["attack","melee","physical","aoe","mobility"],"baseDmg":1.8,"dmgScale":0.095,"spdScale":0.01,"crit":6,"leech":0,
+        "mobilityCooldownMs":4500,"rangeText":"사거리 3칸 · 착지 칸 둘레 8칸"}
+});
+// The mobility slot's cooldowns for the mobility gems that were main gems before (provisional).
+Object.assign(SKILL_DB['방패 돌진'], { mobilityCooldownMs: 3000 });
+Object.assign(SKILL_DB['그림자 점멸'], { mobilityCooldownMs: 3500 });
+Object.assign(SKILL_DB['암살'], { mobilityCooldownMs: 4000 });
 // These authored flask trajectories own their contacts; generic pattern engraving cannot replace them.
 for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합물','빈 플라스크']) {
     SKILL_DB[name].projectilePattern = { mode: 'lob', kind: 'blast', fixed: true };
     SKILL_DB[name].rangeText = '발사 방식: ' + SKILL_DB[name].rangeText + ' · 고유 궤적';
 }
+// 작살화살's harpoon flies on its own rope: one straight shot that no engraving replaces.
+Object.assign(SKILL_DB['작살화살'], { projectilePattern: { mode: 'focus', kind: 'line', fixed: true },
+    rangeText: '발사 방식: ' + SKILL_DB['작살화살'].rangeText + ' · 고유 궤적' });
 safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, PROJECTILE_PATTERN_MODE_DB });
 
 // signature 스킬은 전용 이미지 프레임을 재생한다. 모든 액티브 젬을 명시하여 누락을 검사한다.
@@ -131,8 +157,11 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '파문심판': {family:'worldTree',scale:1,impactVfx:false},
     '암살': {family:'worldTree',scale:1,impactVfx:false},
     '인과': {family:'worldTree',scale:1,impactVfx:false},
+    '차원찢기': {family:'worldTree',scale:1,impactVfx:false},
+    '향로구름': {family:'worldTree',scale:1,impactVfx:false},
+    '작살화살': {family:'worldTree',scale:1,impactVfx:false},
+    '공중강타': {family:'worldTree',scale:1,impactVfx:false},
     '기본 공격': { family: 'slash', scale: 0.82 },
-    '펜리르의 독니': { family: 'bite', scale: 0.86, impactAccentVfx: false },
     '연속 베기': { family: 'continuousSlash', scale: 1, repeats: 1, impactAccentVfx: false },
     '묵직한 강타': { family: 'slam', scale: 0.92, sigil: 2 },
     '흡혈 타격': { family: 'slash', scale: 0.78, accent: 'blood', sigil: 3 },
@@ -177,14 +206,12 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '집중 광선': { family: 'beam', channelAsset: 'focusBeam', scale: 1.0, impactVfx: false, sigilVfx: false, sigil: 47 },
     '용화 숨결': { family: 'breath', channelAsset: 'dragonBreath', scale: 1.02, impactVfx: false, sigilVfx: false, sigil: 48 },
     '공허 절삭광': { signature: 'voidCutter', family: 'voidBlade', channelAsset: 'voidCutter', scale: 0.96, impactVfx: false, sigilVfx: false, sigil: 49 },
-    '서리늑대 소환': { family: 'summon', scale: 0.74, sigil: 36 },
-    '불곰 소환': { family: 'summon', scale: 0.98, sigil: 37 },
-    '벼락멧돼지 소환': { family: 'summon', scale: 0.9, sigil: 38 },
-    '칼날까마귀 소환': { family: 'summon', scale: 0.72, sharp: true, sigil: 39 },
-    '공허 유충 소환': { family: 'summon', scale: 0.8, sigil: 40 },
-    '벌떼 소환': { family: 'summon', scale: 0.62, repeats: 3, sigil: 41 },
-    '폭풍 정령 소환': { family: 'summon', scale: 0.8, sigil: 50 },
-    '철갑 거북 소환': { family: 'summon', scale: 0.96, sigil: 51 }
+    '화염 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
+    '냉기 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
+    '번개 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
+    '물리 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
+    '카오스 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
+    '분광 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false }
 });
 
 safeExposeData({ SKILL_GEM_VFX_PROFILES });
@@ -193,7 +220,6 @@ safeExposeData({ SKILL_GEM_VFX_PROFILES });
 const SKILL_AREA_VFX_ASSETS = Object.freeze({
     skillFxWorldTree: 'assets/effects/world-tree-skills-v338.webp',
     skillFxBasicSlash: 'assets/effects/basic-slash-sheet.png',
-    skillFxFenrirFang: 'assets/effects/fenrir-fang-sheet.png',
     skillFxDoubleSlash: 'assets/effects/double-slash-sheet.png',
     skillFxGravitySheet: 'assets/effects/pixel-gravity-sheet-v1.png',
     skillFxFrostErosionSheet: 'assets/effects/pixel-frost-erosion-sheet-v2.png',
@@ -303,14 +329,16 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '집중 광선': 'assets/gems/world-tree/focus-beam.png',
     '용화 숨결': 'assets/gems/world-tree/dragon-breath.png',
     '공허 절삭광': 'assets/gems/world-tree/void-cutter.png',
-    '서리늑대 소환': 'assets/gems/active/summon-frost-wolf-v1.png',
-    '불곰 소환': 'assets/gems/active/summon-fire-bear-v1.png',
-    '벼락멧돼지 소환': 'assets/gems/active/summon-thunder-boar-v1.png',
-    '칼날까마귀 소환': 'assets/gems/active/summon-blade-raven-v1.png',
-    '공허 유충 소환': 'assets/gems/active/summon-void-larva-v1.png',
-    '벌떼 소환': 'assets/gems/active/summon-swarm-v1.png',
-    '폭풍 정령 소환': 'assets/gems/active/summon-storm-spirit-v1.png',
-    '철갑 거북 소환': 'assets/gems/active/summon-armored-turtle-v1.png'
+    '화염 위습 소환': 'assets/gems/active/summon-wisp-fire-v1.png',
+    '냉기 위습 소환': 'assets/gems/active/summon-wisp-cold-v1.png',
+    '번개 위습 소환': 'assets/gems/active/summon-wisp-light-v1.png',
+    '물리 위습 소환': 'assets/gems/active/summon-wisp-phys-v1.png',
+    '카오스 위습 소환': 'assets/gems/active/summon-wisp-chaos-v1.png',
+    '분광 위습 소환': 'assets/gems/active/summon-wisp-spectral-v1.png',
+    '차원찢기': 'assets/gems/world-tree/dimension-rift.png',
+    '향로구름': 'assets/gems/world-tree/censer-cloud.png',
+    '작살화살': 'assets/gems/world-tree/harpoon-arrow.png',
+    '공중강타': 'assets/gems/world-tree/aerial-slam.png'
 });
 
 safeExposeData({ SKILL_GEM_ART_PATHS });
@@ -381,68 +409,21 @@ const SKILL_GRID_DB = {
     '집중 광선':     { kind: 'line',  range: 7 },
     '용화 숨결':     { kind: 'cone',  range: 4 },
     '공허 절삭광':   { kind: 'line',  range: 6 },
+    '차원찢기':      { kind: 'blast', range: 4, radius: 1, shape: 'square' },
+    '향로구름':      { kind: 'melee', range: 5 },
+    '작살화살':      { kind: 'line',  range: 5 },
+    '공중강타':      { kind: 'blast', range: 3, radius: 1, shape: 'square' },
     // 소환 젬 카드에는 소환수 본체가 실제로 사용하는 공격 사거리를 표시한다.
-    '서리늑대 소환':   { kind: 'summon', range: 1 },
-    '불곰 소환':       { kind: 'summon', range: 1 },
-    '벼락멧돼지 소환': { kind: 'summon', range: 1 },
-    '칼날까마귀 소환': { kind: 'summon', range: 2 },
-    '공허 유충 소환':  { kind: 'summon', range: 3 },
-    '벌떼 소환':       { kind: 'summon', range: 2 },
-    '폭풍 정령 소환':  { kind: 'summon', range: 4 },
-    '철갑 거북 소환':  { kind: 'summon', range: 1 }
+    '화염 위습 소환':   { kind: 'summon', range: 4 },
+    '냉기 위습 소환':   { kind: 'summon', range: 4 },
+    '번개 위습 소환':   { kind: 'summon', range: 3 },
+    '물리 위습 소환':   { kind: 'summon', range: 3 },
+    '카오스 위습 소환': { kind: 'summon', range: 4 },
+    '분광 위습 소환':   { kind: 'summon', range: 4 }
 };
 
 safeExposeData({ SKILL_GRID_DB });
 
-
-const CONDITION_GEM_DB = {
-  curse: [
-    { name:'재의 표식', type:'curse', castTime:1.1, duration:6, tags:['fire','curse'], desc:'화염 취약 저주.' },
-    { name:'빙결의 낙인', type:'curse', castTime:1.1, duration:6, tags:['cold','curse'], desc:'냉기 취약 저주.' },
-    { name:'감전 문양', type:'curse', castTime:1.1, duration:6, tags:['lightning','curse'], desc:'번개 취약 저주.' },
-    { name:'부패 각인', type:'curse', castTime:1.1, duration:6, tags:['chaos','curse'], desc:'카오스 취약 저주.' },
-    { name:'균열 저주', type:'curse', castTime:1.2, duration:7, tags:['physical','curse'], desc:'방어 약화 저주.' },
-    { name:'취약의 낙인', type:'curse', castTime:1.1, duration:7, tags:['physical','curse'], desc:'받는 피해 증가.' },
-    { name:'파멸 징표', type:'curse', castTime:1.3, duration:5, tags:['chaos','curse'], desc:'후반 폭증 저주.' },
-    { name:'쇠약의 기도', type:'curse', castTime:1.0, duration:8, tags:['cold','curse'], desc:'적 공세 둔화.' },
-    { name:'타오른 죄책', type:'curse', castTime:1.0, duration:7, tags:['fire','curse'], desc:'점화 증폭.' },
-    { name:'천둥 포박', type:'curse', castTime:1.2, duration:6, tags:['lightning','curse'], desc:'감전 확률 증가.' },
-    { name:'절단의 맹세', type:'curse', castTime:1.2, duration:6, tags:['physical','curse'], desc:'물리 취약.' },
-    { name:'심연 고리', type:'curse', castTime:1.2, duration:7, tags:['chaos','curse'], desc:'저항 침식.' },
-    { name:'상처 악화', type:'curse', castTime:1.0, duration:7, tags:['physical','curse'], desc:'생명력 재생 약화.' },
-    { name:'약점 조준', type:'curse', castTime:1.1, duration:6, tags:['projectile','curse'], desc:'투사체 취약 유발.' }
-  ],
-  warcry: [
-    { name:'전장의 함성', type:'warcry', castTime:1.8, duration:5, tags:['physical','warcry'], desc:'치명 버프.' },
-    { name:'피의 함성', type:'warcry', castTime:2.0, duration:6, tags:['chaos','warcry'], desc:'흡혈 버프.' },
-    { name:'추적자의 함성', type:'warcry', castTime:1.7, duration:4, tags:['lightning','warcry'], desc:'추적 강화.' },
-    { name:'용광의 외침', type:'warcry', castTime:1.9, duration:5, tags:['fire','warcry'], desc:'화염 강화.' },
-    { name:'빙하의 포효', type:'warcry', castTime:1.9, duration:5, tags:['cold','warcry'], desc:'냉기 강화.' },
-    { name:'폭풍의 고함', type:'warcry', castTime:1.8, duration:5, tags:['lightning','warcry'], desc:'번개 강화.' },
-    { name:'공허의 외침', type:'warcry', castTime:2.1, duration:5, tags:['chaos','warcry'], desc:'카오스 강화.' },
-    { name:'결전 신호', type:'warcry', castTime:2.2, duration:4, tags:['physical','warcry'], desc:'보스전 버프.' },
-    { name:'지진의 함성', type:'warcry', castTime:2.0, duration:5, tags:['physical','warcry','slam'], desc:'강타 후속 타격.' }
-  ],
-  guard: [
-    { name:'원소 장막', type:'guard', castTime:0.6, duration:2.2, tags:['elemental','guard'], desc:'원소 저항 보호막.' },
-    { name:'가시 방패', type:'guard', castTime:0.7, duration:3, tags:['physical','guard'], desc:'가시 반격 보호막.' },
-    { name:'현무 장막', type:'guard', castTime:0.6, duration:2.2, tags:['elemental','guard'], desc:'(구) 원소 장막.' },
-    { name:'응보 방패', type:'guard', castTime:0.7, duration:3, tags:['physical','guard'], desc:'(구) 가시 방패.' },
-    { name:'철의 맹세', type:'guard', castTime:0.6, duration:4, tags:['physical','guard'], desc:'물리 피해 감소.' },
-    { name:'서리 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['cold','guard'], desc:'냉기 보호막.' },
-    { name:'폭풍 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['lightning','guard'], desc:'번개 보호막.' },
-    { name:'심연 껍질', type:'guard', castTime:0.7, duration:2.8, tags:['chaos','guard'], desc:'카오스 보호막.' },
-    { name:'용암 벽', type:'guard', castTime:0.6, duration:2.6, tags:['fire','guard'], desc:'점화 대응 보호막.' },
-    { name:'이독제독', type:'guard', castTime:0.7, duration:3.2, tags:['chaos','guard'], desc:'중독 반전 보호막.' },
-    { name:'불멸의 힘', type:'guard', castTime:0.8, duration:4.0, tags:['physical','guard'], desc:'지연 재생 보호막.' },
-    { name:'에너지 과다', type:'guard', castTime:0.7, duration:3.5, tags:['lightning','guard'], desc:'에너지 보호막 과충전.' },
-    { name:'무혈', type:'guard', castTime:0.7, duration:3.0, tags:['physical','guard'], desc:'출혈 차단 보호막.' }
-  ],
-  utility: [
-    { name:'긴급 회피', type:'utility', castTime:0.18, duration:0, evadeRange:3, tags:['utility','mobility'], desc:'예고된 보스 공격 범위 밖의 안전한 칸으로 최대 3칸 이동합니다. 동결·기절·속박 중이거나 탈출로가 없으면 발동하지 않습니다. 무적 효과는 없습니다.' },
-    { name:'귀환 젬', type:'utility', castTime:1.6, duration:0, tags:['utility'], desc:'귀환 버튼과 동일하게 거점으로 돌아갑니다.' }
-  ]
-};
 
 const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
   { id:'hp_below', label:'생명력 이하', valueKind:'percent', unlock:{ loop:2 } },
@@ -464,14 +445,15 @@ const CONDITION_PATTERN_TRIGGER_DB = Object.freeze([
 ]);
 
 const CONDITION_PATTERN_ACTION_DB = Object.freeze([
-  { id:'condition_gem', label:'컨디션 젬 시전', valueKind:'gem', unlock:{ loop:2 } },
   { id:'target_nearest', label:'가장 가까운 적 우선', valueKind:'none', tactic:{ targetPriority:'nearest' }, unlock:{ act:3 } },
   { id:'target_weakest', label:'약한 적 마무리', valueKind:'none', tactic:{ targetPriority:'weakest' }, unlock:{ loop:5 } },
   { id:'target_dangerous', label:'위험한 적 우선', valueKind:'none', tactic:{ targetPriority:'dangerous' }, unlock:{ loop:8 } },
   { id:'target_dense', label:'밀집 지역 우선', valueKind:'none', tactic:{ targetPriority:'dense' }, unlock:{ loop:10 } },
   { id:'position_auto', label:'기본 위치 운용', valueKind:'none', tactic:{ positionMode:'auto' }, unlock:{ act:3 } },
   { id:'position_pressure', label:'근접 압박', valueKind:'none', tactic:{ positionMode:'pressure' }, unlock:{ loop:8 } },
-  { id:'position_keep_range', label:'거리 유지', valueKind:'none', tactic:{ positionMode:'keepRange' }, unlock:{ loop:10 } }
+  { id:'position_keep_range', label:'거리 유지', valueKind:'none', tactic:{ positionMode:'keepRange' }, unlock:{ loop:10 } },
+  // 예전 귀환 젬: 조건이 맞으면 마을로 돌아간다(5초에 한 번, 열린 지도의 마지막 포털은 쓰지 않는다).
+  { id:'return_town', label:'마을로 귀환', valueKind:'none', cooldownMs:5000, unlock:{ act:3 } }
 ]);
 
-safeExposeData({ CONDITION_GEM_DB, CONDITION_PATTERN_TRIGGER_DB, CONDITION_PATTERN_ACTION_DB });
+safeExposeData({ CONDITION_PATTERN_TRIGGER_DB, CONDITION_PATTERN_ACTION_DB });

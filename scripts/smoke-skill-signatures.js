@@ -56,7 +56,9 @@ assert.deepStrictEqual(Array.from(fork.slice(1),phase=>phase.chainFromEnemyId),[
 state.gridPlayer={...source};
 state.enemies=[enemy(1,4,4),enemy(2,5,4),enemy(3,4,5)];
 const wave=sequence('불멸의 진동');
-assert.deepStrictEqual(Array.from(wave,phase=>phase.delayMs),[110,220]);
+// 2026-10-02: 파동형(서리 폭발, 불멸의 진동)은 앞면이 반 칸 넓어질 때마다, 몹이 지금 서 있는 곳으로 판정한다(smoke-grid-combat 3-1c).
+assert.deepStrictEqual(Array.from(wave,phase=>phase.delayMs),[0,55,110,165,220]);
+assert(wave.every(phase=>phase.wave.struck===wave[0].wave.struck && phase.targets.length===3),'one wave remembers whom it struck');
 assert(wave.every(phase=>phase.aimCell.gx===3 && phase.aimCell.gy===4),'resonance grows from the player');
 
 // Real scheduling: phase-specific collision, element and fixed aim survive movement/death.

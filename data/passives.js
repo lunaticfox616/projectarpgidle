@@ -35,67 +35,6 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_awakened_resonance: { id: 'sky_awakened_resonance', name: '각성: 심층 초월', desc: '젬 레벨 +3', stat: 'awakenedGemLevel', gemLvVal: 3 }
 };
 
-const TALISMAN_SHAPES = {
-    I: [[0, 0], [1, 0], [2, 0], [3, 0]],
-    O: [[0, 0], [1, 0], [0, 1], [1, 1]],
-    T: [[0, 0], [1, 0], [2, 0], [1, 1]],
-    S: [[1, 0], [2, 0], [0, 1], [1, 1]],
-    Z: [[0, 0], [1, 0], [1, 1], [2, 1]],
-    J: [[0, 0], [0, 1], [1, 1], [2, 1]],
-    L: [[2, 0], [0, 1], [1, 1], [2, 1]],
-    DOT: [[0, 0]],
-    MARK_DOT: [[0, 0]],
-    G: [[0, 0], [0, 1], [1, 1]],
-    PLUS: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]],
-    DASH2: [[0, 0], [1, 0]]
-};
-
-const TALISMAN_SHAPE_STYLE = {
-    I: { color: '#7dd3fc', glow: 'rgba(125,211,252,0.28)', symbol: '▤' },
-    O: { color: '#f9a8d4', glow: 'rgba(249,168,212,0.26)', symbol: '◼' },
-    T: { color: '#c4b5fd', glow: 'rgba(196,181,253,0.26)', symbol: '✚' },
-    S: { color: '#86efac', glow: 'rgba(134,239,172,0.24)', symbol: '⟍' },
-    Z: { color: '#fca5a5', glow: 'rgba(252,165,165,0.24)', symbol: '⟋' },
-    J: { color: '#93c5fd', glow: 'rgba(147,197,253,0.24)', symbol: '⌟' },
-    L: { color: '#fdba74', glow: 'rgba(253,186,116,0.24)', symbol: '⌞' },
-    DOT: { color: '#fef08a', glow: 'rgba(254,240,138,0.28)', symbol: '•' },
-    MARK_DOT: { color: '#facc15', glow: 'rgba(250,204,21,0.3)', symbol: '◉' },
-    G: { color: '#a7f3d0', glow: 'rgba(167,243,208,0.28)', symbol: 'ㄱ' },
-    PLUS: { color: '#fda4af', glow: 'rgba(253,164,175,0.3)', symbol: '✛' },
-    DASH2: { color: '#93c5fd', glow: 'rgba(147,197,253,0.28)', symbol: '▬' }
-};
-
-const TALISMAN_OPTION_POOL = [
-    { stat: 'pctDmg', label: '피해 증가(%)', min: 6, max: 14, step: 1 },
-    { stat: 'flatHp', label: '최대 생명력', min: 28, max: 75, step: 1 },
-    { stat: 'crit', label: '치명타 확률(%)', min: 1, max: 4, step: 0.5 },
-    { stat: 'aspd', label: '공격 속도(%)', min: 2, max: 8, step: 0.5 },
-    { stat: 'resPen', label: '저항 관통(%)', min: 1, max: 5, step: 0.5 },
-    { stat: 'dr', label: '받는 물리 피해 감소(%)', min: 2, max: 7, step: 0.5 },
-    { stat: 'pctHp', label: '생명력 증가(%)', min: 4, max: 12, step: 1 },
-    { stat: 'move', label: '이동 속도(%)', min: 2, max: 8, step: 1 },
-    { stat: 'dotPctDmg', label: '지속 피해 배율(%)', min: 4, max: 14, step: 1 },
-    { stat: 'regenSuppress', label: '재생 억제(%)', min: 0.5, max: 0.5, step: 0.1 },
-    { stat: 'minDmgRoll', label: '최소 피해 보정(%)', min: 1, max: 3, step: 1 },
-    { stat: 'maxDmgRoll', label: '최대 피해 보정(%)', min: 1, max: 3, step: 1 },
-    { stat: 'armorPct', label: '방어도 증가(%)', min: 4, max: 12, step: 1 },
-    { stat: 'evasionPct', label: '회피 증가(%)', min: 4, max: 12, step: 1 },
-    { stat: 'energyShieldPct', label: '에너지 보호막 증가(%)', min: 4, max: 12, step: 1 },
-    { stat: 'summonFlatDmg', label: '소환수 추가 피해', min: 4, max: 12, step: 1 },
-    { stat: 'summonPctDmg', label: '소환수 피해 증가(%)', min: 6, max: 16, step: 1 },
-    { stat: 'summonAspd', label: '소환수 공격 속도(%)', min: 3, max: 9, step: 0.5 },
-    { stat: 'summonHpPct', label: '소환수 생명력 증가(%)', min: 6, max: 16, step: 1 },
-    { stat: 'summonCrit', label: '소환수 치명타 확률(%)', min: 1, max: 4, step: 0.5 },
-    { stat: 'summonCritDmg', label: '소환수 치명타 피해 배율(%)', min: 10, max: 28, step: 1 },
-    { stat: 'summonEfficiency', label: '소환수 효율(%)', min: 4, max: 12, step: 1 },
-    { stat: 'summonResPen', label: '소환수 저항 관통(%)', min: 1, max: 5, step: 0.5 },
-    { stat: 'ailResIgnite', label: '점화 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
-    { stat: 'ailResShock', label: '감전 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
-    { stat: 'ailResFreeze', label: '냉기 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
-    { stat: 'ailResPoison', label: '중독 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
-    { stat: 'ailResBleed', label: '출혈 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
-];
-
 const HERO_SELECTION_DEFS = {
     hero1: {
         id: 'hero1',
@@ -340,6 +279,11 @@ const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move
 
 const PASSIVE_STAR_BLESSING = { flatHp: 140, pctDmg: 24, move: 10 };
 
+// 별쐐기를 대신한 초월 공허 패시브의 반경(트리 좌표). 안드로메다: 이 거리 안의 노드는 연결 없이 할당.
+// 소행성대: 이 거리 안에 할당한 패시브 하나마다 피해(js/combat.js). 9단계 균형에서 다시 잰다.
+const TRANSCENDENT_ANDROMEDA_RADIUS = 320;
+const TRANSCENDENT_ASTEROID_RADIUS = 300;
+
 const PASSIVE_APEX_CONFIGS = [
     {
         title: '별끝의 심장',
@@ -417,4 +361,15 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
 ];
 
-safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });
+/** 초월 공허 패시브 수치 가운데 옛 고유 별쐐기 자리 다섯(보조 콘텐츠 통합 9단계, 2026-10-02 측정으로 올림): 공허 소켓과
+ * 초월이 돌려주는 피해가 옛 별쐐기(+32~273%)보다 한참 적었다(+4~11%). min~max 사이에서 굴린다. */
+const TRANSCENDENT_VOID_VALUES = Object.freeze({
+    comet: Object.freeze({ fixed: 24 }),
+    asteroidBelt: Object.freeze({ min: 2, max: 3 }),
+    zeroGravity: Object.freeze({ min: 20, max: 30 }),
+    satellite: Object.freeze({ min: 10, max: 15 }),
+    supernova: Object.freeze({ min: 50, max: 80 })
+});
+
+safeExposeData({ TRANSCENDENT_VOID_VALUES });
+safeExposeData({ GEM_SKY_ENHANCEMENTS, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, TRANSCENDENT_ANDROMEDA_RADIUS, TRANSCENDENT_ASTEROID_RADIUS, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });

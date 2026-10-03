@@ -31,7 +31,8 @@ const context = {
     document: {
         getElementById(id) { return createdElements.find(element => element.id === id) || null; },
         createElement() {
-            let element = { style: {}, appendChild() {}, remove() {}, parentNode: { removeChild() {} } };
+            let element = { style: {}, dataset: {}, listeners: {}, appendChild() {}, remove() {}, parentNode: { removeChild() {} },
+                addEventListener(type, fn) { this.listeners[type] = fn; } };
             Object.defineProperty(element, 'innerHTML', {
                 set(value) { this.textContent = String(value).replace(/<[^>]*>/g, ''); }
             });
@@ -51,7 +52,7 @@ vm.createContext(context);
 require('./lib/load-ui-display')(context);
 
 const varsSource = uiSource.slice(uiSource.indexOf('let mobileToastQueue ='), uiSource.indexOf('function shouldShowMobileToast'));
-const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast'];
+const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast', 'releaseMobileToast', 'resumeMobileToastsAfterResult'];
 const combined = varsSource + fnNames.map(name => readFunctionSource(uiSource, name)).join('\n') + '\n'
     + fnNames.map(name => `this.${name} = ${name};`).join('\n')
     + '\nthis.getMobileToastQueue = function(){ return mobileToastQueue; };'
@@ -94,4 +95,37 @@ for (let round = 0; round < 20 && (context.getMobileToastQueue().length > 0 || c
 assert.strictEqual(context.getMobileToastQueue().length, 0, '결국 큐가 모두 소진되어야 한다');
 assert.strictEqual(context.getMobileToastActiveCount(), 0, '모든 토스트가 사라진 뒤에는 활성 개수가 0이어야 한다');
 
+// 탭하면 그 알림은 바로(90ms) 사라지고 다음 알림이 뜬다. 뒤늦게 오는 자동 타이머는 같은 알림을 두 번 풀지 않는다.
+function runTimeouts(match) {
+    let due = pendingTimeouts.filter(match);
+    pendingTimeouts = pendingTimeouts.filter(entry => !due.includes(entry));
+    due.forEach(entry => entry.fn());
+}
+pendingTimeouts = [];
+context.enqueueMobileToast('첫째', 'attack-monster');
+let firstAutoTimers = pendingTimeouts.slice();
+context.enqueueMobileToast('둘째', 'attack-monster');
+let first = createdElements.filter(element => element.textContent === '첫째').pop();
+first.listeners.click();
+runTimeouts(entry => entry.ms === 90);
+runTimeouts(entry => entry.ms === 0);
+assert.strictEqual(context.getMobileToastQueue().length, 0, '탭하면 다음 알림이 바로 나온다');
+assert.strictEqual(context.getMobileToastActiveCount(), 1, '떠 있는 것은 둘째 알림 하나');
+runTimeouts(entry => firstAutoTimers.includes(entry));
+assert.strictEqual(context.getMobileToastActiveCount(), 1, '첫째 알림의 자동 타이머가 와도 활성 개수를 또 줄이지 않는다');
+assert.ok(!pendingTimeouts.some(entry => entry.ms === 220), '이미 풀린 알림은 다시 사라지는 애니메이션을 걸지 않는다');
+
+
+// 방치 전투 결과 창이 떠 있는 동안은 알림을 그리지 않고 기다렸다가, 창이 닫히면 이어서 보인다(PR #1030 리뷰).
+flushAllTimeouts();
+context.getMobileToastQueue().length = 0;
+const resultCard = { id: 'background-combat-result-overlay' };
+createdElements.push(resultCard);
+const activeBefore = context.getMobileToastActiveCount();
+context.enqueueMobileToast('결과 창 뒤 알림', 'attack-monster');
+assert.strictEqual(context.getMobileToastActiveCount(), activeBefore, 'no notice is drawn over the offline result card');
+assert.strictEqual(context.getMobileToastQueue().length, 1, 'it waits in the queue');
+createdElements.splice(createdElements.indexOf(resultCard), 1);
+pendingTimeouts.splice(0).forEach(entry => entry.fn());
+assert.strictEqual(context.getMobileToastQueue().length, 0, 'after the card closes the notice shows');
 console.log('smoke-mobile-toast-burst passed');

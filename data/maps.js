@@ -1,22 +1,22 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/refined-20260910/bgAct1.webp',
-    bgAct2: 'assets/background/refined-20260910/bgAct2.webp',
-    bgAct3: 'assets/background/refined-20260910/bgAct3.webp',
-    bgAct4: 'assets/background/refined-20260910/bgAct4.webp',
-    bgAct5: 'assets/background/refined-20260910/bgAct5.webp',
-    bgAct6: 'assets/background/refined-20260910/bgAct6.webp',
-    bgAct7: 'assets/background/refined-20260910/bgAct7.webp',
-    bgAct8: 'assets/background/refined-20260910/bgAct8.webp',
-    bgAct9: 'assets/background/refined-20260910/bgAct9.webp',
-    bgAct10: 'assets/background/refined-20260910/bgAct10.webp'
+    bgAct1: 'assets/background/acts-20260915/bgAct1.webp',
+    bgAct2: 'assets/background/acts-20260915/bgAct2.webp',
+    bgAct3: 'assets/background/acts-20260915/bgAct3.webp',
+    bgAct4: 'assets/background/acts-20260915/bgAct4.webp',
+    bgAct5: 'assets/background/acts-20260915/bgAct5.webp',
+    bgAct6: 'assets/background/acts-20260915/bgAct6.webp',
+    bgAct7: 'assets/background/acts-20260915/bgAct7.webp',
+    bgAct8: 'assets/background/acts-20260915/bgAct8.webp',
+    bgAct9: 'assets/background/acts-20260915/bgAct9.webp',
+    bgAct10: 'assets/background/acts-20260915/bgAct10-soft-grid.webp'
 });
 
 const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
-    width: 816,
+    width: 912,
     height: 624,
-    gridOriginX: 192,
+    gridOriginX: 240,
     gridOriginY: 144,
     cellWidth: 48,
     cellHeight: 48,
@@ -25,10 +25,16 @@ const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
     viewScale: 1.06
 });
 
+const ACT_BATTLE_MAP_EFFECTS = Object.freeze({
+    bgAct9: {key:'bgAct9Sap',source:'assets/background/acts-20260915/act09-sap.png',
+        columns:4,frames:12,width:912,height:624,frameMs:100}
+});
+safeExposeData({ACT_BATTLE_MAP_EFFECTS});
+
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [
     { id: 'root_tip_sanctuary', order: 1, displayAct: '1', title: '뿌리끝 성소', subtitle: '썩은 잔뿌리를 베며 중간계로 돌아갈 길을 연다.', description: '뿌리없는 자는 뿌리끝의 드루이드에게 거두어져 뿌리길을 되살릴 사냥을 시작한다.', areaTheme: '축축한 뿌리, 곰팡이, 죽은 수액, 지하 성소', bossId: 'rotten_mane_rootlet', bossName: '썩은갈기의 잔뿌리', clearText: '썩은 잔뿌리가 잘려나가자, 오래 막혀 있던 뿌리길이 다시 열린다.', unlockText: '뿌리길의 봉인이 열리며 가지치기의 중정이 드러난다.', specialType: 'normal', tier: 1, maxKills: 1, ele: 'phys' },
-    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '정원사의 중정을 지키는 부제녀와 맞선다.', description: '중정에 도착한 뿌리없는 자는 부제녀에게 가로막혀 다시 추락한다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '부정한 은총의 부제녀', clearText: '중정의 부제녀는 뿌리없는 자를 다시 아래로 떨어뜨렸다. 복수로 향하는 다른 길을 찾아야 한다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'fire' },
+    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '정원사의 중정을 지키는 부제녀와 맞선다.', description: '중정에 도착한 뿌리없는 자는 부제녀에게 가로막혀 다시 추락한다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '부정한 은총의 부제녀', clearText: '쓰러진 부제녀를 중정에 깃든 영원의 힘이 다시 일으켜 세웠다. 되살아난 그녀는 뿌리없는 자를 다시 아래로 떨어뜨렸다. 복수로 향하는 다른 길을 찾아야 한다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'fire' },
     { id: 'suspended_aerial_roots', order: 3, displayAct: '3', title: '허공뿌리 현수림', subtitle: '허공뿌리를 건너 중정에 힘을 보내는 자들을 추적한다.', description: '기근의 맹수를 뚫고 황금 길의 운반자와 부제녀가 있는 갈림뿌리로 향한다.', areaTheme: '허공에 매달린 뿌리, 굶주림, 바람, 추락감', bossId: 'famine_beast', bossName: '기근의 맹수', clearText: '허공뿌리의 맹수가 쓰러졌다. 중정에 영원의 힘을 보내는 두 존재를 향한 길이 열린다.', unlockText: '갈림뿌리 미궁으로 이어지는 분기점이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'cold' },
     { id: 'forked_root_maze', order: 4, displayAct: '4', title: '갈림뿌리 미궁', subtitle: '황금 길의 운반자와 부제녀를 차례로 쓰러뜨린다.', description: '황금 길의 마지막 운반자를 돌파한 뒤 부정한 은총의 부제녀와 결전을 벌인다.', areaTheme: '분기하는 길, 미궁, 가지처럼 갈라지는 뿌리', bossId: 'retainer_knight', bossStages: [{ name: '황금 길의 마지막 운반자', assetKey: 'bossAct4_1' }, { name: '부정한 은총의 부제녀', assetKey: 'bossAct4_2' }], bossName: '부정한 은총의 부제녀', clearText: '운반자와 부제녀가 쓰러지며 중정에 깃든 영원의 힘이 사라졌다. 부제녀가 조력자의 정체를 밝힌다.', unlockText: '지주근의 침묵 성소가 열린다.', specialType: 'normal', tier: 3, maxKills: 2, ele: 'light' },
     { id: 'taproot_silent_sanctum', order: 5, displayAct: '5', title: '지주근의 침묵 성소', subtitle: '지주근의 조력자를 찾아 중정으로 돌아갈 길을 연다.', description: '지주근의 드루이드와 맞선 뒤, 그가 마지막 힘으로 열어 주는 뿌리길을 따라간다.', areaTheme: '침묵, 거대한 받침뿌리, 배신, 성소의 붕괴', bossId: 'taproot_druid', bossName: '지주근의 드루이드', clearText: '드루이드의 손끝에서 뻗어난 뿌리가 맞물리며 중정으로 돌아가는 길이 열렸다.', unlockText: '불멸이 벗겨진 정원사에게 다시 도전할 수 있다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'fire' },
@@ -69,15 +75,18 @@ const GRAND_BREACH_ENCOUNTER = Object.freeze({
     capacities: Object.freeze([16,24,32])
 });
 
-const MAX_STAR_WEDGES = 3;
+// 운석 낙하 지점: 루프 7에서 액트 7에 닿으면 하늘 균열 게이지가 차기 시작한다.
+const METEOR_SITE_UNLOCK_LOOP = 7;
 
-const MAX_STAR_WEDGES_HARD_CAP = 8;
+const METEOR_SITE_UNLOCK_ACT = 7;
 
-const STAR_WEDGE_RADIUS_TIERS = Object.freeze([160, 240, 320]);
-
-const STAR_WEDGE_UNLOCK_LOOP = 7;
-
-const STAR_WEDGE_UNLOCK_ACT = 7;
+// 별자리 관측(아틀라스 패시브 '떨어지는 별'): 운석 정산마다 하나를 고르고 루프가 바뀌어도 남는다.
+const METEOR_CONSTELLATION_POOL = Object.freeze([
+    Object.freeze({ stat: 'pctDmg', label: '피해', val: 4 }),
+    Object.freeze({ stat: 'flatHp', label: '최대 생명력', val: 25 }),
+    Object.freeze({ stat: 'move', label: '이동 속도', val: 3 }),
+    Object.freeze({ stat: 'crit', label: '치명타 확률', val: 2 })
+]);
 
 const OCEAN_UNLOCK_LOOP = 11;
 
@@ -85,12 +94,12 @@ const OCEAN_ZONE_ID = 'ocean_depth';
 
 const MAP_PRIMARY_CONTENTS = Object.freeze([
     { id: 'map-tab-zones', label: '탐험', initiallyUnlocked: true },
-    { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계 해금', noticeBody: '루프 밖에서 이어지는 혼돈계 영구 등반이 열렸습니다.' },
-    { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑 해금', noticeBody: '창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
-    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계 해금', noticeBody: '지하계가 열렸습니다. 룬과 영구 강화 진행도는 루프 후에도 유지됩니다.' },
-    { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계 해금', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.' },
-    { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
-    { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
+    { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계', noticeBody: '루프가 바뀌어도 이어지는 혼돈계 영구 등반이 열렸습니다.\n‘지도 → 혼돈계’에서 도전하세요.' },
+    { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑', noticeBody: '창공의 탑이 열렸습니다.\n‘지도 → 창공’에서 탑을 오르세요.\n이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
+    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계', noticeBody: '지하계가 열렸습니다.\n‘지도 → 지하계’에서 룬을 모으세요.\n룬과 영구 강화 진행도는 루프가 바뀌어도 유지됩니다.' },
+    { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.\n‘지도 → 우주계’에서 우주를 탐험하세요.' },
+    { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시', noticeBody: '심해 탐사와 낚시가 열렸습니다.\n‘지도 → 심해’에서 수압에 도전하세요.\n‘지도 → 낚시’에서 어획물을 모으세요.', noticeTargetId: 'map-tab-ocean' },
+    { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시', noticeBody: '심해 탐사와 낚시가 열렸습니다.\n‘지도 → 심해’에서 수압에 도전하세요.\n‘지도 → 낚시’에서 어획물을 모으세요.', noticeTargetId: 'map-tab-ocean' },
     { id: 'map-tab-pvp', label: '대전', unlockLoop: 3 }
 ].map(Object.freeze));
 
@@ -118,7 +127,7 @@ const COSMOS_GALAXY_ENVIRONMENT_DB = Object.freeze([
 // weight에 따라 결정적으로 뽑힌다. 완료 전 새로고침으로 신호를 재굴림할 수 없다.
 const COSMOS_EXPEDITION_DIRECTIVE_DB = Object.freeze([
     { id: 'survey', name: '안정 관측', signal: 'CALIBRATED', description: '위협을 낮춰 처음 연결하는 항로입니다.', weight: 0, enemyHpMul: 0.90, enemyDamageMul: 0.92, enemyAttackSpeedMul: 0.96, rewardMul: 0.82, jackpotChance: 0, jackpotBonusMul: 0 },
-    { id: 'salvage', name: '잔해 회수', signal: 'SALVAGE', description: '성간 잔해를 회수해 별가루 수익을 높입니다.', weight: 36, enemyHpMul: 1.10, enemyDamageMul: 1.05, enemyAttackSpeedMul: 1, rewardMul: 1.22, jackpotChance: 0.04, jackpotBonusMul: 0.75 },
+    { id: 'salvage', name: '잔해 회수', signal: 'SALVAGE', description: '성간 잔해를 회수해 탐사 보상을 높입니다.', weight: 36, enemyHpMul: 1.10, enemyDamageMul: 1.05, enemyAttackSpeedMul: 1, rewardMul: 1.22, jackpotChance: 0.04, jackpotBonusMul: 0.75 },
     { id: 'predator', name: '포식자 추적', signal: 'HUNT', description: '강한 개체를 추적해 밀도 높은 보상을 노립니다.', weight: 28, enemyHpMul: 1.23, enemyDamageMul: 1.14, enemyAttackSpeedMul: 1.08, rewardMul: 1.40, jackpotChance: 0.07, jackpotBonusMul: 1.10 },
     { id: 'rift', name: '균열 관통', signal: 'BREACH', description: '불안정한 균열을 가로질러 큰 수익을 노립니다.', weight: 18, enemyHpMul: 1.38, enemyDamageMul: 1.23, enemyAttackSpeedMul: 1.12, rewardMul: 1.62, jackpotChance: 0.11, jackpotBonusMul: 1.40 },
     { id: 'storm', name: '성운 폭풍', signal: 'STORM', description: '빨라지는 성운 폭풍 속에서 공명 잔광을 수확합니다.', weight: 18, enemyHpMul: 1.18, enemyDamageMul: 1.20, enemyAttackSpeedMul: 1.18, rewardMul: 1.48, jackpotChance: 0.08, jackpotBonusMul: 1.20 },
@@ -137,6 +146,15 @@ const LOOP_GATE_ALT_COSMOS_PLANET_NAME = '에니프론';
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
 const ACT_LOOP_SCALE_CAP = 20;
 
+/** 몬스터 생명력 · 피해의 루프 배율(보조 콘텐츠 통합 9단계, 2026-10-02). 별쐐기 · 생장판 · 가지치기 · 전문가 · 아르카나 ·
+ * 플라스크가 빠진 힘 가운데 새 자리(부적 · 공허 소켓 · 코어 · 접붙이기 · 소켓)가 돌려주지 못한 몫을 몬스터 쪽에서 맞춘다.
+ * [루프, 배율] 사이는 직선 보간, 마지막 점 뒤로는 그 값. 루프 3(플라스크) · 7(별쐐기)부터 빠진 힘이 커졌다.
+ * 측정: docs/aux-consolidation-20260930.md 9단계. */
+const MONSTER_LOOP_POWER_SCALE = Object.freeze({
+    hp: Object.freeze([[1, 1], [3, 0.95], [7, 0.8], [10, 0.75], [25, 0.66], [50, 0.62]]),
+    damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]])
+});
+
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
@@ -151,55 +169,14 @@ const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 3
 // 불안정(유실 2) = max(unstableMin, unstableBase - unstablePerPressure×(시간압-1)). 나머지는 보통(유실 1).
 const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
 
-const STAR_WEDGE_OPTION_POOL = [
-    { stat: 'pctDmg', min: 10, max: 16 },
-    { stat: 'flatHp', min: 56, max: 96 },
-    { stat: 'aspd', min: 4, max: 8 },
-    { stat: 'crit', min: 2, max: 9 },
-    { stat: 'critDmg', min: 16, max: 28 },
-    { stat: 'dr', min: 3, max: 7 },
-    { stat: 'move', min: 4, max: 9 },
-    { stat: 'physIgnore', min: 4, max: 8 },
-    { stat: 'resPen', min: 4, max: 8 },
-    { stat: 'regen', min: 0.6, max: 1.2, step: 0.1 },
-    { stat: 'chaosPctDmg', min: 10, max: 18 },
-    { stat: 'resF', min: 6, max: 14 },
-    { stat: 'resC', min: 6, max: 14 },
-    { stat: 'resL', min: 6, max: 14 },
-    { stat: 'resChaos', min: 3, max: 7 },
-    { stat: 'armorPct', min: 10, max: 18 },
-    { stat: 'evasionPct', min: 10, max: 18 },
-    { stat: 'energyShieldPct', min: 10, max: 18 },
-    { stat: 'maxResF', min: 1, max: 1 },
-    { stat: 'maxResC', min: 1, max: 1 },
-    { stat: 'maxResL', min: 1, max: 1 }
-];
-
-const STAR_WEDGE_CORE_OPTION_POOL = [
-    { stat: 'flatDmg', min: 16, max: 32 },
-    { stat: 'pctHp', min: 9, max: 16 },
-    { stat: 'elementalPctDmg', min: 14, max: 24 },
-    { stat: 'physPctDmg', min: 14, max: 24 },
-    { stat: 'projectilePctDmg', min: 14, max: 24 },
-    { stat: 'meleePctDmg', min: 14, max: 24 },
-    { stat: 'dotPctDmg', min: 14, max: 24 },
-    { stat: 'resAll', min: 4, max: 7 },
-    { stat: 'ds', min: 8, max: 14 },
-    { stat: 'minDmgRoll', min: 5, max: 9 },
-    { stat: 'maxDmgRoll', min: 7, max: 12 },
-    { stat: 'energyShieldPct', min: 14, max: 21 },
-    { stat: 'armorPct', min: 14, max: 21 },
-    { stat: 'evasionPct', min: 14, max: 21 }
-];
-
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
-    2: { title: '루프 2', features: ['해금: 홀씨 제작 / 보물사냥', '조건부 해금: 컨디션 젬 (뿌리 보스 처치)'] },
+    2: { title: '루프 2', features: ['해금: 홀씨 제작', '해금: 전술 규칙 (스킬 젬 → 전술 규칙)', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
     3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
     4: { title: '루프 4', features: ['해금: 창공 강화'] },
     5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },
     6: { title: '루프 6', features: ['해금: 부적 시스템'] },
-    7: { title: '루프 7', features: ['해금: 별쐐기 / 운석 낙하 지점'] },
+    7: { title: '루프 7', features: ['해금: 운석 낙하 지점'] },
     8: { title: '루프 8', features: ['해금: 벌집'] },
     9: { title: '루프 9', features: ['해금: 균열'] },
     10: { title: '루프 10', features: ['해금: 심화 혼돈'] },
@@ -209,47 +186,48 @@ const SEASON_CONTENT_ROADMAP = {
     14: { title: '루프 14', features: ['심화: 혼돈 단계 상승'] },
     15: { title: '루프 15', features: ['해금: 군락지 / 군락지 액막이', '조건부 해금: 창공의 탑 (혼돈 20층 클리어)', '전술 조건 해금: 최근 피격'] },
     16: { title: '루프 16', features: ['심화: 혼돈 단계 상승'] },
-    17: { title: '루프 17', features: ['심화: 혼돈 단계 상승'] },
-    18: { title: '루프 18', features: ['해금: 가지치기', '심화: 혼돈 단계 상승'] },
+    17: { title: '루프 17', features: ['그루터기 함: 25칸 · 판 완성', '심화: 혼돈 단계 상승'] },
+    18: { title: '루프 18', features: ['그루터기 함: 접붙이기 (루프마다 3점)', '심화: 혼돈 단계 상승'] },
     19: { title: '루프 19', features: ['심화: 혼돈 단계 상승'] },
-    20: { title: '루프 20', features: ['조건부 해금: 코어 큐브 (지하계 10층 클리어)', '심화: 혼돈 단계 상승'] },
+    20: { title: '루프 20', features: ['조건부 해금: 코어 (지하계 10층 클리어)', '심화: 혼돈 단계 상승'] },
     21: { title: '루프 21', features: ['심화: 혼돈 단계 상승'] },
     22: { title: '루프 22', features: ['심화: 혼돈 단계 상승'] },
     23: { title: '루프 23', features: ['심화: 혼돈 단계 상승'] },
     24: { title: '루프 24', features: ['심화: 혼돈 단계 상승'] },
-    25: { title: '루프 25', features: ['해금: 생장판 / 생장 아이템 드랍'] },
+    25: { title: '루프 25', features: ['해금: 야생 부적 드랍 (적이 부적을 떨어뜨림)'] },
     26: { title: '루프 26', features: ['심화: 혼돈 단계 상승'] },
     27: { title: '루프 27', features: ['심화: 혼돈 단계 상승'] },
-    28: { title: '루프 28', features: ['생장판 확장: 11칸', '생장판 시너지 해금: 벽과 방향'] },
+    28: { title: '루프 28', features: ['심화: 혼돈 단계 상승'] },
     29: { title: '루프 29', features: ['심화: 혼돈 단계 상승'] },
     30: { title: '루프 30', features: ['전환점: 혼돈 루프 요구 심화 40층'] },
     31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈·우주계 루프 경로 선택', '조건부 해금: 잔향체 아스트라 / 아틀라스 최종 관문'] },
-    32: { title: '루프 32', features: ['생장판 확장: 15칸', '생장판 시너지 해금: 행과 열'] },
+    32: { title: '루프 32', features: ['심화: 혼돈 단계 상승'] },
     33: { title: '루프 33', features: ['심화: 혼돈 단계 상승'] },
     34: { title: '루프 34', features: ['심화: 혼돈 단계 상승'] },
     35: { title: '루프 35', features: ['심화: 혼돈 단계 상승'] },
-    36: { title: '루프 36', features: ['생장판 확장: 19칸'] },
+    36: { title: '루프 36', features: ['심화: 혼돈 단계 상승'] },
     37: { title: '루프 37', features: ['심화: 혼돈 단계 상승'] },
-    38: { title: '루프 38', features: ['생장판 시너지 해금: 태그 공명'] },
+    38: { title: '루프 38', features: ['심화: 혼돈 단계 상승'] },
     39: { title: '루프 39', features: ['심화: 혼돈 단계 상승'] },
-    40: { title: '루프 40', features: ['생장판 확장: 23칸'] },
+    40: { title: '루프 40', features: ['심화: 혼돈 단계 상승'] },
     41: { title: '루프 41', features: ['심화: 혼돈 단계 상승'] },
     42: { title: '루프 42', features: ['심화: 혼돈 단계 상승'] },
     43: { title: '루프 43', features: ['심화: 혼돈 단계 상승'] },
     44: { title: '루프 44', features: ['심화: 혼돈 단계 상승'] },
-    45: { title: '루프 45', features: ['생장판 확장: 27칸', '생장판 시너지 해금: 복합 시너지'] },
+    45: { title: '루프 45', features: ['심화: 혼돈 단계 상승'] },
     46: { title: '루프 46', features: ['심화: 혼돈 단계 상승'] },
     47: { title: '루프 47', features: ['심화: 혼돈 단계 상승'] },
     48: { title: '루프 48', features: ['심화: 혼돈 단계 상승'] },
     49: { title: '루프 49', features: ['심화: 혼돈 단계 상승'] },
-    50: { title: '루프 50', features: ['생장판 확장: 32칸 · 완전한 수관'] }
+    50: { title: '루프 50', features: ['심화: 혼돈 단계 상승'] }
 };
 
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
     { id: 's2_boss_storm', name: '폭풍 군단장 볼타', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
-    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore' },
+    // boardFight: three phases of heads and body (combat generateEncounterPlan) — it keeps the 9×8 board, not an arena.
+    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', boardFight: true },
     // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.
     //  - 매 루프 다시 도전하는 고정 난이도 결투 — 루프 31 진입 시점의 성장 배율에 고정하고 bossMods로 개성을 조절한다.
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.
@@ -304,8 +282,7 @@ const JOURNAL_DB = {
     act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' }, requiresJournal: ['act_9'] },
     woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'], requiresJournal: ['act_10'] },
     woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라', requiresJournal: ['woodsman'] },
-    star_wedge: { title: '별쐐기', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“패시브 트리에 박아 넣으면 주변 노드의 성장 규칙을 비틀 수 있다.”'] },
-    arcana_first_seal: { title: '봉인된 아르카나', lines: ['“별길마다 남은 문양을 맞추자 이름 없는 패가 모습을 드러냈다.”', '“봉인은 힘을 감추는 동시에, 그 힘이 머물 자리를 고른다.”'], displayEffect: '아르카나 탭 해금', hidden: true, hint: '첫 우주계 탐험 후 서로 다른 별길을 충분히 조사하면 봉인된 패를 복원할 수 있다' },
+    meteor_fall: { title: '운석 낙하 지점', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“식지 않은 분화구에는 별을 쫓던 이들이 두고 간 장비가 남아 있다.”'] },
     immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
     beehive_queen: { title: '루프8 - 벌집 여왕', lines: ['“길은 셋으로 갈라졌지만, 독은 하나로 모였다.”', '“여왕의 날개 아래서 선택은 대가를 부른다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     void_grand_breach: { title: '루프9 - 큰 구멍', lines: ['“공허는 틈으로 시작해 심장으로 끝난다.”', '“쏟아지는 무리를 지나면, 공백도 얼굴을 드러낸다.”'], bonus: { stat: 'chaosPctDmg', value: 3, label: '카오스 피해 +3%' } },
@@ -318,7 +295,6 @@ const JOURNAL_DB = {
     passive_star_evolution: { title: '히든저널 - 성좌 각성', lines: ['“여섯 외곽 성률의 별자리가 하나의 문양으로 맞물렸다.”', '“각성한 성좌는 피해, 생명력, 발걸음에 영구적인 공명을 남긴다.”'], displayEffect: '성좌 각성 효과: 피해 +24%, 최대 생명력 +140, 이동 속도 +10%', hidden: true, hint: '여섯 외곽 성률에서 생성된 패시브를 하나씩 활성화' },
     hidden_last_breath: { title: '히든저널 - 마지막 숨', lines: ['“심장은 거의 멎었으나, 칼날은 먼저 멎지 않았다.”', '“끝에 가까울수록 한 번의 선택은 더 무거워진다.”'], hidden: true, hint: '종반 보스를 생명력 5% 이하인 상태로 처치' },
     hidden_unscarred: { title: '히든저널 - 상처 없는 승리', lines: ['“방벽은 흔들렸으나, 피는 한 방울도 땅에 닿지 않았다.”', '“살아남은 것이 아니라 닿게 두지 않은 기록.”'], hidden: true, hint: '최종 관문 보스를 생명력 피해 없이 처치' },
-    hidden_dry_vial: { title: '히든저널 - 빈 병의 맹세', lines: ['“구원은 허리춤에 있었으나 끝내 손이 가지 않았다.”', '“준비한 생존 수단을 포기한 채 증명한 완성.”'], hidden: true, hint: '최종 관문 보스를 플라스크 발동 없이 처치' },
     hidden_fourfold_affliction: { title: '히든저널 - 네 겹의 흉터', lines: ['“불과 서리, 독과 번개가 한 몸 위에서 서로의 이름을 배웠다.”', '“한 가지 답으로는 열리지 않는 상처도 있다.”'], hidden: true, hint: '한 종반 보스에게 서로 다른 상태이상 4종을 부여한 뒤 처치' },
     rival_overheat: { title: '버려진 날 - 과열', lines: ['“나는 가장 빨리 베었다. 그래서 가장 먼저 버려졌다.”', '“속도만 남은 날은, 결국 제 손잡이를 태운다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     rival_dull: { title: '버려진 날 - 무딤', lines: ['“부러지지 않는 것이 나의 전부였다.”', '“그러나 베지 못하는 날을, 누가 날이라 부르지.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' } },
@@ -333,6 +309,7 @@ const JOURNAL_DB = {
     pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'], requiresJournal: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'arcana_first_seal', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_dry_vial', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS_TIERS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ MONSTER_LOOP_POWER_SCALE });
+safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

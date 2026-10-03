@@ -70,8 +70,11 @@
 .unlock-requirements>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;color:var(--color-text-secondary);margin-bottom:8px}
 .unlock-requirements small{font-size:10px;color:var(--color-text-tertiary);flex-shrink:0}
 .unlock-requirements .is-met small{color:var(--color-success)}
-.unlock-detail-action{margin-top:auto}
-.unlock-detail-action>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7}
+/* 해금 단추는 창 본문 아래쪽에 붙어 늘 보인다(1366×768에서 스크롤 밖으로 밀려났다). 첫 보상 안내는 설명 바로 아래. */
+/* bottom이 음수인 까닭: sticky는 창 본문의 아래 여백(16~26px) 위에서 멈춰 그 틈으로 뒤 글자가 비쳤다 — 여백만큼 내려 덮는다 */
+.unlock-detail-action{position:sticky;bottom:-26px;z-index:2;margin:0 -16px -16px;padding:10px 16px 26px;border-top:1px solid var(--skin-line);background:var(--skin-panel)}
+.unlock-detail-reward:empty{display:none}
+.unlock-detail-reward>p{font-size:11px;color:var(--color-text-tertiary);line-height:1.7;margin:0}
 #content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;font-size:13px;border:1px solid var(--skin-accent);background:linear-gradient(120deg,rgba(157,127,59,.3),var(--skin-panel));white-space:normal}
 #content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);opacity:.65}
 #content-unlock-panel [data-unlock-content="craft"]:enabled{position:relative;margin-top:16px;overflow:visible}
@@ -80,7 +83,7 @@
 @media(prefers-reduced-motion:reduce){#content-unlock-panel [data-unlock-content="craft"]:enabled::after{animation:none;opacity:1}}
 .content-unlock-choice{display:grid;gap:8px;color:var(--color-text-secondary);font-size:12px;margin:12px 0}
 .content-unlock-choice select{width:100%;min-width:0;min-height:40px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:3px;padding:7px}
-.unlock-detail-action .unlock-reward{color:var(--skin-accent)}
+.unlock-detail-reward .unlock-reward{color:var(--skin-accent)}
 .unlock-milestone-intro{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 18px}
 .unlock-milestone-intro p{font-size:12px;color:var(--color-text-secondary);margin:0}
 #content-unlock-panel .unlock-milestone-intro button{font-size:11px;white-space:nowrap}
@@ -93,10 +96,21 @@
 .unlock-milestone-group{margin-top:16px}
 #content-unlock-panel .unlock-milestone-item{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;border:0;border-top:1px solid var(--skin-line);border-radius:0;background:none;box-shadow:none;padding:10px 0;text-align:left;font-size:12px}
 .unlock-milestone-item small{color:var(--color-text-tertiary);font-size:10px;text-align:right}
-@container(max-width:600px){
+/* 기본 창(1440 화면에서 패널 약 880px)에서도 다섯 단계 열이 오른쪽 설명에 가리지 않게 열을 줄인다(검토 4차: 6단계 '젬 각성'이
+   설명 패널 밑에 숨고 가로 스크롤 막대는 창 밖에 있었다). 연결선 SVG는 경로 크기에 맞춰 늘고 준다. */
+@container(max-width:1120px){
+ .unlock-map{padding:0 12px 14px}
+ .unlock-path{gap:12px}
+ .unlock-depth{width:96px;gap:14px}
+ #content-unlock-panel .unlock-node{height:118px;padding:0}
+ .unlock-node-art{width:54px;height:54px}
+ .unlock-node-art:before{left:22px}
+ .unlock-node-art img{width:40px;height:40px}
+}
+@container(max-width:840px){
  .unlock-workspace{grid-template-columns:minmax(0,1fr)}
  .unlock-detail{border-left:0;border-top:1px solid var(--skin-line);display:grid;grid-template-columns:1fr 1fr;gap:18px}
- .unlock-detail-action{grid-column:1/-1;margin-top:0}
+ .unlock-detail-action,.unlock-detail-reward{grid-column:1/-1;margin-top:0}
  .unlock-detail-art{float:right;width:94px;height:105px;margin:0 0 10px 10px}
  .unlock-detail-art:before{width:62px;height:62px}.unlock-detail-art:after{width:74px;height:74px}
  .unlock-detail-art img{width:58px;height:58px}
@@ -106,13 +120,22 @@
 @container(max-width:480px){
  .content-unlock-heading{padding:18px 14px}
  .unlock-detail{display:flex;padding:18px}
- .unlock-path{gap:16px}.unlock-depth{width:124px}
+ /* 휴대폰: 단계를 가로 열 대신 위에서 아래로 쌓고(한 단계의 갈래는 한 줄에), 연결선은 숨긴다 — 2단계 열만 보이고 나머지는
+    보이지 않는 가로 스크롤 뒤에 있었다(검토 4차). 순서와 선행은 단계 이름과 오른쪽(아래) 해금 조건이 말한다. */
+ .unlock-branch{min-width:0;padding-left:40px}
+ .unlock-path{flex-direction:column;gap:14px;width:auto}
+ .unlock-connections{display:none}
+ .unlock-depth{width:auto;align-items:stretch;gap:6px}
+ .unlock-depth-label{text-align:left}
+ /* 노드는 그림 왼쪽 · 이름과 상태 오른쪽의 한 줄 목록으로 */
+ #content-unlock-panel .unlock-node{display:grid;grid-template-columns:54px minmax(0,1fr);column-gap:12px;align-items:center;justify-items:start;width:100%;height:auto;min-height:62px;text-align:left}
+ #content-unlock-panel .unlock-node>.unlock-node-art{grid-row:1/span 3}
  .unlock-milestone-intro{align-items:flex-start;flex-direction:column}
  .unlock-toolbar{padding:0 14px}
 }
 #content-unlock-panel button:focus-visible,#content-unlock-panel select:focus-visible{outline:2px solid var(--skin-accent);outline-offset:3px}}
 @layer overrides{
-[data-content-locked]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
-#ui-combat-flasks[data-content-locked]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
+/* 휴대폰 하단 메뉴의 잠긴 지도 칸(.nav-locked)은 열리면 들어갈 자리를 지키려 흐리게 남긴다(js/ui.js syncTabUnlockButton). */
+[data-content-locked]:not(.nav-locked){/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 .content-craft-locked [data-content-action="craft"]{display:none}
 .content-choice-progression #season-content-section{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}}

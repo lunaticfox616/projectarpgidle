@@ -1,5 +1,20 @@
-function normalizeUiSkin(skin) {
-    return ['reliquary', 'verdigris', 'crimson'].includes(skin) ? skin : 'reliquary';
+/** UI 스킨은 도트 HUD 배치(균열 등불) 하나다. 예전 스킨(검은 성유물함 · 녹청 성당 · 핏빛 참회)은 옛 세로 칸 배치라 새 HUD를
+ * 담지 못해(PC에서 생명 구슬이 화면 밖으로 밀렸다) 저장에 남아 있어도 균열 등불로 읽는다. */
+function normalizeUiSkin() {
+    return 'rift';
+}
+
+/** 아이콘 그림: 'pixel'(원화를 도트로 다시 찍은 사본, 기본) 또는 'painted'(원화). */
+function normalizeIconArtStyle(value) {
+    return value === 'painted' ? 'painted' : 'pixel';
+}
+
+const PIXEL_ICON_SOURCE_SET = new Set(typeof PIXEL_ICON_SOURCES !== 'undefined' ? PIXEL_ICON_SOURCES : []);
+/** 원화 아이콘 경로 → 도트 사본(assets/px/…png, scripts/build-pixel-icons.cjs). 원화를 골랐거나 사본이 없으면 그대로. */
+function pixelIconPath(path) {
+    const file = String(path || '').split('?')[0];
+    if (!PIXEL_ICON_SOURCE_SET.has(file) || normalizeIconArtStyle(game.settings && game.settings.iconArtStyle) === 'painted') return path;
+    return 'assets/px/' + file.slice('assets/'.length).replace(/\.(png|webp)$/i, '.png');
 }
 
 /** Stored user scale in percent, independent of the current monitor's pixel ratio. */
@@ -91,7 +106,6 @@ function canStoreEquipmentItems(items, targetGame) {
 }
 function getJewelInventoryLimit() { return JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) * 5); }
 function getJewelMarketExpandCost() { return 1 + Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)); }
-function getGrowthMarketExpandCost() { return 2 + Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)); }
 function getExceptionalBaseStarCount(item) {
     return ((item && item.baseStats) || []).filter(stat => stat && stat.exceptional).length;
 }
@@ -183,7 +197,7 @@ const COMPARE_STAT_META = {
     baseDmg: { label: '공격력', format: value => `${Math.floor(value)}` },
     aspd: { label: '공속', format: value => value.toFixed(2) },
     crit: { label: '치명타', format: value => `${value.toFixed(1)}%` },
-    critDmg: { label: '치피배', format: value => `${Math.floor(value)}%` },
+    critDmg: { label: '치명타 피해', format: value => `${Math.floor(value)}%` },
     maxHp: { label: '최대 생명력', format: value => `${Math.floor(value)}` },
     armor: { label: '방어도', format: value => `${Math.floor(value)}` },
     armorReduction: { label: '방어도 피해 감소', format: value => `${value.toFixed(1)}%` },
@@ -216,29 +230,28 @@ const COMPARE_STAT_META = {
     maxDmgRoll: { label: '최대피해 보정', format: value => `${Math.floor(value)}%` }
 };
 
-function getTalismanMomentRoll(talisman, options = {}) {
-    if (!talisman || talisman.special !== 'moment') return 0;
-    let min = Math.floor(Number.isFinite(Number(talisman.bossFinalDmgMin)) ? Number(talisman.bossFinalDmgMin) : 5);
-    let max = Math.floor(Number.isFinite(Number(talisman.bossFinalDmgMax)) ? Number(talisman.bossFinalDmgMax) : 15);
-    if (max < min) { let tmp = min; min = max; max = tmp; }
-    let current = Number(talisman.bossFinalDmgRoll);
-    if (!Number.isFinite(current)) current = Number(talisman.bossFinalDmgValue);
-    if (!Number.isFinite(current) && options && options.rollIfMissing === false) return min;
-    if (!Number.isFinite(current)) current = min + Math.floor(Math.random() * (max - min + 1));
-    current = Math.max(min, Math.min(max, Math.floor(current)));
-    talisman.bossFinalDmgRoll = current;
-    talisman.bossFinalDmgValue = current;
-    talisman.value = current;
-    return current;
-}
-
-
 function isTierlessSupportGem(name) {
     let db = (typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB) ? SUPPORT_GEM_DB[name] : null;
     return !!(db && db.noTiers);
 }
 function getSupportTierCap(name) {
     return isTierlessSupportGem(name) ? 1 : 3;
+}
+function getSupportResonanceCost(name) {
+    let db = SUPPORT_GEM_DB[name] || {};
+    if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[0])) return Math.max(1, Math.floor(db.resonanceCosts[0]));
+    if (Number.isFinite(db.resonanceCost)) return Math.max(1, Math.floor(db.resonanceCost));
+    let stat = db.stat || '';
+    if (['flatDmg', 'critDmg', 'resPen', 'physIgnore', 'ds'].includes(stat)) return 3;
+    if (['aspd', 'crit', 'dotPctDmg', 'elementalPctDmg', 'meleePctDmg', 'projectilePctDmg'].includes(stat)) return 2;
+    return 1;
+}
+function getSupportResonanceCostAtTier(name,tier) {
+    const base=getSupportResonanceCost(name),db=SUPPORT_GEM_DB[name]||{};
+    if(Array.isArray(db.resonanceCosts)&&Number.isFinite(db.resonanceCosts[tier-1]))return Math.max(1,Math.floor(db.resonanceCosts[tier-1]));
+    if(tier<=1)return base;
+    if(tier===2)return Math.max(base+2,Math.floor(base*2.4));
+    return Math.max(base+5,Math.floor(base*3.8));
 }
 function getSupportTierLabel(name, tier) {
     if (isTierlessSupportGem(name)) return '통합';
@@ -294,6 +307,7 @@ const STAT_DISPLAY_NAMES = {
         slamPctDmg: '강타 피해(%)',
         projectilePctDmg: '투사체 피해(%)',
         projectileExtraShots: '투사체 추가 발사',
+        firstHitDamageMorePct: '첫 공격 피해 증폭(%)',
         projectileExtraChance: '투사체 추가 발사 확률(%)',
         attackPctDmg: '공격 피해 증가(%)',
         spellFlatDmg: '주문 내장 피해',
@@ -361,7 +375,6 @@ const STAT_DISPLAY_NAMES = {
         targetAny: '스킬 타겟 수',
         targetProjectile: '투사체 스킬 타겟 수',
         targetSlam: '강타 스킬 타겟 수',
-        flaskUtilSlots: '유틸리티 플라스크 슬롯',
         armor: '방어도',
         evasion: '회피',
         energyShield: '에너지 보호막',
@@ -549,9 +562,10 @@ function getAdditiveDropBonusMultiplier(codexBonusPct, challengeBonusPct) {
     return 1 + codexRatio + challengeRatio;
 }
 
+/** 도트 UI에 섞이면 안 되는 컬러 그림 글자를 뺀다. 이모지 속성이 없는 그림 기호(U+1F56E 책 등)도 U+1F000 ~ 1FAFF 묶음으로 함께 뺀다. */
 function stripDecorativeEmoji(value) {
     return String(value == null ? '' : value)
-        .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '')
+        .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu, '')
         .replace(/\s{2,}/g, ' ')
         .trim();
 }
@@ -574,11 +588,18 @@ var PASSIVE_WORLD_SCALE = 1.14;
 const MAX_PLAYER_LEVEL = 200;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
+// window.game은 언제나 지금의 game을 가리킨다. 불러오기 · 초기화로 game이 바뀌어도 낡은 객체를 보지 않는다
+// (예전에는 전문가 상태 함수가 부수 효과로 매번 맞춰 주었다 — 2026-10-01 전문가 제거). 먼저 놓인 window.game 값은 이어받는다.
+{
+    const preset = Object.getOwnPropertyDescriptor(window, 'game');
+    if (preset && 'value' in preset) game = preset.value;
+}
+Object.defineProperty(window, 'game', { configurable: true, get() { return game; }, set(value) { game = value; } });
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
+safeExposeGlobals({ normalizeIconArtStyle, pixelIconPath, clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 
@@ -731,10 +752,6 @@ installRuntimeFunctionFallback("confirmLoopReady", function confirmLoopReadyFall
     // The real handler consumes pendingLoopReady. Keep the flag intact while this queued fallback waits.
 }, { queue: true });
 installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {}, { queue: true });
-installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {
-    return {};
-});
-
 installRuntimeFunctionFallback("getGemPresentation", function getGemPresentationFallback(name, isSupport) {
     let db = isSupport
         ? ((typeof SUPPORT_GEM_DB !== "undefined" && SUPPORT_GEM_DB && SUPPORT_GEM_DB[name]) || {})

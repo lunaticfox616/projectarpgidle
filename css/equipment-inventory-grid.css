@@ -84,8 +84,8 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
 #item-tab-equip .inventory-browse-toolbar select { min-height: 34px; }
 #item-tab-equip .inventory-browse-toolbar button { min-height: 34px; font-size: 11px; }
 #item-tab-equip #btn-auto-salvage { border-color: #977440; color: #efdbb0; background: linear-gradient(#34291a, #211b13); }
-#btn-auto-salvage::after { content: '자동해체 OFF'; display: block; margin-top: 2px; font-size: 9px; color: #b5aa96; }
-#btn-auto-salvage[data-enabled="true"]::after { content: '자동해체 ON'; color: #a8d5a7; }
+#btn-auto-salvage::after { content: '자동해체 꺼짐'; display: block; margin-top: 2px; font-size: 9px; color: #b5aa96; }
+#btn-auto-salvage[data-enabled="true"]::after { content: '자동해체 켜짐'; color: #a8d5a7; }
 #item-tab-equip .inventory-management-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; margin: 0 0 8px; padding: 0 0 8px; border-bottom: 1px solid var(--color-line); }
 #item-tab-equip .equipment-bulk-menu { position: relative; }
 #item-tab-equip .equipment-bulk-menu summary { cursor: pointer; padding: 7px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface-raised); font-size: 12px; white-space: nowrap; }
@@ -405,7 +405,7 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
     padding: 2px 3px;
     color: #f3f6fa;
     background: linear-gradient(90deg, rgba(4, 8, 13, .84), rgba(4, 8, 13, .58));
-    font-size: 7px;
+    font-size: 12px;
     font-weight: 800;
     line-height: 1.15;
     text-align: left;
@@ -437,17 +437,13 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
     border-radius: 3px;
     color: #ffe7a6;
     background: rgba(21, 16, 8, .84);
-    font-size: 6px;
+    font-size: 12px;
     font-weight: 900;
-    line-height: 1.25;
+    line-height: 1.1;
 }
-
-body.light-mode .equipment-grid-inspector { border-color: #aebdcb; background: #f3f7fb; }
-body.light-mode .equipment-grid-inspector-copy span,
-body.light-mode .equipment-grid-inspector-copy small { color: #526477; }
-body.light-mode #item-tab-equip #ui-inventory-list > .search-result-list { background-color: #dce5ed; }
-body.light-mode .equipment-grid-cell { border-color: rgba(69, 88, 107, .34); background: rgba(244, 248, 251, .62); }
-body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50% 42%, #32485d, #162330 74%); }
+.equipment-grid-item-badges .is-atk { color: #ffb36b; }
+.equipment-grid-item-badges .is-def { color: #8fe0a0; }
+.equipment-grid-item-badges .is-special { color: #ffd36b; }
 
 .equipment-slot-visual {
     position: relative;
@@ -532,10 +528,26 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
     #item-tab-equip .inventory-browse-toolbar select { width: 100%; min-width: 0; min-height: 44px; }
     #item-tab-equip .inventory-browse-toolbar .equipment-grid-auto-arrange { width: auto; margin: 0; min-height: 44px; padding: 5px 8px; }
     #item-tab-equip .inventory-browse-toolbar #btn-auto-salvage { min-height: 44px; }
-    body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
-    body.light-mode #item-tab-equip .equipment-inventory-panel { padding: 8px; }
+    :root body #item-tab-equip .equipment-inventory-panel { padding: 8px; }
     #item-tab-equip .inventory-management-row { gap: 6px; margin-bottom: 6px; padding-bottom: 0; border-bottom: 0; }
     #item-tab-equip .inventory-management-row :where(button, select) { min-height: 44px; }
+    /* 좁은 화면: 관리 버튼을 한 줄씩 쌓지 않고 두 줄 격자로 묶어 가방 격자를 첫 화면 안으로 올린다.
+       일괄 해체는 아랫줄(빈 칸 채우기)에 맞춘다 — 가운데 맞춤이면 두 줄 사이에 떠 있었다. */
+    #item-tab-equip .inventory-management-row { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: end; }
+    #item-tab-equip .inventory-management-row > .equipment-triage-host { grid-column: 1; grid-row: 1; min-width: 0; }
+    #item-tab-equip .inventory-management-row > .equipment-bulk-menu { grid-column: 2; grid-row: 1; }
+    #item-tab-equip .inventory-management-row .equipment-bulk-menu summary { justify-content: center; padding: 4px 6px; font-size: 12px; white-space: nowrap; }
+    #item-tab-equip .equipment-triage-copy { display: none; }
+    #item-tab-equip .equipment-triage-controls { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 6px; }
+    #item-tab-equip .equipment-triage-controls label { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; white-space: nowrap; }
+    #item-tab-equip .equipment-triage-controls select { width: 100%; min-width: 0; }
+    #item-tab-equip .equipment-triage-controls button { min-width: 0; padding: 4px 6px; font-size: 12px; }
+    /* 빈 칸 채우기는 아랫줄 혼자라 두 칸을 쓴다(첫 칸 폭에서 "빈 칸 채우기 6"이 잘렸다) */
+    #item-tab-equip .equipment-triage-controls .equipment-fill-empty { grid-column: span 2; }
+    #item-tab-equip .inventory-browse-toolbar { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    #item-tab-equip .inventory-browse-toolbar label { grid-column: span 3; font-size: 12px; }
+    #item-tab-equip .inventory-browse-toolbar button { grid-column: span 2; min-width: 0; min-height: 44px; font-size: 12px; }
+    #item-tab-equip .inventory-browse-toolbar #btn-auto-salvage { line-height: 1.15; }
     .equipment-inventory-grid-shell {
         --equipment-grid-cell-size: clamp(24px, calc((100cqw - 2px) / 10), 52px);
         display: block;
@@ -560,10 +572,12 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
     .equipment-grid-inspector { grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; }
     .equipment-grid-inspector-actions button { min-width: 0; min-height: 44px; padding-inline: 3px; font-size: 12px; }
     .equipment-grid-inspector-close { grid-column: 2; grid-row: 1; min-height: 44px; }
-    .equipment-grid-item-badges span { padding-inline: 2px; font-size: 5px; }
+    .equipment-grid-item-badges span { padding-inline: 2px; }
 }
 
-.equipment-grid-slot-label { position: absolute; bottom: 3px; left: 0; right: 0; color: #eee5d7; font-family: inherit; font-size: 9px; line-height: 1.2; text-align: center; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* 한 칸 폭(휴대폰 35px) 아이템의 "목걸이"가 "목걸 / 이"로 갈라지지 않게 한 줄 — 양옆 2px까지 넘겨 쓴다 */
+.equipment-grid-slot-label.is-long { font-size: 10px; letter-spacing: -1px; }
+.equipment-grid-slot-label { position: absolute; bottom: 3px; left: -2px; right: -2px; color: #eee5d7; font-family: inherit; font-size: 12px; line-height: 1.2; text-align: center; white-space: nowrap; text-shadow: 0 1px 2px #000; pointer-events: none; }
 .equipment-slot.equipment-requirements-unmet { filter: saturate(.3); }
 .equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:10px; line-height:1.4; pointer-events:none; }
 }

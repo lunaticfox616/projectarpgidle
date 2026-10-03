@@ -39,7 +39,7 @@ const craftingWorkspaceState = (() => {
     /** Saved panel migration and preferences are restored together without opening any UI. */
     function restore(state) {
         const tab=state.itemSubtab==='item-tab-fossil'?'item-tab-craft':state.itemSubtab;
-        const allowed=['item-tab-equip','item-tab-craft','item-tab-market','item-tab-hall','item-tab-infuser'];
+        const allowed=['item-tab-equip','item-tab-craft','item-tab-market','item-tab-hall'];
         return {craftingWorkspace:normalize(state.craftingWorkspace,state.currencies),itemSubtab:allowed.includes(tab)?tab:'item-tab-equip'};
     }
 

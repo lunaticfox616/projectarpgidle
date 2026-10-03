@@ -15,11 +15,11 @@ const contentProgression = (() => {
         underworld: owner => [['혼돈계 · 케르베로스 · 심화 30층 · 미궁 100층', isUnderworldUnlockReady(owner)]],
         cosmos: owner => [['나무꾼 기록 · 지하계 30층 도달', isCosmosContentUnlockReady(owner)]],
         sky: owner => [['혼돈 20층 클리어', owner.skyTower.unlocked || owner.season > 15 || hasCurrentLoopChaos20Clear(owner)]],
-        beyond: owner => [['경계의 관측자 처치', isBeyondBoundaryUnlockRequirementMet(owner)]],
+        beyond: owner => [['경계의 관측자 처치 · 루프 50 또는 세계수 씨앗 4개', isBeyondBoundaryUnlockRequirementMet(owner)]],
         cube: owner => [['지하계 10층 클리어', owner.underworldProgress.highestFloor >= 11]],
-        arcana: owner => [['봉인된 카드 발견', owner.arcana.unlocked]],
         talent: owner => [['재능 개화', hasPermanentTalentTabUnlock(owner)]],
-        woodsman: owner => [['나무꾼 조우 또는 기록', !!owner.woodsmanSimulatorSeenLoop || owner.woodsmanDefeatAttempts > 0 || owner.journalEntries.includes('woodsman')]]
+        woodsman: owner => [['나무꾼 조우 또는 기록', !!owner.woodsmanSimulatorSeenLoop || owner.woodsmanDefeatAttempts > 0 || owner.journalEntries.includes('woodsman')]],
+        stump: owner => [['액트 10 클리어', !!(owner.stumpBox && owner.stumpBox.acquired) || stumpBox.eligible(owner)]]
     };
 
     function requirements(id, owner = game) {
@@ -34,7 +34,6 @@ const contentProgression = (() => {
     }
 
     function meetsUsageGate(def, owner) {
-        if (def.id === 'flask') return owner.season >= def.minLoop;
         if (def.id !== 'battleTrials') return true;
         const state = owner.contentProgression;
         return owner.season >= def.minLoop && !!state
@@ -66,20 +65,24 @@ const contentProgression = (() => {
         return !unlocks || unlocks.some(id => isUnlocked(id, owner));
     }
 
-    /** Flask discovery, crafting and inventory share the same feature boundary. */
-    function canUseFlask(key, owner = game) {
-        const def = FLASK_DB[key];
-        return !!def && isUnlocked(def.kind === 'heal' ? 'flask' : 'flaskUtility', owner);
-    }
-
     function canOpenMap(owner) {
         return owner.season >= 2 || owner.maxZoneId >= 1 || owner.unlocks.map || owner.contentProgression.legacy === true;
     }
 
+    // Menus that follow world progress instead of a catalog purchase.
+    const progressRoutes = {
+        'tab-map': canOpenMap,
+        'tab-season': owner => owner.season >= 2,
+        'tab-unlocks': owner => owner.season >= 2,
+        // 전술 규칙(예전 컨디션 젬 창의 자동 사용 규칙): 규칙 조건이 루프 2부터 열리고, 전술은 액트 3에서 배운다.
+        'skill-tab-condition': owner => owner.season >= 2 && !!owner.combatTacticsUnlocked,
+        // 세계수 탐험 창(아틀라스)은 혼돈계와 같은 경로지만, 아틀라스가 열렸으면 혼돈계 관문 전이라도 연다.
+        'map-explore-worldtree': owner => !!owner.atlas?.unlocked || isUnlocked('chaosRealm', owner)
+    };
+
     function canOpen(route, owner = game) {
         if (!owner.contentProgression || !route || coreRoutes.has(route)) return true;
-        if (route === 'tab-map') return canOpenMap(owner);
-        if (route === 'tab-season' || route === 'tab-unlocks') return owner.season >= 2;
+        if (progressRoutes[route]) return progressRoutes[route](owner);
         const feature = routes.get(route);
         return !!feature && isUnlocked(feature, owner);
     }
@@ -126,17 +129,8 @@ const contentProgression = (() => {
         state.automatic = [...new Set([...state.automatic, ...automatic])];
     }
 
-    function grantConditionEntryReward(key, owner) {
-        if (!owner.conditionGemPool.includes(key)) owner.conditionGemPool.push(key);
-        owner.conditionGemLevels[key] = Math.max(1, owner.conditionGemLevels[key] || 1);
-        if (!owner.skillAutoRules.length) owner.skillAutoRules.push(normalizeConditionPatternRule({
-            id:'condition-starter', enabled:true, priority:1, triggerType:'boss_warning',
-            actionType:'condition_gem', skillName:key }));
-    }
-
     /** One-time entry rewards share the purchase transaction; load/loop changes never replay them. */
     function grantEntryReward(id, key, owner) {
-        if (id === 'condition') grantConditionEntryReward(key, owner);
         if (id === 'craft') owner.currencies[key]++;
         if (id === 'support') {
             if (hasSupportGemOwned(key, owner)) owner.currencies.gemShard += 8;
@@ -169,7 +163,7 @@ const contentProgression = (() => {
         if (def.id === 'journal') return owner.journalEntries.length > 0;
         if (def.gate) return !!owner.unlocks[def.gate];
         if (def.flags) return def.flags.some(flag => owner[flag]);
-        return owner.season >= def.minLoop || ['support','craft','fossil','research','hall','flask','records'].includes(def.id);
+        return owner.season >= def.minLoop || ['support','craft','fossil','research','hall','records'].includes(def.id);
     }
 
     function restorePurchases(purchased, next, record) {
@@ -210,12 +204,6 @@ const contentProgression = (() => {
         next.inherited = [...new Set(next.inherited)];
     }
 
-    function migrateConditionEntryReward(record, next, owner) {
-        if ((Number(record.version) || 0) < 3 && [...next.unlocked, ...next.inherited].includes('condition')) {
-            grantConditionEntryReward('긴급 회피', owner);
-        }
-    }
-
     /** Only save-boundary arrays pass here; drop unknown/duplicate content IDs. */
     function savedIds(raw) {
         return [...new Set((Array.isArray(raw) ? raw : []).filter(id => definitions.has(id)))];
@@ -242,9 +230,7 @@ const contentProgression = (() => {
         if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => definitions.get(id).cost > 0)
             && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
-        migrateConditionEntryReward(record, next, owner);
         inheritSplitGrowth(record, next);
-        if (next.highestLoop < 2) next.inherited = next.inherited.filter(id => !['flask', 'flaskUtility'].includes(id));
         return next;
     }
 
@@ -253,9 +239,8 @@ const contentProgression = (() => {
         if (Number(record.version) >= 7) return;
         const owned = new Set([...next.unlocked, ...next.inherited]);
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
-        if (owned.has('flask') && !owned.has('flaskUtility')) next.inherited.push('flaskUtility');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canUseFlask, canOpen, points, balance, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, balance, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

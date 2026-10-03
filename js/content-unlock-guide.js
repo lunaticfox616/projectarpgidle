@@ -61,17 +61,6 @@
         });
     }
 
-    function conditionGemGuide(state) {
-        if (Math.max(1, count(state.season) || 1) < 2 || state.conditionGemUnlocked) return null;
-        let bossClears = Array.isArray(state.clearedRootBosses) ? state.clearedRootBosses.length : 0;
-        return guide({
-            id: 'condition-gem', title: '컨디션 젬',
-            description: '루프 2의 뿌리 보스를 처음 처치하면 전투 조건 설정이 열립니다.',
-            requirements: [requirement('루프 2', true), requirement('뿌리 보스 처치', bossClears > 0)],
-            actionLabel: '뿌리 보스 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-root-boss'
-        });
-    }
-
     function eventUnlockGuide(state) {
         let loop = Math.max(1, count(state.season) || 1);
         if (loop >= 4 && !state.gemEnhanceUnlocked) return guide({
@@ -80,17 +69,10 @@
             requirements: [requirement('루프 4', true), requirement('강화 재료 획득', false)],
             actionLabel: '스킬 젬 보기', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance'
         });
-        let talismanUnlocked = !!state.talismanUnlocked || !!(state.unlocks && state.unlocks.talisman);
-        if (loop >= 6 && !talismanUnlocked) return guide({
-            id: 'talisman', title: '부적',
-            description: '고대 미궁에서 봉인편린을 처음 획득하면 부적 탭이 나타납니다.',
-            requirements: [requirement('루프 6', true), requirement('봉인편린 획득', false)],
-            actionLabel: '고대 미궁 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-labyrinth'
-        });
-        let wedgeUnlocked = !!(state.starWedge && state.starWedge.unlocked);
-        if (loop >= 7 && !wedgeUnlocked) return guide({
-            id: 'star-wedge', title: '별쐐기와 운석 낙하 지점',
-            description: '루프 7에서 액트 7에 도달하면 천문 콘텐츠가 열립니다.',
+        let meteorUnlocked = !!(state.meteorSite && state.meteorSite.unlocked);
+        if (loop >= 7 && !meteorUnlocked) return guide({
+            id: 'meteor-site', title: '운석 낙하 지점',
+            description: '루프 7에서 액트 7에 도달하면 하늘 균열 게이지가 차기 시작합니다.',
             requirements: [requirement('루프 7', true), requirement('액트 7 도달', count(state.maxZoneId) >= 7, count(state.maxZoneId), 7)],
             actionLabel: '사냥터 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-hunting'
         });
@@ -149,14 +131,13 @@
         });
     }
 
-    function coreCubeGuide(state) {
-        let cube = state.coreCube && typeof state.coreCube === 'object' ? state.coreCube : {};
-        if (cube.everUnlocked || cube.unlocked) return null;
+    function coreGuide(state) {
         let loop = Math.max(1, count(state.season) || 1);
         let highest = Math.max(1, count(state.underworldProgress && state.underworldProgress.highestFloor) || 1);
+        if (loop >= 20 && highest >= 11) return null;
         return guide({
-            id: 'core-cube', title: '코어 큐브',
-            description: '루프 20 이후 지하계 10층을 클리어하면 큐브와 전용 동력원이 열립니다.',
+            id: 'core', title: '코어',
+            description: '루프 20 이후 지하계 10층을 넘기면 지하계 적에게서 코어가 떨어집니다. 장비창 왼쪽 위 코어 칸에 낍니다.',
             requirements: [requirement('루프 20', loop >= 20, Math.min(loop, 20), 20), requirement('지하계 10층', highest >= 11, Math.min(highest - 1, 10), 10)],
             actionLabel: '지하계 보기', actionTabId: 'tab-map', actionSubtabId: 'map-tab-underworld'
         });
@@ -239,8 +220,8 @@
 
     function getNextLegacyContentUnlock(state) {
         let loop = Math.max(1, count(state.season) || 1);
-        const candidates = [conditionGemGuide, eventUnlockGuide, chaosRealmGuide, skyTowerGuide];
-        if (loop >= 18) candidates.push(underworldGuide, coreCubeGuide, cosmosGuide);
+        const candidates = [eventUnlockGuide, chaosRealmGuide, skyTowerGuide];
+        if (loop >= 18) candidates.push(underworldGuide, coreGuide, cosmosGuide);
         if (tabUnlocked(state, 'map-tab-cosmos') && loop >= 31) candidates.push(astraGuide, pinnacleGuide);
         for (const candidate of candidates) {
             const found = candidate(state);

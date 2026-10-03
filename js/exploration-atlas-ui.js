@@ -2,7 +2,7 @@
 const explorationAtlasUi = (() => {
     let selected = null;
     let signature = '';
-    const regionFor = route => WORLD_TREE_JOURNEY.atlasRegions.find(region => region.routes.includes(route));
+    const regionFor = route => EXPLORATION_REGIONS.regions.find(region => region.routes.includes(route));
     function available(route) {
         const button = document.getElementById('btn-' + route);
         return !!button && !button.hidden && button.style.display !== 'none' && contentProgression.canOpen(route);
@@ -16,7 +16,7 @@ const explorationAtlasUi = (() => {
         scrollToTop();
     }
     function select(id) {
-        const region = WORLD_TREE_JOURNEY.atlasRegions.find(entry => entry.id === id);
+        const region = EXPLORATION_REGIONS.regions.find(entry => entry.id === id);
         if (!region || !region.routes.some(available)) return;
         const routes = region.routes.filter(available);
         if (routes.length === 1) return enter(routes[0]);
@@ -47,7 +47,7 @@ const explorationAtlasUi = (() => {
         if (game.currentZoneId === index) switchTab('tab-battle');
     }
     function routeLabel(route) {
-        if (route === 'map-explore-worldtree') return '수호자 탐험';
+        if (route === 'map-explore-worldtree') return '세계수 아틀라스';
         if (route === 'map-explore-chaos') return '혼돈 · 심화';
         if (route === 'map-explore-beehive') return '벌집';
         return document.getElementById('btn-' + route).textContent.trim();
@@ -87,7 +87,7 @@ const explorationAtlasUi = (() => {
     function routeHtml(route) {
         const condition = document.getElementById('btn-' + route).dataset.entryCondition || '';
         const summary = routeSummary(route);
-        const activity = WORLD_TREE_JOURNEY.atlasActivities[route];
+        const activity = EXPLORATION_REGIONS.activities[route];
         const status = route === 'map-explore-root-boss' ? '' : condition || summary.status;
         return `<button class="atlas-destination${summary.attention ? ' has-new-challenge' : ''}" data-atlas-route="${route}" data-atlas-tone="${activity.tone}" onclick="explorationAtlasUi.enter('${route}')">
             <strong>${escapeHTML(routeLabel(route))}</strong>${activity.kind ? `<span class="atlas-activity-kind">${escapeHTML(activity.kind)}</span>` : ''}
@@ -126,7 +126,7 @@ const explorationAtlasUi = (() => {
         const current = game.currentZoneId === index && !game.combatHalted;
         const blocked = !current && (getZoneTravelBlockReason(index) || isBeehiveRunLockedForMapTravel() || game.beyondBoundary.activeRun);
         return `${rewards.length ? `<button class="atlas-claim" onclick="openActReward(${rewards[0]})">받을 보상 ${rewards.length}</button>` : ''}
-            <button class="atlas-hunt-now" onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? '전투로 돌아가기' : blocked ? '이동 대기' : '즉시 이동'}</button>
+            <button class="atlas-hunt-now" ${current ? '' : 'data-exploration-departure'} onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? '전투로 돌아가기' : blocked ? '이동 대기' : '즉시 이동'}</button>
             <button class="atlas-hunt-select" onclick="explorationAtlasUi.enter('map-explore-hunting')">세부 지역</button>`;
     }
     function trackedRewardHtml(route) {
@@ -142,7 +142,7 @@ const explorationAtlasUi = (() => {
         if (route === 'map-explore-trials') return trialRouteSummary();
         if (route === 'map-explore-beehive') return hiveRouteSummary();
         if (route === 'map-explore-colony') return colonyRouteSummary();
-        if (route === 'map-explore-meteor') return {status:game.starWedge.skyRiftReady ? '하늘의 균열 충전 완료' : `하늘의 균열 ${Math.min(100,Math.floor(game.starWedge.skyRiftGauge))}%`};
+        if (route === 'map-explore-meteor') return {status:game.meteorSite.skyRiftReady ? '하늘의 균열 충전 완료' : `하늘의 균열 ${Math.min(100,Math.floor(game.meteorSite.skyRiftGauge))}%`};
         return {status:''};
     }
     function trialRouteSummary() {
@@ -192,7 +192,7 @@ const explorationAtlasUi = (() => {
         syncLocation();
         const host = document.getElementById('ui-exploration-atlas');
         if (!host || game.mapSubtab !== 'map-tab-zones' || game.mapExploreSubtab !== 'map-explore-atlas') return;
-        const regions = WORLD_TREE_JOURNEY.atlasRegions.filter(region => region.routes.some(route => route !== 'map-explore-hunting' && available(route)));
+        const regions = EXPLORATION_REGIONS.regions.filter(region => region.routes.some(route => route !== 'map-explore-hunting' && available(route)));
         if (!regions.some(region => region.id === selected)) selected = null;
         const region = regions.find(entry => entry.id === selected);
         const arena = available('map-tab-pvp') ? '<button class="atlas-arena" onclick="explorationAtlasUi.enter(\'map-tab-pvp\')">대전</button>' : '';
@@ -232,8 +232,10 @@ const explorationAtlasUi = (() => {
         banner.hidden = !region;
         if (banner.hidden) return;
         const hunting = route === 'map-explore-hunting';
+        // 주변 콘텐츠(운석 낙하 · 벌집 …)는 지역 층수 대신 그 콘텐츠의 진행을 보여 준다.
+        const sideStatus = region.sideRoutes.includes(route) && routeSummary(route).status;
         const progress = hunting ? `<div class="atlas-hunt-destination">${buildMapRouteSummaryHtml(getZone(game.currentZoneId),getZone(Math.min(STORY_ACTS.length-1,game.maxZoneId)))}</div>`
-            : `<p>${escapeHTML(regionProgress(region))}</p>`;
+            : `<p>${escapeHTML(sideStatus || regionProgress(region))}</p>`;
         const html = `<img class="atlas-landscape" src="${region.landscape}" alt="" decoding="async"><div>
             <h2>${escapeHTML(hunting ? '나무' : routeLabel(route))}</h2>${progress}</div>`;
         if (banner.innerHTML !== html) {banner.className='atlas-theme-'+region.id;banner.innerHTML=html;}

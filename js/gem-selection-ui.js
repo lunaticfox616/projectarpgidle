@@ -1,6 +1,8 @@
 // Gem inspection owns transient selection only. Existing equip handlers retain all build/cost guards.
 (function () {
     'use strict';
+    /** px between the detail popover and its gem card / window edge. */
+    const POPOVER_GAP = 8;
     let selection = null;
 
     function application(name, stats) {
@@ -10,6 +12,8 @@
         const active = getUiGemPresentation(game.activeSkill || '기본 공격', false, stats).skill;
         const targets = [];
         if (getTaggedDamageBreakdown({ [def.stat]: 1 }, active).total > 0) targets.push('주 공격');
+        const mobility = mobilitySkill.equipped();
+        if (mobility && getTaggedDamageBreakdown({ [def.stat]: 1 }, getUiGemPresentation(mobility, false, stats).skill).total > 0) targets.push('이동 스킬');
         const summons = (game.equippedSummonSkills || []).filter(gem => (SKILL_DB[gem]?.tags || []).includes(tag));
         targets.push(...summons);
         if (targets.length) return `적용: ${targets.join(' · ')}`;
@@ -32,7 +36,11 @@
         root.setAttribute('role', 'dialog');
         root.setAttribute('aria-label', '젬 상세');
         root.innerHTML = '<div class="gem-selection-actions"></div><div class="gem-selection-content"></div>';
-        root.addEventListener('toggle', event => { if (event.newState === 'closed') close(); });
+        // 따라 하기 안내가 젬 카드와 상세의 '장착' 단추 사이로 표시를 옮긴다.
+        root.addEventListener('toggle', event => {
+            if (event.newState === 'closed') close();
+            if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
+        });
         root.addEventListener('click', act);
         document.getElementById('tab-skills').append(root);
         return root;
@@ -49,7 +57,7 @@
     function actions(type, name, anchor) {
         const support = type === 'support';
         const summon = !support && (SKILL_DB[name].tags || []).includes('summon_attack');
-        let html = equipButton(anchor, support || summon);
+        let html = equipButton(anchor, support || summon || mobilitySkill.isMobilityGem(name));
         if (!support && game.gemEnhanceUnlocked && getEquippedEnhanceableGemNames().includes(name)) {
             html += '<button type="button" data-gem-action="enhance">강화 · 각인</button>';
         }
@@ -103,22 +111,37 @@
         else changeSkill(name);
     }
 
+    /** 상세가 머무는 사각형: 젬이 든 관리 창(PC), 창이 없으면 화면 — 둘 다 하단 메뉴 띠 위까지. */
+    function popoverBounds(anchor) {
+        const nav = document.getElementById('tab-header-bottom');
+        const floor = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
+        const frame = anchor.closest('.ui-window-open')?.getBoundingClientRect() || { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+        return { left: Math.max(0, frame.left), top: Math.max(0, frame.top), right: Math.min(innerWidth, frame.right), bottom: Math.min(floor, frame.bottom) };
+    }
+
+    /** 카드 오른쪽, 안 되면 왼쪽(세로는 창 안으로 당긴다), 둘 다 안 되면 아래 · 위. */
+    function popoverSpot(anchor, size, bounds) {
+        const minX = bounds.left + POPOVER_GAP, maxX = bounds.right - POPOVER_GAP - size.width;
+        const minY = bounds.top + POPOVER_GAP, maxY = bounds.bottom - POPOVER_GAP - size.height;
+        const fitY = y => Math.max(minY, Math.min(maxY, y));
+        if (anchor.right + POPOVER_GAP <= maxX) return { x: anchor.right + POPOVER_GAP, y: fitY(anchor.top) };
+        if (anchor.left - POPOVER_GAP - size.width >= minX) return { x: anchor.left - POPOVER_GAP - size.width, y: fitY(anchor.top) };
+        const x = Math.max(minX, Math.min(maxX, anchor.left));
+        if (anchor.bottom + POPOVER_GAP <= maxY) return { x, y: anchor.bottom + POPOVER_GAP };
+        return { x, y: fitY(anchor.top - POPOVER_GAP - size.height) };
+    }
+
+    /** 상세는 젬이 든 창 안에 머문다 — 창 아래로 넘쳐 HUD 미니맵을 덮었다(검토 2026-10-01). */
     function position() {
         if (!selection) return;
         const root = document.getElementById('gem-selection');
         if (!root.matches(':popover-open')) return;
-        const rect = selection.anchor.getBoundingClientRect();
         if (!selection.anchor.isConnected || !selection.anchor.getClientRects().length) { close(); return; }
-        const nav = document.getElementById('tab-header-bottom');
-        const bottom = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
-        root.style.maxHeight = `${(bottom - 16) / uiDisplay.factor}px`;
-        const size = root.getBoundingClientRect();
-        let x = rect.right + 8, y = rect.top;
-        if (x + size.width > innerWidth - 8) x = rect.left - size.width - 8;
-        if (x < 8) { x = rect.left; y = rect.bottom + 8; }
-        if (y + size.height > bottom - 8) y = rect.top - size.height - 8;
-        root.style.left = `${Math.max(8, Math.min(innerWidth - size.width - 8, x)) / uiDisplay.factor}px`;
-        root.style.top = `${Math.max(8, Math.min(bottom - size.height - 8, y)) / uiDisplay.factor}px`;
+        const bounds = popoverBounds(selection.anchor);
+        root.style.maxHeight = `${(bounds.bottom - bounds.top - 2 * POPOVER_GAP) / uiDisplay.factor}px`;
+        const spot = popoverSpot(selection.anchor.getBoundingClientRect(), root.getBoundingClientRect(), bounds);
+        root.style.left = `${spot.x / uiDisplay.factor}px`;
+        root.style.top = `${spot.y / uiDisplay.factor}px`;
     }
 
     document.addEventListener('scroll', position, true);

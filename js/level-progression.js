@@ -83,8 +83,9 @@ const levelProgression = (() => {
         return item;
     }
     function affixCap(level) { return Math.max(1, Math.min(20, Math.floor(interpolate(level, true)))); }
+    // areaLevel sets monster/item levels; a zone without its own combat tier also takes the tier from it.
     function combatZone(zone) {
-        return Number.isFinite(zone.areaLevel) ? { ...zone, tier: interpolate(zone.areaLevel, true) } : zone;
+        return Number.isFinite(zone.areaLevel) && !Number.isFinite(zone.tier) ? { ...zone, tier: interpolate(zone.areaLevel, true) } : zone;
     }
     return Object.freeze({ tierLevel, areaLevel, monsterLevel, monsterExperience, penalty, rewardMultiplier, loopExperienceMultiplier, filterCurrencyDrops,
         requirements, stampItem, affixCap, combatZone,

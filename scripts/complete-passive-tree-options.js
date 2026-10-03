@@ -240,15 +240,15 @@ function configureStartAndVoidNodes(tree) {
     });
 }
 
-function configureStarWedgeSockets(tree, report) {
+// 예전 별쐐기 허브(quatrefoil)는 공허 소켓이 된다(2026-10-01). 바깥 여섯은 성좌 각성을 거는 외곽 공허(voidRing: 'outer').
+function configureVoidSockets(tree, report) {
     tree.nodes.filter(node => node.type === 'quatrefoil').forEach(node => {
         const center = Math.hypot(Number(node.x) || 0, Number(node.y) || 0) < 500;
         const zone = zoneForPosition(node.x, node.y);
-        Object.assign(node, { starWedgeMode: center ? 'mutation' : 'constellation', cat: 'none', mods: [], runtimeEffects: [],
-            desc: center ? '별쐐기를 장착하면 원형 범위 안의 기존 패시브 효과가 별쐐기 옵션으로 변성됩니다.'
-                : '별쐐기를 장착하면 별쐐기 옵션을 가진 투자 가능한 패시브가 새로 나타납니다.', statAutoName: false });
-        if (!center) node.name = `${ZONE_LABELS[zone]}의 외곽 성률`;
-        report.starWedgeModes[center ? 'mutation' : 'constellation'] += 1;
+        Object.assign(node, { type: 'void', cat: 'none', mods: [], runtimeEffects: [], desc: '', statAutoName: false });
+        delete node.starWedgeMode;
+        if (!center) Object.assign(node, { voidRing: 'outer', name: `${ZONE_LABELS[zone]}의 외곽 공허` });
+        report.voidSockets[center ? 'center' : 'outer'] += 1;
     });
 }
 
@@ -330,7 +330,7 @@ function connectDisconnectedNodes(tree, report) {
 function createReport(sourceFile, tree) {
     return { source: path.resolve(sourceFile), nodesBefore: tree.nodes.length, edgesBefore: tree.edges.length,
         nodes: 0, edges: 0, reassigned: 0, preservedAuthored: 0, byArchetype: {}, byType: {},
-        correctedSpecialAssignments: 0, starWedgeModes: { mutation: 0, constellation: 0 }, hiddenRouteNodes: 0,
+        correctedSpecialAssignments: 0, voidSockets: { center: 0, outer: 0 }, hiddenRouteNodes: 0,
         removedOverlaps: [], repositionedDuplicates: [], addedEdges: [], promotedClusterNodes: [] };
 }
 
@@ -338,9 +338,8 @@ function assertCompleted(tree) {
     const graph = buildGraph(tree), starts = tree.nodes.filter(node => node.type === 'start');
     if (starts.length !== 6 || starts.some(node => !node.startClassId || node.runtimeEffects.length !== 0)) throw new Error('6직업 시작점 계약이 올바르지 않습니다.');
     if (tree.nodes.some(node => node.type === 'void' && node.runtimeEffects.length !== 0)) throw new Error('공허 노드에 고정 효과가 있습니다.');
-    const sockets = tree.nodes.filter(node => node.type === 'quatrefoil');
-    if (sockets.filter(node => node.starWedgeMode === 'mutation').length !== 3
-        || sockets.filter(node => node.starWedgeMode === 'constellation').length !== 6) throw new Error('성률 중앙/외곽 구성이 올바르지 않습니다.');
+    if (tree.nodes.some(node => node.type === 'quatrefoil')) throw new Error('별쐐기 허브가 공허 소켓으로 바뀌지 않았습니다.');
+    if (tree.nodes.filter(node => node.type === 'void' && node.voidRing === 'outer').length !== 6) throw new Error('외곽 공허 소켓은 6개여야 합니다.');
     tree.nodes.filter(node => ACTIONABLE_TYPES.has(node.type)).forEach(node => {
         if (!Array.isArray(node.runtimeEffects) || node.runtimeEffects.length === 0) throw new Error(`효과가 없는 노드: ${node.id}`);
         node.runtimeEffects.forEach(effect => { if (!STAT_META[effect.statId]) throw new Error(`지원하지 않는 효과: ${node.id}/${effect.statId}`); });
@@ -358,7 +357,7 @@ function completeTreeData(source, sourceLabel) {
     connectDisconnectedNodes(tree, report);
     ensureBundleFeatures(tree, report);
     configureStartAndVoidNodes(tree);
-    configureStarWedgeSockets(tree, report);
+    configureVoidSockets(tree, report);
     const graph = buildGraph(tree), starts = tree.nodes.filter(node => node.type === 'start').map(node => String(node.id));
     const distances = graphDistances(graph, starts);
     report.correctedSpecialAssignments = tree.nodes.filter(node => ['mystique', 'devotion', 'cycle'].includes(node.cat) && !isIntendedSpecial(node)).length;

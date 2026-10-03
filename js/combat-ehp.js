@@ -173,7 +173,7 @@ function getMapEstimateDpsMultiplier(stats, estimate, alreadyInZone) {
     return multiplier * Math.max(0.1, 1 - pressureSlow);
 }
 
-/** Sustained baseline only: conditional leech, flasks, talents and temporary shields are excluded. */
+/** Sustained baseline only: conditional leech, talents and temporary shields are excluded. */
 function getMapEnvironmentReadiness(stats, estimate) {
     const floor = Number(estimate?.underworldLifeDrainFloor) || 0;
     if (floor < 15) return null;

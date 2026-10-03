@@ -83,6 +83,13 @@ function loadGame(save) {
     assert.ok(context.uniqueHuntUi.getSource(meteor).label.includes('운석'), '운석 고유의 드랍처를 안내해야 한다');
     assert.ok(context.uniqueHuntUi.getSource(labyrinth).label.includes('30층+'), '미궁 고유의 최소 층을 안내해야 한다');
     assert.ok(context.uniqueHuntUi.getSource(cosmosBoss).label.includes('우주계'), '우주계 보스 고유의 출처를 안내해야 한다');
+    const late = context.UNIQUE_DB.filter(entry => entry && entry.dropOnly && entry.dropOnly.type === 'atlasLate');
+    assert.strictEqual(late.length, 6, '깨어난 아틀라스 보스의 고유 6종');
+    assert.ok(late.every(entry => context.uniqueHuntUi.getSource(entry).exploreSubtab === 'map-explore-worldtree' && context.uniqueHuntUi.getSource(entry).label.includes('아틀라스')),
+        '아틀라스 후반부 고유는 사냥터가 아니라 아틀라스를 안내해야 한다');
+    const crown = context.UNIQUE_DB.find(entry => entry && entry.name === '대균열의 왕관');
+    assert.ok(context.uniqueHuntUi.getSource(crown).label.includes('대균열') && context.uniqueHuntUi.getSource(crown).label.includes('공허를 여는 자'),
+        '리그 우두머리도 주는 고유는 원래 자리와 그 우두머리를 함께 안내해야 한다');
 }
 
 console.log('smoke-unique-hunt passed');

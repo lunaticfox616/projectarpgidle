@@ -9,9 +9,17 @@ const GRID_CARDINAL_STEPS = Object.freeze([
 ]);
 
 function isGridCellInBounds(gx, gy) {
+    const size=getCombatGridSize();
     return Number.isInteger(gx) && Number.isInteger(gy)
         && gx >= 0 && gy >= 0
-        && gx < COMBAT_GRID_CONFIG.columns && gy < COMBAT_GRID_CONFIG.rows;
+        && gx < size.columns && gy < size.rows;
+}
+
+/** Reads the passed snapshot, so offline replay never changes the live world's dimensions. */
+function getCombatGridSize(state=game) {
+    const exploration=state.actExploration;
+    if(!exploration||exploration.zoneId!==state.currentZoneId)return COMBAT_GRID_CONFIG;
+    return actExplorationMap.forRun(exploration) || COMBAT_GRID_CONFIG;
 }
 
 function gridCellKey(gx, gy) {
@@ -86,7 +94,10 @@ function getClosestGridUnitCell(from, unit) {
 function canPlaceGridFootprint(blocked, gx, gy, footprint) {
     let cells = getGridFootprintCells(gx, gy, footprint);
     if (cells.length !== footprint.columns * footprint.rows) return false;
-    return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy)));
+    const map=getCombatGridSize(),run=actExplorationState.current(game);
+    const sealed=run && actExplorationState.remainingElites(run)>0;
+    return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy))
+        && (!map.tiles || actExplorationMap.walkable(map,cell,sealed)));
 }
 
 function isGridUnitInCellSet(unit, cellKeys) {
@@ -106,8 +117,17 @@ function getGridBlockedCells(excludeUnit) {
     };
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
+    addExplorationGridReservations(blocked,excludeUnit);
     (game.summons || []).forEach(summon => { if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
     return blocked;
+}
+
+function addExplorationGridReservations(blocked,excludeUnit) {
+    const run=actExplorationState.current(game);if(!run)return;
+    run.packs.forEach(pack=>pack.waiting.forEach(enemy=>{
+        getGridUnitCells(enemy).forEach(cell=>blocked.add(gridCellKey(cell.gx,cell.gy)));
+    }));
+    if(run.motion && excludeUnit!==game.gridPlayer)blocked.add(gridCellKey(run.motion.to.gx,run.motion.to.gy));
 }
 
 /**
@@ -120,8 +140,8 @@ function getGridBlockedCells(excludeUnit) {
 function findFreeGridCell(blocked, near, footprint) {
     let size = footprint || { columns: 1, rows: 1 };
     let free = [];
-    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
-        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
+    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
+        for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             if (canPlaceGridFootprint(blocked, gx, gy, size)) free.push({ gx, gy });
         }
     }
@@ -146,7 +166,8 @@ function assignEnemyGridSpawn(enemy, blocked) {
         ? (!bossSpawnFree
             ? findFreeGridCell(blocked, COMBAT_GRID_CONFIG.bossSpawn, footprint)
             : { gx: COMBAT_GRID_CONFIG.bossSpawn.gx, gy: COMBAT_GRID_CONFIG.bossSpawn.gy })
-        : findFreeGridCell(blocked);
+        // A wide map spawns reinforcements (void breach, swarms) beside the hero, not in some far room.
+        : findFreeGridCell(blocked, actExplorationState.current(game) ? game.gridPlayer : undefined);
     if (!cell) cell = { gx: COMBAT_GRID_CONFIG.bossSpawn.gx, gy: COMBAT_GRID_CONFIG.bossSpawn.gy };
     enemy.gx = cell.gx;
     enemy.gy = cell.gy;
@@ -154,16 +175,24 @@ function assignEnemyGridSpawn(enemy, blocked) {
     getGridFootprintCells(cell.gx, cell.gy, footprint).forEach(occupied => blocked.add(gridCellKey(occupied.gx, occupied.gy)));
 }
 
+/** 그림이 공격 방식을 정한 외형이면 true(근접) · false(원거리), 아니면 null(외형 표는 data/bosses.js). */
+function getEnemyPictureMelee(enemy) {
+    const kind = typeof getMonsterVisualAttackKind === 'function' ? getMonsterVisualAttackKind(enemy.spriteVariantId || enemy.monsterVisualId) : null;
+    return kind ? kind === 'melee' : null;
+}
+
 /**
  * 적의 근접/원거리 유형과 사거리를 배정한다. 보스는 항상 원거리(사실상 무제한 사거리),
- * 일반/정예는 같은 외형 종류에 같은 유형을 배정한다. 외형 정보 없는 이전 적은 기존 확률을 사용한다.
+ * 일반/정예는 그림이 정한 방식을 따르고(2026-10-02), 정하지 않은 외형은 외형 종류마다 같은 확률 유형을 쓴다.
+ * 외형 정보 없는 이전 적은 기존 확률을 사용한다.
  */
 function rollEnemyGridCombatProfile(enemy) {
     const cfg = COMBAT_GRID_CONFIG;
     if (enemy.monsterArchetype === 'wisp') return {melee:false,range:cfg.rangedEnemyMinRange};
     const identity = enemy.monsterVisualId || enemy.spriteVariantId;
     const random = identity ? createSeededRng('enemy-attack:' + identity) : Math.random;
-    const melee = random() < cfg.meleeEnemyChance;
+    const rolled = random() < cfg.meleeEnemyChance, picture = getEnemyPictureMelee(enemy);
+    const melee = picture === null ? rolled : picture;
     return {melee,range:melee ? cfg.meleeAttackRange
         : cfg.rangedEnemyMinRange+Math.floor(random()*(cfg.rangedEnemyMaxRange-cfg.rangedEnemyMinRange+1))};
 }
@@ -186,7 +215,8 @@ function assignEnemyGridCombatProfile(enemy) {
 
 /** 플레이어를 스폰 칸으로 되돌린다(조우 시작/전장 리셋 시). */
 function resetPlayerGridPosition() {
-    game.gridPlayer = { gx: COMBAT_GRID_CONFIG.playerSpawn.gx, gy: COMBAT_GRID_CONFIG.playerSpawn.gy, gridMoveTimer: 0 };
+    const cell=getCombatGridSize().entry || COMBAT_GRID_CONFIG.playerSpawn;
+    game.gridPlayer = { gx: cell.gx, gy: cell.gy, gridMoveTimer: 0 };
 }
 
 /**
@@ -296,15 +326,40 @@ function gridStepToward(unit, tx, ty, blocked) {
 function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     if (!hasGridCell(unit) || !target) return false;
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationGridStep(target,interval);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + dtSec;
     if (unit.gridMoveTimer < interval) return false;
+    let from = { gx: unit.gx, gy: unit.gy };
     let moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
     unit.gridMoveTimer = moved ? 0 : interval;
+    markGridStep(unit, from, moved);
     return moved;
+}
+
+/** A unit that stepped remembers the cell it left and when: the drawn unit glides between the two for a moment (getGridUnitDrawnDelta). */
+function markGridStep(unit, from, moved) {
+    if (moved) Object.assign(unit, { gridStepFrom: from, gridStepAt: getCombatTime() });
+}
+
+function beginExplorationGridStep(target,interval) {
+    const run=actExplorationState.current(game);if(!run || run.motion)return false;
+    const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
+    if(!gridStepToward(next,target.gx,target.gy,getExplorationPlanningBlockedCells(run)))return false;
+    return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
+}
+
+/** The hero plans its exploration step around fighters, summons and its own reserved tile, but not around dormant packs:
+ * they wake as soon as they are seen, so a narrow passage (a maze chamber) they stand in must not look like a dead end.
+ * Stepping into a tile a dormant enemy still holds is refused at the half-way check (canEnterMotionTile). */
+function getExplorationPlanningBlockedCells(run) {
+    const blocked=getGridBlockedCells(game.gridPlayer);
+    run.packs.forEach(pack=>pack.waiting.forEach(enemy=>getGridUnitCells(enemy).forEach(cell=>blocked.delete(gridCellKey(cell.gx,cell.gy)))));
+    return blocked;
 }
 
 function findNearestSafeGridRoute(unit, hazardCells) {
     if (!hasGridCell(unit)) return null;
+    const footprint = getGridUnitFootprint(unit);
     let danger = new Set((hazardCells || [])
         .filter(cell => hasGridCell(cell))
         .map(cell => gridCellKey(cell.gx, cell.gy)));
@@ -321,7 +376,7 @@ function findNearestSafeGridRoute(unit, hazardCells) {
         GRID_CARDINAL_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = gridCellKey(gx, gy);
-            if (!isGridCellInBounds(gx, gy) || visited.has(key) || blocked.has(key)) return;
+            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
             let first = current.first || { gx, gy };
             visited.add(key);
             queue.push({ gx, gy, first, distance: current.distance + 1 });
@@ -336,12 +391,16 @@ function advanceGridHazardEscape(unit, hazardCells, dtSec, intervalSec) {
     if (!route) return { moved: false, safe: false, blocked: true };
     if (route.distance === 0) return { moved: false, safe: true, blocked: false, distance: 0 };
     let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    if (actExplorationState.current(game) && unit===game.gridPlayer) {
+        return {moved:beginExplorationGridStep(route.next,interval),safe:false,blocked:false,distance:route.distance};
+    }
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(dtSec) || 0);
     if (unit.gridMoveTimer < interval) return { moved: false, safe: false, blocked: false, distance: route.distance };
     let from = { gx: unit.gx, gy: unit.gy };
     unit.gx = route.next.gx;
     unit.gy = route.next.gy;
     unit.gridMoveTimer = 0;
+    markGridStep(unit, from, true);
     return {
         moved: true,
         safe: route.distance === 1,
@@ -371,41 +430,64 @@ function findGridRetreatCell(unit, target, maxRange, previousCell) {
 
 /** 사거리 안 전술 재배치를 한 칸만 수행한다. */
 function advanceGridTacticalMovement(unit, target, options) {
-    if (!hasGridCell(unit) || !hasGridCell(target)) return { moved: false };
+    if (![unit,target].every(hasGridCell)) return { moved: false };
     let config = options || {};
     let interval = Number(config.intervalSec) > 0 ? Number(config.intervalSec) : COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    if (actExplorationState.current(game) && unit===game.gridPlayer) return beginExplorationTacticalStep(target,config,interval);
     unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(config.dtSec) || 0);
     if (unit.gridMoveTimer < interval) return { moved: false };
     let from = { gx: unit.gx, gy: unit.gy };
-    let moved = false;
-    if (config.direction === 'away') {
-        let cell = findGridRetreatCell(unit, target, Math.max(1, Number(config.maxRange) || 1), config.previousCell);
-        if (cell) { unit.gx = cell.gx; unit.gy = cell.gy; moved = true; }
-    } else {
-        moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
-    }
+    const cell = findGridTacticalDestination(unit,target,config);
+    const moved = !!cell;
+    if (cell) Object.assign(unit,cell);
     unit.gridMoveTimer = moved ? 0 : interval;
+    markGridStep(unit, from, moved);
     return { moved, from, to: { gx: unit.gx, gy: unit.gy }, retreat: moved && config.direction === 'away' };
 }
 
-/** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다. */
+function beginExplorationTacticalStep(target,config,interval) {
+    const from={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
+    const away=config.direction==='away';
+    const next=findGridTacticalDestination(game.gridPlayer,target,config);
+    const moved=!!next && beginExplorationGridStep(next,interval);
+    return {moved,from,to:moved?game.actExploration.motion.to:from,retreat:moved && away};
+}
+
+function findGridTacticalDestination(unit,target,config) {
+    if(config.direction==='away')return findGridRetreatCell(unit,target,Math.max(1,Number(config.maxRange)||1),config.previousCell);
+    const next={gx:unit.gx,gy:unit.gy};
+    return gridStepToward(next,target.gx,target.gy,getGridBlockedCells(unit))?next:null;
+}
+
+/** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다.
+ * The resolved active skill's 효과 확장 grows it (js/skill-effect-expansion.js); at +0 the table row itself comes back. */
 function getSkillGridProfile(skillName, skillDef) {
+    let profile = getAuthoredSkillGridProfile(skillName, skillDef) || getDefaultSkillGridProfile(skillDef);
+    return skillEffectExpansion.grid(profile, skillDef);
+}
+
+/** The SKILL_GRID_DB row, reshaped when an engraved projectile pattern changes its kind. */
+function getAuthoredSkillGridProfile(skillName, skillDef) {
     let profile = SKILL_GRID_DB[skillName];
     let pattern = skillDef && skillDef.projectilePattern;
-    if (profile && pattern && pattern.kind) {
-        let resolved = { ...profile, kind: pattern.kind };
-        if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
-        return resolved;
-    }
-    if (profile) return profile;
+    if (!profile || !(pattern && pattern.kind)) return profile || null;
+    let resolved = { ...profile, kind: pattern.kind };
+    if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
+    return resolved;
+}
+
+function getDefaultSkillGridProfile(skillDef) {
     let mode = skillDef && skillDef.targetMode;
-    let isMeleeTag = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
-    if (mode === 'whirl') return { kind: 'nova', range: 1, radius: 1 };
-    if (mode === 'cleave') return isMeleeTag ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 4, radius: 1 };
-    if (mode === 'pierce') return { kind: 'line', range: 6 };
-    if (mode === 'chain') return { kind: 'chain', range: 4, jump: COMBAT_GRID_CONFIG.chainJumpRange };
-    if (mode === 'all') return { kind: 'blast', range: 5, radius: 2 };
-    return isMeleeTag ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 5, radius: 0 };
+    let melee = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
+    let byMode = {
+        whirl: { kind: 'nova', range: 1, radius: 1 },
+        cleave: melee ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 4, radius: 1 },
+        pierce: { kind: 'line', range: 6 },
+        chain: { kind: 'chain', range: 4, jump: COMBAT_GRID_CONFIG.chainJumpRange },
+        all: { kind: 'blast', range: 5, radius: 2 }
+    };
+    if (Object.hasOwn(byMode, mode)) return byMode[mode];
+    return melee ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 5, radius: 0 };
 }
 
 /** 기존 targetMode별 부가 타격 감쇄 배율(1타는 항상 1.0). */
@@ -452,8 +534,8 @@ function getGridConeGeometry(profile, attacker, target) {
 function getGridConeAreaCells(profile, attacker, target) {
     let cone = getGridConeGeometry(profile, attacker, target);
     let cells = [];
-    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
-        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
+    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
+        for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
             let dx = gx - cone.x, dy = gy - cone.y;
             let forward = dx * cone.dx + dy * cone.dy;
             let side = Math.abs(dx * cone.dy - dy * cone.dx);
@@ -552,7 +634,8 @@ function getSkillStageFootprint(skillName, skill, stage, source) {
     return { cells: Array.from(new Map(cells.map(cell => [`${cell.gx},${cell.gy}`, { gx: cell.gx, gy: cell.gy }])).values()),
         shape: profile.shape, radius: profile.radius,
         cone: profile.kind === 'cone' ? getGridConeGeometry(profile, source, getClosestGridUnitCell(source, primary)) : null,
-        center: profile.kind === 'nova' ? { ...source } : { ...getClosestGridUnitCell(source, primary) } };
+        // 중심은 칸 좌표만: 보스 예고에서는 source가 보스 자신이라 { ...source }가 보스 전체(이전 예고 포함)를 겹겹이 복사했다(검토 5차).
+        center: profile.kind === 'nova' ? { gx: source.gx, gy: source.gy } : { ...getClosestGridUnitCell(source, primary) } };
 }
 
 /** 연쇄 스킬: 1차 대상에서 jump칸 이내 가장 가까운 적으로 targetCount까지 튄다. */
@@ -719,24 +802,24 @@ function getGridUnitDistanceFromCell(origin, unit) {
         Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
 }
 
-function buildRadialBurstHitSequence(skillName, skill, targets, attacker, primary) {
-    if (!attacker || !primary) return null;
+/** 서리 폭발 · 불멸의 진동: the wave hurts where its drawn ring touches a monster, in the order it spreads (js/combat.js
+ * pickWaveFrontTargets). The ring grows one cell per msPerCell up to reach; the stages, every half cell, are only the moments it is
+ * checked. One wave strikes a monster once (shared state). The hits used to be fixed on the cells the targets stood on at the cast,
+ * so a monster that stepped to another cell inside the burst right after the cast was missed as if it had dodged (2026-10-02).
+ * @param {{attacker:object, primary:object, impactCells:Array<{gx:number,gy:number}>}} area */
+function buildRadialBurstHitSequence(skillName, skill, targets, area) {
+    if (!area.attacker || !area.primary) return null;
     let gridProfile = getSkillGridProfile(skillName, skill);
-    let center = gridProfile.kind === 'nova' ? { ...attacker } : getClosestGridUnitCell(attacker, primary);
+    let center = gridProfile.kind === 'nova' ? { ...area.attacker } : getClosestGridUnitCell(area.attacker, area.primary);
     let radius = Math.max(1, Number(gridProfile && gridProfile.radius) || 1);
     let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90));
-    let waveDurationMs = Math.round((gridProfile.shape === 'circle' ? radius + 0.5 : radius) * msPerCell);
-    let groups = new Map();
-    targets.forEach(entry => {
-        let distance = getGridWaveDistance(center, entry.enemy, gridProfile.shape);
-        let delayMs = Math.round(distance * msPerCell);
-        if (!groups.has(delayMs)) groups.set(delayMs, []);
-        groups.get(delayMs).push(entry);
-    });
-    return Array.from(groups.entries()).sort((a, b) => a[0] - b[0]).map(([delayMs, rows], index) => ({
-        kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`,
-        delayMs, damageMultiplier: 1, singleRepeat: true,
-        aimCell: center, waveDurationMs, targets: rows
+    let reach = gridProfile.shape === 'circle' ? radius + 0.5 : radius, waveDurationMs = Math.round(reach * msPerCell);
+    let wave = { center, shape: gridProfile.shape, reach, msPerCell, struck: [], checkedAt: null,
+        limit: Math.max(1, Number(skill.targets) || targets.length), mults: Object.fromEntries(targets.map(entry => [entry.enemy.id, entry.mult])) };
+    let checks = Array.from({ length: Math.round(reach * 2) + 1 }, (_, step) => step / 2);
+    return checks.map((front, index) => ({
+        kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`, delayMs: Math.round(front * msPerCell), damageMultiplier: 1,
+        singleRepeat: true, aimCell: center, waveDurationMs, targets, wave, impactCells: area.impactCells
     }));
 }
 
@@ -752,10 +835,22 @@ function buildEarthSpikeHitSequence(skill, targets, primary, impactCells) {
     ];
 }
 
-/** Wavefront timing follows the same diamond/circular metric as its drawn expansion. */
-function getGridWaveDistance(center, unit, shape) {
-    if (shape !== 'diamond') return getGridUnitDistanceFromCell(center, unit);
-    return Math.min(...getGridUnitCells(unit).map(cell => Math.abs(cell.gx-center.gx)+Math.abs(cell.gy-center.gy)));
+/** How far the drawn unit still trails its cell at time t (combat ms): the renderer glides it from the cell it left
+ * (js/canvas-battlefield.js approachNumber at COMBAT_GRID_CONFIG.enemyGlideRate), so just after a step it stands between the two. */
+function getGridUnitDrawnDelta(unit, t) {
+    const from = unit.gridStepFrom, at = Number(unit.gridStepAt);
+    if (!from || !Number.isFinite(at)) return { dx: 0, dy: 0 };
+    const lag = Math.exp(-COMBAT_GRID_CONFIG.enemyGlideRate * Math.max(0, t - at) / 1000);
+    return { dx: (from.gx - unit.gx) * lag, dy: (from.gy - unit.gy) * lag };
+}
+
+/** The wave's distance to the drawn unit at time t, in the drawn ring's metric (circle or diamond), to its nearest cell. */
+function getGridWaveDrawnDistance(wave, unit, t) {
+    const delta = getGridUnitDrawnDelta(unit, t);
+    return Math.min(...getGridUnitCells(unit).map(cell => {
+        const x = cell.gx + delta.dx - wave.center.gx, y = cell.gy + delta.dy - wave.center.gy;
+        return wave.shape === 'diamond' ? Math.abs(x) + Math.abs(y) : Math.hypot(x, y);
+    }));
 }
 
 /** Authored phases share one frozen aim; each phase owns its collision and visual geometry.
@@ -769,7 +864,7 @@ function buildAuthoredSkillHitSequence(skillName, skill, targets) {
     let aimCell = getClosestGridUnitCell(source, targets[0].enemy);
     let base = getSkillGridProfile(skillName, skill);
     return skill.combatPattern.stages.map(phase => {
-        let gridProfile = { ...base, ...phase.grid };
+        let gridProfile = { ...base, ...skillEffectExpansion.stageGrid(phase.grid, skill) };
         return { kind: 'authored', label: phase.label, delayMs: phase.delayMs,
             damageMultiplier: phase.damagePct / 100, singleRepeat: true, delivery: 'magicCell',
             targetLimit: skill.targets, targets, aimCell: { ...aimCell }, gridProfile,
@@ -806,7 +901,7 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
         ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
     if (pattern.kind === 'earthSpikes') return buildEarthSpikeHitSequence(skill, targets, primary, impactCells);
     if (pattern.kind === 'radialBurst') {
-        return buildRadialBurstHitSequence(skillName, skill, targets, attacker, primary);
+        return buildRadialBurstHitSequence(skillName, skill, targets, { attacker, primary, impactCells });
     }
     if (pattern.kind === 'meteor') return buildMeteorSkillHitSequence(pattern, impactCells, targets);
     if (pattern.kind === 'field') {
@@ -863,6 +958,20 @@ function buildPierceSkillHitSequence(profile, skill, targets) {
     }];
 }
 
+/** 회오리바람: as many spins as the skill has targets, one per interval. A spin picks its victim when it lands — the nearest
+ * enemy not yet struck around the cell the caster stands in then — so the blade keeps cutting while they move
+ * (combat.js pickWhirlSpinTargets). The cast-time primary only anchors the stage. */
+function buildWhirlSkillHitSequence(skill, targets, intervalMs) {
+    let spins = Math.max(1, Math.floor(Number(skill && skill.targets) || targets.length));
+    let whirl = { struck: [] };
+    return Array.from({ length: spins }, (_, idx) => ({
+        kind: idx === 0 ? 'whirlPrimary' : 'whirlSweep',
+        label: idx === 0 ? '회전 시작' : `회전 ${idx + 1}타`,
+        delayMs: idx * intervalMs, damageMultiplier: 1, whirl,
+        targets: targets.slice(0, 1)
+    }));
+}
+
 /** 한 번의 스킬 사용을 실제 시간차가 있는 타격 단계로 분해한다. */
 function buildSkillHitSequence(skillName, skill, targetEntries) {
     let targets = (targetEntries || []).filter(entry => entry && entry.enemy && entry.enemy.hp > 0);
@@ -870,15 +979,7 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
     let configured = buildConfiguredSkillHitSequence(skillName, skill, targets);
     if (configured) return configured;
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
-    if (profile.kind === 'whirl') {
-        return targets.map((entry, idx) => ({
-            kind: idx === 0 ? 'whirlPrimary' : 'whirlSweep',
-            label: idx === 0 ? '회전 시작' : `회전 ${idx + 1}타`,
-            delayMs: idx * profile.intervalMs,
-            damageMultiplier: 1,
-            targets: [entry]
-        }));
-    }
+    if (profile.kind === 'whirl') return buildWhirlSkillHitSequence(skill, targets, profile.intervalMs);
     if (profile.kind === 'chain') {
         return targets.map((entry, idx) => ({
             kind: idx === 0 ? 'chainPrimary' : 'chainJump',
@@ -1049,7 +1150,7 @@ function findNearestGridEnemy(fromCell, enemies, range) {
 }
 
 safeExposeGlobals({
-    isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
+    getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance,
     getGridDirectHitDistanceMultiplier,
     getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,

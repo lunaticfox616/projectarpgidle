@@ -6,9 +6,9 @@ const { PASSIVE_KEYSTONE_CONTRACTS } = require('./lib/passive-tree-keystone-cont
 
 const files = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
-  'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js',
+  'data/skills.js', 'data/items.js', 'data/passives.js',
   'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js', 'data/talent-cards.js',
-  'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
+  'data/endgame-progression.js', 'js/utils.js', 'data/ascendancies.js', 'js/state.js', 'js/passive-routing.js', 'js/passives.js',
 ];
 
 function createElement() {
@@ -32,7 +32,6 @@ const context = {
   addEventListener() {}, removeEventListener() {}, setTimeout() {}, clearTimeout() {},
   setInterval() {}, clearInterval() {}, requestAnimationFrame() {}, cancelAnimationFrame() {},
   addLog() {}, queueTutorialNotice() {},
-  getExpertLevel() { return 15; },
   performance: { now() { return 0; } }, Image: function Image() {}, Date, Math, JSON,
   Number, String, Boolean, Array, Object, Map, Set, WeakSet, RegExp, Error, URLSearchParams, structuredClone,
 };
@@ -147,13 +146,11 @@ assert.strictEqual(vm.runInContext('getPassiveEffectLabel(noEffectPassive)', con
 vm.runInContext(`
   PASSIVE_TREE.nodes.no_effect_test = noEffectPassive;
   game.passives = ['no_effect_test'];
-  game.starWedge.nodeMutations.no_effect_test = { currentStat:'devotion', currentVal:99 };
 `, context);
-assert.strictEqual(context.isStarWedgeNodeMutable(noEffectPassive), false,
-  '의도적인 무효 패시브는 별쐐기로 변성되면 안 된다');
-assert.strictEqual(context.getAllocatedPassiveStatValue('devotion'), 0,
-  '이전 저장 데이터에 변성값이 남아도 무효 패시브는 능력치를 주면 안 된다');
-vm.runInContext("game.passives = []; delete game.starWedge.nodeMutations.no_effect_test;", context);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(context.getPassiveNodeRawEffects(noEffectPassive))), [],
+  '공허 앞 무효 경로는 길만 잇고 능력치를 주지 않는다(별쐐기 변성은 없어졌다)');
+assert.strictEqual(context.getPassiveSpecialStatReserve('devotion'), 0);
+vm.runInContext("game.passives = [];", context);
 
 vm.runInContext(`
   PASSIVE_TREE.nodes.special_reserve_test = {
@@ -170,7 +167,7 @@ vm.runInContext(`
 assert.strictEqual(context.getPassiveNodeActivationState(context.PASSIVE_TREE.nodes.special_tradeoff_test).active, false,
   '특수 스탯 지불 여력이 없으면 교환 노드가 비활성화되어야 한다');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(context.getEffectivePassiveNodeEffects(
-  context.PASSIVE_TREE.nodes.special_tradeoff_test, null))), [], '비활성 노드는 강력 효과도 주면 안 된다');
+  context.PASSIVE_TREE.nodes.special_tradeoff_test))), [], '비활성 노드는 강력 효과도 주면 안 된다');
 const inactiveTradeoffLabel = context.getPassiveEffectLabel(context.PASSIVE_TREE.nodes.special_tradeoff_test);
 assert.ok(inactiveTradeoffLabel.includes('신비 -1') && inactiveTradeoffLabel.includes('비활성'),
   '교환 노드 툴팁은 음수 비용과 현재 비활성 상태를 명확히 표시해야 한다');
@@ -180,10 +177,8 @@ assert.strictEqual(context.getPassiveNodeActivationState(context.PASSIVE_TREE.no
   '다른 노드의 신비 1을 지불할 수 있으면 교환 노드가 활성화되어야 한다');
 assert.strictEqual(context.getAllocatedPassiveStatValue('mystique'), 0,
   '교환 노드가 활성화되면 보유 신비 1을 정확히 상쇄해야 한다');
-assert.ok(context.getEffectivePassiveNodeEffects(context.PASSIVE_TREE.nodes.special_tradeoff_test, null)
+assert.ok(context.getEffectivePassiveNodeEffects(context.PASSIVE_TREE.nodes.special_tradeoff_test)
   .some(effect => effect.stat === 'gemLevel' && effect.val === 1), '활성화된 교환 노드는 희소 보상을 제공해야 한다');
-assert.strictEqual(context.isStarWedgeNodeMutable(context.PASSIVE_TREE.nodes.special_tradeoff_test), false,
-  '별쐐기 변성으로 특수 스탯 지불 조건을 우회할 수 없어야 한다');
 vm.runInContext("game.passives = [];", context);
 
 const affinity = context.getMystiqueAffinity(10, { phys: 20, fire: 60, cold: 5, light: 10, chaos: 0 });
@@ -260,30 +255,28 @@ const reduced = JSON.parse(JSON.stringify(context.applyPassiveAshuraDamageBreakd
 assert.deepStrictEqual(reduced, [{ ele: 'fire', amount: 90 }, { ele: 'cold', amount: 100 }],
   'ashura must reduce only the damage type matching an already-active ailment');
 
+// 성좌 각성: 외곽 공허 소켓 여섯을 모두 할당하고 초월시켜야 한다(다섯은 부족). 예전 별쐐기 성률 규칙을 대신한다.
 const awakening = JSON.parse(vm.runInContext(`JSON.stringify((() => {
-  const hubs = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'hub' && node.starWedgeMode === 'constellation');
-  game.passives = [];
-  game.expertise.levels.astronomer = 15;
-  game.starWedge = {
-    unlocked: true,
-    wedges: hubs.map((hub, index) => ({ id: 1000 + index, lines: [{ stat:'flatHp', val:10 }] })),
-    sockets: hubs.map((hub, index) => ({ nodeId:hub.id, wedgeId:1000 + index }))
-  };
-  assignStarWedgeSockets();
-  recalculateStarWedgeMutations(true);
-  const options = hubs.map(hub => Object.values(PASSIVE_TREE.nodes)
-    .find(node => node.kind === 'star_option' && node.requiresStarWedgeSocketNodeId === hub.id && node.starWedgeLineIndex === 0));
-  game.passives = options.map(node => node.id);
+  const outer = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'void' && node.voidRing === 'outer');
+  const transcend = (node, id) => { game.voidPassives[node.id] = { rarity:'transcendent', stats:[], transcendent:{ id, value:10, value2:0 } }; };
+  game.passives = outer.map(node => node.id);
+  game.voidPassives = {};
+  outer.slice(0, 5).forEach(node => transcend(node, 'satellite'));
+  const partial = getPassiveConstellationAwakeningProgress();
+  const early = unlockPassiveStarEvolution({ silent:true });
+  transcend(outer[5], 'comet');
   const before = getPassiveConstellationAwakeningProgress();
   const unlocked = unlockPassiveStarEvolution({ silent:true });
-  return { before, unlocked, evolution:game.passiveStarEvolution, source:game.passiveStarEvolutionSource,
+  return { partial, early, before, unlocked, evolution:game.passiveStarEvolution, source:game.passiveStarEvolutionSource,
     journal:game.journalEntries.includes('passive_star_evolution') };
 })())`, context));
-assert.deepStrictEqual(awakening.before, { mode:'outer_constellation', required:6, completed:6, socketed:6 },
-  '여섯 외곽 성률에서 생성 패시브를 하나씩 투자하면 성좌 각성이 준비되어야 한다');
+assert.deepStrictEqual(awakening.partial, { mode:'outer_void', required:6, allocated:6, completed:5 });
+assert.strictEqual(awakening.early, false, '외곽 공허 다섯만 초월하면 각성하지 않는다');
+assert.deepStrictEqual(awakening.before, { mode:'outer_void', required:6, allocated:6, completed:6 },
+  '외곽 공허 소켓 여섯이 모두 초월하면 성좌 각성이 준비되어야 한다');
 assert.strictEqual(awakening.unlocked, true, '새 트리에서도 성좌 각성이 해금되어야 한다');
 assert.strictEqual(awakening.evolution, true);
-assert.strictEqual(awakening.source, 'outer_constellation');
+assert.strictEqual(awakening.source, 'outer_void');
 assert.strictEqual(awakening.journal, true, '성좌 각성 영구 보너스 기록을 함께 해금해야 한다');
 
 console.log('smoke-passive-tree-special-mechanics passed');

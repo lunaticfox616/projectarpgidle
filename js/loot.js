@@ -19,9 +19,9 @@ function getCodexBonusPct() {
     return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
 }
 
-function getGrowthItemBaseDropChance(enemy) {
-    if (enemy && enemy.isBoss) return GROWTH_ITEM_BASE_DROP_CHANCES.boss;
-    return enemy && enemy.isElite ? GROWTH_ITEM_BASE_DROP_CHANCES.elite : GROWTH_ITEM_BASE_DROP_CHANCES.regular;
+function getWildTalismanBaseDropChance(enemy) {
+    if (enemy && enemy.isBoss) return TALISMAN_WILD_DROPS.chance.boss;
+    return enemy && enemy.isElite ? TALISMAN_WILD_DROPS.chance.elite : TALISMAN_WILD_DROPS.chance.normal;
 }
 
 function getEquipmentBaseDropChance(enemy) {
@@ -47,14 +47,14 @@ function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMu
     };
 }
 
-/** One capped multiplier for equipment, growth items and bonus currency rolls. */
+/** One capped multiplier for equipment, wild talismans and bonus currency rolls. */
 function getEnemyLootDropMultiplier(zone, enemy) {
     let progression = getAdditiveDropBonusMultiplier(getCodexBonusPct());
     let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1);
     return capEndlessContentDropMultiplier(zone, raw) * getContentDropRateMultiplier(zone);
 }
 
-/** Independent base chances share bonuses without deriving growth drops from equipment. */
+/** Independent base chances share bonuses without deriving talisman drops from equipment. */
 function getEquipmentDropChances(zone, enemy) {
     let multiplier = getEnemyLootDropMultiplier(zone, enemy) * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (zone.type === 'labyrinth') {
@@ -64,7 +64,7 @@ function getEquipmentDropChances(zone, enemy) {
     }
     return {
         equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier,
-        growth: getGrowthItemBaseDropChance(enemy) * multiplier
+        talisman: getWildTalismanBaseDropChance(enemy) * multiplier
     };
 }
 
@@ -84,11 +84,13 @@ function rollEquipmentDrop(zone, enemy, chance) {
     return { dropped, guaranteed, minimumRarity, nextProgress: dropped ? 0 : progress };
 }
 
-/** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. */
+/** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. An atlas map's item rarity
+ * (enemy.lootRarityMul, js/atlas-maps.js) scales the roll down, so every rarer outcome grows by the same factor. */
 function getEquipmentDropRarity(enemy, roll) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
     let thresholds = EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
-    return ['unique', 'rare', 'magic'].find(rarity => roll < thresholds[rarity]) || 'normal';
+    let scaled = roll / Math.max(1, Number(enemy.lootRarityMul) || 1);
+    return ['unique', 'rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
 }
 
 /** Extra realm-boss reward. Generate only; combat commits pickup, codex and visual feedback. */
@@ -136,12 +138,12 @@ safeExposeGlobals({ getEnemyLootDropMultiplier, getEquipmentDropChances, rollEqu
 
 function getUnderworldResourceDropChances(enemy) {
     if (enemy && enemy.isBoss) {
-        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, blurredPower: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
+        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, core: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
     }
     if (enemy && enemy.isElite) {
-        return { fossil: 0.0125, typedFossil: 0.003, tool: 0.0025, rune: 0.008, blurredPower: 0.0005, ...UNDERWORLD_ORE_DROP_CHANCES };
+        return { fossil: 0.0125, typedFossil: 0.003, tool: 0.0025, rune: 0.008, core: 0.0005, ...UNDERWORLD_ORE_DROP_CHANCES };
     }
-    return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, blurredPower: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
+    return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, core: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
 }
 
 (function () {
@@ -218,7 +220,7 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < resourceChance.typedFossil) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < resourceChance.tool) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
         if (underFloor >= 10 && Math.random() < resourceChance.rune) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
-        if (typeof canDropCoreCubeBlurred45 === 'function' && canDropCoreCubeBlurred45() && Math.random() < resourceChance.blurredPower) drops.push(['blurred45', 1]);
+        if (coreItems.canDrop() && Math.random() < resourceChance.core) drops.push(['core', 1]);
         if (Math.random() < resourceChance.copper) drops.push(['underCopper', 1]);
         if (Math.random() < resourceChance.silver) drops.push(['underSilver', 1]);
         if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);
@@ -313,7 +315,8 @@ safeExposeGlobals({ getCurrencyDrops });
             const info = highlight(item, before);
             if (!info) continue;
             const inStash = (after.offlineProgress?.stash || []).includes(item);
-            rows.push({ id: item.id, name: item.name, rarity: item.rarity, slot: item.slot, location: inStash ? '방치 보관함' : '장비창', ...info });
+            const worn = Object.values(after.equipment || {}).includes(item); // 빈 칸에 자동으로 입었다(검토 6차)
+            rows.push({ id: item.id, name: item.name, rarity: item.rarity, slot: item.slot, location: inStash ? '방치 보관함' : worn ? '자동 착용' : '장비창', ...info });
         }
         rows.sort((a, b) => b.priority - a.priority);
         return { items: rows.slice(0, 5), total: rows.length };

@@ -10,8 +10,7 @@ function getSalvageRecoveryLoop(targetGame) {
 function isSalvageRecoveryItem(item) {
     return !!(item && typeof item === 'object'
         && typeof item.slot === 'string' && typeof item.name === 'string'
-        && SALVAGE_RECOVERY_RARITIES.includes(item.rarity) && Number(item.id) > 0
-        && !item.growthCategory);
+        && SALVAGE_RECOVERY_RARITIES.includes(item.rarity) && Number(item.id) > 0);
 }
 
 function normalizeSalvageRecoveryRewards(rewards) {
@@ -72,18 +71,23 @@ function getSalvageReplayRewards(item) {
     return normalizeSalvageRecoveryRewards(item.salvageRecoveryRewards);
 }
 
+/** Prepare before reward commit; cloning failures cannot leave a partially claimed run. */
+function prepareSalvageRecoveryRecords(records, targetGame) {
+    const state = ensureSalvageRecoveryState({ season: targetGame.season, salvageRecovery: targetGame.salvageRecovery });
+    for (const {item, rewards} of records) {
+        if (!isSalvageRecoveryItem(item)) continue;
+        state.entries.unshift({ id: ++state.sequence, loop: getSalvageRecoveryLoop(targetGame),
+            salvagedAt: Date.now(), item: cloneSalvageRecoveryItem(item), rewards: normalizeSalvageRecoveryRewards(rewards) });
+    }
+    state.entries = state.entries.slice(0, SALVAGE_RECOVERY_CAP);
+    return state;
+}
+
 function recordSalvagedEquipment(item, rewards, targetGame = game) {
     if (!isSalvageRecoveryItem(item)) return null;
-    let state = ensureSalvageRecoveryState(targetGame);
-    let entry = {
-        id: ++state.sequence,
-        loop: getSalvageRecoveryLoop(targetGame),
-        salvagedAt: Date.now(),
-        item: cloneSalvageRecoveryItem(item),
-        rewards: normalizeSalvageRecoveryRewards(rewards)
-    };
-    state.entries.unshift(entry);
-    state.entries = state.entries.slice(0, SALVAGE_RECOVERY_CAP);
+    const state = prepareSalvageRecoveryRecords([{item, rewards}], targetGame);
+    targetGame.salvageRecovery = state;
+    const entry = state.entries[0];
     dispatchRuntimeEvent('salvage-recovery-changed', { action: 'recorded', entryId: entry.id });
     return entry;
 }
@@ -136,6 +140,7 @@ function getSalvageRecoveryEntries(targetGame = game) {
 
 const salvageRecoveryRuntime = Object.freeze({
     ensureState: ensureSalvageRecoveryState,
+    prepareRecords: prepareSalvageRecoveryRecords,
     record: recordSalvagedEquipment,
     getReplayRewards: getSalvageReplayRewards,
     getEntries: getSalvageRecoveryEntries,

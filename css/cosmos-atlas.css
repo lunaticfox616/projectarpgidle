@@ -1,10 +1,10 @@
 @layer components {
 /* Cosmos Atlas: PoE-style star map for the 우주계 subtab. */
-body:not(.light-mode) .cosmos-tab-btn {
+:root body .cosmos-tab-btn {
   border-color: var(--color-line-strong);
 }
 
-body:not(.light-mode) .cosmos-tab-btn.active {
+:root body .cosmos-tab-btn.active {
   color: var(--copy-bright);
   border-color: var(--color-line-strong);
   box-shadow: 0 0 14px rgba(127, 201, 255, .20);
@@ -152,78 +152,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   gap: 9px;
   min-width: 0;
   padding: 4px 2px;
-}
-
-.cosmos-arcana-quest {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, .75fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  background: var(--color-surface-raised);
-}
-
-.cosmos-arcana-quest > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.cosmos-arcana-quest span {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .13em;
-}
-
-.cosmos-arcana-quest strong {
-  overflow: hidden;
-  color: var(--color-text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cosmos-arcana-quest small {
-  color: var(--copy-muted);
-  font-size: 12px;
-}
-
-.cosmos-arcana-quest.dormant {
-  border-style: dashed;
-  opacity: .72;
-}
-
-.cosmos-arcana-quest.complete {
-  border-color: var(--color-line-strong);
-  background: var(--color-surface-raised);
-}
-
-.cosmos-arcana-progress b {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  text-align: right;
-}
-
-.cosmos-arcana-progress i {
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-surface-raised);
-}
-
-.cosmos-arcana-progress em {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
-}
-
-.cosmos-arcana-progress small {
-  text-align: right;
 }
 
 .cosmos-capstone-card {
@@ -1005,40 +933,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   line-height: 1.55;
 }
 
-body.light-mode .cosmos-panel,
-body.light-mode .cosmos-detail,
-body.light-mode .cosmos-summary,
-body.light-mode .cosmos-detail-section,
-body.light-mode .cosmos-node-facts span,
-body.light-mode .cosmos-reward-line,
-body.light-mode .cosmos-directive-section,
-body.light-mode .cosmos-directive-card,
-body.light-mode .cosmos-mastery-shell,
-body.light-mode .cosmos-mastery-card {
-  background: var(--color-surface-raised);
-  border-color: var(--color-line-strong);
-  color: var(--color-text-secondary);
-}
-body.light-mode .cosmos-detail-title,
-body.light-mode .cosmos-node-facts strong {
-  color: var(--color-text-secondary);
-}
-body.light-mode .cosmos-detail-source,
-body.light-mode .cosmos-directive-desc,
-body.light-mode .cosmos-help {
-  color: var(--color-text-secondary);
-}
-
-body.light-mode .cosmos-directive-card.selected {
-  border-color: var(--color-line-strong);
-  background: var(--color-surface-raised);
-}
-
-body.light-mode .cosmos-directive-card.rare {
-  border-color: var(--color-line-strong);
-  background: var(--color-surface-raised);
-}
-
 @media (max-width: 1080px) {
 
   .cosmos-summary {
@@ -1072,15 +966,6 @@ body.light-mode .cosmos-directive-card.rare {
 
   .cosmos-summary > * {
     grid-column: 1 / -1;
-  }
-
-  .cosmos-arcana-quest {
-    grid-template-columns: 1fr;
-  }
-
-  .cosmos-arcana-progress b,
-  .cosmos-arcana-progress small {
-    text-align: left;
   }
 
   .cosmos-mode-tabs {

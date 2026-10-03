@@ -112,20 +112,32 @@ function compare(current,baseline) {
         const allowed=baseline.findings[key] || {count:0,max:0};
         if(value.count>allowed.count || value.max>allowed.max) failures.push(`lint ${key} (${value.count}/${value.max}, baseline ${allowed.count}/${allowed.max})`);
     }
-    const allowedEdges=new Set(baseline.edges);
+    const allowedEdges=new Set(baseline.edges), calls=callGraph(current.edges);
     for(const edge of current.edges) {
         if (!edge.startsWith('dependency:') && !allowedEdges.has(edge)) failures.push(edge);
         // Reject a newly introduced edge that closes an existing reverse path.
-        if (edge.startsWith('dependency:') && !allowedEdges.has(edge) && closesCycle(edge,current.edges)) failures.push(`cycle ${edge}`);
+        if (edge.startsWith('dependency:') && !allowedEdges.has(edge) && closesCycle(edge,calls)) failures.push(`cycle ${edge}`);
     }
     return failures;
 }
 
-function closesCycle(edge,edges) {
+// Index callers once; scanning every edge per visited node made each new call edge quadratic.
+function callGraph(edges) {
+    const calls=new Map();
+    for(const edge of edges) if(edge.startsWith('dependency:')) {
+        const [from,to]=edge.slice(11).split('->');
+        if(!calls.has(from))calls.set(from,[]);
+        calls.get(from).push(to);
+    }
+    return calls;
+}
+
+function closesCycle(edge,calls) {
+    if(Array.isArray(calls))calls=callGraph(calls);
     const [from,to]=edge.slice(11).split('->'), pending=[to], seen=new Set();
     while(pending.length){
         const next=pending.pop(); if(next===from)return true; if(seen.has(next))continue; seen.add(next);
-        for(const candidate of edges) if(candidate.startsWith(`dependency:${next}->`))pending.push(candidate.split('->')[1]);
+        pending.push(...(calls.get(next) || []));
     }
     return false;
 }

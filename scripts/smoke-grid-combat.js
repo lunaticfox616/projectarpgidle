@@ -9,25 +9,27 @@ const files = [
   'data/constants.js',
   'data/level-progression.js', 'data/build-stat-inputs.js',
   'data/shrines.js',
-  'data/bounties.js',
   'data/maps.js',
+  'data/act-exploration-maps.js',
   'data/cosmos-route.js',
-  'data/world-tree-journey.js',
-  'data/gem-core-forge.js', 'data/skills.js',
+  'data/exploration-regions.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js',
+  'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
-  'data/items.js',
+  'data/items.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
-  'data/growth-items.js',
+  'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
-  'data/bosses.js',
+  'data/bosses.js', 'data/monster-sprites.js',
   'data/rewards.js',
   'data/talent-cards.js',
   'data/content-progression.js',
   'data/offline-progress.js',
   'js/utils.js',
-  'js/state.js',
+  'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
+  'js/act-exploration-state.js',
+  'data/ascendancies.js', 'js/state.js',
   'js/combat-loot-receipts.js',
   'js/level-progression.js', 'js/combat-equipment-stats.js',
   'js/content-progression.js',
@@ -35,22 +37,19 @@ const files = [
   'js/endgame-progression.js',
   'js/crafting-workspace-state.js',
   'js/save.js',
-  'js/items.js',
+  'js/items.js', 'js/weapon-categories.js',
   'js/equipment-crafting.js',
-  'js/passives.js',
-  'js/loot.js',
+  'js/passive-routing.js', 'js/passives.js',
+  'js/loot.js', 'js/gem-drop-rewards.js',
   'js/unique-hunt.js',
   'js/shrines.js',
-  'js/growth-board.js',
   'js/background-build-cache.js',
-  'js/growth-effects.js',
-  'js/growth-generation.js',
   'js/equipment-stat-resolution.js',
   'js/gem-core-forge.js', 'js/skills.js',
-  'js/bounties.js',
-  'js/core-cube.js',
-  'js/combat-grid.js',
-  'js/world-tree-journey.js',
+  'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js', 'js/stump-cube-recipes.js', 'js/stump-cube.js',
+  'js/skill-effect-expansion.js', 'js/combat-grid.js',
+  'js/act-exploration-progress.js',
+  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js',
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
@@ -58,7 +57,7 @@ const files = [
   'js/cosmos-rules.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js',
+  'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];
@@ -150,19 +149,19 @@ const cfg = context.COMBAT_GRID_CONFIG;
 // 렌더 스프라이트와 전투 이름은 같은 안정적인 변형 id를 사용해야 한다.
 {
   resetGame();
-  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 56, '목재 몬스터 38종과 위습 18종에 이름이 지정되어야 한다');
+  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 44, '액트 몬스터 20종, 무기 뿌리촉수 6종, 위습 18종에 이름이 지정되어야 한다');
   assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
-  const fireWisp = context.getMonsterVariantDefinition(4, 'fire');
+  const fireWisp = context.getMonsterVariantDefinition(5, 'fire');
   assert(fireWisp.id.startsWith('wisp-'), '일반 구역에서도 위습이 일정 비율로 등장해야 한다');
   assert(context.WISP_MONSTER_VISUALS.find(wisp => wisp.id === fireWisp.id).elements.includes('fire'),
     '위습의 이름과 외형은 실제 몬스터 속성과 맞아야 한다');
-  assert(!context.getMonsterVariantDefinition(5, 'fire').id.startsWith('wisp-'),
-    '위습이 기존 목재 몬스터를 전부 대체하면 안 된다');
+  assert(!context.getMonsterVariantDefinition(4, 'fire').id.startsWith('wisp-'),
+    '위습이 액트 몬스터를 전부 대체하면 안 된다');
   const fireDefense = JSON.parse(JSON.stringify(context.getWispEnemyDefenseBonuses(
     context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'B02'))));
   assert.deepStrictEqual(fireDefense, {
-    isWisp: true, evasionMul: 1.6, dr: 0, resF: 30, resC: 0, resL: 0, resChaos: 0
-  }, '화염 위습은 높은 회피와 화염 저항만 받아야 한다');
+    isWisp: true, evasionMul: 1.3, armorMul: 0.5, hpMul: 0.7, dr: 0, resF: 30, resC: 0, resL: 0, resChaos: 0
+  }, '화염 위습은 조금 높은 회피, 낮은 방어도, 화염 저항만 받아야 한다');
   const hybridDefense = context.getWispEnemyDefenseBonuses(
     context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'H03'));
   assert.strictEqual(hybridDefense.resC, 30, '혼합형 위습은 첫 번째 색상 저항을 받아야 한다');
@@ -170,21 +169,28 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const ordinaryDefense = JSON.parse(JSON.stringify(
     context.getWispEnemyDefenseBonuses(context.MONSTER_VARIANT_DEFS[0])));
   assert.deepStrictEqual(ordinaryDefense, {
-    isWisp: false, evasionMul: 1, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0
+    isWisp: false, evasionMul: 1, armorMul: 1, hpMul: 1, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0
   }, '위습 방어 특성이 기존 몬스터에게 번지면 안 된다');
   const zone = context.getZone(0);
   const normal = context.createEnemy(zone, { at: 20, count: 1 }, 0);
-  const wisp = context.createEnemy(zone, { at: 20, count: 1 }, 3);
+  const wisp = context.createEnemy(zone, { at: 20, count: 1 }, 4);
   const elite = context.createEnemy(zone, { at: 20, count: 1, elite: true }, 0);
   assert(wisp.spriteVariantId.startsWith('wisp-'), '생명력 검증 대상은 위습이어야 한다');
   assert.strictEqual(wisp.maxHp, Math.floor(normal.maxHp * 0.7),
     '위습은 동급 일반 몬스터 생명력의 70%를 가져야 한다');
+  assert.strictEqual(wisp.armor, Math.floor(normal.armor * 0.5), '위습은 방어도가 절반이어야 한다');
+  assert.strictEqual(wisp.evasion, Math.floor(normal.evasion * 1.3), '위습은 회피가 조금(1.3배) 높아야 한다');
+  assert.strictEqual(context.getEnemyGemDropMul(wisp), 3, '위습은 스킬 젬을 3배 잘 준다');
+  assert.strictEqual(context.getEnemyGemDropMul(normal), 1, '일반 몬스터의 젬 확률은 그대로다');
+  const wispShare = Array.from({ length: 997 }, (_, seed) => context.getMonsterVariantDefinition(seed, 'fire'))
+    .filter(def => def.id.startsWith('wisp-')).length / 997;
+  assert(wispShare > 0.19 && wispShare < 0.21, '위습은 일반 외형 뽑기의 약 20%(이전 25%)로 조금 드물게 나온다');
   assert.strictEqual(normal.name, normal.baseMonsterName, '일반 몬스터는 스프라이트 종명을 그대로 사용해야 한다');
   assert.strictEqual(elite.name, elite.trait.name + ' ' + elite.baseMonsterName,
     '정예 몬스터는 특성과 스프라이트 종명을 결합해야 한다');
   assert.strictEqual(elite.traitOutlineColor, elite.trait.outlineColor,
     '정예 외곽선 색은 이름에 사용된 특성 정의를 따라야 한다');
-  assert.strictEqual(context.getMonsterVariantDefinition(normal.variantSeed, normal.ele).id, normal.spriteVariantId,
+  assert.strictEqual(context.getMonsterVariantDefinition(normal.variantSeed, normal.ele, zone).id, normal.spriteVariantId,
     '이름에 사용한 변형 id와 렌더 선택 id가 같아야 한다');
 
   const realmZones = [
@@ -207,16 +213,15 @@ const cfg = context.COMBAT_GRID_CONFIG;
       `${setId} 정예 몬스터 이름은 특성과 이미지 종명을 함께 표시해야 한다`);
   });
 
-  const realmImages = Object.fromEntries(Object.values(context.REALM_MONSTER_VISUAL_SETS)
-    .map(set => [set.assetKey, { width: 512, height: 256 }]));
-  const realmAtlasSets = context.buildRealmEnemyVariantSets(realmImages);
-  Object.values(realmAtlasSets).forEach(pools => {
-    assert.deepStrictEqual([pools.normal.length, pools.elite.length, pools.boss.length], [4, 2, 1],
-      '각 테마 아틀라스는 일반 4·정예 2·보스 1칸을 고정 배치해야 한다');
-    assert.strictEqual(pools.normal[0].frame.x, 0, '첫 몬스터는 첫 번째 128px 칸에서 시작해야 한다');
-    assert.strictEqual(pools.normal[0].frame.width, 128, '몬스터 프레임은 옆 칸을 침범하지 않아야 한다');
-    assert.strictEqual(pools.boss[0].frame.x, 256, '보스는 둘째 줄 세 번째 칸에 고정되어야 한다');
-    assert.strictEqual(pools.boss[0].frame.y, 128, '보스는 둘째 줄에서만 잘라야 한다');
+  Object.values(context.REALM_MONSTER_VISUAL_SETS).forEach(set => {
+    assert.deepStrictEqual(['normal', 'elite', 'boss'].map(role => set.members.filter(member => member.role === role).length), [4, 2, 1],
+      '각 영역 세트는 일반 4·정예 2·보스 1종이다');
+    set.members.forEach(member => {
+      const sheet = context.MONSTER_SPRITE_SHEETS[member.id];
+      assert(sheet, `${member.id}는 제 시트로 그린다`);
+      assert.strictEqual(context.MONSTER_SPRITE_KINDS[sheet.kind].frame, member.role === 'boss' ? 64 : 48,
+        `${member.id} 칸 크기(보스 64, 나머지 48)`);
+    });
   });
 
   const wispVariants = context.buildWispEnemyVariants({
@@ -410,9 +415,12 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.loopCount = 30;
   const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
   const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
-  assert.ok(Math.min(...commonRivalHealth) >= 35000000 && Math.max(...commonRivalHealth) <= 80000000,
+  // 보조 콘텐츠 통합 9단계: 루프 31 빌드의 힘이 빠진 만큼 몬스터도 같은 배율로 낮췄다 — 기준 범위에 같은 배율을 곱한다.
+  const rivalHpScale = context.getMonsterLoopPowerScale(rivalZones[0], 'hp');
+  assert.ok(rivalHpScale > 0.5 && rivalHpScale < 1, 'the loop 31 benchmark uses the loop power curve');
+  assert.ok(Math.min(...commonRivalHealth) >= 35000000 * rivalHpScale && Math.max(...commonRivalHealth) <= 80000000 * rivalHpScale,
     '다섯 버려진 날은 루프 31 빌드가 즉시 처치할 수 없는 생명력을 가져야 한다');
-  assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000,
+  assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000 * rivalHpScale,
     '완성작은 선행 버려진 날보다 높은 최종 결투 생명력을 가져야 한다');
   context.game.season = 80;
   context.game.loopCount = 79;
@@ -491,9 +499,12 @@ const cfg = context.COMBAT_GRID_CONFIG;
   } finally {
     context.Math.random = originalRandom;
   }
-  assert.ok(baselineCosmosNormal.maxHp >= 4400000 && baselineCosmosNormal.maxHp <= 4500000,
+  // 보조 콘텐츠 통합 9단계의 루프 몬스터 배율을 기준 범위에 똑같이 곱한다(우주계는 루프 30 상한).
+  const cosmosHpScale = context.getMonsterLoopPowerScale(cosmosEntry, 'hp');
+  assert.ok(cosmosHpScale > 0.5 && cosmosHpScale <= 1, 'cosmos uses the loop power curve');
+  assert.ok(baselineCosmosNormal.maxHp >= 4400000 * cosmosHpScale && baselineCosmosNormal.maxHp <= 4500000 * cosmosHpScale,
     '우주계 G1 일반 몬스터는 기존 은하 난이도를 유지하면서 생명력이 보강되어야 한다');
-  assert.ok(baselineCosmosElite.maxHp >= 17000000 && baselineCosmosElite.maxHp <= 18000000,
+  assert.ok(baselineCosmosElite.maxHp >= 17000000 * cosmosHpScale && baselineCosmosElite.maxHp <= 18000000 * cosmosHpScale,
     `우주계 G1 정예는 일반보다 분명히 오래 버텨야 한다: ${JSON.stringify({hp:baselineCosmosElite.maxHp,name:baselineCosmosElite.name,ele:baselineCosmosElite.ele,trait:baselineCosmosElite.trait})}`);
   assert.ok(finalCosmosNormal.maxHp > baselineCosmosNormal.maxHp * 2,
     '뒤쪽 은하의 일반 몬스터 생명력은 G1보다 증가해야 한다');
@@ -522,8 +533,11 @@ const cfg = context.COMBAT_GRID_CONFIG;
     assert.ok(cosmosRecommendedEhp[index + 1] > cosmosRecommendedEhp[index],
       `G${index + 2} 개인화 권장 EHP는 이전 은하보다 높아야 한다`);
   });
+  // 권장 전투력도 실제 전투와 같은 루프 피해 곡선을 쓴다(PR #1030 리뷰): 생명력 구간처럼 기준 구간에 같은 배율을 곱한다.
+  const cosmosDamageScale = context.getMonsterLoopPowerScale(cosmosEntry, 'damage');
+  assert.ok(cosmosDamageScale > 0.5 && cosmosDamageScale <= 1, 'cosmos damage uses the loop power curve');
   cosmosRecommendedEhp.forEach((ehp, index) => {
-    const [min, max] = cosmosEhpBands[index];
+    const [min, max] = cosmosEhpBands[index].map(value => value * cosmosDamageScale);
     assert.ok(ehp >= min && ehp <= max,
       `G${index + 1} 권장 EHP ${Math.round(ehp)}는 ${min}~${max} 성장 구간 안이어야 한다`);
   });
@@ -798,8 +812,9 @@ assert.ok(desktopGridTop >= 0 && desktopGridBottom <= 580,
 const actBattleMapSources = Object.values(context.ACT_BATTLE_MAP_SOURCES);
 assert.strictEqual(actBattleMapSources.length, 10, 'ACT 1~10은 각각 하나의 전투 맵을 가져야 한다');
 assert(actBattleMapSources.every(source => source.endsWith('.webp') && fs.existsSync(source)), '모든 ACT 전투 맵은 압축된 WebP로 존재해야 한다');
-assert(actBattleMapSources.reduce((sum, source) => sum + fs.statSync(source).size, 0) < 2200000,
-  'ACT 전투 맵 10장의 합계 용량은 2.2MB 미만이어야 한다');
+// Lossless ACT art is now loaded on demand, so the budget covers startup + the largest destination.
+assert(fs.statSync(context.ACT_BATTLE_MAP_SOURCES.bgAct1).size + Math.max(...actBattleMapSources.map(source => fs.statSync(source).size)) < 2200000,
+  '처음 시작하는 맵과 목적지 맵의 로딩 합계는 기존 2.2MB 예산을 넘지 않아야 한다');
 const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'cone', 'summon']);
 const validShapes = new Set(['circle', 'diamond', 'square', 'cross', 'diagonal', 'ring']);
 Object.keys(context.SKILL_DB).forEach(name => {
@@ -814,7 +829,7 @@ assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKI
 assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 3칸');
 assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통 · 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
-assert.strictEqual(context.describeSkillGridProfile('칼날까마귀 소환', context.SKILL_DB['칼날까마귀 소환']), '공격 범위: 소환수 공격 · 사거리 2칸');
+assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격 · 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사 · 사거리 6칸 · 5방향 · 발사 방식 변경 가능');
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
@@ -1249,7 +1264,6 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.season = 4;
   context.game.currencies.skyEssence = 2;
   context.game.gemData['얼음 창'].skyEnhanceCap = 1;
-  context.getExpertLevel = () => 15;
   assert.strictEqual(context.applySkyGemEnhancementToActive('sky_projectile_focus'), true, '가득 찬 슬롯에서도 기존 발사 방식은 새 방식으로 바로 교체돼야 한다');
   assert.deepStrictEqual(Array.from(context.game.skyGemEnhancements['얼음 창']), ['sky_projectile_focus', null, null, null, null], '한 젬에는 주 발사 방식 하나만 남아야 한다');
   assert.strictEqual(context.game.currencies.skyEssence, 1, '발사 방식 교체는 각인 비용을 한 번만 소모해야 한다');
@@ -1386,9 +1400,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const targets = [makeEnemy(31, 2, 6), makeEnemy(32, 2, 5), makeEnemy(33, 1, 5)]
     .map((enemy, idx) => ({ enemy, mult: idx === 0 ? 1 : 0.8 }));
   const whirl = context.buildSkillHitSequence('회오리바람', context.SKILL_DB['회오리바람'], targets);
-  assert.strictEqual(whirl.length, 3, '회오리바람은 대상마다 독립 타격 단계가 있어야 한다');
-  assert.strictEqual(whirl.map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
-  assert.ok(whirl.every(stage => stage.targets.length === 1), '회오리바람 단계 하나가 모든 대상에게 동시에 피해를 주면 안 된다');
+  assert.strictEqual(whirl.length, context.SKILL_DB['회오리바람'].targets, '회오리바람은 대상 수만큼 회전한다 (대상은 회전이 닿을 때 고른다)');
+  assert.strictEqual(whirl.slice(0, 3).map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
+  assert.ok(whirl.every(stage => stage.targets.length === 1 && stage.whirl === whirl[0].whirl),
+    '회전 하나는 한 명만 베고, 한 시전의 회전들은 이미 벤 적 목록을 함께 쓴다');
 
   const chain = context.buildSkillHitSequence('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍'], targets);
   assert.strictEqual(chain.map(stage => stage.kind).join(','), 'chainPrimary,chainJump,chainJump', '연쇄는 최초 공격과 후속 점프로 구분돼야 한다');
@@ -1442,14 +1457,17 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const frostTargets = [makeEnemy(341, 3, 4), makeEnemy(342, 4, 4), makeEnemy(343, 4, 5),
     makeEnemy(344, 5, 4), makeEnemy(345, 5, 5)].map(enemy => ({ enemy, mult: 1 }));
   const frostBurst = context.buildSkillHitSequence('서리 폭발', context.SKILL_DB['서리 폭발'], frostTargets);
-  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 90, 127, 180, 201],
-    '서리 폭발 피해는 중심에서 파동이 실제 거리에 도달하는 순서로 발생해야 한다');
+  // 2026-10-02: 파동 앞면이 반 칸 넓어질 때마다 한 단계, 몹이 지금 서 있는 곳으로 판정한다(3-1c가 움직이는 몹으로 확인).
+  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 45, 90, 135, 180, 225],
+    '서리 폭발 피해는 중심에서 퍼지는 파동 앞면을 따라 반 칸마다 판정해야 한다');
   assert.ok(frostBurst.every(stage => stage.kind === 'radialBurstWave' && stage.damageMultiplier === 1),
     '서리 파동의 시간차만 추가하고 각 대상의 기존 총 피해는 유지해야 한다');
   assert.ok(frostBurst.every(stage => stage.waveDurationMs === 225),
     '시각 파동과 판정 파동은 반경 끝까지 같은 시간을 사용해야 한다');
-  assert.strictEqual(frostBurst.flatMap(stage => stage.targets).length, frostTargets.length,
-    '시간차 판정으로 기존 범위 대상이 누락되면 안 된다');
+  assert.ok(frostBurst.every(stage => stage.wave === frostBurst[0].wave && stage.targets.length === frostTargets.length),
+    '한 파동의 단계들은 한 파동 상태(맞은 몹)를 함께 쓰고, 시전 때 고른 대상이 누락되면 안 된다');
+  assert.deepStrictEqual([frostBurst[0].wave.reach, frostBurst[0].wave.msPerCell], [2.5, 90],
+    '판정 고리는 그림 고리처럼 0.09초에 한 칸, 반경 끝(2.5칸)까지 넓어진다');
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
 
   const boomerang = context.buildSkillHitSequence('독니 사출', context.SKILL_DB['독니 사출'], targets);
@@ -1559,6 +1577,65 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '지혜의 도약에서 공허를 선택한 후 카오스 주력 스킬이 0 피해를 주면 안 된다');
 }
 
+// ── 3-1c. 서리 폭발: 그려진 고리가 그려진 몹에 닿으면 맞는다(퍼지며 닿는 순서 그대로) ──
+// (2026-10-02 사용자: 쓰자마자 몹이 범위 안에서 움직이면 회피처럼 빗나가는 게 불쾌하다. 이펙트가 닿으면 맞게.)
+{
+  resetGame();
+  context.game.activeSkill = '서리 폭발';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '서리 폭발']));
+  context.game.gemData['서리 폭발'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 0, gy: 4, gridMoveTimer: 0 };
+  const sturdy = { hp: 1000000, maxHp: 1000000, armor: 0, evasion: 0, evasionChance: 0, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0 };
+  // How many times this cast's wave struck a monster (its hit effects), whatever the damage.
+  const hits = enemy => vm.runInContext(`battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === ${enemy.id}).length`, context);
+  /** Run the combat clock to untilMs after the wave starts; the rows due by then resolve. */
+  const advanceWave = untilMs => {
+    context.game.combatTimeMs = context.__waveStart + Math.min(untilMs, 5000);
+    vm.runInContext('processPendingSkillStageHits();', context);
+  };
+  /** Cast at the first monster (the burst's centre), move monsters (they can read __waveStart), then run the wave to untilMs. */
+  const castFrost = (enemies, move, untilMs = Infinity) => {
+    context.game.enemies = enemies;
+    context.game.combatTimeMs = 1000000000000;
+    vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+    const stats = context.getPlayerStats();
+    Object.assign(stats, { minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000, crit: 0 });
+    context.performPlayerAttack(stats);
+    context.__waveStart = vm.runInContext('Math.min(...pendingSkillStageHits.filter(row => row.wave).map(row => row.at))', context);
+    move();
+    advanceWave(untilMs);
+  };
+  const finishWave = () => advanceWave(Infinity);
+
+  const walker = makeEnemy(361, 4, 4, sturdy);
+  castFrost([walker], () => { walker.gx = 5; });
+  assert.ok(walker.hp < walker.maxHp && hits(walker) === 1, '중심의 몹이 범위 안에서 한 칸 움직여도 고리가 닿을 때 정확히 한 번 맞아야 한다');
+  const leaver = makeEnemy(362, 4, 4, sturdy);
+  castFrost([leaver], () => { leaver.gx = 8; });
+  assert.ok(leaver.hp === leaver.maxHp && hits(leaver) === 0, '고리가 닿기 전에 범위를 벗어난 몹은 맞지 않는다');
+
+  const centre = makeEnemy(363, 4, 4, sturdy), near = makeEnemy(364, 5, 4, sturdy), far = makeEnemy(365, 6, 4, sturdy);
+  castFrost([centre, near, far], () => {}, 90);
+  assert.deepStrictEqual([hits(centre), hits(near), hits(far)], [1, 1, 0], '고리는 닿는 순서대로: 0.09초에 한 칸 거리까지, 두 칸 거리는 아직');
+  finishWave();
+  assert.deepStrictEqual([hits(centre), hits(near), hits(far)], [1, 1, 1], '고리가 두 칸 거리에 닿으면 그 몹도 맞고, 한 파동은 한 몹을 한 번만 맞힌다');
+
+  const target = makeEnemy(366, 4, 4, sturdy), comer = makeEnemy(367, 6, 4, sturdy);
+  castFrost([target, comer], () => { comer.gx = 4; comer.gy = 5; }, 90);
+  assert.strictEqual(hits(comer), 1, '바깥쪽에서 중심 쪽으로 들어온 몹은 고리가 지금 위치에 닿을 때 맞는다');
+  finishWave();
+  assert.strictEqual(hits(comer), 1, '그리고 다시 맞지 않는다');
+
+  // Drawn position: it steps from (6,4) to (7,4) at 0.185 s, just after the ring reached (6,4) at 0.18 s. Its cell is out of reach
+  // (three cells), but it was still drawn on (6,4) when the ring touched it, so it is struck; the sampling between ticks finds it.
+  const anchor = makeEnemy(368, 4, 4, sturdy), stepper = makeEnemy(369, 7, 4, sturdy);
+  castFrost([anchor, stepper], () => { Object.assign(stepper, { gridStepFrom: { gx: 6, gy: 4 }, gridStepAt: context.__waveStart + 185 }); });
+  assert.strictEqual(hits(stepper), 1, '고리가 닿은 순간 아직 옛 칸에 그려져 있던 몹은 걸음을 옮긴 뒤에도 맞는다');
+  const runner = makeEnemy(371, 7, 4, sturdy);
+  castFrost([makeEnemy(370, 4, 4, sturdy), runner], () => { Object.assign(runner, { gridStepFrom: { gx: 6, gy: 4 }, gridStepAt: context.__waveStart + 100 }); });
+  assert.strictEqual(hits(runner), 0, '고리가 닿기 전에 걸어 나간 몹은(그림도 이미 밖) 맞지 않는다');
+}
+
 // ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──
 {
   resetGame();
@@ -1581,6 +1658,25 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리바람 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리바람 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
+
+  // 09-30: 회전마다 그 순간 서 있는 칸 둘레에서 아직 안 맞은 적을 벤다 — 걷는 동안에도 칼바람이 따라간다.
+  resetGame();
+  context.game.activeSkill = '회오리바람';
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const near = makeEnemy(44, 2, 6), far = makeEnemy(45, 4, 6);
+  [near, far].forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
+  context.game.enemies = [near, far];
+  const walkStats = context.getPlayerStats();
+  Object.assign(walkStats, { baseDmg: 1000, minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000 });
+  context.performPlayerAttack(walkStats);
+  assert.strictEqual(vm.runInContext('pendingSkillStageHits.length', context), walkStats.sSkill.targets, '회오리바람은 대상 수만큼 회전을 예약한다');
+  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  const nearAfterFirst = near.hp;
+  assert.ok(near.hp < near.maxHp && far.hp === far.maxHp, '첫 회전은 서 있는 칸 둘레의 적을 벤다');
+  context.game.gridPlayer = { gx: 3, gy: 6, gridMoveTimer: 0 };
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(far.hp < far.maxHp, '걸어간 칸 둘레의 적을 남은 회전이 벤다');
+  assert.strictEqual(near.hp, nearAfterFirst, '이미 벤 적은 같은 시전에서 다시 베지 않는다');
 
   resetGame();
   context.game.activeSkill = '기본 공격';
@@ -1843,7 +1939,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingSkillStageHits = [];', context);
   context.performPlayerAttack(attackStats);
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
-  assert.ok(logs.some(message => /^🩸 \d[\d,]* 피해$/.test(message)), '기본 공격 로그는 속성 표식과 총 피해만 표시해야 한다');
+  assert.ok(logs.some(message => /^🩸 기본 공격 \d[\d,]* 피해$/.test(message)), '기본 공격 로그는 속성 표식, 기술 이름, 총 피해만 표시해야 한다(검토 5차부터 출처를 적는다)');
 
   logs.length = 0;
   context.game.settings.showDetailedDamageLog = true;
@@ -1868,7 +1964,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performMonsterAttacks(defenseStats);
   vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
-  assert.ok(logs.some(message => /^[🩸🔥❄️⚡☠️✦]+ \d[\d,]* 피해$/u.test(message)), '기본 피격 로그도 주요 속성 표식과 받은 피해만 표시해야 한다');
+  assert.ok(logs.some(message => /^[🩸🔥❄️⚡☠️✦]+ \S.*의 공격으로 \d[\d,]* 피해$/u.test(message)), '기본 피격 로그도 주요 속성 표식, 공격한 적, 받은 피해만 표시해야 한다(검토 5차부터 출처를 적는다)');
 
   logs.length = 0;
   context.game.settings.showDetailedDamageLog = true;
@@ -1949,43 +2045,23 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   );
 }
 
-// ── 3-4. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
+// ── 3-4. 루프 리셋: 방치 보관함 · 루프 후 완료 행동 · 자동관리 설정 ──
 {
   resetGame();
-  context.game.contentProgression.inherited.push('flask', 'flaskUtility');
-  context.game.season = 3;
-  const st = context.ensureFlaskState();
-  const future = Date.now() + 5000;
-  st.healOverTimeUntil = future;
-  st.healOverTimePerSec = 10;
-  st.utils = [{ key: 'granite1', charges: 1, until: future }];
-  context.game.enemies = []; // 조우 사이(살아있는 적 없음)
-  context.game.playerHp = 50;
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.ok(st.healOverTimeUntil > Date.now(), '조우 사이에는 회복 지속 효과가 유지되어야 한다');
-  assert.ok(st.utils[0].until > Date.now(), '조우 사이에는 유틸 플라스크 효과가 유지되어야 한다');
-  context.expireActiveFlaskEffects();
-  assert.ok(st.healOverTimeUntil <= Date.now(), '지역 완료/이동 시 회복 지속 효과가 종료되어야 한다');
-  assert.ok(st.utils[0].until <= Date.now(), '지역 완료/이동 시 유틸 플라스크 효과가 종료되어야 한다');
-
-  // 루프(환생) 시 플라스크 발견/충전 리셋
-  context.game.flasks.foundKeys = ['h1', 'h2', 'h3', 'granite1', 'quicksilver1'];
+  // 루프(환생) 시 방치 보관함 · 완료 행동 리셋
   context.game.season = 1;
   context.game.settings.mapCompleteAction = 'nextZone';
   context.game.settings.postLoopMapCompleteAction = 'nextLoopBestPlusOne';
   context.game.offlineProgress.stashLevel = 1;
   context.game.offlineProgress.stash = [{ name: '지난 루프 장비', rarity: 'rare' }];
   context.game.offlineProgress.protectedOverflow = [{ name: '지난 루프 고유', rarity: 'unique' }];
-  const beforeFound = context.game.flasks.foundKeys.length;
   // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
-  ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
+  ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
     if (typeof context[name] !== 'function') context[name] = () => {};
   });
   const tutorialNotices = [];
   context.queueTutorialNotice = (...args) => tutorialNotices.push(args);
   context.triggerSeasonReset();
-  const afterFound = context.ensureFlaskFoundKeys();
-  assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
   assert.strictEqual(context.game.offlineProgress.stash.length, 0, '루프 시 방치 보관함이 초기화되어야 한다');
   assert.strictEqual(context.game.offlineProgress.protectedOverflow.length, 0, '루프 시 방치 보호 대기열도 초기화되어야 한다');
   assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
@@ -2024,130 +2100,6 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
-// ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
-{
-  resetGame();
-  context.game.season = 3;
-  context.game.contentProgression.inherited.push('flask', 'flaskUtility');
-  context.updateStaticUI = () => {};
-  context.game.level = 100;
-  context.game.equipment['허리띠'] = { baseStats: [{ id: 'flaskUtilSlots', val: 1 }] };
-  context.game.flasks.foundKeys = ['h1', 'granite1', 'quicksilver1'];
-
-  const frontier = context.getFlaskDiscoveryCandidates(100, ['h1', 'granite1']);
-  assert.ok(frontier.includes('h2'), '회복 플라스크는 다음 단계부터 발견되어야 한다');
-  assert.ok(!frontier.includes('h3'), '회복 플라스크의 중간 단계를 건너뛰면 안 된다');
-  assert.ok(frontier.includes('granite2'), '발견한 유틸 종류는 다음 단계가 후보여야 한다');
-  assert.ok(!frontier.includes('granite3'), '유틸 플라스크의 중간 단계를 건너뛰면 안 된다');
-  assert.ok(frontier.includes('quicksilver1'), '미발견 유틸 종류는 1단계부터 시작해야 한다');
-  assert.strictEqual(context.getFlaskDiscoveryTierMultiplier('h1'), 1, '1단계 플라스크 발견 확률은 기준 배율이어야 한다');
-  assert.ok(context.getFlaskDiscoveryTierMultiplier('h2') <= 0.45, '2단계부터 발견 확률이 크게 감소해야 한다');
-  for (let tier = 3; tier <= 8; tier++) {
-    assert.ok(
-      context.getFlaskDiscoveryTierMultiplier(`h${tier}`) < context.getFlaskDiscoveryTierMultiplier(`h${tier - 1}`) * 0.5,
-      `${tier}단계 플라스크는 직전 단계보다 절반 미만의 발견 배율이어야 한다`
-    );
-  }
-  assert.ok(context.getFlaskHealDef('h8').healPct < 100, '최상위 회복 플라스크도 최대 생명력 전체를 초과 회복하면 안 된다');
-  assert.ok(vm.runInContext('FLASK_UTILITY_POOL.granite5.armorPct <= 65', context), '최상위 방어 플라스크 효과가 완화되어야 한다');
-  assert.ok(vm.runInContext('FLASK_UTILITY_POOL.bismuth5.genericTakenReducePct <= 11', context), '최상위 피해 감소 플라스크 효과가 완화되어야 한다');
-
-  context.game.noti.flask = false;
-  const originalRandom = context.Math.random;
-  context.Math.random = () => 0;
-  assert.strictEqual(context.rollFlaskAlchemyGlassDrop({ isElite: false, isBoss: false }), 1, '연금 유리 드롭을 강제로 재현해야 한다');
-  context.Math.random = originalRandom;
-  assert.strictEqual(context.game.noti.flask, false, '연금 유리 획득만으로 플라스크 탭 알림이 켜지면 안 된다');
-
-  let st = context.ensureFlaskState();
-  context.equipUtilityFlask(0, 'granite1');
-  assert.strictEqual(st.utils[0].charges, 0, '처음 장착한 유틸 플라스크는 빈 충전으로 시작해야 한다');
-  st.utils[0].charges = 1;
-  st.utils[0].chargeProgress = 3;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.equipUtilityFlask(0, 'quicksilver1');
-  assert.strictEqual(st.utils[0].charges, 0, '교체 장착으로 새 플라스크 충전을 생성하면 안 된다');
-  context.equipUtilityFlask(0, 'granite1');
-  assert.strictEqual(st.utils[0].charges, 1, '다시 장착한 플라스크는 보관된 충전을 복원해야 한다');
-  assert.strictEqual(st.utils[0].chargeProgress, 3, '다시 장착한 플라스크는 보관된 처치 진행도를 복원해야 한다');
-
-  st.healCharges = 0;
-  st.healChargeProgress = 0;
-  st.utils[0].charges = 0;
-  st.utils[0].chargeProgress = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  const healNeed = context.getFlaskEffectiveChargesPerKills(context.getFlaskHealDef('h1').chargesPerKills);
-  for (let i = 0; i < healNeed - 1; i++) context.tickFlaskChargesOnKill();
-  assert.strictEqual(st.healCharges, 0, '필요 처치 전에는 회복 플라스크가 충전되면 안 된다');
-  context.tickFlaskChargesOnKill();
-  assert.strictEqual(st.healCharges, 1, '필요 처치를 채우면 회복 플라스크가 1회 충전되어야 한다');
-
-  st.healCharges = context.getFlaskHealDef('h1').maxCharges;
-  st.utils[0].charges = 2;
-  st.utils[0].chargeProgress = 0;
-  st.utils[0].trigger = 'combat';
-  st.utils[0].until = 0;
-  st.utils[0].lastAutoEncounter = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.game.playerHp = 100;
-  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.strictEqual(st.utils[0].charges, 1, '전투 시작 시 유틸 플라스크를 1회 사용해야 한다');
-  st.utils[0].until = 0;
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.strictEqual(st.utils[0].charges, 1, '같은 조우에서 전투 시작 조건이 반복 소비되면 안 된다');
-  context.game.enemies = [];
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.strictEqual(st.utils[0].charges, 0, '새 조우에서는 전투 시작 조건을 다시 사용할 수 있어야 한다');
-
-  st.healCharges = 0;
-  st.healChargeProgress = 4;
-  st.utils[0].charges = 0;
-  st.utils[0].chargeProgress = 4;
-  st.utilityChargeBank.quicksilver1 = { charges: 0, progress: 3 };
-  context.refillAllFlaskCharges();
-  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '귀환·사망 회복은 회복 플라스크를 최대로 채워야 한다');
-  assert.strictEqual(st.healChargeProgress, 0, '완전 충전 시 회복 플라스크 진행도를 초기화해야 한다');
-  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '장착 유틸리티 플라스크를 최대로 채워야 한다');
-  assert.strictEqual(st.utilityChargeBank.quicksilver1.charges, vm.runInContext('FLASK_UTILITY_POOL.quicksilver1.maxCharges', context), '보관 중인 발견 플라스크도 최대로 채워야 한다');
-  assert.strictEqual(st.utilityChargeBank.quicksilver1.progress, 0, '보관 플라스크 충전 진행도도 초기화해야 한다');
-
-  const glassBeforeRecovery = st.alchemyGlass;
-  st.healCharges = 0;
-  st.utils[0].charges = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.startMoving(true);
-  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '귀환을 시작하면 회복 플라스크 충전이 즉시 회복되어야 한다');
-  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '귀환을 시작하면 유틸리티 플라스크 충전도 즉시 회복되어야 한다');
-  assert.strictEqual(st.alchemyGlass, glassBeforeRecovery, '충전 회복이 연금 유리 보유량을 바꾸면 안 된다');
-
-  st.healCharges = 0;
-  st.utils[0].charges = 0;
-  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
-  context.game.settings.showDeathNotice = false;
-  context.handlePlayerDefeat({ id: 'flask_test', type: 'abyss', name: '플라스크 테스트' }, { maxHp: 100, energyShield: 0, moveSpeed: 100 });
-  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '사망하면 회복 플라스크 충전이 즉시 회복되어야 한다');
-  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '사망하면 유틸리티 플라스크 충전도 즉시 회복되어야 한다');
-  assert.strictEqual(st.alchemyGlass, glassBeforeRecovery, '사망 충전 회복이 연금 유리 보유량을 바꾸면 안 된다');
-
-  resetGame();
-  st = context.ensureFlaskState();
-  context.game.season = 2;
-  context.game.contentProgression.inherited.push('flask');
-  const now = Date.now();
-  context.game.playerHp = 10;
-  context.game.enemies = [];
-  st.healOverTimeStartedAt = now - 2000;
-  st.healOverTimeUntil = now + 2000;
-  st.healOverTimeTotal = 40;
-  st.healOverTimeApplied = 0;
-  st.healOverTimePerSec = 10;
-  context.tickFlaskAutoUse({ maxHp: 100 });
-  assert.ok(context.game.playerHp >= 29 && context.game.playerHp <= 31, '지속 회복은 고정 틱이 아니라 실제 경과 시간 비율로 적용되어야 한다');
-}
-
 // ── 시작 지점 복귀: 먼 칸에서 새 조우를 시작할 때만 워프 연출 ──
 {
   resetGame();
@@ -2161,7 +2113,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.gridPlayer = { gx: 6, gy: 2, gridMoveTimer: 0 };
-  context.startEncounterRun();
+  context.startEncounterRun(false);
   const returnWarp = vm.runInContext("battleFx.find(fx => fx.type === 'playerReturnWarp')", context);
   assert.ok(returnWarp && returnWarp.duration === 720, '먼 칸에서 시작 지점으로 복귀하면 소환 연출을 한 번 예약해야 한다');
   assert.deepStrictEqual({ gx: returnWarp.cell.gx, gy: returnWarp.cell.gy },
@@ -2174,7 +2126,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.resetPlayerGridPosition();
-  context.startEncounterRun();
+  context.startEncounterRun(false);
   const stationaryWarpCount = vm.runInContext("battleFx.filter(fx => fx.type === 'playerReturnWarp').length", context);
   assert.strictEqual(stationaryWarpCount, 0, '이미 시작 지점에 있거나 최초 진입한 경우에는 복귀 연출을 반복하면 안 된다');
 }
@@ -2294,7 +2246,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     { id: 1, hp: 50, maxHp: 50, ailments: [] },
     { id: 2, hp: 50, maxHp: 50, isBoss: true, ailments: [] },
   ];
-  context.game.summons = [{ id: 1, alive: true, hp: 10, maxHp: 10, role: 'attack', gemName: '서리늑대 소환', slotIdx: 0 }];
+  context.game.summons = [{ id: 1, alive: true, hp: 10, maxHp: 10, role: 'attack', gemName: '냉기 위습 소환', slotIdx: 0 }];
   context.ensureCombatGridRuntime();
   assert.ok(context.hasGridCell(context.game.gridPlayer), '플레이어 칸이 복구되어야 한다');
   context.game.enemies.forEach(enemy => {
@@ -2400,12 +2352,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 12. 소환수 회복/재배치와 장착 소환수 젬 봉인 보호 ──
 {
   resetGame();
-  context.game.skills = ['기본 공격', '서리늑대 소환', '연속 베기'];
+  context.game.skills = ['기본 공격', '냉기 위습 소환', '연속 베기'];
   context.game.activeSkill = '기본 공격';
-  context.game.equippedSummonSkills = ['서리늑대 소환'];
-  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.game.equippedSummonSkills = ['냉기 위습 소환'];
+  context.game.summonSkillCounts = { '냉기 위습 소환': 1 };
   context.sealAllInactiveSkillGems();
-  assert.ok(context.game.skills.includes('서리늑대 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
+  assert.ok(context.game.skills.includes('냉기 위습 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
   assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
   assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬 젬은 일괄 봉인해야 한다');
 
@@ -2419,16 +2371,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(summon.hp, summon.maxHp, '플레이어 회복 경계에서는 소환수 체력도 전부 회복해야 한다');
   assert.ok(context.gridChebyshevDist(summon.gx, summon.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy) <= 1, '회복 경계에서는 소환수를 플레이어 주변으로 재배치해야 한다');
 
-  const preview = context.getSummonTooltipPreview('서리늑대 소환', pStats);
+  const preview = context.getSummonTooltipPreview('냉기 위습 소환', pStats);
   assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
-  assert.strictEqual(context.getSummonProfile('서리늑대 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
+  assert.strictEqual(context.getSummonProfile('냉기 위습 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
   assert.strictEqual(vm.runInContext('SUMMON_REGEN_PCT_PER_SEC', context), 0.75, '소환수 재생 너프는 기초 재생률에 반영해야 한다');
 }
 
 // ── 12-1. 소환수 회피: 별도 성장·적 정확도·엔트로피 판정 ──
 {
   resetGame();
-  const profile = context.getSummonProfile('칼날까마귀 소환');
+  const profile = context.getSummonProfile('물리 위습 소환');
   const level20Evasion = context.getSummonEvasionRating(profile, 20, { summonEfficiency: 0 });
   const level30Evasion = context.getSummonEvasionRating(profile, 30, { summonEfficiency: 0 });
   const lowestAccuracy = context.getEnemyAccuracyForZone({ tier: 1 });
@@ -2467,9 +2419,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   let pStats = context.getPlayerStats();
   assert.ok(pStats.leech >= 3.5, '야생성은 플레이어와 소환수에 공유하는 흡혈 +3.5%를 제공해야 한다');
 
-  context.game.skills = ['기본 공격', '서리늑대 소환'];
-  context.game.equippedSummonSkills = ['서리늑대 소환'];
-  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.game.skills = ['기본 공격', '번개 위습 소환'];
+  context.game.equippedSummonSkills = ['번개 위습 소환'];
+  context.game.summonSkillCounts = { '번개 위습 소환': 1 };
   context.ensureSummonRuntime(pStats);
   assert.strictEqual(context.game.summons[0].respawnMs, 4000, '기본 공격 소환수의 실제 부활 시간은 4초여야 한다');
 
@@ -2493,8 +2445,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.runSummonAttackTick(context.getPlayerStats());
   assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
   const summonAttackFx = vm.runInContext("battleFx.find(fx => fx.type === 'summonAttack')", context);
-  assert.ok(summonAttackFx && summonAttackFx.summonId === attacker.id && summonAttackFx.targetEnemyId === primary.id,
-    '소환수 공격은 주 대상 방향의 짧은 전진·복귀 연출 정보를 남겨야 한다');
+  assert.ok(summonAttackFx && summonAttackFx.summonId === attacker.id && summonAttackFx.targetEnemyId === primary.id
+    && summonAttackFx.sourceGx === attacker.gx && summonAttackFx.sourceGy === attacker.gy && summonAttackFx.gemName === '번개 위습 소환',
+    '위습 공격은 그림이 쓸 위습 칸 → 주 대상 칸 정보를 남겨야 한다');
 }
 
 // ── 신규 전투 젬: 시간차 판정 / 기동 / 채널 취소 / 태그 보조 ──
@@ -2604,8 +2557,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(continuationRuntimeRemaining <= cycleMs + 100, '이어지는 집중 주기에 최초 시전 선딜이 다시 붙으면 안 된다');
   assert.ok(new Set(continuationRows.map(row => row.channelId)).size === 1 && continuationRows[0].channelId > 0, '이어지는 집중 틱은 하나의 새 채널 주기에 속해야 한다');
 
-  assert.strictEqual(context.getSummonProfile('폭풍 정령 소환').gridRange, 4, '폭풍 정령은 원거리 소환수 계약을 사용해야 한다');
-  assert.ok(context.getSummonProfile('철갑 거북 소환').baseArmor > context.getSummonProfile('불곰 소환').baseArmor, '철갑 거북은 기존 근접 소환수보다 높은 방어도를 가져야 한다');
+  assert.strictEqual(context.getSummonProfile('분광 위습 소환').gridRange, 4, '분광 위습은 원거리(4칸) 소환수 계약을 사용해야 한다');
+  assert.ok(Object.keys(context.WISP_SUMMONS).every(name => context.getSummonProfile(name).gridRange >= 3), '위습 정령은 모두 3칸 이상 떨어져서 공격한다');
   resetGame();
 }
 

@@ -17,6 +17,14 @@ debug.log
 !/artifacts/unlock-ui/test.css
 !/artifacts/unlock-ui/test.js
 !/artifacts/unlock-ui/test-bridge.js
+!/artifacts/grove-ui/
+/artifacts/grove-ui/*
+!/artifacts/grove-ui/preview.html
+!/artifacts/player-stall-review/
+/artifacts/player-stall-review/*
+!/artifacts/player-stall-review/index.html
+!/artifacts/player-stall-review/fixture.js
+!/artifacts/player-stall-review/balance-report.json
 
 # Source art is retained locally; the game loads the compact WebP derivatives.
 /assets/items/illustrated/*.png

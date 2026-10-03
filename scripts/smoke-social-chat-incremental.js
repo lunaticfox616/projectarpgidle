@@ -3,6 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const timers = new Map();
+const timerFns = new Map();
 let timerId = 0;
 const chatClasses = new Set();
 const queries = [];
@@ -28,8 +29,8 @@ const context = {
     head: { appendChild() {} },
     body: { appendChild() {}, classList: { contains() { return false; } } }
   },
-  setInterval(fn, delay) { const id = ++timerId; timers.set(id, delay); return id; },
-  clearInterval(id) { timers.delete(id); },
+  setInterval(fn, delay) { const id = ++timerId; timers.set(id, delay); timerFns.set(id, fn); return id; },
+  clearInterval(id) { timers.delete(id); timerFns.delete(id); },
   setTimeout() { return 1; },
   Date, Math, Number, String, Array, Object, Map, RegExp, JSON, encodeURIComponent
 };
@@ -70,6 +71,22 @@ async function run() {
   chatClasses.add('active');
   context.syncSocialChatPolling();
   assert.strictEqual(timers.size, 2, 'reopening the mobile chat resumes receiving');
+  // A hidden page asks the server nothing (2026-10-03, free-plan request budget): chat, online list and the chat dot wait.
+  const beforeHidden = queries.length;
+  context.document.hidden = true;
+  for (const fn of timerFns.values()) fn();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.strictEqual(queries.length, beforeHidden, 'open chat polls must wait while the page is hidden');
+  context.game = { noti: {}, settings: {} };
+  chatClasses.clear();
+  context.syncSocialChatPolling();
+  await context.pollSocialChatNotification();
+  assert.strictEqual(queries.length, beforeHidden, 'the chat dot must not poll while the page is hidden');
+  context.document.hidden = false;
+  await context.pollSocialChatNotification();
+  assert.strictEqual(queries.length, beforeHidden + 1, 'the chat dot polls again once the page is visible');
+  chatClasses.add('active');
+  context.syncSocialChatPolling();
   context.cloudState.user = null;
   context.syncSocialChatPolling();
   assert.strictEqual(timers.size, 0, 'logout must stop polling even when the panel remains visible');

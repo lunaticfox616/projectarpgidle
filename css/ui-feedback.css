@@ -19,36 +19,61 @@ body { font-family: var(--font-body); }
 .game-choice-option span { color: var(--color-text-secondary); font-size: 12px; }
 .game-choice-option[aria-pressed="true"] { border-color: var(--color-accent-gold); box-shadow: inset 3px 0 var(--color-accent-gold); color: var(--color-text); }
 
-.game-toast-region { position: fixed; z-index: 21000; top: max(16px, env(safe-area-inset-top)); right: 16px; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
-.game-toast { display: grid; grid-template-columns: 28px minmax(0,1fr); align-items: center; gap: 9px; min-height: 48px; padding: 10px 13px; border: 1px solid rgba(118,148,180,.55); border-radius: 6px; background: rgba(13,20,30,.96); color: #ffffff; box-shadow: 0 14px 36px rgba(0,0,0,.46); opacity: 0; transform: translateX(18px); transition: opacity .2s ease, transform .2s ease; }
-.game-toast-dps-up, .game-toast-dps-down { grid-template-columns: 1fr; min-height: 38px; }
-.game-toast-dps-up .game-toast-dps-value { color: #2ecc71; }
-.game-toast-dps-down .game-toast-dps-value { color: #e74c3c; }
-.game-toast-dps-up .game-toast-mark, .game-toast-dps-down .game-toast-mark { display: none; }
+/* 알림: 도트 돌판을 반투명하게(뒤 전장이 비친다), 왼쪽 띠 색이 종류. 누르면 바로 사라진다(js/ui-feedback.js). */
+.game-toast-region { position: fixed; z-index: 21000; top: max(16px, env(safe-area-inset-top)); right: 16px; display: grid; gap: 6px; width: min(330px, calc(100vw - 32px)); pointer-events: none; }
+.game-toast { --toast-tone: #d9b066; display: grid; grid-template-columns: 12px minmax(0,1fr); align-items: center; gap: 8px; padding: 7px 11px 7px 10px; border: 2px solid rgba(5,4,4,.85); background: rgba(18,16,13,.72); box-shadow: inset 0 0 0 1px rgba(93,74,46,.8), inset 3px 0 0 var(--toast-tone), 3px 3px 0 rgba(0,0,0,.3); color: #e6dcc6; font: 13px/1.45 var(--font-pixel-read, var(--font-body)); text-shadow: 1px 1px 0 #000; cursor: pointer; pointer-events: auto; opacity: 0; transform: translateX(18px); transition: opacity .2s ease, transform .2s ease, background-color .12s linear; }
+.game-toast:hover { background: rgba(18,16,13,.9); }
+.game-toast.is-dismissed { transition-duration: .09s; }
+/* DPS 변화 칩(js/build-feedback-ui.js): 생명 구슬 바로 위, 칩의 아래 변이 JS가 정한 top에 온다. */
+.build-dps-chip { position: fixed; z-index: 13300; transform: translateY(-100%); padding: 3px 8px; border: 2px solid #050404; background: var(--px-dither, none), rgba(18, 16, 13, .94); box-shadow: inset 0 0 0 1px #5d4a2e, 3px 3px 0 rgba(0, 0, 0, .5); color: #e6dcc6; font: 15px var(--font-pixel-read, var(--font-body)); white-space: nowrap; pointer-events: none; animation: build-dps-chip 3.2s ease-out forwards; }
+.build-dps-chip.is-centered { left: 50%; transform: translate(-50%, -100%); }
+.build-dps-chip.is-up .build-dps-chip-value { color: #5fd38a; }
+.build-dps-chip.is-down .build-dps-chip-value { color: #e8645a; }
+@keyframes build-dps-chip { 0% { opacity: 0; translate: 0 6px; } 8% { opacity: 1; translate: 0 0; } 82% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -6px; } }
+/* 칩이 뜬 직후 다음 안내 판이 열리면 칩이 판의 아래 테 위에 그려졌다 — 안내 판(z 12000 · 휴대폰 13250)이 위 */
+body:has(#tutorial-overlay.active) .build-dps-chip { z-index: 11990; }
+/* 휴대폰: 칩은 전장의 생명 구슬 위에만 뜬다. 탭 창(장비 · 스킬 젬 …)이 전장을 덮으면 숨는다 — 창 내용(젬 글)이나 미니맵
+   이름 위에 남았다(검토 2026-10-01). 창이 열린 동안 바뀐 DPS는 전장으로 돌아올 때 띄운다(js/build-feedback-ui.js). */
+body.mobile-primary-navigation:not(:has(#tab-battle.active)) .build-dps-chip { visibility: hidden; }
 .game-toast.active { opacity: 1; transform: translateX(0); }
+/* 따라 하기 안내 카드(js/tutorial-ui.js tutorialActionUi): 자리는 JS가 가리키는 칸 · 곁 정보 · 툴팁을 비켜 정한다. 아래 기본 자리는
+   그 한계(HUD 구슬 · 미니맵 · 하단 메뉴 위)이기도 하다. */
 .tutorial-action-card { position: fixed; z-index: 20500; right: 20px; bottom: 100px; width: min(320px, calc(100vw - 32px)); padding: 14px; border: 1px solid var(--color-line-strong); border-radius: 8px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 8px 28px #0008; font: 13px/1.6 var(--font-body); }
 .tutorial-action-card[hidden] { display: none; }
 body:has(.tutorial-overlay.active, dialog:modal) .tutorial-action-card { visibility: hidden; }
-.tutorial-action-card.at-top { top: 66px; bottom: auto; }
+/* 둘 곳이 없으면(휴대폰에서 젬 상세가 화면을 채울 때) 비켜 선다 — 표시는 가리키는 칸에 남는다 */
+.tutorial-action-card.is-covered { visibility: hidden; }
+/* 툴팁은 카드를 비켜 뜨고(js/ui.js applyTooltipPosition), 비킬 곳이 없을 때만 카드 위에 그린다 — 카드가 노드 툴팁을 덮었다 */
+body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip, #item-tooltip-box) { z-index: 20600; }
 .tutorial-action-card > strong { font-size: 14px; color: var(--color-accent-gold); }
 .tutorial-action-card p { margin: 8px 0 12px; }
+/* ‘장착’ 같은 단추 이름: 안내 판(시작 안내)과 같은 색 글씨. 따옴표는 빠진다(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다). */
+.tutorial-action-card .tutorial-ui { color: #9cc98a; }
 .tutorial-action-card > div { display: flex; justify-content: flex-end; gap: 8px; }
 .tutorial-action-card button { min-height: 36px; font: inherit; }
 .tutorial-action-target { outline-offset: -3px; }
 @media (max-width: 1080px) { .tutorial-action-card { right: 16px; bottom: 86px; } }
-.game-toast-mark { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: rgba(102,148,191,.18); color: #9ed2ff; font-weight: 900; }
-.mobile-log-toast { padding: 10px 12px; border: 1px solid var(--color-accent-gold); border-radius: var(--radius-sm); color: var(--color-text); background: var(--color-surface-raised); font-size: 13px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
-.mobile-log-toast--error { border-color: #b76464; }
-.game-toast-success { border-color: rgba(91,190,135,.62); }
-.game-toast-success .game-toast-mark { color: #91e2b2; background: rgba(60,168,109,.18); }
-.game-toast-warning { border-color: rgba(221,185,103,.68); }
-.game-toast-warning .game-toast-mark { color: #ffe0a1; background: rgba(191,143,52,.19); }
-.game-toast-danger { border-color: rgba(222,100,100,.72); }
-.game-toast-danger .game-toast-mark { color: #ffaaaa; background: rgba(190,60,67,.2); }
+/* 첫 스킬트리 안내(js/canvas-passive-tree.js passiveTreeGuide): 지금 찍을 수 있는 노드의 금빛 고리, 바깥 고리가 퍼지며 사라진다.
+   트리 겹판은 배율로 커지므로 위치 · 크기는 JS가 월드 좌표로 주고, 굵기는 --guide-px(화면 1px)로 맞춘다. */
+.passive-guide-ring { position: absolute; box-sizing: border-box; border: calc(2 * var(--guide-px, 1px)) solid #f3d28c; box-shadow: 0 0 0 var(--guide-px, 1px) #050404, inset 0 0 0 var(--guide-px, 1px) #050404; pointer-events: none; }
+.passive-guide-ring::after { content: ''; position: absolute; inset: calc(-2 * var(--guide-px, 1px)); border: inherit; animation: passive-guide-wave 1.2s steps(4, end) infinite; }
+@keyframes passive-guide-wave { from { scale: 1; opacity: .9; } to { scale: 1.7; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .passive-guide-ring::after { animation: none; opacity: 0; } }
+.game-toast-mark { display: grid; place-items: center; width: 12px; color: var(--toast-tone); font-size: 11px; line-height: 1; }
+/* 휴대폰 전투 로그 알림(js/ui.js showNextMobileToast): 같은 반투명 돌판, 누르면 바로 다음 알림으로 */
+.mobile-log-toast { --toast-tone: #d9b066; padding: 7px 11px 7px 12px; border: 2px solid rgba(5,4,4,.85); background: rgba(18,16,13,.72); box-shadow: inset 0 0 0 1px rgba(93,74,46,.8), inset 3px 0 0 var(--toast-tone), 3px 3px 0 rgba(0,0,0,.3); color: #e6dcc6; font: 13px/1.45 var(--font-pixel-read, var(--font-body)); text-shadow: 1px 1px 0 #000; cursor: pointer; pointer-events: auto; }
+.mobile-log-toast--error { --toast-tone: #e07a6a; }
+.game-toast-success { --toast-tone: #7fcf95; }
+.game-toast-warning { --toast-tone: #e0b35a; }
+.game-toast-danger { --toast-tone: #e07a6a; }
 
 @media (max-width: 640px) {
-  .game-toast-region { top: auto; right: 10px; bottom: calc(72px + env(safe-area-inset-bottom)); width: calc(100vw - 20px); }
+  /* 전투 로그 알림(아래 84px) 위로 쌓아 두 알림이 겹치지 않게. 좁은 화면이라 가장 최근 두 개만 보인다. */
+  .game-toast-region { top: auto; right: 10px; bottom: calc(132px + env(safe-area-inset-bottom)); width: calc(100vw - 20px); }
+  .game-toast-region > .game-toast:nth-last-child(n+3) { display: none; }
 } }
 
 @layer overrides {
-.tutorial-action-target { outline: 2px solid var(--color-accent-gold); } }
+.tutorial-action-target { outline: 2px solid var(--color-accent-gold); }
+/* 도트 스킨은 모서리를 모두 각지게 한다(themes/pixel.css) — 둥근 노드를 감싸는 안내 고리는 호버 고리처럼 둥글게 */
+#tree-container .passive-guide-ring, #tree-container .passive-guide-ring::after { border-radius: 50%; } }

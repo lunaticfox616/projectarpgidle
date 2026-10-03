@@ -54,7 +54,7 @@ const craftingResultUi = (() => {
         let before = result.before;
         let after = result.after;
         let rows = [];
-        let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+        let rarityLabels = ITEM_RARITY_LABELS;
         if (before.rarity !== after.rarity) rows.push(`등급 ${rarityLabels[before.rarity] || before.rarity} → ${rarityLabels[after.rarity] || after.rarity}`);
         if (before.quality !== after.quality) rows.push(`품질 ${before.quality}% → ${after.quality}%`);
         if (before.baseName !== after.baseName) rows.push(`베이스 ${before.baseName || '없음'} → ${after.baseName || '없음'}`);
@@ -74,13 +74,13 @@ const craftingResultUi = (() => {
 
     function getRepeatButton(result, item) {
         if (!['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'deepWhetstone', 'rootIron', 'jewelPolish'].includes(result.meta.currencyKey)) return '';
-        const payment = getCraftPayment(result.meta.currencyKey, item, result.meta.paymentSource);
+        const payment = getCraftPayment(result.meta.currencyKey);
         if (!payment) return '';
         const name = ORB_DB[payment.key].name;
-        const label = payment.key === 'growthEssence' ? `${name} ${payment.cost}개로 다시 제작 · 보유 ${payment.have}` : `${name} 다시 사용 · ${payment.have}`;
+        const label = `${name} 다시 사용 · ${payment.have}`;
         const mode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[result.meta.currencyKey] || 'none') : 'none';
         const action = equipmentCrafting.resolveAction(result.meta.currencyKey, item.rarity);
-        const reason = equipmentCrafting.getSporeBlockReason(item, action, mode);
+        const reason = getSporeCraftBlockReason(item, action, mode);
         return `<button type="button" data-repeat-craft="${result.meta.currencyKey}" onclick="craftingResultUi.repeat(${Number(item.id)})" ${payment.affordable && !reason ? '' : 'disabled'}>${escapeHTML(reason || label)}</button>`;
     }
 
@@ -100,7 +100,7 @@ const craftingResultUi = (() => {
         if (itemId !== undefined && item?.id !== itemId) return addLog('제작 대상이 변경되었습니다. 아이템을 다시 선택하세요.', 'attack-monster');
         let result = craftingResultLedger.getForItem(item);
         if (!result) return addLog('다시 사용할 수 있는 최근 제작 결과가 없습니다.', 'attack-monster');
-        return useCurrency(result.meta.currencyKey, result.meta.paymentSource);
+        return useCurrency(result.meta.currencyKey);
     }
 
     return { getLedgerHtml, getMetaRows, repeat };

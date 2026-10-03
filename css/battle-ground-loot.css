@@ -2,21 +2,39 @@
 .battle-loot-layer{position:absolute;z-index:12;pointer-events:none;overflow:hidden}
 .battle-loot-foreground{position:absolute;z-index:13;pointer-events:none;max-width:none}
 .battle-loot-air{position:absolute;z-index:14;pointer-events:none;overflow:hidden}
-.battle-loot-drop{position:absolute;width:0;height:0;color:var(--loot-color);opacity:.82;transition:opacity 140ms}
+/* 표지 자체는 불투명: 불투명도가 1보다 작으면 표지마다 쌓임 맥락이 생겨 다른 더미의 그림이 이름표를 덮었다. 그림과 빛기둥만 82%. */
+.battle-loot-drop{position:absolute;width:0;height:0;color:var(--loot-color);transition:opacity 140ms}
 .battle-loot-drop::before{content:'';position:absolute;width:30px;height:9px;left:-15px;top:0;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.65),transparent 72%);opacity:0}
 .battle-loot-drop.landed::before{opacity:1}
-.battle-loot-flight{position:absolute;left:0;top:0;width:0;height:0;z-index:1}
+.battle-loot-flight{position:absolute;left:0;top:0;width:0;height:0;z-index:1;opacity:.82}
 .battle-loot-item{position:absolute;width:28px;height:26px;max-width:none;object-fit:contain;left:-14px;top:-14px;filter:drop-shadow(1px 2px 1px #14130f);transform:rotate(var(--rest-angle,-15deg))}
+.battle-loot-glyph{width:12px;height:12px;left:-6px;top:-8px;background:var(--loot-color,#e8c46a);border:2px solid #14130f;transform:rotate(45deg)}
 .battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
-.battle-loot-name{position:absolute;left:0;bottom:23px;transform:translateX(-50%);white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid rgba(176,164,140,.22);background:rgba(8,10,12,.88);padding:2px 7px;color:var(--loot-color);font:500 12px/1.4 sans-serif;text-shadow:0 1px 2px #000;z-index:4;opacity:0;transition:opacity 220ms 90ms}
-.battle-loot-drop.landed .battle-loot-name{opacity:1}
-.battle-loot-drop[data-rarity="unique"] .battle-loot-name{border-color:#996337;background:rgba(25,18,13,.95);font-weight:600;color:#ecad6b}
+.battle-loot-drop::after{content:'';position:absolute;left:-1px;bottom:30px;width:2px;height:var(--label-lift,0px);background:linear-gradient(color-mix(in srgb,var(--loot-color) 85%,transparent),color-mix(in srgb,var(--loot-color) 35%,transparent));box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:0;transition:opacity 220ms 90ms}
+.battle-loot-drop.landed::after{opacity:.9}
+/* 한 더미의 이름표 십자(PoE식): 위 팔이 그림 바로 위(가장 중요한 이름이 가장 가깝다), 많으면 오른쪽, 왼쪽, 아래로 더 펼친다.
+   z-index 4라 모든 더미의 그림(z-index 1)보다 위에 그려진다. */
+.battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(-50%);display:flex;flex-direction:column-reverse;align-items:center;gap:2px;z-index:4}
+.battle-loot-labels.is-right,.battle-loot-labels.is-left{bottom:auto;top:-3px;transform:translateY(-50%);flex-direction:column}
+.battle-loot-labels.is-right{left:26px;align-items:flex-start}
+.battle-loot-labels.is-left{left:auto;right:26px;align-items:flex-end}
+.battle-loot-labels.is-down{bottom:auto;top:24px;flex-direction:column}
+.battle-loot-labels[hidden]{display:none}
+.battle-loot-name{position:relative;white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--loot-color) 58%,#26231d);background:rgba(6,7,9,.94);box-shadow:0 0 0 1px rgba(0,0,0,.88),0 2px 4px rgba(0,0,0,.55);padding:2px 7px;color:var(--loot-color);font:600 12px/1.4 sans-serif;text-shadow:0 1px 1px #000;opacity:0}
+.battle-loot-drop.landed .battle-loot-name{opacity:1;animation:loot-name-in 240ms cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--row,0) * 40ms)}
+.battle-loot-name[data-rarity="rare"]{border-color:color-mix(in srgb,var(--loot-color) 85%,#000)}
+.battle-loot-name[data-rarity="unique"]{border-color:#d0813f;background:rgba(28,18,10,.96);color:#ffb469}
+.battle-loot-name.is-major::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);transform:translateX(-115%);pointer-events:none}
+.battle-loot-drop.landed .battle-loot-name.is-major::after{animation:loot-name-shine 650ms ease-out both;animation-delay:calc(var(--row,0) * 40ms + 220ms)}
 .battle-loot-beam{position:absolute;left:-24px;bottom:0;width:48px;height:var(--beam-height,145px);pointer-events:none;opacity:0;transform-origin:center bottom;background:radial-gradient(ellipse at 50% 90%,color-mix(in srgb,var(--beam-color,#f4b76c) 40%,transparent),transparent 62%);transition:opacity 450ms;mask-image:linear-gradient(transparent,#000 22%,#000 96%,transparent)}
 .battle-loot-beam::before{content:'';position:absolute;inset:0 10px;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--beam-color,#f4b76c) 68%,transparent),transparent 66%);filter:blur(2px)}
 .battle-loot-beam::after{content:'';position:absolute;inset:0 22px;background:radial-gradient(ellipse at center,var(--beam-core,#fff1d2),color-mix(in srgb,var(--beam-core,#fff1d2) 50%,transparent) 30%,transparent 70%);box-shadow:0 0 7px color-mix(in srgb,var(--beam-color,#f4b76c) 16%,transparent)}
-.battle-loot-drop.landed .battle-loot-beam{opacity:1;animation:loot-beam-arrival 950ms ease-out}
+.battle-loot-drop.landed .battle-loot-beam{opacity:.82;animation:loot-beam-arrival 950ms ease-out}
+.battle-loot-drop:is([data-tier="rare"],[data-tier="major"]).landed::before{animation:loot-glow-pulse 560ms ease-out}
+.battle-loot-drop[data-tier="rare"].landed::before{width:44px;height:14px;left:-22px;top:-4px;background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 55%,transparent),transparent 72%)}
 .battle-loot-drop[data-beam="true"].landed::before{width:56px;height:18px;left:-28px;top:-7px;background:radial-gradient(ellipse,color-mix(in srgb,var(--beam-core,#ffe2ac) 70%,transparent),color-mix(in srgb,var(--beam-color,#f4b76c) 35%,transparent) 30%,transparent 72%)}
-.battle-loot-drop[data-currency="goldenRule"] .battle-loot-name{font-weight:400;border:0;background:none;padding:0;box-shadow:none}
+.battle-loot-name[data-currency="goldenRule"]{border-color:#e0533f;background:#120d0b;color:#fff3d8;box-shadow:0 0 0 1px #000,0 0 8px rgba(255,196,110,.55)}
+.battle-loot-name .orb-tone{/* 재화 이름 함수가 인라인으로 그리는 테두리와 여백 대신 이름표 줄이 틀이 된다(황금률도 다른 줄과 같은 크기). */all:unset !important}
 .battle-loot-drop[data-kind="currency"] .battle-loot-item{width:23px;height:23px;left:-11.5px;top:-13px;transform:rotate(var(--rest-angle,-8deg)) scaleY(.86)}
 .battle-loot-contact{position:absolute;left:-23px;top:-9px;width:46px;height:18px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 50%,transparent),transparent 70%);animation:loot-contact 450ms ease-out both}
 .battle-loot-drop[data-beam="true"] .battle-loot-contact{width:64px;height:25px;left:-32px;top:-12px;--loot-color:var(--beam-core,#fff1d2)}
@@ -26,5 +44,8 @@
 .battle-loot-receive{position:absolute;z-index:5;width:30px;height:30px;margin:-15px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.9),color-mix(in srgb,var(--loot-color) 32%,transparent) 24%,transparent 65%);animation:loot-receive 280ms ease-out both}
 @keyframes loot-contact{0%{opacity:0;transform:scale(.4)}20%{opacity:.8}100%{opacity:0;transform:scale(1.45)}}
 @keyframes loot-beam-arrival{0%{transform:scale(.7,.25)}30%{transform:scale(1.1,1.03)}100%{transform:scale(1)}}
+@keyframes loot-name-in{0%{opacity:0;transform:translateY(7px) scale(.9)}100%{opacity:1;transform:none}}
+@keyframes loot-name-shine{0%{transform:translateX(-115%)}100%{transform:translateX(115%)}}
+@keyframes loot-glow-pulse{0%{transform:scale(1.8);opacity:0}30%{opacity:1}100%{transform:scale(1)}}
 @keyframes loot-receive{0%{opacity:0;transform:scale(.3)}22%{opacity:.75}100%{opacity:0;transform:scale(1.25)}}
-@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-name,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}
+@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-drop.landed .battle-loot-name,.battle-loot-name::after,.battle-loot-drop.landed::before,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}

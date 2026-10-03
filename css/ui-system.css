@@ -2,7 +2,7 @@
 /* PROJECT IDLE product UI contract.
    This final layer owns shared hierarchy and representative battle/equipment
    layouts while legacy screens are migrated incrementally. */
-body:not(.light-mode) {
+:root body {
   color: var(--color-text);
   background-color: var(--color-canvas);
 }
@@ -12,23 +12,20 @@ body select {
   color-scheme: dark;
   border-radius: var(--radius-sm);
 }
-body.light-mode select { color-scheme: light; }
 body select option { color: var(--color-text); background-color: var(--color-surface); }
 body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline-offset: 2px; }
-body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
+:root body :where(button, input, select, textarea):focus-visible {
   outline: 0;
 }
 
-body:not(.light-mode) :where(button, input, select, textarea):disabled:not(.ocean-strategy-card) {
+:root body :where(button, input, select, textarea):disabled:not(.ocean-strategy-card) {
   cursor: not-allowed;
   filter: saturate(.55);
   opacity: .48;
 }
 
 /* Navigation communicates selected state with shape and position, not color alone. */
-body:not(.light-mode) .subtab-row,
-/* Navigation communicates selected state with shape and position, not color alone. */
-body.light-mode .subtab-row {
+:root body .subtab-row {
   gap: var(--space-1);
   padding: var(--space-1);
   border-width: 1px;
@@ -37,20 +34,20 @@ body.light-mode .subtab-row {
 }
 
 /* Navigation communicates selected state with shape and position, not color alone. */
-body:not(.light-mode) .subtab-row {
+:root body .subtab-row {
   border-color: var(--color-line);
   background: rgba(8, 9, 8, .86);
 }
 
-body:not(.light-mode) details > summary {
+:root body details > summary {
   color: var(--color-text-secondary);
 }
 
-body:not(.light-mode) details[open] > summary {
+:root body details[open] > summary {
   color: var(--color-text);
 }
 
-body:not(.light-mode) details > summary::marker {
+:root body details > summary::marker {
   color: var(--color-accent);
 }
 
@@ -82,61 +79,7 @@ body:not(.light-mode) details > summary::marker {
 
 /* Character sheet: key values first, related stats stay together. */
 .mobile-section-navigation { display: none; }
-.talisman-unseal-choice:not([hidden]) { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
-.talisman-unseal-choice select { min-height: 44px; width: 100%; font-size: 16px; }
-.talisman-unseal-source, .talisman-unseal-candidate { padding: 12px; margin-bottom: 10px; background: var(--color-surface-raised); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
-.talisman-unseal-source h3 { margin: 0 0 8px; font-size: 14px; }
-.talisman-unseal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.talisman-unseal-actions button { min-height: 44px; flex: 1 1 130px; }
-.talisman-candidate-shape { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.talisman-shard-exchange { margin: 10px 0; }
-.talisman-shard-exchange summary { padding: 10px; cursor: pointer; }
-.talisman-workspaces { display: flex; flex-direction: column; }
-#talisman-workshop { order: 1; }
-#talisman-layout { order: 2; }
-#talisman-library { order: 3; }
-#talisman-mobile-selected:not([hidden]) { display: grid; gap: 8px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
-#talisman-mobile-selected button { min-height: 44px; }
-#talisman-mobile-inspector { padding: 12px; margin: 10px 0; border: 1px solid var(--color-accent-gold); border-radius: var(--radius-sm); background: var(--color-surface-raised); }
-.talisman-mobile-heading { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.talisman-mobile-heading > span:last-child { margin-left: auto; color: var(--color-text-muted); }
-#talisman-mobile-inspector p { font-size: 13px; line-height: 1.5; }
-.talisman-mobile-actions { display: flex; gap: 8px; }
-.talisman-mobile-actions button { min-height: 44px; flex: 1; }
-#ui-talisman-board .talisman-mobile-footprint { outline: 2px solid #8fe7b0; outline-offset: -3px; }
-#ui-talisman-board .talisman-mobile-invalid { outline-color: #ff9a9a; }
-#ui-jewel-panel { display: flex; flex-direction: column; }
-#ui-jewel-panel > .jewel-cap-toolbar { order: 0; }
-#ui-jewel-craft-disclosure { order: 1; }
-#ui-jewel-salvage-disclosure { order: 2; }
-#ui-jewel-library { order: 3; min-width: 0; }
-.inventory-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
-.inventory-library-pages button { min-height: 44px; }
-.inventory-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
-.jewel-craft-mode:not([hidden]) { display: grid; gap: 6px; margin-bottom: 10px; color: var(--color-text-muted); }
-.jewel-craft-mode select { min-height: 44px; width: 100%; font-size: 16px; }
-.jewel-craft-section { padding: 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); margin-bottom: 10px; background: var(--color-surface-raised); }
-.jewel-craft-section h3 { margin: 0 0 8px; font-size: 14px; color: var(--color-accent-gold); }
-.jewel-craft-section p, .jewel-craft-section .item-stats { font-size: 13px; line-height: 1.6; }
-.jewel-craft-currencies { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
-.jewel-craft-currency { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding-top: 8px; border-top: 1px solid var(--color-line); }
-.jewel-craft-currency button, .jewel-craft-actions button { min-height: 44px; }
-.jewel-craft-currency span { font-size: 13px; line-height: 1.5; }
-.jewel-craft-currency small, .jewel-craft-actions small { display: block; font-size: 12px; color: var(--color-text-muted); line-height: 1.6; }
-.jewel-craft-balance { font-size: 13px; color: var(--color-accent-gold); }
-.jewel-craft-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.jewel-amplified-choice { display: block; font-size: 13px; line-height: 1.6; }
-.jewel-amplified-choice input { width: 20px; height: 20px; vertical-align: middle; margin-right: 8px; }
 @media (max-width: 1080px) {
-  .talisman-workspaces > * { min-width: 0; }
-  .talisman-card-copy .item-actions { display: grid; }
-  .talisman-card-copy .item-actions button { min-height: 44px; width: 100%; }
-  .jewel-craft-currencies { grid-template-columns: minmax(0, 1fr); }
-  .jewel-craft-section > button { min-height: 44px; }
-  #ui-jewel-panel > * { order: 0; }
-  #ui-jewel-panel .item-actions button { min-height: 44px; }
-  #ui-jewel-panel .jewel-card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  #ui-jewel-panel .jewel-card-actions button { width: 100%; font-size: 12px; padding: 8px 4px; }
   .mobile-section-navigation:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
   .mobile-section-navigation button { min-height: 44px; padding: 6px; font-size: 13px; }
   .mobile-section-navigation button[hidden] { display: none; }
@@ -164,16 +107,14 @@ body:not(.light-mode) details > summary::marker {
   gap: var(--space-3);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
-body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
-body.light-mode #item-tab-equip .equipment-loadout-panel,
-body.light-mode #item-tab-equip .equipment-inventory-panel {
+:root body #item-tab-equip .equipment-loadout-panel,:root 
+body #item-tab-equip .equipment-inventory-panel {
   padding: var(--space-3);
   border-radius: var(--radius-lg);
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
-body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
+:root body #item-tab-equip .equipment-loadout-panel,:root 
+body #item-tab-equip .equipment-inventory-panel {
   border-color: var(--color-line);
   background: linear-gradient(180deg, rgba(21, 20, 16, .99), rgba(8, 9, 8, .995));
   box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .22);
@@ -278,8 +219,7 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
   font-weight: 800;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar,
-body.light-mode #item-tab-equip .equipment-inventory-toolbar {
+:root body #item-tab-equip .equipment-inventory-toolbar {
   border-top-width: 1px;
   border-top-style: solid;
   margin: 0;
@@ -288,7 +228,7 @@ body.light-mode #item-tab-equip .equipment-inventory-toolbar {
   border-radius: 0;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
+:root body #item-tab-equip .equipment-inventory-toolbar {
   border-top-color: rgba(82, 68, 48, .72);
   background: rgba(13, 14, 12, .82);
 }
@@ -386,10 +326,8 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
     box-shadow: inset 0 -3px var(--color-accent-gold);
   }
 
-body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
-  body:not(.light-mode) #item-tab-equip .equipment-inventory-panel,
-body.light-mode #item-tab-equip .equipment-loadout-panel,
-  body.light-mode #item-tab-equip .equipment-inventory-panel {
+:root body #item-tab-equip .equipment-loadout-panel,:root 
+  body #item-tab-equip .equipment-inventory-panel {
   padding: 11px;
   border-radius: var(--radius-md);
 }
@@ -502,14 +440,12 @@ body.light-mode #item-tab-equip .equipment-loadout-panel,
     font-size: 12px;
   }
 
-body:not(.light-mode) #item-tab-equip .equipment-paperdoll,
-body.light-mode #item-tab-equip .equipment-paperdoll {
+:root body #item-tab-equip .equipment-paperdoll {
   padding: 5px;
   gap: 4px;
 }
 
-body:not(.light-mode) #item-tab-equip .equipment-slot,
-body.light-mode #item-tab-equip .equipment-slot {
+:root body #item-tab-equip .equipment-slot {
   min-height: 74px;
   padding: 4px;
 }
@@ -566,7 +502,7 @@ body select {
   background-color: var(--color-surface);
   border: 1px solid var(--color-line-strong);
 }
-body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
+:root body :where(button, input, select, textarea):focus-visible {
   box-shadow: var(--shadow-focus);
 }
 @media (min-width: 1081px) {
@@ -580,12 +516,7 @@ body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
     letter-spacing: .08em;
   }
 }
-#ui-talisman-board .talisman-mobile-anchor { box-shadow: 0 0 0 2px var(--color-accent-gold); }
 @media (max-width: 1080px) {
-  .talisman-workspaces > * { order: 0; }
-  #ui-talisman-inventory {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
-  .talisman-card-copy > div { display: block; }
-  #ui-jewel-slots, #ui-jewel-inventory {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
   .mobile-section-panel[data-mobile-selected="false"],
   .mobile-section-panel > summary {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
 }

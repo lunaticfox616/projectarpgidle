@@ -90,15 +90,6 @@ assert.strictEqual(tierValueContext.rollTierValueAffix({ tierValues: [1, 2, 3], 
 // Drop provenance and bounded initial affix tiers are exercised through the real generators in
 // smoke-loot-tier-progression.js instead of pinning this test to a particular call expression.
 
-const beltRangeStart = passiveSource.indexOf('function getBeltFlaskUtilSlotRollRange');
-const beltRangeEnd = passiveSource.indexOf('function rollBaseStats', beltRangeStart);
-assert(beltRangeStart >= 0 && beltRangeEnd > beltRangeStart, 'belt flask slot range helper must remain available');
-const beltContext = { Number, Math };
-vm.createContext(beltContext);
-vm.runInContext(passiveSource.slice(beltRangeStart, beltRangeEnd), beltContext, { filename: 'belt-flask-slot-range.js' });
-assert.deepStrictEqual({ ...beltContext.getBeltFlaskUtilSlotRollRange(5) }, { min: 1, max: 1 });
-assert.deepStrictEqual({ ...beltContext.getBeltFlaskUtilSlotRollRange(10) }, { min: 1, max: 2 });
-
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 assert(uiSource.includes('🍯 벌꿀 고정'), 'honey-locked affixes must be identified in the regular custom tooltip');
 assert(!uiSource.includes('return `${statePrefix} · 상시 효과`;'), 'unique tooltips must not show the redundant current/permanent-effect hint');

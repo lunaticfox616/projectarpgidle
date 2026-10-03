@@ -7,10 +7,11 @@ const read = source => vm.runInContext(source,runtime);
 const keys = () => JSON.parse(read('JSON.stringify(tutorialQueue.map(row=>row.key))'));
 
 read('game=JSON.parse(JSON.stringify(defaultGame));tutorialQueue.length=0;game.seenTutorials=[];storyJournalUi.sync();storyJournalUi.sync();');
-assert.deepStrictEqual(keys(),['story_prologue'],'fresh prologue is queued once');
+assert.deepStrictEqual(keys(),['story_prologue','story_act_1_start'],'fresh prologue is queued once, then the druid who takes the player in');
 read("tutorialQueue.length=0;game.level=35;game.currentZoneId=7;game.journalEntries=['prologue','act_2','act_4','act_5','act_6'];game.seenTutorials=['tutorial_battle_basics'];storyJournalUi.sync();");
 assert.deepStrictEqual(keys(),[],'existing saves do not receive a flood of past scenes');
 read("game.currentZoneId=8;storyJournalUi.sync();");
+assert(!keys().includes('story_act_1_start'),'a save past act 1 is not shown the added act 1 scene');
 assert.deepStrictEqual(keys(),['story_act_9_start'],'the next act start remains discoverable on an old save');
 
 read("game=JSON.parse(JSON.stringify(defaultGame));game.seenTutorials=['story_illustrations_v1','story_prologue'];tutorialQueue.length=0;game.currentZoneId=1;unlockJournalEntry('act_2');storyJournalUi.sync();");
@@ -39,8 +40,9 @@ read("game.currentZoneId=3;unlockJournalEntry('act_4');storyJournalUi.sync();");
 assert.deepStrictEqual(keys(),['story_act_4_end'],'future acts resume after reenabling');
 
 const scenes=JSON.parse(read('JSON.stringify(STORY_JOURNAL_SCENES)'));
-assert.strictEqual(scenes.length,11);
-for(const scene of scenes)assert(fs.statSync(scene.image).size>0,scene.image);
+assert.strictEqual(scenes.length,12);
+assert.deepStrictEqual(scenes.filter(scene=>!scene.image).map(scene=>scene.id),['act_1_start'],'only the added bridge scene is text only');
+for(const scene of scenes.filter(scene=>scene.image))assert(fs.statSync(scene.image).size>0,scene.image);
 const atlas=JSON.parse(read('JSON.stringify(SKILL_FX_ATLAS)'));
 assert.strictEqual(Object.keys(atlas).length,53);
 assert.strictEqual(read('Object.keys(SKILL_FX_ATLAS).filter(name=>SKILL_DB[name]).length'),53);

@@ -1,0 +1,7 @@
+{
+  "source": "bgAct10.webp",
+  "output": "bgAct10-soft-grid.webp",
+  "tool": "built-in image_gen",
+  "prompt": "Use case: precise-object-edit. Edit target: supplied 912x624 pixel-art game map. Make a very conservative local edit ONLY to the bright square tile border lines inside the central rectangular battlefield (x240..671, y144..527). Lower the brightness/contrast of these pale yellow square tile outlines by about 35%, blending their color toward the adjacent floor. Keep all 9 columns and 8 rows exactly aligned at 48px intervals. The grid must remain subtly visible, not erased. Preserve the underlying large circular pastel stained-glass floor pattern and its detail. Preserve ALL exterior architecture, gold walls, side stained-glass windows, ornamentation, framing, palette, pixel style, sharpness and composition unchanged. Do not darken the entire map. No new objects, no characters, no text. Output exactly the same 912x624 framing and layout. This is a production game asset, not a redesign.",
+  "integration": "Generated image normalized to 912x624. Internal tile seam bands alone composited at 65 percent over original. Architecture, outside frame and tile interiors retain original pixels. Lossless WebP. No runtime filter."
+}

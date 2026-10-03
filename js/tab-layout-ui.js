@@ -28,7 +28,6 @@ const tabLayoutUi = {
     },
 
     isMisc(id, layout = tabLayoutUi.current()) {
-        if (id === 'btn-tab-pruning') return false;
         return id === 'btn-tab-settings' || id === 'btn-map-complete-action-picker'
             || layout.tabPlacement[id] === 'bottom';
     },
@@ -54,7 +53,7 @@ const tabLayoutUi = {
         }
         const secondary = tabLayoutUi.isMisc(id, layout);
         return '<option value="top"' + (secondary ? '' : ' selected') + '>기본 메뉴</option>'
-            + '<option value="bottom"' + (id === 'btn-tab-pruning' ? ' disabled' : '')
+            + '<option value="bottom"'
             + (secondary ? ' selected' : '') + '>기타 메뉴</option>';
     },
 
@@ -103,7 +102,6 @@ const tabLayoutUi = {
 
     place(id, placement) {
         const target = tabLayoutUi.selectedPlatform || tabLayoutUi.platform();
-        if (id === 'btn-tab-pruning' && target === 'desktop') placement = 'top';
         if (!tabLayoutUi.buttons().some(button => button.id === id)) return;
         const layout = game.settings.tabLayouts[target];
         layout.tabPlacement[id] = placement === 'bottom' ? 'bottom' : 'top';

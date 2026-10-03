@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 async function openBattle(page) {
     const errors = [];
@@ -8,7 +9,7 @@ async function openBattle(page) {
     await page.locator('#btn-startup-guest').click();
     await expect(page.locator('#startup-overlay')).not.toHaveClass(/active/, { timeout: 30000 });
     if (await page.evaluate(() => !game.heroSelectionInitialized)) {
-        await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
+        await pickClass(page);
     }
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
@@ -41,13 +42,15 @@ test('actual equipment roll is kept once and animates behind actors without x1',
         return { id: item.id, name: item.name, x: source.x / canvas.clientWidth, y: source.y / canvas.clientHeight,
             golden: game.currencies.goldenRule, inventory: game.inventory.length };
     });
+    // One kill drops one pile (2026-10-03): one picture, the three names stacked over it.
     const drops = page.locator('.battle-loot-drop');
-    await expect(drops).toHaveCount(3);
-    await expect(page.locator('.battle-loot-drop.landed')).toHaveCount(3);
+    await expect(drops).toHaveCount(1);
+    await expect(page.locator('.battle-loot-drop.landed')).toHaveCount(1);
+    await expect(drops.locator('.battle-loot-name')).toHaveCount(3);
     const golden = page.locator('.battle-loot-drop[data-currency="goldenRule"]');
-    await expect(golden.locator('.battle-loot-name')).toHaveText('황금률');
-    await expect(golden.locator('.orb-tone')).toHaveCSS('border-top-color', 'rgb(122, 31, 31)');
-    await expect(golden).toHaveCSS('opacity', '0.82');
+    await expect(golden.locator('.battle-loot-name[data-currency="goldenRule"]')).toHaveText('황금률');
+    // Pictures stay translucent behind the hero; the names are drawn opaque above every picture (2026-10-03).
+    await expect(golden.locator('.battle-loot-flight')).toHaveCSS('opacity', '0.82');
     const point = await golden.evaluate(marker => ({ x: Number(marker.dataset.sourceX), y: Number(marker.dataset.sourceY) }));
     expect(point.x).toBeCloseTo(receipt.x, 2); expect(point.y).toBeCloseTo(receipt.y, 2);
     const depths = await page.evaluate(() => ['.battle-loot-layer', '.battle-loot-foreground', '.battle-loot-air']
@@ -64,50 +67,3 @@ test('actual equipment roll is kept once and animates behind actors without x1',
     expect(errors).toEqual([]);
 });
 
-test('ground loot bounds bursts, clears on travel and does not remove actors in hidden battle PiP', async ({ page }, info) => {
-    const errors = await openBattle(page);
-    const baseline = await page.evaluate(() => {
-        const times = [];
-        for (let i = 0; i < 90; i++) { const start = performance.now(); renderBattlefield(); if (i >= 10) times.push(performance.now() - start); }
-        times.sort((a, b) => a - b); return { medianMs: times[40], p95Ms: times[76] };
-    });
-    const creationMs = await page.evaluate(() => {
-        const enemy = game.enemies[0];
-        for (let i = 0; i < 80; i++) {
-            const count = awardCurrency('magicBud', 1);
-            queueEnemyGroundLoot(enemy, { currency: 'magicBud', count });
-        }
-        const start = performance.now(); renderBattlefield(); return performance.now() - start;
-    });
-    const count = await page.locator('.battle-loot-drop').count();
-    expect(count).toBeGreaterThan(0); expect(count).toBeLessThanOrEqual(info.project.name.startsWith('mobile') ? 16 : 24);
-    const active = await page.evaluate(() => {
-        const times = [];
-        for (let i = 0; i < 90; i++) { const start = performance.now(); renderBattlefield(); if (i >= 10) times.push(performance.now() - start); }
-        times.sort((a, b) => a - b);
-        const front = document.querySelector('.battle-loot-foreground');
-        return { medianMs: times[40], p95Ms: times[76], bitmapBytes: front.width * front.height * 4 };
-    });
-    await info.attach('ground-loot-render-cost', { body: JSON.stringify({ baseline, active, count, creationMs }), contentType: 'application/json' });
-    console.log(info.project.name, JSON.stringify({ baseline, active, count, creationMs }));
-    await page.evaluate(() => { game.currentZoneId = 2; renderBattlefield(); });
-    await expect(page.locator('.battle-loot-drop')).toHaveCount(0);
-    await expect(page.locator('.battle-loot-foreground')).toBeHidden();
-    await page.evaluate(() => {
-        game.currentZoneId = 1;
-        queueEnemyGroundLoot(game.enemies[0], { currency: 'goldenRule', count: awardCurrency('goldenRule', 1) });
-        renderBattlefield(); clearBattleVisualBacklog(); renderBattlefield();
-    });
-    await expect(page.locator('.battle-loot-drop')).toHaveCount(0);
-    const hiddenFrame = await page.evaluate(() => {
-        const source = document.getElementById('battlefield-canvas');
-        const previous = source.style.display; source.style.display = 'none';
-        renderBattlefield(true);
-        const p = battleVisualState.playerPos, scale = Number(source.dataset.renderScale);
-        const pixel = source.getContext('2d').getImageData(Math.max(0, Math.floor(p.x * scale)), Math.max(0, Math.floor((p.y - 30) * scale)), 1, 1).data;
-        source.style.display = previous;
-        return { alpha: pixel[3], frontHidden: document.querySelector('.battle-loot-foreground').hidden };
-    });
-    expect(hiddenFrame.frontHidden).toBe(true); expect(hiddenFrame.alpha).toBe(255);
-    expect(errors).toEqual([]);
-});

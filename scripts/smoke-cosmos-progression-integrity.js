@@ -11,7 +11,7 @@ context.requestAnimationFrame = callback => { context.requestedFrames.push(callb
 context.addLog = (message, type) => { context.logs.push({ message, type }); };
 context.__cosmosTestGame = {
         season: 31,
-        currencies: { starDust: 0 },
+        currencies: { skyEssence: 0 },
         jewelSlots: [],
         cosmosAtlas: {
             layoutVersion: 20260601,

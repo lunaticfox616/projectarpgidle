@@ -84,7 +84,8 @@ assert.strictEqual((rewardClaimedActions.match(/<button/g) || []).length, 1,
 context.syncMapCompleteActionQuickControl();
 assert.strictEqual(quickButton.hidden, false, '기타 그룹에서는 설정 탭 옆 빠른 버튼이 보여야 한다');
 assert.strictEqual(quickButton.textContent, '전투 완료: 다음 지역', '빠른 버튼에서 현재 설정을 바로 확인할 수 있어야 한다');
-assert.strictEqual(quickButton.dataset.mobileLabel, '다음 지역', '모바일에서는 현재 행동을 짧게 표시해야 한다');
+assert.strictEqual(quickButton.dataset.mobileLabel, '완료 후 행동: 다음 지역',
+    '모바일 서랍에서는 현재 행동을 짧게, 무엇을 고르는 칸인지(완료 후) 붙여 표시해야 한다("다음 지역"만으로는 이동 단추로 읽혔다)');
 assert.strictEqual(quickButton['aria-label'], '전투 완료 후 행동: 다음 지역');
 assert(quickButton.title.includes('현재: 다음 지역'));
 groupingActive = false;

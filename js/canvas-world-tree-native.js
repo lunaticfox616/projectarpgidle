@@ -556,7 +556,8 @@ function gemDraw3Part2(e,t,now,submit){
 const sheet=G.WT_ATLAS.skills[49];
 
       const c=e.holySource,age=now-e.at,u=t*t*(3-2*t),angle=Math.round((-Math.PI*.8+Math.PI*2.15*u)/(Math.PI/32))*(Math.PI/32),co=Math.cos(angle),si=Math.sin(angle),p=sheet.holyMist.censer.pivot,scale=2;
-      const handX=c.gx*48+30,handY=c.gy*48+16,swing=sheet.holyMist.swing,alpha=Math.min(1,age/65,(e.duration-age)/110);
+      const hand=typeof hanaActors==='object'?hanaActors.handBoard():null;   // the censer hangs from the drawn hand when there is one
+      const handX=hand?hand.x:c.gx*48+30,handY=hand?hand.y:c.gy*48+16,swing=sheet.holyMist.swing,alpha=Math.min(1,age/65,(e.duration-age)/110);
       const bowlDistance=swing.extension+52;submit(e,handX-si*bowlDistance,handY+co*bowlDistance,.65,0,0,sheet.frames[1],1,.28*alpha);
       for(let i=0;i<swing.links;i++){const distance=(i+.5)*swing.step;submit(e,handX-si*distance,handY+co*distance,scale,0,angle,e._holyChain,1,alpha);}
       submit(e,handX-(p.x*co-p.y*si)*scale-si*swing.extension,handY-(p.x*si+p.y*co)*scale+co*swing.extension,scale,0,angle,e._holyCrop,1,alpha);
@@ -918,7 +919,7 @@ emit(event){
   }
 layout(now,visit){
 let used=0;
-const submit=(...args)=>{const [e,x,y,scale,frame,rotation,override,stretch=1,alpha=1]=args;const sheet=G.WT_ATLAS.skills[e.id-1],variant=sheet.variants?.[e.element]||sheet.frames,f=override||variant[Math.min(variant.length-1,frame)];if(used>=48)return;visit({x:Math.round(x),y:Math.round(y),scale,angle:rotation,frame:{x:f.x,y:f.y,w:f.w||64,h:f.h||64},scaleY:scale*stretch,alpha,ground:e.renderLayer==='ground'});used++;};
+const submit=(...args)=>{const [e,x,y,scale,frame,rotation,override,stretch=1,alpha=1]=args;const sheet=G.WT_ATLAS.skills[e.id-1],variant=sheet.variants?.[e.element]||sheet.frames,f=override||variant[Math.min(variant.length-1,frame)];if(used>=48)return;visit({x:Math.round(x),y:Math.round(y),scale,angle:rotation,frame:{x:f.x,y:f.y,w:f.w||64,h:f.h||64},scaleY:scale*stretch,alpha,ground:e.renderLayer==='ground',effect:e,now});used++;};
 for(const e of this.effects){if(now<e.at||now>=e.at+e.duration)continue;drawEvent(e,clamp((now-e.at)/e.duration,0,.999999),now,submit);}
 return used;
 }

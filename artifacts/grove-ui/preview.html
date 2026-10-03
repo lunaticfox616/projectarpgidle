@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>그루브 UI 시안</title>
+<!--
+  시안 전용 페이지. 게임에서 로드하지 않는다. 예시 데이터만 쓰며 실제 전투·저장과 연결되지 않는다.
+  자산: assets/ui/grove/ (scripts/process-grove-ui-assets.py 출력, @2x 픽셀).
+  border-image-slice는 manifest.json의 @2x 값, border-width는 그 절반(원본 1x 두께)으로 둬서
+  화면 1px = 원본 1px 비율을 지킨다. 2배로 보이게 하려면 border-width도 slice와 같게 둔다.
+-->
+<style>
+:root {
+  --grove: ../../assets/ui/grove;
+  --ink: #e8dcc0;
+  --ink-dim: #b9a98a;
+  --gold: #e3b964;
+  --bg: #0d0c0a;
+  --panel-fill: #5a4630;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; background: radial-gradient(circle at 50% 20%, #1d1b16, var(--bg) 70%); color: var(--ink); font: 14px/1.5 system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 4px; color: var(--gold); }
+h2 { font-size: 15px; margin: 28px 0 10px; color: var(--gold); }
+.note { color: var(--ink-dim); font-size: 12px; margin: 0 0 16px; }
+.row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+img, .px { image-rendering: pixelated; }
+
+/* ---- 늘어나는 부품: border-image 9-slice ---- */
+.g-button { border-style: solid; border-width: 12px; border-image: url('../../assets/ui/grove/button-plate-v1.png') 24 fill / 12px stretch; image-rendering: pixelated;
+  min-height: 45px; padding: 0 10px; background: none; color: var(--ink); font: 600 14px system-ui; cursor: pointer; }
+.g-button:hover { filter: brightness(1.18); }
+.g-button:active { filter: brightness(.88); transform: translateY(1px); }
+.g-button:disabled { filter: grayscale(.8) brightness(.7); cursor: default; }
+.g-button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.g-tab { border-style: solid; border-width: 12px 44px; border-image: url('../../assets/ui/grove/tab-plate-v1.png') 24 88 fill / 12px 44px stretch; image-rendering: pixelated;
+  min-height: 45px; padding: 0; background: none; color: var(--ink-dim); font: 600 14px system-ui; cursor: pointer; }
+.g-tab[aria-selected="true"] { color: var(--gold); filter: brightness(1.15); }
+.g-field { border-style: solid; border-width: 10px 14px; border-image: url('../../assets/ui/grove/field-plate-v1.png') 20 28 fill / 10px 14px stretch; image-rendering: pixelated;
+  min-height: 37px; padding: 0 2px; background: none; color: var(--ink); font: 14px system-ui; width: 260px; }
+.g-field::placeholder { color: #a4906c; }
+.g-panel { border-style: solid; border-width: 44px; border-image: url('../../assets/ui/grove/panel-large-v1.png') 88 fill / 44px stretch; image-rendering: pixelated;
+  /* 안쪽 모서리 매듭(원본 1x 약 46×28px)을 글자가 덮지 않도록 여백을 둔다. */
+  padding: 22px 40px 10px; max-width: 560px; }
+.g-panel .eyebrow { color: var(--gold); font-size: 12px; letter-spacing: .1em; }
+.g-panel h3 { margin: 2px 0 6px; font-size: 18px; color: #fff3d2; }
+.g-panel p { margin: 0 0 12px; color: #f1e6cc; text-shadow: 0 1px 0 #2b2014; }
+.g-gauge { position: relative; height: 29px; border-style: solid; border-width: 9px 92px; border-image: url('../../assets/ui/grove/gauge-frame-v1.png') 18 184 fill / 9px 92px stretch; image-rendering: pixelated; width: 420px; }
+.g-gauge > span { position: absolute; inset: 0; width: var(--fill); background: linear-gradient(180deg, #f2cf73, #b27b28); box-shadow: 0 0 6px #f2cf7388; }
+.g-icon { width: 45px; height: 45px; border-style: solid; border-width: 14px; border-image: url('../../assets/ui/grove/icon-slot-v1.png') 28 fill / 14px stretch; image-rendering: pixelated;
+  background: none; color: var(--ink); padding: 0; font: 700 14px system-ui; cursor: pointer; }
+
+/* ---- 고정 크기 부품: 원본 1x 크기로 표시 ---- */
+.g-slot { position: relative; width: 57px; height: 57px; background: url('../../assets/ui/grove/slot-socket-v1.png') 0 0 / 100% 100%; image-rendering: pixelated; display: grid; place-items: center; font-size: 22px; }
+.g-slot.x2 { width: 114px; height: 114px; font-size: 40px; }
+.g-round { width: 89px; height: 91px; background: url('../../assets/ui/grove/socket-round-v1.png') 0 0 / 100% 100%; image-rendering: pixelated; border: 0; color: var(--gold); font: 700 13px system-ui; cursor: pointer; }
+.g-label { width: 111px; height: 41px; background: url('../../assets/ui/grove/label-knot-v1.png') 0 0 / 100% 100%; image-rendering: pixelated; }
+
+/* ---- HP 오브: 액체(아래) → 에너지 보호막 막 → 틀(위) ---- */
+/* hole 좌표는 manifest.orb.hole(@2x)을 768px 기준 백분율로 옮긴 값 */
+.orb { position: relative; width: var(--size, 180px); aspect-ratio: 1; }
+.orb .hole { position: absolute; left: calc(118 / 768 * 100%); top: calc(120 / 768 * 100%); width: calc(530 / 768 * 100%); height: calc(526 / 768 * 100%);
+  border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 40%, #241a1c, #0b0708 70%); }
+.orb .liquid { position: absolute; left: 0; right: 0; bottom: 0; height: var(--hp); background: linear-gradient(180deg, #e04a3c, #8e1a1a 60%, #5b0f12); transition: height .3s; }
+.orb .liquid::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #ff9c7a; opacity: .7; }
+.orb .shield { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 var(--es-ring, 0px) rgba(96, 170, 255, .75), inset 0 0 18px rgba(96, 170, 255, calc(var(--es, 0) * .8)); }
+.orb .frame { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
+.orb .value { position: absolute; left: 0; right: 0; bottom: 30%; text-align: center; font: 700 clamp(12px, calc(var(--size, 180px) / 11), 20px) system-ui; color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.orb.low .hole { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: inset 0 0 22px #ff3b2f; } }
+@media (prefers-reduced-motion: reduce) { .orb.low .hole { animation: none; box-shadow: inset 0 0 22px #ff3b2f; } }
+
+/* ---- 그루터기 함: 판 이미지 위에 같은 pitch로 버튼 25개 ---- */
+/* manifest.stumpBoard.grid(@2x): origin 104,106 · cell 54 · divider 8 · pitch 62 · 판 512px */
+.board { --scale: 1; position: relative; width: calc(512px * var(--scale)); aspect-ratio: 1; background: url('../../assets/ui/grove/stump-board-v1.png') 0 0 / 100% 100%; image-rendering: pixelated; }
+.board-grid { position: absolute; left: calc(104px * var(--scale)); top: calc(106px * var(--scale)); display: grid;
+  grid-template-columns: repeat(5, calc(54px * var(--scale))); grid-auto-rows: calc(54px * var(--scale)); gap: calc(8px * var(--scale)); }
+.cell { border: 0; padding: 0; background: rgba(20, 14, 8, .55); color: #fff; font-size: calc(26px * var(--scale)); cursor: pointer; display: grid; place-items: center; }
+.cell:hover { background: rgba(227, 185, 100, .25); }
+.cell:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.cell.locked { background: repeating-linear-gradient(45deg, rgba(0,0,0,.82) 0 6px, rgba(24,18,12,.82) 6px 12px); cursor: not-allowed; font-size: calc(16px * var(--scale)); color: #6d6150; }
+.cell.resonate { box-shadow: inset 0 0 0 2px #ff9a3c, inset 0 0 14px #ff9a3c; }
+.cell.suppressed { box-shadow: inset 0 0 0 2px #c0392b; filter: grayscale(.7); }
+@media (max-width: 560px) { .board { --scale: .68; } }
+
+/* 비교용: 원본(칸 간격 불균일) */
+.compare img { width: 256px; background: #3a2f25; }
+</style>
+</head>
+<body>
+<h1>그루브 UI 시안</h1>
+<p class="note">시안 전용 페이지 · 예시 데이터 · 실제 게임 미반영. 모든 이미지는 원본 픽셀아트를 최근접 이웃 방식으로 2배 확대한 @2x 자산입니다.</p>
+
+<h2>1. 공통 UI 부품 — 크기를 바꿔도 모서리 유지 (border-image)</h2>
+<div class="row">
+  <button class="g-button" type="button">확인</button>
+  <button class="g-button" type="button" style="width:220px">따라 해보기</button>
+  <button class="g-button" type="button" disabled>비활성</button>
+  <button class="g-icon" type="button" aria-label="닫기">✕</button>
+  <input class="g-field" type="search" placeholder="장비 검색 (이름/슬롯/옵션)" aria-label="장비 검색">
+</div>
+<div class="row" style="margin-top:12px" role="tablist" aria-label="예시 하위 탭">
+  <button class="g-tab" type="button" role="tab" aria-selected="true" style="width:220px">장비 창</button>
+  <button class="g-tab" type="button" role="tab" aria-selected="false" style="width:220px">제작실</button>
+</div>
+<div class="row" style="margin-top:12px">
+  <div class="g-gauge" role="progressbar" aria-label="경험치" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100" style="--fill:62%"><span></span></div>
+  <span class="note" style="margin:0">경험치 62% · 게이지는 매듭 사이 가운데 구간이 늘어남</span>
+</div>
+<div class="row" style="margin-top:12px">
+  <div class="g-slot" title="젬 칸">◆</div><div class="g-slot">✦</div><div class="g-slot"></div>
+  <div class="g-slot x2" title="2배 표시">◆</div>
+  <button class="g-round" type="button">지도</button>
+  <div class="g-label" title="장식 머리판"></div>
+</div>
+
+<h2>2. 대화 창 (큰 판) — 튜토리얼·새 콘텐츠 카드 예시</h2>
+<div class="g-panel" role="dialog" aria-label="새 콘텐츠 예시">
+  <div class="eyebrow">새 콘텐츠</div>
+  <h3>첫 스킬 젬 장착</h3>
+  <p>[연속 베기] 젬을 획득했습니다. 스킬 젬 탭에서 빛나는 젬을 선택하고 ‘장착’을 누르세요.</p>
+  <div class="row" style="gap:10px"><button class="g-button" type="button" style="width:140px">확인</button><button class="g-button" type="button" style="width:160px">따라 해보기</button></div>
+</div>
+
+<h2>3. 둥근 HP 게이지 — 액체가 아래에서 차오름, 파란 막 = 에너지 보호막</h2>
+<div class="row" style="gap:28px">
+  <figure style="margin:0;text-align:center"><div class="orb" style="--hp:100%"><div class="hole"><div class="liquid"></div><div class="shield"></div></div><img class="frame" src="../../assets/ui/grove/hp-orb-frame-v1.png" alt=""><div class="value">98/98</div></div><figcaption class="note">가득 참</figcaption></figure>
+  <figure style="margin:0;text-align:center"><div class="orb" style="--hp:66%;--es:1"><div class="hole"><div class="liquid"></div><div class="shield"></div></div><img class="frame" src="../../assets/ui/grove/hp-orb-frame-v1.png" alt=""><div class="value">65/98</div></div><figcaption class="note">보호막 = 안쪽 파란 빛</figcaption></figure>
+  <figure style="margin:0;text-align:center"><div class="orb" style="--hp:66%;--es-ring:6px"><div class="hole"><div class="liquid"></div><div class="shield"></div></div><img class="frame" src="../../assets/ui/grove/hp-orb-frame-v1.png" alt=""><div class="value">65/98</div></div><figcaption class="note">보호막 = 안쪽 고리</figcaption></figure>
+  <figure style="margin:0;text-align:center"><div class="orb low" style="--hp:22%"><div class="hole"><div class="liquid"></div><div class="shield"></div></div><img class="frame" src="../../assets/ui/grove/hp-orb-frame-v1.png" alt=""><div class="value">21/98</div></div><figcaption class="note">30% 미만 맥동</figcaption></figure>
+  <figure style="margin:0;text-align:center"><div class="orb" style="--hp:66%;--size:96px"><div class="hole"><div class="liquid"></div><div class="shield"></div></div><img class="frame" src="../../assets/ui/grove/hp-orb-frame-v1.png" alt=""><div class="value">65/98</div></div><figcaption class="note">모바일 96px</figcaption></figure>
+</div>
+
+<h2>4. 그루터기 함 — 칸 간격 통일 후, DOM 칸 25개를 한 간격으로 겹침</h2>
+<p class="note">예시 상태: 가운데 5칸 열림(설계안의 액트 10 단계), 🔥 3개 공명, ⚡↔🟣(번개↔카오스) 맞닿음 억제. 설계안(docs/stump-cube-game-design.md)은 미구현입니다.</p>
+<div class="row" style="align-items:flex-start;gap:28px">
+  <div class="board" id="board"><div class="board-grid" id="board-grid" role="grid" aria-label="그루터기 함 5×5"></div></div>
+  <div class="compare">
+    <p class="note" style="margin:0 0 6px">원본(칸 27~29px, 간격 30~32px)</p>
+    <img class="px" src="../../assets/ui/grove/source/stump-board-v1.png" alt="원본 그루터기 함">
+    <p class="note" style="margin:10px 0 6px">통일 후(칸 27px, 간격 31px · 출력 @2x는 54/62px)</p>
+    <img class="px" src="../../assets/ui/grove/stump-board-v1.png" alt="칸 간격을 통일한 그루터기 함">
+  </div>
+</div>
+
+<script>
+// 예시 배치만 그린다. 실제 함 규칙(공명·억제 계산)은 구현되지 않았다.
+const open = new Set(['1,2', '2,1', '2,2', '2,3', '3,2']);
+const items = { '1,2': ['🔥', 'resonate'], '2,1': ['🔥', 'resonate'], '3,2': ['🔥', 'resonate'], '2,2': ['⚡', 'suppressed'], '2,3': ['🟣', 'suppressed'] };
+const grid = document.getElementById('board-grid');
+for (let r = 0; r < 5; r++) {
+  for (let c = 0; c < 5; c++) {
+    const key = `${r},${c}`;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cell';
+    cell.setAttribute('role', 'gridcell');
+    if (!open.has(key)) { cell.classList.add('locked'); cell.textContent = '🔒'; cell.setAttribute('aria-label', `${r + 1}행 ${c + 1}열 잠김`); cell.disabled = true; }
+    else {
+      const [icon, state] = items[key] || ['', ''];
+      cell.textContent = icon;
+      if (state) cell.classList.add(state);
+      cell.setAttribute('aria-label', `${r + 1}행 ${c + 1}열 ${icon || '빈 칸'}`);
+    }
+    grid.appendChild(cell);
+  }
+}
+</script>
+</body>
+</html>

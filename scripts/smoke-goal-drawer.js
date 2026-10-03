@@ -13,7 +13,7 @@ function createFakeDom() {
         const el = {
             tagName: String(tag || 'div').toUpperCase(),
             id: '',
-            style: {},
+            style: { setProperty(name, value) { this[name] = value; } },
             dataset: {},
             attrs: {},
             handlers: {},
@@ -206,7 +206,7 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     m.exposed.presentGoalDrawer({
         ...goal('g5'),
         notices: [
-            { text: '남은 패시브 포인트 2', actionTabId: 'tab-char' },
+            { text: '남은 스킬트리 포인트 2', actionTabId: 'tab-char' },
             { text: '강화 가능한 스킬 젬', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance' }
         ]
     });

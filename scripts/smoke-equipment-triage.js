@@ -155,20 +155,18 @@ for (const mutation of [
     "game.activeSkill = '연속 베기'",
     "game.gemData['연속 베기'] = {level:2,exp:0}",
     "game.supportGemData['공격 속도 증가'] = {level:3,exp:0}",
-    "game.skillAutoRules.push({skillName:'함성',enabled:true})",
-    "game.conditionGemLevels['함성'] = 2",
+    "game.skillAutoRules.push({triggerType:'hp_below',actionType:'return_town',enabled:true})",
     "game.skyTower.gemBoosts['연속 베기'] = 2",
     "game.passives.push('test-passive-change')",
     "game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'cold'",
     "game.loop10BonusStats.flatDmg += 1",
     "game.underworldRunes.enhanceLvByNo[1] = 2",
     "game.talentCardLoadout[0] = 'hero1__warrior'",
-    "game.coreCube.powers.test = 1",
-    "game.growthBoard.activeLoadout = 1",
-    "game.pruningTree.nodeRanks.test = 1",
+    "game.cores.equipped = coreItems.roll()",
+    "game.stumpBox.acquired = !game.stumpBox.acquired",
+    "game.meteorSite.constellationBuff = { stat: 'pctDmg', label: '피해', val: 4, permanent: true }",
     "game.cosmosAtlas = {mastery:{resonanceDrive:1}}",
-    "game.ocean.permanentUpgrades.pressureResist = 1",
-    "game.flasks.utils = [{key:'quicksilver',charges:1}]"
+    "game.ocean.permanentUpgrades.pressureResist = 1"
 ]) {
     const saved = frozen.run('JSON.stringify(game)');
     analysis.start(); complete();

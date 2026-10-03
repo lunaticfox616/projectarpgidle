@@ -84,7 +84,8 @@ function createCombatReplay(elapsedMs, snapshot, startNowMs) {
         skippedMs: 0, accelerationTier: 0,
         simulatedNow: state.combatTimeMs || startNowMs || Date.now(),
         metrics: createBackgroundCombatMetrics(state),
-        runtime: JSON.parse(JSON.stringify(captureCombatRuntime()))
+        // structuredClone keeps the stage rows of one cast sharing their wave/whirl state (one hit per monster).
+        runtime: structuredClone(captureCombatRuntime())
     };
 }
 
@@ -159,10 +160,20 @@ function simulateBackgroundCombat(options) {
     return finishCombatReplay(replay);
 }
 
+// One slice per painted frame: work time per frame, and how long to wait for a frame before going on anyway.
+const BACKGROUND_REPLAY_SLICE_MS = 12;
+const BACKGROUND_REPLAY_FRAME_WAIT_MS = 100;
+
 function waitBackgroundReplayFrame() {
-    // Yield to input/paint without nested timer clamping in Chromium/WebView.
-    if (typeof globalThis.scheduler?.yield === 'function') return globalThis.scheduler.yield();
-    return new Promise(resolve => setTimeout(resolve, 0));
+    // Let a frame paint between slices. scheduler.yield() continuations outrank rendering in Chromium, so a yield loop
+    // painted about once per 100 ms (8 h idle return, 2026-10-01: 11 of 21 frames over 100 ms). The timer covers a
+    // WebView that stops sending frames; a hidden page is already held by isPaused.
+    return new Promise(resolve => {
+        let timer = 0;
+        const go = () => { if (!timer) return; clearTimeout(timer); timer = 0; resolve(); };
+        timer = setTimeout(go, BACKGROUND_REPLAY_FRAME_WAIT_MS);
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(go, 0));
+    });
 }
 
 /** @param {CombatReplayOptions} options Progress callbacks run outside the replay state and may throw. */
@@ -173,7 +184,7 @@ async function simulateBackgroundCombatChunked(options) {
         // The UI supplies lifecycle state; do not burn CPU while the app is inactive.
         while (options.isPaused?.()) await new Promise(resolve => setTimeout(resolve, 250));
         applyCombatReplayControl(replay, options.getControl?.());
-        pending = advanceCombatReplay(replay, 8);
+        pending = advanceCombatReplay(replay, BACKGROUND_REPLAY_SLICE_MS);
         if (options.onProgress) options.onProgress(replay.processedMs + replay.skippedMs,
             replay.elapsedMs + replay.skippedMs, replay.skippedMs);
         if (pending) await waitBackgroundReplayFrame();

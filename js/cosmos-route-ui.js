@@ -59,7 +59,7 @@ const cosmosRouteUi = (() => {
         if (!cosmosRouteRuntime.unlocked(game,galaxy)) return `<p class="cosmos-route-notice">${galaxy-1}은하 보스 격파 후 탐사 가능</p>`;
         return `<footer class="cosmos-route-footer"><span>${plan.plan.length}구간 · ${plan.plan.flat().length}곳</span>
             <div>${currentStarBattle() ? '<button type="button" data-route-action="battle">전투 보기</button>' : ''}
-            <button type="button" class="primary" data-route-action="start" data-route-value="${galaxy}">탐사 출발</button></div></footer>`;
+            <button type="button" class="primary" data-exploration-departure data-route-action="start" data-route-value="${galaxy}">탐사 출발</button></div></footer>`;
     }
 
     function outcomeLine(nodes) {
@@ -67,7 +67,7 @@ const cosmosRouteUi = (() => {
         if (!route || cosmosRouteRuntime.active(game)) return '';
         const node = nodes.find(row => row.id === route.failedNode);
         const title = route.phase === 'failed' ? `${escapeHTML(node ? node.name : '탐사')}에서 실패` : '탐사 종료';
-        return `<p class="cosmos-route-outcome">${title} · 별가루 +${route.dust} 확보</p>`;
+        return `<p class="cosmos-route-outcome">${title} · 창공의 정수 +${route.dust} 확보</p>`;
     }
 
     function bindStarMapActions(host) {
@@ -135,7 +135,7 @@ const cosmosRouteUi = (() => {
         if (label) {
             const route = game.cosmosRoute;
             const name = lastView.nodes.find(node => node.id === route.queue[0])?.name || '탐사 중';
-            const text = `${route.stage+1}구간 · ${name} · ${route.history.length}/${route.plan.flat().length} · 별가루 +${route.dust}`;
+            const text = `${route.stage+1}구간 · ${name} · ${route.history.length}/${route.plan.flat().length} · 창공의 정수 +${route.dust}`;
             if (label.textContent !== text) label.textContent = text;
         }
         return true;
@@ -154,7 +154,7 @@ const cosmosRouteUi = (() => {
         const label = document.getElementById('ui-cosmos-route-progress');
         if (!label) return;
         const visible = game.currentZoneId === 'cosmos_challenge' && cosmosRouteRuntime.active(game);
-        label.hidden = !visible;
+        label.toggleAttribute('hidden', !visible);
         if (!visible) return;
         const route = game.cosmosRoute;
         const completed = route.history.filter(row => row.stage === route.stage).length;

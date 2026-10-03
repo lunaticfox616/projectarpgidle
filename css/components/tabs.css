@@ -1,15 +1,9 @@
 /* Shared tabs; base, theme and responsive variants retain their selectors. */
 @layer components {
-        body.light-mode .tab-header { background-color: #edf3fa; border-bottom-color: #cfd8e6; }
-        body.light-mode .tab-btn { color: #4b5f78; border-right-color: #d3deec; }
-        body.light-mode .tab-btn.active { background: #ffffff; color: #1e5aa5; border-bottom-color: #1e5aa5; }
         .tab-category-bar { display: flex; gap: 6px; padding: 6px 8px; background-color: #14141d; border-bottom: 1px solid #2a2a35; flex-shrink: 0; }
         .tab-category-btn { flex: 0 0 auto; padding: 7px 18px; border-radius: 8px; border: 1px solid #2f3446; background: #1c1f2c; color: #eef2f6; font-weight: 700; font-size: 0.92em; cursor: pointer; transition: 0.15s; }
         .tab-category-btn:hover { background: #262b3c; color: #ffffff; }
         .tab-category-btn.active { background: #2c2416; color: #f5d178; border-color: #b8893a; }
-        body.light-mode .tab-category-bar { background-color: #eef2f8; border-bottom-color: #d3deec; }
-        body.light-mode .tab-category-btn { background: #dde5f0; color: #55647a; border-color: #c4d0e0; }
-        body.light-mode .tab-category-btn.active { background: #f6e6bd; color: #7a5a12; border-color: #d8b976; }
         .tab-header { display: flex; background-color: #1a1a24; border-bottom: 1px solid #2a2a35; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .tab-header::-webkit-scrollbar { display: none; }
         .tab-btn { position: relative; flex: 1 0 auto; padding: 12px 10px; text-align: center; cursor: pointer; border-right: 1px solid #2a2a35; color: #888; font-weight: bold; transition: 0.2s; display: none; align-items: center; justify-content: center; line-height: 1; white-space: nowrap; word-break: keep-all; }
@@ -21,7 +15,6 @@
         button, .tab-btn, .subtab-btn, .item-card, .slot-box, .class-card, .map-item, .skill-gem, .trait-card { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked { flex-direction: column; gap: 2px; border-color: rgba(230, 169, 107, .62); }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { content: attr(data-entry-condition); display: block; color: #ffcf8a; font-size: .66em; font-weight: 800; line-height: 1.1; letter-spacing: 0; text-transform: none; }
-        body.light-mode .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { color: #77551c; }
         .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .6s ease-out 1; }
         @media (prefers-reduced-motion: reduce) {
             .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal,
@@ -45,7 +38,7 @@
         @media (pointer: coarse) {
             button, .tab-btn, .subtab-btn { min-height: 42px; }
         }
-body:not(.light-mode) .tab-header {
+:root body .tab-header {
   background: linear-gradient(180deg, #0f1520 0%, #0b1018 100%);
   border-bottom: 1px solid #1c2a3a;
   gap: 2px;
@@ -54,7 +47,7 @@ body:not(.light-mode) .tab-header {
   height: 44px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(180,140,60,0.08);
 }
-body:not(.light-mode) .tab-btn {
+:root body .tab-btn {
   position: relative;
   border: none;
   border-radius: 0;
@@ -73,7 +66,7 @@ body:not(.light-mode) .tab-btn {
   align-items: center;
   justify-content: center;
 }
-body:not(.light-mode) .tab-btn::after {
+:root body .tab-btn::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -85,30 +78,28 @@ body:not(.light-mode) .tab-btn::after {
   transition: background .18s ease, left .18s ease, right .18s ease;
 }
 
-body:not(.light-mode) .tab-btn:hover {
+:root body .tab-btn:hover {
   background: rgba(180,200,230,0.05);
   color: #ffffff;
 }
-body:not(.light-mode) .tab-btn:hover::after {
+:root body .tab-btn:hover::after {
   background: rgba(180,200,230,0.2);
 }
 
-body:not(.light-mode) .tab-btn.active {
+:root body .tab-btn.active {
   background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
   color: #ffd783;
   text-shadow: 0 0 12px rgba(232,194,106,0.35);
   border-right-color: rgba(255,255,255,0.05);
 }
-body:not(.light-mode) .tab-btn.active::after {
+:root body .tab-btn.active::after {
   left: 10%;
   right: 10%;
   background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
   height: 2px;
   box-shadow: 0 0 8px rgba(232,194,106,0.6);
 }
-body:not(.light-mode) .subtab-btn,
-/* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
-body.light-mode .subtab-btn {
+:root body .subtab-btn {
   position: relative;
   border-width: 1px;
   border-style: solid;
@@ -121,14 +112,14 @@ body.light-mode .subtab-btn {
   align-items: center;
   justify-content: center;
 }
-body:not(.light-mode) .subtab-btn {
+:root body .subtab-btn {
   border-color: #25374e;
   background: linear-gradient(180deg, #141f2e 0%, #0f1825 100%);
   color: #eef2f6;
   box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
   transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
 }
-body:not(.light-mode) .subtab-btn::before {
+:root body .subtab-btn::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -137,25 +128,21 @@ body:not(.light-mode) .subtab-btn::before {
   border-radius: 6px 6px 0 0;
 }
 
-body:not(.light-mode) .subtab-btn:hover {
+:root body .subtab-btn:hover {
   border-color: #3a5570;
   background: linear-gradient(180deg, #1a2a3d 0%, #131f30 100%);
   color: #ffffff;
 }
 
-body:not(.light-mode) .subtab-btn.active {
+:root body .subtab-btn.active {
   border-color: #b08830;
   background: linear-gradient(180deg, #2a1e08 0%, #1e1506 100%);
   color: #ffd783;
   box-shadow: 0 0 0 1px rgba(200,160,60,0.2), 0 0 10px rgba(200,160,60,0.15), inset 0 1px 0 rgba(255,220,120,0.1);
   text-shadow: 0 0 8px rgba(232,194,106,0.4);
 }
-body:not(.light-mode) .subtab-btn.active::before {
+:root body .subtab-btn.active::before {
   background: linear-gradient(90deg, transparent, rgba(200,160,60,0.4), transparent);
-}
-body.light-mode .tab-btn.active,
-body.light-mode .subtab-btn.active {
-  box-shadow: 0 0 0 1px rgba(91, 152, 215, .2);
 }
 .tab-category-bar {
   display: flex;
@@ -191,12 +178,12 @@ body.light-mode .subtab-btn.active {
   white-space: nowrap;
   word-break: keep-all;
 }
-body:not(.light-mode) .tab-category-bar {
+:root body .tab-category-bar {
   background: linear-gradient(180deg, #121a26 0%, #0d141f 100%);
   border-bottom: 1px solid #1c2a3a;
   box-shadow: inset 0 -1px 0 rgba(180,140,60,0.08);
 }
-body:not(.light-mode) .tab-category-btn {
+:root body .tab-category-btn {
   border: none;
   border-radius: 0;
   background: transparent;
@@ -210,7 +197,7 @@ body:not(.light-mode) .tab-category-btn {
   box-shadow: none;
   transition: color .15s ease, background .15s ease;
 }
-body:not(.light-mode) .tab-category-btn::after {
+:root body .tab-category-btn::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -221,45 +208,26 @@ body:not(.light-mode) .tab-category-btn::after {
   border-radius: 2px 2px 0 0;
   transition: background .18s ease, left .18s ease, right .18s ease;
 }
-body:not(.light-mode) .tab-category-btn:hover {
+:root body .tab-category-btn:hover {
   background: rgba(180,200,230,0.05);
   color: #ffffff;
 }
-body:not(.light-mode) .tab-category-btn:hover::after {
+:root body .tab-category-btn:hover::after {
   background: rgba(180,200,230,0.2);
 }
-body:not(.light-mode) .tab-category-btn.active {
+:root body .tab-category-btn.active {
   background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
   color: #ffd783;
   text-shadow: 0 0 12px rgba(232,194,106,0.35);
 }
-body:not(.light-mode) .tab-category-btn.active::after {
+:root body .tab-category-btn.active::after {
   left: 10%;
   right: 10%;
   background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
   height: 2px;
   box-shadow: 0 0 8px rgba(232,194,106,0.6);
 }
-body.light-mode .tab-category-bar {
-  background-color: #eef2f8;
-  border-bottom-color: #d3deec;
-}
-body.light-mode .tab-category-btn {
-  color: #4b5f78;
-  border-right-color: #d3deec;
-}
-body.light-mode .tab-category-btn.active {
-  background: #ffffff;
-  color: #1e5aa5;
-}
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action),
-/* ============================================================
-   ui-premium.css — Premium UI overrides
-   전투 / 버튼 / HP게이지 / 장비창 / 제작실
-   ============================================================ */
-
-/* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body.light-mode button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
+:root body button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
   border-width: 1px;
   border-style: solid;
   border-radius: 6px;
@@ -269,38 +237,38 @@ body.light-mode button:not(.market-shell button):not(.tab-btn):not(.tab-category
   position: relative;
   overflow: hidden;
 }
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
+:root body button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
   background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
   border-color: var(--skin-line);
   color: var(--color-text);
   box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
   transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease, filter .08s ease;
 }
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):hover:not(:disabled) {
+:root body button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):hover:not(:disabled) {
   background: linear-gradient(180deg, color-mix(in srgb, var(--skin-control), var(--skin-accent) 8%) 0%, var(--skin-panel-raised) 100%);
   border-color: var(--skin-line-strong);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):active:not(:disabled) {
+:root body button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):active:not(:disabled) {
   filter: brightness(.9);
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
-body:not(.light-mode) button.use-btn,
-body:not(.light-mode) .item-actions button:not(.market-shell button):not(:disabled),
-body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn),
-body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn),
-body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn) {
+:root body button.use-btn,:root 
+body .item-actions button:not(.market-shell button):not(:disabled),:root 
+body button[onclick*="use"]:not(.subtab-btn),:root 
+body button[onclick*="equip"]:not(.subtab-btn),:root 
+body button[onclick*="salvage"]:not(.subtab-btn) {
   background: linear-gradient(180deg, #3a2a08 0%, #281d05 100%);
   border-color: #8a6520;
   color: #e8c26a;
   box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,220,120,0.08);
 }
-body:not(.light-mode) button.use-btn:hover:not(:disabled),
-body:not(.light-mode) .item-actions button:hover:not(:disabled),
-body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn):hover:not(:disabled),
-body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn):hover:not(:disabled),
-body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
+:root body button.use-btn:hover:not(:disabled),:root 
+body .item-actions button:hover:not(:disabled),:root 
+body button[onclick*="use"]:not(.subtab-btn):hover:not(:disabled),:root 
+body button[onclick*="equip"]:not(.subtab-btn):hover:not(:disabled),:root 
+body button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
   background: linear-gradient(180deg, #4a360c 0%, #342509 100%);
   border-color: #b08830;
   color: #f0d080;
@@ -400,27 +368,27 @@ body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn):hover:not(:dis
 } }
 
 @layer components {
-body:not(.light-mode).desktop-windowed-ui .tab-header {
+:root body.desktop-windowed-ui .tab-header {
   border-right: 1px solid rgba(90, 127, 169, 0.34);
   background:
     linear-gradient(180deg, rgba(14, 23, 36, 0.98), rgba(7, 12, 20, 0.98));
   box-shadow: 12px 0 34px rgba(0, 0, 0, 0.28), inset -1px 0 0 rgba(255, 255, 255, 0.025);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-btn {
+:root body.desktop-windowed-ui .tab-btn {
   border: 1px solid transparent;
   border-radius: 8px;
   transition: color 130ms ease, background 130ms ease, border-color 130ms ease, box-shadow 130ms ease;
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-btn:hover {
+:root body.desktop-windowed-ui .tab-btn:hover {
   border-color: rgba(91, 139, 184, 0.35);
   background: linear-gradient(180deg, rgba(42, 66, 94, 0.62), rgba(25, 42, 64, 0.55));
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-btn.active,
-body:not(.light-mode).desktop-windowed-ui .tab-btn.ui-window-open {
+:root body.desktop-windowed-ui .tab-btn.active,:root 
+body.desktop-windowed-ui .tab-btn.ui-window-open {
   color: #ffe8b2;
   border-color: rgba(228, 185, 98, 0.48);
   background: linear-gradient(180deg, rgba(85, 64, 28, 0.45), rgba(31, 31, 34, 0.46));
@@ -428,14 +396,14 @@ body:not(.light-mode).desktop-windowed-ui .tab-btn.ui-window-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body:not(.light-mode) .startup-summary-item,
-  body:not(.light-mode) .startup-primary,
-  body:not(.light-mode) .startup-secondary,
-  body:not(.light-mode) .startup-ghost,
-  body:not(.light-mode) .hero-choice,
-  body:not(.light-mode).desktop-windowed-ui .tab-btn { transition: none; }
+  :root body .startup-summary-item,:root 
+  body .startup-primary,:root 
+  body .startup-secondary,:root 
+  body .startup-ghost,:root 
+  body .hero-choice,:root 
+  body.desktop-windowed-ui .tab-btn { transition: none; }
 }
-body:not(.light-mode).desktop-windowed-ui .tab-header {
+:root body.desktop-windowed-ui .tab-header {
   width: 150px;
   padding: 12px 8px;
   border: 0;
@@ -446,47 +414,46 @@ body:not(.light-mode).desktop-windowed-ui .tab-header {
   box-shadow: 16px 0 48px rgba(0,0,0,.38), inset -1px 0 rgba(255,255,255,.035);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-btn {
+:root body.desktop-windowed-ui .tab-btn {
   min-height: 50px;
   border-radius: 2px 10px 2px 10px;
   color: #eef2f6;
   background: linear-gradient(180deg, rgba(20, 34, 51, 0.62), rgba(6, 12, 20, 0.7));
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-btn::before {
+:root body.desktop-windowed-ui .tab-btn::before {
   color: #8dcdf1;
   font-family: 'Segoe UI Symbol', sans-serif;
   font-size: 20px;
   text-shadow: 0 0 12px rgba(76, 174, 232, 0.32);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-btn:hover,
-body:not(.light-mode).desktop-windowed-ui .tab-btn.active,
-body:not(.light-mode).desktop-windowed-ui .tab-btn.ui-window-open {
+:root body.desktop-windowed-ui .tab-btn:hover,:root 
+body.desktop-windowed-ui .tab-btn.active,:root 
+body.desktop-windowed-ui .tab-btn.ui-window-open {
   border-color: rgba(232, 190, 103, 0.68);
   color: #fff0c9;
   background: linear-gradient(180deg, rgba(82, 63, 29, 0.58), rgba(17, 24, 31, 0.82));
   box-shadow: inset 3px 0 var(--color-reward-gold), 0 7px 18px rgba(0,0,0,.28);
 }
 
-body:not(.light-mode) .subtab-btn,
-body.light-mode .subtab-btn {
+:root body .subtab-btn {
   min-height: 36px;
   border-radius: 2px 9px 2px 9px;
   letter-spacing: .08em;
 }
 
-body:not(.light-mode) .subtab-btn {
+:root body .subtab-btn {
   text-transform: uppercase;
 }
 
-body:not(.light-mode) .subtab-btn.active {
+:root body .subtab-btn.active {
   border-color: rgba(232,190,103,.82);
   background: linear-gradient(180deg, rgba(115,80,24,.58), rgba(33,23,10,.76));
   box-shadow: inset 0 0 18px rgba(232,190,103,.08), 0 0 16px rgba(232,190,103,.08);
 }
 
-body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.social-login-image-btn) {
+:root body button:not(.market-shell button):not(.tab-btn):not(.social-login-image-btn) {
   border-radius: 2px 9px 2px 9px;
 }
 #tab-skills .skill-subtab-row .subtab-btn { display: grid; gap: 2px; min-width: 0; text-align: left; }
@@ -546,8 +513,7 @@ body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn.ui-window-open {
 
 @layer components {
 
-body:not(.light-mode) .subtab-btn,
-body.light-mode .subtab-btn {
+:root body .subtab-btn {
   position: relative;
   min-height: var(--size-control-md);
   border-width: 1px;
@@ -555,28 +521,28 @@ body.light-mode .subtab-btn {
   border-radius: var(--radius-sm);
 }
 
-body:not(.light-mode) .subtab-btn {
+:root body .subtab-btn {
   border-color: transparent;
   color: var(--color-text-secondary);
   background: transparent;
   box-shadow: none;
 }
 
-body:not(.light-mode) .subtab-btn:hover:not(:disabled) {
+:root body .subtab-btn:hover:not(:disabled) {
   border-color: var(--color-line);
   color: var(--color-text);
   background: var(--color-surface-raised);
 }
 
-body:not(.light-mode) .subtab-btn.active,
-body:not(.light-mode) .subtab-btn[aria-selected="true"] {
+:root body .subtab-btn.active,:root 
+body .subtab-btn[aria-selected="true"] {
   border-color: rgba(229, 187, 97, .72);
   color: #fff2c4;
   background: linear-gradient(180deg, rgba(111, 80, 28, .72), rgba(50, 36, 15, .9));
   box-shadow: inset 0 -3px var(--color-accent-gold);
 }
 @media (max-width: 1080px) {
-  body:not(.light-mode) .tab-header:not(.tab-header-bottom) {
+  :root body .tab-header:not(.tab-header-bottom) {
     position: sticky;
     top: max(0px, env(safe-area-inset-top));
     z-index: 90;
@@ -585,7 +551,7 @@ body:not(.light-mode) .subtab-btn[aria-selected="true"] {
     backdrop-filter: none;
   }
 
-  body:not(.light-mode) .tab-btn.active {
+  :root body .tab-btn.active {
     box-shadow: inset 0 -3px var(--color-accent-gold);
   }
 }
@@ -593,22 +559,15 @@ body:not(.light-mode) .subtab-btn[aria-selected="true"] {
 @layer overrides {
 
 @media (prefers-reduced-motion: reduce) {
-  body:not(.light-mode) .tab-btn,
-  body:not(.light-mode) .subtab-btn,
-  body:not(.light-mode) button {
+  :root body .tab-btn,:root 
+  body .subtab-btn,:root 
+  body button {
     transition-duration: .01ms;
   }
 }
 }
 
 @layer components {
-body.light-mode :is(.tab-header, .merged-window-tabbar),
-body.light-mode.desktop-windowed-ui .ui-window-titlebar,
-body.light-mode.desktop-windowed-ui .ui-window-active .ui-window-titlebar { background: var(--color-surface-raised); }
-body.light-mode :is(.tab-btn, .subtab-btn, .merged-window-tab) { color: var(--color-text-secondary); }
-body.light-mode :is(.tab-btn, .subtab-btn, .merged-window-tab).active {
-  background: var(--color-control); color: var(--color-accent-gold); border-color: var(--color-line-strong);
-}
 
 @media (min-width: 1081px) {
 
@@ -674,7 +633,7 @@ body.light-mode :is(.tab-btn, .subtab-btn, .merged-window-tab).active {
 
 @media (max-width: 1080px) {
 
-  body:not(.light-mode) .tab-header:not(.tab-header-bottom) {
+  :root body .tab-header:not(.tab-header-bottom) {
     box-shadow: 0 7px 18px rgba(0, 0, 0, .34);
     backdrop-filter: none;
   }
@@ -762,14 +721,14 @@ body.light-mode :is(.tab-btn, .subtab-btn, .merged-window-tab).active {
 
 @media (max-width: 1080px) {
 
-  body:not(.light-mode) .tab-header:not(.tab-header-bottom) {
+  :root body .tab-header:not(.tab-header-bottom) {
     border-color: #3c372e;
     background:
       linear-gradient(180deg, rgba(20, 20, 17, .98), rgba(8, 9, 8, .98)),
       repeating-linear-gradient(90deg, transparent 0 12px, rgba(255, 255, 255, .012) 12px 13px);
   }
 
-  body:not(.light-mode) .tab-header:not(.tab-header-bottom) > .tab-btn {
+  :root body .tab-header:not(.tab-header-bottom) > .tab-btn {
     border: 0;
     border-right: 1px solid rgba(74, 65, 51, .36);
     border-radius: 0;
@@ -778,7 +737,7 @@ body.light-mode :is(.tab-btn, .subtab-btn, .merged-window-tab).active {
     box-shadow: none;
   }
 
-  body:not(.light-mode) .tab-header:not(.tab-header-bottom) > .tab-btn.active {
+  :root body .tab-header:not(.tab-header-bottom) > .tab-btn.active {
     color: #f2e5cf;
     background: linear-gradient(180deg, rgba(62, 48, 27, .22), rgba(17, 16, 13, .24));
     box-shadow: inset 0 -2px var(--color-shell-brass-bright);
@@ -834,7 +793,7 @@ body.light-mode :is(.tab-btn, .subtab-btn, .merged-window-tab).active {
   }
 }
 
-body:not(.light-mode) .subtab-btn.active::before {
+:root body .subtab-btn.active::before {
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--skin-accent), transparent 54%), transparent);
 } }
 

@@ -21,10 +21,10 @@ const craftingCatalogUi = (() => {
 
     function catalogGroup(key) { return craftingWorkspaceState.group(key); }
 
-    const keywordTones={일반:'normal',매직:'magic',희귀:'rare',고유:'unique',물리:'physical',근접:'physical',생명:'life',방어:'defense',속도:'speed',치명:'critical',저항:'resist',원소:'element',카오스:'chaos',흡혈:'life',재생:'life',화염:'fire',냉기:'cold',번개:'light',투사체:'speed',관통:'physical',균열:'chaos',타락:'life'};
+    const keywordTones={일반:'normal',마법:'magic',희귀:'rare',고유:'unique',물리:'physical',근접:'physical',생명:'life',방어:'defense',속도:'speed',치명:'critical',저항:'resist',원소:'element',카오스:'chaos',흡혈:'life',재생:'life',화염:'fire',냉기:'cold',번개:'light',투사체:'speed',관통:'physical',균열:'chaos',타락:'life'};
     const keywordPattern=new RegExp(Object.keys(keywordTones).join('|'),'g');
     const summaries={
-        magicBud:'일반 → 매직 · 매직 옵션 재련',sapBud:'매직 → 희귀 · 옵션 1줄 추가',
+        magicBud:'일반 → 마법, 마법 옵션 재련',sapBud:'마법 → 희귀, 옵션 1줄 추가',
         formlessDew:'일반 → 희귀 · 희귀 옵션 재련',goldenRule:'옵션 수치 재설정',
         blessing:'베이스 옵션 수치 재설정',blightSpore:'일반 등급으로 초기화',
         pruningShears:'무작위 옵션 1줄 제거',fairyRing:'고유 진화 · 25% 파괴',

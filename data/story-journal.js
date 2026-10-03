@@ -1,5 +1,5 @@
 // Supplied journal text, preserved verbatim. Rewards and existing entry IDs are unchanged.
-const STORY_JOURNAL_SCENES = Object.freeze([
+const SUPPLIED_STORY_SCENES = Object.freeze([
     {"id":"prologue","title":"프롤로그 · 밑거름의 우물","act":0,"phase":"start","journal":"prologue","image":"assets/journal/prologue.webp","lines":["당신은 세계수에서 태어났으나, 정원사는 당신을 밑거름의 우물로 떨어트렸습니다.","그러나 당신은 진흙 속에서 죽지 않고 살아났습니다. 정원사에게 복수하세요."]},
     {"id":"act_2_end","title":"액트 2 · 다시 추락하다","act":2,"phase":"end","journal":"act_2","image":"assets/journal/unified-20260910/act-2.webp","lines":["당신은 썩은 뿌리를 기어올라, 마침내 정원사의 중정에 도착했습니다.","그러나 부제녀가 당신을 가로막았습니다. 그녀에게 제압된 당신은 복수를 이루지 못한 채 다시 추락했습니다."]},
     {"id":"act_3_start","title":"액트 3 · 영원의 힘","act":3,"phase":"start","journal":"act_3","image":"assets/journal/unified-20260910/act-3.webp","lines":["황금 길의 마지막 운반자와 부정한 은총의 부제녀를 쓰러뜨리세요.","두 존재가 쓰러지면, 중정에 깃든 영원의 힘도 사라질 것입니다."]},
@@ -12,10 +12,30 @@ const STORY_JOURNAL_SCENES = Object.freeze([
     {"id":"act_9_end","title":"액트 9 · 고치에서 태어난 존재","act":9,"phase":"end","journal":"act_9","image":"assets/journal/unified-20260910/act-9-end.webp","lines":["비탄하는 접목의 어머니가 쓰러지자, 그녀가 품고 있던 고치가 열렸습니다.","고치에서 태어난 존재는 옅은 금빛 후광에 둘러싸여, 세계수의 끝자락으로 올라갔습니다."]},
     {"id":"act_10_end","title":"액트 10 · 손끝 사이","act":10,"phase":"end","journal":"act_10","image":"assets/journal/unified-20260910/act-10.webp","lines":["쓰러진 존재가 당신을 향해 힘없이 손을 뻗었습니다.","당신은 몸을 숙여, 그 손끝을 향해 손을 내밀었습니다.","두 손 사이에는 아직 작은 틈이 남아 있었습니다."]},
 ]);
+// Scenes added for beats the supplied set skipped. Text only (the reader and the popup lay these out in one column);
+// act 1 opens with the root-tip druid who takes the rootless one in — his words (JOURNAL_DB.act_1) were only ever
+// unlocked after the act, so nobody told the player why the rootlets must be cut or who was guiding them.
+const STORY_BRIDGE_SCENES = Object.freeze([
+    {"id":"act_1_start","title":"액트 1 · 뿌리의 드루이드","act":1,"phase":"start","journal":"act_1","lines":["진흙 속에서 기어 나온 당신을, 뿌리끝 성소의 드루이드가 거두었습니다.","썩은 잔뿌리들이 중간계로 오르는 뿌리길을 막고 있었습니다."]},
+]);
+const STORY_JOURNAL_SCENES = Object.freeze([SUPPLIED_STORY_SCENES[0], ...STORY_BRIDGE_SCENES, ...SUPPLIED_STORY_SCENES.slice(1)]);
+// The spoken lines each journal entry had before the illustrations (data/maps.js JOURNAL_DB) stay with the scene where
+// they are said — the gardener's verdict, the druid's "첫 번째 날붙이" reveal the woodsman and the abandoned blades
+// build on, the dying words — before the narrated moment (verdicts, last words) or after it (reflections).
+const STORY_QUOTE_PLACEMENT = Object.freeze({
+    prologue: ['prologue', 'before'], act_1: ['act_1_start', 'after'], act_2: ['act_2_end', 'after'], act_3: ['act_3_start', 'before'],
+    act_4: ['act_4_end', 'before'], act_5: ['act_5_end', 'before'], act_6: ['act_6_end', 'before'],
+    act_7: ['act_7_start', 'after'], act_8: ['act_8_start', 'after'], act_9: ['act_9_end', 'after'], act_10: ['act_10_end', 'after']
+});
+const STORY_SCENE_QUOTES = {};
+for (const [entryId, [sceneId, placement]] of Object.entries(STORY_QUOTE_PLACEMENT)) {
+    STORY_SCENE_QUOTES[sceneId] = Object.freeze({ lines: Object.freeze([...JOURNAL_DB[entryId].lines]), before: placement === 'before' });
+}
+Object.freeze(STORY_SCENE_QUOTES);
 for (const entryId of new Set(STORY_JOURNAL_SCENES.map(scene => scene.journal))) {
     const scenes = STORY_JOURNAL_SCENES.filter(scene => scene.journal === entryId);
     JOURNAL_DB[entryId].title = scenes[0].title;
     JOURNAL_DB[entryId].lines = scenes.flatMap(scene => scene.lines);
     JOURNAL_DB[entryId].scenes = scenes.map(scene => scene.id);
 }
-safeExposeData({ STORY_JOURNAL_SCENES });
+safeExposeData({ STORY_JOURNAL_SCENES, STORY_BRIDGE_SCENES, STORY_SCENE_QUOTES });

@@ -1,7 +1,94 @@
+/** 루프 관문 대기 플래그. 오프라인에서 채운 관문 표시는 관문이 남아 있을 때만 의미가 있다. */
+function normalizeLoopGateFlags(state) {
+    state.pendingLoopDecision = !!state.pendingLoopDecision;
+    state.pendingLoopReady = !!state.pendingLoopReady;
+    state.loopGateOffline = state.loopGateOffline === true && (state.pendingLoopDecision || state.pendingLoopReady);
+}
+
+/** 자동화 설정: 자동 이동(기본 켬) · 자동 환생(기본 끔) · 다음 루프 직업(매번 고르기 | 같은 직업 유지). */
+function normalizeAutomationSettings(settings) {
+    settings.autoMove = settings.autoMove !== false;
+    settings.autoLoop = settings.autoLoop === true;
+    settings.autoLoopClass = settings.autoLoopClass === 'keep' ? 'keep' : 'ask';
+}
+
+/** 없어진 창(7단계 2026-10-01: 가지치기 · 아르카나 · 전문가)의 메뉴 단추. 저장된 순서 · 배치에서 버린다. */
+/** 보스 특수 공격의 예고 상태는 저장에 싣지 않는다(다음 틱에 다시 계산한다). 예전 저장은 예고 영역의 중심에 보스 전체 사본이
+ * 겹겹이 들어가 특수 공격마다 커졌다(검토 5차: 20분 보스전에서 저장 1MB · 직렬화 실패) — 중심은 칸 좌표로 줄인다. 두 번 불러와도 같다. */
+function stripBossPatternRuntime(enemy) {
+    if (!enemy || typeof enemy !== 'object') return;
+    // 다음 예고 미리보기(nextPatternState)는 영역이 없어 겹치지 않으니 그대로 둔다 — 지우면 불러온 탐험이 저장 전과 달라졌다.
+    delete enemy.lastPatternState;
+    const center = enemy.patternArea && enemy.patternArea.center;
+    const nested = center && typeof center === 'object' && ['hp', 'patternArea', 'lastPatternState'].some(key => key in center);
+    if (nested) enemy.patternArea.center = { gx: Math.floor(Number(center.gx) || 0), gy: Math.floor(Number(center.gy) || 0) };
+}
+
+/** 전직 저장 경계(2026-10-02, 전직 18종). 모르는 전직은 비우고 그 노드 · 키스톤에 쓴 포인트를 돌려준다(예전에는 검사하지 않아
+ * 전직 화면이 이름을 읽다 멈췄다). 직업과 맞지 않는 예전 저장(전직을 아무 직업이나 고르던 때)은 이번 루프만 그대로 둔다 — 전직은
+ * 루프마다 새로 고른다. 재능 개화 카드는 있는 조합만 남긴다. 지난 루프 전직 배치도 검사한다. 두 번 불러와도 같다. */
+function normalizeAscendancySave(merged) {
+    merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
+    if (merged.ascendClass && !CLASS_TEMPLATES[merged.ascendClass]) {
+        merged.ascendPoints = Math.max(0, Math.floor(Number(merged.ascendPoints) || 0)) + merged.ascendNodes.length;
+        const keystones = Array.isArray(merged.ascendKeystones) ? merged.ascendKeystones.length : 0;
+        merged.ascendKeystonePoints = Math.max(0, Math.floor(Number(merged.ascendKeystonePoints) || 0)) + keystones;
+        merged.ascendClass = '';
+        merged.ascendNodes = [];
+        merged.ascendKeystones = [];
+    }
+    normalizeTalentCardKeys(merged);
+    merged.lastLoopAscendPlan = normalizeLastLoopAscendPlan(merged.lastLoopAscendPlan);
+}
+
+/** 지난 루프 전직 배치: 있는 전직, 노드 id 모양(n1~n13d), 그 전직의 키스톤만 남긴다. */
+function normalizeLastLoopAscendPlan(raw) {
+    if (!raw || typeof raw !== 'object' || !CLASS_TEMPLATES[raw.ascendClass]) return null;
+    const keystoneIds = new Set((CLASS_KEYSTONE_DEFS[raw.ascendClass] || []).map(node => node.id));
+    const keepIds = (value, keep) => Array.from(new Set((Array.isArray(value) ? value : []).filter(id => typeof id === 'string' && keep(id)))).slice(0, 32);
+    return { ascendClass: raw.ascendClass, nodes: keepIds(raw.nodes, id => /^n\d{1,2}[a-d]?$/.test(id)), keystones: keepIds(raw.keystones, id => keystoneIds.has(id)) };
+}
+
+/** 재능 개화 카드(2026-10-02 재능 정리): 카드를 그 전직의 카드(직업의 대표 재능 × 전직)로 옮겨 합친다. 레벨과 점수는 큰 쪽,
+ * 개화 횟수는 더한다. 장착 칸과 개화 기록도 옮기고 겹치면 하나만 남긴다. 모르는 전직의 카드는 버린다. 두 번 불러와도 같다. */
+function normalizeTalentCardKeys(merged) {
+    if (typeof TALENT_BLOOM_CARD_DEFS !== 'object' || !TALENT_BLOOM_CARD_DEFS || typeof getTalentBloomCardKeyForAscendancy !== 'function') return;
+    const bloomCardOf = key => getTalentBloomCardKeyForAscendancy(String(key || '').split('__')[1]);
+    const cards = merged.talentCards && typeof merged.talentCards === 'object' ? merged.talentCards : {};
+    const folded = {};
+    Object.entries(cards).forEach(([key, card]) => {
+        const to = bloomCardOf(key);
+        if (to && card && typeof card === 'object') folded[to] = mergeTalentCardRecords(folded[to], card);
+    });
+    merged.talentCards = folded;
+    if (Array.isArray(merged.talentCardLoadout)) {
+        const moved = merged.talentCardLoadout.map(key => (key ? bloomCardOf(key) : null));
+        merged.talentCardLoadout = moved.map((key, index) => (key && folded[key] && moved.indexOf(key) === index ? key : null));
+    }
+    if (Array.isArray(merged.talentBloomCombos)) merged.talentBloomCombos = Array.from(new Set(merged.talentBloomCombos.map(bloomCardOf).filter(Boolean)));
+    alignBloomLoopTalent(merged);
+}
+
+/** 이번 루프의 개화 재능 기록도 직업의 대표 재능으로 맞춘다(5차 노드 n13a, n13b가 이 값을 읽는다). */
+function alignBloomLoopTalent(merged) {
+    const classTalent = getTalentBloomHeroIdForAscendancy(merged.ascendClass);
+    if (!classTalent) return;
+    if (merged.bloomedTalentThisLoop) merged.bloomedTalentThisLoop = classTalent;
+    if (merged.pendingTalentBloomHeroId) merged.pendingTalentBloomHeroId = classTalent;
+}
+
+function mergeTalentCardRecords(previous, card) {
+    if (!previous) return { ...card };
+    return { ...previous, level: Math.max(Number(previous.level) || 1, Number(card.level) || 1), score: Math.max(Number(previous.score) || 0, Number(card.score) || 0),
+        count: (Number(previous.count) || 0) + (Number(card.count) || 0) };
+}
+
+const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);
+
 /** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
 function normalizeTabLayoutSettings(settings) {
     const normalizeOrder = (list, pattern) => Array.from(new Set(
-        (Array.isArray(list) ? list : []).filter(id => typeof id === 'string' && pattern.test(id))
+        (Array.isArray(list) ? list : []).filter(id => typeof id === 'string' && pattern.test(id) && !RETIRED_TAB_BUTTON_IDS.includes(id))
     ));
     const buttonId = /^btn-(tab-[a-z]+|map-complete-action-picker)$/;
     const layouts = {};
@@ -12,18 +99,126 @@ function normalizeTabLayoutSettings(settings) {
         layouts[platform] = {
             tabOrder: normalizeOrder(source.tabOrder, buttonId),
             tabPlacement: Object.fromEntries(Object.entries(placements)
-                .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place))
-                .map(([id, place]) => [id, id === 'btn-tab-pruning' && platform === 'desktop' ? 'top' : place])),
+                .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place) && !RETIRED_TAB_BUTTON_IDS.includes(id))),
             tabGroupOrder: normalizeOrder(source.tabGroupOrder, /^(character|growth|content|gear|etc)$/)
         };
     }
     return layouts;
 }
 
-/** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
+/** 전술 규칙만 남긴다: 예전 컨디션 젬 규칙(행동이 없거나 condition_gem)은 버린다. */
+function normalizeSavedTacticRules(raw) {
+    const rules = Array.isArray(raw) ? raw.filter(rule => rule && typeof rule === 'object') : [];
+    return rules.filter(rule => rule.actionType && rule.actionType !== 'condition_gem').map(rule => normalizeConditionPatternRule({ ...rule }));
+}
+
+/** 생장판 제거(2026-09-30): 판 · 보관함 · 확장 · 생장 정수 · 설정 · 해금 표시는 보상 없이 지운다(결정 4). 두 번 불러와도 같다. */
+function stripRemovedGrowthBoard(merged) {
+    ['growthBoard', 'growthInventory', 'recentGrowthDrops', 'growthInventoryExpandLevel', 'growthEssenceExpandLevel', 'growthCodex']
+        .forEach(key => delete merged[key]);
+    ['growthSortMode', 'growthAutoSalvageEnabled', 'growthAutoSalvageRarities', 'growthUseItemFilter', 'growthInventoryFilter']
+        .forEach(key => delete merged.settings[key]);
+    [[merged.settings.searchFilters, 'growth'], [merged.currencies, 'growthEssence'], [merged.unlocks, 'growthboard'], [merged.noti, 'growthboard']]
+        .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
+}
+
+const METEOR_SITE_SAVE_KEYS = Object.freeze(['unlocked', 'skyRiftGauge', 'skyRiftReady', 'skyRiftMinTier', 'skyRiftAllCosmos',
+    'activeMeteorTier', 'meteorReturnZoneId', 'lastAnomalyAt', 'skyRiftCarryGauge', 'constellationBuff', 'entriesCleared']);
+const RETIRED_STAR_WEDGE_CURRENCIES = Object.freeze(['meteorShard', 'incompleteStarWedge', 'starWedge', 'astralCore']);
+
+/** 6단계(2026-10-01): 운석 낙하 지점 상태(게이지 · 단계 · 돌아갈 곳 · 별자리 관측)를 별쐐기 저장에서 meteorSite로 옮기고,
+ * 별쐐기 · 장착 · 변성 기록은 보상 없이 지운다(결정 4 · 8). 별쐐기 저널은 운석 낙하 지점 저널이 된다. 두 번 불러와도 같다. */
+function moveStarWedgeSaveToMeteorSite(merged, save) {
+    const legacy = save.starWedge && typeof save.starWedge === 'object' ? save.starWedge : null;
+    if (legacy && !(save.meteorSite && typeof save.meteorSite === 'object')) {
+        merged.meteorSite = Object.fromEntries(METEOR_SITE_SAVE_KEYS.filter(key => key in legacy).map(key => [key, legacy[key]]));
+    }
+    delete merged.starWedge;
+    ensureMeteorSiteState(merged);
+    if (Array.isArray(merged.journalEntries)) merged.journalEntries = merged.journalEntries.map(id => id === 'star_wedge' ? 'meteor_fall' : id);
+}
+
+/** 6단계(2026-10-01): 운석 파편 · 불완전한 별쐐기 · 별쐐기 · 성핵 조각과 나무꾼 잠금 사진의 별쐐기, 명왕성 별쐐기가 만들던
+ * 공허 노드(star_pluto_*)의 보관된 제작 기록을 지운다. 그 노드는 다시 생기지 않는다. */
+function stripRemovedStarWedges(merged) {
+    RETIRED_STAR_WEDGE_CURRENCIES.forEach(key => delete merged.currencies[key]);
+    if (merged.woodsmanBuildSnapshot && typeof merged.woodsmanBuildSnapshot === 'object') delete merged.woodsmanBuildSnapshot.starWedge;
+    Object.keys(merged.retiredVoidPassives || {}).filter(id => id.startsWith('star_')).forEach(id => delete merged.retiredVoidPassives[id]);
+}
+
+/** 7단계(2026-10-01): 아르카나 · 가지치기 · 전문가와 별가루를 보상 없이 지운다(결정 4 · 10 · 11). 해금 원장의 세 항목은
+ * content-progression이 모르는 항목으로 버리고 포인트를 돌려준다. 벌집 갈림길에 저장된 양봉업자 레벨도 지운다. 두 번 불러와도 같다. */
+function stripRemovedAuxSystems(merged) {
+    ['arcana', 'pruningTree', 'expertise'].forEach(key => delete merged[key]);
+    ['arcana', 'pruning', 'expertise'].forEach(key => { delete merged.unlocks[key]; delete merged.noti[key]; });
+    delete merged.currencies.starDust;
+    const choice = merged.beehive && merged.beehive.pendingChoice;
+    if (choice && typeof choice === 'object') {
+        delete choice.expertLevel;
+        ['a', 'b', 'c'].forEach(key => { if (choice[key] && typeof choice[key] === 'object') delete choice[key].expertLevel; });
+    }
+}
+
+/** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
+ * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨, 젬 각인사 Lv.12 각성 잔향 · 각성 각인. */
+const RETIRED_EXPERT_ACCESS = Object.freeze([
+    ['mycologist', 4, 'fossilRestore'], ['mycologist', 7, 'advancedSpores'], ['gemEngraver', 12, 'gemAwakening']
+]);
+
+function inheritRetiredExpertAccess(ledger, save) {
+    const levels = save && save.expertise && save.expertise.levels;
+    if (!levels || typeof levels !== 'object') return;
+    RETIRED_EXPERT_ACCESS.forEach(([expert, level, id]) => {
+        const owned = ledger.unlocked.includes(id) || ledger.inherited.includes(id);
+        if (!owned && (Number(levels[expert]) || 0) >= level) ledger.inherited.push(id);
+    });
+}
+
+/** 2단계(2026-10-01): 플라스크 삭제 — 물약 상태(연금 유리 포함) · 알림을 보상 없이 지운다(결정 4 · 7).
+ * 단축키 배정 · 히든 저널 · 보스 도전 기록은 불러올 때 이미 모르는 항목을 버리거나 새로 시작한다. */
+function stripRemovedFlasks(merged) {
+    delete merged.flasks;
+    [[merged.settings && merged.settings.notiFilters, 'flask'], [merged.noti, 'flask']]
+        .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
+}
+
+/** 2026-10-02: 목재 몬스터 넷(수액 응집체 · 뿌리 거미 · 수액 흡충 · 목각 인형)의 그림을 내렸다. 모은 외형은 가장 닮은
+ * 새 몬스터로(data/bosses.js RETIRED_WOOD_MONSTER_SKINS), 싸우던 적은 그 지역의 새 외형 · 이름으로 바꾸고 공격 방식을
+ * 다시 정하게 한다(그림을 따른다, js/combat-grid.js). 두 번 불러와도 같다. */
+function migrateRetiredWoodMonsters(merged) {
+    const skins = merged.unlockedMonsterSkins;
+    if (skins && typeof skins === 'object') Object.entries(RETIRED_WOOD_MONSTER_SKINS).forEach(([old, next]) => {
+        if (skins[old]) skins[next] = true;
+        delete skins[old];
+    });
+    merged.selectedMonsterSkin = RETIRED_WOOD_MONSTER_SKINS[merged.selectedMonsterSkin] || merged.selectedMonsterSkin;
+    const zone = Number.isInteger(merged.currentZoneId) && merged.currentZoneId < ACT_ZONE_COUNT ? MAP_ZONES[merged.currentZoneId] : null;
+    const packs = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
+    [merged.enemies, ...packs.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(enemy => {
+        retireWoodMonsterVisual(enemy, zone);
+        resetRedrawnRealmAttack(enemy);
+    });
+}
+
+/** Realm sets fight as drawn since 2026-10-03: a realm enemy saved with the old per-visual roll picks its attack again. */
+function resetRedrawnRealmAttack(enemy) {
+    const kind = enemy && enemy.monsterVisualId ? getMonsterVisualAttackKind(enemy.monsterVisualId) : null;
+    if (!kind || !enemy.attackKind || enemy.isBoss || enemy.attackKind === kind) return;
+    ['attackKind', 'attackRange', 'attackDelivery', 'projectileToEdge', 'attackCastMs', 'attackLabel'].forEach(key => delete enemy[key]);
+}
+
+function retireWoodMonsterVisual(enemy, zone) {
+    if (!enemy || !/^(woodSlime|rootSpider|sapLeech|woodPuppet)-\d+$/.test(enemy.spriteVariantId || '')) return;
+    const pool = getActMonsterPool(zone), def = ACT_MONSTER_VISUAL_BY_ID[pool[Math.abs(Math.floor(Number(enemy.variantSeed) || 0)) % pool.length]];
+    if (enemy.baseMonsterName && typeof enemy.name === 'string') enemy.name = enemy.name.replace(enemy.baseMonsterName, def.name);
+    Object.assign(enemy, { spriteVariantId: def.id, baseMonsterName: def.name });
+    ['attackKind', 'attackRange', 'attackDelivery', 'projectileToEdge', 'attackCastMs', 'attackLabel'].forEach(key => delete enemy[key]);
+}
+
+/** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
-    if (!merged.conditionGemLevels || typeof merged.conditionGemLevels !== 'object') merged.conditionGemLevels = {};
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
+    inheritRetiredExpertAccess(merged.contentProgression, save);
     contentProgression.sync(merged);
     if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
         merged.currentZoneId = 0;
@@ -54,6 +249,30 @@ function reconcileUniqueEquipmentSave(state) {
     migrateUniqueCodexKeys(state.uniqueCodex);
     migrateUniqueCodexKeys(state.codexNewlyRegistered);
     equipmentInventoryGridRuntime.ensureState(state);
+}
+
+/** The main gem and the 이동 스킬 slot (스킬 변경분 2). A summon gem is never the main gem; a mobility gem worn as the main
+ * gem moves to its own slot (unless one is already there) and the main gem falls back to 기본 공격; the slot keeps only an
+ * owned mobility gem. Idempotent. */
+function normalizeSkillSlotsSave(merged) {
+    merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
+    if ((SKILL_DB[merged.activeSkill]?.tags || []).includes('summon_attack')) {
+        if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
+        merged.activeSkill = '기본 공격';
+    }
+    const worn = name => mobilitySkill.isMobilityGem(name) && merged.skills.includes(name);
+    if (mobilitySkill.isMobilityGem(merged.activeSkill)) {
+        if (!worn(merged.mobilitySkill)) merged.mobilitySkill = merged.activeSkill;
+        merged.activeSkill = '기본 공격';
+    }
+    merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
+}
+
+/** The gem the enhance screen opens on: one that is worn — the main gem, the mobility gem or a summon gem. */
+function normalizeGemEnhanceTargetSave(merged) {
+    const worn = [merged.activeSkill, merged.mobilitySkill, ...merged.equippedSummonSkills].filter(name => SKILL_DB[name]?.isGem);
+    if (worn.includes(merged.gemEnhanceTargetSkill)) return;
+    merged.gemEnhanceTargetSkill = worn[0] || null;
 }
 
 function migrateUniqueCodexKeys(records) {
@@ -114,71 +333,26 @@ function mergeDefaults(save) {
         return null;
     }
     function normalizeAllocatedPassiveTreeNodes(rawIds, passiveStarEvolution, passiveSaveState) {
-        const rootId = typeof getPassiveTreeRootNodeId === 'function' ? getPassiveTreeRootNodeId(save) : 'n0';
-        let rawList = Array.isArray(rawIds) ? rawIds : [];
-        let seen = new Set();
-        let kept = [];
+        const rawList = Array.isArray(rawIds) ? rawIds : [];
+        const seen = new Set(), kept = [];
         let refunded = 0;
         rawList.forEach(rawId => {
-            let id = normalizePassiveNodeId(rawId);
+            const id = normalizePassiveNodeId(rawId);
             if (!id) { refunded++; return; }
             if (seen.has(id)) return;
             seen.add(id);
-            let node = PASSIVE_TREE.nodes[id];
-            if (!node || (node.requiresEvolution && !passiveStarEvolution)) {
-                if (id !== rootId) refunded++;
-                return;
-            }
+            const node = PASSIVE_TREE.nodes[id];
             if (node.kind === 'start') return;
+            if (node.requiresEvolution && !passiveStarEvolution) {
+                refunded++; return;
+            }
             kept.push(id);
         });
-        let owned = new Set(kept);
-        owned.add(rootId);
-        let savedStarWedge = passiveSaveState && passiveSaveState.starWedge && typeof passiveSaveState.starWedge === 'object'
-            ? passiveSaveState.starWedge : {};
-        let savedWedges = new Map((Array.isArray(savedStarWedge.wedges) ? savedStarWedge.wedges : [])
-            .filter(wedge => wedge && Number.isFinite(Number(wedge.id)))
-            .map(wedge => [Number(wedge.id), wedge]));
-        let savedSocketWedges = new Map((Array.isArray(savedStarWedge.sockets) ? savedStarWedge.sockets : [])
-            .map(socket => [String(socket && socket.nodeId || ''), savedWedges.get(Number(socket && socket.wedgeId))]));
-        const isActiveSavedStarOption = node => {
-            if (!node || node.kind !== 'star_option') return false;
-            let wedge = savedSocketWedges.get(String(node.requiresStarWedgeSocketNodeId || ''));
-            let line = wedge && Array.isArray(wedge.lines) ? wedge.lines[node.starWedgeLineIndex] : null;
-            return !!(line && line.stat && !line.disabled);
-        };
-        let virtualRoots = new Set();
-        (Array.isArray(savedStarWedge.sockets) ? savedStarWedge.sockets : []).forEach(socket => {
-            let wedge = socket && savedWedges.get(Number(socket.wedgeId));
-            let recordedId = wedge && wedge.unique && wedge.uniqueType === 'black_hole' ? normalizePassiveNodeId(wedge.recordedHubNodeId) : null;
-            if (recordedId && PASSIVE_TREE.nodes[recordedId] && PASSIVE_TREE.nodes[recordedId].kind === 'hub') virtualRoots.add(recordedId);
-        });
-        virtualRoots.forEach(id => owned.add(id));
-        let traversalRoots = [rootId, ...virtualRoots];
-        let connected = new Set(traversalRoots);
-        let queue = traversalRoots.slice();
-        let passiveEdges = (PASSIVE_TREE && Array.isArray(PASSIVE_TREE.edges)) ? PASSIVE_TREE.edges : [];
-        while (queue.length > 0) {
-            let current = queue.shift();
-            passiveEdges.forEach(edge => {
-                let next = null;
-                if (edge.from === current && owned.has(edge.to)) next = edge.to;
-                else if (edge.to === current && owned.has(edge.from)) next = edge.from;
-                if (next && !connected.has(next)) {
-                    connected.add(next);
-                    queue.push(next);
-                }
-            });
-        }
-        let connectedPassives = [];
-        kept.forEach(id => {
-            let node = PASSIVE_TREE.nodes[id];
-            if (node && node.kind === 'star_option' && isActiveSavedStarOption(node)) connectedPassives.push(id);
-            else if (node && node.kind === 'star_option') refunded++;
-            else if (connected.has(id)) connectedPassives.push(id);
-            else refunded++;
-        });
-        return { passives: connectedPassives, refunded: refunded };
+        const candidate = { ...passiveSaveState, passives: kept };
+        const connected = passiveRouting.connected(candidate, PASSIVE_TREE, getPassiveRouting(candidate));
+        const lostBonus = Math.max(0, passiveRouting.paleBonus({ ...candidate, passives: rawList })
+            - passiveRouting.paleBonus({ ...candidate, passives: connected }));
+        return { passives: connected, refunded: refunded + kept.length - connected.length, lostBonus };
     }
     function migratePassiveSaveNodeReferences(state) {
         if (typeof migratePassiveNodeIdList !== 'function' || typeof migratePassiveNodeIdRecord !== 'function') return;
@@ -187,17 +361,6 @@ function mergeDefaults(save) {
         state.passiveAttributeChoices = migratePassiveNodeIdRecord(state.passiveAttributeChoices);
         state.voidPassives = migratePassiveNodeIdRecord(state.voidPassives);
         state.retiredVoidPassives = migratePassiveNodeIdRecord(state.retiredVoidPassives);
-        let star = state.starWedge && typeof state.starWedge === 'object' ? { ...state.starWedge } : {};
-        star.wedges = (Array.isArray(star.wedges) ? star.wedges : []).map(wedge => wedge && typeof wedge === 'object'
-            ? { ...wedge, recordedHubNodeId: getCurrentPassiveNodeId(wedge.recordedHubNodeId) } : wedge);
-        star.sockets = (Array.isArray(star.sockets) ? star.sockets : []).map(socket => socket && typeof socket === 'object'
-            ? { ...socket, nodeId: getCurrentPassiveNodeId(socket.nodeId) } : socket);
-        ['nodeMutations', 'virtualLearnNodes', 'virtualLearnSources', 'disabledNodeEffects',
-            'disabledNodeEffectSources', 'mutationConflictSources'].forEach(key => {
-            star[key] = migratePassiveNodeIdRecord(star[key]);
-        });
-        delete star._mutationSignature;
-        state.starWedge = star;
     }
     function normalizeEncounterMarker(marker) {
         if (!marker || typeof marker !== 'object') return null;
@@ -209,7 +372,7 @@ function mergeDefaults(save) {
             elite: !!marker.elite,
             boss: !!marker.boss
         };
-        // Pre-treasure hunt markers resume as ordinary elites; the unfinished hunt becomes a ready treasure.
+        // Markers keep only their spawn shape; removed content fields (e.g. treasure-hunt ids) are dropped.
         return normalized;
     }
     function normalizeEnemyRecord(enemy) {
@@ -244,6 +407,10 @@ function mergeDefaults(save) {
     // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
     function normalizeEnemyGridFields(record) {
         delete record.battleSlot;
+        // Exploration coordinates are validated against their own saved map below; never
+        // silently move a saved enemy to another tile or into a wall by clamping it.
+        const exploration=merged.actExploration;
+        if(exploration)return record;
         let gx = Math.floor(clampFiniteNumber(record.gx, NaN, 0, COMBAT_GRID_CONFIG.columns - 1));
         let gy = Math.floor(clampFiniteNumber(record.gy, NaN, 0, COMBAT_GRID_CONFIG.rows - 1));
         if (Number.isFinite(gx) && Number.isFinite(gy)) {
@@ -310,6 +477,15 @@ function mergeDefaults(save) {
             };
         }).filter(row => row && row.value > 0).sort((a, b) => b.value - a.value) : [];
     }
+    /** {frontierZoneId: story act id 1-9, level: positive integer} or null for anything else. */
+    function normalizeActRetreat(value) {
+        if (!value || typeof value !== 'object') return null;
+        const zone = getZone(value.frontierZoneId);
+        const level = Math.floor(Number(value.level));
+        if (zone?.type !== 'act' || !(zone.id > 0) || !Number.isFinite(level) || level < 1) return null;
+        return { frontierZoneId: zone.id, level };
+    }
+
     function normalizeDeathLog(log) {
         if (!log || typeof log !== 'object') return null;
         let primaryElement = normalizeDamageElementKey(log.primaryElement);
@@ -338,6 +514,9 @@ function mergeDefaults(save) {
             monsterSummary: monsterSummary,
             activeAilments: activeAilments,
             sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
+            lostItems: Math.max(0, Math.floor(clampFiniteNumber(log.lostItems, 0, 0))),
+            lostCurrencies: Math.max(0, Math.floor(clampFiniteNumber(log.lostCurrencies, 0, 0))),
+            retreatZoneName: typeof log.retreatZoneName === 'string' ? log.retreatZoneName : '',
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
     }
@@ -359,19 +538,8 @@ function mergeDefaults(save) {
             if (item.uniqueEffectKey === 'rightRingSummonCap' && slot === '반지2') bonus += Number((item.uniqueEffectParams || {}).cap) || 1;
         });
         (state && Array.isArray(state.passives) ? state.passives : []).forEach(id => {
-            if (state.starWedge && state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
             let node = PASSIVE_TREE.nodes[id];
-            let mut = state.starWedge && state.starWedge.nodeMutations ? state.starWedge.nodeMutations[id] : null;
-            let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
-            let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
-            if (node && statId === 'summonCap') bonus += statVal || 0;
-        });
-        let ownedPassiveIds = new Set(state && Array.isArray(state.passives) ? state.passives.map(String) : []);
-        Object.keys((state && state.starWedge && state.starWedge.nodeMutations) || {}).forEach(id => {
-            let mut = state.starWedge.nodeMutations[id];
-            if (!mut || mut.lineIndex !== 3 || mut.currentStat !== 'summonCap' || ownedPassiveIds.has(String(id))) return;
-            if (state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
-            bonus += Number(mut.currentVal) || 0;
+            if (node && node.stat === 'summonCap') bonus += node.val || 0;
         });
         (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
         (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
@@ -401,6 +569,7 @@ function mergeDefaults(save) {
     let merged = {
         ...JSON.parse(JSON.stringify(defaultGame)),
         ...save,
+        actExploration: save.actExploration == null ? null : JSON.parse(JSON.stringify(save.actExploration)),
         equipmentDropProgress: clampFiniteNumber(save.equipmentDropProgress, 0, 0, EQUIPMENT_DROUGHT_RULES.threshold - 0.5),
         settings: { ...defaultGame.settings, ...(save.settings || {}) },
         unlocks: { ...defaultGame.unlocks, ...(save.unlocks || {}) },
@@ -415,6 +584,7 @@ function mergeDefaults(save) {
     delete merged.unlocks.hideout;
     delete merged.noti.hideout;
     migratePassiveSaveNodeReferences(merged);
+    migrateLegacySummonGemSave(merged);
     delete merged.talentCardRuntime;
     Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
         let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);
@@ -436,19 +606,12 @@ function mergeDefaults(save) {
     }
     delete merged.currencies.hiveTrace;
     merged.cosmosAtlas = (merged.cosmosAtlas && typeof merged.cosmosAtlas === 'object') ? { ...merged.cosmosAtlas } : {};
-    const legacyAtlasStarDust = Math.max(0, Math.floor(Number(merged.cosmosAtlas.starDust) || 0));
-    const hasSavedStarDustWallet = !!(save && save.currencies && Object.prototype.hasOwnProperty.call(save.currencies, 'starDust'));
-    merged.currencies.starDust = hasSavedStarDustWallet
-        ? Math.max(0, Math.floor(Number(merged.currencies.starDust) || 0))
-        : legacyAtlasStarDust;
     delete merged.cosmosAtlas.starDust;
     merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
     merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
         ? merged.saveMeta.cloudUserId
         : null;
     merged.ocean = mergeOceanState(save && save.ocean);
-    merged.unlocks.jewel = !!merged.unlocks.jewel;
-    merged.unlocks.cube = !!merged.unlocks.cube;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
     if (!save.currencies && save.materials) {
         merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
@@ -467,8 +630,6 @@ function mergeDefaults(save) {
         ? merged.equipmentTemporaryStorage.map(normalizeItem) : [];
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
     if (typeof equipmentInventoryGridRuntime !== 'undefined') equipmentInventoryGridRuntime.ensureState(merged);
-    merged.growthInventory = (merged.growthInventory || []).map(normalizeGrowthOptionValues);
-    merged.recentGrowthDrops = (merged.recentGrowthDrops || []).map(normalizeGrowthOptionValues);
     merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
     merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
     Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
@@ -491,6 +652,7 @@ function mergeDefaults(save) {
     const legacyPassiveRefundCount = Number(merged.passiveLayoutVersion || 0) < 22
         ? (Array.isArray(save.passives) ? save.passives.filter(id => id !== 'n0').length : 0)
         : 0;
+    moveStarWedgeSaveToMeteorSite(merged, save);
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
@@ -595,11 +757,9 @@ function mergeDefaults(save) {
     // 게다가 앞에서부터 40개를 남기므로 가장 최근에 지켜 낸 것이 먼저 지워진다.
     // 장비 보관함도 같은 이유로 자르지 않고 초과 보관을 허용한다(유실 방지).
     // 새로 넣는 쪽은 각 push 지점이 getJewelInventoryLimit()으로 계속 막는다.
-    // 심연 군주(워록 wlk8)가 주얼 슬롯을 2칸 추가로 제공하므로 최대 4슬롯까지 보존한다.
-    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 4).map(normalizeJewelRecord) : [null, null];
-    while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
-    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 4).map(v => Math.max(0, Math.min(20, Math.floor(v || 0)))) : [0, 0];
-    while (merged.jewelSlotAmplify.length < 2) merged.jewelSlotAmplify.push(0);
+    // 주얼 슬롯은 2026-09-30에 없어졌다(주얼은 장비 소켓에만 낀다). 슬롯의 주얼은 보관함으로 옮기고, 증폭은 보상 없이 지운다.
+    merged.jewelInventory.push(...(Array.isArray(merged.jewelSlots) ? merged.jewelSlots.map(normalizeJewelRecord).filter(Boolean) : []));
+    delete merged.jewelSlots; delete merged.jewelSlotAmplify; delete merged.unlocks.jewel; delete merged.noti.jewel;
     merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
     Object.keys(merged.skyGemEnhancements).forEach(skill => {
         let arr = Array.isArray(merged.skyGemEnhancements[skill]) ? merged.skyGemEnhancements[skill] : [];
@@ -607,7 +767,7 @@ function mergeDefaults(save) {
             ? normalizeSkyGemEnhancementSlots(arr)
             : arr.slice(0, 5);
     });
-    merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
+    normalizeAscendancySave(merged);
     merged.bloomedClassThisLoop = CLASS_TEMPLATES[merged.bloomedClassThisLoop] ? merged.bloomedClassThisLoop : null;
     merged.bloomedTalentThisLoop = HERO_SELECTION_DEFS[merged.bloomedTalentThisLoop] ? merged.bloomedTalentThisLoop : null;
     if (merged.bloomedClassThisLoop && !merged.bloomedTalentThisLoop) merged.bloomedTalentThisLoop = merged.selectedHeroId;
@@ -632,31 +792,6 @@ function mergeDefaults(save) {
         let minExpectedPoints = Math.max(0, legacyKeystoneTotal - merged.ascendKeystones.length);
         merged.ascendKeystonePoints = Math.max(merged.ascendKeystonePoints, minExpectedPoints);
     }
-    merged.starWedge = (merged.starWedge && typeof merged.starWedge === 'object') ? merged.starWedge : {};
-    merged.starWedge.unlocked = !!merged.starWedge.unlocked;
-    merged.starWedge.unlockNoticeSeen = !!merged.starWedge.unlockNoticeSeen;
-    merged.starWedge.skyRiftGauge = clampFiniteNumber(merged.starWedge.skyRiftGauge, 0, 0, 100);
-    merged.starWedge.skyRiftReady = !!merged.starWedge.skyRiftReady;
-    merged.starWedge.skyRiftMinTier = Number.isFinite(merged.starWedge.skyRiftMinTier) ? Math.max(1, Math.floor(merged.starWedge.skyRiftMinTier)) : null;
-    merged.starWedge.activeMeteorTier = Number.isFinite(merged.starWedge.activeMeteorTier) ? Math.max(8, Math.min(40, Math.floor(merged.starWedge.activeMeteorTier))) : null;
-    let meteorReturnZoneId = merged.starWedge.meteorReturnZoneId;
-    merged.starWedge.meteorReturnZoneId = (typeof meteorReturnZoneId === 'number' || typeof meteorReturnZoneId === 'string') && meteorReturnZoneId !== METEOR_FALL_ZONE_ID ? meteorReturnZoneId : null;
-    merged.starWedge.lastAnomalyAt = Number.isFinite(merged.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(merged.starWedge.lastAnomalyAt)) : 0;
-    merged.starWedge.skyRiftCarryGauge = clampFiniteNumber(merged.starWedge.skyRiftCarryGauge, 0, 0, 99);
-    merged.starWedge.constellationBuff = (merged.starWedge.constellationBuff && typeof merged.starWedge.constellationBuff === 'object') ? merged.starWedge.constellationBuff : null;
-    merged.starWedge.entriesCleared = Math.max(0, Math.floor(clampFiniteNumber(merged.starWedge.entriesCleared, 0, 0)));
-    merged.starWedge.firstClearDone = !!merged.starWedge.firstClearDone;
-    merged.starWedge.selectedWedgeId = Number.isFinite(merged.starWedge.selectedWedgeId) ? merged.starWedge.selectedWedgeId : null;
-    // 보유 별쐐기는 잘라내지 않는다. 획득 경로(드랍·제작) 어디에도 보유 한도 검사가
-    // 없고 화면에도 한도 표시가 없는데, 여기서만 60개로 잘라 초과분이 조용히 사라졌다.
-    // 앞에서부터 남기므로 가장 최근에 얻은 것이 먼저 지워진다(별쐐기 하나가
-    // 운석 파편 77개 + 불완전한 별쐐기 1개다). 장비·주얼 보관함과 같이 그대로 둔다.
-    // 장착 수는 아래 sockets 상한(천문학자 레벨)이 계속 제한한다.
-    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)) : [];
-    let mergedAstronomerLevel = merged.expertise && merged.expertise.levels ? merged.expertise.levels.astronomer : 1;
-    let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
-    merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
-    merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
     let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
     let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
     merged.voidPassives = {};
@@ -683,31 +818,17 @@ function mergeDefaults(save) {
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     Object.assign(merged, craftingWorkspaceState.restore(merged));
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
-    merged.skillAutoRules = Array.isArray(merged.skillAutoRules)
-        ? merged.skillAutoRules.filter(rule => rule && typeof rule === 'object').map(rule => normalizeConditionPatternRule({ ...rule }))
-        : [];
-    merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
-    merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
-    merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
-    merged.arcana = normalizeArcanaState(merged.arcana);
-    let arcanaQuestMigration = reconcileArcanaQuestFromCosmos(merged);
-    if (arcanaQuestMigration.completedNow) {
-        merged.journalEntries = Array.isArray(merged.journalEntries) ? merged.journalEntries : [];
-        if (!merged.journalEntries.includes('arcana_first_seal')) merged.journalEntries.push('arcana_first_seal');
-    }
-    merged.pruningTree = normalizePruningTreeState(merged.pruningTree, merged);
-    advancePruningTreeForLoop(merged);
+    merged.skillAutoRules = normalizeSavedTacticRules(merged.skillAutoRules);
+    // 컨디션 젬 → 부적 조건부 줄(2026-09-30): 젬 · 레벨 · 가공 선택 · 전투 중 버프 · 젬 규칙은 보상 없이 지운다. 전술 규칙은 남는다.
+    ['conditionGemUnlocked', 'conditionGemPool', 'conditionGemLevels', 'pendingConditionGemChoices', 'conditionGemCooldowns', 'playerConditionBuffs',
+        'lastConditionGemCast', 'playerCastDelayUntil', 'enemyCurseExpirePayloads'].forEach(key => delete merged[key]);
     merged.beyondBoundary = normalizeBeyondBoundaryState(merged.beyondBoundary, merged);
-    if (merged.arcana.unlocked) merged.unlocks.arcana = true;
     delete merged.worldDeck;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    // 과거 루프 정산 시 컨디션 젬 해금이 잘못 초기화되던 버그로 잠긴 기존 플레이어 복구:
-    // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
-    if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
     merged.mapSubtab = ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.mapExploreSubtab = ['map-explore-atlas', 'map-explore-worldtree', 'map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-beyond', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-atlas';
-    merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
-    if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
+    delete merged.coreCube; delete merged.unlocks.cube; delete merged.noti.cube; // 코어 큐브 → 코어 칸(2026-09-30): 예전 진행은 보상 없이 지운다.
+    merged.cores = coreItems.normalize(merged.cores);
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
     let gemResearchExpanded = merged.gemResearchExpanded && typeof merged.gemResearchExpanded === 'object' && !Array.isArray(merged.gemResearchExpanded) ? merged.gemResearchExpanded : {};
@@ -728,30 +849,10 @@ function mergeDefaults(save) {
         merged.currencies.jewelShard = (merged.currencies.jewelShard || 0) + Math.max(0, Math.floor(merged.currencies.jewelCore || 0));
         merged.currencies.jewelCore = 0;
     }
-    merged.talismanUnlocked = !!merged.talismanUnlocked || ((merged.currencies.sealShard || 0) > 0) || ((merged.currencies.strongSealShard || 0) > 0);
-    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)).filter(v => isTalismanBoardCellValid(v % TALISMAN_BOARD_W, Math.floor(v / TALISMAN_BOARD_W))) : [];
-    merged.talismanBoardUnlock = Math.max(3, Math.min(5, Math.floor(clampFiniteNumber(merged.talismanBoardUnlock, 3, 3, 5))));
-    if (merged.talismanUnlockedCells.length === 0 && merged.talismanBoardUnlock > 3) {
-        for (let y = 0; y < merged.talismanBoardUnlock; y++) {
-            for (let x = 0; x < merged.talismanBoardUnlock; x++) {
-                if (x < 4 && y < 4) continue;
-                if (!isTalismanBoardCellValid(x, y)) continue;
-                merged.talismanUnlockedCells.push(talismanCellIndex(x, y));
-            }
-        }
-    }
-    merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    merged.talismanSubtab = merged.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board';
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)).map(t => ensureTalismanName({ ...t, locked: !!t.locked, waxedByBeeswax: !!t.waxedByBeeswax })) : [];
-    merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
-    while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
-    merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};
-    Object.values(merged.talismanPlacements).forEach(entry => {
-        if (entry && entry.talisman) ensureTalismanName(entry.talisman);
-    });
-    merged.talismanSelectedId = Number.isFinite(merged.talismanSelectedId) ? merged.talismanSelectedId : null;
-    merged.talismanUnseal = (merged.talismanUnseal && merged.talismanUnseal.current) ? merged.talismanUnseal : null;
-    if (merged.talismanUnlocked) merged.unlocks.talisman = true;
+    // 부적 판 → 그루터기 함의 부적(2026-09-30): 예전 판 · 배치 · 보유 부적은 보상 없이 지운다. 봉인편린은 그대로 쓴다.
+    ['talismanUnlocked', 'talismanBoardUnlock', 'talismanUnlockedCells', 'talismanInventory', 'talismanBoard', 'talismanPlacements',
+        'talismanSelectedId', 'talismanUnseal', 'talismanUnlockPickMode', 'talismanSubtab'].forEach(key => delete merged[key]);
+    delete merged.unlocks.talisman; delete merged.noti.talisman;
     merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
     merged.gemEngraveSelectedSlot = Math.max(0, Math.min(4, Math.floor(clampFiniteNumber(merged.gemEngraveSelectedSlot, 0, 0, 4))));
     merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
@@ -803,7 +904,7 @@ function mergeDefaults(save) {
         ? merged.starterGemTutorialPending
         : null;
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
-    // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해·플라스크 사용을
+    // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를
     // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.
     merged.hiddenJournalBossRun = null;
     // 전적: 기존 세이브에는 과거 시간 데이터가 없다. 지어내지 않고 지금부터 기록을 시작하며,
@@ -818,14 +919,18 @@ function mergeDefaults(save) {
     let journalLoadState = rebuildJournalBonusStateForLoad(merged);
     let pendingJournalPassivePoints = Math.max(0, Math.floor(journalLoadState.pendingPassivePoints || 0));
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
-    const awakeningSources = new Set(['legacy_migrated', 'legacy_apex', 'outer_constellation']);
+    // outer_constellation: 별쐐기 성률로 각성한 옛 저장(각성은 영구히 유지). outer_void: 외곽 공허 소켓 여섯의 초월.
+    const awakeningSources = new Set(['legacy_migrated', 'legacy_apex', 'outer_constellation', 'outer_void']);
     merged.passiveStarEvolutionSource = merged.passiveStarEvolution
         ? (awakeningSources.has(merged.passiveStarEvolutionSource) ? merged.passiveStarEvolutionSource : 'legacy_migrated')
         : null;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.uiSounds = merged.settings.uiSounds !== false;
-    merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
+    // 라이트 모드는 2026-09 UI 개편에서 제거됐다(다크 전용). 이전 저장의 설정값은 버린다.
+    delete merged.settings.themeMode;
     merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
+    merged.settings.highContrast = merged.settings.highContrast === true;
+    merged.settings.hotkeyOverrides = hotkeyBindings.normalize(merged.settings.hotkeyOverrides);
     merged.settings.uiScale = normalizeUiScale(merged.settings.uiScale);
     merged.settings.tabLayouts = normalizeTabLayoutSettings(save.settings || {});
     ['tabOrder', 'tabPlacement', 'tabGroupOrder', 'tabPlacementInitialized'].forEach(key => delete merged.settings[key]);
@@ -835,11 +940,11 @@ function mergeDefaults(save) {
     merged.settings.mobileCombatLogExpanded = merged.settings.mobileCombatLogExpanded === true;
     equipmentLootPolicy.normalizeSettings(merged.settings);
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
-    merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
-    merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
-    merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
+    delete merged.settings.jewelAutoSalvageEnabled; delete merged.settings.jewelAutoSalvageRarities; // 주얼 자동 해체는 주얼 창과 함께 없어졌다.
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
+    merged.settings.actExplorationMode = merged.settings.actExplorationMode === 'full' ? 'full' : 'direct';
+    normalizeAutomationSettings(merged.settings);
     merged.settings.disableItemAutomationAfterLoop = merged.settings.disableItemAutomationAfterLoop !== false;
     merged.settings.postLoopMapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.postLoopMapCompleteAction) ? merged.settings.postLoopMapCompleteAction : 'nextLoopBestPlusOne';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
@@ -889,7 +994,14 @@ function mergeDefaults(save) {
     merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
+    merged.actRetreat = normalizeActRetreat(merged.actRetreat);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
+    actExplorationState.dropRetired(merged);
+    if(merged.actExploration) {
+        // Validate the original ownership/HP first so normalization cannot revive a corrupt record.
+        actExplorationState.validate(merged.actExploration, save.enemies || []);
+        merged.actExploration.packs.forEach(pack=>{pack.waiting=pack.waiting.map(normalizeEnemyRecord);});
+    }
     let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
     function pruneEnemyRuntimeMap(rawMap, options = {}) {
         let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};
@@ -908,7 +1020,6 @@ function mergeDefaults(save) {
     merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
     merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
     merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
-    merged.enemyCurseExpirePayloads = pruneEnemyRuntimeMap(merged.enemyCurseExpirePayloads, { maxKeys: 120 });
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
@@ -926,10 +1037,9 @@ function mergeDefaults(save) {
     merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
+    passiveRouting.reconcile(merged, PASSIVE_TREE, getPassiveRouting(merged), passiveRouting.pointBudget(merged) - passiveAllocationNormalization.lostBonus);
     delete merged.inventoryExpandLevel;
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
-    merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
-    merged.growthEssenceExpandLevel = Math.max(0, Math.min(12, Math.floor(clampFiniteNumber(merged.growthEssenceExpandLevel, 0, 0, 12))));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     delete merged.settings.testCharacterMotionId;
     merged.settings.chatMessageSize = ['small', 'medium', 'large'].includes(merged.settings.chatMessageSize) ? merged.settings.chatMessageSize : 'medium';
@@ -948,7 +1058,7 @@ function mergeDefaults(save) {
     merged.settings.showEnemyHpComma = merged.settings.showEnemyHpComma !== false;
     merged.settings.showCharacterComma = merged.settings.showCharacterComma !== false;
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
-    delete merged.settings.notiFilters.hideout;
+    delete merged.settings.notiFilters.hideout; delete merged.settings.notiFilters.talisman;
     merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0)));
     merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
@@ -1025,15 +1135,11 @@ function mergeDefaults(save) {
     merged.lastLoopAdvancePath = ['chaos', 'cosmos'].includes(merged.lastLoopAdvancePath) ? merged.lastLoopAdvancePath : null;
     merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared || (Array.isArray(merged.abyssClearedDepths) && merged.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
     if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
-    merged.pendingLoopDecision = !!merged.pendingLoopDecision;
-    merged.pendingLoopReady = !!merged.pendingLoopReady;
+    normalizeLoopGateFlags(merged);
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
-    merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
-    merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
-    if (merged.activeSkill && SKILL_DB[merged.activeSkill] && Array.isArray(SKILL_DB[merged.activeSkill].tags) && SKILL_DB[merged.activeSkill].tags.includes('summon_attack')) {
-        if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
-        merged.activeSkill = '기본 공격';
-    }
+    merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 5))); // 재능 개화는 5
+    normalizeSkillSlotsSave(merged);
+    if (Array.isArray(merged.woodsmanBuildSnapshot?.skills)) normalizeSkillSlotsSave(merged.woodsmanBuildSnapshot);
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
         ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
             let def = SKILL_DB[name] || {};
@@ -1072,16 +1178,7 @@ function mergeDefaults(save) {
         merged.summonSkillCounts = legacySummonCounts;
     }
     merged.summonLoadoutInitialized = true;
-    let equippedEnhanceTargets = [];
-    if (SKILL_DB[merged.activeSkill] && SKILL_DB[merged.activeSkill].isGem) equippedEnhanceTargets.push(merged.activeSkill);
-    merged.equippedSummonSkills.forEach(name => {
-        if (SKILL_DB[name] && SKILL_DB[name].isGem && !equippedEnhanceTargets.includes(name)) equippedEnhanceTargets.push(name);
-    });
-    if (!equippedEnhanceTargets.includes(merged.gemEnhanceTargetSkill)) {
-        if (equippedEnhanceTargets.includes(merged.activeSkill)) merged.gemEnhanceTargetSkill = merged.activeSkill;
-        else if (merged.equippedSummonSkills.length > 0) merged.gemEnhanceTargetSkill = merged.equippedSummonSkills[0];
-        else merged.gemEnhanceTargetSkill = null;
-    }
+    normalizeGemEnhanceTargetSave(merged);
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.maxZoneId !== 'string') {
@@ -1094,8 +1191,9 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    worldTreeJourney.normalize(merged);
-    if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = 0;
+    atlas.normalize(merged);
+    // 없어진 지역(예: 예전 세계수 지역)에서 저장했으면 액트 1이 아니라 도달한 진행 지역으로.
+    if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === BEYOND_BOUNDARY_ZONE_ID && !merged.beyondBoundary.activeRun) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
     if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
@@ -1117,26 +1215,36 @@ function mergeDefaults(save) {
         let keepLegacyDeepChaosSlot = (merged.season || 1) >= 10 && normalizedDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
         if ((normalizedDepth <= 20 && !keepLegacyDeepChaosSlot) || (merged.season || 1) < 10) merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
     }
-    if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
-        merged.starWedge.unlocked = true;
+    if ((merged.season || 1) >= METEOR_SITE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= METEOR_SITE_UNLOCK_ACT) {
+        merged.meteorSite.unlocked = true;
     }
     reconcileMapPrimaryContentUnlocks(merged);
     if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
+    if (typeof stumpBox === 'object') stumpBox.restore(merged); merged.stumpCube = stumpCube.normalize(merged.stumpCube);
     merged.saveVersion = defaultGame.saveVersion;
-    merged.bountyHunt = bountyRuntime.restore(save.bountyHunt);
-    merged.enemies.forEach(enemy => { delete enemy.isBountyTarget; delete enemy.bountyId; });
-    // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
-    // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
-    // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
-    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
+    // 보물사냥은 삭제된 콘텐츠: 남은 진행·예약 보물은 지급 없이 버리고, 표적이던 적은 표시만 지운다.
+    delete merged.bountyHunt;
+    const explorationPacks = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
+    [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat()
+        .forEach(enemy => { if (enemy) { delete enemy.isBountyTarget; delete enemy.bountyId; } });
+    [merged.enemies, ...explorationPacks.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(stripBossPatternRuntime);
+    stripRemovedGrowthBoard(merged);
+    stripRemovedFlasks(merged);
+    stripRemovedStarWedges(merged);
+    stripRemovedAuxSystems(merged);
+    migrateRetiredWoodMonsters(merged);
     shrineRuntime.ensureState(merged);
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);
-    return normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
+    const normalized = normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
+    // Escrow identity checks need the migrated exploration loot containers first.
+    playerStall.restore(normalized);
+    return normalized;
 }
 
 function normalizeSavedCombatRuntime(state) {
+    actExplorationState.restore(state);
     combatLootReceipts.normalize(state);
     state.cosmosGravity = null;
     restoreCosmosRouteSave(state);
@@ -1152,7 +1260,7 @@ function normalizeSavedCombatRuntime(state) {
 }
 
 function getSavedZoneForValidation(state) {
-    if (typeof state.currentZoneId === 'string' && state.currentZoneId.startsWith('worldtree_')) return createWorldTreeJourneyZone(state.currentZoneId, state);
+    if (state.currentZoneId === ATLAS.zoneId) return atlas.zone(state);
     // During boot the current game has no challenge yet; validate the incoming snapshot instead.
     if (state.currentZoneId === 'cosmos_challenge') return createCosmosChallengeZone(state);
     const zone = getZone(state.currentZoneId);

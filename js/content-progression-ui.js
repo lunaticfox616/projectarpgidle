@@ -1,4 +1,22 @@
 /** Menu projection and purchase event boundary; the ledger is owned by contentProgression. */
+// 해금 카드의 "…에 있습니다" 줄: 콘텐츠가 있는 곳을 메뉴 이름 그대로.
+const CONTENT_ROUTE_PATHS = Object.freeze({
+    'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
+    'item-tab-hall': '장비 → 장비 전당',
+    'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
+    'skill-tab-condition': '스킬 젬 → 전술 규칙',
+    'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 전직', 'tab-char': '스킬트리',
+    'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-talent': '재능',
+    'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
+    'map-explore-voidrift': '지도 → 탐험 → 공허 균열 · 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
+    'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-deep-chaos': '지도 → 탐험 → 혼돈 심화층', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
+});
+// 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
+const CONTENT_CARD_DEDICATED = Object.freeze({
+    stump: 'unlock_stump_box', timerift: 'unlock_time_rift',
+    chaosRealm: 'unlock_chaos_realm', sky: 'unlock_sky_tower', underworld: 'unlock_underworld', cosmos: 'unlock_cosmos',
+    ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
+});
 const contentUnlockUi = {
     renderedKey: '',
     selectedId: 'craft',
@@ -10,12 +28,12 @@ const contentUnlockUi = {
         game.unlocks.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬 젬 장착',
-            `[${name}] 젬을 획득했습니다.\n스킬 젬 탭에서 빛나는 젬을 선택하고 ‘장착’을 누르세요.`, 'tab-skills');
+            `[${name}] 젬을 얻었습니다.\n‘스킬 젬’에서 빛나는 젬을 누르고 ‘장착’을 누르세요.\n장착한 젬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
     },
     announceLoop() {
         if (game.contentProgression && contentProgression.points().complete) return;
         const body = game.contentProgression
-            ? `루프 ${game.season} 도달 · 해금 포인트 ${contentProgression.balance()}P 보유\n해금 탭에서 원하는 콘텐츠를 선택하세요.`
+            ? `루프 ${game.season}에 도달해 해금 포인트 ${contentProgression.balance()}P가 생겼습니다.\n‘해금’에서 원하는 콘텐츠를 골라 여세요.\n한 번 연 콘텐츠는 루프가 바뀌어도 열려 있습니다.`
             : `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`;
         queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택', body, 'tab-unlocks');
     },
@@ -33,7 +51,8 @@ const contentUnlockUi = {
             }
             for (const route of def.routes || []) this.syncRoute(route, locked);
         }
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks']) this.syncRoute(route, !contentProgression.canOpen(route));
+        // 해금 목록 항목 없이 진행 조건으로만 열리는 경로(전술 규칙: 루프 2 · 액트 3 전술).
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'skill-tab-condition']) this.syncRoute(route, !contentProgression.canOpen(route));
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
         this.resetClosedSelection('skillSubtab', 'skill-tab-equip', '#tab-skills');
         this.resetClosedSelection('mapSubtab', 'map-tab-zones', '#tab-map');
@@ -66,7 +85,7 @@ const contentUnlockUi = {
     },
     art(def) {
         const root = CONTENT_UNLOCK_CATALOG.find(row => row.id === this.branchRoot(def));
-        return 'assets/' + (def.art || root.art || 'ui/currency/sap-bud.png');
+        return pixelIconPath('assets/' + (def.art || root.art || 'ui/currency/sap-bud.png'));
     },
     node(def) {
         const status = contentProgression.status(def.id);
@@ -138,16 +157,45 @@ const contentUnlockUi = {
                 { duration:420, delay:delay + 140 + depth * 70, fill:'backwards', easing:'ease-out' }));
         });
     },
-    milestone(loop) {
+    milestone(loop, end = loop) {
         const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop);
         const choices = rows.filter(row => row.cost > 0);
         const automatic = rows.filter(row => row.cost === 0);
-        const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|생장판 확장|생장판 시너지|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
+        const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
-            <summary><strong>루프 ${loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}</span></summary>
+            <summary><strong>루프 ${end > loop ? `${loop}–${end}` : loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}${this.milestoneTeaser(loop)}</span></summary>
             <p class="unlock-loop-requirement">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>
             ${this.milestoneRows(automatic, '자동 개방')}${this.milestoneRows(choices, '성장 선택')}
             ${additions.length ? `<p class="unlock-expansion">${additions.map(escapeHTML).join('<br>')}</p>` : ''}</details>`;
+    },
+    /** 같은 예고만 이어지는 앞날의 루프는 한 줄로 묶는다(루프 21 ~ 24가 "심화: 혼돈 단계 상승" 네 줄이었다 — 검토 5차). */
+    milestoneRuns(loops) {
+        return loops.reduce((runs, loop) => {
+            const plain = loop > game.season && !CONTENT_UNLOCK_CATALOG.some(row => row.minLoop === loop);
+            const key = plain ? this.milestoneTeaser(loop) : null, last = runs[runs.length - 1];
+            if (key && last && last.key === key && last.end === loop - 1) last.end = loop;
+            else runs.push({ start: loop, end: loop, key });
+            return runs;
+        }, []);
+    },
+    /** 접힌 이정표 줄에도 그 루프에 열리는 것을 한두 개 보인다(빈 "예정" 줄만 늘어서 있었다 — 검토 4차). */
+    milestoneTeaser(loop) {
+        if (loop === game.season) return '';
+        const names = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop).map(row => row.name);
+        const first = names.length ? names.slice(0, 2).join(' · ') + (names.length > 2 ? ` 외 ${names.length - 2}` : '')
+            : (SEASON_CONTENT_ROADMAP[loop]?.features || [])[0];
+        return first ? ` · ${escapeHTML(first)}` : '';
+    },
+    /** 진행 · 이정표에서 아직 고른 항목이 없을 때의 오른쪽 설명(앞 화면에서 고른 항목이 남아 있었다 — 검토 4차). */
+    loopSummary() {
+        const next = game.season + 1;
+        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">진행 · 이정표</span><h3>루프 ${game.season}</h3>
+            <p>루프마다 자동으로 열리는 전투 콘텐츠와 고를 수 있는 성장 수단입니다. 목록의 항목을 누르면 설명이 여기에 나옵니다.</p></div>
+            <div class="unlock-requirements"><h4>다음 루프 ${next}</h4><div><span>${escapeHTML(getLoopAbyssRequirementText(next))}</span></div></div>`;
+    },
+    setView(view) {
+        this.view = view;
+        this.selectedId = view === 'choice' ? this.selectedId || 'craft' : null;
     },
     milestoneRows(rows, label) {
         if (!rows.length) return '';
@@ -163,12 +211,12 @@ const contentUnlockUi = {
         const toggle = this.showAllMilestones ? '현재·다음 이정표만' : '전체 이정표 보기';
         return `<div class="unlock-milestone-intro"><p>전투는 진행에 따라 열리고, 성장 수단은 직접 선택합니다.</p>
             <button type="button" data-unlock-horizon="toggle">${toggle}</button></div>
-            <div class="unlock-milestones">${shown.map(loop => this.milestone(loop)).join('') || this.milestone(game.season)}</div>`;
+            <div class="unlock-milestones">${this.milestoneRuns(shown).map(run => this.milestone(run.start, run.end)).join('') || this.milestone(game.season)}</div>`;
     },
     entryReward(def, status) {
         const reward = !status.unlocked && def.rewardText ? `<p class="unlock-reward">${escapeHTML(def.rewardText)}</p>` : '';
         const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(def.name)} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(row.label)}</option>`).join('')}</select></label>` : '';
-        const guide = def.id === 'craft' ? '<p class="unlock-craft-guide">노멀 장비가 없다면 사냥에서 획득하세요. 제련하지 않아도 다음 루프는 진행할 수 있습니다.</p>' : '';
+        const guide = def.id === 'craft' ? '<p class="unlock-craft-guide">일반 장비가 없다면 사냥에서 획득하세요. 제련하지 않아도 다음 루프는 진행할 수 있습니다.</p>' : '';
         return reward + picker + guide;
     },
     lockAttribute(id) {
@@ -182,10 +230,8 @@ const contentUnlockUi = {
     },
     relatedFeatures(def) {
         if (!def.features) return '';
-        const stages = def.id === 'growth' ? GROWTH_SYNERGY_STAGES.map(stage =>
-            `<li>루프 ${stage.req.season} · ${escapeHTML(stage.label)}</li>`).join('') : '';
         return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${def.features.map(row =>
-            `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}${stages ? `<ul>${stages}</ul>` : ''}</details>`;
+            `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</details>`;
     },
     detail(def) {
         const status = contentProgression.status(def.id);
@@ -193,11 +239,14 @@ const contentUnlockUi = {
         const action = status.unlocked ? this.openButton(def) : def.cost === 0
             ? '<button type="button" disabled>조건 달성 시 자동 개방</button>'
             : `<button type="button" data-unlock-content="${def.id}" ${status.available ? '' : 'disabled'}>${escapeHTML(status.reason)}</button>`;
+        // 첫 보상은 설명 바로 아래, 해금 단추는 맨 아래에서 창 본문 아래쪽에 붙어(sticky) 늘 보인다 — 작은 창(1366×768 ·
+        // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
         return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)} · ${def.cost ? '선택 해금' : '자동 개방'}</span>
             <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p></div>
+            <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
             ${this.lifecycle(def)}${this.relatedFeatures(def)}
             <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ' · ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
-            <div class="unlock-detail-action">${this.entryReward(def, status)}${action}</div>`;
+            <div class="unlock-detail-action">${action}</div>`;
     },
     openButton(def) {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));
@@ -224,7 +273,7 @@ const contentUnlockUi = {
         root.innerHTML = `<header class="content-unlock-heading"><span>루프 ${game.season}</span>${this.pointBalanceHtml()}</header>
             <div class="unlock-toolbar"><nav aria-label="해금 방식"><button type="button" data-unlock-view="choice" aria-pressed="${this.view === 'choice'}">선택 해금</button><button type="button" data-unlock-view="progress" aria-pressed="${this.view === 'progress'}">진행 · 이정표</button></nav></div>
             <div class="unlock-workspace"><div class="unlock-content">${this.view === 'choice' ? this.choiceMap() : this.progressionMap()}</div>
-            <aside class="unlock-detail" aria-label="선택한 콘텐츠">${this.detail(selected)}</aside></div>`;
+            <aside class="unlock-detail" aria-label="선택한 콘텐츠">${selected ? this.detail(selected) : this.loopSummary()}</aside></div>`;
         restoreUiDisclosureState(root);
         scroll.forEach(([name, left, top]) => root.getElementsByClassName(name)[0]?.scrollTo({ left, top }));
         this.revealBranches(root, starter);
@@ -233,7 +282,7 @@ const contentUnlockUi = {
         if (!control) return;
         const data = control.dataset;
         if (data.unlockSelect) { this.select(data.unlockSelect); return; }
-        if (data.unlockView) this.view = data.unlockView;
+        if (data.unlockView) this.setView(data.unlockView);
         if (data.unlockGroup) this.group = data.unlockGroup;
         if (data.unlockHorizon) this.showAllMilestones = !this.showAllMilestones;
         this.render();
@@ -244,13 +293,16 @@ const contentUnlockUi = {
         this.render();
         const root = document.getElementById('content-unlock-panel');
         root.querySelector(`[data-unlock-select="${id}"]`)?.focus({ preventScroll:true });
-        if (root.clientWidth < 600) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
+        if (root.clientWidth < 840) root.querySelector('.unlock-detail').scrollIntoView({ block:'nearest' });
     },
     purchase(id) {
-        const key = document.querySelector(`[data-unlock-reward="${id}"]`)?.value;
+        const key = document.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();
         const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
-        addLog(result.message, 'season-up', { toast: true });
+        // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
+        const carded = this.announceContent(id);
+        addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
+        this.announceOpenedSince(opened); // free content that comes with it (거래소 · 장비 전당 with 장비 제련)
         game.noti.season = contentProgression.balance() > 0;
         checkUnlocks();
         updateStaticUI();
@@ -273,24 +325,48 @@ const contentUnlockUi = {
         if (section) section.open = true;
         requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block:'nearest' }));
     },
-    openBounty() {
-        switchTab('tab-battle');
-        const state = bountyRuntime.ensureState();
-        if (state.remaining===0) { bountyUi.openTreasure(); return; }
-        addLog(`다음 보물사냥까지 보스 ${state.remaining}회 처치`, 'season-up', { toast:true });
+    /** The route an unlock card or button opens: explore / sub-tab / tab, whichever is most exact. */
+    routeKey(action) {
+        const map = action.mapSubtab && action.mapSubtab !== 'map-tab-zones' ? action.mapSubtab : null;
+        return action.explore || action.subtab || action.skillSubtab || map || action.tab;
+    },
+    /** New content card: what it is (the catalog line) and where it lives. Once per content; returns true if queued. */
+    announceContent(id) {
+        const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
+        if (!def || def.minLoop <= 1 || CONTENT_CARD_DEDICATED[id]) return false;
+        const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
+        const path = CONTENT_ROUTE_PATHS[route];
+        const before = tutorialQueue.length;
+        queueTutorialNotice(`unlock_content_${id}`, def.name, path ? `${def.description}\n‘${path}’에 있습니다.` : def.description,
+            action ? action.tab : null, { subtabId: route, contentId: id, openLabel: `${def.name} 열기` });
+        return tutorialQueue.length > before;
+    },
+    /** Free contents open right now (contentProgression keeps them in automatic once reached). */
+    openedContents() {
+        return new Set(game.contentProgression ? game.contentProgression.automatic : []);
+    },
+    announceOpenedSince(before) {
+        this.openedContents().forEach(id => { if (!before.has(id)) this.announceContent(id); });
+    },
+    /** contentProgression.sync, plus a card for each free content that has just opened (loop reached, condition met).
+     * Contents open at load are not news: the save migration syncs before any of this runs. */
+    syncOpened() {
+        const before = this.openedContents();
+        contentProgression.sync();
+        this.announceOpenedSince(before);
     },
     open(id) {
-        if (!contentProgression.isUnlocked(id)) return;
+        if (!contentProgression.isUnlocked(id)) return false;
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         const action = this.routeAction(def);
-        if (!action) return;
-        if (action.bounty) { this.openBounty(); return; }
+        if (!action) return false;
         if (!getRenderingUiTabIds().has(action.tab)) switchTab(action.tab);
         if (action.subtab) switchItemSubtab(action.subtab);
         if (action.skillSubtab) switchSkillSubtab(action.skillSubtab);
         if (action.mapSubtab) switchMapSubtab(action.mapSubtab);
         if (action.explore) switchMapExploreSubtab(action.explore);
         if (action.section) this.openSection(action.section);
+        return true;
     }
 };
 document.addEventListener('click', event => {

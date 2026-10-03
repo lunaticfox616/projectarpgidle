@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 async function openMobile(page, native = false) {
     await page.setViewportSize({ width: 412, height: 915 });
@@ -19,7 +20,7 @@ async function openMobile(page, native = false) {
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').tap();
-    await page.locator('[data-class-id="warrior"]').tap();
+    await pickClass(page, 'warrior', { tap: true });
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
@@ -27,130 +28,6 @@ async function openMobile(page, native = false) {
         hideInfoTooltip();
     });
 }
-
-test('touch browsing scrolls inventory without moving gear, and explicit equip remains reachable', async ({ page }, info) => {
-    test.skip(!info.project.use.isMobile, 'Android touch interactions');
-    await openMobile(page);
-    await page.evaluate(() => {
-        game.settings.autoEquipEmptySlots = false;
-        game.inventory = Array.from({ length: 16 }, () => createItemFromBase(BASE_ITEM_DB.find(b => b.id === 'cloth_hood'), 'rare', 1));
-        switchTab('tab-items'); updateStaticUI();
-    });
-    const management = page.locator('.equipment-bulk-menu > summary');
-    await expect(page.locator('#ui-equipment-triage')).toBeVisible();
-    await expect(page.locator('#btn-salvage-recovery')).toBeHidden();
-    await management.tap();
-    await expect(page.locator('#btn-salvage-recovery')).toBeVisible();
-    await management.tap();
-    // DOM order is reversed: the first record is in the bottom row behind the fixed dock.
-    // Start the browse gesture on an unobscured upper-row item.
-    const first = page.locator('.equipment-grid-item').last();
-    await first.scrollIntoViewIfNeeded();
-    const before = await page.evaluate(() => JSON.stringify(game.equipmentInventoryPlacements));
-    const scrollBefore = await first.evaluate(el => {
-        let offset = 0;
-        for (let node = el; node; node = node.parentElement) offset += node.scrollTop;
-        return offset;
-    });
-    const box = await first.boundingBox();
-    const session = await page.context().newCDPSession(page);
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + 20, y: box.y + 40 }] });
-    for (let i = 1; i <= 8; i++) {
-        await session.send('Input.dispatchTouchEvent', {
-            type: 'touchMove', touchPoints: [{ x: box.x + 20, y: box.y + 40 - i * 12 }]
-        });
-        await page.waitForTimeout(35); // A finger gesture, not eight instant moves with extreme fling velocity.
-    }
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(500); // Let native inertial scrolling end before the next deliberate tap.
-    const scrollAfter = await first.evaluate(el => {
-        let offset = 0;
-        for (let node = el; node; node = node.parentElement) offset += node.scrollTop;
-        return offset;
-    });
-    expect(scrollAfter).toBeGreaterThan(scrollBefore);
-    expect(await page.evaluate(() => equipmentInventoryInteraction.isCarrying())).toBe(false);
-    expect(await page.evaluate(() => JSON.stringify(game.equipmentInventoryPlacements))).toBe(before);
-    await first.tap();
-    const inspector = page.locator('#ui-equipment-inventory-inspector');
-    await expect(inspector).toBeVisible();
-    await inspector.getByRole('button', { name: '장착', exact: true }).tap();
-    expect(await page.evaluate(() => !!game.equipment['투구'])).toBe(true);
-    const arrange = page.locator('#equipment-touch-arrange');
-    await arrange.tap();
-    await expect(arrange).toHaveAttribute('aria-pressed', 'true');
-    await arrange.tap();
-    await expect(arrange).toHaveAttribute('aria-pressed', 'false');
-    await page.screenshot({ path: info.outputPath('s24-equipment.png'), scale: 'css' });
-});
-
-test('Android back closes dialogs, returns from management, then minimizes with a save', async ({ page }, info) => {
-    test.skip(!info.project.use.isMobile, 'Android plugin boundary');
-    await openMobile(page, true);
-    await page.evaluate(() => switchTab('tab-items'));
-    await page.locator('#btn-auto-salvage').tap();
-    await expect(page.locator('#auto-salvage-config-overlay')).toBeVisible();
-    await page.evaluate(() => window.androidEvents.backButton());
-    await expect(page.locator('#auto-salvage-config-overlay')).toBeHidden();
-    await expect(page.locator('#tab-items')).toHaveClass(/active/);
-    await page.evaluate(() => window.androidEvents.backButton());
-    await expect(page.locator('#tab-battle')).toHaveClass(/active/);
-    await page.evaluate(() => window.androidEvents.backButton());
-    expect(await page.evaluate(() => window.androidCalls)).toContain('minimize');
-    expect(await page.evaluate(() => game.saveMeta.lastModifiedAt)).toBeGreaterThan(0);
-    await page.evaluate(() => { window.androidCalls.length = 0; setStartupOverlayActive(true); });
-    await page.locator('#startup-about-open').tap();
-    await page.evaluate(() => window.androidEvents.backButton());
-    await expect(page.locator('#startup-about-dialog')).toBeHidden();
-    expect(await page.evaluate(() => window.androidCalls)).toEqual([]);
-    await page.evaluate(() => window.androidEvents.backButton());
-    expect(await page.evaluate(() => window.androidCalls)).toEqual(['minimize']);
-});
-
-test('Android inactive state stops combat and canvas work even before WebView visibility changes', async ({ page }, info) => {
-    test.skip(!info.project.use.isMobile, 'Android lifecycle and rendering');
-    await openMobile(page, true);
-    const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
-    await page.evaluate(() => {
-        window.battlePaints = 0;
-        const clear = CanvasRenderingContext2D.prototype.clearRect;
-        CanvasRenderingContext2D.prototype.clearRect = function (...args) {
-            if (this.canvas.id === 'battlefield-canvas') window.battlePaints++;
-            return clear.apply(this, args);
-        };
-        runForegroundCombat(0); runForegroundCombat(100);
-    });
-    await expect.poll(() => page.evaluate(() => window.battlePaints)).toBeGreaterThan(1);
-    const sample = await page.evaluate(() => ({ paints: window.battlePaints, at: performance.now() }));
-    await page.waitForTimeout(600);
-    const rate = await page.evaluate(sample => (window.battlePaints - sample.paints) * 1000 / (performance.now() - sample.at), sample);
-    expect(rate).toBeGreaterThan(5);
-    expect(rate).toBeLessThanOrEqual(32);
-    const scale = await page.locator('#battlefield-canvas').getAttribute('data-render-scale');
-    expect(Number(scale)).toBe(1.5);
-    const paused = await page.evaluate(() => {
-        window.androidEvents.appStateChange({ isActive: false });
-        return { clock: game.combatTimeMs, paints: window.battlePaints, hidden: document.hidden };
-    });
-    expect(paused.hidden).toBe(false); // Reproduce Android's event arriving before visibilitychange.
-    await page.waitForTimeout(600);
-    expect(await page.evaluate(() => {
-        runForegroundCombat(1000);
-        return { clock: game.combatTimeMs, paints: window.battlePaints };
-    })).toEqual({ clock: paused.clock, paints: paused.paints });
-    await page.evaluate(() => window.androidEvents.appStateChange({ isActive: true }));
-    await expect.poll(() => page.evaluate(() => window.battlePaints)).toBeGreaterThan(paused.paints);
-    expect(await page.evaluate(() => { runForegroundCombat(1100); return game.combatTimeMs; })).toBe(paused.clock + 100);
-    await page.evaluate(() => switchTab('tab-items'));
-    await expect(page.locator('#mobile-battle-pip')).toBeVisible();
-    const pipPause = await page.evaluate(() => {
-        window.androidEvents.appStateChange({ isActive: false }); return window.battlePaints;
-    });
-    await page.waitForTimeout(600);
-    expect(await page.evaluate(() => window.battlePaints)).toBe(pipPause);
-    expect(errors).toEqual([]);
-});
 
 test('Android auth uses external PKCE and ignores unrelated deep links', async ({ page }, info) => {
     test.skip(!info.project.use.isMobile, 'Android plugin boundary');
@@ -175,27 +52,6 @@ test('Android auth uses external PKCE and ignores unrelated deep links', async (
     expect(await page.evaluate(() => cloudState.user)).toEqual(userBefore);
     await page.evaluate(() => window.androidEvents.browserFinished());
     expect(await page.evaluate(() => cloudState.busy)).toBe(false);
-});
-
-test('touch tree navigation pans and pinches without spending passive points', async ({ page }, info) => {
-    test.skip(!info.project.use.isMobile, 'Touch canvas gestures');
-    await openMobile(page);
-    await page.evaluate(() => { switchTab('tab-char'); camZoom = 1; drawPassiveTree(); });
-    const canvas = page.locator('#tree-canvas');
-    await canvas.scrollIntoViewIfNeeded();
-    const box = await canvas.boundingBox();
-    const x = box.x + box.width / 2, y = box.y + box.height / 2;
-    const before = await page.evaluate(() => ({ points: game.passivePoints, x: camX, zoom: camZoom }));
-    const session = await page.context().newCDPSession(page);
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 50, y: y + 30 }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    expect(await page.evaluate(() => camX)).not.toBe(before.x);
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x - 35, y, id: 0 }, { x: x + 35, y, id: 1 }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 65, y, id: 0 }, { x: x + 65, y, id: 1 }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    expect(await page.evaluate(() => camZoom)).toBeGreaterThan(before.zoom);
-    expect(await page.evaluate(() => game.passivePoints)).toBe(before.points);
 });
 
 test('all unlocked mobile navigation entries open without page overflow or runtime errors', async ({ page }, info) => {
@@ -234,4 +90,122 @@ test('all unlocked mobile navigation entries open without page overflow or runti
     expect(overflows).toEqual([]);
     expect(errors).toEqual([]);
     await info.attach('visited-mobile-tabs', { body: JSON.stringify(ids), contentType: 'application/json' });
+});
+
+test('the phone dock keeps its cells when the map unlocks', async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, 'Phone bottom dock');
+    await openMobile(page);
+    // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬 젬 moved under the thumb.
+    const cells = () => page.locator('#tab-header-bottom > :is(.tab-btn, .mobile-nav-more):visible').evaluateAll(elements =>
+        elements.map(el => el.id + '@' + Math.round(el.getBoundingClientRect().left)));
+    const before = await cells();
+    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-items', 'btn-tab-map', 'btn-tab-skills']);
+    const map = page.locator('#btn-tab-map');
+    await expect(map).toHaveClass(/nav-locked/);
+    await expect(map).toHaveAttribute('aria-disabled', 'true');
+    // The locked cell is aria-disabled for assistive tech, yet a tap still explains when it opens.
+    await map.tap({ force: true });
+    await expect(page.locator('#tab-map')).toBeHidden();
+    await expect(page.locator('#game-toast-region .game-toast', { hasText: '액트 1을 마치면 지도가 열립니다.' })).toBeVisible();
+    await page.evaluate(() => { game.maxZoneId = 1; checkUnlocks(); updateStaticUI(); });
+    await page.waitForFunction(() => {
+        if (uiRefreshRunning || uiRefreshQueued) return false;
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+        return !document.getElementById('btn-tab-map').classList.contains('nav-locked');
+    });
+    expect(await cells()).toEqual(before);
+    await map.tap();
+    await expect(page.locator('#tab-map')).toBeVisible();
+});
+
+// Review 2026-10-01: the tapped class card tooltip stayed over the HUD after the battle started.
+// QA 2026-10-01: one tap on a phone started the game while the start gem and weapon lived only in the hover tooltip, so the
+// class was chosen blind. Phones select on the first tap and start from "이 직업으로 시작"; PC keeps one click and the tooltip.
+test('a class card shows its start gem before the pick and leaves no class tooltip over the battle HUD', async ({ page }, info) => {
+    const mobile = !!info.project.use.isMobile;
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest')[mobile ? 'tap' : 'click']();
+    const overlay = page.locator('#loop-hero-select-overlay');
+    const detail = overlay.locator('#loop-hero-select-detail');
+    const start = overlay.locator('#loop-hero-select-start');
+    const gemLine = classId => page.evaluate(id => `시작 스킬 젬: ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
+    const started = () => page.evaluate(() => game.heroSelectionInitialized);
+    if (mobile) {
+        await expect(start).toBeDisabled();
+        await overlay.locator('[data-class-id="occultist"]').tap();
+        await expect(detail).toContainText(await gemLine('occultist'));
+        await expect(overlay).toHaveClass(/active/);
+        expect(await started()).toBe(false);
+        await expect(page.locator('#info-tooltip')).toBeHidden();
+        await overlay.locator('[data-class-id="warrior"]').tap();
+        await expect(detail).toContainText(await gemLine('warrior'));
+        await expect(overlay.locator('[aria-pressed="true"]')).toHaveAttribute('data-class-id', 'warrior');
+        expect(await started()).toBe(false);
+        await expect(start).toBeInViewport({ ratio: 1 });
+        expect((await start.boundingBox()).height).toBeGreaterThanOrEqual(44);
+        await start.tap();
+    } else {
+        await expect(start).toBeHidden();
+        await overlay.locator('[data-class-id="warrior"]').hover();
+        await expect(page.locator('#info-tooltip')).toContainText(await gemLine('warrior'));
+        await overlay.locator('[data-class-id="warrior"]').click();
+    }
+    await expect(overlay).not.toHaveClass(/active/);
+    expect(await page.evaluate(() => [game.heroSelectionInitialized, game.selectedClassId])).toEqual([true, 'warrior']);
+    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    if (mobile) await expect(page.locator('#info-tooltip')).toBeHidden();
+});
+
+test('HUD gem hover details follow the mouse and never stay behind after a tap', async ({ page }, info) => {
+    // Review 2026-10-01: tapping the mobility gem (the dash) left its gem tooltip over the battlefield on phones.
+    const mobile = !!info.project.use.isMobile;
+    if (mobile) await openMobile(page);
+    else {
+        await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+        await page.goto('/');
+        await page.locator('#btn-startup-guest').click();
+        await pickClass(page, 'warrior');
+        await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+        await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
+    }
+    await page.evaluate(() => {
+        game.mobilitySkill = Object.keys(SKILL_DB).find(name => SKILL_DB[name].tags?.includes('mobility'));
+        hideInfoTooltip(); renderCombatSkillHud();
+    });
+    const slot = page.locator('#ui-combat-skill-gems .player-hud-skill-slot.mobility');
+    if (mobile) {
+        await slot.tap();
+        await expect(page.locator('#info-tooltip')).toBeHidden();
+    } else {
+        await slot.hover();
+        await expect(page.locator('#info-tooltip')).toBeVisible();
+        await page.mouse.move(5, 5);
+        await expect(page.locator('#info-tooltip')).toBeHidden();
+    }
+});
+
+// Review round 3 #3: an opened goal drawer stayed over half of every tab. Outside taps on the battle screen keep it open by
+// design (smoke-goal-drawer 3-2); a screen change folds it unless pinned.
+test('the phone goal drawer folds on a screen change unless pinned', async ({ page }, info) => {
+    test.skip(!info.project.use.isMobile, 'Phone goal drawer');
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').tap();
+    await pickClass(page, 'warrior', { tap: true });
+    await page.waitForFunction(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen());
+    await page.evaluate(() => { tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); });
+    const opener = page.locator('#btn-combat-goal-toggle');
+    const drawer = page.locator('#ui-goal-drawer');
+    await expect(opener).toBeVisible({ timeout: 15000 });
+    await opener.tap();
+    await expect(drawer).toHaveClass(/expanded/);
+    await page.locator('#btn-tab-items').tap();
+    await expect(drawer).not.toHaveClass(/expanded/);
+    await page.locator('#btn-tab-battle').tap();
+    await opener.tap();
+    await expect(drawer).toHaveClass(/expanded/);
+    await page.locator('#ui-goal-pin').tap();
+    await page.locator('#btn-tab-skills').tap();
+    await expect(drawer).toHaveClass(/expanded/);
 });

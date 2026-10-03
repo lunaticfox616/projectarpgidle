@@ -67,14 +67,10 @@ context.__distantDevotion = Object.values(context.PASSIVE_TREE.nodes).find(node 
     !devotionSpokes.includes(node.id) && node.effects.some(effect => effect.stat === 'devotion' && effect.val > 0)).id;
 run('game.passives = [...__stormNodes, __distantDevotion];');
 assert.strictEqual(context.getAllocatedPassiveStatValue('lightPctDmg'), 99);
-run(`game.passives = [...__stormNodes, 'n6edbwrjop1', 'n6edbwrjop1'];
-    game.starWedge.disabledNodeEffects.n6edbwrjop1 = true;`);
+run(`game.passives = [...__stormNodes, 'n6edbwrjop1', 'n6edbwrjop1'];`);
 assert.strictEqual(context.getEffectivePassiveNodeEffects(stormMajor)[0].val, 40);
-run('delete game.starWedge.disabledNodeEffects.n6edbwrjop1; game.passives = __stormNodes.slice();');
+run('game.passives = __stormNodes.slice();');
 assert.strictEqual(context.getEffectivePassiveNodeEffects(stormMajor)[0].val, 50, 'returning the spoke must restore the major');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(context.getEffectivePassiveNodeEffects(stormMajor,
-    { currentStat: 'flatHp', currentVal: 30 }))), [{ stat: 'flatHp', val: 30 }],
-    'a star-wedge replacement is a replacement effect, not the original damage bonus');
 
 // Re-investing a saved preset must compute the same penalty from its allocated IDs.
 run('game.passives = []; game.passivePoints = 100;');
@@ -95,14 +91,16 @@ assert.strictEqual(context.getEffectivePassiveNodeEffects(stormMajor)[1].val, 40
 run('setPassiveTreeAutoInvest(false);');
 
 // Hidden elemental branches must add their own element, never generic damage.
+// generalPct is the summed generic damage increase (summonSharedPctDmg carries it unchanged).
+const elementProbe = '(stats => ({ ...stats.talentSourceStats, generalPct: stats.summonSharedPctDmg }))(getPlayerStats())';
 run('game.passives = [];');
-const baseline = run('getPlayerStats().talentSourceStats');
+const baseline = run(elementProbe);
 for (const [id, field, amount] of [
     ['nhenzv8gp4i', 'firePct', 30], ['ndru1xggqhg', 'lightPct', 25], ['nlwk06igprm', 'coldPct', 30]
 ]) {
     context.__elementNodeId = id;
     run('game.passives = [__elementNodeId];');
-    const stats = run('getPlayerStats().talentSourceStats');
+    const stats = run(elementProbe);
     for (const stat of ['generalPct', 'firePct', 'lightPct', 'coldPct']) {
         assert.strictEqual(stats[stat] - baseline[stat], stat === field ? amount : 0,
             `${id}: ${stat} must only increase for the corresponding element`);
@@ -186,7 +184,7 @@ const flags = JSON.parse(run(`JSON.stringify(getPassiveKeystoneCombatFlags(
     'farshot', 'duel', 'channelPath', 'erosionLegacy', 'proxyCovenant', 'maximumRoll',
     'fullEvasion', 'projectileFormation', 'explosiveDistill', 'soulSanctuary', 'movingWall',
     'bloodAcceleration', 'openingHunt', 'taintedWarhead', 'blackDistill', 'singleMystique',
-    'soleMinion', 'flaskOverdose'
+    'soleMinion', 'potionOverdose'
 ].forEach(flag => assert.strictEqual(flags[flag], true, `전투 규칙 플래그가 연결되지 않았습니다: ${flag}`));
 
 run('game.gridPlayer = { gx:0, gy:0 }; game.enemies = [{ id:1, hp:10 }];');
@@ -209,6 +207,10 @@ assert.strictEqual(hitMultiplier({ projectileFormation: true }, { id: 1 }, 0, 1)
     '관통 행렬은 두 번째 대상부터 피해를 40% 감폭해야 합니다.');
 assert.strictEqual(hitMultiplier({ explosiveDistill: true }, { id: 1 }), 0.75,
     '폭발성 증류는 포션 명중 피해를 25% 감폭해야 합니다.');
+assert.strictEqual(hitMultiplier({ potionOverdose: true }, { id: 1 }), 1.5,
+    '과잉 투여는 포션 명중 피해를 50% 증폭해야 합니다.');
+assert.strictEqual(hitMultiplier({ explosiveDistill: true, potionOverdose: true }, { id: 1 }), 1.125,
+    '두 포션 키스톤의 명중 배율은 곱으로 겹칩니다.');
 context.__openingTarget = { id: 1 };
 assert.strictEqual(run(`getPassiveKeystoneHitMultiplier({ passiveKeystoneFlags:{ openingHunt:true },
     sSkill:{ tags:[], ele:'phys' } }, __openingTarget, 0, 0, '사냥')`), 2,
@@ -236,12 +238,16 @@ context.__triplePath = [byName['삼중 계시'].id];
 assert.ok(run('getPassiveKeystoneConflict(__triplePath)').includes('동시에 할당할 수 없습니다'),
     '상호 배타 키스톤은 최단 경로 일괄 투자에서도 차단되어야 합니다.');
 
+// 과잉 투여(2026-10-01 물약 삭제로 재해석): 포션 스킬만 피해 ×1.5, 속도 ×0.75.
 setPassives(['과잉 투여']);
-context.__flask = { maxCharges: 11, chargesPerKills: 3 };
-assert.strictEqual(run('getPassiveUtilityFlaskMaxCharges(__flask)'), 5,
-    '과잉 투여의 최대 충전 감폭은 내림하여 적용되어야 합니다.');
-assert.strictEqual(run('getPassiveUtilityFlaskChargeKills(__flask)'), 6,
-    '과잉 투여의 처치 충전 획득 감폭은 필요 처치 수 2배로 적용되어야 합니다.');
+assert.strictEqual(run('getPassiveKeystoneCombatFlags(["spell", "potion"]).potionOverdose'), true);
+assert.strictEqual(run('getPassiveKeystoneCombatFlags(["spell", "projectile"]).potionOverdose'), false,
+    '과잉 투여는 포션 스킬에만 걸려야 합니다.');
+assert.strictEqual(run('scaleKeystoneAttackSpeed(2, { potionOverdose: true })'), 1.5,
+    '과잉 투여는 포션 스킬 속도를 25% 감폭해야 합니다.');
+assert.strictEqual(run('scaleKeystoneAttackSpeed(2, {})'), 2, '감폭이 없으면 속도는 그대로입니다.');
+assert.ok(Math.abs(run('scaleKeystoneAttackSpeed(2, { maximumRoll: true, potionOverdose: true })') - 1.05) < 1e-9,
+    '한 번의 중량과 과잉 투여의 속도 감폭은 곱으로 겹칩니다.');
 
 setPassives(['단 하나의 사역']);
 context.__soleStats = { passiveKeystoneFlags: { soleMinion: true }, summonCap: 8,

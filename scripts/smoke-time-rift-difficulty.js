@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const mapSource = fs.readFileSync('data/maps.js', 'utf8');
-const stateSource = fs.readFileSync('js/state.js', 'utf8');
+const stateSource = fs.readFileSync('js/state.js', 'utf8') + '\n' + fs.readFileSync('data/ascendancies.js', 'utf8') // 전직 정의는 2026-10-02 data로 옮겼다;
 
 const match = mapSource.match(/const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object\.freeze\((\[[^;]+\])\);/);
 assert(match, 'time-rift equivalent chaos depths must be explicit progression data');
@@ -11,7 +11,7 @@ const equivalentDepths = JSON.parse(match[1]);
 assert.deepStrictEqual(equivalentDepths, [1, 6, 11, 16, 22, 29, 37, 47, 62, 90]);
 
 const start = stateSource.indexOf('function getTimeRiftEquivalentChaosDepth');
-const end = stateSource.indexOf('function getStarWedgeUnlockReady', start);
+const end = stateSource.indexOf('function getMeteorSiteUnlockReady', start);
 assert(start >= 0 && end > start, 'time-rift difficulty helpers must remain available');
 const context = {
   Number,
@@ -50,7 +50,7 @@ function resetRift() {
 }
 function prepareAltar() {
     resetRift();
-    run(`changeZone(TIME_RIFT_PAST_ZONE_ID);startEncounterRun();finishEncounterRun();
+    run(`changeZone(TIME_RIFT_PAST_ZONE_ID);startEncounterRun(false);finishEncounterRun();
         var unique=generateUniqueItem(10,null,'첫 계약');
         var rare=createItemFromBase(BASE_ITEM_DB.find(base=>base.id===unique.baseId),'rare',20,
             {dropRealm:'cosmos',affixTierCap:20,affixTierFloor:20});

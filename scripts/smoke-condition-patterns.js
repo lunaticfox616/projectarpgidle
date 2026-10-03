@@ -38,7 +38,7 @@ context.game = {
 };
 const stats = { maxHp: 100, energyShield: 50 };
 
-assert(context.getConditionPatternTriggers(context.game, false).some(row => row.id === 'hp_below'), 'base HP condition must unlock with condition gems');
+assert(context.getConditionPatternTriggers(context.game, false).some(row => row.id === 'hp_below'), 'the base HP condition opens with the tactics rules');
 assert(!context.getConditionPatternTriggers(context.game, false).some(row => row.id === 'elite_present'), 'elite condition must remain locked before loop 5');
 assert(context.evaluateConditionPatternRule({ triggerType: 'hp_below', triggerValue: 35 }, stats, context.game, Date.now()), 'HP threshold must evaluate against current life');
 assert(!context.evaluateConditionPatternRule({ triggerType: 'hp_below', triggerValue: 20 }, stats, context.game, Date.now()), 'HP threshold must reject unmet values');
@@ -48,7 +48,7 @@ assert(!context.evaluateConditionPatternRule({ triggerType: 'es_above', triggerV
 context.game.playerEnergyShield = 10;
 
 const legacy = context.normalizeConditionPatternRule({ triggerType: 'enemy_many', hpThreshold: 3, skillName: '전장의 함성' });
-assert.strictEqual(legacy.actionType, 'condition_gem', 'legacy rules must migrate to condition gem actions');
+assert.strictEqual(legacy.actionType, 'target_nearest', 'a rule without an action falls back to the first tactic (condition gems are gone)');
 assert.strictEqual(legacy.triggerValue, 3, 'legacy hpThreshold must migrate without changing its threshold');
 
 context.game.season = 10;

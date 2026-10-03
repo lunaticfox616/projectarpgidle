@@ -1,10 +1,11 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 test('discovered map persists and an earned early loop remains actionable after loading', async ({ page }, info) => {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/'); await page.locator('#btn-startup-guest').click();
-    await page.locator('[data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
@@ -39,7 +40,7 @@ test('discovered map persists and an earned early loop remains actionable after 
     await expect(advance).toBeVisible();
     await advance.click(); await page.locator('#game-dialog-confirm').click();
     await expect.poll(() => page.evaluate(() => game.season)).toBe(2);
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
     await expect(map).toBeVisible(); await expect(advance).toBeHidden();
     expect(await page.evaluate(() => [game.seasonPoints, game.abyssClearedDepths])).toEqual([1, []]);

@@ -1,14 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
-for (const theme of ['dark', 'light']) test(`loop settlement shows real progress and preserves preparation and deferral in ${theme}`, async ({ page }, testInfo) => {
+test('loop settlement shows real progress and preserves preparation and deferral', async ({ page }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
-    await page.evaluate(theme => applyThemeMode(theme), theme);
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
@@ -46,7 +46,7 @@ for (const theme of ['dark', 'light']) test(`loop settlement shows real progress
     expect(await page.evaluate(() => contentProgression.balance())).toBe(2);
     await expect(ready).not.toBeVisible();
     await expect(page.locator('#loop-hero-select-overlay')).toBeVisible();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
     await page.evaluate(() => {
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);

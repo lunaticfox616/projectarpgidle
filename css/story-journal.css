@@ -5,9 +5,17 @@ body #tutorial-overlay #tutorial-journal-preference { margin-right:auto; font-si
 body #tutorial-overlay #tutorial-journal-preference[hidden] { display:none; }
 body #tutorial-overlay.is-story-scene .tutorial-card { width:min(920px,100%); max-height:92dvh; margin:0; padding:22px; overflow:auto; }
 body #tutorial-overlay.is-story-scene .tutorial-body { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:22px; align-items:center; white-space:normal; }
+body #tutorial-overlay.is-story-scene.is-story-text .tutorial-card { width:min(640px,100%); }
+body #tutorial-overlay.is-story-scene.is-story-text .tutorial-body { grid-template-columns:minmax(0,1fr); }
 .story-scene-art { display:block; width:100%; height:auto; max-height:65dvh; object-fit:contain; border:1px solid var(--color-line); border-radius:4px; }
 .story-scene-copy { line-height:1.9; font-size:15px; color:var(--color-text); word-break:keep-all; }
 .story-scene-copy p { margin:0 0 12px; }
+/* A story scene is read, not skimmed: toasts raised in the same moment (journal bonus, unlock notes) would sit on the
+   illustration or the continue button on a phone. They stay in the combat log and the journal. */
+body:has(#tutorial-overlay.is-story-scene.active) :is(#mobile-toast-root, #game-toast-region) { visibility:hidden; }
+.story-scene-quote { margin:0 0 14px; padding:2px 0 2px 12px; border-left:2px solid var(--color-accent-gold); color:var(--color-accent-gold); }
+.story-scene-quote p { margin:0 0 6px; }
+.story-scene-copy > .story-scene-quote:last-child { margin:14px 0 0; }
 .journal-entry-open { width:100%; padding:4px 0; background:transparent; border:0; text-align:left; font:inherit; cursor:pointer; }
 .journal-entry-open:hover strong { text-decoration:underline; text-underline-offset:4px; }
 .journal-entry-open:focus-visible { outline:2px solid var(--color-accent-gold); outline-offset:3px; }
@@ -38,8 +46,13 @@ body #journal-reader.is-text-only { width:min(660px,calc((100vw - 24px) / var(--
 @media(max-width:700px) {
     body #tutorial-overlay.is-story-scene { padding:12px; }
     body #tutorial-overlay.is-story-scene .tutorial-card { padding:16px; }
-    body #tutorial-overlay.is-story-scene .tutorial-body { grid-template-columns:1fr; gap:12px; }
-    .story-scene-art { max-height:43dvh; }
+    /* 휴대폰: 삽화가 남는 자리만큼 줄어(34dvh → 18dvh까지) 이야기 글 전체가 계속 단추 위에 한 번에 들어온다. 34dvh 고정이면
+       "다음부터 표시하지 않기" 줄이 붙는 액트 카드에서 마지막 줄이 23 ~ 39px 잘렸다(검토 2026-10-01). 그래도 넘치면 본문이
+       스크롤되고 아래 흐림(themes/pixel.css px-more-below)이 그 표시다. 기록 열람 창의 삽화는 34dvh 그대로. */
+    body #tutorial-overlay.is-story-scene .tutorial-body { display:flex; flex-direction:column; gap:12px; }
+    body #tutorial-overlay.is-story-scene .story-scene-art { flex:0 1 auto; min-height:18dvh; }
+    body #tutorial-overlay.is-story-scene .story-scene-copy { flex:none; }
+    .story-scene-art { max-height:34dvh; }
     .story-scene-copy { font-size:13px; line-height:1.7; }
     .journal-reader-head { padding:12px; }
     .journal-reader-pages { padding:12px; }

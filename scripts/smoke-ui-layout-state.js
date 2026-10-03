@@ -135,12 +135,12 @@ function bootManager(storedRaw, options = {}) {
 }
 
 // 8) 병합 하위 탭은 독립 창으로 열리지 않는다.
-// 큐브는 보조장비(tab-flask)가 창을 소유하므로 tab-cube를 다시 openWindow하면
+// 도감은 기록(tab-journal)이 창을 소유하므로 tab-codex를 다시 openWindow하면
 // 병합 패널 안에 제목 표시줄과 리사이즈 핸들이 중첩된다.
 {
     const m = bootManager(undefined);
-    assert.strictEqual(m.exposed.openWindow('tab-cube'), false, 'cube must not create a nested standalone window');
-    assert.strictEqual(m.exposed.openWindow('tab-flask'), true, 'the utility launcher must remain the cube window owner');
+    assert.strictEqual(m.exposed.openWindow('tab-codex'), false, 'codex must not create a nested standalone window');
+    assert.strictEqual(m.exposed.openWindow('tab-journal'), true, 'the records launcher must remain the codex window owner');
 }
 
 // 9) 기존 창 배치는 한 번만 몰입형 패시브 화면으로 이행하고, 이후 사용자의 복원 선택은 보존한다.
@@ -161,6 +161,36 @@ function bootManager(storedRaw, options = {}) {
     }));
     assert.strictEqual(restored.lastSaved().windows['tab-char'].maximized, false,
         '표현 버전 이행 후 사용자가 창 크기를 복원한 선택은 다시 덮어쓰면 안 된다');
+}
+
+// 10) 장비·스킬·지도 창은 한 번만 도킹 작업대로 이행하고, 떼어 낸 창은 다시 붙이지 않는다.
+//     전장 폭이 모자란 좁은 데스크톱에서는 도킹 대신 작업 영역 전체를 쓴다.
+{
+    const legacy = bootManager(JSON.stringify({
+        version: 1, passiveTreePresentationVersion: 1, workspacePresentationVersion: 1,
+        windows: { 'tab-items': { open: false, maximized: true, x: 150, y: 54, width: 1060, height: 780 } }
+    }), { desktop: true, width: 1440, height: 900 });
+    const upgraded = legacy.lastSaved();
+    assert.strictEqual(upgraded.workspacePresentationVersion, 2);
+    assert.strictEqual(upgraded.windows['tab-items'].docked, true, '기존 최대화 장비 창은 도킹 작업대로 이행해야 한다');
+    assert.strictEqual(upgraded.windows['tab-items'].maximized, false);
+    legacy.exposed.openWindow('tab-items');
+    const docked = legacy.lastSaved().windows['tab-items'];
+    assert(docked.x > 400 && docked.x + docked.width <= 1440, '도킹 창은 전장 오른쪽에 붙어야 한다: ' + JSON.stringify(docked));
+
+    const floating = bootManager(JSON.stringify({
+        version: 1, passiveTreePresentationVersion: 1, workspacePresentationVersion: 2,
+        windows: { 'tab-items': { open: false, docked: false, maximized: false, x: 300, y: 60, width: 800, height: 600 } }
+    }), { desktop: true, width: 1440, height: 900 });
+    floating.exposed.openWindow('tab-items');
+    assert.strictEqual(floating.lastSaved().windows['tab-items'].docked, false, '사용자가 떼어 낸 창은 다시 도킹하지 않는다');
+    assert.strictEqual(floating.lastSaved().windows['tab-items'].x, 300);
+
+    const narrow = bootManager(undefined, { desktop: true, width: 1100, height: 800 });
+    narrow.exposed.openWindow('tab-skills');
+    const cover = narrow.lastSaved().windows['tab-skills'];
+    assert.strictEqual(cover.docked, true, '도킹 선호는 저장된 채로 남는다');
+    assert.strictEqual(cover.x, 140, '좁은 화면에서는 레일 옆 작업 영역 전체를 쓴다');
 }
 
 console.log('smoke-ui-layout-state passed');

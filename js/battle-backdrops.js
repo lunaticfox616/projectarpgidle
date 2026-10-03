@@ -22,7 +22,7 @@ function getBattleBackdropKeyForZone(zone) {
     }
     if (zone.type === 'act') return `bgAct${Math.max(1, Math.min(10, (Number(zone.id) || 0) + 1))}`;
     if (FIXED_BATTLE_BACKDROP_KEYS[zone.type]) return FIXED_BATTLE_BACKDROP_KEYS[zone.type];
-    if (zone.type === 'abyss' || zone.type === 'seasonBoss') return 'bgAct10';
+    if (['abyss', 'seasonBoss'].includes(zone.type)) return 'bgAct10';
     if (zone.ele === 'fire') return 'bgAct2';
     if (zone.ele === 'cold') return 'bgAct3';
     if (zone.ele === 'light') return 'bgAct4';

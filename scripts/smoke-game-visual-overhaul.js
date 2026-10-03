@@ -4,8 +4,9 @@ const vm = require('vm');
 
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
-  'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
+  'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js', 'data/items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'js/utils.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js', 'data/ascendancies.js', 'js/state.js', 'js/passive-routing.js', 'js/passives.js',
+  'data/act-exploration-maps.js', 'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
 ];
 
 function createElement() {
@@ -64,18 +65,18 @@ const layout = vm.runInContext(`(() => {
     startClasses: new Set(starts.map(node => node.startClassId)).size,
     startEffects: starts.reduce((sum, node) => sum + (node.effects || []).length, 0),
     isolatedCount: [...adjacency.values()].filter(count => count === 0).length,
-    centralStarWedges: nodes.filter(node => node.starWedgeMode === 'mutation').length,
-    outerStarWedges: nodes.filter(node => node.starWedgeMode === 'constellation').length,
-    starWedgeOptions: nodes.filter(node => node.kind === 'star_option').length,
+    voidSockets: nodes.filter(node => node.kind === 'void').length,
+    outerVoidSockets: nodes.filter(node => node.kind === 'void' && node.voidRing === 'outer').length,
+    starWedgeRemnants: nodes.filter(node => node.kind === 'hub' || node.kind === 'star_option' || node.starWedgeMode || node.socketType).length,
     builtCount: Object.keys(PASSIVE_TREE_V22.nodes).length,
     builtEdgeCount: PASSIVE_TREE_V22.edges.length,
     aspectRatio: (actualMaxX - actualMinX) / (actualMaxY - actualMinY),
   };
 })()`, context);
 
-assert.strictEqual(layout.starWedgeOptions, 24, 'six outer star wedges should expose four connected options each');
+assert.strictEqual(layout.starWedgeRemnants, 0, 'star wedges were removed: no hubs, sockets or generated options remain');
 assert.strictEqual(layout.count, layout.builtCount,
-  'the runtime tree should load every built node, including outer star-wedge options');
+  'the runtime tree should load every built node');
 assert.strictEqual(layout.edgeCount, layout.builtEdgeCount,
   'the runtime tree should preserve every built connection');
 assert.strictEqual(layout.startCount, 6, 'the replacement tree should expose six class starting points');
@@ -83,8 +84,8 @@ assert.strictEqual(layout.startClasses, 6, 'each class starting point should own
 assert.strictEqual(layout.startEffects, 0, 'class starting points must remain effect-free');
 assert.strictEqual(layout.isolatedCount, 0, 'the authored replacement tree must not contain isolated nodes');
 assert.strictEqual(layout.duplicateCoordinates, 0, 'the authored replacement tree must not contain exact coordinate duplicates');
-assert.strictEqual(layout.centralStarWedges, 3, 'the center should contain three mutation star-wedge sockets');
-assert.strictEqual(layout.outerStarWedges, 6, 'the outer ring should contain six constellation star-wedge sockets');
+assert.strictEqual(layout.voidSockets, 34, 'the nine former star-wedge hubs became void sockets beside the 25 original voids');
+assert.strictEqual(layout.outerVoidSockets, 6, 'the outer ring keeps six void sockets for the constellation awakening');
 assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the authored passive tree should retain its near-circular silhouette');
 
 vm.runInContext(fs.readFileSync('js/canvas-slash-vfx.js', 'utf8'), context, { filename: 'js/canvas-slash-vfx.js' });
@@ -94,10 +95,14 @@ context.Path2D = require('./lib/canvas-path');
 vm.runInContext(fs.readFileSync('js/canvas-skill-signatures.js', 'utf8'), context, { filename: 'js/canvas-skill-signatures.js' });
 vm.runInContext(fs.readFileSync('data/skill-fx-atlas.js', 'utf8'), context, { filename: 'data/skill-fx-atlas.js' });
 vm.runInContext(fs.readFileSync('js/combat-clock.js', 'utf8'), context, { filename: 'js/combat-clock.js' });
+vm.runInContext(fs.readFileSync('js/skill-effect-expansion.js', 'utf8'), context, { filename: 'js/skill-effect-expansion.js' });
 vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filename: 'js/combat-grid.js' });
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
+vm.runInContext(fs.readFileSync('js/mobility-skill.js', 'utf8'), context, { filename: 'js/mobility-skill.js' });
+vm.runInContext(fs.readFileSync('js/wisp-summons.js', 'utf8'), context, { filename: 'js/wisp-summons.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
 vm.runInContext(fs.readFileSync('js/canvas-enemy-projectiles.js', 'utf8'), context, { filename: 'js/canvas-enemy-projectiles.js' });
+for(const file of ['js/canvas-exploration-art.js','js/canvas-act-exploration.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 vm.runInContext(fs.readFileSync('js/canvas-attack-fx.js', 'utf8'), context, { filename: 'js/canvas-attack-fx.js' });
 const playerGridMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
@@ -220,20 +225,6 @@ const enemyFacingDirections = JSON.parse(vm.runInContext(`JSON.stringify({
 })`, context));
 assert.deepStrictEqual(enemyFacingDirections, { north: 'north', south: 'south', west: 'west', east: 'east' },
   '방향 스프라이트가 있는 몬스터는 플레이어를 향한 네 방향 프레임을 선택해야 한다');
-const summonAttackMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
-  let proj = { actorGroundOffsetY: 0, cellToScreen: (gx, gy) => ({ x: gx * 10, y: gy * 10 }) };
-  let summons = [{ id: 7, gx: 1, gy: 2 }];
-  let fx = [{ type: 'summonAttack', summonId: 7, targetEnemyId: 8, targetGx: 4, targetGy: 2,
-    start: 1000, duration: 200 }];
-  return {
-    impact: buildSummonAttackMotionMap(fx, summons, proj, {}, 1100)[7],
-    end: buildSummonAttackMotionMap(fx, summons, proj, {}, 1200)[7]
-  };
-})())`, context));
-assert.ok(summonAttackMotion.impact.x > 4.9 && Math.abs(summonAttackMotion.impact.y) < 1e-9,
-  '소환수는 실제 공격 대상을 향해 짧게 전진해야 한다');
-assert.ok(Math.abs(summonAttackMotion.end.x) < 1e-9 && Math.abs(summonAttackMotion.end.y) < 1e-9,
-  '소환수는 공격 연출이 끝나면 원래 칸의 기준점으로 돌아와야 한다');
 const heroWalkMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
   let ids = Array.from({ length: 10 }, (_, index) => 'hero' + (index + 1));
   return {
@@ -371,12 +362,8 @@ for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
 }
 assert.ok(fs.existsSync('assets/background/chaos/loop-final.png'), 'chaos loop-final backdrop should exist');
-[
-  'wood-slimes.png', 'root-spider.png', 'sap-leeches.png'
-].forEach(file => assert.ok(fs.existsSync(`assets/enemies/wood/${file}`), `wood monster sheet ${file} should exist`));
-for (let index = 0; index < 9; index++) {
-  assert.ok(fs.existsSync(`assets/enemies/wood/wood-puppet/frame_${String(index).padStart(3, '0')}.png`), `wood puppet frame ${index} should exist`);
-}
+['bugs/act1-ant-idle.png', 'bugs/act5-slime-attack.png', 'deacons/act2-melee-idle.png', 'deacons/act8-ranged-attack.png']
+  .forEach(file => assert.ok(fs.existsSync(`assets/enemies/${file}`), `act monster sheet ${file} should exist`));
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="chk-camera-shake"'), 'settings should expose the camera shake checkbox');
 assert.ok(fs.existsSync('assets/ui/window-frame-luxe-v1.png'), 'generated window frame should exist');
 assert.ok(fs.existsSync('assets/effects/boss-telegraph-ring-v1.png'), 'generated boss ring telegraph should exist');
@@ -486,10 +473,9 @@ assert.deepStrictEqual([venomVfxBytes.readUInt32BE(16), venomVfxBytes.readUInt32
   'the supplied pixel venom projectile must keep its authored combat dimensions');
 assert.strictEqual(venomVfxBytes.readUInt8(25), 6, 'the supplied venom projectile must retain RGBA transparency');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
-assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
-assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
-assert.ok(passiveSource.includes('normal: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants)'),
-  'normal monster variants should keep the supplied wood roster alongside wisps');
+assert.ok(!passiveSource.includes('assets/enemies/wood/'), 'the retired wood monster sheets must not be preloaded any more');
+assert.ok(passiveSource.includes('normal: wispEnemyVariants.length ? wispEnemyVariants'),
+  'act monsters draw from their own sheets; the atlas pool is only the wisp fallback');
 assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the dedicated legacy and act-boss pool');
 const passiveCanvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 const passiveDrawCalls = JSON.parse(vm.runInContext(`JSON.stringify((() => {
@@ -502,7 +488,9 @@ const passiveDrawCalls = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     drawImage() { count('images'); }, createRadialGradient() { count('gradients'); return { addColorStop() {} }; },
     createLinearGradient() { count('gradients'); return { addColorStop() {} }; },
   };
-  drawPassiveLink(ctx, { x: 0, y: 0 }, { x: 80, y: 30 }, { stroke: '#789', width: 1 });
+  ctx.beginPath();
+  tracePassiveLinkSegment(ctx, { x: 0, y: 0 }, { x: 80, y: 30 });
+  ctx.stroke();
   drawPassiveNodeShape(ctx, { id: 'clean-major', x: 30, y: 20, kind: 'major', tier: 3 }, 16,
     { outer: '#e2c281', mid: '#27313d', inner: '#fff3d6' }, false, true, 'discovered', 1, false);
   return calls;
@@ -538,9 +526,9 @@ assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should
 assert.ok(!passiveSource.includes('activeTutorial.steps = getTutorialGuide(activeTutorial)'), 'tutorial notices should not expand into illustrated multi-step lessons');
 const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
 const enemyCombatSource = fs.readFileSync('js/combat.js', 'utf8');
-assert.ok(enemyUiSource.includes("enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || '#e2b94f'")
-  && /enemy\.isBoss\r?\n\s+\? '#a84e49'/.test(enemyUiSource),
-  'elite outlines should follow their named trait color while bosses retain the restrained red outline');
+assert.ok(enemyUiSource.includes('enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || BATTLE_SPRITE_OUTLINES.elite.color')
+  && enemyUiSource.includes('if (enemy.isBoss) return BATTLE_SPRITE_OUTLINES.boss;'),
+  'elite outlines should follow their named trait color while bosses keep their own red outline');
 assert.ok(enemyUiSource.includes('moving === true && movementFrames.length > 0'), 'monster sprite frames should advance only while the monster actually changes cells');
 assert.ok(enemyCombatSource.includes("addBattleFx('enemyAttack', { enemyId: enemy.id, duration: 220 })"),
   'every resolved enemy attack against the player must emit one motion cue even when the hit is evaded or blocked');
@@ -551,7 +539,8 @@ assert.ok(!battlefieldSource.includes('전진이 막혔습니다'), 'the verbose
 assert.ok(battlefieldSource.includes('caption = `몬스터 수 ${enemies.length}마리`;'), 'battlefield status must report the current monster count');
 assert.ok(!battlefieldSource.includes('기와 교전 중') && !battlefieldSource.includes('지역 탐색 중'), 'legacy encounter captions must not remain');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
-assert.ok(battlefieldSource.includes('enemy.isBoss ? 106 : 56'), '2x2 boss health bars should clear the enlarged sprite');
+assert.ok(battlefieldSource.includes('enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56)') && battlefieldSource.includes('enemyDrawnHeights.get(enemy)'),
+  '2x2 boss health bars should clear the enlarged sprite (the old lift, or above the drawn sprite when the tile grows it)');
 assert.ok(!battlefieldSource.includes('tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx')
     && !battlefieldSource.includes('tilePath(COMBAT_GRID_CONFIG.bossSpawn.gx'),
   'the battlefield should not paint permanent blue player or red boss spawn markers');
@@ -560,7 +549,12 @@ assert.ok(!battlefieldSource.includes("fillCell(game.gridPlayer, 'rgba(107, 190,
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 3.65'), 'boss sprites should visually span their 2x2 footprint');
 assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
 assert.ok(battlefieldSource.includes('let rings = 1;'), 'annihilating hits should keep a single lightweight impact ring');
-assert.ok(battlefieldSource.includes('for (let ring = 0; ring < 1; ring++)'), 'level-up feedback should use a single lightweight ring');
+{
+    const start = battlefieldSource.indexOf('function drawLevelUpFx(');
+    const levelUpSource = battlefieldSource.slice(start, battlefieldSource.indexOf('\nfunction ', start + 1));
+    assert.strictEqual((levelUpSource.match(/ctx\.(?:ellipse|arc)\(/g) || []).length, 1, 'level-up feedback should use a single lightweight ring');
+    assert.ok(!/\bfor \(/.test(levelUpSource), 'level-up feedback should draw a fixed number of shapes per frame');
+}
 assert.ok(!battlefieldSource.includes('for (let ray = 0; ray < 4; ray++)'), 'level-up feedback should avoid a separate ray burst');
 assert.ok(!battlefieldSource.includes('let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92'), 'one-shot feedback should avoid its previous large radial fill');
 assert.ok(battlefieldSource.includes("const dissolveFade = Math.pow(1 - dissolve, 1.62);"), 'enemy death sprites should fade through a restrained dissolve curve');

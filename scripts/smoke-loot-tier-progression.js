@@ -106,14 +106,6 @@ try {
         'dropped equipment affixes must roll from T1 through the item tier ceiling'
     );
 
-    const growthItem = read('generateGrowthDrop({ isBoss: false, isElite: false })');
-    assert.ok(growthItem.hiddenTier >= 11 && growthItem.hiddenTier <= 15, 'growth drops must use the same deep-abyss tier window');
-    assert.strictEqual(growthItem.affixTierCap, growthItem.hiddenTier, 'growth drops must retain their affix tier ceiling for later crafting');
-    assert.ok(
-        growthItem.stats.every(stat => stat.tier >= 1 && stat.tier <= growthItem.hiddenTier),
-        'growth-item affixes must follow the same T1-to-cap drop tier rule'
-    );
-
     ctx.game.cosmosAtlas = { activeChallenge: {
         nodeId: 'planet-1', name: '베가라', galaxy: 1, tier: 57, lootTier: 1,
         gravity: 1.5, sizeClass: 2, tag: 'arcane', ele: 'light'

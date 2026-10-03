@@ -1,0 +1,174 @@
+@layer components{/* 세계수 아틀라스: 돌판 · 청동 테 · 금빛 글자(themes/pixel.css의 결). 지도는 도트 그림(js/canvas-atlas-chart.js) 위에 투명한
+   노드 버튼을 얹는다. 장식 없이 판 · 선 · 메달만. */
+#tab-map .map-explore-layout:has(#map-explore-worldtree.active){display:block}
+#tab-map .map-explore-layout:has(#map-explore-worldtree.active)>.vertical-tab-sidebar{display:none}
+#map-tab-zones:has(#map-explore-worldtree.active)>#map-ready-destinations{display:none}
+#tab-map #map-explore-worldtree{padding:0;border:0;background:none}
+#ui-atlas{--atlas-gold:#d9b066;--atlas-gold-hi:#f3d28c;--atlas-muted:#a39883;--atlas-ink:#e6dcc6;--atlas-line:#3a2f20;--atlas-edge:#5d4a2e;--atlas-deep:#100d0a;--atlas-panel:#15120e;--atlas-raised:#1d1813;--atlas-normal:#d6cdb8;--atlas-magic:#86b2e2;--atlas-rare:#e2c466;color:var(--atlas-ink);container-type:inline-size}
+#ui-atlas .atlas-shell{border:1px solid var(--atlas-edge);background:var(--atlas-deep);box-shadow:inset 0 0 0 1px #000}
+#ui-atlas .atlas-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:14px 18px;border-bottom:1px solid var(--atlas-line);background:var(--atlas-panel)}
+#ui-atlas .atlas-head h2{margin:0 0 4px;font-size:20px;font-weight:600;color:var(--atlas-gold-hi);text-shadow:1px 1px 0 #000}
+#ui-atlas .atlas-head>div>span{font-size:12px;color:var(--atlas-muted)}
+#ui-atlas .atlas-auto{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:2px 8px;font-size:12px;cursor:pointer}
+#ui-atlas .atlas-auto small{grid-column:2;color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-auto input{width:16px;height:16px;accent-color:var(--atlas-gold)}
+#ui-atlas .atlas-lock{margin:0;padding:9px 18px;border-bottom:1px solid var(--atlas-line);background:#1b150e;color:#dcbf86;font-size:12px}
+#ui-atlas .atlas-muted{margin:6px 0;color:var(--atlas-muted);font-size:12px}
+#ui-atlas button{font:inherit;color:inherit;border:1px solid var(--atlas-edge);background:var(--atlas-raised);box-shadow:inset 1px 1px 0 #8d724938,inset -1px -1px 0 #0009;cursor:pointer}
+#ui-atlas button:hover:not(:disabled){border-color:var(--atlas-gold);background:#261f17}
+#ui-atlas button:focus-visible{outline:2px solid var(--atlas-gold-hi);outline-offset:2px}
+#ui-atlas button:disabled{opacity:.45;cursor:not-allowed}
+#ui-atlas .atlas-main{display:grid;grid-template-columns:minmax(0,1fr) 300px}
+#ui-atlas .atlas-chart-column{padding:10px 12px 14px}
+/* 지도: 도트 그림이 판 전체를 그리고, 버튼은 메달 자리에 투명하게 선다(누르기 · 초점 · 등급 숫자). */
+#ui-atlas .atlas-chart{position:relative;width:min(100%,660px);aspect-ratio:1;margin:0 auto;container-type:inline-size}
+#ui-atlas .atlas-art{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#ui-atlas .atlas-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin:0 0 8px;font-size:11px;color:var(--atlas-ink)}
+#ui-atlas .atlas-legend span{display:inline-flex;align-items:center;gap:6px}
+#ui-atlas .atlas-legend i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
+#ui-atlas .atlas-legend small{color:var(--atlas-muted)}
+#ui-atlas .atlas-node{--node:4.4cqw;position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:var(--node);height:var(--node);min-width:0;min-height:0;padding:0;display:grid;place-items:center;border:0;background:transparent;box-shadow:none;color:#8d826e;font-size:12px;line-height:1}
+#ui-atlas .atlas-node:hover:not(:disabled){border:0;background:transparent}
+#ui-atlas .atlas-node b{font-weight:400;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000;pointer-events:none}
+#ui-atlas .atlas-node.is-open{color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-node.is-complete{color:#efe6d2}
+#ui-atlas .atlas-node.is-bonus{color:#fff1c9}
+#ui-atlas .atlas-node.kind-guardian{--node:6.2cqw}
+#ui-atlas .atlas-node.kind-pinnacle{--node:7.6cqw;font-size:13px}
+#ui-atlas .atlas-node:hover b{color:#fff4d6}
+#ui-atlas .atlas-node i{position:absolute;right:-3px;top:-3px;min-width:13px;height:13px;padding:0 2px;background:var(--atlas-gold);box-shadow:1px 1px 0 #000;color:#15120e;font-size:9px;font-style:normal;font-weight:700;line-height:13px;box-sizing:border-box}
+#ui-atlas .atlas-guardian-note{color:#d6c08a}
+#ui-atlas .atlas-tickets{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+#ui-atlas .atlas-tickets span{padding:2px 7px;border:1px solid var(--atlas-line);color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-tickets span.is-on{border-color:var(--atlas-edge);color:#eadbb5;background:var(--atlas-raised)}
+#ui-atlas .atlas-side{display:flex;flex-direction:column;border-left:1px solid var(--atlas-line);background:var(--atlas-panel)}
+#ui-atlas .atlas-device,#ui-atlas .atlas-node-detail{padding:14px 16px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-side h3{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--atlas-gold)}
+#ui-atlas .atlas-map-card{--rarity:var(--atlas-normal);padding:10px 12px;border:1px solid color-mix(in srgb,var(--rarity) 45%,transparent);background:var(--atlas-deep);box-shadow:2px 2px 0 #000}
+#ui-atlas .atlas-map-card.rarity-magic{--rarity:var(--atlas-magic)}
+#ui-atlas .atlas-map-card.rarity-rare{--rarity:var(--atlas-rare)}
+#ui-atlas .atlas-map-card.is-corrupted{border-color:#8a3a46}
+#ui-atlas .atlas-map-card>strong{display:block;color:var(--rarity);font-size:14px;font-weight:600}
+#ui-atlas .atlas-map-tags{display:block;margin-top:2px;color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-mods{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:3px;font-size:12px;color:#aebfe0}
+#ui-atlas .atlas-map-card.rarity-rare .atlas-mods{color:#d9cf9f}
+#ui-atlas .atlas-rewards{margin:8px 0 0;font-size:11px;color:#c9bfa8}
+#ui-atlas .atlas-map-card .map-power-estimate{margin-top:8px}
+#ui-atlas .atlas-portals{display:flex;align-items:center;gap:5px;margin:8px 0 0;font-size:12px}
+#ui-atlas .atlas-portals i{width:9px;height:9px;border:1px solid var(--atlas-magic)}
+#ui-atlas .atlas-portals i.is-on{background:var(--atlas-magic)}
+#ui-atlas .atlas-crafts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:10px}
+#ui-atlas .atlas-crafts button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:38px;padding:5px 7px;text-align:left}
+#ui-atlas .atlas-crafts small{color:var(--atlas-muted);font-size:10px}
+#ui-atlas .atlas-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+#ui-atlas .atlas-actions button{min-height:34px;padding:6px 12px}
+#ui-atlas .atlas-primary{background:#cfb887;border-color:#e6cf9f;color:#17140f;font-weight:700;box-shadow:inset 1px 1px 0 #fff3cf,inset -1px -1px 0 #7a6440,2px 2px 0 #000}
+#ui-atlas .atlas-primary:hover:not(:disabled){background:#dcc697}
+#ui-atlas .atlas-node-detail small{color:color-mix(in srgb,var(--tint) 45%,#d5cfbd);font-size:11px}
+#ui-atlas .atlas-node-detail h3{margin:2px 0 4px;font-size:15px;color:var(--atlas-ink)}
+#ui-atlas .atlas-node-detail p{margin:3px 0;font-size:12px}
+#ui-atlas .atlas-node-maps{display:grid;gap:4px;margin-top:8px}
+#ui-atlas .atlas-stash{padding:14px 18px;border-top:1px solid var(--atlas-line)}
+#ui-atlas .atlas-stash h3{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--atlas-gold)}
+#ui-atlas .atlas-stash h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-stash-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:5px}
+#ui-atlas .atlas-stash-row{--rarity:var(--atlas-normal);display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:0 8px;min-height:40px;padding:5px 8px;text-align:left}
+#ui-atlas .atlas-stash-row.rarity-magic{--rarity:var(--atlas-magic)}
+#ui-atlas .atlas-stash-row.rarity-rare{--rarity:var(--atlas-rare)}
+#ui-atlas .atlas-stash-row b{grid-row:span 2;display:grid;place-items:center;width:26px;height:26px;border:1px solid color-mix(in srgb,var(--rarity) 55%,transparent);background:var(--atlas-deep);color:var(--rarity);font-size:12px}
+#ui-atlas .atlas-stash-row span{color:var(--rarity);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ui-atlas .atlas-stash-row small{color:var(--atlas-muted);font-size:10px}
+#ui-atlas .atlas-stash-row[aria-pressed="true"]{border-color:var(--atlas-gold-hi);background:#2a2217}
+#ui-atlas .atlas-result{padding:12px 18px;border-top:1px solid var(--atlas-line);background:var(--atlas-panel);font-size:12px}
+#ui-atlas .atlas-result>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;color:var(--atlas-gold)}
+#ui-atlas .atlas-result>summary::-webkit-details-marker{display:none}
+#ui-atlas .atlas-result>summary span{color:var(--atlas-muted)}
+#ui-atlas .atlas-result-currencies{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 0 0}
+#ui-atlas .atlas-result-currencies b{font-weight:500;color:#e5d2aa}
+@container (max-width:720px){#ui-atlas .atlas-main{grid-template-columns:minmax(0,1fr)}#ui-atlas .atlas-side{border-left:0;border-top:1px solid var(--atlas-line)}}
+@container (max-width:420px){#ui-atlas .atlas-node i{min-width:8px;width:8px;height:8px;padding:0;right:-2px;top:-2px;font-size:0}#ui-atlas .atlas-node{font-size:10px}}
+@container (max-width:480px){#ui-atlas .atlas-head,#ui-atlas .atlas-stash{padding:10px}#ui-atlas .atlas-head h2{font-size:17px}#ui-atlas .atlas-chart-column{padding:8px 4px 10px}#ui-atlas .atlas-stash-list{grid-template-columns:minmax(0,1fr)}}
+#ui-atlas .atlas-views{display:flex;gap:4px}
+#ui-atlas .atlas-view{min-height:32px;padding:5px 14px}
+#ui-atlas .atlas-view.is-on{border-color:var(--atlas-gold-hi);background:#2a2217;color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-fragments{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+#ui-atlas .atlas-fragments>p{flex-basis:100%;margin:0 0 2px}
+#ui-atlas .atlas-fragment{display:flex;align-items:center;gap:6px;min-height:28px;padding:3px 8px;font-size:11px}
+#ui-atlas .atlas-fragment small{color:var(--atlas-muted)}
+#ui-atlas .atlas-fragment.is-on{border-color:var(--atlas-gold-hi);background:#2a2217;color:#f3e2b5}
+#ui-atlas .atlas-encounters{margin:8px 0 0;font-size:11px;color:#c9b98f}
+#ui-atlas .atlas-passives{padding:14px 18px}
+#ui-atlas .atlas-passive-total{margin:6px 0 12px;font-size:12px;color:#d9ceb0}
+#ui-atlas .atlas-wheels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#ui-atlas .atlas-wheel{display:flex;flex-direction:column;padding:10px 10px 8px;border:1px solid color-mix(in srgb,var(--tint) 45%,var(--atlas-line));background:var(--atlas-panel);box-shadow:2px 2px 0 #000}
+#ui-atlas .atlas-wheel h3{margin:0 0 6px;font-size:13px;color:color-mix(in srgb,var(--tint) 40%,#e8dcc0)}
+#ui-atlas .atlas-wheel h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
+/* 갈래 그림: 도트 단면 위에 투명한 패시브 버튼(손가락에는 그림보다 넉넉한 24px). */
+#ui-atlas .atlas-wheel-art{position:relative;width:min(100%,360px);aspect-ratio:1;margin:0 auto;container-type:inline-size}
+#ui-atlas .atlas-wheel-art canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#ui-atlas .atlas-passive-node{--size:5.8cqw;position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:max(24px,var(--size));height:max(24px,var(--size));min-width:0;min-height:0;padding:0;border:0;background:transparent;box-shadow:none}
+#ui-atlas .atlas-passive-node.rank-root{--size:7.6cqw}
+#ui-atlas .atlas-passive-node.rank-notable{--size:8.4cqw}
+#ui-atlas .atlas-passive-node.rank-keystone{--size:12.4cqw}
+#ui-atlas .atlas-passive-node:hover:not(:disabled){border:0;background:transparent;outline:2px solid color-mix(in srgb,var(--atlas-gold-hi) 70%,transparent);outline-offset:0}
+#ui-atlas .atlas-passive-node.is-focus{outline:2px solid var(--atlas-gold-hi);outline-offset:0}
+#ui-atlas .atlas-wheel-note{min-height:38px;margin:6px 2px 0;font-size:11px;line-height:1.45;color:var(--atlas-muted)}
+#ui-atlas .atlas-wheel-note strong{color:var(--atlas-ink);font-weight:600}
+#ui-atlas .atlas-wheel-note small{color:var(--atlas-muted)}
+@container (max-width:720px){#ui-atlas .atlas-wheels{grid-template-columns:minmax(0,1fr)}}
+/* 갈래는 한 번에 하나(위 단추로 고른다 — 바퀴 넷이 창 높이를 넘었다, 검토 5차). 넓은 창에서는 노드 설명을 바퀴 옆에 둔다. */
+#ui-atlas .atlas-wheel-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+#ui-atlas .atlas-wheel-tabs>button{min-height:36px;padding:4px 10px;font-size:12px}
+#ui-atlas .atlas-wheel-tabs>button span{margin-left:6px;color:var(--atlas-muted)}
+#ui-atlas .atlas-wheel-tabs>button[aria-pressed="true"]{color:#f3e2b5;box-shadow:inset 0 -3px 0 var(--tint)}
+#ui-atlas .atlas-wheels{grid-template-columns:minmax(0,1fr)}
+#ui-atlas .atlas-wheel[hidden]{display:none}
+@container (min-width:640px){#ui-atlas .atlas-wheel{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);column-gap:18px;align-items:center}#ui-atlas .atlas-wheel[hidden]{display:none}}
+#ui-atlas .atlas-epoch{padding:14px 18px}
+#ui-atlas .atlas-epoch-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;padding-bottom:12px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-epoch-head h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}
+#ui-atlas .atlas-epoch-head h3 span{margin-left:6px;color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-epoch-action{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:180px}
+#ui-atlas .atlas-epoch-action strong{color:#e6d2a4}
+#ui-atlas .atlas-epoch-action .atlas-primary{min-height:34px;padding:6px 14px}
+#ui-atlas .atlas-perks{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-top:12px}
+#ui-atlas .atlas-perk{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--atlas-line);background:var(--atlas-panel)}
+#ui-atlas .atlas-perk.is-taken{border-color:#6f8a57}
+#ui-atlas .atlas-perk strong{display:block;font-size:12px}
+#ui-atlas .atlas-perk strong span{margin-left:4px;color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-perk small{display:block;margin-top:2px;font-size:10px;color:var(--atlas-muted)}
+#ui-atlas .atlas-perk button{flex:0 0 auto;min-height:30px;padding:4px 10px;font-size:11px}
+/* 최종 보기(js/atlas-endgame-ui.js): 최종 보스와 리그 우두머리 카드, 바칠 재료 칩, 지역 마름. */
+#ui-atlas .atlas-late{padding:14px 18px}
+#ui-atlas .atlas-late-head{padding-bottom:10px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-late h3{margin:0 0 6px;font-size:15px;color:var(--atlas-gold)}
+#ui-atlas .atlas-late-group{margin-top:14px}
+#ui-atlas .atlas-late-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+#ui-atlas .atlas-late-card{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--atlas-line);background:var(--atlas-panel)}
+#ui-atlas .atlas-late-card.is-ready{border-color:var(--atlas-gold)}
+#ui-atlas .atlas-late-card.is-locked{opacity:.72}
+#ui-atlas .atlas-late-card strong{font-size:13px;color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-late-card>small{font-size:11px;color:var(--atlas-muted)}
+#ui-atlas .atlas-late-card .atlas-muted{margin:2px 0;font-size:11px}
+#ui-atlas .atlas-late-card .atlas-lock{margin:2px 0;padding:6px 8px;border:0;font-size:11px}
+#ui-atlas .atlas-late-unique{margin:0;font-size:11px;color:#ff9f43}
+#ui-atlas .atlas-late-card button{margin-top:auto;min-height:32px}
+#ui-atlas .atlas-late-entry{display:flex;flex-wrap:wrap;gap:3px}
+#ui-atlas .atlas-late-entry span{padding:1px 4px;border:1px solid var(--atlas-line);background:var(--atlas-raised);font-size:10px;color:var(--atlas-muted)}
+#ui-atlas .atlas-late-entry span.is-on{border-color:#6f8a57;color:#cfe3b0}
+#ui-atlas .atlas-late-blight{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
+#ui-atlas .atlas-late-blight span{display:inline-flex;align-items:center;gap:6px}
+#ui-atlas .atlas-late-blight i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
+#ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
+#ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #5d4a2e;background:#17130e;box-shadow:2px 2px 0 #000;color:#ece4cf;grid-column:1/-1}
+#ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+#ui-atlas-combat strong{font-size:12px;font-weight:600;line-height:1.4}
+#ui-atlas-combat strong span{margin-left:6px;color:#c9b27c;font-weight:400}
+#ui-atlas-combat .atlas-hud-copy>span{font-size:11px;color:#b9ae98}
+#ui-atlas-combat button{min-height:30px;padding:5px 10px;border:1px solid #5d4a2e;background:#221b13;color:#e8dfca;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
+#ui-atlas-combat button:focus-visible{outline:2px solid #efcf88;outline-offset:2px}
+@media(min-width:1081px){
+ body.desktop-windowed-ui #ui-atlas-combat{position:absolute;left:8px;right:calc(var(--combat-log-width) + 18px);top:62px;z-index:7;min-height:44px;box-sizing:border-box}
+}
+@media(max-width:600px){#ui-atlas-combat{padding:7px 8px}}
+}

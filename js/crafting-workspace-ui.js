@@ -138,14 +138,15 @@ const craftingWorkspaceUi = (() => {
     function workspaceMethodsHtml() {
         const spore=isSporeCraftEquipment(selected())&&(recipe.kind==='add'||recipe.kind==='reroll');
         return `<section class="cl-methods"><div class="cl-section-title">주 재화<div><button data-command="pins">변경</button><button id="cl-catalog-open" data-command="catalog">기타 재화</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
-            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(getExpertLevel('mycologist')>=10?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}
+            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${spore?`<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${[['none','사용 안 함'],['fire','화염'],['cold','냉기'],['light','번개'],...(contentProgression.isUnlocked('advancedSpores')?[['chaos','카오스'],['damage','피해']]:[])].map(([key,label])=>`<option value="${key}" ${mode===key?'selected':''}>${label}</option>`).join('')}</select></label>`:''}
             </section>`;
     }
 
     function workspaceFavoriteHtml(key,index) {
         if(!key)return `<button data-command="pins" class="cl-recipe"><strong>${index+1}번 빈 칸</strong><small>재화 지정</small></button>`;
         const row=recipes.find(entry=>entry.key===key), selected=key===recipe.key;
-        return `<button class="cl-recipe ${selected?'selected':''}" data-theme="${craftingCatalogUi.theme(key)}" ${row?`data-recipe="${key}"`:`data-favorite="${key}"`} aria-pressed="${selected}"><strong>${craftingCatalogUi.styledName(key)}</strong><small>${game.currencies[key]||0}개</small></button>`;
+        const icon=pixelIconPath(ORB_DB[key]?.icon);
+        return `<button class="cl-recipe ${selected?'selected':''} ${icon?'has-icon':''}" data-theme="${craftingCatalogUi.theme(key)}" ${row?`data-recipe="${key}"`:`data-favorite="${key}"`} aria-pressed="${selected}">${icon?`<img class="cl-recipe-icon" src="${esc(icon)}" alt="">`:''}<strong>${craftingCatalogUi.styledName(key)}</strong><small>${game.currencies[key]||0}개</small></button>`;
     }
 
     function workspaceCostText() {

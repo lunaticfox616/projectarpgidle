@@ -35,7 +35,7 @@ assert.strictEqual(currencyContext.getCanonicalCurrencyKey('goldenRule'), 'golde
 
 const banner = { innerText: '', classList: { add() {}, remove() {} } };
 const logs = [];
-const awardContext = require('./lib/game-runtime').buildGameRuntime();
+const awardContext = require('./lib/game-runtime').buildGameRuntime({},new EventTarget());
 awardContext.document.getElementById = id => id === 'divine-drop-banner' ? banner : null;
 awardContext.addLog = message => logs.push(message);
 vm.runInContext('game=mergeDefaults({});window.game=game;',awardContext);

@@ -100,6 +100,9 @@
 @layer overrides{
 #tab-map .map-primary-tabs,#tab-map .map-explore-layout>.vertical-tab-sidebar{display:none}
 #tab-map.is-atlas-overview .exploration-toolbar,#tab-map.is-atlas-overview #map-ready-destinations,#tab-map.is-atlas-overview #exploration-region-banner{display:none}
+/* 사냥 권역 머리판이 이미 현재 위치 · 전투로 돌아가기를 보여 주므로 아래 줄의 같은 "현재 위치"는 뺀다(원정 목록만 남는다). */
+#tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations>button{display:none}
+#tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations:not(:has(details)){display:none}
 #ui-exploration-atlas .atlas-heading h2{background:none}
 #tab-map .atlas-region-hero h2,#exploration-region-banner h2{background:none}
 #ui-exploration-atlas .atlas-tracked-reward{color:#e1b7f0;font-size:12px}}

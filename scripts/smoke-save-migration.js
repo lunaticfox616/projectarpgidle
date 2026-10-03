@@ -21,7 +21,7 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     const g = merge({});
     assert.strictEqual(g.season, 1, '빈 저장은 루프 1로 시작해야 한다');
     assert.ok(Array.isArray(g.inventory), '인벤토리는 배열이어야 한다');
-    assert.ok(Array.isArray(g.growthInventory), '생장 보관함도 준비되어야 한다');
+    assert.ok(!('growthInventory' in g) && !('growthBoard' in g), '새 게임에는 생장판 필드가 없다');
     assert.ok(g.playerHp > 0, '체력은 양수여야 한다');
     assert.strictEqual(g.settings.pauseGameOnOverlay, true, '새 게임은 안내 창 전투 정지가 기본으로 켜져야 한다');
 }
@@ -34,9 +34,6 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         unlocks: { items: true }, settings: {}
     });
     assert.strictEqual(g.season, 3, '진행도를 잃으면 안 된다');
-    assert.ok(Array.isArray(g.growthInventory), '없던 생장 필드를 만들어 줘야 한다');
-    assert.ok(Array.isArray(g.recentGrowthDrops), '최근 획득함도 만들어 줘야 한다');
-    assert.strictEqual(typeof g.growthInventoryExpandLevel, 'number', '확장 레벨이 숫자여야 한다');
     assert.strictEqual(g.settings.pauseGameOnOverlay, true, '설정값이 없던 옛 저장도 새 기본값을 받아야 한다');
 }
 
@@ -46,59 +43,46 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(g.settings.pauseGameOnOverlay, false, '기존 사용자의 일시 정지 선택을 덮어쓰면 안 된다');
 }
 
-// ── 생장판 추가 전에 저장한 루프 40 세이브 ───────────────────────────────
+// ── 생장판 제거(2026-09-30): 판 · 보관함 · 확장 · 생장 정수 · 설정 · 해금 표시는 보상 없이 지운다 ─────
 {
     const g = merge({
         level: 80, season: 40, loopCount: 40, playerHp: 500, maxZoneId: 40,
-        inventory: [], equipment: {}, currencies: {}, unlocks: { items: true }, settings: {}
+        inventory: [], equipment: {}, unlocks: { items: true, growthboard: true }, noti: { growthboard: true },
+        currencies: { growthEssence: 120, goldenRule: 2 },
+        settings: { growthSortMode: 'recent', growthAutoSalvageEnabled: true, growthAutoSalvageRarities: { normal: true },
+            growthUseItemFilter: true, searchFilters: { equip: 'x', growth: '꽃' } },
+        growthInventory: [
+            { id: 11, growthCategory: 'flower', growthShapeId: 'L4', growthBaseId: 'gf_spark_seed', name: 'L4 꽃', rarity: 'rare', baseStats: [], stats: [] }
+        ],
+        recentGrowthDrops: [{ id: 12 }], growthInventoryExpandLevel: 3, growthEssenceExpandLevel: 2,
+        growthBoard: { width: 10, height: 6, unlockedCellCount: 60, activeLoadout: 0, loadouts: [{ name: '옛 세팅', placements: { 11: { x: 0, y: 0 } } }] }
     });
     assert.strictEqual(g.season, 40, '루프를 잃으면 안 된다');
-    assert.strictEqual(g.growthInventory.length, 0, '없던 생장 아이템이 생기면 안 된다');
+    assert.deepStrictEqual(['growthBoard', 'growthInventory', 'recentGrowthDrops', 'growthInventoryExpandLevel', 'growthEssenceExpandLevel']
+        .filter(key => key in g), [], '예전 생장판 진행은 보상 없이 지워야 한다');
+    assert.ok(!('growthEssence' in g.currencies) && g.currencies.goldenRule === 2, '생장 정수만 지우고 다른 재화는 남긴다');
+    assert.ok(!('growthboard' in g.unlocks) && !('growthboard' in g.noti), '해금 · 알림 표시도 지운다');
+    assert.deepStrictEqual(['growthSortMode', 'growthAutoSalvageEnabled', 'growthAutoSalvageRarities', 'growthUseItemFilter']
+        .filter(key => key in g.settings), [], '생장판 설정을 지운다');
+    assert.ok(!('growth' in g.settings.searchFilters) && g.settings.searchFilters.equip === 'x', '생장 검색어만 지운다');
+    const plain = value => JSON.parse(JSON.stringify(value));
+    const again = merge(plain(g));
+    assert.deepStrictEqual([again.currencies.goldenRule, 'growthBoard' in again], [2, false], '두 번 불러와도 같다');
 }
 
-// ── 폴리오미노 시절(10x6) 판 저장 ────────────────────────────────────────
-// 이 브랜치가 판을 8x4로 줄이고 아이템을 전부 1칸으로 바꿨다.
-{
-    const g = merge({
-        level: 80, season: 40, loopCount: 40, playerHp: 500, maxZoneId: 40,
-        inventory: [], equipment: {}, currencies: {}, unlocks: { items: true }, settings: {},
-        growthInventory: [
-            { id: 11, growthCategory: 'flower', growthShapeId: 'L4', growthBaseId: 'gf_spark_seed', name: 'L4 꽃', rarity: 'rare', baseStats: [], stats: [] },
-            { id: 12, growthCategory: 'branch', growthShapeId: 'T4', growthBaseId: 'gb_iron_stump', name: 'T4 가지', rarity: 'rare', baseStats: [], stats: [] }
-        ],
-        growthBoard: {
-            width: 10, height: 6, unlockedCellCount: 60, activeLoadout: 0,
-            loadouts: [{ name: '옛 세팅', placements: { 11: { x: 0, y: 0, rotation: 0 }, 12: { x: 9, y: 5, rotation: 1 } } }]
-        }
-    });
-    assert.strictEqual(g.growthInventory.length, 2, '옛 생장 아이템을 잃으면 안 된다');
-    // 판 크기 정규화는 mergeDefaults가 아니라 첫 접근 시점의 ensureGrowthBoardState가 한다.
-    // 게임도 그 순서로 지나가므로 여기서도 같은 순서로 확인한다.
-    // game은 js/utils.js의 최상위 let이라 컨텍스트 속성 대입으로는 바뀌지 않는다.
-    // vm 안에서 대입해야 실제 바인딩이 바뀐다.
-    ctx.__loaded = g;
-    vm.runInContext('game = __loaded; ensureGrowthBoardState(); validateGrowthPlacements();', ctx);
-    assert.strictEqual(g.growthBoard.width, ctx.GROWTH_BOARD_W, '판 폭을 현재 값으로 맞춰야 한다');
-    assert.strictEqual(g.growthBoard.height, ctx.GROWTH_BOARD_H, '판 높이를 현재 값으로 맞춰야 한다');
-    assert.ok(g.growthBoard.unlockedCellCount <= ctx.GROWTH_BOARD_W * ctx.GROWTH_BOARD_H,
-        '옛 60칸 해금이 현재 최대 칸수를 넘으면 안 된다');
-    // 판 밖(9,5)을 가리키던 배치는 검증 경로가 정리하고, 아이템은 보관함에 남는다.
-    const placedIds = Array.from(vm.runInContext('getPlacedGrowthEntries().map(e => e.item.id)', ctx));
-    assert.ok(!placedIds.includes(12), '새 판 밖을 가리키는 배치는 정리되어야 한다');
-    assert.strictEqual(g.growthInventory.length, 2, '배치가 정리되어도 아이템은 남아야 한다');
-}
-
-// ── 큐브 프리셋이 망가진 저장 ────────────────────────────────────────────
+// ── 예전 코어 큐브 · 망가진 코어 저장 ────────────────────────────────────
 {
     const g = merge({
         level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
-        currencies: {}, unlocks: {}, settings: {},
-        coreCube: { unlocked: true, everUnlocked: true, faces: 'xxx', powers: null,
-                    presets: 'bad', powersUsedEver: 5, presetSlot2Unlocked: 'yes', revealedOptions: 3 }
+        currencies: {}, unlocks: { cube: true }, noti: { cube: true }, settings: {},
+        coreCube: { unlocked: true, everUnlocked: true, faces: [1, 2, 3, 4, 5, 6], blurred45: 9 },
+        cores: { equipped: { id: 5, lines: [{ id: 'pct_dmg', value: 999 }, { id: 'nope', value: 1 }] }, owned: 'bad' }
     });
-    assert.ok(g.coreCube && typeof g.coreCube === 'object', '큐브 상태가 객체여야 한다');
-    assert.ok(Array.isArray(g.coreCube.faces), '망가진 faces를 배열로 되돌려야 한다');
-    assert.ok(Array.isArray(g.coreCube.presets), '망가진 presets를 배열로 되돌려야 한다');
+    assert.ok(!('coreCube' in g) && !('cube' in g.unlocks) && !('cube' in g.noti), '예전 큐브 진행은 보상 없이 지워야 한다');
+    const plain = value => JSON.parse(JSON.stringify(value));
+    assert.deepStrictEqual(plain(g.cores.owned), [], '망가진 보관함은 빈 배열이 되어야 한다');
+    assert.deepStrictEqual(plain(g.cores.equipped.lines), [{ id: 'pct_dmg', value: 24 }], '모르는 줄은 버리고 값은 범위 안으로 되돌린다');
+    assert.deepStrictEqual(plain(merge(plain(g)).cores), plain(g.cores), '다시 불러와도 같은 결과여야 한다');
 }
 
 // ── 비정상적으로 큰/음수인 확장 레벨 ─────────────────────────────────────
@@ -106,10 +90,9 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     const g = merge({
         level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
         currencies: {}, unlocks: {}, settings: {},
-        growthInventoryExpandLevel: 1e9, inventoryExpandLevel: Infinity, jewelInventoryExpandLevel: -5
+        inventoryExpandLevel: Infinity, jewelInventoryExpandLevel: -5
     });
-    [['growthInventoryExpandLevel', g.growthInventoryExpandLevel],
-     ['jewelInventoryExpandLevel', g.jewelInventoryExpandLevel]].forEach(([name, value]) => {
+    [['jewelInventoryExpandLevel', g.jewelInventoryExpandLevel]].forEach(([name, value]) => {
         assert.ok(Number.isFinite(value) && value >= 0, `${name}은 0 이상의 유한한 수여야 한다 (${value})`);
     });
     assert.strictEqual(Object.prototype.hasOwnProperty.call(g, 'inventoryExpandLevel'), false,
@@ -165,7 +148,6 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         discoveredPassives: ['poe2_22290', 'poe2_26725'],
         voidPassives: { poe2_26725: { stats: [{ id: 'flatHp', val: 12 }] } },
         retiredVoidPassives: { poe2_26196: { stats: [{ id: 'resAll', val: 3 }] } },
-        starWedge: { nodeMutations: { poe2_1207: { currentStat: 'flatHp', currentVal: 5 } } },
         settings: { passiveTreePlanner: { layoutVersion: 22, activeSlot: 0, presets: [
             { name: '옛 ID', nodeIds: ['poe2_22290', 'poe2_1207'], attributeChoices: {} }
         ] } }
@@ -175,7 +157,6 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.ok(g.discoveredPassives.includes('pt_void_south'), '발견한 공허 노드도 새 식별자로 복구해야 한다');
     assert.strictEqual(g.voidPassives.pt_void_south.stats[0].val, 12, '공허 패시브 옵션을 보존해야 한다');
     assert.ok(g.retiredVoidPassives.pt_void_southeast, '보관된 공허 패시브도 새 식별자로 복구해야 한다');
-    assert.ok(g.starWedge.nodeMutations.pt_base_path_001, '성률의 노드 참조도 새 식별자로 복구해야 한다');
     assert.deepStrictEqual(Array.from(g.settings.passiveTreePlanner.presets[0].nodeIds),
         ['pt_spine_warrior_left_01', 'pt_base_path_001'], '패시브 프리셋 순서와 노드를 보존해야 한다');
 }
@@ -212,43 +193,22 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         '옛 외형 필드는 저장 상태의 두 번째 출처로 남으면 안 된다');
 }
 
-// 별쐐기 보관함도 장착 슬롯 한도와 무관하게 전부 복원한다.
+// 별쐐기 제거(2026-10-01): 예전 외곽 성률 옵션 노드는 트리에서 사라졌다. 투자해 둔 포인트는 정확히 한 점씩 돌려주고,
+// 별쐐기 · 장착 기록은 보상 없이 지운다.
 {
-    const manyWedges = Array.from({ length: 70 }, (_, index) => ({
-        id: 900000 + index,
-        name: `wedge-${index}`,
-        lines: []
-    }));
     const g = merge({
-        level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
-        currencies: {}, unlocks: {}, settings: {},
-        starWedge: { wedges: manyWedges }
-    });
-    assert.strictEqual(g.starWedge.wedges.length, manyWedges.length,
-        '장착 한도를 넘긴 보유 별쐐기도 불러오기에서 모두 보존해야 한다');
-}
-
-// 외곽 성률 옵션은 트리 본체의 경로와 무관하게 1포인트로 사는 독립 노드다.
-// 장착한 별쐐기의 활성 옵션을 재접속 때 연결 끊김으로 오판해 환불하면 안 된다.
-{
-    const outerHub = Object.values(ctx.PASSIVE_TREE.nodes).find(node => node.starWedgeMode === 'constellation');
-    const option = Object.values(ctx.PASSIVE_TREE.nodes).find(node => node.kind === 'star_option'
-        && node.requiresStarWedgeSocketNodeId === outerHub.id && node.starWedgeLineIndex === 0);
-    const baseSave = {
         saveVersion: vm.runInContext('defaultGame.saveVersion', ctx), passiveLayoutVersion: 22,
         selectedClassId: 'warrior', inventory: [], equipment: {}, currencies: {}, unlocks: {},
-        passives: [option.id], passivePoints: 0,
+        passives: ['star_constellation_nh9myirl4b7_0'], passivePoints: 0,
         starWedge: {
             wedges: [{ id: 7001, lines: [{ stat: 'move', val: 7 }] }],
-            sockets: [{ nodeId: outerHub.id, wedgeId: 7001 }]
+            sockets: [{ nodeId: 'nh9myirl4b7', wedgeId: 7001 }]
         }
-    };
-    const active = merge(baseSave);
-    assert.ok(active.passives.includes(option.id), '장착 중인 외곽 성률 옵션 투자를 보존해야 한다');
-    assert.strictEqual(active.autoRefundedPassivePoints, 0, '활성 성률 옵션을 자동 환불하면 안 된다');
-    const inactive = merge({ ...baseSave, starWedge: { wedges: baseSave.starWedge.wedges, sockets: [] } });
-    assert.ok(!inactive.passives.includes(option.id), '소켓이 비어 사라진 성률 옵션은 제거해야 한다');
-    assert.strictEqual(inactive.autoRefundedPassivePoints, 1, '사라진 성률 옵션은 정확히 한 포인트 환불해야 한다');
+    });
+    assert.deepStrictEqual(Array.from(g.passives), [], '사라진 성률 옵션 투자는 남지 않는다');
+    assert.strictEqual(g.autoRefundedPassivePoints, 1, '사라진 성률 옵션은 정확히 한 포인트 환불해야 한다');
+    assert.strictEqual(g.passivePoints, 1);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(g, 'starWedge'), false, '별쐐기 저장은 남지 않는다');
 }
 
 // ── 손상된 저장은 조용히 넘어가지 않고 던진다 ────────────────────────────
@@ -270,6 +230,13 @@ for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
     ctx.__loaded = merge({ saveMeta: { cloudResetRevision: value } });
     vm.runInContext('game = __loaded; ensureSaveMeta();', ctx);
     assert.strictEqual(ctx.__loaded.saveMeta.cloudResetRevision, value === 8 ? 8 : 0);
+}
+
+// 없어진 지역(예전 세계수 지역)에서 저장했으면 액트 1이 아니라 도달한 진행 지역에서 이어 한다(PR #1030 리뷰).
+{
+    const merged = ctx.mergeDefaults({ heroSelectionInitialized: true, season: 12, maxZoneId: 29, currentZoneId: 'worldtree_root' });
+    assert.strictEqual(merged.currentZoneId, ctx.getAutoProgressZoneId(29), 'a save in a removed zone resumes at the furthest progress zone');
+    assert.notStrictEqual(merged.currentZoneId, 0);
 }
 
 console.log('smoke-save-migration passed');

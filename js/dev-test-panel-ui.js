@@ -1,0 +1,213 @@
+/** 로컬 테스트 패널. 127.0.0.1/localhost 에서 주소 끝에 ?dev=1 을 붙여 열 때만 나타난다(배포판·앱에서는 없음).
+ * 직업·스킬 젬·캐릭터 스프라이트·이펙트 스타일·무적·배속·레벨·액트를 바로 바꿔
+ * 새 캐릭터와 스킬 이펙트, 스토리 장면을 확인한다. 저장 데이터를 바꾸므로 테스트용 세이브에서 쓴다.
+ */
+const devTestPanel = (() => {
+    const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+    const SPEEDS = [1, 2, 4, 8];
+    const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '곡도'],
+        ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
+    let root = null, godTimer = null, speed = 1;
+
+    function isEnabled() {
+        if (typeof location === 'undefined' || !LOCAL_HOSTS.has(location.hostname)) return false;
+        return new URLSearchParams(location.search).get('dev') === '1';
+    }
+    function el(tag, props = {}, children = []) {
+        const { dataset, ...rest } = props;
+        const node = document.createElement(tag);
+        Object.assign(node, rest);
+        if (dataset) Object.assign(node.dataset, dataset);
+        children.forEach(child => node.append(child));
+        return node;
+    }
+    function button(label, onClick, extra = {}) {
+        return el('button', { type: 'button', textContent: label, onclick: onClick, ...extra });
+    }
+    function section(title, rows) { return el('section', {}, [el('h4', { textContent: title }), ...rows]); }
+    function row(children) { return el('div', { className: 'dtp-row' }, children); }
+    function note(text) { log(text); status(); }
+    function log(text) { if (typeof addLog === 'function') addLog(`🧪 ${text}`, 'season-up'); }
+    function refresh() { if (typeof updateStaticUI === 'function') updateStaticUI(); }
+
+    // ------------------------------------------------------------------ actions
+    function chooseClass(classId) {
+        applyHeroSelection(classId, { alignTalent: true });
+        if (typeof hanaActors === 'object') hanaActors.preload(classId);
+        refresh();
+        note(`직업: ${PLAYER_CLASS_DEFS[classId].label}`);
+    }
+    function equipGem(name) {
+        if (!SKILL_DB[name]) return;
+        game.skills = Array.isArray(game.skills) ? game.skills : [];
+        if (!game.skills.includes(name)) game.skills.push(name);
+        changeSkill(name);
+        note(`젬 장착: ${name}`);
+    }
+    function setSetting(key, value, label) {
+        game.settings[key] = value;
+        note(label);
+    }
+    function toggleGodMode(on) {
+        clearInterval(godTimer);
+        godTimer = on ? setInterval(() => {
+            if (game.playerHp > 0) game.playerHp = getPlayerHpCap(getUiPlayerStats());
+        }, 200) : null;
+        note(on ? '무적 켬' : '무적 끔');
+    }
+    function setSpeed(value) {
+        speed = setTestCombatSpeed(value);
+        root.querySelectorAll('[data-speed]').forEach(node => node.classList.toggle('on', Number(node.dataset.speed) === speed));
+        note(`배속 ×${speed}`);
+    }
+    function addLevels(count) {
+        for (let i = 0; i < count && game.level < MAX_PLAYER_LEVEL; i++) { game.level++; game.passivePoints++; }
+        game.exp = 0;
+        game.playerHp = getPlayerHpCap(getUiPlayerStats());
+        checkUnlocks();
+        refresh();
+        note(`레벨 ${game.level}`);
+    }
+    /** 그루터기 함: 액트 10을 깨지 않고 받기, 씨앗·수액 몇 개, 판 위 아이템 처치 100회분 성장. */
+    function grantStumpBox() {
+        const box = stumpBox.of(game);
+        if (!box.acquired) { box.acquired = true; box.via = 'dev'; }
+        contentProgression.sync(game);
+        checkUnlocks();
+        refresh();
+        note('그루터기 함 지급');
+    }
+    function giveStumpItems() {
+        if (!game.stumpBox.acquired) grantStumpBox();
+        const colors = Object.keys(STUMP_BOX_COLORS);
+        const made = Array.from({ length: 8 }, (_, i) => stumpBox.createItem(game, { family: i % 3 ? 'seed' : 'sap', color: colors[i % 4], roll: 0.8 + Math.random() * 0.4 }));
+        refresh();
+        note(`씨앗·수액 ${made.filter(Boolean).length}개`);
+    }
+    function growStumpBox() {
+        for (let i = 0; i < 100; i++) stumpBox.grow(game, {});
+        refresh();
+        note('그루터기 함 성장 +100');
+    }
+    /** 효과 확장 +N for the active skill (rules only for now — items, inner growth and the keystone come later). */
+    function setExpansion(n) {
+        const level = skillEffectExpansion.setTestLevel(n);
+        root.querySelectorAll('[data-expand]').forEach(node => node.classList.toggle('on', Number(node.dataset.expand) === level));
+        refresh();
+        note(level ? `효과 확장 +${level}${level >= 2 ? ' (피해 −30%)' : ''}` : '효과 확장 없음');
+    }
+    function travelToAct(order) {
+        const zoneId = order - 1;
+        game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
+        changeZone(zoneId);
+        refresh();
+        note(`액트 ${order}(으)로 이동`);
+    }
+
+    // ------------------------------------------------------------------ markup
+    function gemLabel(name) {
+        const id = SKILL_FX_ATLAS[name]?.id;
+        return id ? `${String(id).padStart(2, '0')} ${name}` : name;
+    }
+    function gemGroup(name) {
+        const tags = SKILL_DB[name].tags || [];
+        if (tags.includes('summon_attack')) return '소환';
+        if (tags.includes('mobility')) return '이동 스킬(따로 장착)';
+        if (SKILL_DB[name].nativeCastId) return '전용 시전(44~53)';
+        return tags.includes('spell') ? '주문' : '공격';
+    }
+    function gemSelect() {
+        const select = el('select', { id: 'dtp-gem' });
+        const groups = new Map();
+        Object.keys(SKILL_DB).filter(name => SKILL_DB[name].isGem).forEach(name => {
+            const group = gemGroup(name);
+            if (!groups.has(group)) groups.set(group, el('optgroup', { label: group }));
+            groups.get(group).append(el('option', { value: name, textContent: gemLabel(name) }));
+        });
+        groups.forEach(group => select.append(group));
+        select.value = SKILL_DB[game.activeSkill]?.isGem ? game.activeSkill : '연속 베기';
+        return select;
+    }
+    function classRow() {
+        return row(Object.keys(PLAYER_CLASS_DEFS).map(id => button(PLAYER_CLASS_DEFS[id].label, () => chooseClass(id))));
+    }
+    function weaponSelect() {
+        const select = el('select', { id: 'dtp-weapon' }, WEAPON_MODES.map(([value, label]) => el('option', { value, textContent: label })));
+        select.value = game.settings.heroWeaponMode || 'auto';
+        select.onchange = () => setSetting('heroWeaponMode', select.value, `무기: ${select.selectedOptions[0].textContent}`);
+        return select;
+    }
+    function characterSection() {
+        return section('캐릭터', [classRow(), row([
+            button('Hana 스프라이트', () => setSetting('heroSpriteSet', 'hana', '캐릭터: Hana +6')),
+            button('기존 스프라이트', () => setSetting('heroSpriteSet', 'legacy', '캐릭터: 기존'))
+        ]), row([el('label', { textContent: '무기' }), weaponSelect()])]);
+    }
+    function gemSection() {
+        const select = gemSelect();
+        return section('스킬 이펙트', [
+            row([select, button('장착', () => equipGem(select.value))]),
+            row([button('리메이크(16도트)', () => setSetting('skillFxStyle', 'remake', '이펙트: 리메이크')),
+                button('원본 v3.38', () => setSetting('skillFxStyle', 'original', '이펙트: 원본'))]),
+            row([el('label', { textContent: '효과 확장' }), ...['없음', '+1', '+2'].map((label, n) =>
+                button(label, () => setExpansion(n), { dataset: { expand: String(n) } }))])
+        ]);
+    }
+    function combatSection() {
+        const god = el('input', { type: 'checkbox', id: 'dtp-god', onchange: () => toggleGodMode(god.checked) });
+        return section('전투', [
+            row([el('label', { htmlFor: 'dtp-god' }, [god, ' 무적(생명력 유지)'])]),
+            row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } })))
+        ]);
+    }
+    function progressSection() {
+        const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct} · ${act.title}` })));
+        return section('진행', [
+            row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
+            row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
+            row([button('그루터기 함 받기', grantStumpBox), button('씨앗·수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
+        ]);
+    }
+    function status() {
+        const line = root && root.querySelector('.dtp-status');
+        if (!line) return;
+        const sprite = game.settings.heroSpriteSet === 'legacy' ? '기존' : 'Hana';
+        const fx = game.settings.skillFxStyle === 'original' ? '원본' : '리메이크';
+        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'} · ${game.activeSkill}${game.mobilitySkill ? ' + ' + game.mobilitySkill : ''} · ${weaponLabel()} · Lv.${game.level} · ${sprite} · 이펙트 ${fx} · ×${speed}`;
+    }
+    function weaponLabel() {
+        const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment['무기'], game.settings.heroWeaponMode || 'auto');
+        return HANA_WEAPON_COMBOS.weapons[weapon]?.label || '-';
+    }
+
+    function mount() {
+        const panel = el('div', { className: 'dtp-panel', hidden: true }, [
+            el('header', {}, [el('strong', { textContent: '🧪 테스트 패널' }), button('닫기', () => { panel.hidden = true; })]),
+            el('p', { className: 'dtp-status' }),
+            characterSection(), gemSection(), combatSection(), progressSection(),
+            el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용 · 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
+        ]);
+        const toggle = button('🧪 테스트', () => { panel.hidden = !panel.hidden; status(); }, { className: 'dtp-toggle' });
+        root = el('div', { id: 'dev-test-panel' }, [el('style', { textContent: STYLE }), toggle, panel]);
+        document.body.append(root);
+        setSpeed(1);
+        status();
+    }
+    // 왼쪽 아래는 하단 HUD(생명 구슬 · 휴대폰은 HUD와 하단 메뉴)라 그 위로 띄운다.
+    const STYLE = `#dev-test-panel{--dtp-bottom:170px;position:fixed;left:10px;bottom:var(--dtp-bottom);z-index:30000;font:13px/1.45 'Malgun Gothic',sans-serif;color:#efe6cf}
+@media (max-width:1080px){#dev-test-panel{--dtp-bottom:250px}}
+#dev-test-panel button{background:#231d15;color:#f3dfae;border:1px solid #6b5431;border-radius:6px;padding:4px 8px;cursor:pointer}
+#dev-test-panel button:hover,#dev-test-panel button.on{background:#4a3a1f;border-color:#d7b36f}
+#dev-test-panel select{background:#15120e;color:#efe6cf;border:1px solid #6b5431;border-radius:6px;padding:3px;max-width:190px}
+.dtp-toggle{font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.dtp-panel{position:absolute;left:0;bottom:40px;width:330px;max-height:min(72vh,calc(100vh - var(--dtp-bottom) - 72px));overflow:auto;padding:10px 12px;background:rgba(13,11,9,.95);border:1px solid #b58a48;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.dtp-panel header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.dtp-panel h4{margin:10px 0 4px;color:#d7b36f;font-size:12px;letter-spacing:.04em}
+.dtp-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:4px 0}
+.dtp-status{margin:0;color:#b9d7c4;font-size:12px}.dtp-hint{margin:10px 0 0;color:#9c927c;font-size:11px}`;
+
+    function init() { if (isEnabled() && !root) mount(); }
+    return Object.freeze({ init, isEnabled, status });
+})();
+safeExposeGlobals({ devTestPanel });
+document.addEventListener('DOMContentLoaded', () => devTestPanel.init(), { once: true });

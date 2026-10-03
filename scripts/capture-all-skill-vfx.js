@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const { chromium, devices } = require('@playwright/test');
+const { pickClass } = require('../tests/browser/helpers');
 process.env.PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT || '4212';
 const startServer = require('./serve-test');
 const output = path.resolve(process.env.VFX_CAPTURE_OUTPUT || 'artifacts/all-skill-vfx');
@@ -18,7 +19,7 @@ function captureSkill(request) {
     const enemyCells = [[4, 4], [4, 3], [5, 4], [5, 5]].slice(0, request.targetCount || 4);
     game.enemies = enemyCells.map(([gx, gy], index) =>
         Object.assign(createEnemy(getZone(1), { at: 20, count: 4 }, index),
-            { gx, gy, hp: 100000, maxHp: 100000, spriteVariantId: 'woodPuppet-0', spawnStamp: 0 }));
+            { gx, gy, hp: 100000, maxHp: 100000, spriteVariantId: 'deacon-act2-melee', spawnStamp: 0 }));
     battleVisualState.enemySmoothPos = {};
     battleVisualState.playerGridMotion = null;
     battleVisualState.playerFacingDirection = 'east';
@@ -75,7 +76,7 @@ async function capture(browser, mobile) {
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     const names = await page.evaluate(() => {
         // The fixture owns the clock. combatHalted alone is cleared by normal-zone recovery.

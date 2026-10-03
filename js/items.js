@@ -1,24 +1,3 @@
-function talismanCellKey(x,y){ return `${x},${y}`; }
-
-function talismanCellIndex(x,y){ return y * TALISMAN_BOARD_W + x; }
-
-function isTalismanBoardCellValid(x,y){ return TALISMAN_BOARD_MASK.has(talismanCellKey(x,y)); }
-
-function isTalismanCellInitiallyUnlocked(x, y){ return x >= 2 && x <= 5 && y >= 2 && y <= 5; }
-
-function getGeneratedTalismanName(talisman) {
-    if (!talisman) return '이름 없는 부적';
-    if (talisman.name) return talisman.name;
-    let stem = TALISMAN_NAME_STEMS[talisman.stat]
-        || String(talisman.statName || '미지').replace(/\s*\(%\)\s*|\s*증가\s*|\s*피해\s*/g, '').trim() + '의';
-    let shape = TALISMAN_SHAPE_NAMES[talisman.shape] || '매듭';
-    return `${stem} ${shape}`;
-}
-
-function ensureTalismanName(talisman) {
-    if (talisman && !talisman.name) talisman.name = getGeneratedTalismanName(talisman);
-    return talisman;
-}
 
 function getCodexSlotOrder() {
     return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
@@ -48,14 +27,15 @@ const BLACK_MARKET_INSIGHT_TARGET = 5;
 const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
 
 function getInventoryItemVisualAsset(item, kind) {
+    return pixelIconPath(pickInventoryItemVisualAsset(item, kind));
+}
+
+function pickInventoryItemVisualAsset(item, kind) {
     let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
     if (!visuals) return '';
     if (kind === 'jewel') return visuals.jewel;
-    if (kind === 'talisman') return visuals.talisman;
-    if (kind === 'growth') {
-        let category = item && (item.growthCategory || (item.slabType ? 'slab' : ''));
-        return visuals.growth[category] || visuals.growth.default;
-    }
+    if (kind === 'talisman') return item && item.family === 'talisman' ? stumpBox.iconPath(item) : visuals.talisman;
+    if (kind === 'core') return coreItems.icon(item);
     return getEquipmentGridVisualAsset(item);
 }
 
@@ -69,6 +49,10 @@ function renderInventoryItemVisual(item, kind, className) {
 safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
 
 function getEquipmentGridVisualAsset(item) {
+    return pixelIconPath(pickEquipmentGridVisualAsset(item));
+}
+
+function pickEquipmentGridVisualAsset(item) {
     const visuals = ITEM_VISUAL_ASSET_DB;
     if (!item) return visuals.equipment.default;
     const grid = visuals.equipmentGrid;
@@ -92,9 +76,10 @@ function getEquipmentInventoryFootprint(item) {
     if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
     if (slot === '갑옷') return { columns: 2, rows: 2 };
     if (slot !== '무기') return { columns: 1, rows: 1 };
+    // 무기: 대검 대분류는 2×3, 완드 · 로드 · 홀 · 초점봉은 1×2, 나머지는 1×3(세로 4칸 무기는 없다, 2026-10-03).
+    if (getWeaponCategoryId(item) === 'greatsword') return { columns: 2, rows: 3 };
     let label = `${item && item.baseId || ''} ${item && item.baseName || ''} ${item && item.name || ''}`.toLowerCase();
     if (/완드|wand|scepter|셉터|초점|focus|로드|rod|봉|홀$/.test(label)) return { columns: 1, rows: 2 };
-    if (/활|궁|bow|석궁|crossbow|발리스타|ballista|창|spear|pike|lance|staff|지팡이|대검|great|glaive|글레이브|railgun|레일건|launcher|발사기|repeater|연사/.test(label)) return { columns: 1, rows: 4 };
     return { columns: 1, rows: 3 };
 }
 
@@ -313,10 +298,7 @@ function clearCraftSelection() { craftingSelectionState.ref = null; craftingSele
 function getSelectedCraftItem() {
     if (craftingSelectionState.ref === null) return null;
     if (craftingSelectionState.isEquip) return game.equipment[craftingSelectionState.ref] || null;
-    // 생장 아이템은 전용 보관함(game.growthInventory)에 있으므로 함께 조회한다.
-    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref)
-        || (typeof findAnyGrowthItemById === 'function' ? findAnyGrowthItemById(craftingSelectionState.ref) : null)
-        || null;
+    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref) || null;
 }
 
 function ensureCraftSelectionValid() {
@@ -325,9 +307,7 @@ function ensureCraftSelectionValid() {
         if (!game.equipment[craftingSelectionState.ref]) clearCraftSelection();
         return;
     }
-    let inShared = game.inventory.some(item => item.id === craftingSelectionState.ref);
-    let inGrowth = typeof findAnyGrowthItemById === 'function' && !!findAnyGrowthItemById(craftingSelectionState.ref);
-    if (!inShared && !inGrowth) clearCraftSelection();
+    if (!game.inventory.some(item => item.id === craftingSelectionState.ref)) clearCraftSelection();
 }
 
 function selectForCrafting(ref, isEquip) {
@@ -401,7 +381,7 @@ function getEquipCandidateSlots(item, targetGame = game) {
     if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
     if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
-    let warriorDualTrain = targetGame.ascendClass === 'warrior' && hasKeystone('w3', targetGame);
+    let warriorDualTrain = hasKeystone('w3', targetGame);
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
 }
@@ -413,12 +393,39 @@ function canEquipItemToSlot(item, preferredSlot) {
 
 function tryAutoEquipEmptySlot(item) {
     if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
+    return equipIntoFirstEmptySlot(item);
+}
+
+/** Puts the item into its first empty candidate slot when the requirements allow. Returns the slot or null. */
+function equipIntoFirstEmptySlot(item) {
     let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
     if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
     delete item.legacyRequirementGrace;
     game.equipment[slot] = item;
     if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
     return slot;
+}
+
+/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터. 장비 창 "빈 칸 채우기"와 탐험 보상 정산(자동 장착 설정이
+ * 켜져 있을 때)이 쓴다. Returns the equipped count. */
+function equipIntoEmptySlots(items) {
+    const rank = item => (Number(item.itemTier) || 0) * 10 + JEWEL_RARITY_ORDER.indexOf(item.rarity);
+    let equipped = 0;
+    for (const item of [...(items || [])].filter(Boolean).sort((a, b) => rank(b) - rank(a))) {
+        const index = game.inventory.indexOf(item);
+        if (index < 0 || !equipIntoFirstEmptySlot(item)) continue;
+        game.inventory.splice(index, 1);
+        equipped++;
+    }
+    return equipped;
+}
+
+/** 가방에 맞는 장비가 있는 빈 장비 칸 수("빈 칸 채우기" 단추의 숫자). */
+function countFillableEmptySlots() {
+    const empty = Object.keys(game.equipment).filter(slot => !game.equipment[slot]);
+    if (!empty.length) return 0;
+    return empty.filter(slot => game.inventory.some(item => item && getEquipCandidateSlots(item).includes(slot)
+        && combatEquipmentStats.inspect(item, slot).ok)).length;
 }
 
 function pickEquipSlot(item, preferredSlot) {
@@ -437,7 +444,7 @@ function pickEquipSlot(item, preferredSlot) {
         return null;
     }
     if (item.slot === '무기') {
-        let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+        let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
         if (warriorDualTrain && !preferredSlot) {
             if (game.equipment['무기'] && !game.equipment['방패']) return '방패';
             if (!game.equipment['무기']) return '무기';
@@ -452,7 +459,7 @@ function pickEquipSlot(item, preferredSlot) {
 
 function isDualSlotItem(slotName) {
     if (slotName === '반지' || slotName === '장갑') return true;
-    return slotName === '무기' && game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    return slotName === '무기' && typeof hasKeystone === 'function' && hasKeystone('w3');
 }
 
 function getDualSlotDisplayLabel(targetSlot) {
@@ -480,7 +487,7 @@ function equipItem(idx, preferredSlot) {
     if (!item) return;
     const restriction = getPassiveEquipmentRestriction(item);
     if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
         return;
@@ -663,7 +670,6 @@ function getTimeRiftFusionMismatchReason(altarItem, candidate) {
 function getTimeAltarItemIssue(item, rift = ensureTimeRiftState()) {
     if (!rift.altarOpen) return '먼저 과거를 클리어해 제단을 열어야 합니다.';
     if (!item) return '제단에 올릴 장비를 고르세요.';
-    if (isGrowthItem(item)) return '생장판과 석판은 제단에 올릴 수 없습니다.';
     if (item.hallReplica) return '전당 소장품은 제단에 올릴 수 없습니다.';
     if (item.fusedRelic) return '이미 융합된 유물은 다시 시간을 건널 수 없습니다.';
     if (item.corrupted) return '타락한 장비는 제단에 올릴 수 없습니다.';
@@ -686,7 +692,6 @@ function placeItemOnTimeAltar() {
     const issue = getTimeAltarItemIssue(item, rift);
     if (issue) return addLog(issue, 'attack-monster');
     let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
-    if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
@@ -755,7 +760,7 @@ function resolveTimeRiftFusion() {
 // Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free.
 // Automatic interruptions pass their own explicit return destination.
 function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
-    let st = ensureStarWedgeState();
+    let st = ensureMeteorSiteState();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
     st.skyRiftReady = false;
@@ -765,12 +770,10 @@ function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.curren
 }
 
 function getZoneTravelBlockReason(id) {
-    if (typeof id === 'string' && id.startsWith('worldtree_')) {
-        const reason = worldTreeJourney.lockReason(game, id);
-        if (reason) return reason;
-    }
+    const atlasReason = atlas.travelReason(game, id);
+    if (atlasReason) return atlasReason;
     if (getZone(id)?.type === 'trial' && !contentProgression.isUnlocked('battleTrials')) {
-        return '루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
+        return '루프 3부터 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
     }
     if (game.pendingLoopReady) {
         return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
@@ -790,7 +793,7 @@ function changeZone(id) {
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
     if (id === METEOR_FALL_ZONE_ID) {
-        let st = ensureStarWedgeState();
+        let st = ensureMeteorSiteState();
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
         prepareMeteorEncounterEntry();
@@ -835,7 +838,7 @@ function changeZone(id) {
         game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
         if (depth >= 20 && !game.abyssUnlockedDepths.includes(depth)) game.abyssUnlockedDepths.push(depth);
     }
-    worldTreeJourney.onTravel(game, zone);
+    atlasRun.travel(zone);
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
     // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다.
@@ -865,9 +868,10 @@ async function marketResetPassiveTreeByDivine() {
     }
     game.currencies.goldenRule -= 1;
     // 직업 시작점은 소유 목록에 넣지 않아도 항상 무료 연결점으로 계산된다.
+    const grantedPoints = passiveRouting.paleBonus(game);
     game.passives = [];
     game.passiveAttributeChoices = {};
-    game.passivePoints += spentNodes;
+    game.passivePoints = Math.max(0, game.passivePoints + spentNodes - grantedPoints);
     calculateReachableNodes();
     refreshPassiveVisibility();
     addLog(`🧠 패시브 트리 초기화 완료! 포인트 ${spentNodes}점 반환`, 'season-up');
@@ -923,22 +927,6 @@ async function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
-async function marketExpandGrowthInventoryByDivine() {
-    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
-    if (!isGrowthBoardUnlocked()) return addLog('생장판 해금 후 이용할 수 있습니다.', 'attack-monster');
-    let cost = getGrowthMarketExpandCost();
-    if (game.currencies.goldenRule < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 생장 보관함을 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`), {
-        title: '생장 보관함 영구 확장',
-        confirmLabel: '확장'
-    })) return;
-    if (!isMarketUnlocked() || !isGrowthBoardUnlocked() || getGrowthMarketExpandCost() !== cost || game.currencies.goldenRule < cost) return addLog('확인 중 확장 조건 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
-    game.currencies.goldenRule -= cost;
-    game.growthInventoryExpandLevel = Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)) + 1;
-    addLog(`🌱 생장 보관함 영구 확장 완료! 현재 최대 칸: ${getGrowthInventoryLimit()}`, 'loot-unique');
-    updateStaticUI();
-}
-
 function getBaseDefenseProfile(base) {
     let ids = new Set((base.baseStats || []).map(stat => stat.id));
     return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
@@ -986,11 +974,14 @@ function getBaseUpgradeCandidates(currentBase) {
     let currentProfile = getBaseDefenseProfile(currentBase);
     let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
     let currentArchetype = getBaseBuildArchetype(currentBase);
+    let currentCategory = getWeaponCategoryOfBase(currentBase.id);
     let isArmorSlot = ['투구','갑옷','장갑','신발','방패'].includes(currentBase.slot);
     let candidates = BASE_ITEM_DB
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
         .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
         .filter(base => getBaseBuildArchetype(base) === currentArchetype)
+        // 무기는 같은 대분류 안에서만 승급한다(곡도가 대검이 되지 않게).
+        .filter(base => getWeaponCategoryOfBase(base.id) === currentCategory)
         .sort((a,b)=>a.reqTier-b.reqTier);
     // 방어구는 방어 프로파일(방어도/회피/보호막)이 정체성이다. 저항 같은 부가 옵션은
     // 부수적이므로, 같은 프로파일끼리 티어 순서대로 이어 준다(저항이 달라도 무방).
@@ -1070,6 +1061,11 @@ function getBaseChainInfo(base) {
     if (!_baseChainInfoCache) buildBaseChainInfoCache();
     return _baseChainInfoCache[base.id] || null;
 }
+/** A base's step counted as in a six-step chain: a longer chain's top is 6 and the step below it 5 (the bow line has seven).
+ * Upgrade cost floors and the rare drop weight of chain tops read this. */
+function getBaseChainRank(info) {
+    return info ? info.step - Math.max(0, info.total - 6) : 0;
+}
 function getItemBaseChainInfo(item) {
     if (!item) return null;
     let base = BASE_ITEM_DB.find(b => b && item.baseId && b.id === item.baseId)
@@ -1092,9 +1088,10 @@ function getBaseUpgradeCost(nextBase) {
     let targetTier = Math.max(1, Math.floor(Number(nextBase.reqTier) || 1));
     let totalDewValue = Math.max(10,
         Math.ceil((5 + targetTier + targetTier * targetTier * 0.5) / 5) * 5);
-    let chainInfo = getBaseChainInfo(nextBase);
-    if (chainInfo && chainInfo.step >= 6) totalDewValue = Math.max(totalDewValue, 625);
-    else if (chainInfo && chainInfo.step === 5) totalDewValue = Math.max(totalDewValue, 225);
+    let chainRank = getBaseChainRank(getBaseChainInfo(nextBase));
+    // 6단계 체인의 맨 위, 그리고 20단계 무기(다섯 단계 체인인 플라스크 · 향로 포함)는 같은 625.
+    if (chainRank >= 6 || (nextBase.slot === '무기' && targetTier >= 20)) totalDewValue = Math.max(totalDewValue, 625);
+    else if (chainRank === 5) totalDewValue = Math.max(totalDewValue, 225);
     let goldenRule = Math.floor(totalDewValue / dewPerGoldenRule);
     return {
         formlessDew: totalDewValue - goldenRule * dewPerGoldenRule,
@@ -1107,8 +1104,6 @@ function getBaseUpgradeCost(nextBase) {
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
-    // 생장 아이템의 형태·크기는 베이스 정체성이므로 일반 제작으로 바꾸지 않는다 (spec 7).
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return addLog('생장 아이템의 형태와 크기는 베이스 정체성이라 업그레이드로 바꿀 수 없습니다.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
     if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');
@@ -1259,7 +1254,7 @@ function buildBlackMarketOffer(index) {
 function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
     let effect = (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || '';
     let sourceStats = Array.isArray(offer && offer.uniqueStats) ? offer.uniqueStats : (uniq && uniq.stats);
-    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(effect)}</div>` : '';
+    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">고유 효과: ${escapeHTML(effect)}</div>` : '';
     let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
         let statId = stat.id;
         let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
@@ -1348,8 +1343,8 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
         let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
-        let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">🌠 체이싱 유니크 암거래 품목</div>' : '';
-        let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">🎯 시장 정보로 확보한 표적 고유</div>' : '';
+        let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">체이싱 유니크 암거래 품목</div>' : '';
+        let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">시장 정보로 확보한 표적 고유</div>' : '';
         return `<div class="tooltip-title">도감 고유 정보 · ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
@@ -1582,4 +1577,4 @@ async function buyBlackMarketOffer(idx){
     updateStaticUI();
 }
 
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandJewelInventoryByDivine, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

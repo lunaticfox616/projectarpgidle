@@ -13,15 +13,21 @@
     (() => {
         if (!('serviceWorker' in navigator) || location.protocol === 'file:' || window.Capacitor?.isNativePlatform()) return;
         let updateReloadStarted = false;
+        // Only a worker replacing another one means new code. The first install claims a page that was just loaded
+        // from the network; reloading it then restarted a new player's first minute (class pick, prologue) mid-way.
+        let controller = navigator.serviceWorker.controller;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (updateReloadStarted) return;
+            const replaced = !!controller;
+            controller = navigator.serviceWorker.controller;
+            if (!replaced || updateReloadStarted) return;
             updateReloadStarted = true;
             location.reload();
         });
         window.addEventListener('load', async () => {
             try {
                 const registration = await navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' });
-                await registration.update();
+                // 등록을 돌려주지 않는 환경(서비스 워커 차단)에서는 확인할 것이 없다 — 매번 경고가 남았다(검토 9차).
+                if (registration) await registration.update();
             } catch (error) {
                 console.warn('[app-update] 최신 게임 파일 확인에 실패했습니다.', error);
             }
@@ -30,7 +36,7 @@
     </script>
     <link rel="stylesheet" href="css/main.css">
 
-    <link rel="preload" as="image" href="assets/ui/login-world-tree.webp">
+    <link rel="preload" as="image" href="assets/background/act1.png">
 
     <script>
     window.addEventListener('load', function revealStyledApp() {
@@ -53,25 +59,23 @@
             <div class="startup-hero-grid">
                 <div class="startup-hero-copy">
                     <div class="startup-brand-wrap">
-                        <img class="startup-logo" src="assets/ui/rignin-logo.png" alt="RIGNIN" width="1254" height="1254" fetchpriority="high">
-                        <div class="startup-wordmark-bar"></div>
-                        <button type="button" class="startup-about-link" id="startup-about-open" aria-haspopup="dialog" aria-controls="startup-about-dialog">잠깐, RIGNIN은 어떤 게임인가요?</button>
+                        <img class="startup-logo" src="assets/ui/pixel/rignin-logo-120.png" alt="RIGNIN" width="120" height="120" fetchpriority="high">
                     </div>
                     <div class="startup-summary-card">
                         <div class="startup-summary-head">
-                            <div class="startup-summary-title">현재 기기 저장 정보</div>
-                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 9월 2일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(26-09-02)</span></button>
+                            <div class="startup-summary-title">이 기기 저장</div>
+                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 10월 3일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(2026.10.03)</span></button>
                         </div>
                         <div class="startup-summary-grid">
                             <div class="startup-summary-item">
-                                <div class="startup-summary-label">로컬 진행</div>
-                                <div class="startup-summary-value" id="startup-local-summary">저장 데이터를 확인하는 중입니다.</div>
+                                <div class="startup-summary-value" id="startup-local-summary"></div>
                             </div>
                             <div class="startup-summary-item">
                                 <div class="startup-summary-label">마지막 저장</div>
                                 <div class="startup-summary-value" id="startup-local-time">없음</div>
                             </div>
                         </div>
+                        <p class="startup-summary-hint" hidden>저장된 모험이 없습니다. 게스트로 바로 시작하거나, 로그인하면 여러 기기에서 이어서 할 수 있습니다.</p>
                     </div>
                 </div>
             </div>
@@ -95,43 +99,37 @@
                     <label><input type="checkbox" id="startup-terms-consent"> <span>[필수] <a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a>에 동의합니다.</span></label>
                     <label><input type="checkbox" id="startup-privacy-consent"> <span>[필수] <a href="legal/privacy.html" target="_blank" rel="noopener">개인정보 수집·이용</a>에 동의합니다.</span></label>
                     <div>회원가입을 완료하려면 동의가 필요하며, 만 14세 이상만 이용할 수 있습니다.</div>
-                    <button type="button" id="btn-startup-resend-confirmation" class="startup-resend-confirmation" onclick="resendSignupConfirmation()">인증 메일 다시 받기</button>
+                    <button type="button" id="btn-startup-resend-confirmation" class="startup-resend-confirmation" onclick="resendSignupConfirmation()">인증 메일을 못 받았다면 다시 받기</button>
                 </div>
             </div>
             <div class="startup-actions-stack two" id="startup-auth-actions">
-                <button id="btn-startup-login" class="startup-primary" onclick="startupLogin()">로그인 후 시작</button>
-                <button id="btn-startup-signup" class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입 후 시작</button>
+                <button id="btn-startup-login" class="startup-primary" onclick="startupLogin()">로그인</button>
+                <button id="btn-startup-signup" class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입</button>
             </div>
             <div class="startup-actions-stack">
                 <button id="btn-startup-continue" class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">클라우드 세이브로 계속</button>
                 <button id="btn-startup-switch-account" class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;">다른 계정 사용</button>
-                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작 (로컬 전용)</button>
-                <div class="startup-local-save-warning">게스트 저장은 이 브라우저에만 남습니다. 데이터 삭제·기기 변경 시 복구되지 않습니다.</div>
+                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작</button>
+                <div class="startup-local-save-warning">이 기기에만 저장되며, 지우면 복구되지 않습니다.</div>
                 <button id="btn-startup-back" class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
             </div>
-            <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
-                <button id="btn-startup-google" class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
-                    <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
-                    <span>Sign in with Google</span>
-                </button>
-                <button id="btn-startup-kakao" class="social-login-image-btn" onclick="loginWithKakao()">
-                    <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
-                </button>
-            </div>
-            <div class="startup-status" id="startup-status">클라우드 연결 상태를 확인하는 중입니다.</div>
+            <details class="startup-social-login" id="startup-social-login">
+                <summary>소셜 로그인</summary>
+                <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
+                    <button id="btn-startup-google" class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
+                        <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
+                        <span>Google 계정으로 로그인</span>
+                    </button>
+                    <button id="btn-startup-kakao" class="social-login-image-btn" onclick="loginWithKakao()">
+                        <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
+                    </button>
+                </div>
+            </details>
+            <div class="startup-status" id="startup-status" role="status"></div>
             <div class="startup-policy-links"><a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a><span>·</span><a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></div>
         </div>
     </div>
 </div>
-<dialog id="startup-about-dialog" aria-labelledby="startup-about-title" aria-describedby="startup-about-description">
-    <h2 id="startup-about-title">RIGNIN은 어떤 게임인가요?</h2>
-    <figure class="startup-about-preview">
-        <video id="startup-about-video" muted loop playsinline disablepictureinpicture preload="none" aria-label="비술사가 몬스터 처치 후 레벨업하는 실제 게임 영상, 2초"></video>
-    </figure>
-    <p id="startup-about-description">액션 롤플레잉 게임(ARPG)의 요소에 자동사냥 방치형 게임의 요소를 결합한 게임입니다. 루프하며 새로운 컨텐츠를 해금하고 강력한 캐릭터를 육성해보세요!</p>
-    <p id="startup-about-status" role="status" hidden>영상을 재생할 수 없어 실제 전투 이미지를 표시합니다.</p>
-    <button type="button" autofocus onclick="this.closest('dialog').close()">알겠어요!</button>
-</dialog>
 <div id="loading-overlay" class="loading-overlay">
     <div class="loading-card" role="dialog" aria-modal="true" aria-labelledby="loading-title">
         <div class="loading-sigil" aria-hidden="true">
@@ -168,31 +166,9 @@
         </div>
     </div>
 </div>
-<div id="beeswax-warning-overlay" class="tutorial-overlay">
-    <div class="tutorial-card" style="max-width:520px; border-color:#d9a441; background:linear-gradient(170deg,#211a0f 0%,#111722 100%);">
-        <div class="tutorial-kicker" id="beeswax-warning-kicker">밀랍 처리 경고</div>
-        <div class="tutorial-title" id="beeswax-warning-title">밀랍 효과 확인</div>
-        <div class="tutorial-body" id="beeswax-warning-body"></div>
-        <div class="tutorial-actions" id="beeswax-warning-actions">
-            <button class="tutorial-secondary" onclick="closeBeeswaxWarningOverlay()">취소</button>
-            <button id="beeswax-warning-confirm" onclick="confirmBeeswaxApplication()">밀랍 적용</button>
-        </div>
-    </div>
-</div>
-<div id="talisman-dismantle-overlay" class="tutorial-overlay">
-    <div class="tutorial-card" style="max-width:520px; border-color:#b65f5f; background:linear-gradient(170deg,#251313 0%,#111722 100%);">
-        <div class="tutorial-kicker">부적 해체 경고</div>
-        <div class="tutorial-title" id="talisman-dismantle-title">부적을 해체할까요?</div>
-        <div class="tutorial-body" id="talisman-dismantle-body"></div>
-        <div class="tutorial-actions">
-            <button class="tutorial-secondary" onclick="closeTalismanDismantleOverlay()">취소</button>
-            <button id="talisman-dismantle-confirm" onclick="confirmTalismanDismantle()" style="background:#8c3f3f; border-color:#b65f5f;">해체</button>
-        </div>
-    </div>
-</div>
 <div id="reward-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
-        <div class="tutorial-kicker">액트 클리어 보상</div>
+        <div class="tutorial-kicker" id="reward-kicker">액트 클리어 보상</div>
         <div class="tutorial-title" id="reward-title">보상을 선택하세요</div>
         <div class="tutorial-body" id="reward-body"></div>
         <div class="reward-grid" id="reward-grid"></div>
@@ -203,10 +179,18 @@
 </div>
 <div id="loop-hero-select-overlay" class="tutorial-overlay">
     <div class="tutorial-card" style="max-width:460px;">
-        <div class="tutorial-kicker" id="loop-hero-select-kicker">Loop Selection</div>
-        <div class="tutorial-title" id="loop-hero-select-title">다음 루프 직업 선택</div>
-        <div class="tutorial-body" id="loop-hero-select-body">이번 루프에서 사용할 직업을 선택하세요.</div>
-        <div id="loop-hero-select-grid" class="reward-grid"></div>
+        <div class="hero-choice-scroll">
+            <div class="tutorial-kicker" id="loop-hero-select-kicker">다음 루프</div>
+            <div class="tutorial-title" id="loop-hero-select-title">다음 루프 직업 선택</div>
+            <div class="tutorial-body" id="loop-hero-select-body">이번 루프에서 사용할 직업을 선택하세요.</div>
+            <div id="loop-hero-select-grid" class="reward-grid"></div>
+        </div>
+        <!-- 휴대폰 배치(1080px 이하)만 보인다: 첫 누름은 고르기, 정하기는 여기서 (js/passives.js pressLoopHeroChoice) -->
+        <div class="hero-choice-confirm">
+            <div id="loop-hero-select-detail" class="hero-choice-detail" aria-live="polite"></div>
+            <p class="hero-choice-hint">직업을 눌러 시작 스킬 젬과 대표 무기를 확인하세요.</p>
+            <button type="button" id="loop-hero-select-start" class="hero-choice-start" disabled onclick="chooseLoopHero(this.value)">이 직업으로 시작</button>
+        </div>
     </div>
 </div>
 
@@ -231,7 +215,7 @@
 </div>
 <dialog id="death-overlay" class="tutorial-overlay" aria-labelledby="deathlog-title" oncancel="event.preventDefault(); closeDeathOverlay()" onkeydown="event.stopPropagation()">
     <div class="tutorial-card deathlog-card">
-        <div class="tutorial-kicker">Death Log</div>
+        <div class="tutorial-kicker">사망 기록</div>
         <div class="tutorial-title" id="deathlog-title">사망 보고서</div>
         <div class="tutorial-body" id="deathlog-body"></div>
         <div class="deathlog-panel">
@@ -274,13 +258,13 @@
 
     <div class="panel combat-panel" style="position: relative;">
         <h2 style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3d3d5c; padding-bottom: 5px;">
-            <span style="font-size: 0.75em; font-weight: normal; color: var(--copy-bright); flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 뿌리끝 성소</span>
+            <span style="font-size: 12px; font-weight: normal; color: var(--copy-bright); flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 뿌리끝 성소</span>
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title">
                 <span id="ui-combat-zone-inline">Lv.1 재능명</span>
             </div>
-            <div class="map-progress-row">
+            <div id="ui-map-progress-row" class="map-progress-row">
                 <span id="ui-cosmos-route-progress" hidden></span>
                 <strong id="ui-progress-label">진행도</strong>
                 <div class="hp-bar-bg map-progress-gauge" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showMapProgressTooltip(event)" onfocus="showMapProgressTooltip(event)" onmousemove="positionTooltipElement(document.getElementById('info-tooltip'),event.clientX,event.clientY)" onmouseleave="hideInfoTooltip()" onblur="hideInfoTooltip()">
@@ -291,20 +275,16 @@
             </div>
             <div class="combat-zone-actions">
                 <button id="btn-combat-loop-advance" class="combat-action-btn" onclick="handleCombatLoopAdvanceButton()">루프 진행</button>
-                <button id="btn-combat-return" class="combat-action-btn" onclick="returnToTown()">귀환</button>
+                <button id="btn-combat-return" class="combat-action-btn" data-exploration-departure onclick="returnToTown()">귀환</button>
             </div>
         </div>
-        <aside id="ui-world-tree-combat" hidden aria-label="세계수 탐험 진행"></aside>
+        <aside id="ui-atlas-combat" hidden aria-label="세계수 아틀라스 지도 진행"></aside>
         <div class="combat-top-status player-hud">
             <div class="player-hud-shell">
                 <div class="player-hud-left-wing">
                     <div class="player-hud-identity-row">
                         <strong id="ui-player-name-label">궁수</strong>
                         <span id="ui-player-class-label">미전직</span>
-                        <span id="ui-exp-level-label">Lv.1</span>
-                    </div>
-                    <div id="ui-combat-flasks" class="combat-flask-strip player-hud-flask-rack" data-content-locked data-visible-slots="1" aria-label="장착 플라스크와 남은 충전">
-                        <span class="combat-flask-mini boot-heal flask-heal" aria-hidden="true"></span>
                     </div>
                 </div>
                 <div class="player-health-frame" aria-label="플레이어 전투 정보">
@@ -315,10 +295,11 @@
                                 <div id="ui-es-bar" class="hp-bar-fill player-es" style="--gauge-fill: 0%; display: none;"></div>
                             </div>
                             <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
-                            <div class="combat-es-text" id="ui-es-inline">ES 0</div>
+                            <div class="combat-es-text" id="ui-es-inline"><span class="combat-es-label">보호막 </span>0</div>
                         </div>
                     </div>
                     <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
+                        <span id="ui-exp-level-label" class="player-exp-level">Lv.1</span>
                         <div class="player-exp-percent" id="ui-exp-note">0.0%</div>
                         <div class="hp-bar-bg combat-exp-bar" aria-label="경험치 진행도" data-info-tooltip-anchor="1" onmouseenter="showPlayerExperienceTooltip(event)" onmousemove="showPlayerExperienceTooltip(event)" onmouseleave="hideInfoTooltip()">
                             <div id="ui-exp-bar" class="hp-bar-fill exp" style="--gauge-fill: 0%;"></div>
@@ -326,13 +307,18 @@
                         </div>
                     </div>
                 </div>
+                <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
+                    <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
+                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기 · 탐험 방식 · 임시 전리품" onclick="actExplorationUi.expand()" hidden>탐험 지도</button>
+                    <button id="btn-act-exploration-auto" type="button" aria-pressed="true" aria-label="자동 이동 켜짐 · 눌러서 바꾸기" onclick="actExplorationUi.toggleAuto()" hidden><b>자동</b><i class="combat-hud-key" aria-hidden="true" hidden></i></button>
+                </section>
                 <div class="player-hud-skill-rack" aria-label="현재 장착 젬">
                     <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
                 </div>
                 <div id="ui-player-ailments-under" class="combat-effect-strip player-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>
             </div>
             <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
-                <div class="combat-hud-label combat-hud-label-oxygen">🫧 산소</div>
+                <div class="combat-hud-label combat-hud-label-oxygen">산소</div>
                 <div class="hp-bar-bg combat-oxygen-bar">
                     <div id="ui-ocean-oxygen-bar" style="height:100%; width:100%; background:linear-gradient(90deg,#1f9bd6,#4fd1ff); border-radius:inherit; transition:width .2s;"></div>
                     <div class="hp-text" id="ui-ocean-oxygen-text">100 / 100</div>
@@ -345,8 +331,8 @@
                 <div id="move-area" style="text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; min-height: 0;">
                     <div id="battlefield-wrap" class="battlefield-wrap">
                         <canvas id="battlefield-canvas"></canvas>
+                        <button id="btn-exploration-loot-skip" type="button" hidden>연출 건너뛰기</button>
                         <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
-                        <div id="ui-bounty-box" aria-live="polite" hidden></div>
                         <button id="btn-combat-goal-toggle" class="ui-context-dock-tab combat-goal-toggle" type="button" aria-controls="ui-goal-drawer" aria-expanded="false" onclick="toggleGoalDrawer()" hidden>목표</button>
                     </div>
                     <div id="side-encounter-hud" hidden></div>
@@ -378,6 +364,24 @@
 <button id="left-pane-floating-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기">◀</button>
 
 <div id="right-pane">
+    <dialog id="act-exploration-dialog" aria-label="확대 탐험 지도">
+        <div class="act-exploration-heading"><strong>탐험 지도</strong><button type="button" data-exploration-loot onclick="actExplorationUi.openLoot()">임시 전리품</button></div>
+        <canvas id="act-exploration-map-large" tabindex="0" aria-label="확대 탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
+        <div class="act-exploration-modes">
+            <button type="button" data-exploration-mode="direct" onclick="actExplorationUi.mode('direct')">보스 직행</button>
+            <button type="button" data-exploration-mode="full" onclick="actExplorationUi.mode('full')">전체 탐색</button>
+            <button type="button" data-exploration-mode="manual" onclick="actExplorationUi.mode('manual')">직접 이동</button>
+        </div>
+        <div class="act-exploration-dialog-actions">
+            <button id="act-exploration-seal" type="button" onpointerenter="actExplorationUi.hint(event)" onpointerleave="hideInfoTooltip()" onfocus="actExplorationUi.hint(event)" onblur="hideInfoTooltip()"></button>
+            <button type="button" onclick="this.closest('dialog').close()">닫기</button>
+        </div>
+    </dialog>
+    <dialog id="act-exploration-loot-dialog" aria-labelledby="act-exploration-loot-title">
+        <header class="act-exploration-heading"><strong id="act-exploration-loot-title">던전 임시 인벤토리</strong><button type="button" onclick="this.closest('dialog').close()" aria-label="임시 전리품 닫기">닫기</button></header>
+        <p id="act-exploration-loot-status"></p>
+        <div class="act-exploration-loot-body"><div id="act-exploration-loot-list" aria-label="임시 전리품 목록"></div><section id="act-exploration-loot-details" aria-label="전리품 상세 정보"></section></div>
+    </dialog>
     <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" title="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
     <div class="tab-category-bar" id="tab-category-bar" style="display:none;"></div>
     <div class="tab-header" id="tab-header-main">
@@ -386,22 +390,15 @@
         <div class="tab-btn" id="btn-tab-char" data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-unlocks" onclick="switchTab('tab-unlocks')">해금</div>
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 패시브 <span id="noti-season" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-pruning" onclick="switchTab('tab-pruning')" style="display:none;">가지치기 <span id="noti-pruning" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-arcana" onclick="switchTab('tab-arcana')" style="display:none;">아르카나 <span id="noti-arcana" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-expertise" onclick="switchTab('tab-expertise')">전문가 <span id="noti-expertise" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-traits" data-merged-tab-member="1" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-traits" data-merged-tab-member="1" onclick="switchTab('tab-traits')">전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talent" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-stump" onclick="switchTab('tab-stump')" style="display:none;">그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-jewel" data-merged-tab-member="1" onclick="switchTab('tab-jewel')" style="display:none;">주얼 <span id="noti-jewel" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-flask" data-merged-tab-launcher="utility" onclick="openMergedTabPicker(event,'utility')" style="display:none;">보조장비 <span id="jewel-inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-flask" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-journal" data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-codex" data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-records" data-merged-tab-member="1" onclick="switchTab('tab-records')">전적</div>
-        <div class="tab-btn" id="btn-tab-talisman" data-merged-tab-member="1" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-cube" data-merged-tab-member="1" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-growthboard" data-merged-tab-member="1" onclick="switchTab('tab-growthboard')" style="display:none;">생장판 <span id="noti-growthboard" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
         <div class="tab-btn" id="btn-map-complete-action-picker" onclick="openMapCompleteActionPicker(event)" style="display: flex;" role="button" aria-label="전투 완료 후 행동 선택" hidden>전투 완료: 다음 지역</div>
@@ -631,21 +628,17 @@
             </div>
             </div>
         </details>
-        <div id="ui-unique-special-summary" style="margin-top:10px; color:var(--copy-bright); font-size:0.83em;"></div>
+        <div id="ui-unique-special-summary" style="margin-top:10px; color:var(--copy-bright); font-size:12px;"></div>
     </div>
 
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
-            <h2><span>패시브 스킬 트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
-            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: #05070b; border: none; border-radius: 6px; position: relative; overflow: hidden; cursor: grab;">
+            <h2><span>스킬트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold;">0</span></span></h2>
+            <div id="tree-container" style="flex: 1; width: 100%; min-height: 280px; background: #05070b; border: none; position: relative; overflow: hidden; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
                 <div class="passive-tree-gesture-hint">드래그: 이동 · 휠/핀치: 확대</div>
                 <div class="passive-tree-toolbar">
-                <details id="passive-star-wedge-drawer" class="passive-star-wedge-drawer" hidden onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                    <summary title="별쐐기 관리" aria-label="별쐐기 관리"><strong>별쐐기</strong></summary>
-                    <div id="ui-star-wedge-panel"></div>
-                </details>
                 <details id="passive-preset-drawer" class="passive-preset-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
                     <summary title="패시브 프리셋" aria-label="패시브 프리셋"><strong>프리셋</strong></summary>
                     <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
@@ -679,27 +672,28 @@
     </div>
 
     <div id="tab-talent" class="tab-content">
-        <h2>🌸 재능 개화</h2>
+        <h2>재능 개화</h2>
         <div id="ui-talent-summary" class="talent-bloom-summary"></div>
-        <p style="color:var(--copy-bright); font-size:0.85em; margin:4px 0 12px;">재능 × 직업 조합으로 개화 시련을 클리어하면 카드를 얻습니다. 카드 점수(계정 진행도)가 레벨을, 레벨이 표면(직업)·이면(재능) 효과 수치를 결정합니다. 카드는 루프로 초기화되지 않습니다.</p>
+        <p style="color:var(--copy-bright); font-size:12px; margin:4px 0 12px;">개화 시련을 클리어하면 지금 전직의 카드를 얻습니다(재능은 직업이 정합니다). 카드 레벨은 계정 진행도로 오릅니다.</p>
         <div id="ui-talent-card-grid" class="talent-card-grid"></div>
     </div>
 
     <div id="tab-traits" class="tab-content">
-        <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">남은 전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetAscendNodes()">전직 트리 전체 초기화</button></span></h2>
+        <h2>전직 패시브 스킬 트리 <span class="h2-right">남은 전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:12px;" onclick="resetAscendNodes()">전직 트리 전체 초기화</button></span></h2>
 
         <div id="ui-class-select" style="display: none;">
-            <div style="text-align: center; margin-bottom: 15px; color: #ddd;">1차 전직 시련을 통과했습니다! 운명을 결정할 직업을 선택하세요. <br><span style="color: #e74c3c; font-size: 0.85em;">(한 번 선택하면 이번 루프에는 변경할 수 없습니다)</span></div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;" id="ui-class-grid"></div>
+            <div style="text-align: center; margin-bottom: 15px; color: #ddd;">1차 전직 시련을 통과했습니다. 이 직업의 전직 셋 중 하나를 고르세요.<br><span style="color: #e74c3c; font-size: 12px;">(한 번 선택하면 이번 루프에는 변경할 수 없습니다)</span></div>
+            <div id="ui-class-plan" style="margin-bottom: 15px;"></div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;" id="ui-class-grid"></div>
         </div>
 
         <div id="ui-class-tree" style="display: none;">
-            <div style="text-align: center; color: #9b59b6; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;" id="ui-selected-class-name">직업 이름</div>
+            <div style="text-align: center; color: #9b59b6; font-size: 1.2em; font-weight: bold; margin-bottom: 15px;" id="ui-selected-class-name">전직 이름</div>
             <div class="trait-tree" id="ui-ascend-tree-container"></div>
         </div>
 
         <div id="ui-class-locked" style="text-align: center; margin-top: 30px; color: #777;">
-            🔒 전직 시련을 통과하여 포인트를 얻어야 직업을 선택할 수 있습니다.
+            전직 시련을 통과하면 전직을 고를 수 있습니다.
         </div>
     </div>
 
@@ -710,10 +704,10 @@
         <div id="loop-passive-locked" class="content-passive-entry"><span>루프 패시브를 해금하면 포인트를 투자할 수 있습니다.</span><button onclick="switchTab('tab-unlocks');contentUnlockUi.select('loopTree')">해금 보기</button></div>
         <details id="trait-season-section" class="progression-section" style="display: none; margin-bottom: 16px;" open>
             <summary>원환 패시브</summary>
-            <h2>🔄 루프 패시브 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetSeasonNodes()">루프 패시브 전체 초기화</button></span></h2>
+            <h2>루프 패시브 트리 <span style="margin-left:10px; color:#ffd36b; font-family: var(--font-pixel); font-size:12px;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:12px;" onclick="resetSeasonNodes()">루프 패시브 전체 초기화</button></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </details>
-        <details id="ui-loop10-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary>심화 등반 · 영구 강화</summary><div id="ui-loop10-panel" data-loop10-panel="1" style="background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div></details>
+        <details id="ui-loop10-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary>심화 등반 · 영구 강화</summary><div id="ui-loop10-panel" class="loop10-panel" data-loop10-panel="1"></div></details>
         <details id="season-content-section" class="progression-section" style="display: none; margin-bottom: 20px;">
             <summary>루프 이정표</summary>
             <div class="loop-roadmap-heading loop-roadmap-toolbar"><button id="btn-toggle-past-loop-milestones" type="button" onclick="togglePastLoopMilestones()">지난 루프 펼치기</button></div>
@@ -721,35 +715,36 @@
         </details>
     </div>
 
-    <div id="tab-pruning" class="tab-content">
-        <h2>성장 나무 · 가지치기</h2>
-        <section id="pruning-tree-section" class="progression-section" style="display:none;">
-            <div id="ui-pruning-tree-panel"></div>
-        </section>
-    </div>
-
-    <div id="tab-arcana" class="tab-content">
-        <h2>아르카나</h2>
-        <div id="ui-arcana-panel"></div>
+    <div id="tab-stump" class="tab-content">
+        <h2>그루터기 함</h2>
+        <ul class="stump-rules">
+            <li>판에 놓인 씨앗과 수액만 처치로 자랍니다. 같은 색 셋이 다 자라면 공명 +10%.</li>
+            <li>화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.</li>
+            <li>부적은 색이 없고 판에서 처치로 깨어납니다.</li>
+            <li>루프 18부터 칸을 접붙여 그 칸에 놓인 것의 효과를 키웁니다. 칸 왼쪽 위 숫자가 단계입니다.</li>
+        </ul>
+        <div class="stump-box-screen">
+            <section id="stump-board-section" class="stump-box-pane">
+                <div id="stump-box-board"></div>
+                <div id="stump-cube" class="stump-cube"></div>
+                <div id="stump-box-summary" class="stump-box-summary"></div>
+                <div id="stump-box-detail" class="stump-box-detail"></div>
+            </section>
+            <section id="stump-storage-section" class="stump-box-pane">
+                <div id="stump-box-starter" class="stump-box-starter"></div>
+                <div id="stump-box-storage" class="stump-box-storage"></div>
+                <div id="stump-box-unseal" class="stump-box-unseal"></div>
+            </section>
+        </div>
     </div>
 
     
-    <div id="tab-expertise" class="tab-content">
-        <h2>🧠 전문가 조우</h2>
-        <div id="ui-expertise-overview" style="margin-bottom:12px;"></div>
-        <div class="subtab-row" id="ui-expert-subtabs"></div>
-        <div id="ui-expertise-detail" style="display:grid; gap:10px;"></div>
-        <h3 id="ui-expert-tree-title" style="margin-top:16px; display:none;">전문가 노드 트리</h3>
-        <div id="ui-expert-tree" class="trait-tree" style="display:none;"></div>
-    </div>
-
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
             <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')">장비 전당</button>
-            <button class="subtab-btn" id="btn-item-tab-infuser" onclick="switchItemSubtab('item-tab-infuser')" style="display:none;">혼돈 주입기</button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -760,6 +755,7 @@
             <div class="equipment-workspace">
                 <section class="equipment-loadout-panel">
                     <div class="paperdoll equipment-paperdoll" id="ui-equip-list"></div>
+                    <div id="ui-equipment-aux" class="equipment-aux" hidden></div>
                     <div id="ui-equipment-loadout-summary" class="equipment-loadout-summary" aria-label="장착 장비 방어 및 품질 요약"></div>
                     <div id="ui-equipment-presets"></div>
                 </section>
@@ -812,28 +808,6 @@
                 <div>
                     <h3>인벤토리</h3>
                     <div class="inventory-grid" id="ui-craft-inventory-list"></div>
-                    <h3 class="growth-craft-heading" id="ui-craft-growth-list-heading" style="display:none; margin-top:12px;">생장 아이템</h3>
-                    <div class="growth-card-grid" id="ui-craft-growth-list"></div>
-                </div>
-            </div>
-            </details>
-        </div>
-
-        <div id="item-tab-infuser" class="subtab-content">
-            <div class="forge-panel craft-workbench-card" style="border-color:#6e4aa8;">
-                <h3>🧪 혼돈 주입기</h3>
-                <div class="craft-target-actions"><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비 선택</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리 검색</button></div>
-                <div id="ui-chaos-infuser-panel" style="background:#10131f; border:1px solid #3f315f; border-radius:10px; padding:10px; color:#cfc8eb; font-size:0.9em;">나무꾼을 한 번 이상 마주치면 해금됩니다.</div>
-            </div>
-            <details class="secondary-craft-library" ontoggle="if(this.open) updateStaticUI()"><summary>전체 주입 대상 둘러보기</summary>
-            <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <h3>장착 장비</h3>
-                    <div class="paperdoll" id="ui-infuser-equip-list"></div>
-                </div>
-                <div>
-                    <h3>인벤토리</h3>
-                    <div class="inventory-grid" id="ui-infuser-inventory-list"></div>
                 </div>
             </div>
             </details>
@@ -848,6 +822,7 @@
                         <button type="button" role="tab" aria-controls="market-panel-exchange" data-market-section="exchange" aria-selected="true" onclick="marketUi.show('exchange')">재화 교환</button>
                         <button type="button" role="tab" aria-controls="market-panel-black" data-market-section="black" aria-selected="false" onclick="marketUi.show('black')">암거래상</button>
                         <button type="button" role="tab" aria-controls="market-panel-services" data-market-section="services" aria-selected="false" onclick="marketUi.show('services')">특수 서비스</button>
+                        <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')">나의 가판대</button>
                     </nav>
                     <section id="market-panel-exchange" role="tabpanel" aria-label="재화 교환"><div id="ui-market-exchange-list"></div></section>
                     <section id="market-panel-black" role="tabpanel" aria-label="암거래상" hidden>
@@ -857,6 +832,7 @@
                         <div id="ui-market-black" class="market-black-grid"></div>
                         <button id="market-black-expand" class="market-black-expand" onclick="expandBlackMarketSlotsByDivine()"></button>
                     </section>
+                    <section id="market-panel-stall" role="tabpanel" aria-label="나의 가판대" hidden></section>
                     <section id="market-panel-services" role="tabpanel" aria-label="특수 서비스" hidden>
                         <p id="market-service-balance" class="market-meta"></p>
                         <div id="market-service-navigation"></div>
@@ -864,7 +840,6 @@
                             <div class="market-service-stack">
                                 <div id="ui-market-service-passive" class="market-service-card"></div>
                                 <div id="ui-market-service-jewel-inv" class="market-service-card" hidden></div>
-                                <div id="ui-market-service-growth-inv" class="market-service-card" hidden></div>
                             </div>
                             <div id="ui-market-service-annul" class="market-service-card"></div>
                         </div>
@@ -875,50 +850,10 @@
 
         <div id="item-tab-hall" class="subtab-content">
             <div class="map-pvp-heading">
-                <div><span>SANCTUARY HALL</span><h2>🏛️ 장비 전당</h2></div>
+                <div><span>성소의 기록</span><h2>장비 전당</h2></div>
                 <p>장비를 서버 감정가로 전시하고 다른 플레이어의 소장품을 확인합니다.</p>
             </div>
             <div id="map-player-hall"></div>
-        </div>
-    </div>
-
-    <div id="tab-flask" class="tab-content">
-        <h2>플라스크</h2>
-        <div style="color:var(--copy-muted); margin-bottom:10px;">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다.</div>
-        <div id="ui-flask-panel" class="flask-management-panel"></div>
-    </div>
-
-    <div id="tab-jewel" class="tab-content">
-        <h2 style="margin-top: 20px; color: #8fd3ff;" id="ui-jewel-header">💠 주얼</h2>
-        <div id="ui-jewel-panel" style="background:#11151c; border:1px solid #2b3a4d; border-radius:10px; padding:10px;">
-            <div class="jewel-cap-toolbar">
-                <div id="ui-jewel-cap" style="color:#9ac5ec; font-size:0.84em;"></div>
-                <button id="btn-jewel-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandJewelInventoryByDivine()" hidden>+5칸 확장</button>
-            </div>
-            <div id="ui-jewel-library">
-                <div id="ui-jewel-slots" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"></div>
-                <nav class="inventory-library-pages" data-inventory-library="jewel" aria-label="주얼 목록 페이지" hidden></nav>
-                <div id="ui-jewel-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
-                <nav class="inventory-library-pages" data-inventory-library="jewel" aria-label="주얼 목록 하단 페이지" hidden></nav>
-            </div>
-            <details id="ui-jewel-craft-disclosure" class="progression-workbench" open><summary>제작 · 융합 · 슬롯 증폭</summary>
-                <label class="jewel-craft-mode" hidden>작업 선택<select id="jewel-craft-mode"><option value="orbs">옵션 제작</option><option value="fusion">가공 · 융합</option><option value="slots">슬롯 증폭</option><option value="void">공허 주얼</option></select></label>
-                <div id="ui-jewel-core-craft"></div>
-            </details>
-            <details id="ui-jewel-salvage-disclosure" class="bulk-manager" open><summary>일괄 해체 · 자동해체 관리</summary><div class="jewel-salvage-bar">
-                <div class="jewel-salvage-filters">
-                    <label><input type="checkbox" id="chk-jewel-salvage-normal" checked onchange="updateJewelSalvageSettingsFromUI()"> 일반</label>
-                    <label><input type="checkbox" id="chk-jewel-salvage-magic" checked onchange="updateJewelSalvageSettingsFromUI()"> 매직</label>
-                    <label><input type="checkbox" id="chk-jewel-salvage-rare" checked onchange="updateJewelSalvageSettingsFromUI()"> 레어</label>
-                    <label><input type="checkbox" id="chk-jewel-salvage-unique" onchange="updateJewelSalvageSettingsFromUI()"> 고유</label>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="bulk-salvage-action" onclick="bulkSalvageJewels()">선택 등급 해체</button>
-                    <button class="bulk-salvage-action" onclick="bulkSalvageJewelsBySearch(false)">검색 항목 해체</button>
-                    <button class="bulk-salvage-action" onclick="bulkSalvageJewelsBySearch(true)">미검색 항목 해체</button>
-                    <button id="btn-jewel-auto-salvage" class="bulk-salvage-action" onclick="toggleJewelAutoSalvage()">주얼 자동해체 OFF</button>
-                </div>
-            </div></details>
         </div>
     </div>
 
@@ -942,8 +877,8 @@
             <nav id="map-ready-destinations" class="map-ready-destinations" aria-label="현재 위치와 준비된 특수 지역" hidden></nav>
             <div class="vertical-tab-layout map-explore-layout">
                 <div class="vertical-tab-sidebar" aria-label="탐험 항목">
-                    <button class="vertical-tab-btn" id="btn-map-explore-atlas" onclick="explorationAtlasUi.open()"><span>세계수</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-worldtree" hidden onclick="switchMapExploreSubtab('map-explore-worldtree')"><span>세계수 탐험</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-atlas" onclick="explorationAtlasUi.open()"><span>전체 탐험</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-worldtree" onclick="switchMapExploreSubtab('map-explore-worldtree')"><span>세계수 아틀라스</span></button>
                     <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>나무</span><span id="noti-map-explore-hunting" class="noti-dot"></span></button>
                     <button class="vertical-tab-btn" id="btn-map-explore-chaos" style="display:none;" onclick="switchMapExploreSubtab('map-explore-chaos')"><span>혼돈</span></button>
                     <button class="vertical-tab-btn" id="btn-map-explore-root-boss" style="display:none;" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span>강대한 적</span><span id="noti-map-explore-root-boss" class="noti-dot"></span></button>
@@ -959,7 +894,7 @@
                 </div>
                 <div class="vertical-tab-panels">
                     <section id="map-explore-atlas" class="vertical-tab-panel"><div id="ui-exploration-atlas"></div></section>
-                    <section id="map-explore-worldtree" class="vertical-tab-panel"><div id="ui-world-tree-journey" class="world-tree-journey"></div></section>
+                    <section id="map-explore-worldtree" class="vertical-tab-panel"><div id="ui-atlas"></div></section>
                     <section id="map-explore-hunting" class="vertical-tab-panel active">
                         <h2>세부 지역</h2>
                         <div id="ui-map-route-summary" class="map-route-summary" aria-live="polite"></div>
@@ -970,7 +905,7 @@
                         <div class="map-grid" id="ui-map-list"></div>
                     </section>
                     <section id="map-explore-chaos" class="vertical-tab-panel">
-                        <h2>☠️ 혼돈</h2>
+                        <h2>혼돈</h2>
                         <div class="map-grid" id="ui-chaos-map-list"></div>
                     </section>
                     <section id="map-explore-root-boss" class="vertical-tab-panel">
@@ -999,6 +934,7 @@
                     <section id="map-explore-colony" class="vertical-tab-panel">
                         <h2 style="color: #9fe7b2; display: none;" id="ui-colony-header">군락지 방어전</h2>
                         <div id="ui-colony-panel" style="display:none;"></div>
+                        <div id="ui-colony-ward-panel" class="colony-ward-host" hidden></div>
                     </section>
                     <section id="map-explore-voidrift" class="vertical-tab-panel">
                         <h2 style="display:none;" id="ui-voidrift-header"><span class="exploration-legacy-title">공허 균열</span><button id="btn-grand-breach-auto-enter" onclick="toggleGrandBreachAutoEnter()" style="display:none;">대균열 자동입장 OFF</button></h2>
@@ -1017,31 +953,31 @@
         </div>
 
         <div id="map-tab-chaos-realm" class="subtab-content">
-            <h2>🌌 혼돈계</h2>
+            <h2>혼돈계</h2>
             <div id="ui-chaos-realm-panel" style="background:#10131f; border:1px solid #4b376d; border-radius:12px; padding:12px; margin-bottom:10px; color:#d7d0f4;"></div>
             <div class="map-grid" id="ui-chaos-realm-list"></div>
         </div>
 
         <div id="map-tab-sky" class="subtab-content">
-            <h2>☁️ 창공</h2>
+            <h2>창공</h2>
             <div id="ui-sky-tower-panel"></div>
             <div id="ui-sky-tower-list"></div>
         </div>
 
         <div id="map-tab-underworld" class="subtab-content">
-            <h2>🕳️ 지하계</h2>
+            <h2>지하계</h2>
             <div class="map-grid" id="ui-underworld-list"></div>
             <div id="ui-underworld-panel" class="underworld-panel"></div>
         </div>
 
         <div id="map-tab-ocean" class="subtab-content">
-            <h2>🌊 심해</h2>
+            <h2>심해</h2>
             <div id="ui-ocean-panel" class="ocean-panel-shell"></div>
             <div class="map-grid" id="ui-ocean-list"></div>
         </div>
 
         <div id="map-tab-fishing" class="subtab-content" onclick="if(event.target.closest('#fishing-collection-tab')) renderFishingPanel()">
-            <h2>🎣 낚시</h2>
+            <h2>낚시</h2>
             <section id="fishing-gather">
             <div id="ui-fishing-panel" class="ocean-panel-shell"></div>
             </section>
@@ -1050,7 +986,7 @@
                 <div id="ui-fishing-collection"></div>
             </details>
             <section id="fishing-workshop" data-recipe-group="supply">
-            <h3 class="ocean-gift-heading">🎁 바다의 선물</h3>
+            <h3 class="ocean-gift-heading">바다의 선물</h3>
             <label class="sea-gift-group-picker">제작 종류
                 <select aria-label="바다의 선물 제작 종류" onchange="document.getElementById('fishing-workshop').dataset.recipeGroup=this.value; document.querySelector('[data-ui-disclosure=sea-gift-'+this.value+']').open=true">
                     <option value="supply">재화 정제</option>
@@ -1064,7 +1000,7 @@
 
         <div id="map-tab-pvp" class="subtab-content">
             <div class="map-pvp-heading">
-                <div><span>PLAYER ARENA</span><h2>⚔️ 대전</h2></div>
+                <div><span>순례자 투기장</span><h2>대전</h2></div>
                 <p>현재 빌드의 고스트를 등록하고 다른 플레이어와 대결합니다.</p>
             </div>
             <div id="map-ghost-arena"></div>
@@ -1077,7 +1013,7 @@
             <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><strong>장착 · 보조</strong><small>현재 전투 세팅</small></button>
             <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><strong>성장 · 각인</strong><small>젬 강화와 특수 옵션</small></button>
             <button class="subtab-btn" id="btn-skill-tab-research" onclick="switchSkillSubtab('skill-tab-research')"><strong>젬 연구</strong><small>미보유 젬 확정 해금</small></button>
-            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><strong>자동 사용</strong><small>컨디션 젬 규칙</small></button>
+            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><strong>전술 규칙</strong><small>조건 · 행동 규칙</small></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active" data-mobile-library="skill">
             <div class="skill-loadout-overview">
@@ -1096,14 +1032,14 @@
             <div class="skill-loadout-workspace">
                 <section class="skill-library-panel attack-library">
                     <div class="skill-library-heading">
-                        <div><span class="skill-panel-kicker">ATTACK GEMS</span><h3>공격 스킬 젬</h3></div>
+                        <div><span class="skill-panel-kicker">주 스킬</span><h3>공격 스킬 젬</h3></div>
                         <span class="skill-library-note">주 공격 1개 · 소환 젬은 한도 내 복수 장착</span>
                     </div>
                     <div id="ui-skills-list" class="skill-gem-library"></div>
                 </section>
                 <section class="skill-library-panel support-library">
                     <div class="skill-library-heading">
-                        <div><span class="skill-panel-kicker">SUPPORT GEMS</span><h3>보조 젬</h3></div>
+                        <div><span class="skill-panel-kicker">연결 강화</span><h3>보조 젬</h3></div>
                         <span class="skill-library-note">장착 <strong id="ui-supp-count">0</strong>/<strong id="ui-supp-max">1</strong> · 남은 공명 <strong id="ui-resonance">0</strong></span>
                     </div>
                     <div id="ui-support-list" class="skill-gem-library"></div>
@@ -1115,7 +1051,7 @@
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
             <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
-                <div><span class="skill-panel-kicker">GEM FORGE</span><h2>젬 성장 · 각인 공방</h2></div>
+                <div><span class="skill-panel-kicker">젬 공방</span><h2>젬 성장 · 각인 공방</h2></div>
                 <p>공격 젬 하나를 선택한 뒤 기본 성장과 각인 슬롯을 순서대로 관리합니다.</p>
             </div>
             <div id="ui-gem-enhance-panel" class="gem-forge-workspace" style="display:none;">
@@ -1141,7 +1077,7 @@
                     </div>
                     <div class="gem-enhance-section gem-support-process-section">
                         <div class="gem-enhance-section-head">
-                            <div><span class="gem-section-index">03</span><div><div class="gem-enhance-section-title">보조 젬 가공</div><div class="gem-enhance-section-desc">젬 각인사 Lv.5부터 창공의 힘으로 보조 젬의 등급과 레벨을 올립니다.</div></div></div>
+                            <div><span class="gem-section-index">03</span><div><div class="gem-enhance-section-title">보조 젬 가공</div><div class="gem-enhance-section-desc">창공의 정수로 보조 젬의 등급과 레벨을 올립니다.</div></div></div>
                         </div>
                         <div id="ui-support-process-list" class="gem-support-process-list"></div>
                     </div>
@@ -1150,8 +1086,8 @@
         </div>
         <div id="skill-tab-condition" class="subtab-content">
             <div class="condition-gem-heading">
-                <div><span class="skill-panel-kicker">AUTOMATION</span><h2>컨디션 젬 자동 사용</h2></div>
-                <p>전투 중 위에서부터 조건을 검사해 처음 일치하는 젬을 사용합니다. 중요한 규칙을 위에 배치하세요.</p>
+                <div><span class="skill-panel-kicker">자동 전투</span><h2>전술 규칙</h2></div>
+                <p>전투 중 위에서부터 조건을 검사해 처음 일치하는 행동(대상 · 위치 전술, 마을 귀환)을 적용합니다. 중요한 규칙을 위에 두세요.</p>
             </div>
             <div id="ui-skill-rules-panel" class="condition-gem-rule-list"></div>
             <div class="condition-gem-actions">
@@ -1160,44 +1096,6 @@
             </div>
         </div>
 
-    </div>
-
-    <div id="tab-talisman" class="tab-content">
-        <div class="subtab-row" style="margin-bottom:10px;">
-            <button class="subtab-btn active" id="btn-talisman-sub-board" onclick="switchTalismanSubtab('talisman-sub-board')">부적 보드</button>
-            <button class="subtab-btn" id="btn-talisman-sub-colony-ward" onclick="switchTalismanSubtab('talisman-sub-colony-ward')">군락지 액막이</button>
-        </div>
-        <div id="talisman-sub-board" class="subtab-content active">
-            <div class="talisman-workspaces">
-            <section id="talisman-layout">
-            <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
-            <div id="talisman-mobile-selected" hidden></div>
-            <section id="talisman-mobile-inspector" aria-label="선택한 부적 위치" aria-live="polite" hidden></section>
-            <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
-                <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, var(--talisman-cell)); gap:4px;"></div>
-                <div id="ui-talisman-total" style="min-width:240px; color:#ffffff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
-            </div>
-            </section>
-            <section id="talisman-library">
-            <h3 style="margin:14px 0 6px;">📦 부적 인벤토리</h3>
-            <nav class="inventory-library-pages" data-inventory-library="talisman" aria-label="부적 목록 페이지" hidden></nav>
-            <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-            <nav class="inventory-library-pages" data-inventory-library="talisman" aria-label="부적 목록 하단 페이지" hidden></nav>
-            </section>
-            <section id="talisman-workshop">
-            <div id="ui-talisman-currency" style="margin-bottom:10px; color:var(--copy-bright);"></div>
-            <details class="progression-workbench" open><summary>부적 해제 · 편린 교환</summary>
-                <label class="talisman-unseal-choice" hidden>사용할 편린<select id="talisman-unseal-source"><option value="sealShard">봉인편린</option><option value="strongSealShard">강력한 기운의 봉인편린</option><option value="radiantSealShard">찬란한 봉인편린</option></select></label>
-                <div id="ui-talisman-unseal"></div>
-                <details class="talisman-shard-exchange"><summary>편린 교환</summary><div id="ui-talisman-exchange" class="talisman-unseal-actions"></div></details>
-            </details>
-            <details class="bulk-manager" open><summary>부적 일괄 해체 관리</summary><div class="equipment-salvage-actions"><button onclick="bulkSalvageTalismansBySearch(false)">검색 항목 해체</button><button onclick="bulkSalvageTalismansBySearch(true)">미검색 항목 해체</button><button onclick="salvageAllTalismansInInventory()">잠금 제외 전체 해체</button></div></details>
-            </section>
-            </div>
-        </div>
-        <div id="talisman-sub-colony-ward" class="subtab-content">
-            <div id="ui-colony-ward-talisman-panel"></div>
-        </div>
     </div>
 
     <div id="tab-codex" class="tab-content">
@@ -1214,40 +1112,6 @@
             </div>
         </div>
     </div>
-    <div id="tab-growthboard" class="tab-content">
-        <h2>🌱 생장판 <span class="h2-right" id="ui-growth-unlock-note" style="font-weight:normal; font-size:0.7em;"></span></h2>
-        <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">루프 25에 열리는 별도 성장판입니다. 열 가지 생장판과 석판을 배치하면 형태·위치·인접 관계에 따라 공간 시너지가 발동합니다.</p>
-        <div class="growth-workspaces">
-        <section id="growth-layout"><div id="ui-growth-panel"></div></section>
-        <section id="growth-library">
-        <h2 style="margin-top: 18px;">
-            <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
-            <span class="h2-right"><button id="btn-growth-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandGrowthInventoryByDivine()" hidden>+5칸 확장</button><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
-        </h2>
-        <nav class="inventory-library-pages" data-inventory-library="growth" aria-label="생장 보관함 페이지" hidden></nav>
-        <div class="growth-card-grid" id="ui-growth-inventory"></div>
-        <nav class="inventory-library-pages" data-inventory-library="growth" aria-label="생장 보관함 하단 페이지" hidden></nav>
-        </section>
-        <section id="growth-workshop"></section>
-        </div>
-    </div>
-    <div id="tab-cube" class="tab-content">
-        <h2>🧊 코어 큐브</h2>
-        <div style="color:var(--copy-bright); margin-bottom:10px;">흐릿한 45면체를 해석해 1~45번 동력원을 얻고, 큐브 6면에 붙여 옵션 4줄을 발현합니다.</div>
-        <div id="ui-core-cube-panel">
-            <div class="core-cube-lock-status"></div>
-            <div class="core-cube-shell">
-                <section id="cube-assembly" class="core-cube-assembly"></section>
-                <section id="cube-result" class="core-cube-stage">
-                    <div class="core-cube-stage-title"><span>Subterranean Core</span><strong>코어 큐브</strong></div>
-                    <div class="core-cube-canvas-wrap"><canvas id="coreCubeCanvas" aria-label="코어 큐브 3D 캔버스"></canvas></div>
-                    <section class="core-cube-stage-options" aria-live="polite"></section>
-                </section>
-                <section id="cube-resources" class="core-cube-side"></section>
-            </div>
-        </div>
-    </div>
-
     <!-- 소셜 콘텐츠는 renderSocialTab이 .social-root 하위에 렌더링한다.
          데스크톱은 전투 로그와 공용 도크, 모바일은 사용자 호출형 하단 시트를 쓴다. -->
     <div id="tab-social" class="tab-content">
@@ -1357,6 +1221,13 @@
                 </div>
             </div>
 
+            <!-- ── 단축키 (js/hotkeys-ui.js가 채움) ── -->
+            <div class="cfg-group cfg-group--hotkeys" data-settings-group="battle">
+                <div class="cfg-group-title">단축키</div>
+                <div id="ui-hotkey-settings" class="hotkey-settings"></div>
+                <div class="cfg-sublabel">칸을 누르고 새 키를 누르면 바뀝니다(Esc는 고정).</div>
+            </div>
+
             <!-- ── 전투 동작 ── -->
             <div class="cfg-group" data-settings-group="progress">
                 <div class="cfg-group-title">자동 진행</div>
@@ -1429,21 +1300,22 @@
                 <details class="cfg-disclosure cfg-disclosure--card" open>
                     <summary>외형 &amp; 인터페이스</summary>
                     <div class="cfg-rows">
-                    <div class="cfg-select-row">
-                        <span class="cfg-label">테마 모드</span>
-                        <select id="sel-theme-mode" onchange="updateSettings()" class="cfg-select">
-                            <option value="dark">다크모드</option>
-                            <option value="light">라이트모드</option>
-                        </select>
-                    </div>
-                    <div class="cfg-select-row">
+                    <!-- UI 스킨은 하나(균열 등불)라 고르는 줄을 숨긴다: js/utils.js normalizeUiSkin -->
+                    <div class="cfg-select-row" style="display:none">
                         <span class="cfg-label">UI 스킨</span>
                         <select id="sel-ui-skin" onchange="updateSettings()" class="cfg-select">
-                            <option value="reliquary">검은 성유물함</option>
-                            <option value="verdigris">녹청 성당</option>
-                            <option value="crimson">핏빛 참회</option>
+                            <option value="rift">균열 등불</option>
                         </select>
                     </div>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">아이콘 그림</span>
+                        <select id="sel-icon-art" onchange="iconArtUi.set(this.value)" class="cfg-select">
+                            <option value="pixel">도트</option>
+                            <option value="painted">원화</option>
+                        </select>
+                    </div>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-high-contrast" onchange="updateSettings()"><span class="cfg-label">고대비 모드</span></label>
+                    <div class="cfg-sublabel">글자·테두리를 또렷하게 하고 반투명 판을 짙게 합니다. 전장 조명(가장자리 어둡게)도 끕니다.</div>
                     <div class="cfg-select-row">
                         <label class="cfg-label" for="sel-ui-scale">UI 배율</label>
                         <select id="sel-ui-scale" class="cfg-select">
@@ -1494,7 +1366,7 @@
             <div class="cfg-group cfg-group--danger cfg-group--danger-bottom" data-settings-group="data">
                 <div class="cfg-group-title">초기화</div>
                 <div class="cfg-rows">
-                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">♻️ 세이브 초기화</button>
+                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">세이브 초기화</button>
                 </div>
             </div>
 
@@ -1504,7 +1376,7 @@
             <div class="cloud-panel">
             <div class="cloud-header">
                 <div>
-                    <div class="cloud-title">☁️ 클라우드 세이브</div>
+                    <div class="cloud-title">클라우드 세이브</div>
                     <div class="cloud-subtitle" id="ui-cloud-config-hint">로그인과 회원가입은 시작 화면에서 처리하고, 여기서는 연결 상태와 동기화만 관리합니다.</div>
                 </div>
                 <div class="cloud-status-pill" id="ui-cloud-status-pill">미설정</div>
@@ -1589,171 +1461,235 @@
 <script src="js/bootstrap.js?v=20260603-runtime-coherent2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
-<script defer src="data/constants.js?v=20260718-regional-passive1&ehp=20260811-bosspeak1&underworld=20260819-depth1&inventory-pages=20260827-1&square-map=20260901-3&boss-footprint=20260902-1&combat-overhaul=20260905-2"></script>
-<script defer src="data/level-progression.js?v=20260911-1&requirements-review=20260911-1&review=20260912-v338&unique-equipment=20260913-1&experience-curve=20260914-1&gem-growth=20260914-1"></script>
-<script defer src="data/build-stat-inputs.js?v=20260911-1"></script>
+<script defer src="data/constants.js?v=20260718-regional-passive1&ehp=20260811-bosspeak1&underworld=20260819-depth1&inventory-pages=20260827-1&square-map=20260901-3&boss-footprint=20260902-1&combat-overhaul=20260905-2&aux=20261001-3&aux=20261002-21&touch=20261002-1&traffic=20261003-1&herosize=20261003-1"></script>
+<script defer src="data/level-progression.js?v=20260911-1&requirements-review=20260911-1&review=20260912-v338&unique-equipment=20260913-1&experience-curve=20260914-1&gem-growth=20260914-1&aux=20260930-3"></script>
+<script defer src="data/build-stat-inputs.js?v=20260930-4&aux=20260930-3&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-16&aux=20261001-17&aux=20261002-13"></script>
 <script defer src="data/shrines.js?v=20260817-battlefield1"></script>
-<script defer src="data/bounties.js?v=20260817-bounty1&choice-tree=20260906-1&reward-flow=20260906-1&treasure=20260907-1&hunt-rewards=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1"></script>
-<script defer src="data/maps.js?v=20260719-tier-rift-stack1&cosmos=20260814-balance1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-bloom2&trial5=20260816-underworld1&directives=20260817-1&journal=20260820-arcana2&roadmap=20260821-2&map-tabs=20260823-1&trial-hazard=20260901-1&square-map=20260901-3&rival31=20260902-1&refinement=20260906-1&treasure=20260907-1&story-fx=20260909-1&expedition-review=20260914-2"></script>
-<script defer src="data/story-journal.js?v=20260910-style1"></script>
-<script defer src="data/cosmos-route.js?v=20260909-8"></script>
-<script defer src="data/world-tree-journey.js?v=20260913-4&exploration=20260913-8&copy=20260914-1&atlas-copy=20260914-3"></script>
-<script defer src="data/gem-core-forge.js?v=20260914-1&gem-value=20260915-1"></script>
-<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1&shield-charge=20260814-armor1&meteor-spell=20260814-damage1&patterns=20260820-1&vfx-icons=20260901-1&frost-burst=20260902-1&slash-vfx=20260905-1&range-art=20260905-2&pixel-review=20260905-1&compact-vfx=20260905-1&skill-identity=20260905-1&sprite-vfx=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&sword-sheets=20260906-1&flow=20260906-1&treasure=20260907-1&story-fx=20260909-1&affix-balance=20260910-1&pixellab=338"></script>
+<script defer src="data/maps.js?v=20260719-tier-rift-stack1&cosmos=20260814-balance1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-bloom2&trial5=20260816-underworld1&directives=20260817-1&journal=20260820-arcana2&roadmap=20260821-2&map-tabs=20260823-1&trial-hazard=20260901-1&square-map=20260901-3&rival31=20260902-1&refinement=20260906-1&treasure=20260907-1&story-fx=20260909-1&expedition-review=20260914-2&act-maps=20260915-soft-grid&skill-delta2=20260930-15&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-16&aux=20261001-17&aux=20261001-18&aux=20261002-4"></script>
+<script defer src="data/story-journal.js?v=20260929-bridge1"></script>
+<script defer src="data/act-exploration-maps.js?v=20260922-1&aux=20261002-20&aux=20261002-21&aux=20261002-30&maps=20261002-1"></script>
+<script defer src="data/cosmos-route.js?v=20260909-8&aux=20261001-17&aux=20261002-1"></script>
+<script defer src="data/exploration-regions.js?v=20260930-8"></script>
+<script defer src="data/atlas.js?v=20260930-15&aux=20261001-16&aux=20261001-17&maps=20261002-1&late=20261002-1&review=20261002-1"></script>
+<script defer src="data/atlas-passives.js?v=20260930-16&aux=20261001-17"></script>
+<script defer src="data/atlas-endgame.js?v=20261002-1&review=20261002-1"></script>
+<script defer src="data/gem-core-forge.js?v=20260914-1&gem-value=20260915-1&aux=20261002-1"></script>
+<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1&shield-charge=20260814-armor1&meteor-spell=20260814-damage1&patterns=20260820-1&vfx-icons=20260901-1&frost-burst=20260902-1&slash-vfx=20260905-1&range-art=20260905-2&pixel-review=20260905-1&compact-vfx=20260905-1&skill-identity=20260905-1&sprite-vfx=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&sword-sheets=20260906-1&flow=20260906-1&treasure=20260907-1&story-fx=20260909-1&affix-balance=20260910-1&pixellab=338&skill-delta2=20260930-5&aux=20260930-7&aux=20261002-19&realm=20261003-1"></script>
+<script defer src="data/skill-effect-expansion.js?v=20260930-4"></script>
 <script defer src="data/skill-fx-atlas.js?v=20260909-2&native-bridge=20260909-1&slash-gallery=20260909-1&pixellab=338"></script>
-<script defer src="data/endgame-progression.js?v=20260820-arcana-star1-pruning2&unlock=20260821-3&hideout=20260821-2&pruning-balance=20260903-1&beyond=20260901-2&boundary-balance=20260902-1&reward-flow=20260906-1"></script>
+<script defer src="data/endgame-progression.js?v=20260820-arcana-star1-pruning2&unlock=20260821-3&hideout=20260821-2&pruning-balance=20260903-1&beyond=20260901-2&boundary-balance=20260902-1&reward-flow=20260906-1&skill-delta2=20260930-10&aux=20260930-8&aux=20261001-17"></script>
 <script defer src="data/severed-wanderers.js?v=20260817-balance1"></script>
-<script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1&cosmos=20260814-balance1&ocean=20260817-fishing1&growth-essence=20260819-random1&visuals=20260821-icon1&equipment-grid=20260827-3&runtime=20260905-1&loot-overhaul=20260905-4&interface-fixes=20260906-2&unlock-loot=20260906-1&affix-balance=20260910-1&craft-candidates=20260911-1&craft-copy=20260911-1&realm-uniques=20260913-1&preparation=20260914-1"></script>
-<script defer src="data/unique-equipment.js?v=20260913-1"></script>
+<script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1&cosmos=20260814-balance1&ocean=20260817-fishing1&growth-essence=20260819-random1&visuals=20260821-icon1&equipment-grid=20260827-3&runtime=20260905-1&loot-overhaul=20260905-4&interface-fixes=20260906-2&unlock-loot=20260906-1&affix-balance=20260910-1&craft-candidates=20260911-1&craft-copy=20260911-1&realm-uniques=20260913-1&preparation=20260914-1&skill-delta2=20260930-15&aux=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-16&aux=20261001-17&aux=20261002-1&late=20261002-1&review=20261002-1&weapons=20261002-1&realm=20261003-1"></script>
+<script defer src="data/weapon-categories.js?v=20261002-1"></script>
+<script defer src="data/unique-equipment.js?v=20260913-1&late=20261002-1&realm=20261003-1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1&stash=20260820-1"></script>
-<script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1&precision=20260904-1"></script>
-<script defer src="data/passives.js?v=20260719-spiderweb-rollback1&hero-motion=20260828-test-characters5&player-classes=20260828-1&review-fixes=20260901-1&walk-direction=20260901-1&idle-direction=20260902-1&refinement=20260906-1&flow=20260906-1"></script>
+<script defer src="data/stump-box.js?v=20260930-6&aux=20260930-8&aux=20261001-18&aux=20261002-4"></script>
+<script defer src="data/talismans.js?v=20260930-6&aux=20260930-7&aux=20260930-8"></script>
+<script defer src="data/stump-cube.js?v=20260930-1&realm=20261003-1"></script>
+<script defer src="data/core-items.js?v=20260930-1"></script>
+<script defer src="data/player-stall.js?v=20260929-1&aux=20261002-1&aux=20261002-2"></script>
+<script defer src="data/passives.js?v=20260719-spiderweb-rollback1&hero-motion=20260828-test-characters5&player-classes=20260828-1&review-fixes=20260901-1&walk-direction=20260901-1&idle-direction=20260902-1&refinement=20260906-1&flow=20260906-1&aux=20260930-5&aux=20261001-16&aux=20261002-4"></script>
+<script defer src="data/ascendancies.js?v=20261002-1&aux=20261002-6&aux=20261002-16"></script>
+<script defer src="data/hana-sprites.js?v=20260930-5"></script>
+<script defer src="data/hana-weapon-combos.js?v=20260929-1"></script>
+<script defer src="data/hana-skill-fx.js?v=20260929-1"></script>
 <script defer src="data/passive-node-id-migrations.js?v=20260830-passive-id-migration1"></script>
-<script defer src="data/passive-tree-v22.js?v=20260830-passive-tree-v22-12&wisdom-elements=20260903-1&passive-contracts=20260903-2&devotion-spokes=20260903-1&passive-support=20260903-1"></script>
-<script defer src="data/bosses.js?v=20260715-runtime-structure2&realm-monsters=20260902-1&wisps=20260904-1"></script>
-<script defer src="data/rewards.js?v=20260721-act2-support-reward1&records-review=20260914-1"></script>
-<script defer src="data/talent-cards.js?v=20260722-templar-overheal1&treasure=20260907-1"></script>
-<script defer src="data/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&flask-slots=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&unlock-path=20260908-1&world-tree-journey=20260913-1&first-journal=20260914-1&gem-forge=20260914-1&chat-dock=20260914-1"></script>
-<script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2"></script>
+<script defer src="data/passive-tree-v22.js?v=20260830-passive-tree-v22-12&wisdom-elements=20260903-1&passive-contracts=20260903-2&devotion-spokes=20260903-1&passive-support=20260903-1&gap-fill=20260930-1&aux=20261001-1&aux=20261001-16"></script>
+<script defer src="data/bosses.js?v=20260715-runtime-structure2&realm-monsters=20260902-1&wisps=20260904-1&skill-delta2=20260930-8&monsters=20261002-1&weapons=20261002-1&realm=20261003-1"></script>
+<script defer src="data/wisp-sprites.js?v=20260929-1"></script>
+<script defer src="data/monster-sprites.js?v=20261002-1&weapons=20261002-1&realm=20261003-1"></script>
+<script defer src="data/wisp-summons.js?v=20260930-1"></script>
+<script defer src="data/rewards.js?v=20260721-act2-support-reward1&records-review=20260914-1&aux=20261001-15"></script>
+<script defer src="data/talent-cards.js?v=20260722-templar-overheal1&treasure=20260907-1&aux=20260930-7&aux=20261002-5&aux=20261002-6&aux=20261002-15&aux=20261002-18"></script>
+<script defer src="data/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&flask-slots=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&unlock-path=20260908-1&world-tree-journey=20260913-1&first-journal=20260914-1&gem-forge=20260914-1&chat-dock=20260914-1&skill-delta2=20260930-10&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261002-1&aux=20261002-3&aux=20261002-8&realm=20261003-1"></script>
+<script defer src="data/hotkeys.js?v=20260930-6&aux=20261001-1&review=20261003-1"></script>
+<script defer src="data/pixel-icons.js?aux=20260930-8"></script>
+<script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-7&aux=20261001-15&aux=20261001-17"></script>
+<script defer src="js/hotkeys.js"></script>
     <script defer src="js/app-platform.js?v=20260907-1"></script>
-<script defer src="js/ui-feedback.js?v=20260722-instant-choice1&focus=20260814-dialog1&death-feedback=20260901-1&notice=20260904-1&popup-layer=20260911-1&rune-picker-review=20260914-1"></script>
-<script defer src="js/level-progression.js?v=20260911-1&requirements-review=20260911-1&unique-equipment=20260913-1&experience-curve=20260914-1"></script>
-<script defer src="js/state.js?flow=20260906-1&v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1&underworld=20260819-depth1&loadout=20260820-1&endgame=20260820-pruning3&roadmap=20260821-1&hideout=20260821-2&map-tabs=20260823-1&equipment-grid=20260826-2&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260827-1&player-classes=20260828-1&tree-visual=20260829-3&settings=20260901-1&beyond=20260901-2&review-fixes=20260901-1&tutorial-pause=20260901-1&drop-balance=20260902-1&underworld-yield=20260902-1&boundary-balance=20260902-1&save-reset=20260903-1&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&realm-ui=20260907-1&mobile-review=20260907-2&loop-map=20260908-1&hunt-rewards=20260908-1&login-idle=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1&route=20260909-8&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-copy=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&requirements-review=20260911-1&affix-continuity=20260912-1&realm-base-drops=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&time-rift=20260914-4&death-report=20260914-1&atlas-copy=20260914-3&journal-preference=20260914-1&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2"></script>
-<script defer src="js/combat-loot-receipts.js?v=20260913-1"></script>
-<script defer src="js/ui-display.js?v=20260906-1&display=20260906-1&thermal=20260907-1&battle-space=20260909-1"></script>
-<script defer src="js/combat-clock.js?v=20260905-runtime1"></script>
-<script defer src="js/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&market=20260907-1&unlock-path=20260908-1&loop-map=20260908-1&exploration=20260913-4"></script>
-<script defer src="js/endgame-progression.js?v=20260903-pruning4&beyond=20260901-2&reward-flow=20260906-1"></script>
-<script defer src="js/salvage-recovery.js?v=20260817-recovery1&inventory-pages=20260827-1"></script>
+<script defer src="js/ui-feedback.js?v=20260722-instant-choice1&focus=20260814-dialog1&death-feedback=20260901-1&notice=20260904-1&popup-layer=20260911-1&rune-picker-review=20260914-1&aux=20261001-14&labels=20261003-2"></script>
+<script defer src="js/selection-dialog-ui.js?v=20261003-1"></script>
+<script defer src="js/exploration-layouts.js?v=20260930-1&maps=20261002-1"></script>
+<script defer src="js/content-maps.js?v=20260930-15&maps=20261002-1"></script>
+<script defer src="js/act-exploration-map.js?v=20260930-7&aux=20261002-20"></script>
+<script defer src="js/act-exploration-motion.js?v=20260922-1"></script>
+<script defer src="js/gem-drop-rewards.js?v=20260922-1"></script>
+<script defer src="js/act-exploration-loot.js?v=20260930-11&aux=20260930-3&aux=20260930-4&aux=20260930-8&aux=20261001-1&aux=20261001-3&aux=20261001-16"></script>
+<script defer src="js/act-exploration-state.js?v=20260930-15&aux=20261002-20&maps=20261002-1"></script>
+<script defer src="js/stump-box.js?v=20260930-6&aux=20260930-8&aux=20261001-18"></script>
+<script defer src="js/item-appraisal.js?v=20260929-1&aux=20261002-1"></script>
+<script defer src="js/player-stall.js?v=20260929-1&aux=20261002-1"></script>
+<script defer src="js/level-progression.js?v=20260911-1&requirements-review=20260911-1&unique-equipment=20260913-1&experience-curve=20260914-1&skill-delta2=20260930-8"></script>
+<script defer src="js/state.js?flow=20260906-1&v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1&underworld=20260819-depth1&loadout=20260820-1&endgame=20260820-pruning3&roadmap=20260821-1&hideout=20260821-2&map-tabs=20260823-1&equipment-grid=20260826-2&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260827-1&player-classes=20260828-1&tree-visual=20260829-3&settings=20260901-1&beyond=20260901-2&review-fixes=20260901-1&tutorial-pause=20260901-1&drop-balance=20260902-1&underworld-yield=20260902-1&boundary-balance=20260902-1&save-reset=20260903-1&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&realm-ui=20260907-1&mobile-review=20260907-2&loop-map=20260908-1&hunt-rewards=20260908-1&login-idle=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1&route=20260909-8&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-copy=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&requirements-review=20260911-1&affix-continuity=20260912-1&realm-base-drops=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&time-rift=20260914-4&death-report=20260914-1&atlas-copy=20260914-3&journal-preference=20260914-1&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-16&aux=20261001-17&aux=20261001-18&aux=20261001-20&aux=20261002-1&aux=20261002-5&aux=20261002-7&aux=20261002-11&late=20261002-1&weapons=20261002-1&realm=20261003-1"></script>
+<script defer src="js/combat-loot-receipts.js?v=20260930-15"></script>
+<script defer src="js/ui-display.js?v=20260906-1&display=20260906-1&thermal=20260907-1&battle-space=20260909-1&aux=20261001-8"></script>
+<script defer src="js/combat-clock.js?v=20260905-runtime1&release=20261003-1"></script>
+<script defer src="js/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&market=20260907-1&unlock-path=20260908-1&loop-map=20260908-1&exploration=20260913-4&skill-delta2=20260930-10&aux=20260930-7&aux=20261001-1&aux=20261001-17&review=20261003-1"></script>
+<script defer src="js/endgame-progression.js?v=20260903-pruning4&beyond=20260901-2&reward-flow=20260906-1&skill-delta2=20260930-10&aux=20261001-17"></script>
+<script defer src="js/salvage-recovery.js?v=20260817-recovery1&inventory-pages=20260827-1&aux=20260930-8"></script>
 <script defer src="js/unique-hunt.js?v=20260817-hunt1"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1&stash=20260820-1&inventory-pages=20260827-1"></script>
 <script defer src="js/records.js?v=20260808-records-tab1-20260808-background-fix1&runtime=20260905-1&records-review=20260914-1"></script>
-<script defer src="js/crafting-workspace-state.js?v=20260914-1"></script>
-<script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1&item-id=20260820-1&temp-storage=20260827-1&save-reset=20260903-1&runtime=20260905-1&treasure=20260907-1&content-resume=20260913-1&crafting-workspace=20260914-1"></script>
-<script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1&pinnacle=20260814-atlas1&base=20260815-market-t15&exchange=20260816-live1&hall=20260818-1&visuals=20260820-1&hideout-travel=20260822-1&equipment-grid=20260827-10&inventory-pages=20260827-1&runtime=20260905-1&content-choice=20260906-1&market=20260907-1&unlock-path=20260908-1&level-progression=20260911-1&popup-layer=20260911-1&review=20260912-v338&unique-equipment=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&expedition-review=20260914-2&time-rift=20260914-4&equip-feedback=20260914-1"></script>
-<script defer src="js/equipment-loadouts.js?v=20260817-loadout1&identity=20260820-1&duplicate-identity=20260821-1&inventory-pages=20260827-1&level-progression=20260911-1"></script>
+<script defer src="js/crafting-workspace-state.js?v=20260914-1&release=20261003-1"></script>
+<script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1&item-id=20260820-1&temp-storage=20260827-1&save-reset=20260903-1&runtime=20260905-1&treasure=20260907-1&content-resume=20260913-1&crafting-workspace=20260914-1&aux=20260930-3&aux=20260930-4&aux=20260930-7&aux=20260930-8&traffic=20261003-1"></script>
+<script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1&pinnacle=20260814-atlas1&base=20260815-market-t15&exchange=20260816-live1&hall=20260818-1&visuals=20260820-1&hideout-travel=20260822-1&equipment-grid=20260827-10&inventory-pages=20260827-1&runtime=20260905-1&content-choice=20260906-1&market=20260907-1&unlock-path=20260908-1&level-progression=20260911-1&popup-layer=20260911-1&review=20260912-v338&unique-equipment=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&expedition-review=20260914-2&time-rift=20260914-4&equip-feedback=20260914-1&skill-delta2=20260930-8&aux=20260930-5&aux=20260930-8&aux=20261001-3&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261002-7&realm=20261003-1"></script>
+<script defer src="js/weapon-categories.js?v=20261002-1"></script>
+<script defer src="js/equipment-loadouts.js?v=20260817-loadout1&identity=20260820-1&duplicate-identity=20260821-1&inventory-pages=20260827-1&level-progression=20260911-1&realm=20261003-1"></script>
 <script defer src="js/equipment-inventory-grid.js?v=20260827-9&interface-fixes=20260906-2"></script>
-<script defer src="js/crafting-payment.js?v=20260908-1"></script>
+<script defer src="js/crafting-payment.js?v=20260908-1&aux=20260930-8"></script>
 <script defer src="js/equipment-crafting.js?v=20260910-1&craft-candidates=20260911-1"></script>
-<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1&loot=20260815-cosmos-tier1&blizzard=20260816-sprites1&ocean=20260817-fishing1&review=20260817-1&shrine=20260817-field1&hall=20260818-1&vfx-budget=20260818-1&balance=20260819-endless-cap1&loadout=20260820-1&hideout=20260821-2&backdrop=20260820-lazy1&endgame=20260820-tabs1&combat-log-icons=20260822-1&preset-effects=20260822-1&map-tabs=20260823-1&inventory-pages=20260827-1&test-character=20260828-7&player-classes=20260828-1&special-variation=20260829-1&tree-visual=20260829-13&beyond=20260901-2&vfx-icons=20260901-1&review-fixes=20260901-1&tutorial-pause=20260901-1&ascend-info=20260901-1&square-map=20260901-3&walk-direction=20260901-1&attack-direction=20260902-1&idle-direction=20260902-1&pixel-vfx=20260902-1&realm-monsters=20260902-1&drop-balance=20260902-1&underworld-yield=20260902-1&walk-repair=20260902-3&frost-burst=20260902-1&wisdom-elements=20260903-1&devotion-spokes=20260903-1&passive-support=20260903-1&choice-feedback=20260904-1&wisps=20260904-1&growth-precision=20260904-1&initial-class=20260904-1&sprite-snap=20260904-1&class-alpha=20260904-1&runtime=20260905-2&slash-vfx=20260905-1&skill-polish=20260905-1&range-art=20260905-2&pixel-review=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&sword-sheets=20260906-1&flow=20260906-1&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&thermal=20260907-1&profile-filter=20260907-1&mobile-review=20260907-2&jewel-crafting=20260908-2&battle-controls=20260908-1&unlock-path=20260908-1&hunt-rewards=20260908-1&effect-loading=20260908-1&login-idle=20260908-1&return-regions=20260908-1&enemy-projectiles=20260910-1&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-candidates=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&ground-loot=20260911-1&popup-layer=20260911-1&affix-continuity=20260912-1&review=20260912-v338&unique-equipment=20260913-1&drop-origin=20260913-1&realm-base-drops=20260913-1&craft-gem-review=20260914-1&time-rift=20260914-4&ocean-flow=20260914-3&death-report=20260914-1"></script>
-<script defer src="js/loot.js?v=20260905-3&loot-filter=20260905-1&interface-fixes=20260906-2&unlock-loot=20260906-1&reward-flow=20260906-1&thermal=20260907-1&entry-drops=20260908-1&level-progression=20260911-1&realm-uniques=20260913-1&drop-origin=20260913-1"></script>
-<script defer src="js/battle-backdrops.js?v=20260821-hideout1"></script>
+<script defer src="js/passive-routing.js?v=20261001-16"></script>
+<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1&loot=20260815-cosmos-tier1&blizzard=20260816-sprites1&ocean=20260817-fishing1&review=20260817-1&shrine=20260817-field1&hall=20260818-1&vfx-budget=20260818-1&balance=20260819-endless-cap1&loadout=20260820-1&hideout=20260821-2&backdrop=20260820-lazy1&endgame=20260820-tabs1&combat-log-icons=20260822-1&preset-effects=20260822-1&map-tabs=20260823-1&inventory-pages=20260827-1&test-character=20260828-7&player-classes=20260828-1&special-variation=20260829-1&tree-visual=20260829-13&beyond=20260901-2&vfx-icons=20260901-1&review-fixes=20260901-1&tutorial-pause=20260901-1&ascend-info=20260901-1&square-map=20260901-3&walk-direction=20260901-1&attack-direction=20260902-1&idle-direction=20260902-1&pixel-vfx=20260902-1&realm-monsters=20260902-1&drop-balance=20260902-1&underworld-yield=20260902-1&walk-repair=20260902-3&frost-burst=20260902-1&wisdom-elements=20260903-1&devotion-spokes=20260903-1&passive-support=20260903-1&choice-feedback=20260904-1&wisps=20260904-1&growth-precision=20260904-1&initial-class=20260904-1&sprite-snap=20260904-1&class-alpha=20260904-1&runtime=20260905-2&slash-vfx=20260905-1&skill-polish=20260905-1&range-art=20260905-2&pixel-review=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&sword-sheets=20260906-1&flow=20260906-1&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&thermal=20260907-1&profile-filter=20260907-1&mobile-review=20260907-2&jewel-crafting=20260908-2&battle-controls=20260908-1&unlock-path=20260908-1&hunt-rewards=20260908-1&effect-loading=20260908-1&login-idle=20260908-1&return-regions=20260908-1&enemy-projectiles=20260910-1&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-candidates=20260911-1&weapon-base=20260911-1&level-progression=20260911-1&ground-loot=20260911-1&popup-layer=20260911-1&affix-continuity=20260912-1&review=20260912-v338&unique-equipment=20260913-1&drop-origin=20260913-1&realm-base-drops=20260913-1&craft-gem-review=20260914-1&time-rift=20260914-4&ocean-flow=20260914-3&death-report=20260914-1&act-maps=20260915&skill-delta2=20260930-8&tree-look=20260930-1&aux=20260930-3&aux=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-4&aux=20261001-6&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261001-20&aux=20261002-4&aux=20261002-5&aux=20261002-8&aux=20261002-9&aux=20261002-17&monsters=20261002-1&weapons=20261002-1&realm=20261003-1"></script>
+<script defer src="js/loot.js?v=20260905-3&loot-filter=20260905-1&interface-fixes=20260906-2&unlock-loot=20260906-1&reward-flow=20260906-1&thermal=20260907-1&entry-drops=20260908-1&level-progression=20260911-1&realm-uniques=20260913-1&drop-origin=20260913-1&skill-delta2=20260930-8&aux=20260930-3&aux=20260930-8&aux=20261001-21"></script>
+<script defer src="js/battle-backdrops.js?v=20260821-hideout1&skill-delta2=20260930-8"></script>
 <script defer src="js/battle-asset-loading.js?v=20260908-1&return-regions=20260908-1"></script>
 <script defer src="js/shrines.js?v=20260817-battlefield1&runtime=20260905-1"></script>
-<script defer src="js/growth-board.js?v=20260806-growth-chase1&overflow=20260819-salvage1&essence=20260819-random1&reward-flow=20260906-1"></script>
-<script defer src="js/background-build-cache.js?v=20260907-offline1&level-progression=20260911-1&unique-equipment=20260913-1"></script>
-<script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
-<script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1-20260807-growth-overflow1&beyond=20260901-2&precision=20260904-1"></script>
-<script defer src="js/equipment-stat-resolution.js?v=20260820-source-unify1&growth-precision=20260904-1&affix-balance=20260910-1&level-progression=20260911-1"></script>
-<script defer src="js/gem-core-forge.js?v=20260914-1&gem-value=20260914-2"></script>
-<script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1&shield-charge=20260814-armor1&arcana=20260820-5&passive-gate=20260829-1&refinement=20260906-1&content-choice=20260906-1&unlock-loot=20260906-1&unlock-split=20260907-1&stat-inputs=20260909-1&craft-origin=20260910-1&craft-eligibility=20260911-1&level-progression=20260911-1&sky-flow=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2"></script>
-<script defer src="js/bounties.js?v=20260817-bounty1&content-choice=20260906-1&reward-flow=20260906-1&treasure=20260907-1&hunt-rewards=20260908-1&hunt-failure=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1"></script>
-<script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1&recycle=20260820-1&display=20260906-1&unlock-loot=20260906-1&reward-flow=20260906-1"></script>
-<script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1&trial-hazard=20260901-1&square-map=20260901-3&actor-depth=20260901-1&boss-footprint=20260902-1&diagonal-attack=20260902-1&frost-burst=20260902-1&footprint=20260905-4&skill-identity=20260905-1&flow=20260906-1&enemy-attacks=20260910-1&integrated-review=20260910-1&affix-balance=20260910-1"></script>
-<script defer src="js/skill-gem-casts.js?v=20260912-1"></script>
-<script defer src="js/condition-patterns.js?v=20260820-es-guard1&choice-feedback=20260904-1&runtime=20260905-1&flow=20260906-1&condition-feedback=20260909-1"></script>
-<script defer src="js/hidden-journal.js?v=20260820-boss-feats1"></script>
+<script defer src="js/background-build-cache.js?v=20260907-offline1&level-progression=20260911-1&unique-equipment=20260913-1&aux=20260930-8&aux=20261001-1&aux=20261001-17"></script>
+<script defer src="js/equipment-stat-resolution.js?v=20260820-source-unify1&growth-precision=20260904-1&affix-balance=20260910-1&level-progression=20260911-1&aux=20260930-8&aux=20261001-17&aux=20261002-7"></script>
+<script defer src="js/gem-core-forge.js?v=20260914-1&gem-value=20260914-2&aux=20261001-17"></script>
+<script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1&shield-charge=20260814-armor1&arcana=20260820-5&passive-gate=20260829-1&refinement=20260906-1&content-choice=20260906-1&unlock-loot=20260906-1&unlock-split=20260907-1&stat-inputs=20260909-1&craft-origin=20260910-1&craft-eligibility=20260911-1&level-progression=20260911-1&sky-flow=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&skill-delta2=20260930-4&aux=20260930-5&aux=20260930-8&aux=20261001-16&aux=20261001-17&aux=20261002-1&aux=20261002-18"></script>
+<script defer src="js/core-items.js?v=20260930-1&aux=20260930-4"></script>
+<script defer src="js/equipment-sockets.js?v=20260930-6"></script>
+<script defer src="js/talismans.js?v=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261002-3"></script>
+<script defer src="js/talisman-effects.js?v=20260930-1&aux=20260930-8&aux=20261001-18"></script>
+<script defer src="js/talisman-combat.js?v=20260930-1&aux=20260930-7&aux=20261002-18"></script>
+<script defer src="js/stump-cube-recipes.js?v=20260930-1"></script>
+<script defer src="js/stump-cube.js?v=20260930-1&review=20261003-1"></script>
+<script defer src="js/skill-effect-expansion.js?v=20260930-1"></script>
+<script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1&trial-hazard=20260901-1&square-map=20260901-3&actor-depth=20260901-1&boss-footprint=20260902-1&diagonal-attack=20260902-1&frost-burst=20260902-1&footprint=20260905-4&skill-identity=20260905-1&flow=20260906-1&enemy-attacks=20260910-1&integrated-review=20260910-1&affix-balance=20260910-1&skill-delta2=20260930-11&aux=20261001-20&monsters=20261002-1&burst=20261002-1&wave=20261002-1&touch=20261002-1&realm=20261003-1"></script>
+<script defer src="js/skill-gem-casts.js?v=20260930-4&p2=20261003-1"></script>
+<script defer src="js/act-exploration-progress.js?v=20260930-15&aux=20261001-1&aux=20261002-20"></script>
+<script defer src="js/act-exploration-ui.js?v=20260930-15&aux=20260930-3&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-14&aux=20261001-19&late=20261002-1&review=20261002-2&review=20261003-1"></script>
+<script defer src="js/currency-acquisition-ui.js?v=20260922-1&aux=20260930-5&aux=20260930-8&aux=20261001-1&aux=20261001-15"></script>
+<script defer src="js/condition-patterns.js?v=20260820-es-guard1&choice-feedback=20260904-1&runtime=20260905-1&flow=20260906-1&condition-feedback=20260909-1&aux=20260930-7"></script>
+<script defer src="js/hidden-journal.js?v=20260820-boss-feats1&skill-delta2=20260930-15&aux=20261001-1"></script>
 <script defer src="js/severed-wanderers.js?v=20260817-balance1&treasure=20260907-1"></script>
-<script defer src="js/enemy-attack-rules.js?v=20260910-2&cast-hud=20260912-1"></script>
-<script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&runtime=20260905-1&combat-overhaul=20260905-2&flow=20260906-1&enemy-attacks=20260910-1&integrated-review=20260910-1"></script>
+<script defer src="js/enemy-attack-rules.js?v=20260910-2&cast-hud=20260912-1&release=20261003-1"></script>
+<script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&runtime=20260905-1&combat-overhaul=20260905-2&flow=20260906-1&enemy-attacks=20260910-1&integrated-review=20260910-1&aux=20260930-7&aux=20261001-20&late=20261002-1&review=20261002-1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&tune=20260815-ehp-curve1&directives=20260817-1"></script>
-<script defer src="js/combat-build-stats.js?v=20260907-thermal1&stat-pipeline=20260909-1"></script>
-<script defer src="js/combat-equipment-stats.js?v=20260911-1&unique-equipment=20260913-1"></script>
+<script defer src="js/combat-build-stats.js?v=20260907-thermal1&stat-pipeline=20260909-1&aux=20260930-4&aux=20260930-8&aux=20261001-1&aux=20261002-5&aux=20261002-6&aux=20261002-7&aux=20261002-13"></script>
+<script defer src="js/combat-equipment-stats.js?v=20260911-1&unique-equipment=20260913-1&aux=20260930-7&aux=20261002-13"></script>
 <script defer src="js/cosmos-route.js?v=20260909-8"></script>
-<script defer src="js/world-tree-journey.js?v=20260913-1&exploration=20260913-4"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&recovery-tick=20260908-1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260819-depth1&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1&wanderer=20260817-balance1&bounty=20260817-restore1&vfx-budget=20260818-1&balance=20260819-endless-cap1&travel=20260819-empty-rush1&offline-stash=20260820-1&endgame=20260821-arcana4&hideout=20260821-2&combat-log-icons=20260822-1&map-tabs=20260823-1&player-classes=20260828-1&passive-gate=20260829-1&trial-hazard=20260901-3&death-feedback=20260901-1&beyond=20260901-2&square-map=20260901-3&enemy-lunge=20260902-1&return-depart=20260902-1&realm-monsters=20260902-1&drop-balance=20260902-1&underworld-yield=20260902-1&cosmos-hp=20260902-1&rival31=20260902-1&boundary-balance=20260902-1&frost-burst=20260902-1&passive-contracts=20260903-2&choice-feedback=20260904-1&wisps=20260904-2&runtime=20260905-2&slash-vfx=20260905-1&footprint=20260905-4&skill-identity=20260905-1&combat-contracts=20260905-1&combat-overhaul=20260905-2&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&choice-tree=20260906-1&flow=20260906-1&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&health-boundary=20260908-1&hunt-rewards=20260908-1&hunt-failure=20260908-1&condition-feedback=20260909-1&stat-pipeline=20260909-1&stat-inputs=20260909-1&route=20260909-8&native-bridge=20260909-1&slash-gallery=20260909-1&contact-feedback=20260909-1&enemy-attacks=20260910-1&integrated-review=20260910-1&affix-balance=20260910-1&level-progression=20260911-1&ground-loot=20260911-1&requirements-review=20260911-1&review=20260912-v338&realm-uniques=20260913-1&drop-origin=20260913-1&completion-loot=20260913-1&content-resume=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&melee-approach=20260914-1&death-report=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2"></script>
-<script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1&power=20260814-readiness1&underworld=20260819-depth1&environment-readiness=20260913-1&atlas-copy=20260914-3"></script>
-<script defer src="js/equipment-triage.js?v=20260817-current-build1&review=20260817-1&review-fixes=20260901-1&profile-filter=20260907-1&snapshot=20260909-1&level-progression=20260911-1"></script>
+<script defer src="js/atlas-maps.js?v=20260930-15"></script>
+<script defer src="js/atlas-passives.js?v=20260930-9&aux=20261001-17"></script>
+<script defer src="js/atlas-encounters.js?v=20260930-15&late=20261002-1&review=20261002-1"></script>
+<script defer src="js/atlas-epoch.js?v=20260930-15&late=20261002-1"></script>
+<script defer src="js/atlas.js?v=20260930-15&maps=20261002-1&late=20261002-1&review=20261002-1&traps=20261002-1"></script>
+<script defer src="js/atlas-endgame.js?v=20261002-1&review=20261002-1&review=20261002-2"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&recovery-tick=20260908-1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260819-depth1&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1&wanderer=20260817-balance1&bounty=20260817-restore1&vfx-budget=20260818-1&balance=20260819-endless-cap1&travel=20260819-empty-rush1&offline-stash=20260820-1&endgame=20260821-arcana4&hideout=20260821-2&combat-log-icons=20260822-1&map-tabs=20260823-1&player-classes=20260828-1&passive-gate=20260829-1&trial-hazard=20260901-3&death-feedback=20260901-1&beyond=20260901-2&square-map=20260901-3&enemy-lunge=20260902-1&return-depart=20260902-1&realm-monsters=20260902-1&drop-balance=20260902-1&underworld-yield=20260902-1&cosmos-hp=20260902-1&rival31=20260902-1&boundary-balance=20260902-1&frost-burst=20260902-1&passive-contracts=20260903-2&choice-feedback=20260904-1&wisps=20260904-2&runtime=20260905-2&slash-vfx=20260905-1&footprint=20260905-4&skill-identity=20260905-1&combat-contracts=20260905-1&combat-overhaul=20260905-2&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&choice-tree=20260906-1&flow=20260906-1&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&thermal=20260907-1&health-boundary=20260908-1&hunt-rewards=20260908-1&hunt-failure=20260908-1&condition-feedback=20260909-1&stat-pipeline=20260909-1&stat-inputs=20260909-1&route=20260909-8&native-bridge=20260909-1&slash-gallery=20260909-1&contact-feedback=20260909-1&enemy-attacks=20260910-1&integrated-review=20260910-1&affix-balance=20260910-1&level-progression=20260911-1&ground-loot=20260911-1&requirements-review=20260911-1&review=20260912-v338&realm-uniques=20260913-1&drop-origin=20260913-1&completion-loot=20260913-1&content-resume=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&environment-readiness=20260913-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&melee-approach=20260914-1&death-report=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-1&experience-curve=20260914-1&gem-growth=20260914-1&gem-forge=20260914-1&gem-value=20260914-2&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-6&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-3&aux=20261001-4&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261001-20&aux=20261002-1&aux=20261002-4&aux=20261002-6&aux=20261002-7&aux=20261002-8&aux=20261002-10&aux=20261002-11&aux=20261002-13&aux=20261002-15&aux=20261002-16&aux=20261002-18&monsters=20261002-1&late=20261002-1&review=20261002-1&traps=20261002-1&wave=20261002-1&touch=20261002-1&realm=20261003-1&review=20261003-1&tempstore=20261003-1"></script>
+<script defer src="js/atlas-run.js?v=20260930-15&late=20261002-1&review=20261003-1"></script>
+<script defer src="js/mobility-skill.js?v=20260930-6&aux=20260930-7"></script>
+<script defer src="js/wisp-summons.js?v=20260930-6"></script>
+<script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1&power=20260814-readiness1&underworld=20260819-depth1&environment-readiness=20260913-1&atlas-copy=20260914-3&aux=20261001-1"></script>
+<script defer src="js/equipment-triage.js?v=20260817-current-build1&review=20260817-1&review-fixes=20260901-1&profile-filter=20260907-1&snapshot=20260909-1&level-progression=20260911-1&aux=20261001-3&aux=20261001-19&aux=20261001-20&aux=20261001-21"></script>
 <script defer src="js/ghost-combat.js?v=20260816-direct-register1&player-classes=20260828-1"></script>
-    <script defer src="js/canvas-slash-vfx.js?v=20260905-2&footprint=20260905-4&sword-sheets=20260906-1&treasure=20260907-1"></script>
-    <script defer src="js/canvas-skill-footprint.js?v=20260905-3"></script>
-    <script src="js/canvas-earth-spikes.js?v=20260905-2&pixel-review=20260905-2&compact-vfx=20260905-1"></script>
+    <script defer src="js/canvas-slash-vfx.js?v=20260905-2&footprint=20260905-4&sword-sheets=20260906-1&treasure=20260907-1&aux=20261002-19"></script>
+    <script defer src="js/canvas-skill-footprint.js?v=20260905-3&release=20261003-1"></script>
+<script defer src="js/canvas-earth-spikes.js?v=20260905-2&pixel-review=20260905-2&compact-vfx=20260905-1"></script>
+<script defer src="js/canvas-trial-traps.js?v=20261002-1"></script>
 
     <script defer src="js/canvas-skill-signatures.js?v=20260905-identity1&sprite-vfx=20260905-1&interface-fixes=20260906-2&refinement=20260906-1&sword-sheets=20260906-1&story-fx=20260909-1"></script>
-<script defer src="js/canvas-world-tree-native.js?v=20260912-338"></script>
-<script defer src="js/canvas-world-tree-fx.js?v=20260912-338"></script>
+<script defer src="js/canvas-redrawn-skill-art.js?v=20260930-1"></script>
+<script defer src="js/canvas-redrawn-skill-art-extra.js?v=20260930-1"></script>
+<script defer src="js/canvas-redrawn-skill-art-moves.js?v=20260930-1"></script>
+<script defer src="js/canvas-fx-remake.js?v=20260930-1&aux=20261001-3"></script>
+<script defer src="js/canvas-redrawn-skill-fx.js?v=20260930-3"></script>
+<script defer src="js/canvas-redrawn-skill-fx-extra.js?v=20260930-1"></script>
+<script defer src="js/canvas-wisp-summon-fx.js?v=20260930-1"></script>
+<script defer src="js/canvas-world-tree-native.js?v=20260912-338&release=20261003-1"></script>
+<script defer src="js/canvas-world-tree-fx.js?v=20260930-4"></script>
 <script defer src="js/canvas-enemy-projectiles.js?v=20260910-1"></script>
-<script defer src="js/battle-ground-loot-ui.js?v=20260911-1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260902-crowd-count2&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1&shrine=20260817-field1&bounty=20260817-restore1&vfx-budget=20260818-1&hideout=20260821-2&test-character=20260827-2&player-classes=20260828-1&trial-hazard=20260901-1&death-feedback=20260901-2&vfx-icons=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&return-warp=20260902-3&return-depart=20260902-2&facing-hold=20260902-2&return-shroud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&pixel-vfx=20260902-1&frost-burst=20260902-1&wisps=20260904-1&grid-fit=20260904-1&runtime=20260905-1&slash-vfx=20260905-2&skill-polish=20260905-2&footprint=20260905-4&pixel-review=20260905-1&skill-identity=20260905-1&sprite-vfx=20260905-1&combat-overhaul=20260905-2&loot-filter=20260905-1&refinement=20260906-1&display=20260906-1&sword-sheets=20260906-1&treasure=20260907-1&thermal=20260907-1&cosmos-route=20260909-8&story-fx=20260909-3&native-bridge=20260909-1&slash-gallery=20260909-1&enemy-attacks=20260910-1&enemy-projectiles=20260910-1&ground-loot=20260911-1&cast-hud=20260912-2&review=20260912-v338"></script>
+<script defer src="js/battle-ground-loot-ui.js?v=20260930-7&aux=20260930-8&aux=20261001-20&aux=20261001-21&piles=20261003-1&labels=20261003-2"></script>
+    <script defer src="js/canvas-exploration-art.js?aux=20261002-21&aux=20261002-30&maps=20261002-1"></script>
+    <script defer src="js/canvas-act-exploration.js?v=20260930-7&aux=20261001-3&aux=20261002-20&aux=20261002-21&aux=20261002-30&maps=20261002-1"></script>
+<script defer src="js/canvas-hana-actors.js?v=20260930-5&aux=20261002-21&weapons=20261002-1&realm=20261003-1&herosize=20261003-1"></script>
+<script defer src="js/canvas-act-title-card.js?v=20260929-1"></script>
+<script defer src="js/canvas-battle-units.js?v=20260930-5&monsters=20261002-1"></script>
+<script defer src="js/canvas-boss-entrance.js"></script>
+<script defer src="js/canvas-wisp-actors.js?v=20260929-1"></script>
+<script defer src="js/canvas-monster-actors.js?v=20261002-1&weapons=20261002-1&realm=20261003-1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260902-crowd-count2&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1&shrine=20260817-field1&bounty=20260817-restore1&vfx-budget=20260818-1&hideout=20260821-2&test-character=20260827-2&player-classes=20260828-1&trial-hazard=20260901-1&death-feedback=20260901-2&vfx-icons=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&return-warp=20260902-3&return-depart=20260902-2&facing-hold=20260902-2&return-shroud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&pixel-vfx=20260902-1&frost-burst=20260902-1&wisps=20260904-1&grid-fit=20260904-1&runtime=20260905-1&slash-vfx=20260905-2&skill-polish=20260905-2&footprint=20260905-4&pixel-review=20260905-1&skill-identity=20260905-1&sprite-vfx=20260905-1&combat-overhaul=20260905-2&loot-filter=20260905-1&refinement=20260906-1&display=20260906-1&sword-sheets=20260906-1&treasure=20260907-1&thermal=20260907-1&cosmos-route=20260909-8&story-fx=20260909-3&native-bridge=20260909-1&slash-gallery=20260909-1&enemy-attacks=20260910-1&enemy-projectiles=20260910-1&ground-loot=20260911-1&cast-hud=20260912-2&review=20260912-v338&skill-delta2=20260930-15&aux=20260930-7&aux=20261001-2&aux=20261001-3&aux=20261001-19&aux=20261001-20&aux=20261001-22&aux=20261001-23&aux=20261001-24&aux=20261002-19&aux=20261002-20&aux=20261002-21&monsters=20261002-1&traps=20261002-1&touch=20261002-1&realm=20261003-1&herosize=20261003-1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1&budget=20260818-1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1&triage=20260817-1&loadout=20260820-1&visuals=20260820-1&equipment-grid=20260827-9&tree-visual=20260829-9&interface-fixes=20260906-2&content-choice=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&quality-audit=20260914-1"></script>
-<script defer src="js/equipment-inventory-grid-ui.js?v=20260827-14&inventory-search=20260901-1&loot-overhaul=20260905-2&equipment-cleanup=20260906-1&interface-fixes=20260906-2&display=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&hover-compare=20260909-1&popup-layer=20260911-1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1&triage=20260817-1&loadout=20260820-1&visuals=20260820-1&equipment-grid=20260827-9&tree-visual=20260829-9&interface-fixes=20260906-2&content-choice=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&quality-audit=20260914-1&tree-look=20260930-1&infuse=20260930-1&aux=20260930-3&aux=20260930-4&aux=20261001-3&aux=20261001-14&aux=20261001-16&aux=20261001-19&late=20261002-2&realm=20261003-1"></script>
+<script defer src="js/equipment-inventory-grid-ui.js?v=20260827-14&inventory-search=20260901-1&loot-overhaul=20260905-2&equipment-cleanup=20260906-1&interface-fixes=20260906-2&display=20260906-1&selection-flow=20260908-2&equipment-inspection=20260908-1&hover-compare=20260909-1&popup-layer=20260911-1&tempstore=20261003-1"></script>
 <script defer src="js/equipment-inspection-ui.js?v=20260908-1&affix-ui=20260910-1&level-progression=20260911-1"></script>
-<script defer src="js/crafting-result-ui.js?v=20260817-ledger1&craft-origin=20260910-1&crafting-workspace=20260914-1"></script>
-<script defer src="js/bounty-ui.js?v=20260819-compact-hud1&reward-flow=20260906-1&treasure=20260907-1&hunt-rewards=20260908-1&hunt-failure=20260908-1&bounty-min-tier=20260908-1&bounty-choices=20260908-1"></script>
-<script defer src="js/loop-ui.js?v=20260819-advance-confirm1&content-choice=20260906-1&pr-review=20260907-1&loop-map=20260908-1"></script>
-<script defer src="js/flask-ui.js?v=20260914-1&rune-picker-review=20260914-1"></script>
-<script defer src="js/passive-selection-ui.js?v=20260908-1&tree-tools=20260908-1"></script>
-<script defer src="js/arcana-mobile-ui.js?v=20260908-1"></script>
-<script defer src="js/endgame-progression-ui.js?v=20260820-arcana-preview4-pruning5-20260903&beyond=20260901-2&boundary-balance=20260902-1&reward-flow=20260906-1&pruning-mobile=20260908-1&arcana-mobile=20260908-1"></script>
+<script defer src="js/crafting-result-ui.js?v=20260817-ledger1&craft-origin=20260910-1&crafting-workspace=20260914-1&aux=20260930-8&aux=20261001-17"></script>
+<script defer src="js/loop-ui.js?v=20260819-advance-confirm1&content-choice=20260906-1&pr-review=20260907-1&loop-map=20260908-1&skill-delta2=20260930-12"></script>
+<script defer src="js/loop-automation-ui.js?v=20260930-15&aux=20261001-14"></script>
+<script defer src="js/passive-selection-ui.js?v=20260908-1&tree-tools=20260908-1&aux=20261001-6&aux=20261001-13&aux=20261001-14&aux=20261001-16"></script>
+<script defer src="js/endgame-progression-ui.js?v=20260820-arcana-preview4-pruning5-20260903&beyond=20260901-2&boundary-balance=20260902-1&reward-flow=20260906-1&pruning-mobile=20260908-1&arcana-mobile=20260908-1&aux=20261001-2&aux=20261001-3&aux=20261001-17"></script>
     <script defer src="legal/policies-content.js?v=20260902-1"></script>
-<script defer src="js/tutorial-ui.js?v=20260906&content-choice=20260906-1&gem-selection=20260909-1&story-fx=20260909-1&journal-preference=20260914-1"></script>
-<script defer src="js/story-journal-ui.js?v=20260914-reader3"></script>
-<script defer src="js/inventory-search-ui.js?v=20260908-1&research-review=20260914-1&ward=20260914-1"></script>
+<script defer src="js/tutorial-ui.js?v=20260906&content-choice=20260906-1&gem-selection=20260909-1&story-fx=20260909-1&journal-preference=20260914-1&skill-delta2=20260930-4&aux=20260930-3&aux=20260930-5&aux=20260930-8&aux=20261001-1&aux=20261001-3&aux=20261001-4&aux=20261001-5&aux=20261001-6&aux=20261001-13&aux=20261001-14&aux=20261001-15&aux=20261001-17&aux=20261001-19&aux=20261001-20&aux=20261001-21&aux=20261001-22&review=20261002-2"></script>
+<script defer src="js/story-journal-ui.js?v=20260929-bridge1&aux=20261001-2&aux=20261001-14"></script>
+<script defer src="js/inventory-search-ui.js?v=20260908-1&research-review=20260914-1&ward=20260914-1&aux=20260930-5&aux=20260930-8&aux=20261001-10"></script>
 <script defer src="js/colony-ward-ui.js?v=20260914-1"></script>
 <script defer src="js/ui-panel-markup.js?v=20260914-1"></script>
 <script defer src="js/underworld-rune-ui.js?v=20260914-1&rune-picker-review=20260914-1&ocean-flow=20260914-1"></script>
-<script defer src="js/tab-layout-ui.js?v=20260906&display=20260906-1&realm-ui=20260907-1&mobile-review=20260907-2&lazy-editor=20260908-1"></script>
-    <script defer src="js/fossil-workbench-ui.js?v=20260908-1&craft-origin=20260910-1&crafting-workspace=20260914-1"></script>
-    <script defer src="js/chaos-infuser-ui.js?v=20260908-1"></script>
+<script defer src="js/tab-layout-ui.js?v=20260906&display=20260906-1&realm-ui=20260907-1&mobile-review=20260907-2&lazy-editor=20260908-1&aux=20261001-17"></script>
+    <script defer src="js/fossil-workbench-ui.js?v=20260908-1&craft-origin=20260910-1&crafting-workspace=20260914-1&aux=20261001-17"></script>
+    <script defer src="js/chaos-infuser-ui.js?v=20260930-inspector1&aux=20260930-4&dialog=20261003-1"></script>
+    <script defer src="js/core-items-ui.js?v=20260930-1&aux=20260930-4&dialog=20261003-1"></script>
     <script defer src="js/ocean-collection-ui.js?v=20260914-2"></script>
     <script defer src="js/sea-gift-ui.js?v=20260908-1"></script>
-<script defer src="js/level-progression-ui.js?v=20260911-1&region-label=20260911-1&requirements-review=20260911-1&reward-hint=20260914-1&atlas-copy=20260914-3"></script>
-<script defer src="js/crafting-goal-options.js?v=20260914-1"></script>
-<script defer src="js/crafting-catalog-ui.js?v=20260914-1"></script>
-<script defer src="js/crafting-workspace-ui.js?v=20260914-2"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine=20260817-field1&bounty=20260817-restore1&hall=20260819-route3&nav=20260818-reliquary-goal-access1&skin=20260819-2&flask-hud=20260819-1&balance=20260819-ocean-role1&interaction=20260820-1&endgame=20260821-roadmap3&condition=20260821-1&backdrop=20260820-floor1&hideout=20260821-2&combat-log-icons=20260822-1&jewel-layout=20260822-1&map-tabs=20260823-1&save-guard=20260826-1&equipment-grid=20260827-9&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260828-3&player-classes=20260828-1&passive-gate=20260829-1&tree-visual=20260829-4&death-feedback=20260901-1&settings=20260901-1&vfx-icons=20260901-1&review-fixes=20260901-2&ascend-info=20260901-1&inventory-search=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&facing-hold=20260902-1&enemy-hud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&legal=20260902-1&signup-consent=20260902-2&realm-monsters=20260902-1&save-choice=20260902-1&save-reset=20260903-1&choice-feedback=20260904-1&wisps=20260904-1&item-compare=20260904-1&signup-confirmation=20260904-1&initial-class=20260914-1&character-smoothing=20260904-1&character-outline=20260904-2&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&equipment-cleanup=20260906-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-split=20260907-1&treasure=20260907-1&pr-review=20260907-1&market=20260907-1&thermal=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260908-3&flask-mobile=20260908-1&hud-text=20260908-1&frame-clock=20260908-1&passive-selection=20260914-2&tree-tools=20260908-1&craft-choice=20260908-1&craft-lists=20260908-1&craft-search=20260908-1&health-boundary=20260908-1&jewel-workspace=20260908-2&jewel-crafting=20260908-2&talisman-touch=20260908-1&talisman-workspace=20260908-1&inventory-library=20260908-1&talisman-workshop=20260908-1&unlock-path=20260908-1&loop-map=20260908-1&hunt-rewards=20260908-1&return-ui=20260908-1&effect-loading=20260908-1&login-idle=20260908-1&stat-touch=20260908-1&return-regions=20260908-1&hover-details=20260908-1&equipment-inspection=20260908-1&gem-selection=20260909-2&condition-feedback=20260909-1&stat-inputs=20260909-1&hover-compare=20260909-1&cosmos-route=20260909-8&story-fx=20260909-1&journal-reader=20260914-1&flask-review=20260914-1&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-preview=20260910-1&level-progression=20260911-1&region-label=20260911-1&popup-layer=20260911-1&unique-equipment=20260913-1&realm-uniques=20260913-1&completion-loot=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&exploration=20260914-7&environment-readiness=20260913-1&craft-gem-review=20260914-1&research-review=20260914-2&hive-review=20260914-1&preparation=20260914-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&ward=20260914-1&underworld-ui=20260914-1&rune-picker-review=20260914-1&sky-flow=20260914-1&ocean-flow=20260914-4&trial-priority=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-2&gem-forge=20260914-1&gem-value=20260914-2"></script>
-<script defer src="js/market-ui.js?v=20260907-1&mobile-exchange=20260908-1&mobile-services=20260908-1&mobile-black=20260908-1"></script>
-<script defer src="js/equipment-loot-ui.js?v=20260905-1&return-ui=20260908-1"></script>
-<script defer src="js/content-progression-ui.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&branch-reveal=1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&gem-selection=20260909-1"></script>
-<script defer src="js/salvage-recovery-ui.js?v=20260817-recovery1&equipment-inspection=20260908-1"></script>
-    <script defer src="js/unique-hunt-ui.js?v=20260817-hunt1&vfx-icons=20260901-1&treasure=20260907-1"></script>
-<script defer src="js/equipment-loadouts-ui.js?v=20260817-loadout1&review=20260817-1"></script>
+<script defer src="js/level-progression-ui.js?v=20260911-1&region-label=20260911-1&requirements-review=20260911-1&reward-hint=20260914-1&atlas-copy=20260914-3&aux=20260930-8"></script>
+<script defer src="js/crafting-goal-options.js?v=20260914-1&aux=20260930-8"></script>
+<script defer src="js/crafting-catalog-ui.js?v=20260914-1&realm=20261003-1"></script>
+<script defer src="js/crafting-workspace-ui.js?v=20260914-2&aux=20261001-17"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine=20260817-field1&bounty=20260817-restore1&hall=20260819-route3&nav=20260818-reliquary-goal-access1&skin=20260819-2&flask-hud=20260819-1&balance=20260819-ocean-role1&interaction=20260820-1&endgame=20260821-roadmap3&condition=20260821-1&backdrop=20260820-floor1&hideout=20260821-2&combat-log-icons=20260822-1&jewel-layout=20260822-1&map-tabs=20260823-1&save-guard=20260826-1&equipment-grid=20260827-9&inventory-pages=20260827-1&temp-storage=20260827-1&test-character=20260828-3&player-classes=20260828-1&passive-gate=20260829-1&tree-visual=20260829-4&death-feedback=20260901-1&settings=20260901-1&vfx-icons=20260901-1&review-fixes=20260901-2&ascend-info=20260901-1&inventory-search=20260901-1&square-map=20260901-3&actor-depth=20260901-1&walk-direction=20260901-1&boss-footprint=20260902-1&attack-direction=20260902-1&hud-gauges=20260902-5&idle-direction=20260902-1&enemy-lunge=20260902-1&attack-phase=20260902-1&facing-hold=20260902-1&enemy-hud=20260902-1&mobile-scale=20260902-1&mobile-fit=20260902-2&legal=20260902-1&signup-consent=20260902-2&realm-monsters=20260902-1&save-choice=20260902-1&save-reset=20260903-1&choice-feedback=20260904-1&wisps=20260904-1&item-compare=20260904-1&signup-confirmation=20260904-1&initial-class=20260914-1&character-smoothing=20260904-1&character-outline=20260904-2&runtime=20260905-1&loot-overhaul=20260905-1&loot-filter=20260905-1&equipment-cleanup=20260906-1&interface-fixes=20260906-2&refinement=20260906-1&content-choice=20260906-1&display=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&reward-flow=20260906-1&unlock-split=20260907-1&treasure=20260907-1&pr-review=20260907-1&market=20260907-1&thermal=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260908-3&flask-mobile=20260908-1&hud-text=20260908-1&frame-clock=20260908-1&passive-selection=20260914-2&tree-tools=20260908-1&craft-choice=20260908-1&craft-lists=20260908-1&craft-search=20260908-1&health-boundary=20260908-1&jewel-workspace=20260908-2&jewel-crafting=20260908-2&talisman-touch=20260908-1&talisman-workspace=20260908-1&inventory-library=20260908-1&talisman-workshop=20260908-1&unlock-path=20260908-1&loop-map=20260908-1&hunt-rewards=20260908-1&return-ui=20260908-1&effect-loading=20260908-1&login-idle=20260908-1&stat-touch=20260908-1&return-regions=20260908-1&hover-details=20260908-1&equipment-inspection=20260908-1&gem-selection=20260909-2&condition-feedback=20260909-1&stat-inputs=20260909-1&hover-compare=20260909-1&cosmos-route=20260909-8&story-fx=20260909-1&journal-reader=20260914-1&flask-review=20260914-1&affix-balance=20260910-1&affix-ui=20260910-1&craft-origin=20260910-1&craft-preview=20260910-1&level-progression=20260911-1&region-label=20260911-1&popup-layer=20260911-1&unique-equipment=20260913-1&realm-uniques=20260913-1&completion-loot=20260913-1&altar-flow=20260913-1&world-tree-journey=20260913-1&exploration=20260914-7&environment-readiness=20260913-1&craft-gem-review=20260914-1&research-review=20260914-2&hive-review=20260914-1&preparation=20260914-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&ward=20260914-1&underworld-ui=20260914-1&rune-picker-review=20260914-1&sky-flow=20260914-1&ocean-flow=20260914-4&trial-priority=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-2&gem-forge=20260914-1&gem-value=20260914-2&act-maps=20260915&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-4&aux=20261001-5&aux=20261001-6&aux=20261001-9&aux=20261001-11&aux=20261001-12&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261001-20&aux=20261001-21&aux=20261001-22&aux=20261001-23&aux=20261002-1&aux=20261002-5&aux=20261002-7&aux=20261002-8&aux=20261002-11&aux=20261002-12&aux=20261002-13&aux=20261002-15&aux=20261002-18&aux=20261002-20&aux=20261002-21&monsters=20261002-1&weapons=20261002-1&realm=20261003-1&review=20261003-1&dialog=20261003-1&traffic=20261003-1&herosize=20261003-1"></script>
+<script defer src="js/icon-art-ui.js"></script>
+<script defer src="js/market-ui.js?v=20260907-1&mobile-exchange=20260908-1&mobile-services=20260908-1&mobile-black=20260908-1&aux=20260930-8&aux=20261002-1"></script>
+<script defer src="js/equipment-loot-ui.js?v=20260905-1&return-ui=20260908-1&aux=20261001-2"></script>
+<script defer src="js/content-progression-ui.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&branch-reveal=1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&gem-selection=20260909-1&aux=20260930-3&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-14&aux=20261001-15&aux=20261001-17&aux=20261001-19&aux=20261001-20"></script>
+<script defer src="js/salvage-recovery-ui.js?v=20260817-recovery1&equipment-inspection=20260908-1&release=20261003-1"></script>
+    <script defer src="js/unique-hunt-ui.js?v=20260817-hunt1&vfx-icons=20260901-1&treasure=20260907-1&late=20261002-2&review=20261002-1&review=20261002-2"></script>
+<script defer src="js/equipment-loadouts-ui.js?v=20260817-loadout1&review=20260817-1&aux=20261001-2&realm=20261003-1"></script>
 <script defer src="js/playtest-telemetry.js?v=20260816-telemetry-separation1&login-idle=20260908-1"></script>
-<script defer src="js/cloud-tools-ui.js?v=20260812-ops1&display=20260906-1"></script>
-<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1&overflow=20260819-salvage1&visuals=20260820-1&profile=20260821-1&craft-lists=20260908-1"></script>
-<script defer src="js/gem-selection-ui.js?v=20260909-1&equip-feedback=20260914-1"></script>
-<script defer src="js/condition-feedback-ui.js?v=20260909-1"></script>
+<script defer src="js/cloud-tools-ui.js?v=20260812-ops1&display=20260906-1&aux=20261001-2&aux=20261001-14"></script>
+<script defer src="js/stump-talisman-ui.js?v=20260930-6&aux=20260930-7&aux=20261002-3&review=20261003-1"></script>
+<script defer src="js/stump-cube-ui.js?v=20260930-1&aux=20261002-3&dialog=20261003-1"></script>
+<script defer src="js/stump-box-ui.js?v=20260930-6&aux=20260930-8&aux=20261001-18&aux=20261001-19&aux=20261001-20&aux=20261002-3&review=20261003-1"></script>
+<script defer src="js/player-stall-ui.js?v=20260929-1&aux=20261002-1&aux=20261002-2"></script>
+<script defer src="js/gem-selection-ui.js?v=20260909-1&equip-feedback=20260914-1&skill-delta2=20260930-4&aux=20261001-4&aux=20261001-19"></script>
 <script defer src="js/gem-core-forge-ui.js?v=20260914-1&gem-value=20260915-1"></script>
-<script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&mobile=20260907-1&mobile-review=20260907-2&craft-gem-review=20260914-1&research-review=20260914-1&gem-forge=20260914-1"></script>
-<script defer src="js/section-navigation-ui.js?v=20260907-1&jewel-workspace=20260908-1&talisman-workspace=20260908-1&crafting-workspace=20260914-1"></script>
-<script defer src="js/growth-workspace-ui.js?v=20260908-1"></script>
-<script defer src="js/inventory-library-ui.js?v=20260908-1"></script>
-<script defer src="js/jewel-crafting-ui.js?v=20260908-1"></script>
-<script defer src="js/talisman-mobile-ui.js?v=20260908-1&talisman-workspace=20260908-1"></script>
-<script defer src="js/talisman-workshop-ui.js?v=20260908-1"></script>
-<script defer src="js/character-stats-ui.js?v=20260908-1&affix-balance=20260910-1"></script>
+<script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&mobile=20260907-1&mobile-review=20260907-2&craft-gem-review=20260914-1&research-review=20260914-1&gem-forge=20260914-1&skill-delta2=20260930-4&aux=20261001-17&aux=20261001-19"></script>
+<script defer src="js/section-navigation-ui.js?v=20260907-1&jewel-workspace=20260908-1&talisman-workspace=20260908-1&crafting-workspace=20260914-1&aux=20260930-3&aux=20260930-5&aux=20260930-8"></script>
+<script defer src="js/equipment-sockets-ui.js?v=20260930-1&review=20261003-1&dialog=20261003-1"></script>
+<script defer src="js/equipment-aux-ui.js?v=20260930-1"></script>
+<script defer src="js/character-stats-ui.js?v=20260908-1&affix-balance=20260910-1&aux=20261002-7"></script>
 <script defer src="js/map-navigation-ui.js?v=20260907-1&exploration=20260913-4"></script>
     <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1&inventory-pages=20260827-1&vfx-icons=20260901-1"></script>
     <script defer src="js/records-ui.js?v=20260808-records-tab1&vfx-icons=20260901-1&records-review=20260914-1"></script>
-<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2&hall=20260818-1&ui=20260818-row-hierarchy1&growth-profile=20260821-1&display=20260906-1&profile-filter=20260907-1&account-entry=20260908-1&chat-ime=20260908-1&chat-draft=20260908-3&chat-dock=20260914-1"></script>
-<script defer src="js/ghost-duel-replay.js?v=20260817-battle-replay1"></script>
-<script defer src="js/ghost-pvp.js?v=20260817-arena-stable1"></script>
-<script defer src="js/player-exchange.js?v=20260819-hall-route3&loadout=20260820-1"></script>
-    <script defer src="js/ui-window-manager.js?v=20260906-workspace1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-split=20260907-1&brand-logo=20260907-1&battle-controls=20260908-1&return-regions=20260908-1&rail-fit=20260908-1&popup-layer=20260911-1"></script>
+<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2&hall=20260818-1&ui=20260818-row-hierarchy1&growth-profile=20260821-1&display=20260906-1&profile-filter=20260907-1&account-entry=20260908-1&chat-ime=20260908-1&chat-draft=20260908-3&chat-dock=20260914-1&aux=20260930-5&aux=20260930-8&aux=20261001-2&aux=20261001-14&aux=20261001-15&aux=20261001-16&traffic=20261003-1"></script>
+<script defer src="js/ghost-duel-replay.js?v=20260817-battle-replay1&aux=20261001-2"></script>
+<script defer src="js/ghost-pvp.js?v=20260817-arena-stable1&aux=20261001-2&aux=20261001-14"></script>
+<script defer src="js/player-exchange.js?v=20260819-hall-route3&loadout=20260820-1&aux=20261001-2"></script>
+    <script defer src="js/ui-window-manager.js?v=20260906-workspace1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-split=20260907-1&brand-logo=20260907-1&battle-controls=20260908-1&return-regions=20260908-1&rail-fit=20260908-1&popup-layer=20260911-1&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-14&aux=20261001-15&aux=20261001-17&aux=20261001-19&review=20261003-1&dialog=20261003-1"></script>
+    <script defer src="js/hotkeys-ui.js?v=20260930-6&aux=20261001-1&review=20261003-1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
-<script defer src="js/scroll-top.js?v=20260821-scrolltop1"></script>
-<script defer src="js/content-unlock-guide.js?v=20260831-next-major-unlock1&content-choice=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1"></script>
-    <script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1&pinnacle=20260814-atlas1&growth=20260819-salvage1&arcana=20260820-quest1&inventory-pages=20260827-1&player-classes=20260828-1&unlock-guide=20260831-1&vfx-icons=20260901-1&review-fixes=20260901-2&ascend-info=20260901-1&copy=20260902-1&runtime=20260905-1&treasure=20260907-1&hunt-rewards=20260908-1"></script>
-<script defer src="js/talent-cards.js?v=20260722-templar-overheal1&slots=20260820-1&tooltip=20260820-1&runtime=20260905-1&treasure=20260907-1&mobile=20260907-1"></script>
-<script defer src="js/talent-ui.js?v=20260907-1&hover-details=20260908-1"></script>
-<script defer src="js/talent-mobile-ui.js?v=20260907-1&hover-details=20260908-1"></script>
-<script defer src="js/expertise-mobile-ui.js?v=20260908-1"></script>
-<script defer src="js/talent-precise.js?v=20260822-precise1&runtime=20260905-1"></script>
-<script defer src="js/talent-hit-effects.js?v=20260822-precise1"></script>
-<script defer src="js/talent-recovery.js?v=20260822-precise1&runtime=20260905-1"></script>
-<script defer src="js/cosmos-route-ui.js?v=20260909-10"></script>
-<script defer src="js/world-tree-journey-ui.js?v=20260913-3&exploration=20260913-4"></script>
-<script defer src="js/exploration-atlas-ui.js?v=20260913-2&exploration=20260914-5&preparation=20260914-1&copy=20260914-1&atlas-copy=20260914-4"></script>
+<script defer src="js/scroll-top.js?v=20260821-scrolltop1&release=20261003-1"></script>
+<script defer src="js/content-unlock-guide.js?v=20260831-next-major-unlock1&content-choice=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&aux=20260930-5&aux=20260930-7&aux=20261001-16"></script>
+    <script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1&pinnacle=20260814-atlas1&growth=20260819-salvage1&arcana=20260820-quest1&inventory-pages=20260827-1&player-classes=20260828-1&unlock-guide=20260831-1&vfx-icons=20260901-1&review-fixes=20260901-2&ascend-info=20260901-1&copy=20260902-1&runtime=20260905-1&treasure=20260907-1&hunt-rewards=20260908-1&aux=20260930-8&aux=20261001-15&aux=20261001-17"></script>
+<script defer src="js/talent-cards.js?v=20260722-templar-overheal1&slots=20260820-1&tooltip=20260820-1&runtime=20260905-1&treasure=20260907-1&mobile=20260907-1&aux=20261001-15&aux=20261002-5&aux=20261002-6&aux=20261002-14&aux=20261002-15&aux=20261002-16&aux=20261002-18"></script>
+<script defer src="js/talent-ui.js?v=20260907-1&hover-details=20260908-1&aux=20261001-3&aux=20261001-14&aux=20261001-15&aux=20261002-5&aux=20261002-8&aux=20261002-15"></script>
+<script defer src="js/talent-mobile-ui.js?v=20260907-1&hover-details=20260908-1&aux=20261002-5&aux=20261002-8&aux=20261002-15"></script>
+<script defer src="js/talent-precise.js?v=20260822-precise1&runtime=20260905-1&aux=20261002-18"></script>
+<script defer src="js/cosmos-route-ui.js?v=20260909-10&aux=20261001-17&aux=20261002-1"></script>
+<script defer src="js/canvas-atlas-chart.js?v=20260930-16"></script>
+<script defer src="js/atlas-ui.js?v=20260930-16&aux=20261001-19&maps=20261002-1&late=20261002-1&review=20261002-1&review=20261002-2"></script>
+<script defer src="js/atlas-passives-ui.js?v=20260930-16&aux=20261001-17&aux=20261001-20&aux=20261001-21&review=20261003-1"></script>
+<script defer src="js/atlas-epoch-ui.js?v=20260930-12&late=20261002-1"></script>
+<script defer src="js/atlas-endgame-ui.js?v=20261002-1&review=20261002-1&review=20261002-2"></script>
+<script defer src="js/exploration-atlas-ui.js?v=20260913-2&exploration=20260914-5&preparation=20260914-1&copy=20260914-1&atlas-copy=20260914-4&skill-delta2=20260930-8&aux=20261001-16"></script>
 <script defer src="js/canvas-side-encounters.js?v=20260910-1"></script>
-<script defer src="js/side-encounter-ui.js?v=20260914-1&hive-review=20260914-1&preparation=20260914-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&ward=20260914-1&sky-flow=20260914-1"></script>
-<script defer src="js/cosmos-atlas.js?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260814-readiness1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&loot=20260815-tier1&stone=20260817-manage1&directives=20260817-2&arcana=20260820-quest1&combat-log-icons=20260822-1&map-tabs=20260823-1&display=20260906-1&realm-ui=20260907-1&directory-return=20260908-1&mastery-controls=20260908-1&state-batch=20260908-1&visible-atlas=20260908-1&canvas=20260909-1&route=20260909-8&expedition-result=20260914-2&atlas-copy=20260914-3"></script>
-<script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
-<script defer src="js/save-migrations.js?v=20260905-runtime1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&content-choice=20260906-1&display=20260906-1&flow=20260906-1&treasure=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260907-2&unlock-path=20260908-1&route=20260909-8&level-progression=20260911-1&unique-equipment=20260913-1&content-resume=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&expedition-result=20260914-2&death-report=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-1"></script>
-    <script defer src="js/build-feedback-ui.js?v=20260905-runtime1&refinement=20260906-1"></script>
-<script defer src="js/combat-replay.js?v=20260905-runtime1&thermal=20260907-1&realm-ui=20260907-1&route=20260909-2"></script>
-<script defer src="js/startup-ui.js?v=20260907-1"></script>
+<script defer src="js/side-encounter-ui.js?v=20260914-1&hive-review=20260914-1&preparation=20260914-1&expedition-review=20260914-2&expedition-result=20260914-2&time-rift=20260914-4&ward=20260914-1&sky-flow=20260914-1&ward=20260930-1&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261002-1"></script>
+<script defer src="js/cosmos-atlas.js?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260814-readiness1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&loot=20260815-tier1&stone=20260817-manage1&directives=20260817-2&arcana=20260820-quest1&combat-log-icons=20260822-1&map-tabs=20260823-1&display=20260906-1&realm-ui=20260907-1&directory-return=20260908-1&mastery-controls=20260908-1&state-batch=20260908-1&visible-atlas=20260908-1&canvas=20260909-1&route=20260909-8&expedition-result=20260914-2&atlas-copy=20260914-3&skill-delta2=20260930-12&aux=20260930-5&aux=20261001-2&aux=20261001-17&aux=20261002-1"></script>
+<script defer src="js/smoke-checks.js?v=20260513-gemfix1&release=20261003-1&review=20261003-1"></script>
+<script defer src="js/save-migration-wisp-summons.js?v=20260930-1&p2=20261003-1"></script>
+<script defer src="js/save-migrations.js?v=20260905-runtime1&loot-overhaul=20260905-1&loot-filter=20260905-1&interface-fixes=20260906-2&content-choice=20260906-1&display=20260906-1&flow=20260906-1&treasure=20260907-1&realm-ui=20260907-1&profile-filter=20260907-1&mobile-review=20260907-2&unlock-path=20260908-1&route=20260909-8&level-progression=20260911-1&unique-equipment=20260913-1&content-resume=20260913-1&world-tree-journey=20260913-1&exploration=20260913-4&expedition-result=20260914-2&death-report=20260914-1&atlas-copy=20260914-3&crafting-workspace=20260914-1&skill-delta2=20260930-15&aux=20260930-3&aux=20260930-6&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-3&aux=20261001-16&aux=20261001-17&aux=20261001-20&aux=20261001-23&aux=20261002-5&aux=20261002-11&aux=20261002-15&monsters=20261002-1&maps=20261002-1&realm=20261003-1&review=20261003-1"></script>
+    <script defer src="js/build-feedback-ui.js?v=20260905-runtime1&refinement=20260906-1&skill-delta2=20260930-4&aux=20261001-20"></script>
+<script defer src="js/combat-replay.js?v=20260905-runtime1&thermal=20260907-1&realm-ui=20260907-1&route=20260909-2&aux=20261001-14&review=20261003-1"></script>
 <script defer src="js/android-app-ui.js?v=20260907-1&thermal=20260907-1&popup-layer=20260911-1"></script>
-<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1"></script>
+<script defer src="js/dev-test-panel-ui.js?v=20260930-5"></script>
+<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1"></script>
 </body>
 </html>

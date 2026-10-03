@@ -1,3 +1,35 @@
+/**
+ * @typedef {object} ActExplorationPendingLoot
+ * @property {number} version Schema version (8).
+ * @property {'pending'|'claimed'|'lost'} phase
+ * @property {Record<string,number>} currencies Already resolved canonical currency gains.
+ * @property {Array<{id:number,name:string,slot:string,baseStats:Array<{id:string,val:number}>,stats:Array<{id:string,val:number}>}>} equipment
+ * @property {Array<{id:number,name:string,lines:Array<{id:string,value:number}>}>} cores Core items, unavailable until claimed.
+ * @property {Array<{item:ActExplorationPendingLoot['equipment'][number],rewards:Record<string,number>}>} salvagedEquipment Last recoverable equipment, unavailable until clear. Rewards are original salvage costs.
+ * @property {Array<{id:number,name:string,rarity:string,stats:Array<{id:string,val:number}>}>} jewels
+ * @property {Array<{kind:'attack',name:string,awakened:boolean}|{kind:'support',name:string,tier:number}>} gems Exact drop unlocks, not snapshots of live leveled records.
+ */
+/**
+ * @typedef {object} ActExplorationRun Saved authored act exploration, null in special arenas.
+ * @property {number} version Schema version (1).
+ * @property {number} act Story act 1..10; zoneId is act minus one.
+ * @property {number} zoneId
+ * @property {string} layoutId Authored preset identity, never randomised at restore.
+ * @property {'active'|'cleared'|'failed'} status
+ * @property {boolean} completionApplied Existing story/zone completion has been applied once.
+ * @property {null|{zoneId:number,remainingMs:number}} departure Already-selected automatic exit after presentation; never another reward claim.
+ * @property {ActExplorationPendingLoot} loot Already resolved rewards, inaccessible until boss completion.
+ * @property {number} motionTimeMs Last processed 20 ms exploration movement step, in combat time.
+ * @property {'north'|'south'|'east'|'west'} motionDirection Current walking direction.
+ * @property {null|{from:{gx:number,gy:number},to:{gx:number,gy:number},startedAt:number,elapsed:number,duration:number}} motion Saved movement in milliseconds; the hit cell changes halfway.
+ * @property {'direct'|'full'|'manual'} mode
+ * @property {{gx:number,gy:number}|null} destination Integer map tile.
+ * @property {number[]} discovered Row-major tile indices, including visible wall borders.
+ * @property {string[]} visitedRooms Internal room ids (not player-facing room names).
+ * @property {Array<{key:string,roomId:string,stage:number|null,aliveIds:number[],eliteIds:number[],waiting:Enemy[]}>} packs
+ * Waiting records move into game.enemies at engagement. aliveIds includes both owners;
+ * dead ids are removed once by the death handler. Boss stages are zero-based and sequential.
+ */
 // Central runtime namespace/state bridge (phase 2).
 function getPassiveEquipmentRestriction(item, state = game) {
     if (!item) return '';
@@ -29,12 +61,23 @@ window.GameModules.state = window.GameState;
 
 // Transient notices: domains enqueue data; the foreground UI decides when to present it.
 let tutorialQueue = [];
-function queueTutorialNotice(key, title, body, tabId, subtabId) {
+// 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
+// 다시 띄웠다(검토 5차).
+const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear', unlock_char: 'tutorial_first_passive' });
+/** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
+function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
     game.seenTutorials = game.seenTutorials || [];
-    if (game.seenTutorials.includes(key)) return;
+    if (game.seenTutorials.includes(key) || game.seenTutorials.includes(TUTORIAL_SEEN_ALIASES[key])) return;
     game.seenTutorials.push(key);
-    tutorialQueue.push({ key, title, body, tabId: tabId || null, subtabId: subtabId || null });
+    const extra = target && typeof target === 'object' ? target : { subtabId: target };
+    tutorialQueue.push({ ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
+}
+/** A notice about content bought in 해금 (talent, …): before it is bought, the card says where to buy it and
+ * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
+function queueContentNotice(key, title, contentId, bodies, route) {
+    const opened = typeof contentProgression !== 'object' || contentProgression.isUnlocked(contentId);
+    queueTutorialNotice(key, title, opened ? bodies.open : bodies.locked, opened ? route : 'tab-unlocks');
 }
 
 // Phase-3 extracted world/season progression helpers.
@@ -198,8 +241,7 @@ function isUnderworldUnlockReady(source) {
     let runes = state && state.underworldRunes;
     let hasProgress = Math.max(1, Math.floor((progress && progress.highestFloor) || 1)) > 1
         || !!(progress && progress.floor10Cleared)
-        || Math.max(0, Math.floor((runes && runes.unlockedSlots) || 0)) > 0
-        || !!(state && state.coreCube && state.coreCube.everUnlocked);
+        || Math.max(0, Math.floor((runes && runes.unlockedSlots) || 0)) > 0;
     if (hasProgress) return true;
     let chaosRealm = state && state.chaosRealm;
     let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
@@ -586,8 +628,8 @@ function getTimeRiftDifficultyTier(pressure) {
 
 
 
-function getStarWedgeUnlockReady() {
-    return (game.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (game.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT;
+function getMeteorSiteUnlockReady() {
+    return (game.season || 1) >= METEOR_SITE_UNLOCK_LOOP && (game.maxZoneId || 0) >= METEOR_SITE_UNLOCK_ACT;
 }
 
 function getClearedSkyTowerFloor(source) {
@@ -768,22 +810,11 @@ function createColonyZone(state) {
         maxKills:1, ele:'chaos', entryDeepChaosDepth:depth };
 }
 
-function createWorldTreeJourneyZone(id, state) {
-    const node = WORLD_TREE_JOURNEY.nodes.find(row => row.id === id);
-    if (!node) return null;
-    const stage = Math.max(1, Math.min(3, Math.floor(Number(state.worldTreeJourney?.stage) || 1)));
-    const floor = node.floor + (stage - 1) * 5;
-    return { id, name:node.name, type:'chaosRealm', tier:getChaosRealmTier(floor), floor,
-        maxKills:1, ele:'chaos', affixes:getChaosRealmAffixes(floor), worldTreeNode:node.id,
-        worldTreeKind:node.kind, worldTreeStage:stage,
-        bossMods:node.kind === 'boss' ? {hpMul:WORLD_TREE_JOURNEY.stages[stage-1].bossHpMul} : undefined };
-}
-
 function getUnderworldZone(floor) {
-    return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor };
+    return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor, ...contentMaps.underworld(floor) };
 }
 function getZone(id) {
-    if (typeof id === 'string' && id.startsWith('worldtree_')) return createWorldTreeJourneyZone(id, game);
+    if (id === ATLAS.zoneId) return atlas.zone(game);
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
         if (challengeZone) return challengeZone;
@@ -801,12 +832,12 @@ function getZone(id) {
     if (id === CHAOS_REALM_ZONE_ID) {
         let realm = ensureChaosRealmState();
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
-        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
+        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
     }
     if (id === SKY_TOWER_ZONE_ID) {
         let st = ensureSkyTowerState();
         let floor = Math.max(1, Math.floor(st.currentFloor || 1));
-        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor };
+        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
     }
     if (id === WOODSMAN_ECHO_ZONE_ID) return { id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' };
     if (id === TIME_RIFT_PAST_ZONE_ID || id === TIME_RIFT_FUTURE_ZONE_ID) {
@@ -818,7 +849,7 @@ function getZone(id) {
         let difficultyTier = getTimeRiftDifficultyTier(activePressure);
         // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
         let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth };
+        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
@@ -826,12 +857,12 @@ function getZone(id) {
         return getUnderworldZone(floor);
     }
     if (typeof id === 'string') {
-        if (id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
+        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
         let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
-        if (seasonBossZone) return seasonBossZone;
+        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
     }
     if (id === METEOR_FALL_ZONE_ID) {
-        let star = (game && game.starWedge) || {};
+        let star = (game && game.meteorSite) || {};
         let allowBeyond20 = !!star.skyRiftAllCosmos;
         let tierCap = allowBeyond20 ? 40 : 20;
         let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
@@ -842,7 +873,7 @@ function getZone(id) {
             tier: tier,
             maxKills: 1,
             ele: 'chaos',
-            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }
+            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }, exploration: contentMaps.arena('meteor', 'ruins')
         };
     }
     if (id === OCEAN_ZONE_ID) {
@@ -857,7 +888,7 @@ function getZone(id) {
         let over50 = Math.max(0, floor - 50);
         let over100 = Math.max(0, floor - 100);
         let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
-        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor };
+        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);
@@ -873,7 +904,7 @@ function getZone(id) {
             ele: 'chaos',
             depth: displayDepth,
             baseDepth: Math.min(20, depth),
-            isEndlessDepth: displayDepth > 20
+            isEndlessDepth: displayDepth > 20, ...contentMaps.chaos(displayDepth)
         };
     }
     return MAP_ZONES[id];
@@ -948,9 +979,11 @@ function markLoopCosmosPlanetClear(nodeId) {
     if (!nodeId || !game || (game.season || 1) < LOOP_GATE_ALT_START_SEASON) return false;
     game.loopProgressCurrent = game.loopProgressCurrent || {};
     let planets = Array.isArray(game.loopProgressCurrent.cosmosPlanets) ? game.loopProgressCurrent.cosmosPlanets : [];
-    if (!planets.includes(nodeId)) planets.push(nodeId);
+    let fresh = !planets.includes(nodeId);
+    if (fresh) planets.push(nodeId);
     game.loopProgressCurrent.cosmosPlanets = planets;
-    return nodeId === LOOP_GATE_ALT_COSMOS_PLANET_ID;
+    // True once per loop, when this loop's clear of the alternative planet is first recorded.
+    return fresh && nodeId === LOOP_GATE_ALT_COSMOS_PLANET_ID;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
@@ -990,13 +1023,19 @@ function getAutoProgressZoneId(fallbackZoneId) {
 
 
 
+// 세계수 아틀라스 지도는 등급이 정한 혼돈 깊이 · 루프에서 같은 배율을 받는다(js/atlas.js buildZone).
 function getAbyssMonsterScales(zone) {
-    let active = zone && zone.type === 'abyss';
-    if (!active) return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
-    let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
+    if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth, zone.fixedSeason);
+    if (!zone || zone.type !== 'abyss') return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
+    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
     // 심화 혼돈(21+) 기록은 심화 구간에서만 난이도에 반영한다.
     // 새 루프의 혼돈 1~20에 과거 심화층 배율이 섞이면 난이도가 비정상적으로 급등한다.
     let endlessDepth = depth <= 20 ? depth : Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
+    return getChaosDepthScales(endlessDepth, game.season || 1);
+}
+
+/** Monster scales at a chaos depth (21+ = deep chaos) in a given loop. */
+function getChaosDepthScales(endlessDepth, season) {
     let endlessOver = Math.max(0, endlessDepth - 20);
     let endlessMul = 1;
     if (endlessOver > 0) {
@@ -1006,7 +1045,7 @@ function getAbyssMonsterScales(zone) {
     }
     // 루프 30 이후에는 원시 스탯 인플레이션을 동결한다 — 이후의 도전은 스탯 상승이 아니라
     // 루프 조건 세분화(대체 경로, data/maps.js LOOP_GATE_*)로 제공한다.
-    let postLoopOver = Math.min(20, Math.max(0, Math.floor((game.season || 1) - 10)));
+    let postLoopOver = Math.min(20, Math.max(0, Math.floor(season - 10)));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
     return {
         dmgMul: postLoopDifficultyMul,
@@ -1108,6 +1147,7 @@ function enterNextEndlessChaosDepth() {
     game.combatHalted = false;
     game.runProgress = 0;
     addLog(`♾️ 혼돈 심화 ${game.abyssEndlessDepth}층 진입`, 'season-up');
+    enterAutomaticMapInterruptionAfterClear(null); // a ready grand breach or meteor postponed by the map's loot goes first
     startMoving(true);
     updateStaticUI();
 }
@@ -1149,161 +1189,22 @@ function allocateLoopDeepStat(statKey) {
     updateStaticUI();
 }
 
-const CLASS_TEMPLATES = {
-    warrior: { name: '워리어', desc: '강력한 물리 압박과 방어 관통', m1: 'physPctDmg', m2: 'physIgnore', d: 'dr' },
-    gladiator: { name: '글래디에이터', desc: '빠른 공격속도와 연속 타격', m1: 'meleePctDmg', m2: 'ds', d: 'aspd' },
-    assassin: { name: '어쌔신', desc: '치명타 확률과 막대한 치명타 피해', m1: 'crit', m2: 'critDmg', d: 'chaosPctDmg' },
-    ranger: { name: '레인저', desc: '신속한 이동과 투사체 장악', m1: 'projectilePctDmg', m2: 'move', d: 'crit' },
-    elementalist: { name: '엘리멘탈리스트', desc: '원소 피해와 원소 저항 특화', m1: 'elementalPctDmg', m2: 'resAll', d: 'regen' },
-    warlock: { name: '워록', desc: '혼돈 피해와 생명력 흡수', m1: 'chaosPctDmg', m2: 'dotPctDmg', d: 'pctHp' },
-    guardian: { name: '가디언', desc: '방어도와 생명력으로 버티는 성벽', m1: 'armor', m2: 'flatHp', d: 'dr' },
-    inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' },
-    soulbinder: { name: '소울바인더', desc: '소환계열 특화', m1: 'dotPctDmg', m2: 'energyShield', d: 'regen' },
-    catalyst: { name: '카탈리스트', desc: '상태 이상 및 지속 피해 특화', m1: 'elementalPctDmg', m2: 'chaosPctDmg', d: 'resPen' },
-    hunter: { name: '헌터', desc: '치명타 및 단일 개체 특화', m1: 'projectilePctDmg', m2: 'critDmg', d: 'crit' },
-    crusader: { name: '크루세이더', desc: '번개 피해 및 방어도 에너지 보호막 혼합 특화', m1: 'meleePctDmg', m2: 'resAll', d: 'dr' }
-};
+// 전직 정의(CLASS_TEMPLATES · CLASS_KEYSTONE_PICK_LIMIT · CLASS_KEYSTONE_DEFS)는 data/ascendancies.js로 옮겼다(2026-10-02).
 
-const CLASS_KEYSTONE_PICK_LIMIT = 5;
-const CLASS_KEYSTONE_DEFS = {
-    warrior: [
-        { id: 'w1', name: '강철 태세', desc: '물리 피해 15% 증폭, 방어도 15% 증가', req: null },
-        { id: 'w2', name: '전장의 리듬', desc: '치명타 및 연속 공격 발생 시 각각 2초간 공격속도 +8% (각각 최대 5중첩)', req: null },
-        { id: 'w3', name: '쌍수 훈련', desc: '방패 슬롯에 무기 장착 가능', req: null },
-        { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음', req: 'w1' },
-        { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +10% (최대 5중첩, 곱연산)', req: 'w2' },
-        { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 각 무기의 효과 50% 증가', req: 'w3' },
-        { id: 'w7', name: '불굴의 진군', desc: '생명력 50% 이하 시 받는 피해 15% 감폭, 주는 피해 15% 증폭', reqAny: ['w2', 'w4'] },
-        { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도 +15%, 최종 피해 +15%', req: 'w7' },
-        { id: 'w9', name: '전쟁광', desc: '모든 주는 피해 40% 증폭, 받는 피해 10% 증폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    gladiator: [
-        { id: 'g1', name: '결투 태세', desc: '물리 피해 20% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
-        { id: 'g2', name: '연참 호흡', desc: '연속 타격 발생 시 3초간 공격 속도 +3%, 회피 +3% (최대 12중첩)', req: null },
-        { id: 'g3', name: '노련함', desc: '치명타가 아닌 타격 시 다음 타격 치명타 확률 +5%p, 치명타 발동 시 초기화', req: null },
-        { id: 'g4', name: '난투 본능', desc: '적이 3기 이상 주변에 있으면 받는 피해 20% 감폭, 주는 피해 20% 증폭', req: 'g1' },
-        { id: 'g5', name: '속공 전개', desc: '이동 후 첫 타격 피해 30% 증폭 및 첫 받는 피해 30% 감폭', req: 'g2' },
-        { id: 'g6', name: '마무리 타격', desc: '공격 후 적 생명력 20% 미만 즉시 처치(보스 10%)', req: 'g3' },
-        { id: 'g7', name: '투기 순환', desc: '회피 비례 연속 타격 증가(회피 35당 +1%p), 방어도 비례 치명타 확률 증가(방어도 250당 +1%p)', reqAny: ['g4', 'g5'] },
-        { id: 'g8', name: '검투의 화신', desc: '연속 타격 +100%, 피해 25% 증폭, 보스에게 주는 피해 30%/받는 피해 18% 증폭, 재생 50% 감폭, ES 재생 없음', req: 'g7' },
-        { id: 'g9', name: '실전 특화', desc: '막기 확률 및 비껴내기 확률 판정에 행운 적용(2회 굴려 유리한 값 선택)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    assassin: [
-        { id: 'a1', name: '냉혹한 집중', desc: '치명타 피해 배율 +66%, 치명타 확률 -6%p', req: null },
-        { id: 'a2', name: '그림자 질주', desc: '이동 시 흐릿함 상태 부여: 이동 속도 +20%, 치명타 피해 배율 +25%, 회피 20% 증폭. 피해를 받으면 해제', req: null },
-        { id: 'a3', name: '독점 약점', desc: '치명타 발생 시 5초간 대상 받는 피해 +6% (개별 대상, 최대 10중첩, 적 상태이상에 표시)', req: null },
-        { id: 'a4', name: '암전 절개', desc: '물리 피해 감소 무시 +25%, 저항 관통 +25%, 피해 8% 감폭', req: 'a1' },
-        { id: 'a5', name: '사형 선고', desc: '모든 공격이 치명타로 간주됩니다. 치명타로 간주된 비-치명타 공격도 치명타 효과와 치명타 피해 배율 보너스를 받습니다.', req: 'a3' },
-        { id: 'a6', name: '유리 심장', desc: '현재 생명력 66% 초과 시 치명타 피해 배율 20% 증폭, 이하 시 회피 20% 증폭', req: 'a2' },
-        { id: 'a7', name: '살의 폭주', desc: '적이 1명일 경우 치명타가 연속 타격 1회 추가로 부여, 치명타 피해 배율 -200%', reqAny: ['a4', 'a5'] },
-        { id: 'a8', name: '종말의 송곳니', desc: '치명타 피해 배율이 2배, 피해 25% 감폭', req: 'a7' },
-        { id: 'a9', name: '암영 극의', desc: '치명타 피해 배율 20% 증폭 및 회피 20% 증폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    ranger: [
-        { id: 'r1', name: '사냥꾼 보법', desc: '이동 속도 15% 증폭, 방어도/에너지 보호막 0', req: null },
-        { id: 'r2', name: '가속 시위', desc: '공격 속도 20% 증폭', req: null },
-        { id: 'r3', name: '탄도 감각', desc: '투사체 스킬 타겟 수 +2, 투사체 스킬 최소 피해 보정 -10%', req: null },
-        { id: 'r4', name: '질풍 동조', desc: '이동 속도 5%당 공격 속도 +1%', req: 'r1' },
-        { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 3% 추가 물리 피해', req: 'r2' },
-        { id: 'r6', name: '궤적 관통', desc: '관통 스킬 타겟 수 +1, 타겟마다 피해 8% 증폭', req: 'r3' },
-        { id: 'r7', name: '추적 본능', desc: '피격되지 않은 시간 1초마다 치명타 확률 +5%p (피격 시 초기화)', reqAny: ['r4', 'r5'] },
-        { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 12% 효율 보정, 최대 생명력 -15%', req: 'r7' },
-        { id: 'r9', name: '극한의 속사', desc: '공격 속도 소프트캡 기준치 +2', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    elementalist: [
-        { id: 'e1', name: '원소 공명', desc: '원소 최종 피해 15% 증폭, 물리 피해 없음', req: null },
-        { id: 'e2', name: '분광 외피', desc: '모든 원소 저항 +15%, 원소 저항 최대치 +3%, 카오스 저항 -10%', req: null },
-        { id: 'e3', name: '마력 순환', desc: '에너지 보호막 재생이 끊기지 않음, 최대 생명력 -15%', req: null },
-        { id: 'e4', name: '융해 결합', desc: '모든 스킬이 화염/냉기/번개 33% 영향 스킬로 변화', req: 'e1' },
-        { id: 'e5', name: '공허 결합', desc: '카오스 저항이 가장 높은 원소 저항의 50%만큼 상승, 카오스 저항만큼 원소 최종 피해 증가', req: 'e2' },
-        { id: 'e6', name: '원소 침식', desc: '저항 관통 +20%, 치명타 피해 배율 -25%', req: 'e3' },
-        { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해의 2배에 비례', req: 'e4' },
-        { id: 'e8', name: '원소 과부하', desc: '치명타 공격마다 원소 과부하 중첩 획득: 중첩당 원소 최종 피해 +4%, 치명타 확률 -1%p (최대 20중첩). 비-치명타 공격 시 모든 중첩을 잃음', req: 'e7' },
-        { id: 'e9', name: '절대 관통', desc: '원소 저항 관통 +100%, 원소 저항 관통이 -300%까지 확장됨', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    warlock: [
-        { id: 'wlk1', name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨. 카오스 피해 20% 증폭', req: null },
-        { id: 'wlk2', name: '부패 증식', desc: '지속 피해 배율 20% 증폭, 주문 내장 피해 20% 증가, 즉발 피해 10% 감폭', req: null },
-        { id: 'wlk3', name: '금단 대가', desc: '에너지 보호막 재생 불가, 흡수가 에너지 보호막에 대신 적용', req: null },
-        { id: 'wlk4', name: '암흑 치환', desc: '각 원소 저항 최대치 초과분의 25%만큼 카오스 저항 증가', req: 'wlk1' },
-        { id: 'wlk5', name: '전염 가속', desc: 'DOT 틱 속도 +50%, 지속시간 -50%', req: 'wlk2' },
-        { id: 'wlk6', name: '공허 특이점', desc: '저항 관통 +21%, 치명타 불가, 치명타 확률이 저항 관통으로 전환. 공격 피해가 100%~(100+저항 관통+치명타 피해 배율)% 사이에서 무작위로 결정됨', req: 'wlk3' },
-        { id: 'wlk7', name: '피의 계약', desc: '에너지 보호막 50% 이상에서 피해 25% 증폭. 공격 시 가능하면 생명력 4%를 소모해 해당 공격의 피해 1.5배', reqAny: ['wlk4', 'wlk6'] },
-        { id: 'wlk8', name: '심연 군주', desc: '주얼 슬롯 2칸 추가, 카오스 피해 25% 증폭, 생명력 회복 효과 50% 감폭', req: 'wlk7' },
-        { id: 'wlk9', name: '시체 역병', desc: '저주 최대치 +1. 카오스 피해로 적 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 카오스 피해로 주변에). 모든 카오스 피해 적중 시 적에게 위축 부여(최대 10중첩, 1중첩당 받는 카오스 피해 +8%)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
+/** 직업마다 고를 수 있는 전직 셋(data/ascendancies.js, 2026-10-02 전직 18종). 모르는 직업이면 전부. */
+function getAscendanciesForClass(classId) {
+    const list = ASCENDANCIES_BY_PLAYER_CLASS[classId];
+    return list ? list.slice() : Object.keys(CLASS_TEMPLATES);
+}
+/** 전직 18종을 직업 순서로(재능 개화 화면 등). */
+function getAscendancyOrder() {
+    return Object.values(ASCENDANCIES_BY_PLAYER_CLASS).flat();
+}
+function isAscendancyOfClass(ascendId, classId) {
+    return getAscendanciesForClass(classId).includes(ascendId);
+}
 
-    soulbinder: [
-        { id: 'sb1', name: '영혼 결속', desc: '소환수 기본 피해 30% 증폭', req: null },
-        { id: 'sb2', name: '나눠갖기', desc: '가장 가까운 소환수에게 플레이어가 받는 피해의 50%를 전달. 해당 피해로 소환수 사망 시 부활 시간 30% 단축', req: null },
-        { id: 'sb3', name: '야생성', desc: '플레이어와 소환수 생명력 흡수 +3.5%', req: null },
-        { id: 'sb4', name: '무리', desc: '소환수 한도 +1, 소환수 공격 속도 25% 증폭', req: 'sb1' },
-        { id: 'sb5', name: '홀로서기', desc: '소환수의 기본 공격력과 공격적인 추가 스탯만 플레이어가 가짐, 소환수 생명력 등 방어적인 소환 옵션은 전이되지 않으며 소환수는 공격하지 않음', req: 'sb2' },
-        { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +25%, 플레이어 저항 관통이 소환수 공격에도 100% 적용. 소환수 공격이 대상 주변 1칸의 적도 관통', req: 'sb3' },
-        { id: 'sb7', name: '상호 보완', desc: '플레이어 공격력(타격당 기본 피해)의 75%를 소환수 타격에 더하고, 소환수 공격력의 75%를 플레이어 타격에 더함', reqAny: ['sb4', 'sb3'] },
-        { id: 'sb8', name: '군주', desc: '소환수 한도 +3', req: 'sb7' },
-        { id: 'sb9', name: '대군주', desc: '소환수 한도가 1.5배가 되고 최대 한도가 12로 증가합니다. 살아 있는 소환수 중 현재 생명력이 가장 낮은 하위 1/3(최대 4기)은 유령이 되어 피해를 받지 않고 칸을 점유하지 않습니다.', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    catalyst: [
-        { id: 'ct1', name: '과잉 촉매', desc: '상태이상 지속 피해 유발 기준 피해가 실제 타격의 2배로 계산', req: null },
-        { id: 'ct2', name: '약품 내성', desc: '지속 피해 배율의 10%만큼 모든 저항 상승, 1%만큼 최대 저항 상승(내림). 가장 높은 비-제한 원소 저항이 주는 상태이상 저항 +100% (공동 최고 저항은 모두 적용)', req: null },
-        { id: 'ct3', name: '확산 반응', desc: '상태이상에 걸린 적이 사망 시 남은 상태이상을 모든 주변 적에게 확산', req: null },
-        { id: 'ct4', name: '연막 포션', desc: '영구 은신: 이동 속도 +20%, 치명타 피해 배율 +25%, 회피 20% 증폭. 회피 성공 시 다음 타격에만 회피 30% 증폭', req: 'ct1' },
-        { id: 'ct5', name: '감염 추적', desc: '적이 상태이상일 때 주는 피해 20% 증폭', req: 'ct2' },
-        { id: 'ct6', name: '중첩 독성', desc: '중독/점화/출혈 최대 중첩 +1, 상태이상 피해 100% 증폭, 상태이상 지속 시간 50% 감폭', req: 'ct3' },
-        { id: 'ct7', name: '완벽한 배합', desc: '모든 공격이 항상 치명타, 치명타 확률의 100% 및 치명타 피해 배율의 20%가 지속 피해 배율로 전환, 치명타에 치명타 피해 배율 대신 지속 피해 배율의 20% 적용', reqAny: ['ct4', 'ct5'] },
-        { id: 'ct8', name: '파열 용해', desc: '중독/점화/출혈 최대 중첩 +2, 최대 중첩 시 1초 쿨로 누적 피해 즉시 폭발', req: 'ct6' },
-        { id: 'ct9', name: '급성 발현', desc: '점화/중독/출혈의 피해 간격 및 지속 시간 50% 감폭(같은 피해를 더 빠르게 폭발)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    hunter: [
-        { id: 'h1', name: '단일 조준', desc: '투사체 피해 15% 증폭, 타겟이 하나면 40% 증폭', req: null },
-        { id: 'h2', name: '약점 노출', desc: '공격 시 적에게 약점 노출 부여, 노출된 적이 받는 피해 20% 증가', req: null },
-        { id: 'h3', name: '행운 발걸음', desc: '이동 속도의 20%를 회피로 전환, 회피 판정에 행운, 피격/상태이상 판정에 불운', req: null },
-        { id: 'h4', name: '연쇄 관통', desc: '타겟이 하나면 공격이 100% 관통(초과 피해가 연쇄 관통, 전이마다 80%로 감쇄)', req: 'h1' },
-        { id: 'h5', name: '급소 격발', desc: '치명타 피해 배율 +350%, 치명타 확률 -20', req: 'h2' },
-        { id: 'h6', name: '사거리 장악', desc: '투사체 스킬 타겟 수 +1, 투사체 추가 발사 +1 (보너스 샷 피해 70%로 강화)', req: 'h3' },
-        { id: 'h7', name: '고독 사냥', desc: '타겟 수 1로 고정, 줄어든 타겟 5개까지 각 연속 타격 +100%p, 이후 각 +50%p', reqAny: ['h4', 'h5'] },
-        { id: 'h8', name: '절멸 사격', desc: '연속타격 불가, 연속타격 확률을 치명타 확률로 전환, 초과 치명타/다중 치명타 허용 (최대 1000%)', req: 'h7' },
-        { id: 'h9', name: '일격필살', desc: '공격 속도가 1로 고정되며, 공격 속도 증가가 모두 피해량 증폭으로 전환됨', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    crusader: [
-        { id: 'cr1', name: '신성화', desc: '신성화 효과: 생명력 재생 +1.5%, 생명력 재생 속도 +40%', req: null },
-        { id: 'cr2', name: '천뢰 교리', desc: '화염/냉기 피해 증가를 번개에도 100% 적용, 번개 피해가 번개 저항 무시, 번개에는 저항 관통 미적용', req: null },
-        { id: 'cr3', name: '신성한 검', desc: '무기를 신성한 검으로 간주(무기 옵션 무효), ES 100당 번개 기본 피해 +(플레이어 레벨 x2)', req: null },
-        { id: 'cr4', name: '전하 보루', desc: '받는 화염/냉기/카오스 피해의 30%를 번개로 전환, 최대 번개 저항 +3%', req: 'cr1' },
-        { id: 'cr5', name: '이중 재생', desc: '생명력 재생이 ES에도 적용, 생명력 재생 +3%, 최대 생명력 +15%, 방어도/ES +40%', req: 'cr2' },
-        { id: 'cr6', name: '천벌 단죄', desc: '번개 피해의 최종 최대 피해 보정 2배', req: 'cr3' },
-        { id: 'cr7', name: '상호 전환', desc: '총 방어도의 50%를 ES로, 총 ES의 50%를 방어도로 전환, ES 재충전 시작 50% 가속', reqAny: ['cr4', 'cr5'] },
-        { id: 'cr8', name: '번개 불사', desc: 'ES 0 시 4초간 ES 100% 재생, 동안 번개 피해 +75% (쿨 4초, 중첩불가)', req: 'cr7' },
-        { id: 'cr9', name: '축복받은 무구', desc: '신성한 검 상태에서도 무기의 효과가 무효화되지 않음', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-
-    guardian: [
-        { id: 'gd1', name: '요새의 맹세', desc: '방어도 15% 증폭, 방어도의 10%만큼 일반 피해 증가', req: null },
-        { id: 'gd2', name: '생명 성채', desc: '최대 생명력 20% 증폭', req: null },
-        { id: 'gd3', name: '수호 재생', desc: '생명력 재생 회복 속도 20% 증가, 에너지 보호막 재생 속도 20% 감폭', req: null },
-        { id: 'gd4', name: '철벽 전환', desc: '회피/에너지 보호막 0, 그 합의 60%를 방어도로 전환', req: 'gd1' },
-        { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 15% 감폭', req: 'gd2' },
-        { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +11% (최대 5중첩, 곱연산), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
-        { id: 'gd7', name: '최후 저지선', desc: '생명력 50% 이하 시 받는 피해 20% 감폭/주는 피해 30% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
-        { id: 'gd8', name: '절대 수호', desc: '막기 확률과 별개로 피해를 무효화할 확률 30%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
-        { id: 'gd9', name: '살아 있는 성채', desc: '한 번의 적중으로 생명력 최대치의 35%를 넘게 잃지 않음, 생명력 재생과 흡수 효과 35% 감폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ],
-    inquisitor: [
-        { id: 'iq1', name: '교리 집행', desc: '원소 피해가 현재 사용 중인 총 공명력의 50%만큼 증폭', req: null },
-        { id: 'iq2', name: '심판 렌즈', desc: '치명타 피해 배율 +75%, 치명타 확률 -8%p', req: null },
-        { id: 'iq3', name: '성서 확장', desc: '보조 젬 한도 +1, 공명력 +10, 봉인된 젬 4개당 공명력 1 증가, 공격 속도 6% 감폭', req: null },
-        { id: 'iq4', name: '순백 판결', desc: '적 원소 저항을 0으로 간주 (원소 관통 적용)', req: 'iq1' },
-        { id: 'iq5', name: '계시 관통', desc: '저항 관통 +20%, 물리 피해 없음', req: 'iq2' },
-        { id: 'iq6', name: '신성한 희생', desc: '모든 원소/보조 젬 레벨 +1, 공명력 25당 보조 젬 한도 +1, 최대 생명력 -25%', req: 'iq3' },
-        { id: 'iq7', name: '이단 심문', desc: '사용 중인 공명력에 따라 치명타 피해 배율 증가', reqAny: ['iq4', 'iq5'] },
-        { id: 'iq8', name: '절대 교리', desc: '저항 관통이 원소 피해 증가에도 적용', req: 'iq7' },
-        { id: 'iq9', name: '무한한 권능', desc: '보조 젬 한도 무제한. 보조 젬 한도 +1당 공명력 +15', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
-    ]
-};
-
-// 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여할 수 있는
-// 전직 키스톤 풀: 직업과 무관하게 모든 전직 키스톤을 대상으로 한다.
+/** 모든 전직 키스톤(이름 찾기 등). */
 function getAllAscendKeystoneDefs() {
     let out = [];
     Object.keys(CLASS_KEYSTONE_DEFS || {}).forEach(cls => {
@@ -1311,17 +1212,30 @@ function getAllAscendKeystoneDefs() {
     });
     return out;
 }
-function pickRandomAscendKeystoneId() {
-    let defs = getAllAscendKeystoneDefs();
+/** 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여하는 키스톤: 지금 직업이 고를 수 있는 전직 셋의 키스톤(2026-10-02).
+ * 받은 키스톤은 그 셋 중 어느 전직을 골랐든 켜진다(js/combat.js hasKeystone). */
+function pickRandomAscendKeystoneId(classId = game.selectedClassId) {
+    const allowed = new Set(getAscendanciesForClass(classId));
+    let defs = Object.keys(CLASS_KEYSTONE_DEFS).filter(cls => allowed.has(cls)).flatMap(cls => CLASS_KEYSTONE_DEFS[cls] || []);
+    if (!defs.length) defs = getAllAscendKeystoneDefs();
     if (!defs.length) return null;
     return defs[Math.floor(Math.random() * defs.length)].id;
+}
+/** 루프 초기화 직전의 전직 배치(전직, 노드 순서, 키스톤 순서)를 기억하고 비울 키스톤 목록을 돌려준다(전직 고르기의
+ * '지난 루프처럼'). 이번 루프에 전직을 고르지 않았으면 예전 기억을 그대로 둔다. */
+function rememberLoopAscendancyPlan(state = game) {
+    const keystones = Array.isArray(state.ascendKeystones) ? state.ascendKeystones.slice() : [];
+    if (state.ascendClass && CLASS_TEMPLATES[state.ascendClass]) {
+        state.lastLoopAscendPlan = { ascendClass: state.ascendClass, nodes: (state.ascendNodes || []).slice(), keystones: keystones.slice() };
+    }
+    return keystones;
 }
 function getAscendKeystoneName(id) {
     if (!id) return '';
     let node = getAllAscendKeystoneDefs().find(n => n && n.id === id);
     return node ? node.name : id;
 }
-safeExposeGlobals({ getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, getAscendKeystoneName });
+safeExposeGlobals({ getAscendanciesForClass, getAscendancyOrder, isAscendancyOfClass, getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, getAscendKeystoneName, rememberLoopAscendancyPlan });
 
 const SEASON_NODES = {
     s_root: { name: '시작의 축복', desc: '경험치 +20%', stat: 'expGain', val: 20, req: null },
@@ -1551,7 +1465,7 @@ const SUPPORT_GEM_DB = {
     '투사체 강화': { baseVal: 5, scale: 2.0, stat: 'projectilePctDmg', name: '투사체 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '투사체 태그 스킬을 강화합니다.' },
     '원소 집중': { baseVal: 5, scale: 2.0, stat: 'elementalPctDmg', name: '원소 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '원소 태그 스킬을 강화합니다.' },
     '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '범위 태그 스킬의 피해를 높입니다.' },
-    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, resonanceCosts: [6, 12, 21], desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
+    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, resonanceCosts: [6, 12, 21], desc: '지속 피해 태그 스킬의 지속 피해 배율을 올립니다.' },
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '치명타 배율을 높입니다.' },
     '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, resonanceCosts: [3, 9, 18], desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, resonanceCosts: [9, 21, 33], desc: '한 번 더 타격할 확률을 부여합니다.' },
@@ -1766,12 +1680,12 @@ const UNDERWORLD_RUNE_DB = [
 // Weapon flat damage was rebased on 2026-09-11: +20% at T1, rising to +140% at T20.
 // Values are baked into definitions; legacyDamageBase exists only for old-save conversion.
 const BASE_ITEM_DB = [
-    { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
+    { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
     { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역봉', reqTier: 1, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
-    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
+    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
     { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
     { id: 'abyss_spear', slot: '무기', name: '심연의 창', reqTier: 7, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 20, legacyDamageBase: 14 }, { id: 'aspd', base: 6 }] },
-    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
+    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
     { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'aspd', base: 8 }] },
     { id: 'executioner_blade', slot: '무기', name: '처형자의 검', reqTier: 14, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 71, legacyDamageBase: 38 }, { id: 'crit', base: 8 }] },
     { id: 'tempest_pike', slot: '무기', name: '폭풍 장창', reqTier: 15, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 42 }, { id: 'aspd', base: 10 }] },
@@ -1796,6 +1710,26 @@ const BASE_ITEM_DB = [
     { id: 'tempestlord_lance', slot: '무기', name: '태풍군주 창', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 158, legacyDamageBase: 66 }, { id: 'aspd', base: 16 }] },
     { id: 'meteor_repeater', slot: '무기', name: '유성 연사 발리스타', reqTier: 20, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 132, legacyDamageBase: 55 }, { id: 'projectilePctDmg', base: 34 }, { id: 'projectileExtraChance', base: 150 }] },
     { id: 'genesis_void_staff', slot: '무기', name: '창세 공허 지팡이', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 34 }, { id: 'spellFlatDmg', base: 187, legacyDamageBase: 78 }, { id: 'spellFlatPct', base: 30 }] },
+    // 플라스크(연금술사가 던지는 병): 포션 스킬 · 범위 피해. 향로(사제가 휘두르는 사슬 향로): 번개(신성) 피해 · 초당 재생.
+    { id: 'cracked_flask', slot: '무기', name: '금 간 플라스크', reqTier: 1, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'potionPctDmg', base: 10 }] },
+    { id: 'catalyst_flask', slot: '무기', name: '촉매 플라스크', reqTier: 5, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 14, legacyDamageBase: 11 }, { id: 'potionPctDmg', base: 14 }, { id: 'poisonChance', base: 5 }] },
+    { id: 'volatile_flask', slot: '무기', name: '휘발 플라스크', reqTier: 10, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 35, legacyDamageBase: 22 }, { id: 'potionPctDmg', base: 20 }, { id: 'aoePctDmg', base: 10 }] },
+    { id: 'alchemist_retort', slot: '무기', name: '연금 증류병', reqTier: 15, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 66, legacyDamageBase: 34 }, { id: 'potionPctDmg', base: 28 }, { id: 'aoePctDmg', base: 14 }] },
+    { id: 'philosopher_flask', slot: '무기', name: '현자의 플라스크', reqTier: 20, requirementWeights: { dexterity: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 127, legacyDamageBase: 53 }, { id: 'potionPctDmg', base: 36 }, { id: 'aoePctDmg', base: 18 }] },
+    { id: 'tin_censer', slot: '무기', name: '양철 향로', reqTier: 1, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }, { id: 'regen', base: 0.2 }] },
+    { id: 'incense_censer', slot: '무기', name: '분향 향로', reqTier: 5, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 14, legacyDamageBase: 11 }, { id: 'lightPctDmg', base: 8 }, { id: 'regen', base: 0.3 }] },
+    { id: 'ember_censer', slot: '무기', name: '잉걸 향로', reqTier: 10, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 36, legacyDamageBase: 23 }, { id: 'lightPctDmg', base: 14 }, { id: 'regen', base: 0.4 }] },
+    { id: 'chapel_censer', slot: '무기', name: '성당 향로', reqTier: 15, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 70, legacyDamageBase: 36 }, { id: 'lightPctDmg', base: 20 }, { id: 'regen', base: 0.5 }] },
+    { id: 'sunrise_censer', slot: '무기', name: '해돋이 향로', reqTier: 20, requirementWeights: { strength: 0.6, intelligence: 0.6 }, baseStats: [{ id: 'flatDmg', base: 140, legacyDamageBase: 58 }, { id: 'lightPctDmg', base: 28 }, { id: 'regen', base: 0.6 }] },
+    // 무기 대분류 구멍 메우기(2026-10-03): 곡도 14 · 17 · 20단계(힘과 민첩, 치명타 · 공격 속도), 대검 1 · 4 · 10단계(힘, 치명타),
+    // 단궁 1단계(민첩, 투사체). 액트 1부터 여섯 대분류가 다 떨어지고, 곡도도 20단계까지 제 대분류 안에서 승급한다.
+    { id: 'crescent_scimitar', slot: '무기', name: '초승 곡도', reqTier: 14, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 62, legacyDamageBase: 33 }, { id: 'crit', base: 8 }, { id: 'aspd', base: 5 }] },
+    { id: 'blackiron_scimitar', slot: '무기', name: '흑철 곡도', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 100, legacyDamageBase: 47 }, { id: 'crit', base: 11 }, { id: 'aspd', base: 7 }] },
+    { id: 'eclipse_scimitar', slot: '무기', name: '월식 곡도', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 134, legacyDamageBase: 56 }, { id: 'crit', base: 14 }, { id: 'aspd', base: 9 }] },
+    { id: 'dull_greatsword', slot: '무기', name: '무딘 대검', reqTier: 1, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'crit', base: 2 }] },
+    { id: 'iron_greatsword', slot: '무기', name: '무쇠 대검', reqTier: 4, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 12, legacyDamageBase: 10 }, { id: 'crit', base: 4 }] },
+    { id: 'warden_greatsword', slot: '무기', name: '파수꾼 대검', reqTier: 10, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 6 }] },
+    { id: 'hunting_shortbow', slot: '무기', name: '사냥 단궁', reqTier: 1, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'projectilePctDmg', base: 6 }] },
     { id: 'cloth_hood', slot: '투구', name: '천 후드', reqTier: 1, baseStats: [{ id: 'flatHp', base: 12 }, { id: 'energyShield', base: 36 }] },
     { id: 'war_helm', slot: '투구', name: '전투 투구', reqTier: 4, baseStats: [{ id: 'flatHp', base: 28 }, { id: 'armor', base: 105 }, { id: 'dr', base: 2 }] },
     { id: 'bastion_helm', slot: '투구', name: '보루 투구', reqTier: 8, baseStats: [{ id: 'flatHp', base: 44 }, { id: 'armor', base: 170 }, { id: 'dr', base: 3 }] },
@@ -1895,7 +1829,7 @@ const BASE_ITEM_DB = [
     { id: 'blood_girdle', slot: '허리띠', name: '혈석 허리띠', reqTier: 12, baseStats: [{ id: 'flatHp', base: 72 }, { id: 'dr', base: 3 }, { id: 'resChaos', base: 10 }] },
     { id: 'warlord_girdle', slot: '허리띠', name: '장군의 허리띠', reqTier: 15, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'dr', base: 4 }, { id: 'resChaos', base: 12 }] },
     { id: 'nightmare_bind', slot: '허리띠', name: '악몽 결속대', reqTier: 15, baseStats: [{ id: 'flatHp', base: 92 }, { id: 'resAll', base: 7 }, { id: 'resChaos', base: 12 }] },
-    { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
+    { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'venomStingerBonus', base: 10 }] },
     { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'resPen', base: 6 }] },
     { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
@@ -1958,7 +1892,7 @@ const BASE_ITEM_DB = [
     { id: 'parry_sentinel_t12', slot: '방패', name: '감시자의 방패', reqTier: 12, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 76 }, { id: 'baseBlockChance', base: 13 }] },
     { id: 'parry_seraph_t16', slot: '방패', name: '세라프 방패', reqTier: 16, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 102 }, { id: 'baseBlockChance', base: 14 }] },
     { id: 'parry_astral_t20', slot: '방패', name: '성계 응수방패', reqTier: 20, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 132 }, { id: 'baseBlockChance', base: 15 }, { id: 'resAll', base: 3 }] },
-    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
+    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
     { id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', dropOnly: { minTier: 15 }, baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] },
     { id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] },
     { id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', dropOnly: { minTier: 15 }, baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] },
@@ -2068,179 +2002,9 @@ safeExposeGlobals({
     isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked,
     reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition
 });
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getMeteorSiteUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
-
-const EXPERT_DEFS = {
-  mycologist:{name:'균사학자',icon:'🍄',desc:'홀씨와 화석을 다루며 장비 옵션을 변형하고 복원한다.',unlocks:[{level:1,title:'균사학 입문',desc:'기본 홀씨 제작 해금'},{level:2,title:'원소 변환',desc:'추가 홀씨 제작 해금 : 장비의 화염/냉기/번개 저항 옵션을 원하는 다른 원소 저항으로 변환'},{level:3,title:'원소 전이',desc:'추가 홀씨 제작 해금 :  장비의 화염/냉기/번개 피해 옵션을 원하는 다른 원소 피해로 전환'},{level:4,title:'원시 화석',desc:'원시 화석 드랍 해금 및 화석 복원 가능'},{level:5,title:'고대 화석 발견',desc:'원시 고대 화석 드랍 해금'},{level:6,title:'화석 전용 옵션',desc:'화석 전용 옵션을 가진 아이템 드랍 해금'},{level:7,title:'부패 홀씨',desc:'특정 원소 태그를 가진 옵션 1개를 무작위 제거 가능'},{level:8,title:'복원 보상 확장',desc:'화석 복원 결과에 카오스오브 이상의 재화 추가'},{level:9,title:'균열 홀씨',desc:'화석 전용 옵션이 붙은 장비를 보조하는 균열 홀씨 제작식 해금'},{level:10,title:'고급 홀씨 제작',desc:'상위 홀씨 제작식 해금'},{level:11,title:'제거 대상 감지',desc:'부패 홀씨 제작비용 할인'},{level:12,title:'복원 대성공',desc:'화석 복원 시 낮은 확률로 추가 보상 획득'},{level:13,title:'완벽한 화석 조각',desc:'완벽한 화석 조각 해금'},{level:14,title:'완벽한 화석 드랍',desc:'완벽한 화석 완제품 드랍 해금'},{level:15,title:'홀씨 고정법',desc:'벌꿀 고정 제작에 홀씨 사용 가능'}]},
-  gemEngraver:{name:'젬 각인사',icon:'💎',desc:'젬 구매, 각인, 퀄리티, 각성 젬을 다룬다.',unlocks:[{level:1,title:'컨디션 가공',desc:'컨디션 젬은 처음부터 3개 후보 중 1개 선택'},{level:2,title:'공격 젬 창공 가공',desc:'창공의 힘으로 공격 스킬 젬에 기본 각인 부여 가능'},{level:3,title:'추가 공격 각인',desc:'공격 스킬 젬 창공 각인 종류 추가 해금'},{level:4,title:'증폭 각인',desc:'공격 스킬 젬의 기본 효과를 강화하는 증폭 각인 해금'},{level:5,title:'보조 젬 창공 가공',desc:'창공의 힘으로 보조 젬 등급/레벨 가공 가능'},{level:6,title:'고급 공격 각인',desc:'관통/분쇄 계열 공격 스킬 젬 각인 해금'},{level:7,title:'유동성 증가',desc:'공격 스킬 젬 창공 각인 자유 해제 가능'},{level:8,title:'젬 퀄리티',desc:'군주의 핵을 사용한 젬 퀄리티 기능 해금'},{level:9,title:'조율 각인',desc:'젬의 보조 태그를 조율하는 각인 종류 해금'},{level:10,title:'젬 상점 강화',desc:'암거래/젬 구매 후보 품질 향상'},{level:11,title:'순환 각인',desc:'컨디션 젬의 쿨타임을 줄여 주는 순환 각인 해금'},{level:12,title:'각성 잔향',desc:'각성 젬 관련 재료인 각성 잔향 드랍 해금'},{level:13,title:'각성 젬 드랍',desc:'매우 낮은 확률로 각성 젬 드랍 가능'},{level:14,title:'각성 각인',desc:'특별한 효과의 특수 각인 해금'},{level:15,title:'각성 후보 변환',desc:'일반 젬을 각성 젬 후보로 변환 시도 가능'}]},
-  astronomer:{name:'천문학자',icon:'☄️',desc:'운석 게이지, 이상 현상, 별쐐기, 소행성 지도, 별자리를 관측한다.',unlocks:[{level:1,title:'운석 게이지',desc:'전투/맵핑 중 운석 게이지 축적 시작'},{level:2,title:'별가루',desc:'별가루 드랍 해금'},{level:3,title:'이상 현상 관측',desc:'낮은 확률로 이상 현상 관측 발생'},{level:4,title:'별쐐기 낙하',desc:'별쐐기 낙하 이벤트 해금'},{level:5,title:'별쐐기 리롤',desc:'별쐐기 관련 옵션 리롤 기능 해금'},{level:6,title:'소행성 지도',desc:'매 판 특성이 랜덤인 소행성 지도 해금'},{level:7,title:'소행성 특성',desc:'소행성 지도에 랜덤 특성 부여'},{level:8,title:'별자리 관측',desc:'별자리 관측 기능 해금'},{level:9,title:'영원성',desc:'별자리 관측이 루프 후에도 유지됨'},{level:10,title:'게이지 이월',desc:'운석 게이지 초과분 일부 이월'},{level:11,title:'희귀 이상 현상',desc:'공허 정렬, 이중 유성우 등 희귀 이상 현상 해금'},{level:12,title:'영원 별쐐기',desc:'별쐐기를 루프 후에도 고정하는 특수 재화 해금'},{level:13,title:'소행성 특성 추가',desc:'소행성 지도에 추가 랜덤 특성 등장 가능'},{level:14,title:'전문가 연동',desc:'소행성 지도에서 다른 전문가 재화 보상 등장 가능'},{level:15,title:'고등 별자리 관측',desc:'더 높은 등급의 별자리 효과 관측 가능'}]},
-  beekeeper:{name:'양봉업자',icon:'🐝',desc:'꽃가루, 벌집, 벌꿀, 독벌침, 밀랍, 벌 이벤트를 관리한다.',unlocks:[{level:1,title:'꽃가루 채집',desc:'꽃가루 드랍 해금'},{level:2,title:'마력깃든 벌꿀',desc:'마력깃든 벌꿀 드랍 해금'},{level:3,title:'카오스오브',desc:'벌집 보상풀에 카오스오브 추가'},{level:4,title:'독벌침',desc:'독벌침 드랍 해금'},{level:5,title:'신성한오브',desc:'벌집 보상풀에 매우 낮은 확률로 신성한오브 추가'},{level:6,title:'벌꿀/독벌침 교환',desc:'마력깃든 벌꿀 및 독벌침 <-> 재화 양방 교환 기능 해금'},{level:7,title:'벌집 심층 보상',desc:'벌집 심층 보상풀 확장'},{level:8,title:'밀랍',desc:'밀랍 재화 해금 - 부적 및 주얼에 밀랍 옵션 부여 가능'},{level:9,title:'밀랍 제거',desc:'부여된 옵션 제거 가능'},{level:10,title:'벌 이벤트',desc:'맵핑 중 일정 확률로 꽃가루를 자동 소모하여 벌 소환 이벤트 발생 가능'},{level:11,title:'호박벌 이벤트',desc:'보상이 더 좋은 호박벌 소환 이벤트 해금'},{level:12,title:'독침벌 이벤트',desc:'위험도가 높지만 독벌침 확률이 높은 독침벌 이벤트 해금'},{level:13,title:'금은보화',desc:'벌집 보상풀에 재화가 나올 확률이 조금 상승'},{level:14,title:'여왕벌 이벤트',desc:'낮은 확률로 대형 보상을 주는 여왕벌 이벤트 해금'},{level:15,title:'중첩',desc:'벌집 보상풀에 낮은 확률로 중첩 보상 등장'}]}
-};
-
-
-
-const EXPERT_FAVOR_OPTIONS = {
-  mycologist: [
-    { id:'myco_chill_freeze', level:1, name:'가루약: 냉각/동결 완화', effect:{ chillEffectReducePct:50, freezeDurationReducePct:50 } },
-    { id:'myco_shock', level:3, name:'가루약: 감전 완화', effect:{ shockEffectReducePct:30 } },
-    { id:'myco_ignite', level:5, name:'가루약: 점화 완화', effect:{ igniteDamageReducePct:30 } },
-    { id:'myco_bleed', level:7, name:'가루약: 출혈 완화', effect:{ bleedDamageReducePct:30 } },
-    { id:'myco_poison', level:9, name:'가루약: 중독 완화', effect:{ poisonDamageReducePct:30 } }
-  ],
-  gemEngraver: [
-    { id:'gem_dot_taken', level:1, name:'젬 코팅: 지속 피해 저항', effect:{ dotTakenDamageReducePct:12 } },
-    { id:'gem_crowd_taken', level:4, name:'젬 코팅: 다수전 방호', effect:{ takenDamageReduceWhen2EnemiesPct:8 } },
-    { id:'gem_duel_taken', level:7, name:'젬 코팅: 단일전 방호', effect:{ takenDamageReduceWhen1EnemyPct:4 } }
-  ],
-  astronomer: [
-    { id:'astro_ignite', level:1, name:'렌즈: 점화 강화', effect:{ igniteChance:25, igniteDamageMultiplierPct:10 } },
-    { id:'astro_accuracy', level:3, name:'렌즈: 정확도 보정', effect:{ accuracyBonusPct:10 } },
-    { id:'astro_minroll', level:5, name:'렌즈: 최소 피해 보정', effect:{ minDmgRoll:6 } },
-    { id:'astro_projectile', level:7, name:'렌즈: 투사체 피해', effect:{ projectilePctDmg:12 } },
-    { id:'astro_crit', level:9, name:'렌즈: 치명타 확률', effect:{ crit:1.5 } },
-    { id:'astro_critdmg', level:11, name:'렌즈: 치명타 피해', effect:{ critDmg:12.5 } }
-  ],
-  beekeeper: [
-    { id:'bee_speed_regen', level:1, name:'로열젤리: 가속 재생', effect:{ aspd:10, regen:2 } },
-    { id:'bee_crit_es', level:4, name:'로열젤리: 치명/보호막', effect:{ crit:1, energyShieldPct:10 } },
-    { id:'bee_critdmg_eva', level:7, name:'로열젤리: 치피/회피', effect:{ critDmg:12.5, evasionPct:10 } },
-    { id:'bee_dmg_armor', level:10, name:'로열젤리: 피해/방어도', effect:{ pctDmg:15, armorPct:10 } }
-  ]
-};
-function getExpertFavorOptions(expertId){ return (EXPERT_FAVOR_OPTIONS[expertId]||[]).slice(); }
-function getSelectedExpertFavor(expertId){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; return st.favors[expertId]||null; }
-function setSelectedExpertFavor(expertId, optionId){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; let lv=getExpertLevel(expertId); let opt=(EXPERT_FAVOR_OPTIONS[expertId]||[]).find(v=>v.id===optionId && lv>=v.level); if(!opt) return false; st.favors[expertId]=optionId; return true; }
-function getExpertFavorEffectTotals(){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; let out={}; Object.keys(EXPERT_FAVOR_OPTIONS).forEach(expertId=>{ let picked=st.favors[expertId]; let opt=(EXPERT_FAVOR_OPTIONS[expertId]||[]).find(v=>v.id===picked); if(!opt) return; Object.entries(opt.effect||{}).forEach(([k,v])=>{ out[k]=(out[k]||0)+Number(v||0); }); }); return out; }
-
-const EXPERT_EXP_RULES = {
-  mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 }, loop_base: { exp: 60 } } },
-  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 }, gem_research: { exp: 2, cap: 60 }, loop_base: { exp: 60 } } },
-  astronomer: { loopCap: 250, actions: { meteor_clear: { exp: 5, cap: 80 }, starwedge_craft: { exp: 5, cap: 80 }, starwedge_reroll: { exp: 1, cap: 100 }, anomaly_observe: { exp: 5, cap: 80 }, loop_base: { exp: 60 } } },
-  beekeeper: { loopCap: 250, actions: { bee_branch_choice: { exp: 1, cap: 100 }, bee_clear: { exp: 10, cap: 80 }, bee_currency_craft: { exp: 3, cap: 80 }, bee_resource_use: { exp: 2, cap: 80 }, loop_base: { exp: 60 } } }
-};
-
-const EXPERT_TREE_NODES = [
-  { id: 'common_reward_gain', branch: 'common', name: '숙련된 손길', desc: '모든 전문가 재화 획득량 증가', max: 5, cost: 1, effect: { expertCurrencyGainPct: 3 } },
-  { id: 'common_cost_reduce', branch: 'common', name: '반복 작업', desc: '모든 전문가 제작/사용 비용 감소', max: 5, cost: 1, effect: { expertCostReducePct: 2 } },
-  { id: 'common_rare_bonus', branch: 'common', name: '예리한 감별', desc: '전문가 희귀 보상 확률 증가', max: 5, cost: 1, effect: { expertRareChancePct: 2 } },
-  { id: 'myco_spore_gain', branch: 'mycologist', name: '균사 증식', desc: '홀씨 획득량 증가', max: 5, cost: 1, effect: { mycoSporeGainPct: 5 } },
-  { id: 'myco_fossil_drop', branch: 'mycologist', name: '화석 감별', desc: '화석 드랍률 증가', max: 5, cost: 1, effect: { fossilDropPct: 4 } },
-  { id: 'myco_restore_reward', branch: 'mycologist', name: '복원술', desc: '화석 복원 보상 증가', max: 5, cost: 1, effect: { fossilRestoreRewardPct: 5 } },
-  { id: 'myco_spore_cost', branch: 'mycologist', name: '전이 배양', desc: '홀씨 사용 비용 감소', max: 3, cost: 1, effect: { sporeCostReducePct: 6 } },
-  { id: 'myco_keystone_restore', branch: 'mycologist', name: '핵심: 복원 전문가', desc: '화석 복원 대성공 확률 증가', max: 1, cost: 3, effect: { fossilRestoreGreatChancePct: 10 }, requireBranchPoints: 10 },
-  { id: 'gem_gain', branch: 'gemEngraver', name: '젬 발견술', desc: '젬 획득량 증가', max: 5, cost: 1, effect: { gemGainPct: 5 } },
-  { id: 'gem_inscription_cost', branch: 'gemEngraver', name: '각인 보존', desc: '각인 비용 감소', max: 5, cost: 1, effect: { inscriptionCostReducePct: 4 } },
-  { id: 'gem_quality_cost', branch: 'gemEngraver', name: '품질 세공', desc: '젬 퀄리티 강화 비용 감소', max: 5, cost: 1, effect: { gemQualityCostReducePct: 4 } },
-  { id: 'gem_awakened_drop', branch: 'gemEngraver', name: '각성 공명', desc: '각성 젬 드랍률 증가', max: 3, cost: 1, effect: { awakenedGemDropPct: 4 } },
-  { id: 'gem_keystone_awakened', branch: 'gemEngraver', name: '핵심: 각성 추적', desc: '각성 젬 장기 미획득 확률 보정 증가', max: 1, cost: 3, effect: { awakenedPityBonusPct: 15 }, requireBranchPoints: 10 },
-  { id: 'astro_meteor_gain', branch: 'astronomer', name: '천체 계산', desc: '운석 게이지 획득량 증가', max: 5, cost: 1, effect: { meteorGaugeGainPct: 5 } },
-  { id: 'astro_anomaly_chance', branch: 'astronomer', name: '관측 숙련', desc: '이상 현상 관측 확률 증가', max: 5, cost: 1, effect: { anomalyChancePct: 3 } },
-  { id: 'astro_starwedge_chance', branch: 'astronomer', name: '별쐐기 탐지', desc: '별쐐기 낙하 확률 증가', max: 5, cost: 1, effect: { starWedgeDropPct: 3 } },
-  { id: 'astro_reroll_cost', branch: 'astronomer', name: '궤도 단축', desc: '별쐐기 리롤 비용 감소', max: 3, cost: 1, effect: { starWedgeRerollCostReducePct: 6 } },
-  { id: 'astro_keystone_constellation', branch: 'astronomer', name: '핵심: 별자리 고정', desc: '별자리 후보 중 1개를 잠금 가능', max: 1, cost: 3, effect: { constellationLock: 1 }, requireBranchPoints: 10 },
-  { id: 'bee_pollen_gain', branch: 'beekeeper', name: '꽃가루 채집', desc: '꽃가루 획득량 증가', max: 5, cost: 1, effect: { pollenGainPct: 5 } },
-  { id: 'bee_hive_reward', branch: 'beekeeper', name: '벌집 확장', desc: '벌집 보상 수량 증가', max: 5, cost: 1, effect: { beehiveRewardPct: 4 } },
-  { id: 'bee_honey_gain', branch: 'beekeeper', name: '꿀 농축', desc: '마력깃든 벌꿀 획득량 증가', max: 5, cost: 1, effect: { honeyGainPct: 5 } },
-  { id: 'bee_wax_cost', branch: 'beekeeper', name: '밀랍 정제', desc: '밀랍 제작 비용 감소', max: 3, cost: 1, effect: { waxCostReducePct: 6 } },
-  { id: 'bee_keystone_queen', branch: 'beekeeper', name: '핵심: 왕실 벌집', desc: '여왕벌 이벤트 보상 강화', max: 1, cost: 3, effect: { queenBeeRewardBonusPct: 20 }, requireBranchPoints: 10 }
-];
-const EXPERT_IDS = ['mycologist','gemEngraver','astronomer','beekeeper'];
-const EXPERT_EXP_GUIDES = {
-  mycologist: [
-    '홀씨를 사용해 장비 옵션을 제작/변환/제거하면 경험치 획득',
-    '화석 제작, 화석 카오스 재련, 원시/고대 화석 복원',
-    '고대 미궁에서 새 최고층을 돌파하면 큰 경험치 획득',
-    '루프 진행 시 기본 경험치 +60'
-  ],
-  gemEngraver: [
-    '군주의 핵/창공의 힘으로 공격 젬 핵 강화',
-    '창공 각인 슬롯 확장, 각인 부여/해제 관련 작업',
-    '젬 퀄리티 강화, 보조 젬 창공 가공/등급·레벨 가공',
-    '각성 젬 변환 및 각성 각인 작업',
-    '루프 진행 시 기본 경험치 +60'
-  ],
-  astronomer: [
-    '운석 낙하 지점 클리어',
-    '이상 현상 관측',
-    '별쐐기 제작/완성/리롤/영원 고정 작업',
-    '별자리·소행성 지도 등 천문 콘텐츠 이용',
-    '루프 진행 시 기본 경험치 +60'
-  ],
-  beekeeper: [
-    '벌집 갈림길 선택 및 벌집 클리어',
-    '꽃가루로 벌집 열쇠/독벌침/벌꿀/밀랍 제작',
-    '밀랍/벌꿀/독벌침 등 벌 재화 사용',
-    '맵핑 중 벌 이벤트 및 여왕벌 이벤트',
-    '루프 진행 시 기본 경험치 +60'
-  ]
-};
-function ensureExpertiseState(){
-  let runtimeGame = (typeof game !== 'undefined' && game && typeof game === 'object') ? game : ((window.game && typeof window.game === 'object') ? window.game : JSON.parse(JSON.stringify(defaultGame)));
-  game = runtimeGame;
-  window.game = runtimeGame;
-  let st = (runtimeGame.expertise && typeof runtimeGame.expertise === 'object') ? runtimeGame.expertise : (runtimeGame.expertise = {});
-  st.levels=st.levels||{};
-  st.exp=st.exp||{};
-  st.nodes=st.nodes||{};
-  st.unlockHistory=(st.unlockHistory&&typeof st.unlockHistory==='object')?st.unlockHistory:{};
-  st.unlockedExperts=Array.isArray(st.unlockedExperts)?st.unlockedExperts:[];
-  st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{};
-  EXPERT_IDS.forEach(id=>{
-    st.levels[id]=Math.max(1,Math.min(30,Math.floor(st.levels[id]||1)));
-    st.exp[id]=Math.max(0,Math.floor(st.exp[id]||0));
-    st.unlockHistory[id]=Array.isArray(st.unlockHistory[id])?st.unlockHistory[id].filter(row=>row&&Number.isFinite(row.level)&&typeof row.title==='string'):[];
-    let historyLevels=new Set(st.unlockHistory[id].map(row=>row.level));
-    getExpertUnlocks(id).filter(row=>row.level<=st.levels[id]).forEach(row=>{
-      if(!historyLevels.has(row.level)){ st.unlockHistory[id].push({level:row.level,title:row.title,desc:row.desc||'',at:0}); historyLevels.add(row.level); }
-    });
-  });
-  st.expertPointBonus=Math.max(0,Math.floor(st.expertPointBonus||0));
-  st.awakenedPity=Math.max(0,Math.floor(st.awakenedPity||0));
-  st.loopExpCaps=st.loopExpCaps||{};
-  const currentSeason = Math.max(1, Math.floor(runtimeGame.season || 1));
-  if (!Number.isFinite(st.loopExpCaps.season)) st.loopExpCaps.season = currentSeason;
-  if (st.loopExpCaps.season !== currentSeason) st.loopExpCaps = { season: currentSeason, total: {}, bySource: {} };
-  return st;
-}
-function getExpertLevel(id){return ensureExpertiseState().levels[id]||1;}
-function getExpertExp(id){return ensureExpertiseState().exp[id]||0;}
-function getExpertExpReq(level){ return Math.floor(35 + level*18 + Math.pow(level,1.45)*8);}
-function addExpertUnlockHistory(id, unlock, isNew){ let st=game.expertise||(game.expertise={}); st.unlockHistory=(st.unlockHistory&&typeof st.unlockHistory==='object')?st.unlockHistory:{}; if(!unlock) return; st.unlockHistory[id]=Array.isArray(st.unlockHistory[id])?st.unlockHistory[id]:[]; if(st.unlockHistory[id].some(row=>row&&row.level===unlock.level)) return; st.unlockHistory[id].push({level:unlock.level,title:unlock.title,desc:unlock.desc||'',at:isNew?Date.now():0}); st.unlockHistory[id].sort((a,b)=>a.level-b.level); if(isNew){ game.noti.expertise=true; if(typeof addLog==='function'){ let def=EXPERT_DEFS[id]||{name:id,icon:'🧠'}; addLog(`${def.icon||'🧠'} ${def.name} Lv.${unlock.level} 해금: ${unlock.title}`, 'season-up'); } } }
-function getExpertUnlockHistory(id){ let st=ensureExpertiseState(); return Array.isArray(st.unlockHistory[id])?st.unlockHistory[id]:[]; }
-function addExpertExp(id,amount,sourceKey,options){ let st=ensureExpertiseState(); if(!EXPERT_IDS.includes(id)) return false; if(!st.unlockedExperts.includes(id)) st.unlockedExperts.push(id); if(!game.unlocks.expertise) game.unlocks.expertise=true; let ignoreLoopCaps = !!(options && options.ignoreLoopCaps); st.loopExpCaps.total = st.loopExpCaps.total || {}; st.loopExpCaps.bySource = st.loopExpCaps.bySource || {}; st.loopExpCaps.total[id] = st.loopExpCaps.total[id] || 0; st.loopExpCaps.bySource[id] = st.loopExpCaps.bySource[id] || {}; let rule=((EXPERT_EXP_RULES[id]||{}).actions||{})[sourceKey||'']; let totalCap=Math.max(1, Math.floor(((EXPERT_EXP_RULES[id]||{}).loopCap)||250)); let sourceCap=Math.max(1, Math.floor((rule&&rule.cap)||80)); let key=sourceKey||'generic'; let usedSource=st.loopExpCaps.bySource[id][key]||0; let left=ignoreLoopCaps ? Number.POSITIVE_INFINITY : Math.max(0, Math.min(totalCap-st.loopExpCaps.total[id], sourceCap-usedSource)); let gain=Math.max(0, Math.min(left, Math.floor(amount||0))); if (gain<=0) return false; let lv=getExpertLevel(id); if(lv>=30) return false; let beforeLv=lv; st.exp[id]+=gain; if(!ignoreLoopCaps){ st.loopExpCaps.total[id]+=gain; st.loopExpCaps.bySource[id][key]=usedSource+gain; } while(st.exp[id]>=getExpertExpReq(lv) && lv<30){ st.exp[id]-=getExpertExpReq(lv); lv++; st.levels[id]=lv; } if(lv>beforeLv){ getExpertUnlocks(id).filter(u=>u.level>beforeLv&&u.level<=lv).forEach(u=>addExpertUnlockHistory(id,u,true)); } return true;}
-function grantExpertExpByAction(id, actionKey){ let action=((((EXPERT_EXP_RULES[id]||{}).actions)||{})[actionKey]); if(!action) return false; return addExpertExp(id, action.exp, actionKey); }
-function getExpertUnlocks(id){ return (EXPERT_DEFS[id]||{}).unlocks||[];}
-function getCurrentExpertUnlock(id){ let lv=getExpertLevel(id); return getExpertUnlocks(id).filter(u=>u.level<=lv).slice(-1)[0]||null;}
-function getNextExpertUnlock(id){ let lv=getExpertLevel(id); return getExpertUnlocks(id).find(u=>u.level>lv)||null;}
-function getExpertPointTotal(){ let st=ensureExpertiseState(); return EXPERT_IDS.reduce((s,id)=>s+Math.max(0,getExpertLevel(id)-15),0)+(st.expertPointBonus||0);}
-function getExpertPointSpent(){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n?Math.max(0,Math.floor(l||0))*n.cost:0)},0);}
-function getExpertPointFree(){ return Math.max(0, getExpertPointTotal()-getExpertPointSpent());}
-function getExpertBranchSpent(branch){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n&&n.branch===branch?Math.max(0,Math.floor(l||0))*n.cost:0)},0);}
-function getExpertNodeEffectValue(statKey){ let st=ensureExpertiseState(); if(!statKey) return 0; return Object.entries(st.nodes).reduce((sum,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); if(!n) return sum; let lv=Math.max(0,Math.floor(l||0)); if(lv<=0) return sum; let perLv=Number(((n.effect||{})[statKey])||0); return sum+(perLv*lv); },0);}
-// Combined expert cost reduction = common '반복 작업'(expertCostReducePct) + a domain-specific node, capped at 75%. Returns a 0..0.75 fraction.
-function getExpertCombinedCostReduction(specificStatKey){ let common=Math.max(0,getExpertNodeEffectValue('expertCostReducePct')); let specific=specificStatKey?Math.max(0,getExpertNodeEffectValue(specificStatKey)):0; return Math.min(75, common+specific)/100; }
-// Awakened-gem pity: '핵심: 각성 추적'(awakenedPityBonusPct) adds chance per consecutive eligible drop that did not roll an awakened gem.
-function getExpertAwakenedPity(){ return Math.max(0, Math.floor(ensureExpertiseState().awakenedPity||0)); }
-function bumpExpertAwakenedPity(rolledAwakened){ let st=ensureExpertiseState(); st.awakenedPity = rolledAwakened ? 0 : (getExpertAwakenedPity()+1); return st.awakenedPity; }
-function getAwakenedDropChance(baseChance){ let base=Math.max(0,Number(baseChance||0)); let bonusPct=Math.max(0,getExpertNodeEffectValue('awakenedPityBonusPct')); if(bonusPct<=0) return base; return Math.min(0.25, base + getExpertAwakenedPity()*(bonusPct/100)*0.01); }
-function canAllocateExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n)return false; let cur=Math.max(0,Math.floor(st.nodes[nodeId]||0)); if(cur>=n.max) return false; if(getExpertPointFree()<n.cost) return false; if(n.requireBranchPoints && getExpertBranchSpent(n.branch)<n.requireBranchPoints) return false; return true;}
-function allocateExpertNode(nodeId){ if(!canAllocateExpertNode(nodeId)) return false; let st=ensureExpertiseState(); st.nodes[nodeId]=Math.max(0,Math.floor(st.nodes[nodeId]||0))+1; return true;}
-function isExpertKeystoneNode(n){ return !!(n && n.requireBranchPoints); }
-function getExpertBranchNonKeystoneSpent(branch){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n&&n.branch===branch&&!isExpertKeystoneNode(n)?Math.max(0,Math.floor(l||0))*n.cost:0);},0);}
-function wouldExpertKeystoneBreak(branch, nonKeystoneSpentAfter){ let st=ensureExpertiseState(); return EXPERT_TREE_NODES.some(n=>n.branch===branch&&isExpertKeystoneNode(n)&&Math.max(0,Math.floor(st.nodes[n.id]||0))>0&&nonKeystoneSpentAfter<n.requireBranchPoints);}
-function canUntrainExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n) return false; if(Math.max(0,Math.floor(st.nodes[nodeId]||0))<=0) return false; if(!isExpertKeystoneNode(n) && wouldExpertKeystoneBreak(n.branch, getExpertBranchNonKeystoneSpent(n.branch)-n.cost)) return false; return true;}
-function untrainExpertNode(nodeId){ if(!canUntrainExpertNode(nodeId)) return false; let st=ensureExpertiseState(); let next=Math.max(0,Math.floor(st.nodes[nodeId]||0))-1; if(next<=0) delete st.nodes[nodeId]; else st.nodes[nodeId]=next; return true;}
-function resetExpertTree(){ ensureExpertiseState().nodes={}; }
-function setExpertiseLoopCapsForSeason(season){
-  let st = (game.expertise&&typeof game.expertise==='object') ? game.expertise : (game.expertise = {});
-  st.loopExpCaps = { season: Math.max(1, Math.floor(season || 1)), total: {}, bySource: {} };
-  return st.loopExpCaps;
-}
-function resetExpertiseLoopCaps(){
-  return setExpertiseLoopCapsForSeason(Math.max(1, Math.floor(game.season || 1)));
-}
 
 function hasPermanentTalentTabUnlock(state) {
     if (!state || typeof state !== 'object') return false;
@@ -2259,22 +2023,6 @@ function syncPermanentTalentTabUnlock(state) {
     return state;
 }
 
-function grantLoopBaseExpertExp(){
-  ensureExpertiseState();
-  let gained = [];
-  EXPERT_IDS.forEach(id => {
-    if (!ensureExpertiseState().unlockedExperts.includes(id)) return;
-    let beforeLv = getExpertLevel(id);
-    let loopBaseRule = ((((EXPERT_EXP_RULES[id] || {}).actions) || {}).loop_base) || {};
-    if (addExpertExp(id, loopBaseRule.exp || 0, 'loop_base', { ignoreLoopCaps: true })) {
-      let def = EXPERT_DEFS[id] || { name: id };
-      gained.push(`${def.name} +${loopBaseRule.exp || 0}${getExpertLevel(id) > beforeLv ? ` (Lv.${getExpertLevel(id)})` : ''}`);
-    }
-  });
-  if (gained.length > 0 && typeof addLog === 'function') addLog(`🧠 루프 기본 전문가 경험치: ${gained.join(' / ')}`, 'season-up');
-  return gained;
-}
-function hasExpertTreeUnlocked(){ return getExpertPointTotal() > 0; }
 
 const COMBAT_TACTIC_TARGET_PRIORITIES = Object.freeze(['nearest', 'weakest', 'dangerous', 'dense']);
 const COMBAT_TACTIC_POSITION_MODES = Object.freeze(['auto', 'pressure', 'keepRange']);
@@ -2327,15 +2075,27 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * @typedef {{version:number, highestLoop:number, unlocked:string[], paidCosts:Record<string, number>, inherited:string[], automatic:string[], grandfathered:string[], legacy?:boolean}} ContentProgressionState
  */
 /**
+ * 그루터기 함(js/stump-box.js). acquired/via/starter are one-time receipts. items live in storage unless an id sits
+ * on the 5×5 board (row-major, null = empty); xp counts kills toward the family's need (data/stump-box.js) and ripe
+ * marks a grown item. Suppression, resonance and stats are recomputed from the board, never saved.
+ * @typedef {{id:number, family:('seed'|'sap'), color:('fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'), xp:number, ripe:boolean, roll:number}} StumpBoxItem
+ * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>, graft:number[]}} StumpBoxState
+ */
+/**
  * G1 expedition ledger. Rewards in history are already in the wallet, never claimable again.
  * @typedef {{version:number,galaxy?:number,loop:number,phase:string,stage:number,goal:string,legSize:number,signal:string,seed:number,plan:string[][],queue:string[],history:Array<{id:string,dust:number,stage:number}>,dust:number,decisions:Record<string,string>,habitats?:string[],failedNode?:string}} CosmosRouteState
  * Board seed fixes the route across reloads; retryAt is a wall-clock UTC timestamp in ms. Older routes have no galaxy (G1).
  * @typedef {{seed:number,selected:number,goal:string,decisions:Record<string,string>,habitats:string[],retryAt:number}} CosmosRouteBoard
  */
 const defaultGame = {
-    // Discovery/clears persist across loops. Active fight/queue are transient; stage is 1..3.
-    worldTreeJourney: { cleared:[], stage:1, selected:'worldtree_guardian', hiveDiscovered:false, active:null, queue:[], plan:null, notice:null, lastResult:'' },
-    // Last expedition's committed combat receipts; display only, never a claimable reward.
+    // 세계수 아틀라스 (js/atlas.js normalize): unlocked/completed/bonus/autoMap survive loops; stash/run reset each loop.
+    // stash: map items {uid,node,tier,rarity,mods:[{id,roll}],quality,corrupted}; run: the open map {map,portals,drops,returnZoneId}.
+    // passives: atlas passive ids (js/atlas-passives.js); fragments: {id: count} per loop; loadout: fragment ids the device uses.
+    // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
+    // endgame: the awakened late atlas (js/atlas-endgame.js) — kills, materials, blight, witness; survives loops, not the epoch.
+    atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
+        endgame: { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] } },
+    // Last map's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,
     // Transient gravity pulse: {nextPulseAt: combat ms, steps: 0..2}; reset at load/exit.
@@ -2382,13 +2142,6 @@ const defaultGame = {
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
-        growthSortMode: 'recent',
-        // 생장 아이템은 장비와 별개 시스템이라 필터/자동해체도 따로 둔다.
-        // 기본은 "전부 보관" — 루프 25에 판이 열리는데 장비 설정을 물려받으면
-        // 일반/매직이 전부 녹아 8칸조차 채우지 못한다.
-        growthAutoSalvageEnabled: false,
-        growthAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
-        growthUseItemFilter: false,
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showActJournal: true,
@@ -2400,9 +2153,12 @@ const defaultGame = {
         showHpComma: true,
         showEnemyHpComma: true,
         showCharacterComma: true,
-        themeMode: 'dark',
         uiScale: 100,
-        uiSkin: 'reliquary',
+        uiSkin: 'rift',
+        iconArtStyle: 'pixel',
+        highContrast: false,
+        /** PC 단축키 중 기본값과 다른 것만: { 동작 id: KeyboardEvent.code | '' } (data/hotkeys.js) */
+        hotkeyOverrides: {},
         heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
@@ -2422,9 +2178,12 @@ const defaultGame = {
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
-        jewelAutoSalvageEnabled: false,
-        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
+        // 자동 환생(js/loop-automation-ui.js): 관문을 채우면 몇 초 뒤 다음 루프로, 다음 직업은 'ask' | 'keep'.
+        autoLoop: false, autoLoopClass: 'ask',
         mapCompleteAction: 'nextZone',
+        actExplorationMode: 'direct',
+        // 탐험 자동 이동(미니맵 단추 · 단축키). 끄면 이동 명령으로만 움직이고 새 탐험도 직접 이동으로 시작한다.
+        autoMove: true,
         disableItemAutomationAfterLoop: true,
         postLoopMapCompleteAction: 'nextLoopBestPlusOne',
         townReturnAction: 'retry',
@@ -2437,7 +2196,7 @@ const defaultGame = {
         tabNotiEnabled: true,
         socialChatNotifications: true,
         chatMessageSize: 'medium',
-        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     selectedClassId: 'archer',
@@ -2472,6 +2231,7 @@ const defaultGame = {
     runProgress: 0,
     encounterIndex: 0,
     encounterPlan: [],
+    actExploration: null,
     enemies: [],
     playerAilments: [],
     playerLeechInstances: [],
@@ -2498,6 +2258,7 @@ const defaultGame = {
     passiveStarEvolutionSource: null,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
+    mobilitySkill: '', // 이동 스킬 칸 (js/mobility-skill.js): a gem tagged 'mobility', worn next to the main gem
     equippedSummonSkills: [],
     summonSkillCounts: {},
     summonLoadoutInitialized: false,
@@ -2511,18 +2272,6 @@ const defaultGame = {
     itemSubtab: 'item-tab-equip',
     skillSubtab: 'skill-tab-equip',
     skillAutoRules: [],
-    conditionGemUnlocked: false,
-    conditionGemPool: [],
-    conditionGemLevels: {},
-    pendingConditionGemChoices: null,
-    arcana: {
-        version: 2, unlocked: false, sealedCards: 0, totalSealedFound: 0,
-        cards: [], deckSlots: Array(ARCANA_DECK_SLOT_COUNT).fill(null),
-        equipmentSlots: Object.fromEntries(ARCANA_EQUIPMENT_SLOT_KEYS.map(slot => [slot, null])),
-        nextCardUid: 1,
-        quest: { started: false, exploredNodeIds: [], rewarded: false }
-    },
-    pruningTree: { version: PRUNING_TREE_STATE_VERSION, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 },
     beyondBoundary: {
         version: BEYOND_BOUNDARY_STATE_VERSION, unlocked: false, unlockNoticeSeen: false,
         highestTier: 1, selectedTier: 1, selectedSealId: 'edge', completions: 0, bestTier: 0,
@@ -2532,16 +2281,6 @@ const defaultGame = {
     },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
-    // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
-    // getMaxFlaskUtilitySlotCount 참고.
-    flasks: {
-        healTier: 'h1', healCharges: 3, healChargeProgress: 0,
-        healOverTimeUntil: 0, healOverTimePerSec: 0, healOverTimeTotal: 0,
-        healOverTimeApplied: 0, healOverTimeStartedAt: 0,
-        alchemyGlass: 0, qualityByKey: {},
-        utils: [], utilityChargeBank: {}, killCounter: 0,
-        encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
-    },
     mapSubtab: 'map-tab-zones',
     unlockedMapContents: ['map-tab-zones'],
     mapExploreSubtab: 'map-explore-hunting',
@@ -2549,33 +2288,21 @@ const defaultGame = {
     gemFoldInactiveSupport: false,
     gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
-    talismanUnlocked: false,
-    talismanBoardUnlock: 3,
-    talismanUnlockedCells: [],
-    talismanInventory: [],
-    talismanBoard: [],
-    talismanPlacements: {},
-    talismanSelectedId: null,
-    talismanUnseal: null,
-    talismanUnlockPickMode: false,
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
+    // 그루터기 함 아래 3×3 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
+    stumpCube: { slots: [] },
     equipmentTemporaryStorage: [],
     inventory: [],
-    // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
-    growthBoard: { width: GROWTH_BOARD_W, height: GROWTH_BOARD_H, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
-    growthInventory: [],
-    growthInventoryExpandLevel: 0,
-    growthEssenceExpandLevel: 0,
-    recentGrowthDrops: [],
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
     craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
-    currencies: { timeRemnant: 0, growthEssence: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { timeRemnant: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
         offlineProgress: { version: 1, recognitionLevel: 0, efficiencyLevel: 0, stashLevel: 0, huntDirectiveUnlocked: false, safeReturnUnlocked: false, lootDirectiveUnlocked: false, rewardedThroughLoop: 0, lifetimeGranted: 0, huntMode: 'push', safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [], protectedOverflow: [] },
     ascendClass: null,
+    lastLoopAscendPlan: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
     ascendRank: 0,
@@ -2593,8 +2320,6 @@ const defaultGame = {
     seasonNodeLevels: {},
     labyrinthFloor: 1,
     jewelInventory: [],
-    jewelSlots: [null, null],
-    jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     // grandRun is created on entry. rewardVoidChisel: number|null is the actual paid integer,
@@ -2603,9 +2328,12 @@ const defaultGame = {
     sporeCraftModes: {},
     shrineState: { activeId: null, spawnCell: null, pity: 0, spawned: 0, claimed: 0 },
     shrineBuff: null,
-    bountyHunt: { version:5, remaining:10, pending:null, source:null, completed:0 },
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
+    // NPC escrow: UTC millisecond clocks and independent visitors, with integer proceeds per currency.
+    // listings: {id, item, price: integer currency units, currency, slot, listedAt: UTC ms}[]; escrow owns listed gear.
+    // proceeds/budProceeds/goldProceeds: unclaimed integer dew/buds/gold; rng: saved uint32; sequence: increasing listing ID.
+    playerStall: { version: 8, sequence: 0, offerSequence: 0, eventSequence: 0, saleSequence: 0, nextOfferAt: 0, lastAt: 0, nextVisitAt: 0, rng: 1357911, proceeds: 0, budProceeds: 0, goldProceeds: 0, listings: [], history: [], sales: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
@@ -2621,15 +2349,23 @@ const defaultGame = {
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
     underworldProgress: { highestFloor: 1, currentFloor: 1 },
     ocean: createDefaultOceanState(),
-    coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
+    /** @type {StumpBoxState} */
+    stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+        graft: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    cores: { equipped: null, owned: [] },
     pendingLoopDecision: false,
     pendingLoopReady: false,
+    // The pending loop gate was reached in offline/background replay (js/loop-automation-ui.js does not auto-advance it).
+    loopGateOffline: false,
 
     skyGemEnhancements: {},
     recentDamageEvents: [],
     // fatalElement is the last attack's dominant element, distinct from recent primaryElement.
     // Older logs have no fatalElement; save migration keeps that uncertainty as null.
     lastDeathLog: null,
+    // Auto progression retreated after a defeat in story act frontierZoneId at this level (null = not retreating).
+    // Cleared once the level rose by ACT_RETREAT_LEVELS or a map outside the retreat act finishes (js/combat.js holdActRetreat).
+    actRetreat: null,
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
@@ -2653,9 +2389,9 @@ const defaultGame = {
     codexSubtab: 'main',
     codexSelectedSlot: '무기',
     uniqueCodexCompletedRewardClaimed: false,
-    starWedge: {
+    // 운석 낙하 지점(2026-10-01 별쐐기 저장에서 분리): 하늘 균열 게이지 · 들어갈 단계 · 돌아갈 사냥터 · 별자리 관측.
+    meteorSite: {
         unlocked: false,
-        unlockNoticeSeen: false,
         skyRiftGauge: 0,
         skyRiftReady: false,
         skyRiftMinTier: null,
@@ -2665,20 +2401,14 @@ const defaultGame = {
         lastAnomalyAt: 0,
         skyRiftCarryGauge: 0,
         constellationBuff: null,
-        entriesCleared: 0,
-        firstClearDone: false,
-        wedges: [],
-        sockets: [],
-        nodeMutations: {},
-        selectedWedgeId: null
+        entriesCleared: 0
     },
     // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
-    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, arcana: false },
-    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, jewel: false, stump: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false },
     mapAlarmSeen: {},
-    mapAlarmMainSeen: {},
-    expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
+    mapAlarmMainSeen: {}
 };
 
 
@@ -2721,4 +2451,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_EXP_GUIDES, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, getExpertCombinedCostReduction, getAwakenedDropChance, bumpExpertAwakenedPity, canAllocateExpertNode, allocateExpertNode, canUntrainExpertNode, untrainExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, grantLoopBaseExpertExp, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord });

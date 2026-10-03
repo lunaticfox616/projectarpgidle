@@ -6,6 +6,11 @@ const skillGemCasts = (() => {
     const same = (a,b) => a.gx===b.gx && a.gy===b.gy;
     const distance = (a,b) => Math.hypot(a.gx-b.gx,a.gy-b.gy);
     const dirs = {2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
+    // Gems that never overlap themselves: the clock, the assassination and the four movement gems.
+    const SINGLE_CAST = new Set([46,52,54,55,56,57]);
+    // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
+    // 빈 플라스크 shard reach and 암살 reach grow by it; 광창 강림·시간 가속·과냉각 혼합물·인과 never do.
+    const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
     function facing(enemy,source) {
         const center=getGridUnitCenter(enemy),x=source.gx-center.gx,y=source.gy-center.gy;
         return Math.abs(x)>=Math.abs(y) ? (x<0?4:6) : (y<0?8:2);
@@ -19,23 +24,41 @@ const skillGemCasts = (() => {
         if(direction===2)destination.gy--;
         return destination;
     }
+    /** A landing cell: on the board, walkable (walls and sealed gates block) and not under a living enemy. */
     function free(destination,enemies) {
-        return hasGridCell(destination) && !enemies.some(e=>getGridUnitCells(e).some(c=>same(c,destination)));
+        const taken=new Set(enemies.flatMap(e=>getGridUnitCells(e).map(c=>gridCellKey(c.gx,c.gy))));
+        return canPlaceGridFootprint(taken,destination.gx,destination.gy,{columns:1,rows:1});
     }
-    function cross(source,target) {
+    const nearness=(c,source)=>Math.max(Math.abs(c.gx-source.gx),Math.abs(c.gy-source.gy))*100+(c.gx-source.gx)**2+(c.gy-source.gy)**2;
+    /** Where 암살 may land, in order: straight behind the enemy, then its two sides (the one nearer the caster first). */
+    function blindSpots(enemy,source) {
+        const direction=enemy.facingDirection || facing(enemy,source),size=getGridUnitFootprint(enemy),at=cell(enemy);
+        const sides=direction===4 || direction===6 ? [{gx:at.gx,gy:at.gy-1},{gx:at.gx,gy:at.gy+size.rows}]
+            : [{gx:at.gx-1,gy:at.gy},{gx:at.gx+size.columns,gy:at.gy}];
+        return [behind(enemy,source),...sides.sort((a,b)=>nearness(a,source)-nearness(b,source))];
+    }
+    function landing(enemy,source,enemies) {return blindSpots(enemy,source).find(c=>free(c,enemies)) || null;}
+    /** Facing (2/4/6/8) from the landing cell toward the enemy: the dagger strikes from where the assassin stands. */
+    function toward(from,enemy) {
+        const center=getGridUnitCenter(enemy),x=center.gx-from.gx,y=center.gy-from.gy;
+        return Math.abs(x)>=Math.abs(y) ? (x<0?4:6) : (y<0?8:2);
+    }
+    const onCross=(c,center,radius)=>{const x=Math.abs(c.gx-center.gx),y=Math.abs(c.gy-center.gy);return (x===0 || y===0) && x+y<=radius;};
+    function cross(source,target,radius=1) {
         for(const [direction,[x,y]] of Object.entries(dirs)) {
             const center={gx:source.gx+x*2,gy:source.gy+y*2};
-            if(hasGridCell(center) && getGridUnitCells(target).some(c=>Math.abs(c.gx-center.gx)+Math.abs(c.gy-center.gy)<=1)) {
+            if(hasGridCell(center) && getGridUnitCells(target).some(c=>onCross(c,center,radius))) {
                 return {center,direction:Number(direction)};
             }
         }
         return null;
     }
-    function targets(id,source,enemies) {
+    function targets(id,source,enemies,extra=0) {
         const live=enemies.filter(e=>e.hp>0);
-        if(id===51)return live.filter(e=>cross(source,e));
-        if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4 && free(behind(e,source),live));
-        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1,53:4})[id];
+        if(MOVES[id])return moveTargets(id,source,live,extra);
+        if(id===51)return live.filter(e=>cross(source,e,1+extra));
+        if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
+        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra,53:4})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
     function inArea(id,source,c,range) {
@@ -45,20 +68,28 @@ const skillGemCasts = (() => {
     function area(enemies,center,shape,radius) {
         return enemies.filter(e=>e.hp>0 && getGridUnitCells(e).some(c=>{
             const x=Math.abs(c.gx-center.gx),y=Math.abs(c.gy-center.gy);
-            if(shape==='cross')return x+y<=radius;
+            if(shape==='cross')return (x===0 || y===0) && x+y<=radius;
             if(shape==='square')return Math.max(x,y)<=radius;
             if(shape==='ring')return distance(c,center)>radius-.5 && distance(c,center)<=radius+.5;
             return distance(c,center)<=radius;
         }));
     }
+    /** The pattern's floor cells on the live board: the act map on wide maps, in bounds and walkable (walls and sealed
+     * gates stay dark). It used to pick from a fixed 9×8 board, so a wide map's floor strikes drew nothing. */
     function cells(center,shape,radius) {
-        const board=Array.from({length:72},(_,i)=>({gx:i%9,gy:Math.floor(i/9),hp:1}));
+        const board=[],open=new Set();
+        for(let gy=Math.floor(center.gy-radius);gy<=Math.ceil(center.gy+radius);gy++) {
+            for(let gx=Math.floor(center.gx-radius);gx<=Math.ceil(center.gx+radius);gx++) {
+                if(canPlaceGridFootprint(open,gx,gy,{columns:1,rows:1}))board.push({gx,gy,hp:1});
+            }
+        }
         return area(board,center,shape,radius).map(cell);
     }
     function createState() {return {casts:[],events:[],sequence:0,channel:null,lastSkill:''};}
     function event(cast,phase,at,duration,extra={}) {
         const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
-            49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',53:'causalityPhase'};
+            49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',53:'causalityPhase',
+            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',57:'leapPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
         const ground=['clock','wave','mist','sigil'].includes(phase);
         return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
@@ -82,9 +113,9 @@ const skillGemCasts = (() => {
     function start(state,input) {
         const {id,name,stats,source,enemies,now}=input;
         state.visuals=input.visuals;
-        const options=targets(id,source,enemies);
+        const options=targets(id,source,enemies,grow(stats));
         if(!options.length)return false;
-        if([46,52].includes(id) && state.casts.some(c=>c.id===id))return false;
+        if(SINGLE_CAST.has(id) && state.casts.some(c=>c.id===id))return false;
         const target=findNearestGridEnemy(source,options);
         const cast={id,name,stats,attackOptions:input.attackOptions,source:cell(source),aim:getGridUnitCenter(target),targetId:target.id,
             speed:Math.max(.5,Math.min(2.5,stats.aspd)),key:'gem-'+(++state.sequence),at:now,index:0,nextAt:now};
@@ -116,10 +147,10 @@ const skillGemCasts = (() => {
         c.event=visual(state,c,'censer',c.at,Math.round(520/c.speed),{holySource:cell(c.source)});
     }
     function launchJudgment(state,c,enemies) {
-        const plan=cross(c.source,enemies.find(e=>e.id===c.targetId));
+        const radius=1+grow(c.stats),plan=cross(c.source,enemies.find(e=>e.id===c.targetId),radius);
         c.aim=plan.center;c.nextAt=c.at+Math.round(480/c.speed);c.direction=plan.direction;
-        c.geometry={judgmentDirection:c.direction,crossRadius:1,impactOffsetMs:c.nextAt-c.at,
-            holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',1)}};
+        c.geometry={judgmentDirection:c.direction,crossRadius:radius,impactOffsetMs:c.nextAt-c.at,
+            holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',radius)}};
         visual(state,c,'censer',c.at,c.nextAt-c.at+c.geometry.holdMs,c.geometry);
     }
     function launchAssassin(state,c) {
@@ -136,13 +167,100 @@ const skillGemCasts = (() => {
         const duration=Math.round(Math.max(340,Math.min(520,300+distance(c.source,c.aim)*45))/c.speed/1.8);
         visual(state,c,'flight',c.nextAt,duration);c.nextAt+=duration;
     }
+    // ---------------------------------------------------------------- 54~57 이동기 (스킬 변경분 2 · 인계 mob4_core.js)
+    // Reach is Euclidean; a landing is free (see free()) and never the caster's own cell; timings scale with attack speed.
+    // Each cast carries its whole choreography in c.move (one 'move' event) for the redrawn art and the caster's motion.
+    const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'},57:{range:3,grows:'radius'}};
+    const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    const reach2=(a,b)=>(a.gx-b.gx)**2+(a.gy-b.gy)**2;
+    const ms=(c,value)=>Math.round(value/c.speed);
+    const moveReach=(id,extra)=>MOVES[id].range+(MOVES[id].grows==='range'?extra:0);
+    const moveRadius=c=>1+(MOVES[c.id].grows==='radius'?grow(c.stats):0);
+    function lineCells(a,b) {
+        const n=Math.max(Math.abs(b.gx-a.gx),Math.abs(b.gy-a.gy)),out=[];
+        for(let i=1;i<=n;i++)out.push({gx:Math.round(a.gx+(b.gx-a.gx)*i/n),gy:Math.round(a.gy+(b.gy-a.gy)*i/n)});
+        return out;
+    }
+    /** The neighbour of c that passes ok and lies nearest the caster (straight before diagonal on a tie). */
+    function nearestNeighbour(c,source,ok) {
+        let best=null,bd=Infinity;
+        for(const [dx,dy] of N8) {
+            const q={gx:c.gx+dx,gy:c.gy+dy},d=reach2(q,source)+(dx && dy?.01:0);
+            if(d<bd && ok(q)){bd=d;best=q;}
+        }
+        return best;
+    }
+    /** 차원찢기·공중강타 land on the aimed cell if free, else on the first free cell back toward the caster, else on the aimed
+     * cell's free neighbour nearest the caster — always within reach. */
+    function landNear(source,want,enemies,range) {
+        const ok=c=>!same(c,source) && reach2(source,c)<=range*range && free(c,enemies);
+        return ok(want) ? cell(want) : (lineCells(want,source).find(ok) || nearestNeighbour(want,source,ok));
+    }
+    /** 향로구름: the target's free neighbour nearest the caster. */
+    function besideTarget(source,target,enemies) {return nearestNeighbour(target,source,c=>!same(c,source) && free(c,enemies));}
+    /** 작살화살: the last free cell on the way in when it touches the target, else the target's free neighbour nearest the
+     * archer; none when the archer already stands next to it. */
+    function pullLanding(source,target,enemies) {
+        const touches=c=>Math.max(Math.abs(c.gx-target.gx),Math.abs(c.gy-target.gy))<=1;
+        if(touches(source))return null;
+        const before=lineCells(source,target).slice(0,-1).reverse().find(c=>free(c,enemies));
+        return before && touches(before) ? before : nearestNeighbour(target,source,c=>free(c,enemies));
+    }
+    function moveTargets(id,source,live,extra) {
+        const range=moveReach(id,extra);
+        return live.filter(e=>{
+            const aim=getClosestGridUnitCell(source,e);
+            if(reach2(source,aim)>range*range)return false;
+            if(id===56)return true;
+            return !!(id===55 ? besideTarget(source,aim,live) : landNear(source,aim,live,range));
+        });
+    }
+    function moveStart(state,c,enemies) {
+        const live=enemies.filter(e=>e.hp>0);
+        state.pose=c;
+        return {live,aim:getClosestGridUnitCell(c.source,live.find(e=>e.id===c.targetId))};
+    }
+    function launchRift(state,c,enemies) {                   // 54: a tear before the caster, out of a second one
+        const {live,aim}=moveStart(state,c,enemies),to=landNear(c.source,aim,live,moveReach(54,grow(c.stats)));
+        if(!to){c.done=true;return;}
+        const tear=c.at+ms(c,300),close=tear+ms(c,380);
+        c.move={from:cell(c.source),to,tear,openB:tear+ms(c,120),vanish:[tear+ms(c,80),tear+ms(c,340)],close,burst:close+ms(c,40),
+            swing:{impact:tear,until:tear+ms(c,140)}};
+        c.nextAt=tear+ms(c,210);
+        visual(state,c,'move',c.at,c.move.burst+ms(c,520)-c.at,{move:c.move,targetCells:[to],footprint:{center:to,radius:moveRadius(c)}});
+    }
+    function launchSmoke(state,c,enemies) {                  // 55: a smoke puff, then out of another beside the target
+        const {live,aim}=moveStart(state,c,enemies),to=besideTarget(c.source,aim,live);
+        if(!to){c.done=true;return;}
+        const puff=c.at+ms(c,400);
+        c.move={from:cell(c.source),to,foe:aim,puff,puffB:puff+ms(c,120),vanish:[puff+ms(c,30),puff+ms(c,310)],lifeA:ms(c,720),lifeB:ms(c,1000),
+            swing:{impact:puff,until:puff+ms(c,140)}};
+        c.nextAt=puff+ms(c,170);
+        visual(state,c,'move',c.at,c.move.puffB+c.move.lifeB+80-c.at,{move:c.move,targetCells:[aim]});
+    }
+    function launchHarpoon(state,c,enemies) {                // 56: the harpoon strikes, the rope pulls the archer in
+        const {live,aim}=moveStart(state,c,enemies),to=pullLanding(c.source,aim,live);
+        const release=c.at+ms(c,360),hitAt=release+ms(c,70+distance(c.source,aim)*42),pull0=hitAt+ms(c,90);
+        const pull1=to ? pull0+ms(c,70+distance(c.source,to)*75) : hitAt;
+        c.move={from:cell(c.source),to:to || cell(c.source),foe:aim,release,hitAt,pull0,pull1,moved:!!to,swing:{impact:release,until:release+ms(c,140)}};
+        c.nextAt=hitAt;
+        visual(state,c,'move',c.at,pull1+ms(c,420)-c.at,{move:c.move,targetCells:[aim]});
+    }
+    function launchLeap(state,c,enemies) {                   // 57: a parabola up and a slam on landing
+        const {live,aim}=moveStart(state,c,enemies),to=landNear(c.source,aim,live,moveReach(57,grow(c.stats)));
+        if(!to){c.done=true;return;}
+        const jump=c.at+ms(c,160),slam=jump+ms(c,280+distance(c.source,to)*70);
+        c.move={from:cell(c.source),to,jump,slam,peak:Math.round(8+distance(c.source,to)*3),swing:{impact:slam,until:slam+ms(c,140)}};
+        c.nextAt=slam;
+        visual(state,c,'move',c.at,slam+ms(c,560)-c.at,{move:c.move,targetCells:[to],footprint:{center:to,radius:moveRadius(c)}});
+    }
     const launch={44:bounce,45:launchLance,46:launchClock,47:launchFlask,48:launchFlask,49:launchFlask,
-        50:launchMist,51:launchJudgment,52:launchAssassin};
+        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,57:launchLeap};
     function stepBounce(state,c,input) {
         visual(state,c,'splash',c.nextAt,280/c.speed);
         const result=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.nextAt);
         c.index++;
-        if(c.index===4)c.done=true;
+        if(c.index===4+grow(c.stats))c.done=true;
         else {c.source=cell(c.aim);c.nextAt+=80/c.speed;c.pendingBounce=true;}
         return [result];
     }
@@ -161,7 +279,7 @@ const skillGemCasts = (() => {
     }
     function stepExplosion(state,c,input) {
         visual(state,c,'burst',c.nextAt,Math.round(540/c.speed));c.done=true;
-        return [contact(c,area(input.enemies,c.aim,'square',1),c.nextAt)];
+        return [contact(c,area(input.enemies,c.aim,'square',1+grow(c.stats)),c.nextAt)];
     }
     function stepCold(state,c,input) {
         if(!c.index)visual(state,c,'wave',c.nextAt,Math.round(860/c.speed),{ringInterval:Math.round(260/c.speed)});
@@ -172,8 +290,8 @@ const skillGemCasts = (() => {
     }
     function stepMist(state,c,input) {
         c.source=cell(input.source);c.aim=cell(input.source);c.event.holySource=cell(input.source);
-        const hit=targets(50,input.source,input.enemies);c.done=true;
-        visual(state,c,'mist',c.nextAt,Math.round(700/c.speed),{holySource:cell(input.source)});
+        const hit=targets(50,input.source,input.enemies,grow(c.stats));c.done=true;
+        visual(state,c,'mist',c.nextAt,Math.round(700/c.speed),{holySource:cell(input.source),holyRadius:1+grow(c.stats)});
         markMistTargets(state,c,hit);
         return [contact(c,hit,c.nextAt),{type:'mist',targets:hit.map(e=>e.id),at:c.nextAt}];
     }
@@ -194,7 +312,7 @@ const skillGemCasts = (() => {
     }
     function stepJudgment(state,c,input) {
         visual(state,c,'cross',c.nextAt,Math.round(420/c.speed),c.geometry);c.done=true;
-        return [contact(c,area(input.enemies,c.aim,'cross',1),c.nextAt)];
+        return [contact(c,area(input.enemies,c.aim,'cross',c.geometry.crossRadius),c.nextAt)];
     }
     function stepAssassin(state,c,input) {
         const target=input.enemies.find(e=>e.id===c.targetId && e.hp>0);
@@ -208,12 +326,12 @@ const skillGemCasts = (() => {
         return [contact(c,[target],c.nextAt,{ailment:Math.random()<.3?ailment:null})];
     }
     function teleport(state,c,input,target) {
-        const destination=behind(target,input.source);
-        if(!free(destination,input.enemies) || getGridUnitDistance(input.source,target)>4){c.done=true;c.failed=true;return [];}
-        c.destination=destination;c.anchor=cell(target);c.direction=target.facingDirection || facing(target,input.source);
+        const destination=landing(target,input.source,input.enemies.filter(e=>e.hp>0));
+        if(!destination || getGridUnitDistance(input.source,target)>4+grow(c.stats)){c.done=true;c.failed=true;return [];}
+        c.destination=destination;c.anchor=cell(target);c.direction=toward(destination,target);
         c.index=1;c.nextAt=c.at+240;
         visual(state,c,'arrive',c.at+100,180,{blinkCell:cell(destination)});
-        return [{type:'teleport',from:cell(input.source),to:destination,at:c.at+100}];
+        return [{type:'teleport',name:c.name,from:cell(input.source),to:destination,at:c.at+100}];
     }
     function shardPlan(extra) {
         const base=1+Math.floor(Math.random()*4),plan=Array.from({length:base},()=>false);
@@ -225,7 +343,7 @@ const skillGemCasts = (() => {
     }
     function shards(state,c,input) {
         const plan=shardPlan(Math.max(0,c.stats.projectileExtraShots || 0));
-        const live=area(input.enemies,c.aim,'circle',3),others=live.filter(e=>e.id!==c.targetId),unused=[...others];
+        const live=area(input.enemies,c.aim,'circle',3+grow(c.stats)),others=live.filter(e=>e.id!==c.targetId),unused=[...others];
         return plan.map((bonus,i)=>{
             const pool=unused.length?unused:(others.length?others:live);
             if(!pool.length)return null;
@@ -250,8 +368,44 @@ const skillGemCasts = (() => {
         c.done=!c.pending.length;if(!c.done)c.nextAt=c.pending[0].at;
         return [contact(c,hit,shard.at,{bonus:shard.bonus})];
     }
+    const moveTo=(c,motion)=>({type:'teleport',name:c.name,from:c.move.from,to:c.move.to,motion});
+    /** The planned landing — or, if an enemy walked onto it meanwhile, its free neighbour nearest the caster (the art and
+     * the caster's motion follow c.move.to). Null when nothing around it is free. */
+    function landingNow(c,input) {
+        const live=input.enemies.filter(e=>e.hp>0);
+        if(free(c.move.to,live))return c.move.to;
+        const near=nearestNeighbour(c.move.to,c.move.from,q=>!same(q,input.source) && free(q,live));
+        if(near)c.move.to=near;
+        return near;
+    }
+    function stepRift(state,c,input) {                       // mid-vanish: into one tear, out of the other; the burst
+        if(!c.index) {
+            c.index=1;c.nextAt=c.move.burst;
+            if(!landingNow(c,input)){c.done=true;c.failed=true;return [];}
+            return [moveTo(c,'vanish')];
+        }
+        c.done=true;
+        return same(input.source,c.move.to) ? [contact(c,area(input.enemies,c.move.to,'square',moveRadius(c)),c.move.burst)] : [];
+    }
+    function stepSmoke(state,c,input) {
+        c.done=true;
+        return landingNow(c,input) ? [moveTo(c,'vanish')] : [];
+    }
+    function stepHarpoon(state,c,input) {                    // the strike, then (if it moved) the arrival at the rope's end
+        if(!c.index) {
+            c.index=1;c.nextAt=c.move.pull1;c.done=!c.move.moved;
+            return [contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.move.hitAt)];
+        }
+        c.done=true;
+        return landingNow(c,input) ? [moveTo(c,'pull')] : [];
+    }
+    function stepLeap(state,c,input) {
+        c.done=true;
+        if(!landingNow(c,input)){c.failed=true;return [];}
+        return [moveTo(c,'leap'),contact(c,area(input.enemies,c.move.to,'square',moveRadius(c)),c.move.slam)];
+    }
     const steps={44:stepBounce,45:stepLance,46:stepClock,47:stepExplosion,48:stepCold,49:stepEmpty,
-        50:stepMist,51:stepJudgment,52:stepAssassin};
+        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,57:stepLeap};
     function update(state,input) {
         const commands=[];
         updateMistTargets(state,input);
@@ -277,6 +431,6 @@ const skillGemCasts = (() => {
             {footprint:{cells:cells(input.source,'circle',4)}});
         return [contact(c,area(input.enemies,input.source,'circle',4),input.now)];
     }
-    return {createState,start,update,receiveHit,targets,facing,free,behind,cross};
+    return {createState,start,update,receiveHit,targets,facing,free,behind,blindSpots,cross,singleCast:SINGLE_CAST};
 })();
 safeExposeGlobals({skillGemCasts});

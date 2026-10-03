@@ -21,48 +21,6 @@ const checks = [];
 function check(name, action) {
     try { action(); console.log('PASS', name); } catch (error) { checks.push(name); console.error('FAIL', name, error.stack); }
 }
-check('earned treasure keeps its source tier after moving and reloading', () => {
-    reset(2);
-    run(`game.currentZoneId=8;game.maxZoneId=8;game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});
-        game.currentZoneId=0;game=mergeDefaults(JSON.parse(JSON.stringify(game)))`);
-    assert.equal(run('bountyRuntime.openTreasure().item.itemTier'), 9);
-});
-check('cosmos treasure uses cosmos affix cap', () => {
-    reset(50);
-    run(`game.cosmosAtlas.activeChallenge={galaxy:5,lootTier:25,tier:86};
-        game.currentZoneId='cosmos_challenge';game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(game.currentZoneId),{isBoss:true});game.currentZoneId=0`);
-    const item = run('bountyRuntime.openTreasure().item');
-    assert.equal(item.itemTier, 20); assert.equal(item.affixTierCap, 20); assert.equal(item.dropRealm, 'cosmos');
-});
-check('ready treasure is settled before a loop can discard equipment', () => {
-    reset(2);
-    run(`game.currentZoneId=8;game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});bountyRuntime.openTreasure()`);
-    run(`bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun();
-        var target=createEnemy(getZone(game.currentZoneId),game.encounterPlan.find(entry=>entry.bountyId),0);
-        game.enemies=[target];target.hp=0;handleEnemyDeath(target,getPlayerStats());game.pendingLoopReady=true;
-        confirmLoopReady()`);
-    assert.equal(run('game.season'), 2); assert(run('game.pendingLoopReady'));
-    assert(run('bountyRuntime.claimTreasure().ok'));
-    run('confirmLoopReady()');
-    assert.equal(run('game.season'), 3);
-    assert.equal(run('game.inventory.some(item=>item.itemTier===9 && !item.sealed)'), false);
-});
-check('defeat ends accepted treasure hunts and permits the earned loop', () => {
-    reset(2);
-    run(`game.currentZoneId=8;game.settings.showDeathNotice=false;game.bountyHunt.remaining=0;
-        bountyRuntime.openTreasure();bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun();
-        handlePlayerDefeat(getZone(8),getPlayerStats(),null,{noToast:true})`);
-    assert.equal(run('game.bountyHunt.pending'),null);
-    assert.equal(run('game.bountyHunt.remaining'),10);
-    assert.equal(run('game.bountyHunt.completed'),0);
-    assert(!run('game.encounterPlan.some(entry=>entry.bountyId)'));
-    assert(!run('bountyRuntime.claimTreasure().ok'));
-    run('game.pendingLoopReady=true;confirmLoopReady()');
-    assert.equal(run('game.season'),3);
-});
 check('colony entrance uses this loop, not a previous loop depth', () => {
     reset();
     run('game.abyssEndlessDepth=200;game.loopProgressCurrent.bestAbyssDepth=21;game.currencies.colonyTrace=1;startColonyRun()');
@@ -117,9 +75,9 @@ check('beehive entrance does not inherit past-loop depth or contaminate defaults
 });
 check('meteor tier is frozen independently of the next gauge', () => {
     reset();
-    run(`game.starWedge.skyRiftMinTier=35;game.starWedge.skyRiftAllCosmos=true;
+    run(`game.meteorSite.skyRiftMinTier=35;game.meteorSite.skyRiftAllCosmos=true;
         prepareMeteorEncounterEntry(8);game.currentZoneId=METEOR_FALL_ZONE_ID;
-        game.starWedge.skyRiftAllCosmos=false;game.starWedge.skyRiftMinTier=8`);
+        game.meteorSite.skyRiftAllCosmos=false;game.meteorSite.skyRiftMinTier=8`);
     assert.equal(run('getZone(METEOR_FALL_ZONE_ID).tier'), 35);
     run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
     assert.equal(run('getZone(METEOR_FALL_ZONE_ID).tier'), 35);
@@ -221,7 +179,7 @@ check('boundary completes five encounters once and paid retry survives defeat an
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         game.beyondBoundary.unlocked=true;game.beyondBoundary.selectedIntensityId='etched';
         game.currencies.formlessDew=9;game.actRewardBonuses=[{stat:'strength',value:52}];
-        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
         enterBeyondBoundaryRun();enterBeyondBoundaryRun();`);
     assert.equal(run('game.currencies.formlessDew'), 6);
     const itemId = run("game.equipment['무기'].id");
@@ -269,7 +227,7 @@ check('ocean guardian rewards and oxygen retreat keep progress and equipment acr
     reset(50);
     run(`window.game=game;game.level=100;game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         game.actRewardBonuses=[{stat:'strength',value:52}];
-        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+        game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
         enterOceanDive();game.ocean.depthM=500;game.ocean.checkpointM=500;game.oceanBossRunPending=true;
         game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;startEncounterRun();finishEncounterRun();`);
     assert.equal(run('game.ocean.bossClearM'), 500);
@@ -312,14 +270,14 @@ check('floor completion stop settles progress but does not move or auto-enter an
         reset(50);
         run(`window.game=game;${setup};game.currentZoneId=${JSON.stringify(id)};
             game.settings.mapCompleteAction='stop';game.settings.autoEnterMeteor=true;
-            Object.assign(ensureStarWedgeState(),{unlocked:true,skyRiftReady:true,skyRiftMinTier:20});
+            Object.assign(ensureMeteorSiteState(),{unlocked:true,skyRiftReady:true,skyRiftMinTier:20});
             finishEncounterRun();`);
         assert.equal(run('game.currentZoneId'), id, 'stop overrides automatic meteor entry');
         assert.equal(run('getZone(game.currentZoneId).floor'), 10, 'stop stays on the completed floor');
         assert.equal(run('game.combatHalted'), true, `${id} must obey completion stop`);
         assert.equal(run('game.moveTimer'), 0, 'movement must not restart a halted encounter');
         assert.equal(run(progress), 11, 'next floor unlock is still settled');
-        assert.equal(run('game.starWedge.skyRiftReady'), true, 'unconsumed event remains available');
+        assert.equal(run('game.meteorSite.skyRiftReady'), true, 'unconsumed event remains available');
         run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;');
         assert.equal(run('game.combatHalted'), true, 'saved stopped state remains stopped');
         assert.equal(run('game.currentZoneId'), id);
@@ -371,7 +329,7 @@ check('ticketed side runs preserve legal equipment across save, defeat and paid 
         reset(50);
         run(`window.game=game;game.level=100;game.settings.showDeathNotice=false;
             game.actRewardBonuses=[{stat:'strength',value:52}];
-            game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='bloodletter_blade'),'normal',10);
+            game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='warden_greatsword'),'normal',10);
             game.currencies[${JSON.stringify(currency)}]=2;${entry};${entry};`);
         assert.equal(run(`game.currencies[${JSON.stringify(currency)}]`), 1, 'duplicate entry consumes only one ticket');
         const itemId = run("game.equipment['무기'].id");
@@ -398,7 +356,7 @@ check('labyrinth rewards use the cleared floor for repeat and advance alike', ()
         for (const action of ['repeatZone', 'nextZone']) {
             reset(50);
             run(`window.game=game;game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(def=>def.id);
-                ensureExpertiseState().levels.mycologist=5;game.currentZoneId=LABYRINTH_ZONE_ID;
+                game.currentZoneId=LABYRINTH_ZONE_ID;
                 game.labyrinthFloor=29;game.labyrinthUnlockedMaxFloor=29;
                 game.settings.mapCompleteAction=${JSON.stringify(action)};Math.random=()=>${roll};
                 finishEncounterRun();`);
@@ -530,16 +488,16 @@ check('void reinforcements respect field capacity without discarding pending ene
 check('hive material costs are affordable before rewards and reject stale choices atomically', () => {
     reset();
     run(`game.currencies.pollen=0;game.currencies.venomStinger=0;game.currencies.enchantedHoney=0`);
-    assert.equal(run("getBeehivePenaltyPool(10,10).some(p=>getBeehivePenaltyCost(p))"), false);
+    assert.equal(run("getBeehivePenaltyPool(10).some(p=>getBeehivePenaltyCost(p))"), false);
     run(`game.currencies.pollen=6`);
-    assert.equal(run("getBeehivePenaltyPool(1,1).some(p=>p.key==='pollen_tax')"), true);
+    assert.equal(run("getBeehivePenaltyPool(1).some(p=>p.key==='pollen_tax')"), true);
     run(`game.currencies.hiveKey=1;startBeehiveRun();
         game.beehive.pendingChoice.a={effect:'pollen',amount:10,timing:'immediate',text:'[즉시 보상] 꽃가루 +10 / 대가: 꽃가루 -6',penalty:{key:'pollen_tax',text:'꽃가루 -6'}};
         game.currencies.pollen=5`);
     const before = run('JSON.stringify(game)');
     run("resolveBeehiveChoice('a','pollen_tax')");
     assert.equal(run('JSON.stringify(game)'), before);
-    run("resolveBeehiveChoice('expertLevel')");
+    run("resolveBeehiveChoice('constructor')");
     assert.equal(run('JSON.stringify(game)'), before);
     run(`game.currencies.pollen=6;game=mergeDefaults(JSON.parse(JSON.stringify(game)));resolveBeehiveChoice('a','pollen_tax')`);
     assert.equal(run('game.currencies.pollen'),10);

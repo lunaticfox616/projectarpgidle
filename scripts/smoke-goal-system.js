@@ -223,7 +223,7 @@ const baseGame = extra => ({
     }));
     m.refresh();
     const goal = m.presented[0];
-    assert.strictEqual(goal.id, 'major-unlock-condition-gem', '반복 액트에서는 스토리 대신 다음 주요 해금을 안내');
+    assert.strictEqual(goal.id, 'major-unlock-loop-3', '반복 액트에서는 스토리 대신 다음 주요 해금을 안내');
 
     const firstLoop = boot(baseGame({
         maxZoneId: 2, currentZoneId: 2, passivePoints: 4, ascendPoints: 2,
@@ -240,8 +240,8 @@ const baseGame = extra => ({
     firstLoop.refresh();
     const firstGoal = firstLoop.presented[0];
     assert(firstGoal.id.startsWith('story-zone-'), '성장 기회가 첫 플레이 주 목표를 빼앗지 않음');
-    const passiveNotice = firstGoal.notices.find(n => n.text === '남은 패시브 포인트 4');
-    assert(passiveNotice, '남은 패시브 포인트 안내');
+    const passiveNotice = firstGoal.notices.find(n => n.text === '남은 스킬트리 포인트 4');
+    assert(passiveNotice, '남은 스킬트리 포인트 안내');
     assert.strictEqual(passiveNotice.actionTabId, 'tab-char');
     assert(firstGoal.notices.some(n => n.actionSubtabId === 'item-tab-equip'), '장착 가능한 장비는 장비 창으로 이동');
 }
@@ -427,66 +427,16 @@ const baseGame = extra => ({
     assert.strictEqual(observerNotice.actionSubtabId, 'map-explore-root-boss');
 }
 
-// 생장판 안내: 루프 25에 판이 조용히 열리고, 드랍은 전용 보관함에 바로 들어가며,
-// 배치하지 않으면 아무 효과도 없다. 장비에는 "장착 가능한 장비가 있습니다" 안내가
-// 있는데 생장판에는 신호가 없어 판이 빈 채로 계속 굴러가기 쉬웠다.
+// 생장판은 없어졌다(2026-09-30): 예전 생장 보관함이 저장에 남아 있어도 생장 안내는 없다.
 {
-    const growthHelpers = (opts) => ({
-        isGrowthBoardUnlocked: () => !!opts.unlocked,
-        getPlacedGrowthEntries: () => (opts.placed || []).map(item => ({ item })),
-        isGrowthItemPlacedInLoadout: id => (opts.placed || []).some(item => item.id === id),
-        getGrowthInventoryLimit: () => 40
-    });
-    // 보조 안내는 주 목표가 있을 때만 붙는다. 생장판이 열리는 루프 25 이후에는
-    // 루프 진행(혼돈 깊이) 목표가 주 목표로 잡히므로 그 상태를 쓴다.
-    const growthGame = extra => baseGame({
+    const m = boot(baseGame({
         maxZoneId: 12, currentZoneId: 12, season: 40,
         unlocks: { map: true, items: true },
         loopProgressCurrent: { bestAbyssDepth: 5 },
-        growthBoard: { unlockedCellCount: 12 },
-        growthInventory: [], recentGrowthDrops: [],
-        ...extra
-    });
-    const growthNotices = model => {
-        model.refresh();
-        return (model.presented[0].notices || []).map(row => row.text);
-    };
-
-    // 해금 전에는 아무 안내도 하지 않는다.
-    {
-        const m = boot(growthGame({ growthInventory: [{ id: 1 }], recentGrowthDrops: [{ id: 2 }] }),
-            growthHelpers({ unlocked: false }));
-        assert.ok(!growthNotices(m).some(text => /생장|최근 획득함/.test(text)),
-            '생장판 해금 전에는 생장 안내를 띄우면 안 된다');
-    }
-
-    // 보관함에 미배치 아이템 + 빈 칸이 있으면 배치를 권한다.
-    {
-        const m = boot(growthGame({ growthInventory: [{ id: 5 }, { id: 6 }] }), growthHelpers({ unlocked: true }));
-        m.refresh();
-        const found = (m.presented[0].notices || []).find(row => /빈 칸/.test(row.text));
-        assert.ok(found, '놓을 수 있는 생장 아이템이 있으면 알려야 한다');
-        assert.ok(found.text.includes('12개'), '남은 빈 칸 수를 보여야 한다');
-    }
-
-    // 전부 배치했고 대기 중인 것도 없으면 조용해야 한다.
-    {
-        const placed = [{ id: 5 }, { id: 6 }];
-        const m = boot(growthGame({ growthInventory: placed.slice() }), growthHelpers({ unlocked: true, placed }));
-        assert.ok(!growthNotices(m).some(text => /생장|최근 획득함/.test(text)),
-            '놓을 것도 대기 중인 것도 없으면 안내하지 않아야 한다');
-    }
-
-    // 보관함이 가득 차면 새 드랍의 비교 없는 자동해체를 알려야 한다.
-    {
-        const full = Array.from({ length: 40 }, (_, i) => ({ id: 100 + i }));
-        const m = boot(growthGame({ growthInventory: full }), growthHelpers({ unlocked: true }));
-        m.refresh();
-        const notice = (m.presented[0].notices || []).find(row => /생장 보관함/.test(row.text));
-        assert.ok(notice, '보관함이 가득 차면 알려야 한다');
-        assert.ok(notice.text.includes('40/40'), '현재 칸 수를 보여야 한다');
-        assert.ok(/비교 없이 자동 해체됩니다/.test(notice.text), '새 드랍이 비교 없이 자동해체된다는 결과를 알려야 한다');
-    }
+        growthBoard: { unlockedCellCount: 12 }, growthInventory: [{ id: 5 }, { id: 6 }]
+    }));
+    m.refresh();
+    assert.ok(!(m.presented[0].notices || []).some(row => /생장/.test(row.text)), '생장판 안내 규칙이 남아 있으면 안 된다');
 }
 
 // 18) 현재 전투 목표 아래에는 가장 가까운 주요 해금 하나와 실제 조건이 붙는다.
@@ -495,7 +445,7 @@ const baseGame = extra => ({
         maxZoneId: 12, currentZoneId: 12, season: 20, loopCount: 19,
         unlocks: { map: true, season: true, skills: true, talisman: true },
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
-        starWedge: { unlocked: true }, skyTower: { unlocked: true },
+        meteorSite: { unlocked: true }, skyTower: { unlocked: true },
         chaosRealm: { unlocked: true }, clearedRootBosses: ['s6_beast_cerberus'],
         abyssEndlessDepth: 27, abyssUnlockedDepths: [21, 27], labyrinthUnlockedMaxFloor: 64,
         loopProgressCurrent: { bestAbyssDepth: 20 }
@@ -516,8 +466,8 @@ const baseGame = extra => ({
         unlocks: { map: true, season: true, skills: true, talisman: true },
         unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
-        starWedge: { unlocked: true }, skyTower: { unlocked: true, highestFloor: 1 },
-        chaosRealm: { unlocked: true }, coreCube: { unlocked: true, everUnlocked: true },
+        meteorSite: { unlocked: true }, skyTower: { unlocked: true, highestFloor: 1 },
+        chaosRealm: { unlocked: true },
         clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra'],
         underworldProgress: { highestFloor: 18 }, cosmosAtlas: { unlocked: true },
         loopProgressCurrent: { bestAbyssDepth: 31 }
@@ -537,8 +487,8 @@ const baseGame = extra => ({
         unlocks: { map: true, season: true, skills: true, talisman: true },
         unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
         conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
-        starWedge: { unlocked: true }, skyTower: { unlocked: true }, chaosRealm: { unlocked: true },
-        coreCube: { unlocked: true, everUnlocked: true },
+        meteorSite: { unlocked: true }, skyTower: { unlocked: true }, chaosRealm: { unlocked: true },
+        underworldProgress: { highestFloor: 11 },
         clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'],
         loopProgressCurrent: { bestAbyssDepth: 42 }
     }), { hasCurrentLoopAbyssRequirementClear: () => true });

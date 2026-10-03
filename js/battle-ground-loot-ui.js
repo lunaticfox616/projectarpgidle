@@ -5,9 +5,15 @@ const battleGroundLoot = (() => {
     let seen = new WeakSet();
     const entries = new Map();
     const motes = new Set();
+    let settlement=null;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const displayLimit = () => canvas.clientWidth < 600 ? 16 : 24;
     const isMajor = receipt => receipt.currency === 'goldenRule' || receipt.item?.rarity === 'unique' || !!receipt.highlight;
+    /** A pile shows its most important drop: golden rule, uniques and highlighted items first, then by rarity. */
+    const importance = receipt => (isMajor(receipt) ? 100 : 0) + getRarityRank(receipt.item?.rarity || 'normal');
+    /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
+     * down arms. Drops beyond every arm stay unnamed: never a "외 N개" row (user, 2026-10-03). */
+    const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
 
     function later(entry, action, delay) {
         const timer = setTimeout(() => { entry.timers.delete(timer); action(); }, delay);
@@ -48,33 +54,122 @@ const battleGroundLoot = (() => {
     }
 
     function place(marker) {
-        const half = marker.querySelector('.battle-loot-name').offsetWidth / 2 + 8;
-        const x = Math.max(half, Math.min(canvas.clientWidth - half, Number(marker.dataset.x) * canvas.clientWidth));
-        const y = Math.max(62, Math.min(canvas.clientHeight - 25, Number(marker.dataset.y) * canvas.clientHeight));
+        const labels = marker.querySelector('.battle-loot-labels');
+        const row = labels.firstElementChild?.offsetHeight || 20;
+        const height = labels.offsetHeight || labels.children.length * (row + 2);
+        const half = labels.offsetWidth / 2 + 8;
+        const reach = side => { const arm = marker.querySelector(`.battle-loot-labels.is-${side}`); return arm ? 30 + arm.offsetWidth : 0; };
+        const down = marker.querySelector('.battle-loot-labels.is-down');
+        const left = Math.max(half, reach('left')), right = Math.max(half, reach('right'));
+        const x = Math.max(left, Math.min(canvas.clientWidth - right, Number(marker.dataset.x) * canvas.clientWidth));
+        const y = Math.max(49 + height, Math.min(canvas.clientHeight - 25 - (down ? 24 + down.offsetHeight : 0), Number(marker.dataset.y) * canvas.clientHeight));
         marker.style.left = x + 'px'; marker.style.top = y + 'px';
+        stackLabel(marker, { x, y, half: labels.offsetWidth / 2, height, row });
     }
 
-    function currencyLabel(label, marker, receipt) {
+    // 이름표 묶음이 이미 떨어진 다른 묶음과 겹치면 한 줄씩 위로 올린다(아이템 그림 위치는 그대로).
+    // 표시 좌표만 바꾸며 지급과 자동 획득과는 무관하다. 올린 만큼 CSS가 연결선을 그린다.
+    function stackLabel(marker, box) {
+        const others = [...entries.keys()].filter(other => other !== marker && other.dataset.labelTop);
+        const overlaps = top => others.some(other => {
+            const otherTop = Number(other.dataset.labelTop);
+            return top < otherTop + Number(other.dataset.labelHeight) + 2 && otherTop < top + box.height + 2
+                && Math.abs(parseFloat(other.style.left) - box.x) < box.half + Number(other.dataset.labelHalf) + 4;
+        });
+        const base = box.y - 30 - box.height;
+        let lift = 0;
+        while (lift < box.row * 5 && base - lift > 4 && overlaps(base - lift)) lift += box.row + 2;
+        marker.dataset.labelTop = String(base - lift);
+        marker.dataset.labelHeight = String(box.height);
+        marker.dataset.labelHalf = String(box.half);
+        marker.style.setProperty('--label-lift', lift + 'px');
+    }
+
+    /** Canvas boxes of a pile's shown name arms, from its placed spot (the up arm includes its lift). */
+    function armBoxes(marker) {
+        const x = parseFloat(marker.style.left), y = parseFloat(marker.style.top);
+        const lift = parseFloat(marker.style.getPropertyValue('--label-lift')) || 0;
+        return [...marker.children]
+            .filter(arm => String(arm.className).startsWith('battle-loot-labels') && !arm.hidden).map(arm => {
+                const w = arm.offsetWidth, h = arm.offsetHeight || arm.children.length * 25;
+                const side = arm.className.replace('battle-loot-labels', '').trim();
+                if (side === 'is-right') return { arm, side, left: x + 26, right: x + 26 + w, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
+                if (side === 'is-left') return { arm, side, left: x - 26 - w, right: x - 26, top: y - 3 - h / 2, bottom: y - 3 + h / 2 };
+                if (side === 'is-down') return { arm, side, left: x - w / 2, right: x + w / 2, top: y + 24, bottom: y + 24 + h };
+                return { arm, side: 'up', left: x - w / 2, right: x + w / 2, top: y - 30 - lift - h, bottom: y - 30 - lift };
+            });
+    }
+
+    /** A later pile's side and down names give way where they would cover names already on the ground: the earlier, more
+     * important pile keeps its place, and a hidden arm is fine (no "외 N개", user 2026-10-03). */
+    function yieldCrowdedArms(marker) {
+        const taken = [...entries.keys()].filter(other => other !== marker).flatMap(armBoxes);
+        const hits = box => taken.some(other => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom);
+        armBoxes(marker).filter(box => box.side !== 'up' && hits(box)).forEach(box => { box.arm.hidden = true; });
+    }
+
+    function currencyRow(label, receipt) {
         label.innerHTML = window.getStyledOrbName(receipt.currency) + (receipt.count > 1 ? ' ×' + receipt.count : '');
-        marker.dataset.currency = receipt.currency;
+        label.dataset.currency = receipt.currency;
         const tone = label.querySelector('.orb-tone');
-        if (tone) marker.style.setProperty('--loot-color', tone.style.getPropertyValue('--orb-tone'));
+        if (tone) label.style.setProperty('--loot-color', tone.style.getPropertyValue('--orb-tone'));
     }
 
-    function appearance(marker, receipt) {
-        const item = receipt.item, currency = receipt.currency && ORB_DB[receipt.currency];
+    /** One name; --row staggers the landing pop (nearest the picture first), majors get one shine. */
+    function nameRow(receipt, index) {
         const label = document.createElement('span'); label.className = 'battle-loot-name';
+        if (isMajor(receipt)) label.classList.add('is-major');
+        label.style.setProperty('--row', String(index));
+        label.dataset.rarity = receipt.item?.rarity || 'normal';
+        label.style.setProperty('--loot-color', receipt.color || getRarityColor(label.dataset.rarity));
+        if (receipt.currency && ORB_DB[receipt.currency]) currencyRow(label, receipt);
+        else label.textContent = receipt.item.name;
+        return label;
+    }
+
+    /** PoE-style name cross around the pile, in importance order: up over the picture first, then the emptier side, then down. */
+    function labelArms(receipts) {
+        const limits = canvas.clientWidth < 600 ? ARM_ROWS.narrow : ARM_ROWS.wide;
+        const arms = { up: [], right: [], left: [], down: [] };
+        receipts.forEach((receipt, index) => {
+            const sides = arms.right.length <= arms.left.length ? ['right', 'left'] : ['left', 'right'];
+            const side = ['up', ...sides, 'down'].find(name => arms[name].length < limits[name]);
+            if (side) arms[side].push(nameRow(receipt, index));
+        });
+        return ['up', 'right', 'left', 'down'].filter(side => arms[side].length).map(side => {
+            const arm = document.createElement('div');
+            arm.className = side === 'up' ? 'battle-loot-labels' : `battle-loot-labels is-${side}`;
+            arms[side].forEach(row => arm.append(row));
+            return arm;
+        });
+    }
+
+    /** One item picture for the pile (its most important drop) under the name cross. tier drives the glow, pop and sound. */
+    function appearance(marker, receipts) {
+        const lead = receipts[0], item = lead.item, currency = lead.currency && ORB_DB[lead.currency];
         marker.dataset.rarity = item?.rarity || 'normal';
         marker.dataset.kind = currency ? 'currency' : 'equipment';
-        marker.style.setProperty('--loot-color', receipt.color || getRarityColor(marker.dataset.rarity));
-        if (currency) currencyLabel(label, marker, receipt);
-        else label.textContent = item.name;
-        const art = document.createElement('img'); art.className = 'battle-loot-item'; art.alt = '';
-        art.src = currency ? currency.icon : getInventoryItemVisualAsset(item, receipt.itemKind);
-        if (item?.slot === '무기') art.classList.add('weapon');
-        const flight = document.createElement('div'); flight.className = 'battle-loot-flight'; flight.append(art);
-        marker.append(flight, label);
+        marker.dataset.tier = isMajor(lead) ? 'major' : getRarityRank(marker.dataset.rarity) >= 2 ? 'rare' : 'plain';
+        if (currency) marker.dataset.currency = lead.currency;
+        const arms = labelArms(receipts);
+        marker.style.setProperty('--loot-color', arms[0].firstElementChild.style.getPropertyValue('--loot-color'));
+        const flight = document.createElement('div'); flight.className = 'battle-loot-flight';
+        flight.append(lootArt(currency ? currency.icon : getInventoryItemVisualAsset(item, lead.itemKind), item));
+        marker.append(flight, ...arms);
         return flight;
+    }
+
+    /** 그림이 없는 재화(56종)는 작은 보석 문양으로 날아간다 — src가 undefined인 그림이 /undefined 404를 냈고(검토 5차),
+     * 그림을 빼자 날아가는 연출이 빈 자리를 읽다 게임 루프 오류가 났다(검토 6차). */
+    function lootArt(src, item) {
+        if (!src) {
+            const glyph = document.createElement('span'); glyph.className = 'battle-loot-item battle-loot-glyph';
+            return glyph;
+        }
+        const art = document.createElement('img'); art.className = 'battle-loot-item'; art.alt = '';
+        art.src = src;
+        if (item?.slot === '무기') art.classList.add('weapon');
+        return art;
     }
 
     function beam(marker, receipt) {
@@ -96,9 +191,9 @@ const battleGroundLoot = (() => {
         return true;
     }
 
-    function spawn(fx, point, index, count) {
-        const receipt = fx.loot;
-        const important = isMajor(receipt);
+    /** One pile: receipts sorted by importance. A kill drops one pile on one spot; the act settlement spreads single rows in a ring. */
+    function spawn(receipts, point, index, count) {
+        const important = receipts.some(isMajor);
         if (!room(important)) return;
         const marker = document.createElement('div'); marker.className = 'battle-loot-drop';
         const radius = (count === 1 ? 36 : Math.min(120, canvas.clientWidth * .28, canvas.clientHeight * .24)) * (.9 + .08 * Math.sin(index * 2.4));
@@ -106,8 +201,8 @@ const battleGroundLoot = (() => {
         marker.dataset.x = (point.x + Math.cos(angle) * radius) / canvas.clientWidth;
         marker.dataset.y = (point.y + Math.sin(angle) * radius) / canvas.clientHeight;
         marker.dataset.sourceX = point.x / canvas.clientWidth; marker.dataset.sourceY = point.y / canvas.clientHeight;
-        marker.style.setProperty('--rest-angle', (receipt.item?.slot === '무기' ? 54 + index * 7 : -16 + index * 9) + 'deg');
-        const flight = appearance(marker, receipt); beam(marker, receipt); ground.append(marker); place(marker);
+        marker.style.setProperty('--rest-angle', (receipts[0].item?.slot === '무기' ? 54 + index * 7 : -16 + index * 9) + 'deg');
+        const flight = appearance(marker, receipts); beam(marker, receipts[0]); ground.append(marker); place(marker); yieldCrowdedArms(marker);
         const entry = { marker, timers: new Set() }; entries.set(marker, entry);
         launch(entry, flight, point);
         later(entry, () => absorb(entry), important ? 3300 : 2400);
@@ -127,10 +222,20 @@ const battleGroundLoot = (() => {
     function land(entry) {
         entry.marker.classList.add('landed');
         const contact = document.createElement('span'); contact.className = 'battle-loot-contact'; entry.marker.append(contact);
-        if (!reduced()) entry.marker.querySelector('img').animate([
-            { translate: '0 0' }, { translate: '0 -4px', offset: .35 }, { translate: '0 0' }
-        ], { duration: 190, easing: 'ease-out' });
+        const tier = entry.marker.dataset.tier;
+        if (tier !== 'plain' && typeof playLootDropSound === 'function') playLootDropSound(tier === 'major');
+        if (!reduced()) landingPop(entry.marker.querySelector('.battle-loot-item'), tier);
         later(entry, () => contact.remove(), 550);
+    }
+
+    /** The picture squashes on the ground and springs back; rare and better flash white for a moment. */
+    function landingPop(art, tier) {
+        const shadow = 'drop-shadow(1px 2px 1px #14130f)', flash = tier === 'plain' ? 1 : 2;
+        art.animate([
+            { translate: '0 0', scale: '1.3 .76', filter: `${shadow} brightness(${flash})` },
+            { translate: '0 -7px', scale: '.9 1.12', offset: .38 },
+            { translate: '0 0', scale: '1 1', filter: `${shadow} brightness(1)` }
+        ], { duration: 280, easing: 'ease-out' });
     }
 
     function absorb(entry) {
@@ -181,18 +286,19 @@ const battleGroundLoot = (() => {
         return { x: point.x, y: point.y + projection.actorGroundOffsetY };
     }
 
+    // 한 처치의 드랍은 한 자리에 한 더미로 떨어진다: 대표 그림 하나와 이름표 묶음(2026-10-03 사용자 요청).
+    // 화면 상한은 더미 수로 센다. 받은 순서대로 중요한 드랍이 든 더미가 먼저다.
     function consume(now, projection) {
-        const batches = new Map();
-        const pending = pendingDrops(now).sort((a, b) => Number(isMajor(b.loot)) - Number(isMajor(a.loot)));
-        for (const fx of pending.slice(0, displayLimit())) {
+        const piles = new Map();
+        const pending = pendingDrops(now).sort((a, b) => importance(b.loot) - importance(a.loot));
+        for (const fx of pending) {
             if (fx.loot.currency && !(ORB_DB[fx.loot.currency]?.icon && fx.loot.count > 0)) continue;
-            if (!batches.has(fx.enemyId)) batches.set(fx.enemyId, []);
-            batches.get(fx.enemyId).push(fx);
+            if (!piles.has(fx.enemyId)) piles.set(fx.enemyId, []);
+            piles.get(fx.enemyId).push(fx.loot);
         }
-        for (const [enemyId, drops] of batches) {
-            const point = originFor(enemyId, drops[0].loot.sourceCell, projection);
-            if (!point) continue;
-            drops.forEach((fx, index) => spawn(fx, point, index, drops.length));
+        for (const [enemyId, receipts] of [...piles].slice(0, displayLimit())) {
+            const point = originFor(enemyId, receipts[0].sourceCell, projection);
+            if (point) spawn(receipts, point, 0, 1);
         }
     }
 
@@ -201,14 +307,57 @@ const battleGroundLoot = (() => {
             && !document.hidden && !game.isBackgroundCalculation;
     }
 
+    // The domain has already paid every row. This bounded queue is presentation only.
+    function settle(event) {
+        if(event.detail.background || document.hidden)return;
+        const run=actExplorationState.current(game);if(!run?.completionApplied)return;
+        const rows=actExplorationUi.collectLootRows(event.detail).map(row=>({
+            currency:row.currency,count:row.amount,item:row.item||{name:row.name+(row.amount>1?' ×'+row.amount:''),rarity:'normal'},
+            itemKind:({jewels:'jewel'})[row.kind],
+            color:row.rarity?getRarityColor(row.rarity):undefined
+        }));
+        if(!rows.length)return;
+        const boss=actExplorationMap.forRun(run).rooms.find(room=>room.role==='boss');
+        clear();
+        settlement={run,rows:rows.sort((a,b)=>Number(isMajor(b))-Number(isMajor(a))),
+            cell:{gx:boss.gx+.5,gy:boss.gy+.5},started:performance.now(),index:0,bounded:false};
+        document.getElementById('btn-exploration-loot-skip').hidden=false;
+    }
+
+    function endSettlement(skip=false) {
+        if(skip && settlement?.run===game.actExploration && settlement.run.departure)
+            settlement.run.departure.remainingMs=0;
+        settlement=null;clear();
+        document.getElementById('btn-exploration-loot-skip').hidden=true;
+    }
+
+    function consumeSettlement(projection) {
+        if(!settlement)return;
+        if(settlement.run!==game.actExploration){endSettlement();return;}
+        const age=performance.now()-settlement.started;
+        if(age>=5000){endSettlement();return;}
+        const rows=settlement.rows,limit=displayLimit();
+        if(!settlement.bounded && rows.length>limit) {
+            const rest=rows.splice(limit-1),count=rest.reduce((sum,row)=>sum+(row.count||1),0);
+            rows.push({item:{name:'전리품 '+count.toLocaleString()+'개',rarity:'normal'}});
+        }
+        settlement.bounded=true;
+        const point=projection.cellToScreen(settlement.cell.gx,settlement.cell.gy);
+        point.y+=projection.actorGroundOffsetY;
+        while(settlement.index<rows.length && settlement.index*50<=age) {
+            const index=settlement.index++;
+            spawn([rows[index]],point,index,rows.length);
+        }
+    }
+
     function prepare(source, now, projection) {
-        if (!visible(source)) { clear(); return false; }
+        if (!visible(source)) { endSettlement(); return false; }
         if (zone !== game.currentZoneId || epoch !== battleVisualState.lootEpoch) {
             clear(); zone = game.currentZoneId; epoch = battleVisualState.lootEpoch; seen = new WeakSet();
         }
-        if (!canvas && !battleFx.some(fx => fx.loot)) return false;
+        if (!canvas && !settlement && !battleFx.some(fx => fx.loot)) return false;
         if (!canvas) mount(source);
-        resize(); consume(now, projection);
+        resize(); consume(now, projection);consumeSettlement(projection);
         return hasPresentation();
     }
 
@@ -232,5 +381,9 @@ const battleGroundLoot = (() => {
         return next;
     }
 
+    window.addEventListener('project-idle:exploration-loot-claimed',settle);
+    document.addEventListener('click',event=>{
+        if(event.target.closest('#btn-exploration-loot-skip'))endSettlement(true);
+    });
     return Object.freeze({ actorContext });
 })();

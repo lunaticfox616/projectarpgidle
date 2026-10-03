@@ -77,11 +77,10 @@
         const notes = [];
         const heroDef = game.bloomedClassThisLoop === game.ascendClass ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
         if (heroDef) notes.push(`${heroDef.label} 개화 재능: ${heroDef.talentsText}`);
-        if (game.ascendClass && Array.isArray(game.ascendKeystones) && game.ascendKeystones.length > 0) {
-            const defs = getClassKeystoneDefs(game.ascendClass);
-            const names = game.ascendKeystones.map(id => ((defs.find(node => node.id === id) || {}).name || id));
-            notes.push(`★ 키스톤: ${names.join(' / ')}`);
-        }
+        const picked = game.ascendClass && Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+        const twins = (Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones : []).filter(id => !picked.includes(id));
+        const names = [...picked.map(id => getAscendKeystoneName(id)), ...twins.map(id => `${getAscendKeystoneName(id)}(쌍둥이)`)];
+        if (names.length > 0) notes.push(`★ 키스톤: ${names.join(' / ')}`);
         return notes;
     }
 

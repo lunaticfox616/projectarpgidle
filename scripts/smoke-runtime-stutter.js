@@ -29,9 +29,11 @@ const saveContext = {
   },
   scheduleCloudAutoSync() { scheduledCloudSyncs += 1; },
   updateCloudSaveUI() {},
-  safeExposeGlobals(map) { Object.assign(saveContext, map); }
+  safeExposeGlobals(map) { Object.assign(saveContext, map); },
+  safeExposeData(map) { Object.assign(saveContext, map); }
 };
 vm.createContext(saveContext);
+for (const file of ['data/core-items.js', 'js/core-items.js', 'js/act-exploration-loot.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), saveContext, { filename: file });
 vm.runInContext(saveSource, saveContext, { filename: 'save-runtime.js' });
 
 assert.strictEqual(saveContext.saveGame({ touchModifiedAt: false }), true, 'autosave should report successful persistence');
@@ -141,6 +143,8 @@ async function exerciseCloudUpload() {
     canPersistLocalSave() { return true; },
     getLocalSaveStatus() { return { message: '' }; },
     fetchCloudSaveRecord: async () => null,
+    fetchCloudSaveSummary: async () => null,
+    cloudSaveFingerprint(saveData) { return saveContext.cloudSaveFingerprint(saveData); },
     shouldBlockLocalPushForRemoteLoop() { return { blocked: false }; },
     persistLocalSave() { localPersistCalls += 1; return true; },
     createCloudSaveRequestBody(userId, sourceGame) { return saveContext.createCloudSaveRequestBody(userId, sourceGame); },

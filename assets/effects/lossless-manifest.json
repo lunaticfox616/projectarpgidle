@@ -40,16 +40,6 @@
     ]
   },
   {
-    "source": "assets/effects/fenrir-fang-sheet.png",
-    "output": "assets/effects/fenrir-fang-sheet.webp",
-    "sourceSha256": "2a773a5eebef7e370bc6b3b28c862377de19f30aff308784df5c008c516b681e",
-    "outputSha256": "bdc30a9be959a9f77c7fecc6b27e1a9fe72b28d5d12c048bf92625fa3e5fa8ef",
-    "size": [
-      1254,
-      1254
-    ]
-  },
-  {
     "source": "assets/effects/pixel-abyss-contagion-sheet-v1.png",
     "output": "assets/effects/pixel-abyss-contagion-sheet-v1.webp",
     "sourceSha256": "ad7c7ad7f62417b559f0f926c11390f81f5eea2a273d57491196e8dc9efb3c19",

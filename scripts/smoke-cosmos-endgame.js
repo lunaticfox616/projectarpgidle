@@ -13,7 +13,7 @@ context.document.getElementById = id => cosmosElements.get(id) || null;
 context.__cosmosTestGame = {
         season: 31,
         loopCount: 30,
-        currencies: { starDust: 0 },
+        currencies: { skyEssence: 0 },
         journalEntries: ['woodsman'],
         jewelSlots: [],
         currentZoneId: 0,
@@ -37,7 +37,6 @@ vm.runInContext(`
     addLog = undefined;
     showGameToast = undefined;
     saveGame = undefined;
-    recordArcanaQuestCosmosExploration = undefined;
     updateStaticUI = undefined;
 `, context);
 vm.runInContext(fs.readFileSync('js/cosmos-rules.js', 'utf8'), context, { filename: 'js/cosmos-rules.js' });
@@ -112,7 +111,7 @@ assert(rareSignalCount >= 5 && rareSignalCount <= 50,
     '흑성 일식은 실제로 등장하되 일반 신호처럼 자주 나오면 안 된다');
 
 context.game.cosmosAtlas = { layoutVersion: 20260811, cleared: ['planet-0'], bossClears: [], mastery: {}, selectedDirectives: {}, directiveCycles: {} };
-context.game.currencies.starDust = 0;
+context.game.currencies.skyEssence = 0;
 context.focusRecommendedCosmosNode();
 const expeditionNodeId = context.game.cosmosAtlas.selectedId;
 const expeditionChoices = context.getCosmosExpeditionDirectiveChoices(expeditionNodeId, 0);
@@ -127,7 +126,7 @@ assert.strictEqual(context.game.cosmosAtlas.activeChallenge.directive.id, riskyD
     '선택한 탐사 신호가 실제 전투 계약에 고정되어야 한다');
 vm.runInContext('Math.random = () => 0;', context);
 context.exploreSelectedCosmosNode(expeditionNodeId);
-assert(context.game.currencies.starDust > 7, '위험 탐사와 공명 잭팟은 실제 별가루 보상을 늘려야 한다');
+assert(context.game.currencies.skyEssence >= 2, '위험 탐사와 공명 잭팟은 실제 탐사 보상(창공의 정수)을 늘려야 한다');
 assert.strictEqual(context.game.cosmosAtlas.directiveCycles[expeditionNodeId], 1,
     '탐사를 완료한 뒤에만 해당 노드 신호 주기가 증가해야 한다');
 assert.strictEqual(context.game.cosmosAtlas.selectedDirectives[expeditionNodeId], undefined,

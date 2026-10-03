@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const rarityNames = { normal: '일반', magic: '매직', rare: '희귀', unique: '고유' };
+    const rarityNames = ITEM_RARITY_LABELS;
 
     function renderPickup() {
         const settings = game.settings;
@@ -46,7 +46,7 @@
             <div class="equipment-loot-body"><div id="loot-target-config">${renderTargets()}</div>
             <section class="loot-filter-section"><h3>자동해체</h3><p class="loot-filter-note">우선 보관 대상은 제외하고, 습득 조건을 통과한 장비 중 아래 등급을 해체합니다.</p>
             <div id="auto-salvage-rarity-chips" class="loot-filter-grades">${rarityChips}</div>
-            <div class="loot-filter-actions"><button type="button" id="auto-salvage-toggle-btn" onclick="toggleAutoSalvage();refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button><span id="auto-salvage-status">현재: ${enabled ? 'ON' : 'OFF'}</span></div></section>
+            <div class="loot-filter-actions"><button type="button" id="auto-salvage-toggle-btn" onclick="toggleAutoSalvage();refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button><span id="auto-salvage-status">현재: ${enabled ? '켜짐' : '꺼짐'}</span></div></section>
             ${renderPickup()}<p class="loot-filter-note">설정은 자동 저장됩니다. 기존 인벤토리 표시 필터는 목록 표시만 바꿉니다.</p></div></div>`;
     }
 

@@ -6,9 +6,11 @@ const ACT_REWARD_DB = {
         title: '액트 1 클리어 보상',
         body: '성소에서 얻은 전리품 중 하나를 골라 다음 구간을 준비하세요.',
         choices: [
-            { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '액트 1 장갑을 받습니다.' },
-            { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '액트 1 무기를 받습니다.' },
-            { kind: 'item', slot: '신발', rarity: 'magic', label: '미확인 신발', desc: '액트 1 신발을 받습니다.' }
+            // 장비 선택지는 설명 줄 대신 부위 그림과 "등급 · 바로 장착 여부"(getActRewardPreview)를 보여 준다 — 이름 · 설명 · 미리보기가
+            // 같은 말을 세 번 했다(검토 2026-10-01).
+            { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '' },
+            { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '' },
+            { kind: 'item', slot: '신발', rarity: 'magic', label: '미확인 신발', desc: '' }
         ]
     },
     1: {
@@ -26,9 +28,9 @@ const ACT_REWARD_DB = {
     },
     2: {
         title: '액트 3 클리어 보상',
-        body: '추가 패시브 포인트입니다.',
+        body: '추가 스킬트리 포인트입니다.',
         choices: [
-            { kind: 'points', value: 2, label: '패시브 포인트 +2', desc: '즉시 패시브 포인트 2점을 획득합니다.' }
+            { kind: 'points', value: 2, label: '스킬트리 포인트 +2', desc: '스킬트리에서 노드 두 개를 더 열 수 있습니다.' }
         ]
     },
     3: {

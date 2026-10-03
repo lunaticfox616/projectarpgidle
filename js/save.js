@@ -97,15 +97,17 @@ function resetLocalSave(snapshot) {
 }
 
 function refreshItemIdCounter() {
-    // Every owned or pending item reserves its id, including postponed treasures and offline overflow.
+    // Every owned or pending item reserves its id, including offline overflow.
     const rift = game.timeRift || {};
     const offline = game.offlineProgress || {};
     const presets = ((game.equipmentLoadouts || {}).presets || []).filter(Boolean)
         .flatMap(preset => Object.values(preset.slots || {}));
     const items = [game.inventory, Object.values(game.equipment || {}), rift.altarUnique, rift.altarRare,
-        game.growthInventory, game.recentGrowthDrops, offline.stash, offline.protectedOverflow,
-        game.equipmentTemporaryStorage, presets, game.bountyHunt?.pending?.item].flat().filter(Boolean);
-    itemIdCounter = Math.max(0, ...items.map(item => item.id || 0));
+        offline.stash, offline.protectedOverflow,
+        game.equipmentTemporaryStorage, presets,
+        actExplorationLoot.reservedItems(game), coreItems.ownedItems(game), (game.playerStall?.listings || []).map(row => row.item)].flat().filter(Boolean);
+    const jewels=[game.jewelInventory,items.flatMap(item=>[item.voidSocket?.jewel,...(item.abyssSockets||[]).map(socket=>socket?.jewel)])].flat().filter(Boolean);
+    itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
 }
 
 function createSaveSnapshot(sourceGame) {
@@ -127,31 +129,13 @@ function serializeSaveState(sourceGame) {
 }
 
 function createCloudSavePayload(sourceGame) {
-    let payload = createSaveSnapshot(sourceGame || game || {});
-    payload.enemies = [];
-    payload.encounterPlan = [];
-    payload.encounterIndex = Math.max(0, Math.floor(payload.encounterIndex || 0));
-    payload.nextEnemyId = Math.max(1, Math.floor(payload.nextEnemyId || 1));
-    payload.combatLog = [];
-    payload.recentDamageEvents = [];
-    payload.pendingSlamEchoHits = [];
-    payload.dotFxThrottle = {};
-    payload.battlefieldEnemySprites = {};
-    payload.enemyConditionDebuffs = {};
-    payload.enemyKeystoneDebuffs = {};
-    payload.rangerWeakpointMarks = {};
-    payload.enemyUniqueChaosResDown = {};
-    payload.enemyUniqueElementalResDown = {};
-    payload.enemyCurseExpirePayloads = {};
-    payload.playerAilments = Array.isArray(payload.playerAilments) ? payload.playerAilments.slice(0, 40) : [];
-    payload.playerLeechInstances = Array.isArray(payload.playerLeechInstances) ? payload.playerLeechInstances.slice(0, 80) : [];
-    payload.realmDeathWard = null;
-    payload.realmInvulnerableBarrierUntil = 0;
-    return payload;
+    return createSaveSnapshot(createCloudSaveState(sourceGame || game || {}));
 }
 
-function createCloudSaveRequestBody(userId, sourceGame) {
-    let root = sourceGame || game || {};
+function createCloudSaveState(root) {
+    // Persistent exploration resumes its exact enemies, casts and debuffs on every device.
+    // A shallow projection avoids copying the full roster on every cloud save.
+    if(root.actExploration)return {...root,combatLog:[],battlefieldEnemySprites:{},dotFxThrottle:{}};
     // 최상위만 얕게 복사하고 런타임 필드를 덮어쓴 뒤 한 번만 문자열화한다.
     // 중첩 인벤토리/장비를 깊은 복제하지 않으므로 클라우드 자동 저장 순간의 GC 부하도 줄어든다.
     let payload = {
@@ -171,14 +155,29 @@ function createCloudSaveRequestBody(userId, sourceGame) {
         rangerWeakpointMarks: {},
         enemyUniqueChaosResDown: {},
         enemyUniqueElementalResDown: {},
-        enemyCurseExpirePayloads: {},
         playerAilments: Array.isArray(root.playerAilments) ? root.playerAilments.slice(0, 40) : [],
         playerLeechInstances: Array.isArray(root.playerLeechInstances) ? root.playerLeechInstances.slice(0, 80) : [],
         realmDeathWard: null,
         realmInvulnerableBarrierUntil: 0
     };
     delete payload.talentCardRuntime;
+    return payload;
+}
+
+function createCloudSaveRequestBody(userId, sourceGame) {
+    const payload=createCloudSaveState(sourceGame || game || {});
+    delete payload.talentCardRuntime;
     return JSON.stringify({ user_id: userId, save_data: payload });
+}
+
+/** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
+ * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
+function cloudSaveFingerprint(saveData) {
+    const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
+    const text = JSON.stringify({ ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall });
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+    return `${text.length}:${hash >>> 0}`;
 }
 
 function sanitizeForSave(value, seen = new WeakSet()) {
@@ -247,7 +246,7 @@ function normalizeLocalRuntimeAfterLoad() {
     }
     // loadGame supplies cloneDefaultGame or mergeDefaults; both own these array shapes.
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
-    if (game.settings.mapCompleteAction !== 'stop' && game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+    if (!game.actExploration && game.settings.mapCompleteAction !== 'stop' && game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
     if (!game.realmDeathWard || typeof game.realmDeathWard !== 'object') game.realmDeathWard = null;
     else {
         game.realmDeathWard.amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));

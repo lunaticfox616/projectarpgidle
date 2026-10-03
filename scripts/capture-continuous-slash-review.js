@@ -1,6 +1,7 @@
 // Same controlled battlefield, real combat hits and renderer; no composited game art.
 const fs = require('fs');
 const { chromium, devices } = require('@playwright/test');
+const { pickClass } = require('../tests/browser/helpers');
 process.env.PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT || '4210';
 const startServer = require('./serve-test');
 
@@ -23,7 +24,7 @@ async function capture(browser, variant, mobile) {
     }
     await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     const result = await page.evaluate(() => {
         tutorialQueue.length = 0;
@@ -40,7 +41,7 @@ async function capture(browser, variant, mobile) {
         game.enemies = cells.map(([gx, gy], index) => {
             const enemy = createEnemy(getZone(1), { at: 20, count: 4 }, index);
             return Object.assign(enemy, { gx, gy, hp: 1000, maxHp: 1000,
-                spriteVariantId: 'woodPuppet-0', spawnStamp: 0, gridMoveTimer: 0 });
+                spriteVariantId: 'deacon-act2-melee', spawnStamp: 0, gridMoveTimer: 0 });
         });
         clearBattleVisualBacklog();
         battleVisualState.enemySmoothPos = {};

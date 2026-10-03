@@ -1,6 +1,6 @@
 {
   "name": "projectarpgidle",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "description": "브라우저 방치형 ARPG. CSS는 PostCSS로 번들링하고 JS는 index.html의 클래식 스크립트 순서를 유지한다.",
   "scripts": {

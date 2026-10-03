@@ -18,7 +18,7 @@ function cast(extra=0) {
 }
 function tick(ms) {r.tickMs=ms;run('game.combatTimeMs=100000+tickMs;updateSkillGemCombat(castStats);');}
 const names=json('Object.keys(SKILL_DB).filter(n=>SKILL_DB[n].nativeCastId)');
-assert.equal(names.length,10);
+assert.equal(names.length,14,'44~53 and the four movement gems (54~57)');
 setup('시간 가속');cast();
 assert.equal(run('castStats.dps'),run('castStats.baseDmg*castStats.dotDamageScale'),
     'clock DPS is one native tick per second, without hit crits or generic DoT stacks');
@@ -46,7 +46,8 @@ assert.equal(run('getPlayerStats().dps'),run('getPlayerStats().baseDmg*getPlayer
 run(`SKILL_DB['시간 가속'].baseSpd=clockBaseSpeed;game.equipment=clockEquipment;`);
 setup('화염 부패');
 assert.ok(run('getPlayerStats().damageScales.estimatedSkillDotDps>0'),'generic stacking DoT remains estimated');
-for(const name of names) {
+// 향로구름 only moves the caster (no damage): scripts/smoke-mobility-skill.js covers the movement gems' landings.
+for(const name of names.filter(n=>n!=='향로구름')) {
     setup(name);cast();
     for(let ms=0;ms<=7000;ms+=50) {
         tick(ms);
@@ -79,8 +80,16 @@ assert.equal(run('game.enemies[0].hp'),1e7,'teleport is not a damage event');
 tick(240);assert.ok(run('game.enemies[0].hp<1e7'));
 run('game.gridPlayer={gx:3,gy:4};');cast();tick(340);
 assert.equal(run('game.gridPlayer.gx'),6,'persistent enemy facing allows another rear teleport');
+// 암살 (09-30): straight behind first; if that cell is taken, the enemy's side nearer the caster, then the far side.
+assert.deepEqual(json('skillGemCasts.blindSpots(game.enemies[0],game.gridPlayer)'),[{gx:6,gy:4},{gx:4,gy:3},{gx:4,gy:6}],
+    'a west-facing 2x2 enemy: rear (east), then the north side (nearer the caster at 3,4), then the south side');
 setup('암살');cast();run('game.enemies.push({...game.enemies[0],id:9002,isBoss:false,gridWidth:1,gridHeight:1,gx:6,gy:4});');
-tick(100);assert.equal(run('game.gridPlayer.gx'),3,'late obstruction prevents teleport');
+tick(100);assert.deepEqual(json('[game.gridPlayer.gx,game.gridPlayer.gy]'),[4,3],'a late obstruction behind sends the assassin to the nearer side');
+tick(240);assert.ok(run('game.enemies[0].hp<1e7'),'the dagger still lands from the side');
+assert.equal(run('skillGemCombatRuntime.events.find(e=>e.assassinationPhase==="slash").facingDirection'),2,'and faces the enemy from the landing cell');
+setup('암살');cast();run('for(const [id,gx,gy] of [[9002,6,4],[9003,4,3],[9004,4,6]])game.enemies.push({...game.enemies[0],id,isBoss:false,gx,gy});');
+tick(100);assert.equal(run('game.gridPlayer.gx'),3,'rear and both sides taken: no teleport');
+assert.equal(run('game.enemies[0].hp'),1e7,'and no strike');
 setup('파문심판',false);run('game.enemies[0].gx=5;game.enemies[0].gy=6;');
 assert.equal(run('getSkillTargets(getPlayerStats()).length'),0,'diagonal cannot trigger an empty cross forever');
 run('game.gridPlayer.gy=5;');assert.ok(run('getSkillTargets(getPlayerStats()).length')>0);
@@ -108,4 +117,4 @@ run('game.skills=Object.keys(SKILL_DB).filter(n=>SKILL_DB[n].isGem);game.activeS
 assert.equal(run('roundTrip.activeSkill'),'인과');assert.equal(run('roundTrip.gemData["인과"].level'),8);
 run('game.skills=game.skills.filter(n=>n!=="인과");');
 assert.ok(json('getGemResearchCollectionState().attack.missing').includes('인과'),'new gems enter normal research acquisition pool');
-console.log('10 production gems: contacts, boss geometry, investment, channel, replay and save compatibility passed');
+console.log('14 production gems: contacts, boss geometry, investment, channel, replay and save compatibility passed');

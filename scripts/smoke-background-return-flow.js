@@ -30,15 +30,23 @@ async function main() {
     // Spawn animation timestamps use performance.now(); only the browser presentation clock differs.
     const combatState=(key,value)=>key==='spawnStamp'?undefined:value;
     assert.equal(JSON.stringify(result.game,combatState),JSON.stringify(direct.game,combatState),'yielding must not change rewards or combat outcome');
-    let nativeYields = 0;
-    r.scheduler = { async yield() {
-        nativeYields++;
-        assert.equal(run('game'), state, 'native browser yield must see committed state');
-    } };
+    // Idle return (review 2026-10-01): scheduler.yield() continuations outrank rendering in Chromium, so the replay
+    // painted about once per 100 ms. Slices now wait for a painted frame, which must still see the committed state.
+    let nativeYields = 0, paintedFrames = 0;
+    const noFrames = r.requestAnimationFrame;
+    r.scheduler = { async yield() { nativeYields++; } };
+    r.requestAnimationFrame = paint => {
+        paintedFrames++;
+        assert.equal(run('game'), state, 'a frame painted between slices must see committed state');
+        setImmediate(() => paint(0));
+        return paintedFrames;
+    };
     const nativeResult = await r.simulateBackgroundCombatChunked({snapshot:state,elapsedMs:1000});
-    assert.ok(nativeYields > 0);
+    assert.ok(paintedFrames > 0, 'replay slices wait for a painted frame');
+    assert.equal(nativeYields, 0, 'scheduler.yield() starves paint and must not pace the replay');
     assert.equal(nativeResult.processedMs, 1000);
     delete r.scheduler;
+    r.requestAnimationFrame = noFrames;
     const sleeping = fixture();
     sleeping.runtime.document.hidden = true;
     let slept = false;

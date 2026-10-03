@@ -38,7 +38,7 @@ async function settle(page, max) {
         const page = await browser.newPage({ serviceWorkers: 'block' });
         await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
         if (baseline) {
-            for (const file of ['js/combat.js', 'js/combat-replay.js', 'js/growth-effects.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
+            for (const file of ['js/combat.js', 'js/combat-replay.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
                 const body = require('node:child_process').execFileSync('git', ['show', `HEAD:${file}`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
                 await page.route(`**/${file}?*`, route => route.fulfill({ status: 200, contentType: 'text/javascript', body }));
             }

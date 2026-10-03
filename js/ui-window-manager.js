@@ -5,33 +5,38 @@
     const UI_LAYOUT_STORAGE_KEY = 'project-arpg-idle-ui-layout-v1';
     const UI_LAYOUT_VERSION = 1;
     const PASSIVE_TREE_PRESENTATION_VERSION = 1;
-    const WORKSPACE_PRESENTATION_VERSION = 1;
+    const WORKSPACE_PRESENTATION_VERSION = 2;
+    // 도킹 작업대: 장비·스킬·지도 창은 전장을 덮지 않고 오른쪽에 붙어 전투를 계속 보여 준다.
+    // 전장이 이 폭보다 좁아지는 화면에서는 기존처럼 작업 영역 전체를 쓴다.
+    const DOCK_MIN_BATTLE_WIDTH = 380;
+    const DOCK_MIN_WIDTH = 720;
+    const DOCK_MAX_WIDTH = 1100;
+    const DOCK_RATIO = 0.62;
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
+    const WORKSPACE_EDGE = 8;
+    // PC HUD 메뉴 이름(아이콘 아래 한 줄)은 네 글자 폭에 맞춘다. 긴 이름은 줄이고, 전체 이름은 올려 두면 뜨는 이름표에 남는다.
+    const RAIL_SHORT_CAPTIONS = Object.freeze({ 'btn-tab-season': '루프', 'btn-tab-stump': '그루터기' });
+    // 바에 다 못 실을 때 기타로 보내는 순서: 나중에 열리는 부가 메뉴(뒤쪽부터)가 먼저, 이 핵심 창들은 마지막까지 바에 남는다.
+    const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-journal']);
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
-        'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
-        'tab-skills': { title: '스킬 및 스킬 젬', defaultMaximized: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
-        'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
-        'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
+        'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, dock: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
+        'tab-skills': { title: '스킬 젬', defaultMaximized: true, dock: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
+        'tab-char': { title: '스킬트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
+        'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
         'tab-season': { title: '루프 패시브', x: 210, y: 70, width: 980, height: 800, minWidth: 500, minHeight: 380 },
-        'tab-pruning': { title: '성장 나무 · 가지치기', x: 210, y: 70, width: 980, height: 760, minWidth: 620, minHeight: 460 },
-        'tab-arcana': { title: '아르카나', x: 230, y: 72, width: 920, height: 740, minWidth: 620, minHeight: 460 },
-        // 보조장비 창은 주얼·부적·플라스크뿐 아니라 코어 큐브와 생장판까지 담는다.
-        // 큐브를 별도 WINDOW_DEFS에 등록하면 병합 패널 안에 창 크롬이 한 번 더 씌워지므로,
-        // 실제 창 소유자는 이 런처 하나뿐이다. 큐브의 2열 그리드에 맞춰 최소 폭도 보장한다.
-        'tab-flask': { title: '보조장비', x: 260, y: 100, width: 860, height: 660, minWidth: 800, minHeight: 380 },
         'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 }
+        'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 },
+        'tab-stump': { title: '그루터기 함', x: 240, y: 70, width: 940, height: 760, minWidth: 560, minHeight: 440 }
     };
 
     let layoutState = getDefaultLayoutState();
@@ -73,10 +78,11 @@
         state.passiveTreePresentationVersion = PASSIVE_TREE_PRESENTATION_VERSION;
         // 기존에 아래로 밀린 주요 창만 최초 한 번 새 작업 영역에 맞춘다.
         // 이후 사용자가 복원·이동한 배치는 그대로 존중한다.
-        if ((Number(next.workspacePresentationVersion) || 0) < WORKSPACE_PRESENTATION_VERSION) {
+        let previousWorkspaceVersion = Number(next.workspacePresentationVersion) || 0;
+        if (previousWorkspaceVersion < WORKSPACE_PRESENTATION_VERSION) {
             state.windows = { ...state.windows };
             ['tab-items', 'tab-skills', 'tab-map'].forEach(id => {
-                state.windows[id] = { ...state.windows[id], maximized: true };
+                state.windows[id] = { ...state.windows[id], maximized: false, docked: true, restoreRect: null };
             });
         }
         state.workspacePresentationVersion = WORKSPACE_PRESENTATION_VERSION;
@@ -107,19 +113,48 @@
     }
 
     function getDesktopRailInset() {
+        if (railDockHome) return WORKSPACE_EDGE;
         let rail = document.querySelector('.tab-header');
         let rect = rail && typeof rail.getBoundingClientRect === 'function' ? rail.getBoundingClientRect() : null;
         if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return DESKTOP_RAIL_WIDTH;
         return Math.ceil(rect.right / uiDisplay.factor + WORKSPACE_GAP / 2);
     }
 
-    // 관리 창은 전투 기록 위까지 확장할 수 있으며 좌측 메뉴는 항상 남겨 둔다.
+    // 메뉴를 담은 하단 HUD는 창이 덮지 않는다: 작업 영역의 아래 끝은 HUD 윗변(솟은 미니맵·구슬 포함) 위다.
+    function getDockedHudInset(viewHeight) {
+        let hud = railDockHome ? document.querySelector('.player-hud') : null;
+        let rect = hud && typeof hud.getBoundingClientRect === 'function' ? hud.getBoundingClientRect() : null;
+        if (!rect || !(rect.height > 0)) return WORKSPACE_EDGE;
+        return Math.ceil(viewHeight - rect.top / uiDisplay.factor + WORKSPACE_GAP / 2);
+    }
+
+    // 관리 창은 전투 기록 위까지 확장할 수 있으며 메뉴(왼쪽 레일 또는 하단 HUD)는 항상 남겨 둔다.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth / uiDisplay.factor || 1280);
         let height = Math.max(260, window.innerHeight / uiDisplay.factor || 720);
         let railInset = getDesktopRailInset();
-        return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - 16) };
+        let hudInset = getDockedHudInset(height);
+        return { left: railInset, top: WORKSPACE_EDGE, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - WORKSPACE_EDGE - hudInset) };
+    }
+
+    function getDockRect() {
+        let rect = getWorkspaceRect();
+        let width = clampNumberLocal(rect.width * DOCK_RATIO, DOCK_MIN_WIDTH, DOCK_MAX_WIDTH, DOCK_MIN_WIDTH);
+        if (rect.width - width - WORKSPACE_GAP < DOCK_MIN_BATTLE_WIDTH) return null;
+        return { x: rect.left + rect.width - width, y: rect.top, width, height: rect.height };
+    }
+
+    // 최대화 > 도킹 > 떠 있는 창 순. 도킹을 원하지만 전장 폭이 모자란 화면에서는 작업 영역 전체를 쓴다.
+    function resolveWindowPlacement(box, rect, maximized, docked) {
+        let dockRect = docked && !maximized ? getDockRect() : null;
+        if (dockRect) return { box: dockRect, dockActive: true };
+        if (maximized || docked) return { box: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }, dockActive: false };
+        return { box, dockActive: false };
+    }
+
+    function isDockPreferred(tabId, stored) {
+        return stored.docked === undefined ? !!WINDOW_DEFS[tabId].dock : !!stored.docked;
     }
 
     function getWindowState(tabId) {
@@ -134,17 +169,14 @@
         let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - height, Math.min(def.y, rect.top + rect.height - height));
         let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
         let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
-        if (maximized) {
-            x = rect.left;
-            y = rect.top;
-            width = rect.width;
-            height = rect.height;
-        }
-        return { open: !!stored.open, minimized: !!stored.minimized, maximized, restoreRect, x, y, width, height };
+        let docked = isDockPreferred(tabId, stored);
+        let placement = resolveWindowPlacement({ x, y, width, height }, rect, maximized, docked);
+        return { open: !!stored.open, minimized: !!stored.minimized, maximized, docked, dockActive: placement.dockActive, restoreRect, ...placement.box };
     }
 
     function persistWindowState(tabId, patch) {
         let cur = getWindowState(tabId);
+        delete cur.dockActive; // 화면 폭에 따라 계산되는 값이라 저장하지 않는다.
         layoutState.windows[tabId] = { ...cur, ...patch };
         saveLayoutState();
     }
@@ -158,7 +190,7 @@
         while (el.firstChild) body.appendChild(el.firstChild);
         let titlebar = document.createElement('div');
         titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="기본 위치로 초기화">↺</button><button type="button" data-window-action="minimize" aria-label="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 복원">□</button><button type="button" data-window-action="close" aria-label="닫기">✕</button></div>`;
+        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" title="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" title="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" title="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" title="닫기 (Esc)">✕</button></div>`;
         let resize = document.createElement('div');
         resize.className = 'ui-window-resize';
         el.classList.add('ui-window');
@@ -187,6 +219,7 @@
         el.classList.toggle('ui-window-open', st.open && !st.minimized);
         el.classList.toggle('ui-window-minimized', st.minimized);
         el.classList.toggle('ui-window-maximized', st.maximized);
+        el.classList.toggle('ui-window-docked', st.dockActive);
         let btn = document.getElementById('btn-' + tabId);
         if (btn) {
             btn.classList.toggle('ui-window-open', st.open);
@@ -203,11 +236,21 @@
         // 채팅은 전투 로그와 같은 자리를 공유하므로 전투를 가리는 관리 창으로 취급하지 않는다.
         let managementMode = isDesktopWindowed() && !!activeWindowId;
         document.body.classList.toggle('ui-management-mode', managementMode);
+        syncWorkspaceDock(managementMode ? activeWindowId : '');
         document.body.classList.toggle('ui-combat-mode', isDesktopWindowed() && !managementMode);
         if (document.body.dataset) {
             if (activeWindowId) document.body.dataset.activeGameWindow = activeWindowId;
             else delete document.body.dataset.activeGameWindow;
         }
+    }
+
+    // 도킹된 창이 맨 위에 있으면 전장 열을 창 폭만큼 비워 두 화면이 겹치지 않게 한다.
+    function syncWorkspaceDock(activeWindowId) {
+        let state = activeWindowId && WINDOW_DEFS[activeWindowId] ? getWindowState(activeWindowId) : null;
+        let docked = !!(state && state.dockActive);
+        document.body.classList.toggle('ui-workspace-docked', docked);
+        // 폭 변수는 .ui-workspace-docked 아래에서만 읽히므로 도킹이 풀릴 때 지울 필요가 없다.
+        if (docked) document.body.style.setProperty('--workspace-dock-width', `${state.width}px`);
     }
 
     function focusWindow(tabId) {
@@ -225,9 +268,21 @@
         syncWorkspacePresentation();
     }
 
+    // 도킹 자리는 하나다. 새 도킹 창을 열면 같은 자리에 겹쳐 숨어 있던 도킹 창은 닫는다.
+    function closeOtherDockedWindows(tabId) {
+        if (!getWindowState(tabId).dockActive) return;
+        Object.keys(WINDOW_DEFS).forEach(id => {
+            if (id === tabId || !layoutState.windows[id] || !layoutState.windows[id].open) return;
+            if (!getWindowState(id).dockActive) return;
+            persistWindowState(id, { open: false, minimized: false });
+            applyWindowState(id);
+        });
+    }
+
     function openWindow(tabId) {
         if (!WINDOW_DEFS[tabId]) return false;
         prepareWindow(tabId);
+        closeOtherDockedWindows(tabId);
         persistWindowState(tabId, { open: true, minimized: false });
         applyWindowState(tabId);
         focusWindow(tabId);
@@ -300,6 +355,11 @@
         if (action === 'reset') resetWindow(tabId);
     }
 
+    // 도킹된 창을 실제로 끌거나 크기를 바꾸면 그 자리에서 떠 있는 창으로 전환한다.
+    function undockPatch(state, pendingValue) {
+        return state.dockActive && pendingValue !== undefined ? { docked: false } : {};
+    }
+
     function beginWindowDrag(event, tabId) {
         if (event.button !== undefined && event.button !== 0) return;
         if (event.target.closest('button,input,select,textarea,a')) return;
@@ -310,6 +370,8 @@
         if (st.maximized) return;
         let startX = event.clientX;
         let startY = event.clientY;
+        delete el.dataset.pendingX;
+        delete el.dataset.pendingY;
         focusWindow(tabId);
         titlebar.setPointerCapture(event.pointerId);
         let move = moveEvent => {
@@ -326,7 +388,9 @@
             titlebar.removeEventListener('pointermove', move);
             titlebar.removeEventListener('pointerup', up);
             titlebar.removeEventListener('pointercancel', up);
-            persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y) });
+            persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y), ...undockPatch(st, el.dataset.pendingX) });
+            applyWindowState(tabId);
+            syncWorkspacePresentation();
         };
         titlebar.addEventListener('pointermove', move);
         titlebar.addEventListener('pointerup', up);
@@ -343,6 +407,8 @@
         if (st.maximized) return;
         let startX = event.clientX;
         let startY = event.clientY;
+        delete el.dataset.pendingWidth;
+        delete el.dataset.pendingHeight;
         handle.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
@@ -358,7 +424,9 @@
             handle.removeEventListener('pointermove', move);
             handle.removeEventListener('pointerup', up);
             handle.removeEventListener('pointercancel', up);
-            persistWindowState(tabId, { width: Number(el.dataset.pendingWidth || st.width), height: Number(el.dataset.pendingHeight || st.height) });
+            persistWindowState(tabId, { x: st.x, y: st.y, width: Number(el.dataset.pendingWidth || st.width), height: Number(el.dataset.pendingHeight || st.height), ...undockPatch(st, el.dataset.pendingWidth) });
+            applyWindowState(tabId);
+            syncWorkspacePresentation();
         };
         handle.addEventListener('pointermove', move);
         handle.addEventListener('pointerup', up);
@@ -459,6 +527,10 @@
         return ordered;
     }
 
+    function railCaption(id, label) {
+        return RAIL_SHORT_CAPTIONS[id] || label;
+    }
+
     function wrapRailButtonLabel(button) {
         if (!button || !button.childNodes || button.querySelector(':scope > .ui-rail-label')) return;
         let textNodes = Array.from(button.childNodes)
@@ -467,6 +539,8 @@
         let label = document.createElement('span');
         label.className = 'ui-rail-label';
         label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
+        button.dataset.caption = railCaption(button.id, label.textContent);
+        if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);
     }
@@ -498,6 +572,8 @@
         miscPanel.className = 'ui-rail-misc-panel';
         miscPanel.hidden = true;
         header.addEventListener('click', closeRailMiscPanelAfterSelection);
+        document.addEventListener('pointerdown', closeRailMiscPanelFromOutside, true);
+        document.addEventListener('keydown', closeRailMiscPanelOnEscape, true);
         header.appendChild(miscPanel);
     }
 
@@ -520,6 +596,21 @@
         let trigger = document.getElementById('btn-ui-rail-misc');
         if (panel) panel.hidden = true;
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    // 펼친 기타 목록은 바깥을 누르거나 Esc로 닫는다(목록 · 기타 단추 안의 누름은 그대로 둔다).
+    function closeRailMiscPanelFromOutside(event) {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        if (!panel || panel.hidden || !event.target.closest) return;
+        if (event.target.closest('#ui-rail-misc-panel, #btn-ui-rail-misc')) return;
+        closeRailMiscPanel();
+    }
+
+    function closeRailMiscPanelOnEscape(event) {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        if (event.key !== 'Escape' || !panel || panel.hidden) return;
+        closeRailMiscPanel();
+        event.stopPropagation();
     }
 
     function closeRailMiscPanelAfterSelection(event) {
@@ -560,10 +651,111 @@
             installRailLayers(header);
         }
         installCloseAllButton();
+        dockRailIntoHud(header);
         syncDesktopRailGroups();
     }
 
-    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일이다.
+    // ─── 하단 HUD 메뉴(2026-09-30) ─────────────────────────────────────────────────────────
+    // 데스크톱에서는 레일(#tab-header-main)을 하단 HUD 돌판(.player-hud-shell) 안으로 옮긴다. 탭은 미니맵 양옆 두 날개
+    // (.ui-rail-tab-layer 둘)에 고르게 나눠 싣고, 기타·정리(.ui-rail-external-controls)는 오른쪽 날개 끝에 둔다.
+    // 모바일로 바뀌면 원래 자리로 되돌린다. HUD가 없는 문서에서는 예전처럼 왼쪽 기둥 레일이다.
+    let railDockHome = null;
+
+    function dockRailIntoHud(header) {
+        let shell = document.querySelector('.player-hud-shell');
+        if (!shell || railDockHome) return;
+        railDockHome = { parent: header.parentElement, next: header.nextElementSibling };
+        let rightWing = document.createElement('div');
+        rightWing.className = 'ui-rail-tab-layer ui-rail-wing-right';
+        rightWing.setAttribute('aria-label', '메뉴');
+        header.querySelector(':scope > .ui-rail-tab-layer').classList.add('ui-rail-wing-left');
+        header.insertBefore(rightWing, header.querySelector(':scope > .ui-rail-external-controls'));
+        shell.appendChild(header);
+        header.classList.add('ui-rail-docked');
+        document.body.classList.add('hud-menu-docked');
+        observeDockedHud([document.querySelector('.player-hud'), header.querySelector(':scope > .ui-rail-wing-left'), rightWing]);
+    }
+
+    function undockRailFromHud(header) {
+        if (!railDockHome) return;
+        railDockHome.parent.insertBefore(header, railDockHome.next);
+        railDockHome = null;
+        header.classList.remove('ui-rail-docked');
+        document.body.classList.remove('hud-menu-docked');
+        if (dockedHudWatch) dockedHudWatch.disconnect();
+        dockedHudSizes.clear();
+    }
+
+    // HUD 크기가 바뀌면(미니맵이 나타나거나 젬 칸이 늘면) 날개에 싣는 단추 수와 열린 창의 아래 끝을 다시 맞춘다.
+    // 날개 폭은 격자의 남는 자리(minmax(0, 1fr))라 단추를 옮겨도 다시 바뀌지 않는다.
+    let dockedHudWatch = null;
+    const dockedHudSizes = new Map();
+    function observeDockedHud(targets) {
+        if (typeof ResizeObserver !== 'function') return;
+        dockedHudWatch = dockedHudWatch || new ResizeObserver(noteDockedHudResize);
+        targets.forEach(target => { if (target) dockedHudWatch.observe(target); });
+    }
+
+    function noteDockedHudResize(entries) {
+        let changed = entries.filter(entry => {
+            let size = Math.round(entry.contentRect.width) + 'x' + Math.round(entry.contentRect.height);
+            if (dockedHudSizes.get(entry.target) === size) return false;
+            dockedHudSizes.set(entry.target, size);
+            return true;
+        });
+        if (railDockHome && changed.length) requestAnimationFrame(relayoutDockedHud);
+    }
+
+    function relayoutDockedHud() {
+        if (!railDockHome) return;
+        syncDesktopRailGroups();
+        Object.keys(WINDOW_DEFS).forEach(applyWindowState);
+    }
+
+    /** Shown on screen: a tab can be unlocked (no inline display: none) yet still hidden by a stylesheet (해금 before its first unlock). */
+    function isRailButtonDisplayed(button) {
+        return typeof button.getClientRects !== 'function' || button.getClientRects().length > 0;
+    }
+
+    /** How many of the buttons sit on the wing's single row (the rest wrap below its bottom edge). */
+    function countRailWingRoom(wing, buttons) {
+        let bottom = wing.getBoundingClientRect().bottom;
+        return buttons.filter(button => button.getBoundingClientRect().bottom <= bottom + 0.5).length;
+    }
+
+    // 두 날개에 고르게(왼쪽이 하나 더 많게), 한쪽이 모자라면 다른 쪽이 더 받는다. 둘 다 넘치는 탭은 기타로.
+    function spreadRailWings(header, visible) {
+        let left = header.querySelector(':scope > .ui-rail-wing-left');
+        let right = header.querySelector(':scope > .ui-rail-wing-right');
+        if (!left || !right) return [];
+        let shown = visible.filter(isRailButtonDisplayed);
+        let leftRoom = countRailWingRoom(left, shown);
+        shown.forEach(button => right.appendChild(button));
+        let rightRoom = countRailWingRoom(right, shown);
+        let overflow = pickRailOverflow(shown, leftRoom + rightRoom);
+        let kept = shown.filter(button => !overflow.includes(button));
+        let leftCount = Math.min(leftRoom, Math.max(Math.ceil(kept.length / 2), kept.length - rightRoom));
+        kept.slice(0, leftCount).forEach(button => left.appendChild(button));
+        return overflow;
+    }
+
+    /** The buttons that go to 기타 when only `room` fit on the bar: auxiliary tabs from the back first, core windows last. */
+    function pickRailOverflow(shown, room) {
+        let spare = shown.length - room;
+        if (spare <= 0) return [];
+        let auxiliary = shown.filter(button => !RAIL_CORE_TAB_IDS.has(button.id)).reverse();
+        let core = shown.filter(button => RAIL_CORE_TAB_IDS.has(button.id)).reverse();
+        return [...auxiliary, ...core].slice(0, spare);
+    }
+
+    function measureRailOverflow(tabLayer, visible) {
+        // Measure in viewport coordinates so UI scale and actual row/gap sizes agree.
+        tabLayer.scrollTop = 0;
+        const bottom = tabLayer.getBoundingClientRect().bottom;
+        return visible.filter(button => button.getBoundingClientRect().bottom > bottom + 0.5);
+    }
+
+    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일(또는 HUD의 두 날개)이다.
     function syncDesktopRailGroups() {
         let header = document.querySelector('.tab-header');
         let tabLayer = header && header.querySelector(':scope > .ui-rail-tab-layer');
@@ -577,10 +769,7 @@
         });
         buttons.filter(button => tabLayoutUi.isMisc(button.id)).forEach(button => miscPanel.appendChild(button));
         moveRailAuxiliaryTabs(miscPanel);
-        // Measure in viewport coordinates so UI scale and actual row/gap sizes agree.
-        tabLayer.scrollTop = 0;
-        const bottom = tabLayer.getBoundingClientRect().bottom;
-        const overflow = visible.filter(button => button.getBoundingClientRect().bottom > bottom + 0.5);
+        const overflow = railDockHome ? spreadRailWings(header, visible) : measureRailOverflow(tabLayer, visible);
         overflow.forEach(button => miscPanel.appendChild(button));
         miscPanel.dataset.railOverflow = String(overflow.length);
         updateRailMiscNotice(miscPanel);
@@ -601,7 +790,7 @@
         logo.type = 'button';
         logo.setAttribute('aria-label', 'RIGNIN · 열린 창 모두 닫기');
         logo.title = '열린 창 모두 닫기';
-        logo.innerHTML = '<img src="assets/ui/rignin-logo.png" alt="" width="1254" height="1254">';
+        logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
         logo.addEventListener('click', closeAllWindows);
         header.prepend(logo);
         let controls = header.querySelector(':scope > .ui-rail-external-controls');
@@ -656,6 +845,14 @@
         drawer.querySelector('#ui-goal-pin').addEventListener('click', toggleGoalPin);
         drawer.querySelector('#ui-goal-pin').setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
         drawer.querySelector('#ui-goal-action').addEventListener('click', openGoalDrawerTarget);
+    }
+
+    /** 휴대폰에서 다른 화면으로 옮기면 열린 서랍을 접는다(고정했으면 그대로) — 펼친 서랍이 탭을 바꿔도 화면 절반을 덮은 채
+     * 남았다(검토 2026-10-01). 전투 화면에서 다른 곳을 누르는 것으로는 닫지 않는다(smoke-goal-drawer 3-2). */
+    function collapseGoalDrawerUnlessPinned() {
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (!drawer || !drawer.classList.contains('expanded') || layoutState.goals.pinned) return;
+        toggleGoalDrawer(false);
     }
 
     function toggleGoalDrawer(force) {
@@ -769,11 +966,18 @@
         return stripDecorativeEmoji(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     }
 
+    /** 같은 알림이면 다시 그리지 않는다 — 1~10초마다 같은 두 단추를 새로 만들었다(검토 4차). */
+    function setGoalNoticesHtml(notices, html) {
+        if (notices.__goalHtml !== html) { notices.innerHTML = html; notices.__goalHtml = html; }
+        notices.style.display = html ? '' : 'none';
+    }
+
     function setGoalDrawerText(id, text) {
         let el = document.getElementById(id);
         if (!el) return;
         let cleanText = stripDecorativeEmoji(text);
         el.textContent = cleanText;
+        el.title = cleanText;
         el.style.display = cleanText ? '' : 'none';
     }
 
@@ -819,17 +1023,14 @@
             action.style.display = usable ? '' : 'none';
         }
         let notices = document.getElementById('ui-goal-notices');
-        if (notices) {
-            notices.innerHTML = rows.map((notice, index) => {
+        if (notices) setGoalNoticesHtml(notices, rows.map((notice, index) => {
                 let normalized = typeof notice === 'string' ? { text: notice } : (notice || {});
                 let label = escapeGoalText(normalized.text || normalized.label || '');
                 if (!label) return '';
                 return normalized.actionTabId
                     ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span></button>`
                     : `<div class="ui-goal-notice-text">${label}</div>`;
-            }).join('');
-            notices.style.display = notices.innerHTML ? '' : 'none';
-        }
+            }).join(''));
         // 접힌 상태에는 목표 개수만 남겨 화면을 가리지 않는다. 제목과 진행도는 펼친 목록에서 본다.
         setGoalDrawerText('ui-goal-handle-icon', '');
         setGoalDrawerText('ui-goal-handle-title', '목표');
@@ -927,7 +1128,10 @@
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
         window.switchTab = function windowedSwitchTab(tabId, options = {}) {
-            if (!isDesktopWindowed()) return originalSwitchTab(tabId);
+            if (!isDesktopWindowed()) {
+                collapseGoalDrawerUnlessPinned();
+                return originalSwitchTab(tabId);
+            }
             if (tabId === 'tab-battle') {
                 closeAllWindows();
                 return originalSwitchTab(tabId);
@@ -964,11 +1168,11 @@
     function restoreDesktopMenuForMobile() {
         let header = document.querySelector('.tab-header');
         if (!header) return;
+        undockRailFromHud(header);
         // 데스크톱 목록에서 원래 탭 버튼을 꺼내 모바일 헤더 순서로 복원한다.
         header.querySelectorAll(':scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn')
             .forEach(btn => header.appendChild(btn));
-        let tabLayer = header.querySelector(':scope > .ui-rail-tab-layer');
-        if (tabLayer) tabLayer.remove();
+        header.querySelectorAll(':scope > .ui-rail-tab-layer').forEach(layer => layer.remove());
         let miscPanel = header.querySelector(':scope > .ui-rail-misc-panel');
         if (miscPanel) miscPanel.remove();
         let externalControls = header.querySelector(':scope > .ui-rail-external-controls');
@@ -1045,6 +1249,8 @@
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (document.querySelector('dialog:modal')) return;
+        // 선택 창은 selection-dialog-ui.js가 Esc를 먼저 받아 맨 위 것만 닫는다. 선택 창이 남아 있으면 그 뒤의 창은 그대로 둔다.
+        if (document.querySelector('.selection-overlay')) return;
         if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
         if (document.body.classList.contains('community-overlay-open') || document.body.classList.contains('community-dock-open')) {
             closeCommunityDock();
@@ -1055,6 +1261,23 @@
             return st && st.open && !st.minimized;
         });
         if (open) closeWindow(open);
+    }
+
+    // PC 단축키(ARPG 관례): 누르면 해당 창을 열고, 이미 맨 위에 열려 있으면 닫는다.
+    // 입력 중·모달·튜토리얼·시작 화면·모바일 배치이거나 아직 해금되지 않은 메뉴면 무시한다.
+    function isMenuUnlocked(tabId) {
+        let button = document.getElementById('btn-' + tabId);
+        return !!button && !button.hidden && button.style.display !== 'none';
+    }
+
+    /** PC 창 단축키(js/hotkeys-ui.js가 키를 해석): 맨 위에 열려 있으면 닫고, 아니면 연다. 잠긴 메뉴는 false. */
+    function toggleWindowFromHotkey(tabId) {
+        if (!document.body.classList.contains('desktop-windowed-ui') || !isMenuUnlocked(tabId)) return false;
+        let state = layoutState.windows[tabId];
+        let onTop = zOrder[zOrder.length - 1] === tabId;
+        if (state && state.open && !state.minimized && onTop) closeWindow(tabId);
+        else window.switchTab(tabId);
+        return true;
     }
 
     function initWindowManager() {
@@ -1073,5 +1296,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation });
+    safeExposeGlobals({ toggleWindowFromHotkey, openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation });
 }());

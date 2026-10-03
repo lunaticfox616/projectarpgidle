@@ -46,7 +46,6 @@ const context = {
     hasSupportGemOwned(name) {
         return context.game.supports.includes(name) || context.game.sealedSupports.includes(name);
     },
-    getExpertLevel() { return 1; },
     awardCurrency(key, amount) {
         context.game.currencies[key] = (context.game.currencies[key] || 0) + amount;
     },
@@ -54,7 +53,6 @@ const context = {
     updateStaticUI() {},
     checkUnlocks() {},
     queueImportantSave() {},
-    grantExpertExpByAction() {},
     getPlayerStats() { return { suppCap: 1 }; },
     safeExposeGlobals(map) { Object.assign(context, map); }
 };
@@ -88,6 +86,6 @@ assert.strictEqual(context.game.currencies.gemShard, 2);
 assert.strictEqual(context.game.supportGemData['보조 C'].unlockedTier, 1);
 
 // Search, persistent fold choices, UI refresh and resource spending are exercised
-// in tests/browser/gem-research.spec.js against the actual game DOM.
+// in a real browser against the actual game DOM when that screen changes.
 
 console.log('smoke-gem-research passed');

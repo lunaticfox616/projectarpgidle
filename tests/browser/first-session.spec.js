@@ -1,12 +1,13 @@
 // A real first-kill flow, without injecting loot or changing progression state.
 // This verifies usability prerequisites; only human participants can judge fun.
 const { test, expect } = require('@playwright/test');
+const { pickClass } = require('./helpers');
 
 for (const [classId, label] of [['occultist', '비술사'], ['warrior', '전사']]) {
     test(`initial ${classId} selection updates HUD before the paused prologue ends`, async ({page}) => {
         await page.route('https://**',route=>route.fulfill({status:204,body:''}));
         await page.goto('/');await page.locator('#btn-startup-guest').click();
-        await page.locator(`[data-class-id="${classId}"]`).click();
+        await pickClass(page, classId);
         await expect(page.locator('#tutorial-overlay')).toHaveClass(/active/);
         await expect(page.locator('#ui-player-name-label')).toHaveText(label);
         const resource=await page.evaluate(()=>({hp:game.playerHp,cap:getPlayerHpCap(getPlayerStats())}));
@@ -22,7 +23,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
-    await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
+    await pickClass(page, 'warrior');
     const startedAt = Date.now();
     const notices = [];
     let firstGemMs = null;
@@ -46,7 +47,25 @@ test('a new warrior earns and equips the first gem through visible controls', as
         console.log(JSON.stringify({ notices, errors, state }));
         throw error;
     });
+    // Review 2026-10-01: the coach card sat on the gem it pointed at, and the detail popover ran out of the window over the HUD.
+    const desktop = !testInfo.project.use.isMobile;
+    const layout = () => page.evaluate(() => {
+        const box = node => node && node.getBoundingClientRect().toJSON();
+        return { card: box(document.getElementById('tutorial-action-card')), target: box(document.querySelector('.tutorial-action-target')),
+            popover: box(document.querySelector('#gem-selection:popover-open')), frame: box(document.getElementById('tab-skills')),
+            chosen: box(document.querySelector('.is-gem-selected')) };
+    });
+    const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+    const opening = await layout();
+    if (desktop) expect(apart(opening.card, opening.target)).toBe(true);
     await page.locator('.starter-gem-tutorial-target').click();
+    // The coach mark follows into the detail popover: its 장착 button is what the player presses next.
+    await expect(page.locator('#gem-selection .gem-equip-primary')).toHaveClass(/tutorial-action-target/);
+    if (desktop) {
+        const { card, target, popover, frame, chosen } = await layout();
+        expect([apart(card, target), apart(card, popover), apart(card, chosen)]).toEqual([true, true, true]);
+        expect([popover.left >= frame.left, popover.top >= frame.top, popover.right <= frame.right, popover.bottom <= frame.bottom]).toEqual([true, true, true, true]);
+    }
     await page.locator('#gem-selection').getByRole('button', { name: '장착', exact: true }).click();
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
     await expect(page.locator('#game-toast-region')).toContainText('스킬 젬 장착 완료');
@@ -60,4 +79,27 @@ test('a new warrior earns and equips the first gem through visible controls', as
         body: JSON.stringify({ firstGemMs, notices, kind: 'automated walkthrough, not human feedback' }, null, 2),
         contentType: 'application/json'
     });
+});
+
+// Review round 3 #1: a player who closes the first-gem card instead of following it (idle play) used to fight with the
+// basic attack and die repeatedly in acts 1-2. Closing the card equips the starter gem; 스킬 젬 can still change it.
+test('closing the first-gem card without following equips the starter gem', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').click();
+    await pickClass(page, 'warrior');
+    await expect.poll(async () => {
+        if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
+            const title = await page.locator('#tutorial-title').innerText();
+            await page.locator('#tutorial-dismiss-btn').click();
+            if (title === '첫 스킬 젬 장착') return 'closed';
+        }
+        return 'waiting';
+    }, { timeout: 45000, intervals: [250, 500] }).toBe('closed');
+    await expect.poll(() => page.evaluate(() => game.activeSkill)).toBe('연속 베기');
+    await expect(page.locator('#game-toast-region')).toContainText('[연속 베기] 젬을 장착했습니다');
+    expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
+    expect(errors).toEqual([]);
 });

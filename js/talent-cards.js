@@ -1,8 +1,9 @@
 // ============================================================================
 // 재능 개화 카드 시스템 (P3)
-// 재능(10) × 직업(12) = 120종. 개화 시련 클리어로 카드를 획득/강화한다.
+// 카드는 전직마다 한 장(18종): 그 전직이 속한 직업의 대표 재능 × 전직(2026-10-02 재능 정리, 그 전에는 재능 10 × 전직 12).
+// 개화 시련 클리어로 카드를 획득/강화한다.
 // 카드 점수는 계정 진행도(여러 무한 콘텐츠의 최고 도달 + 나무꾼 잔상 전투력)로 매겨지고,
-// 점수가 카드 레벨을 결정한다. 표면(직업 테마)·이면(재능 테마) 효과는 레벨에 비례한다.
+// 점수가 카드 레벨을 결정한다. 표면(전직 테마)과 이면(재능 테마) 효과는 레벨에 비례한다.
 // 카드/조합 기록은 루프(시즌 리셋)로 초기화되지 않는다.
 // (효과의 실제 스탯 반영 및 장착 슬롯은 P4에서 연결)
 // ============================================================================
@@ -10,12 +11,37 @@
 // 카드 레벨 임계값(점수 기준). 점수는 "층 환산" 단위(무한 콘텐츠 최고층 합 + DPS 로그 환산).
 const TALENT_CARD_LEVEL_THRESHOLDS = [0, 20, 45, 80, 125, 180, 250, 340, 450, 600];
 const TALENT_CARD_MAX_LEVEL = TALENT_CARD_LEVEL_THRESHOLDS.length;
-const TALENT_BLOOM_TOTAL_CARDS = 120;
+// 전직마다 한 장 = 18(2026-10-02 재능 정리). 직업, 전직 정의가 없는 좁은 실행 환경에서는 카드 정의 수.
+const TALENT_BLOOM_TOTAL_CARDS = typeof ASCENDANCIES_BY_PLAYER_CLASS === 'object' && typeof PLAYER_CLASS_DEFS === 'object'
+    ? getTalentBloomCardKeys().length : Object.keys(TALENT_BLOOM_CARD_DEFS).length;
 
 // 나무꾼 잔상 전투력(최고 DPS)의 로그 환산 기준. DPS가 2배 될 때마다 +1점(층과 동일 스케일).
 const TALENT_BLOOM_DPS_BASE = 1000;
 
-// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(120개 조합 = 5차전직 1개당 표면 1 + 이면 1)에서 조회한다.
+/** 전직이 속한 직업(data/ascendancies.js ASCENDANCIES_BY_PLAYER_CLASS). */
+function getTalentBloomClassOfAscendancy(ascendId) {
+    return Object.keys(ASCENDANCIES_BY_PLAYER_CLASS).find(classId => ASCENDANCIES_BY_PLAYER_CLASS[classId].includes(ascendId)) || null;
+}
+
+/** 개화 재능은 직업이 정한다(2026-10-02 재능 정리): 전직이 속한 직업의 대표 재능. 개화 시련에서 고르지 않는다. */
+function getTalentBloomHeroIdForAscendancy(ascendId) {
+    const classDef = PLAYER_CLASS_DEFS[getTalentBloomClassOfAscendancy(ascendId)];
+    return classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : null;
+}
+
+/** 전직의 개화 카드(직업의 대표 재능 × 전직). 카드 정의가 없으면 null. */
+function getTalentBloomCardKeyForAscendancy(ascendId) {
+    const heroId = getTalentBloomHeroIdForAscendancy(ascendId);
+    const key = heroId ? makeTalentComboKey(heroId, ascendId) : null;
+    return key && TALENT_BLOOM_CARD_DEFS[key] ? key : null;
+}
+
+/** 얻을 수 있는 카드 열여덟 장(직업 순서). */
+function getTalentBloomCardKeys() {
+    return Object.values(ASCENDANCIES_BY_PLAYER_CLASS).flat().map(getTalentBloomCardKeyForAscendancy).filter(Boolean);
+}
+
+// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(표면 1 + 이면 1)에서 조회한다.
 function getTalentCardDef(heroId, classKey) {
     let key = makeTalentComboKey(heroId, classKey);
     if (typeof TALENT_BLOOM_CARD_DEFS !== 'undefined' && TALENT_BLOOM_CARD_DEFS[key]) return TALENT_BLOOM_CARD_DEFS[key];
@@ -127,7 +153,7 @@ const TALENT_STAT_LABELS = {
     evasionPct: '회피', energyShieldPct: '에너지 보호막', resPen: '저항 관통', leech: '생명력 흡수',
     dr: '받는 피해 감소', physIgnore: '물리 피해 감소 무시', regen: '생명력 재생', regenSuppress: '재생 억제',
     blockChance: '막기 확률', blockChancePct: '방패 기본 막기 확률 증가', blockChanceMax: '막기 확률 최대치',
-    deflectDamageReduce: '빗겨내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
+    deflectDamageReduce: '비껴내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
     igniteChance: '점화 확률', poisonChance: '중독 확률', bleedChance: '출혈 확률', shockChance: '감전 확률',
     freezeChance: '동결 확률', chillChance: '한기 확률',
     ailResIgnite: '점화 저항 확률', ailResShock: '감전 저항 확률', ailResFreeze: '동결 저항 확률',
@@ -149,25 +175,17 @@ function getTalentRuntimeAppliedText(runtime, level) {
     if (runtime.key === 'mistral') {
         let aspd = Math.round((Number(runtime.aspdPerStackAtLevel10) || 0) * levelRatio * 100) / 100;
         let move = Math.round((Number(runtime.movePerStackAtLevel10) || 0) * levelRatio * 100) / 100;
-        return `중첩당 공격 속도 +${aspd}% · 이동 속도 +${move}% (최대 ${runtime.maxStacks}중첩)`;
+        return `중첩마다 공격 속도 +${aspd}%, 이동 속도 +${move}%(최대 ${runtime.maxStacks}중첩)`;
     }
     if (runtime.key === 'stoneShield') {
         let pct = Math.round((Number(runtime.maxHpPctAtLevel10) || 0) * levelRatio * 100) / 100;
         return `막기 시 최대 생명력의 ${pct}% 돌 보호막`;
     }
     if (runtime.key === 'moonReturn') return `단일 적에게 원 피해의 ${runtime.damagePct}% 추가 타격`;
-    if (runtime.key === 'ailmentWhitelist') return '적에게 점화·중독만 부여 가능';
-    if (runtime.key === 'shadowSlayer') return `치명타 피해 배율 무작위 ×1.0~×${(1 + (runtime.maxMultiplierAtLevel10 - 1) * levelRatio).toFixed(2)}`;
-    if (runtime.key === 'summonCritLucky') return '소환수 치명타 확률 행운 판정';
+    if (runtime.key === 'ailmentWhitelist') return '적에게 점화와 중독만 걸 수 있음';
     if (runtime.key === 'instantWarcry') return runtime.latestEffectOnly
-        ? '함성 시전 시간 0초 · 마지막 함성 하나의 고유 효과만 유효 · 활성 함성 수 판정은 모두 유지'
+        ? '함성 시전 시간 0초, 마지막 함성 하나의 고유 효과만 유효, 활성 함성 수는 모두 셈'
         : '함성 시전 시간 0초';
-    if (runtime.key === 'rangerCharge') return `돌격 명중 시 공격·이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
-    if (runtime.key === 'fenrirTooth') return `펜리르의 맹독: 중독 확률 +${runtime.poisonChanceAtLevel10 * levelRatio}%`;
-    if (runtime.key === 'executionOrder') return `집행 명령 대상이 받는 피해 +${runtime.damagePctAtLevel10 * levelRatio}%`;
-    if (runtime.key === 'vanguardBanner') return `소환수 피해 ${runtime.summonDamagePctAtLevel10 * levelRatio}% 증폭`;
-    if (runtime.key === 'quicksilver') return `공격·이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
-    if (runtime.key === 'sunOath') return `생명력 ${runtime.lifeThresholdPct}% 이하에서 받는 피해 ${runtime.takenLessPctAtLevel10 * levelRatio}% 감소`;
     return '';
 }
 
@@ -205,78 +223,88 @@ function getTalentCardEffectLines(heroId, classKey, level) {
             lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
         }
         let applied = getTalentPreciseAppliedTexts(makeTalentComboKey(heroId, classKey), def.surface, lv);
-        if (applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${lv}] ${applied.map(escapeTalentHtml).join(' · ')}</span>`);
+        if (applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${lv}] ${applied.map(escapeTalentHtml).join(', ')}</span>`);
     }
     // 이면효과: 실제 스탯(레벨 비례)
     let hid = talentHiddenList(def).filter(h => h && h.stat);
     if (hid.length) {
         let parts = hid.map(h => `${getTalentStatLabel(h.stat)} +${talentHiddenVal(h, lv)}%`);
-        lines.push(`<span style="color:#9fe0ff;">[이면] ${parts.join(' · ')}</span>`);
+        lines.push(`<span style="color:#9fe0ff;">[이면] ${parts.join(', ')}</span>`);
     }
     return lines;
 }
 
 // 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
+const TALENT_UNIQ_LABELS = {
+    projectilePatternMode: p => `투사체 패턴: ${typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[p.mode] ? PROJECTILE_PATTERN_MODE_DB[p.mode].label : p.mode}`,
+    cosmosPenetration: p => `저항 관통 +${p.pen}%`,
+    poisonDamageMorePct: p => `중독 피해 +${p.pct}%`,
+    igniteDamageMorePct: p => `점화 피해 +${p.pct}%`,
+    hitShockedEnemyDamageMorePct: p => `감전된 적에게 주는 피해 +${p.pct}%`,
+    alwaysShock: () => `타격마다 감전 판정을 한 번 더 함`,
+    stackingElementalResDownOnHit: p => `원소 타격마다 그 적의 원소 저항 -${p.perHit}%(최대 -${p.max}%)`,
+    hitApplyChaosResDown: p => `타격 시 적 카오스 저항 -${p.perHit}%(최대 ${p.maxStacks}중첩)`,
+    realmAllResDownOnHit: p => `타격 시 적 모든 저항 -${p.perHit}%(최대 ${p.max}%, ${p.duration}초)`,
+    minRollEqualsMaxRoll: () => `항상 최대 피해로 적중`,
+    maxRollBonusHit: () => `피해 굴림이 130% 이상이면 그 피해의 50%로 한 번 더 침`,
+    instantLeechAndDoubleDamage: p => `흡혈의 ${p.instantLeechPct}%를 바로 회복, ${p.doubleDamageChance}% 확률로 피해 2배`,
+    projectileDoubleStrikePct: p => `투사체 연속 타격 확률 +${p.pct}%`,
+    projectileExtraShotBonus: p => `투사체 추가 발사 +${p.shots}`,
+    lifePctAsEnergyShield: p => `최대 생명력의 ${p.pct}%를 에너지 보호막으로`,
+    overhealCapPct: p => `생명력과 에너지 보호막 초과 회복 +${p.pct}%`,
+    hpToPhysPct: () => `최대 생명력이 물리 피해를 강화`,
+    labyrinthShackles: () => `이동 속도가 피해로 전환`,
+    grandBreachCrown: p => `에너지 보호막 +${p.esPct}%, 에너지 보호막의 ${p.spellFromEsPct}%를 주문 피해로`,
+    guardianArmor: p => `몬스터에게 받는 피해 -${p.takenLessPct}%(보스 -${p.bossTakenLessPct}%)`,
+    curseCrown: p => `저주 한도 +${p.extraCurseCap}, 저주마다 피해 +${p.finalDmgPerCursePct}%`,
+    genericTakenDamageReducePct: p => `받는 피해 -${p.pct}%`,
+    chaosTakenDamageReducePct: p => `받는 카오스 피해 -${p.pct}%`,
+    uniqueTakenReduceWhen1Enemy: p => `적이 하나일 때 받는 피해 -${p.pct}%`,
+    uniqueTakenReduceWhen2Enemies: p => `적이 둘 이상일 때 받는 피해 -${p.pct}%`,
+    lifeRecoupTakenDamage: p => `받은 피해의 ${p.pct}%를 ${p.duration}초간 생명력으로 회수`,
+    realmAllMaxRes: p => `모든 최대 저항 +${p.maxRes}%`,
+    immuneBleed: () => `출혈에 걸리지 않음`,
+    immuneFreeze: () => `빙결에 걸리지 않음`,
+    immuneIgnite: () => `점화에 걸리지 않음`,
+    uniqueBlockChance: p => `막기 확률 +${p.chance}%`,
+    blockedDamageTakenPct: p => `막기 시 피해의 ${p.pct}%를 받음`,
+    dragonVeinGuard: p => `타격 시 ${p.chance}% 확률로 ${p.duration}초 동안 최대 생명력 ${p.hpPct}%의 보호막`,
+    leechEfficiencyOnKill: p => `처치 시 ${p.duration}초간 흡혈 효율 +${p.efficiencyPct}%`,
+    cosmosSustain: p => `생명력 재생 +${p.regen}%, 흡혈 +${p.leech}%`,
+    realmRegenRateAndRegen: p => `재생 속도 +${p.regenRatePct}%, 생명력 재생 +${p.regen}%`,
+    corpseExplodeOnKill: p => `처치 시 ${p.chance}% 확률로 시체 폭발(생명력 ${p.lifePct}%)`,
+    meteorFootsteps: p => `치명타 시 ${p.chance}% 확률로 모든 적에게 그 피해의 ${p.damagePct}%`,
+    queenBeeSummonOnHit: p => `타격 시 ${p.chance}% 확률로 벌 소환(최대 ${p.maxBees})`,
+    shockTracerGreaves: p => `감전된 적을 맞히면 그 피해의 ${p.strikeDamagePct}%로 한 번 더 침, 감전에 걸리지 않음`,
+    frostSentinelBoots: () => `한기와 빙결에 걸리지 않음`,
+    realmKillMoveStacks: p => `처치 시 이동 속도 +${p.movePerStack}%(최대 ${p.maxStacks}중첩)`,
+    overkillSplash: () => `적을 처치하고 남은 피해가 다른 적 모두에게 튐`,
+    summonDeathDamageBuff: p => `소환수 사망 시 피해 +${p.pct}%(${p.duration}초)`,
+    summonCritAspdStacks: p => `소환수 치명타 시 공격 속도 +${p.aspd}%(최대 ${p.maxStacks}중첩)`,
+    summonCapBonus: p => `소환수 한도 +${p.cap}`,
+    summonEfficiencyBonus: p => `소환수 효율 +${p.pct}%`,
+    projectileTargetBonus: p => `투사체 대상 +${p.target}`,
+    dsAndTargetAnyBonus: p => (p.ds ? `연속 타격 +${p.ds}%, ` : '') + `공격 대상 +${p.target}`,
+    esAmpAndRecoverOnCrit: p => `에너지 보호막 +${p.ampPct}%, 치명타 시 에너지 보호막 ${p.recoverPctOnCrit}% 회복`,
+    warcryResonanceBelt: p => `활성 함성마다 피해 +${p.perWarcryAmpPct}%`,
+    // 2026-10-02 전직 18종의 새 카드
+    uniqueMinDmgRoll: p => `최소 피해 보정 +${p.pct}%`,
+    underdogNonMaxRollMorePct: p => `최대가 아닌 피해 굴림의 피해 ${p.pct}% 증폭`,
+    cosmosSpeedBurst: p => `이동 속도 +${p.move}%, 공격 속도 +${p.aspd}%`,
+    uniqueDeflectDamageReduce: p => `비껴내기 피해 감소 +${p.pct}%`,
+    instakillNormalOnHitPct: p => `타격 시 ${p.pct}% 확률로 일반 몬스터 즉시 처치`,
+    cosmosFinalDmg: p => `피해 +${p.pct}%`,
+    realmPoisonDuration: p => `중독 지속 시간 +${p.durationPct}%`
+};
+
 function getTalentUniqLabel(key, p) {
-    p = p || {};
-    const M = {
-        cosmosPenetration: () => `저항 관통 +${p.pen}%`,
-        poisonDamageMorePct: () => `중독 피해 +${p.pct}%`,
-        igniteDamageMorePct: () => `점화 피해 +${p.pct}%`,
-        hitShockedEnemyDamageMorePct: () => `감전된 적 대상 피해 +${p.pct}%`,
-        alwaysShock: () => `타격 시 항상 감전`,
-        stackingElementalResDownOnHit: () => `타격 시 적 원소 저항 -${p.perHit}%(최대 ${p.max}%)`,
-        hitApplyChaosResDown: () => `타격 시 적 카오스 저항 -${p.perHit}%(최대 ${p.maxStacks}중첩)`,
-        realmAllResDownOnHit: () => `타격 시 적 모든 저항 -${p.perHit}%(최대 ${p.max}%, ${p.duration}초)`,
-        minRollEqualsMaxRoll: () => `항상 최대 피해로 적중`,
-        maxRollBonusHit: () => `최대 피해 굴림 시 추가 타격`,
-        instantLeechAndDoubleDamage: () => `즉시 흡혈 ${p.instantLeechPct}% · 2배 피해 ${p.doubleDamageChance}% 확률`,
-        projectileDoubleStrikePct: () => `투사체 연속타격 확률 +${p.pct}%`,
-        projectileExtraShotBonus: () => `투사체 추가 발사 +${p.shots}`,
-        lifePctAsEnergyShield: () => `최대 생명력의 ${p.pct}%를 에너지 보호막으로`,
-        overhealCapPct: () => `생명력·에너지 보호막 초과 회복 +${p.pct}%`,
-        hpToPhysPct: () => `최대 생명력이 물리 피해를 강화`,
-        labyrinthShackles: () => `이동 속도가 피해로 전환`,
-        grandBreachCrown: () => `에너지 보호막 +${p.esPct}% · ES의 ${p.spellFromEsPct}%를 주문 피해로`,
-        guardianArmor: () => `받는 피해 -${p.takenLessPct}%(보스 -${p.bossTakenLessPct}%)`,
-        curseCrown: () => `저주 한도 +${p.extraCurseCap} · 저주당 피해 +${p.finalDmgPerCursePct}%`,
-        genericTakenDamageReducePct: () => `받는 피해 -${p.pct}%`,
-        chaosTakenDamageReducePct: () => `받는 카오스 피해 -${p.pct}%`,
-        uniqueTakenReduceWhen1Enemy: () => `적 1마리일 때 받는 피해 -${p.pct}%`,
-        uniqueTakenReduceWhen2Enemies: () => `적 2마리 이상일 때 받는 피해 -${p.pct}%`,
-        lifeRecoupTakenDamage: () => `받은 피해의 ${p.pct}%를 ${p.duration}초간 생명력으로 회수`,
-        realmAllMaxRes: () => `모든 최대 저항 +${p.maxRes}%`,
-        immuneBleed: () => `출혈 면역`,
-        immuneFreeze: () => `빙결 면역`,
-        immuneIgnite: () => `점화 면역`,
-        uniqueBlockChance: () => `막기 확률 +${p.chance}%`,
-        blockedDamageTakenPct: () => `막기 시 피해의 ${p.pct}%를 받음`,
-        dragonVeinGuard: () => `피격 시 ${p.chance}% 확률로 ${p.duration}초 피해 경감`,
-        leechEfficiencyOnKill: () => `처치 시 ${p.duration}초간 흡혈 효율 +${p.efficiencyPct}%`,
-        cosmosSustain: () => `생명력 재생 +${p.regen}% · 흡혈 +${p.leech}%`,
-        realmRegenRateAndRegen: () => `재생 속도 +${p.regenRatePct}% · 생명력 재생 +${p.regen}%`,
-        corpseExplodeOnKill: () => `처치 시 ${p.chance}% 확률로 시체 폭발(생명력 ${p.lifePct}%)`,
-        meteorFootsteps: () => `이동 시 ${p.chance}% 확률로 메테오(${p.damagePct}%)`,
-        queenBeeSummonOnHit: () => `타격 시 ${p.chance}% 확률로 벌 소환(최대 ${p.maxBees})`,
-        shockTracerGreaves: () => `타격 시 감전 추적탄(${p.strikeDamagePct}%)`,
-        frostSentinelBoots: () => `냉기 파수꾼 소환`,
-        realmKillMoveStacks: () => `처치 시 이동 속도 +${p.movePerStack}%(최대 ${p.maxStacks}중첩)`,
-        overkillSplash: () => `초과 처치 피해 광역 확산`,
-        summonDeathDamageBuff: () => `소환수 사망 시 피해 +${p.pct}%(${p.duration}초)`,
-        summonCritAspdStacks: () => `소환수 치명타 시 공격 속도 +${p.aspd}%(최대 ${p.maxStacks}중첩)`,
-        summonCapBonus: () => `소환수 한도 +${p.cap}`,
-        summonEfficiencyBonus: () => `소환수 효율 +${p.pct}%`,
-        projectileTargetBonus: () => `투사체 대상 +${p.target}`,
-        dsAndTargetAnyBonus: () => `연속 타격 +${p.ds}% · 대상 +${p.target}`,
-        esAmpAndRecoverOnCrit: () => `에너지 보호막 +${p.ampPct}% · 치명타 시 ES 회복 ${p.recoverPctOnCrit}%`,
-        warcryResonanceBelt: () => `함성당 피해 +${p.perWarcryAmpPct}%`
-    };
-    return M[key] ? M[key]() : key;
+    const label = TALENT_UNIQ_LABELS[key];
+    return label ? label(p || {}) : key;
 }
 
 function getTalentCardName(heroId, classKey) {
     let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
-    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
+    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '미전직';
     // 카드 이름 = 재능 + 전직을 융합한 전직명. (부제에 원본 재능/전직을 함께 표기)
     let def = getTalentCardDef(heroId, classKey);
     let bloomName = (def && def.name) ? def.name : `${heroLabel} ${classLabel}`;
@@ -289,8 +317,8 @@ function getOwnedTalentCardCount() {
 }
 
 // ---- 장착 슬롯 (P4) ----
-// 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다.
-const TALENT_CARD_SLOT_UNLOCKS = [1, 4, 12, 25, 40, 60];
+// 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다. 카드 18장 기준(2026-10-02 재능 정리, 120장일 때 1, 4, 12, 25, 40, 60).
+const TALENT_CARD_SLOT_UNLOCKS = [1, 2, 4, 6, 9, 12];
 const TALENT_CARD_SLOT_COUNT = TALENT_CARD_SLOT_UNLOCKS.length;
 
 function ensureTalentCardLoadout() {
@@ -360,6 +388,7 @@ function getActiveTalentCardStatBonuses() {
         let level = Math.max(1, Math.floor(owned[key].level || 1));
         getTalentCardStatBonuses(heroId, classKey, level).forEach(b => out.push({ id: b.stat, val: b.val }));
     }
+    pushGrantedBloomMechanicStats(out);
     let mistralLevel = isTalentCardActive('hero1__ranger');
     let mistralRuntime = getTalentCardRuntimeDefinition('hero1__ranger');
     let mistralStacks = getTalentMistralStackCount();
@@ -435,142 +464,8 @@ function getActiveTalentRuntimeConfig(comboKey) {
     return config ? { config, level, levelRatio: level / TALENT_CARD_MAX_LEVEL } : null;
 }
 
-function getTalentShadowCritDamageMultiplier(isCrit) {
-    let active = isCrit ? getActiveTalentRuntimeConfig('hero1__assassin') : null;
-    if (!active) return 1;
-    let upper = 1 + (Math.max(1, Number(active.config.maxMultiplierAtLevel10) || 1) - 1) * active.levelRatio;
-    return 1 + Math.random() * (upper - 1);
-}
-
-function getTalentSummonCritChance(baseChance) {
-    let chance = Math.max(0, Math.min(1, Number(baseChance) || 0));
-    if (!getActiveTalentRuntimeConfig('hero1__soulbinder')) return chance;
-    return 1 - ((1 - chance) * (1 - chance));
-}
-
-function rollTalentSummonCrit(baseChance) {
-    let chance = Math.max(0, Math.min(1, Number(baseChance) || 0));
-    if (!getActiveTalentRuntimeConfig('hero1__soulbinder')) return Math.random() < chance;
-    return Math.random() < chance || Math.random() < chance;
-}
-
 function isTalentInstantWarcryActive() {
     return !!getActiveTalentRuntimeConfig('hero2__warrior');
-}
-
-function getTalentSummonDamageMultiplier() {
-    let active = getActiveTalentRuntimeConfig('hero2__soulbinder');
-    if (!active) return 1;
-    return 1 + Math.max(0, Number(active.config.summonDamagePctAtLevel10) || 0) * active.levelRatio / 100;
-}
-
-function getTalentQuicksilverConfig() {
-    let active = getActiveTalentRuntimeConfig('hero2__catalyst');
-    if (!active) return null;
-    return {
-        speedMultiplier: 1 + active.config.speedPctAtLevel10 * active.levelRatio / 100,
-        regenMultiplier: 1 - active.config.regenLessPctAtLevel10 * active.levelRatio / 100,
-        regenPointPenalty: active.config.regenPointPenaltyAtLevel10 * active.levelRatio
-    };
-}
-
-function getTalentConditionalDamageTakenMultiplier(maxHp) {
-    let active = getActiveTalentRuntimeConfig('hero2__crusader');
-    if (!active) return 1;
-    let lifeRatio = Math.max(0, Number(game.playerHp) || 0) / Math.max(1, Number(maxHp) || 1) * 100;
-    if (lifeRatio > active.config.lifeThresholdPct) return 1;
-    return 1 - active.config.takenLessPctAtLevel10 * active.levelRatio / 100;
-}
-
-function tickTalentRangerCharge(now) {
-    let active = getActiveTalentRuntimeConfig('hero2__ranger');
-    let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    if (!active) return clearTalentRangerChargeState(runtime);
-    let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
-    if (!alive.some(enemy => enemy.id === runtime.rangerChargeTargetId)) {
-        delete runtime.rangerChargeTargetId;
-        delete runtime.rangerChargeTargetPending;
-    }
-    if (!runtime.rangerChargeNextAt) runtime.rangerChargeNextAt = timestamp + active.config.intervalMs;
-    if (alive.length > 0 && timestamp >= runtime.rangerChargeNextAt) {
-        runtime.rangerChargeTargetId = alive[Math.floor(Math.random() * alive.length)].id;
-        runtime.rangerChargeTargetPending = true;
-        runtime.rangerChargeNextAt = timestamp + active.config.intervalMs;
-    }
-    if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) delete runtime.rangerChargeBuffUntil;
-}
-
-function clearTalentRangerChargeState(runtime) {
-    delete runtime.rangerChargeTargetId;
-    delete runtime.rangerChargeTargetPending;
-    delete runtime.rangerChargeNextAt;
-    delete runtime.rangerChargeBuffUntil;
-    delete runtime.rangerChargeBuffPct;
-}
-
-function getTalentRangerChargeTarget(enemies) {
-    let runtime = game.talentCardRuntime;
-    if (!getActiveTalentRuntimeConfig('hero2__ranger') || !runtime || !runtime.rangerChargeTargetPending) return null;
-    return (Array.isArray(enemies) ? enemies : game.enemies || [])
-        .find(enemy => enemy && enemy.hp > 0 && enemy.id === runtime.rangerChargeTargetId) || null;
-}
-
-function isTalentRangerGuaranteedTarget(target) {
-    let runtime = getTalentCardRuntimeState();
-    return !!(getActiveTalentRuntimeConfig('hero2__ranger') && runtime.rangerChargeTargetPending
-        && target && target.id === runtime.rangerChargeTargetId);
-}
-
-function recordTalentRangerChargeHit(target, now) {
-    if (!isTalentRangerGuaranteedTarget(target)) return false;
-    let active = getActiveTalentRuntimeConfig('hero2__ranger');
-    let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    runtime.rangerChargeTargetPending = false;
-    delete runtime.rangerChargeTargetId;
-    runtime.rangerChargeBuffUntil = timestamp + active.config.buffDurationMs;
-    runtime.rangerChargeBuffPct = active.config.speedPctAtLevel10 * active.levelRatio;
-    return true;
-}
-
-function getTalentRangerChargeSpeedMultiplier(now) {
-    let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) return 1;
-    return 1 + Math.max(0, Number(runtime.rangerChargeBuffPct) || 0) / 100;
-}
-
-function getTalentExecutionOrderMultiplier(target) {
-    let active = getActiveTalentRuntimeConfig('hero2__inquisitor');
-    let marked = target && getTalentCardRuntimeState().executionOrders;
-    if (!active || !marked || !marked[target.id]) return 1;
-    return 1 + active.config.damagePctAtLevel10 * active.levelRatio / 100;
-}
-
-function markTalentExecutionOrder(target) {
-    if (!getActiveTalentRuntimeConfig('hero2__inquisitor') || !target || !(target.isBoss || target.isElite || target.elite)) return false;
-    let runtime = getTalentCardRuntimeState();
-    runtime.executionOrders = runtime.executionOrders || {};
-    if (runtime.executionOrders[target.id]) return false;
-    runtime.executionOrders[target.id] = true;
-    return true;
-}
-
-function getTalentFenrirConfig() {
-    return getActiveTalentRuntimeConfig('hero2__warlock');
-}
-
-function applyTalentFenrirSkill(skill, skillName) {
-    if (skillName !== '기본 공격') return skill;
-    const active = getTalentFenrirConfig();
-    if (!active) return skill;
-    return { ...skill, name: '펜리르의 독니', visualName: '펜리르의 독니', fenrirTooth: true,
-        dmg: skill.dmg * (1 + active.config.directDamageMorePctAtLevel10 * active.levelRatio / 100) };
-}
-
-function isTalentFenrirEngravingEnabled(skillName) {
-    return skillName === '기본 공격' && !!getTalentFenrirConfig();
 }
 
 function clearTalentCardRuntimeState() {
@@ -578,6 +473,7 @@ function clearTalentCardRuntimeState() {
 }
 
 // 특정 조합 카드가 "열린 슬롯"에 장착돼 있으면 그 레벨을 반환(아니면 0). 정밀 메커니즘 게이트용.
+// 키스톤이나 고유 주얼이 켠 옛 카드 효과(아래 getGrantedBloomMechanics)는 최대 레벨로 답한다.
 function isTalentCardActive(comboKey) {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
     let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
@@ -585,7 +481,43 @@ function isTalentCardActive(comboKey) {
     for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
         if (loadout[i] === comboKey && owned[comboKey]) return Math.max(1, Math.floor(owned[comboKey].level || 1));
     }
-    return 0;
+    return getGrantedBloomMechanics(game).has(comboKey) ? TALENT_CARD_MAX_LEVEL : 0;
+}
+
+// ── 카드가 아닌 곳에서 켜지는 옛 카드 효과(2026-10-02 재능 정리) ──
+// 얻을 수 없게 된 옛 카드 중 살린 효과는 전직 키스톤(CLASS_KEYSTONE_DEFS의 bloomMechanic)이나 고유 주얼(UNIQUE_JEWEL_DB의
+// bloomMechanic)이 켠다. 효과 코드는 카드 id로 켜졌는지 묻기 때문에(isTalentCardActive) 그대로 두고, 그 id를 최대 레벨로 켠 것처럼
+// 답한다. 정밀 규칙의 능력치 줄과 고유 효과 줄도 최대 레벨로 들어가고, 카드의 이면 효과는 들어가지 않는다.
+const talentGrantedMechanicsByOwner = new WeakMap();
+
+function collectGrantedBloomMechanics(owner) {
+    const keys = new Set();
+    if (typeof forEachActiveKeystoneDef === 'function') forEachActiveKeystoneDef(owner, def => { if (def.bloomMechanic) keys.add(def.bloomMechanic); });
+    const rows = typeof collectSocketedJewels === 'function' && typeof UNIQUE_JEWEL_DB !== 'undefined' ? collectSocketedJewels(owner.equipment) : [];
+    rows.forEach(row => {
+        const unique = row.jewel && row.jewel.uniqueId ? UNIQUE_JEWEL_DB.find(entry => entry.id === row.jewel.uniqueId) : null;
+        if (unique && unique.bloomMechanic) keys.add(unique.bloomMechanic);
+    });
+    return keys;
+}
+
+/** getPlayerStats가 장비와 키스톤을 읽을 때(recomputeCosmosTwinKeystones) 다시 센다. */
+function refreshGrantedBloomMechanics(owner = game) {
+    const keys = collectGrantedBloomMechanics(owner);
+    talentGrantedMechanicsByOwner.set(owner, keys);
+    return keys;
+}
+
+/** 키스톤과 고유 주얼이 켠 옛 카드 효과 id. 아직 센 적이 없으면 지금 센다. */
+function getGrantedBloomMechanics(owner = game) {
+    return owner && typeof owner === 'object' ? (talentGrantedMechanicsByOwner.get(owner) || refreshGrantedBloomMechanics(owner)) : new Set();
+}
+
+function pushGrantedBloomMechanicStats(out) {
+    getGrantedBloomMechanics(game).forEach(key => {
+        const rule = getTalentPreciseRule(key);
+        Object.entries((rule && rule.stats) || {}).forEach(([stat, value]) => out.push({ id: stat, val: Number(value) || 0 }));
+    });
 }
 
 // 플레이어 공격 1회 발생 시 호출(combat.performPlayerAttack). 카운터/스택 등 정밀 메커니즘의 런타임 상태만 갱신(제어흐름 변경 없음).
@@ -602,45 +534,9 @@ function talentOnPlayerAttack(pStats, isCrit) {
     }
 }
 
-// 23 산맥추적자: 생명력이 최대인 적 첫 타격 시 적 최대 생명력 비례 추가 피해(보스 4%, 그 외 8%).
-function getTalentFullLifeBurst(enemy, wasFull) {
-    if (!wasFull || !enemy || enemy.talentFullLifeBurstConsumed) return 0;
-    let lv = isTalentCardActive('hero2__hunter');
-    if (!lv) return 0;
-    enemy.talentFullLifeBurstConsumed = true;
-    let pct = (enemy.isBoss ? 0.04 : 0.08) * (lv / TALENT_CARD_MAX_LEVEL);
-    return Math.max(0, Math.floor((enemy.maxHp || enemy.hp || 0) * pct));
-}
-
-// 상태이상 시너지형 표면효과: 적이 받는 피해 배율(라이브 판정, 적 상태이상 기반).
-//  5 프리즈믹 아처 / 29 브리지트 / 99 서리암살자
-function getTalentEnemyTakenMul(enemy, ele, crit) {
-    let a = (enemy && Array.isArray(enemy.ailments)) ? enemy.ailments : [];
-    let has = t => a.some(x => x && x.type === t && (x.time || 0) > 0);
-    let m = 1;
-    if (isTalentCardActive('hero1__elementalist') && ele === 'fire' && has('scorch')) {
-        m *= 1 + 0.20 * isTalentCardActive('hero1__elementalist') / TALENT_CARD_MAX_LEVEL;
-    }
-    if (isTalentCardActive('hero3__elementalist') && ele !== 'phys' && ele !== 'chaos'
-        && has('warmSeed') && has('frostSeed') && has('stormSeed')) {
-        m *= 1 + 0.20 * isTalentCardActive('hero3__elementalist') / TALENT_CARD_MAX_LEVEL;
-    }
-    if (isTalentCardActive('hero9__assassin') && (has('chill') || has('freeze'))) { // 99: 냉각된 적 받는 피해 +
-        m *= 1 + 0.12 * isTalentCardActive('hero9__assassin') / TALENT_CARD_MAX_LEVEL;
-    }
-    return m;
-}
-
 // 26 숲마당 투사: 플레이어 공격이 반드시 명중(적 회피 무시).
 function getTalentAlwaysHit() {
     return isTalentCardActive('hero3__gladiator') > 0;
-}
-
-// 재능 처형: 활성 카드 중 "낮은 체력 일반 몬스터 마무리" 임계값(체력 비율). 없으면 0.
-function getTalentExecuteThreshold() {
-    let t = 0;
-    if (isTalentCardActive('hero6__hunter')) t = Math.max(t, 0.25);   // 71 하운드
-    return t;
 }
 
 // 이번 공격에 적용할 재능 정밀 피해 배율(calcDamage에서 곱).
@@ -686,7 +582,6 @@ function getActiveTalentKeystoneUniqueEffects() {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
     let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
     let unlocked = getUnlockedTalentSlotCount();
-    if (unlocked <= 0) return [];
     let out = [];
     for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
         let key = loadout[i];
@@ -694,6 +589,11 @@ function getActiveTalentKeystoneUniqueEffects() {
         let { heroId, classKey } = parseTalentComboKey(key);
         out.push(...getTalentCardUniqEffects(heroId, classKey, owned[key].level));
     }
+    // 키스톤과 고유 주얼이 켠 옛 카드 효과의 고유 효과 줄(최대 레벨)
+    getGrantedBloomMechanics(game).forEach(key => {
+        let { heroId, classKey } = parseTalentComboKey(key);
+        out.push(...getTalentCardUniqEffects(heroId, classKey, TALENT_CARD_MAX_LEVEL));
+    });
     return out;
 }
 
@@ -702,22 +602,11 @@ safeExposeGlobals({
     grantTalentStoneShield,
     getTalentMoonReturnConfig,
     canTalentCardApplyEnemyAilment,
-    getTalentShadowCritDamageMultiplier,
-    getTalentSummonCritChance,
-    rollTalentSummonCrit,
     isTalentInstantWarcryActive,
-    getTalentSummonDamageMultiplier,
-    getTalentQuicksilverConfig,
-    getTalentConditionalDamageTakenMultiplier,
-    tickTalentRangerCharge,
-    getTalentRangerChargeTarget,
-    isTalentRangerGuaranteedTarget,
-    recordTalentRangerChargeHit,
-    getTalentRangerChargeSpeedMultiplier,
-    getTalentExecutionOrderMultiplier,
-    markTalentExecutionOrder,
-    getTalentFenrirConfig,
-    applyTalentFenrirSkill,
-    isTalentFenrirEngravingEnabled,
+    getTalentBloomHeroIdForAscendancy,
+    getTalentBloomCardKeyForAscendancy,
+    getTalentBloomCardKeys,
+    refreshGrantedBloomMechanics,
+    getGrantedBloomMechanics,
     clearTalentCardRuntimeState
 });

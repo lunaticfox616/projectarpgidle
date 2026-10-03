@@ -29,7 +29,7 @@ const {prepare} = require('./audit-combat-20260905');
     assert.strictEqual(state.inventory.length, 1, 'enemy loot bonus affects equipment, not only currencies');
     const zone = {id:1,type:'act'};
     assert.strictEqual(r.getEquipmentDropChances(zone,{dropMul:2}).equipment, 0.0153);
-    assert.strictEqual(r.getEquipmentDropChances(zone,{dropMul:2}).growth, 0.006, 'growth still has its own base chance');
+    assert.strictEqual(r.getEquipmentDropChances(zone,{dropMul:2}).talisman, 0.006, 'wild talismans keep the old growth base chance (0.3%) with the same bonuses');
     assert.strictEqual(r.getEnemyLootDropMultiplier({type:'underworld'},{dropMul:100}), 1.125, 'endless caps and content multiplier apply once');
     assert(Number.isFinite(r.getEquipmentDropChances({type:'labyrinth'},enemy).equipment), 'missing floor uses the entry floor');
 }

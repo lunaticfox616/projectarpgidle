@@ -117,23 +117,31 @@ assert.ok(ui.indexOf('${metaMarkup}', enemyFrameSlot) > enemyFrameSlot,
   'gauge-mob-hp-v1.png', 'gauge-elite-hp-v1.png', 'gauge-boss-hp-v1.png'
 ].forEach(file => assert.ok(css.includes(file) || reliquaryCss.includes(file), `${file} must provide a live gauge texture`));
 assert.ok(reliquaryCss.includes('health-player-five-v3.png'),
-  'desktop equipped flasks must reuse the supplied five-socket artwork');
+  'the desktop skill rack mirrors the supplied five-socket artwork');
 assert.ok(!html.includes('player-hud-rack-title'),
   'the equipped-gem artwork must not repeat a title beside the icons');
-assert.strictEqual((html.match(/<span class="combat-flask-mini/g) || []).length, 1, 'the boot HUD must expose only the always-equipped health flask before live state renders');
+assert.ok(!html.includes('combat-flask-mini'), 'the boot HUD has no flask strip (flasks removed 2026-10-01)');
 const skinContext = { document: { body: { dataset: {} } } };
 vm.createContext(skinContext);
 vm.runInContext(readFunctionSource(fs.readFileSync('js/utils.js', 'utf8'), 'normalizeUiSkin')
     + readFunctionSource(ui, 'applyUiSkin'), skinContext, { filename: 'ui-skins.js' });
-assert.strictEqual(skinContext.normalizeUiSkin('verdigris'), 'verdigris', 'a supported skin must survive normalization');
-assert.strictEqual(skinContext.normalizeUiSkin('missing'), 'reliquary', 'an unknown saved skin must fall back safely');
+// 2026-10-01: the legacy skins kept the old column layout the pixel HUD cannot sit in (PC life orb off screen); they
+// are retired and every saved skin loads into the one supported layout.
+assert.strictEqual(skinContext.normalizeUiSkin('verdigris'), 'rift', 'a retired skin must load into the supported pixel HUD layout');
+assert.strictEqual(skinContext.normalizeUiSkin('missing'), 'rift', 'an unknown saved skin must fall back to the default rift skin');
+assert.strictEqual(skinContext.normalizeUiSkin('reliquary'), 'rift', 'the old default must not bring back the column layout');
 skinContext.applyUiSkin('crimson');
-assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'crimson', 'skin selection must update one body-level theme boundary');
-assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
-const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
-assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must remain square');
-assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
-assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
+assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'rift', 'skin application must update one body-level theme boundary');
+assert.ok(!/<option value="(?:reliquary|verdigris|crimson)"/.test(html), 'settings must not offer a retired skin');
+// 2026-10-02: the painted atlas (rows 169px apart, the CSS assumed 180) became a drawn pixel board with even 17-dot cells.
+assert.ok(css.includes("pixel/status-icons.png") && fs.existsSync('assets/ui/pixel/status-icons.png'), 'active effects must use the drawn pixel icon board');
+assert.ok(!fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'the painted effect atlas must stay removed');
+const effectAtlasSize = readPngSize('assets/ui/pixel/status-icons.png');
+assert.deepStrictEqual(effectAtlasSize, [119, 119], 'effect board must be seven 17-dot cells each way');
+assert.strictEqual(readPngColorType('assets/ui/pixel/status-icons.png'), 6, 'effect board must retain RGBA transparency');
+const { ICONS: statusIcons } = require('./pixel-status-icons.cjs');
+const usedSprites = new Set([...ui.matchAll(/^\s+\w+: \{ sprite: (\d+), label:/gm)].map(match => Number(match[1])).concat(48));
+usedSprites.forEach(sprite => assert.ok(statusIcons.some(icon => icon.index === sprite), `effect sprite ${sprite} must be drawn`));
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
 assert.ok(ui.includes('onmouseenter="showEnemyTraitTooltip(event)"') && !ui.includes('traitEl.title ='),
   'boss trait hover must use the shared custom tooltip without a native title fallback');
@@ -155,13 +163,25 @@ assert.ok(items.includes('if (ORB_DB[key]) ORB_DB[key].icon = icon;'), 'the cano
 assert.ok(ui.includes('function getCurrencyIconHtml('), 'currency cards must render icons through one shared helper');
 assert.ok(ui.includes('currency-tooltip-icon'), 'currency tooltips must retain icon art');
 
-const currencyIconContext = { ORB_DB: { magicBud: { icon: 'assets/ui/currency/magic-bud.png' }, fossil: {} } };
+const utils = fs.readFileSync('js/utils.js', 'utf8');
+const currencyIconContext = {
+  ORB_DB: { magicBud: { icon: 'assets/ui/currency/magic-bud.png' }, fossil: {} },
+  PIXEL_ICON_SOURCE_SET: new Set(['assets/ui/currency/magic-bud.png']),
+  game: { settings: { iconArtStyle: 'painted' } }
+};
 vm.createContext(currencyIconContext);
-vm.runInContext(`${readFunctionSource(ui, 'getCurrencyIconHtml')}; this.getCurrencyIconHtml = getCurrencyIconHtml;`, currencyIconContext);
+vm.runInContext(`${readFunctionSource(utils, 'normalizeIconArtStyle')}; ${readFunctionSource(utils, 'pixelIconPath')};
+${readFunctionSource(ui, 'getCurrencyIconHtml')}; this.getCurrencyIconHtml = getCurrencyIconHtml;`, currencyIconContext);
 assert.strictEqual(
   currencyIconContext.getCurrencyIconHtml('magicBud'),
   '<img class="currency-icon" src="assets/ui/currency/magic-bud.png" alt="" aria-hidden="true">',
   'currency card helper must render the canonical item art'
+);
+currencyIconContext.game.settings.iconArtStyle = 'pixel';
+assert.strictEqual(
+  currencyIconContext.getCurrencyIconHtml('magicBud'),
+  '<img class="currency-icon" src="assets/px/ui/currency/magic-bud.png" alt="" aria-hidden="true">',
+  'the default pixel icon setting renders the pixel copy of the same art'
 );
 assert.strictEqual(currencyIconContext.getCurrencyIconHtml('fossil'), '', 'currencies without artwork must retain a text-only fallback');
 

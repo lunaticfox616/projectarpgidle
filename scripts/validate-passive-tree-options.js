@@ -46,9 +46,8 @@ function assertStructuralContracts(tree) {
     starts.forEach(node => assert.deepStrictEqual(node.runtimeEffects, [], `${node.name} 시작점은 효과가 없어야 합니다.`));
     tree.nodes.filter(node => node.type === 'void').forEach(node =>
         assert.deepStrictEqual(node.runtimeEffects, [], `${node.id} 공허 노드는 제작 전 고정 효과가 없어야 합니다.`));
-    const sockets = tree.nodes.filter(node => node.type === 'quatrefoil');
-    assert.strictEqual(sockets.filter(node => node.starWedgeMode === 'mutation').length, 3, '중앙 성률은 3개여야 합니다.');
-    assert.strictEqual(sockets.filter(node => node.starWedgeMode === 'constellation').length, 6, '외곽 성률은 6개여야 합니다.');
+    assert.strictEqual(tree.nodes.filter(node => node.type === 'quatrefoil').length, 0, '별쐐기 허브는 공허 소켓이 되어야 합니다.');
+    assert.strictEqual(tree.nodes.filter(node => node.type === 'void' && node.voidRing === 'outer').length, 6, '외곽 공허 소켓은 6개여야 합니다.');
 }
 
 function assertEffectsComplete(tree) {

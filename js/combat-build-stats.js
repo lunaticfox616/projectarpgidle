@@ -1,5 +1,5 @@
 // Build-source accumulation. Each call owns its output buckets; live HP/buffs stay in combat.js.
-// Source order is significant: support scaling runs after these sources, before shrine/flask buffs.
+// Source order is significant: support scaling runs after these sources, before shrine buffs.
 
 /** Adds allocated loop passives to the caller-owned bucket without changing progression. */
 function accumulateCombatSeasonStats(bucket, nodeIds, levels) {
@@ -15,6 +15,8 @@ function accumulateCombatSeasonStats(bucket, nodeIds, levels) {
 
 /** Ascendancy nodes may contain one stat or multiple lines; keep their authored order. */
 function accumulateCombatAscendStats(bucket, nodeIds, ascendClass) {
+    // 키스톤 줄은 전직을 고르지 않았어도 우주계 쌍둥이 키스톤으로 들어올 수 있다.
+    accumulateCombatKeystoneStats(bucket, game);
     if (!ascendClass) return;
     const tree = getClassTreeDef(ascendClass);
     nodeIds.forEach(id => {
@@ -26,6 +28,52 @@ function accumulateCombatAscendStats(bucket, nodeIds, ascendClass) {
         }
         addStatToBucket(bucket, node.stat, node.val);
     });
+}
+
+/** 고른 키스톤과 우주계 쌍둥이 키스톤 중 hasKeystone이 참인 것의 정의를 하나씩 넘긴다. */
+function forEachActiveKeystoneDef(owner, visit) {
+    const ids = new Set([...(owner.ascendKeystones || []), ...(owner.cosmosTwinKeystones || [])]);
+    ids.forEach(id => {
+        if (!hasKeystone(id, owner)) return;
+        const ownerClass = getAscendKeystoneOwnerClass(id);
+        const def = ownerClass ? (CLASS_KEYSTONE_DEFS[ownerClass] || []).find(node => node.id === id) : null;
+        if (def) visit(def);
+    });
+}
+
+/** 능력치 줄(stats)로 동작하는 키스톤(2026-10-02에 더한 전직 여섯). */
+function accumulateCombatKeystoneStats(bucket, owner) {
+    forEachActiveKeystoneDef(owner, def => (Array.isArray(def.stats) ? def.stats : []).forEach(line => addStatToBucket(bucket, line.stat, line.val)));
+}
+
+/** 키스톤의 고유 효과 줄(uniques). 고유 장비, 재능 개화 카드와 같은 고유 효과 엔진 키를 쓴다. */
+function getActiveAscendKeystoneUniqueEffects(owner = game) {
+    const out = [];
+    forEachActiveKeystoneDef(owner, def => (Array.isArray(def.uniques) ? def.uniques : []).forEach(unique => {
+        out.push({ key: unique.key, params: Object.assign({}, unique.params || {}), itemName: '전직 키스톤: ' + def.name, sourceSlot: 'ascendKeystone' });
+    }));
+    return out;
+}
+
+/** getPlayerStats의 고유 효과 목록에 전직 키스톤과 재능 개화 카드의 고유 효과를 더한다(둘 다 이 한 경로로만 들어간다).
+ * 키스톤이 쓰는 키는 같은 키가 여러 번 오면 엔진이 값마다 더 좋은 쪽으로 합치므로(mergeBetterUniqueParams) 순서는 상관없다. */
+function pushBuildKeystoneUniqueEffects(target, owner = game) {
+    const talent = typeof getActiveTalentKeystoneUniqueEffects === 'function' ? getActiveTalentKeystoneUniqueEffects() : [];
+    getActiveAscendKeystoneUniqueEffects(owner).concat(talent).forEach(effect => { if (effect && effect.key) target.push(effect); });
+}
+
+/** 작을수록 좋은 고유 효과 값(재사용 대기, 발동 최소 적 수). */
+const LOWER_IS_BETTER_UNIQUE_PARAMS = new Set(['cooldown', 'cooldownSec', 'icdSec', 'minEnemies']);
+
+/** 같은 고유 효과를 여러 곳(고유 장비, 전직 키스톤)에서 받으면 값마다 더 좋은 쪽을 쓴다. 예전에는 나중 줄이 앞 줄을 통째로 덮어
+ * 더 약한 고유 장비가 키스톤 효과를 깎았다(2026-10-02 검토). 두 값은 엔진이 기본값을 채운 숫자다. */
+function mergeBetterUniqueParams(previous, next) {
+    if (!previous) return next;
+    const merged = { ...previous };
+    Object.keys(next).forEach(name => {
+        merged[name] = LOWER_IS_BETTER_UNIQUE_PARAMS.has(name) ? Math.min(previous[name], next[name]) : Math.max(previous[name], next[name]);
+    });
+    return merged;
 }
 
 /** Investment points are converted in the same order as the final-stat calculation. */
@@ -81,9 +129,8 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
             shieldBaseBlockChance: 0, shieldBlockChancePct: 0, shieldBlockChanceFlat: 0,
             equippedUniqueEffects: [] };
         for (const source of resolvedSources) {
-            const [, item, resolved] = source;
-            if (excludedSlots.has(item.slot) && !resolved.growthItem) continue;
-            if (excludedSlots.has('all:' + item.slot)) continue;
+            const [, item] = source;
+            if (excludedSlots.has(item.slot) || excludedSlots.has('all:' + item.slot)) continue;
             accumulateCombatEquipmentItem(result, source);
         }
         memo?.set('combat-equipment', result);
@@ -105,10 +152,28 @@ function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {
     applyStatsToBucket(result.gearBase, resolved.baseStats);
     applyStatsToBucket(result.gearExplicit, resolved.explicitStats);
     accumulateCombatItemDefenses(result, slotKey, item, resolved);
-    if (item.voidSocket?.open && item.voidSocket.jewel) {
-        getJewelStats(item.voidSocket.jewel).forEach(stat => addStatToBucket(result.gearExplicit, stat.id, stat.val));
+    accumulateCombatSocketJewels(result.gearExplicit, item);
+}
+
+/** 장비 소켓의 주얼: 공허 소켓 · 심연 소켓(황제의 심연띠는 증폭), 둘 다 소켓 주얼 배율을 받는다. */
+function accumulateCombatSocketJewels(bucket, item) {
+    const socketMultiplier = getSocketJewelMultiplier();
+    if (item.voidSocket?.open && item.voidSocket.jewel) addSocketJewelStats(bucket, item.voidSocket.jewel, socketMultiplier);
+    for (const socket of Array.isArray(item.abyssSockets) ? item.abyssSockets : []) {
+        if (socket?.jewel) addSocketJewelStats(bucket, socket.jewel, socketMultiplier * getAbyssJewelMultiplier(item));
     }
-    accumulateCombatAbyssJewels(result.gearExplicit, item);
+}
+
+// 심연 군주(워록 wlk8)와 재물욕(초월 공허)은 예전의 주얼 슬롯 추가 대신 장비 소켓 주얼의 옵션을 키운다(2026-09-30).
+const SOCKET_JEWEL_BONUS = Object.freeze({ warlockLord: 0.25, greed: 0.1 });
+function getSocketJewelMultiplier(owner = game) {
+    const lord = hasKeystone('wlk8', owner) ? SOCKET_JEWEL_BONUS.warlockLord : 0;
+    const greed = getTranscendentVoidPassiveCount('greed', owner) > 0 ? SOCKET_JEWEL_BONUS.greed : 0;
+    return 1 + lord + greed;
+}
+
+function addSocketJewelStats(bucket, jewel, multiplier) {
+    getJewelStats(jewel).forEach(stat => addStatToBucket(bucket, stat.id, Number((Number(stat.val || 0) * multiplier).toFixed(2))));
 }
 
 function accumulateCombatItemDefenses(result, slotKey, item, resolved) {
@@ -143,18 +208,11 @@ function accumulateCombatDefenseLine(result, flat, pct, stat) {
     if (stat.id === 'blockChance') result.shieldBlockChanceFlat += value;
 }
 
-function accumulateCombatAbyssJewels(bucket, item) {
-    if (!Array.isArray(item.abyssSockets)) return;
-    let multiplier = 1;
-    if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
-        const params = item.uniqueEffectParams || {};
-        const min = Number(params.ampMin || 1), max = Number(params.ampMax || 100);
-        const pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : (min + max) / 2;
-        multiplier = 1 + pct / 100;
-    }
-    for (const socket of item.abyssSockets) {
-        if (!socket?.jewel) continue;
-        getJewelStats(socket.jewel).forEach(stat =>
-            addStatToBucket(bucket, stat.id, Number((stat.val * multiplier).toFixed(2))));
-    }
+/** 황제의 심연띠: 심연 소켓 주얼 효과 증폭(고유 옵션의 굴린 값, 없으면 범위 가운데). */
+function getAbyssJewelMultiplier(item) {
+    if (!item || item.uniqueEffectKey !== 'abyssSocketAndJewelAmp') return 1;
+    const params = item.uniqueEffectParams || {};
+    const min = Number(params.ampMin || 1), max = Number(params.ampMax || 100);
+    const pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : (min + max) / 2;
+    return 1 + pct / 100;
 }

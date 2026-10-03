@@ -15,40 +15,31 @@ function reset(loop = 25) {
     run(`game=mergeDefaults({});game.season=${loop};game.maxZoneId=25;game.currentZoneId=1;contentProgression.sync()`);
 }
 
-check('cube purchase, legacy state and per-loop relock', () => {
+check('core drops need the purchase and reset with the loop', () => {
     reset();
     run('game.underworldProgress.highestFloor=11');
-    const before = json('game.coreCube');
-    assert.equal(run('maybeUnlockCoreCube({silent:true})'), false);
-    assert.equal(run('isCoreCubeUnlocked()'), false);
-    assert.deepEqual(json('game.coreCube'), before);
-    run('game.coreCube.completed=true;game.coreCube.revealedOptions=[{stat:"flatHp",value:100}]');
-    assert.deepEqual(json('getCoreCubeActiveStats()'), []);
+    assert.equal(run('coreItems.canDrop()'), false);
     run("game.contentProgression.inherited.push('cube')");
-    assert(run('maybeUnlockCoreCube({silent:true})'));
-    assert.equal(json('getCoreCubeActiveStats()')[0].val, 100);
-    run('relockCoreCubeForLoop()');
-    assert.equal(run('isCoreCubeUnlocked()'), false);
-    assert.equal(run('addCoreCubeBlurred45(1)'), 1);
-    assert(run('isCoreCubeUnlocked()'));
+    assert(run('coreItems.canDrop()'));
+    run('coreItems.equip(coreItems.receiveDrop(null).id)');
+    assert(json('coreItems.stats()').length >= 4);
+    run('coreItems.resetForLoop()');
+    assert.deepEqual(json('game.cores'), { equipped: null, owned: [] });
+    assert.deepEqual(json('coreItems.stats()'), []);
 });
 
-check('growth placement and loot require the purchased feature', () => {
+check('wild talisman drops (old growth drops) require the talisman unlock and loop 25', () => {
     reset();
-    assert.equal(run('isGrowthBoardUnlocked()'), false);
-    run('syncGrowthBoardUnlocks({silent:true})');
-    assert.equal(run('game.growthBoard.unlockedCellCount'), 0);
-    assert.equal(run('game.growthInventory.length'), 0);
-    // Retain items/placements from a saved state while suppressing their active effects.
-    run('game.growthInventory=[generateGrowthDrop({isBoss:true})];game.growthBoard.unlockedCellCount=30');
-    run('game.growthBoard.loadouts[0].placements[game.growthInventory[0].id]={x:3,y:3,rotation:0}');
-    const saved = json('[game.growthInventory,game.growthBoard]');
-    assert.deepEqual(json('getPlacedGrowthEntries()'), []);
-    assert.equal(run('isGrowthCellUnlocked(3,3)'), false);
-    assert.deepEqual(json('[game.growthInventory,game.growthBoard]'), saved);
-    run("game.contentProgression.inherited.push('growth')");
-    assert(run('isGrowthBoardUnlocked()'));
-    assert.equal(run('getPlacedGrowthEntries().length'), 1);
+    run('stumpBox.sync(game,"test")');
+    assert.equal(run('talismans.wildDropsOpen(game)'), false);
+    run('game.season=25;contentProgression.sync()');
+    assert.equal(run('talismans.wildDropsOpen(game)'), false, 'loop 25 alone does not open them');
+    run("game.contentProgression.inherited.push('talisman')");
+    assert(run('talismans.wildDropsOpen(game)'));
+    const drop = json('talismans.dropWild(game,{isBoss:true},()=>0)');
+    assert.equal(drop.item.rarity, 'unique');
+    assert(run(`talismans.isWild(${JSON.stringify(drop.item.uniqueId)})`), 'a wild unique comes from the old growth uniques');
+    assert(run(`stumpBox.itemById(game,${drop.item.id}).family==='talisman'`), 'the drop lands in the stump box storage');
 });
 
 check('codex records precede purchase but bonuses do not', () => {
@@ -62,20 +53,21 @@ check('codex records precede purchase but bonuses do not', () => {
     assert.equal(run('getCodexBonusPct()'), 0.2);
 });
 
-check('meteor always pays and first star-wedge reward waits for its unlock', () => {
+check('meteor settlement pays rare equipment only, never star dust or star-wedge material', () => {
     reset(7);
-    run('game.currentZoneId=METEOR_FALL_ZONE_ID;ensureStarWedgeState()');
+    run('game.currentZoneId=METEOR_FALL_ZONE_ID;ensureMeteorSiteState()');
     const currencies = json('game.currencies');
     run('grantMeteorEncounterRewards()');
     assert.equal(gear().length, 1);
     assert(['rare','unique'].includes(gear()[0].rarity));
-    assert.deepEqual(json('game.currencies'), currencies);
-    assert.equal(run('game.starWedge.firstClearDone'), false);
-    run('game.contentProgression.inherited.push("meteor");grantMeteorEncounterRewards()');
-    assert(run('game.currencies.meteorShard>0'));
-    assert.equal(run('game.currencies.incompleteStarWedge'), 1);
-    assert.equal(run('game.starWedge.firstClearDone'), true);
-    assert.equal(gear().length, 1, 'the existing unlocked reward is not inflated with extra equipment');
+    const after = json('game.currencies');
+    assert.deepEqual(Object.keys(after).filter(key => after[key] !== currencies[key]), [], 'no currency is paid');
+    assert.equal(run('["meteorShard","incompleteStarWedge","starWedge","astralCore","starDust"].some(key => key in game.currencies)'), false);
+    assert.equal(run('game.journalEntries.includes("meteor_fall")'), true, 'the first settlement records the meteor site journal');
+    assert.equal(run('game.meteorSite.constellationBuff'), null, 'no constellation is observed without the 떨어지는 별 atlas passive');
+    run('game.atlas.passives=["e_k1"];grantMeteorEncounterRewards()');
+    assert.equal(gear().length, 2, 'each settlement pays one item');
+    assert.equal(run('game.meteorSite.constellationBuff.permanent'), true, 'the 떨어지는 별 atlas passive observes a lasting constellation');
 });
 
 check('offline meteor reward survives pickup filters in the offline stash', () => {
@@ -84,15 +76,14 @@ check('offline meteor reward survives pickup filters in the offline stash', () =
     run('game.settings.itemFilterEnabled=true;game.settings.itemFilterRarities={normal:false,magic:false,rare:false,unique:false}');
     run('grantMeteorEncounterRewards()');
     assert.equal(run('game.offlineProgress.stash.length'), 1);
-    assert.equal(run('game.currencies.meteorShard'), 0);
-    assert.equal(run('game.starWedge.firstClearDone'), false);
+    assert.equal(run('"meteorShard" in game.currencies'), false);
 });
 
 check('boundary selection and entry reject unavailable rewards before spending', () => {
     reset(50);
     run('game.beyondBoundary.unlocked=true;game.currencies.formlessDew=10');
     const before = json('[game.beyondBoundary,game.currencies]');
-    for (const id of ['jewel','gem','growth','currency','missing']) {
+    for (const id of ['jewel','gem','currency','missing']) {
         assert.equal(run(`selectBeyondBoundaryRewardFocus('${id}',game)`), false);
     }
     assert.deepEqual(json('[game.beyondBoundary,game.currencies]'), before);
@@ -112,34 +103,23 @@ check('boundary selection and entry reject unavailable rewards before spending',
     assert(run('game.currencies.gemShard>0'));
 });
 
-check('boundary jewel and growth payouts cannot leak through legacy active runs', () => {
+check('boundary jewel payouts cannot leak through legacy active runs; an old growth focus pays equipment', () => {
     for (const focus of ['jewel','growth','currency']) {
         reset(50);
         const before = json('game.currencies');
         assert.equal(json(`grantBeyondBoundaryFocusedReward({rewardFocusId:'${focus}',tier:1,intensityId:'plain'})`).focusId, 'armory');
         assert.equal(gear().length, 1);
-        assert.equal(run('game.growthInventory.length+game.jewelInventory.length'), 0);
+        assert.equal(run('game.jewelInventory.length'), 0);
         assert.deepEqual(json('game.currencies'), before);
     }
     reset(50);
-    run('game.contentProgression.inherited.push("jewel","growth")');
+    run('game.contentProgression.inherited.push("jewel")');
     run('grantBeyondBoundaryFocusedReward({rewardFocusId:"jewel",tier:1,intensityId:"plain"})');
-    run('grantBeyondBoundaryFocusedReward({rewardFocusId:"growth",tier:1,intensityId:"plain"})');
+    assert.equal(json('grantBeyondBoundaryFocusedReward({rewardFocusId:"growth",tier:1,intensityId:"plain"})').focusId, 'armory',
+        'the removed growth focus falls back to equipment');
     assert.equal(run('game.jewelInventory.length'), 1);
-    assert.equal(run('game.growthInventory.length'), 1);
     assert(run('game.currencies.jewelShard>0'));
 });
 
-check('flask HUD rebuilds after changing between locked and owned saves', () => {
-    reset();
-    const host = { innerHTML:'', dataset:{} };
-    runtime.document.getElementById = id => id === 'ui-combat-flasks' ? host : null;
-    run('game.contentProgression.inherited.push("flask");renderCombatFlaskHud()');
-    assert(host.innerHTML.includes('combat-flask-mini'));
-    run('game.contentProgression.inherited=[];renderCombatFlaskHud()');
-    assert.equal(host.innerHTML, '');
-    run('game.contentProgression.inherited.push("flask");renderCombatFlaskHud()');
-    assert(host.innerHTML.includes('combat-flask-mini'));
-});
 assert.deepEqual(failures, [], failures.join('\n'));
 console.log('smoke-unlock-reward-flow passed');

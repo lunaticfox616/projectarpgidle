@@ -16,6 +16,8 @@ let match;
 while ((match = scriptTag.exec(html)) !== null) {
     const src = match[1];
     if (/^https?:\/\//.test(src)) continue;
+    if(LOAD_ORDER.includes(src))assert(/\bdefer\b/.test(match[0])&&!/\basync\b/.test(match[0]),
+        `${src}: shared runtime scripts must defer in document order; an immediate script can run before utils`);
     sources.push(src);
 }
 assert(sources.length >= 10, `index.html에서 로컬 스크립트를 찾지 못했습니다 (${sources.length}개)`);

@@ -202,33 +202,33 @@ assert.strictEqual(run('JSON.stringify(game.ocean.fishStock)'), stockBefore,
     'missing-target crafting must not spend fish');
 
 run(`(function () {
+    // 장비 부위가 없는 대상(예전 생장판 자리): 공유 제작 선택에 있어도 바다의 선물 대상이 아니다.
     window.__growthSeaGiftTarget = {
         id: 990200,
-        name: '잘못 선택된 생장판',
-        growthCategory: 'flower',
-        growthShapeId: 'dot1',
+        name: '장비가 아닌 대상',
+        slot: '기타',
         stats: [{ id: 'flatHp', val: 10 }]
     };
-    game.growthInventory = [window.__growthSeaGiftTarget];
+    game.inventory.push(window.__growthSeaGiftTarget);
     selectForCrafting(window.__growthSeaGiftTarget.id, false);
 })()`);
 const growthBefore = run('JSON.stringify(window.__growthSeaGiftTarget)');
 const growthStockBefore = run('JSON.stringify(game.ocean.fishStock)');
 assert.strictEqual(run("craftSeaGift('safeReroll', window.__growthSeaGiftTarget)"), false,
-    'sea gifts must reject growth-board items as equipment targets');
+    'sea gifts must reject a non-equipment target');
 assert.strictEqual(run('JSON.stringify(window.__growthSeaGiftTarget)'), growthBefore,
-    'a rejected growth-board target must not be mutated');
+    'a rejected target must not be mutated');
 assert.strictEqual(run('JSON.stringify(game.ocean.fishStock)'), growthStockBefore,
-    'a rejected growth-board target must not consume fish');
+    'a rejected target must not consume fish');
 assert.strictEqual(run('getSelectedSeaGiftEquipmentTarget()'), null,
-    'the shared crafting selection must not expose a growth item as a sea-gift equipment target');
+    'the shared crafting selection must not expose a non-equipment item as a sea-gift equipment target');
 
 const elements = {
     'ui-sea-gift-panel': { innerHTML: '', querySelectorAll: () => [] }
 };
 context.document.getElementById = id => elements[id] || null;
 // Fishing controls and collection disclosure run against a real DOM
-// in tests/browser/ocean-workflow.spec.js and mobile-map-navigation.spec.js.
+// in a real browser when the ocean screens change.
 run('renderSeaGiftPanel();');
 assert(elements['ui-sea-gift-panel'].innerHTML.includes('현재 제작 대상')
     && elements['ui-sea-gift-panel'].innerHTML.includes('일반 장비가 아님')

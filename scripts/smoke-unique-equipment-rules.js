@@ -3,8 +3,17 @@ const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const runtime = buildGameRuntime(), run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
-assert.equal(run('UNIQUE_DB.length'), 207);
-assert.equal(run('Object.keys(UNIQUE_EQUIPMENT_RULES).length'), 207);
+assert.equal(run('UNIQUE_DB.length'), 219); // 207 + 6 atlas late-boss uniques (2026-10-02) + 3 flask and 3 censer uniques (2026-10-03)
+assert.equal(run('Object.keys(UNIQUE_EQUIPMENT_RULES).length'), 219);
+// "모든 스킬 젬 레벨 +N" 고유 효과가 실제 젬 레벨에 든다(PR #1030 리뷰: 전에는 쓰이지 않는 보상 칸에만 들어갔다).
+{
+    run("showGameToast = () => {}; resetGame(); game.activeSkill = game.activeSkill || '연속 베기';");
+    const before = run('getTargetGemBonusSources(game.activeSkill).total');
+    run("game.equipment['투구'] = generateUniqueItem(1, '투구', '새벽 현자 후드', {});");
+    assert.equal(run("game.equipment['투구'].name"), '새벽 현자 후드');
+    assert.equal(run('getTargetGemBonusSources(game.activeSkill).total'), before + 1, 'the hood adds one level to every skill gem');
+    run("delete game.equipment['투구'];");
+}
 for (const unique of json('UNIQUE_DB')) {
     runtime.uniqueName = unique.name;
     const row = json(`(() => {

@@ -15,7 +15,7 @@ function auditMapZone(kind, value, season) {
         case 'labyrinth': game.labyrinthFloor = value; id = LABYRINTH_ZONE_ID; break;
         case 'ocean': ensureOceanState().depthM = value; id = OCEAN_ZONE_ID; break;
         case 'sky': Object.assign(ensureSkyTowerState(),{highestFloor:value,currentFloor:value}); id = SKY_TOWER_ZONE_ID; break;
-        case 'meteor': game.starWedge.activeMeteorTier = value; id = METEOR_FALL_ZONE_ID; break;
+        case 'meteor': ensureMeteorSiteState().activeMeteorTier = value; id = METEOR_FALL_ZONE_ID; break;
         case 'hive': game.beehive.branchStep = value; id = 'beehive_run'; break;
         case 'colony': game.colony.wave = value; id = 'colony_run'; break;
         case 'breach': id = 'grand_breach_run'; break;

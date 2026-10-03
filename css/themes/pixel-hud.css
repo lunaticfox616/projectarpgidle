@@ -1,0 +1,706 @@
+@layer overrides {
+/* 도트 UI — 전투 화면. 하단 HUD는 디아블로 2처럼 돌판 왼쪽에 생명 구슬(빨강, 에너지 보호막은 그 위 파란 막)을 둔다.
+   구슬도 기존 막대와 같은 --gauge-fill(js/ui.js setUiImageGaugePercent)을 읽어 아래에서 위로 찬다 — 스크립트 변경 없음.
+   대상 적 체력바·미니맵·지역 줄·목표도 도트 판으로. 판 그림은 scripts/build-pixel-ui.cjs가 찍고, 구슬 · 미니맵 테는
+   scripts/build-hud-kit.cjs가 사용자 HUD 그림(2026-10-01)에서 잘라 만든다. */
+
+body[data-ui-skin] {
+  /* HUD 그림 한 도트의 CSS 크기: PC 1(uiDisplay가 1 CSS px = 1 기기 픽셀로 맞춘다), 휴대폰 .5(아래 미디어 쿼리). */
+  --px-hud-dot: 1;
+  --px-orb-size: calc(100px * var(--px-hud-dot));
+  --px-orb-life-top: url('../../assets/ui/pixel/hud-orb-life-top.png');
+  --px-orb-life-empty: url('../../assets/ui/pixel/hud-orb-life-empty.png');
+  --px-orb-life-liquid: url('../../assets/ui/pixel/hud-orb-life-liquid.png');
+  --px-orb-amber-top: url('../../assets/ui/pixel/hud-orb-amber-top.png');
+  --px-orb-amber-empty: url('../../assets/ui/pixel/hud-orb-amber-empty.png');
+  --px-orb-amber-liquid: url('../../assets/ui/pixel/hud-orb-amber-liquid.png');
+  --px-orb-life-shield: url('../../assets/ui/pixel/hud-orb-life-shield.png');
+}
+
+/* ─── 하단 HUD: [생명 구슬] [이름 / 경험치] [젬] ─────────────── */
+:root body[data-ui-skin] #battle-column .player-hud-shell {
+  display: grid;
+  grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 6px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  box-sizing: border-box;
+  padding: 6px 10px 8px 4px;
+  border: var(--px-plate-border) solid transparent;
+  border-image: var(--px-plate-frame);
+  background: var(--px-wood-dark), var(--px-stone);
+  background-clip: padding-box;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
+  image-rendering: pixelated;
+  pointer-events: auto;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell::before { content: none; }
+:root body[data-ui-skin] #battle-column .player-hud-shell > .player-health-frame,
+:root body[data-ui-skin] #battle-column .player-hud-shell > .player-health-frame > .combat-hud-row { display: contents; }
+
+/* 생명 구슬: 돌판 위로 불룩 솟는다(윗변을 넘겨 걸친다). 상자 = 원본 그림의 유리 원(100도트), 테는 상자 밖으로 걸친다.
+   --orb-x/-y/-w/-h: 유리 원 왼쪽 위에서 본 그림 자리와 크기(scripts/build-hud-kit.cjs GEOMETRY). 수면은 원본 그림의 두 색. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar {
+  --orb-top: var(--px-orb-life-top);
+  --orb-empty: var(--px-orb-life-empty);
+  --orb-liquid: var(--px-orb-life-liquid);
+  --orb-x: -13px;
+  --orb-y: -23px;
+  --orb-w: 131px;
+  --orb-h: 147px;
+  --orb-surface: #aa2646;
+  --orb-lip: #d8365d;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  position: relative;
+  inset: auto;
+  z-index: 3;
+  width: var(--px-orb-size);
+  height: var(--px-orb-size);
+  min-height: 0;
+  margin: calc(var(--px-orb-size) * -.34) 0 -4px -8px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  pointer-events: auto;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(.combat-hp-bar, .combat-exp-bar) {
+  --orb-at: calc(var(--orb-x) * var(--px-hud-dot)) calc(var(--orb-y) * var(--px-hud-dot));
+  --orb-art: calc(var(--orb-w) * var(--px-hud-dot)) calc(var(--orb-h) * var(--px-hud-dot));
+}
+/* 빈 유리(아래) · 테와 반짝임(위) */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::before,
+:root body[data-ui-skin].desktop-windowed-ui #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  transform: none;
+  opacity: 1;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(.combat-hp-bar, .combat-exp-bar)::before {
+  z-index: 0;
+  background: var(--orb-empty) var(--orb-at) / var(--orb-art) no-repeat;
+  box-shadow: none;
+}
+/* 윗층(테 + 유리 위 반짝임)은 그림 크기 그대로 상자 밖까지 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(.combat-hp-bar, .combat-exp-bar)::after,
+:root body[data-ui-skin].desktop-windowed-ui #battle-column .player-hud-shell .player-health-frame .combat-hp-bar::after {
+  content: '';
+  position: absolute;
+  inset: auto;
+  top: calc(var(--orb-y) * var(--px-hud-dot));
+  left: calc(var(--orb-x) * var(--px-hud-dot));
+  z-index: 6;
+  width: calc(var(--orb-w) * var(--px-hud-dot));
+  height: calc(var(--orb-h) * var(--px-hud-dot));
+  background: var(--orb-top) 0 0 / 100% 100% no-repeat;
+  box-shadow: none;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+/* 액체 · 보호막은 유리 원 모양(액체 그림의 알파)으로 자른다. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(#ui-hp-bar, #ui-exp-bar, .combat-es-overlay) {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  -webkit-mask: var(--orb-liquid) var(--orb-at) / var(--orb-art) no-repeat;
+  mask: var(--orb-liquid) var(--orb-at) / var(--orb-art) no-repeat;
+  image-rendering: pixelated;
+}
+/* 액체는 아래에서 위로: 막대의 가로 자르기(clip-path)를 세로로 바꾼다. 맨 위 두 도트가 수면. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(#ui-hp-bar, #ui-exp-bar) {
+  z-index: 1;
+  background: var(--orb-liquid) var(--orb-at) / var(--orb-art) no-repeat;
+  box-shadow: none;
+  clip-path: inset(calc(100% - var(--gauge-fill, 100%)) 0 0 0);
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(#ui-hp-bar, #ui-exp-bar)::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - var(--gauge-fill, 100%));
+  right: 0;
+  left: 0;
+  height: calc(2px * var(--px-hud-dot));
+  background: linear-gradient(var(--orb-surface) 0 50%, var(--orb-lip) 50%);
+  pointer-events: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-hp-bar.player-danger { animation: px-orb-danger 1s steps(2, jump-none) infinite; }
+@keyframes px-orb-danger { from { opacity: 1; } to { opacity: .62; } }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-overlay { z-index: 2; overflow: hidden; border: 0; background: none; }
+/* 보호막은 유리 안쪽 가장자리를 두르는 파란 막(scripts/build-hud-kit.cjs orbShield), 액체처럼 아래에서 위로 찬다. 다 차도 가운데의
+   붉은 생명이 보인다(통째로 파라면 마나 구슬처럼 읽혔다). 예전의 반투명 파란 막은 붉은 생명과 섞여 보라색으로 보였다(2026-10-02). */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-es-bar {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  background: var(--px-orb-life-shield) var(--orb-at) / var(--orb-art) no-repeat;
+  image-rendering: pixelated;
+  clip-path: inset(calc(100% - var(--gauge-fill, 0%)) 0 0 0);
+}
+/* 레벨 업 알림: 경험치 구슬 위에 잠깐(js/ui.js playLevelUpCallout이 Web Animations로 움직인다) */
+:root body[data-ui-skin] #battle-column .combat-exp-bar .level-up-callout {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 9;
+  padding: 2px 8px;
+  border: 1px solid var(--px-ink);
+  background: var(--px-panel);
+  box-shadow: inset 1px 1px 0 var(--px-bronze), inset -1px -1px 0 #19161c, var(--px-drop);
+  color: var(--px-gold-bright);
+  font-family: var(--font-pixel-read);
+  font-size: 15px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-shadow: var(--px-text-edge);
+  opacity: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+/* 막대 전용 잔상(받은 피해·지속 피해 예고)은 가로 너비로 그려지므로 구슬에서는 숨긴다. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame :is(#ui-hp-damage-ghost-bar, #ui-hp-ailment-bar) { visibility: hidden; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  color: #fff4e6;
+  font-size: 0;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: var(--px-text-outline);
+}
+/* 현재 생명(위) · 가는 금 · 최대 생명(아래). 한 줄("87.0/98")이면 작은 구슬에서 테에 걸친다. 사이의 " / "는 font-size 0으로 숨는다. */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text > #ui-hp { font-size: 12px; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text > #ui-maxhp { padding: 1px 3px 0; border-top: 2px solid rgba(255, 236, 214, .5); color: #f1c9bd; font-size: 12px; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame[data-energy-shield] .combat-hp-bar .hp-text { padding-bottom: 12px; }
+/* 보호막 글자: 막대 시절의 max-width 18 ~ 20%(말줄임)가 구슬에서는 "E…"만 남겼다 — 구슬 폭 전체를 쓴다 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text {
+  overflow: hidden;
+  max-width: none;
+  position: absolute;
+  top: 64%;
+  right: 0;
+  left: 0;
+  z-index: 7;
+  color: #bfe6ff;
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+  transform: none;
+  text-shadow: var(--px-text-outline);
+}
+
+/* 이름·직업·레벨 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing {
+  grid-column: 2 / 4;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--px-copy-muted);
+  font-size: 12px;
+  text-shadow: var(--px-text-edge);
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row :is(strong, span) {
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row strong { color: var(--px-gold-bright); font-size: 15px; font-family: var(--font-pixel-read); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row #ui-exp-level-label { color: var(--px-copy); }
+
+/* 경험치: 가는 금빛 도트 막대, 퍼센트는 막대 오른쪽 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-exp-bar {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  inset: auto;
+  width: auto;
+  height: 10px;
+  min-height: 0;
+  margin: 0;
+  border: 1px solid var(--px-ink);
+  border-radius: 0;
+  background: #0b0906;
+  box-shadow: inset 0 2px 0 #000;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent {
+  grid-column: 3;
+  grid-row: 2;
+  position: static;
+  align-self: center;
+  justify-self: end;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  overflow: visible;
+  white-space: nowrap;
+  color: #d9c28f;
+  font-size: 12px;
+  line-height: 1;
+  text-shadow: var(--px-text-edge);
+  transform: none;
+}
+
+/* 장착 젬: 움푹한 도트 칸 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack {
+  grid-column: 4;
+  grid-row: 1 / -1;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { container-type: normal; overflow: visible; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack::before { content: none; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+/* 주 공격은 큰 칸, 소환·자동 사용 젬은 옆에 작은 칸으로 한 줄 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot {
+  position: relative;
+  inset: auto;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px;
+  border: 1px solid var(--px-ink);
+  background: var(--px-dither), #141216;
+  box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 48px; width: 48px; height: 48px; box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30, inset 0 0 0 4px rgba(217, 176, 102, .72); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30, inset 0 0 0 4px rgba(150, 104, 190, .7); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.mobility { box-shadow: inset 1px 1px 0 #0d0b0f, inset -1px -1px 0 #3a2c30, inset 0 0 0 4px rgba(118, 160, 104, .7); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.just-cast { box-shadow: inset 0 0 0 2px var(--px-gold-bright), inset 0 0 0 4px rgba(243, 210, 140, .45); }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot .player-hud-skill-cooldown:not([hidden]) { font-size: 12px; text-shadow: var(--px-text-outline); }
+
+/* 경험치 구슬: "EXP" 머리말(영어 · .82em 소수 크기)을 뺀다 — 호박색 구슬 안의 레벨 · 퍼센트로 충분하다 */
+:root body[data-ui-skin] .player-exp-percent::before { content: none; }
+
+/* PC 단축키 표시(자동 이동 · 이동 스킬 칸): 8px 글씨는 도트 글꼴에서 뭉개져 12px, 칸은 16px */
+:root body[data-ui-skin] :is(.player-hud-skill-rack .player-hud-skill-slot, #act-exploration-panel #btn-act-exploration-auto) > .combat-hud-key {
+  min-width: 16px;
+  height: 16px;
+  font-size: 12px;
+  line-height: 14px;
+}
+
+/* 휴대폰: 구슬을 조금 작게, 판은 화면 너비 그대로 */
+@media (max-width: 1080px) {
+  /* 구슬 윗부분과 상태 아이콘이 바로 위 전투 기록 막대에 가리지 않게 HUD를 한 층 위로 */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .player-hud {
+    z-index: 21;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  :root body[data-ui-skin] #battle-column .player-hud-shell { column-gap: 8px; padding: 4px 6px 6px 2px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { flex-wrap: wrap; row-gap: 4px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 40px; width: 40px; height: 40px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 44px; width: 44px; height: 44px; }
+  /* 상태 아이콘은 판 윗변에 걸쳐 매단다 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell #ui-player-ailments-under { position: absolute; top: -16px; right: 64px; bottom: auto; left: auto; width: auto; }
+}
+
+@media (min-width: 1081px) {
+  :root body[data-ui-skin].desktop-windowed-ui .player-hud {
+    width: min(620px, calc(100vw - var(--stage-rail-width, 148px) - var(--stage-feed-width, 260px) - 60px));
+    max-width: 620px;
+    min-height: 0;
+    padding: 0;
+  }
+}
+
+/* ─── 대상 적 체력바: 장식 그림 대신 도트 막대 ───────────────── */
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted {
+  --health-frame-ratio: auto;
+  --health-track-left: 0;
+  --health-track-right: 0;
+  --health-track-top: 0;
+  --health-track-height: 100%;
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-frame { display: none; }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .enemy-health-frame {
+  width: min(100%, 360px);
+  height: 24px;
+  aspect-ratio: auto;
+  margin: 2px 0 0;
+  overflow: visible;
+  border: var(--px-light-border) solid transparent;
+  border-image: var(--px-light-frame);
+  background: #0b0606;
+  background-clip: padding-box;
+  box-shadow: var(--px-drop);
+  filter: none;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted.enemy-elite .enemy-health-frame { width: min(100%, 400px); }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame {
+  width: min(100%, 480px);
+  height: 30px;
+  border-width: var(--px-light-border);
+  border-image: var(--px-light-frame);
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .enemy-health-frame > .hp-bar-bg { position: absolute; inset: 0; height: auto; }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track { inset: 0; height: auto; background: #1a0709; box-shadow: inset 0 2px 0 #000; }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track > .hp-bar-fill.enemy {
+  opacity: 1;
+  background: linear-gradient(180deg, #ff6f6a 0 2px, #d1283a 2px 55%, #8f1223 55%);
+}
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-elite .health-skin-track > .hp-bar-fill.enemy { background: linear-gradient(180deg, #ffb46a 0 2px, #d8662a 2px 55%, #93381a 55%); }
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .health-skin-track > .hp-bar-fill.enemy { background: linear-gradient(180deg, #ff8a6a 0 2px, #c61f2c 2px 55%, #7a0c1a 55%); }
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted .health-skin-track > .hp-text {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  height: auto;
+  font-size: 12px;
+  line-height: 1;
+  text-shadow: var(--px-text-outline);
+}
+:root body[data-ui-skin] #enemy-area .enemy-nameplate {
+  padding: 2px 10px;
+  border: 1px solid var(--px-ink);
+  background: var(--px-panel);
+  box-shadow: inset 1px 1px 0 var(--px-bronze), inset -1px -1px 0 var(--px-shade, #19161c), var(--px-drop);
+}
+:root body[data-ui-skin] #enemy-area .enemy-nameplate .enemy-name { color: #ffe0cf; font-size: 12px; line-height: 16px; text-shadow: var(--px-text-edge); }
+:root body[data-ui-skin] #enemy-area .enemy-card.enemy-boss .enemy-nameplate .enemy-name { color: var(--px-gold-bright); }
+/* 정예 · 일반 적의 특성 꼬리표(공허 · 강철 피부 등)는 체력 숫자 위가 아니라 막대 바로 아래(예전에는 숫자를 가렸다) */
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted:is(.enemy-mob, .enemy-elite) .enemy-hud-meta { top: calc(100% + 2px); }
+/* 보스도 같은 자리: 옛 장식 틀은 특성을 막대 한가운데 칸(inset 0)에 얹어 체력 숫자를 가렸다 */
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted.enemy-boss .enemy-hud-meta { inset: calc(100% + 2px) 5% auto; display: flex; pointer-events: auto; }
+/* 특성 줄(막대 아래 20px 남짓, 절대 위치)이 있으면 상태 이상 아이콘 줄은 그 아래에서 시작한다 — 아이콘이 특성 · 보스 패턴 글자를 덮었다 */
+:root body[data-ui-skin] #enemy-area .enemy-card.targeted.has-trait-line > .enemy-combat-effect-strip { margin-top: 17px; }
+@media (max-width: 1080px) {
+  /* 휴대폰: 이름표가 왼쪽 위 몬스터 수 칸(아래 끝 95px)과 겹쳤다 — 대상 적 막대를 그 줄 아래로 */
+  :root body[data-ui-skin].mobile-battle-tab #enemy-area .enemy-card.targeted { margin-top: 36px; }
+}
+@media (min-width: 1081px) {
+  :root body[data-ui-skin].desktop-windowed-ui #enemy-area .enemy-card.targeted :is(.enemy-health-frame) { margin: 2px 0 0; }
+  :root body[data-ui-skin].desktop-windowed-ui #enemy-area .enemy-card.targeted { margin-top: 30px; }
+}
+
+/* ─── 지역 줄·몬스터 수·귀환·목표 ─────────────────────────── */
+:root body[data-ui-skin] .combat-zone-row-title { text-shadow: var(--px-text-outline); }
+:root body[data-ui-skin] .battlefield-caption {
+  border: 1px solid var(--px-ink);
+  background: var(--px-panel);
+  box-shadow: inset 1px 1px 0 var(--px-bronze), inset -1px -1px 0 #19161c;
+  color: var(--px-copy);
+  font-size: 12px;
+  text-shadow: var(--px-text-edge);
+}
+
+/* ─── 미니맵: 네모난 도트 틀, 둘레가 탐험 비율만큼 금빛으로 찬다 ───────── */
+:root body[data-ui-skin] #act-exploration-panel::before {
+  top: -6px;
+  left: -6px;
+  width: calc(var(--minimap-size) + 12px);
+  height: calc(var(--minimap-size) + 12px);
+  border-radius: 0;
+  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #25222a 0);
+  box-shadow: 0 0 0 2px var(--px-ink), var(--px-drop);
+}
+:root body[data-ui-skin] #act-exploration-panel canvas {
+  border-radius: 0;
+  box-shadow: 0 0 0 2px var(--px-ink), inset 0 0 0 2px #000;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map { top: -6px; right: -6px; border-radius: 0; font-size: 12px; }
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-auto { top: -6px; left: -6px; border-radius: 0; font-size: 12px; }
+
+/* ─── 하단 HUD(2026-09-30): [생명 구슬] [이름] [미니맵] [젬] [경험치 구슬] ─────────────────────
+   디아블로 계열 하단 바처럼 둥근 셋(생명 · 지도 · 경험치)이 낮은 돌판 위로 솟는다. 장식은 청동 테 하나(창과 같은 테).
+   구슬·미니맵 테는 scripts/build-pixel-ui.cjs가 화면 크기 그대로 찍는다(둥근 테만 한 도트 = 1 CSS px — 2px 도트 원은 계단이
+   굵어 찌그러져 보였다). 메뉴는 css/themes/pixel-menu.css가 이 판 안에 싣는다. 경험치 구슬은 막대와 같은 --gauge-fill을
+   세로로 읽고(생명 구슬과 같은 방식), 레벨·퍼센트는 구슬 안에 적는다. */
+body[data-ui-skin] {
+  /* 미니맵 상자 = 테 그림의 창(136도트). 테는 상자 밖으로 왼쪽 38 · 위 48도트 걸친다. 캔버스는 창보다 4도트 안쪽까지(그 틈이 탐험 비율 호). */
+  --px-map-rim: url('../../assets/ui/pixel/hud-map-rim.png');
+  --px-map-window: url('../../assets/ui/pixel/hud-map-window.png');
+  --px-map-size: calc(136px * var(--px-hud-dot));
+  --px-hud-bar: 72px;
+  /* 둥근 셋을 올리는 높이: 아래 장식(구슬 테 24~29도트, 지도 테 46도트)이 판 밑(아래 여백 10px)으로 빠지지 않게. */
+  --px-orb-lift: 21px;
+  --px-map-lift: 38px;
+}
+/* 판: 둥근 셋이 올라앉는 낮은 돌판(판 자체는 투명, 돌판은 ::before) */
+:root body[data-ui-skin] #battle-column .player-hud-shell {
+  position: relative;
+  grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto minmax(0, 1fr) var(--px-orb-size);
+  grid-template-rows: auto;
+  align-items: end;
+  column-gap: 12px;
+  row-gap: 0;
+  padding: 0 14px 10px;
+  border: 0;
+  border-image: none;
+  background: none;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 0;
+  height: var(--px-hud-bar);
+  border: var(--px-plate-border) solid transparent;
+  border-image: var(--px-plate-frame);
+  background: var(--px-wood-dark), var(--px-stone);
+  background-clip: padding-box;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+/* 생명 구슬(왼쪽) */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar { grid-column: 1; grid-row: 1; margin: 0 0 var(--px-orb-lift); }
+/* 이름·직업: 돌판 위, 생명 구슬 옆 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing {
+  grid-column: 2;
+  grid-row: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  align-self: end;
+  gap: 5px;
+  min-width: 0;
+  margin-bottom: 2px;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 미니맵(가운데): 둥근 테 · 트랙에 탐험 비율 금빛 호 · 아래에 "지도" 단추 */
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel {
+  --minimap-size: var(--px-map-size);
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  inset: auto;
+  z-index: 2;
+  width: var(--px-map-size);
+  height: var(--px-map-size);
+  /* 위 여백 = 테 윗장식(48도트): HUD 상자 윗변이 테 꼭대기가 되어 관리 창(ui-window-manager getDockedHudInset)이 테를 덮지 않는다. */
+  margin: calc(48px * var(--px-hud-dot)) 0 var(--px-map-lift);
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel::before {
+  top: 0;
+  left: 0;
+  width: var(--px-map-size);
+  height: var(--px-map-size);
+  border-radius: 50%;
+  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #25222a 0);
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel::after {
+  content: '';
+  position: absolute;
+  top: calc(-48px * var(--px-hud-dot));
+  left: calc(-38px * var(--px-hud-dot));
+  z-index: 2;
+  width: calc(212px * var(--px-hud-dot));
+  height: calc(230px * var(--px-hud-dot));
+  background: var(--px-map-rim) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-mask: var(--px-map-window) center / 100% 100% no-repeat;
+  mask: var(--px-map-window) center / 100% 100% no-repeat;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-map {
+  top: auto;
+  right: auto;
+  bottom: -4px;
+  left: 50%;
+  z-index: 3;
+  width: auto;
+  height: 22px;
+  padding: 0 10px;
+  transform: translateX(-50%);
+  line-height: 18px;
+  white-space: nowrap;
+}
+/* 자동 이동 단추: 테 위쪽 가운데("지도" 단추와 마주 보게) */
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-auto {
+  top: -10px;
+  left: 50%;
+  z-index: 3;
+  height: 20px;
+  padding: 0 8px;
+  transform: translateX(-50%);
+  line-height: 16px;
+}
+/* 젬(주 공격 · 소환 · 자동 사용): 돌판 위, 경험치 구슬 옆 */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 4; grid-row: 1; align-self: end; justify-self: end; margin-bottom: 2px; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots { flex-wrap: wrap; justify-content: flex-end; }
+/* 경험치 구슬(오른쪽): 생명 구슬과 같은 층, 호박색 그림(원본 유리 원 중심이 반 도트 아래라 위로 23도트). */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-exp-bar {
+  --orb-top: var(--px-orb-amber-top);
+  --orb-empty: var(--px-orb-amber-empty);
+  --orb-liquid: var(--px-orb-amber-liquid);
+  --orb-x: -18px;
+  --orb-y: -23px;
+  --orb-w: 134px;
+  --orb-h: 152px;
+  --orb-surface: #ffd06a;
+  --orb-lip: #ffd06a;
+  grid-column: 5;
+  grid-row: 1;
+  position: relative;
+  z-index: 3;
+  width: var(--px-orb-size);
+  height: var(--px-orb-size);
+  margin: 0 0 var(--px-orb-lift);
+  overflow: visible;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-exp-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-exp-bar .player-exp-values { display: none; }
+/* 구슬 안 글자: 레벨(위) · 퍼센트(아래) */
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label,
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent {
+  grid-column: 5;
+  grid-row: 1;
+  z-index: 7;
+  align-self: end;
+  justify-self: center;
+  margin: 0;
+  pointer-events: none;
+  color: #fff4e6;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: var(--px-text-outline);
+  transform: none;
+}
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { margin-bottom: calc(var(--px-orb-size) * .5 + var(--px-orb-lift)); color: #fff4e6; font-family: var(--font-pixel-read); font-size: 15px; }
+:root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { margin-bottom: calc(var(--px-orb-size) * .3 + var(--px-orb-lift)); color: #f3d28c; }
+
+@media (min-width: 1081px) {
+  /* PC 구슬은 경험치 구슬(레벨 15px · 퍼센트 12px)과 같은 짝: 현재 생명은 갈무리 15px */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar .hp-text > #ui-hp { font-family: var(--font-pixel-read); font-size: 15px; }
+  :root body[data-ui-skin].desktop-windowed-ui .player-hud {
+    width: min(760px, calc(100vw - var(--stage-rail-width, 148px) - var(--stage-feed-width, 260px) - 60px));
+    max-width: 760px;
+  }
+}
+@media (max-width: 1080px) {
+  /* 휴대폰: 바로 위가 접힌 전투 기록이라 둥근 셋이 솟지 않고 판 안에 앉는다. HUD 그림은 반 크기(한 도트 .5px). */
+  body[data-ui-skin] {
+    --px-hud-dot: .5;
+    --px-hud-bar: 100%;
+    --px-orb-lift: 0px;
+  }
+  :root body[data-ui-skin] #battle-column .player-hud-shell { column-gap: 6px; padding: 10px 12px 10px; align-items: center; }
+  /* 생명 구슬 테(그림이 상자 밖으로 몇 도트 나온다)가 직업 글자 첫 획을 덮지 않게 4px 띄운다("미전직"이 "기전직"으로 보였다) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing { align-self: center; gap: 4px; margin-left: 4px; }
+  /* 이름 위 · 직업 아래(좁은 칸에서 둘 다 잘리지 않게) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row { flex-direction: column; align-items: flex-start; gap: 1px; }
+  /* 12px로 줄이면 물마루(갈무리는 15px에서만 또렷하다) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-left-wing .player-hud-identity-row strong { font-family: var(--font-pixel); font-size: 12px; }
+  /* 휴대폰 전투 탭은 막대 옆 퍼센트를 숨기던 규칙이 있다(ui-responsive-refine.css): 구슬 안에서는 보인다 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { display: block; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { align-self: center; }
+  /* 젬: 누르는 칸(주 공격 44 · 이동 스킬 40px)이 윗줄, 소환 젬(누르면 스킬 젬 창)은 24px 알로 아랫줄 — 다섯 칸이 세 줄로
+     쌓여 판이 늘어나지 않게. 젬 칸이 윗줄 두 칸 너비(88px)를 늘 갖도록 이름 칸이 양보한다. */
+  :root body[data-ui-skin] #battle-column .player-hud-shell { grid-template-columns: var(--px-orb-size) minmax(0, 1fr) auto minmax(88px, 1fr) var(--px-orb-size); }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots { justify-content: center; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slots:has(.summon)::after { content: ''; order: 1; flex-basis: 100%; height: 0; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot { flex-basis: 40px; width: 40px; height: 40px; overflow: visible; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.primary { flex-basis: 44px; width: 44px; height: 44px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon { order: 2; flex-basis: 24px; width: 24px; height: 24px; padding: 1px; }
+  /* 보이지 않는 누름 자리: 옆 칸과는 틈의 절반씩, 판 여백 쪽으로는 더 — 누르는 칸은 위로(44px 넘게), 소환 줄은 아래로 */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot::before { content: ''; position: absolute; inset: -8px -2px -2px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-slot.summon::before { inset: -2px -2px -10px; }
+  /* 지도 테 위아래 장식(24 · 23px)이 판 여백(10px)을 넘는 만큼 자리를 둔다. */
+  :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel { margin: 14px 0 13px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { align-self: center; margin-bottom: calc(var(--px-orb-size) * .2); font-family: var(--font-pixel); font-size: 12px; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { align-self: center; margin-bottom: 0; margin-top: calc(var(--px-orb-size) * .3); }
+  /* 지도 · 자동 단추는 테에 맞춘 20 ~ 22px 띠라 손가락으로 누르기 어렵다: 보이지 않는 누름 자리를 위아래로 넓힌다(모양은 그대로) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel :is(#btn-act-exploration-map, #btn-act-exploration-auto) { overflow: visible; }
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel :is(#btn-act-exploration-map, #btn-act-exploration-auto)::after { content: ''; position: absolute; inset: -17px -8px; }
+  /* 작은 생명 구슬(유리 50px)에는 보호막 글자가 들어가지 않는다: 이름표를 빼면 파란 숫자가 무엇인지 알 수 없었고(검토 2026-10-01),
+     넣으면 "보호막…"으로 잘렸다 → 구슬 오른쪽, 이름 · 직업 아래 빈자리에 "보호막 현재값" 한 줄. */
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text .combat-es-max { display: none; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text { top: auto; right: auto; bottom: 2px; left: calc(100% + 6px); overflow: visible; text-align: left; white-space: nowrap; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame[data-energy-shield] .combat-hp-bar .hp-text { padding-bottom: 0; }
+  /* 휴대폰의 경험치 구슬은 화면 오른쪽 끝이라 가운데 맞춘 레벨 업 알림이 화면 밖으로 잘렸다 → 구슬 오른쪽 끝에 맞춘다 */
+  :root body[data-ui-skin] #battle-column .combat-exp-bar .level-up-callout { right: 0; left: auto; transform: none; }
+}
+}

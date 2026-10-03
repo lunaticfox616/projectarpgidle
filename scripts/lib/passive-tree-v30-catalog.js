@@ -150,7 +150,7 @@ const KEYSTONES = Object.freeze({
     cycle_reverse: { name: '역행 순환', desc: '순환 효과가 상태이상 종료 시가 아니라 상태이상 시작 시 발동합니다.\n순환 효과는 한 종류만 유지되며 효과가 50% 감폭됩니다.', icon: 'cycle' },
     devotion_triple: { name: '삼중 계시', desc: '계시 방향을 선택할 수 없습니다.\n전투, 수호 및 생명 계시 효과를 각각 40%의 효과로 모두 받습니다.\n타락한 복음과 동시에 할당할 수 없습니다.', icon: 'devotion' },
     universal_summon: { name: '단 하나의 사역', desc: '공격형 소환수 최대 한도가 1이 됩니다.\n잃은 소환수 최대 한도 1당 남은 공격형 소환수의 피해가 75%, 생명력이 50% 증폭됩니다.\n해당 소환수의 부활 대기시간이 100% 증가합니다.', icon: 'summon' },
-    universal_flask: { name: '과잉 투여', desc: '유틸리티 플라스크 효과가 50% 증폭됩니다.\n유틸리티 플라스크 최대 충전과 처치 시 획득 충전이 50% 감폭됩니다.', icon: 'potion' }
+    universal_flask: { name: '과잉 투여', desc: '포션 스킬 피해가 50% 증폭됩니다.\n포션 스킬 속도가 25% 감폭됩니다.', icon: 'potion' }
 });
 
 module.exports = { CLASS_SECTORS, HYBRID_SECTORS, KEYSTONES, SPECIAL_THEMES };

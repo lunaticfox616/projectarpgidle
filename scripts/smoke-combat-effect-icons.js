@@ -17,10 +17,6 @@ const context = {
     playerAilments: [{ type: 'ignite', time: 2, duration: 4, power: 0.2 }, { type: 'shock', time: 0, power: 0.1 }],
     woodsmanCurseActive: true,
     woodsmanCurseDamageTakenStacks: 125,
-    playerConditionBuffs: [
-      { name: '철벽', type: 'guard', expiresAt: 13000 },
-      { name: '만료된 함성', type: 'warcry', expiresAt: 9000 }
-    ],
     cosmosPlayerDebuffs: [{ type: 'cosmos_res_down', label: '저항 감소', value: 18, expiresAt: 14000 }],
     realmDeathWard: { amount: 70, maxAmount: 100 },
     realmInvulnerableBarrierUntil: 12000,
@@ -43,7 +39,7 @@ const context = {
     warriorRhythmExpiresAt: 12000,
     warriorRhythmDoubleStacks: 1,
     warriorRhythmDoubleExpiresAt: 13000,
-    talentRuntime: { aegisEvadeAmp: true, aegisBlockBonus: 5, fletcherCount: 2, colosseumReady: true },
+    talentRuntime: { fletcherCount: 2, colosseumReady: true },
     bloomTrialRegenSuppress: 0.25,
     delayedGuardHealPool: 60,
     queenBees: [{ expiresAt: 14000, attacksLeft: 2 }, { expiresAt: 15000, attacksLeft: 1 }],
@@ -55,26 +51,19 @@ const context = {
     shrineBuff: { name: '힘의 성소', stat: 'pctDmg', value: 16, expiresAt: 14000 },
     uniqueEliteTraitBuff: { trait: { name: '고속 공세', attackSpeedVarMul: 1.18 }, expiresAt: 14000 }
   },
-  FLASK_UTILITY_POOL: { speed: { key: 'speed', name: '신속 플라스크' } },
   escapeHTML(value) {
     return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   },
   getExpReq() { return 100; },
   getUiStoredAilmentHitDamage() { return 40; },
-  ensureFlaskState() {
-    return {
-      healTier: 1,
-      healOverTimeUntil: 12000,
-      utils: [{ key: 'speed', until: 12500 }]
-    };
-  },
-  getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크' }; },
-  getMaxFlaskUtilitySlotCount() { return 1; },
-  getEffectivePlayerConditionBuffs() { return context.game.playerConditionBuffs; },
+  // 부적 조건부 줄(예전 컨디션 젬 버프): 최근 틱에 켜진 수호 · 함성 줄.
+  talismanCombat: { active: () => context.__activeConditions },
+  talismans: { conditionDef: id => ({ guard_iron_oath: { name: '철의 맹세', kind: 'guard' } })[id] || null, describeDelta: () => '' },
+  __activeConditions: [{ buff: { name: 'talisman:guard_iron_oath', type: 'guard' }, delta: { dr: 20 } }],
   hasKeystone(id) { return ownedKeystones.has(id); },
   isTalentCardActive(id) {
-    return ['hero1__guardian', 'hero1__gladiator', 'hero2__gladiator', 'hero5__warrior'].includes(id) ? 1 : 0;
+    return ['hero1__gladiator', 'hero2__gladiator'].includes(id) ? 1 : 0;
   },
   getWarriorRageStacks() { return 3; },
   getStatName() { return '피해'; },
@@ -93,6 +82,8 @@ vm.createContext(context);
 require('./lib/load-content-progression')(context);
 require('./lib/load-ui-display')(context);
 require('./lib/load-combat-clock')(context);
+const domWriteStart = source.indexOf('function setTextById(');
+vm.runInContext(source.slice(domWriteStart, source.indexOf('function updateHpDamageGhostState(', domWriteStart)), context, { filename: 'hud-dom-writes.js' });
 vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-icons.js' });
 
 const playerStats = {
@@ -107,17 +98,17 @@ const playerStats = {
   uniqueRiderCompass: true
 };
 const playerMarkup = context.buildPlayerCombatEffectIcons(playerStats, now);
-const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_down', 'healFlask',
-  'utilityFlask', 'playerUniqueGuard', 'shadowStealth', 'leechEfficiency', 'meleeArmorAmp',
+const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_down',
+  'playerUniqueGuard', 'shadowStealth', 'leechEfficiency', 'meleeArmorAmp',
   'killMoveStacks', 'riderCompassReady', 'shrineBuff', 'eliteTraitBuff', 'lifeLeech', 'energyShieldLeech',
-  'lifeRecoup', 'delayedGuardHeal', 'warriorRhythm', 'talentAegis', 'fletcherCharge', 'colosseumReady',
+  'lifeRecoup', 'delayedGuardHeal', 'warriorRhythm', 'fletcherCharge', 'colosseumReady',
   'bloomRegenSuppress', 'queenBeeSwarm', 'summonDeathDamageBuff', 'summonCritAspd',
   'deathWard', 'invulnerableBarrier', 'warriorRage'];
 assert.strictEqual((playerMarkup.match(/class="combat-effect-icon/g) || []).length, expectedPlayerEffects.length,
   'every active player ailment and runtime effect must receive one icon');
 expectedPlayerEffects.forEach(key => assert(playerMarkup.includes(`effect-${key}`), `${key} must be represented`));
 assert(playerMarkup.includes('남은 생명력 회복 30 / 저장 한도 200 · 현재 초당 10 · 개별 초당 상한 20')
-  && playerMarkup.includes('남은 ES 회복 20 / 저장 한도 100 · 현재 초당 5 · 개별 초당 상한 10'),
+  && playerMarkup.includes('남은 보호막 회복 20 / 저장 한도 100 · 현재 초당 5 · 개별 초당 상한 10'),
   'leech tooltips must compare current recovery with the real resource caps');
 assert(playerMarkup.includes('combat-effect-art') && !playerMarkup.includes('combat-effect-glyph'),
   'status effects must use the generated image atlas instead of text glyphs');
@@ -147,7 +138,7 @@ assert(context.buildPlayerTalentAndSummonEffectIcons(now).includes('effect-colos
 const activeTalentLookup = context.isTalentCardActive;
 context.isTalentCardActive = () => 0;
 const staleTalentMarkup = context.buildPlayerTalentAndSummonEffectIcons(now);
-assert(!staleTalentMarkup.includes('effect-talentAegis') && !staleTalentMarkup.includes('effect-fletcherCharge')
+assert(!staleTalentMarkup.includes('effect-fletcherCharge')
   && !staleTalentMarkup.includes('effect-colosseumCharge'), 'unequipped talent cards must not leave stale effect icons');
 context.isTalentCardActive = activeTalentLookup;
 context.game.talentRuntime.colosseumReady = true;
@@ -189,7 +180,6 @@ const enemy = {
   skillSlowPct: 12,
   dotState: { stacks: 3, rawTickDamage: 44, timeLeft: 2.5, skillName: '빙결 침식' }
 };
-context.game.talentDawnHits = { 7: 1 };
 context.game.enemyWitherStacks = { 7: 4 };
 context.game.enemyUniqueChaosResDown = { 7: { stacks: 3, perHit: 2 } };
 context.game.enemyUniqueElementalResDown = { 7: { stacks: 2, perHit: 3 } };
@@ -201,7 +191,7 @@ const enemyMarkup = context.buildEnemyCombatEffectIcons([
   { type: 'assassinWeakness', time: 5, power: 4 },
   { type: 'freeze', time: 0, power: 0 }
 ], [{ name: '쇠약', expiresAt: 13000 }, { name: '만료', expiresAt: 9000 }], now, enemy);
-const enemyRuntimeKeys = ['dawnSeal', 'enemySkillDot', 'enemyWither', 'enemyChaosResDown', 'enemyElementalResDown',
+const enemyRuntimeKeys = ['enemySkillDot', 'enemyWither', 'enemyChaosResDown', 'enemyElementalResDown',
   'talentInquisitorMark', 'talentButcherMark', 'rangerWeakpointMark', 'chaosErosion', 'regenSuppress'];
 assert.strictEqual((enemyMarkup.match(/class="combat-effect-icon/g) || []).length, 3 + enemyRuntimeKeys.length,
   'enemy ailments, curses, marks, and runtime debuffs must share one active icon strip');
@@ -242,7 +232,7 @@ assert.strictEqual(receivedEnemyPayload.type, injectedType, 'enemy ailment type 
 assert.strictEqual(enemyHandlerContext.__effectInjected, undefined, 'enemy ailment type must not execute injected code');
 
 context.game.woodsmanCurseActive = false;
-context.game.playerConditionBuffs = [{ name: injectedType, type: 'guard', expiresAt: 13000 }];
+context.__activeConditions = [{ buff: { name: injectedType, type: 'guard' }, delta: {} }];
 context.game.cosmosPlayerDebuffs = [];
 let receivedBuffName;
 const buffHandlerContext = {
@@ -252,21 +242,6 @@ const buffHandlerContext = {
 vm.runInNewContext(getMouseEnterHandler(context.buildPlayerConditionEffectIcons(now)), buffHandlerContext);
 assert.strictEqual(receivedBuffName, injectedType, 'dynamic buff names must survive safe serialization');
 assert.strictEqual(buffHandlerContext.__effectInjected, undefined, 'dynamic buff names must not execute injected code');
-
-context.game.playerConditionBuffs = [
-  { name: '전장의 함성', type: 'warcry', expiresAt: 13000 },
-  { name: '피의 함성', type: 'warcry', expiresAt: 14000 }
-];
-context.getEffectivePlayerConditionBuffs = () => [context.game.playerConditionBuffs[1]];
-let suppressedWarcry;
-const warcryHandlerContext = {
-  event: {},
-  showPlayerBuffTooltip(...args) { suppressedWarcry = args[4]; }
-};
-const warcryMarkup = context.buildPlayerConditionEffectIcons(now);
-vm.runInNewContext(getMouseEnterHandler(warcryMarkup), warcryHandlerContext);
-assert.strictEqual(suppressedWarcry, true, 'older Earthshaker warcries must remain visible but report their intrinsic effect as suppressed');
-assert(warcryMarkup.includes('combat-effect-badge">×'), 'suppressed warcries need a compact inactive badge');
 
 let receivedNamedEffect;
 const namedHandlerContext = {

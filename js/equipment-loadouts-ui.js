@@ -1,3 +1,9 @@
+/** The panel warning: 누락 for items that are gone, 임시 보관함 when every missing item only waits there. */
+function describeLoadoutMissingWarning(missing) {
+    const label = missing.every(row => row.stored) ? '임시 보관함에 있음' : '누락';
+    return `${label}: ${missing.map(row => row.name).join(', ')}`;
+}
+
 function renderEquipmentLoadoutPresetSlot(preset, index, selectedSlot) {
     let inspection = equipmentLoadoutRuntime.inspect(index);
     let blocked = inspection.missing.length + inspection.incompatible.length;
@@ -19,12 +25,12 @@ function renderEquipmentLoadoutPresetPanel() {
     let preset = state.presets[selected];
     let inspection = equipmentLoadoutRuntime.inspect(selected);
     let warning = inspection.missing.length > 0
-        ? `<span class="equipment-preset-warning">누락: ${escapeHTML(inspection.missing.map(row => row.name).join(', '))}</span>`
+        ? `<span class="equipment-preset-warning">${escapeHTML(describeLoadoutMissingWarning(inspection.missing))}</span>`
         : inspection.incompatible.length > 0
             ? `<span class="equipment-preset-warning">현재 장착 불가: ${escapeHTML(inspection.incompatible.map(row => row.name).join(', '))}</span>`
             : '<span>프리셋에 저장된 장비는 일괄 해체에서 자동 보호됩니다.</span>';
     let html = `<section class="equipment-preset-panel">
-        <header><div><span>GEAR SETS</span><strong>장비 세팅 프리셋</strong></div><small>사냥·보스·생존 세팅을 안전하게 전환</small></header>
+        <header><div><span>빠른 전환</span><strong>장비 세팅 프리셋</strong></div><small>사냥·보스·생존 세팅을 안전하게 전환</small></header>
         <div class="equipment-preset-slots">${state.presets.map((row, index) => renderEquipmentLoadoutPresetSlot(row, index, selected)).join('')}</div>
         <div class="equipment-preset-actions">
             <button type="button" onclick="equipmentLoadoutUi.save()">현재 장비 저장</button>

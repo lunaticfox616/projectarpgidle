@@ -63,10 +63,11 @@ function main() {
         assert.deepStrictEqual(byId(first.tree, id).runtimeEffects, [], '시작점에는 효과가 없어야 합니다.');
         void classId;
     });
-    assert.strictEqual(first.tree.nodes.filter(node => node.starWedgeMode === 'mutation').length, 3, '중앙 성률 분류 실패');
-    const outerSockets = first.tree.nodes.filter(node => node.starWedgeMode === 'constellation');
-    assert.strictEqual(outerSockets.length, 6, '외곽 성률 분류 실패');
-    assert.strictEqual(new Set(outerSockets.map(node => node.name)).size, 6, '여섯 직업의 외곽 성률 이름은 서로 달라야 합니다.');
+    assert.strictEqual(first.tree.nodes.filter(node => node.type === 'quatrefoil' || node.starWedgeMode).length, 0, '별쐐기 허브는 공허 소켓이 되어야 합니다.');
+    const outerSockets = first.tree.nodes.filter(node => node.type === 'void' && node.voidRing === 'outer');
+    assert.strictEqual(outerSockets.length, 6, '외곽 공허 소켓 분류 실패');
+    assert.strictEqual(first.tree.nodes.filter(node => node.type === 'void' && !node.voidRing && /^center-/.test(node.id)).length, 3, '중앙 공허 소켓 분류 실패');
+    assert.strictEqual(new Set(outerSockets.map(node => node.name)).size, 6, '여섯 직업의 외곽 공허 이름은 서로 달라야 합니다.');
     assert.ok(byId(first.tree, 'wisdom').choiceGroup.options.includes('chaos'), '선택형 키스톤 설정 실패');
     assert.deepStrictEqual(byId(first.tree, 'covenant').hiddenRouteNodeIds, [],
         '헌신의 서약이 일반 길목 노드를 임의로 숨기면 안 됩니다.');
