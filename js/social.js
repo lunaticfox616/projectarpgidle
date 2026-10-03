@@ -402,6 +402,7 @@ async function promptAndSetNickname() {
         socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';
         renderSocialTab();
+        refreshChatSettings();
         refreshChatPanel(false);
     } catch (e) {
         setMyNicknameLocal(prev);
@@ -530,15 +531,11 @@ function setLastSeenChatId(id) {
     if (cur != null && n <= cur) return;
     try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
 }
+/** Chat on screen: the chat tab of a PC message frame (js/message-frames-ui.js), or the phone chat tab. */
 function isSocialTabActive() {
+    if (typeof messageFrames === 'object' && messageFrames.isActive()) return messageFrames.isTabVisible('chat');
     let tabEl = document.getElementById('tab-social');
-    return !!(tabEl && (
-        tabEl.classList.contains('active')
-        || tabEl.classList.contains('ui-community-dock')
-        || tabEl.classList.contains('ui-community-overlay')
-        || document.body.classList.contains('community-dock-open')
-        || document.body.classList.contains('community-overlay-open')
-    ));
+    return !!(tabEl && tabEl.classList.contains('active'));
 }
 function isSocialChatNotificationEnabled() {
     return !(typeof game !== 'undefined' && game && game.settings && game.settings.socialChatNotifications === false);
@@ -1114,6 +1111,7 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
+    selectionDialog.close(CHAT_SETTINGS_ID);
     if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     await restoreNicknameFromServer();
     if (!getMyNickname()) await promptAndSetNickname();
@@ -1226,6 +1224,7 @@ function renderProfileData(profile) {
 }
 async function openPlayerProfile(userId) {
     if (!userId) return;
+    selectionDialog.close(CHAT_SETTINGS_ID);
     if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     socialState.currentProfileUserId = String(userId);
     let modal = ensureProfileModal();
@@ -1270,22 +1269,14 @@ function renderSocialTab() {
         let checkingCloud = typeof cloudState !== 'undefined' && cloudState
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
-            ? `<h2>커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<h2>커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+            ? `<div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
+            : `<div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필을 바로 쓸 수 있습니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
         stopChatPolling();
         return;
     }
+    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
     root.innerHTML = `
-        <h2>커뮤니티</h2>
-        <div class="social-toolbar">
-            <div class="social-profile-summary"><span>현재 사용자</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong></div>
-            <div class="social-toolbar-actions">
-                <button onclick="promptAndSetNickname()">${nickname ? '닉네임' : '닉네임 설정'}</button>
-                <button onclick="openMyProfilePreview()">프로필</button>
-                <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">동기화</button>
-            </div>
-        </div>
-        <div id="social-online" class="social-online" style="display:none;"></div>
+        ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
         <div class="social-chat-wrap">
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
@@ -1307,6 +1298,38 @@ function renderSocialTab() {
     ensureHeartbeat();
     startChatPolling();
     restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
+}
+
+// ============================================================================
+// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 접속자 목록을 ⚙ 하나로 연다.
+// ============================================================================
+const CHAT_SETTINGS_ID = 'chat-settings-overlay';
+
+function chatSettingsBody() {
+    if (!socialCloudReady()) {
+        return '<div class="chat-settings"><p class="social-notice">로그인하면 닉네임, 공개 프로필, 접속자 목록을 쓸 수 있습니다.</p>'
+            + `<button type="button" onclick="selectionDialog.close('${CHAT_SETTINGS_ID}'); closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+    }
+    let nickname = getMyNickname();
+    return `<div class="chat-settings">
+        <div class="chat-settings-row"><span>닉네임</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong>
+            <button type="button" onclick="promptAndSetNickname()">${nickname ? '바꾸기' : '정하기'}</button></div>
+        <div class="chat-settings-row"><span>공개 프로필</span>
+            <button type="button" onclick="openMyProfilePreview()">보기</button>
+            <button type="button" onclick="syncPlayerProfile()" title="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
+        <div id="social-online" class="social-online" style="display:none;"></div>
+    </div>`;
+}
+
+function openChatSettings() {
+    selectionDialog.show({ id: CHAT_SETTINGS_ID, title: '채팅 설정', panelClass: 'chat-settings-panel', body: chatSettingsBody() });
+    if (!socialCloudReady()) return;
+    socialState.lastOnlineRenderKey = '';
+    refreshOnlineUsers();
+}
+
+function refreshChatSettings() {
+    if (selectionDialog.isOpen(CHAT_SETTINGS_ID)) openChatSettings();
 }
 
 // ============================================================================

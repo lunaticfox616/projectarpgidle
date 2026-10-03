@@ -669,8 +669,9 @@ assert.ok(uiSource.includes('tutorialPause || isRewardOpen()'), 'tutorial notice
 assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');
 assert.ok(socialSource.includes('연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.'), 'chat should show a cloud-session pending state');
 assert.ok(uiSource.includes('refreshSocialAfterCloudStateChange'), 'cloud session changes should refresh an already-open chat tab');
-assert.ok(uiSource.includes("socialTab.classList.contains('ui-community-dock')"), 'cloud session restore should refresh an open community dock');
-assert.ok(uiSource.includes("socialTab.classList.contains('ui-community-overlay')"), 'cloud session restore should refresh an open community overlay');
+// 2026-10-03: PC 채팅은 전투 기록 창의 채팅 탭(js/message-frames-ui.js). 화면에 보이는지는 isSocialTabActive 하나로 판단한다.
+assert.ok(uiSource.includes("if (typeof isSocialTabActive === 'function' && isSocialTabActive()) renderSocialTab();"), 'cloud session restore should refresh chat that is on screen');
+assert.ok(socialSource.includes("messageFrames.isTabVisible('chat')"), 'chat on a PC message frame tab counts as on screen');
 assert.ok(uiSource.includes('exitPushStartedAt - lastPageExitCloudPushAt < 1500'), 'page-exit cloud uploads should be deduplicated across lifecycle events');
 assert.ok(socialSource.includes('function syncSocialChatNotificationSetting()'), 'new chat notifications should follow their dedicated setting');
 assert.ok(socialSource.includes('scrollChatToLatestOnNextRender'), 'opening chat should explicitly request the newest message position');

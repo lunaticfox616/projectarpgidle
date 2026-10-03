@@ -57,17 +57,25 @@ async function run() {
   assert.deepStrictEqual(Array.from(timers.values()).sort((a, b) => a - b), [4000, 30000], 'chat and presence should poll on separate schedules');
   context.stopChatPolling();
   assert.strictEqual(timers.size, 0, 'stopping chat should clear both polling timers');
+  // PC(2026-10-03): 채팅은 전투 기록 창의 탭이다. 그 탭이 보일 때만 받고, 탭 클래스와 상관없다(js/message-frames-ui.js).
+  let frameChat = false;
+  context.messageFrames = { isActive: () => true, isTabVisible: tab => tab === 'chat' && frameChat };
   context.syncSocialChatPolling();
   assert.strictEqual(timers.size, 0, 'hidden chat must not start polling');
   chatClasses.add('ui-community-dock');
   context.syncSocialChatPolling();
-  assert.strictEqual(timers.size, 2, 'visible dock should resume receiving even without the active tab class');
+  assert.strictEqual(timers.size, 0, 'a chat pane parked behind the combat tab is not on screen');
+  frameChat = true;
+  context.syncSocialChatPolling();
+  assert.strictEqual(timers.size, 2, 'the chat tab showing in a PC frame resumes receiving');
   const runningTimers = Array.from(timers.keys());
   context.syncSocialChatPolling();
   assert.deepStrictEqual(Array.from(timers.keys()), runningTimers, 'other tab changes must not restart or duplicate active polling');
-  chatClasses.clear();
+  frameChat = false;
   context.syncSocialChatPolling();
-  assert.strictEqual(timers.size, 0, 'closing chat stops polling');
+  assert.strictEqual(timers.size, 0, 'switching the frame back to the combat tab stops polling');
+  delete context.messageFrames;
+  chatClasses.clear();
   chatClasses.add('active');
   context.syncSocialChatPolling();
   assert.strictEqual(timers.size, 2, 'reopening the mobile chat resumes receiving');

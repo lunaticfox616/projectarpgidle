@@ -60,4 +60,9 @@ const folded = { closest: selector => (selector === '.combat-feed.collapsed' ? {
 ['scrollHeight', 'clientHeight', 'scrollTop'].forEach(key => Object.defineProperty(folded, key, { get() { throw new Error('measured a folded log'); } }));
 assert.strictEqual(context.captureCombatLogScroll(folded), null, 'a folded log is not measured');
 
+// PC 전투 기록 창(2026-10-03, js/message-frames-ui.js): 채팅 탭이 보이거나 창을 접으면 기록은 창 밖 보관 칸(display:none)에서 기다린다.
+const stashed = { closest: selector => (selector === '.message-frame-stash' ? {} : null) };
+['scrollHeight', 'clientHeight', 'scrollTop'].forEach(key => Object.defineProperty(stashed, key, { get() { throw new Error('measured a stashed log'); } }));
+assert.strictEqual(context.captureCombatLogScroll(stashed), null, 'a log waiting in the frame stash is not measured');
+
 console.log('smoke-combat-log-scroll-follow passed');

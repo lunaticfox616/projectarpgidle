@@ -120,15 +120,33 @@
         return Math.ceil(rect.right / uiDisplay.factor + WORKSPACE_GAP / 2);
     }
 
-    // 메뉴를 담은 하단 HUD는 창이 덮지 않는다: 작업 영역의 아래 끝은 HUD 윗변(솟은 미니맵·구슬 포함) 위다.
-    function getDockedHudInset(viewHeight) {
-        let hud = railDockHome ? document.querySelector('.player-hud') : null;
-        let rect = hud && typeof hud.getBoundingClientRect === 'function' ? hud.getBoundingClientRect() : null;
-        if (!rect || !(rect.height > 0)) return WORKSPACE_EDGE;
-        return Math.ceil(viewHeight - rect.top / uiDisplay.factor + WORKSPACE_GAP / 2);
+    // 하단 HUD 판(.player-hud-shell::before, 메뉴 단추 줄의 바탕)의 윗변. 솟은 미니맵과 구슬은 이보다 위로 나온다.
+    function getHudBarTop(shell) {
+        let rect = shell.getBoundingClientRect();
+        let bar = window.getComputedStyle(shell, '::before');
+        let top = parseFloat(bar.top);
+        if (!(rect.height > 0) || !(shell.offsetHeight > 0) || bar.position !== 'absolute' || !Number.isFinite(top)) return NaN;
+        return rect.top + top * rect.height / shell.offsetHeight;
     }
 
-    // 관리 창은 전투 기록 위까지 확장할 수 있으며 메뉴(왼쪽 레일 또는 하단 HUD)는 항상 남겨 둔다.
+    // 창은 하단 HUD 판 윗변까지 내려온다(2026-10-03 사용자 요청). 솟은 미니맵과 구슬은 창이 덮고(css/themes/pixel-menu.css의
+    // HUD 층), 메뉴 단추 줄은 늘 보인다. 판을 못 찾으면 예전처럼 HUD 상자 윗변 위까지다.
+    function getDockedHudTop(hud) {
+        let shell = hud.querySelector('.player-hud-shell');
+        let barTop = shell ? getHudBarTop(shell) : NaN;
+        if (barTop > 0) return barTop;
+        let rect = hud.getBoundingClientRect();
+        return rect.height > 0 ? rect.top : NaN;
+    }
+
+    function getDockedHudInset(viewHeight) {
+        let hud = railDockHome ? document.querySelector('.player-hud') : null;
+        let top = hud ? getDockedHudTop(hud) : NaN;
+        if (!(top > 0)) return WORKSPACE_EDGE;
+        return Math.ceil(viewHeight - top / uiDisplay.factor + WORKSPACE_GAP / 2);
+    }
+
+    // 관리 창은 전투 기록 위까지 확장할 수 있으며 메뉴(왼쪽 레일 또는 하단 HUD의 단추 줄)는 항상 남겨 둔다.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth / uiDisplay.factor || 1280);
@@ -433,76 +451,14 @@
         handle.addEventListener('pointercancel', up);
     }
 
-    function applyCommunityMode(panel) {
-        let docked = isDesktopWindowed();
-        document.body.classList.toggle('community-dock-open', docked && layoutState.community.open);
-        document.body.classList.toggle('community-overlay-open', !docked && layoutState.community.open);
-        panel.classList.toggle('ui-community-overlay', !docked);
-        panel.classList.toggle('ui-community-dock', docked);
-    }
-
+    // PC의 채팅은 전투 기록과 같은 창의 탭이다(js/message-frames-ui.js). 휴대폰은 채팅 탭으로 연다.
     function openCommunityDock() {
         if (!isDesktopWindowed()) { window.switchTab('tab-social'); return; }
-        let el = document.getElementById('tab-social');
-        if (!el) return;
-        // 채팅은 별도 열을 만들지 않고 현재 전투 로그의 실제 화면 사각형을 그대로 인계받는다.
-        // 화면비·지역 제목 높이가 바뀌어도 두 패널의 위치가 갈라지지 않게 한다.
-        document.body.classList.remove('community-dock-open');
-        let combatFeed = document.querySelector('.combat-feed');
-        let feedRect = combatFeed && typeof combatFeed.getBoundingClientRect === 'function'
-            ? combatFeed.getBoundingClientRect()
-            : null;
-        layoutState.community.open = true;
-        saveLayoutState();
-        installCommunityDockChrome(el);
-        if (isDesktopWindowed() && feedRect && feedRect.width > 0 && feedRect.height > 0) {
-            el.style.left = `${Math.round(feedRect.left / uiDisplay.factor)}px`;
-            el.style.top = `${Math.round(feedRect.top / uiDisplay.factor)}px`;
-            el.style.width = `${Math.round(feedRect.width / uiDisplay.factor)}px`;
-            el.style.height = `${Math.round(feedRect.height / uiDisplay.factor)}px`;
-            el.style.right = 'auto';
-            el.style.bottom = 'auto';
-        }
-        applyCommunityMode(el);
-        if (typeof renderSocialTab === 'function') renderSocialTab();
-        requestCanvasResize();
-        syncWorkspacePresentation();
-    }
-
-    function installCommunityDockChrome(panel) {
-        if (!panel || panel.querySelector(':scope > .ui-community-dock-header')) return;
-        let header = document.createElement('div');
-        header.className = 'ui-community-dock-header ui-context-dock-tabs';
-        header.setAttribute('role', 'tablist');
-        header.setAttribute('aria-label', '전투 기록과 채팅');
-        let combatTab = document.createElement('button');
-        combatTab.type = 'button';
-        combatTab.className = 'ui-context-dock-tab';
-        combatTab.setAttribute('role', 'tab');
-        combatTab.setAttribute('aria-selected', 'false');
-        combatTab.textContent = '전투 로그';
-        combatTab.addEventListener('click', closeCommunityDock);
-        let chatTab = document.createElement('button');
-        chatTab.type = 'button';
-        chatTab.className = 'ui-context-dock-tab active';
-        chatTab.setAttribute('role', 'tab');
-        chatTab.setAttribute('aria-selected', 'true');
-        chatTab.textContent = '채팅';
-        header.append(combatTab, chatTab);
-        panel.prepend(header);
+        if (typeof messageFrames === 'object') messageFrames.showTab('chat');
     }
 
     function closeCommunityDock() {
-        let el = document.getElementById('tab-social');
-        layoutState.community.open = false;
-        saveLayoutState();
-        document.body.classList.remove('community-dock-open', 'community-overlay-open');
-        if (el) {
-            el.classList.remove('ui-community-dock', 'ui-community-overlay');
-            ['left', 'top', 'right', 'bottom', 'width', 'height'].forEach(property => { el.style[property] = ''; });
-        }
-        requestCanvasResize();
-        syncWorkspacePresentation();
+        if (isDesktopWindowed() && typeof messageFrames === 'object') messageFrames.showTab('log');
     }
 
 
@@ -710,6 +666,8 @@
         if (!railDockHome) return;
         syncDesktopRailGroups();
         Object.keys(WINDOW_DEFS).forEach(applyWindowState);
+        // 전투 기록 창의 기본 자리(HUD 상자 바로 위)와 작업 영역도 HUD 높이를 따른다(탐험 지도가 나타나면 HUD가 솟는다).
+        if (typeof messageFrames === 'object') messageFrames.sync();
     }
 
     /** Shown on screen: a tab can be unlocked (no inline display: none) yet still hidden by a stylesheet (해금 before its first unlock). */
@@ -1093,7 +1051,7 @@
         layoutState = getDefaultLayoutState();
         saveLayoutState();
         Object.keys(WINDOW_DEFS).forEach(id => applyWindowState(id));
-        closeCommunityDock();
+        if (typeof messageFrames === 'object') messageFrames.reset();
         toggleGoalDrawer(false);
         requestCanvasResize();
         syncWorkspacePresentation();
@@ -1220,6 +1178,7 @@
         let desktop = isDesktopWindowed();
         document.body.classList.toggle('desktop-windowed-ui', desktop);
         if (!desktop) {
+            if (typeof messageFrames === 'object') messageFrames.sync({ desktop: false });
             restoreWindowMarkupForMobile();
             syncWorkspacePresentation();
             // 목표 서랍은 모바일에서도 같은 선정 로직을 공유하고 표시(배너/하단 시트)만 다르다.
@@ -1229,22 +1188,14 @@
         Object.keys(WINDOW_DEFS).forEach(id => { prepareWindow(id); applyWindowState(id); });
         installGoalDrawer();
         installSettingsReset();
-        if (layoutState.community.open) openCommunityDock();
         installDesktopRailMenu();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
+        // 전투 기록과 채팅 창은 메뉴가 HUD에 들어간 뒤 놓는다(작업 영역의 아래 끝이 HUD 메뉴 줄로 정해진 뒤).
+        if (typeof messageFrames === 'object') messageFrames.sync({ desktop: true, workspaceRect: getWorkspaceRect });
         requestCanvasResize();
         syncWorkspacePresentation();
     }
 
-
-    function closeCommunityOverlayOnOutsidePointer(event) {
-        if (!document.body.classList.contains('community-overlay-open')) return;
-        // 토글 버튼 자체는 click 핸들러가 닫기를 처리하므로, 여기서 먼저 닫으면 재열림 토글이 꼬인다.
-        if (event.target.closest && event.target.closest('#ui-community-toggle')) return;
-        let panel = document.getElementById('tab-social');
-        if (panel && panel.contains(event.target)) return;
-        closeCommunityDock();
-    }
 
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
@@ -1252,10 +1203,6 @@
         // 선택 창은 selection-dialog-ui.js가 Esc를 먼저 받아 맨 위 것만 닫는다. 선택 창이 남아 있으면 그 뒤의 창은 그대로 둔다.
         if (document.querySelector('.selection-overlay')) return;
         if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
-        if (document.body.classList.contains('community-overlay-open') || document.body.classList.contains('community-dock-open')) {
-            closeCommunityDock();
-            return;
-        }
         let open = zOrder.slice().reverse().find(id => {
             let st = layoutState.windows[id];
             return st && st.open && !st.minimized;
@@ -1290,7 +1237,6 @@
         applyResponsiveMode();
         window.addEventListener('resize', applyResponsiveMode);
         document.addEventListener('keydown', closeTopWindowOnEscape);
-        document.addEventListener('pointerdown', closeCommunityOverlayOnOutsidePointer);
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
