@@ -27,6 +27,12 @@ function legacySummonGemSources(gemData) {
     return sources;
 }
 
+/** Engraving slots holding at least one real engraving. Opening a gem's slots stores [null, null, null, null, null],
+ * which is an empty record, not an engraving. */
+function hasLegacySummonEngraving(slots) {
+    return Array.isArray(slots) && slots.some(id => id && GEM_SKY_ENHANCEMENTS[id]);
+}
+
 /** gemData + skyGemEnhancements: the grown record per wisp, awakened if any was (a wisp already in the save counts too).
  * Engravings follow the kept record; when it has none, the first merged gem that has some keeps them. */
 function mergeLegacySummonGemRecords(state) {
@@ -35,7 +41,8 @@ function mergeLegacySummonGemRecords(state) {
     const engravings = state.skyGemEnhancements && typeof state.skyGemEnhancements === 'object' ? state.skyGemEnhancements : {};
     Object.entries(legacySummonGemSources(gemData)).forEach(([wisp, oldNames]) => {
         const names = gemData[wisp] ? [wisp, ...oldNames] : oldNames, keep = pickGrownLegacySummonGem(gemData, names);
-        const awakened = names.some(name => gemData[name] && gemData[name].awakened), engraved = [keep, ...names].find(name => engravings[name]);
+        const awakened = names.some(name => gemData[name] && gemData[name].awakened);
+        const engraved = [keep, ...names].find(name => hasLegacySummonEngraving(engravings[name]));
         gemData[wisp] = { ...gemData[keep], awakened };
         if (engraved) engravings[wisp] = engravings[engraved];
         oldNames.forEach(name => { delete gemData[name]; delete engravings[name]; });

@@ -169,6 +169,15 @@ const loot = json(`(() => {
 })()`);
 assert.deepEqual(loot, [{ kind: 'attack', name: '카오스 위습 소환', awakened: true }, { kind: 'support', name: r.support, tier: 1 }],
     'pending exploration loot folds into one valid row per wisp (two rows of one gem would reject the save)');
+// 리뷰 P2(2026-10-03): 더 자란 공허 유충의 각인 칸이 비어 있으면([null, …]) 그 빈 배열이 뽑혀 벌떼의 각인이 지워졌다.
+const emptySlots = json(`(() => {
+    const save = { gemData: { '벌떼 소환': { level: 7, exp: 0 }, '공허 유충 소환': { level: 9, exp: 0 } },
+        skyGemEnhancements: { '벌떼 소환': [engraving, null, null, null, null], '공허 유충 소환': [null, null, null, null, null] } };
+    migrateLegacySummonGemSave(save);
+    return save.skyGemEnhancements;
+})()`);
+assert.deepEqual(emptySlots, { '카오스 위습 소환': [r.engraving, null, null, null, null] },
+    'an empty slot list is not an engraving: the merged wisp keeps the real one');
 assert.doesNotThrow(() => run('migrateLegacySummonGemSave({}); migrateLegacySummonGemSave({ gemData: null, skyTower: {}, blackMarket: { offers: [null] } });'),
     'missing or odd fields are left alone');
 

@@ -74,8 +74,15 @@ const skillGemCasts = (() => {
             return distance(c,center)<=radius;
         }));
     }
+    /** The pattern's floor cells on the live board: the act map on wide maps, in bounds and walkable (walls and sealed
+     * gates stay dark). It used to pick from a fixed 9×8 board, so a wide map's floor strikes drew nothing. */
     function cells(center,shape,radius) {
-        const board=Array.from({length:72},(_,i)=>({gx:i%9,gy:Math.floor(i/9),hp:1}));
+        const board=[],open=new Set();
+        for(let gy=Math.floor(center.gy-radius);gy<=Math.ceil(center.gy+radius);gy++) {
+            for(let gx=Math.floor(center.gx-radius);gx<=Math.ceil(center.gx+radius);gx++) {
+                if(canPlaceGridFootprint(open,gx,gy,{columns:1,rows:1}))board.push({gx,gy,hp:1});
+            }
+        }
         return area(board,center,shape,radius).map(cell);
     }
     function createState() {return {casts:[],events:[],sequence:0,channel:null,lastSkill:''};}
