@@ -1,7 +1,7 @@
 // 전투 기록과 채팅 창(PC, 2026-10-03 사용자 요청, 라그나로크와 마비노기 채팅창처럼). 작은 창 하나에 [전투][채팅] 탭이 있고,
 // 탭을 창 밖으로 끌거나 ⇱를 누르면 보던 탭이 따로 창이 된다. ⇲로 다시 합친다. 두 창 모두 탭 줄을 끌어 옮기고 테두리(위, 아래,
-// 양옆, 네 모서리)로 크기를 바꾼다. 범위는 관리 창의 작업 영역에서 아래만 화면 끝까지라 하단 HUD 위로 겹쳐 둘 수 있고
-// (2026-10-03 사용자 요청), 관리 창보다는 아래에 깔린다.
+// 양옆, 네 모서리)로 크기를 바꾼다. 범위는 떠 있는 관리 창과 같아서(js/ui-window-manager.js getFreeWindowRect) 하단 HUD를 덮고
+// 화면 아래 끝까지 둘 수 있고(2026-10-03, 2026-10-04 사용자 요청), 관리 창보다는 아래에 깔린다.
 // 전투 기록(#log)과 채팅(#tab-social)은 원래 요소를 창으로 옮겨 쓰고, 휴대폰 배치에서는 원래 자리로 돌려놓는다.
 // 채팅 설정(닉네임, 프로필, 동기화, 접속자)은 ⚙ 하나(social.js openChatSettings)에 모았다.
 const messageFrames = (() => {
@@ -83,12 +83,10 @@ const messageFrames = (() => {
         return mounted && FRAMES.some(frame => shownTab(frame) === tab);
     }
 
-    /** The managed windows' workspace with its bottom moved to the screen edge: a frame may sit over the bottom HUD (it is a layer above it). */
+    /** Where a frame may go: the floating windows' range, down over the bottom HUD to the screen edge (a layer above the HUD). */
     function frameWorkspace() {
-        const view = { left: 8, top: 8, width: window.innerWidth / frameScale() - 16, height: window.innerHeight / frameScale() - 16 };
-        if (!env || typeof env.workspaceRect !== 'function') return view;
-        const ws = env.workspaceRect();
-        return { ...ws, height: Math.max(ws.height, view.top + view.height - ws.top) };
+        if (env && typeof env.workspaceRect === 'function') return env.workspaceRect();
+        return { left: 8, top: 8, width: window.innerWidth / frameScale() - 16, height: window.innerHeight / frameScale() - 16 };
     }
 
     const clampFrameValue = (value, min, max) => Math.round(Math.max(min, Math.min(max, Number(value) || 0)));

@@ -127,6 +127,16 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(window.bottom).toBeGreaterThan(hud.top);
     expect(window.bottom).toBeLessThanOrEqual(menu.top);
     await expect(page.locator('#btn-tab-character')).toBeVisible();
+    // 떠 있는 창은 하단 HUD를 덮고 화면 아래 끝까지 옮길 수 있다(2026-10-04 사용자 요청). 최대화와 붙이기는 위처럼 HUD 판 윗변까지다.
+    // 붙은 창의 제목줄을 끌면 그 자리에서 떠 있는 창이 된다.
+    const title = await rectOf(page, '#tab-items .ui-window-title');
+    await page.mouse.move(title.left + 20, title.top + title.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(title.left + 20, viewport.height - 1, { steps: 6 });
+    await page.mouse.up();
+    const floating = await rectOf(page, '#tab-items');
+    expect(floating.bottom).toBeGreaterThan(menu.bottom);
+    expect(floating.bottom).toBeLessThanOrEqual(viewport.height);
     const docked = await rectOf(page, '#battlefield-wrap');
     expect(docked.width).toBeCloseTo(field.width, 0);
     expect(docked.height).toBeCloseTo(field.height, 0);
