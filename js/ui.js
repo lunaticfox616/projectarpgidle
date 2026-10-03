@@ -14073,13 +14073,28 @@ function canInvestSeasonNode(node, id) {
         && (game.season || 1) >= getSeasonPassiveUnlockLoop(id) && isSeasonNodeRequirementMet(node);
 }
 
+function getSeasonNodeCap(node) {
+    return node && node.inner ? 1 : (isSeasonTreeEvolved() ? 5 : 1);
+}
+
+/** True when a loop point buys something now: a ring node its loop and links allow below its cap, or a loop-10 stat
+ * at its price. The goal notice stays quiet otherwise, e.g. while the next nodes wait for loop 5 (2026-10-04). */
+function hasSpendableSeasonPoint() {
+    const points = Math.max(0, Math.floor(game.seasonPoints || 0));
+    if (points <= 0) return false;
+    if ((game.season || 1) >= 10 && ['flatHp', 'flatDmg', 'aspd', 'move'].some(key => getLoop10StatCost(key) <= points)) return true;
+    return getAllSeasonPassiveNodeIds().some(id => {
+        const node = getSeasonPassiveNodeDef(id);
+        return canInvestSeasonNode(node, id) && getSeasonNodeLevel(id) < getSeasonNodeCap(node);
+    });
+}
+
 async function buySeason(id) { if (!assertBuildEditable()) return;
     let node = getSeasonPassiveNodeDef(id);
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
     if (!canInvestSeasonNode(node, id)) return;
     let lv = getSeasonNodeLevel(id);
-    let evolved = isSeasonTreeEvolved();
-    let cap = node && node.inner ? 1 : (evolved ? 5 : 1);
+    let cap = getSeasonNodeCap(node);
     if (lv >= cap && lv > 0) {
         if (!await requestGameConfirmation('이미 최대 단계인 노드입니다.\n마름병 포자 1개를 사용해 반환하시겠습니까?', {
             title: '최대 단계 노드 반환',
