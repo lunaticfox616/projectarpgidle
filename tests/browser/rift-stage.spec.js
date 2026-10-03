@@ -137,6 +137,12 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     const floating = await rectOf(page, '#tab-items');
     expect(floating.bottom).toBeGreaterThan(menu.bottom);
     expect(floating.bottom).toBeLessThanOrEqual(viewport.height);
+    // 최대화하면 HUD까지 다 덮는다(2026-10-04 사용자: "최대화 하면 당연히 다 덮어야지").
+    await page.locator('#tab-items [data-window-action="maximize"]').click();
+    const maximized = await rectOf(page, '#tab-items');
+    expect(maximized.bottom).toBeGreaterThan(menu.bottom);
+    expect(maximized.bottom).toBeLessThanOrEqual(viewport.height);
+    expect(maximized.top).toBeLessThan(floating.top);
     const docked = await rectOf(page, '#battlefield-wrap');
     expect(docked.width).toBeCloseTo(field.width, 0);
     expect(docked.height).toBeCloseTo(field.height, 0);

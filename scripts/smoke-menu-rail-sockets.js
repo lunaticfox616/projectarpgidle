@@ -543,7 +543,8 @@ assert(parseInt(itemsWindow.style.top, 10) + parseInt(itemsWindow.style.height, 
 if (!itemsWindow.classList.contains('ui-window-maximized')) dock.exposed.toggleMaximizeWindow('tab-items');
 assert(itemsWindow.classList.contains('ui-window-maximized'));
 assert.strictEqual(itemsWindow.style.left, '8px', 'without the left rail a maximized window starts at the screen edge');
-assert(parseInt(itemsWindow.style.top, 10) + parseInt(itemsWindow.style.height, 10) <= 700 - 5, 'windows stop above the HUD so the docked menu stays clickable');
+// 최대화한 창은 HUD(윗변 700px)를 덮고 화면 아래 끝(900px에서 8px 위)까지 간다(사용자 2026-10-04: "최대화 하면 당연히 다 덮어야지").
+assert.strictEqual(parseInt(itemsWindow.style.top, 10) + parseInt(itemsWindow.style.height, 10), 900 - 8, 'a maximized window covers the HUD down to the screen edge');
 dock.exposed.closeWindow('tab-items');
 dock.setDesktop(false);
 dock.windowHandlers.resize();

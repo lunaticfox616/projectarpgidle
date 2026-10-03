@@ -156,9 +156,9 @@
         return { left: railInset, top: WORKSPACE_EDGE, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - WORKSPACE_EDGE - hudInset) };
     }
 
-    // 떠 있는 창은 하단 HUD를 덮고 화면 아래 끝까지 옮기고 키울 수 있다(2026-10-04 사용자 요청: "hud 위에 덮어서 hud 아래
-    // 전체까지"). 창 층(#right-pane)이 HUD보다 위라 겹치면 창이 HUD를 가린다. 최대화와 붙이기는 getWorkspaceRect(HUD 판 윗변까지)라
-    // 최대화로 열리는 창(장비, 스킬 젬, 스킬트리, 지도)이 HUD를 가리지 않는다. 채팅과 전투 기록 창(js/message-frames-ui.js)도 이 범위다.
+    // 떠 있는 창과 최대화한 창은 하단 HUD를 덮고 화면 아래 끝까지 간다(2026-10-04 사용자 요청: "hud 위에 덮어서 hud 아래 전체까지",
+    // "최대화 하면 당연히 다 덮어야지"). 창 층(#right-pane)이 HUD보다 위라 겹치면 창이 HUD를 가린다. 오른쪽에 붙인 창은
+    // getWorkspaceRect(HUD 판 윗변까지)라 전투 화면 옆에 둔 채로 HUD가 보인다. 채팅과 전투 기록 창(js/message-frames-ui.js)도 이 범위다.
     function getFreeWindowRect() {
         let rect = getWorkspaceRect();
         let viewBottom = Math.max(260, window.innerHeight / uiDisplay.factor || 720) - WORKSPACE_EDGE;
@@ -176,7 +176,9 @@
     function resolveWindowPlacement(box, rect, maximized, docked) {
         let dockRect = docked && !maximized ? getDockRect() : null;
         if (dockRect) return { box: dockRect, dockActive: true };
-        if (maximized || docked) return { box: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }, dockActive: false };
+        // 최대화는 HUD까지 다 덮는다. 붙이려는데 전장 폭이 모자란 창은 작업 영역 전체(HUD 판 윗변까지)다.
+        let area = maximized ? getFreeWindowRect() : rect;
+        if (maximized || docked) return { box: { x: area.left, y: area.top, width: area.width, height: area.height }, dockActive: false };
         return { box, dockActive: false };
     }
 
@@ -355,7 +357,7 @@
 
     function toggleMaximizeWindow(tabId) {
         let st = getWindowState(tabId);
-        let rect = getWorkspaceRect();
+        let rect = getFreeWindowRect();
         if (st.maximized) {
             persistWindowState(tabId, { ...(st.restoreRect || {}), maximized: false, restoreRect: null });
         } else {
