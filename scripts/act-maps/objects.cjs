@@ -45,11 +45,19 @@ function urn(cv, x, y) {
     sprite(cv, ['..ooooo..', '.oLLLLdo.', '..oLLdo..', '.oLLLLdo.', 'oLLlLLLdo', 'oLlLLLLdo', 'oLLLLLddo', '.oLLLddo.', '..ooooo..'], x, y + 1, { o: W[0], L: W[4], l: W[5], d: W[2] });
     if (P.hedge) sprite(cv, ['.g.G.', 'gGgGg', '.ggg.'], x, y - 8, { g: P.hedge[3], G: P.hedge[5] });
 }
+/* 같은 소품이 똑같은 모양으로 되풀이되면 도장 찍은 듯 보였다(2026-10-04 사용자): 석상 · 해골 · 묘비는 모양 몇 가지 중
+ * 하나를 고르고 좌우를 뒤집는다(배치 난수 cv.rng로 정해져 같은 맵은 늘 같은 그림). */
+const PLINTH = ['.oooooooo', 'oLLLLLLLdo', 'oddddddddo', 'oooooooooo'];
+const STATUES = [
+    ['...ooo...', '..oLLdo..', '..oLLdo..', '...odo...', '.ooLLLoo.', 'oLLLLLLdo', 'oLoLLLodo', 'oLooLLodo', '..oLLLdo.', '..oLLLdo.', '..oLodLo.', '..oLodLo.', ...PLINTH],
+    ['..o.o.o..', '.oLoLLo..', 'oLLLLLLdo', 'oLoLLLodo', 'oLooLLodo', '..oLLLdo.', '..oLLLdo.', '..oLodLo.', '..oLodLo.', ...PLINTH],
+    ['....o....', '...oLo...', '...oLdo..', '..oLLdo..', '..oLLdo..', '..oLLdo..', '..oLLdo..', '..oLLdo..', '..oLLdo..', '..oLLdo..', ...PLINTH]
+];
 function statue(cv, x, y) {
     shadow(cv, x + 3, y + 1, 8, 2.4);
-    const S = P.stone;
-    sprite(cv, ['...ooo...', '..oLLdo..', '..oLLdo..', '...odo...', '.ooLLLoo.', 'oLLLLLLdo', 'oLoLLLodo', 'oLooLLodo', '..oLLLdo.', '..oLLLdo.', '..oLodLo.', '..oLodLo.', '.oooooooo', 'oLLLLLLLdo', 'oddddddddo', 'oooooooooo'],
-        x, y + 1, { o: S[0], L: S[4], d: S[2] });
+    const S = P.stone, kind = cv.rng.int(0, STATUES.length), key = { o: S[0], L: S[4], d: S[2] };
+    sprite(cv, STATUES[kind], x, y + 1, key, cv.rng.random() < 0.5);
+    if (kind === 1) sprite(cv, ['.oo.', 'oLdo', '.oo.'], x + 8, y + 1, key); // 부서진 석상: 떨어진 머리 조각
 }
 /** 화분에 심은 동그랗게 다듬은 나무. */
 function topiary(cv, x, y) {
@@ -63,10 +71,18 @@ function bench(cv, x, y) {
     sprite(cv, ['oooooooooooooooo', 'oLLLLLLLLLLLLLLo', 'oddddddddddddddo', '.oLo........oLo.', '.odo........odo.', '.ooo........ooo.'], x, y + 1, { o: S[0], L: S[5], d: S[2] });
 }
 const SKULL = ['..ooooo..', '.oWWWWWo.', 'oWWwwwWwo', 'oWkkWkkwo', 'oWkkWkkwo', '.oWWnWwo.', '..oWwWo..', '..owowo..', '...ooo...'];
+const BONES = ['..oo....oo', '.oBbo..obBo', 'oBbbboobbbo', '.oo....oo.'];
+const CROSSED = ['oo.......oo', 'oBb.....bBo', '.obb...bbo.', '...obbbo...', '....obo....', '...obbbo...', '.obb...bbo.', 'oBb.....bBo', 'oo.......oo'];
+const RIBS = ['..oooooo..', '.oBobBoBo.', 'oBo.bo.oBo', 'oBo.bo.oBo', '.ob.bo.bo.', '..o.oo.o..'];
+/** 해골 무더기 네 가지: 해골과 뼈 · 해골 하나 · 엇갈린 뼈 · 갈비뼈와 해골. */
 function skulls(cv, x, y) {
     shadow(cv, x + 2, y + 1, 9, 2.2, 0.38);
-    sprite(cv, ['..oo....oo', '.oBbo..obBo', 'oBbbboobbbo', '.oo....oo.'], x + 3, y + 1, { o: P.bone[0], B: P.bone[4], b: P.bone[3] });
-    sprite(cv, SKULL, x - 2, y, { o: P.bone[0], W: P.bone[3], w: P.bone[2], k: P.ink[0], n: P.bone[1] });
+    const bone = { o: P.bone[0], B: P.bone[4], b: P.bone[3] }, head = { o: P.bone[0], W: P.bone[3], w: P.bone[2], k: P.ink[0], n: P.bone[1] };
+    const kind = cv.rng.int(0, 4), flip = cv.rng.random() < 0.5, side = flip ? -1 : 1;
+    if (kind === 0) { sprite(cv, BONES, x + 3 * side, y + 1, bone, flip); sprite(cv, SKULL, x - 2 * side, y, head, flip); }
+    else if (kind === 1) { sprite(cv, SKULL, x, y, head, flip); sprite(cv, ['oBo'], x + 6 * side, y + 1, bone); }
+    else if (kind === 2) sprite(cv, CROSSED, x, y + 1, bone, flip);
+    else { sprite(cv, RIBS, x + 3 * side, y + 1, bone, flip); sprite(cv, SKULL, x - 5 * side, y + 1, head, flip); }
 }
 /** 구석 거미줄. mask가 있으면 그 자리(바닥)에만 그린다. */
 function web(cv, x, y, sx, sy, mask = null) {
@@ -110,9 +126,13 @@ function shrooms(cv, x, y, lights) {
     sprite(cv, ['.oo.', 'ohdo', '.so.', '.so.'], x - 6, y + 1, k);
 }
 const GRAVE = ['...oooooo...', '..oLLLLLLo..', '.oLlLLLLLdo.', '.olLLLLLLdo.', '.olLrrrrLdo.', '.olLLLLLLdo.', '.olLrrrLLdo.', '.olLLLLLLdo.', '.olLLLcLLdo.', '.olLLLcLLdo.', 'oMMMMMMMMMMo', 'oooooooooooo'];
+const GRAVES = [GRAVE,
+    ['....ooo....', '....oLo....', '..ooodooo..', '..oLLLLLo..', '..ooodooo..', '....oLo....', '....oLo....', '....oLo....', '....odo....', '.oMMMMMMMo.', '.ooooooooo.'],
+    ['....oooo..', '...oLLLdo.', '..oLlLLdo.', '..olLrLdo.', '.oLLLLLdo.', '.olLLLLdo.', '.olLLLLdo.', 'oMMMMMMMo.', 'ooooooooo.']];
+/** 묘비 세 가지: 둥근 비석 · 돌 십자가 · 기운 작은 비석. */
 function grave(cv, x, y) {
     shadow(cv, x + 3, y + 1, 9, 2.4, 0.42);
-    sprite(cv, GRAVE, x, y + 1, { o: P.stone[0], L: P.stone[4], l: P.stone[5], d: P.stone[2], r: P.stone[2], c: P.stone[1], M: P.moss[3] });
+    sprite(cv, GRAVES[cv.rng.int(0, GRAVES.length)], x, y + 1, { o: P.stone[0], L: P.stone[4], l: P.stone[5], d: P.stone[2], r: P.stone[2], c: P.stone[1], M: P.moss[3] }, cv.rng.random() < 0.5);
 }
 function boulder(cv, x, y, r) {
     shadow(cv, x + r * 0.4, y + 1, r * 1.2, r * 0.42, 0.45);
@@ -141,13 +161,13 @@ function spire(cv, x, y, lights) {
     }
     sprite(cv, ['.g.', 'gGg'], x, y - 25, { g: P.gold[2], G: P.gold[4] });
 }
-function goldStatue(cv, x, y) {
-    statue(cv, x, y);
-    for (let yy = y - 15; yy <= y - 3; yy++) for (let xx = x - 4; xx <= x + 4; xx++) {
-        if (!cv.inside(xx, yy)) continue;
-        const i = yy * cv.w + xx;
-        if (cv.px[i] === P.stone[4]) cv.px[i] = P.gold[3]; else if (cv.px[i] === P.stone[2]) cv.px[i] = P.gold[1];
-    }
+/** 차륜 성물(10액트 '합일의 차륜'): 돌 받침 위에 선 여섯 살 금 바퀴, 가운데 푸른 빛 심. 예전 금칠 석상(사람 모양)을 대신한다. */
+function wheelRelic(cv, x, y, lights) {
+    lights.push([x, y - 12, 26, COOL, 0.18]);
+    shadow(cv, x + 3, y + 1, 8, 2.4);
+    sprite(cv, ['....ooooo....', '...oGgggGo...', '..oGo.g.oGo..', '.oGo..g..oGo.', '.og.o.g.o.go.', 'oGo..oco..oGo', 'oggggcCcggggo', 'oGo..oco..oGo', '.og.o.g.o.go.', '.oGo..g..oGo.', '..oGo.g.oGo..', '...oGgggGo...', '....ooooo....',
+        '.....sLs.....', '....sLLds....', '..sssssssss..', '.sLLLLLLLLds.', '.sssssssssss.'],
+    x, y + 1, { o: P.gold[0], G: P.gold[3], g: P.gold[2], c: P.glow[3], C: P.glow[4], s: P.stone[0], L: P.stone[4], d: P.stone[2] });
 }
 function brazierBlue(cv, x, y, lights) {
     torch(cv, x, y, []);
@@ -167,14 +187,14 @@ function blackPool(cv, g, x, y, lights) {
     for (let k = 0; k < 5; k++) cv.put(x - 6 + k * 3, y - 2 + (k % 2), Wt[4 + (k % 2)]);
 }
 
-const SIZE = { candles: [6, 13], torch: [5, 30], lantern: [6, 14], urn: [5, 12], statue: [6, 17], topiary: [6, 14], bench: [8, 7], skulls: [8, 9], planks: [9, 7],
+const SIZE = { candles: [6, 13], torch: [5, 30], lantern: [6, 14], urn: [5, 12], statue: [10, 17], topiary: [6, 14], bench: [8, 7], skulls: [10, 9], planks: [9, 7],
     crate: [7, 12], barrel: [6, 13], potions: [8, 7], shrooms: [8, 8], grave: [7, 13], rubble: [9, 6], birch: [15, 17], dryGrass: [5, 6], sapCrystal: [5, 9],
-    blossomTree: [12, 31], wisteriaTree: [10, 29], spire: [5, 28], goldStatue: [6, 17], brazierBlue: [5, 30] };
+    blossomTree: [12, 31], wisteriaTree: [11, 30], spire: [5, 28], wheelRelic: [7, 19], brazierBlue: [5, 30] };
 const sizeOf = (kind, r) => (kind === 'boulder' ? [r + 2, Math.ceil(r * 1.5) + 2] : SIZE[kind]);
 function draw(cv, kind, x, y, lights, r) {
-    const lit = { candles, torch, lantern, potions, shrooms, sapCrystal, spire, brazierBlue };
+    const lit = { candles, torch, lantern, potions, shrooms, sapCrystal, spire, brazierBlue, wheelRelic };
     if (lit[kind]) return lit[kind](cv, x, y, lights);
     if (kind === 'boulder') return boulder(cv, x, y, r);
-    return { urn, statue, topiary, bench, skulls, planks, crate, barrel, grave, rubble, goldStatue, ...plants }[kind](cv, x, y);
+    return { urn, statue, topiary, bench, skulls, planks, crate, barrel, grave, rubble, ...plants }[kind](cv, x, y);
 }
 module.exports = { sprite, web, draw, sizeOf, shelfFungus: plants.shelfFungus, blackPool };
