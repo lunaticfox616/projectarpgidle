@@ -416,8 +416,15 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
   const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
   // 보조 콘텐츠 통합 9단계: 루프 31 빌드의 힘이 빠진 만큼 몬스터도 같은 배율로 낮췄다 — 기준 범위에 같은 배율을 곱한다.
-  const rivalHpScale = context.getMonsterLoopPowerScale(rivalZones[0], 'hp');
-  assert.ok(rivalHpScale > 0.5 && rivalHpScale < 1, 'the loop 31 benchmark uses the loop power curve');
+  // 2026-10-04 루프당 성장 소폭 하향(data/maps.js MONSTER_LOOP_GROWTH): 같은 이유로 예전 성장 대비 비율도 곱한다.
+  const rivalGrowthRatio = vm.runInContext(`(() => {
+    const zone = SEASON_BOSS_ZONES.find(row => row.rivalBlade), depth = getSoftenedLoopDepth(30);
+    const share = Math.min(1, Math.max(0, (levelProgression.combatZone(zone).tier - 1) / 18)), old = MONSTER_LOOP_GROWTH.fixed.hp;
+    return getMonsterLoopGrowthScale(zone, 'hp', depth, share) / (1 + depth * (old.base + share * old.tier));
+  })()`, context);
+  const rivalHpScale = context.getMonsterLoopPowerScale(rivalZones[0], 'hp') * rivalGrowthRatio;
+  assert.ok(rivalGrowthRatio > 0.85 && rivalGrowthRatio < 1, 'the loop 31 benchmark follows the lowered loop growth');
+  assert.ok(rivalHpScale > 0.45 && rivalHpScale < 1, 'the loop 31 benchmark uses the loop power curve');
   assert.ok(Math.min(...commonRivalHealth) >= 35000000 * rivalHpScale && Math.max(...commonRivalHealth) <= 80000000 * rivalHpScale,
     '다섯 버려진 날은 루프 31 빌드가 즉시 처치할 수 없는 생명력을 가져야 한다');
   assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000 * rivalHpScale,

@@ -58,4 +58,20 @@ const transcendent = JSON.parse(run(`JSON.stringify([
 assert.deepEqual(transcendent.map(row => row.value), [2, 24, 50, 24]);
 assert.equal(run('STUMP_BOX_GRAFT.pctPerRank'), 10, 'graft +10% per rank');
 
-console.log('monster loop power curve, life, damage, readiness, exempt and atlas loops, transcendent ranges: OK');
+// 루프당 성장(2026-10-04 소폭 하향, MONSTER_LOOP_GROWTH): 혼돈 20 · 루프 10은 생명력 약 7%, 피해 약 4% 낮다. 나무꾼(루프를 타지 않음)과
+// 우주계(예전 성장 그대로)는 바뀌지 않는다.
+const growth = JSON.parse(run(`(() => {
+    game.season = 10; game.loopCount = 9;
+    const chaos = getZone(getAbyssZoneIdForDepth(20)), depth = getSoftenedLoopDepth(9);
+    const lowered = getMonsterLoopGrowthScale(chaos, 'hp', depth, 1), oldHp = 1 + depth * (MONSTER_LOOP_GROWTH.fixed.hp.base + MONSTER_LOOP_GROWTH.fixed.hp.tier);
+    const dmg = getMonsterLoopGrowthScale(chaos, 'damage', depth, 1), oldDmg = 1 + depth * (MONSTER_LOOP_GROWTH.fixed.damage.base + MONSTER_LOOP_GROWTH.fixed.damage.tier);
+    const woodsman = getZone(OUTSIDE_CHAOS_ZONE_ID);
+    return JSON.stringify({ hpRatio: lowered / oldHp, dmgRatio: dmg / oldDmg, woodsmanLoopInputs: getLoopDifficultyInputs(woodsman),
+        cosmos: getMonsterLoopGrowthScale({ type: 'cosmos' }, 'hp', 29, 1) === 1 + 29 * (MONSTER_LOOP_GROWTH.fixed.hp.base + MONSTER_LOOP_GROWTH.fixed.hp.tier) });
+})()`));
+assert.ok(growth.hpRatio > 0.9 && growth.hpRatio < 0.95, `chaos 20 at loop 10: life about 7% lower (${growth.hpRatio.toFixed(3)})`);
+assert.ok(growth.dmgRatio > 0.94 && growth.dmgRatio < 0.97, `chaos 20 at loop 10: damage about 4% lower (${growth.dmgRatio.toFixed(3)})`);
+assert.deepEqual([growth.woodsmanLoopInputs.seasonLoops, growth.woodsmanLoopInputs.loopCount], [0, 0], 'the woodsman takes no loop growth');
+assert.equal(growth.cosmos, true, 'cosmos keeps the growth it was tuned on');
+
+console.log('monster loop power curve, life, damage, readiness, exempt and atlas loops, transcendent ranges, lowered loop growth: OK');

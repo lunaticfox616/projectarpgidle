@@ -5759,6 +5759,12 @@ function getLoopDefenseScale(loopCount) {
     return scale;
 }
 
+/** 1 + depth × per-loop growth of monster life or damage (data/maps.js MONSTER_LOOP_GROWTH); tierShare is the zone's 0..1 tier share.
+ * Cosmos keeps the values it was tuned on (its own node tiers carry its difficulty). */
+function getMonsterLoopGrowthScale(zone, kind, seasonDepth, tierShare) {
+    const growth = (zone && zone.type === 'cosmos' ? MONSTER_LOOP_GROWTH.fixed : MONSTER_LOOP_GROWTH)[kind];
+    return 1 + seasonDepth * (growth.base + tierShare * growth.tier);
+}
 /** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
  * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
 function getMonsterLoopPowerScale(zone, kind) {
@@ -5874,7 +5880,7 @@ function createEnemy(zone, marker, groupIndex) {
     let loopScaleExempt = loopInputs.exempt;
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
-    let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
+    let seasonHpScale = getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress);
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
     let loopHpScale = getLoopHpScale(loopInputs.loopCount);
@@ -6384,7 +6390,7 @@ function estimateMapZonePowerRequirements(zone) {
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
     let hp = ((56 + tier * 30) * 1.15)
-        * (1 + seasonDepth * (0.08 + tierProgress * 0.52))
+        * getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress)
         * (1 + tierProgress * 9)
         * getLoopHpScale(loopInputs.loopCount)
         * getMonsterLoopPowerScale(zone, 'hp');
@@ -6405,7 +6411,7 @@ function estimateMapZonePowerRequirements(zone) {
     if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
     let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
     let bossHit = (2.4 + tier * 3.35) * 1.15
-        * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
+        * getMonsterLoopGrowthScale(zone, 'damage', seasonDepth, tierPressure)
         * (1.14 + tier * 0.16) * 1.34
         * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
         * contentScale.damage * (bossMods.damageMul || 1) * (zone.mapDamageMul || 1)
@@ -11194,7 +11200,7 @@ function getEnemyCombatImpactTargets(pendingAttack) {
 
 /** Base hit before the enemy's own modifiers and the victim's defenses. */
 function getMonsterBaseHitDamage(zone, seasonDepth, tierPressure, benchmarkProfile) {
-    let seasonDmgScale = 1 + seasonDepth * (0.05 + tierPressure * 0.07);
+    let seasonDmgScale = getMonsterLoopGrowthScale(zone, 'damage', seasonDepth, tierPressure);
     let dmg = Math.floor((2.4 + zone.tier * 3.35) * 1.15 * seasonDmgScale);
     if (benchmarkProfile) dmg = Math.floor(dmg * benchmarkProfile.damage);
     else if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78 * getUnderworldEnemyDamageMultiplier(zone));
