@@ -7,6 +7,8 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 const context = buildGameRuntime();
 const run = code => vm.runInContext(code, context);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
+// The run's facing is random (js/combat.js rollExplorationFacing); this check strikes the drawn map's fixed cells.
+run('rollExplorationFacing = () => undefined;');
 run(`game = mergeDefaults({ level: 40, currentZoneId: 0, settings: { showLootLog: false } }); startEncounterRun();
     game.skills = ['파문심판']; game.gemData = { '파문심판': { level: 1, quality: 0, exp: 0 } }; game.activeSkill = '파문심판';`);
 assert.ok(json('getCombatGridSize().columns') > 9, 'act 1 is a wide map');
