@@ -8579,6 +8579,13 @@ function transferSkillDotOnDeath(enemy) {
     });
 }
 
+/** 급소 표식(r5): every third hit adds 3% of the target's maximum life. A boss takes at most the triggering hit again
+ * (2026-10-04): a share of maximum life ignores the boss's size, so it let any ranger cut the woodsman (93M life) by a third. */
+function getRangerWeakpointBonus(enemy, hitDamage) {
+    const lifeShare = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 1) * 0.03));
+    return enemy.isBoss ? Math.max(1, Math.min(lifeShare, Math.floor(hitDamage || 0))) : lifeShare;
+}
+
 function canBreakWoodsmanLoop() {
     return Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) >= WOODSMAN_BREAK_LOOP_REQUIRED;
 }
@@ -10350,7 +10357,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 mark.hits = Math.max(0, Math.floor(mark.hits || 0)) + 1;
                 if (mark.hits >= 3) {
                     mark.hits = 0;
-                    let bonus = Math.max(1, Math.floor((targetEnemy.maxHp || targetEnemy.hp || 1) * 0.03));
+                    let bonus = getRangerWeakpointBonus(targetEnemy, dmg);
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
                     addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys', syncToSwing: true });
                 }
