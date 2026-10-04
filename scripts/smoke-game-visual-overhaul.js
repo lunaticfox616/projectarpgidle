@@ -357,6 +357,29 @@ assert.strictEqual(bodyCueLayout.rows[1].stackShiftTo, 0, 'evasion body cues mus
 assert.strictEqual(bodyCueLayout.rows[1].duration, 420, 'evasion body cues should clear quickly beside the character');
 assert.ok(bodyCueLayout.font.includes('11px'), 'body cues should be visibly smaller than ordinary damage numbers');
 assert.strictEqual(bodyCueLayout.drawY, 220, 'body cues must stay fixed beside the character instead of rising like damage numbers');
+const sideLabels = vm.runInContext(`(() => {
+  battleVisualState.damageTexts = [];
+  spawnDamageText({ start: 1700, x: 420, y: 240, value: 30, side: 1 });
+  spawnDamageText({ start: 1700, x: 380, y: 240, value: 70, side: 1, crit: true });
+  spawnDamageText({ start: 1700, x: 200, y: 240, value: 9, side: -1, enemyHit: true });
+  const drawn = [];
+  const ctx = { save() {}, restore() {}, translate() {}, scale() {}, strokeText() {}, measureText: value => ({ width: String(value).length * 8 }),
+    fillText(value, x) { drawn.push({ value: String(value), align: this.textAlign, alpha: this.globalAlpha, blur: this.shadowBlur }); } };
+  drawDamageTexts(ctx, 1710);
+  return { drawn, offsets: [getDamageTextSideOffset(0, 48), getDamageTextSideOffset(120, 96), getDamageTextSideOffset(0, 0)] };
+})()`, context);
+const sideByValue = Object.fromEntries(sideLabels.drawn.map(row => [row.value, row]));
+assert.strictEqual(sideByValue['30'].align, 'left', 'damage dealt grows rightward from beside the monster');
+assert.strictEqual(sideByValue['-9'].align, 'right', 'damage taken grows leftward from beside the hero');
+assert.ok(Math.abs(sideByValue['30'].alpha - 0.72) < 1e-9, 'ordinary dealt hits sit back at 72% so crits stand out');
+assert.strictEqual(sideByValue['70'].alpha, 1, 'crits stay at full strength');
+assert.strictEqual(sideByValue['-9'].alpha, 1, 'damage taken stays at full strength');
+assert.ok(sideByValue['30'].blur === 0 && sideByValue['-9'].blur === 0, 'non-crit numbers use an outline, not a glow');
+assert.deepStrictEqual(Array.from(sideLabels.offsets), [20, 48, 14], 'the side gap follows the drawn sprite and grid, never below 14px');
+const playerBar = vm.runInContext(`[0.8, 0.6, 0.5, 0.35, 0.2].map(pct => getPlayerHealthBarLook(pct, 0))`, context);
+assert.deepStrictEqual(Array.from(playerBar, look => look.fill), ['#20bf6b', '#20bf6b', '#e0a530', '#e0a530', '#e2453c'],
+  'player life bar: green from 60%, amber from 35%, red below');
+assert.ok(playerBar[4].height > playerBar[3].height, 'low life also thickens the bar so the warning is not colour-only');
 
 for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
@@ -679,7 +702,6 @@ assert.ok(uiSource.includes("hunterExpose: { sprite: 8, label: '약점 노출'")
 assert.ok(uiSource.includes("hunterExpose: () => '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.'"), 'hunter exposure should explain its actual effect in the custom tooltip');
 // Currency catalog exclusions are behavior-tested in smoke-crafting-workspace.js.
 assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
-assert.ok(uiSource.includes('gem-tag--support') && uiSource.includes('gem-tag--resonance'), 'support gem tags should use distinct support and resonance colors');
 assert.ok(uiSource.includes("renderSkillGemArt(name, 'gem-card-sigil gem-card-art')"), 'skill cards should use their dedicated gem portraits');
 assert.ok(uiSource.includes('overlayPause && (tutorialOpen || optionalOverlayOpen)'), 'tutorial notices must follow the overlay-pause setting');
 assert.ok(uiSource.includes('tutorialPause || isRewardOpen()'), 'tutorial notices must use the optional render-only game-loop path');

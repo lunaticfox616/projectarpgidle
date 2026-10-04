@@ -461,7 +461,7 @@ body[data-ui-skin] {
   width: calc(var(--minimap-size) + 12px);
   height: calc(var(--minimap-size) + 12px);
   border-radius: 0;
-  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #25222a 0);
+  background: conic-gradient(var(--px-map-progress) var(--explore-pct, 0%), #25222a 0);
   box-shadow: 0 0 0 2px var(--px-ink), var(--px-drop);
 }
 :root body[data-ui-skin] #act-exploration-panel canvas {
@@ -482,6 +482,8 @@ body[data-ui-skin] {
   --px-map-rim: url('../../assets/ui/pixel/hud-map-rim.png');
   --px-map-window: url('../../assets/ui/pixel/hud-map-window.png');
   --px-map-size: calc(136px * var(--px-hud-dot));
+  /* 탐험 비율 호: 밝은 금빛 대신 차분한 청동 한 색(가시성 정리 2026-10-04 — 지도 내용보다 테가 먼저 보이지 않게) */
+  --px-map-progress: #9a7d4a;
   --px-hud-bar: 72px;
   /* 둥근 셋을 올리는 높이: 아래 장식(구슬 테 24~29도트, 지도 테 46도트)이 판 밑(아래 여백 10px)으로 빠지지 않게. */
   --px-orb-lift: 21px;
@@ -549,7 +551,7 @@ body[data-ui-skin] {
   width: var(--px-map-size);
   height: var(--px-map-size);
   border-radius: 50%;
-  background: conic-gradient(#d8a64a var(--explore-pct, 0%), #25222a 0);
+  background: conic-gradient(var(--px-map-progress) var(--explore-pct, 0%), #25222a 0);
   box-shadow: none;
 }
 :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel::after {
@@ -563,6 +565,8 @@ body[data-ui-skin] {
   background: var(--px-map-rim) 0 0 / 100% 100% no-repeat;
   image-rendering: pixelated;
   pointer-events: none;
+  /* 매듭 테는 모양 그대로, 밝기 72% · 채도 70%: 지도보다 앞에 보이지 않게 */
+  filter: brightness(.72) saturate(.7);
 }
 :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel canvas {
   position: absolute;

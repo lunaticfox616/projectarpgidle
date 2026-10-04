@@ -135,7 +135,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   .equipment-slot-head span, .equipment-empty-label, .equipment-summary-stat span, .equipment-preset-slot small,
   .equipment-preset-note span, .equipment-triage-copy small, .inventory-view-filter-label,
   .gem-tag, .gem-level-badge, .gem-card-range, .gem-usage-state, .gem-card-utility, .starter-gem-equip-guide,
-  .gem-library-card p, .skill-library-toolbar > *, #btn-skill-tab-equip small, #ui-skill-loadout-summary :is(span, small),
+  .skill-library-toolbar > *, #btn-skill-tab-equip small, #ui-skill-loadout-summary :is(span, small),
   .map-state-badge, .map-zone-group-count, .ui-goal-desc, .ui-goal-notice-action span, .ailment-stat-title,
   .subtab-btn, .ui-window-actions button, [class*="kicker"]
 ) { font-size: 12px; }
@@ -642,6 +642,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle { display: none; }
 /* 젬 설명은 어절 단위로 줄을 바꾼다 — "피해의 45%" / "를 줍니다."처럼 숫자와 조사가 갈렸다(검토 4차) */
 :root body[data-ui-skin] :is(.gem-library-card > p, .gem-selection-content) { word-break: keep-all; overflow-wrap: anywhere; }
+/* 2026-10-04 가시성: 젬 카드는 이름 · 핵심 설명 · 레벨 · 장착 상태만 — 범위 · 태그는 상세로 옮기고 글자를 갈무리 15로 키웠다 */
+:root body[data-ui-skin] .tab-content:not(#tab-battle) .gem-library-card > p { font-family: var(--font-pixel-read); font-size: 15px; line-height: 1.4; }
+:root body[data-ui-skin] .gem-card-hint { margin-top: 6px; color: var(--px-copy-muted); }
 /* 하위 탭이 하나뿐이면 줄을 숨긴다(js/ui.js syncSingleSubtabRows) */
 :root body[data-ui-skin] .tab-content .subtab-row[hidden] { display: none; }
 /* 목표 서랍: 제목 · 알림 앞의 4px 가로줄 장식은 "- "처럼 읽히고 단추 모서리에 떠 보였다(검토 4차) → 없애고 글을 왼쪽에 맞춘다 */
@@ -669,11 +672,11 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .codex-slot-heading, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
 /* 카드 · 판의 이름 줄은 소제목 크기 */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong, .map-item--act .map-item-main > span, .equipment-preset-panel > header strong,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-card-head strong, .gem-research-card-head strong, .journal-card-head strong, .map-item--act .map-item-main > span, .equipment-preset-panel > header strong,
     .passive-planner-primary > strong, .unique-hunt-panel > header strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
     .character-ehp-stat strong) { font-family: var(--font-pixel-read); font-size: 15px; }
 /* 작은 이름표 · 값 · 안내 글 */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-card-head strong, .gem-research-card-head > span, .gem-resource-strip :is(span, strong), .skill-loadout-summary strong,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head > span, .gem-resource-strip :is(span, strong), .skill-loadout-summary strong,
     .market-exchange-quote :is(span, strong), .codex-card .item-actions > span, .unique-hunt-panel > header > b, .content-unlock-heading > span,
     .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
     .talent-current-combo > i) { font-family: var(--font-pixel); font-size: 12px; }
@@ -709,6 +712,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
    1.1em(격자 밖 크기) · 고유 · 레벨 업 줄의 번지는 빛 그림자는 도트 외곽선으로 */
 :root body[data-ui-skin] #log .exp-txt { color: #c9a3e8; }
 :root body[data-ui-skin] #log .attack-monster { color: #ff7f6e; }
+/* 2026-10-04 가시성: 내 일반 공격 줄은 흐린 글자(6:1)로 물러나 획득 · 레벨 업 줄이 먼저 읽힌다. 치명타 · 피격 줄은 그대로 */
+:root body[data-ui-skin] #log .attack-player { color: var(--px-copy-muted); }
 :root body[data-ui-skin] #log .death { color: #ff6b5b; font-size: inherit; }
 :root body[data-ui-skin] #log .loot-magic { color: #6cb6ff; }
 :root body[data-ui-skin] #log :is(.loot-unique, .level-up, .season-up) { text-shadow: var(--px-text-edge); }

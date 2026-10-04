@@ -1533,18 +1533,28 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
 
 /** The player's bar floats just above the drawn head — Hana sprites scale with the tile (×3~×5), so a fixed offset
  * cut across the face on large screens. Legacy sprites keep the old offset. */
+/** Player bar fill by remaining life: green from 60%, amber from 35%, red below. Below 35% the bar also thickens and pulses
+ * so the warning does not rest on colour alone (drawLowHealthEdge adds the screen-edge pulse at the same threshold). */
+function getPlayerHealthBarLook(hpPct, now) {
+    if (hpPct >= 0.6) return { fill: '#20bf6b', height: 6, alpha: 0.97 };
+    if (hpPct >= 0.35) return { fill: '#e0a530', height: 6, alpha: 0.97 };
+    return { fill: '#e2453c', height: 8, alpha: 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(now / 140)) };
+}
+
 function drawBattlefieldPlayerHealthBar(ctx, scene) {
-    const width = 64, height = 6, head = hanaActors.headY(scene.now), playerPos = scene.light;
-    const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10);
+    // 2026-10-04 visibility: 64 -> 48px wide so the bar covers less of the field; the height stays readable.
+    const look = getPlayerHealthBarLook(scene.hpPct, scene.now);
+    const width = 48, height = look.height, head = hanaActors.headY(scene.now), playerPos = scene.light;
+    const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10) - (height - 6);
     ctx.save();
-    ctx.globalAlpha = 0.97;
+    ctx.globalAlpha = look.alpha;
     ctx.fillStyle = 'rgba(6, 5, 4, 0.72)';
     ctx.fillRect(x, y, width, height);
     if (scene.ghostPct > scene.hpPct + 0.003) {
         ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
         ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.ghostPct)), height);
     }
-    ctx.fillStyle = '#20bf6b';
+    ctx.fillStyle = look.fill;
     ctx.fillRect(x, y, Math.max(2, Math.round(width * scene.hpPct)), height);
     if (scene.esPct > 0) {
         ctx.fillStyle = 'rgba(75,123,236,0.85)';
@@ -1561,7 +1571,8 @@ function drawBattlefieldPlayerHealthBar(ctx, scene) {
 /** 칸 폭을 넘지 않는다: 휴대폰은 칸이 좁아 이웃한 적의 막대가 한 줄로 이어져 보였다(검토 5차). */
 function getEnemyFieldBarWidth(enemy, tileW) {
     if (enemy.isBoss) return 96;
-    const base = enemy.isElite ? 54 : 40;
+    // 2026-10-04 visibility: narrower (40 -> 32, elite 54 -> 44) so packed rows read as separate bars.
+    const base = enemy.isElite ? 44 : 32;
     return tileW > 0 ? Math.min(base, Math.max(18, Math.floor(tileW * 0.84))) : base;
 }
 
@@ -1595,6 +1606,14 @@ function getEnemyFieldBarLift(enemy) {
     const base = enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56);
     const drawn = enemyDrawnHeights.get(enemy) || 0;
     return Math.max(base, Math.round(drawn + 10));
+}
+
+/** Damage numbers sit beside the body instead of on it — taken to the left, dealt to the right — spaced by half the drawn
+ * sprite so a 2x2 boss pushes them further out. Drawn height stands in for width (the body art is about as wide as tall).
+ * @param {number} drawnHeight sprite height drawn this frame in CSS px, 0 when unknown
+ * @param {number} tileW grid tile width in CSS px */
+function getDamageTextSideOffset(drawnHeight, tileW) {
+    return Math.round(Math.max(14, (Number(tileW) || 0) * 0.42, (Number(drawnHeight) || 0) * 0.4));
 }
 
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
@@ -2468,8 +2487,9 @@ function renderBattlefield(forceWhenHidden) {
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
                     start: now,
-                    x: enemyPos.x,
+                    x: enemyPos.x + getDamageTextSideOffset(enemyDrawnHeights.get(enemyPos.enemy) || 0, gridProj.tileW),
                     y: enemyPos.y - 30,
+                    side: 1,
                     value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
@@ -2494,10 +2514,12 @@ function renderBattlefield(forceWhenHidden) {
             requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             if (typeof fx.damage === 'number') {
+                const head = hanaActors.headY(now);
                 spawnDamageText({
                     start: now,
-                    x: playerPos.x + 14,
+                    x: playerPos.x - getDamageTextSideOffset(head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head, gridProj.tileW),
                     y: playerPos.y - 36,
+                    side: -1,
                     value: fx.damage,
                     enemyHit: true,
                     deflected: !!fx.deflected
@@ -2512,8 +2534,9 @@ function renderBattlefield(forceWhenHidden) {
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
                     start: now,
-                    x: summonPos.x,
+                    x: summonPos.x - getDamageTextSideOffset(0, gridProj.tileW),
                     y: summonPos.y - 34,
+                    side: -1,
                     value: fx.damage,
                     enemyHit: true
                 });
@@ -2903,7 +2926,8 @@ function drawBattleLightingPass(ctx, scene) {
     ctx.fillRect(-40, -40, width + 80, height + 80);
     const glowRadius = inner * 1.5;
     const warm = ctx.createRadialGradient(light.x, cy, 0, light.x, cy, glowRadius);
-    warm.addColorStop(0, 'rgba(255,190,105,0.16)');
+    // 2026-10-04 visibility: bloom at 70% (0.16 -> 0.112) so it stops washing out the hero's surroundings.
+    warm.addColorStop(0, 'rgba(255,190,105,0.112)');
     warm.addColorStop(1, 'rgba(255,190,105,0)');
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = warm;
