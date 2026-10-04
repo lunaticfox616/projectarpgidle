@@ -10926,6 +10926,17 @@ function recordPlayerAilmentIncomingDamage(ailment, element, amount) {
     });
 }
 
+/** Burning and bleeding drain the energy shield before life, like a hit (2026-10-04); poison (chaos) still reaches life directly.
+ * A boss's burn took a 1,900-life, 9,500-shield build down while the shield stood full. Returns what is left for life. */
+function takeAilmentDamageFromEnergyShield(damage) {
+    game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
+    const absorbed = Math.min(game.playerEnergyShield, Math.max(0, damage));
+    if (absorbed <= 0) return damage;
+    game.playerEnergyShield -= absorbed;
+    game.playerEsLastHitAt = getCombatTime();
+    return damage - absorbed;
+}
+
 function tickAilments(pStats, dt) {
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
     let next = [];
@@ -10941,11 +10952,12 @@ function tickAilments(pStats, dt) {
                 burn = Math.max(0, Math.floor(burn * (1 - Math.max(0, Math.min(0.9, (pStats.igniteDamageReducePct || 0) / 100)))));
                 if (getCombatTime() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) burn = 0;
                 burn = floorIncomingDamage(burn);
-                burn = absorbDamageWithTalentStoneShield(burn);
+                const burnTotal = burn;
+                burn = absorbDamageWithTalentStoneShield(takeAilmentDamageFromEnergyShield(burn));
                 burn = absorbDamageWithRealmDeathWard(burn, pStats);
                 game.playerHp -= burn;
                 trackHiddenJournalPlayerDamage(burn);
-                recordPlayerAilmentIncomingDamage(ail, 'fire', burn);
+                recordPlayerAilmentIncomingDamage(ail, 'fire', burnTotal);
             }
         } else if (ail.type === 'poison') {
             let poison = getPlayerDamageAilmentDps(ail, pStats);
@@ -10975,11 +10987,12 @@ function tickAilments(pStats, dt) {
                 bleed = Math.max(0, Math.floor(bleed * (1 - Math.max(0, Math.min(0.9, (pStats.bleedDamageReducePct || 0) / 100)))));
                 if (getCombatTime() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) bleed = 0;
                 bleed = floorIncomingDamage(bleed);
-                bleed = absorbDamageWithTalentStoneShield(bleed);
+                const bleedTotal = bleed;
+                bleed = absorbDamageWithTalentStoneShield(takeAilmentDamageFromEnergyShield(bleed));
                 bleed = absorbDamageWithRealmDeathWard(bleed, pStats);
                 game.playerHp -= bleed;
                 trackHiddenJournalPlayerDamage(bleed);
-                recordPlayerAilmentIncomingDamage(ail, 'phys', bleed);
+                recordPlayerAilmentIncomingDamage(ail, 'phys', bleedTotal);
             }
         } else if (ail.type === 'chill') {
             // chill handled via aspd modifier in core loop
