@@ -10318,7 +10318,7 @@ function buildCraftActionButtons(item) {
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <details id="loop-deep-growth" class="progression-workbench" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 ${def.label} Lv.${deepStats[def.key]||0} · 레벨당 +${def.per}${def.unit} (비용 ${getLoopDeepStatCost(def.key)})</button>`).join('')}</div></div></details>`;
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 ${def.label} Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit} · 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
         }
     }
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
