@@ -6331,8 +6331,12 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
 
 const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
     const duration = Math.max(1, Number(clearTimeSec) || 1);
-    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0);
-    return bossHp / duration + bossHp * recoveryPerSecond;
+    // regenRate is a life fraction per 0.1 s step (applyEnemyRegen); until 2026-10-04 it was read as per second, a tenth of the healing.
+    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0) * (1000 / ENEMY_REGEN_STEP_MS);
+    // Average of the tiring regeneration over the fight (applyEnemyRegen): 1 − t/F before F, F/(2t) after.
+    const fatigueSec = ENEMY_REGEN_FATIGUE_MS / 1000;
+    const averageRegen = duration <= fatigueSec ? 1 - duration / (2 * fatigueSec) : fatigueSec / (2 * duration);
+    return bossHp / duration + bossHp * recoveryPerSecond * averageRegen;
 };
 
 /** Keep environmental HP drain separate from zones that only inherit underworld gravity. */
@@ -8594,6 +8598,52 @@ function getReactiveBurstRateScale(skill, attacksPerSec) {
     const hitsPerBurst = Number(skill && skill.combatPattern && skill.combatPattern.hitsTakenPerBurst) || 0;
     if (hitsPerBurst <= 0) return 1;
     return (REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC / hitsPerBurst) / Math.max(0.01, attacksPerSec);
+}
+
+// Monster regeneration (0.1 s step) tires while the monster keeps losing life (2026-10-04): it falls in a straight line to nothing over
+// ENEMY_REGEN_FATIGUE_MS of fighting and comes back once nothing has hurt it for ENEMY_REGEN_COMBAT_WINDOW_MS. A chaos 20 boss
+// healed 0.48% of its life a second (about 21,000) and a build dealing less never finished it, an idle run standing still for
+// ever. Short fights keep the full regeneration (the boundary renewal mutator, the map estimate). The woodsman never tires (the
+// cliff is deliberate; his curse ends a long fight).
+const ENEMY_REGEN_COMBAT_WINDOW_MS = 2000, ENEMY_REGEN_FATIGUE_MS = 60000, ENEMY_REGEN_STEP_MS = 100;
+/** Share of regeneration left after fatigueMs of fighting, 1 → 0. */
+function getEnemyRegenFatigueFactor(fatigueMs) {return Math.max(0, 1 - Math.max(0, fatigueMs) / ENEMY_REGEN_FATIGUE_MS);}
+function applyEnemyRegen(enemy, pStats) {
+    const maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1), fatigue = tireEnemyRegen(enemy, getCombatTime());
+    if ((enemy.regenRate || 0) > 0 && enemy.hp < maxHp && fatigue > 0) {
+        const wholeRegen = takeEnemyRegenAmount(enemy, maxHp * getEnemyRegenRate(enemy, pStats) * fatigue);
+        if (wholeRegen > 0) enemy.hp = Math.min(maxHp, enemy.hp + wholeRegen);
+    }
+    enemy.regenHpMark = enemy.hp;
+}
+/** One step of fighting tires the regeneration; the life mark set after each step tells a loss from any source. */
+function tireEnemyRegen(enemy, now) {
+    if (enemy.isWoodsman) return 1;
+    const mark = Number(enemy.regenHpMark);
+    if (Number.isFinite(mark) && enemy.hp < mark) enemy.regenLastLossAt = now;
+    const fighting = now - (Number(enemy.regenLastLossAt) || -Infinity) < ENEMY_REGEN_COMBAT_WINDOW_MS;
+    enemy.regenFatigueMs = fighting ? Math.min(ENEMY_REGEN_FATIGUE_MS, (Number(enemy.regenFatigueMs) || 0) + ENEMY_REGEN_STEP_MS) : 0;
+    return getEnemyRegenFatigueFactor(enemy.regenFatigueMs);
+}
+/** Life fraction healed per step after suppression, curses, uniques and talents. */
+function getEnemyRegenRate(enemy, pStats) {
+    const suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
+    const curseFx = getEnemyConditionDebuffFactor(enemy);
+    const uniqueRegenCut = (pStats && pStats.uniqueEnemyRegenCutAndMinRoll) ? Math.max(0, Number(pStats.uniqueEnemyRegenCutAndMinRoll.enemyRegenRateMul || 1)) : 1;
+    const talentRegenMul = typeof getTalentEnemyRegenMultiplier === 'function' ? getTalentEnemyRegenMultiplier(enemy) : 1;
+    return Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1) * uniqueRegenCut * talentRegenMul);
+}
+/** Whole life points healed now; the fractional rest waits in enemy.regenBank (tenths). */
+function takeEnemyRegenAmount(enemy, rawRegen) {
+    let wholeRegen = Math.floor(Math.max(0, rawRegen));
+    const fractionalRegen = Math.max(0, rawRegen) - wholeRegen;
+    enemy.regenBank = Math.max(0, Number(enemy.regenBank) || 0);
+    if (fractionalRegen > 0) enemy.regenBank = Math.round((enemy.regenBank + Math.max(0.1, Math.round(fractionalRegen * 10) / 10)) * 10) / 10;
+    if (enemy.regenBank >= 1) {
+        wholeRegen += Math.floor(enemy.regenBank);
+        enemy.regenBank = Math.round((enemy.regenBank - Math.floor(enemy.regenBank)) * 10) / 10;
+    }
+    return wholeRegen;
 }
 
 function canBreakWoodsmanLoop() {
@@ -11152,27 +11202,7 @@ function performMonsterAttacks(pStats) {
                 return;
             }
         }
-        if ((enemy.regenRate || 0) > 0 && enemy.hp < (enemy.maxHp || enemy.hp)) {
-            let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
-            let curseFx = getEnemyConditionDebuffFactor(enemy);
-            let uniqueRegenCut = (pStats && pStats.uniqueEnemyRegenCutAndMinRoll) ? Math.max(0, Number(pStats.uniqueEnemyRegenCutAndMinRoll.enemyRegenRateMul || 1)) : 1;
-            let talentRegenMul = typeof getTalentEnemyRegenMultiplier === 'function' ? getTalentEnemyRegenMultiplier(enemy) : 1;
-            let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1) * uniqueRegenCut * talentRegenMul);
-            let maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1);
-            let rawRegen = Math.max(0, maxHp * effectiveRegenRate);
-            let wholeRegen = Math.floor(rawRegen);
-            let fractionalRegen = rawRegen - wholeRegen;
-            enemy.regenBank = Math.max(0, Number(enemy.regenBank) || 0);
-            if (fractionalRegen > 0) {
-                let storedFraction = Math.max(0.1, Math.round(fractionalRegen * 10) / 10);
-                enemy.regenBank = Math.round((enemy.regenBank + storedFraction) * 10) / 10;
-            }
-            if (enemy.regenBank >= 1) {
-                wholeRegen += Math.floor(enemy.regenBank);
-                enemy.regenBank = Math.round((enemy.regenBank - Math.floor(enemy.regenBank)) * 10) / 10;
-            }
-            if (wholeRegen > 0) enemy.hp = Math.min(maxHp, enemy.hp + wholeRegen);
-        }
+        applyEnemyRegen(enemy, pStats);
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
         let seasonDepth = getSoftenedLoopDepth(getLoopDifficultyInputs(zone).seasonLoops);
