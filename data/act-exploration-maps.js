@@ -124,26 +124,34 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
     }
 ]);
 // Whole-map backdrops drawn at 16px per tile (shown at a whole-number zoom of the 16px art). Walkability still comes from the
-// map data above. gate: closed|open frames side by side at the same pixel scale; gateOffset = art px from the gate tile's
-// centre to the frame's top-left; shade = the art's own darkness (the fog and the canvas around the map use it).
-// Source: scripts/build-act-maps.cjs (node, --write), the painted look of 2026-10-02 (act looks: scripts/act-maps/looks.cjs).
-// Every wide map is one of these ten (contents and atlas maps reuse them, js/exploration-layouts.js); a picture that fails to load
-// falls back to a flat stand-in (js/canvas-exploration-art.js plain).
-const ACT_EXPLORATION_BACKDROPS = Object.freeze({
-    'root-branches':Object.freeze({map:'assets/exploration/act1-map.png',gate:'assets/exploration/act1-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([20,16,24])}),
-    'garden-circuit':Object.freeze({map:'assets/exploration/act2-map.png',gate:'assets/exploration/act2-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([14,18,21])}),
-    'suspended-spans':Object.freeze({map:'assets/exploration/act3-map.png',gate:'assets/exploration/act3-gate.png',gateOffset:Object.freeze([-10,-42]),shade:Object.freeze([7,8,13])}),
-    'braided-maze':Object.freeze({map:'assets/exploration/act4-map.png',gate:'assets/exploration/act4-gate.png',gateOffset:Object.freeze([-10,-42]),shade:Object.freeze([18,11,13])}),
-    'silent-nave':Object.freeze({map:'assets/exploration/act5-map.png',gate:'assets/exploration/act5-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([17,13,12])}),
-    'broken-courtyard':Object.freeze({map:'assets/exploration/act6-map.png',gate:'assets/exploration/act6-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([16,13,11])}),
-    'hollow-spiral':Object.freeze({map:'assets/exploration/act7-map.png',gate:'assets/exploration/act7-gate.png',gateOffset:Object.freeze([-22,-44]),shade:Object.freeze([18,12,8])}),
-    'offset-veils':Object.freeze({map:'assets/exploration/act8-map.png',gate:'assets/exploration/act8-gate.png',gateOffset:Object.freeze([-10,-42]),shade:Object.freeze([10,8,16])}),
-    'three-confluences':Object.freeze({map:'assets/exploration/act9-map.png',gate:'assets/exploration/act9-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([18,11,16])}),
-    'crown-wheel':Object.freeze({map:'assets/exploration/act10-map.png',gate:'assets/exploration/act10-gate.png',gateOffset:Object.freeze([-22,-28]),shade:Object.freeze([5,5,11])})
-});
+// map data above. Each map is painted once per facing (views[rotation], 0 gate north, 1 east, 2 south, 3 west — a run draws one,
+// js/combat.js createActExplorationEncounter): the light still falls from the upper left and the cliff faces still face the viewer, so a
+// turned map is a new painting, never a rotated picture. gate: closed|open frames side by side at the same pixel scale;
+// gateOffset = art px from the gate tile's centre to the frame's top-left; shade = the art's own darkness (the fog and the canvas
+// around the map use it). Source: scripts/build-act-maps.cjs (node, --write), the painted look of 2026-10-02 (act looks:
+// scripts/act-maps/looks.cjs). Every wide map is one of these ten (contents and atlas maps reuse them, js/exploration-layouts.js);
+// a picture that fails to load falls back to a flat stand-in (js/canvas-exploration-art.js plain).
+const ACT_EXPLORATION_BACKDROPS = (() => {
+    const GATE_OFFSETS=[[-22,-28],[-10,-42],[-22,-44],[-10,-42]]; // N, E, S, W frames (scripts/act-maps/gate.cjs)
+    const view=(act,rotation)=>Object.freeze({map:`assets/exploration/act${act}-r${rotation}-map.png`,
+        gate:`assets/exploration/act${act}-r${rotation}-gate.png`,gateOffset:Object.freeze(GATE_OFFSETS[rotation])});
+    const entry=(act,shade)=>Object.freeze({shade:Object.freeze(shade),views:Object.freeze(GATE_OFFSETS.map((_,rotation)=>view(act,rotation)))});
+    return Object.freeze({
+        'root-branches':entry(1,[20,16,24]),
+        'garden-circuit':entry(2,[14,18,21]),
+        'suspended-spans':entry(3,[7,8,13]),
+        'braided-maze':entry(4,[18,11,13]),
+        'silent-nave':entry(5,[17,13,12]),
+        'broken-courtyard':entry(6,[16,13,11]),
+        'hollow-spiral':entry(7,[18,12,8]),
+        'offset-veils':entry(8,[10,8,16]),
+        'three-confluences':entry(9,[18,11,16]),
+        'crown-wheel':entry(10,[5,5,11])
+    });
+})();
 // Version of the backdrop and gate pictures, added to their URLs (js/canvas-exploration-art.js) so a redrawn map is never
 // served from the browser's image cache. Bump it with every --write.
-const ACT_EXPLORATION_ART_VERSION = '20261004c';
+const ACT_EXPLORATION_ART_VERSION = '20261004d';
 // Sight around the hero in tiles (walked through floor, js/act-exploration-map.js visibleCells). Ground inside it is clear and the
 // fog starts past it (js/canvas-act-exploration.js fogAlpha). 2026-10-02: 5 → 6 (user: the view felt cramped). 2026-10-04: the sixth
 // tile was still dimmed (the fog began a tile inside and the unseen fog bled over it), so only the monsters showed there.

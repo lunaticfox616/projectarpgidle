@@ -1,6 +1,8 @@
 const assert=require('node:assert/strict');
 const fixture=require('./lib/replay-fixture');
 const {runtime,run}=fixture(29);
+// The run's facing is random (js/combat.js rollExplorationFacing); this check walks the drawn map's fixed coordinates.
+run('rollExplorationFacing=()=>undefined;');
 const copy=code=>JSON.parse(run(`JSON.stringify(${code})`));
 let tick=0;
 function advance(count=1) {
