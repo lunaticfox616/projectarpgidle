@@ -67,11 +67,8 @@ function dress(ctx) {
         const kind = room.role === 'elite' ? plan.elite : room.role === 'optional' ? plan.optional : plan.landmarks[li++ % plan.landmarks.length];
         if (kind === 'pool') { place(ctx, room, 'pool', corners[1] || sp.n); corners.slice(2).forEach(s => place(ctx, room, 'candles', s)); }
         else if (TALL.includes(kind)) corners.slice(0, 2).forEach(s => place(ctx, room, kind, s));
-        else {
-            // 네 구석에 같은 것을 다 놓으면 도장 찍은 듯 보였다: 마주 보는 두 구석만 이 방의 소품, 나머지 둘은 다음 이정표 소품.
-            const other = plan.landmarks.find(k => k !== kind && !TALL.includes(k) && k !== 'pool');
-            corners.forEach((s, k) => place(ctx, room, k === 0 || k === 3 || !other ? kind : other, s, 5 + (k % 2) * 2));
-        }
+        // 네 구석에 같은 것을 다 놓으면 도장 찍은 듯 보였고 소품도 너무 잦았다: 마주 보는 두 구석에만 둔다.
+        else [corners[0], corners[3]].forEach((s, k) => place(ctx, room, kind, s, 5 + k * 2));
     }
 }
 /** 벽가(벽에서 4~12도트)에 소품을 흩는다. 방 가운데와 보스방 판석은 비운다. */
@@ -79,10 +76,11 @@ function scatter(ctx) {
     const { cv, g, look } = ctx, centers = Object.values(g.rooms).map(roomCenter), placed = [...ctx.taken], cand = [], kindsAt = [];
     for (let i = 0; i < g.floor.length; i++) if (g.floor[i] && g.wallDist[i] > 4 && g.wallDist[i] < 12 && !(g.arena && g.arena[i])) cand.push(i);
     const kinds = Object.entries(look.scatter).flatMap(([k, n]) => Array(n).fill(k));
-    let budget = look.scatterN || 55;
+    // 벽가 소품 수: 55 → 30, 서로 26도트 이상 띄운다(2026-10-04 사용자: 소품이 너무 잦다).
+    let budget = look.scatterN || 30;
     for (const k of cv.rng.permutation(cand.length).slice(0, 6000)) {
         const x = cand[k] % cv.w, y = Math.floor(cand[k] / cv.w);
-        if (placed.some(([px, py]) => Math.hypot(x - px, y - py) < 18)) continue;
+        if (placed.some(([px, py]) => Math.hypot(x - px, y - py) < 26)) continue;
         if (centers.some(([cx, cy]) => Math.hypot(x - cx, (y - cy) * 1.2) < 22)) continue;
         // 같은 종류가 가까이(72도트 안) 또 서지 않게 몇 번 다시 고른다 — 해골 · 석상이 줄지어 반복돼 보였다.
         let kind = cv.rng.choice(kinds);

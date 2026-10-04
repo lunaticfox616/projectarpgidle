@@ -143,7 +143,7 @@ const ACT_EXPLORATION_BACKDROPS = Object.freeze({
 });
 // Version of the backdrop and gate pictures, added to their URLs (js/canvas-exploration-art.js) so a redrawn map is never
 // served from the browser's image cache. Bump it with every --write.
-const ACT_EXPLORATION_ART_VERSION = '20261004b';
+const ACT_EXPLORATION_ART_VERSION = '20261004c';
 // Sight around the hero in tiles (walked through floor, js/act-exploration-map.js visibleCells). Ground inside it is clear and the
 // fog starts past it (js/canvas-act-exploration.js fogAlpha). 2026-10-02: 5 → 6 (user: the view felt cramped). 2026-10-04: the sixth
 // tile was still dimmed (the fog began a tile inside and the unseen fog bled over it), so only the monsters showed there.
