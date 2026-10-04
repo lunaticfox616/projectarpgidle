@@ -4040,7 +4040,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalPlayerSkillDps = nativeDotPattern
         ? finalBaseDmg * totalDotDamageMultiplier * nativeDotPattern.ticks
             / Math.max(nativeDotPattern.ticks * nativeDotPattern.intervalMs / 1000, 1 / finalAspd)
-        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
+        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier * getReactiveBurstRateScale(skill, finalAspd) + estimatedSkillDotDps;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (includeBreakdowns && skill.flameDecayDebuff) {
@@ -8584,6 +8584,16 @@ function transferSkillDotOnDeath(enemy) {
 function getRangerWeakpointBonus(enemy, hitDamage) {
     const lifeShare = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 1) * 0.03));
     return enemy.isBoss ? Math.max(1, Math.min(lifeShare, Math.floor(hitDamage || 0))) : lifeShare;
+}
+
+// A reactive gem (인과) bursts once per hitsTakenPerBurst hits the hero takes while channelling, not once per attack. Its estimate
+// assumes this many hits taken per second (2026-10-04: it used the attack speed and showed 10-100× what it really dealt).
+const REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC = 1;
+/** Scale from an attack-speed DPS to the bursts a reactive gem actually makes; 1 for every other skill. */
+function getReactiveBurstRateScale(skill, attacksPerSec) {
+    const hitsPerBurst = Number(skill && skill.combatPattern && skill.combatPattern.hitsTakenPerBurst) || 0;
+    if (hitsPerBurst <= 0) return 1;
+    return (REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC / hitsPerBurst) / Math.max(0.01, attacksPerSec);
 }
 
 function canBreakWoodsmanLoop() {
