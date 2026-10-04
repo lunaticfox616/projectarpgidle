@@ -301,8 +301,6 @@
             .bulk-salvage-bar, .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
             .bulk-salvage-bar > div:last-child { width: 100%; grid-template-columns: 1fr 1fr; }
             .settings-stack { max-width: none; }
-            #ui-skills-list .skill-gem,
-            #ui-support-list .skill-gem { min-width: 0; font-size: 0.86em; }
             .subtab-row { overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; -ms-overflow-style: none; }
             .subtab-row::-webkit-scrollbar { display: none; height: 0; }
             .trait-tree .trait-row { width: 100%; justify-content: flex-start; gap: 8px; padding: 8px; border: 1px dashed #34495e; border-radius: 10px; background: rgba(10, 16, 24, 0.45); }
@@ -1985,8 +1983,6 @@ html, body { overflow: hidden; }
             #tree-container {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ min-height: clamp(360px, 62vh, 520px) !important; }
             .responsive-split-grid,
-            #ui-skills-list,
-            #ui-support-list,
             #ui-class-grid {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
         }
@@ -1999,8 +1995,6 @@ html, body { overflow: hidden; }
             .responsive-split-grid,
             #ui-class-grid {
                         /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: 1fr !important; }
-            #ui-skills-list,
-            #ui-support-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
 .market-shell [hidden]{
                 /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}

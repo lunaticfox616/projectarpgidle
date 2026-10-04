@@ -63,9 +63,6 @@ const contentUnlockUi = {
     syncSkillCopy() {
         const label = document.querySelector('#btn-skill-tab-equip strong');
         if (label) label.textContent = contentProgression.isUnlocked('support') ? '장착 · 보조' : '스킬 젬';
-        const intro = document.querySelector('.skill-loadout-overview p');
-        if (intro) intro.textContent = contentProgression.isUnlocked('support')
-            ? '공격 젬과 보조 젬을 선택해 전투 세팅을 구성합니다.' : '공격 스킬 젬을 선택해 장착합니다.';
     },
     syncRoute(route, locked) {
         // A merged launcher may remain available through another purchased child.

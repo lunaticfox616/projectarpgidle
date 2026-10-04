@@ -4062,11 +4062,9 @@ function toggleSeasonBossRepeat() {
     updateStaticUI();
 }
 
+/** The gem picker's "worn only" fold, one per library ('attack' | 'support'). */
 function toggleGemFoldMode(mode) {
-    if (mode === 'all') {
-        game.gemFoldInactiveAttack = false;
-        game.gemFoldInactiveSupport = false;
-    } else if (mode === 'attack') {
+    if (mode === 'attack') {
         game.gemFoldInactiveAttack = !game.gemFoldInactiveAttack;
     } else if (mode === 'support') {
         game.gemFoldInactiveSupport = !game.gemFoldInactiveSupport;
@@ -4127,54 +4125,70 @@ function renderGemTagChips(def, maxTags) {
     }).join('');
 }
 
+/** One line under a tile: how the gem attacks (range kind and reach), or the summon's element and kind. */
+function getGemTileSummary(name, def) {
+    let meta = getGemCardMeta(def);
+    if ((def.tags || []).includes('summon_attack')) return `${meta.elementLabel} ${meta.typeLabel}`;
+    let profile = getSkillGridProfile(name, def);
+    return `${getSkillGridProfileKindLabel(profile.kind)} · ${Math.max(1, profile.range || 1)}칸`;
+}
+
+/** Tiles open the detail on click / Enter / Space (js/gem-selection-ui.js); a mouse hover shows the short hint. */
+function getGemTileHandlers(type, name) {
+    let action = `gemSelectionUi.open(this,'${type}','${name}')`;
+    return `role="button" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" onpointerenter="showGemCardHint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()"`;
+}
+
+function renderGemTileLevel(gemInfo) {
+    return `<span class="gem-tile-level ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
+}
+
+/** 2026-10-04 젬 보드: the library lists compact tiles (art · name · Lv · one line). Range numbers, tags, seal and summon
+ * count live in the detail the tile opens. */
 function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
-    let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
-    let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
+    let summonEquipped = (def.tags || []).includes('summon_attack') && (game.equippedSummonSkills || []).includes(name);
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
-    let usageLabel = !equipmentReady ? '방패 필요 · 상세 보기' : (active ? '장착 중 · 상세 보기' : '상세 보기');
-    let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
-    let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
-    let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 선택 후 장착</div>' : '';
-    let action = `gemSelectionUi.open(this,'active','${name}')`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" onpointerenter="showGemCardHint(event,'active','${name}')" onpointerleave="hideInfoTooltip()">
-        ${tutorialGuide}
-        <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
-        <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '공격 스킬 젬'))}</p>
-        <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
+    let state = equipmentReady ? getGemTileSummary(name, def) : '방패 필요';
+    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked', tutorialTarget ? 'starter-gem-tutorial-target' : ''].filter(Boolean).join(' ');
+    let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? `소환 ×${getSummonSkillCount(name)}` : '장착'}</span>` : '';
+    let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬 젬 · 눌러서 장착</span>' : '';
+    return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${gemInfo.totalLevel}${active ? ', 장착 중' : ''}${equipmentReady ? '' : ', 방패 필요'}">
+        ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
+        <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
+}
+
+/** Why a support gem cannot go on right now ('' when it can, or when it is already worn). */
+function getSupportEquipFailure(name, stats) {
+    if ((game.equippedSupports || []).includes(name)) return '';
+    let equippedSupports = game.equippedSupports || [];
+    let supportCap = Math.max(0, Math.floor((stats && stats.suppCap) || 0));
+    if (equippedSupports.length >= supportCap) return `장착 한도 부족 (${equippedSupports.length}/${supportCap})`;
+    if (isSummonGuardSupport(name) && getEquippedSummonCount() >= getSummonEquipCapFromStats(stats)) {
+        return `소환수 한도 부족 (${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)})`;
+    }
+    let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
+    let available = Math.max(0, getEffectiveResonanceCap(stats) - used);
+    let cost = getSupportTierResonanceCost(name);
+    return available < cost ? `공명력 부족 (${available}/${cost})` : '';
 }
 
 function renderSupportGemCard(name, highlightedName, stats) {
     let def = SUPPORT_GEM_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, true, stats);
-    let active = Array.isArray(game.equippedSupports) && game.equippedSupports.includes(name);
-    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
-    let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
-    let activeTier = getSupportActiveTier(name);
-    let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, activeTier) : (activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급');
-    let cost = getSupportTierResonanceCost(name);
-    let equippedSupports = game.equippedSupports || [];
-    let equippedCount = equippedSupports.length;
-    let supportCap = Math.max(0, Math.floor((stats && stats.suppCap) || 0));
-    let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
-    let availableResonance = Math.max(0, getEffectiveResonanceCap(stats) - used);
-    let failureReason = '';
-    if (!active && equippedCount >= supportCap) failureReason = `장착 한도 부족 (${equippedCount}/${supportCap})`;
-    else if (!active && isSummonGuardSupport(name) && getEquippedSummonCount() >= getSummonEquipCapFromStats(stats)) {
-        failureReason = `소환수 한도 부족 (${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)})`;
-    } else if (!active && availableResonance < cost) failureReason = `공명력 부족 (${availableResonance}/${cost})`;
-    let usageState = active ? '● 장착 중 · 상세 보기' : (failureReason || `장착 후 공명 ${availableResonance - cost} · 상세 보기`);
-    let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
-    let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="gemSelectionUi.open(this,'support','${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();gemSelectionUi.open(this,'support','${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onpointerenter="showGemCardHint(event,'support','${name}')" onpointerleave="hideInfoTooltip()">
-        <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
-        <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '보조 젬 효과'))}</p>
-        <div class="gem-card-footer"><span class="gem-usage-state">${escapeHTML(usageState)}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
+    let active = (game.equippedSupports || []).includes(name);
+    let failure = getSupportEquipFailure(name, stats);
+    let tier = getSupportActiveTier(name);
+    let state = failure || `${def.name || getStatName(def.stat || '')} · 공명 ${getSupportTierResonanceCost(name)}`;
+    let classes = ['skill-gem', 'support-gem', 'gem-library-card', 'gem-tile', active ? 'active' : '', failure ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
+    return `<article class="${classes}" ${getGemTileHandlers('support', name)} aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failure ? `, ${escapeHTML(failure)}` : '')}">
+        ${renderGemTileLevel(gemInfo)}${active ? '<span class="gem-tile-worn">장착</span>' : ''}<span class="gem-card-sigil gem-tile-art gem-tile-support-art" aria-hidden="true">✚<em>${'◆'.repeat(Math.max(1, Math.min(3, tier)))}</em></span>
+        <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
 }
 
@@ -4191,27 +4205,9 @@ function showGemCardHint(event, type, name) {
 
 function renderSealedGemCard(name, highlightedName, isSupport) {
     let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
-    let art = isSupport ? '<span class="gem-card-sigil">✚</span>' : renderSkillGemArt(name, 'gem-card-sigil gem-card-art');
-    return `<article class="skill-gem gem-library-card sealed-gem-card"><div class="gem-card-head">${art}<div><small>봉인 보관함</small><strong>${highlightedName}</strong></div></div><p>봉인을 해제하면 공명력 1을 사용해 보유 목록으로 되돌립니다.</p><div class="gem-card-footer"><span class="gem-usage-state">공명력으로 복원</span><button class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></div></article>`;
+    let art = isSupport ? '<span class="gem-card-sigil gem-tile-art gem-tile-support-art" aria-hidden="true">✚</span>' : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
+    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨 · 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></article>`;
 }
-
-/** The worn 이동 스킬 gem, noted under the main attack in the loadout summary. */
-function renderMobilityLoadoutNote() {
-    const name = mobilitySkill.equipped();
-    return name ? ` · 이동 ${escapeHTML(name)}` : '';
-}
-
-function renderSkillLoadoutSummary(pStats, resonanceCap) {
-    let root = document.getElementById('ui-skill-loadout-summary');
-    if (!root) return;
-    let activeName = game.activeSkill || '기본 공격';
-    let activeInfo = getUiGemPresentation(activeName, false, pStats);
-    let usedResonance = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
-    let summonCount = getEquippedSummonCount();
-    let summonCap = getSummonEquipCapFromStats(pStats);
-    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}${renderMobilityLoadoutNote()}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small title="${escapeHTML(game.equippedSupports.join(' · '))}">${escapeHTML(game.equippedSupports.join(' · ') || '장착 없음')}</small></div><div><span>남은 공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
-}
-
 
 function getGemGrowthSummaryHtml(name, presentation) {
     if (!presentation || !presentation.skill) return '';
