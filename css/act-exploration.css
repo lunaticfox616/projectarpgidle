@@ -1,4 +1,10 @@
 @layer features {
+#exploration-object-actions {position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;}
+#exploration-object-actions[hidden] {display:none;}
+#exploration-object-actions .exploration-object-action {position:absolute;pointer-events:auto;min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:3px;background:transparent;box-shadow:none;cursor:pointer;touch-action:manipulation;}
+.exploration-object-action span {display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);padding:3px 6px;background:#181d17ed;color:#e9d4a1;font-size:11px;white-space:nowrap;pointer-events:none;}
+.exploration-object-action:hover span,.exploration-object-action:focus-visible span {display:block;}
+#exploration-object-actions .exploration-object-action:focus-visible {outline:1px solid #e1c581;outline-offset:1px;}
 /* 탐험 미니맵: 전장 오른쪽 위에 떠 있는 둥근 지도(플레이어 둘레만). 테두리 고리가 탐험한 지형 비율(--explore-pct)을 채운다.
    탐험 방식·관문 봉인은 "지도" 버튼으로 여는 크게 보기 창(#act-exploration-dialog)에 있다. */
 #act-exploration-panel {--minimap-size:176px;position:absolute;top:44px;right:12px;z-index:14;width:var(--minimap-size);height:calc(var(--minimap-size) + 14px);color:#ddd4b9;}

@@ -149,7 +149,7 @@ const atlasRun = (() => {
     /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
     function emptyRoom(enemy) {
         const pack = atlasEncounters.emptiedPack(game, enemy);
-        if (!pack || pack.stage !== null) return null;
+        if (!pack || pack.stage !== null || pack.objectId) return null;
         atlas.markCleared(game, pack.roomId);
         return Object.hasOwn(ATLAS.encounters, pack.encounter || '') ? pack.encounter : null;
     }

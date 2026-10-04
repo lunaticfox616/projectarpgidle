@@ -2244,7 +2244,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
     bossEntranceView.drawGround(ctx, state);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
-        else if (actor.kind === 'gate' || actor.kind === 'scenery') actExplorationView.drawScenery(ctx,actor,state);
+        else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
     });
     drawBattlePlayerFigure.readability.begin(state, enemyEntries.concat(waiting));
@@ -2562,7 +2562,7 @@ function renderBattlefield(forceWhenHidden) {
     let returnDeparture = attachGridEffectPosition(getPlayerReturnDeparturePresentation(battleFx, now));
 
     drawBattleActorLayer(ctx, dynamicLayout, {
-        now, gridProj, gridUnitScale, enemyHitFlashes, enemyCount: dynamicLayout.length,
+        now, width, height, gridProj, gridUnitScale, enemyHitFlashes, enemyCount: dynamicLayout.length,
         playerPos, currentTargets, enemyPosMap,
         playerFlash, swingPower, currentSkillVisual, motionState: playerMotionState,
         enemyAttackMotions, returnWarp, returnDeparture

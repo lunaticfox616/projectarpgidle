@@ -121,6 +121,7 @@ const actExplorationView=(()=>{
         view.drawImage(cache.fog,0,0,cache.fogView.width,cache.fogView.height);
     }
     function appendScenery(actors,state) {
+        actExplorationView.objects.append(actors,state);
         const run=actExplorationState.current(game);if(!run || !cache?.surface)return;
         const map=cache.map,seen=new Set(run.discovered),p=state.gridProj;
         if(seen.has(actExplorationMap.index(map,map.gate))) {
@@ -154,6 +155,7 @@ const actExplorationView=(()=>{
         return {x,y,w,h,base:y+h};
     }
     function drawScenery(ctx,actor,state) {
+        if(actor.kind==='object'){actExplorationView.objects.draw(ctx,actor,state);return;}
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;
         // The only scenery actor left is the boss gate (painted maps carry their props in the picture).

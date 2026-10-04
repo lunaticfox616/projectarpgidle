@@ -2477,6 +2477,7 @@ function processPendingSkillStageHits() {
         if (row && row.contactState) row.contactState.resolved = true;
         if (!row || row.zoneId !== game.currentZoneId || !row.pStats) return;
         let targets = row.whirl ? pickWhirlSpinTargets(row) : (row.wave ? pickWaveFrontTargets(row) : getPendingSkillImpactTargets(row));
+        actExplorationProgress.objects.stage(row);
         if (targets.length <= 0) return;
         performPlayerAttack(row.pStats, {
             ...(row.options || {}),
@@ -7576,6 +7577,7 @@ function createActExplorationEncounter(zone,exploration) {
     if(!plan)return null;
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
     run.mode=actExplorationProgress.startMode(game.settings);
+    actExplorationProgress.objects.initialize(run,zone);
     return run;
 }
 /** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
@@ -8433,7 +8435,7 @@ function handleEnemyDeath(enemy, pStats) {
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     grantEnemyLoot(enemy);
     if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
-    actExplorationState.recordDeath(game,enemy);
+    if(actExplorationState.recordDeath(game,enemy))actExplorationProgress.objects.afterDeath(actExplorationState.current(game));
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
@@ -9556,6 +9558,7 @@ function applySkillGemCommand(command,stats) {
         addBattleFx('playerMobility',{skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180});
         return;
     }
+    actExplorationProgress.objects.area(command.splashCells);
     actExplorationState.wake(game,getSplashDormantEnemies().filter(e=>command.targets.includes(e.id)));
     const targets=game.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
     if (command.type==='mist') {

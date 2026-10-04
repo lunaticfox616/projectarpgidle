@@ -620,7 +620,7 @@ function getGridAttackAreaCells(profile, attacker, target) {
  * @param {(typeof SKILL_DB)[string]} skill Resolved skill, including range modifiers.
  * @param {{targets:Array<{enemy:{gx:number,gy:number}}>,impactCells?:Array<{gx:number,gy:number}>}} stage Nonempty confirmed stage.
  * @param {{gx:number,gy:number}} source Cast-time origin.
- * @returns {{cells:Array<{gx:number,gy:number}>,shape:string|undefined,radius:number|undefined,cone:ReturnType<typeof getGridConeGeometry>|null,center:{gx:number,gy:number}}}
+ * @returns {{kind:string,cells:Array<{gx:number,gy:number}>,shape:string|undefined,radius:number|undefined,cone:ReturnType<typeof getGridConeGeometry>|null,center:{gx:number,gy:number}}}
  */
 function getSkillStageFootprint(skillName, skill, stage, source) {
     let primary = stage.aimCell || stage.targets[0].enemy;
@@ -632,7 +632,7 @@ function getSkillStageFootprint(skillName, skill, stage, source) {
         cells = cells.concat(stage.targets.flatMap(entry => getGridUnitCells(entry.enemy)));
     }
     return { cells: Array.from(new Map(cells.map(cell => [`${cell.gx},${cell.gy}`, { gx: cell.gx, gy: cell.gy }])).values()),
-        shape: profile.shape, radius: profile.radius,
+        kind: profile.kind, shape: profile.shape, radius: profile.radius,
         cone: profile.kind === 'cone' ? getGridConeGeometry(profile, source, getClosestGridUnitCell(source, primary)) : null,
         // 중심은 칸 좌표만: 보스 예고에서는 source가 보스 자신이라 { ...source }가 보스 전체(이전 예고 포함)를 겹겹이 복사했다(검토 5차).
         center: profile.kind === 'nova' ? { gx: source.gx, gy: source.gy } : { ...getClosestGridUnitCell(source, primary) } };

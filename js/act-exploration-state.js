@@ -148,7 +148,7 @@ const actExplorationState = (() => {
         const index=pack.aliveIds.indexOf(enemy.id);if(index<0)return false;
         pack.aliveIds.splice(index,1);
         const bosses=run.packs.filter(row=>row.stage!==null);
-        if(bosses.every(row=>row.aliveIds.length===0))run.status='cleared';
+        if(bosses.every(row=>row.aliveIds.length===0) && !actExplorationState.objects.active(run))run.status='cleared';
         return true;
     }
     /** Keep surviving optional monsters owned when the completed map stops rendering combat. */
@@ -168,6 +168,7 @@ const actExplorationState = (() => {
         if(!actExplorationMap.walkable(map,cell,sealed))return false;
         if(!run.discovered.includes(actExplorationMap.index(map,cell)))return false;
         if(sealed && !reachableBeforeBoss(map,cell))return false;
+        if(run.objects)run.objects.pendingId=null;
         run.destination={gx:cell.gx,gy:cell.gy};return true;
     }
     function reachableBeforeBoss(map,cell) {
@@ -182,7 +183,7 @@ const actExplorationState = (() => {
         if(run.destination || mode==='manual')return run.destination;
         const map=actExplorationMap.forRun(run);
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
-        const candidates=run.packs.filter(pack=>pack.aliveIds.length>0 && bossReady(run,pack));
+        const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && bossReady(run,pack));
         const ordinary=candidates.filter(pack=>pack.stage===null);
         const targets=mode==='full' && ordinary.length ? ordinary
             : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);
@@ -245,6 +246,7 @@ const actExplorationState = (() => {
         enemies.filter(enemy=>enemy.hp>0 && !enemy.explorationPack).forEach(enemy=>validateEnemyBody(map,enemy));
         if(context.alive.size!==context.records.size)throw Error('탐험 저장에서 살아 있는 적이 누락되었습니다.');
         validateProgress(run);
+        actExplorationState.objects.validate(run);
         return run;
     }
     /** The run's map: an act's (zone = act − 1), or a generated one whose spec rebuilds the saved layout id. */
@@ -272,7 +274,7 @@ const actExplorationState = (() => {
     }
     function validateRoomPacks(run) {
         const rooms=packRooms(actExplorationMap.forRun(run));
-        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
         if(run.packs.filter(pack=>pack.anchor).length>1)throw Error('탐험 저장의 길목 무리가 중복되었습니다.');
     }
     function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}

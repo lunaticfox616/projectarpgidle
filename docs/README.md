@@ -13,6 +13,7 @@
 | 전투 정산·NPC 가판대 | [결함 수정, 감정·판매 규칙과 측정](balance-and-player-stall-20260929.md) |
 | 저장과 방치 성능 | [방치 성능](offline-performance.md) |
 | 넓은 맵 탐험 | [실제 게임 이관 및 남은 작업](act-exploration-integration.md) |
+| 탐험 상자·파괴물 | [클릭 조작, 배치와 후반 사건](exploration-objects-20261005.md) |
 | 탐험 맵 그림 | [디오라마 스타일 맵 그림과 다시 만들기](act-maps-20260929.md) |
 | 위습 몬스터 | [속성 위습 애니메이션과 규칙](wisp-monsters-20260929.md) |
 | 브라우저 검사 | [브라우저 CI 운영](browser-ci.md) |
