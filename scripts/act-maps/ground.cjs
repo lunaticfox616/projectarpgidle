@@ -1,6 +1,8 @@
 'use strict';
 /* 바닥(그린 화풍): 흙, 불규칙 판석, 깎은 판석, 널빤지. 벽 밑 이끼, 벽가 그늘, 흩어진 잔해.
- * 판석은 한 장마다 왼쪽 위 모서리를 밝게, 오른쪽 아래를 어둡게(빛은 왼쪽 위에서), 안쪽은 잔무늬, 닳은 귀퉁이, 금. */
+ * 판석은 한 장마다 왼쪽 위 모서리를 밝게, 오른쪽 아래를 어둡게(빛은 왼쪽 위에서), 안쪽은 잔무늬, 닳은 귀퉁이, 금.
+ * 가시성 정리(2026-10-04 사용자 요청): 바닥이 캐릭터 · 이펙트와 시선을 다투지 않게 돌마다의 밝기 차이(4단계 → 거의 2단계)와
+ * 안쪽 잔무늬(속 도트의 약 36% → 약 12%), 흙의 잔점을 줄였다. 돌 모양 · 턱 · 줄눈 · 벽 · 액트별 색은 그대로다. */
 const { createRng } = require('./raster.cjs');
 const { P, mix, ambient } = require('./pal.cjs');
 
@@ -15,7 +17,7 @@ function earth(cv, g, mask = g.floor) {
         let tone = big[i] * 0.75 + mid[i] * 0.25 > 0.68 ? 3 : big[i] * 0.75 + mid[i] * 0.25 < 0.3 ? 1 : 2;
         if (g.pathDist[i] < 2.5 + mid[i] * 2.5) tone = Math.max(tone, 3);
         else if (g.wallDist[i] < 3 + mid[i] * 3) tone -= 1;
-        if (fine[i] > 0.9) tone += 1; else if (fine[i] < 0.06) tone -= 1;
+        if (fine[i] > 0.96) tone += 1; else if (fine[i] < 0.03) tone -= 1;
         cv.px[i] = P.earth[clamp(tone, 0, 5)];
     }
 }
@@ -48,9 +50,9 @@ function stoneDot(cv, ctx, x, y) {
     const tl = at(x - 1, y) !== c || at(x, y - 1) !== c, br = at(x + 1, y) !== c || at(x, y + 1) !== c;
     const corner = (at(x - 1, y) !== c && at(x, y - 1) !== c) || (at(x + 1, y) !== c && at(x, y + 1) !== c);
     if (corner && hash(c, 17) < (opts.chips ?? 0.45)) return joint(cv, ctx, x, y);
-    let tone = (r < 0.45 ? 3 : r < 0.85 ? 4 : r < 0.92 ? 2 : 5) - (opts.dark || 0) + (opts.lift || 0);
+    let tone = (r < 0.5 ? 3 : r < 0.96 ? 4 : 5) - (opts.dark || 0) + (opts.lift || 0);
     if (tl && !br) tone += 1; else if (br && !tl) tone -= 1;
-    else if (!tl && !br) tone += fleck[i] > 0.8 ? 1 : fleck[i] < 0.16 ? -1 : 0;
+    else if (!tl && !br) tone += fleck[i] > 0.94 ? 1 : fleck[i] < 0.06 ? -1 : 0;
     const ramp = opts.ramp || P.stone;
     if (opts.damp && opts.damp[i] > 0.6 && br && (at(x + 1, y) === -2 || at(x, y + 1) === -2) && hash(x, y) < 0.55) return P.moss[2];
     return ramp[clamp(tone, 1, ramp.length - 1)];

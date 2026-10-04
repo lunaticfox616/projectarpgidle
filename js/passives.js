@@ -4789,6 +4789,14 @@ function mergeDamageTextByKey(activeTexts, config, start, x, y) {
     return true;
 }
 
+function getDamageTextDuration(config) {
+    if (config.duration) return config.duration;
+    if (config.bodyCue) return 420;
+    if (config.impactTier === 'annihilate') return 940;
+    if (config.impactTier === 'heavy') return 860;
+    return config.enemyHit ? 820 : (config.crit ? 840 : 760);
+}
+
 function spawnDamageText(config) {
     config = config || {};
     let wallNow = performance.now();
@@ -4804,12 +4812,13 @@ function spawnDamageText(config) {
     if (!config.bodyCue) queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
     activeTexts.push({
         start: start,
-        duration: config.duration || (config.bodyCue ? 420 : (config.impactTier === 'annihilate' ? 940 : (config.impactTier === 'heavy' ? 860 : (config.enemyHit ? 820 : (config.crit ? 840 : 760))))),
+        duration: getDamageTextDuration(config),
         x: x,
         y: y,
         offsetX: 0,
         offsetY: 0,
         driftX: 0,
+        side: Math.sign(Number(config.side) || 0),
         stackShiftFrom: 0,
         stackShiftTo: 0,
         stackShiftStart: start,
@@ -4862,6 +4871,13 @@ function getDamageTextFillColor(text) {
     if (text.crit || text.impactTier === 'heavy') return '#ffdc75';
     return '#ffffff';
 }
+function isStrongDamageText(text) {
+    return !text.bodyCue && !text.miss && (text.crit || text.impactTier === 'heavy' || text.impactTier === 'annihilate');
+}
+// Ordinary dealt hits fade back (72%) so crits, heavy hits and damage taken stand out in a busy fight.
+function getDamageTextPeakAlpha(text) {
+    return text.enemyHit || text.miss || text.bodyCue || isStrongDamageText(text) ? 1 : 0.72;
+}
 // 치명타·강타 숫자는 처음 잠깐 크게 튀어나왔다가 제자리 크기로 돌아온다(표시 전용).
 function applyDamageTextPop(ctx, text, t, anchor) {
     if (text.bodyCue || (!text.crit && text.impactTier !== 'heavy' && text.impactTier !== 'annihilate')) return;
@@ -4881,17 +4897,19 @@ function drawDamageTexts(ctx, now) {
         let x = text.x;
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
-        ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
+        ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
         applyDamageTextPop(ctx, text, t, { x, y });
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
         const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16)))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
-        ctx.textAlign = text.bodyCue ? 'left' : 'center';
+        ctx.textAlign = text.bodyCue || text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
-        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8));
+        const strong = isStrongDamageText(text);
+        // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
+        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 2.8 : (strong ? 2.4 : 2));
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
-        ctx.shadowColor = text.deflected ? 'rgba(151,174,174,0.2)' : (text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent')));
-        ctx.shadowBlur = text.bodyCue ? 0 : (text.deflected ? 2 : (text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0)));
+        ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
+        ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (strong ? 4 : 0));
         ctx.strokeText(textValue, x, y);
         // The fill sits inside the stroke, so the stroke pass already casts the whole glow.
         ctx.shadowBlur = 0;
@@ -4899,7 +4917,8 @@ function drawDamageTexts(ctx, now) {
         ctx.fillText(textValue, x, y);
         if (!text.bodyCue && !text.miss && Math.floor(Number(text.hitCount) || 1) > 1) {
             let hitLabel = `${Math.floor(text.hitCount)}타`;
-            let labelX = x + ctx.measureText(textValue).width / 2 + 4;
+            let valueWidth = ctx.measureText(textValue).width;
+            let labelX = x + (text.side > 0 ? valueWidth : (text.side < 0 ? 0 : valueWidth / 2)) + 4;
             ctx.font = `800 10px "DOSSaemmul", "Malgun Gothic", sans-serif`;
             ctx.textAlign = 'left';
             ctx.lineWidth = 1.2;

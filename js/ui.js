@@ -4131,7 +4131,6 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
-    let rangeText = typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, gemInfo.skill || def) : '';
     let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
     let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
@@ -4142,12 +4141,10 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
     let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 선택 후 장착</div>' : '';
     let action = `gemSelectionUi.open(this,'active','${name}')`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" onpointerenter="showGemCardHint(event,'active','${name}')" onpointerleave="hideInfoTooltip()">
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '공격 스킬 젬'))}</p>
-        ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
-        <div class="gem-card-tags">${renderGemTagChips(def, 4)}</div>
         <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
     </article>`;
 }
@@ -4171,18 +4168,25 @@ function renderSupportGemCard(name, highlightedName, stats) {
     else if (!active && isSummonGuardSupport(name) && getEquippedSummonCount() >= getSummonEquipCapFromStats(stats)) {
         failureReason = `소환수 한도 부족 (${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)})`;
     } else if (!active && availableResonance < cost) failureReason = `공명력 부족 (${availableResonance}/${cost})`;
-    let resonanceStatus = active ? `장착 중 · 공명 ${cost}`
-        : (failureReason || `장착 후 공명 ${Math.max(0, availableResonance - cost)}`);
-    let usageState = active ? '● 장착 중 · 상세 보기' : (failureReason || '상세 보기');
+    let usageState = active ? '● 장착 중 · 상세 보기' : (failureReason || `장착 후 공명 ${availableResonance - cost} · 상세 보기`);
     let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
     let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="gemSelectionUi.open(this,'support','${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();gemSelectionUi.open(this,'support','${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="gemSelectionUi.open(this,'support','${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();gemSelectionUi.open(this,'support','${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onpointerenter="showGemCardHint(event,'support','${name}')" onpointerleave="hideInfoTooltip()">
         <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '보조 젬 효과'))}</p>
-        <div class="gem-application-note">${escapeHTML(gemSelectionUi.application(name, stats))}</div>
-        <div class="gem-card-tags"><span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span class="gem-tag gem-tag--resonance">${escapeHTML(resonanceStatus)}</span></div>
         <div class="gem-card-footer"><span class="gem-usage-state">${escapeHTML(usageState)}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
     </article>`;
+}
+
+/** Gem card hover, mouse only (a tap opens the detail instead): the name and full description. Range, numbers and tags
+ * live in the detail popover that a click, Enter or Space opens (js/gem-selection-ui.js). */
+function showGemCardHint(event, type, name) {
+    if (event.pointerType !== 'mouse' || document.getElementById('gem-selection')?.matches(':popover-open')) return;
+    const support = type === 'support';
+    const info = getUiGemPresentation(name, support, cachedTooltipStats || getUiPlayerStats());
+    const html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${keepKoreanUnitParticles(escapeHTML(info.desc || ''))}</div>`
+        + '<div class="tooltip-line gem-card-hint">클릭하면 범위 · 수치 · 태그 상세</div>';
+    showInfoTooltipHtml(event.clientX, event.clientY, html, support ? '#2bcbba' : '#ff5252', `hint:${type}:${name}`);
 }
 
 function renderSealedGemCard(name, highlightedName, isSupport) {
@@ -4838,7 +4842,8 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
 }
 
 
-let mobileToastQueue = [];
+let mobileToastQueue = [];
+
 let mobileToastResultHoldTimer = null;
 let mobileToastActiveCount = 0;
 const MOBILE_TOAST_MAX_CONCURRENT = 1;

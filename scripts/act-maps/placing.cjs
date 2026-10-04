@@ -121,16 +121,20 @@ function landing(cv, g, x, y) {
         O.sprite(cv, cv.rng.choice(LEAF), xx, yy, n % 3 ? { a: P.gold[3], b: P.gold[1] } : { a: P.gold[2], b: P.wood[3] });
     }
 }
+/** 반딧불: 맵 넓이 9600도트마다 하나(가시성 정리 2026-10-04: 3200에서 약 ⅓로 — 금빛 점이 전투 이펙트와 헷갈렸다). */
 function fireflies(cv, g, ramp) {
-    for (let n = Math.floor(cv.w * cv.h / 3200); n > 0; n--) {
+    for (let n = Math.floor(cv.w * cv.h / 9600); n > 0; n--) {
         const x = cv.rng.int(3, cv.w - 3), y = cv.rng.int(3, cv.h - 3);
         if (!g.floor[y * cv.w + x]) continue;
         if (n % 3 === 0) O.sprite(cv, ['.y.', 'yYy', '.y.'], x, y, { y: [ramp[3], 0.6], Y: ramp[4] }); else cv.put(x, y, ramp[3]);
     }
 }
+/** 빛 번짐의 세기(가시성 정리 2026-10-04: 70%로 — 횃불 둘레 바닥이 하얗게 떠서 그 위의 적과 숫자가 묻혔다). */
+const LIGHT_STRENGTH = 0.7;
 /** 빛: 바닥과 절벽 앞면만 빛 색 쪽으로 네 단계(어둠은 그대로). */
 function lighting(cv, solid, lights) {
-    for (const [x, y, r, color, s] of lights) for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) {
+    for (const [x, y, r, color, full] of lights) for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) {
+        const s = full * LIGHT_STRENGTH;
         if (!cv.inside(xx, yy) || !solid[yy * cv.w + xx]) continue;
         const d = Math.hypot(xx - x, (yy - y) * 1.3) / r;
         if (d >= 1) continue;

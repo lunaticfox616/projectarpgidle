@@ -28,7 +28,11 @@ assert.deepEqual(notices, { afterSeen: 0, fresh: 1 }, 'the loop-2 unlock card st
 
 // "45%를": %와 조사 사이에 줄바꿈 금지 문자가 들어가고, 젬 카드에도 그대로 실린다.
 assert.equal(run(`keepKoreanUnitParticles('첫 타격 피해의 45%를 줍니다. 100% 확률')`), '첫 타격 피해의 45%⁠를 줍니다. 100% 확률');
-assert.ok(run(`renderAttackGemCard('연속 베기', '연속 베기', getUiPlayerStats())`).includes('45%⁠를'), 'the gem card keeps "45%를" together');
+const slashCard = run(`renderAttackGemCard('연속 베기', '연속 베기', getUiPlayerStats())`);
+assert.ok(slashCard.includes('45%⁠를'), 'the gem card keeps "45%를" together');
+// 2026-10-04 visibility: the card holds name, core description, level and equip state; range and tags open in the detail.
+assert.ok(slashCard.includes('Lv.') && slashCard.includes('gem-usage-state'), 'the gem card keeps its level and equip state');
+assert.ok(!slashCard.includes('gem-card-range') && !slashCard.includes('gem-card-tags'), 'range and tags moved off the card into the detail');
 
 // 앞날의 루프 중 같은 예고만 잇는 루프는 한 줄로 묶는다(해금이 열리는 루프와 현재 루프는 따로).
 const runs = copy(`(() => {
@@ -64,10 +68,10 @@ assert.ok(wheels.shown && wheels.left, 'the note reads the hovered passive and g
 // 적 체력 막대는 칸보다 넓지 않다(좁은 휴대폰 칸), 넓은 칸에서는 예전 너비, 보스는 그대로.
 assert.equal(run(`getEnemyFieldBarWidth({}, 30)`), 25);
 assert.equal(run(`getEnemyFieldBarWidth({ isElite: true }, 30)`), 25);
-assert.equal(run(`getEnemyFieldBarWidth({}, 80)`), 40);
-assert.equal(run(`getEnemyFieldBarWidth({ isElite: true }, 80)`), 54);
+assert.equal(run(`getEnemyFieldBarWidth({}, 80)`), 32);
+assert.equal(run(`getEnemyFieldBarWidth({ isElite: true }, 80)`), 44);
 assert.equal(run(`getEnemyFieldBarWidth({ isBoss: true }, 30)`), 96);
-assert.equal(run(`getEnemyFieldBarWidth({})`), 40, 'no grid size: the old width');
+assert.equal(run(`getEnemyFieldBarWidth({})`), 32, 'no grid size: the old width');
 
 // 검토 6차: 실행 중 오류는 전투 기록에 짧은 한국어 한 줄만 남긴다(파일 경로가 든 스택으로 기록을 덮어썼다).
 const runtimeLog = copy(`(() => {

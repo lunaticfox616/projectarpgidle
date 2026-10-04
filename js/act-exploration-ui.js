@@ -33,7 +33,8 @@ const actExplorationUi=(()=>{
         const auto=document.getElementById('btn-act-exploration-auto'),on=run.mode!=='manual',key=autoKey();
         auto.setAttribute('aria-pressed',String(on));
         auto.disabled=run.status!=='active';
-        auto.querySelector('b').textContent=on?'자동':'수동';
+        // 글자가 지금 상태를 말한다(예전 '자동 / 수동'은 누르면 바뀔 상태인지 헷갈렸다 — 가시성 정리 2026-10-04).
+        auto.querySelector('b').textContent=on?'자동 켬':'자동 끔';
         auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+' · 눌러서 바꾸기'+(key?' ('+key+')':''));
         const cap=auto.querySelector('.combat-hud-key');
         cap.textContent=key;cap.hidden=!key;
@@ -51,15 +52,17 @@ const actExplorationUi=(()=>{
     }
     // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
     // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다.
-    // 전장 위 미니맵은 플레이어 주변 MINI_VIEW칸만(13칸: 둥근 창에 방이 크게 들어차게), 크게 보기 창은 지도 전체를 그린다(클릭 좌표는 같은 창(view)으로 환산).
-    const MAP_INK={fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',floorAlt:'#877a58',wall:'#26342c',edge:'rgba(240,214,150,.85)'};
-    const MINI_VIEW=13;
+    // 전장 위 미니맵은 플레이어 주변 MINI_VIEW칸만, 크게 보기 창은 지도 전체를 그린다(클릭 좌표는 같은 창(view)으로 환산).
+    // 가시성 정리(2026-10-04 사용자 요청): 바닥은 한 색(체크무늬 없음), 경계선은 확인한 벽과 지도 끝에만, 보이는 범위는 13 → 19칸.
+    // 칸이 작아진 만큼 표식(markerScale)은 키워서 화면에서 예전 크기를 유지한다.
+    const MAP_INK={fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',wall:'#26342c',edge:'rgba(240,214,150,.85)'};
+    const MINI_VIEW=19,MINI_MARKER_BASE=13;
     function mapView(canvas,map) {
-        if(canvas.id!=='act-exploration-map')return {x0:0,y0:0,cols:map.columns,rows:map.rows,scale:10};
+        if(canvas.id!=='act-exploration-map')return {x0:0,y0:0,cols:map.columns,rows:map.rows,scale:10,markerScale:1};
         const cols=Math.min(MINI_VIEW,map.columns),rows=Math.min(MINI_VIEW,map.rows);
         const x0=Math.max(0,Math.min(map.columns-cols,game.gridPlayer.gx-Math.floor(cols/2)));
         const y0=Math.max(0,Math.min(map.rows-rows,game.gridPlayer.gy-Math.floor(rows/2)));
-        return {x0,y0,cols,rows,scale:8};
+        return {x0,y0,cols,rows,scale:8,markerScale:Math.max(1,Math.max(cols,rows)/MINI_MARKER_BASE)};
     }
     function draw(canvas,run) {
         const map=actExplorationMap.forRun(run),view=mapView(canvas,map),scale=view.scale,ss=2;
@@ -69,7 +72,7 @@ const actExplorationUi=(()=>{
         ctx.setTransform(ss,0,0,ss,-view.x0*scale*ss,-view.y0*scale*ss);
         drawFog(ctx,map,scale);
         drawTerrain(ctx,map,seen,scale);
-        drawMarkers(ctx,run,map,seen,scale);
+        drawMarkers(ctx,run,map,seen,view);
     }
     function drawFog(ctx,map,scale) {
         ctx.fillStyle=MAP_INK.fog;ctx.fillRect(0,0,map.columns*scale,map.rows*scale);
@@ -80,26 +83,27 @@ const actExplorationUi=(()=>{
     function drawTerrain(ctx,map,seen,scale) {
         for(const id of seen) {
             const gx=id%map.columns,gy=Math.floor(id/map.columns);
-            ctx.fillStyle=map.tiles[id]?((gx+gy)%2?MAP_INK.floor:MAP_INK.floorAlt):MAP_INK.wall;
+            ctx.fillStyle=map.tiles[id]?MAP_INK.floor:MAP_INK.wall;
             ctx.fillRect(gx*scale,gy*scale,scale,scale);
         }
         ctx.fillStyle=MAP_INK.edge;
         for(const id of seen)if(map.tiles[id])drawFloorEdges(ctx,map,seen,id,scale);
     }
-    // 바닥 칸의 네 변 중 바닥이 아닌 쪽에만 얇은 금빛 경계를 긋는다.
+    // 바닥 칸의 네 변 중 확인한 벽이나 지도 끝과 맞닿은 쪽에만 얇은 금빛 경계를 긋는다.
+    // 아직 밝히지 않은 칸 쪽은 긋지 않는다(예전에는 탐험 경계마다 선이 생겨 벽처럼 보였다).
     const EDGE_SIDES=[[0,-1],[1,0],[0,1],[-1,0]];
     function drawFloorEdges(ctx,map,seen,id,scale) {
         const gx=id%map.columns,gy=Math.floor(id/map.columns),w=.7;
         for(const [dx,dy] of EDGE_SIDES) {
-            if(isSeenFloor(map,seen,gx+dx,gy+dy))continue;
+            if(!isSeenWallOrEdge(map,seen,gx+dx,gy+dy))continue;
             const x=gx*scale+(dx>0?scale-w:0),y=gy*scale+(dy>0?scale-w:0);
             ctx.fillRect(x,y,dx?w:scale,dy?w:scale);
         }
     }
-    function isSeenFloor(map,seen,gx,gy) {
-        if(gx<0||gy<0||gx>=map.columns||gy>=map.rows)return false;
+    function isSeenWallOrEdge(map,seen,gx,gy) {
+        if(gx<0||gy<0||gx>=map.columns||gy>=map.rows)return true;
         const id=gy*map.columns+gx;
-        return seen.has(id)&&!!map.tiles[id];
+        return seen.has(id)&&!map.tiles[id];
     }
     function drawDiamond(ctx,{x,y,r,fill}) {
         ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();
@@ -112,8 +116,8 @@ const actExplorationUi=(()=>{
         if(ENCOUNTER_MARKS[pack.encounter])return ENCOUNTER_MARKS[pack.encounter];
         return pack.eliteIds.some(id=>pack.aliveIds.includes(id))?'#e1bd62':'#ae9073';
     }
-    function drawMarkers(ctx,run,map,seen,scale) {
-        const at=v=>v*scale+scale/2,r=Math.max(3,scale*.8);
+    function drawMarkers(ctx,run,map,seen,view) {
+        const scale=view.scale,at=v=>v*scale+scale/2,r=Math.max(3,scale*.8)*view.markerScale;
         for(const pack of run.packs) {
             const room=map.rooms.find(item=>item.id===pack.roomId);
             if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
