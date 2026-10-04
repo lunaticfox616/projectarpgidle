@@ -7519,11 +7519,16 @@ function getZoneExplorationPlan(zone) {
     return zone.exploration ? {source:zone.exploration,zoneId:zone.id,bossStages:zone.exploration.bossStages||1} : null;
 }
 
+/** Like a Diablo II act area, each run faces north, east, south or west (2026-10-04): the map's clockwise quarter turns, 0..3.
+ * The only randomness of the facing; fixtures that walk fixed coordinates pin it to undefined (the map's drawn facing). */
+function rollExplorationFacing() {return Math.floor(Math.random()*actExplorationMap.ROTATIONS);}
+
 /** exploration: false = the legacy board (regression fixtures), true = must explore (throws where no map exists). */
 function createActExplorationEncounter(zone,exploration) {
     const plan=exploration===false ? null : getZoneExplorationPlan(zone);
     if(!plan && exploration===true)throw Error('일반 액트나 전용 맵이 있는 콘텐츠에서만 탐험을 시작할 수 있습니다.');
     if(!plan)return null;
+    plan.rotation=rollExplorationFacing();
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
     run.mode=actExplorationProgress.startMode(game.settings);
     return run;

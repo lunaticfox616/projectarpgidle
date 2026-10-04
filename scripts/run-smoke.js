@@ -81,6 +81,15 @@ async function runAll(files, { timeoutMs, concurrency }) {
     return results.sort((a, b) => a.file.localeCompare(b.file));
 }
 
+/** GitHub Actions error annotation: the check run's annotations name the failing smoke and its first error line,
+ * readable without downloading the job log. */
+function annotation(result, timeoutMs) {
+    let line = result.timedOut ? `타임아웃 ${Math.round(timeoutMs / 1000)}초 초과`
+        : ((result.output || '').split('\n').find(text => /Error|assert/i.test(text)) || '(출력 없음)').trim();
+    let escape = text => text.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+    return `::error file=scripts/${result.file},title=${escape(result.file)}::${escape(line.slice(0, 300))}`;
+}
+
 async function main() {
     let filters = process.argv.slice(2).filter(arg => !arg.startsWith('-'));
     let files = listSmokeScripts(filters);
@@ -102,6 +111,7 @@ async function main() {
         console.log(`실패: ${result.file}${result.timedOut ? ` (타임아웃 ${Math.round(timeoutMs / 1000)}초 초과)` : ''}`);
         console.log('─'.repeat(70));
         console.log(result.output || '(출력 없음)');
+        if (process.env.GITHUB_ACTIONS) console.log(annotation(result, timeoutMs));
     });
 
     let totalSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);

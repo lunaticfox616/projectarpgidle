@@ -12,7 +12,8 @@
     // 스킬 패널 재렌더 메모. 이 화면만 쓰므로 여기서 소유한다
     // (예전에는 ui.js 최상단 전역이라 무엇이 쓰는지 파일을 훑어야 알 수 있었다).
     let lastSkillPanelRenderSignature = '';
-    const libraryPages = { skill: { index: 0, query: '' }, support: { index: 0, query: '' } };
+    /** Per library: phone page, the filter it was paged for, and how many gems the filter lists (the picker head count). */
+    const libraryPages = { skill: { index: 0, query: '', total: 0 }, support: { index: 0, query: '', total: 0 } };
 
     /** @param {{title: string, action: string, done: boolean, ready: boolean, details: string, gain?: number}} upgrade
      * @param {number} currentLevel Displayed total gem level, including equipment and passives. */
@@ -22,47 +23,37 @@
         return `<button class="gem-upgrade-btn ${upgrade.done ? 'done' : ''}" onclick="${escapeHTML(upgrade.action)}" ${upgrade.ready && !upgrade.done ? '' : 'disabled'}><strong>${escapeHTML(upgrade.title)}${upgrade.done ? ' 완료' : ''}</strong><small>${escapeHTML(details)}</small></button>`;
     }
 
-    function syncMobileLibraryNavigation(kind) {
-        const panel = document.getElementById('skill-tab-equip');
-        const navigation = panel.querySelector('.skill-mobile-library-navigation');
-        const supportOpen = contentProgression.isUnlocked('support');
-        navigation.hidden = !supportOpen;
-        const selected = supportOpen ? (kind || panel.dataset.mobileLibrary) : 'skill';
-        panel.dataset.mobileLibrary = selected;
-        navigation.querySelectorAll('button').forEach(button => {
-            button.setAttribute('aria-pressed', String(button.dataset.mobileGemLibrary === selected));
-        });
-    }
+    /** Gems a phone shows per page (two rows of four tiles). */
+    const MOBILE_PAGE_SIZE = 8;
 
-    document.addEventListener('click', event => {
-        const button = event.target.closest('[data-mobile-gem-library]');
-        if (button) syncMobileLibraryNavigation(button.dataset.mobileGemLibrary);
-    });
-
-    // Filter the complete library first; only build the visible cards on phones.
+    // Filter the complete library first; only build the visible tiles on phones. The attack library only lists the gems
+    // the picked board slot takes (js/skill-gem-board-ui.js: main attack, mobility or summon).
     function renderGemLibrary(kind, owned, sealed, stats, filter) {
         const support = kind === 'support';
+        const slotKind = support ? null : skillGemBoardUi.currentKind();
         const fold = support ? game.gemFoldInactiveSupport : game.gemFoldInactiveAttack;
         const definitions = support ? SUPPORT_GEM_DB : SKILL_DB;
         const records = owned.map(name => ({ name, sealed: false }))
             .concat(sealed.map(name => ({ name, sealed: true }))).filter(record => {
+                if (slotKind && skillGemBoardUi.kindOf(record.name) !== slotKind) return false;
                 const active = !record.sealed && (support ? game.equippedSupports.includes(record.name)
                     : [game.activeSkill, game.mobilitySkill].includes(record.name) || (game.equippedSummonSkills || []).includes(record.name));
                 return window.isGemLibraryMatchVisible(window.getGemSearchText(record.name, definitions[record.name] || {}), filter, fold, active);
             });
         const state = libraryPages[kind];
-        const query = JSON.stringify([filter || '', !!fold]);
+        state.total = records.length;
+        const query = JSON.stringify([filter || '', !!fold, slotKind]);
         if (state.query !== query) { state.index = 0; state.query = query; }
         const mobile = uiDisplay.matches('(max-width: 1080px)');
-        const count = Math.max(1, Math.ceil(records.length / 6));
+        const count = Math.max(1, Math.ceil(records.length / MOBILE_PAGE_SIZE));
         state.index = Math.min(state.index, count - 1);
-        const visible = mobile ? records.slice(state.index * 6, (state.index + 1) * 6) : records;
+        const visible = mobile ? records.slice(state.index * MOBILE_PAGE_SIZE, (state.index + 1) * MOBILE_PAGE_SIZE) : records;
         const cards = visible.map(record => {
             const label = window.highlightSearchText(record.name, filter);
             if (record.sealed) return renderSealedGemCard(record.name, label, support);
             return support ? renderSupportGemCard(record.name, label, stats) : renderAttackGemCard(record.name, label, stats);
         }).join('');
-        if (!mobile || records.length <= 6) return cards;
+        if (!mobile || records.length <= MOBILE_PAGE_SIZE) return cards;
         return renderLibraryPager(kind, state.index, count, records.length) + cards;
     }
 
@@ -145,24 +136,29 @@
         renderSearchSection('ui-gem-research-results', 'gemResearch', '젬 이름·효과·태그 검색', rows, '<div class="gem-process-empty">검색 결과가 없습니다.</div>', '');
         bindGemResearchSections(root, query);
     }
+    /** The picker head: which slot it fills, how many gems it lists, and the "worn only" fold for that library. */
+    function syncPickerHead(kind, fold) {
+        document.getElementById('ui-skill-picker-count').textContent = `${libraryPages[kind === 'support' ? 'support' : 'skill'].total || 0}개`;
+        const foldButton = document.getElementById('btn-skill-picker-fold');
+        foldButton.setAttribute('aria-pressed', String(fold));
+        foldButton.classList.toggle('active', fold);
+        document.getElementById('ui-skills-list').hidden = kind === 'support';
+        document.getElementById('ui-support-list').hidden = kind !== 'support';
+    }
+
     function renderSkillGemScreen(context) {
-        syncMobileLibraryNavigation();
         let ctx = context || {};
         let pStats = ctx.pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : {});
         let sf = ctx.searchFilters || (typeof getSearchFilterState === 'function' ? getSearchFilterState() : {});
         let foldAttackInactive = !!game.gemFoldInactiveAttack;
         let foldSupportInactive = !!game.gemFoldInactiveSupport;
-        let foldActiveBtn = document.getElementById('btn-skill-fold-active');
-        let foldAttackBtn = document.getElementById('btn-skill-fold-inactive-attack');
-        let foldSupportBtn = document.getElementById('btn-skill-fold-inactive-support');
-        if (foldActiveBtn) foldActiveBtn.classList.toggle('active', !foldAttackInactive && !foldSupportInactive);
-        if (foldAttackBtn) foldAttackBtn.classList.toggle('active', foldAttackInactive);
-        if (foldSupportBtn) foldSupportBtn.classList.toggle('active', foldSupportInactive);
+        let pickerKind = skillGemBoardUi.currentKind();
         let effectiveResonanceCap = getEffectiveResonanceCap(pStats);
-        renderSkillLoadoutSummary(pStats, effectiveResonanceCap);
         let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
         let skillPanelRenderSignature = JSON.stringify({
             libraryPages: libraryPages,
+            pickerKind: pickerKind,
+            engraving: contentProgression.isUnlocked('engraving'),
             mobileLibrary: uiDisplay.matches('(max-width: 1080px)'),
             activeSkill: game.activeSkill || '', mobilitySkill: game.mobilitySkill,
             skills: game.skills || [],
@@ -197,8 +193,8 @@
         });
         if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
             lastSkillPanelRenderSignature = skillPanelRenderSignature;
+        skillGemBoardUi.render(pStats);
         renderGemResearchPanel();
-        let resonancePower = effectiveResonanceCap;
         let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
         let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
         let skillsHtml = renderGemLibrary('skill', game.skills, sealedSkills, pStats, sf.skill);
@@ -211,15 +207,6 @@
             skillsListEl.dataset.renderSig = skillsRenderSig;
         }
 
-        let suppCountEl = document.getElementById('ui-supp-count');
-        let suppMaxEl = document.getElementById('ui-supp-max');
-        let suppResonanceEl = document.getElementById('ui-resonance');
-        if (suppCountEl) suppCountEl.innerText = game.equippedSupports.length;
-        if (suppMaxEl) suppMaxEl.innerText = pStats.suppCap;
-        if (suppResonanceEl) {
-            let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-            suppResonanceEl.innerText = `${Math.max(0, getEffectiveResonanceCap(pStats) - used)}`;
-        }
         let supportHtml = renderGemLibrary('support', game.supports, sealedSupports, pStats, sf.support);
         let supportListEl = document.getElementById('ui-support-list');
         let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조 젬 일괄 봉인</button>';
@@ -229,6 +216,7 @@
             supportListEl = document.getElementById('ui-support-list');
             supportListEl.dataset.renderSig = supportRenderSig;
         }
+        syncPickerHead(pickerKind, pickerKind === 'support' ? foldSupportInactive : foldAttackInactive);
 
         let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
         let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');

@@ -7,7 +7,10 @@ const explorationArt=(()=>{
     function canvas(w,h) {
         const c=document.createElement('canvas');c.width=w;c.height=h;return c;
     }
-    function backdropFor(layout) {return ACT_EXPLORATION_BACKDROPS[layout?.id]||null;}
+    const shadeOf=layout=>ACT_EXPLORATION_BACKDROPS[layout?.id]?.shade;
+    /** The painting of the layout's facing (data ACT_EXPLORATION_BACKDROPS views), null for a map without art. */
+    function backdropFor(layout) {return ACT_EXPLORATION_BACKDROPS[layout?.id]?.views[layout.rotation]||null;}
+    const sheetKey=layout=>`${layout?.id}:${layout?.rotation}`;
     // The art version rides the URL so a redrawn map is never served from the browser's image cache.
     async function decodeImage(src) {
         const image=new Image();image.src=`${src}?v=${ACT_EXPLORATION_ART_VERSION}`;await image.decode();return image;
@@ -26,12 +29,12 @@ const explorationArt=(()=>{
         if(image.width!==layout.columns*BACKDROP_PX||image.height!==layout.rows*BACKDROP_PX) {
             console.warn('exploration backdrop size mismatch:',entry.map,image.width,image.height);return null;
         }
-        if(gateSheet)gateSheets.set(layout.id,{image:gateSheet,offset:entry.gateOffset||[-gateSheet.width/4,-gateSheet.height]});
+        if(gateSheet)gateSheets.set(sheetKey(layout),{image:gateSheet,offset:entry.gateOffset||[-gateSheet.width/4,-gateSheet.height]});
         return image;
     }
     /** Stand-in when the painting is missing: walls in the map's shade, floor a few steps lighter, at the backdrop's scale. */
     function plain(layout) {
-        const shade=backdropFor(layout)?.shade||[16,14,18],c=canvas(layout.columns*BACKDROP_PX,layout.rows*BACKDROP_PX),ctx=c.getContext('2d');
+        const shade=shadeOf(layout)||[16,14,18],c=canvas(layout.columns*BACKDROP_PX,layout.rows*BACKDROP_PX),ctx=c.getContext('2d');
         ctx.fillStyle=`rgb(${shade.join(',')})`;ctx.fillRect(0,0,c.width,c.height);
         ctx.fillStyle=`rgb(${shade.map(value=>Math.min(255,value*2+44)).join(',')})`;
         layout.tiles.forEach((floor,i)=>{
@@ -44,7 +47,7 @@ const explorationArt=(()=>{
     function scenery() {return [];}
     // Backdrop maps get a gate frame at the backdrop's own pixel scale (drawn at tile/16, never resampled).
     function backdropGate(closed,layout) {
-        const sheet=gateSheets.get(layout?.id);if(!sheet)return null;
+        const sheet=gateSheets.get(sheetKey(layout));if(!sheet)return null;
         const w=sheet.image.width/2,h=sheet.image.height,c=canvas(w,h),ctx=c.getContext('2d');
         ctx.drawImage(sheet.image,closed?0:w,0,w,h,0,0,w,h);
         c.pixelTile=BACKDROP_PX;c.offset=sheet.offset;return c;

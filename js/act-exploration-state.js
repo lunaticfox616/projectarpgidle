@@ -19,16 +19,18 @@ const actExplorationState = (() => {
         return run.packs.reduce((sum,pack)=>sum+pack.eliteIds.filter(id=>pack.aliveIds.includes(id)).length,0);
     }
     /**
-     * @param {{act:number}|{source:object,zoneId:(number|string),bossStages:number}} where a story act's authored map, or a
-     *   generated map (explorationLayouts spec) for any other zone with its boss stage count.
+     * @param {{act:number,rotation?:number}|{source:object,zoneId:(number|string),bossStages:number,rotation?:number}} where a story
+     *   act's authored map, or a generated map (explorationLayouts spec) for any other zone with its boss stage count; rotation is the
+     *   run's facing in clockwise quarter turns (0..3, chosen by combat), the map's drawn facing if omitted.
      * @returns {ActExplorationRun} Takes ownership of already-generated enemy records.
      */
     function create(where,packs,now=0) {
         const run=where.source ? {version:1,act:null,source:explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
             : {version:1,act:where.act,zoneId:where.act-1};
+        if(where.rotation!==undefined)run.rotation=where.rotation;
         const map=actExplorationMap.forRun(run);
         if(!map)throw Error('알 수 없는 액트 탐험: '+where.act);
-        Object.assign(run,{layoutId:map.id,status:'active',mode:'direct',completionApplied:false,
+        Object.assign(run,{rotation:map.rotation,layoutId:map.id,status:'active',mode:'direct',completionApplied:false,
             motion:null,motionTimeMs:now,motionDirection:'south',
             loot:actExplorationLoot.create(),departure:null,destination:null,discovered:actExplorationMap.visibleCells(map,map.entry),
             visitedRooms:[map.entry.id],packs});
@@ -222,6 +224,7 @@ const actExplorationState = (() => {
     }
     /** Save boundary rejects corrupt runs rather than resetting enemies or granting their loot. */
     function validate(run,enemies) {
+        validateFacing(run);
         const map=validSource(run);
         if(!map || run.version!==1 || run.layoutId!==map.id)throw Error('지원하지 않는 액트 탐험 저장입니다.');
         if(!['active','cleared','failed'].includes(run.status) || !['manual','direct','full'].includes(run.mode))throw Error('탐험 저장의 진행 상태가 잘못되었습니다.');
@@ -234,6 +237,9 @@ const actExplorationState = (() => {
         if(context.alive.size!==context.records.size)throw Error('탐험 저장에서 살아 있는 적이 누락되었습니다.');
         validateProgress(run);
         return run;
+    }
+    function validateFacing(run) {
+        if(!Number.isInteger(run.rotation) || run.rotation<0 || run.rotation>=actExplorationMap.ROTATIONS)throw Error('탐험 저장의 맵 방향이 잘못되었습니다.');
     }
     /** The run's map: an act's (zone = act − 1), or a generated one whose spec rebuilds the saved layout id. */
     function validSource(run) {
@@ -276,6 +282,15 @@ const actExplorationState = (() => {
         state.encounterPlan=[];
         return true;
     }
+    /** Saves before 2026-10-04 carry no facing: they keep walking the map as it was drawn, so their tile indices still hold.
+     * The save boundary (mergeDefaults) calls this before it validates the run; a run that already has one is left alone. */
+    function upgradeRotation(state) {
+        const run=state.actExploration;
+        const map=run && run.rotation===undefined ? validSource(run) : null;
+        if(!map)return false;
+        run.rotation=map.rotation;
+        return true;
+    }
     function restore(state) {
         const run=state.actExploration;if(run===null || run===undefined)return null;
         // 다른 지역에 남은 탐험은 실행 중에도 current()가 무시하고 다음 출발 때 버려진다(reconcileDeparture).
@@ -302,6 +317,6 @@ const actExplorationState = (() => {
             || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
     }
-    return {settlementMs,current,create,packRooms,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired};
+    return {settlementMs,current,create,packRooms,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

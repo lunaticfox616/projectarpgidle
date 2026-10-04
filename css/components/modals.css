@@ -137,7 +137,6 @@ body textarea:focus {
   .tooltip-final,
   .game-dialog-message,
   .game-choice-option span,
-  .gem-library-card > p,
   .gem-orbit-copy span
 ) {
   font-family: var(--font-body);

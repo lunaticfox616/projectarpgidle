@@ -15,6 +15,8 @@
  * @property {number} act Story act 1..10; zoneId is act minus one.
  * @property {number} zoneId
  * @property {string} layoutId Authored preset identity, never randomised at restore.
+ * @property {number} rotation Map facing in clockwise quarter turns (0 gate north, 1 east, 2 south, 3 west), drawn once per run;
+ *   saves before 2026-10-04 take the map's drawn facing (actExplorationState.upgradeRotation).
  * @property {'active'|'cleared'|'failed'} status
  * @property {boolean} completionApplied Existing story/zone completion has been applied once.
  * @property {null|{zoneId:number,remainingMs:number}} departure Already-selected automatic exit after presentation; never another reward claim.

@@ -997,6 +997,7 @@ function mergeDefaults(save) {
     merged.actRetreat = normalizeActRetreat(merged.actRetreat);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
     actExplorationState.dropRetired(merged);
+    actExplorationState.upgradeRotation(merged);
     if(merged.actExploration) {
         // Validate the original ownership/HP first so normalization cannot revive a corrupt record.
         actExplorationState.validate(merged.actExploration, save.enemies || []);
