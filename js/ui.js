@@ -8714,6 +8714,7 @@ function updateCombatUI(pStats) {
     let focusedEnemy = bossEnemy || enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
+        enemyListEl.hidden = false;
         if (enemyListEl.dataset.enemyId !== '') {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = '';
@@ -8743,6 +8744,9 @@ function updateCombatUI(pStats) {
         let ghostDisplay = ghostTrailPct > 0.2 ? 'block' : 'none';
         let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
         let focusedKey = String(focusedEnemy.id) + '|' + enemyHudTier;
+        // 2026-10-04 visibility: an ordinary monster's HP already rides over its head on the field, so the big top card
+        // (name · bar) only shows for elites and bosses — on phones it covered the ground ahead where packs come from.
+        enemyListEl.hidden = enemyHudTier === 'mob';
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;

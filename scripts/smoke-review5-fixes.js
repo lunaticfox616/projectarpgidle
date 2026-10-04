@@ -72,6 +72,12 @@ assert.equal(run(`getEnemyFieldBarWidth({}, 80)`), 32);
 assert.equal(run(`getEnemyFieldBarWidth({ isElite: true }, 80)`), 44);
 assert.equal(run(`getEnemyFieldBarWidth({ isBoss: true }, 30)`), 96);
 assert.equal(run(`getEnemyFieldBarWidth({})`), 32, 'no grid size: the old width');
+// 2026-10-04: an untouched ordinary monster has no field bar; a hit, a shield chip, targeting, elite or boss shows it.
+assert.equal(run(`isEnemyFieldBarShown({ hp: 10, maxHp: 10 }, false)`), false, 'untouched ordinary monster: no bar');
+assert.equal(run(`isEnemyFieldBarShown({ hp: 9, maxHp: 10 }, false)`), true, 'a hit monster shows its bar');
+assert.equal(run(`isEnemyFieldBarShown({ hp: 10, maxHp: 10, energyShield: 3, maxEnergyShield: 5 }, false)`), true, 'a chipped shield counts as hit');
+assert.equal(run(`isEnemyFieldBarShown({ hp: 10, maxHp: 10 }, true)`), true, 'the targeted monster shows its bar');
+assert.equal(run(`isEnemyFieldBarShown({ hp: 10, maxHp: 10, isElite: true }, false)`), true, 'elites always show theirs');
 
 // 검토 6차: 실행 중 오류는 전투 기록에 짧은 한국어 한 줄만 남긴다(파일 경로가 든 스택으로 기록을 덮어썼다).
 const runtimeLog = copy(`(() => {

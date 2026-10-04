@@ -67,7 +67,7 @@
 
   body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 24px; z-index: 24; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list { display: grid; gap: 3px; min-height: 0; pointer-events: none; }
-  body.desktop-windowed-ui #ui-enemy-list:empty, body.desktop-windowed-ui .enemy-empty { display: none; }
+  body.desktop-windowed-ui #ui-enemy-list:is(:empty, [hidden]), body.desktop-windowed-ui .enemy-empty { display: none; }
   body.desktop-windowed-ui .enemy-card.targeted { min-height: 76px; height: auto; max-height: none; padding: 7px 12px; border-radius: 8px; background: #101722; border: 1px solid rgba(232, 194, 106, 0.58); box-shadow: none; pointer-events: auto; overflow: visible; }
   body.desktop-windowed-ui #enemy-area:has(.enemy-boss) { width: clamp(560px, 65vw, 900px); }
   body.desktop-windowed-ui .enemy-card.enemy-boss { min-height: 92px; height: auto; max-height: none; padding: 8px 12px; }

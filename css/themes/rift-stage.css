@@ -79,7 +79,8 @@
     font: 600 10px/1 var(--font-caps, serif);
   }
 
-  /* 지역 줄: 레일 오른쪽부터 오른쪽 열 왼쪽까지, 상자 없이 그늘만 */
+  /* 지역 줄: 레일 오른쪽부터 오른쪽 열 왼쪽까지. 그늘 띠도 없이 외곽선 글자와 귀환 단추만(2026-10-04 사용자 요청 —
+     이름과 귀환을 가로지르는 어두운 띠가 둘을 묶은 상자로 보였다) */
   body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row {
     left: calc(var(--stage-rail-width) + var(--stage-gutter));
     right: calc(var(--stage-feed-width) + var(--stage-gutter) + 12px);
@@ -87,10 +88,10 @@
   }
   :root body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row {
     border-color: transparent;
-    background: linear-gradient(180deg, rgba(6, 7, 8, .78), rgba(6, 7, 8, 0));
+    background: none;
     box-shadow: none;
   }
-  :root body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row-title { text-shadow: 0 2px 6px #000; }
+  :root body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row-title { text-shadow: 0 1px 0 #000, 0 2px 6px #000, 0 0 10px rgba(0, 0, 0, .85); }
 
   /* 몬스터 수·목표 서랍: 레일·오른쪽 열·보스 체력바(위쪽 ~120px)에 가리지 않는 자리로 */
   body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-caption {
@@ -196,9 +197,11 @@
     max-width: calc(100% - 128px);
     margin: 0;
   }
+  /* 지역 줄: 테두리 상자 없이 아래로 옅어지는 그늘만(2026-10-04 사용자 요청 — 이름과 귀환을 묶은 테가 맨 위에서 눈에 걸렸다) */
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row {
-    border-color: rgba(201, 164, 92, .22);
-    background: linear-gradient(180deg, rgba(10, 11, 13, .96), rgba(6, 7, 8, .9));
+    border-color: transparent;
+    background: linear-gradient(180deg, rgba(10, 11, 13, .9), rgba(5, 6, 7, .6));
+    box-shadow: none;
   }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed {
     border-color: rgba(201, 164, 92, .22);
