@@ -1072,7 +1072,9 @@ function mergeDefaults(save) {
     merged.nextEnemyId = Math.max(1, Math.floor(clampFiniteNumber(merged.nextEnemyId, defaultGame.nextEnemyId, 1)));
     merged.seasonPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.seasonPoints, defaultGame.seasonPoints, 0)));
     merged.loopDeepPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.loopDeepPoints, defaultGame.loopDeepPoints, 0)));
-    merged.loopDeepStats = { ...(defaultGame.loopDeepStats || {}), ...(merged.loopDeepStats || {}) };
+    // Deep loop levels: whole, non-negative counts for every LOOP_DEEP_STATS key (resChaos was added 2026-10-04).
+    merged.loopDeepStats = Object.fromEntries(LOOP_DEEP_STATS.map(def => [def.key,
+        Math.max(0, Math.floor(clampFiniteNumber((merged.loopDeepStats || {})[def.key], 0, 0)))]));
     merged.chaosRealm = { ...createDefaultChaosRealmState(), ...(merged.chaosRealm || {}) };
     merged.skyTower = { ...createDefaultSkyTowerState(), ...(merged.skyTower || {}) };
     const legacyCondensedSkyPower = Math.max(0, Math.floor(Number(merged.currencies.condensedSkyPower) || 0));

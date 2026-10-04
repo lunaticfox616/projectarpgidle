@@ -3284,6 +3284,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let cosmosMasteryBossDamagePct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('starbreaker')) || 0) * 1.8 : 0;
     let finalDamageMultiplier = (1 + cosmosMasteryFinalDamagePct / 100) * oceanPressureDamageMul;
     finalDamageMultiplier *= 1 + Math.max(0, authoredPassiveRules.combatDamageMorePct) / 100;
+    finalDamageMultiplier *= 1 + getLoopDeepMorePct(game.loopDeepStats) / 100;
     let wisdomLeapActive = typeof findAllocatedPassiveKeystone === 'function'
         && !!findAllocatedPassiveKeystone('지혜의 도약');
     let passiveWisdomElement = wisdomLeapActive ? authoredPassiveRules.wisdomElement : '';
