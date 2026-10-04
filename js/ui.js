@@ -102,7 +102,9 @@ function buildMapEnvironmentTooltipHtml(target) {
         <div class="tooltip-line tooltip-muted">흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
 }
 
-const MAP_ESTIMATE_ELEMENT_NAMES = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
+function getMapEstimateElementName(key) {
+    return { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[key] || '';
+}
 /** A chaos depth's boss has fixed elements (getChaosBossElements): name them so the player knows which resistances to raise. */
 /** Total of one deep loop line (LOOP_DEEP_STATS) at its level, e.g. 9% for three levels of 3%. */
 function formatLoopDeepValue(def, level) {
@@ -110,7 +112,7 @@ function formatLoopDeepValue(def, level) {
     return `${Number.isInteger(total) ? total : total.toFixed(1)}${def.unit}`;
 }
 function buildMapBossElementLine(keys) {
-    const names = String(keys || '').split(',').map(key => MAP_ESTIMATE_ELEMENT_NAMES[key]).filter(Boolean);
+    const names = String(keys || '').split(',').map(getMapEstimateElementName).filter(Boolean);
     return names.length ? `<div class="tooltip-line">보스 피해 속성: ${names.join(' · ')}</div>` : '';
 }
 
@@ -120,7 +122,7 @@ function showMapPowerEstimateTooltip(event) {
     let x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : (rect ? rect.left + rect.width / 2 : 0);
     let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
     let data = target ? target.dataset : {};
-    let elementLabel = MAP_ESTIMATE_ELEMENT_NAMES[data.limitingElement] || '취약 속성';
+    let elementLabel = getMapEstimateElementName(data.limitingElement) || '취약 속성';
     let html = `<div class="tooltip-title">권장 전투력</div>
         <div class="tooltip-line">${escapeHTML(data.levelDetail)}</div>
         <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
