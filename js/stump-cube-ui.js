@@ -45,8 +45,9 @@ const stumpCubeUi = (() => {
     }
 
     function statusHtml(found, list) {
-        if (!list.length) return '<p class="stump-hint">빈 칸을 눌러 재료를 넣으세요.</p>';
-        if (!found) return '<p class="stump-status">맞는 조합법이 없습니다. 아래 조합법 목록을 보세요.</p>';
+        // 비어 있으면 아무 말도 하지 않는다(빈 칸과 [재료 넣기]가 할 일을 보여 준다).
+        if (!list.length) return '';
+        if (!found) return '<p class="stump-status">맞는 조합법 없음</p>';
         const lacking = stumpCube.missingCost(found.recipe).length > 0;
         return `<p class="stump-status is-good">${esc(found.recipe.name)} → ${esc(found.recipe.result)}</p>`
             + `<p class="stump-line${lacking ? ' is-bad' : ''}">${esc(costText(found.recipe.cost))}</p>`;

@@ -15,13 +15,14 @@ const stumpTalismanUi = (() => {
         return rows.length ? `<ul class="stump-talisman-lines">${rows.join('')}</ul>` : '';
     }
 
+    /** The talisman's state in a few words; '' while it is simply growing on the board. */
     function stateLine(item, cell) {
         const summary = talismanEffects.summarize();
-        if (cell < 0) return '<p class="stump-status">보관함에 있습니다 · 판에 놓아야 깨어납니다.</p>';
-        if (!stumpBox.isMature(item)) return '<p class="stump-status">판 위에서 처치할 때마다 깨어납니다. 새 루프에는 다시 잠듭니다.</p>';
-        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">척력과 맞닿아 효과가 없습니다.</p>';
-        if (summary.amplified.has(item.id)) return '<p class="stump-status is-good">깨어남 · 척력으로 효과 +25%</p>';
-        return '<p class="stump-status is-good">깨어나 효과를 주고 있습니다. 새 루프에 다시 잠듭니다.</p>';
+        if (cell < 0) return '<p class="stump-status">보관함 · 판에 놓아야 깨어남</p>';
+        if (!stumpBox.isMature(item)) return '';
+        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">척력과 맞닿아 효과 없음</p>';
+        if (summary.amplified.has(item.id)) return '<p class="stump-status is-good">척력으로 효과 +25%</p>';
+        return '<p class="stump-status is-good">깨어남 · 새 루프에 다시 잠듦</p>';
     }
 
     function toolsHtml(item, cell) {
@@ -43,6 +44,13 @@ const stumpTalismanUi = (() => {
         const effect = item.uniqueEffect ? `<p class="stump-yield">${esc(item.uniqueEffect)}</p>` : '';
         return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
             + effect + linesHtml(item) + stateLine(item, cell) + toolsHtml(item, cell);
+    }
+
+    /** Hover card body for a talisman (rarity, effects, state) without the buttons the detail panel adds. */
+    function tooltipHtml(item, cell) {
+        const effect = item.uniqueEffect ? `<p class="stump-yield">${esc(item.uniqueEffect)}</p>` : '';
+        return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
+            + effect + linesHtml(item) + stateLine(item, cell);
     }
 
     function statRow(stat, value) {
@@ -117,6 +125,6 @@ const stumpTalismanUi = (() => {
         return stumpBox.discard(game, id);
     }
 
-    return Object.freeze({ tone, detailHtml, summaryHtml, unsealHtml, unseal, exchange, wax, turn, discard });
+    return Object.freeze({ tone, detailHtml, tooltipHtml, summaryHtml, unsealHtml, unseal, exchange, wax, turn, discard });
 })();
 safeExposeGlobals({ stumpTalismanUi });

@@ -132,6 +132,23 @@ const stumpBox = (() => {
         box.board[cell] = id;
         return true;
     }
+    /**
+     * Moves an item onto an open cell, empty or not. An item already there trades places: it takes the mover's old
+     * cell, or goes to storage when the mover came from storage (storage size stays the same). A seed without a path
+     * takes `path` as in place(). Returns false and changes nothing when the move is not allowed or goes nowhere.
+     */
+    function move(state, id, cell, path) {
+        const box = of(state), item = findItem(box, id), from = box.board.indexOf(id), occupant = box.board[cell];
+        if (!editable(state) || !item || !isOpen(state, cell) || from === cell) return false;
+        if (occupant === null) return place(state, id, cell, path);
+        if (item.family === 'seed' && !item.path) {
+            if (!PATHS.includes(path)) return false;
+            item.path = path;
+        }
+        box.board[cell] = id;
+        if (from >= 0) box.board[from] = occupant;
+        return true;
+    }
     function unplace(state, id) {
         const box = of(state), from = box.board.indexOf(id);
         if (!editable(state) || from < 0 || storage(state).length >= STUMP_BOX_STORAGE) return false;
@@ -366,7 +383,7 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, unplace, setPath,
+        empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
         evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
