@@ -50,6 +50,8 @@ assert.strictEqual(run(`stumpBox.setPath(game, ${seed}, "fruit")`), true, 'an un
 
 // ── 억제: 상극색이 상하좌우로 맞닿으면 둘 다 멈춘다 ──────────────────────────────────
 assert.deepStrictEqual(json(`[...stumpBox.evaluate(game).suppressed].sort()`), [seed, sap].sort(), 'fire beside cold suppresses both');
+// No kill drop until the move checks below count storage exactly (a boss kill rolls one at random, so the run flaked).
+run('globalThis.realRandom = Math.random; Math.random = () => 0.999;');
 run('stumpBox.onEnemyKilled(game, { isBoss: true });');
 assert.deepStrictEqual(json(`[stumpBox.itemById(game, ${seed}).xp, stumpBox.itemById(game, ${sap}).xp]`), [0, 0], 'suppressed items do not grow');
 assert.strictEqual(run(`stumpBox.place(game, ${seed}, 7) && stumpBox.place(game, ${sap}, 17)`), true, 'moving apart (top and bottom of the cross) ends it at once');
@@ -73,6 +75,7 @@ run('game.woodsmanBuildLock = false;');
 // 뒤 검사들이 쓰는 배치(씨앗 7, 수액 17)로 되돌린다.
 assert.strictEqual(run(`stumpBox.unplace(game, ${loose}) && stumpBox.discard(game, ${loose}) && stumpBox.move(game, ${seed}, 7) && stumpBox.move(game, ${sap}, 17)`), true);
 assert.deepStrictEqual(json('[game.stumpBox.board[7], game.stumpBox.board[17], stumpBox.storage(game).length]'), [seed, sap, 0]);
+run('Math.random = globalThis.realRandom;');
 
 // ── 처치 성장: 판 위 미성숙품만, 보통 1 · 정예 6 · 보스 30 ────────────────────────────
 run(`stumpBox.setPath(game, ${seed}, "flower"); stumpBox.onEnemyKilled(game, {}); stumpBox.onEnemyKilled(game, { isElite: true });`);
