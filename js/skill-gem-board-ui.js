@@ -42,9 +42,11 @@
         const marks = slots.map(slot => {
             const angle = -Math.PI / 2 + slot.index * 2 * Math.PI / 5;
             const x = Math.round(Math.cos(angle) * RING_RADIUS), y = Math.round(Math.sin(angle) * RING_RADIUS);
-            const glyph = slot.state === 'full' ? escapeHTML(slot.def.name.slice(0, 1)) : (slot.state === 'open' ? '+' : '');
+            // 찬 칸은 각인 종류 그림(검 · 쌍갈매기 · 눈 · 핏방울 …), 빈 칸은 +. 마름모 색은 각인 묶음(기본 · 조율 · 각성)을 따른다.
+            const glyph = slot.state === 'full' ? renderSkyEnhancementIcon(slot.def) : (slot.state === 'open' ? '+' : '');
+            const group = slot.state === 'full' ? ` is-group-${getSkyEnhancementGroup(slot.def).className}` : '';
             const title = slot.state === 'full' ? `${slot.def.name} · ${slot.def.desc}` : engraveLabel(slot);
-            return `<button type="button" class="skill-board-engrave is-${slot.state}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" title="${escapeHTML(title)}" aria-label="각인 ${slot.index + 1}: ${escapeHTML(title)}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
+            return `<button type="button" class="skill-board-engrave is-${slot.state}${group}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" title="${escapeHTML(title)}" aria-label="각인 ${slot.index + 1}: ${escapeHTML(title)}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
         }).join('');
         return `<div class="skill-board-ring" aria-hidden="false">${marks}</div>`;
     }

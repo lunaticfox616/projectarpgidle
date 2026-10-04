@@ -81,6 +81,18 @@
   transform: rotate(45deg);
 }
 .skill-board-engrave > i > b { color: #e7f0ff; font: 400 15px/1 var(--board-read); text-shadow: 1px 1px 0 #000; transform: rotate(-45deg); }
+/* 각인 그림(js/ui.js renderSkyEnhancementIcon): 11도트를 2배로, 마름모 회전을 되돌려 똑바로 */
+.skill-board-engrave > i > b > .sky-engrave-icon { display: block; width: 22px; height: 22px; }
+.skill-board-engrave.is-group-crafted > i { background: linear-gradient(135deg, #4a3518, #1e160d); box-shadow: inset 0 0 0 1px #d9a650, inset 0 0 0 2px #1a120a, 0 0 10px rgba(217, 166, 80, .35); }
+.skill-board-engrave.is-group-awakened > i { background: linear-gradient(135deg, #3a2550, #170f22); box-shadow: inset 0 0 0 1px #b48ae6, inset 0 0 0 2px #120c1c, 0 0 10px rgba(180, 138, 230, .4); }
+/* 그림 색: 묶음마다 외곽(m) · 채움(f) 두 색 — 기본 창공빛, 조율 · 탄도 호박빛, 각성 보랏빛 */
+.sky-engrave-icon { image-rendering: pixelated; }
+.sky-engrave-icon .m { fill: #e7f0ff; }
+.sky-engrave-icon .f { fill: #6f9bd6; }
+.sky-engrave-icon.is-crafted .m { fill: #ffe2a3; }
+.sky-engrave-icon.is-crafted .f { fill: #c98d3a; }
+.sky-engrave-icon.is-awakened .m { fill: #f0dcff; }
+.sky-engrave-icon.is-awakened .f { fill: #9a6ad4; }
 .skill-board-engrave > span {
   position: absolute; left: 50%; top: 45px; transform: translateX(-50%);
   color: var(--board-copy); font: 12px var(--board-label); white-space: nowrap; text-shadow: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;

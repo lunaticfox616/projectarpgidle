@@ -36,6 +36,11 @@ const states = [...board().matchAll(/skill-board-engrave is-(\w+)/g)].map(match 
 assert.deepEqual(states, ['full', 'full', 'open', 'open', 'next'], 'cap 4: two engraved, two open, the fifth is the next to open');
 assert.match(board(), /각인 2 \/ 4칸/, 'the head counts engraved / open slots');
 assert.match(board(), /폭풍 충전/, 'an engraved slot is named');
+// 찬 칸은 이름 첫 글자가 아니라 각인 종류 그림(11도트 SVG)을 보인다(사용자: 한 글자만 나오는 건 어색하다).
+assert.equal((board().match(/<svg class="sky-engrave-icon is-basic"/g) || []).length, 2, 'engraved slots show the kind icon');
+assert.ok(!/<b>폭<\/b>|<b>질<\/b>/.test(board()), 'no single-syllable glyphs');
+assert.deepEqual(json("['sky_fury', 'sky_gemcraft_dot', 'sky_awakened_resonance'].map(id => renderSkyEnhancementIcon(GEM_SKY_ENHANCEMENTS[id]).match(/is-(\\w+)/)[1])"),
+    ['basic', 'crafted', 'awakened'], 'icons take the engraving group colour');
 
 // ── 위성 칸: 이동 젬 · 소환 젬을 가졌으면 칸이 생기고, 비어 있으면 "+" ─────────────────────────────
 assert.equal((board().match(/skill-board-satellite is-empty/g) || []).length, 2, 'owned but unworn mobility and summon gems leave two empty slots');

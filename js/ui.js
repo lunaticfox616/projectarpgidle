@@ -4292,7 +4292,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
                     ? `${index + 1}번 슬롯 해금 · 창공의 정수 ${index + 1}${unlockReady ? '' : ' · 재화 부족'}`
                     : `${index + 1}번 잠긴 슬롯 · 앞 슬롯부터 해금 필요`;
         let group = enhancement ? getSkyEnhancementGroup(enhancement) : null;
-        let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '' : nextUnlock ? '+' : '×';
+        let glyph = enhancement ? renderSkyEnhancementIcon(enhancement) : unlocked ? '' : nextUnlock ? '+' : '×';
         let orbitAngle = -90 + index * 72;
         let orbitRadius = 38.5;
         let orbitX = 50 + Math.cos(orbitAngle * Math.PI / 180) * orbitRadius;
@@ -4304,18 +4304,39 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
     root.dataset.renderSig = renderSignature;
 }
 
-function getSkyEnhancementGlyph(enhancement) {
-    let stat = String((enhancement && enhancement.stat) || '');
-    if (stat === 'projectilePattern') return '⑂';
-    if (stat.includes('crit')) return '✧';
-    if (stat.includes('aspd')) return '»';
-    if (stat.includes('leech')) return '◉';
-    if (stat.includes('targets')) return '⑂';
-    if (stat.includes('resPen') || stat.includes('physIgnore')) return '⌁';
-    if (stat.includes('dot')) return '∞';
-    if (stat.includes('GemLevel')) return '⬆';
-    if (stat.includes('awakened')) return '✹';
-    return '✦';
+/** 11×11 pixel icons for engravings ('#' outline, 'o' fill), drawn as crisp SVG rects tinted by the engraving group —
+  * a syllable of the name read as clutter (사용자 요청 2026-10-04). The board ring and the 강화 · 각인 orbit share them. */
+const SKY_ENHANCEMENT_ICONS = Object.freeze({
+    sword: ['.........##', '........#o#', '.......#o#.', '......#o#..', '.#...#o#...', '..#.#o#....', '...#o#.....', '..#.##.....', '.#...#.....', '#..........', '...........'],
+    speed: ['...........', '##...##....', '.##...##...', '..##...##..', '...##...##.', '....##...##', '...##...##.', '..##...##..', '.##...##...', '##...##....', '...........'],
+    eye: ['...........', '...#####...', '..#ooooo#..', '.#oo###oo#.', '#oo#ooo#oo#', '#oo#o#o#oo#', '#oo#ooo#oo#', '.#oo###oo#.', '..#ooooo#..', '...#####...', '...........'],
+    star: ['.....#.....', '.....#.....', '....#o#....', '....#o#....', '.###ooo###.', '##ooooooo##', '.###ooo###.', '....#o#....', '....#o#....', '.....#.....', '.....#.....'],
+    drop: ['.....#.....', '....#o#....', '....#o#....', '...#ooo#...', '...#ooo#...', '..#ooooo#..', '.#o#ooooo#.', '.#o#ooooo#.', '.#oo#oooo#.', '..#ooooo#..', '...#####...'],
+    fork: ['#....#....#', '#....#....#', '.#...#...#.', '..#..#..#..', '...#.#.#...', '....###....', '.....#.....', '.....#.....', '.....#.....', '....###....', '....###....'],
+    split: ['##...#...##', '#.#.###.#.#', '...#.#.#...', '....###....', '.....#.....', '.....#.....', '.....#.....', '.....#.....', '....###....', '....#o#....', '....###....'],
+    reticle: ['...#####...', '..#.....#..', '.#...#...#.', '#....#....#', '#...ooo...#', '#.###o###.#', '#...ooo...#', '#....#....#', '.#...#...#.', '..#.....#..', '...#####...'],
+    boomerang: ['...######..', '..#oooooo#.', '.#o######..', '.#o#.......', '.#o#....#..', '.#o#....##.', '.#o#######.', '.#oooooo##.', '..#######..', '........#..', '...........'],
+    pierce: ['.....#.....', '....###....', '...##o##...', '.....#.....', '.###.#.###.', '.#oo.#.oo#.', '.#oo.#.oo#.', '.#oo.#.oo#.', '..#o.#.o#..', '...#.#.#...', '....###....'],
+    flame: ['.....#.....', '....#o#....', '..#.#o#.#..', '.#o##o##o#.', '.#oo#o#oo#.', '.#ooooooo#.', '#oo#ooo#oo#', '#o#.#o#.#o#', '#oo#ooo#oo#', '.#ooooooo#.', '..#######..'],
+    up: ['.....#.....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.####o####.', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....', '...........']
+});
+const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
+    pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',
+    aspd: 'speed', ds: 'speed', awakenedAspdMul: 'speed',
+    crit: 'eye', awakenedNoCritDouble: 'eye', critDmg: 'star', awakenedSpellFlatMul: 'star',
+    leech: 'drop', leechRegenHybrid: 'drop', targets: 'fork', dotMulti: 'flame', dotMultiplier: 'flame',
+    physIgnore: 'pierce', resPen: 'pierce', awakenedGemLevel: 'up'
+});
+const SKY_PROJECTILE_ICONS = Object.freeze({ split: 'split', focus: 'reticle', return: 'boomerang' });
+
+/** @returns {string} SVG markup for the engraving's icon (class sky-engrave-icon is-<group>). */
+function renderSkyEnhancementIcon(enhancement) {
+    let name = enhancement.projectilePatternMode ? SKY_PROJECTILE_ICONS[enhancement.projectilePatternMode] : SKY_ENHANCEMENT_ICON_BY_STAT[enhancement.stat];
+    let rects = [];
+    (SKY_ENHANCEMENT_ICONS[name] || SKY_ENHANCEMENT_ICONS.star).forEach((row, y) => {
+        for (let match of row.matchAll(/#+|o+/g)) rects.push(`<rect class="${match[0][0] === '#' ? 'm' : 'f'}" x="${match.index}" y="${y}" width="${match[0].length}" height="1"/>`);
+    });
+    return `<svg class="sky-engrave-icon is-${getSkyEnhancementGroup(enhancement).className}" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true">${rects.join('')}</svg>`;
 }
 
 function getSkyEnhancementGroup(enhancement) {
