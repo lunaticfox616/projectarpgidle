@@ -1,7 +1,8 @@
 @layer overrides {
-/* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다. */
+/* 도트 UI — 휴대폰 화면 틀: 지역 줄·귀환/목표 버튼·전투 기록 막대·하단 메뉴. 판·버튼 재질은 themes/pixel.css와 같다.
+   지역 줄은 판 없이 그늘만 둔다(themes/rift-stage.css). */
 @media (max-width: 1080px) {
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-row, .combat-feed) {
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed {
     border: var(--px-light-border) solid transparent;
     border-image: var(--px-light-frame);
     border-radius: 0;

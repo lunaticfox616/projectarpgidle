@@ -1616,9 +1616,16 @@ function getDamageTextSideOffset(drawnHeight, tileW) {
     return Math.round(Math.max(14, (Number(tileW) || 0) * 0.42, (Number(drawnHeight) || 0) * 0.4));
 }
 
+/** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
+ * visibility). The bar appears on the first hit or while targeted; elites and bosses always show theirs. */
+function isEnemyFieldBarShown(enemy, targeted) {
+    return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
+}
+
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
+        if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) return;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let width = getEnemyFieldBarWidth(enemy, tileW);
         let x = Math.round(entry.x - width / 2);

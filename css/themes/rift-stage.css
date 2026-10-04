@@ -196,9 +196,11 @@
     max-width: calc(100% - 128px);
     margin: 0;
   }
+  /* 지역 줄: 테두리 상자 없이 아래로 옅어지는 그늘만(2026-10-04 사용자 요청 — 이름과 귀환을 묶은 테가 맨 위에서 눈에 걸렸다) */
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row {
-    border-color: rgba(201, 164, 92, .22);
-    background: linear-gradient(180deg, rgba(10, 11, 13, .96), rgba(6, 7, 8, .9));
+    border-color: transparent;
+    background: linear-gradient(180deg, rgba(10, 11, 13, .9), rgba(5, 6, 7, .6));
+    box-shadow: none;
   }
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed {
     border-color: rgba(201, 164, 92, .22);
