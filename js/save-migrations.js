@@ -375,6 +375,12 @@ function mergeDefaults(save) {
         // Markers keep only their spawn shape; removed content fields (e.g. treasure-hunt ids) are dropped.
         return normalized;
     }
+    /** Regeneration fatigue (js/combat.js applyEnemyRegen) exists only after the monster's first step; a record without it stays without. */
+    function normalizeEnemyRegenFatigue(enemy, hp) {
+        if (enemy.regenHpMark === undefined && enemy.regenFatigueMs === undefined && enemy.regenLastLossAt === undefined) return {};
+        return { regenFatigueMs: clampFiniteNumber(enemy.regenFatigueMs, 0, 0, 60000), regenLastLossAt: clampFiniteNumber(enemy.regenLastLossAt, 0, 0),
+            regenHpMark: clampFiniteNumber(enemy.regenHpMark, hp, 0) };
+    }
     function normalizeEnemyRecord(enemy) {
         if (!enemy || typeof enemy !== 'object') return null;
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
@@ -387,9 +393,7 @@ function mergeDefaults(save) {
             maxHp: maxHp,
             attackTimer: clampFiniteNumber(enemy.attackTimer, 0, 0),
             regenBank: Math.round(clampFiniteNumber(enemy.regenBank, 0, 0) * 10) / 10,
-            regenFatigueMs: clampFiniteNumber(enemy.regenFatigueMs, 0, 0, 60000),
-            regenLastLossAt: clampFiniteNumber(enemy.regenLastLossAt, 0, 0),
-            regenHpMark: clampFiniteNumber(enemy.regenHpMark, Math.min(maxHp, hp), 0),
+            ...normalizeEnemyRegenFatigue(enemy, Math.min(maxHp, hp)),
             spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
             spawnStamp: 0,
             groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),
