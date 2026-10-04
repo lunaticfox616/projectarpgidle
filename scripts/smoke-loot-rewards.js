@@ -85,7 +85,7 @@ const {prepare} = require('./audit-combat-20260905');
     const boss = {isBoss:true};
     const roll = r.rollEquipmentDrop(zone,boss,1);
     assert.strictEqual(roll.minimumRarity, null, 'a boss does not impose a minimum rarity');
-    assert.strictEqual(r.generateEquipmentDrop(boss,{minimumRarity:roll.minimumRarity}).rarity, 'normal', 'an ordinary boss drop can actually generate a normal item');
+    assert.strictEqual(r.generateEquipmentDrop(boss,{minimumRarity:roll.minimumRarity}).rarity, 'magic', 'a successful boss equipment roll has at least magic quality');
     assert.strictEqual(r.getCurrencyDrops(boss).length, 0, 'a failed boss currency roll awards nothing');
     for (const [enemy,chance] of [[{},0.00765],[{isElite:true},0.068],[boss,0.204]]) {
         for (const [sample,expected] of [[chance-0.000001,1],[chance,0]]) {

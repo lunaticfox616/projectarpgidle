@@ -105,12 +105,11 @@ const coreItems = (() => {
         return contentProgression.isUnlocked('cube', state) && floor >= CORE_ITEM_RULES.underworldFloor;
     }
 
-    /** Pending exploration loot holds a new core until the boss; otherwise the store keeps it while there is room. */
-    function receiveDrop(delivery, state = game) {
+    /** Keep a dropped core immediately while there is room. */
+    function receiveDrop(state = game) {
         const store = ensure(state);
-        if (store.owned.length + (delivery ? delivery.heldCount : 0) >= CORE_ITEM_RULES.capacity) return null;
+        if (store.owned.length >= CORE_ITEM_RULES.capacity) return null;
         const core = roll();
-        if (delivery) return delivery.store(core) ? core : null;
         store.owned.push(core);
         return core;
     }

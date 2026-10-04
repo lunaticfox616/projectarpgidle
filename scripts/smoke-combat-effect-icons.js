@@ -48,7 +48,6 @@ const context = {
     summonCritAspdStacks: 2,
     summonCritAspdPerStack: 10,
     summonCritAspdExpiresAt: 13000,
-    shrineBuff: { name: '힘의 성소', stat: 'pctDmg', value: 16, expiresAt: 14000 },
     uniqueEliteTraitBuff: { trait: { name: '고속 공세', attackSpeedVarMul: 1.18 }, expiresAt: 14000 }
   },
   escapeHTML(value) {
@@ -100,7 +99,7 @@ const playerStats = {
 const playerMarkup = context.buildPlayerCombatEffectIcons(playerStats, now);
 const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_down',
   'playerUniqueGuard', 'shadowStealth', 'leechEfficiency', 'meleeArmorAmp',
-  'killMoveStacks', 'riderCompassReady', 'shrineBuff', 'eliteTraitBuff', 'lifeLeech', 'energyShieldLeech',
+  'killMoveStacks', 'riderCompassReady', 'eliteTraitBuff', 'lifeLeech', 'energyShieldLeech',
   'lifeRecoup', 'delayedGuardHeal', 'warriorRhythm', 'fletcherCharge', 'colosseumReady',
   'bloomRegenSuppress', 'queenBeeSwarm', 'summonDeathDamageBuff', 'summonCritAspd',
   'deathWard', 'invulnerableBarrier', 'warriorRage'];
@@ -249,11 +248,11 @@ const namedHandlerContext = {
   showPlayerNamedEffectTooltip(...args) { receivedNamedEffect = { name: args[2], detail: args[3] }; }
 };
 const namedInjectionMarkup = context.renderUiNamedEffectIcon({
-  key: 'shrineBuff', name: injectedType, detail: injectedType, expiresAt: 13000
+  key: 'eliteTraitBuff', name: injectedType, detail: injectedType, expiresAt: 13000
 }, now);
 vm.runInNewContext(getMouseEnterHandler(namedInjectionMarkup), namedHandlerContext);
 assert.deepStrictEqual(receivedNamedEffect, { name: injectedType, detail: injectedType },
-  'named shrine and elite details must survive safe serialization');
+  'named elite details must survive safe serialization');
 assert.strictEqual(namedHandlerContext.__effectInjected, undefined, 'named effect details must not execute injected code');
 
 assert.deepStrictEqual(

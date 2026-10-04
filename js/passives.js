@@ -4173,9 +4173,9 @@ let battleVisualState = {
     frameTimeEma: 16.7,
     vfxDensity: 1,
     hitStopRemainingMs: 0,
-    lastHitStopFxId: 0,
-    shrineHitbox: null,
-    shrineHovered: false
+    nextHitStopAt: 0,
+    enemyHitPulses: new Map(), // Last accepted body flash per enemy, visual ms; never saved.
+    lastHitStopFxId: 0
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -4425,12 +4425,12 @@ function getBattleHitFeedback(data) {
     return { damageRatio, impactTier, targetMaxHp: maxHp };
 }
 
-// 타격감(2026-10-04): crits and heavy blows hold the frame and shake a little longer than before (24/40ms, 2.5/4.8).
+// Fast combat keeps ordinary critical hits flowing; only heavy hits and finishing blows briefly hold the frame.
 const BATTLE_FEEDBACK_PROFILES = Object.freeze({
     normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
-    crit: Object.freeze({ hitStopMs: 32, shake: 3, duration: 170 }),
-    heavy: Object.freeze({ hitStopMs: 50, shake: 5.4, duration: 220 }),
-    annihilate: Object.freeze({ hitStopMs: 40, shake: 4.2, duration: 180 })
+    crit: Object.freeze({ hitStopMs: 0, shake: 3, duration: 170 }),
+    heavy: Object.freeze({ hitStopMs: 28, shake: 5.4, duration: 220 }),
+    annihilate: Object.freeze({ hitStopMs: 20, shake: 4.2, duration: 180 })
 });
 // 피격감(2026-10-04): getting hit answers in proportion to the life it took (damageRatio against the hero's life, set in
 // combat.js). Chip hits shake a little; from an eighth of life the frame also holds, like a heavy blow on an enemy.
@@ -4551,6 +4551,8 @@ function clearBattleVisualBacklog() {
     battleVisualState.skillPlayback = null;
     battleVisualState.processedFxIds = new Set();
     battleVisualState.hitStopRemainingMs = 0;
+    battleVisualState.nextHitStopAt = 0;
+    battleVisualState.enemyHitPulses.clear();
     battleVisualState.lastHitStopFxId = 0;
     battleVisualState.lastNow = 0;
     battleVisualState.visualNow = 0;
@@ -4898,11 +4900,12 @@ function drawDamageTexts(ctx, now) {
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
-        applyDamageTextPop(ctx, text, t, { x, y });
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
         const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16)))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
         ctx.textAlign = text.bodyCue || text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
+        ({ x, y } = drawBattlePlayerFigure.readability.label(ctx, text, { x, y }, fontSize));
+        applyDamageTextPop(ctx, text, t, { x, y });
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
@@ -6068,7 +6071,6 @@ function isLocalRuntimeHost() {
 
 function shouldPreserveOriginalBattleSheet(key) {
     return key === 'tiles'
-        || key === 'shrineInteractable'
         || key.startsWith('hero')
         || key.startsWith('playerClass')
         || key.startsWith('bossTelegraph')
@@ -6271,7 +6273,6 @@ function initBattleAssets() {
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',
         passiveTreeVoidSlot: 'assets/ui/passive-tree-slot-void-v3.webp',
-        shrineInteractable: 'assets/effects/battlefield-shrine-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',
         backdropAct3_7: 'assets/battlefield-act3-7.png',
@@ -6314,7 +6315,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy')));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -7886,7 +7887,7 @@ let outlinedSpriteNextImageId = 1;
 function getOutlinedSpriteSurface(sourceImage, src, size, outline) {
     let imageId = outlinedSpriteImageIds.get(sourceImage);
     if (!imageId) { imageId = outlinedSpriteNextImageId++; outlinedSpriteImageIds.set(sourceImage, imageId); }
-    const key = [imageId, src.x, src.y, src.w, src.h, size.w, size.h, outline.color, outline.thickness, outline.smooth].join('|');
+    const key = [imageId, src.x, src.y, src.w, src.h, size.w, size.h, outline.color, outline.thickness, outline.smooth, outline.fill].join('|');
     const cached = outlinedSpriteCache.get(key);
     if (cached) {
         outlinedSpriteCache.delete(key);
@@ -7909,9 +7910,30 @@ function createOutlinedSpriteSurface(sourceImage, src, size, outline) {
     const c = canvas.getContext && canvas.getContext('2d');
     if (!c) return null;
     c.imageSmoothingEnabled = outline.smooth;
-    c.filter = `drop-shadow(0 ${t}px 0 ${color}) drop-shadow(0 ${-t}px 0 ${color}) drop-shadow(${t}px 0 0 ${color}) drop-shadow(${-t}px 0 0 ${color})`;
+    if (!outline.fill) c.filter = `drop-shadow(0 ${t}px 0 ${color}) drop-shadow(0 ${-t}px 0 ${color}) drop-shadow(${t}px 0 0 ${color}) drop-shadow(${-t}px 0 0 ${color})`;
     c.drawImage(sourceImage, src.x, src.y, src.w, src.h, t, t, size.w, size.h);
+    if (outline.fill) {
+        c.globalCompositeOperation = 'source-in';
+        c.fillStyle = color;
+        c.fillRect(0, 0, canvas.width, canvas.height);
+    }
     return canvas;
+}
+
+/** Source/destination rectangles are [x, y, width, height]. Cache a native-size silhouette, never a full-canvas filter.
+ * A short cream flash remains readable even on dark sprites; alpha and transparent pixels remain intact. */
+function drawBattleSpriteImage(ctx, image, source, box, flash) {
+    ctx.drawImage(image, ...source, ...box);
+    if (!(flash > 0)) return;
+    const [x, y, w, h] = source;
+    const surface = getOutlinedSpriteSurface(image, { x, y, w, h }, { w, h },
+        { color: '#fff4df', thickness: 0, smooth: false, fill: true });
+    if (!surface) return;
+    ctx.save();
+    ctx.filter = 'none';
+    ctx.globalAlpha *= Math.min(1, Number(flash));
+    ctx.drawImage(surface, ...box);
+    ctx.restore();
 }
 
 // 윤곽 패스: 캐시한 윤곽 그림을 (x, y) 기준으로 찍는다. 원래처럼 윤곽 알파로 그린 뒤 본 그림을 위에 덧그린다.
@@ -7964,7 +7986,7 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         ctx.rotate(options.rotation);
         if (options.outlineColor) drawBattleSpriteOutline(ctx, sourceImage, { x: srcX, y: srcY, w: srcW, h: srcH },
             { x: Math.round(-drawWidth / 2), y: Math.round(-drawHeight / 2), w: drawWidth, h: drawHeight }, options);
-        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
+        drawBattleSpriteImage(ctx, sourceImage, [srcX, srcY, srcW, srcH], [Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight], options.flash);
     } else {
         if (options.devicePixelSnap === true) {
             let snappedRect = snapCanvasRectToDevicePixels(ctx, dx, dy, drawWidth, drawHeight);
@@ -7981,7 +8003,7 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         }
         if (options.outlineColor) drawBattleSpriteOutline(ctx, sourceImage, { x: srcX, y: srcY, w: srcW, h: srcH },
             { x: dx, y: dy, w: drawWidth, h: drawHeight }, options);
-        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
+        drawBattleSpriteImage(ctx, sourceImage, [srcX, srcY, srcW, srcH], [dx, dy, drawWidth, drawHeight], options.flash);
     }
     ctx.restore();
 }
@@ -8334,19 +8356,20 @@ function getUniqueCodexKeyByItem(item) {
 }
 
 // 고유 아이템 획득 시 도감에 즉시 등록(아이템을 소모하지 않는 수집 기록 개념).
-function registerUniqueToCodexOnAcquire(item) {
+function registerUniqueToCodexOnAcquire(item, owner = game) {
     let key = getUniqueCodexKeyByItem(item);
     if (!key) return false;
-    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let existing = game.uniqueCodex[key];
+    owner.uniqueCodex ??= {};
+    let existing = owner.uniqueCodex[key];
     // 이미 옵션까지 기록된 경우 첫 등록 기록을 유지한다(루프 리셋 후 정보만 남은 경우는 다시 채움).
     if (existing && existing.baseName) return false;
-    game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
+    owner.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
     let firstTime = !existing;
     if (!firstTime) return true;
-    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
-    game.codexNewlyRegistered[key] = true;
-    if (game.noti) game.noti.codex = true;
+    owner.codexNewlyRegistered ??= {};
+    owner.codexNewlyRegistered[key] = true;
+    if (owner.noti) owner.noti.codex = true;
+    if (owner !== game) return true; // Restore collection history without live UI effects during save migration.
     addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
     if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
     return true;
@@ -9329,15 +9352,12 @@ function maybeApplyExceptionalBase(item) {
     return item;
 }
 
-/** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source
- * @param {null|function(string,number):boolean} deferGrant Optional synchronous receiver of the resolved amount. True means stored for later claim.
- */
-function awardCurrency(currencyKey, amount, source = 'reward', deferGrant = null) {
+/** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source */
+function awardCurrency(currencyKey, amount, source = 'reward') {
     currencyKey = getCanonicalCurrencyKey(currencyKey);
     if (source === 'drop' && !contentProgression.canDropCurrency(currencyKey)) return 0;
     let gain = Number(amount || 0);
     if (gain > 0) gain = Math.max(1, Math.floor(gain));
-    if (deferGrant && deferGrant(currencyKey, gain)) return gain;
     commitCurrencyGain(currencyKey, gain);
     return gain;
 }
@@ -9381,20 +9401,20 @@ function unlockLegacyCurrencyFeatures(currencyKey) {
 
 // Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting.
 function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
-    if (offlineStashEnabled || options?.skipAutoEquip || options?.delivery) return null;
+    if (offlineStashEnabled || options?.skipAutoEquip) return null;
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 
 function addItemToInventory(item, options) {
     normalizeItem(item);
-    const delivery = options?.delivery, logLoot = game.settings.showLootLog && !delivery;
+    const logLoot = game.settings.showLootLog;
     // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
     // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
     let uniqueHuntTarget = uniqueHuntRuntime.isTargetItem(item);
     let guaranteedKeep = !!(options && options.guaranteedKeep) || uniqueHuntTarget || equipmentLootPolicy.matches(item);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
-    let offlineStashEnabled = !delivery && game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
+    let offlineStashEnabled = game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
     let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled);
     if (autoEquipSlot) {
         recordEquipmentAcquisition(item);
@@ -9425,8 +9445,7 @@ function addItemToInventory(item, options) {
             if (!canStoreEquipmentItems([item], game)) game.backgroundStopReason = 'protected-storage-full';
         }
     }
-    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage, delivery });
-    if (delivery) return result.accepted;
+    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
     if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
@@ -9436,27 +9455,25 @@ function addItemToInventory(item, options) {
     return result.accepted;
 }
 
-/** Pickup policy is shared by owned and pending equipment; only delivery is deferred. */
-function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage, delivery }) {
-    const fits = delivery ? delivery.canStore(item) : canStoreEquipmentItems([item], game);
-    if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, delivery, true);
+/** Resolve capacity and auto-salvage at pickup time. */
+function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
+    const fits = canStoreEquipmentItems([item], game);
+    if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, true);
     if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities?.[item.rarity])
-        return salvageEquipmentPickup(item, delivery, false);
-    if (delivery) delivery.store(item);
-    else game.inventory.push(item);
+        return salvageEquipmentPickup(item, false);
+    game.inventory.push(item);
     return { accepted: true, kind: fits ? 'stored' : 'protected' };
 }
 
-function salvageEquipmentPickup(item, delivery, overflow) {
-    const rewards = salvageItemObject(item, true, {
-        noDivine: overflow, deferCurrency: delivery?.currency, deferRecovery: delivery?.recovery
-    });
+function salvageEquipmentPickup(item, overflow) {
+    const rewards = salvageItemObject(item, true, { noDivine: overflow });
     if (overflow && game.isBackgroundCalculation)
         game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
     return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
 function recordEquipmentAcquisition(item) {
+    game.noti.items=true;
     combatLootReceipts.item(game,item);
     return recordUniqueAcquisition(item);
 }
@@ -9761,17 +9778,16 @@ function generateJewelDrop(zoneOrTier) {
     return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
-/** One pickup policy for immediate and held jewel drops. Delivery receives resolved salvage gains. */
-function receiveJewelDrop(jewel, delivery) {
-    const inventoryFull=game.jewelInventory.length+(delivery?delivery.heldCount:0)>=getJewelInventoryLimit();
+/** Jewels enter the collection immediately; ordinary overflow is salvaged. */
+function receiveJewelDrop(jewel) {
+    const inventoryFull=game.jewelInventory.length>=getJewelInventoryLimit();
     const protectOverflow=inventoryFull&&['rare','unique'].includes(jewel.rarity);
-    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0,deferred:!!delivery};
+    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0};
     if(inventoryFull&&!protectOverflow) {
-        result.shardGain=salvageJewelObject(jewel,true,delivery?.currency);
+        result.shardGain=salvageJewelObject(jewel,true);
         return result;
     }
-    if(delivery)result.stored=delivery.store(jewel);
-    else {game.jewelInventory.push(jewel);game.noti.items=true;result.stored=true;}
+    game.jewelInventory.push(jewel);game.noti.items=true;result.stored=true;
     return result;
 }
 
@@ -9802,10 +9818,10 @@ function getJewelSalvageShardGain(jewel) {
     return rarity === 'unique' ? 18 : (rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2));
 }
 
-function salvageJewelObject(jewel, silent, deferCurrency = null) {
+function salvageJewelObject(jewel, silent) {
     let shardGain = getJewelSalvageShardGain(jewel);
     if (shardGain <= 0) return 0;
-    awardCurrency('jewelShard', shardGain, 'reward', deferCurrency);
+    awardCurrency('jewelShard', shardGain, 'reward');
     if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
     return shardGain;
 }
@@ -9948,9 +9964,8 @@ function rollItemSalvageRewards(item, options) {
 function salvageItemObject(item, silent, options) {
     if (!item) return {};
     let rewards = rollItemSalvageRewards(item, options);
-    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward', options?.deferCurrency));
-    if (options?.deferRecovery) options.deferRecovery(item, rewards);
-    else if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
+    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
+    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
     if (!silent) addLog(`🧪 [${item.name}] 해체 · ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
     return rewards;
 }

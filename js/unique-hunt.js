@@ -53,7 +53,7 @@ function completeUniqueHuntTarget(item, targetGame = game) {
     let key = `${item.slot}|${item.name}`;
     let entry = getUniqueHuntEntry(key);
     targetGame.uniqueHuntTargets = ensureUniqueHuntState(targetGame).filter(target => target !== key);
-    dispatchRuntimeEvent('unique-hunt-changed', { action: 'completed', key });
+    if (targetGame === game) dispatchRuntimeEvent('unique-hunt-changed', { action: 'completed', key });
     return entry;
 }
 

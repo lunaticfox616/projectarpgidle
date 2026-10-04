@@ -15,8 +15,8 @@ const UNDERWORLD_ORE_DROP_CHANCES = Object.freeze({ copper: 0.0032, silver: 0.00
 const EQUIPMENT_DROUGHT_RULES = Object.freeze({ threshold: 160, credit: { regular: 1, elite: 4, boss: 16 } });
 const EQUIPMENT_DROP_RARITY_THRESHOLDS = Object.freeze({
     regular: { unique: 0.006, rare: 0.09, magic: 0.30 },
-    elite: { unique: 0.02, rare: 0.24, magic: 0.62 },
-    boss: { unique: 0.04, rare: 0.36, magic: 0.80 }
+    elite: { unique: 0.02, rare: 0.30, magic: 0.80 },
+    boss: { unique: 0.04, rare: 0.50, magic: 1 }
 });
 
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.

@@ -9,6 +9,21 @@ const TUTORIAL_HUSH_WAKERS = Object.freeze(['pointermove', 'pointerdown', 'wheel
  * spends points. Each notice offers one action and can be skipped immediately.
  */
 const tutorialActionUi = {
+    noticeUntil: 0,
+    /** Ordinary unlocks stay readable without stopping battle. Story and first actions retain the pause setting. */
+    requiresAttention(notice) {
+        return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
+    },
+    noticeBody(notice, controls) {
+        const body = tutorialBodyHtml(notice.body) + controls.trim();
+        return this.requiresAttention(notice) ? body : `<details class="tutorial-notice-details"><summary>자세히</summary>${body}</details>`;
+    },
+    expireNotice(now) {
+        if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
+        const card = document.querySelector('#tutorial-overlay .tutorial-card');
+        if (card?.matches(':hover, :focus-within') || card?.querySelector('details[open]')) return;
+        dismissTutorial(false);
+    },
     active: null,
     highlighted: null,
     card: null,
@@ -379,7 +394,7 @@ function renderTutorialStep() {
             <strong id="tutorial-pause-overlay-status">${pauseEnabled ? '켜짐' : '꺼짐'}</strong>
         </label>` : '';
     // 본문은 줄바꿈을 살려 보이므로(pre-line) 템플릿 앞의 줄바꿈이 빈 줄이 되지 않게 다듬는다.
-    document.getElementById('tutorial-body').innerHTML = tutorialBodyHtml(activeTutorial.body) + pauseControl.trim();
+    document.getElementById('tutorial-body').innerHTML = tutorialActionUi.noticeBody(activeTutorial, pauseControl);
     let pauseToggle = document.getElementById('tutorial-pause-overlay-toggle');
     if (pauseToggle) {
         pauseToggle.checked = pauseEnabled;
@@ -446,6 +461,7 @@ function refreshTutorialCardPlacement() {
 }
 
 function showNextTutorial() {
+    tutorialActionUi.expireNotice(Date.now());
     refreshTutorialCardPlacement();
     if (activeTutorial || tutorialActionUi.holdsQueue() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
     while (tutorialQueue.length) {
@@ -456,6 +472,7 @@ function showNextTutorial() {
         }
     }
     if (!activeTutorial) return;
+    tutorialActionUi.noticeUntil = Date.now() + 8000;
     activeTutorial.title = stripDecorativeEmoji(activeTutorial.title);
     activeTutorial.body = stripDecorativeEmoji(activeTutorial.body);
     activeTutorialStep = 0;

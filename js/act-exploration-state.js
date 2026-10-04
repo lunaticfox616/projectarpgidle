@@ -2,8 +2,9 @@
 // Enemy records are prepared by combat; each living record has exactly one owner:
 // pack.waiting before engagement, game.enemies afterwards.
 const actExplorationState = (() => {
-    const settlementMs=5500;
-    // A boss wakes only once the player reaches its room (the one-cell gate or inside): the room falls still for BOSS_ENTRANCE_MS while it rises
+    const settlementMs=1400;
+    // A boss wakes only once the player reaches its room (the one-cell gate or inside): first encounters rise for BOSS_ENTRANCE_MS;
+    // previously cleared story acts use a shorter entrance.
     // (drawn by js/canvas-boss-entrance.js), then the fight starts. Transient like the discovery memos — a reload
     // simply replays the entrance; nothing about it is saved.
     const BOSS_ENTRANCE_MS=2600;
@@ -30,7 +31,7 @@ const actExplorationState = (() => {
         if(!map)throw Error('알 수 없는 액트 탐험: '+where.act);
         Object.assign(run,{layoutId:map.id,status:'active',mode:'direct',completionApplied:false,
             motion:null,motionTimeMs:now,motionDirection:'south',
-            loot:actExplorationLoot.create(),departure:null,destination:null,discovered:actExplorationMap.visibleCells(map,map.entry),
+            departure:null,destination:null,discovered:actExplorationMap.visibleCells(map,map.entry),
             visitedRooms:[map.entry.id],packs});
         validate(run,[]);
         return run;
@@ -86,9 +87,11 @@ const actExplorationState = (() => {
         const room=o.map.rooms.find(row=>row.id===o.pack.roomId),open=entrances.get(run);
         if(!atBossRoom(o.map,room,state.gridPlayer))return false;
         if(!open || open.key!==o.pack.key || o.now<open.at) {
-            entrances.set(run,{key:o.pack.key,at:o.now,holdMs:BOSS_ENTRANCE_MS});revealRoom(run,o.map,room);return false;
+            const seen=!run.source && Object.hasOwn(state.records?.actBest||{},run.zoneId);
+            const holdMs=seen?1200:BOSS_ENTRANCE_MS;
+            entrances.set(run,{key:o.pack.key,at:o.now,holdMs});revealRoom(run,o.map,room);return false;
         }
-        if(o.now-open.at<BOSS_ENTRANCE_MS)return false;
+        if(o.now-open.at<open.holdMs)return false;
         entrances.delete(run);
         return true;
     }
@@ -185,7 +188,7 @@ const actExplorationState = (() => {
             : candidates.filter(pack=>pack.eliteIds.length>0 || pack.stage!==null);
         let best=null,bestLength=Infinity;
         for(const pack of targets) {
-            const room=map.rooms.find(row=>row.id===pack.roomId);
+            const room=packPosition(map,pack);
             const path=actExplorationMap.route(map,from,room,blocked);
             if(path.length && path.length<bestLength){best=room;bestLength=path.length;}
         }
@@ -194,11 +197,20 @@ const actExplorationState = (() => {
     function validCell(map,cell) {
         if(!cell || !actExplorationMap.walkable(map,cell))throw Error('탐험 저장의 위치가 지형 밖입니다.');
     }
+    function packPosition(map,pack) {return pack.anchor || map.rooms.find(row=>row.id===pack.roomId);}
+    /** Optional patrol anchor is an integer map tile; regular/older packs have no anchor. */
+    function validatePatrol(map,pack,room) {
+        validCell(map,pack.anchor);
+        if(pack.stage!==null || pack.eliteIds.length || pack.key!==room.id+':patrol')throw Error('탐험 저장의 길목 무리가 잘못되었습니다.');
+        if(!actExplorationMap.route(map,map.entry,pack.anchor,new Set([actExplorationMap.index(map,map.gate)])).length)
+            throw Error('탐험 저장의 길목 무리에 도달할 수 없습니다.');
+    }
     function validatePackShape(map,pack) {
         const room=map.rooms.find(row=>row.id===pack.roomId);
         if(!room || room.role==='entry' || room.role==='path' || typeof pack.key!=='string')throw Error('탐험 저장의 적 무리가 잘못되었습니다.');
         if(!Array.isArray(pack.aliveIds) || !Array.isArray(pack.eliteIds) || !Array.isArray(pack.waiting))throw Error('탐험 저장의 적 목록이 없습니다.');
         if((room.role==='boss')!==(pack.stage!==null))throw Error('탐험 저장의 보스 단계가 잘못되었습니다.');
+        if(pack.anchor!==undefined)validatePatrol(map,pack,room);
     }
     function validatePack(map,pack,context) {
         if(!pack || context.keys.has(pack.key))throw Error('탐험 저장의 적 무리가 중복되거나 잘못되었습니다.');
@@ -251,13 +263,17 @@ const actExplorationState = (() => {
         const bosses=run.packs.filter(pack=>pack.stage!==null);
         if(bosses.length!==bossStageCount(run))throw Error('탐험 저장의 보스 수가 잘못되었습니다.');
         validateBossStages(bosses);
-        const rooms=packRooms(actExplorationMap.forRun(run));
-        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        validateRoomPacks(run);
         for(const pack of run.packs) {
             if(new Set(pack.eliteIds).size!==pack.eliteIds.length || !pack.eliteIds.every(Number.isSafeInteger))throw Error('탐험 저장의 정예 목록이 잘못되었습니다.');
         }
         if(run.status==='cleared' && bosses.some(pack=>pack.aliveIds.length))throw Error('처치하지 않은 보스의 탐험 완료 저장입니다.');
         if(run.completionApplied && run.status!=='cleared')throw Error('완료되지 않은 탐험의 진행 정산 저장입니다.');
+    }
+    function validateRoomPacks(run) {
+        const rooms=packRooms(actExplorationMap.forRun(run));
+        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        if(run.packs.filter(pack=>pack.anchor).length>1)throw Error('탐험 저장의 길목 무리가 중복되었습니다.');
     }
     function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}
     function validateBossStages(bosses) {
@@ -265,11 +281,12 @@ const actExplorationState = (() => {
         if(bosses.some(pack=>!Number.isInteger(pack.stage) || pack.stage<0 || pack.stage>=bosses.length))throw Error('탐험 저장의 보스 순서가 잘못되었습니다.');
     }
     /** 2026-10-02: generated mazes, isles and shafts became the painted act maps (js/exploration-layouts.js). A save that walked one
-     * loses that run without its temporary loot, and the zone starts over on its new map (ensureEncounterRun opens it next tick).
+     * recovers its old pending loot and loses that run, and the zone starts over on its new map (ensureEncounterRun opens it next tick).
      * The save boundary (mergeDefaults) calls this before it validates the run. */
     function dropRetired(state) {
         const run=state.actExploration;
         if(!run || !run.source || explorationLayouts.supports(run.source))return false;
+        actExplorationLoot.restore(state,run);
         console.warn('retired generated map dropped on load:', run.source.style);
         state.actExploration=null;
         state.enemies=(state.enemies||[]).filter(enemy=>!enemy || !enemy.explorationPack);
@@ -278,8 +295,9 @@ const actExplorationState = (() => {
     }
     function restore(state) {
         const run=state.actExploration;if(run===null || run===undefined)return null;
+        actExplorationLoot.restore(state,run);
         // 다른 지역에 남은 탐험은 실행 중에도 current()가 무시하고 다음 출발 때 버려진다(reconcileDeparture).
-        // 불러올 때도 같은 규칙으로 버린다: 저장 전체를 손상으로 막지 않고, 임시 전리품은 지급하지 않는다.
+        // 불러올 때도 같은 규칙으로 버린다: 저장 전체를 손상으로 막지 않고, 이미 획득한 전리품은 유지한다.
         if(run.zoneId!==state.currentZoneId) {
             console.warn('stale act exploration dropped on load:', run.zoneId, '!=', state.currentZoneId);
             state.actExploration=null;
@@ -287,7 +305,6 @@ const actExplorationState = (() => {
         }
         validate(run,state.enemies);validCell(actExplorationMap.forRun(run),state.gridPlayer);
         actExplorationMotion.validate(run,state.gridPlayer,actExplorationMap.forRun(run));
-        actExplorationLoot.restore(run);
         if(run.departure===undefined)run.departure=null;
         validateDeparture(run);
         const ids=run.packs.flatMap(pack=>pack.aliveIds);
@@ -299,9 +316,11 @@ const actExplorationState = (() => {
     function validateDeparture(run) {
         const exit=run.departure;if(exit===null)return;
         if(!exit || !run.completionApplied || !validExit(exit.zoneId)
-            || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>settlementMs)
+            || !Number.isFinite(exit.remainingMs) || exit.remainingMs<0 || exit.remainingMs>5500)
             throw Error('탐험 정산 후 이동 저장이 잘못되었습니다.');
+        // Older saves may be partway through the former 5.5 second presentation.
+        exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired};
+    return {settlementMs,current,create,packRooms,packPosition,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired};
 })();
 safeExposeGlobals({actExplorationState});

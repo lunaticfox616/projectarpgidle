@@ -1193,6 +1193,8 @@ body.desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
 :root body #tutorial-overlay .tutorial-kicker { margin-bottom: 5px; }
 :root body #tutorial-overlay .tutorial-title { margin-bottom: 6px; font-size: 1.12rem; }
 :root body #tutorial-overlay .tutorial-body { font-size: .9rem; line-height: 1.48; }
+:root body #tutorial-overlay .tutorial-notice-details summary { cursor: pointer; color: var(--copy-muted); padding: 3px 0; }
+:root body #tutorial-overlay .tutorial-notice-details[open] summary { margin-bottom: 8px; }
 :root body #tutorial-overlay .tutorial-summary { margin: 0; font-weight: 500; }
 body #tutorial-overlay .tutorial-pause-toggle {
   align-items: center;

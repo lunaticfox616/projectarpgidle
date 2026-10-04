@@ -110,10 +110,13 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
 
 function requestBattleHitStop(fx) {
     if (!fx || fx.dot || battleVisualState.lastHitStopFxId === fx.id) return;
-    let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
-    let duration = Math.max(0, Number(profile && profile.hitStopMs) || 0, getKillHitStopMs(fx));
+    const profile = getBattleFeedbackProfile(fx), killStopMs = getKillHitStopMs(fx);
+    const duration = Math.max(profile.hitStopMs, killStopMs);
     battleVisualState.lastHitStopFxId = fx.id;
     if (duration <= 0) return;
+    const now=performance.now();
+    if (now < battleVisualState.nextHitStopAt && killStopMs < KILL_HIT_STOP_MS.boss) return;
+    battleVisualState.nextHitStopAt=now+250;
     battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
 }
 
@@ -1488,10 +1491,10 @@ function drawBossPatternLabel(ctx, entry, enemy) {
 }
 
 /** The same immutable cell snapshot drives the red warning, impact and collision. */
-function drawBossPatternArea(ctx, area, projection, alpha = 3) {
+function drawBossPatternArea(ctx, area, projection, alpha = 3, outlineOnly = false) {
     if (!area) return;
     let footprint = projectSkillFootprint(area, projection);
-    if (footprint) drawSkillFootprintGround(ctx, footprint, '#ff684f', alpha);
+    if (footprint) drawSkillFootprintGround(ctx, footprint, outlineOnly ? '#ff9970' : '#ff684f', alpha, outlineOnly);
 }
 
 function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendingAttacks) {
@@ -1629,15 +1632,22 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let width = getEnemyFieldBarWidth(enemy, tileW);
         let x = Math.round(entry.x - width / 2);
-        let y = Math.round(entry.y - getEnemyFieldBarLift(enemy));
+        let baseY = Math.round(entry.y - getEnemyFieldBarLift(enemy));
+        const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
+        const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 });
+        let y = reserved.y + nameHeight;
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
         ctx.globalAlpha = 0.96;
+        if (y < baseY) {
+            ctx.strokeStyle = 'rgba(224,204,159,0.4)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(entry.x, y + 8); ctx.lineTo(entry.x, baseY + 6); ctx.stroke();
+        }
         ctx.fillStyle = 'rgba(12, 8, 10, 0.82)'; // 빈 몫도 보이게: 깎인 막대끼리 이어 보이지 않는다
         ctx.fillRect(x, y, width, 6);
         let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
         if (ghostPct > pct + 0.002) {
-            ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
+            ctx.fillStyle = '#ffd79a';
             ctx.fillRect(x + Math.round(width * pct), y, Math.max(2, Math.round(width * (ghostPct - pct))), 6);
         }
         // 조준한 적도 체력은 같은 빨강: 노란 막대는 무엇인지 알 수 없었다(검토 5차) — 조준은 금빛 두꺼운 테로만 보인다.
@@ -1739,80 +1749,6 @@ function getBattlefieldClientPoint(canvas, clientX, clientY) {
     return {
         x:(clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width)),
         y:(clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height))
-    };
-}
-
-function getBattlefieldShrineAtClientPosition(canvas, clientX, clientY) {
-    let hitbox = battleVisualState.shrineHitbox;
-    let point = getBattlefieldClientPoint(canvas, clientX, clientY);
-    if (!point || !hitbox) return null;
-    return point.x >= hitbox.x && point.x <= hitbox.x + hitbox.width && point.y >= hitbox.y && point.y <= hitbox.y + hitbox.height
-        ? hitbox.encounter : null;
-}
-
-function drawShrineFallback(ctx, width, height, color) {
-    ctx.fillStyle = '#242b31';
-    ctx.fillRect(-width * 0.24, -height * 0.58, width * 0.48, height * 0.58);
-    ctx.fillStyle = '#4e5960';
-    ctx.beginPath();
-    ctx.moveTo(0, -height);
-    ctx.lineTo(width * 0.24, -height * 0.58);
-    ctx.lineTo(0, -height * 0.46);
-    ctx.lineTo(-width * 0.24, -height * 0.58);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(0, -height * 0.94);
-    ctx.lineTo(width * 0.1, -height * 0.68);
-    ctx.lineTo(0, -height * 0.55);
-    ctx.lineTo(-width * 0.1, -height * 0.68);
-    ctx.closePath();
-    ctx.fill();
-}
-
-/** The board's shrine cells lie anywhere on a wide map (often in walls, off camera): there the shrine waits beside the hero. */
-function shrineDrawCell(cell) {
-    return actExplorationState.current(game) ? { gx: game.gridPlayer.gx + 1, gy: game.gridPlayer.gy - 1 } : cell;
-}
-
-function drawBattlefieldShrine(ctx, gridProj, now, gridScale, cameraShake) {
-    let encounter = typeof shrineRuntime !== 'undefined' ? shrineRuntime.getActiveEncounter() : null;
-    if (!encounter || !gridProj) {
-        battleVisualState.shrineHitbox = null;
-        battleVisualState.shrineHovered = false;
-        return;
-    }
-    let cell = shrineDrawCell(encounter.cell), pos = gridProj.cellToScreen(cell.gx, cell.gy);
-    let height = Math.round(88 * clampNumber(gridScale, 0.72, 1.18));
-    let width = Math.round(height * 0.8);
-    let color = { power: '#ffbd55', guard: '#73d4ff', haste: '#d6f06b' }[encounter.blessing.id] || '#ffd36b';
-    let hovered = battleVisualState.shrineHovered === true;
-    let image = battleAssets && battleAssets.images ? battleAssets.images.shrineInteractable : null;
-    ctx.save();
-    ctx.translate(pos.x, pos.y + 5);
-    ctx.globalAlpha = 0.92 + Math.sin(now / 310) * 0.05;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = hovered ? 16 : 8;
-    if (image && image.naturalWidth > 0) ctx.drawImage(image, -width / 2, -height, width, height);
-    else drawShrineFallback(ctx, width, height, color);
-    ctx.shadowBlur = 0;
-    let label = `${encounter.blessing.name} · ${isMobilePrimaryNavigationEnabled() ? '터치' : '클릭'}`;
-    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    let labelWidth = Math.ceil(ctx.measureText(label).width) + 16;
-    ctx.fillStyle = 'rgba(8, 12, 18, 0.88)';
-    ctx.fillRect(-labelWidth / 2, -height - 19, labelWidth, 17);
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, 0, -height - 10);
-    ctx.restore();
-    battleVisualState.shrineHitbox = {
-        x: pos.x + cameraShake.x - Math.max(28, width * 0.58),
-        y: pos.y + cameraShake.y - height - 20,
-        width: Math.max(56, width * 1.16),
-        height: height + 28,
-        encounter
     };
 }
 
@@ -2148,7 +2084,7 @@ function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
 }
 
 // 타격감(2026-10-04): a struck enemy flinches away from the hero for a moment, further on a crit or a heavy blow (tiles).
-const ENEMY_HIT_RECOIL = Object.freeze({ ms: 150, normal: 0.05, crit: 0.09, heavy: 0.12 });
+const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
 // 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
 const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
 
@@ -2171,9 +2107,34 @@ function getEnemyHitRecoilReach(fx) {
 }
 
 function getEnemyHitRecoil(fx, state, tile) {
-    const entry = fx.type === 'hit' && !fx.dot && state.enemyPosMap[fx.enemyId];
+    const entry = fx.type === 'hit' && !fx.dot && fx.damage > 0 && state.enemyPosMap[fx.enemyId];
     const push = entry ? getHitRecoilCurve((state.now - fx.start) / ENEMY_HIT_RECOIL.ms) : 0;
-    return push > 0 ? getRecoilOffset(entry, state.playerPos, tile * getEnemyHitRecoilReach(fx) * push) : null;
+    const weight = entry && entry.enemy && entry.enemy.isBoss ? 0.5 : 1;
+    return push > 0 ? getRecoilOffset(entry, state.playerPos, tile * getEnemyHitRecoilReach(fx) * push * weight) : null;
+}
+
+/** Direct-hit flash in visual ms. Independent of skill-effect duration; DoT must not leave a monster permanently white. */
+function getEnemyHitFlash(fx, now) {
+    if (fx.dot || (fx.type !== 'hit' && fx.type !== 'enemyDeath')) return 0;
+    if (fx.type === 'hit' && !(fx.damage > 0)) return 0;
+    const age = now - fx.start, duration = fx.crit ? 140 : 110;
+    if (age < 0 || age >= duration) return 0;
+    const strength = game.settings.hitEmphasis === 'mild' ? 0.42 : 0.92;
+    return strength * Math.min(1, (duration - age) / (duration - 40));
+}
+
+/** At least 80 ms of original art between pulses, even when a rapid skill keeps landing hits. */
+function buildEnemyHitFlashMap(effects, now) {
+    const pulses = battleVisualState.enemyHitPulses, result = new Map();
+    pulses.forEach((pulse, id) => { if (now < pulse.start || now - pulse.start > 1000) pulses.delete(id); });
+    for (let i = effects.length - 1; i >= 0; i--) {
+        const fx = effects[i];
+        if (fx?.enemyId == null || !getEnemyHitFlash(fx, now)) continue;
+        const previous = pulses.get(fx.enemyId);
+        if (!previous || fx.start - previous.start >= 220) pulses.set(fx.enemyId, fx);
+    }
+    for (const [id, pulse] of pulses) result.set(id, getEnemyHitFlash(pulse, now));
+    return result;
 }
 
 /** Each enemy's flinch this frame, from its latest direct hit (damage over time does not flinch). */
@@ -2264,7 +2225,7 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
 /** Wisps, act monsters, roots and realm sets draw from their own 16-dot sheets (js/canvas-wisp-actors.js,
  * js/canvas-monster-actors.js); story bosses keep their atlas sprites. */
 function drawEnemyActorSprite(ctx, entry, state, pose) {
-    const enemy = entry.enemy, flash = state.flashingEnemyIds.has(enemy.id), facing = resolveEnemyFacingDirection(entry, state.playerPos);
+    const enemy = entry.enemy, flash = state.enemyHitFlashes.get(enemy.id) || 0, facing = resolveEnemyFacingDirection(entry, state.playerPos);
     const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
     const x = entry.x + recoil.x, y = pose.y + recoil.y;
     const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale, moving: entry.moving === true };
@@ -2286,6 +2247,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
         else if (actor.kind === 'gate' || actor.kind === 'scenery') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
     });
+    drawBattlePlayerFigure.readability.begin(state, enemyEntries.concat(waiting));
 }
 
 // Phase-2 extracted battlefield canvas renderer block.
@@ -2367,7 +2329,7 @@ function renderBattlefield(forceWhenHidden) {
     let swingFx = swingEffects.frame;
     let playerFlash = false;
     let playerDownActive = false;
-    let flashingEnemyIds = new Set();
+    let enemyHitFlashes = buildEnemyHitFlashMap(battleFx, now);
     for (let i = battleFx.length - 1; i >= 0; i--) {
         let fx = battleFx[i];
         if (!fx) continue;
@@ -2375,9 +2337,6 @@ function renderBattlefield(forceWhenHidden) {
         if (age < 0 || age > fx.duration) continue;
         if (fx.type === 'playerHit') playerFlash = true;
         else if (fx.type === 'playerDown') playerDownActive = true;
-        if (fx.enemyId != null && (fx.type === 'hit' || fx.type === 'enemyDeath') && age <= fx.duration * 0.45) {
-            flashingEnemyIds.add(fx.enemyId);
-        }
     }
     let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     let skillAreaCells = getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets);
@@ -2481,7 +2440,6 @@ function renderBattlefield(forceWhenHidden) {
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
-    drawBattlefieldShrine(ctx, gridProj, now, gridUnitScale, cameraShake);
     drawBattleGroundLayer(ctx, battleFx, { now, gridProj, playerPos, enemyPosMap });
 
     battleFx.forEach(fx => {
@@ -2604,7 +2562,7 @@ function renderBattlefield(forceWhenHidden) {
     let returnDeparture = attachGridEffectPosition(getPlayerReturnDeparturePresentation(battleFx, now));
 
     drawBattleActorLayer(ctx, dynamicLayout, {
-        now, gridProj, gridUnitScale, flashingEnemyIds, enemyCount: dynamicLayout.length,
+        now, gridProj, gridUnitScale, enemyHitFlashes, enemyCount: dynamicLayout.length,
         playerPos, currentTargets, enemyPosMap,
         playerFlash, swingPower, currentSkillVisual, motionState: playerMotionState,
         enemyAttackMotions, returnWarp, returnDeparture
@@ -2805,7 +2763,7 @@ function renderBattlefield(forceWhenHidden) {
             ctx.restore();
         }
     });
-    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW });
+    drawBattleLightingAndBars(ctx, { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks });
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
@@ -2905,9 +2863,21 @@ function drawBattleLightingAndBars(ctx, scene) {
     wispSummonFx.drawLayer('fore', scene.now);
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
+    drawBattleDangerEdges(ctx, scene);
+    drawBattlePlayerFigure.readability.draw(ctx);
     drawBattlefieldPlayerHealthBar(ctx, scene);
     drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets, scene.tileW);
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
+}
+
+/** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */
+function drawBattleDangerEdges(ctx, scene) {
+    const areas = scene.layout.filter(({ enemy }) => enemy.isBoss && !enemy.noAttack && enemy.hp > 0 && Number.isFinite(Number(enemy.attackTimer)))
+        .filter(({ enemy }) => !(enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0))
+        .map(({ enemy }) => enemy.patternArea);
+    // Once released the pending snapshot owns the warning, even when the source no longer has a preview.
+    (scene.pending || []).filter(attack => attack.delivery === 'patternArea').forEach(attack => areas.push(attack.bossPattern.area));
+    new Set(areas).forEach(area => drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
 }
 
 /** Where the dark vignette opens: around the hero, or over the whole boss room while the hero stands in it. */
@@ -3123,6 +3093,11 @@ function drawCosmosGravityField(ctx, proj) {
 
 function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, backdropActive) {
     drawCosmosGravityField(ctx,proj);
+    const map=getCombatGridSize(),run=actExplorationState.current(game);
+    if(map.tiles) {
+        const sealed=actExplorationState.remainingElites(run)>0;
+        skillAreaCells=skillAreaCells.filter(cell=>actExplorationMap.walkable(map,cell,sealed));
+    }
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
     const tilePath = (gx, gy) => {
@@ -3288,6 +3263,5 @@ function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
 
 
 safeExposeGlobals({
-    renderBattlefield, getPlayableHeroWalkMotion,
-    getBattlefieldShrineAtClientPosition
+    renderBattlefield, getPlayableHeroWalkMotion
 });

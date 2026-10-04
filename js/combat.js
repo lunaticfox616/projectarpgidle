@@ -2993,8 +2993,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         }
     });
 
-    if (game.shrineBuff && getCombatTime() > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
-    if (game.shrineBuff && game.shrineBuff.stat) addStatToBucket(reward, game.shrineBuff.stat, game.shrineBuff.value || 0);
     let constellation = game.meteorSite && game.meteorSite.constellationBuff;
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
     let skill = getActiveSkillStats(gemSources.total);
@@ -5050,7 +5048,7 @@ function tryPlayerTacticalMove(pStats, target, plan, now) {
         intervalSec: COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed)
     });
     if (!result.moved) return false;
-    let delayMs = getTacticalMoveAttackDelayMs(moveSpeed);
+    let delayMs = Math.round(getTacticalMoveAttackDelayMs(moveSpeed) * 0.45);
     combatTacticsRuntime.previousCell = result.from;
     combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + delayMs);
     combatTacticsRuntime.nextMoveAt = now + delayMs;
@@ -5969,14 +5967,13 @@ function createEnemy(zone, marker, groupIndex) {
     let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
     let curved = zoneProgress * zoneProgress;
     let variance = getZoneDefenseVariance(zone);
-    let normalDrCap = 20, eliteDrCap = 45, bossDrCap = 75;
+    let [bossDrCap, bossResCap] = MONSTER_LOOP_POWER_SCALE.bossDefenseCaps(zone);
     let drFloor = isBoss ? 10 : 0;
-    let drRange = isBoss ? (bossDrCap - drFloor) : (isElite ? eliteDrCap : normalDrCap);
+    let drRange = isBoss ? (bossDrCap - drFloor) : (isElite ? 45 : 20);
     let drBase = drFloor + Math.floor(Math.max(0, drRange) * clampNumber(curved + variance, 0, 1));
 
-    let normalResCap = 25, eliteResCap = 60, bossResCap = 80;
     let resFloor = isBoss ? 15 : 5;
-    let resRange = (isBoss ? bossResCap : (isElite ? eliteResCap : normalResCap)) - resFloor;
+    let resRange = (isBoss ? bossResCap : (isElite ? 60 : 25)) - resFloor;
     let resistBase = resFloor + Math.floor(Math.max(0, resRange) * clampNumber(curved + variance, 0, 1));
     let chaosResBase = resistBase;
 
@@ -6578,9 +6575,9 @@ function resetBattleRuntimeVisuals() {
         frameTimeEma: 16.7,
         vfxDensity: 1,
         hitStopRemainingMs: 0,
-        lastHitStopFxId: 0,
-        shrineHitbox: null,
-        shrineHovered: false
+        nextHitStopAt: 0,
+        enemyHitPulses: new Map(),
+        lastHitStopFxId: 0
     };
     crowdPauseActive = false;
     trialHazardRuntime = { nextAt: 0, active: null };
@@ -7473,8 +7470,62 @@ function applyCosmosAstraStance(enemy) {
     enemy.regenRate = base.regenRate * (stance.regenMul || 1);
 }
 
-// A room pack stands in a line; an atlas map's pack-size mod and content rooms fill the rest of the leader's 3×3.
-const EXPLORATION_PACK_OFFSETS=Object.freeze([[0,0],[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]);
+// A compact cluster (not a repeated line), rotated per room. Existing pack-size modifiers fill its 3×3.
+const explorationPackFormation=(()=>{
+    const offsets=[[0,0],[-1,0],[0,1],[1,-1],[-1,-1],[1,1],[0,-1],[-1,1],[1,0]];
+    function cells(room,count,turns) {
+        return offsets.slice(0,count).map(([dx,dy])=>{
+            for(let turn=0;turn<turns;turn++)[dx,dy]=[-dy,dx];
+            return {gx:room.gx+dx,gy:room.gy+dy};
+        });
+    }
+    function roomCount(zone,stage,encounter,shape) {
+        if(stage!==null)return 1;
+        const extra=(zone.packExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
+        return shape.count || Math.min(9,3+extra);
+    }
+    function prepare(zone,room,stage,encounter,formation) {
+        const shape=formation || {},patrol=Object.hasOwn(shape,'anchor');
+        const key=patrol?room.id+':patrol':explorationPackKey(room,stage),at=explorationPackSpawnAt(zone,key,stage);
+        const elite=patrol?false:(room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room));
+        return {key,at,elite,anchor:shape.anchor,cells:shape.cells || cells(shape.center || room,roomCount(zone,stage,encounter,shape),at%4)};
+    }
+    /** Leave the entry's five-tile notice radius empty when a larger first-room group spreads toward it. */
+    function roomCenter(map,room) {
+        const dx=room.gx-map.entry.gx,dy=room.gy-map.entry.gy;
+        if(Math.abs(dx)+Math.abs(dy)>6)return room;
+        const center={gx:room.gx,gy:room.gy};
+        if(Math.abs(dx)>Math.abs(dy))center.gx+=Math.sign(dx);else center.gy+=Math.sign(dy);
+        return offsets.every(([x,y])=>actExplorationMap.walkable(map,{gx:center.gx+x,gy:center.gy+y}))?center:room;
+    }
+    function fillRooms(rooms,counts,budget) {
+        while(budget>0) {
+            const eligible=rooms.filter(room=>counts.get(room.id).count<9);
+            if(!eligible.length)break;
+            for(const room of eligible) {
+                if(!budget)break;
+                counts.get(room.id).count++;budget--;
+            }
+        }
+    }
+    function growLargeRoom(rooms,counts,budget,base) {
+        const spacious=rooms.filter(room=>room.role==='battle' && room.radiusX>=2 && room.radiusY>=2)
+            .sort((a,b)=>b.radiusX*b.radiusY-a.radiusX*a.radiusY);
+        if(!spacious.length || budget<=0)return budget;
+        const extra=Math.min(budget,Math.max(0,Math.min(8,base+3)-base));
+        counts.get(spacious[0].id).count+=extra;return budget-extra;
+    }
+    function plan(zone,map) {
+        if(!['act','abyss'].includes(zone.type))return {counts:new Map(),patrol:null};
+        const rooms=actExplorationState.packRooms(map),base=Math.min(9,3+(zone.packExtra||0));
+        const counts=new Map(rooms.map(room=>[room.id,{count:base,center:roomCenter(map,room)}])),patrol=actExplorationMap.roadGroup(map);
+        const budget=Math.round(rooms.length*base*.28)-(patrol?patrol.cells.length:0);
+        const remainder=growLargeRoom(rooms,counts,budget,base);
+        const varied=[...rooms].sort((a,b)=>explorationPackSpawnAt(zone,a.id,null)-explorationPackSpawnAt(zone,b.id,null));
+        fillRooms(varied,counts,remainder);return {counts,patrol};
+    }
+    return {prepare,plan};
+})();
 /** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
 const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
 /** A room an atlas map's earlier entry already emptied (before a portal): its pack is there, defeated. */
@@ -7488,21 +7539,20 @@ function explorationPackSpawnAt(zone,key,stage) {
     return Math.abs(hashSeed(`${zone.atlasSeed || zone.id}:${key}`))%100;
 }
 
-function createActExplorationPack(zone,room,stage,encounter=null) {
-    const key=explorationPackKey(room,stage),waiting=[],at=explorationPackSpawnAt(zone,key,stage);
-    const extra=(zone.packExtra||0)+(encounter?ATLAS.encounters[encounter].packExtra:0);
-    const offsets=stage===null ? EXPLORATION_PACK_OFFSETS.slice(0,Math.min(EXPLORATION_PACK_OFFSETS.length,3+extra)) : [[0,0]];
-    const elite=room.role==='elite' || !!encounter || isAtlasExtraEliteRoom(zone,room);
-    offsets.forEach(([dx,dy],index)=>{
+function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
+    const {key,at,cells,elite,anchor}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
+    cells.forEach((cell,index)=>{
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
-        Object.assign(enemy,{gx:room.gx+dx,gy:room.gy+dy,gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
+        Object.assign(enemy,cell,{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });
-    return {key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),
-        eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id),...(encounter?{encounter}:{})};
+    const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
+    if(encounter)pack.encounter=encounter;
+    if(anchor)pack.anchor={...anchor};
+    return pack;
 }
 
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */
@@ -7528,15 +7578,18 @@ function createActExplorationEncounter(zone,exploration) {
     run.mode=actExplorationProgress.startMode(game.settings);
     return run;
 }
-/** One pack per monster room (paths and the entry stay empty), and the boss room's stages in order. */
+/** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
+ * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */
 function createExplorationPacks(zone,map,bossStages) {
     const packs=[],encounters=atlasEncounters.rooms(zone,map);
+    const {counts,patrol}=explorationPackFormation.plan(zone,map);
     for(const room of map.rooms) {
         if(room.role==='entry' || room.role==='path')continue;
         if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
-            : createActExplorationPack(zone,room,null,encounters[room.id]||null));continue;}
+            : createActExplorationPack(zone,room,null,encounters[room.id]||null,counts.get(room.id)));continue;}
         for(let stage=0;stage<bossStages;stage++)packs.push(createActExplorationPack(zone,room,stage));
     }
+    if(patrol)packs.push(createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol));
     return packs;
 }
 
@@ -8124,7 +8177,6 @@ function maybeTriggerBeeMappingEvent(enemy) {
 
 /** Read-only visual receipt; rewards are already committed. Never replay grants from presentation. */
 function queueEnemyGroundLoot(enemy, receipt) {
-    if (actExplorationLoot.pending(game)) return;
     if (game.isBackgroundCalculation || battleFxSuppressed) return;
     const item = receipt.item;
     const loot = { ...receipt, zoneId: game.currentZoneId, sourceCell: { gx: enemy.gx, gy: enemy.gy } };
@@ -8143,7 +8195,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     }
     const item = generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity, zone });
     const highlight = equipmentLootPolicy.highlight(item, game);
-    const accepted = addItemToInventory(item,{delivery:actExplorationLoot.delivery(game,'equipment')});
+    const accepted = addItemToInventory(item);
     if (accepted) {
         queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
     }
@@ -8153,54 +8205,42 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
 
 function grantRealmBossUniqueLoot(enemy, zone) {
     const item = generateRealmBossUniqueDrop(zone, enemy);
-    if (!item || !addItemToInventory(item, { guaranteedKeep: true, delivery:actExplorationLoot.delivery(game,'equipment') })) return null;
+    if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
     const highlight = equipmentLootPolicy.highlight(item, game);
     queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
     return item;
 }
 
-/** Atlas finds (maps, fragments, an emptied content room) ride the same capture, so room rewards wait with the map's loot. */
+/** Every kill grants its drops now; receipt capture only groups already-paid UI notifications. */
 function grantEnemyLoot(enemy) {
-    return actExplorationLoot.capture(game,actExplorationState.current(game),
-        ()=>combatLootReceipts.capture(game,()=>{atlasRun.onKill(enemy);return rollLootForEnemy(enemy);}));
+    return combatLootReceipts.capture(game,()=>{atlasRun.onKill(enemy);return rollLootForEnemy(enemy);});
 }
 
 function awardEnemyLootCurrency(key,amount,source='reward') {
-    return awardCurrency(key,amount,source,(currency,gain)=>actExplorationLoot.currency(game,currency,gain));
-}
-
-/** Atomic inventory commit precedes notifications; re-entry cannot grant a second time. */
-function announceActExplorationLoot(receipt) {
-    if(!receipt)return;
-    for(const [key,amount] of Object.entries(receipt.currencies)) {
-        combatLootReceipts.currency(game,key,amount);
-        notifyCurrencyAcquisition(key,amount);
-    }
-    receipt.equipment.forEach(item=>recordEquipmentAcquisition(item));
-    dispatchRuntimeEvent('exploration-loot-claimed',{...receipt,equipmentCount:receipt.equipment.length,background:!!game.isBackgroundCalculation});
+    return awardCurrency(key,amount,source);
 }
 
 function grantEnemyGemFragments(amount) {
-    return grantGemResearchFragments(amount,'drop',(key,gain)=>actExplorationLoot.currency(game,key,gain));
+    return grantGemResearchFragments(amount,'drop');
 }
 
 function rollEnemyGemReward(enemy,awakening) {
-    const shards=grantEnemyGemFragments(1),pending=actExplorationLoot.pending(game)?.gems||[];
+    const shards=grantEnemyGemFragments(1);
     const duplicateShards=enemy.isBoss?3:enemy.isElite?2:1;
     if(!contentProgression.isUnlocked('support')||Math.random()<0.5) {
-        const gem=rollEnemyAttackGem(awakening,pending);
+        const gem=rollEnemyAttackGem(awakening);
         const bonus=gem?0:grantEnemyGemFragments(duplicateShards+1);
         return {kind:'attack',gem,shards:shards+bonus};
     }
     const names=Object.keys(SUPPORT_GEM_DB);
     if(!names.length)return {kind:'support',gem:null,shards};
-    const name=rndChoice(names),gem=gemDropRewards.nextSupport(game,name,pending);
+    const name=rndChoice(names),gem=gemDropRewards.nextSupport(game,name);
     const bonus=gem?0:grantEnemyGemFragments(duplicateShards);
     return {kind:'support',name,gem,shards:shards+bonus};
 }
 
-function rollEnemyAttackGem(awakening,pending) {
-    const names=gemDropRewards.missingAttacks(game,pending);
+function rollEnemyAttackGem(awakening) {
+    const names=gemDropRewards.missingAttacks(game);
     if(!names.length)return null;
     const name=rndChoice(names),awakened=!!awakening&&Math.random()<0.035;
     return {kind:'attack',name,awakened};
@@ -8219,19 +8259,19 @@ function rollLootForEnemy(enemy) {
     }
     if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy)) {
         const reward=rollEnemyGemReward(enemy,gemAwakening);
-        if(reward.gem&&!actExplorationLoot.gem(game,reward.gem)) {
+        if(reward.gem) {
             gemDropRewards.grant(game,reward.gem,reward.kind==='support'?getEffectiveResonanceCap():0);
             checkUnlocks();
         }
-        if(!actExplorationLoot.pending(game))dispatchRuntimeEvent('gem-loot-received',reward);
+        dispatchRuntimeEvent('gem-loot-received',reward);
     }
 
     getCurrencyDrops(enemy).forEach(drop => {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'core') {
-            const core = coreItems.receiveDrop(actExplorationLoot.delivery(game, 'cores'));
+            const core = coreItems.receiveDrop();
             if (core) queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
-            if (core && !actExplorationLoot.pending(game)) dispatchRuntimeEvent('core-item-received', core);
+            if (core) dispatchRuntimeEvent('core-item-received', core);
             return;
         }
         const gain = awardEnemyLootCurrency(drop[0], drop[1], 'drop');
@@ -8248,12 +8288,12 @@ function rollLootForEnemy(enemy) {
     rollWildTalismanDrop(enemy, talismanChance);
     if (contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul) {
         let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
-        const receipt=receiveJewelDrop(jewel,actExplorationLoot.delivery(game,'jewels'));
+        const receipt=receiveJewelDrop(jewel);
         if (receipt.stored) {
             const jewelTier = jewel.rarity === 'unique' ? 'unique' : (jewel.rarity === 'rare' ? 'rare' : jewel.rarity);
             queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff' });
         }
-        if(!receipt.deferred)dispatchRuntimeEvent('jewel-drop-received',receipt);
+        dispatchRuntimeEvent('jewel-drop-received',receipt);
     }
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
     let mappingZone = isBeeMappingZone(zone);
@@ -8828,20 +8868,8 @@ function grantBeyondBoundaryFocusedReward(result) {
     return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
 }
 
-/** Expedition equipment reaches the bag all at once when the act is cleared. With "빈 장비 슬롯 자동 장착" on it fills empty
- * slots the way the 장비 창's 빈 칸 채우기 does (tier · rarity first, requirements met) — an idle player otherwise never wore
- * expedition gear (review 2026-10-01). Occupied slots never change; with the setting off the build stays as it was. */
-function autoEquipActExplorationLoot(receipt) {
-    if (!receipt || !receipt.equipment.length || game.settings.autoEquipEmptySlots === false) return;
-    equipIntoEmptySlots(receipt.equipment);
-}
-
 function finishEncounterRun() {
-    const settlement=actExplorationProgress.beginCompletion(getZone(game.currentZoneId));
-    if(!settlement)return;
-    // Equip before the claim event so its listeners (currency-acquisition-ui) can say which rewards went straight on.
-    autoEquipActExplorationLoot(settlement.loot);
-    combatLootReceipts.capture(game,()=>announceActExplorationLoot(settlement.loot));
+    if(!actExplorationProgress.beginCompletion(getZone(game.currentZoneId)))return;
     let zone = getZone(game.currentZoneId);
     dispatchRuntimeEvent('encounter-finished', {
         zoneId: zone.id,
@@ -8851,7 +8879,6 @@ function finishEncounterRun() {
     });
     let mapAction = game.settings.mapCompleteAction;
     game.killsInZone++;
-    shrineRuntime.advanceAfterEncounter(zone);
     if (zone.type === 'atlasMap') return atlasRun.finish(zone);
 
     if (zone.type === 'beyondBoundary') {
@@ -10607,7 +10634,6 @@ function applyActRestRecovery(pStats, hpCap) {
 }
 
 function handlePlayerDefeat(zone, pStats, message, options) {
-    const lostLoot = actExplorationLoot.pendingCounts(actExplorationState.current(game));
     actExplorationProgress.defeat(game);
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -10749,8 +10775,6 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         monsterSummary: monsterSummary,
         activeAilments: activeAilments,
         sourceName: opts.sourceName || '',
-        lostItems: lostLoot.items,
-        lostCurrencies: lostLoot.currencies,
         retreatZoneName: retreatAfterActDefeat(zone)
     };
     if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');

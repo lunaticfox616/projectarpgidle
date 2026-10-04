@@ -406,8 +406,7 @@ function equipIntoFirstEmptySlot(item) {
     return slot;
 }
 
-/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터. 장비 창 "빈 칸 채우기"와 탐험 보상 정산(자동 장착 설정이
- * 켜져 있을 때)이 쓴다. Returns the equipped count. */
+/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터. 장비 창 "빈 칸 채우기"에서 사용한다. Returns the equipped count. */
 function equipIntoEmptySlots(items) {
     const rank = item => (Number(item.itemTier) || 0) * 10 + JEWEL_RARITY_ORDER.indexOf(item.rarity);
     let equipped = 0;

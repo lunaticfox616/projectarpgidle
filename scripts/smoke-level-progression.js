@@ -52,8 +52,6 @@ const noticeCount=notices.length;
 assert.equal(run("equipItemById(weapon.id,'무기')"),false);
 assert.equal(notices.length,noticeCount+1,'explicit-slot rejection uses the same notification path');
 assert.equal(run('JSON.stringify(game.inventory)'),before,'rejected equip is atomic');
-run("game.shrineBuff={stat:'strength',value:200,expiresAt:getCombatTime()+60000}");
-assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'temporary attributes cannot open an equipment gate');
 run("game.actRewardBonuses[0].value=52;game.level=1");
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false);
 run('weapon.inheritedLevelExempt=true');

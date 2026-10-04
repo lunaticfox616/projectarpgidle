@@ -938,6 +938,7 @@ function mergeDefaults(save) {
     merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
     merged.settings.mobileCombatLogExpanded = merged.settings.mobileCombatLogExpanded === true;
+    merged.settings.hitEmphasis = merged.settings.hitEmphasis === 'mild' ? 'mild' : 'normal';
     equipmentLootPolicy.normalizeSettings(merged.settings);
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
@@ -1234,7 +1235,9 @@ function mergeDefaults(save) {
     stripRemovedStarWedges(merged);
     stripRemovedAuxSystems(merged);
     migrateRetiredWoodMonsters(merged);
-    shrineRuntime.ensureState(merged);
+    // Removed battlefield shrines: discard pending encounters and temporary blessings on every load.
+    delete merged.shrineState;
+    delete merged.shrineBuff;
     reconcileUniqueEquipmentSave(merged);
     enforcePassiveEquipmentRestrictions(merged);
     const normalized = normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);

@@ -1,5 +1,5 @@
 // Build-source accumulation. Each call owns its output buckets; live HP/buffs stay in combat.js.
-// Source order is significant: support scaling runs after these sources, before shrine buffs.
+// Source order is significant: support scaling runs after these sources, before temporary buffs.
 
 /** Adds allocated loop passives to the caller-owned bucket without changing progression. */
 function accumulateCombatSeasonStats(bucket, nodeIds, levels) {

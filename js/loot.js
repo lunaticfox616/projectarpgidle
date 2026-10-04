@@ -56,15 +56,15 @@ function getEnemyLootDropMultiplier(zone, enemy) {
 
 /** Independent base chances share bonuses without deriving talisman drops from equipment. */
 function getEquipmentDropChances(zone, enemy) {
-    let multiplier = getEnemyLootDropMultiplier(zone, enemy) * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    let multiplier = getEnemyLootDropMultiplier(zone, enemy);
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
         multiplier *= 1 - 0.7 * progress;
     }
     return {
-        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier,
-        talisman: getWildTalismanBaseDropChance(enemy) * multiplier
+        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment'),
+        talisman: getWildTalismanBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level)
     };
 }
 
@@ -77,7 +77,7 @@ function getEquipmentDropChances(zone, enemy) {
  */
 function rollEquipmentDrop(zone, enemy, chance) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
-    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment');
     let guaranteed = progress >= EQUIPMENT_DROUGHT_RULES.threshold;
     let dropped = guaranteed || Math.random() < chance;
     let minimumRarity = guaranteed ? 'rare' : null;

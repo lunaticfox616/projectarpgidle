@@ -1,13 +1,11 @@
 // Exact gem-drop records and collection merging. No random draws, UI or global game mutations.
 const gemDropRewards=(()=>{
-    function missingAttacks(state,pending=[]) {
+    function missingAttacks(state) {
         const owned=new Set(getOwnedSkillGemNames(state));
-        pending.filter(row=>row.kind==='attack').forEach(row=>owned.add(row.name));
         return Object.keys(SKILL_DB).filter(name=>SKILL_DB[name].isGem&&!owned.has(name));
     }
-    function nextSupport(state,name,pending=[]) {
-        const held=pending.find(row=>row.kind==='support'&&row.name===name);
-        let before=held?held.tier:0;
+    function nextSupport(state,name) {
+        let before=0;
         if(hasSupportGemOwned(name,state))before=Math.max(before,normalizeGemRecord(state.supportGemData[name]).unlockedTier||1);
         const cap=getSupportTierCap(name);
         if(before>=cap)return null;

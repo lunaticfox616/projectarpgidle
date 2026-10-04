@@ -46,7 +46,7 @@ function fresh() {
         currentZoneId:0,maxZoneId:9,season:3,settings:{pauseGameOnOverlay:false}});
         gameplayStarted=true;startupOverlayActive=false;startEncounterRun(true);
         game.currencies.hiveKey=3;
-        actExplorationLoot.capture(game,game.actExploration,()=>actExplorationLoot.currency(game,'goldenRule',2));`);
+        awardEnemyLootCurrency('goldenRule',2);`);
 }
 function returnButton() {
     const tag=fs.readFileSync('index.html','utf8').match(/<button\b[^>]*id="btn-combat-return"[^>]*>/)[0];
@@ -59,18 +59,18 @@ async function main() {
     fresh();const before=snapshot(),button=returnButton(),abandoned=run('game.actExploration');
     button.click();assert.equal(run('actExplorationUi.departurePending()'),true);
     assert.equal(run('isForegroundGameplayPausedForBackground()'),true,'loss confirmation pauses even with optional overlay pause off');
-    assert.match(nodes.get('game-dialog-message').innerHTML,/황금률 ×2/);
+    assert.match(nodes.get('game-dialog-message').innerHTML,/이미 획득한 아이템과 재화는 유지/);
     button.click();assert.deepEqual(snapshot(),before,'double-click cannot travel or mutate rewards');
     nodes.get('game-dialog-cancel').click();await settle();
-    assert.deepEqual(snapshot(),before,'cancel preserves pending loot and position');
+    assert.deepEqual(snapshot(),before,'cancel preserves earned loot and position');
     assert.equal(run('actExplorationUi.departurePending()'),false);
     assert.equal(run('isForegroundGameplayPausedForBackground()'),false);
     button.click();nodes.get('game-dialog-confirm').click();await settle();
     // The abandoned map is gone; the wait shows the act's entrance, freshly laid out (not the legacy board).
     assert.notEqual(run('game.actExploration'),abandoned);
     assert.equal(run('game.actExploration.arrival'),true,'the return wait lays out a fresh map of the act');
-    assert.equal(run('game.actExploration.loot.phase'),'pending');
-    assert.deepEqual(copy('game.currencies'),before.currencies,'abandon never pays pending loot');
+    assert.equal(run('game.actExploration.loot'),undefined);
+    assert.deepEqual(copy('game.currencies'),before.currencies,'abandon never pays earned loot');
     assert.equal(run('game.isTownReturning'),true,'normal town return still executes');
 
     fresh();const state=run('game.actExploration');button.click();
@@ -87,12 +87,12 @@ async function main() {
     assert.equal(run('game.currencies.hiveKey'),2,'confirmed admission spends exactly one key');
     assert.equal(run('game.currentZoneId'),'beehive_run');
     assert.equal(run('game.actExploration'),null,'special entry clears abandoned exploration immediately, even while its choice screen pauses combat');
-    assert.equal(run('game.currencies.goldenRule'),0);
+    assert.equal(run('game.currencies.goldenRule'),2);
     run("exitBeehiveRun('test','season-up')");
     assert.equal(run('game.actExploration'),null,'returning from the hive cannot revive abandoned loot');
     fresh();run('game.settings.autoEnterGrandBreach=true;game.voidRift.grandBreachUnlock=true;autoEnterGrandBreachIfReady()');
     assert.equal(run('game.currentZoneId'),0,'automatic special entry cannot silently abandon an active exploration');
-    assert.equal(run('game.actExploration.loot.currencies.goldenRule'),2);
+    assert.equal(run('game.currencies.goldenRule'),2);
     run('enterGrandBreach()');assert.equal(run('game.actExploration'),null);
     fresh();run('game.currencies.colonyTrace=1;startColonyRun()');assert.equal(run('game.actExploration'),null);
     fresh();run("game.chaosRealm.unlocked=true;game.journalEntries.push('woodsman_echo');enterWoodsmanEchoChallenge()");
@@ -118,7 +118,7 @@ async function main() {
     // 다른 지역에 남은 탐험이 든 저장은 손상 처리 대신 그 탐험만 버리고 연다(임시 전리품 미지급).
     fresh();run('game.currentZoneId=1');
     const stale=copy('(()=>{const restored=mergeDefaults(JSON.parse(serializeSaveState(game)));return {zone:restored.currentZoneId,run:restored.actExploration,gold:restored.currencies.goldenRule};})()');
-    assert.deepEqual(stale,{zone:1,run:null,gold:0},'a stale exploration from another zone is dropped on load without paying its loot');
+    assert.deepEqual(stale,{zone:1,run:null,gold:2},'a stale exploration from another zone is dropped on load without losing earned loot');
     console.log('act exploration departure: PASS');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

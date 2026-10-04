@@ -48,7 +48,9 @@ const actExplorationProgress = (() => {
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
-        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
+        // Safe travel is quicker; engagement/approach retains the normal movement stat.
+        const travelScale=game.enemies.some(enemy=>enemy.hp>0)?1:0.75;
+        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed*travelScale;
         const stepped=advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
@@ -90,19 +92,18 @@ const actExplorationProgress = (() => {
         if(run)return run.status==='cleared' && !run.completionApplied;
         return game.runProgress>=100 && game.encounterIndex>=game.encounterPlan.length && game.enemies.length===0;
     }
-    /** Claim first: invalid rewards leave completion retryable, before story/unlock changes. */
+    /** Drops are already owned. Completion only commits the encounter's progression. */
     function beginCompletion(zone) {
         const run=live();
-        if(!run)return {loot:null};
+        if(!run)return true;
         if(!canFinish())return false;
-        const loot=actExplorationLoot.claim(game,run);
         actExplorationMotion.cancel(run);
         actExplorationState.retireCombat(game);
         run.completionApplied=true;
         game.runProgress=100;
         // Act 4's two actual boss kills happen within this one map, not two new maps (zones without kill counts skip it).
         if(Number.isFinite(zone.maxKills))game.killsInZone=Math.max(game.killsInZone,zone.maxKills-1);
-        return {loot};
+        return true;
     }
     function shouldTrackStall() {
         return !live() && game.moveTimer<=0 && game.enemies.length===0;
@@ -132,7 +133,7 @@ const actExplorationProgress = (() => {
         state.combatHalted=false;
         return true;
     }
-    function depart(state) {actExplorationLoot.discard(state.actExploration);state.actExploration=null;}
+    function depart(state) {state.actExploration=null;}
     function stopAfterCompletion(state) {
         state.combatHalted=true;
         state.enemies=[];state.encounterPlan=[];state.encounterIndex=0;
@@ -143,7 +144,7 @@ const actExplorationProgress = (() => {
     }
     function defeat(state) {
         const run=actExplorationState.current(state);
-        if(run && !run.completionApplied){actExplorationMotion.cancel(run);actExplorationLoot.discard(run);run.status='failed';}
+        if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
     return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();

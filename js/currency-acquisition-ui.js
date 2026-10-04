@@ -49,16 +49,5 @@
         if(event.detail.background)return;
         updateStaticUI();queueImportantSave(220);
     });
-    /** 탐험 보상 장비 중 빈 칸에 바로 들어간 것(빈 장비 슬롯 자동 장착) — 가방이 아니라 몸에 있다고 알린다. */
-    function announceAutoEquippedReward(item) {
-        const slot=Object.keys(game.equipment).find(key=>game.equipment[key]===item);
-        if(slot&&game.settings.showLootLog&&!game.isBackgroundCalculation)addLog(`빈 ${slot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`,'loot-rare',{item});
-    }
-    window.addEventListener('project-idle:exploration-loot-claimed',event=>{
-        if(event.detail.equipmentCount||event.detail.gems.length)checkUnlocks();
-        event.detail.equipment.forEach(announceAutoEquippedReward);
-        event.detail.gems.forEach(gem=>announceGemReward({gem,kind:gem.kind,shards:0}));
-        event.detail.jewels.forEach(jewel=>announceJewelReward({jewel,stored:true}));
-        event.detail.cores.forEach(announceCore);
-    });
+
 })();

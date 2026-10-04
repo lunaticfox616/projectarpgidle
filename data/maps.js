@@ -152,7 +152,14 @@ const ACT_LOOP_SCALE_CAP = 20;
  * 측정: docs/aux-consolidation-20260930.md 9단계. */
 const MONSTER_LOOP_POWER_SCALE = Object.freeze({
     hp: Object.freeze([[1, 1], [3, 0.95], [7, 0.8], [10, 0.75], [25, 0.66], [50, 0.62]]),
-    damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]])
+    damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]]),
+    // Ordinary repeatable bosses retain HP/damage/armor growth; ease the stacked mitigation wall.
+    // Fixed maps, benchmarks and authored challenge bosses keep their original defense contract.
+    bossDefenseCaps(zone) {
+        const fixed = zone.loopScaleExempt || Number.isFinite(zone.fixedSeason)
+            || zone.difficultyBenchmark || zone.milestonePinnacle;
+        return !fixed && ['act', 'abyss'].includes(zone.type) ? [60, 65] : [75, 80];
+    }
 });
 
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.

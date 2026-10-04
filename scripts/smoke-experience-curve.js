@@ -33,22 +33,25 @@ for (let level = 11; level <= 100; level++) {
     assert.ok(run(`getExpReq(${level})`) > previousRequirement(level));
 }
 
-let lastPremium = 1, lastStep = 0, lastKills = 0;
+let lastPremium = 1, lastKills = 0;
 for (let level = 20; level <= 100; level += 10) {
     const required = run(`getExpReq(${level})`);
     const premium = required / previousRequirement(level);
-    const step = premium - lastPremium;
     const kills = required / run(`getEnemyExperienceReward({level:${level}},{expGain:0})`);
-    assert.ok(step > lastStep, 'each decade adds a larger growth premium');
+    assert.ok(premium > lastPremium, 'growth premium still rises after the density ramp reaches its cap');
     assert.ok(kills > lastKills, 'higher rewards must not cancel the longer leveling curve');
-    lastPremium = premium; lastStep = step; lastKills = kills;
+    lastPremium = premium; lastKills = kills;
 }
 for (let level = 2; level <= 200; level++) {
     assert.ok(run(`getExpReq(${level}) > getExpReq(${level - 1})`), 'no downward threshold at a decade boundary');
 }
 for (const level of [101, 110, 150, 200]) {
     assert.equal(run(`getExpReq(${level}) - getExpReq(100)`),
-        previousRequirement(level) - previousRequirement(100), 'retain the released steep post-100 increments');
+        Math.floor((393919 + previousRequirement(level) - previousRequirement(100)) * 1.15) - Math.floor(393919 * 1.15),
+        'the density premium applies consistently to the post-100 curve');
+}
+for (const [level, baseline, premium] of [[10,660,1],[11,747,1.0075],[20,1677,1.075],[30,4559,1.15],[50,19294,1.15],[100,393919,1.15]]) {
+    assert.equal(run(`getExpReq(${level})`), Math.floor(baseline*premium), 'intro is preserved and the density premium ramps smoothly to 15%');
 }
 const endgameEffortRatio = run('(getExpReq(199)/levelProgression.monsterExperience(199))/(getExpReq(100)/levelProgression.monsterExperience(100))');
 assert.ok(endgameEffortRatio > 10 && endgameEffortRatio < 20,

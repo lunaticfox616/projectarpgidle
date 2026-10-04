@@ -67,7 +67,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'zone actions';
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, #btn-exploration-loot-skip),
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle),
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
     border: 1px solid var(--px-ink);
     border-radius: 0;
@@ -78,7 +78,7 @@
     font-size: 12px;
     text-shadow: var(--px-text-edge);
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, #btn-exploration-loot-skip, .ui-context-dock-tab, .combat-log-toggle):active {
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, .ui-context-dock-tab, .combat-log-toggle):active {
     box-shadow: var(--px-bevel-pressed);
   }
   /* 전투 기록 막대는 판 자체가 테두리라 안의 펼치기 버튼은 납작하게 */

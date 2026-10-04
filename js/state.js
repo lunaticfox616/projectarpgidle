@@ -2134,6 +2134,7 @@ const defaultGame = {
         },
         showCombatScene: true,
         cameraShake: true,
+        hitEmphasis: 'normal', // normal | mild; presentation only
         uiSounds: true,
         showCombatLog: true,
         showDetailedDamageLog: false,
@@ -2326,8 +2327,6 @@ const defaultGame = {
     // null before settlement or for legacy receipts; retained until the next entry/loop reset.
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
-    shrineState: { activeId: null, spawnCell: null, pity: 0, spawned: 0, claimed: 0 },
-    shrineBuff: null,
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     // NPC escrow: UTC millisecond clocks and independent visitors, with integer proceeds per currency.
@@ -2424,9 +2423,12 @@ safeExposeGlobals({
 function getExpReq(level) {
     let lv = Math.max(1, Math.floor(level || 1));
     const requirements = LEVEL_PROGRESSION.playerExperienceRequired;
-    if (lv <= 100) return requirements[lv - 1];
     let delta = lv - 100;
-    return requirements[99] + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
+    const base = lv <= 100 ? requirements[lv - 1]
+        : requirements[99] + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
+    const premium = LEVEL_PROGRESSION.playerExperienceDensityPremium;
+    const ramp = Math.max(0, Math.min(1, (lv - premium.startLevel) / (premium.fullLevel - premium.startLevel)));
+    return Math.floor(base * (1 + premium.increase * ramp));
 }
 function getGemReqExp(level) { return LEVEL_PROGRESSION.gemExperienceRequired[Math.max(1, Math.min(20, Math.floor(level || 1))) - 1]; }
 // Save boundary: retain failures through the current stage's guaranteed attempt.

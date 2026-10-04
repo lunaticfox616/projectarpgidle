@@ -101,12 +101,7 @@ const monsterActors = (() => {
             for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stamp(ctx, rim, at, dx * at.dot, dy * at.dot);
             ctx.globalAlpha /= look.outline.alpha;
         }
-        stamp(ctx, image, at);
-        if (look.flash) {
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.globalAlpha *= 0.5;
-            stamp(ctx, image, at);
-        }
+        drawBattleSpriteImage(ctx, image, at.src, [at.left, at.top, at.size, at.size], look.flash);
         ctx.restore();
     }
     /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId).

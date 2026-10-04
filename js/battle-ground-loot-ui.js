@@ -5,7 +5,6 @@ const battleGroundLoot = (() => {
     let seen = new WeakSet();
     const entries = new Map();
     const motes = new Set();
-    let settlement=null;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const displayLimit = () => canvas.clientWidth < 600 ? 16 : 24;
     const isMajor = receipt => receipt.currency === 'goldenRule' || receipt.item?.rarity === 'unique' || !!receipt.highlight;
@@ -46,25 +45,39 @@ const battleGroundLoot = (() => {
         const next = [canvas.offsetLeft, canvas.offsetTop, canvas.clientWidth, canvas.clientHeight].join(':');
         if (geometry === next) return;
         geometry = next;
+        entries.forEach(entry => { delete entry.marker.dataset.labelRow; });
         const rect = { left: canvas.offsetLeft + 'px', top: canvas.offsetTop + 'px',
             width: canvas.clientWidth + 'px', height: canvas.clientHeight + 'px' };
         [ground, foreground, air].forEach(node => Object.assign(node.style, rect));
         ground.style.setProperty('--loot-width', canvas.clientWidth + 'px');
-        entries.forEach(entry => place(entry.marker));
     }
 
-    function place(marker) {
+    function place(marker, point) {
         const labels = marker.querySelector('.battle-loot-labels');
-        const row = labels.firstElementChild?.offsetHeight || 20;
-        const height = labels.offsetHeight || labels.children.length * (row + 2);
-        const half = labels.offsetWidth / 2 + 8;
-        const reach = side => { const arm = marker.querySelector(`.battle-loot-labels.is-${side}`); return arm ? 30 + arm.offsetWidth : 0; };
-        const down = marker.querySelector('.battle-loot-labels.is-down');
-        const left = Math.max(half, reach('left')), right = Math.max(half, reach('right'));
-        const x = Math.max(left, Math.min(canvas.clientWidth - right, Number(marker.dataset.x) * canvas.clientWidth));
-        const y = Math.max(49 + height, Math.min(canvas.clientHeight - 25 - (down ? 24 + down.offsetHeight : 0), Number(marker.dataset.y) * canvas.clientHeight));
+        if (!marker.dataset.labelRow) {
+            const row = labels.firstElementChild?.offsetHeight || 20;
+            marker.dataset.labelRow = String(row);
+            marker.dataset.labelHeight = String(labels.offsetHeight || labels.children.length * (row + 2));
+            marker.dataset.labelHalf = String(labels.offsetWidth / 2);
+        }
+        const x = Math.round(point.x), y = Math.round(point.y);
         marker.style.left = x + 'px'; marker.style.top = y + 'px';
-        stackLabel(marker, { x, y, half: labels.offsetWidth / 2, height, row });
+        stackLabel(marker, { x, y, half: Number(marker.dataset.labelHalf), height: Number(marker.dataset.labelHeight), row: Number(marker.dataset.labelRow) });
+    }
+
+    /** A receipt is already owned. Only its short-lived picture is anchored to a map cell (never to viewport percentages). */
+    function projectEntries(projection) {
+        const projected = [];
+        let changed = false;
+        for (const entry of entries.values()) {
+            const point = originFor(entry.cell, projection), marker = entry.marker;
+            marker.hidden = point.x < -64 || point.y < -64 || point.x > canvas.clientWidth + 64 || point.y > canvas.clientHeight + 64;
+            projected.push({ marker, point });
+            if (marker.style.left !== Math.round(point.x) + 'px' || marker.style.top !== Math.round(point.y) + 'px' || !marker.dataset.labelRow) changed = true;
+        }
+        if (!changed) return;
+        entries.forEach(entry => { delete entry.marker.dataset.labelTop; });
+        projected.forEach(({ marker, point }) => place(marker, point));
     }
 
     // 이름표 묶음이 이미 떨어진 다른 묶음과 겹치면 한 줄씩 위로 올린다(아이템 그림 위치는 그대로).
@@ -191,19 +204,16 @@ const battleGroundLoot = (() => {
         return true;
     }
 
-    /** One pile: receipts sorted by importance. A kill drops one pile on one spot; the act settlement spreads single rows in a ring. */
-    function spawn(receipts, point, index, count) {
+    /** One pile: receipts sorted by importance. A kill drops one pile on one spot. */
+    function spawn(receipts, cell, projection) {
         const important = receipts.some(isMajor);
         if (!room(important)) return;
         const marker = document.createElement('div'); marker.className = 'battle-loot-drop';
-        const radius = (count === 1 ? 36 : Math.min(120, canvas.clientWidth * .28, canvas.clientHeight * .24)) * (.9 + .08 * Math.sin(index * 2.4));
-        const angle = count === 1 ? Math.PI / 4 : -Math.PI / 2 + index * Math.PI * 2 / count + Math.sin(index * 1.8) * .07;
-        marker.dataset.x = (point.x + Math.cos(angle) * radius) / canvas.clientWidth;
-        marker.dataset.y = (point.y + Math.sin(angle) * radius) / canvas.clientHeight;
-        marker.dataset.sourceX = point.x / canvas.clientWidth; marker.dataset.sourceY = point.y / canvas.clientHeight;
-        marker.style.setProperty('--rest-angle', (receipts[0].item?.slot === '무기' ? 54 + index * 7 : -16 + index * 9) + 'deg');
-        const flight = appearance(marker, receipts); beam(marker, receipts[0]); ground.append(marker); place(marker); yieldCrowdedArms(marker);
-        const entry = { marker, timers: new Set() }; entries.set(marker, entry);
+        const point = originFor(cell, projection);
+        marker.dataset.gx = String(cell.gx); marker.dataset.gy = String(cell.gy);
+        marker.style.setProperty('--rest-angle', (receipts[0].item?.slot === '무기' ? 54 : -16) + 'deg');
+        const flight = appearance(marker, receipts); beam(marker, receipts[0]); ground.append(marker); place(marker, point); yieldCrowdedArms(marker);
+        const entry = { marker, cell: { gx: cell.gx, gy: cell.gy }, timers: new Set() }; entries.set(marker, entry);
         launch(entry, flight, point);
         later(entry, () => absorb(entry), important ? 3300 : 2400);
     }
@@ -278,10 +288,7 @@ const battleGroundLoot = (() => {
         });
     }
 
-    function originFor(enemyId, cell, projection) {
-        const ghost = battleVisualState.enemyGhostPos[enemyId] || battleVisualState.enemySmoothPos[enemyId];
-        if (ghost) return ghost;
-        if (!hasGridCell(cell)) return null;
+    function originFor(cell, projection) {
         const point = projection.cellToScreen(cell.gx, cell.gy);
         return { x: point.x, y: point.y + projection.actorGroundOffsetY };
     }
@@ -292,13 +299,13 @@ const battleGroundLoot = (() => {
         const piles = new Map();
         const pending = pendingDrops(now).sort((a, b) => importance(b.loot) - importance(a.loot));
         for (const fx of pending) {
-            if (fx.loot.currency && !(ORB_DB[fx.loot.currency]?.icon && fx.loot.count > 0)) continue;
-            if (!piles.has(fx.enemyId)) piles.set(fx.enemyId, []);
-            piles.get(fx.enemyId).push(fx.loot);
+            if (!hasGridCell(fx.loot.sourceCell) || (fx.loot.currency && !(fx.loot.count > 0))) continue;
+            const key = `${fx.loot.sourceCell.gx},${fx.loot.sourceCell.gy}`;
+            if (!piles.has(key)) piles.set(key, []);
+            piles.get(key).push(fx.loot);
         }
-        for (const [enemyId, receipts] of [...piles].slice(0, displayLimit())) {
-            const point = originFor(enemyId, receipts[0].sourceCell, projection);
-            if (point) spawn(receipts, point, 0, 1);
+        for (const receipts of [...piles.values()].slice(0, displayLimit())) {
+            spawn(receipts, receipts[0].sourceCell, projection);
         }
     }
 
@@ -307,57 +314,14 @@ const battleGroundLoot = (() => {
             && !document.hidden && !game.isBackgroundCalculation;
     }
 
-    // The domain has already paid every row. This bounded queue is presentation only.
-    function settle(event) {
-        if(event.detail.background || document.hidden)return;
-        const run=actExplorationState.current(game);if(!run?.completionApplied)return;
-        const rows=actExplorationUi.collectLootRows(event.detail).map(row=>({
-            currency:row.currency,count:row.amount,item:row.item||{name:row.name+(row.amount>1?' ×'+row.amount:''),rarity:'normal'},
-            itemKind:({jewels:'jewel'})[row.kind],
-            color:row.rarity?getRarityColor(row.rarity):undefined
-        }));
-        if(!rows.length)return;
-        const boss=actExplorationMap.forRun(run).rooms.find(room=>room.role==='boss');
-        clear();
-        settlement={run,rows:rows.sort((a,b)=>Number(isMajor(b))-Number(isMajor(a))),
-            cell:{gx:boss.gx+.5,gy:boss.gy+.5},started:performance.now(),index:0,bounded:false};
-        document.getElementById('btn-exploration-loot-skip').hidden=false;
-    }
-
-    function endSettlement(skip=false) {
-        if(skip && settlement?.run===game.actExploration && settlement.run.departure)
-            settlement.run.departure.remainingMs=0;
-        settlement=null;clear();
-        document.getElementById('btn-exploration-loot-skip').hidden=true;
-    }
-
-    function consumeSettlement(projection) {
-        if(!settlement)return;
-        if(settlement.run!==game.actExploration){endSettlement();return;}
-        const age=performance.now()-settlement.started;
-        if(age>=5000){endSettlement();return;}
-        const rows=settlement.rows,limit=displayLimit();
-        if(!settlement.bounded && rows.length>limit) {
-            const rest=rows.splice(limit-1),count=rest.reduce((sum,row)=>sum+(row.count||1),0);
-            rows.push({item:{name:'전리품 '+count.toLocaleString()+'개',rarity:'normal'}});
-        }
-        settlement.bounded=true;
-        const point=projection.cellToScreen(settlement.cell.gx,settlement.cell.gy);
-        point.y+=projection.actorGroundOffsetY;
-        while(settlement.index<rows.length && settlement.index*50<=age) {
-            const index=settlement.index++;
-            spawn([rows[index]],point,index,rows.length);
-        }
-    }
-
     function prepare(source, now, projection) {
-        if (!visible(source)) { endSettlement(); return false; }
+        if (!visible(source)) { clear(); return false; }
         if (zone !== game.currentZoneId || epoch !== battleVisualState.lootEpoch) {
             clear(); zone = game.currentZoneId; epoch = battleVisualState.lootEpoch; seen = new WeakSet();
         }
-        if (!canvas && !settlement && !battleFx.some(fx => fx.loot)) return false;
+        if (!canvas && !battleFx.some(fx => fx.loot)) return false;
         if (!canvas) mount(source);
-        resize(); consume(now, projection);consumeSettlement(projection);
+        resize(); projectEntries(projection); consume(now, projection);
         return hasPresentation();
     }
 
@@ -381,9 +345,5 @@ const battleGroundLoot = (() => {
         return next;
     }
 
-    window.addEventListener('project-idle:exploration-loot-claimed',settle);
-    document.addEventListener('click',event=>{
-        if(event.target.closest('#btn-exploration-loot-skip'))endSettlement(true);
-    });
     return Object.freeze({ actorContext });
 })();

@@ -1,5 +1,7 @@
 const levelProgression = (() => {
     const ordinaryCurrencies = new Set(LEVEL_PROGRESSION.ordinaryCurrencies);
+    const penaltyDecays = Object.freeze({ experience: LEVEL_PROGRESSION.experienceDecay,
+        equipment: LEVEL_PROGRESSION.equipmentLootDecay, loot: LEVEL_PROGRESSION.lootDecay });
     function interpolate(value, reverse = false) {
         const points = LEVEL_PROGRESSION.tierAnchors;
         const x = Number(reverse), y = 1 - x;
@@ -25,7 +27,7 @@ const levelProgression = (() => {
     }
     function penalty(playerLevel, enemyLevel, kind) {
         const free = kind === 'experience' ? LEVEL_PROGRESSION.experienceGap : LEVEL_PROGRESSION.lootGap;
-        const decay = kind === 'experience' ? LEVEL_PROGRESSION.experienceDecay : LEVEL_PROGRESSION.lootDecay;
+        const decay = penaltyDecays[kind] ?? penaltyDecays.loot;
         return Math.exp(-Math.max(0, playerLevel - enemyLevel - free) * decay);
     }
     function rewardMultiplier(zone, enemy, playerLevel, kind = 'loot') {
