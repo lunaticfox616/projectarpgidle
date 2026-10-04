@@ -5922,7 +5922,7 @@ function createEnemy(zone, marker, groupIndex) {
     hp = Math.max(1, Math.floor(hp * getMonsterLoopPowerScale(zone, 'hp')));
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
-    let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
+    let enemyEle = pickEnemyElement(zone, enemyElePool, isBoss);
     enemyEle = cosmosRouteRuntime.enemyElement(zone, isBoss, enemyEle);
     let name = `${zone.name.split(':')[0]} 추종자`;
     if (zone.type === 'outsideChaos') {
@@ -6022,7 +6022,7 @@ function createEnemy(zone, marker, groupIndex) {
         regenSuppressPct: 0,
         penetration: (isDeepChaos ? 0 : baselineResistancePressure) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
         resistanceReduction: isDeepChaos ? baselineResistancePressure : 0,
-        hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
+        hybridElement: (game.season || 1) >= 3 ? ((isBoss && getChaosBossElements(zone)) || [null, rndChoice(CHAOS_BOSS_ELEMENTS)])[1] : null,
         ailmentChance: ((game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0) + (cosmosMods && cosmosMods.ailmentChanceBonus ? cosmosMods.ailmentChanceBonus : 0),
         firstHitGuard: Math.max((game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0, cosmosMods && cosmosMods.firstHitGuard ? cosmosMods.firstHitGuard : 0),
         hitRateGuard: (game.season || 1) >= 5 ? ((trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0)) : 0,
@@ -6271,6 +6271,25 @@ function getMapBossPatternMultiplier(bossMods, zone) {
         : getMaximumBossPatternDamageMultiplierForLoop(game.season || 1);
 }
 
+// A chaos depth's boss always strikes with the same element and adds the next one (2026-10-04): a random element decided a chaos 20
+// clear more than the build did (a build with low chaos resistance lived or died by the draw). Depth d: CHAOS_BOSS_ELEMENTS[d mod 4]
+// then the following one, so chaos 20 is fire with cold and the map estimate names the two resistances to prepare.
+const CHAOS_BOSS_ELEMENTS = Object.freeze(['fire', 'cold', 'light', 'chaos']);
+/** [main, added] damage elements of a chaos depth's boss; null for any other zone. */
+function getChaosBossElements(zone) {
+    if (!zone || zone.type !== 'abyss') return null;
+    const depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    return [CHAOS_BOSS_ELEMENTS[depth % 4], CHAOS_BOSS_ELEMENTS[(depth + 1) % 4]];
+}
+
+/** An ocean current fixes the element, a chaos depth's boss its own (getChaosBossElements); otherwise one from the pool. */
+function pickEnemyElement(zone, pool, isBoss) {
+    if (hasOceanCurrent(zone, 'cold_current')) return 'cold';
+    if (hasOceanCurrent(zone, 'warm_current')) return 'fire';
+    const chaosBoss = isBoss ? getChaosBossElements(zone) : null;
+    return chaosBoss ? chaosBoss[0] : rndChoice(pool);
+}
+
 function getMapEstimateDamageElements(zone) {
     const cosmosBoss = zone && zone.type === 'cosmos' && typeof getCosmosGalaxyBossMechanic === 'function'
         ? getCosmosGalaxyBossMechanic(zone.cosmosNodeId) : null;
@@ -6404,7 +6423,7 @@ function estimateMapZonePowerRequirements(zone) {
         ehp: Math.max(1, Math.round(threat.threatWindow)),
         peakHit: Math.max(1, Math.round(threat.peakHit)),
         resistancePressure: threat.resistancePressure,
-        elements: getMapEstimateDamageElements(zone),
+        elements: getChaosBossElements(zone) || getMapEstimateDamageElements(zone),
         playerDpsMultiplier: 1,
         ...getMapEstimateZonePenalties(zone),
         zoneId: zone.id,

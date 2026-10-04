@@ -84,7 +84,7 @@ function buildMapPowerEstimateHtml(zone) {
     let met = model.meetsRecommendation;
     let environment = buildMapEnvironmentEstimateHtml(model.environment);
     let label = `권장 전투력 ${met ? '달성' : '미달성'}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
 }
 
 function buildMapEnvironmentEstimateHtml(environment) {
@@ -102,17 +102,25 @@ function buildMapEnvironmentTooltipHtml(target) {
         <div class="tooltip-line tooltip-muted">흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
 }
 
+const MAP_ESTIMATE_ELEMENT_NAMES = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
+/** A chaos depth's boss has fixed elements (getChaosBossElements): name them so the player knows which resistances to raise. */
+function buildMapBossElementLine(keys) {
+    const names = String(keys || '').split(',').map(key => MAP_ESTIMATE_ELEMENT_NAMES[key]).filter(Boolean);
+    return names.length ? `<div class="tooltip-line">보스 피해 속성: ${names.join(' · ')}</div>` : '';
+}
+
 function showMapPowerEstimateTooltip(event) {
     let target = event.currentTarget;
     let rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     let x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : (rect ? rect.left + rect.width / 2 : 0);
     let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
     let data = target ? target.dataset : {};
-    let elementLabel = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[data.limitingElement] || '취약 속성';
+    let elementLabel = MAP_ESTIMATE_ELEMENT_NAMES[data.limitingElement] || '취약 속성';
     let html = `<div class="tooltip-title">권장 전투력</div>
         <div class="tooltip-line">${escapeHTML(data.levelDetail)}</div>
         <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
         <div class="tooltip-line">내 EHP 약 ${formatApproximateMapPower(data.playerEhp)} / 권장 약 ${formatApproximateMapPower(data.recommendedEhp)}</div>
+        ${buildMapBossElementLine(data.bossElements)}
         <div class="tooltip-line tooltip-muted">${elementLabel} 기준 · 회피 주기와 직격 생존 하한 반영</div>
         <div class="tooltip-line tooltip-muted">중독·출혈 등 지속 피해와 장기전의 회복 능력은 포함하지 않습니다.</div>${buildMapEnvironmentTooltipHtml(target)}`;
     showInfoTooltipHtml(x, y, html, '#6ba7d8');
