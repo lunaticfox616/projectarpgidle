@@ -1,41 +1,58 @@
-/* 그루터기 함 화면 (js/stump-box-ui.js).
-   판 그림은 256도트 원본의 2배(assets/ui/grove/stump-board-v1.png, 512px)이고, 칸 격자는 그림의 비율
-   (시작 104·106, 칸 54, 틈 8 / 512 — assets/ui/grove/manifest.json)로 겹친다. 좁은 화면에서는 판 전체를 같은 비율로 줄인다.
+/* 그루터기 함 화면 (js/stump-box-ui.js, 끌기 · 툴팁 js/stump-box-drag-ui.js).
+   판 그림은 256도트 원본의 2배(assets/ui/grove/stump-board-v1.png, 512px)다. 그림 둘레 32~36px는 투명해서, 상자는 그림의
+   보이는 부분(32,32에서 444px 정사각형)만 잡고 그림은 ::before로 그 바깥까지 그린다(판 위아래의 빈 띠가 사라지고 칸이 커진다).
+   칸 격자는 그림의 비율(시작 104·106, 칸 54, 틈 8 — assets/ui/grove/manifest.json)을 444px 기준으로 바꿔 겹친다.
    칸·보관함 단추는 공용 단추 모양(components 층)을 쓰지 않으므로 features 층에서 모양을 다시 정한다. */
 @layer features {
   #tab-stump { container-type: inline-size; }
-  .stump-rules { margin: 0 0 10px; padding-left: 16px; color: var(--px-copy-muted, #a39883); font-size: 12px; line-height: 1.5; }
-  .stump-rules li { margin: 1px 0; }
-  /* 휴대폰(한 열): 고른 칸 · 아이템의 설명과 단추를 판 바로 아래에(조합창 · 요약보다 먼저) */
+  /* 제목 줄: 제목이 남는 너비를 채우고, 오른쪽 끝에 색 개수 · 열린 칸 · 규칙(?)을 둔다. 좁으면 아래 줄로 내려간다 */
+  .stump-title-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 12px; margin-bottom: 10px; }
+  .stump-title-row > h2 { flex: 1 1 8em; min-width: 0; margin: 0; }
+  .stump-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 4px; }
+  .stump-box-head .stump-line { margin: 0; color: var(--px-copy-muted, #a39883); }
+  #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
+  /* 한 열(휴대폰 · 좁은 창): 판 → 고른 것 → 시작 선물 → 보관함(판 가까이 있어야 끌어 옮기기 쉽다) → 조합창 → 합계 */
+  .stump-box-screen { display: flex; flex-direction: column; gap: 10px; }
+  .stump-box-pane { display: contents; }
   #stump-box-board { order: 0; }
   #stump-box-detail { order: 1; }
-  #stump-box-summary { order: 2; }
-  #stump-cube { order: 3; }
-  .stump-box-screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
-  .stump-box-pane { display: grid; gap: 10px; min-width: 0; }
+  #stump-box-starter { order: 2; }
+  #stump-box-storage { order: 3; }
+  #stump-cube { order: 4; }
+  #stump-box-summary { order: 5; }
+  #stump-box-unseal { order: 6; }
   .stump-box-summary, .stump-box-detail, .stump-box-starter, .stump-box-storage, .stump-box-unseal, .stump-cube {
     padding: 8px 10px;
     border: 2px solid #050404;
     background: rgba(18, 16, 13, .82);
     box-shadow: inset 0 0 0 1px #3b2f1e;
   }
+  /* 고른 것이 없으면 설명 칸은 자리를 차지하지 않는다(마우스를 올리면 같은 내용이 툴팁으로 나온다) */
+  .stump-box-detail:empty { display: none; }
   .stump-box-starter:empty, .stump-box-unseal:empty { display: none; }
 
   /* 판 */
   .stump-board {
     position: relative;
-    width: min(512px, 100%);
+    width: min(444px, 100%);
     aspect-ratio: 1;
     margin: 0 auto;
+  }
+  /* 투명한 둘레(왼쪽 · 위 32px, 오른쪽 · 아래 36px)를 상자 밖으로: 32/444, 36/444 */
+  .stump-board::before {
+    content: '';
+    position: absolute;
+    inset: -7.2072% -8.1081% -8.1081% -7.2072%;
     background: url('../assets/ui/grove/stump-board-v1.png') 0 0 / 100% 100% no-repeat;
     image-rendering: pixelated;
+    pointer-events: none;
   }
   .stump-board-grid {
     position: absolute;
-    left: 20.3125%;
-    top: 20.703125%;
-    width: 58.984375%;
-    height: 58.984375%;
+    left: 16.2162%;
+    top: 16.6667%;
+    width: 68.018%;
+    height: 68.018%;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: repeat(5, minmax(0, 1fr));
@@ -62,6 +79,8 @@
   /* 잠긴 칸의 해금 순번: 어두운 청동(대비 2.6:1)은 읽기 어려워 흐린 양피지색(대비 약 6:1) */
   .stump-cell-lock { color: #a8977a; font-size: 12px; }
   #tab-stump .stump-cell.is-target { background: rgba(243, 210, 140, .12); box-shadow: inset 0 0 0 2px rgba(243, 210, 140, .55); }
+  /* 찬 칸에 놓으면 자리를 바꾼다: 빈 칸보다 옅은 점선 테두리 */
+  #tab-stump .stump-cell.is-swap { outline: 1px dashed rgba(243, 210, 140, .6); outline-offset: -3px; }
   #tab-stump .stump-cell.is-resonant { box-shadow: inset 0 0 0 2px var(--stump-tone), inset 0 0 12px color-mix(in srgb, var(--stump-tone) 45%, transparent); }
   #tab-stump .stump-cell.is-selected { box-shadow: inset 0 0 0 2px #f3d28c, 0 0 0 2px #050404; }
   #tab-stump .stump-cell.is-suppressed img { filter: grayscale(.6) brightness(.78); }
@@ -119,19 +138,24 @@
 
   /* 시작 선물·보관함 */
   .stump-box-starter h3, .stump-storage-head h3 { margin: 0; font-size: 15px; }
-  .stump-starter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
-  .stump-starter-row > span { min-width: 3em; font-size: 12px; }
-  #tab-stump .stump-starter-row button { display: inline-flex; align-items: center; gap: 4px; color: var(--stump-tone); }
-  .stump-starter-row img { width: 32px; height: 32px; image-rendering: pixelated; }
+  .stump-box-starter h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  /* 씨앗 · 수액 한 줄씩: 이름 + 색 단추 넷(그림 위, 글자 아래) */
+  .stump-starter-row { display: grid; grid-template-columns: 2.6em repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; margin-top: 6px; }
+  .stump-starter-row > span { font-size: 12px; }
+  #tab-stump .stump-starter-row button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-width: 0; padding: 3px 2px; color: var(--stump-tone); font-size: 12px; line-height: 1.1; }
+  .stump-starter-row img { width: 24px; height: 24px; image-rendering: pixelated; }
   .stump-storage-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
-  .stump-storage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 4px; margin-top: 8px; }
+  /* 열 수는 화면 너비에 맞춰 stump-box-ui.js가 정한다(--stump-columns). 가진 것 + 줄 끝까지 + 빈 줄 하나만 그린다 */
+  .stump-storage-grid { display: grid; grid-template-columns: repeat(var(--stump-columns, 8), minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
+  .stump-storage-grid.is-target { outline: 1px dashed rgba(243, 210, 140, .6); outline-offset: 2px; }
   .stump-storage-grid > .stump-hint { grid-column: 1 / -1; }
   #tab-stump .stump-item {
     position: relative;
     display: grid;
     place-items: center;
     min-width: 0;
-    min-height: 44px;
+    min-height: 0;
     aspect-ratio: 1;
     padding: 0;
     border: 2px solid #050404;
@@ -139,9 +163,9 @@
     background: #1a1510;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stump-tone) 40%, #3b2f1e);
   }
-  #tab-stump .stump-item img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+  #tab-stump .stump-item img { width: 72%; height: 72%; max-width: 32px; max-height: 32px; image-rendering: pixelated; pointer-events: none; }
   #tab-stump .stump-item.is-selected { box-shadow: inset 0 0 0 2px #f3d28c; }
-  #tab-stump .stump-slot { min-height: 44px; aspect-ratio: 1; border: 2px solid #050404; background: #110d09; box-shadow: inset 0 0 0 1px #272016; }
+  #tab-stump .stump-slot { aspect-ratio: 1; border: 2px solid #050404; background: #110d09; box-shadow: inset 0 0 0 1px #272016; }
 
   /* 부적(색 없는 계열): 희귀도 색 글자, 조건부 줄은 따로 물들인다 */
   .stump-talisman-rarity { margin: 4px 0 0; color: var(--stump-tone); font-size: 12px; }
@@ -152,15 +176,21 @@
   .stump-talisman-unseal { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
   /* 조합창(3×3): 판 바로 아래. 장비는 인벤토리 칸 크기대로 여러 칸을 차지하고, 빈 칸을 누르면 재료 고르기가 열린다 */
-  .stump-cube h3 { margin: 0 0 6px; font-size: 15px; }
+  /* 칸 격자는 왼쪽, 제목 · 상태 · 단추는 오른쪽에 쌓아 높이를 격자 하나로 줄인다. 조합법 목록은 아래 전체 폭 */
+  .stump-cube { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; column-gap: 10px; }
+  .stump-cube > * { grid-column: 2; }
+  .stump-cube > .stump-cube-grid { grid-column: 1; grid-row: 1 / span 4; }
+  .stump-cube > .stump-cube-book { grid-column: 1 / -1; }
+  .stump-cube h3 { margin: 0 0 4px; font-size: 15px; }
+  .stump-cube .stump-actions { margin-top: 4px; }
   .stump-cube-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 4px;
-    width: min(240px, 100%);
+    width: min(150px, 42vw);
     aspect-ratio: 1;
-    margin: 0 auto 6px;
+    margin: 0;
     padding: 6px;
     border: 2px solid #050404;
     background: #0f0c09;
@@ -193,20 +223,43 @@
   .stump-cube-candidate { display: flex; align-items: center; gap: 6px; min-height: 44px; text-align: left; color: var(--cube-tone); }
   .stump-cube-candidate img { flex: none; width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
 
-  /* 넓은 창: 왼쪽에 판·요약, 오른쪽에 설명·시작 선물·보관함(휴대폰은 구역 단추로 판/보관함을 오간다) */
+  /* 넓은 창: 왼쪽 열은 판과 바로 아래 조합창(사용자 요청), 오른쪽 열은 고른 것 · 시작 선물 · 보관함 · 합계. 두 열은 따로
+     쌓여서 한쪽이 길어도 다른 쪽에 빈 줄이 생기지 않는다(예전 격자 영역은 줄 높이를 나눠 판과 조합창 사이가 크게 비었다). */
   @container (min-width: 761px) {
-    .stump-box-screen {
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-      grid-template-areas: "board detail" "board starter" "board storage" "cube storage" "cube unseal" "summary unseal";
-    }
-    .stump-box-pane { display: contents; }
-    #stump-box-board { grid-area: board; }
-    #stump-cube { grid-area: cube; }
-    #stump-box-summary { grid-area: summary; }
-    #stump-box-detail { grid-area: detail; }
-    #stump-box-starter { grid-area: starter; }
-    /* 보관함은 맡은 칸을 끝까지 채운다 — 왼쪽(판 · 조합창)이 더 길면 보관함과 부적 풀기 사이에 빈 틈이 생겼다(검토 4차) */
-    #stump-box-storage { grid-area: storage; align-self: stretch; }
-    #stump-box-unseal { grid-area: unseal; }
+    .stump-box-screen { display: grid; grid-template-columns: minmax(280px, 390px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .stump-box-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   }
+
+  /* 끌어 옮기기(js/stump-box-drag-ui.js): 길게 누르기 표시, 끄는 중인 원래 자리, 놓을 자리, 손끝을 따라오는 그림 */
+  #tab-stump :is(.stump-board, .stump-storage-grid) { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  #tab-stump [data-stump-drag] { cursor: grab; }
+  #tab-stump.is-stump-dragging, #tab-stump.is-stump-dragging [data-stump-drag] { cursor: grabbing; }
+  #tab-stump [data-stump-drag].is-held { box-shadow: inset 0 0 0 2px #f3d28c; }
+  #tab-stump [data-stump-drag].is-dragging img { opacity: .35; }
+  #tab-stump .is-drop-ok { box-shadow: inset 0 0 0 2px #9fd46a; background: rgba(159, 212, 106, .14); }
+  #tab-stump .stump-storage-grid.is-drop-ok { outline: 2px solid #9fd46a; outline-offset: 2px; box-shadow: none; background: none; }
+  #tab-stump .is-drop-bad { box-shadow: inset 0 0 0 2px #e0715f; }
+  .stump-drag-ghost {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 13100;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    border: 2px solid #050404;
+    background: color-mix(in srgb, var(--stump-tone) 18%, #1a1510);
+    box-shadow: inset 0 0 0 1px var(--stump-tone), 0 4px 10px rgba(0, 0, 0, .55);
+    pointer-events: none;
+  }
+  .stump-drag-ghost img { width: 34px; height: 34px; image-rendering: pixelated; }
+
+  /* 툴팁(#info-tooltip, 탭 밖): 자라는 정도는 흐리게, 다 자라면 금빛, 주는 능력치는 밝은 잎색, 멈춤은 붉게 */
+  .stump-tip-growth { color: var(--px-copy-muted, #a39883); }
+  .stump-tip-growth.is-ripe, .stump-tip-status.is-good { color: #d9c46a; }
+  .stump-tip-yield { color: #b4e07e; }
+  .stump-tip-status.is-bad { color: #e0715f; }
+  .stump-tip-graft { color: #9fc9e0; }
 }

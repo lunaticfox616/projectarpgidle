@@ -306,6 +306,9 @@ const shown = awake({ name: '보여 줄 부적', rarity: 'rare', lines: [line('p
 const detail = run(`stumpTalismanUi.detailHtml(stumpBox.itemById(game, ${shown}), 12)`);
 assert(detail.includes('희귀 부적') && detail.includes('8초마다 적 하나를 저주: 6초 동안 원소 저항 −9') && detail.includes('talisman-wax'), 'detail: rarity, lines, wax');
 assert(!detail.includes('talisman-discard'), 'a placed talisman cannot be thrown away from the detail');
+const hover = run(`stumpBoxUi.tipFor({ dataset: { stumpTip: 'cell', stumpDrag: '${shown}', stumpDropCell: '12' } }).html`);
+assert(hover.includes('보여 줄 부적') && hover.includes('희귀 부적') && hover.includes('8초마다 적 하나를 저주') && !hover.includes('data-stump-action'),
+    'hovering a talisman shows its name, rarity and lines, without the panel buttons');
 assert(run('stumpTalismanUi.summaryHtml()').includes('깨어난 부적'));
 awake({ name: '함성 부적', rarity: 'magic', lines: [{ kind: 'condition', id: 'cry_battlefield', value: 80 }] }, 6);
 assert(run('stumpTalismanUi.summaryHtml()').includes('보스와 싸우는 동안 전장의 함성(위력 80%): 피해 +12.8%'),

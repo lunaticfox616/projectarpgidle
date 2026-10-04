@@ -716,23 +716,20 @@
     </div>
 
     <div id="tab-stump" class="tab-content">
-        <h2>그루터기 함</h2>
-        <ul class="stump-rules">
-            <li>판에 놓인 씨앗과 수액만 처치로 자랍니다. 같은 색 셋이 다 자라면 공명 +10%.</li>
-            <li>화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.</li>
-            <li>부적은 색이 없고 판에서 처치로 깨어납니다.</li>
-            <li>루프 18부터 칸을 접붙여 그 칸에 놓인 것의 효과를 키웁니다. 칸 왼쪽 위 숫자가 단계입니다.</li>
-        </ul>
+        <div class="stump-title-row">
+            <h2>그루터기 함</h2>
+            <div id="stump-box-head" class="stump-box-head"></div>
+        </div>
         <div class="stump-box-screen">
             <section id="stump-board-section" class="stump-box-pane">
                 <div id="stump-box-board"></div>
                 <div id="stump-cube" class="stump-cube"></div>
-                <div id="stump-box-summary" class="stump-box-summary"></div>
-                <div id="stump-box-detail" class="stump-box-detail"></div>
             </section>
             <section id="stump-storage-section" class="stump-box-pane">
+                <div id="stump-box-detail" class="stump-box-detail"></div>
                 <div id="stump-box-starter" class="stump-box-starter"></div>
                 <div id="stump-box-storage" class="stump-box-storage"></div>
+                <div id="stump-box-summary" class="stump-box-summary"></div>
                 <div id="stump-box-unseal" class="stump-box-unseal"></div>
             </section>
         </div>
@@ -1517,7 +1514,7 @@
 <script defer src="js/gem-drop-rewards.js?v=20260922-1"></script>
 <script defer src="js/act-exploration-loot.js?v=20260930-11&aux=20260930-3&aux=20260930-4&aux=20260930-8&aux=20261001-1&aux=20261001-3&aux=20261001-16"></script>
 <script defer src="js/act-exploration-state.js?v=20260930-15&aux=20261002-20&maps=20261002-1&sight=20261004-1"></script>
-<script defer src="js/stump-box.js?v=20260930-6&aux=20260930-8&aux=20261001-18"></script>
+<script defer src="js/stump-box.js?v=20260930-6&aux=20260930-8&aux=20261001-18&drag=20261004-1"></script>
 <script defer src="js/item-appraisal.js?v=20260929-1&aux=20261002-1"></script>
 <script defer src="js/player-stall.js?v=20260929-1&aux=20261002-1"></script>
 <script defer src="js/level-progression.js?v=20260911-1&requirements-review=20260911-1&unique-equipment=20260913-1&experience-curve=20260914-1&skill-delta2=20260930-8"></script>
@@ -1648,14 +1645,15 @@
 <script defer src="js/equipment-loadouts-ui.js?v=20260817-loadout1&review=20260817-1&aux=20261001-2&realm=20261003-1"></script>
 <script defer src="js/playtest-telemetry.js?v=20260816-telemetry-separation1&login-idle=20260908-1"></script>
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1&display=20260906-1&aux=20261001-2&aux=20261001-14&dbsave=20261003-1"></script>
-<script defer src="js/stump-talisman-ui.js?v=20260930-6&aux=20260930-7&aux=20261002-3&review=20261003-1"></script>
-<script defer src="js/stump-cube-ui.js?v=20260930-1&aux=20261002-3&dialog=20261003-1"></script>
-<script defer src="js/stump-box-ui.js?v=20260930-6&aux=20260930-8&aux=20261001-18&aux=20261001-19&aux=20261001-20&aux=20261002-3&review=20261003-1"></script>
+<script defer src="js/stump-talisman-ui.js?v=20260930-6&aux=20260930-7&aux=20261002-3&review=20261003-1&drag=20261004-1"></script>
+<script defer src="js/stump-cube-ui.js?v=20260930-1&aux=20261002-3&dialog=20261003-1&drag=20261004-1"></script>
+<script defer src="js/stump-box-ui.js?v=20260930-6&aux=20260930-8&aux=20261001-18&aux=20261001-19&aux=20261001-20&aux=20261002-3&review=20261003-1&drag=20261004-1"></script>
+<script defer src="js/stump-box-drag-ui.js?v=20261004-1"></script>
 <script defer src="js/player-stall-ui.js?v=20260929-1&aux=20261002-1&aux=20261002-2"></script>
 <script defer src="js/gem-selection-ui.js?v=20260909-1&equip-feedback=20260914-1&skill-delta2=20260930-4&aux=20261001-4&aux=20261001-19"></script>
 <script defer src="js/gem-core-forge-ui.js?v=20260914-1&gem-value=20260915-1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&mobile=20260907-1&mobile-review=20260907-2&craft-gem-review=20260914-1&research-review=20260914-1&gem-forge=20260914-1&skill-delta2=20260930-4&aux=20261001-17&aux=20261001-19"></script>
-<script defer src="js/section-navigation-ui.js?v=20260907-1&jewel-workspace=20260908-1&talisman-workspace=20260908-1&crafting-workspace=20260914-1&aux=20260930-3&aux=20260930-5&aux=20260930-8"></script>
+<script defer src="js/section-navigation-ui.js?v=20260907-1&jewel-workspace=20260908-1&talisman-workspace=20260908-1&crafting-workspace=20260914-1&aux=20260930-3&aux=20260930-5&aux=20260930-8&stump=20261004-1"></script>
 <script defer src="js/equipment-sockets-ui.js?v=20260930-1&review=20261003-1&dialog=20261003-1"></script>
 <script defer src="js/equipment-aux-ui.js?v=20260930-1"></script>
 <script defer src="js/character-stats-ui.js?v=20260908-1&affix-balance=20260910-1&aux=20261002-7"></script>

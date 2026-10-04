@@ -55,6 +55,25 @@ assert.deepStrictEqual(json(`[stumpBox.itemById(game, ${seed}).xp, stumpBox.item
 assert.strictEqual(run(`stumpBox.place(game, ${seed}, 7) && stumpBox.place(game, ${sap}, 17)`), true, 'moving apart (top and bottom of the cross) ends it at once');
 assert.strictEqual(run('stumpBox.evaluate(game).suppressed.size'), 0);
 
+// ── 옮기기(누르기·끌기 공통): 빈 칸이면 옮기고, 찬 칸이면 자리를 바꾸고, 보관함에서 찬 칸으로 오면 원래 것은 보관함으로 ─────
+assert.strictEqual(run(`stumpBox.move(game, ${seed}, 17)`), true, 'moving onto an occupied cell trades places');
+assert.deepStrictEqual(json('[game.stumpBox.board[17], game.stumpBox.board[7]]'), [seed, sap]);
+assert.strictEqual(run(`stumpBox.move(game, ${seed}, 17)`), false, 'a move onto its own cell changes nothing');
+assert.strictEqual(run(`stumpBox.move(game, ${seed}, 0)`), false, 'closed cells take nothing');
+const loose = run('stumpBox.createItem(game, { family: "seed", color: "chaos", roll: 1 }).id');
+assert.strictEqual(run(`stumpBox.move(game, ${loose}, 7)`), false, 'a seed without a path still needs one');
+assert.deepStrictEqual(json('game.stumpBox.board.slice(7, 8)'), [sap], 'a refused move leaves the board as it was');
+assert.strictEqual(run(`stumpBox.move(game, ${loose}, 7, "fruit")`), true);
+assert.deepStrictEqual(json('[game.stumpBox.board[7], stumpBox.storage(game).map(item => item.id)]'), [loose, [sap]],
+    'from storage onto an occupied cell sends the occupant to storage');
+assert.strictEqual(json('game.stumpBox.board.filter(id => id !== null).length'), 2, 'no item is ever on two cells');
+run('game.woodsmanBuildLock = true;');
+assert.strictEqual(run(`stumpBox.move(game, ${sap}, 7)`), false, 'the woodsman fight locks moves too');
+run('game.woodsmanBuildLock = false;');
+// 뒤 검사들이 쓰는 배치(씨앗 7, 수액 17)로 되돌린다.
+assert.strictEqual(run(`stumpBox.unplace(game, ${loose}) && stumpBox.discard(game, ${loose}) && stumpBox.move(game, ${seed}, 7) && stumpBox.move(game, ${sap}, 17)`), true);
+assert.deepStrictEqual(json('[game.stumpBox.board[7], game.stumpBox.board[17], stumpBox.storage(game).length]'), [seed, sap, 0]);
+
 // ── 처치 성장: 판 위 미성숙품만, 보통 1 · 정예 6 · 보스 30 ────────────────────────────
 run(`stumpBox.setPath(game, ${seed}, "flower"); stumpBox.onEnemyKilled(game, {}); stumpBox.onEnemyKilled(game, { isElite: true });`);
 assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).xp`), 7);
