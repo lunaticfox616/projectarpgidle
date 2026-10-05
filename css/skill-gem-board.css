@@ -1,0 +1,263 @@
+/* 스킬 젬 보드와 고르기 목록 (js/skill-gem-board-ui.js, 타일 js/ui.js renderAttackGemCard, 상세 js/gem-selection-ui.js).
+   가운데 주 공격 젬(속성색 빛 · 금빛 팔각 테) · 둘레 각인 5칸 · 이동/소환 칸, 보조 젬 칸 줄(청록 보석), 그 아래 작은 타일 목록.
+   칸 · 타일은 공용 단추 모양(components 층)을 쓰지 않으므로 features 층에서 모양을 다시 정한다(그루터기함과 같은 방식).
+   속성색 --gem-accent는 #tab-skills .element-* (ui-game-overhaul.css)가 정한다. */
+@layer features {
+#skill-tab-equip {
+  --board-ink: #080508;
+  --board-gold: var(--px-gold, #c69f5e);
+  --board-gold-hi: var(--px-gold-bright, #e0c283);
+  --board-bronze: #845f42;
+  --board-copy: var(--px-copy, #dbd0b9);
+  --board-muted: var(--px-copy-muted, #9d927d);
+  --board-support: #6fd3b0;
+  --board-support-deep: #0f2a24;
+  --board-read: var(--font-pixel-read, 'Galmuri14', sans-serif);
+  --board-label: var(--font-pixel, 'MulmaruMono', sans-serif);
+}
+.skill-board-layout { display: grid; grid-template-columns: minmax(300px, 372px) minmax(0, 1fr); gap: 10px; align-items: start; }
+.skill-board-column { display: grid; gap: 10px; min-width: 0; }
+:is(.skill-board, .support-slots, .skill-picker) {
+  border: 1px solid var(--board-ink);
+  background: linear-gradient(180deg, rgba(236, 196, 118, .035), transparent 40%), #17141b;
+  box-shadow: inset 0 0 0 1px #2e2731, inset 0 1px 0 rgba(236, 196, 118, .08);
+}
+
+/* ── 보드: 머리 줄 · 무대(빛 · 고리 · 팔각 핵 · 각인) · 위성 칸 ───────────────────────────── */
+.skill-board { padding: 10px 10px 12px; }
+.skill-board-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 0 2px; }
+.skill-board-head > span { color: var(--board-gold); font: 12px var(--board-label); }
+.skill-board-head > b { min-width: 0; overflow: hidden; color: #fff; font: 400 16px var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
+.skill-board-head > small { color: var(--board-gold-hi); font: 12px var(--board-label); }
+.skill-board-head > small.is-boosted { color: #8fe0a8; }
+.skill-board-head > em { margin-left: auto; color: var(--board-muted); font: normal 12px var(--board-label); white-space: nowrap; }
+.skill-board-stage {
+  --gem-accent: #a7b1bc;
+  position: relative;
+  height: 150px;
+  margin-top: 6px;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--gem-accent) 26%, transparent) 0, transparent 62px);
+}
+.skill-board-stage.has-ring { height: 262px; }
+/* 각인 고리: 가는 금빛 원 두 겹. 도트 스킨은 모서리를 모두 각지게 하므로(border-radius: 0) 테두리 대신 원형 그러데이션으로 긋는다. */
+.skill-board-stage.has-ring::before { content: ''; position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; transform: translate(-50%, -50%); pointer-events: none;
+  background: radial-gradient(circle, transparent 95px, rgba(198, 159, 94, .4) 95.5px, rgba(198, 159, 94, .4) 96.5px, transparent 97px, transparent 107px, rgba(198, 159, 94, .14) 107.5px, rgba(198, 159, 94, .14) 108.5px, transparent 109px); }
+/* 팔각 핵: 바깥 금빛 테(배경) + 안쪽 어두운 보석 면(::before), 그림은 그 위 */
+.skill-board-core {
+  position: absolute; left: 50%; top: 50%; z-index: 2;
+  display: grid; place-items: center;
+  width: 96px; height: 96px; min-width: 0; min-height: 0; padding: 0;
+  border: 0; border-radius: 0;
+  background: linear-gradient(160deg, #f3d99d, var(--board-gold) 38%, #6e4c33 70%, #c69f5e);
+  clip-path: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gem-accent) 45%, transparent));
+  transition: filter .15s ease;
+}
+.skill-board-core::before {
+  content: ''; position: absolute; inset: 3px;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gem-accent) 34%, #241b1c), #0d0a0e 72%);
+  clip-path: inherit;
+}
+.skill-board-core:hover, .skill-board-core:focus-visible { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--gem-accent) 70%, transparent)) brightness(1.08); }
+.skill-board-core-art { position: relative; z-index: 1; width: 64px; height: 64px; }
+.skill-board-core-art img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+#skill-tab-equip[data-picking="active"] .skill-board-core { animation: skillBoardPick 1.6s ease-in-out infinite; }
+@keyframes skillBoardPick { 50% { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--gem-accent) 80%, transparent)) brightness(1.1); } }
+
+/* 각인 마름모: 찬 칸(창공빛) · 빈 칸(금빛 점선 +) · 다음 칸(희미한 자물쇠) · 잠긴 칸(어두운 자물쇠) */
+/* 칸 자체가 44px 정사각형(누름 자리, 휴대폰 최소 크기와 같다)이고 마름모는 그 가운데 */
+.skill-board-engrave {
+  position: absolute; left: calc(50% + var(--x) - 22px); top: calc(50% + var(--y) - 22px); z-index: 3;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; overflow: visible; border: 0; background: none; box-shadow: none; cursor: pointer;
+}
+.skill-board-engrave > i {
+  position: absolute; left: 3px; top: 3px; width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border: 1px solid var(--board-ink);
+  background: linear-gradient(135deg, #2a3150, #161625);
+  box-shadow: inset 0 0 0 1px #7aa4d6, inset 0 0 0 2px #10121c, 0 0 10px rgba(122, 164, 214, .35);
+  transform: rotate(45deg);
+}
+.skill-board-engrave > i > b { color: #e7f0ff; font: 400 15px/1 var(--board-read); text-shadow: 1px 1px 0 #000; transform: rotate(-45deg); }
+/* 각인 그림(js/ui.js renderSkyEnhancementIcon): 11도트를 2배로, 마름모 회전을 되돌려 똑바로 */
+.skill-board-engrave > i > b > .sky-engrave-icon { display: block; width: 22px; height: 22px; }
+.skill-board-engrave.is-group-crafted > i { background: linear-gradient(135deg, #4a3518, #1e160d); box-shadow: inset 0 0 0 1px #d9a650, inset 0 0 0 2px #1a120a, 0 0 10px rgba(217, 166, 80, .35); }
+.skill-board-engrave.is-group-awakened > i { background: linear-gradient(135deg, #3a2550, #170f22); box-shadow: inset 0 0 0 1px #b48ae6, inset 0 0 0 2px #120c1c, 0 0 10px rgba(180, 138, 230, .4); }
+/* 그림 색: 묶음마다 외곽(m) · 채움(f) 두 색 — 기본 창공빛, 조율 · 탄도 호박빛, 각성 보랏빛 */
+.sky-engrave-icon { image-rendering: pixelated; }
+.sky-engrave-icon .m { fill: #e7f0ff; }
+.sky-engrave-icon .f { fill: #6f9bd6; }
+.sky-engrave-icon.is-crafted .m { fill: #ffe2a3; }
+.sky-engrave-icon.is-crafted .f { fill: #c98d3a; }
+.sky-engrave-icon.is-awakened .m { fill: #f0dcff; }
+.sky-engrave-icon.is-awakened .f { fill: #9a6ad4; }
+.skill-board-engrave > span {
+  position: absolute; left: 50%; top: 45px; transform: translateX(-50%);
+  color: var(--board-copy); font: 12px var(--board-label); white-space: nowrap; text-shadow: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;
+}
+.skill-board-engrave[style*="--y:-"] > span { top: auto; bottom: 45px; }
+.skill-board-engrave.is-open > i { background: rgba(20, 16, 22, .7); box-shadow: none; border: 1px dashed var(--board-gold); }
+.skill-board-engrave.is-open > i > b { color: var(--board-gold-hi); }
+.skill-board-engrave:is(.is-next, .is-lock) > i { background: #141116; box-shadow: none; border: 1px dashed #4a404d; }
+.skill-board-engrave.is-lock > i { border-style: solid; border-color: #29232c; }
+.skill-board-engrave:is(.is-next, .is-lock) > span { color: var(--board-muted); }
+.skill-board-engrave:is(.is-next, .is-lock) > i::before {
+  content: ''; width: 8px; height: 6px; margin-top: 4px; border-radius: 1px; background: #6b5f6e; transform: rotate(-45deg);
+  box-shadow: 0 -5px 0 -2px #141116, 0 -5px 0 0 #6b5f6e;
+}
+.skill-board-engrave.is-lock > i::before { background: #3a333d; box-shadow: 0 -5px 0 -2px #141116, 0 -5px 0 0 #3a333d; }
+.skill-board-engrave:hover > i, .skill-board-engrave:focus-visible > i { filter: brightness(1.25); }
+
+/* 위성 칸: 이동 · 소환 */
+.skill-board-satellites { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 4px; }
+.skill-board-satellite {
+  --gem-accent: #a7b1bc;
+  display: grid; justify-items: center; gap: 2px;
+  width: 74px; min-width: 0; min-height: 0; padding: 0; overflow: visible; border: 0; background: none; box-shadow: none; cursor: pointer;
+}
+.skill-board-satellite > :is(.skill-board-satellite-art, i) {
+  display: grid; place-items: center; width: 50px; height: 50px;
+  border: 1px solid var(--board-ink);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gem-accent) 26%, #221c24), #0e0b10 75%);
+  box-shadow: inset 0 0 0 1px var(--board-bronze), inset 0 -2px 0 color-mix(in srgb, var(--gem-accent) 70%, transparent);
+}
+.skill-board-satellite-art img { width: 38px; height: 38px; object-fit: contain; image-rendering: pixelated; }
+.skill-board-satellite > i { color: var(--board-gold); font: normal 20px var(--board-label); background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); }
+.skill-board-satellite > small { color: var(--board-gold); font: 12px var(--board-label); }
+.skill-board-satellite > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
+.skill-board-satellite.is-empty > b { color: var(--board-muted); }
+.skill-board-satellite:hover > :is(.skill-board-satellite-art, i) { filter: brightness(1.2); }
+#skill-tab-equip:is([data-picking="mobility"], [data-picking="summon"]) .skill-board-satellite[data-board-pick] > :is(.skill-board-satellite-art, i) { opacity: .55; }
+#skill-tab-equip[data-picking="mobility"] .skill-board-satellite[data-board-pick="mobility"] > :is(.skill-board-satellite-art, i),
+#skill-tab-equip[data-picking="summon"] .skill-board-satellite[data-board-pick="summon"] > :is(.skill-board-satellite-art, i) { opacity: 1; outline: 2px solid var(--board-gold-hi); outline-offset: 2px; }
+
+/* ── 보조 젬 칸 줄 ─────────────────────────────────────────────────────────────── */
+.support-slots { padding: 10px; }
+.support-slots-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; }
+.support-slots-head > span { color: var(--board-gold-hi); font: 400 15px var(--board-read); }
+.support-slots-head > em { color: var(--board-muted); font: normal 12px var(--board-label); }
+.support-resonance { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.support-resonance small { color: var(--board-muted); font: 12px var(--board-label); }
+.support-resonance b { color: #f3e3a8; font: 400 15px var(--board-read); }
+.support-resonance-bar { position: relative; width: 64px; height: 7px; border: 1px solid var(--board-ink); background: #0d0b0f; box-shadow: inset 0 0 0 1px #2a2420; }
+.support-resonance-bar > i { position: absolute; inset: 1px auto 1px 1px; max-width: calc(100% - 2px); background: linear-gradient(180deg, #f1dc9c, #a28942); }
+.support-slots-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px 6px; }
+.support-slot {
+  display: grid; justify-items: center; gap: 2px;
+  min-width: 0; min-height: 0; padding: 0; overflow: visible; border: 0; background: none; box-shadow: none; cursor: pointer;
+}
+.support-slot > i {
+  position: relative; display: grid; place-items: center; width: 100%; max-width: 56px; height: 48px;
+  border: 1px solid var(--board-ink);
+  background: linear-gradient(160deg, #1f5446, var(--board-support-deep) 70%);
+  box-shadow: inset 0 0 0 1px #3f9c80, inset 0 1px 0 rgba(180, 255, 228, .25), 0 0 8px rgba(111, 211, 176, .18);
+  color: var(--board-support); font: normal 20px var(--board-label); text-shadow: 1px 1px 0 #000;
+}
+.support-slot > i > em { position: absolute; right: 3px; bottom: 1px; color: var(--board-gold-hi); font: normal 9px var(--board-label); letter-spacing: -1px; }
+.support-slot > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
+.support-slot > small { max-width: 100%; overflow: hidden; color: var(--board-muted); font: 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
+.support-slot.is-empty > i { background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); color: var(--board-gold); }
+.support-slot.is-empty > b, .support-slot.is-lock > b { color: var(--board-muted); }
+.support-slot.is-lock { cursor: default; }
+.support-slot.is-lock > i { background: #141116; box-shadow: none; border: 1px solid #29232c; }
+.support-slot.is-lock > i::before {
+  content: ''; width: 10px; height: 8px; margin-top: 5px; border-radius: 1px; background: #4a414c;
+  box-shadow: 0 -6px 0 -2px #141116, 0 -6px 0 0 #4a414c;
+}
+.support-slot:not(.is-lock):hover > i { filter: brightness(1.2); }
+#skill-tab-equip[data-picking="support"] .support-slots { box-shadow: inset 0 0 0 1px var(--board-gold), inset 0 1px 0 rgba(236, 196, 118, .12); }
+
+/* ── 고르기 목록 ─────────────────────────────────────────────────────────────── */
+.skill-picker { min-width: 0; padding: 10px; }
+.skill-picker-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.skill-picker-head h3 { margin: 0; color: var(--board-gold-hi); font: 400 15px var(--board-read); }
+.skill-picker-count { color: var(--board-muted); font: 12px var(--board-label); }
+.skill-picker-fold {
+  margin-left: auto; min-height: 28px; padding: 3px 9px;
+  border: 1px solid var(--board-ink); border-radius: 0; background: #221e26; box-shadow: inset 0 0 0 1px #3a3140;
+  color: var(--board-muted); font: 12px var(--board-label);
+}
+.skill-picker-fold[aria-pressed="true"] { background: #3a2c22; box-shadow: inset 0 0 0 1px var(--board-gold); color: var(--board-gold-hi); }
+#tab-skills .skill-picker .skill-gem-library { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 6px; }
+#tab-skills .skill-picker .skill-gem-library[hidden] { display: none; }
+#tab-skills .skill-picker .search-filter-panel { margin-bottom: 4px; padding: 6px; border: 1px solid #2c2532; border-radius: 0; background: #120f14; }
+#tab-skills .skill-picker .search-filter-input { min-height: 30px; border: 1px solid var(--board-ink); border-radius: 0; background: #0d0b0f; color: var(--board-copy); font: 12px var(--board-label); }
+#tab-skills .skill-picker .search-action-row button { min-height: 26px; font: 12px var(--board-label); }
+#tab-skills .skill-picker .gem-library-pager { grid-column: 1 / -1; }
+
+/* 타일: 속성색 윗줄 · 그림 뒤 은은한 빛 · 이름 · 한 줄 요약. 장착은 금빛 테와 꼬리표, 조건 미달은 빛을 빼고 붉은 글씨. */
+#tab-skills .gem-tile {
+  --gem-accent: #a7b1bc;
+  position: relative; display: grid; justify-items: center; align-content: start; gap: 3px;
+  min-width: 0; min-height: 0; padding: 12px 6px 8px; overflow: hidden;
+  border: 1px solid #2c2532; border-top: 2px solid color-mix(in srgb, var(--gem-accent) 75%, #2c2532); border-radius: 0;
+  background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gem-accent) 16%, transparent), transparent 46px), linear-gradient(180deg, #211c25, #141117);
+  box-shadow: none; color: var(--board-copy); cursor: pointer; text-align: center;
+  transition: border-color .14s ease, transform .14s ease, filter .14s ease;
+  animation: none;
+}
+#tab-skills .gem-tile:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--gem-accent) 70%, #2c2532); }
+#tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
+#tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
+#tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
+#tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 13px var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
+#tab-skills .gem-tile .gem-usage-state { max-width: 100%; margin: 0; overflow: hidden; color: var(--board-muted); font: 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
+#tab-skills .gem-tile .gem-tile-level { position: absolute; right: 4px; top: 3px; color: var(--board-gold-hi); font: 12px var(--board-label); }
+#tab-skills .gem-tile .gem-tile-level.effective { color: #8fe0a8; }
+#tab-skills .gem-tile .gem-tile-worn { position: absolute; left: 0; top: 0; padding: 1px 5px; background: #3a2c22; box-shadow: inset 0 -1px 0 var(--board-gold); color: var(--board-gold-hi); font: 12px var(--board-label); }
+#tab-skills .gem-tile.active { border-color: var(--board-gold); border-top-color: var(--board-gold-hi); background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gem-accent) 24%, transparent), transparent 48px), linear-gradient(180deg, #2a2219, #16120f); }
+#tab-skills .gem-tile.equipment-blocked { filter: saturate(.35) brightness(.85); }
+#tab-skills .gem-tile.equipment-blocked .gem-usage-state { color: #ff9b92; }
+#tab-skills .gem-tile.is-gem-selected { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; box-shadow: 0 0 14px rgba(224, 194, 131, .3); }
+#tab-skills .gem-tile.starter-gem-tutorial-target { border-color: #78dcff; box-shadow: 0 0 0 1px rgba(120, 220, 255, .55), 0 0 18px rgba(83, 205, 255, .35); animation: starterGemCardPulse 1.15s ease-in-out infinite; }
+#tab-skills .gem-tile .starter-gem-equip-guide { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 1px 0; background: rgba(8, 40, 52, .92); color: #b9edff; font: 12px var(--board-label); }
+#tab-skills .gem-tile.support-gem { --gem-accent: var(--board-support); }
+#tab-skills .gem-tile .gem-tile-support-art {
+  position: relative; display: grid; place-items: center;
+  border: 1px solid var(--board-ink); background: linear-gradient(160deg, #1f5446, var(--board-support-deep) 70%);
+  box-shadow: inset 0 0 0 1px #3f9c80; color: var(--board-support); font: normal 20px var(--board-label);
+}
+#tab-skills .gem-tile .gem-tile-support-art > em { position: absolute; right: 2px; bottom: 0; color: var(--board-gold-hi); font: normal 9px var(--board-label); letter-spacing: -1px; }
+#tab-skills .gem-tile.sealed-gem-card { cursor: default; border-style: dashed; filter: grayscale(.6); }
+#tab-skills .gem-tile .gem-card-utility { min-height: 26px; margin-top: 2px; padding: 2px 8px; font: 12px var(--board-label); }
+
+/* ── 상세(고를 때만): 도트 판 · 장착하면 비교 · 아래 시트(휴대폰) ───────────────────────── */
+#gem-selection {
+  border: 4px solid transparent;
+  border-image: var(--px-light-frame, none);
+  border-radius: 0;
+  background: #19161c;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .55), 0 16px 40px rgba(0, 0, 0, .55);
+}
+#gem-selection .gem-selection-actions { flex-wrap: wrap; align-items: center; border-bottom: 1px solid #2c2532; }
+#gem-selection .gem-selection-tiers,
+#gem-selection .gem-selection-count { display: inline-flex; align-items: center; gap: 3px; }
+#gem-selection .gem-selection-tiers button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--px-gold, #c69f5e); color: var(--px-gold-bright, #e0c283); }
+#gem-selection .gem-selection-count b { min-width: 34px; color: #fff; font-weight: 400; text-align: center; }
+#gem-selection .gem-selection-seal { color: var(--px-copy-muted, #9d927d); }
+#gem-selection .gem-compare { margin-bottom: 10px; padding: 8px 9px; border: 1px solid #2c2532; background: #110e13; }
+#gem-selection .gem-compare > b { display: block; margin-bottom: 4px; color: var(--px-gold-bright, #e0c283); font-weight: 400; }
+#gem-selection .gem-compare-grid { display: grid; grid-template-columns: auto 1fr auto auto; gap: 3px 10px; align-items: baseline; }
+#gem-selection .gem-compare-grid > span:nth-child(4n+1) { color: var(--px-copy-muted, #9d927d); }
+#gem-selection .gem-compare-now { color: var(--px-copy-muted, #9d927d); text-align: right; }
+#gem-selection .gem-compare-next { color: var(--px-copy, #dbd0b9); text-align: right; }
+#gem-selection .gem-compare-next.is-up { color: #8fe0a8; }
+#gem-selection .gem-compare-next.is-down { color: #ff9b92; }
+#gem-selection.is-sheet {
+  left: 0; /* js/gem-selection-ui.js placeSheet clears the inline left/top the side popover uses */
+  right: 0; top: auto; width: auto; margin: 0;
+  border-width: 2px 0 0; border-image: none; border-top: 2px solid var(--px-gold, #c69f5e);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, .7);
+}
+#gem-selection.is-sheet::before { content: ''; display: block; flex: 0 0 auto; width: 44px; height: 4px; margin: 6px auto 0; background: #4a4050; }
+
+@media (max-width: 1080px) {
+  .skill-board-layout { grid-template-columns: minmax(0, 1fr); }
+  #tab-skills .skill-picker .skill-gem-library { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #tab-skills .gem-tile { padding: 11px 3px 6px; }
+  #tab-skills .gem-tile .gem-tile-art { width: 40px; height: 40px; }
+  #tab-skills .gem-tile .gem-tile-name { font-size: 12px; }
+}
+}

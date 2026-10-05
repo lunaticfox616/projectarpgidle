@@ -86,12 +86,15 @@ const sources = summons.run(`(() => {
         bonusLinesByNo: { [rune.no]: [{stat:'flatHp',val:19}] } };
     const snapshot = JSON.stringify(state);
     const procs = accumulateCombatRuneStats(bucket, state);
-    return { hp: bucket.flatHp, dmg: bucket.flatDmg, aspd: bucket.aspd, move: bucket.move,
+    return { hp: bucket.flatHp, pctHp: bucket.pctHp, dmg: bucket.flatDmg, morePct: getLoopDeepMorePct(deep), aspd: bucket.aspd, move: bucket.move,
         dr: bucket.dr, crit: bucket.crit, emptyHp: untouched.flatHp,
         proc: procs.runeCorpseExplodeChance, expectedProc: rune.val * 1.25, unchanged: JSON.stringify(state) === snapshot };
 })()`);
-assert.equal(sources.hp, 103);
-assert.equal(sources.dmg, 23);
+// Deep levels (data/maps.js LOOP_DEEP_STATS, 2026-10-04): life is 3% a level, damage 3% multiplicative a level, outside the flat bucket.
+assert.equal(sources.hp, 43, 'loop flat life 2 × 12 + the rune line 19');
+assert.equal(sources.pctHp, 18, 'six deep life levels × 3%');
+assert.equal(sources.dmg, 9, 'only the loop flat damage stays flat');
+assert.equal(sources.morePct, 21, 'seven deep damage levels × 3% multiplicative');
 assert.equal(sources.aspd, 15.6);
 assert.equal(sources.move, 12.2);
 assert.equal(sources.dr, 5);

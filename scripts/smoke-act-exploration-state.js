@@ -3,6 +3,8 @@ const vm=require('node:vm');
 const {buildGameRuntime}=require('./lib/game-runtime');
 const runtime=buildGameRuntime();
 const run=code=>vm.runInContext(code,runtime);
+// The run's facing is random (js/combat.js rollExplorationFacing); this check walks the drawn map's fixed coordinates.
+run('rollExplorationFacing=()=>undefined;');
 const copy=code=>JSON.parse(run(`JSON.stringify(${code})`));
 run('game=mergeDefaults({});game.season=30;game.loopCount=29;game.maxZoneId=9;');
 for(let act=1;act<=10;act++) {

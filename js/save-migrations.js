@@ -375,6 +375,12 @@ function mergeDefaults(save) {
         // Markers keep only their spawn shape; removed content fields (e.g. treasure-hunt ids) are dropped.
         return normalized;
     }
+    /** Regeneration fatigue (js/combat.js applyEnemyRegen) exists only after the monster's first step; a record without it stays without. */
+    function normalizeEnemyRegenFatigue(enemy, hp) {
+        if (enemy.regenHpMark === undefined && enemy.regenFatigueMs === undefined && enemy.regenLastLossAt === undefined) return {};
+        return { regenFatigueMs: clampFiniteNumber(enemy.regenFatigueMs, 0, 0, 60000), regenLastLossAt: clampFiniteNumber(enemy.regenLastLossAt, 0, 0),
+            regenHpMark: clampFiniteNumber(enemy.regenHpMark, hp, 0) };
+    }
     function normalizeEnemyRecord(enemy) {
         if (!enemy || typeof enemy !== 'object') return null;
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
@@ -387,6 +393,7 @@ function mergeDefaults(save) {
             maxHp: maxHp,
             attackTimer: clampFiniteNumber(enemy.attackTimer, 0, 0),
             regenBank: Math.round(clampFiniteNumber(enemy.regenBank, 0, 0) * 10) / 10,
+            ...normalizeEnemyRegenFatigue(enemy, Math.min(maxHp, hp)),
             spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
             spawnStamp: 0,
             groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),
@@ -998,6 +1005,7 @@ function mergeDefaults(save) {
     merged.actRetreat = normalizeActRetreat(merged.actRetreat);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
     actExplorationState.dropRetired(merged);
+    actExplorationState.upgradeRotation(merged);
     if(merged.actExploration) {
         // Validate the original ownership/HP first so normalization cannot revive a corrupt record.
         actExplorationState.validate(merged.actExploration, save.enemies || []);
@@ -1069,7 +1077,9 @@ function mergeDefaults(save) {
     merged.nextEnemyId = Math.max(1, Math.floor(clampFiniteNumber(merged.nextEnemyId, defaultGame.nextEnemyId, 1)));
     merged.seasonPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.seasonPoints, defaultGame.seasonPoints, 0)));
     merged.loopDeepPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.loopDeepPoints, defaultGame.loopDeepPoints, 0)));
-    merged.loopDeepStats = { ...(defaultGame.loopDeepStats || {}), ...(merged.loopDeepStats || {}) };
+    // Deep loop levels: whole, non-negative counts for every LOOP_DEEP_STATS key (resChaos was added 2026-10-04).
+    merged.loopDeepStats = Object.fromEntries(LOOP_DEEP_STATS.map(def => [def.key,
+        Math.max(0, Math.floor(clampFiniteNumber((merged.loopDeepStats || {})[def.key], 0, 0)))]));
     merged.chaosRealm = { ...createDefaultChaosRealmState(), ...(merged.chaosRealm || {}) };
     merged.skyTower = { ...createDefaultSkyTowerState(), ...(merged.skyTower || {}) };
     const legacyCondensedSkyPower = Math.max(0, Math.floor(Number(merged.currencies.condensedSkyPower) || 0));

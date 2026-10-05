@@ -1,7 +1,6 @@
 @layer components{/* Menu policy and the production unlock atlas. Legacy milestones are projected in the atlas. */
 .content-passive-entry:not([hidden]){display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:18px;margin-bottom:16px;border:1px solid var(--skin-line);color:var(--color-text-secondary);font-size:13px}
-.content-support-locked .skill-loadout-workspace{grid-template-columns:minmax(0,1fr)}
-.content-support-locked #ui-skill-loadout-summary>:nth-child(2),.content-support-locked #ui-skill-loadout-summary>:nth-child(3),.content-support-locked [data-gem-research-section="support"]{display:none}
+.content-support-locked [data-gem-research-section="support"]{display:none}
 #content-unlock-panel{container-type:inline-size;color:var(--color-text);margin-bottom:18px;word-break:keep-all;overflow-wrap:anywhere;border:1px solid var(--skin-line-strong);background:var(--skin-panel)}
 #content-unlock-panel button,#content-unlock-panel select{font:inherit;touch-action:manipulation}
 .content-unlock-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;font-size:13px;color:var(--color-text-secondary);background:linear-gradient(110deg,rgba(156,128,65,.10),transparent)}

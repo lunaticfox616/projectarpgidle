@@ -26,13 +26,15 @@ const notices = copy(`(() => {
 })()`);
 assert.deepEqual(notices, { afterSeen: 0, fresh: 1 }, 'the loop-2 unlock card stays quiet after the starter guide');
 
-// "45%를": %와 조사 사이에 줄바꿈 금지 문자가 들어가고, 젬 카드에도 그대로 실린다.
+// "45%를": %와 조사 사이에 줄바꿈 금지 문자가 들어가고, 젬 상세에도 그대로 실린다.
 assert.equal(run(`keepKoreanUnitParticles('첫 타격 피해의 45%를 줍니다. 100% 확률')`), '첫 타격 피해의 45%⁠를 줍니다. 100% 확률');
+const slashDetail = run(`(() => { const target = { innerHTML: '' }; showGemTooltip(null, 'active', '연속 베기', target); return target.innerHTML; })()`);
+assert.ok(slashDetail.includes('45%⁠를'), 'the gem detail keeps "45%를" together');
+// 2026-10-04 젬 보드: a library tile is art · name · Lv · one line (how it attacks); the description, range numbers and tags
+// open in the detail.
 const slashCard = run(`renderAttackGemCard('연속 베기', '연속 베기', getUiPlayerStats())`);
-assert.ok(slashCard.includes('45%⁠를'), 'the gem card keeps "45%를" together');
-// 2026-10-04 visibility: the card holds name, core description, level and equip state; range and tags open in the detail.
-assert.ok(slashCard.includes('Lv.') && slashCard.includes('gem-usage-state'), 'the gem card keeps its level and equip state');
-assert.ok(!slashCard.includes('gem-card-range') && !slashCard.includes('gem-card-tags'), 'range and tags moved off the card into the detail');
+assert.ok(slashCard.includes('Lv.') && slashCard.includes('gem-usage-state') && slashCard.includes('continuous-slash'), 'the tile keeps its portrait, level and one line');
+assert.ok(!slashCard.includes('45%') && !slashCard.includes('gem-card-tags'), 'the description and tags moved off the tile into the detail');
 
 // 앞날의 루프 중 같은 예고만 잇는 루프는 한 줄로 묶는다(해금이 열리는 루프와 현재 루프는 따로).
 const runs = copy(`(() => {

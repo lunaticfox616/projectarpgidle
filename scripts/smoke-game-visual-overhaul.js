@@ -703,7 +703,6 @@ assert.ok(uiSource.includes("hunterExpose: { sprite: 8, label: '약점 노출'")
 assert.ok(uiSource.includes("hunterExpose: () => '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.'"), 'hunter exposure should explain its actual effect in the custom tooltip');
 // Currency catalog exclusions are behavior-tested in smoke-crafting-workspace.js.
 assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
-assert.ok(uiSource.includes("renderSkillGemArt(name, 'gem-card-sigil gem-card-art')"), 'skill cards should use their dedicated gem portraits');
 assert.ok(uiSource.includes('overlayPause && (tutorialOpen || optionalOverlayOpen)'), 'tutorial notices must follow the overlay-pause setting');
 assert.ok(uiSource.includes('tutorialPause || isRewardOpen()'), 'tutorial notices must use the optional render-only game-loop path');
 assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');

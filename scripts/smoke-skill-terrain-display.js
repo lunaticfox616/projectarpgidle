@@ -1,5 +1,7 @@
 const assert=require('node:assert/strict');
 const {runtime,run}=require('./lib/replay-fixture')(51);
+// These checks walk the drawn map's fixed coordinates; the run's facing is random since 2026-10-04 (js/combat.js rollExplorationFacing).
+run('rollExplorationFacing=()=>undefined;');
 run('game.currentZoneId=0;startEncounterRun(true);');
 const map=run('actExplorationMap.layout(1)'),gate=map.gate;
 const floor=map.rooms.find(r=>r.role==='entry');

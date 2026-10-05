@@ -12,6 +12,7 @@ const actExplorationMap = (() => {
      * @property {ReadonlyArray<number>} tiles Row-major wall=0, floor=1.
      * @property {Cell} entry
      * @property {Cell} gate
+     * @property {number} rotation Clockwise quarter turns from the drawn plan (0 the gate north, 1 east, 2 south, 3 west).
      * @property {ReadonlyArray<{id:string,gx:number,gy:number,role:string}>} rooms
      */
     function rotate(point, source) {
@@ -61,19 +62,28 @@ const actExplorationMap = (() => {
         return Object.freeze({id:source.id,act,biome:source.biome,columns,rows,tiles:Object.freeze(tiles),
             rooms:Object.freeze(rooms),entry:rooms.find(r=>r.role==='entry'),gate:Object.freeze(rotate(source.gate,source)),rotation:source.rotation});
     }
-    /** @returns {Readonly<Layout>|null} Compiles each static preset once. */
-    function layout(act) {
-        if(cache.has(act))return cache.get(act);
+    /** Quarter turns a run may face (0 north … 3 west): the entry starts opposite the gate, like a Diablo II act area. */
+    const ROTATIONS=4;
+    /** @param {object} source authored or arena source; @param {number|undefined} rotation clockwise quarter turns, undefined for the authored one. */
+    function turned(source,rotation) {
+        const turn=rotation===undefined?source.rotation:rotation;
+        if(!Number.isInteger(turn)||turn<0||turn>=ROTATIONS)throw Error('탐험 맵 방향이 잘못되었습니다: '+rotation);
+        return turn===source.rotation?source:{...source,rotation:turn};
+    }
+    /** @returns {Readonly<Layout>|null} Compiles each static preset once per facing. */
+    function layout(act,rotation) {
         const source=ACT_EXPLORATION_MAPS.find(row=>row.act===act);if(!source)return null;
-        const result=compile(source,act);
-        cache.set(act,result);return result;
+        const oriented=turned(source,rotation),key=`${act}:${oriented.rotation}`;
+        if(cache.has(key))return cache.get(key);
+        const result=compile(oriented,act);
+        cache.set(key,result);return result;
     }
     const generatedCache=new Map(),GENERATED_KEEP=12; // a few recent seeds: the live run, its arrival and the map screen
     /** @returns {Readonly<Layout>} the map explorationLayouts builds for spec, checked to be whole (throws if not). */
-    function generated(spec) {
-        const key=explorationLayouts.key(spec);
+    function generated(spec,rotation) {
+        const oriented=turned(explorationLayouts.build(spec),rotation),key=explorationLayouts.key(spec)+':'+oriented.rotation;
         if(generatedCache.has(key))return generatedCache.get(key);
-        const result=compile(explorationLayouts.build(spec));
+        const result=compile(oriented);
         assertWhole(result,key);
         generatedCache.set(key,result);
         if(generatedCache.size>GENERATED_KEEP)generatedCache.delete(generatedCache.keys().next().value);
@@ -88,8 +98,8 @@ const actExplorationMap = (() => {
         if(route(map,map.entry,boss,new Set([index(map,map.gate)])).length)throw Error('생성 탐험 맵의 보스 방이 관문 밖으로 열려 있습니다: '+key);
     }
     const same=(a,b)=>a.gx===b.gx&&a.gy===b.gy;
-    /** The map a run walks: its generated source, else its story act's authored map. */
-    function forRun(run) {return run.source?generated(run.source):layout(run.act);}
+    /** The map a run walks: its generated source, else its story act's authored map, turned to the run's facing. */
+    function forRun(run) {return run.source?generated(run.source,run.rotation):layout(run.act,run.rotation);}
     function index(map,cell) {return cell.gy*map.columns+cell.gx;}
     function inBounds(map,cell) {
         if(!Number.isInteger(cell.gx)||!Number.isInteger(cell.gy))return false;
@@ -160,6 +170,6 @@ const actExplorationMap = (() => {
         }
         return [...seen];
     }
-    return {layout,generated,forRun,index,walkable,neighbors,route,visibleCells,roadGroup};
+    return {ROTATIONS,layout,generated,forRun,index,walkable,neighbors,route,visibleCells,roadGroup};
 })();
 safeExposeGlobals({actExplorationMap});

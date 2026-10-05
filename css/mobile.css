@@ -1,6 +1,5 @@
 @layer components {
 /* Mobile-only layer (phase 2). */
-.skill-mobile-library-navigation { display: none; }
 .mobile-map-navigation { display: none; }
 .sea-gift-group-picker { display: none; }
 .settings-category-picker { display: none; }
@@ -27,9 +26,6 @@
   #tab-map .map-explore-layout { display: block; }
   body { padding: 10px; }
   #left-pane, #right-pane { min-width: 0; }
-  .skill-mobile-library-navigation:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-block: 10px; }
-  .skill-mobile-library-navigation button { min-height: 44px; font-size: 14px; }
-  .skill-mobile-library-navigation [aria-pressed="true"] { color: var(--color-accent-gold); border-color: var(--color-accent-gold); background: var(--color-surface-raised); }
 }
 
 @media (max-width: 640px) {
@@ -105,11 +101,8 @@
   .gem-target-rail,
   .gem-forge-detail { min-width: 0; }
   .equipment-inventory-toolbar,
-  .skill-library-heading,
   .gem-enhance-section-head { align-items: stretch; flex-direction: column; }
   .equipment-salvage-actions { width: 100%; }
-  .skill-loadout-workspace,
-  .skill-library-panel,
   #tab-skills .skill-gem-library,
   #tab-skills .search-filter-panel { width: 100%; max-width: 100%; box-sizing: border-box; }
   body.mobile-battle-tab #tab-battle .combat-zone-row { order: 0; }
@@ -281,8 +274,6 @@
   body:has(#passive-mobile-detail:not([hidden])) :is(#mobile-toast-root, #game-toast-region) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ bottom: auto !important; }
   #tab-map .map-primary-tabs,
   #tab-map .map-explore-layout > .vertical-tab-sidebar { display: none; }
-  #skill-tab-equip[data-mobile-library="support"] .attack-library,
-  #skill-tab-equip[data-mobile-library="skill"] .support-library { display: none; }
 }
 
 @media (max-width: 1080px) {
@@ -300,7 +291,6 @@
   }
   .responsive-split-grid,
   .equipment-workspace,
-  .skill-loadout-workspace,
   .gem-forge-workspace {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
 
   body.mobile-battle-tab #tab-battle { padding: 4px; }
@@ -343,7 +333,6 @@
   #ui-fossil-inventory-list,
   :root body #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #tab-skills .skill-gem-library,
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,
   .gem-support-process-list { grid-template-columns: minmax(0, 1fr); }
@@ -359,9 +348,7 @@
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,
-  :root body #item-tab-equip .equipment-inventory-grid,
-  #ui-skills-list,
-  #ui-support-list { grid-template-columns: minmax(0, 1fr); }
+  :root body #item-tab-equip .equipment-inventory-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {

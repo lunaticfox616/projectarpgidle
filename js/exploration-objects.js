@@ -123,7 +123,7 @@ actExplorationState.objects = (() => {
         const event=config.allowEvent?eventKind(config.loop,rng()):null;
         specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms,seed:config.seed},rng,plan);
         props(entries,pool,rng,actExplorationState.packRooms(map).length,plan);
-        return {version:1,seed:config.seed,quantity:config.quantity,rarity:config.rarity,pendingId:null,entries};
+        return {version:1,seed:config.seed,rotation:map.rotation,quantity:config.quantity,rarity:config.rarity,pendingId:null,entries};
     }
     function isEvent(row) {return events.includes(row.kind);}
     /** Standing objects take their cell: nobody walks onto a closed or opened chest, an unbroken pot, crate or nest (2026-10-05).
@@ -173,6 +173,10 @@ actExplorationState.objects = (() => {
             return;
         }
         validateHeader(source);validateReward(source);
+        // Cells belong to the facing they were placed on (maps turn since 2026-10-04). Records from before carry none: they were
+        // placed on the drawn facing, which is also what an older run upgrades to (actExplorationState.upgradeRotation).
+        if(source.rotation===undefined)source.rotation=actExplorationMap.forRun({...run,rotation:undefined}).rotation;
+        if(source.rotation!==actExplorationMap.forRun(run).rotation)throw Error('탐험 오브젝트의 맵 방향이 다릅니다.');
         // Chests saved before grades (2026-10-05) open as ordinary wooden ones; filling the default again changes nothing.
         source.entries.forEach(row=>{if(row?.kind==='chest'&&row.grade===undefined)row.grade='wood';});
         const ids=new Set(),cells=new Set();source.entries.forEach(row=>validateRow(run,row,ids,cells));
@@ -198,7 +202,7 @@ actExplorationState.objects = (() => {
     }
     function restoreAtlas(raw,source) {
         if(raw===undefined)return undefined;
-        const run={source,packs:[],objects:JSON.parse(JSON.stringify(raw))};
+        const run={source,rotation:raw?.rotation,packs:[],objects:JSON.parse(JSON.stringify(raw))};
         validate(run);
         if(run.objects.entries.some(isEvent))throw Error('아틀라스 오브젝트에 중복 전투 사건이 있습니다.');
         run.objects.pendingId=null;return run.objects;

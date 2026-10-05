@@ -4,9 +4,12 @@
  * 허공 액트는 떠 있는 판(가장자리, 밑면, 하늘). 액트별 모양은 act-maps/looks.cjs, 색은 act-maps/pal.cjs.
  * 걷는 칸은 게임의 맵 데이터를 그대로 따른다.
  *
- *   node scripts/build-act-maps.cjs              # 액트 1~10 → 미리보기 폴더(기본: artifacts/act-maps/)
+ * 런마다 맵이 네 방향(관문이 북·동·남·서) 중 하나로 돌아가므로(2026-10-04) 액트마다 네 장을 따로 그린다: 빛은 늘 왼쪽 위,
+ * 절벽 앞면은 늘 화면 쪽이라 그림을 돌리면 안 되고 돌린 지형을 새로 칠한다.
+ *
+ *   node scripts/build-act-maps.cjs              # 액트 1~10 × 방향 4 → 미리보기 폴더(기본: artifacts/act-maps/)
  *   node scripts/build-act-maps.cjs --act 2      # 한 액트만
- *   node scripts/build-act-maps.cjs --write      # assets/exploration/actN-map.png·actN-gate.png 교체
+ *   node scripts/build-act-maps.cjs --write      # assets/exploration/actN-rR-map.png·actN-rR-gate.png 교체(R = 방향 0~3)
  *
  * 끝에 액트별 어둠 색(data/act-exploration-maps.js의 shade, 안개와 지도 바깥에 쓰는 색)과 벽에 걸친 소품 도트 수를 찍는다. */
 'use strict';
@@ -30,10 +33,10 @@ const O = require('./act-maps/objects.cjs');
 const root = path.resolve(__dirname, '..');
 
 function readLayouts() {
-    return JSON.parse(vm.runInContext(`JSON.stringify(ACT_EXPLORATION_MAPS.map(source => {
-        const map = actExplorationMap.layout(source.act);
+    return JSON.parse(vm.runInContext(`JSON.stringify(ACT_EXPLORATION_MAPS.flatMap(source => [0, 1, 2, 3].map(rotation => {
+        const map = actExplorationMap.layout(source.act, rotation);
         return { ...map, links: source.links.map(link => [link[0], link[1]]), approach: source.approach };
-    }))`, buildGameRuntime()));
+    })))`, buildGameRuntime()));
 }
 
 /** 방 가운데 포장 자리(방 상자보다 조금 작은 둥근 네모, 가장자리는 흔들어서). */
@@ -117,11 +120,12 @@ function main() {
     const backdrops = JSON.parse(vm.runInContext('JSON.stringify(ACT_EXPLORATION_BACKDROPS)', buildGameRuntime()));
     for (const layout of readLayouts().filter(row => !only || row.act === only)) {
         const started = Date.now(), { cv, gate, direction, stray, shade } = build(layout);
-        fs.writeFileSync(path.join(out, `act${layout.act}-map.png`), encodePng(cv.px, cv.w, cv.h));
-        fs.writeFileSync(path.join(out, `act${layout.act}-gate.png`), encodePng(gate.rgb, gate.w, gate.h, gate.alpha));
-        const expected = backdrops[layout.id]?.gateOffset || [], same = expected[0] === gate.offset[0] && expected[1] === gate.offset[1];
+        const name = `act${layout.act}-r${layout.rotation}`;
+        fs.writeFileSync(path.join(out, `${name}-map.png`), encodePng(cv.px, cv.w, cv.h));
+        fs.writeFileSync(path.join(out, `${name}-gate.png`), encodePng(gate.rgb, gate.w, gate.h, gate.alpha));
+        const expected = backdrops[layout.id]?.views[layout.rotation]?.gateOffset || [], same = expected[0] === gate.offset[0] && expected[1] === gate.offset[1];
         const rgb = [(shade >> 16) & 255, (shade >> 8) & 255, shade & 255];
-        console.log(`액트 ${layout.act} ${LOOKS[layout.act].title}: ${cv.w}×${cv.h}, 관문 ${direction} ${JSON.stringify(gate.offset)}${same ? '' : ` (등록값 ${JSON.stringify(expected)}과 다름)`}, 어둠 [${rgb}], 벽에 걸친 소품 ${stray}, ${Date.now() - started}ms`);
+        console.log(`액트 ${layout.act}-${layout.rotation} ${LOOKS[layout.act].title}: ${cv.w}×${cv.h}, 관문 ${direction} ${JSON.stringify(gate.offset)}${same ? '' : ` (등록값 ${JSON.stringify(expected)}과 다름)`}, 어둠 [${rgb}], 벽에 걸친 소품 ${stray}, ${Date.now() - started}ms`);
     }
     console.log(write ? '→ assets/exploration/ 에 썼습니다.' : `→ 미리보기: ${path.relative(root, out)}/ (게임에 넣으려면 --write)`);
 }

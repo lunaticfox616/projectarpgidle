@@ -3283,6 +3283,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let cosmosMasteryBossDamagePct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('starbreaker')) || 0) * 1.8 : 0;
     let finalDamageMultiplier = (1 + cosmosMasteryFinalDamagePct / 100) * oceanPressureDamageMul;
     finalDamageMultiplier *= 1 + Math.max(0, authoredPassiveRules.combatDamageMorePct) / 100;
+    finalDamageMultiplier *= 1 + getLoopDeepMorePct(game.loopDeepStats) / 100;
     let wisdomLeapActive = typeof findAllocatedPassiveKeystone === 'function'
         && !!findAllocatedPassiveKeystone('지혜의 도약');
     let passiveWisdomElement = wisdomLeapActive ? authoredPassiveRules.wisdomElement : '';
@@ -4039,7 +4040,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalPlayerSkillDps = nativeDotPattern
         ? finalBaseDmg * totalDotDamageMultiplier * nativeDotPattern.ticks
             / Math.max(nativeDotPattern.ticks * nativeDotPattern.intervalMs / 1000, 1 / finalAspd)
-        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
+        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier * getReactiveBurstRateScale(skill, finalAspd) + estimatedSkillDotDps;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (includeBreakdowns && skill.flameDecayDebuff) {
@@ -5757,6 +5758,12 @@ function getLoopDefenseScale(loopCount) {
     return scale;
 }
 
+/** 1 + depth × per-loop growth of monster life or damage (data/maps.js MONSTER_LOOP_GROWTH); tierShare is the zone's 0..1 tier share.
+ * Cosmos keeps the values it was tuned on (its own node tiers carry its difficulty). */
+function getMonsterLoopGrowthScale(zone, kind, seasonDepth, tierShare) {
+    const growth = (zone && zone.type === 'cosmos' ? MONSTER_LOOP_GROWTH.fixed : MONSTER_LOOP_GROWTH)[kind];
+    return 1 + seasonDepth * (growth.base + tierShare * growth.tier);
+}
 /** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
  * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
 function getMonsterLoopPowerScale(zone, kind) {
@@ -5872,7 +5879,7 @@ function createEnemy(zone, marker, groupIndex) {
     let loopScaleExempt = loopInputs.exempt;
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
-    let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
+    let seasonHpScale = getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress);
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
     let loopHpScale = getLoopHpScale(loopInputs.loopCount);
@@ -5921,7 +5928,7 @@ function createEnemy(zone, marker, groupIndex) {
     hp = Math.max(1, Math.floor(hp * getMonsterLoopPowerScale(zone, 'hp')));
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
-    let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
+    let enemyEle = pickEnemyElement(zone, enemyElePool, isBoss);
     enemyEle = cosmosRouteRuntime.enemyElement(zone, isBoss, enemyEle);
     let name = `${zone.name.split(':')[0]} 추종자`;
     if (zone.type === 'outsideChaos') {
@@ -6020,7 +6027,7 @@ function createEnemy(zone, marker, groupIndex) {
         regenSuppressPct: 0,
         penetration: (isDeepChaos ? 0 : baselineResistancePressure) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
         resistanceReduction: isDeepChaos ? baselineResistancePressure : 0,
-        hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
+        hybridElement: (game.season || 1) >= 3 ? ((isBoss && getChaosBossElements(zone)) || [null, rndChoice(CHAOS_BOSS_ELEMENTS)])[1] : null,
         ailmentChance: ((game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0) + (cosmosMods && cosmosMods.ailmentChanceBonus ? cosmosMods.ailmentChanceBonus : 0),
         firstHitGuard: Math.max((game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0, cosmosMods && cosmosMods.firstHitGuard ? cosmosMods.firstHitGuard : 0),
         hitRateGuard: (game.season || 1) >= 5 ? ((trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0)) : 0,
@@ -6269,6 +6276,25 @@ function getMapBossPatternMultiplier(bossMods, zone) {
         : getMaximumBossPatternDamageMultiplierForLoop(game.season || 1);
 }
 
+// A chaos depth's boss always strikes with the same element and adds the next one (2026-10-04): a random element decided a chaos 20
+// clear more than the build did (a build with low chaos resistance lived or died by the draw). Depth d: CHAOS_BOSS_ELEMENTS[d mod 4]
+// then the following one, so chaos 20 is fire with cold and the map estimate names the two resistances to prepare.
+const CHAOS_BOSS_ELEMENTS = Object.freeze(['fire', 'cold', 'light', 'chaos']);
+/** [main, added] damage elements of a chaos depth's boss; null for any other zone. */
+function getChaosBossElements(zone) {
+    if (!zone || zone.type !== 'abyss') return null;
+    const depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    return [CHAOS_BOSS_ELEMENTS[depth % 4], CHAOS_BOSS_ELEMENTS[(depth + 1) % 4]];
+}
+
+/** An ocean current fixes the element, a chaos depth's boss its own (getChaosBossElements); otherwise one from the pool. */
+function pickEnemyElement(zone, pool, isBoss) {
+    if (hasOceanCurrent(zone, 'cold_current')) return 'cold';
+    if (hasOceanCurrent(zone, 'warm_current')) return 'fire';
+    const chaosBoss = isBoss ? getChaosBossElements(zone) : null;
+    return chaosBoss ? chaosBoss[0] : rndChoice(pool);
+}
+
 function getMapEstimateDamageElements(zone) {
     const cosmosBoss = zone && zone.type === 'cosmos' && typeof getCosmosGalaxyBossMechanic === 'function'
         ? getCosmosGalaxyBossMechanic(zone.cosmosNodeId) : null;
@@ -6329,8 +6355,12 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
 
 const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
     const duration = Math.max(1, Number(clearTimeSec) || 1);
-    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0);
-    return bossHp / duration + bossHp * recoveryPerSecond;
+    // regenRate is a life fraction per 0.1 s step (applyEnemyRegen); until 2026-10-04 it was read as per second, a tenth of the healing.
+    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0) * (1000 / ENEMY_REGEN_STEP_MS);
+    // Average of the tiring regeneration over the fight (applyEnemyRegen): 1 − t/F before F, F/(2t) after.
+    const fatigueSec = ENEMY_REGEN_FATIGUE_MS / 1000;
+    const averageRegen = duration <= fatigueSec ? 1 - duration / (2 * fatigueSec) : fatigueSec / (2 * duration);
+    return bossHp / duration + bossHp * recoveryPerSecond * averageRegen;
 };
 
 /** Keep environmental HP drain separate from zones that only inherit underworld gravity. */
@@ -6358,7 +6388,7 @@ function estimateMapZonePowerRequirements(zone) {
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
     let hp = ((56 + tier * 30) * 1.15)
-        * (1 + seasonDepth * (0.08 + tierProgress * 0.52))
+        * getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress)
         * (1 + tierProgress * 9)
         * getLoopHpScale(loopInputs.loopCount)
         * getMonsterLoopPowerScale(zone, 'hp');
@@ -6379,7 +6409,7 @@ function estimateMapZonePowerRequirements(zone) {
     if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
     let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
     let bossHit = (2.4 + tier * 3.35) * 1.15
-        * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
+        * getMonsterLoopGrowthScale(zone, 'damage', seasonDepth, tierPressure)
         * (1.14 + tier * 0.16) * 1.34
         * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
         * contentScale.damage * (bossMods.damageMul || 1) * (zone.mapDamageMul || 1)
@@ -6398,7 +6428,7 @@ function estimateMapZonePowerRequirements(zone) {
         ehp: Math.max(1, Math.round(threat.threatWindow)),
         peakHit: Math.max(1, Math.round(threat.peakHit)),
         resistancePressure: threat.resistancePressure,
-        elements: getMapEstimateDamageElements(zone),
+        elements: getChaosBossElements(zone) || getMapEstimateDamageElements(zone),
         playerDpsMultiplier: 1,
         ...getMapEstimateZonePenalties(zone),
         zoneId: zone.id,
@@ -7570,11 +7600,16 @@ function getZoneExplorationPlan(zone) {
     return zone.exploration ? {source:zone.exploration,zoneId:zone.id,bossStages:zone.exploration.bossStages||1} : null;
 }
 
+/** Like a Diablo II act area, each run faces north, east, south or west (2026-10-04): the map's clockwise quarter turns, 0..3.
+ * The only randomness of the facing; fixtures that walk fixed coordinates pin it to undefined (the map's drawn facing). */
+function rollExplorationFacing() {return Math.floor(Math.random()*actExplorationMap.ROTATIONS);}
+
 /** exploration: false = the legacy board (regression fixtures), true = must explore (throws where no map exists). */
 function createActExplorationEncounter(zone,exploration) {
     const plan=exploration===false ? null : getZoneExplorationPlan(zone);
     if(!plan && exploration===true)throw Error('일반 액트나 전용 맵이 있는 콘텐츠에서만 탐험을 시작할 수 있습니다.');
     if(!plan)return null;
+    plan.rotation=actExplorationProgress.objects.savedFacing(zone)??rollExplorationFacing();
     const run=actExplorationState.create(plan,createExplorationPacks(zone,actExplorationMap.forRun(plan),plan.bossStages),getCombatTime());
     run.mode=actExplorationProgress.startMode(game.settings);
     actExplorationProgress.objects.initialize(run,zone);
@@ -8616,6 +8651,69 @@ function transferSkillDotOnDeath(enemy) {
         duration: 700,
         dedupeKey: `dot-transfer:${enemy.id}:${target.id}`
     });
+}
+
+/** 급소 표식(r5): every third hit adds 3% of the target's maximum life. A boss takes at most the triggering hit again
+ * (2026-10-04): a share of maximum life ignores the boss's size, so it let any ranger cut the woodsman (93M life) by a third. */
+function getRangerWeakpointBonus(enemy, hitDamage) {
+    const lifeShare = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 1) * 0.03));
+    return enemy.isBoss ? Math.max(1, Math.min(lifeShare, Math.floor(hitDamage || 0))) : lifeShare;
+}
+
+// A reactive gem (인과) bursts once per hitsTakenPerBurst hits the hero takes while channelling, not once per attack. Its estimate
+// assumes this many hits taken per second (2026-10-04: it used the attack speed and showed 10-100× what it really dealt).
+const REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC = 1;
+/** Scale from an attack-speed DPS to the bursts a reactive gem actually makes; 1 for every other skill. */
+function getReactiveBurstRateScale(skill, attacksPerSec) {
+    const hitsPerBurst = Number(skill && skill.combatPattern && skill.combatPattern.hitsTakenPerBurst) || 0;
+    if (hitsPerBurst <= 0) return 1;
+    return (REACTIVE_BURST_ASSUMED_HITS_TAKEN_PER_SEC / hitsPerBurst) / Math.max(0.01, attacksPerSec);
+}
+
+// Monster regeneration (0.1 s step) tires while the monster keeps losing life (2026-10-04): it falls in a straight line to nothing over
+// ENEMY_REGEN_FATIGUE_MS of fighting and comes back once nothing has hurt it for ENEMY_REGEN_COMBAT_WINDOW_MS. A chaos 20 boss
+// healed 0.48% of its life a second (about 21,000) and a build dealing less never finished it, an idle run standing still for
+// ever. Short fights keep the full regeneration (the boundary renewal mutator, the map estimate). The woodsman never tires (the
+// cliff is deliberate; his curse ends a long fight).
+const ENEMY_REGEN_COMBAT_WINDOW_MS = 2000, ENEMY_REGEN_FATIGUE_MS = 60000, ENEMY_REGEN_STEP_MS = 100;
+/** Share of regeneration left after fatigueMs of fighting, 1 → 0. */
+function getEnemyRegenFatigueFactor(fatigueMs) {return Math.max(0, 1 - Math.max(0, fatigueMs) / ENEMY_REGEN_FATIGUE_MS);}
+function applyEnemyRegen(enemy, pStats) {
+    const maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1), fatigue = tireEnemyRegen(enemy, getCombatTime());
+    if ((enemy.regenRate || 0) > 0 && enemy.hp < maxHp && fatigue > 0) {
+        const wholeRegen = takeEnemyRegenAmount(enemy, maxHp * getEnemyRegenRate(enemy, pStats) * fatigue);
+        if (wholeRegen > 0) enemy.hp = Math.min(maxHp, enemy.hp + wholeRegen);
+    }
+    enemy.regenHpMark = enemy.hp;
+}
+/** One step of fighting tires the regeneration; the life mark set after each step tells a loss from any source. */
+function tireEnemyRegen(enemy, now) {
+    if (enemy.isWoodsman) return 1;
+    const mark = Number(enemy.regenHpMark);
+    if (Number.isFinite(mark) && enemy.hp < mark) enemy.regenLastLossAt = now;
+    const fighting = now - (Number(enemy.regenLastLossAt) || -Infinity) < ENEMY_REGEN_COMBAT_WINDOW_MS;
+    enemy.regenFatigueMs = fighting ? Math.min(ENEMY_REGEN_FATIGUE_MS, (Number(enemy.regenFatigueMs) || 0) + ENEMY_REGEN_STEP_MS) : 0;
+    return getEnemyRegenFatigueFactor(enemy.regenFatigueMs);
+}
+/** Life fraction healed per step after suppression, curses, uniques and talents. */
+function getEnemyRegenRate(enemy, pStats) {
+    const suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
+    const curseFx = getEnemyConditionDebuffFactor(enemy);
+    const uniqueRegenCut = (pStats && pStats.uniqueEnemyRegenCutAndMinRoll) ? Math.max(0, Number(pStats.uniqueEnemyRegenCutAndMinRoll.enemyRegenRateMul || 1)) : 1;
+    const talentRegenMul = typeof getTalentEnemyRegenMultiplier === 'function' ? getTalentEnemyRegenMultiplier(enemy) : 1;
+    return Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1) * uniqueRegenCut * talentRegenMul);
+}
+/** Whole life points healed now; the fractional rest waits in enemy.regenBank (tenths). */
+function takeEnemyRegenAmount(enemy, rawRegen) {
+    let wholeRegen = Math.floor(Math.max(0, rawRegen));
+    const fractionalRegen = Math.max(0, rawRegen) - wholeRegen;
+    enemy.regenBank = Math.max(0, Number(enemy.regenBank) || 0);
+    if (fractionalRegen > 0) enemy.regenBank = Math.round((enemy.regenBank + Math.max(0.1, Math.round(fractionalRegen * 10) / 10)) * 10) / 10;
+    if (enemy.regenBank >= 1) {
+        wholeRegen += Math.floor(enemy.regenBank);
+        enemy.regenBank = Math.round((enemy.regenBank - Math.floor(enemy.regenBank)) * 10) / 10;
+    }
+    return wholeRegen;
 }
 
 function canBreakWoodsmanLoop() {
@@ -10377,7 +10475,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 mark.hits = Math.max(0, Math.floor(mark.hits || 0)) + 1;
                 if (mark.hits >= 3) {
                     mark.hits = 0;
-                    let bonus = Math.max(1, Math.floor((targetEnemy.maxHp || targetEnemy.hp || 1) * 0.03));
+                    let bonus = getRangerWeakpointBonus(targetEnemy, dmg);
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
                     addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys', syncToSwing: true });
                 }
@@ -10863,6 +10961,17 @@ function recordPlayerAilmentIncomingDamage(ailment, element, amount) {
     });
 }
 
+/** Burning and bleeding drain the energy shield before life, like a hit (2026-10-04); poison (chaos) still reaches life directly.
+ * A boss's burn took a 1,900-life, 9,500-shield build down while the shield stood full. Returns what is left for life. */
+function takeAilmentDamageFromEnergyShield(damage) {
+    game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
+    const absorbed = Math.min(game.playerEnergyShield, Math.max(0, damage));
+    if (absorbed <= 0) return damage;
+    game.playerEnergyShield -= absorbed;
+    game.playerEsLastHitAt = getCombatTime();
+    return damage - absorbed;
+}
+
 function tickAilments(pStats, dt) {
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
     let next = [];
@@ -10878,11 +10987,12 @@ function tickAilments(pStats, dt) {
                 burn = Math.max(0, Math.floor(burn * (1 - Math.max(0, Math.min(0.9, (pStats.igniteDamageReducePct || 0) / 100)))));
                 if (getCombatTime() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) burn = 0;
                 burn = floorIncomingDamage(burn);
-                burn = absorbDamageWithTalentStoneShield(burn);
+                const burnTotal = burn;
+                burn = absorbDamageWithTalentStoneShield(takeAilmentDamageFromEnergyShield(burn));
                 burn = absorbDamageWithRealmDeathWard(burn, pStats);
                 game.playerHp -= burn;
                 trackHiddenJournalPlayerDamage(burn);
-                recordPlayerAilmentIncomingDamage(ail, 'fire', burn);
+                recordPlayerAilmentIncomingDamage(ail, 'fire', burnTotal);
             }
         } else if (ail.type === 'poison') {
             let poison = getPlayerDamageAilmentDps(ail, pStats);
@@ -10912,11 +11022,12 @@ function tickAilments(pStats, dt) {
                 bleed = Math.max(0, Math.floor(bleed * (1 - Math.max(0, Math.min(0.9, (pStats.bleedDamageReducePct || 0) / 100)))));
                 if (getCombatTime() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) bleed = 0;
                 bleed = floorIncomingDamage(bleed);
-                bleed = absorbDamageWithTalentStoneShield(bleed);
+                const bleedTotal = bleed;
+                bleed = absorbDamageWithTalentStoneShield(takeAilmentDamageFromEnergyShield(bleed));
                 bleed = absorbDamageWithRealmDeathWard(bleed, pStats);
                 game.playerHp -= bleed;
                 trackHiddenJournalPlayerDamage(bleed);
-                recordPlayerAilmentIncomingDamage(ail, 'phys', bleed);
+                recordPlayerAilmentIncomingDamage(ail, 'phys', bleedTotal);
             }
         } else if (ail.type === 'chill') {
             // chill handled via aspd modifier in core loop
@@ -11118,7 +11229,7 @@ function getEnemyCombatImpactTargets(pendingAttack) {
 
 /** Base hit before the enemy's own modifiers and the victim's defenses. */
 function getMonsterBaseHitDamage(zone, seasonDepth, tierPressure, benchmarkProfile) {
-    let seasonDmgScale = 1 + seasonDepth * (0.05 + tierPressure * 0.07);
+    let seasonDmgScale = getMonsterLoopGrowthScale(zone, 'damage', seasonDepth, tierPressure);
     let dmg = Math.floor((2.4 + zone.tier * 3.35) * 1.15 * seasonDmgScale);
     if (benchmarkProfile) dmg = Math.floor(dmg * benchmarkProfile.damage);
     else if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78 * getUnderworldEnemyDamageMultiplier(zone));
@@ -11159,27 +11270,7 @@ function performMonsterAttacks(pStats) {
                 return;
             }
         }
-        if ((enemy.regenRate || 0) > 0 && enemy.hp < (enemy.maxHp || enemy.hp)) {
-            let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
-            let curseFx = getEnemyConditionDebuffFactor(enemy);
-            let uniqueRegenCut = (pStats && pStats.uniqueEnemyRegenCutAndMinRoll) ? Math.max(0, Number(pStats.uniqueEnemyRegenCutAndMinRoll.enemyRegenRateMul || 1)) : 1;
-            let talentRegenMul = typeof getTalentEnemyRegenMultiplier === 'function' ? getTalentEnemyRegenMultiplier(enemy) : 1;
-            let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1) * uniqueRegenCut * talentRegenMul);
-            let maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1);
-            let rawRegen = Math.max(0, maxHp * effectiveRegenRate);
-            let wholeRegen = Math.floor(rawRegen);
-            let fractionalRegen = rawRegen - wholeRegen;
-            enemy.regenBank = Math.max(0, Number(enemy.regenBank) || 0);
-            if (fractionalRegen > 0) {
-                let storedFraction = Math.max(0.1, Math.round(fractionalRegen * 10) / 10);
-                enemy.regenBank = Math.round((enemy.regenBank + storedFraction) * 10) / 10;
-            }
-            if (enemy.regenBank >= 1) {
-                wholeRegen += Math.floor(enemy.regenBank);
-                enemy.regenBank = Math.round((enemy.regenBank - Math.floor(enemy.regenBank)) * 10) / 10;
-            }
-            if (wholeRegen > 0) enemy.hp = Math.min(maxHp, enemy.hp + wholeRegen);
-        }
+        applyEnemyRegen(enemy, pStats);
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
         let seasonDepth = getSoftenedLoopDepth(getLoopDifficultyInputs(zone).seasonLoops);

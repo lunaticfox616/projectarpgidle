@@ -111,7 +111,12 @@ run(`game.chaosRealm.unlocked=true;game.loopProgressCurrent.chaos20Cleared=true;
     if(atlasRun.open(game.atlas.stash.at(-1).uid))throw Error('atlas open');startEncounterRun(true);game.moveTimer=0;
     r=game.actExploration;m=actExplorationMap.forRun(r);o=r.objects.entries.find(e=>e.kind==='chest')||r.objects.entries[0];
     Object.assign(game.gridPlayer,{gx:o.gx,gy:o.gy});actExplorationState.discover(r,game.gridPlayer);actExplorationProgress.objects.request(o.id);
-    window.id=o.id;game=mergeDefaults(JSON.parse(serializeSaveState(game)));startEncounterRun(true);r=game.actExploration;`);
+    window.id=o.id;window.facing=r.rotation;window.cells=JSON.stringify(r.objects.entries.map(e=>[e.id,e.gx,e.gy]));
+    // A portal back in rolls a fresh facing; the saved objects pin it so their cells stay on the same floor (maps turn since 2026-10-04).
+    const roll=rollExplorationFacing;rollExplorationFacing=()=>(facing+1)%actExplorationMap.ROTATIONS;
+    game=mergeDefaults(JSON.parse(serializeSaveState(game)));startEncounterRun(true);r=game.actExploration;rollExplorationFacing=roll;`);
+assert.equal(run('r.rotation===facing'), true, 'atlas re-entry keeps the facing its objects were placed on');
+assert.equal(run('JSON.stringify(r.objects.entries.map(e=>[e.id,e.gx,e.gy]))===cells'), true, 'saved objects keep their cells');
 assert.ok(run('r.objects.quantity')>1);assert.ok(run('r.objects.rarity')>0);
 assert.equal(run('r.objects.entries.find(e=>e.id===id).phase'),'spent');
 assert.equal(run('r.objects.entries.some(actExplorationState.objects.isEvent)'),false,'no duplicate atlas event lottery');

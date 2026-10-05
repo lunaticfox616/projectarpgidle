@@ -86,13 +86,14 @@ function accumulateCombatLoopStats(bucket, loopBonus, deepBonus) {
     accumulateCombatDeepLoopStats(bucket, deepBonus || {});
 }
 
+/** Deep loop levels (data/maps.js LOOP_DEEP_STATS); the multiplicative damage line is applied by combat (getLoopDeepMorePct). */
 function accumulateCombatDeepLoopStats(bucket, deep) {
-    addStatToBucket(bucket, 'flatHp', (deep.flatHp || 0) * 10);
-    addStatToBucket(bucket, 'flatDmg', (deep.flatDmg || 0) * 2);
-    addStatToBucket(bucket, 'aspd', (deep.aspd || 0) * 1.2);
-    addStatToBucket(bucket, 'move', (deep.move || 0) * 0.8);
-    addStatToBucket(bucket, 'dr', (deep.dr || 0) * 0.5);
-    addStatToBucket(bucket, 'crit', (deep.crit || 0) * 0.6);
+    LOOP_DEEP_STATS.forEach(def => { if (def.stat) addStatToBucket(bucket, def.stat, (deep[def.key] || 0) * def.per); });
+}
+
+/** Multiplicative damage % from the deep loop levels (LOOP_DEEP_STATS lines with more: 'damage'). */
+function getLoopDeepMorePct(deep) {
+    return LOOP_DEEP_STATS.reduce((sum, def) => sum + (def.more === 'damage' ? Math.max(0, Number((deep || {})[def.key]) || 0) * def.per : 0), 0);
 }
 
 /** Rune-only proc values stay separate from ordinary stats, including bonus-line behavior. */

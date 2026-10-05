@@ -78,8 +78,9 @@ const LOOKS = {
         title: '합일의 차륜', shape: 'straight', abyss: true,
         floor: { base: 'slabs', slab: { rowH: 16, widths: [16, 16, 32], chips: 0.15, cracks: 0.04, gold: 0.12 } }, sky: 'stars', moss: 0,
         litter: [], webs: false,
-        rooms: { entry: 'brazierBlue', boss: 'brazierBlue', elite: 'goldStatue', optional: 'spire', landmarks: ['spire', 'goldStatue', 'brazierBlue'] },
-        scatter: { spire: 2, goldStatue: 1, brazierBlue: 1 }
+        // 차륜 성물은 정예 방 · 이정표 방에만(흩지 않는다): 자주 보이면 특별함이 사라진다.
+        rooms: { entry: 'brazierBlue', boss: 'brazierBlue', elite: 'wheelRelic', optional: 'spire', landmarks: ['spire', 'wheelRelic', 'brazierBlue'] },
+        scatter: { spire: 2, brazierBlue: 1 }
     }
 };
 module.exports = { LOOKS };

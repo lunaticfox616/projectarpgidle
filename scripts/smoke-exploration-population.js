@@ -1,5 +1,7 @@
 const assert=require('node:assert/strict');
 const {run}=require('./lib/replay-fixture')(29);
+// These checks walk the drawn map's fixed coordinates; the run's facing is random since 2026-10-04 (js/combat.js rollExplorationFacing).
+run('rollExplorationFacing=()=>undefined;');
 const copy=code=>JSON.parse(run(`JSON.stringify(${code})`));
 
 // Every authored map, all ordinary/deep chaos depths, several loops: same bounded density and safe spawns.
@@ -33,7 +35,8 @@ run(`game=mergeDefaults({season:10,currentZoneId:29,maxZoneId:29});
     window.atlasZone={...getZone(game.currentZoneId),packExtra:2};
     window.atlasPacks=createExplorationPacks(atlasZone,actExplorationMap.layout(1),1);`);
 assert.equal(run('atlasPacks.filter(p=>p.anchor).length'),0);
-assert.equal(run('atlasPacks.filter(p=>p.stage===null).every(p=>p.waiting.length===5)'),true);
+// Encounter rooms (breach and the like) bring their own authored formations; ordinary atlas rooms hold five.
+assert.equal(run('atlasPacks.filter(p=>p.stage===null&&!p.encounter).every(p=>p.waiting.length===5)'),true);
 run(`window.arena=actExplorationMap.generated({style:'act',act:1,seed:'population-test',arena:true});
     window.arenaPacks=createExplorationPacks(getZone(0),arena,1);`);
 assert.equal(run('arenaPacks.length'),1);

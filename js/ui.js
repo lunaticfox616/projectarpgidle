@@ -84,7 +84,7 @@ function buildMapPowerEstimateHtml(zone) {
     let met = model.meetsRecommendation;
     let environment = buildMapEnvironmentEstimateHtml(model.environment);
     let label = `권장 전투력 ${met ? '달성' : '미달성'}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
 }
 
 function buildMapEnvironmentEstimateHtml(environment) {
@@ -102,17 +102,32 @@ function buildMapEnvironmentTooltipHtml(target) {
         <div class="tooltip-line tooltip-muted">흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
 }
 
+function getMapEstimateElementName(key) {
+    return { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[key] || '';
+}
+/** A chaos depth's boss has fixed elements (getChaosBossElements): name them so the player knows which resistances to raise. */
+/** Total of one deep loop line (LOOP_DEEP_STATS) at its level, e.g. 9% for three levels of 3%. */
+function formatLoopDeepValue(def, level) {
+    const total = Math.max(0, Number(level) || 0) * def.per;
+    return `${Number.isInteger(total) ? total : total.toFixed(1)}${def.unit}`;
+}
+function buildMapBossElementLine(keys) {
+    const names = String(keys || '').split(',').map(getMapEstimateElementName).filter(Boolean);
+    return names.length ? `<div class="tooltip-line">보스 피해 속성: ${names.join(' · ')}</div>` : '';
+}
+
 function showMapPowerEstimateTooltip(event) {
     let target = event.currentTarget;
     let rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     let x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : (rect ? rect.left + rect.width / 2 : 0);
     let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
     let data = target ? target.dataset : {};
-    let elementLabel = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[data.limitingElement] || '취약 속성';
+    let elementLabel = getMapEstimateElementName(data.limitingElement) || '취약 속성';
     let html = `<div class="tooltip-title">권장 전투력</div>
         <div class="tooltip-line">${escapeHTML(data.levelDetail)}</div>
         <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
         <div class="tooltip-line">내 EHP 약 ${formatApproximateMapPower(data.playerEhp)} / 권장 약 ${formatApproximateMapPower(data.recommendedEhp)}</div>
+        ${buildMapBossElementLine(data.bossElements)}
         <div class="tooltip-line tooltip-muted">${elementLabel} 기준 · 회피 주기와 직격 생존 하한 반영</div>
         <div class="tooltip-line tooltip-muted">중독·출혈 등 지속 피해와 장기전의 회복 능력은 포함하지 않습니다.</div>${buildMapEnvironmentTooltipHtml(target)}`;
     showInfoTooltipHtml(x, y, html, '#6ba7d8');
@@ -4037,11 +4052,9 @@ function toggleSeasonBossRepeat() {
     updateStaticUI();
 }
 
+/** The gem picker's "worn only" fold, one per library ('attack' | 'support'). */
 function toggleGemFoldMode(mode) {
-    if (mode === 'all') {
-        game.gemFoldInactiveAttack = false;
-        game.gemFoldInactiveSupport = false;
-    } else if (mode === 'attack') {
+    if (mode === 'attack') {
         game.gemFoldInactiveAttack = !game.gemFoldInactiveAttack;
     } else if (mode === 'support') {
         game.gemFoldInactiveSupport = !game.gemFoldInactiveSupport;
@@ -4102,54 +4115,70 @@ function renderGemTagChips(def, maxTags) {
     }).join('');
 }
 
+/** One line under a tile: how the gem attacks (range kind and reach), or the summon's element and kind. */
+function getGemTileSummary(name, def) {
+    let meta = getGemCardMeta(def);
+    if ((def.tags || []).includes('summon_attack')) return `${meta.elementLabel} ${meta.typeLabel}`;
+    let profile = getSkillGridProfile(name, def);
+    return `${getSkillGridProfileKindLabel(profile.kind)} · ${Math.max(1, profile.range || 1)}칸`;
+}
+
+/** Tiles open the detail on click / Enter / Space (js/gem-selection-ui.js); a mouse hover shows the short hint. */
+function getGemTileHandlers(type, name) {
+    let action = `gemSelectionUi.open(this,'${type}','${name}')`;
+    return `role="button" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" onpointerenter="showGemCardHint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()"`;
+}
+
+function renderGemTileLevel(gemInfo) {
+    return `<span class="gem-tile-level ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
+}
+
+/** 2026-10-04 젬 보드: the library lists compact tiles (art · name · Lv · one line). Range numbers, tags, seal and summon
+ * count live in the detail the tile opens. */
 function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
-    let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
-    let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
+    let summonEquipped = (def.tags || []).includes('summon_attack') && (game.equippedSummonSkills || []).includes(name);
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
-    let usageLabel = !equipmentReady ? '방패 필요 · 상세 보기' : (active ? '장착 중 · 상세 보기' : '상세 보기');
-    let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
-    let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
-    let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 선택 후 장착</div>' : '';
-    let action = `gemSelectionUi.open(this,'active','${name}')`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" onpointerenter="showGemCardHint(event,'active','${name}')" onpointerleave="hideInfoTooltip()">
-        ${tutorialGuide}
-        <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
-        <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '공격 스킬 젬'))}</p>
-        <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
+    let state = equipmentReady ? getGemTileSummary(name, def) : '방패 필요';
+    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked', tutorialTarget ? 'starter-gem-tutorial-target' : ''].filter(Boolean).join(' ');
+    let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? `소환 ×${getSummonSkillCount(name)}` : '장착'}</span>` : '';
+    let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬 젬 · 눌러서 장착</span>' : '';
+    return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${gemInfo.totalLevel}${active ? ', 장착 중' : ''}${equipmentReady ? '' : ', 방패 필요'}">
+        ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
+        <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
+}
+
+/** Why a support gem cannot go on right now ('' when it can, or when it is already worn). */
+function getSupportEquipFailure(name, stats) {
+    if ((game.equippedSupports || []).includes(name)) return '';
+    let equippedSupports = game.equippedSupports || [];
+    let supportCap = Math.max(0, Math.floor((stats && stats.suppCap) || 0));
+    if (equippedSupports.length >= supportCap) return `장착 한도 부족 (${equippedSupports.length}/${supportCap})`;
+    if (isSummonGuardSupport(name) && getEquippedSummonCount() >= getSummonEquipCapFromStats(stats)) {
+        return `소환수 한도 부족 (${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)})`;
+    }
+    let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
+    let available = Math.max(0, getEffectiveResonanceCap(stats) - used);
+    let cost = getSupportTierResonanceCost(name);
+    return available < cost ? `공명력 부족 (${available}/${cost})` : '';
 }
 
 function renderSupportGemCard(name, highlightedName, stats) {
     let def = SUPPORT_GEM_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, true, stats);
-    let active = Array.isArray(game.equippedSupports) && game.equippedSupports.includes(name);
-    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
-    let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
-    let activeTier = getSupportActiveTier(name);
-    let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, activeTier) : (activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급');
-    let cost = getSupportTierResonanceCost(name);
-    let equippedSupports = game.equippedSupports || [];
-    let equippedCount = equippedSupports.length;
-    let supportCap = Math.max(0, Math.floor((stats && stats.suppCap) || 0));
-    let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
-    let availableResonance = Math.max(0, getEffectiveResonanceCap(stats) - used);
-    let failureReason = '';
-    if (!active && equippedCount >= supportCap) failureReason = `장착 한도 부족 (${equippedCount}/${supportCap})`;
-    else if (!active && isSummonGuardSupport(name) && getEquippedSummonCount() >= getSummonEquipCapFromStats(stats)) {
-        failureReason = `소환수 한도 부족 (${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)})`;
-    } else if (!active && availableResonance < cost) failureReason = `공명력 부족 (${availableResonance}/${cost})`;
-    let usageState = active ? '● 장착 중 · 상세 보기' : (failureReason || `장착 후 공명 ${availableResonance - cost} · 상세 보기`);
-    let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
-    let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="gemSelectionUi.open(this,'support','${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();gemSelectionUi.open(this,'support','${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onpointerenter="showGemCardHint(event,'support','${name}')" onpointerleave="hideInfoTooltip()">
-        <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
-        <p>${keepKoreanUnitParticles(escapeHTML(def.desc || '보조 젬 효과'))}</p>
-        <div class="gem-card-footer"><span class="gem-usage-state">${escapeHTML(usageState)}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
+    let active = (game.equippedSupports || []).includes(name);
+    let failure = getSupportEquipFailure(name, stats);
+    let tier = getSupportActiveTier(name);
+    let state = failure || `${def.name || getStatName(def.stat || '')} · 공명 ${getSupportTierResonanceCost(name)}`;
+    let classes = ['skill-gem', 'support-gem', 'gem-library-card', 'gem-tile', active ? 'active' : '', failure ? 'equipment-blocked' : ''].filter(Boolean).join(' ');
+    return `<article class="${classes}" ${getGemTileHandlers('support', name)} aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failure ? `, ${escapeHTML(failure)}` : '')}">
+        ${renderGemTileLevel(gemInfo)}${active ? '<span class="gem-tile-worn">장착</span>' : ''}<span class="gem-card-sigil gem-tile-art gem-tile-support-art" aria-hidden="true">✚<em>${'◆'.repeat(Math.max(1, Math.min(3, tier)))}</em></span>
+        <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
 }
 
@@ -4166,27 +4195,9 @@ function showGemCardHint(event, type, name) {
 
 function renderSealedGemCard(name, highlightedName, isSupport) {
     let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
-    let art = isSupport ? '<span class="gem-card-sigil">✚</span>' : renderSkillGemArt(name, 'gem-card-sigil gem-card-art');
-    return `<article class="skill-gem gem-library-card sealed-gem-card"><div class="gem-card-head">${art}<div><small>봉인 보관함</small><strong>${highlightedName}</strong></div></div><p>봉인을 해제하면 공명력 1을 사용해 보유 목록으로 되돌립니다.</p><div class="gem-card-footer"><span class="gem-usage-state">공명력으로 복원</span><button class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></div></article>`;
+    let art = isSupport ? '<span class="gem-card-sigil gem-tile-art gem-tile-support-art" aria-hidden="true">✚</span>' : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
+    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨 · 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></article>`;
 }
-
-/** The worn 이동 스킬 gem, noted under the main attack in the loadout summary. */
-function renderMobilityLoadoutNote() {
-    const name = mobilitySkill.equipped();
-    return name ? ` · 이동 ${escapeHTML(name)}` : '';
-}
-
-function renderSkillLoadoutSummary(pStats, resonanceCap) {
-    let root = document.getElementById('ui-skill-loadout-summary');
-    if (!root) return;
-    let activeName = game.activeSkill || '기본 공격';
-    let activeInfo = getUiGemPresentation(activeName, false, pStats);
-    let usedResonance = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
-    let summonCount = getEquippedSummonCount();
-    let summonCap = getSummonEquipCapFromStats(pStats);
-    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}${renderMobilityLoadoutNote()}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small title="${escapeHTML(game.equippedSupports.join(' · '))}">${escapeHTML(game.equippedSupports.join(' · ') || '장착 없음')}</small></div><div><span>남은 공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
-}
-
 
 function getGemGrowthSummaryHtml(name, presentation) {
     if (!presentation || !presentation.skill) return '';
@@ -4271,7 +4282,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
                     ? `${index + 1}번 슬롯 해금 · 창공의 정수 ${index + 1}${unlockReady ? '' : ' · 재화 부족'}`
                     : `${index + 1}번 잠긴 슬롯 · 앞 슬롯부터 해금 필요`;
         let group = enhancement ? getSkyEnhancementGroup(enhancement) : null;
-        let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '' : nextUnlock ? '+' : '×';
+        let glyph = enhancement ? renderSkyEnhancementIcon(enhancement) : unlocked ? '' : nextUnlock ? '+' : '×';
         let orbitAngle = -90 + index * 72;
         let orbitRadius = 38.5;
         let orbitX = 50 + Math.cos(orbitAngle * Math.PI / 180) * orbitRadius;
@@ -4283,18 +4294,39 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
     root.dataset.renderSig = renderSignature;
 }
 
-function getSkyEnhancementGlyph(enhancement) {
-    let stat = String((enhancement && enhancement.stat) || '');
-    if (stat === 'projectilePattern') return '⑂';
-    if (stat.includes('crit')) return '✧';
-    if (stat.includes('aspd')) return '»';
-    if (stat.includes('leech')) return '◉';
-    if (stat.includes('targets')) return '⑂';
-    if (stat.includes('resPen') || stat.includes('physIgnore')) return '⌁';
-    if (stat.includes('dot')) return '∞';
-    if (stat.includes('GemLevel')) return '⬆';
-    if (stat.includes('awakened')) return '✹';
-    return '✦';
+/** 11×11 pixel icons for engravings ('#' outline, 'o' fill), drawn as crisp SVG rects tinted by the engraving group —
+  * a syllable of the name read as clutter (사용자 요청 2026-10-04). The board ring and the 강화 · 각인 orbit share them. */
+const SKY_ENHANCEMENT_ICONS = Object.freeze({
+    sword: ['.........##', '........#o#', '.......#o#.', '......#o#..', '.#...#o#...', '..#.#o#....', '...#o#.....', '..#.##.....', '.#...#.....', '#..........', '...........'],
+    speed: ['...........', '##...##....', '.##...##...', '..##...##..', '...##...##.', '....##...##', '...##...##.', '..##...##..', '.##...##...', '##...##....', '...........'],
+    eye: ['...........', '...#####...', '..#ooooo#..', '.#oo###oo#.', '#oo#ooo#oo#', '#oo#o#o#oo#', '#oo#ooo#oo#', '.#oo###oo#.', '..#ooooo#..', '...#####...', '...........'],
+    star: ['.....#.....', '.....#.....', '....#o#....', '....#o#....', '.###ooo###.', '##ooooooo##', '.###ooo###.', '....#o#....', '....#o#....', '.....#.....', '.....#.....'],
+    drop: ['.....#.....', '....#o#....', '....#o#....', '...#ooo#...', '...#ooo#...', '..#ooooo#..', '.#o#ooooo#.', '.#o#ooooo#.', '.#oo#oooo#.', '..#ooooo#..', '...#####...'],
+    fork: ['#....#....#', '#....#....#', '.#...#...#.', '..#..#..#..', '...#.#.#...', '....###....', '.....#.....', '.....#.....', '.....#.....', '....###....', '....###....'],
+    split: ['##...#...##', '#.#.###.#.#', '...#.#.#...', '....###....', '.....#.....', '.....#.....', '.....#.....', '.....#.....', '....###....', '....#o#....', '....###....'],
+    reticle: ['...#####...', '..#.....#..', '.#...#...#.', '#....#....#', '#...ooo...#', '#.###o###.#', '#...ooo...#', '#....#....#', '.#...#...#.', '..#.....#..', '...#####...'],
+    boomerang: ['...######..', '..#oooooo#.', '.#o######..', '.#o#.......', '.#o#....#..', '.#o#....##.', '.#o#######.', '.#oooooo##.', '..#######..', '........#..', '...........'],
+    pierce: ['.....#.....', '....###....', '...##o##...', '.....#.....', '.###.#.###.', '.#oo.#.oo#.', '.#oo.#.oo#.', '.#oo.#.oo#.', '..#o.#.o#..', '...#.#.#...', '....###....'],
+    flame: ['.....#.....', '....#o#....', '..#.#o#.#..', '.#o##o##o#.', '.#oo#o#oo#.', '.#ooooooo#.', '#oo#ooo#oo#', '#o#.#o#.#o#', '#oo#ooo#oo#', '.#ooooooo#.', '..#######..'],
+    up: ['.....#.....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.####o####.', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....', '...........']
+});
+const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
+    pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',
+    aspd: 'speed', ds: 'speed', awakenedAspdMul: 'speed',
+    crit: 'eye', awakenedNoCritDouble: 'eye', critDmg: 'star', awakenedSpellFlatMul: 'star',
+    leech: 'drop', leechRegenHybrid: 'drop', targets: 'fork', dotMulti: 'flame', dotMultiplier: 'flame',
+    physIgnore: 'pierce', resPen: 'pierce', awakenedGemLevel: 'up'
+});
+const SKY_PROJECTILE_ICONS = Object.freeze({ split: 'split', focus: 'reticle', return: 'boomerang' });
+
+/** @returns {string} SVG markup for the engraving's icon (class sky-engrave-icon is-<group>). */
+function renderSkyEnhancementIcon(enhancement) {
+    let name = enhancement.projectilePatternMode ? SKY_PROJECTILE_ICONS[enhancement.projectilePatternMode] : SKY_ENHANCEMENT_ICON_BY_STAT[enhancement.stat];
+    let rects = [];
+    (SKY_ENHANCEMENT_ICONS[name] || SKY_ENHANCEMENT_ICONS.star).forEach((row, y) => {
+        for (let match of row.matchAll(/#+|o+/g)) rects.push(`<rect class="${match[0][0] === '#' ? 'm' : 'f'}" x="${match.index}" y="${y}" width="${match[0].length}" height="1"/>`);
+    });
+    return `<svg class="sky-engrave-icon is-${getSkyEnhancementGroup(enhancement).className}" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true">${rects.join('')}</svg>`;
 }
 
 function getSkyEnhancementGroup(enhancement) {
@@ -10239,7 +10271,7 @@ function buildCraftActionButtons(item) {
                 let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
                 let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
                 let deepStats = game.loopDeepStats || {};
-                let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
+                let deepTotalLine = `총합 보너스: ${LOOP_DEEP_STATS.map(def => `${def.label} +${formatLoopDeepValue(def, deepStats[def.key])}`).join(', ')}`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:15px;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:12px;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div class="loop10-entry-box">
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
@@ -10247,7 +10279,7 @@ function buildCraftActionButtons(item) {
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <details id="loop-deep-growth" class="progression-workbench" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div></div></details>`;
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 ${def.label} Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit} · 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
         }
     }
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);

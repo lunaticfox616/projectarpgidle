@@ -222,11 +222,4 @@
     pointer-events: auto;
   }
 }
-@media (max-width: 640px) {
-  /* 휴대폰 스킬 젬 목록은 한 줄에 한 장 — 두 장이면 이름 칸이 56px라 "기본 …", "서리 …"로 잘려 젬을 알아볼 수 없었다 */
-  :root body[data-ui-skin] #tab-skills .skill-gem-library {
-    /* components.css의 1080px 이하 두 열 규칙이 !important라 같은 무게로만 덮인다(좁은 휴대폰에서만). */
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-}
 }

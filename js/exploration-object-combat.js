@@ -10,6 +10,11 @@ actExplorationProgress.objects = (() => {
         run.objects=state.create(run,configuration(run,zone));
         remember(run);
     }
+    /** The facing a re-entered atlas map must keep so its saved object cells still fit; null for a fresh facing. */
+    function savedFacing(zone) {
+        const saved=zone?.type==='atlasMap'?game.atlas.run?.objects:null;
+        return Number.isInteger(saved?.rotation)?saved.rotation:null;
+    }
     function configuration(run,zone) {
         return {seed:Math.floor(Math.random()*4294967296),loop:game.season||1,allowEvent:zone.type!=='atlasMap',
             excludedRooms:run.packs.filter(p=>p.encounter).map(p=>p.roomId),
@@ -168,5 +173,5 @@ actExplorationProgress.objects = (() => {
         awardCurrency(key,amount,'drop');
         queueEnemyGroundLoot(enemy,{currency:key,amount});
     }
-    return {initialize,request,cancel,step,afterDeath,area,stage};
+    return {initialize,savedFacing,request,cancel,step,afterDeath,area,stage};
 })();
