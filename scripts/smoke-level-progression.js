@@ -79,7 +79,8 @@ const originalRandom=r.Math.random;
 let loot;
 try {r.Math.random=()=>.5;loot=json("generateEquipmentDrop(mob,{zone:z,slot:'무기'})");}
 finally {r.Math.random=originalRandom;}
-assert.equal(loot.itemLevel,39);assert.ok(loot.affixTierCap<=run('levelProgression.affixCap(39)'));
+// A boss's equipment rolls area +3~4 (roll .5 → +4), above its own monster level of area +2.
+assert.equal(loot.itemLevel,41);assert.ok(loot.affixTierCap<=run('levelProgression.affixCap(41)'));
 assert.equal(loot.requirementsVersion,1);
 run('game.currentZoneId=1;game.level=5');
 const xp=run('getEnemyExperienceReward({level:5}, {expGain:0})');

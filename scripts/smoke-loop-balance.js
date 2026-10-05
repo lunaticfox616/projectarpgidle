@@ -115,4 +115,19 @@ assert.ok(counts2.kill.items >= 2, `a 2.4 kill grants at least two items (${coun
 assert.equal(counts2.drought.count, 1, 'the drought guarantee lifts the first item only');
 assert.equal(counts2.drought.minimumRarity, 'rare');
 assert.equal(counts2.firstBoss, 1, 'the first act boss of a loop still drops exactly one guaranteed item');
-console.log('Loop balance: boss defense specialties, fixed-content exclusions, rising loop HP, separate recovery loot, rarity boundaries and expected-count drops passed');
+// Item level (2026-10-05 user decision): an elite's equipment rolls area level +1~2, a boss's +3~4. Monster level (experience,
+// penalties) keeps +1 / +2, and ordinary monsters' items stay at the area level.
+const levels = json(`(() => {
+    const zone=getZone(14),area=levelProgression.areaLevel(zone),lv=(enemy,r)=>levelProgression.itemLevel(zone,enemy,()=>r)-area;
+    const boss={isBoss:true},elite={isElite:true};
+    const drops=Array.from({length:60},()=>generateEquipmentDrop({isBoss:true},{zone}).itemLevel-area);
+    return {boss:[lv(boss,0),lv(boss,0.99)],elite:[lv(elite,0),lv(elite,0.99)],regular:lv({},0.99),
+        monster:[levelProgression.monsterLevel(zone,boss)-area,levelProgression.monsterLevel(zone,elite)-area],
+        drops:[Math.min(...drops),Math.max(...drops)]};
+})()`);
+assert.deepEqual(levels.boss, [3, 4]);
+assert.deepEqual(levels.elite, [1, 2]);
+assert.equal(levels.regular, 0);
+assert.deepEqual(levels.monster, [2, 1], 'monster level keeps its own bonus');
+assert.ok(levels.drops[0] >= 3 && levels.drops[1] <= 4, `boss equipment item levels ${levels.drops}`);
+console.log('Loop balance: boss defense specialties, fixed-content exclusions, rising loop HP, separate recovery loot, rarity boundaries, expected-count drops and item levels passed');

@@ -48,6 +48,9 @@ const LEVEL_PROGRESSION = Object.freeze({
     loopExperienceBase: 1, loopExperiencePerLoop: 0.05, loopExperienceBonusCap: 2,
     experienceGap: 5, experienceDecay: 0.10,
     lootGap: 10, lootDecay: 0.085,
+    // Item level of an elite's or boss's equipment over the area level, a whole number in [min, max] rolled per item
+    // (2026-10-05 user decision). Item level only: monster level, experience and reward penalties keep +1 / +2.
+    itemLevelBonus: Object.freeze({ elite: Object.freeze([1, 2]), boss: Object.freeze([3, 4]) }),
     equipmentLootDecay: 0.06, // Recovery gear farming only; currency, talismans and XP retain their own rates.
     equipmentLevelDiscount: 8,
     // Base reqTier 1..22, not rolled affix tier. Early bases stay accessible; late bases need investment.

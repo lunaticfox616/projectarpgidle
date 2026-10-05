@@ -13,10 +13,23 @@ const levelProgression = (() => {
     }
     function tierLevel(tier) { return Math.max(1, Math.round(interpolate(Math.max(1, Number(tier) || 1)))); }
     function areaLevel(zone) { return Math.max(1, Math.floor(Number(zone?.areaLevel) || tierLevel(zone?.tier))); }
+    const MONSTER_RANK_LEVEL = Object.freeze({ boss: 2, elite: 1 });
+    function rankOf(enemy) {
+        if (enemy.isBoss || enemy.boss) return 'boss';
+        return enemy.isElite || enemy.elite ? 'elite' : null;
+    }
     function monsterLevel(zone, enemy = {}) {
         if (Number.isFinite(enemy.level) && enemy.level > 0) return Math.floor(enemy.level);
-        const bonus = enemy.isBoss || enemy.boss ? 2 : Number(!!(enemy.isElite || enemy.elite));
-        return areaLevel(zone) + bonus;
+        return areaLevel(zone) + (MONSTER_RANK_LEVEL[rankOf(enemy)] || 0);
+    }
+    /** The item level of one dropped item: the monster level with the rank bonus swapped for LEVEL_PROGRESSION.itemLevelBonus,
+     * so an elite's or boss's equipment can reach a higher base and affix tier than the monster's own level gives.
+     * @param {function(): number} [random] [0,1) source */
+    function itemLevel(zone, enemy = {}, random = Math.random) {
+        const rank = rankOf(enemy), range = rank && LEVEL_PROGRESSION.itemLevelBonus[rank];
+        if (!range) return monsterLevel(zone, enemy);
+        const bonus = range[0] + Math.floor(random() * (range[1] - range[0] + 1));
+        return Math.max(1, monsterLevel(zone, enemy) - MONSTER_RANK_LEVEL[rank] + bonus);
     }
     // Monster levels can exceed the player cap in deep realms; extend the reward table linearly.
     function monsterExperience(level) {
@@ -90,6 +103,6 @@ const levelProgression = (() => {
         return Number.isFinite(zone.areaLevel) && !Number.isFinite(zone.tier) ? { ...zone, tier: interpolate(zone.areaLevel, true) } : zone;
     }
     return Object.freeze({ tierLevel, areaLevel, monsterLevel, monsterExperience, penalty, rewardMultiplier, loopExperienceMultiplier, filterCurrencyDrops,
-        requirements, stampItem, affixCap, combatZone,
+        requirements, stampItem, affixCap, combatZone, itemLevel,
         maxDropTier: level => Math.max(1, Math.floor(interpolate(level, true))) });
 })();

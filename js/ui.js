@@ -3073,7 +3073,7 @@ function completeBeehiveRun(){
     markLoopSpecialBossKill('beehive_queen');
     unlockJournalEntry('beehive_queen');
     if (Math.random() < 0.08) {
-        const itemLevel = levelProgression.monsterLevel(rewardZone, { isBoss: true });
+        const itemLevel = levelProgression.itemLevel(rewardZone, { isBoss: true });
         const tier = Math.min(getRealmEquipmentHiddenTierCap(rewardZone), levelProgression.maxDropTier(itemLevel));
         let item = levelProgression.stampItem(generateUniqueItem(tier, '무기', null, rewardZone), itemLevel);
         addItemToInventory(item);

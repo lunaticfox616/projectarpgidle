@@ -37,7 +37,7 @@ for (const id of ['chaos_realm', 'underworld_core', 'cosmos_challenge']) {
     assert(item, `${id} boss can award its realm unique without ordinary equipment/rarity rolls`);
     assert.strictEqual(JSON.stringify(context.game), before, 'generation must not grant or mutate progress');
     assert.strictEqual(context.UNIQUE_DB.find(row => row.name === item.name).dropOnly.type, zone.type);
-    assert.strictEqual(item.itemLevel, run('levelProgression.monsterLevel(__zone, __boss)'));
+    assert.strictEqual(item.itemLevel, run('levelProgression.itemLevel(__zone, __boss, () => 0.5)'), 'the boss item level bonus applies');
     const progress = context.game.equipmentDropProgress;
     const granted = withRolls([0.02999, 0.5, 0.5], () => run('grantRealmBossUniqueLoot(__boss, __zone)'));
     assert(granted);
@@ -64,7 +64,7 @@ for (const [id, names] of [
         const ordinary = withRolls([0, (pool.indexOf(definition) + 0.1) / pool.length],
             () => context.generateUniqueItem(cap, definition.slots[0]));
         assert.strictEqual(ordinary.name, name, 'previously impossible unique is reachable in ordinary unique rolls');
-        const bonus = withRolls([0, 0.00999, index / names.length],
+        const bonus = withRolls([0, 0.5, 0.00999, index / names.length], // chance, item level bonus, chase share, pick
             () => context.generateRealmBossUniqueDrop(zone, boss));
         assert.strictEqual(bonus.name, name, '1% of successful bonus rolls use the ultra-rare pool');
         assert.strictEqual(bonus.baseId, run(`UNIQUE_EQUIPMENT_RULES[${JSON.stringify(name)}].baseId`));
@@ -78,8 +78,9 @@ for (const galaxy of [1, 5]) {
     const expected = context.UNIQUE_DB.filter(row => row.dropOnly?.type === 'cosmos'
         && !row.ultraRare && (row.dropOnly.minTier || row.reqTier) <= cap);
     expected.forEach((definition, index) => {
-        const rolls = galaxy === 1 ? [0, (index + 0.1) / expected.length]
-            : [0, 0.5, (index + 0.1) / expected.length];
+        // chance, item level bonus, (G5: chase share,) pick
+        const rolls = galaxy === 1 ? [0, 0.5, (index + 0.1) / expected.length]
+            : [0, 0.5, 0.5, (index + 0.1) / expected.length];
         const item = withRolls(rolls,
             () => context.generateRealmBossUniqueDrop(zone, boss));
         assert.strictEqual(item.name, definition.name);

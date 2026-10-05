@@ -100,7 +100,7 @@ function generateRealmBossUniqueDrop(zone, enemy) {
     if (!enemy.isBoss || !['chaosRealm', 'underworld', 'cosmos'].includes(zone.type)) return null;
     const chance = REALM_BOSS_UNIQUE_DROP_RULES.chance * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (Math.random() >= chance) return null;
-    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    const itemLevel = levelProgression.itemLevel(zone, enemy);
     const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
     const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type
         && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));

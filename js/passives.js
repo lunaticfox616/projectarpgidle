@@ -9299,7 +9299,7 @@ function getEquipmentDropSlot(options, enemy) {
 
 function generateEquipmentDrop(enemy, options) {
     let zone = options && options.zone ? options.zone : (getZone(game.currentZoneId) || {});
-    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    const itemLevel = levelProgression.itemLevel(zone, enemy);
     let hiddenTierCap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
     let dropTier = Math.min(rollRealmItemDropTier(zone, enemy), levelProgression.maxDropTier(itemLevel));
     let affixTierCap = Math.min(levelProgression.affixCap(itemLevel), getRealmEquipmentAffixTierCap(zone, dropTier));
