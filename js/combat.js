@@ -8137,7 +8137,7 @@ function grantExpAndGem(enemy, pStats) {
     if (leveledUp) {
         let autoInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
         if (autoInvest.nodes > 0) addLog(`🧭 프리셋 자동 투자: ${autoInvest.nodes}개 노드 활성화`, 'season-up');
-        addBattleFx('levelUp', { level: game.level, duration: 560, color: '#ffe59a' });
+        addBattleFx('levelUp', { level: game.level, duration: 1050, color: '#ffe59a' });
         queueImportantSave(250);
     }
     return gemLeveled;
@@ -8455,6 +8455,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     addBattleFx('enemyDeath', {
         enemyId: enemy.id,
+        name: enemy.name,
         color: getElementColor(enemy.ele),
         duration: enemy.isBoss ? 840 : (enemy.isElite ? 500 : 340),
         boss: !!enemy.isBoss,

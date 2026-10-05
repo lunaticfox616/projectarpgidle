@@ -137,7 +137,8 @@ actExplorationProgress.objects = (() => {
         if(run.objects.pendingId===row.id){cancel(run);run.destination=null;}
         remember(run);
         combatLootReceipts.capture(game,()=>pay(run,row,{prop,items,enemy,rng}));
-        if(!prop)dispatchRuntimeEvent('exploration-object',{kind:'reward',name:state.name(row)});
+        dispatchRuntimeEvent('exploration-object',{kind:'reward',name:state.name(row),objectKind:row.kind,
+            grade:row.grade,cell:{gx:row.gx,gy:row.gy}});
         if(!game.isBackgroundCalculation)queueImportantSave(220);
     }
     /** An opened chest still stands on its cell: its loot falls beside it (a free neighbour near the hero, not the hero's cell). */
