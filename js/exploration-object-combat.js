@@ -30,7 +30,7 @@ actExplorationProgress.objects = (() => {
         const row=entries(run).find(e=>e.id===id&&e.phase==='ready'&&e.kind!=='ambush');
         if(!row||!state.visible(run,row))return false;
         if(distance(game.gridPlayer,row)<=1){use(run,row);return true;}
-        if(!actExplorationState.selectDestination(run,row))return false;
+        if(!actExplorationState.selectDestination(run,row,{object:true}))return false;
         run.objects.pendingId=id;return true;
     }
     function cancel(run) {if(run?.objects)run.objects.pendingId=null;}
@@ -42,12 +42,19 @@ actExplorationProgress.objects = (() => {
     function step(run,elapsedMs) {
         if(!run.objects||run.status!=='active'||game.combatHalted||game.playerHp<=0)return;
         manualStep(run);
+        autoStep(run);
         for(const row of entries(run).filter(state.isEvent))advanceEvent(run,row,elapsedMs);
     }
     function manualStep(run) {
         if(game.isBackgroundCalculation&&run.objects.pendingId){cancel(run);run.destination=null;}
         const pending=entries(run).find(e=>e.id===run.objects.pendingId);
         if(pending&&!game.isBackgroundCalculation&&distance(game.gridPlayer,pending)<=1)use(run,pending);
+    }
+    /** Automatic exploration opens a discovered sealed chest once it stands beside it and nothing else is fighting. */
+    function autoStep(run) {
+        if(actExplorationProgress.runMode(run)==='manual'||run.destination||state.active(run)||game.enemies.some(e=>e.hp>0))return;
+        const row=state.autoTarget(run);
+        if(row&&distance(game.gridPlayer,row)<=1)use(run,row);
     }
     function advanceEvent(run,row,elapsedMs) {
         if(row.phase==='ready'&&row.kind==='ambush'&&distance(game.gridPlayer,row)<=2&&state.visible(run,row)) {
@@ -69,6 +76,7 @@ actExplorationProgress.objects = (() => {
         const map=actExplorationMap.forRun(run),room=map.rooms.find(r=>r.id===row.roomId);
         const occupied=new Set(game.enemies.filter(e=>e.hp>0).flatMap(getGridUnitCells).map(c=>`${c.gx},${c.gy}`));
         for(const pack of run.packs)for(const e of pack.waiting)occupied.add(`${e.gx},${e.gy}`);
+        state.solidCells(run).forEach(key=>occupied.add(key));
         const cells=[];
         for(let y=-room.radiusY;y<=room.radiusY;y++)for(let x=-room.radiusX;x<=room.radiusX;x++) {
             const c={gx:room.gx+x,gy:room.gy+y};
@@ -117,7 +125,8 @@ actExplorationProgress.objects = (() => {
     function reward(run,row) {
         if(row.phase==='spent')return;
         const prop=['pot','crate'].includes(row.kind),rng=state.random((run.objects.seed+Math.abs(hashSeed(row.id)))>>>0);
-        const enemy={id:0,gx:row.gx,gy:row.gy,isBoss:false,isElite:false};
+        const drop=state.solid({...row,phase:'spent'})?spillCell(run,row):row;
+        const enemy={id:0,gx:drop.gx,gy:drop.gy,isBoss:false,isElite:false};
         const items=prop?[]:rollItems(run,row,enemy,rng);
         row.phase='spent';row.remainingMs=0;
         if(run.objects.pendingId===row.id){cancel(run);run.destination=null;}
@@ -125,6 +134,14 @@ actExplorationProgress.objects = (() => {
         combatLootReceipts.capture(game,()=>pay(run,row,{prop,items,enemy,rng}));
         if(!prop)dispatchRuntimeEvent('exploration-object',{kind:'reward',name:state.labels[row.kind]});
         if(!game.isBackgroundCalculation)queueImportantSave(220);
+    }
+    /** An opened chest still stands on its cell: its loot falls beside it (a free neighbour near the hero, not the hero's cell). */
+    function spillCell(run,row) {
+        const map=actExplorationMap.forRun(run),solid=state.solidCells(run);
+        const hero=game.gridPlayer,free=actExplorationMap.neighbors(map,row).filter(c=>!solid.has(`${c.gx},${c.gy}`));
+        // Nearest the hero, but never under the hero's own feet.
+        free.sort((a,b)=>Number(distance(a,hero)===0)-Number(distance(b,hero)===0)||distance(a,hero)-distance(b,hero));
+        return free[0]||row;
     }
     function rollItems(run,row,enemy,rng) {
         const quantity=run.objects.quantity,count=Math.floor(quantity)+Number(rng()<quantity%1),items=[];

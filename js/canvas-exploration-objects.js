@@ -1,8 +1,58 @@
-// Small pixel props share the actors' ground plane and fog. DOM buttons provide touch/keyboard hit areas only.
+// Exploration objects drawn in the act maps' own style (2026-10-05): 16-dot sprites lit from the upper left, outlined in their darkest
+// colour, with a ground shadow (scripts/act-maps/objects.cjs paints the map props the same way). Standing objects are actors sorted
+// with the hero; broken pots and crates, a spent nest and ambush tracks are ground decals drawn on the terrain, under the fog, the
+// loot and every actor. DOM buttons provide touch/keyboard hit areas only.
 actExplorationView.objects=(()=>{
     let layer,lastRun;
     const buttons=new Map();
     const labels=actExplorationState.objects.labels;
+    const PAL={o:'#1a120d',1:'#3a281b',2:'#5a3f2b',3:'#7a5638',4:'#9c744a',5:'#c09763',
+        i:'#2b2b31',j:'#585a62',k:'#9a9ca4',g:'#8a6420',h:'#d3a443',y:'#f6dc84',
+        a:'#3d261c',b:'#623a2b',c:'#85503a',d:'#a2684a',e:'#bf8a62',
+        p:'#1f1c27',q:'#383347',r:'#5a5372',s:'#857ea0',u:'#6a3c8c',v:'#b47ae0',w:'#f2d6ff',
+        m:'#2b2a1a',n:'#4b4929',l:'#716b3b',E:'#8d8c6c',F:'#c4c39c',G:'#efeed2',z:'#0b0705'};
+    // 16 × 16, the bottom row on the ground. Each row is 16 characters; '.' is transparent.
+    const SPRITES={
+        crate:['................','................','................','..oooooooooooo..','..o5555555554o..','..o4444444443o..','..oooooooooooo..',
+            '..o4o3333332o2o.','..o4o3o33332o2o.','..o4o33o3332o2o.','..o4o333o332o2o.','..o4o3333o32o2o.','..o4o33333o2o2o.','..o3o2222222o1o.','..oooooooooooooo','................'],
+        pot:['................','................','......oooo......','.....oeddco.....','......occo......','.....odddco.....','....oeddddco....',
+            '...oeeddddcco...','...oedddddcbo...','...oddddddcbo...','...odddddccbo...','....occcccbbo...','....obbbbbbao...','.....oaaaaao....','......ooooo.....','................'],
+        chest:['................','................','................','...oooooooooo...','..o5555555544o..','..o4444444443o..','..ojjj4hh4jjjo..',
+            '..oiii3hy3iiio..','..o3333gh33322o.','..o3333gg3332o..','..ojjj33333jjo..','..o3333333332o..','..o2222222221o..','..oooooooooooo..','................','................'],
+        chestOpen:['................','...oooooooooo...','..o5555555544o..','..o4444444443o..','..oooooooooooo..','..o1zzzzzzzz1o..','..ojzzzzzzzzjo..',
+            '..oiii3333iiio..','..o3333gg33322o.','..o3333333332o..','..ojjj33333jjo..','..o3333333332o..','..o2222222221o..','..oooooooooooo..','................','................'],
+        sealed:['................','................','................','...oooooooooo...','..osssssssssro..','..orrrrrrrrrqo..','..ojjjjvvjjjjo..',
+            '..oqqqvwwvqqqo..','..orrrruvrrrqqo.','..okrrrvvrrkqo..','..ojjjrrrrjjjo..','..orrrrrrrrrqo..','..oqqqqqqqqqpo..','..oooooooooooo..','................','................'],
+        sealedOpen:['................','...oooooooooo...','..osssssssssro..','..orrrrrrrrrqo..','..oooooooooooo..','..opzzzzzzzzpo..','..ojzzzzzzzzjo..',
+            '..oqqqqrrqqqqo..','..orrrrrrrrrqqo.','..okrrrrrrrkqo..','..ojjjrrrrjjjo..','..orrrrrrrrrqo..','..oqqqqqqqqqpo..','..oooooooooooo..','................','................'],
+        nest:['................','................','................','.......oo.......','......oGGo...oo.','..oo..oGFo..oGGo','.oGGo.oFFo..oFFo',
+            '.oFFo.oFEo..oFEo','.oFEoooooooooooo','.ooolllllllllo..','.olllnnnlllnnno.','onnnnmmnnnnmmnno','ommmmmmmmmmmmmmo','.oooooooooooooo.','................','................'],
+        nestSpent:['................','................','................','................','................','................','................',
+            '..oFo.....oG....','.oEo.o..o.oFo...','.ooolllllllloo..','.olllnnnlllnnno.','onnnnmmnnnnmmnno','ommmmmmmmmmmmmmo','.oooooooooooooo.','................','................'],
+        crateBroken:['................','................','................','................','................','................','................',
+            '................','.......oo.......','...ooo.o4o..oo..','..o44oo.o3oo4o..','..oo33o..oo3o...','.o3oo.ooo.oo..o.','..o..o443oo.o3o.','.....oooo....o..','................'],
+        potBroken:['................','................','................','................','................','................','................',
+            '................','................','.....oo....o....','....oedo..oco...','.o..occo.oo.....','.oco.oo..odbo...','..o.....ooccbo..','.........oooo...','................'],
+        tracks:['................','................','................','................','................','................','................',
+            '...........b....','..b.......b.b...','.b.b.......b....','..b......b......','........b.b.....','....b....b......','...b.b..........','....b...........','................']
+    };
+    const cache=new Map();
+    function sheet(name) {
+        if(cache.has(name))return cache.get(name);
+        const canvas=document.createElement('canvas');canvas.width=16;canvas.height=16;
+        const ctx=canvas.getContext('2d');
+        SPRITES[name].forEach((row,y)=>{for(let x=0;x<16;x++){const color=PAL[row[x]];if(color){ctx.fillStyle=color;ctx.fillRect(x,y,1,1);}}});
+        cache.set(name,canvas);return canvas;
+    }
+    /** Which picture a row shows, and whether it stands (actor) or lies on the floor (decal). */
+    function look(row) {
+        const spent=row.phase==='spent';
+        if(row.kind==='chest')return {name:spent?'chestOpen':'chest',standing:true};
+        if(row.kind==='sealed')return {name:spent?'sealedOpen':'sealed',standing:true};
+        if(row.kind==='nest')return {name:spent?'nestSpent':'nest',standing:!spent};
+        if(row.kind==='ambush')return {name:'tracks',standing:false};
+        return {name:spent?(row.kind==='pot'?'potBroken':'crateBroken'):row.kind,standing:!spent};
+    }
     function append(actors,view) {
         const run=actExplorationState.current(game);
         syncLayer(run);
@@ -11,7 +61,7 @@ actExplorationView.objects=(()=>{
         for(const row of run.objects.entries) {
             if(!actExplorationState.objects.visible(run,row))continue;
             const point=p.cellToScreen(row.gx,row.gy),y=point.y+p.actorGroundOffsetY;
-            actors.push({kind:'object',id:row.id,y,point,object:row});
+            if(look(row).standing)actors.push({kind:'object',id:row.id,y,point,object:row});
             if(canClick(run,row)&&onScreen(point,view)) {
                 button(row,point,p);shown.add(row.id);
             }
@@ -46,61 +96,47 @@ actExplorationView.objects=(()=>{
         if(node.dataset.bounds!==style){node.style.cssText=style;node.dataset.bounds=style;}
         node.disabled=game.combatHalted||game.playerHp<=0||game.moveTimer>0;
     }
-    function draw(ctx,actor,view) {
-        const row=actor.object,p=view.gridProj,scale=p.tileW/16;
+    function fade(row) {
         const distance=Math.hypot(row.gx-game.gridPlayer.gx,row.gy-game.gridPlayer.gy);
-        ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=Math.max(.35,1-Math.max(0,distance-ACT_EXPLORATION_VISION.radius)*.08);
-        ctx.translate(Math.round(actor.point.x-8*scale),Math.round(actor.y-13*scale));ctx.scale(scale,scale);
-        rect(ctx,'#101712',1,11,14,3);
-        if(row.phase==='spent')debris(ctx,row);
-        else if(row.kind==='pot')pot(ctx);
-        else if(row.kind==='crate')crate(ctx);
-        else if(row.kind==='nest')nest(ctx,row);
-        else if(row.kind==='ambush')tracks(ctx,row);
-        else chest(ctx,row);
+        return Math.max(.35,1-Math.max(0,distance-ACT_EXPLORATION_VISION.radius)*.08);
+    }
+    /** A standing object (actor pass): ground shadow, the sprite, a shake and a fuse bar while an event is about to burst. */
+    function draw(ctx,actor,view) {
+        const row=actor.object,scale=view.gridProj.tileW/16,now=getCombatTime();
+        const shake=row.phase==='warning'?Math.round(Math.sin(now/45))*scale:0;
+        ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=fade(row);
+        ctx.translate(Math.round(actor.point.x-8*scale+shake),Math.round(actor.y-15*scale));
+        ctx.fillStyle='rgba(10,6,4,.38)';ctx.beginPath();ctx.ellipse(8*scale+scale,14.5*scale,6.5*scale,1.8*scale,0,0,Math.PI*2);ctx.fill();
+        ctx.drawImage(sheet(look(row).name),0,0,16*scale,16*scale);
+        if(row.phase==='ready'&&['chest','sealed'].includes(row.kind))twinkle(ctx,row,scale,now);
         if(row.phase==='warning') {
-            ctx.strokeStyle='#dfae75';ctx.lineWidth=1;ctx.strokeRect(0,0,16,14);
-            rect(ctx,'#dfae75',2,15,12*(1-row.remainingMs/1200),1);
+            ctx.fillStyle='#1a120d';ctx.fillRect(2*scale,0,12*scale,2*scale);
+            ctx.fillStyle=row.kind==='sealed'?'#b47ae0':'#dfae75';ctx.fillRect(2*scale,0,12*scale*(1-row.remainingMs/1200),scale);
         }
         ctx.restore();
     }
-    function rect(ctx,color,...box){ctx.fillStyle=color;ctx.fillRect(...box);}
-    function chest(ctx,row) {
-        rect(ctx,'#242326',1,3,14,10);rect(ctx,'#564536',2,6,12,6);rect(ctx,'#967249',2,3,12,4);
-        rect(ctx,'#bd9760',3,2,10,1);rect(ctx,'#352d2b',2,7,12,1);
-        rect(ctx,'#c9a96b',3,4,1,8);rect(ctx,'#c9a96b',12,4,1,8);rect(ctx,'#e1c581',7,7,2,3);
-        rect(ctx,'#766045',5,10,6,1);
-        if(row.kind==='sealed'){rect(ctx,'#7a858f',2,5,12,1);rect(ctx,'#7a858f',6,3,1,9);rect(ctx,'#bf8cc0',7,6,3,3);}
+    /** A glint that wanders over a closed chest's lid every couple of seconds: it can be opened. */
+    function twinkle(ctx,row,scale,now) {
+        const cycle=(now+row.gx*311+row.gy*173)%2200;if(cycle>420)return;
+        const x=4+Math.floor(cycle/60)%8,size=cycle<140||cycle>280?1:2;
+        ctx.fillStyle=row.kind==='sealed'?'#f2d6ff':'#fff3c4';ctx.fillRect((x)*scale,3*scale,size*scale,size*scale);
     }
-    function pot(ctx) {
-        rect(ctx,'#352f30',5,1,6,2);rect(ctx,'#a68b68',4,3,8,2);rect(ctx,'#78634d',3,5,10,6);
-        rect(ctx,'#635443',4,11,8,2);rect(ctx,'#c3a681',4,5,2,5);rect(ctx,'#4b4139',10,5,2,6);
-        rect(ctx,'#c3a681',5,2,6,1);
-    }
-    function crate(ctx) {
-        rect(ctx,'#342e26',2,2,12,11);rect(ctx,'#786144',3,3,10,9);rect(ctx,'#b0915f',3,3,10,1);
-        rect(ctx,'#463b2e',3,6,10,1);rect(ctx,'#463b2e',3,9,10,1);rect(ctx,'#ac8c59',3,3,1,9);
-        rect(ctx,'#a98a56',11,3,1,9);rect(ctx,'#c4a772',4,4,1,1);rect(ctx,'#c4a772',10,10,1,1);
-    }
-    function nest(ctx,row) {
-        rect(ctx,'#3d3931',1,8,14,5);rect(ctx,'#686042',2,10,12,2);rect(ctx,'#9b9065',4,12,8,1);
-        for(const [x,y] of [[4,4],[8,2],[10,6]]){rect(ctx,'#5a6953',x,y,4,6);rect(ctx,'#a9b18a',x,y,3,4);rect(ctx,'#d5d8af',x+1,y,1,2);}
-        if(row.phase==='active')rect(ctx,'#273225',6,5,5,6);
-    }
-    function tracks(ctx,row) {
-        rect(ctx,'#665e4d',3,9,3,2);rect(ctx,'#665e4d',9,7,3,2);rect(ctx,'#807355',5,12,3,1);
-        if(row.phase!=='ready')rect(ctx,'#b39561',8,10,2,2);
-    }
-    function debris(ctx,row) {
-        if(['chest','sealed'].includes(row.kind)) {
-            rect(ctx,'#544537',2,8,12,5);rect(ctx,'#ac8c59',2,3,12,2);rect(ctx,'#292727',3,8,10,3);
-        } else {
-            rect(ctx,'#6c6048',2,11,4,2);rect(ctx,'#a28b61',9,10,3,1);rect(ctx,'#554a39',7,13,4,1);
+    /** Floor decals (terrain pass): broken pots and crates, a spent nest, ambush tracks. The fog drawn after covers unseen ones. */
+    function drawGround(ctx,run,p) {
+        if(!run?.objects)return;
+        const scale=p.tileW/16;
+        for(const row of run.objects.entries) {
+            const {name,standing}=look(row);
+            if(standing||!actExplorationState.objects.visible(run,row))continue;
+            const point=p.cellToScreen(row.gx,row.gy);
+            ctx.globalAlpha=row.kind==='ambush'&&row.phase==='ready'?.75:1;
+            ctx.drawImage(sheet(name),Math.round(point.x-8*scale),Math.round(point.y+p.actorGroundOffsetY-15*scale),16*scale,16*scale);
         }
+        ctx.globalAlpha=1;
     }
     addEventListener('project-idle:exploration-object',event=>{
         const {kind,name}=event.detail;
         addLog(kind==='spawn'?`${name}에서 몬스터가 나타났습니다.`:`${name}의 전리품을 획득했습니다.`,kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
     });
-    return {append,draw};
+    return {append,draw,drawGround};
 })();

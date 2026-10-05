@@ -50,7 +50,7 @@ const actExplorationView=(()=>{
         const run=actExplorationState.current(game);if(!run)return false;
         const map=actExplorationMap.forRun(run);prepare(map);
         ctx.save();ctx.fillStyle=`rgb(${shadeOf(map).join(',')})`;ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
-        if(cache.surface)ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
+        if(cache.surface){ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);actExplorationView.objects.drawGround(ctx,run,p);}
         else {
             // 지도를 만드는 동안 전장 한가운데에 도트 글씨로(점 셋이 차례로 찬다). 실패하면 까닭을 적는다.
             const dots='.'.repeat(1+Math.floor(performance.now()/400)%3);

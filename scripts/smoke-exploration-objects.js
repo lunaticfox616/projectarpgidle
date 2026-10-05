@@ -28,9 +28,12 @@ for(let zone=0;zone<10;zone++) {
     for(const row of rows){assert.ok(row.count<=16&&row.chests<=2&&row.events<=1);assert.ok(row.same&&row.spaced&&row.reachable&&row.unoccupied);total++;chests+=row.chests;events+=row.events;}
 }
 assert.ok(chests/total>.7&&chests/total<1.1);assert.ok(events/total>.28&&events/total<.42);
-for(const [loop,allowed] of [[1,[]],[4,[]],[5,['sealed']],[9,['sealed']],[10,['sealed','ambush']],[14,['sealed','ambush']],[15,['sealed','ambush','nest']]]) {
+// 2026-10-05: events gathered in loops 2-5 (data/maps.js EXPLORATION_EVENT_LOOPS): sealed 2, ambush 4, nest 5, flat after 5.
+for(const [loop,allowed] of [[1,[]],[2,['sealed']],[3,['sealed']],[4,['sealed','ambush']],[5,['sealed','ambush','nest']],[15,['sealed','ambush','nest']]]) {
     const observed=copy(`Array.from(new Set(Array.from({length:100},(_,i)=>actExplorationState.objects.eventKind(${loop},i/100)).filter(Boolean)))`);
     assert.deepEqual(observed.sort(),allowed.sort(),`loop ${loop} unlocks`);
+    const share=copy(`Array.from({length:1000},(_,i)=>actExplorationState.objects.eventKind(${loop},i/1000)).filter(Boolean).length/1000`);
+    assert.equal(share,{1:0,2:.1,3:.1,4:.2}[loop]??.35,`loop ${loop}: one draw, at most one event`);
 }
 setup();run('delete r.objects;game=mergeDefaults(JSON.parse(JSON.stringify(game)));');
 assert.equal(run('game.actExploration.objects'),undefined,'legacy maps remain empty');

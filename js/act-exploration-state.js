@@ -162,10 +162,12 @@ const actExplorationState = (() => {
     }
     /** The player's move command (minimap, map or battlefield click). It never changes the mode: with auto-move on the
      * hero walks there and then goes on exploring. Unknown cells stay unavailable; a sealed gate blocks every route. */
-    function selectDestination(run,cell) {
+    /** A move command. options.object: walking up to an object (exploration-object-combat request), whose own cell is taken. */
+    function selectDestination(run,cell,options={}) {
         const map=actExplorationMap.forRun(run);
         const sealed=remainingElites(run)>0;
         if(!actExplorationMap.walkable(map,cell,sealed))return false;
+        if(!options.object && actExplorationState.objects.solidCells(run).has(`${cell.gx},${cell.gy}`))return false;
         if(!run.discovered.includes(actExplorationMap.index(map,cell)))return false;
         if(sealed && !reachableBeforeBoss(map,cell))return false;
         if(run.objects)run.objects.pendingId=null;
@@ -181,6 +183,11 @@ const actExplorationState = (() => {
      * (actExplorationProgress.runMode — offline replay walks even when auto-move is off). */
     function destination(run,from,mode=run.mode) {
         if(run.destination || mode==='manual')return run.destination;
+        const sealedChest=actExplorationState.objects.autoTarget(run);
+        return sealedChest ? {gx:sealedChest.gx,gy:sealedChest.gy} : nearestPack(run,from,mode);
+    }
+    /** The pack automatic exploration walks to next: every ordinary pack in 전체 탐색, elites and boss stages in 직행. */
+    function nearestPack(run,from,mode) {
         const map=actExplorationMap.forRun(run);
         const blocked=new Set(remainingElites(run)>0?[actExplorationMap.index(map,map.gate)]:[]);
         const candidates=run.packs.filter(pack=>!pack.objectId && pack.aliveIds.length>0 && bossReady(run,pack));

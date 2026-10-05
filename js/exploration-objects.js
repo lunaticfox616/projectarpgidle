@@ -10,10 +10,12 @@ actExplorationState.objects = (() => {
         let value=seed>>>0;
         return () => {value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
     }
+    /** One draw over the loop's odds (data/maps.js EXPLORATION_EVENT_LOOPS); null for no event. */
     function eventKind(loop,roll) {
-        if(loop>=15)return roll<.15?'sealed':roll<.25?'ambush':roll<.35?'nest':null;
-        if(loop>=10)return roll<.12?'sealed':roll<.20?'ambush':null;
-        return loop>=5 && roll<.10?'sealed':null;
+        const band=EXPLORATION_EVENT_LOOPS.find(row=>loop>=row.fromLoop);if(!band)return null;
+        let edge=0;
+        for(const [kind,chance] of band.odds){edge+=chance;if(roll<edge)return kind;}
+        return null;
     }
     function candidates(run,map) {
         const occupied=new Set(run.packs.flatMap(p=>p.waiting).map(cellKey));
@@ -54,24 +56,41 @@ actExplorationState.objects = (() => {
         const rows=preferred.length?preferred:pool;
         return rows[Math.floor(rng()*rows.length)];
     }
-    function put(entries,kind,at) {
+    /** Adds an object unless, standing, it would cut the entry off from a room, a waiting pack or the boss gate. */
+    function put(entries,kind,at,plan) {
         const row={id:'object-'+entries.length,kind,gx:at.gx,gy:at.gy,roomId:at.roomId,
             phase:'ready',wave:0,remainingMs:0};
+        if(solid(row)) {
+            if(!keepsWay(plan,cellKey(row)))return null;
+            plan.blocked.add(cellKey(row));
+        }
         entries.push(row);return row;
     }
-    function specialObjects(entries,pool,config,rng) {
+    function keepsWay(plan,extra) {
+        const {map,blocked,required}=plan,queue=[map.entry],seen=new Set([cellKey(map.entry)]);
+        for(let i=0;i<queue.length;i++)for(const next of actExplorationMap.neighbors(map,queue[i])) {
+            const key=cellKey(next);if(seen.has(key)||key===extra||blocked.has(key))continue;
+            seen.add(key);queue.push(next);
+        }
+        return required.every(key=>seen.has(key));
+    }
+    function wayPlan(run,map) {
+        const required=[map.gate,...map.rooms,...run.packs.flatMap(p=>p.waiting)].map(cellKey);
+        return {map,blocked:new Set(),required};
+    }
+    function specialObjects(entries,pool,config,rng,plan) {
         const kind=config.event;
         if(kind) {
             const at=pick(pool.filter(c=>c.spacious&&!config.excludedRooms.includes(c.roomId)),rng);
-            if(at)put(entries,kind,at);
+            if(at)put(entries,kind,at,plan);
         }
         const roll=rng(),count=roll<.25?0:roll<.85?1:2;
         for(let i=0;i<count;i++) {
             const at=pick(pool.filter(c=>entries.every(e=>near(e,c)>=6)),rng,true);
-            if(at)put(entries,'chest',at);
+            if(at)put(entries,'chest',at,plan);
         }
     }
-    function props(entries,pool,rng,roomCount) {
+    function props(entries,pool,rng,roomCount,plan) {
         const clusters=roomCount<=6?2:roomCount>=9?3+Math.floor(rng()*2):2+Math.floor(rng()*3);
         const usedRooms=new Set(entries.map(e=>e.roomId));
         for(let group=0;group<clusters;group++) {
@@ -80,20 +99,27 @@ actExplorationState.objects = (() => {
             usedRooms.add(anchor.roomId);
             const cells=available.filter(c=>c.roomId===anchor.roomId&&near(c,anchor)<=2).sort((a,b)=>near(a,anchor)-near(b,anchor));
             const count=2+Math.floor(rng()*2),kind=rng()<.5?'pot':'crate';
-            cells.slice(0,count).forEach(c=>put(entries,kind,c));
+            cells.slice(0,count).forEach(c=>put(entries,kind,c,plan));
         }
     }
     /** Once per NEW run. Old saves stay empty. quantity is a multiplier, rarity a percentage-point bonus.
      * remainingMs is combat-clock milliseconds; pendingId is a clicked row id or null. Frozen at map opening. */
     function create(run,config) {
         const map=actExplorationMap.forRun(run),rng=random(config.seed),entries=[];
-        const pool=candidates(run,map);
+        const pool=candidates(run,map),plan=wayPlan(run,map);
         const event=config.allowEvent?eventKind(config.loop,rng()):null;
-        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms},rng);
-        props(entries,pool,rng,actExplorationState.packRooms(map).length);
+        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms},rng,plan);
+        props(entries,pool,rng,actExplorationState.packRooms(map).length,plan);
         return {version:1,seed:config.seed,quantity:config.quantity,rarity:config.rarity,pendingId:null,entries};
     }
     function isEvent(row) {return events.includes(row.kind);}
+    /** Standing objects take their cell: nobody walks onto a closed or opened chest, an unbroken pot, crate or nest (2026-10-05).
+     * Broken pots and crates, a spent nest and ambush tracks lie on the floor. */
+    function solid(row) {return row.kind==='chest'||row.kind==='sealed'||(['pot','crate','nest'].includes(row.kind)&&row.phase!=='spent');}
+    /** The sealed chest automatic exploration walks to and opens (2026-10-05 user decision): ordinary chests, pots and crates
+     * wait for a click; a sealed chest's fight is part of the hunt. Null until one is discovered. */
+    function autoTarget(run) {return (run?.objects?.entries||[]).find(e=>e.kind==='sealed'&&e.phase==='ready'&&visible(run,e))||null;}
+    function solidCells(run) {return new Set((run?.objects?.entries||[]).filter(solid).map(cellKey));}
     function active(run) {return (run.objects?.entries||[]).some(e=>e.phase==='warning'||e.phase==='active');}
     function visible(run,row) {
         const map=actExplorationMap.forRun(run);
@@ -161,5 +187,5 @@ actExplorationState.objects = (() => {
         if(run.objects.entries.some(isEvent))throw Error('아틀라스 오브젝트에 중복 전투 사건이 있습니다.');
         run.objects.pendingId=null;return run.objects;
     }
-    return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,labels};
+    return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,labels,solid,solidCells,autoTarget};
 })();

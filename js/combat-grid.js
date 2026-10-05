@@ -124,6 +124,7 @@ function getGridBlockedCells(excludeUnit) {
 
 function addExplorationGridReservations(blocked,excludeUnit) {
     const run=actExplorationState.current(game);if(!run)return;
+    actExplorationState.objects.solidCells(run).forEach(key=>blocked.add(key));
     run.packs.forEach(pack=>pack.waiting.forEach(enemy=>{
         getGridUnitCells(enemy).forEach(cell=>blocked.add(gridCellKey(cell.gx,cell.gy)));
     }));

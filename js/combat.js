@@ -12149,6 +12149,9 @@ function triggerSeasonReset(options) {
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염·냉기·번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
+    Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
+        if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);
+    });
     if (game.season === 13 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개·희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
     }

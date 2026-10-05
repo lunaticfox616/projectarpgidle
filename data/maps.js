@@ -134,6 +134,20 @@ const COSMOS_EXPEDITION_DIRECTIVE_DB = Object.freeze([
     { id: 'eclipse', name: '흑성 일식', signal: 'RARE SIGNAL', description: '드물게 관측되는 흑성 신호입니다. 위험과 보상이 크게 증폭됩니다.', weight: 2, enemyHpMul: 1.68, enemyDamageMul: 1.40, enemyAttackSpeedMul: 1.18, rewardMul: 2.15, jackpotChance: 0.20, jackpotBonusMul: 2, rare: true }
 ]);
 
+// 탐험 사건(봉인된 보물함 · 매복 · 알집, js/exploration-objects.js): 지도마다 한 번 추첨해 하나만, 해금 뒤에도 매번 나오지는 않는다.
+// 2026-10-05 사용자 결정: 루프 2~5에 모은다. 루프 3은 이미 여섯 가지가 열려 봉인 2 · 매복 4 · 알집 5로 나눴다. 루프 5부터 확률은 그대로다.
+// odds: 그 루프부터의 [사건, 확률] — 앞에서부터 누적해 한 번의 추첨으로 고른다. notice: 처음 열리는 루프에 한 줄로 알린다.
+const EXPLORATION_EVENT_LOOPS = Object.freeze([
+    Object.freeze({ fromLoop: 5, odds: Object.freeze([['sealed', 0.15], ['ambush', 0.10], ['nest', 0.10]]) }),
+    Object.freeze({ fromLoop: 4, odds: Object.freeze([['sealed', 0.12], ['ambush', 0.08]]) }),
+    Object.freeze({ fromLoop: 2, odds: Object.freeze([['sealed', 0.10]]) })
+]);
+const EXPLORATION_EVENT_NOTICES = Object.freeze({
+    sealed: Object.freeze({ loop: 2, title: '봉인된 보물함', body: '이제 탐험 중 봉인된 보물함을 발견할 수 있습니다.' }),
+    ambush: Object.freeze({ loop: 4, title: '매복', body: '이제 탐험 중 매복을 만날 수 있습니다.' }),
+    nest: Object.freeze({ loop: 5, title: '알집', body: '이제 탐험 중 알집을 발견할 수 있습니다.' })
+});
+
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
 //  - 요구 혼돈 심도는 루프 30(심화 40) 이후에도 기존처럼 루프당 1층씩 증가한다.
 //  - 루프 31+에서는 에니프론 행성을 이번 루프에 돌파하면 우주계 루프를 선택할 수 있다.
@@ -318,5 +332,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_POWER_SCALE });
+safeExposeData({ MONSTER_LOOP_POWER_SCALE, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
