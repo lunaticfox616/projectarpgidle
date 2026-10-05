@@ -36,9 +36,84 @@ worldTreeSkillFx.feedback = (() => {
     /** Called only when the shared renderer consumes an unprocessed event. */
     function observe(fx, now) {
         if (now - fx.start > 500 || game.isBackgroundCalculation || document.hidden) return;
-        if (fx.type === 'levelUp') playUiFeedbackSound('levelUp');
-        if (fx.type === 'objectReward') playUiFeedbackSound(({pot:'potBreak',crate:'woodBreak'})[fx.objectKind] || 'chestOpen');
+        eventSound(fx);
         if (fx.type === 'enemyDeath') deathNotice(fx, now);
+    }
+
+    function hitSound(fx) {
+        if (fx.dot || !(fx.damage > 0)) return;
+        playUiFeedbackSound(skillSound(fx));
+    }
+
+    function weaponSound(fx, tags) {
+        if (tags.includes('potion')) return 'hitFlask';
+        if (tags.includes('shield')) return 'hitShield';
+        if (tags.includes('dagger') || fx.skillName === '암살자의 일격') return 'hitThrust';
+        if (fx.projectile || tags.includes('projectile')) return 'hitProjectile';
+        return null;
+    }
+
+    function areaSound(fx, skill, tags) {
+        if (fx.slam || tags.includes('slam') || skill.nativeCastId === 57) return 'hitSlam';
+        if (skill.targetMode === 'whirl' || tags.includes('channeling')) return 'hitWhirl';
+        if (tags.includes('aoe')) return 'hitSlam';
+        return null;
+    }
+
+    function physicalSound(fx, skill, tags) {
+        const weapon = weaponSound(fx, tags), area = areaSound(fx, skill, tags);
+        if (weapon) return weapon;
+        if (area) return area;
+        if (skill.targetMode === 'cleave') return 'hitSlash';
+        return fx.crit || fx.impactTier === 'heavy' ? 'hitCritical' : 'hitPhysical';
+    }
+
+    function fireSound(fx, skill, tags) {
+        if (tags.includes('channeling') || tags.includes('dot') || tags.includes('debuff') || skill.nativeCastId === 55) return 'hitFireBreath';
+        if (tags.includes('melee') && !tags.includes('slam') && !fx.slam) return 'hitFireBlade';
+        return 'hitFireBurst';
+    }
+
+    function coldSound(fx, skill, tags) {
+        if (tags.includes('potion')) return 'hitColdBurst';
+        if (fx.projectile || fx.pierce || tags.includes('projectile') || tags.includes('summon') || skill.targetMode === 'pierce') return 'hitColdPierce';
+        return 'hitColdBurst';
+    }
+
+    function lightSound(fx, skill, tags) {
+        if (tags.includes('channeling')) return 'hitLightBeam';
+        if (tags.includes('aoe') || tags.includes('potion') || fx.slam || skill.targetMode === 'cleave') return 'hitLightBurst';
+        return 'hitLightArc';
+    }
+
+    function chaosSound(fx, skill, tags) {
+        if (tags.includes('potion') || (fx.skillName || '').includes('독')) return 'hitVenom';
+        return tags.includes('melee') ? 'hitChaosCut' : 'hitChaosPulse';
+    }
+
+    const elementSounds = {fire: fireSound, cold: coldSound, light: lightSound, chaos: chaosSound};
+    function skillSound(fx) {
+        const skill = SKILL_DB[fx.skillName] || {}, tags = skill.tags || [];
+        // Cast-time element wins: staged/prismatic skills may differ from their base definition.
+        const element = fx.element || skill.ele || 'phys';
+        return (elementSounds[element] || physicalSound)(fx, skill, tags);
+    }
+
+    function dotCastSound(fx) {
+        if (SKILL_DB[fx.skillName]?.tags?.includes('dot')) playUiFeedbackSound(skillSound(fx));
+    }
+
+    function eventSound(fx) {
+        switch (fx.type) {
+        case 'hit': hitSound(fx); break;
+        case 'playerSwing': dotCastSound(fx); break;
+        case 'playerHit':
+            if (fx.damage > 0 && !fx.deflected) playUiFeedbackSound('playerHurt');
+            break;
+        case 'levelUp': playUiFeedbackSound('levelUp'); break;
+        case 'objectReward': playUiFeedbackSound(({pot:'potBreak',crate:'woodBreak'})[fx.objectKind] || 'chestOpen'); break;
+        case 'playerReturnDepart': playUiFeedbackSound('returnWarp'); break;
+        }
     }
 
     function deathNotice(fx, now) {

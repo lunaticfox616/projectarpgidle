@@ -44,6 +44,12 @@ for(const mutation of ["objects.seed=-1","objects.entries[0].gx=-1","objects.ent
 assert.deepEqual(copy('game.currencies'),wallet);
 run('for(let i=0;i<100;i++)actExplorationProgress.objects.step(r,20);');assert.equal(run('o.phase'),'ready','no automatic opening');
 assert.equal(run('actExplorationProgress.objects.request(o.id)'),true);assert.equal(run('o.phase'),'spent');
+const chestCurrency = Object.entries(copy('game.currencies')).filter(([key, value]) => value > (wallet[key] || 0));
+assert.ok(chestCurrency.length, 'chest pays currency for this fixture');
+for (const [key, value] of chestCurrency) {
+    assert.equal(run(`battleFx.filter(fx=>fx.loot?.currency==='${key}').at(-1)?.loot.count`), value - (wallet[key] || 0),
+        'chest currency receipt has the count required by ground-drop presentation and sound');
+}
 const once=copy('({items:game.inventory,currency:game.currencies})');
 assert.equal(run('actExplorationProgress.objects.request(o.id)'),false);assert.deepEqual(copy('({items:game.inventory,currency:game.currencies})'),once);
 run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));r=game.actExploration;');

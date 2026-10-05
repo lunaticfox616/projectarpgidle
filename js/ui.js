@@ -5568,6 +5568,7 @@ function updateSettings() {
     game.settings.hitEmphasis = document.getElementById('sel-hit-emphasis')?.value === 'mild' ? 'mild' : 'normal';
     let uiSoundsCheckbox = document.getElementById('chk-ui-sounds');
     game.settings.uiSounds = !uiSoundsCheckbox || uiSoundsCheckbox.checked;
+    playUiFeedbackSound.syncSettings();
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
     let detailedDamageLogCheckbox = document.getElementById('chk-log-damage-detail');
     game.settings.showDetailedDamageLog = !!(detailedDamageLogCheckbox && detailedDamageLogCheckbox.checked);

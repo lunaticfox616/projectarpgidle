@@ -80,7 +80,7 @@
             enemies.slice(0,2).forEach((e,i)=>a.addBattleFx('hit',{enemyId:e.id,damage:10,crit:!!i,skillName:a.game.activeSkill,duration:260}));capture();
         },350);status.textContent='타격 그림 비교 · 이 버튼만 피해 정산 없이 시각 FX를 보여 줍니다.';},
         level(){const a=app();a.game.exp=a.getExpReq(a.game.level)-1;a.grantExpAndGem(a.createEnemy(a.getZone(0),{},0),a.getPlayerStats());refresh(a);capture();status.textContent='실제 경험치 지급 후 레벨업';},
-        loot(){const a=app(),e={id:0,...a.game.gridPlayer};a.awardCurrency('goldenRule',1,'drop');a.queueEnemyGroundLoot(e,{currency:'goldenRule',amount:1});refresh(a);capture();status.textContent='테스트 황금률 1 지급 · 바닥 드롭 확인';}
+        loot(){const a=app(),e={id:0,...a.game.gridPlayer};a.awardCurrency('goldenRule',1,'drop');a.queueEnemyGroundLoot(e,{currency:'goldenRule',count:1});refresh(a);capture();status.textContent='테스트 황금률 1 지급 · 바닥 드롭 확인';}
     };
     document.querySelectorAll('[data-action]').forEach(button=>button.onclick=()=>{
         try{document.querySelector('#error').textContent='';actions[button.dataset.action]();}
