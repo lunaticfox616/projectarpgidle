@@ -203,7 +203,7 @@ function panel(id) {
         classList: { contains: key => classes.has(key), add: (...keys) => keys.forEach(key => classes.add(key)),
             remove: (...keys) => keys.forEach(key => classes.delete(key)),
             toggle(key, value) { if (value) classes.add(key); else classes.delete(key); } },
-        setAttribute() {}, removeAttribute(name) { if (name === 'data-window-prepared') delete this.dataset.windowPrepared; },
+        setAttribute() {}, toggleAttribute() {}, removeAttribute(name) { if (name === 'data-window-prepared') delete this.dataset.windowPrepared; },
         querySelector: () => null, appendChild() {}, prepend() {}, focus() {},
         addEventListener(type, handler) { listeners.set(type, [...(listeners.get(type) || []), handler]); },
         clickAction(action) {
@@ -242,7 +242,7 @@ function panel(id) {
 
 // 12) The actual tab controller and window manager agree when returning to phone.
 {
-    const elements = Object.fromEntries(['tab-items', 'tab-skills', 'tab-character', 'tab-battle', 'item-tab-equip', 'item-tab-craft'].flatMap(id =>
+    const elements = Object.fromEntries(['tab-items', 'tab-skills', 'tab-character', 'tab-battle', 'tab-map', 'map-tab-zones', 'map-explore-atlas', 'item-tab-equip', 'item-tab-craft'].flatMap(id =>
         [[id, panel(id)], ['btn-' + id, panel('btn-' + id)]]));
     const { buildGameRuntime } = require('./lib/game-runtime');
     elements['ui-goal-drawer'] = panel('ui-goal-drawer');
@@ -283,6 +283,22 @@ function panel(id) {
     assert(elements['tab-items'].classList.contains('ui-window-active'), 'content shortcuts bring an existing destination above the source window');
     vm.runInContext("contentUnlockUi.open('craft')", runtime);
     assert(elements['tab-items'].classList.contains('ui-window-open'), 'repeated shortcuts keep the destination open');
+
+    runtime.openWindow('tab-map');
+    elements['tab-map'].classList.add('active');
+    runtime.closeWindow('tab-map');
+    const mapSelect = { dataset: {}, replaceChildren() {} };
+    elements['mobile-map-navigation'] = { querySelector: () => mapSelect };
+    for (const key of vm.runInContext('TAB_UNLOCK_BUTTON_KEYS', runtime)) {
+        const id = 'btn-tab-' + key;
+        elements[id] ||= panel(id);
+    }
+    vm.runInContext(fs.readFileSync('js/map-navigation-ui.js', 'utf8'), runtime);
+    vm.runInContext('explorationAtlasUi.open()', runtime);
+    assert(elements['tab-map'].classList.contains('ui-window-open'), 'the exploration overview reopens a closed map with a stale active class');
+    runtime.openWindow('tab-character');
+    vm.runInContext('explorationAtlasUi.open()', runtime);
+    assert(elements['tab-map'].classList.contains('ui-window-active'), 'the exploration overview focuses its already-open map');
 }
 
 console.log('smoke-ui-layout-state passed');

@@ -8,7 +8,7 @@ const explorationAtlasUi = (() => {
         return !!button && !button.hidden && button.style.display !== 'none' && contentProgression.canOpen(route);
     }
     function open() {
-        if (!document.getElementById('tab-map').classList.contains('active')) switchTab('tab-map');
+        switchTab('tab-map', { keepWindowOpen: true });
         switchMapSubtab('map-tab-zones');
         switchMapExploreSubtab('map-explore-atlas');
         selected = null;
