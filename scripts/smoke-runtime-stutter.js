@@ -33,7 +33,7 @@ const saveContext = {
   safeExposeData(map) { Object.assign(saveContext, map); }
 };
 vm.createContext(saveContext);
-for (const file of ['data/core-items.js', 'js/core-items.js', 'js/act-exploration-loot.js', 'js/equipment-sockets.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), saveContext, { filename: file });
+for (const file of ['data/core-items.js', 'js/core-items.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js', 'js/exploration-ground-loot.js', 'js/equipment-sockets.js']) vm.runInContext(fs.readFileSync(file, 'utf8'), saveContext, { filename: file });
 vm.runInContext(saveSource, saveContext, { filename: 'save-runtime.js' });
 
 assert.strictEqual(saveContext.saveGame({ touchModifiedAt: false }), true, 'autosave should report successful persistence');

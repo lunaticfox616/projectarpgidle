@@ -5,6 +5,10 @@ const actExplorationView=(()=>{
     // outer half of the last seen tile. A lighter shade keeps the sight's edge readable and still shows the ground ahead dimly.
     const FOG_BORDER_ALPHA=.35;
     let cache=null,lastOrigin=null;
+    // During a boss's entrance and fight the camera leans toward it (half the way, at most BOSS_LEAD_TILES a side), so a boss
+    // below the hero is not left at the screen's lower edge behind the HUD (2026-10-05 user request). Eased, never a jump.
+    const BOSS_LEAD_TILES=3,BOSS_LEAD_PER_SEC=3;
+    let lead={run:null,gx:0,gy:0,at:0};
     /** Whole-pixel camera zoom for the 16px art: ×3 (48px tiles) on phones, ×4 once the view keeps about 16×12 tiles —
      * on a desktop window the corridor then fills the screen instead of floating in black (data ACT_EXPLORATION_CAMERA).
      * The tile is sized so one art pixel is a whole number of canvas pixels at the battle render scale
@@ -20,12 +24,29 @@ const actExplorationView=(()=>{
     function snap(value) { const scale=renderScale();return Math.round(value*scale)/scale; }
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height);
-        const mapX=snap(width/2-(cell.gx+.5)*tile),mapY=snap(height/2-(cell.gy+.5)*tile);
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=tileSize(width,height),focus=bossLead(run,cell);
+        const mapX=snap(width/2-(cell.gx+focus.gx+.5)*tile),mapY=snap(height/2-(cell.gy+focus.gy+.5)*tile);
         shiftActors(run,{x:mapX,y:mapY,tile});
         return {tileW:tile,tileH:tile,actorGroundOffsetY:tile/6,unitScaleCap:tile/46,mapX,mapY,
             mapWidth:map.columns*tile,mapHeight:map.rows*tile,
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*tile})};
+    }
+    /** The boss the camera leans toward: the one fighting, else the one rising in its entrance. */
+    function focusBoss(run) {
+        const fighting=game.enemies.find(enemy=>enemy.isBoss && enemy.hp>0);
+        if(fighting)return fighting;
+        const entrance=actExplorationState.entrance(run);
+        return entrance ? run.packs.find(pack=>pack.key===entrance.key)?.waiting.find(enemy=>enemy.isBoss) : null;
+    }
+    function bossLead(run,cell) {
+        const now=performance.now(),dt=lead.run===run?Math.min(.25,Math.max(0,(now-lead.at)/1000)):Infinity;
+        if(lead.run!==run)lead={run,gx:0,gy:0,at:now};
+        const boss=focusBoss(run),center=boss&&hasGridCell(boss)?getGridUnitCenter(boss):null;
+        const clamp=value=>Math.max(-BOSS_LEAD_TILES,Math.min(BOSS_LEAD_TILES,value));
+        const target=center?{gx:clamp((center.gx-cell.gx)/2),gy:clamp((center.gy-cell.gy)/2)}:{gx:0,gy:0};
+        const ease=1-Math.exp(-BOSS_LEAD_PER_SEC*dt);
+        lead.gx+=(target.gx-lead.gx)*ease;lead.gy+=(target.gy-lead.gy)*ease;lead.at=now;
+        return {gx:lead.gx,gy:lead.gy};
     }
     function shiftActors(run,origin) {
         if(lastOrigin?.run===run && lastOrigin.tile===origin.tile) {

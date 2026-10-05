@@ -39,6 +39,12 @@
 .battle-loot-contact{position:absolute;left:-23px;top:-9px;width:46px;height:18px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 50%,transparent),transparent 70%);animation:loot-contact 450ms ease-out both}
 .battle-loot-drop[data-beam="true"] .battle-loot-contact{width:64px;height:25px;left:-32px;top:-12px;--loot-color:var(--beam-core,#fff1d2)}
 .battle-loot-drop.collected{opacity:0;transition:opacity 100ms}
+/* Floor piles on an exploration map wait to be picked up: the picture and the names take a click or a tap (the layer itself stays
+   click-through so the battlefield keeps its move commands). */
+.battle-loot-drop.is-floor :is(.battle-loot-item,.battle-loot-name){pointer-events:auto;cursor:pointer}
+.battle-loot-drop.is-floor:focus-visible{outline:none}
+.battle-loot-drop.is-floor:focus-visible .battle-loot-labels{outline:2px solid #f2d27a;outline-offset:2px}
+.battle-loot-drop.is-floor:hover .battle-loot-name{filter:brightness(1.18)}
 .battle-loot-mote{position:absolute;z-index:5;width:25px;height:4px;margin:-2px 0 0 -12.5px;border-radius:50%;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--loot-color) 70%,transparent) 55%,#fff 91%,transparent);filter:drop-shadow(0 0 3px var(--loot-color));pointer-events:none}
 .battle-loot-mote::after{content:'';position:absolute;right:2px;top:0;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 5px var(--loot-color)}
 .battle-loot-receive{position:absolute;z-index:5;width:30px;height:30px;margin:-15px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.9),color-mix(in srgb,var(--loot-color) 32%,transparent) 24%,transparent 65%);animation:loot-receive 280ms ease-out both}

@@ -2,7 +2,8 @@
 // Enemy records are prepared by combat; each living record has exactly one owner:
 // pack.waiting before engagement, game.enemies afterwards.
 const actExplorationState = (() => {
-    const settlementMs=1400;
+    // The cleared map stays on screen this long before the next one (2026-10-05 user request: at least 5 s after the boss).
+    const settlementMs=5000;
     // A boss wakes only once the player reaches its room (the one-cell gate or inside): first encounters rise for BOSS_ENTRANCE_MS;
     // previously cleared story acts use a shorter entrance.
     // (drawn by js/canvas-boss-entrance.js), then the fight starts. Transient like the discovery memos — a reload
@@ -34,7 +35,7 @@ const actExplorationState = (() => {
         Object.assign(run,{rotation:map.rotation,layoutId:map.id,status:'active',mode:'direct',completionApplied:false,
             motion:null,motionTimeMs:now,motionDirection:'south',
             departure:null,destination:null,discovered:actExplorationMap.visibleCells(map,map.entry),
-            visitedRooms:[map.entry.id],packs});
+            visitedRooms:[map.entry.id],packs,groundLoot:[]});
         validate(run,[]);
         return run;
     }
@@ -302,6 +303,7 @@ const actExplorationState = (() => {
         const run=state.actExploration;
         if(!run || !run.source || explorationLayouts.supports(run.source))return false;
         actExplorationLoot.restore(state,run);
+        actExplorationState.groundLoot.settleOnLoad(state,run);
         console.warn('retired generated map dropped on load:', run.source.style);
         state.actExploration=null;
         state.enemies=(state.enemies||[]).filter(enemy=>!enemy || !enemy.explorationPack);
@@ -323,11 +325,13 @@ const actExplorationState = (() => {
         // 다른 지역에 남은 탐험은 실행 중에도 current()가 무시하고 다음 출발 때 버려진다(reconcileDeparture).
         // 불러올 때도 같은 규칙으로 버린다: 저장 전체를 손상으로 막지 않고, 이미 획득한 전리품은 유지한다.
         if(run.zoneId!==state.currentZoneId) {
+            actExplorationState.groundLoot.settleOnLoad(state,run);
             console.warn('stale act exploration dropped on load:', run.zoneId, '!=', state.currentZoneId);
             state.actExploration=null;
             return null;
         }
         validate(run,state.enemies);validCell(actExplorationMap.forRun(run),state.gridPlayer);
+        actExplorationState.groundLoot.validate(run);
         actExplorationMotion.validate(run,state.gridPlayer,actExplorationMap.forRun(run));
         if(run.departure===undefined)run.departure=null;
         validateDeparture(run);

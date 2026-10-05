@@ -14,9 +14,6 @@ const hanaActors = (() => {
     const BARE_LAYERS = [3, 1, 4];       // hands without the weapon · body · hands
     const DOTS_PER_TILE = 16;
     const HURT_MS = 420;
-    const FLASH_MS = 45;
-    const FLASH_ALPHA = 0.45;
-    const FLASH_COLOUR = '#ffe2dc';
     const DRAIN_TINT = '#ba3e5f';
     const images = new Map();
     const flashes = new Map();
@@ -200,7 +197,7 @@ const hanaActors = (() => {
     function hurtPose(def, state, now) {
         const age = now - state.hurtAt;
         if (!(age >= 0 && age < HURT_MS)) return null;
-        return { motion: 'hurt', frame: frameAt(def.motions.hurt.ms, age, false), dir: state.facing, flash: !!state.hurtHeavy && age < FLASH_MS };
+        return { motion: 'hurt', frame: frameAt(def.motions.hurt.ms, age, false), dir: state.facing };
     }
     function pickPose(def, state, now) {
         return downPose(def, state) || swingPose(def, state, now) || movePose(def, state, now)
@@ -288,7 +285,7 @@ const hanaActors = (() => {
      * @param {number} y feet y (CSS px)
      * @param {{classId:string, tile:number, facing:string, weapon?:?string, hideWeapon?:boolean, throwsWeapon?:boolean,
      *   projection?:object, moving?:boolean, running?:boolean, moveRate?:number, moveDirection?:string, attack?:?object,
-     *   hurtAt?:?number, hurtHeavy?:boolean, downProgress?:?number, alpha?:number, tint?:number}} state
+     *   hurtAt?:?number, downProgress?:?number, alpha?:number, tint?:number}} state
      * @param {number} now visual clock
      * @returns {boolean} false when the sheets are not ready (caller falls back to the legacy sprite)
      */
@@ -308,7 +305,6 @@ const hanaActors = (() => {
         ctx.globalAlpha = alpha;
         frame.srcs.forEach(src => blit(ctx, frame.img, src, dest));
         remember(frame, dest, pose, { foot: { x, y }, now, projection: state.projection, classId: state.classId });
-        overlay(ctx, frame, dest, pose.flash ? alpha * FLASH_ALPHA : 0, FLASH_COLOUR);
         overlay(ctx, frame, dest, state.tint > 0 ? alpha * Math.min(1, state.tint) : 0, DRAIN_TINT);
         ctx.restore();
         return true;

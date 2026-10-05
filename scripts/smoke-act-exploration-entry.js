@@ -45,7 +45,7 @@ for(const action of ['nextZone','nextLoopBestPlusOne','repeatZone','stop']) {
         advance(20);
         assert.deepEqual(copy('[game.actExploration,game.currencies,game.inventory]'),settled);
     } else {
-        assert.equal(run('game.actExploration.departure.remainingMs'),1400,'completion briefly holds the source map before travel');
+        assert.equal(run('game.actExploration.departure.remainingMs'),5000,'completion holds the cleared map five seconds before travel');
         const rewards=copy('[game.currencies,game.inventory.map(({instanceId,...item})=>item),game.maxZoneId]');
         advance(12);
         const exit=copy('game.actExploration.departure');

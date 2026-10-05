@@ -164,7 +164,7 @@ actExplorationProgress.objects = (() => {
     }
     function pay(run,row,drop) {
         const {prop,items,enemy,rng}=drop;
-        for(const item of items)if(addItemToInventory(item))queueEnemyGroundLoot(enemy,{item,itemKind:'equipment',highlight:equipmentLootPolicy.highlight(item,game)});
+        for(const item of items)keepEquipmentDrop(enemy,item);
         if(prop&&rng()>=.3)return;
         const key=contentProgression.canDropCurrency('magicBud')?'magicBud':'formlessDew';
         if(!contentProgression.canDropCurrency(key))return;

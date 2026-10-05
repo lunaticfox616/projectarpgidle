@@ -321,8 +321,8 @@ const damageTextLayout = vm.runInContext(`(() => {
 })()`, context);
 assert.ok(damageTextLayout.every(text => text.start === 1200), 'damage labels should share the battlefield visual clock instead of wall-clock time');
 assert.ok(damageTextLayout.every(text => text.offsetX === 0), 'rapid damage labels should stay on one readable anchor');
-assert.deepStrictEqual(Array.from(damageTextLayout, text => text.stackShiftTo), [-36, -18, 0], 'older damage labels should be pushed upward in arrival order');
-assert.ok(damageTextLayout.every(text => text.duration <= 760), 'ordinary damage labels should clear quickly instead of lingering over combat');
+assert.deepStrictEqual(Array.from(damageTextLayout, text => text.stackShiftTo), [-46, -23, 0], 'older damage labels should be pushed upward in arrival order');
+assert.ok(damageTextLayout.every(text => text.duration === 1060), 'ordinary damage labels stay about a second (2026-10-05 user request), then clear');
 const damageTextColors = vm.runInContext(`({
   normalIncoming: getDamageTextFillColor({ enemyHit: true }),
   deflectedIncoming: getDamageTextFillColor({ enemyHit: true, deflected: true })
@@ -359,25 +359,26 @@ assert.strictEqual(bodyCueLayout.rows[1].stackShiftTo, 0, 'evasion body cues mus
 assert.strictEqual(bodyCueLayout.rows[1].duration, 420, 'evasion body cues should clear quickly beside the character');
 assert.ok(bodyCueLayout.font.includes('11px'), 'body cues should be visibly smaller than ordinary damage numbers');
 assert.strictEqual(bodyCueLayout.drawY, 220, 'body cues must stay fixed beside the character instead of rising like damage numbers');
-const sideLabels = vm.runInContext(`(() => {
+const headLabels = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [];
-  spawnDamageText({ start: 1700, x: 420, y: 240, value: 30, side: 1 });
-  spawnDamageText({ start: 1700, x: 380, y: 240, value: 70, side: 1, crit: true });
-  spawnDamageText({ start: 1700, x: 200, y: 240, value: 9, side: -1, enemyHit: true });
+  spawnDamageText({ start: 1700, x: 420, y: 240, value: 30 });
+  spawnDamageText({ start: 1700, x: 380, y: 240, value: 70, crit: true });
+  spawnDamageText({ start: 1700, x: 200, y: 240, value: 9, enemyHit: true });
   const drawn = [];
   const ctx = { save() {}, restore() {}, translate() {}, scale() {}, strokeText() {}, measureText: value => ({ width: String(value).length * 8 }),
-    fillText(value, x) { drawn.push({ value: String(value), align: this.textAlign, alpha: this.globalAlpha, blur: this.shadowBlur }); } };
+    fillText(value, x) { drawn.push({ value: String(value), x, align: this.textAlign, alpha: this.globalAlpha, blur: this.shadowBlur, font: this.font }); } };
   drawDamageTexts(ctx, 1710);
-  return { drawn, offsets: [getDamageTextSideOffset(0, 48), getDamageTextSideOffset(120, 96), getDamageTextSideOffset(0, 0)] };
+  return { drawn, body: getDamageTextBodyY(300, 46) };
 })()`, context);
-const sideByValue = Object.fromEntries(sideLabels.drawn.map(row => [row.value, row]));
-assert.strictEqual(sideByValue['30'].align, 'left', 'damage dealt grows rightward from beside the monster');
-assert.strictEqual(sideByValue['-9'].align, 'right', 'damage taken grows leftward from beside the hero');
-assert.ok(Math.abs(sideByValue['30'].alpha - 0.72) < 1e-9, 'ordinary dealt hits sit back at 72% so crits stand out');
-assert.strictEqual(sideByValue['70'].alpha, 1, 'crits stay at full strength');
-assert.strictEqual(sideByValue['-9'].alpha, 1, 'damage taken stays at full strength');
-assert.ok(sideByValue['30'].blur === 0 && sideByValue['-9'].blur === 0, 'non-crit numbers use an outline, not a glow');
-assert.deepStrictEqual(Array.from(sideLabels.offsets), [20, 48, 14], 'the side gap follows the drawn sprite and grid, never below 14px');
+const byValue = Object.fromEntries(headLabels.drawn.map(row => [row.value, row]));
+assert.ok(['30', '70', '-9'].every(value => byValue[value].align === 'center'), 'damage numbers are centred on the unit');
+assert.strictEqual(byValue['-9'].x, 200, 'damage taken stays on the hero instead of beside it');
+assert.strictEqual(headLabels.body, 277, 'the number starts on the middle of the body');
+assert.ok(Math.abs(byValue['30'].alpha - 0.9) < 1e-9, 'ordinary dealt hits sit back slightly so crits stand out');
+assert.strictEqual(byValue['70'].alpha, 1, 'crits stay at full strength');
+assert.strictEqual(byValue['-9'].alpha, 1, 'damage taken stays at full strength');
+assert.ok(byValue['30'].blur === 0 && byValue['-9'].blur === 0, 'non-crit numbers use an outline, not a glow');
+assert.ok(/ 21px/.test(byValue['30'].font) && / 25px/.test(byValue['70'].font), 'ordinary 21px and crit 25px numbers');
 const playerBar = vm.runInContext(`[0.8, 0.6, 0.5, 0.35, 0.2].map(pct => getPlayerHealthBarLook(pct, 0))`, context);
 assert.deepStrictEqual(Array.from(playerBar, look => look.fill), ['#20bf6b', '#20bf6b', '#e0a530', '#e0a530', '#e2453c'],
   'player life bar: green from 60%, amber from 35%, red below');

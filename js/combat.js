@@ -7639,10 +7639,25 @@ function createExplorationPacks(zone,map,bossStages) {
         if(room.role==='entry' || room.role==='path')continue;
         if(room.role!=='boss'){packs.push(zone.atlasCleared?.includes(room.id) ? emptiedExplorationPack(room)
             : createActExplorationPack(zone,room,null,encounters[room.id]||null,counts.get(room.id)));continue;}
-        for(let stage=0;stage<bossStages;stage++)packs.push(createActExplorationPack(zone,room,stage));
+        for(let stage=0;stage<bossStages;stage++)packs.push(placeExplorationBoss(map,room,createActExplorationPack(zone,room,stage)));
     }
     if(patrol)packs.push(createActExplorationPack(zone,map.rooms.find(room=>room.id===patrol.roomId),null,null,patrol));
     return packs;
+}
+
+/** A boss stands on its room's centre with its footprint reaching away from the gate (2026-10-05 user request): the 2×2 body grows
+ * right and down from its anchor, so on maps facing north or west it rose a tile further from the threshold than on the others,
+ * at the screen's lower edge behind the HUD. A footprint that would leave the floor keeps the centre anchor. */
+function placeExplorationBoss(map,room,pack) {
+    const gate=map.gate;
+    for(const enemy of pack.waiting) {
+        const size=getGridUnitFootprint(enemy);
+        const cell={gx:room.gx-(gate.gx>room.gx?size.columns-1:0),gy:room.gy-(gate.gy>room.gy?size.rows-1:0)};
+        // Checked on the map itself: the grid bounds only cover the map once this run is the current one.
+        const cells=Array.from({length:size.columns*size.rows},(_,i)=>({gx:cell.gx+i%size.columns,gy:cell.gy+Math.floor(i/size.columns)}));
+        if(cells.every(c=>actExplorationMap.walkable(map,c)))Object.assign(enemy,cell);
+    }
+    return pack;
 }
 
 // Explicit false is retained for replaying legacy progress-based encounters in regression
@@ -8235,19 +8250,51 @@ function queueEnemyGroundLoot(enemy, receipt) {
     if (item) loot.item = { name: item.name, baseId: item.baseId, slot: item.slot,
         rarity: item.rarity, family: item.family, lines: item.lines };
     addBattleFx('lootPickup', { enemyId: enemy.id, loot, duration: 1200 });
-    if (receipt.highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...receipt.highlight,
+    celebrateEnemyLoot(enemy, item, receipt.highlight);
+}
+
+function celebrateEnemyLoot(enemy, item, highlight) {
+    if (highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...highlight,
         itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
 }
 
-/** One dropped equipment item: generate, apply a drop variant (js/loot.js equipmentDropVariants), keep and show it. */
+/**
+ * One equipment drop. On an exploration map a drop the pickup would keep waits on its cell until the hero walks over it or the
+ * player clicks it (js/exploration-ground-loot.js, 2026-10-05 user request); offline, outside a map, or when the pickup would
+ * filter or auto-salvage it, it is picked up now as before.
+ * @returns {'floor'|'kept'|null} null when the pickup filtered or salvaged it
+ */
+function keepEquipmentDrop(enemy, item, options) {
+    const highlight = equipmentLootPolicy.highlight(item, game);
+    const run = actExplorationState.current(game);
+    const floor = !!run && !run.arrival && !run.completionApplied && run.status !== 'failed' && !game.isBackgroundCalculation
+        && hasGridCell(enemy) && previewEquipmentPickup(item, options) === 'kept';
+    if (floor) {
+        actExplorationState.groundLoot.place(run, enemy, item, { highlight: !!highlight, guaranteed: isGuaranteedEquipmentPickup(item, options) });
+        if (!battleFxSuppressed) celebrateEnemyLoot(enemy, item, highlight);
+        return 'floor';
+    }
+    if (!addItemToInventory(item, options)) return null;
+    queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
+    return 'kept';
+}
+
+/**
+ * Grants floor rows (js/exploration-ground-loot.js) through the normal pickup: auto-equip, space and auto-salvage. The drop
+ * already passed the pickup filter, so a later filter change does not throw an item away from the floor.
+ * @returns {number} items that reached the inventory or an equipment slot
+ */
+function collectExplorationFloorLoot(rows) {
+    const kept = rows.filter(row => addItemToInventory(row.item, { ignoreFilter: true, guaranteedKeep: row.guaranteed })).map(row => row.item);
+    if (kept.length) dispatchRuntimeEvent('floor-loot-collected', { items: kept }); // the loot log line (js/battle-ground-loot-ui.js)
+    return kept.length;
+}
+
+/** One dropped equipment item: generate, apply a drop variant (js/loot.js equipmentDropVariants) and drop it. Returns the items
+ * picked up at once (the loot log names the first); floor items log when collected. */
 function grantEquipmentPick(enemy, zone, minimumRarity) {
     const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone }));
-    return drop.items.filter(item => {
-        const highlight = equipmentLootPolicy.highlight(item, game);
-        const accepted = addItemToInventory(item);
-        if (accepted) queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
-        return accepted;
-    });
+    return drop.items.filter(item => keepEquipmentDrop(enemy, item) === 'kept');
 }
 
 /** itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop): above 1 a kill drops several items, each
@@ -8262,10 +8309,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
 
 function grantRealmBossUniqueLoot(enemy, zone) {
     const item = generateRealmBossUniqueDrop(zone, enemy);
-    if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
-    const highlight = equipmentLootPolicy.highlight(item, game);
-    queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
-    return item;
+    return item && keepEquipmentDrop(enemy, item, { guaranteedKeep: true }) ? item : null;
 }
 
 /** Every kill grants its drops now; receipt capture only groups already-paid UI notifications. */
