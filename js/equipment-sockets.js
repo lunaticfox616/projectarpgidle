@@ -47,6 +47,21 @@ const equipmentSockets = (() => {
         return item ? storedRows(item).filter(row => row.jewel) : [];
     }
 
+    /**
+     * Before an item is destroyed (salvage, a chance orb): every socketed jewel goes back to the jewel store, past its limit if
+     * need be, the way protected rare drops do — the player's jewel is never lost with the item.
+     * @returns {number} jewels returned
+     */
+    function returnJewels(item, state = game) {
+        const rows = jewels(item);
+        state.jewelInventory = state.jewelInventory || [];
+        rows.forEach(row => {
+            state.jewelInventory.push(row.jewel);
+            socketRecord(item, row.kind, row.index).jewel = null;
+        });
+        return rows.length;
+    }
+
     function count(item) {
         return item ? storedRows(item).length : 0;
     }
@@ -126,7 +141,7 @@ const equipmentSockets = (() => {
         return { ok: true, jewel };
     }
 
-    return Object.freeze({ isSocketable, hasBuiltInSocket, hasVoidSocket, list, jewels, count, label, canChisel, openVoidSocket,
+    return Object.freeze({ isSocketable, hasBuiltInSocket, hasVoidSocket, list, jewels, returnJewels, count, label, canChisel, openVoidSocket,
         canAddCorruptionSocket, addCorruptionSocket, chisel, insert, remove });
 })();
 safeExposeGlobals({ equipmentSockets });

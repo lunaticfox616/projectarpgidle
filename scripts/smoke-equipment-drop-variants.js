@@ -187,4 +187,35 @@ assert.equal(second.out, true, 'taking the jewel out returns it to the store');
 assert.deepEqual(second.stall, [false, false, true], 'an item with a jewel in any socket cannot be listed; an empty one can');
 assert.equal(second.jewels, 1, 'the void socket jewel is read like any other (the trade hall check uses the same list)');
 assert.equal(second.label, '타락 소켓');
-console.log('equipment drop variants (duplicate, bundle, corrupted within the tier cap), supply chest grades, crafting corruption outcomes, second socket: OK');
+// Destroying an item never takes its jewels (2026-10-05): salvage, a chance orb's destruction and the time-rift fusion's consumed
+// rare return every socketed jewel to the jewel store, past its limit if need be.
+const kept = copy(`(()=>{const limit=getJewelInventoryLimit();game.jewelInventory=Array.from({length:limit},()=>generateJewelDrop(10));
+    const ring=drop('rare');ring.slot='반지';equipmentSockets.addCorruptionSocket(ring);
+    const a=generateJewelDrop(10),b=generateJewelDrop(10);ring.voidSocket={open:true,jewel:a};ring.corruptionSocket.jewel=b;
+    game.inventory=[ring];salvageItem(0);
+    const salvaged=[a.id,b.id].every(id=>game.jewelInventory.some(j=>j.id===id))&&game.inventory.length===0;
+    const gone=drop('rare');gone.slot='반지';const c=generateJewelDrop(10);gone.voidSocket={open:true,jewel:c};game.inventory=[gone];
+    craftingSelectionState.ref=gone.id;craftingSelectionState.isEquip=false;const returned=destroySelectedCraftItem(gone);
+    const destroyed=returned===1&&game.jewelInventory.some(j=>j.id===c.id);
+    const unique=generateUniqueItem(10,null,'첫 계약'),rare=createItemFromBase(BASE_ITEM_DB.find(base=>base.id===unique.baseId),'rare',20);
+    const d=generateJewelDrop(10);rare.corruptionSocket={jewel:d};rare.voidSocket={open:true,jewel:null};game.inventory=[];
+    Object.assign(ensureTimeRiftState(),{altarOpen:true,altarUnique:unique,altarRare:rare,pressure:0});
+    const fused=resolveTimeRiftFusion();
+    return {salvaged,destroyed,fusion:!!fused&&game.jewelInventory.some(j=>j.id===d.id),over:game.jewelInventory.length-limit};})()`);
+assert.equal(kept.salvaged, true, 'salvage returns both socketed jewels, even into a full store');
+assert.equal(kept.destroyed, true, "a chance orb's destruction returns the jewel");
+assert.equal(kept.fusion, true, "the fusion's consumed rare returns its jewel");
+assert.equal(kept.over, 4, 'the store goes past its limit rather than losing a jewel');
+// The crafting workspace wraps useCurrency in its own ledger record; the corruption's one outcome reaches it, so the result panel
+// can lead with it as a highlighted line (js/crafting-workspace-ui.js, no extra effect).
+run(`showGameToast=()=>{};window.ledgerHtml=null;game.currencies.emberBranch=3;window.confirm=()=>true;window.craftItem=drop('rare');craftItem.corrupted=false;
+    game.inventory=[craftItem];craftingSelectionState.ref=craftItem.id;craftingSelectionState.isEquip=false;
+    const outer=craftingResultLedger.begin(craftItem,{currencyKey:'emberBranch'});
+    useCurrency('emberBranch').then(()=>{ledgerHtml=craftingResultLedger.commit(outer,craftItem).meta.outcome||'';});`);
+(async () => {
+    for (let i = 0; i < 50 && run('ledgerHtml') === null; i++) await new Promise(resolve => setImmediate(resolve));
+    const html = run('ledgerHtml') || '';
+    assert.equal(run('craftItem.corrupted'), true, 'the real crafting entry corrupts');
+    assert.ok(['추가 옵션', '품질', '옵션으로 바뀌었', '소켓', '변화가 없'].some(word => html.includes(word)), `the workspace record carries the outcome: ${html}`);
+    console.log('equipment drop variants (duplicate, bundle, corrupted within the tier cap), supply chest grades, crafting corruption outcomes, second socket, jewels kept on destruction, outcome line: OK');
+})().catch(error => { console.error(error); process.exitCode = 1; });

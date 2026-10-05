@@ -9823,12 +9823,15 @@ function salvageJewelObject(jewel, silent) {
     return shardGain;
 }
 
+/** @returns {number} socketed jewels returned to the jewel store before the item went away */
 function destroySelectedCraftItem(item) {
-    if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
+    if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return 0;
+    const jewels = equipmentSockets.returnJewels(item);
     let ref = getCraftSelectionRef();
     if (isCraftSelectionEquip()) game.equipment[ref] = null;
     else game.inventory = (game.inventory || []).filter(entry => entry !== item);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
+    return jewels;
 }
 
 function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -9960,6 +9963,8 @@ function rollItemSalvageRewards(item, options) {
 
 function salvageItemObject(item, silent, options) {
     if (!item) return {};
+    const jewels = equipmentSockets.returnJewels(item);
+    if (jewels > 0) addLog(`💠 [${item.name}]에 끼운 주얼 ${jewels}개를 주얼 보관함으로 돌려받았습니다.`, 'loot-rare');
     let rewards = rollItemSalvageRewards(item, options);
     Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
@@ -10518,8 +10523,8 @@ async function useCurrency(currencyKey) {
         }
     } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
-            destroySelectedCraftItem(item);
-            addLog('💥 기회의 오브: 아이템이 파괴되었습니다.', 'attack-monster');
+            const jewels = destroySelectedCraftItem(item);
+            addLog(`💥 기회의 오브: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'attack-monster');
         } else {
             let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
             let unique = generateUniqueItem(tier, item.slot);
@@ -10545,6 +10550,7 @@ async function useCurrency(currencyKey) {
         updateItemName(item);
     } else if (actionKey === 'tainted') {
         const outcome = corruptCraftedItem(item);
+        craftResultToken.meta.outcome = outcome.text; // the craft result card leads with it (js/crafting-result-ui.js)
         addLog(`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
     } else if (currencyKey === 'abyssCatalyst') {
         let qualityLabel = applyAbyssCatalystToItemQuality(item);

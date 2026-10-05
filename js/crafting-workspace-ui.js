@@ -188,6 +188,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceResultHtml() {
         const hit=matches(selected());
         return `<section class="cl-result ${hit?'goal-hit':''}" aria-live="polite"><div><h3>제작 경과</h3>
+            ${last?.meta.outcome?`<p class="cl-outcome">${esc(last.meta.outcome)}</p>`:''}
             ${last?craftingResultUi.getMetaRows(last).map(text=>`<p>${esc(text)}</p>`).join(''):''}
             ${hit?'<p>목표 옵션을 확보했어요</p>':''}${notice?`<p>${esc(notice)}</p>`:''}
             ${workspacePreviousOptionsHtml()}</div>

@@ -354,17 +354,20 @@ function snapshotCraftResultItem(item) {
 }
 
 const craftingResultLedger = (() => {
-    let latest = null;
+    let latest = null, sequence = 0;
 
     function begin(item, meta) {
         if (!item) return null;
-        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) } };
+        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) }, seq: ++sequence };
     }
 
+    /** A craft wrapped in another (the crafting workspace around useCurrency) keeps the inner one's outcome line. */
     function commit(token, item) {
         if (!token || !item || token.itemRef !== item) return null;
         let after = snapshotCraftResultItem(item);
-        latest = { itemRef: item, before: token.before, after, meta: token.meta, afterKey: JSON.stringify(after) };
+        const inner = latest && latest.itemRef === item && latest.seq > token.seq ? latest.meta.outcome : undefined;
+        const meta = inner && !token.meta.outcome ? { ...token.meta, outcome: inner } : token.meta;
+        latest = { itemRef: item, before: token.before, after, meta, seq: token.seq, afterKey: JSON.stringify(after) };
         return latest;
     }
 
@@ -748,6 +751,7 @@ function resolveTimeRiftFusion() {
     fused.fusedRelic = true;
     fused.fusionGrade = grade;
     fused.fusedRareName = rift.altarRare.name || '';
+    equipmentSockets.returnJewels(rift.altarRare); // the consumed rare's jewels stay the player's
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;
