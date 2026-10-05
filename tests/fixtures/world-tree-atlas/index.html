@@ -42,6 +42,12 @@ performanceButton.onclick=()=>{
  performanceButton.disabled=true;document.getElementById('status').textContent='10초 측정 중 · 이 탭을 유지하세요';
  frame.contentWindow.postMessage({type:'worldtree-performance-start'},location.origin);
 };
+const skillButton=document.createElement('button');skillButton.textContent='이동·소환 젬 지급';skillButton.id='skill-review';
+performanceButton.after(skillButton);
+skillButton.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-skill-review'},location.origin);
+const tradeButton=document.createElement('button');tradeButton.textContent='협상 표본 (4시간)';tradeButton.id='trade-review';
+skillButton.after(tradeButton);
+tradeButton.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-trade-review'},location.origin);
 window.addEventListener('message',event=>{
  if(event.source!==frame.contentWindow||event.origin!==location.origin||event.data.type!=='worldtree-performance-result')return;
  const sample=event.data;performanceButton.disabled=false;

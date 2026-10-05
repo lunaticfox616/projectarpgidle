@@ -104,6 +104,25 @@
         parent.postMessage({type:'worldtree-view-status',battle},origin);
         parent.postMessage({type:'worldtree-lab-status',message:'멈춤 좌표 재현 · 적 13마리 30초 동결 · 실제 접근/공격 · 밸런스 검증 아님'},origin);
     }
+    function reviewTrade() {
+        seed('realms');
+        const start = Date.now() - 4 * 3600000;
+        playerStall.advance(game, start);
+        const item = createItemFromBase(BASE_ITEM_DB.find(base => base.id === 'apocalypse_greatblade'), 'rare', 20, {affixTierCap:20});
+        item.stats = ['flatDmg','weaponFlatDmgPct','attackPctDmg','aspd','crit','critDmg'].map(id => {
+            const stat = rollAffixValueInTierRange(MOD_DB.find(mod => mod.id === id),20,20);
+            stat.val = stat.valMax; return stat;
+        });
+        item.baseStats.forEach(stat => { stat.val = stat.valMax; });
+        game.inventory = [normalizeItem(item)];
+        game.playerStall.rng = 1;
+        const listed = playerStall.list(game,item.id,1000000,start,{currency:'goldenRule',negotiate:true});
+        if (!listed.ok) throw new Error('Negotiation fixture could not list its item');
+        playerStall.advance(game,Date.now());
+        closeAllWindows();switchTab('tab-items');switchItemSubtab('item-tab-market');marketUi.show('stall');
+        updateStaticUI();
+        parent.postMessage({type:'worldtree-lab-status',message:'거래 UI 표본 · T20 최상급 장비 · 실제 거래 규칙으로 4시간 처리 · 검토 저장 초기화됨'},origin);
+    }
     window.addEventListener('message',event=>{
         if(event.source!==parent||event.origin!==origin)return;
         if(event.data.type==='worldtree-performance-start')measurePerformance();
@@ -111,6 +130,15 @@
         if(event.data.type==='worldtree-speed')speed=event.data.speed===4?4:1;
         if(event.data.type==='worldtree-atlas')explorationAtlasUi.open();
         if(event.data.type==='worldtree-chase-review')reviewChase();
+        if(event.data.type==='worldtree-trade-review')reviewTrade();
+        if(event.data.type==='worldtree-skill-review') {
+            ['그림자 점멸','화염 위습 소환'].forEach(name => {
+                if (!game.skills.includes(name)) game.skills.push(name);
+                game.gemData[name] ||= {level:5,quality:0,exp:0,skyEnhanceCap:0};
+            });
+            closeAllWindows();switchTab('tab-skills');updateStaticUI();
+            parent.postMessage({type:'worldtree-lab-status',message:'이동·소환 젬만 지급 · 장착과 전투는 실제 UI에서 · 장비/능력치 유지'},origin);
+        }
         if(event.data.type==='worldtree-rune-review') {
             Object.entries({runeShard:500,underCopper:1000,underSilver:750,underGold:300}).forEach(([key,value])=>{game.currencies[key]+=value;});
             if(!document.getElementById('tab-map').classList.contains('active'))switchTab('tab-map');
