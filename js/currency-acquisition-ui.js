@@ -45,20 +45,18 @@
         if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(' · ')})`,'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
+    // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.
+    function announceDropVariant({kind,items}) {
+        const item=items[0],name=`<span class='loot-${item.rarity}'>[${escapeHTML(item.name)}]</span>`;
+        const text=kind==='corrupted'?`🩸 타락한 장비 ${name}: 제작할 수 없지만 추가 옵션이 더 강합니다.`
+            :kind==='duplicate'?`✨ 복제된 장비 ${name}: 똑같은 장비가 하나 더 떨어졌습니다.`
+            :`📦 장비 묶음: ${escapeHTML(item.baseName||item.name)} ${items.length}개가 함께 떨어졌습니다.`;
+        addLog(text,'loot-unique',{item});
+    }
+    window.addEventListener('project-idle:equipment-drop-variant',event=>announceDropVariant(event.detail));
     window.addEventListener('project-idle:exploration-departed',event=>{
         if(event.detail.background)return;
         updateStaticUI();queueImportantSave(220);
     });
-    /** 탐험 보상 장비 중 빈 칸에 바로 들어간 것(빈 장비 슬롯 자동 장착) — 가방이 아니라 몸에 있다고 알린다. */
-    function announceAutoEquippedReward(item) {
-        const slot=Object.keys(game.equipment).find(key=>game.equipment[key]===item);
-        if(slot&&game.settings.showLootLog&&!game.isBackgroundCalculation)addLog(`빈 ${slot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`,'loot-rare',{item});
-    }
-    window.addEventListener('project-idle:exploration-loot-claimed',event=>{
-        if(event.detail.equipmentCount||event.detail.gems.length)checkUnlocks();
-        event.detail.equipment.forEach(announceAutoEquippedReward);
-        event.detail.gems.forEach(gem=>announceGemReward({gem,kind:gem.kind,shards:0}));
-        event.detail.jewels.forEach(jewel=>announceJewelReward({jewel,stored:true}));
-        event.detail.cores.forEach(announceCore);
-    });
+
 })();

@@ -58,6 +58,8 @@ function init() {
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
     let cameraShakeCheckboxInit = document.getElementById('chk-camera-shake');
     if (cameraShakeCheckboxInit) cameraShakeCheckboxInit.checked = game.settings.cameraShake !== false;
+    const hitEmphasisInit = document.getElementById('sel-hit-emphasis');
+    if (hitEmphasisInit) hitEmphasisInit.value = game.settings.hitEmphasis;
     let uiSoundsCheckboxInit = document.getElementById('chk-ui-sounds');
     if (uiSoundsCheckboxInit) uiSoundsCheckboxInit.checked = game.settings.uiSounds !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;

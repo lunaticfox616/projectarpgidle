@@ -32,10 +32,14 @@ const salvageContext = {
     getItemExplicitOptionCount(item) { return (item.stats || []).length; },
     awardCurrency(key, amount) { awarded[key] = (awarded[key] || 0) + amount; },
     addLog() {},
+    game: { jewelInventory: [] },
+    safeExposeGlobals(map) { Object.assign(salvageContext, map); },
     Math: Object.create(Math)
 };
 salvageContext.Math.random = () => 0.99;
 vm.createContext(salvageContext);
+// Salvage hands socketed jewels back first (js/equipment-sockets.js returnJewels).
+vm.runInContext(fs.readFileSync('js/equipment-sockets.js', 'utf8'), salvageContext, { filename: 'equipment-sockets.js' });
 vm.runInContext(salvageBlock, salvageContext, { filename: 'salvage-economy.js' });
 
 let rewards = salvageContext.salvageItemObject({ rarity: 'magic', name: '마법', stats: [], hiddenTier: 1 }, true);

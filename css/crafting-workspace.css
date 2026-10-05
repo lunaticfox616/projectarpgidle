@@ -67,4 +67,6 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 .cl-catalog .cl-resource{border:1px solid #ffffff16;box-shadow:none;background:#ffffff03}
 .cl-catalog .cl-resource.is-selected{border-color:transparent;box-shadow:none;background:#dfbf8210}.cl-pin-editor button{font-size:12px}.cl-catalog nav button[data-theme]{border-color:transparent;box-shadow:none;background:transparent}.cl-catalog nav button[aria-pressed=true]{background:#ffffff08;border-bottom-color:#b9b2a0}
 #item-tab-craft>#cl-materials{display:block}
-@media(max-width:600px){.cl-resource{padding:9px}}.cl-result p{margin-top:5px}}
+@media(max-width:600px){.cl-resource{padding:9px}}.cl-result p{margin-top:5px}
+/* 잿불가지 타락 결과: 결과 한 줄만 강조한다(별도 연출 없음). */
+.cl-result p.cl-outcome{padding:4px 8px;border-left:2px solid #c0504a;background:#c0504a24;color:#ffc2b8;font-weight:700}}

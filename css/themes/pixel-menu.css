@@ -65,13 +65,6 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
      알림이 창 닫기 단추를 덮었다. 두 개까지. */
   body[data-ui-skin].desktop-windowed-ui .game-toast-region { top: 108px; right: auto; left: calc(var(--stage-rail-width, 0px) + 24px); }
   body[data-ui-skin].desktop-windowed-ui .game-toast-region > .game-toast:nth-last-child(n+3) { display: none; }
-  /* 전리품 연출 건너뛰기: 전장 오른쪽 아래 구석은 경험치 구슬 뒤라 가려졌다 — 미니맵 테 바로 위 가운데로 */
-  body[data-ui-skin="rift"].desktop-windowed-ui.hud-menu-docked #btn-exploration-loot-skip {
-    right: auto;
-    left: 50%;
-    bottom: calc(var(--px-map-size) + var(--px-map-lift) + 48px * var(--px-hud-dot) + 35px);
-    transform: translateX(-50%);
-  }
   /* 채팅 판은 전투 기록 자리를 그대로 이어받으므로 기록처럼 관리 창 아래에 둔다 — 창이 오른쪽에 붙으면(도킹) 채팅이
      창 위(z 1300)로 올라와 창 오른쪽 내용을 가렸다. 창을 닫거나 접으면 그 자리에 그대로 보인다. */
   :root body[data-ui-skin="rift"].desktop-windowed-ui.community-dock-open #tab-social.ui-community-dock { z-index: 1100; }

@@ -1,6 +1,6 @@
 // Exploration controls render the domain snapshot; destination selection stays in the domain.
 const actExplorationUi=(()=>{
-    let lastKey='',lastRun=null,lastLoot=null,lastPhase='',lootRows=[],selectedLoot='';
+    let lastKey='',lastRun=null;
     let departurePending=false,approvedDeparture=null;
     function render() {
         const panel=document.getElementById('act-exploration-panel');if(!panel)return;
@@ -8,7 +8,6 @@ const actExplorationUi=(()=>{
         const run=actExplorationState.current(game);panel.toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-map').toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-auto').toggleAttribute('hidden',!run);
-        renderLoot(run);
         if(!run){lastRun=null;lastKey='';return;}
         const remaining=actExplorationState.remainingElites(run);
         const key=[run.discovered.length,game.gridPlayer.gx,game.gridPlayer.gy,remaining,run.status,run.mode,
@@ -119,7 +118,7 @@ const actExplorationUi=(()=>{
     function drawMarkers(ctx,run,map,seen,view) {
         const scale=view.scale,at=v=>v*scale+scale/2,r=Math.max(3,scale*.8)*view.markerScale;
         for(const pack of run.packs) {
-            const room=map.rooms.find(item=>item.id===pack.roomId);
+            const room=actExplorationState.packPosition(map,pack);
             if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
             drawDiamond(ctx,{x:at(room.gx),y:at(room.gy),r,fill:packMark(pack)});
         }
@@ -179,57 +178,6 @@ const actExplorationUi=(()=>{
         commandMove({gx:game.gridPlayer.gx+delta[0],gy:game.gridPlayer.gy+delta[1]});
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
-    function collectLootRows(loot) {
-        const rows=[];
-        for(const kind of ['equipment','jewels'])
-            rows.push(...loot[kind].map(item=>({key:kind+':'+item.id,kind,item,name:item.name,rarity:item.rarity,amount:1})));
-        for(const [key,amount] of Object.entries(loot.currencies))
-            rows.push({key:'currency:'+key,kind:'currency',name:getCurrencyInfo(key).name,currency:key,amount});
-        rows.push(...loot.gems.map(row=>({key:row.kind+':'+row.name,kind:'gem',name:row.name,
-            description:row.kind==='support'?'보조 젬 T'+row.tier:'공격 젬',amount:1})));
-        rows.push(...loot.cores.map(core=>({key:'core:'+core.id,kind:'core',name:core.name,
-            description:core.lines.map(coreItems.describe).join(' · '),amount:1})));
-        return rows;
-    }
-    function renderLoot(run,force=false) {
-        const dialog=document.getElementById('act-exploration-loot-dialog');
-        if(!run){dialog.close();lastLoot=null;lastPhase='';return;}
-        if(!force&&lastLoot===run.loot&&lastPhase===run.loot.phase)return;
-        lastLoot=run.loot;lastPhase=run.loot.phase;lootRows=collectLootRows(run.loot);
-        document.querySelectorAll('[data-exploration-loot]').forEach(button=>{
-            button.textContent='임시 전리품'+(lootRows.length?' '+lootRows.length:'');
-        });
-        if(!dialog.open)return;
-        const status={pending:'보스 처치 후 획득',claimed:'전리품을 획득했습니다.',lost:'전리품이 소실되었습니다.'};
-        document.getElementById('act-exploration-loot-status').textContent=status[run.loot.phase];
-        const list=document.getElementById('act-exploration-loot-list');
-        list.innerHTML=lootRows.map((row,index)=>lootRowHtml(row,index)).join('')||'<p>보관 중인 전리품이 없습니다.</p>';
-        const index=lootRows.findIndex(row=>row.key===selectedLoot);
-        inspectLoot(Math.max(0,index));
-    }
-    function lootRowHtml(row,index) {
-        const name=row.kind==='currency'?window.getStyledOrbName(row.currency):escapeHTML(row.name);
-        const color=row.rarity?getRarityColor(row.rarity):'inherit';
-        return `<button type="button" class="act-exploration-loot-row" data-loot-index="${index}" aria-pressed="false" onclick="actExplorationUi.inspectLoot(${index})"><span style="color:${color}">${name}</span>${row.amount>1?'<b>×'+row.amount.toLocaleString()+'</b>':''}</button>`;
-    }
-    function inspectLoot(index) {
-        const row=lootRows[index],details=document.getElementById('act-exploration-loot-details');
-        details.innerHTML='';if(!row){selectedLoot='';return;}
-        selectedLoot=row.key;
-        document.querySelectorAll('[data-loot-index]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.lootIndex)===index)));
-        if(row.kind==='equipment')showItemTooltip(null,-1,false,row.item,{target:details});
-        else if(row.kind==='jewels')details.innerHTML=window.createJewelRangeTooltipHtml(row.item);
-        else details.innerHTML=supplyDetails(row);
-    }
-    function supplyDetails(row) {
-        const title=row.kind==='currency'?window.getStyledOrbName(row.currency):escapeHTML(row.name);
-        const description=row.kind==='currency'?getCurrencyInfo(row.currency).desc:row.description;
-        return `<div class="tooltip-title">${title}</div><div class="tooltip-line">${description||''}</div><div class="tooltip-line">수량 ${row.amount.toLocaleString()}</div>`;
-    }
-    function openLoot() {
-        const run=actExplorationState.current(game);if(!run)return;
-        document.getElementById('act-exploration-loot-dialog').showModal();renderLoot(run,true);
-    }
     function hint(event) {
         const run=actExplorationState.current(game);if(!run)return;
         const rect=event.currentTarget.getBoundingClientRect(),count=actExplorationState.remainingElites(run);
@@ -241,7 +189,7 @@ const actExplorationUi=(()=>{
         if(!button?.hasAttribute('data-exploration-departure') || button.disabled)return;
         if(button===approvedDeparture){approvedDeparture=null;return;}
         const run=actExplorationState.current(game);
-        if(!run || run.completionApplied || run.loot.phase!=='pending')return;
+        if(!run || run.completionApplied || run.status!=='active')return;
         event.preventDefault();event.stopImmediatePropagation();
         if(!departurePending)confirmDeparture(button,run);
     }
@@ -266,13 +214,10 @@ const actExplorationUi=(()=>{
         return game===origin.state && game.actExploration===origin.run &&
             game.currentZoneId===origin.zoneId && game.season===origin.season;
     }
-    function departureMessage(run) {
-        const rows=collectLootRows(run.loot);
-        const preview=rows.slice(0,6).map(row=>row.name+(row.amount>1?' ×'+row.amount.toLocaleString():'')).join('\n');
-        return '탐험 진행이 초기화됩니다.'+(rows.length?'\n임시 전리품은 모두 사라집니다.\n\n'+preview:'')+
-            (rows.length>6?'\n외 '+(rows.length-6)+'개':'');
+    function departureMessage() {
+        return '탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.';
     }
     document.addEventListener('click',departureClick,true);
-    return {render,mode,toggleAuto,commandMove,choose,key,expand,hint,openLoot,inspectLoot,collectLootRows,departurePending:()=>departurePending};
+    return {render,mode,toggleAuto,commandMove,choose,key,expand,hint,departurePending:()=>departurePending};
 })();
 safeExposeGlobals({actExplorationUi});

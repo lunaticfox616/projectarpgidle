@@ -28,6 +28,68 @@ function drawBattlePlayerFigure(ctx, state, position) {
     drawBattlePlayerBody(ctx, state, position);
 }
 
+/** Frame-local readability layout. CSS-pixel boxes and two small reused masks; never serialized with game data. */
+drawBattlePlayerFigure.readability = (() => {
+    let hero = null, boxes = [], mask, edge, outline = null;
+    const overlaps = (a, b) => a.x < b.x + b.w + 3 && a.x + a.w + 3 > b.x && a.y < b.y + b.h + 3 && a.y + a.h + 3 > b.y;
+    function surface(current, size) {
+        const canvas = current || document.createElement('canvas');
+        if (canvas.width !== size || canvas.height !== size) canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.resetTransform(); ctx.clearRect(0, 0, size, size); ctx.imageSmoothingEnabled = false;
+        return canvas;
+    }
+    function capture(state, position, clips) {
+        const tile = state.gridProj.tileW, size = Math.ceil(Math.min(512, Math.max(128, tile * 5)));
+        mask = surface(mask, size); edge = surface(edge, size);
+        const x = Math.round(position.x - size / 2), y = Math.round(position.y - size * 0.8), body = mask.getContext('2d');
+        body.save(); body.translate(-x, -y);
+        if (isBattlePlayerMirrored(state.motionState)) { body.translate(position.x * 2, 0); body.scale(-1, 1); }
+        drawBattlePlayerFigure(body, state, position); body.restore();
+        body.save(); body.globalCompositeOperation = 'source-in'; body.fillStyle = '#fff0bd'; body.fillRect(0, 0, size, size); body.restore();
+        const ctx = edge.getContext('2d'), step = tile >= 64 ? 2 : 1;
+        ctx.save();
+        for (const [dx, dy] of [[-step, 0], [step, 0], [0, -step], [0, step]]) ctx.drawImage(mask, dx, dy);
+        ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(mask, 0, 0); ctx.restore();
+        outline = { x, y, clips };
+    }
+    function begin(state, entries) {
+        boxes = []; outline = null;
+        state = worldTreeSkillFx.actorState(state);
+        const p = getPlayerHurtPosition(state), tile = state.gridProj.tileW;
+        const head = hanaActors.headY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
+        hero = { x: p.x - Math.max(26, tile * 0.38), y: head - 16, w: Math.max(52, tile * 0.76), h: p.y - head + 24 };
+        if (state.returnWarp || state.returnDeparture || state.actorAlpha === 0) return;
+        const clips = entries.filter(entry => entry.y >= p.y).map(entry => {
+            const height = getEnemyFieldBarLift(entry.enemy) - 8;
+            return { x: entry.x - height * 0.5, y: entry.y - height, w: height, h: height + 10 };
+        }).filter(box => overlaps(box, hero));
+        if (clips.length) capture(state, p, clips);
+    }
+    function draw(ctx) {
+        if (!outline) return;
+        ctx.save(); ctx.beginPath();
+        outline.clips.forEach(box => ctx.rect(box.x, box.y, box.w, box.h)); ctx.clip();
+        ctx.globalAlpha = 0.82; ctx.drawImage(edge, outline.x, outline.y); ctx.restore();
+    }
+    function place(box, side = 0) {
+        const result = { ...box };
+        if (side && hero && overlaps(result, hero)) result.x = side > 0 ? hero.x + hero.w + 6 : hero.x - result.w - 6;
+        const taken = hero ? [hero, ...boxes] : boxes;
+        for (let n = 0; n < 12 && taken.some(other => overlaps(result, other)); n++) result.y -= result.h + 5;
+        boxes.push(result);
+        return result;
+    }
+    function label(ctx, text, anchor, fontSize) {
+        if (text.bodyCue) return anchor;
+        const w = ctx.measureText(text.miss ? String(text.value) : formatDamageNumberForDisplay(text.value)).width * 1.38 + 22;
+        const shift = text.side > 0 ? 0 : text.side < 0 ? w : w / 2, h = fontSize * 1.38;
+        const box = place({ x: anchor.x - shift, y: anchor.y - h, w, h: h + 4 }, text.side);
+        return { x: box.x + shift, y: box.y + h };
+    }
+    return { begin, draw, place, label };
+})();
+
 function drawSheetMonsterSkin(ctx, state, position) {
     const id = getSheetMonsterSkinId(), motion = state.motionState;
     if (!id) return false;

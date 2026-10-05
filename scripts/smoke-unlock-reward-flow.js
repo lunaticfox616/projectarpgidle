@@ -21,7 +21,7 @@ check('core drops need the purchase and reset with the loop', () => {
     assert.equal(run('coreItems.canDrop()'), false);
     run("game.contentProgression.inherited.push('cube')");
     assert(run('coreItems.canDrop()'));
-    run('coreItems.equip(coreItems.receiveDrop(null).id)');
+    run('coreItems.equip(coreItems.receiveDrop().id)');
     assert(json('coreItems.stats()').length >= 4);
     run('coreItems.resetForLoop()');
     assert.deepEqual(json('game.cores'), { equipped: null, owned: [] });

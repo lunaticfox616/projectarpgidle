@@ -15,9 +15,7 @@ const equipmentSocketsUi = (() => {
         return `<strong class="${getJewelRarityClass(jewel.rarity)}">${escapeHTML(jewel.name || '주얼')}</strong>${effect}<ul class="socket-jewel-lines">${lines || '<li>옵션 없음</li>'}</ul>`;
     }
 
-    function socketLabel(row) {
-        return row.kind === 'void' ? '공허 소켓' : `심연 소켓 ${row.index + 1}`;
-    }
+    const socketLabel = equipmentSockets.label;
 
     /** Equipment detail button: once jewels are unlocked, for items with a socket, or without one while a chisel is at hand. */
     function actionHtml(item, slot) {
@@ -47,7 +45,7 @@ const equipmentSocketsUi = (() => {
     }
 
     function socketsHtml(item) {
-        const rows = equipmentSockets.list(item).map(row => `<div class="socket-row${row.jewel ? '' : ' is-empty'}"><span class="socket-row-label">${socketLabel(row)}</span>
+        const rows = equipmentSockets.list(item).map(row => `<div class="socket-row${row.jewel ? '' : ' is-empty'}${row.kind === 'corrupt' ? ' is-corrupt' : ''}"><span class="socket-row-label">${socketLabel(row)}</span>
             <div class="socket-row-jewel">${row.jewel ? jewelHtml(row.jewel) : '<span>빈 소켓</span>'}</div>
             ${row.jewel ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">빼기</button>` : ''}</div>`).join('');
         const chisels = game.currencies.voidChisel || 0;

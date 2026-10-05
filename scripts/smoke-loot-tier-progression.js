@@ -77,7 +77,7 @@ try {
                 }
             }
             assert.notStrictEqual(selectedRoll, null, `${base.name} must be reachable at the realm drop ceiling`);
-            const rolls = [0.999999, selectedRoll, 0.5];
+            const rolls = [0.5, 0.999999, selectedRoll, 0.5]; // the first roll picks the boss item level bonus
             Math.random = () => rolls.length ? rolls.shift() : 0.5;
             const item = ctx.generateEquipmentDrop({isBoss:true}, {zone,slot:base.slot,minimumRarity:'rare'});
             assert.strictEqual(item.baseId, base.id, 'actual enemy drop must retain the selected realm base');

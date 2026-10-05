@@ -56,32 +56,34 @@ function getEnemyLootDropMultiplier(zone, enemy) {
 
 /** Independent base chances share bonuses without deriving talisman drops from equipment. */
 function getEquipmentDropChances(zone, enemy) {
-    let multiplier = getEnemyLootDropMultiplier(zone, enemy) * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    let multiplier = getEnemyLootDropMultiplier(zone, enemy);
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
         multiplier *= 1 - 0.7 * progress;
     }
     return {
-        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier,
-        talisman: getWildTalismanBaseDropChance(enemy) * multiplier
+        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment'),
+        talisman: getWildTalismanBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level)
     };
 }
 
 /**
  * @param {{type:string}} zone
  * @param {{isBoss?:boolean,isElite?:boolean}} enemy
- * @param {number} chance Final ordinary roll chance.
- * @returns {{dropped:boolean,guaranteed:boolean,minimumRarity:string|null,nextProgress:number}}
- * Read-only planning; commit after generation and the inventory's pickup/salvage policy finish.
+ * @param {number} chance Expected equipment count of the kill: the whole part drops for sure, the fraction is one more roll.
+ * @returns {{dropped:boolean,count:number,guaranteed:boolean,minimumRarity:string|null,nextProgress:number}}
+ * Read-only planning; commit after generation and the inventory's pickup/salvage policy finish. minimumRarity applies to the
+ * first item only (the drought guarantee).
  */
 function rollEquipmentDrop(zone, enemy, chance) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
-    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment');
     let guaranteed = progress >= EQUIPMENT_DROUGHT_RULES.threshold;
-    let dropped = guaranteed || Math.random() < chance;
+    const expected = Math.max(0, Number(chance) || 0), whole = Math.floor(expected);
+    const count = Math.max(guaranteed ? 1 : 0, whole + Number(Math.random() < expected - whole));
     let minimumRarity = guaranteed ? 'rare' : null;
-    return { dropped, guaranteed, minimumRarity, nextProgress: dropped ? 0 : progress };
+    return { dropped: count > 0, count, guaranteed, minimumRarity, nextProgress: count > 0 ? 0 : progress };
 }
 
 /** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. An atlas map's item rarity
@@ -98,7 +100,7 @@ function generateRealmBossUniqueDrop(zone, enemy) {
     if (!enemy.isBoss || !['chaosRealm', 'underworld', 'cosmos'].includes(zone.type)) return null;
     const chance = REALM_BOSS_UNIQUE_DROP_RULES.chance * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (Math.random() >= chance) return null;
-    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    const itemLevel = levelProgression.itemLevel(zone, enemy);
     const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
     const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type
         && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));
@@ -294,6 +296,7 @@ safeExposeGlobals({ getCurrencyDrops });
         if (matches(item, targetGame)) return { reason: '목표 옵션 일치', color: '#7fffd2', priority: 3 };
         if (item.rarity === 'unique') return { reason: '고유 장비 획득', color: '#ffbb69', priority: 2 };
         if (item.exceptionalBase) return { reason: '특출 베이스 발견', color: '#f3d779', priority: 1 };
+        if (item.corrupted) return { reason: '타락 장비 발견', color: '#e7685c', priority: 1 };
         return null;
     }
 
@@ -324,4 +327,110 @@ safeExposeGlobals({ getCurrencyDrops });
 
     const equipmentLootPolicy = Object.freeze({ statOptions, normalizeTargets, normalizeSettings, matches, highlight, collectHighlights });
     safeExposeGlobals({ equipmentLootPolicy });
+})();
+
+// 장비 드랍 변형(2026-10-05 사용자 요청, data/items.js EQUIPMENT_DROP_VARIANTS): 떨어진 장비 한 개를 복제 · 같은 베이스 묶음 ·
+// 타락(제작 불가 대신 추가 옵션 강화) 목록으로 바꾼다. 몬스터 드랍(combat.js rollEquipmentLoot)과 탐험 상자가 같은 추첨을 쓴다.
+(function () {
+    'use strict';
+
+    function explicitLines(item) {
+        return (item.stats || []).filter(stat => stat && !stat.fixedValue && Number(stat.val) > 0);
+    }
+
+    function sameRange(range, stat) {
+        return Math.abs(range.min - Number(stat.valMin)) < 1e-9 && Math.abs(range.max - Number(stat.valMax)) < 1e-9;
+    }
+
+    /** The MOD_DB row (or compound sub-stat) a rolled line came from; null when it cannot be told apart. */
+    function lineMod(stat) {
+        if (stat.sourceModId) return MOD_DB.find(mod => mod.id === stat.sourceModId) || null;
+        return MOD_DB.find(mod => (mod.statId || mod.id) === stat.id && !mod.tierValues
+            && [false, true].some(round => sameRange(getAffixTierRange(mod, stat.id, stat.tier, round), stat))) || null;
+    }
+
+    /**
+     * The corrupted value of one line (2026-10-05 user decision A): × corruptedBoost on the line's own value step, at least one
+     * step when that step is at most 30% of the value (a gem level never jumps 1 → 2), and never above the line's maximum at the
+     * item's affix tier cap — a corrupted item may read like a higher tier, never like an item level it could not drop at.
+     * @returns {number} the new value; the old one when it cannot grow
+     */
+    function corruptedValue(item, stat, mod) {
+        const value = Number(stat.val), boost = EQUIPMENT_DROP_VARIANTS.corruptedBoost;
+        const own = getAffixTierRange(mod, stat.id, stat.tier), step = Number(stat.valueStep) || own.step;
+        const capTier = Math.max(Number(stat.tier) || 1, Math.floor(Number(item.affixTierCap) || 1));
+        const cap = Math.max(Number(stat.valMax) || value, getAffixTierRange(mod, stat.id, capTier).max);
+        let next = Math.floor(value * boost / step + 1e-9) * step;
+        if (next <= value && step <= value * 0.3) next = value + step;
+        next = Number(Math.min(next, cap).toFixed(2));
+        return next > value ? next : value;
+    }
+
+    /** Every [line, new value] a corruption would apply; empty when no line can grow. */
+    function corruptionPlan(item) {
+        return explicitLines(item).flatMap(stat => {
+            const mod = lineMod(stat);
+            if (!mod) return [];
+            const extras = (stat.extraStats || []).filter(extra => Number(extra.val) > 0).map(extra => {
+                const sub = (mod.compound || []).find(row => (row.statId || row.id) === extra.id);
+                return sub ? [extra, corruptedValue(item, extra, sub)] : [extra, Number(extra.val)];
+            });
+            return [[stat, corruptedValue(item, stat, mod)], ...extras];
+        }).filter(([line, next]) => next > Number(line.val));
+    }
+
+    /** One draw per dropped item. Null before fromLoop, for uniques and already corrupted items; a corrupted roll on an item
+     * whose explicit lines cannot grow (none, or all at the cap) drops as it is. scale multiplies every chance (better chests). */
+    function pick(item, roll, scale) {
+        const rules = EQUIPMENT_DROP_VARIANTS;
+        if (!item || item.rarity === 'unique' || item.corrupted || (Number(game.season) || 1) < rules.fromLoop) return null;
+        let edge = 0;
+        for (const [kind, chance] of rules.odds) {
+            edge += chance * scale;
+            if (roll < edge) return kind === 'corrupted' && !corruptionPlan(item).length ? null : kind;
+        }
+        return null;
+    }
+
+    function corrupt(item) {
+        corruptionPlan(item).forEach(([line, next]) => { line.val = next; });
+        item.corrupted = true;
+        return [item];
+    }
+
+    function duplicate(item) {
+        const copy = JSON.parse(JSON.stringify(item));
+        copy.id = ++itemIdCounter;
+        return [item, copy];
+    }
+
+    /** Same base, same rarity and level; each extra rolls its own explicit lines. */
+    function bundle(item, rng) {
+        const base = BASE_ITEM_DB.find(row => row.id === item.baseId);
+        if (!base) return [item];
+        const { min, max } = EQUIPMENT_DROP_VARIANTS.bundle;
+        const extra = min + Math.floor(rng() * (max - min + 1));
+        const origin = { dropRealm: item.dropRealm, affixTierCap: item.affixTierCap,
+            affixTierFloor: getDroppedAffixTierRange(item.affixTierCap).min, tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF };
+        const extras = Array.from({ length: extra }, () => levelProgression.stampItem(createItemFromBase(base, item.rarity, item.itemTier, origin), item.itemLevel));
+        return [item, ...extras];
+    }
+
+    /**
+     * @param {object} item a freshly generated drop (corrupted in place when that variant is drawn)
+     * @param {{rng?: function(): number, scale?: number}} [options] rng in [0,1); scale multiplies the variant chances
+     * @returns {{kind: 'duplicate'|'bundle'|'corrupted'|null, items: object[]}} the original item first
+     */
+    function expand(item, options = {}) {
+        const rng = options.rng || Math.random;
+        const kind = pick(item, rng(), Math.max(0, Number(options.scale) || 1));
+        if (!kind) return { kind: null, items: [item] };
+        const items = kind === 'corrupted' ? corrupt(item) : kind === 'duplicate' ? duplicate(item) : bundle(item, rng);
+        // js/currency-acquisition-ui.js names the variant in the loot log.
+        dispatchRuntimeEvent('equipment-drop-variant', { kind, items });
+        return { kind, items };
+    }
+
+    const equipmentDropVariants = Object.freeze({ expand });
+    safeExposeGlobals({ equipmentDropVariants });
 })();

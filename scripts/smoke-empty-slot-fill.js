@@ -10,8 +10,8 @@ function settleHelmet(autoEquip) {
     run(`game.level=5;game.settings.autoEquipEmptySlots=${autoEquip};game.equipment['투구']=null;
         game.currentZoneId=0;game.settings.mapCompleteAction='stop';game.noti.items=false;startEncounterRun(true);
         window.helm=createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='투구'),'magic',1);
-        actExplorationLoot.capture(game,game.actExploration,()=>actExplorationLoot.delivery(game,'equipment').store(helm));
-        game.actExploration.status='cleared';window.beforeEquipment=JSON.stringify(game.equipment);finishEncounterRun();`);
+        window.beforeEquipment=JSON.stringify(game.equipment);addItemToInventory(helm);
+        game.actExploration.status='cleared';finishEncounterRun();`);
     return run;
 }
 const manual = settleHelmet(false);

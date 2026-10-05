@@ -1003,7 +1003,6 @@ function isPauseSettingOverlayOpen() {
     let modalSelectors = [
         '.tutorial-overlay.active:not(#tutorial-overlay):not(#death-overlay)',
         '#act-exploration-dialog[open]',
-        '#act-exploration-loot-dialog[open]',
         '#beehive-choice-overlay',
         // 선택 창 다섯(코어, 주얼 보관함과 소켓, 혼돈 주입, 조합창 재료, 홀씨 모드). 없어진 예전 주얼 창들의 자리도 이것이 맡는다.
         '.selection-overlay',
@@ -1013,37 +1012,13 @@ function isPauseSettingOverlayOpen() {
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
 
-function claimBattlefieldShrine() {
-    let result = shrineRuntime.claimActive();
-    if (!result.claimed) return false;
-    battleVisualState.shrineHitbox = null;
-    battleVisualState.shrineHovered = false;
-    addLog(`🛕 ${result.blessing.name} 축복 활성화!`, 'loot-rare');
-    if (typeof showGameToast === 'function') {
-        showGameToast(`${result.blessing.name} · ${result.blessing.detail}`, { tone: 'success', duration: 3200 });
-    }
-    if (typeof queueImportantSave === 'function') queueImportantSave(200);
-    updateStaticUI();
-    return true;
-}
-
-function setupBattlefieldShrineInteraction() {
+function setupBattlefieldMovementInteraction() {
     let canvas = document.getElementById('battlefield-canvas');
-    if (!canvas || canvas.dataset.shrineInteractionBound === 'true') return;
-    canvas.dataset.shrineInteractionBound = 'true';
-    canvas.addEventListener('pointermove', event => {
-        let shrineHovered = !!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY);
-        battleVisualState.shrineHovered = shrineHovered;
-        canvas.style.cursor = shrineHovered ? 'pointer' : '';
-    });
-    canvas.addEventListener('pointerleave', () => {
-        battleVisualState.shrineHovered = false;
-        canvas.style.cursor = '';
-    });
+    if (!canvas || canvas.dataset.movementInteractionBound === 'true') return;
+    canvas.dataset.movementInteractionBound = 'true';
     canvas.addEventListener('click', event => {
         event.preventDefault();
-        if (getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY)) claimBattlefieldShrine();
-        else commandBattlefieldMove(canvas, event);
+        commandBattlefieldMove(canvas, event);
     });
 }
 
@@ -3098,7 +3073,7 @@ function completeBeehiveRun(){
     markLoopSpecialBossKill('beehive_queen');
     unlockJournalEntry('beehive_queen');
     if (Math.random() < 0.08) {
-        const itemLevel = levelProgression.monsterLevel(rewardZone, { isBoss: true });
+        const itemLevel = levelProgression.itemLevel(rewardZone, { isBoss: true });
         const tier = Math.min(getRealmEquipmentHiddenTierCap(rewardZone), levelProgression.maxDropTier(itemLevel));
         let item = levelProgression.stampItem(generateUniqueItem(tier, '무기', null, rewardZone), itemLevel);
         addItemToInventory(item);
@@ -3156,7 +3131,7 @@ async function forfeitBeehiveRun() {
     }
 }
 function canAutoEnterGrandBreach(){
-    if (actExplorationState.current(game)?.loot.phase === 'pending') return false;
+    if (actExplorationState.current(game)?.status === 'active') return false;
     let v = game.voidRift;
     let g = v.grandRun || {};
     let beehiveRunning = isBeehiveRunLockedForMapTravel();
@@ -5622,6 +5597,7 @@ function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     let cameraShakeCheckbox = document.getElementById('chk-camera-shake');
     game.settings.cameraShake = !cameraShakeCheckbox || cameraShakeCheckbox.checked;
+    game.settings.hitEmphasis = document.getElementById('sel-hit-emphasis')?.value === 'mild' ? 'mild' : 'normal';
     let uiSoundsCheckbox = document.getElementById('chk-ui-sounds');
     game.settings.uiSounds = !uiSoundsCheckbox || uiSoundsCheckbox.checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
@@ -7414,18 +7390,10 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
             smoothing: enemy.bossAssetKey ? 'high' : 'low',
             outlineColor: outline.color,
             outlineThickness: outline.thickness,
-            outlineAlpha: outline.alpha
+            outlineAlpha: outline.alpha,
+            flash
         });
         ctx.restore();
-        if (flash) {
-            ctx.save();
-            ctx.globalAlpha = 0.16;
-            ctx.fillStyle = '#fff3c5';
-            ctx.beginPath();
-            ctx.ellipse(x, groundY, enemy.isBoss ? 20 : 13, enemy.isBoss ? 10 : 7, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
         return;
     }
     if (attackMotion) {
@@ -7960,7 +7928,6 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     colosseumReady: { sprite: 41, label: '투기장 일격 준비', color: '#e0ad78' },
     summonDeathDamageBuff: { sprite: 42, label: '소환수 사망 피해 강화', color: '#b7d8e5' },
     summonCritAspd: { sprite: 43, label: '소환수 치명타 공속', color: '#c4a7e8' },
-    shrineBuff: { sprite: 44, label: '성소 축복', color: '#f0d18a' },
     eliteTraitBuff: { sprite: 45, label: '무한한 허기', color: '#d98f88' },
     enemyWither: { sprite: 46, label: '위축', color: '#b58be0' },
     talentInquisitorMark: { sprite: 9, label: '심판 표식', color: '#efb16e' },
@@ -8194,12 +8161,6 @@ function buildPlayerUniqueEffectIcons(pStats, now) {
     }
     if (pStats.uniqueRiderCompass && Number(game.lastMoveEndedAt) > 0 && !game.uniqueRiderCompassConsumed) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'riderCompassReady' }, now));
-    }
-    let shrine = game.shrineBuff;
-    if (shrine && Number(shrine.expiresAt) > now) {
-        let statLabel = typeof getStatName === 'function' ? getStatName(shrine.stat) : String(shrine.stat || '능력치');
-        let detail = shrine.detail || `${statLabel} +${Number(shrine.value || 0)}%`;
-        icons.push(renderUiNamedEffectIcon({ key: 'shrineBuff', name: shrine.name || '성소 축복', detail, expiresAt: shrine.expiresAt }, now));
     }
     let elite = game.uniqueEliteTraitBuff;
     if (elite && Number(elite.expiresAt) > now) {
@@ -11118,7 +11079,7 @@ function describeBlockedPassiveNode(node) {
 function setupCanvasEvents() {
     passiveSelectionUi.bindTools();
     setupPassiveTreeSearchControls();
-    setupBattlefieldShrineInteraction();
+    setupBattlefieldMovementInteraction();
     const canvas = document.getElementById('tree-canvas');
     if (!canvas) return;
     const canvasTooltip = document.getElementById('canvas-tooltip');
@@ -13839,7 +13800,7 @@ function renderBattlefieldThrottled(frameNow) {
  * 따라 장착하는 사이 기본 공격으로 싸우다 쓰러졌다(검토 7차). 대상 화면을 떠나면(띠가 한 줄로 접히면) 전투가 다시 돈다. */
 function isTutorialPausingCombat() {
     if (!(game.settings && game.settings.pauseGameOnOverlay)) return false;
-    return isTutorialOpen() || tutorialActionUi.holdsQueue();
+    return (isTutorialOpen() && tutorialActionUi.requiresAttention(activeTutorial)) || tutorialActionUi.holdsQueue();
 }
 
 function scheduleGameLoop() {

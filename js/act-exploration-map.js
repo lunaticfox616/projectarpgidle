@@ -62,7 +62,7 @@ const actExplorationMap = (() => {
         return Object.freeze({id:source.id,act,biome:source.biome,columns,rows,tiles:Object.freeze(tiles),
             rooms:Object.freeze(rooms),entry:rooms.find(r=>r.role==='entry'),gate:Object.freeze(rotate(source.gate,source)),rotation:source.rotation});
     }
-    /** Quarter turns a run may face (0 north … 3 west): the entry starts opposite the gate, like a Diablo II act area. */
+    /** Quarter turns a run may face (0 north … 3 west): the entry starts opposite the gate. */
     const ROTATIONS=4;
     /** @param {object} source authored or arena source; @param {number|undefined} rotation clockwise quarter turns, undefined for the authored one. */
     function turned(source,rotation) {
@@ -133,6 +133,29 @@ const actExplorationMap = (() => {
         }
         return parents;
     }
+    const roadGroups=new WeakMap();
+    /** One three-cell group in the longest quiet approach. Existing terrain stays unchanged; gate stays sealed.
+     * Cached per immutable layout, not searched during movement/render ticks. Boss-only arenas have no candidate. */
+    function roadGroup(map) {
+        if(roadGroups.has(map))return roadGroups.get(map);
+        const blocked=new Set([index(map,map.gate)]);
+        let best=null,score=5;
+        for(const room of map.rooms.filter(row=>row.role==='battle')) {
+            const path=route(map,map.entry,room,blocked);
+            for(let i=1;i<path.length-1;i++) {
+                const cell=path[i];
+                const distance=Math.min(...map.rooms.map(row=>Math.abs(row.gx-cell.gx)+Math.abs(row.gy-cell.gy)));
+                if(distance<=score)continue;
+                score=distance;best={roomId:room.id,anchor:cell,cells:[cell,path[i-1],path[i+1]]};
+            }
+        }
+        if(best) {
+            best.anchor=Object.freeze({...best.anchor});
+            best.cells=Object.freeze(best.cells.map(cell=>Object.freeze({...cell})));
+            Object.freeze(best);
+        }
+        roadGroups.set(map,best);return best;
+    }
     /** Visible floor plus bordering wall tiles, reached through floor rather than through walls. */
     function visibleCells(map,from,radius=ACT_EXPLORATION_VISION.radius) {
         if(!walkable(map,from))return [];
@@ -147,6 +170,6 @@ const actExplorationMap = (() => {
         }
         return [...seen];
     }
-    return {ROTATIONS,layout,generated,forRun,index,walkable,neighbors,route,visibleCells};
+    return {ROTATIONS,layout,generated,forRun,index,walkable,neighbors,route,visibleCells,roadGroup};
 })();
 safeExposeGlobals({actExplorationMap});

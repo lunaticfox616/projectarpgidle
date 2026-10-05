@@ -1,5 +1,5 @@
 @layer components {
-/* Cosmos Atlas: PoE-style star map for the 우주계 subtab. */
+/* Cosmos Atlas: Star map for the 우주계 subtab. */
 :root body .cosmos-tab-btn {
   border-color: var(--color-line-strong);
 }

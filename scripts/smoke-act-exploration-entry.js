@@ -38,14 +38,14 @@ for(const action of ['nextZone','nextLoopBestPlusOne','repeatZone','stop']) {
     run('ensureEncounterRun();window.entryRun=game.actExploration');
     assert.equal(run('game.actExploration.mode'),'full');
     until('window.entryRun.completionApplied',action+' settles the whole map');
-    assert.equal(run('window.entryRun.loot.phase'),'claimed');
+    assert.equal(run('window.entryRun.loot'),undefined);
     if(action==='stop') {
         assert.equal(run('game.currentZoneId'),0);assert.equal(run('game.combatHalted'),true);
         const settled=copy('[game.actExploration,game.currencies,game.inventory]');
         advance(20);
         assert.deepEqual(copy('[game.actExploration,game.currencies,game.inventory]'),settled);
     } else {
-        assert.equal(run('game.actExploration.departure.remainingMs'),5500,'settlement holds the source map for the burst');
+        assert.equal(run('game.actExploration.departure.remainingMs'),1400,'completion briefly holds the source map before travel');
         const rewards=copy('[game.currencies,game.inventory.map(({instanceId,...item})=>item),game.maxZoneId]');
         advance(12);
         const exit=copy('game.actExploration.departure');
@@ -60,7 +60,7 @@ for(const action of ['nextZone','nextLoopBestPlusOne','repeatZone','stop']) {
         until('!!game.actExploration && game.actExploration!==window.entryRun','automatic restart creates one new map');
         assert.equal(run('game.actExploration.act'),action==='repeatZone'?1:2);
         assert.equal(run('game.actExploration.mode'),'full','route preference persists across maps');
-        assert.equal(run('game.actExploration.loot.phase'),'pending');
+        assert.equal(run('game.actExploration.loot'),undefined);
     }
 }
 
@@ -73,14 +73,14 @@ assert.equal(run('game.currentZoneId'),1);
 assert.equal(run('game.actExploration.arrival'),true,'the halted next act shows its entrance, not the legacy board');
 assert.equal(run('game.actExploration.act'),2);
 
-// Death and manual return abandon the old packet; retry starts fresh through normal travel.
+// Death and manual return keep earned drops; retry starts fresh through normal travel.
 for(const action of ['returnToTown()','handlePlayerDefeat(getZone(0),getPlayerStats())']) {
     fresh(1,{mapCompleteAction:'repeatZone',townReturnAction:'retry'});
     run(`ensureEncounterRun();window.entryRun=game.actExploration;
-        actExplorationLoot.capture(game,game.actExploration,()=>awardEnemyLootCurrency('goldenRule',2));${action};`);
-    assert.equal(run('window.entryRun.loot.phase'),'lost');
+        awardEnemyLootCurrency('goldenRule',2);${action};`);
+    assert.equal(run('window.entryRun.loot'),undefined);
     until('!!game.actExploration','retry creates a new exploration');
-    assert.equal(run('game.currencies.goldenRule'),0);
+    assert.equal(run('game.currencies.goldenRule'),2);
     assert.notEqual(run('game.actExploration'),run('window.entryRun'));
 }
 
@@ -97,13 +97,13 @@ run('game.currentZoneId=OUTSIDE_CHAOS_ZONE_ID;actExplorationProgress.depart(game
 assert.equal(run('game.actExploration'),null);assert.equal(run('getCombatGridSize().columns'),9);
 assert.ok(run('game.encounterPlan.length')>0,'board-only contents keep their own progression');
 
-// Background execution owns the same map and escrow and leaves the live snapshot untouched.
+// Background execution uses immediate drops on its snapshot and leaves the live game untouched.
 fresh(1,{mapCompleteAction:'stop'});run('ensureEncounterRun();');
 const live=copy('game');
 run('window.replayed=simulateBackgroundCombat({elapsedMs:300000,snapshot:game});');
 assert.deepEqual(copy('game'),live);
 assert.equal(run('window.replayed.game.actExploration.completionApplied'),true);
-assert.equal(run('window.replayed.game.actExploration.loot.phase'),'claimed');
+assert.equal(run('window.replayed.game.actExploration.loot'),undefined);
 assert.equal(run('window.replayed.game.combatHalted'),true);
 assert.ok(run('window.replayed.metrics.kills')>0);
 fresh(1,{mapCompleteAction:'stop'});
@@ -111,7 +111,7 @@ run(`ensureEncounterRun();game.offlineProgress.huntDirectiveUnlocked=true;game.o
     window.replayed=simulateBackgroundCombat({elapsedMs:300000,snapshot:game});`);
 assert.equal(run('window.replayed.stopReason'),'before-boss');
 assert.equal(run('window.replayed.game.actExploration.completionApplied'),false);
-assert.equal(run('window.replayed.game.actExploration.loot.phase'),'pending');
+assert.equal(run('window.replayed.game.actExploration.loot'),undefined);
 assert.equal(run('window.replayed.game.actExploration.packs.filter(pack=>pack.stage!==null).every(pack=>pack.waiting.every(enemy=>enemy.hp===enemy.maxHp))'),true,
     'stop-before-boss prevents even the first attack and preserves the same preplaced boss');
 fresh(1,{mapCompleteAction:'stop'});

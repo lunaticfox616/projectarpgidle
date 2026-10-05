@@ -32,6 +32,7 @@ const actExplorationProgress = (() => {
         }
     }
     function step(run,stats) {
+        actExplorationProgress.objects.step(run,20);
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         if(run.motion || run.status!=='active')return;
         actExplorationState.discover(run,game.gridPlayer);
@@ -41,19 +42,21 @@ const actExplorationProgress = (() => {
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
         // The player stands still at the threshold while the boss rises. A fight pauses the automatic walk, never a command.
-        if(entrance || (!run.destination && game.enemies.some(enemy=>enemy.hp>0)))return;
+        if(entrance || (!run.destination && (game.enemies.some(enemy=>enemy.hp>0)||actExplorationState.objects.active(run))))return;
         const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
-        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
+        // Safe travel is quicker; engagement/approach retains the normal movement stat.
+        const travelScale=game.enemies.some(enemy=>enemy.hp>0)?1:0.75;
+        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed*travelScale;
         const stepped=advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
         commandStalls.set(run,stalls);
-        if(stalls>=COMMAND_GIVE_UP_STEPS){run.destination=null;commandStalls.delete(run);}
+        if(stalls>=COMMAND_GIVE_UP_STEPS){run.destination=null;actExplorationProgress.objects.cancel(run);commandStalls.delete(run);}
     }
     /** The mode a new run starts in: the chosen route (보스 직행 · 전체 탐색) while auto-move is on, else 직접 이동. */
     function startMode(settings) {
@@ -90,19 +93,18 @@ const actExplorationProgress = (() => {
         if(run)return run.status==='cleared' && !run.completionApplied;
         return game.runProgress>=100 && game.encounterIndex>=game.encounterPlan.length && game.enemies.length===0;
     }
-    /** Claim first: invalid rewards leave completion retryable, before story/unlock changes. */
+    /** Drops are already owned. Completion only commits the encounter's progression. */
     function beginCompletion(zone) {
         const run=live();
-        if(!run)return {loot:null};
+        if(!run)return true;
         if(!canFinish())return false;
-        const loot=actExplorationLoot.claim(game,run);
         actExplorationMotion.cancel(run);
         actExplorationState.retireCombat(game);
         run.completionApplied=true;
         game.runProgress=100;
         // Act 4's two actual boss kills happen within this one map, not two new maps (zones without kill counts skip it).
         if(Number.isFinite(zone.maxKills))game.killsInZone=Math.max(game.killsInZone,zone.maxKills-1);
-        return {loot};
+        return true;
     }
     function shouldTrackStall() {
         return !live() && game.moveTimer<=0 && game.enemies.length===0;
@@ -132,7 +134,7 @@ const actExplorationProgress = (() => {
         state.combatHalted=false;
         return true;
     }
-    function depart(state) {actExplorationLoot.discard(state.actExploration);state.actExploration=null;}
+    function depart(state) {state.actExploration=null;}
     function stopAfterCompletion(state) {
         state.combatHalted=true;
         state.enemies=[];state.encounterPlan=[];state.encounterIndex=0;
@@ -143,7 +145,7 @@ const actExplorationProgress = (() => {
     }
     function defeat(state) {
         const run=actExplorationState.current(state);
-        if(run && !run.completionApplied){actExplorationMotion.cancel(run);actExplorationLoot.discard(run);run.status='failed';}
+        if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
     return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();

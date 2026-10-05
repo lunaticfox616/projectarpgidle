@@ -59,6 +59,9 @@
   .socket-row.is-empty { background: rgba(12, 12, 12, .45); box-shadow: inset 0 0 0 1px #3b2f1e; }
   .socket-row-label { color: #9fd6ff; font-size: 12px; }
   .socket-row.is-empty .socket-row-jewel { color: var(--px-copy-muted, #a39883); }
+  /* 타락 소켓(잿불가지의 두 번째 소켓): 타락 표기와 같은 붉은 계열로 일반 소켓과 구분한다. */
+  .socket-row.is-corrupt { box-shadow: inset 0 0 0 1px #8a2f2a, 0 0 10px rgba(231, 76, 60, .22); }
+  .socket-row.is-corrupt .socket-row-label { color: #ff8a7a; }
   .socket-jewel-lines { margin: 3px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.5; }
   .socket-jewel-effect { margin: 2px 0 0; color: #d7b8ff; font-size: 12px; }
   .socket-chisel { justify-self: start; }

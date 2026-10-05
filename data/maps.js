@@ -134,6 +134,29 @@ const COSMOS_EXPEDITION_DIRECTIVE_DB = Object.freeze([
     { id: 'eclipse', name: '흑성 일식', signal: 'RARE SIGNAL', description: '드물게 관측되는 흑성 신호입니다. 위험과 보상이 크게 증폭됩니다.', weight: 2, enemyHpMul: 1.68, enemyDamageMul: 1.40, enemyAttackSpeedMul: 1.18, rewardMul: 2.15, jackpotChance: 0.20, jackpotBonusMul: 2, rare: true }
 ]);
 
+// 탐험 사건(봉인된 보물함 · 매복 · 알집, js/exploration-objects.js): 지도마다 한 번 추첨해 하나만, 해금 뒤에도 매번 나오지는 않는다.
+// 2026-10-05 사용자 결정: 루프 2~5에 모은다. 루프 3은 이미 여섯 가지가 열려 봉인 2 · 매복 4 · 알집 5로 나눴다. 루프 5부터 확률은 그대로다.
+// odds: 그 루프부터의 [사건, 확률] — 앞에서부터 누적해 한 번의 추첨으로 고른다. notice: 처음 열리는 루프에 한 줄로 알린다.
+const EXPLORATION_EVENT_LOOPS = Object.freeze([
+    Object.freeze({ fromLoop: 5, odds: Object.freeze([['sealed', 0.15], ['ambush', 0.10], ['nest', 0.10]]) }),
+    Object.freeze({ fromLoop: 4, odds: Object.freeze([['sealed', 0.12], ['ambush', 0.08]]) }),
+    Object.freeze({ fromLoop: 2, odds: Object.freeze([['sealed', 0.10]]) })
+]);
+const EXPLORATION_EVENT_NOTICES = Object.freeze({
+    sealed: Object.freeze({ loop: 2, title: '봉인된 보물함', body: '이제 탐험 중 봉인된 보물함을 발견할 수 있습니다.' }),
+    ambush: Object.freeze({ loop: 4, title: '매복', body: '이제 탐험 중 매복을 만날 수 있습니다.' }),
+    nest: Object.freeze({ loop: 5, title: '알집', body: '이제 탐험 중 알집을 발견할 수 있습니다.' })
+});
+
+// 보급 상자 등급(2026-10-05 사용자 결정, js/exploration-objects.js · js/exploration-object-combat.js): 지도를 만들 때 시드로 고정한다.
+// weight: 등급 비율. rolls: 기본(수량 배율) 회차에 더하는 장비 회차. guaranteed: 앞에서부터 반드시 장비가 나오는 회차 수.
+// rare: 앞에서부터 희귀 이상이 보장되는 장비 수. currency: 제작 재화 기본량. variantScale: 장비 드랍 변형(EQUIPMENT_DROP_VARIANTS) 확률 배수.
+const EXPLORATION_CHEST_GRADES = Object.freeze([
+    Object.freeze({ id: 'wood', label: '보급 상자', weight: 0.70, rolls: 0, guaranteed: 0, rare: 0, currency: 1, variantScale: 1 }),
+    Object.freeze({ id: 'silver', label: '은빛 보급 상자', weight: 0.24, rolls: 0, guaranteed: 1, rare: 0, currency: 2, variantScale: 2 }),
+    Object.freeze({ id: 'gold', label: '황금 보급 상자', weight: 0.06, rolls: 1, guaranteed: 2, rare: 1, currency: 4, variantScale: 4 })
+]);
+
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
 //  - 요구 혼돈 심도는 루프 30(심화 40) 이후에도 기존처럼 루프당 1층씩 증가한다.
 //  - 루프 31+에서는 에니프론 행성을 이번 루프에 돌파하면 우주계 루프를 선택할 수 있다.
@@ -177,6 +200,23 @@ const MONSTER_LOOP_GROWTH = Object.freeze({
 const MONSTER_LOOP_POWER_SCALE = Object.freeze({
     hp: Object.freeze([[1, 1], [3, 0.95], [7, 0.8], [10, 0.75], [25, 0.66], [50, 0.62]]),
     damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]])
+});
+
+// 몬스터 방어 수치(%, js/combat.js createEnemy): 물리 피해 감소 dr와 원소 · 카오스 저항 res는 기존 지역 티어 곡선(제곱)으로
+// 서서히 올라 티어 20(혼돈 20 · 심화)에서 이 값이 된다. 지역 속성 수호 같은 추가 저항은 별도로 더해진다.
+// 보스 방어 특화(2026-10-05 사용자 결정, js/combat.js getBossDefenseTargets): 액트 · 혼돈 보스는 물리 피해 감소 · 화염 · 냉기 · 번개 저항 중
+// 1~2개만 bossSpecialty 수치까지 오르고 나머지와 카오스 저항은 정예와 같은 수치다. 첫째 특화는 보스 속성(byElement,
+// 카오스 속성은 지역 시드로 고름), 둘째는 지역 시드로 secondChance. 고정 난이도 · 벤치마크 · 정점 지역과 다른 콘텐츠의 보스는
+// 모든 방어가 bossSpecialty 수치까지 오른다. 수치는 초기 가설이다.
+const ENEMY_DEFENSE_TIER20 = Object.freeze({
+    normal: Object.freeze({ dr: 20, res: 25 }),
+    elite: Object.freeze({ dr: 40, res: 50 }),
+    bossSpecialty: Object.freeze({ dr: 75, res: 80 })
+});
+const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
+    secondChance: 0.5,
+    stats: Object.freeze(['dr', 'resF', 'resC', 'resL']),
+    byElement: Object.freeze({ phys: 'dr', fire: 'resF', cold: 'resC', light: 'resL' })
 });
 
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
@@ -335,5 +375,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_POWER_SCALE, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS });
+safeExposeData({ MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

@@ -106,7 +106,7 @@ function refreshItemIdCounter() {
         offline.stash, offline.protectedOverflow,
         game.equipmentTemporaryStorage, presets,
         actExplorationLoot.reservedItems(game), coreItems.ownedItems(game), (game.playerStall?.listings || []).map(row => row.item)].flat().filter(Boolean);
-    const jewels=[game.jewelInventory,items.flatMap(item=>[item.voidSocket?.jewel,...(item.abyssSockets||[]).map(socket=>socket?.jewel)])].flat().filter(Boolean);
+    const jewels=[game.jewelInventory,items.flatMap(item=>equipmentSockets.jewels(item).map(row=>row.jewel))].flat().filter(Boolean);
     itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
 }
 

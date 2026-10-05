@@ -367,9 +367,11 @@ const messageFrames = (() => {
 
     /** Called by js/ui-window-manager.js whenever the layout is (re)applied: { desktop, workspaceRect }. */
     function syncFrames(environment) {
+        const changed = !env || env.desktop !== environment?.desktop;
         env = environment || env;
         if (env && env.desktop) mountFrames();
         else unmountFrames();
+        if (changed && typeof applyPanelLayoutSettings === 'function') applyPanelLayoutSettings();
     }
 
     /** Brings a tab into view: its own frame when splitTab, otherwise the shared frame's active tab. */

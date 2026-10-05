@@ -10,6 +10,7 @@
     "check:css": "node scripts/check-css.js",
     "check:architecture": "node scripts/check-runtime-architecture.js",
     "test": "node scripts/run-smoke.js",
+    "benchmark:balance": "node scripts/benchmark-loop-balance.js && node scripts/benchmark-loop-loot.js",
     "test:browser": "playwright test",
     "pr:check": "node scripts/check-pr-state.js",
     "passive:edit": "node scripts/passive-tree-editor-server.js",

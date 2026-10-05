@@ -60,22 +60,46 @@ function clipSkillFootprint(ctx, footprint, includeCaster = false) {
     ctx.clip();
 }
 
+/** Ground display intersects walkable terrain; the immutable cast geometry still owns damage membership. */
+function clipSkillFootprintTerrain(ctx, footprint) {
+    const map=getCombatGridSize(),run=actExplorationState.current(game);
+    if(map.tiles) {
+        const sealed=!!run && actExplorationState.remainingElites(run)>0;
+        const x0=Math.max(0,Math.floor((footprint.x-footprint.width/2-footprint.board.x)/footprint.tileW));
+        const y0=Math.max(0,Math.floor((footprint.y-footprint.height/2-footprint.board.y)/footprint.tileH));
+        const x1=Math.min(map.columns,Math.ceil((footprint.x+footprint.width/2-footprint.board.x)/footprint.tileW));
+        const y1=Math.min(map.rows,Math.ceil((footprint.y+footprint.height/2-footprint.board.y)/footprint.tileH));
+        ctx.beginPath();
+        for(let index=0;index<(x1-x0)*(y1-y0);index++) {
+            const gx=x0+index%(x1-x0),gy=y0+Math.floor(index/(x1-x0));
+            if(!actExplorationMap.walkable(map,{gx,gy},sealed))continue;
+            ctx.rect(footprint.board.x+gx*footprint.tileW,footprint.board.y+gy*footprint.tileH,footprint.tileW,footprint.tileH);
+        }
+        ctx.clip();
+    }
+}
+
 /** A faint continuous ground silhouette; only exterior edges, never a grid of cell borders. */
-function drawSkillFootprintGround(ctx, footprint, color, alpha) {
-    if (footprint.round || footprint.cone) return drawSmoothSkillGround(ctx, footprint, color, alpha);
+function drawSkillFootprintGround(ctx, footprint, color, alpha, outlineOnly = false) {
+    ctx.save();
+    clipSkillFootprintTerrain(ctx, footprint);
+    if (footprint.round || footprint.cone) {
+        drawSmoothSkillGround(ctx, footprint, color, alpha, outlineOnly);
+        ctx.restore();
+        return;
+    }
     let keys = new Set(footprint.points.map(point => `${point.gx},${point.gy}`));
     let halfW = footprint.tileW / 2, halfH = footprint.tileH / 2;
-    ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.filter = 'none';
     ctx.fillStyle = color;
     ctx.globalAlpha = alpha * 0.07;
     ctx.beginPath();
     footprint.points.forEach(point => ctx.rect(point.x - halfW, point.y - halfH, footprint.tileW, footprint.tileH));
-    ctx.fill();
-    ctx.globalAlpha = alpha * 0.32;
+    if (!outlineOnly) ctx.fill();
+    ctx.globalAlpha = alpha * (outlineOnly ? 1 : 0.32);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = outlineOnly ? 2 : 1.2;
     ctx.beginPath();
     footprint.points.forEach(point => {
         let edges = [[0, -1, -halfW, -halfH, halfW, -halfH], [1, 0, halfW, -halfH, halfW, halfH],
@@ -91,18 +115,18 @@ function drawSkillFootprintGround(ctx, footprint, color, alpha) {
 }
 
 /** The smooth boundary uses the same cell-center geometry as combat, including at board edges. */
-function drawSmoothSkillGround(ctx, footprint, color, alpha) {
+function drawSmoothSkillGround(ctx, footprint, color, alpha, outlineOnly = false) {
     ctx.save();
     clipSkillFootprint(ctx, footprint);
     ctx.globalCompositeOperation = 'source-over';
     ctx.filter = 'none';
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = outlineOnly ? 2 : 1.2;
     // clipSkillFootprint leaves the circle/triangle as the current path.
     ctx.globalAlpha = alpha * 0.035;
-    ctx.fill();
-    ctx.globalAlpha = alpha * 0.28;
+    if (!outlineOnly) ctx.fill();
+    ctx.globalAlpha = alpha * (outlineOnly ? 1 : 0.28);
     ctx.stroke();
     ctx.restore();
 }

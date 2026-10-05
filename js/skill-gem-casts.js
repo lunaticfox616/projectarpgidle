@@ -105,8 +105,16 @@ const skillGemCasts = (() => {
     }
     function contact(cast,targets,at,extra={}) {
         return {type:'hit',name:cast.name,stats:cast.stats,attackOptions:cast.attackOptions,sourceCell:cell(cast.source),
-            targets:targets.map(e=>e.id),at,key:cast.key,...extra};
+            targets:targets.map(e=>e.id),at,key:cast.key,splashCells:contactCells(cast),...extra};
     }
+    /** Damaging geometry, independent of victims and visual events. Props never enter the targeting/bounce pool. */
+    function contactCells(c) {
+        const resolver=contactAreas[c.id];return resolver?resolver(c):[];
+    }
+    const contactAreas={45:c=>c.points,46:c=>cells(c.source,'circle',3),47:c=>cells(c.aim,'square',1+grow(c.stats)),
+        48:c=>cells(c.aim,'ring',c.index+1).concat(c.index?[]:cells(c.aim,'square',.5)),
+        50:c=>cells(c.source,'square',1+grow(c.stats)).filter(p=>!same(p,c.source)),51:c=>cells(c.aim,'cross',c.geometry.crossRadius),
+        53:c=>cells(c.source,'circle',4),54:c=>cells(c.move.to,'square',moveRadius(c)),57:c=>cells(c.move.to,'square',moveRadius(c))};
     function flight(cast,base,perCell) {
         return Math.max(1,Math.round((base+distance(cast.source,cast.aim)*perCell)/cast.speed/1.8));
     }

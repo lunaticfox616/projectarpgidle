@@ -344,6 +344,7 @@ function snapshotCraftResultItem(item) {
         rarity: item.rarity || 'normal',
         quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
         corrupted: !!item.corrupted,
+        sockets: equipmentSockets.count(item),
         uniqueEffect: item.uniqueEffect || '',
         baseStats: (item.baseStats || []).map(copyCraftResultStat).filter(Boolean),
         stats: (item.stats || []).map(copyCraftResultStat).filter(Boolean),
@@ -353,17 +354,20 @@ function snapshotCraftResultItem(item) {
 }
 
 const craftingResultLedger = (() => {
-    let latest = null;
+    let latest = null, sequence = 0;
 
     function begin(item, meta) {
         if (!item) return null;
-        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) } };
+        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) }, seq: ++sequence };
     }
 
+    /** A craft wrapped in another (the crafting workspace around useCurrency) keeps the inner one's outcome line. */
     function commit(token, item) {
         if (!token || !item || token.itemRef !== item) return null;
         let after = snapshotCraftResultItem(item);
-        latest = { itemRef: item, before: token.before, after, meta: token.meta, afterKey: JSON.stringify(after) };
+        const inner = latest && latest.itemRef === item && latest.seq > token.seq ? latest.meta.outcome : undefined;
+        const meta = inner && !token.meta.outcome ? { ...token.meta, outcome: inner } : token.meta;
+        latest = { itemRef: item, before: token.before, after, meta, seq: token.seq, afterKey: JSON.stringify(after) };
         return latest;
     }
 
@@ -406,8 +410,7 @@ function equipIntoFirstEmptySlot(item) {
     return slot;
 }
 
-/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터. 장비 창 "빈 칸 채우기"와 탐험 보상 정산(자동 장착 설정이
- * 켜져 있을 때)이 쓴다. Returns the equipped count. */
+/** 가방의 장비로 빈 장비 칸을 채운다 — 티어 · 등급이 높은 것부터. 장비 창 "빈 칸 채우기"에서 사용한다. Returns the equipped count. */
 function equipIntoEmptySlots(items) {
     const rank = item => (Number(item.itemTier) || 0) * 10 + JEWEL_RARITY_ORDER.indexOf(item.rarity);
     let equipped = 0;
@@ -748,6 +751,7 @@ function resolveTimeRiftFusion() {
     fused.fusedRelic = true;
     fused.fusionGrade = grade;
     fused.fusedRareName = rift.altarRare.name || '';
+    equipmentSockets.returnJewels(rift.altarRare); // the consumed rare's jewels stay the player's
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;

@@ -33,7 +33,7 @@ assert(uiSource.includes('옵션 평균 티어: T${tierSummary.toFixed(1)}'), 'j
 // Jewels go into equipment sockets through one dialog (2026-09-30): every socket kind, the store and its actions in one place.
 const socketUiSource = fs.readFileSync('js/equipment-sockets-ui.js', 'utf8');
 assert(socketUiSource.includes('equipmentSocketsUi.insert(') && socketUiSource.includes('equipmentSocketsUi.remove('), 'the socket dialog inserts and removes jewels');
-assert(socketUiSource.includes("row.kind === 'void' ? '공허 소켓' : "), 'void and abyss sockets share the dialog');
+assert(socketUiSource.includes('equipmentSockets.label') && ['공허 소켓', '타락 소켓', '심연 소켓'].every(name => fs.readFileSync('js/equipment-sockets.js', 'utf8').includes(name)), 'void, corruption and abyss sockets share the dialog');
 assert(!uiSource.includes('onclick="bulkTalismanUnseal('), 'removed talisman bulk-unseal handler must not remain in the UI');
 // Actual normal/rare/unique pickup, capacity and auto-salvage behavior is covered by
 // smoke-act-exploration-items.js for both immediate and held delivery.

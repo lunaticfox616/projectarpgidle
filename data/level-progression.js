@@ -15,6 +15,9 @@ const LEVEL_PROGRESSION = Object.freeze({
         157392, 166432, 175797, 185484, 195504, 205856, 216546, 227576, 238952, 250675, // Lv.81-90
         263213, 276136, 289452, 303161, 317268, 331777, 346693, 362019, 377760, 393919, // Lv.91-100
     ]),
+    // More ordinary monsters per map: preserve the first ten levels, then ramp to +15% at Lv.30.
+    // The premium applies to the complete requirement, including the post-100 extension.
+    playerExperienceDensityPremium: Object.freeze({ startLevel: 10, fullLevel: 30, increase: 0.15 }),
     // Fractional base XP preserves early-loop bonus rounding. Final rewards remain integers.
     // Beyond Lv.100, rewards grow gently while player requirements retain the steep endgame curve.
     monsterExperience: Object.freeze([
@@ -45,6 +48,10 @@ const LEVEL_PROGRESSION = Object.freeze({
     loopExperienceBase: 1, loopExperiencePerLoop: 0.05, loopExperienceBonusCap: 2,
     experienceGap: 5, experienceDecay: 0.10,
     lootGap: 10, lootDecay: 0.085,
+    // Item level of an elite's or boss's equipment over the area level, a whole number in [min, max] rolled per item
+    // (2026-10-05 user decision). Item level only: monster level, experience and reward penalties keep +1 / +2.
+    itemLevelBonus: Object.freeze({ elite: Object.freeze([1, 2]), boss: Object.freeze([3, 4]) }),
+    equipmentLootDecay: 0.06, // Recovery gear farming only; currency, talismans and XP retain their own rates.
     equipmentLevelDiscount: 8,
     // Base reqTier 1..22, not rolled affix tier. Early bases stay accessible; late bases need investment.
     attributeRequirements: Object.freeze([0, 0, 6, 10, 15, 21, 28, 36, 44, 52, 61, 70, 78, 86, 94, 102, 110, 117, 124, 130, 135, 140]),

@@ -50,7 +50,7 @@ const actExplorationView=(()=>{
         const run=actExplorationState.current(game);if(!run)return false;
         const map=actExplorationMap.forRun(run);prepare(map);
         ctx.save();ctx.fillStyle=`rgb(${shadeOf(map).join(',')})`;ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
-        if(cache.surface)ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
+        if(cache.surface){ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);actExplorationView.objects.drawGround(ctx,run,p);}
         else {
             // 지도를 만드는 동안 전장 한가운데에 도트 글씨로(점 셋이 차례로 찬다). 실패하면 까닭을 적는다.
             const dots='.'.repeat(1+Math.floor(performance.now()/400)%3);
@@ -121,6 +121,7 @@ const actExplorationView=(()=>{
         view.drawImage(cache.fog,0,0,cache.fogView.width,cache.fogView.height);
     }
     function appendScenery(actors,state) {
+        actExplorationView.objects.append(actors,state);
         const run=actExplorationState.current(game);if(!run || !cache?.surface)return;
         const map=cache.map,seen=new Set(run.discovered),p=state.gridProj;
         if(seen.has(actExplorationMap.index(map,map.gate))) {
@@ -154,6 +155,7 @@ const actExplorationView=(()=>{
         return {x,y,w,h,base:y+h};
     }
     function drawScenery(ctx,actor,state) {
+        if(actor.kind==='object'){actExplorationView.objects.draw(ctx,actor,state);return;}
         const p=state.gridProj,player=state.playerPos;
         ctx.save();ctx.imageSmoothingEnabled=false;
         // The only scenery actor left is the boss gate (painted maps carry their props in the picture).

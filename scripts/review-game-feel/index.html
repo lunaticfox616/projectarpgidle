@@ -1,0 +1,11 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rignin · 전투 감각 확인</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#111318;color:#ded5bf;font:14px system-ui}header{padding:12px 16px;border-bottom:1px solid #6e5733}
+h1{font-size:18px;margin:0 0 6px}p{font-size:12px;margin:4px 0;color:#a9acae}nav{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}button,a{background:#22262b;color:#efd6a3;border:1px solid #6e6044;padding:7px 11px;border-radius:3px;cursor:pointer;text-decoration:none}button:hover{background:#39372c}output{display:block;font-size:12px;min-height:17px}iframe{display:block;border:0;width:100%;height:720px}#captures{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}figure{margin:0}figure img{width:100%;image-rendering:pixelated}figcaption{font-size:12px;color:#a9acae}#error{color:#ff9d8d}@media(max-width:600px){header{padding:8px}h1{font-size:16px}nav{gap:4px}button{padding:7px;font-size:12px}iframe{height:700px}#captures{grid-template-columns:repeat(2,1fr)}}
+</style>
+<header><h1>전투 감각 · 실제 게임 검토</h1><p>4242 포트 전용 테스트 저장. 먼저 게스트로 시작하고 안내를 닫아 주세요. 준비 버튼은 테스트 상태를 만듭니다. 지급·처치는 실제 게임 코드를 실행합니다.</p>
+<nav><button data-action="prepare">전투 준비</button><button data-action="fight">자동 전투</button><button data-action="hit">일반 / 치명타</button><button data-action="pack">5마리 처치</button><button data-action="boss">보스 마무리</button><button data-action="chest">상자 앞으로</button><button data-action="pot">항아리 앞으로</button><button data-action="crate">목재 상자 앞으로</button><button data-action="level">레벨업</button><button data-action="loot">중요 전리품</button><a href="/?dev=1">게임만 열기</a></nav>
+<output id="status">준비 중 · 버튼을 누르기 전에는 저장을 변경하지 않습니다.</output><output id="error"></output></header>
+<iframe id="game-frame" src="/?dev=1" title="게임 테스트"></iframe><div id="captures" aria-label="버튼 동작 후 실제 캔버스 연속 촬영"></div>
+<script src="fixture.js"></script></html>

@@ -71,9 +71,9 @@ for (let n = 0; n < 6000 && run('!!game.atlas.run'); n++) {
     advance();
     if (!cleared && run('!!game.actExploration && game.actExploration.packs.some(pack => pack.encounter === "treasure" && pack.aliveIds.length === 0)')) {
         cleared = true;
-        const held = copy('game.actExploration.loot.currencies');
-        assert.ok((held.magicBud || 0) > 0, 'an emptied treasure room pays into the map loot, not the wallet');
-        assert.equal(run('game.currencies.magicBud || 0'), before.magicBud, 'nothing reaches the wallet before the boss falls');
+        const held = copy('game.currencies');
+        assert.ok((held.magicBud || 0) > 0, 'an emptied treasure room grants its reward');
+        assert.ok(run('game.currencies.magicBud || 0') > before.magicBud, 'content-room rewards enter the wallet immediately');
     }
 }
 assert.ok(cleared, 'the hero clears the treasure room on the way to the boss');

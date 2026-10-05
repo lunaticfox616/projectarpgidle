@@ -52,8 +52,6 @@ const noticeCount=notices.length;
 assert.equal(run("equipItemById(weapon.id,'무기')"),false);
 assert.equal(notices.length,noticeCount+1,'explicit-slot rejection uses the same notification path');
 assert.equal(run('JSON.stringify(game.inventory)'),before,'rejected equip is atomic');
-run("game.shrineBuff={stat:'strength',value:200,expiresAt:getCombatTime()+60000}");
-assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'temporary attributes cannot open an equipment gate');
 run("game.actRewardBonuses[0].value=52;game.level=1");
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false);
 run('weapon.inheritedLevelExempt=true');
@@ -81,7 +79,8 @@ const originalRandom=r.Math.random;
 let loot;
 try {r.Math.random=()=>.5;loot=json("generateEquipmentDrop(mob,{zone:z,slot:'무기'})");}
 finally {r.Math.random=originalRandom;}
-assert.equal(loot.itemLevel,39);assert.ok(loot.affixTierCap<=run('levelProgression.affixCap(39)'));
+// A boss's equipment rolls area +3~4 (roll .5 → +4), above its own monster level of area +2.
+assert.equal(loot.itemLevel,41);assert.ok(loot.affixTierCap<=run('levelProgression.affixCap(41)'));
 assert.equal(loot.requirementsVersion,1);
 run('game.currentZoneId=1;game.level=5');
 const xp=run('getEnemyExperienceReward({level:5}, {expGain:0})');

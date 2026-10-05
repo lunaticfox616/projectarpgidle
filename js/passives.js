@@ -4173,9 +4173,9 @@ let battleVisualState = {
     frameTimeEma: 16.7,
     vfxDensity: 1,
     hitStopRemainingMs: 0,
-    lastHitStopFxId: 0,
-    shrineHitbox: null,
-    shrineHovered: false
+    nextHitStopAt: 0,
+    enemyHitPulses: new Map(), // Last accepted body flash per enemy, visual ms; never saved.
+    lastHitStopFxId: 0
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -4425,12 +4425,12 @@ function getBattleHitFeedback(data) {
     return { damageRatio, impactTier, targetMaxHp: maxHp };
 }
 
-// 타격감(2026-10-04): crits and heavy blows hold the frame and shake a little longer than before (24/40ms, 2.5/4.8).
+// Fast combat keeps ordinary critical hits flowing; only heavy hits and finishing blows briefly hold the frame.
 const BATTLE_FEEDBACK_PROFILES = Object.freeze({
     normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
-    crit: Object.freeze({ hitStopMs: 32, shake: 3, duration: 170 }),
-    heavy: Object.freeze({ hitStopMs: 50, shake: 5.4, duration: 220 }),
-    annihilate: Object.freeze({ hitStopMs: 40, shake: 4.2, duration: 180 })
+    crit: Object.freeze({ hitStopMs: 0, shake: 3, duration: 170 }),
+    heavy: Object.freeze({ hitStopMs: 28, shake: 5.4, duration: 220 }),
+    annihilate: Object.freeze({ hitStopMs: 20, shake: 4.2, duration: 180 })
 });
 // 피격감(2026-10-04): getting hit answers in proportion to the life it took (damageRatio against the hero's life, set in
 // combat.js). Chip hits shake a little; from an eighth of life the frame also holds, like a heavy blow on an enemy.
@@ -4551,6 +4551,8 @@ function clearBattleVisualBacklog() {
     battleVisualState.skillPlayback = null;
     battleVisualState.processedFxIds = new Set();
     battleVisualState.hitStopRemainingMs = 0;
+    battleVisualState.nextHitStopAt = 0;
+    battleVisualState.enemyHitPulses.clear();
     battleVisualState.lastHitStopFxId = 0;
     battleVisualState.lastNow = 0;
     battleVisualState.visualNow = 0;
@@ -4898,11 +4900,12 @@ function drawDamageTexts(ctx, now) {
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
-        applyDamageTextPop(ctx, text, t, { x, y });
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
         const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16)))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
         ctx.textAlign = text.bodyCue || text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
+        ({ x, y } = drawBattlePlayerFigure.readability.label(ctx, text, { x, y }, fontSize));
+        applyDamageTextPop(ctx, text, t, { x, y });
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
@@ -6068,7 +6071,6 @@ function isLocalRuntimeHost() {
 
 function shouldPreserveOriginalBattleSheet(key) {
     return key === 'tiles'
-        || key === 'shrineInteractable'
         || key.startsWith('hero')
         || key.startsWith('playerClass')
         || key.startsWith('bossTelegraph')
@@ -6271,7 +6273,6 @@ function initBattleAssets() {
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',
         passiveTreeVoidSlot: 'assets/ui/passive-tree-slot-void-v3.webp',
-        shrineInteractable: 'assets/effects/battlefield-shrine-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',
         backdropAct3_7: 'assets/battlefield-act3-7.png',
@@ -6314,7 +6315,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy')));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -7886,7 +7887,7 @@ let outlinedSpriteNextImageId = 1;
 function getOutlinedSpriteSurface(sourceImage, src, size, outline) {
     let imageId = outlinedSpriteImageIds.get(sourceImage);
     if (!imageId) { imageId = outlinedSpriteNextImageId++; outlinedSpriteImageIds.set(sourceImage, imageId); }
-    const key = [imageId, src.x, src.y, src.w, src.h, size.w, size.h, outline.color, outline.thickness, outline.smooth].join('|');
+    const key = [imageId, src.x, src.y, src.w, src.h, size.w, size.h, outline.color, outline.thickness, outline.smooth, outline.fill].join('|');
     const cached = outlinedSpriteCache.get(key);
     if (cached) {
         outlinedSpriteCache.delete(key);
@@ -7909,9 +7910,30 @@ function createOutlinedSpriteSurface(sourceImage, src, size, outline) {
     const c = canvas.getContext && canvas.getContext('2d');
     if (!c) return null;
     c.imageSmoothingEnabled = outline.smooth;
-    c.filter = `drop-shadow(0 ${t}px 0 ${color}) drop-shadow(0 ${-t}px 0 ${color}) drop-shadow(${t}px 0 0 ${color}) drop-shadow(${-t}px 0 0 ${color})`;
+    if (!outline.fill) c.filter = `drop-shadow(0 ${t}px 0 ${color}) drop-shadow(0 ${-t}px 0 ${color}) drop-shadow(${t}px 0 0 ${color}) drop-shadow(${-t}px 0 0 ${color})`;
     c.drawImage(sourceImage, src.x, src.y, src.w, src.h, t, t, size.w, size.h);
+    if (outline.fill) {
+        c.globalCompositeOperation = 'source-in';
+        c.fillStyle = color;
+        c.fillRect(0, 0, canvas.width, canvas.height);
+    }
     return canvas;
+}
+
+/** Source/destination rectangles are [x, y, width, height]. Cache a native-size silhouette, never a full-canvas filter.
+ * A short cream flash remains readable even on dark sprites; alpha and transparent pixels remain intact. */
+function drawBattleSpriteImage(ctx, image, source, box, flash) {
+    ctx.drawImage(image, ...source, ...box);
+    if (!(flash > 0)) return;
+    const [x, y, w, h] = source;
+    const surface = getOutlinedSpriteSurface(image, { x, y, w, h }, { w, h },
+        { color: '#fff4df', thickness: 0, smooth: false, fill: true });
+    if (!surface) return;
+    ctx.save();
+    ctx.filter = 'none';
+    ctx.globalAlpha *= Math.min(1, Number(flash));
+    ctx.drawImage(surface, ...box);
+    ctx.restore();
 }
 
 // 윤곽 패스: 캐시한 윤곽 그림을 (x, y) 기준으로 찍는다. 원래처럼 윤곽 알파로 그린 뒤 본 그림을 위에 덧그린다.
@@ -7964,7 +7986,7 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         ctx.rotate(options.rotation);
         if (options.outlineColor) drawBattleSpriteOutline(ctx, sourceImage, { x: srcX, y: srcY, w: srcW, h: srcH },
             { x: Math.round(-drawWidth / 2), y: Math.round(-drawHeight / 2), w: drawWidth, h: drawHeight }, options);
-        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
+        drawBattleSpriteImage(ctx, sourceImage, [srcX, srcY, srcW, srcH], [Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight], options.flash);
     } else {
         if (options.devicePixelSnap === true) {
             let snappedRect = snapCanvasRectToDevicePixels(ctx, dx, dy, drawWidth, drawHeight);
@@ -7981,7 +8003,7 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         }
         if (options.outlineColor) drawBattleSpriteOutline(ctx, sourceImage, { x: srcX, y: srcY, w: srcW, h: srcH },
             { x: dx, y: dy, w: drawWidth, h: drawHeight }, options);
-        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
+        drawBattleSpriteImage(ctx, sourceImage, [srcX, srcY, srcW, srcH], [dx, dy, drawWidth, drawHeight], options.flash);
     }
     ctx.restore();
 }
@@ -8196,6 +8218,11 @@ function normalizeItem(item) {
     } else {
         item.abyssSockets = [];
     }
+    // Corruption socket (2026-10-05): only its shape is kept; a jewel already in it is never dropped.
+    if (item.corruptionSocket !== undefined) {
+        if (item.corruptionSocket && typeof item.corruptionSocket === 'object') item.corruptionSocket = { jewel: (item.corruptionSocket.jewel && typeof item.corruptionSocket.jewel === 'object') ? item.corruptionSocket.jewel : null };
+        else delete item.corruptionSocket;
+    }
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
     if (item.encroached && typeof item.encroached === 'object') {
         let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
@@ -8334,19 +8361,20 @@ function getUniqueCodexKeyByItem(item) {
 }
 
 // 고유 아이템 획득 시 도감에 즉시 등록(아이템을 소모하지 않는 수집 기록 개념).
-function registerUniqueToCodexOnAcquire(item) {
+function registerUniqueToCodexOnAcquire(item, owner = game) {
     let key = getUniqueCodexKeyByItem(item);
     if (!key) return false;
-    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let existing = game.uniqueCodex[key];
+    owner.uniqueCodex ??= {};
+    let existing = owner.uniqueCodex[key];
     // 이미 옵션까지 기록된 경우 첫 등록 기록을 유지한다(루프 리셋 후 정보만 남은 경우는 다시 채움).
     if (existing && existing.baseName) return false;
-    game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
+    owner.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
     let firstTime = !existing;
     if (!firstTime) return true;
-    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
-    game.codexNewlyRegistered[key] = true;
-    if (game.noti) game.noti.codex = true;
+    owner.codexNewlyRegistered ??= {};
+    owner.codexNewlyRegistered[key] = true;
+    if (owner.noti) owner.noti.codex = true;
+    if (owner !== game) return true; // Restore collection history without live UI effects during save migration.
     addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
     if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
     return true;
@@ -8444,15 +8472,49 @@ function rollBaseStats(base) {
 }
 
 
-function rollTierValueAffix(mod, statId, tier) {
-    let effectiveTier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(tier) || 1)));
-    let range = mod.tierValues[effectiveTier - 1];
+/**
+ * The value range of one tier of an affix (or a compound line's sub-stat): tierValues rows as listed, otherwise
+ * base + tier × step widened by 1.6 steps, on 0.1 steps for leech/regen lines and whole numbers for the rest.
+ * @param {object} mod MOD_DB row or a compound sub-stat
+ * @param {string} statId
+ * @param {number} tier clamped to the tierValues length
+ * @param {boolean} [roundInteger] round instead of floor whole-number ranges (crafting sources that ask for it)
+ * @returns {{min: number, max: number, step: number, tier: number}}
+ */
+function getAffixTierRange(mod, statId, tier, roundInteger = false) {
+    if (Array.isArray(mod.tierValues)) return getListedAffixTierRange(mod, tier);
+    const min = mod.base + (tier * mod.step);
+    const max = min + mod.step * 1.6;
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10, step: 0.1, tier };
+    }
+    const toInt = roundInteger ? Math.round : Math.floor;
+    const high = toInt(max);
+    return { min: high > 0 ? Math.max(1, toInt(min)) : toInt(min), max: high, step: 1, tier };
+}
+
+function getListedAffixTierRange(mod, tier) {
+    const effectiveTier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(tier) || 1)));
+    const range = mod.tierValues[effectiveTier - 1];
     let min = Array.isArray(range) ? Number(range[0]) : Number(range);
     let max = Array.isArray(range) ? Number(range[1]) : min;
     if (!Number.isFinite(min)) min = Number(mod.base) || 0;
     if (!Number.isFinite(max)) max = min;
     [min, max] = [Math.min(min, max), Math.max(min, max)];
-    const valueStep = mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01);
+    return { min, max, step: mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01), tier: effectiveTier };
+}
+
+/** One roll inside a base/step range from getAffixTierRange (0.1 or whole-number steps). */
+function rollSteppedAffixValue(range) {
+    if (range.step === 0.1) {
+        const minStep = Math.round(range.min * 10);
+        return (minStep + Math.floor(Math.random() * (Math.round(range.max * 10) - minStep + 1))) / 10;
+    }
+    return range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+}
+
+function rollTierValueAffix(mod, statId, tier) {
+    const { min, max, step: valueStep, tier: effectiveTier } = getAffixTierRange(mod, statId, tier);
     const val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / valueStep) + 1)) * valueStep).toFixed(2));
     return { id: statId, val, valMin: min, valMax: max, tier: effectiveTier, statName: mod.statName,
         valueStep, fixedValue: !!mod.fixedValue, sourceModId: mod.id, affixBalanceVersion: mod.affixBalanceVersion };
@@ -8484,23 +8546,8 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
     return mod.compound.map(sub => {
         let subId = sub.statId || sub.id;
         if (Array.isArray(sub.tierValues)) return rollTierValueAffix(sub, subId, tier);
-        let min = sub.base + (tier * sub.step);
-        let max = min + sub.step * 1.6;
-        let val;
-        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
-            let minStep = Math.round(min * 10);
-            let maxStep = Math.round(max * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            min = minStep / 10;
-            max = maxStep / 10;
-        } else {
-            let toInt = roundInteger ? Math.round : Math.floor;
-            min = toInt(min);
-            max = toInt(max);
-            if (max > 0) min = Math.max(1, min);
-            val = min + Math.floor(Math.random() * (max - min + 1));
-        }
-        return { id: subId, val: val, valMin: min, valMax: max, tier: tier, statName: sub.statName || getStatName(subId) };
+        const range = getAffixTierRange(sub, subId, tier, roundInteger);
+        return { id: subId, val: rollSteppedAffixValue(range), valMin: range.min, valMax: range.max, tier: tier, statName: sub.statName || getStatName(subId) };
     });
 }
 
@@ -8515,23 +8562,8 @@ function rollAffixValue(mod, maxTier, opts) {
     if (Array.isArray(mod.tierValues)) {
         result = rollTierValueAffix(mod, statId, tier);
     } else {
-        let min = mod.base + (tier * mod.step);
-        let max = min + mod.step * 1.6;
-        let val;
-        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-            let minStep = Math.round(min * 10);
-            let maxStep = Math.round(max * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            min = minStep / 10;
-            max = maxStep / 10;
-        } else {
-            let toInt = roundInteger ? Math.round : Math.floor;
-            min = toInt(min);
-            max = toInt(max);
-            if (max > 0) min = Math.max(1, min);
-            val = min + Math.floor(Math.random() * (max - min + 1));
-        }
-        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
+        const range = getAffixTierRange(mod, statId, tier, roundInteger);
+        result = { id: statId, val: rollSteppedAffixValue(range), valMin: range.min, valMax: range.max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
     }
     let extras = rollCompoundExtraStats(mod, result.tier, roundInteger);
     if (extras) result.extraStats = extras;
@@ -8576,22 +8608,8 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
     if (Array.isArray(mod.tierValues)) {
         result = rollTierValueAffix(mod, statId, tier);
     } else {
-        let min = mod.base + (tier * mod.step);
-        let max = min + mod.step * 1.6;
-        let val;
-        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-            let minStep = Math.round(min * 10);
-            let maxStep = Math.round(max * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            min = minStep / 10;
-            max = maxStep / 10;
-        } else {
-            min = Math.floor(min);
-            max = Math.floor(max);
-            if (max > 0) min = Math.max(1, min);
-            val = min + Math.floor(Math.random() * (max - min + 1));
-        }
-        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
+        const range = getAffixTierRange(mod, statId, tier);
+        result = { id: statId, val: rollSteppedAffixValue(range), valMin: range.min, valMax: range.max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
     }
     let extras = rollCompoundExtraStats(mod, result.tier, false);
     if (extras) result.extraStats = extras;
@@ -9281,7 +9299,7 @@ function getEquipmentDropSlot(options, enemy) {
 
 function generateEquipmentDrop(enemy, options) {
     let zone = options && options.zone ? options.zone : (getZone(game.currentZoneId) || {});
-    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    const itemLevel = levelProgression.itemLevel(zone, enemy);
     let hiddenTierCap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
     let dropTier = Math.min(rollRealmItemDropTier(zone, enemy), levelProgression.maxDropTier(itemLevel));
     let affixTierCap = Math.min(levelProgression.affixCap(itemLevel), getRealmEquipmentAffixTierCap(zone, dropTier));
@@ -9303,6 +9321,12 @@ function generateEquipmentDrop(enemy, options) {
     return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
 }
 
+/** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
+function boostItemStatValue(statId, value, factor) {
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Math.round(value * factor * 10) / 10;
+    return Math.max(1, Math.floor(value * factor));
+}
+
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
 // 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
 function maybeApplyExceptionalBase(item) {
@@ -9312,11 +9336,7 @@ function maybeApplyExceptionalBase(item) {
         if (!stat || Math.random() >= 0.01) return;
         let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
             : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
-        let boosted = max * 1.2;
-        let usesDecimal = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
-        if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
-        else boosted = Math.max(1, Math.floor(boosted));
-        stat.val = boosted;
+        stat.val = boostItemStatValue(stat.id, max, 1.2);
         stat.exceptional = true;
         names.push(stat.statName || getStatName(stat.id));
     });
@@ -9329,15 +9349,12 @@ function maybeApplyExceptionalBase(item) {
     return item;
 }
 
-/** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source
- * @param {null|function(string,number):boolean} deferGrant Optional synchronous receiver of the resolved amount. True means stored for later claim.
- */
-function awardCurrency(currencyKey, amount, source = 'reward', deferGrant = null) {
+/** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source */
+function awardCurrency(currencyKey, amount, source = 'reward') {
     currencyKey = getCanonicalCurrencyKey(currencyKey);
     if (source === 'drop' && !contentProgression.canDropCurrency(currencyKey)) return 0;
     let gain = Number(amount || 0);
     if (gain > 0) gain = Math.max(1, Math.floor(gain));
-    if (deferGrant && deferGrant(currencyKey, gain)) return gain;
     commitCurrencyGain(currencyKey, gain);
     return gain;
 }
@@ -9381,20 +9398,20 @@ function unlockLegacyCurrencyFeatures(currencyKey) {
 
 // Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting.
 function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
-    if (offlineStashEnabled || options?.skipAutoEquip || options?.delivery) return null;
+    if (offlineStashEnabled || options?.skipAutoEquip) return null;
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 
 function addItemToInventory(item, options) {
     normalizeItem(item);
-    const delivery = options?.delivery, logLoot = game.settings.showLootLog && !delivery;
+    const logLoot = game.settings.showLootLog;
     // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
     // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
     let uniqueHuntTarget = uniqueHuntRuntime.isTargetItem(item);
     let guaranteedKeep = !!(options && options.guaranteedKeep) || uniqueHuntTarget || equipmentLootPolicy.matches(item);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
-    let offlineStashEnabled = !delivery && game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
+    let offlineStashEnabled = game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
     let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled);
     if (autoEquipSlot) {
         recordEquipmentAcquisition(item);
@@ -9425,8 +9442,7 @@ function addItemToInventory(item, options) {
             if (!canStoreEquipmentItems([item], game)) game.backgroundStopReason = 'protected-storage-full';
         }
     }
-    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage, delivery });
-    if (delivery) return result.accepted;
+    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
     if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
@@ -9436,27 +9452,25 @@ function addItemToInventory(item, options) {
     return result.accepted;
 }
 
-/** Pickup policy is shared by owned and pending equipment; only delivery is deferred. */
-function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage, delivery }) {
-    const fits = delivery ? delivery.canStore(item) : canStoreEquipmentItems([item], game);
-    if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, delivery, true);
+/** Resolve capacity and auto-salvage at pickup time. */
+function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
+    const fits = canStoreEquipmentItems([item], game);
+    if (!fits && !guaranteedKeep) return salvageEquipmentPickup(item, true);
     if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities?.[item.rarity])
-        return salvageEquipmentPickup(item, delivery, false);
-    if (delivery) delivery.store(item);
-    else game.inventory.push(item);
+        return salvageEquipmentPickup(item, false);
+    game.inventory.push(item);
     return { accepted: true, kind: fits ? 'stored' : 'protected' };
 }
 
-function salvageEquipmentPickup(item, delivery, overflow) {
-    const rewards = salvageItemObject(item, true, {
-        noDivine: overflow, deferCurrency: delivery?.currency, deferRecovery: delivery?.recovery
-    });
+function salvageEquipmentPickup(item, overflow) {
+    const rewards = salvageItemObject(item, true, { noDivine: overflow });
     if (overflow && game.isBackgroundCalculation)
         game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
     return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
 function recordEquipmentAcquisition(item) {
+    game.noti.items=true;
     combatLootReceipts.item(game,item);
     return recordUniqueAcquisition(item);
 }
@@ -9761,17 +9775,16 @@ function generateJewelDrop(zoneOrTier) {
     return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
-/** One pickup policy for immediate and held jewel drops. Delivery receives resolved salvage gains. */
-function receiveJewelDrop(jewel, delivery) {
-    const inventoryFull=game.jewelInventory.length+(delivery?delivery.heldCount:0)>=getJewelInventoryLimit();
+/** Jewels enter the collection immediately; ordinary overflow is salvaged. */
+function receiveJewelDrop(jewel) {
+    const inventoryFull=game.jewelInventory.length>=getJewelInventoryLimit();
     const protectOverflow=inventoryFull&&['rare','unique'].includes(jewel.rarity);
-    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0,deferred:!!delivery};
+    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0};
     if(inventoryFull&&!protectOverflow) {
-        result.shardGain=salvageJewelObject(jewel,true,delivery?.currency);
+        result.shardGain=salvageJewelObject(jewel,true);
         return result;
     }
-    if(delivery)result.stored=delivery.store(jewel);
-    else {game.jewelInventory.push(jewel);game.noti.items=true;result.stored=true;}
+    game.jewelInventory.push(jewel);game.noti.items=true;result.stored=true;
     return result;
 }
 
@@ -9802,20 +9815,23 @@ function getJewelSalvageShardGain(jewel) {
     return rarity === 'unique' ? 18 : (rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2));
 }
 
-function salvageJewelObject(jewel, silent, deferCurrency = null) {
+function salvageJewelObject(jewel, silent) {
     let shardGain = getJewelSalvageShardGain(jewel);
     if (shardGain <= 0) return 0;
-    awardCurrency('jewelShard', shardGain, 'reward', deferCurrency);
+    awardCurrency('jewelShard', shardGain, 'reward');
     if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
     return shardGain;
 }
 
+/** @returns {number} socketed jewels returned to the jewel store before the item went away */
 function destroySelectedCraftItem(item) {
-    if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
+    if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return 0;
+    const jewels = equipmentSockets.returnJewels(item);
     let ref = getCraftSelectionRef();
     if (isCraftSelectionEquip()) game.equipment[ref] = null;
     else game.inventory = (game.inventory || []).filter(entry => entry !== item);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
+    return jewels;
 }
 
 function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -9947,10 +9963,11 @@ function rollItemSalvageRewards(item, options) {
 
 function salvageItemObject(item, silent, options) {
     if (!item) return {};
+    const jewels = equipmentSockets.returnJewels(item);
+    if (jewels > 0) addLog(`💠 [${item.name}]에 끼운 주얼 ${jewels}개를 주얼 보관함으로 돌려받았습니다.`, 'loot-rare');
     let rewards = rollItemSalvageRewards(item, options);
-    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward', options?.deferCurrency));
-    if (options?.deferRecovery) options.deferRecovery(item, rewards);
-    else if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
+    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
+    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
     if (!silent) addLog(`🧪 [${item.name}] 해체 · ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
     return rewards;
 }
@@ -10263,6 +10280,69 @@ function hasSporeCraftCost(mode) {
     return true;
 }
 
+// 잿불가지(타락) 제작 결과(2026-10-05 사용자 요청, data/items.js TAINTED_CRAFT_OUTCOMES): 이 장비에 쓸 수 없는 결과는 빼고 남은 비중으로 한 번 고른다.
+function getTaintedRerollLines(item) {
+    return (item.stats || []).map((stat, index) => ({ stat, index }))
+        .filter(({ stat }) => stat && !stat.lockedByHoney && !stat.lockedByRift);
+}
+
+function canApplyTaintedOutcome(item, kind) {
+    if (kind === 'addMod') return getAvailableMods(item).length > 0;
+    if (kind === 'quality') return Math.floor(Number(item.quality) || 0) < TAINTED_CRAFT_OUTCOMES.quality.cap;
+    if (kind === 'rerollMod') return getTaintedRerollLines(item).length > 0 && getAvailableMods(item).length > 0;
+    if (kind === 'socket') return equipmentSockets.canChisel(item) || equipmentSockets.canAddCorruptionSocket(item);
+    return kind === 'nothing';
+}
+
+function pickTaintedOutcome(item) {
+    const rows = TAINTED_CRAFT_OUTCOMES.weights.filter(([kind]) => canApplyTaintedOutcome(item, kind));
+    let roll = Math.random() * rows.reduce((sum, [, weight]) => sum + weight, 0);
+    for (const [kind, weight] of rows) {
+        if (roll < weight) return kind;
+        roll -= weight;
+    }
+    return 'nothing';
+}
+
+/** One random explicit line (not honey/rift locked) becomes a different random mod rolled at the item's craft tier. */
+function rerollTaintedLine(item) {
+    const { stat, index } = rndChoice(getTaintedRerollLines(item));
+    const name = stat.statName || getStatName(stat.id);
+    item.stats.splice(index, 1);
+    const mod = pickWeightedMod(getAvailableMods(item).filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(getAvailableMods(item));
+    item.stats.splice(index, 0, rollAffixValue(mod, getItemCraftTier(item)));
+    updateItemName(item);
+    return `${name} 옵션이 ${item.stats[index].statName || getStatName(item.stats[index].id)} 옵션으로 바뀌었습니다.`;
+}
+
+/**
+ * Corrupts the item and applies one outcome. Quality may pass the usual 20% up to the outcome cap (corrupted items resolve
+ * quality up to 30%, js/equipment-stat-resolution.js). The socket outcome opens the void socket a chisel would, or on an item
+ * that already has one, a second socket (js/equipment-sockets.js corruption socket).
+ * @returns {{kind: 'addMod'|'quality'|'rerollMod'|'socket'|'nothing', text: string}}
+ */
+function corruptCraftedItem(item) {
+    const kind = pickTaintedOutcome(item);
+    item.corrupted = true;
+    if (kind === 'addMod') {
+        item.stats.push(rollAffixValue(pickWeightedMod(getAvailableMods(item)), getItemCraftTier(item)));
+        updateItemName(item);
+        return { kind, text: '추가 옵션이 부여되었습니다.' };
+    }
+    if (kind === 'quality') {
+        const { min, max, cap } = TAINTED_CRAFT_OUTCOMES.quality, before = Math.floor(Number(item.quality) || 0);
+        item.quality = Math.min(cap, before + min + Math.floor(Math.random() * (max - min + 1)));
+        return { kind, text: `품질이 ${before}% → ${item.quality}%로 올랐습니다.` };
+    }
+    if (kind === 'rerollMod') return { kind, text: rerollTaintedLine(item) };
+    if (kind === 'socket') {
+        if (equipmentSockets.openVoidSocket(item)) return { kind, text: '공허 소켓이 하나 생겼습니다.' };
+        equipmentSockets.addCorruptionSocket(item);
+        return { kind, text: '두 번째 소켓, 타락 소켓이 열렸습니다!' };
+    }
+    return { kind, text: '아이템에 변화가 없습니다.' };
+}
+
 /**
  * @param {string} currencyKey Crafting action; pays one of that currency.
  * @returns {Promise<true|undefined>} True only after the item and payment are committed.
@@ -10443,18 +10523,20 @@ async function useCurrency(currencyKey) {
         }
     } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
-            destroySelectedCraftItem(item);
-            addLog('💥 기회의 오브: 아이템이 파괴되었습니다.', 'attack-monster');
+            const jewels = destroySelectedCraftItem(item);
+            addLog(`💥 기회의 오브: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'attack-monster');
         } else {
             let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
             let unique = generateUniqueItem(tier, item.slot);
             if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
             let previousId = item.id;
+            // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
+            const jewels = equipmentSockets.returnJewels(item);
             Object.keys(item).forEach(key => delete item[key]);
             Object.assign(item, unique);
             // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
             item.id = previousId;
-            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.`, 'loot-unique');
+            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'loot-unique');
         }
     } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
@@ -10469,18 +10551,9 @@ async function useCurrency(currencyKey) {
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (actionKey === 'tainted') {
-        item.corrupted = true;
-        if (Math.random() < 0.35) {
-            let mod = pickWeightedMod(getAvailableMods(item));
-            if (mod) {
-                item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-                addLog("🩸 타락: 추가 옵션이 부여되었습니다.", "loot-unique", { toast: true });
-            } else {
-                addLog("🩸 타락: 부여 가능한 추가 옵션이 없습니다.", "attack-monster", { toast: true });
-            }
-        } else {
-            addLog("🩸 타락: 아이템에 변화가 없습니다.", "attack-monster", { toast: true });
-        }
+        const outcome = corruptCraftedItem(item);
+        craftResultToken.meta.outcome = outcome.text; // the craft result card leads with it (js/crafting-result-ui.js)
+        addLog(`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
     } else if (currencyKey === 'abyssCatalyst') {
         let qualityLabel = applyAbyssCatalystToItemQuality(item);
         addLog(`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${qualityLabel}`, 'loot-unique');

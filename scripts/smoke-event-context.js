@@ -376,7 +376,8 @@ check('queen completion uses hive loot level and cannot grant again after comple
             game.currentZoneId=${JSON.stringify(origin)};game.currencies.hiveKey=1;startBeehiveRun();
             Object.assign(game.beehive,{branchStep:10,awaitingClear:true,queenActive:true});
             game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;Math.random=()=>0.02;`);
-        const expectedLevel = run('levelProgression.monsterLevel(getZone("beehive_run"),{isBoss:true})');
+        // Boss equipment rolls its own item level (area +3~4, data/level-progression.js itemLevelBonus) with the same fixed roll.
+        const expectedLevel = run('levelProgression.itemLevel(getZone("beehive_run"),{isBoss:true},()=>0.02)');
         run('onBeehiveWaveCleared()');
         const item = run('game.inventory.find(item=>item.rarity==="unique")');
         assert(item, 'the existing 8% queen bonus grants an actual item');

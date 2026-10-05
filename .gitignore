@@ -40,3 +40,8 @@ __pycache__/
 *.aab
 *.jks
 *.keystore
+
+# Private art is restored locally from projectarpgidle-assets (see docs/github-publish-20261001.md).
+/assets/playable/hana/
+/assets/summon/hana/
+/docs/skill-assets-hana/reference/

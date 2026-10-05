@@ -1,4 +1,4 @@
-// 드랍 연출(2026-10-03 사용자 요청): 한 처치의 드랍은 한 자리에 한 더미로 떨어진다. 대표 그림 하나 둘레에 PoE처럼
+// 드랍 연출(2026-10-03 사용자 요청): 한 처치의 드랍은 한 자리에 한 더미로 떨어진다. 대표 그림 하나 둘레에
 // 이름표가 십자로 놓이고(위 팔이 그림 바로 위, 많으면 좌우와 아래), 넘치는 드랍은 이름을 생략한다("외 N개"는 쓰지 않는다).
 // 빛기둥은 더미 단위, 겹치는 위 팔은 위로 비킨다.
 // 전에는 처치 하나의 드랍이 원형으로 흩어져 드랍마다 그림과 이름표가 따로 떴다.
@@ -46,7 +46,7 @@ while (pending.length) {
     }
 }
 
-const frame = () => run(`battleGroundLoot.actorContext(source, ctx, ${now}, { actorGroundOffsetY: 8, cellToScreen: (gx, gy) => ({ x: gx * 48, y: gy * 48 }) })`);
+const frame = (camera = 0) => run(`battleGroundLoot.actorContext(source, ctx, ${now}, { actorGroundOffsetY: 8, cellToScreen: (gx, gy) => ({ x: gx * 48 - ${camera}, y: gy * 48 }) })`);
 const live = () => nodes.filter(node => node.className === 'battle-loot-drop' && !node.removed);
 const arms = pile => pile.children.filter(child => String(child.className).startsWith('battle-loot-labels'));
 const rows = pile => arms(pile).flatMap(arm => arm.children.map(row => row.dataset.currency || `${row.dataset.rarity}:${row.textContent}`));
@@ -85,7 +85,7 @@ assert.equal(golden.style.getPropertyValue('--label-lift'), '0px');
 
 // A huge pile fills every arm (6, 2, 2, 3) and leaves the rest unnamed rather than folding them.
 now += 100;
-run(`window.killD = { id: 9004, gx: 12, gy: 3 }; battleVisualState.enemySmoothPos[9004] = { x: 620, y: 260 };
+run(`window.killD = { id: 9004, gx: 8, gy: 3 }; battleVisualState.enemySmoothPos[9004] = { x: 620, y: 260 };
     for (let i = 0; i < 20; i++) queueEnemyGroundLoot(killD, { currency: 'magicBud', count: i + 1 });`);
 frame();
 const huge = live().find(pile => !piles.includes(pile));
@@ -95,7 +95,7 @@ piles.push(huge);
 
 // Two piles side by side: the later pile's left arm would cover the earlier pile's right arm, so it is left out.
 now += 100;
-run(`window.killE = { id: 9005, gx: 1, gy: 9 }; window.killF = { id: 9006, gx: 3, gy: 9 };
+run(`window.killE = { id: 9005, gx: 1, gy: 7 }; window.killF = { id: 9006, gx: 3, gy: 7 };
     battleVisualState.enemySmoothPos[9005] = { x: 100, y: 520 }; battleVisualState.enemySmoothPos[9006] = { x: 180, y: 520 };
     for (const kill of [killE, killF]) for (let i = 0; i < 8; i++) queueEnemyGroundLoot(kill, { currency: 'sapBud', count: i + 1 });`);
 frame();
@@ -116,4 +116,19 @@ assert.ok(phone, 'the next kill drops its own pile');
 assert.deepEqual(armNames(phone), ['up', 'is-right', 'is-left', 'is-down']);
 assert.equal(rows(phone).length, 7);
 assert.ok(!rows(phone).some(row => row.includes('외')));
+assert.equal(golden.style.left, '288px', 'pile stays on its actual cell, not the enemy animation position');
+assert.equal(golden.style.top, '296px');
+run('killA.gx = 0; battleVisualState.enemySmoothPos[9001].x = 10');
+frame(48);
+assert.equal(golden.style.left, '240px', 'camera movement projects the saved cell again');
+assert.equal(golden.dataset.gx, '6', 'later enemy motion cannot change the receipt cell');
+frame(1000);
+assert.equal(golden.hidden, true, 'offscreen loot does not cling to the viewport edge');
+frame();
+assert.equal(golden.hidden, false);
+const countBefore = live().length;
+run(`queueEnemyGroundLoot({id:9010,gx:4,gy:4},{currency:'sapBud',count:1});
+    queueEnemyGroundLoot({id:9011,gx:4,gy:4},{currency:'magicBud',count:1});`);
+frame();
+assert.equal(live().length, countBefore + 1, 'same-frame drops on the same cell share one pile');
 console.log('Ground loot piles: one picture per kill, names by importance in a cross, no fold row, beam per pile, column lift: OK');

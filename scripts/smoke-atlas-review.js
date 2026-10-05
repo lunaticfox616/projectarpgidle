@@ -149,7 +149,6 @@ const spawned = copy(`(() => { const rift = { pendingWave: true, spawnedCount: 0
     spawnVoidBreachReinforcement(getZone(game.currentZoneId), rift); const enemy = game.enemies[game.enemies.length - 1];
     return { rift: !!enemy.fromVoidRift, cell: hasGridCell(enemy) }; })()`);
 assert.deepEqual(spawned, { rift: true, cell: true }, 'a reinforcement has its cell the tick it spawns (a save then stays valid)');
-const rows = copy(`actExplorationUi.collectLootRows({ equipment: [], growthItems: [], jewels: [], cores: [], currencies: { colonyTrace: 2, colonyShard: 1 }, flasks: [], gems: [] })
-    .map(row => row.name)`);
-assert.deepEqual(rows, ['군락지 흔적', '군락지 편린'], 'escrowed wallet-only counters are named (the loot list used to throw every frame)');
+// Wallet-only counter presentation now belongs to immediate ground drops;
+// smoke-exploration-loot-presentation checks their glyph fallback without an ORB_DB icon.
 console.log('atlas review fixes: seeded drops, guardian tier, arena fragments, fair rooms, cancel, portals keep rooms, pause save/portal/result, 귀환 젬, recovery, save caps, loadout trim, void rift steps, currency names: OK');

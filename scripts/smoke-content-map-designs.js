@@ -64,8 +64,8 @@ assert.equal(clearsVia('trial', `game.currentZoneId='trial_1'`, 'game.completedT
 // ---------------------------------------------------------------- wide-map loot holds wallet-only currencies
 setup(`game.currentZoneId=getAbyssZoneIdForDepth(24);game.abyssEndlessDepth=24`);
 for (let n = 0; n < 200 && run('!game.actExploration || !!game.actExploration.arrival'); n++) advance();
-run(`actExplorationLoot.capture(game, actExplorationState.current(game), () => awardEnemyLootCurrency('colonyTrace', 1));`);
-assert.equal(copy('game.actExploration.loot.currencies.colonyTrace'), 1, 'a deep-chaos colony trace waits with the map loot instead of crashing it');
-const restored = copy('mergeDefaults(JSON.parse(serializeSaveState(game))).actExploration.loot.currencies.colonyTrace');
+run(`awardEnemyLootCurrency('colonyTrace', 1);`);
+assert.equal(copy('game.currencies.colonyTrace'), 1, 'a deep-chaos colony trace is granted immediately');
+const restored = copy('mergeDefaults(JSON.parse(serializeSaveState(game))).currencies.colonyTrace');
 assert.equal(restored, 1, 'and survives a reload');
 console.log('content map designs: chaos/deep/realm/sky/underworld/rift/labyrinth on painted act maps, arena gates, boards kept, real clears, escrow: OK');

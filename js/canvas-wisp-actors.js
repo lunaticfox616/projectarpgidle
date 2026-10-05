@@ -86,12 +86,7 @@ const wispActors = (() => {
         eliteRing(ctx, enemy, { x: p.x, y: p.y + 2 }, p.tile);
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(pair[frame.clip], ...source, left, top, size, size);
-        if (p.flash) {
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.globalAlpha *= 0.5;
-            ctx.drawImage(pair[frame.clip], ...source, left, top, size, size);
-        }
+        drawBattleSpriteImage(ctx, pair[frame.clip], source, [left, top, size, size], p.flash);
         ctx.restore();
         return true;
     }

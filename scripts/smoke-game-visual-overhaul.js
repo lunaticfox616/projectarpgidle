@@ -7,6 +7,7 @@ const passiveFiles = [
   'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js', 'data/items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
   'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'js/utils.js', 'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js', 'data/ascendancies.js', 'js/state.js', 'js/passive-routing.js', 'js/passives.js',
   'data/act-exploration-maps.js', 'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js', 'js/act-exploration-state.js',
+  'js/canvas-battle-units.js',
 ];
 
 function createElement() {
@@ -31,7 +32,7 @@ const context = {
   setInterval() {}, clearInterval() {}, requestAnimationFrame() {}, cancelAnimationFrame() {},
   performance: { now() { return 1000; } }, Image: function Image() {}, Date, Math, JSON,
   Number, String, Boolean, Array, Object, Map, Set, WeakSet, RegExp, Error,
-  URLSearchParams, structuredClone,
+  URLSearchParams, structuredClone, matchMedia: () => ({ matches: false }),
 };
 context.window = context;
 context.globalThis = context;
@@ -101,6 +102,7 @@ vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'j
 vm.runInContext(fs.readFileSync('js/mobility-skill.js', 'utf8'), context, { filename: 'js/mobility-skill.js' });
 vm.runInContext(fs.readFileSync('js/wisp-summons.js', 'utf8'), context, { filename: 'js/wisp-summons.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
+vm.runInContext(fs.readFileSync('js/canvas-combat-feedback.js', 'utf8'), context, { filename: 'js/canvas-combat-feedback.js' });
 vm.runInContext(fs.readFileSync('js/canvas-enemy-projectiles.js', 'utf8'), context, { filename: 'js/canvas-enemy-projectiles.js' });
 for(const file of ['js/canvas-exploration-art.js','js/canvas-act-exploration.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
@@ -571,7 +573,8 @@ assert.ok(!battlefieldSource.includes("fillCell(game.gridPlayer, 'rgba(107, 190,
   'the player current cell should not receive a permanent blue overlay');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 3.65'), 'boss sprites should visually span their 2x2 footprint');
 assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
-assert.ok(battlefieldSource.includes('let rings = 1;'), 'annihilating hits should keep a single lightweight impact ring');
+// Contact marks replaced the expanding annihilation ring. The external canvas-work
+// budget and native-skill integration are exercised in smoke-combat-feedback.js.
 {
     const start = battlefieldSource.indexOf('function drawLevelUpFx(');
     const levelUpSource = battlefieldSource.slice(start, battlefieldSource.indexOf('\nfunction ', start + 1));
@@ -690,7 +693,7 @@ assert.ok(flinch.map[7].x > 0 && flinch.map[8].x > flinch.map[7].x, 'enemies fli
 assert.ok(!flinch.map[9], 'damage over time does not flinch');
 assert.ok(flinch.hero.x < 100 && flinch.later.x === 100, 'a hit knocks the hero back from its attacker, then it returns');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
-assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');
+// Real level-up event lifetime is covered by smoke-combat-feedback, not an exact source literal.
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/main.js', 'utf8');
 const windowManagerSource = fs.readFileSync('js/ui-window-manager.js', 'utf8');

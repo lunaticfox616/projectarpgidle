@@ -30,8 +30,9 @@ function getPlayerExchangeError(error) {
     return code ? messages[code] : raw;
 }
 
+// Any socket counts (void and corruption sockets too): a listed item must never take a jewel with it.
 function hasSocketedHallJewel(item) {
-    return Array.isArray(item && item.abyssSockets) && item.abyssSockets.some(socket => socket && socket.jewel);
+    return equipmentSockets.jewels(item).length > 0;
 }
 
 function getHallEligibleItems() {

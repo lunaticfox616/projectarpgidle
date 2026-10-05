@@ -26,15 +26,16 @@ function until(condition, message) {
 // and the report says both.
 fresh(1, { mapCompleteAction: 'nextZone' });
 run(`ensureEncounterRun();
-    actExplorationLoot.capture(game,game.actExploration,()=>{awardEnemyLootCurrency('goldenRule',2);
-        actExplorationLoot.delivery(game,'equipment').store(createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='무기'),'magic',3));});
+    awardEnemyLootCurrency('goldenRule',2);
+    addItemToInventory(createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='무기'),'magic',3));
     game.playerHp=0;`);
 advance();
 assert.equal(run('game.currentZoneId'), 0, 'automatic progression falls back to the previous act');
 assert.deepEqual(copy('game.actRetreat'), { frontierZoneId: 1, level: 5 });
 const report = copy('game.lastDeathLog');
-assert.equal(report.lostItems, 1, 'the discarded expedition item is reported');
-assert.equal(report.lostCurrencies, 1, 'the discarded currency kind is reported');
+assert.equal(report.lostItems || 0, 0, 'earned items are not reported as lost');
+assert.equal(run('game.currencies.goldenRule'),2);
+assert.equal(report.lostCurrencies || 0, 0, 'earned currencies are not lost');
 assert.equal(report.retreatZoneName, run('getZone(0).name'));
 assert.equal(run('game.loopDeaths'), 1);
 assert.deepEqual(copy('mergeDefaults(JSON.parse(serializeSaveState(game))).actRetreat'), { frontierZoneId: 1, level: 5 }, 'the retreat survives a reload');
