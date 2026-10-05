@@ -94,22 +94,25 @@ assert.equal(rarity({ isElite: true }, .24), 'magic');
 assert.equal(rarity({ isElite: true }, .62), 'normal');
 assert.equal(rarity({}, .30), 'normal');
 
-// Diablo-style picks: elites and bosses roll the equipment chance once more. Only the first pick touches the drought progress and
-// the first-act boss guarantee; an extra pick that drops still grants a real item.
-const picks = json(`(() => {
+// Expected equipment count (2026-10-05 user decision): above 1 a kill drops the whole part for sure and the fraction as one
+// more roll; the drought guarantee lifts only the first item; below 1 nothing changes (one roll, strict boundary).
+const counts2 = json(`(() => {
     game=mergeDefaults({});window.game=game;game.level=1;game.maxZoneId=0;game.settings.autoEquipEmptySlots=false;
-    const zone=getZone(0),chances=e=>getEquipmentDropChances(zone,e);
-    const first=chances({isBoss:true,id:1}),elite=chances({isElite:true,id:2}),regular=chances({id:3});
-    game.equipmentDropProgress=5;game.inventory=[];
-    const kept=rollEquipmentLoot({isElite:true,id:4,gx:1,gy:1},zone,0,[1]);
-    return {first,elite,regular,kept:!!kept,items:game.inventory.length,progress:game.equipmentDropProgress};
+    const zone=getZone(0),enemy={isElite:true,id:9};game.equipmentDropProgress=0;
+    const roll=(chance,r)=>{Math.random=()=>r;const out=rollEquipmentDrop(zone,enemy,chance);Math.random=()=>0.5;return out.count;};
+    const rows={below:[roll(0.3,0.29),roll(0.3,0.3)],whole:[roll(1,0.99),roll(2,0.99)],over:[roll(2.4,0.39),roll(2.4,0.4)]};
+    game.inventory=[];game.equipmentDropProgress=0;const kept=rollEquipmentLoot({isBoss:true,id:10,gx:1,gy:1},zone,2.4);
+    rows.kill={kept:!!kept,items:game.inventory.length};
+    game.equipmentDropProgress=EQUIPMENT_DROUGHT_RULES.threshold;rows.drought=rollEquipmentDrop(zone,enemy,0);
+    rows.firstBoss=getEquipmentDropChances(zone,{isBoss:true,id:11}).equipment;
+    return rows;
 })()`);
-assert.equal(picks.first.equipment, 1, 'the first act boss of a loop still guarantees its first pick');
-assert.equal(picks.first.extraEquipment.length, 1);
-assert.ok(picks.first.extraEquipment[0] < 1, "the boss's extra pick rolls the ordinary chance");
-assert.deepEqual(picks.elite.extraEquipment, [picks.elite.equipment], 'an elite gets one more pick at its own chance');
-assert.deepEqual(picks.regular.extraEquipment, [], 'ordinary monsters roll once');
-assert.equal(picks.kept, true, 'an extra pick that drops grants an item');
-assert.ok(picks.items >= 1);
-assert.ok(picks.progress > 5, 'a missed first pick still builds drought progress; the extra pick never resets it');
-console.log('Loop balance: boss defense specialties, fixed-content exclusions, rising loop HP, separate recovery loot, rarity boundaries and extra picks passed');
+assert.deepEqual(counts2.below, [1, 0], 'below one item the roll keeps its strict boundary');
+assert.deepEqual(counts2.whole, [1, 2], 'whole expected counts drop exactly that many');
+assert.deepEqual(counts2.over, [3, 2], 'the fraction above a whole count is one more roll');
+assert.equal(counts2.kill.kept, true);
+assert.ok(counts2.kill.items >= 2, `a 2.4 kill grants at least two items (${counts2.kill.items})`);
+assert.equal(counts2.drought.count, 1, 'the drought guarantee lifts the first item only');
+assert.equal(counts2.drought.minimumRarity, 'rare');
+assert.equal(counts2.firstBoss, 1, 'the first act boss of a loop still drops exactly one guaranteed item');
+console.log('Loop balance: boss defense specialties, fixed-content exclusions, rising loop HP, separate recovery loot, rarity boundaries and expected-count drops passed');

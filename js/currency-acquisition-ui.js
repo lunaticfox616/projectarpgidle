@@ -45,7 +45,7 @@
         if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(' · ')})`,'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
-    // PoE식 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.
+    // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.
     function announceDropVariant({kind,items}) {
         const item=items[0],name=`<span class='loot-${item.rarity}'>[${escapeHTML(item.name)}]</span>`;
         const text=kind==='corrupted'?`🩸 타락한 장비 ${name}: 제작할 수 없지만 추가 옵션이 더 강합니다.`

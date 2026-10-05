@@ -8235,7 +8235,7 @@ function queueEnemyGroundLoot(enemy, receipt) {
         itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
 }
 
-/** One equipment pick that dropped: generate, apply a PoE-style variant (js/loot.js equipmentDropVariants), keep and show it. */
+/** One dropped equipment item: generate, apply a drop variant (js/loot.js equipmentDropVariants), keep and show it. */
 function grantEquipmentPick(enemy, zone, minimumRarity) {
     const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone }));
     return drop.items.filter(item => {
@@ -8246,13 +8246,13 @@ function grantEquipmentPick(enemy, zone, minimumRarity) {
     });
 }
 
-/** The first pick carries the drought guarantee; extra picks of elites and bosses (data/items.js EQUIPMENT_DROP_PICKS) roll on
- * their own and leave the drought progress alone. Returns the first kept item for the loot log. */
-const rollEquipmentLoot = function (enemy, zone, itemChance, extraChances = []) {
+/** itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop): above 1 a kill drops several items, each
+ * with its own rarity; the drought guarantee lifts only the first. Returns the first kept item for the loot log. */
+const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const roll = rollEquipmentDrop(zone, enemy, itemChance);
-    const kept = roll.dropped ? grantEquipmentPick(enemy, zone, roll.minimumRarity) : [];
+    const kept = [];
+    for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
-    extraChances.filter(chance => Math.random() < chance).forEach(() => kept.push(...grantEquipmentPick(enemy, zone, null)));
     return kept[0] || null;
 };
 
@@ -8334,8 +8334,8 @@ function rollLootForEnemy(enemy) {
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${gain}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });
 
-    let { equipment: itemChance, extraEquipment, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
-    const keptItem = rollEquipmentLoot(enemy, zone, itemChance, extraEquipment);
+    let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
+    const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
     grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
     rollWildTalismanDrop(enemy, talismanChance);

@@ -62,12 +62,8 @@ function getEquipmentDropChances(zone, enemy) {
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
         multiplier *= 1 - 0.7 * progress;
     }
-    const ordinary = getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment');
-    const rank = enemy && enemy.isBoss ? 'boss' : (enemy && enemy.isElite ? 'elite' : 'regular');
     return {
-        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : ordinary,
-        // Extra Diablo-style picks (EQUIPMENT_DROP_PICKS) roll the ordinary chance, never the first-boss guarantee.
-        extraEquipment: Array(Math.max(0, EQUIPMENT_DROP_PICKS[rank] - 1)).fill(ordinary),
+        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment'),
         talisman: getWildTalismanBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level)
     };
 }
@@ -75,17 +71,19 @@ function getEquipmentDropChances(zone, enemy) {
 /**
  * @param {{type:string}} zone
  * @param {{isBoss?:boolean,isElite?:boolean}} enemy
- * @param {number} chance Final ordinary roll chance.
- * @returns {{dropped:boolean,guaranteed:boolean,minimumRarity:string|null,nextProgress:number}}
- * Read-only planning; commit after generation and the inventory's pickup/salvage policy finish.
+ * @param {number} chance Expected equipment count of the kill: the whole part drops for sure, the fraction is one more roll.
+ * @returns {{dropped:boolean,count:number,guaranteed:boolean,minimumRarity:string|null,nextProgress:number}}
+ * Read-only planning; commit after generation and the inventory's pickup/salvage policy finish. minimumRarity applies to the
+ * first item only (the drought guarantee).
  */
 function rollEquipmentDrop(zone, enemy, chance) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
     let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment');
     let guaranteed = progress >= EQUIPMENT_DROUGHT_RULES.threshold;
-    let dropped = guaranteed || Math.random() < chance;
+    const expected = Math.max(0, Number(chance) || 0), whole = Math.floor(expected);
+    const count = Math.max(guaranteed ? 1 : 0, whole + Number(Math.random() < expected - whole));
     let minimumRarity = guaranteed ? 'rare' : null;
-    return { dropped, guaranteed, minimumRarity, nextProgress: dropped ? 0 : progress };
+    return { dropped: count > 0, count, guaranteed, minimumRarity, nextProgress: count > 0 ? 0 : progress };
 }
 
 /** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. An atlas map's item rarity
@@ -331,7 +329,7 @@ safeExposeGlobals({ getCurrencyDrops });
     safeExposeGlobals({ equipmentLootPolicy });
 })();
 
-// PoE식 장비 드랍 변형(2026-10-05 사용자 요청, data/items.js EQUIPMENT_DROP_VARIANTS): 떨어진 장비 한 개를 복제 · 같은 베이스 묶음 ·
+// 장비 드랍 변형(2026-10-05 사용자 요청, data/items.js EQUIPMENT_DROP_VARIANTS): 떨어진 장비 한 개를 복제 · 같은 베이스 묶음 ·
 // 타락(제작 불가 대신 추가 옵션 강화) 목록으로 바꾼다. 몬스터 드랍(combat.js rollEquipmentLoot)과 탐험 상자가 같은 추첨을 쓴다.
 (function () {
     'use strict';

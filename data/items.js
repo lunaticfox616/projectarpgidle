@@ -1,3 +1,6 @@
+// 처치 한 번의 장비 기대 개수(몬스터 등급별 기본값). 지역 · 아틀라스 수량 · 특성 배율이 곱해지고(js/loot.js getEquipmentDropChances),
+// 1을 넘으면 정수 부분은 확정, 소수 부분은 확률로 한 개 더 떨어진다(2026-10-05 사용자 결정, rollEquipmentDrop).
+// 떨어진 장비마다 희귀도는 EQUIPMENT_DROP_RARITY_THRESHOLDS(등급별) × 아틀라스 희귀도로 따로 정한다.
 const EQUIPMENT_BASE_DROP_CHANCES = Object.freeze({
     regular: 0.00765,
     elite: 0.034,
@@ -19,11 +22,7 @@ const EQUIPMENT_DROP_RARITY_THRESHOLDS = Object.freeze({
     boss: { unique: 0.04, rare: 0.36, magic: 0.80 }
 });
 
-// 디아블로식 장비 판정 횟수(2026-10-05 사용자 결정, js/combat.js rollEquipmentLoot): 강한 몬스터는 장비 드랍 판정을 한 번 더 받는다.
-// 첫 판정만 미획득 보정(EQUIPMENT_DROUGHT_RULES)과 첫 액트 보스 보장을 쓰고, 추가 판정은 같은 기본 확률로 따로 굴린다.
-const EQUIPMENT_DROP_PICKS = Object.freeze({ regular: 1, elite: 2, boss: 2 });
-
-// PoE식 장비 드랍 변형(2026-10-05 사용자 요청, js/loot.js equipmentDropVariants): 고유가 아닌 장비 한 개가 떨어질 때 한 번 추첨한다.
+// 장비 드랍 변형(2026-10-05 사용자 요청, js/loot.js equipmentDropVariants): 고유가 아닌 장비 한 개가 떨어질 때 한 번 추첨한다.
 // duplicate: 똑같은 장비가 한 개 더. bundle: 같은 베이스 · 같은 희귀도 장비가 extra개 더(옵션은 따로). corrupted: 타락(제작 불가) 대신
 // 추가 옵션 값 × boost(장비의 옵션 티어 상한 안에서) — 오를 줄이 있는 마법 · 희귀만. odds는 앞에서부터 누적한 한 번의 추첨, fromLoop 전에는 나오지 않는다.
 // 수치는 초기 가설이며 드롭 경제 플레이테스트 대상이다.
@@ -48,7 +47,7 @@ const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', ra
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_PICKS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
 

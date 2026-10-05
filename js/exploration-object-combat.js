@@ -150,7 +150,7 @@ actExplorationProgress.objects = (() => {
         return free[0]||row;
     }
     /** Item rolls: the map quantity plus the chest grade's extra rolls. The grade's first rolls always give an item, the first
-     * `rare` of them at least rare; every item takes one PoE-style variant draw scaled by the grade (data/maps.js EXPLORATION_CHEST_GRADES). */
+     * `rare` of them at least rare; every item takes one drop-variant draw scaled by the grade (data/maps.js EXPLORATION_CHEST_GRADES). */
     function rollItems(run,row,enemy,rng) {
         const grade=state.grade(row)||{rolls:0,guaranteed:0,rare:0,variantScale:1};
         const quantity=run.objects.quantity,count=Math.floor(quantity)+Number(rng()<quantity%1)+grade.rolls,items=[];
