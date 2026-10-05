@@ -2918,7 +2918,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelText(ctx, `${getElementLabel(banner.boss.ele)} 속성 보스`, mid, cy + 25, '#d98a6a');
+    fillPixelText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(' · '), mid, cy + 25, '#d98a6a');
     ctx.restore();
 }
 
@@ -2952,10 +2952,22 @@ function getEnemyDisplayName(enemy) {
         .replace(/\s+/g, ' ')
         .trim();
 }
+// A boss's standout defenses (its one or two specialties, js/combat.js getBossDefenseCaps) as the live values, traits and zone
+// wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.
+const ENEMY_DEFENSE_LABELS = Object.freeze([['dr', '물리 피해 감소'], ['resF', '화염 저항'], ['resC', '냉기 저항'], ['resL', '번개 저항']]);
+function getEnemyDefenseHighlights(enemy) {
+    if (!enemy || !enemy.isBoss) return [];
+    const rows = ENEMY_DEFENSE_LABELS.map(([key, label]) => ({ label, value: Math.floor(Number(enemy[key]) || 0) }));
+    const floor = Math.min(...rows.map(row => row.value));
+    return rows.filter(row => row.value >= 40 && row.value - floor >= 15).sort((a, b) => b.value - a.value)
+        .map(row => `${row.label} ${row.value}%`);
+}
+
 function getEnemyTraitSummary(enemy) {
     let tags = [];
     if (!enemy) return ['일반'];
     tags.push(getElementLabel(enemy.ele));
+    tags.push(...getEnemyDefenseHighlights(enemy));
     if (enemy.traitName) tags.push(enemy.traitName);
     if (enemy.patternMode && typeof getBossPatternModeLabel === 'function') {
         let patternLabel = getBossPatternModeLabel(enemy.patternMode);

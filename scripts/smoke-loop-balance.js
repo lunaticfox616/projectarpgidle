@@ -44,6 +44,19 @@ assert.ok(counts.some(n => n === 2) && counts.some(n => n === 1), 'some bosses h
 assert.equal(defenses.normal.dr, 20); assert.equal(defenses.elite.dr, 45);
 assert.equal(defenses.normal.resF, 25); assert.equal(defenses.elite.resF, 60);
 
+// The boss card and entrance banner name a boss's standout defenses with their live values; early bosses show none.
+const shown = json(`(() => {
+    const boss=id=>createEnemy(getZone(id),{at:50,boss:true},0);
+    const late=boss(29),early=boss(0),elite=createEnemy(getZone(29),{at:50,elite:true},0);
+    return {late:getEnemyDefenseHighlights(late),lateTags:getEnemyTraitSummary(late),early:getEnemyDefenseHighlights(early),
+        elite:getEnemyDefenseHighlights(elite),caps:getBossDefenseCaps(getZone(29),late.ele),values:[late.dr,late.resF,late.resC,late.resL]};
+})()`);
+assert.ok(shown.late.length >= 1, `a chaos 20 boss names its specialties: ${shown.values}`);
+assert.ok(shown.late.every(tag => shown.lateTags.includes(tag)), 'the boss card tags carry them');
+assert.ok(shown.late.every(tag => /^(물리 피해 감소|화염 저항|냉기 저항|번개 저항) \d+%$/.test(tag)));
+assert.deepEqual(shown.early, [], 'the first act boss shows no standout defense');
+assert.deepEqual(shown.elite, [], 'elites keep their tags as before');
+
 // Effective HP rises through the loop milestones; the act cap and atlas fixed loop remain meaningful.
 const curves = json(`(() => {
     const rows=[];

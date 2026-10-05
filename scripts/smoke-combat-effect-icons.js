@@ -369,7 +369,7 @@ assert.strictEqual(mobileTraits.track.textContent, '화염', 'mobile bosses must
 context.__traitRotationCallback();
 assert.strictEqual(mobileTraits.track.textContent, '중갑 전개', 'mobile bosses must rotate traits one at a time');
 
-const traitStart = battlefieldSource.indexOf('function getEnemyTraitSummary(');
+const traitStart = battlefieldSource.indexOf('const ENEMY_DEFENSE_LABELS');
 const traitEnd = battlefieldSource.indexOf('function getEnemyShortLabel(', traitStart);
 const traitContext = {
   getElementLabel(element) { return element === 'fire' ? '화염' : '물리'; },
