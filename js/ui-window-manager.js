@@ -1172,6 +1172,8 @@
             if (resize) resize.remove();
             el.classList.remove('ui-window', 'ui-window-open', 'ui-window-minimized');
             el.removeAttribute('data-window-prepared');
+            // The phone panel no longer has the desktop dialog's title bar.
+            ['role', 'aria-labelledby', 'tabindex'].forEach(name => el.removeAttribute(name));
             ['left', 'top', 'width', 'height', 'zIndex'].forEach(prop => { el.style[prop] = ''; });
         });
         let social = document.getElementById('tab-social');

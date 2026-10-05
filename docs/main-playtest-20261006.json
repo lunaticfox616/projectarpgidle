@@ -1,0 +1,48 @@
+{
+  "objective": "최신 main 기준 실제 플레이, 문제 수정, 테마별 동일 기준 평가, 평균 90점 이상",
+  "base": "b8e7dde4",
+  "branch": "codex/main-playtest-polish-20261006",
+  "status": "in_progress",
+  "scoring": {
+    "kind": "evidence-backed reviewer assessment, not a measured player satisfaction score",
+    "dimensions": {"behavior": 30, "clarity": 25, "feel": 20, "robustness": 15, "cost": 10},
+    "rules": [
+      "Use the same dimensions and weights before and after fixes.",
+      "Score only after the listed representative cases have evidence; untested themes remain null.",
+      "Behavior: the intended player action reaches its result without a blocker or extra workaround.",
+      "Clarity: current state, available action, result and next step are readable at desktop and phone sizes.",
+      "Feel: feedback, pacing and visual consistency assessed during play, with explicit subjective limitations.",
+      "Robustness: cancellation, retry, reload, old-save and boundary cases preserve items and progress.",
+      "Cost: no avoidable repeated input or observable stalls; performance claims require measurements.",
+      "The final average requires all six themes, no known progress/data-loss blocker, and final regression checks.",
+      "Early-game or synthetic-fixture results cannot establish late-loop balance or player enjoyment."
+    ],
+    "average": null
+  },
+  "themes": [
+    {"id":"combat","name":"전투","score":null,"cases":["melee and ranged natural starter combat","boss telegraph and hit feedback","crowded later combat","death and recovery","skill and movement changes"]},
+    {"id":"growth","name":"성장·밸런스","score":null,"cases":["starter tutorials","passive allocation and refund","equipment and gem improvement","class advancement","representative later loops and legal builds","stump growth and content unlocks"]},
+    {"id":"loot_trade","name":"루팅·거래","score":null,"cases":["immediate loot and first rewards","chests and breakables","inventory comparison/protection/overflow","stall listing and offers","offline settlement and reload without duplicate payout"]},
+    {"id":"exploration","name":"탐험","score":null,"cases":["auto and manual navigation","minimap and fog","objects and map transitions","boss entry","all ten act themes","available later destinations"]},
+    {"id":"ui","name":"UI·가시성","score":null,"cases":["desktop and 390px phone core flow","equipment/gems/passive/tree menus","dialogs and keyboard access","log controls","story and record readability"]},
+    {"id":"stability","name":"안정성·성능","score":null,"cases":["fresh boot","guest reload","save compatibility","full smoke/architecture/CSS/build","measured busy combat and window interaction","asset and console errors"]}
+  ],
+  "sessions": [
+    {"origin":"http://127.0.0.1:4243","class":"warrior","mode":"natural x1; no granted levels/items/invulnerability","observed":"guest creation, story, first gem equipped, first passive spent, act 1 boss killed, reward weapon chosen, automatic act 2 and act 3 progression, guest reload; desktop and 390x844 phone"},
+    {"origin":"http://127.0.0.1:4244","class":"archer","mode":"fresh guest; x8 dev speed for repeat verification, then x1 after reload; no granted levels/items/invulnerability","observed":"phone class confirmation and corrected story geometry; first auto-equipped shield opened the loadout; mobile passive preview preserved points until confirmation, desktop click still allocated, cancellation spent nothing; act 4 death and retreat to act 3. The archer had unspent passive points, so this is not evidence of optimized-build balance."}
+  ],
+  "findings": [
+    {"id":"P01","problem":"Mobile selected equipment/map tab remained aria-pressed=false after desktop-to-phone resize.","owner":"js/ui.js","state":"fixed; Node regression and actual phone tab switch verified"},
+    {"id":"P02","problem":"First-gear notice with auto-equipped loot and an empty inventory opened whichever mobile pane was previously selected, normally an empty inventory.","owner":"js/tutorial-ui.js","state":"fixed; Node regression and fresh archer first-shield guide opening the loadout verified"},
+    {"id":"P03","problem":"Story image width:100% plus border exceeded the mobile content box and created a horizontal scrollbar.","owner":"css/story-journal.css","state":"fixed; actual 390px phone image/body widths both 308.8px and scrollWidth/clientWidth both 309"},
+    {"id":"P04","problem":"Desktop dialog role and label reference survived removal of the title bar on mobile.","owner":"js/ui-window-manager.js","state":"fixed; actual desktop-to-phone round trip removed role, aria-labelledby and tabindex"},
+    {"id":"P05","problem":"Passive confirmation re-hit-tested a touch-selected node using the smaller mouse radius; phone-layout mouse clicks also spent immediately and left stale confirmation details.","owner":"js/passive-selection-ui.js; js/ui.js","state":"fixed; regression failed before the fix and passed after it. Real phone preview and confirmation, cancellation, desktop single-click allocation and responsive round trip verified."}
+  ],
+  "validation": {
+    "baseline":"281/283; two failures were missing private local art, not runtime failures. Restored ignored art from existing rignin-next per publish document; both failed checks then passed.",
+    "targeted":"smoke-playtest-navigation, smoke-passive-selection-input, smoke-notice-battle-flow, smoke-ui-layout-state, smoke-review5-fixes passed",
+    "finalSuite":"285/285 passed in 41.4 seconds after runtime changes; architecture, CSS and build checks passed; browser error/warning logs empty in the last archer check",
+    "screenshots":"artifacts/main-playtest (local ignored evidence; not public private-art distribution)"
+  },
+  "remaining": "Inspect remaining representative content, later-loop legal builds, trading and performance before scoring all six themes. Also assess whether mobile-to-desktop window restoration should preserve the current phone panel. No overall 90-point claim yet."
+}
