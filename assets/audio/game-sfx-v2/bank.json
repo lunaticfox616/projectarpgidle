@@ -1,0 +1,370 @@
+{
+  "hitPhysical": {
+    "label": "근접 타격",
+    "files": [
+      "hitPhysical-a.wav",
+      "hitPhysical-b.wav",
+      "hitPhysical-c.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitProjectile": {
+    "label": "투사체 적중",
+    "files": [
+      "hitProjectile-a.wav",
+      "hitProjectile-b.wav",
+      "hitProjectile-c.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitMagic": {
+    "label": "마법 적중",
+    "files": [
+      "hitMagic-a.wav",
+      "hitMagic-b.wav",
+      "hitMagic-c.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitThrust": {
+    "label": "찌르기",
+    "files": [
+      "hitThrust-a.wav",
+      "hitThrust-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitWhirl": {
+    "label": "회전·파동",
+    "files": [
+      "hitWhirl-a.wav",
+      "hitWhirl-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitSlam": {
+    "label": "강타·지진",
+    "files": [
+      "hitSlam-a.wav",
+      "hitSlam-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitShield": {
+    "label": "방패",
+    "files": [
+      "hitShield-a.wav",
+      "hitShield-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitFireBlade": {
+    "label": "화염 참격",
+    "files": [
+      "hitFireBlade-a.wav",
+      "hitFireBlade-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitFireBurst": {
+    "label": "화염 폭발",
+    "files": [
+      "hitFireBurst-a.wav",
+      "hitFireBurst-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitFireBreath": {
+    "label": "화염 숨결·장판",
+    "files": [
+      "hitFireBreath-a.wav",
+      "hitFireBreath-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 180,
+    "priority": 0
+  },
+  "hitColdPierce": {
+    "label": "냉기 관통",
+    "files": [
+      "hitColdPierce-a.wav",
+      "hitColdPierce-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitColdBurst": {
+    "label": "냉기 폭발·파동",
+    "files": [
+      "hitColdBurst-a.wav",
+      "hitColdBurst-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitLightArc": {
+    "label": "번개·연쇄",
+    "files": [
+      "hitLightArc-a.wav",
+      "hitLightArc-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitLightBeam": {
+    "label": "번개 광선",
+    "files": [
+      "hitLightBeam-a.wav",
+      "hitLightBeam-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 180,
+    "priority": 0
+  },
+  "hitLightBurst": {
+    "label": "낙뢰·룬 폭발",
+    "files": [
+      "hitLightBurst-a.wav",
+      "hitLightBurst-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitChaosCut": {
+    "label": "공허 절단",
+    "files": [
+      "hitChaosCut-a.wav",
+      "hitChaosCut-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitChaosPulse": {
+    "label": "카오스·공허 광선",
+    "files": [
+      "hitChaosPulse-a.wav",
+      "hitChaosPulse-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitVenom": {
+    "label": "독·카오스 투척",
+    "files": [
+      "hitVenom-a.wav",
+      "hitVenom-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitFlask": {
+    "label": "플라스크",
+    "files": [
+      "hitFlask-a.wav",
+      "hitFlask-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "playerHurt": {
+    "label": "플레이어 피격",
+    "files": [
+      "playerHurt-a.wav",
+      "playerHurt-b.wav"
+    ],
+    "gain": 0.48,
+    "rate": 1,
+    "group": "hurt",
+    "cooldown": 220,
+    "priority": 1
+  },
+  "kill": {
+    "label": "일반 처치",
+    "files": [
+      "kill-a.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "death",
+    "cooldown": 160,
+    "priority": 0
+  },
+  "potBreak": {
+    "label": "항아리 파괴",
+    "files": [
+      "potBreak-a.wav"
+    ],
+    "gain": 0.4,
+    "rate": 1,
+    "group": "object",
+    "cooldown": 100,
+    "priority": 1
+  },
+  "woodBreak": {
+    "label": "목재 파괴",
+    "files": [
+      "woodBreak-a.wav"
+    ],
+    "gain": 0.4,
+    "rate": 1,
+    "group": "object",
+    "cooldown": 100,
+    "priority": 1
+  },
+  "chestOpen": {
+    "label": "상자 개봉",
+    "files": [
+      "chestOpen-a.wav"
+    ],
+    "gain": 0.4,
+    "rate": 1,
+    "group": "chest",
+    "cooldown": 300,
+    "priority": 1
+  },
+  "lootMajor": {
+    "label": "귀중품 드롭",
+    "files": [
+      "lootMajor-a.wav"
+    ],
+    "gain": 0.6,
+    "rate": 1,
+    "group": "lootMajor",
+    "cooldown": 1600,
+    "priority": 2
+  },
+  "levelUp": {
+    "label": "레벨업",
+    "files": [
+      "levelUp-a.wav"
+    ],
+    "gain": 0.4,
+    "rate": 1,
+    "group": "level",
+    "cooldown": 2500,
+    "priority": 2
+  },
+  "killBoss": {
+    "label": "보스 처치",
+    "files": [
+      "killBoss-a.wav"
+    ],
+    "gain": 0.4,
+    "rate": 1,
+    "group": "boss",
+    "cooldown": 1600,
+    "priority": 2
+  },
+  "returnWarp": {
+    "label": "귀환",
+    "files": [
+      "returnWarp-a.wav"
+    ],
+    "gain": 0.4,
+    "rate": 1,
+    "group": "return",
+    "cooldown": 1500,
+    "priority": 1
+  },
+  "hitSlash": {
+    "label": "베기",
+    "files": [
+      "hitPhysical-a.wav",
+      "hitPhysical-b.wav",
+      "hitPhysical-c.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "hitCritical": {
+    "label": "강한 타격",
+    "files": [
+      "hitPhysical-a.wav",
+      "hitPhysical-b.wav",
+      "hitPhysical-c.wav"
+    ],
+    "gain": 0.43,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0
+  },
+  "killElite": {
+    "label": "정예 처치",
+    "files": [
+      "kill-a.wav"
+    ],
+    "gain": 0.42,
+    "rate": 1,
+    "group": "death",
+    "cooldown": 160,
+    "priority": 1
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "model": "stable-audio-3-medium",
+  "backend": "tflite",
+  "rationale": "Generate longer fresh source reels; extract individual game transients instead of requesting sub-second model clips.",
+  "families": [
+    {
+      "key": "blade",
+      "prompt": "Fast sword strike game sound effects. Several separate clean sword cuts, each a tight swish immediately followed by a solid cutting impact. Precise, punchy, dry combat Foley. Each hit ends quickly, with two seconds of silence between hits. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "arrow",
+      "prompt": "Arrow impact game sound effects. Several separate arrows hitting a wooden target: a quick wooden thunk, a brief shaft vibration. Small, snappy, close and dry. Each hit ends quickly, separated by two seconds of silence. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "fire",
+      "prompt": "Fireball impact game sound effects. Several separate compact fire explosions, sudden ignition, a forceful flame burst and a short rushing fire tail. Punchy magical fire, close and dry. Two seconds of silence between each burst. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "ice",
+      "prompt": "Ice spell impact game sound effects. Several separate thick ice fractures with small icy fragments scattering. Crunchy frozen cracks with a short crystalline tail, close and dry, controlled brightness. Two seconds of silence between impacts. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "electric",
+      "prompt": "Lightning spell impact game sound effects. Several separate compact electric zaps with a rapid stuttering discharge and a short buzzing decay. Precise energetic electricity, close and dry, no sustained piercing whine. Two seconds of silence between zaps. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "heavy",
+      "prompt": "Heavy mace impact game sound effects. Several separate heavy hammer blows on a solid stone target. A solid punch, a deep resonant body and a few settling grains. Close, weighty, short and dry. Two seconds of silence between blows. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "arcane",
+      "prompt": "Magic bolt impact game sound effects. Several separate short resonant magic pulses: a percussive wooden marimba-like note with an airy sparkling edge and a fast decay. Distinct pitched impacts, close and dry. Two seconds of silence between pulses. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "void",
+      "prompt": "Dark magic impact game sound effects. Several separate compact reverse-air sucks ending in a deep resonant whump and a short gritty decay. A clear attack and quick stop, close and dry. Two seconds of silence between events. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "venom",
+      "prompt": "Poison projectile impact game sound effects. Several separate thick liquid splats with a short acidic bubbling fizz. Small wet squelches, tactile, close and dry, each quickly ends. Two seconds of silence between splats. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "flask",
+      "prompt": "Alchemy bottle breaking game sound effects. Several separate small glass bottles shatter on stone with a brief liquid splash and tiny settling fragments. Compact, close and dry, controlled brightness. Two seconds of silence between events. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "pot",
+      "prompt": "Clay pot breaking game sound effects. Several separate earthenware pots break with a dry ceramic crack and chunky fragments falling. Brief, brittle, close and dry. Two seconds of silence between breaks. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "wood",
+      "prompt": "Wooden crate breaking game sound effects. Several separate thin wooden crates splinter with a hollow crack, a woody impact and brief scattering pieces. Close and dry, compact destruction. Two seconds of silence between breaks. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "chest",
+      "prompt": "Treasure chest opening game sound effects. Several separate brass latch clicks followed by a short oak lid creak and a wooden stop. Distinct short opening gestures, close and dry. Two seconds of silence between events. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "reward",
+      "prompt": "Fantasy game item pickup sound effects. Several separate short rewarding celesta arpeggios, each two or three warm rising notes and a delicate shimmering finish. Clear tuneful chimes, intimate, quick and restrained. Two seconds of silence between cues. No speech, percussion or background music.",
+      "seconds": 20
+    },
+    {
+      "key": "portal",
+      "prompt": "Teleport game sound effects. Several separate compact magical portal whooshes, a quick rising airy sweep folding into a soft resonant release. Short rounded spatial swells, close and dry. Two seconds of silence between events. No speech, music or background.",
+      "seconds": 20
+    },
+    {
+      "key": "body",
+      "prompt": "Armored body hit game sound effects. Several separate solid punches into leather body armor: a weighty compact thud with a brief leather clack and cloth rustle. Physical combat impacts, close and dry. Two seconds of silence between hits. No speech, grunts, music or background.",
+      "seconds": 20
+    }
+  ],
+  "retakes": [
+    {
+      "key": "void-retake",
+      "base": "void",
+      "prompt": "A series of isolated low sci-fi laser zap sound effects, one at a time. Each laser pulse drops rapidly in pitch and ends in a short hollow resonance. Distinct short percussive shots separated by silence. Deep electronic energy hits, no sustained drone, no music or voices.",
+      "seconds": 20
+    },
+    {
+      "key": "reward-retake",
+      "base": "reward",
+      "prompt": "A small bronze handbell struck gently with a wooden mallet. Individual clear bell notes, each allowed to fade into silence before the next strike. A delicate warm rewarding game pickup chime. Close dry recording, no background sounds, no melody, no accompaniment, no voices.",
+      "seconds": 20
+    },
+    {
+      "key": "portal-retake",
+      "base": "portal",
+      "prompt": "A series of short swoosh transition sound effects. Each is a fast rising airy swish that drops away to silence, with a deep resonant finish. Separate short whooshes with quiet gaps. Clean magical movement, no sustained wind or drone, no music, no voices.",
+      "seconds": 20
+    }
+  ],
+  "corrections": [
+    {
+      "key": "level-cadence",
+      "prompt": "One short fantasy game level-up notification near the beginning: three clear ascending celesta notes resolve to a warm final bell note, then the final note decays completely and naturally into silence. A complete uplifting musical cadence lasting about two seconds. The remainder is silent. No background music, no looping, no speech.",
+      "seconds": 20
+    },
+    {
+      "key": "electric-discharge",
+      "prompt": "High voltage electrical short circuit sound effects. Several separate quick arcs: a sharp contact snap, dense irregular crackling sparks and a brief gritty electrical buzz that immediately dies away. Real physical electricity, close and dry. Quiet gaps between discharges. No pitched laser sweeps, no synthesizer notes, no music, no voice.",
+      "seconds": 20
+    },
+    {
+      "key": "thunder-contact",
+      "prompt": "Several short isolated lightning strikes. Each starts with a compact electrical crack and immediately opens into a low rough thunder roll which fades away quickly. Dry close lightning impacts for a game, with two seconds of quiet between strikes. Controlled loudness, no shrill ringing, no rain, no music or voices.",
+      "seconds": 20
+    },
+    {
+      "key": "treasure-alert",
+      "prompt": "Rare treasure discovery notification for a dark fantasy action game. An isolated clean strike on a small deep bronze gong, immediately joined by one clear warm crystal chime, then both ring out completely to silence. A strong rounded first impact, recognizable two-layer metallic resonance, soft shimmering tail lasting about one and a half seconds. Repeat a few separate strikes with three seconds of silence between them. No melody, no music, no voice, no high squeal, no background ambience.",
+      "seconds": 20
+    },
+    {
+      "key": "rare-tiling",
+      "prompt": "A delicate fantasy game loot pickup chime, a quick ti-ling sound. Two tiny ascending glockenspiel notes played very rapidly together, a light first tick immediately followed by a clear rounded crystal ping with a little sparkling decay. Short, clean, tuneful, gentle and rewarding, each tiny cue lasts less than half a second. Several separate cues with two seconds of silence between them. Soft controlled treble, no harsh metallic clang, no heavy gong, no voice, no background music or ambience.",
+      "seconds": 20,
+      "used": false,
+      "reason": "Detected dominant 7-11 kHz transients; retry with softer middle-register bell direction."
+    },
+    {
+      "key": "rare-soft-ping",
+      "prompt": "Soft two-note notification chime. A clean mellow electronic bell plays a fast rising di-ling: one lower note followed immediately by a higher note, then a short gentle decay. Round sine-like tones in a comfortable middle register, intimate and dry. Several isolated brief chimes separated by silence. No harsh metallic ringing, no high squeal, no voice, no background music or ambience.",
+      "seconds": 20,
+      "used": false,
+      "reason": "User heard a telephone-like tone and requested a lower clear chime."
+    },
+    {
+      "key": "rare-crystal-low",
+      "prompt": "A single thick crystal glass bell tapped lightly with a soft wooden mallet. One clear rounded ting with a warm low-mid pitched body around 600 Hz, delicate glass harmonics, and a smoothly dying short resonance. A tactile natural glass instrument, clean and intimate, not an electronic beep. Separate single strikes with several seconds of silence between them. No alternating notes, no telephone ringing, no alarm rhythm, no tremolo, no shrill whistle, no heavy gong, no music or voices.",
+      "seconds": 20,
+      "processing": "Dominant glass resonance near 2160 Hz; lower the newly generated source one octave and retain a 0.44-second cue."
+    },
+    {
+      "key": "rare-vibra-low",
+      "prompt": "A low register vibraphone bar tuned to middle C is struck gently once with a soft mallet, with its tremolo motor OFF. One warm clear musical ting: rounded low-mid body with delicate glassy overtones, immediately fading smoothly. Close dry instrument recording, a small rewarding treasure chime. Several separate single strikes, each followed by silence. No melody, no chords, no vibrato, no telephone ringing, no electronic alarm, no music or speech.",
+      "seconds": 20,
+      "used": false,
+      "reason": "Predominantly 250 Hz body with a long attack; chose the clearer glass transient instead."
+    }
+  ]
+}
