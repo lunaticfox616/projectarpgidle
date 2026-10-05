@@ -1,7 +1,31 @@
 // Isolated review fixture. The existing platform bridge supplies in-memory storage before boot.
 (() => {
-    let timer = null, speed = 1, battle = false;
+    let timer = null, speed = 1, battle = false, measurement = null;
     const origin = new URL(document.baseURI).origin;
+    function measurePerformance() {
+        if (measurement) return;
+        const sample = { start:performance.now(), previousFrame:0, frames:[], ticks:[] };
+        measurement = sample;
+        function frame(now) {
+            if (document.hidden) { finishPerformance(sample, true); return; }
+            if (sample.previousFrame) sample.frames.push(now - sample.previousFrame);
+            sample.previousFrame = now;
+            if (now - sample.start >= 10000) { finishPerformance(sample, false); return; }
+            requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+    }
+    function finishPerformance(sample, interrupted) {
+        measurement = null;
+        const quantile = (values, fraction) => {
+            const ordered = values.slice().sort((a,b)=>a-b);
+            return ordered.length ? +ordered[Math.min(ordered.length-1,Math.floor(ordered.length*fraction))].toFixed(2) : null;
+        };
+        parent.postMessage({type:'worldtree-performance-result', interrupted,
+            frames:sample.frames.length, ticks:sample.ticks.length, speed,
+            frameMedian:quantile(sample.frames,.5), frameP95:quantile(sample.frames,.95),
+            tickMedian:quantile(sample.ticks,.5), tickP95:quantile(sample.ticks,.95)},origin);
+    }
     function seed(mode, snapshot) {
         if (timer) clearInterval(timer);
         clearInterval(gameTickHandle); gameTickHandle = null;
@@ -54,9 +78,14 @@
         timer=setInterval(()=>{
             if(document.hidden)return;
             try {
+                const tickStarted = measurement ? performance.now() : 0;
+                // This fixture replaces runGameTick; retain its wall-clock commerce settlement.
+                // Test speed affects combat only, as it does in the real game.
+                settlePlayerStall();
                 for(let i=0;i<speed;i++)coreLoop(getCombatTime()+100);
                 refreshCombatTickUi();
                 if(pendingHeavyUiRefresh){pendingHeavyUiRefresh=false;updateStaticUI();}
+                if(measurement) measurement.ticks.push(performance.now()-tickStarted);
             } catch(error) {clearInterval(timer);console.error('World tree review failed',error);}
         },100);
         const message=mode==='first'?'루프 1 · 첫 액트 · 저장 분리':mode==='crafted'?'실제 전투 · T15 상위 제작 · 벌집 열쇠 3개 · 저장 분리'
@@ -77,6 +106,7 @@
     }
     window.addEventListener('message',event=>{
         if(event.source!==parent||event.origin!==origin)return;
+        if(event.data.type==='worldtree-performance-start')measurePerformance();
         if(event.data.type==='worldtree-lab')seed(event.data.mode,event.data.snapshot);
         if(event.data.type==='worldtree-speed')speed=event.data.speed===4?4:1;
         if(event.data.type==='worldtree-atlas')explorationAtlasUi.open();
