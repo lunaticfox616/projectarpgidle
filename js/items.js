@@ -344,6 +344,7 @@ function snapshotCraftResultItem(item) {
         rarity: item.rarity || 'normal',
         quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
         corrupted: !!item.corrupted,
+        voidSocket: equipmentSockets.hasVoidSocket(item),
         uniqueEffect: item.uniqueEffect || '',
         baseStats: (item.baseStats || []).map(copyCraftResultStat).filter(Boolean),
         stats: (item.stats || []).map(copyCraftResultStat).filter(Boolean),

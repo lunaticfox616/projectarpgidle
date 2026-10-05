@@ -47,7 +47,8 @@ function getEquipmentStatMultiplier(item, ownerState) {
 }
 
 function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier) {
-    let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
+    // Limit break and corruption (TAINTED_CRAFT_OUTCOMES.quality.cap) may push quality past the usual 20%.
+    let qualityCap = item.qualityLockedByLimitBreak || item.corrupted ? 30 : 20;
     let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(Number(item.quality) || 0)));
     let qualityMultiplier = 1 + qualityValue / 100;
     let qualityMode = getItemQualityAttributeMode(item);

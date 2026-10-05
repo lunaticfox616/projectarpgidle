@@ -336,26 +336,62 @@ safeExposeGlobals({ getCurrencyDrops });
         return (item.stats || []).filter(stat => stat && !stat.fixedValue && Number(stat.val) > 0);
     }
 
+    function sameRange(range, stat) {
+        return Math.abs(range.min - Number(stat.valMin)) < 1e-9 && Math.abs(range.max - Number(stat.valMax)) < 1e-9;
+    }
+
+    /** The MOD_DB row (or compound sub-stat) a rolled line came from; null when it cannot be told apart. */
+    function lineMod(stat) {
+        if (stat.sourceModId) return MOD_DB.find(mod => mod.id === stat.sourceModId) || null;
+        return MOD_DB.find(mod => (mod.statId || mod.id) === stat.id && !mod.tierValues
+            && [false, true].some(round => sameRange(getAffixTierRange(mod, stat.id, stat.tier, round), stat))) || null;
+    }
+
+    /**
+     * The corrupted value of one line (2026-10-05 user decision A): × corruptedBoost on the line's own value step, at least one
+     * step when that step is at most 30% of the value (a gem level never jumps 1 → 2), and never above the line's maximum at the
+     * item's affix tier cap — a corrupted item may read like a higher tier, never like an item level it could not drop at.
+     * @returns {number} the new value; the old one when it cannot grow
+     */
+    function corruptedValue(item, stat, mod) {
+        const value = Number(stat.val), boost = EQUIPMENT_DROP_VARIANTS.corruptedBoost;
+        const own = getAffixTierRange(mod, stat.id, stat.tier), step = Number(stat.valueStep) || own.step;
+        const capTier = Math.max(Number(stat.tier) || 1, Math.floor(Number(item.affixTierCap) || 1));
+        const cap = Math.max(Number(stat.valMax) || value, getAffixTierRange(mod, stat.id, capTier).max);
+        let next = Math.floor(value * boost / step + 1e-9) * step;
+        if (next <= value && step <= value * 0.3) next = value + step;
+        next = Number(Math.min(next, cap).toFixed(2));
+        return next > value ? next : value;
+    }
+
+    /** Every [line, new value] a corruption would apply; empty when no line can grow. */
+    function corruptionPlan(item) {
+        return explicitLines(item).flatMap(stat => {
+            const mod = lineMod(stat);
+            if (!mod) return [];
+            const extras = (stat.extraStats || []).filter(extra => Number(extra.val) > 0).map(extra => {
+                const sub = (mod.compound || []).find(row => (row.statId || row.id) === extra.id);
+                return sub ? [extra, corruptedValue(item, extra, sub)] : [extra, Number(extra.val)];
+            });
+            return [[stat, corruptedValue(item, stat, mod)], ...extras];
+        }).filter(([line, next]) => next > Number(line.val));
+    }
+
     /** One draw per dropped item. Null before fromLoop, for uniques and already corrupted items; a corrupted roll on an item
-     * without explicit lines drops as it is. scale multiplies every chance (better chests). */
+     * whose explicit lines cannot grow (none, or all at the cap) drops as it is. scale multiplies every chance (better chests). */
     function pick(item, roll, scale) {
         const rules = EQUIPMENT_DROP_VARIANTS;
         if (!item || item.rarity === 'unique' || item.corrupted || (Number(game.season) || 1) < rules.fromLoop) return null;
         let edge = 0;
         for (const [kind, chance] of rules.odds) {
             edge += chance * scale;
-            if (roll < edge) return kind === 'corrupted' && !explicitLines(item).length ? null : kind;
+            if (roll < edge) return kind === 'corrupted' && !corruptionPlan(item).length ? null : kind;
         }
         return null;
     }
 
     function corrupt(item) {
-        const boost = EQUIPMENT_DROP_VARIANTS.corruptedBoost;
-        explicitLines(item).forEach(stat => {
-            stat.val = boostItemStatValue(stat.id, Number(stat.val), boost, true);
-            (stat.extraStats || []).filter(extra => Number(extra.val) > 0)
-                .forEach(extra => { extra.val = boostItemStatValue(extra.id, Number(extra.val), boost, true); });
-        });
+        corruptionPlan(item).forEach(([line, next]) => { line.val = next; });
         item.corrupted = true;
         return [item];
     }

@@ -26,13 +26,35 @@ assert.equal(corrupted.after.corrupted, true);
 assert.match(corrupted.block, /타락/, 'a corrupted drop cannot be crafted');
 assert.equal(corrupted.after.id, corrupted.before.id);
 assert.deepEqual(corrupted.after.baseStats, corrupted.before.baseStats, 'base lines are untouched');
-corrupted.before.stats.forEach((stat, i) => {
-    if (stat.fixedValue || !(stat.val > 0)) return assert.equal(corrupted.after.stats[i].val, stat.val);
-    assert.ok(corrupted.after.stats[i].val > stat.val, `${stat.id} ${stat.val} grew (${corrupted.after.stats[i].val})`);
-});
+assert.ok(corrupted.after.stats.some((stat, i) => stat.val > corrupted.before.stats[i].val), 'a corrupted drop has a stronger line');
+corrupted.before.stats.forEach((stat, i) => assert.ok(corrupted.after.stats[i].val >= stat.val, `${stat.id} never drops`));
+
+// Decision A (2026-10-05): over many real drops a corrupted line grows by ×1.15 on its own value step (one step only when that
+// step is at most 30% of the value) and never passes its maximum at the item's affix tier cap.
+const audit = copy(`(()=>{const rows=[];for(let i=0;i<400;i++){const item=drop(i%2?'rare':'magic'),before=JSON.parse(JSON.stringify(item.stats));
+    if(equipmentDropVariants.expand(item,{rng:${fixed(0)}}).kind!=='corrupted')continue;
+    item.stats.forEach((stat,k)=>{const old=before[k].val;if(stat.val===old)return;
+        const mod=stat.sourceModId?MOD_DB.find(m=>m.id===stat.sourceModId):MOD_DB.find(m=>(m.statId||m.id)===stat.id&&!m.tierValues&&[false,true].some(r=>{const g=getAffixTierRange(m,stat.id,stat.tier,r);return g.min===stat.valMin&&g.max===stat.valMax;}));
+        const step=Number(stat.valueStep)||getAffixTierRange(mod,stat.id,stat.tier).step,cap=Math.max(stat.valMax,getAffixTierRange(mod,stat.id,Math.max(stat.tier,item.affixTierCap)).max);
+        rows.push({id:stat.id,old,val:stat.val,step,cap});});}
+    return rows;})()`);
+assert.ok(audit.length > 200, `corrupted lines checked ${audit.length}`);
+for (const row of audit) {
+    assert.ok(row.val <= row.cap + 1e-9, `${row.id} ${row.old}->${row.val} stays at or under the item's tier cap ${row.cap}`);
+    const oneStep = Math.abs(row.val - row.old - row.step) < 1e-6;
+    assert.ok(row.val <= row.old * 1.15 + 1e-6 || (oneStep && row.step <= row.old * 0.3 + 1e-9), `${row.id} ${row.old}->${row.val} grows at most 15% or one small step`);
+}
+// Regression: fractional lines used to gain a whole point (resistance penetration 0.8 -> 1.8) and gem levels jumped 1 -> 2.
+const small = copy(`(()=>{const item=drop('rare'),pen=MOD_DB.find(m=>(m.statId||m.id)==='resPen'&&m.tierValues&&!Number.isInteger([].concat(m.tierValues[0])[0])),
+    gem=MOD_DB.find(m=>(m.statId||m.id)==='summonGemLevel'&&m.tierValues&&m.tierValues.length>1);
+    const a=rollTierValueAffix(pen,'resPen',1),b=rollTierValueAffix(gem,'summonGemLevel',1);a.val=a.valMin;b.val=b.valMin;
+    item.stats=[a,b];item.affixTierCap=20;equipmentDropVariants.expand(item,{rng:${fixed(0)}});
+    return {pen:[a.valMin,item.stats[0].val],gem:[b.valMin,item.stats[1].val],corrupted:!!item.corrupted};})()`);
+assert.ok(small.pen[1] <= small.pen[0] * 1.15 + 1e-6, `resPen ${small.pen[0]} -> ${small.pen[1]}`);
+assert.equal(small.gem[1], small.gem[0], 'a gem level line never jumps a whole level');
 assert.deepEqual(corrupted.events, ['corrupted'], 'one variant event names the drop for the loot log');
 assert.equal(corrupted.again, null, 'a corrupted item is never corrupted again');
-assert.equal(copy(`equipmentDropVariants.expand(drop('normal'),{rng:${fixed(0)}}).kind`), null, 'an item without explicit lines drops as it is');
+assert.equal(copy(`(()=>{const item=drop('magic');item.stats=[];return equipmentDropVariants.expand(item,{rng:${fixed(0)}}).kind;})()`), null, 'an item without explicit lines drops as it is');
 
 // Duplicate: two identical items with their own ids; changing one leaves the other.
 const twin = copy(`(()=>{const out=equipmentDropVariants.expand(drop('magic'),{rng:${fixed(0.055)}});const [a,b]=out.items;
@@ -120,4 +142,22 @@ assert.ok(silver.items.length >= 1, 'the silver chest always gives an item');
 assert.ok(gold.currency >= wood.currency, `gold currency ${gold.currency} >= wood ${wood.currency}`);
 assert.equal(run(`actExplorationState.objects.name({kind:'chest',grade:'gold'})`), '황금 보급 상자');
 assert.equal(run(`actExplorationState.objects.name({kind:'pot'})`), '낡은 항아리');
-console.log('equipment drop variants (duplicate, bundle, corrupted) and supply chest grades: OK');
+// Crafting corruption (잿불가지): one of add a line · quality +6~10% (to 30%) · one line rerolled · a void socket · nothing.
+const craft = copy(`(()=>{const seen={},bad=[];for(let i=0;i<600;i++){const item=drop('rare');item.quality=i%3===0?26:4;
+    if(i%5===0)item.slot='반지';const before=JSON.parse(JSON.stringify(item)),chisel=equipmentSockets.canChisel(item);
+    const out=corruptCraftedItem(item);seen[out.kind]=(seen[out.kind]||0)+1;
+    if(!item.corrupted)bad.push('not corrupted');
+    if(out.kind==='quality'){const gain=item.quality-before.quality;if(item.quality>30||(item.quality<30&&(gain<6||gain>10)))bad.push('quality '+before.quality+'->'+item.quality);}
+    else if(item.quality!==before.quality)bad.push('quality moved on '+out.kind);
+    if(out.kind==='socket'&&(!chisel||!equipmentSockets.list(item).some(s=>s.kind==='void')))bad.push('socket');
+    if(out.kind!=='socket'&&!!item.voidSocket?.open!==!!before.voidSocket?.open)bad.push('socket moved on '+out.kind);
+    if(out.kind==='addMod'&&item.stats.length!==before.stats.length+1)bad.push('addMod');
+    if(out.kind==='rerollMod'){const changed=item.stats.filter((s,k)=>s.id!==before.stats[k].id||s.val!==before.stats[k].val).length;
+        if(item.stats.length!==before.stats.length||changed!==1)bad.push('reroll '+changed);}
+    if(['nothing','quality','socket'].includes(out.kind)&&JSON.stringify(item.stats)!==JSON.stringify(before.stats))bad.push('lines moved on '+out.kind);}
+    const worn=drop('rare');worn.quality=30;worn.corrupted=true;const plain={...worn,corrupted:false};
+    return {seen,bad:bad.slice(0,5),mul:[resolveEquipmentBaseStats(worn,null,1).qualityMultiplier,resolveEquipmentBaseStats(plain,null,1).qualityMultiplier]};})()`);
+assert.deepEqual(craft.bad, [], 'every crafting corruption changes exactly what its outcome says');
+['addMod', 'quality', 'rerollMod', 'socket', 'nothing'].forEach(kind => assert.ok(craft.seen[kind] > 0, `${kind} happens (${JSON.stringify(craft.seen)})`));
+assert.deepEqual(craft.mul, [1.3, 1.2], 'a corrupted item counts quality up to 30%, an ordinary one up to 20%');
+console.log('equipment drop variants (duplicate, bundle, corrupted within the tier cap), supply chest grades, crafting corruption outcomes: OK');

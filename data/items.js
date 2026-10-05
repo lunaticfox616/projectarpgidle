@@ -21,7 +21,7 @@ const EQUIPMENT_DROP_RARITY_THRESHOLDS = Object.freeze({
 
 // PoE식 장비 드랍 변형(2026-10-05 사용자 요청, js/loot.js equipmentDropVariants): 고유가 아닌 장비 한 개가 떨어질 때 한 번 추첨한다.
 // duplicate: 똑같은 장비가 한 개 더. bundle: 같은 베이스 · 같은 희귀도 장비가 extra개 더(옵션은 따로). corrupted: 타락(제작 불가) 대신
-// 추가 옵션 값 × boost — 추가 옵션이 있는 마법 · 희귀만. odds는 앞에서부터 누적한 한 번의 추첨, fromLoop 전에는 나오지 않는다.
+// 추가 옵션 값 × boost(장비의 옵션 티어 상한 안에서) — 오를 줄이 있는 마법 · 희귀만. odds는 앞에서부터 누적한 한 번의 추첨, fromLoop 전에는 나오지 않는다.
 // 수치는 초기 가설이며 드롭 경제 플레이테스트 대상이다.
 const EQUIPMENT_DROP_VARIANTS = Object.freeze({
     fromLoop: 2,
@@ -30,12 +30,20 @@ const EQUIPMENT_DROP_VARIANTS = Object.freeze({
     corruptedBoost: 1.15
 });
 
+// 잿불가지(타락) 제작 결과(2026-10-05 사용자 요청, js/passives.js corruptCraftedItem): [결과, 비중]에서 한 번 고른다.
+// 그 장비에 쓸 수 없는 결과(넣을 옵션 없음 · 품질 상한 · 바꿀 줄 없음 · 공허 소켓을 더 뚫을 수 없음)는 빼고 남은 비중으로 나눈다.
+// quality: min~max%를 더하고 cap%에서 멈춘다(타락 장비는 품질을 cap%까지 반영). 수치는 초기 가설이다.
+const TAINTED_CRAFT_OUTCOMES = Object.freeze({
+    weights: Object.freeze([['addMod', 25], ['quality', 20], ['rerollMod', 20], ['socket', 15], ['nothing', 20]]),
+    quality: Object.freeze({ min: 6, max: 10, cap: 30 })
+});
+
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
 
@@ -945,7 +953,7 @@ const ORB_DB = {
     skyEssence: { name: '창공의 정수', desc: '루프4 창공 몬스터에게서 얻습니다. 젬 강화와 창공 각인에 사용합니다.' },
     gemShard: { name: '젬 잔향', desc: '스킬 젬 드랍과 중복 젬 환원으로 얻습니다. 스킬 젬 탭의 젬 연구에서 원하는 미보유 공격 젬이나 보조 젬을 확정 해금합니다.' },
     condensedSkyPower: { name: '응축된 창공의 정수', desc: '창공의 탑에서 얻는 영구 재료입니다. 재화 목록에는 표시되지 않으며 창공석과 영구 젬 강화에 사용됩니다.' },
-    emberBranch: { name: '잿불가지', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 옵션이 가득 차 있어도 성공 시 초과 부여됩니다. 타락 후 제작 불가.' },
+    emberBranch: { name: '잿불가지', desc: '아이템을 타락시킵니다. 추가 옵션 부여(가득 차 있어도 초과) · 품질 +6~10%(최대 30%) · 옵션 1줄 무작위 변경 · 공허 소켓 추가 · 변화 없음 중 하나가 일어납니다. 타락 후 제작 불가.' },
     jewelCore: { name: '주얼 핵(구)', desc: '이전 버전 재화입니다. 로드 시 주얼 결정으로 자동 통합됩니다.' },
     jewelShard: { name: '주얼 결정', desc: '주얼을 해체하면 얻습니다. 주얼 보관함 뽑기와 조합창의 주얼 융합에 씁니다.' },
     hiveKey: { name: '벌집 열쇠', desc: '루프8 이후 맵핑에서 낮은 확률로 발견되는 벌집 입장권입니다.' },

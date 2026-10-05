@@ -8467,15 +8467,49 @@ function rollBaseStats(base) {
 }
 
 
-function rollTierValueAffix(mod, statId, tier) {
-    let effectiveTier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(tier) || 1)));
-    let range = mod.tierValues[effectiveTier - 1];
+/**
+ * The value range of one tier of an affix (or a compound line's sub-stat): tierValues rows as listed, otherwise
+ * base + tier × step widened by 1.6 steps, on 0.1 steps for leech/regen lines and whole numbers for the rest.
+ * @param {object} mod MOD_DB row or a compound sub-stat
+ * @param {string} statId
+ * @param {number} tier clamped to the tierValues length
+ * @param {boolean} [roundInteger] round instead of floor whole-number ranges (crafting sources that ask for it)
+ * @returns {{min: number, max: number, step: number, tier: number}}
+ */
+function getAffixTierRange(mod, statId, tier, roundInteger = false) {
+    if (Array.isArray(mod.tierValues)) return getListedAffixTierRange(mod, tier);
+    const min = mod.base + (tier * mod.step);
+    const max = min + mod.step * 1.6;
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10, step: 0.1, tier };
+    }
+    const toInt = roundInteger ? Math.round : Math.floor;
+    const high = toInt(max);
+    return { min: high > 0 ? Math.max(1, toInt(min)) : toInt(min), max: high, step: 1, tier };
+}
+
+function getListedAffixTierRange(mod, tier) {
+    const effectiveTier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(tier) || 1)));
+    const range = mod.tierValues[effectiveTier - 1];
     let min = Array.isArray(range) ? Number(range[0]) : Number(range);
     let max = Array.isArray(range) ? Number(range[1]) : min;
     if (!Number.isFinite(min)) min = Number(mod.base) || 0;
     if (!Number.isFinite(max)) max = min;
     [min, max] = [Math.min(min, max), Math.max(min, max)];
-    const valueStep = mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01);
+    return { min, max, step: mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01), tier: effectiveTier };
+}
+
+/** One roll inside a base/step range from getAffixTierRange (0.1 or whole-number steps). */
+function rollSteppedAffixValue(range) {
+    if (range.step === 0.1) {
+        const minStep = Math.round(range.min * 10);
+        return (minStep + Math.floor(Math.random() * (Math.round(range.max * 10) - minStep + 1))) / 10;
+    }
+    return range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+}
+
+function rollTierValueAffix(mod, statId, tier) {
+    const { min, max, step: valueStep, tier: effectiveTier } = getAffixTierRange(mod, statId, tier);
     const val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / valueStep) + 1)) * valueStep).toFixed(2));
     return { id: statId, val, valMin: min, valMax: max, tier: effectiveTier, statName: mod.statName,
         valueStep, fixedValue: !!mod.fixedValue, sourceModId: mod.id, affixBalanceVersion: mod.affixBalanceVersion };
@@ -8507,23 +8541,8 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
     return mod.compound.map(sub => {
         let subId = sub.statId || sub.id;
         if (Array.isArray(sub.tierValues)) return rollTierValueAffix(sub, subId, tier);
-        let min = sub.base + (tier * sub.step);
-        let max = min + sub.step * 1.6;
-        let val;
-        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
-            let minStep = Math.round(min * 10);
-            let maxStep = Math.round(max * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            min = minStep / 10;
-            max = maxStep / 10;
-        } else {
-            let toInt = roundInteger ? Math.round : Math.floor;
-            min = toInt(min);
-            max = toInt(max);
-            if (max > 0) min = Math.max(1, min);
-            val = min + Math.floor(Math.random() * (max - min + 1));
-        }
-        return { id: subId, val: val, valMin: min, valMax: max, tier: tier, statName: sub.statName || getStatName(subId) };
+        const range = getAffixTierRange(sub, subId, tier, roundInteger);
+        return { id: subId, val: rollSteppedAffixValue(range), valMin: range.min, valMax: range.max, tier: tier, statName: sub.statName || getStatName(subId) };
     });
 }
 
@@ -8538,23 +8557,8 @@ function rollAffixValue(mod, maxTier, opts) {
     if (Array.isArray(mod.tierValues)) {
         result = rollTierValueAffix(mod, statId, tier);
     } else {
-        let min = mod.base + (tier * mod.step);
-        let max = min + mod.step * 1.6;
-        let val;
-        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-            let minStep = Math.round(min * 10);
-            let maxStep = Math.round(max * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            min = minStep / 10;
-            max = maxStep / 10;
-        } else {
-            let toInt = roundInteger ? Math.round : Math.floor;
-            min = toInt(min);
-            max = toInt(max);
-            if (max > 0) min = Math.max(1, min);
-            val = min + Math.floor(Math.random() * (max - min + 1));
-        }
-        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
+        const range = getAffixTierRange(mod, statId, tier, roundInteger);
+        result = { id: statId, val: rollSteppedAffixValue(range), valMin: range.min, valMax: range.max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
     }
     let extras = rollCompoundExtraStats(mod, result.tier, roundInteger);
     if (extras) result.extraStats = extras;
@@ -8599,22 +8603,8 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
     if (Array.isArray(mod.tierValues)) {
         result = rollTierValueAffix(mod, statId, tier);
     } else {
-        let min = mod.base + (tier * mod.step);
-        let max = min + mod.step * 1.6;
-        let val;
-        if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-            let minStep = Math.round(min * 10);
-            let maxStep = Math.round(max * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            min = minStep / 10;
-            max = maxStep / 10;
-        } else {
-            min = Math.floor(min);
-            max = Math.floor(max);
-            if (max > 0) min = Math.max(1, min);
-            val = min + Math.floor(Math.random() * (max - min + 1));
-        }
-        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
+        const range = getAffixTierRange(mod, statId, tier);
+        result = { id: statId, val: rollSteppedAffixValue(range), valMin: range.min, valMax: range.max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
     }
     let extras = rollCompoundExtraStats(mod, result.tier, false);
     if (extras) result.extraStats = extras;
@@ -9326,14 +9316,10 @@ function generateEquipmentDrop(enemy, options) {
     return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
 }
 
-/** A stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise.
- * raise: the result grows by at least one step (a corrupted drop never shows the same number). */
-function boostItemStatValue(statId, value, factor, raise = false) {
-    const decimal = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId);
-    const step = decimal ? 0.1 : 1;
-    let boosted = decimal ? Math.round(value * factor * 10) / 10 : Math.max(1, Math.floor(value * factor));
-    if (raise) boosted = Math.max(boosted, Math.round((value + step) * 10) / 10);
-    return boosted;
+/** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
+function boostItemStatValue(statId, value, factor) {
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Math.round(value * factor * 10) / 10;
+    return Math.max(1, Math.floor(value * factor));
 }
 
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
@@ -10284,6 +10270,67 @@ function hasSporeCraftCost(mode) {
     return true;
 }
 
+// 잿불가지(타락) 제작 결과(2026-10-05 사용자 요청, data/items.js TAINTED_CRAFT_OUTCOMES): 이 장비에 쓸 수 없는 결과는 빼고 남은 비중으로 한 번 고른다.
+function getTaintedRerollLines(item) {
+    return (item.stats || []).map((stat, index) => ({ stat, index }))
+        .filter(({ stat }) => stat && !stat.lockedByHoney && !stat.lockedByRift);
+}
+
+function canApplyTaintedOutcome(item, kind) {
+    if (kind === 'addMod') return getAvailableMods(item).length > 0;
+    if (kind === 'quality') return Math.floor(Number(item.quality) || 0) < TAINTED_CRAFT_OUTCOMES.quality.cap;
+    if (kind === 'rerollMod') return getTaintedRerollLines(item).length > 0 && getAvailableMods(item).length > 0;
+    if (kind === 'socket') return equipmentSockets.canChisel(item);
+    return kind === 'nothing';
+}
+
+function pickTaintedOutcome(item) {
+    const rows = TAINTED_CRAFT_OUTCOMES.weights.filter(([kind]) => canApplyTaintedOutcome(item, kind));
+    let roll = Math.random() * rows.reduce((sum, [, weight]) => sum + weight, 0);
+    for (const [kind, weight] of rows) {
+        if (roll < weight) return kind;
+        roll -= weight;
+    }
+    return 'nothing';
+}
+
+/** One random explicit line (not honey/rift locked) becomes a different random mod rolled at the item's craft tier. */
+function rerollTaintedLine(item) {
+    const { stat, index } = rndChoice(getTaintedRerollLines(item));
+    const name = stat.statName || getStatName(stat.id);
+    item.stats.splice(index, 1);
+    const mod = pickWeightedMod(getAvailableMods(item).filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(getAvailableMods(item));
+    item.stats.splice(index, 0, rollAffixValue(mod, getItemCraftTier(item)));
+    updateItemName(item);
+    return `${name} 옵션이 ${item.stats[index].statName || getStatName(item.stats[index].id)} 옵션으로 바뀌었습니다.`;
+}
+
+/**
+ * Corrupts the item and applies one outcome. Quality may pass the usual 20% up to the outcome cap (corrupted items resolve
+ * quality up to 30%, js/equipment-stat-resolution.js). The socket outcome opens the void socket a chisel would.
+ * @returns {{kind: 'addMod'|'quality'|'rerollMod'|'socket'|'nothing', text: string}}
+ */
+function corruptCraftedItem(item) {
+    const kind = pickTaintedOutcome(item);
+    item.corrupted = true;
+    if (kind === 'addMod') {
+        item.stats.push(rollAffixValue(pickWeightedMod(getAvailableMods(item)), getItemCraftTier(item)));
+        updateItemName(item);
+        return { kind, text: '추가 옵션이 부여되었습니다.' };
+    }
+    if (kind === 'quality') {
+        const { min, max, cap } = TAINTED_CRAFT_OUTCOMES.quality, before = Math.floor(Number(item.quality) || 0);
+        item.quality = Math.min(cap, before + min + Math.floor(Math.random() * (max - min + 1)));
+        return { kind, text: `품질이 ${before}% → ${item.quality}%로 올랐습니다.` };
+    }
+    if (kind === 'rerollMod') return { kind, text: rerollTaintedLine(item) };
+    if (kind === 'socket') {
+        equipmentSockets.openVoidSocket(item);
+        return { kind, text: '공허 소켓이 하나 생겼습니다.' };
+    }
+    return { kind, text: '아이템에 변화가 없습니다.' };
+}
+
 /**
  * @param {string} currencyKey Crafting action; pays one of that currency.
  * @returns {Promise<true|undefined>} True only after the item and payment are committed.
@@ -10490,18 +10537,8 @@ async function useCurrency(currencyKey) {
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (actionKey === 'tainted') {
-        item.corrupted = true;
-        if (Math.random() < 0.35) {
-            let mod = pickWeightedMod(getAvailableMods(item));
-            if (mod) {
-                item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-                addLog("🩸 타락: 추가 옵션이 부여되었습니다.", "loot-unique", { toast: true });
-            } else {
-                addLog("🩸 타락: 부여 가능한 추가 옵션이 없습니다.", "attack-monster", { toast: true });
-            }
-        } else {
-            addLog("🩸 타락: 아이템에 변화가 없습니다.", "attack-monster", { toast: true });
-        }
+        const outcome = corruptCraftedItem(item);
+        addLog(`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
     } else if (currencyKey === 'abyssCatalyst') {
         let qualityLabel = applyAbyssCatalystToItemQuality(item);
         addLog(`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${qualityLabel}`, 'loot-unique');
