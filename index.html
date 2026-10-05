@@ -1114,12 +1114,22 @@
     <div id="tab-settings" class="tab-content" data-settings-category="display">
         <label class="settings-category-picker" for="settings-category">설정 분류
             <select id="settings-category" onchange="document.getElementById('tab-settings').dataset.settingsCategory=this.value;renderTabOrderSettings()">
-                <option value="display">화면 · 외형</option><option value="battle">전투 · 소리</option>
+                <option value="display">화면 · 외형</option><option value="battle">전투</option>
                 <option value="progress">자동 진행</option><option value="notifications">알림 · 채팅</option>
                 <option value="layout">메뉴 배치</option><option value="data">저장 · 계정</option>
             </select>
         </label>
         <div class="settings-layout">
+
+            <!-- ── 소리: 분류와 상관없이 맨 위에 항상 보인다(2026-10-05 사용자 요청) ── -->
+            <div class="cfg-group cfg-group--wide cfg-group--sound">
+                <div class="cfg-group-title">소리</div>
+                <label class="cfg-sound-switch" for="chk-ui-sounds">
+                    <span class="cfg-sound-copy"><strong>효과음</strong><small>버튼 · 처치 · 전리품 · 상자 · 레벨업 소리를 한 번에 켜거나 끕니다.</small></span>
+                    <input type="checkbox" role="switch" id="chk-ui-sounds" onchange="updateSettings()" checked>
+                    <span class="cfg-sound-state" aria-hidden="true"></span>
+                </label>
+            </div>
 
             <!-- ── 저장 & 데이터 ── -->
             <div class="cfg-group" data-settings-group="data">
@@ -1161,7 +1171,6 @@
                             <option value="normal">기본</option><option value="mild">약하게</option>
                         </select>
                     </div>
-                    <label class="cfg-toggle"><input type="checkbox" id="chk-ui-sounds" onchange="updateSettings()" checked><span class="cfg-label">UI·처치 효과음</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked><span class="cfg-label">사망 시 알림 표시</span></label>
                     <label class="cfg-toggle cfg-mobile-only"><input type="checkbox" id="chk-mobile-battle-pip" onchange="updateSettings()" checked><span class="cfg-label">모바일 전투 PiP 표시</span></label>
                     <details class="cfg-disclosure">
