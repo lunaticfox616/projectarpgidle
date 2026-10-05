@@ -6,50 +6,53 @@ const json = source => JSON.parse(run(`JSON.stringify(${source})`));
 run('game=mergeDefaults({});window.game=game;Math.random=()=>0.5;');
 
 // Actual generated enemies (2026-10-05 user decision): a repeatable boss is strong in one or two of physical reduction and the
-// fire, cold and lightning resistances; the rest stay low. Everything climbs the tier curve; fixed content keeps the full caps.
+// fire, cold and lightning resistances; the rest match an elite. Everything climbs the tier curve; fixed content uses the
+// specialty value everywhere.
 const defenses = json(`(() => {
     const zone=getZone(29), marker={at:50,boss:true};
     const row=zone=>{const e=createEnemy(zone,marker,0);return [e.dr,e.resF,e.resC,e.resL,e.resChaos,e.maxHp,e.armor,e.evasion,e.ele];};
     return { farm:row(zone),fixed:row({...zone,fixedSeason:1}),exempt:row({...zone,loopScaleExempt:true}),
         pinnacle:row({...zone,milestonePinnacle:true}),benchmark:row({...zone,difficultyBenchmark:'rival31'}),
         start:row(getZone(0)),mid:row(getZone(19)),normal:createEnemy(zone,{at:50},0),elite:createEnemy(zone,{at:50,elite:true},0),
-        profiles:Array.from({length:40},(_,id)=>{const z=getZone(id);return ['phys','fire','cold','light','chaos'].map(ele=>getBossDefenseCaps(z,ele));}) };
+        profiles:Array.from({length:40},(_,id)=>{const z=getZone(id);return ['phys','fire','cold','light','chaos'].map(ele=>getBossDefenseTargets(z,ele));}) };
 })()`);
 const variance = run('getZoneDefenseVariance(getZone(29))');
 const ramp = Math.min(1, Math.max(0, 1 + variance));
-const reach = (floor, cap) => floor + Math.floor((cap - floor) * ramp);
-const farm = defenses.farm, caps = json(`getBossDefenseCaps(getZone(29), ${JSON.stringify(farm[8])})`);
-const stats = ['dr', 'resF', 'resC', 'resL'], special = stats.filter(stat => caps[stat] === (stat === 'dr' ? 75 : 80));
-assert.ok(special.length >= 1 && special.length <= 2, `one or two specialties: ${JSON.stringify(caps)}`);
-assert.deepEqual(stats.filter(stat => !special.includes(stat)).map(stat => caps[stat]), stats.filter(stat => !special.includes(stat)).map(stat => stat === 'dr' ? 40 : 45));
-assert.equal(caps.resChaos, 45, 'chaos resistance is never a specialty');
+const reach = (floor, value) => floor + Math.floor((value - floor) * ramp);
+const farm = defenses.farm, targets = json(`getBossDefenseTargets(getZone(29), ${JSON.stringify(farm[8])})`);
+const stats = ['dr', 'resF', 'resC', 'resL'], special = stats.filter(stat => targets[stat] === (stat === 'dr' ? 75 : 80));
+assert.ok(special.length >= 1 && special.length <= 2, `one or two specialties: ${JSON.stringify(targets)}`);
+assert.deepEqual(stats.filter(stat => !special.includes(stat)).map(stat => targets[stat]), stats.filter(stat => !special.includes(stat)).map(stat => stat === 'dr' ? 40 : 50),
+    'the other defenses match an elite');
+assert.equal(targets.resChaos, 50, 'chaos resistance is never a specialty');
 const byElement = { phys: 'dr', fire: 'resF', cold: 'resC', light: 'resL' };
 if (byElement[farm[8]]) assert.ok(special.includes(byElement[farm[8]]), 'the boss element is its first specialty');
 // The live boss: physical reduction is exactly its curve value; resistances reach at least theirs (zone wards may add more),
 // and the strongest resistance belongs to a specialty when one is a resistance.
-assert.equal(farm[0], reach(10, caps.dr));
-stats.slice(1).forEach((stat, i) => assert.ok(farm[i + 1] >= reach(15, caps[stat]), `${stat} reaches its curve`));
+assert.equal(farm[0], reach(10, targets.dr));
+stats.slice(1).forEach((stat, i) => assert.ok(farm[i + 1] >= reach(15, targets[stat]), `${stat} reaches its curve`));
 const specialRes = special.filter(stat => stat !== 'dr');
 if (specialRes.length) assert.ok(Math.max(...specialRes.map(stat => farm[stats.indexOf(stat)])) > Math.max(...stats.slice(1).filter(stat => !special.includes(stat)).map(stat => farm[stats.indexOf(stat)])), 'a resistance specialty stands out');
 for (const key of ['fixed', 'exempt', 'pinnacle', 'benchmark']) {
-    assert.equal(defenses[key][0], reach(10, 75), `${key} keeps the full physical cap`);
-    defenses[key].slice(1, 5).forEach(value => assert.ok(value >= reach(15, 80), `${key} keeps every full resistance cap`));
+    assert.equal(defenses[key][0], reach(10, 75), `${key} keeps the specialty physical value`);
+    defenses[key].slice(1, 5).forEach(value => assert.ok(value >= reach(15, 80), `${key} keeps every specialty resistance value`));
 }
 assert.deepEqual(defenses.farm.slice(5, 8), defenses.fixed.slice(5, 8), 'identical effective loop preserves HP, armor and evasion');
 assert.deepEqual(defenses.start.slice(0, 2), [10, 15], 'first boss mitigation is unchanged');
-assert.ok(Math.max(...defenses.mid.slice(0, 4)) < 75, 'chaos 10 is still climbing toward the cap');
-const counts = defenses.profiles.flat().map(caps => [caps.dr === 75, caps.resF === 80, caps.resC === 80, caps.resL === 80].filter(Boolean).length);
+assert.ok(Math.max(...defenses.mid.slice(0, 4)) < 75, 'chaos 10 is still climbing toward the tier-20 values');
+const counts = defenses.profiles.flat().map(row => [row.dr === 75, row.resF === 80, row.resC === 80, row.resL === 80].filter(Boolean).length);
 assert.ok(counts.every(n => n >= 1 && n <= 2), 'every act and chaos boss has one or two specialties');
 assert.ok(counts.some(n => n === 2) && counts.some(n => n === 1), 'some bosses have one, some two');
-assert.equal(defenses.normal.dr, 20); assert.equal(defenses.elite.dr, 45);
-assert.equal(defenses.normal.resF, 25); assert.equal(defenses.elite.resF, 60);
+// Elites were lowered to 40 / 50 so a boss's other defenses can match them; ordinary monsters are unchanged.
+assert.equal(defenses.normal.dr, 20); assert.equal(defenses.elite.dr, 40);
+assert.equal(defenses.normal.resF, 25); assert.equal(defenses.elite.resF, 50);
 
 // The boss card and entrance banner name a boss's standout defenses with their live values; early bosses show none.
 const shown = json(`(() => {
     const boss=id=>createEnemy(getZone(id),{at:50,boss:true},0);
     const late=boss(29),early=boss(0),elite=createEnemy(getZone(29),{at:50,elite:true},0);
     return {late:getEnemyDefenseHighlights(late),lateTags:getEnemyTraitSummary(late),early:getEnemyDefenseHighlights(early),
-        elite:getEnemyDefenseHighlights(elite),caps:getBossDefenseCaps(getZone(29),late.ele),values:[late.dr,late.resF,late.resC,late.resL]};
+        elite:getEnemyDefenseHighlights(elite),values:[late.dr,late.resF,late.resC,late.resL]};
 })()`);
 assert.ok(shown.late.length >= 1, `a chaos 20 boss names its specialties: ${shown.values}`);
 assert.ok(shown.late.every(tag => shown.lateTags.includes(tag)), 'the boss card tags carry them');

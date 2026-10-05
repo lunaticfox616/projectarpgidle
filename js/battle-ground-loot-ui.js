@@ -140,7 +140,7 @@ const battleGroundLoot = (() => {
         return label;
     }
 
-    /** PoE-style name cross around the pile, in importance order: up over the picture first, then the emptier side, then down. */
+    /** Name cross around the pile, in importance order: up over the picture first, then the emptier side, then down. */
     function labelArms(receipts) {
         const limits = canvas.clientWidth < 600 ? ARM_ROWS.narrow : ARM_ROWS.wide;
         const arms = { up: [], right: [], left: [], down: [] };

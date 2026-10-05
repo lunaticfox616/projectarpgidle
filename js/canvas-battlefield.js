@@ -2952,7 +2952,7 @@ function getEnemyDisplayName(enemy) {
         .replace(/\s+/g, ' ')
         .trim();
 }
-// A boss's standout defenses (its one or two specialties, js/combat.js getBossDefenseCaps) as the live values, traits and zone
+// A boss's standout defenses (its one or two specialties, js/combat.js getBossDefenseTargets) as the live values, traits and zone
 // wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.
 const ENEMY_DEFENSE_LABELS = Object.freeze([['dr', '물리 피해 감소'], ['resF', '화염 저항'], ['resC', '냉기 저항'], ['resL', '번개 저항']]);
 function getEnemyDefenseHighlights(enemy) {

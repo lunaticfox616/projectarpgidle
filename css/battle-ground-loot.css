@@ -12,7 +12,7 @@
 .battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
 .battle-loot-drop::after{content:'';position:absolute;left:-1px;bottom:30px;width:2px;height:var(--label-lift,0px);background:linear-gradient(color-mix(in srgb,var(--loot-color) 85%,transparent),color-mix(in srgb,var(--loot-color) 35%,transparent));box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:0;transition:opacity 220ms 90ms}
 .battle-loot-drop.landed::after{opacity:.9}
-/* 한 더미의 이름표 십자(PoE식): 위 팔이 그림 바로 위(가장 중요한 이름이 가장 가깝다), 많으면 오른쪽, 왼쪽, 아래로 더 펼친다.
+/* 한 더미의 이름표 십자: 위 팔이 그림 바로 위(가장 중요한 이름이 가장 가깝다), 많으면 오른쪽, 왼쪽, 아래로 더 펼친다.
    z-index 4라 모든 더미의 그림(z-index 1)보다 위에 그려진다. */
 .battle-loot-labels{position:absolute;left:0;bottom:calc(30px + var(--label-lift,0px));transform:translateX(-50%);display:flex;flex-direction:column-reverse;align-items:center;gap:2px;z-index:4}
 .battle-loot-labels.is-right,.battle-loot-labels.is-left{bottom:auto;top:-3px;transform:translateY(-50%);flex-direction:column}

@@ -62,7 +62,7 @@ const actExplorationMap = (() => {
         return Object.freeze({id:source.id,act,biome:source.biome,columns,rows,tiles:Object.freeze(tiles),
             rooms:Object.freeze(rooms),entry:rooms.find(r=>r.role==='entry'),gate:Object.freeze(rotate(source.gate,source)),rotation:source.rotation});
     }
-    /** Quarter turns a run may face (0 north … 3 west): the entry starts opposite the gate, like a Diablo II act area. */
+    /** Quarter turns a run may face (0 north … 3 west): the entry starts opposite the gate. */
     const ROTATIONS=4;
     /** @param {object} source authored or arena source; @param {number|undefined} rotation clockwise quarter turns, undefined for the authored one. */
     function turned(source,rotation) {

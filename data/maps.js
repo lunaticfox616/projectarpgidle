@@ -202,13 +202,18 @@ const MONSTER_LOOP_POWER_SCALE = Object.freeze({
     damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]])
 });
 
-// 보스 방어 특화(2026-10-05 사용자 결정, js/combat.js getBossDefenseCaps): 액트 · 혼돈 보스는 물리 피해 감소 · 화염 · 냉기 · 번개 저항 중
-// 1~2개만 상한(caps)까지 오른다. 첫째는 보스 속성에 맞춘다(byElement, 카오스 속성은 지역 시드로 고름), 둘째는 지역 시드로 secondChance.
-// 나머지와 카오스 저항은 offCaps까지만. 모든 값은 기존 지역 티어 곡선(제곱)으로 서서히 올라 티어 20(혼돈 20 · 심화)에서야 상한에 닿는다.
-// 고정 난이도 · 벤치마크 · 정점 지역과 다른 콘텐츠의 보스는 예전처럼 모두 caps까지 오른다. 수치는 초기 가설이다.
+// 몬스터 방어 수치(%, js/combat.js createEnemy): 물리 피해 감소 dr와 원소 · 카오스 저항 res는 기존 지역 티어 곡선(제곱)으로
+// 서서히 올라 티어 20(혼돈 20 · 심화)에서 이 값이 된다. 지역 속성 수호 같은 추가 저항은 별도로 더해진다.
+// 보스 방어 특화(2026-10-05 사용자 결정, js/combat.js getBossDefenseTargets): 액트 · 혼돈 보스는 물리 피해 감소 · 화염 · 냉기 · 번개 저항 중
+// 1~2개만 bossSpecialty 수치까지 오르고 나머지와 카오스 저항은 정예와 같은 수치다. 첫째 특화는 보스 속성(byElement,
+// 카오스 속성은 지역 시드로 고름), 둘째는 지역 시드로 secondChance. 고정 난이도 · 벤치마크 · 정점 지역과 다른 콘텐츠의 보스는
+// 모든 방어가 bossSpecialty 수치까지 오른다. 수치는 초기 가설이다.
+const ENEMY_DEFENSE_TIER20 = Object.freeze({
+    normal: Object.freeze({ dr: 20, res: 25 }),
+    elite: Object.freeze({ dr: 40, res: 50 }),
+    bossSpecialty: Object.freeze({ dr: 75, res: 80 })
+});
 const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
-    caps: Object.freeze({ dr: 75, res: 80 }),
-    offCaps: Object.freeze({ dr: 40, res: 45 }),
     secondChance: 0.5,
     stats: Object.freeze(['dr', 'resF', 'resC', 'resL']),
     byElement: Object.freeze({ phys: 'dr', fire: 'resF', cold: 'resC', light: 'resL' })
@@ -370,5 +375,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_POWER_SCALE, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

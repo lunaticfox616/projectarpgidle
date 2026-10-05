@@ -5341,21 +5341,24 @@ function getTierDropMulWithCaps(tier, zone) {
 
 
 /**
- * Per-stat defense caps of a boss (data/maps.js BOSS_DEFENSE_SPECIALTIES): one or two of physical damage reduction and the fire,
- * cold and lightning resistances reach the full cap, the rest stay low. Fixed and other-content bosses keep the full caps.
- * @returns {{dr:number,resF:number,resC:number,resL:number,resChaos:number}} percent caps reached at zone tier 20
+ * Tier-20 defense values of a boss (data/maps.js ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES): one or two of physical damage
+ * reduction and the fire, cold and lightning resistances reach the specialty value, the rest match an elite. Fixed and
+ * other-content bosses use the specialty value for every defense.
+ * @returns {{dr:number,resF:number,resC:number,resL:number,resChaos:number}} percent values reached at zone tier 20
  */
-function getBossDefenseCaps(zone, ele) {
-    const rules = BOSS_DEFENSE_SPECIALTIES, full = { dr: rules.caps.dr, resF: rules.caps.res, resC: rules.caps.res, resL: rules.caps.res, resChaos: rules.caps.res };
+function getBossDefenseTargets(zone, ele) {
+    const rules = BOSS_DEFENSE_SPECIALTIES, values = ENEMY_DEFENSE_TIER20;
+    const byValues = ({ dr, res }) => ({ dr, resF: res, resC: res, resL: res, resChaos: res });
+    const special = byValues(values.bossSpecialty);
     const fixed = zone.loopScaleExempt || Number.isFinite(zone.fixedSeason) || zone.difficultyBenchmark || zone.milestonePinnacle;
-    if (fixed || !['act', 'abyss'].includes(zone.type)) return full;
+    if (fixed || !['act', 'abyss'].includes(zone.type)) return special;
     const seed = hashSeed(String(zone.id) + ':boss-guard') >>> 0;
     const first = rules.byElement[ele] || rules.stats[seed % rules.stats.length];
     const rest = rules.stats.filter(stat => stat !== first);
     const second = (seed >>> 8) % 1000 < rules.secondChance * 1000 ? rest[(seed >>> 16) % rest.length] : null;
-    const caps = { dr: rules.offCaps.dr, resF: rules.offCaps.res, resC: rules.offCaps.res, resL: rules.offCaps.res, resChaos: rules.offCaps.res };
-    [first, second].filter(Boolean).forEach(stat => { caps[stat] = full[stat]; });
-    return caps;
+    const targets = byValues(values.elite);
+    [first, second].filter(Boolean).forEach(stat => { targets[stat] = special[stat]; });
+    return targets;
 }
 
 function getZoneDefenseVariance(zone) {
@@ -5986,15 +5989,16 @@ function createEnemy(zone, marker, groupIndex) {
     let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
     let curved = zoneProgress * zoneProgress;
     let variance = getZoneDefenseVariance(zone);
-    // Bosses specialise in one or two defenses (getBossDefenseCaps); every value climbs the tier curve to its cap at tier 20.
+    // Every defense climbs the tier curve to its tier-20 value; bosses specialise in one or two (getBossDefenseTargets).
     const defenseRamp = clampNumber(curved + variance, 0, 1);
-    const bossCaps = isBoss ? getBossDefenseCaps(zone, enemyEle) : null;
-    const rampTo = (floor, cap) => floor + Math.floor(Math.max(0, cap - floor) * defenseRamp);
-    let drBase = isBoss ? rampTo(10, bossCaps.dr) : rampTo(0, isElite ? 45 : 20);
-    let resistBase = rampTo(5, isElite ? 60 : 25);
-    const resistBases = isBoss ? { resF: rampTo(15, bossCaps.resF), resC: rampTo(15, bossCaps.resC), resL: rampTo(15, bossCaps.resL) }
+    const bossTargets = isBoss ? getBossDefenseTargets(zone, enemyEle) : null;
+    const rankDefense = ENEMY_DEFENSE_TIER20[isElite ? 'elite' : 'normal'];
+    const rampTo = (floor, target) => floor + Math.floor(Math.max(0, target - floor) * defenseRamp);
+    let drBase = isBoss ? rampTo(10, bossTargets.dr) : rampTo(0, rankDefense.dr);
+    let resistBase = rampTo(5, rankDefense.res);
+    const resistBases = isBoss ? { resF: rampTo(15, bossTargets.resF), resC: rampTo(15, bossTargets.resC), resL: rampTo(15, bossTargets.resL) }
         : { resF: resistBase, resC: resistBase, resL: resistBase };
-    let chaosResBase = isBoss ? rampTo(15, bossCaps.resChaos) : resistBase;
+    let chaosResBase = isBoss ? rampTo(15, bossTargets.resChaos) : resistBase;
 
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
     let defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
@@ -7611,7 +7615,7 @@ function getZoneExplorationPlan(zone) {
     return zone.exploration ? {source:zone.exploration,zoneId:zone.id,bossStages:zone.exploration.bossStages||1} : null;
 }
 
-/** Like a Diablo II act area, each run faces north, east, south or west (2026-10-04): the map's clockwise quarter turns, 0..3.
+/** Each run faces north, east, south or west (2026-10-04): the map's clockwise quarter turns, 0..3.
  * The only randomness of the facing; fixtures that walk fixed coordinates pin it to undefined (the map's drawn facing). */
 function rollExplorationFacing() {return Math.floor(Math.random()*actExplorationMap.ROTATIONS);}
 
