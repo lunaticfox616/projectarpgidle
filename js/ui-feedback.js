@@ -4,51 +4,6 @@
     let dialogQueue = [];
     let activeDialog = null;
     let previousFocus = null;
-    let audioContext = null;
-    let lastCombatDeathSoundAt = -Infinity;
-    let lastLootDropSoundAt = -Infinity;
-    let lastMajorLootSoundAt = -Infinity;
-    let lastObjectSoundAt = -Infinity, lastLevelSoundAt = -Infinity;
-    let activeVoices = 0, resumingAudio = false, audioWarningShown = false;
-    // [Hz, gain, seconds, end Hz, delay seconds]. Quiet material sounds, distinct reward cadences.
-    const soundSpecs = {
-        open: [[340,.018,.055]], confirm: [[520,.024,.07]], cancel: [[220,.018,.055]],
-        danger: [[145,.028,.09]], success: [[660,.022,.08,880]],
-        kill: [[115,.012,.045,63]], killElite: [[155,.017,.065,85]],
-        killBoss: [[92,.024,.12,50],[196,.012,.2,98,.07]],
-        lootRare: [[988,.013,.09,1480]], lootMajor: [[784,.018,.13],[1175,.014,.19,1568,.09]],
-        potBreak: [[740,.014,.055,180],[370,.009,.04,100,.035]],
-        woodBreak: [[165,.018,.075,65]], chestOpen: [[260,.018,.07,130],[659,.012,.16,880,.075]],
-        levelUp: [[523,.016,.13],[659,.014,.14,0,.075],[784,.013,.2,1047,.15]]
-    };
-
-    function audioFailure(error) {
-        if (audioWarningShown) return;
-        audioWarningShown = true;
-        console.warn('[ui-feedback] sound playback unavailable', error);
-    }
-
-    function resumeAudio() {
-        if (!audioContext || audioContext.state !== 'suspended' || resumingAudio) return;
-        resumingAudio = true;
-        audioContext.resume().catch(audioFailure).finally(() => { resumingAudio = false; });
-    }
-    document.addEventListener('pointerdown', resumeAudio, { passive: true });
-    document.addEventListener('keydown', resumeAudio);
-
-    function playTone(spec, type) {
-        if (activeVoices >= 12) return;
-        const osc = audioContext.createOscillator(), gain = audioContext.createGain();
-        const now = audioContext.currentTime + (spec[4] || 0), end = now + spec[2];
-        osc.type = type; osc.frequency.setValueAtTime(spec[0], now);
-        if (spec[3]) osc.frequency.exponentialRampToValueAtTime(spec[3], end);
-        gain.gain.setValueAtTime(.0001, now);
-        gain.gain.linearRampToValueAtTime(spec[1], now + .004);
-        gain.gain.exponentialRampToValueAtTime(.0001, end);
-        osc.connect(gain); gain.connect(audioContext.destination);
-        osc.onended = () => { osc.disconnect(); gain.disconnect(); activeVoices--; };
-        osc.start(now); osc.stop(end); activeVoices++;
-    }
 
     function escapeFeedbackHtml(value) {
         return String(value == null ? '' : value)
@@ -98,37 +53,6 @@
         return root;
     }
 
-    function allowSound(kind) {
-        let feedbackNow = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-        if (String(kind).startsWith('kill')) {
-            if (kind !== 'killBoss' && feedbackNow - lastCombatDeathSoundAt < 80) return false;
-            lastCombatDeathSoundAt = feedbackNow;
-        }
-        if (['potBreak','woodBreak','chestOpen'].includes(kind)) {
-            if (feedbackNow - lastObjectSoundAt < 90) return false;
-            lastObjectSoundAt = feedbackNow;
-        }
-        if (kind === 'levelUp') {
-            if (feedbackNow - lastLevelSoundAt < 800) return false;
-            lastLevelSoundAt = feedbackNow;
-        }
-        return true;
-    }
-
-    function playUiFeedbackSound(kind) {
-        if (game?.settings?.uiSounds === false || document.hidden || game?.isBackgroundCalculation) return;
-        if (!allowSound(kind)) return;
-        let AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        try {
-            audioContext = audioContext || new AudioCtx();
-            if (audioContext.state === 'suspended') return; // no old sounds waiting for a gesture
-            const type = kind === 'danger' ? 'sawtooth' : /^(kill|pot|wood|chest)/.test(kind) ? 'triangle' : 'sine';
-            (soundSpecs[kind] || soundSpecs.open).forEach(spec => playTone(spec, type));
-        } catch (error) {
-            audioFailure(error);
-        }
-    }
 
     function normalizeDialogOptions(options) {
         let source = typeof options === 'string' ? { message: options } : (options || {});
@@ -417,17 +341,7 @@
         return close;
     }
 
-    /** A rare or better loot pile lands: a short rising tone, brighter for golden rule and uniques. At most one per 90 ms. */
-    function playLootDropSound(major) {
-        let at = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-        if (major && at - lastMajorLootSoundAt < 180) return;
-        if (!major && at - lastLootDropSoundAt < 90) return;
-        if (major) lastMajorLootSoundAt = at;
-        lastLootDropSoundAt = at;
-        playUiFeedbackSound(major ? 'lootMajor' : 'lootRare');
-    }
-
-    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker, showGameToast, playUiFeedbackSound, playLootDropSound };
+    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker, showGameToast };
     if (typeof safeExposeGlobals === 'function') safeExposeGlobals(exports);
     else Object.assign(window, exports);
 }());

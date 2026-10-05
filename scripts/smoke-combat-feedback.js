@@ -94,23 +94,5 @@ media=true;rectangles=[];
 run(`feedback=worldTreeSkillFx.feedback;feedback.begin(5000);feedback.death(feedbackCtx,{enemyId:7},.3,{x:50,y:50});`);
 assert.equal(rectangles.length,0,'reduced motion has no flying fragments');
 assert.equal(run('JSON.stringify(getBattleCameraShake(5000))'),' {"x":0,"y":0}'.trim());
-// Web Audio is an external boundary: verify envelopes, throttling, max simultaneous voices and release.
-const nodes=[], released=[];
-const param={setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}};
-runtime.AudioContext=class {
-    constructor(){this.currentTime=0;this.state='running';this.destination={};}
-    createOscillator(){const node={frequency:param,connect(){},disconnect(){released.push('osc');},start(at){tones.push(at);},stop(){}};nodes.push(node);return node;}
-    createGain(){return{gain:param,connect(){},disconnect(){released.push('gain');}};}
-};
-now=10000;
-run("playUiFeedbackSound('chestOpen');");assert.deepEqual(tones,[0,.075]);
-run("playUiFeedbackSound('potBreak');");assert.equal(tones.length,2,'one material sound per 90ms');
-for(let i=0;i<20;i++){now+=200;run("playUiFeedbackSound('killBoss');");}
-assert.equal(tones.length,12,'simultaneous voices are capped');
-nodes.forEach(n=>n.onended());assert.equal(released.length,24,'finished audio nodes are disconnected');
-now+=1000;run("playLootDropSound(false);playLootDropSound(true);playLootDropSound(true);");
-assert.equal(tones.length,15,'major loot can follow a rare drop, but simultaneous major drops share one chord');
-now+=1000;run("playUiFeedbackSound('levelUp');");assert.equal(tones.length,18);
-run("game.settings.uiSounds=false;playUiFeedbackSound('confirm');");assert.equal(tones.length,18);
-run("game.settings.uiSounds=true;game.isBackgroundCalculation=true;playUiFeedbackSound('confirm');");assert.equal(tones.length,18);
-console.log('combat feedback: native contacts, bounded chips, notices, real rewards, replay silence, reduced motion and audio budgets OK');
+// Web Audio behavior and real WAV assets are covered by smoke-game-audio.js.
+console.log('combat feedback: native contacts, bounded chips, notices, real rewards, replay silence and reduced motion OK');

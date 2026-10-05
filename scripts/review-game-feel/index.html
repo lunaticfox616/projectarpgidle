@@ -2,10 +2,32 @@
 <title>Rignin · 전투 감각 확인</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#111318;color:#ded5bf;font:14px system-ui}header{padding:12px 16px;border-bottom:1px solid #6e5733}
-h1{font-size:18px;margin:0 0 6px}p{font-size:12px;margin:4px 0;color:#a9acae}nav{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}button,a{background:#22262b;color:#efd6a3;border:1px solid #6e6044;padding:7px 11px;border-radius:3px;cursor:pointer;text-decoration:none}button:hover{background:#39372c}output{display:block;font-size:12px;min-height:17px}iframe{display:block;border:0;width:100%;height:720px}#captures{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}figure{margin:0}figure img{width:100%;image-rendering:pixelated}figcaption{font-size:12px;color:#a9acae}#error{color:#ff9d8d}@media(max-width:600px){header{padding:8px}h1{font-size:16px}nav{gap:4px}button{padding:7px;font-size:12px}iframe{height:700px}#captures{grid-template-columns:repeat(2,1fr)}}
+h1{font-size:18px;margin:0 0 6px}p{font-size:13px;margin:4px 0;color:#a9acae}nav{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}button,a,select{background:#22262b;color:#efd6a3;border:1px solid #6e6044;padding:9px 12px;border-radius:3px;cursor:pointer;text-decoration:none;max-width:100%}button:hover{background:#39372c}button:disabled{opacity:.4;cursor:default}output{display:block;font-size:12px;min-height:17px}iframe{display:block;border:0;width:100%;height:720px}#captures{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}figure{margin:0}figure img{width:100%;image-rendering:pixelated}figcaption{font-size:12px;color:#a9acae}#error{color:#ff9d8d}@media(max-width:600px){header{padding:8px}h1{font-size:16px}nav{gap:4px}button{padding:9px;font-size:12px}iframe{height:700px}#captures{grid-template-columns:repeat(2,1fr)}}
 </style>
-<header><h1>전투 감각 · 실제 게임 검토</h1><p>4242 포트 전용 테스트 저장. 먼저 게스트로 시작하고 안내를 닫아 주세요. 준비 버튼은 테스트 상태를 만듭니다. 지급·처치는 실제 게임 코드를 실행합니다.</p>
+<header><h1>전투 감각 · 실제 게임 검토</h1><p>효과음은 아래에서 바로 들을 수 있습니다. 게임 조작을 확인하려면 아래 게임에서 게스트로 시작해 주세요. 준비·처치 버튼은 4242 포트 전용 테스트 저장에만 적용됩니다.</p>
 <nav><button data-action="prepare">전투 준비</button><button data-action="fight">자동 전투</button><button data-action="hit">일반 / 치명타</button><button data-action="pack">5마리 처치</button><button data-action="boss">보스 마무리</button><button data-action="chest">상자 앞으로</button><button data-action="pot">항아리 앞으로</button><button data-action="crate">목재 상자 앞으로</button><button data-action="level">레벨업</button><button data-action="loot">중요 전리품</button><a href="/?dev=1">게임만 열기</a></nav>
 <output id="status">준비 중 · 버튼을 누르기 전에는 저장을 변경하지 않습니다.</output><output id="error"></output></header>
+<section style="padding:12px 16px;border-bottom:1px solid #6e5733" aria-label="생성 효과음 확인">
+<h2 style="font-size:20px;margin:0 0 8px">전면 교체한 게임 효과음</h2>
+<p>새 원본에서 개별 타격을 추출했습니다. 아래 듣기 버튼은 게임 진입 없이 바로 작동합니다.</p>
+<nav id="audio-quick" aria-label="수정 효과음 및 대표 공격음"></nav>
+<div style="margin:12px 0;padding:14px;border:1px solid #6e6044">
+<label for="audio-family">듣고 싶은 효과음</label>
+<nav><select id="audio-family" aria-label="속성·타입 계열"></select><button id="audio-family-play">한 번 듣기</button><button id="audio-repeat">초당 3회 · 6번 듣기</button><button id="audio-stop">재생 정지</button></nav>
+<nav><button id="audio-family-a">변주 A</button><button id="audio-family-b">변주 B</button><button id="audio-family-c">변주 C</button></nav>
+<output id="audio-audition-status" aria-live="polite">새 효과음 목록을 불러오는 중</output>
+<p>공격은 짧게, 보상은 조금 길게. 반복 재생은 선택한 효과음의 변주를 번갈아 사용합니다.</p>
+</div>
+<details><summary>실제 게임에서 재생·스킬 연결 확인</summary>
+<p>아래 게임에 진입한 뒤 효과음을 켜 주세요. 이 영역은 실제 게임의 음량과 동시 재생 제한을 확인합니다.</p>
+<nav><button id="audio-enable">효과음 켜기 / 준비</button><button id="audio-mute">효과음 끄기</button><button id="audio-burst">다수 타격 + 보스 보상</button></nav>
+<nav id="audio-samples" aria-label="효과음 종류"></nav>
+<label for="audio-skill">실제 스킬 분류 확인</label>
+<nav><select id="audio-skill" style="max-width:100%;background:#22262b;color:#efd6a3;padding:7px" aria-label="확인할 스킬"></select><button id="audio-skill-play">스킬 공격음 듣기</button></nav>
+<p>스킬 듣기는 실제 분류·재생 경로만 실행합니다. 장착 스킬·피해·저장 데이터는 바꾸지 않습니다.</p>
+<output id="audio-status">게임 진입 후 효과음을 켜 주세요.</output>
+<output id="audio-sequence" style="overflow-wrap:anywhere" aria-label="최근 공격음 순서"></output>
+</details>
+</section>
 <iframe id="game-frame" src="/?dev=1" title="게임 테스트"></iframe><div id="captures" aria-label="버튼 동작 후 실제 캔버스 연속 촬영"></div>
-<script src="fixture.js"></script></html>
+<script src="fixture.js"></script><script src="audio-fixture.js?v=20261006-rare-silent"></script></html>
