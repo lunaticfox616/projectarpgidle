@@ -17,6 +17,18 @@ actExplorationState.objects = (() => {
         for(const [kind,chance] of band.odds){edge+=chance;if(roll<edge)return kind;}
         return null;
     }
+    /** A supply chest's grade (data/maps.js EXPLORATION_CHEST_GRADES), fixed from the map seed and the row id on its own stream,
+     * so placement draws stay as they were. */
+    function chestGrade(seed,id) {
+        const next=random(hashSeed(`${seed}:${id}:grade`)>>>0);next();const roll=next();
+        let edge=0;
+        for(const row of EXPLORATION_CHEST_GRADES){edge+=row.weight;if(roll<edge)return row.id;}
+        return EXPLORATION_CHEST_GRADES[0].id;
+    }
+    /** The grade row of a supply chest; null for every other kind. */
+    function grade(row) {return row.kind==='chest'?EXPLORATION_CHEST_GRADES.find(g=>g.id===row.grade)||null:null;}
+    /** What the player reads: the chest's grade name, else the kind's label. */
+    function name(row) {return grade(row)?.label||labels[row.kind];}
     function candidates(run,map) {
         const occupied=new Set(run.packs.flatMap(p=>p.waiting).map(cellKey));
         if(!shelves.has(map))shelves.set(map,buildShelves(map));
@@ -87,7 +99,8 @@ actExplorationState.objects = (() => {
         const roll=rng(),count=roll<.25?0:roll<.85?1:2;
         for(let i=0;i<count;i++) {
             const at=pick(pool.filter(c=>entries.every(e=>near(e,c)>=6)),rng,true);
-            if(at)put(entries,'chest',at,plan);
+            const row=at&&put(entries,'chest',at,plan);
+            if(row)row.grade=chestGrade(config.seed,row.id);
         }
     }
     function props(entries,pool,rng,roomCount,plan) {
@@ -108,7 +121,7 @@ actExplorationState.objects = (() => {
         const map=actExplorationMap.forRun(run),rng=random(config.seed),entries=[];
         const pool=candidates(run,map),plan=wayPlan(run,map);
         const event=config.allowEvent?eventKind(config.loop,rng()):null;
-        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms},rng,plan);
+        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms,seed:config.seed},rng,plan);
         props(entries,pool,rng,actExplorationState.packRooms(map).length,plan);
         return {version:1,seed:config.seed,quantity:config.quantity,rarity:config.rarity,pendingId:null,entries};
     }
@@ -131,6 +144,7 @@ actExplorationState.objects = (() => {
         if(!actExplorationMap.walkable(map,row,true)||cells.has(cellKey(row)))throw Error('잘못된 탐험 오브젝트 위치');
         if(!map.rooms.some(r=>r.id===row.roomId&&['battle','optional'].includes(r.role)
             &&Math.abs(row.gx-r.gx)<=r.radiusX&&Math.abs(row.gy-r.gy)<=r.radiusY))throw Error('잘못된 탐험 오브젝트 방');
+        if(row.kind==='chest'?!grade(row):row.grade!==undefined)throw Error('잘못된 보급 상자 등급');
         validatePhase(row);
         ids.add(row.id);cells.add(cellKey(row));
     }
@@ -159,6 +173,8 @@ actExplorationState.objects = (() => {
             return;
         }
         validateHeader(source);validateReward(source);
+        // Chests saved before grades (2026-10-05) open as ordinary wooden ones; filling the default again changes nothing.
+        source.entries.forEach(row=>{if(row?.kind==='chest'&&row.grade===undefined)row.grade='wood';});
         const ids=new Set(),cells=new Set();source.entries.forEach(row=>validateRow(run,row,ids,cells));
         if(run.status==='cleared'&&active(run))throw Error('진행 중인 탐험 사건이 완료 처리되었습니다.');
         if(source.entries.filter(isEvent).length>1)throw Error('중복 탐험 사건');
@@ -187,5 +203,5 @@ actExplorationState.objects = (() => {
         if(run.objects.entries.some(isEvent))throw Error('아틀라스 오브젝트에 중복 전투 사건이 있습니다.');
         run.objects.pendingId=null;return run.objects;
     }
-    return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,labels,solid,solidCells,autoTarget};
+    return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,labels,grade,name,solid,solidCells,autoTarget};
 })();

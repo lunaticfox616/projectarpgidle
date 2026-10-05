@@ -19,12 +19,23 @@ const EQUIPMENT_DROP_RARITY_THRESHOLDS = Object.freeze({
     boss: { unique: 0.04, rare: 0.50, magic: 1 }
 });
 
+// PoE식 장비 드랍 변형(2026-10-05 사용자 요청, js/loot.js equipmentDropVariants): 고유가 아닌 장비 한 개가 떨어질 때 한 번 추첨한다.
+// duplicate: 똑같은 장비가 한 개 더. bundle: 같은 베이스 · 같은 희귀도 장비가 extra개 더(옵션은 따로). corrupted: 타락(제작 불가) 대신
+// 추가 옵션 값 × boost — 추가 옵션이 있는 마법 · 희귀만. odds는 앞에서부터 누적한 한 번의 추첨, fromLoop 전에는 나오지 않는다.
+// 수치는 초기 가설이며 드롭 경제 플레이테스트 대상이다.
+const EQUIPMENT_DROP_VARIANTS = Object.freeze({
+    fromLoop: 2,
+    odds: Object.freeze([['corrupted', 0.03], ['bundle', 0.02], ['duplicate', 0.012]]),
+    bundle: Object.freeze({ min: 2, max: 3 }),
+    corruptedBoost: 1.15
+});
+
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, BASIC_CURRENCY_DROP_CHANCES, ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
 

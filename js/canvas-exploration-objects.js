@@ -5,7 +5,6 @@
 actExplorationView.objects=(()=>{
     let layer,lastRun;
     const buttons=new Map();
-    const labels=actExplorationState.objects.labels;
     const PAL={o:'#1a120d',1:'#3a281b',2:'#5a3f2b',3:'#7a5638',4:'#9c744a',5:'#c09763',
         i:'#2b2b31',j:'#585a62',k:'#9a9ca4',g:'#8a6420',h:'#d3a443',y:'#f6dc84',
         a:'#3d261c',b:'#623a2b',c:'#85503a',d:'#a2684a',e:'#bf8a62',
@@ -36,18 +35,23 @@ actExplorationView.objects=(()=>{
         tracks:['................','................','................','................','................','................','................',
             '...........b....','..b.......b.b...','.b.b.......b....','..b......b......','........b.b.....','....b....b......','...b.b..........','....b...........','................']
     };
+    // Supply chest grades (data/maps.js EXPLORATION_CHEST_GRADES) repaint the wooden chest: silver gets steel bands and a silver lock,
+    // gold a gilded body with a ruby lock. The wooden chest keeps the base palette.
+    const TINTS={silver:{i:'#6e7280',j:'#c9ccd6',g:'#8f939e',h:'#e4e7ee',y:'#ffffff'},
+        gold:{1:'#4a3210',2:'#7a5418',3:'#a8782a',4:'#d9a842',5:'#f6dc84',i:'#b88a2a',j:'#fff0b0',g:'#7a2018',h:'#d04a3a',y:'#ffb0a0'}};
     const cache=new Map();
-    function sheet(name) {
-        if(cache.has(name))return cache.get(name);
+    function sheet(name,tint) {
+        const key=`${name}|${tint||''}`;
+        if(cache.has(key))return cache.get(key);
         const canvas=document.createElement('canvas');canvas.width=16;canvas.height=16;
-        const ctx=canvas.getContext('2d');
-        SPRITES[name].forEach((row,y)=>{for(let x=0;x<16;x++){const color=PAL[row[x]];if(color){ctx.fillStyle=color;ctx.fillRect(x,y,1,1);}}});
-        cache.set(name,canvas);return canvas;
+        const ctx=canvas.getContext('2d'),pal={...PAL,...TINTS[tint]};
+        SPRITES[name].forEach((row,y)=>{for(let x=0;x<16;x++){const color=pal[row[x]];if(color){ctx.fillStyle=color;ctx.fillRect(x,y,1,1);}}});
+        cache.set(key,canvas);return canvas;
     }
     /** Which picture a row shows, and whether it stands (actor) or lies on the floor (decal). */
     function look(row) {
         const spent=row.phase==='spent';
-        if(row.kind==='chest')return {name:spent?'chestOpen':'chest',standing:true};
+        if(row.kind==='chest')return {name:spent?'chestOpen':'chest',standing:true,tint:row.grade};
         if(row.kind==='sealed')return {name:spent?'sealedOpen':'sealed',standing:true};
         if(row.kind==='nest')return {name:spent?'nestSpent':'nest',standing:!spent};
         if(row.kind==='ambush')return {name:'tracks',standing:false};
@@ -86,8 +90,9 @@ actExplorationView.objects=(()=>{
             node=document.createElement('button');node.type='button';node.className='exploration-object-action';
             node.dataset.objectId=row.id;
             const action=['pot','crate'].includes(row.kind)?'부수기':row.kind==='nest'?'건드리기':'열기';
-            node.setAttribute('aria-label',`${labels[row.kind]} ${action}`);
-            const text=document.createElement('span');text.textContent=`${labels[row.kind]} · ${action}`;node.appendChild(text);
+            const name=actExplorationState.objects.name(row);
+            node.setAttribute('aria-label',`${name} ${action}`);
+            const text=document.createElement('span');text.textContent=`${name} · ${action}`;node.appendChild(text);
             node.addEventListener('click',event=>{event.stopPropagation();actExplorationProgress.objects.request(row.id);});
             layer.appendChild(node);buttons.set(row.id,node);
         }
@@ -107,7 +112,8 @@ actExplorationView.objects=(()=>{
         ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=fade(row);
         ctx.translate(Math.round(actor.point.x-8*scale+shake),Math.round(actor.y-15*scale));
         ctx.fillStyle='rgba(10,6,4,.38)';ctx.beginPath();ctx.ellipse(8*scale+scale,14.5*scale,6.5*scale,1.8*scale,0,0,Math.PI*2);ctx.fill();
-        ctx.drawImage(sheet(look(row).name),0,0,16*scale,16*scale);
+        const {name,tint}=look(row);
+        ctx.drawImage(sheet(name,tint),0,0,16*scale,16*scale);
         if(row.phase==='ready'&&['chest','sealed'].includes(row.kind))twinkle(ctx,row,scale,now);
         if(row.phase==='warning') {
             ctx.fillStyle='#1a120d';ctx.fillRect(2*scale,0,12*scale,2*scale);
@@ -117,7 +123,7 @@ actExplorationView.objects=(()=>{
     }
     /** A glint that wanders over a closed chest's lid every couple of seconds: it can be opened. */
     function twinkle(ctx,row,scale,now) {
-        const cycle=(now+row.gx*311+row.gy*173)%2200;if(cycle>420)return;
+        const cycle=(now+row.gx*311+row.gy*173)%(row.grade==='gold'?1100:2200);if(cycle>420)return;
         const x=4+Math.floor(cycle/60)%8,size=cycle<140||cycle>280?1:2;
         ctx.fillStyle=row.kind==='sealed'?'#f2d6ff':'#fff3c4';ctx.fillRect((x)*scale,3*scale,size*scale,size*scale);
     }

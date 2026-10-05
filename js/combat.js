@@ -8195,14 +8195,16 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
         game.equipmentDropProgress = roll.nextProgress;
         return;
     }
-    const item = generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity, zone });
-    const highlight = equipmentLootPolicy.highlight(item, game);
-    const accepted = addItemToInventory(item);
-    if (accepted) {
-        queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
-    }
+    // PoE식 변형(2026-10-05): 복제 · 같은 베이스 묶음이면 여러 개, 타락이면 한 개가 강해진다(js/loot.js equipmentDropVariants).
+    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity, zone }));
+    const kept = drop.items.filter(item => {
+        const highlight = equipmentLootPolicy.highlight(item, game);
+        const accepted = addItemToInventory(item);
+        if (accepted) queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
+        return accepted;
+    });
     game.equipmentDropProgress = roll.nextProgress;
-    return accepted ? item : null;
+    return kept[0] || null;
 };
 
 function grantRealmBossUniqueLoot(enemy, zone) {

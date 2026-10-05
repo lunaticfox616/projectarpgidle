@@ -9326,6 +9326,16 @@ function generateEquipmentDrop(enemy, options) {
     return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
 }
 
+/** A stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise.
+ * raise: the result grows by at least one step (a corrupted drop never shows the same number). */
+function boostItemStatValue(statId, value, factor, raise = false) {
+    const decimal = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId);
+    const step = decimal ? 0.1 : 1;
+    let boosted = decimal ? Math.round(value * factor * 10) / 10 : Math.max(1, Math.floor(value * factor));
+    if (raise) boosted = Math.max(boosted, Math.round((value + step) * 10) / 10);
+    return boosted;
+}
+
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
 // 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
 function maybeApplyExceptionalBase(item) {
@@ -9335,11 +9345,7 @@ function maybeApplyExceptionalBase(item) {
         if (!stat || Math.random() >= 0.01) return;
         let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
             : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
-        let boosted = max * 1.2;
-        let usesDecimal = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
-        if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
-        else boosted = Math.max(1, Math.floor(boosted));
-        stat.val = boosted;
+        stat.val = boostItemStatValue(stat.id, max, 1.2);
         stat.exceptional = true;
         names.push(stat.statName || getStatName(stat.id));
     });

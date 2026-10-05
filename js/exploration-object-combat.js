@@ -132,7 +132,7 @@ actExplorationProgress.objects = (() => {
         if(run.objects.pendingId===row.id){cancel(run);run.destination=null;}
         remember(run);
         combatLootReceipts.capture(game,()=>pay(run,row,{prop,items,enemy,rng}));
-        if(!prop)dispatchRuntimeEvent('exploration-object',{kind:'reward',name:state.labels[row.kind]});
+        if(!prop)dispatchRuntimeEvent('exploration-object',{kind:'reward',name:state.name(row)});
         if(!game.isBackgroundCalculation)queueImportantSave(220);
     }
     /** An opened chest still stands on its cell: its loot falls beside it (a free neighbour near the hero, not the hero's cell). */
@@ -143,13 +143,17 @@ actExplorationProgress.objects = (() => {
         free.sort((a,b)=>Number(distance(a,hero)===0)-Number(distance(b,hero)===0)||distance(a,hero)-distance(b,hero));
         return free[0]||row;
     }
+    /** Item rolls: the map quantity plus the chest grade's extra rolls. The grade's first rolls always give an item, the first
+     * `rare` of them at least rare; every item takes one PoE-style variant draw scaled by the grade (data/maps.js EXPLORATION_CHEST_GRADES). */
     function rollItems(run,row,enemy,rng) {
-        const quantity=run.objects.quantity,count=Math.floor(quantity)+Number(rng()<quantity%1),items=[];
-        const zone=getZone(run.zoneId),guaranteed=state.isEvent(row)||!contentProgression.canDropCurrency('magicBud');
+        const grade=state.grade(row)||{rolls:0,guaranteed:0,rare:0,variantScale:1};
+        const quantity=run.objects.quantity,count=Math.floor(quantity)+Number(rng()<quantity%1)+grade.rolls,items=[];
+        const zone=getZone(run.zoneId),always=state.isEvent(row)||!contentProgression.canDropCurrency('magicBud');
         for(let i=0;i<count;i++) {
-            if(!guaranteed&&rng()>=.45)continue;
-            const minimumRarity=rng()<Math.min(.65,.18+run.objects.rarity/1000)?'rare':'magic';
-            items.push(generateEquipmentDrop(enemy,{zone,minimumRarity}));
+            if(!always&&i>=grade.guaranteed&&rng()>=.45)continue;
+            const rare=i<grade.rare||rng()<Math.min(.65,.18+run.objects.rarity/1000);
+            const drop=equipmentDropVariants.expand(generateEquipmentDrop(enemy,{zone,minimumRarity:rare?'rare':'magic'}),{rng,scale:grade.variantScale});
+            items.push(...drop.items);
         }
         return items;
     }
@@ -159,7 +163,7 @@ actExplorationProgress.objects = (() => {
         if(prop&&rng()>=.3)return;
         const key=contentProgression.canDropCurrency('magicBud')?'magicBud':'formlessDew';
         if(!contentProgression.canDropCurrency(key))return;
-        const base=prop?1:state.isEvent(row)?3:1;
+        const base=prop?1:state.isEvent(row)?3:state.grade(row).currency;
         const scaled=base*run.objects.quantity,amount=Math.floor(scaled)+Number(rng()<scaled%1);
         awardCurrency(key,amount,'drop');
         queueEnemyGroundLoot(enemy,{currency:key,amount});

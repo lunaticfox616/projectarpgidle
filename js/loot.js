@@ -294,6 +294,7 @@ safeExposeGlobals({ getCurrencyDrops });
         if (matches(item, targetGame)) return { reason: '목표 옵션 일치', color: '#7fffd2', priority: 3 };
         if (item.rarity === 'unique') return { reason: '고유 장비 획득', color: '#ffbb69', priority: 2 };
         if (item.exceptionalBase) return { reason: '특출 베이스 발견', color: '#f3d779', priority: 1 };
+        if (item.corrupted) return { reason: '타락 장비 발견', color: '#e7685c', priority: 1 };
         return null;
     }
 
@@ -324,4 +325,74 @@ safeExposeGlobals({ getCurrencyDrops });
 
     const equipmentLootPolicy = Object.freeze({ statOptions, normalizeTargets, normalizeSettings, matches, highlight, collectHighlights });
     safeExposeGlobals({ equipmentLootPolicy });
+})();
+
+// PoE식 장비 드랍 변형(2026-10-05 사용자 요청, data/items.js EQUIPMENT_DROP_VARIANTS): 떨어진 장비 한 개를 복제 · 같은 베이스 묶음 ·
+// 타락(제작 불가 대신 추가 옵션 강화) 목록으로 바꾼다. 몬스터 드랍(combat.js rollEquipmentLoot)과 탐험 상자가 같은 추첨을 쓴다.
+(function () {
+    'use strict';
+
+    function explicitLines(item) {
+        return (item.stats || []).filter(stat => stat && !stat.fixedValue && Number(stat.val) > 0);
+    }
+
+    /** One draw per dropped item. Null before fromLoop, for uniques and already corrupted items; a corrupted roll on an item
+     * without explicit lines drops as it is. scale multiplies every chance (better chests). */
+    function pick(item, roll, scale) {
+        const rules = EQUIPMENT_DROP_VARIANTS;
+        if (!item || item.rarity === 'unique' || item.corrupted || (Number(game.season) || 1) < rules.fromLoop) return null;
+        let edge = 0;
+        for (const [kind, chance] of rules.odds) {
+            edge += chance * scale;
+            if (roll < edge) return kind === 'corrupted' && !explicitLines(item).length ? null : kind;
+        }
+        return null;
+    }
+
+    function corrupt(item) {
+        const boost = EQUIPMENT_DROP_VARIANTS.corruptedBoost;
+        explicitLines(item).forEach(stat => {
+            stat.val = boostItemStatValue(stat.id, Number(stat.val), boost, true);
+            (stat.extraStats || []).filter(extra => Number(extra.val) > 0)
+                .forEach(extra => { extra.val = boostItemStatValue(extra.id, Number(extra.val), boost, true); });
+        });
+        item.corrupted = true;
+        return [item];
+    }
+
+    function duplicate(item) {
+        const copy = JSON.parse(JSON.stringify(item));
+        copy.id = ++itemIdCounter;
+        return [item, copy];
+    }
+
+    /** Same base, same rarity and level; each extra rolls its own explicit lines. */
+    function bundle(item, rng) {
+        const base = BASE_ITEM_DB.find(row => row.id === item.baseId);
+        if (!base) return [item];
+        const { min, max } = EQUIPMENT_DROP_VARIANTS.bundle;
+        const extra = min + Math.floor(rng() * (max - min + 1));
+        const origin = { dropRealm: item.dropRealm, affixTierCap: item.affixTierCap,
+            affixTierFloor: getDroppedAffixTierRange(item.affixTierCap).min, tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF };
+        const extras = Array.from({ length: extra }, () => levelProgression.stampItem(createItemFromBase(base, item.rarity, item.itemTier, origin), item.itemLevel));
+        return [item, ...extras];
+    }
+
+    /**
+     * @param {object} item a freshly generated drop (corrupted in place when that variant is drawn)
+     * @param {{rng?: function(): number, scale?: number}} [options] rng in [0,1); scale multiplies the variant chances
+     * @returns {{kind: 'duplicate'|'bundle'|'corrupted'|null, items: object[]}} the original item first
+     */
+    function expand(item, options = {}) {
+        const rng = options.rng || Math.random;
+        const kind = pick(item, rng(), Math.max(0, Number(options.scale) || 1));
+        if (!kind) return { kind: null, items: [item] };
+        const items = kind === 'corrupted' ? corrupt(item) : kind === 'duplicate' ? duplicate(item) : bundle(item, rng);
+        // js/currency-acquisition-ui.js names the variant in the loot log.
+        dispatchRuntimeEvent('equipment-drop-variant', { kind, items });
+        return { kind, items };
+    }
+
+    const equipmentDropVariants = Object.freeze({ expand });
+    safeExposeGlobals({ equipmentDropVariants });
 })();
