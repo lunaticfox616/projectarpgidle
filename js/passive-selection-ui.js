@@ -51,11 +51,12 @@ const passiveSelectionUi = (() => {
         if (uiDisplay.matches('(max-width: 1080px)')) {
             actions.preview(node, point.clientX, point.clientY);
             document.querySelector('[data-passive-confirm]').onclick = () => {
-                hide(); actions.activate({ clientX: point.clientX, clientY: point.clientY });
+                if (document.getElementById('passive-mobile-detail').hidden) return;
+                hide(); return actions.activate({ nodeId: node.id, clientX: point.clientX, clientY: point.clientY });
             };
             return;
         }
-        actions.activate({ fromTouch: true, clientX: point.clientX, clientY: point.clientY });
+        actions.activate({ fromTouch: true, nodeId: node.id, clientX: point.clientX, clientY: point.clientY });
     }
     function bindTools() {
         const toolbar = document.querySelector('.passive-tree-toolbar');

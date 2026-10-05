@@ -1200,6 +1200,9 @@ function syncMobilePrimaryNavigationState() {
     let more = document.getElementById('btn-mobile-nav-more');
     let topHeader = document.getElementById('tab-header-main');
     if (!more || !topHeader) return;
+    document.querySelectorAll('[data-mobile-tab-button]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.classList.contains('active')));
+    });
     let activeSecondary = !!topHeader.querySelector(':scope > .tab-btn.active');
     more.classList.toggle('active', activeSecondary);
     let hasNotice = Array.from(topHeader.querySelectorAll('.tab-btn .noti-dot'))
@@ -11215,6 +11218,7 @@ function setupCanvasEvents() {
         hoverNode = getPassiveNodeAtClientPosition(clientX, clientY, 0);
         if (oldHover !== hoverNode) {
             drawPassiveTree();
+            if (uiDisplay.matches('(max-width: 1080px)')) return;
             if (hoverNode) renderPassiveTooltip(hoverNode, clientX, clientY);
             else hideCanvasTooltip();
         } else if (hoverNode) {
@@ -11237,7 +11241,9 @@ function setupCanvasEvents() {
 
     async function activateHoveredPassive(opts) {
         let options = opts || {};
-        if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) {
+        if (options.nodeId) {
+            hoverNode = PASSIVE_TREE.nodes[options.nodeId];
+        } else if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) {
             hoverNode = getPassiveNodeAtClientPosition(options.clientX, options.clientY, 0);
         }
         if (dragDist >= 10 || !hoverNode) return;
@@ -11275,7 +11281,7 @@ function setupCanvasEvents() {
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
             return addLog(`패시브 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster", { toast: true });
         }
-        if (options.fromTouch && (canActivate || canPathActivate)) {
+        if (options.fromTouch) {
             let now = Date.now();
             if (pendingTouchPassiveId !== hoverNode.id || (now - pendingTouchPassiveAt) > 1200) {
                 pendingTouchPassiveId = hoverNode.id;
@@ -11330,6 +11336,10 @@ function setupCanvasEvents() {
 
     bindPassiveTreeMouseEvents(canvas, { drag: updateDrag, hover: updateHoverNode, hideTooltip: hideCanvasTooltip,
         activate: async point => {
+            if (uiDisplay.matches('(max-width: 1080px)')) {
+                const node = getPassiveNodeAtClientPosition(point.clientX, point.clientY, 0);
+                return passiveSelectionUi.touch(node, point, { preview: renderPassiveTooltip, activate: activateHoveredPassive });
+            }
             await activateHoveredPassive(point);
             if (hoverNode && canvasTooltip.style.display !== 'none') {
                 renderPassiveTooltip(hoverNode, point.clientX, point.clientY);
