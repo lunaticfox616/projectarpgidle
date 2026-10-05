@@ -4743,7 +4743,7 @@ function formatDamageNumberForDisplay(value, format) {
 
 const MAX_BATTLE_DAMAGE_TEXTS = 48;
 const DAMAGE_TEXT_STACK_WINDOW_MS = 520;
-const DAMAGE_TEXT_STACK_SPACING = 18;
+const DAMAGE_TEXT_STACK_SPACING = 28;
 const DAMAGE_TEXT_STACK_SHIFT_MS = 90;
 const DAMAGE_TEXT_MAX_STACK = 9;
 
@@ -4876,9 +4876,9 @@ function getDamageTextFillColor(text) {
 function isStrongDamageText(text) {
     return !text.bodyCue && !text.miss && (text.crit || text.impactTier === 'heavy' || text.impactTier === 'annihilate');
 }
-// Ordinary dealt hits fade back (72%) so crits, heavy hits and damage taken stand out in a busy fight.
+// Ordinary dealt hits sit back a little (90%) so crits, heavy hits and damage taken stand out, yet stay readable on a busy floor.
 function getDamageTextPeakAlpha(text) {
-    return text.enemyHit || text.miss || text.bodyCue || isStrongDamageText(text) ? 1 : 0.72;
+    return text.enemyHit || text.miss || text.bodyCue || isStrongDamageText(text) ? 1 : 0.9;
 }
 // 치명타·강타 숫자는 처음 잠깐 크게 튀어나왔다가 제자리 크기로 돌아온다(표시 전용).
 function applyDamageTextPop(ctx, text, t, anchor) {
@@ -4895,13 +4895,14 @@ function drawDamageTexts(ctx, now) {
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
         let t = clampNumber(elapsed / text.duration, 0, 1);
         let easedRise = 1 - Math.pow(1 - t, 2);
-        let rise = text.bodyCue ? 0 : ((text.dot ? 13 : 19) + (text.crit ? 5 : 0));
+        let rise = text.bodyCue ? 0 : ((text.dot ? 16 : 24) + (text.crit ? 6 : 0));
         let x = text.x;
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
-        const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
-        const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16)))));
+        // Sizes chosen for the pixel font over a busy floor (2026-10-05 user request: numbers were hard to see).
+        const tierSize = text.impactTier === 'annihilate' ? 38 : (text.impactTier === 'heavy' ? 34 : 0);
+        const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 18 : (text.dot ? 20 : (text.crit ? 31 : 26))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
         ctx.textAlign = text.bodyCue || text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
         ({ x, y } = drawBattlePlayerFigure.readability.label(ctx, text, { x, y }, fontSize));
@@ -4909,7 +4910,8 @@ function drawDamageTexts(ctx, now) {
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
-        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 2.8 : (strong ? 2.4 : 2));
+        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 4.5 : (strong ? 4 : 3.5));
+        ctx.lineJoin = 'round';
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
         ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (strong ? 4 : 0));
@@ -9402,13 +9404,25 @@ function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 
+/** guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등)과 목표·보호 장비.
+ * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. */
+function isGuaranteedEquipmentPickup(item, options) {
+    return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item);
+}
+
+/** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
+ * An exploration drop that would be kept waits on the floor (js/exploration-ground-loot.js); the others resolve at once. */
+function previewEquipmentPickup(item, options) {
+    normalizeItem(item);
+    if (isGuaranteedEquipmentPickup(item, options)) return 'kept';
+    if (!passesItemPickupFilter(item)) return 'filtered';
+    return game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities?.[item.rarity] ? 'salvaged' : 'kept';
+}
+
 function addItemToInventory(item, options) {
     normalizeItem(item);
     const logLoot = game.settings.showLootLog;
-    // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
-    // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
-    let uniqueHuntTarget = uniqueHuntRuntime.isTargetItem(item);
-    let guaranteedKeep = !!(options && options.guaranteedKeep) || uniqueHuntTarget || equipmentLootPolicy.matches(item);
+    let guaranteedKeep = isGuaranteedEquipmentPickup(item, options);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
     let offlineStashEnabled = game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;

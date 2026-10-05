@@ -136,11 +136,59 @@ function getHanaSwingTiming(swing, direction) {
     return { start: swing.start, impactAt: swing.start + windup, direction, channelUntil };
 }
 
-/** Only a hit worth at least 6% of max life flashes the sprite; chip damage from archers just plays the hurt pose. */
+/** A hit worth at least 6% of max life tints the body harder than chip damage from archers. */
 function isHeavyPlayerHit(hit, stats) {
     if (!hit) return false;
     return Number(hit.damage) >= Math.max(1, Number(stats.maxHp) || 0) * 0.06;
 }
+
+const HERO_HIT_TINT_MS = 280;
+const HERO_HIT_TINT_HOLD_MS = 90;
+const HERO_HIT_TINT_COLOUR = '#ff2a1f';
+/** Red hit tint strength (0..1) at `now`: every hit on the hero tints its body red, holds for HERO_HIT_TINT_HOLD_MS and fades by
+ * HERO_HIT_TINT_MS, whatever it is doing — attacking, walking or standing (2026-10-05 user request). Heavy hits tint harder. */
+function getHeroHitTintStrength(now, stats) {
+    for (let index = battleFx.length - 1; index >= 0; index--) {
+        const fx = battleFx[index];
+        if (!fx || fx.type !== 'playerHit' || fx.start > now) continue;
+        const age = now - fx.start;
+        if (age >= HERO_HIT_TINT_MS) continue;
+        const fade = age < HERO_HIT_TINT_HOLD_MS ? 1 : 1 - (age - HERO_HIT_TINT_HOLD_MS) / (HERO_HIT_TINT_MS - HERO_HIT_TINT_HOLD_MS);
+        return (isHeavyPlayerHit(fx, stats || {}) ? 0.82 : 0.62) * fade;
+    }
+    return 0;
+}
+
+/** Draws the hero figure with the red hit tint laid inside its own silhouette. The figure is drawn a second time, with the same
+ * transform, onto one reused offscreen layer only while a tint is fading, so an untouched hero costs nothing extra. */
+const drawTintedBattlePlayerFigure = (() => {
+    let layer = null;
+    return function draw(ctx, state, position) {
+        // Some sprite paths leave a shadow's low alpha on the context, so the tint is scaled by the alpha before the figure.
+        const baseAlpha = ctx.globalAlpha;
+        drawBattlePlayerFigure(ctx, state, position);
+        const strength = getHeroHitTintStrength(state.now, state.motionState && state.motionState.playerStats);
+        if (!(strength > 0) || !ctx.canvas) return;
+        layer = layer || document.createElement('canvas');
+        if (layer.width !== ctx.canvas.width || layer.height !== ctx.canvas.height) {
+            layer.width = ctx.canvas.width; layer.height = ctx.canvas.height;
+        }
+        const paint = layer.getContext('2d');
+        paint.save();
+        paint.setTransform(1, 0, 0, 1, 0, 0); paint.clearRect(0, 0, layer.width, layer.height);
+        paint.setTransform(ctx.getTransform()); paint.imageSmoothingEnabled = false;
+        drawBattlePlayerFigure(paint, state, position);
+        paint.setTransform(1, 0, 0, 1, 0, 0);
+        paint.globalCompositeOperation = 'source-in'; paint.globalAlpha = 1;
+        paint.fillStyle = HERO_HIT_TINT_COLOUR; paint.fillRect(0, 0, layer.width, layer.height);
+        paint.restore();
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = baseAlpha * strength;
+        ctx.drawImage(layer, 0, 0);
+        ctx.restore();
+    };
+})();
 
 /** How fast the legs run (1 = the base step, COMBAT_GRID_CONFIG.playerMoveIntervalSec): on a map exploration the actual time the
  * hero takes for this tile, elsewhere the movement speed. Above HERO_RUN_RATE_MAX the cycle would flicker, so it stops there. */
@@ -162,7 +210,6 @@ function collectHanaPlayerMotion(motion, now) {
     return {
         attack: getHanaSwingTiming(found.swing, motion.attackDirection),
         hurtAt: found.hit ? found.hit.start : null,
-        hurtHeavy: isHeavyPlayerHit(found.hit, stats),
         downProgress: found.down ? clampNumber((now - found.down.start) / Math.max(1, found.down.duration), 0, 1) : null,
         running: move >= 90,
         moveRate: getHeroRunRate(move)

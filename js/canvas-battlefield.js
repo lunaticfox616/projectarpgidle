@@ -1611,12 +1611,12 @@ function getEnemyFieldBarLift(enemy) {
     return Math.max(base, Math.round(drawn + 10));
 }
 
-/** Damage numbers sit beside the body instead of on it — taken to the left, dealt to the right — spaced by half the drawn
- * sprite so a 2x2 boss pushes them further out. Drawn height stands in for width (the body art is about as wide as tall).
- * @param {number} drawnHeight sprite height drawn this frame in CSS px, 0 when unknown
- * @param {number} tileW grid tile width in CSS px */
-function getDamageTextSideOffset(drawnHeight, tileW) {
-    return Math.round(Math.max(14, (Number(tileW) || 0) * 0.42, (Number(drawnHeight) || 0) * 0.4));
+/** Damage numbers pop centred over the head, just above the unit's health bar, and rise from there (2026-10-05 user request):
+ * beside the body they read as belonging to the neighbour. The readability layout lifts a number clear of bars and the hero.
+ * @param {number} feetY the unit's screen y at its feet in CSS px
+ * @param {number} barLift the unit's health bar height above its feet in CSS px */
+function getDamageTextHeadY(feetY, barLift) {
+    return Math.round(feetY - barLift - 6);
 }
 
 /** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
@@ -2024,7 +2024,7 @@ function drawBattlePlayerActor(ctx, state) {
         ctx.scale(-1, 1);
     }
     drawSkillWeaponLayer(ctx, position, state.now, 'back');
-    drawBattlePlayerFigure(ctx, state, position);
+    drawTintedBattlePlayerFigure(ctx, state, position);
     drawSkillWeaponLayer(ctx, position, state.now, 'front');
     ctx.restore();
     drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
@@ -2416,9 +2416,8 @@ function renderBattlefield(forceWhenHidden) {
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
                     start: now,
-                    x: enemyPos.x + getDamageTextSideOffset(enemyDrawnHeights.get(enemyPos.enemy) || 0, gridProj.tileW),
-                    y: enemyPos.y - 30,
-                    side: 1,
+                    x: enemyPos.x,
+                    y: getDamageTextHeadY(enemyPos.y, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) : 56),
                     value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
@@ -2446,9 +2445,8 @@ function renderBattlefield(forceWhenHidden) {
                 const head = hanaActors.headY(now);
                 spawnDamageText({
                     start: now,
-                    x: playerPos.x - getDamageTextSideOffset(head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head, gridProj.tileW),
-                    y: playerPos.y - 36,
-                    side: -1,
+                    x: playerPos.x,
+                    y: getDamageTextHeadY(playerPos.y, (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head) + 12),
                     value: fx.damage,
                     enemyHit: true,
                     deflected: !!fx.deflected
@@ -2463,9 +2461,8 @@ function renderBattlefield(forceWhenHidden) {
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
                     start: now,
-                    x: summonPos.x - getDamageTextSideOffset(0, gridProj.tileW),
-                    y: summonPos.y - 34,
-                    side: -1,
+                    x: summonPos.x,
+                    y: getDamageTextHeadY(summonPos.y, 40),
                     value: fx.damage,
                     enemyHit: true
                 });

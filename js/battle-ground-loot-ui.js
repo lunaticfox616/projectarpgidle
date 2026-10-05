@@ -1,4 +1,5 @@
-// Presentation receipts only. Inventory/currency grants never depend on these nodes or timers.
+// Presentation receipts, plus the exploration floor piles (js/exploration-ground-loot.js) drawn from the run and clickable:
+// a click is the only grant this layer asks for, and it goes through actExplorationProgress.collectPile.
 // Called once by renderBattlefield between the floor and actor passes; no additional frame loop.
 const battleGroundLoot = (() => {
     let ground, air, foreground, canvas, geometry = '', zone, epoch;
@@ -27,6 +28,7 @@ const battleGroundLoot = (() => {
 
     function clear() {
         entries.forEach(remove);
+        floorPiles.clear();
         motes.forEach(mote => { mote.getAnimations().forEach(animation => animation.cancel()); mote.remove(); });
         motes.clear();
         if (foreground) { foreground.width = 1; foreground.height = 1; foreground.hidden = true; }
@@ -37,7 +39,8 @@ const battleGroundLoot = (() => {
         ground = document.createElement('div'); ground.className = 'battle-loot-layer';
         air = document.createElement('div'); air.className = 'battle-loot-air';
         foreground = document.createElement('canvas'); foreground.className = 'battle-loot-foreground';
-        [ground, foreground, air].forEach(node => { node.setAttribute('aria-hidden', 'true'); canvas.parentElement.append(node); });
+        [ground, foreground, air].forEach(node => canvas.parentElement.append(node));
+        [foreground, air].forEach(node => node.setAttribute('aria-hidden', 'true'));
         document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
     }
 
@@ -198,7 +201,7 @@ const battleGroundLoot = (() => {
 
     function room(important) {
         if (entries.size < displayLimit()) return true;
-        const oldest = [...entries.values()].find(entry => entry.marker.dataset.beam !== 'true');
+        const oldest = [...entries.values()].find(entry => !entry.floor && entry.marker.dataset.beam !== 'true');
         if (!oldest && !important) return false;
         remove(oldest || entries.values().next().value);
         return true;
@@ -209,6 +212,7 @@ const battleGroundLoot = (() => {
         const important = receipts.some(isMajor);
         if (!room(important)) return;
         const marker = document.createElement('div'); marker.className = 'battle-loot-drop';
+        marker.setAttribute('aria-hidden', 'true');
         const point = originFor(cell, projection);
         marker.dataset.gx = String(cell.gx); marker.dataset.gy = String(cell.gy);
         marker.style.setProperty('--rest-angle', (receipts[0].item?.slot === '무기' ? 54 : -16) + 'deg');
@@ -309,6 +313,59 @@ const battleGroundLoot = (() => {
         }
     }
 
+    // ---- floor piles: equipment waiting on an exploration map until the hero walks over it or the player clicks it.
+    const floorPiles = new Map(); // "gx,gy" → entry
+    const landedFloorIds = new Set(); // item ids whose landing already played: a redraw after a tab switch does not drop them again
+    const floorReceipts = pile => pile.rows.map(row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight }))
+        .sort((a, b) => importance(b) - importance(a));
+
+    function pickFloor(event, entry) {
+        event.preventDefault(); event.stopPropagation();
+        actExplorationProgress.collectPile(entry.cell);
+    }
+    function floorMarker(entry, pile, projection, fresh) {
+        const marker = entry.marker, receipts = floorReceipts(pile);
+        marker.replaceChildren();
+        const flight = appearance(marker, receipts); beam(marker, receipts[0]);
+        const names = receipts.map(receipt => receipt.item.name);
+        marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
+        place(marker, originFor(entry.cell, projection)); yieldCrowdedArms(marker);
+        if (fresh) launch(entry, flight, originFor(entry.cell, projection));
+        else marker.classList.add('landed');
+    }
+    function addFloorPile(key, pile) {
+        const marker = document.createElement('div'); marker.className = 'battle-loot-drop is-floor';
+        marker.setAttribute('role', 'button'); marker.tabIndex = 0;
+        marker.dataset.gx = String(pile.gx); marker.dataset.gy = String(pile.gy);
+        marker.style.setProperty('--rest-angle', (pile.rows[0].item.slot === '무기' ? 54 : -16) + 'deg');
+        const entry = { marker, cell: { gx: pile.gx, gy: pile.gy }, timers: new Set(), floor: true, ids: '' };
+        marker.addEventListener('click', event => pickFloor(event, entry));
+        marker.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') pickFloor(event, entry); });
+        ground.append(marker); entries.set(marker, entry); floorPiles.set(key, entry);
+        return entry;
+    }
+    /** Mirrors the run's floor: new piles land, changed piles redraw their names, picked-up piles fly to the hero. */
+    function syncFloor(projection) {
+        const run = actExplorationState.current(game);
+        const piles = run ? actExplorationState.groundLoot.piles(run) : [];
+        const live = new Set();
+        for (const pile of piles) {
+            const key = `${pile.gx},${pile.gy}`, ids = pile.rows.map(row => row.item.id).join(',');
+            live.add(key);
+            const existing = floorPiles.get(key), entry = existing || addFloorPile(key, pile);
+            if (entry.ids === ids) continue;
+            entry.ids = ids;
+            const fresh = pile.rows.some(row => !landedFloorIds.has(row.item.id));
+            pile.rows.forEach(row => landedFloorIds.add(row.item.id));
+            floorMarker(entry, pile, projection, fresh);
+        }
+        for (const [key, entry] of floorPiles) {
+            if (live.has(key)) continue;
+            floorPiles.delete(key); entry.floor = false; entry.marker.removeAttribute('role'); entry.marker.tabIndex = -1;
+            absorb(entry);
+        }
+    }
+
     function visible(source) {
         return source.offsetParent !== null && source.clientWidth > 0 && source.clientHeight > 0
             && !document.hidden && !game.isBackgroundCalculation;
@@ -319,9 +376,10 @@ const battleGroundLoot = (() => {
         if (zone !== game.currentZoneId || epoch !== battleVisualState.lootEpoch) {
             clear(); zone = game.currentZoneId; epoch = battleVisualState.lootEpoch; seen = new WeakSet();
         }
-        if (!canvas && !battleFx.some(fx => fx.loot)) return false;
+        const run = actExplorationState.current(game);
+        if (!canvas && !battleFx.some(fx => fx.loot) && !(run && run.groundLoot && run.groundLoot.length)) return false;
         if (!canvas) mount(source);
-        resize(); projectEntries(projection); consume(now, projection);
+        resize(); projectEntries(projection); consume(now, projection); syncFloor(projection);
         return hasPresentation();
     }
 
@@ -344,6 +402,11 @@ const battleGroundLoot = (() => {
         next.imageSmoothingQuality = ctx.imageSmoothingQuality;
         return next;
     }
+
+    addEventListener('project-idle:floor-loot-collected', ({ detail }) => {
+        if (!game.settings.showLootLog) return;
+        detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`, '', { item }));
+    });
 
     return Object.freeze({ actorContext });
 })();

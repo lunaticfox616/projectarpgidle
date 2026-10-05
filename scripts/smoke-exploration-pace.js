@@ -35,7 +35,7 @@ run(`game=mergeDefaults({settings:{mapCompleteAction:'repeatZone'}});startEncoun
     game.actExploration.status='cleared';finishEncounterRun();
     window.legacy=JSON.parse(serializeSaveState(game));legacy.actExploration.departure.remainingMs=5500;
     game=mergeDefaults(legacy);`);
-assert.equal(run('game.actExploration.departure.remainingMs'),1400,'old completion waits adopt the shorter delay on load');
+assert.equal(run('game.actExploration.departure.remainingMs'),5000,'old completion waits adopt the five second delay on load');
 
 let now=1000;runtime.performance.now=()=>now;
 run('clearBattleVisualBacklog();requestBattleHitStop({id:1,crit:true});');

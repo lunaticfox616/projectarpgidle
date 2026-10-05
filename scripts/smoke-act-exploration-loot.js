@@ -12,7 +12,10 @@ const gold=run('game.currencies.goldenRule'),count=run('game.inventory.length');
 run(`awardEnemyLootCurrency('goldenRule',3);
     rollEquipmentLoot(game.actExploration.packs[0].waiting[0],getZone(0),1);`);
 assert.equal(run('game.currencies.goldenRule'),gold+3,'a drop is spendable while the map is active');
-assert.equal(run('game.inventory.length'),count+1,'equipment is owned before the boss');
+// 2026-10-05: equipment waits on the floor until the hero picks it up (js/exploration-ground-loot.js).
+assert.equal(run('game.inventory.length'),count,'equipment is not picked up on the kill');
+const floor=copy('game.actExploration.groundLoot.map(row=>row.item.id)');
+assert.equal(floor.length,1,'the dropped equipment lies on the floor');
 assert.equal(run('game.actExploration.status'),'active');
 assert.equal(run('game.actExploration.loot'),undefined,'new maps have no temporary inventory');
 const earned=copy('({inventory:game.inventory,currencies:game.currencies})');
@@ -20,12 +23,16 @@ const withoutInstanceIds=value=>JSON.parse(JSON.stringify(value,(key,row)=>key==
 for(const payload of ['JSON.parse(serializeSaveState(game))','createCloudSavePayload(game)',
     'JSON.parse(createCloudSaveRequestBody("test",game)).save_data']) {
     run(`game=mergeDefaults(${payload});`);
-    assert.deepEqual(withoutInstanceIds(copy('({inventory:game.inventory,currencies:game.currencies})')),earned,'all save routes preserve immediate pickups');
+    assert.deepEqual(withoutInstanceIds(copy('({inventory:game.inventory,currencies:game.currencies})')),earned,'all save routes preserve the wallet and bag');
+    assert.deepEqual(copy('game.actExploration.groundLoot.map(row=>row.item.id)'),floor,'all save routes preserve the floor');
 }
-run(`game.actExploration.status='cleared';finishEncounterRun();finishEncounterRun();`);
+run(`game.actExploration.mode='manual';game.actExploration.status='cleared';finishEncounterRun();finishEncounterRun();`);
 assert.deepEqual(withoutInstanceIds(copy('({inventory:game.inventory,currencies:game.currencies})')),earned,'completion cannot grant drops again');
+run('actExplorationProgress.depart(game);');
+assert.equal(run(`game.inventory.filter(item=>item.id===${floor[0]}).length`),1,'leaving the map picks up its floor once');
+const settled=copy('({inventory:game.inventory,currencies:game.currencies})');
 run(`startEncounterRun(true);actExplorationProgress.defeat(game);actExplorationProgress.depart(game);`);
-assert.deepEqual(withoutInstanceIds(copy('({inventory:game.inventory,currencies:game.currencies})')),earned,'defeat and departure keep earned loot');
+assert.deepEqual(withoutInstanceIds(copy('({inventory:game.inventory,currencies:game.currencies})')),withoutInstanceIds(settled),'defeat and departure keep earned loot');
 
 // Existing pending saves recover their exact rewards once, even if their bag is full.
 fresh();
@@ -78,4 +85,4 @@ run('window.legacy=JSON.parse(serializeSaveState(game));legacy.actExploration.lo
 const beforeOverflow=copy('game');
 assert.throws(()=>run('mergeDefaults(legacy)'),/수령 한도/);
 assert.deepEqual(copy('game'),beforeOverflow,'failed migration cannot mutate the live game');
-console.log('immediate exploration loot, save migration, overflow protection and no duplicate rewards: OK');
+console.log('floor equipment and immediate currency, save migration, overflow protection and no duplicate rewards: OK');

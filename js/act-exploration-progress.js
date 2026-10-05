@@ -5,6 +5,11 @@ const actExplorationProgress = (() => {
     // the hero stays as close as it got and, with auto-move on, goes back to exploring.
     const COMMAND_GIVE_UP_STEPS=15;
     const commandStalls=new WeakMap(); // run → steps the command has not advanced (transient, like the discovery memos)
+    // After the last boss falls, auto-move walks to what it dropped before the map completes, for at most this long: a pile the
+    // hero cannot reach is collected from where it stands, and leaving the map settles anything left (js/exploration-ground-loot.js).
+    const LOOT_WALK_MAX_MS=12000;
+    const lootWalks=new WeakMap(); // run → {stalls, clearedAt} (transient, like the discovery memos)
+    const ground=actExplorationState.groundLoot;
     function advance(stats) {
         const run=actExplorationState.current(game);
         if(!run)return false;
@@ -12,8 +17,9 @@ const actExplorationProgress = (() => {
         return true;
     }
     /** Foreground frames and offline combat ticks advance the same 20 ms movement clock. */
-    /** A live run walks; a cleared one (its boss down) only finishes the step it was taking, so the hero can still fight. */
-    const stepsLeft=run=>run.status==='active' || (run.status==='cleared' && !!run.motion);
+    /** A live run walks; a cleared one (its boss down) finishes the step it was taking, so the hero can still fight, and with
+     * auto-move picks up the floor items before the map completes. */
+    const stepsLeft=run=>run.status==='active' || (run.status==='cleared' && (!!run.motion || collectingLoot(run)));
     function tick(now,stats) {
         const run=actExplorationState.current(game);
         if(!run || !stepsLeft(run))return;
@@ -34,29 +40,69 @@ const actExplorationProgress = (() => {
     function step(run,stats) {
         actExplorationProgress.objects.step(run,20);
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
-        if(run.motion || run.status!=='active')return;
+        if(run.motion || !explore(run,stats))return;
         actExplorationState.discover(run,game.gridPlayer);
         const opened=actExplorationState.entrance(run);
         wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
-        // The player stands still at the threshold while the boss rises. A fight pauses the automatic walk, never a command.
-        if(entrance || (!run.destination && (game.enemies.some(enemy=>enemy.hp>0)||actExplorationState.objects.active(run))))return;
+        if(holdsOrDetours(run,entrance,stats))return;
         const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
         walk(run,target,stats);
     }
     function walk(run,target,stats) {
-        // Safe travel is quicker; engagement/approach retains the normal movement stat.
-        const travelScale=game.enemies.some(enemy=>enemy.hp>0)?1:0.75;
-        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed*travelScale;
-        const stepped=advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
+        const stepped=walkStep(target,stats);
         if(stepped || target!==run.destination){commandStalls.delete(run);return;}
         const stalls=(commandStalls.get(run)||0)+1;
         commandStalls.set(run,stalls);
         if(stalls>=COMMAND_GIVE_UP_STEPS){run.destination=null;actExplorationProgress.objects.cancel(run);commandStalls.delete(run);}
+    }
+    /** The player stands still at the threshold while the boss rises. A fight pauses the automatic walk, never a command; once
+     * nothing fights, auto-move first walks to floor items. Returns whether this step's exploration walk is skipped. */
+    function holdsOrDetours(run,entrance,stats) {
+        if(entrance)return true;
+        if(run.destination)return false;
+        if(game.enemies.some(enemy=>enemy.hp>0)||actExplorationState.objects.active(run))return true;
+        return runMode(run)!=='manual' && walkToLoot(run,stats);
+    }
+    /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
+    function explore(run,stats) {
+        pickUp(run);
+        if(run.status==='cleared' && collectingLoot(run))walkToLoot(run,stats);
+        return run.status==='active';
+    }
+    function walkStep(target,stats) {
+        // Safe travel is quicker; engagement/approach retains the normal movement stat.
+        const travelScale=game.enemies.some(enemy=>enemy.hp>0)?1:0.75;
+        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed*travelScale;
+        return advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
+    }
+    /** Floor items on the hero's cell are picked up; an offline replay walks no detours and picks everything up at once. */
+    function pickUp(run) {
+        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer);
+        if(rows.length)collectExplorationFloorLoot(rows);
+    }
+    /** Auto-move heads for the nearest floor pile once nothing fights. A pile it cannot get closer to for COMMAND_GIVE_UP_STEPS
+     * steps is collected from where the hero stands, so a walled-off drop never holds the map. Returns whether it walked. */
+    function walkToLoot(run,stats) {
+        const pile=ground.nearest(run,game.gridPlayer);
+        if(!pile)return false;
+        const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
+        memo.stalls=walkStep(pile,stats)?0:memo.stalls+1;
+        if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
+        return true;
+    }
+    /** A cleared map waits for auto-move to pick up its floor items, at most LOOT_WALK_MAX_MS of combat time. */
+    function collectingLoot(run) {
+        if(run.status!=='cleared' || run.completionApplied || game.isBackgroundCalculation || runMode(run)==='manual'
+            || !ground.nearest(run,game.gridPlayer))return false;
+        const memo=lootWalks.get(run)||{stalls:0,clearedAt:null};lootWalks.set(run,memo);
+        const now=getCombatTime();
+        if(memo.clearedAt===null)memo.clearedAt=now;
+        return now-memo.clearedAt<LOOT_WALK_MAX_MS;
     }
     /** The mode a new run starts in: the chosen route (보스 직행 · 전체 탐색) while auto-move is on, else 직접 이동. */
     function startMode(settings) {
@@ -82,6 +128,13 @@ const actExplorationProgress = (() => {
         return canPlaceGridFootprint(getGridBlockedCells(game.gridPlayer),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
     function moving() {return !!actExplorationState.current(game)?.motion;}
+    /** A click on a floor pile (js/battle-ground-loot-ui.js) picks it up at once, wherever the hero stands. */
+    function collectPile(cell) {
+        const run=actExplorationState.current(game);
+        const rows=run?ground.takeAt(run,cell):[];
+        if(rows.length){collectExplorationFloorLoot(rows);queueImportantSave(220);}
+        return rows.length;
+    }
     /** The current run once it has begun. A map laid out during the move toward the act (arrival) is only the
      * scenery of the wait: completion and stall checks still belong to whatever encounter is actually running. */
     function live(state=game) {
@@ -90,7 +143,7 @@ const actExplorationProgress = (() => {
     }
     function canFinish() {
         const run=live();
-        if(run)return run.status==='cleared' && !run.completionApplied;
+        if(run)return run.status==='cleared' && !run.completionApplied && !collectingLoot(run);
         return game.runProgress>=100 && game.encounterIndex>=game.encounterPlan.length && game.enemies.length===0;
     }
     /** Drops are already owned. Completion only commits the encounter's progression. */
@@ -134,7 +187,13 @@ const actExplorationProgress = (() => {
         state.combatHalted=false;
         return true;
     }
-    function depart(state) {state.actExploration=null;}
+    /** Leaving the map (next map, town, death, portal) picks up whatever is still on its floor: nothing is left behind. */
+    function depart(state) {
+        const run=state.actExploration;
+        if(run && state===game){const rows=ground.takeAll(run);if(rows.length)collectExplorationFloorLoot(rows);}
+        else if(run)ground.settleOnLoad(state,run);
+        state.actExploration=null;
+    }
     function stopAfterCompletion(state) {
         state.combatHalted=true;
         state.enemies=[];state.encounterPlan=[];state.encounterIndex=0;
@@ -147,6 +206,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,collectPile,canFinish,beginCompletion,shouldTrackStall,holdPosition,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

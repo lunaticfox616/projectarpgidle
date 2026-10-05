@@ -471,7 +471,7 @@ const playerStall = (() => {
         owner.playerStall = stall;
         const owned = [getEquipmentLoadoutOwnedItems(owner), owner.equipmentTemporaryStorage,
             owner.timeRift.altarUnique, owner.timeRift.altarRare, owner.offlineProgress.stash, owner.offlineProgress.protectedOverflow,
-            actExplorationLoot.reservedItems(owner)].flat().filter(Boolean);
+            actExplorationLoot.reservedItems(owner), actExplorationState.groundLoot.reservedItems(owner)].flat().filter(Boolean);
         const seen = { items: new Set(owned.map(item => item.id)), listings: new Set() };
         stall.listings = (Array.isArray(stall.listings) ? stall.listings : []).filter(row => restoreListing(row, owner, seen));
         stall.sequence = Math.max(stall.sequence, ...seen.listings);
