@@ -239,7 +239,7 @@ const stumpBoxUi = (() => {
     }
     function stumpStarterHtml() {
         const rows = stumpStarterRow('seed', '씨앗') + stumpStarterRow('sap', '수액');
-        return rows ? `<h3>시작 선물 <small>색마다 하나씩</small></h3>${rows}` : '';
+        return rows ? `<h3>시작 선물 <small>씨앗·수액 각 1개</small></h3>${rows}` : '';
     }
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
