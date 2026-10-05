@@ -62,8 +62,12 @@ function getEquipmentDropChances(zone, enemy) {
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
         multiplier *= 1 - 0.7 * progress;
     }
+    const ordinary = getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment');
+    const rank = enemy && enemy.isBoss ? 'boss' : (enemy && enemy.isElite ? 'elite' : 'regular');
     return {
-        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment'),
+        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : ordinary,
+        // Extra Diablo-style picks (EQUIPMENT_DROP_PICKS) roll the ordinary chance, never the first-boss guarantee.
+        extraEquipment: Array(Math.max(0, EQUIPMENT_DROP_PICKS[rank] - 1)).fill(ordinary),
         talisman: getWildTalismanBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level)
     };
 }

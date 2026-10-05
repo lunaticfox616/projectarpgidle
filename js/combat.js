@@ -5340,6 +5340,24 @@ function getTierDropMulWithCaps(tier, zone) {
 }
 
 
+/**
+ * Per-stat defense caps of a boss (data/maps.js BOSS_DEFENSE_SPECIALTIES): one or two of physical damage reduction and the fire,
+ * cold and lightning resistances reach the full cap, the rest stay low. Fixed and other-content bosses keep the full caps.
+ * @returns {{dr:number,resF:number,resC:number,resL:number,resChaos:number}} percent caps reached at zone tier 20
+ */
+function getBossDefenseCaps(zone, ele) {
+    const rules = BOSS_DEFENSE_SPECIALTIES, full = { dr: rules.caps.dr, resF: rules.caps.res, resC: rules.caps.res, resL: rules.caps.res, resChaos: rules.caps.res };
+    const fixed = zone.loopScaleExempt || Number.isFinite(zone.fixedSeason) || zone.difficultyBenchmark || zone.milestonePinnacle;
+    if (fixed || !['act', 'abyss'].includes(zone.type)) return full;
+    const seed = hashSeed(String(zone.id) + ':boss-guard') >>> 0;
+    const first = rules.byElement[ele] || rules.stats[seed % rules.stats.length];
+    const rest = rules.stats.filter(stat => stat !== first);
+    const second = (seed >>> 8) % 1000 < rules.secondChance * 1000 ? rest[(seed >>> 16) % rest.length] : null;
+    const caps = { dr: rules.offCaps.dr, resF: rules.offCaps.res, resC: rules.offCaps.res, resL: rules.offCaps.res, resChaos: rules.offCaps.res };
+    [first, second].filter(Boolean).forEach(stat => { caps[stat] = full[stat]; });
+    return caps;
+}
+
 function getZoneDefenseVariance(zone) {
     let key = String((zone && zone.id) || 'zone');
     let seed = Math.abs(hashSeed(key + ':def-var')) % 7;
@@ -5968,15 +5986,15 @@ function createEnemy(zone, marker, groupIndex) {
     let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
     let curved = zoneProgress * zoneProgress;
     let variance = getZoneDefenseVariance(zone);
-    let [bossDrCap, bossResCap] = MONSTER_LOOP_POWER_SCALE.bossDefenseCaps(zone);
-    let drFloor = isBoss ? 10 : 0;
-    let drRange = isBoss ? (bossDrCap - drFloor) : (isElite ? 45 : 20);
-    let drBase = drFloor + Math.floor(Math.max(0, drRange) * clampNumber(curved + variance, 0, 1));
-
-    let resFloor = isBoss ? 15 : 5;
-    let resRange = (isBoss ? bossResCap : (isElite ? 60 : 25)) - resFloor;
-    let resistBase = resFloor + Math.floor(Math.max(0, resRange) * clampNumber(curved + variance, 0, 1));
-    let chaosResBase = resistBase;
+    // Bosses specialise in one or two defenses (getBossDefenseCaps); every value climbs the tier curve to its cap at tier 20.
+    const defenseRamp = clampNumber(curved + variance, 0, 1);
+    const bossCaps = isBoss ? getBossDefenseCaps(zone, enemyEle) : null;
+    const rampTo = (floor, cap) => floor + Math.floor(Math.max(0, cap - floor) * defenseRamp);
+    let drBase = isBoss ? rampTo(10, bossCaps.dr) : rampTo(0, isElite ? 45 : 20);
+    let resistBase = rampTo(5, isElite ? 60 : 25);
+    const resistBases = isBoss ? { resF: rampTo(15, bossCaps.resF), resC: rampTo(15, bossCaps.resC), resL: rampTo(15, bossCaps.resL) }
+        : { resF: resistBase, resC: resistBase, resL: resistBase };
+    let chaosResBase = isBoss ? rampTo(15, bossCaps.resChaos) : resistBase;
 
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
     let defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
@@ -6006,9 +6024,9 @@ function createEnemy(zone, marker, groupIndex) {
         baseMonsterName: realmVisual ? realmVisual.name : (monsterVariant ? monsterVariant.name : null),
         ele: enemyEle,
         dr: Math.min(90, Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0) + wispDefense.dr)),
-        resF: Math.min(95, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0) + wispDefense.resF),
-        resC: Math.min(95, resistBase + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0) + wispDefense.resC),
-        resL: Math.min(95, resistBase + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0) + wispDefense.resL),
+        resF: Math.min(95, resistBases.resF + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0) + wispDefense.resF),
+        resC: Math.min(95, resistBases.resC + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0) + wispDefense.resC),
+        resL: Math.min(95, resistBases.resL + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0) + wispDefense.resL),
         resChaos: Math.min(95, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0) + wispDefense.resChaos),
         armor: baseArmor,
         evasion: baseEvasion,
@@ -8217,21 +8235,24 @@ function queueEnemyGroundLoot(enemy, receipt) {
         itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
 }
 
-const rollEquipmentLoot = function (enemy, zone, itemChance) {
-    const roll = rollEquipmentDrop(zone, enemy, itemChance);
-    if (!roll.dropped) {
-        game.equipmentDropProgress = roll.nextProgress;
-        return;
-    }
-    // PoE식 변형(2026-10-05): 복제 · 같은 베이스 묶음이면 여러 개, 타락이면 한 개가 강해진다(js/loot.js equipmentDropVariants).
-    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity: roll.minimumRarity, zone }));
-    const kept = drop.items.filter(item => {
+/** One equipment pick that dropped: generate, apply a PoE-style variant (js/loot.js equipmentDropVariants), keep and show it. */
+function grantEquipmentPick(enemy, zone, minimumRarity) {
+    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone }));
+    return drop.items.filter(item => {
         const highlight = equipmentLootPolicy.highlight(item, game);
         const accepted = addItemToInventory(item);
         if (accepted) queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
         return accepted;
     });
+}
+
+/** The first pick carries the drought guarantee; extra picks of elites and bosses (data/items.js EQUIPMENT_DROP_PICKS) roll on
+ * their own and leave the drought progress alone. Returns the first kept item for the loot log. */
+const rollEquipmentLoot = function (enemy, zone, itemChance, extraChances = []) {
+    const roll = rollEquipmentDrop(zone, enemy, itemChance);
+    const kept = roll.dropped ? grantEquipmentPick(enemy, zone, roll.minimumRarity) : [];
     game.equipmentDropProgress = roll.nextProgress;
+    extraChances.filter(chance => Math.random() < chance).forEach(() => kept.push(...grantEquipmentPick(enemy, zone, null)));
     return kept[0] || null;
 };
 
@@ -8313,8 +8334,8 @@ function rollLootForEnemy(enemy) {
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${gain}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });
 
-    let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
-    const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
+    let { equipment: itemChance, extraEquipment, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
+    const keptItem = rollEquipmentLoot(enemy, zone, itemChance, extraEquipment);
     grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
     rollWildTalismanDrop(enemy, talismanChance);
