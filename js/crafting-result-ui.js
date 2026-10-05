@@ -51,7 +51,7 @@ const craftingResultUi = (() => {
     }
 
     function getSocketRows(before, after) {
-        return !before.voidSocket && after.voidSocket ? ['공허 소켓 추가'] : [];
+        return after.sockets > before.sockets ? [`소켓 ${before.sockets} → ${after.sockets}`] : [];
     }
 
     function getMetaRows(result) {

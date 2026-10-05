@@ -32,6 +32,7 @@ const files = [
   'js/gem-core-forge.js', 'js/skills.js',
   'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
+  'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/talent-cards.js',

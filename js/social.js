@@ -232,7 +232,7 @@ function buildSocketSnapshots(item) {
     let unlocked = typeof contentProgression === 'object' && contentProgression.isUnlocked('jewel');
     let rows = unlocked && typeof equipmentSockets === 'object' ? equipmentSockets.list(item) : [];
     if (!rows.length) return undefined;
-    return rows.map(row => ({ label: row.kind === 'void' ? '공허 소켓' : `심연 소켓 ${row.index + 1}`, jewel: buildJewelSnapshot(row.jewel) }));
+    return rows.map(row => ({ label: equipmentSockets.label(row), jewel: buildJewelSnapshot(row.jewel) }));
 }
 
 /** 우주계 쌍둥이 주얼의 배정 키스톤(게임 툴팁 getCosmosKeystoneTooltipLine과 같은 정보). */

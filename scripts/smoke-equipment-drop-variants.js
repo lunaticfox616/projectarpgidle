@@ -142,15 +142,17 @@ assert.ok(silver.items.length >= 1, 'the silver chest always gives an item');
 assert.ok(gold.currency >= wood.currency, `gold currency ${gold.currency} >= wood ${wood.currency}`);
 assert.equal(run(`actExplorationState.objects.name({kind:'chest',grade:'gold'})`), '황금 보급 상자');
 assert.equal(run(`actExplorationState.objects.name({kind:'pot'})`), '낡은 항아리');
-// Crafting corruption (잿불가지): one of add a line · quality +6~10% (to 30%) · one line rerolled · a void socket · nothing.
+// Crafting corruption (잿불가지): one of add a line · quality +6~10% (to 30%) · one line rerolled · a socket (void, or a second one) · nothing.
 const craft = copy(`(()=>{const seen={},bad=[];for(let i=0;i<600;i++){const item=drop('rare');item.quality=i%3===0?26:4;
-    if(i%5===0)item.slot='반지';const before=JSON.parse(JSON.stringify(item)),chisel=equipmentSockets.canChisel(item);
+    if(i%5===0)item.slot='반지';if(i%7===0)equipmentSockets.openVoidSocket(item);
+    const before=JSON.parse(JSON.stringify(item)),chisel=equipmentSockets.canChisel(item),sockets=equipmentSockets.count(item);
     const out=corruptCraftedItem(item);seen[out.kind]=(seen[out.kind]||0)+1;
     if(!item.corrupted)bad.push('not corrupted');
     if(out.kind==='quality'){const gain=item.quality-before.quality;if(item.quality>30||(item.quality<30&&(gain<6||gain>10)))bad.push('quality '+before.quality+'->'+item.quality);}
     else if(item.quality!==before.quality)bad.push('quality moved on '+out.kind);
-    if(out.kind==='socket'&&(!chisel||!equipmentSockets.list(item).some(s=>s.kind==='void')))bad.push('socket');
-    if(out.kind!=='socket'&&!!item.voidSocket?.open!==!!before.voidSocket?.open)bad.push('socket moved on '+out.kind);
+    if(out.kind==='socket'&&equipmentSockets.count(item)!==sockets+1)bad.push('socket');
+    if(out.kind==='socket'&&!(chisel?equipmentSockets.hasVoidSocket(item)&&!item.corruptionSocket:item.corruptionSocket))bad.push('socket kind');
+    if(out.kind!=='socket'&&equipmentSockets.count(item)!==sockets)bad.push('socket moved on '+out.kind);
     if(out.kind==='addMod'&&item.stats.length!==before.stats.length+1)bad.push('addMod');
     if(out.kind==='rerollMod'){const changed=item.stats.filter((s,k)=>s.id!==before.stats[k].id||s.val!==before.stats[k].val).length;
         if(item.stats.length!==before.stats.length||changed!==1)bad.push('reroll '+changed);}
@@ -160,4 +162,29 @@ const craft = copy(`(()=>{const seen={},bad=[];for(let i=0;i<600;i++){const item
 assert.deepEqual(craft.bad, [], 'every crafting corruption changes exactly what its outcome says');
 ['addMod', 'quality', 'rerollMod', 'socket', 'nothing'].forEach(kind => assert.ok(craft.seen[kind] > 0, `${kind} happens (${JSON.stringify(craft.seen)})`));
 assert.deepEqual(craft.mul, [1.3, 1.2], 'a corrupted item counts quality up to 30%, an ordinary one up to 20%');
-console.log('equipment drop variants (duplicate, bundle, corrupted within the tier cap), supply chest grades, crafting corruption outcomes: OK');
+// A second socket (2026-10-05): an item whose void socket is open gets a corruption socket once; both hold jewels that count,
+// survive a save, block trading, and come back to the jewel store when taken out.
+const second = copy(`(()=>{game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',settings:{pauseGameOnOverlay:false}});
+    const ring=drop('rare');ring.slot='반지';ring.corrupted=true;
+    const firstAdd=equipmentSockets.addCorruptionSocket(ring),againAdd=equipmentSockets.addCorruptionSocket(ring),count=equipmentSockets.count(ring);
+    const a=generateJewelDrop(10),b=generateJewelDrop(10);game.jewelInventory=[a,b];
+    const slot=Object.keys(game.equipment).find(k=>k.startsWith('반지'));game.equipment[slot]=ring;
+    const ins=[equipmentSockets.insert(ring,a.id).ok,equipmentSockets.insert(ring,b.id).ok];
+    const sources=collectSocketedJewels(game.equipment).map(r=>r.source).sort();
+    const saved=mergeDefaults(JSON.parse(serializeSaveState(game)));const kept=saved.equipment[slot].corruptionSocket.jewel?.id===b.id;
+    const out=equipmentSockets.remove(ring,'corrupt',0).ok&&game.jewelInventory.some(j=>j.id===b.id)&&!ring.corruptionSocket.jewel;
+    const voidOnly=drop('rare');voidOnly.slot='반지';voidOnly.voidSocket={open:true,jewel:generateJewelDrop(10)};
+    game.inventory=[voidOnly,ring];game.equipment[slot]=null;equipmentSockets.insert(ring,b.id);
+    return {firstAdd,againAdd,count,ins,sources,kept,out,stall:[playerStall.eligible(ring,game),playerStall.eligible(voidOnly,game),(()=>{const e=drop('rare');game.inventory.push(e);return playerStall.eligible(e,game);})()],jewels:equipmentSockets.jewels(voidOnly).length,
+        label:equipmentSockets.label({kind:'corrupt',index:0})};})()`);
+assert.equal(second.firstAdd, true, 'an item with a void socket opens a second socket');
+assert.equal(second.againAdd, false, 'never a third');
+assert.equal(second.count, 2);
+assert.deepEqual(second.ins, [true, true], 'both sockets take a jewel');
+assert.deepEqual(second.sources, ['corrupt', 'void'], 'both jewels count');
+assert.equal(second.kept, true, 'the second socket and its jewel survive a save');
+assert.equal(second.out, true, 'taking the jewel out returns it to the store');
+assert.deepEqual(second.stall, [false, false, true], 'an item with a jewel in any socket cannot be listed; an empty one can');
+assert.equal(second.jewels, 1, 'the void socket jewel is read like any other (the trade hall check uses the same list)');
+assert.equal(second.label, '타락 소켓');
+console.log('equipment drop variants (duplicate, bundle, corrupted within the tier cap), supply chest grades, crafting corruption outcomes, second socket: OK');

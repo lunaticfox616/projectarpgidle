@@ -53,6 +53,7 @@ const files = [
   'js/severed-wanderers.js',
   'js/enemy-attack-rules.js', 'js/combat-patterns.js',
   'js/cosmos-rules.js',
+  'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
   'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',

@@ -37,7 +37,7 @@ const playerStall = (() => {
     }
     function restricted(item) {
         return ['locked','tradeLocked','hallReplica','hallRelistBlocked','loopSealed'].some(key => item[key])
-            || !!item.voidSocket?.jewel || !!item.abyssSockets?.some(socket => socket?.jewel);
+            || equipmentSockets.jewels(item).length > 0;
     }
     function eligible(item, owner) {
         if (!item || !Number.isSafeInteger(item.id) || !itemAppraisal.quote(item)) return false;

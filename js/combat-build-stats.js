@@ -156,12 +156,11 @@ function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {
     accumulateCombatSocketJewels(result.gearExplicit, item);
 }
 
-/** 장비 소켓의 주얼: 공허 소켓 · 심연 소켓(황제의 심연띠는 증폭), 둘 다 소켓 주얼 배율을 받는다. */
+/** 장비 소켓의 주얼: 공허 · 타락 · 심연 소켓(황제의 심연띠는 심연 소켓을 증폭), 모두 소켓 주얼 배율을 받는다. */
 function accumulateCombatSocketJewels(bucket, item) {
     const socketMultiplier = getSocketJewelMultiplier();
-    if (item.voidSocket?.open && item.voidSocket.jewel) addSocketJewelStats(bucket, item.voidSocket.jewel, socketMultiplier);
-    for (const socket of Array.isArray(item.abyssSockets) ? item.abyssSockets : []) {
-        if (socket?.jewel) addSocketJewelStats(bucket, socket.jewel, socketMultiplier * getAbyssJewelMultiplier(item));
+    for (const row of equipmentSockets.jewels(item)) {
+        addSocketJewelStats(bucket, row.jewel, socketMultiplier * (row.kind === 'abyss' ? getAbyssJewelMultiplier(item) : 1));
     }
 }
 

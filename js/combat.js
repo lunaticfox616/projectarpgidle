@@ -627,17 +627,10 @@ function clearAscendKeystoneRuntimeState(removedIds, options) {
     if (shouldClear('h2')) removeEnemyAilment('hunterExpose');
 }
 
-/** 장비 맵의 소켓에 낀 주얼 전부(공허 소켓, 심연 소켓 순). 주얼은 2026-09-30부터 장비 소켓에만 낀다. */
+/** 장비 맵의 소켓에 낀 주얼 전부(공허 · 타락 · 심연 소켓 순, source는 소켓 종류). 주얼은 2026-09-30부터 장비 소켓에만 낀다. */
 function collectSocketedJewels(equipment) {
-    let rows = [];
-    Object.entries(equipment || {}).forEach(([slot, item]) => {
-        if (!item) return;
-        if (item.voidSocket && item.voidSocket.open && item.voidSocket.jewel) rows.push({ jewel: item.voidSocket.jewel, slot, source: 'void', index: 0 });
-        (Array.isArray(item.abyssSockets) ? item.abyssSockets : []).forEach((socket, index) => {
-            if (socket && socket.jewel) rows.push({ jewel: socket.jewel, slot, source: 'abyss', index });
-        });
-    });
-    return rows;
+    return Object.entries(equipment || {}).flatMap(([slot, item]) => equipmentSockets.jewels(item)
+        .map(row => ({ jewel: row.jewel, slot, source: row.kind, index: row.index })));
 }
 
 /** 요구치를 채워 실제로 적용되는 장비의 소켓 주얼. */

@@ -8218,6 +8218,11 @@ function normalizeItem(item) {
     } else {
         item.abyssSockets = [];
     }
+    // Corruption socket (2026-10-05): only its shape is kept; a jewel already in it is never dropped.
+    if (item.corruptionSocket !== undefined) {
+        if (item.corruptionSocket && typeof item.corruptionSocket === 'object') item.corruptionSocket = { jewel: (item.corruptionSocket.jewel && typeof item.corruptionSocket.jewel === 'object') ? item.corruptionSocket.jewel : null };
+        else delete item.corruptionSocket;
+    }
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
     if (item.encroached && typeof item.encroached === 'object') {
         let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
@@ -10280,7 +10285,7 @@ function canApplyTaintedOutcome(item, kind) {
     if (kind === 'addMod') return getAvailableMods(item).length > 0;
     if (kind === 'quality') return Math.floor(Number(item.quality) || 0) < TAINTED_CRAFT_OUTCOMES.quality.cap;
     if (kind === 'rerollMod') return getTaintedRerollLines(item).length > 0 && getAvailableMods(item).length > 0;
-    if (kind === 'socket') return equipmentSockets.canChisel(item);
+    if (kind === 'socket') return equipmentSockets.canChisel(item) || equipmentSockets.canAddCorruptionSocket(item);
     return kind === 'nothing';
 }
 
@@ -10307,7 +10312,8 @@ function rerollTaintedLine(item) {
 
 /**
  * Corrupts the item and applies one outcome. Quality may pass the usual 20% up to the outcome cap (corrupted items resolve
- * quality up to 30%, js/equipment-stat-resolution.js). The socket outcome opens the void socket a chisel would.
+ * quality up to 30%, js/equipment-stat-resolution.js). The socket outcome opens the void socket a chisel would, or on an item
+ * that already has one, a second socket (js/equipment-sockets.js corruption socket).
  * @returns {{kind: 'addMod'|'quality'|'rerollMod'|'socket'|'nothing', text: string}}
  */
 function corruptCraftedItem(item) {
@@ -10325,8 +10331,9 @@ function corruptCraftedItem(item) {
     }
     if (kind === 'rerollMod') return { kind, text: rerollTaintedLine(item) };
     if (kind === 'socket') {
-        equipmentSockets.openVoidSocket(item);
-        return { kind, text: '공허 소켓이 하나 생겼습니다.' };
+        if (equipmentSockets.openVoidSocket(item)) return { kind, text: '공허 소켓이 하나 생겼습니다.' };
+        equipmentSockets.addCorruptionSocket(item);
+        return { kind, text: '두 번째 소켓, 타락 소켓이 열렸습니다!' };
     }
     return { kind, text: '아이템에 변화가 없습니다.' };
 }
