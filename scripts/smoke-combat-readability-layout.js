@@ -47,11 +47,12 @@ const bars = painted.filter(p => p.type === 'fillRect' && p.color === '#e94f64')
 assert.equal(bars.length, 2);
 assert.ok(Math.abs(bars[0][1] - bars[1][1]) >= 10, 'overlapping enemy bars occupy separate rows');
 painted.length = 0;
-run(`battleVisualState.damageTexts=[{value:500,x:300,y:270,start:1000,duration:700,side:1},
-    {value:500,x:300,y:270,start:1000,duration:700,side:1}]; drawDamageTexts(readCtx,1100);`);
+run(`battleVisualState.damageTexts=[]; spawnDamageText({value:500,x:300,y:270,start:1000});
+    spawnDamageText({value:400,x:300,y:270,start:1000}); drawDamageTexts(readCtx,1100);`);
 const numbers = painted.filter(p => p.type === 'fillText').map(p => p.args);
 assert.equal(numbers.length, 2);
-assert.ok(numbers.every(([,x]) => x > 326), 'damage text moves out of the protected player body');
+// 2026-10-05 user request: numbers stay on the body they hit; only the stack of hits arriving together spreads them.
+assert.ok(numbers.every(([,x]) => x === 300), 'damage text stays centred on the body it hit');
 assert.ok(Math.abs(numbers[0][2] - numbers[1][2]) >= 20, 'simultaneous damage texts avoid one another');
 assert.equal(run('JSON.stringify(game)'), before, 'readability never changes combat or saved data');
 console.log('Combat readability: foreground hollow outline, bounded surface reuse, transition guard, separated bars and numbers OK');

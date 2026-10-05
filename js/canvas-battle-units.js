@@ -80,14 +80,7 @@ drawBattlePlayerFigure.readability = (() => {
         boxes.push(result);
         return result;
     }
-    function label(ctx, text, anchor, fontSize) {
-        if (text.bodyCue) return anchor;
-        const w = ctx.measureText(text.miss ? String(text.value) : formatDamageNumberForDisplay(text.value)).width * 1.38 + 22;
-        const shift = text.side > 0 ? 0 : text.side < 0 ? w : w / 2, h = fontSize * 1.38;
-        const box = place({ x: anchor.x - shift, y: anchor.y - h, w, h: h + 4 }, text.side);
-        return { x: box.x + shift, y: box.y + h };
-    }
-    return { begin, draw, place, label };
+    return { begin, draw, place };
 })();
 
 function drawSheetMonsterSkin(ctx, state, position) {

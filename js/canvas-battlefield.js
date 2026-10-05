@@ -1611,12 +1611,12 @@ function getEnemyFieldBarLift(enemy) {
     return Math.max(base, Math.round(drawn + 10));
 }
 
-/** Damage numbers pop centred over the head, just above the unit's health bar, and rise from there (2026-10-05 user request):
- * beside the body they read as belonging to the neighbour. The readability layout lifts a number clear of bars and the hero.
+/** Damage numbers pop centred on the unit's body and rise from there (2026-10-05 user request): beside the body they read as
+ * belonging to the neighbour, and over the head they drifted too far from the hit.
  * @param {number} feetY the unit's screen y at its feet in CSS px
- * @param {number} barLift the unit's health bar height above its feet in CSS px */
-function getDamageTextHeadY(feetY, barLift) {
-    return Math.round(feetY - barLift - 6);
+ * @param {number} bodyHeight the unit's drawn height in CSS px */
+function getDamageTextBodyY(feetY, bodyHeight) {
+    return Math.round(feetY - bodyHeight * 0.5);
 }
 
 /** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
@@ -2417,7 +2417,7 @@ function renderBattlefield(forceWhenHidden) {
                 spawnDamageText({
                     start: now,
                     x: enemyPos.x,
-                    y: getDamageTextHeadY(enemyPos.y, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) : 56),
+                    y: getDamageTextBodyY(enemyPos.y, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46),
                     value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
@@ -2446,7 +2446,7 @@ function renderBattlefield(forceWhenHidden) {
                 spawnDamageText({
                     start: now,
                     x: playerPos.x,
-                    y: getDamageTextHeadY(playerPos.y, (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head) + 12),
+                    y: getDamageTextBodyY(playerPos.y, head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head),
                     value: fx.damage,
                     enemyHit: true,
                     deflected: !!fx.deflected
@@ -2462,7 +2462,7 @@ function renderBattlefield(forceWhenHidden) {
                 spawnDamageText({
                     start: now,
                     x: summonPos.x,
-                    y: getDamageTextHeadY(summonPos.y, 40),
+                    y: getDamageTextBodyY(summonPos.y, 34),
                     value: fx.damage,
                     enemyHit: true
                 });
