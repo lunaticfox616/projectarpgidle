@@ -68,6 +68,7 @@
         finishSeed(mode);
     }
     function finishSeed(mode) {
+        game.heroSelectionInitialized=true;
         battle=mode==='first';closeAllWindows();reconcileMapPrimaryContentUnlocks(game);updateStaticUI();
         parent.postMessage({type:'worldtree-view-status',battle},origin);
         if(mode==='first') switchTab('tab-battle');
@@ -82,7 +83,10 @@
                 // This fixture replaces runGameTick; retain its wall-clock commerce settlement.
                 // Test speed affects combat only, as it does in the real game.
                 settlePlayerStall();
-                for(let i=0;i<speed;i++)coreLoop(getCombatTime()+100);
+                for(let i=0;i<speed;i++) {
+                    if(isForegroundGameplayPausedForBackground())break;
+                    coreLoop(getCombatTime()+100);
+                }
                 refreshCombatTickUi();
                 if(pendingHeavyUiRefresh){pendingHeavyUiRefresh=false;updateStaticUI();}
                 if(measurement) measurement.ticks.push(performance.now()-tickStarted);

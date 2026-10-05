@@ -261,7 +261,7 @@ const playerStallUi = {
             <p>${escapeHTML(customer)}<br><small>${expires}까지 유효합니다. 진열가 구매도 계속 가능합니다</small></p>
             <div class="stall-actions"><button type="button" class="stall-primary" data-stall-accept="${offer.id}" onclick="playerStallUi.respond(${row.id},${offer.id},true)">${offer.amount}개에 판매</button>
             <button type="button" data-stall-reject="${offer.id}" onclick="playerStallUi.respond(${row.id},${offer.id},false)">제안 거절</button></div>
-            ${offer.negotiated ? '<small class="stall-final-offer">마지막 제안</small>' : `<div class="stall-counter"><label for="stall-counter-${offer.id}">내 역제안 (${ORB_DB[row.currency].name}</label>
+            ${offer.negotiated ? '<small class="stall-final-offer">마지막 제안</small>' : `<div class="stall-counter"><label for="stall-counter-${offer.id}">내 역제안 (${ORB_DB[row.currency].name})</label>
             <div class="stall-price-edit"><input id="stall-counter-${offer.id}" type="number" min="${offer.amount + 1}" max="${row.price}" step="1" placeholder="금액 입력">
             <button type="button" onclick="playerStallUi.counter(${row.id},${offer.id})">역제안</button></div></div>`}</section>`;
     },

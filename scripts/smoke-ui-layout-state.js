@@ -242,7 +242,7 @@ function panel(id) {
 
 // 12) The actual tab controller and window manager agree when returning to phone.
 {
-    const elements = Object.fromEntries(['tab-items', 'tab-skills', 'tab-character', 'tab-battle', 'item-tab-equip'].flatMap(id =>
+    const elements = Object.fromEntries(['tab-items', 'tab-skills', 'tab-character', 'tab-battle', 'item-tab-equip', 'item-tab-craft'].flatMap(id =>
         [[id, panel(id)], ['btn-' + id, panel('btn-' + id)]]));
     const { buildGameRuntime } = require('./lib/game-runtime');
     elements['ui-goal-drawer'] = panel('ui-goal-drawer');
@@ -273,6 +273,16 @@ function panel(id) {
     desktop = false; listeners.get('resize')();
     assert(elements['tab-items'].classList.contains('active'), 'phone keeps the remaining visible window after the top one closes');
     assert(!elements['tab-battle'].classList.contains('active'));
+
+    // A content shortcut must focus an already-open destination, and must not
+    // toggle it closed when used again. Run the real navigation and window code.
+    desktop = true; listeners.get('resize')();
+    runtime.openWindow('tab-character');
+    elements['tab-items'].classList.add('active');
+    vm.runInContext("game.season=3;game.contentProgression.inherited=['craft'];contentProgression.sync();contentUnlockUi.open('craft')", runtime);
+    assert(elements['tab-items'].classList.contains('ui-window-active'), 'content shortcuts bring an existing destination above the source window');
+    vm.runInContext("contentUnlockUi.open('craft')", runtime);
+    assert(elements['tab-items'].classList.contains('ui-window-open'), 'repeated shortcuts keep the destination open');
 }
 
 console.log('smoke-ui-layout-state passed');
