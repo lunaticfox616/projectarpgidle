@@ -357,7 +357,7 @@ const contentUnlockUi = {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         const action = this.routeAction(def);
         if (!action) return false;
-        if (!getRenderingUiTabIds().has(action.tab)) switchTab(action.tab);
+        switchTab(action.tab, { keepWindowOpen: true });
         if (action.subtab) switchItemSubtab(action.subtab);
         if (action.skillSubtab) switchSkillSubtab(action.skillSubtab);
         if (action.mapSubtab) switchMapSubtab(action.mapSubtab);

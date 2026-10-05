@@ -266,6 +266,14 @@ function buildTrialMapItemHtml(trial) {
         <div class="encounter-footer"><span>${status}</span><button data-exploration-departure ${(isCompleted && needsTicket && !hasTicket) ? 'disabled' : `onclick="${action}"`}>${isCurrent ? '다시 시작' : isCompleted ? '재도전' : '도전'}</button></div></div>`;
 }
 
+function renderTrialMapList(trials) {
+    const panel = document.getElementById('ui-trial-list');
+    const html = trials.map(buildTrialMapItemHtml).join('');
+    // An unchanged destination must stay connected during departure confirmation.
+    // Changed/reordered destinations are replaced so the stale-click guard still applies.
+    if (panel.__lastHtml !== html) panel.innerHTML = panel.__lastHtml = html;
+}
+
 safeExposeGlobals({ showMapPowerEstimateTooltip });
 
 function getDefaultUiPlayerStats() {
@@ -10241,7 +10249,7 @@ function buildCraftActionButtons(item) {
     renderMapExploreNotiDots();
 
     renderLoop9VoidRiftPanel();
-    document.getElementById('ui-trial-list').innerHTML = availTrials.map(buildTrialMapItemHtml).join('');
+    renderTrialMapList(availTrials);
     renderMobileMapNavigation();
     }
     __mark('mapPanels');
@@ -10433,6 +10441,7 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'block';
         document.getElementById('ui-class-tree').style.display = 'none';
+        document.getElementById('ui-class-trial-link').disabled = !contentProgression.isUnlocked('battleTrials');
     }
 
     }
