@@ -1,20 +1,30 @@
-// Equipment lying on an exploration map's floor until the hero picks it up (2026-10-05 user request): a kill or a chest drops
-// it on the cell, the hero collects it by stepping onto it, and a click on the pile collects it at once. The run owns the rows
+// Equipment and currency lying on an exploration map's floor until the hero picks them up (2026-10-05 user request; currency
+// since 2026-10-06): a kill or a chest drops them on the cell, the hero collects it by stepping onto it, and a click on the pile collects it at once. The run owns the rows
 // (saved with it as run.groundLoot); nothing is lost: every way out of the map settles what is left into the inventory
 // (js/combat.js collectExplorationFloorLoot grants them through the normal pickup).
 actExplorationState.groundLoot = (() => {
     // The hero picks a pile up by stepping onto its cell: drops beside a melee fight stay until it walks over.
     const PICKUP_RANGE = 0;
     const distance = (a, b) => Math.max(Math.abs(a.gx - b.gx), Math.abs(a.gy - b.gy));
-    /** @typedef {{gx:number, gy:number, item:object, highlight:boolean, guaranteed:boolean}} GroundLootRow equipment on a map
+    /** @typedef {{gx:number, gy:number, item:object, highlight:boolean, guaranteed:boolean}} GroundLootItemRow equipment on a map
      * cell; highlight marks a protected or hunted drop (equipmentLootPolicy.highlight) so its pile keeps a beam; guaranteed keeps
-     * the item even in a full inventory when picked up (addItemToInventory guaranteedKeep). */
+     * the item even in a full inventory when picked up (addItemToInventory guaranteedKeep).
+     * @typedef {{gx:number, gy:number, currency:string, count:number}} GroundLootCurrencyRow an already resolved currency gain
+     * (canonical key, whole count) waiting on a cell; one row per currency and cell, later drops add to it.
+     * @typedef {GroundLootItemRow|GroundLootCurrencyRow} GroundLootRow */
     const rows = run => (run && Array.isArray(run.groundLoot) ? run.groundLoot : []);
 
     /** Lays an already generated item on a walkable cell of the run's map. */
     function place(run, cell, item, { highlight = false, guaranteed = false } = {}) {
         if (!Array.isArray(run.groundLoot)) run.groundLoot = [];
         run.groundLoot.push({ gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed });
+    }
+    /** Lays an already resolved currency gain on a walkable cell, joining the same currency already lying there. */
+    function placeCurrency(run, cell, currency, count) {
+        if (!Array.isArray(run.groundLoot)) run.groundLoot = [];
+        const row = run.groundLoot.find(other => other.currency === currency && other.gx === cell.gx && other.gy === cell.gy);
+        if (row) row.count += count;
+        else run.groundLoot.push({ gx: cell.gx, gy: cell.gy, currency, count });
     }
     function take(run, test) {
         const taken = rows(run).filter(test);
@@ -43,15 +53,19 @@ actExplorationState.groundLoot = (() => {
         return [...byCell.values()];
     }
     function reservedItems(state) {
-        return rows(state.actExploration).map(row => row.item);
+        return rows(state.actExploration).filter(row => row.item).map(row => row.item);
     }
 
     /** A save boundary that drops the run (stale zone, retired layout) keeps its floor items: they join the inventory as is. */
     function settleOnLoad(state, run) {
-        const items = rows(run).map(row => row.item);
-        if (!items.length) return;
+        if (!rows(run).length) return;
+        const items = rows(run).filter(row => row.item).map(row => row.item);
         state.inventory = (state.inventory || []).concat(items);
-        if (state.noti) state.noti.items = true;
+        if (items.length && state.noti) state.noti.items = true;
+        for (const row of rows(run).filter(row => row.currency)) {
+            if (row.currency === 'condensedSkyPower') state.skyTower.condensedPower = (state.skyTower.condensedPower || 0) + row.count;
+            else state.currencies[row.currency] = (state.currencies[row.currency] || 0) + row.count;
+        }
         run.groundLoot = [];
     }
 
@@ -66,14 +80,18 @@ actExplorationState.groundLoot = (() => {
         const map = actExplorationMap.forRun(run), ids = new Set();
         for (const row of run.groundLoot) {
             if (!validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
-            if (ids.has(row.item.id)) throw Error('중복된 탐험 바닥 아이템 저장');
-            ids.add(row.item.id);
+            const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
+            if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
+            ids.add(key);
         }
     }
+    const isCurrency = key => Object.hasOwn(ORB_DB, key) || Object.hasOwn(defaultGame.currencies, key) || key === 'condensedSkyPower';
     function validRow(map, row) {
-        return !!row && Number.isInteger(row.gx) && Number.isInteger(row.gy) && typeof row.highlight === 'boolean'
-            && typeof row.guaranteed === 'boolean' && validEquipment(row.item) && actExplorationMap.walkable(map, row, true);
+        if (!row || !Number.isInteger(row.gx) || !Number.isInteger(row.gy) || !actExplorationMap.walkable(map, row, true)) return false;
+        return typeof row.currency === 'string' ? validCurrencyRow(row) : validItemRow(row);
     }
+    const validCurrencyRow = row => isCurrency(row.currency) && Number.isSafeInteger(row.count) && row.count > 0 && !row.item;
+    const validItemRow = row => typeof row.highlight === 'boolean' && typeof row.guaranteed === 'boolean' && validEquipment(row.item);
 
-    return { PICKUP_RANGE, place, takeNear, takeAt, takeAll, nearest, piles, reservedItems, settleOnLoad, validate };
+    return { PICKUP_RANGE, place, placeCurrency, takeNear, takeAt, takeAll, nearest, piles, reservedItems, settleOnLoad, validate };
 })();

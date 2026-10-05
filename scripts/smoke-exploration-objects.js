@@ -44,11 +44,14 @@ for(const mutation of ["objects.seed=-1","objects.entries[0].gx=-1","objects.ent
 assert.deepEqual(copy('game.currencies'),wallet);
 run('for(let i=0;i<100;i++)actExplorationProgress.objects.step(r,20);');assert.equal(run('o.phase'),'ready','no automatic opening');
 assert.equal(run('actExplorationProgress.objects.request(o.id)'),true);assert.equal(run('o.phase'),'spent');
-const chestCurrency = Object.entries(copy('game.currencies')).filter(([key, value]) => value > (wallet[key] || 0));
-assert.ok(chestCurrency.length, 'chest pays currency for this fixture');
-for (const [key, value] of chestCurrency) {
-    assert.equal(run(`battleFx.filter(fx=>fx.loot?.currency==='${key}').at(-1)?.loot.count`), value - (wallet[key] || 0),
-        'chest currency receipt has the count required by ground-drop presentation and sound');
+// 2026-10-06: chest currency lies on the floor like its items until picked up (js/exploration-ground-loot.js).
+assert.deepEqual(copy('game.currencies'), wallet, 'chest currency is not owned before it is picked up');
+const chestCurrency = copy("r.groundLoot.filter(row=>row.currency)");
+assert.ok(chestCurrency.length, 'chest drops currency on the floor for this fixture');
+run('r.groundLoot.filter(row=>row.currency).forEach(row=>actExplorationProgress.collectPile(row));');
+for (const row of chestCurrency) {
+    assert.equal(run(`game.currencies['${row.currency}']||0`), (wallet[row.currency] || 0) + row.count,
+        'picking the pile up grants exactly the floor count');
 }
 const once=copy('({items:game.inventory,currency:game.currencies})');
 assert.equal(run('actExplorationProgress.objects.request(o.id)'),false);assert.deepEqual(copy('({items:game.inventory,currency:game.currencies})'),once);

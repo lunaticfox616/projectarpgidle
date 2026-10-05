@@ -170,8 +170,7 @@ actExplorationProgress.objects = (() => {
         if(!contentProgression.canDropCurrency(key))return;
         const base=prop?1:state.isEvent(row)?3:state.grade(row).currency;
         const scaled=base*run.objects.quantity,amount=Math.floor(scaled)+Number(rng()<scaled%1);
-        awardCurrency(key,amount,'drop');
-        queueEnemyGroundLoot(enemy,{currency:key,count:amount});
+        keepCurrencyDrop(enemy,key,amount);
     }
     return {initialize,savedFacing,request,cancel,step,afterDeath,area,stage};
 })();

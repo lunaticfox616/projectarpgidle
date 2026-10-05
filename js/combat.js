@@ -8266,10 +8266,8 @@ function celebrateEnemyLoot(enemy, item, highlight) {
  */
 function keepEquipmentDrop(enemy, item, options) {
     const highlight = equipmentLootPolicy.highlight(item, game);
-    const run = actExplorationState.current(game);
-    const floor = !!run && !run.arrival && !run.completionApplied && run.status !== 'failed' && !game.isBackgroundCalculation
-        && hasGridCell(enemy) && previewEquipmentPickup(item, options) === 'kept';
-    if (floor) {
+    const run = explorationFloorFor(enemy);
+    if (run && previewEquipmentPickup(item, options) === 'kept') {
         actExplorationState.groundLoot.place(run, enemy, item, { highlight: !!highlight, guaranteed: isGuaranteedEquipmentPickup(item, options) });
         if (!battleFxSuppressed) celebrateEnemyLoot(enemy, item, highlight);
         return 'floor';
@@ -8285,9 +8283,38 @@ function keepEquipmentDrop(enemy, item, options) {
  * @returns {number} items that reached the inventory or an equipment slot
  */
 function collectExplorationFloorLoot(rows) {
-    const kept = rows.filter(row => addItemToInventory(row.item, { ignoreFilter: true, guaranteedKeep: row.guaranteed })).map(row => row.item);
-    if (kept.length) dispatchRuntimeEvent('floor-loot-collected', { items: kept }); // the loot log line (js/battle-ground-loot-ui.js)
-    return kept.length;
+    const currencies = rows.filter(row => row.currency);
+    currencies.forEach(row => commitCurrencyGain(row.currency, row.count));
+    const kept = rows.filter(row => row.item && addItemToInventory(row.item, { ignoreFilter: true, guaranteedKeep: row.guaranteed })).map(row => row.item);
+    if (kept.length || currencies.length) dispatchRuntimeEvent('floor-loot-collected', { items: kept,
+        currencies: currencies.map(row => ({ key: row.currency, count: row.count })) }); // the loot log lines (js/battle-ground-loot-ui.js)
+    return kept.length + currencies.length;
+}
+
+/** The live exploration run whose floor a drop at `enemy`'s cell lands on, or null where drops are picked up at once (offline
+ * replay, outside a map, a map already completing or lost). */
+function explorationFloorFor(enemy) {
+    const run = actExplorationState.current(game);
+    return run && !run.arrival && !run.completionApplied && run.status !== 'failed' && !game.isBackgroundCalculation
+        && hasGridCell(enemy) ? run : null;
+}
+
+/**
+ * A currency drop (2026-10-06 user request: currency is picked up like equipment). The gain is resolved now (a still-locked
+ * currency drops nothing); on an exploration map it waits on the cell, elsewhere it is committed at once as before.
+ * @returns {{gain:number, floor:boolean}}
+ */
+function keepCurrencyDrop(enemy, currencyKey, amount) {
+    const award = resolveCurrencyAward(currencyKey, amount, 'drop');
+    if (award.refused || award.gain <= 0) return { gain: 0, floor: false };
+    const run = explorationFloorFor(enemy);
+    if (run) {
+        actExplorationState.groundLoot.placeCurrency(run, enemy, award.key, award.gain);
+        return { gain: award.gain, floor: true };
+    }
+    commitCurrencyGain(award.key, award.gain);
+    queueEnemyGroundLoot(enemy, { currency: award.key, count: award.gain });
+    return { gain: award.gain, floor: false };
 }
 
 /** One dropped equipment item: generate, apply a drop variant (js/loot.js equipmentDropVariants) and drop it. Returns the items
@@ -8375,9 +8402,8 @@ function rollLootForEnemy(enemy) {
             if (core) dispatchRuntimeEvent('core-item-received', core);
             return;
         }
-        const gain = awardEnemyLootCurrency(drop[0], drop[1], 'drop');
-        if (gain <= 0) return;
-        queueEnemyGroundLoot(enemy, { currency: drop[0], count: gain });
+        const { gain, floor } = keepCurrencyDrop(enemy, drop[0], drop[1]);
+        if (gain <= 0 || floor) return; // a floor drop logs when picked up (js/battle-ground-loot-ui.js)
         let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${gain}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });

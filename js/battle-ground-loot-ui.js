@@ -316,8 +316,10 @@ const battleGroundLoot = (() => {
     // ---- floor piles: equipment waiting on an exploration map until the hero walks over it or the player clicks it.
     const floorPiles = new Map(); // "gx,gy" → entry
     const landedFloorIds = new Set(); // item ids whose landing already played: a redraw after a tab switch does not drop them again
-    const floorReceipts = pile => pile.rows.map(row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight }))
-        .sort((a, b) => importance(b) - importance(a));
+    const floorReceipts = pile => pile.rows.map(row => row.currency ? { currency: row.currency, count: row.count }
+        : { item: row.item, itemKind: 'equipment', highlight: row.highlight }).sort((a, b) => importance(b) - importance(a));
+    /** A stable key per floor row: an item's id, or the currency and cell (one row per currency and cell). */
+    const floorRowKey = row => row.item ? row.item.id : `${row.currency}@${row.gx},${row.gy}`;
 
     function pickFloor(event, entry) {
         event.preventDefault(); event.stopPropagation();
@@ -327,7 +329,7 @@ const battleGroundLoot = (() => {
         const marker = entry.marker, receipts = floorReceipts(pile);
         marker.replaceChildren();
         const flight = appearance(marker, receipts); beam(marker, receipts[0]);
-        const names = receipts.map(receipt => receipt.item.name);
+        const names = receipts.map(receipt => receipt.item ? receipt.item.name : `${ORB_DB[receipt.currency]?.name || receipt.currency} ×${receipt.count}`);
         marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
         place(marker, originFor(entry.cell, projection)); yieldCrowdedArms(marker);
         if (fresh) launch(entry, flight, originFor(entry.cell, projection));
@@ -337,7 +339,7 @@ const battleGroundLoot = (() => {
         const marker = document.createElement('div'); marker.className = 'battle-loot-drop is-floor';
         marker.setAttribute('role', 'button'); marker.tabIndex = 0;
         marker.dataset.gx = String(pile.gx); marker.dataset.gy = String(pile.gy);
-        marker.style.setProperty('--rest-angle', (pile.rows[0].item.slot === '무기' ? 54 : -16) + 'deg');
+        marker.style.setProperty('--rest-angle', (pile.rows[0].item?.slot === '무기' ? 54 : -16) + 'deg');
         const entry = { marker, cell: { gx: pile.gx, gy: pile.gy }, timers: new Set(), floor: true, ids: '' };
         marker.addEventListener('click', event => pickFloor(event, entry));
         marker.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') pickFloor(event, entry); });
@@ -350,13 +352,13 @@ const battleGroundLoot = (() => {
         const piles = run ? actExplorationState.groundLoot.piles(run) : [];
         const live = new Set();
         for (const pile of piles) {
-            const key = `${pile.gx},${pile.gy}`, ids = pile.rows.map(row => row.item.id).join(',');
+            const key = `${pile.gx},${pile.gy}`, ids = pile.rows.map(row => `${floorRowKey(row)}:${row.count || 1}`).join(',');
             live.add(key);
             const existing = floorPiles.get(key), entry = existing || addFloorPile(key, pile);
             if (entry.ids === ids) continue;
             entry.ids = ids;
-            const fresh = pile.rows.some(row => !landedFloorIds.has(row.item.id));
-            pile.rows.forEach(row => landedFloorIds.add(row.item.id));
+            const fresh = pile.rows.some(row => !landedFloorIds.has(floorRowKey(row)));
+            pile.rows.forEach(row => landedFloorIds.add(floorRowKey(row)));
             floorMarker(entry, pile, projection, fresh);
         }
         for (const [key, entry] of floorPiles) {
@@ -405,6 +407,9 @@ const battleGroundLoot = (() => {
 
     addEventListener('project-idle:floor-loot-collected', ({ detail }) => {
         if (!game.settings.showLootLog) return;
+        // The same lines a drop picked up at once writes (js/combat.js rollLootForEnemy).
+        detail.currencies.forEach(({ key, count }) => addLog(`🪙 ${window.getStyledOrbName(key)} +${count}`,
+            key === 'goldenRule' || key === 'sapBud' ? 'loot-unique' : 'loot-magic'));
         detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`, '', { item }));
     });
 

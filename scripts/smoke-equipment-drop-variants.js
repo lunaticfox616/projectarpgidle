@@ -128,10 +128,11 @@ if (pot) assert.match(pot, /등급/, 'a graded pot is rejected');
 // Opening: gold gives at least two items (one rare or better) and more currency than wood; silver at least one item.
 function open(grade) {
     findChest();
-    // The chest's items lie on the floor until picked up (js/exploration-ground-loot.js), so they are read from the floor rows.
-    return copy(`(()=>{o.grade='${grade}';game.settings.autoSalvageEnabled=false;const bud=game.currencies.magicBud||0,dew=game.currencies.formlessDew||0;
-        const before=r.groundLoot.length;actExplorationProgress.objects.request(o.id);
-        return {phase:o.phase,items:r.groundLoot.slice(before).map(row=>row.item.rarity),currency:(game.currencies.magicBud||0)-bud+(game.currencies.formlessDew||0)-dew,
+    // The chest's items and currency lie on the floor until picked up (js/exploration-ground-loot.js): read from the floor rows.
+    return copy(`(()=>{o.grade='${grade}';game.settings.autoSalvageEnabled=false;
+        const before=r.groundLoot.length;actExplorationProgress.objects.request(o.id);const rows=r.groundLoot.slice(before);
+        return {phase:o.phase,items:rows.filter(row=>row.item).map(row=>row.item.rarity),
+            currency:rows.filter(row=>['magicBud','formlessDew'].includes(row.currency)).reduce((sum,row)=>sum+row.count,0),
             button:document.querySelector('[data-object-id]')?.getAttribute('aria-label')||null};})()`);
 }
 const gold = open('gold'), silver = open('silver'), wood = open('wood');
