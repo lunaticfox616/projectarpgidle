@@ -206,6 +206,13 @@ assert.equal(kept.salvaged, true, 'salvage returns both socketed jewels, even in
 assert.equal(kept.destroyed, true, "a chance orb's destruction returns the jewel");
 assert.equal(kept.fusion, true, "the fusion's consumed rare returns its jewel");
 assert.equal(kept.over, 4, 'the store goes past its limit rather than losing a jewel');
+// A chance orb that succeeds turns the item into a fresh unique; its socketed jewel goes back to the store too.
+run(`showGameToast=()=>{};window.confirm=()=>true;window.chanceJewel=generateJewelDrop(10);game.jewelInventory=[];
+    window.chanceRing=createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='반지'),'normal',20);
+    chanceRing.voidSocket={open:true,jewel:chanceJewel};game.inventory=[chanceRing];game.currencies.fairyRing=1;
+    craftingSelectionState.ref=chanceRing.id;craftingSelectionState.isEquip=false;
+    window.chanceRandom=Math.random;Math.random=()=>0.6;window.chanceDone=false;
+    useCurrency('fairyRing').finally(()=>{Math.random=chanceRandom;chanceDone=true;});`);
 // The crafting workspace wraps useCurrency in its own ledger record; the corruption's one outcome reaches it, so the result panel
 // can lead with it as a highlighted line (js/crafting-workspace-ui.js, no extra effect).
 run(`showGameToast=()=>{};window.ledgerHtml=null;game.currencies.emberBranch=3;window.confirm=()=>true;window.craftItem=drop('rare');craftItem.corrupted=false;
@@ -213,6 +220,10 @@ run(`showGameToast=()=>{};window.ledgerHtml=null;game.currencies.emberBranch=3;w
     const outer=craftingResultLedger.begin(craftItem,{currencyKey:'emberBranch'});
     useCurrency('emberBranch').then(()=>{ledgerHtml=craftingResultLedger.commit(outer,craftItem).meta.outcome||'';});`);
 (async () => {
+    for (let i = 0; i < 50 && !run('chanceDone'); i++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(run("chanceRing.rarity"), 'unique', 'the chance orb succeeded');
+    assert.equal(run('game.jewelInventory.some(j=>j.id===chanceJewel.id)'), true, "a chance orb's success returns the socketed jewel");
+    assert.equal(run('equipmentSockets.jewels(chanceRing).length'), 0, 'the new unique holds no copy of it');
     for (let i = 0; i < 50 && run('ledgerHtml') === null; i++) await new Promise(resolve => setImmediate(resolve));
     const html = run('ledgerHtml') || '';
     assert.equal(run('craftItem.corrupted'), true, 'the real crafting entry corrupts');

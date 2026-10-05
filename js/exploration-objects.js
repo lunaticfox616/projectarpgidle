@@ -2,6 +2,8 @@
 actExplorationState.objects = (() => {
     const kinds = ['chest', 'pot', 'crate', 'sealed', 'nest', 'ambush'];
     const events = ['sealed', 'nest', 'ambush'];
+    /** Combat-clock ms an event's warning lasts before its monsters burst out (a nest's second wave too). */
+    const warningMs = Object.freeze({sealed:900,nest:900,ambush:1200});
     const labels = {chest:'보급 상자',pot:'낡은 항아리',crate:'목재 상자',sealed:'봉인된 보물함',nest:'알집',ambush:'매복 흔적'};
     const near = (a,b) => Math.abs(a.gx-b.gx)+Math.abs(a.gy-b.gy);
     const cellKey = c => `${c.gx},${c.gy}`;
@@ -151,7 +153,7 @@ actExplorationState.objects = (() => {
     function validatePhase(row) {
         if(!['ready','warning','active','spent'].includes(row.phase))throw Error('잘못된 탐험 오브젝트 상태');
         if(!Number.isInteger(row.wave)||row.wave<0||row.wave>(row.kind==='nest'?2:1))throw Error('잘못된 탐험 오브젝트 차수');
-        if(!Number.isFinite(row.remainingMs)||row.remainingMs<0||row.remainingMs>1200)throw Error('잘못된 탐험 오브젝트 시계');
+        if(!Number.isFinite(row.remainingMs)||row.remainingMs<0||row.remainingMs>Math.max(...Object.values(warningMs)))throw Error('잘못된 탐험 오브젝트 시계');
         validateOrdinaryPhase(row);
     }
     function validateOrdinaryPhase(row) {
@@ -207,5 +209,5 @@ actExplorationState.objects = (() => {
         if(run.objects.entries.some(isEvent))throw Error('아틀라스 오브젝트에 중복 전투 사건이 있습니다.');
         run.objects.pendingId=null;return run.objects;
     }
-    return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,labels,grade,name,solid,solidCells,autoTarget};
+    return {create,validate,restoreAtlas,random,eventKind,isEvent,active,visible,warningMs,labels,grade,name,solid,solidCells,autoTarget};
 })();

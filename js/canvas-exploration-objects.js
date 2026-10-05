@@ -117,7 +117,7 @@ actExplorationView.objects=(()=>{
         if(row.phase==='ready'&&['chest','sealed'].includes(row.kind))twinkle(ctx,row,scale,now);
         if(row.phase==='warning') {
             ctx.fillStyle='#1a120d';ctx.fillRect(2*scale,0,12*scale,2*scale);
-            ctx.fillStyle=row.kind==='sealed'?'#b47ae0':'#dfae75';ctx.fillRect(2*scale,0,12*scale*(1-row.remainingMs/1200),scale);
+            ctx.fillStyle=row.kind==='sealed'?'#b47ae0':'#dfae75';ctx.fillRect(2*scale,0,12*scale*(1-row.remainingMs/actExplorationState.objects.warningMs[row.kind]),scale);
         }
         ctx.restore();
     }

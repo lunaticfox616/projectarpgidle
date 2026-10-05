@@ -41,7 +41,7 @@ actExplorationProgress.objects = (() => {
     function cancel(run) {if(run?.objects)run.objects.pendingId=null;}
     function use(run,row) {
         cancel(run);run.destination=null;
-        if(state.isEvent(row)) {row.phase='warning';row.remainingMs=900;remember(run);}
+        if(state.isEvent(row)) {row.phase='warning';row.remainingMs=state.warningMs[row.kind];remember(run);}
         else reward(run,row);
     }
     function step(run,elapsedMs) {
@@ -63,7 +63,7 @@ actExplorationProgress.objects = (() => {
     }
     function advanceEvent(run,row,elapsedMs) {
         if(row.phase==='ready'&&row.kind==='ambush'&&distance(game.gridPlayer,row)<=2&&state.visible(run,row)) {
-            row.phase='warning';row.remainingMs=1200;
+            row.phase='warning';row.remainingMs=state.warningMs.ambush;
         }
         if(row.phase==='warning') {
             row.remainingMs=Math.max(0,row.remainingMs-elapsedMs);
@@ -73,15 +73,14 @@ actExplorationProgress.objects = (() => {
     }
     function finishWave(run,row) {
         if(row.phase==='active'&&!run.packs.some(p=>p.objectId===row.id&&p.aliveIds.length)) {
-            if(row.kind==='nest'&&row.wave<2){row.phase='warning';row.remainingMs=900;}
+            if(row.kind==='nest'&&row.wave<2){row.phase='warning';row.remainingMs=state.warningMs.nest;}
             else reward(run,row);
         }
     }
     function spawnCells(run,row,count) {
         const map=actExplorationMap.forRun(run),room=map.rooms.find(r=>r.id===row.roomId);
-        const occupied=new Set(game.enemies.filter(e=>e.hp>0).flatMap(getGridUnitCells).map(c=>`${c.gx},${c.gy}`));
-        for(const pack of run.packs)for(const e of pack.waiting)occupied.add(`${e.gx},${e.gy}`);
-        state.solidCells(run).forEach(key=>occupied.add(key));
+        // Every grid holder: the hero and its reserved step, living enemies, waiting packs, standing objects and summons.
+        const occupied=getGridBlockedCells();
         const cells=[];
         for(let y=-room.radiusY;y<=room.radiusY;y++)for(let x=-room.radiusX;x<=room.radiusX;x++) {
             const c={gx:room.gx+x,gy:room.gy+y};

@@ -10530,11 +10530,13 @@ async function useCurrency(currencyKey) {
             let unique = generateUniqueItem(tier, item.slot);
             if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
             let previousId = item.id;
+            // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
+            const jewels = equipmentSockets.returnJewels(item);
             Object.keys(item).forEach(key => delete item[key]);
             Object.assign(item, unique);
             // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
             item.id = previousId;
-            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.`, 'loot-unique');
+            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'loot-unique');
         }
     } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);

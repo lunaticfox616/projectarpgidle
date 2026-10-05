@@ -101,7 +101,15 @@ for(const [kind,loop,waves] of [['sealed',5,1],['nest',15,2]]) {
     assert.equal(run('o.phase'),'spent');run('actExplorationState.validate(r,game.enemies);');
 }
 find('ambush',10);run('actExplorationProgress.objects.step(r,20);');assert.equal(run('o.phase'),'warning');assert.equal(run('game.enemies.length'),0);
+// Summons hold grid cells like any unit: an event never bursts out onto one (2026-10-05 review).
+run(`game.summons=[];for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){const c={gx:o.gx+x,gy:o.gy+y};
+    if(actExplorationMap.walkable(m,c,true)&&!actExplorationState.objects.solidCells(r).has(c.gx+','+c.gy)&&(c.gx!==game.gridPlayer.gx||c.gy!==game.gridPlayer.gy))
+        game.summons.push({id:'s'+x+'_'+y,alive:true,hp:10,maxHp:10,gx:c.gx,gy:c.gy});}`);
+assert.ok(run('game.summons.length')>0,'summon fixture holds cells near the ambush');
 run('actExplorationProgress.objects.step(r,1200);');assert.equal(run('o.phase'),'active');
+assert.equal(run("game.enemies.filter(e=>e.hp>0).some(e=>game.summons.some(s=>s.gx===e.gx&&s.gy===e.gy))"),false,
+    'event monsters never share a cell with a summon');
+run('game.summons=[];');
 setup(15,29);
 run(`game.chaosRealm.unlocked=true;game.loopProgressCurrent.chaos20Cleared=true;
     game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(n=>n.id);contentProgression.sync();atlas.sync(game);
