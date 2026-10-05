@@ -1174,20 +1174,20 @@ function enterUnlockedEndlessDepth(depth) {
 }
 
 function getLoopDeepStatCost(statKey) {
-    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
+    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
     let lv = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0));
     return 1 + Math.floor(lv / 2);
 }
 
 function allocateLoopDeepStat(statKey) {
-    if (!contentProgression.isUnlocked('deepTree')) return;
+    if (!contentProgression.isUnlocked('deepTree') || !LOOP_DEEP_STATS.some(def => def.key === statKey)) return;
     if ((game.season || 1) < 10) return;
     let cost = getLoopDeepStatCost(statKey);
     if ((game.loopDeepPoints || 0) < cost) return addLog(`심화 루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
-    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
+    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
     game.loopDeepStats[statKey] = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0)) + 1;
     game.loopDeepPoints -= cost;
-    addLog(`🧬 심화 루프 강화: ${getStatName(statKey)} Lv.${game.loopDeepStats[statKey]} (비용 ${cost})`, 'season-up');
+    addLog(`🧬 심화 루프 강화: ${LOOP_DEEP_STATS.find(def => def.key === statKey).label} Lv.${game.loopDeepStats[statKey]} (비용 ${cost})`, 'season-up');
     updateStaticUI();
 }
 
@@ -2340,7 +2340,7 @@ const defaultGame = {
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
     abyssUnlockedDepths: [20],
-    loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
+    loopDeepStats: { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
     // Floor records count cleared floors; null in migrated saves means this loop was not recorded.
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] },

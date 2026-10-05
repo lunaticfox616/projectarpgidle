@@ -423,7 +423,7 @@ const skillGemCasts = (() => {
     }
     function receiveHit(state,input) {
         if(!state.channel || !(input.damage>0) || !input.alive)return [];
-        if(++state.channel.count<5)return [];
+        if(++state.channel.count<SKILL_DB['인과'].combatPattern.hitsTakenPerBurst)return [];
         state.channel.count=0;
         const c={id:53,name:'인과',source:cell(input.source),aim:cell(input.source),stats:input.stats,
             attackOptions:{...state.channel.attackOptions,forcedCrit:undefined},key:'gem-'+(++state.sequence)};

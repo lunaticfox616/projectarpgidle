@@ -114,7 +114,7 @@
         const tierProgress = Math.max(0, Math.min(1, (combatTier - 1) / 18));
         const seasonDepth = 24.5;
         const baseHp = ((56 + combatTier * 30) * 1.15)
-            * (1 + seasonDepth * (0.08 + tierProgress * 0.52))
+            * (1 + seasonDepth * (MONSTER_LOOP_GROWTH.fixed.hp.base + tierProgress * MONSTER_LOOP_GROWTH.fixed.hp.tier))
             * (1 + tierProgress * 9) * 3.22;
         const cosmosHpPressure = (1 + (sizeClass - 1) * 0.10 + (gravity - 1) * 0.13) * 1.35;
         const directive = input && input.directive && typeof input.directive === 'object' ? input.directive : {};
@@ -125,7 +125,7 @@
             * cosmosHpPressure * directiveHpMul * (input && input.isGalaxyBoss ? 1.35 : 1);
         const tierPressure = Math.max(0, Math.min(1, (combatTier - 1) / 10));
         const baseHit = (2.4 + combatTier * 3.35) * 1.15
-            * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
+            * (1 + seasonDepth * (MONSTER_LOOP_GROWTH.fixed.damage.base + tierPressure * MONSTER_LOOP_GROWTH.fixed.damage.tier))
             * (1.14 + combatTier * 0.16) * 1.34;
         const cosmosDamagePressure = (1 + (sizeClass - 1) * 0.025 + (gravity - 1) * 0.055) * 1.1;
         const peakBossHitPressure = getMaximumBossPatternDamageMultiplier()

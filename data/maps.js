@@ -142,9 +142,33 @@ const LOOP_GATE_ALT_START_SEASON = 31;
 const LOOP_GATE_ALT_COSMOS_PLANET_ID = 'planet-45';
 const LOOP_GATE_ALT_COSMOS_PLANET_NAME = '에니프론';
 
+// 심화 패시브(심화 루프 포인트, 루프를 넘어 유지): 혼돈 21층 이상 · 미궁 · 특수 보스 · 나무꾼 부분 피해가 주는 포인트로 산다.
+// 나무꾼까지의 사다리(2026-10-04 사용자 결정: 나무꾼은 그대로 두고 다른 쪽에 계단을 만든다): 예전 생명력 +10 · 피해 +2는 루프 10
+// 캐릭터(생명력 수천, DPS 수십만)에게 보이지 않았다. 생명력은 % 증가, 피해는 곱연산, 카오스 저항을 더했다. key는 저장 이름이라
+// 그대로 둔다(flatHp = 생명력 %, flatDmg = 곱연산 피해). stat: 능력치 버킷에 더할 id, more: 곱연산 피해(combat.js), per: 레벨당 값.
+const LOOP_DEEP_STATS = Object.freeze([
+    Object.freeze({ key: 'flatHp', label: '생명력', stat: 'pctHp', per: 3, unit: '%' }),
+    Object.freeze({ key: 'flatDmg', label: '피해(곱연산)', more: 'damage', per: 3, unit: '%' }),
+    Object.freeze({ key: 'resChaos', label: '카오스 저항', stat: 'resChaos', per: 3, unit: '%' }),
+    Object.freeze({ key: 'aspd', label: '공격 속도', stat: 'aspd', per: 1.2, unit: '%' }),
+    Object.freeze({ key: 'move', label: '이동 속도', stat: 'move', per: 0.8, unit: '%' }),
+    Object.freeze({ key: 'dr', label: '물리 피해 감소', stat: 'dr', per: 0.5, unit: '%' }),
+    Object.freeze({ key: 'crit', label: '치명타 확률', stat: 'crit', per: 0.6, unit: '%' })
+]);
+
 // 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
 const ACT_LOOP_SCALE_CAP = 20;
+
+// 몬스터의 루프당 성장(시즌 깊이 1당, 지역 단계 0~1에 비례하는 몫 tier와 고정 몫 base): 생명력 1 + 깊이 × (base + 단계 × tier).
+// 2026-10-04 소폭 하향(사용자 요청): 생명력 tier 0.52 → 0.47, 피해 tier 0.07 → 0.06 — 혼돈 20 · 루프 10에서 생명력 약 −7%, 피해 약 −4%.
+// 루프를 타지 않는 지역(나무꾼 · 시련)은 깊이가 0이라 그대로다. 루프 30에 고정하고 노드 등급으로 난이도를 올리는 우주계는
+// 예전 값(fixed)을 그대로 쓴다(js/combat.js getMonsterLoopGrowthScale). 전투와 권장 전투력 · 우주계 예측이 같은 값을 쓴다.
+const MONSTER_LOOP_GROWTH = Object.freeze({
+    hp: Object.freeze({ base: 0.08, tier: 0.47 }),
+    damage: Object.freeze({ base: 0.05, tier: 0.06 }),
+    fixed: Object.freeze({ hp: Object.freeze({ base: 0.08, tier: 0.52 }), damage: Object.freeze({ base: 0.05, tier: 0.07 }) })
+});
 
 /** 몬스터 생명력 · 피해의 루프 배율(보조 콘텐츠 통합 9단계, 2026-10-02). 별쐐기 · 생장판 · 가지치기 · 전문가 · 아르카나 ·
  * 플라스크가 빠진 힘 가운데 새 자리(부적 · 공허 소켓 · 코어 · 접붙이기 · 소켓)가 돌려주지 못한 몫을 몬스터 쪽에서 맞춘다.
@@ -311,5 +335,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_POWER_SCALE });
+safeExposeData({ MONSTER_LOOP_POWER_SCALE, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
