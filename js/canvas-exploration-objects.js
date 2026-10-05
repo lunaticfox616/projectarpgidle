@@ -141,7 +141,8 @@ actExplorationView.objects=(()=>{
         ctx.globalAlpha=1;
     }
     addEventListener('project-idle:exploration-object',event=>{
-        const {kind,name}=event.detail;
+        const {kind,name,objectKind}=event.detail;
+        if(objectKind==='pot'||objectKind==='crate')return;
         addLog(kind==='spawn'?`${name}에서 몬스터가 나타났습니다.`:`${name}의 전리품을 획득했습니다.`,kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
     });
     return {append,draw,drawGround};

@@ -1668,38 +1668,8 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
     });
 }
 
-function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
-    if (!fx || !['heavy', 'annihilate'].includes(fx.impactTier)) return;
-    if (String(fx.element || '').toLowerCase() === 'light') return;
-    let profile = fx.skillName ? getSkillGemVfxProfile(fx.skillName) : null;
-    if (profile && profile.impactAccentVfx === false) return;
-    let target = enemyPosMap[fx.enemyId];
-    if (!target) return;
-    let annihilate = fx.impactTier === 'annihilate';
-    let fade = Math.pow(1 - t, 1.35);
-    let cx = target.x;
-    let cy = target.y - 9;
-    ctx.save();
-    ctx.strokeStyle = annihilate ? '#fff0a8' : (fx.color || '#ffd36b');
-    ctx.lineWidth = annihilate ? 2.8 : 2.4;
-    ctx.globalAlpha = fade * (annihilate ? 0.42 : 0.54);
-    let rings = 1;
-    for (let index = 0; index < rings; index++) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, 12 + t * (annihilate ? 42 : 36), 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    let rays = annihilate ? 3 : 2;
-    for (let index = 0; index < rays; index++) {
-        let angle = index * Math.PI * 2 / rays + t * 0.35;
-        let inner = 17 + t * 20;
-        let outer = inner + (annihilate ? 24 : 18) * fade;
-        ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
-        ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
-        ctx.stroke();
-    }
-    ctx.restore();
+function drawDamageImpactAccent(ctx, fx, t, enemyPosMap, playerPos) {
+    worldTreeSkillFx.feedback.contact(ctx, fx, t * fx.duration, { enemies: enemyPosMap, player: playerPos });
 }
 
 // 레벨업: 발밑 고리 + 금빛 기둥 + 떠오르는 레벨 글자. 지속 시간과 호출 시점은 전투 쪽 fx가 소유한다.
@@ -1709,22 +1679,23 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     ctx.save();
     ctx.globalAlpha = 0.95 * fade;
     ctx.globalCompositeOperation = 'lighter';
-    const pillarHeight = 120 + 40 * Math.min(1, t * 2.4);
+    const pillarHeight = worldTreeSkillFx.feedback.reduced() ? 40 : 70 + 20 * Math.min(1, t * 2.4);
     const pillar = ctx.createLinearGradient(cx, footY, cx, footY - pillarHeight);
     pillar.addColorStop(0, 'rgba(255,214,120,0.85)');
     pillar.addColorStop(0.45, 'rgba(255,229,154,0.4)');
     pillar.addColorStop(1, 'rgba(255,240,200,0)');
     ctx.fillStyle = pillar;
-    const pillarWidth = 30 * (1 - t * 0.45);
+    const pillarWidth = 12 * (1 - t * 0.45);
     ctx.fillRect(cx - pillarWidth / 2, footY - pillarHeight, pillarWidth, pillarHeight);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.85 * fade;
     ctx.strokeStyle = '#ffe59a';
     ctx.lineWidth = 2 * (1 - t) + 0.8;
     ctx.beginPath();
-    ctx.ellipse(cx, footY, 18 + t * 34, (18 + t * 34) * 0.36, 0, 0, Math.PI * 2);
+    const radius = worldTreeSkillFx.feedback.reduced() ? 24 : 18 + t * 25;
+    ctx.ellipse(cx, footY, radius, radius * 0.36, 0, 0, Math.PI * 2);
     ctx.stroke();
-    drawLevelUpLabel(ctx, fx, { x: cx, y: playerPos.y - 62 - t * 14, alpha: fade });
+    drawLevelUpLabel(ctx, fx, { x: cx, y: playerPos.y - 62, alpha: fade });
     ctx.restore();
 }
 
@@ -2271,9 +2242,8 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
 }
 
 function drawLegacyHitFeedback(ctx, fx, progress, playerPos, enemyPosMap) {
-    if (SKILL_FX_ATLAS[fx.skillName]) return;
-    drawBattleHitFx(ctx, fx, progress, playerPos, enemyPosMap);
-    drawDamageImpactAccent(ctx, fx, progress, enemyPosMap);
+    if (!SKILL_FX_ATLAS[fx.skillName]) drawBattleHitFx(ctx, fx, progress, playerPos, enemyPosMap);
+    drawDamageImpactAccent(ctx, fx, progress, enemyPosMap, playerPos);
 }
 
 function renderBattlefield(forceWhenHidden) {
@@ -2292,15 +2262,8 @@ function renderBattlefield(forceWhenHidden) {
     const renderScale = clampNumber(Number(canvas.dataset.renderScale) || 1, 1, 2);
     const width = Math.max(1, canvas.clientWidth || Math.round(canvas.width / renderScale) || canvas.width);
     const height = Math.max(1, canvas.clientHeight || Math.round(canvas.height / renderScale) || canvas.height);
-    const wallNow = performance.now();
-    const rawDeltaMs = battleVisualState.lastWallNow > 0 ? clampNumber(wallNow - battleVisualState.lastWallNow, 0, 50) : 16;
-    battleVisualState.lastWallNow = wallNow;
-    if (!Number.isFinite(battleVisualState.visualNow) || battleVisualState.visualNow <= 0) battleVisualState.visualNow = wallNow;
-    let frozenMs = Math.min(rawDeltaMs, Math.max(0, Number(battleVisualState.hitStopRemainingMs) || 0));
-    battleVisualState.hitStopRemainingMs = Math.max(0, (Number(battleVisualState.hitStopRemainingMs) || 0) - frozenMs);
-    const deltaMs = Math.max(0, rawDeltaMs - frozenMs);
-    battleVisualState.visualNow += deltaMs;
-    const now = battleVisualState.visualNow;
+    const { now, rawDeltaMs, deltaMs } = worldTreeSkillFx.feedback.advanceClock(performance.now());
+    worldTreeSkillFx.feedback.begin(now);
     const deltaSec = deltaMs / 1000;
     battleVisualState.lastNow = now;
     cleanupBattleFx(now);
@@ -2445,6 +2408,7 @@ function renderBattlefield(forceWhenHidden) {
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
         if (now < fx.start) return;
+        worldTreeSkillFx.feedback.observe(fx, now);
         let handled = false;
         if (fx.type === 'hit') {
             requestBattleHitStop(fx);
@@ -2537,7 +2501,7 @@ function renderBattlefield(forceWhenHidden) {
             });
             handled = true;
         } else if (fx.type === 'enemyDeath') {
-            if (typeof playUiFeedbackSound === 'function') {
+            if (now - fx.start < 500 && typeof playUiFeedbackSound === 'function') {
                 playUiFeedbackSound(fx.boss ? 'killBoss' : (fx.elite ? 'killElite' : 'kill'));
             }
             handled = true;
@@ -2619,6 +2583,8 @@ function renderBattlefield(forceWhenHidden) {
             drawLegacyHitFeedback(ctx, fx, t, playerPos, enemyPosMap);
         } else if (fx.type === 'levelUp') {
             drawLevelUpFx(ctx, fx, t, playerPos);
+        } else if (fx.type === 'objectReward') {
+            worldTreeSkillFx.feedback.object(ctx, fx, t, gridProj);
         } else if (fx.type === 'playerHit') {
             return;
         } else if (fx.type === 'enemySpawn') {
@@ -2668,41 +2634,7 @@ function renderBattlefield(forceWhenHidden) {
             drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
                 gridProj, now, facing: resolveEnemyFacingDirection(enemy, playerPos) });
             ctx.restore();
-            ctx.save();
-            const moteCount = isBossDeath ? 18 : (fx.elite ? 11 : 6);
-            const seed = Math.abs(Number(fx.enemyId) || 1) * 0.731;
-            ctx.fillStyle = fx.color || (isBossDeath ? '#ffd58a' : '#d8d1c7');
-            for (let mote = 0; mote < moteCount; mote++) {
-                let phase = clampNumber((dissolve - mote / moteCount * 0.42) / 0.58, 0, 1);
-                if (phase <= 0 || phase >= 1) continue;
-                let angleSeed = seed + mote * 2.417;
-                let spread = isBossDeath ? 31 : (fx.elite ? 22 : 15);
-                let px = enemy.x + Math.sin(angleSeed) * spread * (0.35 + phase * 0.65) + Math.cos(now / 310 + mote) * 2;
-                let py = enemy.y - (isBossDeath ? 48 : 30) + (mote % 5) * (isBossDeath ? 11 : 8) + phase * (isBossDeath ? 10 : 7);
-                let size = (isBossDeath ? 2.8 : 1.8) * (1 - phase * 0.62);
-                ctx.globalAlpha = Math.sin(phase * Math.PI) * (isBossDeath ? 0.62 : 0.42);
-                ctx.save();
-                ctx.translate(px, py);
-                ctx.rotate(angleSeed + phase);
-                ctx.fillRect(-size, -size * 0.42, size * 2, size * 0.84);
-                ctx.restore();
-            }
-            ctx.restore();
-            // 일반 적은 반투명 퇴장 자체만 보여 준다. 정예·보스에만 파열을 더해
-            // 대량 원킬 때 적 수만큼 무거운 버스트가 중첩되지 않게 한다.
-            if (fx.elite || isBossDeath) drawBattleImpactBurst(ctx, enemy.x, enemy.y - 6, fx.color || '#ffb0b0', '#ffffff', t);
-            if (isBossDeath) {
-                ctx.save();
-                ctx.globalAlpha = (1 - t) * 0.75;
-                ctx.strokeStyle = fx.color || '#ffd58a';
-                ctx.lineWidth = 4;
-                for (let ring = 0; ring < 3; ring++) {
-                    ctx.beginPath();
-                    ctx.arc(enemy.x, enemy.y - 8, 24 + ring * 12 + t * 58, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                ctx.restore();
-            }
+            worldTreeSkillFx.feedback.death(ctx, fx, t, enemy);
         } else if (['bossAreaImpact', 'trialTrapWarning', 'trialTrap'].includes(fx.type)) {
             drawTrialTrapGridFx(ctx, fx, t, gridProj, fx.type === 'trialTrapWarning');
         } else if (fx.type === 'lootPickup') {
@@ -2767,6 +2699,7 @@ function renderBattlefield(forceWhenHidden) {
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
+    worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
 
     let caption = '전장을 스캔 중...';
@@ -2780,6 +2713,7 @@ function renderBattlefield(forceWhenHidden) {
 }
 
 function getBattleCameraShake(now) {
+    if (worldTreeSkillFx.feedback.reduced()) return { x: 0, y: 0 };
     if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
     let amplitude = bossEntranceView.shake(now);
     (battleFx || []).forEach(fx => {
