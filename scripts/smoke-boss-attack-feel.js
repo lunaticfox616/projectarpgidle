@@ -35,6 +35,11 @@ const alphaAt = ms => { warn.patternTelegraphStartedAt = r.getCombatTime() - ms;
 assert.equal(alphaAt(0), 3, 'a fresh warning starts as before');
 assert.ok(Math.abs(alphaAt(750) - 5) < 1e-9, 'half way it is stronger');
 assert.ok(alphaAt(1500) >= 7 * 0.62 && alphaAt(1500) <= 7, 'at release it is strongest, blinking');
+// 끝 무렵 깜빡임은 매끄럽게 빨라진다(2026-10-07 검토: 위상이 시계 × 빠르기라 빠르기가 바뀌는 순간 제멋대로 튀었다).
+const endBlink = Array.from({ length: 400 }, (_, i) => alphaAt(1100 + i));
+const blinkSteps = endBlink.slice(1).map((value, i) => Math.abs(value - endBlink[i]));
+assert.ok(Math.max(...blinkSteps) < 0.2, `the end blink beats smoothly, 1 ms at a time (largest step ${Math.max(...blinkSteps).toFixed(3)})`);
+assert.ok(Math.max(...endBlink) - Math.min(...endBlink) > 1, 'and it does blink');
 assert.equal(r.bossAttackView.groundAlpha({ isBoss: true }), 3, 'a boss with no warning keeps the old strength');
 
 // ── 몸: 예고 동안 젖히고, 범위기는 뛰어올라 착지와 함께 내리찍고, 사격은 앞으로 내지른다 ─────────────────
@@ -54,6 +59,10 @@ releaseAt(515, true);
 assert.equal(motionOf().lift, 0, 'and it is back on the ground when the area lands (0.5 s after release)');
 releaseAt(190, false);
 assert.ok(motionOf().x < -10 && !motionOf().lift, 'a shot thrusts towards the hero without leaving the ground');
+releaseAt(270, true);
+entry.enemy.ailments = [{ type: 'freeze', time: 1 }];
+assert.equal(motionOf(), undefined, 'a boss frozen right after letting go does not hop (the attack was called off)');
+entry.enemy.ailments = [];
 run(`battleFx.length = 0; battleFx.push({ id: 901, type: 'enemyAttack', enemyId: 7, start: ${now - 100}, duration: 220 });`);
 const lunges = r.bossAttackView.addMotions({ 7: { progress: 0.5, x: -10, y: 0 } }, [entry], hero, now, 48);
 assert.equal(lunges[7], undefined, 'the late hit lunge is gone for bosses (the release already moved them)');
@@ -81,6 +90,9 @@ run("battleAssets.images.skillFxEarthCrack = { complete: true, naturalWidth: 32 
 calls.length = 0;
 r.bossAttackView.drawGround(ctx, projection);
 assert.equal(calls.filter(call => call[0] === 'drawImage').length, 1, 'the area leaves a crack on the ground');
+// 효과 번호는 런마다 0부터 다시 매겨진다: 예전 번호를 다시 받은 새 충격도 친다(2026-10-07 검토: 가끔 파편과 소리가 통째로 빠졌다).
+r.bossAttackView.drawImpact(ctx, { ...slamFx }, 0.1, projection);
+assert.deepEqual([counts.spawn, counts.sound.length], [2, 2], 'a new impact that reuses an old id still lands');
 run(`battleFx.length = 0; game.settings.cameraShake = true; battleFx.push({ id: 902, type: 'bossAreaImpact', start: ${now - 40}, duration: 560, footprint: { cells: [] } });`);
 const shakes = [0, 1, 2, 3].map(step => r.getBattleCameraShake(now + step * 13)).map(shake => Math.hypot(shake.x, shake.y));
 assert.ok(Math.max(...shakes) > 1, 'the landing shakes the screen even when dodged');
@@ -116,4 +128,9 @@ assert.equal(shotCalls.length, 3, 'two fading copies trail a boss shot');
 // 불 사격은 42 도트 너비 그림(canvas-enemy-projectiles sizes[1]): 3.2배면 134.4.
 assert.ok(shotCalls.every(args => Math.abs(args[7] - 42 * 3.2) < 1e-9 && Math.abs(args[8] - 21 * 3.2) < 1e-9), 'every copy is drawn at the grown size');
 assert.equal(r.prepareBossShot({ owner: 'enemy', sourceId: 9 }, { tileW: 48 }, { 9: { x: 0, y: 0, enemy: { isBoss: false } } }), null, 'other shots keep their cell start');
+// 날아가는 중에 보스가 쓰러져도 사격은 제자리에서 이어진다(2026-10-07 검토: 출발점이 칸으로 33 px 튀었다).
+const flying = { owner: 'enemy', sourceId: 7, sourceCell: { gx: 3, gy: 2 } };
+const grid = { tileW: 96, cellToScreen: (gx, gy) => ({ x: gx * 96, y: gy * 96 }) };
+const aloft = r.prepareBossShot(flying, grid, { 7: { x: 300, y: 260, enemy: run('__shotBoss') } });
+assert.deepEqual({ ...r.prepareBossShot(flying, grid, {}) }, { ...aloft }, 'a boss slain mid-flight leaves its shot where it was');
 console.log('boss attack feel: release and impact events, warning ramp, wind-up lean, hop landing on impact, impact debris/sound/crack/shake, sheet wind-up, boss shots OK');

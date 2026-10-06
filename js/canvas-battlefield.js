@@ -1092,11 +1092,16 @@ function drawCombatPathFx(ctx, fx, now, gridProj) {
 
 /** Boss shots (2026-10-06): leave the body centre (half the drawn height above the feet) instead of the anchor cell's corner,
  * and the sprite grows with the tile (js/canvas-enemy-projectiles.js reads fx.screenShotScale). */
+/** A boss shot leaves the middle of the body. Once the boss is gone (slain mid-flight) the shot keeps that offset from its source
+ * cell instead of jumping back to the cell (2026-10-07 review: 33 px in one frame). */
 function prepareBossShot(fx, gridProj, enemyPosMap) {
     const entry = fx.owner === 'enemy' && enemyPosMap ? enemyPosMap[fx.sourceId] : null;
-    if (!entry || !entry.enemy || !entry.enemy.isBoss) return null;
+    const cell = getCombatTravelScreenPos(gridProj, fx.sourceCell, null);
+    if (!entry || !entry.enemy || !entry.enemy.isBoss) return fx.bossShotOffset && cell ? { x: cell.x + fx.bossShotOffset.x, y: cell.y + fx.bossShotOffset.y } : null;
     fx.screenShotScale = clampNumber(gridProj.tileW / 48, 0.75, 2) * 1.6;
-    return { x: entry.x, y: entry.y - Math.max(24, (enemyDrawnHeights.get(entry.enemy) || 0) * 0.5) };
+    const origin = { x: entry.x, y: entry.y - Math.max(24, (enemyDrawnHeights.get(entry.enemy) || 0) * 0.5) };
+    if (cell) fx.bossShotOffset = { x: origin.x - cell.x, y: origin.y - cell.y };
+    return origin;
 }
 
 function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
@@ -2203,6 +2208,13 @@ function shouldMirrorEnemySprite(enemy) {
     return !!enemy && enemySpriteSides.get(enemy) === 'east' && !BOSS_ASSET_FRONT_FACING.includes(enemy.bossAssetKey);
 }
 
+/** The death and hit ghosts draw a copy of the enemy: it keeps the side the living one faced (2026-10-07 review: a boss slain
+ * from its right fell with its back turned, the copy had no side of its own). */
+function copyEnemySpriteSide(from, to) {
+    if (enemySpriteSides.has(from)) enemySpriteSides.set(to, enemySpriteSides.get(from));
+    return to;
+}
+
 const ENEMY_SPAWN_STAMP_FUTURE_MS = 1000;
 /** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js).
  * A stamp well ahead of the clock came from another clock (an older session's save, a combat-clock stamp) and would keep
@@ -2458,7 +2470,7 @@ function renderBattlefield(forceWhenHidden) {
             x: entry.x,
             y: entry.y,
             stamp: now,
-            enemy: { ...entry.enemy }
+            enemy: copyEnemySpriteSide(entry.enemy, { ...entry.enemy })
         };
     });
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);

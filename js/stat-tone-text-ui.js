@@ -9,7 +9,7 @@ const statToneText = (() => {
         ['공격 속도', 'aspd'], ['시전 속도', 'aspd'], ['이동 속도', 'move'], ['이속', 'move'], ['공속', 'aspd'],
         // 붙여 쓴 말(재능 카드 원문 등)
         ['공격속도', 'aspd'], ['시전속도', 'aspd'], ['이동속도', 'move'], ['치명타확률', 'crit'], ['피해감소', 'dr'], ['최대생명력', 'flatHp'],
-        ['치명타 피해', 'critDmg'], ['치명타 확률', 'crit'], ['치명타', 'crit'], ['치명', 'crit'],
+        ['물리 피해 감소', 'dr'], ['치명타 피해', 'critDmg'], ['치명타 확률', 'crit'], ['치명타', 'crit'], ['치명', 'crit'],
         ['모든 원소 저항', 'resAll'], ['원소 저항', 'resAll'], ['최대 저항', 'resAll'], ['저항 관통', 'resPen'],
         ['화염 저항', 'resF'], ['냉기 저항', 'resC'], ['번개 저항', 'resL'], ['카오스 저항', 'resChaos'],
         ['화염 피해', 'firePctDmg'], ['냉기 피해', 'coldPctDmg'], ['번개 피해', 'lightPctDmg'], ['카오스 피해', 'chaosPctDmg'],
@@ -26,10 +26,14 @@ const statToneText = (() => {
         ['피해', 'pctDmg'], ['공격력', 'flatDmg'], ['증폭', 'pctDmg']
     ].sort((a, b) => b[0].length - a[0].length));
     const BY_WORD = new Map(KEYWORDS);
+    // 핵심어를 품은 다른 낱말: 칠하지 않고 절의 첫 핵심어도 되지 않는다('모서리'의 '서리'가 냉기 색이 되고 뒤 수치까지 끌고 갔다, 2026-10-07 검토).
+    const STOP_WORDS = Object.freeze(['모서리']);
+    const isKeyword = word => BY_WORD.has(word);
     const escapeRe = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // 수치: +12%, -2.5%, 1.2배, 0.5초, 3칸, 5중첩, 2회, x1.25, 12%p, 1,033
     const NUMBER = '[+\\-−×x]?\\d+(?:[.,]\\d+)*(?:%p|%|배|초|칸|중첩|회|x)?';
-    const TOKEN = new RegExp(`(${KEYWORDS.map(([word]) => escapeRe(word)).join('|')})|(${NUMBER})`, 'g');
+    const WORDS = [...KEYWORDS.map(([word]) => word), ...STOP_WORDS].sort((a, b) => b.length - a.length);
+    const TOKEN = new RegExp(`(${WORDS.map(escapeRe).join('|')})|(${NUMBER})`, 'g');
     // 절 나누기: 쉼표와 마침표는 수 사이(1.2배, 1,033)가 아닐 때만 나눈다.
     const CLAUSE = /([·:;!?()[\]{}/|\n]|[.,](?!\d)|\s-\s)/;
     const NUMBER_TONE = '#f6e7c1'; // 핵심어 없는 절의 수치: 글보다 조금 밝게
@@ -39,12 +43,12 @@ const statToneText = (() => {
 
     /** One clause → [{text, color, number}] (color null = leave the text as it is). Numbers take the clause's first keyword colour. */
     function clauseSegments(clause) {
-        const tokens = [...clause.matchAll(TOKEN)], lead = tokens.find(match => match[1]);
+        const tokens = [...clause.matchAll(TOKEN)], lead = tokens.find(match => isKeyword(match[1]));
         const clauseTone = lead ? toneOf(lead[1]) : NUMBER_TONE, out = [];
         let at = 0;
         for (const match of tokens) {
             if (match.index > at) out.push({ text: clause.slice(at, match.index), color: null });
-            out.push({ text: match[0], color: match[1] ? toneOf(match[1]) : clauseTone, number: !match[1] });
+            out.push({ text: match[0], color: match[1] ? (isKeyword(match[1]) ? toneOf(match[1]) : null) : clauseTone, number: !match[1] });
             at = match.index + match[0].length;
         }
         if (at < clause.length) out.push({ text: clause.slice(at), color: null });
@@ -80,7 +84,8 @@ const statToneText = (() => {
     function markup(source) {
         const stack = [];
         let coloured = false;
-        return String(source == null ? '' : source).split(/(<[^>]+>)/).map(part => {
+        // 따옴표 안의 '>'는 태그를 끝내지 않는다(title="a > b" 같은 속성이 태그를 깨뜨렸다, 2026-10-07 검토).
+        return String(source == null ? '' : source).split(/(<(?:[^>"']|"[^"]*"|'[^']*')*>)/).map(part => {
             if (part.startsWith('<')) { coloured = tagStep(stack, part); return part; }
             if (coloured || !part) return part;
             return part.split(/(&[#a-z0-9]+;)/i).map(piece => (piece.startsWith('&') ? piece : html(piece))).join('');
@@ -88,7 +93,7 @@ const statToneText = (() => {
     }
     /** The line's subject colour (its first keyword), or fallback. */
     function lineColor(text, fallback = null) {
-        const lead = [...String(text == null ? '' : text).matchAll(TOKEN)].find(match => match[1]);
+        const lead = [...String(text == null ? '' : text).matchAll(TOKEN)].find(match => isKeyword(match[1]));
         return lead ? toneOf(lead[1]) : fallback;
     }
     /** A line about one stat, in that stat's colour (the item affix look). */

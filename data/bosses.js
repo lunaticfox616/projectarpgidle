@@ -292,7 +292,9 @@ function getRootMonsterWeapon(enemy) {
 }
 
 /** 일반·정예 외형: 다섯에 하나는 원소 위습, 그 밖의 여덟에 하나는 무기 뿌리촉수, 나머지는 지역 목록에서 시드와 원소로 고른다. */
-function getMonsterVariantDefinition(variantSeed, element, zone) {
+/** marker.ownLook: a content room that draws its own sheet (the atlas hive's bees, js/atlas-encounters.js) rolls none. */
+function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
+    if (marker && marker.ownLook) return null;
     const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
     if (seed % WISP_ENEMY_RULES.spawnOneIn === 0) return getWispMonsterVisualDefinition(seed, element);
     const root = getRootMonsterVisualDefinition(seed);

@@ -14,31 +14,46 @@ const bossAttackView = (() => {
     const MOTION = Object.freeze({ leanTiles: 0.2, rearTiles: 0.1, hopTiles: 0.55, lungeTiles: 0.4, releaseMs: 540, landAt: 0.93, trembleFrom: 0.6 });
     const CRACK_MS = 1400, IMPACT_FLASH_MS = 240;
     const RAY_KINDS = new Set(['line', 'fan']);
-    const cracks = [], landed = new Set();
+    // 충격은 효과 객체로 기억한다: 효과 번호는 런마다 0부터 다시 매겨져, 번호로 기억하면 다음 런의 충격이 가끔 통째로 빠졌다.
+    const cracks = [], landed = new WeakSet();
 
     const easeOut = t => 1 - (1 - t) * (1 - t);
+    const isHeld = enemy => (enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0);
     function isLiveWarning(enemy) {
         if (!enemy || !enemy.isBoss || enemy.noAttack || !(enemy.hp > 0) || !enemy.patternArea) return false;
-        return !(enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0);
+        return !isHeld(enemy);
     }
-    /** 0..1 through the live warning on the combat clock, null when the boss is not warning. */
+    /** The combat clock between its 100 ms steps: on the stepped clock the warning ramped, blinked and closed in tenths of a second
+     * (2026-10-07 review). It runs on from the last step by the screen's clock, up to one step, and stays put once the fight has
+     * not stepped for a while (paused). */
+    let stepClock = -1, stepAt = 0;
+    function smoothCombatTime() {
+        const combat = getCombatTime(), now = performance.now();
+        if (combat !== stepClock) { stepClock = combat; stepAt = now; }
+        const since = now - stepAt;
+        return since < 150 ? combat + Math.min(100, since) : combat;
+    }
+    /** 0..1 through the live warning, null when the boss is not warning. */
     function warningShare(enemy) {
         const started = Number(enemy && enemy.patternTelegraphStartedAt) || 0;
         if (!enemy || !enemy.patternTelegraphKey || !started) return null;
-        return clampNumber((getCombatTime() - started) / COMBAT_GRID_CONFIG.bossPatternWarningMs, 0, 1);
+        return clampNumber((smoothCombatTime() - started) / COMBAT_GRID_CONFIG.bossPatternWarningMs, 0, 1);
     }
-    function blink(share, now) {
+    /** 1, then a blink that quickens towards the release. The phase is the rate integrated over the warning; clock × rate made the
+     * phase jump at random as soon as the rate moved. */
+    function blink(share) {
         if (share < BLINK_FROM) return 1;
-        return 0.62 + 0.38 * Math.abs(Math.cos(now * (0.009 + 0.03 * (share - BLINK_FROM))));
+        const span = COMBAT_GRID_CONFIG.bossPatternWarningMs, late = share - BLINK_FROM;
+        return 0.62 + 0.38 * Math.abs(Math.cos(0.009 * share * span + 0.015 * span * late * late));
     }
     /** Ground warning strength for drawBossPatternArea: 3 when it appears, 7 at release, blinking near the end. */
     function groundAlpha(enemy) {
         const share = warningShare(enemy);
-        return share === null ? 3 : (3 + 4 * share) * blink(share, getCombatTime());
+        return share === null ? 3 : (3 + 4 * share) * blink(share);
     }
-    /** A released area that lands within half a second: full strength, blinking fast. */
+    /** A released area that lands within half a second: full strength, blinking fast (about 105 ms a beat, on the screen's clock). */
     function pendingAlpha() {
-        return 7 * (0.6 + 0.4 * Math.abs(Math.cos(getCombatTime() * 0.03)));
+        return 7 * (0.6 + 0.4 * Math.abs(Math.cos(performance.now() * 0.03)));
     }
 
     // ── 인물 위 선(채움 없음) ─────────────────────────────────
@@ -104,10 +119,10 @@ const bossAttackView = (() => {
     /** Strokes over the actors for every live and released boss warning (no fill, so the actors stay readable). */
     function drawMarks(ctx, scene) {
         if (!scene || !scene.projection) return;
-        const now = getCombatTime();
+        const now = performance.now(); // the flowing bands of lines and fans
         for (const { enemy } of scene.layout || []) {
             const share = isLiveWarning(enemy) ? warningShare(enemy) : null;
-            if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, now, blink: blink(share, now) });
+            if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, now, blink: blink(share) });
         }
         for (const attack of scene.pending || []) {
             if (attack.delivery !== 'patternArea') continue;
@@ -137,7 +152,8 @@ const bossAttackView = (() => {
     /** Area specials hop and slam down (the shadow stays: lift moves only the picture); shots and lines thrust forward. */
     function releaseMotion(entry, dir, now, tile) {
         const fx = latestRelease(entry.enemy, now);
-        if (!fx) return null;
+        // Frozen, stunned or silenced right after letting go: the attack was called off, so no hop that lands on nothing.
+        if (!fx || isHeld(entry.enemy)) return null;
         const t = clampNumber((now - fx.start) / MOTION.releaseMs, 0, 1);
         if (!fx.slam) {
             const stride = Math.sin(Math.PI * Math.min(1, t / 0.7)) * MOTION.lungeTiles * tile;
@@ -189,13 +205,9 @@ const bossAttackView = (() => {
         }
         ctx.restore();
     }
-    function remember(id) {
-        landed.add(id);
-        if (landed.size > 64) landed.delete(landed.values().next().value);
-    }
     /** Once per impact: debris in the boss's element, a crack left on the ground (areas around a point), the slam sound. */
     function land(fx, footprint) {
-        remember(fx.id);
+        landed.add(fx);
         const scale = clampNumber(Math.max(footprint.width, footprint.tileW) / 96, 0.7, 1.6);
         if (typeof attackFxSpawn === 'function') attackFxSpawn(fx.element || 'phys', footprint.x, footprint.y, { variant: 'slam', scale, crit: true });
         if (!RAY_KINDS.has(fx.footprint.kind)) cracks.push({ centre: { ...fx.footprint.center }, cells: Math.max(1, (fx.footprint.radius || 0) * 2 + 1), start: performance.now() });
@@ -209,7 +221,7 @@ const bossAttackView = (() => {
         const ms = progress * (Number(fx.duration) || IMPACT_FLASH_MS);
         if (ms < IMPACT_FLASH_MS) drawBossPatternArea(ctx, fx.footprint, projection, (1 - ms / IMPACT_FLASH_MS) * 5);
         drawShockwaves(ctx, footprint, progress, getEnemyTelegraphColor({ ele: fx.element }).edge);
-        if (!landed.has(fx.id)) land(fx, footprint);
+        if (!landed.has(fx)) land(fx, footprint);
     }
     /** Cracks under the actors where areas landed, fading over CRACK_MS (grid cells, so a scrolling map keeps them in place). */
     function drawGround(ctx, projection) {

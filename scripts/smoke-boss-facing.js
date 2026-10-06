@@ -42,6 +42,12 @@ assert.equal(mirrored('drawBossAt(leftBoss, 290, 420)'), true, 'down and to the 
 assert.equal(mirrored('drawBossAt(leftBoss, 205, 180)'), true, 'straight above (inside the dead zone) keeps the last side');
 assert.equal(mirrored('drawEnemySprite(facingCtx, leftBoss, 200, 300, 3.65, 0, 1000)'), true,
     'the death dissolve and afterimages reuse the last side');
+// The ghosts draw a copy of the enemy (battleVisualState.enemyGhostPos): the copy keeps the side too (2026-10-07 review: a boss
+// slain from its right fell with its back turned).
+assert.equal(mirrored('drawEnemySprite(facingCtx, copyEnemySpriteSide(leftBoss, { ...leftBoss }), 200, 300, 3.65, 0, 1000)'), true,
+    'the dying copy keeps the side');
+assert.match(require('node:fs').readFileSync('js/canvas-battlefield.js', 'utf8'), /enemy: copyEnemySpriteSide\(entry\.enemy, \{ \.\.\.entry\.enemy \}\)/,
+    'the ghost snapshot carries the side');
 assert.equal(mirrored('drawBossAt(leftBoss, 150, 300)'), false, 'the hero walking back to the left turns the boss back');
 assert.equal(mirrored('drawBossAt(frontBoss, 300, 300)'), false, 'a frontal boss picture is never mirrored');
 assert.equal(mirrored('drawBossAt(oldBoss, 300, 300)'), false, 'the frontal legacy demon frame is never mirrored');

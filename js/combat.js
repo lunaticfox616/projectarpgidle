@@ -6073,7 +6073,7 @@ function createEnemy(zone, marker, groupIndex) {
         ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed)
         : null;
     let monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
-        ? getMonsterVariantDefinition(variantSeed, enemyEle, zone)
+        ? getMonsterVariantDefinition(variantSeed, enemyEle, zone, marker)
         : null;
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
     const wispVisual = wispDefense.isWisp ? monsterVariant : null;
@@ -7697,7 +7697,7 @@ function explorationPackSpawnAt(zone,key,stage) {
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
     const {key,at,cells,elite,anchor}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
     cells.forEach((cell,index)=>{
-        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
+        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);

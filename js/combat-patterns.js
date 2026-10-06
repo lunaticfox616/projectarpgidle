@@ -189,7 +189,9 @@
             return true;
         }
         let charge = Math.max(0, Number(enemy.attackTimer) || 0);
-        let key = `${state.patternMode || state.mode}:${state.attackNumber}:${state.label}`;
+        // 공격 번호까지만 본다: 예고 도중 생명력이 단계 경계를 넘어 이름(격앙 전조 → 격앙 Ⅰ)만 바뀌어도 경고가 처음부터 다시
+        // 시작했다(2026-10-07 검토). 맞는 칸은 예고를 시작할 때 정한 그대로다.
+        let key = `${state.patternMode || state.mode}:${state.attackNumber}`;
         if (charge < 0.5) {
             enemy.patternTelegraphKey = null;
             enemy.patternTelegraphStartedAt = 0;

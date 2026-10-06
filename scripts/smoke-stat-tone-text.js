@@ -31,6 +31,17 @@ assert.equal(markup('<span class="stat-tone" style="color:#123">화염</span>'),
 assert.equal(run("statToneText.lineColor('적이 3마리 이상이면 공격 속도 +6%')"), tone('aspd'), 'a line takes its subject colour');
 assert.equal(run("statToneText.lineColor('특별한 말 없음', 'x')"), 'x');
 
+// 2026-10-07 검토: 다른 낱말 안의 핵심어('모서리'의 '서리'), 겹치는 핵심어('물리 피해 감소'), 따옴표 안의 '>'.
+const corner = html('모서리면 생명력 +10%');
+assert.match(corner, /^모서리면 /, 'the frost inside "corner" is not a keyword');
+assert.equal(coloured(corner, '\\+10%'), tone('pctHp'), 'so the number follows the life bonus it belongs to');
+const guard = html('물리 피해 감소 25%');
+assert.equal(coloured(guard, '물리 피해 감소'), tone('dr'), 'physical damage reduction reads as reduction, not as damage');
+assert.equal(coloured(guard, '25%'), tone('dr'));
+const titled = markup('<span title="a > b">화염 피해 +10%</span>');
+assert.match(titled, /^<span title="a > b"><span class="stat-tone"/, 'a > inside a quoted attribute does not end the tag');
+assert.match(titled, /<\/span><\/span>$/, 'and the markup stays whole');
+
 // 핵심어마다 색표에 실제 색이 있다(기본 흰색으로 떨어지는 id를 쓰지 않는다).
 const plain = tone('');
 const words = JSON.parse(run(`JSON.stringify(statToneText.segments('${['화염', '냉기', '번개', '카오스', '생명력', '방어도', '회피', '에너지 보호막', '치명타', '공격 속도', '저항', '흡혈', '피해', '물리', '주문', '젬 레벨', '중독', '출혈', '감전', '동결', '점화'].join(' / ')}').filter(row => row.color))`));

@@ -124,4 +124,18 @@ assert.ok(exposed.getBossPatternDescription('slam').includes('3번째 공격'), 
 
 // Actual damage, warning locks and automatic escape run in smoke-boss-pattern-areas.js.
 
+// 예고 도중 생명력이 단계 경계를 넘어 이름만 바뀌어도(격앙 전조 → 격앙 Ⅰ) 경고는 처음부터 다시 시작하지 않는다(2026-10-07 검토).
+{
+    const enemy = { isBoss: true, patternMode: 'ramp', patternAttackCount: 2, hp: 90, maxHp: 100, attackTimer: 0.8 };
+    enemy.nextPatternState = exposed.getBossPatternPreview(enemy);
+    assert.strictEqual(enemy.nextPatternState.label, '격앙 전조');
+    exposed.updateBossPatternTelegraph(enemy, 1000, null);
+    assert.strictEqual(enemy.patternTelegraphStartedAt, 1000);
+    enemy.hp = 70;
+    enemy.nextPatternState = exposed.getBossPatternPreview(enemy);
+    assert.strictEqual(enemy.nextPatternState.label, '격앙 Ⅰ');
+    exposed.updateBossPatternTelegraph(enemy, 2200, null);
+    assert.strictEqual(enemy.patternTelegraphStartedAt, 1000, 'the warning keeps running across the stage change');
+}
+
 console.log('smoke-boss-patterns passed');

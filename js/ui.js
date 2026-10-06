@@ -5388,8 +5388,13 @@ function getMonsterSkinDefs() {
     let defs = MONSTER_SKIN_FRAME_DEFS.map(def => ({ id: def.id, label: def.label, type: 'frame' }));
     ACT_MONSTER_VISUALS.forEach(def => defs.push({ id: def.id, label: def.name, type: 'frame' }));
     if (typeof REALM_MONSTER_VISUAL_SETS !== 'undefined') {
+        // 군락지 세트는 다른 세트의 개미, 웜, 벌을 다시 쓴다: 한 외형은 목록에 한 번만(2026-10-07 검토: 이름만 다른 줄이 겹쳤다).
+        const listed = new Set(defs.map(def => def.id));
         Object.values(REALM_MONSTER_VISUAL_SETS).forEach(set => {
-            set.members.forEach(member => defs.push({ id: member.id, label: member.name, type: 'frame' }));
+            set.members.filter(member => !listed.has(member.id)).forEach(member => {
+                listed.add(member.id);
+                defs.push({ id: member.id, label: member.name, type: 'frame' });
+            });
         });
     }
     if (typeof WISP_MONSTER_VISUALS !== 'undefined') {
