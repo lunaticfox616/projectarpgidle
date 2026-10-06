@@ -29,7 +29,9 @@ assert.deepEqual(notices, { afterSeen: 0, fresh: 1 }, 'the loop-2 unlock card st
 // "45%를": %와 조사 사이에 줄바꿈 금지 문자가 들어가고, 젬 상세에도 그대로 실린다.
 assert.equal(run(`keepKoreanUnitParticles('첫 타격 피해의 45%를 줍니다. 100% 확률')`), '첫 타격 피해의 45%⁠를 줍니다. 100% 확률');
 const slashDetail = run(`(() => { const target = { innerHTML: '' }; showGemTooltip(null, 'active', '연속 베기', target); return target.innerHTML; })()`);
-assert.ok(slashDetail.includes('45%⁠를'), 'the gem detail keeps "45%를" together');
+// 2026-10-06: the detail colours its numbers (a span around "45%"), so the joiner is checked in the text a reader sees.
+assert.ok(slashDetail.replace(/<[^>]+>/g, '').includes('45%⁠를'), 'the gem detail keeps "45%를" together');
+assert.match(slashDetail, /class="stat-tone[^"]*" style="color:[^"]+">45%<\/span>/, 'and the number reads in its colour');
 // 2026-10-04 젬 보드: a library tile is art · name · Lv · one line (how it attacks); the description, range numbers and tags
 // open in the detail.
 const slashCard = run(`renderAttackGemCard('연속 베기', '연속 베기', getUiPlayerStats())`);

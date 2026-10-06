@@ -22,6 +22,19 @@ function fillPixelText(ctx, text, x, y, color) {
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
 }
+/** Centred pixel text whose keywords and numbers take the item tone colours (js/stat-tone-text-ui.js segments, 2026-10-06);
+ * the rest keeps baseColor. Drawn piece by piece from the left edge of the whole line. */
+function fillPixelToneText(ctx, text, centerX, y, baseColor) {
+    const parts = statToneText.segments(text), widths = parts.map(part => ctx.measureText(part.text).width);
+    let x = Math.round(centerX - widths.reduce((sum, w) => sum + w, 0) / 2);
+    const align = ctx.textAlign;
+    ctx.textAlign = 'left';
+    parts.forEach((part, index) => {
+        fillPixelText(ctx, part.text, x, y, part.color || baseColor);
+        x += widths[index];
+    });
+    ctx.textAlign = align;
+}
 function getCanvasPlayerStats(fallback = {}) {
     let provider = getCanvasRuntimeFunction('getPlayerStats');
     if (!provider) return fallback;
@@ -1604,7 +1617,8 @@ function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     const x = Math.round(centerX), y = Math.round(bottomY);
     ctx.fillStyle = 'rgba(10, 9, 6, 0.82)';
     ctx.fillRect(Math.round(x - width / 2), y - 17, width, 16);
-    fillPixelText(ctx, label, x, y - 3, '#f3d77a');
+    // 특성 이름은 그 특성의 색(화염 장막은 화염 색, 2026-10-06), 핵심어가 없으면 예전 금빛.
+    fillPixelText(ctx, label, x, y - 3, statToneText.lineColor(label, '#f3d77a'));
     ctx.restore();
 }
 
@@ -2943,7 +2957,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(' · '), mid, cy + 25, '#d98a6a');
+    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(' · '), mid, cy + 25, '#d98a6a');
     ctx.restore();
 }
 

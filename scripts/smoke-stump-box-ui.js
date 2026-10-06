@@ -58,7 +58,9 @@ run(`stumpBoxUi.dropOnCell(${seed}, 8);`);
 const near = tip({ stumpTip: 'cell', stumpDrag: String(fire), stumpDropCell: '13' });
 assert.match(near.html, /품질 100%/);
 assert.match(near.html, /성장 0 \/ \d+ \(0%\)/);
-assert.match(near.html, /stump-tip-yield">다 자라면 화염 저항/, 'what it will give, in the yield colour');
+// 2026-10-06: what it gives reads in its stat's colour (the item affix colours), not one yield green for every stat.
+assert.equal(/stump-tip-yield" style="color:([^"]+)">다 자라면 화염 저항/.exec(near.html)?.[1], run("getItemStatToneColor('resF')"),
+    'what it will give, in the colour of its stat');
 assert.match(near.html, /냉기에 막혀 멈춤/, 'fire next to cold says it is stopped');
 assert.equal(near.tone, run('STUMP_BOX_COLORS.fire.tone'), 'the border takes the item colour');
 const away = tip({ stumpTip: 'cell', stumpDrag: String(light), stumpDropCell: '12' });

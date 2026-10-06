@@ -193,12 +193,13 @@ function escapeTalentHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function getTalentPreciseAppliedTexts(comboKey, surface, level) {
+/** The level's applied effects as { text, stat } (stat = the stat id for a plain stat line, null for a unique or runtime one). */
+function getTalentPreciseAppliedParts(comboKey, surface, level) {
     let applied = [];
     let rule = getTalentPreciseRule(comboKey);
     Object.entries((rule && rule.stats) || {}).forEach(([stat, levelTenValue]) => {
         let value = Math.round((Number(levelTenValue) || 0) * level / TALENT_CARD_MAX_LEVEL * 100) / 100;
-        applied.push(`${getTalentStatLabel(stat)} ${value >= 0 ? '+' : ''}${value}%`);
+        applied.push({ text: `${getTalentStatLabel(stat)} ${value >= 0 ? '+' : ''}${value}%`, stat });
     });
     ((rule && rule.uniques) || []).forEach(unique => {
         if (!unique || !unique.key) return;
@@ -206,31 +207,32 @@ function getTalentPreciseAppliedTexts(comboKey, surface, level) {
         if (unique.perLevelParams) Object.keys(unique.perLevelParams).forEach(key => {
             params[key] = (Number(unique.perLevelParams[key]) || 0) * level;
         });
-        applied.push(getTalentUniqLabel(unique.key, params));
+        applied.push({ text: getTalentUniqLabel(unique.key, params), stat: null });
     });
     let runtimeText = getTalentRuntimeAppliedText(surface.runtime, level);
-    if (runtimeText) applied.push(runtimeText);
+    if (runtimeText) applied.push({ text: runtimeText, stat: null });
     return applied;
 }
 
-function getTalentCardEffectLines(heroId, classKey, level) {
+/** A card's effects as plain data (js/talent-ui.js colours them, 2026-10-06): the surface prose, the level's applied effects and the
+ * hidden stats (이면효과, level-scaled). null for an unknown card. */
+function getTalentCardEffectParts(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
     let def = getTalentCardDef(heroId, classKey);
-    if (!def) return [];
+    if (!def) return null;
+    let applied = def.surface ? getTalentPreciseAppliedParts(makeTalentComboKey(heroId, classKey), def.surface, lv) : [];
+    let hidden = talentHiddenList(def).filter(h => h && h.stat)
+        .map(h => ({ text: `${getTalentStatLabel(h.stat)} +${talentHiddenVal(h, lv)}%`, stat: h.stat }));
+    return { level: lv, surface: (def.surface && def.surface.desc) || '', applied, hidden };
+}
+
+function getTalentCardEffectLines(heroId, classKey, level) {
+    let parts = getTalentCardEffectParts(heroId, classKey, level);
+    if (!parts) return [];
     let lines = [];
-    if (def.surface) {
-        if (def.surface.desc) {
-            lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
-        }
-        let applied = getTalentPreciseAppliedTexts(makeTalentComboKey(heroId, classKey), def.surface, lv);
-        if (applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${lv}] ${applied.map(escapeTalentHtml).join(', ')}</span>`);
-    }
-    // 이면효과: 실제 스탯(레벨 비례)
-    let hid = talentHiddenList(def).filter(h => h && h.stat);
-    if (hid.length) {
-        let parts = hid.map(h => `${getTalentStatLabel(h.stat)} +${talentHiddenVal(h, lv)}%`);
-        lines.push(`<span style="color:#9fe0ff;">[이면] ${parts.join(', ')}</span>`);
-    }
+    if (parts.surface) lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(parts.surface)}</span>`);
+    if (parts.applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${parts.level}] ${parts.applied.map(part => escapeTalentHtml(part.text)).join(', ')}</span>`);
+    if (parts.hidden.length) lines.push(`<span style="color:#9fe0ff;">[이면] ${parts.hidden.map(part => part.text).join(', ')}</span>`);
     return lines;
 }
 

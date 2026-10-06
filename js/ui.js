@@ -4213,7 +4213,7 @@ function showGemCardHint(event, type, name) {
     if (event.pointerType !== 'mouse' || document.getElementById('gem-selection')?.matches(':popover-open')) return;
     const support = type === 'support';
     const info = getUiGemPresentation(name, support, cachedTooltipStats || getUiPlayerStats());
-    const html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${keepKoreanUnitParticles(escapeHTML(info.desc || ''))}</div>`
+    const html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${statToneText.markup(keepKoreanUnitParticles(escapeHTML(info.desc || '')))}</div>`
         + '<div class="tooltip-line gem-card-hint">클릭하면 범위 · 수치 · 태그 상세</div>';
     showInfoTooltipHtml(event.clientX, event.clientY, html, support ? '#2bcbba' : '#ff5252', `hint:${type}:${name}`);
 }
@@ -4457,7 +4457,7 @@ function renderSupportGemProcessList() {
         let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '젬 레벨 +1';
         let disabled = !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
         let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel} · ${state ? state.need : 0}`;
-        return `<div class="gem-support-process-card"><div><small>${tierLabel} · Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${escapeHTML((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
+        return `<div class="gem-support-process-card"><div><small>${tierLabel} · Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${statToneText.html((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
     }).join('');
 }
 
@@ -6112,31 +6112,39 @@ function showGemTooltip(event, type, name, target = null) {
     if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
     if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 정수 공격·시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
+    // 설명 글의 핵심어와 수치는 장비 옵션 색(2026-10-06). 이미 색이 있는 줄, 꼬리표, 제목은 그대로다.
+    html = statToneText.markup(html);
     gemTooltipCache = { key: cacheKey, html: html, border: border, stats: stats };
     if (target) { target.innerHTML = html; return; }
     showInfoTooltipHtml(event.clientX, event.clientY, html, border, cacheKey);
 }
 
+// 능력치 → 옵션 색(장비 옵션 줄과 설명 글이 함께 쓴다, js/stat-tone-text-ui.js). 표에 없는 능력치는 이름 조각으로 고른다.
+// 2026-10-06: 흰색으로 떨어지거나 글자 조각 때문에 엉뚱한 색이 나던 능력치(그루터기 열매, 루프 노드, 받는 피해 감소)를 표에 넣었다.
+const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
+    ['#ff9a76', ['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct']],
+    ['#8fd3ff', ['coldPctDmg', 'resC', 'freezeChance']],
+    ['#ffe083', ['lightPctDmg', 'resL', 'shockChance']],
+    ['#c7a6ff', ['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance']],
+    ['#ffd2a6', ['armor', 'armorPct', 'dr', 'takenDamageReduceWhen1EnemyPct', 'takenDamageReduceWhen2EnemiesPct']],
+    ['#baffc2', ['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce']],
+    ['#8fdcff', ['energyShield', 'energyShieldPct', 'energyShieldRegen', 'energyShieldRechargeFaster']],
+    ['#ffb3b3', ['flatHp', 'pctHp', 'regen', 'regenFlat']],
+    ['#ffd6f2', ['crit', 'critDmg']],
+    ['#fff3a8', ['aspd', 'move']],
+    ['#ffcf9f', ['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll',
+        'bossDamagePct', 'eliteDamagePct', 'firstStrikeDamagePct', 'doubleDamageChance']],
+    ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],
+    ['#ff8fa3', ['leech']],
+    ['#ffcb8e', ['resPen', 'resAll', 'ds']],
+    ['#a8e6cf', ['gemLevel', 'suppCap', 'expGain', 'summonEfficiency', 'summonCap']]
+].flatMap(([tone, ids]) => ids.map(id => [id, tone]))));
+
 function getItemStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
     let id = String(statId);
     let low = id.toLowerCase();
-
-    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
-    if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
-    if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
-    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
-    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(id)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fdcff';
-    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
-    if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
-    if (['aspd', 'move'].includes(id)) return '#fff3a8';
-    if (['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(id)) return '#ffcf9f';
-    if (['spellFlatPct', 'spellFlatDmg'].includes(id)) return '#d4a8ff';
-    if (['leech'].includes(id)) return '#ff8fa3';
-    if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
-    if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
+    if (ITEM_STAT_TONE_BY_ID[id]) return ITEM_STAT_TONE_BY_ID[id];
 
     if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
     if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
@@ -8389,8 +8397,14 @@ function clearUiEnemyTraitRotation(traitEl) {
     traitEl.__traitRotationTimer = null;
 }
 
+/** Trait text with its keywords and numbers in the item tone colours (2026-10-06: the line was one colour). One wrapping span:
+ * the ticker track is a flex box, and spaces between coloured pieces would be dropped as separate flex items. */
+function setUiEnemyTraitText(target, text) {
+    target.innerHTML = `<span class="enemy-trait-text">${statToneText.html(text)}</span>`;
+}
+
 function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
-    track.textContent = content;
+    setUiEnemyTraitText(track, content);
     traitEl.__traitOverflowPending = true;
     if (typeof document !== 'undefined' && document.hidden) return;
     let generation = Math.max(0, Math.floor(traitEl.__traitOverflowGeneration || 0)) + 1;
@@ -8398,13 +8412,13 @@ function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
     let measure = () => {
         if (!traitEl.isConnected || traitEl.__traitOverflowGeneration !== generation || traitEl.__traitSignature !== signature) return;
         if (typeof document !== 'undefined' && document.hidden) return;
-        track.textContent = content;
+        setUiEnemyTraitText(track, content);
         let panelWidth = Math.max(0, traitEl.clientWidth);
         let singleWidth = Math.max(0, track.scrollWidth);
         let overflowing = singleWidth > panelWidth + 4;
         traitEl.classList.toggle('is-overflowing', overflowing);
         if (overflowing) {
-            let loopText = escapeHTML(`${content}　·　`);
+            let loopText = statToneText.html(`${content}　·　`);
             track.innerHTML = `<span class="enemy-trait-marquee-copy">${loopText}</span><span class="enemy-trait-marquee-copy" aria-hidden="true">${loopText}</span>`;
             let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
             track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
@@ -8421,7 +8435,7 @@ function updateUiEnemyTraitMarqueeCopies(traitEl, track, content) {
     if (copies.length !== 2) return false;
     let loopText = `${content}　·　`;
     copies.forEach(copy => {
-        if (copy.textContent !== loopText) copy.textContent = loopText;
+        if (copy.textContent !== loopText) setUiEnemyTraitText(copy, loopText);
     });
     return true;
 }
@@ -8461,7 +8475,7 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     traitEl.classList.remove('is-overflowing', 'is-rotating');
     if (!isBoss) {
         traitEl.removeAttribute('tabindex');
-        track.textContent = display.compactText;
+        setUiEnemyTraitText(track, display.compactText);
         return;
     }
     traitEl.setAttribute('tabindex', '0');
@@ -8471,12 +8485,12 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     }
     let index = 0;
     traitEl.classList.add('is-rotating');
-    track.textContent = labels[index];
+    setUiEnemyTraitText(track, labels[index]);
     traitEl.__traitRotationTimer = setInterval(() => {
         if (!traitEl.isConnected) return clearUiEnemyTraitRotation(traitEl);
         if (traitEl.matches(':hover') || (typeof document !== 'undefined' && document.activeElement === traitEl)) return;
         index = (index + 1) % labels.length;
-        track.textContent = labels[index];
+        setUiEnemyTraitText(track, labels[index]);
     }, 2600);
 }
 
@@ -8488,7 +8502,7 @@ function showEnemyTraitTooltip(event) {
     if (!detail) return hideInfoTooltip();
     let title = anchor.getAttribute('data-enemy-trait-kind') || '적 특성';
     let html = `<div class="tooltip-title">${escapeHTML(title)}</div>`
-        + `<div class="tooltip-line">${escapeHTML(detail)}</div>`;
+        + String(detail).split('\n').map(line => `<div class="tooltip-line">${statToneText.html(line)}</div>`).join('');
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#d99a8f');
 }
 
@@ -8840,7 +8854,7 @@ function updateCombatUI(pStats) {
             let traitDisplay = getUiEnemyTraitDisplayText(traitLabels);
             let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
                 ? getBossPatternDescription(focusedEnemy.patternMode) : '';
-            let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join(' · ');
+            let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join('\n');
             updateUiEnemyTraitPanel(traitEl, traitLabels, traitDisplay, fullTooltip, enemyHudTier === 'boss');
             // 특성 줄이 보이면 상태 이상 아이콘 줄은 그 아래로 내려간다(pixel-hud.css .has-trait-line)
             enemyListEl.querySelector('.enemy-card.targeted').classList.toggle('has-trait-line', traitLabels.length > 0);
@@ -10307,7 +10321,9 @@ function buildCraftActionButtons(item) {
                 let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
                 let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
                 let deepStats = game.loopDeepStats || {};
-                let deepTotalLine = `총합 보너스: ${LOOP_DEEP_STATS.map(def => `${def.label} +${formatLoopDeepValue(def, deepStats[def.key])}`).join(', ')}`;
+                // 능력치마다 그 색(2026-10-06): 한 줄 전체가 같은 파란색이라 어느 능력치가 얼마인지 눈에 안 들어왔다. 곱연산 피해는 피해 색.
+                let deepTone = def => getItemStatToneColor(def.stat || 'pctDmg');
+                let deepTotalLine = `총합 보너스: ${LOOP_DEEP_STATS.map(def => `<span style="color:${deepTone(def)}">${def.label} +${formatLoopDeepValue(def, deepStats[def.key])}</span>`).join(', ')}`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:15px;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:12px;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div class="loop10-entry-box">
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
@@ -10315,7 +10331,7 @@ function buildCraftActionButtons(item) {
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <details id="loop-deep-growth" class="progression-workbench" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 ${def.label} Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit} · 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 <span style="color:${deepTone(def)}">${def.label}</span> Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit} · 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
         }
     }
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
@@ -10374,7 +10390,7 @@ function buildCraftActionButtons(item) {
         let actionAttrs = reqMet
             ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
             : ' aria-disabled="true"';
-        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core">${renderPixelIcon(seasonNodeIcons[node.stat] || 'star', 'loop-node-icon')}<span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
+        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core">${renderPixelIcon(seasonNodeIcons[node.stat] || 'star', 'loop-node-icon')}<span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${statToneText.html(node.desc)}</small><em style="color:${getItemStatToneColor(node.stat)}">${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
@@ -10410,7 +10426,8 @@ function buildCraftActionButtons(item) {
             let statLines = Array.isArray(node.stats) ? node.stats : [{ stat: node.stat, val: node.val }];
             let desc = statLines.map(line => {
                 let statInfo = P_STATS[line.stat] || { name: getStatName(line.stat), isPct: false };
-                return line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
+                let text = line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
+                return `<span style="color:${getItemStatToneColor(line.stat)}">${text}</span>`;
             }).join('<br>');
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
             let title = id === 'n10' ? '궁극기' : ((id === 'n11' || id === 'n12') ? '4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '재능특화' : ((id === 'n13c' || id === 'n13d') ? '전직특화' : titleText)));
@@ -10452,7 +10469,7 @@ function buildCraftActionButtons(item) {
                     reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: ${names.join(joiner)}</div>`;
                 }
                 let clickAttr = active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`);
-                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
+                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${statToneText.markup(k.desc)}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
             }).join('')}</div>`).join('');
             document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
         }
@@ -11185,6 +11202,16 @@ function setupCanvasEvents() {
         return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요 · 연결 경로가 트리에 강조됩니다.</div>`;
     }
 
+    /** The node's effect text in the option colours (2026-10-06): each effect line in its own stat's colour (a node with several
+     * stats showed them all in the first stat's colour), keystone and other prose with coloured keywords and numbers. */
+    function renderPassiveEffectToneHtml(node, label) {
+        const effects = Array.isArray(node.effects) && node.effects.length > 0
+            ? (node.connectedDevotionPenalty ? getEffectivePassiveNodeEffects(node) : node.effects) : null;
+        if (!effects) return node.stat ? label : statToneText.markup(label);
+        return String(label).split('<br>').map((line, index) => (index < effects.length
+            ? `<span style="color:${getItemStatToneColor(effects[index].stat)}">${line}</span>` : statToneText.markup(line))).join('<br>');
+    }
+
     function renderPassiveTooltip(node, clientX, clientY) {
         if (!canvasTooltip || !node) return;
         let displayStat = typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat;
@@ -11225,7 +11252,7 @@ function setupCanvasEvents() {
         };
         const primaryEffectLabel = getPassiveEffectLabel(node);
         const displayedEffectLabels = [primaryEffectLabel].filter(Boolean);
-        let effectHtml = primaryEffectLabel ? effectBadge(primaryEffectLabel, passiveAccent, '효과') : '';
+        let effectHtml = primaryEffectLabel ? effectBadge(renderPassiveEffectToneHtml(node, primaryEffectLabel), passiveAccent, '효과') : '';
         const activationState = getPassiveNodeActivationState(node);
         if (node.activationRequirement && !activationState.active) {
             const requiredName = activationState.statId === 'devotion' ? '계시' : getStatName(activationState.statId);
@@ -11241,7 +11268,7 @@ function setupCanvasEvents() {
             `<div class="tooltip-title" style="color:${node.tier >= 3 || node.kind === 'apex' || node.kind === 'transcendent' ? '#e7bf73' : '#b9d0df'}">${getPassiveNodeDisplayName(node)}</div>
              <div class="tooltip-line">${getPassiveKindLabel(node)}</div>
              ${effectHtml}
-             ${tooltipDescription ? `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">${tooltipDescription}</div>` : ''}
+             ${tooltipDescription ? `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">${statToneText.markup(tooltipDescription)}</div>` : ''}
              ${voidCraftHtml}
              ${renderPassiveRouteHint(routeCost)}
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;

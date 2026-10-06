@@ -102,9 +102,9 @@ const stumpBoxUi = (() => {
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(' · ')}</span>`
             + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙">?</button>';
     }
-    /** What the grown items add up to, under the board. */
+    /** What the grown items add up to, under the board: each line in its stat's colour (the item affix colours, 2026-10-06). */
     function stumpSummaryHtml(result) {
-        const stats = Object.keys(result.stats).map(stat => `<li>${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
+        const stats = Object.keys(result.stats).map(stat => `<li style="color:${getItemStatToneColor(stat)}">${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
         return `<ul class="stump-stats">${stats || '<li class="is-empty">다 자란 것 없음</li>'}</ul>` + stumpTalismanUi.summaryHtml();
     }
     function stumpRulesTipHtml() {
@@ -145,8 +145,16 @@ const stumpBoxUi = (() => {
         if (stumpBox.isMature(item)) return '다 자람 · 새 루프에 다시 씨앗 · 수액으로';
         return `성장 ${item.xp} / ${stumpBox.need(item)}`;
     }
+    function stumpYieldOf(item) {
+        return stumpBox.yieldOf(item) || (item.family === 'seed' ? STUMP_BOX_YIELDS[plantingPath(item)][item.color] : null);
+    }
+    /** The colour of what the item gives (its stat, as on items). */
+    function stumpYieldTone(item) {
+        const gain = stumpYieldOf(item);
+        return gain ? getItemStatToneColor(gain.stat) : '';
+    }
     function stumpYieldText(item, result) {
-        const gain = stumpBox.yieldOf(item) || (item.family === 'seed' ? STUMP_BOX_YIELDS[plantingPath(item)][item.color] : null);
+        const gain = stumpYieldOf(item);
         if (!gain) return '';
         const value = result.values[item.id] ?? gain.value * item.roll;
         return `${stumpBox.isMature(item) ? '' : '다 자라면 '}${gain.text.replace('{v}', stumpNumber(value))}`;
@@ -188,7 +196,7 @@ const stumpBoxUi = (() => {
     }
     function stumpSeedBody(item, result, cell) {
         const gain = stumpYieldText(item, result), status = stumpStatus(item, result, cell);
-        return stumpGrowthHtml(item) + (gain ? `<p class="stump-yield">${escStump(gain)}</p>` : '')
+        return stumpGrowthHtml(item) + (gain ? `<p class="stump-yield" style="color:${stumpYieldTone(item)}">${escStump(gain)}</p>` : '')
             + (status ? `<p class="stump-status${status.tone ? ` ${status.tone}` : ''}">${escStump(status.text)}</p>` : '') + stumpPathPicker(item);
     }
     /** The selected item's (or cell's) panel; empty when nothing is selected — hovering shows the same facts. */
@@ -203,10 +211,10 @@ const stumpBoxUi = (() => {
         const growth = stumpGrowthText(item), ripe = stumpBox.isMature(item);
         return growth ? `<div class="tooltip-line stump-tip-growth${ripe ? ' is-ripe' : ''}">${escStump(growth)}${ripe ? '' : ` (${stumpPercent(item)}%)`}</div>` : '';
     }
-    /** Seed · sap lines: what it gives (yield colour) and, only when unusual, its state. */
+    /** Seed · sap lines: what it gives (in its stat's colour) and, only when unusual, its state. */
     function stumpSeedTipLines(item, result, cell) {
         const gain = stumpYieldText(item, result), status = stumpStatus(item, result, cell);
-        return (gain ? `<div class="tooltip-line stump-tip-yield">${escStump(gain)}</div>` : '')
+        return (gain ? `<div class="tooltip-line stump-tip-yield" style="color:${stumpYieldTone(item)}">${escStump(gain)}</div>` : '')
             + (status ? `<div class="tooltip-line stump-tip-status${status.tone ? ` ${status.tone}` : ''}">${escStump(status.text)}</div>` : '');
     }
     function stumpGraftTipLine(cell) {

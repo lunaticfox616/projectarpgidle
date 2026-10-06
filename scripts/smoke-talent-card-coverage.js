@@ -19,6 +19,8 @@ const context = {
 context.window = context;
 context.globalThis = context;
 context.P_STATS = {};
+// 2026-10-06: the talent UI colours its effect lines (js/stat-tone-text-ui.js on the item tone table from js/ui.js).
+context.getItemStatToneColor = id => `#tone-${id}`;
 context.game = {
   talentCards: {},
   talentCardLoadout: [null, null, null, null, null, null],
@@ -27,7 +29,7 @@ context.game = {
 };
 vm.createContext(context);
 require('./lib/load-combat-clock')(context);
-['data/constants.js', 'js/utils.js', 'data/passives.js', 'data/ascendancies.js', 'data/talent-cards.js', 'js/talent-cards.js', 'js/talent-ui.js'].forEach(file => {
+['data/constants.js', 'js/utils.js', 'data/passives.js', 'data/ascendancies.js', 'data/talent-cards.js', 'js/talent-cards.js', 'js/stat-tone-text-ui.js', 'js/talent-ui.js'].forEach(file => {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 });
 vm.runInContext('game = window.game;', context);
