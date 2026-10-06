@@ -1,5 +1,13 @@
 # CSS architecture migration
 
+## Current entry points (checked against main `4fd7c494`, 2026-10-06)
+
+Use `css/main.css` and its `reset, base, components, features, overrides` layers. `npm run build`
+bundles CSS into `dist/`; JavaScript remains classic scripts. The current pixel font/theme definitions
+are in `css/base.css` and `css/themes/pixel.css` (MulmaruMono/Galmuri14 with fallbacks).
+Run `npm run check:css` and `npm run build` for CSS changes. The migration measurements, system-font
+decision and test counts below describe September 15, not the current visual state or a new test run.
+
 ## Baseline and scope
 
 Work started from a fresh clone of `main` at `9ccb14b` (PR #1028), on

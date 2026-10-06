@@ -1,5 +1,9 @@
 # 모바일 화면 재설계 진행 기록
 
+**날짜별 UI 작업 이력.** 제거된 메뉴와 과거 검사 수가 포함된다. 현재 메뉴·해금은 [콘텐츠 진행](content-progression.md),
+창 전환·모바일 패시브 확인 등 최근 검증은 [플레이테스트 보고서](main-playtest-20261006.json)를 본다.
+실제 소유 코드는 `js/ui-window-manager.js`, `js/ui.js`, `css/themes/pixel-mobile.css`다.
+
 목표는 PC 화면의 축소가 아니라 탭별 핵심 행동을 터치로 수행하기 쉬운 구조다.
 금색 판타지 테마, 기존 해금 조건, 저장 데이터와 전투 규칙은 유지한다.
 S24+ Android 16이 대상이며, 현재 검증은 Chromium 모바일 에뮬레이션이다.
