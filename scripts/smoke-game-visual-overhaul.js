@@ -349,16 +349,19 @@ const bodyCueLayout = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [battleVisualState.damageTexts[1]];
   let font = '';
   let drawY = 0;
-  const ctx = { save() {}, restore() {}, strokeText() {}, fillText(value, x, y) { font = this.font; drawY = y; } };
+  let align = '';
+  const ctx = { save() {}, restore() {}, strokeText() {}, fillText(value, x, y) { font = this.font; drawY = y; align = this.textAlign; } };
   drawDamageTexts(ctx, 1600);
-  return { rows, font, drawY };
+  return { rows, font, drawY, align };
 })()`, context);
 assert.strictEqual(bodyCueLayout.rows[0].stackShiftTo, 0, 'body cues must not push ordinary damage labels into the damage-number stack');
 assert.strictEqual(bodyCueLayout.rows[1].bodyCue, true, 'evasion feedback should use the body-cue presentation');
 assert.strictEqual(bodyCueLayout.rows[1].stackShiftTo, 0, 'evasion body cues must stay out of the damage-number stack');
-assert.strictEqual(bodyCueLayout.rows[1].duration, 420, 'evasion body cues should clear quickly beside the character');
-assert.ok(bodyCueLayout.font.includes('11px'), 'body cues should be visibly smaller than ordinary damage numbers');
-assert.strictEqual(bodyCueLayout.drawY, 220, 'body cues must stay fixed beside the character instead of rising like damage numbers');
+// 회피 · 막아냄은 읽을 크기로 머리 위 가운데에 잠깐 머문다(2026-10-06 사용자 요청: 11px로 몸 옆에 떠 보이지 않았다).
+assert.ok(bodyCueLayout.rows[1].duration >= 700, 'evasion body cues stay long enough to read');
+assert.ok(bodyCueLayout.font.includes('20px'), 'body cues are drawn at a readable size');
+assert.strictEqual(bodyCueLayout.align, 'center', 'body cues are centred over the character');
+assert.ok(bodyCueLayout.drawY < 220 && bodyCueLayout.drawY >= 210, 'body cues lift only slightly, unlike damage numbers');
 const headLabels = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [];
   spawnDamageText({ start: 1700, x: 420, y: 240, value: 30 });
@@ -664,8 +667,8 @@ assert.ok(projectileImageRouting.missingImageStrokes > 0, 'a missing dedicated p
 // against PixelLab v3.7 in smoke-world-tree-native-motion; real casts remain covered by
 // smoke-skill-cast-vfx and smoke-continuous-slash-vfx (including basic attacks).
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-assert.ok(combatSource.includes("text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true"), 'player evasion should request fixed body feedback');
-assert.ok(combatSource.includes("text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true"), 'player blocks should request fixed body feedback');
+assert.ok(combatSource.includes("text: '회피!', color: '#c4e2ff', duration: 260, bodyCue: true"), 'player evasion should request fixed body feedback');
+assert.ok(combatSource.includes("text: '막아냄!', color: '#ebdfc2', duration: 260, bodyCue: true"), 'player blocks should request fixed body feedback');
 // Slow/fast motion durations are exercised by smoke-combat-calculation-contracts.
 assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels should retain uncapped calculated damage');
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');

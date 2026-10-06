@@ -84,7 +84,7 @@ function buildMapPowerEstimateHtml(zone) {
     let met = model.meetsRecommendation;
     let environment = buildMapEnvironmentEstimateHtml(model.environment);
     let label = `권장 전투력 ${met ? '달성' : '미달성'}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" ${levelProgressionUi.rewardData(zone)} data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone)}</span></span>`;
 }
 
 function buildMapEnvironmentEstimateHtml(environment) {
@@ -97,9 +97,7 @@ function buildMapEnvironmentTooltipHtml(target) {
     if (!environment) return '';
     const loss = Number(environment.dataset.environmentLoss).toFixed(1);
     const regen = Number(environment.dataset.environmentRegen).toFixed(1);
-    return `<div class="tooltip-line">환경 피해: 최대 생명력 ${loss}%/초 · 지속 재생 ${regen}%/초</div>
-        <div class="tooltip-line tooltip-muted">창공석 완화 반영 · 방어도·회피·에너지 보호막으로 막을 수 없습니다.</div>
-        <div class="tooltip-line tooltip-muted">흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
+    return `<div class="map-power-tip-row is-hazard"><span>환경 피해</span><b>초당 생명력 ${loss}%</b><em>재생 ${regen}%/초 · 방어로 못 막음</em></div>`;
 }
 
 function getMapEstimateElementName(key) {
@@ -112,8 +110,21 @@ function formatLoopDeepValue(def, level) {
     return `${Number.isInteger(total) ? total : total.toFixed(1)}${def.unit}`;
 }
 function buildMapBossElementLine(keys) {
-    const names = String(keys || '').split(',').map(getMapEstimateElementName).filter(Boolean);
-    return names.length ? `<div class="tooltip-line">보스 피해 속성: ${names.join(' · ')}</div>` : '';
+    const chips = String(keys || '').split(',').filter(getMapEstimateElementName)
+        .map(key => `<i class="map-power-element is-${key}">${getMapEstimateElementName(key)}</i>`);
+    return chips.length ? `<div class="map-power-tip-row"><span>보스 속성</span><b>${chips.join('')}</b><em></em></div>` : '';
+}
+
+/** One compared row of the 권장 전투력 tooltip: mine / recommended, green when met, red when short. */
+function buildMapPowerCompareRow(label, mine, recommended) {
+    const ratio = Number(recommended) > 0 ? Number(mine) / Number(recommended) : 1;
+    return `<div class="map-power-tip-row ${ratio >= 1 ? 'is-met' : 'is-short'}"><span>${label}</span><b>${formatApproximateMapPower(mine)}</b><em>권장 ${formatApproximateMapPower(recommended)} · ${Math.round(ratio * 100)}%</em></div>`;
+}
+
+/** 보상 줄: 지역 레벨과 경험치 · 드랍 배율, 100% 미만이면 붉게(levelProgressionUi.rewardData의 data 속성). */
+function buildMapRewardRow(data) {
+    const xp = Number(data.rewardXp), loot = Number(data.rewardLoot);
+    return `<div class="map-power-tip-row ${xp < 100 || loot < 100 ? 'is-short' : 'is-met'}"><span>보상</span><b>Lv.${escapeHTML(data.areaLevel)}</b><em>경험치 ${xp}% · 드랍 ${loot}%</em></div>`;
 }
 
 function showMapPowerEstimateTooltip(event) {
@@ -123,13 +134,13 @@ function showMapPowerEstimateTooltip(event) {
     let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
     let data = target ? target.dataset : {};
     let elementLabel = getMapEstimateElementName(data.limitingElement) || '취약 속성';
-    let html = `<div class="tooltip-title">권장 전투력</div>
-        <div class="tooltip-line">${escapeHTML(data.levelDetail)}</div>
-        <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
-        <div class="tooltip-line">내 EHP 약 ${formatApproximateMapPower(data.playerEhp)} / 권장 약 ${formatApproximateMapPower(data.recommendedEhp)}</div>
-        ${buildMapBossElementLine(data.bossElements)}
-        <div class="tooltip-line tooltip-muted">${elementLabel} 기준 · 회피 주기와 직격 생존 하한 반영</div>
-        <div class="tooltip-line tooltip-muted">중독·출혈 등 지속 피해와 장기전의 회복 능력은 포함하지 않습니다.</div>${buildMapEnvironmentTooltipHtml(target)}`;
+    // 줄마다 항목 · 내 값 · 권장(비율) 세 칸, 달성은 초록 · 미달은 빨강(2026-10-06 사용자 요청 — 한 색의 긴 문장이라 읽기 힘들었다).
+    let html = `<div class="tooltip-title">권장 전투력</div><div class="map-power-tip">
+        ${buildMapPowerCompareRow('공격 DPS', data.playerDps, data.recommendedDps)}
+        ${buildMapPowerCompareRow('생존 EHP', data.playerEhp, data.recommendedEhp)}
+        ${buildMapBossElementLine(data.bossElements)}${buildMapEnvironmentTooltipHtml(target)}
+        ${buildMapRewardRow(data)}</div>
+        <div class="tooltip-line tooltip-muted">${elementLabel} 피해 기준 · 지속 피해 · 회복 제외</div>`;
     showInfoTooltipHtml(x, y, html, '#6ba7d8');
 }
 
@@ -4305,9 +4316,9 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
     root.dataset.renderSig = renderSignature;
 }
 
-/** 11×11 pixel icons for engravings ('#' outline, 'o' fill), drawn as crisp SVG rects tinted by the engraving group —
-  * a syllable of the name read as clutter (사용자 요청 2026-10-04). The board ring and the 강화 · 각인 orbit share them. */
-const SKY_ENHANCEMENT_ICONS = Object.freeze({
+/** 11×11 pixel icons ('#' outline, 'o' fill), drawn as crisp SVG rects — a syllable of a name read as clutter (사용자 요청
+  * 2026-10-04 각인, 2026-10-06 루프 패시브). Engravings (board ring, 강화 · 각인 orbit) tint them by group; loop passive nodes by state. */
+const PIXEL_ICONS = Object.freeze({
     sword: ['.........##', '........#o#', '.......#o#.', '......#o#..', '.#...#o#...', '..#.#o#....', '...#o#.....', '..#.##.....', '.#...#.....', '#..........', '...........'],
     speed: ['...........', '##...##....', '.##...##...', '..##...##..', '...##...##.', '....##...##', '...##...##.', '..##...##..', '.##...##...', '##...##....', '...........'],
     eye: ['...........', '...#####...', '..#ooooo#..', '.#oo###oo#.', '#oo#ooo#oo#', '#oo#o#o#oo#', '#oo#ooo#oo#', '.#oo###oo#.', '..#ooooo#..', '...#####...', '...........'],
@@ -4319,7 +4330,10 @@ const SKY_ENHANCEMENT_ICONS = Object.freeze({
     boomerang: ['...######..', '..#oooooo#.', '.#o######..', '.#o#.......', '.#o#....#..', '.#o#....##.', '.#o#######.', '.#oooooo##.', '..#######..', '........#..', '...........'],
     pierce: ['.....#.....', '....###....', '...##o##...', '.....#.....', '.###.#.###.', '.#oo.#.oo#.', '.#oo.#.oo#.', '.#oo.#.oo#.', '..#o.#.o#..', '...#.#.#...', '....###....'],
     flame: ['.....#.....', '....#o#....', '..#.#o#.#..', '.#o##o##o#.', '.#oo#o#oo#.', '.#ooooooo#.', '#oo#ooo#oo#', '#o#.#o#.#o#', '#oo#ooo#oo#', '.#ooooooo#.', '..#######..'],
-    up: ['.....#.....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.####o####.', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....', '...........']
+    up: ['.....#.....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.####o####.', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....', '...........'],
+    heart: ['...........', '.###...###.', '#ooo#.#ooo#', '#ooooooooo#', '#ooooooooo#', '.#ooooooo#.', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....', '...........'],
+    shield: ['.#########.', '#ooooooooo#', '#ooo###ooo#', '#ooo#o#ooo#', '#ooo#o#ooo#', '.#oo#o#oo#.', '.#ooo#ooo#.', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....'],
+    boot: ['...####....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo####.', '..#ooooooo#', '.#oooooooo#', '.##########', '...........']
 });
 const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
     pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',
@@ -4333,11 +4347,16 @@ const SKY_PROJECTILE_ICONS = Object.freeze({ split: 'split', focus: 'reticle', r
 /** @returns {string} SVG markup for the engraving's icon (class sky-engrave-icon is-<group>). */
 function renderSkyEnhancementIcon(enhancement) {
     let name = enhancement.projectilePatternMode ? SKY_PROJECTILE_ICONS[enhancement.projectilePatternMode] : SKY_ENHANCEMENT_ICON_BY_STAT[enhancement.stat];
+    return renderPixelIcon(name, `sky-engrave-icon is-${getSkyEnhancementGroup(enhancement).className}`);
+}
+
+/** @param {string} name a PIXEL_ICONS key (unknown → star) @param {string} className svg class @returns {string} crisp 11×11 SVG */
+function renderPixelIcon(name, className) {
     let rects = [];
-    (SKY_ENHANCEMENT_ICONS[name] || SKY_ENHANCEMENT_ICONS.star).forEach((row, y) => {
+    (PIXEL_ICONS[name] || PIXEL_ICONS.star).forEach((row, y) => {
         for (let match of row.matchAll(/#+|o+/g)) rects.push(`<rect class="${match[0][0] === '#' ? 'm' : 'f'}" x="${match.index}" y="${y}" width="${match[0].length}" height="1"/>`);
     });
-    return `<svg class="sky-engrave-icon is-${getSkyEnhancementGroup(enhancement).className}" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true">${rects.join('')}</svg>`;
+    return `<svg class="${className}" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true">${rects.join('')}</svg>`;
 }
 
 function getSkyEnhancementGroup(enhancement) {
@@ -6009,8 +6028,8 @@ function showGemTooltip(event, type, name, target = null) {
             html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
         }
         if (!isSummonAttackTooltip) {
-            html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
-            html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
+            html += `<div class="tooltip-line" style="margin-top:6px;color:${getItemStatToneColor('pctDmg')};">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
+            html += `<div class="tooltip-line" style="color:${getItemStatToneColor('aspd')};">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
         }
         if (rawSkillTags.includes('spell')) {
             let spellLv = Math.max(1, info.finalLevel || 1);
@@ -10320,13 +10339,14 @@ function buildCraftActionButtons(item) {
     }).join('');
     document.getElementById('ui-season-content-roadmap').innerHTML = collapsedRoadmapSummary + roadmapCards
         || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
-    // 노드 한가운데 한 글자(도트 글꼴): 경험치 · 피해 · 생명 · 치명 … 전체 효과는 이름표 · 툴팁이 말한다.
-    const seasonNodeGlyphs = {
-        expGain: '경', pctDmg: '피', pctHp: '생', crit: '치', dotPctDmg: '지',
-        move: '이', dr: '감', aspd: '속', physIgnore: '무', resPen: '관', ds: '연',
-        critDmg: '폭', flatHp: '체', regen: '재', projectilePctDmg: '투',
-        meleePctDmg: '근', physPctDmg: '물', elementalPctDmg: '원', chaosPctDmg: '카',
-        minDmgRoll: '소', maxDmgRoll: '대'
+    // 노드 한가운데 도트 그림(능력치 종류): 한 글자("관" · "피")는 읽히지 않고 어수선했다(2026-10-06 사용자 요청).
+    // 전체 효과는 이름표 · 툴팁이 말한다. 그림은 각인과 같은 11도트 묶음(PIXEL_ICONS)을 쓴다.
+    const seasonNodeIcons = {
+        expGain: 'up', pctDmg: 'sword', pctHp: 'heart', crit: 'eye', dotPctDmg: 'flame',
+        move: 'boot', dr: 'shield', aspd: 'speed', physIgnore: 'pierce', resPen: 'pierce', ds: 'speed',
+        critDmg: 'star', flatHp: 'heart', regen: 'drop', projectilePctDmg: 'reticle',
+        meleePctDmg: 'sword', physPctDmg: 'sword', elementalPctDmg: 'flame', chaosPctDmg: 'drop',
+        minDmgRoll: 'fork', maxDmgRoll: 'up'
     };
     let renderSeasonNode = (id, placement, x, y) => {
         let node = getSeasonPassiveNodeDef(id);
@@ -10349,8 +10369,7 @@ function buildCraftActionButtons(item) {
         let actionAttrs = reqMet
             ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
             : ' aria-disabled="true"';
-        let glyph = seasonNodeGlyphs[node.stat] || '능';
-        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core"><span class="loop-node-glyph" aria-hidden="true">${glyph}</span><span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
+        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core">${renderPixelIcon(seasonNodeIcons[node.stat] || 'star', 'loop-node-icon')}<span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
@@ -10784,7 +10803,7 @@ function renderPassiveInvestmentSummary() {
     if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     const summary = getAllocatedPassiveStatSummary();
     const rows = summary.totals.length
-        ? summary.totals.map(([stat, value]) => `<span>${getStatName(stat)}</span><strong>+${formatValue(stat, value)}${P_STATS[stat] && P_STATS[stat].isPct ? '%' : ''}</strong>`).join('')
+        ? summary.totals.map(([stat, value]) => `<span>${getStatName(stat)}</span><strong style="color:${getItemStatToneColor(stat)}">+${formatValue(stat, value)}${P_STATS[stat] && P_STATS[stat].isPct ? '%' : ''}</strong>`).join('')
         : '<span>아직 투자한 효과가 없습니다.</span><strong>—</strong>';
     const specials = summary.specialEffects.length
         ? `<div class="passive-summary-specials">조건부 효과 · ${summary.specialEffects.join(' · ')}</div>`
@@ -11163,7 +11182,8 @@ function setupCanvasEvents() {
 
     function renderPassiveTooltip(node, clientX, clientY) {
         if (!canvasTooltip || !node) return;
-        let passiveAccent = getPassiveStatAccent(typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat);
+        let displayStat = typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat;
+        let passiveAccent = getPassiveStatAccent(displayStat);
         let state = getPassiveVisibility(node.id);
         let route = getHoveredPassivePathNodeIds(node.id);
         let routeCost = Array.from(route).filter(id => !(game.passives || []).includes(id)
@@ -11189,9 +11209,11 @@ function setupCanvasEvents() {
             msg += ` · 성좌 각성 ${progress.completed}/${progress.required}: 외곽 공허 소켓 여섯을 모두 초월시키면 각성합니다.`;
         }
 
+        // 효과 글씨는 능력치 종류의 색(장비 옵션과 같은 getItemStatToneColor): 노드 테두리 색의 옅은 글씨는 흰색과 구분되지 않았다(2026-10-06).
+        let effectTextColor = getItemStatToneColor(displayStat);
         let effectBadge = (label, accent, caption) => {
             let tone = accent || passiveAccent;
-            return `<div class="tooltip-line passive-effect-badge" style="--badge-edge:${tone.activeOuter}; color:${tone.text};">
+            return `<div class="tooltip-line passive-effect-badge" style="--badge-edge:${tone.activeOuter}; color:${effectTextColor};">
                 <div class="passive-effect-caption">${caption}</div>
                 ${label}
             </div>`;

@@ -1429,7 +1429,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (!expected && target && resolveEntropyEvasion(target, target.evasionChance || 0, getCombatTime())) {
         dmg = 0;
         ailmentSourceDmg = 0;
-        addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#9fb4c8', duration: 260 });
+        addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#c4e2ff', duration: 260 });
         addEvasionCombatLog(target, false);
     }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
@@ -10309,7 +10309,7 @@ function performPlayerAttack(pStats, attackOptions) {
             let enemyTotalEvadeChance = getEnemyTotalEvadeChance(targetEnemy, pStats.accuracy);
             if (!pStats.passiveAlwaysHit && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit())
                 && resolveEntropyEvasion(targetEnemy, enemyTotalEvadeChance, getCombatTime())) {
-                addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
+                addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#c4e2ff', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;
             }
@@ -11668,7 +11668,7 @@ function performMonsterAttacks(pStats) {
             if (hasKeystone('h3')) evadeChance = 100 - Math.pow(1 - evadeChance / 100, 2) * 100;
             if (!(typeof isTalentMonsterAlwaysHit === 'function' && isTalentMonsterAlwaysHit())
                 && resolveEntropyEvasion(game, evadeChance, getCombatTime())) {
-                addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true });
+                addBattleFx('statusText', { text: '회피!', color: '#c4e2ff', duration: 260, bodyCue: true });
                 addEvasionCombatLog(null, true);
                 recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, getCombatTime());
                 if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.fullEvasion) {
@@ -11695,12 +11695,12 @@ function performMonsterAttacks(pStats) {
                 }
                 let blockedTakenPct = Math.max(0, Math.min(100, Number(pStats.uniqueBlockedDamageTakenPct) || 0));
                 if (blockedTakenPct <= 0) {
-                    addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true });
+                    addBattleFx('statusText', { text: '막아냄!', color: '#ebdfc2', duration: 260, bodyCue: true });
                     if (game.settings.showCombatLog) addLog('🛡️ 막아냄!', "loot-magic");
                     continue;
                 }
                 let blockText = `막아냄 · 피해 ${blockedTakenPct}%`;
-                addBattleFx('statusText', { text: blockText, color: '#a7a7a7', duration: 260, bodyCue: true });
+                addBattleFx('statusText', { text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true });
                 if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic");
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * blockedTakenPct / 100)));
                 ailmentSourceDamageBeforeCrit = Math.max(1, Math.floor(ailmentSourceDamageBeforeCrit * blockedTakenPct / 100));

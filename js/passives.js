@@ -4793,7 +4793,7 @@ function mergeDamageTextByKey(activeTexts, config, start, x, y) {
 
 function getDamageTextDuration(config) {
     if (config.duration) return config.duration;
-    if (config.bodyCue) return 420;
+    if (config.bodyCue) return 760;
     // About 1.4x the former stay (2026-10-05 user request) so a number can be read before it fades.
     if (config.impactTier === 'annihilate') return 1320;
     if (config.impactTier === 'heavy') return 1200;
@@ -4861,7 +4861,7 @@ function drawVisualProjectile(ctx, projectile, now) {
     ctx.restore();
 }
 function getDamageTextFillColor(text) {
-    if (text.miss) return text.color || '#9fb4c8';
+    if (text.miss) return text.color || '#c4e2ff';
     if (text.dot) {
         if (text.dotType === 'fire') return '#ff9f43';
         if (text.dotType === 'chaos') return '#c56cff';
@@ -4896,21 +4896,21 @@ function drawDamageTexts(ctx, now) {
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
         let t = clampNumber(elapsed / text.duration, 0, 1);
         let easedRise = 1 - Math.pow(1 - t, 2);
-        let rise = text.bodyCue ? 0 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
+        let rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
         let x = text.x;
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
         // Sizes chosen for the pixel font over a busy floor (2026-10-05 user request: numbers were hard to see).
         const tierSize = text.impactTier === 'annihilate' ? 32 : (text.impactTier === 'heavy' ? 28 : 0);
-        const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
+        const fontSize = text.bodyCue ? 20 : (tierSize || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
-        ctx.textAlign = text.bodyCue || text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
+        ctx.textAlign = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
         applyDamageTextPop(ctx, text, t, { x, y });
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
-        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3));
+        ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3);
         ctx.lineJoin = 'round';
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');

@@ -1619,6 +1619,11 @@ function getDamageTextBodyY(feetY, bodyHeight) {
     return Math.round(feetY - bodyHeight * 0.5);
 }
 
+/** 회피 · 막아냄 같은 짧은 판정 글씨의 자리: 몸 위쪽(머리 높이) 가운데 — 몸통 가운데의 대미지 숫자와 겹치지 않는다. */
+function getBodyCueAnchor(pos, bodyHeight) {
+    return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * 0.92) };
+}
+
 /** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
  * visibility). The bar appears on the first hit or while targeted; elites and bosses always show theirs. */
 function isEnemyFieldBarShown(enemy, targeted) {
@@ -2470,32 +2475,24 @@ function renderBattlefield(forceWhenHidden) {
             handled = true;
         } else if (fx.type === 'enemyEvade') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
-            spawnDamageText({
-                start: now,
-                x: enemyPos.x + 18,
-                y: enemyPos.y - 22,
-                value: fx.text || '회피!',
-                miss: true,
-                bodyCue: true,
-                duration: 420,
-                color: fx.color || '#9fb4c8'
-            });
+            spawnDamageText({ start: now, ...getBodyCueAnchor(enemyPos, enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46),
+                value: fx.text || '회피!', miss: true, bodyCue: true, color: fx.color || '#c4e2ff' });
             handled = true;
         } else if (fx.type === 'statusText') {
             let bodyCue = fx.bodyCue === true;
-            let anchorPos = fx.enemyId
-                ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || playerPos)
-                : playerPos;
-            spawnDamageText({
-                start: now,
-                x: anchorPos.x + (bodyCue ? 18 : 14),
-                y: anchorPos.y - (bodyCue ? 22 : 40),
-                value: fx.text || '회피!',
-                miss: true,
-                bodyCue: bodyCue,
-                duration: bodyCue ? 420 : undefined,
-                color: fx.color || '#9fb4c8'
-            });
+            let enemyPos = fx.enemyId ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId]) : null;
+            let anchorPos = enemyPos || playerPos;
+            if (bodyCue) {
+                // 회피 · 막아냄 · 성채화: 맞은 쪽 머리 위 가운데, 대미지 숫자와 같은 크기 결(2026-10-06 사용자 요청 — 몸 옆에 11px로 작게 떴다).
+                const head = enemyPos ? null : hanaActors.headY(now);
+                const bodyHeight = enemyPos ? (enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46)
+                    : (head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head);
+                spawnDamageText({ start: now, ...getBodyCueAnchor(anchorPos, bodyHeight), value: fx.text || '회피!', miss: true, bodyCue: true,
+                    color: fx.color || '#c4e2ff' });
+            } else {
+                spawnDamageText({ start: now, x: anchorPos.x + 14, y: anchorPos.y - 40, value: fx.text || '회피!', miss: true,
+                    color: fx.color || '#c4e2ff' });
+            }
             handled = true;
         } else if (fx.type === 'enemyDeath') {
             if (now - fx.start < 500 && typeof playUiFeedbackSound === 'function') {

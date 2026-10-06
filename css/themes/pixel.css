@@ -467,7 +467,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .loop10-panel { padding: 12px; }
 :root body[data-ui-skin] .loop10-entry-box { margin-bottom: 8px; padding: 10px; background: var(--px-wood-dark), var(--px-stone-raised); }
 :root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
-:root body[data-ui-skin] .loop-node-glyph { font-family: var(--font-pixel); font-size: 12px; font-weight: 400; text-shadow: var(--px-text-edge); }
 /* 재능 개화: 남색 · 보라 유리 판 → 숯빛 판. 개화의 보라는 요약 왼쪽 띠에만 남긴다. */
 :root body[data-ui-skin] .talent-bloom-summary { border-radius: 0; border-left: 3px solid #b88ad8; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy); }
 :root body[data-ui-skin] :is(.talent-bloom-navigator, .talent-current-combo, .talent-loadout-panel) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); }
@@ -476,11 +475,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.talent-combo-status, .talent-bloom-empty) { border-color: var(--px-bronze-lo); border-radius: 0; }
 :root body[data-ui-skin] .talent-slot { border-radius: 0; border-color: var(--px-bronze-lo); background: #141216; }
 :root body[data-ui-skin] .talent-slot.filled { border-color: var(--px-gold); background: var(--px-stone-raised); }
-/* 젬 카드 꼬리표 · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
-:root body[data-ui-skin] .gem-card-tags :is(.gem-tag--neutral, .gem-tag--spell, .gem-tag--utility, .gem-tag--projectile, .gem-tag--pierce, .gem-tag--melee, .gem-tag--slam, .gem-tag--chain, .gem-tag--aoe, .gem-tag--dot) {
-  /* 분류 꼬리표(주문 · 범위 · 지속 …)는 숯빛 판 — 색은 원소 꼬리표(화염 · 냉기 · 번개 · 카오스)의 뜻으로만 남긴다 */
-  border-color: var(--px-bronze-lo); border-radius: 0; background: rgba(8, 5, 8, .5); color: var(--px-copy);
-}
+/* 젬 카드 꼬리표(분류 꼬리표도 근접 · 투사체 · 주문 · 범위마다 제 색 — 2026-10-06 사용자 요청, 모두 흰 글씨라 구분이 안 됐다) · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
+:root body[data-ui-skin] .gem-card-tags .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); color: var(--px-copy); }
 :root body[data-ui-skin] .gem-card-tags span { border-radius: 0; }
 :root body[data-ui-skin] #tutorial-overlay .tutorial-pause-toggle { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .45); }
 :root body[data-ui-skin] .offline-progress-upgrade { border-color: var(--px-bronze-lo); }
