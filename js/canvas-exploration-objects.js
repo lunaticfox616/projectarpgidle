@@ -39,7 +39,23 @@ actExplorationView.objects=(()=>{
     // gold a gilded body with a ruby lock. The wooden chest keeps the base palette.
     const TINTS={silver:{i:'#6e7280',j:'#c9ccd6',g:'#8f939e',h:'#e4e7ee',y:'#ffffff'},
         gold:{1:'#4a3210',2:'#7a5418',3:'#a8782a',4:'#d9a842',5:'#f6dc84',i:'#b88a2a',j:'#fff0b0',g:'#7a2018',h:'#d04a3a',y:'#ffb0a0'}};
+    // 누를 수 있는 오브젝트는 그림 바깥에 밝은 도트 테를 한 겹 두르고 천천히 숨 쉬듯 밝아진다(2026-10-07 사용자 요청: 가장 어두운
+    // 색의 제 테두리만으로는 어두운 바닥에 묻혔다). 색은 종류마다(상자 금빛, 봉인 보라, 몬스터가 나오는 둥지 주황, 항아리와 나무 상자
+    // 옅은 빛), 마우스를 올리거나 초점이 가면 하얗게.
+    const RIM={chest:'#ffd36b',sealed:'#e0b4ff',nest:'#ff9a6a',pot:'#f3d6a4',crate:'#f3d6a4'},RIM_HOT='#fff8e6';
+    let hovered=null;
     const cache=new Map();
+    /** 18 × 18: every empty dot that touches the sprite's 16 × 16 picture on a side. */
+    function rim(name,color) {
+        const key=`${name}|rim|${color}`;
+        if(cache.has(key))return cache.get(key);
+        const solid=(x,y)=>x>=0&&y>=0&&x<16&&y<16&&SPRITES[name][y][x]!=='.';
+        const canvas=document.createElement('canvas');canvas.width=18;canvas.height=18;
+        const ctx=canvas.getContext('2d');ctx.fillStyle=color;
+        for(let y=-1;y<17;y++)for(let x=-1;x<17;x++)
+            if(!solid(x,y)&&(solid(x-1,y)||solid(x+1,y)||solid(x,y-1)||solid(x,y+1)))ctx.fillRect(x+1,y+1,1,1);
+        cache.set(key,canvas);return canvas;
+    }
     function sheet(name,tint) {
         const key=`${name}|${tint||''}`;
         if(cache.has(key))return cache.get(key);
@@ -66,8 +82,9 @@ actExplorationView.objects=(()=>{
         for(const row of run.objects.entries) {
             if(!actExplorationState.objects.visible(run,row))continue;
             const point=p.cellToScreen(row.gx,row.gy),y=point.y+p.actorGroundOffsetY;
-            if(look(row).standing)actors.push({kind:'object',id:row.id,y,point,object:row});
-            if(canClick(run,row)&&onScreen(point,view))pending.rows.push({row,point});
+            const ready=canClick(run,row);
+            if(look(row).standing)actors.push({kind:'object',id:row.id,y,point,object:row,ready});
+            if(ready&&onScreen(point,view))pending.rows.push({row,point});
         }
     }
     /** The buttons' DOM side, once the frame has drawn (renderBattlefield's end). Moving them between canvas calls made the next
@@ -103,8 +120,11 @@ actExplorationView.objects=(()=>{
             const action=['pot','crate'].includes(row.kind)?'부수기':row.kind==='nest'?'건드리기':'열기';
             const name=actExplorationState.objects.name(row);
             node.setAttribute('aria-label',`${name} ${action}`);
-            const text=document.createElement('span');text.textContent=`${name} · ${action}`;node.appendChild(text);
+            const text=document.createElement('span');text.textContent=`${name} ${action}`;node.appendChild(text);
             node.addEventListener('click',event=>{event.stopPropagation();actExplorationProgress.objects.request(row.id);});
+            const hot=on=>()=>{if(on)hovered=row.id;else if(hovered===row.id)hovered=null;};
+            node.addEventListener('pointerenter',hot(true));node.addEventListener('focus',hot(true));
+            node.addEventListener('pointerleave',hot(false));node.addEventListener('blur',hot(false));
             layer.appendChild(node);buttons.set(row.id,node);
         }
         const size=Math.max(28,p.tileW*.9),x=Math.round(point.x-size/2),y=Math.round(point.y+p.actorGroundOffsetY-size);
@@ -124,6 +144,13 @@ actExplorationView.objects=(()=>{
         ctx.translate(Math.round(actor.point.x-8*scale+shake),Math.round(actor.y-15*scale));
         ctx.fillStyle='rgba(10,6,4,.38)';ctx.beginPath();ctx.ellipse(8*scale+scale,14.5*scale,6.5*scale,1.8*scale,0,0,Math.PI*2);ctx.fill();
         const {name,tint}=look(row);
+        if(actor.ready&&RIM[row.kind]) {
+            // the breath runs on the screen's clock: the combat clock steps every 100 ms
+            const hot=hovered===row.id,breath=hot?1:.78+.22*Math.sin(performance.now()/300+row.gx+row.gy);
+            ctx.globalAlpha=fade(row)*breath;
+            ctx.drawImage(rim(name,hot?RIM_HOT:RIM[row.kind]),-scale,-scale,18*scale,18*scale);
+            ctx.globalAlpha=fade(row);
+        }
         ctx.drawImage(sheet(name,tint),0,0,16*scale,16*scale);
         if(row.phase==='ready'&&['chest','sealed'].includes(row.kind))twinkle(ctx,row,scale,now);
         if(row.phase==='warning') {

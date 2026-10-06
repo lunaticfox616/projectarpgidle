@@ -1,7 +1,7 @@
 // 무기 대분류 여섯(data/weapon-categories.js, docs/weapon-categories-20261001.md): 무기 바탕은 전부 대분류가 하나씩 있고
 // (새 무기 바탕을 빠뜨리면 여기서 걸린다), 대분류마다 1단계 바탕부터 20단계까지 제 대분류 안에서만 승급하며, 칸 크기 ·
 // 아이템 제목 · 요구 능력치 · 포션 스킬 · 고유 장비가 대분류를 따른다. 무기 뿌리촉수(data/bosses.js ROOT_MONSTER_RULES)는
-// 장비 드랍의 절반을 제 대분류 무기로 떨군다.
+// 드물게 나오고, 처치마다 넷에 하나꼴로 제 대분류 무기를 따로 떨군다.
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -98,10 +98,14 @@ assert(sweep('투구', 10, 'flask', 100).every(id => json(`BASE_ITEM_DB.find(b =
 const finalWeight = json(`['starfall_ballista', 'meteor_repeater', 'tempestlord_lance'].map(id => { const info = getBaseChainInfo(BASE_ITEM_DB.find(b => b.id === id)); return [info.step, info.total]; })`);
 assert.deepStrictEqual(finalWeight, [[6, 7], [7, 7], [6, 6]], 'the seven-step bow line keeps its sixth step an ordinary drop (only chain tops are rare)');
 
-// 6. 뿌리촉수: 든 무기 = 대분류, 장비 드랍 칸의 절반이 무기(다른 적은 아홉 칸 중 하나), 무기는 제 대분류 바탕.
+// 6. 뿌리촉수: 든 무기 = 대분류. 마흔에 하나꼴로 드물게 나오고(2026-10-07 사용자 요청), 처치마다 weaponDropChance 확률로
+//    제 대분류 무기를 하나 따로 떨군다. 보통 장비 드랍의 칸은 다른 적처럼 아홉 칸 중 하나다(무기 칸이면 제 대분류 바탕).
 assert.strictEqual(run(`getRootMonsterWeapon({ spriteVariantId: 'root-scimitar' })`), 'scimitar');
 assert.strictEqual(run(`getRootMonsterWeapon({ spriteVariantId: 'act1-ant' })`), null);
 assert.strictEqual(run('getRootMonsterWeapon(null)'), null);
+assert.deepStrictEqual(json('ROOT_MONSTER_RULES'), { spawnOneIn: 40, weaponDropChance: 0.25 });
+const rootSeeds = json(`Array.from({ length: 4000 }, (_, seed) => seed).filter(seed => getRootMonsterVisualDefinition(seed)).length`);
+assert.strictEqual(rootSeeds, 100, 'one monster seed in forty is a weapon root');
 const weaponShare = (enemy, n) => json(`(() => {
     const keep = Math.random;
     let weapons = 0;
@@ -110,16 +114,22 @@ const weaponShare = (enemy, n) => json(`(() => {
     } finally { Math.random = keep; }
     return weapons / ${n};
 })()`);
-assert.strictEqual(weaponShare({ spriteVariantId: 'root-orb' }, 900), json('ROOT_MONSTER_RULES.weaponDropChance'));
-assert(Math.abs(weaponShare({ spriteVariantId: 'act3-ant' }, 900) - 1 / 9) < 0.002, 'other monsters keep the even slot roll');
-const seededShare = json(`(() => {
-    const keep = Math.random;
-    let state = 7, weapons = 0;
+for (const variant of ['root-orb', 'act3-ant']) {
+    assert(Math.abs(weaponShare({ spriteVariantId: variant }, 900) - 1 / 9) < 0.002, `${variant}: the ordinary equipment roll is even`);
+}
+const rootPicks = json(`(() => {
+    const keep = Math.random, keepPick = grantEquipmentPick;
+    let state = 7, picks = [];
     Math.random = () => { state = (state * 16807) % 2147483647; return (state - 1) / 2147483646; };
-    try { for (let i = 0; i < 40000; i++) if (getEquipmentDropSlot({}, { spriteVariantId: 'root-flask' }) === '무기') weapons++; } finally { Math.random = keep; }
-    return weapons / 40000;
+    grantEquipmentPick = (enemy, zone, minimumRarity, slot) => { picks.push(slot); return []; };
+    try {
+        for (let i = 0; i < 40000; i++) grantRootWeaponPick({ spriteVariantId: 'root-flask' }, getZone(9));
+        for (let i = 0; i < 4000; i++) grantRootWeaponPick({ spriteVariantId: 'act3-ant' }, getZone(9));
+    } finally { Math.random = keep; grantEquipmentPick = keepPick; }
+    return picks;
 })()`);
-assert(Math.abs(seededShare - 0.5) < 0.01, `a root's equipment drops are weapons exactly half the time (${seededShare})`);
+assert(rootPicks.every(slot => slot === '무기'), 'the root drop is a weapon');
+assert(Math.abs(rootPicks.length / 40000 - 0.25) < 0.01, `a root drops its weapon on a quarter of its kills (${rootPicks.length}/40000), other monsters never`);
 run('showGameToast = () => {};'); // 화면 알림은 검사 밖
 const drops = json(`(() => {
     resetGame();
@@ -133,12 +143,12 @@ const drops = json(`(() => {
     };
     try {
         const zone = getZone(9), enemy = { spriteVariantId: 'root-flask', isElite: false, isBoss: false };
-        return Array.from({ length: 300 }, () => generateEquipmentDrop(enemy, { zone }))
+        return Array.from({ length: 300 }, () => generateEquipmentDrop(enemy, { zone, slot: '무기' }))
             .map(item => ({ slot: item.slot, rarity: item.rarity, category: getWeaponCategoryId(item) }));
     } finally { Math.random = keep; }
 })()`);
 const weaponDrops = drops.filter(item => item.slot === '무기');
-assert(weaponDrops.length / drops.length > 0.45, `a flask root drops weapons about half the time (${weaponDrops.length}/${drops.length})`);
+assert.strictEqual(weaponDrops.length, drops.length, 'the weapon pick is a weapon');
 const crafted = weaponDrops.filter(item => item.rarity !== 'unique');
 assert(crafted.length > 0 && crafted.every(item => item.category === 'flask'), 'and those weapons are flasks (uniques aside)');
 

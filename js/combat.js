@@ -8453,9 +8453,16 @@ function keepCurrencyDrop(enemy, currencyKey, amount) {
 
 /** One dropped equipment item: generate, apply a drop variant (js/loot.js equipmentDropVariants) and drop it. Returns the items
  * picked up at once (the loot log names the first); floor items log when collected. */
-function grantEquipmentPick(enemy, zone, minimumRarity) {
-    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone }));
+function grantEquipmentPick(enemy, zone, minimumRarity, slot) {
+    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone, slot }));
     return drop.items.filter(item => keepEquipmentDrop(enemy, item) === 'kept');
+}
+
+/** A weapon root (data/bosses.js ROOT_MONSTER_RULES) drops a weapon of its own category on weaponDropChance of its kills, apart
+ * from the ordinary equipment roll (2026-10-07 user request: far fewer roots, and their weapon far likelier). */
+function grantRootWeaponPick(enemy, zone) {
+    if (!getRootMonsterWeapon(enemy) || Math.random() >= ROOT_MONSTER_RULES.weaponDropChance) return [];
+    return grantEquipmentPick(enemy, zone, null, '무기');
 }
 
 /** itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop): above 1 a kill drops several items, each
@@ -8465,6 +8472,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const kept = [];
     for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
+    kept.push(...grantRootWeaponPick(enemy, zone));
     return kept[0] || null;
 };
 

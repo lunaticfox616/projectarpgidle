@@ -26,14 +26,15 @@ const roots = json('ROOT_MONSTER_VISUALS.map(v => v.id)');
 assert.deepStrictEqual(roots.map(id => id.slice('root-'.length)).sort(), json('Object.keys(WEAPON_CATEGORIES)').sort(), 'one root per weapon category');
 for (let act = 0; act < 10; act++) {
     const zone = `getZone(${act})`;
-    const picks = new Set(json(`Array.from({ length: 200 }, (_, seed) => getMonsterVariantDefinition(seed, 'phys', ${zone}).id)`));
+    // 뿌리촉수는 시드 마흔에 하나(2026-10-07)라 여섯 모두 나오도록 마흔 × 여섯 × 2개를 본다.
+    const picks = new Set(json(`Array.from({ length: 480 }, (_, seed) => getMonsterVariantDefinition(seed, 'phys', ${zone}).id)`));
     const pool = poolOf(zone);
     for (const id of picks) assert(id.startsWith('wisp-') || roots.includes(id) || pool.includes(id), `act ${act + 1} spawns only its own monsters (${id})`);
     pool.forEach(id => assert(picks.has(id), `act ${act + 1} uses every monster of its pool (${id})`));
     roots.forEach(id => assert(picks.has(id), `every root shows up in act ${act + 1} too (${id})`));
 }
 const rootShare = json(`Array.from({ length: 997 }, (_, seed) => getMonsterVariantDefinition(seed, 'phys', getZone(3)).id).filter(id => id.startsWith('root-')).length / 997`);
-assert(rootShare > 0.09 && rootShare < 0.11, `about one in ten ordinary monsters is a root (${rootShare})`);
+assert(rootShare > 0.02 && rootShare < 0.03, `about one in forty monsters is a root (${rootShare}; 2026-10-07 user request, was one in ten)`);
 assert(postChaos.every(id => !id.startsWith('root-')), 'roots are not part of any area list');
 assert.strictEqual(json(`getMonsterVariantDefinition(25, 'phys', getZone(0)).id`).startsWith('wisp-'), true, 'a seed that is both goes to the wisp');
 
