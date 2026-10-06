@@ -6846,12 +6846,12 @@ function isActBattleMapBackdropKey(key) {
     return /^bgAct(?:[1-9]|10)$/.test(String(key || ''));
 }
 
-// ACT는 912×624, 지하계·운석은 816×624. 중앙 9×8칸은 동일한 48px 격자를 사용한다.
+// ACT와 웨이브 콘텐츠 판(벌집 원정, 군락지)은 912×624, 지하계·운석은 816×624. 중앙 9×8칸은 동일한 48px 격자를 사용한다.
 // 나머지 정사각형 엔드게임 배경은 기존 cover 표시를 유지한다.
 function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
     let srcW = image.width || width;
     let srcH = image.height || height;
-    let actMap = (isActBattleMapBackdropKey(backdropKey) || ['bgUnderworld','bgMeteor'].includes(backdropKey)) && gridProj;
+    let actMap = (isActBattleMapBackdropKey(backdropKey) || GRID_ALIGNED_SPECIAL_BACKDROPS.includes(backdropKey)) && gridProj;
     let coverScale = Math.max(width / srcW, height / srcH);
     let drawW = srcW * coverScale;
     let drawH = srcH * coverScale;

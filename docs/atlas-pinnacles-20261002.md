@@ -157,3 +157,14 @@
 
 예전 지도를 걷던 저장은 그 런이 끝날 때까지 그대로 걷는다(액트 명세도 계속 유효). 검사: `smoke-content-maps`,
 `smoke-content-map-designs`, `smoke-act-map-backdrops`(60장).
+
+## 2026-10-06 웨이브 콘텐츠 전용 판
+
+벌집 원정과 군락지는 9×8 판에서 싸우는 웨이브 콘텐츠라 넓은 지도로 옮기지 않는다(이 문서의 판 콘텐츠 결정 그대로). 대신 원소에 맞는
+액트 판 그림을 빌리던 것을 전용 판으로 바꿨다. `node scripts/build-board-backdrops.cjs --write`가 지도 그림 도구로 19×13칸을 그려
+3배로 키운다(액트 판과 같은 912×624, 9×8 칸이 (240,144)부터 48px). 바닥은 전투 칸뿐이고 둘레는 벽이다.
+
+- 벌집 원정(`bgBeehive`): 육각 밀랍 바닥(밝은 밀랍 벽, 어두운 칸, 군데군데 꿀 찬 칸), 밀랍빛 바위 벽, 꿀 결정과 꿀단지, 밀랍 초.
+- 군락지(`bgColony`): 황토 흙 굴, 다져진 돌바닥, 뿌리 내린 바위 벽, 짐승 뼈와 빛나는 버섯.
+- 바닥 무늬는 몬스터와 시선을 다투지 않게 대비를 낮췄다. 연결: `js/battle-backdrops.js`(`FIXED_BATTLE_BACKDROP_KEYS`,
+  `GRID_ALIGNED_SPECIAL_BACKDROPS`), 검사: `smoke-special-battle-backdrops`.

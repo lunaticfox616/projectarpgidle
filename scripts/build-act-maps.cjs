@@ -71,7 +71,8 @@ function paintFloor(cv, g, layout, look) {
     for (let i = 0; i < g.floor.length; i++) if (g.floor[i]) (fl.paths && !g.inRoom[i] ? paths : rooms)[i] = 1;
     const damp = cv.noise(10, 963), opt = o => ({ ...o, damp: o && o.damp ? damp : null, joint: jointOf(o && o.joint) });
     const paint = (kind, mask, o) => kind === 'earth' ? F.earth(cv, g, mask) : kind === 'flags' ? F.flags(cv, g, mask, opt(o))
-        : kind === 'slabs' ? F.slabs(cv, g, mask, opt(o)) : F.planks(cv, g, mask, layout, { dir: fl.plankDir });
+        : kind === 'slabs' ? F.slabs(cv, g, mask, opt(o)) : kind === 'honeycomb' ? F.honeycomb(cv, g, mask, opt(o))
+        : F.planks(cv, g, mask, layout, { dir: fl.plankDir });
     paint(fl.base, rooms, fl.flag || fl.slab || {});
     if (fl.paths) paint(fl.paths, paths, fl.slab || {});
     let plaza = null;
@@ -102,7 +103,8 @@ function drawProps(cv, g, queue) {
     return stray;
 }
 
-function build(layout) {
+/** Paints one layout. A board backdrop (scripts/build-board-backdrops.cjs) has no boss gate: options.gate === false. */
+function build(layout, options = {}) {
     const key = layout.look, look = LOOKS[key];
     useAct(key);
     const palette = new Palette(rampsOf(key)), cv = new Canvas(layout.columns * T, layout.rows * T, seedOf(key), palette);
@@ -124,6 +126,7 @@ function build(layout) {
     D.lighting(cv, solid, lights);
     if (ctx.landing) D.landing(cv, g, ...ctx.landing);
     if (look.fireflies) D.fireflies(cv, g, P[look.fireflies]);
+    if (options.gate === false) return { cv, stray, shade: P.dark[0] };
     return { cv, gate: buildGate(D.gateDirection(layout), palette), direction: D.gateDirection(layout), stray, shade: P.dark[0] };
 }
 
@@ -150,4 +153,5 @@ function main() {
     console.log(write ? '→ assets/exploration/ 에 썼습니다.' : `→ 미리보기: ${path.relative(root, out)}/ (게임에 넣으려면 --write)`);
 }
 
-main();
+if (require.main === module) main();
+module.exports = { build };

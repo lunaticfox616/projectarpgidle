@@ -115,6 +115,23 @@ const LOOKS = {
         rooms: { entry: 'candles', boss: 'torch', elite: 'wheelRelic', optional: 'skulls', landmarks: ['skulls', 'candles', 'statue', 'wheelRelic'] },
         scatter: { skulls: 2, candles: 2, rubble: 1 }
     },
+    // 웨이브 콘텐츠 판 배경(2026-10-06, scripts/build-board-backdrops.cjs): 9×8 전투 칸만 바닥이고 둘레는 벽.
+    'board-hive': {
+        title: '벌집 원정 판', shape: 'organic', faceH: 20,
+        floor: { base: 'honeycomb', flag: { size: 8, edge: 0.47, honey: 0.07, chips: 0.04, cracks: 0.02 } },
+        band: { style: 'rock', width: 10 }, face: { style: 'rock' }, sky: 'flat', moss: 0,
+        litter: ['pebble'], litterDensity: 900, webs: true, fireflies: 'glow',
+        rooms: { entry: 'candles', boss: 'candles', elite: 'sapCrystal', optional: 'urn', landmarks: ['sapCrystal', 'urn', 'candles'] },
+        scatter: { sapCrystal: 3, urn: 2, candles: 1 }
+    },
+    'board-colony': {
+        title: '군락지 판', shape: 'organic', faceH: 20,
+        floor: { base: 'earth', plaza: { kind: 'flags', sx: 12, sy: 9, chips: 0.5, tufts: 0.004, joint: 'earth1', scale: 0.9 } },
+        band: { style: 'rock', width: 10, roots: true }, face: { style: 'rock', roots: true }, sky: 'flat', moss: 0.35,
+        litter: ['pebble', 'twig', 'bone'], webs: true,
+        rooms: { entry: 'candles', boss: 'torch', elite: 'skulls', optional: 'shrooms', landmarks: ['boulder', 'skulls', 'shrooms', 'planks'] },
+        scatter: { boulder: 3, shrooms: 2, skulls: 1, planks: 1 }
+    },
     'trial-winter': {
         title: '혹한 미궁', shape: 'organic', faceH: 20,
         floor: { base: 'earth', plaza: { kind: 'flags', sx: 15, sy: 11, chips: 0.3, joint: 'earth1' } },
