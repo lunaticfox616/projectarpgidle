@@ -291,6 +291,83 @@ function addEvasionCombatLog(target, isPlayer) {
     });
 }
 
+/** One landed player hit, for the hit line in the combat log (getPlayerHitCombatLog): how much, how often, and on whom. */
+function notePlayerHitSummary(summary, enemy, dealt) {
+    summary.totalHits += 1;
+    summary.totalDamage += dealt;
+    summary.uniqueTargets.add(enemy.id);
+    summary.targetName = enemy.name;
+}
+
+/** Who a player hit landed on: the one enemy's name, or how many when it spread over several. */
+function getPlayerHitTargetLabel(summary) {
+    let count = summary.uniqueTargets.size;
+    return count >= 2 ? `적 ${count}마리` : (summary.targetName || '적');
+}
+
+const PLAYER_HIT_SCALE_LABELS = Object.freeze([['regen', '재생'], ['fireRes', '화저']]);
+/** Damage scales for the detailed hit line: the flat life bonus, then the regen and fire resistance multipliers the skill shows. */
+function getPlayerHitScaleText(pStats) {
+    let scales = pStats.damageScales || {};
+    let hidden = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
+    let labels = PLAYER_HIT_SCALE_LABELS.filter(([key]) => !hidden.includes(key) && (scales[key] || 1) > 1.0001)
+        .map(([key, label]) => `${label}x${(scales[key] || 1).toFixed(2)}`);
+    if ((scales.hpFlatBonus || 0) > 0) labels.unshift(`생명력추가+${Math.floor(scales.hpFlatBonus)}`);
+    return labels.length > 0 ? `계수 ${labels.join(', ')}` : '';
+}
+
+/** DoT stack note for the detailed hit line: the deepest stack among the hit enemies and its multiplier. */
+function getPlayerHitDotStackText(targets) {
+    let deepest = targets.reduce((max, row) => Math.max(max, (row.enemy && row.enemy.dotStacks) || 0), 0);
+    return deepest > 0 ? `도트중첩 ${deepest}/${DOT_STACK_MAX} (${getDotStackMultiplier(deepest).toFixed(2)}x)` : '';
+}
+
+/** Instant leech for the detailed hit line: two decimals below 1, one below 10, whole numbers above. */
+function formatPlayerHitLeech(value) {
+    if (value < 1) return value.toFixed(2);
+    return value < 10 ? value.toFixed(1).replace(/\.0$/, '') : `${Math.floor(value)}`;
+}
+
+/** The detailed hit line's extra parts (설정의 상세 피해 기록), in reading order. */
+function getPlayerHitDetailParts(summary, hit) {
+    let parts = [];
+    if (summary.totalHits >= 2) parts.push(`${summary.totalHits}히트`);
+    if (hit.isDotSkill) parts.push('직격', getPlayerHitDotStackText(hit.targets));
+    parts.push(getPlayerHitScaleText(hit.pStats));
+    if (hit.instantLeechRecovered > 0) parts.push(`즉시흡수 +${formatPlayerHitLeech(hit.instantLeechRecovered)}`);
+    return parts.filter(Boolean);
+}
+
+/** The player's hit line: skill, target and total damage ("연속 베기로 썩은 잔뿌리에게 1,033 피해"), the counterpart of the monster's
+ * "○○의 공격으로 N 피해". 2026-10-06 user: "플레이어가 준 피해도 누구한테 준건지 표시됐으면 좋겠고". A critical hit keeps the line
+ * colour and hands its number to the log, which colours only that ("치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?"). Repeats merge
+ * per target, crits apart. null when there is nothing to write (log off, or 0 damage: review 5). */
+function getPlayerHitCombatLog(summary, hit) {
+    if (!game.settings.showCombatLog || summary.totalDamage <= 0) return null;
+    let amount = formatNumberKR(summary.totalDamage);
+    let line = `${getDamageElementIcon(hit.swingElement)} ${withDirectionParticle(hit.skillName)} ${getPlayerHitTargetLabel(summary)}에게 ${amount} 피해`;
+    if (game.settings.showDetailedDamageLog === true) line = [line, ...getPlayerHitDetailParts(summary, hit)].join(' / ');
+    let kind = hit.isCrit ? 'combat:hit-crit' : 'combat:hit';
+    let target = summary.uniqueTargets.size === 1 ? [...summary.uniqueTargets][0] : 'many';
+    return { line, options: { logIcon: 'attack', critValue: hit.isCrit ? amount : '', rateKey: kind,
+        minIntervalMs: hit.isCrit ? 120 : 180, aggregateKey: `${kind}:${target}`, aggregateWindowMs: 500 } };
+}
+
+/** A corpse explosion: every other living enemy takes `splash` (onKill handles each death). Returns the combat log line naming whom it
+ * reached ("전령 시체 폭발로 적 2마리에게 1,234 피해"), or '' when it reached nobody: it used to report damage over an empty field. */
+function explodeCorpse(enemy, splash, label, onKill, noun = '피해') {
+    let reached = [];
+    (game.enemies || []).forEach(target => {
+        if (!target || target.id === enemy.id || target.hp <= 0) return;
+        target.hp = Math.max(0, target.hp - splash);
+        reached.push(target.name);
+        if (target.hp <= 0) onKill(target);
+    });
+    if (reached.length === 0) return '';
+    let who = reached.length === 1 ? reached[0] : `적 ${reached.length}마리`;
+    return `💥 ${withDirectionParticle(label)} ${who}에게 ${formatNumberKR(splash)} ${noun}`;
+}
+
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
     if (raw <= LEECH_SOFTCAP_START) return raw;
@@ -1429,7 +1506,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (!expected && target && resolveEntropyEvasion(target, target.evasionChance || 0, getCombatTime())) {
         dmg = 0;
         ailmentSourceDmg = 0;
-        addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#9fb4c8', duration: 260 });
+        addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#c4e2ff', duration: 260 });
         addEvasionCombatLog(target, false);
     }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
@@ -2130,7 +2207,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -2501,7 +2578,7 @@ function processTalentInquisitorMarks() {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
             enemy.hp = Math.max(0, enemy.hp - dmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
-            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발: ${formatNumberKR(dmg)}`, 'attack-player', { noToast: true });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발로 ${enemy.name}에게 ${formatNumberKR(dmg)} 피해`, 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
             if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
         }
@@ -5742,13 +5819,20 @@ function getLoopDifficultyInputs(zone) {
     if (fixed) return fixed;
     let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos' || !!zone.loopScaleExempt);
     if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
-    let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP
-        : (zone && zone.type === 'cosmos' ? 30 : Infinity);
+    let cap = getLoopScaleCap(zone);
     return {
         exempt: false,
         seasonLoops: Math.min(cap, Math.max(0, (game.season || 1) - 1)),
         loopCount: Math.min(cap, Math.max(0, Math.floor(game.loopCount || 0)))
     };
+}
+
+/** 지역이 세는 루프 상한: 액트 ACT_LOOP_SCALE_CAP, 혼돈은 그 위로 층마다 CHAOS_LOOP_RAMP_PER_DEPTH씩(data/maps.js), 우주계 30, 그 밖은 없음. */
+function getLoopScaleCap(zone) {
+    if (!zone) return Infinity;
+    if (zone.type === 'act') return ACT_LOOP_SCALE_CAP;
+    if (zone.type === 'abyss') return ACT_LOOP_SCALE_CAP + getAbyssDepthFromZoneId(zone.id) * CHAOS_LOOP_RAMP_PER_DEPTH;
+    return zone.type === 'cosmos' ? 30 : Infinity;
 }
 
 // 고정 난이도: 벤치마크 콘텐츠는 루프 30으로, 세계수 아틀라스 지도는 등급이 정한 루프(zone.fixedSeason)로 계산한다.
@@ -5784,6 +5868,27 @@ function getLoopDefenseScale(loopCount) {
 function getMonsterLoopGrowthScale(zone, kind, seasonDepth, tierShare) {
     const growth = (zone && zone.type === 'cosmos' ? MONSTER_LOOP_GROWTH.fixed : MONSTER_LOOP_GROWTH)[kind];
     return 1 + seasonDepth * (growth.base + tierShare * growth.tier);
+}
+/** 우주계 은하와 그 최종 보스(잔향체 아스트라, 벤치마크 cosmosFinal): 노드 등급으로 난이도를 올리는 별도 사다리라 예전 루프 공식을 쓴다. */
+function isCosmosLadderZone(zone) {
+    return !!zone && (zone.type === 'cosmos' || zone.difficultyBenchmark === 'cosmosFinal');
+}
+/** 몬스터 생명력의 루프 배율. 루프를 타는 지역은 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE), 루프를 타지 않는
+ * 지역(시련 등)은 플레이어 루프의 보정 곡선, 우주계는 노드 등급에 맞춰 둔 예전 공식(성장 × 루프 카운트 × 보정)을 쓴다.
+ * 전투(createEnemy)와 권장 전투력(estimateMapZonePowerRequirements)이 같은 값을 쓴다. */
+function getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress) {
+    if (isCosmosLadderZone(zone)) {
+        return getMonsterLoopGrowthScale(zone, 'hp', getSoftenedLoopDepth(loopInputs.seasonLoops), tierProgress)
+            * getLoopHpScale(loopInputs.loopCount) * getMonsterLoopPowerScale(zone, 'hp');
+    }
+    if (loopInputs.exempt) return getMonsterLoopPowerScale(zone, 'hp');
+    return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, loopInputs.seasonLoops + 1);
+}
+/** 정예 생명력 배율 1.4 + 루프 몫. 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다.
+ * 우주계 사다리는 예전 그대로. 전투(createEnemy)와 아틀라스 무리 권장 전투력(getAtlasPackReadiness)이 같은 값을 쓴다. */
+function getEliteLoopHpMultiplier(zone, loopCount) {
+    const share = getSoftenedLoopDepth(loopCount) * 0.05;
+    return 1.4 + (isCosmosLadderZone(zone) ? share : Math.min(0.3, share));
 }
 /** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
  * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
@@ -5898,13 +6003,9 @@ function createEnemy(zone, marker, groupIndex) {
     zone = levelProgression.combatZone(zone);
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
-    let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
-    let seasonHpScale = getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress);
     let lateGameHpScale = 1 + (tierProgress * 9);
-    let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = getLoopHpScale(loopInputs.loopCount);
-    hp = Math.floor(hp * loopHpScale);
+    let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * lateGameHpScale * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress));
     if (loopScaleExempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
@@ -5939,14 +6040,14 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
     if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
-    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
+    if (isElite) hp = Math.floor(hp * getEliteLoopHpMultiplier(zone, loopInputs.loopCount));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
     hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
-    hp = Math.max(1, Math.floor(hp * getMonsterLoopPowerScale(zone, 'hp')));
+    hp = Math.max(1, hp);
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
     let enemyEle = pickEnemyElement(zone, enemyElePool, isBoss);
@@ -5972,7 +6073,7 @@ function createEnemy(zone, marker, groupIndex) {
         ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed)
         : null;
     let monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
-        ? getMonsterVariantDefinition(variantSeed, enemyEle, zone)
+        ? getMonsterVariantDefinition(variantSeed, enemyEle, zone, marker)
         : null;
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
     const wispVisual = wispDefense.isWisp ? monsterVariant : null;
@@ -6364,7 +6465,10 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
         * Math.max(0.1, Number(bossMods.attackSpeedMul || 1))
         * affix.attackRateMul * contentAttackRateMul
         * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryAttackSpeedMul) || 1) : 1);
-    const followUpHits = Math.max(0, Math.min(2, Math.floor(attackRate * 2.5) - 1));
+    // 2.5초 안의 이어지는 타격 수는 연속값으로 센다(2026-10-06). 정수로 세면 공격 속도 몇 %로 한 대가 통째로 붙어, 루프 20부터
+    // 액트 10(초당 0.757)은 0대, 혼돈 1(초당 0.804)은 1대라 1.2배 센 타격에 권장 EHP가 1.8배로 보였다. 예전 계단의 가운데를
+    // 지나는 직선이라 평균 권장값은 그대로다.
+    const followUpHits = Math.max(0, Math.min(2, attackRate * 2.5 - 1.5));
     const averageCritMul = 1 + Math.min(1, critChance / 100) * (critDamageMul - 1);
     return {
         peakHit,
@@ -6410,10 +6514,8 @@ function estimateMapZonePowerRequirements(zone) {
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
     let hp = ((56 + tier * 30) * 1.15)
-        * getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress)
         * (1 + tierProgress * 9)
-        * getLoopHpScale(loopInputs.loopCount)
-        * getMonsterLoopPowerScale(zone, 'hp');
+        * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress);
     if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
     let abyssScale = getAbyssMonsterScales(zone);
     let contentScale = resolveMapEstimateContentScale(zone);
@@ -6467,7 +6569,7 @@ function getAtlasPackReadiness(zone, baseHp, bossEstimate) {
     const tier = levelProgression.combatZone(zone).tier;
     const loops = getLoopDifficultyInputs(zone);
     const depth = getSoftenedLoopDepth(loops.seasonLoops);
-    const rank = {hp:1.4 + getSoftenedLoopDepth(loops.loopCount) * 0.05, hit:1.28, crit:10, rate:1.16, pressure:8};
+    const rank = {hp:getEliteLoopHpMultiplier(zone, loops.loopCount), hit:1.28, crit:10, rate:1.16, pressure:8};
     const loop = game.season || 1;
     const hp = baseHp * resolveMapEstimateContentScale(zone).hp * 0.92 * rank.hp * (zone.mapHpMul || 1);
     const affix = getMapEstimateAffixPressure(zone);
@@ -7595,7 +7697,7 @@ function explorationPackSpawnAt(zone,key,stage) {
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
     const {key,at,cells,elite,anchor}=explorationPackFormation.prepare(zone,room,stage,encounter,formation),waiting=[];
     cells.forEach((cell,index)=>{
-        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage};
+        const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
@@ -7901,7 +8003,7 @@ function spawnEncounterMarker(marker) {
                 enemy.critChance += marker.phase >= 2 ? 10 : 0;
             }
             assignEnemyGridSpawn(enemy, blockedCells);
-            enemy.spawnStamp = performance.now();
+            enemy.spawnStamp = getBattleSpawnStamp();
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
@@ -7922,7 +8024,7 @@ function spawnEncounterMarker(marker) {
             bossEnemy.hybridElement = marker.phase === 3 ? 'chaos' : bossEnemy.hybridElement;
         }
         assignEnemyGridSpawn(bossEnemy, blockedCells);
-        bossEnemy.spawnStamp = performance.now();
+        bossEnemy.spawnStamp = getBattleSpawnStamp();
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
         if (game.settings.showSpawnLog !== false) {
@@ -7935,7 +8037,7 @@ function spawnEncounterMarker(marker) {
         for (let i = 0; i < count; i++) {
             let enemy = createEnemy(zone, marker, i);
             assignEnemyGridSpawn(enemy, blockedCells);
-            enemy.spawnStamp = performance.now();
+            enemy.spawnStamp = getBattleSpawnStamp();
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 320, boss: false });
         }
@@ -8625,46 +8727,30 @@ function handleEnemyDeath(enemy, pStats) {
         let explodeChance = clampNumber(equippedHeralds.reduce((a, b) => a + b, 0), 0, 0.85);
         if (Math.random() < explodeChance) {
             let splash = Math.floor((enemy.maxHp || enemy.hp || 0) * 0.10);
-            (game.enemies || []).forEach(target => {
-                if (!target || target.id === enemy.id || target.hp <= 0) return;
-                target.hp = Math.max(0, target.hp - splash);
-                if (target.hp <= 0) handleEnemyDeath(target, pStats);
-            });
-            if (game.settings.showCombatLog) addLog(`💥 전령 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+            let line = explodeCorpse(enemy, splash, '전령 시체 폭발', target => handleEnemyDeath(target, pStats));
+            if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
         }
     }
     if (pStats && (pStats.runeCorpseExplodeChance || 0) > 0 && Math.random() < Math.max(0, Math.min(1, Number(pStats.runeCorpseExplodeChance || 0) / 100))) {
         let lifePct = Math.max(0, Number(pStats.runeCorpseExplodeLifePct || 0));
         let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
-        if (game.settings.showCombatLog) addLog(`💥 룬 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+        let line = explodeCorpse(enemy, splash, '룬 시체 폭발', target => handleEnemyDeath(target, pStats));
+        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
     }
     if (pStats && pStats.uniqueCorpseExplode && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueCorpseExplode.chance || 0) / 100))) {
         let lifePct = Math.max(0, Number(pStats.uniqueCorpseExplode.lifePct || 0));
         let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
+        let line = explodeCorpse(enemy, splash, '종말의 논리 시체 폭발', target => handleEnemyDeath(target, pStats));
         addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
-        if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
     }
     // 시체 역병(워록 wlk9): 카오스 피해로 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 주변에 카오스 피해)
     // 심연 각인(wlk1)으로 모든 피해가 카오스인 경우 처치 원소와 무관하게 카오스 처치로 간주
     if (hasKeystone('wlk9') && (enemy.lastHitElement === 'chaos' || hasKeystone('wlk1')) && Math.random() < 0.5) {
         let splash = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.20));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
+        let line = explodeCorpse(enemy, splash, '시체 역병', target => handleEnemyDeath(target, pStats), '카오스 피해');
         addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
-        if (game.settings.showCombatLog) addLog(`💥 시체 역병 발동! 주변 몬스터에게 ${splash} 카오스 피해`, 'attack-player');
+        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
     }
     if (pStats && pStats.uniqueKillMoveStacks) {
         let now = getCombatTime();
@@ -10046,9 +10132,7 @@ function performPlayerAttack(pStats, attackOptions) {
             chainTarget.recentHitsTimer = 1.8;
             totalLeechableDamage += dealtToChain * (chainTarget && chainTarget.leechEffMul !== undefined ? chainTarget.leechEffMul : 1);
             hits.push(dealtToChain);
-            hitSummary.totalHits += 1;
-            hitSummary.totalDamage += dealtToChain;
-            hitSummary.uniqueTargets.add(chainTarget.id);
+            notePlayerHitSummary(hitSummary, chainTarget, dealtToChain);
             addBattleFx('hit', {
                 enemyId: chainTarget.id,
                 color: getElementColor(hitElement),
@@ -10309,7 +10393,7 @@ function performPlayerAttack(pStats, attackOptions) {
             let enemyTotalEvadeChance = getEnemyTotalEvadeChance(targetEnemy, pStats.accuracy);
             if (!pStats.passiveAlwaysHit && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit())
                 && resolveEntropyEvasion(targetEnemy, enemyTotalEvadeChance, getCombatTime())) {
-                addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
+                addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#c4e2ff', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;
             }
@@ -10704,9 +10788,7 @@ function performPlayerAttack(pStats, attackOptions) {
             totalLeechableDamage += dealtToEnemy * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
             if (hitElement === 'chaos') totalChaosDamage += dealtToEnemy;
             hits.push(dealtToEnemy);
-            hitSummary.totalHits += 1;
-            hitSummary.totalDamage += dealtToEnemy;
-            hitSummary.uniqueTargets.add(targetEnemy.id);
+            notePlayerHitSummary(hitSummary, targetEnemy, dealtToEnemy);
             addPlayerHitVisualFx(pStats, options, targetEnemy, {
                 stageKind, stageLabel, stageCount, skillName, hitCrit, hitIdx,
                 hitElement, dealtToEnemy, dmg, isStageReplay
@@ -10760,36 +10842,8 @@ function performPlayerAttack(pStats, attackOptions) {
     let firstResolvedSkillHit = !isStageReplay || Number(options.stageIndex) === 0;
     if (firstResolvedSkillHit && isCrit && hitSummary.totalDamage > 0) advanceEnergyShieldRechargeOnCrit(pStats, getCombatTime());
 
-    // 0 피해 줄은 남기지 않고, 어느 기술의 피해인지 붙인다(맨 숫자만 있던 줄 — 검토 5차).
-    if (game.settings.showCombatLog && hitSummary.totalDamage > 0) {
-        let line = `${getDamageElementIcon(swingElement)} ${skillName} ${formatNumberKR(hitSummary.totalDamage)} 피해`;
-        if (game.settings.showDetailedDamageLog === true) {
-            let dotInfo = '';
-            if (isDotSkill) {
-                let maxDotStack = targets.reduce((max, hit) => Math.max(max, (hit.enemy && hit.enemy.dotStacks) || 0), 0);
-                if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
-            }
-            let lineCore = [`${formatNumberKR(hitSummary.totalDamage)} 피해`];
-            if (hitSummary.totalHits >= 2) lineCore.push(`${hitSummary.totalHits}히트`);
-            if (hitSummary.uniqueTargets.size >= 2) lineCore.push(`대상 ${hitSummary.uniqueTargets.size}`);
-            line = `${isDotSkill ? '⚔️ 직격' : '⚔️'} ${lineCore.join(' / ')}${dotInfo}`;
-            if (isCrit) line = `💥 ${line}`;
-            let scales = pStats.damageScales || {};
-            let hiddenScaleTags = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
-            let scaleLabels = [];
-            if ((scales.hpFlatBonus || 0) > 0) scaleLabels.push(`생명력추가+${Math.floor(scales.hpFlatBonus || 0)}`);
-            if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
-            if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
-            if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
-            if (instantLeechRecovered > 0) {
-                let instantLeechText = instantLeechRecovered < 1
-                    ? instantLeechRecovered.toFixed(2)
-                    : (instantLeechRecovered < 10 ? instantLeechRecovered.toFixed(1).replace(/\.0$/, '') : `${Math.floor(instantLeechRecovered)}`);
-                line += ` · 즉시흡수 +${instantLeechText}`;
-            }
-        }
-        addLog(line, isCrit ? 'attack-crit' : 'attack-player', { logIcon:'attack', rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
-    }
+    const hitLog = getPlayerHitCombatLog(hitSummary, { skillName, swingElement, isCrit, isDotSkill, targets, pStats, instantLeechRecovered });
+    if (hitLog) addLog(hitLog.line, 'attack-player', hitLog.options);
 
     performTalentMoonReturn(pStats, options, talentMoonPrimaryHit);
 
@@ -11318,6 +11372,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     const flight = enemyAttackRules.trajectory(attack,enemy,travelMs);
     travelMs = flight.duration;
     pendingEnemyCombatAttacks.push(attack);
+    announceBossRelease(enemy, bossPattern, delivery);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
         owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
@@ -11326,6 +11381,13 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
         flightMs: travelMs, duration: travelMs + 260
     });
     return true;
+}
+
+/** The moment a boss lets an attack go (js/canvas-boss-attacks.js): area specials hop and slam, shots and lines thrust. */
+function announceBossRelease(enemy, bossPattern, delivery) {
+    if (!enemy.isBoss) return;
+    const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
+    addBattleFx('bossRelease', { enemyId: enemy.id, slam, duration: 560 });
 }
 
 function takePendingEnemyCombatAttack(enemyId, now) {
@@ -11338,7 +11400,7 @@ function takePendingEnemyCombatAttack(enemyId, now) {
     pendingEnemyCombatAttacks.splice(index, 1);
     if (attack.delivery === 'patternArea') {
         attack.source.attackCast = null;
-        addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, duration: 240 });
+        addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
     }
     return attack;
 }
@@ -11668,7 +11730,7 @@ function performMonsterAttacks(pStats) {
             if (hasKeystone('h3')) evadeChance = 100 - Math.pow(1 - evadeChance / 100, 2) * 100;
             if (!(typeof isTalentMonsterAlwaysHit === 'function' && isTalentMonsterAlwaysHit())
                 && resolveEntropyEvasion(game, evadeChance, getCombatTime())) {
-                addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true });
+                addBattleFx('statusText', { text: '회피!', color: '#c4e2ff', duration: 260, bodyCue: true });
                 addEvasionCombatLog(null, true);
                 recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, getCombatTime());
                 if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.fullEvasion) {
@@ -11695,12 +11757,12 @@ function performMonsterAttacks(pStats) {
                 }
                 let blockedTakenPct = Math.max(0, Math.min(100, Number(pStats.uniqueBlockedDamageTakenPct) || 0));
                 if (blockedTakenPct <= 0) {
-                    addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true });
+                    addBattleFx('statusText', { text: '막아냄!', color: '#ebdfc2', duration: 260, bodyCue: true });
                     if (game.settings.showCombatLog) addLog('🛡️ 막아냄!', "loot-magic");
                     continue;
                 }
                 let blockText = `막아냄 · 피해 ${blockedTakenPct}%`;
-                addBattleFx('statusText', { text: blockText, color: '#a7a7a7', duration: 260, bodyCue: true });
+                addBattleFx('statusText', { text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true });
                 if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic");
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * blockedTakenPct / 100)));
                 ailmentSourceDamageBeforeCrit = Math.max(1, Math.floor(ailmentSourceDamageBeforeCrit * blockedTakenPct / 100));

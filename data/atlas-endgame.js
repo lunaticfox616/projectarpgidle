@@ -132,7 +132,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['voidChisel', 8], ['jewelShard', 4]]), unique: '대균열의 왕관'
         }),
         Object.freeze({
-            id: 'league_hive', room: 'hive', name: '벌집', boss: '벌집 여왕', act: 9, bossAct: 8, ele: 'chaos', tier: 16,
+            id: 'league_hive', room: 'hive', name: '벌집', boss: '벌집 여왕', act: 9, bossAct: 8, ele: 'chaos', tier: 16, bodyVisual: 'hive-queen',
             how: '지도 속 벌집을 비우면 왕실 꿀을 줍니다.',
             item: 'royalHoney', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([

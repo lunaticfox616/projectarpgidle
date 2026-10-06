@@ -93,11 +93,12 @@ function drawSkillFootprintGround(ctx, footprint, color, alpha, outlineOnly = fa
     ctx.globalCompositeOperation = 'source-over';
     ctx.filter = 'none';
     ctx.fillStyle = color;
-    ctx.globalAlpha = alpha * 0.07;
+    // Canvas ignores a globalAlpha above 1 (it keeps the previous value), so strong warnings and impact flashes clamp.
+    ctx.globalAlpha = Math.min(1, alpha * 0.07);
     ctx.beginPath();
     footprint.points.forEach(point => ctx.rect(point.x - halfW, point.y - halfH, footprint.tileW, footprint.tileH));
     if (!outlineOnly) ctx.fill();
-    ctx.globalAlpha = alpha * (outlineOnly ? 1 : 0.32);
+    ctx.globalAlpha = Math.min(1, alpha * (outlineOnly ? 1 : 0.32));
     ctx.strokeStyle = color;
     ctx.lineWidth = outlineOnly ? 2 : 1.2;
     ctx.beginPath();
@@ -124,9 +125,9 @@ function drawSmoothSkillGround(ctx, footprint, color, alpha, outlineOnly = false
     ctx.strokeStyle = color;
     ctx.lineWidth = outlineOnly ? 2 : 1.2;
     // clipSkillFootprint leaves the circle/triangle as the current path.
-    ctx.globalAlpha = alpha * 0.035;
+    ctx.globalAlpha = Math.min(1, alpha * 0.035);
     if (!outlineOnly) ctx.fill();
-    ctx.globalAlpha = alpha * (outlineOnly ? 1 : 0.28);
+    ctx.globalAlpha = Math.min(1, alpha * (outlineOnly ? 1 : 0.28));
     ctx.stroke();
     ctx.restore();
 }

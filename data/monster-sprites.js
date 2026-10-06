@@ -5,6 +5,7 @@
 //   무기 뿌리촉수(rignin-weapon-root-tentacles-idle-attack-v1): 칸 64, 행 위 · 아래 · 왼쪽 · 오른쪽. 뿌리 밑동 자리가 그림마다,
 //   방향마다 달라 시트가 방향별 발 자리(feet, 받은 묶음의 rootAnchor)를 가진다. 없으면 종류의 feet를 쓴다.
 //   영역 몬스터(2026-10-02, 그리기 도구로 다시 그림): 칸 48(보스 64), 행 위 · 아래 · 왼쪽 · 오른쪽, 발 자리는 그림마다 하나.
+//   벌집(2026-10-06, 같은 도구): 전투벌 · 수벌 · 정찰벌 · 꿀주머니 벌 · 수호벌 · 근위벌 · 여왕. 떠서 나는 벌이라 발 자리는 그림자 자리다.
 // feet = 칸 안에서 발 자리(도트 가장자리 좌표) — 전장의 발 자리(칸 가운데보다 0.22칸 아래)에 맞춘다. 벌레는 위에서 본
 // 그림이라 몸 가운데(24, 24)를 칸 가운데에 두도록 4도트 아래를 발로 잡는다. height = 발에서 그림 맨 위까지(대기 0번,
 // 네 방향 중 가장 높은 곳) — 체력바를 그 위에 둔다. scripts/smoke-monster-sprites.js가 PNG와 맞춰 본다.
@@ -55,6 +56,10 @@ const MONSTER_SPRITE_SHEETS = Object.freeze(Object.fromEntries([
         ['underworld-crawler', 'realm', 'realms/underworld/crawler', 21, [24, 32]], ['underworld-beetle', 'realm', 'realms/underworld/beetle', 17, [24, 32]], ['underworld-miner', 'realm', 'realms/underworld/miner', 26, [24, 33]], ['underworld-hound', 'realm', 'realms/underworld/hound', 22, [24, 31]], ['underworld-executioner', 'realm', 'realms/underworld/executioner', 32, [24, 35]], ['underworld-wraith', 'realm', 'realms/underworld/wraith', 29, [24, 36]], ['underworld-king', 'realmBoss', 'realms/underworld/king', 42, [32, 46]],
         ['cosmos-star', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['cosmos-ooze', 'realm', 'realms/cosmos/ooze', 24, [24, 32]], ['cosmos-wisp', 'realm', 'realms/cosmos/wisp', 28, [24, 34]], ['cosmos-wanderer', 'realm', 'realms/cosmos/wanderer', 28, [24, 34]], ['cosmos-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['cosmos-seer', 'realm', 'realms/cosmos/seer', 23, [24, 38]], ['cosmos-colossus', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
         ['ocean-angler', 'realm', 'realms/ocean/angler', 28, [24, 32]], ['ocean-crab', 'realm', 'realms/ocean/crab', 19, [24, 33]], ['ocean-cultist', 'realm', 'realms/ocean/cultist', 28, [24, 34]], ['ocean-shell', 'realm', 'realms/ocean/shell', 14, [24, 31]], ['ocean-knight', 'realm', 'realms/ocean/knight', 31, [24, 37]], ['ocean-oracle', 'realm', 'realms/ocean/oracle', 26, [24, 37]], ['ocean-leviathan', 'realmBoss', 'realms/ocean/leviathan', 42, [32, 47]],
+        ['hive-worker', 'realm', 'realms/hive/worker', 24, [24, 34]], ['hive-drone', 'realm', 'realms/hive/drone', 25, [24, 34]],
+        ['hive-scout', 'realm', 'realms/hive/scout', 23, [24, 34]], ['hive-nurse', 'realm', 'realms/hive/nurse', 24, [24, 34]],
+        ['hive-guard', 'realm', 'realms/hive/guard', 27, [24, 34]], ['hive-royal', 'realm', 'realms/hive/royal', 27, [24, 34]],
+        ['hive-queen', 'realmBoss', 'realms/hive/queen', 40, [32, 46]],
         ['sky-imp', 'realm', 'realms/sky/imp', 25, [24, 36]], ['sky-roc', 'realm', 'realms/sky/roc', 24, [24, 33]], ['sky-sentinel', 'realm', 'realms/sky/sentinel', 31, [24, 34]], ['sky-harpy', 'realm', 'realms/sky/harpy', 28, [24, 34]], ['sky-lancer', 'realm', 'realms/sky/lancer', 33, [24, 36]], ['sky-griffin', 'realm', 'realms/sky/griffin', 29, [24, 33]], ['sky-titan', 'realmBoss', 'realms/sky/titan', 44, [32, 46]]
 ].map(([id, kind, stem, height, feet]) => [id, Object.freeze({
     id, kind, height, feet: feet ? Object.freeze(feet) : null, idle: `assets/enemies/${stem}-idle.png`, attack: `assets/enemies/${stem}-attack.png`

@@ -13,7 +13,7 @@
         return `<article class="talent-card${equipped ? ' equipped' : ''}">
             <div class="talent-card-head"><strong>${escapeTalentHtml(names.bloomName)}</strong><span>Lv.${level}</span></div>
             <div class="talent-card-sub">${escapeTalentHtml(names.heroLabel)} × ${escapeTalentHtml(names.classLabel)}</div>
-            <div class="talent-card-effects">${getTalentCardEffectLines(heroId, classKey, level).join('<br>')}</div>
+            <div class="talent-card-effects">${renderTalentCardEffectLines(heroId, classKey, level).join('<br>')}</div>
             <div class="talent-card-foot">점수 ${Math.floor(card.score || 0)}, ${level < TALENT_CARD_MAX_LEVEL ? `다음 레벨 ${TALENT_CARD_LEVEL_THRESHOLDS[level]}` : '최대 레벨'}</div>
             <button type="button" data-talent-equip="${key}" aria-pressed="${equipped}">${equipped ? '장착 해제' : '장착'}</button>
         </article>`;

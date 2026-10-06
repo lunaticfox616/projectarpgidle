@@ -25,7 +25,7 @@ const sideEncounterCanvas = (() => {
             if (attack.delivery !== 'patternArea') continue;
             const footprint = projectSkillFootprint(attack.bossPattern.area,projection);
             if (!footprint) continue;
-            drawSkillFootprintGround(ctx,footprint,meteor ? '#ff9b52' : '#ff684f',3);
+            drawSkillFootprintGround(ctx,footprint,meteor ? '#ff9b52' : '#ff684f',bossAttackView.pendingAlpha());
             if (!meteor) continue;
             const cast = enemyAttackRules.castBar(attack.source,now,attack);
             if (!cast || cast.cancelled) continue;

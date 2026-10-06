@@ -36,7 +36,8 @@ assert.deepEqual(designs.sky.slice(0, 2), [3, false], 'the sky tower climbs isle
 assert.deepEqual(designs.under.slice(0, 2), [1, false], 'the underworld walks the trunk, the roots and the black water');
 assert.deepEqual([designs.past[0], designs.future[0]], [2, 6], 'the rift shows one courtyard in two eras');
 assert.equal(designs.lab[0], 4, 'the labyrinth starts in the bookshelf maze');
-assert.deepEqual(designs.trial.slice(0, 2), [5, false], 'a class trial walks elite-led rooms before its guardian');
+assert.deepEqual(designs.trial.slice(0, 2), [null, false], 'a class trial walks elite-led rooms before its guardian');
+assert.equal(run("getZone('trial_1').exploration.id"), 'trial-blades', 'on its own trial map (2026-10-06), not a borrowed act map');
 for (const key of ['boss', 'rival', 'sea', 'meteor']) assert.equal(designs[key][1], true, `${key} starts at an arena gate`);
 assert.deepEqual([designs.boss[0], designs.rival[0], designs.sea[0]], [7, 6, 2], 'arenas take the map of their content look');
 for (const key of ['woodsman', 'breach', 'echo', 'ocean']) assert.equal(designs[key], null, `${key} keeps its board (waves, timers, depth)`);

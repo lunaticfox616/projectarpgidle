@@ -9,9 +9,19 @@ const stumpTalismanUi = (() => {
     function owned(key) { return Math.floor(game.currencies[key] || 0); }
     function shardName(key) { return ORB_DB[key].name; }
 
+    // 줄 색(2026-10-06): 장비 옵션처럼 줄마다 그 능력치의 색. 조건부 줄은 그 줄이 올리는 능력치(없으면 글의 첫 핵심어) 색.
+    function lineTone(line, text) {
+        if (line.kind !== 'condition') return getItemStatToneColor(line.id);
+        const def = talismans.conditionDef(line.id);
+        return def && def.stat ? getItemStatToneColor(def.stat) : statToneText.lineColor(text, '');
+    }
+    function lineRow(line) {
+        const text = talismans.describeLine(line), colour = lineTone(line, text);
+        return `<li class="${line.kind === 'condition' ? 'is-condition' : ''}"${colour ? ` style="color:${colour}"` : ''}>${esc(text)}</li>`;
+    }
     function linesHtml(item) {
-        const rows = item.lines.map(line => `<li class="${line.kind === 'condition' ? 'is-condition' : ''}">${esc(talismans.describeLine(line))}</li>`);
-        if (item.special === 'moment') rows.push(`<li class="is-condition">보스에게 주는 최종 피해 +${item.moment}% · 생명력 5% 이하 보스 처형</li>`);
+        const rows = item.lines.map(lineRow);
+        if (item.special === 'moment') rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">보스에게 주는 최종 피해 +${item.moment}% · 생명력 5% 이하 보스 처형</li>`);
         return rows.length ? `<ul class="stump-talisman-lines">${rows.join('')}</ul>` : '';
     }
 
@@ -41,29 +51,32 @@ const stumpTalismanUi = (() => {
 
     /** Detail body for a selected talisman; the stump screen adds the head, growth bar and move buttons. */
     function detailHtml(item, cell) {
-        const effect = item.uniqueEffect ? `<p class="stump-yield">${esc(item.uniqueEffect)}</p>` : '';
         return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
-            + effect + linesHtml(item) + stateLine(item, cell) + toolsHtml(item, cell);
+            + uniqueEffectHtml(item) + linesHtml(item) + stateLine(item, cell) + toolsHtml(item, cell);
+    }
+
+    /** A unique talisman's own effect: free text, its keywords and numbers in the stat colours. */
+    function uniqueEffectHtml(item) {
+        return item.uniqueEffect ? `<p class="stump-yield">${statToneText.html(item.uniqueEffect)}</p>` : '';
     }
 
     /** Hover card body for a talisman (rarity, effects, state) without the buttons the detail panel adds. */
     function tooltipHtml(item, cell) {
-        const effect = item.uniqueEffect ? `<p class="stump-yield">${esc(item.uniqueEffect)}</p>` : '';
         return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
-            + effect + linesHtml(item) + stateLine(item, cell);
+            + uniqueEffectHtml(item) + linesHtml(item) + stateLine(item, cell);
     }
 
     function statRow(stat, value) {
-        return `<li>${esc(getStatName(stat))} ${value >= 0 ? '+' : '−'}${esc(formatValue(stat, Math.abs(value)))}</li>`;
+        return `<li style="color:${getItemStatToneColor(stat)}">${esc(getStatName(stat))} ${value >= 0 ? '+' : '−'}${esc(formatValue(stat, Math.abs(value)))}</li>`;
     }
 
     /** What the awake talismans on the board add up to (empty when none are awake). */
     function summaryHtml() {
         const summary = talismanEffects.summarize();
         const rows = Object.keys(summary.stats).filter(stat => stat !== 'cosmosLightningVariance').map(stat => statRow(stat, summary.stats[stat]))
-            .concat(summary.conditions.map(line => `<li class="is-condition">${esc(talismans.describeLine({ kind: 'condition', id: line.id, value: line.value }))}</li>`));
-        if (summary.bossFinalDmgBonusPct > 0) rows.push(`<li class="is-condition">보스 최종 피해 +${summary.bossFinalDmgBonusPct}% · 생명력 5% 이하 보스 처형</li>`);
-        if (summary.stats.cosmosLightningVariance > 0) rows.push('<li class="is-condition">번개 피해가 타격마다 0.8~1.5배</li>');
+            .concat(summary.conditions.map(line => lineRow({ kind: 'condition', id: line.id, value: line.value })));
+        if (summary.bossFinalDmgBonusPct > 0) rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">보스 최종 피해 +${summary.bossFinalDmgBonusPct}% · 생명력 5% 이하 보스 처형</li>`);
+        if (summary.stats.cosmosLightningVariance > 0) rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('lightPctDmg')}">번개 피해가 타격마다 0.8~1.5배</li>`);
         return rows.length ? `<h4 class="stump-talisman-title">깨어난 부적</h4><ul class="stump-stats">${rows.join('')}</ul>` : '';
     }
 

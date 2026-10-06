@@ -55,3 +55,32 @@ test('painting combat HUD never changes player health or applies a stale recover
     expect(result.afterStalePaint).toBe(result.cap);
     expect(errors).toEqual([]);
 });
+
+// 2026-10-07 프레임 드랍: 효과 시계 고리가 틱마다 돌아 아이콘 줄을 통째로 다시 만들었고(요소를 빼고 넣어 body의 :has() 규칙까지
+// 다시 따졌다), 보호막 글자도 틱마다 innerHTML을 갈았다. 모양이 같으면 바뀐 속성과 글자만 옮긴다.
+test('effect timers tick in place and the shield text changes only its numbers',async({page})=>{
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.route('https://**',r=>r.fulfill({status:204,body:''}));
+    await page.goto('/');await page.locator('#btn-startup-guest').click();await pickClass(page,'warrior');
+    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    const result=await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        const host=document.getElementById('ui-player-ailments-under'),stats=getUiPlayerStats();
+        const paint=ailments=>{game.playerAilments=ailments;updatePlayerCombatEffectHud(stats,null);return [...host.children];};
+        const read=el=>({angle:el.style.getPropertyValue('--effect-remaining-angle'),time:el.querySelector('.combat-effect-time').textContent});
+        const first=paint([{type:'bleed',time:8,duration:8,power:1},{type:'chill',time:6,duration:6,power:10}]);
+        const ticked=paint([{type:'bleed',time:4.3,duration:8,power:1},{type:'chill',time:2.1,duration:6,power:10}]);
+        const kept=ticked.length===first.length&&ticked.every((el,i)=>el===first[i]);
+        const fewer=paint([{type:'bleed',time:4.3,duration:8,power:1}]);
+        const es=document.getElementById('ui-es-inline');
+        renderEnergyShieldInline(es,true,120,300);const label=es.firstChild;
+        renderEnergyShieldInline(es,true,90,300);
+        return {kept,after:ticked.map(read),fewer:fewer.length,esText:es.textContent,esLabelKept:es.firstChild===label};
+    });
+    expect(result.kept).toBe(true);
+    expect(result.after).toEqual([{angle:'225.00deg',time:'5'},{angle:'180.00deg',time:'3'}]);
+    expect(result.fewer).toBe(1);
+    expect(result.esText).toBe('보호막 90/300');
+    expect(result.esLabelKept).toBe(true);
+    expect(errors).toEqual([]);
+});

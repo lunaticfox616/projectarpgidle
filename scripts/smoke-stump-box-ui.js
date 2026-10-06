@@ -58,7 +58,9 @@ run(`stumpBoxUi.dropOnCell(${seed}, 8);`);
 const near = tip({ stumpTip: 'cell', stumpDrag: String(fire), stumpDropCell: '13' });
 assert.match(near.html, /품질 100%/);
 assert.match(near.html, /성장 0 \/ \d+ \(0%\)/);
-assert.match(near.html, /stump-tip-yield">다 자라면 화염 저항/, 'what it will give, in the yield colour');
+// 2026-10-06: what it gives reads in its stat's colour (the item affix colours), not one yield green for every stat.
+assert.equal(/stump-tip-yield" style="color:([^"]+)">다 자라면 화염 저항/.exec(near.html)?.[1], run("getItemStatToneColor('resF')"),
+    'what it will give, in the colour of its stat');
 assert.match(near.html, /냉기에 막혀 멈춤/, 'fire next to cold says it is stopped');
 assert.equal(near.tone, run('STUMP_BOX_COLORS.fire.tone'), 'the border takes the item colour');
 const away = tip({ stumpTip: 'cell', stumpDrag: String(light), stumpDropCell: '12' });
@@ -82,5 +84,26 @@ const columns = Number(storage.match(/--stump-columns:(\d+)/)[1]);
 assert.equal(cells, columns * 2, 'one row of items plus one free row, not all 50 slots');
 assert.match(storage, /data-stump-drop-storage="1"/, 'the storage takes drops');
 assert.match(part('stump-box-board'), /data-stump-drag="\d+"[^>]*data-stump-drop-cell="13"/, 'board items can be dragged; every cell takes drops');
+
+// ── 거름(2026-10-06): 보관함의 씨앗 · 수액을 고르면 거름 단추와 얼마나 자라는지, 쓰고 나면 알림과 소리 ─────────────
+run(`window.sounds = []; playUiFeedbackSound = kind => sounds.push(kind);
+    window.amberSap = make('sap', 'lightning'); stumpBoxUi.dropOnCell(amberSap, 6);
+    window.spare = make('seed', 'chaos');`);
+const growing = run('stumpBox.growingItems(game).length');
+assert.equal(growing, 1, 'only the lightning sap grows (fire and cold block each other)');
+run("stumpClick({ stumpAction: 'item', item: String(spare) })");
+assert.match(part('stump-box-detail'), /판에서 자라는 1개가 모두 \+100 자랍니다\./, 'a stored seed says what compost does');
+assert.match(part('stump-box-detail'), /data-stump-action="compost">거름으로 쓰기/, 'and offers the button');
+run('stumpBox.itemById(game, amberSap).xp = stumpBox.need(stumpBox.itemById(game, amberSap)) - 50;');
+run("stumpClick({ stumpAction: 'compost' })");
+assert.equal(run('stumpBox.itemById(game, spare)'), null, 'compost uses the seed up');
+assert.equal(run('stumpBox.isMature(stumpBox.itemById(game, amberSap))'), true, 'and the sap ripens');
+assert.deepEqual(json('toasts.slice(-2)'), ['거름: 카오스 씨앗, 판에서 자라는 1개 +100', '그루터기 함: 번개 호박석 다 자람, 번개 저항 +5%'],
+    'compost and ripening both say what happened, the ripening with what it gives now');
+assert.deepEqual(json('sounds'), ['success'], 'ripening chimes once');
+run("window.spare2 = make('sap', 'fire'); stumpClick({ stumpAction: 'item', item: String(spare2) });");
+assert.match(part('stump-box-detail'), /판에서 자라는 것이 없습니다\./, 'with nothing growing the hint says why');
+assert.match(part('stump-box-detail'), /data-stump-action="compost" disabled/, 'and the button is off');
+assert.match(tip({ stumpTip: 'rules' }).html, /거름으로 쓰면 판에서 자라는 것이 모두 \+100 자랍니다/, 'the rules explain compost');
 run('document.getElementById = realGetById;');
 console.log('stump box screen: press and drag moves, refusals, tooltips, head line and compact storage: OK');

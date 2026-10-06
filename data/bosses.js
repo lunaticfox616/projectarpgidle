@@ -35,6 +35,10 @@ const BOSS_ASSET_VARIANTS_BY_ACT = {
     10: ['bossAct10_1', 'bossAct10_2', 'bossAct10_3', 'bossAct10_4', 'bossAct10_5']
 };
 
+// 보스 그림은 왼쪽을 보고 그려졌다(2026-10-06 열일곱 장 확인). 정면을 보는 이 셋만 뒤집지 않고,
+// 나머지는 주인공이 오른쪽에 서면 좌우를 뒤집는다(js/canvas-battlefield.js shouldMirrorEnemySprite).
+const BOSS_ASSET_FRONT_FACING = Object.freeze(['bossAct9', 'bossAct10_2', 'bossAct10_5']);
+
 // 영역 몬스터(2026-10-02 다시 그림): 몬스터마다 대기 · 공격 시트 한 장씩(data/monster-sprites.js, 그리기는
 // js/canvas-monster-actors.js), 공격 방식은 그림을 따른다(근접 = 물기 · 할퀴기 · 무기, 원거리 = 주문 · 던지기 · 등불).
 const REALM_MONSTER_VISUAL_SETS = Object.freeze({
@@ -66,6 +70,27 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
             ['ocean-cultist', '해구 주술사', 'normal', 'ranged'], ['ocean-shell', '철갑 패각충', 'normal', 'melee'],
             ['ocean-knight', '조류 기사', 'elite', 'melee'], ['ocean-oracle', '해파리 신탁', 'elite', 'ranged'],
             ['ocean-leviathan', '해구 레비아탄', 'boss', 'ranged']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    // 벌집 원정과 군락지(2026-10-06): 예전엔 벌 그림이 없어 이름만 바꾼 부제사 · 위습 · 뿌리와 붉은 악마 보스로 보였다.
+    hive: Object.freeze({
+        id: 'hive',
+        zoneTypes: Object.freeze(['beehive']),
+        members: Object.freeze([
+            ['hive-worker', '벌집 전투벌', 'normal', 'melee'], ['hive-drone', '벌집 수벌', 'normal', 'melee'],
+            ['hive-scout', '벌집 정찰벌', 'normal', 'ranged'], ['hive-nurse', '꿀주머니 벌', 'normal', 'ranged'],
+            ['hive-guard', '정예 수호벌', 'elite', 'melee'], ['hive-royal', '여왕 근위벌', 'elite', 'melee'],
+            ['hive-queen', '벌집 여왕', 'boss', 'ranged']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    colony: Object.freeze({
+        id: 'colony',
+        zoneTypes: Object.freeze(['colony']),
+        members: Object.freeze([
+            ['act5-ant', '군락 일개미', 'normal', 'melee'], ['act4-ant', '군락 병정개미', 'normal', 'melee'],
+            ['act3-worm', '군락 굴착벌레', 'normal', 'melee'], ['act5-worm', '군락 천공벌레', 'normal', 'melee'],
+            ['hive-guard', '군락 수호벌', 'elite', 'melee'], ['underworld-beetle', '군락 갑충', 'elite', 'melee'],
+            ['hive-queen', '군락지 지배체', 'boss', 'ranged']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
     sky: Object.freeze({
@@ -267,7 +292,9 @@ function getRootMonsterWeapon(enemy) {
 }
 
 /** 일반·정예 외형: 다섯에 하나는 원소 위습, 그 밖의 여덟에 하나는 무기 뿌리촉수, 나머지는 지역 목록에서 시드와 원소로 고른다. */
-function getMonsterVariantDefinition(variantSeed, element, zone) {
+/** marker.ownLook: a content room that draws its own sheet (the atlas hive's bees, js/atlas-encounters.js) rolls none. */
+function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
+    if (marker && marker.ownLook) return null;
     const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
     if (seed % WISP_ENEMY_RULES.spawnOneIn === 0) return getWispMonsterVisualDefinition(seed, element);
     const root = getRootMonsterVisualDefinition(seed);
@@ -285,7 +312,7 @@ function getMonsterVisualAttackKind(visualId) {
 }
 
 safeExposeData({
-    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT,
+    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
     getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
     ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, getActMonsterPool,
     getMonsterVisualAttackKind, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, getRootMonsterVisualDefinition, getRootMonsterWeapon,

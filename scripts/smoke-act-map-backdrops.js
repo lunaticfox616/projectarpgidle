@@ -14,8 +14,12 @@ const rgbOf = hex => [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
 const pngSize = file => { const b = fs.readFileSync(file); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
 
 const backdrops = run('ACT_EXPLORATION_BACKDROPS');
-const maps = run('ACT_EXPLORATION_MAPS.flatMap(source => [0, 1, 2, 3].map(rotation => { const m = actExplorationMap.layout(source.act, rotation); return { id: m.id, act: m.act, rotation: m.rotation, columns: m.columns, rows: m.rows, gate: m.gate, boss: m.rooms.find(r => r.role === "boss") }; }))');
-assert.strictEqual(Object.keys(backdrops).length * 4, maps.length, 'every act map has a backdrop');
+// The trial maps (2026-10-06, data CONTENT_EXPLORATION_MAPS) are painted the same way under their own look.
+const maps = run(`ACT_EXPLORATION_MAPS.flatMap(source => [0, 1, 2, 3].map(rotation => ({ m: actExplorationMap.layout(source.act, rotation), look: source.act })))
+    .concat(CONTENT_EXPLORATION_MAPS.flatMap(source => [0, 1, 2, 3].map(rotation => ({ m: actExplorationMap.generated({ style: 'map', id: source.id }, rotation), look: source.look }))))
+    .map(({ m, look }) => ({ id: m.id, look, rotation: m.rotation, columns: m.columns, rows: m.rows, gate: m.gate, boss: m.rooms.find(r => r.role === "boss") }))`);
+assert.strictEqual(Object.keys(backdrops).length * 4, maps.length, 'every act map and content map has a backdrop');
+assert.strictEqual(maps.length, (10 + 5) * 4, 'ten act maps and five trial maps');
 const facings = [];
 
 for (const map of maps) {
@@ -29,7 +33,7 @@ for (const map of maps) {
     assert.deepStrictEqual(pngSize(entry.gate), [w * 2, h], `${entry.gate}: closed|open frames for a ${direction} gate`);
     assert.deepStrictEqual(entry.gateOffset, direction === 'N' ? [-w / 2, 8 + 16 - h] : [-w / 2, 8 - h], `${map.id} gate anchor`);
     // The fog and the canvas around the map use this colour: it must be the darkness the act's art was painted with.
-    assert.deepStrictEqual(entry.shade, rgbOf(rampsOf(map.act).dark[0]), `${map.id} shade matches the art's darkness`);
+    assert.deepStrictEqual(entry.shade, rgbOf(rampsOf(map.look).dark[0]), `${map.id} shade matches the art's darkness`);
 }
 for (let i = 0; i < facings.length; i += 4) assert.deepStrictEqual(facings.slice(i, i + 4), ['N', 'E', 'S', 'W'], `${maps[i].id}: facings 0..3 lead north, east, south and west`);
-console.log(`act map backdrops: ${maps.length} paintings (10 maps × 4 facings) and gates match their grids`);
+console.log(`act map backdrops: ${maps.length} paintings (10 act maps and 5 trial maps × 4 facings) and gates match their grids`);

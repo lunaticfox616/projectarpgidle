@@ -47,8 +47,16 @@ const atlasEncounters = (() => {
         enemy.atkMul = (Number(enemy.atkMul) || 1) * mul.attack;
         enemy.expMul = (Number(enemy.expMul) || 1) * mul.exp;
         enemy.name = rule.names ? rule.names[Number(!!enemy.isElite)] : `${rule.prefix} ${enemy.name}`;
+        // A room with its own look (the hive's bees) draws that sheet; its attack follows the picture (assigned on the first tick).
+        if (rule.visuals) Object.assign(enemy, { monsterVisualSetId: null, monsterVisualId: rule.visuals[Number(!!enemy.isElite)],
+            spriteVariantId: null, monsterArchetype: null });
         enemy.atlasEncounter = type;
         return enemy;
+    }
+    /** A room with its own look (the hive's bees) rolls no act monster, root or wisp under it: a wisp's rolled defenses stayed on
+     * the bees drawn over it (2026-10-07 review). Read by createEnemy through its spawn marker. */
+    function hasOwnLook(type) {
+        return !!(type && ATLAS.encounters[type] && ATLAS.encounters[type].visuals);
     }
     /** The pack a kill empties (checked before the engine removes the enemy from its pack), or null. */
     function emptiedPack(state, enemy) {
@@ -65,6 +73,6 @@ const atlasEncounters = (() => {
             return [key, Math.floor(expected) + Number(random() < expected % 1)];
         }).filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
     }
-    return Object.freeze({ types: TYPES, roll, rooms, hostRooms, tuneEnemy, emptiedPack, rewards });
+    return Object.freeze({ types: TYPES, roll, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });
 })();
 safeExposeGlobals({ atlasEncounters });

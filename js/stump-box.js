@@ -1,4 +1,4 @@
-// 그루터기 함 도메인: 획득·배치·성장·공명·억제·드랍·루프 회귀를 소유한다. DOM·전투 계산·저장 입출력은 모른다.
+// 그루터기 함 도메인: 획득·배치·성장·거름·공명·억제·드랍·루프 회귀를 소유한다. DOM·전투 계산·저장 입출력은 모른다.
 // 전투는 처치(onEnemyKilled)만 넘기고, 능력치 파이프라인은 applyStats로 계산 결과를 한 번 합산한다.
 // 설계: docs/stump-cube-game-design.md, 수치: data/stump-box.js. 공명·억제·능력치는 저장하지 않고 배치에서 계산한다.
 // 부적(family 'talisman')은 색 없는 세 번째 계열: 판에서 깨어나고(성장), 공명 · 억제 · 꽃 능력치에 끼지 않는다.
@@ -260,36 +260,77 @@ const stumpBox = (() => {
 
     // ── 성장·드랍 ───────────────────────────────────────────
     function killKind(enemy) { return enemy && enemy.isBoss ? 'boss' : enemy && enemy.isElite ? 'elite' : 'normal'; }
-    /** Grows placed, unsuppressed, unripe items by one kill. @returns {object[]} items that ripened. */
-    function grow(state, enemy) {
-        const box = of(state), amount = STUMP_BOX_GROWTH.perKill[killKind(enemy)], suppressed = evaluate(state).suppressed, ripened = [];
-        for (const item of placedItems(box)) {
-            if (suppressed.has(item.id) || isMature(item) || !targetStage(item)) continue;
+    function isGrowing(item, suppressed) { return !suppressed.has(item.id) && !isMature(item) && !!targetStage(item); }
+    /** Placed, unsuppressed, unripe items (seeds, saps and sealed talismans): what a kill or compost feeds. */
+    function growingItems(state) {
+        const suppressed = evaluate(state).suppressed;
+        return placedItems(of(state)).filter(item => isGrowing(item, suppressed));
+    }
+    /** Grows every growing item by `amount`. @returns {object[]} items that ripened. */
+    function growBy(state, amount) {
+        const ripened = [];
+        for (const item of growingItems(state)) {
             item.xp = Math.min(need(item), item.xp + amount);
             if (item.xp >= need(item)) { item.ripe = true; ripened.push(item); }
         }
         return ripened;
     }
-    /** The box's own drop roll, independent of gear drops. random() → [0, 1). @returns {?object} the new item. */
+    /** Grows placed, unsuppressed, unripe items by one kill. @returns {object[]} items that ripened. */
+    function grow(state, enemy) { return growBy(state, STUMP_BOX_GROWTH.perKill[killKind(enemy)]); }
+
+    // ── 거름 ───────────────────────────────────────────────
+    /** The growth a seed or sap gives as compost (its quality scales it). */
+    function compostGrowth(item) { return Math.round(STUMP_BOX_COMPOST.growth * clampRoll(item.roll)); }
+    /** '' when the stored seed or sap can go on the board as compost, otherwise why not. */
+    function compostReason(state, id) {
+        const box = of(state), item = findItem(box, id);
+        if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
+        if (!item || !FAMILIES.includes(item.family) || box.board.includes(id)) return '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.';
+        return growingItems(state).length ? '' : '판에서 자라는 것이 없습니다.';
+    }
+    /** Spreads a stored seed or sap: it is used up and every growing item gains its compost growth.
+     * @returns {?{growth: number, fed: number, ripened: object[]}} null when not allowed. */
+    function compost(state, id) {
+        if (compostReason(state, id)) return null;
+        const box = of(state), item = findItem(box, id), growth = compostGrowth(item), fed = growingItems(state).length;
+        box.items = box.items.filter(other => other.id !== id);
+        return { growth, fed, ripened: growBy(state, growth) };
+    }
+
+    // ── 드랍 ───────────────────────────────────────────────
+    /** Half the drops take a colour from the board (weighted by how many sit there), the rest any colour. */
+    function dropColor(state, random) {
+        const placed = placedItems(of(state)).map(item => item.color).filter(Boolean);
+        const pool = placed.length && random() < STUMP_BOX_DROPS.boardColorShare ? placed : COLORS;
+        return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+    }
+    /**
+     * The box's own drop roll, independent of gear drops. random() → [0, 1). A drop that finds the storage full is not
+     * lost: it goes on the board as compost (nothing happens when nothing grows).
+     * @returns {?{item: ?object, compost: ?object}} null when nothing dropped; compost = { family, color, growth, fed, ripened }.
+     */
     function rollDrop(state, enemy, random) {
         if (random() >= STUMP_BOX_DROPS.chance[killKind(enemy)]) return null;
-        const family = random() < STUMP_BOX_DROPS.sapShare ? 'sap' : 'seed';
-        const color = COLORS[Math.min(COLORS.length - 1, Math.floor(random() * COLORS.length))];
-        const span = STUMP_BOX_DROPS.roll.max - STUMP_BOX_DROPS.roll.min;
-        return createItem(state, { family, color, roll: STUMP_BOX_DROPS.roll.min + random() * span });
+        const family = random() < STUMP_BOX_DROPS.sapShare ? 'sap' : 'seed', color = dropColor(state, random);
+        const spec = { family, color, roll: clampRoll(STUMP_BOX_DROPS.roll.min + random() * (STUMP_BOX_DROPS.roll.max - STUMP_BOX_DROPS.roll.min)) };
+        const item = createItem(state, spec);
+        if (item) return { item, compost: null };
+        const growth = compostGrowth(spec), fed = growingItems(state).length;
+        return { item: null, compost: { family, color, growth, fed, ripened: growBy(state, growth) } };
     }
+    const NO_DROP = Object.freeze({ item: null, compost: null });
+    function dropsHere(state) { return !(typeof actExplorationState === 'object' && actExplorationState.current(state)?.act != null); }
     /** One call per kill (live and offline replay alike). Story-act expeditions escrow their loot until the act is
      * settled, so the box's drops are not rolled there (growth still counts); generated maps — chaos, realm, the atlas … —
      * roll them as the 9×8 board does. */
     function onEnemyKilled(state, enemy) {
         const box = state.stumpBox;
         if (!box || !box.acquired) return;
-        const ripened = grow(state, enemy);
-        const storyAct = typeof actExplorationState === 'object' && actExplorationState.current(state)?.act != null;
-        const drop = storyAct ? null : rollDrop(state, enemy, Math.random);
-        if (!ripened.length && !drop) return;
+        const ripened = grow(state, enemy), rolled = (dropsHere(state) && rollDrop(state, enemy, Math.random)) || NO_DROP;
+        if (rolled.compost) ripened.push(...rolled.compost.ripened);
+        if (!ripened.length && !rolled.item && !rolled.compost) return;
         if (state.noti) state.noti.stump = true;
-        dispatchRuntimeEvent('stump-box-changed', { ripened, drop });
+        dispatchRuntimeEvent('stump-box-changed', { ripened, drop: rolled.item, compost: rolled.compost });
     }
 
     // ── 획득·시작 선물·루프 ─────────────────────────────────
@@ -384,7 +425,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
-        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, compost, compostReason, compostGrowth, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         itemById: (state, id) => findItem(of(state), id)

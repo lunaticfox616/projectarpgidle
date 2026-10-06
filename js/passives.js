@@ -4430,7 +4430,9 @@ const BATTLE_FEEDBACK_PROFILES = Object.freeze({
     normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
     crit: Object.freeze({ hitStopMs: 0, shake: 3, duration: 170 }),
     heavy: Object.freeze({ hitStopMs: 28, shake: 5.4, duration: 220 }),
-    annihilate: Object.freeze({ hitStopMs: 20, shake: 4.2, duration: 180 })
+    annihilate: Object.freeze({ hitStopMs: 20, shake: 4.2, duration: 180 }),
+    // 보스 범위기가 땅에 닿는 순간(2026-10-06, js/canvas-boss-attacks.js): 피했어도 화면이 울린다. 맞으면 playerHit가 더한다.
+    bossSlam: Object.freeze({ hitStopMs: 0, shake: 4.6, duration: 320 })
 });
 // 피격감(2026-10-04): getting hit answers in proportion to the life it took (damageRatio against the hero's life, set in
 // combat.js). Chip hits shake a little; from an eighth of life the frame also holds, like a heavy blow on an enemy.
@@ -4445,6 +4447,7 @@ function getPlayerHurtProfile(fx) {
 function getBattleFeedbackProfile(fx) {
     if (!fx || fx.dot) return BATTLE_FEEDBACK_PROFILES.normal;
     if (fx.type === 'playerHit') return getPlayerHurtProfile(fx);
+    if (fx.type === 'bossAreaImpact') return BATTLE_FEEDBACK_PROFILES.bossSlam;
     if (fx.impactTier === 'annihilate') return BATTLE_FEEDBACK_PROFILES.annihilate;
     if (fx.impactTier === 'heavy') return BATTLE_FEEDBACK_PROFILES.heavy;
     if (fx.crit) return BATTLE_FEEDBACK_PROFILES.crit;
@@ -4496,6 +4499,14 @@ function getCurrentBattleFxQueueCap() {
 function withFrostErosionSprite(type, payload) {
     if (type !== 'combatTravel' || payload.skillName !== '빙결 침식') return payload;
     return { ...payload, spriteFrame: 7 + Math.floor(Math.random() * 5) };
+}
+
+/** Stamp for "when this appeared" on the battlefield's own clock (hit stop and slow frames pause it, so it runs behind
+ * performance.now()). A spawn stamped with another clock reads as not yet appeared and is drawn at alpha 0 (2026-10-06:
+ * exploration nest/ambush monsters were stamped with the combat clock and had no visible body). */
+function getBattleSpawnStamp() {
+    let visualNow = battleVisualState && Number(battleVisualState.visualNow);
+    return Number.isFinite(visualNow) && visualNow > 0 ? visualNow : performance.now();
 }
 
 function addBattleFx(type, data) {
@@ -4793,7 +4804,7 @@ function mergeDamageTextByKey(activeTexts, config, start, x, y) {
 
 function getDamageTextDuration(config) {
     if (config.duration) return config.duration;
-    if (config.bodyCue) return 420;
+    if (config.bodyCue) return 760;
     // About 1.4x the former stay (2026-10-05 user request) so a number can be read before it fades.
     if (config.impactTier === 'annihilate') return 1320;
     if (config.impactTier === 'heavy') return 1200;
@@ -4861,7 +4872,7 @@ function drawVisualProjectile(ctx, projectile, now) {
     ctx.restore();
 }
 function getDamageTextFillColor(text) {
-    if (text.miss) return text.color || '#9fb4c8';
+    if (text.miss) return text.color || '#c4e2ff';
     if (text.dot) {
         if (text.dotType === 'fire') return '#ff9f43';
         if (text.dotType === 'chaos') return '#c56cff';
@@ -4890,27 +4901,38 @@ function applyDamageTextPop(ctx, text, t, anchor) {
     ctx.translate(-anchor.x, -anchor.y);
 }
 
+/** A damage number's text, formatted once per value and number format: toLocaleString for every number on screen every frame
+ * was a measurable share of the frame (2026-10-07 frame drops). */
+function getDamageTextLabel(text) {
+    const format = (typeof game !== 'undefined' && game && game.settings) ? game.settings.damageNumberFormat : '';
+    const cached = text.labelCache;
+    if (cached && cached.value === text.value && cached.format === format) return cached.label;
+    const label = `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
+    text.labelCache = { value: text.value, format, label };
+    return label;
+}
+
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
         let elapsed = now - Number(text.start);
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
         let t = clampNumber(elapsed / text.duration, 0, 1);
         let easedRise = 1 - Math.pow(1 - t, 2);
-        let rise = text.bodyCue ? 0 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
+        let rise = text.bodyCue ? 10 : ((text.dot ? 14 : 20) + (text.crit ? 5 : 0));
         let x = text.x;
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = getDamageTextPeakAlpha(text) * (t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38));
         // Sizes chosen for the pixel font over a busy floor (2026-10-05 user request: numbers were hard to see).
         const tierSize = text.impactTier === 'annihilate' ? 32 : (text.impactTier === 'heavy' ? 28 : 0);
-        const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
+        const fontSize = text.bodyCue ? 20 : (tierSize || (text.miss ? 16 : (text.dot ? 17 : (text.crit ? 25 : 21))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
-        ctx.textAlign = text.bodyCue || text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
+        ctx.textAlign = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
         applyDamageTextPop(ctx, text, t, { x, y });
-        let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
+        let textValue = text.miss ? String(text.value) : getDamageTextLabel(text);
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
-        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3));
+        ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3);
         ctx.lineJoin = 'round';
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
@@ -5452,19 +5474,21 @@ function applyPanelLayoutSettings() {
         ? !game.settings.mobileCombatLogExpanded : !!game.settings.combatLogCollapsed;
     if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
-    leftToggleButtons.forEach(leftToggleBtn => {
-        leftToggleBtn.innerText = isLeftCollapsed ? '▶' : '◀';
-        leftToggleBtn.title = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
-        leftToggleBtn.setAttribute('aria-label', isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기');
-    });
-    if (leftExpandFab) leftExpandFab.innerText = '▶';
+    // 정적 UI를 새로 그릴 때마다 불린다. 같은 글자와 속성을 다시 쓰고 innerText를 읽으면 문서 스타일과 배치를 강제로 다시
+    // 계산했다(2026-10-07 프레임 드랍: 몇 초마다 한 번씩 튀던 프레임). 바뀐 것만 쓴다.
+    const leftLabel = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
+    leftToggleButtons.forEach(button => syncPanelToggle(button, isLeftCollapsed ? '▶' : '◀', { title: leftLabel, 'aria-label': leftLabel }));
+    if (leftExpandFab) syncPanelToggle(leftExpandFab, '▶', {});
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);
-    if (combatLogToggleBtn) {
-        combatLogToggleBtn.innerText = isLogCollapsed ? '펼치기' : '접기';
-        combatLogToggleBtn.setAttribute('aria-expanded', String(!isLogCollapsed));
-        combatLogToggleBtn.setAttribute('aria-label', `전투 기록 ${combatLogToggleBtn.innerText}`);
-    }
+    const logText = isLogCollapsed ? '펼치기' : '접기';
+    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': `전투 기록 ${logText}` });
+}
+
+/** A panel toggle's text and attributes, written only where they differ. */
+function syncPanelToggle(el, text, attributes) {
+    if (el.textContent !== text) el.textContent = text;
+    Object.entries(attributes).forEach(([name, value]) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); });
 }
 
 function toggleLeftPaneCollapse() {

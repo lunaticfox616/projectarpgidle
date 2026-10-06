@@ -8,6 +8,8 @@ const atlasEndgame = (() => {
     const E = ATLAS_ENDGAME;
     const DEFS = new Map([...E.apexes.map(row => [row.id, { ...row, kind: 'apex' }]), ...E.leagues.map(row => [row.id, { ...row, kind: 'league' }])]);
     const LEAGUE_BY_ROOM = new Map(E.leagues.map(row => [row.room, row]));
+    // 자기 그림이 있는 리그 보스(벌집 여왕): 메아리로 다시 나와도 그 그림을 쓴다(목격 기록은 [이름, 액트]뿐이다).
+    const BODY_BY_BOSS = new Map(E.leagues.filter(row => row.bodyVisual).map(row => [row.boss, row]));
     const APOSTLES = new Map(E.apostles.map(row => [row.id, row]));
     const ITEM_IDS = Object.freeze(Object.keys(E.items));
     const LATE_BOSSES = new Set(['guardian', 'pinnacle', 'apex', 'league']);
@@ -109,6 +111,17 @@ const atlasEndgame = (() => {
         if (row.hazard) Object.assign(out, { trialHazard: { ...row.hazard }, trapElements: [row.ele], trapName: E.hazardName });
         return out;
     }
+    /** The stage's picture: a league boss with its own sheet (the beehive queen) draws it, the rest an act boss's art. */
+    function applyStageBody(enemy, row, art) {
+        if (row.bodyVisual) return Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: null });
+        enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
+        return enemy;
+    }
+    /** Whose picture a stage draws: an echo of a league boss with its own sheet draws that sheet, not its act boss's art
+     * (2026-10-07 review: the weaver's echo of the beehive queen came out as the act 9 boss). */
+    function stageBodyRow(row, echo) {
+        return (echo && BODY_BY_BOSS.get(echo[0])) || row;
+    }
     /** A late fight's stage body (js/combat.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
     function tuneStage(enemy, zone, stage) {
         const row = def(zone.atlasStages), body = row && row.stages[stage];
@@ -117,7 +130,7 @@ const atlasEndgame = (() => {
         const isEcho = Number.isInteger(body.echo), echo = isEcho ? (zone.atlasEchoes || [])[body.echo] : null;
         const art = echo ? echo[1] : (Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct);
         enemy.name = `👿 ${zone.bossStageNames[stage]}`;
-        enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
+        applyStageBody(enemy, stageBodyRow(row, echo), art);
         enemy.bossVisualTint = isEcho ? 200 : null;
         enemy.patternMode = 'apex';
         enemy.apexMechanic = body.mechanic;

@@ -59,8 +59,9 @@ assert.strictEqual(spawned.name, run(`ACT_MONSTER_VISUAL_BY_ID[${JSON.stringify(
 
 // 3. 시트: 대기 4열 · 공격 6열 × 4방향, 잰 높이 = 발에서 대기 0번 네 방향 중 가장 높은 도트까지(방향별 발 자리가 있으면 그것으로).
 const kinds = json('MONSTER_SPRITE_KINDS'), sheets = json('MONSTER_SPRITE_SHEETS');
-assert.deepStrictEqual(Object.keys(sheets).sort(), json(`ACT_MONSTER_VISUALS.map(v => v.id)
-    .concat(Object.values(REALM_MONSTER_VISUAL_SETS).flatMap(set => set.members.map(m => m.id)))`).sort(), 'every act, root and realm monster has a sheet');
+// The colony set (2026-10-06) borrows act bugs and hive bees, so the ids are compared once each.
+assert.deepStrictEqual(Object.keys(sheets).sort(), [...new Set(json(`ACT_MONSTER_VISUALS.map(v => v.id)
+    .concat(Object.values(REALM_MONSTER_VISUAL_SETS).flatMap(set => set.members.map(m => m.id)))`))].sort(), 'every act, root and realm monster has a sheet');
 /** First and last opaque line of idle frame 0 in each direction row. */
 function idleRows(png, cell) {
     return [0, 1, 2, 3].map(row => {

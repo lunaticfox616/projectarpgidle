@@ -57,19 +57,30 @@ actExplorationView.objects=(()=>{
         if(row.kind==='ambush')return {name:'tracks',standing:false};
         return {name:spent?(row.kind==='pot'?'potBroken':'crateBroken'):row.kind,standing:!spent};
     }
+    let pending=null;
+    /** Actor pass: standing objects join the sort, and the clickable ones are noted for flushButtons. */
     function append(actors,view) {
-        const run=actExplorationState.current(game);
-        syncLayer(run);
+        const run=actExplorationState.current(game),p=view.gridProj;
+        pending={run,p,rows:[]};
         if(!run?.objects)return;
-        const shown=new Set(),p=view.gridProj;
         for(const row of run.objects.entries) {
             if(!actExplorationState.objects.visible(run,row))continue;
             const point=p.cellToScreen(row.gx,row.gy),y=point.y+p.actorGroundOffsetY;
             if(look(row).standing)actors.push({kind:'object',id:row.id,y,point,object:row});
-            if(canClick(run,row)&&onScreen(point,view)) {
-                button(row,point,p);shown.add(row.id);
-            }
+            if(canClick(run,row)&&onScreen(point,view))pending.rows.push({row,point});
         }
+    }
+    /** The buttons' DOM side, once the frame has drawn (renderBattlefield's end). Moving them between canvas calls made the next
+     * ctx.font or ctx.filter recompute the page's styles mid-frame, once or twice a frame while the camera scrolled (2026-10-07
+     * frame drops). */
+    function flushButtons() {
+        if(!pending)return;
+        const {run,p,rows}=pending;
+        pending=null;
+        syncLayer(run);
+        if(!run?.objects)return;
+        const shown=new Set();
+        for(const {row,point} of rows){button(row,point,p);shown.add(row.id);}
         for(const [id,node] of buttons)if(!shown.has(id)){node.remove();buttons.delete(id);}
     }
     function canClick(run,row) {return row.phase==='ready'&&row.kind!=='ambush'&&!run.arrival&&!run.completionApplied&&run.status==='active';}
@@ -145,5 +156,5 @@ actExplorationView.objects=(()=>{
         if(objectKind==='pot'||objectKind==='crate')return;
         addLog(kind==='spawn'?`${name}에서 몬스터가 나타났습니다.`:`${name}의 전리품을 획득했습니다.`,kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
     });
-    return {append,draw,drawGround};
+    return {append,flushButtons,draw,drawGround};
 })();

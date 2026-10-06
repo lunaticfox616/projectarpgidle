@@ -182,12 +182,24 @@ const LOOP_DEEP_STATS = Object.freeze([
 // 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
 const ACT_LOOP_SCALE_CAP = 20;
+// 혼돈 층의 루프 스케일 상한 = 액트 상한 + 층 × 이 값(2026-10-06): 액트 10 다음 혼돈 1이 높은 루프에서 한꺼번에 몇 배로
+// 뛰지 않게, 층을 내려갈수록 지금 루프의 난이도까지 계단처럼 따라붙는다(루프 30이면 혼돈 5층부터 루프 30 그대로).
+const CHAOS_LOOP_RAMP_PER_DEPTH = 2;
+
+// 몬스터 생명력의 루프 배율(2026-10-06 재조율, js/combat.js getMonsterLoopHpMultiplier): [루프, 배율], 사이는 직선, 끝 뒤는 끝 값.
+// 지역 단계와 무관한 한 곡선이라 같은 레벨의 몬스터는 어느 지역이든 같은 비율로 세진다(레벨이 강함을 말한다).
+// 예전에는 지역 단계에 비례하는 성장 × 루프 카운트 배율 × 보정 곡선이 겹쳐 혼돈 1이 루프 20에 16배 · 30에 27배였고(액트 10은 상한 탓에
+// 루프 20 이후 10.8배에 멈춤), 루프 패시브로 얻는 힘(루프 20 약 1.6배 · 40 약 2.2배, 측정 docs/loop-difficulty-20261006.md)과
+// 레벨이 같은 지역의 체감 강함이 크게 어긋났다. 지하계 · 혼돈계 · 고정 난이도 벤치마크(루프 30 고정)도 같은 곡선이라 "혼돈계 1층 ≈ 심화 30"
+// 같은 지역 사이의 기준은 그대로다. 우주계(노드 등급 사다리, js/cosmos-rules.js)만 예전 공식을 쓴다.
+const MONSTER_LOOP_HP_CURVE = Object.freeze([[1, 1], [5, 1.7], [10, 2.6], [20, 4], [30, 5.5], [50, 7.5], [100, 11], [200, 15]]);
 
 // 몬스터의 루프당 성장(시즌 깊이 1당, 지역 단계 0~1에 비례하는 몫 tier와 고정 몫 base): 생명력 1 + 깊이 × (base + 단계 × tier).
 // 2026-10-04 소폭 하향(사용자 요청): 생명력 tier 0.52 → 0.47, 피해 tier 0.07 → 0.06 — 혼돈 20 · 루프 10에서 생명력 약 −7%, 피해 약 −4%.
 // 루프를 타지 않는 지역(나무꾼 · 시련)은 깊이가 0이라 그대로다. 루프 30에 고정하고 노드 등급으로 난이도를 올리는 우주계는
 // 예전 값(fixed)을 그대로 쓴다(js/combat.js getMonsterLoopGrowthScale). 전투와 권장 전투력 · 우주계 예측이 같은 값을 쓴다.
 const MONSTER_LOOP_GROWTH = Object.freeze({
+    // 생명력 성장은 2026-10-06부터 MONSTER_LOOP_HP_CURVE가 맡고, 이 값은 우주계 최종 보스(잔향체 아스트라)의 예전 공식에만 남는다.
     hp: Object.freeze({ base: 0.08, tier: 0.47 }),
     damage: Object.freeze({ base: 0.05, tier: 0.06 }),
     fixed: Object.freeze({ hp: Object.freeze({ base: 0.08, tier: 0.52 }), damage: Object.freeze({ base: 0.05, tier: 0.07 }) })
@@ -375,5 +387,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

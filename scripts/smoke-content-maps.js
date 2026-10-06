@@ -46,14 +46,29 @@ const moods = copy(`({
     sky: [1, 2, 3, 4].map(floor => contentMaps.skyTower(floor).exploration.act),
     rift: [contentMaps.timeRift('past', 3).exploration.act, contentMaps.timeRift('future', 3).exploration.act],
     arena: contentMaps.arena('pinnacle_sky', 'aerial'),
-    trials: TRIAL_ZONES.map(zone => contentMaps.trialCorridor(zone).exploration.act)
+    trials: TRIAL_ZONES.map(zone => contentMaps.trialCorridor(zone).exploration)
 })`);
 assert.deepEqual(moods.chaos, [1, 7, 10, 1, 1], 'chaos walks all ten maps, depth by depth');
 assert.deepEqual(moods.labyrinth, [4, 7, 4], 'the labyrinth alternates the bookshelf maze and the hollow spiral');
 assert.deepEqual(moods.sky, [3, 8, 10, 3], 'the sky tower climbs isles over the void');
 assert.deepEqual(moods.rift, [2, 6], 'the past is the hedge courtyard, the future the same courtyard in ruins');
 assert.deepEqual([moods.arena.act, moods.arena.arena], [3, true], 'a boss stands at the gate of the map that matches its look');
-assert.ok(moods.trials.every(act => act >= 1 && act <= 10) && new Set(moods.trials).size === moods.trials.length, 'each trial has its own map');
+// 2026-10-06 (사용자 요청 "아직 없는 맵 디자인(시련 등)"): 시련은 액트 지도를 빌리지 않고 따로 짠 지도를 걷는다.
+assert.ok(moods.trials.every(spec => spec.style === 'map'), 'trials walk their own content maps, not borrowed act maps');
+assert.deepEqual(moods.trials.map(spec => spec.id), ['trial-blades', 'trial-triad', 'trial-miasma', 'trial-crossing', 'trial-winter'],
+    'each trial has its own map');
+const trialMaps = copy(`CONTENT_EXPLORATION_MAPS.map(source => {
+    const map = actExplorationMap.generated({ style: 'map', id: source.id, seed: 's' }), arena = actExplorationMap.generated({ style: 'map', id: source.id, arena: true });
+    const roles = map.rooms.map(room => room.role);
+    return { id: map.id, art: !!ACT_EXPLORATION_BACKDROPS[map.id], act: map.act, elites: roles.filter(role => role === 'elite').length,
+        monsters: actExplorationState.packRooms(map).length, bosses: roles.filter(role => role === 'boss').length, arenaMonsters: actExplorationState.packRooms(arena).length,
+        key: explorationLayouts.key({ style: 'map', id: source.id, seed: 'x' }) };
+})`);
+assert.ok(trialMaps.every(row => row.art && row.act === null && row.bosses === 1 && row.elites >= 1 && row.monsters >= 4 && row.arenaMonsters === 0),
+    'every trial map is whole, painted, has elite rooms and one boss, and works as an arena');
+assert.equal(trialMaps[0].key, 'map:trial-blades:map');
+assert.throws(() => run("explorationLayouts.build({ style: 'map', id: 'nowhere' })"), /넓은 맵 명세/, 'an unknown content map is refused');
+assert.equal(run("explorationLayouts.supports({ style: 'act', act: 5, seed: 'trial:trial_1' })"), true, 'a save still walking the old borrowed map keeps it');
 
 // ---------------------------------------------------------------- the labyrinth through the real loop, save round trip
 let tick = 0;

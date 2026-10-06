@@ -103,12 +103,17 @@ for(const [kind,loop,waves] of [['sealed',5,1],['nest',15,2]]) {
     run(`game=mergeDefaults(JSON.parse(serializeSaveState(game)));r=game.actExploration;o=r.objects.entries.find(e=>e.kind==='${kind}');`);
     for(let wave=1;wave<=waves;wave++) {
         run('actExplorationProgress.objects.step(r,1200);');assert.equal(run('o.phase'),'active');assert.equal(run('o.wave'),wave);
+        // 2026-10-06: event monsters were stamped with the combat clock, so the battlefield drew their bodies at alpha 0.
+        assert.ok(run("game.enemies.filter(e=>e.explorationPack.startsWith(o.id+':')).every(e=>Math.abs(e.spawnStamp-getBattleSpawnStamp())<5000)"),'event monsters use the battlefield clock');
         assert.equal(run('actExplorationState.remainingElites(r)'),elite);run('actExplorationState.validate(r,game.enemies);');
         assert.throws(()=>run(`(()=>{const raw=JSON.parse(JSON.stringify(game));raw.actExploration.packs=raw.actExploration.packs.filter(p=>!p.objectId);raw.enemies=[];mergeDefaults(raw);})()`));
         run(`for(const enemy of [...game.enemies].filter(e=>e.explorationPack.startsWith(o.id+':')&&e.hp>0)){enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());}`);
     }
     assert.equal(run('o.phase'),'spent');run('actExplorationState.validate(r,game.enemies);');
 }
+// A stamp far ahead of the clock (another clock or an older session) is drawn as already appeared, never at alpha 0.
+assert.equal(run('getEnemySpawnAge({spawnStamp:1e12},5000,360)'),1);
+assert.ok(Math.abs(run('getEnemySpawnAge({spawnStamp:4900},5000,360)')-100/360)<1e-9);
 find('ambush',10);run('actExplorationProgress.objects.step(r,20);');assert.equal(run('o.phase'),'warning');assert.equal(run('game.enemies.length'),0);
 // Summons hold grid cells like any unit: an event never bursts out onto one (2026-10-05 review).
 run(`game.summons=[];for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){const c={gx:o.gx+x,gy:o.gy+y};

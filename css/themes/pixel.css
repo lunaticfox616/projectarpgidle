@@ -67,6 +67,15 @@ body[data-ui-skin] {
   overflow-wrap: break-word;
 }
 
+/* 일반 글꼴(설정 "글꼴", 자동이면 소수 배율 PC 화면 — js/ui-display.js applyFont): 도트 글꼴 변수만 IBM Plex Sans KR로 바꾼다.
+   겹쳐 찍기 굵게(--px-text-bold)는 1px 옆에 한 번 더 찍는 도트 기법이라 일반 글꼴에서는 번져 보여 그림자만 남긴다. */
+:root body[data-ui-skin].ui-font-smooth {
+  --font-pixel: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  --font-pixel-read: var(--font-pixel);
+  --font-pixel-title: var(--font-pixel);
+  --px-text-bold: 1px 1px 0 #000;
+}
+
 /* 좁은 화면과 가로로 눕힌 휴대폰(높이 600px 이하)은 테를 반 굵기로: 가로 휴대폰은 폭이 760px를 넘어도 높이가 293 ~ 393px뿐이다 */
 @media (max-width: 760px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { body[data-ui-skin] { --px-window-border: 13px; --px-plate-border: 13px; } }
 /* 세로로 쌓는 배치(1080px 이하 — 태블릿 · 좁은 PC 창 포함)의 HUD 돌판 · 하단 메뉴 띠도 반 굵기: 26px 테가 판 위로 26px 솟아
@@ -467,7 +476,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .loop10-panel { padding: 12px; }
 :root body[data-ui-skin] .loop10-entry-box { margin-bottom: 8px; padding: 10px; background: var(--px-wood-dark), var(--px-stone-raised); }
 :root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
-:root body[data-ui-skin] .loop-node-glyph { font-family: var(--font-pixel); font-size: 12px; font-weight: 400; text-shadow: var(--px-text-edge); }
 /* 재능 개화: 남색 · 보라 유리 판 → 숯빛 판. 개화의 보라는 요약 왼쪽 띠에만 남긴다. */
 :root body[data-ui-skin] .talent-bloom-summary { border-radius: 0; border-left: 3px solid #b88ad8; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy); }
 :root body[data-ui-skin] :is(.talent-bloom-navigator, .talent-current-combo, .talent-loadout-panel) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); }
@@ -476,11 +484,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.talent-combo-status, .talent-bloom-empty) { border-color: var(--px-bronze-lo); border-radius: 0; }
 :root body[data-ui-skin] .talent-slot { border-radius: 0; border-color: var(--px-bronze-lo); background: #141216; }
 :root body[data-ui-skin] .talent-slot.filled { border-color: var(--px-gold); background: var(--px-stone-raised); }
-/* 젬 카드 꼬리표 · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
-:root body[data-ui-skin] .gem-card-tags :is(.gem-tag--neutral, .gem-tag--spell, .gem-tag--utility, .gem-tag--projectile, .gem-tag--pierce, .gem-tag--melee, .gem-tag--slam, .gem-tag--chain, .gem-tag--aoe, .gem-tag--dot) {
-  /* 분류 꼬리표(주문 · 범위 · 지속 …)는 숯빛 판 — 색은 원소 꼬리표(화염 · 냉기 · 번개 · 카오스)의 뜻으로만 남긴다 */
-  border-color: var(--px-bronze-lo); border-radius: 0; background: rgba(8, 5, 8, .5); color: var(--px-copy);
-}
+/* 젬 카드 꼬리표(분류 꼬리표도 근접 · 투사체 · 주문 · 범위마다 제 색 — 2026-10-06 사용자 요청, 모두 흰 글씨라 구분이 안 됐다) · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
+:root body[data-ui-skin] .gem-card-tags .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); color: var(--px-copy); }
 :root body[data-ui-skin] .gem-card-tags span { border-radius: 0; }
 :root body[data-ui-skin] #tutorial-overlay .tutorial-pause-toggle { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .45); }
 :root body[data-ui-skin] .offline-progress-upgrade { border-color: var(--px-bronze-lo); }
@@ -710,7 +715,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
    1.1em(격자 밖 크기) · 고유 · 레벨 업 줄의 번지는 빛 그림자는 도트 외곽선으로 */
 :root body[data-ui-skin] #log .exp-txt { color: #c9a3e8; }
 :root body[data-ui-skin] #log .attack-monster { color: #ff7f6e; }
-/* 2026-10-04 가시성: 내 일반 공격 줄은 흐린 글자(6:1)로 물러나 획득 · 레벨 업 줄이 먼저 읽힌다. 치명타 · 피격 줄은 그대로 */
+/* 2026-10-04 가시성: 내 공격 줄은 흐린 글자(6:1)로 물러나 획득, 레벨 업 줄이 먼저 읽힌다. 2026-10-06: 치명타도 같은 줄 색에
+   피해 숫자만 주황(layout.css .combat-log-crit) */
 :root body[data-ui-skin] #log .attack-player { color: var(--px-copy-muted); }
 :root body[data-ui-skin] #log .death { color: #ff6b5b; font-size: inherit; }
 :root body[data-ui-skin] #log .loot-magic { color: #6cb6ff; }

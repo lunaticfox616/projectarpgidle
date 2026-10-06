@@ -414,16 +414,14 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.loopCount = 30;
   const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
   const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
-  // 보조 콘텐츠 통합 9단계: 루프 31 빌드의 힘이 빠진 만큼 몬스터도 같은 배율로 낮췄다 — 기준 범위에 같은 배율을 곱한다.
-  // 2026-10-04 루프당 성장 소폭 하향(data/maps.js MONSTER_LOOP_GROWTH): 같은 이유로 예전 성장 대비 비율도 곱한다.
-  const rivalGrowthRatio = vm.runInContext(`(() => {
+  // 기준 범위(35M~80M · 100M)는 예전 생명력 공식(루프 성장 0.52 × 루프 카운트 배율) 기준이다. 2026-10-06부터 생명력의 루프 몫은
+  // 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE)이라, 기준 범위에 새 배율 / 예전 배율을 곱한다.
+  const rivalHpScale = vm.runInContext(`(() => {
     const zone = SEASON_BOSS_ZONES.find(row => row.rivalBlade), depth = getSoftenedLoopDepth(30);
     const share = Math.min(1, Math.max(0, (levelProgression.combatZone(zone).tier - 1) / 18)), old = MONSTER_LOOP_GROWTH.fixed.hp;
-    return getMonsterLoopGrowthScale(zone, 'hp', depth, share) / (1 + depth * (old.base + share * old.tier));
+    return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 31) / ((1 + depth * (old.base + share * old.tier)) * getLoopHpScale(30));
   })()`, context);
-  const rivalHpScale = context.getMonsterLoopPowerScale(rivalZones[0], 'hp') * rivalGrowthRatio;
-  assert.ok(rivalGrowthRatio > 0.85 && rivalGrowthRatio < 1, 'the loop 31 benchmark follows the lowered loop growth');
-  assert.ok(rivalHpScale > 0.45 && rivalHpScale < 1, 'the loop 31 benchmark uses the loop power curve');
+  assert.ok(rivalHpScale > 0.05 && rivalHpScale < 1, `the loop 31 benchmark follows the shared loop life curve (${rivalHpScale.toFixed(3)})`);
   assert.ok(Math.min(...commonRivalHealth) >= 35000000 * rivalHpScale && Math.max(...commonRivalHealth) <= 80000000 * rivalHpScale,
     '다섯 버려진 날은 루프 31 빌드가 즉시 처치할 수 없는 생명력을 가져야 한다');
   assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000 * rivalHpScale,
@@ -1938,22 +1936,26 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.addLog = message => logs.push(String(message));
   context.game.settings.showCombatLog = true;
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
-  context.game.enemies = [makeEnemy(641, 2, 6, { hp: 1000000, maxHp: 1000000 })];
+  context.game.enemies = [makeEnemy(641, 2, 6, { hp: 1000000, maxHp: 1000000, name: '시험 허수아비' })];
   const attackStats = context.getPlayerStats();
   attackStats.accuracy = 1000000;
   attackStats.crit = 0;
   vm.runInContext('pendingSkillStageHits = [];', context);
   context.performPlayerAttack(attackStats);
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
-  assert.ok(logs.some(message => /^🩸 기본 공격 \d[\d,]* 피해$/.test(message)), '기본 공격 로그는 속성 표식, 기술 이름, 총 피해만 표시해야 한다(검토 5차부터 출처를 적는다)');
+  assert.ok(logs.some(message => /^🩸 기본 공격으로 시험 허수아비에게 \d[\d,]* 피해$/.test(message)),
+    '기본 공격 로그는 속성 표식, 기술 이름, 맞은 적, 총 피해만 표시해야 한다(검토 5차부터 출처를, 2026-10-06부터 대상을 적는다)');
 
   logs.length = 0;
   context.game.settings.showDetailedDamageLog = true;
-  context.game.enemies = [makeEnemy(642, 2, 6, { hp: 1000000, maxHp: 1000000 })];
+  context.game.enemies = [makeEnemy(642, 2, 6, { hp: 1000000, maxHp: 1000000, name: '시험 허수아비' })];
+  attackStats.damageScales = { regen: 1.2 };
   vm.runInContext('pendingSkillStageHits = [];', context);
   context.performPlayerAttack(attackStats);
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
-  assert.ok(logs.some(message => message.includes('⚔️') && message.includes('피해')), '상세 공격 로그는 기존 전투 맥락을 다시 표시해야 한다');
+  assert.ok(logs.some(message => /^🩸 기본 공격으로 시험 허수아비에게 \d[\d,]* 피해 \/ .*계수 재생x1\.20/.test(message)),
+    '상세 공격 로그는 같은 줄 뒤에 전투 맥락(계수 등)을 더 표시해야 한다');
+  delete attackStats.damageScales;
 
   resetGame();
   logs.length = 0;
