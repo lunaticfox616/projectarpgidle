@@ -123,6 +123,62 @@ const ACT_EXPLORATION_MAPS = Object.freeze([
             ['northWest','axis'],['northEast','axis'],['south','innerWest',[[17,33]]],['south','innerEast',[[31,33]]]]
     }
 ]);
+// 콘텐츠 전용 지도(2026-10-06 사용자 요청 "아직 없는 맵 디자인(시련 등)"): 액트 지도 5 · 9 · 10 · 4 · 8을 빌려 걷던 전직 시련
+// 다섯 곳에 따로 짠 지도. 형식은 액트 지도와 같고 act 대신 look(그림 모양 · 색 이름, scripts/act-maps/looks.cjs · pal.cjs)을 쓴다.
+// 명세는 { style:'map', id, seed }(js/exploration-layouts.js, js/content-maps.js trialCorridor). 시련 주제를 따라 짰다:
+// 칼날 회랑(좁은 홀이 일직선으로 이어지고 양옆에 칼날 벽감), 삼원 제단(가운데 홀에서 불 · 얼음 사당이 갈라졌다가 제단에서 만남),
+// 독무 정원(독 못 둘레를 도는 고리, 가운데 샘은 막다른 곳), 십자 회랑(네거리 방이 격자로 이어짐), 혹한 미궁(뱀처럼 굽은 한 길).
+const CONTENT_EXPLORATION_MAPS = Object.freeze([
+    {
+        id:'trial-blades', look:'trial-blades', terrain:'칼날 회랑', biome:'sanctum', width:31, height:47, rotation:0,
+        gate:[15,7], approach:'antechamber',
+        rooms:[['entry',15,43,2,2,'entry'],['hallLow',15,36,4,2,'battle'],['hallMid',15,29,4,2,'battle'],
+            ['alcoveWest',5,29,2,2,'elite'],['hallHigh',15,22,4,2,'battle'],['alcoveEast',25,22,2,2,'elite'],
+            ['armory',5,15,2,2,'optional'],['antechamber',15,11,3,2,'battle'],['boss',15,4,4,2,'boss']],
+        links:[['entry','hallLow'],['hallLow','hallMid'],['hallMid','alcoveWest'],['hallMid','hallHigh'],
+            ['hallHigh','alcoveEast'],['hallHigh','antechamber'],['hallHigh','armory',[[5,22]]]]
+    },
+    {
+        id:'trial-triad', look:'trial-triad', terrain:'삼원 제단', biome:'sanctum', width:45, height:39, rotation:0,
+        gate:[22,7], approach:'sanctum',
+        rooms:[['entry',22,35,2,2,'entry'],['court',22,28,4,2,'battle'],['hub',22,20,3,3,'battle'],
+            ['fireShrine',8,20,3,3,'elite'],['coldShrine',36,20,3,3,'elite'],['fireVault',8,31,2,2,'optional'],
+            ['coldVault',36,31,2,2,'optional'],['sanctum',22,11,4,2,'battle'],['boss',22,4,4,2,'boss']],
+        links:[['entry','court'],['court','hub'],['hub','fireShrine'],['hub','coldShrine'],['fireShrine','fireVault'],
+            ['coldShrine','coldVault'],['hub','sanctum'],['fireShrine','sanctum',[[8,11]]],['coldShrine','sanctum',[[36,11]]]]
+    },
+    {
+        id:'trial-miasma', look:'trial-miasma', terrain:'독무 정원', biome:'canopy', width:41, height:41, rotation:0,
+        gate:[20,7], approach:'arbor',
+        rooms:[['entry',20,37,2,2,'entry'],['gardenSouth',20,30,4,2,'battle'],['poolWest',8,26,3,3,'battle'],
+            ['poolEast',32,26,3,3,'battle'],['thornWest',8,15,3,2,'elite'],['thornEast',32,15,3,2,'elite'],
+            ['spring',20,21,2,2,'optional'],['arbor',20,11,3,2,'battle'],['boss',20,4,4,2,'boss']],
+        links:[['entry','gardenSouth'],['gardenSouth','poolWest',[[8,30]]],['gardenSouth','poolEast',[[32,30]]],
+            ['poolWest','thornWest'],['poolEast','thornEast'],['thornWest','arbor',[[8,11]]],['thornEast','arbor',[[32,11]]],
+            ['gardenSouth','spring']]
+    },
+    {
+        id:'trial-crossing', look:'trial-crossing', terrain:'십자 회랑', biome:'maze', width:45, height:45, rotation:0,
+        gate:[22,7], approach:'apex',
+        rooms:[['entry',22,41,2,2,'entry'],['crossSouth',22,33,2,2,'battle'],['heart',22,24,3,3,'elite'],
+            ['crossWest',9,24,2,2,'battle'],['crossEast',35,24,2,2,'battle'],['northWest',9,14,2,2,'elite'],
+            ['northEast',35,14,2,2,'battle'],['bloodWell',3,33,1,1,'optional'],['voidWell',41,33,1,1,'optional'],
+            ['apex',22,11,3,2,'battle'],['boss',22,4,4,2,'boss']],
+        links:[['entry','crossSouth'],['crossSouth','heart'],['heart','crossWest'],['heart','crossEast'],
+            ['crossWest','northWest'],['crossEast','northEast'],['northWest','apex',[[9,11]]],['northEast','apex',[[35,11]]],
+            ['heart','apex'],['crossSouth','bloodWell'],['crossSouth','voidWell'],['crossWest','crossSouth',[[9,33]]]]
+    },
+    {
+        id:'trial-winter', look:'trial-winter', terrain:'혹한 미궁', biome:'veil', width:49, height:41, rotation:0,
+        gate:[24,7], approach:'frostGate',
+        rooms:[['entry',6,37,2,2,'entry'],['driftSouth',24,36,3,2,'battle'],['driftEast',42,33,3,2,'battle'],
+            ['icefall',42,22,3,3,'elite'],['hollow',24,25,3,2,'battle'],['frozenPool',6,25,2,2,'elite'],
+            ['cairn',6,14,3,2,'battle'],['glacier',42,12,3,2,'optional'],['frostGate',24,11,3,2,'battle'],['boss',24,4,4,2,'boss']],
+        links:[['entry','driftSouth',[[6,36]]],['driftSouth','driftEast',[[42,36]]],['driftEast','icefall'],
+            ['icefall','hollow',[[24,22]]],['hollow','frozenPool',[[6,25]]],['frozenPool','cairn'],
+            ['cairn','frostGate',[[6,11]]],['icefall','glacier']]
+    }
+]);
 // Whole-map backdrops drawn at 16px per tile (shown at a whole-number zoom of the 16px art). Walkability still comes from the
 // map data above. Each map is painted once per facing (views[rotation], 0 gate north, 1 east, 2 south, 3 west — a run draws one,
 // js/combat.js createActExplorationEncounter): the light still falls from the upper left and the cliff faces still face the viewer, so a
@@ -136,6 +192,9 @@ const ACT_EXPLORATION_BACKDROPS = (() => {
     const view=(act,rotation)=>Object.freeze({map:`assets/exploration/act${act}-r${rotation}-map.png`,
         gate:`assets/exploration/act${act}-r${rotation}-gate.png`,gateOffset:Object.freeze(GATE_OFFSETS[rotation])});
     const entry=(act,shade)=>Object.freeze({shade:Object.freeze(shade),views:Object.freeze(GATE_OFFSETS.map((_,rotation)=>view(act,rotation)))});
+    // Content maps (CONTENT_EXPLORATION_MAPS) are painted the same way under their own id: assets/exploration/<id>-rR-map.png.
+    const named=(id,shade)=>Object.freeze({shade:Object.freeze(shade),views:Object.freeze(GATE_OFFSETS.map((offset,rotation)=>Object.freeze({
+        map:`assets/exploration/${id}-r${rotation}-map.png`,gate:`assets/exploration/${id}-r${rotation}-gate.png`,gateOffset:Object.freeze(offset)})))});
     return Object.freeze({
         'root-branches':entry(1,[20,16,24]),
         'garden-circuit':entry(2,[14,18,21]),
@@ -146,7 +205,12 @@ const ACT_EXPLORATION_BACKDROPS = (() => {
         'hollow-spiral':entry(7,[18,12,8]),
         'offset-veils':entry(8,[10,8,16]),
         'three-confluences':entry(9,[18,11,16]),
-        'crown-wheel':entry(10,[5,5,11])
+        'crown-wheel':entry(10,[5,5,11]),
+        'trial-blades':named('trial-blades',[13,14,18]),
+        'trial-triad':named('trial-triad',[18,14,10]),
+        'trial-miasma':named('trial-miasma',[10,14,11]),
+        'trial-crossing':named('trial-crossing',[17,10,12]),
+        'trial-winter':named('trial-winter',[10,13,20])
     });
 })();
 // Version of the backdrop and gate pictures, added to their URLs (js/canvas-exploration-art.js) so a redrawn map is never
@@ -162,4 +226,4 @@ const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReac
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
-safeExposeData({ACT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA});

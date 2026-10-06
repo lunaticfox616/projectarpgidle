@@ -1,5 +1,6 @@
 // Wide-map art (2026-10-02 simplification, docs/atlas-pinnacles-20261002.md 1절): every exploration map — story act, content or
-// atlas — is one of the ten painted act maps (data ACT_EXPLORATION_BACKDROPS, painted by scripts/build-act-maps.cjs). The backdrop
+// atlas — is one of the ten painted act maps or, for a class trial, its own painted trial map (2026-10-06; data ACT_EXPLORATION_BACKDROPS,
+// painted by scripts/build-act-maps.cjs). The backdrop
 // and its gate frames are drawn at the backdrop's own pixel scale. The transitional material/prop kits that coloured generated maps are
 // gone; if a picture cannot be decoded a flat stand-in (floor over the map's own shade) keeps the run readable. No combat or save mutations.
 const explorationArt=(()=>{

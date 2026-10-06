@@ -56,9 +56,10 @@ const contentMaps = (() => {
     /** A data-defined boss zone with its arena attached (a copy — the data row stays untouched). A board fight (Cerberus's three
      * phases of heads and body) keeps the 9×8 board. */
     const withArena = (zone, biome) => (zone && !zone.boardFight ? { ...zone, exploration: arena(zone.id, biome) } : zone);
-    // 전직 시련: 함정이 번지는 방들을 지나 시련의 수호자에게 — 시련마다 다른 성소 지도.
-    const TRIAL_ACTS = Object.freeze({ trial_1: 5, trial_2: 9, trial_3: 10, trial_4: 4, trial_5: 8 });
-    const trialCorridor = zone => (zone ? { ...zone, exploration: spec(TRIAL_ACTS[zone.id] || 5, `trial:${zone.id}`) } : zone);
+    // 전직 시련: 함정이 번지는 방들을 지나 시련의 수호자에게. 2026-10-06(사용자 요청 "아직 없는 맵 디자인(시련 등)"): 액트 지도를
+    // 빌리지 않고 시련마다 따로 짠 지도(data CONTENT_EXPLORATION_MAPS)를 걷는다.
+    const TRIAL_MAPS = Object.freeze({ trial_1: 'trial-blades', trial_2: 'trial-triad', trial_3: 'trial-miasma', trial_4: 'trial-crossing', trial_5: 'trial-winter' });
+    const trialCorridor = zone => (zone ? { ...zone, exploration: { style: 'map', id: TRIAL_MAPS[zone.id] || 'trial-blades', seed: `trial:${zone.id}` } } : zone);
     return Object.freeze({ labyrinth, chaos, chaosRealm, skyTower, underworld, timeRift, arena, withArena, trialCorridor, bossBiome, actForBiome });
 })();
 safeExposeGlobals({ contentMaps });
