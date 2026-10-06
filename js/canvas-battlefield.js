@@ -57,11 +57,6 @@ function getCanvasSkillTargets(stats) {
     return provider ? (provider(stats) || []) : [];
 }
 
-function getCanvasCrowdProgressPaused() {
-    let provider = getCanvasRuntimeFunction('isCrowdProgressPaused');
-    return provider ? !!provider() : false;
-}
-
 const BATTLE_SKILL_EFFECT_CAP = 56;
 
 function getBattleVfxDensity() {
@@ -2332,6 +2327,25 @@ const battleCanvasBox = (() => {
     return Object.freeze({ read, forget: () => { box = null; } });
 })();
 
+const MAP_MONSTERS_LEFT_HINT = 5;
+/** Regular monsters still on the map run (waiting packs included, the boss's stage not), or null outside a map. */
+function getMapMonstersLeft() {
+    const run = typeof actExplorationState === 'object' ? actExplorationState.current(game) : null;
+    if (!run || !Array.isArray(run.packs)) return null;
+    return run.packs.filter(pack => pack && pack.stage === null).reduce((sum, pack) => sum + (pack.aliveIds || []).length, 0);
+}
+
+/** The battlefield's corner caption. The monster count used to sit there all the time ("몬스터 수 3마리"); it now shows only
+ * when a few regular monsters are left on the map, to find the stragglers (2026-10-07 user request). Empty hides the box.
+ * (A failed-asset line used to sit here too but the chain always overwrote it; the loading screen reports that failure.) */
+function getBattlefieldCaption() {
+    if (game.isTownReturning && game.moveTimer > 0) return '마을로 귀환 중...';
+    if (game.woodsmanEntrancePending) return '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
+    if (game.moveTimer > 0) return '';
+    const left = getMapMonstersLeft();
+    return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
+}
+
 function renderBattlefield(forceWhenHidden) {
     worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
@@ -2781,15 +2795,8 @@ function renderBattlefield(forceWhenHidden) {
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
 
-    let caption = '전장을 스캔 중...';
-    if (battleAssets.failed && !battleAssets.ready) caption = '일부 그림을 불러오지 못해 기본 그림으로 전투합니다';
-    if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
-    else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
-    else if (game.moveTimer > 0) caption = '';
-    else if (getCanvasCrowdProgressPaused()) caption = '';
-    else caption = `몬스터 수 ${enemies.length}마리`;
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
-    setElementText(document.getElementById('ui-battlefield-caption'), caption);
+    setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
 }
 

@@ -88,7 +88,14 @@ function bossFixture(mode = 'slam') {
     assert.strictEqual(r.mobilitySkill.cast({ blocked:false, inRange:true, auto:false }), false, 'no mobility gem, no escape');
     assert.deepStrictEqual(state.gridPlayer, origin);
     wearMobilityGem(r, state);
-    assert.strictEqual(r.mobilitySkill.cast({ blocked:true, inRange:true, auto:false }), true, 'the worn mobility gem escapes even while the main cast is busy');
+    // 2026-10-07 사용자 요청: 끼워 둔 이동 젬도 예고를 저절로 피하지 않는다(너무 강했다). 키나 HUD 칸을 눌러야 피한다.
+    for (const blocked of [true, false]) {
+        assert.strictEqual(r.mobilitySkill.cast({ blocked, inRange:true, auto:false }), false, 'a worn mobility gem never escapes by itself');
+    }
+    assert.deepStrictEqual(state.gridPlayer, origin, 'no press, no escape');
+    assert.strictEqual(r.mobilitySkill.cooldownLeft(), 0, 'no press, no cooldown spent');
+    assert.strictEqual(r.mobilitySkill.request(), '', 'the press is taken');
+    assert.strictEqual(r.mobilitySkill.cast({ blocked:true, inRange:true, auto:false }), true, 'the pressed mobility gem escapes even while the main cast is busy');
     assert(!area.cells.some(cell => cell.gx === state.gridPlayer.gx && cell.gy === state.gridPlayer.gy),
         'the mobility slot moves outside the warned area');
     assert(Math.abs(state.gridPlayer.gx - origin.gx) + Math.abs(state.gridPlayer.gy - origin.gy) <= 3, 'within three steps');
@@ -150,5 +157,55 @@ for (const blockedBy of ['missing', 'cooldown', 'freeze', 'no-route']) {
     run('updateCombatHazardEvasion(getPlayerStats())');
     assert.strictEqual(JSON.stringify([state.gridPlayer, state.playerHp, r.mobilitySkill.cooldownLeft()]), before,
         `${blockedBy}: failed or unavailable evasion cannot move or spend cooldown`);
+}
+// 눌러도: 젬이 없거나 재사용 대기 중이거나 얼어 있으면(전투 틱은 얼음을 막힘으로 넘긴다) 움직이지도 대기를 쓰지도 않는다.
+for (const blockedBy of ['missing', 'cooldown', 'freeze']) {
+    const {runtime:r, run, state, stats} = bossFixture();
+    r.performMonsterAttacks(stats);
+    if (blockedBy !== 'missing') wearMobilityGem(r, state);
+    if (blockedBy === 'freeze') state.playerAilments = [{type:'freeze',time:2}];
+    if (blockedBy === 'cooldown') r.mobilitySkill.restore({ runtime:null, cooldownUntil:r.getCombatTime() + 5000, lastStats:null });
+    const before = JSON.stringify([state.gridPlayer, state.playerHp, r.mobilitySkill.cooldownLeft()]);
+    r.mobilitySkill.request();
+    r.mobilitySkill.cast({ blocked:blockedBy === 'freeze', inRange:true, auto:false });
+    run('updateCombatHazardEvasion(getPlayerStats())');
+    assert.strictEqual(JSON.stringify([state.gridPlayer, state.playerHp, r.mobilitySkill.cooldownLeft()]), before,
+        `${blockedBy}: a pressed but unavailable evasion cannot move or spend cooldown`);
+}
+// 닿는 적이 없어도 영웅 칸에 예고가 걸려 있으면 눌러서 피할 수 있다(예고가 없으면 예전처럼 거절).
+{
+    const {runtime:r, state, enemy, stats} = bossFixture();
+    r.performMonsterAttacks(stats);
+    wearMobilityGem(r, state);
+    Object.assign(enemy, { gx:8, gy:0 });
+    const warning = enemy.patternArea;
+    enemy.patternArea = null;
+    assert.strictEqual(r.mobilitySkill.request(), '닿는 적이 없습니다', 'out of reach and unwarned: nothing to press for');
+    enemy.patternArea = warning;
+    assert.strictEqual(r.mobilitySkill.request(), '', 'a warned hero may press it just to step out');
+    const origin = {...state.gridPlayer};
+    assert.strictEqual(r.mobilitySkill.cast({ blocked:false, inRange:false, auto:false }), true);
+    assert(!warning.cells.some(cell => cell.gx === state.gridPlayer.gx && cell.gy === state.gridPlayer.gy)
+        && (state.gridPlayer.gx !== origin.gx || state.gridPlayer.gy !== origin.gy), 'the press steps out of the warning');
+}
+// 2026-10-07 사용자 제보: 격앙 충격파가 보스 둘레(nova)라 3칸 밖에 가만히 선 영웅에게 닿지 않았고, 2단계부터는 모든 공격이 그것이라
+// 맞지 않는 경고만 되풀이했다. 부채꼴(fan, split: 갈래 사이로 피하는 모양)을 뺀 특수기는 사거리 안 어디에 가만히 서 있어도 영웅 칸을 덮는다.
+{
+    const {run} = bossFixture('ramp');
+    const missed = JSON.parse(run(`(() => {
+        const saved = game.actExploration; game.actExploration = null;
+        const boss = { gx: 4, gy: 3, isBoss: true }, out = {};
+        for (const [kind, profile] of Object.entries(COMBAT_GRID_CONFIG.bossPatternProfiles)) {
+            if (profile.kind === 'fan') continue;
+            for (let gx = 0; gx < 9; gx++) for (let gy = 0; gy < 8; gy++) {
+                const distance = getGridUnitDistance(boss, { gx, gy });
+                if (distance < 1 || distance > profile.range) continue;
+                if (!getGridAttackAreaCells(profile, boss, { gx, gy }).some(cell => cell.gx === gx && cell.gy === gy)) (out[kind] = out[kind] || []).push(gx + ',' + gy);
+            }
+        }
+        game.actExploration = saved;
+        return JSON.stringify(out);
+    })()`));
+    assert.deepStrictEqual(missed, {}, 'every aimed boss special covers a hero standing still within its range (the enraged pulse too)');
 }
 console.log('smoke-boss-pattern-areas passed');

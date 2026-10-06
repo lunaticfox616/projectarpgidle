@@ -566,9 +566,12 @@ assert.ok(enemyCombatSource.includes("addBattleFx('enemyAttack', { enemyId: enem
   'every resolved enemy attack against the player must emit one motion cue even when the hit is evaded or blocked');
 assert.ok(!enemyUiSource.includes('let wobble = Math.sin((now / 170)'), 'fallback monsters should not float up and down while idle');
 const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
-assert.ok(battlefieldSource.includes("else if (game.moveTimer > 0) caption = '';"), 'normal area movement should not show a redundant status caption');
+assert.ok(battlefieldSource.includes("if (game.moveTimer > 0) return '';"), 'normal area movement should not show a redundant status caption');
 assert.ok(!battlefieldSource.includes('전진이 막혔습니다'), 'the verbose legacy crowd-blocked caption must be removed');
-assert.ok(battlefieldSource.includes('caption = `몬스터 수 ${enemies.length}마리`;'), 'battlefield status must report the current monster count');
+// 2026-10-07 사용자 요청: 몬스터 수는 늘 띄우지 않고, 맵에 일반 몬스터가 몇 마리 남았을 때만 "몬스터 N마리 남음"으로 보인다.
+assert.ok(!battlefieldSource.includes('몬스터 수 ${') && battlefieldSource.includes('`몬스터 ${left}마리 남음`')
+    && battlefieldSource.includes('left > 0 && left <= MAP_MONSTERS_LEFT_HINT'),
+  'the battlefield names the monster count only when a few regular monsters are left on the map');
 assert.ok(!battlefieldSource.includes('기와 교전 중') && !battlefieldSource.includes('지역 탐색 중'), 'legacy encounter captions must not remain');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56)') && battlefieldSource.includes('enemyDrawnHeights.get(enemy)'),

@@ -5,6 +5,7 @@
  * main gem's casts in flight are never touched. Combat owns damage and movement; this only decides when to cast.
  * 예전 긴급 회피(2026-09-30): 보스 예고 범위가 영웅의 칸에 걸리면 먼저 그 범위 밖 가장 가까운 칸(3칸 이내)으로 피하고,
  * 이동 젬의 재사용 대기를 쓴다. 동결 · 기절 · 속박 중이거나 탈출로가 없으면 피하지 않고 대기도 쓰지 않는다.
+ * 2026-10-07 사용자 요청: 저절로 피하면 보스 패턴이 의미가 없어(너무 강했다) 플레이어가 키나 HUD 칸을 눌렀을 때만 피한다.
  */
 const mobilitySkill = (() => {
     const DEFAULT_COOLDOWN_MS = 4000;
@@ -50,13 +51,15 @@ const mobilitySkill = (() => {
         if (!name) return '이동 스킬 젬을 장착하지 않았습니다';
         if (now < cooldownUntil) return `재사용 대기 ${(Math.ceil((cooldownUntil - now) / 100) / 10).toFixed(1)}초`;
         if (game.playerHp <= 0 || game.combatHalted) return '지금은 쓸 수 없습니다';
-        if (!reachable(name)) return '닿는 적이 없습니다';
+        if (!reachable(name) && !evadeRoute()) return '닿는 적이 없습니다'; // a warned hero may press it just to step out
         requestedAt = now;
         return '';
     }
+    /** The player pressed the key or the HUD slot a moment ago. */
+    function requested(now) { return requestedAt !== null && now - requestedAt < REQUEST_MS; }
     /** Asked for by the player, or — auto-move on — the main gem has no enemy in reach (a gap to close). */
     function wanted(gate, now) {
-        return (requestedAt !== null && now - requestedAt < REQUEST_MS) || (gate.auto && !gate.inRange);
+        return requested(now) || (gate.auto && !gate.inRange);
     }
     function ready(name, gate, now) {
         return !gate.blocked && wanted(gate, now) && now >= cooldownUntil && game.playerHp > 0 && !game.combatHalted
@@ -86,7 +89,7 @@ const mobilitySkill = (() => {
     function cast(gate) {
         const name = equipped(), now = getCombatTime();
         if (!name || now < cooldownUntil || game.playerHp <= 0 || game.combatHalted) return false;
-        if (evade(name, now)) return true;
+        if (requested(now) && evade(name, now)) return true; // only on the player's press: never by itself (2026-10-07)
         if (!ready(name, gate, now) || !reachable(name)) return false;
         return withGem(name, () => {
             const stats = getPlayerStats(false);
