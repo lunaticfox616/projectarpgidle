@@ -8,6 +8,8 @@
 
 개발 기준은 이 `AGENTS.md`가 있는 저장소 루트다. 상위 폴더나 다른 사본을 최신본으로 가정하지 않는다.
 처음 작업할 때는 [개발본 안내](README.md)와 [문서 색인](docs/README.md)에서 위치와 문서 상태를 확인한다.
+색인에서 이번 작업에 필요한 문서만 읽는다. 기능 변경으로 현재 설명이 달라지면 같은 변경에서 해당 설명을
+고치고, 과거 결정·측정은 날짜가 있는 이력으로 남긴다. 별도 요약 문서를 중복 생성하지 않는다.
 변경량보다 요청한 결과의 완성도를 우선하며, 무관한 리팩터링이나 추측성 기능은 섞지 않는다.
 
 [Ponytail](.agents/skills/ponytail/SKILL.md)은 선택 도구이며 상시 적용하지 않는다. 사용자가 호출하거나 중복 제거·과도한 추상화
@@ -40,9 +42,10 @@ CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 | `js/utils.js` | 도메인 비종속 유틸리티와 안전한 전역 노출 도구 |
 | `js/state.js` | 런타임 상태의 기본 shape, 초기화, 불변식 |
 | `js/save.js`, `js/save-migrations.js` | 직렬화, 복원, 저장 마이그레이션 경계 |
-| `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-cube.js` | 각 게임 도메인의 규칙 |
+| `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-items.js` | 장비·젬·패시브·장착 코어 규칙 |
+| `js/stump-box.js`, `js/stump-cube.js` | 그루터기 함 성장·접붙이기와 조합창 |
 | `js/loot.js` | 드랍·보상 및 목표 장비 보호 정책 |
-| `js/combat-grid.js` | 9x8 전장 좌표, 범위, 상하좌우 이동, 2x2 보스 스폰 배치 |
+| `js/combat-grid.js` | 전장 좌표·범위·상하좌우 이동. 탐험 중에는 해당 맵 크기, 그 외에는 기본 9×8 사용 |
 | `js/combat-clock.js`, `js/combat-replay.js` | 전투 시간 및 방치 전투 재생·정산 |
 | `js/combat.js` | 전투와 진행 규칙 |
 | `js/canvas-*.js` | 읽기 전용 도메인 결과의 캔버스 표현 |

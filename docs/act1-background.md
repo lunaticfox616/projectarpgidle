@@ -1,5 +1,8 @@
 # 액트 1 성소 배경
 
+**작업 이력.** 아래 구현·수치·검증은 작성 당시 기록이며 현재 전체 상태를 보장하지 않는다.
+현재 탐험 지도는 [그린 화풍](act-maps-painted-20261002.md)을 따른다.
+
 - 런타임: `assets/background/world-tree/act01-sanctuary.webp` (816×624).
 - 기존 `act01-filled-v1.webp`를 참조하여 내장 image_gen으로 생성. 원본은 보존한다.
 - 생성 원본: `C:/Users/pjh46/.codex/generated_images/01a06df1-d5ca-7752-99c9-df8094fca2c1/exec-fbfad154-b8d8-4ca5-9618-3a41843c8d10.png`.
