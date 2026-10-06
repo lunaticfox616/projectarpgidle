@@ -1798,7 +1798,7 @@ body .cfg-group {
 /* 스킬 젬 탭은 축소된 정보표가 아니라 반복해서 읽는 빌드 화면이다.
    작은 고정 px 글꼴과 낮은 대비를 한 단계 올려 장시간 플레이에서도 판독 가능하게 한다. */
 #tab-skills .gem-library-card { color: #ffffff; }
-#tab-skills .gem-card-tags span { color: #ffffff; font-size: 9px; }
+#tab-skills .gem-card-tags span { font-size: 9px; } /* 색은 꼬리표 종류(.gem-tag--*)가 정한다 — 흰색으로 덮으면 근접 · 투사체 · 주문이 구분되지 않았다(2026-10-06) */
 #tab-skills .gem-usage-state { color: #eef2f6; font-size: 9.5px; }
 #tab-skills .gem-card-utility { font-size: 9.5px; }
 #tab-skills .gem-target-rail-heading span { font-size: 13px; }

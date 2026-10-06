@@ -4125,7 +4125,10 @@ function renderSkillGemArt(name, className, options) {
 
 function renderGemTagChips(def, maxTags) {
     let rawTags = Array.isArray(def && def.tags) ? def.tags : [];
-    let getTone = tag => {
+    // 젬 상세(getUiGemPresentation)는 이미 한글로 바꾼 꼬리표를 넘긴다: 색을 고르려면 원래 키로 되돌린다(근접 → melee).
+    let tagKey = tag => SKILL_TAG_LABELS[tag] ? tag : (Object.keys(SKILL_TAG_LABELS).find(key => SKILL_TAG_LABELS[key] === tag) || tag);
+    let getTone = rawTag => {
+        let tag = tagKey(rawTag);
         if (['fire', 'cold', 'light', 'lightning', 'chaos', 'phys', 'physical'].includes(tag)) return tag === 'light' ? 'lightning' : tag === 'phys' ? 'physical' : tag;
         if (['summon_attack', 'minion', 'summon'].includes(tag)) return 'summon';
         if (['spell', 'projectile', 'melee', 'slam', 'chain', 'pierce', 'dot', 'aoe', 'utility', 'curse', 'warcry', 'guard'].includes(tag)) return tag;
