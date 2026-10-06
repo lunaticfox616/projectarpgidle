@@ -78,6 +78,14 @@ async function run() {
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'meteor',ele:'chaos' }), 'bgMeteor');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'seasonBoss', pinnacleTrack:'ocean' }), 'bgOceanDepth');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'seasonBoss', cosmosCapstone:true }), 'bgCosmos');
+  // 2026-10-06: wave contents on the 9×8 board get their own painted boards instead of an element's act board.
+  assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'beehive', ele:'light' }), 'bgBeehive');
+  assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'colony', ele:'phys' }), 'bgColony');
+  for (const file of ['assets/background/boards-20261006/bgBeehive.png', 'assets/background/boards-20261006/bgColony.png']) {
+    const png = fs.readFileSync(file);
+    assert.deepStrictEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [912, 624], file + ' matches the act board projection');
+    assert(png.length < 96 * 1024, file + ' stays small');
+  }
   assert.strictEqual(context.requestSpecialBattleBackdrop('bgAct1'), null, 'ordinary backgrounds stay in the eager manifest');
 
   const loaded = await context.requestSpecialBattleBackdrop('bgCosmos');
@@ -122,11 +130,12 @@ async function run() {
     'a special background must cover the rectangular battlefield without diamond calibration');
   for (const [width, height] of [[1000,700], [360,420]]) {
     const grid = renderRuntime.getBattleGridProjection(width, height, 'grid-contain');
-    for (const backdropKey of ['bgAct1','bgMeteor','bgUnderworld']) {
+    for (const backdropKey of ['bgAct1','bgMeteor','bgUnderworld','bgBeehive','bgColony']) {
       const draws = [];
       const ctx = { fillStyle:'', fillRect() {}, drawImage(...args) { draws.push(args); } };
-      const sourceWidth = backdropKey === 'bgAct1' ? 912 : 816;
-      const originX = backdropKey === 'bgAct1' ? 240 : 192;
+      const actWide = ['bgAct1','bgBeehive','bgColony'].includes(backdropKey);
+      const sourceWidth = actWide ? 912 : 816;
+      const originX = actWide ? 240 : 192;
       renderRuntime.drawGridAlignedBackdrop(ctx, width, height, {width:sourceWidth,height:624}, grid, backdropKey);
       const [,x,y,w,h] = draws[0];
       const first = grid.cellToScreen(0,0);

@@ -90,4 +90,19 @@ body #info-tooltip {
   line-break: strict;
 }
 .equipment-inspection-column .tooltip-title { border-color: var(--color-line); }
+/* 권장 전투력 툴팁(js/ui.js showMapPowerEstimateTooltip): 항목 · 내 값 · 권장(비율) 세 칸, 달성 초록 · 미달 빨강 · 환경 주황 */
+.map-power-tip { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 10px; align-items: baseline; margin: 2px 0 6px; }
+.map-power-tip-row { display: contents; }
+.map-power-tip-row > span { color: var(--copy-muted, #9d927d); }
+.map-power-tip-row > b { font-weight: 400; color: var(--copy-bright, #fff); white-space: nowrap; }
+.map-power-tip-row > em { font-style: normal; color: var(--copy-muted, #9d927d); white-space: nowrap; }
+.map-power-tip-row.is-met > b { color: #7fe0a0; }
+.map-power-tip-row.is-short > b, .map-power-tip-row.is-short > em { color: #ff8f80; }
+.map-power-tip-row.is-hazard > b { color: #ffb36b; }
+.map-power-element { display: inline-block; margin-right: 4px; padding: 0 4px; border: 1px solid currentColor; font-style: normal; }
+.map-power-element.is-phys { color: #e0d6c4; }
+.map-power-element.is-fire { color: #ff9a76; }
+.map-power-element.is-cold { color: #8fd3ff; }
+.map-power-element.is-light { color: #ffe083; }
+.map-power-element.is-chaos { color: #c7a6ff; }
 }

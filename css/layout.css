@@ -18,7 +18,8 @@
         .level-up { color: #e056fd; font-weight: bold; text-shadow: 0 0 5px #9b59b6; }
         .season-up { color: #ff7979; font-weight: bold; text-shadow: 0 0 5px rgba(255,121,121,0.5); }
         .attack-player { color: var(--copy-bright); }
-        .attack-crit { color: #f39c12; font-weight: bold; }
+        /* 치명타는 줄 색은 그대로, 피해 숫자만(js/ui.js markCombatLogCritNumber) */
+        .combat-log-crit { color: #f39c12; }
         .attack-monster { color: #e74c3c; }
         .death { color: #c0392b; font-weight: bold; font-size: 1.1em; }
         .map-progress-row { display: flex; align-items: center; gap: 8px; width: 100%; }

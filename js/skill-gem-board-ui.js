@@ -1,7 +1,7 @@
 // 스킬 젬 보드 (2026-10-04 사용자 요청): 장착 화면 위쪽에 지금 낀 것을 한눈에 —
 // 가운데 주 공격 젬, 둘레에 그 젬의 각인 5칸, 아래 이동 · 소환 칸, 따로 보조 젬 칸 줄(장착 한도만큼 + 다음 칸 미리보기).
 // 칸을 누르면 아래 목록(js/skills-ui.js)이 그 칸에 낄 수 있는 젬만 보여 주고, 찬 칸은 그 젬의 상세(js/gem-selection-ui.js)를 연다.
-// 각인 칸은 강화 · 각인 탭의 그 칸으로 간다. 표시 · 칸 고르기만 하며 장착 규칙은 기존 함수(changeSkill · toggleSupport)가 갖는다.
+// 찬 · 빈 각인 칸은 각인 고르기 창을 바로 열고, 다음 · 잠긴 칸은 강화 · 각인 탭으로 간다. 표시 · 칸 고르기만 하며 장착 규칙은 기존 함수(changeSkill · toggleSupport)가 갖는다.
 (function () {
     'use strict';
 
@@ -151,9 +151,14 @@
         const main = game.activeSkill;
         const slot = engraveSlots(main)[index];
         if (!slot) return;
+        // 찬 칸 · 빈 칸은 그 자리에서 각인 고르기 창(강화 · 각인 탭의 칸과 같은 창)을 연다(2026-10-06 사용자 요청 — 탭으로
+        // 옮기기만 하는 단추였다). 다음 칸 · 잠긴 칸은 해금(재화 사용)을 하지 않고 강화 · 각인 탭만 연다 — 해금은 그 탭의 단추로.
+        if (slot.state === 'full' || slot.state === 'open') {
+            game.gemEnhanceTargetSkill = main;
+            openGemEngraveSlotOverlay(index);
+            return;
+        }
         openEquippedGemManagement(main);
-        // 다음 칸 · 잠긴 칸은 해금(재화 사용)을 하지 않고 강화 · 각인 탭만 연다 — 해금은 그 탭의 단추로.
-        if (slot.state === 'full' || slot.state === 'open') selectGemEngraveSlot(index);
     }
 
     document.addEventListener('click', event => {

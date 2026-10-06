@@ -1709,7 +1709,16 @@
 .loop-passive-node.origin-node .loop-node-core { border-width: 3px; }
 .loop-passive-node.inner-node { --loop-node-size: 50px; z-index: 8; }
 .loop-passive-node.inner-node .loop-node-core { border-color: #a887c7; background: radial-gradient(circle at 36% 28%, #49335b, #21172c 48%, #0d0a12 78%); box-shadow: 0 0 0 3px rgba(13, 8, 17, .94), inset 0 0 0 2px rgba(216, 172, 246, .12), 0 0 19px rgba(157, 104, 201, .38); }
-.loop-node-glyph { font-family: Georgia, 'Times New Roman', serif; font-size: 1rem; font-weight: 800; line-height: 1; text-shadow: 0 2px 3px rgba(0, 0, 0, .8); }
+/* 노드 그림: 능력치 종류의 11도트 그림 두 배(js/ui.js renderPixelIcon). 잠김 · 열림 · 투자 · 내부 노드를 색으로 */
+.loop-node-icon { display: block; width: 22px; height: 22px; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 #000); }
+.loop-node-icon .m { fill: #b9c4bd; }
+.loop-node-icon .f { fill: #4f625c; }
+.loop-passive-node.available .loop-node-icon .m { fill: #e7d6a8; }
+.loop-passive-node.available .loop-node-icon .f { fill: #8a7448; }
+.loop-passive-node.active .loop-node-icon .m { fill: #fff1c1; }
+.loop-passive-node.active .loop-node-icon .f { fill: #d7a748; }
+.loop-passive-node.inner-node .loop-node-icon .m { fill: #f0dcff; }
+.loop-passive-node.inner-node .loop-node-icon .f { fill: #9a6ad4; }
 .loop-node-rank {
     position: absolute;
     right: -5px;
@@ -1793,7 +1802,7 @@
     #ui-season-tree .loop-passive-node.locked { opacity: .7; }
     #ui-season-tree .loop-passive-node.origin-node { order: -1; }
     #ui-season-tree .loop-node-core { position: absolute; top: 8px; right: 8px; width: auto; height: auto; border: 0; background: none; box-shadow: none; }
-    #ui-season-tree .loop-node-core::before, #ui-season-tree .loop-node-glyph { display: none; }
+    #ui-season-tree .loop-node-core::before, #ui-season-tree .loop-node-icon { display: none; }
     #ui-season-tree .loop-node-rank { position: static; font-size: 11px; height: auto; padding: 2px 4px; }
     #ui-season-tree .loop-node-tooltip { display: grid; position: static; width: auto; padding: 0; gap: 6px; transform: none; border: 0; background: none; box-shadow: none; pointer-events: auto; }
     #ui-season-tree .loop-node-tooltip strong { font-size: 13px; padding-right: 24px; }

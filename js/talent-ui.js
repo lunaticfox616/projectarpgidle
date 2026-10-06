@@ -54,6 +54,19 @@ function renderTalentCombinationStatus(owned) {
     return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(PLAYER_CLASS_DEFS[focusId].label)} 카드</strong><span>밝은 카드는 개화 완료, 테두리는 지금 전직</span></div><div class="talent-combo-grid">${cells}</div></div>`;
 }
 
+/** A card's effect lines in the option colours (2026-10-06: they were one gold, one cream and one blue line): the labels keep
+ * their colour, stat effects take their stat's colour, prose and unique effects colour their keywords. */
+function renderTalentCardEffectLines(heroId, classKey, level) {
+    const parts = getTalentCardEffectParts(heroId, classKey, level);
+    if (!parts) return [];
+    const item = part => (part.stat ? statToneText.statLine(part.stat, part.text) : statToneText.html(part.text));
+    const lines = [];
+    if (parts.surface) lines.push(`<span style="color:#ffd36b;">⭐ [표면]</span> ${statToneText.html(parts.surface)}`);
+    if (parts.applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${parts.level}]</span> ${parts.applied.map(item).join(', ')}`);
+    if (parts.hidden.length) lines.push(`<span style="color:#9fe0ff;">[이면]</span> ${parts.hidden.map(item).join(', ')}`);
+    return lines;
+}
+
 function buildTalentCombinationTooltipHtml(comboKey) {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
     let card = owned[comboKey];
@@ -61,7 +74,7 @@ function buildTalentCombinationTooltipHtml(comboKey) {
     let { heroId, classKey } = parseTalentComboKey(comboKey);
     let names = getTalentCardName(heroId, classKey);
     let level = Math.max(1, Math.floor(card.level || 1));
-    let effects = getTalentCardEffectLines(heroId, classKey, level);
+    let effects = renderTalentCardEffectLines(heroId, classKey, level);
     return `<div class="tooltip-title" style="color:#fff1a8;">${escapeTalentHtml(names.bloomName)}</div>`
         + `<div class="tooltip-line" style="color:#cdb8df;">${escapeTalentHtml(names.heroLabel)} × ${escapeTalentHtml(names.classLabel)} Lv.${level}</div>`
         + `<div class="tooltip-line">${effects.join('<br>')}</div>`;
@@ -102,7 +115,7 @@ function renderTalentCollectionCard(key, owned) {
     let { heroId, classKey } = parseTalentComboKey(key);
     let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
     let level = Math.max(1, Math.floor(card.level || 1));
-    let lines = getTalentCardEffectLines(heroId, classKey, level);
+    let lines = renderTalentCardEffectLines(heroId, classKey, level);
     let nextThreshold = level < TALENT_CARD_MAX_LEVEL ? TALENT_CARD_LEVEL_THRESHOLDS[level] : null;
     let nextText = nextThreshold !== null ? `다음 레벨 점수 ${nextThreshold}` : '최대 레벨';
     let equipped = getTalentCardSlotIndex(key) >= 0;
@@ -164,4 +177,4 @@ function renderTalentTab() {
     gridEl.innerHTML = loadoutHtml + (cardsHtml || '<div class="talent-bloom-empty">이 항목으로 개화한 조합이 아직 없습니다.</div>');
 }
 
-safeExposeGlobals({ setTalentCardFilter, showTalentCombinationTooltip });
+safeExposeGlobals({ setTalentCardFilter, showTalentCombinationTooltip, renderTalentCardEffectLines });

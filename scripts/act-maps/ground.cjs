@@ -105,6 +105,35 @@ function flags(cv, g, mask, opts = {}) {
     return paintCells(cv, g, mask, id, opts);
 }
 
+/** 벌집 바닥(2026-10-06 벌집 원정 판): 꼭짓점이 위아래인 육각 밀랍 칸, 줄눈 한 도트, 칸마다 턱. honey 몫의 칸에는 꿀이 차서
+ * glow 색으로 빛난다(왼쪽 위가 밝은 둥근 윤). size = 칸 반지름(도트). */
+function honeycomb(cv, g, mask, opts = {}) {
+    const { w, h } = cv, size = opts.size || 7, id = new Int32Array(w * h).fill(-1), s3 = Math.sqrt(3);
+    const centre = new Map();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (!mask[i]) continue;
+        const q = (s3 / 3 * x - y / 3) / size, r = (2 / 3 * y) / size, cy = -q - r;
+        let rx = Math.round(q), ry = Math.round(cy), rz = Math.round(r);
+        const dx = Math.abs(rx - q), dy = Math.abs(ry - cy), dz = Math.abs(rz - r);
+        if (dx > dy && dx > dz) rx = -ry - rz; else if (dy > dz) ry = -rx - rz; else rz = -rx - ry;
+        const edge = Math.max(Math.abs(rx - q), Math.abs(ry - cy), Math.abs(rz - r)), cell = (rx + 512) * 1024 + (rz + 512);
+        id[i] = edge > (opts.edge ?? 0.42) ? -2 : cell;
+        if (!centre.has(cell)) centre.set(cell, [size * s3 * (rx + rz / 2), size * 1.5 * rz]);
+    }
+    // 밀랍 벽(줄눈)은 밝게, 칸 속은 어둡게: 판석처럼 보이지 않고 벌집 칸으로 읽힌다.
+    paintCells(cv, g, mask, id, { ...opts, joint: P.stone[opts.wall ?? 4], dark: opts.dark ?? 1 });
+    if (!opts.honey || !P.glow) return id;
+    for (let i = 0; i < w * h; i++) {
+        const c = id[i];
+        if (c < 0 || hash(c, 29) >= opts.honey) continue;
+        const [cx, cy] = centre.get(c), dx = (i % w) - cx, dy = Math.floor(i / w) - cy, d = Math.hypot(dx, dy) / size;
+        const tone = d < 0.3 && dx + dy < 0 ? 2 : d < 0.7 ? 1 : 0;
+        cv.px[i] = P.glow[clamp(tone, 0, P.glow.length - 1)];
+    }
+    return id;
+}
+
 /** 깎은 판석(지은 액트): 길이가 다른 판석의 줄, 줄눈 한 도트, 판마다 턱. widths가 있으면 줄을 칸에 맞춰 시작한다. */
 function slabs(cv, g, mask, opts = {}) {
     const { w, h } = cv, rh = opts.rowH || 8, rng = createRng(opts.seed || 51), id = new Int32Array(w * h).fill(-1);
@@ -189,4 +218,4 @@ function litter(cv, g, avoid, kinds = ['twig', 'leaf', 'pebble', 'bone'], densit
 }
 
 const slabsFromIds = (cv, g, mask, id, opts) => paintCells(cv, g, mask, id, opts);
-module.exports = { hash, clamp, voronoi, earth, flags, slabs, slabsFromIds, planks, moss, occlusion, litter };
+module.exports = { hash, clamp, voronoi, earth, flags, slabs, slabsFromIds, planks, honeycomb, moss, occlusion, litter };

@@ -114,6 +114,13 @@ assert.match(run(`atlasEndgame.entryReason(game, 'apex_exarch')`), /성화 잉�
 run(`game.atlas.endgame.items.ember = 10; game.atlas.endgame.items.royalHoney = 0;`);
 assert.equal(run(`atlasEndgame.entryReason(game, 'apex_exarch')`), '');
 assert.match(run(`atlasEndgame.entryReason(game, 'league_hive')`), /왕실 꿀/, 'the hive queen waits for her honey');
+// The hive queen is drawn with her own bee sheet, not the act 9 boss picture (2026-10-06).
+run(`game.atlas.endgame.items.royalHoney = 12;`);
+assert.equal(run(`atlasRun.openEndgame('league_hive')`), '');
+const queenBody = copy(`(() => { const zone = getZone(game.currentZoneId), enemy = createEnemy(zone, { boss: true, at: 1, count: 1, storyStage: 0 }, 0);
+    atlasEndgame.tuneStage(enemy, zone, 0); return [enemy.monsterVisualId, enemy.bossAssetKey]; })()`);
+assert.deepEqual(queenBody, ['hive-queen', null], 'the hive queen is drawn as the queen bee');
+run('atlas.cancel(game);');
 
 // ---------------------------------------------------------------- the weaver replays the newest witnessed bosses
 run(`game.atlas.endgame.items.ringInvite = 1;`);

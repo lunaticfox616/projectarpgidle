@@ -98,8 +98,17 @@ const actExplorationMap = (() => {
         if(route(map,map.entry,boss,new Set([index(map,map.gate)])).length)throw Error('생성 탐험 맵의 보스 방이 관문 밖으로 열려 있습니다: '+key);
     }
     const same=(a,b)=>a.gx===b.gx&&a.gy===b.gy;
-    /** The map a run walks: its generated source, else its story act's authored map, turned to the run's facing. */
-    function forRun(run) {return run.source?generated(run.source,run.rotation):layout(run.act,run.rotation);}
+    const runMaps=new WeakMap();
+    /** The map a run walks: its generated source, else its story act's authored map, turned to the run's facing. Remembered per
+     * run while its source, act and facing stay the same: every grid bounds check asks for it (thousands of times a second with
+     * summons pathing), and generated() normalised and rebuilt the spec before its own cache lookup (2026-10-07 frame drops). */
+    function forRun(run) {
+        const hit=runMaps.get(run);
+        if(hit&&hit.source===run.source&&hit.act===run.act&&hit.rotation===run.rotation)return hit.map;
+        const map=run.source?generated(run.source,run.rotation):layout(run.act,run.rotation);
+        runMaps.set(run,{source:run.source,act:run.act,rotation:run.rotation,map});
+        return map;
+    }
     function index(map,cell) {return cell.gy*map.columns+cell.gx;}
     function inBounds(map,cell) {
         if(!Number.isInteger(cell.gx)||!Number.isInteger(cell.gy))return false;

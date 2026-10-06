@@ -84,7 +84,7 @@ function buildMapPowerEstimateHtml(zone) {
     let met = model.meetsRecommendation;
     let environment = buildMapEnvironmentEstimateHtml(model.environment);
     let label = `권장 전투력 ${met ? '달성' : '미달성'}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" ${levelProgressionUi.rewardData(zone)} data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone)}</span></span>`;
 }
 
 function buildMapEnvironmentEstimateHtml(environment) {
@@ -97,9 +97,7 @@ function buildMapEnvironmentTooltipHtml(target) {
     if (!environment) return '';
     const loss = Number(environment.dataset.environmentLoss).toFixed(1);
     const regen = Number(environment.dataset.environmentRegen).toFixed(1);
-    return `<div class="tooltip-line">환경 피해: 최대 생명력 ${loss}%/초 · 지속 재생 ${regen}%/초</div>
-        <div class="tooltip-line tooltip-muted">창공석 완화 반영 · 방어도·회피·에너지 보호막으로 막을 수 없습니다.</div>
-        <div class="tooltip-line tooltip-muted">흡수·조건부 재능·임시 보호막은 비교에서 제외합니다.</div>`;
+    return `<div class="map-power-tip-row is-hazard"><span>환경 피해</span><b>초당 생명력 ${loss}%</b><em>재생 ${regen}%/초 · 방어로 못 막음</em></div>`;
 }
 
 function getMapEstimateElementName(key) {
@@ -112,8 +110,21 @@ function formatLoopDeepValue(def, level) {
     return `${Number.isInteger(total) ? total : total.toFixed(1)}${def.unit}`;
 }
 function buildMapBossElementLine(keys) {
-    const names = String(keys || '').split(',').map(getMapEstimateElementName).filter(Boolean);
-    return names.length ? `<div class="tooltip-line">보스 피해 속성: ${names.join(' · ')}</div>` : '';
+    const chips = String(keys || '').split(',').filter(getMapEstimateElementName)
+        .map(key => `<i class="map-power-element is-${key}">${getMapEstimateElementName(key)}</i>`);
+    return chips.length ? `<div class="map-power-tip-row"><span>보스 속성</span><b>${chips.join('')}</b><em></em></div>` : '';
+}
+
+/** One compared row of the 권장 전투력 tooltip: mine / recommended, green when met, red when short. */
+function buildMapPowerCompareRow(label, mine, recommended) {
+    const ratio = Number(recommended) > 0 ? Number(mine) / Number(recommended) : 1;
+    return `<div class="map-power-tip-row ${ratio >= 1 ? 'is-met' : 'is-short'}"><span>${label}</span><b>${formatApproximateMapPower(mine)}</b><em>권장 ${formatApproximateMapPower(recommended)} · ${Math.round(ratio * 100)}%</em></div>`;
+}
+
+/** 보상 줄: 지역 레벨과 경험치 · 드랍 배율, 100% 미만이면 붉게(levelProgressionUi.rewardData의 data 속성). */
+function buildMapRewardRow(data) {
+    const xp = Number(data.rewardXp), loot = Number(data.rewardLoot);
+    return `<div class="map-power-tip-row ${xp < 100 || loot < 100 ? 'is-short' : 'is-met'}"><span>보상</span><b>Lv.${escapeHTML(data.areaLevel)}</b><em>경험치 ${xp}% · 드랍 ${loot}%</em></div>`;
 }
 
 function showMapPowerEstimateTooltip(event) {
@@ -123,13 +134,13 @@ function showMapPowerEstimateTooltip(event) {
     let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
     let data = target ? target.dataset : {};
     let elementLabel = getMapEstimateElementName(data.limitingElement) || '취약 속성';
-    let html = `<div class="tooltip-title">권장 전투력</div>
-        <div class="tooltip-line">${escapeHTML(data.levelDetail)}</div>
-        <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
-        <div class="tooltip-line">내 EHP 약 ${formatApproximateMapPower(data.playerEhp)} / 권장 약 ${formatApproximateMapPower(data.recommendedEhp)}</div>
-        ${buildMapBossElementLine(data.bossElements)}
-        <div class="tooltip-line tooltip-muted">${elementLabel} 기준 · 회피 주기와 직격 생존 하한 반영</div>
-        <div class="tooltip-line tooltip-muted">중독·출혈 등 지속 피해와 장기전의 회복 능력은 포함하지 않습니다.</div>${buildMapEnvironmentTooltipHtml(target)}`;
+    // 줄마다 항목 · 내 값 · 권장(비율) 세 칸, 달성은 초록 · 미달은 빨강(2026-10-06 사용자 요청 — 한 색의 긴 문장이라 읽기 힘들었다).
+    let html = `<div class="tooltip-title">권장 전투력</div><div class="map-power-tip">
+        ${buildMapPowerCompareRow('공격 DPS', data.playerDps, data.recommendedDps)}
+        ${buildMapPowerCompareRow('생존 EHP', data.playerEhp, data.recommendedEhp)}
+        ${buildMapBossElementLine(data.bossElements)}${buildMapEnvironmentTooltipHtml(target)}
+        ${buildMapRewardRow(data)}</div>
+        <div class="tooltip-line tooltip-muted">${elementLabel} 피해 기준 · 지속 피해 · 회복 제외</div>`;
     showInfoTooltipHtml(x, y, html, '#6ba7d8');
 }
 
@@ -1640,7 +1651,8 @@ function updateBottomTabSpacing(){
     let visible = bottomHeader && document.body.classList.contains('has-bottom-tabs') &&
         window.getComputedStyle(bottomHeader).display !== 'none';
     let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
-    document.body.style.setProperty('--bottom-tab-height', height + 'px');
+    // body의 변수는 문서 전체가 물려받는다: 같은 값을 다시 쓰면 모든 요소의 스타일을 다시 계산했다(2026-10-07 프레임 드랍).
+    if (document.body.style.getPropertyValue('--bottom-tab-height') !== height + 'px') document.body.style.setProperty('--bottom-tab-height', height + 'px');
 }
 function scheduleTabHeaderViewportSync() {
     clearTabHeaderDragState(false);
@@ -1663,14 +1675,13 @@ function moveTabButton(tabId, dir) {
 
 function getTabHeaderUiSignature() {
     let unlocks = game.unlocks || {};
-    let noti = game.noti || {};
-    let filters = (game.settings && game.settings.notiFilters) || {};
     let mobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`) ? 'mobileBattle' : 'desktopBattle';
     return [
         mobileBattle,
         isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
-        TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
+        // 알림 점은 getTabNotiSignature가 따로 본다(점 하나에 머리 전체를 다시 그리지 않게).
+        TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && tabLayoutUi.current().tabOrder) ? tabLayoutUi.current().tabOrder.join(',') : '',
         JSON.stringify((game.settings && tabLayoutUi.current().tabPlacement) || {}),
         Array.isArray(game.settings && tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder.join(',') : '',
@@ -1753,15 +1764,32 @@ function hideOutOfGroupTabButtons() {
     });
 }
 
+let lastTabNotiSignature = '';
+/** Which tabs show a notification dot (filters applied). Kept apart from the header's signature: a dot that came or went rebuilt
+ * the whole tab header and phone menu, and the restyle that followed, every few seconds of combat (2026-10-07 frame drops: about
+ * 75 ms on a 4x-throttled phone). */
+function getTabNotiSignature() {
+    let noti = game.noti || {};
+    let filters = (game.settings && game.settings.notiFilters) || {};
+    return TAB_HEADER_NOTI_KEYS.map(key => (noti[key] && filters[key] !== false ? 1 : 0)).join('');
+}
+
 function refreshTabHeaderUiIfNeeded() {
     let signature = getTabHeaderUiSignature();
-    if (signature === lastTabHeaderUiSignature) return false;
+    if (signature === lastTabHeaderUiSignature) {
+        if (getTabNotiSignature() === lastTabNotiSignature) return false;
+        updateTabNotificationDots();
+        if (isTabGroupingActive()) renderTabCategoryBar(); // its group buttons carry the dots too
+        lastTabNotiSignature = getTabNotiSignature();
+        return false;
+    }
     lastTabHeaderUiSignature = signature;
     updateTabUnlockButtons();
     applyTabHeaderOrder();
     updateTabNotificationDots();
     applyTabGroupFilter();
     renderTabCategoryBar();
+    lastTabNotiSignature = getTabNotiSignature();
     return true;
 }
 
@@ -4114,7 +4142,10 @@ function renderSkillGemArt(name, className, options) {
 
 function renderGemTagChips(def, maxTags) {
     let rawTags = Array.isArray(def && def.tags) ? def.tags : [];
-    let getTone = tag => {
+    // 젬 상세(getUiGemPresentation)는 이미 한글로 바꾼 꼬리표를 넘긴다: 색을 고르려면 원래 키로 되돌린다(근접 → melee).
+    let tagKey = tag => SKILL_TAG_LABELS[tag] ? tag : (Object.keys(SKILL_TAG_LABELS).find(key => SKILL_TAG_LABELS[key] === tag) || tag);
+    let getTone = rawTag => {
+        let tag = tagKey(rawTag);
         if (['fire', 'cold', 'light', 'lightning', 'chaos', 'phys', 'physical'].includes(tag)) return tag === 'light' ? 'lightning' : tag === 'phys' ? 'physical' : tag;
         if (['summon_attack', 'minion', 'summon'].includes(tag)) return 'summon';
         if (['spell', 'projectile', 'melee', 'slam', 'chain', 'pierce', 'dot', 'aoe', 'utility', 'curse', 'warcry', 'guard'].includes(tag)) return tag;
@@ -4199,7 +4230,7 @@ function showGemCardHint(event, type, name) {
     if (event.pointerType !== 'mouse' || document.getElementById('gem-selection')?.matches(':popover-open')) return;
     const support = type === 'support';
     const info = getUiGemPresentation(name, support, cachedTooltipStats || getUiPlayerStats());
-    const html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${keepKoreanUnitParticles(escapeHTML(info.desc || ''))}</div>`
+    const html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${statToneText.markup(keepKoreanUnitParticles(escapeHTML(info.desc || '')))}</div>`
         + '<div class="tooltip-line gem-card-hint">클릭하면 범위 · 수치 · 태그 상세</div>';
     showInfoTooltipHtml(event.clientX, event.clientY, html, support ? '#2bcbba' : '#ff5252', `hint:${type}:${name}`);
 }
@@ -4305,9 +4336,9 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
     root.dataset.renderSig = renderSignature;
 }
 
-/** 11×11 pixel icons for engravings ('#' outline, 'o' fill), drawn as crisp SVG rects tinted by the engraving group —
-  * a syllable of the name read as clutter (사용자 요청 2026-10-04). The board ring and the 강화 · 각인 orbit share them. */
-const SKY_ENHANCEMENT_ICONS = Object.freeze({
+/** 11×11 pixel icons ('#' outline, 'o' fill), drawn as crisp SVG rects — a syllable of a name read as clutter (사용자 요청
+  * 2026-10-04 각인, 2026-10-06 루프 패시브). Engravings (board ring, 강화 · 각인 orbit) tint them by group; loop passive nodes by state. */
+const PIXEL_ICONS = Object.freeze({
     sword: ['.........##', '........#o#', '.......#o#.', '......#o#..', '.#...#o#...', '..#.#o#....', '...#o#.....', '..#.##.....', '.#...#.....', '#..........', '...........'],
     speed: ['...........', '##...##....', '.##...##...', '..##...##..', '...##...##.', '....##...##', '...##...##.', '..##...##..', '.##...##...', '##...##....', '...........'],
     eye: ['...........', '...#####...', '..#ooooo#..', '.#oo###oo#.', '#oo#ooo#oo#', '#oo#o#o#oo#', '#oo#ooo#oo#', '.#oo###oo#.', '..#ooooo#..', '...#####...', '...........'],
@@ -4319,7 +4350,10 @@ const SKY_ENHANCEMENT_ICONS = Object.freeze({
     boomerang: ['...######..', '..#oooooo#.', '.#o######..', '.#o#.......', '.#o#....#..', '.#o#....##.', '.#o#######.', '.#oooooo##.', '..#######..', '........#..', '...........'],
     pierce: ['.....#.....', '....###....', '...##o##...', '.....#.....', '.###.#.###.', '.#oo.#.oo#.', '.#oo.#.oo#.', '.#oo.#.oo#.', '..#o.#.o#..', '...#.#.#...', '....###....'],
     flame: ['.....#.....', '....#o#....', '..#.#o#.#..', '.#o##o##o#.', '.#oo#o#oo#.', '.#ooooooo#.', '#oo#ooo#oo#', '#o#.#o#.#o#', '#oo#ooo#oo#', '.#ooooooo#.', '..#######..'],
-    up: ['.....#.....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.####o####.', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....', '...........']
+    up: ['.....#.....', '....#o#....', '...#ooo#...', '..#ooooo#..', '.####o####.', '....#o#....', '....#o#....', '....#o#....', '....#o#....', '....###....', '...........'],
+    heart: ['...........', '.###...###.', '#ooo#.#ooo#', '#ooooooooo#', '#ooooooooo#', '.#ooooooo#.', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....', '...........'],
+    shield: ['.#########.', '#ooooooooo#', '#ooo###ooo#', '#ooo#o#ooo#', '#ooo#o#ooo#', '.#oo#o#oo#.', '.#ooo#ooo#.', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....'],
+    boot: ['...####....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo####.', '..#ooooooo#', '.#oooooooo#', '.##########', '...........']
 });
 const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
     pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',
@@ -4333,11 +4367,16 @@ const SKY_PROJECTILE_ICONS = Object.freeze({ split: 'split', focus: 'reticle', r
 /** @returns {string} SVG markup for the engraving's icon (class sky-engrave-icon is-<group>). */
 function renderSkyEnhancementIcon(enhancement) {
     let name = enhancement.projectilePatternMode ? SKY_PROJECTILE_ICONS[enhancement.projectilePatternMode] : SKY_ENHANCEMENT_ICON_BY_STAT[enhancement.stat];
+    return renderPixelIcon(name, `sky-engrave-icon is-${getSkyEnhancementGroup(enhancement).className}`);
+}
+
+/** @param {string} name a PIXEL_ICONS key (unknown → star) @param {string} className svg class @returns {string} crisp 11×11 SVG */
+function renderPixelIcon(name, className) {
     let rects = [];
-    (SKY_ENHANCEMENT_ICONS[name] || SKY_ENHANCEMENT_ICONS.star).forEach((row, y) => {
+    (PIXEL_ICONS[name] || PIXEL_ICONS.star).forEach((row, y) => {
         for (let match of row.matchAll(/#+|o+/g)) rects.push(`<rect class="${match[0][0] === '#' ? 'm' : 'f'}" x="${match.index}" y="${y}" width="${match[0].length}" height="1"/>`);
     });
-    return `<svg class="sky-engrave-icon is-${getSkyEnhancementGroup(enhancement).className}" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true">${rects.join('')}</svg>`;
+    return `<svg class="${className}" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true">${rects.join('')}</svg>`;
 }
 
 function getSkyEnhancementGroup(enhancement) {
@@ -4435,7 +4474,7 @@ function renderSupportGemProcessList() {
         let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '젬 레벨 +1';
         let disabled = !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
         let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel} · ${state ? state.need : 0}`;
-        return `<div class="gem-support-process-card"><div><small>${tierLabel} · Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${escapeHTML((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
+        return `<div class="gem-support-process-card"><div><small>${tierLabel} · Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${statToneText.html((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
     }).join('');
 }
 
@@ -5017,7 +5056,7 @@ function getCombatLogIconKind(message, cls, options) {
     let text = String(message || '');
     let element = getCombatLogElementFromText(message);
     if (element && /(피격|피해|상태이상|점화|냉각|동결|감전|중독|출혈)/.test(text)) return element;
-    if ((cls === 'attack-player' || cls === 'attack-crit') && /(피해|타격|공격)/.test(text)) return 'attack';
+    if (cls === 'attack-player' && /(피해|타격|공격)/.test(text)) return 'attack';
     if (cls === 'attack-monster' && /피해/.test(text)) return element || 'phys';
     return '';
 }
@@ -5032,10 +5071,18 @@ function renderCombatLogIcon(kind, options) {
     return kind ? `<span class="combat-log-icon combat-log-icon--${kind}" aria-hidden="true"></span>` : '';
 }
 
+/** A critical hit colours only its damage number and keeps the player-hit line colour: whole grey and orange lines in turn made the log
+ * busier (2026-10-06 user: "치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?"). critValue is the formatted number before "피해". */
+function markCombatLogCritNumber(message, critValue) {
+    let at = critValue ? message.lastIndexOf(`${critValue} 피해`) : -1;
+    if (at < 0) return message;
+    return `${message.slice(0, at)}<span class="combat-log-crit">${critValue}</span>${message.slice(at + critValue.length)}`;
+}
+
 function decorateCombatLogMessage(message, cls, options) {
     let cleanMessage = stripCombatLogEmoji(message);
     let icon = renderCombatLogIcon(getCombatLogIconKind(cleanMessage, cls, options), options);
-    return `${icon}${cleanMessage}`;
+    return `${icon}${markCombatLogCritNumber(cleanMessage, options && options.critValue)}`;
 }
 
 /** null while the log sits in a hidden tab (phone, another menu open): measuring it then forced a style recalculation of
@@ -5341,8 +5388,13 @@ function getMonsterSkinDefs() {
     let defs = MONSTER_SKIN_FRAME_DEFS.map(def => ({ id: def.id, label: def.label, type: 'frame' }));
     ACT_MONSTER_VISUALS.forEach(def => defs.push({ id: def.id, label: def.name, type: 'frame' }));
     if (typeof REALM_MONSTER_VISUAL_SETS !== 'undefined') {
+        // 군락지 세트는 다른 세트의 개미, 웜, 벌을 다시 쓴다: 한 외형은 목록에 한 번만(2026-10-07 검토: 이름만 다른 줄이 겹쳤다).
+        const listed = new Set(defs.map(def => def.id));
         Object.values(REALM_MONSTER_VISUAL_SETS).forEach(set => {
-            set.members.forEach(member => defs.push({ id: member.id, label: member.name, type: 'frame' }));
+            set.members.filter(member => !listed.has(member.id)).forEach(member => {
+                listed.add(member.id);
+                defs.push({ id: member.id, label: member.name, type: 'frame' });
+            });
         });
     }
     if (typeof WISP_MONSTER_VISUALS !== 'undefined') {
@@ -6009,8 +6061,8 @@ function showGemTooltip(event, type, name, target = null) {
             html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
         }
         if (!isSummonAttackTooltip) {
-            html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
-            html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
+            html += `<div class="tooltip-line" style="margin-top:6px;color:${getItemStatToneColor('pctDmg')};">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
+            html += `<div class="tooltip-line" style="color:${getItemStatToneColor('aspd')};">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
         }
         if (rawSkillTags.includes('spell')) {
             let spellLv = Math.max(1, info.finalLevel || 1);
@@ -6090,31 +6142,39 @@ function showGemTooltip(event, type, name, target = null) {
     if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
     if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 정수 공격·시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
+    // 설명 글의 핵심어와 수치는 장비 옵션 색(2026-10-06). 이미 색이 있는 줄, 꼬리표, 제목은 그대로다.
+    html = statToneText.markup(html);
     gemTooltipCache = { key: cacheKey, html: html, border: border, stats: stats };
     if (target) { target.innerHTML = html; return; }
     showInfoTooltipHtml(event.clientX, event.clientY, html, border, cacheKey);
 }
 
+// 능력치 → 옵션 색(장비 옵션 줄과 설명 글이 함께 쓴다, js/stat-tone-text-ui.js). 표에 없는 능력치는 이름 조각으로 고른다.
+// 2026-10-06: 흰색으로 떨어지거나 글자 조각 때문에 엉뚱한 색이 나던 능력치(그루터기 열매, 루프 노드, 받는 피해 감소)를 표에 넣었다.
+const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
+    ['#ff9a76', ['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct']],
+    ['#8fd3ff', ['coldPctDmg', 'resC', 'freezeChance']],
+    ['#ffe083', ['lightPctDmg', 'resL', 'shockChance']],
+    ['#c7a6ff', ['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance']],
+    ['#ffd2a6', ['armor', 'armorPct', 'dr', 'takenDamageReduceWhen1EnemyPct', 'takenDamageReduceWhen2EnemiesPct']],
+    ['#baffc2', ['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce']],
+    ['#8fdcff', ['energyShield', 'energyShieldPct', 'energyShieldRegen', 'energyShieldRechargeFaster']],
+    ['#ffb3b3', ['flatHp', 'pctHp', 'regen', 'regenFlat']],
+    ['#ffd6f2', ['crit', 'critDmg']],
+    ['#fff3a8', ['aspd', 'move']],
+    ['#ffcf9f', ['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll',
+        'bossDamagePct', 'eliteDamagePct', 'firstStrikeDamagePct', 'doubleDamageChance']],
+    ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],
+    ['#ff8fa3', ['leech']],
+    ['#ffcb8e', ['resPen', 'resAll', 'ds']],
+    ['#a8e6cf', ['gemLevel', 'suppCap', 'expGain', 'summonEfficiency', 'summonCap']]
+].flatMap(([tone, ids]) => ids.map(id => [id, tone]))));
+
 function getItemStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
     let id = String(statId);
     let low = id.toLowerCase();
-
-    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
-    if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
-    if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
-    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
-    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(id)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fdcff';
-    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
-    if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
-    if (['aspd', 'move'].includes(id)) return '#fff3a8';
-    if (['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(id)) return '#ffcf9f';
-    if (['spellFlatPct', 'spellFlatDmg'].includes(id)) return '#d4a8ff';
-    if (['leech'].includes(id)) return '#ff8fa3';
-    if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
-    if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
+    if (ITEM_STAT_TONE_BY_ID[id]) return ITEM_STAT_TONE_BY_ID[id];
 
     if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
     if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
@@ -6606,6 +6666,7 @@ function resizeBattlefieldCanvas() {
     canvas.style.height = `${cssHeight}px`;
     canvas.dataset.renderScale = String(dpr);
     lastBattlefieldCanvasSize = { width: cssWidth, height: cssHeight, dpr };
+    if (typeof battleCanvasBox === 'object') battleCanvasBox.forget();
 }
 
 // ACT 맵과 9x8 판정은 같은 변환을 쓴다. grid-contain은 장식만 잘라내고 전투 칸 전체를 보인다.
@@ -6824,12 +6885,12 @@ function isActBattleMapBackdropKey(key) {
     return /^bgAct(?:[1-9]|10)$/.test(String(key || ''));
 }
 
-// ACT는 912×624, 지하계·운석은 816×624. 중앙 9×8칸은 동일한 48px 격자를 사용한다.
+// ACT와 웨이브 콘텐츠 판(벌집 원정, 군락지)은 912×624, 지하계·운석은 816×624. 중앙 9×8칸은 동일한 48px 격자를 사용한다.
 // 나머지 정사각형 엔드게임 배경은 기존 cover 표시를 유지한다.
 function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
     let srcW = image.width || width;
     let srcH = image.height || height;
-    let actMap = (isActBattleMapBackdropKey(backdropKey) || ['bgUnderworld','bgMeteor'].includes(backdropKey)) && gridProj;
+    let actMap = (isActBattleMapBackdropKey(backdropKey) || GRID_ALIGNED_SPECIAL_BACKDROPS.includes(backdropKey)) && gridProj;
     let coverScale = Math.max(width / srcW, height / srcH);
     let drawW = srcW * coverScale;
     let drawH = srcH * coverScale;
@@ -7403,6 +7464,8 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
             outlineColor: outline.color,
             outlineThickness: outline.thickness,
             outlineAlpha: outline.alpha,
+            flipX: shouldMirrorEnemySprite(enemy),
+            offsetY: bossAttackView.spriteOffsetY(attackMotion, frame),
             flash
         });
         ctx.restore();
@@ -7869,6 +7932,9 @@ function renderCombatSkillHud() {
 function setUiImageGaugePercent(element, percent) {
     if (!element) return;
     let safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    // 같은 값은 다시 쓰지 않는다: 같은 값이라도 인라인 스타일을 쓰면 다음 프레임에 스타일 계산이 다시 돈다.
+    if (element.__gaugePercent === safePercent) return;
+    element.__gaugePercent = safePercent;
     element.style.width = '100%';
     element.style.setProperty('--gauge-fill', `${safePercent}%`);
     if (element.parentElement && element.parentElement.style) {
@@ -8317,13 +8383,45 @@ function buildPlayerCombatEffectIcons(pStats, now) {
         + buildPlayerRealmEffectIcons(pStats, now);
 }
 
+/** An effect icon strip's new markup. Its timer rings turn every tick (--effect-remaining-angle), and rebuilding the strip for that
+ * removed and re-added its elements ten times a second, so the page re-checked every body:has() rule each time (2026-10-07 frame
+ * drops: the costliest style passes of the endgame). While the icons keep their shape, only the changed attributes and texts move. */
+function patchCombatEffectStrip(host, markup) {
+    if (!host || host.__lastHtml === markup) return;
+    host.__lastHtml = markup;
+    const parsed = document.createElement('template');
+    parsed.innerHTML = markup;
+    if (!parsed.content || !host.children) { host.innerHTML = markup; return; } // no template parsing here (script tests' stand-in DOM)
+    const fresh = [...parsed.content.children], live = [...host.children];
+    if (fresh.length === live.length && fresh.every((node, index) => sameEffectShape(node, live[index]))) {
+        fresh.forEach((node, index) => syncEffectNode(live[index], node));
+    } else host.innerHTML = markup;
+}
+
+/** Same tags and classes all the way down (a new icon, a timer appearing, or a badge coming means a rebuild). */
+function sameEffectShape(fresh, live) {
+    const pairs = [[fresh, live]];
+    while (pairs.length) {
+        const [a, b] = pairs.pop();
+        if (a.tagName !== b.tagName || a.className !== b.className || a.children.length !== b.children.length) return false;
+        for (let index = 0; index < a.children.length; index++) pairs.push([a.children[index], b.children[index]]);
+    }
+    return true;
+}
+
+function syncEffectNode(live, fresh) {
+    const pairs = [[live, fresh]];
+    while (pairs.length) {
+        const [to, from] = pairs.pop();
+        for (const { name, value } of from.attributes) if (to.getAttribute(name) !== value) to.setAttribute(name, value);
+        if (from.children.length) for (let index = 0; index < from.children.length; index++) pairs.push([to.children[index], from.children[index]]);
+        else if (to.textContent !== from.textContent) to.textContent = from.textContent;
+    }
+}
+
 function updatePlayerCombatEffectHud(pStats, hpAilBar) {
     let markup = buildPlayerCombatEffectIcons(pStats, getCombatTime());
-    let effectHost = document.getElementById('ui-player-ailments-under');
-    if (effectHost && effectHost.__lastHtml !== markup) {
-        effectHost.innerHTML = markup;
-        effectHost.__lastHtml = markup;
-    }
+    patchCombatEffectStrip(document.getElementById('ui-player-ailments-under'), markup);
     let projectedDamage = (game.playerAilments || []).reduce((sum, ail) => {
         if (!ail || (ail.time || 0) <= 0 || !isUiDamageAilmentType(ail.type)) return sum;
         return sum + Math.floor(getUiPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
@@ -8365,8 +8463,14 @@ function clearUiEnemyTraitRotation(traitEl) {
     traitEl.__traitRotationTimer = null;
 }
 
+/** Trait text with its keywords and numbers in the item tone colours (2026-10-06: the line was one colour). One wrapping span:
+ * the ticker track is a flex box, and spaces between coloured pieces would be dropped as separate flex items. */
+function setUiEnemyTraitText(target, text) {
+    target.innerHTML = `<span class="enemy-trait-text">${statToneText.html(text)}</span>`;
+}
+
 function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
-    track.textContent = content;
+    setUiEnemyTraitText(track, content);
     traitEl.__traitOverflowPending = true;
     if (typeof document !== 'undefined' && document.hidden) return;
     let generation = Math.max(0, Math.floor(traitEl.__traitOverflowGeneration || 0)) + 1;
@@ -8374,13 +8478,13 @@ function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
     let measure = () => {
         if (!traitEl.isConnected || traitEl.__traitOverflowGeneration !== generation || traitEl.__traitSignature !== signature) return;
         if (typeof document !== 'undefined' && document.hidden) return;
-        track.textContent = content;
+        setUiEnemyTraitText(track, content);
         let panelWidth = Math.max(0, traitEl.clientWidth);
         let singleWidth = Math.max(0, track.scrollWidth);
         let overflowing = singleWidth > panelWidth + 4;
         traitEl.classList.toggle('is-overflowing', overflowing);
         if (overflowing) {
-            let loopText = escapeHTML(`${content}　·　`);
+            let loopText = statToneText.html(`${content}　·　`);
             track.innerHTML = `<span class="enemy-trait-marquee-copy">${loopText}</span><span class="enemy-trait-marquee-copy" aria-hidden="true">${loopText}</span>`;
             let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
             track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
@@ -8397,7 +8501,7 @@ function updateUiEnemyTraitMarqueeCopies(traitEl, track, content) {
     if (copies.length !== 2) return false;
     let loopText = `${content}　·　`;
     copies.forEach(copy => {
-        if (copy.textContent !== loopText) copy.textContent = loopText;
+        if (copy.textContent !== loopText) setUiEnemyTraitText(copy, loopText);
     });
     return true;
 }
@@ -8437,7 +8541,7 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     traitEl.classList.remove('is-overflowing', 'is-rotating');
     if (!isBoss) {
         traitEl.removeAttribute('tabindex');
-        track.textContent = display.compactText;
+        setUiEnemyTraitText(track, display.compactText);
         return;
     }
     traitEl.setAttribute('tabindex', '0');
@@ -8447,12 +8551,12 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     }
     let index = 0;
     traitEl.classList.add('is-rotating');
-    track.textContent = labels[index];
+    setUiEnemyTraitText(track, labels[index]);
     traitEl.__traitRotationTimer = setInterval(() => {
         if (!traitEl.isConnected) return clearUiEnemyTraitRotation(traitEl);
         if (traitEl.matches(':hover') || (typeof document !== 'undefined' && document.activeElement === traitEl)) return;
         index = (index + 1) % labels.length;
-        track.textContent = labels[index];
+        setUiEnemyTraitText(track, labels[index]);
     }, 2600);
 }
 
@@ -8464,7 +8568,7 @@ function showEnemyTraitTooltip(event) {
     if (!detail) return hideInfoTooltip();
     let title = anchor.getAttribute('data-enemy-trait-kind') || '적 특성';
     let html = `<div class="tooltip-title">${escapeHTML(title)}</div>`
-        + `<div class="tooltip-line">${escapeHTML(detail)}</div>`;
+        + String(detail).split('\n').map(line => `<div class="tooltip-line">${statToneText.html(line)}</div>`).join('');
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#d99a8f');
 }
 
@@ -8546,12 +8650,24 @@ function markPlayerEnergyShieldRow(hpTrack, hasEnergyShield) {
 }
 
 /** 생명 구슬 안 보호막 글자: "보호막 현재/최대". 휴대폰의 작은 구슬(50px)에서는 CSS가 이름과 최대를 숨기고 파란 현재값만 남긴다(pixel-hud.css). */
+/** 틱마다 숫자 글자만 바꾼다: innerHTML을 갈면 새 요소가 끼어들어 body의 :has() 규칙까지 다시 따졌다(2026-10-07 프레임 드랍). */
 function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
     if (!el) return;
-    el.style.display = hasEnergyShield ? '' : 'none';
+    const display = hasEnergyShield ? '' : 'none';
+    if (el.style.display !== display) el.style.display = display;
     if (!hasEnergyShield) return;
-    const html = `<span class="combat-es-label">보호막 </span>${Math.floor(current || 0)}<span class="combat-es-max">/${Math.floor(max || 0)}</span>`;
-    if (el.__esHtml !== html) { el.innerHTML = html; el.__esHtml = html; }
+    const parts = energyShieldInlineParts(el);
+    const nowText = String(Math.floor(current || 0)), maxText = `/${Math.floor(max || 0)}`;
+    if (parts.now.data !== nowText) parts.now.data = nowText;
+    if (parts.max.data !== maxText) parts.max.data = maxText;
+}
+
+/** The two number text nodes of the ES line, built once ("보호막 " label, current, "/max"). */
+function energyShieldInlineParts(el) {
+    if (el.__esParts && el.__esParts.now.parentNode === el) return el.__esParts;
+    el.innerHTML = '<span class="combat-es-label">보호막 </span>0<span class="combat-es-max">/0</span>';
+    el.__esParts = { now: el.childNodes[1], max: el.lastChild.firstChild };
+    return el.__esParts;
 }
 
 let hudShownLevel = 0;
@@ -8806,17 +8922,14 @@ function updateCombatUI(pStats) {
                 setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`);
             } else setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`);
         }
-        if (ailmentEl && ailmentEl.__lastHtml !== effectMarkup) {
-            ailmentEl.innerHTML = effectMarkup;
-            ailmentEl.__lastHtml = effectMarkup;
-        }
+        patchCombatEffectStrip(ailmentEl, effectMarkup);
         if (traitEl) {
             let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
             let traitLabels = getUiEnemyTraitLabels(showTraits ? tags : []);
             let traitDisplay = getUiEnemyTraitDisplayText(traitLabels);
             let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
                 ? getBossPatternDescription(focusedEnemy.patternMode) : '';
-            let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join(' · ');
+            let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join('\n');
             updateUiEnemyTraitPanel(traitEl, traitLabels, traitDisplay, fullTooltip, enemyHudTier === 'boss');
             // 특성 줄이 보이면 상태 이상 아이콘 줄은 그 아래로 내려간다(pixel-hud.css .has-trait-line)
             enemyListEl.querySelector('.enemy-card.targeted').classList.toggle('has-trait-line', traitLabels.length > 0);
@@ -10283,7 +10396,9 @@ function buildCraftActionButtons(item) {
                 let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
                 let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
                 let deepStats = game.loopDeepStats || {};
-                let deepTotalLine = `총합 보너스: ${LOOP_DEEP_STATS.map(def => `${def.label} +${formatLoopDeepValue(def, deepStats[def.key])}`).join(', ')}`;
+                // 능력치마다 그 색(2026-10-06): 한 줄 전체가 같은 파란색이라 어느 능력치가 얼마인지 눈에 안 들어왔다. 곱연산 피해는 피해 색.
+                let deepTone = def => getItemStatToneColor(def.stat || 'pctDmg');
+                let deepTotalLine = `총합 보너스: ${LOOP_DEEP_STATS.map(def => `<span style="color:${deepTone(def)}">${def.label} +${formatLoopDeepValue(def, deepStats[def.key])}</span>`).join(', ')}`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:15px;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:12px;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div class="loop10-entry-box">
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
@@ -10291,7 +10406,7 @@ function buildCraftActionButtons(item) {
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <details id="loop-deep-growth" class="progression-workbench" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 ${def.label} Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit} · 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 <span style="color:${deepTone(def)}">${def.label}</span> Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit} · 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
         }
     }
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
@@ -10320,13 +10435,14 @@ function buildCraftActionButtons(item) {
     }).join('');
     document.getElementById('ui-season-content-roadmap').innerHTML = collapsedRoadmapSummary + roadmapCards
         || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
-    // 노드 한가운데 한 글자(도트 글꼴): 경험치 · 피해 · 생명 · 치명 … 전체 효과는 이름표 · 툴팁이 말한다.
-    const seasonNodeGlyphs = {
-        expGain: '경', pctDmg: '피', pctHp: '생', crit: '치', dotPctDmg: '지',
-        move: '이', dr: '감', aspd: '속', physIgnore: '무', resPen: '관', ds: '연',
-        critDmg: '폭', flatHp: '체', regen: '재', projectilePctDmg: '투',
-        meleePctDmg: '근', physPctDmg: '물', elementalPctDmg: '원', chaosPctDmg: '카',
-        minDmgRoll: '소', maxDmgRoll: '대'
+    // 노드 한가운데 도트 그림(능력치 종류): 한 글자("관" · "피")는 읽히지 않고 어수선했다(2026-10-06 사용자 요청).
+    // 전체 효과는 이름표 · 툴팁이 말한다. 그림은 각인과 같은 11도트 묶음(PIXEL_ICONS)을 쓴다.
+    const seasonNodeIcons = {
+        expGain: 'up', pctDmg: 'sword', pctHp: 'heart', crit: 'eye', dotPctDmg: 'flame',
+        move: 'boot', dr: 'shield', aspd: 'speed', physIgnore: 'pierce', resPen: 'pierce', ds: 'speed',
+        critDmg: 'star', flatHp: 'heart', regen: 'drop', projectilePctDmg: 'reticle',
+        meleePctDmg: 'sword', physPctDmg: 'sword', elementalPctDmg: 'flame', chaosPctDmg: 'drop',
+        minDmgRoll: 'fork', maxDmgRoll: 'up'
     };
     let renderSeasonNode = (id, placement, x, y) => {
         let node = getSeasonPassiveNodeDef(id);
@@ -10349,8 +10465,7 @@ function buildCraftActionButtons(item) {
         let actionAttrs = reqMet
             ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
             : ' aria-disabled="true"';
-        let glyph = seasonNodeGlyphs[node.stat] || '능';
-        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core"><span class="loop-node-glyph" aria-hidden="true">${glyph}</span><span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
+        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core">${renderPixelIcon(seasonNodeIcons[node.stat] || 'star', 'loop-node-icon')}<span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${statToneText.html(node.desc)}</small><em style="color:${getItemStatToneColor(node.stat)}">${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
@@ -10386,7 +10501,8 @@ function buildCraftActionButtons(item) {
             let statLines = Array.isArray(node.stats) ? node.stats : [{ stat: node.stat, val: node.val }];
             let desc = statLines.map(line => {
                 let statInfo = P_STATS[line.stat] || { name: getStatName(line.stat), isPct: false };
-                return line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
+                let text = line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
+                return `<span style="color:${getItemStatToneColor(line.stat)}">${text}</span>`;
             }).join('<br>');
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
             let title = id === 'n10' ? '궁극기' : ((id === 'n11' || id === 'n12') ? '4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '재능특화' : ((id === 'n13c' || id === 'n13d') ? '전직특화' : titleText)));
@@ -10428,7 +10544,7 @@ function buildCraftActionButtons(item) {
                     reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: ${names.join(joiner)}</div>`;
                 }
                 let clickAttr = active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`);
-                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
+                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${statToneText.markup(k.desc)}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
             }).join('')}</div>`).join('');
             document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
         }
@@ -10784,7 +10900,7 @@ function renderPassiveInvestmentSummary() {
     if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     const summary = getAllocatedPassiveStatSummary();
     const rows = summary.totals.length
-        ? summary.totals.map(([stat, value]) => `<span>${getStatName(stat)}</span><strong>+${formatValue(stat, value)}${P_STATS[stat] && P_STATS[stat].isPct ? '%' : ''}</strong>`).join('')
+        ? summary.totals.map(([stat, value]) => `<span>${getStatName(stat)}</span><strong style="color:${getItemStatToneColor(stat)}">+${formatValue(stat, value)}${P_STATS[stat] && P_STATS[stat].isPct ? '%' : ''}</strong>`).join('')
         : '<span>아직 투자한 효과가 없습니다.</span><strong>—</strong>';
     const specials = summary.specialEffects.length
         ? `<div class="passive-summary-specials">조건부 효과 · ${summary.specialEffects.join(' · ')}</div>`
@@ -11161,9 +11277,20 @@ function setupCanvasEvents() {
         return `<div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${cost}포인트 필요 · 연결 경로가 트리에 강조됩니다.</div>`;
     }
 
+    /** The node's effect text in the option colours (2026-10-06): each effect line in its own stat's colour (a node with several
+     * stats showed them all in the first stat's colour), keystone and other prose with coloured keywords and numbers. */
+    function renderPassiveEffectToneHtml(node, label) {
+        const effects = Array.isArray(node.effects) && node.effects.length > 0
+            ? (node.connectedDevotionPenalty ? getEffectivePassiveNodeEffects(node) : node.effects) : null;
+        if (!effects) return node.stat ? label : statToneText.markup(label);
+        return String(label).split('<br>').map((line, index) => (index < effects.length
+            ? `<span style="color:${getItemStatToneColor(effects[index].stat)}">${line}</span>` : statToneText.markup(line))).join('<br>');
+    }
+
     function renderPassiveTooltip(node, clientX, clientY) {
         if (!canvasTooltip || !node) return;
-        let passiveAccent = getPassiveStatAccent(typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat);
+        let displayStat = typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat;
+        let passiveAccent = getPassiveStatAccent(displayStat);
         let state = getPassiveVisibility(node.id);
         let route = getHoveredPassivePathNodeIds(node.id);
         let routeCost = Array.from(route).filter(id => !(game.passives || []).includes(id)
@@ -11189,16 +11316,18 @@ function setupCanvasEvents() {
             msg += ` · 성좌 각성 ${progress.completed}/${progress.required}: 외곽 공허 소켓 여섯을 모두 초월시키면 각성합니다.`;
         }
 
+        // 효과 글씨는 능력치 종류의 색(장비 옵션과 같은 getItemStatToneColor): 노드 테두리 색의 옅은 글씨는 흰색과 구분되지 않았다(2026-10-06).
+        let effectTextColor = getItemStatToneColor(displayStat);
         let effectBadge = (label, accent, caption) => {
             let tone = accent || passiveAccent;
-            return `<div class="tooltip-line passive-effect-badge" style="--badge-edge:${tone.activeOuter}; color:${tone.text};">
+            return `<div class="tooltip-line passive-effect-badge" style="--badge-edge:${tone.activeOuter}; color:${effectTextColor};">
                 <div class="passive-effect-caption">${caption}</div>
                 ${label}
             </div>`;
         };
         const primaryEffectLabel = getPassiveEffectLabel(node);
         const displayedEffectLabels = [primaryEffectLabel].filter(Boolean);
-        let effectHtml = primaryEffectLabel ? effectBadge(primaryEffectLabel, passiveAccent, '효과') : '';
+        let effectHtml = primaryEffectLabel ? effectBadge(renderPassiveEffectToneHtml(node, primaryEffectLabel), passiveAccent, '효과') : '';
         const activationState = getPassiveNodeActivationState(node);
         if (node.activationRequirement && !activationState.active) {
             const requiredName = activationState.statId === 'devotion' ? '계시' : getStatName(activationState.statId);
@@ -11214,7 +11343,7 @@ function setupCanvasEvents() {
             `<div class="tooltip-title" style="color:${node.tier >= 3 || node.kind === 'apex' || node.kind === 'transcendent' ? '#e7bf73' : '#b9d0df'}">${getPassiveNodeDisplayName(node)}</div>
              <div class="tooltip-line">${getPassiveKindLabel(node)}</div>
              ${effectHtml}
-             ${tooltipDescription ? `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">${tooltipDescription}</div>` : ''}
+             ${tooltipDescription ? `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">${statToneText.markup(tooltipDescription)}</div>` : ''}
              ${voidCraftHtml}
              ${renderPassiveRouteHint(routeCost)}
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;

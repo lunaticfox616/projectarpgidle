@@ -85,7 +85,7 @@
         let art = isSupport ? '<span>보조</span>' : renderSkillGemArt(name, 'gem-research-card-art');
         return `<article class="gem-research-card element-${meta.className}" aria-label="${escapeHTML(name)}">
             <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조 젬' : `${meta.elementLabel} · ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
-            <p>${escapeHTML(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>
+            <p>${statToneText.html(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>
             ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
             <div class="gem-card-tags">${tags}</div>
             <button type="button" onclick="researchMissingGem('${kind}', decodeURIComponent('${encodedName}'))" ${affordable ? '' : 'disabled'}>

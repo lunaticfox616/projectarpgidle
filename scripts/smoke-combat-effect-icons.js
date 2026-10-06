@@ -83,6 +83,10 @@ require('./lib/load-ui-display')(context);
 require('./lib/load-combat-clock')(context);
 const domWriteStart = source.indexOf('function setTextById(');
 vm.runInContext(source.slice(domWriteStart, source.indexOf('function updateHpDamageGhostState(', domWriteStart)), context, { filename: 'hud-dom-writes.js' });
+// 2026-10-06: the boss trait line colours its keywords (js/stat-tone-text-ui.js on the item tone table).
+context.getItemStatToneColor = id => `#tone-${id}`;
+context.safeExposeGlobals = context.safeExposeGlobals || (values => Object.assign(context, values));
+vm.runInContext(fs.readFileSync('js/stat-tone-text-ui.js', 'utf8'), context, { filename: 'js/stat-tone-text-ui.js' });
 vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-icons.js' });
 
 const playerStats = {
@@ -281,15 +285,22 @@ function createTraitPanelFixture() {
     get() { return copies.length > 0 ? copies.map(copy => copy.textContent).join('') : rawText; },
     set(value) { rawText = String(value); copies = []; this.__innerHTML = ''; this.scrollWidth = 180; }
   });
+  // The trait text is coloured HTML now (2026-10-06): the fake element keeps what a browser's textContent would read.
+  const plain = markup => decodeHtmlAttribute(String(markup).replace(/<[^>]+>/g, ''));
+  const copyOf = markup => {
+    const copy = { textContent: plain(markup) };
+    Object.defineProperty(copy, 'innerHTML', { set(next) { copy.textContent = plain(next); } });
+    return copy;
+  };
   Object.defineProperty(track, 'innerHTML', {
     get() { return this.__innerHTML || ''; },
     set(value) {
       innerHtmlWrites += 1;
       this.__innerHTML = value;
-      const values = Array.from(String(value).matchAll(/<span[^>]*>(.*?)<\/span>/g), match => decodeHtmlAttribute(match[1]));
-      copies = values.map(textContent => ({ textContent }));
-      rawText = '';
-      this.scrollWidth = 400;
+      const marquee = String(value).split(/<span class="enemy-trait-marquee-copy"[^>]*>/).slice(1);
+      copies = marquee.map(part => copyOf(part.replace(/<\/span>$/, '')));
+      rawText = copies.length ? '' : plain(value);
+      this.scrollWidth = copies.length ? 400 : 180;
     }
   });
   const panel = {
@@ -366,6 +377,8 @@ context.matchMedia = query => ({ matches: query.includes('max-width') });
 const mobileTraits = createTraitPanelFixture();
 context.updateUiEnemyTraitPanel(mobileTraits.panel, ['화염', '중갑 전개'], traitDisplay, '전체 설명', true);
 assert.strictEqual(mobileTraits.track.textContent, '화염', 'mobile bosses must initially show one trait');
+assert.match(mobileTraits.track.innerHTML, /<span class="stat-tone" style="color:#tone-firePctDmg">화염<\/span>/,
+  'the trait reads in its element colour (2026-10-06)');
 context.__traitRotationCallback();
 assert.strictEqual(mobileTraits.track.textContent, '중갑 전개', 'mobile bosses must rotate traits one at a time');
 

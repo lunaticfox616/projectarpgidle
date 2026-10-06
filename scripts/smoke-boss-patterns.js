@@ -105,6 +105,37 @@ assert.ok(exposed.getBossPatternDescription('slam').includes('3번째 공격'), 
     assert.strictEqual(enemy.patternTelegraphKey, null, 'consuming a pattern should clear its telegraph latch');
 }
 
+// 2026-10-06 (사용자 요청 "보스 패턴이 너무 허접"): 처음 루프 보스는 한 칸과 십자를 번갈아 치고, 격앙은 2단계 전에도 3번째마다 충격파.
+{
+    const intro = { isBoss: true, patternMode: 'intro', patternAttackCount: 0, hp: 100, maxHp: 100 };
+    const states = [];
+    for (let i = 0; i < 9; i++) states.push(exposed.consumeBossPatternAttack(intro));
+    assert.deepStrictEqual(states.filter(state => state.isSpecial).map(state => [state.attackNumber, state.label, state.telegraphKind]),
+        [[3, '지면 강타', 'impact'], [6, '십자 강타', 'wave'], [9, '지면 강타', 'impact']], 'the first special is still the one-cell slam, then the cross');
+    assert.ok(states.every(state => state.damageMul <= 1.15), 'the intro keeps its gentle multiplier');
+    const ramp = { isBoss: true, patternMode: 'ramp', patternAttackCount: 0, hp: 100, maxHp: 100 };
+    const rampStates = [1, 2, 3].map(() => exposed.consumeBossPatternAttack(ramp));
+    assert.deepStrictEqual(rampStates.map(state => state.isSpecial), [false, false, true], 'a full-life ramp boss still warns every third attack');
+    assert.deepStrictEqual([rampStates[2].label, rampStates[2].damageMul, rampStates[2].telegraphKind], ['격앙 전조', 1, 'pulse'],
+        'that early pulse hits like an ordinary attack');
+    ramp.hp = 50;
+    assert.strictEqual(exposed.getBossPatternPreview(ramp).isSpecial, true, 'from stage 2 every attack is the pulse');
+}
+
 // Actual damage, warning locks and automatic escape run in smoke-boss-pattern-areas.js.
+
+// 예고 도중 생명력이 단계 경계를 넘어 이름만 바뀌어도(격앙 전조 → 격앙 Ⅰ) 경고는 처음부터 다시 시작하지 않는다(2026-10-07 검토).
+{
+    const enemy = { isBoss: true, patternMode: 'ramp', patternAttackCount: 2, hp: 90, maxHp: 100, attackTimer: 0.8 };
+    enemy.nextPatternState = exposed.getBossPatternPreview(enemy);
+    assert.strictEqual(enemy.nextPatternState.label, '격앙 전조');
+    exposed.updateBossPatternTelegraph(enemy, 1000, null);
+    assert.strictEqual(enemy.patternTelegraphStartedAt, 1000);
+    enemy.hp = 70;
+    enemy.nextPatternState = exposed.getBossPatternPreview(enemy);
+    assert.strictEqual(enemy.nextPatternState.label, '격앙 Ⅰ');
+    exposed.updateBossPatternTelegraph(enemy, 2200, null);
+    assert.strictEqual(enemy.patternTelegraphStartedAt, 1000, 'the warning keeps running across the stage change');
+}
 
 console.log('smoke-boss-patterns passed');

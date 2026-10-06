@@ -10,6 +10,10 @@
  *   node scripts/build-act-maps.cjs              # 액트 1~10 × 방향 4 → 미리보기 폴더(기본: artifacts/act-maps/)
  *   node scripts/build-act-maps.cjs --act 2      # 한 액트만
  *   node scripts/build-act-maps.cjs --write      # assets/exploration/actN-rR-map.png·actN-rR-gate.png 교체(R = 방향 0~3)
+ *   node scripts/build-act-maps.cjs --map trial-winter   # 콘텐츠 전용 지도 하나(data CONTENT_EXPLORATION_MAPS, <id>-rR-*.png)
+ *   node scripts/build-act-maps.cjs --content --write    # 콘텐츠 전용 지도만 다시 그려 넣는다(액트 지도 그림은 건드리지 않음)
+ *
+ * 콘텐츠 전용 지도(2026-10-06, 전직 시련 다섯 곳)는 액트 번호 대신 look 이름으로 모양(looks.cjs)과 색(pal.cjs)을 고른다.
  *
  * 끝에 액트별 어둠 색(data/act-exploration-maps.js의 shade, 안개와 지도 바깥에 쓰는 색)과 벽에 걸친 소품 도트 수를 찍는다. */
 'use strict';
@@ -35,8 +39,18 @@ const root = path.resolve(__dirname, '..');
 function readLayouts() {
     return JSON.parse(vm.runInContext(`JSON.stringify(ACT_EXPLORATION_MAPS.flatMap(source => [0, 1, 2, 3].map(rotation => {
         const map = actExplorationMap.layout(source.act, rotation);
-        return { ...map, links: source.links.map(link => [link[0], link[1]]), approach: source.approach };
-    })))`, buildGameRuntime()));
+        return { ...map, look: source.act, links: source.links.map(link => [link[0], link[1]]), approach: source.approach };
+    })).concat(CONTENT_EXPLORATION_MAPS.flatMap(source => [0, 1, 2, 3].map(rotation => {
+        const map = actExplorationMap.generated({ style: 'map', id: source.id, seed: '' }, rotation);
+        return { ...map, look: source.look, links: source.links.map(link => [link[0], link[1]]), approach: source.approach };
+    }))))`, buildGameRuntime()));
+}
+/** A stable paint seed: the act number (as before) or the content map's name. */
+function seedOf(look) {
+    if (typeof look === 'number') return 1 + look * 101;
+    let hash = 7;
+    for (const ch of String(look)) hash = (hash * 31 + ch.charCodeAt(0)) % 100000;
+    return 1 + hash;
 }
 
 /** 방 가운데 포장 자리(방 상자보다 조금 작은 둥근 네모, 가장자리는 흔들어서). */
@@ -57,7 +71,8 @@ function paintFloor(cv, g, layout, look) {
     for (let i = 0; i < g.floor.length; i++) if (g.floor[i]) (fl.paths && !g.inRoom[i] ? paths : rooms)[i] = 1;
     const damp = cv.noise(10, 963), opt = o => ({ ...o, damp: o && o.damp ? damp : null, joint: jointOf(o && o.joint) });
     const paint = (kind, mask, o) => kind === 'earth' ? F.earth(cv, g, mask) : kind === 'flags' ? F.flags(cv, g, mask, opt(o))
-        : kind === 'slabs' ? F.slabs(cv, g, mask, opt(o)) : F.planks(cv, g, mask, layout, { dir: fl.plankDir });
+        : kind === 'slabs' ? F.slabs(cv, g, mask, opt(o)) : kind === 'honeycomb' ? F.honeycomb(cv, g, mask, opt(o))
+        : F.planks(cv, g, mask, layout, { dir: fl.plankDir });
     paint(fl.base, rooms, fl.flag || fl.slab || {});
     if (fl.paths) paint(fl.paths, paths, fl.slab || {});
     let plaza = null;
@@ -88,10 +103,11 @@ function drawProps(cv, g, queue) {
     return stray;
 }
 
-function build(layout) {
-    const act = layout.act, look = LOOKS[act];
-    useAct(act);
-    const palette = new Palette(rampsOf(act)), cv = new Canvas(layout.columns * T, layout.rows * T, 1 + act * 101, palette);
+/** Paints one layout. A board backdrop (scripts/build-board-backdrops.cjs) has no boss gate: options.gate === false. */
+function build(layout, options = {}) {
+    const key = layout.look, look = LOOKS[key];
+    useAct(key);
+    const palette = new Palette(rampsOf(key)), cv = new Canvas(layout.columns * T, layout.rows * T, seedOf(key), palette);
     const g = terrain(cv, layout, look.shape);
     wallRegions(cv, g, look.abyss ? 0 : look.faceH, look.shape === 'organic');
     measure(cv, g);
@@ -110,24 +126,32 @@ function build(layout) {
     D.lighting(cv, solid, lights);
     if (ctx.landing) D.landing(cv, g, ...ctx.landing);
     if (look.fireflies) D.fireflies(cv, g, P[look.fireflies]);
+    if (options.gate === false) return { cv, stray, shade: P.dark[0] };
     return { cv, gate: buildGate(D.gateDirection(layout), palette), direction: D.gateDirection(layout), stray, shade: P.dark[0] };
 }
 
+/** --act N (one act map), --map id (one content map), --content (every content map), else all of them. */
+function wanted(args) {
+    const flag = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+    const act = flag('--act') === null ? null : Number(flag('--act')), id = flag('--map'), content = args.includes('--content');
+    return row => (act === null || row.look === act) && (!id || row.id === id) && (!content || typeof row.look === 'string');
+}
 function main() {
-    const args = process.argv.slice(2), only = args.includes('--act') ? Number(args[args.indexOf('--act') + 1]) : null;
+    const args = process.argv.slice(2);
     const write = args.includes('--write'), out = write ? path.join(root, 'assets/exploration') : path.join(root, 'artifacts/act-maps');
     fs.mkdirSync(out, { recursive: true });
     const backdrops = JSON.parse(vm.runInContext('JSON.stringify(ACT_EXPLORATION_BACKDROPS)', buildGameRuntime()));
-    for (const layout of readLayouts().filter(row => !only || row.act === only)) {
+    for (const layout of readLayouts().filter(wanted(args))) {
         const started = Date.now(), { cv, gate, direction, stray, shade } = build(layout);
-        const name = `act${layout.act}-r${layout.rotation}`;
+        const name = typeof layout.look === 'number' ? `act${layout.look}-r${layout.rotation}` : `${layout.id}-r${layout.rotation}`;
         fs.writeFileSync(path.join(out, `${name}-map.png`), encodePng(cv.px, cv.w, cv.h));
         fs.writeFileSync(path.join(out, `${name}-gate.png`), encodePng(gate.rgb, gate.w, gate.h, gate.alpha));
         const expected = backdrops[layout.id]?.views[layout.rotation]?.gateOffset || [], same = expected[0] === gate.offset[0] && expected[1] === gate.offset[1];
         const rgb = [(shade >> 16) & 255, (shade >> 8) & 255, shade & 255];
-        console.log(`액트 ${layout.act}-${layout.rotation} ${LOOKS[layout.act].title}: ${cv.w}×${cv.h}, 관문 ${direction} ${JSON.stringify(gate.offset)}${same ? '' : ` (등록값 ${JSON.stringify(expected)}과 다름)`}, 어둠 [${rgb}], 벽에 걸친 소품 ${stray}, ${Date.now() - started}ms`);
+        console.log(`${name} ${LOOKS[layout.look].title}: ${cv.w}×${cv.h}, 관문 ${direction} ${JSON.stringify(gate.offset)}${same ? '' : ` (등록값 ${JSON.stringify(expected)}과 다름)`}, 어둠 [${rgb}], 벽에 걸친 소품 ${stray}, ${Date.now() - started}ms`);
     }
     console.log(write ? '→ assets/exploration/ 에 썼습니다.' : `→ 미리보기: ${path.relative(root, out)}/ (게임에 넣으려면 --write)`);
 }
 
-main();
+if (require.main === module) main();
+module.exports = { build };

@@ -23,6 +23,11 @@ function normalizeUiScale(value) {
     return [80, 90, 100, 110, 125, 150, 175, 200, 225, 250].includes(number) ? number : 100;
 }
 
+/** 글꼴: 'auto'(기본 — 소수 배율 PC 화면만 일반 글꼴), 'pixel'(도트 글꼴), 'smooth'(일반 글꼴). js/ui-display.js가 적용한다. */
+function normalizeUiFont(value) {
+    return value === 'pixel' || value === 'smooth' ? value : 'auto';
+}
+
 
 if (!Array.prototype.includes) {
     Array.prototype.includes = function(search, start) {

@@ -112,7 +112,8 @@ const ATLAS = Object.freeze({
     encounters: Object.freeze({
         breach: Object.freeze({ name: '공허 균열', chance: 8, packExtra: 4, prefix: '공허의', enemy: Object.freeze({ hp: 2, damage: 1.3, attack: 1.25, exp: 2 }),
             rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3 }),
-        hive: Object.freeze({ name: '벌집', chance: 8, packExtra: 3, names: Object.freeze(['벌집 전투벌', '정예 수호벌']), enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
+        // 정예 수호벌은 벌집 세트에서 같은 이름의 그림(hive-guard)을 쓴다(2026-10-07 검토: 여왕 근위벌 그림이라 외형 기록의 이름이 달랐다).
+        hive: Object.freeze({ name: '벌집', chance: 8, packExtra: 3, names: Object.freeze(['벌집 전투벌', '정예 수호벌']), visuals: Object.freeze(['hive-worker', 'hive-guard']), enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
             rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15 }),
         treasure: Object.freeze({ name: '보물 방', chance: 10, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5 }),

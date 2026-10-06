@@ -33,12 +33,20 @@ const STUMP_BOX_GROWTH = Object.freeze({
     sproutAt: 0.5
 });
 
-// 전용 드랍: 함을 얻은 뒤 모든 처치에서 장비 드랍과 따로 굴린다. 색은 고르게, 계열은 씨앗 60% · 수액 40%.
+// 전용 드랍: 함을 얻은 뒤 모든 처치에서 장비 드랍과 따로 굴린다. 계열은 씨앗 60% · 수액 40%.
+// 색(2026-10-06): 절반은 판에 놓인 것들의 색에서(놓인 개수만큼 무겁게), 나머지는 네 색에서 고르게 고른다.
+// 네 색을 고르게만 굴리면 넷 가운데 셋이 지금 판과 상관없는 색이라, 판이 오래 비어 있었다.
 const STUMP_BOX_DROPS = Object.freeze({
     chance: Object.freeze({ normal: 0.004, elite: 0.04, boss: 0.35 }),
     sapShare: 0.4,
+    boardColorShare: 0.5,
     roll: Object.freeze({ min: 0.8, max: 1.2 })
 });
+// 거름(2026-10-06): 보관함의 씨앗 · 수액 하나를 판에 뿌리면 사라지고, 판에서 자라는 것(억제되지 않은 미성숙품과 잠든 부적)
+// 모두가 growth × 품질만큼 자란다. 보관함이 가득 찬 채 떨어진 씨앗 · 수액도 버려지지 않고 거름이 된다.
+// 쓸 데 없던 다른 색 드랍이 판을 앞당기는 재료가 되고, 새 루프에 다시 키우는 시간을 플레이어가 줄일 수 있다.
+// 100은 보통 처치 100번이다(씨앗 하나 400, 수액 500).
+const STUMP_BOX_COMPOST = Object.freeze({ growth: 100 });
 // 보관된 씨앗 · 수액의 품질 범위. 드랍은 위 roll 범위로 굴리고, 조합창 합치기만 130%까지 올린다(data/stump-cube.js).
 const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 
@@ -90,5 +98,5 @@ const STUMP_BOX_STAGES = Object.freeze({
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
-    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
+    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
 });

@@ -21,14 +21,21 @@ const levelProgressionUi = (() => {
     function area(zone) {
         return `Lv.${levelProgression.areaLevel(zone)}`;
     }
-    function rewardHint(zone, compact = false) {
+    /** Area level and the experience / ordinary drop percentages an ordinary enemy of the zone gives at the hero's level. */
+    function rewardRates(zone) {
         const enemy = { level: levelProgression.areaLevel(zone) };
-        const xp = Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience') * 100);
-        const loot = Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level) * 100);
-        if (compact) {
-            return xp < 100 || loot < 100 ? '보상 감소' : '';
-        }
-        return `${area(zone)} · 일반 적 기준 경험치 ${xp}% · 일반 드랍 ${loot}%`;
+        return { level: enemy.level, xp: Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience') * 100),
+            loot: Math.round(levelProgression.rewardMultiplier(zone, enemy, game.level) * 100) };
+    }
+    /** The map card badge: '보상 감소' when an ordinary enemy gives under 100% experience or drops, else ''. */
+    function rewardHint(zone) {
+        const { xp, loot } = rewardRates(zone);
+        return xp < 100 || loot < 100 ? '보상 감소' : '';
+    }
+    /** data-* attributes the 권장 전투력 tooltip reads (js/ui.js buildMapRewardRow). */
+    function rewardData(zone) {
+        const { level, xp, loot } = rewardRates(zone);
+        return `data-area-level="${level}" data-reward-xp="${xp}" data-reward-loot="${loot}"`;
     }
     function decorateSlots(root) {
         const disabled = combatEquipmentStats.evaluate(game).disabled;
@@ -41,5 +48,5 @@ const levelProgressionUi = (() => {
             badge.textContent = '조건 부족'; badge.title = reason.join(' · ');
         });
     }
-    return Object.freeze({ item, area, rewardHint, decorateSlots });
+    return Object.freeze({ item, area, rewardHint, rewardData, decorateSlots });
 })();

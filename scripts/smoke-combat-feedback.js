@@ -35,12 +35,9 @@ run(`feedback.begin(1000);feedback.contact(feedbackCtx,{...hit,dot:true},60,posi
 assert.equal(rectangles.length,0,'damage over time and blocked hits never produce contact marks');
 run(`for(let i=0;i<200;i++)feedback.death(feedbackCtx,{enemyId:i,boss:true},.3,{x:50,y:50});`);
 assert.equal(rectangles.length,100,'death chips are bounded independently of enemy count');
-// One banner, priority and expiry. A long-running kill counter is intentionally absent.
+// One banner (boss kills only), priority and expiry. Several ordinary kills at once show no banner (2026-10-06).
 run(`for(let i=0;i<5;i++)feedback.observe({type:'enemyDeath',enemyId:i,start:1000},1000);feedback.screen(feedbackCtx,area);`);
-assert.deepEqual(words,['5마리 처치']);
-words=[];
-run(`feedback.observe({type:'enemyDeath',enemyId:4,start:1000},1000);feedback.screen(feedbackCtx,area);`);
-assert.deepEqual(words,['5마리 처치'],'duplicate victims never increase the count');
+assert.deepEqual(words,[],'a pack of ordinary kills shows no kill-count banner');
 words=[];
 run(`feedback.observe({type:'enemyDeath',boss:true,name:'🔥 뿌리의 수호자',start:1000},1000);
     feedback.observe({type:'enemyDeath',enemyId:99,start:1000},1000);feedback.screen(feedbackCtx,area);`);

@@ -2,7 +2,7 @@
  * Lives on the existing canvas FX owner; battleFx remains the sole event queue. */
 worldTreeSkillFx.feedback = (() => {
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let epoch = -1, sceneState = null, lastNow = 0, notice = null, kills = [], nextPackAt = 0;
+    let epoch = -1, sceneState = null, lastNow = 0, notice = null;
     let contacts = 0, fragments = 0;
     const reduced = () => motion.matches;
 
@@ -26,10 +26,9 @@ worldTreeSkillFx.feedback = (() => {
         if (sceneState !== battleVisualState || epoch !== battleVisualState.lootEpoch || now < lastNow) {
             sceneState = battleVisualState;
             epoch = battleVisualState.lootEpoch;
-            notice = null; kills = []; nextPackAt = 0;
+            notice = null;
         }
         lastNow = now; contacts = 0; fragments = 0;
-        kills = kills.filter(row => now - row.start <= 450);
         if (notice && now >= notice.start + notice.duration) notice = null;
     }
 
@@ -117,25 +116,10 @@ worldTreeSkillFx.feedback = (() => {
         eventCues[fx.type]?.(fx);
     }
 
+    // 띠는 보스 처치만: 여러 마리를 한꺼번에 잡을 때 뜨던 "N마리 처치"는 밋밋해 뺐다(2026-10-06 사용자 요청).
     function deathNotice(fx, now) {
-        if (fx.boss) {
-            notice = { text: '보스 처치', detail: stripDecorativeEmoji(fx.name || ''), start: now, duration: 1850, boss: true };
-            kills = []; nextPackAt = now + 2000;
-            return;
-        }
-        if (kills.some(row => row.enemyId === fx.enemyId)) return;
-        kills.push({ enemyId: fx.enemyId, start: fx.start });
-        if (kills.length > 32) kills.shift();
-        packNotice(now);
-    }
-
-    function packNotice(now) {
-        if (kills.length < 3 || notice?.boss) return;
-        if (notice && !notice.boss && now - notice.start < 450) notice.text = `${kills.length}마리 처치`;
-        else if (now >= nextPackAt) {
-            notice = { text: `${kills.length}마리 처치`, detail: '', start: now, duration: 850, boss: false };
-            nextPackAt = now + 1800;
-        }
+        if (!fx.boss) return;
+        notice = { text: '보스 처치', detail: stripDecorativeEmoji(fx.name || ''), start: now, duration: 1850 };
     }
 
     function contactStyle(fx) {
@@ -213,16 +197,16 @@ worldTreeSkillFx.feedback = (() => {
         const t = (area.now - notice.start) / notice.duration;
         const alpha = Math.min(1, t * 10, (1 - t) * 5);
         const x = Math.round(area.width / 2), y = Math.round(area.height * .19);
-        const width = Math.min(area.width - 32, notice.boss ? 300 : 150);
+        const width = Math.min(area.width - 32, 300);
         ctx.save();
         ctx.globalAlpha = Math.max(0, alpha);
         ctx.fillStyle = 'rgba(12,13,16,.86)';
-        ctx.fillRect(x - width / 2, y - 21, width, notice.boss ? 60 : 34);
+        ctx.fillRect(x - width / 2, y - 21, width, 60);
         ctx.fillStyle = '#a88b51';
         ctx.fillRect(x - width / 2, y - 21, width, 1);
-        ctx.fillRect(x - 20, y + (notice.boss ? 38 : 12), 40, 1);
+        ctx.fillRect(x - 20, y + 38, 40, 1);
         ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        ctx.font = `${notice.boss ? 22 : 16}px ${BATTLE_PIXEL_FONT}`;
+        ctx.font = `22px ${BATTLE_PIXEL_FONT}`;
         ctx.fillStyle = '#f1d69b'; ctx.fillText(notice.text, x, y + 2);
         if (notice.detail) {
             ctx.font = `14px ${BATTLE_PIXEL_FONT}`;

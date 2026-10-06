@@ -30,6 +30,15 @@ assert(ailment.includes('combat-log-icon--cold'), 'ailments must use the matchin
 const dealt = context.decorateCombatLogMessage('⚔️ 25 피해', 'attack-player', { logIcon:'attack' });
 assert(dealt.includes('combat-log-icon--attack'), 'damage dealt by the player must use the sword icon');
 
+// 치명타는 줄 색(attack-player)을 그대로 두고 피해 숫자만 칠한다(2026-10-06 사용자: "치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?").
+const crit = context.decorateCombatLogMessage('🩸 기본 공격으로 수호자 12호에게 12 피해', 'attack-player', { logIcon:'attack', critValue:'12' });
+assert(crit.endsWith('기본 공격으로 수호자 12호에게 <span class="combat-log-crit">12</span> 피해'), `a crit colours only its damage number: ${crit}`);
+const plainHit = context.decorateCombatLogMessage('🩸 기본 공격으로 수호자 12호에게 12 피해', 'attack-player', { logIcon:'attack', critValue:'' });
+assert(!plainHit.includes('combat-log-crit'), 'an ordinary hit marks no number');
+const layoutCss = fs.readFileSync('css/layout.css', 'utf8');
+assert(/\.combat-log-crit\s*\{\s*color:/.test(layoutCss) && !layoutCss.includes('.attack-crit'), 'the crit colour lives on the number, not on a whole line');
+assert(!fs.readFileSync('js/combat.js', 'utf8').includes("'attack-crit'"), 'combat no longer writes whole orange crit lines');
+
 const item = context.decorateCombatLogMessage('🎁 [가지 지팡이] 획득!', 'loot-rare', {
   item:{ name:'가지 지팡이', slot:'무기' }
 });

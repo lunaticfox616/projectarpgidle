@@ -1027,17 +1027,17 @@ function getAutoProgressZoneId(fallbackZoneId) {
 
 // 세계수 아틀라스 지도는 등급이 정한 혼돈 깊이 · 루프에서 같은 배율을 받는다(js/atlas.js buildZone).
 function getAbyssMonsterScales(zone) {
-    if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth, zone.fixedSeason);
+    if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth);
     if (!zone || zone.type !== 'abyss') return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
     let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
     // 심화 혼돈(21+) 기록은 심화 구간에서만 난이도에 반영한다.
     // 새 루프의 혼돈 1~20에 과거 심화층 배율이 섞이면 난이도가 비정상적으로 급등한다.
     let endlessDepth = depth <= 20 ? depth : Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
-    return getChaosDepthScales(endlessDepth, game.season || 1);
+    return getChaosDepthScales(endlessDepth);
 }
 
-/** Monster scales at a chaos depth (21+ = deep chaos) in a given loop. */
-function getChaosDepthScales(endlessDepth, season) {
+/** Monster scales at a chaos depth (21+ = deep chaos). The loop's share lives in the shared loop curves (js/combat.js), not here. */
+function getChaosDepthScales(endlessDepth) {
     let endlessOver = Math.max(0, endlessDepth - 20);
     let endlessMul = 1;
     if (endlessOver > 0) {
@@ -1045,17 +1045,16 @@ function getChaosDepthScales(endlessDepth, season) {
         let smoothBand = Math.max(0, endlessOver - 10);
         endlessMul = Math.pow(ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL, steepBand) * Math.pow(1.06, smoothBand);
     }
-    // 루프 30 이후에는 원시 스탯 인플레이션을 동결한다 — 이후의 도전은 스탯 상승이 아니라
-    // 루프 조건 세분화(대체 경로, data/maps.js LOOP_GATE_*)로 제공한다.
-    let postLoopOver = Math.min(20, Math.max(0, Math.floor(season - 10)));
-    let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
+    // 루프 11~30에 혼돈에만 붙던 생명력 +4% · 피해 +5% · 받는 피해 +3%(루프당)는 뺐다(2026-10-06): 같은 루프의 액트보다 혼돈만
+    // 한꺼번에 몇 배 세지는 원인이었다. 루프 몫은 모든 지역이 같은 곡선(data/maps.js MONSTER_LOOP_HP_CURVE)으로 받고,
+    // 여기에는 층(레벨)에 따른 몫만 남긴다.
     return {
-        dmgMul: postLoopDifficultyMul,
-        hpMul: endlessMul * (postLoopOver > 0 ? (1 + postLoopOver * 0.04) : 1),
+        dmgMul: 1 + endlessOver * 0.022,
+        hpMul: endlessMul,
         hordeMul: 1,
         dropMul: 1,
         expMul: 1,
-        playerTakenMul: 1 + Math.min(10, endlessOver) * ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03,
+        playerTakenMul: 1 + Math.min(10, endlessOver) * ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR + Math.max(0, endlessOver - 10) * 0.012,
         playerDamageMul: 1,
         resistBonus: 0,
         eliteBonus: 0,
@@ -2157,6 +2156,8 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         uiScale: 100,
+        /** 'auto' | 'pixel' | 'smooth' (normalizeUiFont) */
+        uiFont: 'auto',
         uiSkin: 'rift',
         iconArtStyle: 'pixel',
         highContrast: false,
