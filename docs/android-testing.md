@@ -1,12 +1,22 @@
 # Android 시험판
 
+## 현재 소스와 빌드 (2026-10-06, main `4fd7c494` 대조)
+
+`npm run android:sync`는 `build:mobile` 후 Capacitor Android 동기화를 실행한다.
+`capacitor.config.json`의 앱 ID는 `com.rignin.game`, 웹 산출물은 `www/`다.
+현재 Gradle 소스는 versionName `0.3.1-test.4`, versionCode 4, min SDK 24, target/compile SDK 36이다.
+이 문서 정리에서 APK를 새로 빌드·설치하거나 인증·실기기 성능을 검증하지 않았다.
+아래 test.1~3 APK·인증서·검사 결과는 당시 산출물 기록이며 최신 배포 여부를 뜻하지 않는다.
+
+## 과거 시험판 설치·검증 기록
+
 대상: 사용자의 Galaxy S24+, Android 16. 게임 파일을 포함한 Capacitor APK이며 웹 패치가
 자동으로 반영되지 않는다. 이번 APK는 개인 설치·검증용으로, 스토어 출시 빌드가 아니다.
 웹과 앱은 같은 도메인 코드·저장 형식을 사용한다. 앱의 로컬 저장소는 웹 브라우저와 별개다.
 
 ## 설치 및 업데이트
 
-- 최신 산출물: `artifacts/android/RIGNIN-android16-test.3.apk`, 옆의 SHA-256 파일로 무결성 확인.
+- 당시 test.3 산출물: `artifacts/android/RIGNIN-android16-test.3.apk`, 옆의 SHA-256 파일로 무결성 확인.
 - 휴대폰으로 APK를 옮긴 후 파일 앱에서 열어 설치한다. 요청되는 경우 해당 파일 앱의
   '출처를 알 수 없는 앱 설치'를 허용한다.
 - 같은 서명으로 만든 후속 APK는 덮어 설치한다. 삭제 후 재설치하면 게스트 저장이 사라진다.

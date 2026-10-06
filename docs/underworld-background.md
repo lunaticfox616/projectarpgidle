@@ -1,5 +1,8 @@
 # 지하계 배경
 
+**작업 이력.** 아래 구현·수치·검증은 작성 당시 기록이며 현재 전체 상태를 보장하지 않는다.
+현재 지하계 지도 연결은 [콘텐츠 지도](atlas-pinnacles-20261002.md)를 따른다.
+
 - 최종 자산: `assets/background/underworld-sanctuary.webp`, 816×624, WebP quality 92.
 - 내장 image_gen 사용. 기존 `underworld-v1.webp`는 장소 참조, `world-tree/act01-sanctuary.webp`는 표현·구도 참조.
 - 생성 원본: `C:/Users/pjh46/.codex/generated_images/01a06df1-d5ca-7752-99c9-df8094fca2c1/exec-e9eb9577-d612-4fd2-838b-658ea233e7a3.png`.

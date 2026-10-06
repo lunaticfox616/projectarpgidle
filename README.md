@@ -6,7 +6,8 @@
 
 ## 실행 구조
 
-빌드 단계가 없는 브라우저 JavaScript 게임입니다. `index.html`이 classic script를
+브라우저 JavaScript 게임입니다. 개발 서버는 `npm run dev`, 웹 배포 빌드는 `npm run build`입니다.
+CSS는 `css/main.css`에서 PostCSS로 번들링해 `dist/`에 출력합니다. JavaScript는 `index.html`이 classic script를
 순서대로 로드하며, 그 순서와 명시적으로 노출된 전역이 런타임 계약입니다.
 모듈 import/export 구조로 가정하지 마세요. 모바일 패키지는 이 웹 게임을
 Capacitor로 감쌉니다.
@@ -17,7 +18,8 @@ Capacitor로 감쌉니다.
 | `data/` | 게임 상수, 콘텐츠, 맵 정의 |
 | `js/utils.js`, `js/state.js` | 공용 도구, 런타임 상태와 초기화 |
 | `js/save.js`, `js/save-migrations.js` | 저장·복원과 이전 저장 데이터 이관 |
-| `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-cube.js` | 장비·스킬·패시브·코어 큐브 규칙 |
+| `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-items.js` | 장비·스킬·패시브·장착 코어 규칙 |
+| `js/stump-box.js`, `js/stump-cube.js` | 그루터기 함 배치·성장·접붙이기, 조합창 |
 | `js/combat-grid.js`, `js/combat-clock.js`, `js/combat-replay.js`, `js/combat.js` | 전장과 전투 진행 |
 | `js/canvas-*.js`, `js/ui.js`, `js/*-ui.js`, `js/main.js` | 그리기, DOM 입력, 최종 시작 흐름 |
 | `assets/`, `css/` | 게임 이미지·소리와 스타일 |
@@ -38,18 +40,21 @@ Capacitor로 감쌉니다.
 ```powershell
 npm test                    # scripts/smoke-*.js 전체
 npm run check:architecture  # 런타임 계층·전역·로드 순서 검사
+npm run check:css           # CSS 소유·레이어 검사
+npm run build               # 배포 파일·자산 경로 확인
 npm run test:browser        # tests/browser/ Playwright 검사
 ```
 
-`scripts/`와 `tests/browser/`는 실행 검사 **소스**이며 CI에서도 사용합니다.
+`scripts/`와 `tests/browser/`는 실행 검사 **소스**입니다. 현재 CI는 Node 스모크·구조·CSS·빌드를 검사하며,
+브라우저 검사는 로컬에서 실행합니다([검사 안내](docs/browser-ci.md)).
 생성되는 `debug.log`, `test-results/`, `playwright-report/` 등은 `.gitignore` 대상입니다.
 로컬 의존성·도구 체인이 들어 있는 `node_modules/`, `.npm-cache/`, `artifacts/`는
 삭제 전 참조 여부를 확인하세요.
 
 ## 현재 작업을 이어받을 때
 
-작업 트리에는 진행 중인 변경과 추적되지 않은 파일이 있습니다. 일괄 초기화하지 말고
-관련 기능과 호출부를 검색한 뒤 기존 변경을 이어받으세요. 예를 들어 넓은 맵 탐험은
-[이관 기록](docs/act-exploration-integration.md)에 남아 있고, 그루터기 함은
-[설계안과 구현 메모](docs/stump-cube-game-design.md)에 있습니다(기본 함 구현, 젬 초월·포식 미구현).
-수치는 첫 시안이므로 확정된 게임 규칙으로 취급하지 마세요.
+먼저 `git status --short --branch`로 브랜치와 기존 변경을 확인하세요. 여러 worktree가 있으므로
+다른 사본의 코드·문서·로컬 체험 주소를 이 사본의 현재 상태로 간주하지 않습니다.
+[문서 색인](docs/README.md)에서 해당 기능만 찾아 읽고, 연결된 코드·행동 검사를 대조합니다.
+현재 규칙과 날짜별 설계·측정 이력은 구분합니다. 기록의 테스트 통과 수나 체험 서버 주소는
+당시 결과이며, 현재 실행·배포 상태를 보장하지 않습니다.
