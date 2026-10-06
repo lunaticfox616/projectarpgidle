@@ -2,6 +2,14 @@
   "objective": "최신 main 기준 실제 플레이, 문제 수정, 테마별 동일 기준 평가, 평균 90점 이상",
   "base": "b8e7dde4",
   "branch": "codex/main-playtest-polish-20261006",
+  "prIntegration": {
+    "branch": "codex/main-playtest-pr-20261006",
+    "base": "7ceec473bd4bb6e2d82d29259bf2126c48a37648",
+    "mergedPrerequisite": 1041,
+    "scope": "Reapplied the six playtest-fix commits onto main after #1041. Currency floor pickup remains intact; no loot, combat or commerce balance changes.",
+    "validation": "285/285 smoke checks passed in 47.8 seconds; architecture, CSS and build checks passed after integration.",
+    "limitation": "The scores and browser evidence below describe the original playtest baseline and fixes. They were not reassessed for the currency floor-pickup change in #1041."
+  },
   "status": "complete",
   "scoring": {
     "kind": "evidence-backed reviewer assessment, not a measured player satisfaction score",
