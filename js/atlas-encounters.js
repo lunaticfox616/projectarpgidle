@@ -47,6 +47,9 @@ const atlasEncounters = (() => {
         enemy.atkMul = (Number(enemy.atkMul) || 1) * mul.attack;
         enemy.expMul = (Number(enemy.expMul) || 1) * mul.exp;
         enemy.name = rule.names ? rule.names[Number(!!enemy.isElite)] : `${rule.prefix} ${enemy.name}`;
+        // A room with its own look (the hive's bees) draws that sheet; its attack follows the picture (assigned on the first tick).
+        if (rule.visuals) Object.assign(enemy, { monsterVisualSetId: null, monsterVisualId: rule.visuals[Number(!!enemy.isElite)],
+            spriteVariantId: null, monsterArchetype: null });
         enemy.atlasEncounter = type;
         return enemy;
     }

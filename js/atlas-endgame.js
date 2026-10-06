@@ -118,6 +118,7 @@ const atlasEndgame = (() => {
         const art = echo ? echo[1] : (Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct);
         enemy.name = `👿 ${zone.bossStageNames[stage]}`;
         enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
+        if (row.bodyVisual) Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: null });
         enemy.bossVisualTint = isEcho ? 200 : null;
         enemy.patternMode = 'apex';
         enemy.apexMechanic = body.mechanic;

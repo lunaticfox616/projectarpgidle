@@ -68,6 +68,27 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
             ['ocean-leviathan', '해구 레비아탄', 'boss', 'ranged']
         ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
     }),
+    // 벌집 원정과 군락지(2026-10-06): 예전엔 벌 그림이 없어 이름만 바꾼 부제사 · 위습 · 뿌리와 붉은 악마 보스로 보였다.
+    hive: Object.freeze({
+        id: 'hive',
+        zoneTypes: Object.freeze(['beehive']),
+        members: Object.freeze([
+            ['hive-worker', '벌집 전투벌', 'normal', 'melee'], ['hive-drone', '벌집 수벌', 'normal', 'melee'],
+            ['hive-scout', '벌집 정찰벌', 'normal', 'ranged'], ['hive-nurse', '꿀주머니 벌', 'normal', 'ranged'],
+            ['hive-guard', '정예 수호벌', 'elite', 'melee'], ['hive-royal', '여왕 근위벌', 'elite', 'melee'],
+            ['hive-queen', '벌집 여왕', 'boss', 'ranged']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
+    colony: Object.freeze({
+        id: 'colony',
+        zoneTypes: Object.freeze(['colony']),
+        members: Object.freeze([
+            ['act5-ant', '군락 일개미', 'normal', 'melee'], ['act4-ant', '군락 병정개미', 'normal', 'melee'],
+            ['act3-worm', '군락 굴착벌레', 'normal', 'melee'], ['act5-worm', '군락 천공벌레', 'normal', 'melee'],
+            ['hive-guard', '군락 수호벌', 'elite', 'melee'], ['underworld-beetle', '군락 갑충', 'elite', 'melee'],
+            ['hive-queen', '군락지 지배체', 'boss', 'ranged']
+        ].map(([id, name, role, attack]) => Object.freeze({ id, name, role, attack })))
+    }),
     sky: Object.freeze({
         id: 'sky',
         zoneTypes: Object.freeze(['skyTower']), pinnacleTracks: Object.freeze(['sky']),

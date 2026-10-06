@@ -255,6 +255,9 @@ const adaptiveVfx = JSON.parse(vm.runInContext(`JSON.stringify((() => {
 assert.ok(adaptiveVfx.pressured < 0.7, 'slow crowded frames must lower cosmetic VFX density');
 assert.ok(adaptiveVfx.recovered > adaptiveVfx.pressured && adaptiveVfx.recovered <= 1,
   'VFX density must recover gradually when the battlefield becomes cheap again');
+// Boss names lose every colour emoji (the pixel font shows a broken box): the beehive queen's crown did (2026-10-06).
+assert.strictEqual(vm.runInContext(`getEnemyDisplayName({ name: '👑 벌집 여왕' }) + '|' + getEnemyDisplayName({ name: '👿 열린 공허의 군주' })`, context),
+  '벌집 여왕|열린 공허의 군주', 'enemy names drop colour emoji');
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
 assert.strictEqual(Math.abs(shake.x) + Math.abs(shake.y), 0, 'camera shake toggle should fully disable translation');
 const impactFeedback = vm.runInContext(`(() => {
