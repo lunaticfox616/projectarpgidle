@@ -67,6 +67,15 @@ body[data-ui-skin] {
   overflow-wrap: break-word;
 }
 
+/* 일반 글꼴(설정 "글꼴", 자동이면 소수 배율 PC 화면 — js/ui-display.js applyFont): 도트 글꼴 변수만 IBM Plex Sans KR로 바꾼다.
+   겹쳐 찍기 굵게(--px-text-bold)는 1px 옆에 한 번 더 찍는 도트 기법이라 일반 글꼴에서는 번져 보여 그림자만 남긴다. */
+:root body[data-ui-skin].ui-font-smooth {
+  --font-pixel: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  --font-pixel-read: var(--font-pixel);
+  --font-pixel-title: var(--font-pixel);
+  --px-text-bold: 1px 1px 0 #000;
+}
+
 /* 좁은 화면과 가로로 눕힌 휴대폰(높이 600px 이하)은 테를 반 굵기로: 가로 휴대폰은 폭이 760px를 넘어도 높이가 293 ~ 393px뿐이다 */
 @media (max-width: 760px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) { body[data-ui-skin] { --px-window-border: 13px; --px-plate-border: 13px; } }
 /* 세로로 쌓는 배치(1080px 이하 — 태블릿 · 좁은 PC 창 포함)의 HUD 돌판 · 하단 메뉴 띠도 반 굵기: 26px 테가 판 위로 26px 솟아

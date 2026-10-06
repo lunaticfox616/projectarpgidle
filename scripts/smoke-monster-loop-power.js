@@ -9,33 +9,48 @@ const run = source => vm.runInContext(source, runtime);
 run(`game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior'});window.game=game;Math.random=()=>0.99;`);
 const close = (actual, expected, label) => assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} vs ${expected}`);
 
-// 곡선: 점 위의 값, 점 사이 직선, 앞뒤는 끝 값.
-close(run(`interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE.hp, 1)`), 1, 'loop 1 keeps monsters as they were');
+// 곡선: 점 위의 값, 점 사이 직선, 앞뒤는 끝 값. 피해와 루프를 타지 않는 지역의 생명력은 보정 곡선(MONSTER_LOOP_POWER_SCALE)을 쓴다.
 close(run(`interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE.hp, 2)`), 0.975, 'between loops 1 and 3');
-close(run(`interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE.hp, 7)`), 0.8, 'star wedges opened at loop 7');
-close(run(`interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE.hp, 80)`), 0.62, 'after the last point');
 close(run(`interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE.damage, 100)`), 0.6, 'damage at loop 100');
 close(run(`interpolateLoopCurve([], 10)`), 1, 'no curve, no change');
 
-// 액트 지역은 액트 루프 상한을 따르고, 생명력 · 피해 · 권장 전투력이 같은 배율을 쓴다.
-const actual = JSON.parse(run(`(() => {
-    game.season = 26; game.loopCount = 25;
-    const zone = getZone(9);
-    const scale = { hp: getMonsterLoopPowerScale(zone, 'hp'), damage: getMonsterLoopPowerScale(zone, 'damage') };
-    const real = { hp: createEnemy(zone, { at: 25 }, 0).maxHp, hit: getMonsterBaseHitDamage(zone, 1, 0.5, null), estimate: estimateMapZonePowerRequirements(zone) };
-    const keep = getMonsterLoopPowerScale;
-    getMonsterLoopPowerScale = () => 1;
-    const raw = { hp: createEnemy(zone, { at: 25 }, 0).maxHp, hit: getMonsterBaseHitDamage(zone, 1, 0.5, null), estimate: estimateMapZonePowerRequirements(zone) };
-    getMonsterLoopPowerScale = keep;
-    return JSON.stringify({ scale, inputs: getLoopDifficultyInputs(zone), cap: ACT_LOOP_SCALE_CAP, real, raw });
+// 생명력 루프 배율(2026-10-06 재조율, MONSTER_LOOP_HP_CURVE): 루프 1은 그대로, 지역 단계와 무관한 한 곡선이라 같은 루프면 어느 지역이든
+// 같은 비율로 세진다. 액트는 상한(루프 21) 뒤로 고정, 혼돈은 층마다 2루프씩 지금 루프까지 따라붙는다.
+const life = JSON.parse(run(`(() => {
+    const hp = (id, season) => { game.season = season; game.loopCount = season - 1; return createEnemy(getZone(id), { at: 0, count: 1 }, 0).maxHp; };
+    const chaos1 = getAbyssZoneIdForDepth(1), chaos5 = getAbyssZoneIdForDepth(5);
+    const lastAct = Object.keys(MAP_ZONES).map(Number).filter(id => MAP_ZONES[id] && MAP_ZONES[id].type === 'act').sort((a, b) => a - b).pop();
+    const rows = {};
+    for (const season of [1, 10, 21, 30, 41]) rows[season] = { act3: hp(2, season), act10: hp(lastAct, season), chaos1: hp(chaos1, season), chaos5: hp(chaos5, season) };
+    game.season = 30; game.loopCount = 29;
+    return JSON.stringify({ rows, curve10: interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 10), curve21: interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 21),
+        curve23: interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 23), curve30: interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, 30),
+        chaos1Loops: getLoopDifficultyInputs(getZone(chaos1)).seasonLoops, chaos5Loops: getLoopDifficultyInputs(getZone(chaos5)).seasonLoops,
+        chaosDepthHp: getChaosDepthScales(5).hpMul, chaosDepthTaken: getChaosDepthScales(5).playerTakenMul });
 })()`));
-assert.equal(actual.inputs.seasonLoops, Math.min(actual.cap, 25), 'acts use the act loop cap');
-close(actual.scale.hp, run(`interpolateLoopCurve(MONSTER_LOOP_POWER_SCALE.hp, ${actual.inputs.seasonLoops + 1})`), 'act zone life scale');
-assert.ok(actual.scale.hp < 1 && actual.scale.damage < 1, 'a loop 26 act is softened');
-assert.ok(Math.abs(actual.real.hp / actual.raw.hp - actual.scale.hp) < 0.01, 'monster life follows the curve');
-assert.ok(Math.abs(actual.real.hit / actual.raw.hit - actual.scale.damage) < 0.05, 'monster damage follows the curve');
-assert.ok(actual.raw.estimate && actual.real.estimate, 'the act zone has a readiness estimate');
-assert.ok(JSON.stringify(actual.real.estimate) !== JSON.stringify(actual.raw.estimate), 'the readiness estimate uses the same curve');
+const near = (actual, expected, tolerance, label) => assert.ok(Math.abs(actual / expected - 1) < tolerance, `${label}: ${actual} vs ${expected}`);
+const { rows } = life;
+near(rows[10].act3 / rows[1].act3, life.curve10, 0.02, 'loop 10 act life follows the curve');
+near(rows[10].act3 / rows[1].act3, rows[10].act10 / rows[1].act10, 0.02, 'the loop share is the same at every zone level');
+near(rows[41].act10 / rows[1].act10, life.curve21, 0.02, 'acts stop at their loop cap');
+assert.ok(rows[30].chaos1 / rows[1].chaos1 < 7, `chaos 1 at loop 30 is at most a few times loop 1 (was 27x): ${(rows[30].chaos1 / rows[1].chaos1).toFixed(2)}`);
+for (const season of [1, 10, 21, 30, 41]) {
+    const step = rows[season].chaos1 / rows[season].act10;
+    assert.ok(step > 1.6 && step < 2.1, `act 10 -> chaos 1 stays one step at loop ${season}: ${step.toFixed(2)}x`);
+}
+assert.equal(life.chaos1Loops, 22, 'chaos 1 counts the act cap + 2 loops');
+assert.equal(life.chaos5Loops, 29, 'chaos 5 at loop 30 already takes the full loop');
+near(rows[30].chaos1 / rows[1].chaos1, life.curve23, 0.02, 'chaos 1 at loop 30 uses loop 23 of the curve');
+assert.equal(life.chaosDepthHp, 1, 'chaos depths 1-20 carry no extra loop-only life');
+assert.equal(life.chaosDepthTaken, 1, 'nor extra loop-only damage taken');
+
+// 권장 전투력도 같은 생명력 배율을 쓴다.
+const readiness = JSON.parse(run(`(() => {
+    const zone = getAbyssZoneIdForDepth(10), dps = season => { game.season = season; game.loopCount = season - 1; return estimateMapZonePowerRequirements(getZone(zone)).dps; };
+    const hp = season => { game.season = season; game.loopCount = season - 1; return createEnemy(getZone(zone), { at: 0, count: 1 }, 0).maxHp; };
+    return JSON.stringify({ dps: dps(30) / dps(1), hp: hp(30) / hp(1) });
+})()`));
+near(readiness.dps, readiness.hp, 0.05, 'the readiness estimate grows with the same life multiplier');
 
 // 루프를 타지 않는 지역(시련)은 플레이어의 루프, 아틀라스 지도는 등급이 정한 루프.
 const scales = JSON.parse(run(`(() => {
@@ -58,20 +73,18 @@ const transcendent = JSON.parse(run(`JSON.stringify([
 assert.deepEqual(transcendent.map(row => row.value), [2, 24, 50, 24]);
 assert.equal(run('STUMP_BOX_GRAFT.pctPerRank'), 10, 'graft +10% per rank');
 
-// 루프당 성장(2026-10-04 소폭 하향, MONSTER_LOOP_GROWTH): 혼돈 20 · 루프 10은 생명력 약 7%, 피해 약 4% 낮다. 나무꾼(루프를 타지 않음)과
-// 우주계(예전 성장 그대로)는 바뀌지 않는다.
+// 피해의 루프당 성장(2026-10-04 소폭 하향, MONSTER_LOOP_GROWTH): 혼돈 20 · 루프 10은 피해 약 4% 낮다. 나무꾼(루프를 타지 않음)과
+// 우주계(예전 생명력 성장 그대로)는 바뀌지 않는다.
 const growth = JSON.parse(run(`(() => {
     game.season = 10; game.loopCount = 9;
     const chaos = getZone(getAbyssZoneIdForDepth(20)), depth = getSoftenedLoopDepth(9);
-    const lowered = getMonsterLoopGrowthScale(chaos, 'hp', depth, 1), oldHp = 1 + depth * (MONSTER_LOOP_GROWTH.fixed.hp.base + MONSTER_LOOP_GROWTH.fixed.hp.tier);
     const dmg = getMonsterLoopGrowthScale(chaos, 'damage', depth, 1), oldDmg = 1 + depth * (MONSTER_LOOP_GROWTH.fixed.damage.base + MONSTER_LOOP_GROWTH.fixed.damage.tier);
     const woodsman = getZone(OUTSIDE_CHAOS_ZONE_ID);
-    return JSON.stringify({ hpRatio: lowered / oldHp, dmgRatio: dmg / oldDmg, woodsmanLoopInputs: getLoopDifficultyInputs(woodsman),
+    return JSON.stringify({ dmgRatio: dmg / oldDmg, woodsmanLoopInputs: getLoopDifficultyInputs(woodsman),
         cosmos: getMonsterLoopGrowthScale({ type: 'cosmos' }, 'hp', 29, 1) === 1 + 29 * (MONSTER_LOOP_GROWTH.fixed.hp.base + MONSTER_LOOP_GROWTH.fixed.hp.tier) });
 })()`));
-assert.ok(growth.hpRatio > 0.9 && growth.hpRatio < 0.95, `chaos 20 at loop 10: life about 7% lower (${growth.hpRatio.toFixed(3)})`);
 assert.ok(growth.dmgRatio > 0.94 && growth.dmgRatio < 0.97, `chaos 20 at loop 10: damage about 4% lower (${growth.dmgRatio.toFixed(3)})`);
 assert.deepEqual([growth.woodsmanLoopInputs.seasonLoops, growth.woodsmanLoopInputs.loopCount], [0, 0], 'the woodsman takes no loop growth');
 assert.equal(growth.cosmos, true, 'cosmos keeps the growth it was tuned on');
 
-console.log('monster loop power curve, life, damage, readiness, exempt and atlas loops, transcendent ranges, lowered loop growth: OK');
+console.log('monster loop life curve (level-consistent, act cap, chaos ramp), damage curve, readiness, exempt and atlas loops, transcendent ranges, damage growth: OK');

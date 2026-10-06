@@ -440,7 +440,7 @@
   min-width: 0;
   max-width: 100%;
 }
-.cfg-select-row #sel-ui-scale { flex: 0 1 180px; width: 180px; }
+.cfg-select-row :is(#sel-ui-scale, #sel-ui-font) { flex: 0 1 180px; width: 180px; }
 .cfg-select {
   background: var(--skin-canvas);
   color: var(--color-text);

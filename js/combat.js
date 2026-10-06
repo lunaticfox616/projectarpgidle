@@ -5742,13 +5742,20 @@ function getLoopDifficultyInputs(zone) {
     if (fixed) return fixed;
     let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos' || !!zone.loopScaleExempt);
     if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
-    let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP
-        : (zone && zone.type === 'cosmos' ? 30 : Infinity);
+    let cap = getLoopScaleCap(zone);
     return {
         exempt: false,
         seasonLoops: Math.min(cap, Math.max(0, (game.season || 1) - 1)),
         loopCount: Math.min(cap, Math.max(0, Math.floor(game.loopCount || 0)))
     };
+}
+
+/** 지역이 세는 루프 상한: 액트 ACT_LOOP_SCALE_CAP, 혼돈은 그 위로 층마다 CHAOS_LOOP_RAMP_PER_DEPTH씩(data/maps.js), 우주계 30, 그 밖은 없음. */
+function getLoopScaleCap(zone) {
+    if (!zone) return Infinity;
+    if (zone.type === 'act') return ACT_LOOP_SCALE_CAP;
+    if (zone.type === 'abyss') return ACT_LOOP_SCALE_CAP + getAbyssDepthFromZoneId(zone.id) * CHAOS_LOOP_RAMP_PER_DEPTH;
+    return zone.type === 'cosmos' ? 30 : Infinity;
 }
 
 // 고정 난이도: 벤치마크 콘텐츠는 루프 30으로, 세계수 아틀라스 지도는 등급이 정한 루프(zone.fixedSeason)로 계산한다.
@@ -5784,6 +5791,21 @@ function getLoopDefenseScale(loopCount) {
 function getMonsterLoopGrowthScale(zone, kind, seasonDepth, tierShare) {
     const growth = (zone && zone.type === 'cosmos' ? MONSTER_LOOP_GROWTH.fixed : MONSTER_LOOP_GROWTH)[kind];
     return 1 + seasonDepth * (growth.base + tierShare * growth.tier);
+}
+/** 우주계 은하와 그 최종 보스(잔향체 아스트라, 벤치마크 cosmosFinal): 노드 등급으로 난이도를 올리는 별도 사다리라 예전 루프 공식을 쓴다. */
+function isCosmosLadderZone(zone) {
+    return !!zone && (zone.type === 'cosmos' || zone.difficultyBenchmark === 'cosmosFinal');
+}
+/** 몬스터 생명력의 루프 배율. 루프를 타는 지역은 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE), 루프를 타지 않는
+ * 지역(시련 등)은 플레이어 루프의 보정 곡선, 우주계는 노드 등급에 맞춰 둔 예전 공식(성장 × 루프 카운트 × 보정)을 쓴다.
+ * 전투(createEnemy)와 권장 전투력(estimateMapZonePowerRequirements)이 같은 값을 쓴다. */
+function getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress) {
+    if (isCosmosLadderZone(zone)) {
+        return getMonsterLoopGrowthScale(zone, 'hp', getSoftenedLoopDepth(loopInputs.seasonLoops), tierProgress)
+            * getLoopHpScale(loopInputs.loopCount) * getMonsterLoopPowerScale(zone, 'hp');
+    }
+    if (loopInputs.exempt) return getMonsterLoopPowerScale(zone, 'hp');
+    return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, loopInputs.seasonLoops + 1);
 }
 /** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
  * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
@@ -5898,13 +5920,9 @@ function createEnemy(zone, marker, groupIndex) {
     zone = levelProgression.combatZone(zone);
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
-    let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
-    let seasonHpScale = getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress);
     let lateGameHpScale = 1 + (tierProgress * 9);
-    let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = getLoopHpScale(loopInputs.loopCount);
-    hp = Math.floor(hp * loopHpScale);
+    let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * lateGameHpScale * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress));
     if (loopScaleExempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
@@ -5939,14 +5957,16 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
     if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
-    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
+    // 정예의 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다. 우주계는 예전 그대로.
+    let eliteLoopShare = getSoftenedLoopDepth(loopInputs.loopCount) * 0.05;
+    if (isElite) hp = Math.floor(hp * (1.4 + (isCosmosLadderZone(zone) ? eliteLoopShare : Math.min(0.3, eliteLoopShare))));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
     hp = Math.floor(hp * underworldEntryTuning.hp * (zone.mapHpMul || 1));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
-    hp = Math.max(1, Math.floor(hp * getMonsterLoopPowerScale(zone, 'hp')));
+    hp = Math.max(1, hp);
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
     let enemyEle = pickEnemyElement(zone, enemyElePool, isBoss);
@@ -6410,10 +6430,8 @@ function estimateMapZonePowerRequirements(zone) {
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
     let hp = ((56 + tier * 30) * 1.15)
-        * getMonsterLoopGrowthScale(zone, 'hp', seasonDepth, tierProgress)
         * (1 + tierProgress * 9)
-        * getLoopHpScale(loopInputs.loopCount)
-        * getMonsterLoopPowerScale(zone, 'hp');
+        * getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress);
     if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
     let abyssScale = getAbyssMonsterScales(zone);
     let contentScale = resolveMapEstimateContentScale(zone);

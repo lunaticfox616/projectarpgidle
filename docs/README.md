@@ -12,7 +12,7 @@
 | 능력치 계산 | [플레이어 능력치 파이프라인](player-stats-pipeline.md) |
 | NPC 가판대 | [현재 거래 규칙과 변경 이력](balance-and-player-stall-20260929.md) |
 | 그루터기 함·조합창 | [현재 구조와 초기 설계 이력](stump-cube-game-design.md), [보조 콘텐츠 통합 이력](aux-consolidation-20260930.md) |
-| 루프 밸런스·경험치 | [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |
+| 루프 밸런스·경험치 | [루프 난이도 곡선 재조율](loop-difficulty-20261006.md), [전투·보상 조정](loop-balance-20261004.md), [몹팩·요구 경험치](pack-balance-20261004.md). 측정치는 해당 실험 조건에 한정 |
 | 저장과 방치 성능 | [방치 성능](offline-performance.md) |
 | 탐험·바닥 줍기 | [현재 보상·진행 계약](act-exploration-integration.md) |
 | 탐험 상자·파괴물 | [클릭 조작, 배치와 후반 사건](exploration-objects-20261005.md) |
