@@ -20,7 +20,9 @@
     "arrow": "81fc3746eb3962bcda4be229be65e98d961f4478264fdf1d932f4c52d52cd9fa",
     "electric-discharge": "6a7580763eaca281c3832df8aefc5431607c0ca4e4ff4e3338af01d91409545c",
     "reward": "c8a334b9502851157475f814968ea6b584b619edf6880560d1ebb14076cefeb4",
-    "thunder-contact": "10ce74483e9ade0d8176bd5c4e220d62365d70865bc74b29c675bdfa17fe7d50"
+    "thunder-contact": "10ce74483e9ade0d8176bd5c4e220d62365d70865bc74b29c675bdfa17fe7d50",
+    "boss-entrance": "0f6ca5fb0f92ee7bc1c1aa81e79f641b39c628f6c2e3323070a26326be7c5fee",
+    "stage-clear": "17e1b33a7fe7b7c7d467bc20e7b1e2e2c78d3f2746d515e7e89fdca09ac8582e"
   },
   "assets": [
     {
@@ -710,20 +712,6 @@
       "sha256": "ec90fb9f28a77e28cc35cce0a8e0424a4cb57fd14d2094b28a41ac8f842e8c9c"
     },
     {
-      "file": "killBoss-a.wav",
-      "source": "reward.wav",
-      "sourceSha256": "c8a334b9502851157475f814968ea6b584b619edf6880560d1ebb14076cefeb4",
-      "sourceStart": 4.873990929705215,
-      "sourceEnd": 6.13,
-      "processing": "onset alignment, duration trim, endpoint fades, level matching; no pitch or EQ",
-      "seconds": 1.2560090702947846,
-      "sampleRate": 44100,
-      "channels": 2,
-      "peak": 0.5126775901428366,
-      "rms": 0.14178150679086046,
-      "sha256": "b016e06ba294b4ea7c70d01405f5bbf69df6ecf775f8de9e08f7358697058b58"
-    },
-    {
       "file": "returnWarp-a.wav",
       "source": "portal-retake.wav",
       "sourceSha256": "a799242fad34ab97e3b5e3a8d0f531ee2193db8a79a7536a089423027d249355",
@@ -736,6 +724,34 @@
       "peak": 0.4651782589552291,
       "rms": 0.13173209157504734,
       "sha256": "33a4bcb3a4beb43b5aee94b21bdeb091fe8edb50cc0dac198e2c48444bb0cff5"
+    },
+    {
+      "file": "bossEntrance-a.wav",
+      "source": "artifacts/audio-production/boss-stage-20261006/boss-entrance-source.wav",
+      "sourceSha256": "0f6ca5fb0f92ee7bc1c1aa81e79f641b39c628f6c2e3323070a26326be7c5fee",
+      "sourceStart": 15.708163265306123,
+      "sourceEnd": 18.808163265306124,
+      "processing": "onset alignment, duration trim, endpoint fades, level matching; no pitch or EQ",
+      "seconds": 3.1,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.4316248676763959,
+      "rms": 0.11565034297353059,
+      "sha256": "a7279aaf34209f11eb87666f04c61f8320a9369c8bea6c83d39e50e46c555e98"
+    },
+    {
+      "file": "stageClear-a.wav",
+      "source": "artifacts/audio-production/boss-stage-20261006/stage-clear-source.wav",
+      "sourceSha256": "17e1b33a7fe7b7c7d467bc20e7b1e2e2c78d3f2746d515e7e89fdca09ac8582e",
+      "sourceStart": 0.0,
+      "sourceEnd": 3.4,
+      "processing": "onset alignment, duration trim, endpoint fades, level matching; no pitch or EQ",
+      "seconds": 3.4,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.624799679191134,
+      "rms": 0.09286008962338213,
+      "sha256": "df015caf6dc13fdd1266dffe9035d7f89e712d7d6f8851cc0cb2434ca8e675f3"
     }
   ]
 }

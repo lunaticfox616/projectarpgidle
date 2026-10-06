@@ -311,9 +311,9 @@
   "killBoss": {
     "label": "보스 처치",
     "files": [
-      "killBoss-a.wav"
+      "kill-a.wav"
     ],
-    "gain": 0.4,
+    "gain": 0.5,
     "rate": 1,
     "group": "boss",
     "cooldown": 1600,
@@ -366,5 +366,27 @@
     "group": "death",
     "cooldown": 160,
     "priority": 1
+  },
+  "bossEntrance": {
+    "label": "보스 등장",
+    "files": [
+      "bossEntrance-a.wav"
+    ],
+    "gain": 0.5,
+    "rate": 1,
+    "group": "bossEntrance",
+    "cooldown": 3000,
+    "priority": 2
+  },
+  "stageClear": {
+    "label": "스테이지 클리어",
+    "files": [
+      "stageClear-a.wav"
+    ],
+    "gain": 0.44,
+    "rate": 1,
+    "group": "stageClear",
+    "cooldown": 3000,
+    "priority": 2
   }
 }

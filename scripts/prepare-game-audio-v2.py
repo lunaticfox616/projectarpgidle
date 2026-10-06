@@ -152,6 +152,8 @@ def write_take(source, region, maximum, filename):
     fade_in, fade_out = (.015, .18) if filename.startswith('levelUp-') else (.0015, .045)
     if filename.startswith('lootMajor-'):
         fade_in, fade_out = .004, 1.1
+    if filename.startswith(('bossEntrance-', 'stageClear-')):
+        fade_in, fade_out = .006, .55
     attack, tail = min(round(rate * fade_in), len(clip)), min(round(rate * fade_out), len(clip))
     clip[:attack] *= np.linspace(0, 1, attack)[:, None]
     clip[-tail:] *= np.linspace(1, 0, tail)[:, None]
@@ -236,12 +238,57 @@ def prepare():
               'sources': {key: value['sha256'] for key, value in sources.items()}, 'assets': assets}
     for name, content in [('bank.json', bank), ('provenance.json', report)]:
         (DEST / name).write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(json.dumps({'files': len(assets), 'bytes': sum((DEST / a['file']).stat().st_size for a in assets),
-                      'durationRange': [min(a['seconds'] for a in assets), max(a['seconds'] for a in assets)]}))
+    prepare_boss_stage()
+
+
+def prepare_boss_stage():
+    """Update only the two new cues, preserving all other samples and their provenance."""
+    folder = ROOT / 'artifacts/audio-production/boss-stage-20261006'
+    bank = json.loads((DEST / 'bank.json').read_text(encoding='utf-8'))
+    report = json.loads((DEST / 'provenance.json').read_text(encoding='utf-8'))
+    # Measured isolated phrases: the third boss warning and first completed clear cadence.
+    cues = [('bossEntrance', 'boss-entrance', 15.6, 19.6, 3.1, '보스 등장', .5, 3000),
+            ('stageClear', 'stage-clear', 0, 4.5, 3.4, '스테이지 클리어', .44, 3000)]
+    replaced = {'killBoss-a.wav', 'bossEntrance-a.wav', 'stageClear-a.wav'}
+    report['assets'] = [row for row in report['assets'] if row['file'] not in replaced]
+    for key, source_key, begin, end, length, label, gain, cooldown in cues:
+        path = folder / f'{source_key}-source.wav'
+        rate, signal = read_wav(path)
+        window = signal[round(begin * rate):round(end * rate)]
+        peak = float(np.max(np.abs(window)))
+        active = np.flatnonzero(np.max(np.abs(window), axis=1) > peak * .035)
+        if not len(active):
+            raise ValueError(f'No audible cue in {path}')
+        start = begin + int(active[0]) / rate
+        source = {'file': str(path.relative_to(ROOT)).replace('\\', '/'),
+                  'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'rate': rate, 'signal': signal}
+        asset = write_take(source, {'audible': start, 'end': min(end, start + length)}, length, f'{key}-a.wav')
+        report['assets'].append(asset)
+        report['sources'][source_key] = source['sha256']
+        bank[key] = {'label': label, 'files': [asset['file']], 'gain': gain, 'rate': 1,
+                     'group': key, 'cooldown': cooldown, 'priority': 2}
+    # A boss dying is a short impact. The full reward phrase belongs to encounter-finished.
+    bank['killBoss'] = {**bank['kill'], 'label': '보스 처치', 'gain': .5,
+                        'group': 'boss', 'cooldown': 1600, 'priority': 2}
+    retired = DEST / 'killBoss-a.wav'
+    if retired.exists():
+        archive = folder / 'retired-killBoss-a.wav'
+        if not archive.exists():
+            archive.write_bytes(retired.read_bytes())
+        retired.unlink()
+    for name, content in [('bank.json', bank), ('provenance.json', report)]:
+        (DEST / name).write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(json.dumps({'updated': [row for row in report['assets'] if row['file'] in replaced]}, ensure_ascii=False))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--prepare', action='store_true')
+    parser.add_argument('--boss-stage', action='store_true')
     args = parser.parse_args()
-    prepare() if args.prepare else inspect()
+    if args.boss_stage:
+        prepare_boss_stage()
+    elif args.prepare:
+        prepare()
+    else:
+        inspect()

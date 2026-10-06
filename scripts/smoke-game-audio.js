@@ -28,24 +28,25 @@ for (const asset of provenance.assets) {
     let firstAudible = Infinity;
     for(let i=44;i<bytes.length;i+=2)if(Math.abs(bytes.readInt16LE(i))>peak*.04){firstAudible=(i-44)/2/asset.channels/asset.sampleRate;break;}
     assert.ok(firstAudible < .045, asset.file+' has no delayed attack');
-    const limit = asset.file === 'levelUp-a.wav' ? 3.3 : asset.file === 'lootMajor-a.wav' ? 2.5 : 1.4;
+    const cueLimits = {'levelUp-a.wav':3.3, 'lootMajor-a.wav':2.5, 'bossEntrance-a.wav':3.2, 'stageClear-a.wav':3.5};
+    const limit = cueLimits[asset.file] || 1.4;
     assert.ok(asset.seconds <= limit);
-    if (asset.file === 'levelUp-a.wav') {
+    if (['levelUp-a.wav', 'bossEntrance-a.wav', 'stageClear-a.wav'].includes(asset.file)) {
         // A zero endpoint alone misses a loud cue abruptly chopped by a tiny fade.
         let tailEnergy = 0, samples = 0;
         for (let i = bytes.length - Math.round(asset.sampleRate * .35) * asset.channels * 2; i < bytes.length; i += 2) {
             tailEnergy += bytes.readInt16LE(i) ** 2; samples++;
         }
         assert.ok(Math.sqrt(tailEnergy / samples) < Math.sqrt(sum / ((bytes.length - 44) / 2)) * .1,
-            'level-up has a quiet resolving tail before it ends');
+            asset.file+' has a quiet resolving tail before it ends');
     }
 }
-assert.ok(total < 4500000, 'short game samples stay below 4.5 MB');
+assert.ok(total < 5500000, 'combat samples plus two complete event cues stay below 5.5 MB');
 for (const entry of Object.values(bank)) {
     for (const file of entry.files) assert.ok(provenance.assets.some(asset => asset.file === file));
 }
 const fileCount = new Set(Object.values(bank).flatMap(entry => entry.files)).size;
-assert.equal(fileCount, 51, 'active attack and event slots exclude the retired ordinary-rare cue');
+assert.equal(fileCount, 52, 'two new event cues replace one retired boss fanfare');
 assert.equal(bank.lootRare, undefined, 'ordinary rare drops have no loaded sample');
 assert.equal(new Set(provenance.assets.map(asset=>asset.sha256)).size,fileCount,'variations contain distinct audio');
 assert.ok(!fs.existsSync('assets/audio/game-sfx-v1'), 'rejected audio is removed from deployment assets');
@@ -117,10 +118,16 @@ async function main() {
     for (const kind of ['chestOpen','potBreak','playerHurt','returnWarp']) play(kind);
     assert.equal(sources.filter(s=>!s.stopped).length,8);
     play('killBoss'); assert.equal(sources.filter(s=>!s.stopped).length,8);
-    assert.equal(sources.at(-1).buffer.file,root+'killBoss-a.wav','boss replaces one ordinary voice');
+    assert.equal(sources.at(-1).buffer.file,root+'kill-a.wav','boss death uses a short impact, not the completion fanfare');
     const beforeBlocked = sources.filter(s=>!s.stopped).slice();
     runtime.playUiFeedbackSound('killBoss');
     assert.deepEqual(sources.filter(s=>!s.stopped),beforeBlocked,'throttled priorities never evict another voice');
+    finish(); now+=4000;
+    runtime.playUiFeedbackSound('bossEntrance');
+    const entranceVoice=sources.at(-1);
+    assert.equal(entranceVoice.buffer.file,root+'bossEntrance-a.wav');
+    for(let i=0;i<12;i++){now+=120;runtime.playUiFeedbackSound('hitPhysical');}
+    assert.equal(entranceVoice.stopped,undefined,'ordinary combat preserves the boss warning tail');
     finish(); now+=2000;
     runtime.playLootDropSound(false);
     runtime.playUiFeedbackSound('lootRare');
@@ -136,7 +143,8 @@ async function main() {
     run('game.settings.uiSounds=false;playUiFeedbackSound.syncSettings();');
     assert.equal(sources.filter(s=>!s.stopped).length,0,'mute stops already playing audio');
     const mutedCount = sources.length;
-    runtime.playUiFeedbackSound('levelUp'); assert.equal(sources.length,mutedCount);
+    for(const cue of ['levelUp','bossEntrance','stageClear'])runtime.playUiFeedbackSound(cue);
+    assert.equal(sources.length,mutedCount);
     run('game.settings.uiSounds=true;playUiFeedbackSound.syncSettings();game.isBackgroundCalculation=true;');
     play('killBoss'); assert.equal(sources.length,mutedCount,'offline calculations are silent');
     run('game.isBackgroundCalculation=false;'); play('levelUp');
@@ -155,9 +163,11 @@ async function main() {
         [{type:'hit',damage:10,element:'cold'},'hitColdBurst'],
         [{type:'playerHit',damage:10},'playerHurt'],
         [{type:'objectReward',objectKind:'pot'},'potBreak'],
-        [{type:'playerReturnDepart'},'returnWarp']
+        [{type:'playerReturnDepart'},'returnWarp'],
+        [{type:'bossEntrance'},'bossEntrance'],
+        [{type:'enemySpawn',boss:true},'bossEntrance']
     ]) {
-        finish();now+=2000;runtime.fx={...fx,start:now};
+        finish();now+=4000;runtime.fx={...fx,start:now};
         run(`worldTreeSkillFx.feedback.observe(fx,${now});`);
         assert.ok(bank[kind].files.some(file => sources.at(-1).buffer.file === root+file));
     }
@@ -187,13 +197,30 @@ async function main() {
     run(`worldTreeSkillFx.feedback.observe(fx,${now});`);
     assert.ok(bank.hitFireBreath.files.includes(sources.at(-1).buffer.file.slice(root.length)),'DoT casting can sound while its damage ticks stay silent');
     const count = sources.length;
-    for(const fx of [{type:'hit',damage:0},{type:'hit',damage:1,dot:true},{type:'playerHit',damage:5,deflected:true},{type:'levelUp',start:0}]) {
+    for(const fx of [{type:'hit',damage:0},{type:'hit',damage:1,dot:true},{type:'playerHit',damage:5,deflected:true},
+        {type:'enemySpawn',boss:false},{type:'bossEntrance',start:0},{type:'levelUp',start:0}]) {
         runtime.fx={start:now,...fx};run(`worldTreeSkillFx.feedback.observe(fx,${now});`);
     }
     assert.equal(sources.length,count,'blocked, DoT and stale events stay quiet');
     const beforeSave = JSON.parse(JSON.parse(saved)), afterSave = JSON.parse(run('serializeSaveState(game)'));
     const changed = Object.keys(afterSave).filter(key => JSON.stringify(afterSave[key]) !== JSON.stringify(beforeSave[key]));
     assert.deepEqual(changed, [], 'audio leaves saved domain state unchanged');
+    // Actual completion producer: no fanfare before clear, one on completion, none on repeat/load/offline.
+    finish();now+=4000;
+    run(`game=mergeDefaults({heroSelectionInitialized:true,settings:{uiSounds:true,autoMove:false,mapCompleteAction:'stop'}});
+        startEncounterRun(true);game.moveTimer=0;`);
+    const beforeClear=sources.length;
+    run('finishEncounterRun();');
+    assert.equal(sources.length,beforeClear,'an active map cannot sound complete');
+    run(`game.actExploration.packs.filter(p=>p.stage!==null).forEach(p=>{p.aliveIds=[];p.waiting=[];});
+        game.actExploration.status='cleared';finishEncounterRun();`);
+    assert.equal(sources.length,beforeClear+1);
+    assert.equal(sources.at(-1).buffer.file,root+'stageClear-a.wav');
+    now+=4000;run('finishEncounterRun();game=mergeDefaults(JSON.parse(serializeSaveState(game)));finishEncounterRun();');
+    assert.equal(sources.length,beforeClear+1,'settled/reloaded maps never replay completion');
+    run(`dispatchRuntimeEvent('encounter-finished',{background:true});game.isBackgroundCalculation=true;
+        dispatchRuntimeEvent('encounter-finished');game.isBackgroundCalculation=false;`);
+    assert.equal(sources.length,beforeClear+1,'background completion stays silent');
     assert.equal(warnings.length,0);finish();
     assert.ok(sources.every(source=>source.disconnected),'finished sources disconnect');
     console.log(`game audio: ${provenance.assets.length} WAVs (${total} bytes), actual routing, bounded voices, gesture, mute/offline and save invariants OK`);
