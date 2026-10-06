@@ -291,6 +291,83 @@ function addEvasionCombatLog(target, isPlayer) {
     });
 }
 
+/** One landed player hit, for the hit line in the combat log (getPlayerHitCombatLog): how much, how often, and on whom. */
+function notePlayerHitSummary(summary, enemy, dealt) {
+    summary.totalHits += 1;
+    summary.totalDamage += dealt;
+    summary.uniqueTargets.add(enemy.id);
+    summary.targetName = enemy.name;
+}
+
+/** Who a player hit landed on: the one enemy's name, or how many when it spread over several. */
+function getPlayerHitTargetLabel(summary) {
+    let count = summary.uniqueTargets.size;
+    return count >= 2 ? `적 ${count}마리` : (summary.targetName || '적');
+}
+
+const PLAYER_HIT_SCALE_LABELS = Object.freeze([['regen', '재생'], ['fireRes', '화저']]);
+/** Damage scales for the detailed hit line: the flat life bonus, then the regen and fire resistance multipliers the skill shows. */
+function getPlayerHitScaleText(pStats) {
+    let scales = pStats.damageScales || {};
+    let hidden = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
+    let labels = PLAYER_HIT_SCALE_LABELS.filter(([key]) => !hidden.includes(key) && (scales[key] || 1) > 1.0001)
+        .map(([key, label]) => `${label}x${(scales[key] || 1).toFixed(2)}`);
+    if ((scales.hpFlatBonus || 0) > 0) labels.unshift(`생명력추가+${Math.floor(scales.hpFlatBonus)}`);
+    return labels.length > 0 ? `계수 ${labels.join(', ')}` : '';
+}
+
+/** DoT stack note for the detailed hit line: the deepest stack among the hit enemies and its multiplier. */
+function getPlayerHitDotStackText(targets) {
+    let deepest = targets.reduce((max, row) => Math.max(max, (row.enemy && row.enemy.dotStacks) || 0), 0);
+    return deepest > 0 ? `도트중첩 ${deepest}/${DOT_STACK_MAX} (${getDotStackMultiplier(deepest).toFixed(2)}x)` : '';
+}
+
+/** Instant leech for the detailed hit line: two decimals below 1, one below 10, whole numbers above. */
+function formatPlayerHitLeech(value) {
+    if (value < 1) return value.toFixed(2);
+    return value < 10 ? value.toFixed(1).replace(/\.0$/, '') : `${Math.floor(value)}`;
+}
+
+/** The detailed hit line's extra parts (설정의 상세 피해 기록), in reading order. */
+function getPlayerHitDetailParts(summary, hit) {
+    let parts = [];
+    if (summary.totalHits >= 2) parts.push(`${summary.totalHits}히트`);
+    if (hit.isDotSkill) parts.push('직격', getPlayerHitDotStackText(hit.targets));
+    parts.push(getPlayerHitScaleText(hit.pStats));
+    if (hit.instantLeechRecovered > 0) parts.push(`즉시흡수 +${formatPlayerHitLeech(hit.instantLeechRecovered)}`);
+    return parts.filter(Boolean);
+}
+
+/** The player's hit line: skill, target and total damage ("연속 베기로 썩은 잔뿌리에게 1,033 피해"), the counterpart of the monster's
+ * "○○의 공격으로 N 피해". 2026-10-06 user: "플레이어가 준 피해도 누구한테 준건지 표시됐으면 좋겠고". A critical hit keeps the line
+ * colour and hands its number to the log, which colours only that ("치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?"). Repeats merge
+ * per target, crits apart. null when there is nothing to write (log off, or 0 damage: review 5). */
+function getPlayerHitCombatLog(summary, hit) {
+    if (!game.settings.showCombatLog || summary.totalDamage <= 0) return null;
+    let amount = formatNumberKR(summary.totalDamage);
+    let line = `${getDamageElementIcon(hit.swingElement)} ${withDirectionParticle(hit.skillName)} ${getPlayerHitTargetLabel(summary)}에게 ${amount} 피해`;
+    if (game.settings.showDetailedDamageLog === true) line = [line, ...getPlayerHitDetailParts(summary, hit)].join(' / ');
+    let kind = hit.isCrit ? 'combat:hit-crit' : 'combat:hit';
+    let target = summary.uniqueTargets.size === 1 ? [...summary.uniqueTargets][0] : 'many';
+    return { line, options: { logIcon: 'attack', critValue: hit.isCrit ? amount : '', rateKey: kind,
+        minIntervalMs: hit.isCrit ? 120 : 180, aggregateKey: `${kind}:${target}`, aggregateWindowMs: 500 } };
+}
+
+/** A corpse explosion: every other living enemy takes `splash` (onKill handles each death). Returns the combat log line naming whom it
+ * reached ("전령 시체 폭발로 적 2마리에게 1,234 피해"), or '' when it reached nobody: it used to report damage over an empty field. */
+function explodeCorpse(enemy, splash, label, onKill, noun = '피해') {
+    let reached = [];
+    (game.enemies || []).forEach(target => {
+        if (!target || target.id === enemy.id || target.hp <= 0) return;
+        target.hp = Math.max(0, target.hp - splash);
+        reached.push(target.name);
+        if (target.hp <= 0) onKill(target);
+    });
+    if (reached.length === 0) return '';
+    let who = reached.length === 1 ? reached[0] : `적 ${reached.length}마리`;
+    return `💥 ${withDirectionParticle(label)} ${who}에게 ${formatNumberKR(splash)} ${noun}`;
+}
+
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
     if (raw <= LEECH_SOFTCAP_START) return raw;
@@ -2130,7 +2207,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -2501,7 +2578,7 @@ function processTalentInquisitorMarks() {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
             enemy.hp = Math.max(0, enemy.hp - dmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
-            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발: ${formatNumberKR(dmg)}`, 'attack-player', { noToast: true });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발로 ${enemy.name}에게 ${formatNumberKR(dmg)} 피해`, 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
             if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
         }
@@ -8650,46 +8727,30 @@ function handleEnemyDeath(enemy, pStats) {
         let explodeChance = clampNumber(equippedHeralds.reduce((a, b) => a + b, 0), 0, 0.85);
         if (Math.random() < explodeChance) {
             let splash = Math.floor((enemy.maxHp || enemy.hp || 0) * 0.10);
-            (game.enemies || []).forEach(target => {
-                if (!target || target.id === enemy.id || target.hp <= 0) return;
-                target.hp = Math.max(0, target.hp - splash);
-                if (target.hp <= 0) handleEnemyDeath(target, pStats);
-            });
-            if (game.settings.showCombatLog) addLog(`💥 전령 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+            let line = explodeCorpse(enemy, splash, '전령 시체 폭발', target => handleEnemyDeath(target, pStats));
+            if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
         }
     }
     if (pStats && (pStats.runeCorpseExplodeChance || 0) > 0 && Math.random() < Math.max(0, Math.min(1, Number(pStats.runeCorpseExplodeChance || 0) / 100))) {
         let lifePct = Math.max(0, Number(pStats.runeCorpseExplodeLifePct || 0));
         let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
-        if (game.settings.showCombatLog) addLog(`💥 룬 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+        let line = explodeCorpse(enemy, splash, '룬 시체 폭발', target => handleEnemyDeath(target, pStats));
+        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
     }
     if (pStats && pStats.uniqueCorpseExplode && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueCorpseExplode.chance || 0) / 100))) {
         let lifePct = Math.max(0, Number(pStats.uniqueCorpseExplode.lifePct || 0));
         let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
+        let line = explodeCorpse(enemy, splash, '종말의 논리 시체 폭발', target => handleEnemyDeath(target, pStats));
         addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
-        if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
     }
     // 시체 역병(워록 wlk9): 카오스 피해로 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 주변에 카오스 피해)
     // 심연 각인(wlk1)으로 모든 피해가 카오스인 경우 처치 원소와 무관하게 카오스 처치로 간주
     if (hasKeystone('wlk9') && (enemy.lastHitElement === 'chaos' || hasKeystone('wlk1')) && Math.random() < 0.5) {
         let splash = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.20));
-        (game.enemies || []).forEach(target => {
-            if (!target || target.id === enemy.id || target.hp <= 0) return;
-            target.hp = Math.max(0, target.hp - splash);
-            if (target.hp <= 0) handleEnemyDeath(target, pStats);
-        });
+        let line = explodeCorpse(enemy, splash, '시체 역병', target => handleEnemyDeath(target, pStats), '카오스 피해');
         addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
-        if (game.settings.showCombatLog) addLog(`💥 시체 역병 발동! 주변 몬스터에게 ${splash} 카오스 피해`, 'attack-player');
+        if (line && game.settings.showCombatLog) addLog(line, 'attack-player');
     }
     if (pStats && pStats.uniqueKillMoveStacks) {
         let now = getCombatTime();
@@ -10071,9 +10132,7 @@ function performPlayerAttack(pStats, attackOptions) {
             chainTarget.recentHitsTimer = 1.8;
             totalLeechableDamage += dealtToChain * (chainTarget && chainTarget.leechEffMul !== undefined ? chainTarget.leechEffMul : 1);
             hits.push(dealtToChain);
-            hitSummary.totalHits += 1;
-            hitSummary.totalDamage += dealtToChain;
-            hitSummary.uniqueTargets.add(chainTarget.id);
+            notePlayerHitSummary(hitSummary, chainTarget, dealtToChain);
             addBattleFx('hit', {
                 enemyId: chainTarget.id,
                 color: getElementColor(hitElement),
@@ -10729,9 +10788,7 @@ function performPlayerAttack(pStats, attackOptions) {
             totalLeechableDamage += dealtToEnemy * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
             if (hitElement === 'chaos') totalChaosDamage += dealtToEnemy;
             hits.push(dealtToEnemy);
-            hitSummary.totalHits += 1;
-            hitSummary.totalDamage += dealtToEnemy;
-            hitSummary.uniqueTargets.add(targetEnemy.id);
+            notePlayerHitSummary(hitSummary, targetEnemy, dealtToEnemy);
             addPlayerHitVisualFx(pStats, options, targetEnemy, {
                 stageKind, stageLabel, stageCount, skillName, hitCrit, hitIdx,
                 hitElement, dealtToEnemy, dmg, isStageReplay
@@ -10785,36 +10842,8 @@ function performPlayerAttack(pStats, attackOptions) {
     let firstResolvedSkillHit = !isStageReplay || Number(options.stageIndex) === 0;
     if (firstResolvedSkillHit && isCrit && hitSummary.totalDamage > 0) advanceEnergyShieldRechargeOnCrit(pStats, getCombatTime());
 
-    // 0 피해 줄은 남기지 않고, 어느 기술의 피해인지 붙인다(맨 숫자만 있던 줄 — 검토 5차).
-    if (game.settings.showCombatLog && hitSummary.totalDamage > 0) {
-        let line = `${getDamageElementIcon(swingElement)} ${skillName} ${formatNumberKR(hitSummary.totalDamage)} 피해`;
-        if (game.settings.showDetailedDamageLog === true) {
-            let dotInfo = '';
-            if (isDotSkill) {
-                let maxDotStack = targets.reduce((max, hit) => Math.max(max, (hit.enemy && hit.enemy.dotStacks) || 0), 0);
-                if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
-            }
-            let lineCore = [`${formatNumberKR(hitSummary.totalDamage)} 피해`];
-            if (hitSummary.totalHits >= 2) lineCore.push(`${hitSummary.totalHits}히트`);
-            if (hitSummary.uniqueTargets.size >= 2) lineCore.push(`대상 ${hitSummary.uniqueTargets.size}`);
-            line = `${isDotSkill ? '⚔️ 직격' : '⚔️'} ${lineCore.join(' / ')}${dotInfo}`;
-            if (isCrit) line = `💥 ${line}`;
-            let scales = pStats.damageScales || {};
-            let hiddenScaleTags = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
-            let scaleLabels = [];
-            if ((scales.hpFlatBonus || 0) > 0) scaleLabels.push(`생명력추가+${Math.floor(scales.hpFlatBonus || 0)}`);
-            if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
-            if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
-            if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
-            if (instantLeechRecovered > 0) {
-                let instantLeechText = instantLeechRecovered < 1
-                    ? instantLeechRecovered.toFixed(2)
-                    : (instantLeechRecovered < 10 ? instantLeechRecovered.toFixed(1).replace(/\.0$/, '') : `${Math.floor(instantLeechRecovered)}`);
-                line += ` · 즉시흡수 +${instantLeechText}`;
-            }
-        }
-        addLog(line, isCrit ? 'attack-crit' : 'attack-player', { logIcon:'attack', rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
-    }
+    const hitLog = getPlayerHitCombatLog(hitSummary, { skillName, swingElement, isCrit, isDotSkill, targets, pStats, instantLeechRecovered });
+    if (hitLog) addLog(hitLog.line, 'attack-player', hitLog.options);
 
     performTalentMoonReturn(pStats, options, talentMoonPrimaryHit);
 

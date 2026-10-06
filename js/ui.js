@@ -5039,7 +5039,7 @@ function getCombatLogIconKind(message, cls, options) {
     let text = String(message || '');
     let element = getCombatLogElementFromText(message);
     if (element && /(피격|피해|상태이상|점화|냉각|동결|감전|중독|출혈)/.test(text)) return element;
-    if ((cls === 'attack-player' || cls === 'attack-crit') && /(피해|타격|공격)/.test(text)) return 'attack';
+    if (cls === 'attack-player' && /(피해|타격|공격)/.test(text)) return 'attack';
     if (cls === 'attack-monster' && /피해/.test(text)) return element || 'phys';
     return '';
 }
@@ -5054,10 +5054,18 @@ function renderCombatLogIcon(kind, options) {
     return kind ? `<span class="combat-log-icon combat-log-icon--${kind}" aria-hidden="true"></span>` : '';
 }
 
+/** A critical hit colours only its damage number and keeps the player-hit line colour: whole grey and orange lines in turn made the log
+ * busier (2026-10-06 user: "치명타는 그냥 숫자 색만 바꿔도 충분할거같은데?"). critValue is the formatted number before "피해". */
+function markCombatLogCritNumber(message, critValue) {
+    let at = critValue ? message.lastIndexOf(`${critValue} 피해`) : -1;
+    if (at < 0) return message;
+    return `${message.slice(0, at)}<span class="combat-log-crit">${critValue}</span>${message.slice(at + critValue.length)}`;
+}
+
 function decorateCombatLogMessage(message, cls, options) {
     let cleanMessage = stripCombatLogEmoji(message);
     let icon = renderCombatLogIcon(getCombatLogIconKind(cleanMessage, cls, options), options);
-    return `${icon}${cleanMessage}`;
+    return `${icon}${markCombatLogCritNumber(cleanMessage, options && options.critValue)}`;
 }
 
 /** null while the log sits in a hidden tab (phone, another menu open): measuring it then forced a style recalculation of

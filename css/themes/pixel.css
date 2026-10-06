@@ -715,7 +715,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
    1.1em(격자 밖 크기) · 고유 · 레벨 업 줄의 번지는 빛 그림자는 도트 외곽선으로 */
 :root body[data-ui-skin] #log .exp-txt { color: #c9a3e8; }
 :root body[data-ui-skin] #log .attack-monster { color: #ff7f6e; }
-/* 2026-10-04 가시성: 내 일반 공격 줄은 흐린 글자(6:1)로 물러나 획득 · 레벨 업 줄이 먼저 읽힌다. 치명타 · 피격 줄은 그대로 */
+/* 2026-10-04 가시성: 내 공격 줄은 흐린 글자(6:1)로 물러나 획득, 레벨 업 줄이 먼저 읽힌다. 2026-10-06: 치명타도 같은 줄 색에
+   피해 숫자만 주황(layout.css .combat-log-crit) */
 :root body[data-ui-skin] #log .attack-player { color: var(--px-copy-muted); }
 :root body[data-ui-skin] #log .death { color: #ff6b5b; font-size: inherit; }
 :root body[data-ui-skin] #log .loot-magic { color: #6cb6ff; }

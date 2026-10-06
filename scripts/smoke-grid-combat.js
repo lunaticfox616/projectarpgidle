@@ -1936,22 +1936,26 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.addLog = message => logs.push(String(message));
   context.game.settings.showCombatLog = true;
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
-  context.game.enemies = [makeEnemy(641, 2, 6, { hp: 1000000, maxHp: 1000000 })];
+  context.game.enemies = [makeEnemy(641, 2, 6, { hp: 1000000, maxHp: 1000000, name: '시험 허수아비' })];
   const attackStats = context.getPlayerStats();
   attackStats.accuracy = 1000000;
   attackStats.crit = 0;
   vm.runInContext('pendingSkillStageHits = [];', context);
   context.performPlayerAttack(attackStats);
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
-  assert.ok(logs.some(message => /^🩸 기본 공격 \d[\d,]* 피해$/.test(message)), '기본 공격 로그는 속성 표식, 기술 이름, 총 피해만 표시해야 한다(검토 5차부터 출처를 적는다)');
+  assert.ok(logs.some(message => /^🩸 기본 공격으로 시험 허수아비에게 \d[\d,]* 피해$/.test(message)),
+    '기본 공격 로그는 속성 표식, 기술 이름, 맞은 적, 총 피해만 표시해야 한다(검토 5차부터 출처를, 2026-10-06부터 대상을 적는다)');
 
   logs.length = 0;
   context.game.settings.showDetailedDamageLog = true;
-  context.game.enemies = [makeEnemy(642, 2, 6, { hp: 1000000, maxHp: 1000000 })];
+  context.game.enemies = [makeEnemy(642, 2, 6, { hp: 1000000, maxHp: 1000000, name: '시험 허수아비' })];
+  attackStats.damageScales = { regen: 1.2 };
   vm.runInContext('pendingSkillStageHits = [];', context);
   context.performPlayerAttack(attackStats);
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
-  assert.ok(logs.some(message => message.includes('⚔️') && message.includes('피해')), '상세 공격 로그는 기존 전투 맥락을 다시 표시해야 한다');
+  assert.ok(logs.some(message => /^🩸 기본 공격으로 시험 허수아비에게 \d[\d,]* 피해 \/ .*계수 재생x1\.20/.test(message)),
+    '상세 공격 로그는 같은 줄 뒤에 전투 맥락(계수 등)을 더 표시해야 한다');
+  delete attackStats.damageScales;
 
   resetGame();
   logs.length = 0;
