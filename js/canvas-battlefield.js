@@ -1077,12 +1077,21 @@ function drawCombatPathFx(ctx, fx, now, gridProj) {
         normalizeSkillGemVfxElement(fx.element));
 }
 
+/** Boss shots (2026-10-06): leave the body centre (half the drawn height above the feet) instead of the anchor cell's corner,
+ * and the sprite grows with the tile (js/canvas-enemy-projectiles.js reads fx.screenShotScale). */
+function prepareBossShot(fx, gridProj, enemyPosMap) {
+    const entry = fx.owner === 'enemy' && enemyPosMap ? enemyPosMap[fx.sourceId] : null;
+    if (!entry || !entry.enemy || !entry.enemy.isBoss) return null;
+    fx.screenShotScale = clampNumber(gridProj.tileW / 48, 0.75, 2) * 1.6;
+    return { x: entry.x, y: entry.y - Math.max(24, (enemyDrawnHeights.get(entry.enemy) || 0) * 0.5) };
+}
+
 function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
     if (worldTreeSkillFx.travel(ctx, fx, now, gridProj)) return;
     if (fx.travelPath) return drawCombatPathFx(ctx, fx, now, gridProj);
     let launchAt = fx.start + Math.max(0, Number(fx.releaseDelayMs) || 0);
     let arriveAt = launchAt + Math.max(1, Number(fx.flightMs) || 1);
-    let source = getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos);
+    let source = prepareBossShot(fx, gridProj, enemyPosMap) || getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos);
     let targets = (fx.targetCells || []).map((cell, index) => {
         let current = fx.owner === 'player' && fx.delivery === 'projectileTarget'
             ? enemyPosMap[(fx.targetIds || [])[index]] : null;
@@ -1305,7 +1314,7 @@ function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
 }
 
 function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
-    if (fx.type === 'bossAreaImpact') return drawBossPatternArea(ctx, fx.footprint, gridProj, (1 - progress) * 5);
+    if (fx.type === 'bossAreaImpact') return bossAttackView.drawImpact(ctx, fx, progress, gridProj);
     if (!gridProj || !Array.isArray(fx.targetCells)) return;
     // 원소마다 바닥에서 솟는 실체(js/canvas-trial-traps.js; 바닥 부분은 drawBattleGroundLayer가 인물 아래에 그렸다).
     if (trialTrapArt.drawRise(ctx, fx, progress, gridProj, warning)) return;
@@ -1505,7 +1514,7 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
         let frozen = (enemy.ailments || []).some(ailment => ['freeze','stun','silence'].includes(ailment.type) && ailment.time > 0);
         if (frozen) return;
         if (enemy.isBoss) {
-            drawBossPatternArea(ctx, enemy.patternArea, projection);
+            drawBossPatternArea(ctx, enemy.patternArea, projection, bossAttackView.groundAlpha(enemy));
             return;
         }
         if (!enemy.isElite) return;
@@ -2429,6 +2438,7 @@ function renderBattlefield(forceWhenHidden) {
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
     drawBattleGroundLayer(ctx, battleFx, { now, gridProj, playerPos, enemyPosMap });
+    bossAttackView.drawGround(ctx, gridProj);
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
@@ -2528,7 +2538,7 @@ function renderBattlefield(forceWhenHidden) {
     ctx = battleGroundLoot.actorContext(canvas, ctx, now, gridProj);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
     drawEnemyAttackTelegraphs(ctx, dynamicLayout, gridUnitScale, gridProj, pendingEnemyCombatAttacks);
-    let enemyAttackMotions = buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now);
+    let enemyAttackMotions = bossAttackView.addMotions(buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now), dynamicLayout, playerPos, now, gridProj.tileW);
     let attachGridEffectPosition = effect => {
         if (!effect) return null;
         let cell = hasGridCell(effect.cell) ? effect.cell : COMBAT_GRID_CONFIG.playerSpawn;
@@ -2731,7 +2741,7 @@ function getBattleCameraShake(now) {
     if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
     let amplitude = bossEntranceView.shake(now);
     (battleFx || []).forEach(fx => {
-        if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn'].includes(fx.type)) return;
+        if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn', 'bossAreaImpact'].includes(fx.type)) return;
         let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
         let duration = Math.max(80, Number(profile && profile.duration) || 110);
         let age = now - fx.start;
@@ -2812,6 +2822,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
     drawBattleLightingPass(ctx, scene);
     drawBattleDangerEdges(ctx, scene);
+    bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     drawBattlefieldPlayerHealthBar(ctx, scene);
     drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets, scene.tileW);

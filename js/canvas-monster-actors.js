@@ -1,5 +1,5 @@
 // 액트 몬스터 · 뿌리촉수 · 영역 몬스터 그리기(data/monster-sprites.js): 대기 반복 · 공격 1회를 16도트 칸 격자(도트 = 칸/16)로 찍는다.
-// 공격 클립의 타격 프레임을 실제로 때린 순간(근접 enemyAttack 효과) 또는 투사체가 떠난 순간(원거리 combatTravel 효과)에
+// 공격 클립의 타격 프레임을 실제로 때린 순간(근접 enemyAttack 효과) 또는 투사체가 떠난 순간(원거리 combatTravel 효과, 보스는 bossRelease)에
 // 맞추고, 공격 게이지 0.8→1 구간에서는 준비 프레임을 보인다. 걷는 동안은 대기를 빠르게 돌리며 한 도트씩 튄다(걷기 그림 없음).
 // 테두리는 주인공처럼 그림 실루엣을 한 도트씩 네 방향으로 찍는다(색 = getEnemyOutlineStyle). 그림만 그린다.
 const monsterActors = (() => {
@@ -36,7 +36,10 @@ const monsterActors = (() => {
         }
         return durations.length - 1;
     }
+    /** A boss strikes once, when it lets the attack go (bossRelease, 2026-10-06): a shot used to strike again when it landed
+     * and a dodged area special never struck at all. Other monsters strike on the hit or the shot leaving. */
     function isRelease(fx, enemy) {
+        if (enemy.isBoss) return fx.type === 'bossRelease' && fx.enemyId === enemy.id;
         if (fx.type === 'combatTravel') return fx.owner === 'enemy' && fx.sourceId === enemy.id;
         return fx.type === 'enemyAttack' && fx.enemyId === enemy.id;
     }
@@ -48,13 +51,22 @@ const monsterActors = (() => {
         }
         return found;
     }
+    /** 0..1 through the wind-up: the gauge's last fifth, or a boss's warning (its gauge waits at 1 for the warning to run out,
+     * so it fell back to idle before), trembling a dot at the end. null → not winding up. */
+    function windUp(enemy, moving, now) {
+        if (moving) return null;
+        const warning = enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
+        if (warning !== null) return { share: Math.min(0.999, warning), bob: warning > 0.6 ? Math.floor(now / 70) % 2 : 0 };
+        const gauge = Number(enemy.attackTimer);
+        return gauge >= WIND_UP_FROM && gauge < 1 ? { share: (gauge - WIND_UP_FROM) / (1 - WIND_UP_FROM), bob: 0 } : null;
+    }
     /** { clip, index, bob }: strike on the hit or release, wind-up while the gauge fills its last fifth, else idle (faster with a hop when walking). */
     function clipFrame(enemy, kind, now, moving) {
         const attackMs = sum(kind.attackMs), impactMs = sum(kind.attackMs.slice(0, kind.impactFrame));
         const release = lastRelease(enemy, now, attackMs);
         if (release !== null && now - release + impactMs < attackMs) return { clip: 'attack', index: frameAt(kind.attackMs, now - release + impactMs), bob: 0 };
-        const gauge = Number(enemy.attackTimer);
-        if (!moving && gauge >= WIND_UP_FROM && gauge < 1) return { clip: 'attack', index: frameAt(kind.attackMs, (gauge - WIND_UP_FROM) / (1 - WIND_UP_FROM) * impactMs), bob: 0 };
+        const wind = windUp(enemy, moving, now);
+        if (wind) return { clip: 'attack', index: frameAt(kind.attackMs, wind.share * impactMs), bob: wind.bob };
         const speed = moving ? WALK_SPEED : 1, idleMs = sum(kind.idleMs);
         const index = frameAt(kind.idleMs, (now * speed + Math.abs(enemy.id || 0) * 137) % idleMs);
         return { clip: 'idle', index, bob: moving && index % 2 === 1 ? 1 : 0 };

@@ -4430,7 +4430,9 @@ const BATTLE_FEEDBACK_PROFILES = Object.freeze({
     normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
     crit: Object.freeze({ hitStopMs: 0, shake: 3, duration: 170 }),
     heavy: Object.freeze({ hitStopMs: 28, shake: 5.4, duration: 220 }),
-    annihilate: Object.freeze({ hitStopMs: 20, shake: 4.2, duration: 180 })
+    annihilate: Object.freeze({ hitStopMs: 20, shake: 4.2, duration: 180 }),
+    // 보스 범위기가 땅에 닿는 순간(2026-10-06, js/canvas-boss-attacks.js): 피했어도 화면이 울린다. 맞으면 playerHit가 더한다.
+    bossSlam: Object.freeze({ hitStopMs: 0, shake: 4.6, duration: 320 })
 });
 // 피격감(2026-10-04): getting hit answers in proportion to the life it took (damageRatio against the hero's life, set in
 // combat.js). Chip hits shake a little; from an eighth of life the frame also holds, like a heavy blow on an enemy.
@@ -4445,6 +4447,7 @@ function getPlayerHurtProfile(fx) {
 function getBattleFeedbackProfile(fx) {
     if (!fx || fx.dot) return BATTLE_FEEDBACK_PROFILES.normal;
     if (fx.type === 'playerHit') return getPlayerHurtProfile(fx);
+    if (fx.type === 'bossAreaImpact') return BATTLE_FEEDBACK_PROFILES.bossSlam;
     if (fx.impactTier === 'annihilate') return BATTLE_FEEDBACK_PROFILES.annihilate;
     if (fx.impactTier === 'heavy') return BATTLE_FEEDBACK_PROFILES.heavy;
     if (fx.crit) return BATTLE_FEEDBACK_PROFILES.crit;

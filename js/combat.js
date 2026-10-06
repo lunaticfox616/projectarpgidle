@@ -11343,6 +11343,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     const flight = enemyAttackRules.trajectory(attack,enemy,travelMs);
     travelMs = flight.duration;
     pendingEnemyCombatAttacks.push(attack);
+    announceBossRelease(enemy, bossPattern, delivery);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
         owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
@@ -11351,6 +11352,13 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
         flightMs: travelMs, duration: travelMs + 260
     });
     return true;
+}
+
+/** The moment a boss lets an attack go (js/canvas-boss-attacks.js): area specials hop and slam, shots and lines thrust. */
+function announceBossRelease(enemy, bossPattern, delivery) {
+    if (!enemy.isBoss) return;
+    const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
+    addBattleFx('bossRelease', { enemyId: enemy.id, slam, duration: 560 });
 }
 
 function takePendingEnemyCombatAttack(enemyId, now) {
@@ -11363,7 +11371,7 @@ function takePendingEnemyCombatAttack(enemyId, now) {
     pendingEnemyCombatAttacks.splice(index, 1);
     if (attack.delivery === 'patternArea') {
         attack.source.attackCast = null;
-        addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, duration: 240 });
+        addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
     }
     return attack;
 }

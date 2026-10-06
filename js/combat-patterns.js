@@ -11,10 +11,10 @@
         apex: '후반부 보스 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
-        intro: '3번째 공격마다 예고한 한 칸을 강타합니다. 이동 스킬 칸에 이동 젬을 끼우면 예고 범위를 벗어납니다.',
+        intro: '3번째 공격마다 예고한 칸을 강타합니다. 한 칸과 십자를 번갈아 칩니다. 이동 스킬 칸에 이동 젬을 끼우면 예고 범위를 벗어납니다.',
         burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
-        ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다.',
+        ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다. 3번째 공격마다 주위로 충격파를 내고, 2단계부터는 매번 냅니다.',
         cosmos: '연속 참격·파쇄 강타·격앙을 차례로 순환합니다.',
         cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.',
         apex: '아틀라스 후반부 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.'
@@ -63,14 +63,37 @@
         return 0;
     }
 
+    // 처음 루프의 보스(2026-10-06 사용자 요청 "패턴이 너무 허접"): 한 칸 강타만 되풀이하던 것을 한 칸과 십자로 번갈아 친다.
+    // 첫 특수기는 그대로 한 칸이라 처음 배우는 공격은 같다. 피해 배율은 그대로(1.15).
+    const INTRO_SPECIALS = Object.freeze([
+        Object.freeze({ label: '지면 강타', telegraphKind: 'impact' }),
+        Object.freeze({ label: '십자 강타', telegraphKind: 'wave' })
+    ]);
     function buildSlamPatternState(mode, attackNumber, cosmosPattern) {
         let special = cosmosPattern || attackNumber % 3 === 0;
+        let intro = mode === 'intro' ? INTRO_SPECIALS[(Math.ceil(attackNumber / 3) + 1) % INTRO_SPECIALS.length] : null;
         return {
             mode,
-            label: special ? BOSS_PATTERN_NAMES[mode] : '무거운 일격',
+            label: special ? (intro ? intro.label : BOSS_PATTERN_NAMES[mode]) : '무거운 일격',
             damageMul: special ? getBossPatternPeakDamageMultiplier(cosmosPattern ? 'cosmos' : mode) : 1,
             isSpecial: special,
-            telegraphKind: mode === 'intro' ? 'impact' : 'ring',
+            telegraphKind: intro ? intro.telegraphKind : 'ring',
+            attackNumber
+        };
+    }
+
+    // 격앙(루프 6부터): 2단계(생명력 42% 잃음) 전에는 예고 공격이 없어 루프 6 보스가 루프 1 보스보다 밋밋했다(2026-10-06).
+    // 그 전에도 3번째 공격마다 충격파를 낸다. 배율은 단계 그대로라 0단계 충격파는 보통 공격과 같은 피해다.
+    function buildRampPatternState(enemy, attackNumber, cosmosPattern) {
+        let stage = getRampStage(enemy);
+        let cosmosStage = cosmosPattern ? Math.max(1, stage) : stage;
+        return {
+            mode: 'ramp',
+            label: cosmosStage > 0 ? `격앙 ${'ⅠⅡⅢ'[Math.min(2, cosmosStage - 1)]}` : '격앙 전조',
+            damageMul: cosmosPattern ? 1.12 : (1 + stage * 0.07),
+            isSpecial: cosmosPattern || stage >= 2 || attackNumber % 3 === 0,
+            telegraphKind: 'pulse',
+            stage,
             attackNumber
         };
     }
@@ -90,19 +113,7 @@
         if (mode === 'slam' || mode === 'intro') {
             return buildSlamPatternState(mode, attackNumber, cosmosPattern);
         }
-        if (mode === 'ramp') {
-            let stage = getRampStage(enemy);
-            let cosmosStage = cosmosPattern ? Math.max(1, stage) : stage;
-            return {
-                mode,
-                label: cosmosStage > 0 ? `격앙 ${'ⅠⅡⅢ'[Math.min(2, cosmosStage - 1)]}` : '격앙 전조',
-                damageMul: cosmosPattern ? 1.12 : (1 + stage * 0.07),
-                isSpecial: cosmosPattern || stage >= 2,
-                telegraphKind: 'pulse',
-                stage,
-                attackNumber
-            };
-        }
+        if (mode === 'ramp') return buildRampPatternState(enemy, attackNumber, cosmosPattern);
         return null;
     }
 

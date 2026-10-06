@@ -7426,6 +7426,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
             outlineThickness: outline.thickness,
             outlineAlpha: outline.alpha,
             flipX: shouldMirrorEnemySprite(enemy),
+            offsetY: bossAttackView.spriteOffsetY(attackMotion, frame),
             flash
         });
         ctx.restore();
