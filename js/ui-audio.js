@@ -22,7 +22,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261006-rare-silent');
+        const response = await fetch(path + '?v=20261006-boss-stage');
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }
@@ -176,6 +176,9 @@
     };
     document.addEventListener('pointerdown', unlock, {passive:true});
     document.addEventListener('keydown', unlock);
+    window.addEventListener('project-idle:encounter-finished', event => {
+        if (!event.detail?.background) playUiFeedbackSound('stageClear');
+    });
     document.addEventListener('visibilitychange', () => {
         if (master) master.gain.value = permitted() ? .55 : 0;
         if (document.hidden) silence();

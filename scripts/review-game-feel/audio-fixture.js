@@ -2,7 +2,7 @@
 (() => {
     const frame = document.querySelector('iframe'), output = document.querySelector('#audio-status');
     const labels = {hitPhysical:'근접 타격',hitProjectile:'투사체 적중',hitMagic:'마법 적중',hitCritical:'강한 타격',
-        playerHurt:'플레이어 피격',kill:'일반 처치',killElite:'정예 처치',killBoss:'보스 처치',
+        playerHurt:'플레이어 피격',kill:'일반 처치',killElite:'정예 처치',killBoss:'보스 처치',bossEntrance:'보스 등장',stageClear:'스테이지 클리어',
         potBreak:'항아리 파괴',woodBreak:'목재 파괴',chestOpen:'상자 개봉',
         lootMajor:'귀중품 드롭',levelUp:'레벨업',returnWarp:'귀환'};
     let owner = null, total = 0, active = 0, maximum = 0, decoded = 0, last = '없음', context = null;
@@ -80,7 +80,7 @@
     }
     function preview(spec,index) {
         if(previews.size>=4)return;
-        const file=spec.files[index],player=new Audio(`/assets/audio/game-sfx-v2/${file}`);
+        const file=spec.files[index],player=new Audio(`/assets/audio/game-sfx-v2/${file}?v=20261006-boss-stage`);
         player.volume=.55*spec.gain;previews.add(player);
         player.addEventListener('ended',()=>{if(!previews.delete(player))return;if(!previews.size&&!repeatJob)auditionStatus.textContent=`${spec.label} · 재생 완료`;});
         player.addEventListener('playing',()=>{if(!previews.has(player)){player.pause();return;}auditionStatus.textContent=`${spec.label} · 변주 ${'ABC'[index]} · 재생 중`;});
@@ -97,7 +97,7 @@
     function selected() {
         return sampleBank?.[document.querySelector('#audio-family').value];
     }
-    fetch('/assets/audio/game-sfx-v2/bank.json?v=20261006-rare-silent').then(response=>{
+    fetch('/assets/audio/game-sfx-v2/bank.json?v=20261006-boss-stage').then(response=>{
         if(!response.ok)throw Error('원본 목록을 불러오지 못했습니다.');
         return response.json();
     }).then(bank=>{
@@ -106,7 +106,7 @@
             const option=document.createElement('option');option.value=key;option.textContent=spec.label;
             document.querySelector('#audio-family').append(option);
         }
-        for(const key of ['levelUp','hitLightArc','hitLightBurst','lootMajor','hitPhysical','hitProjectile','hitFireBurst','hitColdBurst','hitVenom','hitChaosPulse']) {
+        for(const key of ['bossEntrance','stageClear','levelUp','hitLightArc','hitLightBurst','lootMajor','hitPhysical','hitProjectile','hitFireBurst','hitColdBurst','hitVenom','hitChaosPulse']) {
             const button=document.createElement('button');button.textContent=bank[key].label;
             button.onclick=()=>{stopPreview();document.querySelector('#audio-family').value=key;updateVariants();nextPreview(bank[key]);};
             document.querySelector('#audio-quick').append(button);

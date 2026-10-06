@@ -102,17 +102,18 @@ worldTreeSkillFx.feedback = (() => {
         if (SKILL_DB[fx.skillName]?.tags?.includes('dot')) playUiFeedbackSound(skillSound(fx));
     }
 
+    const eventCues = {
+        hit: hitSound,
+        playerSwing: dotCastSound,
+        playerHit: fx => { if (fx.damage > 0 && !fx.deflected) playUiFeedbackSound('playerHurt'); },
+        enemySpawn: fx => { if (fx.boss) playUiFeedbackSound('bossEntrance'); },
+        objectReward: fx => playUiFeedbackSound(({pot:'potBreak',crate:'woodBreak'})[fx.objectKind] || 'chestOpen'),
+        levelUp: () => playUiFeedbackSound('levelUp'),
+        bossEntrance: () => playUiFeedbackSound('bossEntrance'),
+        playerReturnDepart: () => playUiFeedbackSound('returnWarp')
+    };
     function eventSound(fx) {
-        switch (fx.type) {
-        case 'hit': hitSound(fx); break;
-        case 'playerSwing': dotCastSound(fx); break;
-        case 'playerHit':
-            if (fx.damage > 0 && !fx.deflected) playUiFeedbackSound('playerHurt');
-            break;
-        case 'levelUp': playUiFeedbackSound('levelUp'); break;
-        case 'objectReward': playUiFeedbackSound(({pot:'potBreak',crate:'woodBreak'})[fx.objectKind] || 'chestOpen'); break;
-        case 'playerReturnDepart': playUiFeedbackSound('returnWarp'); break;
-        }
+        eventCues[fx.type]?.(fx);
     }
 
     // 띠는 보스 처치만: 여러 마리를 한꺼번에 잡을 때 뜨던 "N마리 처치"는 밋밋해 뺐다(2026-10-06 사용자 요청).

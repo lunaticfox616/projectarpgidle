@@ -104,6 +104,20 @@
       "seconds": 20
     }
   ],
+  "bossStage20261006": [
+  {
+    "key": "boss-entrance",
+    "prompt": "Fantasy action RPG boss arrival sound effect. An immediate deep round frame drum strike with a short low ancient war horn swell, dark wooden resonance, weighty and ominous, then a gentle natural decay into silence. A compact two-second warning cue, restrained and warm, no piercing brass, no shrill frequencies, no voice, no rhythmic backing music. Several separate complete cues with at least three seconds of quiet between them.",
+    "seconds": 20,
+    "source": "artifacts/audio-production/boss-stage-20261006/boss-entrance-source.wav"
+  },
+  {
+    "key": "stage-clear",
+    "prompt": "Fantasy action RPG stage complete reward sound effect. A short graceful three-note ascending cadence on warm low-mid hammered dulcimer and soft plucked harp, ending on one rounded consonant chord with a long gentle natural decay into silence. The notes sound within one second, the entire cue resolves within three seconds. Clear satisfying completion, intimate wooden acoustic instruments, restrained sparkle, no high metallic ringing, no telephone bells, no voice, no drums or background music. Separate complete cues with three seconds of quiet between them.",
+    "seconds": 20,
+    "source": "artifacts/audio-production/boss-stage-20261006/stage-clear-source.wav"
+  }
+],
   "corrections": [
     {
       "key": "level-cadence",
