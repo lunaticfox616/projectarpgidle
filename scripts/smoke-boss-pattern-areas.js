@@ -208,4 +208,33 @@ for (const blockedBy of ['missing', 'cooldown', 'freeze']) {
     })()`));
     assert.deepStrictEqual(missed, {}, 'every aimed boss special covers a hero standing still within its range (the enraged pulse too)');
 }
+// 2026-10-07 사용자 제보: 보스가 범위기를 놓은 뒤(맞기 전) 죽으면 예고가 전장에 계속 남았다. 전투 틱은 적이 남아 있을 때만 적
+// 공격을 처리해 마지막 적인 보스의 대기 공격이 영영 정리되지 않았고, 영웅도 그 경고 때문에 제자리를 지켰다.
+{
+    const {runtime:r, run, state, enemy, stats} = bossFixture();
+    const start = r.getCombatTime();
+    r.performMonsterAttacks(stats);
+    enemy.attackTimer = 100;
+    state.combatTimeMs = start + 1500;
+    r.performMonsterAttacks(stats);
+    assert.strictEqual(run('pendingEnemyCombatAttacks.length'), 1, 'the slam is released and waiting to land');
+    enemy.hp = 0;
+    run('handleEnemyDeath(game.enemies[0], getPlayerStats())');
+    assert.strictEqual(run('pendingEnemyCombatAttacks.length'), 0, 'the released area ends with the boss');
+    assert.strictEqual(run('getBossWarningCells(game, pendingEnemyCombatAttacks).length'), 0, 'no warning stays on the field');
+    assert.strictEqual(run('updateCombatHazardEvasion(getPlayerStats()).holdPosition'), false, 'the hero is free to move on');
+}
+// 마지막 적이 죽기 전에 쏜 투사체는 그 자리에서 떨어진다(다음 싸움의 첫 틱에 몰려 오지 않는다).
+{
+    const {runtime:r, run, state, enemy, stats} = bossFixture();
+    Object.assign(enemy, { isBoss:false, attackKind:'ranged', attackRange:99, attackTimer:100 });
+    state.combatTimeMs = r.getCombatTime() + 100;
+    r.performMonsterAttacks(stats);
+    assert.strictEqual(run('pendingEnemyCombatAttacks.length'), 1, 'a shot is in flight');
+    enemy.hp = 0;
+    run('handleEnemyDeath(game.enemies[0], getPlayerStats())');
+    assert.strictEqual(run('pendingEnemyCombatAttacks.length'), 1, 'a shot already flying keeps flying');
+    for (let tick = 0; tick < 40 && run('pendingEnemyCombatAttacks.length') > 0; tick++) run('game.runProgress = 20; coreLoop(getCombatTime() + 100)');
+    assert.strictEqual(run('pendingEnemyCombatAttacks.length'), 0, 'and lands with no enemy left');
+}
 console.log('smoke-boss-pattern-areas passed');

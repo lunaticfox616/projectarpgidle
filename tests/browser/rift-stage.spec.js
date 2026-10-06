@@ -56,8 +56,14 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(await page.locator('#tab-header-main .tab-btn:visible').count()).toBeGreaterThan(1);
     expect(Math.abs((map.left + map.right) / 2 - (hud.left + hud.right) / 2)).toBeLessThan(2);
     expect(zone.left).toBeGreaterThanOrEqual(0);
-    expect(zone.right).toBeLessThanOrEqual(feed.left);
     expect(zone.bottom).toBeLessThanOrEqual(hud.top);
+    // 귀환과 목표는 오른쪽 끝, 전투 기록 창과 같은 오른쪽 선에 모이고 기록 창 위에 있다(2026-10-07 사용자 요청).
+    const back = await rectOf(page, '#btn-combat-return');
+    const goal = await rectOf(page, '#ui-goal-drawer .ui-goal-panel');
+    for (const box of [zone, back, goal]) expect(box.bottom).toBeLessThanOrEqual(feed.top);
+    expect(Math.abs(back.right - feed.right)).toBeLessThanOrEqual(2);
+    expect(Math.abs(goal.right - feed.right)).toBeLessThanOrEqual(2);
+    expect(goal.top).toBeGreaterThanOrEqual(back.bottom);
     expect(feed.bottom).toBeLessThanOrEqual(hud.top + 1);
     // 기록 글은 예전 기록 판처럼 보통 굵기, 줄 높이 1.5다(창으로 옮기며 굵고 빽빽해져 흰 글이 덩어리로 보였다, 2026-10-03).
     const logText = await page.locator('#log .log-msg').first().evaluate(el => {
