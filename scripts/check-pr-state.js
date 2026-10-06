@@ -28,6 +28,21 @@ function evaluatePrState({ branch, ahead, behind = 0, pulls }) {
     return { ok: true, message: `${branch}: 새 PR 생성 가능 (${ahead}커밋)` };
 }
 
+/**
+ * Lists the branch's PRs. A token api.github.com rejects (401: an expired token, or one scoped to a proxy) is retried once
+ * without it, which reads a public repository; a failure names the status and whether a token was refused.
+ * @returns {Promise<object[]>}
+ */
+async function fetchBranchPulls(url, token, fetchImpl = fetch) {
+    const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'projectarpgidle-pr-guard' };
+    let response = await fetchImpl(url, { headers: token ? { ...headers, Authorization: `Bearer ${token}` } : headers });
+    const refused = !!token && response.status === 401;
+    if (refused) response = await fetchImpl(url, { headers });
+    if (response.ok) return response.json();
+    const reason = refused ? ' (토큰이 거부되어 토큰 없이 다시 조회했지만 실패)' : token ? '' : ' (토큰 없이 조회; 비공개 저장소면 GITHUB_TOKEN 필요)';
+    throw new Error(`GitHub PR 조회 실패: HTTP ${response.status}${reason}`);
+}
+
 async function inspectCurrentBranch(fetchImpl = fetch) {
     git('fetch', 'origin', 'main');
     const branch = git('branch', '--show-current');
@@ -35,11 +50,19 @@ async function inspectCurrentBranch(fetchImpl = fetch) {
     const behind = Number(git('rev-list', '--count', 'HEAD..origin/main'));
     const { owner, repo } = parseGitHubRemote(git('remote', 'get-url', 'origin'));
     const query = new URLSearchParams({ state: 'all', head: `${owner}:${branch}`, per_page: '100' });
-    const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'projectarpgidle-pr-guard' };
-    if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-    const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repo}/pulls?${query}`, { headers });
-    if (!response.ok) throw new Error(`GitHub PR 조회 실패: HTTP ${response.status}`);
-    return evaluatePrState({ branch, ahead, behind, pulls: await response.json() });
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+    const path = `repos/${owner}/${repo}/pulls?${query}`;
+    const pulls = await fetchBranchPulls(`https://api.github.com/${path}`, token, fetchImpl).catch(error => ghApiPulls(path, error));
+    return evaluatePrState({ branch, ahead, behind, pulls });
+}
+
+/** Fallback when the direct API call fails: the GitHub CLI (`gh api`) with its own credentials, if installed. */
+function ghApiPulls(path, directError, run = execFileSync) {
+    try {
+        return JSON.parse(run('gh', ['api', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    } catch (error) {
+        throw new Error(`${directError.message}; gh api 대체 조회도 실패: ${String(error.message).split('\n')[0]}`);
+    }
 }
 
 if (require.main === module) {
@@ -54,4 +77,4 @@ if (require.main === module) {
         });
 }
 
-module.exports = { evaluatePrState, parseGitHubRemote };
+module.exports = { evaluatePrState, parseGitHubRemote, fetchBranchPulls, ghApiPulls };

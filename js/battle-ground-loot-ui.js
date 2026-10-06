@@ -315,11 +315,30 @@ const battleGroundLoot = (() => {
 
     // ---- floor piles: equipment waiting on an exploration map until the hero walks over it or the player clicks it.
     const floorPiles = new Map(); // "gx,gy" → entry
-    const landedFloorIds = new Set(); // item ids whose landing already played: a redraw after a tab switch does not drop them again
-    const floorReceipts = pile => pile.rows.map(row => row.currency ? { currency: row.currency, count: row.count }
-        : { item: row.item, itemKind: 'equipment', highlight: row.highlight }).sort((a, b) => importance(b) - importance(a));
-    /** A stable key per floor row: an item's id, or the currency and cell (one row per currency and cell). */
-    const floorRowKey = row => row.item ? row.item.id : `${row.currency}@${row.gx},${row.gy}`;
+    // Row keys whose landing already played: a redraw after a tab switch does not drop them again. Only rows still on the floor
+    // stay listed (pruned every sync), so the set never grows past the current map's floor.
+    const landedFloorIds = new Set();
+    // The same receipts an immediate drop shows (js/combat.js queueEnemyGroundLoot), per floor row kind.
+    const floorReceipt = {
+        currency: row => ({ currency: row.currency, count: row.count }),
+        equipment: row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight }),
+        jewel: row => ({ item: row.item, itemKind: 'jewel', color: getJewelLootColor(row.item) }),
+        core: row => ({ item: row.item, itemKind: 'core' }),
+        talisman: row => ({ item: row.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[row.item.rarity] })
+    };
+    const floorReceipts = pile => pile.rows.map(row => floorReceipt[actExplorationState.groundLoot.kindOf(row)](row))
+        .sort((a, b) => importance(b) - importance(a));
+    // A stable key per floor row: an item's id, the currency and cell (one row per currency and cell), or for a rolled talisman
+    // (no id until stored) a per-row number kept for the row's life.
+    const talismanKeys = new WeakMap();
+    let nextTalismanKey = 0;
+    function floorRowKey(row) {
+        if (row.kind === 'talisman') {
+            if (!talismanKeys.has(row)) talismanKeys.set(row, `talisman#${++nextTalismanKey}`);
+            return talismanKeys.get(row);
+        }
+        return row.item ? `item#${row.item.id}` : `${row.currency}@${row.gx},${row.gy}`;
+    }
 
     function pickFloor(event, entry) {
         event.preventDefault(); event.stopPropagation();
@@ -350,8 +369,9 @@ const battleGroundLoot = (() => {
     function syncFloor(projection) {
         const run = actExplorationState.current(game);
         const piles = run ? actExplorationState.groundLoot.piles(run) : [];
-        const live = new Set();
+        const live = new Set(), liveRows = new Set();
         for (const pile of piles) {
+            pile.rows.forEach(row => liveRows.add(floorRowKey(row)));
             const key = `${pile.gx},${pile.gy}`, ids = pile.rows.map(row => `${floorRowKey(row)}:${row.count || 1}`).join(',');
             live.add(key);
             const existing = floorPiles.get(key), entry = existing || addFloorPile(key, pile);
@@ -361,6 +381,7 @@ const battleGroundLoot = (() => {
             pile.rows.forEach(row => landedFloorIds.add(floorRowKey(row)));
             floorMarker(entry, pile, projection, fresh);
         }
+        for (const id of landedFloorIds) if (!liveRows.has(id)) landedFloorIds.delete(id);
         for (const [key, entry] of floorPiles) {
             if (live.has(key)) continue;
             floorPiles.delete(key); entry.floor = false; entry.marker.removeAttribute('role'); entry.marker.tabIndex = -1;

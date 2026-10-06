@@ -169,14 +169,23 @@ const talismans = (() => {
             : rollNormal(TALISMAN_WILD_DROPS.rule[kind], random);
     }
 
-    /** 야생 부적 드랍을 받는다: 그루터기 함 보관함에, 가득 찼으면 편린 하나로. @returns {{item?:object, currency?:string}} */
-    function dropWild(state, enemy, random = Math.random) {
+    /** 이 처치의 야생 부적 드랍(아직 받지 않음): 부적과, 보관함이 가득 찼을 때 대신 받을 편린. */
+    function rollWildDrop(enemy, random = Math.random) {
         const kind = killKind(enemy);
-        const item = stumpBox.addTalisman(state, rollWild(kind, random));
+        return { talisman: rollWild(kind, random), overflow: TALISMAN_WILD_DROPS.overflow[kind] };
+    }
+
+    /** 굴린 야생 부적을 받는다: 그루터기 함 보관함에, 가득 찼으면 편린 하나로. @returns {{item?:object, currency?:string}} */
+    function receiveWild(state, drop) {
+        const item = stumpBox.addTalisman(state, drop.talisman);
         if (item) return { item };
-        const currency = TALISMAN_WILD_DROPS.overflow[kind];
-        state.currencies[currency] = (state.currencies[currency] || 0) + 1;
-        return { currency };
+        state.currencies[drop.overflow] = (state.currencies[drop.overflow] || 0) + 1;
+        return { currency: drop.overflow };
+    }
+
+    /** 야생 부적 드랍을 바로 받는다(탐험 바닥 밖). @returns {{item?:object, currency?:string}} */
+    function dropWild(state, enemy, random = Math.random) {
+        return receiveWild(state, rollWildDrop(enemy, random));
     }
 
     function unsealRefusal(source, state) {
@@ -293,7 +302,7 @@ const talismans = (() => {
     }
 
     return Object.freeze({ normalizeTalisman, rollNormal, rollUnique, roll, rerollStatLine, rollOtherUnique, fromCosmos, unseal, exchange, wax, waxPreview, turn, describeLine,
-        wildDropsOpen, rollWild, dropWild, isWild: id => wildIds.has(id),
+        wildDropsOpen, rollWild, rollWildDrop, receiveWild, dropWild, isWild: id => wildIds.has(id),
         conditionDelta, describeDelta,
         isDirectional: item => !!item && DIRECTIONAL.has(item.special), directionName: dir => DIRECTION_NAMES[dir] || DIRECTION_NAMES[1],
         conditionDef: id => conditionPool.get(id), uniqueDef: id => uniquePool.get(id), statDef: id => statPool.get(id) });

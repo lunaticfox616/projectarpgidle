@@ -771,9 +771,16 @@ function isDualWielding() {
  * 굴리지 않는다. 알림은 그루터기 함 화면이 stump-box-changed로 남긴다. */
 function rollWildTalismanDrop(enemy, chance) {
     if (!talismans.wildDropsOpen(game) || actExplorationState.current(game)?.act != null || Math.random() >= chance) return;
-    const drop = talismans.dropWild(game, enemy, Math.random);
-    if (game.noti) game.noti.stump = true;
+    const rolled = talismans.rollWildDrop(enemy, Math.random);
+    if (placeFloorItem(enemy, 'talisman', rolled.talisman, rolled.overflow)) return;
+    const drop = talismans.receiveWild(game, rolled);
     if (drop.item) queueEnemyGroundLoot(enemy, { item: drop.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[drop.item.rarity] });
+    announceWildTalisman(drop);
+}
+
+/** A stored wild talisman (or its overflow shard) marks the stump box; the stump box view writes the notice. */
+function announceWildTalisman(drop) {
+    if (game.noti) game.noti.stump = true;
     dispatchRuntimeEvent('stump-box-changed', { ripened: [], drop: drop.item || null, overflow: drop.currency || null });
 }
 
@@ -8253,6 +8260,11 @@ function queueEnemyGroundLoot(enemy, receipt) {
     celebrateEnemyLoot(enemy, item, receipt.highlight);
 }
 
+/** The ground-loot name colour of a jewel: violet for uniques, blue otherwise. */
+function getJewelLootColor(jewel) {
+    return jewel.rarity === 'unique' ? '#dca6ff' : '#78cfff';
+}
+
 function celebrateEnemyLoot(enemy, item, highlight) {
     if (highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...highlight,
         itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
@@ -8283,12 +8295,31 @@ function keepEquipmentDrop(enemy, item, options) {
  * @returns {number} items that reached the inventory or an equipment slot
  */
 function collectExplorationFloorLoot(rows) {
-    const currencies = rows.filter(row => row.currency);
+    const kindOf = actExplorationState.groundLoot.kindOf;
+    const currencies = rows.filter(row => kindOf(row) === 'currency');
     currencies.forEach(row => commitCurrencyGain(row.currency, row.count));
-    const kept = rows.filter(row => row.item && addItemToInventory(row.item, { ignoreFilter: true, guaranteedKeep: row.guaranteed })).map(row => row.item);
+    rows.forEach(row => receiveFloorItem[kindOf(row)]?.(row));
+    const kept = rows.filter(row => kindOf(row) === 'equipment'
+        && addItemToInventory(row.item, { ignoreFilter: true, guaranteedKeep: row.guaranteed })).map(row => row.item);
     if (kept.length || currencies.length) dispatchRuntimeEvent('floor-loot-collected', { items: kept,
         currencies: currencies.map(row => ({ key: row.currency, count: row.count })) }); // the loot log lines (js/battle-ground-loot-ui.js)
     return kept.length + currencies.length;
+}
+
+/** Floor jewels, cores and wild talismans reach the same stores, and raise the same notices, as an immediate drop. */
+const receiveFloorItem = {
+    jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
+    core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
+    talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow }))
+};
+
+/** Jewels, cores and wild talismans wait on the exploration floor like equipment (2026-10-06 user request). Returns whether the
+ * drop was laid there; elsewhere the caller grants it at once. */
+function placeFloorItem(enemy, kind, item, overflow) {
+    const run = explorationFloorFor(enemy);
+    if (!run) return false;
+    actExplorationState.groundLoot.placeItem(run, enemy, kind, item, overflow);
+    return true;
 }
 
 /** The live exploration run whose floor a drop at `enemy`'s cell lands on, or null where drops are picked up at once (offline
@@ -8397,9 +8428,11 @@ function rollLootForEnemy(enemy) {
     getCurrencyDrops(enemy).forEach(drop => {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'core') {
-            const core = coreItems.receiveDrop();
-            if (core) queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
-            if (core) dispatchRuntimeEvent('core-item-received', core);
+            const core = coreItems.rollDrop();
+            if (!core || placeFloorItem(enemy, 'core', core)) return;
+            coreItems.keep(core);
+            queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
+            dispatchRuntimeEvent('core-item-received', core);
             return;
         }
         const { gain, floor } = keepCurrencyDrop(enemy, drop[0], drop[1]);
@@ -8415,12 +8448,11 @@ function rollLootForEnemy(enemy) {
     rollWildTalismanDrop(enemy, talismanChance);
     if (contentProgression.isUnlocked('jewel') && (game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * contentDropMul) {
         let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
-        const receipt=receiveJewelDrop(jewel);
-        if (receipt.stored) {
-            const jewelTier = jewel.rarity === 'unique' ? 'unique' : (jewel.rarity === 'rare' ? 'rare' : jewel.rarity);
-            queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff' });
+        if (!placeFloorItem(enemy, 'jewel', jewel)) {
+            const receipt=receiveJewelDrop(jewel);
+            if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });
+            dispatchRuntimeEvent('jewel-drop-received',receipt);
         }
-        dispatchRuntimeEvent('jewel-drop-received',receipt);
     }
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
     let mappingZone = isBeeMappingZone(zone);
