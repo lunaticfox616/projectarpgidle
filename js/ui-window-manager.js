@@ -43,6 +43,7 @@
     let originalSwitchTab = null;
     let zOrder = Object.keys(WINDOW_DEFS);
     let initialized = false;
+    let previousDesktopMode = null;
 
     function getDefaultLayoutState() {
         return { version: UI_LAYOUT_VERSION, passiveTreePresentationVersion: PASSIVE_TREE_PRESENTATION_VERSION, workspacePresentationVersion: WORKSPACE_PRESENTATION_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
@@ -233,8 +234,13 @@
         titlebar.addEventListener('pointerdown', event => beginWindowDrag(event, tabId));
         titlebar.addEventListener('dblclick', () => toggleMaximizeWindow(tabId));
         resize.addEventListener('pointerdown', event => beginWindowResize(event, tabId));
-        el.addEventListener('pointerdown', () => focusWindow(tabId));
-        el.addEventListener('click', event => handleWindowActionClick(event, tabId));
+        // The panel survives mobile layout changes; only its title bar is rebuilt.
+        // Rebinding here would toggle maximize twice after one breakpoint round trip.
+        if (el.dataset.windowInputBound !== '1') {
+            el.addEventListener('pointerdown', () => focusWindow(tabId));
+            el.addEventListener('click', event => handleWindowActionClick(event, tabId));
+            el.dataset.windowInputBound = '1';
+        }
     }
 
     function applyWindowState(tabId) {
@@ -1172,6 +1178,8 @@
             if (resize) resize.remove();
             el.classList.remove('ui-window', 'ui-window-open', 'ui-window-minimized');
             el.removeAttribute('data-window-prepared');
+            // The phone panel no longer has the desktop dialog's title bar.
+            ['role', 'aria-labelledby', 'tabindex'].forEach(name => el.removeAttribute(name));
             ['left', 'top', 'width', 'height', 'zIndex'].forEach(prop => { el.style[prop] = ''; });
         });
         let social = document.getElementById('tab-social');
@@ -1185,12 +1193,38 @@
         syncWorkspacePresentation();
     }
 
+    function restoreSelectedMobileWindow() {
+        let mobileTab = Object.keys(WINDOW_DEFS).concat('tab-battle', 'tab-social').find(id => {
+            let el = document.getElementById(id);
+            return el && el.classList.contains('active');
+        });
+        if (!mobileTab) return;
+        if (WINDOW_DEFS[mobileTab]) { openWindow(mobileTab); return; }
+        closeAllWindows();
+        if (mobileTab === 'tab-social') openCommunityDock();
+    }
+
+    function restoreSelectedDesktopTab() {
+        if (!originalSwitchTab) return;
+        let tabId = zOrder.slice().reverse().find(id => {
+            let state = layoutState.windows[id];
+            return state && state.open && !state.minimized;
+        });
+        originalSwitchTab(tabId || (layoutState.community.open ? 'tab-social' : 'tab-battle'));
+    }
+
     function applyResponsiveMode() {
         let desktop = isDesktopWindowed();
+        // Mobile selection does not write desktop window state. Transfer it
+        // only when crossing the breakpoint, never on boot/ordinary resize.
+        let enteringDesktop = desktop && previousDesktopMode === false;
+        let enteringMobile = !desktop && previousDesktopMode === true;
+        previousDesktopMode = desktop;
         document.body.classList.toggle('desktop-windowed-ui', desktop);
         if (!desktop) {
             if (typeof messageFrames === 'object') messageFrames.sync({ desktop: false });
             restoreWindowMarkupForMobile();
+            if (enteringMobile) restoreSelectedDesktopTab();
             syncWorkspacePresentation();
             // 목표 서랍은 모바일에서도 같은 선정 로직을 공유하고 표시(배너/하단 시트)만 다르다.
             installGoalDrawer();
@@ -1203,6 +1237,7 @@
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         // 전투 기록과 채팅 창은 메뉴가 HUD에 들어간 뒤 놓는다(작업 영역의 아래 끝이 HUD 메뉴 줄로 정해진 뒤).
         if (typeof messageFrames === 'object') messageFrames.sync({ desktop: true, workspaceRect: getFreeWindowRect });
+        if (enteringDesktop) restoreSelectedMobileWindow();
         requestCanvasResize();
         syncWorkspacePresentation();
     }

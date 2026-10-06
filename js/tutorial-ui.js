@@ -104,16 +104,19 @@ const tutorialActionUi = {
         const group = getMergedTabGroup(action.notice.tabId);
         if (group) switchMergedTabSubtab(group[0], action.notice.tabId);
         else switchTab(action.notice.tabId, { keepWindowOpen: true });
-        if (action.notice.tabId === 'tab-items') {
-            switchItemSubtab('item-tab-equip');
-            if (isMobilePrimaryNavigationEnabled()) setEquipmentMobilePane('inventory');
-        }
+        if (action.notice.tabId === 'tab-items') this.openEquipment();
         requestAnimationFrame(() => {
             this.refresh();
             if (!this.highlighted) return;
             revealTutorialTarget(this.highlighted);
             this.placeCard(this.highlighted, true);
         });
+    },
+    openEquipment() {
+        switchItemSubtab('item-tab-equip');
+        if (isMobilePrimaryNavigationEnabled()) {
+            setEquipmentMobilePane(game.inventory.some(Boolean) ? 'inventory' : 'loadout');
+        }
     },
     refresh() {
         const action = this.active;
@@ -518,7 +521,7 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
         body: '레벨이 올라 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
         starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
-        body: '장비를 얻었습니다. 빈 칸에 맞는 장비는 바로 착용합니다.\n‘장비’에서 아이템을 눌러 지금 착용한 것과 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
+        body: '장비를 얻었습니다. 빈 칸에 맞는 장비는 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차).
         starterDue: state => (state.inventory || []).some(Boolean) || Object.values(state.equipment || {}).some(Boolean) }
 ]);
@@ -592,5 +595,6 @@ function dismissTutorial(openTarget) {
     }
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
     openTutorialTarget(notice);
+    if (['tutorial_first_gear', 'unlock_items'].includes(notice.key)) tutorialActionUi.openEquipment();
     setTimeout(showNextTutorial, 40);
 }

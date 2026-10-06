@@ -7,7 +7,7 @@ body #tutorial-overlay.is-story-scene .tutorial-card { width:min(920px,100%); ma
 body #tutorial-overlay.is-story-scene .tutorial-body { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:22px; align-items:center; white-space:normal; }
 body #tutorial-overlay.is-story-scene.is-story-text .tutorial-card { width:min(640px,100%); }
 body #tutorial-overlay.is-story-scene.is-story-text .tutorial-body { grid-template-columns:minmax(0,1fr); }
-.story-scene-art { display:block; width:100%; height:auto; max-height:65dvh; object-fit:contain; border:1px solid var(--color-line); border-radius:4px; }
+.story-scene-art { display:block; box-sizing:border-box; width:100%; height:auto; max-height:65dvh; object-fit:contain; border:1px solid var(--color-line); border-radius:4px; }
 .story-scene-copy { line-height:1.9; font-size:15px; color:var(--color-text); word-break:keep-all; }
 .story-scene-copy p { margin:0 0 12px; }
 /* A story scene is read, not skimmed: toasts raised in the same moment (journal bonus, unlock notes) would sit on the

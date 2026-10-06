@@ -168,17 +168,22 @@
         return ranked[0] || null;
     }
 
-    /** 꺼진 '추천 교체'는 까닭을 말한다(검토 4차): 분석 전이면 분석부터, 분석했는데 없으면 지금 장비가 낫다. */
+    /** 전체 목록의 추천은 공격·생존 동시 상승만 다룬다. 단일 축의 상승까지 없다고 말하지 않는다. */
     function getRecommendTitle(recommendation) {
         if (recommendation) return state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.';
-        return state.status === 'idle' ? '먼저 일괄 분석을 하면 추천이 나옵니다.' : '지금 장비보다 나은 추천 장비가 없습니다.';
+        if (state.status !== 'ready') return '현재 세팅으로 일괄 분석을 완료하면 추천을 확인할 수 있습니다.';
+        if (['all', 'balanced'].includes(state.filter)) return '공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승·생존 상승 필터로 각각 비교할 수 있습니다.';
+        if (['special', 'keep'].includes(state.filter)) return '이 목록에서는 장비를 직접 선택해 효과를 비교하세요.';
+        return '선택한 판단 기준에서 상승하는 장비가 없습니다.';
     }
 
     /** 단추 글에도 까닭을 붙인다 — 휴대폰에는 title이 뜨지 않는다(검토 5차). */
     function getRecommendLabel(recommendation) {
-        if (recommendation) return '추천 교체';
+        if (recommendation) return ['all', 'balanced'].includes(state.filter) ? '균형 추천 교체' : '추천 교체';
         if (state.status === 'running') return '분석 중';
-        return state.status === 'idle' ? '분석 먼저' : '추천 없음';
+        if (state.status !== 'ready') return state.status === 'idle' ? '분석 먼저' : '재분석 필요';
+        return { all: '균형 상승 없음', balanced: '균형 상승 없음', damage: '공격 상승 없음',
+            defense: '생존 상승 없음', special: '직접 비교', keep: '직접 비교' }[state.filter];
     }
 
     function render() {

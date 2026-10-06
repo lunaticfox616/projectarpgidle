@@ -10,6 +10,7 @@ const source = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 function bootManager(storedRaw, options = {}) {
     const saved = [];
     const exposed = {};
+    const listeners = new Map(), elements = options.elements || {};
     const storage = {
         getItem: () => (storedRaw === undefined ? null : storedRaw),
         setItem: (key, value) => saved.push({ key, value })
@@ -32,7 +33,7 @@ function bootManager(storedRaw, options = {}) {
             readyState: 'complete',
             body: fakeBody,
             documentElement: { clientWidth: 1280, clientHeight: 720 },
-            getElementById: () => null,
+            getElementById: id => elements[id] || null,
             querySelector: () => null,
             querySelectorAll: () => [],
             createElement: () => ({
@@ -51,12 +52,13 @@ function bootManager(storedRaw, options = {}) {
         innerHeight: options.height || 720,
         localStorage: storage,
         matchMedia: () => ({ matches: !!options.desktop }),
-        addEventListener() {}
+        addEventListener: (type, listener) => listeners.set(type, listener)
     };
     vm.createContext(context);
     require('./lib/load-ui-display')(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { exposed, saved, lastSaved: () => JSON.parse(saved[saved.length - 1].value) };
+    return { exposed, saved, lastSaved: () => JSON.parse(saved[saved.length - 1].value),
+        resize(desktop) { options.desktop = desktop; listeners.get('resize')(); } };
 }
 
 // 1) 손상된 JSON: 예외 없이 부팅되고, 저장 시 기본 상태(version 포함)로 복구된다.
@@ -191,6 +193,112 @@ function bootManager(storedRaw, options = {}) {
     const cover = narrow.lastSaved().windows['tab-skills'];
     assert.strictEqual(cover.docked, true, '도킹 선호는 저장된 채로 남는다');
     assert.strictEqual(cover.x, 140, '좁은 화면에서는 레일 옆 작업 영역 전체를 쓴다');
+}
+
+// 11) The phone's selected panel, not an older desktop window, survives a breakpoint.
+// DOM classes are the browser boundary; the real manager handles state, focus and storage.
+function panel(id) {
+    const classes = new Set(), listeners = new Map();
+    return { id, dataset: {}, style: {},
+        classList: { contains: key => classes.has(key), add: (...keys) => keys.forEach(key => classes.add(key)),
+            remove: (...keys) => keys.forEach(key => classes.delete(key)),
+            toggle(key, value) { if (value) classes.add(key); else classes.delete(key); } },
+        setAttribute() {}, toggleAttribute() {}, removeAttribute(name) { if (name === 'data-window-prepared') delete this.dataset.windowPrepared; },
+        querySelector: () => null, appendChild() {}, prepend() {}, focus() {},
+        addEventListener(type, handler) { listeners.set(type, [...(listeners.get(type) || []), handler]); },
+        clickAction(action) {
+            const button = { dataset: { windowAction: action } };
+            const event = { target: { closest: () => button }, stopPropagation() {} };
+            for (const listener of listeners.get('click') || []) listener(event);
+        } };
+}
+{
+    const elements = Object.fromEntries(['tab-items', 'tab-skills', 'tab-battle'].map(id => [id, panel(id)]));
+    elements['tab-items'].classList.add('active');
+    const m = bootManager(undefined, { desktop: true, elements });
+    assert(!elements['tab-items'].classList.contains('ui-window-open'), 'boot still starts with windows closed');
+    m.exposed.openWindow('tab-items');
+    const before = m.lastSaved().windows['tab-items'];
+    m.resize(false);
+    elements['tab-items'].classList.remove('active'); elements['tab-skills'].classList.add('active');
+    m.resize(true);
+    assert(elements['tab-skills'].classList.contains('ui-window-open'), 'the selected phone panel remains visible on desktop');
+    assert(elements['tab-skills'].classList.contains('ui-window-active'), 'the selected panel receives focus');
+    elements['tab-skills'].clickAction('maximize');
+    assert(m.lastSaved().windows['tab-skills'].maximized, 'one click still maximizes after rebuilding the desktop title bar');
+    elements['tab-skills'].clickAction('maximize');
+    assert(!m.lastSaved().windows['tab-skills'].maximized, 'a second click restores the window');
+    const after = m.lastSaved().windows['tab-items'];
+    assert.deepStrictEqual([after.x, after.y, after.width, after.height], [before.x, before.y, before.width, before.height]);
+    m.exposed.closeWindow('tab-skills');
+    m.resize(true);
+    assert(!elements['tab-skills'].classList.contains('ui-window-open'), 'ordinary desktop resizing must not reopen a closed panel');
+    m.resize(false);
+    elements['tab-skills'].classList.remove('active'); elements['tab-battle'].classList.add('active');
+    m.resize(true);
+    assert(!elements['tab-items'].classList.contains('ui-window-open'), 'returning to combat on phone must not restore old windows');
+    assert(!elements['tab-skills'].classList.contains('ui-window-open'));
+}
+
+// 12) The actual tab controller and window manager agree when returning to phone.
+{
+    const elements = Object.fromEntries(['tab-items', 'tab-skills', 'tab-character', 'tab-battle', 'tab-map', 'map-tab-zones', 'map-explore-atlas', 'item-tab-equip', 'item-tab-craft'].flatMap(id =>
+        [[id, panel(id)], ['btn-' + id, panel('btn-' + id)]]));
+    const { buildGameRuntime } = require('./lib/game-runtime');
+    elements['ui-goal-drawer'] = panel('ui-goal-drawer');
+    elements['info-tooltip'] = panel('info-tooltip');
+    elements['item-tooltip-box'] = panel('item-tooltip-box');
+    const runtime = buildGameRuntime({}, null, {
+        getElementById: id => elements[id] || null,
+        querySelectorAll: selector => selector === '.tab-content:not(.merged-subtab-pane), .tab-btn'
+            ? Object.values(elements).filter(el => /^(tab-|btn-tab-)/.test(el.id)) : []
+    });
+    let desktop = true;
+    const listeners = new Map();
+    runtime.matchMedia = query => ({ matches: query.includes('min-width') ? desktop : !desktop });
+    runtime.addEventListener = (type, handler) => listeners.set(type, handler);
+    runtime.document.body.style.setProperty = () => {};
+    vm.runInContext('contentProgression.sync(game)', runtime);
+    vm.runInContext(source, runtime);
+    runtime.openWindow('tab-skills');
+    elements['tab-skills'].classList.add('active');
+    runtime.closeWindow('tab-skills');
+    desktop = false; listeners.get('resize')();
+    assert(elements['tab-battle'].classList.contains('active'), 'a closed desktop window must not reappear on phone');
+    assert(!elements['tab-skills'].classList.contains('active'));
+    desktop = true; listeners.get('resize')();
+    runtime.openWindow('tab-items');
+    runtime.openWindow('tab-character');
+    runtime.closeWindow('tab-character');
+    desktop = false; listeners.get('resize')();
+    assert(elements['tab-items'].classList.contains('active'), 'phone keeps the remaining visible window after the top one closes');
+    assert(!elements['tab-battle'].classList.contains('active'));
+
+    // A content shortcut must focus an already-open destination, and must not
+    // toggle it closed when used again. Run the real navigation and window code.
+    desktop = true; listeners.get('resize')();
+    runtime.openWindow('tab-character');
+    elements['tab-items'].classList.add('active');
+    vm.runInContext("game.season=3;game.contentProgression.inherited=['craft'];contentProgression.sync();contentUnlockUi.open('craft')", runtime);
+    assert(elements['tab-items'].classList.contains('ui-window-active'), 'content shortcuts bring an existing destination above the source window');
+    vm.runInContext("contentUnlockUi.open('craft')", runtime);
+    assert(elements['tab-items'].classList.contains('ui-window-open'), 'repeated shortcuts keep the destination open');
+
+    runtime.openWindow('tab-map');
+    elements['tab-map'].classList.add('active');
+    runtime.closeWindow('tab-map');
+    const mapSelect = { dataset: {}, replaceChildren() {} };
+    elements['mobile-map-navigation'] = { querySelector: () => mapSelect };
+    for (const key of vm.runInContext('TAB_UNLOCK_BUTTON_KEYS', runtime)) {
+        const id = 'btn-tab-' + key;
+        elements[id] ||= panel(id);
+    }
+    vm.runInContext(fs.readFileSync('js/map-navigation-ui.js', 'utf8'), runtime);
+    vm.runInContext('explorationAtlasUi.open()', runtime);
+    assert(elements['tab-map'].classList.contains('ui-window-open'), 'the exploration overview reopens a closed map with a stale active class');
+    runtime.openWindow('tab-character');
+    vm.runInContext('explorationAtlasUi.open()', runtime);
+    assert(elements['tab-map'].classList.contains('ui-window-active'), 'the exploration overview focuses its already-open map');
 }
 
 console.log('smoke-ui-layout-state passed');

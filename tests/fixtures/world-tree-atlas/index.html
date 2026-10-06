@@ -36,6 +36,25 @@ chaseButton.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-chase-r
 const runeButton=document.createElement('button');runeButton.textContent='룬 제작 재료';runeButton.id='rune-review';
 chaseButton.after(runeButton);
 runeButton.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-rune-review'},location.origin);
+const performanceButton=document.createElement('button');performanceButton.textContent='10초 성능 측정';
+performanceButton.id='performance-review';runeButton.after(performanceButton);
+performanceButton.onclick=()=>{
+ performanceButton.disabled=true;document.getElementById('status').textContent='10초 측정 중 · 이 탭을 유지하세요';
+ frame.contentWindow.postMessage({type:'worldtree-performance-start'},location.origin);
+};
+const skillButton=document.createElement('button');skillButton.textContent='이동·소환 젬 지급';skillButton.id='skill-review';
+performanceButton.after(skillButton);
+skillButton.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-skill-review'},location.origin);
+const tradeButton=document.createElement('button');tradeButton.textContent='협상 표본 (4시간)';tradeButton.id='trade-review';
+skillButton.after(tradeButton);
+tradeButton.onclick=()=>frame.contentWindow.postMessage({type:'worldtree-trade-review'},location.origin);
+window.addEventListener('message',event=>{
+ if(event.source!==frame.contentWindow||event.origin!==location.origin||event.data.type!=='worldtree-performance-result')return;
+ const sample=event.data;performanceButton.disabled=false;
+ const output=document.getElementById('status');output.dataset.performance=JSON.stringify(sample);
+ output.textContent=sample.interrupted?'탭이 숨겨져 측정을 중단했습니다. 다시 실행하세요.'
+  :`×${sample.speed} · 프레임 중앙 ${sample.frameMedian} / p95 ${sample.frameP95}ms · 틱 중앙 ${sample.tickMedian} / p95 ${sample.tickP95}ms (${sample.frames}프레임, ${sample.ticks}틱)`;
+});
 async function loadReviewBuild(file,mode,button){
  button.disabled=true;
  try {

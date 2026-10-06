@@ -30,8 +30,14 @@ function element(id='',attributes={}) {
         }
     };
     Object.defineProperty(node,'innerHTML',{get:()=>node._html,set:html=>{
+        node.children.forEach(child=>{child.isConnected=false;});node.children=[];
         node._html=html;
         for(const match of html.matchAll(/\bid="([^"]+)"/g))nodes.set(match[1],element(match[1]));
+        for(const match of html.matchAll(/<button\b([^>]*)>/g)) {
+            const attrs={};
+            for(const attr of match[1].matchAll(/([\w-]+)(?:="([^"]*)")?/g))attrs[attr[1]]=attr[2]??'';
+            const child=element('',attrs);child.disabled=Object.hasOwn(attrs,'disabled');node.children.push(child);
+        }
     }});
     return node;
 }
@@ -105,6 +111,24 @@ async function main() {
     assert.equal(run('game.currentZoneId'),1);
     assert.equal(run('game.actExploration.act'),2,'map travel lays out the destination act at once — never the legacy 9×8 board');
     assert.equal(run('game.actExploration.arrival'),true);
+
+    // A normal static refresh while the player reads the dialog must not remove
+    // an unchanged trial destination. Confirmation and the real trial entry run.
+    fresh();run("game.contentProgression.inherited=['craft','loopTree','trials'];contentProgression.sync()");
+    const trialList=element('ui-trial-list');nodes.set(trialList.id,trialList);
+    run("renderTrialMapList([TRIAL_ZONES.find(trial=>trial.id==='trial_1')])");
+    trialList.children[0].click();
+    assert.equal(run('actExplorationUi.departurePending()'),true);
+    run("renderTrialMapList([TRIAL_ZONES.find(trial=>trial.id==='trial_1')])");
+    nodes.get('game-dialog-confirm').click();await settle();
+    assert.equal(run('game.currentZoneId'),'trial_1','ordinary trial-list refresh must not cancel the confirmed destination');
+
+    fresh();run("game.contentProgression.inherited=['craft','loopTree','trials'];contentProgression.sync()");
+    run("renderTrialMapList([TRIAL_ZONES.find(trial=>trial.id==='trial_1')])");
+    trialList.children[0].click();
+    run("renderTrialMapList([TRIAL_ZONES.find(trial=>trial.id==='trial_2')])");
+    nodes.get('game-dialog-confirm').click();await settle();
+    assert.equal(run('game.currentZoneId'),0,'a genuinely replaced destination still cancels the old confirmation');
     fresh();run('actExplorationProgress.defeat(game)');direct.click();
     assert.equal(run('game.currentZoneId'),1,'already-lost loot needs no extra confirmation');
     assert.equal(run('actExplorationUi.departurePending()'),false);
