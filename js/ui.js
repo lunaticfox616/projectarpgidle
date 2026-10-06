@@ -1651,7 +1651,8 @@ function updateBottomTabSpacing(){
     let visible = bottomHeader && document.body.classList.contains('has-bottom-tabs') &&
         window.getComputedStyle(bottomHeader).display !== 'none';
     let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
-    document.body.style.setProperty('--bottom-tab-height', height + 'px');
+    // body의 변수는 문서 전체가 물려받는다: 같은 값을 다시 쓰면 모든 요소의 스타일을 다시 계산했다(2026-10-07 프레임 드랍).
+    if (document.body.style.getPropertyValue('--bottom-tab-height') !== height + 'px') document.body.style.setProperty('--bottom-tab-height', height + 'px');
 }
 function scheduleTabHeaderViewportSync() {
     clearTabHeaderDragState(false);
@@ -1674,14 +1675,13 @@ function moveTabButton(tabId, dir) {
 
 function getTabHeaderUiSignature() {
     let unlocks = game.unlocks || {};
-    let noti = game.noti || {};
-    let filters = (game.settings && game.settings.notiFilters) || {};
     let mobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`) ? 'mobileBattle' : 'desktopBattle';
     return [
         mobileBattle,
         isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
-        TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
+        // 알림 점은 getTabNotiSignature가 따로 본다(점 하나에 머리 전체를 다시 그리지 않게).
+        TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && tabLayoutUi.current().tabOrder) ? tabLayoutUi.current().tabOrder.join(',') : '',
         JSON.stringify((game.settings && tabLayoutUi.current().tabPlacement) || {}),
         Array.isArray(game.settings && tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder.join(',') : '',
@@ -1764,15 +1764,32 @@ function hideOutOfGroupTabButtons() {
     });
 }
 
+let lastTabNotiSignature = '';
+/** Which tabs show a notification dot (filters applied). Kept apart from the header's signature: a dot that came or went rebuilt
+ * the whole tab header and phone menu, and the restyle that followed, every few seconds of combat (2026-10-07 frame drops: about
+ * 75 ms on a 4x-throttled phone). */
+function getTabNotiSignature() {
+    let noti = game.noti || {};
+    let filters = (game.settings && game.settings.notiFilters) || {};
+    return TAB_HEADER_NOTI_KEYS.map(key => (noti[key] && filters[key] !== false ? 1 : 0)).join('');
+}
+
 function refreshTabHeaderUiIfNeeded() {
     let signature = getTabHeaderUiSignature();
-    if (signature === lastTabHeaderUiSignature) return false;
+    if (signature === lastTabHeaderUiSignature) {
+        if (getTabNotiSignature() === lastTabNotiSignature) return false;
+        updateTabNotificationDots();
+        if (isTabGroupingActive()) renderTabCategoryBar(); // its group buttons carry the dots too
+        lastTabNotiSignature = getTabNotiSignature();
+        return false;
+    }
     lastTabHeaderUiSignature = signature;
     updateTabUnlockButtons();
     applyTabHeaderOrder();
     updateTabNotificationDots();
     applyTabGroupFilter();
     renderTabCategoryBar();
+    lastTabNotiSignature = getTabNotiSignature();
     return true;
 }
 
@@ -6644,6 +6661,7 @@ function resizeBattlefieldCanvas() {
     canvas.style.height = `${cssHeight}px`;
     canvas.dataset.renderScale = String(dpr);
     lastBattlefieldCanvasSize = { width: cssWidth, height: cssHeight, dpr };
+    if (typeof battleCanvasBox === 'object') battleCanvasBox.forget();
 }
 
 // ACT 맵과 9x8 판정은 같은 변환을 쓴다. grid-contain은 장식만 잘라내고 전투 칸 전체를 보인다.
@@ -7909,6 +7927,9 @@ function renderCombatSkillHud() {
 function setUiImageGaugePercent(element, percent) {
     if (!element) return;
     let safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    // 같은 값은 다시 쓰지 않는다: 같은 값이라도 인라인 스타일을 쓰면 다음 프레임에 스타일 계산이 다시 돈다.
+    if (element.__gaugePercent === safePercent) return;
+    element.__gaugePercent = safePercent;
     element.style.width = '100%';
     element.style.setProperty('--gauge-fill', `${safePercent}%`);
     if (element.parentElement && element.parentElement.style) {
@@ -8357,13 +8378,45 @@ function buildPlayerCombatEffectIcons(pStats, now) {
         + buildPlayerRealmEffectIcons(pStats, now);
 }
 
+/** An effect icon strip's new markup. Its timer rings turn every tick (--effect-remaining-angle), and rebuilding the strip for that
+ * removed and re-added its elements ten times a second, so the page re-checked every body:has() rule each time (2026-10-07 frame
+ * drops: the costliest style passes of the endgame). While the icons keep their shape, only the changed attributes and texts move. */
+function patchCombatEffectStrip(host, markup) {
+    if (!host || host.__lastHtml === markup) return;
+    host.__lastHtml = markup;
+    const parsed = document.createElement('template');
+    parsed.innerHTML = markup;
+    if (!parsed.content || !host.children) { host.innerHTML = markup; return; } // no template parsing here (script tests' stand-in DOM)
+    const fresh = [...parsed.content.children], live = [...host.children];
+    if (fresh.length === live.length && fresh.every((node, index) => sameEffectShape(node, live[index]))) {
+        fresh.forEach((node, index) => syncEffectNode(live[index], node));
+    } else host.innerHTML = markup;
+}
+
+/** Same tags and classes all the way down (a new icon, a timer appearing, or a badge coming means a rebuild). */
+function sameEffectShape(fresh, live) {
+    const pairs = [[fresh, live]];
+    while (pairs.length) {
+        const [a, b] = pairs.pop();
+        if (a.tagName !== b.tagName || a.className !== b.className || a.children.length !== b.children.length) return false;
+        for (let index = 0; index < a.children.length; index++) pairs.push([a.children[index], b.children[index]]);
+    }
+    return true;
+}
+
+function syncEffectNode(live, fresh) {
+    const pairs = [[live, fresh]];
+    while (pairs.length) {
+        const [to, from] = pairs.pop();
+        for (const { name, value } of from.attributes) if (to.getAttribute(name) !== value) to.setAttribute(name, value);
+        if (from.children.length) for (let index = 0; index < from.children.length; index++) pairs.push([to.children[index], from.children[index]]);
+        else if (to.textContent !== from.textContent) to.textContent = from.textContent;
+    }
+}
+
 function updatePlayerCombatEffectHud(pStats, hpAilBar) {
     let markup = buildPlayerCombatEffectIcons(pStats, getCombatTime());
-    let effectHost = document.getElementById('ui-player-ailments-under');
-    if (effectHost && effectHost.__lastHtml !== markup) {
-        effectHost.innerHTML = markup;
-        effectHost.__lastHtml = markup;
-    }
+    patchCombatEffectStrip(document.getElementById('ui-player-ailments-under'), markup);
     let projectedDamage = (game.playerAilments || []).reduce((sum, ail) => {
         if (!ail || (ail.time || 0) <= 0 || !isUiDamageAilmentType(ail.type)) return sum;
         return sum + Math.floor(getUiPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
@@ -8592,12 +8645,24 @@ function markPlayerEnergyShieldRow(hpTrack, hasEnergyShield) {
 }
 
 /** 생명 구슬 안 보호막 글자: "보호막 현재/최대". 휴대폰의 작은 구슬(50px)에서는 CSS가 이름과 최대를 숨기고 파란 현재값만 남긴다(pixel-hud.css). */
+/** 틱마다 숫자 글자만 바꾼다: innerHTML을 갈면 새 요소가 끼어들어 body의 :has() 규칙까지 다시 따졌다(2026-10-07 프레임 드랍). */
 function renderEnergyShieldInline(el, hasEnergyShield, current, max) {
     if (!el) return;
-    el.style.display = hasEnergyShield ? '' : 'none';
+    const display = hasEnergyShield ? '' : 'none';
+    if (el.style.display !== display) el.style.display = display;
     if (!hasEnergyShield) return;
-    const html = `<span class="combat-es-label">보호막 </span>${Math.floor(current || 0)}<span class="combat-es-max">/${Math.floor(max || 0)}</span>`;
-    if (el.__esHtml !== html) { el.innerHTML = html; el.__esHtml = html; }
+    const parts = energyShieldInlineParts(el);
+    const nowText = String(Math.floor(current || 0)), maxText = `/${Math.floor(max || 0)}`;
+    if (parts.now.data !== nowText) parts.now.data = nowText;
+    if (parts.max.data !== maxText) parts.max.data = maxText;
+}
+
+/** The two number text nodes of the ES line, built once ("보호막 " label, current, "/max"). */
+function energyShieldInlineParts(el) {
+    if (el.__esParts && el.__esParts.now.parentNode === el) return el.__esParts;
+    el.innerHTML = '<span class="combat-es-label">보호막 </span>0<span class="combat-es-max">/0</span>';
+    el.__esParts = { now: el.childNodes[1], max: el.lastChild.firstChild };
+    return el.__esParts;
 }
 
 let hudShownLevel = 0;
@@ -8852,10 +8917,7 @@ function updateCombatUI(pStats) {
                 setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`);
             } else setElementText(hpTextEl, `${focusedEnemy.energyShield > 0 ? `보호막 ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`);
         }
-        if (ailmentEl && ailmentEl.__lastHtml !== effectMarkup) {
-            ailmentEl.innerHTML = effectMarkup;
-            ailmentEl.__lastHtml = effectMarkup;
-        }
+        patchCombatEffectStrip(ailmentEl, effectMarkup);
         if (traitEl) {
             let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
             let traitLabels = getUiEnemyTraitLabels(showTraits ? tags : []);

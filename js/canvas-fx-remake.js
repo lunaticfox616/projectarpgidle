@@ -59,9 +59,15 @@ const fxRemake = (() => {
         surfaces.fullCtx.imageSmoothingEnabled = false;
         return surfaces;
     }
+    /** The battlefield canvas uses the size it measured once (js/canvas-battlefield.js battleCanvasBox): reading clientWidth here
+     * every frame forced a style pass over whatever the frame had changed so far (2026-10-07 frame drops). */
+    function cssBox(canvas) {
+        if (canvas.id === 'battlefield-canvas' && typeof battleCanvasBox === 'object') return battleCanvasBox.read(canvas);
+        return { width: canvas.clientWidth, height: canvas.clientHeight };
+    }
     function boardView(target, projection) {
-        const canvas = target.canvas, scale = Number(canvas.dataset?.renderScale) || 1;
-        const width = canvas.clientWidth || canvas.width / scale, height = canvas.clientHeight || canvas.height / scale;
+        const canvas = target.canvas, scale = Number(canvas.dataset?.renderScale) || 1, css = cssBox(canvas);
+        const width = css.width || canvas.width / scale, height = css.height || canvas.height / scale;
         const origin = projection.cellToScreen(0, 0), s = projection.tileW / 48;
         const ox = Math.floor(((0 - origin.x) / s + 24 - 48) / BLOCK) * BLOCK;
         const oy = Math.floor(((0 - origin.y) / s + 24 - 48) / BLOCK) * BLOCK;

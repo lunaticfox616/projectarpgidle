@@ -4901,6 +4901,17 @@ function applyDamageTextPop(ctx, text, t, anchor) {
     ctx.translate(-anchor.x, -anchor.y);
 }
 
+/** A damage number's text, formatted once per value and number format: toLocaleString for every number on screen every frame
+ * was a measurable share of the frame (2026-10-07 frame drops). */
+function getDamageTextLabel(text) {
+    const format = (typeof game !== 'undefined' && game && game.settings) ? game.settings.damageNumberFormat : '';
+    const cached = text.labelCache;
+    if (cached && cached.value === text.value && cached.format === format) return cached.label;
+    const label = `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
+    text.labelCache = { value: text.value, format, label };
+    return label;
+}
+
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
         let elapsed = now - Number(text.start);
@@ -4918,7 +4929,7 @@ function drawDamageTexts(ctx, now) {
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
         ctx.textAlign = text.side > 0 ? 'left' : (text.side < 0 ? 'right' : 'center');
         applyDamageTextPop(ctx, text, t, { x, y });
-        let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
+        let textValue = text.miss ? String(text.value) : getDamageTextLabel(text);
         const strong = isStrongDamageText(text);
         // Strokes straddle the glyph edge, so 2px reads as a 1px dark outline. Only crits and heavy hits keep a glow.
         ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (strong ? 3.5 : 3);
@@ -5463,19 +5474,21 @@ function applyPanelLayoutSettings() {
         ? !game.settings.mobileCombatLogExpanded : !!game.settings.combatLogCollapsed;
     if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
-    leftToggleButtons.forEach(leftToggleBtn => {
-        leftToggleBtn.innerText = isLeftCollapsed ? '▶' : '◀';
-        leftToggleBtn.title = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
-        leftToggleBtn.setAttribute('aria-label', isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기');
-    });
-    if (leftExpandFab) leftExpandFab.innerText = '▶';
+    // 정적 UI를 새로 그릴 때마다 불린다. 같은 글자와 속성을 다시 쓰고 innerText를 읽으면 문서 스타일과 배치를 강제로 다시
+    // 계산했다(2026-10-07 프레임 드랍: 몇 초마다 한 번씩 튀던 프레임). 바뀐 것만 쓴다.
+    const leftLabel = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
+    leftToggleButtons.forEach(button => syncPanelToggle(button, isLeftCollapsed ? '▶' : '◀', { title: leftLabel, 'aria-label': leftLabel }));
+    if (leftExpandFab) syncPanelToggle(leftExpandFab, '▶', {});
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);
-    if (combatLogToggleBtn) {
-        combatLogToggleBtn.innerText = isLogCollapsed ? '펼치기' : '접기';
-        combatLogToggleBtn.setAttribute('aria-expanded', String(!isLogCollapsed));
-        combatLogToggleBtn.setAttribute('aria-label', `전투 기록 ${combatLogToggleBtn.innerText}`);
-    }
+    const logText = isLogCollapsed ? '펼치기' : '접기';
+    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': `전투 기록 ${logText}` });
+}
+
+/** A panel toggle's text and attributes, written only where they differ. */
+function syncPanelToggle(el, text, attributes) {
+    if (el.textContent !== text) el.textContent = text;
+    Object.entries(attributes).forEach(([name, value]) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); });
 }
 
 function toggleLeftPaneCollapse() {

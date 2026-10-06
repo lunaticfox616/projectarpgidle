@@ -91,13 +91,18 @@ function getClosestGridUnitCell(from, unit) {
     };
 }
 
-function canPlaceGridFootprint(blocked, gx, gy, footprint) {
+/** The map and whether the boss gate is still sealed: the same for every cell of one search, so the searches below read it once
+ * (each neighbour of a path search counted the living elites again, 2026-10-07 frame drops). */
+function getGridPlacementTerrain() {
+    const run=actExplorationState.current(game);
+    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.remainingElites(run)>0 };
+}
+
+function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlacementTerrain()) {
     let cells = getGridFootprintCells(gx, gy, footprint);
     if (cells.length !== footprint.columns * footprint.rows) return false;
-    const map=getCombatGridSize(),run=actExplorationState.current(game);
-    const sealed=run && actExplorationState.remainingElites(run)>0;
     return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy))
-        && (!map.tiles || actExplorationMap.walkable(map,cell,sealed)));
+        && (!terrain.map.tiles || actExplorationMap.walkable(terrain.map,cell,terrain.sealed)));
 }
 
 function isGridUnitInCellSet(unit, cellKeys) {
@@ -140,10 +145,10 @@ function addExplorationGridReservations(blocked,excludeUnit) {
  */
 function findFreeGridCell(blocked, near, footprint) {
     let size = footprint || { columns: 1, rows: 1 };
-    let free = [];
-    for (let gx = 0; gx < getCombatGridSize().columns; gx++) {
-        for (let gy = 0; gy < getCombatGridSize().rows; gy++) {
-            if (canPlaceGridFootprint(blocked, gx, gy, size)) free.push({ gx, gy });
+    let free = [], terrain = getGridPlacementTerrain();
+    for (let gx = 0; gx < terrain.map.columns; gx++) {
+        for (let gy = 0; gy < terrain.map.rows; gy++) {
+            if (canPlaceGridFootprint(blocked, gx, gy, size, terrain)) free.push({ gx, gy });
         }
     }
     if (free.length === 0) return null;
@@ -290,14 +295,14 @@ function gridStepToward(unit, tx, ty, blocked) {
     let best = start;
     let bestCheb = distanceFromPlacement(start.gx, start.gy);
     let bestMan = Math.abs(getGridUnitCenter(unit).gx - tx) + Math.abs(getGridUnitCenter(unit).gy - ty);
-    let queue = [start];
+    let queue = [start], terrain = getGridPlacementTerrain();
     let visited = new Set([gridCellKey(start.gx, start.gy)]);
     while (queue.length > 0) {
         let current = queue.shift();
         GRID_CARDINAL_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = gridCellKey(gx, gy);
-            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
+            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint, terrain)) return;
             let next = { gx, gy, first: current.first || { gx, gy } };
             let cheb = distanceFromPlacement(gx, gy);
             let man = Math.abs(gx + (footprint.columns - 1) / 2 - tx)
@@ -366,7 +371,7 @@ function findNearestSafeGridRoute(unit, hazardCells) {
         .map(cell => gridCellKey(cell.gx, cell.gy)));
     let blocked = getGridBlockedCells(unit);
     let start = { gx: unit.gx, gy: unit.gy, first: null, distance: 0 };
-    let queue = [start];
+    let queue = [start], terrain = getGridPlacementTerrain();
     let visited = new Set([gridCellKey(start.gx, start.gy)]);
     while (queue.length > 0) {
         let current = queue.shift();
@@ -377,7 +382,7 @@ function findNearestSafeGridRoute(unit, hazardCells) {
         GRID_CARDINAL_STEPS.forEach(direction => {
             let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
             let key = gridCellKey(gx, gy);
-            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
+            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint, terrain)) return;
             let first = current.first || { gx, gy };
             visited.add(key);
             queue.push({ gx, gy, first, distance: current.distance + 1 });

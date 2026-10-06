@@ -44,15 +44,22 @@ const battleGroundLoot = (() => {
         document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
     }
 
+    /** The canvas's box: the battlefield one is measured once per resize (js/canvas-battlefield.js battleCanvasBox); reading
+     * offsetParent and clientWidth here every frame forced a style pass mid-frame (2026-10-07 frame drops). */
+    function canvasBox(source) {
+        if (source.id === 'battlefield-canvas' && typeof battleCanvasBox === 'object') return battleCanvasBox.read(source);
+        const hidden = source.offsetParent === null;
+        return { width: hidden ? 0 : source.clientWidth, height: hidden ? 0 : source.clientHeight, left: source.offsetLeft, top: source.offsetTop };
+    }
+
     function resize() {
-        const next = [canvas.offsetLeft, canvas.offsetTop, canvas.clientWidth, canvas.clientHeight].join(':');
+        const box = canvasBox(canvas), next = [box.left, box.top, box.width, box.height].join(':');
         if (geometry === next) return;
         geometry = next;
         entries.forEach(entry => { delete entry.marker.dataset.labelRow; });
-        const rect = { left: canvas.offsetLeft + 'px', top: canvas.offsetTop + 'px',
-            width: canvas.clientWidth + 'px', height: canvas.clientHeight + 'px' };
+        const rect = { left: box.left + 'px', top: box.top + 'px', width: box.width + 'px', height: box.height + 'px' };
         [ground, foreground, air].forEach(node => Object.assign(node.style, rect));
-        ground.style.setProperty('--loot-width', canvas.clientWidth + 'px');
+        ground.style.setProperty('--loot-width', box.width + 'px');
     }
 
     function place(marker, point) {
@@ -70,11 +77,11 @@ const battleGroundLoot = (() => {
 
     /** A receipt is already owned. Only its short-lived picture is anchored to a map cell (never to viewport percentages). */
     function projectEntries(projection) {
-        const projected = [];
+        const projected = [], box = canvasBox(canvas);
         let changed = false;
         for (const entry of entries.values()) {
             const point = originFor(entry.cell, projection), marker = entry.marker;
-            marker.hidden = point.x < -64 || point.y < -64 || point.x > canvas.clientWidth + 64 || point.y > canvas.clientHeight + 64;
+            marker.hidden = point.x < -64 || point.y < -64 || point.x > box.width + 64 || point.y > box.height + 64;
             projected.push({ marker, point });
             if (marker.style.left !== Math.round(point.x) + 'px' || marker.style.top !== Math.round(point.y) + 'px' || !marker.dataset.labelRow) changed = true;
         }
@@ -390,8 +397,8 @@ const battleGroundLoot = (() => {
     }
 
     function visible(source) {
-        return source.offsetParent !== null && source.clientWidth > 0 && source.clientHeight > 0
-            && !document.hidden && !game.isBackgroundCalculation;
+        const box = canvasBox(source);
+        return box.width > 0 && box.height > 0 && !document.hidden && !game.isBackgroundCalculation;
     }
 
     function prepare(source, now, projection) {

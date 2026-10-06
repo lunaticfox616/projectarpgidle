@@ -2294,22 +2294,51 @@ function drawLegacyHitFeedback(ctx, fx, progress, playerPos, enemyPosMap) {
     drawDamageImpactAccent(ctx, fx, progress, enemyPosMap, playerPos);
 }
 
+/** The battlefield canvas's CSS box ({width, height, left, top}; width 0 = hidden, display:none here or above), measured once and
+ * again only after it resizes, or a second later for a move without a resize. Reading offsetParent and clientWidth every frame
+ * forced a style and layout pass right after the tick had touched the HUD (2026-10-07 frame drops: 1.5 s of 14 s on a 4x-throttled
+ * phone in the endgame, with the reads in canvas-fx-remake.js boardView and battle-ground-loot-ui.js). A ResizeObserver, or
+ * resizeBattlefieldCanvas, marks it stale. */
+const battleCanvasBox = (() => {
+    const MAX_AGE_MS = 1000;
+    let observed = null, box = null;
+    function watch(canvas) {
+        if (observed === canvas) return;
+        observed = canvas; box = null;
+        if (typeof ResizeObserver === 'function') new ResizeObserver(() => { box = null; }).observe(canvas);
+    }
+    function measure(canvas, now) {
+        if (canvas.offsetParent === null) return { width: 0, height: 0, left: 0, top: 0, at: now };
+        return { width: canvas.clientWidth, height: canvas.clientHeight, left: canvas.offsetLeft, top: canvas.offsetTop, at: now };
+    }
+    function read(canvas) {
+        watch(canvas);
+        const now = performance.now();
+        if (!box || now - box.at >= MAX_AGE_MS || typeof ResizeObserver !== 'function') box = measure(canvas, now);
+        return box;
+    }
+    return Object.freeze({ read, forget: () => { box = null; } });
+})();
+
 function renderBattlefield(forceWhenHidden) {
     worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
-    if (!canvas || (!forceWhenHidden && canvas.offsetParent === null)) return;
+    if (!canvas) return;
+    const box = battleCanvasBox.read(canvas);
+    if (!forceWhenHidden && box.width === 0) return;
     if (!battleAssets.ready && !battleAssets.loading && !battleAssets.failed && window.__battleAssetAutoloadEnabled !== false) initBattleAssets();
     const expectedScale = uiDisplay.battleRenderScale;
-    const baseWidth = canvas.clientWidth || Math.round((canvas.width || 960) / expectedScale) || 960;
-    const baseHeight = canvas.clientHeight || Math.round((canvas.height || 540) / expectedScale) || 540;
+    const baseWidth = box.width || Math.round((canvas.width || 960) / expectedScale) || 960;
+    const baseHeight = box.height || Math.round((canvas.height || 540) / expectedScale) || 540;
     const expectedWidth = Math.max(1, Math.round(baseWidth * expectedScale));
     const expectedHeight = Math.max(1, Math.round(baseHeight * expectedScale));
     if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) resizeBattlefieldCanvas();
     let ctx = canvas.getContext('2d');
     if (!ctx) return;
     const renderScale = clampNumber(Number(canvas.dataset.renderScale) || 1, 1, 2);
-    const width = Math.max(1, canvas.clientWidth || Math.round(canvas.width / renderScale) || canvas.width);
-    const height = Math.max(1, canvas.clientHeight || Math.round(canvas.height / renderScale) || canvas.height);
+    const view = battleCanvasBox.read(canvas); // measured again only when the resize above changed it
+    const width = Math.max(1, view.width || Math.round(canvas.width / renderScale) || canvas.width);
+    const height = Math.max(1, view.height || Math.round(canvas.height / renderScale) || canvas.height);
     const { now, rawDeltaMs, deltaMs } = worldTreeSkillFx.feedback.advanceClock(performance.now());
     worldTreeSkillFx.feedback.begin(now);
     const deltaSec = deltaMs / 1000;
@@ -2747,7 +2776,9 @@ function renderBattlefield(forceWhenHidden) {
     else if (game.moveTimer > 0) caption = '';
     else if (getCanvasCrowdProgressPaused()) caption = '';
     else caption = `몬스터 수 ${enemies.length}마리`;
+    // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
     setElementText(document.getElementById('ui-battlefield-caption'), caption);
+    if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
 }
 
 function getBattleCameraShake(now) {
