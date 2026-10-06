@@ -7425,6 +7425,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
             outlineColor: outline.color,
             outlineThickness: outline.thickness,
             outlineAlpha: outline.alpha,
+            flipX: shouldMirrorEnemySprite(enemy),
             flash
         });
         ctx.restore();

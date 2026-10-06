@@ -2157,12 +2157,27 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
 }
 
 function resolveEnemyFacingDirection(enemyPos, playerPos) {
-    if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
     if (!enemyPos || !playerPos) return 'south';
+    if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     const dy = Number(playerPos.y) - Number(enemyPos.y);
     if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
     return dy < 0 ? 'north' : 'south';
+}
+
+// 왼쪽을 보고 그린 보스 그림(data BOSS_ASSET_FRONT_FACING 밖)은 주인공이 오른쪽에 서면 좌우를 뒤집는다.
+// 위아래 방향 대신 가로 거리만 본다: 오른쪽 아래의 주인공도 오른쪽이다. 보스 기둥을 지나갈 때 떨지 않게
+// 4분의 1칸 안에서는 직전 방향을 지키고, 쓰러지는 잔상도 마지막 방향을 쓴다.
+const ENEMY_SPRITE_SIDE_DEAD_ZONE = 0.25;
+const enemySpriteSides = new WeakMap();
+function noteEnemySpriteSide(enemy, enemyPos, playerPos, tile) {
+    if (!enemy || !enemy.bossAssetKey || !enemyPos || !playerPos) return;
+    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    if (Math.abs(dx) > (Number(tile) || 0) * ENEMY_SPRITE_SIDE_DEAD_ZONE) enemySpriteSides.set(enemy, dx > 0 ? 'east' : 'west');
+}
+
+function shouldMirrorEnemySprite(enemy) {
+    return !!enemy && enemySpriteSides.get(enemy) === 'east' && !BOSS_ASSET_FRONT_FACING.includes(enemy.bossAssetKey);
 }
 
 const ENEMY_SPAWN_STAMP_FUTURE_MS = 1000;
@@ -2210,6 +2225,7 @@ function drawEnemyActorSprite(ctx, entry, state, pose) {
     const x = entry.x + recoil.x, y = pose.y + recoil.y;
     const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale, moving: entry.moving === true };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
+    noteEnemySpriteSide(enemy, entry, state.playerPos, tile);
     drawEnemySprite(ctx, enemy, x, y, pose.scale, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 

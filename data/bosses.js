@@ -35,6 +35,10 @@ const BOSS_ASSET_VARIANTS_BY_ACT = {
     10: ['bossAct10_1', 'bossAct10_2', 'bossAct10_3', 'bossAct10_4', 'bossAct10_5']
 };
 
+// 보스 그림은 왼쪽을 보고 그려졌다(2026-10-06 열일곱 장 확인). 정면을 보는 이 셋만 뒤집지 않고,
+// 나머지는 주인공이 오른쪽에 서면 좌우를 뒤집는다(js/canvas-battlefield.js shouldMirrorEnemySprite).
+const BOSS_ASSET_FRONT_FACING = Object.freeze(['bossAct9', 'bossAct10_2', 'bossAct10_5']);
+
 // 영역 몬스터(2026-10-02 다시 그림): 몬스터마다 대기 · 공격 시트 한 장씩(data/monster-sprites.js, 그리기는
 // js/canvas-monster-actors.js), 공격 방식은 그림을 따른다(근접 = 물기 · 할퀴기 · 무기, 원거리 = 주문 · 던지기 · 등불).
 const REALM_MONSTER_VISUAL_SETS = Object.freeze({
@@ -306,7 +310,7 @@ function getMonsterVisualAttackKind(visualId) {
 }
 
 safeExposeData({
-    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT,
+    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
     getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
     ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, getActMonsterPool,
     getMonsterVisualAttackKind, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, getRootMonsterVisualDefinition, getRootMonsterWeapon,
