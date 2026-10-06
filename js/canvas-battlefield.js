@@ -2165,11 +2165,15 @@ function resolveEnemyFacingDirection(enemyPos, playerPos) {
     return dy < 0 ? 'north' : 'south';
 }
 
-/** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js). */
+const ENEMY_SPAWN_STAMP_FUTURE_MS = 1000;
+/** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js).
+ * A stamp well ahead of the clock came from another clock (an older session's save, a combat-clock stamp) and would keep
+ * the body at alpha 0, so it counts as already appeared. */
 function getEnemySpawnAge(enemy, now, duration) {
     const rising = bossEntranceView.enemyAge(enemy, now);
     if (rising !== null) return rising;
-    return enemy.spawnStamp ? clampNumber((now - enemy.spawnStamp) / duration, 0, 1) : 1;
+    if (!enemy.spawnStamp || enemy.spawnStamp > now + ENEMY_SPAWN_STAMP_FUTURE_MS) return 1;
+    return clampNumber((now - enemy.spawnStamp) / duration, 0, 1);
 }
 
 function drawBattleEnemyActor(ctx, entry, state) {

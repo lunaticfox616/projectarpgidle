@@ -94,7 +94,7 @@ actExplorationProgress.objects = (() => {
         if(cells.length<count){row.remainingMs=200;return;}
         const key=`${row.id}:${row.wave+1}`,zone=getZone(run.zoneId);
         const enemies=cells.map((cell,index)=>Object.assign(createEnemy(zone,{at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null},index),
-            cell,{explorationPack:key,gridMoveTimer:0,regenBank:0,spawnStamp:getCombatTime()}));
+            cell,{explorationPack:key,gridMoveTimer:0,regenBank:0,spawnStamp:getBattleSpawnStamp()}));
         run.packs.push({key,roomId:row.roomId,stage:null,waiting:[],aliveIds:enemies.map(e=>e.id),eliteIds:[],objectId:row.id,objectWave:row.wave+1});
         game.enemies.push(...enemies);row.wave++;row.phase='active';row.remainingMs=0;
         dispatchRuntimeEvent('exploration-object',{kind:'spawn',name:state.labels[row.kind]});

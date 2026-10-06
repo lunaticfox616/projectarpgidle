@@ -7926,7 +7926,7 @@ function spawnEncounterMarker(marker) {
                 enemy.critChance += marker.phase >= 2 ? 10 : 0;
             }
             assignEnemyGridSpawn(enemy, blockedCells);
-            enemy.spawnStamp = performance.now();
+            enemy.spawnStamp = getBattleSpawnStamp();
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
@@ -7947,7 +7947,7 @@ function spawnEncounterMarker(marker) {
             bossEnemy.hybridElement = marker.phase === 3 ? 'chaos' : bossEnemy.hybridElement;
         }
         assignEnemyGridSpawn(bossEnemy, blockedCells);
-        bossEnemy.spawnStamp = performance.now();
+        bossEnemy.spawnStamp = getBattleSpawnStamp();
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
         if (game.settings.showSpawnLog !== false) {
@@ -7960,7 +7960,7 @@ function spawnEncounterMarker(marker) {
         for (let i = 0; i < count; i++) {
             let enemy = createEnemy(zone, marker, i);
             assignEnemyGridSpawn(enemy, blockedCells);
-            enemy.spawnStamp = performance.now();
+            enemy.spawnStamp = getBattleSpawnStamp();
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 320, boss: false });
         }

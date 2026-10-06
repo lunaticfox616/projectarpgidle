@@ -4498,6 +4498,14 @@ function withFrostErosionSprite(type, payload) {
     return { ...payload, spriteFrame: 7 + Math.floor(Math.random() * 5) };
 }
 
+/** Stamp for "when this appeared" on the battlefield's own clock (hit stop and slow frames pause it, so it runs behind
+ * performance.now()). A spawn stamped with another clock reads as not yet appeared and is drawn at alpha 0 (2026-10-06:
+ * exploration nest/ambush monsters were stamped with the combat clock and had no visible body). */
+function getBattleSpawnStamp() {
+    let visualNow = battleVisualState && Number(battleVisualState.visualNow);
+    return Number.isFinite(visualNow) && visualNow > 0 ? visualNow : performance.now();
+}
+
 function addBattleFx(type, data) {
     if (battleFxSuppressed || (typeof document !== 'undefined' && document.hidden)) return;
     let payload = data || {};
