@@ -108,14 +108,33 @@ assert.strictEqual(run('(() => { const bucket = createEmptyStatBucket(); stumpBo
 assert.strictEqual(run('(() => { const bucket = createEmptyStatBucket(); stumpBox.applyStats(bucket, game); return bucket.resC; })()'), 5, 'a grown cold amber gives cold resistance');
 assert.doesNotThrow(() => run('getPlayerStats(false, false, true)'), 'the stat pipeline reads the box');
 
-// ── 드랍: 함 전용 굴림, 보관함이 차면 없음, 스토리 액트 탐험 중에는 굴리지 않음 ───────────────
+// ── 드랍: 함 전용 굴림, 색의 절반은 판의 색, 보관함이 차면 거름, 스토리 액트 탐험 중에는 굴리지 않음 ───────────────
 const sequence = values => `(() => { const values = ${JSON.stringify(values)}; return () => values.shift(); })()`;
 assert.strictEqual(run(`stumpBox.rollDrop(game, {}, ${sequence([0.5])})`), null, 'most kills drop nothing');
-assert.deepStrictEqual(json(`(() => { const item = stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0.1, 0.9, 0.3, 0.5])}); return [item.family, item.color, item.roll]; })()`),
+// 굴림 순서: 확률 · 계열 · 색 몫(판에 놓인 것이 있을 때만) · 색 · 품질. 색 몫 0.9는 절반을 넘어 네 색에서 고른다.
+assert.deepStrictEqual(json(`(() => { const item = stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0.1, 0.9, 0.9, 0.3, 0.5])}).item; return [item.family, item.color, item.roll]; })()`),
     ['seed', 'cold', 1], 'a boss drop picks family, colour and quality');
+// 판에는 화염 셋(6 · 7 · 8)과 냉기 셋(12 · 16 · 17)이 있다: 절반은 이 둘에서, 나머지는 네 색에서 고르게.
+const colours = json(`(() => {
+    const count = { fire: 0, cold: 0, lightning: 0, chaos: 0 };
+    let value = 11; const random = () => { value = (Math.imul(value, 1664525) + 1013904223) >>> 0; return value / 4294967296; };
+    for (let i = 0; i < 6000; i++) {
+        const rolled = stumpBox.rollDrop(game, { isBoss: true }, random);
+        if (rolled && rolled.item) { count[rolled.item.color]++; stumpBox.discard(game, rolled.item.id); }
+    }
+    return count; })()`);
+const dropped = Object.values(colours).reduce((sum, value) => sum + value, 0);
+assert.ok(Math.abs((colours.fire + colours.cold) / dropped - 0.75) < 0.03, `board colours take half the drops plus their even share: ${JSON.stringify(colours)}`);
+assert.ok(Math.abs(colours.lightning / dropped - 0.125) < 0.02 && Math.abs(colours.chaos / dropped - 0.125) < 0.02, 'other colours still drop');
 run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
 assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'storage holds 50');
-assert.strictEqual(run(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0, 0, 0])})`), null, 'a full storage takes no drops');
+// 꽉 찬 보관함: 떨어진 것은 거름이 되어 판에서 자라는 것(17번 칸 냉기 수액, 12번은 화염 꽃 옆이라 멈춤)을 키운다.
+const growingSap = run('game.stumpBox.board[17]'), sapBefore = run(`stumpBox.itemById(game, ${growingSap}).xp`);
+assert.deepStrictEqual(json(`stumpBox.growingItems(game).map(item => item.id)`), [growingSap], 'only the unsuppressed unripe sap is growing');
+assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0, 0, 0, 0])})`),
+    { item: null, compost: { family: 'sap', color: 'fire', growth: 80, fed: 1, ripened: [] } }, 'a full storage turns the drop into compost');
+assert.strictEqual(run(`stumpBox.itemById(game, ${growingSap}).xp`), sapBefore + 80, 'the compost grows what is growing (80% quality → 80)');
+assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'and storage stays full');
 assert.strictEqual(run(`(() => { const id = game.stumpBox.board[12]; return stumpBox.unplace(game, id); })()`), false, 'nor items taken off the board');
 run('game.stumpBox.items = game.stumpBox.items.filter(item => item.color !== "chaos");');
 run('game.actExploration = { zoneId: game.currentZoneId, act: 1 }; Math.random = () => 0;');
@@ -126,6 +145,21 @@ run('game.actExploration = { zoneId: game.currentZoneId, act: null }; stumpBox.o
 assert.strictEqual(run('game.stumpBox.items.length'), before + 1, 'a generated map (chaos, realm, the atlas …) drops like the board');
 run('game.actExploration = null; stumpBox.onEnemyKilled(game, { isBoss: true });');
 assert.strictEqual(run('game.stumpBox.items.length'), before + 2, 'outside expeditions a kill can drop');
+
+// ── 거름(2026-10-06): 보관함의 씨앗 · 수액 하나를 써서 판에서 자라는 것을 모두 키운다 ─────────────────
+run(`globalThis.compostSap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1.2 });
+    globalThis.growingBefore = stumpBox.growingItems(game).map(item => [item.id, item.xp]);`);
+const fed = run('growingBefore.length');
+assert.ok(fed > 0, 'something on the board is growing');
+assert.strictEqual(run('stumpBox.compostGrowth(compostSap)'), 120, 'compost growth follows quality');
+assert.strictEqual(run('stumpBox.compostReason(game, game.stumpBox.board[17])'), '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.', 'a placed item is not compost');
+run('game.woodsmanBuildLock = true;');
+assert.strictEqual(run('stumpBox.compost(game, compostSap.id)'), null, 'the woodsman fight locks compost too');
+run('game.woodsmanBuildLock = false;');
+assert.deepStrictEqual(json('(() => { const result = stumpBox.compost(game, compostSap.id); return [result.growth, result.fed]; })()'), [120, fed]);
+assert.strictEqual(run('stumpBox.itemById(game, compostSap.id)'), null, 'the compost is used up');
+assert.strictEqual(run('growingBefore.every(([id, xp]) => { const item = stumpBox.itemById(game, id); return item.xp === Math.min(stumpBox.need(item), xp + 120); })'),
+    true, 'every growing item gained the growth');
 
 // ── 나무꾼 전투 중에는 세팅을 바꾸지 않는다 ─────────────────────────────────────────
 run('game.woodsmanBuildLock = true;');
@@ -157,5 +191,15 @@ assert.deepStrictEqual(json('game.stumpBox.board.slice(0, 5)'), [3, null, null, 
 assert.strictEqual(run('game.stumpBox.nextId'), 6, 'new ids never reuse saved ones');
 run('game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: "broken" }); window.game = game;');
 assert.strictEqual(run('Array.isArray(game.stumpBox.items) && game.stumpBox.board.length'), 25, 'a broken box is rebuilt');
+
+// ── 거름은 자라는 것이 없으면 쓰지 않는다, 꽉 찬 보관함의 드랍도 그때는 놓친다 ─────────────────────
+fresh({ journalEntries: ['prologue', 'act_10'] });
+const idle = run('stumpBox.createItem(game, { family: "seed", color: "fire", roll: 1 }).id');
+assert.strictEqual(run(`stumpBox.compostReason(game, ${idle})`), '판에서 자라는 것이 없습니다.', 'compost needs something growing');
+assert.strictEqual(run(`stumpBox.compost(game, ${idle})`), null);
+assert.ok(run(`stumpBox.itemById(game, ${idle}) !== null`), 'a refused compost keeps the item');
+run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
+assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0.9, 0, 0])}).compost`),
+    { family: 'seed', color: 'fire', growth: 80, fed: 0, ripened: [] }, 'with nothing growing the full-storage drop is lost (and said so)');
 
 console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression and saves: OK');

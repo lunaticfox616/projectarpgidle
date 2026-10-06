@@ -109,7 +109,9 @@ const stumpBoxUi = (() => {
     }
     function stumpRulesTipHtml() {
         const rules = ['판에 놓은 것만 처치로 자랍니다.', `다 자란 같은 색 ${STUMP_BOX_RESONANCE.count}개: 공명 +${STUMP_BOX_RESONANCE.bonusPct}%`,
-            '화염↔냉기, 번개↔카오스가 맞닿으면 둘 다 멈춥니다.', '누르거나 끌어서 옮깁니다. 찬 칸에 놓으면 자리를 바꿉니다.'];
+            '화염↔냉기, 번개↔카오스가 맞닿으면 둘 다 멈춥니다.', '누르거나 끌어서 옮깁니다. 찬 칸에 놓으면 자리를 바꿉니다.',
+            `보관함의 씨앗이나 수액을 거름으로 쓰면 판에서 자라는 것이 모두 +${STUMP_BOX_COMPOST.growth} 자랍니다(품질 비례).`,
+            '보관함이 가득 찬 채 떨어진 씨앗과 수액은 저절로 거름이 됩니다.', '떨어지는 색의 절반은 판에 놓인 색을 따릅니다.'];
         if (contentProgression.isUnlocked('talisman')) rules.push('부적은 색이 없고 판에서 깨어납니다.');
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 칸마다 최대 ${STUMP_BOX_GRAFT.maxRank}단계, 단계마다 +${STUMP_BOX_GRAFT.pctPerRank}% (칸 왼쪽 위 숫자)`);
         return '<div class="tooltip-title">그루터기 함</div>' + rules.map(rule => `<div class="tooltip-line">${escStump(rule)}</div>`).join('');
@@ -162,9 +164,18 @@ const stumpBoxUi = (() => {
         return `<div class="stump-path">${Object.keys(PATH_LABELS).map(path => `<button type="button" class="${current === path ? 'is-on' : ''}"`
             + ` data-stump-action="path" data-path="${path}" aria-pressed="${current === path}">${PATH_LABELS[path]}</button>`).join('')}</div>`;
     }
-    function stumpActionsHtml(cell) {
+    /** A stored seed or sap can be spread as compost: the button says how much every growing item gains. */
+    function stumpCompostHtml(item, cell) {
+        if (cell >= 0 || item.family === 'talisman') return '';
+        const reason = stumpBox.compostReason(game, item.id), fed = stumpBox.growingItems(game).length;
+        const hint = reason || `판에서 자라는 ${fed}개가 모두 +${stumpBox.compostGrowth(item)} 자랍니다.`;
+        return `<p class="stump-hint">${escStump(hint)}</p>`;
+    }
+    function stumpActionsHtml(item, cell) {
         const back = cell < 0 ? '' : '<button type="button" data-stump-action="unplace">보관함으로</button>';
-        return `<div class="stump-actions">${back}<button type="button" data-stump-action="deselect">선택 해제</button></div>`;
+        const compost = cell < 0 && item.family !== 'talisman'
+            ? `<button type="button" data-stump-action="compost"${stumpBox.compostReason(game, item.id) ? ' disabled' : ''}>거름으로 쓰기</button>` : '';
+        return `${stumpCompostHtml(item, cell)}<div class="stump-actions">${back}${compost}<button type="button" data-stump-action="deselect">선택 해제</button></div>`;
     }
     function stumpDetailHead(item) {
         const note = item.family === 'talisman' ? '' : ` <small>품질 ${Math.round(item.roll * 100)}%</small>`;
@@ -186,7 +197,7 @@ const stumpBoxUi = (() => {
         if (!item) return selectedCell === null ? '' : stumpCellDetailHtml(selectedCell);
         const cell = game.stumpBox.board.indexOf(item.id);
         const body = item.family === 'talisman' ? stumpGrowthHtml(item) + stumpTalismanUi.detailHtml(item, cell) : stumpSeedBody(item, result, cell);
-        return stumpDetailHead(item) + body + stumpGraftHtml(cell) + stumpActionsHtml(cell);
+        return stumpDetailHead(item) + body + stumpGraftHtml(cell) + stumpActionsHtml(item, cell);
     }
     function stumpGrowthTipLine(item) {
         const growth = stumpGrowthText(item), ripe = stumpBox.isMature(item);
@@ -407,6 +418,16 @@ const stumpBoxUi = (() => {
         selectedId = item.id;
         commitStumpChange();
     }
+    function stumpItemName(item) { return `${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stumpBox.stageOf(item)].label}`; }
+    function compostStumpItem() {
+        const item = selectedItem(), reason = item ? stumpBox.compostReason(game, item.id) : '';
+        if (!item || reason) return reason && notifyStump(reason);
+        const name = stumpItemName(item), result = stumpBox.compost(game, item.id);
+        selectedId = null;
+        notifyStump(`거름: ${name}, 판에서 자라는 ${result.fed}개 +${result.growth}`);
+        announceStumpRipened(result.ripened);
+        commitStumpChange();
+    }
     async function discardTalisman() {
         if (selectedId === null || !await stumpTalismanUi.discard(selectedId)) return;
         selectedId = null;
@@ -424,6 +445,7 @@ const stumpBoxUi = (() => {
         storage: () => { if (selectedId !== null) dropOnStorage(selectedId); },
         path: data => chooseStumpPath(data.path),
         unplace: () => { if (selectedId !== null) dropOnStorage(selectedId); },
+        compost: () => compostStumpItem(),
         deselect: () => selectStumpItem(null),
         starter: data => claimStumpStarter(data.family, data.color),
         filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); },
@@ -476,9 +498,30 @@ const stumpBoxUi = (() => {
         if (detail.drop) addLog(detail.drop.family === 'talisman' ? `🧿 그루터기 함: [${detail.drop.name}] 획득`
             : `🌱 그루터기 함: ${stumpBox.label(detail.drop)} 획득`, detail.drop.rarity === 'unique' ? 'loot-unique' : 'loot-magic');
         if (detail.overflow) addLog(`🧿 그루터기 함 보관함이 가득 차 부적 대신 ${ORB_DB[detail.overflow].name} 1개를 받았습니다.`, 'loot-magic');
+        if (detail.compost) addLog(stumpCompostDropText(detail.compost), 'loot-magic');
         (detail.ripened || []).forEach(item => addLog(item.family === 'talisman' ? `🧿 그루터기 함: [${item.name}] 깨어남`
-            : `🌸 그루터기 함: ${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stumpBox.stageOf(item)].label} 다 자람`, 'loot-rare'));
+            : `🌸 그루터기 함: ${stumpItemName(item)} 다 자람`, 'loot-rare'));
+        announceStumpRipened(detail.ripened || []);
         lastSignature = '';
+    }
+    function stumpCompostDropText(compost) {
+        const name = `${STUMP_BOX_COLORS[compost.color].label} ${STUMP_BOX_STAGES[compost.family].label}`;
+        return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${name}이 거름이 됐습니다(자라는 ${compost.fed}개 +${compost.growth}).`
+            : `🌱 그루터기 함 보관함이 가득 차고 판에서 자라는 것도 없어 ${name}을 놓쳤습니다.`;
+    }
+    /** What a ripened item now gives (resonance and graft included), for the toast. */
+    function stumpRipeGain(item) {
+        const gain = stumpBox.yieldOf(item), value = stumpBox.evaluate(game).values[item.id];
+        return gain && value ? gain.text.replace('{v}', stumpNumber(value)) : '';
+    }
+    function stumpRipeName(item) { return item.family === 'talisman' ? `[${item.name}] 깨어남` : `${stumpItemName(item)} 다 자람`; }
+    /** Ripening is the box's payoff: a toast (what it gives now) and a chime instead of one scrolling log line. */
+    function announceStumpRipened(ripened) {
+        if (!ripened.length) return;
+        const gain = ripened.length === 1 ? stumpRipeGain(ripened[0]) : '';
+        const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 다 자람`;
+        showGameToast(`그루터기 함: ${names}${gain ? `, ${gain}` : ''}`, { tone: 'success' });
+        playUiFeedbackSound('success');
     }
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('project-idle:stump-box-changed', event => announceStumpChange(event.detail || {}));
