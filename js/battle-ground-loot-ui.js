@@ -7,7 +7,10 @@ const battleGroundLoot = (() => {
     const entries = new Map();
     const motes = new Set();
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const displayLimit = () => canvas.clientWidth < 600 ? 16 : 24;
+    // The canvas width from the box measured once per resize: canvas.clientWidth here, read every frame by consume(), forced a
+    // style and layout pass whenever anything had touched the page earlier in the frame (2026-10-07: about 8% of a frame with a window open).
+    const narrow = () => canvasBox(canvas).width < 600;
+    const displayLimit = () => narrow() ? 16 : 24;
     const isMajor = receipt => receipt.currency === 'goldenRule' || receipt.item?.rarity === 'unique' || !!receipt.highlight;
     /** A pile shows its most important drop: golden rule, uniques and highlighted items first, then by rarity. */
     const importance = receipt => (isMajor(receipt) ? 100 : 0) + getRarityRank(receipt.item?.rarity || 'normal');
@@ -152,7 +155,7 @@ const battleGroundLoot = (() => {
 
     /** Name cross around the pile, in importance order: up over the picture first, then the emptier side, then down. */
     function labelArms(receipts) {
-        const limits = canvas.clientWidth < 600 ? ARM_ROWS.narrow : ARM_ROWS.wide;
+        const limits = narrow() ? ARM_ROWS.narrow : ARM_ROWS.wide;
         const arms = { up: [], right: [], left: [], down: [] };
         receipts.forEach((receipt, index) => {
             const sides = arms.right.length <= arms.left.length ? ['right', 'left'] : ['left', 'right'];
@@ -199,7 +202,7 @@ const battleGroundLoot = (() => {
         if (receipt.currency !== 'goldenRule' && receipt.item?.rarity !== 'unique' && !receipt.highlight) return;
         marker.dataset.beam = 'true';
         const pillar = document.createElement('div'); pillar.className = 'battle-loot-beam'; marker.prepend(pillar);
-        marker.style.setProperty('--beam-height', Math.min(152, canvas.clientHeight * .36) + 'px');
+        marker.style.setProperty('--beam-height', Math.min(152, canvasBox(canvas).height * .36) + 'px');
         if (receipt.currency !== 'goldenRule') return;
         const palette = getComputedStyle(document.getElementById('divine-drop-banner'));
         marker.style.setProperty('--beam-color', palette.borderTopColor);

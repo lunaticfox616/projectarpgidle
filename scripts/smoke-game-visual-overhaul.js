@@ -250,11 +250,19 @@ const adaptiveVfx = JSON.parse(vm.runInContext(`JSON.stringify((() => {
   for (let frame = 0; frame < 12; frame++) updateBattleVfxDensity(34, 6);
   const pressured = battleVisualState.vfxDensity;
   for (let frame = 0; frame < 12; frame++) updateBattleVfxDensity(8, 1);
-  return { pressured, recovered: battleVisualState.vfxDensity };
+  const recovered = battleVisualState.vfxDensity;
+  // A phone or an arena draws every 33 ms on purpose: on time, that is no load (2026-10-07; it pinned every phone fight at 0.42).
+  battleVisualState.frameTimeEma = 16.7; battleVisualState.vfxDensity = 1;
+  for (let frame = 0; frame < 40; frame++) updateBattleVfxDensity(33.4, 1, 1000 / 30);
+  const onCadence = battleVisualState.vfxDensity;
+  for (let frame = 0; frame < 40; frame++) updateBattleVfxDensity(60, 1, 1000 / 30);
+  return { pressured, recovered, onCadence, lateOnCadence: battleVisualState.vfxDensity };
 })())`, context));
 assert.ok(adaptiveVfx.pressured < 0.7, 'slow crowded frames must lower cosmetic VFX density');
 assert.ok(adaptiveVfx.recovered > adaptiveVfx.pressured && adaptiveVfx.recovered <= 1,
   'VFX density must recover gradually when the battlefield becomes cheap again');
+assert.strictEqual(adaptiveVfx.onCadence, 1, 'frames on a planned 30 fps cadence keep full effect density');
+assert.ok(adaptiveVfx.lateOnCadence < 0.7, 'frames late against that cadence still lower it');
 // Boss names lose every colour emoji (the pixel font shows a broken box): the beehive queen's crown did (2026-10-06).
 assert.strictEqual(vm.runInContext(`getEnemyDisplayName({ name: '👑 벌집 여왕' }) + '|' + getEnemyDisplayName({ name: '👿 열린 공허의 군주' })`, context),
   '벌집 여왕|열린 공허의 군주', 'enemy names drop colour emoji');

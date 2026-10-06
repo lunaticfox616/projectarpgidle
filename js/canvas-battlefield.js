@@ -63,8 +63,17 @@ function getBattleVfxDensity() {
     return clampNumber(Number(battleVisualState.vfxDensity) || 1, 0.42, 1);
 }
 
-function updateBattleVfxDensity(frameMs, enemyCount) {
-    let elapsed = clampNumber(Number(frameMs) || 16.7, 1, 50);
+/** frameMs: time since the last drawn frame; targetMs: the cadence the frame loop asked for (js/ui.js renderBattlefieldThrottled:
+ * 30 fps on phones and in arenas, slower while resting), rounded up to whole 60 Hz frames. Only lateness against that cadence reads
+ * as load, as a 60 Hz frame time: an on-time 30 fps frame used to read as overload, so every phone fight and every resting PC drew
+ * the fewest effects (2026-10-07 review). */
+function getBattleFrameLoadMs(frameMs, targetMs) {
+    const expected = Math.max(16.7, Math.ceil(((Number(targetMs) || 16.7) - 0.5) / 16.7) * 16.7);
+    return clampNumber(16.7 + Math.max(0, (Number(frameMs) || 16.7) - expected), 1, 50);
+}
+
+function updateBattleVfxDensity(frameMs, enemyCount, targetMs) {
+    let elapsed = getBattleFrameLoadMs(frameMs, targetMs);
     let previousEma = clampNumber(Number(battleVisualState.frameTimeEma) || 16.7, 1, 50);
     let ema = previousEma * 0.92 + elapsed * 0.08;
     let crowdTarget = enemyCount >= 8 ? 0.62 : (enemyCount >= 5 ? 0.78 : 1);
@@ -2346,7 +2355,8 @@ function getBattlefieldCaption() {
     return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
 }
 
-function renderBattlefield(forceWhenHidden) {
+/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density. */
+function renderBattlefield(forceWhenHidden, targetFrameMs) {
     worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
     if (!canvas) return;
@@ -2371,7 +2381,7 @@ function renderBattlefield(forceWhenHidden) {
     battleVisualState.lastNow = now;
     cleanupBattleFx(now);
     let activeEnemyCount = (game.enemies || []).reduce((count, enemy) => count + (enemy && enemy.hp > 0 ? 1 : 0), 0);
-    let vfxDensity = updateBattleVfxDensity(rawDeltaMs, activeEnemyCount);
+    let vfxDensity = updateBattleVfxDensity(rawDeltaMs, activeEnemyCount, targetFrameMs);
     if (typeof attackFxUpdate === 'function') attackFxUpdate(deltaMs);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
