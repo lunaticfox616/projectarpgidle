@@ -125,7 +125,7 @@ context.__legacyWisdomSave = JSON.parse(run('JSON.stringify(game)'));
 const restoredWisdomSave = run('mergeDefaults(__legacyWisdomSave)');
 assert.strictEqual(restoredWisdomSave.passiveSpecialization.keystoneChoices.wisdom_leap_element, 'chaos',
     '기존 세이브를 불러오는 실제 경로에서도 공허 선택을 복원해야 합니다.');
-assert.strictEqual(restoredWisdomSave.saveVersion, 18, '보정한 세이브는 최신 버전으로 기록해야 합니다.');
+assert.strictEqual(restoredWisdomSave.saveVersion, run('defaultGame.saveVersion'), '보정한 세이브는 최신 버전으로 기록해야 합니다.');
 setPassives(['지혜의 도약']);
 assert.strictEqual(run("getPlayerStats().passiveWisdomElement"), '', 'without an invested branch, stale choices must not apply');
 for (const [choice, element] of [['fire', 'fire'], ['cold', 'cold'], ['lightning', 'light'], ['chaos', 'chaos']]) {

@@ -1,10 +1,13 @@
-// 장비 소켓(2026-09-30, 주얼 창을 대신함): 주얼은 장비의 소켓에만 낀다. 반지 · 목걸이 · 허리띠에는 공허 소켓이 처음부터
-// 뚫려 있고, 다른 부위는 공허의 끌 1개로 한 칸을 뚫는다. 심연 소켓은 고유 장비의 효과 그대로다.
+// 장비 소켓(2026-09-30, 주얼 창을 대신함): 주얼은 장비의 소켓에만 낀다. 심연 소켓은 고유 장비의 효과 그대로다.
+// 공허 소켓(2026-10-07 사용자 요청, 예전에는 장신구에 늘 뚫려 있었다): 장신구(반지, 목걸이, 허리띠)에만 생긴다. 주얼을 해금한 뒤
+// 드물게 뚫린 채 떨어지고(data/items.js SOCKETED_ACCESSORY_DROP_CHANCE), 공허의 끌 1개로 뚫는다. 그 전부터 갖고 있던 장신구는
+// 처음부터 있던 소켓을 기록으로 남겨 그대로 쓴다(js/save-migrations.js keepLegacyAccessorySockets).
+// 타락 소켓(2026-10-05, 2026-10-07): 잿불가지 타락이 어느 부위에나 소켓을 하나 연다(item.corruptionSocket, 장비당 최대 1개).
+// 장신구가 아닌 부위에는 이것이 유일한 소켓이다. 주얼을 해금한 뒤에만 나오는 결과다(js/passives.js canApplyTaintedOutcome).
 // 뺀 주얼은 보관함으로 돌아간다(보관함이 가득 차면 뺄 수 없다). 능력치 합산은 combat-build-stats.js, 화면은 equipment-sockets-ui.js.
-// 타락 소켓(2026-10-05): 잿불가지 타락이 이미 공허 소켓이 있는 장비에 두 번째 소켓을 하나 더 연다(item.corruptionSocket, 장비당 최대 1개).
 // 주얼을 읽는 곳은 모두 jewels(item)을 써서 소켓 종류가 늘어도 빠지는 곳이 없게 한다.
 const equipmentSockets = (() => {
-    const BUILT_IN_SLOTS = new Set(['반지', '목걸이', '허리띠']);
+    const ACCESSORY_SLOTS = new Set(['반지', '목걸이', '허리띠']);
     const SOCKETABLE_SLOTS = new Set(['무기', '투구', '갑옷', '방패', '장갑', '신발', '반지', '목걸이', '허리띠']);
     const LOCK_REASON = '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
 
@@ -16,13 +19,16 @@ const equipmentSockets = (() => {
         return !!item && SOCKETABLE_SLOTS.has(baseSlot(item));
     }
 
-    function hasBuiltInSocket(item) {
-        return BUILT_IN_SLOTS.has(baseSlot(item));
+    /** Rings, amulets and belts: the only slots a void socket opens on. */
+    function isAccessory(item) {
+        return ACCESSORY_SLOTS.has(baseSlot(item));
     }
 
     function hasVoidSocket(item) {
-        return isSocketable(item) && (hasBuiltInSocket(item) || !!(item.voidSocket && item.voidSocket.open));
+        return isSocketable(item) && !!(item.voidSocket && item.voidSocket.open);
     }
+
+    const jewelsUnlocked = () => typeof contentProgression === 'object' && contentProgression.isUnlocked('jewel');
 
     /** Sockets as stored, without creating any: void, the corruption socket, then abyss sockets. A jewel left in a void record is
      * listed even when the record lost its open flag, so no reader can let it go with the item. */
@@ -71,9 +77,9 @@ const equipmentSockets = (() => {
         return row.kind === 'corrupt' ? '타락 소켓' : `심연 소켓 ${row.index + 1}`;
     }
 
-    /** A corruption may add a second socket to an item whose void socket is already open (built in or chiselled). */
+    /** A corruption may open one socket on any socketable item: beside an accessory's void socket, or the only socket elsewhere. */
     function canAddCorruptionSocket(item) {
-        return hasVoidSocket(item) && !item.corruptionSocket && !item.fusedRelic;
+        return isSocketable(item) && !item.corruptionSocket && !item.fusedRelic;
     }
 
     function addCorruptionSocket(item) {
@@ -83,18 +89,32 @@ const equipmentSockets = (() => {
     }
 
     function canChisel(item) {
-        return isSocketable(item) && !hasVoidSocket(item) && !item.fusedRelic;
+        return isAccessory(item) && !hasVoidSocket(item) && !item.fusedRelic;
     }
 
-    /** Opens the void socket; the caller has already paid for it (the chisel here, the cube recipe in stump-cube.js). */
+    /** Opens the void socket; the caller has already paid for it (the chisel here, the cube recipe in stump-cube.js) or it dropped so. */
     function openVoidSocket(item) {
         if (!canChisel(item)) return false;
         item.voidSocket = { open: true, jewel: null };
         return true;
     }
 
+    /** A dropped accessory comes with its void socket open on SOCKETED_ACCESSORY_DROP_CHANCE of drops, once jewels are unlocked. */
+    function rollDropSocket(item) {
+        if (!isAccessory(item) || !jewelsUnlocked() || Math.random() >= SOCKETED_ACCESSORY_DROP_CHANCE) return false;
+        return openVoidSocket(item);
+    }
+
+    /** Before 2026-10-07 every accessory had a void socket of its own: an old save's accessory keeps it as an open record (once). */
+    function keepLegacySocket(item) {
+        if (!item || typeof item !== 'object' || !isAccessory(item) || hasVoidSocket(item)) return false;
+        item.voidSocket = { open: true, jewel: (item.voidSocket && item.voidSocket.jewel) || null };
+        return true;
+    }
+
     function chisel(item, state = game) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
+        if (!isAccessory(item)) return { ok: false, reason: '공허 소켓은 반지, 목걸이, 허리띠에만 뚫을 수 있습니다. 다른 장비는 타락으로만 소켓이 생깁니다.' };
         if (!canChisel(item)) return { ok: false, reason: '이 장비에는 공허 소켓을 더 뚫을 수 없습니다.' };
         if ((state.currencies.voidChisel || 0) <= 0) return { ok: false, reason: '공허의 끌이 부족합니다.' };
         state.currencies.voidChisel -= 1;
@@ -102,18 +122,16 @@ const equipmentSockets = (() => {
         return { ok: true };
     }
 
-    // A built-in socket exists before any jewel was ever placed, so its record is created on first use.
     function socketRecord(item, kind, index) {
         if (kind === 'abyss') return (Array.isArray(item.abyssSockets) && item.abyssSockets[index]) || null;
         if (kind === 'corrupt') return item.corruptionSocket || null;
         return voidRecord(item);
     }
 
+    /** The open void socket's record, or a closed record that still holds a jewel (so it can come out), or null. */
     function voidRecord(item) {
-        const stray = item.voidSocket && item.voidSocket.jewel ? item.voidSocket : null;
-        if (!hasVoidSocket(item)) return stray; // a jewel left in a closed record can still come out
-        if (!item.voidSocket || !item.voidSocket.open) item.voidSocket = { open: true, jewel: null };
-        return item.voidSocket;
+        if (hasVoidSocket(item)) return item.voidSocket;
+        return item.voidSocket && item.voidSocket.jewel ? item.voidSocket : null;
     }
 
     /** Moves a stored jewel into the item's first empty socket. */
@@ -141,7 +159,7 @@ const equipmentSockets = (() => {
         return { ok: true, jewel };
     }
 
-    return Object.freeze({ isSocketable, hasBuiltInSocket, hasVoidSocket, list, jewels, returnJewels, count, label, canChisel, openVoidSocket,
-        canAddCorruptionSocket, addCorruptionSocket, chisel, insert, remove });
+    return Object.freeze({ isSocketable, isAccessory, hasVoidSocket, list, jewels, returnJewels, count, label, canChisel, openVoidSocket,
+        rollDropSocket, keepLegacySocket, canAddCorruptionSocket, addCorruptionSocket, chisel, insert, remove });
 })();
 safeExposeGlobals({ equipmentSockets });

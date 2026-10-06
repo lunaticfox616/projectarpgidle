@@ -31,7 +31,7 @@ const craftingCatalogUi = (() => {
         emberBranch:'타락 옵션 시도 · 이후 제작 불가',ouroboros:'장비 봉인 · 루프 후 유지',
         deepWhetstone:'무기 퀄리티 강화',rootIron:'방어구 퀄리티 강화',jewelPolish:'장신구 퀄리티 강화',
         abyssCatalyst:'퀄리티 속성 변경',enchantedHoney:'옵션 1줄 영구 고정',
-        venomStinger:'무기 공격 옵션 추가·재설정',voidChisel:'장신구 소켓 · 공허 주얼 제작',
+        venomStinger:'무기 공격 옵션 추가·재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
         oceanRerollShard:'베이스 옵션 1줄 재설정',
         sporeFire:'화염 홀씨 · 함께 사용',sporeCold:'냉기 홀씨 · 함께 사용',sporeLight:'번개 홀씨 · 함께 사용',
         fossil:'타입별 화석으로 정제',fossilPrimal:'복원 · 화석과 재화 획득',fossilAncientPrimal:'복원 · 전용 화석과 고급 재화',

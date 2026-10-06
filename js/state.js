@@ -2103,7 +2103,7 @@ const defaultGame = {
     cosmosGravity: null,
     cosmosRouteBoard: { seed: 1, selected: 0, goal: 'dust', decisions: { 1: 'survey', 3: 'survey' }, habitats: ['swarm', 'guard', 'storm'], retryAt: 0 },
     combatTimeMs: 0,
-    saveVersion: 18,
+    saveVersion: 19,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINTS_PER_LOOP, starting at loop two.
     contentProgression: { version: 7, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
