@@ -45,7 +45,8 @@ npm run build               # 배포 파일·자산 경로 확인
 npm run test:browser        # tests/browser/ Playwright 검사
 ```
 
-`scripts/`와 `tests/browser/`는 실행 검사 **소스**이며 CI에서도 사용합니다.
+`scripts/`와 `tests/browser/`는 실행 검사 **소스**입니다. 현재 CI는 Node 스모크·구조·CSS·빌드를 검사하며,
+브라우저 검사는 로컬에서 실행합니다([검사 안내](docs/browser-ci.md)).
 생성되는 `debug.log`, `test-results/`, `playwright-report/` 등은 `.gitignore` 대상입니다.
 로컬 의존성·도구 체인이 들어 있는 `node_modules/`, `.npm-cache/`, `artifacts/`는
 삭제 전 참조 여부를 확인하세요.
