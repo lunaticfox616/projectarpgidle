@@ -142,6 +142,7 @@ const actExplorationLoot=(()=>{
         if(run.loot.phase==='pending')claim(state,run);
         delete run.loot;
     }
-    return {reservedItems,restore};
+    // The exploration floor (js/exploration-ground-loot.js) validates its saved items with the same rules.
+    return {reservedItems,restore,validEquipment,validJewel,validCore,isCurrency};
 })();
 safeExposeGlobals({actExplorationLoot});

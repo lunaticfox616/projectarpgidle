@@ -105,12 +105,24 @@ const coreItems = (() => {
         return contentProgression.isUnlocked('cube', state) && floor >= CORE_ITEM_RULES.underworldFloor;
     }
 
+    /** A dropped core while the store has room; null (nothing drops) when it is full. */
+    function rollDrop(state = game) {
+        return ensure(state).owned.length >= CORE_ITEM_RULES.capacity ? null : roll();
+    }
+
+    /** Keeps an already rolled core. A core picked up from the exploration floor is kept past the capacity, up to the saved limit,
+     * so the floor never loses one. @returns {boolean} false only at the saved limit */
+    function keep(core, state = game) {
+        const store = ensure(state);
+        if (store.owned.length >= CORE_ITEM_RULES.savedLimit) return false;
+        store.owned.push(core);
+        return true;
+    }
+
     /** Keep a dropped core immediately while there is room. */
     function receiveDrop(state = game) {
-        const store = ensure(state);
-        if (store.owned.length >= CORE_ITEM_RULES.capacity) return null;
-        const core = roll();
-        store.owned.push(core);
+        const core = rollDrop(state);
+        if (core) keep(core, state);
         return core;
     }
 
@@ -149,7 +161,7 @@ const coreItems = (() => {
         return [store.equipped, ...(Array.isArray(store.owned) ? store.owned : [])].filter(Boolean);
     }
 
-    return Object.freeze({ defaultState, normalize, normalizeCore, ensure, roll, describe, stats, canDrop, receiveDrop, equip, unequip,
+    return Object.freeze({ defaultState, normalize, normalizeCore, ensure, roll, describe, stats, canDrop, rollDrop, keep, receiveDrop, equip, unequip,
         discard, resetForLoop, ownedItems, icon });
 })();
 safeExposeGlobals({ coreItems });

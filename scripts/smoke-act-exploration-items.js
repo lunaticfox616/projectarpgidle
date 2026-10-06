@@ -31,8 +31,12 @@ run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));actExplorationProg
 assert.deepEqual({jewels:jewelStats(),currencies:copy('game.currencies')},full,'save and death preserve drops and salvage');
 run(`startEncounterRun(true);game.jewelInventory=[];window.stumpBefore=JSON.stringify(game.stumpBox.items);
     const realDropRandom=Math.random;try {Math.random=()=>0;
-        grantEnemyLoot(game.actExploration.packs.find(pack=>pack.stage!==null).waiting[0]);
+        window.boss=game.actExploration.packs.find(pack=>pack.stage!==null).waiting[0];grantEnemyLoot(boss);
     }finally{Math.random=realDropRandom;}`);
-assert.equal(run('game.jewelInventory.length'),1,'the real enemy drop path delivers immediately');
+// 2026-10-06: an exploration jewel waits on the floor until picked up (js/exploration-ground-loot.js).
+assert.equal(run('game.jewelInventory.length'),0,'the real enemy drop path lays the jewel on the floor');
+assert.equal(run("game.actExploration.groundLoot.filter(row=>row.kind==='jewel').length"),1);
+run('actExplorationProgress.collectPile(boss);');
+assert.equal(run('game.jewelInventory.length'),1,'picking the pile up delivers the jewel once');
 assert.equal(run('JSON.stringify(game.stumpBox.items)===window.stumpBefore'),true,'story-act talisman restrictions stay intact');
-console.log('immediate jewels, overflow salvage, protection, save and actual enemy drop path: OK');
+console.log('jewels, overflow salvage, protection, save and actual enemy drop path to the floor: OK');

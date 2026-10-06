@@ -121,6 +121,41 @@ run("game.isBackgroundCalculation=true;window.before=game.currencies.magicBud||0
 assert.deepEqual(copy('offline'), { gain: 2, floor: false }, 'offline drops are committed at once');
 assert.equal(run('game.currencies.magicBud'), run('before') + 2);
 
+// Jewels, cores and wild talismans wait on the floor too (2026-10-06) and reach their own stores when picked up.
+setup('manual');
+run(`window.jewel=generateJewelDrop(10);window.core=coreItems.roll();window.wild=talismans.rollWildDrop({isElite:true});
+    window.shard=game.currencies[wild.overflow]||0;window.cores=coreItems.ensure(game).owned.length;window.jewels=game.jewelInventory.length;
+    window.placed=[placeFloorItem({id:0,...near[0]},'jewel',jewel),placeFloorItem({id:0,...near[0]},'core',core),
+        placeFloorItem({id:0,...near[0]},'talisman',wild.talisman,wild.overflow)];`);
+assert.deepEqual(copy('placed'), [true, true, true], 'jewels, cores and wild talismans land on the floor');
+assert.deepEqual(copy('[game.jewelInventory.length-jewels,coreItems.ensure(game).owned.length-cores,(game.currencies[wild.overflow]||0)-shard]'), [0, 0, 0],
+    'nothing is owned before the pickup');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.r=game.actExploration;');
+assert.deepEqual(copy("r.groundLoot.map(row=>row.kind)"), ['jewel', 'core', 'talisman'], 'floor jewels, cores and talismans are saved');
+for (const broken of ["{...r.groundLoot[0],item:{id:1}}", "{...r.groundLoot[1],item:{...r.groundLoot[1].item,lines:'x'}}",
+    "{...r.groundLoot[2],overflow:'notACurrency'}", "{...r.groundLoot[0],kind:'mystery'}"]) {
+    assert.throws(() => run(`mergeDefaults({...JSON.parse(serializeSaveState(game)),actExploration:{...JSON.parse(JSON.stringify(r)),groundLoot:[${broken}]}})`),
+        /바닥 아이템/, `rejects ${broken}`);
+}
+run('game.stumpBox.acquired=false;');
+assert.equal(run('actExplorationProgress.collectPile(near[0])'), 3);
+assert.equal(run(`game.jewelInventory.filter(row=>row.id===${copy('jewel.id')}).length`), 1, 'the jewel reaches the jewel storage once');
+assert.equal(run(`coreItems.ensure(game).owned.filter(row=>row.id===${copy('core.id')}).length`), 1, 'the core reaches the core store once');
+assert.equal(run('(game.currencies[wild.overflow]||0)-shard'), 1, 'without a stump box the wild talisman becomes its shard');
+assert.equal(run('actExplorationProgress.collectPile(near[0])'), 0, 'a second click grants nothing');
+// With a stump box the talisman is stored; leaving the map or a dropped stale run settles what is left on the floor.
+run(`game.stumpBox.acquired=true;window.box=game.stumpBox.items.length;window.wild2=talismans.rollWildDrop({isBoss:true});
+    placeFloorItem({id:0,...near[1]},'talisman',wild2.talisman,wild2.overflow);window.jewel2=generateJewelDrop(10);
+    placeFloorItem({id:0,...near[1]},'jewel',jewel2);actExplorationProgress.depart(game);`);
+assert.equal(run('game.stumpBox.items.length-box'), 1, 'leaving the map stores the floor talisman in the stump box');
+assert.equal(run(`game.jewelInventory.filter(row=>row.id===${copy('jewel2.id')}).length`), 1, 'leaving the map keeps the floor jewel');
+setup('manual');
+run(`window.core3=coreItems.roll();placeFloorItem({id:0,...near[0]},'core',core3);
+    window.raw=JSON.parse(serializeSaveState(game));raw.currentZoneId=1;window.loaded=mergeDefaults(raw);`);
+assert.equal(run(`coreItems.ensure(loaded).owned.filter(row=>row.id===${copy('core3.id')}).length`), 1, 'a dropped stale run hands its floor core to the store');
+run('game.isBackgroundCalculation=true;window.offlinePlaced=placeFloorItem({id:0,...near[0]},"jewel",generateJewelDrop(10));game.isBackgroundCalculation=false;');
+assert.equal(run('offlinePlaced'), false, 'offline drops are granted at once');
+
 // The boss rises on its room centre, its 2x2 body reaching away from the gate: the same gap from the gate in every facing.
 const gaps = [0, 1, 2, 3].map(rotation => {
     setup('direct', rotation);
@@ -128,4 +163,4 @@ const gaps = [0, 1, 2, 3].map(rotation => {
         return Math.min(...cells.map(c=>Math.max(Math.abs(c.gx-g.gx),Math.abs(c.gy-g.gy))));})()`);
 });
 assert.equal(new Set(gaps).size, 1, `boss gap from the gate is the same in every facing: ${gaps}`);
-console.log('Exploration floor loot (equipment and currency): walk-over pickup, click pickup, saves, settlement, offline, filters, boss placement and 5 s hold OK');
+console.log('Exploration floor loot (equipment, currency, jewels, cores, talismans): walk-over pickup, click pickup, saves, settlement, offline, filters, boss placement and 5 s hold OK');
