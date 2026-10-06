@@ -49,10 +49,11 @@ assert.equal(run('actExplorationState.selectDestination(r,{gx:o.gx,gy:o.gy})'), 
 
 // An opened chest keeps standing; its loot falls on a free neighbour, not under it.
 find('chest');
-run('window.before=battleFx.filter(fx=>fx.loot).length;actExplorationProgress.objects.request(o.id);');
+run('window.before=battleFx.filter(fx=>fx.loot).length;window.floorBefore=r.groundLoot.length;actExplorationProgress.objects.request(o.id);');
 assert.equal(run('o.phase'), 'spent');
 assert.equal(run(`actExplorationState.objects.solidCells(r).has(o.gx+','+o.gy)`), true, 'an opened chest still takes its cell');
-const cells = copy('battleFx.filter(fx=>fx.loot).slice(before).map(fx=>fx.loot.sourceCell)');
+// Floor loot (js/exploration-ground-loot.js) and anything picked up at once (a loot receipt) both carry the cell it fell on.
+const cells = copy('[...r.groundLoot.slice(floorBefore).map(({gx,gy})=>({gx,gy})),...battleFx.filter(fx=>fx.loot).slice(before).map(fx=>fx.loot.sourceCell)]');
 assert.ok(cells.length > 0, 'the chest dropped loot');
 assert.ok(cells.every(c => c && !(c.gx === copy('o.gx') && c.gy === copy('o.gy'))), 'no loot lies under the chest');
 assert.ok(cells.every(c => Math.max(Math.abs(c.gx - copy('o.gx')), Math.abs(c.gy - copy('o.gy'))) === 1), 'the loot lies beside it');

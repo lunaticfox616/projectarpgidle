@@ -9352,13 +9352,20 @@ function maybeApplyExceptionalBase(item) {
 }
 
 /** @param {string} currencyKey @param {number} amount @param {'reward'|'drop'} source */
-function awardCurrency(currencyKey, amount, source = 'reward') {
-    currencyKey = getCanonicalCurrencyKey(currencyKey);
-    if (source === 'drop' && !contentProgression.canDropCurrency(currencyKey)) return 0;
+/** The currency and whole amount an award would commit; refused when a drop of a still-locked currency is dropped. */
+function resolveCurrencyAward(currencyKey, amount, source = 'reward') {
+    const key = getCanonicalCurrencyKey(currencyKey);
+    if (source === 'drop' && !contentProgression.canDropCurrency(key)) return { key, gain: 0, refused: true };
     let gain = Number(amount || 0);
     if (gain > 0) gain = Math.max(1, Math.floor(gain));
-    commitCurrencyGain(currencyKey, gain);
-    return gain;
+    return { key, gain, refused: false };
+}
+
+function awardCurrency(currencyKey, amount, source = 'reward') {
+    const award = resolveCurrencyAward(currencyKey, amount, source);
+    if (award.refused) return 0;
+    commitCurrencyGain(award.key, award.gain);
+    return award.gain;
 }
 
 /** Commit an already resolved amount without applying expert multipliers again. */

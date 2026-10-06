@@ -90,6 +90,37 @@ setup('manual');
 run(`drop(near[0]);r.packs.filter(p=>p.stage!==null).forEach(p=>{p.waiting=[];p.aliveIds=[];});r.status='cleared';`);
 assert.equal(run('actExplorationProgress.canFinish()'), true, 'manual mode completes at once; the floor settles on departure');
 
+// Currency waits on the floor too (2026-10-06): one row per currency and cell, granted once when picked up, never lost.
+setup('manual');
+run("window.wallet=game.currencies.magicBud||0;");
+assert.deepEqual(copy("[keepCurrencyDrop({id:0,...near[0]},'magicBud',2),keepCurrencyDrop({id:0,...near[0]},'magicBud',1)]"),
+    [{ gain: 2, floor: true }, { gain: 1, floor: true }], 'a currency drop on a map lands on the floor');
+assert.equal(run('game.currencies.magicBud||0'), run('wallet'), 'floor currency is not owned yet');
+assert.deepEqual(copy("r.groundLoot.filter(row=>row.currency).map(({currency,count})=>[currency,count])"), [['magicBud', 3]],
+    'the same currency on one cell is one row');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.r=game.actExploration;');
+assert.equal(run("r.groundLoot.find(row=>row.currency).count"), 3, 'floor currency is saved with the run');
+for (const broken of ["{...r.groundLoot[0],count:0}", "{...r.groundLoot[0],currency:'notACurrency'}", "{...r.groundLoot[0],count:1.5}", "r.groundLoot[0]"]) {
+    assert.throws(() => run(`mergeDefaults({...JSON.parse(serializeSaveState(game)),actExploration:{...JSON.parse(JSON.stringify(r)),groundLoot:[r.groundLoot[0],${broken}]}})`),
+        /바닥 아이템/, `rejects currency row ${broken}`);
+}
+assert.equal(run('actExplorationProgress.collectPile(near[0])'), 1);
+assert.equal(run('game.currencies.magicBud'), run('wallet') + 3, 'picking the pile up grants the floor count once');
+assert.equal(run('actExplorationProgress.collectPile(near[0])'), 0);
+assert.equal(run('game.currencies.magicBud'), run('wallet') + 3);
+// Leaving the map and a dropped stale run on load settle floor currency into the wallet.
+run("keepCurrencyDrop({id:0,...near[1]},'magicBud',4);actExplorationProgress.depart(game);");
+assert.equal(run('game.currencies.magicBud'), run('wallet') + 7, 'leaving the map collects floor currency');
+setup('manual');
+run("window.wallet=game.currencies.magicBud||0;keepCurrencyDrop({id:0,...near[0]},'magicBud',5);window.raw=JSON.parse(serializeSaveState(game));raw.currentZoneId=1;window.loaded=mergeDefaults(raw);");
+assert.equal(run('loaded.currencies.magicBud||0'), run('wallet') + 5, 'a dropped stale run hands its floor currency to the wallet');
+// A still-locked currency drops nothing; offline replay commits at once.
+run("window.lockedKey=Object.keys(ORB_DB).find(key=>!contentProgression.canDropCurrency(key));");
+if (run('!!lockedKey')) assert.deepEqual(copy("keepCurrencyDrop({id:0,...near[0]},lockedKey,3)"), { gain: 0, floor: false }, 'a locked currency drops nothing');
+run("game.isBackgroundCalculation=true;window.before=game.currencies.magicBud||0;window.offline=keepCurrencyDrop({id:0,...near[0]},'magicBud',2);game.isBackgroundCalculation=false;");
+assert.deepEqual(copy('offline'), { gain: 2, floor: false }, 'offline drops are committed at once');
+assert.equal(run('game.currencies.magicBud'), run('before') + 2);
+
 // The boss rises on its room centre, its 2x2 body reaching away from the gate: the same gap from the gate in every facing.
 const gaps = [0, 1, 2, 3].map(rotation => {
     setup('direct', rotation);
@@ -97,4 +128,4 @@ const gaps = [0, 1, 2, 3].map(rotation => {
         return Math.min(...cells.map(c=>Math.max(Math.abs(c.gx-g.gx),Math.abs(c.gy-g.gy))));})()`);
 });
 assert.equal(new Set(gaps).size, 1, `boss gap from the gate is the same in every facing: ${gaps}`);
-console.log('Exploration floor loot: walk-over pickup, click pickup, saves, settlement, offline, filters, boss placement and 5 s hold OK');
+console.log('Exploration floor loot (equipment and currency): walk-over pickup, click pickup, saves, settlement, offline, filters, boss placement and 5 s hold OK');
