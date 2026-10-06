@@ -109,6 +109,12 @@ const atlasEndgame = (() => {
         if (row.hazard) Object.assign(out, { trialHazard: { ...row.hazard }, trapElements: [row.ele], trapName: E.hazardName });
         return out;
     }
+    /** The stage's picture: a league boss with its own sheet (the beehive queen) draws it, the rest an act boss's art. */
+    function applyStageBody(enemy, row, art) {
+        if (row.bodyVisual) return Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: null });
+        enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
+        return enemy;
+    }
     /** A late fight's stage body (js/combat.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
     function tuneStage(enemy, zone, stage) {
         const row = def(zone.atlasStages), body = row && row.stages[stage];
@@ -117,8 +123,7 @@ const atlasEndgame = (() => {
         const isEcho = Number.isInteger(body.echo), echo = isEcho ? (zone.atlasEchoes || [])[body.echo] : null;
         const art = echo ? echo[1] : (Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct);
         enemy.name = `👿 ${zone.bossStageNames[stage]}`;
-        enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
-        if (row.bodyVisual) Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: null });
+        applyStageBody(enemy, row, art);
         enemy.bossVisualTint = isEcho ? 200 : null;
         enemy.patternMode = 'apex';
         enemy.apexMechanic = body.mechanic;
