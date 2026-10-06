@@ -5807,6 +5807,12 @@ function getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress) {
     if (loopInputs.exempt) return getMonsterLoopPowerScale(zone, 'hp');
     return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, loopInputs.seasonLoops + 1);
 }
+/** 정예 생명력 배율 1.4 + 루프 몫. 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다.
+ * 우주계 사다리는 예전 그대로. 전투(createEnemy)와 아틀라스 무리 권장 전투력(getAtlasPackReadiness)이 같은 값을 쓴다. */
+function getEliteLoopHpMultiplier(zone, loopCount) {
+    const share = getSoftenedLoopDepth(loopCount) * 0.05;
+    return 1.4 + (isCosmosLadderZone(zone) ? share : Math.min(0.3, share));
+}
 /** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
  * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
 function getMonsterLoopPowerScale(zone, kind) {
@@ -5957,9 +5963,7 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
     if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
-    // 정예의 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다. 우주계는 예전 그대로.
-    let eliteLoopShare = getSoftenedLoopDepth(loopInputs.loopCount) * 0.05;
-    if (isElite) hp = Math.floor(hp * (1.4 + (isCosmosLadderZone(zone) ? eliteLoopShare : Math.min(0.3, eliteLoopShare))));
+    if (isElite) hp = Math.floor(hp * getEliteLoopHpMultiplier(zone, loopInputs.loopCount));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
@@ -6384,7 +6388,10 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
         * Math.max(0.1, Number(bossMods.attackSpeedMul || 1))
         * affix.attackRateMul * contentAttackRateMul
         * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryAttackSpeedMul) || 1) : 1);
-    const followUpHits = Math.max(0, Math.min(2, Math.floor(attackRate * 2.5) - 1));
+    // 2.5초 안의 이어지는 타격 수는 연속값으로 센다(2026-10-06). 정수로 세면 공격 속도 몇 %로 한 대가 통째로 붙어, 루프 20부터
+    // 액트 10(초당 0.757)은 0대, 혼돈 1(초당 0.804)은 1대라 1.2배 센 타격에 권장 EHP가 1.8배로 보였다. 예전 계단의 가운데를
+    // 지나는 직선이라 평균 권장값은 그대로다.
+    const followUpHits = Math.max(0, Math.min(2, attackRate * 2.5 - 1.5));
     const averageCritMul = 1 + Math.min(1, critChance / 100) * (critDamageMul - 1);
     return {
         peakHit,
@@ -6485,7 +6492,7 @@ function getAtlasPackReadiness(zone, baseHp, bossEstimate) {
     const tier = levelProgression.combatZone(zone).tier;
     const loops = getLoopDifficultyInputs(zone);
     const depth = getSoftenedLoopDepth(loops.seasonLoops);
-    const rank = {hp:1.4 + getSoftenedLoopDepth(loops.loopCount) * 0.05, hit:1.28, crit:10, rate:1.16, pressure:8};
+    const rank = {hp:getEliteLoopHpMultiplier(zone, loops.loopCount), hit:1.28, crit:10, rate:1.16, pressure:8};
     const loop = game.season || 1;
     const hp = baseHp * resolveMapEstimateContentScale(zone).hp * 0.92 * rank.hp * (zone.mapHpMul || 1);
     const affix = getMapEstimateAffixPressure(zone);

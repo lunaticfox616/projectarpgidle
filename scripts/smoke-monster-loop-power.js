@@ -52,6 +52,25 @@ const readiness = JSON.parse(run(`(() => {
 })()`));
 near(readiness.dps, readiness.hp, 0.05, 'the readiness estimate grows with the same life multiplier');
 
+// 권장 EHP도 한 계단(2026-10-06): 2.5초 안의 이어지는 타격을 정수로 세면 루프 20부터 액트 10(초당 0.757)은 0대, 혼돈 1(0.804)은 1대라
+// 타격은 1.2배인데 권장 EHP가 1.8배로 보였다. 연속값으로 세면 모든 루프에서 한 계단이다.
+const ehpSteps = JSON.parse(run(`(() => {
+    const lastAct = Object.keys(MAP_ZONES).map(Number).filter(id => MAP_ZONES[id] && MAP_ZONES[id].type === 'act').sort((a, b) => a - b).pop();
+    const chaos1 = getAbyssZoneIdForDepth(1);
+    const ehp = (id, season) => { game.season = season; game.loopCount = season - 1; return estimateMapZonePowerRequirements(getZone(id)).ehp; };
+    return JSON.stringify([1, 10, 21, 30, 41].map(season => ({ season, step: ehp(chaos1, season) / ehp(lastAct, season) })));
+})()`));
+for (const { season, step } of ehpSteps) assert.ok(step > 1.1 && step < 1.45, `recommended EHP act 10 -> chaos 1 stays one step at loop ${season}: ${step.toFixed(2)}x`);
+
+// 정예 생명력의 루프 몫은 +0.3까지(우주계 사다리는 예전 그대로). 아틀라스 무리 권장 전투력도 전투와 같은 함수를 쓴다.
+const elite = JSON.parse(run(`JSON.stringify({ atlas: getEliteLoopHpMultiplier({ type: 'atlasMap' }, 29), act: getEliteLoopHpMultiplier(getZone(2), 3),
+    cosmos: getEliteLoopHpMultiplier({ type: 'cosmos' }, 29) })`));
+close(elite.atlas, 1.7, 'elite loop share capped at +0.3');
+assert.ok(elite.act > 1.4 && elite.act < 1.7, `an early loop keeps its smaller share: ${elite.act}`);
+assert.ok(elite.cosmos > 1.7, 'cosmos keeps its ladder');
+assert.match(require('node:fs').readFileSync('js/combat.js', 'utf8'), /function getAtlasPackReadiness[\s\S]*?hp:getEliteLoopHpMultiplier\(zone, loops\.loopCount\)/,
+    'the atlas pack estimate uses the elite share combat uses');
+
 // 루프를 타지 않는 지역(시련)은 플레이어의 루프, 아틀라스 지도는 등급이 정한 루프.
 const scales = JSON.parse(run(`(() => {
     game.season = 40;
@@ -87,4 +106,4 @@ assert.ok(growth.dmgRatio > 0.94 && growth.dmgRatio < 0.97, `chaos 20 at loop 10
 assert.deepEqual([growth.woodsmanLoopInputs.seasonLoops, growth.woodsmanLoopInputs.loopCount], [0, 0], 'the woodsman takes no loop growth');
 assert.equal(growth.cosmos, true, 'cosmos keeps the growth it was tuned on');
 
-console.log('monster loop life curve (level-consistent, act cap, chaos ramp), damage curve, readiness, exempt and atlas loops, transcendent ranges, damage growth: OK');
+console.log('monster loop life curve (level-consistent, act cap, chaos ramp), damage curve, readiness and recommended EHP steps, elite share, exempt and atlas loops, transcendent ranges, damage growth: OK');
