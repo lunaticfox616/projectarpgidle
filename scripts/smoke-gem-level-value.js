@@ -20,7 +20,10 @@ for (const [name, db] of skills) {
         close(info.skill.spd, db.baseSpd + steps(level) * db.spdScale, `${name} Lv.${level} speed preview`);
         if (db.tags.includes('spell')) {
             const oldFlat = value => (db.spellFlatBase || 0) * (3 + .8 * Math.log2(value) ** 2) + (value-1)*(db.spellFlatScale || 0);
-            const expected = oldFlat(level) + (level >= 20 ? (oldFlat(level)-oldFlat(19))*.1 : 0);
+            // 중력 붕괴는 초반만 낮다(2026-10-07): 젬 레벨 1에서 spellEarlyMul, spellEarlyUntil에서 원래 곡선.
+            const early = db.spellEarlyMul > 0 && db.spellEarlyMul < 1
+                ? db.spellEarlyMul + (1 - db.spellEarlyMul) * Math.min(1, Math.max(0, (level - 1) / (db.spellEarlyUntil - 1))) : 1;
+            const expected = (oldFlat(level) + (level >= 20 ? (oldFlat(level)-oldFlat(19))*.1 : 0)) * early;
             close(run(`getGemSpellBaseDamage(SKILL_DB[${JSON.stringify(name)}],${level})`), expected, `${name} spell curve`);
         }
         if (db.requiresShield || db.tags.includes('summon_attack')) continue;
@@ -30,6 +33,13 @@ for (const [name, db] of skills) {
         const speed = name === '연속 베기' && level >= 20 ? info.skill.spd * 1.2 : info.skill.spd;
         close(actual.spd, speed, `${name} speed calculation keeps its existing level-20 perk`);
     }
+}
+
+// 중력 붕괴(수호자 시작 젬)는 무기 전의 초반만 낮춘다: 레벨 1에 원래의 75%, 레벨 10부터 그대로. 다른 주문은 그대로.
+{
+    const gravity = json(`[1, 5, 10, 20].map(level => getGemSpellBaseDamage(SKILL_DB['중력 붕괴'], level) / getGemSpellBaseDamage({ ...SKILL_DB['중력 붕괴'], spellEarlyMul: 1 }, level))`);
+    gravity.forEach((ratio, index) => close(ratio, [0.75, 0.75 + 0.25 * 4 / 9, 1, 1][index], `중력 붕괴 early ratio ${[1, 5, 10, 20][index]}`));
+    assert.deepStrictEqual(json(`Object.entries(SKILL_DB).filter(([, skill]) => skill.spellEarlyMul).map(([name]) => name)`), ['중력 붕괴']);
 }
 
 // Normal and own-stat support gems retain tier strength and fixed effects (scale=0).

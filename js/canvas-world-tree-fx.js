@@ -167,21 +167,28 @@ const worldTreeSkillFx = (() => {
         return SKILL_FX_ATLAS[fx.skillName].id===25 ? fanRays(fx,event,steady) : [event];
     }
 
-    /** 연발 사격: one arrow to the far cell of each direction the fan covers; a straight shot's arrows keep its speed and height. */
+    /** 연발 사격: one arrow to the far cell of each ray (the footprint's ray tips; the fan is narrow since 2026-10-07, so its rays
+     * no longer follow the eight directions); a straight shot's arrows keep its speed and height. */
     function fanRays(fx,event,steady) {
-        const rays=new Map(),source=fx.sourceCell;
+        const source=fx.sourceCell,tips=fx.attackFootprint?.rays?.length ? fx.attackFootprint.rays : directionTips(fx,source);
+        return tips.map(cell=>{
+            if(!steady)return {...event,travelPath:undefined,targetCells:[cell]};
+            const [from,to]=aloft([{...source,offsetMs:0},{...cell,offsetMs:0}]);
+            return {...event,sourceCell:from,targetCells:[to],travelPath:undefined,contactSchedule:undefined,
+                duration:Math.max(1,Math.hypot(to.gx-from.gx,to.gy-from.gy)*steady.cellMs)};
+        });
+    }
+
+    /** A footprint without ray tips: the farthest cell in each of the eight directions it covers. */
+    function directionTips(fx,source) {
+        const rays=new Map();
         for(const cell of fx.attackFootprint?.cells || fx.targetCells) {
             const dx=cell.gx-source.gx,dy=cell.gy-source.gy;
             if(!dx && !dy)continue;
             const key=`${Math.sign(dx)},${Math.sign(dy)}`,previous=rays.get(key);
             if(!previous || Math.hypot(dx,dy)>Math.hypot(previous.gx-source.gx,previous.gy-source.gy))rays.set(key,cell);
         }
-        return [...rays.values()].map(cell=>{
-            if(!steady)return {...event,travelPath:undefined,targetCells:[cell]};
-            const [from,to]=aloft([{...source,offsetMs:0},{...cell,offsetMs:0}]);
-            return {...event,sourceCell:from,targetCells:[to],travelPath:undefined,contactSchedule:undefined,
-                duration:Math.max(1,Math.hypot(to.gx-from.gx,to.gy-from.gy)*steady.cellMs)};
-        });
+        return [...rays.values()];
     }
 
     // ------------------------------------------------------------------ straight shots: hand height, one speed

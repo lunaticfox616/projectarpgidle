@@ -858,7 +858,15 @@ function getGemLevelGrowthSteps(level, offset = 1) {
 function getGemSpellBaseDamage(skill, level) {
     const base = skill.spellFlatBase || 0, scale = skill.spellFlatScale || 0;
     const logarithmicGrowth = getGemHighLevelGrowth(Math.log2(Math.max(1, level)) ** 2, Math.log2(19) ** 2);
-    return base * 3 + getGemLevelGrowthSteps(level) * scale + base * 0.8 * logarithmicGrowth;
+    return (base * 3 + getGemLevelGrowthSteps(level) * scale + base * 0.8 * logarithmicGrowth) * getGemSpellEarlyMultiplier(skill, level);
+}
+
+/** A spell that is strong before weapons matter (중력 붕괴) starts lower: spellEarlyMul of its flat damage at gem level 1, rising
+ * evenly to the full curve at spellEarlyUntil (2026-10-07 user decision: only its early game, slightly). */
+function getGemSpellEarlyMultiplier(skill, level) {
+    const start = Number(skill.spellEarlyMul), until = Number(skill.spellEarlyUntil);
+    if (!(start > 0 && start < 1 && until > 1)) return 1;
+    return start + (1 - start) * Math.min(1, Math.max(0, (level - 1) / (until - 1)));
 }
 
 function getActiveSkillStats(bonusLevel) {

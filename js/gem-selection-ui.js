@@ -112,11 +112,18 @@
         return `<span>${label}</span><span class="gem-compare-now">${COMPARE_STAT_META.dps.format(before)}</span><span aria-hidden="true">→</span><span class="gem-compare-next ${tone}">${COMPARE_STAT_META.dps.format(after)}${tone ? pct : ''}</span>`;
     }
 
+    /** 부채꼴(연발 사격)의 DPS는 한 대상 기준이라, 옆 화살까지 모두 맞을 때의 값을 한 줄 더 보인다(2026-10-07). */
+    function packRows(before, after) {
+        const packOf = stats => Math.max(stats.dps || 0, stats.packDps || 0);
+        const spreads = stats => packOf(stats) > (stats.dps || 0) * 1.01;
+        return spreads(before) || spreads(after) ? [compareRow('무리 최대', packOf(before), packOf(after))] : [];
+    }
+
     /** "장착하면" block: DPS (and summon DPS when either side has one) before → after, for a gem not worn yet. */
     function comparison(type, name, anchor) {
         if (anchor.matches('.active, .equipment-blocked')) return null;
         const { before, after } = previewStats(type, name);
-        const rows = [compareRow('DPS', before.dps || 0, after.dps || 0)];
+        const rows = [compareRow('DPS', before.dps || 0, after.dps || 0)].concat(packRows(before, after));
         if ((before.summonDps || 0) > 0 || (after.summonDps || 0) > 0) rows.push(compareRow('소환 DPS', before.summonDps || 0, after.summonDps || 0));
         const block = document.createElement('div');
         block.className = 'gem-compare';

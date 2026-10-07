@@ -4092,7 +4092,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, totalProjectileExtraShots || 0) : 0;
     let projectileBonusShotDamagePct = Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT);
     let projectileExtraShotDpsMul = getProjectileExtraShotDpsMultiplier(skill, projectileExtraShotsForDps);
-    let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
     let estimatedSkillDotDps = 0;
     const nativeDotPattern = skill.nativeCastId === 46 ? skill.combatPattern : null;
     if (isDotSkill && !nativeDotPattern) {
@@ -4112,6 +4111,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let skillSequenceDpsMultiplier = typeof getSkillHitSequenceDpsMultiplier === 'function'
         ? Math.max(1, Number(getSkillHitSequenceDpsMultiplier(game.activeSkill, skill)) || 1)
         : 1;
+    // 부채꼴(연발 사격)은 한 대상이 받는 몫만 DPS로 센다. 옆 화살까지 다 맞을 때는 packDps(js/combat-grid.js splitFanSpreadDps).
+    const fanSpread = splitFanSpreadDps(skill, projectileExtraShotDpsMul, skillSequenceDpsMultiplier);
+    skillSequenceDpsMultiplier = fanSpread.sequenceDpsMul;
+    let finalDpsWithProjectileShots = finalDpsAdjusted * fanSpread.extraShotDpsMul;
     if (skillSequenceDpsMultiplier > 1) damageScales.skillSequenceMultiplier = skillSequenceDpsMultiplier;
     // Native clock contacts use baseDmg * dotDamageScale, without generic hit/stack effects.
     // The active clock cannot overlap another cast; speed cannot accelerate its ticks.
@@ -4676,12 +4679,12 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
-                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 확률 ${formatValue('projectileExtraChance', projectileExtraShotsForDps * 100)}%, 발사 상한 반영, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
+                isProjectileSkillForDps && fanSpread.extraShotDpsMul > 1 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 확률 ${formatValue('projectileExtraChance', projectileExtraShotsForDps * 100)}%, 발사 상한 반영, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
                 skillSequenceDpsMultiplier > 1 ? `강타 여진 기대값 x${skillSequenceDpsMultiplier.toFixed(2)} (본 타격 후 독립 여진)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
                 warriorPhysicalDpsMultiplier > 1 ? `격노 순환 x${warriorPhysicalDpsMultiplier.toFixed(2)} (${getWarriorRageStacks(getCombatTime())}/${WARRIOR_RAGE_STACK_MAX}중첩)` : null,
                 (hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
-            ].concat(flameDecayDpsLines).filter(Boolean),
+            ].concat(getFanSpreadDpsLines(fanSpread, finalPlayerSkillDps), flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
         },
         gem: {
@@ -4724,6 +4727,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         igniteDamageMultiplierPct: finalIgniteDamageMultiplierPct,
         dps: finalPlayerSkillDps || 0,
         hitDps: finalDpsWithProjectileShots || 0,
+        packDps: (finalPlayerSkillDps || 0) * fanSpread.packMul,
         skillDotDps: estimatedSkillDotDps || 0,
         dpsBaseNoProjectileShots: finalDpsAdjusted || 0,
         critDmg: finalCritDmg,

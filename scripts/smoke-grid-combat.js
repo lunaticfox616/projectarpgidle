@@ -834,7 +834,7 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
 assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통 · 사거리 3칸');
 assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
 assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격 · 사거리 3칸');
-assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사 · 사거리 6칸 · 5방향 · 발사 방식 변경 가능');
+assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사 · 사거리 6칸 · 5방향(20도 간격) · 발사 방식 변경 가능');
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
@@ -930,10 +930,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const fanAttacker = { gx: 3, gy: 3 };
   const fanTargets = [makeEnemy(90, 4, 3), makeEnemy(91, 4, 2), makeEnemy(92, 4, 4), makeEnemy(93, 3, 2), makeEnemy(94, 3, 4), makeEnemy(95, 2, 3), makeEnemy(96, 5, 3)];
   hits = context.selectGridSkillTargets('연발 사격', { ...context.SKILL_DB['연발 사격'], targets: 6 }, fanAttacker, fanTargets);
-  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [90, 91, 92, 93, 94], '산탄은 조준 방향을 중심으로 서로 다른 다섯 방향의 적을 맞혀야 한다');
+  // 2026-10-07 사용자 결정: 산탄은 대상을 겨눈 20도 간격의 좁은 부채꼴. 바로 옆(90도)과 뒤의 적은 맞지 않는다.
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [90, 91, 92], '좁은 산탄은 조준한 적과 그 앞 대각의 적만 맞혀야 한다');
   assert.ok(!hits.some(hit => hit.enemy.id === 96), '비관통 산탄 한 줄은 가장 가까운 적 하나만 맞혀야 한다');
-  assert.deepStrictEqual(Array.from(hits, hit => hit.mult), [1, 0.34, 0.34, 0.34, 0.34], '산탄의 보조 투사체 피해 배율을 적용해야 한다');
-  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('연발 사격', context.SKILL_DB['연발 사격']) - 2.36) < 1e-9, '산탄의 총 투사체 기대 배율을 계산해야 한다');
+  assert.deepStrictEqual(Array.from(hits, hit => hit.mult), [1, 0.4, 0.4], '산탄의 보조 투사체 피해 배율을 적용해야 한다');
+  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('연발 사격', context.SKILL_DB['연발 사격']) - 2.6) < 1e-9, '산탄이 모두 맞을 때의 총 배율(무리 최대)을 계산해야 한다');
+  // 가운데 화살은 8방향 밖의 대상도 겨눈다(예전에는 앞 3칸 옆 1칸 같은 자리의 적을 한 발도 못 맞혔다).
+  hits = context.selectGridSkillTargets('연발 사격', context.SKILL_DB['연발 사격'], { gx: 3, gy: 4 }, [makeEnemy(97, 6, 5)]);
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [97], '가운데 화살은 8방향 밖의 대상에게도 맞아야 한다');
+  hits = context.selectGridSkillTargets('연발 사격', context.SKILL_DB['연발 사격'], { gx: 3, gy: 4 }, [makeEnemy(98, 6, 4), makeEnemy(99, 6, 3), makeEnemy(100, 6, 5)]);
+  assert.deepStrictEqual(Array.from(hits, hit => [hit.enemy.id, hit.mult]), [[98, 1], [99, 0.4], [100, 0.4]], '좁은 산탄은 붙어 선 무리의 옆 적도 맞혀야 한다');
 
   // 대상 수 상한: targets=2면 범위 안에 3기가 있어도 2기만 맞는다
   const n1 = makeEnemy(12, 2, 6), n2 = makeEnemy(13, 2, 5), n3 = makeEnemy(14, 1, 5);
@@ -1396,8 +1402,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.enemies = [makeEnemy(301, 4, 3), makeEnemy(302, 4, 2), makeEnemy(303, 4, 4), makeEnemy(304, 3, 2),
     makeEnemy(305, 3, 4), makeEnemy(306, 2, 2), makeEnemy(307, 2, 4), makeEnemy(308, 2, 3)];
   const expandedFan = context.getSkillTargets({ sSkill: context.SKILL_DB['연발 사격'], projectileExtraShots: 2 });
-  assert.strictEqual(expandedFan.length, 7, '투사체 추가 발사는 산탄의 실제 발사 방향과 대상 수를 늘려야 한다');
-  assert.ok(!expandedFan.some(hit => hit.enemy.id === 308), '7방향 산탄은 발사하지 않은 후방 중앙의 적을 맞히면 안 된다');
+  const baseFan = context.getSkillTargets({ sSkill: context.SKILL_DB['연발 사격'], projectileExtraShots: 0 });
+  assert.deepStrictEqual([baseFan.length, expandedFan.length], [3, 5], '투사체 추가 발사는 산탄의 실제 발사 방향(20도씩 바깥)과 대상 수를 늘려야 한다');
+  assert.ok(!expandedFan.some(hit => [306, 307, 308].includes(hit.enemy.id)), '7갈래 산탄도 뒤쪽 적은 맞히면 안 된다');
+  // 표시 DPS는 한 대상이 받는 몫(가운데 화살)이고, 옆 화살까지 모두 맞을 때는 packDps(2026-10-07 사용자 결정).
+  const fanStats = context.getPlayerStats();
+  assert.ok(Math.abs(fanStats.dps - fanStats.hitDps) < 1e-9 && Math.abs(fanStats.packDps / fanStats.dps - 2.6) < 1e-9,
+    `산탄의 DPS는 한 대상 기준, 무리 최대는 2.6배 (${fanStats.dps} / ${fanStats.packDps})`);
 
   resetGame();
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
@@ -1481,7 +1492,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(boomerang.every(stage => stage.damageMultiplier === 0.5), '왕복 총 피해가 기존 피해를 초과하면 안 된다');
 
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('연속 베기', context.SKILL_DB['연속 베기']), 1.45, '연속 베기의 표시 DPS는 감쇠된 후속타를 반영해야 한다');
-  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('연발 사격', context.SKILL_DB['연발 사격']) - 2.36) < 1e-9, '연발 사격의 표시 DPS는 감쇠된 보조 방향 4발을 반영해야 한다');
+  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('연발 사격', context.SKILL_DB['연발 사격']) - 2.6) < 1e-9, '연발 사격의 무리 최대 배율은 감쇠된 보조 화살 4발을 반영해야 한다');
   assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('화염 폭풍핵', context.SKILL_DB['화염 폭풍핵']) - 1.02) < 1e-9, '화염 폭풍핵의 표시 DPS는 장판 3회를 합산해야 한다');
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('난타 눈보라', context.SKILL_DB['난타 눈보라']), 4, '난타 눈보라는 기존 4회 총 피해를 유지해야 한다');
 }
@@ -1490,7 +1501,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 {
   assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연속 베기'], 0, 2), 1, '첫 타격은 감쇠하지 않아야 한다');
   assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연속 베기'], 1, 2), 0.45, '연속 베기의 두 번째 타격은 45%여야 한다');
-  assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연발 사격'], 1, 1), 0.34, '연발 사격의 추가 반복 투사체도 보조 탄 배율을 사용해야 한다');
+  assert.strictEqual(context.getSkillRepeatDamageMultiplier(context.SKILL_DB['연발 사격'], 1, 1), 0.4, '연발 사격의 추가 반복 투사체도 보조 탄 배율을 사용해야 한다');
 
   const coldStats = context.getSkillAilmentStats({ sSkill: context.SKILL_DB['서리 폭발'] }, 'cold', null);
   assert.strictEqual(coldStats.chillChance, 100, '서리 폭발의 냉각 보너스가 실제 상태이상 계산에 들어가야 한다');
