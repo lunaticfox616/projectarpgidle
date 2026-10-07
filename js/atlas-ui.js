@@ -218,10 +218,15 @@ const atlasUi = (() => {
         if (fragment.encounter) return `${ATLAS.encounters[fragment.encounter].name} 방이 반드시 생긴다`;
         return Object.entries(fragment.effect).map(([key, value]) => `${ATLAS_PASSIVES.labels[key][0]} +${value}${ATLAS_PASSIVES.labels[key][1]}`).join(' · ');
     }
+    /** ' (잊힌 정원 ×2)' for a room a region favours (data/atlas.js regionChance), '' otherwise. */
+    function regionChanceNote(type) {
+        return Object.entries(ATLAS.encounters[type].regionChance || {})
+            .map(([id, mul]) => ` (${(ATLAS.regions.find(row => row.id === id) || {}).name} ×${mul})`).join('');
+    }
     function chancesHtml() {
         const bonus = atlasPassives.effects(game);
-        const rows = late => atlasEncounters.types.filter(type => !!ATLAS.encounters[type].late === late)
-            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%`).join(' · ');
+        const rows = late => atlasEncounters.types.filter(type => !!ATLAS.encounters[type].late === late && atlasEncounters.isOpen(type, game.season))
+            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%${regionChanceNote(type)}`).join(' · ');
         // 제단은 아틀라스가 깨어난 뒤에만, 콘텐츠 방과 따로 생긴다(js/atlas-encounters.js roll).
         const altars = atlasEndgame.awakened(game) ? `<p class="atlas-encounters">제단 확률: ${rows(true)} (지도마다 ${ATLAS.altarLimit}개까지)</p>` : '';
         return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows(false)} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>${altars}`;

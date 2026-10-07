@@ -172,6 +172,20 @@ function getBasicCurrencyDrops(enemy, bonusRoll) {
     return drops;
 }
 
+/** Content kills: the ember pack's branches (잿불 터, js/ember-corruption.js), then the content bosses' extras. */
+function getContentKillCurrencyDrops(zone, enemy, abyssScale) {
+    const embers = typeof emberCorruption === 'object' ? emberCorruption.killDrops(enemy) : [];
+    return [...embers, ...getContentBossCurrencyDrops(zone, enemy, abyssScale)];
+}
+
+/** A deep abyss boss's jewel shards and a season boss's core. */
+function getContentBossCurrencyDrops(zone, enemy, abyssScale) {
+    const drops = [];
+    if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
+    if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
+    return drops;
+}
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let abyssScale = getAbyssMonsterScales(zone);
@@ -228,8 +242,7 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);
         if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
     }
-    if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
-    if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
+    drops.push(...getContentKillCurrencyDrops(zone, enemy, abyssScale));
     return levelProgression.filterCurrencyDrops(drops, levelProgression.rewardMultiplier(zone, enemy, game.level))
         .filter(([key]) => contentProgression.canDropCurrency(key));
 }

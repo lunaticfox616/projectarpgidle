@@ -11,7 +11,9 @@ const battleGroundLoot = (() => {
     // style and layout pass whenever anything had touched the page earlier in the frame (2026-10-07: about 8% of a frame with a window open).
     const narrow = () => canvasBox(canvas).width < 600;
     const displayLimit = () => narrow() ? 16 : 24;
-    const isMajor = receipt => receipt.currency === 'goldenRule' || receipt.item?.rarity === 'unique' || !!receipt.highlight;
+    // 빛기둥을 세우는 재화(타오른 잿불가지는 12번 루프 30)와 주황 기록으로 줍는 재화.
+    const BEAM_CURRENCIES = new Set(['goldenRule', 'burningEmberBranch']), MAJOR_LOG_CURRENCIES = new Set(['goldenRule', 'sapBud', 'burningEmberBranch']);
+    const isMajor = receipt => BEAM_CURRENCIES.has(receipt.currency) || receipt.item?.rarity === 'unique' || !!receipt.highlight;
     /** A pile shows its most important drop: golden rule, uniques and highlighted items first, then by rarity. */
     const importance = receipt => (isMajor(receipt) ? 100 : 0) + getRarityRank(receipt.item?.rarity || 'normal');
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
@@ -199,10 +201,14 @@ const battleGroundLoot = (() => {
     }
 
     function beam(marker, receipt) {
-        if (receipt.currency !== 'goldenRule' && receipt.item?.rarity !== 'unique' && !receipt.highlight) return;
+        if (!isMajor(receipt)) return;
         marker.dataset.beam = 'true';
         const pillar = document.createElement('div'); pillar.className = 'battle-loot-beam'; marker.prepend(pillar);
         marker.style.setProperty('--beam-height', Math.min(152, canvasBox(canvas).height * .36) + 'px');
+        if (receipt.currency === 'burningEmberBranch') {
+            marker.style.setProperty('--beam-color', EMBER_CORRUPTION_TONE);
+            marker.style.setProperty('--beam-core', '#ffe2b8');
+        }
         if (receipt.currency !== 'goldenRule') return;
         const palette = getComputedStyle(document.getElementById('divine-drop-banner'));
         marker.style.setProperty('--beam-color', palette.borderTopColor);
@@ -440,7 +446,7 @@ const battleGroundLoot = (() => {
         if (!game.settings.showLootLog) return;
         // The same lines a drop picked up at once writes (js/combat.js rollLootForEnemy).
         detail.currencies.forEach(({ key, count }) => addLog(`🪙 ${window.getStyledOrbName(key)} +${count}`,
-            key === 'goldenRule' || key === 'sapBud' ? 'loot-unique' : 'loot-magic'));
+            MAJOR_LOG_CURRENCIES.has(key) ? 'loot-unique' : 'loot-magic'));
         detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`, '', { item }));
     });
 

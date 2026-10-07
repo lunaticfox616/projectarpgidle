@@ -993,6 +993,7 @@ const ORB_DB = {
     gemShard: { name: '젬 잔향', desc: '스킬 젬 드랍과 중복 젬 환원으로 얻습니다. 스킬 젬 탭의 젬 연구에서 원하는 미보유 공격 젬이나 보조 젬을 확정 해금합니다.' },
     condensedSkyPower: { name: '응축된 창공의 정수', desc: '창공의 탑에서 얻는 영구 재료입니다. 재화 목록에는 표시되지 않으며 창공석과 영구 젬 강화에 사용됩니다.' },
     emberBranch: { name: '잿불가지', desc: '아이템을 타락시킵니다. 추가 옵션 부여(가득 차 있어도 초과), 품질 +6~10%(최대 30%), 옵션 1줄 무작위 변경, 타락 소켓 추가(주얼 해금 뒤), 변화 없음 중 하나가 일어납니다. 타락 후 제작 불가.' },
+    burningEmberBranch: { name: '타오른 잿불가지', desc: '장비를 한 번 더 타락시킵니다(장비 하나에 한 번). 이미 타락한 장비와 고유 장비에도 씁니다. 25% 확률로 장비가 타서 사라지고(재는 그루터기 함 거름), 아니면 타락 전용 줄 2개, 옵션 수치 다시 굽기(줄마다 80~120%), 품질 30% 가운데 하나가 일어나거나 변화가 없습니다. 아틀라스의 잿불 터에서 얻습니다.' },
     jewelCore: { name: '주얼 핵(구)', desc: '이전 버전 재화입니다. 로드 시 주얼 결정으로 자동 통합됩니다.' },
     jewelShard: { name: '주얼 결정', desc: '주얼을 해체하면 얻습니다. 주얼 보관함 뽑기와 조합창의 주얼 융합에 씁니다.' },
     hiveKey: { name: '벌집 열쇠', desc: '루프8 이후 맵핑에서 낮은 확률로 발견되는 벌집 입장권입니다.' },
@@ -1023,7 +1024,7 @@ function getCurrencyInfo(key) {
     return Object.hasOwn(WALLET_CURRENCY_INFO, key) ? WALLET_CURRENCY_INFO[key] : { name: String(key || ''), desc: '' };
 }// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
-    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','oceanRerollShard']],
+    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
     ['research', ['gemShard']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
@@ -1038,6 +1039,7 @@ const CURRENCY_ICON_PATHS = Object.freeze({
     formlessDew: 'assets/ui/currency/formless-dew.png',
     goldenRule: 'assets/ui/currency/golden-rule.png',
     emberBranch: 'assets/ui/currency/ember-branch.png',
+    burningEmberBranch: 'assets/ui/currency/burning-ember-branch.png',
     ouroboros: 'assets/ui/currency/ouroboros.png',
     blightSpore: 'assets/ui/currency/blight-spore.png',
     pruningShears: 'assets/ui/currency/pruning-shears.png',

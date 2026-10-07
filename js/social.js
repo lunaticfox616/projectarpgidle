@@ -146,7 +146,7 @@ function snapStat(st) {
 /** 줄 옆 표시(게임 툴팁과 같다): 특출 베이스 ✦, 고정 옵션 [T0], 제작 출처(홀씨, 화석, 이식), 벌꿀 고정. 주얼은 쁘띠와 밀랍. */
 function snapStatMarks(st) {
     let marks = {
-        exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus,
+        exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus, ember: st.emberScale,
         fixed: typeof isFixedEquipmentAffix === 'function' && isFixedEquipmentAffix(st),
         source: typeof equipmentCrafting === 'object' ? equipmentCrafting.getLabel(st) : ''
     };
@@ -215,7 +215,8 @@ function buildItemMetaSnapshot(item) {
         itemLevel: profileItemLevel(item),
         grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
         requirements: buildRequirementSnapshot(item),
-        sockets: buildSocketSnapshots(item)
+        sockets: buildSocketSnapshots(item),
+        ember: item.burned ? (item.emberLines || []).slice(0, 2).map(snapStat) : undefined
     };
 }
 
@@ -1240,7 +1241,7 @@ function profileItemOptionsHtml(item) {
     let html = explicit.length
         ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
         : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
-    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item);
+    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemEmberHtml(item);
 }
 
 /** 게임 툴팁과 같은 머리말. 줄 종류가 남은 스냅샷(2026-10-07 뒤)만 "접두 2/3, 접미 3/3"을 붙이고, 예전 프로필은 "(5/6)". */
@@ -1303,7 +1304,7 @@ function profileAffixParts(st) {
 function profileAffixSuffixHtml(st) {
     let source = st.source ? ` <span class="equipment-craft-source">${socialEscape(st.source)}</span>` : '';
     let honey = st.honey ? ' <span class="item-affix-lock item-affix-lock--honey">🍯 벌꿀 고정</span>' : '';
-    return `${profileRollRangeHtml(st, false)}${profileTierHtml(st)}${source}${honey}`;
+    return `${profileRollRangeHtml(st, false)}${profileTierHtml(st)}${source}${honey}${profileEmberScaleHtml(st)}`;
 }
 
 /** 티어(게임 getItemAffixTierHtml과 같다): 고정 옵션은 [T0], 티어가 있으면 [T#](0은 고유 확정 [U]). */
@@ -1330,6 +1331,19 @@ function profileRollRangeHtml(st, estimate) {
 
 function profileExceptionalMark(st) {
     return st.exceptional ? ' <span style="color:#ffb454;font-weight:700;">✦+20%</span>' : '';
+}
+
+/** 타오른 잿불가지가 다시 구운 줄의 몫(게임 툴팁과 같다): +12% 또는 -8%. */
+function profileEmberScaleHtml(st) {
+    const pct = Math.round(((Number(st.ember) || 1) - 1) * 100);
+    return pct ? ` <span style="color:${pct > 0 ? EMBER_CORRUPTION_TONE : '#9aa3ad'};font-weight:700;">🔥${pct > 0 ? '+' : ''}${pct}%</span>` : '';
+}
+
+/** 타오른 장비(게임 툴팁과 같다): 다시 태울 수 없다는 표시와 타락 전용 줄. */
+function profileItemEmberHtml(item) {
+    if (!Array.isArray(item.ember)) return '';
+    const lines = item.ember.map(line => `<div class="social-item-stat" style="color:${EMBER_CORRUPTION_TONE};">[잿불] ${socialEscape(profileStatLabel(line))} +${socialEscape(profileValue(line.id, line.val))}</div>`).join('');
+    return `<div class="social-item-section" style="color:${EMBER_CORRUPTION_TONE};">🔥 타오른 장비 (다시 태울 수 없음)</div>${lines}`;
 }
 
 /** 잠식 특수 옵션(게임과 같다): 해방하면 고른 옵션과 티어, 아니면 효과 없음. */

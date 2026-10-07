@@ -6,16 +6,27 @@
 const atlasEncounters = (() => {
     const TYPES = Object.freeze(Object.keys(ATLAS.encounters));
     /** Forced rooms (fragments) first, then the other types — in a random order, so none is starved by the list order — roll
-     * their chance (base + passives) up to the map's limit; never more rooms than the map has ordinary rooms for. */
-    function roll(bonus, forced, random, capacity = Infinity, awake = false) {
+     * their chance (base + passives, × the map region's share) up to the map's limit; never more rooms than the map has ordinary
+     * rooms for. context = { awake, loop, region } (a bare boolean is awake): a type with minLoop waits for that loop. */
+    function roll(bonus, forced, random, capacity = Infinity, context = false) {
+        const { awake = false, loop = Infinity, region = null } = context && typeof context === 'object' ? context : { awake: !!context };
         const fixed = [...new Set(forced)].filter(type => Object.hasOwn(ATLAS.encounters, type));
         const limit = ATLAS.encounterLimit + bonus.encounterExtra;
         // 패시브가 없는 종류의 보너스는 0.
-        const passing = late => shuffledTypes(TYPES.filter(type => !fixed.includes(type) && !!ATLAS.encounters[type].late === late), random)
-            .filter(type => random() * 100 < ATLAS.encounters[type].chance + (bonus[type] || 0));
+        const passing = late => shuffledTypes(TYPES.filter(type => !fixed.includes(type) && !!ATLAS.encounters[type].late === late && isOpen(type, loop)), random)
+            .filter(type => random() * 100 < chance(type, bonus, region));
         // 제단(late)은 아틀라스가 깨어난 뒤에만, 콘텐츠 방 자리와 따로 굴린다(js/atlas-endgame.js): 깨어나도 기존 방이 줄지 않는다.
         const altars = awake ? passing(true).slice(0, ATLAS.altarLimit) : [];
         return [...fixed, ...passing(false).slice(0, limit), ...altars].slice(0, capacity);
+    }
+    /** A type's room chance in %: base + passives, × the map region's share (잿불 터 in the garden). */
+    function chance(type, bonus, region) {
+        const rule = ATLAS.encounters[type];
+        return (rule.chance + (bonus[type] || 0)) * ((rule.regionChance && rule.regionChance[region]) || 1);
+    }
+    /** Whether the type can appear in this loop (minLoop: 잿불 터 from loop 30). */
+    function isOpen(type, loop) {
+        return (ATLAS.encounters[type].minLoop || 0) <= loop;
     }
     function shuffledTypes(list, random) {
         const out = [...list];
@@ -50,6 +61,9 @@ const atlasEncounters = (() => {
         // A room with its own look (the hive's bees) draws that sheet; its attack follows the picture (assigned on the first tick).
         if (rule.visuals) Object.assign(enemy, { monsterVisualSetId: null, monsterVisualId: rule.visuals[Number(!!enemy.isElite)],
             spriteVariantId: null, monsterArchetype: null });
+        // 잿불 터: 속성 몫을 화염으로 치고, 잿불 테와 불씨로 보인다(js/ui.js getEnemyOutlineStyle, js/canvas-battlefield.js).
+        if (rule.ele) enemy.ele = rule.ele;
+        if (rule.outline) Object.assign(enemy, { encounterOutline: rule.outline, encounterSparks: rule.sparks || null });
         enemy.atlasEncounter = type;
         return enemy;
     }
@@ -73,6 +87,6 @@ const atlasEncounters = (() => {
             return [key, Math.floor(expected) + Number(random() < expected % 1)];
         }).filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
     }
-    return Object.freeze({ types: TYPES, roll, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });
+    return Object.freeze({ types: TYPES, roll, chance, isOpen, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });
 })();
 safeExposeGlobals({ atlasEncounters });

@@ -176,7 +176,8 @@ const atlas = (() => {
         const rooms = encounterRooms(map), { used, spent } = useFragments(state, rooms, random), bonus = bonusOf(state, used);
         const forced = used.map(id => FRAGMENTS.get(id).encounter).filter(Boolean);
         state.atlas.run = { map, portals: ATLAS.portals + bonus.portals, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
-            encounters: atlasEncounters.roll(bonus, forced, random, rooms, atlasEndgame.awakened(state)),
+            encounters: atlasEncounters.roll(bonus, forced, random, rooms, { awake: atlasEndgame.awakened(state), loop: state.season,
+                region: (BY_ID.get(map.node) || {}).region }),
             returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: atlasEndgame.runExtra(state, BY_ID.get(map.node), random) };
     }
     /** 후반부 싸움(최종 보스 · 리그 우두머리): 재료는 js/atlas-endgame.js가 이미 받았다. 지도석 대신 그 노드의 투기장 지도를 연다. */

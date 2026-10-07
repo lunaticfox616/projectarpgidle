@@ -1,6 +1,6 @@
 const craftingWorkspaceUi = (() => {
     const recipes = [
-        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
+        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
         ...FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
     let root, current=null, owner=null, goal, recipe=recipes[0], mode='none', extras='';
@@ -59,6 +59,7 @@ const craftingWorkspaceUi = (() => {
             const reason=equipmentCrafting.getFossilUseReason(selected(),FOSSIL_DB.find(entry=>entry.key===key),game.season,game.currencies)||workspaceFossilSlotReason(key);
             return {enabled:!reason,reason};
         }
+        if(key==='burningEmberBranch')return emberCorruptionUi.useState(selected());
         if(['ouroboros','oceanRerollShard'].includes(key))return {enabled:!!selected()&&game.currencies[key]>0,reason:!selected()?'아이템을 선택하세요.':'재화 부족'};
         return adapter.useState(key,selected());
     }
@@ -111,7 +112,7 @@ const craftingWorkspaceUi = (() => {
         const kept=!stat.lockedByHoney&&!stat.lockedByRift&&equipmentCrafting.keptOnReroll(selected(),stat);
         return [stat.lockedByHoney?'벌꿀 고정':'',stat.lockedByRift?'균열 고정':'',kept?'다음 재굴림 보존':'',
             changed&&prior?`이전 +${workspaceAffixValue(prior,prior.val)}`:'',hit?'목표 일치':'',
-            quality==='is-max-tier'?'최고 티어':''].filter(Boolean)
+            quality==='is-max-tier'?'최고 티어':'',emberCorruptionUi.scaleNote(stat)].filter(Boolean)
             .map(note=>note==='목표 일치'?'<strong class="cl-goal-match">목표 일치</strong>':esc(note)).join(' · ');
     }
 
@@ -132,7 +133,7 @@ const craftingWorkspaceUi = (() => {
             <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}</h2><span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
             <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">홀씨 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
             <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
-            <div class="cl-base">기본 옵션 &ensp; ${(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}`).join(' / ')}</div>${workspaceEncroachmentHtml(item)}
+            <div class="cl-base">기본 옵션 &ensp; ${(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}`).join(' / ')}</div>${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
             ${extras}</section>`;
     }
 
@@ -319,7 +320,7 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceExecuteCraft() {
         if(recipe.kind==='fossil')return applyFossilChaosCraft(recipe.key);
-        const actions={enchantedHoney:applyEnchantedHoneyToSelectedItem,venomStinger:applyVenomStingerToSelectedItem,voidChisel:applyVoidChiselToSelectedItem,ouroboros:applyWoodsmanTouchToSelectedItem};
+        const actions={enchantedHoney:applyEnchantedHoneyToSelectedItem,venomStinger:applyVenomStingerToSelectedItem,voidChisel:applyVoidChiselToSelectedItem,ouroboros:applyWoodsmanTouchToSelectedItem,burningEmberBranch:emberCorruptionUi.use};
         if(actions[recipe.key])return actions[recipe.key]();
         if(recipe.key==='oceanRerollShard')return rerollSingleBaseOption(selected(),'oceanRerollShard',1);
         return useCurrency(recipe.key);

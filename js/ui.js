@@ -6577,7 +6577,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
-            let honeyLockText = getHoneyLockBadgeHtml(stat);
+            let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat);
             let label = stat.statName || getStatName(statKey) || statKey;
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
@@ -6610,7 +6610,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         }
     }
 
-    presentItemTooltip(context, event, item, html, isEquip);
+    presentItemTooltip(context, event, item, html + emberCorruptionUi.tooltipHtml(item), isEquip);
 }
 
 function showCombatLogItemTooltip(event, token) {
@@ -7473,7 +7473,8 @@ function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion
 /** Sprite rim (data BATTLE_SPRITE_OUTLINES): bosses a stronger red, elites their trait colour, every other monster red. */
 function getEnemyOutlineStyle(enemy) {
     if (enemy.isBoss) return BATTLE_SPRITE_OUTLINES.boss;
-    if (!enemy.isElite) return BATTLE_SPRITE_OUTLINES.enemy;
+    // 잿불 터 무리(data/atlas.js encounters outline): 일반 몬스터의 테를 잿불 색으로. 정예는 특성 색을 지킨다.
+    if (!enemy.isElite) return enemy.encounterOutline ? { ...BATTLE_SPRITE_OUTLINES.enemy, color: enemy.encounterOutline } : BATTLE_SPRITE_OUTLINES.enemy;
     const color = enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || BATTLE_SPRITE_OUTLINES.elite.color;
     return { ...BATTLE_SPRITE_OUTLINES.elite, color };
 }
@@ -9803,17 +9804,20 @@ function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
     return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 
+/** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. Self-contained:
+ * a test loads this function's body alone (scripts/smoke-exploration-loot-presentation.js). */
 function getStyledOrbName(orbKey) {
     let name = getCurrencyInfo(orbKey).name;
-    if (orbKey === 'magicBud') return `<span class="orb-tone" style="--orb-tone:#9fd3ff;">${name}</span>`;
-    if (orbKey === 'sapBud' || orbKey === 'blightSpore' || orbKey === 'blessing') return `<span class="orb-tone" style="--orb-tone:#ffe07a;">${name}</span>`;
-    if (orbKey === 'formlessDew' || orbKey === 'pruningShears') return `<span class="orb-tone" style="--orb-tone:#ffbc8a;">${name}</span>`;
-    if (orbKey === 'goldenRule') return `<span class="orb-tone" style="--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
-    if (orbKey === 'emberBranch') return `<span class="orb-tone" style="--orb-tone:#8a2f3f;">${name}</span>`;
-    if (orbKey === 'fairyRing') return `<span class="orb-tone" style="--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);">${name}</span>`;
-    if (orbKey === 'voidChisel') return `<span class="orb-tone" style="--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);">${name}</span>`;
-    return name;
+    const tones = {
+        magicBud: '--orb-tone:#9fd3ff;', sapBud: '--orb-tone:#ffe07a;', blightSpore: '--orb-tone:#ffe07a;', blessing: '--orb-tone:#ffe07a;',
+        formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
+        goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
+        emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
+        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);'
+    };
+    const tone = Object.hasOwn(tones, orbKey) ? tones[orbKey] : '';
+    return tone ? `<span class="orb-tone" style="${tone}">${name}</span>` : name;
 }
 
 /** 우주계 쌍둥이 주얼의 배정 키스톤 줄: 이름과 그 키스톤의 전직(쌍둥이 키스톤은 전직과 상관없이 켜진다), 할당 여부. */

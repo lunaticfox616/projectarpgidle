@@ -292,6 +292,7 @@ const PIXEL_ICON_SOURCES = Object.freeze([
     "assets/items/seed-talisman-v3.png",
     "assets/ui/currency/blessing-petal.png",
     "assets/ui/currency/blight-spore.png",
+    "assets/ui/currency/burning-ember-branch.png",
     "assets/ui/currency/ember-branch.png",
     "assets/ui/currency/fairy-ring.png",
     "assets/ui/currency/formless-dew.png",

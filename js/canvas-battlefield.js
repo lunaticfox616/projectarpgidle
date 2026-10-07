@@ -2244,6 +2244,22 @@ function drawBattleEnemyActor(ctx, entry, state) {
     ctx.save();
     ctx.globalAlpha = easedAge;
     drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
+    if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
+    ctx.restore();
+}
+
+/** 잿불 터 무리(data/atlas.js encounters sparks): 몸에서 불씨 도트 셋이 떠올라 꺼진다. 그림만 그린다. */
+function drawEncounterSparks(ctx, entry, state, color) {
+    const tile = (state.gridProj && state.gridProj.tileW) || 32, dot = Math.max(1, Math.round(tile / 16)), seed = Math.abs(entry.enemy.id || 0) * 97;
+    ctx.save();
+    ctx.fillStyle = color;
+    const alpha = ctx.globalAlpha;
+    for (let index = 0; index < 3; index++) {
+        const t = ((state.now + seed + index * 433) % 1300) / 1300, size = dot * (t < 0.5 ? 2 : 1);
+        const x = entry.x + Math.sin((seed + index * 71) % 628 / 100 + t * 3) * tile * 0.22, y = entry.y - tile * (0.3 + t * 0.9);
+        ctx.globalAlpha = alpha * (1 - t) * 0.9;
+        ctx.fillRect(Math.round(x), Math.round(y), size, size);
+    }
     ctx.restore();
 }
 

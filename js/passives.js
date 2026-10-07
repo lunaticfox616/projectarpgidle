@@ -8506,7 +8506,7 @@ function normalizeItem(item) {
     const storedHighAffixCap = Number.isFinite(Number(item.affixTierCap)) && Number(item.affixTierCap) >= 11;
     const legacyProgressionProvenance = item.dropRealm === 'cosmos' || storedHighAffixCap || existingHighAffixTier >= 11;
     item.dropRealm = typeof item.dropRealm === 'string' ? item.dropRealm : null;
-    item.dropRegion = normalizeDropRegion(item.dropRegion);
+    normalizeItemOrigin(item);
     item.affixTierCap = clampNumber(Math.floor(coerceFiniteNumber(
         item.affixTierCap,
         legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
@@ -8897,9 +8897,12 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
 
 
 function getImmutableItemSpecialStats(item) {
-    if (!item || !item.encroached || !item.encroached.liberated || !item.encroached.chosen) return [];
+    if (!item) return [];
+    // 타오른 잿불가지의 타락 전용 줄(12번 루프 30, js/ember-corruption.js)도 제작으로 바뀌지 않는 줄이다: 스탯 합, 소환수 한도, 감정에 든다.
+    const ember = Array.isArray(item.emberLines) ? [...item.emberLines] : [];
+    if (!item.encroached || !item.encroached.liberated || !item.encroached.chosen) return ember;
     let stat = item.encroached.chosen;
-    return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }];
+    return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }, ...ember];
 }
 function getItemExplicitOptionCount(item) {
     if (!item) return 0;
@@ -9137,6 +9140,13 @@ function isModForDropRegion(mod, region) {
 }
 
 /** A known atlas region id (data/atlas.js ATLAS.regions), otherwise null: what an item may remember as its drop region. */
+/** Save boundary for where an item came from and what burned it: its atlas region (loop 27) and the burning branch's mark and
+ * lines (loop 30, js/ember-corruption.js). */
+function normalizeItemOrigin(item) {
+    item.dropRegion = normalizeDropRegion(item.dropRegion);
+    if (typeof emberCorruption === 'object') emberCorruption.normalize(item);
+}
+
 function normalizeDropRegion(value) {
     const regions = typeof ATLAS === 'object' && ATLAS && Array.isArray(ATLAS.regions) ? ATLAS.regions : [];
     return typeof value === 'string' && regions.some(row => row.id === value) ? value : null;

@@ -415,6 +415,16 @@ const stumpBox = (() => {
         return { growth, fed, ripened: growBy(state, growth) };
     }
 
+    /** Ashes of an item a burning branch burned away (12번 루프 30, js/ember-corruption-ui.js): every growing item gains `growth`,
+     * and what ripens is announced as a kill's ripening is. @returns {?{growth: number, fed: number, ripened: object[]}} null when nothing grows. */
+    function feedAsh(state, growth) {
+        const fed = growingItems(state).length;
+        if (!fed) return null;
+        const ripened = growBy(state, growth);
+        if (ripened.length) dispatchRuntimeEvent('stump-box-changed', { ripened, drop: null, compost: null });
+        return { growth, fed, ripened };
+    }
+
     function bulkCompostOpen(state) { return openUnlocks(state).some(row => row.bulkCompost); }
     /** What bulk compost spends of a colour: its stored seeds and saps but the best STUMP_BOX_BULK_COMPOST.keep of each family
      * (merging material) and any golden one. */
@@ -876,7 +886,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
-        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, compost, compostReason, compostGrowth, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,

@@ -19,7 +19,9 @@
 //             bumper and golden as their average quality gain
 //   max       every item at the reached quality cap + bumper, golden, three extra lines at 130%, and one awake scar holding
 //             every main stat on the board at its cap (the ceiling after many loops of devouring)
-// Usage: node scripts/audit-loop-content-power.js [--loops 1,5,10] [--zones act10,chaos20] [--deep-per-loop 4] [--stump expected]
+// Ember lines (--ember lines, 2026-10-08 for 12번 루프 30): from the loop the ember room opens, every equipped item carries two
+// corruption-only lines (data/ember-corruption.js) at their average, picked power-first per slot. The ±20% bake averages out.
+// Usage: node scripts/audit-loop-content-power.js [--loops 1,5,10] [--zones act10,chaos20] [--deep-per-loop 4] [--stump expected] [--ember lines]
 const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const args = process.argv.slice(2);
@@ -30,6 +32,8 @@ const zones = option('--zones', 'act10,chaos20').split(',');
 const maxTalismans = Number(option('--talismans', '8')); // awake talismans at most (sensitivity: 0 = none)
 const stumpMode = option('--stump', 'none');
 if (!['none', 'main', 'expected', 'max'].includes(stumpMode)) throw new Error(`unknown --stump ${stumpMode}`);
+const emberMode = option('--ember', 'none');
+if (!['none', 'lines'].includes(emberMode)) throw new Error(`unknown --ember ${emberMode}`);
 // What a player has re-earned by this zone in any loop: support gem level and ascendancy points (trials 1-2 by act 10,
 // trials 1-4 by chaos 20).
 const STAGES = { act10: { supportLevel: 8, ascendPoints: 4 }, chaos20: { supportLevel: 18, ascendPoints: 7 } };
@@ -233,6 +237,18 @@ function auditStumpOptions() {
         apply() { auditStumpPicks.push({ family, path, color }); auditStumpBoard(); },
         undo() { auditStumpPicks.pop(); auditStumpBoard(); } })));
 }
+var auditEmberMode = ${JSON.stringify(emberMode)};
+/** One more corruption-only line (its average value) on any equipped item that has fewer than two. */
+function auditEmberOptions() {
+    const rows = [];
+    for (const item of Object.values(game.equipment)) {
+        if (!item || (item.emberLines || []).length >= 2) continue;
+        for (const row of emberCorruption.linePool(item)) rows.push({ cost: 1,
+            apply() { item.emberLines = [...(item.emberLines || []), { id: row.id, val: (row.min + row.max) / 2, emberLine: true }]; },
+            undo() { item.emberLines = item.emberLines.slice(0, -1); } });
+    }
+    return rows;
+}
 /** What loop N gives the zone's character: content bought with unlock points, its in-loop rebuild and the permanent points. */
 function auditLoop(zone, season, deepPerLoop, stage) {
     Object.assign(game, { season, loopCount: season - 1, seasonNodes: [], seasonNodeLevels: {}, supports: [], equippedSupports: [],
@@ -260,6 +276,7 @@ function auditLoop(zone, season, deepPerLoop, stage) {
     if (talismans > 0) auditSpend(zone, () => auditTalismanOptions(talismans * 2, season >= 20 ? 1.35 : 1), talismans * 2, false);
     auditStumpPicks = [];
     if (auditStumpMode !== 'none' && game.stumpBox.acquired) auditSpend(zone, auditStumpOptions, STUMP_BOX_CELL_ORDER.length, false);
+    if (auditEmberMode !== 'none' && season >= ATLAS.encounters.emberField.minLoop) auditSpend(zone, auditEmberOptions, Object.values(game.equipment).filter(Boolean).length * 2, false);
     const loopPoints = Math.max(0, season - 1), deepPoints = owned.includes('deepTree') ? Math.max(0, season - 9) * deepPerLoop : 0;
     if (owned.includes('loopTree')) auditSpend(zone, auditSeasonOptions, loopPoints);
     auditSpend(zone, auditDeepOptions, deepPoints);
@@ -268,8 +285,10 @@ function auditLoop(zone, season, deepPerLoop, stage) {
     const stumpTally = {};
     stumpBox.of(game).items.filter(item => game.stumpBox.board.includes(item.id) && item.family !== 'talisman')
         .forEach(item => { const key = item.family === 'scar' ? 'scar' : (item.path || 'amber') + '-' + item.color; stumpTally[key] = (stumpTally[key] || 0) + 1; });
+    const emberTally = {};
+    Object.values(game.equipment).forEach(item => (item && item.emberLines || []).forEach(line => { emberTally[line.id] = (emberTally[line.id] || 0) + 1; }));
     return { owned, loopPoints, deepPoints, ascend: game.ascendClass, supports: game.equippedSupports.slice(),
-        deep: { ...game.loopDeepStats }, loop10: { ...game.loop10BonusStats }, talismans: talismanTally, stump: stumpTally };
+        deep: { ...game.loopDeepStats }, loop10: { ...game.loop10BonusStats }, talismans: talismanTally, stump: stumpTally, ember: emberTally };
 }
 `);
 
@@ -286,6 +305,6 @@ for (const zoneName of zones) {
         const tally = rows => Object.entries(rows).filter(([, n]) => n > 0).map(([k, n]) => k + n).join(' ');
         console.log(`${String(season).padStart(4)} | ${String(row.owned.length).padStart(8)} | ${fmt(pd).padStart(11)} | ${fmt(pe).padStart(11)} | ${fmt(nd).padStart(10)} | ${fmt(ne).padStart(10)} | ${fmt(pd / nd).padStart(8)} | ${fmt(pe / ne).padStart(8)} | ${fmt(row.dps / row.needDps).padStart(8)} | ${fmt(row.ehp / row.needEhp).padStart(8)}`
             + `  ${row.ascend || '-'} deep[${tally(row.deep)}] l10[${tally(row.loop10)}] tal[${tally(row.talismans)}]`
-            + (stumpMode === 'none' ? '' : ` stump[${tally(row.stump)}]`));
+            + (stumpMode === 'none' ? '' : ` stump[${tally(row.stump)}]`) + (emberMode === 'none' ? '' : ` ember[${tally(row.ember)}]`));
     }
 }
