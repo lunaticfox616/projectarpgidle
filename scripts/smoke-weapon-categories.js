@@ -166,5 +166,36 @@ for (const [category, pair] of [['flask', ['dexterity', 'intelligence']], ['cens
     own.forEach(u => assert.deepStrictEqual(Object.keys(u.attr).sort(), pair.slice().sort(), `${u.name} asks for ${pair.join(' and ')}`));
 }
 
+// 9. 대분류 전용 옵션(2026-10-07 드랍 풀 1단계): MOD_DB weaponCategories의 대분류 무기에만 붙고(대분류마다 둘), 대분류에
+//    어울리지 않는 줄(WEAPON_CATEGORY_OFF_MODS)은 가중치 1/4로 덜 붙는다. 반지 같은 다른 부위에는 대분류 줄이 없다.
+const categoryMods = json(`MOD_DB.filter(mod => mod.weaponCategories).map(mod => ({ id: mod.id, cats: mod.weaponCategories, slots: mod.slots }))`);
+assert.strictEqual(categoryMods.length, 12, 'two lines per category');
+categoryMods.forEach(mod => {
+    assert(mod.cats.every(cat => categories[cat]), `${mod.id} names a real category`);
+    assert.deepStrictEqual(mod.slots, ['무기'], `${mod.id} is a weapon line`);
+});
+const offMods = json('WEAPON_CATEGORY_OFF_MODS');
+for (const [cat, ids] of Object.entries(offMods.byCategory)) {
+    assert(categories[cat], `${cat} is a category`);
+    ids.forEach(id => assert(run(`MOD_DB.some(mod => mod.id === '${id}' && mod.slots.includes('무기'))`), `${id} is an existing weapon line`));
+}
+const sampleBase = cat => run(`BASE_ITEM_DB.find(b => WEAPON_BASE_CATEGORIES[b.id] === '${cat}' && !(b.baseStats || []).some(s => String(s.id).startsWith('summon'))).id`);
+for (const cat of Object.keys(categories)) {
+    const pool = json(`(() => {
+        const item = createItemFromBase(BASE_ITEM_DB.find(b => b.id === '${sampleBase(cat)}'), 'rare', 20);
+        item.stats = [];
+        return getAvailableMods(item).map(mod => ({ id: mod.id, cats: mod.weaponCategories || null, weight: Number(mod.weight) || 1 }));
+    })()`);
+    const own = pool.filter(mod => mod.cats);
+    assert.strictEqual(own.length, 2, `${cat}: its two category lines are in the pool`);
+    assert(own.every(mod => mod.cats.includes(cat)), `${cat}: no other category's lines`);
+    for (const id of offMods.byCategory[cat] || []) {
+        const row = pool.find(mod => mod.id === id);
+        if (row) assert.strictEqual(row.weight, run(`Number(MOD_DB.find(mod => mod.id === '${id}').weight) || 1`) * offMods.weight, `${cat}: ${id} weighs a quarter`);
+    }
+}
+assert.strictEqual(run(`(() => { const item = createItemFromBase(BASE_ITEM_DB.find(b => b.slot === '반지'), 'rare', 20); item.stats = [];
+    return getAvailableMods(item).filter(mod => mod.weaponCategories).length; })()`), 0, 'a ring never gets a category line');
+
 console.log(`weapon categories: ${weaponBases.length} weapon bases in 6 categories from tier 1 to 20, footprints, item titles, potion skills, ` +
-    `flask and censer uniques, root drops (${weaponDrops.length}/${drops.length} weapons): OK`);
+    `flask and censer uniques, root drops (${weaponDrops.length}/${drops.length} weapons), category lines: OK`);

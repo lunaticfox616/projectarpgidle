@@ -25,7 +25,9 @@ module.exports=class NativeBridgeReference {
       const travelling=data.delivery?.startsWith('projectile')||data.delivery==='magicMoving';
       if(item.id===25&&travelling){
         const rays=new Map();for(const c of data.attackFootprint?.cells||targets){const dx=c.gx-source.gx,dy=c.gy-source.gy;if(!dx&&!dy)continue;const key=`${Math.sign(dx)},${Math.sign(dy)}`,prev=rays.get(key);if(!prev||Math.hypot(dx,dy)>Math.hypot(prev.gx-source.gx,prev.gy-source.gy))rays.set(key,c);}
-        let result=false;for(const target of rays.values())result=this.emit({...shared,kind:'travel',at:now+release,duration:flight,targetCells:[target]})||result;return result;
+        // 2026-10-07: the narrow aimed fan carries its ray tips (attackFootprint.rays); an older footprint groups cells by direction.
+        const tips=data.attackFootprint?.rays?.length?data.attackFootprint.rays:[...rays.values()];
+        let result=false;for(const target of tips)result=this.emit({...shared,kind:'travel',at:now+release,duration:flight,targetCells:[target]})||result;return result;
       }
       if(!travelling&&[34,37,38].includes(item.id))this.emit({...shared,kind:item.id===38?'travel':'windup',at:now,duration:flight});
       if(!travelling&&item.grid.kind==='line'&&data.attackFootprint?.cells?.length){const a=source;shared.targetCells=[data.attackFootprint.cells.reduce((best,c)=>Math.hypot(c.gx-a.gx,c.gy-a.gy)>Math.hypot(best.gx-a.gx,best.gy-a.gy)?c:best,a)];}

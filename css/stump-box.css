@@ -21,7 +21,8 @@
   #stump-cube { order: 4; }
   #stump-box-summary { order: 5; }
   #stump-box-unseal { order: 6; }
-  .stump-box-summary, .stump-box-detail, .stump-box-starter, .stump-box-storage, .stump-box-unseal, .stump-cube {
+  #stump-box-harvest { order: 7; }
+  .stump-box-summary, .stump-box-detail, .stump-box-starter, .stump-box-storage, .stump-box-unseal, .stump-box-harvest, .stump-cube {
     padding: 8px 10px;
     border: 2px solid #050404;
     background: rgba(18, 16, 13, .82);
@@ -29,7 +30,19 @@
   }
   /* 고른 것이 없으면 설명 칸은 자리를 차지하지 않는다(마우스를 올리면 같은 내용이 툴팁으로 나온다) */
   .stump-box-detail:empty { display: none; }
-  .stump-box-starter:empty, .stump-box-unseal:empty { display: none; }
+  .stump-box-starter:empty, .stump-box-unseal:empty, .stump-box-harvest:empty { display: none; }
+  /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게. 아래에 함 해금 목록 */
+  .stump-harvest-grid { display: grid; gap: 4px; margin: 4px 0 6px; }
+  .stump-harvest-row { display: grid; grid-template-columns: 3.5em repeat(4, 36px); align-items: center; gap: 6px; }
+  .stump-harvest-row > span { color: var(--px-copy-muted, #a39883); }
+  .stump-harvest-cell { display: grid; place-items: center; width: 36px; height: 36px; box-shadow: inset 0 0 0 1px #3b2f1e; background: rgba(5, 4, 4, .55); }
+  .stump-harvest-cell img { width: 28px; height: 28px; image-rendering: pixelated; opacity: .25; filter: grayscale(1); }
+  .stump-harvest-cell.is-on { box-shadow: inset 0 0 0 1px var(--stump-tone); }
+  .stump-harvest-cell.is-on img { opacity: 1; filter: none; }
+  .stump-unlocks { display: grid; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; }
+  .stump-unlocks li { display: flex; justify-content: space-between; gap: 10px; color: var(--px-copy-muted, #a39883); }
+  .stump-unlocks li.is-on { color: var(--px-copy, #e8dcc0); }
+  .stump-unlocks li.is-on strong::after { content: ' 열림'; color: #8fe0a8; font-weight: 400; }
 
   /* 판 */
   .stump-board {

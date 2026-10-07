@@ -49,7 +49,9 @@ const contentUnlockUi = {
             for (const selector of def.sections || []) {
                 document.querySelectorAll(selector).forEach(el => el.toggleAttribute('data-content-locked', locked));
             }
-            for (const route of def.routes || []) this.syncRoute(route, locked);
+            // 경로는 canOpen을 따른다: 세계수 아틀라스 창은 혼돈계 항목에 걸려 있지만 아틀라스가 열리면 연다. 항목 잠금을 그대로 쓰면
+            // 루프 10에 아틀라스가 열려도 창이 숨어 빈 화면이 됐다(2026-10-07 리뷰).
+            for (const route of def.routes || []) this.syncRoute(route, !contentProgression.canOpen(route));
         }
         // 해금 목록 항목 없이 진행 조건으로만 열리는 경로(전술 규칙: 루프 2 · 액트 3 전술).
         for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'skill-tab-condition']) this.syncRoute(route, !contentProgression.canOpen(route));

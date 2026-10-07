@@ -193,7 +193,7 @@ const talismans = (() => {
         if (!stumpBox.of(state).acquired) return '그루터기 함을 먼저 얻어야 합니다.';
         if (!contentProgression.isUnlocked('talisman', state)) return '해금 목록에서 부적을 먼저 여세요.';
         if ((state.currencies[source] || 0) < TALISMAN_UNSEAL_RULES[source].cost) return '편린이 부족합니다.';
-        return stumpBox.storage(state).length >= STUMP_BOX_STORAGE ? '그루터기 함 보관함이 가득 찼습니다.' : '';
+        return stumpBox.storageFull(state) ? '그루터기 함 보관함이 가득 찼습니다.' : '';
     }
 
     /** Spends one shard and puts the new talisman into the stump box storage. */

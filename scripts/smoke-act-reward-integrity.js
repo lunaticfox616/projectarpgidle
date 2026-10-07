@@ -119,4 +119,88 @@ assert.strictEqual(run('game.currencies.magicBud'), 2, '액트 6 중복 보조 �
 assert.strictEqual(run('game.passivePoints'), 1, '액트 6 재화 대체 보상은 패시브 포인트를 잘못 지급하면 안 된다');
 assert.strictEqual(run('game.currencies.gemShard'), 6, '두 번째 중복 보조 젬도 젬 잔향을 지급해야 한다');
 
+// 액트 1 보상의 무기는 직업 대표 무기(직업 카드의 '대표 무기')의 대분류로 나와 빈 무기 칸에 바로 낀다. 아무 무기나 나와 궁수가
+// 대검을 받기도 했다(플레이 리뷰 2026-10-07). 선택지의 DPS 미리보기는 보상을 잠시 적용해 재고 상태를 그대로 되돌린다.
+const classWeapons = JSON.parse(run('JSON.stringify(HANA_WEAPON_COMBOS.classWeapons)'));
+assert.strictEqual(Object.keys(classWeapons).length, 6, '여섯 직업 모두 대표 무기가 있어야 한다');
+for (const [classId, category] of Object.entries(classWeapons)) {
+    run(`game = mergeDefaults({}); game.selectedClassId = '${classId}'; game.level = 6; game.claimableActRewards = [0]; game.claimedActRewards = [];`);
+    const weapon = JSON.parse(run(`JSON.stringify(getActRewardChoices(0).find(choice => choice.slot === '무기'))`));
+    assert.strictEqual(weapon.weaponCategory, category, `${classId}의 액트 1 무기 보상은 대표 무기 대분류여야 한다`);
+    assert.strictEqual(weapon.label, `미확인 ${run(`WEAPON_CATEGORIES['${category}'].name`)}`, `${classId}: 선택지 이름에 무기 대분류를 적는다`);
+    const preview = JSON.parse(run(`(() => {
+        const before = getPlayerStats(false).dps;
+        const change = measureActRewardDps(0, getActRewardChoices(0).find(choice => choice.slot === '무기'), before);
+        return JSON.stringify({ change, empty: !game.equipment['무기'] });
+    })()`));
+    assert(preview.change && preview.change.after > preview.change.before, `${classId}: 무기 미리보기는 빈 칸에 끼운 DPS 상승을 잰다`);
+    assert(preview.empty, `${classId}: 미리보기는 잠시 끼운 무기를 빼고 되돌린다`);
+    run(`grantActRewardEntry(0, getActRewardChoices(0).find(choice => choice.slot === '무기'))`);
+    assert.strictEqual(run(`getWeaponCategoryId(game.equipment['무기'])`), category, `${classId}: 받은 무기는 대표 무기 대분류로 빈 칸에 장착된다`);
+}
+
+// 능력치 보상도 고르면 바뀌는 DPS를 보인다: 투사체 스킬에는 투사체 피해만 오른다. 미리보기는 보상 능력치를 남기지 않는다.
+run(`game = mergeDefaults({}); game.level = 40; game.skills.push('연발 사격'); game.gemData['연발 사격'] = { level: 10, exp: 0 }; game.activeSkill = '연발 사격';`);
+const act8 = JSON.parse(run(`(() => {
+    const before = getPlayerStats(false).dps;
+    return JSON.stringify(getActRewardChoices(7).map(choice => ({ stat: choice.stat, change: measureActRewardDps(7, choice, before) })));
+})()`));
+const projectile = act8.find(row => row.stat === 'projectilePctDmg').change, melee = act8.find(row => row.stat === 'meleePctDmg').change;
+assert(projectile.after > projectile.before * 1.1, '투사체 스킬에는 투사체 피해 보상이 DPS를 올린다');
+assert.strictEqual(Math.floor(melee.after), Math.floor(melee.before), '근접 피해 보상은 투사체 스킬의 DPS를 바꾸지 않는다');
+assert.strictEqual(run('game.actRewardBonuses.length'), 0, '미리보기는 보상 능력치를 남기지 않는다');
+assert.strictEqual(run('formatActRewardDps({ before: 10.2, after: 10.7, direct: true }, { kind: "stat" })'), '', '보이는 DPS가 같으면 줄을 뺀다');
+
+// 무기 칸에 다른 무기가 있으면 보상은 가방으로 가고, DPS는 바꿔 끼웠을 때의 값을 "바꿔 끼우면"으로 보인다. 낀 무기는 그대로다.
+run(`game = mergeDefaults({}); game.selectedClassId = 'archer'; game.level = 6;
+    game.equipment['무기'] = createItemFromBase(BASE_ITEM_DB.find(base => base.id === 'apprentice_familiar_wand'), 'normal', 1);`);
+const swap = JSON.parse(run(`(() => {
+    const before = getPlayerStats(false).dps;
+    const change = measureActRewardDps(0, getActRewardChoices(0).find(choice => choice.slot === '무기'), before);
+    return JSON.stringify({ change, kept: game.equipment['무기'].baseId });
+})()`));
+assert(swap.change && swap.change.swap && !swap.change.direct, '무기 칸이 차 있으면 바꿔 낀 DPS를 잰다');
+assert.strictEqual(swap.kept, 'apprentice_familiar_wand', '미리보기 뒤에도 낀 무기는 그대로다');
+// 두 무기의 기본 수치는 무작위로 굴러 DPS가 같을 수도 있어 글은 정해진 값으로 본다.
+assert.strictEqual(run(`formatActRewardDps({ before: 10, after: 20, direct: false, swap: true }, { kind: 'item' })`),
+    '<b class="reward-choice-dps is-up">바꿔 끼우면 DPS 10 → 20 (옵션 제외)</b>', '가방으로 가는 장비의 DPS는 바꿔 끼운 값이라고 적는다');
+assert.strictEqual(run('formatActRewardDps(null, { kind: "item" })'), '', '가방으로 가는 장비는 DPS를 보이지 않는다');
+
+// 액트 보스를 쓰러뜨리면(markActRewardReady) 다음 지역으로 떠나기 전에 보상 창이 열린다(열린 동안 게임과 출발이 멈춘다).
+// 방치 정산 중이나 자리를 비운 방치(입력 3분 넘게 없음) 중에는 열지 않고, 안내 카드가 떠 있으면 비킬 때까지 기다린다.
+const elements = new Map();
+const fakeElement = id => {
+    if (!elements.has(id)) {
+        const classes = new Set();
+        elements.set(id, { id, innerHTML: '', innerText: '', textContent: '', style: {}, dataset: {}, children: [], hidden: false,
+            classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name), toggle() {} },
+            appendChild() {}, insertBefore() {}, removeChild() {}, remove() {}, addEventListener() {}, removeEventListener() {},
+            setAttribute() {}, getAttribute: () => null, removeAttribute() {}, toggleAttribute() {}, closest: () => null,
+            querySelector: () => null, querySelectorAll: () => [],
+            getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }) });
+    }
+    return elements.get(id);
+};
+const promptRuntime = buildGameRuntime({}, null, { getElementById: fakeElement });
+const prompt = code => vm.runInContext(code, promptRuntime);
+prompt(`game = mergeDefaults({}); game.selectedClassId = 'archer'; game.level = 6;`);
+prompt('markActRewardReady(0)');
+assert.strictEqual(prompt('isRewardOpen() && activeRewardZoneId === 0'), true, '액트 보스를 쓰러뜨리면 보상 창이 바로 열린다');
+const rewardGrid = fakeElement('reward-grid').innerHTML;
+assert(rewardGrid.includes('미확인 단궁'), '궁수의 무기 보상은 단궁이다');
+assert(/DPS \d+ → \d+ \(옵션 제외\)/.test(rewardGrid), '무기 보상은 옵션 없는 기본 성능의 DPS 전후를 보인다');
+assert(rewardGrid.includes('마법 등급, 빈 칸에 바로 장착됩니다') && !rewardGrid.includes('·'), '미리보기는 쉼표로 잇는다');
+prompt('closeRewardOverlay()');
+prompt('game.isBackgroundCalculation = true; markActRewardReady(2); game.isBackgroundCalculation = false;');
+assert.strictEqual(prompt('isRewardOpen()'), false, '방치 정산 중에는 보상 창을 열지 않는다');
+prompt('activeTutorial = { key: "test" }; markActRewardReady(3)');
+assert.strictEqual(prompt('isRewardOpen()'), false, '안내 카드가 떠 있으면 보상 창은 기다린다');
+prompt('activeTutorial = null; tryOpenPromptedActReward(3)');
+assert.strictEqual(prompt('isRewardOpen() && activeRewardZoneId === 3'), true, '안내 카드가 비키면 기다리던 보상 창이 열린다');
+prompt('closeRewardOverlay()');
+promptRuntime.performance.now = () => Date.now() + 10 * 60 * 1000;
+prompt('markActRewardReady(4)');
+assert.strictEqual(prompt('isRewardOpen()'), false, '입력이 3분 넘게 없으면(자리 비움) 보상 창을 열지 않는다');
+assert.strictEqual(prompt('JSON.stringify(game.claimableActRewards)'), '[0,2,3,4]', '열지 않은 보상도 받을 수 있게 남는다');
+
 console.log('smoke-act-reward-integrity passed');

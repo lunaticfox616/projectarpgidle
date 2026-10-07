@@ -30,11 +30,11 @@ const PLAYER_STALL_CUSTOMERS = Object.freeze([
 // Weights price one comparable tier/roll: build access > broad offense/survival > conditional utility.
 const PLAYER_STALL_APPRAISAL = Object.freeze({
     statGroups: [
-        { weight: 2.1, ids: ['gemLevel','spellGemLevel','summonGemLevel','suppCap','summonCap','targetAny','targetProjectile','targetSlam'] },
+        { weight: 2.1, ids: ['gemLevel','spellGemLevel','summonGemLevel','slamGemLevel','meleeGemLevel','projectileGemLevel','elementalGemLevel','lightGemLevel','suppCap','summonCap','targetAny','targetProjectile','targetSlam'] },
         { weight: 1.65, ids: ['flatDmg','weaponFlatDmgPct','spellFlatDmg','spellFlatPct','aspd','resPen','physIgnore','projectileExtraChance','flatHp','pctHp','resAll','maxResAll'] },
-        { weight: 1.4, ids: ['pctDmg','attackPctDmg','spellPctDmg','crit','critDmg','ds','summonFlatDmg','summonPctDmg','summonAspd','summonCrit','summonCritDmg','summonEfficiency','summonResPen','dr','energyShield','energyShieldPct','blockChance','blockChancePct','maxResF','maxResC','maxResL','maxResChaos'] },
-        { weight: 1.15, ids: ['meleePctDmg','projectilePctDmg','physPctDmg','elementalPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','dotPctDmg','aoePctDmg','physFlatDmg','fireFlatDmg','coldFlatDmg','lightFlatDmg','chaosFlatDmg','armor','armorPct','evasion','evasionPct','deflectChance','resF','resC','resL','resChaos','move','leech','spellLeech'] },
-        { weight: 0.85, ids: ['strength','dexterity','intelligence','accuracy','minDmgRoll','maxDmgRoll','regen','regenFlat','summonHpPct','leechRateCap','leechTotalCap','leechInstanceCap'] },
+        { weight: 1.4, ids: ['pctDmg','attackPctDmg','spellPctDmg','crit','critDmg','spellCritDmg','ds','summonFlatDmg','summonPctDmg','summonAspd','summonCrit','summonCritDmg','summonEfficiency','summonResPen','dr','energyShield','energyShieldPct','blockChance','blockChancePct','maxResF','maxResC','maxResL','maxResChaos'] },
+        { weight: 1.15, ids: ['meleePctDmg','projectilePctDmg','slamPctDmg','potionPctDmg','physPctDmg','elementalPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','dotPctDmg','aoePctDmg','physFlatDmg','fireFlatDmg','coldFlatDmg','lightFlatDmg','chaosFlatDmg','armor','armorPct','evasion','evasionPct','deflectChance','resF','resC','resL','resChaos','move','leech','spellLeech'] },
+        { weight: 0.85, ids: ['strength','dexterity','intelligence','accuracy','accuracyBonusPct','minDmgRoll','maxDmgRoll','regen','regenFlat','summonHpPct','leechRateCap','leechTotalCap','leechInstanceCap'] },
         { weight: 0.5, ids: ['regenSuppress','stunChance','stunDuration','blindChance','slowChance','thorns','reflectDmg','itemRarity','goldGain'] },
         { weight: 1, ids: ['igniteChance','poisonChance','bleedChance','shockChance','chillChance','freezeChance','corpseExplodeChance','corpseExplodeLifePct','resonancePower'] }
     ],

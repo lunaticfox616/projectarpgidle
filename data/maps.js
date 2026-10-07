@@ -255,7 +255,7 @@ const SEASON_CONTENT_ROADMAP = {
     7: { title: '루프 7', features: ['해금: 운석 낙하 지점'] },
     8: { title: '루프 8', features: ['해금: 벌집'] },
     9: { title: '루프 9', features: ['해금: 균열'] },
-    10: { title: '루프 10', features: ['해금: 심화 혼돈'] },
+    10: { title: '루프 10', features: ['해금: 심화 혼돈', '그루터기 함: 뿌리 기억 25% (다 자란 것이 새 루프에 25% 자란 채로)'] },
     11: { title: '루프 11', features: ['해금: 심해 / 낚시', '심화: 혼돈 단계 상승'] },
     12: { title: '루프 12', features: ['심화: 혼돈 단계 상승'] },
     13: { title: '루프 13', features: ['해금: 시간의 균열 (융합 제단)', '심화: 혼돈 단계 상승'] },

@@ -561,6 +561,57 @@ function getGridFanDirections(attacker, target, rayCount) {
     return offsets.slice(0, Math.max(1, Math.min(8, rayCount))).map(offset => ring[(center + offset + 8) % 8]);
 }
 
+/** The far cell of each fan ray. A fan with spreadDeg (연발 사격, 2026-10-07) aims its middle ray straight at the target and
+ * opens the others spreadDeg apart on both sides; without it the rays follow the eight grid directions (boss fans, 삼갈래 분산).
+ * Ends lie `range` cells out in the larger axis, like the grid-direction rays. */
+function getGridFanRayEnds(attacker, target, profile) {
+    const rays = Math.max(1, Math.min(8, profile.rays || 3)), range = Math.max(1, profile.range || 1);
+    const step = Number(profile.spreadDeg) * Math.PI / 180;
+    if (!(step > 0)) return getGridFanDirections(attacker, target, rays)
+        .map(direction => ({ gx: attacker.gx + direction.gx * range, gy: attacker.gy + direction.gy * range }));
+    const aim = Math.atan2(target.gy - attacker.gy, target.gx - attacker.gx);
+    return [0, -1, 1, -2, 2, -3, 3, 4].slice(0, rays).map(k => {
+        const dx = Math.cos(aim + k * step), dy = Math.sin(aim + k * step), reach = range / Math.max(Math.abs(dx), Math.abs(dy));
+        return { gx: attacker.gx + Math.round(dx * reach), gy: attacker.gy + Math.round(dy * reach) };
+    });
+}
+
+/** The last cell on the board of each fan ray, where its arrow is drawn to. */
+function getGridFanRayTips(attacker, target, profile) {
+    return getGridFanRayEnds(attacker, target, profile)
+        .map(end => gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range).pop())
+        .filter(Boolean);
+}
+
+/** A fan's hits: an aimed fan (spreadDeg) per selectGridAimedFanHits; a grid-direction fan, per ray, the first candidate standing
+ * exactly on that direction's line within range. */
+function selectGridFanHits(attackerCell, primaryEnemy, profile, orderedCandidates) {
+    if (Number(profile.spreadDeg) > 0) return selectGridAimedFanHits(attackerCell, primaryEnemy, profile, orderedCandidates);
+    const primaryCell = getClosestGridUnitCell(attackerCell, primaryEnemy);
+    return getGridFanDirections(attackerCell, primaryCell, profile.rays || 3).map(direction => {
+        const match = orderedCandidates.find(row => getGridUnitCells(row.enemy).some(cell => {
+            const dx = cell.gx - attackerCell.gx, dy = cell.gy - attackerCell.gy;
+            const steps = direction.gx !== 0 ? dx / direction.gx : dy / direction.gy;
+            return Number.isInteger(steps) && steps >= 1 && steps <= profile.range
+                && attackerCell.gx + direction.gx * steps === cell.gx
+                && attackerCell.gy + direction.gy * steps === cell.gy;
+        }));
+        return match && match.enemy;
+    }).filter(Boolean);
+}
+
+/** An aimed fan's volley: the middle arrow strikes the target it aims at, every other arrow the first enemy on its line, and no
+ * enemy takes two arrows. The old grid-direction fan missed a target off the eight lines with every arrow (2026-10-07). */
+function selectGridAimedFanHits(attackerCell, primaryEnemy, profile, orderedCandidates) {
+    const hits = [primaryEnemy];
+    getGridFanRayEnds(attackerCell, getClosestGridUnitCell(attackerCell, primaryEnemy), profile).slice(1).forEach(end => {
+        const keys = new Set(gridLineCells(attackerCell.gx, attackerCell.gy, end.gx, end.gy, profile.range).map(cell => gridCellKey(cell.gx, cell.gy)));
+        const match = orderedCandidates.find(row => !hits.includes(row.enemy) && isGridUnitInCellSet(row.enemy, keys));
+        if (match) hits.push(match.enemy);
+    });
+    return hits;
+}
+
 function getGridDiagonalAttackDirection(attacker, target) {
     let diagonalCell = getGridUnitCells(target).filter(cell => {
         let dx = cell.gx - attacker.gx, dy = cell.gy - attacker.gy;
@@ -613,8 +664,7 @@ function getGridAttackAreaCells(profile, attacker, target) {
         let end = gridProjectedLineEnd(attacker.gx, attacker.gy, targetCell.gx, targetCell.gy, profile.range || 7);
         gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range || 7).forEach(cell => cells.push(cell));
     } else if (profile.kind === 'fan') {
-        getGridFanDirections(attacker, targetCell, profile.rays || 3).forEach(direction => {
-            let end = { gx: attacker.gx + direction.gx * profile.range, gy: attacker.gy + direction.gy * profile.range };
+        getGridFanRayEnds(attacker, targetCell, profile).forEach(end => {
             gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range).forEach(cell => cells.push(cell));
         });
     }
@@ -640,6 +690,8 @@ function getSkillStageFootprint(skillName, skill, stage, source) {
     return { cells: Array.from(new Map(cells.map(cell => [`${cell.gx},${cell.gy}`, { gx: cell.gx, gy: cell.gy }])).values()),
         kind: profile.kind, shape: profile.shape, radius: profile.radius,
         cone: profile.kind === 'cone' ? getGridConeGeometry(profile, source, getClosestGridUnitCell(source, primary)) : null,
+        // 부채꼴은 화살마다 끝 칸(그림이 화살 하나씩 그린다: js/canvas-world-tree-fx.js fanRays)
+        rays: profile.kind === 'fan' ? getGridFanRayTips(source, getClosestGridUnitCell(source, primary), profile) : undefined,
         // 중심은 칸 좌표만: 보스 예고에서는 source가 보스 자신이라 { ...source }가 보스 전체(이전 예고 포함)를 겹겹이 복사했다(검토 5차).
         center: profile.kind === 'nova' ? { gx: source.gx, gy: source.gy } : { ...getClosestGridUnitCell(source, primary) } };
 }
@@ -738,19 +790,7 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options
     if (profile.kind === 'chain') {
         hits = buildGridChainTargets(profile, targetCount, primary.enemy, orderedCandidates.map(row => row.enemy));
     } else if (profile.kind === 'fan') {
-        let primaryCell = getClosestGridUnitCell(attackerCell, primary.enemy);
-        hits = getGridFanDirections(attackerCell, primaryCell, profile.rays || 3).map(direction => {
-            let match = orderedCandidates.find(row => {
-                return getGridUnitCells(row.enemy).some(cell => {
-                    let dx = cell.gx - attackerCell.gx, dy = cell.gy - attackerCell.gy;
-                    let steps = direction.gx !== 0 ? dx / direction.gx : dy / direction.gy;
-                    return Number.isInteger(steps) && steps >= 1 && steps <= profile.range
-                        && attackerCell.gx + direction.gx * steps === cell.gx
-                        && attackerCell.gy + direction.gy * steps === cell.gy;
-                });
-            });
-            return match && match.enemy;
-        }).filter(Boolean).slice(0, targetCount);
+        hits = selectGridFanHits(attackerCell, primary.enemy, profile, orderedCandidates).slice(0, targetCount);
     } else {
         let areaKeys = new Set(getGridAttackAreaCells(profile, attackerCell, primary.enemy).map(cell => gridCellKey(cell.gx, cell.gy)));
         hits = orderedCandidates.filter(row => isGridUnitInCellSet(row.enemy, areaKeys))
@@ -1054,6 +1094,23 @@ function getFanProjectileDpsMultiplier(pattern,extra,pct) {
     return (1+(Math.min(8,baseRays+extra)-1)*pct)/(1+(baseRays-1)*pct);
 }
 
+/**
+ * DPS shares of a fan (연발 사격): one target takes only the middle arrow, the side arrows and extra shots land on other enemies.
+ * The shown DPS is that one target's share; packMul brings every arrow back for a pack that takes them all (packDps). Shown
+ * numbers used to count every arrow on one target, so the archer's starter gem read as an upgrade while it dealt less than a
+ * basic attack (2026-10-07 user decision). Other skills keep their multipliers (packMul 1).
+ */
+function splitFanSpreadDps(skill, extraShotDpsMul, sequenceDpsMul) {
+    if (skill?.projectilePattern?.kind !== 'fan' || skill.nativeCastId) return { extraShotDpsMul, sequenceDpsMul, packMul: 1 };
+    return { extraShotDpsMul: 1, sequenceDpsMul: 1, packMul: Math.max(1, sequenceDpsMul) * Math.max(1, extraShotDpsMul) };
+}
+
+/** The DPS breakdown's note for a fan: what one target takes, and the most a pack can. */
+function getFanSpreadDpsLines(fanSpread, singleTargetDps) {
+    if (!(fanSpread.packMul > 1)) return [];
+    return [`부채꼴: 한 대상은 가운데 화살만 맞습니다. 옆 화살까지 모두 맞으면 최대 ${Math.floor(singleTargetDps * fanSpread.packMul)} DPS`];
+}
+
 // Empty-flask shards roll the fractional bonus independently, with eleven total shards.
 function getNativeGemProjectileDpsMultiplier(id, expectedShots) {
     if (id!==49) return 1;
@@ -1117,9 +1174,15 @@ function describeSkillGridProfile(skillName, skillDef) {
     let shapeLabels = { circle: '원형', diamond: '마름모형', square: '사각형', cross: '십자형', diagonal: 'X자형', ring: '고리형' };
     if (shapeLabels[profile.shape]) parts.push(shapeLabels[profile.shape]);
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
-    if (profile.kind === 'fan') parts.push(`${Math.max(1, Math.min(8, Math.floor(Number(profile.rays) || 1)))}방향`);
+    if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
     if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
     return getSkillGridDescriptionText(skillDef,parts);
+}
+
+/** '5방향', or '5방향(15도 간격)' for an aimed fan. */
+function describeGridFanRays(profile) {
+    const rays = `${Math.max(1, Math.min(8, Math.floor(Number(profile.rays) || 1)))}방향`;
+    return Number(profile.spreadDeg) > 0 ? `${rays}(${profile.spreadDeg}도 간격)` : rays;
 }
 
 function getSkillGridDescriptionText(skill,parts) {
@@ -1170,5 +1233,5 @@ safeExposeGlobals({
     gridStepToward, advanceGridUnitMovement, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
     selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill,
-    getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier
+    getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier, splitFanSpreadDps, getFanSpreadDpsLines
 });

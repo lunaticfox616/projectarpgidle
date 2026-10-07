@@ -53,11 +53,14 @@ const stumpCubeUi = (() => {
             + `<p class="stump-line${lacking ? ' is-bad' : ''}">${esc(costText(found.recipe.cost))}</p>`;
     }
 
+    /** 조합법 책: 재료가 생길 수 있게 된 조합법만(조합법 발견, stumpCube.revealed). 나머지는 개수만 알린다. */
     function recipeBookHtml() {
         if (!bookOpen) return '';
-        const rows = STUMP_CUBE_RECIPES.map(recipe => `<li><strong>${esc(recipe.group)} · ${esc(recipe.name)}</strong>`
+        const shown = stumpCube.revealed(game), hidden = STUMP_CUBE_RECIPES.length - shown.length;
+        const rows = shown.map(recipe => `<li><strong>${esc(recipe.name)} (${esc(recipe.group)})</strong>`
             + `<span>${esc(recipe.need)} → ${esc(recipe.result)}</span><small>${esc(costText(recipe.cost))}</small></li>`).join('');
-        return `<ul class="stump-cube-book">${rows}</ul>`;
+        const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개(새 재료가 다 자라거나 해금되면 열립니다)</li>` : '';
+        return `<ul class="stump-cube-book">${rows}${more}</ul>`;
     }
 
     /** The cube section under the stump box board. */
@@ -68,7 +71,7 @@ const stumpCubeUi = (() => {
             + `<div class="stump-actions"><button type="button" data-stump-action="cube-transmute"${ready ? '' : ' disabled'}>조합</button>`
             + '<button type="button" data-stump-action="cube-open">재료 넣기</button>'
             + `<button type="button" data-stump-action="cube-clear"${list.length ? '' : ' disabled'}>비우기</button>`
-            + `<button type="button" data-stump-action="cube-book" aria-pressed="${bookOpen}">조합법 ${STUMP_CUBE_RECIPES.length}</button></div>`
+            + `<button type="button" data-stump-action="cube-book" aria-pressed="${bookOpen}">조합법 ${stumpCube.revealed(game).length}/${STUMP_CUBE_RECIPES.length}</button></div>`
             + recipeBookHtml();
     }
 
@@ -76,7 +79,7 @@ const stumpCubeUi = (() => {
     function cubeSignature() {
         const found = stumpCube.match();
         return JSON.stringify([stumpCube.entries().map(entry => [entry.kind, entry.id, entry.x, entry.y]), found ? found.recipe.id : null,
-            found ? stumpCube.missingCost(found.recipe) : null, bookOpen]);
+            found ? stumpCube.missingCost(found.recipe) : null, bookOpen, stumpCube.revealed(game).map(recipe => recipe.id)]);
     }
 
     // ── 재료 고르기 ─────────────────────────────────────────

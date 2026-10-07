@@ -50,15 +50,32 @@ const STUMP_BOX_COMPOST = Object.freeze({ growth: 100 });
 // 보관된 씨앗 · 수액의 품질 범위. 드랍은 위 roll 범위로 굴리고, 조합창 합치기만 130%까지 올린다(data/stump-cube.js).
 const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 
-const STUMP_BOX_STORAGE = 50;
+// 보관함(부적과 같이 쓴다): 50칸에서 시작해 아래 해금 표의 storage만큼 늘어난다(stumpBox.storageLimit).
+const STUMP_BOX_STORAGE_BASE = 50;
 const STUMP_BOX_RESONANCE = Object.freeze({ count: 3, bonusPct: 10 });
+
+// 수확 일지(2026-10-07 해금 1차 A1): 처음 다 자란 꽃, 열매, 호박석 × 4색 12칸(키 = 아이콘 이름 '<모양>-<색>').
+// 한 줄(같은 모양 네 색)을 채우면 한 번 선물: 색을 골라 받는 씨앗(꽃, 열매 줄) 또는 수액(호박석 줄) 1개, 품질은 드랍 최고.
+const STUMP_BOX_HARVEST = Object.freeze({ rows: Object.freeze({ flower: 'seed', fruit: 'seed', amber: 'sap' }), giftRoll: STUMP_BOX_DROPS.roll.max });
+
+// 그루터기 함 해금(2026-10-07 1차, docs/stump-box-unlocks-review-20261007.md). 조건은 저장하지 않고 계산한다:
+// loop = 최고 도달 루프 이상, journal = 그 저널을 얻음, harvestRows = 수확 일지에서 채운 줄 수 이상.
+const STUMP_BOX_UNLOCKS = Object.freeze([
+    Object.freeze({ id: 'storage_harvest', label: '보관함 +25', when: Object.freeze({ harvestRows: 1 }), storage: 25 }),
+    Object.freeze({ id: 'storage_labyrinth', label: '보관함 +25', when: Object.freeze({ journal: 'labyrinth_10' }), storage: 25 }),
+    Object.freeze({ id: 'root_memory_loop', label: '뿌리 기억 25%', when: Object.freeze({ loop: 10 }), keepPct: 25 }),
+    Object.freeze({ id: 'root_memory_echo', label: '뿌리 기억 50%', when: Object.freeze({ journal: 'woodsman_echo' }), keepPct: 50 })
+]);
 
 // 접붙이기(2026-10-01, 보조 콘텐츠 통합 7단계 — 가지치기 자리, 사용자 결정 "칸 강화 5단계"): 최고 도달 루프가 startLoop 이상이면
 // 루프마다 pointsPerLoop점(저장하지 않고 루프에서 계산). 칸마다 maxRank단계, n단계에 n점. 단계마다 그 칸에 놓인 씨앗 · 수액의
 // 능력치와 부적 자신의 줄 +pctPerRank%. 마름병 포자 refundSpores개로 한 단계 되돌린다(점수는 돌아온다). 수치는 9단계에서 맞춘다.
 // startLoop를 바꾸면 data/maps.js 로드맵의 루프 18 줄도 함께 고친다.
 // 단계당 +10%(9단계 측정: +6%는 옛 가지치기 피해 +6~18% · 생명력 +3~13%의 절반에 못 미쳤다).
-const STUMP_BOX_GRAFT = Object.freeze({ startLoop: 18, pointsPerLoop: 3, maxRank: 5, pctPerRank: 10, refundSpores: 1 });
+// journalPoints(2026-10-07 해금 1차 C2): 저널 하나마다 더하는 점수(정점 보스 4개 +3, 버려진 날 6개 +2, 최대 +24).
+const STUMP_BOX_GRAFT = Object.freeze({ startLoop: 18, pointsPerLoop: 3, maxRank: 5, pctPerRank: 10, refundSpores: 1,
+    journalPoints: Object.freeze({ pinnacle_underking: 3, pinnacle_leviathan: 3, pinnacle_sky: 3, pinnacle_observer: 3,
+        rival_overheat: 2, rival_dull: 2, rival_glutton: 2, rival_afterimage: 2, rival_backedge: 2, rival_masterwork: 2 }) });
 
 // 다 자란 아이템의 능력치(품질 100% 기준, 실제 = 값 × 품질). stat은 createEmptyStatBucket의 키.
 // 꽃 = 그 원소 스킬에만 붙는 피해(현재 공격 젬 태그 조건), 열매 = 전투 상황 조건, 호박석 = 고정 저항.
@@ -98,5 +115,6 @@ const STUMP_BOX_STAGES = Object.freeze({
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
-    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES
+    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
+    STUMP_BOX_HARVEST, STUMP_BOX_UNLOCKS
 });

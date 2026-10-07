@@ -47,12 +47,17 @@ const TAINTED_CRAFT_OUTCOMES = Object.freeze({
 // 장신구에는 늘 뚫려 있던 소켓을 드물게, 나머지는 공허의 끌로). js/equipment-sockets.js rollDropSocket.
 const SOCKETED_ACCESSORY_DROP_CHANCE = 0.05;
 
+// 장비 베이스 드랍 가중치(2026-10-07 드랍 풀 1단계, js/passives.js getBaseDropWeight). 드랍 티어보다 windowTiers 단계 넘게 낮은
+// 일반 베이스는 belowWindow, 승급 체인 맨 위(6단계 체인의 6단계 또는 20단계)는 chainTop, 둘 다면 곱한다. 나머지는 1.
+// 콘텐츠 전용 · 계 전용 베이스(dropOnly, realmBase)는 창을 쓰지 않고, 20단계 이상만 contentTop(예전 그대로).
+const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, chainTop: 0.25, contentTop: 0.04 });
+
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASIC_CURRENCY_DROP_CHANCES,
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, BASIC_CURRENCY_DROP_CHANCES,
     ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');

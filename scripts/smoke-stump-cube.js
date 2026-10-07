@@ -152,10 +152,10 @@ assert.strictEqual(run('stumpCube.transmute(game).ok && game.cores.owned.length'
 // ── 저장 경계 · 루프 초기화 ───────────────────────────────────────────────────
 const cleaned = json(`stumpCube.normalize({ slots: [{ kind: 'core', id: 3, x: 0, y: 0 }, { kind: 'rock', id: 1, x: 0, y: 0 },
     { kind: 'jewel', id: 2, x: 3, y: 0 }, { kind: 'equipment', id: 'abc', x: 1, y: 2, extra: true }, null] })`);
-assert.deepStrictEqual(cleaned, { slots: [{ kind: 'core', id: 3, x: 0, y: 0 }, { kind: 'equipment', id: 'abc', x: 1, y: 2 }] });
+assert.deepStrictEqual(cleaned, { slots: [{ kind: 'core', id: 3, x: 0, y: 0 }, { kind: 'equipment', id: 'abc', x: 1, y: 2 }], known: null });
 assert.deepStrictEqual(json(`stumpCube.normalize(${JSON.stringify(cleaned)})`), cleaned, 'normalizing twice changes nothing');
 run('game.stumpCube = "broken"; game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
-assert.deepStrictEqual(json('game.stumpCube'), { slots: [] }, 'a broken cube loads empty');
+assert.deepStrictEqual(json('game.stumpCube'), { slots: [], known: null }, 'a broken cube loads empty');
 assert(fs.readFileSync('js/combat.js', 'utf8').includes('coreItems.resetForLoop(); stumpCube.clear();'), 'a new loop empties the cube with the storages');
 
 // ── 화면 조각 ────────────────────────────────────────────────────────────────

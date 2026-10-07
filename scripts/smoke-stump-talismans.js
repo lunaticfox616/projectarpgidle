@@ -246,8 +246,8 @@ unlockTalisman();
 run("stumpBox.sync(game, 'test');");
 const wildDrop = json('talismans.dropWild(game, { isElite: true }, () => 0.5)');
 assert.strictEqual(wildDrop.item.rarity !== 'unique' && wildDrop.item.family, 'talisman', 'an ordinary wild drop is a talisman in the storage');
-run('for (let i = 0; i < STUMP_BOX_STORAGE && stumpBox.storage(game).length < STUMP_BOX_STORAGE; i++) stumpBox.createItem(game, { family: "seed", color: "fire", roll: 1 });');
-assert.strictEqual(run('stumpBox.storage(game).length'), run('STUMP_BOX_STORAGE'), 'the storage is full');
+run('while (stumpBox.createItem(game, { family: "seed", color: "fire", roll: 1 })) {}');
+assert.strictEqual(run('stumpBox.storage(game).length'), run('stumpBox.storageLimit(game)'), 'the storage is full');
 assert.deepStrictEqual(json('[talismans.dropWild(game, { isBoss: true }, () => 0.5).currency, game.currencies.strongSealShard]'), ['strongSealShard', 1],
     'a full storage turns the drop into a shard instead');
 assert.strictEqual(run("talismans.isWild(talismans.rollOtherUnique(['uw_void_ring'], () => 0).uniqueId)"), true, 'a wild unique rerolls into another wild unique');
