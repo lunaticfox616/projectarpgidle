@@ -8533,6 +8533,12 @@ function getRealmEquipmentHiddenTierCap(zone) {
     const cap = REALM_EQUIPMENT_TIER_CAPS[zone.type];
     return cap ? cap(zone) : Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
 }
+/** The highest equipment tier a plain monster of the zone drops (elites and bosses can roll a little higher). */
+function getZoneEquipmentTierCap(zone) {
+    if (!zone) return 1;
+    const itemLevel = levelProgression.itemLevel(zone, { isBoss: false, isElite: false });
+    return Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
+}
 function getChaosDepthEquipmentTierCap(depth) {
     return Math.min(15, 10 + Math.floor((Math.max(1, Math.floor(Number(depth) || 1)) - 1) / 5));
 }
@@ -9828,6 +9834,15 @@ function recordUniqueAcquisition(item) {
     return true;
 }
 
+/** Explicit lines at the tier threshold or above. Unique lines have no tier, so uniques skip the count (2026-10-08: they were
+ * all dropped once a count was set). */
+function passesPickupTierCount(item, settings) {
+    const minTierCount = Math.max(0, Math.floor(settings.itemFilterMinTierCount || 0));
+    if (minTierCount <= 0 || item.rarity === 'unique') return true;
+    const tierThreshold = Math.max(1, Math.floor(settings.itemFilterTierThreshold || 10));
+    return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
+}
+
 function passesItemPickupFilter(item) {
     let settings = game.settings || {};
     if (!settings.itemFilterEnabled) return true;
@@ -9835,12 +9850,7 @@ function passesItemPickupFilter(item) {
     if (!rarities[item.rarity]) return false;
     let minHiddenTier = Math.max(1, Math.floor(settings.itemFilterMinHiddenTier || 1));
     if ((item.hiddenTier || item.itemTier || 1) < minHiddenTier) return false;
-    let tierThreshold = Math.max(1, Math.floor(settings.itemFilterTierThreshold || 10));
-    let minTierCount = Math.max(0, Math.floor(settings.itemFilterMinTierCount || 0));
-    if (minTierCount > 0) {
-        let count = (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length;
-        if (count < minTierCount) return false;
-    }
+    if (!passesPickupTierCount(item, settings)) return false;
     if (item.rarity === 'unique' && settings.itemFilterOnlyNewCodexUnique) {
         let key = getUniqueCodexKeyByItem(item);
         if (key && game.uniqueCodex && game.uniqueCodex[key]) return false;

@@ -292,6 +292,15 @@ safeExposeGlobals({ getCurrencyDrops });
         settings.equipmentTargets = normalizeTargets(settings.equipmentTargets);
     }
 
+    /** The pickup settings a quick preset sets (data/items.js ITEM_PICKUP_PRESETS), the late one relative to the zone's tier cap. */
+    function pickupPreset(key, zone) {
+        const preset = ITEM_PICKUP_PRESETS[key];
+        if (!preset) return null;
+        const tierFloor = preset.tierBelowZoneCap ? Math.max(1, getZoneEquipmentTierCap(zone) - preset.tierBelowZoneCap) : 1;
+        return { itemFilterEnabled: true, itemFilterRarities: { ...preset.rarities }, itemFilterMinHiddenTier: tierFloor, itemFilterMinTierCount: 0,
+            itemFilterOnlyNewCodexUnique: !!preset.onlyNewCodexUnique };
+    }
+
     function targetLines(item, scope) {
         const stats = item.stats || [];
         return (scope === 'all' ? stats.concat(item.baseStats || [], item.underEnchant || []) : stats).filter(Boolean);
@@ -355,8 +364,8 @@ safeExposeGlobals({ getCurrencyDrops });
         return { items: rows.slice(0, 5), total: rows.length };
     }
 
-    const equipmentLootPolicy = Object.freeze({ statOptions, tagOptions, ruleKey, normalizeTargets, normalizeSettings, lineMatchesRule, matches, highlight,
-        collectHighlights });
+    const equipmentLootPolicy = Object.freeze({ statOptions, tagOptions, ruleKey, normalizeTargets, normalizeSettings, pickupPreset, lineMatchesRule, matches,
+        highlight, collectHighlights });
     safeExposeGlobals({ equipmentLootPolicy });
 })();
 

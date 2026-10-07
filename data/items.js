@@ -61,9 +61,20 @@ const EXPLICIT_AFFIX_LINE_CAP = 6;
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
+// 습득 조건 빠른 설정(2026-10-08, 드랍 풀 2단계 D, 휴대폰). 누르면 습득 조건을 켜고 아래 값으로 바꾼다(티어 개수 조건은 끈다).
+// late.tierBelowZoneCap: 지금 지역 일반 몬스터가 떨구는 가장 높은 장비 티어보다 이만큼 낮은 티어부터 줍는다. 실측(혼돈 10, 20,
+// 40)으로 희귀의 약 40%가 남고, 액트에서는 티어 폭이 좁아 모두 남는다.
+const ITEM_PICKUP_PRESETS = Object.freeze({
+    growth: Object.freeze({ label: '성장', note: '일반 장비만 거릅니다.', rarities: Object.freeze({ normal: false, magic: true, rare: true, unique: true }) }),
+    late: Object.freeze({ label: '후반', note: '희귀와 고유 가운데 지금 지역 티어에 가까운 장비만 줍습니다.',
+        rarities: Object.freeze({ normal: false, magic: false, rare: true, unique: true }), tierBelowZoneCap: 2 }),
+    collect: Object.freeze({ label: '수집', note: '도감에 없는 고유 장비만 줍습니다.',
+        rarities: Object.freeze({ normal: false, magic: false, rare: false, unique: true }), onlyNewCodexUnique: true })
+});
+
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, EXPLICIT_AFFIX_RULES, EXPLICIT_AFFIX_LINE_CAP, BASIC_CURRENCY_DROP_CHANCES,
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, EXPLICIT_AFFIX_RULES, EXPLICIT_AFFIX_LINE_CAP, ITEM_PICKUP_PRESETS, BASIC_CURRENCY_DROP_CHANCES,
     ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');

@@ -2,10 +2,16 @@
     'use strict';
     const rarityNames = ITEM_RARITY_LABELS;
 
-    function renderPickup() {
+    function renderPresets() {
+        const buttons = Object.entries(ITEM_PICKUP_PRESETS).map(([key, preset]) => `<button type="button" data-pickup-preset="${key}" title="${escapeHTML(preset.note)}" onclick="equipmentLootUi.applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join('');
+        const notes = Object.values(ITEM_PICKUP_PRESETS).map(preset => `${preset.label}: ${preset.note}`).join(' ');
+        return `<div class="loot-filter-actions loot-pickup-presets"><span>빠른 설정</span>${buttons}</div><p class="loot-filter-note">${escapeHTML(notes)}</p>`;
+    }
+
+    function renderPickup(open = false) {
         const settings = game.settings;
         const grades = Object.entries(rarityNames).map(([id, name]) => `<label><input type="checkbox" id="chk-item-filter-${id}" ${settings.itemFilterRarities[id] ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">${name}</label>`).join('');
-        return `<details class="loot-filter-section"><summary>습득 조건</summary>
+        return `<details class="loot-filter-section" id="loot-pickup-config" ${open ? 'open' : ''}><summary>습득 조건</summary>${renderPresets()}
             <label><input id="chk-item-filter-enabled" type="checkbox" ${settings.itemFilterEnabled ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">습득 조건 사용</label>
             <p class="loot-filter-note">조건 밖 장비는 획득하지 않습니다. 목표 옵션과 추적 중인 고유 장비는 우선 보관합니다.</p>
             <div class="loot-filter-grades">${grades}</div><div class="loot-filter-fields">
@@ -94,6 +100,16 @@
         return { statId: target, minValue: value ? Number(value.value) : 0, minTier };
     }
 
+    function applyPreset(key) {
+        const patch = equipmentLootPolicy.pickupPreset(key, getZone(game.currentZoneId));
+        if (!patch) return;
+        Object.assign(game.settings, patch);
+        equipmentLootPolicy.normalizeSettings(game.settings);
+        const section = document.getElementById('loot-pickup-config');
+        if (section) section.outerHTML = renderPickup(true);
+        saveAndPreview();
+    }
+
     function updateTargets() {
         const root = document.getElementById('loot-target-config');
         if ([...root.querySelectorAll('input[type="number"]')].some(input => !input.reportValidity())) return;
@@ -157,7 +173,7 @@
         showCombatLogItemTooltip(pointer,token);
     }
 
-    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, updateTargets, addRule, addTagRule, removeRule, saveAndPreview, renderHighlights,
-        showHighlight });
+    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, applyPreset, updateTargets, addRule, addTagRule, removeRule, saveAndPreview,
+        renderHighlights, showHighlight });
     safeExposeGlobals({ equipmentLootUi });
 })();

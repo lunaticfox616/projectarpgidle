@@ -73,4 +73,17 @@ const option=probe.stats[0];
 state.settings.equipmentTargets=policy.normalizeTargets({...filter,rules:[{statId:option.id,minValue:0,minTier:0}]});
 run('battleFx.length=0;rollEquipmentLoot({id:777,isBoss:true},getZone(1),1)');
 assert(run('battleFx.some(fx=>fx.type==="lootCelebration" && fx.reason==="목표 옵션 일치" && fx.itemName)'),'real drop dispatch includes the reason and item name');
+// 습득 조건 빠른 설정(2026-10-08): 성장은 일반만 거르고, 후반은 희귀와 고유 중 지역 장비 티어 상한보다 2 낮은 것부터, 수집은 도감에 없는 고유만.
+const presetZone=r.getZone(r.getAbyssZoneIdForDepth(20)), zoneCap=r.getZoneEquipmentTierCap(presetZone);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(policy.pickupPreset('growth',presetZone))),{itemFilterEnabled:true,itemFilterRarities:{normal:false,magic:true,rare:true,unique:true},itemFilterMinHiddenTier:1,itemFilterMinTierCount:0,itemFilterOnlyNewCodexUnique:false});
+assert(zoneCap>2&&policy.pickupPreset('late',presetZone).itemFilterMinHiddenTier===zoneCap-2,'late keeps bases near the zone tier cap');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(policy.pickupPreset('late',presetZone).itemFilterRarities)),{normal:false,magic:false,rare:true,unique:true});
+assert(policy.pickupPreset('collect',presetZone).itemFilterOnlyNewCodexUnique&&!policy.pickupPreset('collect',presetZone).itemFilterRarities.rare,'collect keeps new uniques only');
+assert.strictEqual(policy.pickupPreset('nope',presetZone),null);
+// 기준 이상 옵션 개수는 티어가 있는 줄만 센다. 고유 줄에는 티어가 없어 고유는 세지 않는다(예전에는 모두 버려졌다).
+Object.assign(state.settings,{itemFilterEnabled:true,itemFilterRarities:{normal:true,magic:true,rare:true,unique:true},itemFilterMinHiddenTier:1,itemFilterTierThreshold:6,itemFilterMinTierCount:2,itemFilterOnlyNewCodexUnique:false});
+assert(r.passesItemPickupFilter(item(901,[{id:'flatHp',val:9,tier:0}],'unique')),'a unique is not counted');
+assert(!r.passesItemPickupFilter(item(902,[{id:'flatHp',val:9,tier:6}])),'one line at the threshold is not two');
+assert(r.passesItemPickupFilter(item(903,[{id:'flatHp',val:9,tier:6},{id:'resF',val:9,tier:7}])),'two lines at the threshold');
+state.settings.itemFilterEnabled=false;
 console.log('smoke-equipment-loot-policy passed');
