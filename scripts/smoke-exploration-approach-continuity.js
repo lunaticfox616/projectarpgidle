@@ -45,6 +45,15 @@ for(const block of [
     assert.equal(run('game.actExploration.motion'),null,`no automatic continuation: ${block}`);
     run('resetCombatChannelRuntime();pendingEnemyCombatAttacks=[]');
 }
+// A combat tick alone (offline replay, no render frames) continues the approach the moment the step ends, not at the next
+// 100 ms tick: that wait locked the hero and an enemy across a blocked cell into mirrored steps (2026-10-07).
+start();
+const endsAt=run('game.actExploration.motion.startedAt+game.actExploration.motion.duration');
+run('actExplorationProgress.tick(game.actExploration.motionTimeMs+100,game.lastCombatStats)');
+assert.deepEqual(copy('[game.actExploration.motion&&game.actExploration.motion.from.gy,game.actExploration.motion&&game.actExploration.motion.to.gy]'),[28,27],
+    'a tick without frames takes the next approach step');
+assert.equal(run('game.actExploration.motion.startedAt'),endsAt,'the next step starts when the last one ends');
+assert.equal(run('game.actExploration.motion.elapsed'),80,'and walks the rest of the tick');
 start();run('game.enemies=[]');finish();
 assert.equal(visual().animating,true,'without combat targets the normal exploration route continues');
 start();run('game.combatHalted=true');

@@ -5177,18 +5177,13 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
     return true;
 }
 
-/** Complete walking and continue combat approach before the foreground renderer reads it. */
+/** Complete walking (a finished step continues the approach inside the tick) before the foreground renderer reads it. */
 function advancePlayerExplorationFrame(now, pStats) {
-    const run = actExplorationState.current(game);
-    if (!run) return;
-    const walking = run.motion;
-    actExplorationProgress.tick(now, pStats);
-    if (!walking || walking.elapsed !== walking.duration || run.motion) return;
-    continuePlayerExplorationApproach(pStats);
+    if (actExplorationState.current(game)) actExplorationProgress.tick(now, pStats);
 }
 
-/** The foreground scheduler calls this only on a completed exploration step.
- * Continue an out-of-range approach before rendering, without executing an attack
+/** actExplorationProgress.tick calls this when an exploration step ends, on a foreground frame or inside a combat tick.
+ * Continue an out-of-range approach at once, without executing an attack
  * or advancing combat timers. Actual attacks remain owned by coreLoop.
  */
 function continuePlayerExplorationApproach(pStats) {

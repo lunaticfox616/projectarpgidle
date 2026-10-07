@@ -34,8 +34,16 @@ const actExplorationProgress = (() => {
         if(now-run.motionTimeMs>1000)actExplorationMotion.rebase(run,now-100);
         while(run.motionTimeMs+20<=now) {
             run.motionTimeMs+=20;
+            const walking=run.motion;
             step(run,stats);
+            continueApproachAfterStep(run,walking,stats);
         }
+    }
+    /** A step that ends goes on toward the fight at once, on a foreground frame and inside a combat tick alike. Waiting for
+     * the next 100 ms tick (offline replay) locked the hero and an enemy across a blocked cell into mirrored steps: no kill
+     * for minutes (2026-10-07). */
+    function continueApproachAfterStep(run,walking,stats) {
+        if(walking && walking.elapsed===walking.duration && !run.motion)continuePlayerExplorationApproach(stats);
     }
     function step(run,stats) {
         actExplorationProgress.objects.step(run,20);
