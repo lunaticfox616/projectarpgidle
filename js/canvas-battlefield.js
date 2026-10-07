@@ -1671,7 +1671,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
         let x = Math.round(entry.x - width / 2);
         let baseY = Math.round(entry.y - getEnemyFieldBarLift(enemy));
         const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
-        const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 });
+        const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
         let y = reserved.y + nameHeight;
         let targeted = targetIds.includes(enemy.id);
         ctx.save();

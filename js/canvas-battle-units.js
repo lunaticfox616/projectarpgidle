@@ -78,10 +78,10 @@ drawBattlePlayerFigure.readability = (() => {
         ctx.globalAlpha = style.fill; ctx.drawImage(mask, outline.x, outline.y);
         ctx.globalAlpha = style.alpha; ctx.drawImage(edge, outline.x, outline.y); ctx.restore();
     }
-    function place(box, side = 0) {
-        const result = { ...box };
-        if (side && hero && overlaps(result, hero)) result.x = side > 0 ? hero.x + hero.w + 6 : hero.x - result.w - 6;
-        const taken = hero ? [hero, ...boxes] : boxes;
+    /** A free spot for a label or bar: it steps up past the hero and the boxes already placed. avoidHero false keeps it over its
+     * owner even across the hero (a boss bar beside its own cast bar; 2026-10-07 user: a boss bar leaping over the hero looked odd). */
+    function place(box, avoidHero = true) {
+        const result = { ...box }, taken = avoidHero && hero ? [hero, ...boxes] : boxes;
         for (let n = 0; n < 12 && taken.some(other => overlaps(result, other)); n++) result.y -= result.h + 5;
         boxes.push(result);
         return result;

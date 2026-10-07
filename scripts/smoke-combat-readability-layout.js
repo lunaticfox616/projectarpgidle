@@ -46,6 +46,17 @@ run(`drawBattlePlayerFigure.readability.begin(readState,[]);
 const bars = painted.filter(p => p.type === 'fillRect' && p.color === '#e94f64').map(p => p.args);
 assert.equal(bars.length, 2);
 assert.ok(Math.abs(bars[0][1] - bars[1][1]) >= 10, 'overlapping enemy bars occupy separate rows');
+// 2026-10-07 사용자: 주인공을 피해 머리 위로 올라가는 보스 체력 막대가 이상하다. 보스 막대는 보스 위 제자리, 다른 막대는 비켜 간다.
+const barRows = enemy => {
+    painted.length = 0;
+    runtime.barEnemy = enemy;
+    run('drawBattlePlayerFigure.readability.begin(readState,[]); drawBattlefieldEnemyHealthBars(readCtx,[{x:300,y:310,enemy:barEnemy}],[],48);');
+    return painted.filter(p => p.type === 'fillRect' && p.color === '#e94f64').map(p => p.args[1]);
+};
+const bossLift = run('getEnemyFieldBarLift({id:73,hp:5,maxHp:10,isBoss:true})');
+assert.deepEqual(barRows({ id: 73, hp: 5, maxHp: 10, isBoss: true }), [Math.round(310 - bossLift)], 'a boss bar stays over the boss, across the hero');
+assert.ok(barRows({ id: 74, hp: 5, maxHp: 10 })[0] < Math.round(310 - run('getEnemyFieldBarLift({id:74,hp:5,maxHp:10})')),
+    'an ordinary bar over the hero still steps up');
 painted.length = 0;
 run(`battleVisualState.damageTexts=[]; spawnDamageText({value:500,x:300,y:270,start:1000});
     spawnDamageText({value:400,x:300,y:270,start:1000}); drawDamageTexts(readCtx,1100);`);
