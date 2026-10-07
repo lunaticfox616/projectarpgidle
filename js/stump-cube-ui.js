@@ -20,7 +20,8 @@ const stumpCubeUi = (() => {
     }
 
     function itemTone(kind, item) {
-        if (kind === 'stump' && item.family !== 'talisman') return STUMP_BOX_COLORS[item.color].tone;
+        if (kind === 'stump' && item.color) return STUMP_BOX_COLORS[item.color].tone;
+        if (kind === 'stump' && item.family === 'scar') return STUMP_BOX_SCAR.tone;
         return getRarityColor(item.rarity || 'normal');
     }
 

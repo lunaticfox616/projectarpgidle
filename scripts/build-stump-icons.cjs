@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /* 그루터기 함 아이템 도트 아이콘(16×16 도트): 씨앗·새싹·꽃·열매 / 수액·송진·호박석 × 화염·냉기·번개·카오스,
- * 부적(깨어남 · 잠듦) × 마법 · 희귀 · 고유.
+ * 부적(깨어남 · 잠듦) × 마법 · 희귀 · 고유, 불씨의 흉터(깨어남 ember · 잠듦 ash, 2026-10-08 포식).
  * 모양을 도트 칸 가운데에서 재서 칠하고(빛은 왼쪽 위), 바깥 한 도트를 그 색의 가장 어두운 단계로 두른다.
  *
  *   node scripts/build-stump-icons.cjs            # assets/px/stump/<모양>-<색>.png (28장) + 부적 <talisman|sealed>-<희귀도>.png (6장)
+ *                                                 # + 흉터 scar-<ember|ash>.png (2장)
  *
  * 게임은 16도트 그대로 불러 CSS에서 정수배(image-rendering: pixelated)로 키운다. */
 'use strict';
@@ -91,6 +92,20 @@ const glyph = (ramp, tone) => [
     { inside: line(6.2, 8.6, 9.8, 8.6, 1.0), ramp, cx: 8, cy: 8.6, r: 2, flat: tone },
     { inside: line(6.6, 11.4, 9.4, 11.4, 1.0), ramp, cx: 8, cy: 11.4, r: 2, flat: tone }
 ];
+// 불씨의 흉터: 숯덩이(body)에 불씨 금(glow). 잠든 흉터는 잿빛에 금도 식었다.
+const SCAR_RAMPS = {
+    ember: { body: ['#120c0a', '#2a1c16', '#43302a', '#5c463c', '#7a6052'], glow: ['#3a0e04', '#8a2408', '#e0561a', '#ffa040', '#ffe0a0'] },
+    ash: { body: ['#18181a', '#38383c', '#58585e', '#7a7a82', '#a4a4ac'], glow: ['#1e1612', '#3e2c24', '#5c463a', '#7a6050', '#987c6a'] }
+};
+const SCAR_SHAPES = {
+    scar: ramps => [
+        { inside: polygon([[4, 4], [9, 2.5], [12.8, 5], [13.5, 9.5], [11, 13.5], [6, 13.8], [2.8, 10.5], [3, 6.5]]), ramp: ramps.body, cx: 8, cy: 8, r: 6.5 },
+        { inside: line(5.2, 5.6, 8.4, 8.8, 1.1), ramp: ramps.glow, cx: 7, cy: 7, r: 3, flat: 3 },
+        { inside: line(8.4, 8.8, 11.6, 6.8, 1.1), ramp: ramps.glow, cx: 10, cy: 8, r: 3, flat: 3 },
+        { inside: line(8.4, 8.8, 7.4, 12.4, 1.1), ramp: ramps.glow, cx: 8, cy: 10.6, r: 3, flat: 2 },
+        { inside: ellipse(8.4, 8.8, 1.3, 1.3), ramp: ramps.glow, cx: 8.4, cy: 8.8, r: 1.3, flat: 4 }
+    ]
+};
 const TALISMAN_SHAPES = {
     talisman: ramp => [paper(), ...glyph(ramp, 3)],
     sealed: ramp => [{ ...paper(), flat: 2 }, ...glyph(ramp, 1),
@@ -114,7 +129,7 @@ function facetTone(part, x, y) {
 
 function paint(shape, ramp) {
     const rgb = new Int32Array(SIZE * SIZE), alpha = new Uint8Array(SIZE * SIZE), owner = new Array(SIZE * SIZE).fill(null);
-    for (const part of (SHAPES[shape] || TALISMAN_SHAPES[shape])(ramp)) {
+    for (const part of (SHAPES[shape] || TALISMAN_SHAPES[shape] || SCAR_SHAPES[shape])(ramp)) {
         for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
             if (!part.inside(x + 0.5, y + 0.5)) continue;
             const i = y * SIZE + x;
@@ -155,7 +170,7 @@ function main() {
     const out = path.resolve(__dirname, '..', 'assets/px/stump');
     fs.mkdirSync(out, { recursive: true });
     let count = 0;
-    for (const [shapes, ramps] of [[SHAPES, COLORS], [TALISMAN_SHAPES, RARITIES]]) {
+    for (const [shapes, ramps] of [[SHAPES, COLORS], [TALISMAN_SHAPES, RARITIES], [SCAR_SHAPES, SCAR_RAMPS]]) {
         for (const shape of Object.keys(shapes)) {
             for (const [color, ramp] of Object.entries(ramps)) {
                 const { rgb, alpha } = paint(shape, ramp);
@@ -168,4 +183,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { SHAPES, COLORS, TALISMAN_SHAPES, RARITIES, paint };
+module.exports = { SHAPES, COLORS, TALISMAN_SHAPES, RARITIES, SCAR_SHAPES, SCAR_RAMPS, paint };

@@ -347,13 +347,16 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     return row;
 }
 
-/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 다 자라면 주는 것, 억제와 공명. */
+/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 다 자라면 주는 것, 추가 줄, 황금, 억제와 공명.
+ * 불씨의 흉터도 이 카드다(흡수한 줄이 추가 줄 자리에). */
 function buildStumpItemSnapshot(item, result) {
     let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
-    let value = result.values[item.id] ?? (gain ? gain.value * item.roll : 0);
+    let value = result.values[item.id] ?? (gain ? gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item) : 0);
     return { kind: 'stump', family: item.family, color: item.color, name: stumpBox.label(item), quality: Math.round(item.roll * 100),
         yieldText: gain ? gain.text.replace('{v}', String(Math.round(value * 10) / 10)) : '', suppressed,
-        resonant: !suppressed && stumpBox.isMature(item) && result.resonant.has(item.color), note: stumpItemNote(item, result) };
+        resonant: !suppressed && stumpBox.isMature(item) && result.resonant.has(item.color), note: stumpItemNote(item, result),
+        extra: stumpBox.extraLinesOf(item, result).map(line => ({ id: line.stat, text: stumpBox.lineText(line.stat, line.value) })),
+        golden: stumpBox.goldenMul(item) > 1 };
 }
 
 /** 게임 그루터기 함의 상태 줄(stumpStatusLine)과 같은 문장. 억제되었거나 공명할 때만. */
@@ -1422,15 +1425,29 @@ function renderProfileCoreCard(core) {
 
 // ── 씨앗과 수액 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
 function renderProfileStumpCard(item) {
-    let tone = profileStumpTone(item);
+    let tone = profileStumpTone(item), scar = item.family === 'scar';
     let gain = item.yieldText ? `${item.ripe ? '' : '다 자라면 '}${item.yieldText}` : '';
-    let rows = [`품질 ${Math.floor(Number(item.quality) || 0)}%`, item.ripe ? '다 자랐습니다.' : profileGrowthText(item, '성장'), gain, item.note, profileGraftText(item)];
+    let head = [scar ? '' : `품질 ${Math.floor(Number(item.quality) || 0)}%${item.golden === true ? ', 황금' : ''}`, profileStumpGrowth(item, scar), gain];
+    let rows = list => list.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
     return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(item.name || '그루터기 아이템')}</div>`
-        + rows.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('') + '</div>';
+        + rows(head) + profileStumpExtraHtml(item) + rows([item.note, profileGraftText(item)]) + '</div>';
+}
+
+function profileStumpGrowth(item, scar) {
+    if (item.ripe) return scar ? '깨어났습니다.' : '다 자랐습니다.';
+    return profileGrowthText(item, scar ? '깨어남' : '성장');
+}
+
+/** 다 자랄 때 굴린 추가 줄과 흉터가 흡수한 줄(게임과 같은 문장과 색). */
+function profileStumpExtraHtml(item) {
+    let rows = Array.isArray(item.extra) ? item.extra.slice(0, 40) : [];
+    return rows.filter(row => row && typeof row.text === 'string')
+        .map(row => `<div class="social-item-stat" style="color:${profileStatTone(row.id)};">${socialEscape(row.text)}</div>`).join('');
 }
 
 function profileStumpTone(item) {
     if (item.kind === 'talisman') return profileTalismanTone(item);
+    if (item.family === 'scar' && typeof STUMP_BOX_SCAR === 'object') return STUMP_BOX_SCAR.tone;
     let color = typeof STUMP_BOX_COLORS === 'object' ? profileOwn(STUMP_BOX_COLORS, item.color) : '';
     return socialSafeColor(color && color.tone, '#9d927d');
 }
@@ -1577,12 +1594,18 @@ function profileStumpCellHtml(row, cell) {
         + `${profileStumpIconHtml(item)}${profileStumpBarHtml(item)}${mark}</span>`;
 }
 
-/** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
-function profileStumpIconHtml(item) {
-    let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '';
+/** 그림 파일 이름의 끝: '-색'이나 '-희귀도', 색 없는 불씨의 흉터는 '', 알 수 없는 것이면 null. */
+function profileStumpIconSuffix(item) {
+    if (item.stage === 'scar' || item.stage === 'scarAsleep') return '';
     let tint = item.kind === 'talisman' ? profileOwn(PROFILE_TALISMAN_RARITY, item.rarity) && item.rarity
         : typeof STUMP_BOX_COLORS === 'object' && profileOwn(STUMP_BOX_COLORS, item.color) && item.color;
-    return stage && tint ? `<img src="assets/px/stump/${stage.icon}-${tint}.png" alt="" draggable="false">` : '';
+    return tint ? `-${tint}` : null;
+}
+
+/** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
+function profileStumpIconHtml(item) {
+    let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '', suffix = profileStumpIconSuffix(item);
+    return stage && suffix !== null ? `<img src="assets/px/stump/${stage.icon}${suffix}.png" alt="" draggable="false">` : '';
 }
 
 function profileStumpBarHtml(item) {

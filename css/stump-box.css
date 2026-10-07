@@ -278,4 +278,46 @@
   .stump-tip-yield { color: #b4e07e; }
   .stump-tip-status.is-bad { color: #e0715f; }
   .stump-tip-graft { color: #9fc9e0; }
+
+  /* 16번(js/stump-ripening-ui.js): 봉인 칸은 밀랍색 점선 테두리와 오른쪽 아래 밀랍 점(접붙이기는 왼쪽 위, 억제 X는 오른쪽 위),
+     황금은 그림의 금빛 빛무리, 다 자랄 때의 표식(황금, 풍작, 만개), 추가 줄은 왼쪽 줄로 본 줄과 나눈다 */
+  #tab-stump .stump-cell.is-sealed::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border: 1px dashed #d9774a;
+    pointer-events: none;
+  }
+  .stump-seal-mark {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #a83a22;
+    box-shadow: 0 0 0 1px #050404, inset 0 0 0 1px #e08a5a;
+    pointer-events: none;
+  }
+  #tab-stump :is(.stump-cell, .stump-item).is-golden:not(.is-suppressed) img { filter: drop-shadow(0 0 3px #f3c64a); }
+  .stump-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
+  .stump-badges > span { padding: 0 4px; border: 1px solid currentColor; font-size: 11px; line-height: 1.4; }
+  .stump-badges > .is-golden { color: #f3c64a; }
+  .stump-badges > .is-bumper { color: #9fd46a; }
+  .stump-badges > .is-bloom { color: #e8a0d8; }
+  .stump-extra { margin: 2px 0; padding-left: 8px; border-left: 2px solid #3b2f1e; font-size: 12px; line-height: 1.5; }
+  .stump-extra small { color: var(--px-copy-muted, #a39883); }
+  .stump-tip-extra { padding-left: 8px; border-left: 2px solid #3b2f1e; }
+  .stump-tip-seal { color: #e08a5a; }
+  .stump-seal { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a2218; }
+  /* 거름 한꺼번에(보관함 머리 아래), 씨앗 주머니(선물 칸, 셋 가운데 하나), 부적 도감(수확 일지 아래, 펼쳐 보기) */
+  .stump-bulk { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; font-size: 12px; }
+  .stump-bulk small, .stump-starter-row small { color: var(--px-copy-muted, #a39883); }
+  .stump-bulk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+  #tab-stump .stump-bulk-buttons button { color: var(--stump-tone); font-size: 12px; }
+  .stump-pouch-row { grid-template-columns: minmax(4.5em, auto) repeat(3, minmax(0, 1fr)); }
+  .stump-codex ul { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; padding: 0; list-style: none; font-size: 12px; }
+  .stump-codex li { padding: 1px 6px; border: 1px solid #2a2218; color: var(--px-copy-muted, #a39883); }
+  .stump-codex li.is-on { color: #ff9f43; }
+  .stump-codex p { margin: 6px 0 0; font-size: 12px; }
 }
