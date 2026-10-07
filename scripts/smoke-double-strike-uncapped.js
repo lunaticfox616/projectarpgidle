@@ -9,7 +9,7 @@ const files = [
   'data/level-progression.js', 'data/build-stat-inputs.js',
   'data/maps.js',
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
-  'data/items.js', 'data/affix-tags.js',
+  'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js',
   'data/core-items.js', 'data/talismans.js',
   'data/passives.js',
   'data/passive-tree-v22.js',

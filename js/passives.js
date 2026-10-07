@@ -8506,6 +8506,7 @@ function normalizeItem(item) {
     const storedHighAffixCap = Number.isFinite(Number(item.affixTierCap)) && Number(item.affixTierCap) >= 11;
     const legacyProgressionProvenance = item.dropRealm === 'cosmos' || storedHighAffixCap || existingHighAffixTier >= 11;
     item.dropRealm = typeof item.dropRealm === 'string' ? item.dropRealm : null;
+    item.dropRegion = normalizeDropRegion(item.dropRegion);
     item.affixTierCap = clampNumber(Math.floor(coerceFiniteNumber(
         item.affixTierCap,
         legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
@@ -9130,6 +9131,24 @@ function isModForWeaponCategory(mod, weaponCategory) {
     return !mod.weaponCategories || mod.weaponCategories.includes(weaponCategory);
 }
 
+/** 세계수 기운(12번 루프 27): 지역 전용 줄(MOD_DB regions, data/region-affixes.js)은 그 지역 아틀라스 지도에서 떨어진 장비에만 붙는다. */
+function isModForDropRegion(mod, region) {
+    return !mod.regions || mod.regions.includes(region);
+}
+
+/** A known atlas region id (data/atlas.js ATLAS.regions), otherwise null: what an item may remember as its drop region. */
+function normalizeDropRegion(value) {
+    const regions = typeof ATLAS === 'object' && ATLAS && Array.isArray(ATLAS.regions) ? ATLAS.regions : [];
+    return typeof value === 'string' && regions.some(row => row.id === value) ? value : null;
+}
+
+/** The region an equipment drop remembers: an atlas map's region from the loop REGION_AFFIX_RULES opens, none elsewhere. */
+function getEquipmentDropRegion(zone, state = game) {
+    const loop = Math.max(Math.floor(Number(state?.season) || 1), Math.floor(Number(state?.contentProgression?.highestLoop) || 1));
+    if (!zone || zone.type !== 'atlasMap' || loop < REGION_AFFIX_RULES.minLoop) return null;
+    return normalizeDropRegion(zone.atlasRegion);
+}
+
 /** 대분류에 어울리지 않는 줄(WEAPON_CATEGORY_OFF_MODS)은 가중치를 낮춘 사본으로 돌려준다. */
 function weighModForWeaponCategory(mod, weaponCategory) {
     const off = WEAPON_CATEGORY_OFF_MODS.byCategory[weaponCategory];
@@ -9149,11 +9168,11 @@ function hasSummonBaseStat(item) {
     return !!(item && Array.isArray(item.baseStats) && item.baseStats.some(stat => stat && AVAILABLE_MOD_SUMMON_STAT_IDS.has(stat.id)));
 }
 
-/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring) and base defence types in base order. */
+/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring), base defence types in base order and drop region. */
 function getAvailableModPoolKey(item) {
     const summonSlot = item.slot === '무기' || item.slot === '반지';
     return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
-        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+')].join('|');
+        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || ''].join('|');
 }
 
 /** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
@@ -9169,7 +9188,7 @@ function getBlockedAvailableModStats(item) {
 /** Every row the item's kind can take, each with the stats it would occupy (dual defence parts included). */
 function buildAvailableModPool(item) {
     const allowedSlots = getAvailableModSlotsForItem(item), blocked = getBlockedAvailableModStats(item), weaponCategory = getWeaponCategoryId(item);
-    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && !blocked.has(mod.statId || mod.id)
+    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForDropRegion(mod, item.dropRegion) && !blocked.has(mod.statId || mod.id)
         && isDefenseTypeStatAllowed(item, mod.statId || mod.id) && isPrimaryDualDefenseAffixMod(item, mod)
         && allowedSlots.some(slot => mod.slots.includes(slot))).map(mod => {
         const shaped = makeDualDefenseAffixMod(item, mod);
@@ -9478,6 +9497,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         affixTierCap: affixTierCap,
         itemLevel: levelProgression.tierLevel(zoneTier), requirementsVersion: 1,
         dropRealm: dropRealm,
+        dropRegion: normalizeDropRegion(origin.dropRegion),
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
@@ -9655,6 +9675,7 @@ function generateEquipmentDrop(enemy, options) {
     if (minimumRarity && getRarityRank(rarity) < getRarityRank(minimumRarity)) rarity = minimumRarity;
     let item = createItemFromBase(base, rarity, dropTier, {
         dropRealm: zone.type || null,
+        dropRegion: getEquipmentDropRegion(zone),
         affixTierCap,
         affixTierFloor: affixTierRange.min,
         tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF

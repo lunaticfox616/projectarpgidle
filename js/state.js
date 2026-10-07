@@ -1626,7 +1626,9 @@ const MOD_DB = [
     {"id":"flaskPotionPctDmg","statId":"potionPctDmg","type":"prefix","statName":"포션 투척 피해(%)","slots":["무기"],"weaponCategories":["flask"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
     {"id":"flaskPoisonChance","statId":"poisonChance","type":"suffix","statName":"중독 확률(%)","slots":["무기"],"weaponCategories":["flask"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,7],[8,9],[10,10],[11,12],[13,13],[14,15],[16,16],[17,18],[19,19],[20,21],[22,22],[23,24],[25,25],[26,27],[28,28],[29,30],[31,31],[32,33]],"valueStep":1},
     {"id":"censerLightGemLevel","statId":"lightGemLevel","type":"prefix","statName":"번개 스킬 젬 레벨","slots":["무기"],"weaponCategories":["censer"],"weight":0.2,"affixBalanceVersion":3,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[3,3],[3,3],[3,3],[3,3],[4,4]],"valueStep":1},
-    {"id":"censerRegen","statId":"regen","type":"suffix","statName":"초당 재생(%)","slots":["무기"],"weaponCategories":["censer"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01}
+    {"id":"censerRegen","statId":"regen","type":"suffix","statName":"초당 재생(%)","slots":["무기"],"weaponCategories":["censer"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01},
+    // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js, regions)은 그 지역 아틀라스 지도 장비에만 붙는다.
+    ...REGION_AFFIX_MODS
 ];
 
 const FOSSIL_DB = [

@@ -354,7 +354,7 @@ const atlas = (() => {
             bossMods: { hpMul: fx.bossHp * more('bossLife') * boss.hpMul * boost.hp, damageMul: fx.bossDamage * more('bossLife') * boss.damageMul * boost.damage },
             // 불타는 땅: 불길 웅덩이(옵션 문구 그대로 불 원소로 터진다).
             ...(fx.hazard ? { trialHazard: { ...ATLAS.burningGround }, trapElements: ['fire'] } : {}),
-            atlasNode: node.id, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
+            atlasNode: node.id, atlasRegion: node.region, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
             atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, atlasCleared: run.cleared,

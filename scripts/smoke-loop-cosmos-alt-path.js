@@ -20,7 +20,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
-['data/constants.js', 'data/maps.js', 'data/skills.js', 'data/items.js', 'data/affix-tags.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'data/ascendancies.js', 'js/state.js'].forEach(file => {
+['data/constants.js', 'data/maps.js', 'data/skills.js', 'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'data/ascendancies.js', 'js/state.js'].forEach(file => {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 });
 

@@ -15,7 +15,7 @@ const files = [
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
-  'data/items.js', 'data/affix-tags.js', 'data/weapon-categories.js',
+  'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
   'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
