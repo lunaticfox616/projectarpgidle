@@ -42,8 +42,9 @@ assert(reroll.every(row => row.lines >= Math.max(4, row.keptCount) && row.lines 
 assert(reroll.every(row => row.keep === ''), 'the keep is used by that reroll');
 
 // 3. 실제 제작: 홀씨를 함께 쓴 재굴림은 보장 줄을 남은 종류에서 고르고, 화석은 보존 종류를 남긴 채 다시 굴린다.
-const spore = json(`(() => {
-    const item = makeRare('무기');
+// 화염 홀씨는 B2(2026-10-08)부터 화염 줄만 보장한다: 반지의 접미는 화염 저항, 무기에는 화염 접미가 없어 거절된다.
+const sporeCraft = slot => json(`(() => {
+    const item = makeRare(${JSON.stringify(slot)});
     const prefixes = ofKind(item, 'prefix');
     item.affixKeep = 'prefix';
     selectForCrafting(item.id, false);
@@ -51,9 +52,13 @@ const spore = json(`(() => {
     game.sporeCraftModes = { formlessDew: 'fire' };
     useCurrency('formlessDew');
     const sporeLine = item.stats.find(stat => stat.craftSource === 'spore');
-    return { kept: JSON.stringify(ofKind(item, 'prefix')) === JSON.stringify(prefixes), sporeKind: sporeLine && equipmentCrafting.storedAffixKind(item, sporeLine), keep: item.affixKeep || '' };
+    return { kept: JSON.stringify(ofKind(item, 'prefix')) === JSON.stringify(prefixes), sporeKind: sporeLine ? equipmentCrafting.storedAffixKind(item, sporeLine) : null,
+        sporeStat: sporeLine ? sporeLine.id : '', keep: item.affixKeep || '', spent: [5 - game.currencies.formlessDew, 50 - game.currencies.sporeFire] };
 })()`);
-assert.deepEqual(spore, { kept: true, sporeKind: 'suffix', keep: '' }, 'a fire spore reroll keeps the prefixes and guarantees a fire suffix');
+assert.deepEqual(sporeCraft('반지'), { kept: true, sporeKind: 'suffix', sporeStat: 'resF', keep: '', spent: [1, 10] },
+    'a fire spore reroll keeps the prefixes and guarantees a fire suffix (fire resistance on a ring)');
+assert.deepEqual(sporeCraft('무기'), { kept: true, sporeKind: null, sporeStat: '', keep: 'prefix', spent: [0, 0] },
+    'a weapon has no fire suffix: the craft is refused and nothing is spent');
 const fossil = json(`(() => {
     const item = makeRare('무기');
     const suffixes = ofKind(item, 'suffix');

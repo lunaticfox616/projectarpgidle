@@ -39,55 +39,50 @@ const STAT_AFFIX_TAGS = Object.freeze(Object.fromEntries(Object.entries({
     bossDamagePct: 'damage', eliteDamagePct: 'damage', firstStrikeDamagePct: 'damage', cullStrikePct: 'damage'
 }).map(([stat, tags]) => [stat, Object.freeze(tags.split(' '))])));
 
-// 화폐가 노리는 능력치 목록. any 태그 하나가 있고 none 태그는 없는 능력치에 plus를 더하고 minus를 뺀다. plus와 minus는
-// 손으로 적던 목록(2026-10-07 전)과 똑같이 맞춘 예외다. 예외를 지우면 태그 그대로의 목록이 된다(B2, 목록마다 정한다).
+// 화폐가 노리는 능력치 목록: any 태그 하나가 있고 none 태그는 없는 능력치(plus는 더하고 minus는 뺀다).
+// 2026-10-07(B1)에는 손으로 적던 목록과 똑같이 맞춘 예외(plus, minus)가 132개 있었다. 2026-10-08(B2, 사용자 "태그대로 해")에
+// 모두 지워 목록이 태그 그대로다. 방패 화석만 최대 저항을 고를 태그가 없어 예외 목록으로 남는다.
 // 목록은 굴러 나오는 능력치(MOD_DB) 안에서 고르고, lines: 'any'(품질)는 고유 줄에만 있는 능력치도 본다.
 const AFFIX_TAG_LISTS = Object.freeze({
     spore: {
-        fire: { any: ['fire'], plus: ['aspd', 'crit', 'critDmg', 'resPen', 'ds', 'targetAny', 'targetProjectile'], minus: ['maxResF'] },
-        cold: { any: ['cold'], plus: ['crit', 'critDmg', 'aspd', 'ds', 'targetAny', 'targetProjectile'], minus: ['maxResC'] },
-        light: { any: ['light'], plus: ['aspd', 'ds', 'crit', 'critDmg', 'targetAny', 'targetProjectile'], minus: ['maxResL', 'lightGemLevel'] },
-        chaos: { any: ['chaos'], plus: ['dotPctDmg', 'resPen', 'leech', 'spellLeech', 'regenSuppress', 'targetAny', 'targetProjectile'],
-            minus: ['maxResChaos', 'poisonChance'] },
-        damage: { any: ['damage'], minus: ['weaponFlatDmgPct', 'meleePctDmg', 'projectilePctDmg', 'elementalPctDmg', 'aoePctDmg', 'summonFlatDmg',
-            'summonPctDmg', 'summonCritDmg', 'spellFlatPct', 'minDmgRoll', 'maxDmgRoll', 'slamPctDmg', 'spellCritDmg', 'potionPctDmg'] }
+        fire: { any: ['fire'] },
+        cold: { any: ['cold'] },
+        light: { any: ['light'] },
+        chaos: { any: ['chaos'] },
+        damage: { any: ['damage'] }
     },
     // 부패 홀씨가 지우는 줄.
-    rotSpore: { any: ['elemental'], none: ['summon', 'gem', 'penetration'], minus: ['resAll', 'maxResF', 'maxResC', 'maxResL', 'maxResAll'] },
+    rotSpore: { any: ['elemental'], none: ['summon', 'gem', 'penetration'] },
     // 화석이 하나 확정하는 줄. 방패 화석(최대 저항)은 태그로 적을 수 없어 예외만 있다.
     fossil: {
-        fossilJagged: { any: ['physical', 'melee'], none: ['defense'],
-            minus: ['weaponFlatDmgPct', 'targetSlam', 'physFlatDmg', 'slamPctDmg', 'slamGemLevel', 'bleedChance', 'meleeGemLevel'] },
-        fossilBound: { any: ['life', 'defense'], none: ['summon', 'recovery'], minus: ['deflectChance', 'blockChancePct', 'blockChance'] },
-        fossilGale: { any: ['speed', 'crit'], none: ['summon', 'damage'], minus: ['ds'] },
-        fossilPrismatic: { any: ['resistance'], none: ['chaos'], plus: ['elementalPctDmg', 'resPen'], minus: ['maxResF', 'maxResC', 'maxResL', 'maxResAll'] },
-        fossilAbyssal: { any: ['chaos', 'recovery'], none: ['resistance', 'spell'],
-            minus: ['regenFlat', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap', 'chaosFlatDmg', 'poisonChance'] },
-        fossilPrimordial: { any: ['penetration', 'chaos'], none: ['resistance', 'summon'], plus: ['critDmg'], minus: ['chaosFlatDmg', 'poisonChance'] },
+        fossilJagged: { any: ['physical', 'melee'], none: ['defense'] },
+        fossilBound: { any: ['life', 'defense'], none: ['summon', 'recovery'] },
+        fossilGale: { any: ['speed', 'crit'], none: ['summon', 'damage'] },
+        fossilPrismatic: { any: ['resistance'], none: ['chaos'] },
+        fossilAbyssal: { any: ['chaos', 'recovery'], none: ['resistance', 'spell'] },
+        fossilPrimordial: { any: ['penetration', 'chaos'], none: ['resistance', 'summon'] },
         fossilBulwark: { any: [], plus: ['maxResF', 'maxResC', 'maxResL'] },
-        fossilWedge: { any: ['projectile', 'crit'], none: ['summon', 'gem', 'spell'], minus: ['targetProjectile', 'critDmg', 'potionPctDmg'] }
+        fossilWedge: { any: ['projectile', 'crit'], none: ['summon', 'gem', 'spell'] }
     },
     // 바다의 선물 계열(공격, 방어와 생명, 속도와 치명, 저항)이 고르는 줄.
     sea: {
-        attack: { any: ['damage', 'crit', 'penetration'], none: ['spell'], minus: ['minDmgRoll', 'maxDmgRoll', 'attackPctDmg', 'slamPctDmg', 'potionPctDmg'] },
-        defense: { any: ['defense', 'life'], none: ['summon', 'spell'], plus: ['regenSuppress'], minus: ['dr', 'blockChance'] },
-        speed: { any: ['speed'], plus: ['summonEfficiency'], minus: ['ds'] },
-        resistance: { any: ['resistance'], minus: ['maxResF', 'maxResC', 'maxResL', 'maxResChaos', 'maxResAll'] }
+        attack: { any: ['damage', 'crit', 'penetration'], none: ['spell'] },
+        defense: { any: ['defense', 'life'], none: ['summon', 'spell'] },
+        speed: { any: ['speed'] },
+        resistance: { any: ['resistance'] }
     },
     // 품질 속성(심연 촉매)이 키우는 줄.
     quality: {
-        fire: { lines: 'any', any: ['fire'], minus: ['maxResF', 'fireFlatDmg'] },
-        cold: { lines: 'any', any: ['cold'], minus: ['maxResC', 'coldFlatDmg'] },
-        light: { lines: 'any', any: ['light'], minus: ['maxResL', 'lightFlatDmg', 'lightGemLevel'] },
-        chaos: { lines: 'any', any: ['chaos'], plus: ['dotPctDmg'], minus: ['maxResChaos', 'chaosFlatDmg'] },
-        physical: { lines: 'any', any: ['physical'], none: ['defense'], plus: ['maxDmgRoll', 'minDmgRoll'], minus: ['weaponFlatDmgPct', 'physFlatDmg'] },
-        defense: { lines: 'any', any: ['defense', 'life'], none: ['summon', 'recovery'], plus: ['resAll'], minus: ['deflectChance', 'blockChancePct', 'blockChance'] },
+        fire: { lines: 'any', any: ['fire'] },
+        cold: { lines: 'any', any: ['cold'] },
+        light: { lines: 'any', any: ['light'] },
+        chaos: { lines: 'any', any: ['chaos'] },
+        physical: { lines: 'any', any: ['physical'], none: ['defense'] },
+        defense: { lines: 'any', any: ['defense', 'life'], none: ['summon', 'recovery'] },
         speed: { lines: 'any', any: ['speed'], none: ['summon'] }
     },
     // 독벌침이 무기에 붙이는 줄.
-    venomStinger: { any: ['damage', 'crit', 'speed'], none: ['spell', 'gem', 'aoe', 'melee', 'projectile'], plus: ['resPen', 'leech'],
-        minus: ['weaponFlatDmgPct', 'pctDmg', 'firePctDmg', 'coldPctDmg', 'lightPctDmg', 'dotPctDmg', 'move', 'ds', 'physFlatDmg', 'fireFlatDmg',
-            'coldFlatDmg', 'lightFlatDmg', 'chaosFlatDmg', 'attackPctDmg'] }
+    venomStinger: { any: ['damage', 'crit', 'speed'], none: ['spell', 'gem', 'aoe', 'melee', 'projectile'] }
 });
 
 /** Tags of one stat id (empty for a stat the table does not know). */

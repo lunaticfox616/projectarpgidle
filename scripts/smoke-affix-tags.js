@@ -1,5 +1,6 @@
 // 옵션 태그(2026-10-07, 드랍 풀 2단계 B, data/affix-tags.js): 굴러 나오는 능력치마다 태그가 있고, 화폐가 노리는 목록 26개를
-// 태그 규칙에서 만들어도 손으로 적던 목록과 똑같다. 아래 목록은 바꾸기 전 코드에서 그대로 옮겨 적었다.
+// 태그 규칙에서 만든다. B1은 손으로 적던 목록과 똑같이 맞췄고, B2(2026-10-08, 사용자 "태그대로 해")는 예외를 지워 태그 그대로다.
+// 아래 BEFORE는 바꾸기 전 코드에서 그대로 옮겨 적은 예전 목록이다.
 const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
@@ -19,8 +20,9 @@ assert.deepStrictEqual(sorted(json('getAffixTags(MOD_DB.find(mod => mod.id === "
 assert.deepStrictEqual(sorted(json('getAffixTags({ id: "flatDmg", extraStats: [{ id: "weaponFlatDmgPct" }] })')), ['attack', 'damage', 'physical'],
     'a rolled compound line joins its extra stat');
 
-// 2. 목록 26개: 태그 규칙에서 만든 목록이 예전 목록과 같다.
-const ORIGINAL = {
+// 2. 목록 26개(B2): 예외 없이 태그 그대로다(방패 화석만 태그가 없어 예외 목록). 줄 수는 예전 목록(BEFORE)에서
+// docs/affix-kinds-tags-plan-20261007.md B2 표대로 바뀐다.
+const BEFORE = {
     spore: {
         fire: ['fireFlatDmg', 'firePctDmg', 'resF', 'aspd', 'crit', 'critDmg', 'resPen', 'ds', 'targetAny', 'targetProjectile'],
         cold: ['coldFlatDmg', 'coldPctDmg', 'resC', 'crit', 'critDmg', 'aspd', 'ds', 'targetAny', 'targetProjectile'],
@@ -63,19 +65,44 @@ const ORIGINAL = {
     venomStinger: ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll',
         'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']
 };
+// [예전 줄 수, 지금 줄 수] (B2 표). 방패 화석은 태그로 적을 수 없어 그대로 3줄.
+const B2_COUNTS = {
+    'spore.fire': [10, 4], 'spore.cold': [9, 4], 'spore.light': [9, 5], 'spore.chaos': [10, 5], 'spore.damage': [17, 31], rotSpore: [10, 15],
+    'fossil.fossilJagged': [4, 11], 'fossil.fossilBound': [9, 12], 'fossil.fossilGale': [3, 4], 'fossil.fossilPrismatic': [6, 8],
+    'fossil.fossilAbyssal': [3, 9], 'fossil.fossilPrimordial': [4, 5], 'fossil.fossilBulwark': [3, 3], 'fossil.fossilWedge': [3, 6],
+    'fossil.fossilOld': [0, 0], 'fossil.fossilRift': [0, 0],
+    'sea.공격': [27, 32], 'sea.방어·생명': [17, 18], 'sea.속도·치명': [4, 4], 'sea.저항': [5, 10],
+    'quality.fire': [4, 6], 'quality.cold': [4, 6], 'quality.light': [4, 7], 'quality.chaos': [5, 6], 'quality.physical': [6, 6],
+    'quality.defense': [10, 12], 'quality.speed': [3, 3], venomStinger: [16, 28]
+};
 const sporeRows = mode => json(`[...new Set(equipmentCrafting.filterSporeMods(MOD_DB, ${JSON.stringify(mode)}).map(mod => mod.statId || mod.id))]`);
-Object.entries(ORIGINAL.spore).forEach(([mode, list]) => assert.deepStrictEqual(sorted(sporeRows(mode)), sorted(list), `${mode} spore`));
 assert.deepStrictEqual(sporeRows('none'), [], 'an unknown spore mode guarantees nothing');
-assert.deepStrictEqual(sorted(json('ROT_SPORE_STAT_IDS')), sorted(ORIGINAL.rotSpore), 'rot spore');
 const fossils = json('Object.fromEntries(FOSSIL_DB.map(fossil => [fossil.key, fossil.guaranteedStats]))');
-assert.deepStrictEqual(Object.keys(fossils), Object.keys(ORIGINAL.fossil), 'every fossil keeps its place');
-Object.entries(ORIGINAL.fossil).forEach(([key, list]) => assert.deepStrictEqual(sorted(fossils[key]), sorted(list), key));
+assert.deepStrictEqual(Object.keys(fossils), Object.keys(BEFORE.fossil), 'every fossil keeps its place');
 const sea = json('Object.fromEntries(OCEAN_MOD_CATEGORY_RULES.map(rule => [rule.category, rule.ids]))');
-assert.deepStrictEqual(Object.keys(sea), Object.keys(ORIGINAL.sea), 'sea categories in order');
-Object.entries(ORIGINAL.sea).forEach(([category, list]) => assert.deepStrictEqual(sorted(sea[category]), sorted(list), `sea ${category}`));
+assert.deepStrictEqual(Object.keys(sea), Object.keys(BEFORE.sea), 'sea categories in order');
 const quality = json('QUALITY_ATTRIBUTE_STAT_GROUPS');
-Object.entries(ORIGINAL.quality).forEach(([mode, list]) => assert.deepStrictEqual(sorted(quality[mode]), sorted(list), `quality ${mode}`));
-assert.deepStrictEqual(sorted(json('VENOM_STINGER_STAT_IDS')), sorted(ORIGINAL.venomStinger), 'venom stinger');
+const NOW = { rotSpore: json('ROT_SPORE_STAT_IDS'), venomStinger: json('VENOM_STINGER_STAT_IDS') };
+Object.keys(BEFORE.spore).forEach(mode => { NOW[`spore.${mode}`] = sporeRows(mode); });
+Object.entries(fossils).forEach(([key, list]) => { NOW[`fossil.${key}`] = list; });
+Object.entries(sea).forEach(([category, list]) => { NOW[`sea.${category}`] = list; });
+Object.entries(quality).forEach(([mode, list]) => { NOW[`quality.${mode}`] = list; });
+const beforeOf = name => name.split('.').reduce((node, key) => node[key], BEFORE);
+assert.deepStrictEqual(Object.keys(NOW).sort(), Object.keys(B2_COUNTS).sort(), 'every list is counted');
+Object.entries(B2_COUNTS).forEach(([name, [before, now]]) => {
+    assert.strictEqual(beforeOf(name).length, before, `${name}: the old list`);
+    assert.strictEqual(NOW[name].length, now, `${name}: the tag list`);
+});
+assert.deepStrictEqual(sorted(NOW['spore.fire']), sorted(['fireFlatDmg', 'firePctDmg', 'resF', 'maxResF']), 'a fire spore guarantees fire lines only');
+assert(!NOW['spore.fire'].includes('aspd') && NOW['spore.damage'].includes('summonPctDmg'), 'attack speed leaves the fire spore, minion damage joins the damage spore');
+assert.deepStrictEqual(sorted(NOW['fossil.fossilBulwark']), sorted(BEFORE.fossil.fossilBulwark), 'the shield fossil keeps its maximum resistances');
+// 태그 그대로: 방패 화석 밖에는 예외(plus, minus)가 없다.
+assert.deepStrictEqual(json(`(() => {
+    const out = [];
+    const walk = (name, rule) => rule.any ? out.push({ name, rule }) : Object.entries(rule).forEach(([key, child]) => walk(name + '.' + key, child));
+    Object.entries(AFFIX_TAG_LISTS).forEach(([key, rule]) => walk(key, rule));
+    return out.filter(({ rule }) => rule.plus || rule.minus).map(({ name }) => name);
+})()`), ['fossil.fossilBulwark'], 'only the shield fossil keeps an exception list');
 
 // 3. 예외는 꼭 필요한 것만: plus는 태그로 안 들어오는 능력치, minus는 태그로 들어오는 능력치다(지우면 태그 그대로가 된다).
 const rules = json(`(() => {
@@ -126,4 +153,4 @@ assert(goalTags.fire.maxCount >= 2 && goalTags.fire.maxTier >= 1, 'several fire 
 assert.strictEqual(goalTags.lockedFire.maxCount, goalTags.fire.maxCount, 'a kept fire line counts and its stat leaves the pool');
 assert.deepStrictEqual(goalTags.value, [], 'value crafts have no line goals');
 
-console.log('affix tags: 24 tags on every rolled stat, 26 currency lists from tag rules match the hand-written lists, tag rules in loot targets and craft goals: OK');
+console.log('affix tags: 24 tags on every rolled stat, 26 currency lists are their tags (B2 counts), tag rules in loot targets and craft goals: OK');
