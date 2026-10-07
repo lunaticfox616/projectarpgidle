@@ -57,6 +57,13 @@ const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, cha
 const EXPLICIT_AFFIX_RULES = Object.freeze({ magic: Object.freeze({ prefix: 1, suffix: 1 }), rare: Object.freeze({ prefix: 3, suffix: 3 }) });
 // 추가 옵션 줄 상한(혼돈 주입, 화석 전용 줄, 균열 표식 포함). 잿불가지의 옵션 추가만 넘는다.
 const EXPLICIT_AFFIX_LINE_CAP = 6;
+// 접두 보존, 접미 보존(2026-10-08, 드랍 풀 2단계 C, 거래소 특수 서비스): 황금률을 내면 다음 재굴림 한 번(재화, 홀씨 재굴림, 화석)이
+// 그 종류 줄을 그대로 두고 남은 자리만 굴린다. 보존은 그 재굴림에 쓰이고, 옵션을 모두 지우면 사라진다. 바다의 선물 봉인(줄을
+// 영구히 고정)과 달리 한 번뿐이다. 옵션 한 줄 제거(황금률 2개)보다 비싸다.
+const AFFIX_KEEP_RULES = Object.freeze({ cost: 4, labels: Object.freeze({ prefix: '접두', suffix: '접미' }) });
+// 화석 재련에서 확정 줄 밖의 나머지 줄은 화석 태그(data/affix-tags.js AFFIX_TAG_LISTS.fossil의 any, none)가 맞는 옵션의 가중치를
+// 이만큼 곱해 굴린다(2026-10-08, C). 방패 화석과 오래된 화석, 균열 화석은 태그가 없어 그대로다.
+const FOSSIL_TAG_WEIGHT = 3;
 
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
@@ -74,7 +81,7 @@ const ITEM_PICKUP_PRESETS = Object.freeze({
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, EXPLICIT_AFFIX_RULES, EXPLICIT_AFFIX_LINE_CAP, ITEM_PICKUP_PRESETS, BASIC_CURRENCY_DROP_CHANCES,
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, EXPLICIT_AFFIX_RULES, EXPLICIT_AFFIX_LINE_CAP, AFFIX_KEEP_RULES, FOSSIL_TAG_WEIGHT, ITEM_PICKUP_PRESETS, BASIC_CURRENCY_DROP_CHANCES,
     ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');

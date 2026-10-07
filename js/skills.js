@@ -553,7 +553,7 @@ function getFossilExclusivePool(item) {
 // The guaranteed line takes a kind with room once the locked lines and a kept chaos infusion are counted (prefix 3, suffix 3).
 function getFossilGuaranteedPool(item, fossil) {
     const immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
-    const candidate = { ...item, stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift)), chaosInfusion: null };
+    const candidate = { ...item, stats: (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat)), chaosInfusion: null };
     const room = equipmentCrafting.affixRoom({ ...candidate, chaosInfusion: item.chaosInfusion || null }, 'rare');
     const pool = getAvailableMods(candidate).filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id));
     if (fossil.key === 'fossilBulwark' && pool.length === 0 && ['투구', '갑옷', '장갑', '신발', '방패'].includes(item.slot)) {
@@ -563,13 +563,20 @@ function getFossilGuaranteedPool(item, fossil) {
     return pool.filter(mod => equipmentCrafting.fitsRoom(room, mod));
 }
 
+/** The fill after a fossil's guaranteed line leans to the fossil's tags: rows matching its tag rule weigh FOSSIL_TAG_WEIGHT times more. */
+function weighFossilTagMods(pool, fossilKey) {
+    const rule = AFFIX_TAG_LISTS.fossil[fossilKey];
+    if (!rule || !(rule.any || []).length) return pool;
+    return pool.map(mod => matchesAffixTags(getAffixTags(mod), rule) ? { ...mod, weight: (Number(mod.weight) || 1) * FOSSIL_TAG_WEIGHT } : mod);
+}
+
 function applyFossilChaosCraft(fossilKey) {
     let fossil = FOSSIL_DB.find(entry => entry.key === fossilKey);
     let item = getSelectedCraftItem();
     const craftBlock = equipmentCrafting.getFossilUseReason(item, fossil, game.season, game.currencies);
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
-    let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
+    let lockedStats = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
     let rerollCandidate = { ...item, stats: lockedStats, chaosInfusion: null };
     let guaranteedPool = getFossilGuaranteedPool(item, fossil);
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
@@ -608,7 +615,7 @@ function applyFossilChaosCraft(fossilKey) {
             .filter(mod => !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
         // 화석이 보정하는 보장 옵션만 고티어 보정을 받고, 나머지 옵션은 일반 티어 분포(1티어부터)로 굴린다.
-        let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
+        let roll = rollAffixValue(pickWeightedMod(weighFossilTagMods(pool, fossilKey)), maxTier);
         newStats.push(roll);
         blockedIds.add(roll.id);
     }
@@ -634,6 +641,7 @@ function applyFossilChaosCraft(fossilKey) {
 
     item.stats = newStats;
     item.rarity = 'rare';
+    delete item.affixKeep;
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--;
     updateItemName(item);

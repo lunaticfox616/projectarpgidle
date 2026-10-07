@@ -46,7 +46,7 @@ const equipmentCrafting = (() => {
         const existing = (item.stats || []).filter(stat => getSource(stat) === source);
         if (!existing.length) return '';
         if (!reroll || source === 'transplant') return `이미 ${labels[source]} 옵션이 있어 추가할 수 없습니다.`;
-        const locked = existing.some(stat => stat.id !== retainedMarker && (stat.lockedByHoney || stat.lockedByRift));
+        const locked = existing.some(stat => stat.id !== retainedMarker && keptOnReroll(item, stat));
         return locked ? `잠긴 ${labels[source]} 옵션이 있어 재련할 수 없습니다.` : '';
     }
 
@@ -74,7 +74,7 @@ const equipmentCrafting = (() => {
     }
 
     function getRerollSpaceReason(item, required, cap, retainedMarker = '') {
-        const locked = (item.stats || []).filter(stat => stat && stat.id !== retainedMarker && (stat.lockedByHoney || stat.lockedByRift));
+        const locked = (item.stats || []).filter(stat => stat && stat.id !== retainedMarker && keptOnReroll(item, stat));
         const occupied = locked.length + (item.chaosInfusion ? 1 : 0);
         return occupied + required > cap ? '잠금·주입 옵션 때문에 보장 옵션을 넣을 자리가 없습니다.' : '';
     }
@@ -88,6 +88,27 @@ const equipmentCrafting = (() => {
     function storedAffixKind(item, stat) {
         if (!stat || stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore || stat.oceanBenchOptionId) return 'special';
         return affixKind(findStoredEquipmentAffix(item, stat));
+    }
+
+    /** The kind the next full reroll keeps (item.affixKeep, a golden rule service, data/items.js AFFIX_KEEP_RULES), or ''. */
+    function keptKind(item) {
+        return item && (item.affixKeep === 'prefix' || item.affixKeep === 'suffix') ? item.affixKeep : '';
+    }
+
+    /** A line a full reroll keeps: honey and rift locks, and every line of the kept kind. */
+    function keptOnReroll(item, stat) {
+        if (!stat) return false;
+        return !!(stat.lockedByHoney || stat.lockedByRift) || (!!keptKind(item) && storedAffixKind(item, stat) === keptKind(item));
+    }
+
+    /** Why this kind cannot be kept now ('' when it can). Magic and rare equipment with a line of the kind. */
+    function getAffixKeepReason(item, kind) {
+        if (!item) return '먼저 장비를 선택하세요.';
+        if (!AFFIX_KEEP_RULES.labels[kind]) return '보존할 종류를 고르세요.';
+        if (item.corrupted || item.fusedRelic || item.hallReplica) return '이 장비는 옵션을 바꿀 수 없습니다.';
+        if (!EXPLICIT_AFFIX_RULES[item.rarity]) return '마법이나 희귀 장비만 보존할 수 있습니다.';
+        if (keptKind(item)) return `이미 ${AFFIX_KEEP_RULES.labels[keptKind(item)]} 보존이 걸려 있습니다.`;
+        return (item.stats || []).some(stat => storedAffixKind(item, stat) === kind) ? '' : `${AFFIX_KEEP_RULES.labels[kind]} 옵션이 없습니다.`;
     }
 
     /** 종류별 줄 수(혼돈 주입 포함). skip은 바꿀 줄처럼 셈에서 뺄 한 줄. */
@@ -150,6 +171,6 @@ const equipmentCrafting = (() => {
     }
 
     return Object.freeze({ getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
-        affixKind, storedAffixKind, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader });
+        affixKind, storedAffixKind, keptKind, keptOnReroll, getAffixKeepReason, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader });
 })();
 safeExposeGlobals({ equipmentCrafting });

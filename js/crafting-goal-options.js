@@ -2,7 +2,7 @@
 const craftingGoalOptions = (() => {
     function keptStats(item, recipe) {
         if (recipe.kind === 'add') return item.stats || [];
-        return (item.stats || []).filter(stat => stat.lockedByHoney || stat.lockedByRift || stat.unremovable || stat.encroachedFinal);
+        return (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat) || stat.unremovable || stat.encroachedFinal);
     }
 
     function rollPool(item, recipe, mode) {

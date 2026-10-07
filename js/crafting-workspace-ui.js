@@ -65,7 +65,7 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceFossilSlotReason(key=recipe.key) {
         const item=selected();if(!item)return '아이템을 선택하세요.';
-        const candidate={...item,stats:item.stats.filter(stat=>stat.lockedByHoney||stat.lockedByRift),chaosInfusion:null};
+        const candidate={...item,stats:item.stats.filter(stat=>equipmentCrafting.keptOnReroll(item,stat)),chaosInfusion:null};
         if(key==='fossilRift')return '';
         if(key==='fossilOld')return getFossilExclusivePool(candidate).length?'':'화석 전용 옵션을 부여할 수 없습니다.';
         const allowed=getFossilGuaranteedPool(item,FOSSIL_DB.find(row=>row.key===key)).length>0;
@@ -108,7 +108,8 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceAffixNotes(stat,prior,changed,hit,quality) {
-        return [stat.lockedByHoney?'벌꿀 고정':'',stat.lockedByRift?'균열 고정':'',
+        const kept=!stat.lockedByHoney&&!stat.lockedByRift&&equipmentCrafting.keptOnReroll(selected(),stat);
+        return [stat.lockedByHoney?'벌꿀 고정':'',stat.lockedByRift?'균열 고정':'',kept?'다음 재굴림 보존':'',
             changed&&prior?`이전 +${workspaceAffixValue(prior,prior.val)}`:'',hit?'목표 일치':'',
             quality==='is-max-tier'?'최고 티어':''].filter(Boolean)
             .map(note=>note==='목표 일치'?'<strong class="cl-goal-match">목표 일치</strong>':esc(note)).join(' · ');

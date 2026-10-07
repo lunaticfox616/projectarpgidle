@@ -910,6 +910,15 @@ async function marketAnnulSelectedStat(statIdx) {
     updateStaticUI();
 }
 
+/** Why the keep service cannot run now ('' when it can): build lock, market, the item (equipmentCrafting.getAffixKeepReason), gold. */
+function getAffixKeepServiceReason(item, kind) {
+    if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.';
+    if (!isMarketUnlocked()) return '장비 제련을 해금하면 거래소를 이용할 수 있습니다.';
+    const reason = equipmentCrafting.getAffixKeepReason(item, kind);
+    if (reason) return reason;
+    return (game.currencies.goldenRule || 0) < AFFIX_KEEP_RULES.cost ? `황금률이 부족합니다. (필요: ${AFFIX_KEEP_RULES.cost})` : '';
+}
+
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;

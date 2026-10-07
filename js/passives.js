@@ -9203,8 +9203,9 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
-    let locked = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
+    let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
     item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
+    delete item.affixKeep;
     // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     let count = 0;
@@ -10763,7 +10764,7 @@ async function useCurrency(currencyKey) {
         if (sporeMode === 'none') return null;
         let rerollItem = allowReplacement ? {
             ...item,
-            stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift))
+            stats: (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat))
         } : item;
         // 결과 희귀도의 한도로 센다: 새싹(변환, 변경)은 마법 1과 1, 나머지는 희귀 3과 3.
         let source = getOpenAffixMods(rerollItem, ['transmute', 'alteration'].includes(actionKey) ? 'magic' : 'rare');
@@ -10875,6 +10876,7 @@ async function useCurrency(currencyKey) {
     } else if (actionKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;
+        delete item.affixKeep;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (actionKey === 'tainted') {

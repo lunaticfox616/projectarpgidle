@@ -6494,7 +6494,9 @@ function itemExplicitAffixHeaderHtml(item, count) {
     const header = equipmentCrafting.affixHeader(item.rarity, count, used);
     const style = header.over ? ' style="color:#ffb454;"' : '';
     const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
-    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}`;
+    const kept = equipmentCrafting.keptKind(item);
+    const keep = kept ? `<div class="tooltip-line" style="color:#9fd6ff;">다음 재굴림에서 ${AFFIX_KEEP_RULES.labels[kept]} 보존</div>` : '';
+    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}${keep}`;
 }
 
 function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
