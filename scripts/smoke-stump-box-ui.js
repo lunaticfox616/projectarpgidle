@@ -95,7 +95,8 @@ run("stumpClick({ stumpAction: 'item', item: String(spare) })");
 assert.match(part('stump-box-detail'), /판에서 자라는 1개가 모두 \+100 자랍니다\./, 'a stored seed says what compost does');
 assert.match(part('stump-box-detail'), /data-stump-action="compost">거름으로 쓰기/, 'and offers the button');
 run('stumpBox.itemById(game, amberSap).xp = stumpBox.need(stumpBox.itemById(game, amberSap)) - 50;');
-run("stumpClick({ stumpAction: 'compost' })");
+// 다 자랄 때의 굴림(16번)은 0.5로 고정해 추가 줄 없이 자라게 한다(굴림의 알림은 smoke-stump-box-feedback.js).
+run("window.realRandom = Math.random; Math.random = () => 0.5; stumpClick({ stumpAction: 'compost' }); Math.random = realRandom;");
 assert.equal(run('stumpBox.itemById(game, spare)'), null, 'compost uses the seed up');
 assert.equal(run('stumpBox.isMature(stumpBox.itemById(game, amberSap))'), true, 'and the sap ripens');
 assert.deepEqual(json('toasts.slice(-2)'), ['거름: 카오스 씨앗, 판에서 자라는 1개 +100', '그루터기 함: 번개 호박석 다 자람, 번개 저항 +5%'],

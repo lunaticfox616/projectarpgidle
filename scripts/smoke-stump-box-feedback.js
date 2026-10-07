@@ -17,7 +17,8 @@ run(`game = mergeDefaults({ journalEntries: ['prologue', 'act_10'] }); window.ga
     Math.random = () => 0.999;`);
 run('stumpBox.onEnemyKilled(game, { isBoss: true });');
 assert.equal(run('stumpBox.isMature(sap)'), true, 'a boss kill finishes the sap');
-assert.deepEqual(json('toasts'), ['그루터기 함: 냉기 호박석 다 자람, 냉기 저항 +5%'], 'ripening from a kill shows a toast with what it gives');
+// 16번(2026-10-08): 알림 끝에 다 자랄 때의 굴림(0.999면 추가 줄 셋, 만개)을 붙인다.
+assert.deepEqual(json('toasts'), ['그루터기 함: 냉기 호박석 다 자람, 냉기 저항 +5% (만개, 추가 줄 3개)'], 'ripening from a kill shows a toast with what it gives and its roll');
 assert.deepEqual(json('sounds'), ['success'], 'and chimes');
 assert.match(json('logs').at(-1), /냉기 호박석 다 자람/, 'the log line stays');
 
