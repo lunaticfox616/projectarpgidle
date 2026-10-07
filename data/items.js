@@ -52,12 +52,18 @@ const SOCKETED_ACCESSORY_DROP_CHANCE = 0.05;
 // 콘텐츠 전용 · 계 전용 베이스(dropOnly, realmBase)는 창을 쓰지 않고, 20단계 이상만 contentTop(예전 그대로).
 const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, chainTop: 0.25, contentTop: 0.04 });
 
+// 추가 옵션 종류 한도(2026-10-07 드랍 풀 2단계, js/equipment-crafting.js affixRoom): 마법은 접두 1과 접미 1, 희귀는 접두 3과 접미 3.
+// 줄 수(마법 1~2, 희귀 4~5, 제작 상한 6)는 그대로다. 잿불가지의 옵션 추가만 한도를 넘는다(지도석 타락과 같다).
+const EXPLICIT_AFFIX_RULES = Object.freeze({ magic: Object.freeze({ prefix: 1, suffix: 1 }), rare: Object.freeze({ prefix: 3, suffix: 3 }) });
+// 추가 옵션 줄 상한(혼돈 주입, 화석 전용 줄, 균열 표식 포함). 잿불가지의 옵션 추가만 넘는다.
+const EXPLICIT_AFFIX_LINE_CAP = 6;
+
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
     LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, BASIC_CURRENCY_DROP_CHANCES,
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, EXPLICIT_AFFIX_RULES, EXPLICIT_AFFIX_LINE_CAP, BASIC_CURRENCY_DROP_CHANCES,
     ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');

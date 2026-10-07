@@ -152,6 +152,11 @@ function snapStatMarks(st) {
     };
     return Object.fromEntries(Object.entries(marks).filter(([, value]) => value));
 }
+/** 추가 옵션 한 줄의 종류(접두, 접미; 2026-10-07)를 프로필 머리말 "접두 2/3, 접미 3/3"에 쓰려고 남긴다. 그 밖의 줄은 남기지 않는다. */
+function snapAffixKind(item, st) {
+    const kind = typeof equipmentCrafting === 'object' ? equipmentCrafting.storedAffixKind(item, st) : 'special';
+    return kind === 'prefix' || kind === 'suffix' ? { kind } : {};
+}
 /** A weapon's category (대검, 곡도 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). */
 function profileItemCategory(item, slot) {
     return slot === '무기' && typeof getWeaponCategoryName === 'function' ? getWeaponCategoryName(item) || undefined : undefined;
@@ -175,7 +180,7 @@ function buildItemSnapshot(item, slotOverride) {
         stats: (item.stats || []).slice(0, 8).map(st => {
             let o = snapStat(st);
             if (Array.isArray(st.extraStats)) o.extraStats = st.extraStats.slice(0, 4).map(snapStat);
-            return o;
+            return Object.assign(o, snapAffixKind(item, st));
         })
     };
     if (item.hallReplica) {
@@ -191,7 +196,7 @@ function buildItemSnapshot(item, slotOverride) {
         snap.fusionGrade = item.fusionGrade || '';
         snap.fusedRareName = item.fusedRareName || '';
     }
-    if (item.chaosInfusion) snap.chaosInfusion = snapStat(item.chaosInfusion);
+    if (item.chaosInfusion) snap.chaosInfusion = Object.assign(snapStat(item.chaosInfusion), snapAffixKind(item, item.chaosInfusion));
     if (item.encroached) {
         snap.encroached = {
             liberated: !!item.encroached.liberated,
@@ -1230,9 +1235,16 @@ function profileItemFusionHtml(item) {
 function profileItemOptionsHtml(item) {
     let explicit = profileExplicitStats(item);
     let html = explicit.length
-        ? `<div class="social-item-section">추가 옵션 (${explicit.length}/6)</div>${explicit.map(profileExplicitLineHtml).join('')}`
+        ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
         : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
     return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item);
+}
+
+/** 게임 툴팁과 같은 머리말. 줄 종류가 남은 스냅샷(2026-10-07 뒤)만 "접두 2/3, 접미 3/3"을 붙이고, 예전 프로필은 "(5/6)". */
+function profileAffixHeaderText(item, explicit) {
+    const kinds = explicit.map(st => st.kind).filter(Boolean);
+    const used = kinds.length ? { prefix: kinds.filter(kind => kind === 'prefix').length, suffix: kinds.filter(kind => kind === 'suffix').length } : null;
+    return typeof equipmentCrafting === 'object' ? equipmentCrafting.affixHeader(item.rarity, explicit.length, used).text : `추가 옵션 (${explicit.length}/6)`;
 }
 
 function profileExplicitStats(item) {

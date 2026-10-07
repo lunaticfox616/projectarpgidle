@@ -8,9 +8,10 @@ const craftingGoalOptions = (() => {
     function rollPool(item, recipe, mode) {
         const kept = keptStats(item, recipe);
         const occupied = kept.length + (item.chaosInfusion ? 1 : 0);
-        const cap = recipe.key === 'magicBud' ? 2 : 6;
+        const magic = recipe.key === 'magicBud', cap = magic ? EXPLICIT_AFFIX_RULES.magic.prefix + EXPLICIT_AFFIX_RULES.magic.suffix : EXPLICIT_AFFIX_LINE_CAP;
         if (occupied >= cap) return [];
-        let pool = getAvailableMods({ ...item, stats: kept });
+        // Prefix 3 and suffix 3 (magic 1 and 1): only kinds with room after the kept lines can appear.
+        let pool = getOpenAffixMods({ ...item, stats: kept }, magic ? 'magic' : 'rare');
         // Rerolls fill at most 2 (magic) / 5 (rare) lines. A guaranteed line can replace the last random one.
         const maxRolled = Math.max(kept.length, cap === 2 ? 2 : 5) - occupied;
         if (recipe.kind === 'reroll' && maxRolled <= 0 && mode === 'none') return [];
@@ -29,7 +30,7 @@ const craftingGoalOptions = (() => {
 
     function fossilPool(item,recipe,pool,maxRolled) {
         if(equipmentCrafting.getFossilBlockReason(item,recipe.key))return [];
-        if(recipe.key==='fossilRift')return 6-keptStats(item,recipe).filter(stat=>stat.id!=='fossilRiftBlank').length-(item.chaosInfusion?1:0)>2?pool:[];
+        if(recipe.key==='fossilRift')return EXPLICIT_AFFIX_LINE_CAP-keptStats(item,recipe).filter(stat=>stat.id!=='fossilRiftBlank').length-(item.chaosInfusion?1:0)>2?pool:[];
         const candidate={...item,stats:keptStats(item,recipe),chaosInfusion:null};
         const guaranteed=recipe.key==='fossilOld'
             ? getFossilExclusivePool(candidate).map(mod=>({...mod,fixedValue:true}))

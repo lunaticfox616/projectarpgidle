@@ -6488,6 +6488,16 @@ function getItemAffixTierHtml(stat) {
  * Renders complete equipment details, either in the hover tooltip or an inline comparison column.
  * @param {{token?: string, target?: HTMLElement}} options Inline targets do not change hover state.
  */
+/** 추가 옵션 머리말: 마법과 희귀는 "추가 옵션 5/6 (접두 2/3, 접미 3/3)"(2026-10-07 접두 3, 접미 3). 예전 규칙으로 한도를 넘은
+ * 장비는 머리말을 경고색으로, 아래에 한 줄 안내. */
+function itemExplicitAffixHeaderHtml(item, count) {
+    const used = EXPLICIT_AFFIX_RULES[item.rarity] ? equipmentCrafting.affixCounts(item) : null;
+    const header = equipmentCrafting.affixHeader(item.rarity, count, used);
+    const style = header.over ? ' style="color:#ffb454;"' : '';
+    const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
+    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}`;
+}
+
 function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
@@ -6553,7 +6563,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
     if (explicitStats.length > 0) {
         explicitStats.sort(itemTooltipRules.compareStats);
-        html += `<div class="tooltip-line tooltip-section tooltip-section-explicit">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += itemExplicitAffixHeaderHtml(item, explicitStats.length);
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = getItemAffixTierHtml(stat);
@@ -9851,14 +9861,14 @@ function getCraftOrbUseState(key, item) {
     else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
     else if (actionKey === 'alteration') ok = item.rarity === 'magic';
     else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
+    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
     else if (actionKey === 'chaos') ok = item.rarity === 'rare';
     else if (actionKey === 'divine') ok = item.rarity !== 'normal';
     else if (actionKey === 'chance') ok = item.rarity === 'normal';
     else if (actionKey === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
     else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    else if (actionKey === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
     else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };

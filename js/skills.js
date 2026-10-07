@@ -550,14 +550,17 @@ function getFossilExclusivePool(item) {
 }
 
 // Shared by crafting and its preview; preserve the armor exception and immutable options.
+// The guaranteed line takes a kind with room once the locked lines and a kept chaos infusion are counted (prefix 3, suffix 3).
 function getFossilGuaranteedPool(item, fossil) {
     const immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
     const candidate = { ...item, stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift)), chaosInfusion: null };
+    const room = equipmentCrafting.affixRoom({ ...candidate, chaosInfusion: item.chaosInfusion || null }, 'rare');
     const pool = getAvailableMods(candidate).filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id));
     if (fossil.key === 'fossilBulwark' && pool.length === 0 && ['투구', '갑옷', '장갑', '신발', '방패'].includes(item.slot)) {
-        return MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+        return MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id))
+            .filter(mod => equipmentCrafting.fitsRoom(room, mod));
     }
-    return pool;
+    return pool.filter(mod => equipmentCrafting.fitsRoom(room, mod));
 }
 
 function applyFossilChaosCraft(fossilKey) {
@@ -588,7 +591,7 @@ function applyFossilChaosCraft(fossilKey) {
     if (guaranteed) {
         let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
         guaranteedRoll.craftSource = 'fossil';
-        if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
+        if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < EXPLICIT_AFFIX_LINE_CAP) {
             newStats.push(guaranteedRoll);
             blockedIds.add(guaranteedRoll.id);
         }
@@ -600,8 +603,8 @@ function applyFossilChaosCraft(fossilKey) {
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
-    while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
-        let pool = getAvailableMods({ ...item, stats: newStats, chaosInfusion: previousChaosInfusion })
+    while ((newStats.length + reservedInfusionCount) < Math.min(EXPLICIT_AFFIX_LINE_CAP, Math.max(count, lockedStats.length + 1))) {
+        let pool = getOpenAffixMods({ ...item, stats: newStats, chaosInfusion: previousChaosInfusion }, 'rare')
             .filter(mod => !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
         // 화석이 보정하는 보장 옵션만 고티어 보정을 받고, 나머지 옵션은 일반 티어 분포(1티어부터)로 굴린다.
@@ -615,7 +618,7 @@ function applyFossilChaosCraft(fossilKey) {
         let markerIds = new Set(['fossilRiftBlank', 'fossilRiftAmp']);
         newStats = newStats.filter(stat => !(stat && markerIds.has(stat.id)));
         let ensureMarker = (marker) => {
-            if ((newStats.length + reservedInfusionCount) < 6) { newStats.push(marker); return; }
+            if ((newStats.length + reservedInfusionCount) < EXPLICIT_AFFIX_LINE_CAP) { newStats.push(marker); return; }
             let replaceIdx = -1;
             for (let i = newStats.length - 1; i >= 0; i--) {
                 let st = newStats[i];

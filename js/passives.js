@@ -3473,6 +3473,37 @@ function getSeaGiftRerollRows(item, category) {
     }).filter(Boolean);
 }
 
+/** 확정 부여(최상급 태그 포함): 새 줄은 바뀔 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서. Returns '' when applied, else why not
+ * (craftSeaGift logs it). */
+function applySeaGiftGuaranteedMod(item, effect, category) {
+    const editable = (item.stats || []).map((stat, index) => ({ stat, index }))
+        .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
+    if (effect.bonusRemoveMod && editable.length < 2) return '최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.';
+    const pool = getAvailableMods(item).filter(mod => effect.type !== 'guaranteedTaggedMod' || !category || getModCategory(mod) === category);
+    const choice = chooseSeaGiftGuaranteedLine(item, pool, editable);
+    if (!choice) return '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.';
+    const maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
+    const rolled = rollAffixValue(choice.mod, maxTier);
+    if (choice.index < 0) item.stats.push(rolled); else item.stats[choice.index] = rolled;
+    if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, choice.index);
+    updateItemName(item);
+    return '';
+}
+/** 바뀔 줄은 같은 종류의 가장 낮은 단계 줄(예전에는 첫 줄). 봉인 안 된 줄이 없으면 자리가 남는 종류로 덧붙인다(index -1). */
+function chooseSeaGiftGuaranteedLine(item, pool, editable) {
+    if (editable.length > 0) return equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest');
+    const mod = pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(equipmentCrafting.affixRoom(item), row)));
+    return mod ? { mod, index: -1 } : null;
+}
+
+/** 메아리 줄은 원본과 같은 종류다. 그 종류에 자리가 없으면 같은 종류의 줄만 바꿔 끼울 수 있다. */
+function getSeaGiftEchoTargets(item, editableIdx, srcIdx) {
+    const kind = equipmentCrafting.storedAffixKind(item, item.stats[srcIdx]), room = equipmentCrafting.affixRoom(item);
+    const others = editableIdx.filter(index => index !== srcIdx);
+    if (!room || kind === 'special' || room[kind] > 0) return others;
+    return others.filter(index => equipmentCrafting.storedAffixKind(item, item.stats[index]) === kind);
+}
+
 function removeWorstSeaGiftMod(item, excludedIndex) {
     let candidates = (item.stats || []).map((stat, index) => ({ stat, index }))
         .filter(row => row.index !== excludedIndex && row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift)
@@ -3495,7 +3526,9 @@ const applySeaGiftLockEffect = function (item, effect, category) {
     }
     let rerollMod = null;
     if (effect.bonusTaggedReroll) {
-        let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
+        // 재단되는 줄은 봉인하고 남은 첫 줄(editable[count]). 새 줄은 그 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서.
+        const room = equipmentCrafting.affixRoom(item, item.rarity, editable[count]);
+        let pool = getAvailableMods(item).filter(mod => (!category || getModCategory(mod) === category) && equipmentCrafting.fitsRoom(room, mod));
         rerollMod = pickRandomMods(pool, 1)[0];
         if (!rerollMod) { addLog('해당 계열로 재단할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
     }
@@ -3526,22 +3559,8 @@ function craftSeaGift(recipeId, targetItem, options) {
     let item = status.item;
     let category = options && options.category;
     if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
-        let pool = getAvailableMods(item);
-        if (effect.type === 'guaranteedTaggedMod' && category) pool = pool.filter(mod => getModCategory(mod) === category);
-        let mod = pickWeightedMod(pool);
-        if (!mod) { addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        let editable = (item.stats || []).map((stat, index) => ({ stat, index }))
-            .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
-        if (effect.bonusRemoveMod && editable.length < 2) {
-            addLog('최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster');
-            return false;
-        }
-        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
-        let idx = editable.length > 0 ? editable[0].index : -1;
-        let rolled = rollAffixValue(mod, maxTier);
-        if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
-        if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, idx);
-        updateItemName(item);
+        const refusal = applySeaGiftGuaranteedMod(item, effect, category);
+        if (refusal) { addLog(refusal, 'attack-monster'); return false; }
     } else if (effect.type === 'removeMod') {
         if (!removeOneModFromItem(item)) { addLog('제거할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         updateItemName(item);
@@ -3612,7 +3631,8 @@ function craftSeaGift(recipeId, targetItem, options) {
         let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
         let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
         let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
-        let targetPool = editableIdx.filter(i => i !== srcIdx);
+        let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
+        if (targetPool.length === 0) { addLog('메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).', 'attack-monster'); return false; }
         let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
         let src = item.stats[srcIdx];
         let echo = JSON.parse(JSON.stringify(src));
@@ -3628,10 +3648,9 @@ function craftSeaGift(recipeId, targetItem, options) {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
         if (editableIdx.length === 0) { addLog('변환할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
-        let mod = pickWeightedMod(pool);
-        if (!mod) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
-        item.stats[idx] = rollAffixValue(mod, getItemCraftTier(item));
+        let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
+        if (!choice) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+        item.stats[choice.index] = rollAffixValue(choice.mod, getItemCraftTier(item));
         updateItemName(item);
     }
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
@@ -3650,12 +3669,11 @@ function rerollSingleBaseOption(item, costCurrency, costAmount) {
     if ((game.currencies[key] || 0) < cost) { addLog('재화가 부족합니다.', 'attack-monster'); return false; }
     let editableIdx = item.stats.map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
     if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-    let mods = pickRandomMods(getAvailableMods(item), 1);
-    if (!mods || mods.length === 0) { addLog('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-    let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
+    let choice = equipmentCrafting.pickReplacement(item, getAvailableMods(item), editableIdx, mods => pickRandomMods(mods, 1)[0]);
+    if (!choice) { addLog('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
     let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
     game.currencies[key] = (game.currencies[key] || 0) - cost;
-    item.stats[idx] = rollAffixValue(mods[0], maxTier, { roundInteger: true });
+    item.stats[choice.index] = rollAffixValue(choice.mod, maxTier, { roundInteger: true });
     updateItemName(item);
     addLog(`🌊 ${item.name || '장비'}의 베이스 옵션 한 줄을 다시 굴렸습니다.`, 'loot-rare');
     return true;
@@ -9086,6 +9104,12 @@ function getAvailableMods(item) {
     }).map(mod => weighModForWeaponCategory(makeDualDefenseAffixMod(item, mod), weaponCategory));
 }
 
+/** getAvailableMods 가운데 종류 자리가 남은 줄만(접두 3, 접미 3; data/items.js EXPLICIT_AFFIX_RULES). */
+function getOpenAffixMods(item, rarity = item.rarity) {
+    const room = equipmentCrafting.affixRoom(item, rarity);
+    return getAvailableMods(item).filter(mod => equipmentCrafting.fitsRoom(room, mod));
+}
+
 function updateItemName(item) {
     if (!item) return;
     if (item.rarity === 'normal') item.name = item.baseName;
@@ -9113,18 +9137,18 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
-    let reservedInfusionCount = previousInfusion ? 1 : 0;
     let locked = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
-    item.stats = locked.slice();
+    item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
+    // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
+    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
-    count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
-    let mods = pickRandomMods(getAvailableMods(item), count);
+    count = Math.max(0, count - getItemExplicitOptionCount(item));
+    let mods = pickRandomMods(getAvailableMods(item), count, equipmentCrafting.affixRoom(item, rarity));
     mods.forEach(mod => item.stats.push(minTier > 1 || hasTierWeightOverride
         ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
         : rollAffixValue(mod, maxTier)));
-    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
 }
 
@@ -9160,7 +9184,14 @@ CHAOS_INFUSER_OPTIONS.forEach(option => {
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
-    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
+    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)))
+        .filter(opt => !item || chaosInfusionFitsAffixRoom(item, opt));
+}
+/** 주입 줄도 접두 3, 접미 3 가운데 제 종류 자리를 쓴다. 이미 있는 주입은 바꿔 끼우므로 빼고 센다. */
+function chaosInfusionFitsAffixRoom(item, option) {
+    const room = equipmentCrafting.affixRoom(item, 'rare', item.chaosInfusion || null);
+    return !room || equipmentCrafting.storedAffixKind(item, { id: option.id }) === 'special'
+        || room[equipmentCrafting.storedAffixKind(item, { id: option.id })] > 0;
 }
 function isChaosInfusionEligibleItem(item) {
     if (!item) return { ok: false, reason: '아이템 미선택' };
@@ -9169,8 +9200,8 @@ function isChaosInfusionEligibleItem(item) {
     if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: '일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.' };
     if (item.rarity !== 'rare') return { ok: false, reason: '희귀 장비에만 혼돈 주입을 할 수 있습니다.' };
     let explicitCount = getItemExplicitOptionCount(item);
-    if (!item.chaosInfusion && explicitCount >= 6) return { ok: false, reason: '추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.' };
-    if (item.chaosInfusion && explicitCount > 6) return { ok: false, reason: '추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.' };
+    if (!item.chaosInfusion && explicitCount >= EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: '추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.' };
+    if (item.chaosInfusion && explicitCount > EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: '추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.' };
     return { ok: true, reason: '사용 가능' };
 }
 function rollChaosInfusionOption(option) {
@@ -9275,7 +9306,16 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
 function getVenomStingerRefusal(item) {
     if (item.slot !== '무기') return '독벌침은 무기에만 사용할 수 있습니다.';
     const replaces = (Array.isArray(item.stats) ? item.stats : []).some(stat => stat && stat.venomStingerBonus);
-    return !replaces && getItemExplicitOptionCount(item) >= 6 ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
+    return !replaces && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
+}
+const VENOM_STINGER_STAT_IDS = Object.freeze(['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech',
+    'minDmgRoll', 'maxDmgRoll', 'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']);
+/** 독벌침이 굴릴 무기 공격 줄: 없는 능력치이면서, 이미 붙은 독벌침 줄을 뺀 접두 3, 접미 3 자리가 남는 종류. */
+function getVenomStingerMods(item) {
+    const occupiedIds = getItemOccupiedExplicitModIds(item);
+    const room = equipmentCrafting.affixRoom(item, item.rarity, (item.stats || []).find(stat => stat && stat.venomStingerBonus) || null);
+    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id)
+        && !occupiedIds.has(mod.statId || mod.id) && equipmentCrafting.fitsRoom(room, mod));
 }
 
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -9286,9 +9326,8 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
     const refusal = getVenomStingerRefusal(item);
     if (refusal) return addLog(refusal, 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    let occupiedIds = getItemOccupiedExplicitModIds(item);
-    let attackMods = MOD_DB.filter(mod => mod.slots.includes('무기') && ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll', 'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg'].includes(mod.statId || mod.id) && !occupiedIds.has(mod.statId || mod.id));
-    if (attackMods.length <= 0) return;
+    let attackMods = getVenomStingerMods(item);
+    if (attackMods.length <= 0) return addLog('독벌침이 붙일 수 있는 공격 옵션 자리가 없습니다(접두 3, 접미 3).', 'attack-monster');
     let mod = pickWeightedMod(attackMods);
     let rolled = rollAffixValue(mod, getItemCraftTier(item));
     let idx = item.stats.findIndex(stat => stat && stat.venomStingerBonus);
@@ -9382,14 +9421,18 @@ function pickWeightedMod(mods) {
     return mods[mods.length - 1];
 }
 
-function pickRandomMods(mods, count) {
+/** room({prefix, suffix} 남은 자리, null이면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다. */
+function pickRandomMods(mods, count, room = null) {
     let pool = Array.isArray(mods) ? mods.slice() : [];
+    const left = room && { ...room };
     let picks = [];
     let wanted = Math.max(0, Math.floor(count || 0));
-    while (pool.length > 0 && picks.length < wanted) {
+    while (picks.length < wanted) {
+        if (left) pool = pool.filter(mod => equipmentCrafting.fitsRoom(left, mod));
         let picked = pickWeightedMod(pool);
         if (!picked) break;
         picks.push(picked);
+        if (left && equipmentCrafting.affixKind(picked) !== 'special') left[equipmentCrafting.affixKind(picked)]--;
         const occupied = new Set(getExplicitModStatIds(picked));
         pool = pool.filter(mod => !getExplicitModStatIds(mod).some(id => occupied.has(id)));
     }
@@ -9501,7 +9544,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
         : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
     if (!pool || pool.length <= 0) return item;
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length >= 6) item.stats.pop();
+    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) item.stats.pop();
     let tierRange = getDroppedAffixTierRange(zoneTier);
     let roll = rollAffixValueInTierRange(
         pickWeightedMod(pool), tierRange.min, tierRange.max, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
@@ -10418,7 +10461,7 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
     if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length >= 6) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
+    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
     let pool = typeof getFossilExclusivePool === 'function' ? getFossilExclusivePool(item) : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
     if (!pool || pool.length <= 0) return addLog('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.', 'attack-monster');
     game.currencies.fossil--;
@@ -10550,8 +10593,10 @@ function rerollTaintedLine(item) {
     const { stat, index } = rndChoice(getTaintedRerollLines(item));
     const name = stat.statName || getStatName(stat.id);
     item.stats.splice(index, 1);
-    const mod = pickWeightedMod(getAvailableMods(item).filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(getAvailableMods(item));
-    item.stats.splice(index, 0, rollAffixValue(mod, getItemCraftTier(item)));
+    // 새 줄은 빠진 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서(옵션 추가만 한도를 넘는다). 고를 줄이 없으면 원래 줄이 남는다.
+    const open = getOpenAffixMods(item);
+    const mod = pickWeightedMod(open.filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(open);
+    item.stats.splice(index, 0, mod ? rollAffixValue(mod, getItemCraftTier(item)) : stat);
     updateItemName(item);
     return `${name} 옵션이 ${item.stats[index].statName || getStatName(item.stats[index].id)} 옵션으로 바뀌었습니다.`;
 }
@@ -10596,7 +10641,7 @@ async function useCurrency(currencyKey) {
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률·잿불가지·축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
 
-    let explicitCap = 6;
+    let explicitCap = EXPLICIT_AFFIX_LINE_CAP;
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
     else if (actionKey === 'alteration') ok = item.rarity === 'magic';
@@ -10607,7 +10652,7 @@ async function useCurrency(currencyKey) {
     else if (actionKey === 'divine') ok = item.rarity !== 'normal';
     else if (actionKey === 'chance') ok = item.rarity === 'normal';
     else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (actionKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
@@ -10655,7 +10700,8 @@ async function useCurrency(currencyKey) {
             ...item,
             stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift))
         } : item;
-        let source = getAvailableMods(rerollItem);
+        // 결과 희귀도의 한도로 센다: 새싹(변환, 변경)은 마법 1과 1, 나머지는 희귀 3과 3.
+        let source = getOpenAffixMods(rerollItem, ['transmute', 'alteration'].includes(actionKey) ? 'magic' : 'rare');
         let avail = equipmentCrafting.filterSporeMods(source, sporeMode);
         return pickWeightedMod(avail);
     }
@@ -10665,21 +10711,9 @@ async function useCurrency(currencyKey) {
         // 계열을 보장하되 최상위 두 티어를 확정하지 않는다. 정의된 홀씨 티어 범위 전체에서 굴린다.
         return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
     }
-    function applyGuaranteedToNonLocked(modOverride) {
-        let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
-        if (!modToApply || !Array.isArray(item.stats) || item.stats.length <= 0) return;
-        let statId = modToApply.statId || modToApply.id;
-        let existingIdx = item.stats.findIndex(stat => stat && stat.id === statId);
-        if (existingIdx >= 0) {
-            item.stats[existingIdx] = rollSporeGuaranteedValue(modToApply);
-            return;
-        }
-        let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
-        if (idx < 0) {
-            item.stats.push(rollSporeGuaranteedValue(modToApply));
-            return;
-        }
-        item.stats[idx] = rollSporeGuaranteedValue(modToApply);
+    function sporeReroll(extra) {
+        let guaranteedStat = sporeMode !== 'none' && usesSporeAffix ? rollSporeGuaranteedValue(guaranteedMod) : null;
+        return { ...extra, guaranteedStat };
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
@@ -10702,7 +10736,7 @@ async function useCurrency(currencyKey) {
     }
     let exaltedMod = null;
     if (actionKey === 'exalted') {
-        exaltedMod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
+        exaltedMod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item));
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
     }
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
@@ -10716,34 +10750,22 @@ async function useCurrency(currencyKey) {
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
     } else if (actionKey === 'transmute') {
         item.rarity = 'magic';
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
     } else if (actionKey === 'alteration') {
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
     } else if (actionKey === 'alchemy') {
         item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
     } else if (actionKey === 'exalted') {
         item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (actionKey === 'regal') {
-        let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
+        let mod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item, 'rare'));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         item.rarity = 'rare';
         updateItemName(item);
     } else if (actionKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
     } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
