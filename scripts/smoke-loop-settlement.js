@@ -20,6 +20,9 @@ assert.strictEqual(vm.runInContext('isTutorialPresentationBlocked()', context), 
 let summary = vm.runInContext('loopSettlementUi.summaryHtml()', context);
 assert(summary.includes('63') && summary.includes('456') && summary.includes('1시간 0분'));
 assert(summary.includes(`해금 포인트 +${context.CONTENT_UNLOCK_POINTS_PER_LOOP}`) && summary.includes('직접 선택'), 'settlement must show the actual unlock point award');
+// 루프 설명(2026-10-07): 정산 카드가 처음부터 하는 것과 남는 것을 말한다. 첫 루프는 펼쳐 두고 그 뒤로는 접는다.
+assert(summary.includes('<details class="loop-settlement-explain" open><summary>루프를 넘기면</summary>') && summary.includes('처음부터:') && summary.includes('남는 것:'));
+assert(vm.runInContext('loopSettlementUi.explainHtml(3)', context).startsWith('<details class="loop-settlement-explain"><summary>'), 'later loops keep it folded');
 vm.runInContext('handleSeasonLoopConditionMet()', context);
 assert.deepStrictEqual(state(), first, 'a duplicate completion must not grant or clear progress twice');
 vm.runInContext(`game.season = 10; game.abyssEndlessDepth = 20;

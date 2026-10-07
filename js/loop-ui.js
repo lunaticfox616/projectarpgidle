@@ -6,7 +6,7 @@ const loopSettlementUi = {
         const points = contentProgression.points();
         if (points.complete) return '전체 해금 완료';
         if (!points.nextAward) return '남은 해금에 필요한 포인트를 모두 모았습니다.';
-        return `해금 포인트 +${points.nextAward} · 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
+        return `해금 포인트 +${points.nextAward}. 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
     },
     summaryHtml() {
         const loop = game.season || 1;
@@ -17,7 +17,14 @@ const loopSettlementUi = {
         return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
             <h2>루프 ${loop} 달성</h2>
             <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>
-            <section class="loop-settlement-next"><h3>다음 루프 · ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+            <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+    },
+    /** 루프가 무엇인지(2026-10-07 사용자: 루프 정산 카드와 함께): 처음부터 다시 하는 것과 남는 것. 첫 루프는 펼친다. */
+    explainHtml(loop) {
+        return `<details class="loop-settlement-explain"${loop <= 1 ? ' open' : ''}><summary>루프를 넘기면</summary><ul>
+            <li>처음부터: 레벨, 액트 진행, 장비와 가방, 재화, 스킬 젬, 스킬트리, 전직</li>
+            <li>남는 것: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
+            <li>해금 포인트와 루프 포인트로 더 강해진 채 다시 오릅니다.</li></ul></details>`;
     },
     /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew. */
     resetButtonAttr(ready) {
