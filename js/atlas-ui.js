@@ -26,7 +26,7 @@ const atlasUi = (() => {
     }
     function setView(next) {
         const keyboard = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#ui-atlas') : null;
-        view = ['passives', 'epoch', 'late'].includes(next) ? next : 'maps';
+        view = ['passives', 'epoch', 'late', 'memory'].includes(next) ? next : 'maps';
         refresh();
         // The panel is rebuilt: a tab pressed from inside it keeps the focus on the (new) pressed tab.
         if (keyboard) document.querySelector('#ui-atlas .atlas-view.is-on')?.focus();
@@ -142,7 +142,7 @@ const atlasUi = (() => {
         atlasChartArt.paint(canvas, Math.max(120, Math.round(box.clientWidth / 2)), chartModel());
     }
     /** The dot drawings of the current view: the chart, the passive wheels (the epoch and late views have none). */
-    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {} };
+    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {} };
     /** Drawings follow the panel's width: repaint the current view whenever the panel resizes. */
     function watchPanel(panel) {
         if (panelObserver || typeof ResizeObserver !== 'function') return;
@@ -297,7 +297,7 @@ const atlasUi = (() => {
         const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.available(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length} · 씨앗 ${st.seeds}/${ATLAS.seeds.max} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('epoch', '시대')}</nav>
+            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('memory', `기억${memoryDungeon.total(game) ? ` ${memoryDungeon.total(game)}` : ''}`)}${tab('epoch', '시대')}</nav>
             <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
@@ -305,7 +305,8 @@ const atlasUi = (() => {
         return `<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
-    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html() };
+    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html(),
+        memory: () => memoryDungeonUi.html() };
     function render() {
         atlasEndgameUi.noticeAwakened(); // every static refresh, panel open or not (the card follows the state)
         const panel = document.getElementById('ui-atlas');

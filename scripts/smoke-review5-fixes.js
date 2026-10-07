@@ -38,14 +38,15 @@ const slashCard = run(`renderAttackGemCard('연속 베기', '연속 베기', get
 assert.ok(slashCard.includes('Lv.') && slashCard.includes('gem-usage-state') && slashCard.includes('continuous-slash'), 'the tile keeps its portrait, level and one line');
 assert.ok(!slashCard.includes('45%') && !slashCard.includes('gem-card-tags'), 'the description and tags moved off the tile into the detail');
 
-// 앞날의 루프 중 같은 예고만 잇는 루프는 한 줄로 묶는다(해금이 열리는 루프와 현재 루프는 따로).
+// 앞날의 루프 중 같은 예고만 잇는 루프는 한 줄로 묶는다(해금이 열리는 루프와 현재 루프는 따로). 2026-10-08: 루프 21에 기억 던전이 열려
+// 예시를 혼돈 단계 상승만 있는 46~49로 옮겼다.
 const runs = copy(`(() => {
-    game.season = 20;
-    return contentUnlockUi.milestoneRuns([20, 21, 22, 23, 24]).map(run => [run.start, run.end]);
+    game.season = 45;
+    return contentUnlockUi.milestoneRuns([45, 46, 47, 48, 49]).map(run => [run.start, run.end]);
 })()`);
-assert.deepEqual(runs[0], [20, 20], 'the current loop keeps its own row');
+assert.deepEqual(runs[0], [45, 45], 'the current loop keeps its own row');
 assert.ok(runs.length < 5, 'identical future loops share a row: ' + JSON.stringify(runs));
-assert.ok(run(`contentUnlockUi.milestone(21, 24)`).includes('루프 21–24'), 'a merged row names its loop range');
+assert.ok(run(`contentUnlockUi.milestone(46, 49)`).includes('루프 46–49'), 'a merged row names its loop range');
 
 // 아틀라스 패시브: 바퀴는 하나만 보이고(나머지는 숨김), 고르면 바뀐다. 노드는 설명 칸을 유지하는 앵커다.
 const wheels = copy(`(() => {

@@ -7775,6 +7775,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
+        if(stage!==null && zone.memoryTier)memoryDungeon.tuneBoss(enemy);
         Object.assign(enemy,cell,{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });

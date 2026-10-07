@@ -132,13 +132,17 @@ const atlasMaps = (() => {
         if (ok) seen.add(entry.id);
         return ok;
     }
+    /** 기억 던전의 지도석(js/memory-dungeon.js)은 그 단계를 지닌다: { memory } 또는 {}. */
+    function memoryField(raw) {
+        return typeof memoryDungeon === 'object' && memoryDungeon.validTier(raw.memory) ? { memory: raw.memory } : {};
+    }
     /** Save boundary: keeps only known mods with valid rolls; returns null for anything that is not a map. */
     function normalize(raw, validNode) {
         if (!validHead(raw, validNode)) return null;
         const seen = new Set(), mods = (Array.isArray(raw.mods) ? raw.mods : []).filter(entry => validEntry(entry, seen));
         const quality = Math.max(0, Math.min(ATLAS.quality.max, Math.floor(Number(raw.quality) || 0)));
         return { uid: raw.uid, node: raw.node, tier: raw.tier, rarity: raw.rarity, mods: mods.slice(0, 8).map(({ id, roll }) => ({ id, roll })),
-            quality, corrupted: raw.corrupted === true };
+            quality, corrupted: raw.corrupted === true, ...memoryField(raw) };
     }
     return Object.freeze({ create, craft, craftReason, crafts: CRAFTS, corrupt, effects, applyEnemyMods, describe, normalize, reroll,
         mod: id => MODS.get(id) || null });

@@ -159,6 +159,18 @@
 #ui-atlas .atlas-late-blight{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
 #ui-atlas .atlas-late-blight span{display:inline-flex;align-items:center;gap:6px}
 #ui-atlas .atlas-late-blight i{width:8px;height:8px;background:color-mix(in srgb,var(--tint) 70%,#d8ccb0);box-shadow:1px 1px 0 #000}
+/* 기억 던전(js/memory-dungeon-ui.js): 보스마다 카드, 단계마다 도전 단추(가진 수와 싸움 등급). */
+#ui-atlas .memory-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-top:14px}
+#ui-atlas .memory-card{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--atlas-line);background:var(--atlas-panel)}
+#ui-atlas .memory-card strong{font-size:13px;color:var(--atlas-gold-hi)}
+#ui-atlas .memory-card>small{font-size:11px;color:var(--atlas-muted)}
+#ui-atlas .memory-tiers{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin-top:4px}
+#ui-atlas .memory-tier{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40px;padding:3px 2px;border:1px solid var(--atlas-line);background:var(--atlas-raised);color:var(--atlas-muted);font-size:10px}
+#ui-atlas button.memory-tier{border-color:#8a6fc2;color:#e4d8ff;cursor:pointer}
+#ui-atlas button.memory-tier strong{font-size:11px;color:#e4d8ff}
+#ui-atlas button.memory-tier small{font-size:9px;color:#b9a8dd}
+#ui-atlas button.memory-tier:disabled{opacity:.6;cursor:default}
+#ui-atlas .memory-tier.is-empty{opacity:.45}
 #ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 #ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #5d4a2e;background:#17130e;box-shadow:2px 2px 0 #000;color:#ece4cf;grid-column:1/-1}
 #ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
