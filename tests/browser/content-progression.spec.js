@@ -63,3 +63,17 @@ test('the unlock tree fits its window without hidden columns', async ({ page }, 
     expect(fit.node).toBeLessThanOrEqual(fit.edge + 1);
     await page.screenshot({ path: info.outputPath('unlock-tree.png') });
 });
+
+// 2026-10-07 review: at loop 10 the atlas opened (혼돈 20) but its window stayed blank until the chaos realm gate. The window's
+// route belongs to the 혼돈계 entry, and the screen applied that entry's lock instead of contentProgression.canOpen.
+test('the atlas window shows as soon as the atlas opens, before the chaos realm gate', async ({ page }) => {
+    await page.evaluate(() => {
+        game.season = 10; game.atlas.unlocked = true;
+        contentProgression.sync(); updateStaticUI();
+        switchTab('tab-map'); switchMapSubtab('map-tab-zones'); switchMapExploreSubtab('map-explore-worldtree');
+    });
+    expect(await page.evaluate(() => [contentProgression.isUnlocked('chaosRealm'), contentProgression.canOpen('map-explore-worldtree')]))
+        .toEqual([false, true]);
+    await expect(page.locator('#map-explore-worldtree')).not.toHaveAttribute('data-content-locked', '');
+    await expect(page.locator('#map-explore-worldtree')).toBeVisible();
+});
