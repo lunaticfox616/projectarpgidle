@@ -157,11 +157,13 @@ run(`game = mergeDefaults({}); game.selectedClassId = 'archer'; game.level = 6;
 const swap = JSON.parse(run(`(() => {
     const before = getPlayerStats(false).dps;
     const change = measureActRewardDps(0, getActRewardChoices(0).find(choice => choice.slot === '무기'), before);
-    return JSON.stringify({ change, kept: game.equipment['무기'].baseId, html: formatActRewardDps(change, { kind: 'item' }) });
+    return JSON.stringify({ change, kept: game.equipment['무기'].baseId });
 })()`));
 assert(swap.change && swap.change.swap && !swap.change.direct, '무기 칸이 차 있으면 바꿔 낀 DPS를 잰다');
 assert.strictEqual(swap.kept, 'apprentice_familiar_wand', '미리보기 뒤에도 낀 무기는 그대로다');
-assert(swap.html.includes('바꿔 끼우면 DPS'), '가방으로 가는 장비의 DPS는 바꿔 끼운 값이라고 적는다');
+// 두 무기의 기본 수치는 무작위로 굴러 DPS가 같을 수도 있어 글은 정해진 값으로 본다.
+assert.strictEqual(run(`formatActRewardDps({ before: 10, after: 20, direct: false, swap: true }, { kind: 'item' })`),
+    '<b class="reward-choice-dps is-up">바꿔 끼우면 DPS 10 → 20 (옵션 제외)</b>', '가방으로 가는 장비의 DPS는 바꿔 끼운 값이라고 적는다');
 assert.strictEqual(run('formatActRewardDps(null, { kind: "item" })'), '', '가방으로 가는 장비는 DPS를 보이지 않는다');
 
 // 액트 보스를 쓰러뜨리면(markActRewardReady) 다음 지역으로 떠나기 전에 보상 창이 열린다(열린 동안 게임과 출발이 멈춘다).
