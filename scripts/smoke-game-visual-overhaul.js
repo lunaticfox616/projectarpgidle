@@ -567,9 +567,10 @@ assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should
 assert.ok(!passiveSource.includes('activeTutorial.steps = getTutorialGuide(activeTutorial)'), 'tutorial notices should not expand into illustrated multi-step lessons');
 const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
 const enemyCombatSource = fs.readFileSync('js/combat.js', 'utf8');
+// 2026-10-08: a boss variant (js/boss-variants.js) rims the boss in its variant colour; every other boss keeps the boss outline.
 assert.ok(enemyUiSource.includes('enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || BATTLE_SPRITE_OUTLINES.elite.color')
-  && enemyUiSource.includes('if (enemy.isBoss) return BATTLE_SPRITE_OUTLINES.boss;'),
-  'elite outlines should follow their named trait color while bosses keep their own red outline');
+  && enemyUiSource.includes('if (enemy.isBoss) return enemy.variantOutline ? { ...BATTLE_SPRITE_OUTLINES.boss, color: enemy.variantOutline } : BATTLE_SPRITE_OUTLINES.boss;'),
+  'elite outlines should follow their named trait color while bosses keep their own red outline (a variant its colour)');
 assert.ok(enemyUiSource.includes('moving === true && movementFrames.length > 0'), 'monster sprite frames should advance only while the monster actually changes cells');
 assert.ok(enemyCombatSource.includes("addBattleFx('enemyAttack', { enemyId: enemy.id, duration: 220 })"),
   'every resolved enemy attack against the player must emit one motion cue even when the hit is evaded or blocked');

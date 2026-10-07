@@ -4,7 +4,7 @@
 // 등급, 보스 배수와 특수기, 기억 떨어뜨리기, 보상만 정한다. 보상 지급과 기록은 js/atlas-run.js와 js/memory-dungeon-ui.js.
 const memoryDungeon = (() => {
     const M = MEMORY_DUNGEON;
-    const defaults = () => ({ tickets: {}, best: {} });
+    const defaults = () => ({ tickets: {}, best: {}, variants: {} });
     const ledger = state => state.atlas.memory;
     const open = state => (Number(state.season) || 1) >= M.minLoop;
     const validTier = value => Number.isInteger(value) && value >= 1 && value <= M.tiers;
@@ -51,10 +51,12 @@ const memoryDungeon = (() => {
     const zoneName = (map, node) => (validTier(map.memory) ? `${node.name}: 기억 ${map.memory}단계` : node.name);
     /** A memory fight's boss (js/combat.js createActExplorationPack): its name says whose memory, tinted; a boss without its own special
      * (map bosses, guardians, the shadow) takes the memory special. */
-    function tuneBoss(enemy) {
+    function tuneBoss(enemy, tier) {
         enemy.name = `${enemy.name}의 기억`;
         enemy.bossVisualTint = M.fight.tint;
         if (!enemy.apexMechanic) Object.assign(enemy, { patternMode: 'apex', apexMechanic: M.fight.mechanic });
+        // 보스 변이체(루프 33): 3단계부터 기억의 보스가 변이체로 다시 불려 나올 수 있다(js/boss-variants.js recall).
+        if (typeof bossVariants === 'object') bossVariants.recall(enemy, tier);
         return enemy;
     }
 
@@ -105,10 +107,12 @@ const memoryDungeon = (() => {
     function normalizeBest(raw) {
         return Object.fromEntries(Object.entries(raw && typeof raw === 'object' ? raw : {}).filter(([id, tier]) => atlas.node(id) && validTier(tier)));
     }
+    /** The boss variant record (12번 루프 33, js/boss-variants.js) lives with the memories. */
+    const normalizeVariants = raw => (typeof bossVariants === 'object' ? bossVariants.normalizeKills(raw) : {});
     /** Known nodes only, whole counts under the cap, best tiers 1..5. */
     function normalize(raw) {
         const source = raw && typeof raw === 'object' ? raw : {};
-        return { tickets: normalizeTickets(source.tickets), best: normalizeBest(source.best) };
+        return { tickets: normalizeTickets(source.tickets), best: normalizeBest(source.best), variants: normalizeVariants(source.variants) };
     }
     /** Every boss with a memory: counts per tier, the best tier won, and each tier's fight tier. Highest tier first, then by name. */
     function overview(state) {

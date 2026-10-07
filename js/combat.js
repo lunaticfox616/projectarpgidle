@@ -6297,9 +6297,16 @@ function createEnemy(zone, marker, groupIndex) {
     applyGrandBreachMobTuning(zone, enemy);
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
-    if (enemy.isBoss) startHiddenJournalBossRun(enemy, zone);
+    finishBossSpawn(enemy, zone);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
+}
+
+/** A boss's last spawn steps: the hidden journal run and, from loop 33, a rare variant (js/boss-variants.js). */
+function finishBossSpawn(enemy, zone) {
+    if (!enemy.isBoss) return;
+    startHiddenJournalBossRun(enemy, zone);
+    if (typeof bossVariants === 'object') bossVariants.maybeApply(enemy, zone);
 }
 
 const getChaosRealmEncounterProfile = function (zone) {
@@ -7264,6 +7271,12 @@ function mergeEnemyAilment(target, incoming, pStats) {
     return true;
 }
 
+/** Kill records that grow outside the fight: the stump box and the boss variant record (12번 루프 33, js/boss-variants.js). */
+function recordKillProgress(enemy) {
+    if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
+    if (typeof bossVariants === 'object') bossVariants.onKilled(game, enemy);
+}
+
 /** What a death passes on: the ct3 keystone spread and the region lines (poison, shock and ignite spread, ice shards). */
 function applyAilmentEffectsOnDeath(enemy, pStats) {
     spreadCatalystAilmentsOnDeath(enemy, pStats);
@@ -7775,7 +7788,8 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
         const enemy=createEnemy(zone,marker,index);
         if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
-        if(stage!==null && zone.memoryTier)memoryDungeon.tuneBoss(enemy);
+        if(stage!==null && zone.memoryTier)memoryDungeon.tuneBoss(enemy,zone.memoryTier);
+        if(stage!==null && typeof bossVariants==='object')bossVariants.dress(enemy);
         Object.assign(enemy,cell,{gridMoveTimer:0,regenBank:0,spawnStamp:0,explorationPack:key});
         waiting.push(enemy);
     });
@@ -8778,7 +8792,7 @@ function handleEnemyDeath(enemy, pStats) {
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     grantEnemyLoot(enemy);
-    if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
+    recordKillProgress(enemy);
     if(actExplorationState.recordDeath(game,enemy))actExplorationProgress.objects.afterDeath(actExplorationState.current(game));
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);

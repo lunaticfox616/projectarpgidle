@@ -35,7 +35,7 @@ const memoryDungeonUi = (() => {
         const list = rows.length ? `<div class="memory-cards">${rows.map(row => cardHtml(row, block)).join('')}</div>`
             : (memoryDungeon.open(game) ? '<p class="atlas-muted">아직 모은 기억이 없습니다.</p>' : '');
         return `<div class="atlas-late memory-dungeon"><section class="atlas-late-head"><h3>기억 던전</h3><p class="atlas-muted">${head}</p>
-            ${rows.length && block ? `<p class="atlas-lock">${esc(block)}</p>` : ''}</section>${list}</div>`;
+            ${rows.length && block ? `<p class="atlas-lock">${esc(block)}</p>` : ''}</section>${list}${bossVariantsUi.recordHtml()}</div>`;
     }
 
     // ---------------------------------------------------------------- log lines ('complete' carries result.memory, js/atlas.js complete)

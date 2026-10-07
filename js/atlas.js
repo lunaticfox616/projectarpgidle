@@ -51,7 +51,7 @@ const atlas = (() => {
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
             run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} }, endgame: atlasEndgame.defaults(),
-            memory: { tickets: {}, best: {} } };
+            memory: { tickets: {}, best: {}, variants: {} } };
     }
     /** 세계수 씨앗 하나마다 모든 노드가 2등급 오른다(24등급까지). */
     const effectiveTier = (state, node) => Math.min(ATLAS.tierCap, node.tier + state.atlas.seeds * ATLAS.seeds.tierStep);
@@ -428,7 +428,7 @@ const atlas = (() => {
     }
     /** 기억 던전의 기억(js/memory-dungeon.js). 그 모듈을 싣지 않은 검사 런타임에서는 비운다. */
     function normalizeMemory(raw) {
-        return typeof memoryDungeon === 'object' ? memoryDungeon.normalize(raw) : { tickets: {}, best: {} };
+        return typeof memoryDungeon === 'object' ? memoryDungeon.normalize(raw) : { tickets: {}, best: {}, variants: {} };
     }
     function normalizeFragments(raw) {
         const counts = {};

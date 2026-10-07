@@ -106,7 +106,7 @@ assert.equal(copy(`atlasEndgame.patternState('memory', 2)`).isSpecial, true);
 // 6. 저장 경계: 아는 노드만, 한도 안의 정수, 빈 줄은 지운다, 이긴 단계는 1~5.
 const normalized = copy(`memoryDungeon.normalize({ tickets: { roots_0: [1, 20, -3, 0.5, 'x'], nowhere: [1, 1, 1, 1, 1], trunk_2: [0, 0, 0, 0, 0] },
     best: { roots_0: 3, trunk_2: 9, nowhere: 2 } })`);
-assert.deepEqual(normalized, { tickets: { roots_0: [1, 9, 0, 0, 0] }, best: { roots_0: 3 } });
+assert.deepEqual(normalized, { tickets: { roots_0: [1, 9, 0, 0, 0] }, best: { roots_0: 3 }, variants: {} }, 'the boss variant record (loop 33) rides along');
 assert.deepEqual(copy(`atlasMaps.normalize({ uid: 3, node: 'roots_0', tier: 4, rarity: 'normal', memory: 7 }, () => true)`).memory, undefined,
     'a map keeps only a real memory tier');
 
