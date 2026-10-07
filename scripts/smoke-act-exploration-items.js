@@ -29,7 +29,8 @@ assert.equal(run('game.currencies.jewelShard'),run('window.beforeShards+2'),'ove
 const full={jewels:jewelStats(),currencies:copy('game.currencies')};
 run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));actExplorationProgress.defeat(game);');
 assert.deepEqual({jewels:jewelStats(),currencies:copy('game.currencies')},full,'save and death preserve drops and salvage');
-run(`startEncounterRun(true);game.jewelInventory=[];window.stumpBefore=JSON.stringify(game.stumpBox.items);
+// The starter gift (2026-10-07) arrives on the first unlock check after the box: settle it before taking the snapshot.
+run(`startEncounterRun(true);game.jewelInventory=[];stumpBox.grantStarter(game,{});window.stumpBefore=JSON.stringify(game.stumpBox.items);
     const realDropRandom=Math.random;try {Math.random=()=>0;
         window.boss=game.actExploration.packs.find(pack=>pack.stage!==null).waiting[0];grantEnemyLoot(boss);
     }finally{Math.random=realDropRandom;}`);
