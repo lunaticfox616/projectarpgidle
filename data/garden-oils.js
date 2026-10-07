@@ -15,6 +15,8 @@ const GARDEN_OILS = Object.freeze({
     perAnoint: 3,
     offers: 3,
     pureBand: 2,
+    // 깊어지는 해금: 루프 48부터 목걸이에 둘째 자리(다른 노드 하나를 더 새긴다).
+    secondSlotLoop: 48,
     // 색마다 그 색이 부르는 패시브 주요 노드의 갈래(archetype). 갈래가 없는 노드는 바를 수 없다.
     pools: Object.freeze({
         fire: Object.freeze(['strength', 'melee', 'physical', 'armor', 'shield', 'fire', 'slam', 'channel_guard', 'guard_regen', 'life', 'bleed', 'duel', 'atk']),

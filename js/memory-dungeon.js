@@ -9,6 +9,8 @@ const memoryDungeon = (() => {
     const open = state => (Number(state.season) || 1) >= M.minLoop;
     const validTier = value => Number.isInteger(value) && value >= 1 && value <= M.tiers;
     const emptyRow = () => Array(M.tiers).fill(0);
+    /** The highest tier that drops and opens now: 3, then 5 from loop 44. */
+    const maxTier = state => ((Number(state.season) || 1) >= M.highTiers.loop ? M.tiers : M.highTiers.from - 1);
 
     function count(state, nodeId, tier) {
         return ((ledger(state).tickets[nodeId] || [])[tier - 1]) || 0;
@@ -31,6 +33,7 @@ const memoryDungeon = (() => {
     function entryReason(state, nodeId, tier) {
         if (!open(state)) return `루프 ${M.minLoop}부터 열립니다.`;
         if (!atlas.node(nodeId) || !validTier(tier)) return '없는 기억입니다.';
+        if (tier > maxTier(state)) return `${tier}단계는 루프 ${M.highTiers.loop}부터 도전할 수 있습니다.`;
         const lock = atlas.lockReason(state);
         if (lock) return lock;
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
@@ -64,7 +67,7 @@ const memoryDungeon = (() => {
     /** The memory a fallen atlas boss leaves: tier 1 by chance after an ordinary fight, the next tier by the ladder after a memory fight. */
     function rollTicket(state, node, map, random) {
         const tier = validTier(map.memory) ? map.memory + 1 : 1;
-        if (!open(state) || tier > M.tiers) return null;
+        if (!open(state) || tier > maxTier(state)) return null;
         const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0);
         return random() < chance && give(state, node.id, tier) ? { node: node.id, name: node.boss, tier } : null;
     }
@@ -124,7 +127,7 @@ const memoryDungeon = (() => {
     }
     /** How many memories are held (the atlas's 기억 tab shows it). */
     const total = state => Object.values(ledger(state).tickets).reduce((sum, row) => sum + row.reduce((a, b) => a + b, 0), 0);
-    return Object.freeze({ defaults, normalize, open, validTier, count, total, give, entryReason, spend, refund, mapTier, boost, zoneName, tuneBoss,
+    return Object.freeze({ defaults, normalize, open, validTier, maxTier, count, total, give, entryReason, spend, refund, mapTier, boost, zoneName, tuneBoss,
         settle, overview });
 })();
 safeExposeGlobals({ memoryDungeon });

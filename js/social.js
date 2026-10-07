@@ -1342,14 +1342,15 @@ function profileEmberScaleHtml(st) {
 
 /** 목걸이에 바른 기름(12번 루프 36, js/garden-oils.js): 노드 이름과 효과 문장(보는 사람의 기기에 패시브 트리가 없어도 읽힌다). */
 function profileAnointSnapshot(item) {
-    const node = typeof gardenOils === 'object' ? gardenOils.nodeOf(item) : null;
-    return node ? { title: node.title, text: node.effects.map(effect => `${getStatName(effect.stat)} ${effect.val >= 0 ? '+' : ''}${formatValue(effect.stat, effect.val)}`).join(', ') } : undefined;
+    const nodes = typeof gardenOils === 'object' ? gardenOils.nodesOf(item).filter(Boolean) : [];
+    return nodes.length ? nodes.map(node => ({ title: node.title,
+        text: node.effects.map(effect => `${getStatName(effect.stat)} ${effect.val >= 0 ? '+' : ''}${formatValue(effect.stat, effect.val)}`).join(', ') })) : undefined;
 }
 
 /** 기름 줄(게임 툴팁과 같다). */
 function profileItemAnointHtml(item) {
-    const anoint = item.anoint;
-    return anoint && anoint.title ? `<div class="social-item-stat" style="color:#cfe0a0;">🌿 기름: ${socialEscape(anoint.title)} (${socialEscape(anoint.text || '')})</div>` : '';
+    return (Array.isArray(item.anoint) ? item.anoint : []).filter(row => row && row.title)
+        .map(row => `<div class="social-item-stat" style="color:#cfe0a0;">🌿 기름: ${socialEscape(row.title)} (${socialEscape(row.text || '')})</div>`).join('');
 }
 
 /** 타오른 장비(게임 툴팁과 같다): 다시 태울 수 없다는 표시와 타락 전용 줄. */

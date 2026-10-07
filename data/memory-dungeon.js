@@ -5,6 +5,8 @@
 const MEMORY_DUNGEON = Object.freeze({
     minLoop: 21,
     tiers: 5,
+    // 깊어지는 해금: 4, 5단계는 루프 44부터(그 전에는 3단계까지 떨어지고 도전한다. 갖고 있던 높은 기억은 그때 쓴다).
+    highTiers: Object.freeze({ from: 4, loop: 44 }),
     // 보관: 보스 하나의 한 단계에 이만큼까지(루프를 넘어 남고 시대 재생에도 남는다).
     ticketCap: 9,
     // 기억이 떨어질 확률(아틀라스 노드 종류별, 기억 싸움이 아닌 처치에서): 1단계 하나.

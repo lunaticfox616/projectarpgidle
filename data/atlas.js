@@ -146,6 +146,8 @@ const ATLAS = Object.freeze({
             rewards: Object.freeze([['formlessDew', 1, 0.1]]), mapChance: 0.1 })
     }),
     encounterLimit: 1,
+    // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로).
+    encounterLoopBonus: Object.freeze({ loop: 50, extra: 1 }),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
     altarLimit: 1,
     // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].

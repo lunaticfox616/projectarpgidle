@@ -44,29 +44,42 @@ const gardenOils = (() => {
         const short = Object.entries(needs(bowl)).find(([key, need]) => (state.currencies[key] || 0) < need);
         return short ? `${BY_KEY.get(short[0]).name}이(가) 부족합니다.` : '';
     }
-    /** Pays the oils and engraves the chosen node (one of this bowl's offers) on the amulet, replacing an earlier one.
+    const majorOf = id => { const node = id ? PASSIVE_TREE.nodes[id] : null; return node && node.kind === 'major' ? node : null; };
+    /** The engraved nodes by slot, [first, second] (null for an empty slot). */
+    const nodesOf = item => (item && item.anoint ? [majorOf(item.anoint.nodeId), majorOf(item.anoint.second)] : [null, null]);
+    const nodeOf = item => nodesOf(item)[0];
+    /** Slots open now: one, two from loop 48. */
+    const slotCount = state => ((Number(state.season) || 1) >= G.secondSlotLoop ? 2 : 1);
+    /** '' when the node may go in this slot: the second slot opens at loop 48 after the first, and one node fills one slot only. */
+    function slotReason(state, item, nodeId, slot) {
+        if (slot !== 0 && (slot !== 1 || slotCount(state) < 2)) return `둘째 자리는 루프 ${G.secondSlotLoop}부터 열립니다.`;
+        const [first, second] = nodesOf(item), other = slot === 0 ? second : first;
+        if (slot === 1 && !first) return '첫째 자리부터 바르세요.';
+        return other && other.id === nodeId ? '같은 노드를 두 자리에 새길 수 없습니다.' : '';
+    }
+    /** Pays the oils and engraves the chosen node (one of this bowl's offers) in the slot, replacing what was there.
      * @returns {{ok: boolean, reason?: string, node?: object}} */
-    function anoint(state, item, bowl, nodeId) {
-        const reason = anointReason(state, item, bowl);
+    function anoint(state, item, bowl, nodeId, slot = 0) {
+        const reason = anointReason(state, item, bowl) || slotReason(state, item, nodeId, slot);
         if (reason) return { ok: false, reason };
         const node = offers(state, bowl).find(row => row.id === nodeId);
         if (!node) return { ok: false, reason: '그 노드는 이 조합에 없습니다.' };
         Object.entries(needs(bowl)).forEach(([key, need]) => { state.currencies[key] -= need; });
-        item.anoint = { nodeId: node.id };
+        const [first, second] = nodesOf(item);
+        item.anoint = slot === 1 ? { nodeId: first.id, second: node.id } : { nodeId: node.id, ...(second ? { second: second.id } : {}) };
         return { ok: true, node };
     }
-    const nodeOf = item => (item && item.anoint && PASSIVE_TREE.nodes[item.anoint.nodeId]) || null;
-    /** The engraved node's effects as item lines (equipment stats add them as unchangeable lines). */
+    /** The engraved nodes' effects as item lines (equipment stats add them as unchangeable lines). */
     function lines(item) {
-        const node = nodeOf(item);
-        if (!node || !Array.isArray(node.effects)) return [];
-        return node.effects.map(effect => ({ id: effect.stat, val: effect.val, statName: `[기름] ${getStatName(effect.stat)}`, anointLine: true }));
+        return nodesOf(item).filter(Boolean).flatMap(node => node.effects.map(effect => ({ id: effect.stat, val: effect.val,
+            statName: `[기름] ${getStatName(effect.stat)}`, anointLine: true })));
     }
-    /** Save boundary: only an amulet keeps an anointment, and only of a known major node. */
+    /** Save boundary: only an amulet keeps an anointment, of known major nodes, a second only beside a different first. */
     function normalize(item) {
-        const node = item && item.anoint && PASSIVE_TREE.nodes[item.anoint.nodeId];
-        if (node && node.kind === 'major' && item.slot === '목걸이') item.anoint = { nodeId: node.id };
-        else if (item) delete item.anoint;
+        if (!item || !item.anoint) return;
+        const [first, second] = item.slot === '목걸이' ? nodesOf(item) : [null, null];
+        if (!first) delete item.anoint;
+        else item.anoint = second && second.id !== first.id ? { nodeId: first.id, second: second.id } : { nodeId: first.id };
     }
     /** The oil a withered pack kill drops (data/atlas.js encounters.witheredGarden), through the ordinary currency drops (js/loot.js). */
     function killDrops(enemy, random = Math.random) {
@@ -80,6 +93,6 @@ const gardenOils = (() => {
         const oil = BY_COLOR.get(group[0] && group[0].item && group[0].item.color);
         return oil ? { ok: true, consumed: group, outputs: [{ kind: 'currency', key: oil.key, amount: 1 }] } : { ok: false, reason: '이 색의 기름은 없습니다.' };
     }
-    return Object.freeze({ keys: KEYS, open, offers, anointReason, anoint, nodeOf, lines, normalize, killDrops, fruitRecipe, oil: key => BY_KEY.get(key) || null });
+    return Object.freeze({ keys: KEYS, open, offers, anointReason, slotReason, slotCount, anoint, nodeOf, nodesOf, lines, normalize, killDrops, fruitRecipe, oil: key => BY_KEY.get(key) || null });
 })();
 safeExposeGlobals({ gardenOils });

@@ -229,7 +229,7 @@ const atlasUi = (() => {
             .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%${regionChanceNote(type)}`).join(' · ');
         // 제단은 아틀라스가 깨어난 뒤에만, 콘텐츠 방과 따로 생긴다(js/atlas-encounters.js roll).
         const altars = atlasEndgame.awakened(game) ? `<p class="atlas-encounters">제단 확률: ${rows(true)} (지도마다 ${ATLAS.altarLimit}개까지)</p>` : '';
-        return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows(false)} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>${altars}`;
+        return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows(false)} (지도마다 ${atlasEncounters.roomLimit(bonus, game.season)}개까지)</p>${altars}`;
     }
     function deviceHtml() {
         const map = selectedMap(), lock = atlas.lockReason(game) || atlasRun.blockReason();

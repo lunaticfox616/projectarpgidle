@@ -11,13 +11,17 @@ const atlasEncounters = (() => {
     function roll(bonus, forced, random, capacity = Infinity, context = false) {
         const { awake = false, loop = Infinity, region = null } = context && typeof context === 'object' ? context : { awake: !!context };
         const fixed = [...new Set(forced)].filter(type => Object.hasOwn(ATLAS.encounters, type));
-        const limit = ATLAS.encounterLimit + bonus.encounterExtra;
+        const limit = roomLimit(bonus, loop);
         // 패시브가 없는 종류의 보너스는 0.
         const passing = late => shuffledTypes(TYPES.filter(type => !fixed.includes(type) && !!ATLAS.encounters[type].late === late && isOpen(type, loop)), random)
             .filter(type => random() * 100 < chance(type, bonus, region));
         // 제단(late)은 아틀라스가 깨어난 뒤에만, 콘텐츠 방 자리와 따로 굴린다(js/atlas-endgame.js): 깨어나도 기존 방이 줄지 않는다.
         const altars = awake ? passing(true).slice(0, ATLAS.altarLimit) : [];
         return [...fixed, ...passing(false).slice(0, limit), ...altars].slice(0, capacity);
+    }
+    /** Content rooms a map may hold: the base, the passives' extra and, from loop 50, one more (data/atlas.js encounterLoopBonus). */
+    function roomLimit(bonus, loop) {
+        return ATLAS.encounterLimit + (Number(bonus.encounterExtra) || 0) + (loop >= ATLAS.encounterLoopBonus.loop ? ATLAS.encounterLoopBonus.extra : 0);
     }
     /** A type's room chance in %: base + passives, × the map region's share (잿불 터 in the garden). */
     function chance(type, bonus, region) {
@@ -88,6 +92,6 @@ const atlasEncounters = (() => {
             return [Array.isArray(key) ? key[Math.min(key.length - 1, Math.floor(random() * key.length))] : key, amount];
         }).filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
     }
-    return Object.freeze({ types: TYPES, roll, chance, isOpen, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });
+    return Object.freeze({ types: TYPES, roll, roomLimit, chance, isOpen, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });
 })();
 safeExposeGlobals({ atlasEncounters });
