@@ -229,5 +229,24 @@ try {
     assert(recovery.spellWith>1,'explicit spell leech must heal');
     assert.equal(recovery.hp,1);
     assert(recovery.es>0,'Soul Sanctuary routes spell leech into energy shield');
+    // 불러올 때 젬 레벨 줄 다시 맞추기(2026-10-08 사용자 "새곡선기준으로해줘"): 예전 값은 그 줄 티어의 새 곡선 값으로, 한 번만.
+    const refit = json(`(() => {
+        const line = (id, sourceModId, val, tier, extra = {}) => ({ id, val, valMin: val, valMax: val, tier, sourceModId, affixBalanceVersion: 2, ...extra });
+        const load = (slot, stats) => { const item = createItemFromBase(BASE_ITEM_DB.find(row => row.slot === slot), 'rare', 20); item.stats = stats;
+            return normalizeItem(JSON.parse(JSON.stringify(item))); };
+        const pick = item => item.stats.map(stat => [stat.id, stat.val, stat.tier, stat.affixBalanceVersion]);
+        const shield = load('방패', [line('spellGemLevel', 'shieldSpellGemLevel', 15.4, 20)]);
+        return { shield: pick(shield), lowShield: pick(load('방패', [line('spellGemLevel', 'shieldSpellGemLevel', 4.5, 5)])),
+            summon: pick(load('무기', [line('summonGemLevel', 'summonWeaponGemLevel', 5, 9)])),
+            slam: pick(load('무기', [line('slamGemLevel', 'greatswordSlamGemLevel', 1, 1, { fixedValue: true })])),
+            ring: pick(load('반지', [line('summonGemLevel', 'summonRingGemLevel', 1, 1, { fixedValue: true }), line('pctDmg', 'pctDmg', 20, 3)])),
+            again: pick(normalizeItem(JSON.parse(JSON.stringify(shield)))) };
+    })()`);
+    assert.deepEqual(refit.shield, [['spellGemLevel', 4, 20, 3]], 'a T20 shield spell line (+15.4) becomes +4');
+    assert.deepEqual(refit.lowShield, [['spellGemLevel', 1, 5, 3]], 'a T5 one (+4.5) becomes +1');
+    assert.deepEqual(refit.summon, [['summonGemLevel', 2, 9, 3]], 'the summon weapon line (+5 at T9) becomes +2');
+    assert.deepEqual(refit.slam, [['slamGemLevel', 1, 1, 3]], 'a fixed +1 line stays +1 on the new version');
+    assert.deepEqual(refit.ring, [['summonGemLevel', 1, 1, 3], ['pctDmg', 20, 3, 2]], 'other lines keep their rolls');
+    assert.deepEqual(refit.again, refit.shield, 'refitting once is enough');
 } finally { Math.random=random; }
 console.log('smoke-equipment-affix-rebalance passed');

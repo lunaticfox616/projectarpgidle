@@ -8311,10 +8311,23 @@ function findStoredEquipmentAffix(item, stat) {
             .every(id => extraIds.includes(id)) && (row.compound || []).length === extraIds.length);
 }
 
+/** 젬 레벨 줄(2026-10-08, 사용자 "새곡선기준으로해줘"): 예전 값(방패 주문 +1.7~15.4, 소환수 무기 +1~5, 나머지 +1 고정)을
+ * 그 줄의 티어에서 새 20티어 곡선(1~8 +1, 9~15 +2, 16~19 +3, 20 +4) 값으로 맞춘다. 맞춘 줄은 버전 3이라 다시 건드리지 않는다. */
+function refitGemLevelAffix(item, stat) {
+    if (!stat || stat.affixBalanceVersion >= 3 || !/GemLevel$/.test(stat.id)) return;
+    const mod = findStoredEquipmentAffix(item, stat);
+    if (!mod || !(mod.affixBalanceVersion >= 3)) return;
+    const tier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(stat.tier) || 1)));
+    const value = mod.tierValues[tier - 1][0];
+    Object.assign(stat, { val: value, valMin: value, valMax: value, tier, valueStep: 1, fixedValue: false, sourceModId: mod.id,
+        affixBalanceVersion: mod.affixBalanceVersion });
+}
+
 function migrateEquipmentAffixBalance(item) {
     [...item.baseStats, ...item.stats, item.underEnchant, item.chaosInfusion].forEach(migrateEquipmentProjectileOption);
     if (item.rarity === 'unique') return;
     for (const stat of item.stats) {
+        refitGemLevelAffix(item, stat);
         if (stat.affixBalanceVersion >= 2 || !stat.tier || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) continue;
         const mod = findStoredEquipmentAffix(item, stat);
         if (!mod) continue;
