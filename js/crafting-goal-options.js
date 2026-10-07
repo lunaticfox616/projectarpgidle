@@ -58,6 +58,17 @@ const craftingGoalOptions = (() => {
         rows.forEach(row=>{if(!unique.has(row.id)||unique.get(row.id).maxTier<row.maxTier)unique.set(row.id,row);});
         return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name,'ko'));
     }
-    return Object.freeze({ get });
+    /** Tags this craft can still roll, with how many lines can carry one (kept lines plus distinct rollable stats) and the best tier. */
+    function tags(item, recipe, mode) {
+        if (!eligible(item, recipe) || recipe.kind === 'value') return [];
+        const pool = rollPool(item, recipe, mode), kept = keptStats(item, recipe), cap = getItemCraftTier(item);
+        return Object.keys(AFFIX_TAG_LABELS).map(tag => {
+            const rows = pool.filter(mod => getAffixTags(mod).includes(tag)), held = kept.filter(stat => getAffixTags(stat).includes(tag));
+            const tiers = [...rows.map(mod => mod.fixedValue ? 0 : Math.min(cap, mod.tierValues?.length || 20)), ...held.map(stat => Number(stat.tier) || 0)];
+            const rollable = new Set(rows.map(mod => mod.statId || mod.id)).size;
+            return { id: tag, name: AFFIX_TAG_LABELS[tag], rollable, maxTier: Math.max(0, ...tiers), maxCount: Math.min(EXPLICIT_AFFIX_LINE_CAP, held.length + rollable) };
+        }).filter(row => row.rollable > 0);
+    }
+    return Object.freeze({ get, tags });
 })();
 safeExposeGlobals({ craftingGoalOptions });

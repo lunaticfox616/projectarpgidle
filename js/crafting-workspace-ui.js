@@ -15,21 +15,39 @@ const craftingWorkspaceUi = (() => {
     const matches = item => equipmentLootPolicy.matches(item,targetGame());
     const held = () => matches(selected()) && acknowledged!==signature();
 
-    function workspaceSetGoal(statId,tier) {
-        goal=equipmentLootPolicy.normalizeTargets({enabled:true,scope:'explicit',slot:'any',minMatches:1,
-            rules:[{statId:statId,minTier:Number(tier),minValue:0}]});
+    /** target: an option id, 'tag:<tag>' (count lines carrying the tag) or '' to clear. */
+    function workspaceSetGoal(target,tier,count=2) {
+        const rule=String(target).startsWith('tag:')?{tag:target.slice(4),minCount:Number(count),minTier:Number(tier)}:{statId:target,minTier:Number(tier),minValue:0};
+        goal=equipmentLootPolicy.normalizeTargets({enabled:true,scope:'explicit',slot:'any',minMatches:1,rules:[rule]});
         acknowledged='';
-        game.craftingWorkspace.goal={statId:goal.rules[0]?.statId||'',minTier:Number(tier)||0};
+        game.craftingWorkspace.goal=craftingWorkspaceState.normalizeGoal(goal.rules[0]);
         queueImportantSave(180);
     }
 
+    function workspaceRestoreGoal() {
+        const saved=game.craftingWorkspace.goal;
+        if(saved.tag)workspaceSetGoal('tag:'+saved.tag,saved.minTier,saved.minCount);
+        else if(saved.statId)workspaceSetGoal(saved.statId,saved.minTier);
+    }
+
     function workspaceGoalOptions() { return craftingGoalOptions.get(selected(),recipe,mode); }
+    function workspaceGoalTags() { return craftingGoalOptions.tags(selected(),recipe,mode); }
+
+    /** The option or tag row the current craft can reach for this rule (undefined when it cannot). */
+    function workspaceGoalChoice(rule) {
+        if(!rule)return undefined;
+        return rule.tag?workspaceGoalTags().find(row=>row.id===rule.tag):workspaceGoalOptions().find(row=>row.id===rule.statId);
+    }
+
+    function workspaceGoalReachable(rule) {
+        const choice=workspaceGoalChoice(rule);
+        return !!choice&&rule.minTier<=choice.maxTier&&(!rule.tag||rule.minCount<=choice.maxCount);
+    }
 
     function workspaceRefreshGoals() {
         if(!['add','reroll','fossil'].includes(recipe.kind))return;
         const rule=goal.rules[0];if(!rule)return;
-        const choice=workspaceGoalOptions().find(row=>row.id===rule.statId);
-        if(!choice||rule.minTier>choice.maxTier)workspaceSetGoal('',0);
+        if(!workspaceGoalReachable(rule))workspaceSetGoal('',0);
     }
 
     function workspaceUseState() { return workspaceResourceState(recipe.key); }
@@ -99,7 +117,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceAffixHtml(stat,index) {
         const prior=last?.before.stats.find(row=>row.id===stat.id);
         const changed=last && JSON.stringify(prior)!==JSON.stringify(copyCraftResultStat(stat));
-        const hit=matches({slot:selected().slot,stats:[stat]});
+        const rule=goal.rules[0], hit=rule?.tag?equipmentLootPolicy.lineMatchesRule(stat,rule):matches({slot:selected().slot,stats:[stat]});
         const quality=workspaceAffixQuality(stat,changed);
         return `<li class="cl-affix ${hit?'is-target':''} ${changed?'is-changed':''} ${quality}" data-affix="${index}">
             <div><span style="--cl-affix-tone:${getItemStatToneColor(stat.id)}">${esc(stat.statName||getStatName(stat.id))} <span class="cl-affix-value"><b>+${esc(workspaceAffixValue(stat,stat.val))}</b> <span class="cl-affix-range">${esc(workspaceAffixRange(stat))}</span></span></span>
@@ -119,13 +137,26 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceGoalHtml() {
         if(!['add','reroll','fossil','value'].includes(recipe.kind))return '';
-        const rule=goal.rules[0]||{statId:'',minTier:0};
-        const available=workspaceGoalOptions(), choice=available.find(row=>row.id===rule.statId);
-        const retained=!choice&&rule.statId;
+        const rule=goal.rules[0]||{statId:'',minTier:0}, choice=workspaceGoalChoice(rule);
         const tiers=Array.from({length:(choice?.maxTier||0)+1},(_,i)=>i);
-        return `<section class="cl-goal"><div class="cl-section-title"><span class="cl-goal-help"><button type="button" id="cl-goal-help" aria-describedby="cl-goal-tooltip">목표 옵션</button><span role="tooltip" id="cl-goal-tooltip">확률은 변경되지 않으며, 목표 옵션 출현 시 강조됩니다.</span></span></div><div class="cl-goal-fields">
-            <label>옵션<select id="cl-goal-stat"><option value="">목표 선택</option>${retained?`<option selected disabled value="${rule.statId}">${esc(getStatName(rule.statId))} (현재 목표)</option>`:''}${available.map(row=>`<option value="${row.id}" ${row.id===rule.statId?'selected':''}>${esc(row.name)}</option>`).join('')}</select></label>
+        return `<section class="cl-goal"><div class="cl-section-title"><span class="cl-goal-help"><button type="button" id="cl-goal-help" aria-describedby="cl-goal-tooltip">목표 옵션</button><span role="tooltip" id="cl-goal-tooltip">확률은 변경되지 않으며, 목표 옵션 출현 시 강조됩니다. 태그는 그 태그가 붙은 줄 수를 셉니다.</span></span></div><div class="cl-goal-fields ${rule.tag?'has-count':''}">
+            <label>옵션<select id="cl-goal-stat">${workspaceGoalTargetOptions(rule,choice)}</select></label>${workspaceGoalCountHtml(rule,choice)}
             <label>최소 티어<select id="cl-goal-tier" ${!choice?'disabled':''}>${tiers.map(tier=>`<option value="${tier}" ${tier===rule.minTier?'selected':''}>${tier===0?'티어 무관':`T${tier} 이상`}</option>`).join('')}</select></label></div></section>`;
+    }
+
+    /** Tags the craft can roll first, then single options; a goal it can no longer reach stays listed as the current one. */
+    function workspaceGoalTargetOptions(rule,choice) {
+        const key=rule.tag?'tag:'+rule.tag:rule.statId, name=rule.tag?`${AFFIX_TAG_LABELS[rule.tag]} 태그`:getStatName(rule.statId);
+        const retained=!choice&&key?`<option selected disabled value="${esc(key)}">${esc(name)} (현재 목표)</option>`:'';
+        const tags=workspaceGoalTags().map(row=>`<option value="tag:${row.id}" ${'tag:'+row.id===key?'selected':''}>${esc(row.name)} 태그</option>`).join('');
+        const options=workspaceGoalOptions().map(row=>`<option value="${row.id}" ${row.id===key?'selected':''}>${esc(row.name)}</option>`).join('');
+        return `<option value="">목표 선택</option>${retained}${tags?`<optgroup label="태그">${tags}</optgroup>`:''}<optgroup label="옵션">${options}</optgroup>`;
+    }
+
+    function workspaceGoalCountHtml(rule,choice) {
+        if(!rule.tag)return '';
+        const counts=Array.from({length:choice?.maxCount||rule.minCount},(_,i)=>i+1);
+        return `<label>최소 줄 수<select id="cl-goal-count" ${!choice?'disabled':''}>${counts.map(count=>`<option value="${count}" ${count===rule.minCount?'selected':''}>${count}줄 이상</option>`).join('')}</select></label>`;
     }
 
     function workspaceEncroachmentHtml(item) {
@@ -168,7 +199,7 @@ const craftingWorkspaceUi = (() => {
         if(!['reroll','add','fossil'].includes(recipe.kind))return '이 재화는 한 번씩 사용합니다.';
         if(!goal.rules.length)return '목표 미설정';
         if(matches(selected()))return '이미 목표를 달성했어요.';
-        if(!workspaceGoalOptions().some(row=>row.id===goal.rules[0].statId))return '현재 재화로 나올 수 없는 목표입니다.';
+        if(!workspaceGoalReachable(goal.rules[0]))return '현재 재화로 나올 수 없는 목표입니다.';
         return '';
     }
 
@@ -197,7 +228,7 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceSyncTarget() {
         craftingCatalogUi.capture();
-        if(owner!==game){workspaceStopAuto('');owner=game;current=null;goal=equipmentLootPolicy.normalizeTargets({});const saved=game.craftingWorkspace.goal;if(saved.statId)workspaceSetGoal(saved.statId,saved.minTier);}
+        if(owner!==game){workspaceStopAuto('');owner=game;current=null;goal=equipmentLootPolicy.normalizeTargets({});workspaceRestoreGoal();}
         const item=selected();
         if(current!==item){workspaceStopAuto('');current=item;last=null;acknowledged='';count=0;spent={};
             if(goalDialog?.open)goalDialog.close();
@@ -323,9 +354,11 @@ const craftingWorkspaceUi = (() => {
         timer=setTimeout(workspaceAutoStep,400,id);
     }
 
-    function workspaceChooseGoal(statId) {
-        const max=workspaceGoalOptions().find(row=>row.id===statId)?.maxTier||0;
-        workspaceSetGoal(statId,Math.min(goal.rules[0]?.minTier||0,max));
+    /** A new target keeps the chosen tier and line count where the craft can still reach them. */
+    function workspaceChooseGoal(target) {
+        const previous=goal.rules[0]||{minTier:0};
+        const choice=workspaceGoalChoice(target.startsWith('tag:')?{tag:target.slice(4)}:{statId:target})||{maxTier:0};
+        workspaceSetGoal(target,Math.min(previous.minTier,choice.maxTier),Math.min(previous.minCount||2,choice.maxCount||1));
     }
 
     function workspaceChange(event) {
@@ -333,7 +366,8 @@ const craftingWorkspaceUi = (() => {
         if(event.target.id==='cl-limit'){limit=clampNumber(Math.floor(Number(event.target.value)||1),1,100);workspaceRender();return;}
         if(event.target.id==='cl-mode'){mode=event.target.value;game.sporeCraftModes[recipe.key]=mode;}
         else if(event.target.id==='cl-goal-stat')workspaceChooseGoal(event.target.value);
-        else if(event.target.id==='cl-goal-tier')workspaceSetGoal(goal.rules[0].statId,event.target.value);
+        else if(event.target.id==='cl-goal-tier')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),event.target.value,goal.rules[0].minCount);
+        else if(event.target.id==='cl-goal-count')workspaceSetGoal(equipmentLootPolicy.ruleKey(goal.rules[0]),goal.rules[0].minTier,event.target.value);
         else return;
         workspaceRefreshGoals();workspaceRender();
     }

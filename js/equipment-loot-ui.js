@@ -15,11 +15,23 @@
             <label><input id="chk-item-filter-unique-new-codex" type="checkbox" ${settings.itemFilterOnlyNewCodexUnique ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">고유는 도감에 없는 것만 습득</label></details>`;
     }
 
+    /** Tags first (a count of lines), then single options. */
+    function renderRuleTargets(rule) {
+        const key = equipmentLootPolicy.ruleKey(rule);
+        const tags = equipmentLootPolicy.tagOptions().map(tag => `<option value="tag:${escapeHTML(tag.id)}" ${'tag:' + tag.id === key ? 'selected' : ''}>${escapeHTML(tag.name)} 태그</option>`).join('');
+        const stats = equipmentLootPolicy.statOptions().map(stat => `<option value="${escapeHTML(stat.id)}" ${stat.id === key ? 'selected' : ''}>${escapeHTML(stat.name)}</option>`).join('');
+        return `<optgroup label="태그">${tags}</optgroup><optgroup label="옵션">${stats}</optgroup>`;
+    }
+
+    function renderRuleAmount(rule, index) {
+        if (rule.tag) return `<label>최소 줄 수<input data-field="minCount" type="number" min="1" max="6" value="${rule.minCount}" aria-label="최소 줄 수 ${index + 1}" onchange="equipmentLootUi.updateTargets()"></label>`;
+        return `<label>최소 수치<input data-field="minValue" type="number" step="any" min="0" value="${rule.minValue}" aria-label="최소 수치 ${index + 1}" onchange="equipmentLootUi.updateTargets()"></label>`;
+    }
+
     function renderRule(rule, index) {
-        const options = equipmentLootPolicy.statOptions().map(stat => `<option value="${escapeHTML(stat.id)}" ${stat.id === rule.statId ? 'selected' : ''}>${escapeHTML(stat.name)}</option>`).join('');
         return `<div class="loot-target-rule" data-target-rule>
-            <label>목표 옵션<select data-field="statId" aria-label="목표 옵션 ${index + 1}" onchange="equipmentLootUi.updateTargets()">${options}</select></label>
-            <label>최소 수치<input data-field="minValue" type="number" step="any" min="0" value="${rule.minValue}" aria-label="최소 수치 ${index + 1}" onchange="equipmentLootUi.updateTargets()"></label>
+            <label>목표 옵션<select data-field="target" aria-label="목표 옵션 ${index + 1}" onchange="equipmentLootUi.updateTargets()">${renderRuleTargets(rule)}</select></label>
+            ${renderRuleAmount(rule, index)}
             <label>최소 티어<input data-field="minTier" type="number" min="0" max="20" value="${rule.minTier}" aria-label="최소 티어 ${index + 1}" onchange="equipmentLootUi.updateTargets()"></label>
             <button type="button" aria-label="목표 옵션 ${index + 1} 삭제" onclick="equipmentLootUi.removeRule(${index})">삭제</button></div>`;
     }
@@ -34,8 +46,10 @@
             <label>검사할 옵션<select id="loot-target-scope" onchange="equipmentLootUi.updateTargets()"><option value="explicit" ${filter.scope === 'explicit' ? 'selected' : ''}>추가 옵션만</option><option value="all" ${filter.scope === 'all' ? 'selected' : ''}>기본·추가·지하 마법부여</option></select></label>
             <label>충족할 조건 수<input id="loot-target-count" type="number" min="1" max="${Math.max(1, filter.rules.length)}" value="${filter.minMatches}" onchange="equipmentLootUi.updateTargets()"></label></div>
             <div id="loot-target-rules">${filter.rules.map(renderRule).join('') || '<p class="loot-filter-note">노리는 옵션을 추가해 주세요.</p>'}</div>
-            <button type="button" id="loot-target-add" ${filter.rules.length >= 6 ? 'disabled' : ''} onclick="equipmentLootUi.addRule()">옵션 추가</button>
+            <div class="loot-filter-actions"><button type="button" id="loot-target-add" ${filter.rules.length >= 6 ? 'disabled' : ''} onclick="equipmentLootUi.addRule()">옵션 추가</button>
+            <button type="button" id="loot-target-add-tag" ${filter.rules.length >= 6 ? 'disabled' : ''} onclick="equipmentLootUi.addTagRule()">태그 추가</button></div>
             <p class="loot-filter-note">조건은 최대 6개. 조건 수 1은 하나만 일치해도 보호합니다. 수치는 옵션에 적힌 단위이며, 최소 티어 0은 제한 없음입니다. 복합 옵션도 검사하고 서로 다른 줄의 수치는 합산하지 않습니다.</p>
+            <p class="loot-filter-note">태그 조건은 그 태그가 붙은 옵션 줄을 셉니다. 예를 들어 화염 태그 2줄, 최소 티어 10이면 T10 이상 화염 옵션이 두 줄인 장비를 보호합니다.</p>
             <p id="loot-target-preview" role="status"></p></div>`;
     }
 
@@ -72,22 +86,27 @@
         saveAndPreview();
     }
 
+    /** A row switched between a tag and an option keeps its tier and starts from 2 lines or no minimum value. */
+    function readRule(row) {
+        const target = row.querySelector('[data-field="target"]').value, minTier = Number(row.querySelector('[data-field="minTier"]').value);
+        const count = row.querySelector('[data-field="minCount"]'), value = row.querySelector('[data-field="minValue"]');
+        if (target.startsWith('tag:')) return { tag: target.slice(4), minCount: count ? Number(count.value) : 2, minTier };
+        return { statId: target, minValue: value ? Number(value.value) : 0, minTier };
+    }
+
     function updateTargets() {
         const root = document.getElementById('loot-target-config');
         if ([...root.querySelectorAll('input[type="number"]')].some(input => !input.reportValidity())) return;
-        const rules = [...root.querySelectorAll('[data-target-rule]')].map(row => ({
-            statId: row.querySelector('[data-field="statId"]').value,
-            minValue: Number(row.querySelector('[data-field="minValue"]').value),
-            minTier: Number(row.querySelector('[data-field="minTier"]').value)
-        }));
-        if (new Set(rules.map(rule => rule.statId)).size !== rules.length) {
-            document.getElementById('loot-target-preview').textContent = '같은 옵션은 한 번만 선택해 주세요. 중복 설정은 저장하지 않았습니다.';
+        const rows = [...root.querySelectorAll('[data-target-rule]')], rules = rows.map(readRule);
+        if (new Set(rules.map(equipmentLootPolicy.ruleKey)).size !== rules.length) {
+            document.getElementById('loot-target-preview').textContent = '같은 옵션이나 태그는 한 번만 선택해 주세요. 중복 설정은 저장하지 않았습니다.';
             return;
         }
         game.settings.equipmentTargets = equipmentLootPolicy.normalizeTargets({
             enabled: root.querySelector('#loot-target-enabled').checked, slot: root.querySelector('#loot-target-slot').value,
             scope: root.querySelector('#loot-target-scope').value, minMatches: Number(root.querySelector('#loot-target-count').value), rules
         });
+        if (rows.some((row, index) => !!row.querySelector('[data-field="minCount"]') !== !!rules[index].tag)) root.innerHTML = renderTargets();
         saveAndPreview();
     }
 
@@ -96,6 +115,15 @@
         if (filter.rules.length >= 6) return;
         const option = equipmentLootPolicy.statOptions().find(stat => !filter.rules.some(rule => rule.statId === stat.id));
         filter.rules.push({ statId: option.id, minValue: 0, minTier: 0 });
+        document.getElementById('loot-target-config').innerHTML = renderTargets();
+        saveAndPreview();
+    }
+
+    function addTagRule() {
+        const filter = game.settings.equipmentTargets;
+        if (filter.rules.length >= 6) return;
+        const tag = equipmentLootPolicy.tagOptions().find(option => !filter.rules.some(rule => rule.tag === option.id));
+        filter.rules.push({ tag: tag.id, minCount: 2, minTier: 0 });
         document.getElementById('loot-target-config').innerHTML = renderTargets();
         saveAndPreview();
     }
@@ -129,6 +157,7 @@
         showCombatLogItemTooltip(pointer,token);
     }
 
-    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, updateTargets, addRule, removeRule, saveAndPreview, renderHighlights, showHighlight });
+    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, updateTargets, addRule, addTagRule, removeRule, saveAndPreview, renderHighlights,
+        showHighlight });
     safeExposeGlobals({ equipmentLootUi });
 })();

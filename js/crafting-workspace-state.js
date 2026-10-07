@@ -20,11 +20,18 @@ const craftingWorkspaceState = (() => {
         const pins = Array.isArray(source.pins) ? source.pins.filter(key => group(key) && !materials.includes(key)) : defaults;
         const unique = [...new Set(pins)].slice(0, 4);
         defaults.forEach(key => { if (unique.length < 4 && !unique.includes(key)) unique.push(key); });
-        const goal = source.goal && typeof source.goal === 'object' ? source.goal : {};
-        return { discovered, pins: unique, goal: {
-            statId: typeof goal.statId === 'string' ? goal.statId.slice(0, 80) : '',
+        return { discovered, pins: unique, goal: normalizeGoal(source.goal) };
+    }
+
+    /** One option ({statId}) or a tag count ({tag, minCount}, data/affix-tags.js), with a minimum tier. */
+    function normalizeGoal(value) {
+        const goal = value && typeof value === 'object' ? value : {};
+        const tag = typeof goal.tag === 'string' && AFFIX_TAG_LABELS[goal.tag] ? goal.tag : '';
+        return {
+            statId: !tag && typeof goal.statId === 'string' ? goal.statId.slice(0, 80) : '', tag,
+            minCount: Number.isFinite(goal.minCount) ? Math.max(1, Math.min(6, Math.floor(goal.minCount))) : 1,
             minTier: Number.isFinite(goal.minTier) ? Math.max(0, Math.min(20, Math.floor(goal.minTier))) : 0
-        } };
+        };
     }
 
     function capture(state) {
@@ -43,6 +50,6 @@ const craftingWorkspaceState = (() => {
         return {craftingWorkspace:normalize(state.craftingWorkspace,state.currencies),itemSubtab:allowed.includes(tab)?tab:'item-tab-equip'};
     }
 
-    return Object.freeze({ normalize, capture, group, materials, restore });
+    return Object.freeze({ normalize, normalizeGoal, capture, group, materials, restore });
 })();
 safeExposeGlobals({ craftingWorkspaceState });

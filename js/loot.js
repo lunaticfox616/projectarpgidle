@@ -247,18 +247,36 @@ safeExposeGlobals({ getCurrencyDrops });
             .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     }
 
+    /** Affix tags a rule can count (data/affix-tags.js), in table order. */
+    function tagOptions() {
+        return Object.entries(AFFIX_TAG_LABELS).map(([id, name]) => ({ id, name }));
+    }
+
+    /** One option line ({statId, minValue, minTier}) or a count of lines carrying a tag ({tag, minCount, minTier}). */
+    function normalizeRule(rule, validIds) {
+        if (!rule || !Number.isFinite(rule.minTier)) return null;
+        const minTier = clampNumber(Math.floor(Number(rule.minTier)), 0, 20);
+        if (typeof rule.tag === 'string') {
+            return AFFIX_TAG_LABELS[rule.tag] && Number.isFinite(rule.minCount)
+                ? { tag: rule.tag, minCount: clampNumber(Math.floor(Number(rule.minCount)), 1, 6), minTier } : null;
+        }
+        return validIds.has(rule.statId) && Number.isFinite(rule.minValue) ? { statId: rule.statId, minValue: Math.max(0, Number(rule.minValue)), minTier } : null;
+    }
+
+    function ruleKey(rule) {
+        return rule.tag ? 'tag:' + rule.tag : rule.statId;
+    }
+
     /** Normalize external save/UI input; invalid rows cannot become broad keep rules. */
     function normalizeTargets(input) {
         const source = input && typeof input === 'object' ? input : {};
         const validIds = new Set(statOptions().map(stat => stat.id));
         const seen = new Set();
-        const rules = (Array.isArray(source.rules) ? source.rules : []).filter(rule => {
-            if (!rule || !validIds.has(rule.statId) || seen.has(rule.statId)) return false;
-            if (!Number.isFinite(rule.minValue) || !Number.isFinite(rule.minTier)) return false;
-            seen.add(rule.statId);
+        const rules = (Array.isArray(source.rules) ? source.rules : []).map(rule => normalizeRule(rule, validIds)).filter(rule => {
+            if (!rule || seen.has(ruleKey(rule))) return false;
+            seen.add(ruleKey(rule));
             return true;
-        }).slice(0, 6).map(rule => ({ statId: rule.statId,
-            minValue: Math.max(0, Number(rule.minValue)), minTier: clampNumber(Math.floor(Number(rule.minTier)), 0, 20) }));
+        }).slice(0, 6);
         return { enabled: source.enabled === true, slot: EQUIPMENT_DROP_SLOTS.includes(source.slot) ? source.slot : 'any',
             scope: source.scope === 'all' ? 'all' : 'explicit',
             minMatches: clampNumber(Math.floor(Number(source.minMatches) || 1), 1, Math.max(1, rules.length)), rules };
@@ -274,21 +292,33 @@ safeExposeGlobals({ getCurrencyDrops });
         settings.equipmentTargets = normalizeTargets(settings.equipmentTargets);
     }
 
-    function targetStats(item, scope) {
-        let stats = item.stats || [];
-        if (scope === 'all') stats = stats.concat(item.baseStats || [], item.underEnchant || []);
-        return stats.filter(Boolean).flatMap(stat => [stat,
-            ...(stat.extraStats || []).map(extra => ({ ...extra, tier: stat.tier }))]);
+    function targetLines(item, scope) {
+        const stats = item.stats || [];
+        return (scope === 'all' ? stats.concat(item.baseStats || [], item.underEnchant || []) : stats).filter(Boolean);
     }
 
-    /** A rule matches one option line (including compound extras), never a sum of separate lines. */
+    /** Lines with their compound extras as their own entries (an extra keeps its line's tier). */
+    function targetStats(lines) {
+        return lines.flatMap(stat => [stat, ...(stat.extraStats || []).map(extra => ({ ...extra, tier: stat.tier }))]);
+    }
+
+    /** One line meets a rule at its tier: the option and value, or for a tag rule a line carrying the tag. */
+    function lineMatchesRule(stat, rule) {
+        if (!stat || Number(stat.tier || 0) < rule.minTier) return false;
+        return rule.tag ? getAffixTags(stat).includes(rule.tag) : stat.id === rule.statId && Number(stat.val) >= rule.minValue;
+    }
+
+    /** An option rule needs one line (compound extras included), never a sum of lines; a tag rule counts whole lines. */
+    function ruleMet(rule, lines, expanded) {
+        return rule.tag ? lines.filter(line => lineMatchesRule(line, rule)).length >= rule.minCount : expanded.some(stat => lineMatchesRule(stat, rule));
+    }
+
     function matches(item, targetGame = game) {
         const filter = targetGame.settings && targetGame.settings.equipmentTargets;
         if (!filter || !filter.enabled || !filter.rules.length || !item) return false;
         if (filter.slot !== 'any' && filter.slot !== item.slot) return false;
-        const stats = targetStats(item, filter.scope);
-        return filter.rules.filter(rule => stats.some(stat => stat.id === rule.statId
-            && Number(stat.val) >= rule.minValue && Number(stat.tier || 0) >= rule.minTier)).length >= filter.minMatches;
+        const lines = targetLines(item, filter.scope), expanded = targetStats(lines);
+        return filter.rules.filter(rule => ruleMet(rule, lines, expanded)).length >= filter.minMatches;
     }
 
     function highlight(item, targetGame = game) {
@@ -325,7 +355,8 @@ safeExposeGlobals({ getCurrencyDrops });
         return { items: rows.slice(0, 5), total: rows.length };
     }
 
-    const equipmentLootPolicy = Object.freeze({ statOptions, normalizeTargets, normalizeSettings, matches, highlight, collectHighlights });
+    const equipmentLootPolicy = Object.freeze({ statOptions, tagOptions, ruleKey, normalizeTargets, normalizeSettings, lineMatchesRule, matches, highlight,
+        collectHighlights });
     safeExposeGlobals({ equipmentLootPolicy });
 })();
 

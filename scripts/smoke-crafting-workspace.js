@@ -17,7 +17,10 @@ assert.ok(plain('saved.craftingWorkspace.discovered').includes('formlessDew'));
 const damaged = plain("craftingWorkspaceState.normalize({discovered:['bad','fossilJagged','fossilJagged'],pins:['bad','fossil'],goal:{statId:4,minTier:Infinity}}, {magicBud:1,fairyRing:0})");
 assert.deepEqual(damaged.discovered,['fossilJagged','magicBud']);
 assert.equal(damaged.pins.length,4);assert.equal(new Set(damaged.pins).size,4);
-assert.deepEqual(damaged.goal,{statId:'',minTier:0});
+assert.deepEqual(damaged.goal,{statId:'',tag:'',minCount:1,minTier:0});
+// 태그 목표(2026-10-07, 15번 D): 아는 태그만, 줄 수 1~6, 태그면 옵션 목표는 비운다.
+assert.deepEqual(plain("craftingWorkspaceState.normalizeGoal({tag:'fire',statId:'flatHp',minCount:9,minTier:3})"),{statId:'',tag:'fire',minCount:6,minTier:3});
+assert.deepEqual(plain("craftingWorkspaceState.normalizeGoal({tag:'nope',statId:'flatHp',minTier:2})"),{statId:'flatHp',tag:'',minCount:1,minTier:2});
 run("this.weapon=createItemFromBase(BASE_ITEM_DB.find(row=>row.slot==='무기'),'rare',12);weapon.stats=[];this.recipe={key:'formlessDew',kind:'reroll'};");
 assert.ok(plain("craftingGoalOptions.get(weapon,recipe,'none')").length>0);
 assert.deepEqual(plain("craftingGoalOptions.get(weapon,{key:'magicBud',kind:'reroll'},'none')"),[]);

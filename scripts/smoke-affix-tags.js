@@ -88,4 +88,42 @@ const rules = json(`(() => {
 assert.strictEqual(rules.length, 26, 'twenty-six lists');
 rules.forEach(row => assert.deepStrictEqual([row.plus, row.minus], [[], []], `${row.name}: exceptions the tags already cover`));
 
-console.log('affix tags: 24 tags on every rolled stat, 26 currency lists from tag rules match the hand-written lists: OK');
+// 4. 노리는 옵션의 태그 조건(15번 D): 그 태그가 붙은 줄을 티어 이상으로 센다. 복합 줄은 한 줄이다.
+const policy = rules => `equipmentLootPolicy.normalizeTargets({ enabled: true, minMatches: 1, rules: ${JSON.stringify(rules)} })`;
+assert.deepStrictEqual(json(policy([{ tag: 'fire', minCount: 9, minTier: 25 }, { tag: 'nope', minCount: 1, minTier: 0 }, { tag: 'fire', minCount: 1, minTier: 0 },
+    { tag: 'cold', minCount: null, minTier: 0 }, { statId: 'flatHp', minValue: 5, minTier: 1 }])).rules,
+    [{ tag: 'fire', minCount: 6, minTier: 20 }, { statId: 'flatHp', minValue: 5, minTier: 1 }], 'known tags, clamped counts, one rule per tag');
+const tagMatch = (rules, stats, scope = 'explicit') => run(`equipmentLootPolicy.matches({ slot: '무기', stats: ${JSON.stringify(stats)}, baseStats: [{ id: 'fireFlatDmg', val: 5 }] },
+    { settings: { equipmentTargets: equipmentLootPolicy.normalizeTargets({ enabled: true, scope: '${scope}', minMatches: 1, rules: ${JSON.stringify(rules)} }) } })`);
+const fireTwo = [{ tag: 'fire', minCount: 2, minTier: 10 }];
+const fireLines = [{ id: 'firePctDmg', val: 30, tier: 12 }, { id: 'fireFlatDmg', val: 40, tier: 10 }, { id: 'aspd', val: 9, tier: 15 }];
+assert.strictEqual(tagMatch(fireTwo, fireLines), true, 'two fire lines at T10 or more');
+assert.strictEqual(tagMatch(fireTwo, [fireLines[0], { ...fireLines[1], tier: 9 }]), false, 'a line under the tier does not count');
+assert.strictEqual(tagMatch(fireTwo, [fireLines[0]]), false, 'one fire line is not two');
+assert.strictEqual(tagMatch([{ tag: 'fire', minCount: 2, minTier: 0 }], [fireLines[0]], 'all'), true, 'base lines count when the rule reads every line');
+assert.strictEqual(tagMatch([{ tag: 'defense', minCount: 2, minTier: 0 }], [{ id: 'armor', val: 30, tier: 5, extraStats: [{ id: 'armorPct', val: 10 }] }]), false,
+    'a compound line is one line');
+assert.strictEqual(run(`equipmentLootPolicy.lineMatchesRule({ id: 'resF', val: 20, tier: 4 }, { tag: 'resistance', minCount: 1, minTier: 3 })`), true, 'one line carries the tag');
+const saved = json(`(() => {
+    game = cloneDefaultGame();
+    game.settings.equipmentTargets = ${policy([{ tag: 'crit', minCount: 2, minTier: 8 }])};
+    return mergeDefaults(JSON.parse(serializeSaveState())).settings.equipmentTargets.rules;
+})()`);
+assert.deepStrictEqual(saved, [{ tag: 'crit', minCount: 2, minTier: 8 }], 'tag rules survive a save');
+
+// 작업대 목표: 태그는 지금 굴릴 수 있는 줄이 있을 때만, 남은 줄 수와 가장 높은 티어로.
+const goalTags = json(`(() => {
+    const weapon = createItemFromBase(BASE_ITEM_DB.find(row => row.slot === '무기' && getWeaponCategoryId({ slot: row.slot, baseId: row.id }) === 'greatsword'), 'rare', 12);
+    weapon.stats = [];
+    const reroll = craftingGoalOptions.tags(weapon, { key: 'formlessDew', kind: 'reroll' }, 'none');
+    weapon.stats = [{ id: 'firePctDmg', val: 20, tier: 7, lockedByHoney: true }];
+    const locked = craftingGoalOptions.tags(weapon, { key: 'formlessDew', kind: 'reroll' }, 'none');
+    return { tags: reroll.map(row => row.id), fire: reroll.find(row => row.id === 'fire'), lockedFire: locked.find(row => row.id === 'fire'),
+        value: craftingGoalOptions.tags(weapon, { key: 'goldenRule', kind: 'value' }, 'none') };
+})()`);
+assert(goalTags.tags.includes('fire') && goalTags.tags.includes('attack') && !goalTags.tags.includes('summon'), 'a plain greatsword can roll fire and attack lines, not summon ones');
+assert(goalTags.fire.maxCount >= 2 && goalTags.fire.maxTier >= 1, 'several fire lines can roll');
+assert.strictEqual(goalTags.lockedFire.maxCount, goalTags.fire.maxCount, 'a kept fire line counts and its stat leaves the pool');
+assert.deepStrictEqual(goalTags.value, [], 'value crafts have no line goals');
+
+console.log('affix tags: 24 tags on every rolled stat, 26 currency lists from tag rules match the hand-written lists, tag rules in loot targets and craft goals: OK');
