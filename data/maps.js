@@ -151,6 +151,9 @@ const EXPLORATION_EVENT_NOTICES = Object.freeze({
 // 보급 상자 등급(2026-10-05 사용자 결정, js/exploration-objects.js · js/exploration-object-combat.js): 지도를 만들 때 시드로 고정한다.
 // weight: 등급 비율. rolls: 기본(수량 배율) 회차에 더하는 장비 회차. guaranteed: 앞에서부터 반드시 장비가 나오는 회차 수.
 // rare: 앞에서부터 희귀 이상이 보장되는 장비 수. currency: 제작 재화 기본량. variantScale: 장비 드랍 변형(EQUIPMENT_DROP_VARIANTS) 확률 배수.
+// 항아리와 나무 상자(2026-10-07 사용자 "가끔씩 낮은 확률로 장비 보상"): 깨질 때 장비 하나의 확률(지도의 아이템 수량을 곱함)과
+// 재화 확률(재화가 열려 있을 때만). 예전에는 재화 30%뿐이라 재화가 잠긴 루프 1에는 늘 비어 있었고, 그 뒤에도 재화만 나왔다.
+const EXPLORATION_PROP_LOOT = Object.freeze({ itemChance: 0.1, currencyChance: 0.3 });
 const EXPLORATION_CHEST_GRADES = Object.freeze([
     Object.freeze({ id: 'wood', label: '보급 상자', weight: 0.70, rolls: 0, guaranteed: 0, rare: 0, currency: 1, variantScale: 1 }),
     Object.freeze({ id: 'silver', label: '은빛 보급 상자', weight: 0.24, rolls: 0, guaranteed: 1, rare: 0, currency: 2, variantScale: 2 }),
@@ -387,5 +390,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

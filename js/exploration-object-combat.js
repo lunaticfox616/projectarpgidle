@@ -133,7 +133,7 @@ actExplorationProgress.objects = (() => {
         const prop=['pot','crate'].includes(row.kind),rng=state.random((run.objects.seed+Math.abs(hashSeed(row.id)))>>>0);
         const drop=state.solid({...row,phase:'spent'})?spillCell(run,row):row;
         const enemy={id:0,gx:drop.gx,gy:drop.gy,isBoss:false,isElite:false};
-        const items=prop?[]:rollItems(run,row,enemy,rng);
+        const items=prop?rollPropItems(run,enemy,rng):rollItems(run,row,enemy,rng);
         row.phase='spent';row.remainingMs=0;
         if(run.objects.pendingId===row.id){cancel(run);run.destination=null;}
         remember(run);
@@ -164,10 +164,17 @@ actExplorationProgress.objects = (() => {
         }
         return items;
     }
+    /** A pot or crate now and then holds one piece of equipment (data/maps.js EXPLORATION_PROP_LOOT), more with the map's item
+     * quantity. Before 2026-10-07 it held only currency, so a loop-1 pot was always empty. */
+    function rollPropItems(run,enemy,rng) {
+        if(rng()>=Math.min(1,EXPLORATION_PROP_LOOT.itemChance*run.objects.quantity))return [];
+        const item=generateEquipmentDrop(enemy,{zone:getZone(run.zoneId)});
+        return item?[item]:[];
+    }
     function pay(run,row,drop) {
         const {prop,items,enemy,rng}=drop;
         for(const item of items)keepEquipmentDrop(enemy,item);
-        if(prop&&rng()>=.3)return;
+        if(prop&&rng()>=EXPLORATION_PROP_LOOT.currencyChance)return;
         const key=contentProgression.canDropCurrency('magicBud')?'magicBud':'formlessDew';
         if(!contentProgression.canDropCurrency(key))return;
         const base=prop?1:state.isEvent(row)?3:state.grade(row).currency;
