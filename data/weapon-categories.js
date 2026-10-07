@@ -32,3 +32,18 @@ const WEAPON_BASE_CATEGORIES = Object.freeze({
 });
 
 safeExposeData({ WEAPON_CATEGORIES, WEAPON_BASE_CATEGORIES });
+
+// 대분류에 어울리지 않는 무기 추가 옵션(js/state.js MOD_DB id): 그 대분류 무기에서는 weight배로 덜 붙는다(2026-10-07 드랍 풀 1단계,
+// js/passives.js getAvailableMods). 스킬은 무기를 가리지 않으므로 막지 않고 줄이기만 한다. 대분류 전용 줄은 MOD_DB weaponCategories.
+const WEAPON_CATEGORY_OFF_MODS = Object.freeze({
+    weight: 0.25,
+    byCategory: Object.freeze({
+        greatsword: ['projectilePctDmg', 'targetProjectile', 'projectileExtraShots', 'spellFlatDmg', 'spellFlatPct', 'spellPctDmg', 'spellLeech'],
+        scimitar: ['projectilePctDmg', 'targetProjectile', 'projectileExtraShots', 'spellFlatDmg', 'spellFlatPct', 'spellPctDmg', 'spellLeech'],
+        censer: ['projectilePctDmg', 'targetProjectile', 'projectileExtraShots'],
+        shortbow: ['meleePctDmg', 'targetSlam', 'spellFlatDmg', 'spellFlatPct', 'spellPctDmg', 'spellLeech'],
+        orb: ['meleePctDmg', 'targetSlam', 'attackPctDmg', 'leech'],
+        flask: ['meleePctDmg', 'targetSlam']
+    })
+});
+safeExposeData({ WEAPON_CATEGORY_OFF_MODS });

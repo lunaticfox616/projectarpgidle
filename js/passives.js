@@ -8583,6 +8583,19 @@ function keepWeaponCategoryBases(candidates, weaponCategory) {
     return own.length > 0 ? own : candidates;
 }
 
+/** 승급 체인 맨 위: 6단계 체인의 6단계(더 긴 체인은 그 맨 위), 또는 20단계 이상 베이스(듀얼 방어구의 4단계 등). */
+function isBaseChainTop(base) {
+    return getBaseChainRank(getBaseChainInfo(base)) >= 6 || (base.reqTier || 0) >= 20;
+}
+
+/** 드랍 후보 베이스의 가중치(data/items.js BASE_DROP_WEIGHTS): 체인 맨 위는 드물게, 드랍 티어보다 한참 낮은 일반 베이스는 덜. */
+function getBaseDropWeight(base, dropTier) {
+    const rules = BASE_DROP_WEIGHTS;
+    if (base.dropOnly || base.realmBase) return (base.reqTier || 0) >= 20 ? rules.contentTop : 1;
+    const top = isBaseChainTop(base) ? rules.chainTop : 1;
+    return (base.reqTier || 1) < dropTier - rules.windowTiers ? top * rules.belowWindow : top;
+}
+
 function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}, weaponCategory) {
     const zoneRealm = zone.type === 'chaosRealm' ? 'chaos' : (zone.type === 'underworld' ? 'underworld' : (zone.type === 'cosmos' ? 'cosmos' : null));
     let candidates = BASE_ITEM_DB.filter(base => {
@@ -8597,13 +8610,7 @@ function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}
     });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
     candidates = keepWeaponCategoryBases(candidates, weaponCategory);
-    // 최종 단계 베이스는 드랍 가중치를 크게 낮춘다(일반 베이스의 1/25 수준).
-    // 6단계 싱글 체인의 6단계, 또는 최상위 T20 베이스(듀얼 방어구의 4단계 등)가 대상.
-    let weights = candidates.map(base => {
-        let info = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
-        let isFinal = getBaseChainRank(info) >= 6 || (base.reqTier || 0) >= 20;
-        return isFinal ? 0.04 : 1;
-    });
+    let weights = candidates.map(base => getBaseDropWeight(base, zoneTier));
     let totalWeight = weights.reduce((sum, w) => sum + w, 0);
     if (totalWeight <= 0) return rndChoice(candidates);
     let roll = Math.random() * totalWeight;
@@ -9042,6 +9049,18 @@ function getExplicitModStatIds(mod) {
     return [mod.statId || mod.id, ...(mod.compound || []).map(sub => sub.statId || sub.id)];
 }
 
+/** 무기 대분류 전용 줄(MOD_DB weaponCategories)은 그 대분류 무기에만 붙는다(data/weapon-categories.js). */
+function isModForWeaponCategory(mod, weaponCategory) {
+    return !mod.weaponCategories || mod.weaponCategories.includes(weaponCategory);
+}
+
+/** 대분류에 어울리지 않는 줄(WEAPON_CATEGORY_OFF_MODS)은 가중치를 낮춘 사본으로 돌려준다. */
+function weighModForWeaponCategory(mod, weaponCategory) {
+    const off = WEAPON_CATEGORY_OFF_MODS.byCategory[weaponCategory];
+    if (!off || !off.includes(mod.id)) return mod;
+    return { ...mod, weight: (Number(mod.weight) || 1) * WEAPON_CATEGORY_OFF_MODS.weight };
+}
+
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
@@ -9053,7 +9072,8 @@ function getAvailableMods(item) {
     let isSummonBaseWeapon = item && item.slot === '무기' && hasSummonBaseStat;
     let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
     let baseDefenseTypes = getItemBaseDefenseTypes(item);
-    return MOD_DB.filter(mod => {
+    const weaponCategory = getWeaponCategoryId(item);
+    return MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory)).filter(mod => {
         let statId = mod.statId || mod.id;
         if (!isDefenseTypeStatAllowed(item, statId)) return false;
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
@@ -9063,7 +9083,7 @@ function getAvailableMods(item) {
         if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
         return allowedSlots.some(slot => mod.slots.includes(slot))
             && !getExplicitModStatIds(makeDualDefenseAffixMod(item, mod)).some(id => existing.has(id));
-    }).map(mod => makeDualDefenseAffixMod(item, mod));
+    }).map(mod => weighModForWeaponCategory(makeDualDefenseAffixMod(item, mod), weaponCategory));
 }
 
 function updateItemName(item) {
