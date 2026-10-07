@@ -6287,6 +6287,18 @@ function isPreCleanedBattleSheet(key) {
     return key === 'enemies' || key === 'summon1' || key.startsWith('bossAct');
 }
 
+/** A loaded sheet with its matte cleaned (sanitizeBattleSheet); the image itself where pixels cannot be read
+ * (file:// throws SecurityError on getImageData) or cleaning fails. */
+function cleanLoadedBattleSheet(key, image) {
+    if (!ENABLE_BATTLE_SHEET_SANITIZATION || isLocalFileProtocol()) return image;
+    try {
+        const sanitized = sanitizeBattleSheet(image);
+        return key === 'enemies' ? sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(sanitized)) : sanitized;
+    } catch {
+        return image;
+    }
+}
+
 function shouldPreserveOriginalBattleSheet(key) {
     return isPreCleanedBattleSheet(key)
         || key === 'tiles'
@@ -6321,9 +6333,6 @@ function initBattleAssets() {
     battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
-    const wispMonsterManifest = typeof WISP_MONSTER_ASSET_MANIFEST === 'undefined'
-        ? {}
-        : WISP_MONSTER_ASSET_MANIFEST;
     const manifest = {
         hero1Idle: 'assets/playable/hero1/idle.png',
         hero1Walk: 'assets/playable/hero1/walk.png',
@@ -6455,7 +6464,7 @@ function initBattleAssets() {
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         // Sanitized ahead of time (both passes the atlas used to get at runtime); v2 and v3 are no longer drawn.
         enemies: 'assets/battle-clean/battle-enemies-v1.png',
-        ...wispMonsterManifest,
+        // The old wisp atlas loads only for a wisp look the player wears (ensureWispSkinAtlas).
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -6533,7 +6542,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy')));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree')));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -6577,19 +6586,8 @@ function initBattleAssets() {
     }
 
     function queueBattleSheetSanitization(key, image) {
-        if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
-        if (isLocalFileProtocol()) return;  // file:// 환경에서는 canvas.getImageData가 SecurityError를 던지므로 sanitization 건너뜀
         if (battleAssets.loadTicket !== loadTicket) return;
-        try {
-            let sanitized = sanitizeBattleSheet(image);
-            if (key === 'enemies') {
-                sanitized = sanitizeWhiteBackdropSheet(sanitized);
-                sanitized = sanitizeLocalMonsterBackdropSheet(sanitized);
-            }
-            battleAssets.images[key] = sanitized;
-        } catch (error) {
-            battleAssets.images[key] = image;
-        }
+        battleAssets.images[key] = cleanLoadedBattleSheet(key, image);
     }
 
     function storeLoadedBattleImage(key, image) {
@@ -7161,6 +7159,43 @@ function buildWispEnemyVariants(images) {
             frames: directional.south.frames, attackFrames: directional.south.attackFrames,
             directions: directional
         };
+    });
+}
+
+/** The old wisp atlas (WISP_MONSTER_ASSET_MANIFEST) only draws a wisp look the player wears: wisp monsters draw from their own
+ * sheets (js/canvas-wisp-actors.js) and the look a kill unlocks is read from the data (getEnemySkinId). So it loads on the
+ * first such draw, cleaned like the startup sheets, instead of with the first screen (2026-10-07 memory review: its two
+ * cleaned copies held 20 MB from the start). A failed file is not fetched again until the battle assets reload. */
+let wispSkinAtlasLoad = null;
+function ensureWispSkinAtlas(id) {
+    const atlas = battleAssets.atlas && battleAssets.atlas.enemies;
+    if (!atlas || (wispSkinAtlasLoad && wispSkinAtlasLoad.atlas === atlas) || !isWispSkinId(id)) return;
+    const images = battleAssets.images;
+    wispSkinAtlasLoad = { atlas };
+    Promise.all(Object.entries(WISP_MONSTER_ASSET_MANIFEST).map(([key, src]) => loadCleanBattleSheet(key, src).then(image => { images[key] = image; })))
+        .then(() => {
+            if (battleAssets.atlas && battleAssets.atlas.enemies === atlas) atlas.skinVariants = { ...atlas.skinVariants, ...buildWispSkinVariants(images) };
+        }, () => {});
+}
+
+function isWispSkinId(id) {
+    return typeof WISP_MONSTER_ASSET_MANIFEST !== 'undefined' && typeof WISP_MONSTER_VISUALS !== 'undefined'
+        && WISP_MONSTER_VISUALS.some(wisp => wisp.id === id);
+}
+
+function buildWispSkinVariants(images) {
+    return Object.fromEntries(buildWispEnemyVariants(images).map(entry => [entry.skinId, entry]));
+}
+
+/** One battle sheet fetched on demand and cleaned like the startup sheets. */
+function loadCleanBattleSheet(key, src) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        if (!isLocalFileProtocol()) image.crossOrigin = 'anonymous';
+        image.decoding = 'async';
+        image.onload = () => resolve(shouldPreserveOriginalBattleSheet(key) ? image : cleanLoadedBattleSheet(key, image));
+        image.onerror = reject;
+        image.src = src;
     });
 }
 

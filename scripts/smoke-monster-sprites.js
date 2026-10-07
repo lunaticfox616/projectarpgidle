@@ -104,6 +104,21 @@ const walking = [0, 50, 100, 150, 200, 250, 300, 350].map(ms => clip('{ id: 0, a
 assert(walking.some(row => row.bob === 1) && walking.some(row => row.bob === 0), 'walking hops a dot on every other frame');
 assert.strictEqual(run('monsterActors.isSheetMonster("underworld-beetle")'), true, 'realm sets draw from their own sheets');
 assert.strictEqual(run('getEnemySkinId({ monsterVisualId: "ocean-crab" })'), 'ocean-crab', 'a realm kill unlocks that realm look');
+// 나머지 처치로 얻는 위습 외형은 그림 없이 데이터에서 고른다(2026-10-07: 옛 위습 그림은 그 외형을 입을 때만 불러온다).
+// 그 그림이 첫 화면에 올라와 있던 때 대체 그림 목록(pickBattleEnemyVariant)에서 고르던 외형과 같아야 한다.
+const skinPicks = json(`(() => {
+    const size = { width: 1728, height: 1536 }, wisps = buildWispEnemyVariants({ wispEnemyAttack: size, wispEnemyGlow: size });
+    const atlas = { variants: { normal: wisps, elite: wisps } }, ready = battleAssets.ready;
+    const foes = Array.from({ length: 90 }, (_, i) => ({ id: i + 1, variantSeed: i * 7, ele: ['phys', 'fire', 'cold', 'light', 'chaos'][i % 5],
+        isElite: i % 3 === 0, spriteVariantId: i % 4 === 0 ? WISP_MONSTER_VISUALS[i % WISP_MONSTER_VISUALS.length].id : null }));
+    battleAssets.ready = true;
+    const rows = foes.map(foe => [getEnemySkinId(foe), pickBattleEnemyVariant(foe, atlas).skinId]), boss = getEnemySkinId({ id: 1, isBoss: true });
+    battleAssets.ready = false;
+    const early = getEnemySkinId({ id: 1, variantSeed: 3 });
+    battleAssets.ready = ready;
+    return { same: rows.every(([a, b]) => a === b), wisps: new Set(rows.map(([a]) => a)).size, boss, early };
+})()`);
+assert.deepStrictEqual(skinPicks, { same: true, wisps: 18, boss: 'boss', early: null }, 'a kill unlocks the wisp look the atlas fallback would have shown');
 assert.strictEqual(run('monsterActors.draw(null, { spriteVariantId: null, isBoss: true }, { tile: 48 })'), false, 'bosses keep their art');
 
 // 5. 저장 변환: 모은 목재 외형 → 닮은 새 몬스터, 싸우던 목재 적 → 그 지역 몬스터(이름 · 외형 · 공격 방식 다시).

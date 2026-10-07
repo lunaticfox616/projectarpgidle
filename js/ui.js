@@ -5419,18 +5419,16 @@ function getMonsterSkinDefs() {
     return defs;
 }
 
-// 처치한 적이 화면에 표시한 외형의 스킨 id를 반환한다.
-// (렌더러 pickBattleEnemyVariant / getBossAssetVariantEntry 의 선택 로직과 동일하게 맞춘다.)
+// 처치한 적의 외형 스킨 id. 보스 그림, 제 시트로 그리는 몬스터는 그 id, 나머지는 위습 외형 하나를 렌더러와 같은 규칙
+// (pickSeededEnemyVariant)으로 데이터에서 고른다. 옛 위습 그림은 그 외형을 입을 때만 불러오므로 그림을 보지 않는다.
 function getEnemySkinId(enemy) {
     if (!enemy) return null;
     if (enemy.bossAssetKey) return enemy.bossAssetKey;
     const sheetId = enemy.spriteVariantId || enemy.monsterVisualId;
     if (MONSTER_SPRITE_SHEETS[sheetId]) return sheetId;
-    if (battleAssets && battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
-        const renderedVariant = pickBattleEnemyVariant(enemy, battleAssets.atlas.enemies);
-        if (renderedVariant && renderedVariant.skinId) return renderedVariant.skinId;
-    }
-    return enemy.isBoss ? 'boss' : null;
+    if (enemy.isBoss) return 'boss';
+    const wisps = typeof WISP_MONSTER_VISUALS !== 'undefined' ? WISP_MONSTER_VISUALS : [];
+    return battleAssets && battleAssets.ready && wisps.length ? pickSeededEnemyVariant(enemy, wisps).id : null;
 }
 
 function resolveMonsterSkinSprite(id) {
@@ -5453,6 +5451,7 @@ function resolveMonsterSkinSprite(id) {
         frame: woodVariant.frame,
         frames: woodVariant.frames
     };
+    ensureWispSkinAtlas(id);
     return null;
 }
 
@@ -7396,7 +7395,6 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     let pools = enemyAtlas.variants || {};
     let frames = enemyAtlas.frames || {};
     let baseImage = enemyAtlas.image;
-    let variantSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
     let normalPool = (pools.normal || []).slice();
     let elitePool = (pools.elite || []).slice();
     let bossPool = (pools.boss || []).slice();
@@ -7425,10 +7423,16 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     }
     let pool = enemy.isBoss ? bossPool : (enemy.isElite ? elitePool : normalPool);
     if (pool.length === 0) return null;
+    return pickSeededEnemyVariant(enemy, pool);
+}
+
+/** The pool entry an enemy shows: its assigned variant when the pool has it, otherwise one picked by its seed and element. */
+function pickSeededEnemyVariant(enemy, pool) {
     if (enemy.spriteVariantId) {
         let assignedVariant = pool.find(entry => entry && entry.id === enemy.spriteVariantId);
         if (assignedVariant) return assignedVariant;
     }
+    let variantSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
     let elementOffset = enemy.ele === 'fire' ? 1 : (enemy.ele === 'cold' ? 2 : (enemy.ele === 'light' ? 3 : (enemy.ele === 'chaos' ? 4 : 0)));
     return pool[(variantSeed + elementOffset) % pool.length];
 }
