@@ -720,7 +720,8 @@ assert.ok(!shellSource.includes('PROJECT IDLE</strong>'), 'the in-game expeditio
 assert.ok(!uiSource.includes('enemy-target-strip'), 'meaningless enemy count/target buttons should be removed');
 assert.ok(uiSource.includes("showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase)"), 'elite and boss traits should remain visible under the health bar');
 assert.ok(uiSource.includes("hunterExpose: { sprite: 8, label: '약점 노출'"), 'hunter exposure should use its Korean icon presentation');
-assert.ok(uiSource.includes("hunterExpose: () => '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.'"), 'hunter exposure should explain its actual effect in the custom tooltip');
+// 2026-10-07 직업 밸런스: 수치는 전투와 같은 ASCENDANCY_KEYSTONE_VALUES에서 읽는다.
+assert.ok(uiSource.includes("hunterExpose: () => `헌터 전직 키스톤 효과로 받는 모든 피해가 ${ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct}% 증가합니다.`"), 'hunter exposure should explain its actual effect in the custom tooltip');
 // Currency catalog exclusions are behavior-tested in smoke-crafting-workspace.js.
 assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
 assert.ok(uiSource.includes('overlayPause && (tutorialOpen || optionalOverlayOpen)'), 'tutorial notices must follow the overlay-pause setting');
