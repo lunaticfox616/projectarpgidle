@@ -28,6 +28,7 @@ function drawBattlePlayerFigure(ctx, state, position) {
     drawBattlePlayerBody(ctx, state, position);
 }
 
+const OCCLUDED_RIM_DIRECTIONS = Object.freeze([[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]);
 /** Frame-local readability layout. CSS-pixel boxes and two small reused masks; never serialized with game data. */
 drawBattlePlayerFigure.readability = (() => {
     let hero = null, boxes = [], mask, edge, outline = null;
@@ -46,10 +47,12 @@ drawBattlePlayerFigure.readability = (() => {
         body.save(); body.translate(-x, -y);
         if (isBattlePlayerMirrored(state.motionState)) { body.translate(position.x * 2, 0); body.scale(-1, 1); }
         drawBattlePlayerFigure(body, state, position); body.restore();
-        body.save(); body.globalCompositeOperation = 'source-in'; body.fillStyle = '#fff0bd'; body.fillRect(0, 0, size, size); body.restore();
-        const ctx = edge.getContext('2d'), step = tile >= 64 ? 2 : 1;
+        const style = BATTLE_SPRITE_OUTLINES.heroOccluded;
+        body.save(); body.globalCompositeOperation = 'source-in'; body.fillStyle = style.color; body.fillRect(0, 0, size, size); body.restore();
+        // 테는 여덟 방향으로 찍어 모서리가 비지 않게 굵게(예전 한 도트 네 방향은 몬스터 테두리에 묻혔다).
+        const ctx = edge.getContext('2d'), step = style.dots[tile >= 64 ? 1 : 0];
         ctx.save();
-        for (const [dx, dy] of [[-step, 0], [step, 0], [0, -step], [0, step]]) ctx.drawImage(mask, dx, dy);
+        for (const [dx, dy] of OCCLUDED_RIM_DIRECTIONS) ctx.drawImage(mask, dx * step, dy * step);
         ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(mask, 0, 0); ctx.restore();
         outline = { x, y, clips };
     }
@@ -66,11 +69,14 @@ drawBattlePlayerFigure.readability = (() => {
         }).filter(box => overlaps(box, hero));
         if (clips.length) capture(state, p, clips);
     }
+    /** 가린 몬스터 자리에서만: 주인공의 몸이 반투명하게 비치고 그 둘레에 굵은 테. */
     function draw(ctx) {
         if (!outline) return;
+        const style = BATTLE_SPRITE_OUTLINES.heroOccluded;
         ctx.save(); ctx.beginPath();
         outline.clips.forEach(box => ctx.rect(box.x, box.y, box.w, box.h)); ctx.clip();
-        ctx.globalAlpha = 0.82; ctx.drawImage(edge, outline.x, outline.y); ctx.restore();
+        ctx.globalAlpha = style.fill; ctx.drawImage(mask, outline.x, outline.y);
+        ctx.globalAlpha = style.alpha; ctx.drawImage(edge, outline.x, outline.y); ctx.restore();
     }
     function place(box, side = 0) {
         const result = { ...box };

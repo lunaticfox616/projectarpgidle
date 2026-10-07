@@ -49,10 +49,14 @@ const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
 // cached outline surfaces in js/passives.js).
 const BATTLE_SPRITE_OUTLINES = Object.freeze({
     hero: Object.freeze({ color: '#f0dca6', alpha: 0.72 }),
+    // 앞의 몬스터에 가려진 주인공(2026-10-07 사용자 요청): 몬스터 위로 굵은 테(dots: 칸 64px 미만 2, 이상 3)와 반투명 몸(fill)이 비친다.
+    heroOccluded: Object.freeze({ color: '#fff3c9', alpha: 0.95, fill: 0.32, dots: Object.freeze([2, 3]) }),
     enemy: Object.freeze({ color: '#cf5444', alpha: 0.72, thickness: 2 }),
     elite: Object.freeze({ color: '#e2b94f', alpha: 0.85, thickness: 2 }),
     boss: Object.freeze({ color: '#e8493b', alpha: 0.85, thickness: 2 })
 });
+// 보스 그림 크기 배율(2026-10-07 사용자 "보스 몬스터는 좀 더 커도 돼"). 일반 몬스터 크기는 그대로다.
+const BOSS_DRAW_SCALE = 1.15;
 const EMPTY_TRAVEL_PROGRESS_MULTIPLIER = 2;
 /** 스토리 액트에서 살아 있는 적이 없을 때(방과 방 사이) 초당 회복하는 최대 생명 비율(%, 0.1초 틱마다 1/10).
  * 초반 사망은 거의 모두 앞 전투에서 깎인 생명으로 다음 무리를 맞는 소모전이었다(측정 2026-10-01). */
@@ -136,7 +140,7 @@ const COMBAT_GRID_CONFIG = {
 safeExposeData({
   PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEYS, CLOUD_SESSION_STORAGE_KEY,
   CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, CLOUD_KEEPALIVE_BODY_LIMIT, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, HERO_SIZE_SCALE, HERO_RUN_RATE_MAX, PROJECTILE_FLIGHT_LIFT, PROJECTILE_HAND_REACH, PROJECTILE_SPRITE_SCALE, GUEST_SAVE_CHECK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
-  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG,
+  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG,
   EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
   EQUIPMENT_INVENTORY_CELLS_PER_PAGE
 });
