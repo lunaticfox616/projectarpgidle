@@ -2,7 +2,8 @@
 // 각 조합법은 재료 묶음(groups: 조합법 inputs 줄마다 재료 목록)을 받아 { ok, consumed, outputs }를 돌려준다.
 // consumed는 조합이 끝나면 없어질 재료, outputs는 보관할 결과다. 결과 종류:
 //   { kind: 'equipment', item } · { kind: 'jewel', item } · { kind: 'core', item }
-//   { kind: 'stump', spec }(새 씨앗 · 수액) · { kind: 'stump', talisman }(새 부적) · { kind: kind, existing }(바뀐 재료 그대로).
+//   { kind: 'stump', spec }(새 씨앗 · 수액) · { kind: 'stump', talisman }(새 부적) · { kind: kind, existing }(바뀐 재료 그대로)
+//   { kind: 'currency', key, amount }(재화, 지갑으로).
 // 결과를 만들 수 없으면 아무것도 바꾸지 않고 { ok: false, reason }을 돌려준다.
 const stumpCubeRecipes = (() => {
     function items(group) {
@@ -103,7 +104,9 @@ const stumpCubeRecipes = (() => {
     const HANDLERS = Object.freeze({
         equip_magic_upgrade: magicUpgrade, equip_rare_tier: rareTier, equip_unique_reroll: uniqueReroll, equip_socket_jewel: socketJewel,
         stump_merge: stumpMerge, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
-        talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll
+        talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll,
+        // 호박석 기폭제(12번 루프 32): 결과는 재화(stump-cube.js STORERS.currency).
+        amber_catalyst: (groups, state) => sapCatalysts.amberRecipe(groups, state)
     });
 
     function run(recipeId, groups, state = game, random = Math.random) {

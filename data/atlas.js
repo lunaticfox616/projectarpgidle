@@ -124,6 +124,11 @@ const ATLAS = Object.freeze({
         emberField: Object.freeze({ name: '잿불 터', chance: 8, packExtra: 3, prefix: '잿불', minLoop: 30, regionChance: Object.freeze({ garden: 2 }),
             ele: 'fire', outline: '#ffb347', sparks: '#ff9a3c', enemy: Object.freeze({ hp: 1.5, damage: 1.25, attack: 1.15, exp: 1.6 }),
             rewards: Object.freeze([['emberBranch', 2, 0.1], ['burningEmberBranch', 0.1, 0]]), mapChance: 0.15 }),
+        // 수액 상처(12번 루프 32, data/sap-catalysts.js): 세계수의 상처에서 굳은 수액 무리(단단하다, 호박 테와 수액 방울)가 기폭제를
+        // 떨어뜨린다. 루프 32부터, 고목 줄기 지도에서 두 배. 방을 비우면 무작위 한 종류의 기폭제(키 목록이면 하나를 고른다).
+        sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, regionChance: Object.freeze({ trunk: 2 }),
+            outline: '#e8c15a', sparks: '#f2b33d', enemy: Object.freeze({ hp: 2, damage: 1.1, attack: 0.95, exp: 1.7 }),
+            rewards: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15 }),
         // 깨어난 뒤(late): 붉은 제단(총주교)과 푸른 제단(포식자). 방을 비우면 잉걸 · 허기의 즙(data/atlas-endgame.js altars).
         exarch: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['magicBud', 2, 0.2]]), mapChance: 0.1 }),

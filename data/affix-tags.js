@@ -100,7 +100,10 @@ const AFFIX_TAG_LISTS = Object.freeze({
         chaos: { lines: 'any', any: ['chaos'] },
         physical: { lines: 'any', any: ['physical'], none: ['defense'] },
         defense: { lines: 'any', any: ['defense', 'life'], none: ['summon', 'recovery'] },
-        speed: { lines: 'any', any: ['speed'], none: ['summon'] }
+        speed: { lines: 'any', any: ['speed'], none: ['summon'] },
+        // 기폭제(12번 루프 32)만 주는 속성: 치명 줄, 소환수 줄(젬 레벨 줄은 빼고).
+        crit: { lines: 'any', any: ['crit'] },
+        summon: { lines: 'any', any: ['summon'], none: ['gem'] }
     },
     // 독벌침이 무기에 붙이는 줄.
     venomStinger: { any: ['damage', 'crit', 'speed'], none: ['spell', 'gem', 'aoe', 'melee', 'projectile'] }

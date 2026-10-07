@@ -10600,18 +10600,21 @@ function isRemovableExplicitStat(stat) {
 
 
 const QUALITY_ATTRIBUTE_MODES = ['base', 'fire', 'cold', 'light', 'chaos', 'physical', 'defense', 'speed'];
-const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도' };
+// 기폭제(12번 루프 32, js/sap-catalysts.js)만 주는 품질 속성: 심연 촉매의 순환(QUALITY_ATTRIBUTE_MODES)에는 들지 않는다.
+const QUALITY_CATALYST_MODES = ['crit', 'summon'];
+const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도',
+    crit: '치명', summon: '소환' };
 // The lines each quality mode scales come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.quality), unique lines included.
 const QUALITY_ATTRIBUTE_STAT_GROUPS = Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.quality)
     .map(([mode, rule]) => [mode, resolveAffixTagList(rule, MOD_DB)]));
 
 function getItemQualityAttributeMode(item) {
     let mode = item && typeof item.qualityAttribute === 'string' ? item.qualityAttribute : 'base';
-    return QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base';
+    return QUALITY_ATTRIBUTE_MODES.includes(mode) || QUALITY_CATALYST_MODES.includes(mode) ? mode : 'base';
 }
 
 function getItemQualityAttributeLabel(mode) {
-    return QUALITY_ATTRIBUTE_LABELS[QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base'] || QUALITY_ATTRIBUTE_LABELS.base;
+    return QUALITY_ATTRIBUTE_LABELS[mode] || QUALITY_ATTRIBUTE_LABELS.base;
 }
 
 function getNextItemQualityAttributeMode(mode) {

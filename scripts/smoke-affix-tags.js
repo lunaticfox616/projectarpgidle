@@ -60,7 +60,10 @@ const BEFORE = {
         chaos: ['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance', 'poisonDamageMultiplierPct'],
         physical: ['physPctDmg', 'flatDmg', 'bleedChance', 'physIgnore', 'maxDmgRoll', 'minDmgRoll'],
         defense: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'resAll', 'dr'],
-        speed: ['aspd', 'move', 'ds']
+        speed: ['aspd', 'move', 'ds'],
+        // 기폭제(12번 루프 32)만 주는 품질 속성: 예전에는 없었다.
+        crit: [],
+        summon: []
     },
     venomStinger: ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll',
         'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']
@@ -74,13 +77,13 @@ const B2_COUNTS = {
     'fossil.fossilOld': [0, 0], 'fossil.fossilRift': [0, 0],
     'sea.공격': [27, 43], 'sea.방어·생명': [17, 24], 'sea.속도·치명': [4, 5], 'sea.저항': [5, 11],
     'quality.fire': [4, 10], 'quality.cold': [4, 10], 'quality.light': [4, 10], 'quality.chaos': [5, 10], 'quality.physical': [6, 7],
-    'quality.defense': [10, 17], 'quality.speed': [3, 4], venomStinger: [16, 36]
+    'quality.defense': [10, 17], 'quality.speed': [3, 4], 'quality.crit': [0, 7], 'quality.summon': [0, 9], venomStinger: [16, 36]
 };
 const REGION_JOINS = {
     'spore.fire': 4, 'spore.cold': 4, 'spore.light': 3, 'spore.chaos': 4, 'spore.damage': 8, rotSpore: 10, 'fossil.fossilJagged': 1,
     'fossil.fossilBound': 5, 'fossil.fossilGale': 1, 'fossil.fossilAbyssal': 3, 'fossil.fossilPrimordial': 4, 'fossil.fossilWedge': 2,
     'sea.공격': 11, 'sea.방어·생명': 6, 'sea.속도·치명': 1, 'sea.저항': 1, 'quality.fire': 4, 'quality.cold': 4, 'quality.light': 3,
-    'quality.chaos': 4, 'quality.physical': 1, 'quality.defense': 5, 'quality.speed': 1, venomStinger: 8
+    'quality.chaos': 4, 'quality.physical': 1, 'quality.defense': 5, 'quality.speed': 1, 'quality.crit': 2, venomStinger: 8
 };
 const sporeRows = mode => json(`[...new Set(equipmentCrafting.filterSporeMods(MOD_DB, ${JSON.stringify(mode)}).map(mod => mod.statId || mod.id))]`);
 assert.deepStrictEqual(sporeRows('none'), [], 'an unknown spore mode guarantees nothing');
@@ -121,7 +124,7 @@ const rules = json(`(() => {
     return out.map(({ name, rule }) => ({ name, plus: (rule.plus || []).filter(statId => matchesAffixTags(getStatAffixTags(statId), rule)),
         minus: (rule.minus || []).filter(statId => !matchesAffixTags(getStatAffixTags(statId), rule)) }));
 })()`);
-assert.strictEqual(rules.length, 26, 'twenty-six lists');
+assert.strictEqual(rules.length, 28, 'twenty-eight lists (crit and summon quality from the loop 32 catalysts)');
 rules.forEach(row => assert.deepStrictEqual([row.plus, row.minus], [[], []], `${row.name}: exceptions the tags already cover`));
 
 // 4. 노리는 옵션의 태그 조건(15번 D): 그 태그가 붙은 줄을 티어 이상으로 센다. 복합 줄은 한 줄이다.

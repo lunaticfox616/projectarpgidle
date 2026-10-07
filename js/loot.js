@@ -172,10 +172,12 @@ function getBasicCurrencyDrops(enemy, bonusRoll) {
     return drops;
 }
 
-/** Content kills: the ember pack's branches (잿불 터, js/ember-corruption.js), then the content bosses' extras. */
+/** Content kills: the ember pack's branches (잿불 터, js/ember-corruption.js), the sap pack's catalysts (수액 상처, js/sap-catalysts.js),
+ * then the content bosses' extras. */
 function getContentKillCurrencyDrops(zone, enemy, abyssScale) {
     const embers = typeof emberCorruption === 'object' ? emberCorruption.killDrops(enemy) : [];
-    return [...embers, ...getContentBossCurrencyDrops(zone, enemy, abyssScale)];
+    const catalysts = typeof sapCatalysts === 'object' ? sapCatalysts.killDrops(enemy) : [];
+    return [...embers, ...catalysts, ...getContentBossCurrencyDrops(zone, enemy, abyssScale)];
 }
 
 /** A deep abyss boss's jewel shards and a season boss's core. */

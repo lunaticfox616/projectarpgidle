@@ -39,6 +39,7 @@ const stumpCube = (() => {
     function isRevealed(recipe, state = game) {
         const rule = recipe.reveal || {};
         if (rule.content && !contentProgression.isUnlocked(rule.content, state)) return false;
+        if (rule.loop && (Number(state.season) || 1) < rule.loop) return false;
         return !rule.harvest || rule.harvest.some(kind => stumpBox.hasHarvested(state, kind));
     }
     function revealed(state = game) { return STUMP_CUBE_RECIPES.filter(recipe => isRevealed(recipe, state)); }
@@ -211,7 +212,9 @@ const stumpCube = (() => {
         equipment: (state, output) => { addItemToInventory(output.item, { guaranteedKeep: true, skipAutoEquip: true }); return output.item; },
         stump: storeStump,
         jewel: (state, output) => { state.jewelInventory.push(output.item); return output.item; },
-        core: (state, output) => { coreItems.ensure(state).owned.push(output.item); return output.item; }
+        core: (state, output) => { coreItems.ensure(state).owned.push(output.item); return output.item; },
+        // 재화 결과(호박석 기폭제): 지갑으로. 조합창 칸에는 놓지 않고 이름만 결과 기록에 남긴다.
+        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${ORB_DB[output.key].name} ${output.amount}`, currency: output.key }; }
     });
 
     function transmuteRefusal(found, state) {
@@ -233,7 +236,7 @@ const stumpCube = (() => {
         Object.entries(found.recipe.cost || {}).forEach(([key, need]) => { state.currencies[key] -= need; });
         const made = result.outputs.map(output => ({ kind: output.kind, item: output.existing || STORERS[output.kind](state, output) }));
         clear(state);
-        made.filter(row => row.item).forEach(row => put(state, row.kind, row.item));
+        made.filter(row => row.item && row.kind !== 'currency').forEach(row => put(state, row.kind, row.item));
         return { ok: true, recipe: found.recipe, outputs: made };
     }
 

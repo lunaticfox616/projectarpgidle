@@ -79,12 +79,13 @@ const atlasEncounters = (() => {
         if (!pack || pack.waiting.length) return null;
         return pack.aliveIds.length === 1 && pack.aliveIds[0] === enemy.id ? pack : null;
     }
-    /** Room rewards: expected (base + perTier × tier) × (1 + reward passive %); the fraction rolls one more. Locked currencies are skipped. */
+    /** Room rewards: expected (base + perTier × tier) × (1 + reward passive %); the fraction rolls one more. A row with a key list
+     * (수액 상처's catalysts) gives one key of it at random. Locked currencies are skipped. */
     function rewards(zone, type, bonus, random) {
         const mul = 1 + (bonus[`${type}Reward`] || 0) / 100;
         return ATLAS.encounters[type].rewards.map(([key, base, perTier]) => {
-            const expected = (base + perTier * zone.atlasTier) * mul;
-            return [key, Math.floor(expected) + Number(random() < expected % 1)];
+            const expected = (base + perTier * zone.atlasTier) * mul, amount = Math.floor(expected) + Number(random() < expected % 1);
+            return [Array.isArray(key) ? key[Math.min(key.length - 1, Math.floor(random() * key.length))] : key, amount];
         }).filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
     }
     return Object.freeze({ types: TYPES, roll, chance, isOpen, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });

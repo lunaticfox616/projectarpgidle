@@ -1,6 +1,6 @@
 const craftingWorkspaceUi = (() => {
     const recipes = [
-        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
+        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
         ...FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
     let root, current=null, owner=null, goal, recipe=recipes[0], mode='none', extras='';
@@ -59,9 +59,15 @@ const craftingWorkspaceUi = (() => {
             const reason=equipmentCrafting.getFossilUseReason(selected(),FOSSIL_DB.find(entry=>entry.key===key),game.season,game.currencies)||workspaceFossilSlotReason(key);
             return {enabled:!reason,reason};
         }
-        if(key==='burningEmberBranch')return emberCorruptionUi.useState(selected());
+        const special=workspaceSpecialState(key);if(special)return special;
         if(['ouroboros','oceanRerollShard'].includes(key))return {enabled:!!selected()&&game.currencies[key]>0,reason:!selected()?'아이템을 선택하세요.':'재화 부족'};
         return adapter.useState(key,selected());
+    }
+
+    /** Currencies with their own rules: the burning branch (loop 30) and the catalysts (loop 32). null for the rest. */
+    function workspaceSpecialState(key) {
+        if(key==='burningEmberBranch')return emberCorruptionUi.useState(selected());
+        return sapCatalysts.isCatalyst(key)?sapCatalystsUi.useState(key,selected()):null;
     }
 
     function workspaceFossilSlotReason(key=recipe.key) {
@@ -323,6 +329,7 @@ const craftingWorkspaceUi = (() => {
         const actions={enchantedHoney:applyEnchantedHoneyToSelectedItem,venomStinger:applyVenomStingerToSelectedItem,voidChisel:applyVoidChiselToSelectedItem,ouroboros:applyWoodsmanTouchToSelectedItem,burningEmberBranch:emberCorruptionUi.use};
         if(actions[recipe.key])return actions[recipe.key]();
         if(recipe.key==='oceanRerollShard')return rerollSingleBaseOption(selected(),'oceanRerollShard',1);
+        if(sapCatalysts.isCatalyst(recipe.key))return sapCatalystsUi.use(recipe.key);
         return useCurrency(recipe.key);
     }
 
