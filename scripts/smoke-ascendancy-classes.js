@@ -104,7 +104,8 @@ const socketed = json(`(() => {
 assert.deepEqual([socketed.before, socketed.withJewel, socketed.after], [0, 10, 0], 'a socketed mechanic jewel switches its effect on at full strength, and off when removed');
 assert.deepEqual(socketed.deadeye, ['projectilePatternMode', 'projectileDoubleStrikePct', 'projectileExtraShotBonus'], 'a jewel brings the effect\'s unique lines too');
 
-// 노드: 기존 12종은 개편 전 getClassTreeDef와 같은 값(지문), 새 여섯은 모든 노드가 아는 능력치의 양수 값.
+// 노드: 기존 12종은 2026-10-07 직업 밸런스 뒤의 값(지문; 그 전에는 개편 전 getClassTreeDef와 같은 값), 새 여섯은 모든 노드가
+// 아는 능력치의 양수 값.
 const trees = json(`(() => {
     const out = {};
     for (const id of ['warrior','gladiator','assassin','ranger','elementalist','warlock','guardian','inquisitor','soulbinder','catalyst','hunter','crusader','berserker','juggernaut','bladedancer','stormarcher','grovewarden','bombardier']) {
@@ -119,8 +120,8 @@ const trees = json(`(() => {
     return out;
 })()`);
 const oldTwelve = Object.fromEntries(Object.entries(trees).slice(0, 12));
-assert.equal(crypto.createHash('sha1').update(JSON.stringify(oldTwelve)).digest('hex'), 'ea56ae41c84aff18d24f2fcbc80a29a33bf0b86c',
-    'the twelve existing ascendancies keep their node values (data/ascendancies.js matches the old getClassTreeDef)');
+assert.equal(crypto.createHash('sha1').update(JSON.stringify(oldTwelve)).digest('hex'), '3a9c9d10fa75ec7f19600e8fd83655c001c95e54',
+    'the twelve existing ascendancies keep their node values (data/ascendancies.js after the 2026-10-07 class balance)');
 for (const asc of ['berserker', 'juggernaut', 'bladedancer', 'stormarcher', 'grovewarden', 'bombardier']) {
     const nodes = Object.entries(trees[asc].bloom);
     assert.equal(nodes.length, 16, `${asc}: n1-n10, n11-n12 and n13a-d`);

@@ -40,13 +40,14 @@ for (const skill of ['기본 공격', '탄성 플라스크', '시간 가속']) {
     const base = attack(skill, []);
     const pact = attack(skill, ['wlk7']);
     assert.equal(pact.hp, 9600, `${skill}: blood pact costs exactly one 4% life payment`);
-    assert.ok(Math.abs(pact.dealt / base.dealt - 1.5) < 0.002,
-        `${skill}: the paid attack retains its 1.5x bonus through delayed contacts`);
+    // 2026-10-07 직업 밸런스: 피의 계약 1.5배 → 10% 증폭, 공허 특이점의 무작위 폭 절반(ASCENDANCY_KEYSTONE_VALUES).
+    assert.ok(Math.abs(pact.dealt / base.dealt - 1.1) < 0.002,
+        `${skill}: the paid attack retains its blood pact bonus through delayed contacts`);
     const singularity = attack(skill, ['wlk6']);
-    assert.ok(Math.abs(singularity.dealt / base.dealt - 2) < 0.002,
+    assert.ok(Math.abs(singularity.dealt / base.dealt - 1.5) < 0.002,
         `${skill}: the seeded singularity roll is retained by every contact`);
     const together = attack(skill, ['wlk6', 'wlk7']);
-    assert.ok(Math.abs(together.dealt / base.dealt - 3) < 0.002,
+    assert.ok(Math.abs(together.dealt / base.dealt - 1.65) < 0.002,
         `${skill}: independent start modifiers multiply once`);
     const unable = attack(skill, ['wlk7'], 400);
     assert.equal(unable.hp, 400, `${skill}: a lethal blood pact payment is not made`);

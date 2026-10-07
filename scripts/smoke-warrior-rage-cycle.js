@@ -22,7 +22,8 @@ vm.runInContext(combatSource.slice(start, end), context, { filename: 'warrior-ra
 for (let hit = 0; hit < 7; hit++) context.grantWarriorRageOnHit(1000 + hit * 100);
 assert.strictEqual(context.game.warriorRageStacks, 5, 'rage should stop at five stacks');
 assert.strictEqual(context.game.warriorRageExpiresAt, 6600, 'each successful hit should refresh the five-second duration');
-assert.strictEqual(context.getWarriorRagePhysicalDamageMultiplier(2000), 1.5, 'five stacks should multiply physical damage by 50%');
+// 2026-10-07 직업 밸런스: 중첩당 10% → 6%.
+assert.strictEqual(context.getWarriorRagePhysicalDamageMultiplier(2000), 1.3, 'five stacks should multiply physical damage by 30%');
 assert.strictEqual(context.getWarriorRagePhysicalDamageMultiplier(6600), 1, 'expired rage should stop affecting damage');
 
 const triggerIndex = combatSource.indexOf('grantWarriorRageOnHit(getCombatTime());');
@@ -30,7 +31,7 @@ const absorbIndex = combatSource.indexOf('let remaining = dmg;', triggerIndex);
 assert(triggerIndex >= 0 && absorbIndex > triggerIndex, 'a successful hit should grant rage before summon, ward, or energy-shield absorption');
 assert(combatSource.includes("skill.ele === 'phys' ? warriorPhysDamageMultiplier : 1"), 'displayed physical DPS should include rage');
 assert(combatSource.includes('getWarriorRageStacks, clearAscendKeystoneRuntimeState'), 'the HUD rage reader should be exposed explicitly');
-assert(stateSource.includes('물리 피해 +10% (최대 5중첩, 곱연산)'), 'the keystone description should advertise ten percent per stack');
+assert(stateSource.includes('물리 피해 +6% (최대 5중첩, 곱연산)'), 'the keystone description should advertise six percent per stack');
 assert(uiSource.includes("warriorRage: { sprite: 24, label: '격노 순환'"), 'the combat HUD should expose a rage icon');
 assert(uiSource.includes("showPlayerRuntimeEffectTooltip(event,'warriorRage'"), 'the rage icon tooltip should expose stacks and remaining duration');
 assert(uiSource.includes("badge: `${stacks}`"), 'the rage icon should expose its current stack count');

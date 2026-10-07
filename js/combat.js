@@ -621,7 +621,7 @@ function hasKeystone(id, owner = game) {
 }
 
 const WARRIOR_RAGE_STACK_MAX = 5;
-const WARRIOR_RAGE_STACK_DAMAGE_PCT = 10;
+const WARRIOR_RAGE_STACK_DAMAGE_PCT = 6; // ASCENDANCY_KEYSTONE_VALUES.w5
 const WARRIOR_RAGE_DURATION_MS = 5000;
 const ELEMENTALIST_OVERLOAD_STACK_MAX = 20;
 
@@ -947,7 +947,7 @@ function getKeystoneEnemyTakenMultiplier(enemy, hitElement) {
     debuffs[enemy.id] = list;
     game.enemyKeystoneDebuffs = debuffs;
     let a3Stacks = list.filter(row => row.type === 'a3').length;
-    if (a3Stacks > 0) mul *= (1 + Math.min(10, a3Stacks) * 0.06);
+    if (a3Stacks > 0) mul *= (1 + Math.min(10, a3Stacks) * ASCENDANCY_KEYSTONE_VALUES.a3.takenPctPerStack / 100);
     return mul;
 }
 
@@ -1444,7 +1444,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let zoneTier = (zone && zone.tier) || 1;
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
-    if (hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.30));
+    if (hasKeystone('sb1')) base = Math.max(1, Math.floor(base * (1 + ASCENDANCY_KEYSTONE_VALUES.sb1.summonBaseMorePct / 100)));
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
     // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
     let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct) / 100)
@@ -1465,9 +1465,9 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
         : (expected ? ((rollMinPct + 100) / 2) : (rollMinPct + Math.random() * (100 - rollMinPct)));
     dmg *= rollPct / 100;
     ailmentSourceDmg *= rollPct / 100;
-    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 75%를 소환수 타격에 가산(치명타 적용 전).
+    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 일부(ASCENDANCY_KEYSTONE_VALUES.sb7)를 소환수 타격에 가산(치명타 적용 전).
     if (hasKeystone('sb7')) {
-        let sbPlayerShare = 0.75 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
+        let sbPlayerShare = ASCENDANCY_KEYSTONE_VALUES.sb7.sharePct / 100 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
         if (sbPlayerShare > 0) {
             dmg += sbPlayerShare;
             ailmentSourceDmg += sbPlayerShare;
@@ -2685,7 +2685,7 @@ function getAbsoluteFloorDamageRoll(maxDamageRoll) {
 
 function getSolitaryHuntDoubleStrikeBonus(originalTargets) {
     let reducedTargets = Math.max(0, Math.floor(Number(originalTargets || 1)) - 1);
-    return (Math.min(5, reducedTargets) * 100) + (Math.max(0, reducedTargets - 5) * 50);
+    return (Math.min(5, reducedTargets) * ASCENDANCY_KEYSTONE_VALUES.h7.dsPerTarget) + (Math.max(0, reducedTargets - 5) * ASCENDANCY_KEYSTONE_VALUES.h7.dsPerTargetAfterFive);
 }
 
 function isDeferredTalentProjectileTargetEffect(effect) {
@@ -3540,8 +3540,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (uniqueAllMaxRes) { finalMaxResF += uniqueAllMaxRes; finalMaxResC += uniqueAllMaxRes; finalMaxResL += uniqueAllMaxRes; }
     if (uniqueEnemyRegenCutAndMinRoll) finalMinDmgRoll += Number(uniqueEnemyRegenCutAndMinRoll.minRoll || 0);
     if (hasKeystone('ct2')) {
-        resistanceBlendBonus = Math.max(0, dotPctDmg) * 0.1;
-        resistanceBlendMaxBonus = Math.floor(Math.max(0, dotPctDmg) * 0.01);
+        resistanceBlendBonus = Math.max(0, dotPctDmg) * ASCENDANCY_KEYSTONE_VALUES.ct2.resPctOfDot / 100;
+        resistanceBlendMaxBonus = Math.floor(Math.max(0, dotPctDmg) * ASCENDANCY_KEYSTONE_VALUES.ct2.maxResPctOfDot / 100);
         rawResF += resistanceBlendBonus; rawResC += resistanceBlendBonus; rawResL += resistanceBlendBonus; rawResChaos += resistanceBlendBonus;
         finalMaxResF = Math.min(90, finalMaxResF + resistanceBlendMaxBonus);
         finalMaxResC = Math.min(90, finalMaxResC + resistanceBlendMaxBonus);
@@ -3631,49 +3631,49 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // 워리어
     // 1) Base multipliers / penalties
     if (hasKeystone('w1')) {
-        warriorPhysDamageMultiplier *= 1.15;
-        finalArmor = Math.floor(finalArmor * 1.15);
+        warriorPhysDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w1.physMorePct / 100;
+        finalArmor = Math.floor(finalArmor * (1 + ASCENDANCY_KEYSTONE_VALUES.w1.armorMorePct / 100));
     }
     if (hasKeystone('w2')) {
         let now = getCombatTime();
         let critStacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
         let doubleStacks = (game.warriorRhythmDoubleExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
         let stacks = critStacks + doubleStacks;
-        if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1.08, stacks));
+        if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1 + ASCENDANCY_KEYSTONE_VALUES.w2.aspdPctPerStack / 100, stacks));
     }
     if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
-    if (hasKeystone('w4')) { finalPhysIgnore += 15; allowNegativePhysIgnore = true; }
+    if (hasKeystone('w4')) { finalPhysIgnore += ASCENDANCY_KEYSTONE_VALUES.w4.physIgnore; allowNegativePhysIgnore = true; }
     if (hasKeystone('w5')) {
         warriorPhysDamageMultiplier *= getWarriorRagePhysicalDamageMultiplier(getCombatTime());
     }
     if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
-        finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+        finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.w7.damageMorePct / 100));
         warriorTakenDamageMultiplier *= 0.85;
     }
     // 2) Keystone cap/transform phase
     if (hasKeystone('w8')) {
-        finalCrit = Math.min(200, finalCrit + 15);
-        finalCritDmg += 15;
-        finalAspd = Math.min(12, finalAspd * 1.15);
-        finalMove *= 1.15;
-        finalDamageMultiplier *= 1.15;
-        finalDs += 15;
+        finalCrit = Math.min(200, finalCrit + ASCENDANCY_KEYSTONE_VALUES.w8.crit);
+        finalCritDmg += ASCENDANCY_KEYSTONE_VALUES.w8.critDmg;
+        finalAspd = Math.min(12, finalAspd * (1 + ASCENDANCY_KEYSTONE_VALUES.w8.aspdMorePct / 100));
+        finalMove *= 1 + ASCENDANCY_KEYSTONE_VALUES.w8.moveMorePct / 100;
+        finalDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w8.damageMorePct / 100;
+        finalDs += ASCENDANCY_KEYSTONE_VALUES.w8.ds;
     }
-    // 9) 전쟁광: 주는 피해 40% 증폭, 받는 피해 10% 증폭
+    // 9) 전쟁광: 주는 피해와 받는 피해 증폭(ASCENDANCY_KEYSTONE_VALUES.w9)
     if (hasKeystone('w9')) {
-        finalDamageMultiplier *= 1.40;
-        warriorTakenDamageMultiplier *= 1.10;
+        finalDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w9.damageMorePct / 100;
+        warriorTakenDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w9.takenMorePct / 100;
     }
     // 글래디에이터
     if (hasKeystone('g1')) {
-        if (skill.ele === 'phys') finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
-        else finalBaseDmg = Math.floor(finalBaseDmg * 0.80);
+        if (skill.ele === 'phys') finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.g1.physMorePct / 100));
+        else finalBaseDmg = Math.floor(finalBaseDmg * (1 - ASCENDANCY_KEYSTONE_VALUES.g1.otherLessPct / 100));
     }
     if (hasKeystone('g2')) {
         let now = getCombatTime();
         let stacks = (game.gladiatorFlurryExpiresAt || 0) > now ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
         if (stacks > 0) {
-            finalAspd = Math.min(12, finalAspd * (1 + stacks * 0.03));
+            finalAspd = Math.min(12, finalAspd * (1 + stacks * ASCENDANCY_KEYSTONE_VALUES.g2.aspdPctPerStack / 100));
             finalEvasion = Math.floor(finalEvasion * (1 + stacks * 0.03));
         }
     }
@@ -3690,14 +3690,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         if (game.gladiatorSwiftGuardReady) swiftOpeningTakenMultiplier = 0.70;
     }
     if (hasKeystone('g7')) {
-        finalDs += Math.floor(Math.max(0, finalEvasion) / 35);
-        finalCrit += Math.floor(Math.max(0, finalArmor) / 250);
+        finalDs += Math.min(ASCENDANCY_KEYSTONE_VALUES.g7.dsMax, Math.floor(Math.max(0, finalEvasion) / ASCENDANCY_KEYSTONE_VALUES.g7.evasionPerDs));
+        finalCrit += Math.min(ASCENDANCY_KEYSTONE_VALUES.g7.critMax, Math.floor(Math.max(0, finalArmor) / ASCENDANCY_KEYSTONE_VALUES.g7.armorPerCrit));
     }
     if (hasKeystone('g8')) {
-        finalDs += 100;
-        finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
-        bossDamageDealtMultiplier *= 1.30;
-        bossTakenDamageMultiplier *= 1.18;
+        finalDs += ASCENDANCY_KEYSTONE_VALUES.g8.ds;
+        finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.g8.damageMorePct / 100));
+        bossDamageDealtMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.g8.bossDamageMorePct / 100;
+        bossTakenDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.g8.bossTakenMorePct / 100;
         finalRegen *= 0.5;
         finalEnergyShieldRegenRate = 0;
     }
@@ -3722,7 +3722,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     }
     if (hasKeystone('a7')) finalCritDmg -= 200;
     if (hasKeystone('a8')) {
-        finalCritDmg *= 2;
+        finalCritDmg *= ASCENDANCY_KEYSTONE_VALUES.a8.critDmgMul;
         finalBaseDmg = Math.floor(finalBaseDmg * 0.75);
     }
     // 9) 암영 극의: 치명타 피해 배율 20% 증폭 및 회피 20% 증폭
@@ -3737,15 +3737,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalEnergyShield = 0;
     }
     if (hasKeystone('r2')) {
-        finalAspd = Math.min(12, finalAspd * 1.2);
+        finalAspd = Math.min(12, finalAspd * (1 + ASCENDANCY_KEYSTONE_VALUES.r2.aspdMorePct / 100));
     }
     if (hasKeystone('r3')) {
         finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
     }
-    if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.002));
+    if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * ASCENDANCY_KEYSTONE_VALUES.r4.aspdPctPerMovePct / 100));
     if (hasKeystone('r6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
         skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(1, Math.floor(skill.targets || 1)) * 0.08));
+        finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(1, Math.floor(skill.targets || 1)) * ASCENDANCY_KEYSTONE_VALUES.r6.damageMorePctPerTarget / 100));
     }
     if (hasKeystone('r8')) {
         let aspdBonus = Math.max(0, finalAspd - 1) * 0.12;
@@ -3757,16 +3757,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (hasKeystone('r7')) {
         if (!Number.isFinite(game.playerLastHitAt) || game.playerLastHitAt <= 0) game.playerLastHitAt = getCombatTime();
         let sinceHitSec = Math.max(0, (getCombatTime() - Math.floor(game.playerLastHitAt || 0)) / 1000);
-        finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * 5);
+        finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * ASCENDANCY_KEYSTONE_VALUES.r7.critPerSecond);
     }
     // 헌터
     if (hasKeystone('h3')) finalEvasion = Math.floor(finalEvasion * (1 + Math.max(0, finalMove) * 0.002));
-    if (hasKeystone('h5')) { finalCritDmg += 350; finalCrit = Math.max(0, finalCrit - 20); }
+    if (hasKeystone('h5')) { finalCritDmg += ASCENDANCY_KEYSTONE_VALUES.h5.critDmg; finalCrit = Math.max(0, finalCrit - ASCENDANCY_KEYSTONE_VALUES.h5.critLess); }
     if (hasKeystone('h6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
         skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
+        // 추가 발사는 보통의 보너스 샷 피해(PROJECTILE_BONUS_SHOT_DAMAGE_PCT)로 맞힌다(2026-10-07 직업 밸런스: 예전 70% 강화는 뺐다).
         totalProjectileExtraShots += 1;
-        // 헌터의 추가 발사는 훈련된 사격 — 스킬이 자체 비율을 정의하지 않았다면 보너스 샷 피해를 70%로 강화.
-        if (!Number.isFinite(Number(skill.extraProjectileDamagePct)) || Number(skill.extraProjectileDamagePct) <= 0) skill.extraProjectileDamagePct = 70;
     }
     if (hasKeystone('h7')) {
         let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
@@ -3777,6 +3776,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let dsAsCrit = Math.max(0, finalDs);
         finalDs = 0;
         finalCrit = Math.min(1000, finalCrit + dsAsCrit);
+        finalCritDmg += ASCENDANCY_KEYSTONE_VALUES.h8.critDmg;
     }
     // 9) 일격필살: 공격 속도 1 고정, 공격 속도 증가분을 피해량 증폭으로 전환
     if (hasKeystone('h9')) {
@@ -3800,7 +3800,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalArmor = Math.floor(finalArmor * 1.4);
         finalEnergyShield = Math.floor(finalEnergyShield * 1.4);
     }
-    if (hasKeystone('cr6') && skill.ele === 'light') finalMaxDmgRoll = Math.floor(finalMaxDmgRoll * 2.0);
+    if (hasKeystone('cr6') && skill.ele === 'light') finalMaxDmgRoll = Math.floor(finalMaxDmgRoll * ASCENDANCY_KEYSTONE_VALUES.cr6.maxRollMul);
     if (hasKeystone('cr7')) {
         let addEs = Math.floor(finalArmor * 0.5);
         let addArmor = Math.floor(finalEnergyShield * 0.5);
@@ -3809,7 +3809,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalEnergyShieldRechargeDelay = Math.max(0.1, finalEnergyShieldRechargeDelay * 0.5);
     }
     if (hasKeystone('cr3') && skill.ele === 'light') {
-        crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)) * 2);
+        crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)) * ASCENDANCY_KEYSTONE_VALUES.cr3.levelMulPer100Es);
         crusaderHolyScaledDmg = Math.floor(crusaderHolyFlatDmg * baseDamageIncreaseMultiplier);
         finalBaseDmg = Math.max(1, finalBaseDmg + crusaderHolyScaledDmg);
     }
@@ -3835,23 +3835,23 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalResPen += 20;
         finalCritDmg -= 25;
     }
-    // 9) 절대 관통: 원소 저항 관통 +100% (관통 하한은 -300%까지, 적용은 mitigation 계산부)
-    if (hasKeystone('e9')) finalResPen += 100;
+    // 9) 절대 관통: 원소 저항 관통(ASCENDANCY_KEYSTONE_VALUES.e9), 관통 하한은 -300%까지(적용은 mitigation 계산부)
+    if (hasKeystone('e9')) finalResPen += ASCENDANCY_KEYSTONE_VALUES.e9.resPen;
     if (hasKeystone('e8')) {
         let stacks = getElementalistOverloadStacks();
-        finalDamageMultiplier *= (1 + stacks * 0.04);
+        finalDamageMultiplier *= (1 + stacks * ASCENDANCY_KEYSTONE_VALUES.e8.morePctPerStack / 100);
         finalCrit = Math.max(0, finalCrit - stacks);
     }
     if (hasKeystone('e7')) {
         let pool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool : [];
         if (['fire','cold','light'].every(ele => pool.includes(ele))) {
             finalDamageMultiplier *= 1.05;
-            ailmentPowerMultiplier = Math.max(ailmentPowerMultiplier, 2);
+            ailmentPowerMultiplier = Math.max(ailmentPowerMultiplier, ASCENDANCY_KEYSTONE_VALUES.e7.ailmentPowerMul);
         }
     }
     // 워록
     if (hasKeystone('wlk1')) {
-        chaosDamageMultiplier *= 1.20;
+        chaosDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.wlk1.chaosMorePct / 100;
     }
     if (hasKeystone('wlk2')) {
         totalDotDamageMultiplier *= 1.20;
@@ -3861,11 +3861,11 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalEnergyShieldRegenRate = 0;
     }
     if (hasKeystone('wlk6')) {
-        finalResPen += 21 + Math.max(0, finalCrit);
+        finalResPen += 21 + Math.max(0, finalCrit) * ASCENDANCY_KEYSTONE_VALUES.wlk6.critToPenPct / 100;
         finalCrit = 0;
     }
     if (hasKeystone('wlk8')) {
-        chaosDamageMultiplier *= 1.25;
+        chaosDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.wlk8.chaosMorePct / 100;
         finalLeech *= 0.5;
         finalSpellLeech *= 0.5;
         finalRegen *= 0.5;
@@ -3875,26 +3875,24 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         dotDurationMultiplier *= 0.5;
     }
     if (hasKeystone('wlk7')) {
-        if ((game.playerEnergyShield || 0) >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
+        if ((game.playerEnergyShield || 0) >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.esDamageMorePct / 100));
     }
     // 가디언
     if (hasKeystone('gd1')) {
         finalArmor = Math.floor(finalArmor * 1.15);
         guardianArmorDamageBonus = true;
     }
-    if (hasKeystone('gd2')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
+    if (hasKeystone('gd2')) { finalMaxHp = Math.floor(finalMaxHp * (1 + ASCENDANCY_KEYSTONE_VALUES.gd2.lifeMorePct / 100)); finalEnergyShield = Math.floor(finalEnergyShield * (1 + ASCENDANCY_KEYSTONE_VALUES.gd2.esMorePct / 100)); }
     if (hasKeystone('gd3')) { finalRegen *= 1.2; finalEnergyShieldRegenRate *= 0.8; }
     if (hasKeystone('gd4')) {
-        let converted = Math.floor((finalEvasion + finalEnergyShield) * 0.6);
+        let converted = Math.floor(finalEvasion * ASCENDANCY_KEYSTONE_VALUES.gd4.evasionToArmorPct / 100);
         finalArmor += converted;
-        finalEvasion = 0;
-        finalEnergyShield = 0;
     }
     if (hasKeystone('gd5')) {
         genericTakenDamageMultiplier *= 0.85;
     }
     if (hasKeystone('gd6')) { let now = getCombatTime(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
-    if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
+    if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(ASCENDANCY_KEYSTONE_VALUES.gd1.damagePctMax, Math.max(0, finalArmor) / 100 * ASCENDANCY_KEYSTONE_VALUES.gd1.damagePctPer100Armor) / 100));
     if (hasKeystone('gd8')) { guardianDamageNullifyChance += 30; ailmentResistBonusPct += 50; }
     if (hasKeystone('gd9')) {
         guardianHitCapPct = 35;
@@ -3918,28 +3916,28 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         suppCap += 1;
         finalAspd = Math.max(0.1, finalAspd * 0.94);
     }
-    // 9) 무한한 권능: 확보한 보조 젬 한도 1당 공명력 +15 (공명력 폭주 방지를 위해 무제한 확장 전의 '획득' 한도 기준)
-    if (hasKeystone('iq9')) inquisitorResonanceBonus += 15 * Math.max(0, suppCap);
+    // 9) 무한한 권능: 확보한 보조 젬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
+    if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
     let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + (reward.runeResonancePower || 0) + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
     let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
-    if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * 0.5) / 100));
+    if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * ASCENDANCY_KEYSTONE_VALUES.iq1.resonancePct / 100) / 100));
     if (hasKeystone('iq2')) {
         finalCrit = Math.max(0, finalCrit - 8);
         finalCritDmg += 75;
     }
-    if (hasKeystone('iq5')) { finalResPen += 20; if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0; }
+    if (hasKeystone('iq5')) { finalResPen += ASCENDANCY_KEYSTONE_VALUES.iq5.resPen; if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0; }
     if (hasKeystone('iq6')) {
-        suppCap += 1 + Math.floor(inquisitorResonancePower / 25);
+        suppCap += 1;
         finalMaxHp = Math.floor(finalMaxHp * 0.75);
     }
     if (hasKeystone('iq7')) finalCritDmg += inquisitorResonancePower;
     if (hasKeystone('iq8') && inquisitorElementalSkill) {
-        inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen);
+        inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen) * ASCENDANCY_KEYSTONE_VALUES.iq8.penToDamagePct / 100;
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
     }
-    // 무한한 권능: 보조 젬 한도 무제한
-    if (hasKeystone('iq9')) suppCap += 999;
+    // 무한한 권능: 보조 젬 한도 증가(예전에는 무제한이었다. 보조 젬 칸이 인퀴지터 폭주의 원인)
+    if (hasKeystone('iq9')) suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
     // 소울바인더
     if (hasKeystone('sb4')) { sbSummonAspdBonus += 25; sbSummonCapBonus += 1; }
     if (hasKeystone('sb8')) sbSummonCapBonus += 3;
@@ -3950,14 +3948,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let sumCrit = Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0));
         let sumCritDmg = Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0));
         let sumAspd = Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0));
-        finalBaseDmg += Math.floor(sumFlat);
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + sumPct / 100));
-        finalCrit += sumCrit;
-        finalCritDmg += sumCritDmg;
-        finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
+        const sb5Share = ASCENDANCY_KEYSTONE_VALUES.sb5.sharePct / 100;
+        finalBaseDmg += Math.floor(sumFlat * sb5Share);
+        finalBaseDmg = Math.floor(finalBaseDmg * (1 + sumPct * sb5Share / 100));
+        finalCrit += sumCrit * sb5Share;
+        finalCritDmg += sumCritDmg * sb5Share;
+        finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd * sb5Share / 100));
     }
     if (hasKeystone('sb7')) {
-        // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 75%를 나눠 가집니다.
+        // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 일부(ASCENDANCY_KEYSTONE_VALUES.sb7)를 나눠 가집니다.
         // 각 측의 공격력은 상대의 보너스를 제외한 자기 스탯만으로 계산하므로 무한 피드백이 없습니다.
         // 플레이어 공격력(보너스 적용 전)을 소환수에게 전달.
         sbPlayerAttackPower = Math.max(0, finalBaseDmg);
@@ -3971,7 +3970,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         };
         sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare, gemEvaluation);
         if (!hasKeystone('sb5')) {
-            sbSummonShareToPlayer = Math.floor(0.75 * sbSummonAttackPower);
+            sbSummonShareToPlayer = Math.floor(ASCENDANCY_KEYSTONE_VALUES.sb7.sharePct / 100 * sbSummonAttackPower);
             finalBaseDmg += sbSummonShareToPlayer;
         }
     }
@@ -3982,20 +3981,20 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalEvasion = Math.floor(finalEvasion * 1.2);
     }
     if (hasKeystone('ct6')) {
-        totalDotDamageMultiplier *= 2;
-        dotDurationMultiplier *= 0.5;
+        totalDotDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.ct6.dotMorePct / 100;
+        dotDurationMultiplier *= 1 - ASCENDANCY_KEYSTONE_VALUES.ct6.durationLessPct / 100;
     }
     if (hasKeystone('ct7')) {
-        let convertedCritChance = Math.max(0, finalCrit);
-        let convertedCritDamage = Math.max(0, finalCritDmg) * 0.2;
+        let convertedCritChance = Math.max(0, finalCrit) * ASCENDANCY_KEYSTONE_VALUES.ct7.critChanceToDotPct / 100;
+        let convertedCritDamage = Math.max(0, finalCritDmg) * ASCENDANCY_KEYSTONE_VALUES.ct7.critDmgToDotPct / 100;
         totalDotDamageMultiplier *= (1 + (convertedCritChance + convertedCritDamage) / 100);
         if (Array.isArray(skill.tags) && skill.tags.includes('attack')) finalCrit = 100;
         finalCritDmg = 100 + Math.max(0, (totalDotDamageMultiplier - 1) * 100 * 0.2);
     }
-    // 9) 급성 발현: 점화/중독/출혈 피해 간격 및 지속 시간 50% 감폭(총 피해 유지, 더 빠르게 폭발)
+    // 9) 급성 발현: 점화/중독/출혈 피해 간격 및 지속 시간 감폭(ASCENDANCY_KEYSTONE_VALUES.ct9, 총 피해 유지, 더 빠르게 폭발)
     if (hasKeystone('ct9')) {
-        dotTickIntervalMultiplier *= 0.5;
-        dotDurationMultiplier *= 0.5;
+        dotTickIntervalMultiplier *= 1 - ASCENDANCY_KEYSTONE_VALUES.ct9.fasterPct / 100;
+        dotDurationMultiplier *= 1 - ASCENDANCY_KEYSTONE_VALUES.ct9.fasterPct / 100;
     }
 
     finalCritDmg = Math.max(0, finalCritDmg);
@@ -4018,8 +4017,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
-    if ((hasKeystone('h8'))
-        || (typeof getPreciseTalentLevel === 'function' && (getPreciseTalentLevel('hero4__assassin') || getPreciseTalentLevel('hero6__ranger')))) finalCrit = Math.min(1000, finalCrit);
+    if ((typeof getPreciseTalentLevel === 'function' && (getPreciseTalentLevel('hero4__assassin') || getPreciseTalentLevel('hero6__ranger')))) finalCrit = Math.min(1000, finalCrit);
     else finalCrit = Math.min(100, finalCrit);
     if (skill.cannotCrit && !(hasKeystone('ct7') && Array.isArray(skill.tags) && skill.tags.includes('attack'))) finalCrit = 0;
     // 신성한 맹세: 번개 스킬의 기본 피해가 최대 에너지 보호막 100당 +1%
@@ -4049,7 +4047,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let critDmgSoftcapReduction = getCritDamageSoftcapReduction(rawFinalCritDmg);
     critChance = Math.max(0, Math.min(1, finalCrit / 100));
     critMulti = finalCritDmg / 100;
-    avgHit = getAverageCriticalHitDamage(finalBaseDmg, finalCrit, finalCritDmg, hasKeystone('h8'));
+    avgHit = getAverageCriticalHitDamage(finalBaseDmg, finalCrit, finalCritDmg, false);
     finalDps = avgHit * finalAspd;
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
@@ -5390,7 +5388,7 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         return cappedReduction;
     }
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') {
-        if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && hasKeystone('iq4')) rawMitigation = 0;
+        if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && hasKeystone('iq4')) rawMitigation = Math.max(0, rawMitigation) * ASCENDANCY_KEYSTONE_VALUES.iq4.resistanceKeptPct / 100 + Math.min(0, rawMitigation);
         if (skillEle === 'light' && pStats && pStats.crusaderLightningIgnoreRes) rawMitigation = 0;
         let effective = rawMitigation - ((skillEle === 'light' && pStats && pStats.crusaderNoResPenOnLightning) ? 0 : Math.max(0, pStats.resPen || 0));
         let cap = Math.max(0, Number(enemy && enemy.maxResCap) || 80);
@@ -10023,12 +10021,12 @@ function performPlayerAttack(pStats, attackOptions) {
         let bloodPactCost = Math.floor((pStats.maxHp || game.playerHp || 1) * 0.04);
         if (bloodPactCost > 0 && (game.playerHp || 0) > bloodPactCost) {
             game.playerHp -= bloodPactCost;
-            colosseumStrikeMul *= 1.5;
+            colosseumStrikeMul *= 1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.bloodPactMorePct / 100;
         }
     }
-    // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+저항관통+치명타 피해 배율)% 사이에서 균등 분포로 결정된다.
+    // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+(저항관통+치명타 피해 배율)의 rangePct%)% 사이에서 균등 분포로 결정된다.
     if (!isStageReplay && hasKeystone('wlk6')) {
-        let singularityMaxPct = 100 + Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0);
+        let singularityMaxPct = 100 + (Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0)) * ASCENDANCY_KEYSTONE_VALUES.wlk6.rangePct / 100;
         let singularityPct = 100 + Math.random() * Math.max(0, singularityMaxPct - 100);
         colosseumStrikeMul *= singularityPct / 100;
     }
@@ -10272,7 +10270,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 riderCompassReady = false;
                 game.uniqueRiderCompassConsumed = true;
             }
-            if (hitCrit && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 2;
+            if (hitCrit && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 1 + ASCENDANCY_KEYSTONE_VALUES.a7.extraHitPct / 100;
             if (hitCrit && skillName === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
             if (randomElementPct) {
@@ -10286,7 +10284,7 @@ function performPlayerAttack(pStats, attackOptions) {
             }
             if (hasKeystone('h1')) {
                 let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
-                let hunterMul = aliveCnt === 1 ? 1.40 : 1.15;
+                let hunterMul = 1 + (aliveCnt === 1 ? ASCENDANCY_KEYSTONE_VALUES.h1.singleMorePct : ASCENDANCY_KEYSTONE_VALUES.h1.multiMorePct) / 100;
                 hitBaseDamage = Math.floor(hitBaseDamage * hunterMul);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * hunterMul);
             }
@@ -10437,7 +10435,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (hasKeystone('wlk9') && targetEnemy && targetEnemy.hp > 0) {
                     game.enemyWitherStacks = (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') ? game.enemyWitherStacks : {};
                     let wStacks = Math.max(0, Math.min(10, Math.floor(game.enemyWitherStacks[targetEnemy.id] || 0)));
-                    chaosTakenMul *= (1 + wStacks * 0.08);
+                    chaosTakenMul *= (1 + wStacks * ASCENDANCY_KEYSTONE_VALUES.wlk9.chaosTakenPctPerStack / 100);
                     game.enemyWitherStacks[targetEnemy.id] = Math.min(10, wStacks + 1);
                 }
                 dmg = Math.floor(dmg * chaosTakenMul);
@@ -10566,8 +10564,8 @@ function performPlayerAttack(pStats, attackOptions) {
                 else targetEnemy.ailments.push({ type: 'hunterExpose', time: 3, power: 1 });
             }
             if (hasKeystone('h2') && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'hunterExpose' && (a.time || 0) > 0)) {
-                dmg = Math.floor(dmg * 1.2);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * 1.2);
+                dmg = Math.floor(dmg * (1 + ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct / 100));
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (1 + ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct / 100));
             }
             if (targetEnemy && targetEnemy.id && pStats.uniqueCursedTakenAndRefresh) {
                 let refreshSec = Math.max(0, Number(pStats.uniqueCursedTakenAndRefresh.refreshSec || 0));
