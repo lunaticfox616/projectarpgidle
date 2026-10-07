@@ -157,6 +157,11 @@
         .deathlog-bar { position: relative; height: 10px; border-radius: 999px; overflow: hidden; background: #0b1118; border: 1px solid #22384a; }
         .deathlog-bar-fill { height: 100%; border-radius: inherit; box-shadow: 0 0 14px rgba(255,255,255,0.08); }
         .deathlog-empty { padding: 10px 12px; border-radius: 8px; background: #131b26; border: 1px dashed #2e455c; color: #eef2f6; text-align: center; }
+        .deathlog-hints { flex: 0 0 auto; display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #1a1712; border: 1px solid #5c4a2b; }
+        .deathlog-hints[hidden] { display: none; }
+        .deathlog-hints .deathlog-subtitle { margin-bottom: 2px; }
+        .deathlog-hint { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--copy-bright); line-height: 1.5; }
+        .deathlog-hints .deathlog-hint-action { flex: 0 0 auto; min-height: 28px; padding: 2px 14px; }
         .deathlog-setting { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--copy-bright); }
         .deathlog-card .tutorial-actions { flex: 0 0 auto; margin-top: 12px; padding-top: 10px; border-top: 1px solid #25384a; }
         @media (max-height: 560px) {

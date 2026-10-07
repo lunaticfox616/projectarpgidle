@@ -131,6 +131,8 @@ const uiDisplay = (() => {
     }
 
     return Object.freeze({ apply, font, init, matches, registerStyles, get factor() { return factor; },
+        // Time since the last input: a long gap means the player is away (an idle run must not stop on a reward window).
+        get inputIdleMs() { return performance.now() - lastInputAt; },
         get battleFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 22, restingFrameMs()); },
         get explorationFrameMs() { return Math.max(mobileDevice ? 1000 / 30 : 1000 / 60, restingFrameMs()); },
         // Canvas pixels per CSS pixel, capped for fill cost. The canvas is shown with image-rendering:pixelated, so it

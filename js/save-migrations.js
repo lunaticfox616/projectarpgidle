@@ -510,6 +510,17 @@ function mergeDefaults(save) {
         return { frontierZoneId: zone.id, level };
     }
 
+    /** 사망 기록의 전투 전체 피해(걸린 초, 속성별, 상태이상, 몬스터별). 없던 예전 기록은 null. */
+    function normalizeDeathFight(fight) {
+        if (!fight || typeof fight !== 'object') return null;
+        return {
+            seconds: Math.max(1, Math.round(clampFiniteNumber(fight.seconds, 1, 1, 86400))),
+            damageSummary: normalizeDeathDamageSummaryRows(fight.damageSummary),
+            ailmentDamageSummary: normalizeDeathDamageSummaryRows(fight.ailmentDamageSummary),
+            monsterSummary: normalizeDeathMonsterSummaryRows(fight.monsterSummary)
+        };
+    }
+
     function normalizeDeathLog(log) {
         if (!log || typeof log !== 'object') return null;
         let primaryElement = normalizeDamageElementKey(log.primaryElement);
@@ -541,6 +552,8 @@ function mergeDefaults(save) {
             lostItems: Math.max(0, Math.floor(clampFiniteNumber(log.lostItems, 0, 0))),
             lostCurrencies: Math.max(0, Math.floor(clampFiniteNumber(log.lostCurrencies, 0, 0))),
             retreatZoneName: typeof log.retreatZoneName === 'string' ? log.retreatZoneName : '',
+            maxLife: Math.max(0, Math.floor(clampFiniteNumber(log.maxLife, 0, 0))),
+            fight: normalizeDeathFight(log.fight),
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
     }

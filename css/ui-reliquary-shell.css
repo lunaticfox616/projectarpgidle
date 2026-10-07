@@ -134,7 +134,7 @@ body :is(#tutorial-overlay, #death-overlay) .tutorial-card {
 body :is(#tutorial-overlay, #death-overlay) .tutorial-card::before { background: var(--skin-line-strong); }
 body :is(#tutorial-overlay, #death-overlay) :is(.tutorial-kicker, .tutorial-title, .deathlog-subtitle) { color: var(--color-accent-gold); }
 body :is(#tutorial-overlay, #death-overlay) :is(.tutorial-body, .tutorial-summary, .deathlog-setting) { color: var(--color-text); }
-body #death-overlay :is(.deathlog-panel, .deathlog-line, .deathlog-empty) {
+body #death-overlay :is(.deathlog-panel, .deathlog-line, .deathlog-empty, .deathlog-hints) {
   color: var(--color-text);
   background: var(--color-surface);
   border-color: var(--color-line);

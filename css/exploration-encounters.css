@@ -84,6 +84,9 @@
 #reward-overlay .reward-choice strong{font-size:15px;color:#e5d3a2;font-weight:600}
 #reward-overlay .reward-choice span{font-size:13px;color:#e0e4d7}
 #reward-overlay .reward-choice small{font-size:11px;color:#a8b09e}
+#reward-overlay .reward-choice-dps{display:block;margin-top:3px;font-weight:400;color:#e5d3a2}
+#reward-overlay .reward-choice-dps.is-up{color:#8fe0a8}
+#reward-overlay .reward-choice-dps.is-down{color:#ff9b92}
 #reward-overlay .reward-choice:hover{border-color:#d4b87b;transform:none}
 #reward-overlay .reward-choice:focus-visible,#reward-overlay .tutorial-secondary:focus-visible{outline:2px solid #efd6a2;outline-offset:2px}
 #reward-overlay .tutorial-actions{display:flex;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #b6a57833}

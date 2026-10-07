@@ -11048,27 +11048,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.exp = Math.max(0, expBeforePenalty - expPenalty);
         expLost = expBeforePenalty - game.exp;
     }
-    let damageSummary = buildDeathDamageSummary(3000);
-    let ailmentDamageSummary = buildDeathDamageSummary(3000, { ailmentOnly: true });
-    let monsterSummary = buildDeathMonsterSummary(3000);
-    let activeAilments = snapshotPlayerAilmentsForDeathLog();
-    let primaryEntry = damageSummary[0] || null;
-    let primaryElement = primaryEntry ? primaryEntry.ele : normalizeDamageElementKey(opts.fatalElement);
-    let reasonText = DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys;
-    game.lastDeathLog = {
-        at: getCombatTime(),
-        zoneName: zone && zone.name ? zone.name : '알 수 없는 지역',
-        expLost: expLost,
-        primaryElement: primaryElement,
-        fatalElement: opts.fatalElement,
-        reasonText: reasonText,
-        damageSummary: damageSummary,
-        ailmentDamageSummary: ailmentDamageSummary,
-        monsterSummary: monsterSummary,
-        activeAilments: activeAilments,
-        sourceName: opts.sourceName || '',
-        retreatZoneName: retreatAfterActDefeat(zone)
-    };
+    game.lastDeathLog = buildPlayerDeathLog(zone, opts, expLost, pStats);
     if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
@@ -11076,6 +11056,29 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     startMoving(false);
     updateStaticUI();
     queueImportantSave(160);
+}
+
+/** 사망 기록: 마지막 3초(속성별, 상태이상, 몬스터별)와 그 전투 전체의 피해(takeDeathFightSummary), 최대 생명. */
+function buildPlayerDeathLog(zone, opts, expLost, pStats) {
+    let damageSummary = buildDeathDamageSummary(3000);
+    let primaryEntry = damageSummary[0] || null;
+    let primaryElement = primaryEntry ? primaryEntry.ele : normalizeDamageElementKey(opts.fatalElement);
+    return {
+        at: getCombatTime(),
+        zoneName: zone && zone.name ? zone.name : '알 수 없는 지역',
+        expLost: expLost,
+        primaryElement: primaryElement,
+        fatalElement: opts.fatalElement,
+        reasonText: DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys,
+        damageSummary: damageSummary,
+        ailmentDamageSummary: buildDeathDamageSummary(3000, { ailmentOnly: true }),
+        monsterSummary: buildDeathMonsterSummary(3000),
+        activeAilments: snapshotPlayerAilmentsForDeathLog(),
+        sourceName: opts.sourceName || '',
+        retreatZoneName: retreatAfterActDefeat(zone),
+        maxLife: Math.max(1, Math.floor(getPlayerHpCap(pStats))),
+        fight: takeDeathFightSummary()
+    };
 }
 
 function getPlayerAilmentResistChance(type, pStats) {

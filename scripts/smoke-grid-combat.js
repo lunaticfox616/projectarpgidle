@@ -261,7 +261,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
   assert.strictEqual(rows[0].value, 1020, '같은 몬스터의 직접 피해와 상태이상 피해를 합산해야 한다');
   assert.strictEqual(rows[0].primaryElement, 'phys', '가장 큰 속성 피해를 몬스터 피해 수치 색에 사용해야 한다');
   const html = context.renderDeathMonsterView({ monsterSummary: rows });
-  assert(html.includes('그 외 2마리의 몬스터'), '상위 5마리 뒤의 몬스터는 개체 수와 합계 피해로 요약해야 한다');
+  assert(html.includes('그 외 몬스터 2마리, 피해 700'), '상위 5마리 뒤의 몬스터는 개체 수와 합계 피해로 요약해야 한다');
 }
 
 // 지도 예상 전투력은 실제 지역·루프 스케일을 따라야 한다.

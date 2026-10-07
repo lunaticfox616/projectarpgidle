@@ -5557,8 +5557,8 @@ function renderDeathAilmentRows(log) {
     let rows = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     if (rows.length === 0) return '';
     return `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + rows.map(ail => {
-        let hit = (ail.sourceHitDamage || 0) > 0 ? ` · 원천 피해 ${formatNumberKR(Math.floor(ail.sourceHitDamage))}` : '';
-        let source = ail.sourceEnemyName ? ` · ${escapeDeathLogText(ail.sourceEnemyName)}` : '';
+        let hit = (ail.sourceHitDamage || 0) > 0 ? `, 원천 피해 ${formatNumberKR(Math.floor(ail.sourceHitDamage))}` : '';
+        let source = ail.sourceEnemyName ? `, ${escapeDeathLogText(ail.sourceEnemyName)}` : '';
         return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${escapeDeathLogText(ail.label || getAilmentDisplayLabel(ail.type))}</span>
             <strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hit}${source}</span></strong></div></div>`;
     }).join('');
@@ -5586,7 +5586,7 @@ function renderDeathMonsterView(log) {
     let hidden = rows.slice(5);
     if (hidden.length > 0) {
         let hiddenDamage = hidden.reduce((sum, row) => sum + Math.max(0, row.value || 0), 0);
-        html += `<div class="deathlog-line deathlog-other">그 외 ${hidden.length}마리의 몬스터 · ${formatNumberKR(hiddenDamage)} 피해</div>`;
+        html += `<div class="deathlog-line deathlog-other">그 외 몬스터 ${hidden.length}마리, 피해 ${formatNumberKR(hiddenDamage)}</div>`;
     }
     return html;
 }
@@ -5599,9 +5599,48 @@ function setDeathLogView(view) {
         tab.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     let list = document.getElementById('deathlog-damage-list');
-    if (list && activeDeathLog) list.innerHTML = deathLogView === 'monster'
-        ? renderDeathMonsterView(activeDeathLog)
-        : renderDeathElementView(activeDeathLog);
+    let scoped = activeDeathLog && getDeathLogScope(activeDeathLog);
+    if (list && scoped) list.innerHTML = deathLogView === 'monster' ? renderDeathMonsterView(scoped) : renderDeathElementView(scoped);
+}
+
+/** 마지막 3초 피해가 최대 생명의 절반에 못 미치면 한 방이 아니라 오래 깎인 소모전이다: 피해 요약은 그 전투 전체를 보인다. */
+const DEATH_ATTRITION_SHARE = 0.5;
+function sumDeathDamage(rows) {
+    return (rows || []).reduce((sum, row) => sum + Math.max(0, row.value || 0), 0);
+}
+function isDeathAttrition(log) {
+    const recent = sumDeathDamage(log.damageSummary);
+    return log.maxLife > 0 && !!log.fight && sumDeathDamage(log.fight.damageSummary) > recent && recent < log.maxLife * DEATH_ATTRITION_SHARE;
+}
+function getDeathLogScope(log) {
+    return isDeathAttrition(log) ? { ...log, ...log.fight } : log;
+}
+/** 소모전 한 줄: "32초 동안 조금씩 깎였습니다(마지막 3초 피해는 생명의 18%)." */
+function describeDeathAttrition(log) {
+    if (!isDeathAttrition(log)) return '';
+    const share = Math.round(sumDeathDamage(log.damageSummary) / log.maxLife * 100);
+    return `${log.fight.seconds}초 동안 조금씩 깎였습니다(마지막 3초 피해는 생명의 ${share}%).`;
+}
+/** 지금 바로 할 수 있는 일. 초반 사망은 대개 받지 않은 액트 보상, 남은 포인트, 빈 무기 칸 가운데 하나였다(플레이 리뷰 2026-10-07).
+ * 액트 보상 줄에는 바로 여는 단추(reward: 지역 id)가 붙는다. */
+function getDeathHints() {
+    const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
+    return [
+        rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, reward: rewards[0] } : null,
+        game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점` } : null,
+        game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
+        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개(장비 창의 빈 칸 채우기)` } : null
+    ].filter(Boolean);
+}
+function renderDeathHints() {
+    const box = document.getElementById('deathlog-hints');
+    if (!box) return;
+    const hints = getDeathHints(), reward = hints.find(hint => hint.reward !== undefined);
+    box.hidden = hints.length === 0;
+    box.innerHTML = hints.length === 0 ? '' : '<div class="deathlog-subtitle">할 수 있는 일</div>' + hints.map(hint => `<div class="deathlog-hint">
+        <span>${escapeDeathLogText(hint.text)}</span>${hint === reward ? '<button type="button" class="deathlog-hint-action">받기</button>' : ''}</div>`).join('');
+    const action = box.querySelector('.deathlog-hint-action');
+    if (action) action.onclick = () => { closeDeathOverlay(); openActReward(reward.reward); };
 }
 
 /** 잃은 경험치 줄: 잃은 것이 없으면(레벨 1 첫 사망 등) "0 잃었습니다" 대신 줄을 뺀다. */
@@ -5613,7 +5652,7 @@ function describeDeathExpLoss(log) {
 function describeDeathLootLoss(log) {
     if (!log.lostItems && !log.lostCurrencies) return '';
     const parts = [log.lostItems ? `아이템 ${log.lostItems}개` : '', log.lostCurrencies ? `재화 ${log.lostCurrencies}종` : ''].filter(Boolean);
-    return `탐험 전리품(${parts.join(' · ')})을 잃고 지도를 처음부터 다시 밝힙니다.`;
+    return `탐험 전리품(${parts.join(', ')})을 잃고 지도를 처음부터 다시 밝힙니다.`;
 }
 
 function openDeathOverlay(log) {
@@ -5623,17 +5662,19 @@ function openDeathOverlay(log) {
     activeDeathLog = log;
     let ailments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     let ailmentText = ailments.length > 0
-        ? ailments.slice(0, 4).map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ')
+        ? ailments.slice(0, 4).map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(', ')
         : '없음';
     const describeDamage = () => {
         const fatal = log.fatalElement ? getDamageElementLabel(log.fatalElement) : '속성 미기록';
-        const source = [stripDecorativeEmoji(log.sourceName), fatal].filter(Boolean).join(' · ');
+        const source = [stripDecorativeEmoji(log.sourceName), fatal].filter(Boolean).join(', ');
         const recent = log.damageSummary?.length ? getDamageElementLabel(log.primaryElement) : '기록 없음';
         return `마지막 피해: ${source}\n최근 주요 피해: ${recent}`;
     };
     document.getElementById('deathlog-title').innerText = '전투에서 쓰러졌습니다.';
-    document.getElementById('deathlog-body').innerText = [describeDamage(), describeDeathExpLoss(log), describeDeathLootLoss(log),
+    document.getElementById('deathlog-body').innerText = [describeDamage(), describeDeathAttrition(log), describeDeathExpLoss(log), describeDeathLootLoss(log),
         log.retreatZoneName ? `${withDirectionParticle(log.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.` : '', `죽기 전 상태이상: ${ailmentText}`].filter(Boolean).join('\n');
+    document.getElementById('deathlog-damage-title').innerText = isDeathAttrition(log) ? `전투 전체 피해 (${log.fight.seconds}초)` : '최근 3초 피해 요약';
+    renderDeathHints();
     document.querySelectorAll('[data-deathlog-view]').forEach(tab => { tab.onclick = () => setDeathLogView(tab.dataset.deathlogView); });
     setDeathLogView('element');
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
@@ -5658,7 +5699,7 @@ function recordIncomingDamage(ele, amount, sourceName, options) {
     let opts = options && typeof options === 'object' ? options : {};
     pruneRecentDamageEvents(now);
     game.recentDamageEvents = Array.isArray(game.recentDamageEvents) ? game.recentDamageEvents : [];
-    game.recentDamageEvents.push({
+    let entry = {
         at: now,
         ele: normalizeDamageElementKey(ele),
         amount: Math.max(0, Math.floor(amount || 0)),
@@ -5667,7 +5708,38 @@ function recordIncomingDamage(ele, amount, sourceName, options) {
         sourceId: opts.sourceId === undefined ? null : opts.sourceId,
         sourceName: opts.sourceName || sourceName || '',
         ailmentType: opts.ailmentType || ''
-    });
+    };
+    game.recentDamageEvents.push(entry);
+    addDeathFightDamage(entry);
+}
+
+// 한 전투 동안 받은 피해: 피해가 DEATH_FIGHT_GAP_MS 넘게 끊기면 새 전투로 본다. 저장하지 않는다(사망 기록이 요약을 가져간다).
+// 초반 사망은 20~40초 동안 조금씩 깎이는 소모전이라 마지막 3초만으로는 원인이 보이지 않았다(플레이 리뷰 2026-10-07).
+const DEATH_FIGHT_GAP_MS = 8000;
+let deathFightLedger = null;
+function addDeathFightDamage(entry) {
+    let ledger = deathFightLedger;
+    if (!ledger || entry.at < ledger.lastAt || entry.at - ledger.lastAt > DEATH_FIGHT_GAP_MS) {
+        ledger = deathFightLedger = { startedAt: entry.at, lastAt: entry.at, rows: new Map() };
+    }
+    ledger.lastAt = entry.at;
+    const key = [entry.ele, entry.sourceType, entry.sourceId, entry.sourceName, entry.source, entry.ailmentType].join('|');
+    const row = ledger.rows.get(key);
+    if (row) row.amount += entry.amount;
+    else ledger.rows.set(key, { ...entry });
+}
+/** 사망 기록용 전투 전체 요약(걸린 초, 속성별, 상태이상, 몬스터별). 꺼내면 비워 다음 전투를 새로 센다. */
+function takeDeathFightSummary() {
+    const ledger = deathFightLedger;
+    deathFightLedger = null;
+    if (!ledger) return null;
+    const rows = [...ledger.rows.values()];
+    return {
+        seconds: Math.max(1, Math.round((ledger.lastAt - ledger.startedAt) / 1000)),
+        damageSummary: buildDeathDamageSummary(Infinity, { events: rows }),
+        ailmentDamageSummary: buildDeathDamageSummary(Infinity, { events: rows, ailmentOnly: true }),
+        monsterSummary: buildDeathMonsterSummary(Infinity, rows)
+    };
 }
 
 function buildDeathDamageSummary(windowMs, opts) {
@@ -5675,7 +5747,7 @@ function buildDeathDamageSummary(windowMs, opts) {
     pruneRecentDamageEvents(now);
     let options = opts || {};
     let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
-    (game.recentDamageEvents || []).forEach(entry => {
+    (options.events || game.recentDamageEvents || []).forEach(entry => {
         if (!entry || entry.at < now - (windowMs || 3000)) return;
         if (options.ailmentOnly && !entry.ailmentType && !isPlayerDamageAilmentSource(entry.source)) return;
         let key = normalizeDamageElementKey(entry.ele);
@@ -5687,11 +5759,11 @@ function buildDeathDamageSummary(windowMs, opts) {
         .sort((a, b) => b.value - a.value);
 }
 
-function buildDeathMonsterSummary(windowMs) {
+function buildDeathMonsterSummary(windowMs, events) {
     let now = getCombatTime();
     pruneRecentDamageEvents(now);
     let grouped = new Map();
-    (game.recentDamageEvents || []).forEach(entry => {
+    (events || game.recentDamageEvents || []).forEach(entry => {
         if (!entry || entry.at < now - (windowMs || 3000) || entry.sourceType !== 'monster') return;
         let key = entry.sourceId === null || entry.sourceId === undefined
             ? `name:${entry.sourceName || entry.source}`
@@ -5745,8 +5817,14 @@ function getActRewardChoices(zoneId) {
             let fallback = getSupportActRewardFallback(choice);
             enriched.desc = `${choice.desc} 이미 보유 중이면 ${fallback.label}로 바뀝니다.`;
         }
+        if (choice.kind === 'item' && choice.slot === '무기') Object.assign(enriched, describeActRewardWeapon());
         return enriched;
     });
+}
+/** 액트 보상 무기는 직업 대표 무기(직업 카드의 '대표 무기')의 대분류로 나온다. 아무 무기나 나와 궁수가 대검을 받기도 했다(플레이 리뷰 2026-10-07). */
+function describeActRewardWeapon() {
+    const category = HANA_WEAPON_COMBOS.classWeapons[game.selectedClassId];
+    return WEAPON_CATEGORIES[category] ? { weaponCategory: category, label: `미확인 ${WEAPON_CATEGORIES[category].name}` } : {};
 }
 function getClaimedJournalPassivePointTotal(state) {
     let runtimeState = state && typeof state === 'object' ? state : game;
@@ -5867,6 +5945,40 @@ function markActRewardReady(zoneId) {
     game.claimableActRewards.push(zoneId);
     game.noti.map = true;
     addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
+    promptActReward(zoneId);
+}
+// 액트 보스를 쓰러뜨리면 다음 지역으로 떠나기 전에 보상 창을 띄운다(창이 열린 동안 게임이 멈춰 출발도 기다린다). 보상이 목표
+// 서랍과 지도에만 있어, 첫 보상을 받지 않고 넘어간 판이 액트 2 첫 전투에서 죽었다(플레이 리뷰 2026-10-07). 방치 정산 중이나
+// 자리를 비운 방치(입력이 3분 넘게 없음) 중에는 띄우지 않는다(멈춘 채 기다리게 된다). 다른 창이 떠 있으면 닫힐 때까지 1분 기다린다.
+const ACT_REWARD_PROMPT = Object.freeze({ awayMs: 180000, retryMs: 500, tries: 120 });
+let actRewardPromptTimer = null;
+function promptActReward(zoneId) {
+    clearInterval(actRewardPromptTimer);
+    actRewardPromptTimer = null;
+    if (tryOpenPromptedActReward(zoneId)) return;
+    let triesLeft = ACT_REWARD_PROMPT.tries;
+    actRewardPromptTimer = setInterval(() => {
+        if (!tryOpenPromptedActReward(zoneId) && --triesLeft > 0) return;
+        clearInterval(actRewardPromptTimer);
+        actRewardPromptTimer = null;
+    }, ACT_REWARD_PROMPT.retryMs);
+}
+/** 띄웠거나 띄울 일이 없으면 true, 다른 창이 비키기를 기다려야 하면 false. */
+function tryOpenPromptedActReward(zoneId) {
+    if (!canPromptActReward(zoneId)) return true;
+    if (isActRewardPromptBlocked()) return false;
+    openActReward(zoneId);
+    return true;
+}
+function canPromptActReward(zoneId) {
+    if (game.isBackgroundCalculation || !document.getElementById('reward-overlay') || isRewardOpen()) return false;
+    return uiDisplay.inputIdleMs <= ACT_REWARD_PROMPT.awayMs && getAvailableActRewardZoneIds().includes(zoneId);
+}
+/** 보상 창보다 먼저 떠 있는 것: 루프 관문, 방치 정산, 안내 카드, 다른 판(사망 기록, 선택 창, 대화상자). */
+function isActRewardPromptBlocked() {
+    if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
+    if (activeTutorial || backgroundCombatRuntime.processing) return true;
+    return !!document.querySelector('.tutorial-overlay.active, dialog:modal, .selection-overlay, .background-combat-progress-overlay, #background-combat-result-overlay');
 }
 function openActReward(zoneId) {
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
@@ -5879,30 +5991,86 @@ function openActReward(zoneId) {
     document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
     document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
     document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
-    document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId).map((choice, index) => !isActRewardChoiceAvailable(choice) ? '' : `
-        <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
-            ${actRewardChoiceArt(choice)}<strong>${choice.label}</strong>
-            ${choice.desc ? `<span>${choice.desc}</span>` : ''}
-            <small>${getActRewardPreview(choice)}</small>
-        </button>
-    `).join('');
+    const dpsBefore = getPlayerStats(false).dps;
+    document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
+        .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index, dpsBefore) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
     lastTime = Date.now();
 }
-/** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림). 다른 보상은 그림 없이 글만. */
+/** 장비 선택지의 부위 그림(빈 장착 칸과 같은 그림, 직업 대표 무기는 그 대분류 첫 바탕의 그림). 다른 보상은 그림 없이 글만. */
 function actRewardChoiceArt(choice) {
     if (choice.kind !== 'item') return '';
-    return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
+    const base = choice.weaponCategory ? BASE_ITEM_DB.find(row => getWeaponCategoryOfBase(row.id) === choice.weaponCategory) : null;
+    return `<img class="reward-choice-art${choice.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset({ slot: choice.slot, baseId: base ? base.id : 'empty-' + choice.slot })}" alt="" aria-hidden="true">`;
 }
-/** 장비 선택지: 등급과, 맞는 장착 칸이 비어 있어 바로 장착되는지(액트 보상은 빈 칸에 자동 장착) 아니면 가방으로 가는지. */
-function actRewardItemPreview(choice) {
-    const slots = ({ 반지: ['반지1', '반지2'], 장갑: ['장갑1', '장갑2'] })[choice.slot] || [choice.slot];
-    const empty = slots.some(slot => Object.hasOwn(game.equipment, slot) && !game.equipment[slot]);
+/** 선택지 한 칸: 이름, 설명, 미리보기(장비는 등급과 바로 장착되는지), 고르면 바뀌는 DPS. */
+function renderActRewardChoice(zoneId, choice, index, dpsBefore) {
+    const change = measureActRewardDps(zoneId, choice, dpsBefore);
+    const preview = choice.kind === 'item' ? actRewardItemPreview(choice, !!change && change.direct) : getActRewardPreview(choice);
+    return `
+        <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
+            ${actRewardChoiceArt(choice)}<strong>${choice.label}</strong>
+            ${choice.desc ? `<span>${choice.desc}</span>` : ''}
+            <small>${preview}${formatActRewardDps(change, choice)}</small>
+        </button>
+    `;
+}
+/** 장비 선택지: 등급과, 맞는 빈 장착 칸에 바로 끼워지는지(액트 보상은 빈 칸에 저절로 낀다) 아니면 가방으로 가는지. */
+function actRewardItemPreview(choice, equips) {
     const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
-    return `${rarity ? rarity + ' 등급 · ' : ''}${empty ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
+    return `${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}`;
+}
+/** 고르면 바뀌는 DPS {before, after, direct, swap}: 보상을 잠시 적용해 재고 그대로 되돌린다. 능력치는 액트 보상 능력치로, 장비는
+ * 맞는 빈 칸(없으면 첫 칸과 바꿔)에 끼워 잰다(요구 능력치가 모자라면 null). direct는 실제로 바로 끼워지는지, swap은 바꿔 끼운 값인지.
+ * 젬과 포인트는 재지 않는다. */
+function measureActRewardDps(zoneId, choice, before) {
+    const twin = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
+    const preview = applyActRewardPreview(zoneId, choice);
+    if (!preview) return null;
+    try {
+        return { before, after: getPlayerStats(false).dps, direct: preview.direct, swap: preview.swap };
+    } finally {
+        preview.undo();
+        game.cosmosTwinKeystones = twin;
+    }
+}
+/** 보상을 잠시 적용하고 {undo, direct, swap}을 돌려준다(적용할 수 없으면 null). 빈 칸 규칙은 실제 지급(equipIntoFirstEmptySlot)과 같다. */
+function applyActRewardPreview(zoneId, choice) {
+    if (choice.kind === 'stat') {
+        game.actRewardBonuses = Array.isArray(game.actRewardBonuses) ? game.actRewardBonuses : [];
+        game.actRewardBonuses.push({ actId: zoneId, stat: choice.stat, value: choice.value });
+        return { undo: () => game.actRewardBonuses.pop(), direct: true, swap: false };
+    }
+    const item = choice.kind === 'item' ? buildActRewardPreviewItem(zoneId, choice) : null;
+    const slots = item ? getEquipCandidateSlots(item).filter(name => Object.hasOwn(game.equipment, name)) : [];
+    const slot = slots.find(name => !game.equipment[name]) || slots[0];
+    if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
+    const previous = game.equipment[slot];
+    game.equipment[slot] = item;
+    return { undo: () => { game.equipment[slot] = previous; }, swap: !!previous, direct: !previous && game.settings.autoEquipEmptySlots !== false };
+}
+/** 미리보기 장비: 그 액트에서 나올 바탕(무기는 직업 대표 무기의 대분류) 가운데 가장 높은 것을 보통 등급, 기본 수치 가운데 값으로. */
+function buildActRewardPreviewItem(zoneId, choice) {
+    const tier = zoneId + 1;
+    const bases = keepWeaponCategoryBases(BASE_ITEM_DB.filter(base => base.slot === choice.slot && !base.realmBase && !base.dropOnly && base.reqTier <= tier),
+        choice.weaponCategory);
+    const base = bases.reduce((best, row) => (!best || row.reqTier > best.reqTier ? row : best), null);
+    if (!base) return null;
+    const counter = itemIdCounter;
+    const item = createItemFromBase(base, 'normal', tier);
+    itemIdCounter = counter;
+    item.baseStats = base.baseStats.map(stat => rollBaseStat(stat, 0.5));
+    return item;
+}
+/** "DPS 13 → 59": 바뀌는 선택지에만. 가방으로 가는 장비는 "바꿔 끼우면"으로, 장비는 옵션 없는 기본 성능 값이라 (옵션 제외)를 붙인다. */
+function formatActRewardDps(change, choice) {
+    const format = COMPARE_STAT_META.dps.format;
+    if (!change || format(change.after) === format(change.before)) return '';
+    const tone = change.after > change.before ? 'is-up' : 'is-down';
+    const lead = change.direct ? '' : (change.swap ? '바꿔 끼우면 ' : '끼우면 ');
+    return `<b class="reward-choice-dps ${tone}">${lead}DPS ${format(change.before)} → ${format(change.after)}${choice.kind === 'item' ? ' (옵션 제외)' : ''}</b>`;
 }
 function getActRewardPreview(choice) {
-    if (choice.kind === 'item') return actRewardItemPreview(choice);
     if (choice.kind === 'skill') return `${choice.skill} 공격 젬을 획득합니다.`;
     if (choice.kind === 'support') return `${choice.gem} 보조 젬을 획득합니다.`;
     if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;
@@ -5910,9 +6078,10 @@ function getActRewardPreview(choice) {
     if (choice.kind === 'stat') return `${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`;
     return '영구 보상';
 }
+/** 장비 보상은 그 액트에서 나올 바탕 하나(무기는 직업 대표 무기의 대분류, getActRewardChoices)를 마법 등급으로 준다. 빈 칸이면 바로 낀다. */
 function grantActRewardEntry(zoneId, choice) {
     if (choice.kind === 'item') {
-        let base = chooseItemBase(choice.slot, zoneId + 1);
+        let base = chooseItemBase(choice.slot, zoneId + 1, getZone(zoneId), choice.weaponCategory);
         if (!base) {
             addLog(`⚠️ 액트 보상 아이템 생성 실패 (${choice.slot})`, 'attack-monster');
             return;
