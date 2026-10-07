@@ -235,7 +235,7 @@ function applyProjectilePatternMode(skill, mode, source, damageMultiplierOverrid
         ? Number(damageMultiplierOverride)
         : config.damageMultiplier;
     let next = { ...skill, projectilePattern: { mode, kind: config.kind }, projectilePatternSource: source || '효과', projectilePatternDamageMultiplier: damageMultiplier };
-    if (config.rays) next.projectilePattern.rays = config.rays;
+    if (config.rays) Object.assign(next.projectilePattern, { rays: config.rays, spreadDeg: config.spreadDeg });
     if (config.targetMode) next.targetMode = config.targetMode;
     if (config.targetLimit) next.targets = config.targetLimit;
     if (config.minTargets) next.targets = Math.max(config.minTargets, Number(next.targets) || 1);

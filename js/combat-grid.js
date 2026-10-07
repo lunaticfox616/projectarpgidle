@@ -478,8 +478,14 @@ function getAuthoredSkillGridProfile(skillName, skillDef) {
     let pattern = skillDef && skillDef.projectilePattern;
     if (!profile || !(pattern && pattern.kind)) return profile || null;
     let resolved = { ...profile, kind: pattern.kind };
-    if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
+    if (pattern.kind === 'fan') Object.assign(resolved, getEngravedFanShape(pattern, profile));
     return resolved;
+}
+
+/** An engraved fan (삼갈래 분산): its ray count and spread. With spreadDeg the middle ray aims at the target (getGridFanRayEnds). */
+function getEngravedFanShape(pattern, profile) {
+    const spreadDeg = Number(pattern.spreadDeg) > 0 ? pattern.spreadDeg : profile.spreadDeg;
+    return { rays: Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1))), spreadDeg };
 }
 
 function getDefaultSkillGridProfile(skillDef) {
@@ -561,8 +567,8 @@ function getGridFanDirections(attacker, target, rayCount) {
     return offsets.slice(0, Math.max(1, Math.min(8, rayCount))).map(offset => ring[(center + offset + 8) % 8]);
 }
 
-/** The far cell of each fan ray. A fan with spreadDeg (연발 사격, 2026-10-07) aims its middle ray straight at the target and
- * opens the others spreadDeg apart on both sides; without it the rays follow the eight grid directions (boss fans, 삼갈래 분산).
+/** The far cell of each fan ray. A fan with spreadDeg (연발 사격, 삼갈래 분산, 2026-10-07) aims its middle ray straight at the target
+ * and opens the others spreadDeg apart on both sides; without it the rays follow the eight grid directions (boss fans).
  * Ends lie `range` cells out in the larger axis, like the grid-direction rays. */
 function getGridFanRayEnds(attacker, target, profile) {
     const rays = Math.max(1, Math.min(8, profile.rays || 3)), range = Math.max(1, profile.range || 1);

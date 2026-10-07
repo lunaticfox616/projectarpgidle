@@ -13,7 +13,9 @@ const PROJECTILE_PATTERN_MODE_DB = Object.freeze({
     fan: { label: '부채꼴 연사' },
     delayedBlast: { label: '관통 후 지연 폭발' },
     lob: { label: '곡사 투척' },
-    split: { label: '삼갈래 분산', kind: 'fan', rays: 3, targetMode: 'spread', minTargets: 3, damageMultiplier: 0.72, extraProjectileDamagePct: 45 },
+    // spreadDeg: 가운데 투사체는 대상을 겨누고 양옆은 45도(2026-10-07). 예전에는 8방향으로만 쏘아 가로세로와 대각선 밖의 대상을
+    // 가운데 투사체도 빗나갔다(연발 사격과 같은 문제). 폭은 예전 8방향과 같다.
+    split: { label: '삼갈래 분산', kind: 'fan', rays: 3, spreadDeg: 45, targetMode: 'spread', minTargets: 3, damageMultiplier: 0.72, extraProjectileDamagePct: 45 },
     focus: { label: '단일 집속', kind: 'line', targetMode: 'single', targetLimit: 1, damageMultiplier: 1.55, extraProjectileDamagePct: 40 },
     return: { label: '귀환 궤도', kind: 'line', targetMode: 'pierce', damageMultiplier: 0.9, combatPattern: { kind: 'boomerang', returnDelayMs: 160 } }
 });

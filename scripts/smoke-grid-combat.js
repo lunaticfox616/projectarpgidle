@@ -940,6 +940,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [97], '가운데 화살은 8방향 밖의 대상에게도 맞아야 한다');
   hits = context.selectGridSkillTargets('연발 사격', context.SKILL_DB['연발 사격'], { gx: 3, gy: 4 }, [makeEnemy(98, 6, 4), makeEnemy(99, 6, 3), makeEnemy(100, 6, 5)]);
   assert.deepStrictEqual(Array.from(hits, hit => [hit.enemy.id, hit.mult]), [[98, 1], [99, 0.4], [100, 0.4]], '좁은 산탄은 붙어 선 무리의 옆 적도 맞혀야 한다');
+  // 삼갈래 분산(창공 각인)도 가운데 투사체가 대상을 겨눈다. 예전에는 8방향이라 앞 3칸 옆 1칸의 적을 빗나갔다(2026-10-07).
+  const splitSpear = context.applyProjectilePatternMode(context.SKILL_DB['얼음 창'], 'split', '창공 각인');
+  assert.strictEqual(context.getSkillGridProfile('얼음 창', splitSpear).spreadDeg, 45, '삼갈래 분산은 45도 간격의 조준 부채꼴이다');
+  hits = context.selectGridSkillTargets('얼음 창', splitSpear, { gx: 3, gy: 4 }, [makeEnemy(101, 6, 5)]);
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [101], '삼갈래 분산의 가운데 투사체도 8방향 밖의 대상에게 맞아야 한다');
 
   // 대상 수 상한: targets=2면 범위 안에 3기가 있어도 2기만 맞는다
   const n1 = makeEnemy(12, 2, 6), n2 = makeEnemy(13, 2, 5), n3 = makeEnemy(14, 1, 5);
