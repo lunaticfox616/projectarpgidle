@@ -9316,11 +9316,9 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     return item;
 }
 
-/** 정해 준 칸, 아니면 아무 칸. 뿌리촉수는 ROOT_MONSTER_RULES.weaponDropChance 확률로 무기 칸(data/bosses.js). */
-function getEquipmentDropSlot(options, enemy) {
-    if (EQUIPMENT_DROP_SLOTS.includes(options?.slot)) return options.slot;
-    if (!getRootMonsterWeapon(enemy)) return rndChoice(EQUIPMENT_DROP_SLOTS);
-    return Math.random() < ROOT_MONSTER_RULES.weaponDropChance ? '무기' : rndChoice(EQUIPMENT_DROP_SLOTS.filter(slot => slot !== '무기'));
+/** 정해 준 칸, 아니면 아무 칸. 뿌리촉수의 제 무기는 따로 굴린다(js/combat.js grantRootWeaponPick, data/bosses.js). */
+function getEquipmentDropSlot(options) {
+    return EQUIPMENT_DROP_SLOTS.includes(options?.slot) ? options.slot : rndChoice(EQUIPMENT_DROP_SLOTS);
 }
 
 function generateEquipmentDrop(enemy, options) {
@@ -9330,7 +9328,7 @@ function generateEquipmentDrop(enemy, options) {
     let dropTier = Math.min(rollRealmItemDropTier(zone, enemy), levelProgression.maxDropTier(itemLevel));
     let affixTierCap = Math.min(levelProgression.affixCap(itemLevel), getRealmEquipmentAffixTierCap(zone, dropTier));
     let affixTierRange = getDroppedAffixTierRange(affixTierCap);
-    let slot = getEquipmentDropSlot(options, enemy);
+    let slot = getEquipmentDropSlot(options);
     let base = chooseItemBase(slot, dropTier, zone, getRootMonsterWeapon(enemy));
     let rarity = getEquipmentDropRarity(enemy, Math.random());
     if (rarity === 'unique') return levelProgression.stampItem(generateUniqueItem(hiddenTierCap, slot, null, zone), itemLevel);
@@ -9343,6 +9341,7 @@ function generateEquipmentDrop(enemy, options) {
         tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
     });
     maybeApplyExceptionalBase(item);
+    equipmentSockets.rollDropSocket(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
     return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
 }
@@ -10335,7 +10334,7 @@ function canApplyTaintedOutcome(item, kind) {
     if (kind === 'addMod') return getAvailableMods(item).length > 0;
     if (kind === 'quality') return Math.floor(Number(item.quality) || 0) < TAINTED_CRAFT_OUTCOMES.quality.cap;
     if (kind === 'rerollMod') return getTaintedRerollLines(item).length > 0 && getAvailableMods(item).length > 0;
-    if (kind === 'socket') return equipmentSockets.canChisel(item) || equipmentSockets.canAddCorruptionSocket(item);
+    if (kind === 'socket') return contentProgression.isUnlocked('jewel') && equipmentSockets.canAddCorruptionSocket(item);
     return kind === 'nothing';
 }
 
@@ -10362,8 +10361,8 @@ function rerollTaintedLine(item) {
 
 /**
  * Corrupts the item and applies one outcome. Quality may pass the usual 20% up to the outcome cap (corrupted items resolve
- * quality up to 30%, js/equipment-stat-resolution.js). The socket outcome opens the void socket a chisel would, or on an item
- * that already has one, a second socket (js/equipment-sockets.js corruption socket).
+ * quality up to 30%, js/equipment-stat-resolution.js). The socket outcome opens the corruption socket (js/equipment-sockets.js):
+ * a second socket beside an accessory's void socket, or the item's only socket.
  * @returns {{kind: 'addMod'|'quality'|'rerollMod'|'socket'|'nothing', text: string}}
  */
 function corruptCraftedItem(item) {
@@ -10381,9 +10380,8 @@ function corruptCraftedItem(item) {
     }
     if (kind === 'rerollMod') return { kind, text: rerollTaintedLine(item) };
     if (kind === 'socket') {
-        if (equipmentSockets.openVoidSocket(item)) return { kind, text: '공허 소켓이 하나 생겼습니다.' };
         equipmentSockets.addCorruptionSocket(item);
-        return { kind, text: '두 번째 소켓, 타락 소켓이 열렸습니다!' };
+        return { kind, text: equipmentSockets.count(item) > 1 ? '두 번째 소켓, 타락 소켓이 열렸습니다!' : '타락 소켓이 하나 생겼습니다.' };
     }
     return { kind, text: '아이템에 변화가 없습니다.' };
 }

@@ -84,11 +84,15 @@
 
   /* 지역 줄: 레일 오른쪽부터 오른쪽 열 왼쪽까지. 그늘 띠도 없이 외곽선 글자와 귀환 단추만(2026-10-04 사용자 요청 —
      이름과 귀환을 가로지르는 어두운 띠가 둘을 묶은 상자로 보였다) */
+  /* 오른쪽 끝은 전투 기록 창의 오른쪽 선(10px)까지: 미니맵이 하단 HUD로 내려가 오른쪽 열 위가 비었으니 귀환과 목표를
+     오른쪽으로 몬다(2026-10-07 사용자 요청). 진행 막대가 숨은 화면에서도 귀환은 맨 끝 칸에 붙는다. */
   body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row {
     left: calc(var(--stage-rail-width) + var(--stage-gutter));
-    right: calc(var(--stage-feed-width) + var(--stage-gutter) + 12px);
+    right: 10px;
     top: 10px;
+    padding-right: 0;
   }
+  body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-actions { grid-column: 3; }
   :root body[data-ui-skin="rift"].desktop-windowed-ui .combat-zone-row {
     border-color: transparent;
     background: none;
@@ -111,10 +115,16 @@
     max-width: 440px;
     margin: 0;
   }
+  /* 목표는 귀환 바로 아래, 같은 오른쪽 선에. 판의 도트 테(양쪽 --px-light-border)가 서랍 폭(106px) 밖으로 나오므로
+     그만큼 안쪽에 둔다. 펼친 내용은 아래로 열려 전투 기록 창(기본 자리 위끝 약 226px) 위에서 끝난다. */
   body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-wrap > #ui-goal-drawer {
-    top: 128px;
-    right: calc(var(--stage-feed-width) + var(--stage-gutter) + 20px);
+    top: 56px;
+    right: calc(10px + 2 * var(--px-light-border, 0px));
   }
+  body[data-ui-skin="rift"].desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer.expanded #ui-goal-body { right: calc(-1 * var(--px-light-border, 0px)); }
+  /* 펼친 목표는 펼침 목록처럼 아래 전투 기록 창(#right-pane 층 1000) 위로 연다. 관리 창이 열린 동안에는 창의 닫기 단추를
+     덮지 않게 원래 층(80)에 둔다. */
+  body[data-ui-skin="rift"].desktop-windowed-ui:not(.ui-management-mode) .battlefield-wrap > #ui-goal-drawer.expanded { z-index: 1001; }
 
   /* 오른쪽 열: 위에 탐험 미니맵(탐험 중에만), 아래에 전투 기록·채팅 */
   /* 둥근 미니맵은 오른쪽 열 가운데 위 */

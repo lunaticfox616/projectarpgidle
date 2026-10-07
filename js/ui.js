@@ -13928,10 +13928,10 @@ function renderBattlefieldThrottled(frameNow) {
     // The scrolling exploration camera needs 60 Hz on desktop. Keep the existing
     // arena/mobile limits, and retain fractional timing on high-refresh displays.
     const exploration = !!actExplorationState.current(game);
-    // 관리 창이 열려 전장을 덮고 있으면 그리기를 10fps로 늦춘다(전장 전체 화면에서 합성 비용·배터리 절약).
-    const covered = document.body.classList.contains('ui-management-mode');
-    const interval = Math.max(exploration ? uiDisplay.explorationFrameMs : uiDisplay.battleFrameMs,
-        covered ? uiDisplay.coveredBattleFrameMs : 0);
+    // 관리 창이 열려도 같은 간격으로 그린다. 예전에는 10fps로 늦췄는데, 창과 반투명 기록 창 사이로 보이는 전장이 뚝뚝 끊겼다
+    // (2026-10-07 사용자 요청). 창 속 단추 수백 개를 매 프레임 다시 계산하던 CSS 무효화(css/exploration-atlas.css)를 고친 뒤,
+    // CPU 4배 감속에서 장비 창을 연 채 59fps로 그려도 메인 스레드 사용률은 10fps 때와 같았고 끊긴 프레임은 줄었다.
+    const interval = exploration ? uiDisplay.explorationFrameMs : uiDisplay.battleFrameMs;
     const elapsed = frameNow - lastBattlefieldRenderAt;
     // Allow sub-millisecond RAF jitter without increasing the desktop's existing paint cadence.
     if (elapsed + 0.5 < interval) return;
@@ -13942,7 +13942,7 @@ function renderBattlefieldThrottled(frameNow) {
     // 다른 탭의 모바일 PiP는 별도의 적응형 루프가 렌더 직후 곧바로 복사하므로,
     // 여기서 매 프레임 다시 복사하면 같은 화면을 30~45fps로 중복 복사하게 된다.
     // (전투 탭일 때 PiP는 숨겨져 어차피 복사가 일어나지 않는다.)
-    renderBattlefield(false);
+    renderBattlefield(false, interval);
 }
 
 /** '안내 중 전투 일시 정지'(설정): 안내 카드가 떠 있거나, 따라 하기의 대상 화면(젬 · 스킬트리 …)이 열려 있는 동안 — 첫 젬을

@@ -122,7 +122,9 @@ const COMBAT_GRID_CONFIG = {
         impact: { kind: 'blast', range: 8, radius: 0 },
         fan: { kind: 'fan', range: 8, rays: 3 },
         ring: { kind: 'blast', range: 8, radius: 1, shape: 'circle' },
-        pulse: { kind: 'nova', range: 8, radius: 2, shape: 'diamond' },
+        // 격앙 충격파와 후반 보스의 밑거름, 삼키기: 보스 둘레(nova)였을 때는 3칸 밖의 영웅에게 닿지 않아, 2단계부터(모든 공격이 충격파)
+        // 관문이나 방 구석에 가만히 선 영웅에게 맞지 않는 경고만 되풀이했다(2026-10-07 사용자 제보). 다른 특수기처럼 영웅 칸을 중심으로 터진다.
+        pulse: { kind: 'blast', range: 8, radius: 2, shape: 'diamond' },
         lane: { kind: 'line', range: 8 },
         wave: { kind: 'blast', range: 8, radius: 1, shape: 'cross' },
         split: { kind: 'fan', range: 8, rays: 3 },

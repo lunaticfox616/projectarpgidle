@@ -57,19 +57,23 @@ function getCanvasSkillTargets(stats) {
     return provider ? (provider(stats) || []) : [];
 }
 
-function getCanvasCrowdProgressPaused() {
-    let provider = getCanvasRuntimeFunction('isCrowdProgressPaused');
-    return provider ? !!provider() : false;
-}
-
 const BATTLE_SKILL_EFFECT_CAP = 56;
 
 function getBattleVfxDensity() {
     return clampNumber(Number(battleVisualState.vfxDensity) || 1, 0.42, 1);
 }
 
-function updateBattleVfxDensity(frameMs, enemyCount) {
-    let elapsed = clampNumber(Number(frameMs) || 16.7, 1, 50);
+/** frameMs: time since the last drawn frame; targetMs: the cadence the frame loop asked for (js/ui.js renderBattlefieldThrottled:
+ * 30 fps on phones and in arenas, slower while resting), rounded up to whole 60 Hz frames. Only lateness against that cadence reads
+ * as load, as a 60 Hz frame time: an on-time 30 fps frame used to read as overload, so every phone fight and every resting PC drew
+ * the fewest effects (2026-10-07 review). */
+function getBattleFrameLoadMs(frameMs, targetMs) {
+    const expected = Math.max(16.7, Math.ceil(((Number(targetMs) || 16.7) - 0.5) / 16.7) * 16.7);
+    return clampNumber(16.7 + Math.max(0, (Number(frameMs) || 16.7) - expected), 1, 50);
+}
+
+function updateBattleVfxDensity(frameMs, enemyCount, targetMs) {
+    let elapsed = getBattleFrameLoadMs(frameMs, targetMs);
     let previousEma = clampNumber(Number(battleVisualState.frameTimeEma) || 16.7, 1, 50);
     let ema = previousEma * 0.92 + elapsed * 0.08;
     let crowdTarget = enemyCount >= 8 ? 0.62 : (enemyCount >= 5 ? 0.78 : 1);
@@ -2332,7 +2336,27 @@ const battleCanvasBox = (() => {
     return Object.freeze({ read, forget: () => { box = null; } });
 })();
 
-function renderBattlefield(forceWhenHidden) {
+const MAP_MONSTERS_LEFT_HINT = 5;
+/** Regular monsters still on the map run (waiting packs included, the boss's stage not), or null outside a map. */
+function getMapMonstersLeft() {
+    const run = typeof actExplorationState === 'object' ? actExplorationState.current(game) : null;
+    if (!run || !Array.isArray(run.packs)) return null;
+    return run.packs.filter(pack => pack && pack.stage === null).reduce((sum, pack) => sum + (pack.aliveIds || []).length, 0);
+}
+
+/** The battlefield's corner caption. The monster count used to sit there all the time ("몬스터 수 3마리"); it now shows only
+ * when a few regular monsters are left on the map, to find the stragglers (2026-10-07 user request). Empty hides the box.
+ * (A failed-asset line used to sit here too but the chain always overwrote it; the loading screen reports that failure.) */
+function getBattlefieldCaption() {
+    if (game.isTownReturning && game.moveTimer > 0) return '마을로 귀환 중...';
+    if (game.woodsmanEntrancePending) return '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
+    if (game.moveTimer > 0) return '';
+    const left = getMapMonstersLeft();
+    return left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : '';
+}
+
+/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density. */
+function renderBattlefield(forceWhenHidden, targetFrameMs) {
     worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
     if (!canvas) return;
@@ -2357,7 +2381,7 @@ function renderBattlefield(forceWhenHidden) {
     battleVisualState.lastNow = now;
     cleanupBattleFx(now);
     let activeEnemyCount = (game.enemies || []).reduce((count, enemy) => count + (enemy && enemy.hp > 0 ? 1 : 0), 0);
-    let vfxDensity = updateBattleVfxDensity(rawDeltaMs, activeEnemyCount);
+    let vfxDensity = updateBattleVfxDensity(rawDeltaMs, activeEnemyCount, targetFrameMs);
     if (typeof attackFxUpdate === 'function') attackFxUpdate(deltaMs);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2781,15 +2805,8 @@ function renderBattlefield(forceWhenHidden) {
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
 
-    let caption = '전장을 스캔 중...';
-    if (battleAssets.failed && !battleAssets.ready) caption = '일부 그림을 불러오지 못해 기본 그림으로 전투합니다';
-    if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
-    else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
-    else if (game.moveTimer > 0) caption = '';
-    else if (getCanvasCrowdProgressPaused()) caption = '';
-    else caption = `몬스터 수 ${enemies.length}마리`;
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
-    setElementText(document.getElementById('ui-battlefield-caption'), caption);
+    setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
 }
 

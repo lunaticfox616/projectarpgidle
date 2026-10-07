@@ -2146,6 +2146,7 @@ function coreLoop(nowMs) {
         runSummonAttackTick(pStats);
         performMonsterAttacks(pStats);
     }
+    settleLastEnemyAttacks(pStats);
     zoneNow = getZone(game.currentZoneId);
     if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zoneNow)) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
@@ -8452,9 +8453,16 @@ function keepCurrencyDrop(enemy, currencyKey, amount) {
 
 /** One dropped equipment item: generate, apply a drop variant (js/loot.js equipmentDropVariants) and drop it. Returns the items
  * picked up at once (the loot log names the first); floor items log when collected. */
-function grantEquipmentPick(enemy, zone, minimumRarity) {
-    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone }));
+function grantEquipmentPick(enemy, zone, minimumRarity, slot) {
+    const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone, slot }));
     return drop.items.filter(item => keepEquipmentDrop(enemy, item) === 'kept');
+}
+
+/** A weapon root (data/bosses.js ROOT_MONSTER_RULES) drops a weapon of its own category on weaponDropChance of its kills, apart
+ * from the ordinary equipment roll (2026-10-07 user request: far fewer roots, and their weapon far likelier). */
+function grantRootWeaponPick(enemy, zone) {
+    if (!getRootMonsterWeapon(enemy) || Math.random() >= ROOT_MONSTER_RULES.weaponDropChance) return [];
+    return grantEquipmentPick(enemy, zone, null, '무기');
 }
 
 /** itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop): above 1 a kill drops several items, each
@@ -8464,6 +8472,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const kept = [];
     for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
+    kept.push(...grantRootWeaponPick(enemy, zone));
     return kept[0] || null;
 };
 
@@ -8650,6 +8659,7 @@ function handleEnemyDeath(enemy, pStats) {
     enemy = liveRef;
     // Retire the victim before rewards or corpse explosions can recursively report it again.
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    retireDeadEnemyAttacks(enemy);
     if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.erosionLegacy) {
         let inheritedErosion = Math.floor(Math.max(0, Number(enemy.chaosErosionShred) || 0) * 0.5);
         if (inheritedErosion > 0) game.passiveChaosErosionTransfer = inheritedErosion;
@@ -11388,6 +11398,25 @@ function announceBossRelease(enemy, bossPattern, delivery) {
     if (!enemy.isBoss) return;
     const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
     addBattleFx('bossRelease', { enemyId: enemy.id, slam, duration: 560 });
+}
+
+/** A dead enemy attacks no more. A boss's released area ends with the boss: enemyAttackRules.cancelPending drops it on the
+ * boss's next turn, but the last enemy's turn never comes, so the warning stayed on the field and held the hero in place
+ * (2026-10-07 user report). The attack gauge empties too, so landing a shot already in flight cannot start a new one. */
+function retireDeadEnemyAttacks(enemy) {
+    enemy.attackTimer = 0;
+    for (let i = pendingEnemyCombatAttacks.length - 1; i >= 0; i--) {
+        const row = pendingEnemyCombatAttacks[i];
+        const mine = row && (row.source ? row.source === enemy : row.enemyId === enemy.id);
+        if (mine && row.delivery === 'patternArea') pendingEnemyCombatAttacks.splice(i, 1);
+    }
+}
+
+/** Shots the last enemy let go before it died still land now, not at the first tick of the next fight: the tick runs enemy
+ * attacks only while enemies are left. */
+function settleLastEnemyAttacks(pStats) {
+    if ((game.enemies || []).length > 0 || pendingEnemyCombatAttacks.length === 0) return;
+    performMonsterAttacks(pStats);
 }
 
 function takePendingEnemyCombatAttack(enemyId, now) {

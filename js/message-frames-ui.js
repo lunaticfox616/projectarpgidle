@@ -16,6 +16,9 @@ const messageFrames = (() => {
     const DEFAULT_WIDTH = 300;
     const DEFAULT_HEIGHT = 420;
     const GAP = 10;
+    // 처음 자리의 위끝은 오른쪽 위 귀환(지역 줄)과 그 아래 목표 단추(css/themes/rift-stage.css, 아래 끝 약 96px) 밑이다.
+    // 둘이 오른쪽 끝으로 옮겨 오며(2026-10-07) 작은 화면(높이 720)에서 기록 창이 목표 단추를 덮었다.
+    const TOP_RESERVE = 96;
     // 크기 조절 테두리: 오른쪽 아래 모서리(보이는 손잡이) 말고도 위, 아래, 양옆과 나머지 세 모서리.
     const EDGES = Object.freeze(['n', 's', 'e', 'w', 'nw', 'ne', 'sw']);
     const homes = new Map();
@@ -117,7 +120,7 @@ const messageFrames = (() => {
         const hud = document.querySelector('.player-hud');
         const hudTop = hud ? hud.getBoundingClientRect().top / frameScale() : 0;
         const bottom = hudTop > ws.top + 240 ? hudTop - GAP : ws.top + ws.height;
-        const height = Math.min(DEFAULT_HEIGHT, bottom - ws.top - 48);
+        const height = Math.min(DEFAULT_HEIGHT, bottom - ws.top - TOP_RESERVE);
         return { width, height, x: ws.left + ws.width - width, y: bottom - height };
     }
 

@@ -31,10 +31,14 @@
   outline-offset: 2px;
 }
 /* 전장 위 떠 있는 판과 창: 배경을 거의 불투명하게, 테두리를 밝게 */
-:root body.high-contrast :is(.tab-header, .combat-feed, .combat-zone-row, .ui-window, .ui-goal-panel, #act-exploration-dialog, .tutorial-card) {
+:root body.high-contrast :is(.tab-header, .combat-feed, .ui-window, .ui-goal-panel, #act-exploration-dialog, .tutorial-card) {
   border-color: #b8975a;
 }
-:root body.high-contrast .combat-zone-row { background: rgba(4, 5, 6, .9); }
+/* 맨 위 지역 줄은 고대비에서도 상자로 두르지 않는다. 금색 테두리와 짙은 띠가 지역명과 귀환 단추를 화면 끝까지 이어진 한 상자로
+   묶어 보였다(2026-10-07 사용자: "고쳐달라고 몇번을 말해도", 앞선 수정은 고대비가 꺼진 화면만 고쳤다). 지역명은 검은 외곽으로 읽히고,
+   귀환 같은 단추는 제 테두리가 있다. */
+:root body.high-contrast .combat-zone-row { border-color: transparent; background: none; box-shadow: none; }
+:root body.high-contrast .combat-zone-row-title { text-shadow: 1px 1px 0 #000, -1px 0 0 #000, 0 -1px 0 #000, 0 2px 6px #000; }
 :root body.high-contrast #act-exploration-panel .act-exploration-progress { border-color: #d8b46a; background: #000; }
 :root body.high-contrast :is(.cfg-sublabel, .cfg-label, .ui-rail-label) { color: #fffaf0; }
 /* 비활성 버튼도 읽을 수 있게(흐림 대신 점선 테두리) */

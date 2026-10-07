@@ -3,7 +3,7 @@
 // 주얼 · 코어. 조합법은 모양을 묻지 않는다(무엇이 몇 개인지만 본다). 재화 비용은 조합할 때 함께 낸다.
 // 3×3에는 2×2 장비가 하나만 들어가므로 장비 조합법은 "장비 1 + 촉매(다 자란 씨앗 · 호박석 · 주얼)"다.
 // inputs의 각 줄은 서로 겹치지 않는 조건이다. kind: equipment | stump | jewel | core.
-//   rarity: 희귀도(목록이면 그 가운데 하나) · family: 그루터기 계열 · ripe: 다 자란 것만 · socketable: 공허 소켓을 뚫을 수 있는 장비
+//   rarity: 희귀도(목록이면 그 가운데 하나) · family: 그루터기 계열 · ripe: 다 자란 것만 · socketable: 공허 소켓을 뚫을 수 있는 장신구
 //   same: 그 줄의 재료끼리 같아야 하는 것(slot 부위 · color 색 · family 계열). need · result는 화면에 쓰는 문장.
 const STUMP_CUBE_SIZE = 3;
 const STUMP_CUBE_STUMP_ROLL_STEP = 0.1;
@@ -17,7 +17,7 @@ const STUMP_CUBE_RECIPES = Object.freeze([
     { id: 'equip_unique_reroll', group: '장비', need: '고유 장비 1 + 다 자란 씨앗(꽃 · 열매) 3', name: '고유 장비 순환',
         result: '같은 부위의 다른 고유 장비 1(같은 티어)',
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 1 }, { kind: 'stump', family: 'seed', ripe: true, count: 3 }], cost: {} },
-    { id: 'equip_socket_jewel', group: '장비', need: '소켓을 뚫을 수 있는 장비 1 + 주얼 1', name: '소켓 뚫어 끼우기', result: '장비에 공허 소켓을 뚫고 그 주얼을 끼운다',
+    { id: 'equip_socket_jewel', group: '장비', need: '소켓을 뚫을 수 있는 장신구 1 + 주얼 1', name: '소켓 뚫어 끼우기', result: '장신구에 공허 소켓을 뚫고 그 주얼을 끼운다',
         inputs: [{ kind: 'equipment', socketable: true, count: 1 }, { kind: 'jewel', count: 1 }], cost: { voidChisel: 1 } },
     { id: 'stump_merge', group: '그루터기', need: '같은 색 · 같은 계열 씨앗 또는 수액 3', name: '씨앗 · 수액 합치기', result: '같은 색 · 계열 1, 품질 = 가장 높은 품질 +10%(최대 130%)',
         inputs: [{ kind: 'stump', family: ['seed', 'sap'], count: 3, same: ['color', 'family'] }], cost: {} },

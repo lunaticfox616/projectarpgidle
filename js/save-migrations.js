@@ -235,6 +235,23 @@ function markLegacyEquipmentGrace(equipment) {
     });
 }
 
+/** Save 19 (2026-10-07): rings, amulets and belts lost the void socket every one of them used to have (js/equipment-sockets.js).
+ * An older save keeps that socket on every accessory it already owns, as an open record, so nothing loses a socket it had. The
+ * stores are those js/save.js refreshItemIdCounter reads, less the drops still lying on a map floor: their readers expect a
+ * restored run, and at worst such a drop arrives without the old socket (a socket holding a jewel always keeps its record). */
+function keepLegacyAccessorySockets(merged, save) {
+    if ((save.saveVersion || 0) >= 19 || typeof equipmentSockets !== 'object') return;
+    legacySocketStores(merged).flat().forEach(equipmentSockets.keepLegacySocket);
+}
+
+function legacySocketStores(merged) {
+    const rift = merged.timeRift || {}, offline = merged.offlineProgress || {};
+    const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
+    const stall = ((merged.playerStall || {}).listings || []).map(row => row && row.item);
+    return [merged.inventory, Object.values(merged.equipment || {}), rift.altarUnique, rift.altarRare, offline.stash,
+        offline.protectedOverflow, merged.equipmentTemporaryStorage, presets, stall];
+}
+
 /** Slot corrections preserve ownership, even when the inventory is already full. */
 function reconcileUniqueEquipmentSave(state) {
     for (const [slot, item] of Object.entries(state.equipment)) {
@@ -1234,6 +1251,7 @@ function mergeDefaults(save) {
     if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     if (typeof stumpBox === 'object') stumpBox.restore(merged); merged.stumpCube = stumpCube.normalize(merged.stumpCube);
+    keepLegacyAccessorySockets(merged, save);
     merged.saveVersion = defaultGame.saveVersion;
     // 보물사냥은 삭제된 콘텐츠: 남은 진행·예약 보물은 지급 없이 버리고, 표적이던 적은 표시만 지운다.
     delete merged.bountyHunt;

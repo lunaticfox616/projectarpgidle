@@ -101,7 +101,10 @@
 #tab-map .map-primary-tabs,#tab-map .map-explore-layout>.vertical-tab-sidebar{display:none}
 #tab-map.is-atlas-overview .exploration-toolbar,#tab-map.is-atlas-overview #map-ready-destinations,#tab-map.is-atlas-overview #exploration-region-banner{display:none}
 /* 사냥 권역 머리판이 이미 현재 위치 · 전투로 돌아가기를 보여 주므로 아래 줄의 같은 "현재 위치"는 뺀다(원정 목록만 남는다). */
-#tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations>button{display:none}
+/* 대상은 태그(button)가 아니라 클래스로: 크롬은 'X:has(...) Y' 규칙들의 Y를 한 무효화 묶음으로 합쳐, button이 있으면 어느 곳의
+   :has() 상태가 바뀔 때마다(본문 :has()는 거의 모든 DOM 변경) 문서의 모든 단추를 다시 계산했다. 장비 창을 열면 칸 단추 수백 개가
+   매 프레임 다시 계산돼 전장이 끊겼다(2026-10-07 측정). 새 :has() 규칙도 대상에 태그를 쓰지 않는다. */
+#tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations>.map-ready-current{display:none}
 #tab-map:has(#exploration-region-banner:not([hidden]) .atlas-hunt-destination) #map-ready-destinations:not(:has(details)){display:none}
 #ui-exploration-atlas .atlas-heading h2{background:none}
 #tab-map .atlas-region-hero h2,#exploration-region-banner h2{background:none}

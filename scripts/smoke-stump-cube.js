@@ -76,19 +76,22 @@ run(`stumpCube.clear(game); game.inventory = []; globalThis.oldUnique = generate
 const rerolled = json('stumpCube.transmute(game)');
 assert.strictEqual(rerolled.ok && rerolled.outputs[0].item.rarity, 'unique', 'a unique and three grown seeds turn into another unique');
 assert.strictEqual(rerolled.outputs[0].item.slot, '장갑', 'of the same slot');
-run(`stumpCube.clear(game); game.inventory = []; globalThis.gloves = makeGear('장갑', 'rare'); globalThis.socketJewel = generateJewelDrop(6);
+// 공허 소켓은 장신구에만 뚫린다(2026-10-07): 허리띠로 뚫고, 이미 뚫린 반지와 장갑은 조합법에 맞지 않는다.
+run(`stumpCube.clear(game); game.inventory = []; globalThis.gloves = makeGear('허리띠', 'rare'); globalThis.socketJewel = generateJewelDrop(6);
     game.jewelInventory = [socketJewel]; putIn('equipment', gloves); putIn('jewel', socketJewel); game.currencies.voidChisel = 1;`);
 assert.strictEqual(run('stumpCube.match(game).recipe.id'), 'equip_socket_jewel');
 assert.strictEqual(run('stumpCube.transmute(game).ok'), true);
 assert.deepStrictEqual(json('[equipmentSockets.list(gloves).map(row => row.jewel && row.jewel.id), game.jewelInventory.length, game.currencies.voidChisel]'),
     [[run('socketJewel.id')], 0, 0], 'the chisel opens a socket and the jewel goes in, paid once');
-assert.deepStrictEqual(json('cubeView()'), [['equipment', 0, 0, 2, 2]], 'the socketed gear stays in the cube');
-run('stumpCube.clear(game); game.currencies.voidChisel = 1; globalThis.ring2 = makeGear("반지", "rare"); globalThis.j2 = generateJewelDrop(6); game.jewelInventory.push(j2); putIn("equipment", ring2); putIn("jewel", j2);');
-assert.strictEqual(run('stumpCube.match(game)'), null, 'a ring already has its socket: nothing to chisel');
+assert.deepStrictEqual(json('cubeView()'), [['equipment', 0, 0, 2, 1]], 'the socketed gear (a 2 by 1 belt) stays in the cube');
+run('stumpCube.clear(game); game.currencies.voidChisel = 1; globalThis.ring2 = makeGear("반지", "rare"); equipmentSockets.openVoidSocket(ring2); globalThis.j2 = generateJewelDrop(6); game.jewelInventory.push(j2); putIn("equipment", ring2); putIn("jewel", j2);');
+assert.strictEqual(run('stumpCube.match(game)'), null, 'a ring that already has its socket: nothing to chisel');
+run('stumpCube.clear(game); globalThis.gauntlet = makeGear("장갑", "rare"); putIn("equipment", gauntlet); putIn("jewel", j2);');
+assert.strictEqual(run('stumpCube.match(game)'), null, 'gloves take no chisel: only accessories do');
 
 // 소모되는 장비에 박힌 주얼은 주얼 보관함으로 돌아온다(전에는 장비와 함께 사라졌다). 보관함이 가득하면 조합하지 않는다.
 run(`stumpCube.clear(game); game.inventory = []; game.jewelInventory = []; globalThis.jewelRing = makeGear('반지', 'magic', 5);
-    globalThis.ringJewel = generateJewelDrop(6); game.jewelInventory.push(ringJewel); equipmentSockets.insert(jewelRing, ringJewel.id, game);
+    equipmentSockets.openVoidSocket(jewelRing); globalThis.ringJewel = generateJewelDrop(6); game.jewelInventory.push(ringJewel); equipmentSockets.insert(jewelRing, ringJewel.id, game);
     putIn('equipment', jewelRing); putIn('stump', ripe('seed', 'fire'));`);
 assert.strictEqual(run('stumpCube.match(game).recipe.id'), 'equip_magic_upgrade');
 run('game.jewelInventory = Array.from({ length: getJewelInventoryLimit() }, () => generateJewelDrop(1));');

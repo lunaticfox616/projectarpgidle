@@ -516,6 +516,8 @@ body[data-ui-skin] {
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;
   pointer-events: none;
+  /* 돌판만 반투명하게 해 그 밑의 전장이 비친다(2026-10-07 사용자 요청). 구슬과 메뉴 단추는 자식이라 그대로 선명하다. */
+  opacity: .72;
 }
 /* 생명 구슬(왼쪽) */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-hp-bar { grid-column: 1; grid-row: 1; margin: 0 0 var(--px-orb-lift); }

@@ -120,7 +120,7 @@ const sideEncounterUi = (() => {
         const expanded = host.querySelector('details')?.open;
         const focused = host.querySelector('summary') === document.activeElement;
         const links = available.map(row => `<button type="button" onclick="switchMapExploreSubtab('map-explore-${row.id}')"><small>${row.active ? '진행 중' : '입장 가능'}</small>${row.name}</button>`).join('');
-        const html = `<button type="button" onclick="switchTab('tab-battle')"><small>현재 위치</small>${current}</button>`
+        const html = `<button type="button" class="map-ready-current" onclick="switchTab('tab-battle')"><small>현재 위치</small>${current}</button>`
             + (available.length ? `<details><summary>입장 가능한 원정 ${available.length}</summary><div>${links}</div></details>` : '');
         host.hidden = false;
         if (host._destinationsMarkup === html) return;
