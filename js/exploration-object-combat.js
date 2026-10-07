@@ -88,12 +88,14 @@ actExplorationProgress.objects = (() => {
         }
         return cells.sort((a,b)=>distance(a,row)-distance(b,row)).slice(0,count);
     }
+    function waveSize(run,row) {return row.kind==='nest'?3:row.kind==='ambush'?4+(run.objects.seed%2):3+(run.objects.seed%2);}
+    function waveMarker(row,index) {return {at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null};}
     function spawn(run,row) {
-        const count=row.kind==='nest'?3:row.kind==='ambush'?4+(run.objects.seed%2):3+(run.objects.seed%2);
+        const count=waveSize(run,row);
         const cells=spawnCells(run,row,count);
         if(cells.length<count){row.remainingMs=200;return;}
         const key=`${row.id}:${row.wave+1}`,zone=getZone(run.zoneId);
-        const enemies=cells.map((cell,index)=>Object.assign(createEnemy(zone,{at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null},index),
+        const enemies=cells.map((cell,index)=>Object.assign(createEnemy(zone,waveMarker(row,index),index),
             cell,{explorationPack:key,gridMoveTimer:0,regenBank:0,spawnStamp:getBattleSpawnStamp()}));
         run.packs.push({key,roomId:row.roomId,stage:null,waiting:[],aliveIds:enemies.map(e=>e.id),eliteIds:[],objectId:row.id,objectWave:row.wave+1});
         game.enemies.push(...enemies);row.wave++;row.phase='active';row.remainingMs=0;
@@ -172,5 +174,16 @@ actExplorationProgress.objects = (() => {
         const scaled=base*run.objects.quantity,amount=Math.floor(scaled)+Number(rng()<scaled%1);
         keepCurrencyDrop(enemy,key,amount);
     }
-    return {initialize,savedFacing,request,cancel,step,afterDeath,area,stage};
+    /** Offline projection (js/combat-replay-projection.js): an object the measured route used. A sealed chest, an ambush or a
+     * nest first raises its waves on its cell, each monster resolved by `kill` on the real kill path; then its real reward. */
+    function settleProjected(run,row,kill) {
+        if(state.isEvent(row)) {
+            const zone=getZone(run.zoneId);
+            for(let wave=row.kind==='nest'?2:1;wave>0;wave--,row.wave++) {
+                for(let index=0;index<waveSize(run,row);index++)kill(Object.assign(createEnemy(zone,waveMarker(row,index),index),{gx:row.gx,gy:row.gy}));
+            }
+        }
+        reward(run,row);
+    }
+    return {initialize,savedFacing,request,cancel,step,afterDeath,area,stage,settleProjected};
 })();

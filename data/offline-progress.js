@@ -16,6 +16,15 @@ const OFFLINE_PROGRESS_STASH_LEVELS = Object.freeze([
     { slots: 32, cost: 12 }, { slots: 48, cost: 20 }, { slots: 72, cost: 32 }
 ]);
 const OFFLINE_PROGRESS_DIRECTIVE_COSTS = Object.freeze({ hunt: 10, safety: 12, loot: 15 });
+// 방치 정산 가속(2026-10-07, js/combat-replay-projection.js): 실제 전투로 지도 한 바퀴(조우 시작부터 다음 조우 시작까지)를 재고
+// 나머지는 바퀴째 투영한다. minRealMs 첫 투영 전 실제 전투, minCycles와 minMeasuredMs 투영에 필요한 같은 지역의 온전한 바퀴
+// 수와 그 시간 합(한 바퀴만 재면 3분 반짜리 바퀴에서 우연히 안 죽어 사망률 0으로, 두 바퀴면 둘 다 보스 앞에서 죽어 보스를 한
+// 번도 못 잡는 것으로 투영했다. 실제로는 그 빌드가 바퀴의 35%쯤 보스를 잡는다), remeasureEveryMs 투영하는 동안
+// 실제 바퀴를 하나 더 재는 간격(평균을 고치고 강해진 빌드를 따라간다), realBudgetMs 실제 전투 상한(바퀴를 다 못 재면 남은 시간도
+// 실제), objectSampleMin 봉인 보물함과 매복을 직접 잰 비율로 쓰는 최소 개수, timeScale 처치한 생명이 잰 평균과 다를 때 바퀴
+// 시간을 늘리고 줄이는 범위, zoneTypes 투영하는 지역.
+const OFFLINE_PROJECTION = Object.freeze({ minRealMs: 120000, minCycles: 3, minMeasuredMs: 180000, remeasureEveryMs: 1200000,
+    realBudgetMs: 600000, objectSampleMin: 6, timeScale: Object.freeze([0.5, 2]), zoneTypes: Object.freeze(['act', 'abyss', 'atlasMap']) });
 const OFFLINE_PROGRESS_HUNT_MODES = Object.freeze(['push', 'current', 'highestCleared', 'stopBeforeBoss']);
 const OFFLINE_PROGRESS_LOOT_MODES = Object.freeze(['rarity', 'itemLevel', 'baseTier']);
 const OFFLINE_PROGRESS_SAFETY_DEATHS = Object.freeze([3, 5, 10]);

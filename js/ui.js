@@ -606,11 +606,11 @@ function renderBackgroundSpeedControls(finish) {
 }
 
 
-function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0) {
+function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0, phase) {
     let overlay = getBackgroundProgressOverlay();
     if (!overlay) return;
     let pct = totalMs > 0 ? Math.max(0, Math.min(100, Math.floor(doneMs / totalMs * 1000) / 10)) : 100;
-    const signature = `${pct}:${skippedMs}`;
+    const signature = `${pct}:${skippedMs}:${phase}`;
     if (overlay.dataset.progressPercent === signature) return;
     overlay.dataset.progressPercent = signature;
     updateBackgroundSkippedTime(skippedMs);
@@ -619,7 +619,7 @@ function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skipp
     let progressFill = document.getElementById('background-combat-progress-bar-fill');
     let duration = document.getElementById('background-combat-progress-duration');
     let guide = document.querySelector('.background-combat-speed-guide');
-    if (percent) percent.textContent = `계산 진행 ${pct}%`;
+    if (percent) percent.textContent = `계산 진행 ${pct}%${backgroundProgressPhaseText(phase)}`;
     if (progressBar) progressBar.setAttribute('aria-valuenow', String(pct));
     if (progressFill) progressFill.style.width = `${pct}%`;
     if (duration) duration.textContent = `자리 비움 ${formatBackgroundDuration(actualElapsedMs)} · 계산 ${formatBackgroundDuration(Math.max(0, doneMs - skippedMs))}`;
@@ -627,6 +627,12 @@ function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skipp
         let limits = getBackgroundProgressResultLimits(game);
         guide.textContent = `진행 한도: ${limits.recognitionHours}시간 · 효율 ${Math.round(limits.efficiencyRate * 100)}%`;
     }
+}
+
+/** 빠른 계산(js/combat-replay-projection.js)은 앞부분 실제 전투로 속도를 잰 뒤 나머지를 한꺼번에 계산한다. 재는 동안은 막대가
+ * 거의 움직이지 않으므로 무엇을 하는지 적는다. */
+function backgroundProgressPhaseText(phase) {
+    return phase === 'measure' ? ' (전투 속도 재는 중)' : '';
 }
 
 function hideBackgroundProgressOverlay() {
@@ -637,6 +643,12 @@ function hideBackgroundProgressOverlay() {
 function updateBackgroundSkippedTime(skippedMs) {
     const skipped = document.getElementById('background-combat-skipped');
     if (skipped) skipped.textContent = formatBackgroundSkippedReward(skippedMs);
+}
+
+/** 빠른 계산을 했으면 한 줄: 실제로 싸운 시간의 속도로 나머지를 계산했고 보상은 처치마다 새로 굴렸다(레벨이 오르면 중간에도 다시 잰다). */
+function formatBackgroundProjection(result) {
+    if (!(result.projectedMs > 0)) return '';
+    return `빠른 계산: 실제로 싸운 ${formatBackgroundDuration(result.realMs)} 동안의 속도로 나머지 시간(${formatBackgroundDuration(result.projectedMs)})을 계산했습니다. 보상은 처치마다 새로 굴렸습니다.`;
 }
 
 function formatBackgroundSkippedReward(skippedMs) {
@@ -675,6 +687,7 @@ function showBackgroundCombatResult(result) {
     let resultLimits = result.limits || getBackgroundProgressResultLimits(game);
     let rewards = [
         formatBackgroundSkippedReward(result.skippedMs),
+        formatBackgroundProjection(result),
         ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
         `총 처치: <strong>${formatNumberKR(summary.kills)}</strong>`,
         backgroundExpLine(summary),
@@ -773,10 +786,10 @@ async function startBackgroundCombatReturn(nowMs) {
         updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs,
+            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true,
             isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
             getControl: () => ({tier: backgroundCombatRuntime.accelerationTier, finish: backgroundCombatRuntime.finishRequested}),
-            onProgress: (done, total, skipped) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped)
+            onProgress: (done, total, skipped, phase) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped, phase)
         });
         if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
@@ -787,7 +800,7 @@ async function startBackgroundCombatReturn(nowMs) {
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs: result.processedMs, summary,
             capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason,
-            skippedMs: result.skippedMs });
+            skippedMs: result.skippedMs, realMs: result.realMs, projectedMs: result.projectedMs });
         restoreBattlefieldBeforeBackgroundReplay();
         return true;
     } catch (error) {
