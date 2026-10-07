@@ -155,4 +155,36 @@ run('stumpHarvestUi.announceUnlocks();');
 assert.equal(run('tutorialQueue.length'), 1, 'and never again');
 assert.ok(!/[·—]/.test(journal + gifts + run('tutorialQueue[0].body')), 'no middle dots or dashes in the new text');
 
-console.log('stump unlocks: harvest journal, row gifts, storage 50/75/100, recipe discovery, root memory, journal graft points, screen: OK');
+// ── 시작 선물(2026-10-07 사용자 결정): 고르지 않고 함을 얻으면 바로 준다. 씨앗은 지금 젬의 원소 꽃(물리면 화염 열매), 수액은
+//    씨앗의 상극이 아닌 가장 약한 저항. '따라 해보기'로 판에 놓고, 안내를 닫으면 판 가운데부터 대신 놓는다.
+fresh({ journalEntries: ['prologue'] });
+run(`game.activeSkill = '서리 폭발';`);
+assert.deepEqual(json(`stumpBox.starterChoice(game, { resF: 0, resC: 10, resL: 20 })`), { seed: { color: 'cold', path: 'flower' }, sap: 'cold' },
+    'a cold spell gets a cold flower; the sap skips fire (the cold opposite) and takes the weaker of cold and lightning');
+run(`game.activeSkill = '번개 타격';`);
+assert.equal(json(`stumpBox.starterChoice(game, {})`).seed.color, 'lightning', "the skill element 'light' is the lightning colour");
+run(`game.activeSkill = '연속 베기';`);
+assert.deepEqual(json(`stumpBox.starterChoice(game, { resF: 0, resC: -5, resL: 20 })`), { seed: { color: 'fire', path: 'fruit' }, sap: 'fire' },
+    'a physical skill gets a fire fruit (boss damage), and never a cold sap beside it');
+run(`tutorialQueue.length = 0; game.seenTutorials = []; game.journalEntries.push('act_10'); toasts.length = 0; stumpBoxUi.checkStumpBoxUnlock();`);
+assert.deepEqual(json('[game.stumpBox.acquired, game.stumpBox.starter]'), [true, { seed: true, sap: true }], 'the box comes with its starter gift');
+assert.deepEqual(json('stumpBox.storage(game).map(item => [item.family, item.color, item.path])'), [['seed', 'fire', 'fruit'], ['sap', 'fire', null]]);
+assert.deepEqual(json('tutorialQueue.map(row => row.key)'), ['unlock_stump_box'], 'one card introduces the box and its gift');
+run('stumpBoxUi.checkStumpBoxUnlock();');
+assert.deepEqual(json('tutorialQueue.map(row => row.key)'), ['unlock_stump_box'], 'the next unlock check adds no second card');
+assert.ok(run(`tutorialActionUi.requiresAttention(tutorialQueue[0]) && !!tutorialActionUi.guideFor('unlock_stump_box')`), 'the card stays open and offers 따라 해보기');
+assert.equal(run(`tutorialOpenLabel(tutorialQueue[0])`), '따라 해보기');
+assert.deepEqual(json(`stumpBox.grantStarter(game, {})`), [], 'the gift is given once');
+run(`plantSkippedStumpStarter('unlock_stump_box')`);
+assert.deepEqual(json('[12, 7].map(cell => stumpBox.itemById(game, game.stumpBox.board[cell]).family)'), ['seed', 'sap'], 'closing the guide plants the gift from the centre');
+assert.equal(run('stumpBox.evaluate(game).suppressed.size'), 0, 'and nothing is blocked by an opposite colour');
+assert.deepEqual(json('toasts'), ['그루터기 함: 받은 씨앗과 수액을 판에 놓았습니다']);
+assert.equal(run(`tutorialActionUi.guideFor('unlock_stump_box')`), null, 'nothing left to place, no guide');
+// 함 안내를 예전에 본 저장(선물을 받지 않고 판도 비어 있음): 선물을 주고 놓는 법만 따로 한 번 안내한다.
+fresh({ season: 3, loopCount: 2, seenTutorials: ['unlock_stump_box'] });
+run(`tutorialQueue.length = 0; stumpBoxUi.checkStumpBoxUnlock();`);
+assert.deepEqual(json('[stumpBox.storage(game).length, tutorialQueue.map(row => row.key)]'), [2, ['tutorial_stump_starter']]);
+assert.ok(run(`!!tutorialActionUi.guideFor('tutorial_stump_starter')`), 'the old-save card leads the same guide');
+assert.ok(!/[·—]/.test(run('tutorialQueue[0].body')));
+
+console.log('stump unlocks: harvest journal, row gifts, storage 50/75/100, recipe discovery, root memory, journal graft points, starter gift, screen: OK');

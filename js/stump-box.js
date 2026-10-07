@@ -361,13 +361,49 @@ const stumpBox = (() => {
         box.via = via;
         return true;
     }
-    /** One seed and one sap of the player's chosen colour, once each. */
+    /** One seed and one sap of the given colour, once each (the receipts are box.starter). */
     function claimStarter(state, family, color) {
         const box = of(state);
         if (!box.acquired || !FAMILIES.includes(family) || box.starter[family]) return null;
         const item = createItem(state, { family, color, roll: 1 });
         if (item) box.starter[family] = true;
         return item;
+    }
+
+    // ── 시작 선물(2026-10-07 사용자 결정: 색을 골라 받지 않고, 함을 얻으면 바로 준다) ───────────
+    const SKILL_ELEMENT_COLORS = Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos' });
+    const RESIST_STATS = Object.freeze({ fire: 'resF', cold: 'resC', lightning: 'resL' });
+    /** The gift's colours: the seed is a flower of the active skill's element (a physical skill gets a fire fruit, boss damage),
+     * the sap the weakest of the fire, cold and lightning resistances that is not the seed's opposite (they may sit side by side). */
+    function starterChoice(state, stats) {
+        const element = SKILL_ELEMENT_COLORS[(SKILL_DB[state.activeSkill] || {}).ele];
+        const seed = element ? { color: element, path: 'flower' } : { color: 'fire', path: 'fruit' };
+        const colors = Object.keys(RESIST_STATS).filter(color => color !== STUMP_BOX_OPPOSITES[seed.color]);
+        const sap = colors.reduce((low, color) => ((stats[RESIST_STATS[color]] || 0) < (stats[RESIST_STATS[low]] || 0) ? color : low));
+        return { seed, sap };
+    }
+    /** Gives the starter seed (with its path) and sap that are still owed. @returns {object[]} the new items. */
+    function grantStarter(state, stats) {
+        const choice = starterChoice(state, stats), given = [];
+        const seed = claimStarter(state, 'seed', choice.seed.color);
+        if (seed) { setPath(state, seed.id, choice.seed.path); given.push(seed); }
+        const sap = claimStarter(state, 'sap', choice.sap);
+        if (sap) given.push(sap);
+        return given;
+    }
+    function touchesOpposite(box, cell, color) {
+        return neighbors(cell).some(at => box.board[at] !== null && (findItem(box, box.board[at]) || {}).color === STUMP_BOX_OPPOSITES[color]);
+    }
+    /** Puts the seeds and saps waiting in storage on open empty cells, centre first, never beside their opposite colour
+     * (the starter gift when its guide is closed). @returns {number} how many went on the board. */
+    function plantStored(state) {
+        const box = of(state);
+        let placed = 0;
+        for (const item of storage(state).filter(row => row.family !== 'talisman')) {
+            const cell = STUMP_BOX_CELL_ORDER.find(at => isOpen(state, at) && box.board[at] === null && !touchesOpposite(box, at, item.color));
+            if (cell !== undefined && place(state, item.id, cell, item.path || 'flower')) placed++;
+        }
+        return placed;
     }
     /** New loop: placements and unripe progress stay; grown items return to seed/sap (a seed keeps its path) and keep
      * rootMemoryPct of their growth (뿌리 기억). @returns {number} how many went back. */
@@ -488,7 +524,7 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
         evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, compost, compostReason, compostGrowth, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,

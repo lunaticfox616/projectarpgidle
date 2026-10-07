@@ -253,16 +253,10 @@ const stumpBoxUi = (() => {
         return html ? { html, tone: '#8a7a5c' } : null;
     }
 
-    // ── 시작 선물·보관함 ────────────────────────────────────
-    function stumpStarterRow(family, title) {
-        if (game.stumpBox.starter[family]) return '';
-        const buttons = COLORS.map(color => `<button type="button" data-stump-action="starter" data-family="${family}" data-color="${color}" style="--stump-tone:${stumpTone(color)}"`
-            + ` aria-label="${STUMP_BOX_COLORS[color].label} ${title} 받기"><img src="assets/px/stump/${family}-${color}.png" alt="" draggable="false">${STUMP_BOX_COLORS[color].label}</button>`).join('');
-        return `<div class="stump-starter-row"><span>${title}</span>${buttons}</div>`;
-    }
+    // ── 선물·보관함 ─────────────────────────────────────────
+    /** 수확 일지의 줄 선물(색을 골라 받는다). 시작 선물은 함을 얻으면 바로 준다(grantStumpStarter). */
     function stumpStarterHtml() {
-        const rows = stumpStarterRow('seed', '씨앗') + stumpStarterRow('sap', '수액');
-        return (rows ? `<h3>시작 선물 <small>씨앗과 수액 각 1개</small></h3>${rows}` : '') + stumpHarvestUi.giftsHtml();
+        return stumpHarvestUi.giftsHtml();
     }
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
@@ -333,6 +327,8 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-unseal', stumpTalismanUi.unsealHtml());
         paintStumpPart('stump-box-harvest', stumpHarvestUi.journalHtml());
+        // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(젬 고르기 창과 같은 방식).
+        if (tutorialActionUi.active) tutorialActionUi.refresh();
     }
     function refreshStumpTabIfVisible() {
         if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
@@ -427,13 +423,6 @@ const stumpBoxUi = (() => {
         notifyStump(`수확 일지 선물: ${stumpBox.label(item)}`);
         commitStumpChange();
     }
-    function claimStumpStarter(family, color) {
-        const item = stumpBox.claimStarter(game, family, color);
-        if (!item) return notifyStump('보관함이 가득 찼거나 이미 받은 선물입니다.');
-        selectedId = item.id;
-        notifyStump(`시작 선물: ${stumpBox.label(item)}`);
-        commitStumpChange();
-    }
     function unsealTalisman(source) {
         const item = stumpTalismanUi.unseal(source);
         if (!item) return;
@@ -469,7 +458,6 @@ const stumpBoxUi = (() => {
         unplace: () => { if (selectedId !== null) dropOnStorage(selectedId); },
         compost: () => compostStumpItem(),
         deselect: () => selectStumpItem(null),
-        starter: data => claimStumpStarter(data.family, data.color),
         'harvest-gift': data => claimHarvestGift(data.row, data.color),
         filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); },
         'talisman-unseal': data => unsealTalisman(data.source),
@@ -497,18 +485,33 @@ const stumpBoxUi = (() => {
     }
 
     // ── 획득 안내·처치 소식 ─────────────────────────────────
-    /** From checkUnlocks (foreground): grants the box on the first act-10 clear and shows the one-time notice. */
+    /** From checkUnlocks (foreground): grants the box on the first act-10 clear, gives the starter gift and shows the one-time
+     * notice. Its 따라 해보기 (tutorial-ui.js guide 'unlock_stump_box') puts the gift on the board; closing it plants them. */
     function checkStumpBoxUnlock() {
         if (stumpBox.sync(game, 'act10')) game.noti.stump = true;
         if (!game.stumpBox.acquired) return;
+        const sawIntro = (game.seenTutorials || []).includes('unlock_stump_box'), given = grantStumpStarter();
         announceStumpGraft();
         stumpHarvestUi.announceUnlocks();
         stumpHarvestUi.announceRecipes();
         stumpHarvestUi.announceGraftJournal();
+        if (sawIntro) return given.length && announceStumpStarter();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
-            '액트 10을 넘어선 보상으로 그루터기 함을 얻었습니다.\n씨앗과 수액을 판에 놓으면 처치할 때마다 자랍니다. 보관함에서는 자라지 않습니다.\n'
-            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.\n먼저 ‘그루터기 함’에서 시작 선물로 씨앗과 수액의 색을 골라 받으세요.',
-            'tab-stump');
+            '액트 10을 넘어선 보상으로 그루터기 함과 시작 선물(씨앗과 수액 하나씩)을 받았습니다.\n씨앗과 수액은 판에 놓아야 처치할 때마다 자랍니다.\n'
+            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.', 'tab-stump');
+    }
+    /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 젬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
+    function grantStumpStarter() {
+        const given = stumpBox.grantStarter(game, getUiPlayerStats());
+        if (!given.length) return given;
+        game.noti.stump = true;
+        lastSignature = '';
+        addLog(`🌱 그루터기 함 시작 선물: ${given.map(stumpBox.label).join(', ')}`, 'loot-magic');
+        return given;
+    }
+    /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
+    function announceStumpStarter() {
+        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 선물', '씨앗과 수액을 하나씩 받아 보관함에 넣어 두었습니다.\n판에 놓아야 처치할 때마다 자랍니다.', 'tab-stump');
     }
     /** Once, when the reached loop opens grafting (loop 18; saves already past it see it after this update). */
     function announceStumpGraft() {
