@@ -106,7 +106,9 @@ const stumpCubeRecipes = (() => {
         stump_merge: stumpMerge, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
         talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll,
         // 호박석 기폭제(12번 루프 32): 결과는 재화(stump-cube.js STORERS.currency).
-        amber_catalyst: (groups, state) => sapCatalysts.amberRecipe(groups, state)
+        amber_catalyst: (groups, state) => sapCatalysts.amberRecipe(groups, state),
+        // 열매 기름(12번 루프 36): 결과는 재화.
+        fruit_oil: (groups, state) => gardenOils.fruitRecipe(groups, state)
     });
 
     function run(recipeId, groups, state = game, random = Math.random) {

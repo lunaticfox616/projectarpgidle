@@ -8898,8 +8898,9 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
 
 function getImmutableItemSpecialStats(item) {
     if (!item) return [];
-    // 타오른 잿불가지의 타락 전용 줄(12번 루프 30, js/ember-corruption.js)도 제작으로 바뀌지 않는 줄이다: 스탯 합, 소환수 한도, 감정에 든다.
-    const ember = Array.isArray(item.emberLines) ? [...item.emberLines] : [];
+    // 타오른 잿불가지의 타락 전용 줄(12번 루프 30, js/ember-corruption.js)과 목걸이에 바른 기름의 노드(루프 36, js/garden-oils.js)도
+    // 제작으로 바뀌지 않는 줄이다: 스탯 합, 소환수 한도, 감정에 든다.
+    const ember = [...(Array.isArray(item.emberLines) ? item.emberLines : []), ...(typeof gardenOils === 'object' ? gardenOils.lines(item) : [])];
     if (!item.encroached || !item.encroached.liberated || !item.encroached.chosen) return ember;
     let stat = item.encroached.chosen;
     return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }, ...ember];
@@ -9145,6 +9146,7 @@ function isModForDropRegion(mod, region) {
 function normalizeItemOrigin(item) {
     item.dropRegion = normalizeDropRegion(item.dropRegion);
     if (typeof emberCorruption === 'object') emberCorruption.normalize(item);
+    if (typeof gardenOils === 'object') gardenOils.normalize(item);
 }
 
 function normalizeDropRegion(value) {

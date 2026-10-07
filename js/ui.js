@@ -6610,7 +6610,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         }
     }
 
-    presentItemTooltip(context, event, item, html + sapCatalystsUi.qualityHtml(item) + emberCorruptionUi.tooltipHtml(item), isEquip);
+    presentItemTooltip(context, event, item, html + sapCatalystsUi.qualityHtml(item) + gardenOilsUi.tooltipHtml(item) + emberCorruptionUi.tooltipHtml(item), isEquip);
 }
 
 function showCombatLogItemTooltip(event, token) {

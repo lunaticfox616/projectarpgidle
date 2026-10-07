@@ -136,8 +136,8 @@ run(`game.contentProgression.inherited.push('jewel', 'talisman', 'cube'); conten
 assert.deepEqual(json('stumpCube.learn(game).map(recipe => recipe.id)'), ['equip_socket_jewel', 'talisman_upgrade', 'talisman_unique_reroll', 'jewel_fuse', 'core_reroll'],
     'buying jewels, talismans and the cube opens their recipes');
 const book = run('(() => { stumpCubeUi.toggleCubeBook(); return stumpCubeUi.cubeHtml(); })()');
-// 2026-10-08: 호박석 기폭제(12번 루프 32)가 열한 번째 조합법이다(호박석을 거두고 루프 32가 되면 보인다).
-assert.ok(book.includes('조합법 8/11') && book.includes('아직 모르는 조합법 3개'), 'the book shows the open ones and counts the rest');
+// 2026-10-08: 호박석 기폭제(12번 루프 32)와 열매 기름(루프 36)이 열한, 열두 번째 조합법이다(그 루프가 되면 보인다).
+assert.ok(book.includes('조합법 8/12') && book.includes('아직 모르는 조합법 4개'), 'the book shows the open ones and counts the rest');
 assert.ok(!book.includes('희귀 장비 단련'), 'an amber recipe stays hidden before any amber grows');
 
 // ── 화면 조각과 알림 ─────────────────────────────────────────────────────────

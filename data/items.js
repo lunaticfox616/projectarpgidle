@@ -987,6 +987,10 @@ const ORB_DB = {
     catalystChaos: { name: '카오스 기폭제', desc: '장비의 품질 속성을 카오스(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 카오스 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 카오스 호박석 둘로도 만듭니다.' },
     catalystCrit: { name: '치명 기폭제', desc: '장비의 품질 속성을 치명(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 치명 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다.' },
     catalystSummon: { name: '소환 기폭제', desc: '장비의 품질 속성을 소환(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 소환 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다.' },
+    oilFire: { name: '불씨 기름', desc: '목걸이에 바르는 정원 기름(화염). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 화염 열매 둘로도 만듭니다.' },
+    oilCold: { name: '서리 기름', desc: '목걸이에 바르는 정원 기름(냉기). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 냉기 열매 둘로도 만듭니다.' },
+    oilLight: { name: '뇌우 기름', desc: '목걸이에 바르는 정원 기름(번개). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 번개 열매 둘로도 만듭니다.' },
+    oilChaos: { name: '그늘 기름', desc: '목걸이에 바르는 정원 기름(카오스). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 카오스 열매 둘로도 만듭니다.' },
     uberRootTicketFlame: { name: '우버 뿌리 입장권: 화염', desc: '지하계 전용 매우 희귀 보상. 우버 화염 뿌리 보스 도전권입니다.' },
     uberRootTicketFrost: { name: '우버 뿌리 입장권: 냉기', desc: '지하계 전용 매우 희귀 보상. 우버 냉기 뿌리 보스 도전권입니다.' },
     uberRootTicketStorm: { name: '우버 뿌리 입장권: 번개', desc: '지하계 전용 매우 희귀 보상. 우버 번개 뿌리 보스 도전권입니다.' },
@@ -1030,7 +1034,7 @@ function getCurrencyInfo(key) {
     return Object.hasOwn(WALLET_CURRENCY_INFO, key) ? WALLET_CURRENCY_INFO[key] : { name: String(key || ''), desc: '' };
 }// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
-    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','oceanRerollShard']],
+    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
     ['research', ['gemShard']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],

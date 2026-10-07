@@ -129,6 +129,11 @@ const ATLAS = Object.freeze({
         sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, regionChance: Object.freeze({ trunk: 2 }),
             outline: '#e8c15a', sparks: '#f2b33d', enemy: Object.freeze({ hp: 2, damage: 1.1, attack: 0.95, exp: 1.7 }),
             rewards: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15 }),
+        // 시든 정원(12번 루프 36, data/garden-oils.js): 시든 무리(카오스로 친다, 마른 잎 테와 꽃잎)가 정원 기름을 떨어뜨린다. 루프 36부터,
+        // 깊은 뿌리 지도에서 두 배. 방을 비우면 무작위 한 색의 기름 2 + 등급당 0.15.
+        witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, regionChance: Object.freeze({ roots: 2 }),
+            ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
+            rewards: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2, 0.15]]), mapChance: 0.15 }),
         // 깨어난 뒤(late): 붉은 제단(총주교)과 푸른 제단(포식자). 방을 비우면 잉걸 · 허기의 즙(data/atlas-endgame.js altars).
         exarch: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['magicBud', 2, 0.2]]), mapChance: 0.1 }),

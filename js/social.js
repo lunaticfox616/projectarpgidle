@@ -216,7 +216,8 @@ function buildItemMetaSnapshot(item) {
         grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
         requirements: buildRequirementSnapshot(item),
         sockets: buildSocketSnapshots(item),
-        ember: item.burned ? (item.emberLines || []).slice(0, 2).map(snapStat) : undefined
+        ember: item.burned ? (item.emberLines || []).slice(0, 2).map(snapStat) : undefined,
+        anoint: profileAnointSnapshot(item)
     };
 }
 
@@ -1241,7 +1242,7 @@ function profileItemOptionsHtml(item) {
     let html = explicit.length
         ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
         : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
-    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemEmberHtml(item);
+    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemAnointHtml(item) + profileItemEmberHtml(item);
 }
 
 /** 게임 툴팁과 같은 머리말. 줄 종류가 남은 스냅샷(2026-10-07 뒤)만 "접두 2/3, 접미 3/3"을 붙이고, 예전 프로필은 "(5/6)". */
@@ -1337,6 +1338,18 @@ function profileExceptionalMark(st) {
 function profileEmberScaleHtml(st) {
     const pct = Math.round(((Number(st.ember) || 1) - 1) * 100);
     return pct ? ` <span style="color:${pct > 0 ? EMBER_CORRUPTION_TONE : '#9aa3ad'};font-weight:700;">🔥${pct > 0 ? '+' : ''}${pct}%</span>` : '';
+}
+
+/** 목걸이에 바른 기름(12번 루프 36, js/garden-oils.js): 노드 이름과 효과 문장(보는 사람의 기기에 패시브 트리가 없어도 읽힌다). */
+function profileAnointSnapshot(item) {
+    const node = typeof gardenOils === 'object' ? gardenOils.nodeOf(item) : null;
+    return node ? { title: node.title, text: node.effects.map(effect => `${getStatName(effect.stat)} ${effect.val >= 0 ? '+' : ''}${formatValue(effect.stat, effect.val)}`).join(', ') } : undefined;
+}
+
+/** 기름 줄(게임 툴팁과 같다). */
+function profileItemAnointHtml(item) {
+    const anoint = item.anoint;
+    return anoint && anoint.title ? `<div class="social-item-stat" style="color:#cfe0a0;">🌿 기름: ${socialEscape(anoint.title)} (${socialEscape(anoint.text || '')})</div>` : '';
 }
 
 /** 타오른 장비(게임 툴팁과 같다): 다시 태울 수 없다는 표시와 타락 전용 줄. */

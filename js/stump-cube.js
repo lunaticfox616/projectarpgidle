@@ -152,7 +152,8 @@ const stumpCube = (() => {
     }
 
     function fitsRule(rule, entry) {
-        if (entry.kind !== rule.kind || !oneOf(entry.item.family, rule.family) || !oneOf(entry.item.rarity, rule.rarity)) return false;
+        // path: 씨앗이 자란 길(꽃, 열매). 열매 기름(루프 36)이 열매만 받는다.
+        if (entry.kind !== rule.kind || !oneOf(entry.item.family, rule.family) || !oneOf(entry.item.rarity, rule.rarity) || !oneOf(entry.item.path, rule.path)) return false;
         if (rule.ripe && entry.item.ripe !== true) return false;
         return !rule.socketable || equipmentSockets.canChisel(entry.item);
     }
