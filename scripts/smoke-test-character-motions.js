@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
+const { decodePng } = require('./lib/png.cjs');
 
 const runtime = buildGameRuntime();
 const run = code => vm.runInContext(code, runtime);
@@ -145,8 +146,16 @@ const classSheetKeys = plain(run(`(function () {
 })()`));
 assert(classSheetKeys.length > 0 && classSheetKeys.every(key => run(`shouldPreserveOriginalBattleSheet(${JSON.stringify(key)})`)),
     'pre-transparent player-class sheets must bypass the generic background sanitizer');
-assert.strictEqual(run(`shouldPreserveOriginalBattleSheet('enemies')`), false,
-    'legacy opaque monster sheets must still use background sanitization');
+// 옛 적 아틀라스(불투명 RGB)는 배경을 미리 지운 그림으로 들어와 실행 중에 다시 정리하지 않는다(2026-10-07 메모리 검토,
+// scripts/export-clean-battle-sheets.cjs). 들어오는 그림은 배경이 실제로 지워져 있어야 한다.
+assert.strictEqual(fs.readFileSync('assets/battle-enemies-v1.png')[25], 2, 'the original monster sheet is opaque RGB');
+assert(run(`isPreCleanedBattleSheet('enemies')`) && fs.readFileSync('js/passives.js', 'utf8').includes("enemies: 'assets/battle-clean/battle-enemies-v1.png'"),
+    'legacy opaque monster sheets load the copy with the background removed');
+const cleanEnemies = decodePng(fs.readFileSync('assets/battle-clean/battle-enemies-v1.png'));
+let clearPixels = 0;
+for (let i = 3; i < cleanEnemies.data.length; i += 4) if (cleanEnemies.data[i] === 0) clearPixels++;
+assert(cleanEnemies.data[3] === 0 && clearPixels > cleanEnemies.width * cleanEnemies.height * 0.8,
+    'the shipped monster sheet has its background cleared');
 
 const mobileHeroTuning = plain(run('getLocalBattleHeroVisualTuning(1.032)'));
 assert(mobileHeroTuning.scaleBoost >= 0.55 && mobileHeroTuning.scaleBoost <= 0.57,

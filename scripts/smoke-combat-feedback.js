@@ -57,11 +57,13 @@ assert.equal(words.length,0,'full combat reset also discards presentation state 
 let seed=120;
 runtime.Math=Object.create(Math);
 runtime.Math.random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+// The hero stands beside the object: one boxed in by other objects (no free side) is passed over.
 function prepare(kind) {
+    run(`window.freeSide=row=>actExplorationMap.neighbors(m,row).find(cell=>!actExplorationState.objects.solidCells(r).has(cell.gx+','+cell.gy));`);
+    const pick=`r.objects.entries.find(row=>row.kind==='${kind}'&&freeSide(row))`;
     run(`game.moveTimer=0;game.combatHalted=false;startEncounterRun(true);window.r=game.actExploration;window.m=actExplorationMap.forRun(r);r.mode='manual';`);
-    for(let i=0;i<80&&!run(`r.objects.entries.some(row=>row.kind==='${kind}')`);i++)run('startEncounterRun(true);r=game.actExploration;m=actExplorationMap.forRun(r);r.mode="manual";');
-    run(`{window.row=r.objects.entries.find(row=>row.kind==='${kind}');
-        const side=actExplorationMap.neighbors(m,row).find(cell=>!actExplorationState.objects.solidCells(r).has(cell.gx+','+cell.gy));
+    for(let i=0;i<80&&!run(pick);i++)run('startEncounterRun(true);r=game.actExploration;m=actExplorationMap.forRun(r);r.mode="manual";');
+    run(`{window.row=${pick};const side=freeSide(row);
         Object.assign(game.gridPlayer,side);actExplorationState.discover(r,side);clearBattleVisualBacklog();}`);
 }
 for(const kind of ['chest','pot','crate']) {
