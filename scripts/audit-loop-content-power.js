@@ -11,7 +11,15 @@
 // Talismans (stump box board, from the talisman unlock): min(8, loop - 5) awake talismans of two general lines at their average
 // roll (x1.35 from loop 20, strong seal shards), lines picked power-first like the other points.
 // Unlock prerequisites (after/requires) are bought first when the budget and their minimum loop allow.
-// Usage: node scripts/audit-loop-content-power.js [--loops 1,5,10] [--zones act10,chaos20] [--deep-per-loop 4]
+// Seeds and saps (--stump, 2026-10-08 for the box's 16번 unlocks): the open cells the talismans leave hold grown seeds and saps,
+// picked power-first per cell (never beside their opposite colour; resonance counts). Grafting is not modelled.
+//   none      no seeds or saps (the default, as before)
+//   main      main line only at 100% quality (the drops' average): the box before 16번
+//   expected  plus the ripening roll at its average: every pool line × (expected extra lines at 100% / pool size),
+//             bumper and golden as their average quality gain
+//   max       every item at the reached quality cap + bumper, golden, three extra lines at 130%, and one awake scar holding
+//             every main stat on the board at its cap (the ceiling after many loops of devouring)
+// Usage: node scripts/audit-loop-content-power.js [--loops 1,5,10] [--zones act10,chaos20] [--deep-per-loop 4] [--stump expected]
 const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const args = process.argv.slice(2);
@@ -20,6 +28,8 @@ const loops = option('--loops', '1,3,5,10,15,20,30,40,50').split(',').map(Number
 const deepPerLoop = Number(option('--deep-per-loop', '4'));
 const zones = option('--zones', 'act10,chaos20').split(',');
 const maxTalismans = Number(option('--talismans', '8')); // awake talismans at most (sensitivity: 0 = none)
+const stumpMode = option('--stump', 'none');
+if (!['none', 'main', 'expected', 'max'].includes(stumpMode)) throw new Error(`unknown --stump ${stumpMode}`);
 // What a player has re-earned by this zone in any loop: support gem level and ascendancy points (trials 1-2 by act 10,
 // trials 1-4 by chaos 20).
 const STAGES = { act10: { supportLevel: 8, ascendPoints: 4 }, chaos20: { supportLevel: 18, ascendPoints: 7 } };
@@ -176,6 +186,53 @@ function auditTalismanOptions(slots, mul) {
         apply() { auditTalismanLines.push({ id: def.id, value: Math.round((def.min + def.max) / 2 * mul * 10) / 10 }); auditTalismanBoard(); },
         undo() { auditTalismanLines.pop(); auditTalismanBoard(); } }));
 }
+var auditStumpMode = ${JSON.stringify(stumpMode)};
+var auditStumpPicks = [];
+const AUDIT_STUMP_KINDS = [['seed', 'flower'], ['seed', 'fruit'], ['sap', null]];
+/** The ripening a picked item carries in this mode (see --stump above). */
+function auditRipen(item) {
+    const r = STUMP_BOX_RIPENING, pool = STUMP_BOX_EXTRA_LINES[item.family === 'sap' ? 'amber' : item.path][item.color];
+    if (auditStumpMode === 'expected') {
+        const count = r.lineOdds.find(row => row.roll === 1).odds.reduce((sum, odd, k) => sum + odd * k, 0);
+        item.roll = 1 + r.bumper.chance * r.bumper.quality + r.golden.chance * (r.golden.mul - 1);
+        item.harvest = { bonus: 0, golden: false, lines: pool.map(line => ({ stat: line.stat, value: line.value * count / pool.length })) };
+    } else if (auditStumpMode === 'max') {
+        item.roll = stumpBox.rollCap(game); item.golden = true;
+        item.harvest = { bonus: r.bumper.quality, golden: false, lines: pool.map(line => ({ stat: line.stat, value: line.value * r.lineValue.max })) };
+    }
+}
+function auditStumpCell(box, color) {
+    const near = at => stumpBox.neighbors(at).map(next => box.items.find(item => item.id === box.board[next])).filter(Boolean);
+    return STUMP_BOX_CELL_ORDER.find(at => stumpBox.isOpen(game, at) && box.board[at] === null
+        && !(color && near(at).some(item => item.color === STUMP_BOX_OPPOSITES[color])));
+}
+/** Talismans stay; the picks go on the board in order (a pick with no cell clear of its opposite is left out). */
+function auditStumpBoard() {
+    const box = stumpBox.of(game);
+    box.items = box.items.filter(item => item.family === 'talisman');
+    box.board = box.board.map(id => (box.items.some(item => item.id === id) ? id : null));
+    if (auditStumpMode === 'max' && auditStumpPicks.length) {
+        const caps = stumpBox.scarCaps(), stats = [...new Set(auditStumpPicks.map(pick => STUMP_BOX_YIELDS[pick.path || 'amber'][pick.color].stat))];
+        const scar = { id: box.nextId++, family: 'scar', color: null, path: null, xp: STUMP_BOX_GROWTH.need.scar, ripe: true, roll: 1,
+            absorbed: Object.fromEntries(stats.map(stat => [stat, caps[stat]])), meals: 0, misses: 0 };
+        const at = auditStumpCell(box, null);
+        if (at !== undefined) { box.items.push(scar); box.board[at] = scar.id; }
+    }
+    for (const pick of auditStumpPicks) {
+        const cell = auditStumpCell(box, pick.color);
+        if (cell === undefined) continue;
+        const item = { id: box.nextId++, family: pick.family, color: pick.color, path: pick.path, xp: STUMP_BOX_GROWTH.need[pick.family], ripe: true, roll: 1 };
+        auditRipen(item);
+        box.items.push(item); box.board[cell] = item.id;
+    }
+}
+function auditStumpOptions() {
+    const box = stumpBox.of(game);
+    if (!STUMP_BOX_CELL_ORDER.some(at => stumpBox.isOpen(game, at) && box.board[at] === null)) return [];
+    return AUDIT_STUMP_KINDS.flatMap(([family, path]) => Object.keys(STUMP_BOX_COLORS).map(color => ({ cost: 1,
+        apply() { auditStumpPicks.push({ family, path, color }); auditStumpBoard(); },
+        undo() { auditStumpPicks.pop(); auditStumpBoard(); } })));
+}
 /** What loop N gives the zone's character: content bought with unlock points, its in-loop rebuild and the permanent points. */
 function auditLoop(zone, season, deepPerLoop, stage) {
     Object.assign(game, { season, loopCount: season - 1, seasonNodes: [], seasonNodeLevels: {}, supports: [], equippedSupports: [],
@@ -201,13 +258,18 @@ function auditLoop(zone, season, deepPerLoop, stage) {
     stumpBox.sync(game, 'audit');
     const talismans = owned.includes('talisman') ? Math.max(0, Math.min(${maxTalismans}, season - 5)) : 0;
     if (talismans > 0) auditSpend(zone, () => auditTalismanOptions(talismans * 2, season >= 20 ? 1.35 : 1), talismans * 2, false);
+    auditStumpPicks = [];
+    if (auditStumpMode !== 'none' && game.stumpBox.acquired) auditSpend(zone, auditStumpOptions, STUMP_BOX_CELL_ORDER.length, false);
     const loopPoints = Math.max(0, season - 1), deepPoints = owned.includes('deepTree') ? Math.max(0, season - 9) * deepPerLoop : 0;
     if (owned.includes('loopTree')) auditSpend(zone, auditSeasonOptions, loopPoints);
     auditSpend(zone, auditDeepOptions, deepPoints);
     const talismanTally = {};
     auditTalismanLines.forEach(line => { talismanTally[line.id] = (talismanTally[line.id] || 0) + 1; });
+    const stumpTally = {};
+    stumpBox.of(game).items.filter(item => game.stumpBox.board.includes(item.id) && item.family !== 'talisman')
+        .forEach(item => { const key = item.family === 'scar' ? 'scar' : (item.path || 'amber') + '-' + item.color; stumpTally[key] = (stumpTally[key] || 0) + 1; });
     return { owned, loopPoints, deepPoints, ascend: game.ascendClass, supports: game.equippedSupports.slice(),
-        deep: { ...game.loopDeepStats }, loop10: { ...game.loop10BonusStats }, talismans: talismanTally };
+        deep: { ...game.loopDeepStats }, loop10: { ...game.loop10BonusStats }, talismans: talismanTally, stump: stumpTally };
 }
 `);
 
@@ -223,6 +285,7 @@ for (const zoneName of zones) {
         const pd = row.dps / base.dps, pe = row.ehp / base.ehp, nd = row.needDps / base.needDps, ne = row.needEhp / base.needEhp;
         const tally = rows => Object.entries(rows).filter(([, n]) => n > 0).map(([k, n]) => k + n).join(' ');
         console.log(`${String(season).padStart(4)} | ${String(row.owned.length).padStart(8)} | ${fmt(pd).padStart(11)} | ${fmt(pe).padStart(11)} | ${fmt(nd).padStart(10)} | ${fmt(ne).padStart(10)} | ${fmt(pd / nd).padStart(8)} | ${fmt(pe / ne).padStart(8)} | ${fmt(row.dps / row.needDps).padStart(8)} | ${fmt(row.ehp / row.needEhp).padStart(8)}`
-            + `  ${row.ascend || '-'} deep[${tally(row.deep)}] l10[${tally(row.loop10)}] tal[${tally(row.talismans)}]`);
+            + `  ${row.ascend || '-'} deep[${tally(row.deep)}] l10[${tally(row.loop10)}] tal[${tally(row.talismans)}]`
+            + (stumpMode === 'none' ? '' : ` stump[${tally(row.stump)}]`));
     }
 }
