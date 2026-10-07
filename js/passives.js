@@ -9118,29 +9118,50 @@ function weighModForWeaponCategory(mod, weaponCategory) {
     return { ...mod, weight: (Number(mod.weight) || 1) * WEAPON_CATEGORY_OFF_MODS.weight };
 }
 
+// Summon lines on a weapon or ring need a base that already has one of these.
+const AVAILABLE_MOD_SUMMON_STAT_IDS = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg',
+    'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
+// The rows an item can take before its own lines are taken out depend only on the key below, so each pool is built once
+// (2026-10-07: building it was most of a roll, about 0.18 ms per drop or craft preview). Rows keep MOD_DB order: seeded
+// rolls and tests pick by position.
+const availableModPools = new Map();
+
+function hasSummonBaseStat(item) {
+    return !!(item && Array.isArray(item.baseStats) && item.baseStats.some(stat => stat && AVAILABLE_MOD_SUMMON_STAT_IDS.has(stat.id)));
+}
+
+/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring) and base defence types in base order. */
+function getAvailableModPoolKey(item) {
+    const summonSlot = item.slot === '무기' || item.slot === '반지';
+    return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
+        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+')].join('|');
+}
+
+/** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
+ * shield aside), summon lines on a weapon or ring without a summon base stat. */
+function getBlockedAvailableModStats(item) {
+    const defenseTypes = getItemBaseDefenseTypes(item), blocked = new Set();
+    if (!defenseTypes.has('evasion')) blocked.add('deflectChance');
+    if (item.slot === '방패' && !isKaleidoscopeShieldItem(item) && !defenseTypes.has('energyShield')) blocked.add('spellGemLevel');
+    if ((item.slot === '무기' || item.slot === '반지') && !hasSummonBaseStat(item)) AVAILABLE_MOD_SUMMON_STAT_IDS.forEach(id => blocked.add(id));
+    return blocked;
+}
+
+/** Every row the item's kind can take, each with the stats it would occupy (dual defence parts included). */
+function buildAvailableModPool(item) {
+    const allowedSlots = getAvailableModSlotsForItem(item), blocked = getBlockedAvailableModStats(item), weaponCategory = getWeaponCategoryId(item);
+    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && !blocked.has(mod.statId || mod.id)
+        && isDefenseTypeStatAllowed(item, mod.statId || mod.id) && isPrimaryDualDefenseAffixMod(item, mod)
+        && allowedSlots.some(slot => mod.slots.includes(slot))).map(mod => {
+        const shaped = makeDualDefenseAffixMod(item, mod);
+        return Object.freeze({ mod: weighModForWeaponCategory(shaped, weaponCategory), statIds: getExplicitModStatIds(shaped) });
+    }));
+}
+
 function getAvailableMods(item) {
-    let existing = getItemOccupiedExplicitModIds(item);
-    let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
-    let allowedSlots = getAvailableModSlotsForItem(item);
-    let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
-    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
-    let hasSummonBaseStat = item && Array.isArray(item.baseStats)
-        && item.baseStats.some(stat => stat && summonBaseStatIds.has(stat.id));
-    let isSummonBaseWeapon = item && item.slot === '무기' && hasSummonBaseStat;
-    let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
-    let baseDefenseTypes = getItemBaseDefenseTypes(item);
-    const weaponCategory = getWeaponCategoryId(item);
-    return MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory)).filter(mod => {
-        let statId = mod.statId || mod.id;
-        if (!isDefenseTypeStatAllowed(item, statId)) return false;
-        if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
-        if (!isKaleidoscopeShield && item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
-        if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
-        if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
-        if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
-        return allowedSlots.some(slot => mod.slots.includes(slot))
-            && !getExplicitModStatIds(makeDualDefenseAffixMod(item, mod)).some(id => existing.has(id));
-    }).map(mod => weighModForWeaponCategory(makeDualDefenseAffixMod(item, mod), weaponCategory));
+    const existing = getItemOccupiedExplicitModIds(item), key = getAvailableModPoolKey(item);
+    if (!availableModPools.has(key)) availableModPools.set(key, buildAvailableModPool(item));
+    return availableModPools.get(key).filter(row => !row.statIds.some(id => existing.has(id))).map(row => row.mod);
 }
 
 /** getAvailableMods 가운데 종류 자리가 남은 줄만(접두 3, 접미 3; data/items.js EXPLICIT_AFFIX_RULES). */
