@@ -3366,12 +3366,9 @@ function tickOceanDepth(st, dtSec) {
     applyOceanDepthGain(st, depthPerSec * dtSec);
 }
 
-const OCEAN_MOD_CATEGORY_RULES = [
-    { category: '공격', ids: ['flatDmg', 'weaponFlatDmgPct', 'pctDmg', 'meleePctDmg', 'projectilePctDmg', 'physPctDmg', 'elementalPctDmg', 'firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'critDmg', 'physIgnore', 'resPen', 'physFlatDmg', 'fireFlatDmg', 'coldFlatDmg', 'lightFlatDmg', 'chaosFlatDmg', 'summonFlatDmg', 'summonPctDmg', 'summonCrit', 'summonCritDmg', 'summonResPen'] },
-    { category: '방어·생명', ids: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'deflectChance', 'regen', 'regenFlat', 'regenSuppress', 'leech', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap', 'blockChancePct'] },
-    { category: '속도·치명', ids: ['aspd', 'move', 'summonAspd', 'summonEfficiency'] },
-    { category: '저항', ids: ['resF', 'resC', 'resL', 'resAll', 'resChaos'] }
-];
+// The stats of each category come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.sea).
+const OCEAN_MOD_CATEGORY_RULES = [['공격', 'attack'], ['방어·생명', 'defense'], ['속도·치명', 'speed'], ['저항', 'resistance']]
+    .map(([category, key]) => ({ category, ids: resolveAffixTagList(AFFIX_TAG_LISTS.sea[key], MOD_DB) }));
 function getModCategory(mod) {
     let statId = (mod && (mod.statId || mod.id)) || '';
     let found = OCEAN_MOD_CATEGORY_RULES.find(rule => rule.ids.includes(statId));
@@ -9350,8 +9347,7 @@ function getVenomStingerRefusal(item) {
     const replaces = (Array.isArray(item.stats) ? item.stats : []).some(stat => stat && stat.venomStingerBonus);
     return !replaces && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
 }
-const VENOM_STINGER_STAT_IDS = Object.freeze(['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech',
-    'minDmgRoll', 'maxDmgRoll', 'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']);
+const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger, MOD_DB);
 /** 독벌침이 굴릴 무기 공격 줄: 없는 능력치이면서, 이미 붙은 독벌침 줄을 뺀 접두 3, 접미 3 자리가 남는 종류. */
 function getVenomStingerMods(item) {
     const occupiedIds = getItemOccupiedExplicitModIds(item);
@@ -10472,6 +10468,8 @@ function isSporeCraftEquipment(item) {
     return EQUIPMENT_DROP_SLOTS.includes(slot);
 }
 
+// The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
+const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
@@ -10480,7 +10478,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
     if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
     let cost = 8;
     if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
-    let ids = new Set(['fireFlatDmg','coldFlatDmg','lightFlatDmg','firePctDmg','coldPctDmg','lightPctDmg','elementalPctDmg','resF','resC','resL']);
+    let ids = new Set(ROT_SPORE_STAT_IDS);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && ids.has(row.stat.id));
     if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
@@ -10527,15 +10525,9 @@ function isRemovableExplicitStat(stat) {
 
 const QUALITY_ATTRIBUTE_MODES = ['base', 'fire', 'cold', 'light', 'chaos', 'physical', 'defense', 'speed'];
 const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도' };
-const QUALITY_ATTRIBUTE_STAT_GROUPS = {
-    fire: ['firePctDmg', 'resF', 'igniteChance', 'igniteDamageMultiplierPct'],
-    cold: ['coldPctDmg', 'resC', 'freezeChance', 'chillEffect'],
-    light: ['lightPctDmg', 'resL', 'shockChance', 'shockEffect'],
-    chaos: ['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance', 'poisonDamageMultiplierPct'],
-    physical: ['physPctDmg', 'flatDmg', 'bleedChance', 'physIgnore', 'maxDmgRoll', 'minDmgRoll'],
-    defense: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'resAll', 'dr'],
-    speed: ['aspd', 'move', 'ds']
-};
+// The lines each quality mode scales come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.quality), unique lines included.
+const QUALITY_ATTRIBUTE_STAT_GROUPS = Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.quality)
+    .map(([mode, rule]) => [mode, resolveAffixTagList(rule, MOD_DB)]));
 
 function getItemQualityAttributeMode(item) {
     let mode = item && typeof item.qualityAttribute === 'string' ? item.qualityAttribute : 'base';

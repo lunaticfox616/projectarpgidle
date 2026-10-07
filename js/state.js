@@ -1630,17 +1630,18 @@ const MOD_DB = [
 ];
 
 const FOSSIL_DB = [
-    { key: 'fossilJagged', name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['physPctDmg', 'meleePctDmg', 'flatDmg', 'physIgnore'] },
-    { key: 'fossilBound', name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['flatHp', 'pctHp', 'dr', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct'] },
-    { key: 'fossilGale', name: '돌풍 화석', desc: '속도/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['aspd', 'crit', 'move'] },
-    { key: 'fossilPrismatic', name: '프리즘 화석', desc: '저항/원소 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg', 'resPen'] },
-    { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스/흡혈/재생 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'] },
-    { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['physIgnore', 'resPen', 'chaosPctDmg', 'critDmg'], ancientPrimalOnly: true },
-    { key: 'fossilBulwark', name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/방패.', guaranteedStats: ['maxResF', 'maxResC', 'maxResL'] },
-    { key: 'fossilWedge', name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['projectileExtraChance', 'projectilePctDmg', 'crit'] },
-    { key: 'fossilOld', name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: [] },
-    { key: 'fossilRift', name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.', guaranteedStats: [] }
-];
+    { key: 'fossilJagged', name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilBound', name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilGale', name: '돌풍 화석', desc: '속도/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilPrismatic', name: '프리즘 화석', desc: '저항/원소 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스/흡혈/재생 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', ancientPrimalOnly: true },
+    { key: 'fossilBulwark', name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/방패.' },
+    { key: 'fossilWedge', name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilOld', name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
+    { key: 'fossilRift', name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.' }
+// The line each fossil guarantees comes from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.fossil); old and rift fossils have none.
+].map(fossil => ({ ...fossil, guaranteedStats: AFFIX_TAG_LISTS.fossil[fossil.key] ? resolveAffixTagList(AFFIX_TAG_LISTS.fossil[fossil.key], MOD_DB) : [] }));
 
 /**
  * @typedef {'spore'|'fossil'|'transplant'} EquipmentCraftSource

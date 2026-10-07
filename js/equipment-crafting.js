@@ -3,6 +3,9 @@ const equipmentCrafting = (() => {
     const labels = Object.freeze({ spore: '홀씨', fossil: '화석', transplant: '이식' });
     const sporeActions = new Set(['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos']);
     const sporeRerolls = new Set(['transmute', 'alteration', 'alchemy', 'chaos']);
+    // Shared by actual spore rolls and crafting target previews (data/affix-tags.js AFFIX_TAG_LISTS.spore).
+    const sporeStatIds = Object.freeze(Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.spore)
+        .map(([mode, rule]) => [mode, new Set(resolveAffixTagList(rule, MOD_DB))])));
 
     /** Read explicit origin or known legacy flags; never infer origin from an affix value/tier. */
     function getSource(stat) {
@@ -19,7 +22,7 @@ const equipmentCrafting = (() => {
 
     /** Filter an already eligible pool without rolling or changing weights. */
     function filterSporeMods(pool, mode) {
-        const ids = new Set(SPORE_CRAFT_MOD_IDS[mode] || []);
+        const ids = sporeStatIds[mode] || new Set();
         return pool.filter(mod => ids.has(mod.statId || mod.id));
     }
 

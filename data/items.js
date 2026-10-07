@@ -1058,15 +1058,6 @@ const OCEAN_FISH_COLLECTION_MILESTONES = [
     { required: 6, label: '심연 표본실', reward: { bossCore: 1 }, bonus: { gaugeGainPct: 10 } },
     { required: 8, label: '무광해 도감 완성', reward: { goldenRule: 1 }, bonus: { rareChancePct: 20 } }
 ];
-// Shared by actual spore rolls and crafting target previews.
-const SPORE_CRAFT_MOD_IDS = {
-fire: ['fireFlatDmg','firePctDmg','resF','aspd','crit','critDmg','resPen','ds','targetAny','targetProjectile'],
-cold: ['coldFlatDmg','coldPctDmg','resC','crit','critDmg','aspd','ds','targetAny','targetProjectile'],
-light: ['lightFlatDmg','lightPctDmg','resL','aspd','ds','crit','critDmg','targetAny','targetProjectile'],
-chaos: ['chaosFlatDmg','chaosPctDmg','resChaos','dotPctDmg','resPen','leech','spellLeech','regenSuppress','targetAny','targetProjectile'],
-damage: ['flatDmg','physFlatDmg','spellFlatDmg','fireFlatDmg','coldFlatDmg','lightFlatDmg','chaosFlatDmg','physPctDmg','attackPctDmg','spellPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','pctDmg','dotPctDmg','critDmg']
-};
-
 const MARKET_EXCHANGES = [
     { id: 'm1', from: 'magicBud', to: 'formlessDew', need: 8, gain: 1 },
     { id: 'm2', from: 'formlessDew', to: 'sapBud', need: 15, gain: 1 },
