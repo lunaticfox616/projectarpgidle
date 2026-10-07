@@ -6,7 +6,7 @@ const { PASSIVE_KEYSTONE_CONTRACTS } = require('./lib/passive-tree-keystone-cont
 
 const files = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
-  'data/skills.js', 'data/items.js', 'data/passives.js',
+  'data/skills.js', 'data/items.js', 'data/affix-tags.js', 'data/passives.js',
   'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js', 'data/talent-cards.js',
   'data/endgame-progression.js', 'js/utils.js', 'data/ascendancies.js', 'js/state.js', 'js/passive-routing.js', 'js/passives.js',
 ];

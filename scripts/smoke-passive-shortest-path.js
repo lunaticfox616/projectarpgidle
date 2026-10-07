@@ -8,7 +8,7 @@ const files = [
   'data/constants.js',
   'data/maps.js',
   'data/skills.js',
-  'data/items.js',
+  'data/items.js', 'data/affix-tags.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
   'data/bosses.js',
