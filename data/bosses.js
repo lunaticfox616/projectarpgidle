@@ -9,7 +9,10 @@ const ACT_BOSS_ASSET_KEYS = [
     'bossAct6', 'bossAct7', 'bossAct8_1', 'bossAct9', 'bossAct10_1'
 ];
 
-const BOSS_ASSET_MANIFEST = {
+// 원본 보스 그림. 게임은 이것을 실행 중에 정리(배경을 투명하게, js/passives.js sanitizeBattleSheet)하던 것을 미리 해 둔
+// assets/battle-clean 그림을 쓴다(2026-10-07 메모리 검토: 정리 사본이 원본 디코드와 따로 메모리에 남았다). 원본을 고치면
+// scripts/export-clean-battle-sheets.cjs로 다시 만든다.
+const BOSS_ASSET_SOURCES = {
     bossAct1: 'assets/boss/Act1.png',
     bossAct2: 'assets/boss/Act2.png',
     bossAct3: 'assets/boss/Act3.png',
@@ -28,6 +31,8 @@ const BOSS_ASSET_MANIFEST = {
     bossAct10_4: 'assets/boss/Act10(4).png',
     bossAct10_5: 'assets/boss/Act10(5).png'
 };
+const BOSS_ASSET_MANIFEST = Object.fromEntries(Object.entries(BOSS_ASSET_SOURCES).map(([key, src]) =>
+    [key, `assets/battle-clean/boss-${src.split('/').pop().replace(/\.png$/, '').replace(/\((\d+)\)/, '-$1')}.png`]));
 
 const BOSS_ASSET_VARIANTS_BY_ACT = {
     4: ['bossAct4_1', 'bossAct4_2'],
@@ -315,7 +320,7 @@ function getMonsterVisualAttackKind(visualId) {
 }
 
 safeExposeData({
-    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
+    ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_SOURCES, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, BOSS_ASSET_FRONT_FACING,
     getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
     ACT_MONSTER_VISUALS, ACT_MONSTER_VISUAL_BY_ID, ACT_MONSTER_POOLS, RETIRED_WOOD_MONSTER_SKINS, getActMonsterPool,
     getMonsterVisualAttackKind, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, getRootMonsterVisualDefinition, getRootMonsterWeapon,

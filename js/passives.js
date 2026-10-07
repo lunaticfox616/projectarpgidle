@@ -6282,8 +6282,14 @@ function isLocalRuntimeHost() {
     return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
+/** Sheets shipped already sanitized (assets/battle-clean, scripts/export-clean-battle-sheets.cjs): no runtime copy. */
+function isPreCleanedBattleSheet(key) {
+    return key === 'enemies' || key === 'summon1' || key.startsWith('bossAct');
+}
+
 function shouldPreserveOriginalBattleSheet(key) {
-    return key === 'tiles'
+    return isPreCleanedBattleSheet(key)
+        || key === 'tiles'
         || key.startsWith('hero')
         || key.startsWith('playerClass')
         || key.startsWith('bossTelegraph')
@@ -6447,9 +6453,8 @@ function initBattleAssets() {
         playerClassWarriorAttack2South: 'assets/playable/classes/warrior/attack-2-south.webp',
         playerClassWarriorAttack3South: 'assets/playable/classes/warrior/attack-3-south.webp',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
-        enemies: 'assets/battle-enemies-v1.png',
-        enemies2: 'assets/battle-enemies-v2.png',
-        enemies3: 'assets/battle-enemies-v3.png',
+        // Sanitized ahead of time (both passes the atlas used to get at runtime); v2 and v3 are no longer drawn.
+        enemies: 'assets/battle-clean/battle-enemies-v1.png',
         ...wispMonsterManifest,
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
@@ -6514,7 +6519,7 @@ function initBattleAssets() {
         bgChaos16: 'assets/background/refined-20260910/bgChaos9.webp',
         bgChaos17: 'assets/background/refined-20260910/bgChaos1.webp',
         bgChaos18: 'assets/background/refined-20260910/bgChaos18.webp',
-        summon1: 'assets/summon/summon1.png',
+        summon1: 'assets/battle-clean/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
     Object.values((typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22.nodes) || {}).forEach(node => {
@@ -6577,7 +6582,7 @@ function initBattleAssets() {
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
             let sanitized = sanitizeBattleSheet(image);
-            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') {
+            if (key === 'enemies') {
                 sanitized = sanitizeWhiteBackdropSheet(sanitized);
                 sanitized = sanitizeLocalMonsterBackdropSheet(sanitized);
             }
@@ -7898,7 +7903,7 @@ function buildBattleAssetAtlas() {
     let selectedHeroDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId);
 
     function buildEnemyTransparentImage(image) {
-        if (!image) return image;
+        if (!image || isPreCleanedBattleSheet('enemies')) return image;
         try {
             return sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image)));
         } catch (error) {
@@ -7958,6 +7963,8 @@ function buildBattleAssetAtlas() {
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
+    // The frames are measured once; drop the pixel-reading copy of the atlas (another full decode).
+    battleImageCanvasCache.delete(enemySpriteImage);
     const wispEnemyVariants = buildWispEnemyVariants(battleAssets.images);
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
