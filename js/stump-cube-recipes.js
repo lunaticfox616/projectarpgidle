@@ -63,10 +63,12 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: [], outputs: [{ kind: 'equipment', existing: equipment.item }] };
     }
 
-    function stumpMerge([group]) {
+    /** Best quality + a step, up to the box's quality cap (130%, 140% and 150% with the loop 35 and 45 unlocks); golden if any was golden. */
+    function stumpMerge([group], state) {
         const list = items(group);
-        const roll = Math.min(STUMP_BOX_ROLL_LIMIT.max, Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
-        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: { family: list[0].family, color: list[0].color, roll } }] };
+        const roll = Math.min(stumpBox.rollCap(state), Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
+        const spec = { family: list[0].family, color: list[0].color, roll, golden: list.some(item => item.golden === true) };
+        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec }] };
     }
 
     function talismanUpgrade([group], state, random) {
