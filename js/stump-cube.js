@@ -8,8 +8,9 @@ const stumpCube = (() => {
     const SIZE = STUMP_CUBE_SIZE;
     const LOCK_REASON = '☠️ 나무꾼 전투 중에는 조합할 수 없습니다.';
 
+    /** known: recipe ids already announced (조합법 발견); null until the first foreground check records what is open silently. */
     function empty() {
-        return { slots: [] };
+        return { slots: [], known: null };
     }
 
     function inGrid(value) {
@@ -24,12 +25,28 @@ const stumpCube = (() => {
     function normalize(raw) {
         const slots = (raw && Array.isArray(raw.slots) ? raw.slots : []).filter(validSlot).slice(0, SIZE * SIZE)
             .map(({ kind, id, x, y }) => ({ kind, id, x, y }));
-        return { slots };
+        const known = raw && Array.isArray(raw.known) ? STUMP_CUBE_RECIPES.map(recipe => recipe.id).filter(id => raw.known.includes(id)) : null;
+        return { slots, known };
     }
 
     function of(state) {
         if (!state.stumpCube || !Array.isArray(state.stumpCube.slots)) state.stumpCube = empty();
         return state.stumpCube;
+    }
+
+    // ── 조합법 발견(2026-10-07 해금 1차 B1): 책에는 재료가 생길 수 있는 조합법만 ─────────────
+    /** reveal.content: the unlock whose drops bring the material; reveal.harvest: one of these journal kinds grown once. */
+    function isRevealed(recipe, state = game) {
+        const rule = recipe.reveal || {};
+        if (rule.content && !contentProgression.isUnlocked(rule.content, state)) return false;
+        return !rule.harvest || rule.harvest.some(kind => stumpBox.hasHarvested(state, kind));
+    }
+    function revealed(state = game) { return STUMP_CUBE_RECIPES.filter(recipe => isRevealed(recipe, state)); }
+    /** Marks the open recipes as known. @returns {object[]} the ones not known before ([] on the first, silent call). */
+    function learn(state = game) {
+        const cube = of(state), open = revealed(state), known = cube.known;
+        cube.known = STUMP_CUBE_RECIPES.map(recipe => recipe.id).filter(id => (known || []).includes(id) || open.some(recipe => recipe.id === id));
+        return known ? open.filter(recipe => !known.includes(recipe.id)) : [];
     }
 
     // ── 재료 찾기 ─────────────────────────────────────────
@@ -117,8 +134,9 @@ const stumpCube = (() => {
         return true;
     }
 
+    /** Empties the cells; what the player has learned stays. */
     function clear(state = game) {
-        state.stumpCube = empty();
+        of(state).slots = [];
     }
 
     // ── 조합법 판정 ───────────────────────────────────────
@@ -231,6 +249,7 @@ const stumpCube = (() => {
         return pools[kind].filter(item => usable(kind, item) && !inside.has(kind === 'equipment' ? equipmentLoadoutRuntime.getItemIdentity(item) : item.id));
     }
 
-    return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingCost, transmute, candidates, footprint });
+    return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, clear, match, missingCost, transmute, candidates, footprint,
+        isRevealed, revealed, learn });
 })();
 safeExposeGlobals({ stumpCube });

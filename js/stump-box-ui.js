@@ -4,6 +4,7 @@
 // 마우스를 올리면 게임 툴팁(tipFor)이 나온다. 규칙 · 계산은 js/stump-box.js.
 // 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가, 3×3 조합창은 js/stump-cube-ui.js가 준다.
 // 접붙이기(루프 18부터): 판의 칸(빈 칸도 누르면 고른다)을 골라 [접붙이기]로 단계를 올린다. 단계는 칸 왼쪽 위 숫자로 보인다.
+// 수확 일지, 줄 선물, 함 해금 목록과 그 알림은 js/stump-harvest-ui.js가 준다(2026-10-07 해금 1차).
 const stumpBoxUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const PATH_LABELS = { flower: '꽃', fruit: '열매' };
@@ -114,6 +115,9 @@ const stumpBoxUi = (() => {
             '보관함이 가득 찬 채 떨어진 씨앗과 수액은 저절로 거름이 됩니다.', '떨어지는 색의 절반은 판에 놓인 색을 따릅니다.'];
         if (contentProgression.isUnlocked('talisman')) rules.push('부적은 색이 없고 판에서 깨어납니다.');
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 칸마다 최대 ${STUMP_BOX_GRAFT.maxRank}단계, 단계마다 +${STUMP_BOX_GRAFT.pctPerRank}% (칸 왼쪽 위 숫자)`);
+        if (stumpBox.graftJournalPoints(game)) rules.push(`저널 접붙이기 점수 +${stumpBox.graftJournalPoints(game)} (정점 보스 +3, 버려진 날 +2)`);
+        rules.push('수확 일지: 처음 다 자란 것을 적고, 한 줄(같은 것 네 색)을 채우면 선물을 줍니다.');
+        if (stumpBox.rootMemoryPct(game)) rules.push(`뿌리 기억: 새 루프에 다 자란 것이 ${stumpBox.rootMemoryPct(game)}% 자란 채로 다시 자랍니다.`);
         return '<div class="tooltip-title">그루터기 함</div>' + rules.map(rule => `<div class="tooltip-line">${escStump(rule)}</div>`).join('');
     }
 
@@ -142,7 +146,7 @@ const stumpBoxUi = (() => {
     // ── 고른 것의 설명 · 툴팁 ───────────────────────────────
     function stumpGrowthText(item) {
         if (item.family === 'talisman') return stumpBox.isMature(item) ? '' : `깨어남 ${item.xp} / ${stumpBox.need(item)}`;
-        if (stumpBox.isMature(item)) return '다 자람 · 새 루프에 다시 씨앗 · 수액으로';
+        if (stumpBox.isMature(item)) return `다 자람, 새 루프에 ${stumpBox.rootMemoryPct(game) ? `${stumpBox.rootMemoryPct(game)}% 자란 ` : ''}씨앗이나 수액으로`;
         return `성장 ${item.xp} / ${stumpBox.need(item)}`;
     }
     function stumpYieldOf(item) {
@@ -258,7 +262,7 @@ const stumpBoxUi = (() => {
     }
     function stumpStarterHtml() {
         const rows = stumpStarterRow('seed', '씨앗') + stumpStarterRow('sap', '수액');
-        return rows ? `<h3>시작 선물 <small>씨앗·수액 각 1개</small></h3>${rows}` : '';
+        return (rows ? `<h3>시작 선물 <small>씨앗과 수액 각 1개</small></h3>${rows}` : '') + stumpHarvestUi.giftsHtml();
     }
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
@@ -284,7 +288,7 @@ const stumpBoxUi = (() => {
     function stumpStorageSlots(count, columns) {
         if (colorFilter !== 'all') return 0;
         const rows = Math.max(2, Math.ceil(count / columns) + 1);
-        return Math.max(0, Math.min(STUMP_BOX_STORAGE, rows * columns) - count);
+        return Math.max(0, Math.min(stumpBox.storageLimit(game), rows * columns) - count);
     }
     function stumpStorageHtml() {
         const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch), columns = stumpStorageColumns();
@@ -293,7 +297,7 @@ const stumpBoxUi = (() => {
             + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('') : '';
         const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(stumpStorageSlots(all.length, columns));
         const target = selectedId !== null && game.stumpBox.board.includes(selectedId) ? ' is-target' : '';
-        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${STUMP_BOX_STORAGE}</h3><div class="stump-filters">${filters}</div></div>`
+        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${filters}</div></div>`
             + `<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1" style="--stump-columns:${columns}">`
             + `${items.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}</div>`;
     }
@@ -306,8 +310,10 @@ const stumpBoxUi = (() => {
     function stumpTabSignature() {
         const talismanInputs = [contentProgression.isUnlocked('talisman'), TALISMAN_CURRENCIES.map(key => Math.floor(game.currencies[key] || 0))];
         const graftInputs = [selectedCell, stumpBox.graftPoints(game).free, Math.floor(game.currencies.blightSpore || 0)];
+        // 보관함 한도와 뿌리 기억은 저널과 루프에서 계산된다(함이 그대로여도 바뀐다).
+        const unlockInputs = [stumpBox.storageLimit(game), stumpBox.rootMemoryPct(game)];
         return JSON.stringify([game.stumpBox, selectedId, pendingPath, colorFilter, stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
-            graftInputs, stumpCubeUi.cubeSignature(), stumpStorageColumns()]);
+            graftInputs, unlockInputs, stumpCubeUi.cubeSignature(), stumpStorageColumns()]);
     }
     /** Called for the visible tab (renderVisibleManagementPanels) and once a second while it stays open. */
     function renderStumpBoxTab(force) {
@@ -326,6 +332,7 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-box-starter', stumpStarterHtml());
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-unseal', stumpTalismanUi.unsealHtml());
+        paintStumpPart('stump-box-harvest', stumpHarvestUi.journalHtml());
     }
     function refreshStumpTabIfVisible() {
         if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
@@ -413,6 +420,13 @@ const stumpBoxUi = (() => {
         if (item && item.path && stumpBox.setPath(game, item.id, path)) return commitStumpChange();
         renderStumpBoxTab(true);
     }
+    function claimHarvestGift(row, color) {
+        const item = stumpBox.claimHarvestGift(game, row, color);
+        if (!item) return notifyStump('보관함이 가득 찼거나 이미 받은 선물입니다.');
+        selectedId = item.id;
+        notifyStump(`수확 일지 선물: ${stumpBox.label(item)}`);
+        commitStumpChange();
+    }
     function claimStumpStarter(family, color) {
         const item = stumpBox.claimStarter(game, family, color);
         if (!item) return notifyStump('보관함이 가득 찼거나 이미 받은 선물입니다.');
@@ -456,6 +470,7 @@ const stumpBoxUi = (() => {
         compost: () => compostStumpItem(),
         deselect: () => selectStumpItem(null),
         starter: data => claimStumpStarter(data.family, data.color),
+        'harvest-gift': data => claimHarvestGift(data.row, data.color),
         filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); },
         'talisman-unseal': data => unsealTalisman(data.source),
         'talisman-exchange': data => { if (stumpTalismanUi.exchange(Number(data.index))) commitStumpChange(); },
@@ -487,6 +502,9 @@ const stumpBoxUi = (() => {
         if (stumpBox.sync(game, 'act10')) game.noti.stump = true;
         if (!game.stumpBox.acquired) return;
         announceStumpGraft();
+        stumpHarvestUi.announceUnlocks();
+        stumpHarvestUi.announceRecipes();
+        stumpHarvestUi.announceGraftJournal();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
             '액트 10을 넘어선 보상으로 그루터기 함을 얻었습니다.\n씨앗과 수액을 판에 놓으면 처치할 때마다 자랍니다. 보관함에서는 자라지 않습니다.\n'
             + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.\n먼저 ‘그루터기 함’에서 시작 선물로 씨앗과 수액의 색을 골라 받으세요.',
@@ -528,8 +546,12 @@ const stumpBoxUi = (() => {
         if (!ripened.length) return;
         const gain = ripened.length === 1 ? stumpRipeGain(ripened[0]) : '';
         const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 다 자람`;
-        showGameToast(`그루터기 함: ${names}${gain ? `, ${gain}` : ''}`, { tone: 'success' });
+        const gift = stumpBox.pendingGifts(game).length ? ', 수확 일지 선물을 받으세요' : '';
+        if (gift) game.noti.stump = true;
+        showGameToast(`그루터기 함: ${names}${gain ? `, ${gain}` : ''}${gift}`, { tone: 'success' });
         playUiFeedbackSound('success');
+        stumpHarvestUi.announceRecipes();
+        stumpHarvestUi.announceUnlocks();
     }
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('project-idle:stump-box-changed', event => announceStumpChange(event.detail || {}));

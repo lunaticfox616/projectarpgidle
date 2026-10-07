@@ -2078,9 +2078,11 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
 /**
  * 그루터기 함(js/stump-box.js). acquired/via/starter are one-time receipts. items live in storage unless an id sits
  * on the 5×5 board (row-major, null = empty); xp counts kills toward the family's need (data/stump-box.js) and ripe
- * marks a grown item. Suppression, resonance and stats are recomputed from the board, never saved.
+ * marks a grown item. Suppression, resonance and stats are recomputed from the board, never saved. harvest is the
+ * 수확 일지: first grown flower/fruit/amber per colour ('flower-fire' …, fixed order) and the one-time row gift receipts.
  * @typedef {{id:number, family:('seed'|'sap'), color:('fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'), xp:number, ripe:boolean, roll:number}} StumpBoxItem
- * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>, graft:number[]}} StumpBoxState
+ * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>, graft:number[],
+ *   harvest:{grown:string[], gifts:{flower:boolean, fruit:boolean, amber:boolean}}}} StumpBoxState
  */
 /**
  * G1 expedition ledger. Rewards in history are already in the wallet, never claimable again.
@@ -2296,7 +2298,7 @@ const defaultGame = {
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
     // 그루터기 함 아래 3×3 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
-    stumpCube: { slots: [] },
+    stumpCube: { slots: [], known: null },
     equipmentTemporaryStorage: [],
     inventory: [],
     jewelInventoryExpandLevel: 0,
@@ -2353,7 +2355,8 @@ const defaultGame = {
     ocean: createDefaultOceanState(),
     /** @type {StumpBoxState} */
     stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
-        graft: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+        graft: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        harvest: { grown: [], gifts: { flower: false, fruit: false, amber: false } } },
     cores: { equipped: null, owned: [] },
     pendingLoopDecision: false,
     pendingLoopReady: false,

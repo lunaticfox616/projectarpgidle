@@ -11,11 +11,16 @@ const stumpBox = (() => {
     const CELLS = STUMP_BOX_SIZE * STUMP_BOX_SIZE;
     const FAMILIES = ['seed', 'sap'], PATHS = ['flower', 'fruit'], COLORS = Object.keys(STUMP_BOX_COLORS);
     const FIXED_TARGET = { sap: 'amber', talisman: 'talisman' };
+    const HARVEST_ROWS = Object.keys(STUMP_BOX_HARVEST.rows);
+    const HARVEST_KEYS = HARVEST_ROWS.flatMap(row => COLORS.map(color => `${row}-${color}`));
     let memo = { key: null, box: null, value: null };
 
+    function emptyHarvest() {
+        return { grown: [], gifts: Object.fromEntries(HARVEST_ROWS.map(row => [row, false])) };
+    }
     function empty() {
         return { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: Array(CELLS).fill(null),
-            graft: Array(CELLS).fill(0) };
+            graft: Array(CELLS).fill(0), harvest: emptyHarvest() };
     }
     /** @returns {object} The state's box, created empty when missing. */
     function of(state) {
@@ -34,9 +39,11 @@ const stumpBox = (() => {
         if (isMature(item) && item.path) return item.path;
         return half ? 'sprout' : 'seed';
     }
+    /** flower · fruit · amber: what a seed or sap grows into (null for a seed without a path and for talismans). */
+    function yieldKind(item) { return item.family === 'sap' ? 'amber' : item.family === 'seed' ? item.path : null; }
     /** What the item gives once grown (a seed needs its path first). */
     function yieldOf(item) {
-        const kind = item.family === 'sap' ? 'amber' : item.path;
+        const kind = yieldKind(item);
         return kind ? STUMP_BOX_YIELDS[kind][item.color] : null;
     }
     function targetStage(item) { return FIXED_TARGET[item.family] || item.path; }
@@ -61,7 +68,7 @@ const stumpBox = (() => {
     function createItem(state, spec) {
         const box = of(state);
         if (!FAMILIES.includes(spec.family) || !COLORS.includes(spec.color)) return null;
-        if (storage(state).length >= STUMP_BOX_STORAGE) return null;
+        if (storageFull(state)) return null;
         const item = { id: box.nextId++, family: spec.family, color: spec.color, path: null, xp: 0, ripe: false, roll: clampRoll(spec.roll) };
         box.items.push(item);
         return item;
@@ -69,7 +76,7 @@ const stumpBox = (() => {
     /** Adds an unsealed talisman (talismans.js fields, normalized here) to storage. force: a boss reward that must not be lost to a full storage. */
     function addTalisman(state, talisman, force) {
         const box = of(state), fields = talismans.normalizeTalisman(talisman);
-        if (!box.acquired || !fields || (!force && storage(state).length >= STUMP_BOX_STORAGE)) return null;
+        if (!box.acquired || !fields || (!force && storageFull(state))) return null;
         const item = { id: box.nextId++, family: 'talisman', color: null, path: null, xp: 0, ripe: false, roll: 1, ...fields };
         box.items.push(item);
         return item;
@@ -151,7 +158,7 @@ const stumpBox = (() => {
     }
     function unplace(state, id) {
         const box = of(state), from = box.board.indexOf(id);
-        if (!editable(state) || from < 0 || storage(state).length >= STUMP_BOX_STORAGE) return false;
+        if (!editable(state) || from < 0 || storageFull(state)) return false;
         box.board[from] = null;
         return true;
     }
@@ -222,8 +229,13 @@ const stumpBox = (() => {
     /** The effect multiplier for whatever sits on the cell (1 without a graft). */
     function graftMultiplier(box, cell) { return 1 + box.graft[cell] * STUMP_BOX_GRAFT.pctPerRank / 100; }
     function graftOpen(state) { return of(state).acquired && highestLoop(state) >= STUMP_BOX_GRAFT.startLoop; }
+    /** Points from journal pages (STUMP_BOX_GRAFT.journalPoints), counted once per page. */
+    function graftJournalPoints(state) {
+        const journal = Array.isArray(state.journalEntries) ? state.journalEntries : [];
+        return Object.entries(STUMP_BOX_GRAFT.journalPoints).reduce((sum, [id, points]) => sum + (journal.includes(id) ? points : 0), 0);
+    }
     function graftEarned(state) {
-        return Math.max(0, highestLoop(state) - STUMP_BOX_GRAFT.startLoop + 1) * STUMP_BOX_GRAFT.pointsPerLoop;
+        return Math.max(0, highestLoop(state) - STUMP_BOX_GRAFT.startLoop + 1) * STUMP_BOX_GRAFT.pointsPerLoop + graftJournalPoints(state);
     }
     /** @returns {{earned: number, spent: number, free: number}} graft points. */
     function graftPoints(state) {
@@ -266,13 +278,14 @@ const stumpBox = (() => {
         const suppressed = evaluate(state).suppressed;
         return placedItems(of(state)).filter(item => isGrowing(item, suppressed));
     }
-    /** Grows every growing item by `amount`. @returns {object[]} items that ripened. */
+    /** Grows every growing item by `amount` and writes first harvests into the journal. @returns {object[]} items that ripened. */
     function growBy(state, amount) {
         const ripened = [];
         for (const item of growingItems(state)) {
             item.xp = Math.min(need(item), item.xp + amount);
             if (item.xp >= need(item)) { item.ripe = true; ripened.push(item); }
         }
+        recordHarvest(of(state), ripened);
         return ripened;
     }
     /** Grows placed, unsuppressed, unripe items by one kill. @returns {object[]} items that ripened. */
@@ -356,14 +369,57 @@ const stumpBox = (() => {
         if (item) box.starter[family] = true;
         return item;
     }
-    /** New loop: placements and unripe progress stay; grown items return to seed/sap with no growth (a seed keeps its path). */
+    /** New loop: placements and unripe progress stay; grown items return to seed/sap (a seed keeps its path) and keep
+     * rootMemoryPct of their growth (뿌리 기억). @returns {number} how many went back. */
     function regress(state) {
         const box = state.stumpBox;
         if (!box || !Array.isArray(box.items)) return 0;
+        const keepPct = rootMemoryPct(state);
         let count = 0;
-        box.items.forEach(item => { if (item.ripe) { item.xp = 0; item.ripe = false; count++; } });
+        box.items.forEach(item => { if (item.ripe) { item.xp = Math.floor(need(item) * keepPct / 100); item.ripe = false; count++; } });
+        if (count) dispatchRuntimeEvent('stump-box-regressed', { count, keepPct });
         return count;
     }
+
+    // ── 수확 일지 · 해금(2026-10-07 해금 1차) ───────────────────
+    /** 'flower-fire' …: the journal key of a grown seed or sap; null for talismans. */
+    function harvestKey(item) {
+        const kind = yieldKind(item);
+        return kind ? `${kind}-${item.color}` : null;
+    }
+    /** Adds first-time grown combinations to the journal, in the fixed key order (idempotent). */
+    function recordHarvest(box, items) {
+        const grown = new Set(box.harvest.grown);
+        items.forEach(item => { const key = harvestKey(item); if (key) grown.add(key); });
+        if (grown.size !== box.harvest.grown.length) box.harvest.grown = HARVEST_KEYS.filter(key => grown.has(key));
+    }
+    function rowDone(box, row) { return COLORS.every(color => box.harvest.grown.includes(`${row}-${color}`)); }
+    /** Journal rows (flower · fruit · amber) with all four colours grown. */
+    function harvestRows(state) { const box = of(state); return HARVEST_ROWS.filter(row => rowDone(box, row)); }
+    /** Whether any combination of this kind (flower · fruit · amber) has been grown. */
+    function hasHarvested(state, kind) { return of(state).harvest.grown.some(key => key.startsWith(`${kind}-`)); }
+    /** Completed rows whose gift has not been taken. */
+    function pendingGifts(state) { const box = of(state); return harvestRows(state).filter(row => !box.harvest.gifts[row]); }
+    /** The gift of a completed row: one seed or sap of the chosen colour, once. null when not allowed or storage is full. */
+    function claimHarvestGift(state, row, color) {
+        const box = of(state);
+        if (!box.acquired || !pendingGifts(state).includes(row)) return null;
+        const item = createItem(state, { family: STUMP_BOX_HARVEST.rows[row], color, roll: STUMP_BOX_HARVEST.giftRoll });
+        if (item) box.harvest.gifts[row] = true;
+        return item;
+    }
+    /** A STUMP_BOX_UNLOCKS condition (computed, never saved). */
+    function unlockMet(state, when) {
+        if (when.loop && highestLoop(state) < when.loop) return false;
+        if (when.journal && !(Array.isArray(state.journalEntries) && state.journalEntries.includes(when.journal))) return false;
+        return !when.harvestRows || harvestRows(state).length >= when.harvestRows;
+    }
+    /** The box's unlocks that hold now (none before the box). */
+    function openUnlocks(state) { return of(state).acquired ? STUMP_BOX_UNLOCKS.filter(row => unlockMet(state, row.when)) : []; }
+    function storageLimit(state) { return openUnlocks(state).reduce((sum, row) => sum + (row.storage || 0), STUMP_BOX_STORAGE_BASE); }
+    function storageFull(state) { return storage(state).length >= storageLimit(state); }
+    /** Share of growth (%) a grown item keeps when a new loop starts (뿌리 기억). */
+    function rootMemoryPct(state) { return Math.max(0, ...openUnlocks(state).map(row => row.keepPct || 0)); }
 
     // ── 저장 경계 ───────────────────────────────────────────
     function validItem(raw) {
@@ -406,6 +462,13 @@ const stumpBox = (() => {
             if (seen.has(id) && !used.has(id)) { used.add(id); box.board[cell] = id; }
         });
     }
+    /** Known journal keys only, plus whatever is grown right now (saves from before the journal); gift receipts stay. */
+    function restoreHarvest(raw, box) {
+        const source = raw && typeof raw === 'object' ? raw : {};
+        box.harvest.grown = HARVEST_KEYS.filter(key => Array.isArray(source.grown) && source.grown.includes(key));
+        HARVEST_ROWS.forEach(row => { box.harvest.gifts[row] = !!(source.gifts && source.gifts[row] === true); });
+        recordHarvest(box, box.items.filter(isMature));
+    }
     /** Save boundary (idempotent; mergeDefaults runs it on every load, cloud apply and replay commit): repairs the box,
      * then grants it to saves that already cleared act 10 or reached loop 2. */
     function restore(state) {
@@ -417,6 +480,7 @@ const stumpBox = (() => {
             restoreItems(raw, box);
             box.nextId = Math.max(Number.isSafeInteger(raw.nextId) ? raw.nextId : 1, ...box.items.map(item => item.id + 1), 1);
             box.graft = restoreGraft(raw.graft, state);
+            restoreHarvest(raw.harvest, box);
         }
         state.stumpBox = box;
         sync(state, 'migration');
@@ -427,7 +491,8 @@ const stumpBox = (() => {
         empty, of, restore, sync, eligible, claimStarter, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
         evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, compost, compostReason, compostGrowth, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, iconPath, cellOf, editable, highestLoop,
-        graftRank, graftMultiplier, graftOpen, graftPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
+        graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
+        harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
         itemById: (state, id) => findItem(of(state), id)
     };
 })();
