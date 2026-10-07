@@ -109,7 +109,8 @@ function advanceCombatReplay(replay, budgetMs) {
             if (reason) { game.backgroundStopReason = reason; break; }
             replay.simulatedNow += 100;
             const killsBefore = game.loopKills;
-            coreLoop(replay.simulatedNow);
+            // One build validation per tick, as the foreground tick does (js/main.js): the build signature was 13% of a settlement.
+            combatEquipmentStats.withinTick(() => coreLoop(replay.simulatedNow));
             if (game.loopKills !== killsBefore) getBackgroundBuildMemo(game).clear();
             replay.processedMs += 100;
             updateBackgroundCombatMetrics(replay.metrics, game, replay.processedMs);
@@ -135,7 +136,8 @@ function finishCombatReplay(replay) {
     return { game: replay.game, runtime: replay.runtime, steps: replay.processedMs / 100,
         simulatedNow: replay.simulatedNow, processedMs: replay.processedMs, metrics: replay.metrics,
         stopped: replay.processedMs < replay.elapsedMs, stopReason, overflowSalvaged,
-        skippedMs: replay.skippedMs, estimated: projectedMs > 0, realMs: replay.processedMs - projectedMs, projectedMs };
+        skippedMs: replay.skippedMs, estimated: projectedMs > 0, realMs: replay.processedMs - projectedMs, projectedMs,
+        heldZone: !!(replay.projection && replay.projection.held), cutMs: replay.projection ? replay.projection.cutMs : 0 };
 }
 
 /** Only discard unprocessed time. Never extrapolate rewards or advance combat timers across it. */

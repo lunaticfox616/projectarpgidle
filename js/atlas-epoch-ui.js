@@ -4,6 +4,7 @@ const atlasEpochUi = (() => {
     function perkText(perk) {
         if (perk.effect) return Object.entries(perk.effect).map(([key, value]) => `${labels[key][0]} +${value}${labels[key][1]}`).join(' · ') + ' / 단계';
         if (perk.points) return `아틀라스 포인트 +${perk.points} / 단계`;
+        if (perk.offline) return `방치 효율 +${Math.round(perk.offline * 100)}%p / 단계`;
         return `루프 시작 때 ${perk.supply.map(([key, amount]) => `${ORB_DB[key].name} ${amount}`).join(' · ')} / 단계`;
     }
     async function rebirth() {

@@ -562,8 +562,19 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         highlights: equipmentLootPolicy.collectHighlights(beforeState, afterState),
         stashItems: Math.max(0, afterStash - beforeStash),
         stashTotal: afterStash,
-        overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0))
+        overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0)),
+        masteryGains: getBackgroundMasteryGains(beforeState, afterState)
     };
+}
+
+/** The result line for those levels ('' when none rose). */
+function formatBackgroundMasteryLine(gains) {
+    return typeof weaponMasteryUi === 'object' ? weaponMasteryUi.settlementLine(gains) : '';
+}
+
+/** Weapon mastery levels the settlement raised (js/weapon-mastery.js); none in harnesses without it. */
+function getBackgroundMasteryGains(beforeState, afterState) {
+    return typeof weaponMastery === 'object' && beforeState && afterState ? weaponMastery.gains(beforeState, afterState) : [];
 }
 
 function formatBackgroundDuration(ms) {
@@ -625,7 +636,7 @@ function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skipp
     if (duration) duration.textContent = `자리 비움 ${formatBackgroundDuration(actualElapsedMs)} · 계산 ${formatBackgroundDuration(Math.max(0, doneMs - skippedMs))}`;
     if (guide) {
         let limits = getBackgroundProgressResultLimits(game);
-        guide.textContent = `진행 한도: ${limits.recognitionHours}시간 · 효율 ${Math.round(limits.efficiencyRate * 100)}%`;
+        guide.textContent = `진행 한도 ${limits.recognitionHours}시간, 효율 ${Math.round(limits.efficiencyRate * 100)}%`;
     }
 }
 
@@ -653,6 +664,15 @@ function formatBackgroundProjection(result) {
 
 function formatBackgroundSkippedReward(skippedMs) {
     return skippedMs > 0 ? `포기한 전투 시간: ${formatBackgroundDuration(skippedMs)} · 해당 시간 보상 미지급` : '';
+}
+
+/** 빠른 계산을 못 탄 긴 실제 전투(data/offline-progress.js OFFLINE_PROJECTION realHoldMs, realCapMs): 무엇을 했는지 한 줄씩. */
+function formatBackgroundRealLimits(result) {
+    const minutes = ms => Math.round(ms / 60000);
+    return [
+        result.heldZone ? `실제 전투가 ${minutes(OFFLINE_PROJECTION.realHoldMs)}분을 넘어 그 뒤로는 지금 지역을 반복했습니다.` : '',
+        result.cutMs > 0 ? `빠른 계산을 못 하는 곳이라 실제 전투 ${minutes(OFFLINE_PROJECTION.realCapMs)}분까지만 계산했습니다(남은 ${formatBackgroundDuration(result.cutMs)}은 보상 없음).` : ''
+    ];
 }
 
 function showBackgroundCombatResult(result) {
@@ -686,8 +706,10 @@ function showBackgroundCombatResult(result) {
     let stashTotal = Math.max(0, Number(summary.stashTotal) || 0);
     let resultLimits = result.limits || getBackgroundProgressResultLimits(game);
     let rewards = [
-        formatBackgroundSkippedReward(result.skippedMs),
+        formatBackgroundSkippedReward(result.skippedMs - (result.cutMs || 0)),
+        ...formatBackgroundRealLimits(result),
         formatBackgroundProjection(result),
+        formatBackgroundMasteryLine(summary.masteryGains),
         ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
         `총 처치: <strong>${formatNumberKR(summary.kills)}</strong>`,
         backgroundExpLine(summary),
@@ -695,7 +717,7 @@ function showBackgroundCombatResult(result) {
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
-    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다 · 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${renderBackgroundStoryLine()}${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
+    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다. 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${renderBackgroundStoryLine()}${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -800,7 +822,7 @@ async function startBackgroundCombatReturn(nowMs) {
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs: result.processedMs, summary,
             capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason,
-            skippedMs: result.skippedMs, realMs: result.realMs, projectedMs: result.projectedMs });
+            skippedMs: result.skippedMs, realMs: result.realMs, projectedMs: result.projectedMs, heldZone: result.heldZone, cutMs: result.cutMs });
         restoreBattlefieldBeforeBackgroundReplay();
         return true;
     } catch (error) {
@@ -6610,7 +6632,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         }
     }
 
-    presentItemTooltip(context, event, item, html + sapCatalystsUi.qualityHtml(item) + gardenOilsUi.tooltipHtml(item) + emberCorruptionUi.tooltipHtml(item), isEquip);
+    presentItemTooltip(context, event, item, html + sapCatalystsUi.qualityHtml(item) + gardenOilsUi.tooltipHtml(item) + emberCorruptionUi.tooltipHtml(item) + weaponMasteryUi.tooltipHtml(item), isEquip);
 }
 
 function showCombatLogItemTooltip(event, token) {

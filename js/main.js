@@ -265,6 +265,7 @@ function scheduleAutoSaveWhenIdle() {
     let run = () => {
         autoSaveIdleHandle = null;
         if (backgroundCombatRuntime.processing || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+        if (typeof chronicle === 'object') chronicle.check(game); // winds a chronicle ring the last 15 s earned (js/chronicle.js)
         saveGame();
     };
     if (typeof requestIdleCallback === 'function') {

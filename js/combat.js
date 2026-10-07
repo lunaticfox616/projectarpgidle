@@ -1166,6 +1166,9 @@ function buildActiveSummonRuntimeDefs(pStats) {
 function getEquippedJewelGemLevelBonusSources(target) {
     let gear = 0;
     let activeTags = typeof getGemLevelTargetTags === 'function' ? getGemLevelTargetTags(target) : [];
+    // A settlement reads this for every summon every tick; it depends only on the socketed jewels (static build input).
+    const memo = getBackgroundBuildMemo(game), memoKey = `jewel-gem-level:${activeTags.includes('summon_attack')}`;
+    if (memo?.has(memoKey)) return memo.get(memoKey);
     let addJewelGemLevels = (jewel, multiplier) => {
         if (!jewel || typeof getJewelStats !== 'function') return;
         let mul = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
@@ -1182,6 +1185,7 @@ function getEquippedJewelGemLevelBonusSources(target) {
         addJewelGemLevels(row.jewel, socketMultiplier * (row.source === 'abyss' ? getAbyssJewelMultiplier(equipment[row.slot]) : 1));
     });
     getMirroredRingJewels().forEach(jewel => addJewelGemLevels(jewel, 1));
+    memo?.set(memoKey, gear);
     return gear;
 }
 
@@ -3059,8 +3063,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
         accumulateCombatRuneStats(reward, game.underworldRunes);
     applyEliteTraitBuffStats(game.uniqueEliteTraitBuff, reward);
-    coreItems.stats().forEach(stat => addStatToBucket(reward, stat.id, stat.val));
-    if (typeof stumpBox === 'object') stumpBox.applyStats(reward, game);
+    applyAccountRewardStats(reward);
     if (typeof getCosmosBossRelicStatTotals === 'function') {
         let relicStats = getCosmosBossRelicStatTotals();
         Object.keys(relicStats).forEach(statKey => addStatToBucket(reward, statKey, relicStats[statKey]));
@@ -7277,6 +7280,14 @@ function recordKillProgress(enemy) {
     if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
     if (typeof bossVariants === 'object') bossVariants.onKilled(game, enemy);
     if (typeof stumpNursery === 'object') stumpNursery.onKilled(game, enemy);
+    if (typeof weaponMastery === 'object') weaponMastery.onKilled(game, enemy);
+}
+
+/** Core items, the stump box and weapon mastery (js/weapon-mastery.js): account-wide reward lines of getPlayerStats. */
+function applyAccountRewardStats(reward) {
+    coreItems.stats().forEach(stat => addStatToBucket(reward, stat.id, stat.val));
+    if (typeof stumpBox === 'object') stumpBox.applyStats(reward, game);
+    if (typeof weaponMastery === 'object') weaponMastery.applyStats(reward, game);
 }
 
 /** What a death passes on: the ct3 keystone spread and the region lines (poison, shock and ignite spread, ice shards). */

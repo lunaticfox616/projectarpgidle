@@ -10,6 +10,7 @@ const replayProjection = (() => {
     const RULES = OFFLINE_PROJECTION;
     const PACK_KINDS = ['boss', 'encounter', 'elite', 'ordinary'];
     const NO_KILLS = Object.freeze({ full: 0, partial: 0, share: 0 });
+    const SCRIPTED_ACTS = Object.freeze(['forced_defeat', 'loop_gate']);
 
     function projectionZoneKey(state) {
         const zone = getZone(state.currentZoneId);
@@ -24,10 +25,11 @@ const replayProjection = (() => {
         return !!(state.inTicketBossFight || state.woodsmanBuildLock || rift || state.offlineHuntMode === 'stopBeforeBoss'
             || state.settings.mapCompleteAction === 'stop' || isScriptedStoryAct(state));
     }
-    /** A story act whose boss stops at 1 life (forced defeat, loop gate): only real combat resolves it. */
+    /** A story act whose boss stops at 1 life (forced defeat, loop gate): only real combat resolves it. Every other act is
+     * 'normal' and projects (a truthy check here held all ten acts in real combat). */
     function isScriptedStoryAct(state) {
         const zone = getZone(state.currentZoneId), act = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-        return !!(act && act.specialType);
+        return !!(act && SCRIPTED_ACTS.includes(act.specialType));
     }
     function isProjectionStopped(state) {
         return !!(shouldStopBackgroundReplay(state) || state.backgroundStopReason);
@@ -112,14 +114,25 @@ const replayProjection = (() => {
         }
         return { cycles: picked, measuredMs, level: newest };
     }
+    /** Mean map time and life killed per map. A cycle from an older level counts half as much per level behind the newest: a
+     * growing hero's newest maps are its pace (the first hour of a loop: map time 140 s at level 8, 58 s at level 15), older
+     * ones only fill the minimum. A steady hero's cycles share one level and count evenly. */
+    function readProjectionPace(cycles, level) {
+        let total = 0, ms = 0, hp = 0;
+        for (const cycle of cycles) {
+            const weight = 0.5 ** Math.max(0, level - cycle.level);
+            total += weight;
+            ms += weight * cycle.ms;
+            hp += weight * cycle.packs.reduce((sum, row) => sum + row.hp * row.killed / Math.max(1, row.size), 0);
+        }
+        return { cycleMs: ms / total, killedHp: hp / total };
+    }
     /** Pace only: never a reward. Null until the zone has enough whole cycles, and enough time in them. */
     function readProjectionCalibration(log, key) {
         const { cycles, measuredMs, level } = selectCalibrationCycles(log.closed.filter(cycle => cycle.key === key && cycle.ms > 0));
         if (cycles.length < RULES.minCycles || measuredMs < RULES.minMeasuredMs) return null;
-        const cycleMs = measuredMs / cycles.length;
         const packs = readProjectionPackModel(cycles);
-        const killedHp = cycles.reduce((sum, cycle) => sum + cycle.packs.reduce((hp, row) => hp + row.hp * row.killed / Math.max(1, row.size), 0), 0);
-        return { key, level, cycleMs, packs, killedHp: killedHp / cycles.length, objects: readProjectionObjectRates(cycles, packs),
+        return { key, level, ...readProjectionPace(cycles, level), packs, objects: readProjectionObjectRates(cycles, packs),
             deathRate: Math.min(1, cycles.reduce((sum, cycle) => sum + cycle.deaths, 0) / cycles.length) };
     }
     /** Every whole cycle of the zone so far, so a cycle measured again during the projection refines the pace. */
@@ -223,11 +236,13 @@ const replayProjection = (() => {
         replay.projection.projectedMs += ms;
         replay.projection.sinceMeasureMs += ms;
     }
-    /** Another real cycle is due after a level-up since the newest measured cycle ended, or every remeasureEveryMs of
-     * projection, while the real budget lasts. */
+    /** Another real cycle is due after a level-up since the newest measured cycle ended (until realHoldMs of real combat: the
+     * first hour of a loop levels every few minutes and gets faster with each, a late hero levels every few hours), or every
+     * remeasureEveryMs of projection while realBudgetMs lasts. */
     function isProjectionRemeasureDue(replay, calibration, state) {
-        const log = replay.projection, due = log.sinceMeasureMs >= RULES.remeasureEveryMs || (state.level || 1) > calibration.level;
-        return due && replay.processedMs - log.projectedMs < RULES.realBudgetMs;
+        const log = replay.projection, realMs = replay.processedMs - log.projectedMs;
+        if ((state.level || 1) > calibration.level) return realMs < RULES.realHoldMs;
+        return log.sinceMeasureMs >= RULES.remeasureEveryMs && realMs < RULES.realBudgetMs;
     }
     /** One projected map. Returns 'start' when real combat takes this map from its start (a new zone, a rule it does not model,
      * a cycle due to be measured), 'middle' when it stops inside it (a void rift opened), else ''. */
@@ -262,7 +277,8 @@ const replayProjection = (() => {
             game.backgroundProjecting = true;
             let handBack = '';
             while (!handBack && replay.processedMs < replay.elapsedMs && !isProjectionStopped(game)) {
-                handBack = projectReplayCycle(replay, log.active, log.fresh);
+                // One projected map is one tick for build validation (a level-up or a new item inside it still re-validates).
+                handBack = combatEquipmentStats.withinTick(() => projectReplayCycle(replay, log.active, log.fresh));
                 log.fresh = false;
                 if (performance.now() - started >= budgetMs) break;
             }
@@ -282,12 +298,27 @@ const replayProjection = (() => {
      * the player left is never measured: it may be a boss about to fall. */
     function attachReplayProjection(replay) {
         replay.projection = { run: actExplorationState.current(replay.game), open: null, closed: [], cache: new Map(),
-            active: null, fresh: false, projectedMs: 0, sinceMeasureMs: 0 };
+            active: null, fresh: false, projectedMs: 0, sinceMeasureMs: 0, held: false, cutMs: 0 };
         return replay;
+    }
+    /** Real combat the projection never took over: a push through zones it clears at once repeats the zone it is in after
+     * realHoldMs (the settlement restores the player's own setting), so that zone is measured and projected; anything still
+     * real at realCapMs (a zone type it does not model, a map that never ends) stops there and the result says so. */
+    function limitLongRealCombat(replay) {
+        const log = replay.projection, realMs = replay.processedMs - log.projectedMs, settings = replay.game.settings;
+        if (realMs >= RULES.realHoldMs && !log.held && !['repeatZone', 'stop'].includes(settings.mapCompleteAction)) {
+            settings.mapCompleteAction = 'repeatZone';
+            log.held = true;
+        }
+        if (realMs < RULES.realCapMs) return;
+        log.cutMs += replay.elapsedMs - replay.processedMs;
+        replay.skippedMs += replay.elapsedMs - replay.processedMs;
+        replay.elapsedMs = replay.processedMs;
     }
     /** One slice: projected maps while a measured zone holds, else real combat (which keeps measuring). */
     function advanceProjectedReplay(replay, budgetMs) {
         if (replay.projection && replay.projection.active) return projectReplaySlice(replay, budgetMs);
+        if (replay.projection) limitLongRealCombat(replay);
         return advanceCombatReplay(replay, budgetMs);
     }
     /** For the progress card: 'measure' before the first projected map, 'project' while projecting, '' otherwise. */

@@ -2141,6 +2141,10 @@ const defaultGame = {
     cosmosGravity: null,
     cosmosRouteBoard: { seed: 1, selected: 0, goal: 'dust', decisions: { 1: 'survey', 3: 'survey' }, habitats: ['swarm', 'guard', 'storm'], retryAt: 0 },
     combatTimeMs: 0,
+    // Permanent across loops (docs/late-game-review-20261008.md): weapon mastery experience per weapon category
+    // (js/weapon-mastery.js) and the chronicle's claimed rings (js/chronicle.js).
+    weaponMastery: { xp: {} },
+    chronicle: { rings: 0 },
     saveVersion: 19,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINTS_PER_LOOP, starting at loop two.
     contentProgression: { version: 7, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },

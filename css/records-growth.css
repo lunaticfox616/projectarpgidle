@@ -1,0 +1,36 @@
+/* 기록 창의 계정 성장 칸(무기 숙련 js/weapon-mastery-ui.js, 세계수 연대기 js/chronicle-ui.js). 접기 칸은 영구 방치 성장(.records-offline)과 같다. */
+@layer components {
+.records-fold { border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); }
+.records-fold > summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 14px; color: var(--color-accent); font-weight: 700; cursor: pointer; }
+.records-fold > summary span { color: var(--color-text-secondary); font-size: .82em; font-weight: 400; }
+.records-fold > summary::after { content: '펼치기'; color: var(--color-text-secondary); font-size: .82em; margin-left: auto; }
+.records-fold[open] > summary::after { content: '접기'; }
+.records-fold > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.records-fold-body { margin: 0 10px 10px; display: grid; gap: 10px; }
+.records-fold-hint { margin: 0; color: var(--copy-muted); font-size: .82rem; }
+
+.mastery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.mastery-card { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .18); }
+.mastery-card.is-wielded { border-color: #e8c27a; }
+.mastery-card-head { display: flex; align-items: baseline; gap: 6px; }
+.mastery-card-head b { color: #ffd36b; }
+.mastery-card-head em { margin-left: auto; color: #e8c27a; font-style: normal; font-size: .78rem; }
+.mastery-card small { color: var(--color-text-secondary); font-size: .8rem; }
+.mastery-card .mastery-next { color: var(--copy-muted); }
+.mastery-bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.mastery-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #b8862e, #ffd36b); }
+
+.chronicle-body { grid-template-columns: 120px minmax(0, 1fr); align-items: start; }
+.chronicle-rings { width: 120px; height: 120px; }
+.chronicle-rings text { fill: #ffd36b; font-size: 15px; font-weight: 700; }
+.chronicle-chapters { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 10px; }
+.chronicle-chapter { display: grid; gap: 3px; }
+.chronicle-chapter > div:first-child { display: flex; justify-content: space-between; gap: 6px; }
+.chronicle-chapter span { color: var(--color-text-secondary); font-size: .8rem; }
+.chronicle-chapter small { color: var(--copy-muted); font-size: .78rem; }
+.chronicle-chapter.is-done strong { color: #ffd36b; }
+@media (max-width: 520px) {
+    .chronicle-body { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+    .chronicle-body > div { justify-self: stretch; }
+}
+}

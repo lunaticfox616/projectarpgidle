@@ -47,7 +47,9 @@ const actExplorationProgress = (() => {
     }
     function step(run,stats) {
         actExplorationProgress.objects.step(run,20);
+        const from=run.motion&&run.motion.from;
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
+        swapSummonOutOfHeroTile(from);
         if(run.motion || !explore(run,stats))return;
         actExplorationState.discover(run,game.gridPlayer);
         const opened=actExplorationState.entrance(run);
@@ -133,7 +135,7 @@ const actExplorationProgress = (() => {
     function canEnterMotionTile(run) {
         const motion=run.motion;
         if(!motion || motion.elapsed>=motion.duration/2 || run.motionTimeMs-motion.startedAt<motion.duration/2)return true;
-        return canPlaceGridFootprint(getGridBlockedCells(game.gridPlayer),motion.to.gx,motion.to.gy,{columns:1,rows:1});
+        return canPlaceGridFootprint(getHeroStepBlockedCells(),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
     function moving() {return !!actExplorationState.current(game)?.motion;}
     /** A click on a floor pile (js/battle-ground-loot-ui.js) picks it up at once, wherever the hero stands. */

@@ -192,6 +192,8 @@
         let offlineHtml = typeof buildOfflineProgressHtml === 'function' && typeof getOfflineProgressView === 'function'
             ? buildOfflineProgressHtml(getOfflineProgressView()) : '';
         return renderHeader(view)
+            + (typeof chronicleUi === 'object' ? chronicleUi.sectionHtml() : '')
+            + (typeof weaponMasteryUi === 'object' ? weaponMasteryUi.sectionHtml() : '')
             + renderActSection(view)
             + renderBestSection(view)
             + renderLoopSection(view)

@@ -110,12 +110,25 @@ function syncOfflineProgressEntitlement(state) {
     return { grant, entitlement, completedLoops };
 }
 
+/** Efficiency from outside the time remnant upgrades, one row per source that gives any: {key, label, rate}. */
+function getOfflineEfficiencySources(state) {
+    let rows = [
+        { key: 'epoch', label: '고요한 시대', rate: typeof atlasEpoch === 'object' && state.atlas && state.atlas.epoch ? atlasEpoch.offline(state) : 0 },
+        { key: 'mastery', label: '무기 숙련', rate: typeof weaponMastery === 'object' ? weaponMastery.offline(state) : 0 },
+        { key: 'chronicle', label: '세계수 연대기', rate: typeof chronicle === 'object' ? chronicle.offline(state) : 0 }
+    ];
+    return rows.filter(row => row.rate > 0);
+}
+
 function getOfflineProgressConfig(state) {
     let progress = ensureOfflineProgressState(state || {});
     let recognition = OFFLINE_PROGRESS_RECOGNITION_LEVELS[progress.recognitionLevel];
     let efficiency = OFFLINE_PROGRESS_EFFICIENCY_LEVELS[progress.efficiencyLevel];
     let recognitionLimitMs = recognition.hours * 60 * 60 * 1000;
-    return { recognitionLimitMs, efficiencyRate: efficiency.rate, effectiveLimitMs: recognitionLimitMs * efficiency.rate, recognitionHours: recognition.hours };
+    let efficiencySources = getOfflineEfficiencySources(state || {});
+    let rate = Math.min(OFFLINE_PROGRESS_EFFICIENCY_CAP, efficiencySources.reduce((sum, row) => sum + row.rate, efficiency.rate));
+    return { recognitionLimitMs, efficiencyRate: rate, baseEfficiencyRate: efficiency.rate, efficiencySources,
+        effectiveLimitMs: recognitionLimitMs * rate, recognitionHours: recognition.hours };
 }
 
 function getOfflineUpgradeTable(type) {
@@ -250,4 +263,4 @@ function isOfflineBossEncounterPending(state) {
     return !!nextBoss && progress >= Number(nextBoss.at) - 0.1;
 }
 
-safeExposeGlobals({ cloneOfflineProgressDefault, ensureOfflineProgressState, getOfflineLoopReward, getOfflineLifetimeEntitlement, syncOfflineProgressEntitlement, getOfflineProgressConfig, getOfflineProgressView, purchaseOfflineProgressUpgrade, purchaseOfflineDirective, updateOfflineProgressPolicy, applyOfflineHuntDirective, resetOfflineStashForLoop, routeOfflineItem, getOfflineSafetyStopReason, getOfflineCompletedLoopCount });
+safeExposeGlobals({ cloneOfflineProgressDefault, ensureOfflineProgressState, getOfflineLoopReward, getOfflineLifetimeEntitlement, syncOfflineProgressEntitlement, getOfflineEfficiencySources, getOfflineProgressConfig, getOfflineProgressView, purchaseOfflineProgressUpgrade, purchaseOfflineDirective, updateOfflineProgressPolicy, applyOfflineHuntDirective, resetOfflineStashForLoop, routeOfflineItem, getOfflineSafetyStopReason, getOfflineCompletedLoopCount });

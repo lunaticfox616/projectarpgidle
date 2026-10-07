@@ -2,7 +2,8 @@ const assert = require('node:assert/strict');
 const fixture = require('./lib/replay-fixture');
 const { runtime: r, state, run } = fixture();
 const config = r.getBackgroundProgressResultLimits(state);
-for (const [elapsed, expected] of [[-1,0],[59999,0],[60000,6000],[60001,6000],[3600000,360000],[10800000,1080000],[86400000,1080000]]) {
+// 기본 3시간 × 30%(방치 효율 2, 2026-10-08: 10%에서 올림).
+for (const [elapsed, expected] of [[-1,0],[59999,0],[60000,18000],[60001,18000],[3600000,1080000],[10800000,3240000],[86400000,3240000]]) {
     assert.equal(r.calculateBackgroundProgressMs(elapsed,60000,config.efficiencyRate,config.effectiveLimitMs),expected);
 }
 const original = JSON.stringify(state);

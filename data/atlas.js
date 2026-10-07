@@ -179,7 +179,9 @@ const ATLAS = Object.freeze({
             { id: 'points', name: '오래된 수액', max: 5, points: 2 },
             { id: 'starter', name: '기억된 지도', max: 3, effect: Object.freeze({ starter: 1 }) },
             { id: 'slots', name: '넓은 장치', max: 1, effect: Object.freeze({ slots: 1 }) },
-            { id: 'supply', name: '시작 보급', max: 3, supply: Object.freeze([['magicBud', 20], ['formlessDew', 5], ['sapBud', 1]]) }
+            { id: 'supply', name: '시작 보급', max: 3, supply: Object.freeze([['magicBud', 20], ['formlessDew', 5], ['sapBud', 1]]) },
+            // 방치 효율 2(2026-10-08, data/offline-progress.js): 단계마다 방치 효율 +2%p.
+            { id: 'calm', name: '고요한 시대', max: 3, offline: 0.02 }
         ].map(Object.freeze))
     }),
     // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
