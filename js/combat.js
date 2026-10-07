@@ -7271,10 +7271,12 @@ function mergeEnemyAilment(target, incoming, pStats) {
     return true;
 }
 
-/** Kill records that grow outside the fight: the stump box and the boss variant record (12번 루프 33, js/boss-variants.js). */
+/** Kill records that grow outside the fight: the stump box, the boss variant record (12번 루프 33, js/boss-variants.js) and the nursery's
+ * seeds and saps (루프 39, js/stump-nursery.js). */
 function recordKillProgress(enemy) {
     if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
     if (typeof bossVariants === 'object') bossVariants.onKilled(game, enemy);
+    if (typeof stumpNursery === 'object') stumpNursery.onKilled(game, enemy);
 }
 
 /** What a death passes on: the ct3 keystone spread and the region lines (poison, shock and ignite spread, ice shards). */

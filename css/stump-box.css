@@ -303,6 +303,7 @@
   .stump-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
   .stump-badges > span { padding: 0 4px; border: 1px solid currentColor; font-size: 11px; line-height: 1.4; }
   .stump-badges > .is-golden { color: #f3c64a; }
+  .stump-badges > .is-ancient { color: #b8f0a0; }
   .stump-badges > .is-bumper { color: #9fd46a; }
   .stump-badges > .is-bloom { color: #e8a0d8; }
   .stump-extra { margin: 2px 0; padding-left: 8px; border-left: 2px solid #3b2f1e; font-size: 12px; line-height: 1.5; }

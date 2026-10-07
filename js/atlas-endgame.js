@@ -213,10 +213,15 @@ const atlasEndgame = (() => {
         keepHeld(state, run, out);
         bossMaterial(state, node, run, out);
         fightSpoils(state, node, out, first);
-        if (node.kind === 'apex' && typeof stumpBox === 'object') stumpBox.rollScarDrop(state); // 그루터기 함 불씨의 흉터(포식이 열린 뒤)
+        if (node.kind === 'apex') apexStumpDrops(state); // 그루터기 함 불씨의 흉터(포식이 열린 뒤)와 고대 씨앗(루프 42)
         if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = spreadBlight(state, node.region);
         if (!out.awakened) out.invite = witnessKill(state, node, apostle);
         return out;
+    }
+    /** A final boss's stump box gifts: a scar (once devouring opens) and, from loop 42, sometimes an ancient seed (js/stump-nursery.js). */
+    function apexStumpDrops(state) {
+        if (typeof stumpBox === 'object') stumpBox.rollScarDrop(state);
+        if (typeof stumpNursery === 'object') stumpNursery.ancientFromBoss(state);
     }
     function spreadBlight(state, region) {
         const book = ledger(state).blight;

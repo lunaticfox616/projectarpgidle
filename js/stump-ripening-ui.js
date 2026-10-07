@@ -15,6 +15,7 @@ const stumpRipeningUi = (() => {
     function badges(item) {
         const out = [];
         if (isGolden(item)) out.push(['is-golden', `황금 ×${STUMP_BOX_RIPENING.golden.mul}`]);
+        if (item.ancient) out.push(['is-ancient', `고대: 모든 색 공명, 이웃 접붙이기 +${STUMP_BOX_ANCIENT.graftRanks}`]);
         if (item.harvest && item.harvest.bonus) out.push(['is-bumper', `풍작 +${Math.round(item.harvest.bonus * 100)}%`]);
         if (item.harvest && item.harvest.lines.length >= 3) out.push(['is-bloom', '만개']);
         return out;

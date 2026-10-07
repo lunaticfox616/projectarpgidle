@@ -175,6 +175,8 @@ const atlasRun = (() => {
         const rewards = atlasEncounters.rewards(zone, room, game.atlas.run.bonus, Math.random);
         for (const [key, amount] of rewards) awardEnemyLootCurrency(key, amount);
         if (Math.random() < ATLAS.encounters[room].mapChance) maps.push(...atlas.extraMap(game));
+        // 묘목장(12번 루프 39): 그 지역 색의 씨앗이나 수액 하나(그루터기 함 보관함으로, 소식은 그 함이 알린다).
+        if (room === 'nursery' && typeof stumpNursery === 'object') stumpNursery.clearGift(game, zone);
         return rewards;
     }
     /** 혼돈 20 · 심화 클리어(onChaos20Cleared): 아틀라스가 처음 열리거나 이번 루프의 첫 지도석이 들어온다. */

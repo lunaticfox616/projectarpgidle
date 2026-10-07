@@ -247,7 +247,8 @@ const stumpBoxUi = (() => {
     }
     /** The cell's own lines under an item or an empty cell: its graft rank and its seal (a grown item's growth line says it already). */
     function stumpCellTipLines(cell, item) {
-        const rank = cell < 0 ? 0 : stumpBox.graftRank(game.stumpBox, cell), seal = isSealedCell(cell) && !(item && stumpBox.isMature(item));
+        // 고대 씨앗 곁의 칸은 그 몫만큼 높은 단계로 보인다(효과도 그렇다, stumpBox.ancientRanks).
+        const rank = cell < 0 ? 0 : stumpBox.graftRank(game.stumpBox, cell) + stumpBox.ancientRanks(game.stumpBox, cell), seal = isSealedCell(cell) && !(item && stumpBox.isMature(item));
         return (rank ? `<div class="tooltip-line stump-tip-graft">접붙이기 ${rank}단계 · 효과 +${rank * STUMP_BOX_GRAFT.pctPerRank}%</div>` : '')
             + (seal ? '<div class="tooltip-line stump-tip-seal">봉인 칸: 다 자란 것이 루프를 넘깁니다</div>' : '');
     }

@@ -66,7 +66,7 @@ const stumpBox = (() => {
     function shortName(item) {
         if (item.family === 'talisman') return isMature(item) ? item.name : `${item.name} · 잠듦`;
         if (item.family === 'scar') return isMature(item) ? STUMP_BOX_SCAR.name : `${STUMP_BOX_SCAR.name} (잠듦)`;
-        return `${goldenMul(item) > 1 ? '황금 ' : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
+        return `${goldenMul(item) > 1 ? '황금 ' : ''}${item.ancient ? '고대 ' : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
     }
     /** shortName, plus what a growing seed or sap turns into ('화염 새싹 → 꽃'). */
     function label(item) {
@@ -100,6 +100,7 @@ const stumpBox = (() => {
         if (storageFull(state)) return null;
         const item = { id: box.nextId++, family: spec.family, color: spec.color, path: null, xp: 0, ripe: false, roll: clampRoll(spec.roll, rollCap(state)) };
         if (spec.golden === true) item.golden = true;
+        if (spec.ancient === true && spec.family === 'seed') item.ancient = true;
         box.items.push(item);
         return item;
     }
@@ -206,7 +207,7 @@ const stumpBox = (() => {
     function itemSignature(item) {
         const lines = item.harvest ? `h${item.harvest.bonus}${item.harvest.golden ? 'G' : ''}${item.harvest.lines.map(line => line.stat + line.value).join(',')}` : '';
         const absorbed = item.absorbed ? Object.entries(item.absorbed).map(([stat, value]) => stat + value).join(',') : '';
-        return `${item.id}${item.color}${item.path || ''}${item.ripe ? 'R' : ''}${item.roll}${item.golden ? 'G' : ''}${lines}${absorbed}`;
+        return `${item.id}${item.color}${item.path || ''}${item.ripe ? 'R' : ''}${item.roll}${item.golden ? 'G' : ''}${item.ancient ? 'A' : ''}${lines}${absorbed}`;
     }
     function signature(box) {
         return box.board.map((id, cell) => {
@@ -259,7 +260,8 @@ const stumpBox = (() => {
         if (memo.key === key && memo.box === box) return memo.value;
         const suppressed = suppressedIds(box), counts = Object.fromEntries(COLORS.map(color => [color, 0]));
         const grown = placedCells(box).filter(({ item }) => isMature(item) && yieldOf(item) && !suppressed.has(item.id));
-        grown.forEach(({ item }) => { counts[item.color]++; });
+        // 고대 씨앗(루프 42)은 모든 색의 공명에 하나로 센다.
+        grown.forEach(({ item }) => (item.ancient ? COLORS : [item.color]).forEach(color => { counts[color]++; }));
         const resonant = new Set(COLORS.filter(color => counts[color] >= STUMP_BOX_RESONANCE.count));
         const stats = {}, values = {}, extras = {};
         for (const { item, cell } of grown) {
@@ -295,7 +297,15 @@ const stumpBox = (() => {
     const graftCost = rank => rank * (rank + 1) / 2;
     function graftRank(box, cell) { return box.graft[cell]; }
     /** The effect multiplier for whatever sits on the cell (1 without a graft). */
-    function graftMultiplier(box, cell) { return 1 + box.graft[cell] * STUMP_BOX_GRAFT.pctPerRank / 100; }
+    function graftMultiplier(box, cell) { return 1 + (box.graft[cell] + ancientRanks(box, cell)) * STUMP_BOX_GRAFT.pctPerRank / 100; }
+    /** Graft ranks the awake, unsuppressed ancient seeds beside a cell lend it (12번 루프 42). */
+    function ancientRanks(box, cell) {
+        const near = neighbors(cell).map(at => box.board[at]).filter(id => id !== null).map(id => findItem(box, id))
+            .filter(item => item && item.ancient && isMature(item));
+        if (!near.length) return 0;
+        const suppressed = suppressedIds(box);
+        return near.filter(item => !suppressed.has(item.id)).length * STUMP_BOX_ANCIENT.graftRanks;
+    }
     function graftOpen(state) { return of(state).acquired && highestLoop(state) >= STUMP_BOX_GRAFT.startLoop; }
     /** Points from journal pages (STUMP_BOX_GRAFT.journalPoints), counted once per page. */
     function graftJournalPoints(state) {
@@ -430,7 +440,7 @@ const stumpBox = (() => {
      * (merging material) and any golden one. */
     function bulkCompostItems(state, color) {
         return FAMILIES.flatMap(family => storage(state).filter(item => item.family === family && item.color === color)
-            .sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep)).filter(item => !item.golden);
+            .sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep)).filter(item => !item.golden && !item.ancient);
     }
     /** '' when bulk compost of this colour can run now, otherwise why not. */
     function bulkCompostReason(state, color) {
@@ -797,6 +807,11 @@ const stumpBox = (() => {
         const xp = Math.min(STUMP_BOX_GROWTH.need.talisman, Math.max(0, Math.floor(Number(raw.xp) || 0)));
         return { id: raw.id, family: 'talisman', color: null, path: null, xp, ripe: xp >= STUMP_BOX_GROWTH.need.talisman, roll: 1, ...fields };
     }
+    /** Born marks a seed or sap keeps: golden, and ancient for a seed (12번 루프 42). */
+    function cleanMarks(raw, item) {
+        if (raw.golden === true) item.golden = true;
+        if (raw.ancient === true && raw.family === 'seed') item.ancient = true;
+    }
     /** cap: the quality cap the save has reached (rollCap), so a restored roll never tops what it could have been made at. */
     function cleanItem(raw, cap) {
         if (raw.family === 'talisman') return cleanTalisman(raw);
@@ -805,7 +820,7 @@ const stumpBox = (() => {
         const xp = Math.min(STUMP_BOX_GROWTH.need[raw.family], Math.max(0, Math.floor(Number(raw.xp) || 0)));
         const ripe = xp >= STUMP_BOX_GROWTH.need[raw.family] && (raw.family === 'sap' || path !== null);
         const item = { id: raw.id, family: raw.family, color: raw.color, path, xp, ripe, roll: clampRoll(raw.roll, cap) };
-        if (raw.golden === true) item.golden = true;
+        cleanMarks(raw, item);
         const harvest = cleanHarvest(raw.harvest, item);
         if (harvest) item.harvest = harvest;
         return item;
@@ -886,7 +901,7 @@ const stumpBox = (() => {
 
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
-        evaluate, applyStats, onEnemyKilled, grow, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
