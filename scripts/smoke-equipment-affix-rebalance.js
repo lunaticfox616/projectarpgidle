@@ -7,19 +7,26 @@ const json = code => JSON.parse(run('JSON.stringify(' + code + ')'));
 const random = Math.random;
 try {
     const defs = json('MOD_DB');
+    // 젬 레벨 줄은 정수 계단이다(2026-10-08 사용자: 1~8티어 +1, 9~15 +2, 16~19 +3, 20 +4). 겹침과 틈 검사에서 빼고 곡선을 따로 본다.
+    const stepped = mod => /GemLevel$/.test(mod.statId || mod.id);
+    const GEM_CURVE = Array.from({ length: 20 }, (_, k) => k < 8 ? 1 : k < 15 ? 2 : k < 19 ? 3 : 4);
+    const gemRows = defs.filter(stepped);
+    assert.equal(gemRows.length, 8, 'eight gem level lines');
+    gemRows.forEach(mod => assert.deepEqual(mod.tierValues.map(range => Array.isArray(range) ? range[0] : range), GEM_CURVE, mod.id + ' follows the gem level curve'));
+    gemRows.forEach(mod => assert(!mod.fixedValue && mod.valueStep === 1, mod.id + ' rolls whole levels by tier'));
     for (const mod of defs) {
         for (let i = 0; i < mod.tierValues.length; i++) {
             const range = mod.tierValues[i];
             const [min, max] = Array.isArray(range) ? range : [range,range];
             assert(min <= max, mod.id + ' valid range');
             const previous = mod.tierValues[i-1];
-            if (i && !['shieldMaxResAll','summonWeaponGemLevel'].includes(mod.id)) assert(min > (Array.isArray(previous) ? previous[1] : previous), mod.id + ' tiers must not overlap');
+            if (i && !stepped(mod)) assert(min > (Array.isArray(previous) ? previous[1] : previous), mod.id + ' tiers must not overlap');
         }
     }
     // Check the actual roll endpoints, including compound substats; no values may fall between tiers.
     const dualDefs = json(`MOD_DB.filter(mod => getDefenseTypeForAffixStat(mod.statId || mod.id)).map(mod =>
         makeDualDefenseAffixMod({baseStats:[{id:'armor',val:30},{id:'evasion',val:30},{id:'energyShield',val:30}]},mod))`);
-    for (const mod of [...defs, ...dualDefs].filter(m => !m.fixedValue && !['shieldMaxResAll','summonWeaponGemLevel'].includes(m.id))) {
+    for (const mod of [...defs, ...dualDefs].filter(m => !m.fixedValue && !stepped(m))) {
         for (const definition of [mod, ...(mod.compound || [])]) {
             r.continuousMod = definition;
             const unit = definition.tierValues.flat().every(Number.isInteger) ? 1 : 0.01;
