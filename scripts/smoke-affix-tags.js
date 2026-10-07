@@ -65,15 +65,22 @@ const BEFORE = {
     venomStinger: ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll',
         'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']
 };
-// [예전 줄 수, 지금 줄 수] (B2 표). 방패 화석은 태그로 적을 수 없어 그대로 3줄.
+// [예전 줄 수, 지금 줄 수] (B2 표). 방패 화석은 태그로 적을 수 없어 그대로 3줄. 지금 줄 수에는 세계수 기운의 지역 줄(12번 루프 27,
+// data/region-affixes.js)도 태그대로 들어간다: REGION_JOINS가 그 몫(그 지역 장비의 풀에 있을 때만 실제로 나온다).
 const B2_COUNTS = {
-    'spore.fire': [10, 4], 'spore.cold': [9, 4], 'spore.light': [9, 5], 'spore.chaos': [10, 5], 'spore.damage': [17, 31], rotSpore: [10, 15],
-    'fossil.fossilJagged': [4, 11], 'fossil.fossilBound': [9, 12], 'fossil.fossilGale': [3, 4], 'fossil.fossilPrismatic': [6, 8],
-    'fossil.fossilAbyssal': [3, 9], 'fossil.fossilPrimordial': [4, 5], 'fossil.fossilBulwark': [3, 3], 'fossil.fossilWedge': [3, 6],
+    'spore.fire': [10, 8], 'spore.cold': [9, 8], 'spore.light': [9, 8], 'spore.chaos': [10, 9], 'spore.damage': [17, 39], rotSpore: [10, 25],
+    'fossil.fossilJagged': [4, 12], 'fossil.fossilBound': [9, 17], 'fossil.fossilGale': [3, 5], 'fossil.fossilPrismatic': [6, 8],
+    'fossil.fossilAbyssal': [3, 12], 'fossil.fossilPrimordial': [4, 9], 'fossil.fossilBulwark': [3, 3], 'fossil.fossilWedge': [3, 8],
     'fossil.fossilOld': [0, 0], 'fossil.fossilRift': [0, 0],
-    'sea.공격': [27, 32], 'sea.방어·생명': [17, 18], 'sea.속도·치명': [4, 4], 'sea.저항': [5, 10],
-    'quality.fire': [4, 6], 'quality.cold': [4, 6], 'quality.light': [4, 7], 'quality.chaos': [5, 6], 'quality.physical': [6, 6],
-    'quality.defense': [10, 12], 'quality.speed': [3, 3], venomStinger: [16, 28]
+    'sea.공격': [27, 43], 'sea.방어·생명': [17, 24], 'sea.속도·치명': [4, 5], 'sea.저항': [5, 11],
+    'quality.fire': [4, 10], 'quality.cold': [4, 10], 'quality.light': [4, 10], 'quality.chaos': [5, 10], 'quality.physical': [6, 7],
+    'quality.defense': [10, 17], 'quality.speed': [3, 4], venomStinger: [16, 36]
+};
+const REGION_JOINS = {
+    'spore.fire': 4, 'spore.cold': 4, 'spore.light': 3, 'spore.chaos': 4, 'spore.damage': 8, rotSpore: 10, 'fossil.fossilJagged': 1,
+    'fossil.fossilBound': 5, 'fossil.fossilGale': 1, 'fossil.fossilAbyssal': 3, 'fossil.fossilPrimordial': 4, 'fossil.fossilWedge': 2,
+    'sea.공격': 11, 'sea.방어·생명': 6, 'sea.속도·치명': 1, 'sea.저항': 1, 'quality.fire': 4, 'quality.cold': 4, 'quality.light': 3,
+    'quality.chaos': 4, 'quality.physical': 1, 'quality.defense': 5, 'quality.speed': 1, venomStinger: 8
 };
 const sporeRows = mode => json(`[...new Set(equipmentCrafting.filterSporeMods(MOD_DB, ${JSON.stringify(mode)}).map(mod => mod.statId || mod.id))]`);
 assert.deepStrictEqual(sporeRows('none'), [], 'an unknown spore mode guarantees nothing');
@@ -92,8 +99,10 @@ assert.deepStrictEqual(Object.keys(NOW).sort(), Object.keys(B2_COUNTS).sort(), '
 Object.entries(B2_COUNTS).forEach(([name, [before, now]]) => {
     assert.strictEqual(beforeOf(name).length, before, `${name}: the old list`);
     assert.strictEqual(NOW[name].length, now, `${name}: the tag list`);
+    assert.strictEqual(NOW[name].filter(id => id.startsWith('region')).length, REGION_JOINS[name] || 0, `${name}: region lines by their tags`);
 });
-assert.deepStrictEqual(sorted(NOW['spore.fire']), sorted(['fireFlatDmg', 'firePctDmg', 'resF', 'maxResF']), 'a fire spore guarantees fire lines only');
+assert.deepStrictEqual(sorted(NOW['spore.fire']), sorted(['fireFlatDmg', 'firePctDmg', 'resF', 'maxResF', 'regionFullLifeFire', 'regionIgniteDuration',
+    'regionIgniteSpread', 'regionIgnitedDamage']), 'a fire spore guarantees fire lines only (the garden region lines on garden gear)');
 assert(!NOW['spore.fire'].includes('aspd') && NOW['spore.damage'].includes('summonPctDmg'), 'attack speed leaves the fire spore, minion damage joins the damage spore');
 assert.deepStrictEqual(sorted(NOW['fossil.fossilBulwark']), sorted(BEFORE.fossil.fossilBulwark), 'the shield fossil keeps its maximum resistances');
 // 태그 그대로: 방패 화석 밖에는 예외(plus, minus)가 없다.

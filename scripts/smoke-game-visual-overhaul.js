@@ -99,6 +99,7 @@ vm.runInContext(fs.readFileSync('js/combat-clock.js', 'utf8'), context, { filena
 vm.runInContext(fs.readFileSync('js/skill-effect-expansion.js', 'utf8'), context, { filename: 'js/skill-effect-expansion.js' });
 vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filename: 'js/combat-grid.js' });
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
+vm.runInContext(fs.readFileSync('js/region-affix-effects.js', 'utf8'), context, { filename: 'js/region-affix-effects.js' });
 vm.runInContext(fs.readFileSync('js/mobility-skill.js', 'utf8'), context, { filename: 'js/mobility-skill.js' });
 vm.runInContext(fs.readFileSync('js/wisp-summons.js', 'utf8'), context, { filename: 'js/wisp-summons.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
@@ -682,7 +683,9 @@ assert.ok(projectileImageRouting.missingImageStrokes > 0, 'a missing dedicated p
 // smoke-skill-cast-vfx and smoke-continuous-slash-vfx (including basic attacks).
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert.ok(combatSource.includes("text: '회피!', color: '#c4e2ff', duration: 260, bodyCue: true"), 'player evasion should request fixed body feedback');
-assert.ok(combatSource.includes("text: '막아냄!', color: '#ebdfc2', duration: 260, bodyCue: true"), 'player blocks should request fixed body feedback');
+// 막기는 다 막으면 '막아냄!', 일부만 막으면 받는 몫을 같은 몸 피드백으로 띄운다(2026-10-08: 두 갈래를 한 줄로 합쳤다).
+assert.ok(combatSource.includes("let blockText = blockedTakenPct <= 0 ? '막아냄!'") && combatSource.includes("text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true"),
+    'player blocks should request fixed body feedback');
 // Slow/fast motion durations are exercised by smoke-combat-calculation-contracts.
 assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels should retain uncapped calculated damage');
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');

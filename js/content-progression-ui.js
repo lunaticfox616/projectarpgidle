@@ -160,7 +160,7 @@ const contentUnlockUi = {
         const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop);
         const choices = rows.filter(row => row.cost > 0);
         const automatic = rows.filter(row => row.cost === 0);
-        const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
+        const additions = (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|아틀라스:|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문/.test(text));
         return `<details id="unlock-milestone-${loop}" class="unlock-milestone" ${loop === game.season ? 'open' : ''}>
             <summary><strong>루프 ${end > loop ? `${loop}–${end}` : loop}</strong><span>${loop < game.season ? '도달 완료' : loop === game.season ? '현재 여정' : '예정'}${this.milestoneTeaser(loop)}</span></summary>
             <p class="unlock-loop-requirement">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>

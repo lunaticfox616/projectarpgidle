@@ -56,7 +56,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/combat.js', 'js/region-affix-effects.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];

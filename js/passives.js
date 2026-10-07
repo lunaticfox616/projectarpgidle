@@ -9408,11 +9408,11 @@ function getVenomStingerRefusal(item) {
     return !replaces && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
 }
 const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger, MOD_DB);
-/** 독벌침이 굴릴 무기 공격 줄: 없는 능력치이면서, 이미 붙은 독벌침 줄을 뺀 접두 3, 접미 3 자리가 남는 종류. */
+/** 독벌침이 굴릴 무기 공격 줄: 없는 능력치이면서, 이미 붙은 독벌침 줄을 뺀 접두 3, 접미 3 자리가 남는 종류. 지역 줄은 그 지역 장비만. */
 function getVenomStingerMods(item) {
     const occupiedIds = getItemOccupiedExplicitModIds(item);
     const room = equipmentCrafting.affixRoom(item, item.rarity, (item.stats || []).find(stat => stat && stat.venomStingerBonus) || null);
-    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id)
+    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id) && isModForDropRegion(mod, item.dropRegion)
         && !occupiedIds.has(mod.statId || mod.id) && equipmentCrafting.fitsRoom(room, mod));
 }
 

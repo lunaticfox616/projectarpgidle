@@ -6179,8 +6179,16 @@ const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
     ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],
     ['#ff8fa3', ['leech']],
     ['#ffcb8e', ['resPen', 'resAll', 'ds']],
-    ['#a8e6cf', ['gemLevel', 'suppCap', 'expGain', 'summonEfficiency', 'summonCap']]
+    ['#a8e6cf', ['gemLevel', 'suppCap', 'expGain', 'summonEfficiency', 'summonCap']],
+    // 세계수 기운(12번 루프 27): 지역 줄은 그 지역 색(data/region-affixes.js REGION_AFFIX_TONES).
+    ...REGION_AFFIX_MODS.map(row => [REGION_AFFIX_TONES[row.regions[0]], [row.statId]])
 ].flatMap(([tone, ids]) => ids.map(id => [id, tone]))));
+
+/** The '세계수 기운' line of an item that remembers its atlas region (item.dropRegion), in the region's colour; '' otherwise. */
+function getItemDropRegionLineHtml(item) {
+    const region = item && item.dropRegion ? ATLAS.regions.find(row => row.id === item.dropRegion) : null;
+    return region ? `<div class="tooltip-line" style="color:${REGION_AFFIX_TONES[region.id]};">🌳 세계수 기운: ${escapeHTML(region.name)}</div>` : '';
+}
 
 function getItemStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
@@ -6523,7 +6531,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         let applicationHint = getUniqueEffectApplicationHint(item, !!isEquip, isEquip ? idx : null);
         if (applicationHint) html += `<div class="tooltip-line" style="color:#bda9d8; margin-top:3px;">◆ ${escapeHTML(applicationHint)}</div>`;
     }
-    html += equipmentSocketsUi.tooltipHtml(item);
+    html += equipmentSocketsUi.tooltipHtml(item) + getItemDropRegionLineHtml(item);
     if (item.fusedRelic) {
         let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
         html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? ` · [${escapeHTML(item.fusedRareName)}]의 기억` : ''} — 황금률·잿불가지·축복의 꽃잎만 사용 가능</div>`;

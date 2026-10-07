@@ -2642,9 +2642,48 @@ function recordPlayerEvadeUniqueEffects(pStats, aliveEnemyCount, now) {
     game.uniqueLoneEvasionCounterUntil = at + Math.max(0.1, Number(counter.duration || 3)) * 1000;
 }
 
+/** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, oxygen saving, rare fish. */
+function collectOceanStats(sum) {
+    const pressureUpgrade = typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0;
+    return {
+        oceanPressureResist: Math.max(0, Math.min(80, sum('oceanPressureResist') + pressureUpgrade)),
+        oceanDepthGainPct: Math.max(0, sum('oceanDepthGainPct')),
+        oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sum('oceanOxygenAttackSavingPct'))),
+        oceanRareFishChancePct: Math.max(0, sum('oceanRareFishChancePct'))
+    };
+}
+
+/** The next attack's counter multiplier, used once: the lone-evasion counter (unique) and the block empower (region line). */
+/** Damage taken after the situational reductions: one or two-plus enemies alive, then the region lines (half life or less, a chilled
+ * attacker; js/region-affix-effects.js). */
+function applySituationalTakenReduction(dmg, pStats, attacker, aliveEnemies) {
+    const crowdPct = aliveEnemies >= 2 ? pStats.takenDamageReduceWhen2EnemiesPct : pStats.takenDamageReduceWhen1EnemyPct;
+    const reduced = aliveEnemies >= 1 ? Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (crowdPct || 0) / 100))))) : dmg;
+    const regionMul = regionAffixEffects.takenDamageMultiplier(pStats, attacker);
+    return regionMul === 1 ? reduced : Math.max(1, Math.floor(reduced * regionMul));
+}
+
+/** A block's stone shield (talent card), with its status text. */
+function grantTalentStoneShieldOnBlock(pStats) {
+    if (typeof grantTalentStoneShield !== 'function') return;
+    const stoneShield = grantTalentStoneShield(pStats.maxHp);
+    if (stoneShield) addBattleFx('statusText', { text: `돌 보호막 +${stoneShield.amount}`, color: '#d8b77a', duration: 300 });
+}
+
+/** A block's energy shield recovery (unique): a share of the maximum, up to the recovery cap. */
+function recoverEnergyShieldOnBlock(pStats) {
+    if (!((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0)) return;
+    const recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
+    game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
+}
+
 function consumeLoneEvasionCounterMultiplier(pStats, now) {
-    let counter = pStats && pStats.uniqueLoneEvasionCounter;
     let at = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
+    return consumeLoneEvasionCounter(pStats, at) * regionAffixEffects.consumeBlockEmpower(at);
+}
+
+function consumeLoneEvasionCounter(pStats, at) {
+    let counter = pStats && pStats.uniqueLoneEvasionCounter;
     if (!counter || (game.uniqueLoneEvasionCounterUntil || 0) <= at) return 1;
     game.uniqueLoneEvasionCounterUntil = 0;
     return 1 + Math.max(0, Number(counter.damageMorePct || 20)) / 100;
@@ -3322,6 +3361,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let activeShadowStealth = uniqueDeflectStealth && (game.shadowStealthExpiresAt || 0) > getCombatTime();
     if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > getCombatTime()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
+    finalMove += regionAffixEffects.moveBonus(getCombatTime());
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
     if (zonePenalty && (zonePenalty.type === 'underworld' || (zonePenalty.milestonePinnacle && zonePenalty.underworldPenaltyFloor))) {
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || zonePenalty.floor || 1));
@@ -4947,10 +4987,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         shockedEnemyHitDamagePct: Math.max(0, sumStatAcrossBuckets('shockedEnemyHitDamagePct')),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
         sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
-        oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0))),
-        oceanDepthGainPct: Math.max(0, sumStatAcrossBuckets('oceanDepthGainPct')),
-        oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sumStatAcrossBuckets('oceanOxygenAttackSavingPct'))),
-        oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct')),
+        ...collectOceanStats(sumStatAcrossBuckets),
+        regionAffix: regionAffixEffects.collect(sumStatAcrossBuckets),
         bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
         eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
         firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
@@ -5352,6 +5390,33 @@ function getEnemyElementResistance(skillEle, zoneTier, enemy) {
     if (skillEle === 'chaos') return enemy.resChaos || 0;
     if (skillEle === 'phys') return enemy.dr || 0;
     return baseRes;
+}
+
+const CURSE_ELEMENT_SHRED_KEYS = Object.freeze({ fire: 'resFShred', cold: 'resCShred', light: 'resLShred', chaos: 'resChaosShred', phys: 'physDrShred' });
+/** The target's resistance to one hit: its mitigation less the curse shreds (all and this element) and the region shreds
+ * (a shocked target's lightning resistance, the chaos shred stacks; js/region-affix-effects.js). */
+/** Damage against an ailing target, as [hit, ailment]: the ct5 keystone (any ailment, ×1.2) and the region lines (bleeding, ignited,
+ * a crit on a frozen target, the element bonuses; js/region-affix-effects.js). */
+/** The cosmos judgment mark of a lightning hit: lowers the target's resistance for a while (refreshed, not stacked). */
+function applyCosmosJudgmentOnHit(enemy, pStats, element) {
+    const judgment = pStats.cosmosJudgmentLightning;
+    if (!judgment || element !== 'light') return;
+    enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
+    const mark = enemy.ailments.find(ail => ail && ail.type === 'cosmosJudgment');
+    if (mark) mark.time = Math.max(mark.time || 0, Number(judgment.duration || 4));
+    else enemy.ailments.push({ type: 'cosmosJudgment', time: Number(judgment.duration || 4), power: Number(judgment.resDown || 15) });
+}
+
+function applyAilingTargetDamage(pStats, enemy, element, isCrit, damages) {
+    let mul = regionAffixEffects.damageMultiplier(pStats, enemy, element, isCrit);
+    if (hasKeystone('ct5') && Array.isArray(enemy.ailments) && enemy.ailments.some(a => a && (a.time || 0) > 0)) mul *= 1.2;
+    return mul === 1 ? damages : damages.map(value => Math.floor(value * mul));
+}
+
+function getHitEnemyResistance(element, zoneTier, enemy, pStats, curseFx) {
+    const elementShred = Number(curseFx[CURSE_ELEMENT_SHRED_KEYS[element]]) || 0;
+    return getEffectiveEnemyMitigation(element, zoneTier, enemy, pStats) - (curseFx.resShred || 0) - elementShred
+        - regionAffixEffects.resistanceShred(pStats, enemy, element);
 }
 
 function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
@@ -7199,6 +7264,12 @@ function mergeEnemyAilment(target, incoming, pStats) {
     return true;
 }
 
+/** What a death passes on: the ct3 keystone spread and the region lines (poison, shock and ignite spread, ice shards). */
+function applyAilmentEffectsOnDeath(enemy, pStats) {
+    spreadCatalystAilmentsOnDeath(enemy, pStats);
+    regionAffixEffects.onEnemyDeath(enemy, pStats);
+}
+
 function spreadCatalystAilmentsOnDeath(enemy, pStats) {
     if (!hasKeystone('ct3')) return;
     if (!enemy || !Array.isArray(enemy.ailments)) return;
@@ -7276,6 +7347,14 @@ function getPlayerDamageAilmentDps(ail, pStats) {
     return dps;
 }
 
+/** How long an ailment from a hit lasts, as a multiplier: damage ailments follow the DoT duration, poison its unique bonus, ignite
+ * the region line. */
+function getAilmentDurationMultiplier(type, damageAilment, pStats) {
+    let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
+    if (type === 'poison' && pStats && (pStats.uniquePoisonDurationPct || 0) > 0) durationMul *= 1 + Math.max(0, Number(pStats.uniquePoisonDurationPct) || 0) / 100;
+    return durationMul * regionAffixEffects.ailmentDurationMultiplier(pStats, type);
+}
+
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
@@ -7316,10 +7395,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
             power = Math.min(1.5, power * chillEfficiency);
         }
         let row = enemy.ailments.find(a => a.type === type);
-        let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
-        if (type === 'poison' && pStats && (pStats.uniquePoisonDurationPct || 0) > 0) {
-            durationMul *= 1 + Math.max(0, Number(pStats.uniquePoisonDurationPct) || 0) / 100;
-        }
+        let durationMul = getAilmentDurationMultiplier(type, damageAilment, pStats);
         let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
         let damageMorePct = Math.max(0, Number(opts.ailmentDamageMorePct && opts.ailmentDamageMorePct[type]) || 0);
         if (passiveFlags.explosiveDistill && isDamageAilmentType(appliedType)) damageMorePct += 75;
@@ -8706,7 +8782,7 @@ function handleEnemyDeath(enemy, pStats) {
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
-    spreadCatalystAilmentsOnDeath(enemy, pStats);
+    applyAilmentEffectsOnDeath(enemy, pStats);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && isVoidRiftCombatZone(zone)) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
@@ -10195,12 +10271,7 @@ function performPlayerAttack(pStats, attackOptions) {
             perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
-            let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
-            if (hitElement === 'fire') enemyRes -= (curseFx.resFShred || 0);
-            if (hitElement === 'cold') enemyRes -= (curseFx.resCShred || 0);
-            if (hitElement === 'light') enemyRes -= (curseFx.resLShred || 0);
-            if (hitElement === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
-            if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
+            let enemyRes = getHitEnemyResistance(hitElement, zoneTier, targetEnemy, pStats, curseFx);
             if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.blackDistill
                 && ['fire', 'cold', 'light'].includes(hitElement)) {
                 let chaosRes = getEffectiveEnemyMitigation('chaos', zoneTier, targetEnemy, pStats) - (curseFx.resChaosShred || 0);
@@ -10290,10 +10361,7 @@ function performPlayerAttack(pStats, attackOptions) {
             }
             // Soulbinder sb7 player gain is baked into pStats.baseDmg as flat attack power (see getPlayerStats),
             // so the player hit no longer needs a separate summon→player multiplier here.
-            if (hasKeystone('ct5') && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && (a.time || 0) > 0)) {
-                hitBaseDamage = Math.floor(hitBaseDamage * 1.2);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.2);
-            }
+            [hitBaseDamage, ailmentBaseDamage] = applyAilingTargetDamage(pStats, targetEnemy, hitElement, hitCrit, [hitBaseDamage, ailmentBaseDamage]);
             if (targetEnemy.isBoss) {
                 let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
                  bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
@@ -10820,19 +10888,16 @@ function performPlayerAttack(pStats, attackOptions) {
             applyEnemyAilmentFromHit(targetEnemy, ailmentStats, dmg, hitCrit, {
                 ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
                 critDotBonusPct: hitCrit ? 50 : 0,
-                primaryAilmentChance: options.primaryAilmentChance
+                primaryAilmentChance: options.primaryAilmentChance,
+                additionalAilmentChances: regionAffixEffects.extraAilmentChances(pStats)
             });
             spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill, pStats);
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy, pStats.sSkill.visualName || skillName);
             applySkillGridControlOnHit(targetEnemy, pStats.sSkill, options);
             applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
             applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
-            if (pStats.cosmosJudgmentLightning && hitElement === 'light') {
-                targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
-                let mark = targetEnemy.ailments.find(ail => ail && ail.type === 'cosmosJudgment');
-                if (mark) mark.time = Math.max(mark.time || 0, Number(pStats.cosmosJudgmentLightning.duration || 4));
-                else targetEnemy.ailments.push({ type: 'cosmosJudgment', time: Number(pStats.cosmosJudgmentLightning.duration || 4), power: Number(pStats.cosmosJudgmentLightning.resDown || 15) });
-            }
+            applyCosmosJudgmentOnHit(targetEnemy, pStats, hitElement);
+            regionAffixEffects.afterHit(pStats, targetEnemy, { crit: hitCrit, damage: dealtToEnemy });
             if (pStats.uniqueAlwaysShock && !pStats.cosmosCometChillNoFreeze) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
                 let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
@@ -11763,8 +11828,7 @@ function performMonsterAttacks(pStats) {
                 game.gladiatorSwiftGuardReady = false;
             }
             let aliveEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
-            if (aliveEnemies >= 2) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen2EnemiesPct || 0) / 100)))));
-            else if (aliveEnemies === 1) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen1EnemyPct || 0) / 100)))));
+            dmg = applySituationalTakenReduction(dmg, pStats, enemy, aliveEnemies);
             let evadeChance = Math.max(0, pStats.evadeChance || 0);
             if (hasKeystone('ct4') && game.catalystEvadeBoostReady) {
                 evadeChance *= 1.3;
@@ -11790,23 +11854,15 @@ function performMonsterAttacks(pStats) {
             if (gladiatorBattleLuck) blockRoll = Math.min(blockRoll, Math.random() * 100);
             let wasBlocked = blockRoll < blockRollChance;
             if (wasBlocked) {
-                if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
-                    let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
-                    game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
-                }
-                if (typeof grantTalentStoneShield === 'function') {
-                    let stoneShield = grantTalentStoneShield(pStats.maxHp);
-                    if (stoneShield) addBattleFx('statusText', { text: `돌 보호막 +${stoneShield.amount}`, color: '#d8b77a', duration: 300 });
-                }
+                recoverEnergyShieldOnBlock(pStats);
+                regionAffixEffects.onBlock(pStats, getCombatTime());
+                grantTalentStoneShieldOnBlock(pStats);
                 let blockedTakenPct = Math.max(0, Math.min(100, Number(pStats.uniqueBlockedDamageTakenPct) || 0));
-                if (blockedTakenPct <= 0) {
-                    addBattleFx('statusText', { text: '막아냄!', color: '#ebdfc2', duration: 260, bodyCue: true });
-                    if (game.settings.showCombatLog) addLog('🛡️ 막아냄!', "loot-magic");
-                    continue;
-                }
-                let blockText = `막아냄 · 피해 ${blockedTakenPct}%`;
+                // 다 막으면 '막아냄!'(피해 없음), 일부만 막으면 받는 몫을 적는다.
+                let blockText = blockedTakenPct <= 0 ? '막아냄!' : `막아냄 · 피해 ${blockedTakenPct}%`;
                 addBattleFx('statusText', { text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true });
                 if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic");
+                if (blockedTakenPct <= 0) continue;
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * blockedTakenPct / 100)));
                 ailmentSourceDamageBeforeCrit = Math.max(1, Math.floor(ailmentSourceDamageBeforeCrit * blockedTakenPct / 100));
             }

@@ -36,7 +36,28 @@ const STAT_AFFIX_TAGS = Object.freeze(Object.fromEntries(Object.entries({
     // 추가 옵션 표(MOD_DB)에 없고 고유 줄과 바다의 작업대에 나오는 능력치.
     igniteChance: 'elemental fire dot', igniteDamageMultiplierPct: 'damage elemental fire dot', freezeChance: 'elemental cold',
     chillEffect: 'elemental cold', shockChance: 'elemental light', shockEffect: 'elemental light', poisonDamageMultiplierPct: 'damage chaos dot',
-    bossDamagePct: 'damage', eliteDamagePct: 'damage', firstStrikeDamagePct: 'damage', cullStrikePct: 'damage'
+    bossDamagePct: 'damage', eliteDamagePct: 'damage', firstStrikeDamagePct: 'damage', cullStrikePct: 'damage',
+    // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js).
+    regionPoisonSpread: 'chaos dot',
+    regionChaosShred: 'chaos penetration',
+    regionPoisonedLeech: 'chaos life recovery',
+    regionChaosOvercap: 'damage chaos resistance',
+    regionBlockEmpower: 'damage defense',
+    regionArmorToPhys: 'damage physical defense',
+    regionBleedingDamage: 'damage physical dot',
+    regionLowLifeDR: 'life defense',
+    regionShockChain: 'elemental light target',
+    regionCritMove: 'crit speed',
+    regionShockSpread: 'elemental light',
+    regionShockedLightPen: 'elemental light penetration',
+    regionIgniteSpread: 'elemental fire dot',
+    regionFullLifeFire: 'damage elemental fire life',
+    regionIgniteDuration: 'elemental fire dot',
+    regionIgnitedDamage: 'damage elemental fire',
+    regionFrozenCritDamage: 'damage elemental cold crit',
+    regionShatter: 'damage elemental cold aoe',
+    regionChillOnHit: 'elemental cold',
+    regionChilledAttackerDR: 'elemental cold defense'
 }).map(([stat, tags]) => [stat, Object.freeze(tags.split(' '))])));
 
 // 화폐가 노리는 능력치 목록: any 태그 하나가 있고 none 태그는 없는 능력치(plus는 더하고 minus는 뺀다).

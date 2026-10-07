@@ -296,6 +296,27 @@ const STAT_DISPLAY_NAMES = {
         bossDamagePct: '보스 처치 피해(%)',
         eliteDamagePct: '정예 처치 피해(%)',
         firstStrikeDamagePct: '선제 타격 피해(%)',
+        // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js).
+        regionPoisonSpread: '중독된 적 처치 시 주변에 중독 번짐(%)',
+        regionChaosShred: '적중 시 적 카오스 저항 감소(%, 5중첩)',
+        regionPoisonedLeech: '중독된 적에게 준 피해 생명력 흡수(%)',
+        regionChaosOvercap: '초과 카오스 저항 1%마다 카오스 피해(%)',
+        regionBlockEmpower: '막기 후 다음 공격 피해 증가(%)',
+        regionArmorToPhys: '방어도 1000마다 물리 피해(%)',
+        regionBleedingDamage: '출혈 중인 적에게 주는 피해 증가(%)',
+        regionLowLifeDR: '생명력 절반 이하일 때 받는 피해 감소(%)',
+        regionShockChain: '감전된 적 적중 시 번개 튐 확률(%)',
+        regionCritMove: '치명타 후 2초간 이동 속도(%)',
+        regionShockSpread: '감전된 적 처치 시 주변에 감전 번짐(%)',
+        regionShockedLightPen: '감전된 적의 번개 저항 무시(%)',
+        regionIgniteSpread: '점화된 적 처치 시 주변에 점화 번짐(%)',
+        regionFullLifeFire: '생명력이 가득할 때 화염 피해(%)',
+        regionIgniteDuration: '점화 지속 시간(%)',
+        regionIgnitedDamage: '점화된 적에게 주는 피해 증가(%)',
+        regionFrozenCritDamage: '동결된 적에게 치명타 피해 증가(%)',
+        regionShatter: '동결된 적 처치 시 얼음 파편(적 최대 생명력 %)',
+        regionChillOnHit: '적중 시 냉각 확률(%)',
+        regionChilledAttackerDR: '냉각된 적에게 받는 피해 감소(%)',
         cullStrikePct: '처형 일격(생명력 % 이하 즉사)',
         oceanPressureResist: '심해 수압 내성(%)',
         oceanDepthGainPct: '심해 수심 전진 속도(%)',
@@ -474,7 +495,11 @@ function createEmptyStatBucket() {
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
         curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
         oceanPressureResist: 0, oceanDepthGainPct: 0, oceanOxygenAttackSavingPct: 0, oceanRareFishChancePct: 0,
-        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0
+        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0,
+        regionPoisonSpread: 0, regionChaosShred: 0, regionPoisonedLeech: 0, regionChaosOvercap: 0, regionBlockEmpower: 0, regionArmorToPhys: 0,
+        regionBleedingDamage: 0, regionLowLifeDR: 0, regionShockChain: 0, regionCritMove: 0, regionShockSpread: 0, regionShockedLightPen: 0,
+        regionIgniteSpread: 0, regionFullLifeFire: 0, regionIgniteDuration: 0, regionIgnitedDamage: 0, regionFrozenCritDamage: 0, regionShatter: 0,
+        regionChillOnHit: 0, regionChilledAttackerDR: 0
     };
 }
 // Bucket shape is the source for direct additions. Oxygen uses its separate resource rules.

@@ -34,7 +34,7 @@ const files = [
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
-  'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/combat.js', 'js/region-affix-effects.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/talent-cards.js',
 ];
 
