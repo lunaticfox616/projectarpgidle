@@ -10423,7 +10423,8 @@ function buildCraftActionButtons(item) {
         let unlocked = seasonNum <= game.season;
         let current = seasonNum === game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
-        let stateText = current ? '진행 중' : (unlocked ? '해금됨' : '잠김');
+        // 지난 루프는 '지남': 이정표의 해금 항목은 루프에 닿으면 열 수 있게 될 뿐, 해금 목록에서 사야 열린다(예전 '해금됨'이 사지 않은 것도 열린 것처럼 보였다).
+        let stateText = current ? '진행 중' : (unlocked ? '지남' : '잠김');
         let reqText = getLoopAbyssRequirementText(seasonNum);
         let hiddenStyle = collapsePast && unlocked && !current ? 'display:none;' : '';
         return `<div style="${hiddenStyle}background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
@@ -11331,7 +11332,7 @@ function setupCanvasEvents() {
         const activationState = getPassiveNodeActivationState(node);
         if (node.activationRequirement && !activationState.active) {
             const requiredName = activationState.statId === 'devotion' ? '계시' : getStatName(activationState.statId);
-            effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,184,106,.48); border-radius:8px; color:#ffd0a2; background:rgba(91,52,20,.28);">${requiredName}가 ${activationState.required} 미만이면 이 노드의 모든 효과가 비활성화됩니다. 현재 ${activationState.available}</div>`;
+            effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,184,106,.48); border-radius:8px; color:#ffd0a2; background:rgba(91,52,20,.28);">${withSubjectParticle(requiredName)} ${activationState.required} 미만이면 이 노드의 모든 효과가 비활성화됩니다. 현재 ${activationState.available}</div>`;
         }
         let voidCraftHtml = '';
         if (node.kind === 'void' && (game.passives || []).includes(node.id)) {
@@ -11417,7 +11418,7 @@ function setupCanvasEvents() {
         let pointCost = activationPath.length;
         if (game.passivePoints < pointCost) {
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
-            return addLog(`패시브 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster", { toast: true });
+            return addLog(`스킬트리 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster", { toast: true });
         }
         if (options.fromTouch) {
             let now = Date.now();
@@ -11431,7 +11432,7 @@ function setupCanvasEvents() {
         }
         if (canActivate || canPathActivate) {
             const attributeNodeCount = activationPath.filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'attribute').length;
-            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
+            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 스킬트리 포인트 ${pointCost}점을 씁니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
                 title: '최단 경로 활성화',
                 confirmLabel: `${pointCost}포인트 사용`
             })) return;
@@ -11457,7 +11458,7 @@ function setupCanvasEvents() {
             if (!activationResult.activated) {
                 calculateReachableNodes();
                 let reason = activationResult.reason === 'points'
-                    ? `패시브 포인트가 부족합니다. (필요: ${activationResult.cost})`
+                    ? `스킬트리 포인트가 부족합니다. (필요: ${activationResult.cost})`
                     : (activationResult.message || '확인 중 패시브 트리 상태가 변경되었습니다. 노드를 다시 선택해 주세요.');
                 addLog(reason, 'attack-monster');
                 updateStaticUI();

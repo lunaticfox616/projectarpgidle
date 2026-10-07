@@ -10904,6 +10904,20 @@ function withDirectionParticle(word) {
     return text + (batchim === 0 || batchim === 8 ? '로' : '으로');
 }
 
+/** 받침이 있는 한글로 끝나는지(조사 고르기). 한글이 아니면 받침 없음으로 본다. */
+function endsWithBatchim(word) {
+    const text = String(word || ''), code = text.charCodeAt(text.length - 1) - 0xAC00;
+    return code >= 0 && code < 11172 && code % 28 !== 0;
+}
+/** 받침에 맞춘 목적격 조사: "줄기의 전령" → "줄기의 전령을", "부제녀" → "부제녀를". */
+function withObjectParticle(word) {
+    return String(word || '') + (endsWithBatchim(word) ? '을' : '를');
+}
+/** 받침에 맞춘 주격 조사: "힘" → "힘이", "계시" → "계시가". */
+function withSubjectParticle(word) {
+    return String(word || '') + (endsWithBatchim(word) ? '이' : '가');
+}
+
 /** 물러난 뒤 탐험을 마치면: 덜 올랐으면 지금 액트를 한 번 더, 충분히 올랐으면 기록을 지우고 평소처럼 앞으로 간다. */
 function holdActRetreat(zone) {
     const retreat = game.actRetreat;

@@ -45,6 +45,7 @@ function boot(gameState, overrides = {}) {
         getEquipCandidateSlots: item => item && item.slot ? [item.slot] : [],
         getZone: id => ({ id, name: `지역${id}`, type: id <= 9 ? 'act' : 'abyss' }),
         getStoryActByZoneId: id => (id <= 9 ? { order: id + 1, bossName: `보스${id + 1}` } : null),
+        withObjectParticle: word => `${word}를`,
         getSeasonAbyssDepthCap: season => (season <= 9 ? 10 + (season - 1) : 20),
         hasCurrentLoopAbyssRequirementClear: () => false,
         getAvailableLoopAdvancePaths: () => [],

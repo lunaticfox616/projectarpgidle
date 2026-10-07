@@ -3,7 +3,7 @@
 // 브라우저 안의 검사라 작정하고 우회하는 것까지 막지는 못한다. 전당처럼 남과 나누는 기능은 서버가 따로 검사한다.
 const guestSaveCheck = (() => {
     const LABELS = Object.freeze({
-        level: '레벨', passive: '패시브 포인트', currency: '화폐', gem: '젬', item: '장비 수치', duplicate: '장비 중복', clock: '기기 시간'
+        level: '레벨', passive: '스킬트리 포인트', currency: '화폐', gem: '젬', item: '장비 수치', duplicate: '장비 중복', clock: '기기 시간'
     });
 
     function levelProblem(save) {

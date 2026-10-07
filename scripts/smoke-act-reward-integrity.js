@@ -104,8 +104,8 @@ assert.strictEqual(run('game.gemFoldInactiveSupport'), false,
     '새 보조 젬 획득 후에는 장착 젬만 보기 상태가 해제되어야 한다');
 
 const ownedAct2Choices = JSON.parse(run('JSON.stringify(getActRewardChoices(1))'));
-assert(ownedAct2Choices[0].desc.includes('패시브 포인트 +1'),
-    '액트 2 중복 보조 젬 설명은 존재하지 않는 오브가 아니라 패시브 포인트를 표시해야 한다');
+assert(ownedAct2Choices[0].desc.includes('스킬트리 포인트 +1'),
+    '액트 2 중복 보조 젬 설명은 존재하지 않는 오브가 아니라 스킬트리 포인트를 표시해야 한다');
 run('grantActRewardEntry(1, getActRewardChoices(1)[0])');
 assert.strictEqual(run('game.passivePoints'), 1, '액트 2 중복 보조 젬은 패시브 포인트를 지급해야 한다');
 assert.strictEqual(run('game.currencies.magicBud'), 0, '액트 2 포인트 대체 보상은 제작 재화를 잘못 지급하면 안 된다');

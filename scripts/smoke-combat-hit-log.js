@@ -67,4 +67,8 @@ state.pendingSlamEchoHits = [{ enemyId: 100, at: -1, damage: 77, element: 'phys'
 r.processPendingSlamEchoHits();
 assert.ok(logs.some(row => row.msg === '🌋 지진의 함성으로 썩은 잔뿌리에게 77 추가 피해'), JSON.stringify(logs));
 
+// 받침에 맞춘 조사(목표 '보스를 처치하세요', 노드 요구 능력치): "줄기의 전령를", "힘가"로 나오던 것.
+assert.deepStrictEqual([r.withObjectParticle('줄기의 전령'), r.withObjectParticle('부정한 은총의 부제녀'), r.withSubjectParticle('힘'), r.withSubjectParticle('계시')],
+    ['줄기의 전령을', '부정한 은총의 부제녀를', '힘이', '계시가']);
+
 console.log('smoke-combat-hit-log: ok');

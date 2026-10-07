@@ -2702,7 +2702,7 @@ function getVoidPassiveEffectLabel(nodeId) {
 
 const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => `이 공허 패시브는 공허를 ${v}회 할당한 것으로 간주` },
-    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `${v} 포인트의 패시브 포인트를 추가로 얻습니다.` },
+    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `스킬트리 포인트 ${v}점을 추가로 얻습니다.` },
     { id: 'overflowingVigor', name: '넘치는 활기', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 생명력 최대치 +${v}%` },
     { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
     { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => `막기 확률 최대치 +${v}% 및 막기 확률 +${v}%` },
@@ -5788,7 +5788,7 @@ function getActRewardConfig(zoneId) {
 function getSupportActRewardFallback(choice) {
     let amount = Math.max(1, Math.floor(Number(choice && choice.fallbackValue) || 1));
     if (choice && choice.fallbackKind === 'points') {
-        return { kind: 'points', amount, currency: null, label: `패시브 포인트 +${amount}` };
+        return { kind: 'points', amount, currency: null, label: `스킬트리 포인트 +${amount}` };
     }
     let currency = (choice && choice.currency) || 'magicBud';
     let currencyDef = ORB_DB[currency];
@@ -5811,7 +5811,7 @@ function getActRewardChoices(zoneId) {
     return config.choices.map(choice => {
         let enriched = { ...choice };
         if (choice.kind === 'skill' && hasSkillGemOwned(choice.skill)) {
-            enriched.desc = `${choice.desc} 이미 보유 중이면 패시브 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
+            enriched.desc = `${choice.desc} 이미 보유 중이면 스킬트리 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
         }
         if (choice.kind === 'support' && hasSupportGemOwned(choice.gem)) {
             let fallback = getSupportActRewardFallback(choice);
@@ -6101,7 +6101,7 @@ function grantActRewardEntry(zoneId, choice) {
         } else {
             game.passivePoints += choice.fallbackValue || 1;
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(4) : (awardCurrency('gemShard', 4), 4);
-            addLog(`🎁 이미 보유한 젬 대신 패시브 포인트 +${choice.fallbackValue || 1} · 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 이미 보유한 젬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -6125,7 +6125,7 @@ function grantActRewardEntry(zoneId, choice) {
     }
     if (choice.kind === 'points') {
         game.passivePoints += choice.value || 0;
-        addLog(`🎁 패시브 포인트 +${choice.value || 0}`, 'loot-rare');
+        addLog(`🎁 스킬트리 포인트 +${choice.value || 0}`, 'loot-rare');
         return;
     }
     if (choice.kind === 'currency') {
