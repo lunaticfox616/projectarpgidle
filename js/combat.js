@@ -7841,7 +7841,19 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     const pack={key,roomId:room.id,stage,waiting,aliveIds:waiting.map(enemy=>enemy.id),eliteIds:waiting.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)};
     if(encounter)pack.encounter=encounter;
     if(anchor)pack.anchor={...anchor};
+    markExplorationAlertPack(pack);
     return pack;
+}
+
+/** 경계하는 무리 (data ACT_EXPLORATION_ALERT): an ordinary room pack that runs at the hero once a fight within its hearing hurts a
+ * monster (js/act-exploration-state.js alerted). The roll hashes the pack key with its first enemy id: fixed per pack, different
+ * each run, and it draws nothing from Math.random, so the rest of the map rolls as before. */
+function markExplorationAlertPack(pack) {
+    const rule=ACT_EXPLORATION_ALERT;
+    if(pack.stage!==null || pack.encounter || pack.anchor || pack.eliteIds.length || !pack.waiting.length || !(game.season>=rule.fromLoop))return;
+    if((Math.abs(hashSeed(`alert:${pack.key}:${pack.aliveIds[0]}`))%1000)/1000>=rule.chance)return;
+    pack.alert=true;
+    for(const enemy of pack.waiting)Object.assign(enemy,{alert:true,name:`${rule.prefix} ${enemy.name}`,encounterOutline:rule.outline});
 }
 
 /** An atlas map's extra-elite mod leads some ordinary rooms with an elite (fixed per map and room). */

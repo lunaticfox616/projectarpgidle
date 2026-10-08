@@ -15,6 +15,8 @@ const actExplorationState = (() => {
     const discoveryMemos=new WeakMap(),noticeMemos=new WeakMap();
     // The radius each run last uncovered with (transient like the memos): the fog and the objects dim past it.
     const sights=new WeakMap();
+    // Cells where a map monster died since the last alerted() check (transient): a kill is a hurt that leaves no body to hear.
+    const deathNoises=new WeakMap();
     function current(state) {
         const run=state.actExploration;
         return run && run.zoneId===state.currentZoneId ? run : null;
@@ -153,6 +155,17 @@ const actExplorationState = (() => {
         state.enemies.push(...added);
         return added;
     }
+    /** 경계하는 무리 (data ACT_EXPLORATION_ALERT): a listening pack that has not noticed the hero hears a fight once a monster in
+     * it is hurt within hearReach tiles of any member; every member then joins (wake). Returns those members, none outside a map. */
+    function alerted(state) {
+        const run=current(state);if(!run || run.status!=='active')return [];
+        const packs=run.packs.filter(pack=>pack.alert && pack.waiting.length);
+        const hurt=packs.length ? state.enemies.filter(enemy=>enemy.hp>0 && enemy.hp<enemy.maxHp).concat(deathNoises.get(run)||[]) : [];
+        deathNoises.delete(run);
+        const reach=ACT_EXPLORATION_ALERT.hearReach;
+        const hears=enemy=>hurt.some(source=>Math.max(Math.abs(enemy.gx-source.gx),Math.abs(enemy.gy-source.gy))<=reach);
+        return packs.filter(pack=>pack.waiting.some(hears)).flatMap(pack=>pack.waiting);
+    }
     /** Death is idempotent; waiting enemies cannot be killed by an unrelated event. */
     function recordDeath(state,enemy) {
         const run=current(state);
@@ -161,9 +174,16 @@ const actExplorationState = (() => {
         if(!pack || pack.waiting.some(row=>row.id===enemy.id))return false;
         const index=pack.aliveIds.indexOf(enemy.id);if(index<0)return false;
         pack.aliveIds.splice(index,1);
+        noteDeathNoise(run,enemy);
         const bosses=run.packs.filter(row=>row.stage!==null);
         if(bosses.every(row=>row.aliveIds.length===0) && !actExplorationState.objects.active(run))run.status='cleared';
         return true;
+    }
+    /** Remembers where a monster died while a listening pack still waits (read once by alerted). */
+    function noteDeathNoise(run,enemy) {
+        if(!run.packs.some(pack=>pack.alert && pack.waiting.length))return;
+        const cells=deathNoises.get(run)||[];
+        cells.push({gx:enemy.gx,gy:enemy.gy});deathNoises.set(run,cells);
     }
     /** Keep surviving optional monsters owned when the completed map stops rendering combat. */
     function retireCombat(state) {
@@ -360,6 +380,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

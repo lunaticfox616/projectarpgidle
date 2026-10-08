@@ -54,6 +54,7 @@ const actExplorationProgress = (() => {
         actExplorationState.discover(run,game.gridPlayer,actExplorationState.sightRadius(stats));
         const opened=actExplorationState.entrance(run);
         wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
+        announceAlerted(actExplorationState.wake(game,actExplorationState.alerted(game)));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
@@ -125,6 +126,10 @@ const actExplorationProgress = (() => {
         const pack=run.packs.find(row=>row.key===entrance.key);
         addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600});
         return entrance;
+    }
+    /** A listening pack (data ACT_EXPLORATION_ALERT) heard the fight and runs at the hero; the view marks it (js/canvas-combat-feedback.js). */
+    function announceAlerted(woken) {
+        if(woken.length)dispatchRuntimeEvent('exploration-alert',{enemyIds:woken.map(enemy=>enemy.id)});
     }
     /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
     function wakeBosses(woken) {
