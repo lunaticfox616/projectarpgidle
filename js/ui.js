@@ -6195,7 +6195,7 @@ const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
     ['#8fdcff', ['energyShield', 'energyShieldPct', 'energyShieldRegen', 'energyShieldRechargeFaster']],
     ['#ffb3b3', ['flatHp', 'pctHp', 'regen', 'regenFlat']],
     ['#ffd6f2', ['crit', 'critDmg']],
-    ['#fff3a8', ['aspd', 'move']],
+    ['#fff3a8', ['aspd', 'move', 'sight']],
     ['#ffcf9f', ['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll',
         'bossDamagePct', 'eliteDamagePct', 'firstStrikeDamagePct', 'doubleDamageChance']],
     ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],

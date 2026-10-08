@@ -222,7 +222,9 @@ const ACT_EXPLORATION_ART_VERSION = '20261004d';
 // Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
 // before it charges, and the fights a route takes stay the same. An area attack also reaches monsters that have not noticed the hero,
 // within splashReach tiles of him (Chebyshev, js/combat.js getAttackTargets), and the strike pulls them into the fight (2026-10-04).
-const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReach:12});
+// 2026-10-09 (user): the helmet line 시야 (stat sight, +1~3) widens radius by up to sightBonusMax tiles. It uncovers more ground and
+// lets the hero see what comes; engageRadius stays, so fights start where they did.
+const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReach:12,sightBonusMax:3});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});

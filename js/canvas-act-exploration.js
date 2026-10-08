@@ -102,8 +102,7 @@ const actExplorationView=(()=>{
     }
     /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
      * of black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */
-    function fogAlpha(discovered,distance) {
-        const sight=ACT_EXPLORATION_VISION.radius;
+    function fogAlpha(discovered,distance,sight) {
         if(discovered)return Math.min(.4,Math.max(0,(distance-sight)/7));
         return Math.min(.95,.6+Math.max(0,distance-sight)*.05);
     }
@@ -111,8 +110,8 @@ const actExplorationView=(()=>{
         const gx=i%map.columns;
         return (gx>0 && seen.has(i-1)) || (gx<map.columns-1 && seen.has(i+1)) || seen.has(i-map.columns) || seen.has(i+map.columns);
     }
-    function tileFogAlpha(map,seen,i,lit) {
-        const discovered=seen.has(i),alpha=fogAlpha(discovered,fogDistance(map,i,lit));
+    function tileFogAlpha(map,seen,i,lit,sight) {
+        const discovered=seen.has(i),alpha=fogAlpha(discovered,fogDistance(map,i,lit),sight);
         return discovered || !touchesSeen(map,seen,i) ? alpha : Math.min(alpha,FOG_BORDER_ALPHA);
     }
     /** The act art's own darkness (data ACT_EXPLORATION_BACKDROPS shade): the fog and the canvas around the map use it,
@@ -125,13 +124,13 @@ const actExplorationView=(()=>{
         return Math.hypot(gx-game.gridPlayer.gx,gy-game.gridPlayer.gy);
     }
     function updateFog(run,map) {
-        const key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy;
+        const sight=actExplorationState.sight(run),key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy+':'+sight;
         if(cache.fogKey===key)return;cache.fogKey=key;
         if(!cache.fog){cache.fog=document.createElement('canvas');cache.fog.width=map.columns;cache.fog.height=map.rows;}
         const ctx=cache.fog.getContext('2d'),pixels=ctx.createImageData(map.columns,map.rows),seen=new Set(run.discovered);
         const lit=actExplorationState.bossRoomAt(run,game.gridPlayer),[r,g,b]=shadeOf(map);
         for(let i=0;i<map.tiles.length;i++) {
-            pixels.data.set([r,g,b,Math.round(tileFogAlpha(map,seen,i,lit)*255)],i*4);
+            pixels.data.set([r,g,b,Math.round(tileFogAlpha(map,seen,i,lit,sight)*255)],i*4);
         }
         ctx.putImageData(pixels,0,0);
         // Upscaling one pixel per tile with smoothing was the most expensive draw of every

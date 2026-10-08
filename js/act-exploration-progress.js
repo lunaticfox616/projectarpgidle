@@ -51,7 +51,7 @@ const actExplorationProgress = (() => {
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
         swapSummonOutOfHeroTile(from);
         if(run.motion || !explore(run,stats))return;
-        actExplorationState.discover(run,game.gridPlayer);
+        actExplorationState.discover(run,game.gridPlayer,actExplorationState.sightRadius(stats));
         const opened=actExplorationState.entrance(run);
         wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
         const entrance=watchEntrance(run,opened);

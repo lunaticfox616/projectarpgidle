@@ -4755,7 +4755,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         aspd: finalAspd || 1.0,
         crit: finalCrit,
         rawCrit: finalCrit,
-        moveSpeed: finalMove,
+        moveSpeed: finalMove, sightRange: Math.max(0, gearBase.sight + gearExplicit.sight),
         chillEffectReducePct: finalChillEffectReducePct,
         freezeDurationReducePct: finalFreezeDurationReducePct,
         shockEffectReducePct: finalShockEffectReducePct,

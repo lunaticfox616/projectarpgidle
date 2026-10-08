@@ -134,7 +134,7 @@ actExplorationView.objects=(()=>{
     }
     function fade(row) {
         const distance=Math.hypot(row.gx-game.gridPlayer.gx,row.gy-game.gridPlayer.gy);
-        return Math.max(.35,1-Math.max(0,distance-ACT_EXPLORATION_VISION.radius)*.08);
+        return Math.max(.35,1-Math.max(0,distance-actExplorationState.sight(actExplorationState.current(game)))*.08);
     }
     /** A standing object (actor pass): ground shadow, the sprite, a shake and a fuse bar while an event is about to burst. */
     function draw(ctx,actor,view) {
