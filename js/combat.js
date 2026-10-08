@@ -3068,7 +3068,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     safeRewardBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
-    accumulateCombatLoopStats(reward, game.loop10BonusStats, game.loopDeepStats);
+    accumulateCombatLoopStats(reward, game.loop10BonusStats, game.loopDeepStats, game.season);
     let chaosRealmBonus = (ensureChaosRealmState().permanentBonuses || {});
     Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
     const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
@@ -9302,24 +9302,24 @@ function grantBeyondBoundaryJewelRewards(context) {
         stored++;
         addLog(`경계 완료 보상: [${jewel.name}]`, 'loot-rare', { item:jewel, itemKind:'jewel' });
     }
-    let shards = Math.max(1, Math.round((3 + Math.min(40, context.tier) / 5) * context.intensity.rewardMul));
+    let shards = Math.max(1, Math.round((3 + getBeyondBoundaryPayoutTier(context.tier) / 5) * context.intensity.rewardMul));
     awardCurrency('jewelShard', shards);
     return `주얼 ${stored}개 · 주얼 결정 ${shards}개`;
 }
 
 function grantBeyondBoundaryGemRewards(context) {
-    let amount = Math.max(1, Math.round((8 + Math.min(40, context.tier) / 4) * context.intensity.rewardMul));
+    let amount = Math.max(1, Math.round((8 + getBeyondBoundaryPayoutTier(context.tier) / 4) * context.intensity.rewardMul));
     let gained = typeof grantGemResearchFragments === 'function'
         ? grantGemResearchFragments(amount, 'drop') : (awardCurrency('gemShard', amount), amount);
     return `젬 잔향 ${gained}개`;
 }
 
 function grantBeyondBoundaryCurrencyRewards(context) {
-    let tier = Math.min(50, context.tier);
+    let tier = getBeyondBoundaryPayoutTier(context.tier);
     let multiplier = context.intensity.rewardMul;
     let buds = Math.max(1, Math.round((3 + tier / 10) * multiplier));
     let dew = Math.max(1, Math.round((2 + tier / 20) * multiplier));
-    let sap = tier >= 10 ? 1 : 0;
+    let sap = tier >= 10 ? 1 + Math.floor(tier / 50) : 0;
     awardCurrency('magicBud', buds);
     awardCurrency('formlessDew', dew);
     if (sap > 0) awardCurrency('sapBud', sap);

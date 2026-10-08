@@ -20,9 +20,10 @@ const atlasEncounters = (() => {
         const altars = awake ? passing(true).slice(0, ATLAS.altarLimit) : [];
         return [...fixed, ...passing(false).slice(0, limit), ...altars].slice(0, capacity);
     }
-    /** Content rooms a map may hold: the base, the passives' extra and, from loop 50, one more (data/atlas.js encounterLoopBonus). */
+    /** Content rooms a map may hold: the base, the passives' extra and one more from loops 50 and 75 (data/atlas.js encounterLoopBonus). */
     function roomLimit(bonus, loop) {
-        return ATLAS.encounterLimit + (Number(bonus.encounterExtra) || 0) + (loop >= ATLAS.encounterLoopBonus.loop ? ATLAS.encounterLoopBonus.extra : 0);
+        const deepening = ATLAS.encounterLoopBonus.filter(row => loop >= row.loop).reduce((sum, row) => sum + row.extra, 0);
+        return ATLAS.encounterLimit + (Number(bonus.encounterExtra) || 0) + deepening;
     }
     /** A type's room chance in %: base + passives, × the map region's share (잿불 터 in the garden). */
     function chance(type, bonus, region) {

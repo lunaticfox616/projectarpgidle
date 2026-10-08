@@ -187,10 +187,11 @@ const atlasUi = (() => {
         if (special) return `<div class="atlas-map-card"><strong>${escapeHTML(nodeName(map.node))}</strong><span class="atlas-map-tags">${map.tier}등급, ${special}</span>${extra}</div>`;
         const fx = atlasMaps.effects(map), rule = ATLAS.rarities[map.rarity];
         const mods = map.mods.map(entry => `<li>${escapeHTML(atlasMaps.describe(entry))}</li>`).join('');
-        const tags = [`${map.tier}등급`, rule.name, map.quality ? `품질 ${map.quality}%` : '', map.corrupted ? '타락' : ''].filter(Boolean).join(' · ');
+        const tags = [`${map.tier}등급`, rule.name, map.quality ? `품질 ${map.quality}%` : '', map.corrupted ? '타락' : '',
+            fx.overTiers ? `고등급 보상 ${fx.overTiers}단계` : ''].filter(Boolean).join(', ');
         return `<div class="atlas-map-card rarity-${map.rarity}${map.corrupted ? ' is-corrupted' : ''}"><strong>${escapeHTML(nodeName(map.node))}</strong>
             <span class="atlas-map-tags">${tags}</span>${mods ? `<ul class="atlas-mods">${mods}</ul>` : '<p class="atlas-muted">옵션 없음</p>'}
-            <p class="atlas-rewards">아이템 수량 +${fx.quantity}% · 희귀도 +${fx.rarity}%${fx.packExtra ? ` · 무리 +${fx.packExtra}` : ''}</p>${extra}</div>`;
+            <p class="atlas-rewards">아이템 수량 +${fx.quantity}%, 희귀도 +${fx.rarity}%${fx.packExtra ? `, 무리 +${fx.packExtra}` : ''}</p>${extra}</div>`;
     }
     /** Late materials the open map holds until its boss falls (js/atlas-endgame.js roomItems), as "성화 잉걸 8, 공허 조각 3". */
     const heldLate = run => Object.entries((run.endgame && run.endgame.items) || {}).map(([id, n]) => `${atlasEndgame.itemName(id)} ${n}`).join(', ');

@@ -76,14 +76,28 @@ function mergeBetterUniqueParams(previous, next) {
     return merged;
 }
 
-/** Investment points are converted in the same order as the final-stat calculation. */
-function accumulateCombatLoopStats(bucket, loopBonus, deepBonus) {
+/** Investment points are converted in the same order as the final-stat calculation. season: the current loop (세계수 껍질). */
+function accumulateCombatLoopStats(bucket, loopBonus, deepBonus, season) {
     const loop = loopBonus || {};
     addStatToBucket(bucket, 'flatHp', (loop.flatHp || 0) * 12);
     addStatToBucket(bucket, 'flatDmg', (loop.flatDmg || 0) * 3);
     addStatToBucket(bucket, 'aspd', (loop.aspd || 0) * 1.5);
     addStatToBucket(bucket, 'move', (loop.move || 0) * 1.0);
     accumulateCombatDeepLoopStats(bucket, deepBonus || {});
+    accumulateWorldTreeBarkStats(bucket, season);
+}
+
+/** Layers of 세계수 껍질 (data/maps.js WORLD_TREE_BARK) at this loop: one per milestone loop reached. */
+function getWorldTreeBarkLayers(season) {
+    const loop = Math.max(1, Math.floor(Number(season) || 1));
+    return WORLD_TREE_BARK.loops.filter(at => loop >= at).length;
+}
+
+/** Every bark layer: 최대 생명력 +pctHp%, 받는 피해 -taken% (summed with the other generic taken-damage reductions). */
+function accumulateWorldTreeBarkStats(bucket, season) {
+    const layers = getWorldTreeBarkLayers(season);
+    addStatToBucket(bucket, 'pctHp', layers * WORLD_TREE_BARK.pctHp);
+    addStatToBucket(bucket, 'genericTakenDamageReducePct', layers * WORLD_TREE_BARK.taken);
 }
 
 /** Deep loop levels (data/maps.js LOOP_DEEP_STATS); the multiplicative damage line is applied by combat (getLoopDeepMorePct). */

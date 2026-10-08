@@ -59,6 +59,9 @@ const stumpHarvestUi = (() => {
     }
 
     // ── 알림 ───────────────────────────────────────────────
+    /** The graft rank cap once this unlock is open: the base plus every graftRanks unlock up to it (the rows are in loop order). */
+    const graftRankAt = row => STUMP_BOX_UNLOCKS.slice(0, STUMP_BOX_UNLOCKS.indexOf(row) + 1)
+        .reduce((sum, next) => sum + (next.graftRanks || 0), STUMP_BOX_GRAFT.maxRank);
     // What each kind of unlock does, for its notice (the first match wins: 봉인 칸 1 also opens 포식).
     const UNLOCK_TEXTS = Object.freeze([
         [row => row.storage, row => `보관함 +${row.storage}칸`],
@@ -68,7 +71,7 @@ const stumpHarvestUi = (() => {
         [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 셋 가운데 하나를 고릅니다'],
         [row => row.devour, () => '봉인 칸 1과 포식: 봉인한 칸의 다 자란 것은 루프를 넘깁니다. 불씨의 흉터(보관함에 하나 넣음)는 루프를 넘길 때 둘레 한 칸을 먹고 그 능력치를 흡수합니다'],
         [row => row.sealSlots, row => `봉인 칸 +${row.sealSlots}: 봉인한 칸의 다 자란 것은 줄까지 그대로 루프를 넘깁니다`],
-        [row => row.qualityCap, row => `품질 상한 ${Math.round(row.qualityCap * 100)}%${row.graftRanks ? `, 접붙이기 ${STUMP_BOX_GRAFT.maxRank + row.graftRanks}단계` : ''}`]
+        [row => row.qualityCap, row => `품질 상한 ${Math.round(row.qualityCap * 100)}%${row.graftRanks ? `, 접붙이기 ${graftRankAt(row)}단계` : ''}`]
     ]);
     function describeUnlock(row) {
         const text = UNLOCK_TEXTS.find(([test]) => test(row));

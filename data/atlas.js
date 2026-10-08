@@ -171,8 +171,9 @@ const ATLAS = Object.freeze({
     goldenRoom: Object.freeze({ chance: 5, hpMul: 1.4, damageMul: 1.2, rewardMul: 3, outline: '#ffd75e', sparks: '#fff1a8', prefix: '황금' }),
     // 목록 보상(기폭제, 기름)에서 그 지도 지역의 것(encounters[].regionKeys)이 나오는 몫. 나머지는 목록에서 무작위.
     encounterRegionShare: 0.5,
-    // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로).
-    encounterLoopBonus: Object.freeze({ loop: 50, extra: 1 }),
+    // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로). 루프 75에 하나 더(2026-10-09,
+    // 루프 50 이후 이정표).
+    encounterLoopBonus: Object.freeze([Object.freeze({ loop: 50, extra: 1 }), Object.freeze({ loop: 75, extra: 1 })]),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
     altarLimit: 1,
     // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].
@@ -193,6 +194,9 @@ const ATLAS = Object.freeze({
     // (data/endgame-progression.js BEYOND_BOUNDARY_UNLOCK_SEEDS).
     seeds: Object.freeze({ max: 4, tierStep: 2 }),
     tierCap: 24,
+    // 고등급 보상(2026-10-09, 루프 50 이후 레벨 디자인): 장비 등급은 16등급에서 T20에 닿는다(js/atlas.js lootTier). 그 위 등급마다
+    // 아이템 수량 +quantity%, 희귀도 +rarity%, 고유 중 체이싱 고유 확률 +chase%(js/atlas-maps.js effects, chaseMul).
+    overTier: Object.freeze({ from: 16, quantity: 8, rarity: 12, chase: 25 }),
     // 시대 재생(아틀라스 위의 환생 층): 씨앗 4개를 모으면 아틀라스 진행(완료 · 보너스 · 패시브 · 씨앗)을 되돌리고 세계수 정수를 받는다.
     // 정수 = 기본 + 완료 5개마다 1 + 보너스 5개마다 1 + 씨앗마다 1. 특전 한 단계의 값 = 다음 단계 번호 × costStep.
     epoch: Object.freeze({

@@ -774,7 +774,7 @@ function createBeyondBoundaryZone(state) {
         boundaryDrBonus: profile.drBonus,
         boundaryPenetrationBonus: profile.penetrationBonus + (focus.penetrationBonus || 0),
         boundaryRegenRate: profile.regenRate,
-        boundaryRewardMul: 1 + Math.min(1.5, (profile.tier - 1) * 0.02),
+        boundaryRewardMul: getBeyondBoundaryRewardMul(profile.tier),
         boundaryRewardFocusId: focus.id, boundaryIntensityId: intensity.id,
         boundaryCompletionRewardMul: intensity.rewardMul,
         boundaryMutatorIds: profile.mutatorIds

@@ -13,6 +13,9 @@ const BEYOND_BOUNDARY_TIER_CAP = 250;
 const BEYOND_BOUNDARY_DIFFICULTY_OFFSET = 4;
 const BEYOND_BOUNDARY_HP_GROWTH = 1.11;
 const BEYOND_BOUNDARY_DAMAGE_GROWTH = 1.055;
+// 보상 성장(2026-10-09, 루프 50 이후 레벨 디자인): 경험치와 전리품 배율이 단계마다 +perTier(fullAt단계에서 ×2.5), 그 위로도
+// 단계마다 +afterPerTier씩 계속 오른다. 완료 보상(주얼 결정, 젬 잔향, 재화)이 크는 단계 상한은 payoutTierCap(예전 40과 50).
+const BEYOND_BOUNDARY_REWARD_GROWTH = Object.freeze({ perTier: 0.02, fullAt: 76, afterPerTier: 0.01, payoutTierCap: 100 });
 const BEYOND_BOUNDARY_SEAL_DB = Object.freeze([
     { id:'edge', name:'끝을 벼린 인장', maxLevel:50, description:'보스와 정예를 끊어내는 공격 인장', stats:[{ id:'bossDamagePct', val:0.5 }, { id:'eliteDamagePct', val:0.5 }] },
     { id:'ward', name:'되비치는 인장', maxLevel:50, description:'생명력과 에너지 보호막을 함께 다듬는 생존 인장', stats:[{ id:'pctHp', val:0.25 }, { id:'energyShieldPct', val:0.25 }] },
@@ -40,7 +43,7 @@ const BEYOND_BOUNDARY_INTENSITY_DB = Object.freeze([
 safeExposeData({
     BEYOND_BOUNDARY_ZONE_ID, BEYOND_BOUNDARY_STATE_VERSION, BEYOND_BOUNDARY_UNLOCK_LOOP, BEYOND_BOUNDARY_UNLOCK_SEEDS,
     BEYOND_BOUNDARY_UNLOCK_BOSS_ID, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER, BEYOND_BOUNDARY_TIER_CAP,
-    BEYOND_BOUNDARY_DIFFICULTY_OFFSET, BEYOND_BOUNDARY_HP_GROWTH, BEYOND_BOUNDARY_DAMAGE_GROWTH,
+    BEYOND_BOUNDARY_DIFFICULTY_OFFSET, BEYOND_BOUNDARY_HP_GROWTH, BEYOND_BOUNDARY_DAMAGE_GROWTH, BEYOND_BOUNDARY_REWARD_GROWTH,
     BEYOND_BOUNDARY_SEAL_DB, BEYOND_BOUNDARY_MUTATOR_DB,
     BEYOND_BOUNDARY_REWARD_FOCUS_DB, BEYOND_BOUNDARY_INTENSITY_DB
 });

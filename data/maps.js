@@ -182,6 +182,15 @@ const LOOP_DEEP_STATS = Object.freeze([
     Object.freeze({ key: 'crit', label: '치명타 확률', stat: 'crit', per: 0.6, unit: '%' })
 ]);
 
+// 세계수 껍질(2026-10-09, 루프 50 이후 레벨 디자인): 루프 50을 넘긴 뒤 이정표 루프에 이를 때마다 한 겹(루프 55~100은 5루프마다,
+// 110~200은 10루프마다, 최대 20겹). 겹마다 최대 생명력 +pctHp%, 받는 피해 -taken%(다른 받는 피해 감소와 더한다). 관문(혼돈 깊이 =
+// 루프 + 10)의 몬스터 피해는 계속 오르는데 계정 성장은 선형이라 버티는 힘이 먼저 무너졌다(docs/late-game-review-20261008.md).
+// 이정표 줄은 SEASON_CONTENT_ROADMAP 아래에서 만든다. 능력치: js/combat-build-stats.js accumulateWorldTreeBarkStats.
+const WORLD_TREE_BARK = Object.freeze({
+    loops: Object.freeze([55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]),
+    pctHp: 3, taken: 1.5
+});
+
 // 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
 const ACT_LOOP_SCALE_CAP = 20;
@@ -300,6 +309,18 @@ const SEASON_CONTENT_ROADMAP = {
     49: { title: '루프 49', features: ['심화: 혼돈 단계 상승'] },
     50: { title: '루프 50', features: ['아틀라스: 지도마다 콘텐츠 방 +1', '심화: 혼돈 단계 상승'] }
 };
+// 루프 50 이후 이정표(2026-10-09): 세계수 껍질(WORLD_TREE_BARK) 한 겹마다 한 줄, 같은 루프의 그루터기 함 해금(data/stump-box.js
+// STUMP_BOX_UNLOCKS)과 아틀라스 콘텐츠 방(data/atlas.js encounterLoopBonus) 줄을 뒤에 붙인다.
+(() => {
+    const extra = { 55: ['그루터기 함: 봉인 칸 4'], 60: ['그루터기 함: 품질 상한 160%, 접붙이기 7단계'], 70: ['그루터기 함: 봉인 칸 5'],
+        75: ['아틀라스: 지도마다 콘텐츠 방 +1 (둘째)'], 80: ['그루터기 함: 품질 상한 170%, 접붙이기 8단계'], 90: ['그루터기 함: 봉인 칸 6'],
+        100: ['그루터기 함: 품질 상한 180%, 접붙이기 9단계'] };
+    WORLD_TREE_BARK.loops.forEach((loop, index) => {
+        const layers = index + 1;
+        const bark = `세계수 껍질 ${layers}겹: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%`;
+        SEASON_CONTENT_ROADMAP[loop] = { title: `루프 ${loop}`, features: [bark, ...(extra[loop] || [])] };
+    });
+})();
 
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
@@ -390,5 +411,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

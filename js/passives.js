@@ -9583,6 +9583,11 @@ function rollUniqueStatValue(stat) {
 }
 
 
+/** A unique drop comes from the chase pool at 0.16%, more in atlas maps past their T20 tier (js/atlas-maps.js chaseMul). */
+function getChaseUniqueChance(zone) {
+    return 0.0016 * (typeof atlasMaps === 'object' ? atlasMaps.chaseMul(zone) : 1);
+}
+
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = getZone(game.currentZoneId) || {}) {
     let canDropUniqueInZone = (unique) => {
         if (!unique) return false;
@@ -9600,7 +9605,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
         && meetsUniqueTier(unique));
-    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0016;
+    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < getChaseUniqueChance(zone);
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && meetsUniqueTier(unique));
     if (options.length === 0) options = poolSource.filter(meetsUniqueTier);

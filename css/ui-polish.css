@@ -205,6 +205,7 @@ input[data-search-key]:focus {
 .loop-settlement-stats dt { color: var(--color-text-secondary); font-size: 12px; }
 .loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--color-text); }
 .loop-settlement-stats > div:last-child dd { font-size: 16px; word-break: keep-all; }
+.loop-settlement-bark { margin: -8px 0 16px; color: var(--color-accent-gold); }
 .loop-settlement-next { border-block: 1px solid var(--color-line); padding: 14px 0; }
 .loop-automation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 12px 0 0; font-size: 12px; }
 .loop-automation label { display: inline-flex; align-items: center; gap: 6px; }

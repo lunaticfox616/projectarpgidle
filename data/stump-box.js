@@ -76,7 +76,14 @@ const STUMP_BOX_UNLOCKS = Object.freeze([
     Object.freeze({ id: 'seal_2', label: '봉인 칸 2', when: Object.freeze({ loop: 29 }), sealSlots: 1 }),
     Object.freeze({ id: 'quality_140', label: '품질 상한 140%', when: Object.freeze({ loop: 35 }), qualityCap: 1.4 }),
     Object.freeze({ id: 'seal_3', label: '봉인 칸 3', when: Object.freeze({ loop: 37 }), sealSlots: 1 }),
-    Object.freeze({ id: 'quality_150', label: '품질 상한 150%, 접붙이기 6단계', when: Object.freeze({ loop: 45 }), qualityCap: 1.5, graftRanks: 1 })
+    Object.freeze({ id: 'quality_150', label: '품질 상한 150%, 접붙이기 6단계', when: Object.freeze({ loop: 45 }), qualityCap: 1.5, graftRanks: 1 }),
+    // 루프 50 이후 이정표(2026-10-09, data/maps.js SEASON_CONTENT_ROADMAP): 봉인 칸, 품질 상한, 접붙이기 단계가 이어서 열린다.
+    Object.freeze({ id: 'seal_4', label: '봉인 칸 4', when: Object.freeze({ loop: 55 }), sealSlots: 1 }),
+    Object.freeze({ id: 'quality_160', label: '품질 상한 160%, 접붙이기 7단계', when: Object.freeze({ loop: 60 }), qualityCap: 1.6, graftRanks: 1 }),
+    Object.freeze({ id: 'seal_5', label: '봉인 칸 5', when: Object.freeze({ loop: 70 }), sealSlots: 1 }),
+    Object.freeze({ id: 'quality_170', label: '품질 상한 170%, 접붙이기 8단계', when: Object.freeze({ loop: 80 }), qualityCap: 1.7, graftRanks: 1 }),
+    Object.freeze({ id: 'seal_6', label: '봉인 칸 6', when: Object.freeze({ loop: 90 }), sealSlots: 1 }),
+    Object.freeze({ id: 'quality_180', label: '품질 상한 180%, 접붙이기 9단계', when: Object.freeze({ loop: 100 }), qualityCap: 1.8, graftRanks: 1 })
 ]);
 
 // 다 자라는 순간(16번): 씨앗과 수액이 다 자라면 한 번 굴린다. 새 루프에 다시 자라면 다시 굴리고, 봉인 칸의 것은 그대로 남는다.

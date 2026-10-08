@@ -12,12 +12,26 @@ const loopSettlementUi = {
         const loop = game.season || 1;
         const record = game.records && game.records.currentLoop;
         const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
-        const features = game.contentProgression ? [this.unlockRewardText()]
+        const features = game.contentProgression ? [this.unlockRewardText(), ...this.milestoneLines(loop + 1)]
             : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features;
         return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
             <h2>루프 ${loop} 달성</h2>
-            <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>
+            <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${this.barkHtml(loop)}
             <section class="loop-settlement-next"><h3>다음 루프 ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>${this.explainHtml(loop)}${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}`;
+    },
+    /** 세계수 껍질 the hero wears at this loop (data/maps.js WORLD_TREE_BARK), nothing before loop 55. */
+    barkHtml(loop) {
+        const layers = getWorldTreeBarkLayers(loop);
+        return layers ? `<p class="loop-settlement-bark">세계수 껍질 ${layers}겹: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%</p>` : '';
+    },
+    /** What the next loop adds beside unlock points (the unlock map's roadmap lines); with none, the nearest milestone ahead and how far
+     * it is, so the screen keeps a goal past loop 50 (세계수 껍질 up to loop 200). */
+    milestoneLines(next) {
+        const lines = contentUnlockUi.roadmapAdditions(next);
+        if (lines.length) return lines;
+        const ahead = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).sort((a, b) => a - b)
+            .find(loop => loop > next && contentUnlockUi.roadmapAdditions(loop).length);
+        return ahead ? [`루프 ${ahead}까지 ${ahead - next}루프 남음: ${contentUnlockUi.roadmapAdditions(ahead)[0]}`] : [];
     },
     /** 루프가 무엇인지(2026-10-07 사용자: 루프 정산 카드와 함께): 처음부터 다시 하는 것과 남는 것. 첫 루프는 펼친다. */
     explainHtml(loop) {
