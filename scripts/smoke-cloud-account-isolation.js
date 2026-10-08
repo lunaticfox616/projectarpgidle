@@ -74,7 +74,7 @@ function createContext(localSave, remoteRecord, flow = {}) {
     },
     pushCloudSave: async () => { pushes += 1; },
     requestGameConfirmation: async (message, options) => { confirmations.push({ message, options }); return flow.confirm === true; },
-    // Guest save adoption (2026-10-03): the real check has its own smoke (smoke-guest-save-check); here it answers per case.
+    // Guest save adoption (2026-10-03): the save check (js/guest-save-check.js) answers per case here.
     guestSaveCheck: { inspect: () => flow.verdict || { ok: true, keys: [], problems: [] } },
     requestGameChoice: async options => { choices.push(options); return flow.fate === undefined ? null : flow.fate; },
     markSkipOAuthRestoreOnce() {},

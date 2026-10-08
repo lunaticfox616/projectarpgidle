@@ -9,7 +9,7 @@
  *   → data/hana-skill-fx.js
  * - 새로 그린 이펙트 원본(void_fx.js)과 시뮬레이터 연결 코드(ui_player.js)를 비교 기준으로 보관
  *   → docs/skill-assets-hana/reference/*.js.txt  (게임이 불러오는 스크립트가 아님)
- *   js/canvas-redrawn-skill-art.js는 이 기준과 도트 단위로 같게 그리는지 smoke-redrawn-skill-art.js가 확인한다.
+ *   js/canvas-redrawn-skill-art.js는 이 기준과 도트 단위로 같게 그린다.
  * 인계 빌드 스크립트(.bat/.py)는 실행하지 않는다.
  */
 'use strict';

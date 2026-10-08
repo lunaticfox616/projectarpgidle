@@ -186,7 +186,7 @@ test('HUD gem hover details follow the mouse and never stay behind after a tap',
 });
 
 // Review round 3 #3: an opened goal drawer stayed over half of every tab. Outside taps on the battle screen keep it open by
-// design (smoke-goal-drawer 3-2); a screen change folds it unless pinned.
+// design; a screen change folds it unless pinned.
 test('the phone goal drawer folds on a screen change unless pinned', async ({ page }, info) => {
     test.skip(!info.project.use.isMobile, 'Phone goal drawer');
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));

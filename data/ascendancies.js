@@ -259,7 +259,7 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
 // 자리(n1~n9)는 m1 · m2 · d 능력치를 진입(entry) · 주요(major) 기준값에 배율을 곱해 쓴다. nodes에 적은 노드는
 // 그 자리를 바꾼다: { stat, val }(고정) · { stat, tier, mul, from }(from 능력치의 기준값과 배율) · { stats: [...] }.
 // slots는 m1 · m2 · d 자체를 바꾼다. ult는 n10, core는 시련 4 뒤 n11 · n12, job은 재능 개화 n13c · n13d.
-// 기존 12종의 값은 2026-10-02 개편 전 getClassTreeDef와 같다(smoke-ascendancy-classes가 대조한다).
+// 기존 12종의 값은 2026-10-02 개편 전 getClassTreeDef와 같다.
 const ASCENDANCY_NODE_LAYOUT = Object.freeze([
     ['n1', 'm1', 'entry', 1.5, null], ['n2', 'm2', 'entry', 1.5, 'n1'], ['n3', 'd', 'entry', 1.5, 'n1'],
     ['n4', 'm1', 'major', 1.5, 'n2'], ['n5', 'm2', 'major', 1.5, ['n2', 'n3']], ['n6', 'd', 'major', 1.5, 'n3'],

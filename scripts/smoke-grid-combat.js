@@ -493,7 +493,6 @@ const cfg = context.COMBAT_GRID_CONFIG;
   let baselineCosmosBoss, baselineCosmosNormal, baselineCosmosElite, finalCosmosNormal, finalCosmosElite;
   try {
     // 일반 정예의 기준 체력 검사에서는 4% 방랑자 교체를 굴리지 않는다.
-    // 방랑자의 장비/체력 배율은 smoke-severed-wanderers에서 별도로 실행한다.
     context.Math.random = () => 0.99;
     baselineCosmosBoss = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
     baselineCosmosNormal = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { at: 25 }, 0);

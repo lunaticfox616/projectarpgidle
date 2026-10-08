@@ -8,7 +8,7 @@
 //   벌집(2026-10-06, 같은 도구): 전투벌 · 수벌 · 정찰벌 · 꿀주머니 벌 · 수호벌 · 근위벌 · 여왕. 떠서 나는 벌이라 발 자리는 그림자 자리다.
 // feet = 칸 안에서 발 자리(도트 가장자리 좌표) — 전장의 발 자리(칸 가운데보다 0.22칸 아래)에 맞춘다. 벌레는 위에서 본
 // 그림이라 몸 가운데(24, 24)를 칸 가운데에 두도록 4도트 아래를 발로 잡는다. height = 발에서 그림 맨 위까지(대기 0번,
-// 네 방향 중 가장 높은 곳) — 체력바를 그 위에 둔다. scripts/smoke-monster-sprites.js가 PNG와 맞춰 본다.
+// 네 방향 중 가장 높은 곳) — 체력바를 그 위에 둔다.
 const MONSTER_SPRITE_KINDS = Object.freeze({
     bug: Object.freeze({
         frame: 48, rows: Object.freeze(['up', 'down', 'left', 'right']), feet: Object.freeze([24, 28]), shadow: 0.3,

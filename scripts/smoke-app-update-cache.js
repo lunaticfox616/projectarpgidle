@@ -11,7 +11,6 @@ const source = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const registrationMatch = html.match(/<script id="app-update-registration">([\s\S]*?)<\/script>/);
 
 assert(registrationMatch, 'app shell must include the update registration boundary');
-// CSS content hashes and their dependency graph are verified by smoke-css-build.
 
 async function verifyRegistrationBehavior() {
     const serviceWorkerListeners = {};

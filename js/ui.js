@@ -9827,8 +9827,7 @@ function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
     return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 
-/** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. Self-contained:
- * a test loads this function's body alone (scripts/smoke-exploration-loot-presentation.js). */
+/** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. */
 function getStyledOrbName(orbKey) {
     let name = getCurrencyInfo(orbKey).name;
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;

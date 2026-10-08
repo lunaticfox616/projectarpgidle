@@ -1,7 +1,6 @@
 /** 새로 그린 스킬 이펙트 17종의 도트 그림 (Hana 스킬 인계 2026-09-29 + 변경분).
  * Ported from the handoff's void_fx.js (kept verbatim in docs/skill-assets-hana/reference/void_fx.js.txt) so every
- * function stays within this repo's size/complexity rules. The drawn dots are identical to the handoff:
- * scripts/smoke-redrawn-skill-art.js runs both with the same arguments and compares every dot.
+ * function stays within this repo's size/complexity rules. The drawn dots are identical to the handoff's.
  * Coordinates are board dots (one 48px cell = 16 dots); dot(x, y, colour) paints one dot. Shapes are fixed per
  * seed/variant so nothing flickers. Pure drawing: no combat state, no timers.
  */

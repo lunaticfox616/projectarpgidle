@@ -59,7 +59,6 @@ assert.strictEqual(rewards.goldenRule, undefined, 'inventory overflow salvage mu
 assert(salvageContext.getItemSalvagePreviewText({ rarity: 'rare', stats: [], hiddenTier: 10 }, true).includes('형체 없는 이슬'), 'salvage preview must use the consolidated currency name');
 assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, transmute: 2 }), '마법의 새싹 +3', 'legacy reward keys must be consolidated before display');
 
-// Spore rejection preserves both currencies and equipment in smoke-spore-crafting.js.
 // Confirmation-time target changes are exercised against the full runtime below.
 
 const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'async function marketExpandJewelInventoryByDivine');

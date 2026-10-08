@@ -137,7 +137,7 @@ async function applyTree(tree) {
     try {
         saveSourceTree(tree);
         atomicWrite(RUNTIME_FILE, runtimeSource);
-        const smoke = await runSmoke('smoke-passive-tree-visual-language.js');
+        const smoke = await runSmoke('smoke-passive-respec-points.js');
         return { smoke };
     } catch (error) {
         atomicWrite(SOURCE_FILE, previousSource);

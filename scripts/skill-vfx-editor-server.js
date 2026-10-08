@@ -99,7 +99,7 @@ function atomicWrite(file, contents) {
 
 function runVisualSmoke() {
     return new Promise((resolve, reject) => {
-        execFile(process.execPath, [path.join(ROOT, 'scripts', 'smoke-game-visual-overhaul.js')], {
+        execFile(process.execPath, [path.join(ROOT, 'scripts', 'smoke-battle-asset-manifest.js')], {
             cwd: ROOT, timeout: 60000, maxBuffer: 4 * 1024 * 1024
         }, (error, stdout, stderr) => {
             if (error) return reject(new Error([stdout, stderr, error.message].filter(Boolean).join('\n')));

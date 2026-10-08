@@ -1,6 +1,6 @@
 /** 새로 그린 이동기 4종(54 차원찢기 · 55 향로구름 · 56 작살화살 · 57 공중강타)과 위습 정령 소환 공격 6종 (Hana 스킬 인계 변경분 2).
  * Ported from the handoff's void_fx.js (docs/skill-assets-hana/reference/void_fx.js.txt) like js/canvas-redrawn-skill-art.js;
- * scripts/smoke-redrawn-skill-art.js compares every dot. Board dots (one cell = 16 dots); pure drawing, no timers.
+ * same dots as the handoff. Board dots (one cell = 16 dots); pure drawing, no timers.
  */
 const redrawnSkillArtMoves = (() => {
     const A = redrawnSkillArt;

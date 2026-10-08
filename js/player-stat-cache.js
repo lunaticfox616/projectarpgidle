@@ -1,6 +1,6 @@
 // Per-tick inputs and the kept calculation of the stat calculator (getPlayerStats, 2026-10-08), for settlements and normal play.
 //
-// How it stays correct, and what new content has to do (scripts/smoke-player-stat-cache*.js enforce 1 to 5):
+// How it stays correct, and what new content has to do (scripts/smoke-player-stat-cache.js enforces 1 to 5):
 // 1. Values that change during a fight (clock, the hero's life and charges, timed buffs, enemies) are read only through
 //    playerStatTick. The calculation records which tick values it read (tick.get), or for a value it only compares with a
 //    threshold, the answer of that comparison (tick.when); a kept calculation is used only while they are all the same.
