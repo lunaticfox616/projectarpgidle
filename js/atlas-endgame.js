@@ -30,12 +30,15 @@ const atlasEndgame = (() => {
     const entryOf = row => (row.kind === 'league' ? [[row.item, row.need]] : row.entry);
 
     // ---------------------------------------------------------------- what is open
+    /** A league waits for the loop its room starts appearing in (data/atlas.js encounters minLoop): before it there are no shards. */
+    const roomLoop = row => (row.room && ATLAS.encounters[row.room] ? ATLAS.encounters[row.room].minLoop || 0 : 0);
     function unlocked(state, row) {
-        if (!awakened(state)) return false;
+        if (!awakened(state) || (Number(state.season) || 1) < roomLoop(row)) return false;
         return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
     }
-    function lockText(row) {
+    function lockText(state, row) {
         if (row.unlock && row.unlock.kill) return `${def(row.unlock.kill).stages[0].name} 처치 뒤에 열립니다.`;
+        if (awakened(state) && roomLoop(row) > 0) return `루프 ${roomLoop(row)}부터 열립니다(${ATLAS.encounters[row.room].name} 방이 지도에 나오는 루프).`;
         return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
     }
     const missingOf = (state, row) => entryOf(row).filter(([item, need]) => count(state, item) < need);
@@ -46,7 +49,7 @@ const atlasEndgame = (() => {
         const lock = atlas.lockReason(state);
         if (lock) return lock;
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
-        if (!unlocked(state, row)) return lockText(row);
+        if (!unlocked(state, row)) return lockText(state, row);
         const missing = missingOf(state, row);
         return missing.length ? `재료가 부족합니다: ${missing.map(([item, need]) => `${E.items[item].name} ${count(state, item)}/${need}`).join(', ')}` : '';
     }
@@ -244,7 +247,7 @@ const atlasEndgame = (() => {
     function reset(state) { state.atlas.endgame = defaults(); }
     /** Everything the late-atlas view shows. */
     /** lock: the unlock condition a card shows once the atlas is awake and the fight is still closed (asleep, the view's head says it). */
-    const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(row) : '');
+    const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(state, row) : '');
     function overview(state) {
         const fight = row => ({ row, unlocked: unlocked(state, row), reason: entryReason(state, row.id), lock: lockOf(state, row), kills: kills(state, row.id),
             entry: entryOf(row).map(([item, need]) => ({ item, name: E.items[item].name, have: count(state, item), need })) });

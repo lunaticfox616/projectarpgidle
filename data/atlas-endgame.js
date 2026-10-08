@@ -21,7 +21,12 @@ const ATLAS_ENDGAME = Object.freeze({
         voidSplinter: Object.freeze({ name: '공허 조각', from: '지도 속 공허 균열' }),
         royalHoney: Object.freeze({ name: '왕실 꿀', from: '지도 속 벌집' }),
         vaultKey: Object.freeze({ name: '금고 열쇠 조각', from: '지도 속 보물 방' }),
-        starShard: Object.freeze({ name: '별 조각', from: '지도 속 운석 분화구' })
+        starShard: Object.freeze({ name: '별 조각', from: '지도 속 운석 분화구' }),
+        // 루프 30 뒤 방 넷의 리그 조각(2026-10-09).
+        emberCinder: Object.freeze({ name: '타다 남은 불씨', from: '지도 속 잿불 터' }),
+        amberDrop: Object.freeze({ name: '굳은 수액 방울', from: '지도 속 수액 상처' }),
+        witheredPetal: Object.freeze({ name: '시든 꽃잎', from: '지도 속 시든 정원' }),
+        saplingBud: Object.freeze({ name: '어린 눈', from: '지도 속 묘목장' })
     }),
     itemCap: 99,
     // 투기장 바닥 위험(시련 함정 양식, apexes[].hazard)이 기록과 쓰러짐 문구에 남는 이름. 원소는 그 보스의 ele.
@@ -49,7 +54,16 @@ const ATLAS_ENDGAME = Object.freeze({
         rift: Object.freeze({ name: '공허 가르기', every: 3, telegraph: 'beam', damageMul: 1.45 }),
         sting: Object.freeze({ name: '여왕의 독침', every: 3, telegraph: 'split', damageMul: 1.4 }),
         vault: Object.freeze({ name: '금고 봉인', every: 4, telegraph: 'ring', damageMul: 1.5 }),
-        starfall: Object.freeze({ name: '별똥 비', every: 3, telegraph: 'impact', damageMul: 1.5 })
+        starfall: Object.freeze({ name: '별똥 비', every: 3, telegraph: 'impact', damageMul: 1.5 }),
+        // 루프 30 뒤 방 넷의 리그 우두머리(2026-10-09).
+        cinderRain: Object.freeze({ name: '잿불 비', every: 3, telegraph: 'impact', damageMul: 1.5 }),
+        ashTide: Object.freeze({ name: '재의 물결', every: 3, telegraph: 'wave', damageMul: 1.45 }),
+        amberSeal: Object.freeze({ name: '호박 굳히기', every: 4, telegraph: 'ring', damageMul: 1.55 }),
+        sapBurst: Object.freeze({ name: '수액 분출', every: 3, telegraph: 'split', damageMul: 1.4 }),
+        witherBloom: Object.freeze({ name: '시든 꽃가루', every: 3, telegraph: 'pulse', damageMul: 1.4 }),
+        thornLash: Object.freeze({ name: '가시 채찍', every: 3, telegraph: 'lane', damageMul: 1.45 }),
+        saplingRush: Object.freeze({ name: '묘목 돌진', every: 3, telegraph: 'charge', damageMul: 1.45 }),
+        rootSnare: Object.freeze({ name: '뿌리 올가미', every: 3, telegraph: 'fan', damageMul: 1.4 })
     }),
     // 최종 보스. tier = 기본 등급(씨앗마다 2씩 오른다, 24까지). act = 투기장 액트 지도(보스 방 앞에서 시작), bossAct = 그림(액트 보스 0~9).
     // how: 최종 보기 카드의 한 줄(바칠 재료를 얻는 곳).
@@ -160,6 +174,48 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '타오르는 검은 별', bossAct: 9, mechanic: 'starfall' })
             ]),
             rewards: Object.freeze([['skyEssence', 6], ['goldenRule', 1]]), unique: '낙성의 발자취'
+        }),
+        // 루프 30 뒤 방 넷(2026-10-09): 그 방의 지역 투기장(act)과 원소, 18등급. 카드는 방이 나오는 루프(minLoop)부터 열린다
+        // (js/atlas-endgame.js unlocked). 고유는 이 우두머리만 준다(data/items.js 리그 우두머리 고유).
+        Object.freeze({
+            id: 'league_ember', room: 'emberField', name: '잿불 터', boss: '잿불 군주', act: 2, bossAct: 4, ele: 'fire', tier: 18,
+            how: '지도 속 잿불 터를 비우면 타다 남은 불씨를 줍니다.',
+            item: 'emberCinder', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
+            stages: Object.freeze([
+                Object.freeze({ name: '잿불 군주', bossAct: 4, mechanic: 'cinderRain' }),
+                Object.freeze({ name: '다시 타오른 잿불 군주', bossAct: 4, mechanic: 'ashTide' })
+            ]),
+            rewards: Object.freeze([['burningEmberBranch', 2], ['emberBranch', 8], ['goldenRule', 1]]), unique: '잿불 군주의 심장'
+        }),
+        Object.freeze({
+            id: 'league_sap', room: 'sapWound', name: '수액 상처', boss: '호박 거인', act: 7, bossAct: 6, ele: 'phys', tier: 18,
+            how: '지도 속 수액 상처를 비우면 굳은 수액 방울을 줍니다.',
+            item: 'amberDrop', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
+            stages: Object.freeze([
+                Object.freeze({ name: '호박 거인', bossAct: 6, mechanic: 'amberSeal' }),
+                Object.freeze({ name: '금이 간 호박 거인', bossAct: 6, mechanic: 'sapBurst' })
+            ]),
+            rewards: Object.freeze([['catalystCrit', 2], ['catalystSummon', 1], ['sapBud', 2]]), unique: '호박에 갇힌 시간'
+        }),
+        Object.freeze({
+            id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18,
+            how: '지도 속 시든 정원을 비우면 시든 꽃잎을 줍니다.',
+            item: 'witheredPetal', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
+            stages: Object.freeze([
+                Object.freeze({ name: '시든 꽃의 여왕', bossAct: 0, mechanic: 'witherBloom' }),
+                Object.freeze({ name: '가시를 두른 여왕', bossAct: 0, mechanic: 'thornLash' })
+            ]),
+            rewards: Object.freeze([['oilFire', 2], ['oilCold', 2], ['oilLight', 2], ['oilChaos', 2]]), unique: '마른 꽃잎 고리'
+        }),
+        Object.freeze({
+            id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18,
+            how: '지도 속 묘목장을 비우면 어린 눈을 줍니다.',
+            item: 'saplingBud', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
+            stages: Object.freeze([
+                Object.freeze({ name: '묘목장의 어미나무', bossAct: 8, mechanic: 'saplingRush' }),
+                Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, mechanic: 'rootSnare' })
+            ]),
+            rewards: Object.freeze([['blightSpore', 6], ['magicBud', 20], ['sapBud', 2]]), unique: '어미나무의 손길'
         })
     ]),
     // 정원사를 처음 쓰러뜨린 뒤부터 지도를 마칠 때마다 그 지역의 마름이 1씩 오른다(10까지). 마름 n인 지역의 지도는 n × chancePerLevel %로

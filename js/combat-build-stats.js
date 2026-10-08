@@ -160,30 +160,52 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
         equippedUniqueEffects: result.equippedUniqueEffects.slice() };
 }
 
-/** 능력치 줄로만 동작하는 고유 효과(등급 17~20 일반 고유, 2026-10-09, data/items.js). 줄은 장비의 추가 옵션처럼 더해진다.
- * context.loop: 지금 루프(game.season). context.horizontal: 능력치를 주는 장비 중 수평 베이스(계열이 있는 베이스) 수. */
+/** count × per of two stats, count at most max (params of the "per thing" unique effects). */
+const perCountLines = (count, max, lines) => lines.map(([id, per]) => ({ id, val: Math.min(Number(max) || 0, count) * (Number(per) || 0) }));
+
+/** 능력치 줄로만 동작하는 고유 효과(등급 17~20 일반 고유와 리그 우두머리 고유, 2026-10-09, data/items.js). 줄은 장비의 추가 옵션처럼
+ * 더해진다. context(uniqueEffectContext): 지금 루프, 능력치를 주는 장비 중 수평 베이스 수, 타락한 장비 수, 장비 품질 합, 목걸이에
+ * 새긴 노드 수, 그루터기 함 판의 다 자란 씨앗과 수액 수. */
 const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
-    loopGrowth: (p, context) => {
-        const loops = Math.min(Number(p.maxLoops) || 0, context.loop);
-        return [{ id: 'pctHp', val: loops * (Number(p.hpPerLoop) || 0) }, { id: 'pctDmg', val: loops * (Number(p.dmgPerLoop) || 0) }];
-    },
-    familyBond: (p, context) => {
-        const pieces = Math.min(Number(p.maxPieces) || 0, context.horizontal);
-        return [{ id: 'pctDmg', val: pieces * (Number(p.dmgPer) || 0) }, { id: 'resAll', val: pieces * (Number(p.resPer) || 0) }];
-    },
+    loopGrowth: (p, context) => perCountLines(context.loop, p.maxLoops, [['pctHp', p.hpPerLoop], ['pctDmg', p.dmgPerLoop]]),
+    familyBond: (p, context) => perCountLines(context.horizontal, p.maxPieces, [['pctDmg', p.dmgPer], ['resAll', p.resPer]]),
     // 탐험 지도 시야 상한(js/act-exploration-state.js sightRadius)과 보급 상자 등급 확률(js/exploration-object-combat.js chestRules).
     sightBeyond: p => [{ id: 'sightCap', val: Number(p.cap) || 0 }],
-    chestLuck: p => [{ id: 'chestGrade', val: Number(p.gradePct) || 0 }]
+    chestLuck: p => [{ id: 'chestGrade', val: Number(p.gradePct) || 0 }],
+    // 리그 우두머리 고유: 잿불 터(타락), 수액 상처(품질), 시든 정원(목걸이 기름), 묘목장(그루터기 함).
+    emberHeart: (p, context) => perCountLines(context.corrupted, p.max, [['pctDmg', p.dmgPer], ['resF', p.resPer]]),
+    amberTime: (p, context) => perCountLines(Math.floor(context.quality / (Number(p.qualityStep) || 10)), p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]]),
+    witheredEcho: (p, context) => perCountLines(context.anoints, p.max, [['pctDmg', p.dmgPer], ['resChaos', p.resPer]]),
+    nurseryBloom: (p, context) => perCountLines(context.stumpMature, p.max, [['pctHp', p.hpPer], ['pctDmg', p.dmgPer]])
 });
+
+/** Ripe seeds and saps on the stump box board (the board is a build field). */
+function countRipeStumpGrowth(owner) {
+    const box = owner.stumpBox;
+    if (!box || !Array.isArray(box.board) || !Array.isArray(box.items)) return 0;
+    const onBoard = new Set(box.board.filter(id => id !== null));
+    return box.items.filter(item => onBoard.has(item.id) && item.ripe === true && (item.family === 'seed' || item.family === 'sap')).length;
+}
+
+/** What the stat-only unique effects count, from build values only: the loop, the stat-giving items, the stump board. */
+function uniqueEffectContext(items, owner) {
+    const anointNodes = item => (item.anoint ? [item.anoint.nodeId, item.anoint.second].filter(Boolean).length : 0);
+    return {
+        loop: Math.max(1, Math.floor(Number(owner.season) || 1)),
+        horizontal: items.filter(item => BASE_ITEM_DB.some(base => base.id === item.baseId && base.family)).length,
+        corrupted: items.filter(item => item.corrupted === true).length,
+        quality: items.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.quality) || 0)), 0),
+        anoints: items.reduce((sum, item) => sum + anointNodes(item), 0),
+        stumpMature: countRipeStumpGrowth(owner)
+    };
+}
 
 /** The stat lines of the stat-only unique effects (UNIQUE_EFFECT_STAT_LINES) worn in this evaluation's gear (items). */
 function accumulateUniqueEffectStatLines(result, items) {
-    const context = { loop: Math.max(1, Math.floor(Number(game.season) || 1)),
-        horizontal: items.filter(item => BASE_ITEM_DB.some(base => base.id === item.baseId && base.family)).length };
-    for (const effect of result.equippedUniqueEffects) {
-        if (!Object.hasOwn(UNIQUE_EFFECT_STAT_LINES, effect.key)) continue;
-        applyStatsToBucket(result.gearExplicit, UNIQUE_EFFECT_STAT_LINES[effect.key](effect.params || {}, context));
-    }
+    const effects = result.equippedUniqueEffects.filter(effect => Object.hasOwn(UNIQUE_EFFECT_STAT_LINES, effect.key));
+    if (!effects.length) return;
+    const context = uniqueEffectContext(items, game);
+    for (const effect of effects) applyStatsToBucket(result.gearExplicit, UNIQUE_EFFECT_STAT_LINES[effect.key](effect.params || {}, context));
 }
 
 function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {

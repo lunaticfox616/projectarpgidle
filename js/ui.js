@@ -6286,7 +6286,11 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
         loopGrowth: '지금 루프 수만큼 적용',
         familyBond: '장착한 수평 베이스 수만큼 적용',
         sightBeyond: '탐험 지도에서 적용',
-        chestLuck: '탐험 지도를 열 때 적용'
+        chestLuck: '탐험 지도를 열 때 적용',
+        emberHeart: '장착한 타락 장비 수만큼 적용',
+        amberTime: '장착한 장비의 품질 합만큼 적용',
+        witheredEcho: '목걸이에 새긴 노드 수만큼 적용',
+        nurseryBloom: '그루터기 함 판의 다 자란 씨앗과 수액 수만큼 적용'
     };
     if (triggerLabels[key]) return triggerLabels[key];
     if (key === 'uniqueTakenReduceWhen1Enemy') return '생존한 적이 1명일 때만 적용';

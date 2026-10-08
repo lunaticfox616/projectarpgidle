@@ -241,7 +241,12 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['수평선 인장','tricolor_ring',72,0,0,0],
     ['성약의 방벽','covenant_shield',72,140,0,0],
     ['백전노장의 띠','champion_belt',72,110,0,0],
-    ['큰뱀의 송곳니','serpent_kris',72,70,70,0]
+    ['큰뱀의 송곳니','serpent_kris',72,70,70,0],
+    // 루프 30 뒤 아틀라스 방 넷의 리그 우두머리 고유(2026-10-09, data/atlas-endgame.js leagues)
+    ['잿불 군주의 심장','world_tree_leaf_amulet',72,0,0,0],
+    ['호박에 갇힌 시간','alchemist_sash',72,60,0,60],
+    ['마른 꽃잎 고리','void_ring',72,0,0,0],
+    ['어미나무의 손길','gen__armor_evasion_t20_2',72,90,90,0]
 ].map(([name, baseId, level, strength, dexterity, intelligence, slot]) => [name, Object.freeze({
     baseId, level, slot, attributes: Object.freeze(Object.fromEntries(Object.entries({strength, dexterity, intelligence}).filter(([,value]) => value > 0)))
 })])));
