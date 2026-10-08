@@ -4685,29 +4685,11 @@ function setCodexSubtab(tab) {
 
 function grantCodexLegacyStarterUniques() {
     if (!game.uniqueCodexCompletedRewardClaimed) return;
-    let act1Pool = UNIQUE_DB.filter(entry => {
-        if (!entry) return false;
-        if ((entry.reqTier || 1) > 1) return false;
-        if (entry.dropOnly || entry.contentOnly || entry.bossOnly) return false;
-        return !!((entry.slots || [])[0]);
-    });
+    // 액트 1 일반 고유만(체이싱 고유 제외). 드롭과 같은 생성기로 만들어 고유 효과와 옵션 굴림이 붙는다(2026-10-09).
+    let act1Pool = UNIQUE_DB.filter(entry => (entry.reqTier || 1) <= 1 && !entry.ultraRare && !entry.dropOnly);
     if (act1Pool.length === 0) return;
     let pick = rndChoice(act1Pool);
-    let uniqueTier = pick.reqTier || 1;
-    let base = BASE_ITEM_DB.find(row => row.id === UNIQUE_EQUIPMENT_RULES[pick.name].baseId);
-    let item = {
-        id: ++itemIdCounter,
-        slot: pick.slots[0],
-        baseId: base.id,
-        baseName: base.name,
-        name: pick.name,
-        rarity: 'unique',
-        itemTier: uniqueTier,
-        hiddenTier: uniqueTier,
-        baseStats: rollBaseStats(base, uniqueTier),
-        stats: []
-    };
-    pick.stats.forEach(stat => item.stats.push({ id: stat.id, statName: getStatName(stat.id), val: stat.min, valMin: stat.min, valMax: stat.max, tier: 1 }));
+    let item = generateUniqueItem(1, null, pick.name, {});
     if (!canStoreEquipmentItems([item], game)) return;
     game.inventory.push(normalizeItem(item));
     addLog(`🎁 도감 완성 특전 지급: [${pick.slots[0]}] ${pick.name} (액트1 고유 랜덤 1개)`, 'loot-unique');
@@ -6279,7 +6261,7 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
     if (!item || item.rarity !== 'unique' || !item.uniqueEffectKey) return '';
     let key = String(item.uniqueEffectKey || '');
     if (key === 'rightRingSummonCap') {
-        if (isEquipped && equipSlotKey !== '반지2') return '현재 조건 미충족 · 오른쪽 반지 슬롯에 장착해야 적용';
+        if (isEquipped && equipSlotKey !== '반지2') return '현재 조건 미충족: 오른쪽 반지 슬롯에 장착해야 적용';
         return '오른쪽 반지 슬롯 전용';
     }
     let triggerLabels = {
@@ -6299,7 +6281,12 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
         realmAllResDownOnHit: '적중 시 중첩',
         realmKillMoveStacks: '적 처치 시 중첩',
         meteorFootsteps: '이동 중 확률 발동',
-        queenBeeSummonOnHit: '적중 시 확률 발동'
+        queenBeeSummonOnHit: '적중 시 확률 발동',
+        implicitAmp: '이 장비의 기본 옵션에 적용',
+        loopGrowth: '지금 루프 수만큼 적용',
+        familyBond: '장착한 수평 베이스 수만큼 적용',
+        sightBeyond: '탐험 지도에서 적용',
+        chestLuck: '탐험 지도를 열 때 적용'
     };
     if (triggerLabels[key]) return triggerLabels[key];
     if (key === 'uniqueTakenReduceWhen1Enemy') return '생존한 적이 1명일 때만 적용';
@@ -6529,6 +6516,17 @@ function itemExplicitAffixHeaderHtml(item, count) {
     return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}${keep}`;
 }
 
+/** The base line's badges: the upgrade step ([2/4]) and 수평 for a horizontal base (a base with a family, 2026-10-09). */
+function getItemBaseBadgesHtml(item) {
+    let info = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
+    let step = info && info.total > 1
+        ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${info.step}/${info.total}]</span>` : '';
+    let base = BASE_ITEM_DB.find(row => row.id === item.baseId);
+    let family = base && base.family
+        ? ' <span style="color:#e3c37a;" title="수평 베이스: 같은 등급 베이스보다 세지 않은 대신 기본 옵션이 다르고, 같은 계열 안에서만 승급합니다.">수평</span>' : '';
+    return step + family;
+}
+
 function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
@@ -6541,11 +6539,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품 · 전시자 ${escapeHTML(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력 · 재등록 불가</div>';
-    let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
-    let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
-        ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
-        : '';
-    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${baseChainBadge}</div>`;
+    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${getItemBaseBadgesHtml(item)}</div>`;
     html += `<div class="tooltip-line tooltip-meta">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; 등급 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';

@@ -19,7 +19,14 @@ actExplorationProgress.objects = (() => {
         return {seed:Math.floor(Math.random()*4294967296),loop:game.season||1,allowEvent:zone.type!=='atlasMap',
             excludedRooms:run.packs.filter(p=>p.encounter).map(p=>p.roomId),
             quantity:Math.min(4,1+Math.max(0,zone.atlasLootQuantity||0)/100),
-            rarity:Math.min(500,Math.max(0,zone.atlasLootRarity||0)),chest:zone.atlasChest||null};
+            rarity:Math.min(500,Math.max(0,zone.atlasLootRarity||0)),chest:chestRules(zone)};
+    }
+    /** An atlas map's chest rules (js/atlas.js chestRules) plus the hero's 보급 상자 등급 확률 (보물 사냥꾼의 띠, stats.chestGrade) on the
+     * silver and gold odds. Null when neither applies, so an ordinary map keeps its exact draws. */
+    function chestRules(zone) {
+        const luck=Math.max(0,Number(getPlayerStats().chestGrade)||0),atlasRules=zone.atlasChest||null;
+        if(!luck)return atlasRules;
+        return {extra:0,min:0,...atlasRules,grade:(Number(atlasRules&&atlasRules.grade)||0)+luck};
     }
     function remember(run) {
         if(run.zoneId===ATLAS.zoneId&&game.atlas.run)game.atlas.run.objects=JSON.parse(JSON.stringify(run.objects));

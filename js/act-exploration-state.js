@@ -45,10 +45,12 @@ const actExplorationState = (() => {
     }
     /** Rooms that hold a pack: every room but the entry, the boss room (its stages) and monster-free paths. */
     function packRooms(map) {return map.rooms.filter(room=>!['entry','boss','path'].includes(room.role));}
-    /** The hero's sight in tiles: the base radius plus the 시야 line on the helmet (stats.sightRange), at most sightBonusMax more. */
+    /** The hero's sight in tiles: the base radius plus the 시야 line on the helmet (stats.sightRange), at most sightBonusMax more
+     * plus the 시야 상한 of 등대지기의 눈 (stats.sightCap). */
     function sightRadius(stats) {
         const bonus=Math.floor(Number(stats && stats.sightRange)||0);
-        return ACT_EXPLORATION_VISION.radius+Math.max(0,Math.min(ACT_EXPLORATION_VISION.sightBonusMax,bonus));
+        const cap=ACT_EXPLORATION_VISION.sightBonusMax+Math.max(0,Math.floor(Number(stats && stats.sightCap)||0));
+        return ACT_EXPLORATION_VISION.radius+Math.max(0,Math.min(cap,bonus));
     }
     /** The radius the run's last discovery used (the base radius before the first step). */
     function sight(run) {return (run && sights.get(run)) || ACT_EXPLORATION_VISION.radius;}

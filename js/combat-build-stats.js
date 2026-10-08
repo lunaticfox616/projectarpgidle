@@ -129,11 +129,14 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
             localDefenseTotals: { armor: 0, evasion: 0, energyShield: 0 }, shieldArmorForDamage: 0,
             shieldBaseBlockChance: 0, shieldBlockChancePct: 0, shieldBlockChanceFlat: 0,
             equippedUniqueEffects: [] };
+        const included = [];
         for (const source of resolvedSources) {
             const [, item] = source;
             if (excludedSlots.has(item.slot) || excludedSlots.has('all:' + item.slot)) continue;
             accumulateCombatEquipmentItem(result, source);
+            included.push(item);
         }
+        accumulateUniqueEffectStatLines(result, included);
         memo?.set('combat-equipment', result);
     }
     if (!memo) return result;
@@ -141,6 +144,32 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
     // jewel additions and keystone conversions write only to this evaluation's own properties.
     return { ...result, gearBase: Object.create(result.gearBase), gearExplicit: Object.create(result.gearExplicit),
         equippedUniqueEffects: result.equippedUniqueEffects.slice() };
+}
+
+/** 능력치 줄로만 동작하는 고유 효과(등급 17~20 일반 고유, 2026-10-09, data/items.js). 줄은 장비의 추가 옵션처럼 더해진다.
+ * context.loop: 지금 루프(game.season). context.horizontal: 능력치를 주는 장비 중 수평 베이스(계열이 있는 베이스) 수. */
+const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
+    loopGrowth: (p, context) => {
+        const loops = Math.min(Number(p.maxLoops) || 0, context.loop);
+        return [{ id: 'pctHp', val: loops * (Number(p.hpPerLoop) || 0) }, { id: 'pctDmg', val: loops * (Number(p.dmgPerLoop) || 0) }];
+    },
+    familyBond: (p, context) => {
+        const pieces = Math.min(Number(p.maxPieces) || 0, context.horizontal);
+        return [{ id: 'pctDmg', val: pieces * (Number(p.dmgPer) || 0) }, { id: 'resAll', val: pieces * (Number(p.resPer) || 0) }];
+    },
+    // 탐험 지도 시야 상한(js/act-exploration-state.js sightRadius)과 보급 상자 등급 확률(js/exploration-object-combat.js chestRules).
+    sightBeyond: p => [{ id: 'sightCap', val: Number(p.cap) || 0 }],
+    chestLuck: p => [{ id: 'chestGrade', val: Number(p.gradePct) || 0 }]
+});
+
+/** The stat lines of the stat-only unique effects (UNIQUE_EFFECT_STAT_LINES) worn in this evaluation's gear (items). */
+function accumulateUniqueEffectStatLines(result, items) {
+    const context = { loop: Math.max(1, Math.floor(Number(game.season) || 1)),
+        horizontal: items.filter(item => BASE_ITEM_DB.some(base => base.id === item.baseId && base.family)).length };
+    for (const effect of result.equippedUniqueEffects) {
+        if (!Object.hasOwn(UNIQUE_EFFECT_STAT_LINES, effect.key)) continue;
+        applyStatsToBucket(result.gearExplicit, UNIQUE_EFFECT_STAT_LINES[effect.key](effect.params || {}, context));
+    }
 }
 
 function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {

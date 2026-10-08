@@ -46,6 +46,13 @@ function getEquipmentStatMultiplier(item, ownerState) {
     return dualWielding ? 1.5 : 1;
 }
 
+/** "이 장비의 기본 옵션 효과 N배" (implicitAmp, 수평 베이스 고유 2026-10-09): the multiplier of the item's own base lines. A mirrored
+ * ring's copy keeps its source's value. */
+function getUniqueImplicitMultiplier(item) {
+    return item.rarity === 'unique' && item.uniqueEffectKey === 'implicitAmp'
+        ? Math.max(1, Number((item.uniqueEffectParams || {}).mul) || 2) : 1;
+}
+
 function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier) {
     // Limit break and corruption (TAINTED_CRAFT_OUTCOMES.quality.cap) may push quality past the usual 20%.
     let qualityCap = item.qualityLockedByLimitBreak || item.corrupted ? 30 : 20;
@@ -53,7 +60,8 @@ function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier) {
     let qualityMultiplier = 1 + qualityValue / 100;
     let qualityMode = getItemQualityAttributeMode(item);
     let baseMultiplier = qualityMode === 'base' ? qualityMultiplier : 1;
-    let source = [...(item.baseStats || []), ...((mirrorItem && mirrorItem.baseStats) || [])];
+    let own = scaleEquipmentStatLines(item.baseStats, getUniqueImplicitMultiplier(item));
+    let source = [...own, ...((mirrorItem && mirrorItem.baseStats) || [])];
     let scaled = source.filter(Boolean).map(stat => {
         let value = Number(stat.val);
         return Number.isFinite(value) ? { ...stat, val: Number((value * baseMultiplier).toFixed(2)) } : { ...stat };
@@ -114,4 +122,4 @@ function getResolvedEquipmentStatLists(slotKey, item, ownerState) {
     return result;
 }
 
-safeExposeGlobals({ getPlayerStatSourceItemEntries, getResolvedEquipmentStatLists });
+safeExposeGlobals({ getPlayerStatSourceItemEntries, getResolvedEquipmentStatLists, getUniqueImplicitMultiplier });

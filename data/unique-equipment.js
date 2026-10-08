@@ -222,7 +222,26 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['현자의 불꽃 증류기','philosopher_flask',69,0,80,80],
     ['순례자의 향로','incense_censer',5,5,0,5],
     ['성가대의 사슬','chapel_censer',37,40,0,40],
-    ['새벽 성화의 향로','sunrise_censer',69,80,0,80]
+    ['새벽 성화의 향로','sunrise_censer',69,80,0,80],
+    // 등급 17~20 일반 고유(2026-10-09, data/items.js): 수평 베이스 위
+    ['왕을 베는 고목','oak_maul',62,95,0,0],
+    ['쫓는 자의 발자국','phantom_treads',62,0,90,0],
+    ['질풍의 손목','flurry_wraps',62,0,90,0],
+    ['나이테 심장','resin_amulet',62,0,0,0],
+    ['약탈자의 가면','warlord_helm',65,100,0,0],
+    ['균열 매듭','void_ring',65,0,0,40],
+    ['심재의 수액','sapweave_jerkin',65,0,120,0],
+    ['성채의 문','lifewall_shield',65,110,0,0],
+    ['보물 사냥꾼의 띠','knot_ornament_belt',65,0,0,0],
+    ['망자의 등불','eagle_amulet',68,0,0,60],
+    ['부식의 손아귀','runebound_gloves',68,0,0,100],
+    ['보루의 행진','warden_greaves',68,100,0,0],
+    ['등대지기의 눈','skywatch_helm',71,70,70,0],
+    ['맹세를 지킨 자','covenant_plate',72,140,0,0],
+    ['수평선 인장','tricolor_ring',72,0,0,0],
+    ['성약의 방벽','covenant_shield',72,140,0,0],
+    ['백전노장의 띠','champion_belt',72,110,0,0],
+    ['큰뱀의 송곳니','serpent_kris',72,70,70,0]
 ].map(([name, baseId, level, strength, dexterity, intelligence, slot]) => [name, Object.freeze({
     baseId, level, slot, attributes: Object.freeze(Object.fromEntries(Object.entries({strength, dexterity, intelligence}).filter(([,value]) => value > 0)))
 })])));

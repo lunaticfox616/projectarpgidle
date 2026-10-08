@@ -38,10 +38,11 @@ const itemTooltipRules = (() => {
         return lines.filter(Boolean).flatMap(stat => [stat].concat(Array.isArray(stat.extraStats) ? stat.extraStats : [])).filter(Boolean);
     }
 
-    /** Base and final armour, evasion and energy shield: (base + flat) × (1 + %/100), floored. */
+    /** Base and final armour, evasion and energy shield: (base + flat) × (1 + %/100), floored. The base counts a unique's
+     * 기본 옵션 배율 (getUniqueImplicitMultiplier) like the stat calculation. */
     function defenseView(item) {
-        const base = defenseTable(), flat = defenseTable(), pct = defenseTable();
-        (item.baseStats || []).forEach(stat => { if (stat && Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0); });
+        const base = defenseTable(), flat = defenseTable(), pct = defenseTable(), implicit = getUniqueImplicitMultiplier(item);
+        (item.baseStats || []).forEach(stat => { if (stat && Object.hasOwn(base, stat.id)) base[stat.id] += Number(stat.val || 0) * implicit; });
         defenseSources(item).forEach(stat => {
             if (Object.hasOwn(flat, stat.id)) flat[stat.id] += Number(stat.val || 0);
             if (Object.hasOwn(DEFENSE_PCT, stat.id)) pct[DEFENSE_PCT[stat.id]] += Number(stat.val || 0);
