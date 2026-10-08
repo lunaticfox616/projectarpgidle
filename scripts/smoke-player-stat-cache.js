@@ -222,7 +222,7 @@ const EDITS = [
     ['talent card', `game.talentCards.hero5__crusader = { level: 5, score: 0, count: 1 }; game.talentCardLoadout[0] = 'hero5__crusader';`, true],
     ['stump board', `game.stumpBox.board = game.stumpBox.board.map(() => null);`, true],
     ['level', `game.level = 80;`, true],
-    ['weapon mastery', `game.weaponMastery.xp[WEAPON_BASE_CATEGORIES[game.equipment['무기'].baseId]] = weaponMastery.reach(30);`, true],
+    ['weapon mastery', `game.weaponMastery.v = WEAPON_MASTERY.curveVersion; game.weaponMastery.xp[WEAPON_BASE_CATEGORIES[game.equipment['무기'].baseId]] = weaponMastery.reach(30);`, true],
     ['zone', `game.currentZoneId = 3;`, false],
     ['trial', `game.completedTrials.push('trial_4');`, false]
 ];
