@@ -582,8 +582,8 @@ function formatBackgroundDuration(ms) {
     let hours = Math.floor(totalSeconds / 3600);
     let minutes = Math.floor((totalSeconds % 3600) / 60);
     let seconds = totalSeconds % 60;
-    if (hours > 0) return `${hours}시간 ${minutes}분`;
-    if (minutes > 0) return `${minutes}분 ${seconds}초`;
+    if (hours > 0) return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+    if (minutes > 0) return seconds > 0 ? `${minutes}분 ${seconds}초` : `${minutes}분`;
     return `${seconds}초`;
 }
 
@@ -656,79 +656,131 @@ function updateBackgroundSkippedTime(skippedMs) {
     if (skipped) skipped.textContent = formatBackgroundSkippedReward(skippedMs);
 }
 
-/** 빠른 계산을 했으면 한 줄: 실제로 싸운 시간의 속도로 나머지를 계산했고 보상은 처치마다 새로 굴렸다(레벨이 오르면 중간에도 다시 잰다). */
+/** 빠른 계산을 했으면 한 줄(흐린 글): 실제로 싸운 시간의 속도로 나머지를 계산했다. */
 function formatBackgroundProjection(result) {
     if (!(result.projectedMs > 0)) return '';
-    return `빠른 계산: 실제로 싸운 ${formatBackgroundDuration(result.realMs)} 동안의 속도로 나머지 시간(${formatBackgroundDuration(result.projectedMs)})을 계산했습니다. 보상은 처치마다 새로 굴렸습니다.`;
+    return `빠른 계산: 실제 전투 ${formatBackgroundDuration(result.realMs)}의 속도로 나머지 ${formatBackgroundDuration(result.projectedMs)}도 계산했습니다.`;
 }
 
 function formatBackgroundSkippedReward(skippedMs) {
-    return skippedMs > 0 ? `포기한 전투 시간: ${formatBackgroundDuration(skippedMs)} · 해당 시간 보상 미지급` : '';
+    return skippedMs > 0 ? `포기한 전투 시간 ${formatBackgroundDuration(skippedMs)}, 해당 시간 보상 미지급` : '';
 }
 
-/** 빠른 계산을 못 탄 긴 실제 전투(data/offline-progress.js OFFLINE_PROJECTION realHoldMs, realCapMs): 무엇을 했는지 한 줄씩. */
+/** 빠른 계산을 못 탄 긴 실제 전투(data/offline-progress.js OFFLINE_PROJECTION realHoldMs, realCapMs): [알림 색, 한 줄]. */
 function formatBackgroundRealLimits(result) {
     const minutes = ms => Math.round(ms / 60000);
     return [
-        result.heldZone ? `실제 전투가 ${minutes(OFFLINE_PROJECTION.realHoldMs)}분을 넘어 그 뒤로는 지금 지역을 반복했습니다.` : '',
-        result.cutMs > 0 ? `빠른 계산을 못 하는 곳이라 실제 전투 ${minutes(OFFLINE_PROJECTION.realCapMs)}분까지만 계산했습니다(남은 ${formatBackgroundDuration(result.cutMs)}은 보상 없음).` : ''
+        ['info', result.heldZone ? `실제 전투가 ${minutes(OFFLINE_PROJECTION.realHoldMs)}분을 넘어 그 뒤로는 지금 지역을 반복했습니다.` : ''],
+        ['bad', result.cutMs > 0 ? `빠른 계산을 못 하는 곳이라 실제 전투 ${minutes(OFFLINE_PROJECTION.realCapMs)}분까지만 계산했고, 남은 ${formatBackgroundDuration(result.cutMs)}의 보상은 없습니다.` : '']
     ];
 }
 
+/** 방치 결과 창(2026-10-09 사용자 "간단하면서도 필요한 정보만 딱 딱 강조해서 색상 배분한 깔끔한 ux"): 시간 한 줄, 큰 숫자 넷,
+ * 장비, 재화, 성장, 알림 순. 색은 뜻마다 하나다: 경험치와 숙련은 초록, 재화 수는 금빛, 장비는 희귀도 색, 잃은 것은 빨강,
+ * 한도와 멈춤은 주황, 계산 설명은 흐린 글. */
 function showBackgroundCombatResult(result) {
     if (typeof document === 'undefined' || !document.body) return;
     if (typeof yieldTutorialCardToResult === 'function') yieldTutorialCardToResult();
-    let old = document.getElementById('background-combat-result-overlay');
-    if (old) old.remove();
-    let overlay = document.createElement('div');
+    document.getElementById('background-combat-result-overlay')?.remove();
+    const overlay = document.createElement('div');
     overlay.id = 'background-combat-result-overlay';
     overlay.className = 'background-combat-result-overlay';
-    let summary = result.summary || {};
-    let rarityLabels = ITEM_RARITY_LABELS;
-    let rarityColor = rarity => (typeof getRarityColor === 'function' ? getRarityColor(rarity) : '#e4eefb');
-    let currencyHtml = (summary.currencies || []).sort((a, b) => (a && a.key === 'goldenRule' ? -1 : 0) - (b && b.key === 'goldenRule' ? -1 : 0)).slice(0, 8)
-        .map(entry => (entry && typeof entry === 'object')
-            ? `<span style="color:#ffd36b;">${entry.name}</span> <strong>+${entry.gain}</strong>`
-            : String(entry))
-        .join(', ') || '없음';
-    let rarityGains = summary.rarityGains || {};
-    let itemHtml = ['normal', 'magic', 'rare', 'unique']
-        .filter(rarity => rarityGains[rarity] > 0)
-        .map(rarity => `<span style="color:${rarityColor(rarity)};">${rarityLabels[rarity]} ${rarityGains[rarity]}개</span>`)
-        .join(' · ') || (summary.items > 0 ? `${summary.items}개` : '없음');
-    let uniqueLine = (summary.uniqueNames || []).length > 0
-        ? `<br>고유 획득: <span style="color:${rarityColor('unique')};font-weight:700;">${summary.uniqueNames.slice(0, 5).map(escapeHTML).join(', ')}</span>`
-        : '';
-    let overflowLine = summary.overflowSalvaged > 0
-        ? `<br>공간 부족 자동해체: <strong>${summary.overflowSalvaged}개</strong> <span class="background-combat-exp-lost">(해체 보상은 재화에 포함)</span>`
-        : '';
-    let stashItems = Math.max(0, Number(summary.stashItems) || 0);
-    let stashTotal = Math.max(0, Number(summary.stashTotal) || 0);
-    let resultLimits = result.limits || getBackgroundProgressResultLimits(game);
-    let rewards = [
-        formatBackgroundSkippedReward(result.skippedMs - (result.cutMs || 0)),
-        ...formatBackgroundRealLimits(result),
-        formatBackgroundProjection(result),
-        formatBackgroundMasteryLine(summary.masteryGains),
-        ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
-        `총 처치: <strong>${formatNumberKR(summary.kills)}</strong>`,
-        backgroundExpLine(summary),
-        `사망 횟수: <strong>${summary.deaths || 0}</strong>${summary.deaths > 0 ? ' <span class="background-combat-exp-lost">(쓰러진 탐험에서 모은 임시 전리품은 사라집니다)</span>' : ''}`,
-        `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
-        `재화: ${currencyHtml}`
-    ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
-    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다. 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${renderBackgroundStoryLine()}${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
+    const summary = result.summary || {};
+    const limits = result.limits || getBackgroundProgressResultLimits(game);
+    const body = renderBackgroundStoryLine() + renderBackgroundResultTiles(summary) + renderBackgroundResultLoot(summary)
+        + renderBackgroundResultCurrencies(summary.currencies) + renderBackgroundResultGrowth(summary) + renderBackgroundResultNotes(result, summary, limits);
+    const close = "hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()";
+    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title">${renderBackgroundResultHeader(result, limits)}`
+        + `<div class="background-result-body">${body}</div><footer><button type="button" onclick="${close};switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button>`
+        + `<button type="button" class="background-result-continue" onclick="${close}">계속하기</button></footer></div>`;
     document.body.appendChild(overlay);
 }
 
-/** 자리를 비운 동안 지나온 이야기(한 장씩 띄우지 않고 기록으로): "지난 이야기 2편이 기록에 실렸습니다" + 기록 열기. */
-/** 방치 결과의 경험치 줄: 잃은 경험치가 없으면 "(잃은 경험치 -0)"을 붙이지 않는다. */
-function backgroundExpLine(summary) {
-    const lost = Number(summary.expLost) || 0;
-    const lossNote = lost > 0 ? ` <span class="background-combat-exp-lost">(잃은 경험치 -${formatNumberKR(lost)})</span>` : '';
-    return `총 경험치: <strong>+${formatNumberKR(summary.exp)}</strong>${lossNote}${backgroundNoExpReason(summary)}`;
+/** 맨 위: 비운 시간 → 실제로 싸운 시간(금빛). 그 아래 한 줄은 왜 줄었는지(효율과 한도)라 흐리게 두지 않는다. */
+function renderBackgroundResultHeader(result, limits) {
+    const away = formatBackgroundResultTime(result.actualElapsedMs);
+    const fought = formatBackgroundResultTime(result.effectiveProgressMs);
+    return `<header><h2 id="background-result-title">방치 결과</h2><p class="background-result-times"><span>자리 비움 <strong>${away}</strong></span>`
+        + `<span class="background-result-arrow" aria-hidden="true">→</span><span class="fought">전투 진행 <strong>${fought}</strong></span></p>`
+        + `<p class="background-result-formula">효율 ${Math.round(limits.efficiencyRate * 100)}%, 한도 ${limits.recognitionHours}시간. 기록 창에서 올릴 수 있습니다.</p></header>`;
 }
-/** 레벨이 지역보다 높아 경험치가 크게 줄었으면 까닭을 붙인다: 레벨 차이가 클수록 줄어, 한참 높으면 처치당 0이 된다
+
+/** 결과 창의 시간은 분까지 적는다(정산 중 창은 초까지 센다). */
+function formatBackgroundResultTime(ms) {
+    const value = Math.max(0, Number(ms) || 0);
+    return formatBackgroundDuration(value >= 60000 ? value - value % 60000 : value);
+}
+
+/** 큰 숫자 넷: 처치, 경험치(초록, 잃은 경험치는 그 아래 빨강), 장비(얻은 가장 높은 희귀도 색), 사망(있으면 빨강, 없으면 흐리게). */
+function renderBackgroundResultTiles(summary) {
+    const deaths = Math.max(0, Number(summary.deaths) || 0);
+    const lost = Math.max(0, Number(summary.expLost) || 0);
+    const best = ['unique', 'rare', 'magic'].find(rarity => (summary.rarityGains || {})[rarity] > 0);
+    const tiles = [
+        { label: '처치', value: formatNumberKR(summary.kills) },
+        { label: '경험치', value: `+${formatNumberKR(summary.exp)}`, tone: 'exp', note: lost > 0 ? `-${formatNumberKR(lost)} 잃음` : '' },
+        { label: '장비', value: `+${formatNumberKR(summary.items)}`, color: best ? getRarityColor(best) : '' },
+        { label: '사망', value: String(deaths), tone: deaths > 0 ? 'bad' : 'quiet' }
+    ];
+    return `<div class="background-result-tiles">${tiles.map(renderBackgroundResultTile).join('')}</div>`;
+}
+
+function renderBackgroundResultTile(tile) {
+    const style = tile.color ? ` style="--tile-tone:${tile.color}"` : '';
+    const size = tile.value.length > 9 ? ' long' : '';
+    return `<div class="background-result-tile ${tile.tone || ''}${size}"${style}><span>${tile.label}</span><strong>${tile.value}</strong>${tile.note ? `<small>${tile.note}</small>` : ''}</div>`;
+}
+
+/** 장비: 희귀도별 개수(높은 등급부터 그 색으로), 방치 보관함과 자동해체는 흐린 칩, 그 아래 주요 장비 카드(고유는 늘 여기 있다). */
+function renderBackgroundResultLoot(summary) {
+    const gains = summary.rarityGains || {};
+    const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
+        .map(rarity => `<span class="background-result-chip" style="--chip-tone:${getRarityColor(rarity)}">${ITEM_RARITY_LABELS[rarity]} <b>${gains[rarity]}</b></span>`);
+    const stash = Math.max(0, Number(summary.stashItems) || 0), salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
+    if (stash > 0) chips.push(`<span class="background-result-chip quiet" title="방치 보관함에 모두 ${Math.max(0, Number(summary.stashTotal) || 0)}개">방치 보관함 <b>+${stash}</b></span>`);
+    if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" title="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
+    const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
+    return row + equipmentLootUi.renderHighlights(summary.highlights);
+}
+
+/** 재화 칩: 빛기둥을 세우는 재화(js/battle-ground-loot-ui.js BEAM_CURRENCIES)는 금테로 맨 앞, 나머지는 지갑 순서. */
+const BACKGROUND_RESULT_MAJOR_CURRENCIES = Object.freeze(['goldenRule', 'burningEmberBranch']);
+function renderBackgroundResultCurrencies(currencies) {
+    const rows = (Array.isArray(currencies) ? currencies : []).filter(entry => entry && entry.gain > 0);
+    if (!rows.length) return '';
+    const major = entry => BACKGROUND_RESULT_MAJOR_CURRENCIES.includes(entry.key);
+    const chips = rows.filter(major).concat(rows.filter(entry => !major(entry))).map(entry => `<span class="background-result-chip currency${major(entry) ? ' major' : ''}">`
+        + `${backgroundResultCurrencyIcon(entry.key)}${escapeHTML(entry.name)} <b>+${formatNumberKR(entry.gain)}</b></span>`);
+    return `<section class="background-result-section"><h3>재화</h3><div class="background-result-chips">${chips.join('')}</div></section>`;
+}
+
+/** 재화 그림(js/utils.js pixelIconPath). 지갑 창의 getCurrencyIconHtml은 performUpdateStaticUI 안에 있어 여기서 못 부른다. */
+function backgroundResultCurrencyIcon(key) {
+    const icon = pixelIconPath(ORB_DB[key] && ORB_DB[key].icon);
+    return icon ? `<img class="background-result-icon" src="${icon}" alt="" aria-hidden="true">` : '';
+}
+
+/** 성장(초록): 오른 무기 숙련. */
+function renderBackgroundResultGrowth(summary) {
+    const mastery = formatBackgroundMasteryLine(summary.masteryGains);
+    return mastery ? `<p class="background-result-growth">${mastery}</p>` : '';
+}
+
+/** 알림은 뜻마다 색 하나: 잃은 것은 빨강(bad), 한도와 멈춤은 주황(warn), 계산 방식은 흐린 글(info). */
+function renderBackgroundResultNotes(result, summary, limits) {
+    const notes = [
+        ['bad', formatBackgroundSkippedReward(result.skippedMs - (result.cutMs || 0))],
+        ...formatBackgroundRealLimits(result),
+        ['bad', summary.deaths > 0 ? '쓰러진 탐험에서 모은 임시 전리품은 사라집니다.' : ''],
+        ['warn', backgroundNoExpReason(summary)],
+        ['warn', result.stopped ? '사냥이 멈췄거나 고를 것이 생겨 여기까지 진행했습니다.' : ''],
+        ['warn', result.capped ? `방치 한도 ${limits.recognitionHours}시간을 다 채웠습니다.` : ''],
+        ['info', formatBackgroundProjection(result)]
+    ].filter(([, text]) => text);
+    return notes.length ? `<ul class="background-result-notes">${notes.map(([tone, text]) => `<li class="${tone}">${text}</li>`).join('')}</ul>` : '';
+}
+
+/** 레벨이 지역보다 높아 경험치가 크게 줄었으면 그 까닭(주황 알림): 레벨 차이가 클수록 줄어, 한참 높으면 처치당 0이 된다
  * (검토 7차 "+0", 8차 "+1" — 합계가 딱 0일 때만 붙였다). 절반 밑으로 줄었을 때 적는다. */
 const BACKGROUND_EXP_NOTE_BELOW = 0.5;
 function backgroundNoExpReason(summary) {
@@ -737,14 +789,14 @@ function backgroundNoExpReason(summary) {
     const rate = levelProgression.rewardMultiplier(zone, { level: levelProgression.areaLevel(zone) }, game.level, 'experience');
     if (rate >= BACKGROUND_EXP_NOTE_BELOW) return '';
     const pct = Math.round(rate * 100);
-    return ` <span class="background-combat-exp-lost">(레벨 차이로 이 지역 경험치가 ${pct > 0 ? `${pct}%로 줄었습니다` : '거의 없습니다'})</span>`;
+    return `레벨 차이로 이 지역 경험치가 ${pct > 0 ? `${pct}%로 줄었습니다` : '거의 없습니다'}.`;
 }
 
+/** 자리를 비운 동안 지나온 이야기(한 장씩 띄우지 않고 기록으로): "지난 이야기 2편이 기록에 실렸습니다" + 기록 열기. */
 function renderBackgroundStoryLine() {
     const scenes = typeof storyJournalUi === 'object' ? storyJournalUi.foldPassedScenes() : [];
     if (!scenes.length) return '';
-    const names = scenes.slice(0, 2).map(scene => `${scene.kicker} · ${scene.title}`).join(', ') + (scenes.length > 2 ? ` 외 ${scenes.length - 2}편` : '');
-    return `<p class="background-result-story"><span>지난 이야기 ${scenes.length}편이 기록에 실렸습니다: ${escapeHTML(names)}</span>
+    return `<p class="background-result-story"><span>지난 이야기 ${scenes.length}편이 기록에 실렸습니다.</span>
         <button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-journal')">기록에서 읽기</button></p>`;
 }
 

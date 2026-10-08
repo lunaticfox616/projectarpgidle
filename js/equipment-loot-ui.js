@@ -162,9 +162,11 @@
     function renderHighlight(item, owned) {
         const equipment=owned.find(entry=>String(entry.id)===String(item.id));
         const token=equipment ? registerCombatLogItemSnapshot(equipment) : null;
-        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.slot)} · ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
+        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.slot)}, ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
         const attrs=token===null ? 'disabled' : `data-item-tooltip-anchor="1" data-log-item-token="${token}" onpointerenter="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointermove="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointerleave="if(event.pointerType==='mouse')hideItemTooltip(event)" onfocus="equipmentLootUi.showHighlight(event,${token})" onblur="hideItemTooltip()" onclick="equipmentLootUi.showHighlight(event,${token})"`;
-        return `<li class="loot-highlight-card" style="--loot-rarity:${getRarityColor(item.rarity)}"><button type="button" ${attrs} aria-label="${escapeHTML(item.name)} · ${escapeHTML(rarityNames[item.rarity] || item.rarity)} 옵션 확인">${detail}</button></li>`;
+        // 까닭 글은 그 까닭의 색(목표 일치는 민트, 고유는 주황, 타락은 빨강: equipmentLootPolicy.highlight)
+        const tones=`--loot-rarity:${getRarityColor(item.rarity)}${item.color ? `;--loot-reason:${item.color}` : ''}`;
+        return `<li class="loot-highlight-card" style="${tones}"><button type="button" ${attrs} aria-label="${escapeHTML(item.name)}, ${escapeHTML(rarityNames[item.rarity] || item.rarity)} 옵션 확인">${detail}</button></li>`;
     }
 
     function showHighlight(event, token) {
