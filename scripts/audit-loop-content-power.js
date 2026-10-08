@@ -1,7 +1,9 @@
 'use strict';
 // Read-only runtime audit (2026-10-06): does the power that loops open keep up with the loop difficulty curve?
 // The same zone, level, gear and main passive tree at every loop; only what loop N opens changes:
-//   permanent growth  loop points (loop passive tree, loop-10 stats), deep points (deep passive, --deep-per-loop from loop 10)
+//   permanent growth  loop points (loop passive tree), deep points (deep passive, --deep-per-loop from loop 10). The loop-10 stat
+//                     buy left the game with the 2026-05-04 loop depth redesign (no button calls allocateLoop10BonusStat), so
+//                     loop points no longer go there (until 2026-10-08 this audit still bought them).
 //   unlock points     2 per loop from loop 2, bought power-first (craft, support gems, loop tree, trials, deep tree ...)
 //   in-loop rebuild   support gems and the ascendancy the player re-earns each loop (levels/points per zone below)
 // Usage extra: --talismans N caps the awake talismans (default 8).
@@ -21,7 +23,10 @@
 //             every main stat on the board at its cap (the ceiling after many loops of devouring)
 // Ember lines (--ember lines, 2026-10-08 for 12번 루프 30): from the loop the ember room opens, every equipped item carries two
 // corruption-only lines (data/ember-corruption.js) at their average, picked power-first per slot. The ±20% bake averages out.
+// Weapon mastery (--mastery N, 2026-10-08, data/weapon-mastery.js): the build's weapon category at mastery level N at every
+// audited loop (per-level damage and the opened milestones). Default 1: no mastery, as before.
 // Usage: node scripts/audit-loop-content-power.js [--loops 1,5,10] [--zones act10,chaos20] [--deep-per-loop 4] [--stump expected] [--ember lines]
+//        [--mastery 30]
 const vm = require('node:vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const args = process.argv.slice(2);
@@ -32,6 +37,8 @@ const zones = option('--zones', 'act10,chaos20').split(',');
 const maxTalismans = Number(option('--talismans', '8')); // awake talismans at most (sensitivity: 0 = none)
 const stumpMode = option('--stump', 'none');
 if (!['none', 'main', 'expected', 'max'].includes(stumpMode)) throw new Error(`unknown --stump ${stumpMode}`);
+const masteryLevel = Number(option('--mastery', '1'));
+if (!(Number.isInteger(masteryLevel) && masteryLevel >= 1 && masteryLevel <= 50)) throw new Error(`--mastery takes 1..50`);
 const emberMode = option('--ember', 'none');
 if (!['none', 'lines'].includes(emberMode)) throw new Error(`unknown --ember ${emberMode}`);
 // What a player has re-earned by this zone in any loop: support gem level and ascendancy points (trials 1-2 by act 10,
@@ -113,10 +120,6 @@ function auditSeasonOptions() {
         if (!canInvestSeasonNode(node, id) || lv >= getSeasonNodeCap(node)) continue;
         rows.push({ cost: 1, apply() { if (lv <= 0) game.seasonNodes.push(id); game.seasonNodeLevels[id] = lv + 1; },
             undo() { if (lv <= 0) { game.seasonNodes = game.seasonNodes.filter(row => row !== id); delete game.seasonNodeLevels[id]; } else game.seasonNodeLevels[id] = lv; } });
-    }
-    if ((game.season || 1) >= 10) for (const key of ['flatHp', 'flatDmg', 'aspd', 'move']) {
-        const lv = game.loop10BonusStats[key] || 0;
-        rows.push({ cost: getLoop10StatCost(key), apply() { game.loop10BonusStats[key] = lv + 1; }, undo() { game.loop10BonusStats[key] = lv; } });
     }
     return rows;
 }
@@ -238,6 +241,13 @@ function auditStumpOptions() {
         undo() { auditStumpPicks.pop(); auditStumpBoard(); } })));
 }
 var auditEmberMode = ${JSON.stringify(emberMode)};
+var auditMasteryLevel = ${masteryLevel};
+/** The build's weapon category at the audited mastery level, nothing else. */
+function auditMastery() {
+    game.weaponMastery = { xp: {} };
+    const id = weaponMastery.wielded(game);
+    if (id && auditMasteryLevel > 1) game.weaponMastery.xp[id] = weaponMastery.reach(auditMasteryLevel);
+}
 /** One more corruption-only line (its average value) on any equipped item that has fewer than two. */
 function auditEmberOptions() {
     const rows = [];
@@ -254,6 +264,7 @@ function auditLoop(zone, season, deepPerLoop, stage) {
     Object.assign(game, { season, loopCount: season - 1, seasonNodes: [], seasonNodeLevels: {}, supports: [], equippedSupports: [],
         ascendClass: null, ascendNodes: [], loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
         loopDeepStats: { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 } });
+    auditMastery();
     const owned = auditUnlocks(season);
     game.contentProgression.inherited = owned;
     contentProgression.sync(game);
@@ -288,7 +299,7 @@ function auditLoop(zone, season, deepPerLoop, stage) {
     const emberTally = {};
     Object.values(game.equipment).forEach(item => (item && item.emberLines || []).forEach(line => { emberTally[line.id] = (emberTally[line.id] || 0) + 1; }));
     return { owned, loopPoints, deepPoints, ascend: game.ascendClass, supports: game.equippedSupports.slice(),
-        deep: { ...game.loopDeepStats }, loop10: { ...game.loop10BonusStats }, talismans: talismanTally, stump: stumpTally, ember: emberTally };
+        deep: { ...game.loopDeepStats }, talismans: talismanTally, stump: stumpTally, ember: emberTally };
 }
 `);
 
@@ -304,7 +315,8 @@ for (const zoneName of zones) {
         const pd = row.dps / base.dps, pe = row.ehp / base.ehp, nd = row.needDps / base.needDps, ne = row.needEhp / base.needEhp;
         const tally = rows => Object.entries(rows).filter(([, n]) => n > 0).map(([k, n]) => k + n).join(' ');
         console.log(`${String(season).padStart(4)} | ${String(row.owned.length).padStart(8)} | ${fmt(pd).padStart(11)} | ${fmt(pe).padStart(11)} | ${fmt(nd).padStart(10)} | ${fmt(ne).padStart(10)} | ${fmt(pd / nd).padStart(8)} | ${fmt(pe / ne).padStart(8)} | ${fmt(row.dps / row.needDps).padStart(8)} | ${fmt(row.ehp / row.needEhp).padStart(8)}`
-            + `  ${row.ascend || '-'} deep[${tally(row.deep)}] l10[${tally(row.loop10)}] tal[${tally(row.talismans)}]`
-            + (stumpMode === 'none' ? '' : ` stump[${tally(row.stump)}]`) + (emberMode === 'none' ? '' : ` ember[${tally(row.ember)}]`));
+            + `  ${row.ascend || '-'} deep[${tally(row.deep)}] tal[${tally(row.talismans)}]`
+            + (stumpMode === 'none' ? '' : ` stump[${tally(row.stump)}]`) + (emberMode === 'none' ? '' : ` ember[${tally(row.ember)}]`)
+            + (masteryLevel > 1 ? ` mastery[${masteryLevel}]` : ''));
     }
 }
