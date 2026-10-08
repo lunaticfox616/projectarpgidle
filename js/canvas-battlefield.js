@@ -2289,10 +2289,31 @@ function drawEnemyActorSprite(ctx, entry, state, pose) {
     drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
+/** This frame's enemy screen positions and their after-image ghosts. On an exploration map an enemy out of the hero's sight gets no
+ * ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog stays
+ * unseen until it steps into sight (2026-10-09 사용자). */
+const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
+function buildBattleEnemyPosMap(layout, fxList, now) {
+    const map = {}, hidden = new Set();
+    layout.forEach(entry => {
+        map[entry.enemy.id] = entry;
+        if (!actExplorationView.inSight(entry.enemy)) {
+            hidden.add(entry.enemy.id);
+            delete battleVisualState.enemyGhostPos[entry.enemy.id];
+            return;
+        }
+        battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, stamp: now, enemy: copyEnemySpriteSide(entry.enemy, { ...entry.enemy }) };
+    });
+    if (hidden.size) fxList.forEach(fx => { if (fx && SIGHT_GATED_FX.has(fx.type) && hidden.has(fx.enemyId)) battleVisualState.processedFxIds.add(fx.id); });
+    return map;
+}
+
 function drawBattleActorLayer(ctx, enemyEntries, state) {
     state = { ...state, enemyHitRecoil: buildEnemyHitRecoilMap(battleFx, state) };
     const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj);
-    let actors = (enemyEntries || []).concat(waiting).map(entry => ({
+    // 달려오는 몬스터도 시야 안에 들어와야 보인다(actExplorationView.inSight).
+    const seen = (enemyEntries || []).filter(entry => actExplorationView.inSight(entry.enemy));
+    let actors = seen.concat(waiting).map(entry => ({
         kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
     }));
     actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
@@ -2303,7 +2324,7 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
         else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') actExplorationView.drawScenery(ctx,actor,state);
         else drawBattleEnemyActor(ctx, actor.entry, state);
     });
-    drawBattlePlayerFigure.readability.begin(state, enemyEntries.concat(waiting));
+    drawBattlePlayerFigure.readability.begin(state, seen.concat(waiting));
 }
 
 // Phase-2 extracted battlefield canvas renderer block.
@@ -2508,16 +2529,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             moving: entry.moving
         };
     });
-    let enemyPosMap = {};
-    dynamicLayout.forEach(entry => {
-        enemyPosMap[entry.enemy.id] = entry;
-        battleVisualState.enemyGhostPos[entry.enemy.id] = {
-            x: entry.x,
-            y: entry.y,
-            stamp: now,
-            enemy: copyEnemySpriteSide(entry.enemy, { ...entry.enemy })
-        };
-    });
+    let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now);
     playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
     if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
     else if (swingFx) battleVisualState.playerFacingDirection = playerMotionState.attackDirection;
@@ -2920,7 +2932,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     bossAttackView.drawMarks(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
     drawBattlefieldPlayerHealthBar(ctx, scene);
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout, scene.targets, scene.tileW);
+    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => actExplorationView.inSight(entry.enemy)), scene.targets, scene.tileW);
     actTitleCard.draw(ctx, scene.width, scene.height, scene.now);
 }
 
@@ -3206,7 +3218,7 @@ function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
     if (isBattleLightingEnabled()) return drawRiftCombatOccupants(ctx, layers);
     fillCell(game.gridPlayer, 'rgba(134, 190, 255, 0.13)', 'rgba(150, 203, 255, 0.55)', 0.9);
     (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0) fillCell(enemy, 'rgba(255, 87, 87, 0.12)', 'rgba(255, 140, 120, 0.38)', 0.7);
+        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) fillCell(enemy, 'rgba(255, 87, 87, 0.12)', 'rgba(255, 140, 120, 0.38)', 0.7);
     });
     (game.summons || []).forEach(summon => {
         if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.12)', 'rgba(154, 255, 192, 0.38)', 0.75);
@@ -3233,7 +3245,7 @@ function drawRiftCombatOccupants(ctx, layers) {
         if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) drawRiftUnitRing(ctx, proj, summon, RIFT_CELL_TONES.summon);
     });
     (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0) drawRiftUnitRing(ctx, proj, enemy, RIFT_CELL_TONES.enemy);
+        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) drawRiftUnitRing(ctx, proj, enemy, RIFT_CELL_TONES.enemy);
     });
     (layers.skillTargets || []).forEach(hit => drawRiftTargetBrackets(ctx, proj, hit && hit.enemy));
 }
