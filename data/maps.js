@@ -237,7 +237,7 @@ const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
-//  - 융합 유물은 신성한/타락/축복의 오브 외의 제작 재화를 받지 않는다.
+//  - 융합 유물은 황금률, 잿불가지, 축복의 꽃잎 외의 제작 재화를 받지 않는다.
 const TIME_RIFT_UNLOCK_LOOP = 13;
 const TIME_RIFT_PAST_ZONE_ID = 'time_rift_past';
 const TIME_RIFT_FUTURE_ZONE_ID = 'time_rift_future';

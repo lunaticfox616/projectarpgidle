@@ -232,7 +232,7 @@ function getCurrencyDrops(enemy) {
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         let resourceChance = getUnderworldResourceDropChances(enemy);
-        // Core and uber entry tickets are exempt from the underworld loot reduction.
+        // Core keys and shadow root tickets are exempt from the underworld loot reduction.
         let coreKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
         if (Math.random() < resourceChance.fossil) drops.push(['fossil', 1]);

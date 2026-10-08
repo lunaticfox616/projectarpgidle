@@ -246,7 +246,7 @@ const atlasUi = (() => {
         return `<button onclick="atlasUi.craft('${key}')" ${reason || have < 1 ? 'disabled' : ''} title="${escapeHTML(reason || atlasMaps.crafts[key].label)}">
             <span>${window.getStyledOrbName(key)}</span><small>${atlasMaps.crafts[key].label} · ${have}</small></button>`;
     }
-    const TICKET = key => ORB_DB[key].name.replace('우버 뿌리 입장권: ', '');
+    const TICKET = key => ORB_DB[key].name.replace('그림자 뿌리 입장권: ', '');
     function nodeDetailHtml() {
         const node = atlas.node(selectedNode);
         if (!node) return '<section class="atlas-node-detail"><p class="atlas-muted">노드를 누르면 정보가 보입니다. 완료한 노드의 이웃이 열립니다.</p></section>';

@@ -78,6 +78,6 @@
 
 - `npm test`: 184/184 통과. 저장 복원의 인벤토리·장착·임시 보관 및 재복원도 포함한다.
 - `npm run check:architecture`: 구조·복잡도 검사 통과.
-- `npx playwright test -c artifacts/crafting-flow/playwright.config.cjs weapon-base.spec.cjs`: PC·모바일 2/2 통과. 격리된 실제 게임에서 기본 피해 표시, 기존 최종 무기 환산, 축복의 오브 1개 차감 및 새 범위 재추첨, 저장 복원을 확인했다. 브라우저 오류는 없었다. 이 시연 검사는 로컬 artifacts에 있다.
+- `npx playwright test -c artifacts/crafting-flow/playwright.config.cjs weapon-base.spec.cjs`: PC·모바일 2/2 통과. 격리된 실제 게임에서 기본 피해 표시, 기존 최종 무기 환산, 축복의 꽃잎 1개 차감 및 새 범위 재추첨, 저장 복원을 확인했다. 브라우저 오류는 없었다. 이 시연 검사는 로컬 artifacts에 있다.
 
 후반 무기의 기본 피해 비중이 크게 증가한다. 전체 DPS 증가는 빌드마다 다르며, 적 난이도 조정이나 실제 플레이 밸런스 검증을 포함하지 않는다.

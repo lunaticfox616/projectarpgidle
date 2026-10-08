@@ -108,7 +108,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     await annulContext.marketAnnulSelectedStat(1);
     assert.deepStrictEqual(Array.from(protectedItem.stats, stat => stat.id), ['flatHp'], 'market service should remove the selected removable affix');
     assert.strictEqual(annulContext.game.currencies.goldenRule, 0);
-    assert(annulPrompt.includes('황금률 2개') && !annulPrompt.includes('신성한 오브'), 'market confirmation must name the currency that is actually spent');
+    assert(annulPrompt.includes('황금률 2개') && !annulPrompt.includes('오브'), 'market confirmation must name the currency that is actually spent');
 
     // A unique jewel asks first; if it left the store while the question was open (for example into a socket), nothing is salvaged.
     const uniqueJewel = { id: 7, name: '확인 대상', rarity: 'unique' };
