@@ -160,7 +160,7 @@ const rooms = json(`(() => {
     let seed = 7; const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000);
     const count = context => { let n = 0; for (let i = 0; i < 20000; i++) if (atlasEncounters.roll({ encounterExtra: 0 }, [], random, Infinity, context).includes('emberField')) n++; return n; };
     return { before: count({ loop: 29 }), roots: count({ loop: 30, region: 'roots' }), garden: count({ loop: 30, region: 'garden' }),
-        awake: atlasEncounters.roll({ encounterExtra: 0, exarch: 100, eater: 100 }, [], random, Infinity, true).length };
+        awake: atlasEncounters.roll({ encounterExtra: 0, redAltar: 100, blueAltar: 100 }, [], random, Infinity, true).length };
 })()`);
 assert.equal(rooms.before, 0, 'no ember room before loop 30');
 assert.ok(rooms.roots > 0 && rooms.garden > rooms.roots * 1.6, 'the garden doubles the ember room: ' + JSON.stringify(rooms));

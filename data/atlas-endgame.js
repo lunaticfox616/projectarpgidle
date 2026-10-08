@@ -69,7 +69,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 3], ['sapBud', 4], ['formlessDew', 10]]), unique: '정원사의 가지 왕관'
         }),
         Object.freeze({
-            id: 'apex_elder', name: '밑거름의 장로', domain: '밑거름의 우물', act: 5, bossAct: 0, ele: 'chaos', tier: 20,
+            id: 'apex_compost', name: '밑거름의 장로', domain: '밑거름의 우물', act: 5, bossAct: 0, ele: 'chaos', tier: 20,
             how: '마름이 번진 지도의 사도를 쓰러뜨리면 마름 조각을 줍니다.',
             unlock: Object.freeze({ kill: 'apex_gardener' }), entry: Object.freeze([['rotHusk', 1], ['rotSap', 1], ['rotRoot', 1], ['rotSeed', 1]]),
             hpMul: 5.5, damageMul: 1.7, hazard: Object.freeze({ pattern: 'pool', warningMs: 1650, intervalMs: 5600 }),
@@ -81,7 +81,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 3], ['blightSpore', 6], ['emberBranch', 3]]), unique: '장로의 썩은 심장'
         }),
         Object.freeze({
-            id: 'apex_maven', name: '나이테를 엮는 자', domain: '나이테의 방', act: 10, bossAct: 8, ele: 'chaos', tier: 22,
+            id: 'apex_weaver', name: '나이테를 엮는 자', domain: '나이테의 방', act: 10, bossAct: 8, ele: 'chaos', tier: 22,
             how: '후반부 보스를 다섯 번 쓰러뜨릴 때마다 초대장을 받습니다.',
             unlock: 'awakened', entry: Object.freeze([['ringInvite', 1]]),
             hpMul: 6, damageMul: 1.75, hazard: null,
@@ -94,7 +94,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 5], ['sapBud', 6], ['emberBranch', 4]]), unique: '엮인 나이테'
         }),
         Object.freeze({
-            id: 'apex_exarch', name: '황금 길의 총주교', domain: '황금 길의 끝', act: 2, bossAct: 1, ele: 'fire', tier: 20,
+            id: 'apex_archbishop', name: '황금 길의 총주교', domain: '황금 길의 끝', act: 2, bossAct: 1, ele: 'fire', tier: 20,
             how: '지도 속 붉은 제단을 비우면 성화 잉걸을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ember', 10]]),
             hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'cross', warningMs: 1550, intervalMs: 5000 }),
@@ -106,7 +106,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30]]), unique: '총주교의 성화 장갑'
         }),
         Object.freeze({
-            id: 'apex_eater', name: '세계를 삼키는 포식자', domain: '허기의 둥지', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
+            id: 'apex_devourer', name: '세계를 삼키는 포식자', domain: '허기의 둥지', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
             how: '지도 속 푸른 제단을 비우면 허기의 즙을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ichor', 10]]),
             hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'block', warningMs: 1550, intervalMs: 4800 }),
@@ -177,8 +177,8 @@ const ATLAS_ENDGAME = Object.freeze({
     // 제단: 깨어난 뒤 지도마다 chance %로 붉은 제단(총주교)과 푸른 제단(포식자) 방이 콘텐츠 방과 따로 altarLimit개까지 생긴다
     // (data/atlas.js encounters, js/atlas-encounters.js roll). 방을 비우면 그 재료.
     altars: Object.freeze({
-        exarch: Object.freeze({ item: 'ember', amount: Object.freeze([2, 0.12]) }),
-        eater: Object.freeze({ item: 'ichor', amount: Object.freeze([2, 0.12]) })
+        redAltar: Object.freeze({ item: 'ember', amount: Object.freeze([2, 0.12]) }),
+        blueAltar: Object.freeze({ item: 'ichor', amount: Object.freeze([2, 0.12]) })
     }),
     // 처음 쓰러뜨리면 고유 장비가 반드시, 그 뒤로는 uniqueChance로.
     uniqueChance: Object.freeze({ apex: 0.25, league: 0.15 })

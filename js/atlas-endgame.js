@@ -59,7 +59,7 @@ const atlasEndgame = (() => {
     }
 
     // ---------------------------------------------------------------- the run's share
-    /** A blighted region's map is sometimes held by one of the elder's apostles instead of its own boss (after the gardener falls). */
+    /** A blighted region's map is sometimes held by one of the apostles of 밑거름의 장로 instead of its own boss (after the gardener falls). */
     function rollApostle(state, node, random) {
         if (!node || node.kind !== 'map' || kills(state, 'apex_gardener') < 1) return null;
         const level = ledger(state).blight[node.region] || 0;
@@ -68,7 +68,7 @@ const atlasEndgame = (() => {
         return pool.length ? pool[Math.floor(random() * pool.length)].id : null;
     }
     /** The weaver's echoes: the bosses she witnessed most recently (newest first). */
-    const echoesFor = (state, node) => (node && node.id === 'apex_maven' ? ledger(state).witnessed.slice(-2).reverse() : []);
+    const echoesFor = (state, node) => (node && node.id === 'apex_weaver' ? ledger(state).witnessed.slice(-2).reverse() : []);
     function runExtra(state, node, random) {
         return { apostle: rollApostle(state, node, random), items: {}, echoes: echoesFor(state, node) };
     }
@@ -201,7 +201,7 @@ const atlasEndgame = (() => {
     /** The weaver witnesses late bosses (not herself, nor the kill that woke the atlas). */
     function witnessKill(state, node, apostle) {
         if (apostle) return witness(state, apostle.name, apostle.bossAct);
-        return LATE_BOSSES.has(node.kind) && node.id !== 'apex_maven' ? witness(state, node.boss, node.bossAct) : 0;
+        return LATE_BOSSES.has(node.kind) && node.id !== 'apex_weaver' ? witness(state, node.boss, node.bossAct) : 0;
     }
     /** Boss down in a late-atlas run or a map (js/atlas.js complete): kills, awakening, materials, blight, witness and the fight's spoils.
      * @returns {object} what the result screen and the log tell. */

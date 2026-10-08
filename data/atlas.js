@@ -140,9 +140,9 @@ const ATLAS = Object.freeze({
             ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
             rewards: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2, 0.15]]), mapChance: 0.15 }),
         // 깨어난 뒤(late): 붉은 제단(총주교)과 푸른 제단(포식자). 방을 비우면 잉걸 · 허기의 즙(data/atlas-endgame.js altars).
-        exarch: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
+        redAltar: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['magicBud', 2, 0.2]]), mapChance: 0.1 }),
-        eater: Object.freeze({ name: '푸른 제단', chance: 12, packExtra: 3, prefix: '허기진', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
+        blueAltar: Object.freeze({ name: '푸른 제단', chance: 12, packExtra: 3, prefix: '허기진', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['formlessDew', 1, 0.1]]), mapChance: 0.1 })
     }),
     encounterLimit: 1,
@@ -188,6 +188,9 @@ const ATLAS = Object.freeze({
     chart: Object.freeze({ radii: Object.freeze([42, 33, 24.5, 16.5]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
         offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]) }),
     // 바닥 위험 옵션이 쓰는 시련 함정 패턴(js/hazard-evasion.js).
-    burningGround: Object.freeze({ pattern: 'pool', warningMs: 1700, intervalMs: 5200 })
+    burningGround: Object.freeze({ pattern: 'pool', warningMs: 1700, intervalMs: 5200 }),
+    // 이름을 바꾼 저장 id(2026-10-08): 예전 id의 FNV-1a 32비트 해시(16진수) → 새 id. 저장을 불러올 때 아틀라스, 탐험 지도, 적 상태
+    // 안의 예전 id를 새 id로 바꾼다(js/atlas.js renameSavedIds). 예전 id는 해시로만 적는다.
+    renamed: Object.freeze({ '1cc6d67d': 'apex_weaver', 'b334c8e6': 'apex_compost', '494387fb': 'apex_archbishop', '6eb4b0a7': 'apex_devourer', '9ece5360': 'redAltar', 'b36db136': 'blueAltar' })
 });
 safeExposeData({ ATLAS });

@@ -439,8 +439,38 @@ const atlas = (() => {
         return counts;
     }
     const nodeList = (value, allowed) => [...new Set(Array.isArray(value) ? value : [])].filter(id => BY_ID.has(id) && allowed(id));
+    // ------------------------------------------------------------------ renamed ids (ATLAS.renamed)
+    const fnv1a = text => {
+        let hash = 0x811c9dc5;
+        for (let index = 0; index < text.length; index++) hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193);
+        return (hash >>> 0).toString(16).padStart(8, '0');
+    };
+    const renamedId = (text, table) => (typeof text === 'string' && text.length <= 32 ? table[fnv1a(text)] : undefined);
+    /** Old ids in a loaded save's atlas, map and enemy state, as values and as keys, become the new ids. ATLAS.renamed lists the
+     * old ids by hash only. table: a test passes its own. */
+    function renameSavedIds(root, table = ATLAS.renamed) {
+        const seen = new WeakSet(), stack = [root];
+        while (stack.length) {
+            const value = stack.pop();
+            if (!value || typeof value !== 'object' || seen.has(value)) continue;
+            seen.add(value);
+            for (const key of Object.keys(value)) renameSavedEntry(value, key, table, stack);
+        }
+    }
+    /** One key of a saved object: a renamed value is replaced, any other value is walked later; a renamed key moves its value. */
+    function renameSavedEntry(value, key, table, stack) {
+        const fresh = renamedId(value[key], table);
+        if (fresh) value[key] = fresh;
+        else stack.push(value[key]);
+        const freshKey = !Array.isArray(value) && renamedId(key, table);
+        if (freshKey && !Object.hasOwn(value, freshKey)) {
+            value[freshKey] = value[key];
+            delete value[key];
+        }
+    }
     /** Defaults, the one-time move from the world-tree journey (its unlock carries over), corrupt entries dropped, unique uids. */
     function normalize(state) {
+        renameSavedIds([state.atlas, state.actExploration, state.enemies]);
         const raw = state.atlas && typeof state.atlas === 'object' ? state.atlas : {};
         const journeyUnlocked = !!(state.worldTreeJourney && state.worldTreeJourney.unlocked === true);
         delete state.worldTreeJourney;
@@ -478,7 +508,7 @@ const atlas = (() => {
     function travelReason(state, id) {
         return id === ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지도석을 열어야 들어갈 수 있습니다.' : '';
     }
-    return Object.freeze({ nodes: NODES, links: LINKS, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
+    return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill,

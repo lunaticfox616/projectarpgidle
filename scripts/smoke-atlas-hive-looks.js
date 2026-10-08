@@ -31,7 +31,7 @@ const looks = json(`Object.entries(ATLAS.encounters).filter(([, rule]) => rule.v
 for (const look of looks) assert.deepEqual(look.pictures, look.names, `${look.type}: each name draws the picture of that name`);
 
 // ── 메아리로 나온 리그 보스는 제 그림 ─────────────────────────────────────────────────────
-const echoZone = { atlasStages: 'apex_maven', atlasEchoes: [['벌집 여왕', 8], ['다른 보스', 5]], bossStageNames: ['나이테', '메아리 1', '메아리 2', '나이테'] };
+const echoZone = { atlasStages: 'apex_weaver', atlasEchoes: [['벌집 여왕', 8], ['다른 보스', 5]], bossStageNames: ['나이테', '메아리 1', '메아리 2', '나이테'] };
 const echoQueen = r.atlasEndgame.tuneStage(r.createEnemy(zone, { at: 0, count: 1, boss: true }, 0), echoZone, 1);
 assert.equal(echoQueen.monsterVisualId, 'hive-queen', "the weaver's echo of the beehive queen draws her own sheet");
 const echoOther = r.atlasEndgame.tuneStage(r.createEnemy(zone, { at: 0, count: 1, boss: true }, 0), echoZone, 2);

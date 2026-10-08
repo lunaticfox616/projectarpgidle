@@ -161,7 +161,7 @@ assert.equal(run('stumpBox.rollScarDrop(game, () => 0.1).family'), 'scar', 'a 15
 assert.equal(scars(), before + 1);
 assert.ok(json('logs').some(line => line === '🔥 그루터기 함: 불씨의 흉터 (잠듦) 획득'), 'and the log says so');
 assert.equal(run(`(() => { let calls = 0; const real = stumpBox.rollScarDrop; stumpBox.rollScarDrop = () => { calls++; return null; };
-    game.atlas.endgame.kills.pinnacle = 1; atlasEndgame.onComplete(game, atlas.node('apex_exarch'), {}); atlasEndgame.onComplete(game, atlas.node('roots_0'), {});
+    game.atlas.endgame.kills.pinnacle = 1; atlasEndgame.onComplete(game, atlas.node('apex_archbishop'), {}); atlasEndgame.onComplete(game, atlas.node('roots_0'), {});
     stumpBox.rollScarDrop = real; return calls; })()`), 1, 'a final boss down rolls for a scar, a map boss does not');
 
 // ── 번식(수확 일지 열매 줄) ─────────────────────────────────────────────
