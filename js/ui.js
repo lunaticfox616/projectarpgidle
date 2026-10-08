@@ -10555,63 +10555,9 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'block';
-        document.getElementById('ui-selected-class-name').innerText = `[ ${CLASS_TEMPLATES[game.ascendClass].name} ]`;
-        let tree = getClassTreeDef(game.ascendClass);
-        let renderAscend = id => {
-            let node = tree[id];
-            if (!node) return '';
-            let active = game.ascendNodes.includes(id);
-            let reqMet = isAscendNodeRequirementMet(node);
-            let statLines = Array.isArray(node.stats) ? node.stats : [{ stat: node.stat, val: node.val }];
-            let desc = statLines.map(line => {
-                let statInfo = P_STATS[line.stat] || { name: getStatName(line.stat), isPct: false };
-                let text = line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
-                return `<span style="color:${getItemStatToneColor(line.stat)}">${text}</span>`;
-            }).join('<br>');
-            let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
-            let title = id === 'n10' ? '궁극기' : ((id === 'n11' || id === 'n12') ? '4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '재능특화' : ((id === 'n13c' || id === 'n13d') ? '전직특화' : titleText)));
-            let stateText = active ? '선택됨, 클릭하면 반환' : (reqMet ? '선택 가능' : '선행 노드 필요');
-            let action = active ? `askRefundAscendNode('${id}')` : (!reqMet ? '' : `buyAscend('${id}')`);
-            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" role="button" tabindex="${action ? '0' : '-1'}" aria-disabled="${action ? 'false' : 'true'}" ${action ? `onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action};}"` : ''}><div class="trait-title">${title}</div><div class="trait-desc">${desc}<span class="trait-card-state">${stateText}</span></div></div>`;
-        };
-        let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
-        let bloomRow = (tree.n13a || tree.n13c) ? `<div class="trait-row">${renderAscend('n13a')}${renderAscend('n13b')}</div><div class="trait-row">${renderAscend('n13c')}${renderAscend('n13d')}</div>` : '';
-        let bloomTalent = HERO_SELECTION_DEFS[game.bloomedTalentThisLoop];
-        let bloomStatus = game.bloomedClassThisLoop === game.ascendClass && bloomTalent
-            ? `5차 개화 · ${bloomTalent.label} 조합`
-            : ((game.completedTrials || []).includes('trial_4') ? '4차 핵심 노드 해금' : '시련 진행으로 추가 해금');
-        let ascendSummary = `<div class="trait-progress-summary"><div><strong>${game.ascendNodes.length}개 노드 선택</strong><span>${CLASS_TEMPLATES[game.ascendClass].name} 전직 패시브</span></div><div><strong>${Math.max(0, Math.floor(game.ascendPoints || 0))} 포인트</strong><span>${bloomStatus}</span></div></div>${getAscendancyPlanContinueHtml()}`;
-        document.getElementById('ui-ascend-tree-container').innerHTML = ascendSummary + `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}${bloomRow}`;
-        let kDefs = getClassKeystoneDefs(game.ascendClass);
-        if (kDefs.length > 0) {
-            game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-            // 선행 관계를 직관적으로 보여주기 위해 키스톤을 의존 깊이(티어)별 행으로 배치하고
-            // 각 카드에 선행 키스톤 라벨 + 호버 시 선행 체인 강조를 부여한다.
-            let kById = {};
-            kDefs.forEach(k => { kById[k.id] = k; });
-            let reqIdsOf = k => { let a = []; if (k.req) a.push(k.req); if (Array.isArray(k.reqAny)) a.push.apply(a, k.reqAny); return a.filter(id => kById[id]); };
-            let depthCache = {};
-            let depthOf = id => { if (depthCache[id] != null) return depthCache[id]; depthCache[id] = 0; let k = kById[id]; if (!k) return 0; if (k.fifthJobOnly) return depthCache[id] = kDefs.length; let rs = reqIdsOf(k); let d = rs.length ? 1 + Math.max.apply(null, rs.map(depthOf)) : 0; return depthCache[id] = d; };
-            let kTiers = [];
-            kDefs.forEach(k => { let d = depthOf(k.id); (kTiers[d] = kTiers[d] || []).push(k); });
-            let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
-            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:12px;">키스톤 초기화</button></div><div style="font-size:12px; color:var(--copy-bright); margin-top:4px;">해제 비용: 마름병 포자 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
-                let active = game.ascendKeystones.includes(k.id);
-                let reqMet = isAscendKeystoneRequirementMet(k);
-                let reqIds = reqIdsOf(k);
-                let reqLabel = '';
-                if (k.fifthJobOnly) {
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 해금: 5차 전직(재능 개화)</div>`;
-                } else if (reqIds.length > 0) {
-                    let names = reqIds.map(id => (kById[id] || {}).name || id);
-                    let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: ${names.join(joiner)}</div>`;
-                }
-                let clickAttr = active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`);
-                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${statToneText.markup(k.desc)}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
-            }).join('')}</div>`).join('');
-            document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
-        }
+        document.getElementById('ui-selected-class-name').innerText = '';
+        // 전직 트리 보기(2026-10-09): 선으로 이은 노드와 키스톤, 합계와 다음 포인트, 늘 보이는 설명 칸(js/ascendancy-tree-ui.js).
+        ascendancyTreeUi.render();
     } else if (game.ascendPoints > 0) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
@@ -14399,23 +14345,6 @@ function buyAscendKeystone(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-// 키스톤 카드 호버 시 해당 키스톤의 선행 체인(루트까지)을 파란 테두리로 연결 강조한다.
-function highlightKeystoneChain(id, on) {
-    let visited = {};
-    let stack = [id];
-    let first = true;
-    while (stack.length > 0) {
-        let cur = stack.pop();
-        if (visited[cur]) continue;
-        visited[cur] = true;
-        let card = document.getElementById('ks-card-' + cur);
-        if (!card) continue;
-        if (first) { card.classList.toggle('ks-self-hi', on); first = false; }
-        else card.classList.toggle('ks-prereq-hi', on);
-        (card.getAttribute('data-ks-req') || '').split(',').filter(Boolean).forEach(r => stack.push(r));
-    }
-}
-
 async function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
     if (!game.ascendKeystones.includes(id)) return;
@@ -14556,9 +14485,7 @@ function getAscendancyNodeFocus(key) {
 }
 
 function renderAscendancyPickCard(key) {
-    const template = CLASS_TEMPLATES[key];
-    const focus = getAscendancyNodeFocus(key).join(', ');
-    return `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${template.name}</span><span style="display:block;font-size:12px; color:#aaa;">${template.desc}</span><span class="class-card-focus" style="display:block;font-size:12px; color:#9fd3ff; margin-top:6px;">노드: ${focus}</span></button>`;
+    return ascendancyTreeUi.pickCardHtml(key);
 }
 
 /** 전직 고르기 화면: 지난 루프의 전직이 이 직업의 것이면 격자 위에 '지난 루프처럼' 카드, 격자에는 전직 셋. */
@@ -14570,7 +14497,7 @@ function fillAscendancyPickScreen() {
 
 function renderLastLoopPlanCard() {
     const plan = getUsableLastLoopAscendPlan();
-    return plan ? `<button type="button" class="class-card ascend-plan-card" style="width:100%; text-align:left;" onclick="chooseLastLoopAscendPlan()"><span style="display:block;font-weight:bold; color:#8fe7b0; margin-bottom:5px;">지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</span><span style="display:block;font-size:12px; color:#aaa;">노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 고릅니다.</span></button>` : '';
+    return plan ? `<button type="button" class="class-card ascend-plan-card" onclick="chooseLastLoopAscendPlan()"><strong>지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</strong><span>노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 고릅니다.</span></button>` : '';
 }
 
 /** 루프 초기화 때 기억한 전직 배치(state.js rememberLoopAscendancyPlan). 지금 직업이 고를 수 있는 전직일 때만 쓴다. */
@@ -14618,7 +14545,7 @@ function getAscendancyPlanContinueHtml() {
     if (!plan || plan.ascendClass !== game.ascendClass) return '';
     const nodesLeft = game.ascendPoints > 0 && plan.nodes.some(id => !game.ascendNodes.includes(id));
     const keystonesLeft = game.ascendKeystonePoints > 0 && plan.keystones.some(id => !game.ascendKeystones.includes(id));
-    return nodesLeft || keystonesLeft ? '<button type="button" class="ascend-plan-continue" style="font-size:12px; margin:0 0 10px;" onclick="continueLastLoopAscendPlan()">지난 루프 배치 이어 하기</button>' : '';
+    return nodesLeft || keystonesLeft ? '<button type="button" class="ascend-plan-continue" onclick="continueLastLoopAscendPlan()">지난 루프 배치 이어 하기</button>' : '';
 }
 
 function continueLastLoopAscendPlan() {

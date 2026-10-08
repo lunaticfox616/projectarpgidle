@@ -1,0 +1,58 @@
+@layer components{
+/* 전직 트리 보기(2026-10-09, js/ascendancy-tree-ui.js): 선으로 이은 노드와 키스톤, 요약과 늘 보이는 설명 칸. 도트 테마의 각진 청동 틀. */
+#tab-traits #ui-ascend-tree-container{display:block}
+#tab-traits .ascend-points{color:#f1c40f;font-weight:700}
+#tab-traits .ascend-summary{display:grid;gap:6px;margin:0 0 12px;padding:10px 12px;border:2px solid #4b4136;background:rgba(18,14,10,.72)}
+#tab-traits .ascend-summary-name{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+#tab-traits .ascend-summary-name strong{color:#f3dc9a;font-size:15px}
+#tab-traits .ascend-summary-name span{color:#a99d84;font-size:12px}
+#tab-traits .ascend-summary-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#tab-traits .ascend-summary-chips>span{padding:3px 8px;border:1px solid #4b4136;background:rgba(0,0,0,.25);font-size:12px;color:#d9ceb0}
+#tab-traits .ascend-summary-chips b{color:#f6dc8c}
+#tab-traits .ascend-muted{margin:0;font-size:12px;line-height:1.5;color:#a99d84}
+#tab-traits .ascend-total{margin:0;font-size:12px;line-height:1.5;color:#d9ceb0}
+#tab-traits .ascend-reset,#tab-traits .ascend-plan-continue{min-height:30px;padding:3px 10px;font-size:12px;justify-self:start}
+#tab-traits .ascend-board{margin:0 0 12px;padding:8px 10px 10px;border:2px solid #3a3229;background:rgba(10,8,6,.55)}
+#tab-traits .ascend-board h3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;font-size:13px;color:#e6c068}
+#tab-traits .ascend-graph{position:relative;width:min(100%,520px);height:calc(var(--rows) * 64px);margin:0 auto}
+#tab-traits .ascend-graph.is-keystones{height:calc(var(--rows) * 72px)}
+#tab-traits .ascend-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#tab-traits .ascend-links line{stroke:#4b4136;stroke-width:2}
+#tab-traits .ascend-links line.is-lit{stroke:#8f7a4c}
+#tab-traits .ascend-links line.is-done{stroke:#e6c068}
+#tab-traits .ascend-node{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:54px;height:46px;min-width:0;min-height:0;margin:0;padding:2px;border:2px solid #5d554a;border-radius:0;background:#1a1510;color:#d9ceb0;font-size:11px;line-height:1.1;box-shadow:none;cursor:pointer}
+#tab-traits .ascend-node .ascend-node-icon{width:22px;height:22px}
+#tab-traits .ascend-node span{white-space:nowrap}
+#tab-traits .ascend-node.is-major{width:62px;height:52px;border-color:#7a6a4a}
+#tab-traits .ascend-node.is-taken{border-color:#e6c068;background:#3a2c14;color:#f6dc8c}
+#tab-traits .ascend-node.is-open{border-color:#8fd0ff;color:#e8f4ff}
+#tab-traits .ascend-node.is-nopoint{border-color:#6f86a0}
+#tab-traits .ascend-node.is-locked,#tab-traits .ascend-node.is-full{opacity:.72}
+#tab-traits .ascend-node.is-closed,#tab-traits .ascend-node.is-future,#tab-traits .ascend-node.is-fifth{opacity:.5;border-style:dashed}
+#tab-traits .ascend-node:hover{border-color:#f6dc8c;background:#241c12}
+#tab-traits .ascend-node.is-focus{outline:2px solid #f6dc8c;outline-offset:2px}
+#tab-traits .ascend-keystone{width:98px;height:54px}
+#tab-traits .ascend-keystone span{white-space:normal;text-align:center;font-size:11px}
+#tab-traits .ascend-note{position:sticky;bottom:0;z-index:2;min-height:44px;margin:0;padding:8px 12px;border:2px solid #4b4136;background:rgba(16,12,9,.96);font-size:12px;line-height:1.5;color:#d9ceb0}
+#tab-traits .ascend-note strong{color:#f3dc9a}
+#tab-traits .ascend-note small{color:#a99d84}
+/* 전직 고르기 */
+#tab-traits .ascend-pick-intro{margin:0 0 12px;text-align:center;color:#ddd;line-height:1.5}
+#tab-traits .ascend-pick-warning{color:#e7967f;font-size:12px}
+#tab-traits .ascend-pick-plan{margin:0 0 12px}
+#tab-traits .ascend-pick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+#tab-traits .ascend-pick-card,#tab-traits .ascend-plan-card{display:grid;gap:5px;width:100%;padding:10px 12px;text-align:left;border-radius:0}
+#tab-traits .ascend-pick-card strong{color:#f1c40f;font-size:14px}
+#tab-traits .ascend-plan-card strong{color:#8fe7b0}
+#tab-traits .ascend-pick-card span,#tab-traits .ascend-plan-card span{font-size:12px;line-height:1.45;color:#b8ad96}
+#tab-traits .ascend-pick-card .ascend-pick-line{color:#9fd3ff}
+#tab-traits .ascend-pick-card .ascend-pick-line.is-keystone{color:#f0d7a6}
+@media (max-width:720px){
+    #tab-traits .ascend-graph{height:calc(var(--rows) * 58px)}
+    #tab-traits .ascend-graph.is-keystones{height:calc(var(--rows) * 66px)}
+    #tab-traits .ascend-node{width:46px;height:42px;font-size:10px}
+    #tab-traits .ascend-node.is-major{width:52px;height:46px}
+    #tab-traits .ascend-keystone{width:80px;height:50px}
+    #tab-traits .ascend-keystone span{font-size:10px}
+}
+}
