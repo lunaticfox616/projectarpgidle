@@ -28,7 +28,11 @@ const WEAPON_BASE_CATEGORIES = Object.freeze({
     spiritbound_wand: 'orb', rift_scepter: 'orb', gravebind_scepter: 'orb', echo_focus: 'orb', ritual_familiar_staff: 'orb',
     void_archon_staff: 'orb', abyss_chant_staff: 'orb', astral_familiar_staff: 'orb', archon_familiar_staff: 'orb', genesis_void_staff: 'orb',
     cracked_flask: 'flask', catalyst_flask: 'flask', volatile_flask: 'flask', alchemist_retort: 'flask', philosopher_flask: 'flask',
-    tin_censer: 'censer', incense_censer: 'censer', ember_censer: 'censer', chapel_censer: 'censer', sunrise_censer: 'censer'
+    tin_censer: 'censer', incense_censer: 'censer', ember_censer: 'censer', chapel_censer: 'censer', sunrise_censer: 'censer',
+    // 수평 베이스(2026-10-09, js/state.js family): 같은 대분류의 다른 정체성.
+    bigtree_maul: 'greatsword', oak_maul: 'greatsword', worldbreaker_maul: 'greatsword', fang_kris: 'scimitar', venom_kris: 'scimitar', serpent_kris: 'scimitar',
+    hunting_longbow: 'shortbow', hawk_longbow: 'shortbow', skyhunter_longbow: 'shortbow', spark_rod: 'orb', storm_rod: 'orb', tempest_scepter: 'orb',
+    herb_toxin_flask: 'flask', toxin_flask: 'flask', plague_flask: 'flask', coal_censer: 'censer', pyre_censer: 'censer', phoenix_censer: 'censer'
 });
 
 safeExposeData({ WEAPON_CATEGORIES, WEAPON_BASE_CATEGORIES });

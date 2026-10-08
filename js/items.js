@@ -983,14 +983,20 @@ function getBaseBuildArchetype(base) {
     if (ids.some(id => id.startsWith('summon'))) return 'summon';
     return 'generic';
 }
+/** 수평 베이스(2026-10-09, js/state.js family): 같은 family 안에서만 오른다. 다른 베이스는 family 베이스로 오르지 않는다. */
+function getBaseFamilyUpgradeCandidates(currentBase) {
+    return BASE_ITEM_DB.filter(base => base.slot === currentBase.slot && base.family === currentBase.family
+        && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase).sort((a, b) => a.reqTier - b.reqTier);
+}
 function getBaseUpgradeCandidates(currentBase) {
+    if (currentBase.family) return getBaseFamilyUpgradeCandidates(currentBase);
     let currentProfile = getBaseDefenseProfile(currentBase);
     let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
     let currentArchetype = getBaseBuildArchetype(currentBase);
     let currentCategory = getWeaponCategoryOfBase(currentBase.id);
     let isArmorSlot = ['투구','갑옷','장갑','신발','방패'].includes(currentBase.slot);
     let candidates = BASE_ITEM_DB
-        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
+        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase && !base.family)
         .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
         .filter(base => getBaseBuildArchetype(base) === currentArchetype)
         // 무기는 같은 대분류 안에서만 승급한다(곡도가 대검이 되지 않게).

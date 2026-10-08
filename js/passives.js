@@ -8675,8 +8675,14 @@ function isBaseChainTop(base) {
 function getBaseDropWeight(base, dropTier) {
     const rules = BASE_DROP_WEIGHTS;
     if (base.dropOnly || base.realmBase) return (base.reqTier || 0) >= 20 ? rules.contentTop : 1;
-    const top = isBaseChainTop(base) ? rules.chainTop : 1;
+    const top = (isBaseChainTop(base) ? rules.chainTop : 1) * getHorizontalBaseDropShare(base);
     return (base.reqTier || 1) < dropTier - rules.windowTiers ? top * rules.belowWindow : top;
+}
+/** A horizontal base (js/state.js family) drops at BASE_DROP_WEIGHTS.horizontal of a plain one, amulets lower. */
+function getHorizontalBaseDropShare(base) {
+    const share = BASE_DROP_WEIGHTS.horizontal;
+    if (!base.family || !share) return 1;
+    return Object.hasOwn(share, base.slot) ? share[base.slot] : share.default;
 }
 
 function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}, weaponCategory) {

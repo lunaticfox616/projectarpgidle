@@ -50,7 +50,10 @@ const SOCKETED_ACCESSORY_DROP_CHANCE = 0.05;
 // 장비 베이스 드랍 가중치(2026-10-07 드랍 풀 1단계, js/passives.js getBaseDropWeight). 드랍 티어보다 windowTiers 단계 넘게 낮은
 // 일반 베이스는 belowWindow, 승급 체인 맨 위(6단계 체인의 6단계 또는 20단계)는 chainTop, 둘 다면 곱한다. 나머지는 1.
 // 콘텐츠 전용 · 계 전용 베이스(dropOnly, realmBase)는 창을 쓰지 않고, 20단계 이상만 contentTop(예전 그대로).
-const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, chainTop: 0.25, contentTop: 0.04 });
+// 수평 베이스(2026-10-09, js/state.js family)는 horizontal배로 덜 나온다. 장신구는 베이스가 적어 따로 낮게 둔다(아니면 높은 등급
+// 목걸이 드랍의 절반 넘게 수평 베이스가 되어 젬 레벨 목걸이가 드물어진다). 측정: 부위별 희귀 드랍의 약 10~25%.
+const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, chainTop: 0.25, contentTop: 0.04,
+    horizontal: Object.freeze({ default: 0.6, 목걸이: 0.3, 반지: 0.45, 허리띠: 0.4 }) });
 
 // 추가 옵션 종류 한도(2026-10-07 드랍 풀 2단계, js/equipment-crafting.js affixRoom): 마법은 접두 1과 접미 1, 희귀는 접두 3과 접미 3.
 // 줄 수(마법 1~2, 희귀 4~5, 제작 상한 6)는 그대로다. 잿불가지의 옵션 추가만 한도를 넘는다(지도석 타락과 같다).
