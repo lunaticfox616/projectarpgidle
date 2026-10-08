@@ -88,7 +88,8 @@ assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 's
 run(`stumpBox.itemById(game, ${seed}).xp = 199; stumpBox.onEnemyKilled(game, {});`);
 assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'sprout', 'half grown shows a sprout');
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), {}, 'nothing counts before it ripens');
-run(`stumpBox.itemById(game, ${seed}).xp = 399; stumpBox.onEnemyKilled(game, {});`);
+// 다 자랄 때의 굴림(16번)은 0.5로 고정해 추가 줄 없이 자라게 한다.
+run(`Math.random = () => 0.5; stumpBox.itemById(game, ${seed}).xp = 399; stumpBox.onEnemyKilled(game, {}); Math.random = globalThis.realRandom;`);
 assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'flower');
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 6 }, 'a grown fire flower gives fire damage');
 

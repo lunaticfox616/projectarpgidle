@@ -5,7 +5,7 @@
 // requires는 "이 중 하나라도 찍혀 있으면" 찍을 수 있다는 뜻이다. 효과 키는 js/atlas-passives.js가 더한다(수치는 첫 제안값).
 const ATLAS_PASSIVES = Object.freeze({
     wheels: Object.freeze([
-        { id: 'sustain', name: '뿌리 · 지도 유지', tint: '#6f5a86', nodes: [
+        { id: 'sustain', name: '뿌리: 지도 유지', tint: '#6f5a86', nodes: [
             ['s_r', '지도석 감지', [], { mapDrop: 10 }],
             ['s_a1', '지도석 발견', ['s_r'], { mapDrop: 10 }], ['s_a2', '지도석 발견', ['s_a1'], { mapDrop: 10 }],
             ['s_aN', '풍요로운 뿌리', ['s_a2'], { mapDrop: 20, starter: 1 }, true],
@@ -21,7 +21,7 @@ const ATLAS_PASSIVES = Object.freeze({
             ['s_ca', '결과 뿌리', ['s_c2', 's_a2'], { mapRarity: 8, mapDrop: 5 }],
             ['s_k3', '지도 장인', ['s_cN', 's_aN'], { mapQuality: 30, mapRarity: 20, starter: 1 }, 'key']
         ] },
-        { id: 'loot', name: '줄기 · 수량과 희귀도', tint: '#8a6a45', nodes: [
+        { id: 'loot', name: '줄기: 수량과 희귀도', tint: '#8a6a45', nodes: [
             ['l_r', '풍성한 수확', [], { quantity: 4 }],
             ['l_a1', '넉넉한 수확', ['l_r'], { quantity: 4 }], ['l_a2', '넉넉한 수확', ['l_a1'], { quantity: 4 }],
             ['l_aN', '무성한 줄기', ['l_a2'], { quantity: 10, packSize: 1 }, true],
@@ -37,7 +37,7 @@ const ATLAS_PASSIVES = Object.freeze({
             ['l_ca', '정예의 수확', ['l_c2', 'l_a2'], { extraElite: 3, quantity: 2 }],
             ['l_k3', '황금 옹이', ['l_bN', 'l_cN'], { rarity: 25, extraElite: 20, monsterLife: 20 }, 'key']
         ] },
-        { id: 'boss', name: '가지 · 보스와 각인', tint: '#5f8a9a', nodes: [
+        { id: 'boss', name: '가지: 보스와 각인', tint: '#5f8a9a', nodes: [
             ['b_r', '각인 탐색', [], { fragmentDrop: 15 }],
             ['b_a1', '각인 수집', ['b_r'], { fragmentDrop: 15 }], ['b_a2', '각인 수집', ['b_a1'], { fragmentDrop: 15 }],
             ['b_aN', '각인 수집가', ['b_a2'], { fragmentDrop: 30 }, true],
@@ -53,7 +53,7 @@ const ATLAS_PASSIVES = Object.freeze({
             ['b_ca', '아끼는 수집', ['b_c2', 'b_a2'], { fragmentKeep: 4, fragmentDrop: 8 }],
             ['b_k3', '보스의 인장', ['b_bN', 'b_cN'], { bossMap: 40, fragmentKeep: 15 }, 'key']
         ] },
-        { id: 'content', name: '잎 · 지도 속 콘텐츠', tint: '#9a5f45', nodes: [
+        { id: 'content', name: '잎: 지도 속 콘텐츠', tint: '#9a5f45', nodes: [
             ['e_r', '세계의 메아리', [], { breach: 3, hive: 3, treasure: 3, meteor: 3 }],
             ['e_a1', '공허의 기척', ['e_r'], { breach: 8 }], ['e_a2', '공허의 기척', ['e_a1'], { breach: 8 }],
             ['e_aN', '공허의 틈', ['e_a2'], { breach: 12, breachReward: 50 }, true],
@@ -68,18 +68,44 @@ const ATLAS_PASSIVES = Object.freeze({
             ['e_ab', '공허의 벌집', ['e_a2', 'e_b2'], { breach: 4, hive: 4 }], ['e_bc', '꿀과 흙', ['e_b2', 'e_c2'], { hive: 4, treasure: 4 }],
             ['e_ca', '균열 속 흙', ['e_c2', 'e_a2'], { treasure: 4, breach: 4 }],
             ['e_k3', '갈라진 세계', ['e_cN', 'e_aN'], { breach: 10, treasure: 10, breachReward: 30, treasureReward: 30 }, 'key']
+        ] },
+        // 열매(2026-10-09 사용자: 콘텐츠별 보상 세팅, 2번): 루프 30 뒤의 방 넷과 기억 던전, 변이체를 노리는 갈래. 줄기 셋은 잿불 터,
+        // 수액 상처, 시든 정원. 핵심 노드는 묘목장(잎 갈래의 운석 자리), 황금 수확(모든 방의 황금 방과 보급 상자 등급), 되감긴 기억(기억과
+        // 변이체). 갈래는 minLoop에 열리고, 방 노드는 그 방이 열리는 루프부터 찍는다(js/atlas-passives.js loopOf). 여섯째 값은 노드의 루프.
+        { id: 'fruit', name: '열매: 깊은 콘텐츠', tint: '#7d8a45', minLoop: 30, nodes: [
+            ['f_r', '맺히는 열매', [], { emberField: 3, sapWound: 3, witheredGarden: 3, nursery: 3 }],
+            ['f_a1', '잿불 냄새', ['f_r'], { emberField: 8 }], ['f_a2', '잿불 냄새', ['f_a1'], { emberField: 8 }],
+            ['f_aN', '타오르는 터', ['f_a2'], { emberField: 12, emberFieldReward: 50 }, true],
+            ['f_b1', '스미는 수액', ['f_r'], { sapWound: 8 }], ['f_b2', '스미는 수액', ['f_b1'], { sapWound: 8 }],
+            ['f_bN', '깊은 상처', ['f_b2'], { sapWound: 12, sapWoundReward: 50 }, true],
+            ['f_c1', '마른 꽃잎', ['f_r'], { witheredGarden: 8 }], ['f_c2', '마른 꽃잎', ['f_c1'], { witheredGarden: 8 }],
+            ['f_cN', '시든 화원', ['f_c2'], { witheredGarden: 12, witheredGardenReward: 50 }, true],
+            ['f_k1', '묘목의 숲', ['f_aN', 'f_bN'], { nursery: 20, nurseryReward: 50 }, 'key'],
+            ['f_k2', '황금 수확', ['f_bN', 'f_cN'], { goldenRoom: 5, chestGrade: 100 }, 'key'],
+            ['f_aT', '꺼지지 않는 불씨', ['f_aN'], { emberField: 10, emberFieldReward: 25 }], ['f_bT', '굳은 호박', ['f_bN'], { sapWound: 10, sapWoundReward: 25 }],
+            ['f_cT', '짙은 기름', ['f_cN'], { witheredGarden: 10, witheredGardenReward: 25 }],
+            ['f_ab', '불붙은 수액', ['f_a2', 'f_b2'], { emberField: 4, sapWound: 4 }], ['f_bc', '수액 먹은 꽃', ['f_b2', 'f_c2'], { sapWound: 4, witheredGarden: 4 }],
+            ['f_ca', '재 덮인 정원', ['f_c2', 'f_a2'], { witheredGarden: 4, emberField: 4 }],
+            ['f_k3', '되감긴 기억', ['f_cN', 'f_aN'], { memoryDrop: 50, variantChance: 4 }, 'key', 33]
         ] }
-    ].map(wheel => Object.freeze({ ...wheel, nodes: Object.freeze(wheel.nodes.map(([id, name, requires, effect, rank = false]) =>
-        Object.freeze({ id, name, requires: Object.freeze(requires), effect: Object.freeze(effect), rank: rank === 'key' ? 'keystone' : (rank ? 'notable' : 'small') }))) }))),
+    ].map(wheel => Object.freeze({ ...wheel, nodes: Object.freeze(wheel.nodes.map(([id, name, requires, effect, rank = false, minLoop = 0]) =>
+        Object.freeze({ id, name, requires: Object.freeze(requires), effect: Object.freeze(effect), rank: rank === 'key' ? 'keystone' : (rank ? 'notable' : 'small'),
+            minLoop: Math.max(wheel.minLoop || 0, minLoop) }))) }))),
     // 효과 이름(패시브 화면). % 붙는 키는 수치 뒤에 %를, 나머지는 그대로 쓴다.
     labels: Object.freeze({
-        mapDrop: ['지도석 드롭', '%'], mapTierUp: ['높은 등급 지도석', '%p'], mapRarity: ['마법 · 희귀 지도석', '%'], mapQuality: ['품질 붙은 지도석', '%p'],
+        mapDrop: ['지도석 드롭', '%'], mapTierUp: ['높은 등급 지도석', '%p'], mapRarity: ['마법과 희귀 지도석', '%'], mapQuality: ['품질 붙은 지도석', '%p'],
         starter: ['루프 시작 지도석', '개'], portals: ['포털', '개'], quantity: ['아이템 수량', '%'], rarity: ['아이템 희귀도', '%'],
         packSize: ['무리마다 몬스터', ''], extraElite: ['전투 방 정예', '%p'], monsterLife: ['몬스터 생명력', '%'], monsterDamage: ['몬스터 피해', '%'],
         fragmentDrop: ['각인 드롭', '%'], bossMap: ['보스 추가 지도석', '%p'], bossRarity: ['보스 아이템 희귀도', '%'], fragmentKeep: ['각인 보존', '%p'],
-        slots: ['각인 홈', '개'], bossLife: ['보스 생명력 · 피해', '%'], breach: ['공허 균열 방', '%p'], hive: ['벌집 방', '%p'],
+        slots: ['각인 홈', '개'], bossLife: ['보스 생명력과 피해', '%'], breach: ['공허 균열 방', '%p'], hive: ['벌집 방', '%p'],
         treasure: ['보물 방', '%p'], meteor: ['운석 분화구', '%p'], breachReward: ['공허 균열 보상', '%'], hiveReward: ['벌집 보상', '%'],
         treasureReward: ['보물 보상', '%'], meteorReward: ['운석 보상', '%'], encounterExtra: ['지도마다 조우', '개'],
+        // 열매 갈래와 보급 각인(2026-10-09): 새 방 넷의 빈도와 보상, 황금 방, 보급 상자, 기억, 변이체.
+        emberField: ['잿불 터 방', '%p'], sapWound: ['수액 상처 방', '%p'], witheredGarden: ['시든 정원 방', '%p'], nursery: ['묘목장 방', '%p'],
+        emberFieldReward: ['잿불 터 보상', '%'], sapWoundReward: ['수액 상처 보상', '%'], witheredGardenReward: ['시든 정원 보상', '%'],
+        nurseryReward: ['묘목장 보상', '%'], goldenRoom: ['황금 방', '%p'], chestGrade: ['은빛과 황금 보급 상자', '%'],
+        memoryDrop: ['보스의 기억', '%'], variantChance: ['보스 변이체', '%p'], chestExtra: ['보급 상자', '개'],
+        chestMinGrade: ['보급 상자가 모두 은빛 이상', 'on'],
         // 켜기만 하는 효과(값 없이 이름만 보인다): 예전 양봉업자 · 천문학자 기능(2026-10-01).
         beeEvents: ['지도 처치 중 벌 이벤트(꽃가루 10)', 'on'], constellation: ['운석 정산마다 별자리 관측(루프 후 유지)', 'on']
     })

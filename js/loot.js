@@ -37,7 +37,9 @@ function isFirstActBossEquipmentDropThisLoop(zone, enemy) {
 function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMultiplier) {
     let currentFloor = Math.max(1, Math.floor(Number(floor) || 1));
     let commonMul = Math.max(0, Number(fossilDropMultiplier) || 0);
-    let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0);
+    // 깊은 층(data/items.js LABYRINTH_DEEP_FOSSIL): 원시와 고대가 상한에 닿은 뒤로는 심연 화석이 층마다 더 자주 나온다.
+    let deepMul = 1 + Math.max(0, currentFloor - LABYRINTH_DEEP_FOSSIL.fromFloor) * LABYRINTH_DEEP_FOSSIL.abyssalPerFloor;
+    let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0) * deepMul;
     return {
         base: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
         typed: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
@@ -172,6 +174,23 @@ function getBasicCurrencyDrops(enemy, bonusRoll) {
     return drops;
 }
 
+/** Content kills: the ember pack's branches (잿불 터, js/ember-corruption.js), the sap pack's catalysts (수액 상처, js/sap-catalysts.js),
+ * the withered pack's oils (시든 정원, js/garden-oils.js), then the content bosses' extras. */
+function getContentKillCurrencyDrops(zone, enemy, abyssScale) {
+    const embers = typeof emberCorruption === 'object' ? emberCorruption.killDrops(enemy) : [];
+    const catalysts = typeof sapCatalysts === 'object' ? sapCatalysts.killDrops(enemy) : [];
+    const oils = typeof gardenOils === 'object' ? gardenOils.killDrops(enemy) : [];
+    return [...embers, ...catalysts, ...oils, ...getContentBossCurrencyDrops(zone, enemy, abyssScale)];
+}
+
+/** A deep abyss boss's jewel shards and a season boss's core. */
+function getContentBossCurrencyDrops(zone, enemy, abyssScale) {
+    const drops = [];
+    if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
+    if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
+    return drops;
+}
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let abyssScale = getAbyssMonsterScales(zone);
@@ -215,7 +234,7 @@ function getCurrencyDrops(enemy) {
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         let resourceChance = getUnderworldResourceDropChances(enemy);
-        // Core and uber entry tickets are exempt from the underworld loot reduction.
+        // Core keys and shadow root tickets are exempt from the underworld loot reduction.
         let coreKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
         if (Math.random() < resourceChance.fossil) drops.push(['fossil', 1]);
@@ -228,8 +247,7 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);
         if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
     }
-    if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
-    if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
+    drops.push(...getContentKillCurrencyDrops(zone, enemy, abyssScale));
     return levelProgression.filterCurrencyDrops(drops, levelProgression.rewardMultiplier(zone, enemy, game.level))
         .filter(([key]) => contentProgression.canDropCurrency(key));
 }
@@ -247,18 +265,36 @@ safeExposeGlobals({ getCurrencyDrops });
             .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     }
 
+    /** Affix tags a rule can count (data/affix-tags.js), in table order. */
+    function tagOptions() {
+        return Object.entries(AFFIX_TAG_LABELS).map(([id, name]) => ({ id, name }));
+    }
+
+    /** One option line ({statId, minValue, minTier}) or a count of lines carrying a tag ({tag, minCount, minTier}). */
+    function normalizeRule(rule, validIds) {
+        if (!rule || !Number.isFinite(rule.minTier)) return null;
+        const minTier = clampNumber(Math.floor(Number(rule.minTier)), 0, 20);
+        if (typeof rule.tag === 'string') {
+            return AFFIX_TAG_LABELS[rule.tag] && Number.isFinite(rule.minCount)
+                ? { tag: rule.tag, minCount: clampNumber(Math.floor(Number(rule.minCount)), 1, 6), minTier } : null;
+        }
+        return validIds.has(rule.statId) && Number.isFinite(rule.minValue) ? { statId: rule.statId, minValue: Math.max(0, Number(rule.minValue)), minTier } : null;
+    }
+
+    function ruleKey(rule) {
+        return rule.tag ? 'tag:' + rule.tag : rule.statId;
+    }
+
     /** Normalize external save/UI input; invalid rows cannot become broad keep rules. */
     function normalizeTargets(input) {
         const source = input && typeof input === 'object' ? input : {};
         const validIds = new Set(statOptions().map(stat => stat.id));
         const seen = new Set();
-        const rules = (Array.isArray(source.rules) ? source.rules : []).filter(rule => {
-            if (!rule || !validIds.has(rule.statId) || seen.has(rule.statId)) return false;
-            if (!Number.isFinite(rule.minValue) || !Number.isFinite(rule.minTier)) return false;
-            seen.add(rule.statId);
+        const rules = (Array.isArray(source.rules) ? source.rules : []).map(rule => normalizeRule(rule, validIds)).filter(rule => {
+            if (!rule || seen.has(ruleKey(rule))) return false;
+            seen.add(ruleKey(rule));
             return true;
-        }).slice(0, 6).map(rule => ({ statId: rule.statId,
-            minValue: Math.max(0, Number(rule.minValue)), minTier: clampNumber(Math.floor(Number(rule.minTier)), 0, 20) }));
+        }).slice(0, 6);
         return { enabled: source.enabled === true, slot: EQUIPMENT_DROP_SLOTS.includes(source.slot) ? source.slot : 'any',
             scope: source.scope === 'all' ? 'all' : 'explicit',
             minMatches: clampNumber(Math.floor(Number(source.minMatches) || 1), 1, Math.max(1, rules.length)), rules };
@@ -274,21 +310,42 @@ safeExposeGlobals({ getCurrencyDrops });
         settings.equipmentTargets = normalizeTargets(settings.equipmentTargets);
     }
 
-    function targetStats(item, scope) {
-        let stats = item.stats || [];
-        if (scope === 'all') stats = stats.concat(item.baseStats || [], item.underEnchant || []);
-        return stats.filter(Boolean).flatMap(stat => [stat,
-            ...(stat.extraStats || []).map(extra => ({ ...extra, tier: stat.tier }))]);
+    /** The pickup settings a quick preset sets (data/items.js ITEM_PICKUP_PRESETS), the late one relative to the zone's tier cap. */
+    function pickupPreset(key, zone) {
+        const preset = ITEM_PICKUP_PRESETS[key];
+        if (!preset) return null;
+        const tierFloor = preset.tierBelowZoneCap ? Math.max(1, getZoneEquipmentTierCap(zone) - preset.tierBelowZoneCap) : 1;
+        return { itemFilterEnabled: true, itemFilterRarities: { ...preset.rarities }, itemFilterMinHiddenTier: tierFloor, itemFilterMinTierCount: 0,
+            itemFilterOnlyNewCodexUnique: !!preset.onlyNewCodexUnique };
     }
 
-    /** A rule matches one option line (including compound extras), never a sum of separate lines. */
+    function targetLines(item, scope) {
+        const stats = item.stats || [];
+        return (scope === 'all' ? stats.concat(item.baseStats || [], item.underEnchant || []) : stats).filter(Boolean);
+    }
+
+    /** Lines with their compound extras as their own entries (an extra keeps its line's tier). */
+    function targetStats(lines) {
+        return lines.flatMap(stat => [stat, ...(stat.extraStats || []).map(extra => ({ ...extra, tier: stat.tier }))]);
+    }
+
+    /** One line meets a rule at its tier: the option and value, or for a tag rule a line carrying the tag. */
+    function lineMatchesRule(stat, rule) {
+        if (!stat || Number(stat.tier || 0) < rule.minTier) return false;
+        return rule.tag ? getAffixTags(stat).includes(rule.tag) : stat.id === rule.statId && Number(stat.val) >= rule.minValue;
+    }
+
+    /** An option rule needs one line (compound extras included), never a sum of lines; a tag rule counts whole lines. */
+    function ruleMet(rule, lines, expanded) {
+        return rule.tag ? lines.filter(line => lineMatchesRule(line, rule)).length >= rule.minCount : expanded.some(stat => lineMatchesRule(stat, rule));
+    }
+
     function matches(item, targetGame = game) {
         const filter = targetGame.settings && targetGame.settings.equipmentTargets;
         if (!filter || !filter.enabled || !filter.rules.length || !item) return false;
         if (filter.slot !== 'any' && filter.slot !== item.slot) return false;
-        const stats = targetStats(item, filter.scope);
-        return filter.rules.filter(rule => stats.some(stat => stat.id === rule.statId
-            && Number(stat.val) >= rule.minValue && Number(stat.tier || 0) >= rule.minTier)).length >= filter.minMatches;
+        const lines = targetLines(item, filter.scope), expanded = targetStats(lines);
+        return filter.rules.filter(rule => ruleMet(rule, lines, expanded)).length >= filter.minMatches;
     }
 
     function highlight(item, targetGame = game) {
@@ -325,7 +382,8 @@ safeExposeGlobals({ getCurrencyDrops });
         return { items: rows.slice(0, 5), total: rows.length };
     }
 
-    const equipmentLootPolicy = Object.freeze({ statOptions, normalizeTargets, normalizeSettings, matches, highlight, collectHighlights });
+    const equipmentLootPolicy = Object.freeze({ statOptions, tagOptions, ruleKey, normalizeTargets, normalizeSettings, pickupPreset, lineMatchesRule, matches,
+        highlight, collectHighlights });
     safeExposeGlobals({ equipmentLootPolicy });
 })();
 

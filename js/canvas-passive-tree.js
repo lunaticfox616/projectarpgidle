@@ -923,7 +923,7 @@ function renderEquipmentInspectorActions(item, slot, presetProtected) {
     return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : '장착'}</button>
         ${contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작</button>` : ''}
         ${chaosInfusionUi.actionHtml(item, slot)}
-        ${equipmentSocketsUi.actionHtml(item, slot)}
+        ${equipmentSocketsUi.actionHtml(item, slot)}${gardenOilsUi.actionHtml(item, slot)}
         ${slot ? '' : renderEquipmentInventoryProtectionActions(item, presetProtected)}`;
 }
 

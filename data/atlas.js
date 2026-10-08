@@ -92,8 +92,9 @@ const ATLAS = Object.freeze({
         { id: 'burningGround', kind: 'suffix', text: '바닥에 불길 웅덩이가 예고 후 번진다', min: 0, max: 0, quantity: [8, 12], rarity: [5, 7] },
         { id: 'monsterEvasion', kind: 'suffix', text: '몬스터 회피 확률 +{v}%', min: 10, max: 20, quantity: [5, 8], rarity: [3, 4] }
     ].map(Object.freeze)),
-    // 각인(스캐럽): 지도 장치 홈(기본 2)에 끼워 두면 지도를 열 때 1개씩 쓴다. 지도 안 정예 · 보스가 떨어뜨리고 루프마다 비운다.
+    // 각인: 지도 장치 홈(기본 2)에 끼워 두면 지도를 열 때 1개씩 쓴다. 지도 안 정예 · 보스가 떨어뜨리고 루프마다 비운다.
     // effect 키는 아틀라스 패시브와 같다(js/atlas-passives.js). encounter는 그 콘텐츠 방을 반드시 만든다.
+    // minLoop(또는 encounter 방의 minLoop) 전에는 떨어지지 않고 지도 장치에도 보이지 않는다(js/atlas.js fragmentOpen).
     fragments: Object.freeze([
         { id: 'packs', name: '무리 각인', effect: { packSize: 1, quantity: 8 } },
         { id: 'elites', name: '정예 각인', effect: { extraElite: 30, rarity: 10 } },
@@ -102,7 +103,13 @@ const ATLAS = Object.freeze({
         { id: 'breach', name: '균열 각인', encounter: 'breach' },
         { id: 'hive', name: '벌집 각인', encounter: 'hive' },
         { id: 'treasure', name: '보물 각인', encounter: 'treasure' },
-        { id: 'meteor', name: '운석 각인', encounter: 'meteor' }
+        { id: 'meteor', name: '운석 각인', encounter: 'meteor' },
+        // 열매 갈래(2026-10-09): 루프 30 뒤의 방 넷을 확정하는 각인과, 보급 상자를 하나 더 두고 모두 은빛 이상으로 만드는 보급 각인.
+        { id: 'emberField', name: '잿불 각인', encounter: 'emberField' },
+        { id: 'sapWound', name: '수액 각인', encounter: 'sapWound' },
+        { id: 'witheredGarden', name: '시든 각인', encounter: 'witheredGarden' },
+        { id: 'nursery', name: '묘목 각인', encounter: 'nursery' },
+        { id: 'supply', name: '보급 각인', effect: { chestExtra: 1, chestMinGrade: 1 }, minLoop: 30 }
     ].map(Object.freeze)),
     // held: fragments one open map keeps for its boss (like its map drops) — the save boundary uses the same cap.
     fragmentRules: Object.freeze({ slots: 2, elite: 0.03, boss: 0.25, cap: 99, held: 50 }),
@@ -111,21 +118,62 @@ const ATLAS = Object.freeze({
     // chance: 지도마다 그 방이 생길 기본 확률(%). 패시브 · 각인이 더한다. 지도마다 굴려 생기는 방은 encounterLimit개까지.
     encounters: Object.freeze({
         breach: Object.freeze({ name: '공허 균열', chance: 8, packExtra: 4, prefix: '공허의', enemy: Object.freeze({ hp: 2, damage: 1.3, attack: 1.25, exp: 2 }),
-            rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3 }),
+            rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3,
+            golden: Object.freeze([['voidChisel', 2], ['jewelShard', 2]]), chest: Object.freeze(['voidChisel', 1]) }),
         // 정예 수호벌은 벌집 세트에서 같은 이름의 그림(hive-guard)을 쓴다(2026-10-07 검토: 여왕 근위벌 그림이라 외형 기록의 이름이 달랐다).
         hive: Object.freeze({ name: '벌집', chance: 8, packExtra: 3, names: Object.freeze(['벌집 전투벌', '정예 수호벌']), visuals: Object.freeze(['hive-worker', 'hive-guard']), enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
-            rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15 }),
+            rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15,
+            golden: Object.freeze([['enchantedHoney', 1]]), chest: Object.freeze(['pollen', 6]) }),
         treasure: Object.freeze({ name: '보물 방', chance: 10, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
-            rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5 }),
+            rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5,
+            golden: Object.freeze([['goldenRule', 1]]), chest: Object.freeze(['sapBud', 1]) }),
         meteor: Object.freeze({ name: '운석 분화구', chance: 6, packExtra: 2, prefix: '별에 물든', enemy: Object.freeze({ hp: 1.6, damage: 1.2, attack: 1.1, exp: 1.6 }),
-            rewards: Object.freeze([['skyEssence', 0.8, 0.06]]), mapChance: 0.2 }),
+            rewards: Object.freeze([['skyEssence', 0.8, 0.06]]), mapChance: 0.2,
+            golden: Object.freeze([['skyEssence', 3]]), chest: Object.freeze(['skyEssence', 1]) }),
+        // 잿불 터(12번 루프 30, data/ember-corruption.js): 잿불 무리(화염으로 치고, 잿불 테와 불씨가 보인다)가 잿불가지와 드물게
+        // 타오른 잿불가지를 떨어뜨린다. 루프 30부터(minLoop), 잊힌 정원(화염 지역) 지도에서는 두 배로 자주(regionChance).
+        emberField: Object.freeze({ name: '잿불 터', chance: 8, packExtra: 3, prefix: '잿불', minLoop: 30, regionChance: Object.freeze({ garden: 2 }),
+            ele: 'fire', outline: '#ffb347', sparks: '#ff9a3c', enemy: Object.freeze({ hp: 1.5, damage: 1.25, attack: 1.15, exp: 1.6 }),
+            rewards: Object.freeze([['emberBranch', 2, 0.1], ['burningEmberBranch', 0.1, 0]]), mapChance: 0.15,
+            golden: Object.freeze([['burningEmberBranch', 1]]), chest: Object.freeze(['emberBranch', 2]) }),
+        // 수액 상처(12번 루프 32, data/sap-catalysts.js): 세계수의 상처에서 굳은 수액 무리(단단하다, 호박 테와 수액 방울)가 기폭제를
+        // 떨어뜨린다. 루프 32부터, 고목 줄기 지도에서 두 배. 방을 비우면 무작위 한 종류의 기폭제(키 목록이면 하나를 고른다).
+        sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, regionChance: Object.freeze({ trunk: 2 }),
+            outline: '#e8c15a', sparks: '#f2b33d', enemy: Object.freeze({ hp: 2, damage: 1.1, attack: 0.95, exp: 1.7 }),
+            rewards: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15,
+            golden: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 2]]),
+            chest: Object.freeze([Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1]),
+            // 지역 기폭제: 목록에서 고를 때 encounterRegionShare만큼 그 지도 지역의 것(줄기는 치명)이 나온다.
+            regionKeys: Object.freeze({ garden: 'catalystFire', sanctum: 'catalystCold', canopy: 'catalystLight', roots: 'catalystChaos', trunk: 'catalystCrit' }) }),
+        // 시든 정원(12번 루프 36, data/garden-oils.js): 시든 무리(카오스로 친다, 마른 잎 테와 꽃잎)가 정원 기름을 떨어뜨린다. 루프 36부터,
+        // 깊은 뿌리 지도에서 두 배. 방을 비우면 무작위 한 색의 기름 2 + 등급당 0.15.
+        // 묘목장(12번 루프 39, data/stump-nursery.js): 묘목 무리(초록 테와 잎사귀)가 그 지도 지역 색의 씨앗과 수액을 떨어뜨리고, 방을 비우면
+        // 하나는 반드시(js/atlas-run.js clearRoom). 루프 39부터, 하늘 가지 지도에서 두 배.
+        nursery: Object.freeze({ name: '묘목장', chance: 8, packExtra: 2, prefix: '묘목', minLoop: 39, regionChance: Object.freeze({ canopy: 2 }),
+            outline: '#7fd99a', sparks: '#b8f0a0', enemy: Object.freeze({ hp: 1.3, damage: 1.1, attack: 1.05, exp: 1.5 }),
+            rewards: Object.freeze([['magicBud', 3, 0.2]]), mapChance: 0.15 }),
+        witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, regionChance: Object.freeze({ roots: 2 }),
+            ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
+            rewards: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2, 0.15]]), mapChance: 0.15,
+            golden: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2]]), chest: Object.freeze([Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 1]),
+            // 지역 기름: 목록에서 고를 때 encounterRegionShare만큼 그 지도 지역의 색(줄기는 무작위)이 나온다.
+            regionKeys: Object.freeze({ garden: 'oilFire', sanctum: 'oilCold', canopy: 'oilLight', roots: 'oilChaos' }) }),
         // 깨어난 뒤(late): 붉은 제단(총주교)과 푸른 제단(포식자). 방을 비우면 잉걸 · 허기의 즙(data/atlas-endgame.js altars).
-        exarch: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
+        redAltar: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['magicBud', 2, 0.2]]), mapChance: 0.1 }),
-        eater: Object.freeze({ name: '푸른 제단', chance: 12, packExtra: 3, prefix: '허기진', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
+        blueAltar: Object.freeze({ name: '푸른 제단', chance: 12, packExtra: 3, prefix: '허기진', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['formlessDew', 1, 0.1]]), mapChance: 0.1 })
     }),
     encounterLimit: 1,
+    // 황금 방(2026-10-09 사용자 "더 좋은 상자가 뜰 확률"): 지도의 콘텐츠 방이 chance %(+ 패시브 goldenRoom %p)로 황금 방이 된다.
+    // 몬스터가 hpMul, damageMul만큼 세고 금빛 테를 두르며, 방을 비우면 보상이 rewardMul배에 그 방의 golden 보상이 더해진다
+    // (묘목장은 선물 하나 더). 지도 uid와 방 종류의 해시로 정해 지도마다 고정이고 다른 굴림을 밀지 않는다. 제단(late)은 아니다.
+    goldenRoom: Object.freeze({ chance: 5, hpMul: 1.4, damageMul: 1.2, rewardMul: 3, outline: '#ffd75e', sparks: '#fff1a8', prefix: '황금' }),
+    // 목록 보상(기폭제, 기름)에서 그 지도 지역의 것(encounters[].regionKeys)이 나오는 몫. 나머지는 목록에서 무작위.
+    encounterRegionShare: 0.5,
+    // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로). 루프 75에 하나 더(2026-10-09,
+    // 루프 50 이후 이정표).
+    encounterLoopBonus: Object.freeze([Object.freeze({ loop: 50, extra: 1 }), Object.freeze({ loop: 75, extra: 1 })]),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
     altarLimit: 1,
     // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].
@@ -142,10 +190,13 @@ const ATLAS = Object.freeze({
     pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, act: 1, stages: 3, hpMul: 4, damageMul: 1.5,
         tickets: Object.freeze(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']),
         rewards: Object.freeze([['goldenRule', 2], ['sapBud', 3], ['formlessDew', 8]]) }),
-    // 세계수 씨앗(보이드스톤): 하나마다 모든 노드 등급 +2(최대 4개 → 24등급). 4개면 경계 너머의 루프 50 조건을 대신한다
+    // 세계수 씨앗: 하나마다 모든 노드 등급 +2(최대 4개 → 24등급). 4개면 경계 너머의 루프 50 조건을 대신한다
     // (data/endgame-progression.js BEYOND_BOUNDARY_UNLOCK_SEEDS).
     seeds: Object.freeze({ max: 4, tierStep: 2 }),
     tierCap: 24,
+    // 고등급 보상(2026-10-09, 루프 50 이후 레벨 디자인): 장비 등급은 16등급에서 T20에 닿는다(js/atlas.js lootTier). 그 위 등급마다
+    // 아이템 수량 +quantity%, 희귀도 +rarity%, 고유 중 체이싱 고유 확률 +chase%(js/atlas-maps.js effects, chaseMul).
+    overTier: Object.freeze({ from: 16, quantity: 8, rarity: 12, chase: 25 }),
     // 시대 재생(아틀라스 위의 환생 층): 씨앗 4개를 모으면 아틀라스 진행(완료 · 보너스 · 패시브 · 씨앗)을 되돌리고 세계수 정수를 받는다.
     // 정수 = 기본 + 완료 5개마다 1 + 보너스 5개마다 1 + 씨앗마다 1. 특전 한 단계의 값 = 다음 단계 번호 × costStep.
     epoch: Object.freeze({
@@ -157,13 +208,21 @@ const ATLAS = Object.freeze({
             { id: 'points', name: '오래된 수액', max: 5, points: 2 },
             { id: 'starter', name: '기억된 지도', max: 3, effect: Object.freeze({ starter: 1 }) },
             { id: 'slots', name: '넓은 장치', max: 1, effect: Object.freeze({ slots: 1 }) },
-            { id: 'supply', name: '시작 보급', max: 3, supply: Object.freeze([['magicBud', 20], ['formlessDew', 5], ['sapBud', 1]]) }
+            { id: 'supply', name: '시작 보급', max: 3, supply: Object.freeze([['magicBud', 20], ['formlessDew', 5], ['sapBud', 1]]) },
+            // 방치 효율 2(2026-10-08, data/offline-progress.js): 단계마다 방치 효율 +2%p.
+            { id: 'calm', name: '고요한 시대', max: 3, offline: 0.02 },
+            // 남는 정수의 쓸 곳(2026-10-09, 루프 50 이후 레벨 디자인): 다른 특전을 다 사면(정수 64, 시대 셋쯤) 정수가 쌓이기만 했다.
+            // 20단계에 정수 210이라 시대를 열 번 넘게 돈다.
+            { id: 'ages', name: '쌓인 시대', max: 20, effect: Object.freeze({ rarity: 3 }) }
         ].map(Object.freeze))
     }),
     // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
     chart: Object.freeze({ radii: Object.freeze([42, 33, 24.5, 16.5]), ring: Object.freeze([0, 0, 0, 1, 1, 2, 2, 3, 3]),
         offsets: Object.freeze([-24, 0, 24, -18, 18, -18, 18, -18, 18]) }),
     // 바닥 위험 옵션이 쓰는 시련 함정 패턴(js/hazard-evasion.js).
-    burningGround: Object.freeze({ pattern: 'pool', warningMs: 1700, intervalMs: 5200 })
+    burningGround: Object.freeze({ pattern: 'pool', warningMs: 1700, intervalMs: 5200 }),
+    // 이름을 바꾼 저장 id(2026-10-08): 예전 id의 FNV-1a 32비트 해시(16진수) → 새 id. 저장을 불러올 때 아틀라스, 탐험 지도, 적 상태
+    // 안의 예전 id를 새 id로 바꾼다(js/atlas.js renameSavedIds). 예전 id는 해시로만 적는다.
+    renamed: Object.freeze({ '1cc6d67d': 'apex_weaver', 'b334c8e6': 'apex_compost', '494387fb': 'apex_archbishop', '6eb4b0a7': 'apex_devourer', '9ece5360': 'redAltar', 'b36db136': 'blueAltar' })
 });
 safeExposeData({ ATLAS });

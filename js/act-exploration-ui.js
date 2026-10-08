@@ -109,7 +109,7 @@ const actExplorationUi=(()=>{
         ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#140d08';ctx.stroke();
     }
     // Atlas content rooms keep their own colour on the minimap (the rest: boss red, elite gold, pack brown).
-    const ENCOUNTER_MARKS={breach:'#b58ce0',hive:'#79a8e8',treasure:'#8fd08a',meteor:'#f2efe6',exarch:'#f07a2a',eater:'#3f6dff'};
+    const ENCOUNTER_MARKS={breach:'#b58ce0',hive:'#79a8e8',treasure:'#8fd08a',meteor:'#f2efe6',redAltar:'#f07a2a',blueAltar:'#3f6dff'};
     function packMark(pack) {
         if(pack.stage!==null)return '#e78077';
         if(ENCOUNTER_MARKS[pack.encounter])return ENCOUNTER_MARKS[pack.encounter];

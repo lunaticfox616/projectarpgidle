@@ -2,7 +2,8 @@
 // 각 조합법은 재료 묶음(groups: 조합법 inputs 줄마다 재료 목록)을 받아 { ok, consumed, outputs }를 돌려준다.
 // consumed는 조합이 끝나면 없어질 재료, outputs는 보관할 결과다. 결과 종류:
 //   { kind: 'equipment', item } · { kind: 'jewel', item } · { kind: 'core', item }
-//   { kind: 'stump', spec }(새 씨앗 · 수액) · { kind: 'stump', talisman }(새 부적) · { kind: kind, existing }(바뀐 재료 그대로).
+//   { kind: 'stump', spec }(새 씨앗 · 수액) · { kind: 'stump', talisman }(새 부적) · { kind: kind, existing }(바뀐 재료 그대로)
+//   { kind: 'currency', key, amount }(재화, 지갑으로).
 // 결과를 만들 수 없으면 아무것도 바꾸지 않고 { ok: false, reason }을 돌려준다.
 const stumpCubeRecipes = (() => {
     function items(group) {
@@ -63,10 +64,12 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: [], outputs: [{ kind: 'equipment', existing: equipment.item }] };
     }
 
-    function stumpMerge([group]) {
+    /** Best quality + a step, up to the box's quality cap (130%, 140% and 150% with the loop 35 and 45 unlocks); golden if any was golden. */
+    function stumpMerge([group], state) {
         const list = items(group);
-        const roll = Math.min(STUMP_BOX_ROLL_LIMIT.max, Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
-        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: { family: list[0].family, color: list[0].color, roll } }] };
+        const roll = Math.min(stumpBox.rollCap(state), Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
+        const spec = { family: list[0].family, color: list[0].color, roll, golden: list.some(item => item.golden === true) };
+        return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec }] };
     }
 
     function talismanUpgrade([group], state, random) {
@@ -101,7 +104,11 @@ const stumpCubeRecipes = (() => {
     const HANDLERS = Object.freeze({
         equip_magic_upgrade: magicUpgrade, equip_rare_tier: rareTier, equip_unique_reroll: uniqueReroll, equip_socket_jewel: socketJewel,
         stump_merge: stumpMerge, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
-        talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll
+        talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll,
+        // 호박석 기폭제(12번 루프 32): 결과는 재화(stump-cube.js STORERS.currency).
+        amber_catalyst: (groups, state) => sapCatalysts.amberRecipe(groups, state),
+        // 열매 기름(12번 루프 36): 결과는 재화.
+        fruit_oil: (groups, state) => gardenOils.fruitRecipe(groups, state)
     });
 
     function run(recipeId, groups, state = game, random = Math.random) {

@@ -59,7 +59,7 @@ function prepareBattleAssetGroups(manifest, criticalKeys, images, activeSkill, b
         group.keys.push(key);
         if (criticalKeys.has(key)) group.priority = Math.min(group.priority, 0);
         else if (key.startsWith('backdrop')) group.priority = Math.min(group.priority, 1);
-        else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3') group.priority = Math.min(group.priority, 2);
+        else if (key.startsWith('bossAct')) group.priority = Math.min(group.priority, 2);
     }
     return Array.from(groups.values()).filter(group => {
         if (group.keys.every(key => /^(bg|backdrop)/.test(key) && !criticalKeys.has(key))) {

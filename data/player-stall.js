@@ -36,7 +36,9 @@ const PLAYER_STALL_APPRAISAL = Object.freeze({
         { weight: 1.15, ids: ['meleePctDmg','projectilePctDmg','slamPctDmg','potionPctDmg','physPctDmg','elementalPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','dotPctDmg','aoePctDmg','physFlatDmg','fireFlatDmg','coldFlatDmg','lightFlatDmg','chaosFlatDmg','armor','armorPct','evasion','evasionPct','deflectChance','resF','resC','resL','resChaos','move','leech','spellLeech'] },
         { weight: 0.85, ids: ['strength','dexterity','intelligence','accuracy','accuracyBonusPct','minDmgRoll','maxDmgRoll','regen','regenFlat','summonHpPct','leechRateCap','leechTotalCap','leechInstanceCap'] },
         { weight: 0.5, ids: ['regenSuppress','stunChance','stunDuration','blindChance','slowChance','thorns','reflectDmg','itemRarity','goldGain'] },
-        { weight: 1, ids: ['igniteChance','poisonChance','bleedChance','shockChance','chillChance','freezeChance','corpseExplodeChance','corpseExplodeLifePct','resonancePower'] }
+        { weight: 1, ids: ['igniteChance','poisonChance','bleedChance','shockChance','chillChance','freezeChance','corpseExplodeChance','corpseExplodeLifePct','resonancePower'] },
+        // 세계수 기운(12번 루프 27, data/region-affixes.js): 조건이 붙는 줄이지만 그 지역 지도 장비에서만 나온다.
+        { weight: 1.4, ids: ['regionPoisonSpread','regionChaosShred','regionPoisonedLeech','regionChaosOvercap','regionBlockEmpower','regionArmorToPhys','regionBleedingDamage','regionLowLifeDR','regionShockChain','regionCritMove','regionShockSpread','regionShockedLightPen','regionIgniteSpread','regionFullLifeFire','regionIgniteDuration','regionIgnitedDamage','regionFrozenCritDamage','regionShatter','regionChillOnHit','regionChilledAttackerDR'] }
     ],
     // Family follows actual base implicits, not the item's translated name or the player's equipped build.
     families: [

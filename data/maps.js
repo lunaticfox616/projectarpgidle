@@ -151,6 +151,9 @@ const EXPLORATION_EVENT_NOTICES = Object.freeze({
 // 보급 상자 등급(2026-10-05 사용자 결정, js/exploration-objects.js · js/exploration-object-combat.js): 지도를 만들 때 시드로 고정한다.
 // weight: 등급 비율. rolls: 기본(수량 배율) 회차에 더하는 장비 회차. guaranteed: 앞에서부터 반드시 장비가 나오는 회차 수.
 // rare: 앞에서부터 희귀 이상이 보장되는 장비 수. currency: 제작 재화 기본량. variantScale: 장비 드랍 변형(EQUIPMENT_DROP_VARIANTS) 확률 배수.
+// 항아리와 나무 상자(2026-10-07 사용자 "가끔씩 낮은 확률로 장비 보상"): 깨질 때 장비 하나의 확률(지도의 아이템 수량을 곱함)과
+// 재화 확률(재화가 열려 있을 때만). 예전에는 재화 30%뿐이라 재화가 잠긴 루프 1에는 늘 비어 있었고, 그 뒤에도 재화만 나왔다.
+const EXPLORATION_PROP_LOOT = Object.freeze({ itemChance: 0.1, currencyChance: 0.3 });
 const EXPLORATION_CHEST_GRADES = Object.freeze([
     Object.freeze({ id: 'wood', label: '보급 상자', weight: 0.70, rolls: 0, guaranteed: 0, rare: 0, currency: 1, variantScale: 1 }),
     Object.freeze({ id: 'silver', label: '은빛 보급 상자', weight: 0.24, rolls: 0, guaranteed: 1, rare: 0, currency: 2, variantScale: 2 }),
@@ -178,6 +181,15 @@ const LOOP_DEEP_STATS = Object.freeze([
     Object.freeze({ key: 'dr', label: '물리 피해 감소', stat: 'dr', per: 0.5, unit: '%' }),
     Object.freeze({ key: 'crit', label: '치명타 확률', stat: 'crit', per: 0.6, unit: '%' })
 ]);
+
+// 세계수 껍질(2026-10-09, 루프 50 이후 레벨 디자인): 루프 50을 넘긴 뒤 이정표 루프에 이를 때마다 한 겹(루프 55~100은 5루프마다,
+// 110~200은 10루프마다, 최대 20겹). 겹마다 최대 생명력 +pctHp%, 받는 피해 -taken%(다른 받는 피해 감소와 더한다). 관문(혼돈 깊이 =
+// 루프 + 10)의 몬스터 피해는 계속 오르는데 계정 성장은 선형이라 버티는 힘이 먼저 무너졌다(docs/late-game-review-20261008.md).
+// 이정표 줄은 SEASON_CONTENT_ROADMAP 아래에서 만든다. 능력치: js/combat-build-stats.js accumulateWorldTreeBarkStats.
+const WORLD_TREE_BARK = Object.freeze({
+    loops: Object.freeze([55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]),
+    pctHp: 3, taken: 1.5
+});
 
 // 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
@@ -234,7 +246,7 @@ const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
 // 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
 //  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
 //  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
-//  - 융합 유물은 신성한/타락/축복의 오브 외의 제작 재화를 받지 않는다.
+//  - 융합 유물은 황금률, 잿불가지, 축복의 꽃잎 외의 제작 재화를 받지 않는다.
 const TIME_RIFT_UNLOCK_LOOP = 13;
 const TIME_RIFT_PAST_ZONE_ID = 'time_rift_past';
 const TIME_RIFT_FUTURE_ZONE_ID = 'time_rift_future';
@@ -266,37 +278,49 @@ const SEASON_CONTENT_ROADMAP = {
     18: { title: '루프 18', features: ['그루터기 함: 접붙이기 (루프마다 3점)', '심화: 혼돈 단계 상승'] },
     19: { title: '루프 19', features: ['심화: 혼돈 단계 상승'] },
     20: { title: '루프 20', features: ['조건부 해금: 코어 (지하계 10층 클리어)', '심화: 혼돈 단계 상승'] },
-    21: { title: '루프 21', features: ['심화: 혼돈 단계 상승'] },
+    21: { title: '루프 21', features: ['아틀라스: 기억 던전 (보스가 남긴 기억으로 그 보스에게 다시 도전, 1~5단계)', '심화: 혼돈 단계 상승'] },
     22: { title: '루프 22', features: ['심화: 혼돈 단계 상승'] },
-    23: { title: '루프 23', features: ['심화: 혼돈 단계 상승'] },
+    23: { title: '루프 23', features: ['그루터기 함: 봉인 칸 1 (다 자란 것이 루프를 넘김), 포식 (불씨의 흉터)', '심화: 혼돈 단계 상승'] },
     24: { title: '루프 24', features: ['심화: 혼돈 단계 상승'] },
     25: { title: '루프 25', features: ['해금: 야생 부적 드랍 (적이 부적을 떨어뜨림)'] },
     26: { title: '루프 26', features: ['심화: 혼돈 단계 상승'] },
-    27: { title: '루프 27', features: ['심화: 혼돈 단계 상승'] },
+    27: { title: '루프 27', features: ['아틀라스: 세계수 기운 (지역 지도 장비에 그 지역 전용 옵션)', '심화: 혼돈 단계 상승'] },
     28: { title: '루프 28', features: ['심화: 혼돈 단계 상승'] },
-    29: { title: '루프 29', features: ['심화: 혼돈 단계 상승'] },
-    30: { title: '루프 30', features: ['전환점: 혼돈 루프 요구 심화 40층'] },
+    29: { title: '루프 29', features: ['그루터기 함: 봉인 칸 2', '심화: 혼돈 단계 상승'] },
+    30: { title: '루프 30', features: ['아틀라스: 잿불 터 (타오른 잿불가지로 장비를 한 번 더 타락)', '전환점: 혼돈 루프 요구 심화 40층'] },
     31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈·우주계 루프 경로 선택', '조건부 해금: 잔향체 아스트라 / 아틀라스 최종 관문'] },
-    32: { title: '루프 32', features: ['심화: 혼돈 단계 상승'] },
-    33: { title: '루프 33', features: ['심화: 혼돈 단계 상승'] },
+    32: { title: '루프 32', features: ['아틀라스: 수액 상처 (기폭제로 장비의 품질 속성을 고른 태그로)', '심화: 혼돈 단계 상승'] },
+    33: { title: '루프 33', features: ['보스 변이체 (모든 보스가 드물게 변이체로, 처음 잡은 변이마다 보상, 기억 던전에서 다시 부르기)', '심화: 혼돈 단계 상승'] },
     34: { title: '루프 34', features: ['심화: 혼돈 단계 상승'] },
-    35: { title: '루프 35', features: ['심화: 혼돈 단계 상승'] },
-    36: { title: '루프 36', features: ['심화: 혼돈 단계 상승'] },
-    37: { title: '루프 37', features: ['심화: 혼돈 단계 상승'] },
+    35: { title: '루프 35', features: ['그루터기 함: 품질 상한 140%', '심화: 혼돈 단계 상승'] },
+    36: { title: '루프 36', features: ['아틀라스: 시든 정원 (목걸이에 기름 셋을 발라 패시브 노드 하나를 새김)', '심화: 혼돈 단계 상승'] },
+    37: { title: '루프 37', features: ['그루터기 함: 봉인 칸 3', '심화: 혼돈 단계 상승'] },
     38: { title: '루프 38', features: ['심화: 혼돈 단계 상승'] },
-    39: { title: '루프 39', features: ['심화: 혼돈 단계 상승'] },
+    39: { title: '루프 39', features: ['아틀라스: 묘목장 (그 지역 색의 씨앗과 수액, 불씨의 흉터)', '심화: 혼돈 단계 상승'] },
     40: { title: '루프 40', features: ['심화: 혼돈 단계 상승'] },
     41: { title: '루프 41', features: ['심화: 혼돈 단계 상승'] },
-    42: { title: '루프 42', features: ['심화: 혼돈 단계 상승'] },
+    42: { title: '루프 42', features: ['그루터기 함: 고대 씨앗 (모든 색 공명, 이웃 접붙이기 +1, 묘목장과 최종 보스)', '심화: 혼돈 단계 상승'] },
     43: { title: '루프 43', features: ['심화: 혼돈 단계 상승'] },
-    44: { title: '루프 44', features: ['심화: 혼돈 단계 상승'] },
-    45: { title: '루프 45', features: ['심화: 혼돈 단계 상승'] },
+    44: { title: '루프 44', features: ['아틀라스: 기억 던전 4, 5단계', '심화: 혼돈 단계 상승'] },
+    45: { title: '루프 45', features: ['그루터기 함: 품질 상한 150%, 접붙이기 6단계', '심화: 혼돈 단계 상승'] },
     46: { title: '루프 46', features: ['심화: 혼돈 단계 상승'] },
     47: { title: '루프 47', features: ['심화: 혼돈 단계 상승'] },
-    48: { title: '루프 48', features: ['심화: 혼돈 단계 상승'] },
+    48: { title: '루프 48', features: ['아틀라스: 목걸이 기름 둘째 자리', '심화: 혼돈 단계 상승'] },
     49: { title: '루프 49', features: ['심화: 혼돈 단계 상승'] },
-    50: { title: '루프 50', features: ['심화: 혼돈 단계 상승'] }
+    50: { title: '루프 50', features: ['아틀라스: 지도마다 콘텐츠 방 +1', '심화: 혼돈 단계 상승'] }
 };
+// 루프 50 이후 이정표(2026-10-09): 세계수 껍질(WORLD_TREE_BARK) 한 겹마다 한 줄, 같은 루프의 그루터기 함 해금(data/stump-box.js
+// STUMP_BOX_UNLOCKS)과 아틀라스 콘텐츠 방(data/atlas.js encounterLoopBonus) 줄을 뒤에 붙인다.
+(() => {
+    const extra = { 55: ['그루터기 함: 봉인 칸 4'], 60: ['그루터기 함: 품질 상한 160%, 접붙이기 7단계'], 70: ['그루터기 함: 봉인 칸 5'],
+        75: ['아틀라스: 지도마다 콘텐츠 방 +1 (둘째)'], 80: ['그루터기 함: 품질 상한 170%, 접붙이기 8단계'], 90: ['그루터기 함: 봉인 칸 6'],
+        100: ['그루터기 함: 품질 상한 180%, 접붙이기 9단계'] };
+    WORLD_TREE_BARK.loops.forEach((loop, index) => {
+        const layers = index + 1;
+        const bark = `세계수 껍질 ${layers}겹: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%`;
+        SEASON_CONTENT_ROADMAP[loop] = { title: `루프 ${loop}`, features: [bark, ...(extra[loop] || [])] };
+    });
+})();
 
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
@@ -357,9 +381,9 @@ const JOURNAL_DB = {
     act_9: { title: '액트 9 - 비탄의 교차', lines: ['“살아남으려는 가지의 울음은 죄가 아니다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' }, requiresJournal: ['act_8'] },
     act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' }, requiresJournal: ['act_9'] },
     woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'], requiresJournal: ['act_10'] },
-    woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라', requiresJournal: ['woodsman'] },
+    woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 스킬트리 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라', requiresJournal: ['woodsman'] },
     meteor_fall: { title: '운석 낙하 지점', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“식지 않은 분화구에는 별을 쫓던 이들이 두고 간 장비가 남아 있다.”'] },
-    immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
+    immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 스킬트리 포인트 +1' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
     beehive_queen: { title: '루프8 - 벌집 여왕', lines: ['“길은 셋으로 갈라졌지만, 독은 하나로 모였다.”', '“여왕의 날개 아래서 선택은 대가를 부른다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     void_grand_breach: { title: '루프9 - 큰 구멍', lines: ['“공허는 틈으로 시작해 심장으로 끝난다.”', '“쏟아지는 무리를 지나면, 공백도 얼굴을 드러낸다.”'], bonus: { stat: 'chaosPctDmg', value: 3, label: '카오스 피해 +3%' } },
     labyrinth_10: { title: '고대 미궁 - 열 번째 문', lines: ['“같은 복도는 한 번도 없었지만, 모든 벽에는 같은 균사가 자랐다.”', '“열 번째 문을 넘은 자는 길을 외우지 않는다. 길이 자신을 기억하게 만든다.”'] },
@@ -377,8 +401,8 @@ const JOURNAL_DB = {
     rival_glutton: { title: '버려진 날 - 탐식', lines: ['“상처는 전부 내 몫이었다. 그래서 전부 삼켰다.”', '“아무는 날은 갈리지 않는다. 그는 그것을 결함이라 불렀다.”'], bonus: { stat: 'flatHp', value: 10, label: '최대 생명력 +10' } },
     rival_afterimage: { title: '버려진 날 - 잔영', lines: ['“맞지 않으면 지지 않는다고 믿었다.”', '“닿지 않는 날은, 아무것도 바꾸지 못했다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
     rival_backedge: { title: '버려진 날 - 역린', lines: ['“나는 갑옷 안쪽부터 베었다.”', '“그는 말했다. 방식이 아니라 방향이 틀렸다고.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
-    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, requiresJournal: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'] },
-    cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 패시브 포인트 +2' } },
+    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 스킬트리 포인트 +1' }, requiresJournal: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'] },
+    cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 스킬트리 포인트 +2' } },
     pinnacle_underking: { title: '지핵군주 - 모르그란', lines: ['“지하계의 끝은 바닥이 아니었다. 아래를 떠받치던 심장이었다.”', '“모르그란이 무너지자 뿌리 아래의 침묵이 처음으로 갈라졌다.”'] },
     pinnacle_leviathan: { title: '무광해의 포식자 - 탈라사', lines: ['“빛이 사라진 바다는 스스로 굶주림을 낳았다.”', '“천 미터 아래에서 돌아온 칼날에는 검은 조류의 기억이 남았다.”'] },
     pinnacle_sky: { title: '빈 왕좌의 집행자 - 카엘룸', lines: ['“하늘의 왕좌는 오래전부터 비어 있었다.”', '“왕이 없는 질서를 지키던 집행자만이 마지막 번개로 길을 막았다.”'] },
@@ -387,5 +411,5 @@ const JOURNAL_DB = {
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_CHEST_GRADES });
+safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
 safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

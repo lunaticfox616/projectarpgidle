@@ -15,6 +15,8 @@ const hanaActors = (() => {
     const DOTS_PER_TILE = 16;
     const HURT_MS = 420;
     const DRAIN_TINT = '#ba3e5f';
+    // Cell silhouettes kept: four directions of a few motions in three layers, about 10 MB at most.
+    const SILHOUETTE_CELLS = 384;
     const images = new Map();
     const flashes = new Map();
     const masks = new Map();
@@ -40,10 +42,11 @@ const hanaActors = (() => {
     function loaded(img) { return !!img && img.complete && img.naturalWidth > 0; }
     function sheet(classId, motion) { return image(`assets/playable/hana/${classId}/${motion}.png`); }
     function comboSheet(classId, weapon) { return image(`assets/playable/hana/combos/${classId}/${weapon}.png`); }
+    /** The class's motion sheets. A weapon sheet loads on its first draw (figureSource): the class sheet stands in until then,
+     * so the five weapons not in hand are never fetched (2026-10-07 memory review: six per class, 7.5 MB each decoded). */
     function preload(classId) {
-        const def = classDef(classId), table = combos();
+        const def = classDef(classId);
         if (def) Object.keys(def.motions).forEach(motion => sheet(classId, motion));
-        if (table && table.classWeapons[classId]) Object.keys(table.weapons).forEach(weapon => comboSheet(classId, weapon));
     }
     /** All motion sheets of the class are decoded, so a pose never falls back mid-fight. */
     function isReady(classId) {
@@ -54,23 +57,27 @@ const hanaActors = (() => {
     }
     function dotSize(tile) { return Math.max(1, (Number(tile) || 48) / DOTS_PER_TILE); }
 
-    /** One-colour silhouette of a sheet: a soft light for the first frames of a heavy hit (a multiply tint vanishes
-     * on dark sprites), crimson for 흡혈 타격's drain pulse. Cached per sheet and colour. */
-    function silhouette(img, colour = '#ffffff') {
-        const key = `${img.src}|${colour}`;
+    /** One-colour silhouette of one cell of a sheet: the rim colour round the hero, crimson for 흡혈 타격's drain pulse.
+     * Cached per sheet, cell and colour, the most recent SILHOUETTE_CELLS of them. A copy of the whole sheet (7.5 MB per weapon
+     * sheet) stayed for good and grew with every weapon swap (2026-10-07 memory review). */
+    function silhouette(img, src, colour = '#ffffff') {
+        const key = `${img.src}|${src.x},${src.y},${src.w},${src.h}|${colour}`;
         let canvas = flashes.get(key);
-        if (canvas) return canvas;
+        if (canvas) { flashes.delete(key); flashes.set(key, canvas); return canvas; }
         canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = src.w;
+        canvas.height = src.h;
         const c = canvas.getContext('2d');
-        c.drawImage(img, 0, 0);
+        c.drawImage(img, src.x, src.y, src.w, src.h, 0, 0, src.w, src.h);
         c.globalCompositeOperation = 'source-in';
         c.fillStyle = colour;
-        c.fillRect(0, 0, canvas.width, canvas.height);
+        c.fillRect(0, 0, src.w, src.h);
         flashes.set(key, canvas);
+        if (flashes.size > SILHOUETTE_CELLS) flashes.delete(flashes.keys().next().value);
         return canvas;
     }
+    /** The whole of a cell silhouette, drawn where the cell itself would go. */
+    function cellRect(src) { return { x: 0, y: 0, w: src.w, h: src.h }; }
     /** Opaque pixels of a sheet (alpha ≥ 50%), read once per sheet. */
     function alphaMask(img) {
         let mask = masks.get(img.src);
@@ -239,16 +246,16 @@ const hanaActors = (() => {
     function overlay(ctx, frame, dest, strength, colour) {
         if (!(strength > 0)) return;
         ctx.globalAlpha = strength;
-        frame.srcs.forEach(src => blit(ctx, silhouette(frame.img, colour), src, dest));
+        frame.srcs.forEach(src => blit(ctx, silhouette(frame.img, src, colour), cellRect(src), dest));
     }
     /** A one-dot rim round the figure (data BATTLE_SPRITE_OUTLINES.hero): the silhouette stamped a dot off in four directions,
      * drawn before the body so only the edge shows. */
     function rim(ctx, frame, dest, alpha) {
-        const style = BATTLE_SPRITE_OUTLINES.hero, sheet = silhouette(frame.img, style.color);
+        const style = BATTLE_SPRITE_OUTLINES.hero, cells = frame.srcs.map(src => silhouette(frame.img, src, style.color));
         ctx.globalAlpha = alpha * style.alpha;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const shifted = { ...dest, x: dest.x + dx * dest.dot, y: dest.y + dy * dest.dot };
-            frame.srcs.forEach(src => blit(ctx, sheet, src, shifted));
+            frame.srcs.forEach((src, i) => blit(ctx, cells[i], cellRect(src), shifted));
         }
     }
     function drawDotShadow(ctx, foot, dot, alpha) {

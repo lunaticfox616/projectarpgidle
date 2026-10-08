@@ -38,6 +38,13 @@ const atlasRun = (() => {
         atlas.beginSpecial(game, id, game.currentZoneId);
         return depart();
     }
+    /** 기억 던전(js/memory-dungeon.js): 보스의 기억 하나로 그 보스의 투기장으로 떠난다(떠나지 못하면 기억은 돌아온다). */
+    function openMemory(nodeId, tier) {
+        const reason = memoryDungeon.entryReason(game, nodeId, tier) || departureBlock();
+        if (reason) return reason;
+        atlas.beginMemory(game, nodeId, tier, game.currentZoneId);
+        return depart();
+    }
     function depart() {
         combatLootReceipts.reset(game);
         changeZone(ATLAS.zoneId);
@@ -77,7 +84,7 @@ const atlasRun = (() => {
         const result = atlas.complete(game);
         if (!result) return;
         atlas.keepLoot(game, game.explorationLoot);
-        grantSpoils(result);
+        grantSpoils(result, zone);
         game.killsInZone = 0;
         const stop = game.settings.mapCompleteAction === 'stop';
         const next = stop ? null : atlas.nextAuto(game, result.tier);
@@ -94,10 +101,21 @@ const atlasRun = (() => {
         startMoving(false);
     }
     /** 수호자의 뿌리 입장권, 정점의 보상은 지도가 끝난 뒤라 바로 지갑으로 간다. */
-    function grantSpoils(result) {
+    function grantSpoils(result, zone) {
         if (result.ticket) awardCurrency(result.ticket, 1);
         for (const [key, amount] of result.rewards || []) awardCurrency(key, amount);
         if (result.endgame) grantEndgameSpoils(result.endgame, result.tier);
+        if (result.memory && result.memory.spoils) grantMemorySpoils(result.memory.spoils, result.tier, zone);
+    }
+    /** 기억 싸움의 보상: 재화는 지갑으로, 고유와 희귀 장비 하나는 가방으로(가득 차도 남긴다). 장비는 그 투기장의 지역을 기억한다
+     * (루프 27부터 세계수 기운). 받은 장비는 기록이 이름을 쓰도록 spoils.items에 남긴다. */
+    function grantMemorySpoils(spoils, tier, zone) {
+        for (const [key, amount] of spoils.rewards) awardCurrency(key, amount);
+        const items = [];
+        if (spoils.unique) items.push(generateUniqueItem(tier, null, spoils.unique === 'any' ? null : spoils.unique, zone || undefined));
+        if (spoils.gear) items.push(generateEquipmentDrop({ isBoss: true }, { zone, minimumRarity: 'rare' }));
+        spoils.items = items.filter(Boolean);
+        spoils.items.forEach(item => addItemToInventory(item, { guaranteedKeep: true }));
     }
     /** 후반부 보스의 보상: 재화는 지갑으로, 고유 장비는 가방으로(가득 차도 남긴다). */
     function grantEndgameSpoils(spoils, tier) {
@@ -144,7 +162,8 @@ const atlasRun = (() => {
         // 깨어난 뒤에는 제단의 잉걸 · 허기의 즙과 리그 조각도(보스를 잡을 때까지 런이 들고 있다, js/atlas-endgame.js).
         const late = room ? atlasEndgame.roomItems(game, zone, room) : [];
         if (!maps.length && !fragments.length && !room) return;
-        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards, late });
+        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards, late,
+            golden: atlasEncounters.isGolden(zone, room) });
     }
     /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
     function emptyRoom(enemy) {
@@ -157,7 +176,14 @@ const atlasRun = (() => {
         const rewards = atlasEncounters.rewards(zone, room, game.atlas.run.bonus, Math.random);
         for (const [key, amount] of rewards) awardEnemyLootCurrency(key, amount);
         if (Math.random() < ATLAS.encounters[room].mapChance) maps.push(...atlas.extraMap(game));
+        // 묘목장(12번 루프 39): 그 지역 색의 씨앗이나 수액(그루터기 함 보관함으로, 소식은 그 함이 알린다). 묘목장 보상 패시브와
+        // 황금 방이 하나씩 더 준다(js/atlas-encounters.js nurseryGifts).
+        if (room === 'nursery' && typeof stumpNursery === 'object') giveNurseryGifts(zone);
         return rewards;
+    }
+    function giveNurseryGifts(zone) {
+        const gifts = atlasEncounters.nurseryGifts(zone, game.atlas.run.bonus, Math.random);
+        for (let i = 0; i < gifts; i++) stumpNursery.clearGift(game, zone);
     }
     /** 혼돈 20 · 심화 클리어(onChaos20Cleared): 아틀라스가 처음 열리거나 이번 루프의 첫 지도석이 들어온다. */
     function onChaos20() {
@@ -165,7 +191,7 @@ const atlasRun = (() => {
         const maps = atlas.sync(game);
         if (opened || maps.length) notify({ kind: 'starter', opened, count: maps.length });
     }
-    return Object.freeze({ open, openPinnacle, openEndgame, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
+    return Object.freeze({ open, openPinnacle, openEndgame, openMemory, reenter, abandon, finish, defeat, leave, travel, onKill, onChaos20, recoverClosedMap, lastPortal,
         blockReason: departureBlock });
 })();
 safeExposeGlobals({ atlasRun });

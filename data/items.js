@@ -12,6 +12,9 @@ const BASIC_CURRENCY_DROP_CHANCES = Object.freeze({
     boss: { magicBud: 0.204, formlessDew: 0.1275, sapBud: 0.034 }
 });
 const LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER = 0.75;
+// 미궁 깊은 층(2026-10-09, 루프 50 이후 레벨 디자인): 원시와 고대 화석 확률은 115층에서 상한에 닿는다. 그 아래로는 층마다 심연 화석
+// 확률이 abyssalPerFloor씩 더 붙는다(215층에서 2배, 315층에서 3배, js/loot.js getLabyrinthFossilDropChances).
+const LABYRINTH_DEEP_FOSSIL = Object.freeze({ fromFloor: 115, abyssalPerFloor: 0.01 });
 
 const UNDERWORLD_ORE_DROP_CHANCES = Object.freeze({ copper: 0.0032, silver: 0.0018, gold: 0.0009 });
 
@@ -50,14 +53,41 @@ const SOCKETED_ACCESSORY_DROP_CHANCE = 0.05;
 // 장비 베이스 드랍 가중치(2026-10-07 드랍 풀 1단계, js/passives.js getBaseDropWeight). 드랍 티어보다 windowTiers 단계 넘게 낮은
 // 일반 베이스는 belowWindow, 승급 체인 맨 위(6단계 체인의 6단계 또는 20단계)는 chainTop, 둘 다면 곱한다. 나머지는 1.
 // 콘텐츠 전용 · 계 전용 베이스(dropOnly, realmBase)는 창을 쓰지 않고, 20단계 이상만 contentTop(예전 그대로).
-const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, chainTop: 0.25, contentTop: 0.04 });
+// 수평 베이스(2026-10-09, js/state.js family)는 horizontal배로 덜 나온다. 장신구는 베이스가 적어 따로 낮게 둔다(아니면 높은 등급
+// 목걸이 드랍의 절반 넘게 수평 베이스가 되어 젬 레벨 목걸이가 드물어진다). 측정: 부위별 희귀 드랍의 약 10~25%.
+const BASE_DROP_WEIGHTS = Object.freeze({ windowTiers: 4, belowWindow: 0.15, chainTop: 0.25, contentTop: 0.04,
+    horizontal: Object.freeze({ default: 0.6, 목걸이: 0.3, 반지: 0.45, 허리띠: 0.4 }) });
+
+// 추가 옵션 종류 한도(2026-10-07 드랍 풀 2단계, js/equipment-crafting.js affixRoom): 마법은 접두 1과 접미 1, 희귀는 접두 3과 접미 3.
+// 줄 수(마법 1~2, 희귀 4~5, 제작 상한 6)는 그대로다. 잿불가지의 옵션 추가만 한도를 넘는다(지도석 타락과 같다).
+const EXPLICIT_AFFIX_RULES = Object.freeze({ magic: Object.freeze({ prefix: 1, suffix: 1 }), rare: Object.freeze({ prefix: 3, suffix: 3 }) });
+// 추가 옵션 줄 상한(혼돈 주입, 화석 전용 줄, 균열 표식 포함). 잿불가지의 옵션 추가만 넘는다.
+const EXPLICIT_AFFIX_LINE_CAP = 6;
+// 접두 보존, 접미 보존(2026-10-08, 드랍 풀 2단계 C, 거래소 특수 서비스): 황금률을 내면 다음 재굴림 한 번(재화, 홀씨 재굴림, 화석)이
+// 그 종류 줄을 그대로 두고 남은 자리만 굴린다. 보존은 그 재굴림에 쓰이고, 옵션을 모두 지우면 사라진다. 바다의 선물 봉인(줄을
+// 영구히 고정)과 달리 한 번뿐이다. 옵션 한 줄 제거(황금률 2개)보다 비싸다.
+const AFFIX_KEEP_RULES = Object.freeze({ cost: 4, labels: Object.freeze({ prefix: '접두', suffix: '접미' }) });
+// 화석 재련에서 확정 줄 밖의 나머지 줄은 화석 태그(data/affix-tags.js AFFIX_TAG_LISTS.fossil의 any, none)가 맞는 옵션의 가중치를
+// 이만큼 곱해 굴린다(2026-10-08, C). 방패 화석과 오래된 화석, 균열 화석은 태그가 없어 그대로다.
+const FOSSIL_TAG_WEIGHT = 3;
 
 // 장비 희귀도 표기의 단일 출처(2026-09 결정: rare = '희귀'). 모든 UI는 이 표를 쓴다.
 const ITEM_RARITY_LABELS = Object.freeze({ normal: '일반', magic: '마법', rare: '희귀', unique: '고유' });
 
+// 습득 조건 빠른 설정(2026-10-08, 드랍 풀 2단계 D, 휴대폰). 누르면 습득 조건을 켜고 아래 값으로 바꾼다(티어 개수 조건은 끈다).
+// late.tierBelowZoneCap: 지금 지역 일반 몬스터가 떨구는 가장 높은 장비 티어보다 이만큼 낮은 티어부터 줍는다. 실측(혼돈 10, 20,
+// 40)으로 희귀의 약 40%가 남고, 액트에서는 티어 폭이 좁아 모두 남는다.
+const ITEM_PICKUP_PRESETS = Object.freeze({
+    growth: Object.freeze({ label: '성장', note: '일반 장비만 거릅니다.', rarities: Object.freeze({ normal: false, magic: true, rare: true, unique: true }) }),
+    late: Object.freeze({ label: '후반', note: '희귀와 고유 가운데 지금 지역 티어에 가까운 장비만 줍습니다.',
+        rarities: Object.freeze({ normal: false, magic: false, rare: true, unique: true }), tierBelowZoneCap: 2 }),
+    collect: Object.freeze({ label: '수집', note: '도감에 없는 고유 장비만 줍습니다.',
+        rarities: Object.freeze({ normal: false, magic: false, rare: false, unique: true }), onlyNewCodexUnique: true })
+});
+
 safeExposeData({ EQUIPMENT_BASE_DROP_CHANCES,
-    LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
-    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, BASIC_CURRENCY_DROP_CHANCES,
+    LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER, LABYRINTH_DEEP_FOSSIL, UNDERWORLD_ORE_DROP_CHANCES, EQUIPMENT_DROUGHT_RULES,
+    EQUIPMENT_DROP_RARITY_THRESHOLDS, EQUIPMENT_DROP_VARIANTS, TAINTED_CRAFT_OUTCOMES, SOCKETED_ACCESSORY_DROP_CHANCE, BASE_DROP_WEIGHTS, EXPLICIT_AFFIX_RULES, EXPLICIT_AFFIX_LINE_CAP, AFFIX_KEEP_RULES, FOSSIL_TAG_WEIGHT, ITEM_PICKUP_PRESETS, BASIC_CURRENCY_DROP_CHANCES,
     ITEM_RARITY_LABELS });
 
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
@@ -529,7 +559,34 @@ const UNIQUE_DB = [
     { name: "현자의 불꽃 증류기", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "flatDmg", min: 110, max: 150 }, { id: "potionPctDmg", min: 40, max: 60 }, { id: "firePctDmg", min: 30, max: 45 }, { id: "igniteChance", min: 15, max: 25 }, { id: "aoePctDmg", min: 20, max: 30 }] },
     { name: "순례자의 향로", slots: ["무기"], reqTier: 4, uniqueEffect: "이 무기는 항상 감전 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "flatDmg", min: 16, max: 24 }, { id: "lightPctDmg", min: 18, max: 26 }, { id: "regen", min: 0.4, max: 0.7 }, { id: "shockEffect", min: 20, max: 30 }] },
     { name: "성가대의 사슬", slots: ["무기"], reqTier: 12, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "flatDmg", min: 55, max: 75 }, { id: "lightPctDmg", min: 28, max: 40 }, { id: "regen", min: 0.8, max: 1.2 }, { id: "resAll", min: 12, max: 18 }] },
-    { name: "새벽 성화의 향로", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "원소 타격마다 적의 원소 저항 −2%(최대 −20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "flatDmg", min: 120, max: 160 }, { id: "lightPctDmg", min: 40, max: 55 }, { id: "elementalPctDmg", min: 30, max: 40 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "flatHp", min: 80, max: 120 }] }
+    { name: "새벽 성화의 향로", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "원소 타격마다 적의 원소 저항 −2%(최대 −20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "flatDmg", min: 120, max: 160 }, { id: "lightPctDmg", min: 40, max: 55 }, { id: "elementalPctDmg", min: 30, max: 40 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "flatHp", min: 80, max: 120 }] },
+    // 등급 17~20 일반 고유(2026-10-09): 아틀라스 지도 7등급(T17)부터 한 단계마다 새 고유가 열린다. 부위마다 둘, 수평 베이스 위.
+    // 새 효과: implicitAmp(기본 옵션 배율, js/equipment-stat-resolution.js), loopGrowth, familyBond, sightBeyond, chestLuck
+    // (능력치 줄, js/combat-build-stats.js UNIQUE_EFFECT_STAT_LINES). 나머지는 이미 있는 효과를 일반 드롭에 처음 연다.
+    { name: "왕을 베는 고목", slots: ["무기"], reqTier: 17, uniqueEffect: "보스에게 주는 피해 30% 증폭", uniqueEffectKey: "cosmosBossDamageMore", uniqueEffectParams: { morePct: 30 }, stats: [{ id: "flatDmg", min: 96, max: 130 }, { id: "physPctDmg", min: 30, max: 44 }, { id: "critDmg", min: 34, max: 50 }, { id: "aspd", min: 6, max: 10 }, { id: "flatHp", min: 60, max: 90 }] },
+    { name: "쫓는 자의 발자국", slots: ["신발"], reqTier: 17, uniqueEffect: "적 처치 시 10초 동안 이동 속도 +4% (최대 10중첩)", uniqueEffectKey: "realmKillMoveStacks", uniqueEffectParams: { movePerStack: 4, maxStacks: 10, duration: 10, cooldownSec: 0.5 }, stats: [{ id: "move", min: 18, max: 24 }, { id: "evasion", min: 140, max: 200 }, { id: "aspd", min: 8, max: 12 }, { id: "critDmg", min: 24, max: 36 }, { id: "resAll", min: 10, max: 16 }] },
+    { name: "질풍의 손목", slots: ["장갑"], reqTier: 17, uniqueEffect: "이 장비의 기본 옵션 효과 2배", uniqueEffectKey: "implicitAmp", uniqueEffectParams: { mul: 2 }, stats: [{ id: "aspd", min: 8, max: 12 }, { id: "crit", min: 4, max: 7 }, { id: "meleePctDmg", min: 22, max: 32 }, { id: "flatHp", min: 60, max: 90 }, { id: "resAll", min: 10, max: 16 }] },
+    { name: "나이테 심장", slots: ["목걸이"], reqTier: 17, uniqueEffect: "루프 1당 최대 생명력 +0.3%, 피해 +0.3% (루프 100까지)", uniqueEffectKey: "loopGrowth", uniqueEffectParams: { hpPerLoop: 0.3, dmgPerLoop: 0.3, maxLoops: 100 }, stats: [{ id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 12, max: 18 }, { id: "resChaos", min: 12, max: 20 }, { id: "critDmg", min: 24, max: 36 }] },
+    { name: "약탈자의 가면", slots: ["투구"], reqTier: 18, uniqueEffect: "정예 몬스터 처치 시 해당 적의 특성 중 하나를 20초간 획득", uniqueEffectKey: "stealEliteTrait", uniqueEffectParams: { duration: 20 }, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "armorPct", min: 30, max: 44 }, { id: "critDmg", min: 26, max: 38 }, { id: "resAll", min: 12, max: 18 }, { id: "eliteDamagePct", min: 20, max: 30 }] },
+    { name: "균열 매듭", slots: ["반지"], reqTier: 18, uniqueEffect: "타격 시 8% 확률로 공격 피해 60%의 균열파 발동", uniqueEffectKey: "realmRiftWaveOnHit", uniqueEffectParams: { chance: 8, damagePct: 60 }, stats: [{ id: "chaosPctDmg", min: 24, max: 34 }, { id: "resChaos", min: 14, max: 22 }, { id: "crit", min: 4, max: 6 }, { id: "flatHp", min: 50, max: 80 }] },
+    { name: "심재의 수액", slots: ["갑옷"], reqTier: 18, uniqueEffect: "생명력 재생 속도 +30%, 생명력 재생 +1.5%", uniqueEffectKey: "realmRegenRateAndRegen", uniqueEffectParams: { regenRatePct: 30, regen: 1.5 }, stats: [{ id: "pctHp", min: 18, max: 26 }, { id: "evasionPct", min: 30, max: 44 }, { id: "flatHp", min: 110, max: 160 }, { id: "resAll", min: 14, max: 20 }, { id: "resChaos", min: 12, max: 18 }] },
+    { name: "성채의 문", slots: ["방패"], reqTier: 18, uniqueEffect: "방어도의 물리 피해 감소가 모든 지속 피해에도 적용", uniqueEffectKey: "realmArmorAppliesToDot", uniqueEffectParams: {}, stats: [{ id: "armor", min: 200, max: 300 }, { id: "armorPct", min: 34, max: 48 }, { id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 12, max: 18 }, { id: "dotTakenDamageReducePct", min: 6, max: 10 }] },
+    { name: "보물 사냥꾼의 띠", slots: ["허리띠"], reqTier: 18, uniqueEffect: "보급 상자가 은빛이나 황금으로 나올 확률 +60%", uniqueEffectKey: "chestLuck", uniqueEffectParams: { gradePct: 60 }, stats: [{ id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 12, max: 18 }, { id: "move", min: 8, max: 12 }, { id: "regen", min: 0.8, max: 1.2 }] },
+    { name: "망자의 등불", slots: ["목걸이"], reqTier: 19, uniqueEffect: "사망 방지 보호막(최대 생명력 15%) 25초마다 재생성", uniqueEffectKey: "realmDeathWard", uniqueEffectParams: { hpPct: 15, cooldown: 25 }, stats: [{ id: "flatHp", min: 110, max: 160 }, { id: "pctHp", min: 10, max: 16 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 30, max: 44 }] },
+    { name: "부식의 손아귀", slots: ["장갑"], reqTier: 19, uniqueEffect: "타격마다 적의 모든 저항 -4% (최대 4중첩, 5초 지속)", uniqueEffectKey: "realmAllResDownOnHit", uniqueEffectParams: { perHit: 4, max: 4, duration: 5 }, stats: [{ id: "elementalPctDmg", min: 26, max: 38 }, { id: "aspd", min: 8, max: 12 }, { id: "energyShield", min: 90, max: 140 }, { id: "resPen", min: 6, max: 10 }, { id: "flatHp", min: 60, max: 90 }] },
+    { name: "보루의 행진", slots: ["신발"], reqTier: 19, uniqueEffect: "적 2명 이상일 때 받는 피해 감소 +12%", uniqueEffectKey: "uniqueTakenReduceWhen2Enemies", uniqueEffectParams: { pct: 12 }, stats: [{ id: "move", min: 18, max: 24 }, { id: "armor", min: 140, max: 200 }, { id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 12, max: 18 }, { id: "dr", min: 4, max: 7 }] },
+    { name: "등대지기의 눈", slots: ["투구"], reqTier: 20, uniqueEffect: "탐험 지도의 시야 상한 +2칸", uniqueEffectKey: "sightBeyond", uniqueEffectParams: { cap: 2 }, stats: [{ id: "sight", min: 2, max: 3 }, { id: "flatHp", min: 100, max: 150 }, { id: "evasionPct", min: 30, max: 44 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 30, max: 44 }] },
+    { name: "맹세를 지킨 자", slots: ["갑옷"], reqTier: 20, uniqueEffect: "이 장비의 기본 옵션 효과 2배", uniqueEffectKey: "implicitAmp", uniqueEffectParams: { mul: 2 }, stats: [{ id: "pctHp", min: 14, max: 20 }, { id: "armorPct", min: 30, max: 44 }, { id: "resAll", min: 14, max: 20 }, { id: "resChaos", min: 14, max: 20 }, { id: "regen", min: 0.8, max: 1.2 }] },
+    { name: "수평선 인장", slots: ["반지"], reqTier: 20, uniqueEffect: "장착한 수평 베이스 장비 1개당 피해 +4%, 모든 저항 +3% (최대 6개)", uniqueEffectKey: "familyBond", uniqueEffectParams: { dmgPer: 4, resPer: 3, maxPieces: 6 }, stats: [{ id: "resAll", min: 10, max: 16 }, { id: "flatHp", min: 50, max: 80 }, { id: "crit", min: 4, max: 6 }, { id: "critDmg", min: 22, max: 34 }] },
+    { name: "성약의 방벽", slots: ["방패"], reqTier: 20, uniqueEffect: "이 장비의 기본 옵션 효과 2배", uniqueEffectKey: "implicitAmp", uniqueEffectParams: { mul: 2 }, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "armorPct", min: 30, max: 44 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 4, max: 7 }] },
+    { name: "백전노장의 띠", slots: ["허리띠"], reqTier: 20, uniqueEffect: "이 장비의 기본 옵션 효과 2배", uniqueEffectKey: "implicitAmp", uniqueEffectParams: { mul: 2 }, stats: [{ id: "pctHp", min: 12, max: 18 }, { id: "resAll", min: 14, max: 20 }, { id: "aspd", min: 6, max: 10 }, { id: "meleePctDmg", min: 18, max: 26 }, { id: "dr", min: 4, max: 7 }] },
+    { name: "큰뱀의 송곳니", slots: ["무기"], reqTier: 20, uniqueEffect: "중독 지속시간 +50%", uniqueEffectKey: "realmPoisonDuration", uniqueEffectParams: { durationPct: 50 }, stats: [{ id: "flatDmg", min: 110, max: 150 }, { id: "chaosPctDmg", min: 34, max: 48 }, { id: "poisonChance", min: 20, max: 30 }, { id: "dotPctDmg", min: 24, max: 36 }, { id: "aspd", min: 8, max: 12 }] },
+    // 루프 30 뒤 아틀라스 방 넷의 리그 우두머리(2026-10-09, data/atlas-endgame.js leagues): 자연 드롭은 없고 그 우두머리가 준다. 효과는 그
+    // 방의 시스템을 센다(타락, 품질, 목걸이 기름, 그루터기 함; js/combat-build-stats.js UNIQUE_EFFECT_STAT_LINES).
+    { name: "잿불 군주의 심장", slots: ["목걸이"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "타락한 장비 1개당 피해 +5%, 화염 저항 +4% (최대 6개)", uniqueEffectKey: "emberHeart", uniqueEffectParams: { dmgPer: 5, resPer: 4, max: 6 }, stats: [{ id: "flatHp", min: 120, max: 170 }, { id: "firePctDmg", min: 30, max: 44 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 30, max: 44 }] },
+    { name: "호박에 갇힌 시간", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "장착 장비 품질 합 10%당 피해 +1%, 최대 생명력 +1% (최대 30번)", uniqueEffectKey: "amberTime", uniqueEffectParams: { qualityStep: 10, dmgPer: 1, hpPer: 1, max: 30 }, stats: [{ id: "flatHp", min: 120, max: 170 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 5, max: 8 }, { id: "regen", min: 1, max: 1.5 }] },
+    { name: "마른 꽃잎 고리", slots: ["반지"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "목걸이에 새긴 노드 1개당 피해 +8%, 카오스 저항 +10% (최대 2개)", uniqueEffectKey: "witheredEcho", uniqueEffectParams: { dmgPer: 8, resPer: 10, max: 2 }, stats: [{ id: "chaosPctDmg", min: 26, max: 38 }, { id: "resAll", min: 10, max: 16 }, { id: "flatHp", min: 60, max: 90 }, { id: "crit", min: 4, max: 6 }] },
+    { name: "어미나무의 손길", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "그루터기 함 판의 다 자란 씨앗과 수액 1개당 최대 생명력 +1%, 피해 +1% (최대 25개)", uniqueEffectKey: "nurseryBloom", uniqueEffectParams: { hpPer: 1, dmgPer: 1, max: 25 }, stats: [{ id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 26, max: 38 }] }
 ];
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
@@ -957,10 +1014,20 @@ const ORB_DB = {
     rootIron: { name: '뿌리철', desc: '방어구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     jewelPolish: { name: '보석연마제', desc: '장신구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     abyssCatalyst: { name: '심연 촉매', desc: '장비 퀄리티 속성을 순환 변경합니다. 기본 퀄리티는 베이스 옵션을, 속성 퀄리티는 해당 추가 옵션 수치를 증가시킵니다.' },
-    uberRootTicketFlame: { name: '우버 뿌리 입장권: 화염', desc: '지하계 전용 매우 희귀 보상. 우버 화염 뿌리 보스 도전권입니다.' },
-    uberRootTicketFrost: { name: '우버 뿌리 입장권: 냉기', desc: '지하계 전용 매우 희귀 보상. 우버 냉기 뿌리 보스 도전권입니다.' },
-    uberRootTicketStorm: { name: '우버 뿌리 입장권: 번개', desc: '지하계 전용 매우 희귀 보상. 우버 번개 뿌리 보스 도전권입니다.' },
-    uberRootTicketChaos: { name: '우버 뿌리 입장권: 카오스', desc: '지하계 전용 매우 희귀 보상. 우버 카오스 뿌리 보스 도전권입니다.' },
+    catalystFire: { name: '화염 기폭제', desc: '장비의 품질 속성을 화염(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 화염 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 화염 호박석 둘로도 만듭니다.' },
+    catalystCold: { name: '냉기 기폭제', desc: '장비의 품질 속성을 냉기(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 냉기 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 냉기 호박석 둘로도 만듭니다.' },
+    catalystLight: { name: '번개 기폭제', desc: '장비의 품질 속성을 번개(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 번개 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 번개 호박석 둘로도 만듭니다.' },
+    catalystChaos: { name: '카오스 기폭제', desc: '장비의 품질 속성을 카오스(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 카오스 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 카오스 호박석 둘로도 만듭니다.' },
+    catalystCrit: { name: '치명 기폭제', desc: '장비의 품질 속성을 치명(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 치명 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다.' },
+    catalystSummon: { name: '소환 기폭제', desc: '장비의 품질 속성을 소환(으)로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 소환 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다.' },
+    oilFire: { name: '불씨 기름', desc: '목걸이에 바르는 정원 기름(화염). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 화염 열매 둘로도 만듭니다.' },
+    oilCold: { name: '서리 기름', desc: '목걸이에 바르는 정원 기름(냉기). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 냉기 열매 둘로도 만듭니다.' },
+    oilLight: { name: '뇌우 기름', desc: '목걸이에 바르는 정원 기름(번개). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 번개 열매 둘로도 만듭니다.' },
+    oilChaos: { name: '그늘 기름', desc: '목걸이에 바르는 정원 기름(카오스). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 카오스 열매 둘로도 만듭니다.' },
+    uberRootTicketFlame: { name: '그림자 뿌리 입장권: 화염', desc: '지하계 보스가 드물게, 아틀라스 지역 수호자가 처치마다 떨어뜨립니다. 네 속성을 하나씩 바쳐 세계수의 그림자에 도전합니다.' },
+    uberRootTicketFrost: { name: '그림자 뿌리 입장권: 냉기', desc: '지하계 보스가 드물게, 아틀라스 지역 수호자가 처치마다 떨어뜨립니다. 네 속성을 하나씩 바쳐 세계수의 그림자에 도전합니다.' },
+    uberRootTicketStorm: { name: '그림자 뿌리 입장권: 번개', desc: '지하계 보스가 드물게, 아틀라스 지역 수호자가 처치마다 떨어뜨립니다. 네 속성을 하나씩 바쳐 세계수의 그림자에 도전합니다.' },
+    uberRootTicketChaos: { name: '그림자 뿌리 입장권: 카오스', desc: '지하계 보스가 드물게, 아틀라스 지역 수호자가 처치마다 떨어뜨립니다. 네 속성을 하나씩 바쳐 세계수의 그림자에 도전합니다.' },
     runeShard: { name: '룬 조각', desc: '지하계 전용 룬 가공 재료입니다. 해금된 번호 중 1개를 확률로 가공해 룬을 획득합니다.' },
     underCopper: { name: '지하계 구리', desc: '지하계 전용 재화. 인챈트/한계돌파/룬 강화의 기본 재료입니다.' },
     underSilver: { name: '지하계 은', desc: '지하계 전용 희귀 재화. 중~고급 인챈트 및 한계돌파에 사용됩니다.' },
@@ -969,12 +1036,13 @@ const ORB_DB = {
     gemShard: { name: '젬 잔향', desc: '스킬 젬 드랍과 중복 젬 환원으로 얻습니다. 스킬 젬 탭의 젬 연구에서 원하는 미보유 공격 젬이나 보조 젬을 확정 해금합니다.' },
     condensedSkyPower: { name: '응축된 창공의 정수', desc: '창공의 탑에서 얻는 영구 재료입니다. 재화 목록에는 표시되지 않으며 창공석과 영구 젬 강화에 사용됩니다.' },
     emberBranch: { name: '잿불가지', desc: '아이템을 타락시킵니다. 추가 옵션 부여(가득 차 있어도 초과), 품질 +6~10%(최대 30%), 옵션 1줄 무작위 변경, 타락 소켓 추가(주얼 해금 뒤), 변화 없음 중 하나가 일어납니다. 타락 후 제작 불가.' },
+    burningEmberBranch: { name: '타오른 잿불가지', desc: '장비를 한 번 더 타락시킵니다(장비 하나에 한 번). 이미 타락한 장비와 고유 장비에도 씁니다. 25% 확률로 장비가 타서 사라지고(재는 그루터기 함 거름), 아니면 타락 전용 줄 2개, 옵션 수치 다시 굽기(줄마다 80~120%), 품질 30% 가운데 하나가 일어나거나 변화가 없습니다. 아틀라스의 잿불 터에서 얻습니다.' },
     jewelCore: { name: '주얼 핵(구)', desc: '이전 버전 재화입니다. 로드 시 주얼 결정으로 자동 통합됩니다.' },
     jewelShard: { name: '주얼 결정', desc: '주얼을 해체하면 얻습니다. 주얼 보관함 뽑기와 조합창의 주얼 융합에 씁니다.' },
     hiveKey: { name: '벌집 열쇠', desc: '루프8 이후 맵핑에서 낮은 확률로 발견되는 벌집 입장권입니다.' },
     enchantedHoney: { name: '마력 깃든 벌꿀', desc: '장비 옵션 1개를 영구 고정하는 매우 희귀 재화입니다.' },
     venomStinger: { name: '독벌침', desc: '무기에 랜덤 공격 옵션 한 줄을 추가/재설정합니다.' },
-    pollen: { name: '꽃가루', desc: '벌집 열쇠/독벌침/벌꿀 제작에 사용하는 천장 재화입니다.' },
+    pollen: { name: '꽃가루', desc: '아틀라스 패시브 ‘여왕의 방’이 있으면 지도에서 10개씩 써서 벌 이벤트를 일으킵니다. 벌집 원정의 불리한 선택지가 가져가기도 합니다.' },
     beeswax: { name: '밀랍', desc: '벌집 원정을 연 뒤 혼돈 사냥 · 벌집 원정과 아틀라스 ‘여왕의 방’의 지도 벌 이벤트에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).' },
     awakenedEcho: { name: '각성 잔향', desc: '‘해금’의 젬 각성을 열면 정예 · 보스에게서 발견되는 각성 재료입니다. Lv.20 이상의 공격 젬을 각성 젬으로 변환해 젬 자체 보너스를 부여할 때 사용됩니다. 각성 각인은 각성 젬이 아니어도 모든 공격 젬에 부여할 수 있습니다.' },
     sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
@@ -999,7 +1067,7 @@ function getCurrencyInfo(key) {
     return Object.hasOwn(WALLET_CURRENCY_INFO, key) ? WALLET_CURRENCY_INFO[key] : { name: String(key || ''), desc: '' };
 }// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
-    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','enchantedHoney','venomStinger','oceanRerollShard']],
+    ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
     ['research', ['gemShard']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
@@ -1014,6 +1082,7 @@ const CURRENCY_ICON_PATHS = Object.freeze({
     formlessDew: 'assets/ui/currency/formless-dew.png',
     goldenRule: 'assets/ui/currency/golden-rule.png',
     emberBranch: 'assets/ui/currency/ember-branch.png',
+    burningEmberBranch: 'assets/ui/currency/burning-ember-branch.png',
     ouroboros: 'assets/ui/currency/ouroboros.png',
     blightSpore: 'assets/ui/currency/blight-spore.png',
     pruningShears: 'assets/ui/currency/pruning-shears.png',
@@ -1052,15 +1121,6 @@ const OCEAN_FISH_COLLECTION_MILESTONES = [
     { required: 6, label: '심연 표본실', reward: { bossCore: 1 }, bonus: { gaugeGainPct: 10 } },
     { required: 8, label: '무광해 도감 완성', reward: { goldenRule: 1 }, bonus: { rareChancePct: 20 } }
 ];
-// Shared by actual spore rolls and crafting target previews.
-const SPORE_CRAFT_MOD_IDS = {
-fire: ['fireFlatDmg','firePctDmg','resF','aspd','crit','critDmg','resPen','ds','targetAny','targetProjectile'],
-cold: ['coldFlatDmg','coldPctDmg','resC','crit','critDmg','aspd','ds','targetAny','targetProjectile'],
-light: ['lightFlatDmg','lightPctDmg','resL','aspd','ds','crit','critDmg','targetAny','targetProjectile'],
-chaos: ['chaosFlatDmg','chaosPctDmg','resChaos','dotPctDmg','resPen','leech','spellLeech','regenSuppress','targetAny','targetProjectile'],
-damage: ['flatDmg','physFlatDmg','spellFlatDmg','fireFlatDmg','coldFlatDmg','lightFlatDmg','chaosFlatDmg','physPctDmg','attackPctDmg','spellPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','pctDmg','dotPctDmg','critDmg']
-};
-
 const MARKET_EXCHANGES = [
     { id: 'm1', from: 'magicBud', to: 'formlessDew', need: 8, gain: 1 },
     { id: 'm2', from: 'formlessDew', to: 'sapBud', need: 15, gain: 1 },

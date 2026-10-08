@@ -30,12 +30,15 @@ const atlasEndgame = (() => {
     const entryOf = row => (row.kind === 'league' ? [[row.item, row.need]] : row.entry);
 
     // ---------------------------------------------------------------- what is open
+    /** A league waits for the loop its room starts appearing in (data/atlas.js encounters minLoop): before it there are no shards. */
+    const roomLoop = row => (row.room && ATLAS.encounters[row.room] ? ATLAS.encounters[row.room].minLoop || 0 : 0);
     function unlocked(state, row) {
-        if (!awakened(state)) return false;
+        if (!awakened(state) || (Number(state.season) || 1) < roomLoop(row)) return false;
         return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
     }
-    function lockText(row) {
+    function lockText(state, row) {
         if (row.unlock && row.unlock.kill) return `${def(row.unlock.kill).stages[0].name} 처치 뒤에 열립니다.`;
+        if (awakened(state) && roomLoop(row) > 0) return `루프 ${roomLoop(row)}부터 열립니다(${ATLAS.encounters[row.room].name} 방이 지도에 나오는 루프).`;
         return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
     }
     const missingOf = (state, row) => entryOf(row).filter(([item, need]) => count(state, item) < need);
@@ -46,7 +49,7 @@ const atlasEndgame = (() => {
         const lock = atlas.lockReason(state);
         if (lock) return lock;
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
-        if (!unlocked(state, row)) return lockText(row);
+        if (!unlocked(state, row)) return lockText(state, row);
         const missing = missingOf(state, row);
         return missing.length ? `재료가 부족합니다: ${missing.map(([item, need]) => `${E.items[item].name} ${count(state, item)}/${need}`).join(', ')}` : '';
     }
@@ -59,7 +62,7 @@ const atlasEndgame = (() => {
     }
 
     // ---------------------------------------------------------------- the run's share
-    /** A blighted region's map is sometimes held by one of the elder's apostles instead of its own boss (after the gardener falls). */
+    /** A blighted region's map is sometimes held by one of the apostles of 밑거름의 장로 instead of its own boss (after the gardener falls). */
     function rollApostle(state, node, random) {
         if (!node || node.kind !== 'map' || kills(state, 'apex_gardener') < 1) return null;
         const level = ledger(state).blight[node.region] || 0;
@@ -68,7 +71,7 @@ const atlasEndgame = (() => {
         return pool.length ? pool[Math.floor(random() * pool.length)].id : null;
     }
     /** The weaver's echoes: the bosses she witnessed most recently (newest first). */
-    const echoesFor = (state, node) => (node && node.id === 'apex_maven' ? ledger(state).witnessed.slice(-2).reverse() : []);
+    const echoesFor = (state, node) => (node && node.id === 'apex_weaver' ? ledger(state).witnessed.slice(-2).reverse() : []);
     function runExtra(state, node, random) {
         return { apostle: rollApostle(state, node, random), items: {}, echoes: echoesFor(state, node) };
     }
@@ -201,7 +204,7 @@ const atlasEndgame = (() => {
     /** The weaver witnesses late bosses (not herself, nor the kill that woke the atlas). */
     function witnessKill(state, node, apostle) {
         if (apostle) return witness(state, apostle.name, apostle.bossAct);
-        return LATE_BOSSES.has(node.kind) && node.id !== 'apex_maven' ? witness(state, node.boss, node.bossAct) : 0;
+        return LATE_BOSSES.has(node.kind) && node.id !== 'apex_weaver' ? witness(state, node.boss, node.bossAct) : 0;
     }
     /** Boss down in a late-atlas run or a map (js/atlas.js complete): kills, awakening, materials, blight, witness and the fight's spoils.
      * @returns {object} what the result screen and the log tell. */
@@ -213,9 +216,15 @@ const atlasEndgame = (() => {
         keepHeld(state, run, out);
         bossMaterial(state, node, run, out);
         fightSpoils(state, node, out, first);
+        if (node.kind === 'apex') apexStumpDrops(state); // 그루터기 함 불씨의 흉터(포식이 열린 뒤)와 고대 씨앗(루프 42)
         if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = spreadBlight(state, node.region);
         if (!out.awakened) out.invite = witnessKill(state, node, apostle);
         return out;
+    }
+    /** A final boss's stump box gifts: a scar (once devouring opens) and, from loop 42, sometimes an ancient seed (js/stump-nursery.js). */
+    function apexStumpDrops(state) {
+        if (typeof stumpBox === 'object') stumpBox.rollScarDrop(state);
+        if (typeof stumpNursery === 'object') stumpNursery.ancientFromBoss(state);
     }
     function spreadBlight(state, region) {
         const book = ledger(state).blight;
@@ -238,7 +247,7 @@ const atlasEndgame = (() => {
     function reset(state) { state.atlas.endgame = defaults(); }
     /** Everything the late-atlas view shows. */
     /** lock: the unlock condition a card shows once the atlas is awake and the fight is still closed (asleep, the view's head says it). */
-    const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(row) : '');
+    const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(state, row) : '');
     function overview(state) {
         const fight = row => ({ row, unlocked: unlocked(state, row), reason: entryReason(state, row.id), lock: lockOf(state, row), kills: kills(state, row.id),
             entry: entryOf(row).map(([item, need]) => ({ item, name: E.items[item].name, have: count(state, item), need })) });

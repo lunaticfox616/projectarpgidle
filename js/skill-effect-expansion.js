@@ -10,8 +10,12 @@ const skillEffectExpansion = (() => {
     function kindOf(name) { return Object.hasOwn(rules().kinds, name) ? rules().kinds[name] : null; }
     /** The player's 효과 확장 level (0–2). */
     function level() { return testLevel; }
-    /** Local test panel only. */
-    function setTestLevel(n) { testLevel = clampLevel(n); return testLevel; }
+    /** Local test panel only. The level is a stat input outside the save, so kept stat calculations are dropped. */
+    function setTestLevel(n) {
+        testLevel = clampLevel(n);
+        playerStatCache.invalidate();
+        return testLevel;
+    }
     /** Stamps +N on the resolved active skill: its level and kind, N more targets for target gems, the keystone's cost. */
     function applyToSkill(skill, name) {
         const kind = kindOf(name), n = kind ? level() : 0;

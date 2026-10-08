@@ -71,11 +71,13 @@ function updateBackgroundCombatMetrics(metrics, state, elapsedMs) {
 
 // Runs the real combat rules. No reward extrapolation and no process-wide clock replacement.
 // A slice owns the legacy globals synchronously; browser callbacks always see committed state.
+// The settlement path may project the rest of a long absence from measured pace (js/combat-replay-projection.js).
 /** @param {number} elapsedMs @param {typeof defaultGame} snapshot @param {number} startNowMs */
 function createCombatReplay(elapsedMs, snapshot, startNowMs) {
     if (!Number.isFinite(elapsedMs) || elapsedMs < 0) throw new RangeError('Replay duration must be finite and non-negative');
     let state = cloneBackgroundCombatState(snapshot);
     state.isBackgroundCalculation = true;
+    playerStatCache.adopt(state);
     state.backgroundOverflowSalvageCount = 0;
     state.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
     state.backgroundStopReason = null;
@@ -108,10 +110,12 @@ function advanceCombatReplay(replay, budgetMs) {
             if (reason) { game.backgroundStopReason = reason; break; }
             replay.simulatedNow += 100;
             const killsBefore = game.loopKills;
-            coreLoop(replay.simulatedNow);
+            // One build validation per tick, as the foreground tick does (js/main.js): the build signature was 13% of a settlement.
+            combatEquipmentStats.withinTick(() => coreLoop(replay.simulatedNow));
             if (game.loopKills !== killsBefore) getBackgroundBuildMemo(game).clear();
             replay.processedMs += 100;
             updateBackgroundCombatMetrics(replay.metrics, game, replay.processedMs);
+            if (replayProjection.observeReplayCycle(replay, game)) break;
             if (game.backgroundStopReason) break;
         } while (performance.now() - started < budgetMs);
         replay.game = game;
@@ -124,14 +128,17 @@ function advanceCombatReplay(replay, budgetMs) {
         && !replay.game.backgroundStopReason;
 }
 
+/** estimated: some maps were projected (realMs of real combat measured their pace, projectedMs followed it). */
 function finishCombatReplay(replay) {
     let overflowSalvaged = replay.game.backgroundOverflowSalvageCount;
     let stopReason = replay.game.backgroundStopReason;
-    for (let field of ['isBackgroundCalculation', 'backgroundOverflowSalvageCount', 'backgroundKillMix', 'backgroundStopReason']) delete replay.game[field];
+    let projectedMs = replay.projection ? replay.projection.projectedMs : 0;
+    for (let field of ['isBackgroundCalculation', 'backgroundOverflowSalvageCount', 'backgroundKillMix', 'backgroundStopReason', 'backgroundProjecting']) delete replay.game[field];
     return { game: replay.game, runtime: replay.runtime, steps: replay.processedMs / 100,
         simulatedNow: replay.simulatedNow, processedMs: replay.processedMs, metrics: replay.metrics,
         stopped: replay.processedMs < replay.elapsedMs, stopReason, overflowSalvaged,
-        skippedMs: replay.skippedMs, estimated: false };
+        skippedMs: replay.skippedMs, estimated: projectedMs > 0, realMs: replay.processedMs - projectedMs, projectedMs,
+        heldZone: !!(replay.projection && replay.projection.held), cutMs: replay.projection ? replay.projection.cutMs : 0 };
 }
 
 /** Only discard unprocessed time. Never extrapolate rewards or advance combat timers across it. */
@@ -147,10 +154,11 @@ function applyCombatReplayControl(replay, control) {
 }
 
 /**
- * @typedef {{elapsedMs:number, snapshot:typeof defaultGame, startNowMs?:number,
+ * @typedef {{elapsedMs:number, snapshot:typeof defaultGame, startNowMs?:number, project?:boolean,
  * isPaused?:()=>boolean, getControl?:()=>({tier:number,finish:boolean}),
- * onProgress?:(doneMs:number,totalMs:number,skippedMs:number)=>void}} CombatReplayOptions
+ * onProgress?:(doneMs:number,totalMs:number,skippedMs:number,phase:string)=>void}} CombatReplayOptions
  * snapshot must already have passed save migration. Durations are effective combat milliseconds.
+ * project: measure the pace with real combat, then project the rest (js/combat-replay-projection.js). The settlement uses it.
  */
 /** @param {CombatReplayOptions} options Synchronous replay for diagnostics. Does not commit or persist. */
 function simulateBackgroundCombat(options) {
@@ -179,14 +187,15 @@ function waitBackgroundReplayFrame() {
 /** @param {CombatReplayOptions} options Progress callbacks run outside the replay state and may throw. */
 async function simulateBackgroundCombatChunked(options) {
     let replay = createCombatReplay(options.elapsedMs, options.snapshot, options.startNowMs);
+    if (options.project) replayProjection.attachReplayProjection(replay);
     let pending;
     do {
         // The UI supplies lifecycle state; do not burn CPU while the app is inactive.
         while (options.isPaused?.()) await new Promise(resolve => setTimeout(resolve, 250));
         applyCombatReplayControl(replay, options.getControl?.());
-        pending = advanceCombatReplay(replay, BACKGROUND_REPLAY_SLICE_MS);
+        pending = replayProjection.advanceProjectedReplay(replay, BACKGROUND_REPLAY_SLICE_MS);
         if (options.onProgress) options.onProgress(replay.processedMs + replay.skippedMs,
-            replay.elapsedMs + replay.skippedMs, replay.skippedMs);
+            replay.elapsedMs + replay.skippedMs, replay.skippedMs, replayProjection.getReplayProjectionPhase(replay));
         if (pending) await waitBackgroundReplayFrame();
     } while (pending);
     return finishCombatReplay(replay);

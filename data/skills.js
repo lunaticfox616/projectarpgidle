@@ -13,7 +13,9 @@ const PROJECTILE_PATTERN_MODE_DB = Object.freeze({
     fan: { label: '부채꼴 연사' },
     delayedBlast: { label: '관통 후 지연 폭발' },
     lob: { label: '곡사 투척' },
-    split: { label: '삼갈래 분산', kind: 'fan', rays: 3, targetMode: 'spread', minTargets: 3, damageMultiplier: 0.72, extraProjectileDamagePct: 45 },
+    // spreadDeg: 가운데 투사체는 대상을 겨누고 양옆은 45도(2026-10-07). 예전에는 8방향으로만 쏘아 가로세로와 대각선 밖의 대상을
+    // 가운데 투사체도 빗나갔다(연발 사격과 같은 문제). 폭은 예전 8방향과 같다.
+    split: { label: '삼갈래 분산', kind: 'fan', rays: 3, spreadDeg: 45, targetMode: 'spread', minTargets: 3, damageMultiplier: 0.72, extraProjectileDamagePct: 45 },
     focus: { label: '단일 집속', kind: 'line', targetMode: 'single', targetLimit: 1, damageMultiplier: 1.55, extraProjectileDamagePct: 40 },
     return: { label: '귀환 궤도', kind: 'line', targetMode: 'pierce', damageMultiplier: 0.9, combatPattern: { kind: 'boomerang', returnDelayMs: 160 } }
 });
@@ -54,7 +56,7 @@ const SKILL_DB = {
     '심연 전염': { isGem: true, baseDmg: 0.28, baseSpd: 0.88, leech: 0, crit: 0, dmgScale: 0.018, spdScale: 0.01, ele: 'chaos', targetMode: 'chain', targets: 4, dotMultiplier: 1.42, spellFlatBase: 21, spellFlatScale: 4.9, dotTransferOnDeath: { targets: 1, remainingDamagePct: 100 }, desc: '2칸 이내의 적에게 차례로 감염이 건너갑니다. 감염된 적이 처치되면 남은 지속 피해를 다른 적 하나에게 이전합니다.', tags: ['spell', 'dot', 'chaos', 'aoe'] },
     '독니 사출': { isGem: true, baseDmg: 1.18, baseSpd: 1.18, leech: 0, crit: 7, dmgScale: 0.06, spdScale: 0.03, ele: 'chaos', projectilePattern: { mode: 'return', kind: 'line' }, targetMode: 'pierce', targets: 3, combatPattern: { kind: 'boomerang', returnDelayMs: 160 }, desc: '독니가 적을 관통한 뒤 되돌아오며, 왕복 타격이 각각 기존 피해의 50%를 줍니다.', tags: ['attack', 'projectile', 'chaos'] },
     // 2026-10-07 사용자 결정: 너무 약했다(한 대상 실제 피해가 기본 공격보다 낮았다). 가운데 화살 0.36 → 0.92(한 대상 DPS를 다른
-    // 직업 시작 젬 중앙값의 0.8배 안으로: smoke-loop-starter-gem), 옆 화살 34% → 40%,
+    // 직업 시작 젬 중앙값의 0.8배 안으로), 옆 화살 34% → 40%,
     // 부채꼴은 8방향(45도, 90도)에서 대상을 겨눈 20도 간격으로 좁혔다(SKILL_GRID_DB spreadDeg; 15도는 9×8 판에서 화살 줄이 겹쳤다).
     '연발 사격': { isGem: true, baseDmg: 0.92, baseSpd: 1.18, leech: 0, crit: 5, dmgScale: 0.018, spdScale: 0.025, ele: 'phys', extraProjectileDamagePct: 40, projectilePattern: { mode: 'fan', kind: 'fan', rays: 5 }, targetMode: 'spread', targets: 5, desc: '전방 좁은 부채꼴(20도 간격)로 화살 5발을 쏩니다. 가운데 화살은 대상을 겨누고, 옆 화살은 각각 기본 타격 피해의 40%로 그 방향의 다른 적을 맞힙니다.', tags: ['attack', 'projectile', 'physical'] },
     '폭열 창탄': { isGem: true, baseDmg: 1.0, baseSpd: 1.02, leech: 0, crit: 8, dmgScale: 0.06, spdScale: 0.03, ele: 'fire', projectilePattern: { mode: 'delayedBlast', kind: 'line' }, targetMode: 'pierce', targets: 4, ailmentChanceBonus: { ignite: 25 }, periodicOnHit: { chance: 1, hits: 1, interval: 0.25, damagePct: 25, ele: 'fire' }, desc: '관통 후 0.25초 뒤 타격 피해의 25%로 폭발하며 점화 확률이 25% 증가합니다.', tags: ['attack', 'projectile', 'fire', 'elemental'] },

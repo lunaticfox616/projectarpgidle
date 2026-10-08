@@ -378,7 +378,8 @@ function afterTalentLoadoutChange() {
 }
 
 // 장착된(열린 슬롯에 한함) 카드들의 표면+이면 효과를 {id, val} 목록으로 합산. (getPlayerStats에서 reward 버킷에 주입)
-function getActiveTalentCardStatBonuses() {
+// tick은 능력치 계산의 틱이다(js/player-stat-cache.js): 미스트랄 중첩은 싸우는 동안 바뀌므로 틱으로 읽는다.
+function getActiveTalentCardStatBonuses(tick) {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
     let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
     let unlocked = getUnlockedTalentSlotCount();
@@ -393,13 +394,17 @@ function getActiveTalentCardStatBonuses() {
     pushGrantedBloomMechanicStats(out);
     let mistralLevel = isTalentCardActive('hero1__ranger');
     let mistralRuntime = getTalentCardRuntimeDefinition('hero1__ranger');
-    let mistralStacks = getTalentMistralStackCount();
+    let mistralStacks = readTalentMistralStacks(tick);
     if (mistralLevel > 0 && mistralRuntime && mistralStacks > 0) {
         let ratio = mistralLevel / TALENT_CARD_MAX_LEVEL;
         out.push({ id: 'aspd', val: mistralStacks * mistralRuntime.aspdPerStackAtLevel10 * ratio });
         out.push({ id: 'move', val: mistralStacks * mistralRuntime.movePerStackAtLevel10 * ratio });
     }
     return out;
+}
+
+function readTalentMistralStacks(tick) {
+    return tick ? tick.get('mistralStacks') : getTalentMistralStackCount();
 }
 
 function getTalentCardRuntimeState() {

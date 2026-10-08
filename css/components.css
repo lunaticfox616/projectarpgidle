@@ -1893,6 +1893,9 @@ html, body { overflow: hidden; }
 .offline-progress-heading h2 { margin: 0; color: #f2d276; font-size: 1.1rem; }
 .offline-progress-currency { color: #ffd36b; }
 .offline-progress-warning { margin: 0; color: #ffad6b; font-size: .85rem; }
+.offline-progress-efficiency, .offline-progress-hint { margin: 0; }
+.offline-progress-efficiency strong { color: #ffd36b; }
+.offline-progress-hint { color: var(--copy-muted); font-size: .82rem; }
 .offline-progress-upgrades { display: grid; gap: 6px; }
 .offline-progress-upgrade { justify-content: space-between; border-top: 1px solid rgba(132, 164, 204, .25); padding-top: 7px; }
 .offline-progress-upgrade div { display: grid; gap: 2px; }

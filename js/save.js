@@ -41,14 +41,20 @@ function readLocalSaveResult() {
     try {
         let save = localStorage.getItem(LOCAL_SAVE_KEY);
         if (save) return { status: 'ok', save, sourceKey: LOCAL_SAVE_KEY };
-        for (let i = 0; i < LEGACY_SAVE_KEYS.length; i++) {
-            save = localStorage.getItem(LEGACY_SAVE_KEYS[i]);
-            if (save) return { status: 'ok', save, sourceKey: LEGACY_SAVE_KEYS[i] };
+        for (const key of getLegacySaveKeys()) {
+            save = localStorage.getItem(key);
+            if (save) return { status: 'ok', save, sourceKey: key };
         }
         return { status: 'missing', save: null, sourceKey: null };
     } catch (error) {
         return { status: 'unavailable', save: null, sourceKey: null, error };
     }
+}
+
+/** Saves under an earlier key name (LEGACY_SAVE_KEY_PATTERN), the newest key version first. The next save writes LOCAL_SAVE_KEY. */
+function getLegacySaveKeys() {
+    return Object.keys(localStorage).map(key => [key, LEGACY_SAVE_KEY_PATTERN.exec(key)]).filter(([, match]) => match)
+        .sort((a, b) => Number(b[1][1]) - Number(a[1][1])).map(([key]) => key);
 }
 
 function readLocalSaveString() {
@@ -88,9 +94,10 @@ function resetLocalSave(snapshot) {
     localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(snapshot));
     // Once the canonical save exists, legacy copies are never selected by loadGame().
     try {
-        let keys = new Set([...LEGACY_SAVE_KEYS, ...Object.keys(localStorage).filter(key => /^poeIdleSaveData_/i.test(key))]);
-        keys.delete(LOCAL_SAVE_KEY);
-        keys.forEach(key => localStorage.removeItem(key));
+        // Earlier key names (and their corrupt backups) and this key's corrupt backups.
+        let earlier = /^[a-z]{3}IdleSaveData_/i;
+        Object.keys(localStorage).filter(key => key !== LOCAL_SAVE_KEY && (earlier.test(key) || key.startsWith(`${LOCAL_SAVE_KEY}_`)))
+            .forEach(key => localStorage.removeItem(key));
     } catch (error) {
         console.warn('새 진행은 저장했지만 이전 세이브 사본 정리에 실패했습니다:', error);
     }

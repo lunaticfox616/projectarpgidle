@@ -6,10 +6,16 @@
     border: var(--px-light-border) solid transparent;
     border-image: var(--px-light-frame);
     border-radius: 0;
-    background: var(--px-panel);
+    /* 반투명(2026-10-07 사용자 "hud랑 전투로그, 채팅 약간 반투명하게"): PC 기록과 채팅 창(css/message-frames.css)과 같은 64%.
+       불투명하던 막대가 그 밑의 몬스터를 가렸다. */
+    background: color-mix(in srgb, var(--px-panel) 64%, transparent);
     background-clip: padding-box;
     box-shadow: var(--px-drop);
     image-rendering: pixelated;
+  }
+  /* 반투명 막대 위의 글: 도트 검은 외곽으로 밝은 바닥이 비쳐도 읽힌다(PC 창과 같다) */
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed :is(#log .log-msg, .combat-log-toggle, .social-chat-msg) {
+    text-shadow: 1px 1px 0 #000, -1px 0 0 rgba(0, 0, 0, .6);
   }
   /* 좁은 화면의 지역 이름은 DOS새물(넓은 글꼴) 대신 갈무리 15px로 한 줄에 */
   :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-row-title, #ui-combat-zone-inline) {

@@ -65,7 +65,7 @@
     }
   ],
   "sourceSha256": {
-    "BOUNCING-FLASK-SPEC.md": "855751118bc08f6d2e05ed6bd0cab502a61f1d410288f359b5cfe2c2c37ab7d4",
+    "BOUNCING-FLASK-SPEC.md": "775533a1409fa6bce7ca3f3653099bbfab762581daa506d50a0f0c416cbd875b",
     "bouncing-flask.js": "c834d7864df336cc0ce9a0d589897d80317c77638ba8062679ae38473a7fc78f",
     "RADIANT-LANCE-SPEC.md": "2a3da9e20e8be61f39be9b8ad81fef354ada6be24e1883704065adcc37131212",
     "radiant-lance.js": "45f02bdb6314c2437d3d5d63f8a85d8b5c1f1ea3e6c89eb5049484dff5df5cba",
@@ -73,7 +73,7 @@
     "time-acceleration.js": "ea6a527d546c48799d76af8c7232029f78c84e04f1231ce378781b7f14b08c83",
     "EXPLOSIVE-MIXTURE-SPEC.md": "a70614081fffcb2ae68144e5964687539aea546c15eaa259fc1d7ea430f0c512",
     "explosive-mixture.js": "5e4b71e30bda11f47e492f32bb5f16cdd60f9684218d6f02222e6cbfe778e7c6",
-    "SUPERCOOLED-MIXTURE-SPEC.md": "ad5beb5185d7d8a7ca2633a75d020eb523b2d8fe44e4a7c6ddc2313911f1c55c",
+    "SUPERCOOLED-MIXTURE-SPEC.md": "34039419971d3c4adb8c9480dcc72e5d04fe51b2a51bfb3afe2bd9279706735b",
     "supercooled-mixture.js": "cdfe7280b66bba8cf9e302d8108b681880c3e50acb8889e7ec6c10de04968bf5",
     "EMPTY-FLASK-SPEC.md": "eb27c62e02aa35a74b58b4d8714256ad650f77cd3071354b039866924499c588",
     "empty-flask.js": "db001d05aee691dbe51234f0ec7edbbadd6138b0213f87ca73ad71fa72af608d",

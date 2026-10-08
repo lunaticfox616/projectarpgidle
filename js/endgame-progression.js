@@ -15,6 +15,17 @@ function createDefaultBeyondBoundaryState() {
     };
 }
 
+/** Experience and loot multiplier of a beyond-boundary tier (data BEYOND_BOUNDARY_REWARD_GROWTH): ×2.5 at tier 76, then +1% a tier. */
+function getBeyondBoundaryRewardMul(tier) {
+    const rule = BEYOND_BOUNDARY_REWARD_GROWTH, reached = Math.max(1, Math.floor(Number(tier) || 1));
+    return 1 + (Math.min(reached, rule.fullAt) - 1) * rule.perTier + Math.max(0, reached - rule.fullAt) * rule.afterPerTier;
+}
+
+/** The tier a completion payout grows with: the run's tier up to BEYOND_BOUNDARY_REWARD_GROWTH.payoutTierCap. */
+function getBeyondBoundaryPayoutTier(tier) {
+    return Math.min(BEYOND_BOUNDARY_REWARD_GROWTH.payoutTierCap, Math.max(1, Math.floor(Number(tier) || 1)));
+}
+
 /** 경계의 관측자를 쓰러뜨리고, 루프 50 또는 세계수 아틀라스 씨앗 4개. */
 function isBeyondBoundaryUnlockRequirementMet(ownerState) {
     let source = ownerState || game;
@@ -224,5 +235,5 @@ safeExposeGlobals({
     startBeyondBoundaryRun, completeBeyondBoundaryEncounter, abandonBeyondBoundaryRun,
     selectBeyondBoundaryTier, selectBeyondBoundarySeal,
     selectBeyondBoundaryRewardFocus, selectBeyondBoundaryIntensity, getBeyondBoundaryRewardFocusStatus,
-    getBeyondBoundaryIntensityCosts, getBeyondBoundaryGlobalStats
+    getBeyondBoundaryIntensityCosts, getBeyondBoundaryGlobalStats, getBeyondBoundaryRewardMul, getBeyondBoundaryPayoutTier
 });

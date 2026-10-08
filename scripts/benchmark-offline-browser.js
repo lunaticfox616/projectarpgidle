@@ -6,7 +6,9 @@ process.env.PLAYWRIGHT_PORT ||= '4201';
 const maximum = process.argv.includes('--max');
 const endgame = process.argv.includes('--endgame');
 const baseline = process.argv.includes('--baseline');
-const output = `artifacts/offline-settlement-browser-${maximum ? 'max' : 'base'}${endgame ? '-endgame' : ''}${baseline ? '-before' : ''}.json`;
+// --throttle=4: Chromium CPU throttling (DevTools' "4x slowdown"), a stand-in for a mid-range phone.
+const throttle = Number((process.argv.find(arg => arg.startsWith('--throttle=')) || '').split('=')[1]) || 0;
+const output = `artifacts/offline-settlement-browser-${maximum ? 'max' : 'base'}${endgame ? '-endgame' : ''}${baseline ? '-before' : ''}${throttle ? `-throttle${throttle}` : ''}.json`;
 
 async function settle(page, max) {
     return page.evaluate(async useMax => {
@@ -21,6 +23,9 @@ async function settle(page, max) {
         const config = getOfflineProgressConfig(game);
         const absenceMs = config.recognitionHours * 3600000;
         const now = Date.now();
+        // The replay goes on from the snapshot's combat clock. A scenario built without one combat tick has none, so the replay
+        // started at the fake leaving time, a day behind the exploration map's clock: the hero never took a step (0 kills).
+        if (!(game.combatTimeMs > 0)) game.combatTimeMs = now;
         recordBackgroundCombatEntry(now - absenceMs);
         const started = performance.now();
         const ok = await startBackgroundCombatReturn(now);
@@ -45,11 +50,12 @@ async function settle(page, max) {
         }
         await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
         await page.evaluate(() => { let seed = 17; Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000); });
+        if (throttle > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
         await page.locator('#btn-startup-guest').click();
         await page.locator('[data-class-id="warrior"]').click();
         await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; });
         const scenario = endgame ? await page.evaluate(require('./lib/offline-endgame-fixture')) : { name: 'starter' };
-        console.log({ scenario, baseline, maximum });
+        console.log({ scenario, baseline, maximum, throttle });
         const profiler = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;
         if (profiler) { await profiler.send('Profiler.enable'); await profiler.send('Profiler.start'); }
         const result = await Promise.race([settle(page, maximum), new Promise((_, reject) => {

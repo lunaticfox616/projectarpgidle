@@ -12,10 +12,10 @@ const contentProgression = (() => {
         meteor: owner => [['액트 7 도달', owner.maxZoneId >= 7]],
         deepChaos: owner => [['혼돈 20층 클리어', hasCurrentLoopChaos20Clear(owner)]],
         chaosRealm: owner => [['나무꾼에게 10% 피해 후 전투 종료', !!owner.chaosRealm.unlocked]],
-        underworld: owner => [['혼돈계 · 케르베로스 · 심화 30층 · 미궁 100층', isUnderworldUnlockReady(owner)]],
-        cosmos: owner => [['나무꾼 기록 · 지하계 30층 도달', isCosmosContentUnlockReady(owner)]],
+        underworld: owner => [['혼돈계, 케르베로스, 심화 30층, 미궁 100층', isUnderworldUnlockReady(owner)]],
+        cosmos: owner => [['나무꾼 기록과 지하계 30층 도달', isCosmosContentUnlockReady(owner)]],
         sky: owner => [['혼돈 20층 클리어', owner.skyTower.unlocked || owner.season > 15 || hasCurrentLoopChaos20Clear(owner)]],
-        beyond: owner => [['경계의 관측자 처치 · 루프 50 또는 세계수 씨앗 4개', isBeyondBoundaryUnlockRequirementMet(owner)]],
+        beyond: owner => [['경계의 관측자 처치, 그리고 루프 50 또는 세계수 씨앗 4개', isBeyondBoundaryUnlockRequirementMet(owner)]],
         cube: owner => [['지하계 10층 클리어', owner.underworldProgress.highestFloor >= 11]],
         talent: owner => [['재능 개화', hasPermanentTalentTabUnlock(owner)]],
         woodsman: owner => [['나무꾼 조우 또는 기록', !!owner.woodsmanSimulatorSeenLoop || owner.woodsmanDefeatAttempts > 0 || owner.journalEntries.includes('woodsman')]],
@@ -87,18 +87,34 @@ const contentProgression = (() => {
         return !!feature && isUnlocked(feature, owner);
     }
 
+    /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). The record may still be
+     * the saved one: the stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger. */
+    function ledger(state, loop) {
+        const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
+        const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
+            sum + (def.cost > 0 && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
+        const spent = unlocked.reduce((sum, id) => sum + (Number((state.paidCosts || {})[id]) || 0), 0);
+        return { remaining, spent, earned: (Math.max(Number(state.highestLoop) || 1, loop) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP };
+    }
+
     /** Read-only point budget; future gated growth counts, automatic combat never costs points. */
     function points(owner = game) {
         const state = owner.contentProgression;
         if (!state) return { balance: 0, remaining: 0, nextAward: 0, complete: true };
-        const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
-            sum + (def.cost > 0 && !state.unlocked.includes(def.id) && !state.inherited.includes(def.id) ? def.cost : 0), 0);
-        const spent = state.unlocked.reduce((sum, id) => sum + state.paidCosts[id], 0);
-        const earned = (Math.max(state.highestLoop, owner.season) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+        const { remaining, spent, earned } = ledger(state, owner.season);
         const current = Math.min(remaining, Math.max(0, earned - spent));
-        const nextEarned = (Math.max(state.highestLoop, owner.season + 1) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+        const nextEarned = ledger(state, owner.season + 1).earned;
         const nextAward = Math.min(remaining, Math.max(0, nextEarned - spent)) - current;
         return { balance: current, remaining, nextAward, complete: remaining === 0 };
+    }
+
+    /** Points past what the catalog can still take. The balance never holds them, so the stump box counts them as graft points
+     * (js/stump-box.js graftEarned, 2026-10-09: once the catalog was bought, about loop 20, the 2 points a loop were lost). */
+    function overflow(owner = game) {
+        const state = owner.contentProgression;
+        if (!state) return 0;
+        const { remaining, spent, earned } = ledger(state, owner.season);
+        return Math.max(0, earned - spent - remaining);
     }
 
     function balance(owner = game) {
@@ -248,6 +264,6 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, balance, cheapestOpen, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

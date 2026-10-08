@@ -296,6 +296,27 @@ const STAT_DISPLAY_NAMES = {
         bossDamagePct: '보스 처치 피해(%)',
         eliteDamagePct: '정예 처치 피해(%)',
         firstStrikeDamagePct: '선제 타격 피해(%)',
+        // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js).
+        regionPoisonSpread: '중독된 적 처치 시 주변에 중독 번짐(%)',
+        regionChaosShred: '적중 시 적 카오스 저항 감소(%, 5중첩)',
+        regionPoisonedLeech: '중독된 적에게 준 피해 생명력 흡수(%)',
+        regionChaosOvercap: '초과 카오스 저항 1%마다 카오스 피해(%)',
+        regionBlockEmpower: '막기 후 다음 공격 피해 증가(%)',
+        regionArmorToPhys: '방어도 1000마다 물리 피해(%)',
+        regionBleedingDamage: '출혈 중인 적에게 주는 피해 증가(%)',
+        regionLowLifeDR: '생명력 절반 이하일 때 받는 피해 감소(%)',
+        regionShockChain: '감전된 적 적중 시 번개 튐 확률(%)',
+        regionCritMove: '치명타 후 2초간 이동 속도(%)',
+        regionShockSpread: '감전된 적 처치 시 주변에 감전 번짐(%)',
+        regionShockedLightPen: '감전된 적의 번개 저항 무시(%)',
+        regionIgniteSpread: '점화된 적 처치 시 주변에 점화 번짐(%)',
+        regionFullLifeFire: '생명력이 가득할 때 화염 피해(%)',
+        regionIgniteDuration: '점화 지속 시간(%)',
+        regionIgnitedDamage: '점화된 적에게 주는 피해 증가(%)',
+        regionFrozenCritDamage: '동결된 적에게 치명타 피해 증가(%)',
+        regionShatter: '동결된 적 처치 시 얼음 파편(적 최대 생명력 %)',
+        regionChillOnHit: '적중 시 냉각 확률(%)',
+        regionChilledAttackerDR: '냉각된 적에게 받는 피해 감소(%)',
         cullStrikePct: '처형 일격(생명력 % 이하 즉사)',
         oceanPressureResist: '심해 수압 내성(%)',
         oceanDepthGainPct: '심해 수심 전진 속도(%)',
@@ -338,7 +359,7 @@ const STAT_DISPLAY_NAMES = {
         poisonChance: '중독 확률(%)',
         bleedChance: '출혈 확률(%)',
         aspd: '공격 속도(%)',
-        move: '이동 속도(%)',
+        move: '이동 속도(%)', sight: '시야(칸)', sightCap: '시야 상한(칸)', chestGrade: '보급 상자 등급 확률(%)',
         crit: '치명타 확률(%)',
         critDmg: '치명타 피해(%)',
         leech: '공격 피해의 생명력 흡수(%)',
@@ -453,7 +474,7 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
+        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, sight: 0, sightCap: 0, chestGrade: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResAll: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, leechKeepFullLife: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0, slamEchoDamagePct: 0, doubleDamageChance: 0, blockChanceMax: 0,
         physFlatTakenReduce: 0, fireFlatTakenReduce: 0, coldFlatTakenReduce: 0, lightFlatTakenReduce: 0, chaosFlatTakenReduce: 0, allFlatTakenReduce: 0,
@@ -474,7 +495,11 @@ function createEmptyStatBucket() {
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
         curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
         oceanPressureResist: 0, oceanDepthGainPct: 0, oceanOxygenAttackSavingPct: 0, oceanRareFishChancePct: 0,
-        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0
+        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0,
+        regionPoisonSpread: 0, regionChaosShred: 0, regionPoisonedLeech: 0, regionChaosOvercap: 0, regionBlockEmpower: 0, regionArmorToPhys: 0,
+        regionBleedingDamage: 0, regionLowLifeDR: 0, regionShockChain: 0, regionCritMove: 0, regionShockSpread: 0, regionShockedLightPen: 0,
+        regionIgniteSpread: 0, regionFullLifeFire: 0, regionIgniteDuration: 0, regionIgnitedDamage: 0, regionFrozenCritDamage: 0, regionShatter: 0,
+        regionChillOnHit: 0, regionChilledAttackerDR: 0
     };
 }
 // Bucket shape is the source for direct additions. Oxygen uses its separate resource rules.

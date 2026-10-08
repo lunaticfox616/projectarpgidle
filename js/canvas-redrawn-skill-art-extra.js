@@ -1,8 +1,8 @@
 /** 새로 그린 스킬 이펙트 — 2026-09-30 변경분 (Hana 스킬 인계 변경분 2).
  * 37 룬 지뢰 · 17 혈기 폭쇄 · 30 빙결 파열창 · 29 화염 폭풍핵 · 48 과냉각 혼합물. (이동기 4종·위습 공격: canvas-redrawn-skill-art-moves.js)
  * Ported from the handoff's void_fx.js (kept verbatim in docs/skill-assets-hana/reference/void_fx.js.txt) with every
- * function inside this repo's size/complexity rules; scripts/smoke-redrawn-skill-art.js runs both with the same arguments
- * and compares every dot. Coordinates are board dots (one cell = 16 dots); dot(x, y, colour) paints one dot.
+ * function inside this repo's size/complexity rules; the drawn dots are identical to the handoff's.
+ * Coordinates are board dots (one cell = 16 dots); dot(x, y, colour) paints one dot.
  * Pure drawing: no combat state, no timers. Shares the rasteriser and bolt helpers of js/canvas-redrawn-skill-art.js.
  */
 const redrawnSkillArtExtra = (() => {

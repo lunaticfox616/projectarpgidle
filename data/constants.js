@@ -6,9 +6,12 @@ function safeExposeData(map) {
 
 // Phase-1 extracted runtime constants (kept global for backward compatibility).
 const PASSIVE_LAYOUT_VERSION = 22;
-const LOCAL_SAVE_KEY = 'poeIdleSaveData_v9';
-const LEGACY_SAVE_KEYS = ['poeIdleSaveData_v8', 'poeIdleSaveData_v7'];
-const CLOUD_SESSION_STORAGE_KEY = 'poeIdleCloudSession_v1';
+// 저장 키(2026-10-08 이름 바꿈): 예전 이름의 키(세 글자 앞말 + 'IdleSaveData_v숫자', 'IdleCloudSession_v1')는 처음 불러올 때
+// 읽고 그 뒤로는 아래 키에 쓴다(js/save.js getLegacySaveKeys, js/ui.js loadStoredCloudSession). 예전 키 이름은 꼴로만 알아본다.
+const LOCAL_SAVE_KEY = 'rigninSaveData_v9';
+const LEGACY_SAVE_KEY_PATTERN = /^[a-z]{3}IdleSaveData_v(\d+)$/;
+const CLOUD_SESSION_STORAGE_KEY = 'rigninCloudSession_v1';
+const LEGACY_CLOUD_SESSION_KEY_PATTERN = /^[a-z]{3}IdleCloudSession_v1$/;
 const CLOUD_SYNC_MIN_INTERVAL_MS = 300000;
 const CLOUD_REMOTE_TIME_SKEW_MS = 60 * 1000;
 const CLOUD_STALE_OVERWRITE_GUARD_MS = 5000;
@@ -49,10 +52,14 @@ const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
 // cached outline surfaces in js/passives.js).
 const BATTLE_SPRITE_OUTLINES = Object.freeze({
     hero: Object.freeze({ color: '#f0dca6', alpha: 0.72 }),
+    // 앞의 몬스터에 가려진 주인공(2026-10-07 사용자 요청): 몬스터 위로 굵은 테(dots: 칸 64px 미만 2, 이상 3)와 반투명 몸(fill)이 비친다.
+    heroOccluded: Object.freeze({ color: '#fff3c9', alpha: 0.95, fill: 0.32, dots: Object.freeze([2, 3]) }),
     enemy: Object.freeze({ color: '#cf5444', alpha: 0.72, thickness: 2 }),
     elite: Object.freeze({ color: '#e2b94f', alpha: 0.85, thickness: 2 }),
     boss: Object.freeze({ color: '#e8493b', alpha: 0.85, thickness: 2 })
 });
+// 보스 그림 크기 배율(2026-10-07 사용자 "보스 몬스터는 좀 더 커도 돼"). 일반 몬스터 크기는 그대로다.
+const BOSS_DRAW_SCALE = 1.15;
 const EMPTY_TRAVEL_PROGRESS_MULTIPLIER = 2;
 /** 스토리 액트에서 살아 있는 적이 없을 때(방과 방 사이) 초당 회복하는 최대 생명 비율(%, 0.1초 틱마다 1/10).
  * 초반 사망은 거의 모두 앞 전투에서 깎인 생명으로 다음 무리를 맞는 소모전이었다(측정 2026-10-01). */
@@ -73,6 +80,9 @@ const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
     tierGainPerFloorAfterDeep: 1,
     gravityActionLossPerFloorAfterDeep: 0.01
 });
+// 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 룬 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 룬 강화
+// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 룬 조각 70과 금 24, 400층 160과 60(js/combat.js grantUnderworldFloorMilestone).
+const UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
 const DAMAGE_ELEMENT_LABELS = {
     phys: '물리',
     fire: '화염',
@@ -134,9 +144,9 @@ const COMBAT_GRID_CONFIG = {
 };
 
 safeExposeData({
-  PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEYS, CLOUD_SESSION_STORAGE_KEY,
+  PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEY_PATTERN, CLOUD_SESSION_STORAGE_KEY, LEGACY_CLOUD_SESSION_KEY_PATTERN,
   CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, CLOUD_KEEPALIVE_BODY_LIMIT, CLOUD_EXIT_UPLOAD_MIN_GAP_MS, HERO_SIZE_SCALE, HERO_RUN_RATE_MAX, PROJECTILE_FLIGHT_LIFT, PROJECTILE_HAND_REACH, PROJECTILE_SPRITE_SCALE, GUEST_SAVE_CHECK, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
-  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG,
+  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, BATTLE_SPRITE_OUTLINES, BOSS_DRAW_SCALE, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, ACT_REST_RECOVERY_PCT_PER_SEC, ACT_RETREAT_LEVELS, UNDERWORLD_DIFFICULTY_CONFIG, UNDERWORLD_DEEP_FLOOR_REWARD,
   EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
   EQUIPMENT_INVENTORY_CELLS_PER_PAGE
 });

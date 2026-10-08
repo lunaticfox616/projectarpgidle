@@ -12,7 +12,7 @@ const tutorialActionUi = {
     noticeUntil: 0,
     /** Ordinary unlocks stay readable without stopping battle. Story and first actions retain the pause setting. */
     requiresAttention(notice) {
-        return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
+        return !!notice && (TUTORIAL_START_KEYS.has(notice.key) || TUTORIAL_GUIDED_CONTENT_KEYS.has(notice.key) || String(notice.key).startsWith('story_'));
     },
     noticeBody(notice, controls) {
         const body = tutorialBodyHtml(notice.body) + controls.trim();
@@ -60,13 +60,23 @@ const tutorialActionUi = {
             completed: (current, before) => current !== before,
             // 젬 상세와 고른 젬 카드도 덮지 않는다(카드가 고른 젬 위로 올라와 설명을 가렸다).
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected']
+        },
+        unlock_stump_box: {
+            // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗이나 수액을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
+            selector: ['#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
+            title: '그루터기 함에 심기',
+            body: '보관함의 씨앗을 누르고 판의 빈 칸을 누르세요. 수액도 같은 방법으로 놓습니다.',
+            read: () => [game.stumpBox.board.filter(id => id !== null).length, stumpBox.storage(game).filter(item => item.family !== 'talisman').length],
+            completed: ([placed, waiting], [placedBefore]) => waiting === 0 || placed >= placedBefore + 2
         }
     },
-    aliases: { tutorial_starter_gem_equip: 'unlock_skills', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items' },
+    aliases: { tutorial_starter_gem_equip: 'unlock_skills', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items',
+        tutorial_stump_starter: 'unlock_stump_box' },
     guideFor(key) {
         const guideKey = this.aliases[key] || key;
         if (guideKey === 'unlock_items' && !game.inventory.some(Boolean)) return null;
         if (guideKey === 'unlock_char' && game.passivePoints < 1) return null;
+        if (guideKey === 'unlock_stump_box' && !stumpBox.storage(game).some(item => item.family !== 'talisman')) return null;
         return Object.hasOwn(this.guides, guideKey) ? this.guides[guideKey] : null;
     },
     start(notice) {
@@ -246,7 +256,7 @@ const tutorialActionUi = {
         if (completed) {
             game.seenTutorials.push('action_' + action.notice.key);
             showGameToast(action.guide.title + ' 완료', { tone: 'success' });
-        } else equipSkippedStarterGem(action.notice.key);
+        } else applySkippedGuide(action.notice.key);
         setTimeout(showNextTutorial, 40);
     }
 };
@@ -319,6 +329,8 @@ window.addEventListener('resize', () => tutorialActionUi.reposition());
 // 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프). 이야기 장면은 storyJournalUi가 그린다.
 const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'tutorial_first_passive', 'tutorial_first_gear',
     'unlock_char', 'unlock_items', 'unlock_skills']);
+// 새 콘텐츠 가운데 따라 하기가 있는 카드: 시작 안내처럼 펼친 채 저절로 닫히지 않는다(그루터기 함 시작 선물을 57분 동안 놓지 않은 판이 있었다).
+const TUTORIAL_GUIDED_CONTENT_KEYS = new Set(['unlock_stump_box', 'tutorial_stump_starter']);
 const TUTORIAL_KIND_LABELS = Object.freeze({ start: '시작 안내', content: '새 콘텐츠', loop: '새 루프' });
 // "…열기" 단추에 쓰는 화면 이름(메뉴 이름과 같게). 없으면 "화면 열기".
 const TUTORIAL_TAB_NAMES = Object.freeze({
@@ -579,6 +591,17 @@ function equipSkippedStarterGem(key) {
     if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다 · '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
 }
 
+/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬 젬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
+function applySkippedGuide(key) {
+    equipSkippedStarterGem(key);
+    plantSkippedStumpStarter(key);
+}
+/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗과 수액을 판의 가운데부터 대신 놓는다(첫 스킬 젬과 같은 이유). */
+function plantSkippedStumpStarter(key) {
+    if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
+    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗과 수액을 판에 놓았습니다', { tone: 'success' });
+}
+
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
     const notice = activeTutorial, tabId = notice.tabId;
@@ -590,7 +613,7 @@ function dismissTutorial(openTarget) {
     // Phone notices held while the card was up: after the next card (if any) has had its turn.
     setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
     if (!openTarget) {
-        equipSkippedStarterGem(notice.key);
+        applySkippedGuide(notice.key);
         return setTimeout(showNextTutorial, 40);
     }
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);

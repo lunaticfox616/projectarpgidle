@@ -34,16 +34,27 @@ const actExplorationProgress = (() => {
         if(now-run.motionTimeMs>1000)actExplorationMotion.rebase(run,now-100);
         while(run.motionTimeMs+20<=now) {
             run.motionTimeMs+=20;
+            const walking=run.motion;
             step(run,stats);
+            continueApproachAfterStep(run,walking,stats);
         }
+    }
+    /** A step that ends goes on toward the fight at once, on a foreground frame and inside a combat tick alike. Waiting for
+     * the next 100 ms tick (offline replay) locked the hero and an enemy across a blocked cell into mirrored steps: no kill
+     * for minutes (2026-10-07). */
+    function continueApproachAfterStep(run,walking,stats) {
+        if(walking && walking.elapsed===walking.duration && !run.motion)continuePlayerExplorationApproach(stats);
     }
     function step(run,stats) {
         actExplorationProgress.objects.step(run,20);
+        const from=run.motion&&run.motion.from;
         actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
+        swapSummonOutOfHeroTile(from);
         if(run.motion || !explore(run,stats))return;
-        actExplorationState.discover(run,game.gridPlayer);
+        actExplorationState.discover(run,game.gridPlayer,actExplorationState.sightRadius(stats));
         const opened=actExplorationState.entrance(run);
         wakeBosses(actExplorationState.engage(game,actExplorationState.notice(run,game.gridPlayer),run.motionTimeMs));
+        announceAlerted(actExplorationState.wake(game,actExplorationState.alerted(game)));
         const entrance=watchEntrance(run,opened);
         const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
         game.runProgress=Math.min(99,100*cleared/run.packs.length);
@@ -116,6 +127,10 @@ const actExplorationProgress = (() => {
         addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600});
         return entrance;
     }
+    /** A listening pack (data ACT_EXPLORATION_ALERT) heard the fight and runs at the hero; the view marks it (js/canvas-combat-feedback.js). */
+    function announceAlerted(woken) {
+        if(woken.length)dispatchRuntimeEvent('exploration-alert',{enemyIds:woken.map(enemy=>enemy.id)});
+    }
     /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
     function wakeBosses(woken) {
         const zone=getZone(game.currentZoneId);
@@ -125,7 +140,7 @@ const actExplorationProgress = (() => {
     function canEnterMotionTile(run) {
         const motion=run.motion;
         if(!motion || motion.elapsed>=motion.duration/2 || run.motionTimeMs-motion.startedAt<motion.duration/2)return true;
-        return canPlaceGridFootprint(getGridBlockedCells(game.gridPlayer),motion.to.gx,motion.to.gy,{columns:1,rows:1});
+        return canPlaceGridFootprint(getHeroStepBlockedCells(),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
     function moving() {return !!actExplorationState.current(game)?.motion;}
     /** A click on a floor pile (js/battle-ground-loot-ui.js) picks it up at once, wherever the hero stands. */

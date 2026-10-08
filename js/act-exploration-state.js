@@ -13,6 +13,10 @@ const actExplorationState = (() => {
     // Discovery geometry is static at a tile. Keep this transient memo outside saves;
     // engagement still runs every step so deaths/elite gates can activate waiting packs.
     const discoveryMemos=new WeakMap(),noticeMemos=new WeakMap();
+    // The radius each run last uncovered with (transient like the memos): the fog and the objects dim past it.
+    const sights=new WeakMap();
+    // Cells where a map monster died since the last alerted() check (transient): a kill is a hurt that leaves no body to hear.
+    const deathNoises=new WeakMap();
     function current(state) {
         const run=state.actExploration;
         return run && run.zoneId===state.currentZoneId ? run : null;
@@ -41,12 +45,23 @@ const actExplorationState = (() => {
     }
     /** Rooms that hold a pack: every room but the entry, the boss room (its stages) and monster-free paths. */
     function packRooms(map) {return map.rooms.filter(room=>!['entry','boss','path'].includes(room.role));}
-    /** @returns {ReadonlyArray<number>} Current visibility; only this owner updates discovered/visited lists. */
-    function discover(run,cell) {
-        const prior=discoveryMemos.get(run),key=`${run.layoutId}:${cell.gx},${cell.gy}`;
+    /** The hero's sight in tiles: the base radius plus the 시야 line on the helmet (stats.sightRange), at most sightBonusMax more
+     * plus the 시야 상한 of 등대지기의 눈 (stats.sightCap). */
+    function sightRadius(stats) {
+        const bonus=Math.floor(Number(stats && stats.sightRange)||0);
+        const cap=ACT_EXPLORATION_VISION.sightBonusMax+Math.max(0,Math.floor(Number(stats && stats.sightCap)||0));
+        return ACT_EXPLORATION_VISION.radius+Math.max(0,Math.min(cap,bonus));
+    }
+    /** The radius the run's last discovery used (the base radius before the first step). */
+    function sight(run) {return (run && sights.get(run)) || ACT_EXPLORATION_VISION.radius;}
+    /** @returns {ReadonlyArray<number>} Current visibility; only this owner updates discovered/visited lists. radius: the hero's
+     * sight (sightRadius), kept per run for the fog. */
+    function discover(run,cell,radius=ACT_EXPLORATION_VISION.radius) {
+        sights.set(run,radius);
+        const prior=discoveryMemos.get(run),key=`${run.layoutId}:${cell.gx},${cell.gy}:${radius}`;
         if(prior?.key===key && prior.discovered===run.discovered && prior.visited===run.visitedRooms)return prior.visible;
         const map=actExplorationMap.forRun(run),known=new Set(run.discovered);
-        const visible=Object.freeze(actExplorationMap.visibleCells(map,cell));
+        const visible=Object.freeze(actExplorationMap.visibleCells(map,cell,radius));
         visible.forEach(id=>known.add(id));run.discovered=[...known];
         for(const room of map.rooms) {
             if(room.gx===cell.gx && room.gy===cell.gy && !run.visitedRooms.includes(room.id))run.visitedRooms.push(room.id);
@@ -142,6 +157,17 @@ const actExplorationState = (() => {
         state.enemies.push(...added);
         return added;
     }
+    /** 경계하는 무리 (data ACT_EXPLORATION_ALERT): a listening pack that has not noticed the hero hears a fight once a monster in
+     * it is hurt within hearReach tiles of any member; every member then joins (wake). Returns those members, none outside a map. */
+    function alerted(state) {
+        const run=current(state);if(!run || run.status!=='active')return [];
+        const packs=run.packs.filter(pack=>pack.alert && pack.waiting.length);
+        const hurt=packs.length ? state.enemies.filter(enemy=>enemy.hp>0 && enemy.hp<enemy.maxHp).concat(deathNoises.get(run)||[]) : [];
+        deathNoises.delete(run);
+        const reach=ACT_EXPLORATION_ALERT.hearReach;
+        const hears=enemy=>hurt.some(source=>Math.max(Math.abs(enemy.gx-source.gx),Math.abs(enemy.gy-source.gy))<=reach);
+        return packs.filter(pack=>pack.waiting.some(hears)).flatMap(pack=>pack.waiting);
+    }
     /** Death is idempotent; waiting enemies cannot be killed by an unrelated event. */
     function recordDeath(state,enemy) {
         const run=current(state);
@@ -150,9 +176,16 @@ const actExplorationState = (() => {
         if(!pack || pack.waiting.some(row=>row.id===enemy.id))return false;
         const index=pack.aliveIds.indexOf(enemy.id);if(index<0)return false;
         pack.aliveIds.splice(index,1);
+        noteDeathNoise(run,enemy);
         const bosses=run.packs.filter(row=>row.stage!==null);
         if(bosses.every(row=>row.aliveIds.length===0) && !actExplorationState.objects.active(run))run.status='cleared';
         return true;
+    }
+    /** Remembers where a monster died while a listening pack still waits (read once by alerted). */
+    function noteDeathNoise(run,enemy) {
+        if(!run.packs.some(pack=>pack.alert && pack.waiting.length))return;
+        const cells=deathNoises.get(run)||[];
+        cells.push({gx:enemy.gx,gy:enemy.gy});deathNoises.set(run,cells);
     }
     /** Keep surviving optional monsters owned when the completed map stops rendering combat. */
     function retireCombat(state) {
@@ -349,6 +382,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,packPosition,discover,notice,engage,dormantNear,wake,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

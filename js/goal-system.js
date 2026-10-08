@@ -235,8 +235,8 @@
                 if (!zone || !zone.name) return null;
                 let act = (typeof getStoryActByZoneId === 'function') ? getStoryActByZoneId(frontier) : null;
                 let title = act && act.bossName
-                    ? `${zone.name}의 보스 ${act.bossName}를 처치하세요`
-                    : `${zone.name}을(를) 돌파하세요`;
+                    ? `${zone.name}의 보스 ${withObjectParticle(act.bossName)} 처치하세요`
+                    : `${withObjectParticle(zone.name)} 돌파하세요`;
                 let onFrontier = clampCount(g.currentZoneId) === frontier && Number(g.currentZoneId) === frontier;
                 let goal = {
                     id: `story-zone-${frontier}`,

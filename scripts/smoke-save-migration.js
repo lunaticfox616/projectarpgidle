@@ -144,16 +144,16 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     const g = merge({
         saveVersion: vm.runInContext('defaultGame.saveVersion', ctx), passiveLayoutVersion: 22,
         selectedClassId: 'warrior', inventory: [], equipment: {}, currencies: {}, unlocks: {},
-        passives: ['n7xf9g8ilhr', 'nzv2zn1wqtc', 'poe2_22290'],
-        discoveredPassives: ['poe2_22290', 'poe2_26725'],
-        voidPassives: { poe2_26725: { stats: [{ id: 'flatHp', val: 12 }] } },
-        retiredVoidPassives: { poe2_26196: { stats: [{ id: 'resAll', val: 3 }] } },
+        passives: ['n7xf9g8ilhr', 'nzv2zn1wqtc', 'old2_22290'],
+        discoveredPassives: ['old2_22290', 'old2_26725'],
+        voidPassives: { old2_26725: { stats: [{ id: 'flatHp', val: 12 }] } },
+        retiredVoidPassives: { old2_26196: { stats: [{ id: 'resAll', val: 3 }] } },
         settings: { passiveTreePlanner: { layoutVersion: 22, activeSlot: 0, presets: [
-            { name: '옛 ID', nodeIds: ['poe2_22290', 'poe2_1207'], attributeChoices: {} }
+            { name: '옛 ID', nodeIds: ['old2_22290', 'old2_1207'], attributeChoices: {} }
         ] } }
     });
     assert.ok(g.passives.includes('pt_spine_warrior_left_01'), '기존 투자 노드를 새 식별자로 복구해야 한다');
-    assert.ok(!g.passives.includes('poe2_22290'), '구 식별자가 현재 투자 목록에 남으면 안 된다');
+    assert.ok(!g.passives.includes('old2_22290'), '구 식별자가 현재 투자 목록에 남으면 안 된다');
     assert.ok(g.discoveredPassives.includes('pt_void_south'), '발견한 공허 노드도 새 식별자로 복구해야 한다');
     assert.strictEqual(g.voidPassives.pt_void_south.stats[0].val, 12, '공허 패시브 옵션을 보존해야 한다');
     assert.ok(g.retiredVoidPassives.pt_void_southeast, '보관된 공허 패시브도 새 식별자로 복구해야 한다');

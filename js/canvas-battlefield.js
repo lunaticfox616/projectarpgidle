@@ -1671,7 +1671,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
         let x = Math.round(entry.x - width / 2);
         let baseY = Math.round(entry.y - getEnemyFieldBarLift(enemy));
         const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
-        const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 });
+        const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
         let y = reserved.y + nameHeight;
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
@@ -2244,16 +2244,37 @@ function drawBattleEnemyActor(ctx, entry, state) {
     ctx.save();
     ctx.globalAlpha = easedAge;
     drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
+    if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
+    ctx.restore();
+}
+
+/** 잿불 터 무리(data/atlas.js encounters sparks): 몸에서 불씨 도트 셋이 떠올라 꺼진다. 그림만 그린다. */
+function drawEncounterSparks(ctx, entry, state, color) {
+    const tile = (state.gridProj && state.gridProj.tileW) || 32, dot = Math.max(1, Math.round(tile / 16)), seed = Math.abs(entry.enemy.id || 0) * 97;
+    ctx.save();
+    ctx.fillStyle = color;
+    const alpha = ctx.globalAlpha;
+    for (let index = 0; index < 3; index++) {
+        const t = ((state.now + seed + index * 433) % 1300) / 1300, size = dot * (t < 0.5 ? 2 : 1);
+        const x = entry.x + Math.sin((seed + index * 71) % 628 / 100 + t * 3) * tile * 0.22, y = entry.y - tile * (0.3 + t * 0.9);
+        ctx.globalAlpha = alpha * (1 - t) * 0.9;
+        ctx.fillRect(Math.round(x), Math.round(y), size, size);
+    }
     ctx.restore();
 }
 
 /** An enemy drawn once more after it left the field (death dissolve, pending-hit ghost): sheet monsters from their sheets,
  * the rest from the atlas. pose = { x, y, scale (atlas), flash, gridProj, now, facing }. */
 function drawEnemyAfterimage(ctx, enemy, pose) {
-    const tile = pose.gridProj && pose.gridProj.tileW;
-    const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash };
+    const tile = pose.gridProj && pose.gridProj.tileW, boss = getBossDrawScale(enemy);
+    const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
-    drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale, !!pose.flash, pose.now);
+    drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
+}
+
+/** 보스는 BOSS_DRAW_SCALE배로 그린다(살아 있는 모습, 사라지는 잔상, 쓰러지는 모습 모두). 일반 몬스터는 1. */
+function getBossDrawScale(enemy) {
+    return enemy && enemy.isBoss ? BOSS_DRAW_SCALE : 1;
 }
 
 /** Wisps, act monsters, roots and realm sets draw from their own 16-dot sheets (js/canvas-wisp-actors.js,
@@ -2261,11 +2282,11 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
 function drawEnemyActorSprite(ctx, entry, state, pose) {
     const enemy = entry.enemy, flash = state.enemyHitFlashes.get(enemy.id) || 0, facing = resolveEnemyFacingDirection(entry, state.playerPos);
     const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
-    const x = entry.x + recoil.x, y = pose.y + recoil.y;
-    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale, moving: entry.moving === true };
+    const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = getBossDrawScale(enemy);
+    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     noteEnemySpriteSide(enemy, entry, state.playerPos, tile);
-    drawEnemySprite(ctx, enemy, x, y, pose.scale, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
+    drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
 function drawBattleActorLayer(ctx, enemyEntries, state) {

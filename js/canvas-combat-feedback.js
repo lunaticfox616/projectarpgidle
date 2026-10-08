@@ -219,5 +219,13 @@ worldTreeSkillFx.feedback = (() => {
         if (detail.kind !== 'reward' || !detail.cell || game.isBackgroundCalculation) return;
         addBattleFx('objectReward', { cell: detail.cell, objectKind: detail.objectKind, grade: detail.grade, duration: 460 });
     });
+    // 경계하는 무리 (data ACT_EXPLORATION_ALERT, js/act-exploration-state.js alerted): a '!' over each member that starts to run, one log line.
+    addEventListener('project-idle:exploration-alert', ({detail}) => {
+        const ids = detail && detail.enemyIds;
+        if (!ids || !ids.length || game.isBackgroundCalculation) return;
+        const rule = ACT_EXPLORATION_ALERT;
+        for (const enemyId of ids) addBattleFx('statusText', { enemyId, text: '!', color: rule.outline, duration: rule.markMs });
+        addLog(`⚠️ 싸움 소리를 들은 ${rule.prefix} 무리 ${ids.length}마리가 달려옵니다.`, 'attack-monster');
+    });
     return { begin, observe, contact, death, object, screen, reduced, advanceClock };
 })();

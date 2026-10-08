@@ -11,7 +11,8 @@ const atlasUi = (() => {
     const nodeName = id => atlas.node(id)?.name || '';
     const selectedMap = () => ledger().stash.find(map => map.uid === selectedUid) || null;
     const panelOpen = () => game.mapExploreSubtab === 'map-explore-worldtree' && game.mapSubtab === 'map-tab-zones';
-    const encounterNames = types => types.map(type => ATLAS.encounters[type].name).join(' · ');
+    /** Content room names; a golden room (data/atlas.js goldenRoom) carries its prefix. */
+    const encounterNames = (types, golden = []) => types.map(type => `${golden.includes(type) ? `${ATLAS.goldenRoom.prefix} ` : ''}${ATLAS.encounters[type].name}`).join(', ');
 
     function openPanel() {
         if (!document.getElementById('tab-map').classList.contains('active')) switchTab('tab-map');
@@ -26,7 +27,7 @@ const atlasUi = (() => {
     }
     function setView(next) {
         const keyboard = document.activeElement && document.activeElement.closest ? document.activeElement.closest('#ui-atlas') : null;
-        view = ['passives', 'epoch', 'late'].includes(next) ? next : 'maps';
+        view = ['passives', 'epoch', 'late', 'memory'].includes(next) ? next : 'maps';
         refresh();
         // The panel is rebuilt: a tab pressed from inside it keeps the focus on the (new) pressed tab.
         if (keyboard) document.querySelector('#ui-atlas .atlas-view.is-on')?.focus();
@@ -142,7 +143,7 @@ const atlasUi = (() => {
         atlasChartArt.paint(canvas, Math.max(120, Math.round(box.clientWidth / 2)), chartModel());
     }
     /** The dot drawings of the current view: the chart, the passive wheels (the epoch and late views have none). */
-    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {} };
+    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {} };
     /** Drawings follow the panel's width: repaint the current view whenever the panel resizes. */
     function watchPanel(panel) {
         if (panelObserver || typeof ResizeObserver !== 'function') return;
@@ -186,17 +187,18 @@ const atlasUi = (() => {
         if (special) return `<div class="atlas-map-card"><strong>${escapeHTML(nodeName(map.node))}</strong><span class="atlas-map-tags">${map.tier}등급, ${special}</span>${extra}</div>`;
         const fx = atlasMaps.effects(map), rule = ATLAS.rarities[map.rarity];
         const mods = map.mods.map(entry => `<li>${escapeHTML(atlasMaps.describe(entry))}</li>`).join('');
-        const tags = [`${map.tier}등급`, rule.name, map.quality ? `품질 ${map.quality}%` : '', map.corrupted ? '타락' : ''].filter(Boolean).join(' · ');
+        const tags = [`${map.tier}등급`, rule.name, map.quality ? `품질 ${map.quality}%` : '', map.corrupted ? '타락' : '',
+            fx.overTiers ? `고등급 보상 ${fx.overTiers}단계` : ''].filter(Boolean).join(', ');
         return `<div class="atlas-map-card rarity-${map.rarity}${map.corrupted ? ' is-corrupted' : ''}"><strong>${escapeHTML(nodeName(map.node))}</strong>
             <span class="atlas-map-tags">${tags}</span>${mods ? `<ul class="atlas-mods">${mods}</ul>` : '<p class="atlas-muted">옵션 없음</p>'}
-            <p class="atlas-rewards">아이템 수량 +${fx.quantity}% · 희귀도 +${fx.rarity}%${fx.packExtra ? ` · 무리 +${fx.packExtra}` : ''}</p>${extra}</div>`;
+            <p class="atlas-rewards">아이템 수량 +${fx.quantity}%, 희귀도 +${fx.rarity}%${fx.packExtra ? `, 무리 +${fx.packExtra}` : ''}</p>${extra}</div>`;
     }
     /** Late materials the open map holds until its boss falls (js/atlas-endgame.js roomItems), as "성화 잉걸 8, 공허 조각 3". */
     const heldLate = run => Object.entries((run.endgame && run.endgame.items) || {}).map(([id, n]) => `${atlasEndgame.itemName(id)} ${n}`).join(', ');
     function runHtml(run) {
         const total = ATLAS.portals + run.bonus.portals, late = heldLate(run);
         const portals = Array.from({ length: total }, (_, i) => `<i class="${i < run.portals ? 'is-on' : ''}"></i>`).join('');
-        const inside = atlas.inMap(game), rooms = run.encounters.length ? `<p class="atlas-encounters">콘텐츠 방: ${encounterNames(run.encounters)}</p>` : '';
+        const inside = atlas.inMap(game), rooms = run.encounters.length ? `<p class="atlas-encounters">콘텐츠 방: ${encounterNames(run.encounters, run.golden || [])}</p>` : '';
         return `<section class="atlas-device is-running" aria-label="열린 지도"><h3>열린 지도</h3>
             ${mapCardHtml(run.map, `${rooms}<p class="atlas-portals" aria-label="남은 포털 ${run.portals}">포털 ${portals}</p>
             <p class="atlas-muted">맵에서 얻은 지도석 ${run.drops.length}개 · 각인 ${run.found.length}개 · 보스를 잡으면 보관함으로</p>
@@ -207,7 +209,9 @@ const atlasUi = (() => {
     }
     function fragmentsHtml() {
         const st = ledger(), slots = atlas.slots(game);
-        const chips = ATLAS.fragments.map(fragment => {
+        // 새 각인은 그 방이 열리는 루프부터 보인다(이미 가진 것과 끼운 것은 그대로, js/atlas.js fragmentOpen).
+        const shown = ATLAS.fragments.filter(fragment => atlas.fragmentOpen(fragment, game.season) || st.fragments[fragment.id] > 0 || st.loadout.includes(fragment.id));
+        const chips = shown.map(fragment => {
             const count = st.fragments[fragment.id] || 0, on = st.loadout.includes(fragment.id);
             return `<button class="atlas-fragment${on ? ' is-on' : ''}" aria-pressed="${on}" onclick="atlasUi.toggleFragment('${fragment.id}')"
                 ${!on && !count ? 'disabled' : ''} title="${escapeHTML(fragmentText(fragment))}"><span>${fragment.name}</span><small>${count}</small></button>`;
@@ -215,16 +219,25 @@ const atlasUi = (() => {
         return `<div class="atlas-fragments" aria-label="각인 홈"><p class="atlas-muted">각인 홈 ${st.loadout.length}/${slots} · 지도를 열 때 하나씩 씀</p>${chips}</div>`;
     }
     function fragmentText(fragment) {
-        if (fragment.encounter) return `${ATLAS.encounters[fragment.encounter].name} 방이 반드시 생긴다`;
-        return Object.entries(fragment.effect).map(([key, value]) => `${ATLAS_PASSIVES.labels[key][0]} +${value}${ATLAS_PASSIVES.labels[key][1]}`).join(' · ');
+        const room = fragment.encounter ? ATLAS.encounters[fragment.encounter].name : '';
+        if (room) return `${room}${room.endsWith('방') ? '' : ' 방'}이 반드시 생긴다`;
+        const label = ([key, value]) => (ATLAS_PASSIVES.labels[key][1] === 'on' ? ATLAS_PASSIVES.labels[key][0] : `${ATLAS_PASSIVES.labels[key][0]} +${value}${ATLAS_PASSIVES.labels[key][1]}`);
+        return Object.entries(fragment.effect).map(label).join(', ');
+    }
+    /** ' (잊힌 정원 ×2)' for a room a region favours (data/atlas.js regionChance), '' otherwise. */
+    function regionChanceNote(type) {
+        return Object.entries(ATLAS.encounters[type].regionChance || {})
+            .map(([id, mul]) => ` (${(ATLAS.regions.find(row => row.id === id) || {}).name} ×${mul})`).join('');
     }
     function chancesHtml() {
         const bonus = atlasPassives.effects(game);
-        const rows = late => atlasEncounters.types.filter(type => !!ATLAS.encounters[type].late === late)
-            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%`).join(' · ');
+        const rows = late => atlasEncounters.types.filter(type => !!ATLAS.encounters[type].late === late && atlasEncounters.isOpen(type, game.season))
+            .map(type => `${ATLAS.encounters[type].name} ${ATLAS.encounters[type].chance + (bonus[type] || 0)}%${regionChanceNote(type)}`).join(', ');
         // 제단은 아틀라스가 깨어난 뒤에만, 콘텐츠 방과 따로 생긴다(js/atlas-encounters.js roll).
         const altars = atlasEndgame.awakened(game) ? `<p class="atlas-encounters">제단 확률: ${rows(true)} (지도마다 ${ATLAS.altarLimit}개까지)</p>` : '';
-        return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows(false)} (지도마다 ${ATLAS.encounterLimit + (bonus.encounterExtra || 0)}개까지)</p>${altars}`;
+        // 황금 방(data/atlas.js goldenRoom): 콘텐츠 방마다 이 확률로 황금 방이 된다(보상 3배와 귀한 재료).
+        const golden = `황금 방 ${ATLAS.goldenRoom.chance + (bonus.goldenRoom || 0)}% (보상 ${ATLAS.goldenRoom.rewardMul}배)`;
+        return `<p class="atlas-encounters">콘텐츠 방 확률: ${rows(false)} (지도마다 ${atlasEncounters.roomLimit(bonus, game.season)}개까지), ${golden}</p>${altars}`;
     }
     function deviceHtml() {
         const map = selectedMap(), lock = atlas.lockReason(game) || atlasRun.blockReason();
@@ -241,7 +254,7 @@ const atlasUi = (() => {
         return `<button onclick="atlasUi.craft('${key}')" ${reason || have < 1 ? 'disabled' : ''} title="${escapeHTML(reason || atlasMaps.crafts[key].label)}">
             <span>${window.getStyledOrbName(key)}</span><small>${atlasMaps.crafts[key].label} · ${have}</small></button>`;
     }
-    const TICKET = key => ORB_DB[key].name.replace('우버 뿌리 입장권: ', '');
+    const TICKET = key => ORB_DB[key].name.replace('그림자 뿌리 입장권: ', '');
     function nodeDetailHtml() {
         const node = atlas.node(selectedNode);
         if (!node) return '<section class="atlas-node-detail"><p class="atlas-muted">노드를 누르면 정보가 보입니다. 완료한 노드의 이웃이 열립니다.</p></section>';
@@ -292,7 +305,7 @@ const atlasUi = (() => {
         const st = ledger(), total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), free = atlasPassives.available(game);
         const tab = (id, label) => `<button class="atlas-view${view === id ? ' is-on' : ''}" aria-pressed="${view === id}" onclick="atlasUi.setView('${id}')">${label}</button>`;
         return `<header class="atlas-head"><div><h2>세계수 아틀라스</h2><span>완료 ${st.completed.length}/${total} · 보너스 ${st.bonus.length} · 씨앗 ${st.seeds}/${ATLAS.seeds.max} · 아틀라스 포인트 ${atlas.points(game)}${free ? ` (남음 ${free})` : ''}</span></div>
-            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('epoch', '시대')}</nav>
+            <nav class="atlas-views" aria-label="아틀라스 보기">${tab('maps', '지도')}${tab('passives', `패시브${free ? ` +${free}` : ''}`)}${tab('late', '최종')}${tab('memory', `기억${memoryDungeon.total(game) ? ` ${memoryDungeon.total(game)}` : ''}`)}${tab('epoch', '시대')}</nav>
             <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
@@ -300,7 +313,8 @@ const atlasUi = (() => {
         return `<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
-    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html() };
+    const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html(),
+        memory: () => memoryDungeonUi.html() };
     function render() {
         atlasEndgameUi.noticeAwakened(); // every static refresh, panel open or not (the card follows the state)
         const panel = document.getElementById('ui-atlas');
@@ -321,7 +335,7 @@ const atlasUi = (() => {
     /** Fights opened without a map item say what they are instead of the (always normal) rarity. */
     const RUN_KIND = { pinnacle: '정점', apex: '최종 보스', league: '리그 우두머리' };
     function hudTags(run) {
-        const rooms = run.encounters.length ? ` · ${encounterNames(run.encounters)}` : '';
+        const rooms = run.encounters.length ? ` · ${encounterNames(run.encounters, run.golden || [])}` : '';
         return `${run.map.tier}등급 · ${RUN_KIND[atlas.node(run.map.node)?.kind] || ATLAS.rarities[run.map.rarity].name}${rooms}`;
     }
     function updateHud(zone) {
@@ -341,7 +355,7 @@ const atlasUi = (() => {
     const REASON = { defeat: '쓰러졌습니다', travel: '지도를 떠났습니다', '마을 귀환': '마을로 귀환했습니다' };
     function dropsText(detail) {
         const parts = [];
-        if (detail.room) parts.push(`${ATLAS.encounters[detail.room].name} 정리: ${detail.rewards.map(([key, n]) => `${ORB_DB[key].name} ${n}`).join(', ') || '보상 없음'}`);
+        if (detail.room) parts.push(`${detail.golden ? `${ATLAS.goldenRoom.prefix} ` : ''}${ATLAS.encounters[detail.room].name} 정리: ${detail.rewards.map(([key, n]) => `${ORB_DB[key].name} ${n}`).join(', ') || '보상 없음'}`);
         if (detail.maps.length) parts.push(`지도석 ${detail.maps.map(map => `${nodeName(map.node)}(${map.tier})`).join(', ')}`);
         if (detail.fragments.length) parts.push(`각인 ${detail.fragments.map(id => atlas.fragment(id).name).join(', ')}`);
         // 깨어난 뒤 제단 · 리그 방의 재료(js/atlas-endgame.js roomItems): 보스를 잡아야 보관함에 들어온다.

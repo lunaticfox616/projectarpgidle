@@ -145,6 +145,7 @@ function addExplorationGridReservations(blocked,excludeUnit) {
  */
 function findFreeGridCell(blocked, near, footprint) {
     let size = footprint || { columns: 1, rows: 1 };
+    if (isOneTileNear(near, size)) return findFreeGridCellNear(blocked, near);
     let free = [], terrain = getGridPlacementTerrain();
     for (let gx = 0; gx < terrain.map.columns; gx++) {
         for (let gy = 0; gy < terrain.map.rows; gy++) {
@@ -153,10 +154,43 @@ function findFreeGridCell(blocked, near, footprint) {
     }
     if (free.length === 0) return null;
     if (!near) return free[Math.floor(Math.random() * free.length)];
+    return nearestGridCell(free, near, size);
+}
+
+const isOneTileNear = (near, size) => !!near && size.columns === 1 && size.rows === 1 && isGridCellInBounds(near.gx, near.gy);
+
+/** findFreeGridCell for a one-tile unit near an integer cell: rings outward from near, the first free cell in scan order (column,
+ * then row) on the nearest ring. The same cell the full scan picks, from a few dozen checks instead of every tile of the map. */
+function findFreeGridCellNear(blocked, near) {
+    const terrain = getGridPlacementTerrain(), reach = Math.max(terrain.map.columns, terrain.map.rows);
+    for (let ring = 0; ring <= reach; ring++) {
+        const cell = firstFreeOnRing(blocked, near, ring, terrain);
+        if (cell) return cell;
+    }
+    return null;
+}
+/** The cells at exactly ring from near, in scan order (column, then row); the first one a unit can stand on. */
+function firstFreeOnRing(blocked, near, ring, terrain) {
+    const size = { columns: 1, rows: 1 };
+    const rows = gx => (Math.abs(gx - near.gx) === ring
+        ? Array.from({ length: 2 * ring + 1 }, (_, index) => near.gy - ring + index) : [near.gy - ring, near.gy + ring]);
+    for (let gx = Math.max(0, near.gx - ring); gx <= Math.min(terrain.map.columns - 1, near.gx + ring); gx++) {
+        const cell = rows(gx).filter(gy => gy >= 0 && gy < terrain.map.rows).find(gy => canPlaceGridFootprint(blocked, gx, gy, size, terrain));
+        if (cell !== undefined) return { gx, gy: cell };
+    }
+    return null;
+}
+
+/** The first cell in scan order at the least distance from near: what a stable sort by distance put first, in one pass (a summoner
+ * map recalls eight wisps per map, and sorting every free tile of an exploration map for each was 38% of a projected settlement). */
+function nearestGridCell(cells, near, size) {
     let centerOffsetX = (size.columns - 1) / 2, centerOffsetY = (size.rows - 1) / 2;
-    free.sort((a, b) => gridChebyshevDist(a.gx + centerOffsetX, a.gy + centerOffsetY, near.gx, near.gy)
-        - gridChebyshevDist(b.gx + centerOffsetX, b.gy + centerOffsetY, near.gx, near.gy));
-    return free[0];
+    let best = cells[0], bestDistance = Infinity;
+    for (const cell of cells) {
+        const distance = gridChebyshevDist(cell.gx + centerOffsetX, cell.gy + centerOffsetY, near.gx, near.gy);
+        if (distance < bestDistance) { best = cell; bestDistance = distance; }
+    }
+    return best;
 }
 
 /**
@@ -354,13 +388,30 @@ function beginExplorationGridStep(target,interval) {
     return actExplorationMotion.start(run,game.gridPlayer,next,interval,run.motionTimeMs);
 }
 
-/** The hero plans its exploration step around fighters, summons and its own reserved tile, but not around dormant packs:
- * they wake as soon as they are seen, so a narrow passage (a maze chamber) they stand in must not look like a dead end.
- * Stepping into a tile a dormant enemy still holds is refused at the half-way check (canEnterMotionTile). */
+/** The hero plans its exploration step around fighters and its own reserved tile, but not around dormant packs: they wake
+ * as soon as they are seen, so a narrow passage (a maze chamber) they stand in must not look like a dead end. Stepping into a
+ * tile a dormant enemy still holds is refused at the half-way check (canEnterMotionTile). Nor around its own summons: they
+ * stand still with nothing to fight, and eight idle wisps once shut a summoner in a side room for good (2026-10-08); the hero
+ * walks through and the summon takes the tile it left (swapSummonOutOfHeroTile). */
 function getExplorationPlanningBlockedCells(run) {
-    const blocked=getGridBlockedCells(game.gridPlayer);
+    const blocked=getHeroStepBlockedCells();
     run.packs.forEach(pack=>pack.waiting.forEach(enemy=>getGridUnitCells(enemy).forEach(cell=>blocked.delete(gridCellKey(cell.gx,cell.gy)))));
     return blocked;
+}
+
+/** Cells the hero cannot step into: everything getGridBlockedCells holds except the hero's own summons. */
+function getHeroStepBlockedCells() {
+    const blocked=getGridBlockedCells(game.gridPlayer);
+    (game.summons||[]).forEach(summon=>{if(summon && hasGridCell(summon))getGridUnitCells(summon).forEach(cell=>blocked.delete(gridCellKey(cell.gx,cell.gy)));});
+    return blocked;
+}
+
+/** A summon on the tile the hero just entered takes the tile the hero left. */
+function swapSummonOutOfHeroTile(from) {
+    const hero=game.gridPlayer;
+    if(!from || (hero.gx===from.gx && hero.gy===from.gy))return;
+    const summon=(game.summons||[]).find(row=>row && hasGridCell(row) && getGridUnitCells(row).some(cell=>cell.gx===hero.gx && cell.gy===hero.gy));
+    if(summon)Object.assign(summon,{gx:from.gx,gy:from.gy,gridMoveTimer:0});
 }
 
 function findNearestSafeGridRoute(unit, hazardCells) {
@@ -478,8 +529,14 @@ function getAuthoredSkillGridProfile(skillName, skillDef) {
     let pattern = skillDef && skillDef.projectilePattern;
     if (!profile || !(pattern && pattern.kind)) return profile || null;
     let resolved = { ...profile, kind: pattern.kind };
-    if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
+    if (pattern.kind === 'fan') Object.assign(resolved, getEngravedFanShape(pattern, profile));
     return resolved;
+}
+
+/** An engraved fan (삼갈래 분산): its ray count and spread. With spreadDeg the middle ray aims at the target (getGridFanRayEnds). */
+function getEngravedFanShape(pattern, profile) {
+    const spreadDeg = Number(pattern.spreadDeg) > 0 ? pattern.spreadDeg : profile.spreadDeg;
+    return { rays: Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1))), spreadDeg };
 }
 
 function getDefaultSkillGridProfile(skillDef) {
@@ -561,8 +618,8 @@ function getGridFanDirections(attacker, target, rayCount) {
     return offsets.slice(0, Math.max(1, Math.min(8, rayCount))).map(offset => ring[(center + offset + 8) % 8]);
 }
 
-/** The far cell of each fan ray. A fan with spreadDeg (연발 사격, 2026-10-07) aims its middle ray straight at the target and
- * opens the others spreadDeg apart on both sides; without it the rays follow the eight grid directions (boss fans, 삼갈래 분산).
+/** The far cell of each fan ray. A fan with spreadDeg (연발 사격, 삼갈래 분산, 2026-10-07) aims its middle ray straight at the target
+ * and opens the others spreadDeg apart on both sides; without it the rays follow the eight grid directions (boss fans).
  * Ends lie `range` cells out in the larger axis, like the grid-direction rays. */
 function getGridFanRayEnds(attacker, target, profile) {
     const rays = Math.max(1, Math.min(8, profile.rays || 3)), range = Math.max(1, profile.range || 1);
@@ -1228,7 +1285,7 @@ safeExposeGlobals({
     getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance,
     getGridDirectHitDistanceMultiplier,
-    getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
+    getGridBlockedCells, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
     gridStepToward, advanceGridUnitMovement, findNearestSafeGridRoute, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,

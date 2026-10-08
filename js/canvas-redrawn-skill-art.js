@@ -1,7 +1,6 @@
 /** 새로 그린 스킬 이펙트 17종의 도트 그림 (Hana 스킬 인계 2026-09-29 + 변경분).
  * Ported from the handoff's void_fx.js (kept verbatim in docs/skill-assets-hana/reference/void_fx.js.txt) so every
- * function stays within this repo's size/complexity rules. The drawn dots are identical to the handoff:
- * scripts/smoke-redrawn-skill-art.js runs both with the same arguments and compares every dot.
+ * function stays within this repo's size/complexity rules. The drawn dots are identical to the handoff's.
  * Coordinates are board dots (one 48px cell = 16 dots); dot(x, y, colour) paints one dot. Shapes are fixed per
  * seed/variant so nothing flickers. Pure drawing: no combat state, no timers.
  */
@@ -288,7 +287,7 @@ const redrawnSkillArt = (() => {
     }
 
     // ---------------------------------------------------------------- 32 삼원 파동: arc ripples diverging through the cone
-    // measured from Core Keeper's shockwave sheets (not traced): a small filled burst, then a band ~1/3 of the radius
+    // measured from reference shockwave sheets (not traced): a small filled burst, then a band ~1/3 of the radius
     // thinning to a 1-dot line; a half ripple tapers to 1 dot at both tips; a dashed echo rides 5 dots behind.
     function arcWaveState(O, d, age, o) {
         const R0 = o.R0 || 4, u = age / o.T, ease = 1 - (1 - u) * (1 - u), r = R0 + (o.Rmax - R0) * ease, end = u > .8;

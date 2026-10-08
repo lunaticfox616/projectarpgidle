@@ -11,11 +11,11 @@ const files = [
   'data/maps.js',
   'data/act-exploration-maps.js',
   'data/cosmos-route.js',
-  'data/exploration-regions.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js',
+  'data/exploration-regions.js', 'data/atlas.js', 'data/atlas-passives.js', 'data/atlas-endgame.js', 'data/memory-dungeon.js',
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
-  'data/items.js', 'data/weapon-categories.js',
+  'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
   'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
@@ -30,7 +30,7 @@ const files = [
   'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/exploration-ground-loot.js',
   'data/ascendancies.js', 'js/state.js',
   'js/combat-loot-receipts.js',
-  'js/level-progression.js', 'js/combat-equipment-stats.js',
+  'js/level-progression.js', 'js/combat-equipment-stats.js', 'js/player-stat-cache.js',
   'js/content-progression.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
@@ -47,7 +47,7 @@ const files = [
   'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js', 'js/stump-cube-recipes.js', 'js/stump-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/act-exploration-progress.js', 'js/exploration-object-combat.js',
-  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js',
+  'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js', 'js/memory-dungeon.js',
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
@@ -56,7 +56,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/combat.js', 'js/region-affix-effects.js', 'js/atlas-run.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];
@@ -493,7 +493,6 @@ const cfg = context.COMBAT_GRID_CONFIG;
   let baselineCosmosBoss, baselineCosmosNormal, baselineCosmosElite, finalCosmosNormal, finalCosmosElite;
   try {
     // 일반 정예의 기준 체력 검사에서는 4% 방랑자 교체를 굴리지 않는다.
-    // 방랑자의 장비/체력 배율은 smoke-severed-wanderers에서 별도로 실행한다.
     context.Math.random = () => 0.99;
     baselineCosmosBoss = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
     baselineCosmosNormal = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { at: 25 }, 0);
@@ -940,6 +939,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [97], '가운데 화살은 8방향 밖의 대상에게도 맞아야 한다');
   hits = context.selectGridSkillTargets('연발 사격', context.SKILL_DB['연발 사격'], { gx: 3, gy: 4 }, [makeEnemy(98, 6, 4), makeEnemy(99, 6, 3), makeEnemy(100, 6, 5)]);
   assert.deepStrictEqual(Array.from(hits, hit => [hit.enemy.id, hit.mult]), [[98, 1], [99, 0.4], [100, 0.4]], '좁은 산탄은 붙어 선 무리의 옆 적도 맞혀야 한다');
+  // 삼갈래 분산(창공 각인)도 가운데 투사체가 대상을 겨눈다. 예전에는 8방향이라 앞 3칸 옆 1칸의 적을 빗나갔다(2026-10-07).
+  const splitSpear = context.applyProjectilePatternMode(context.SKILL_DB['얼음 창'], 'split', '창공 각인');
+  assert.strictEqual(context.getSkillGridProfile('얼음 창', splitSpear).spreadDeg, 45, '삼갈래 분산은 45도 간격의 조준 부채꼴이다');
+  hits = context.selectGridSkillTargets('얼음 창', splitSpear, { gx: 3, gy: 4 }, [makeEnemy(101, 6, 5)]);
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [101], '삼갈래 분산의 가운데 투사체도 8방향 밖의 대상에게 맞아야 한다');
 
   // 대상 수 상한: targets=2면 범위 안에 3기가 있어도 2기만 맞는다
   const n1 = makeEnemy(12, 2, 6), n2 = makeEnemy(13, 2, 5), n3 = makeEnemy(14, 1, 5);

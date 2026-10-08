@@ -96,7 +96,7 @@ const ACT_REWARD_DB = {
         title: '액트 10 클리어 보상',
         body: '액트 완료 보상입니다.',
         choices: [
-            { kind: 'points', value: 3, label: '패시브 포인트 +3', desc: '즉시 패시브 포인트 3점을 획득합니다.' },
+            { kind: 'points', value: 3, label: '스킬트리 포인트 +3', desc: '스킬트리 포인트 3점을 바로 얻습니다.' },
             { kind: 'stat', stat: 'gemLevel', value: 1, label: '젬 레벨 보너스 +1', desc: '모든 장착 젬의 유효 레벨을 1 올립니다.' },
             { kind: 'stat', stat: 'suppCap', value: 1, label: '보조 젬 한도 +1', desc: '동시에 장착할 수 있는 보조 젬 수가 늘어납니다.' }
         ]

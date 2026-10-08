@@ -97,9 +97,15 @@ const atlasMaps = (() => {
     }
 
     /** Resolved numbers for a map: zone multipliers, per-enemy mods and the reward bonuses (quantity/rarity %). */
+    /** Tiers past the one where loot reaches T20 (data ATLAS.overTier): each adds quantity, rarity and chase odds. */
+    const overTiers = tier => Math.max(0, (Number(tier) || 0) - ATLAS.overTier.from);
+    /** Chase-unique odds multiplier of a zone (js/passives.js generateUniqueItem): only atlas maps past ATLAS.overTier.from. */
+    const chaseMul = zone => 1 + (zone && zone.type === 'atlasMap' ? overTiers(zone.atlasTier) * ATLAS.overTier.chase / 100 : 0);
     function effects(map) {
+        const over = overTiers(map.tier);
         const fx = { hp: 1, damage: 1, bossHp: 1, bossDamage: 1, packExtra: 0, extraElite: 0, hazard: false, enemy: [],
-            quantity: map.quality + (map.corrupted ? ATLAS.corruption.bonusQuantity : 0), rarity: 0 };
+            quantity: map.quality + (map.corrupted ? ATLAS.corruption.bonusQuantity : 0) + over * ATLAS.overTier.quantity,
+            rarity: over * ATLAS.overTier.rarity, overTiers: over };
         for (const entry of map.mods) {
             const mod = MODS.get(entry.id), effect = EFFECTS[entry.id];
             if (!mod || !effect) continue;
@@ -132,15 +138,19 @@ const atlasMaps = (() => {
         if (ok) seen.add(entry.id);
         return ok;
     }
+    /** 기억 던전의 지도석(js/memory-dungeon.js)은 그 단계를 지닌다: { memory } 또는 {}. */
+    function memoryField(raw) {
+        return typeof memoryDungeon === 'object' && memoryDungeon.validTier(raw.memory) ? { memory: raw.memory } : {};
+    }
     /** Save boundary: keeps only known mods with valid rolls; returns null for anything that is not a map. */
     function normalize(raw, validNode) {
         if (!validHead(raw, validNode)) return null;
         const seen = new Set(), mods = (Array.isArray(raw.mods) ? raw.mods : []).filter(entry => validEntry(entry, seen));
         const quality = Math.max(0, Math.min(ATLAS.quality.max, Math.floor(Number(raw.quality) || 0)));
         return { uid: raw.uid, node: raw.node, tier: raw.tier, rarity: raw.rarity, mods: mods.slice(0, 8).map(({ id, roll }) => ({ id, roll })),
-            quality, corrupted: raw.corrupted === true };
+            quality, corrupted: raw.corrupted === true, ...memoryField(raw) };
     }
     return Object.freeze({ create, craft, craftReason, crafts: CRAFTS, corrupt, effects, applyEnemyMods, describe, normalize, reroll,
-        mod: id => MODS.get(id) || null });
+        chaseMul, mod: id => MODS.get(id) || null });
 })();
 safeExposeGlobals({ atlasMaps });

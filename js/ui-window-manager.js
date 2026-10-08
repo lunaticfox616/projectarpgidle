@@ -823,7 +823,7 @@
     }
 
     /** 휴대폰에서 다른 화면으로 옮기면 열린 서랍을 접는다(고정했으면 그대로) — 펼친 서랍이 탭을 바꿔도 화면 절반을 덮은 채
-     * 남았다(검토 2026-10-01). 전투 화면에서 다른 곳을 누르는 것으로는 닫지 않는다(smoke-goal-drawer 3-2). */
+     * 남았다(검토 2026-10-01). 전투 화면에서 다른 곳을 누르는 것으로는 닫지 않는다. */
     function collapseGoalDrawerUnlessPinned() {
         let drawer = document.getElementById('ui-goal-drawer');
         if (!drawer || !drawer.classList.contains('expanded') || layoutState.goals.pinned) return;

@@ -146,11 +146,16 @@ function snapStat(st) {
 /** 줄 옆 표시(게임 툴팁과 같다): 특출 베이스 ✦, 고정 옵션 [T0], 제작 출처(홀씨, 화석, 이식), 벌꿀 고정. 주얼은 쁘띠와 밀랍. */
 function snapStatMarks(st) {
     let marks = {
-        exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus,
+        exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus, ember: st.emberScale,
         fixed: typeof isFixedEquipmentAffix === 'function' && isFixedEquipmentAffix(st),
         source: typeof equipmentCrafting === 'object' ? equipmentCrafting.getLabel(st) : ''
     };
     return Object.fromEntries(Object.entries(marks).filter(([, value]) => value));
+}
+/** 추가 옵션 한 줄의 종류(접두, 접미; 2026-10-07)를 프로필 머리말 "접두 2/3, 접미 3/3"에 쓰려고 남긴다. 그 밖의 줄은 남기지 않는다. */
+function snapAffixKind(item, st) {
+    const kind = typeof equipmentCrafting === 'object' ? equipmentCrafting.storedAffixKind(item, st) : 'special';
+    return kind === 'prefix' || kind === 'suffix' ? { kind } : {};
 }
 /** A weapon's category (대검, 곡도 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). */
 function profileItemCategory(item, slot) {
@@ -175,7 +180,7 @@ function buildItemSnapshot(item, slotOverride) {
         stats: (item.stats || []).slice(0, 8).map(st => {
             let o = snapStat(st);
             if (Array.isArray(st.extraStats)) o.extraStats = st.extraStats.slice(0, 4).map(snapStat);
-            return o;
+            return Object.assign(o, snapAffixKind(item, st));
         })
     };
     if (item.hallReplica) {
@@ -191,7 +196,7 @@ function buildItemSnapshot(item, slotOverride) {
         snap.fusionGrade = item.fusionGrade || '';
         snap.fusedRareName = item.fusedRareName || '';
     }
-    if (item.chaosInfusion) snap.chaosInfusion = snapStat(item.chaosInfusion);
+    if (item.chaosInfusion) snap.chaosInfusion = Object.assign(snapStat(item.chaosInfusion), snapAffixKind(item, item.chaosInfusion));
     if (item.encroached) {
         snap.encroached = {
             liberated: !!item.encroached.liberated,
@@ -210,7 +215,9 @@ function buildItemMetaSnapshot(item) {
         itemLevel: profileItemLevel(item),
         grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
         requirements: buildRequirementSnapshot(item),
-        sockets: buildSocketSnapshots(item)
+        sockets: buildSocketSnapshots(item),
+        ember: item.burned ? (item.emberLines || []).slice(0, 2).map(snapStat) : undefined,
+        anoint: profileAnointSnapshot(item)
     };
 }
 
@@ -342,13 +349,16 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     return row;
 }
 
-/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 다 자라면 주는 것, 억제와 공명. */
+/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 다 자라면 주는 것, 추가 줄, 황금, 억제와 공명.
+ * 불씨의 흉터도 이 카드다(흡수한 줄이 추가 줄 자리에). */
 function buildStumpItemSnapshot(item, result) {
     let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
-    let value = result.values[item.id] ?? (gain ? gain.value * item.roll : 0);
+    let value = result.values[item.id] ?? (gain ? gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item) : 0);
     return { kind: 'stump', family: item.family, color: item.color, name: stumpBox.label(item), quality: Math.round(item.roll * 100),
         yieldText: gain ? gain.text.replace('{v}', String(Math.round(value * 10) / 10)) : '', suppressed,
-        resonant: !suppressed && stumpBox.isMature(item) && result.resonant.has(item.color), note: stumpItemNote(item, result) };
+        resonant: !suppressed && stumpBox.isMature(item) && result.resonant.has(item.color), note: stumpItemNote(item, result),
+        extra: stumpBox.extraLinesOf(item, result).map(line => ({ id: line.stat, text: stumpBox.lineText(line.stat, line.value) })),
+        golden: stumpBox.goldenMul(item) > 1 };
 }
 
 /** 게임 그루터기 함의 상태 줄(stumpStatusLine)과 같은 문장. 억제되었거나 공명할 때만. */
@@ -1230,9 +1240,16 @@ function profileItemFusionHtml(item) {
 function profileItemOptionsHtml(item) {
     let explicit = profileExplicitStats(item);
     let html = explicit.length
-        ? `<div class="social-item-section">추가 옵션 (${explicit.length}/6)</div>${explicit.map(profileExplicitLineHtml).join('')}`
+        ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
         : '<div class="social-item-stat" style="color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>';
-    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item);
+    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemAnointHtml(item) + profileItemEmberHtml(item);
+}
+
+/** 게임 툴팁과 같은 머리말. 줄 종류가 남은 스냅샷(2026-10-07 뒤)만 "접두 2/3, 접미 3/3"을 붙이고, 예전 프로필은 "(5/6)". */
+function profileAffixHeaderText(item, explicit) {
+    const kinds = explicit.map(st => st.kind).filter(Boolean);
+    const used = kinds.length ? { prefix: kinds.filter(kind => kind === 'prefix').length, suffix: kinds.filter(kind => kind === 'suffix').length } : null;
+    return typeof equipmentCrafting === 'object' ? equipmentCrafting.affixHeader(item.rarity, explicit.length, used).text : `추가 옵션 (${explicit.length}/6)`;
 }
 
 function profileExplicitStats(item) {
@@ -1288,7 +1305,7 @@ function profileAffixParts(st) {
 function profileAffixSuffixHtml(st) {
     let source = st.source ? ` <span class="equipment-craft-source">${socialEscape(st.source)}</span>` : '';
     let honey = st.honey ? ' <span class="item-affix-lock item-affix-lock--honey">🍯 벌꿀 고정</span>' : '';
-    return `${profileRollRangeHtml(st, false)}${profileTierHtml(st)}${source}${honey}`;
+    return `${profileRollRangeHtml(st, false)}${profileTierHtml(st)}${source}${honey}${profileEmberScaleHtml(st)}`;
 }
 
 /** 티어(게임 getItemAffixTierHtml과 같다): 고정 옵션은 [T0], 티어가 있으면 [T#](0은 고유 확정 [U]). */
@@ -1315,6 +1332,32 @@ function profileRollRangeHtml(st, estimate) {
 
 function profileExceptionalMark(st) {
     return st.exceptional ? ' <span style="color:#ffb454;font-weight:700;">✦+20%</span>' : '';
+}
+
+/** 타오른 잿불가지가 다시 구운 줄의 몫(게임 툴팁과 같다): +12% 또는 -8%. */
+function profileEmberScaleHtml(st) {
+    const pct = Math.round(((Number(st.ember) || 1) - 1) * 100);
+    return pct ? ` <span style="color:${pct > 0 ? EMBER_CORRUPTION_TONE : '#9aa3ad'};font-weight:700;">🔥${pct > 0 ? '+' : ''}${pct}%</span>` : '';
+}
+
+/** 목걸이에 바른 기름(12번 루프 36, js/garden-oils.js): 노드 이름과 효과 문장(보는 사람의 기기에 패시브 트리가 없어도 읽힌다). */
+function profileAnointSnapshot(item) {
+    const nodes = typeof gardenOils === 'object' ? gardenOils.nodesOf(item).filter(Boolean) : [];
+    return nodes.length ? nodes.map(node => ({ title: node.title,
+        text: node.effects.map(effect => `${getStatName(effect.stat)} ${effect.val >= 0 ? '+' : ''}${formatValue(effect.stat, effect.val)}`).join(', ') })) : undefined;
+}
+
+/** 기름 줄(게임 툴팁과 같다). */
+function profileItemAnointHtml(item) {
+    return (Array.isArray(item.anoint) ? item.anoint : []).filter(row => row && row.title)
+        .map(row => `<div class="social-item-stat" style="color:#cfe0a0;">🌿 기름: ${socialEscape(row.title)} (${socialEscape(row.text || '')})</div>`).join('');
+}
+
+/** 타오른 장비(게임 툴팁과 같다): 다시 태울 수 없다는 표시와 타락 전용 줄. */
+function profileItemEmberHtml(item) {
+    if (!Array.isArray(item.ember)) return '';
+    const lines = item.ember.map(line => `<div class="social-item-stat" style="color:${EMBER_CORRUPTION_TONE};">[잿불] ${socialEscape(profileStatLabel(line))} +${socialEscape(profileValue(line.id, line.val))}</div>`).join('');
+    return `<div class="social-item-section" style="color:${EMBER_CORRUPTION_TONE};">🔥 타오른 장비 (다시 태울 수 없음)</div>${lines}`;
 }
 
 /** 잠식 특수 옵션(게임과 같다): 해방하면 고른 옵션과 티어, 아니면 효과 없음. */
@@ -1410,15 +1453,29 @@ function renderProfileCoreCard(core) {
 
 // ── 씨앗과 수액 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
 function renderProfileStumpCard(item) {
-    let tone = profileStumpTone(item);
+    let tone = profileStumpTone(item), scar = item.family === 'scar';
     let gain = item.yieldText ? `${item.ripe ? '' : '다 자라면 '}${item.yieldText}` : '';
-    let rows = [`품질 ${Math.floor(Number(item.quality) || 0)}%`, item.ripe ? '다 자랐습니다.' : profileGrowthText(item, '성장'), gain, item.note, profileGraftText(item)];
+    let head = [scar ? '' : `품질 ${Math.floor(Number(item.quality) || 0)}%${item.golden === true ? ', 황금' : ''}`, profileStumpGrowth(item, scar), gain];
+    let rows = list => list.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
     return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(item.name || '그루터기 아이템')}</div>`
-        + rows.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('') + '</div>';
+        + rows(head) + profileStumpExtraHtml(item) + rows([item.note, profileGraftText(item)]) + '</div>';
+}
+
+function profileStumpGrowth(item, scar) {
+    if (item.ripe) return scar ? '깨어났습니다.' : '다 자랐습니다.';
+    return profileGrowthText(item, scar ? '깨어남' : '성장');
+}
+
+/** 다 자랄 때 굴린 추가 줄과 흉터가 흡수한 줄(게임과 같은 문장과 색). */
+function profileStumpExtraHtml(item) {
+    let rows = Array.isArray(item.extra) ? item.extra.slice(0, 40) : [];
+    return rows.filter(row => row && typeof row.text === 'string')
+        .map(row => `<div class="social-item-stat" style="color:${profileStatTone(row.id)};">${socialEscape(row.text)}</div>`).join('');
 }
 
 function profileStumpTone(item) {
     if (item.kind === 'talisman') return profileTalismanTone(item);
+    if (item.family === 'scar' && typeof STUMP_BOX_SCAR === 'object') return STUMP_BOX_SCAR.tone;
     let color = typeof STUMP_BOX_COLORS === 'object' ? profileOwn(STUMP_BOX_COLORS, item.color) : '';
     return socialSafeColor(color && color.tone, '#9d927d');
 }
@@ -1565,12 +1622,18 @@ function profileStumpCellHtml(row, cell) {
         + `${profileStumpIconHtml(item)}${profileStumpBarHtml(item)}${mark}</span>`;
 }
 
-/** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
-function profileStumpIconHtml(item) {
-    let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '';
+/** 그림 파일 이름의 끝: '-색'이나 '-희귀도', 색 없는 불씨의 흉터는 '', 알 수 없는 것이면 null. */
+function profileStumpIconSuffix(item) {
+    if (item.stage === 'scar' || item.stage === 'scarAsleep') return '';
     let tint = item.kind === 'talisman' ? profileOwn(PROFILE_TALISMAN_RARITY, item.rarity) && item.rarity
         : typeof STUMP_BOX_COLORS === 'object' && profileOwn(STUMP_BOX_COLORS, item.color) && item.color;
-    return stage && tint ? `<img src="assets/px/stump/${stage.icon}-${tint}.png" alt="" draggable="false">` : '';
+    return tint ? `-${tint}` : null;
+}
+
+/** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
+function profileStumpIconHtml(item) {
+    let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '', suffix = profileStumpIconSuffix(item);
+    return stage && suffix !== null ? `<img src="assets/px/stump/${stage.icon}${suffix}.png" alt="" draggable="false">` : '';
 }
 
 function profileStumpBarHtml(item) {

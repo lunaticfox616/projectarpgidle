@@ -49,6 +49,8 @@ const atlasEpoch = (() => {
             .map(perk => Object.fromEntries(Object.entries(perk.effect).map(([key, value]) => [key, value * rank(state, perk.id)])));
     }
     const points = state => ATLAS.epoch.perks.reduce((sum, perk) => sum + (perk.points || 0) * rank(state, perk.id), 0);
+    /** 고요한 시대: 방치 효율(data/offline-progress.js)에 더하는 비율. */
+    const offline = state => ATLAS.epoch.perks.reduce((sum, perk) => sum + (perk.offline || 0) * rank(state, perk.id), 0);
     /** 시작 보급: 새 루프의 빈 지갑에 들어가는 재화. */
     function supply(state) {
         const perk = PERKS.get('supply'), level = rank(state, 'supply');
@@ -63,6 +65,6 @@ const atlasEpoch = (() => {
         const count = value => Math.max(0, Math.min(1e6, Math.floor(Number(value) || 0)));
         return { count: count(source.count), essence: count(source.essence), perks };
     }
-    return Object.freeze({ perks: PERKS, rank, reason, essenceFor, rebirth, cost, buyReason, buy, effects, points, supply, normalize });
+    return Object.freeze({ perks: PERKS, rank, reason, essenceFor, rebirth, cost, buyReason, buy, effects, points, offline, supply, normalize });
 })();
 safeExposeGlobals({ atlasEpoch });

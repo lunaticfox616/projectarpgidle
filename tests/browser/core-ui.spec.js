@@ -126,7 +126,7 @@ async function prepareResetCase(page, cloud = false) {
         checkUnlocks();
         detectNewMapUnlockAlarms();
         saveGame({ skipCloudSync: true });
-        localStorage.setItem(LEGACY_SAVE_KEYS[0], localStorage.getItem(LOCAL_SAVE_KEY));
+        localStorage.setItem('oldIdleSaveData_v8', localStorage.getItem(LOCAL_SAVE_KEY));
         localStorage.setItem('unrelated-preference', 'keep');
         switchTab('tab-settings');
     }, cloud);
@@ -151,7 +151,7 @@ test('save reset clears only local progress for a guest after one confirmation',
     await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
     expect(await page.evaluate(() => ({
         loop: game.season, user: cloudState.user,
-        legacy: localStorage.getItem(LEGACY_SAVE_KEYS[0]), other: localStorage.getItem('unrelated-preference')
+        legacy: localStorage.getItem('oldIdleSaveData_v8'), other: localStorage.getItem('unrelated-preference')
     }))).toEqual({ loop: 1, user: null, legacy: null, other: 'keep' });
     expect(failures).toEqual([]);
 });

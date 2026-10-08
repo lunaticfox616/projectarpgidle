@@ -57,7 +57,7 @@ const LEVEL_PROGRESSION = Object.freeze({
     attributeRequirements: Object.freeze([0, 0, 6, 10, 15, 21, 28, 36, 44, 52, 61, 70, 78, 86, 94, 102, 110, 117, 124, 130, 135, 140]),
     // Entry tickets and deterministic completion rewards do not enter this list.
     ordinaryCurrencies: Object.freeze(['magicBud','formlessDew','blightSpore','goldenRule','fairyRing','sapBud',
-        'ouroboros','pruningShears','abyssCatalyst','skyEssence','emberBranch','jewelShard','sealShard',
+        'ouroboros','pruningShears','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','skyEssence','emberBranch','burningEmberBranch','jewelShard','sealShard',
         'strongSealShard','radiantSealShard','blessing','fossil','fossilBulwark','fossilWedge','fossilOld',
         'fossilRift','deepWhetstone','rootIron','jewelPolish','runeShard','core','underCopper','underSilver','underGold','bossCore'])
 });

@@ -1870,6 +1870,35 @@ body.has-bottom-tabs .selection-overlay {
   font-weight: 800;
 }
 
+/* 기름 바르기(js/garden-oils-ui.js): 기름 칩, 세 자리 그릇, 지금 새겨진 노드. */
+.garden-oil-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.garden-oil-row button.is-on {
+  border-color: #a8c97f;
+  color: #e6f2cf;
+}
+
+.garden-oil-empty {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px dashed #5a5446;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.garden-oil-current {
+  margin: 6px 0;
+  color: #cfe0a0;
+  font-size: 12.5px;
+}
+
 .player-trade-item :where(strong, small),
 .hall-summary :where(p, span, button) {
   max-width: 100%;

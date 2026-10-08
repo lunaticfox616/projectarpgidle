@@ -407,8 +407,9 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.codex-card .item-base-line, .codex-card .item-stats, .cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
 :root body[data-ui-skin] :is(.records-stat-label, .records-note, .records-empty, .records-time-note summary, .records-section-title span, .unlock-depth-label, .unlock-lifetime-note, .trait-progress-summary span) { font-size: 12px; }
 :root body[data-ui-skin] .unlock-lifetime-tag { font-size: 11px; }
-:root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span),
-:root body[data-ui-skin] .records-offline > summary::after { font-size: 12px; }
+:root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span, .records-fold > summary span, .records-fold-hint),
+:root body[data-ui-skin] :is(.records-offline, .records-fold) > summary::after,
+:root body[data-ui-skin] :is(.mastery-card small, .mastery-card-head em, .chronicle-chapter span, .chronicle-chapter small) { font-size: 12px; }
 :root body[data-ui-skin] #btn-auto-salvage::after { font-size: 11px; }
 :root body[data-ui-skin] #ui-passive-points { font-size: 20px; }
 :root body[data-ui-skin] :is(#tab-character, #tab-stump) h2,

@@ -110,6 +110,17 @@ const marketUi = {
         const select = host.querySelector('#sel-market-annul-stat');
         if (rows.some(row => String(row.index) === before)) select.value = before;
     },
+    renderKeep() {
+        const host = document.getElementById('ui-market-service-keep'), item = getSelectedCraftItem(), kept = equipmentCrafting.keptKind(item);
+        const buttons = Object.entries(AFFIX_KEEP_RULES.labels).map(([kind, label]) => {
+            const reason = getAffixKeepServiceReason(item, kind);
+            return `<button onclick="marketKeepSelectedItemAffixes('${kind}')" ${reason ? `disabled title="${escapeHTML(reason)}"` : ''}>${label} 보존</button>`;
+        }).join('');
+        this.mount(host, `<div class="market-service-top"><h3>옵션 보존</h3><span>황금률 ${AFFIX_KEEP_RULES.cost}개</span></div>
+            <p>다음 재굴림 한 번 동안 접두나 접미 옵션을 그대로 두고 남은 자리만 굴립니다. 재화, 홀씨, 화석 재굴림에 쓰입니다.</p>
+            <label>대상 장비<select data-market-target onchange="marketUi.selectTarget(this.value)">${this.targetOptions(item)}</select></label>
+            ${this.targetArt(item)}${kept ? `<p>지금 ${AFFIX_KEEP_RULES.labels[kept]} 보존이 걸려 있습니다.</p>` : ''}${buttons}`);
+    },
     targetArt(item) {
         if (!item) return '';
         const image = getInventoryItemVisualAsset(item, 'equipment');
@@ -127,7 +138,7 @@ const marketUi = {
     },
     renderServices() {
         document.getElementById('market-service-balance').textContent = `황금률 ${(game.currencies.goldenRule || 0).toLocaleString()}개 보유`;
-        const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true},
+        const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'keep', label:'옵션 보존', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true},
             {id:'jewel-inv', label:'주얼 인벤토리 확장', open:contentProgression.isUnlocked('jewel')}];
         const available = choices.filter(row => row.open);
         if (!available.some(row => row.id === this.service)) this.service = 'annul';
@@ -141,6 +152,7 @@ const marketUi = {
     },
     renderService(id) {
         if (id === 'annul') return this.renderAnnul();
+        if (id === 'keep') return this.renderKeep();
         if (id === 'passive') return this.renderPassiveReset();
         return this.renderExpansion('jewel', true, getJewelMarketExpandCost(), getJewelInventoryLimit());
     },
@@ -296,4 +308,20 @@ function renderMarketUI() {
     if (marketUi.section === 'services') marketUi.renderServices();
     if (marketUi.section === 'stall') playerStallUi.render();
 }
+/** 접두 보존, 접미 보존(data/items.js AFFIX_KEEP_RULES): the next full reroll keeps every line of the kind once. */
+async function marketKeepSelectedItemAffixes(kind) {
+    const item = getSelectedCraftItem(), label = AFFIX_KEEP_RULES.labels[kind], cost = AFFIX_KEEP_RULES.cost;
+    const reason = getAffixKeepServiceReason(item, kind);
+    if (reason) return addLog(reason, 'attack-monster');
+    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 [${item.name}]의 ${label} 옵션을 다음 재굴림 한 번 동안 그대로 둡니다.`), {
+        title: `${label} 보존`,
+        confirmLabel: '보존'
+    })) return;
+    if (getSelectedCraftItem() !== item || getAffixKeepServiceReason(item, kind)) return addLog('확인 중 장비 또는 재화 상태가 변경되어 보존을 취소했습니다.', 'attack-monster');
+    game.currencies.goldenRule -= cost;
+    item.affixKeep = kind;
+    addLog(`🔒 ${label} 보존: [${item.name}] 다음 재굴림에서 ${label} 옵션을 그대로 둡니다.`, 'loot-unique');
+    updateStaticUI();
+}
+
 safeExposeGlobals({marketUi, renderMarketUI});

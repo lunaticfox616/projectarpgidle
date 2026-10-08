@@ -2465,12 +2465,18 @@ function applyPassiveConditionalAilmentRules(passive, flags) {
     if (flags.blackDistill) passive.poisonChance += 20;
 }
 
+/** The stat calculator passes its tick; a direct caller (tests, tools) may pass `now` and read the live state. */
+function readPassiveRuleTickValue(options, name, live) {
+    return options.tick ? options.tick.get(name) : live();
+}
+
 function applyAuthoredPassiveStatRules(options) {
     const buckets = options.buckets, passive = buckets.passive, reward = buckets.reward;
     applyPassiveKeystoneBucketRules(buckets);
     const flags = getPassiveKeystoneCombatFlags(options.skillTags);
     applyPassiveConditionalAilmentRules(passive, flags);
-    const activeCycleBuffEffects = getActivePassiveCycleBuffEffects(options.now);
+    // Cycle buffs and fanaticism stacks change during a fight: the stat calculator's tick reads them (js/player-stat-cache.js).
+    const activeCycleBuffEffects = readPassiveRuleTickValue(options, 'cycleBuffEffects', () => getActivePassiveCycleBuffEffects(options.now));
     activeCycleBuffEffects.forEach(effect => addStatToBucket(reward, effect.stat, effect.val));
     const damageByElement = {
         phys: sumPassiveRuleStat(buckets, 'physPctDmg'), fire: sumPassiveRuleStat(buckets, 'firePctDmg'),
@@ -2507,7 +2513,7 @@ function applyAuthoredPassiveStatRules(options) {
         guardTakenLessPct: revelation === 'guard' ? Math.min(50, Math.floor(devotion / 5)) : (triple ? Math.min(20, Math.floor(devotion / 5) * 0.4) : 0),
         lifeBonusPct: revelation === 'life' ? devotion * 0.5 : (triple ? devotion * 0.2 : 0),
         cycleAddedFireFromPhysicalPct: findAllocatedPassiveKeystone('순환의 원석') ? cycle * 3 : 0,
-        fanaticismStacks: corrupted ? Math.min(devotion, Math.max(0, state.fanaticism.stacks)) : 0,
+        fanaticismStacks: corrupted ? Math.min(devotion, Math.max(0, readPassiveRuleTickValue(options, 'fanaticismStacks', () => state.fanaticism.stacks))) : 0,
         activeCycleBuffEffects, flags };
 }
 
@@ -2702,7 +2708,7 @@ function getVoidPassiveEffectLabel(nodeId) {
 
 const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => `이 공허 패시브는 공허를 ${v}회 할당한 것으로 간주` },
-    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `${v} 포인트의 패시브 포인트를 추가로 얻습니다.` },
+    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `스킬트리 포인트 ${v}점을 추가로 얻습니다.` },
     { id: 'overflowingVigor', name: '넘치는 활기', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 생명력 최대치 +${v}%` },
     { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
     { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => `막기 확률 최대치 +${v}% 및 막기 확률 +${v}%` },
@@ -2921,7 +2927,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         return;
     }
     if (currencyKey === 'goldenRule') {
-        if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog('신성한 오브는 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+        if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog('황금률은 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
         game.currencies.goldenRule--;
         let previousTranscendent = entry.transcendent;
         entry.transcendent = rerollTranscendentVoidPassive(entry.transcendent);
@@ -3366,12 +3372,9 @@ function tickOceanDepth(st, dtSec) {
     applyOceanDepthGain(st, depthPerSec * dtSec);
 }
 
-const OCEAN_MOD_CATEGORY_RULES = [
-    { category: '공격', ids: ['flatDmg', 'weaponFlatDmgPct', 'pctDmg', 'meleePctDmg', 'projectilePctDmg', 'physPctDmg', 'elementalPctDmg', 'firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'critDmg', 'physIgnore', 'resPen', 'physFlatDmg', 'fireFlatDmg', 'coldFlatDmg', 'lightFlatDmg', 'chaosFlatDmg', 'summonFlatDmg', 'summonPctDmg', 'summonCrit', 'summonCritDmg', 'summonResPen'] },
-    { category: '방어·생명', ids: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'deflectChance', 'regen', 'regenFlat', 'regenSuppress', 'leech', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap', 'blockChancePct'] },
-    { category: '속도·치명', ids: ['aspd', 'move', 'summonAspd', 'summonEfficiency'] },
-    { category: '저항', ids: ['resF', 'resC', 'resL', 'resAll', 'resChaos'] }
-];
+// The stats of each category come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.sea).
+const OCEAN_MOD_CATEGORY_RULES = [['공격', 'attack'], ['방어·생명', 'defense'], ['속도·치명', 'speed'], ['저항', 'resistance']]
+    .map(([category, key]) => ({ category, ids: resolveAffixTagList(AFFIX_TAG_LISTS.sea[key], MOD_DB) }));
 function getModCategory(mod) {
     let statId = (mod && (mod.statId || mod.id)) || '';
     let found = OCEAN_MOD_CATEGORY_RULES.find(rule => rule.ids.includes(statId));
@@ -3397,7 +3400,7 @@ const SEA_GIFT_RECIPES = [
     { id: 'glowfinEssence', desc: '【재화 획득: 심해의 파편 ×2】 발광 송어로 베이스 옵션 재제련에 쓰는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
     { id: 'purifyingOffering', desc: '【장비 강화: 계열 재굴림 1줄】 발광 송어를 바쳐 원하는 계열의 기존 옵션 한 줄만 다시 굴립니다(다른 줄 보존, 등급 보정 없음).', requires: { glowfinTrout: 4, shallowSilverfin: 3 }, effect: { type: 'taggedReroll' } },
     { id: 'abyssalGift', desc: '【장비 강화: 확정 옵션 부여】 심연 등불고기를 제물로 바쳐 장비에 옵션 한 줄을 확정으로 부여합니다.', requires: { abyssAngler: 4, tidalEel: 3 }, effect: { type: 'guaranteedMod' } },
-    // --- 무작위 제작 재화 레시피 (진화/변화/확장/제왕/카오스/연금술/축복/신성/타락/소멸의 오브 중 1개) ---
+    // --- 무작위 제작 재화 레시피 (SEA_GIFT_RANDOM_ORB_KEYS: 마법의 새싹, 수액 봉오리, 형체 없는 이슬, 황금률, 축복의 꽃잎, 잿불가지, 전정 가위 중 1개) ---
     { id: 'tidalFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 조류 장어와 은빛 비늘치 더미에서 흘러나온 마력을 정제해 무작위 제작 오브 1개를 얻습니다.', requires: { tidalEel: 3, shallowSilverfin: 3 }, effect: { type: 'randomCurrency', amount: 1 } },
     { id: 'glowingFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 발광 송어의 빛을 응축해 무작위 제작 오브 1개를 얻습니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'randomCurrency', amount: 1 } },
     { id: 'abyssalCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 심연 등불고기와 발광 송어로 봉인된 보물함을 열어 무작위 제작 오브 2개를 얻습니다.', requires: { abyssAngler: 2, glowfinTrout: 2 }, effect: { type: 'randomCurrency', amount: 2 } },
@@ -3405,7 +3408,7 @@ const SEA_GIFT_RECIPES = [
     { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 오브 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 오브 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
     // --- 장비 옵션 가공 효과 (제련/옵션 조작 계열) ---
     { id: 'safeReroll', desc: '【장비 강화: 하락 없는 안전 재굴림】 발광 송어와 은빛 비늘치로 옵션 1줄을 다시 굴립니다. 결과가 기존보다 낮으면 적용되지 않고 원래 값이 유지됩니다.', requires: { glowfinTrout: 3, shallowSilverfin: 4 }, effect: { type: 'safeReroll' } },
-    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 카오스 오브와 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
+    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 형체 없는 이슬과 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
     { id: 'tierStepUp', desc: '【장비 강화: 옵션 1줄 등급 +1 영구 재굴림】 심연 등불고기와 발광 송어로 무작위 옵션 1줄을 한 단계 높은 등급으로 다시 굴립니다(영구 적용).', requires: { abyssAngler: 3, glowfinTrout: 3 }, effect: { type: 'tierStepUp' } },
     { id: 'categoryShift', desc: '【장비 강화: 무작위 옵션 1줄을 원하는 계열로 변환】 발광 송어와 조류 장어로 무작위 옵션 한 줄을 선택한 계열의 옵션으로 바꿉니다.', requires: { glowfinTrout: 3, tidalEel: 3 }, effect: { type: 'convertCategoryMod' } },
     { id: 'echoMod', desc: '【장비 강화: 최고 티어 옵션을 50% 효과로 메아리】 전설의 새끼 괴어와 심연 등불고기로 가장 높은 티어의 옵션 중 한 줄을 무작위로 골라, 나머지 옵션 중 무작위 한 줄을 그 옵션의 50% 효과로 덮어씁니다.', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'echoMod' } },
@@ -3473,6 +3476,37 @@ function getSeaGiftRerollRows(item, category) {
     }).filter(Boolean);
 }
 
+/** 확정 부여(최상급 태그 포함): 새 줄은 바뀔 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서. Returns '' when applied, else why not
+ * (craftSeaGift logs it). */
+function applySeaGiftGuaranteedMod(item, effect, category) {
+    const editable = (item.stats || []).map((stat, index) => ({ stat, index }))
+        .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
+    if (effect.bonusRemoveMod && editable.length < 2) return '최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.';
+    const pool = getAvailableMods(item).filter(mod => effect.type !== 'guaranteedTaggedMod' || !category || getModCategory(mod) === category);
+    const choice = chooseSeaGiftGuaranteedLine(item, pool, editable);
+    if (!choice) return '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.';
+    const maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
+    const rolled = rollAffixValue(choice.mod, maxTier);
+    if (choice.index < 0) item.stats.push(rolled); else item.stats[choice.index] = rolled;
+    if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, choice.index);
+    updateItemName(item);
+    return '';
+}
+/** 바뀔 줄은 같은 종류의 가장 낮은 단계 줄(예전에는 첫 줄). 봉인 안 된 줄이 없으면 자리가 남는 종류로 덧붙인다(index -1). */
+function chooseSeaGiftGuaranteedLine(item, pool, editable) {
+    if (editable.length > 0) return equipmentCrafting.pickReplacement(item, pool, editable.map(row => row.index), pickWeightedMod, 'lowest');
+    const mod = pickWeightedMod(pool.filter(row => equipmentCrafting.fitsRoom(equipmentCrafting.affixRoom(item), row)));
+    return mod ? { mod, index: -1 } : null;
+}
+
+/** 메아리 줄은 원본과 같은 종류다. 그 종류에 자리가 없으면 같은 종류의 줄만 바꿔 끼울 수 있다. */
+function getSeaGiftEchoTargets(item, editableIdx, srcIdx) {
+    const kind = equipmentCrafting.storedAffixKind(item, item.stats[srcIdx]), room = equipmentCrafting.affixRoom(item);
+    const others = editableIdx.filter(index => index !== srcIdx);
+    if (!room || kind === 'special' || room[kind] > 0) return others;
+    return others.filter(index => equipmentCrafting.storedAffixKind(item, item.stats[index]) === kind);
+}
+
 function removeWorstSeaGiftMod(item, excludedIndex) {
     let candidates = (item.stats || []).map((stat, index) => ({ stat, index }))
         .filter(row => row.index !== excludedIndex && row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift)
@@ -3495,7 +3529,9 @@ const applySeaGiftLockEffect = function (item, effect, category) {
     }
     let rerollMod = null;
     if (effect.bonusTaggedReroll) {
-        let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
+        // 재단되는 줄은 봉인하고 남은 첫 줄(editable[count]). 새 줄은 그 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서.
+        const room = equipmentCrafting.affixRoom(item, item.rarity, editable[count]);
+        let pool = getAvailableMods(item).filter(mod => (!category || getModCategory(mod) === category) && equipmentCrafting.fitsRoom(room, mod));
         rerollMod = pickRandomMods(pool, 1)[0];
         if (!rerollMod) { addLog('해당 계열로 재단할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
     }
@@ -3526,22 +3562,8 @@ function craftSeaGift(recipeId, targetItem, options) {
     let item = status.item;
     let category = options && options.category;
     if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
-        let pool = getAvailableMods(item);
-        if (effect.type === 'guaranteedTaggedMod' && category) pool = pool.filter(mod => getModCategory(mod) === category);
-        let mod = pickWeightedMod(pool);
-        if (!mod) { addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        let editable = (item.stats || []).map((stat, index) => ({ stat, index }))
-            .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
-        if (effect.bonusRemoveMod && editable.length < 2) {
-            addLog('최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster');
-            return false;
-        }
-        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
-        let idx = editable.length > 0 ? editable[0].index : -1;
-        let rolled = rollAffixValue(mod, maxTier);
-        if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
-        if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, idx);
-        updateItemName(item);
+        const refusal = applySeaGiftGuaranteedMod(item, effect, category);
+        if (refusal) { addLog(refusal, 'attack-monster'); return false; }
     } else if (effect.type === 'removeMod') {
         if (!removeOneModFromItem(item)) { addLog('제거할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         updateItemName(item);
@@ -3612,7 +3634,8 @@ function craftSeaGift(recipeId, targetItem, options) {
         let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
         let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
         let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
-        let targetPool = editableIdx.filter(i => i !== srcIdx);
+        let targetPool = getSeaGiftEchoTargets(item, editableIdx, srcIdx);
+        if (targetPool.length === 0) { addLog('메아리 줄을 넣을 같은 종류 자리가 없습니다(접두 3, 접미 3).', 'attack-monster'); return false; }
         let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
         let src = item.stats[srcIdx];
         let echo = JSON.parse(JSON.stringify(src));
@@ -3628,10 +3651,9 @@ function craftSeaGift(recipeId, targetItem, options) {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
         if (editableIdx.length === 0) { addLog('변환할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
-        let mod = pickWeightedMod(pool);
-        if (!mod) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
-        item.stats[idx] = rollAffixValue(mod, getItemCraftTier(item));
+        let choice = equipmentCrafting.pickReplacement(item, pool, editableIdx, pickWeightedMod);
+        if (!choice) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+        item.stats[choice.index] = rollAffixValue(choice.mod, getItemCraftTier(item));
         updateItemName(item);
     }
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
@@ -3650,12 +3672,11 @@ function rerollSingleBaseOption(item, costCurrency, costAmount) {
     if ((game.currencies[key] || 0) < cost) { addLog('재화가 부족합니다.', 'attack-monster'); return false; }
     let editableIdx = item.stats.map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
     if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-    let mods = pickRandomMods(getAvailableMods(item), 1);
-    if (!mods || mods.length === 0) { addLog('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-    let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
+    let choice = equipmentCrafting.pickReplacement(item, getAvailableMods(item), editableIdx, mods => pickRandomMods(mods, 1)[0]);
+    if (!choice) { addLog('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
     let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
     game.currencies[key] = (game.currencies[key] || 0) - cost;
-    item.stats[idx] = rollAffixValue(mods[0], maxTier, { roundInteger: true });
+    item.stats[choice.index] = rollAffixValue(choice.mod, maxTier, { roundInteger: true });
     updateItemName(item);
     addLog(`🌊 ${item.name || '장비'}의 베이스 옵션 한 줄을 다시 굴렸습니다.`, 'loot-rare');
     return true;
@@ -3756,8 +3777,8 @@ const PASSIVE_TREE_PRESET_SLOTS = 3;
 
 function getCurrentPassiveNodeId(rawId) {
     if (typeof rawId !== 'string') return rawId;
-    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object') return rawId;
-    return PASSIVE_NODE_ID_MIGRATIONS[rawId] || rawId;
+    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object' || !PASSIVE_NODE_ID_LEGACY_PREFIX.test(rawId)) return rawId;
+    return PASSIVE_NODE_ID_MIGRATIONS[rawId.replace(PASSIVE_NODE_ID_LEGACY_PREFIX, '')] || rawId;
 }
 
 function migratePassiveNodeIdList(rawIds) {
@@ -5788,7 +5809,7 @@ function getActRewardConfig(zoneId) {
 function getSupportActRewardFallback(choice) {
     let amount = Math.max(1, Math.floor(Number(choice && choice.fallbackValue) || 1));
     if (choice && choice.fallbackKind === 'points') {
-        return { kind: 'points', amount, currency: null, label: `패시브 포인트 +${amount}` };
+        return { kind: 'points', amount, currency: null, label: `스킬트리 포인트 +${amount}` };
     }
     let currency = (choice && choice.currency) || 'magicBud';
     let currencyDef = ORB_DB[currency];
@@ -5811,7 +5832,7 @@ function getActRewardChoices(zoneId) {
     return config.choices.map(choice => {
         let enriched = { ...choice };
         if (choice.kind === 'skill' && hasSkillGemOwned(choice.skill)) {
-            enriched.desc = `${choice.desc} 이미 보유 중이면 패시브 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
+            enriched.desc = `${choice.desc} 이미 보유 중이면 스킬트리 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
         }
         if (choice.kind === 'support' && hasSupportGemOwned(choice.gem)) {
             let fallback = getSupportActRewardFallback(choice);
@@ -6101,7 +6122,7 @@ function grantActRewardEntry(zoneId, choice) {
         } else {
             game.passivePoints += choice.fallbackValue || 1;
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(4) : (awardCurrency('gemShard', 4), 4);
-            addLog(`🎁 이미 보유한 젬 대신 패시브 포인트 +${choice.fallbackValue || 1} · 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 이미 보유한 젬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -6125,7 +6146,7 @@ function grantActRewardEntry(zoneId, choice) {
     }
     if (choice.kind === 'points') {
         game.passivePoints += choice.value || 0;
-        addLog(`🎁 패시브 포인트 +${choice.value || 0}`, 'loot-rare');
+        addLog(`🎁 스킬트리 포인트 +${choice.value || 0}`, 'loot-rare');
         return;
     }
     if (choice.kind === 'currency') {
@@ -6264,8 +6285,26 @@ function isLocalRuntimeHost() {
     return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
+/** Sheets shipped already sanitized (assets/battle-clean, scripts/export-clean-battle-sheets.cjs): no runtime copy. */
+function isPreCleanedBattleSheet(key) {
+    return key === 'enemies' || key === 'summon1' || key.startsWith('bossAct');
+}
+
+/** A loaded sheet with its matte cleaned (sanitizeBattleSheet); the image itself where pixels cannot be read
+ * (file:// throws SecurityError on getImageData) or cleaning fails. */
+function cleanLoadedBattleSheet(key, image) {
+    if (!ENABLE_BATTLE_SHEET_SANITIZATION || isLocalFileProtocol()) return image;
+    try {
+        const sanitized = sanitizeBattleSheet(image);
+        return key === 'enemies' ? sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(sanitized)) : sanitized;
+    } catch {
+        return image;
+    }
+}
+
 function shouldPreserveOriginalBattleSheet(key) {
-    return key === 'tiles'
+    return isPreCleanedBattleSheet(key)
+        || key === 'tiles'
         || key.startsWith('hero')
         || key.startsWith('playerClass')
         || key.startsWith('bossTelegraph')
@@ -6297,9 +6336,6 @@ function initBattleAssets() {
     battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
-    const wispMonsterManifest = typeof WISP_MONSTER_ASSET_MANIFEST === 'undefined'
-        ? {}
-        : WISP_MONSTER_ASSET_MANIFEST;
     const manifest = {
         hero1Idle: 'assets/playable/hero1/idle.png',
         hero1Walk: 'assets/playable/hero1/walk.png',
@@ -6429,10 +6465,9 @@ function initBattleAssets() {
         playerClassWarriorAttack2South: 'assets/playable/classes/warrior/attack-2-south.webp',
         playerClassWarriorAttack3South: 'assets/playable/classes/warrior/attack-3-south.webp',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
-        enemies: 'assets/battle-enemies-v1.png',
-        enemies2: 'assets/battle-enemies-v2.png',
-        enemies3: 'assets/battle-enemies-v3.png',
-        ...wispMonsterManifest,
+        // Sanitized ahead of time (both passes the atlas used to get at runtime); v2 and v3 are no longer drawn.
+        enemies: 'assets/battle-clean/battle-enemies-v1.png',
+        // The old wisp atlas loads only for a wisp look the player wears (ensureWispSkinAtlas).
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -6496,7 +6531,7 @@ function initBattleAssets() {
         bgChaos16: 'assets/background/refined-20260910/bgChaos9.webp',
         bgChaos17: 'assets/background/refined-20260910/bgChaos1.webp',
         bgChaos18: 'assets/background/refined-20260910/bgChaos18.webp',
-        summon1: 'assets/summon/summon1.png',
+        summon1: 'assets/battle-clean/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
     Object.values((typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22.nodes) || {}).forEach(node => {
@@ -6510,7 +6545,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('wispEnemy')));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree')));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -6554,19 +6589,8 @@ function initBattleAssets() {
     }
 
     function queueBattleSheetSanitization(key, image) {
-        if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
-        if (isLocalFileProtocol()) return;  // file:// 환경에서는 canvas.getImageData가 SecurityError를 던지므로 sanitization 건너뜀
         if (battleAssets.loadTicket !== loadTicket) return;
-        try {
-            let sanitized = sanitizeBattleSheet(image);
-            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') {
-                sanitized = sanitizeWhiteBackdropSheet(sanitized);
-                sanitized = sanitizeLocalMonsterBackdropSheet(sanitized);
-            }
-            battleAssets.images[key] = sanitized;
-        } catch (error) {
-            battleAssets.images[key] = image;
-        }
+        battleAssets.images[key] = cleanLoadedBattleSheet(key, image);
     }
 
     function storeLoadedBattleImage(key, image) {
@@ -7138,6 +7162,43 @@ function buildWispEnemyVariants(images) {
             frames: directional.south.frames, attackFrames: directional.south.attackFrames,
             directions: directional
         };
+    });
+}
+
+/** The old wisp atlas (WISP_MONSTER_ASSET_MANIFEST) only draws a wisp look the player wears: wisp monsters draw from their own
+ * sheets (js/canvas-wisp-actors.js) and the look a kill unlocks is read from the data (getEnemySkinId). So it loads on the
+ * first such draw, cleaned like the startup sheets, instead of with the first screen (2026-10-07 memory review: its two
+ * cleaned copies held 20 MB from the start). A failed file is not fetched again until the battle assets reload. */
+let wispSkinAtlasLoad = null;
+function ensureWispSkinAtlas(id) {
+    const atlas = battleAssets.atlas && battleAssets.atlas.enemies;
+    if (!atlas || (wispSkinAtlasLoad && wispSkinAtlasLoad.atlas === atlas) || !isWispSkinId(id)) return;
+    const images = battleAssets.images;
+    wispSkinAtlasLoad = { atlas };
+    Promise.all(Object.entries(WISP_MONSTER_ASSET_MANIFEST).map(([key, src]) => loadCleanBattleSheet(key, src).then(image => { images[key] = image; })))
+        .then(() => {
+            if (battleAssets.atlas && battleAssets.atlas.enemies === atlas) atlas.skinVariants = { ...atlas.skinVariants, ...buildWispSkinVariants(images) };
+        }, () => {});
+}
+
+function isWispSkinId(id) {
+    return typeof WISP_MONSTER_ASSET_MANIFEST !== 'undefined' && typeof WISP_MONSTER_VISUALS !== 'undefined'
+        && WISP_MONSTER_VISUALS.some(wisp => wisp.id === id);
+}
+
+function buildWispSkinVariants(images) {
+    return Object.fromEntries(buildWispEnemyVariants(images).map(entry => [entry.skinId, entry]));
+}
+
+/** One battle sheet fetched on demand and cleaned like the startup sheets. */
+function loadCleanBattleSheet(key, src) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        if (!isLocalFileProtocol()) image.crossOrigin = 'anonymous';
+        image.decoding = 'async';
+        image.onload = () => resolve(shouldPreserveOriginalBattleSheet(key) ? image : cleanLoadedBattleSheet(key, image));
+        image.onerror = reject;
+        image.src = src;
     });
 }
 
@@ -7880,7 +7941,7 @@ function buildBattleAssetAtlas() {
     let selectedHeroDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId);
 
     function buildEnemyTransparentImage(image) {
-        if (!image) return image;
+        if (!image || isPreCleanedBattleSheet('enemies')) return image;
         try {
             return sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image)));
         } catch (error) {
@@ -7940,6 +8001,8 @@ function buildBattleAssetAtlas() {
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
+    // The frames are measured once; drop the pixel-reading copy of the atlas (another full decode).
+    battleImageCanvasCache.delete(enemySpriteImage);
     const wispEnemyVariants = buildWispEnemyVariants(battleAssets.images);
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
@@ -8254,10 +8317,23 @@ function findStoredEquipmentAffix(item, stat) {
             .every(id => extraIds.includes(id)) && (row.compound || []).length === extraIds.length);
 }
 
+/** 젬 레벨 줄(2026-10-08, 사용자 "새곡선기준으로해줘"): 예전 값(방패 주문 +1.7~15.4, 소환수 무기 +1~5, 나머지 +1 고정)을
+ * 그 줄의 티어에서 새 20티어 곡선(1~8 +1, 9~15 +2, 16~19 +3, 20 +4) 값으로 맞춘다. 맞춘 줄은 버전 3이라 다시 건드리지 않는다. */
+function refitGemLevelAffix(item, stat) {
+    if (!stat || stat.affixBalanceVersion >= 3 || !/GemLevel$/.test(stat.id)) return;
+    const mod = findStoredEquipmentAffix(item, stat);
+    if (!mod || !(mod.affixBalanceVersion >= 3)) return;
+    const tier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(stat.tier) || 1)));
+    const value = mod.tierValues[tier - 1][0];
+    Object.assign(stat, { val: value, valMin: value, valMax: value, tier, valueStep: 1, fixedValue: false, sourceModId: mod.id,
+        affixBalanceVersion: mod.affixBalanceVersion });
+}
+
 function migrateEquipmentAffixBalance(item) {
     [...item.baseStats, ...item.stats, item.underEnchant, item.chaosInfusion].forEach(migrateEquipmentProjectileOption);
     if (item.rarity === 'unique') return;
     for (const stat of item.stats) {
+        refitGemLevelAffix(item, stat);
         if (stat.affixBalanceVersion >= 2 || !stat.tier || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) continue;
         const mod = findStoredEquipmentAffix(item, stat);
         if (!mod) continue;
@@ -8436,6 +8512,7 @@ function normalizeItem(item) {
     const storedHighAffixCap = Number.isFinite(Number(item.affixTierCap)) && Number(item.affixTierCap) >= 11;
     const legacyProgressionProvenance = item.dropRealm === 'cosmos' || storedHighAffixCap || existingHighAffixTier >= 11;
     item.dropRealm = typeof item.dropRealm === 'string' ? item.dropRealm : null;
+    normalizeItemOrigin(item);
     item.affixTierCap = clampNumber(Math.floor(coerceFiniteNumber(
         item.affixTierCap,
         legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
@@ -8461,8 +8538,15 @@ function normalizeItem(item) {
     return levelProgression.stampItem(item);
 }
 
+/** 고유는 자기 등급(최대 20)이다. 17등급 이상 고유는 아틀라스와 우주계에서만 나오고, 그곳의 희귀 장비도 20까지 간다(2026-10-09:
+ * 예전에는 옵션 등급 정규화의 상한 10에 걸려 20등급 고유가 "등급 T10"으로 보이고 분해 황금률 확률도 8%에서 멈췄다). */
+function getUniqueCraftTier(item) {
+    return clampNumber(Math.floor(Number(item.hiddenTier || item.itemTier) || 1), 1, 20);
+}
+
 function getItemCraftTier(item) {
     if (!item) return 1;
+    if (item.rarity === 'unique') return getUniqueCraftTier(item);
     if (Number.isFinite(item.affixTierCap)) return clampNumber(Math.floor(item.affixTierCap), 1, item.affixTierCap >= 11 ? 20 : 10);
     const existingHighAffixTier = (Array.isArray(item.stats) ? item.stats : []).reduce((max, stat) => Math.max(max, Math.floor(Number(stat && stat.tier) || 0)), 0);
     if (existingHighAffixTier >= 11) return clampNumber(Math.max(existingHighAffixTier, Math.floor(Number(item.hiddenTier) || 1)), 11, 20);
@@ -8475,6 +8559,12 @@ function getRealmEquipmentHiddenTierCap(zone) {
     if (!zone) return 1;
     const cap = REALM_EQUIPMENT_TIER_CAPS[zone.type];
     return cap ? cap(zone) : Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
+}
+/** The highest equipment tier a plain monster of the zone drops (elites and bosses can roll a little higher). */
+function getZoneEquipmentTierCap(zone) {
+    if (!zone) return 1;
+    const itemLevel = levelProgression.itemLevel(zone, { isBoss: false, isElite: false });
+    return Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
 }
 function getChaosDepthEquipmentTierCap(depth) {
     return Math.min(15, 10 + Math.floor((Math.max(1, Math.floor(Number(depth) || 1)) - 1) / 5));
@@ -8592,8 +8682,14 @@ function isBaseChainTop(base) {
 function getBaseDropWeight(base, dropTier) {
     const rules = BASE_DROP_WEIGHTS;
     if (base.dropOnly || base.realmBase) return (base.reqTier || 0) >= 20 ? rules.contentTop : 1;
-    const top = isBaseChainTop(base) ? rules.chainTop : 1;
+    const top = (isBaseChainTop(base) ? rules.chainTop : 1) * getHorizontalBaseDropShare(base);
     return (base.reqTier || 1) < dropTier - rules.windowTiers ? top * rules.belowWindow : top;
+}
+/** A horizontal base (js/state.js family) drops at BASE_DROP_WEIGHTS.horizontal of a plain one, amulets lower. */
+function getHorizontalBaseDropShare(base) {
+    const share = BASE_DROP_WEIGHTS.horizontal;
+    if (!base.family || !share) return 1;
+    return Object.hasOwn(share, base.slot) ? share[base.slot] : share.default;
 }
 
 function chooseItemBase(slot, zoneTier, zone = getZone(game.currentZoneId) || {}, weaponCategory) {
@@ -8820,9 +8916,13 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
 
 
 function getImmutableItemSpecialStats(item) {
-    if (!item || !item.encroached || !item.encroached.liberated || !item.encroached.chosen) return [];
+    if (!item) return [];
+    // 타오른 잿불가지의 타락 전용 줄(12번 루프 30, js/ember-corruption.js)과 목걸이에 바른 기름의 노드(루프 36, js/garden-oils.js)도
+    // 제작으로 바뀌지 않는 줄이다: 스탯 합, 소환수 한도, 감정에 든다.
+    const ember = [...(Array.isArray(item.emberLines) ? item.emberLines : []), ...(typeof gardenOils === 'object' ? gardenOils.lines(item) : [])];
+    if (!item.encroached || !item.encroached.liberated || !item.encroached.chosen) return ember;
     let stat = item.encroached.chosen;
-    return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }];
+    return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }, ...ember];
 }
 function getItemExplicitOptionCount(item) {
     if (!item) return 0;
@@ -9054,6 +9154,32 @@ function isModForWeaponCategory(mod, weaponCategory) {
     return !mod.weaponCategories || mod.weaponCategories.includes(weaponCategory);
 }
 
+/** 세계수 기운(12번 루프 27): 지역 전용 줄(MOD_DB regions, data/region-affixes.js)은 그 지역 아틀라스 지도에서 떨어진 장비에만 붙는다. */
+function isModForDropRegion(mod, region) {
+    return !mod.regions || mod.regions.includes(region);
+}
+
+/** A known atlas region id (data/atlas.js ATLAS.regions), otherwise null: what an item may remember as its drop region. */
+/** Save boundary for where an item came from and what burned it: its atlas region (loop 27) and the burning branch's mark and
+ * lines (loop 30, js/ember-corruption.js). */
+function normalizeItemOrigin(item) {
+    item.dropRegion = normalizeDropRegion(item.dropRegion);
+    if (typeof emberCorruption === 'object') emberCorruption.normalize(item);
+    if (typeof gardenOils === 'object') gardenOils.normalize(item);
+}
+
+function normalizeDropRegion(value) {
+    const regions = typeof ATLAS === 'object' && ATLAS && Array.isArray(ATLAS.regions) ? ATLAS.regions : [];
+    return typeof value === 'string' && regions.some(row => row.id === value) ? value : null;
+}
+
+/** The region an equipment drop remembers: an atlas map's region from the loop REGION_AFFIX_RULES opens, none elsewhere. */
+function getEquipmentDropRegion(zone, state = game) {
+    const loop = Math.max(Math.floor(Number(state?.season) || 1), Math.floor(Number(state?.contentProgression?.highestLoop) || 1));
+    if (!zone || zone.type !== 'atlasMap' || loop < REGION_AFFIX_RULES.minLoop) return null;
+    return normalizeDropRegion(zone.atlasRegion);
+}
+
 /** 대분류에 어울리지 않는 줄(WEAPON_CATEGORY_OFF_MODS)은 가중치를 낮춘 사본으로 돌려준다. */
 function weighModForWeaponCategory(mod, weaponCategory) {
     const off = WEAPON_CATEGORY_OFF_MODS.byCategory[weaponCategory];
@@ -9061,29 +9187,56 @@ function weighModForWeaponCategory(mod, weaponCategory) {
     return { ...mod, weight: (Number(mod.weight) || 1) * WEAPON_CATEGORY_OFF_MODS.weight };
 }
 
+// Summon lines on a weapon or ring need a base that already has one of these.
+const AVAILABLE_MOD_SUMMON_STAT_IDS = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg',
+    'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
+// The rows an item can take before its own lines are taken out depend only on the key below, so each pool is built once
+// (2026-10-07: building it was most of a roll, about 0.18 ms per drop or craft preview). Rows keep MOD_DB order: seeded
+// rolls and tests pick by position.
+const availableModPools = new Map();
+
+function hasSummonBaseStat(item) {
+    return !!(item && Array.isArray(item.baseStats) && item.baseStats.some(stat => stat && AVAILABLE_MOD_SUMMON_STAT_IDS.has(stat.id)));
+}
+
+/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring), base defence types in base order and drop region. */
+function getAvailableModPoolKey(item) {
+    const summonSlot = item.slot === '무기' || item.slot === '반지';
+    return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
+        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || ''].join('|');
+}
+
+/** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
+ * shield aside), summon lines on a weapon or ring without a summon base stat. */
+function getBlockedAvailableModStats(item) {
+    const defenseTypes = getItemBaseDefenseTypes(item), blocked = new Set();
+    if (!defenseTypes.has('evasion')) blocked.add('deflectChance');
+    if (item.slot === '방패' && !isKaleidoscopeShieldItem(item) && !defenseTypes.has('energyShield')) blocked.add('spellGemLevel');
+    if ((item.slot === '무기' || item.slot === '반지') && !hasSummonBaseStat(item)) AVAILABLE_MOD_SUMMON_STAT_IDS.forEach(id => blocked.add(id));
+    return blocked;
+}
+
+/** Every row the item's kind can take, each with the stats it would occupy (dual defence parts included). */
+function buildAvailableModPool(item) {
+    const allowedSlots = getAvailableModSlotsForItem(item), blocked = getBlockedAvailableModStats(item), weaponCategory = getWeaponCategoryId(item);
+    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForDropRegion(mod, item.dropRegion) && !blocked.has(mod.statId || mod.id)
+        && isDefenseTypeStatAllowed(item, mod.statId || mod.id) && isPrimaryDualDefenseAffixMod(item, mod)
+        && allowedSlots.some(slot => mod.slots.includes(slot))).map(mod => {
+        const shaped = makeDualDefenseAffixMod(item, mod);
+        return Object.freeze({ mod: weighModForWeaponCategory(shaped, weaponCategory), statIds: getExplicitModStatIds(shaped) });
+    }));
+}
+
 function getAvailableMods(item) {
-    let existing = getItemOccupiedExplicitModIds(item);
-    let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
-    let allowedSlots = getAvailableModSlotsForItem(item);
-    let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
-    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
-    let hasSummonBaseStat = item && Array.isArray(item.baseStats)
-        && item.baseStats.some(stat => stat && summonBaseStatIds.has(stat.id));
-    let isSummonBaseWeapon = item && item.slot === '무기' && hasSummonBaseStat;
-    let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
-    let baseDefenseTypes = getItemBaseDefenseTypes(item);
-    const weaponCategory = getWeaponCategoryId(item);
-    return MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory)).filter(mod => {
-        let statId = mod.statId || mod.id;
-        if (!isDefenseTypeStatAllowed(item, statId)) return false;
-        if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
-        if (!isKaleidoscopeShield && item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
-        if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
-        if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
-        if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
-        return allowedSlots.some(slot => mod.slots.includes(slot))
-            && !getExplicitModStatIds(makeDualDefenseAffixMod(item, mod)).some(id => existing.has(id));
-    }).map(mod => weighModForWeaponCategory(makeDualDefenseAffixMod(item, mod), weaponCategory));
+    const existing = getItemOccupiedExplicitModIds(item), key = getAvailableModPoolKey(item);
+    if (!availableModPools.has(key)) availableModPools.set(key, buildAvailableModPool(item));
+    return availableModPools.get(key).filter(row => !row.statIds.some(id => existing.has(id))).map(row => row.mod);
+}
+
+/** getAvailableMods 가운데 종류 자리가 남은 줄만(접두 3, 접미 3; data/items.js EXPLICIT_AFFIX_RULES). */
+function getOpenAffixMods(item, rarity = item.rarity) {
+    const room = equipmentCrafting.affixRoom(item, rarity);
+    return getAvailableMods(item).filter(mod => equipmentCrafting.fitsRoom(room, mod));
 }
 
 function updateItemName(item) {
@@ -9113,18 +9266,19 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
-    let reservedInfusionCount = previousInfusion ? 1 : 0;
-    let locked = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
-    item.stats = locked.slice();
+    let locked = (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat));
+    item.stats = locked.concat(options.guaranteedStat ? [options.guaranteedStat] : []);
+    delete item.affixKeep;
+    // 주입을 먼저 다시 굴려 그 종류 자리를 차지하게 한다(접두 3, 접미 3).
+    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
-    count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
-    let mods = pickRandomMods(getAvailableMods(item), count);
+    count = Math.max(0, count - getItemExplicitOptionCount(item));
+    let mods = pickRandomMods(getAvailableMods(item), count, equipmentCrafting.affixRoom(item, rarity));
     mods.forEach(mod => item.stats.push(minTier > 1 || hasTierWeightOverride
         ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
         : rollAffixValue(mod, maxTier)));
-    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
 }
 
@@ -9160,7 +9314,14 @@ CHAOS_INFUSER_OPTIONS.forEach(option => {
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
-    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
+    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)))
+        .filter(opt => !item || chaosInfusionFitsAffixRoom(item, opt));
+}
+/** 주입 줄도 접두 3, 접미 3 가운데 제 종류 자리를 쓴다. 이미 있는 주입은 바꿔 끼우므로 빼고 센다. */
+function chaosInfusionFitsAffixRoom(item, option) {
+    const room = equipmentCrafting.affixRoom(item, 'rare', item.chaosInfusion || null);
+    return !room || equipmentCrafting.storedAffixKind(item, { id: option.id }) === 'special'
+        || room[equipmentCrafting.storedAffixKind(item, { id: option.id })] > 0;
 }
 function isChaosInfusionEligibleItem(item) {
     if (!item) return { ok: false, reason: '아이템 미선택' };
@@ -9169,8 +9330,8 @@ function isChaosInfusionEligibleItem(item) {
     if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: '일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.' };
     if (item.rarity !== 'rare') return { ok: false, reason: '희귀 장비에만 혼돈 주입을 할 수 있습니다.' };
     let explicitCount = getItemExplicitOptionCount(item);
-    if (!item.chaosInfusion && explicitCount >= 6) return { ok: false, reason: '추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.' };
-    if (item.chaosInfusion && explicitCount > 6) return { ok: false, reason: '추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.' };
+    if (!item.chaosInfusion && explicitCount >= EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: '추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.' };
+    if (item.chaosInfusion && explicitCount > EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: '추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.' };
     return { ok: true, reason: '사용 가능' };
 }
 function rollChaosInfusionOption(option) {
@@ -9271,16 +9432,31 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
 }
 
 
+/** 독벌침을 쓸 수 없는 까닭. 무기에만 쓰고, 새 줄은 추가 옵션 6줄 안에서만 붙는다(이미 붙은 독벌침 줄은 바꿔 끼우므로 자리를 묻지 않는다). */
+function getVenomStingerRefusal(item) {
+    if (item.slot !== '무기') return '독벌침은 무기에만 사용할 수 있습니다.';
+    const replaces = (Array.isArray(item.stats) ? item.stats : []).some(stat => stat && stat.venomStingerBonus);
+    return !replaces && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
+}
+const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger, MOD_DB);
+/** 독벌침이 굴릴 무기 공격 줄: 없는 능력치이면서, 이미 붙은 독벌침 줄을 뺀 접두 3, 접미 3 자리가 남는 종류. 지역 줄은 그 지역 장비만. */
+function getVenomStingerMods(item) {
+    const occupiedIds = getItemOccupiedExplicitModIds(item);
+    const room = equipmentCrafting.affixRoom(item, item.rarity, (item.stats || []).find(stat => stat && stat.venomStingerBonus) || null);
+    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id) && isModForDropRegion(mod, item.dropRegion)
+        && !occupiedIds.has(mod.statId || mod.id) && equipmentCrafting.fitsRoom(room, mod));
+}
+
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률·잿불가지·축복의 꽃잎만 받아들입니다.', 'attack-monster');
     if ((game.currencies.venomStinger || 0) <= 0) return addLog('독벌침이 부족합니다.', 'attack-monster');
-    if (item.slot !== '무기') return addLog('독벌침은 무기에만 사용할 수 있습니다.', 'attack-monster');
+    const refusal = getVenomStingerRefusal(item);
+    if (refusal) return addLog(refusal, 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    let occupiedIds = getItemOccupiedExplicitModIds(item);
-    let attackMods = MOD_DB.filter(mod => mod.slots.includes('무기') && ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll', 'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg'].includes(mod.statId || mod.id) && !occupiedIds.has(mod.statId || mod.id));
-    if (attackMods.length <= 0) return;
+    let attackMods = getVenomStingerMods(item);
+    if (attackMods.length <= 0) return addLog('독벌침이 붙일 수 있는 공격 옵션 자리가 없습니다(접두 3, 접미 3).', 'attack-monster');
     let mod = pickWeightedMod(attackMods);
     let rolled = rollAffixValue(mod, getItemCraftTier(item));
     let idx = item.stats.findIndex(stat => stat && stat.venomStingerBonus);
@@ -9352,6 +9528,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         affixTierCap: affixTierCap,
         itemLevel: levelProgression.tierLevel(zoneTier), requirementsVersion: 1,
         dropRealm: dropRealm,
+        dropRegion: normalizeDropRegion(origin.dropRegion),
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
@@ -9374,14 +9551,18 @@ function pickWeightedMod(mods) {
     return mods[mods.length - 1];
 }
 
-function pickRandomMods(mods, count) {
+/** room({prefix, suffix} 남은 자리, null이면 제한 없음): 고를 때마다 자리가 남은 종류에서만 고른다. */
+function pickRandomMods(mods, count, room = null) {
     let pool = Array.isArray(mods) ? mods.slice() : [];
+    const left = room && { ...room };
     let picks = [];
     let wanted = Math.max(0, Math.floor(count || 0));
-    while (pool.length > 0 && picks.length < wanted) {
+    while (picks.length < wanted) {
+        if (left) pool = pool.filter(mod => equipmentCrafting.fitsRoom(left, mod));
         let picked = pickWeightedMod(pool);
         if (!picked) break;
         picks.push(picked);
+        if (left && equipmentCrafting.affixKind(picked) !== 'special') left[equipmentCrafting.affixKind(picked)]--;
         const occupied = new Set(getExplicitModStatIds(picked));
         pool = pool.filter(mod => !getExplicitModStatIds(mod).some(id => occupied.has(id)));
     }
@@ -9409,6 +9590,11 @@ function rollUniqueStatValue(stat) {
 }
 
 
+/** A unique drop comes from the chase pool at 0.16%, more in atlas maps past their T20 tier (js/atlas-maps.js chaseMul). */
+function getChaseUniqueChance(zone) {
+    return 0.0016 * (typeof atlasMaps === 'object' ? atlasMaps.chaseMul(zone) : 1);
+}
+
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = getZone(game.currentZoneId) || {}) {
     let canDropUniqueInZone = (unique) => {
         if (!unique) return false;
@@ -9426,7 +9612,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
         && meetsUniqueTier(unique));
-    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0016;
+    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < getChaseUniqueChance(zone);
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && meetsUniqueTier(unique));
     if (options.length === 0) options = poolSource.filter(meetsUniqueTier);
@@ -9493,7 +9679,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
         : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
     if (!pool || pool.length <= 0) return item;
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length >= 6) item.stats.pop();
+    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) item.stats.pop();
     let tierRange = getDroppedAffixTierRange(zoneTier);
     let roll = rollAffixValueInTierRange(
         pickWeightedMod(pool), tierRange.min, tierRange.max, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
@@ -9525,6 +9711,7 @@ function generateEquipmentDrop(enemy, options) {
     if (minimumRarity && getRarityRank(rarity) < getRarityRank(minimumRarity)) rarity = minimumRarity;
     let item = createItemFromBase(base, rarity, dropTier, {
         dropRealm: zone.type || null,
+        dropRegion: getEquipmentDropRegion(zone),
         affixTierCap,
         affixTierFloor: affixTierRange.min,
         tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
@@ -9718,6 +9905,15 @@ function recordUniqueAcquisition(item) {
     return true;
 }
 
+/** Explicit lines at the tier threshold or above. Unique lines have no tier, so uniques skip the count (2026-10-08: they were
+ * all dropped once a count was set). */
+function passesPickupTierCount(item, settings) {
+    const minTierCount = Math.max(0, Math.floor(settings.itemFilterMinTierCount || 0));
+    if (minTierCount <= 0 || item.rarity === 'unique') return true;
+    const tierThreshold = Math.max(1, Math.floor(settings.itemFilterTierThreshold || 10));
+    return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
+}
+
 function passesItemPickupFilter(item) {
     let settings = game.settings || {};
     if (!settings.itemFilterEnabled) return true;
@@ -9725,12 +9921,7 @@ function passesItemPickupFilter(item) {
     if (!rarities[item.rarity]) return false;
     let minHiddenTier = Math.max(1, Math.floor(settings.itemFilterMinHiddenTier || 1));
     if ((item.hiddenTier || item.itemTier || 1) < minHiddenTier) return false;
-    let tierThreshold = Math.max(1, Math.floor(settings.itemFilterTierThreshold || 10));
-    let minTierCount = Math.max(0, Math.floor(settings.itemFilterMinTierCount || 0));
-    if (minTierCount > 0) {
-        let count = (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length;
-        if (count < minTierCount) return false;
-    }
+    if (!passesPickupTierCount(item, settings)) return false;
     if (item.rarity === 'unique' && settings.itemFilterOnlyNewCodexUnique) {
         let key = getUniqueCodexKeyByItem(item);
         if (key && game.uniqueCodex && game.uniqueCodex[key]) return false;
@@ -10379,6 +10570,8 @@ function isSporeCraftEquipment(item) {
     return EQUIPMENT_DROP_SLOTS.includes(slot);
 }
 
+// The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
+const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
@@ -10387,7 +10580,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
     if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
     let cost = 8;
     if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
-    let ids = new Set(['fireFlatDmg','coldFlatDmg','lightFlatDmg','firePctDmg','coldPctDmg','lightPctDmg','elementalPctDmg','resF','resC','resL']);
+    let ids = new Set(ROT_SPORE_STAT_IDS);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && ids.has(row.stat.id));
     if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
@@ -10410,7 +10603,7 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
     if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length >= 6) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
+    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
     let pool = typeof getFossilExclusivePool === 'function' ? getFossilExclusivePool(item) : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
     if (!pool || pool.length <= 0) return addLog('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.', 'attack-monster');
     game.currencies.fossil--;
@@ -10433,24 +10626,21 @@ function isRemovableExplicitStat(stat) {
 
 
 const QUALITY_ATTRIBUTE_MODES = ['base', 'fire', 'cold', 'light', 'chaos', 'physical', 'defense', 'speed'];
-const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도' };
-const QUALITY_ATTRIBUTE_STAT_GROUPS = {
-    fire: ['firePctDmg', 'resF', 'igniteChance', 'igniteDamageMultiplierPct'],
-    cold: ['coldPctDmg', 'resC', 'freezeChance', 'chillEffect'],
-    light: ['lightPctDmg', 'resL', 'shockChance', 'shockEffect'],
-    chaos: ['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance', 'poisonDamageMultiplierPct'],
-    physical: ['physPctDmg', 'flatDmg', 'bleedChance', 'physIgnore', 'maxDmgRoll', 'minDmgRoll'],
-    defense: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'resAll', 'dr'],
-    speed: ['aspd', 'move', 'ds']
-};
+// 기폭제(12번 루프 32, js/sap-catalysts.js)만 주는 품질 속성: 심연 촉매의 순환(QUALITY_ATTRIBUTE_MODES)에는 들지 않는다.
+const QUALITY_CATALYST_MODES = ['crit', 'summon'];
+const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도',
+    crit: '치명', summon: '소환' };
+// The lines each quality mode scales come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.quality), unique lines included.
+const QUALITY_ATTRIBUTE_STAT_GROUPS = Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.quality)
+    .map(([mode, rule]) => [mode, resolveAffixTagList(rule, MOD_DB)]));
 
 function getItemQualityAttributeMode(item) {
     let mode = item && typeof item.qualityAttribute === 'string' ? item.qualityAttribute : 'base';
-    return QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base';
+    return QUALITY_ATTRIBUTE_MODES.includes(mode) || QUALITY_CATALYST_MODES.includes(mode) ? mode : 'base';
 }
 
 function getItemQualityAttributeLabel(mode) {
-    return QUALITY_ATTRIBUTE_LABELS[QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base'] || QUALITY_ATTRIBUTE_LABELS.base;
+    return QUALITY_ATTRIBUTE_LABELS[mode] || QUALITY_ATTRIBUTE_LABELS.base;
 }
 
 function getNextItemQualityAttributeMode(mode) {
@@ -10542,8 +10732,10 @@ function rerollTaintedLine(item) {
     const { stat, index } = rndChoice(getTaintedRerollLines(item));
     const name = stat.statName || getStatName(stat.id);
     item.stats.splice(index, 1);
-    const mod = pickWeightedMod(getAvailableMods(item).filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(getAvailableMods(item));
-    item.stats.splice(index, 0, rollAffixValue(mod, getItemCraftTier(item)));
+    // 새 줄은 빠진 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서(옵션 추가만 한도를 넘는다). 고를 줄이 없으면 원래 줄이 남는다.
+    const open = getOpenAffixMods(item);
+    const mod = pickWeightedMod(open.filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(open);
+    item.stats.splice(index, 0, mod ? rollAffixValue(mod, getItemCraftTier(item)) : stat);
     updateItemName(item);
     return `${name} 옵션이 ${item.stats[index].statName || getStatName(item.stats[index].id)} 옵션으로 바뀌었습니다.`;
 }
@@ -10588,7 +10780,7 @@ async function useCurrency(currencyKey) {
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률·잿불가지·축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
 
-    let explicitCap = 6;
+    let explicitCap = EXPLICIT_AFFIX_LINE_CAP;
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
     else if (actionKey === 'alteration') ok = item.rarity === 'magic';
@@ -10599,7 +10791,7 @@ async function useCurrency(currencyKey) {
     else if (actionKey === 'divine') ok = item.rarity !== 'normal';
     else if (actionKey === 'chance') ok = item.rarity === 'normal';
     else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (actionKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
@@ -10614,7 +10806,7 @@ async function useCurrency(currencyKey) {
         ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
     }
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
-    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 장비에 신성한 오브를 사용합니다.', {
+    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 장비에 황금률을 사용합니다.', {
         title: '희귀 재화 사용',
         tone: 'danger',
         confirmLabel: '사용'
@@ -10645,9 +10837,10 @@ async function useCurrency(currencyKey) {
         if (sporeMode === 'none') return null;
         let rerollItem = allowReplacement ? {
             ...item,
-            stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift))
+            stats: (item.stats || []).filter(stat => equipmentCrafting.keptOnReroll(item, stat))
         } : item;
-        let source = getAvailableMods(rerollItem);
+        // 결과 희귀도의 한도로 센다: 새싹(변환, 변경)은 마법 1과 1, 나머지는 희귀 3과 3.
+        let source = getOpenAffixMods(rerollItem, ['transmute', 'alteration'].includes(actionKey) ? 'magic' : 'rare');
         let avail = equipmentCrafting.filterSporeMods(source, sporeMode);
         return pickWeightedMod(avail);
     }
@@ -10657,21 +10850,9 @@ async function useCurrency(currencyKey) {
         // 계열을 보장하되 최상위 두 티어를 확정하지 않는다. 정의된 홀씨 티어 범위 전체에서 굴린다.
         return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
     }
-    function applyGuaranteedToNonLocked(modOverride) {
-        let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
-        if (!modToApply || !Array.isArray(item.stats) || item.stats.length <= 0) return;
-        let statId = modToApply.statId || modToApply.id;
-        let existingIdx = item.stats.findIndex(stat => stat && stat.id === statId);
-        if (existingIdx >= 0) {
-            item.stats[existingIdx] = rollSporeGuaranteedValue(modToApply);
-            return;
-        }
-        let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
-        if (idx < 0) {
-            item.stats.push(rollSporeGuaranteedValue(modToApply));
-            return;
-        }
-        item.stats[idx] = rollSporeGuaranteedValue(modToApply);
+    function sporeReroll(extra) {
+        let guaranteedStat = sporeMode !== 'none' && usesSporeAffix ? rollSporeGuaranteedValue(guaranteedMod) : null;
+        return { ...extra, guaranteedStat };
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
@@ -10694,7 +10875,7 @@ async function useCurrency(currencyKey) {
     }
     let exaltedMod = null;
     if (actionKey === 'exalted') {
-        exaltedMod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
+        exaltedMod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item));
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
     }
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
@@ -10708,34 +10889,22 @@ async function useCurrency(currencyKey) {
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
     } else if (actionKey === 'transmute') {
         item.rarity = 'magic';
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
     } else if (actionKey === 'alteration') {
-        rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'magic', getItemCraftTier(item), sporeReroll());
     } else if (actionKey === 'alchemy') {
         item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
     } else if (actionKey === 'exalted') {
         item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (actionKey === 'regal') {
-        let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
+        let mod = guaranteedMod || pickWeightedMod(getOpenAffixMods(item, 'rare'));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         item.rarity = 'rare';
         updateItemName(item);
     } else if (actionKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
-        if (sporeMode !== 'none' && usesSporeAffix) {
-            applyGuaranteedToNonLocked(guaranteedMod);
-        }
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), sporeReroll({ rerollChaosInfusion: true }));
     } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
@@ -10756,7 +10925,7 @@ async function useCurrency(currencyKey) {
     } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
             const jewels = destroySelectedCraftItem(item);
-            addLog(`💥 기회의 오브: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'attack-monster');
+            addLog(`💥 요정의 고리: 아이템이 파괴되었습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'attack-monster');
         } else {
             let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
             let unique = generateUniqueItem(tier, item.slot);
@@ -10768,7 +10937,7 @@ async function useCurrency(currencyKey) {
             Object.assign(item, unique);
             // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
             item.id = previousId;
-            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'loot-unique');
+            addLog(`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewels ? ` 끼운 주얼 ${jewels}개는 주얼 보관함으로 돌아왔습니다.` : ''}`, 'loot-unique');
         }
     } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
@@ -10776,10 +10945,11 @@ async function useCurrency(currencyKey) {
         let picked = rndChoice(removable);
         let removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
-        addLog(`🕳️ 소멸의 오브: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
+        addLog(`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
     } else if (actionKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;
+        delete item.affixKeep;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (actionKey === 'tainted') {

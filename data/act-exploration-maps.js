@@ -222,8 +222,16 @@ const ACT_EXPLORATION_ART_VERSION = '20261004d';
 // Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
 // before it charges, and the fights a route takes stay the same. An area attack also reaches monsters that have not noticed the hero,
 // within splashReach tiles of him (Chebyshev, js/combat.js getAttackTargets), and the strike pulls them into the fight (2026-10-04).
-const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReach:12});
+// 2026-10-09 (user): the helmet line 시야 (stat sight, +1~3) widens radius by up to sightBonusMax tiles. It uncovers more ground and
+// lets the hero see what comes; engageRadius stays, so fights start where they did.
+const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReach:12,sightBonusMax:3});
+// 경계하는 무리 (2026-10-09 user: "적들이 피해 받을 시 멀리 있는 적들이 선공하러 오는 적 타입"): from fromLoop, an ordinary room pack
+// listens with this chance (fixed per pack from its first enemy id, so no random draw shifts). Before it notices the hero, once a
+// monster within hearReach tiles (Chebyshev) of any of its members is hurt, the whole pack runs at the hero (js/act-exploration-state.js
+// alerted). Members wear the outline colour and the name prefix, and a '!' rises over each as it starts to run. Elite-led, boss,
+// content-room and patrol packs never listen. A pack that runs in hurts its own members, so a nearby listening pack may follow.
+const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,outline:'#ff6f59',prefix:'경계하는',markMs:1200});
 // Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
 // desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
 const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_CAMERA});
+safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_CAMERA});

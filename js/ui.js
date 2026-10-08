@@ -562,8 +562,19 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         highlights: equipmentLootPolicy.collectHighlights(beforeState, afterState),
         stashItems: Math.max(0, afterStash - beforeStash),
         stashTotal: afterStash,
-        overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0))
+        overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0)),
+        masteryGains: getBackgroundMasteryGains(beforeState, afterState)
     };
+}
+
+/** The result line for those levels ('' when none rose). */
+function formatBackgroundMasteryLine(gains) {
+    return typeof weaponMasteryUi === 'object' ? weaponMasteryUi.settlementLine(gains) : '';
+}
+
+/** Weapon mastery levels the settlement raised (js/weapon-mastery.js); none in harnesses without it. */
+function getBackgroundMasteryGains(beforeState, afterState) {
+    return typeof weaponMastery === 'object' && beforeState && afterState ? weaponMastery.gains(beforeState, afterState) : [];
 }
 
 function formatBackgroundDuration(ms) {
@@ -606,11 +617,11 @@ function renderBackgroundSpeedControls(finish) {
 }
 
 
-function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0) {
+function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0, phase) {
     let overlay = getBackgroundProgressOverlay();
     if (!overlay) return;
     let pct = totalMs > 0 ? Math.max(0, Math.min(100, Math.floor(doneMs / totalMs * 1000) / 10)) : 100;
-    const signature = `${pct}:${skippedMs}`;
+    const signature = `${pct}:${skippedMs}:${phase}`;
     if (overlay.dataset.progressPercent === signature) return;
     overlay.dataset.progressPercent = signature;
     updateBackgroundSkippedTime(skippedMs);
@@ -619,14 +630,20 @@ function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skipp
     let progressFill = document.getElementById('background-combat-progress-bar-fill');
     let duration = document.getElementById('background-combat-progress-duration');
     let guide = document.querySelector('.background-combat-speed-guide');
-    if (percent) percent.textContent = `계산 진행 ${pct}%`;
+    if (percent) percent.textContent = `계산 진행 ${pct}%${backgroundProgressPhaseText(phase)}`;
     if (progressBar) progressBar.setAttribute('aria-valuenow', String(pct));
     if (progressFill) progressFill.style.width = `${pct}%`;
     if (duration) duration.textContent = `자리 비움 ${formatBackgroundDuration(actualElapsedMs)} · 계산 ${formatBackgroundDuration(Math.max(0, doneMs - skippedMs))}`;
     if (guide) {
         let limits = getBackgroundProgressResultLimits(game);
-        guide.textContent = `진행 한도: ${limits.recognitionHours}시간 · 효율 ${Math.round(limits.efficiencyRate * 100)}%`;
+        guide.textContent = `진행 한도 ${limits.recognitionHours}시간, 효율 ${Math.round(limits.efficiencyRate * 100)}%`;
     }
+}
+
+/** 빠른 계산(js/combat-replay-projection.js)은 앞부분 실제 전투로 속도를 잰 뒤 나머지를 한꺼번에 계산한다. 재는 동안은 막대가
+ * 거의 움직이지 않으므로 무엇을 하는지 적는다. */
+function backgroundProgressPhaseText(phase) {
+    return phase === 'measure' ? ' (전투 속도 재는 중)' : '';
 }
 
 function hideBackgroundProgressOverlay() {
@@ -639,8 +656,23 @@ function updateBackgroundSkippedTime(skippedMs) {
     if (skipped) skipped.textContent = formatBackgroundSkippedReward(skippedMs);
 }
 
+/** 빠른 계산을 했으면 한 줄: 실제로 싸운 시간의 속도로 나머지를 계산했고 보상은 처치마다 새로 굴렸다(레벨이 오르면 중간에도 다시 잰다). */
+function formatBackgroundProjection(result) {
+    if (!(result.projectedMs > 0)) return '';
+    return `빠른 계산: 실제로 싸운 ${formatBackgroundDuration(result.realMs)} 동안의 속도로 나머지 시간(${formatBackgroundDuration(result.projectedMs)})을 계산했습니다. 보상은 처치마다 새로 굴렸습니다.`;
+}
+
 function formatBackgroundSkippedReward(skippedMs) {
     return skippedMs > 0 ? `포기한 전투 시간: ${formatBackgroundDuration(skippedMs)} · 해당 시간 보상 미지급` : '';
+}
+
+/** 빠른 계산을 못 탄 긴 실제 전투(data/offline-progress.js OFFLINE_PROJECTION realHoldMs, realCapMs): 무엇을 했는지 한 줄씩. */
+function formatBackgroundRealLimits(result) {
+    const minutes = ms => Math.round(ms / 60000);
+    return [
+        result.heldZone ? `실제 전투가 ${minutes(OFFLINE_PROJECTION.realHoldMs)}분을 넘어 그 뒤로는 지금 지역을 반복했습니다.` : '',
+        result.cutMs > 0 ? `빠른 계산을 못 하는 곳이라 실제 전투 ${minutes(OFFLINE_PROJECTION.realCapMs)}분까지만 계산했습니다(남은 ${formatBackgroundDuration(result.cutMs)}은 보상 없음).` : ''
+    ];
 }
 
 function showBackgroundCombatResult(result) {
@@ -674,7 +706,10 @@ function showBackgroundCombatResult(result) {
     let stashTotal = Math.max(0, Number(summary.stashTotal) || 0);
     let resultLimits = result.limits || getBackgroundProgressResultLimits(game);
     let rewards = [
-        formatBackgroundSkippedReward(result.skippedMs),
+        formatBackgroundSkippedReward(result.skippedMs - (result.cutMs || 0)),
+        ...formatBackgroundRealLimits(result),
+        formatBackgroundProjection(result),
+        formatBackgroundMasteryLine(summary.masteryGains),
         ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
         `총 처치: <strong>${formatNumberKR(summary.kills)}</strong>`,
         backgroundExpLine(summary),
@@ -682,7 +717,7 @@ function showBackgroundCombatResult(result) {
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
-    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다 · 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${renderBackgroundStoryLine()}${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
+    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">방치 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div><p class="background-result-formula">자리를 비운 시간 중 최대 ${resultLimits.recognitionHours}시간을 ${Math.round(resultLimits.efficiencyRate * 100)}% 속도로 계산합니다. 한도와 효율은 기록 창의 영구 방치 성장에서 올립니다.</p></header><div class="background-result-body">${renderBackgroundStoryLine()}${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">방치 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -773,10 +808,10 @@ async function startBackgroundCombatReturn(nowMs) {
         updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs,
+            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs, project: true,
             isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
             getControl: () => ({tier: backgroundCombatRuntime.accelerationTier, finish: backgroundCombatRuntime.finishRequested}),
-            onProgress: (done, total, skipped) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped)
+            onProgress: (done, total, skipped, phase) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped, phase)
         });
         if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
@@ -787,7 +822,7 @@ async function startBackgroundCombatReturn(nowMs) {
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs: result.processedMs, summary,
             capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason,
-            skippedMs: result.skippedMs });
+            skippedMs: result.skippedMs, realMs: result.realMs, projectedMs: result.projectedMs, heldZone: result.heldZone, cutMs: result.cutMs });
         restoreBattlefieldBeforeBackgroundReplay();
         return true;
     } catch (error) {
@@ -3483,7 +3518,7 @@ function renderUnderworldMapPanel() {
     underworldRuneUi.updateMarkup(panel, `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : entryLockReason} · 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
         <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${underworldRuneUi.progressLabel(runeState)}</span></div></div><div class="underworld-rune-slots">${slots}</div></section>
         <div class="underworld-action-grid"><section><h4>룬 제작 · 성장</h4><div><button onclick="craftUnderworldRune()" ${runeShardCount < 10 || !runeState.unlockedRunesMaxNumber || game.woodsmanBuildLock ? 'disabled' : ''}><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button></div></section><section><h4>장비 가공</h4><div><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div></section></div>
-        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`);
+        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개, 그림자 뿌리 입장권</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>그림자 뿌리 입장권: ${ticketLine}</p></details></div>`);
     restoreUiDisclosureState(panel);
 }
 function ensureUnderworldRuneState() {
@@ -4484,7 +4519,7 @@ function tryGrantCodexCompletionReward() {
     if (progress.total <= 0 || progress.stored < progress.total) return;
     if (game.uniqueCodexCompletedRewardClaimed) return;
     game.uniqueCodexCompletedRewardClaimed = true;
-    addLog('📚 도감 완성! 다음 루프부터 부위별 최하위 고유 선택 특전이 활성화됩니다.', 'loot-unique');
+    addLog('📚 도감 완성! 다음 루프부터 루프마다 액트 1 고유 하나를 무작위로 받습니다.', 'loot-unique');
 }
 
 function storeUniqueToCodexByItemId(itemId) {
@@ -4650,29 +4685,11 @@ function setCodexSubtab(tab) {
 
 function grantCodexLegacyStarterUniques() {
     if (!game.uniqueCodexCompletedRewardClaimed) return;
-    let act1Pool = UNIQUE_DB.filter(entry => {
-        if (!entry) return false;
-        if ((entry.reqTier || 1) > 1) return false;
-        if (entry.dropOnly || entry.contentOnly || entry.bossOnly) return false;
-        return !!((entry.slots || [])[0]);
-    });
+    // 액트 1 일반 고유만(체이싱 고유 제외). 드롭과 같은 생성기로 만들어 고유 효과와 옵션 굴림이 붙는다(2026-10-09).
+    let act1Pool = UNIQUE_DB.filter(entry => (entry.reqTier || 1) <= 1 && !entry.ultraRare && !entry.dropOnly);
     if (act1Pool.length === 0) return;
     let pick = rndChoice(act1Pool);
-    let uniqueTier = pick.reqTier || 1;
-    let base = BASE_ITEM_DB.find(row => row.id === UNIQUE_EQUIPMENT_RULES[pick.name].baseId);
-    let item = {
-        id: ++itemIdCounter,
-        slot: pick.slots[0],
-        baseId: base.id,
-        baseName: base.name,
-        name: pick.name,
-        rarity: 'unique',
-        itemTier: uniqueTier,
-        hiddenTier: uniqueTier,
-        baseStats: rollBaseStats(base, uniqueTier),
-        stats: []
-    };
-    pick.stats.forEach(stat => item.stats.push({ id: stat.id, statName: getStatName(stat.id), val: stat.min, valMin: stat.min, valMax: stat.max, tier: 1 }));
+    let item = generateUniqueItem(1, null, pick.name, {});
     if (!canStoreEquipmentItems([item], game)) return;
     game.inventory.push(normalizeItem(item));
     addLog(`🎁 도감 완성 특전 지급: [${pick.slots[0]}] ${pick.name} (액트1 고유 랜덤 1개)`, 'loot-unique');
@@ -5406,18 +5423,16 @@ function getMonsterSkinDefs() {
     return defs;
 }
 
-// 처치한 적이 화면에 표시한 외형의 스킨 id를 반환한다.
-// (렌더러 pickBattleEnemyVariant / getBossAssetVariantEntry 의 선택 로직과 동일하게 맞춘다.)
+// 처치한 적의 외형 스킨 id. 보스 그림, 제 시트로 그리는 몬스터는 그 id, 나머지는 위습 외형 하나를 렌더러와 같은 규칙
+// (pickSeededEnemyVariant)으로 데이터에서 고른다. 옛 위습 그림은 그 외형을 입을 때만 불러오므로 그림을 보지 않는다.
 function getEnemySkinId(enemy) {
     if (!enemy) return null;
     if (enemy.bossAssetKey) return enemy.bossAssetKey;
     const sheetId = enemy.spriteVariantId || enemy.monsterVisualId;
     if (MONSTER_SPRITE_SHEETS[sheetId]) return sheetId;
-    if (battleAssets && battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
-        const renderedVariant = pickBattleEnemyVariant(enemy, battleAssets.atlas.enemies);
-        if (renderedVariant && renderedVariant.skinId) return renderedVariant.skinId;
-    }
-    return enemy.isBoss ? 'boss' : null;
+    if (enemy.isBoss) return 'boss';
+    const wisps = typeof WISP_MONSTER_VISUALS !== 'undefined' ? WISP_MONSTER_VISUALS : [];
+    return battleAssets && battleAssets.ready && wisps.length ? pickSeededEnemyVariant(enemy, wisps).id : null;
 }
 
 function resolveMonsterSkinSprite(id) {
@@ -5440,6 +5455,7 @@ function resolveMonsterSkinSprite(id) {
         frame: woodVariant.frame,
         frames: woodVariant.frames
     };
+    ensureWispSkinAtlas(id);
     return null;
 }
 
@@ -5939,8 +5955,8 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
 const UI_ENEMY_AILMENT_DETAIL_FORMATTERS = Object.freeze({
     chill: () => '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)',
     freeze: () => '행동 불가 (최대 생명력 대비 타격 비율 반영)',
-    hunterExpose: () => '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.',
-    assassinWeakness: state => `${Math.floor(state.power)}중첩 · 중첩당 받는 피해 6% 증가`,
+    hunterExpose: () => `헌터 전직 키스톤 효과로 받는 모든 피해가 ${ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct}% 증가합니다.`,
+    assassinWeakness: state => `${Math.floor(state.power)}중첩, 중첩당 받는 피해 ${ASCENDANCY_KEYSTONE_VALUES.a3.takenPctPerStack}% 증가`,
     cosmosJudgment: state => `모든 저항 ${state.power.toFixed(0)}% 감소`,
     realmAllResDown: state => `모든 저항 약화 ${state.stacks}중첩`
 });
@@ -6161,14 +6177,22 @@ const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
     ['#8fdcff', ['energyShield', 'energyShieldPct', 'energyShieldRegen', 'energyShieldRechargeFaster']],
     ['#ffb3b3', ['flatHp', 'pctHp', 'regen', 'regenFlat']],
     ['#ffd6f2', ['crit', 'critDmg']],
-    ['#fff3a8', ['aspd', 'move']],
+    ['#fff3a8', ['aspd', 'move', 'sight']],
     ['#ffcf9f', ['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll',
         'bossDamagePct', 'eliteDamagePct', 'firstStrikeDamagePct', 'doubleDamageChance']],
     ['#d4a8ff', ['spellFlatPct', 'spellFlatDmg']],
     ['#ff8fa3', ['leech']],
     ['#ffcb8e', ['resPen', 'resAll', 'ds']],
-    ['#a8e6cf', ['gemLevel', 'suppCap', 'expGain', 'summonEfficiency', 'summonCap']]
+    ['#a8e6cf', ['gemLevel', 'suppCap', 'expGain', 'summonEfficiency', 'summonCap']],
+    // 세계수 기운(12번 루프 27): 지역 줄은 그 지역 색(data/region-affixes.js REGION_AFFIX_TONES).
+    ...REGION_AFFIX_MODS.map(row => [REGION_AFFIX_TONES[row.regions[0]], [row.statId]])
 ].flatMap(([tone, ids]) => ids.map(id => [id, tone]))));
+
+/** The '세계수 기운' line of an item that remembers its atlas region (item.dropRegion), in the region's colour; '' otherwise. */
+function getItemDropRegionLineHtml(item) {
+    const region = item && item.dropRegion ? ATLAS.regions.find(row => row.id === item.dropRegion) : null;
+    return region ? `<div class="tooltip-line" style="color:${REGION_AFFIX_TONES[region.id]};">🌳 세계수 기운: ${escapeHTML(region.name)}</div>` : '';
+}
 
 function getItemStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
@@ -6237,7 +6261,7 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
     if (!item || item.rarity !== 'unique' || !item.uniqueEffectKey) return '';
     let key = String(item.uniqueEffectKey || '');
     if (key === 'rightRingSummonCap') {
-        if (isEquipped && equipSlotKey !== '반지2') return '현재 조건 미충족 · 오른쪽 반지 슬롯에 장착해야 적용';
+        if (isEquipped && equipSlotKey !== '반지2') return '현재 조건 미충족: 오른쪽 반지 슬롯에 장착해야 적용';
         return '오른쪽 반지 슬롯 전용';
     }
     let triggerLabels = {
@@ -6257,7 +6281,16 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
         realmAllResDownOnHit: '적중 시 중첩',
         realmKillMoveStacks: '적 처치 시 중첩',
         meteorFootsteps: '이동 중 확률 발동',
-        queenBeeSummonOnHit: '적중 시 확률 발동'
+        queenBeeSummonOnHit: '적중 시 확률 발동',
+        implicitAmp: '이 장비의 기본 옵션에 적용',
+        loopGrowth: '지금 루프 수만큼 적용',
+        familyBond: '장착한 수평 베이스 수만큼 적용',
+        sightBeyond: '탐험 지도에서 적용',
+        chestLuck: '탐험 지도를 열 때 적용',
+        emberHeart: '장착한 타락 장비 수만큼 적용',
+        amberTime: '장착한 장비의 품질 합만큼 적용',
+        witheredEcho: '목걸이에 새긴 노드 수만큼 적용',
+        nurseryBloom: '그루터기 함 판의 다 자란 씨앗과 수액 수만큼 적용'
     };
     if (triggerLabels[key]) return triggerLabels[key];
     if (key === 'uniqueTakenReduceWhen1Enemy') return '생존한 적이 1명일 때만 적용';
@@ -6475,6 +6508,29 @@ function getItemAffixTierHtml(stat) {
  * Renders complete equipment details, either in the hover tooltip or an inline comparison column.
  * @param {{token?: string, target?: HTMLElement}} options Inline targets do not change hover state.
  */
+/** 추가 옵션 머리말: 마법과 희귀는 "추가 옵션 5/6 (접두 2/3, 접미 3/3)"(2026-10-07 접두 3, 접미 3). 예전 규칙으로 한도를 넘은
+ * 장비는 머리말을 경고색으로, 아래에 한 줄 안내. */
+function itemExplicitAffixHeaderHtml(item, count) {
+    const used = EXPLICIT_AFFIX_RULES[item.rarity] ? equipmentCrafting.affixCounts(item) : null;
+    const header = equipmentCrafting.affixHeader(item.rarity, count, used);
+    const style = header.over ? ' style="color:#ffb454;"' : '';
+    const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
+    const kept = equipmentCrafting.keptKind(item);
+    const keep = kept ? `<div class="tooltip-line" style="color:#9fd6ff;">다음 재굴림에서 ${AFFIX_KEEP_RULES.labels[kept]} 보존</div>` : '';
+    return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}>${header.text}</div>${note}${keep}`;
+}
+
+/** The base line's badges: the upgrade step ([2/4]) and 수평 for a horizontal base (a base with a family, 2026-10-09). */
+function getItemBaseBadgesHtml(item) {
+    let info = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
+    let step = info && info.total > 1
+        ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${info.step}/${info.total}]</span>` : '';
+    let base = BASE_ITEM_DB.find(row => row.id === item.baseId);
+    let family = base && base.family
+        ? ' <span style="color:#e3c37a;" title="수평 베이스: 같은 등급 베이스보다 세지 않은 대신 기본 옵션이 다르고, 같은 계열 안에서만 승급합니다.">수평</span>' : '';
+    return step + family;
+}
+
 function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
@@ -6487,11 +6543,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품 · 전시자 ${escapeHTML(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력 · 재등록 불가</div>';
-    let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
-    let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
-        ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
-        : '';
-    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${baseChainBadge}</div>`;
+    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${getItemBaseBadgesHtml(item)}</div>`;
     html += `<div class="tooltip-line tooltip-meta">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; 등급 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
@@ -6499,7 +6551,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         let applicationHint = getUniqueEffectApplicationHint(item, !!isEquip, isEquip ? idx : null);
         if (applicationHint) html += `<div class="tooltip-line" style="color:#bda9d8; margin-top:3px;">◆ ${escapeHTML(applicationHint)}</div>`;
     }
-    html += equipmentSocketsUi.tooltipHtml(item);
+    html += equipmentSocketsUi.tooltipHtml(item) + getItemDropRegionLineHtml(item);
     if (item.fusedRelic) {
         let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
         html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? ` · [${escapeHTML(item.fusedRareName)}]의 기억` : ''} — 황금률·잿불가지·축복의 꽃잎만 사용 가능</div>`;
@@ -6540,12 +6592,12 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
     if (explicitStats.length > 0) {
         explicitStats.sort(itemTooltipRules.compareStats);
-        html += `<div class="tooltip-line tooltip-section tooltip-section-explicit">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += itemExplicitAffixHeaderHtml(item, explicitStats.length);
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
-            let honeyLockText = getHoneyLockBadgeHtml(stat);
+            let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat);
             let label = stat.statName || getStatName(statKey) || statKey;
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
@@ -6578,7 +6630,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         }
     }
 
-    presentItemTooltip(context, event, item, html, isEquip);
+    presentItemTooltip(context, event, item, html + sapCatalystsUi.qualityHtml(item) + gardenOilsUi.tooltipHtml(item) + emberCorruptionUi.tooltipHtml(item) + weaponMasteryUi.tooltipHtml(item), isEquip);
 }
 
 function showCombatLogItemTooltip(event, token) {
@@ -7373,7 +7425,6 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     let pools = enemyAtlas.variants || {};
     let frames = enemyAtlas.frames || {};
     let baseImage = enemyAtlas.image;
-    let variantSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
     let normalPool = (pools.normal || []).slice();
     let elitePool = (pools.elite || []).slice();
     let bossPool = (pools.boss || []).slice();
@@ -7402,10 +7453,16 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     }
     let pool = enemy.isBoss ? bossPool : (enemy.isElite ? elitePool : normalPool);
     if (pool.length === 0) return null;
+    return pickSeededEnemyVariant(enemy, pool);
+}
+
+/** The pool entry an enemy shows: its assigned variant when the pool has it, otherwise one picked by its seed and element. */
+function pickSeededEnemyVariant(enemy, pool) {
     if (enemy.spriteVariantId) {
         let assignedVariant = pool.find(entry => entry && entry.id === enemy.spriteVariantId);
         if (assignedVariant) return assignedVariant;
     }
+    let variantSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
     let elementOffset = enemy.ele === 'fire' ? 1 : (enemy.ele === 'cold' ? 2 : (enemy.ele === 'light' ? 3 : (enemy.ele === 'chaos' ? 4 : 0)));
     return pool[(variantSeed + elementOffset) % pool.length];
 }
@@ -7435,8 +7492,10 @@ function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion
 
 /** Sprite rim (data BATTLE_SPRITE_OUTLINES): bosses a stronger red, elites their trait colour, every other monster red. */
 function getEnemyOutlineStyle(enemy) {
-    if (enemy.isBoss) return BATTLE_SPRITE_OUTLINES.boss;
-    if (!enemy.isElite) return BATTLE_SPRITE_OUTLINES.enemy;
+    // 보스 변이체(js/boss-variants.js)는 그 변이의 색 테.
+    if (enemy.isBoss) return enemy.variantOutline ? { ...BATTLE_SPRITE_OUTLINES.boss, color: enemy.variantOutline } : BATTLE_SPRITE_OUTLINES.boss;
+    // 잿불 터 무리(data/atlas.js encounters outline): 일반 몬스터의 테를 잿불 색으로. 정예는 특성 색을 지킨다.
+    if (!enemy.isElite) return enemy.encounterOutline ? { ...BATTLE_SPRITE_OUTLINES.enemy, color: enemy.encounterOutline } : BATTLE_SPRITE_OUTLINES.enemy;
     const color = enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || BATTLE_SPRITE_OUTLINES.elite.color;
     return { ...BATTLE_SPRITE_OUTLINES.elite, color };
 }
@@ -8039,18 +8098,18 @@ const UI_RUNTIME_EFFECT_DETAILS = Object.freeze({
     meleeArmorAmp: (stacks, perStack) => `방어도 ${Math.floor(stacks || 0)}중첩 · 중첩당 ${Number(perStack || 0).toFixed(0)}% 증폭`,
     killMoveStacks: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 이동 속도 +${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
     warriorRhythm: (critStacks, doubleStacks) => `치명타 ${Math.floor(critStacks || 0)}/5 · 연속 공격 ${Math.floor(doubleStacks || 0)}/5`,
-    gladiatorFlurry: stacks => `${Math.floor(stacks || 0)}/12중첩 · 공격 속도와 회피 +${Math.floor(stacks || 0) * 3}%`,
+    gladiatorFlurry: stacks => `${Math.floor(stacks || 0)}/12중첩, 공격 속도 +${Math.floor(stacks || 0) * ASCENDANCY_KEYSTONE_VALUES.g2.aspdPctPerStack}%, 회피 +${Math.floor(stacks || 0) * 3}%`,
     gladiatorVeteran: value => `다음 타격 치명타 확률 +${Math.floor(value || 0)}%p`,
     gladiatorSwift: (attackReady, guardReady) => `다음 타격 강화 ${attackReady ? '준비' : '소모'} · 다음 피격 경감 ${guardReady ? '준비' : '소모'}`,
     assassinBlurred: () => '이동 속도·회피 +20% · 치명타 피해 +25%',
-    elementalistOverload: stacks => `${Math.floor(stacks || 0)}중첩 · 원소 피해 +${Math.floor(stacks || 0) * 4}% · 치명타 확률 -${Math.floor(stacks || 0)}%p`,
+    elementalistOverload: stacks => `${Math.floor(stacks || 0)}중첩, 원소 피해 +${Math.floor(stacks || 0) * ASCENDANCY_KEYSTONE_VALUES.e8.morePctPerStack}%, 치명타 확률 -${Math.floor(stacks || 0)}%p`,
     catalystEvade: () => '다음 회피 판정이 30% 증폭됩니다.',
     crusaderLightningAegis: () => '초당 최대 ES 25% 회복 · 번개 피해 +75%',
     guardianEndurance: stacks => `${Math.floor(stacks || 0)}/5중첩 · 방어도 +${Math.floor(stacks || 0) * 11}%`,
     colosseumReady: () => '다음 공격이 투기장 일격으로 강화됩니다.',
     summonDeathDamageBuff: value => `소환수 피해 +${Number(value || 0).toFixed(0)}%`,
     summonCritAspd: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 소환수 공격 속도 +${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
-    enemyWither: stacks => `${Math.floor(stacks || 0)}/10중첩 · 받는 카오스 피해 +${Math.floor(stacks || 0) * 8}%`,
+    enemyWither: stacks => `${Math.floor(stacks || 0)}/10중첩, 받는 카오스 피해 +${Math.floor(stacks || 0) * ASCENDANCY_KEYSTONE_VALUES.wlk9.chaosTakenPctPerStack}%`,
     enemyChaosResDown: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 카오스 저항 -${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
     enemyElementalResDown: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 원소 저항 -${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
     chaosErosion: value => `카오스 저항 -${Number(value || 0).toFixed(0)}%`,
@@ -9766,17 +9825,19 @@ function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
     return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 
+/** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. */
 function getStyledOrbName(orbKey) {
     let name = getCurrencyInfo(orbKey).name;
-    if (orbKey === 'magicBud') return `<span class="orb-tone" style="--orb-tone:#9fd3ff;">${name}</span>`;
-    if (orbKey === 'sapBud' || orbKey === 'blightSpore' || orbKey === 'blessing') return `<span class="orb-tone" style="--orb-tone:#ffe07a;">${name}</span>`;
-    if (orbKey === 'formlessDew' || orbKey === 'pruningShears') return `<span class="orb-tone" style="--orb-tone:#ffbc8a;">${name}</span>`;
-    if (orbKey === 'goldenRule') return `<span class="orb-tone" style="--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
-    if (orbKey === 'emberBranch') return `<span class="orb-tone" style="--orb-tone:#8a2f3f;">${name}</span>`;
-    if (orbKey === 'fairyRing') return `<span class="orb-tone" style="--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);">${name}</span>`;
-    if (orbKey === 'voidChisel') return `<span class="orb-tone" style="--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);">${name}</span>`;
-    return name;
+    const tones = {
+        magicBud: '--orb-tone:#9fd3ff;', sapBud: '--orb-tone:#ffe07a;', blightSpore: '--orb-tone:#ffe07a;', blessing: '--orb-tone:#ffe07a;',
+        formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
+        goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
+        emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
+        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);'
+    };
+    const tone = Object.hasOwn(tones, orbKey) ? tones[orbKey] : '';
+    return tone ? `<span class="orb-tone" style="${tone}">${name}</span>` : name;
 }
 
 /** 우주계 쌍둥이 주얼의 배정 키스톤 줄: 이름과 그 키스톤의 전직(쌍둥이 키스톤은 전직과 상관없이 켜진다), 할당 여부. */
@@ -9838,14 +9899,14 @@ function getCraftOrbUseState(key, item) {
     else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
     else if (actionKey === 'alteration') ok = item.rarity === 'magic';
     else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
+    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < EXPLICIT_AFFIX_LINE_CAP;
     else if (actionKey === 'chaos') ok = item.rarity === 'rare';
     else if (actionKey === 'divine') ok = item.rarity !== 'normal';
     else if (actionKey === 'chance') ok = item.rarity === 'normal';
     else if (actionKey === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
     else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (actionKey === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    else if (actionKey === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= EXPLICIT_AFFIX_LINE_CAP);
     else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };
@@ -10423,7 +10484,8 @@ function buildCraftActionButtons(item) {
         let unlocked = seasonNum <= game.season;
         let current = seasonNum === game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
-        let stateText = current ? '진행 중' : (unlocked ? '해금됨' : '잠김');
+        // 지난 루프는 '지남': 이정표의 해금 항목은 루프에 닿으면 열 수 있게 될 뿐, 해금 목록에서 사야 열린다(예전 '해금됨'이 사지 않은 것도 열린 것처럼 보였다).
+        let stateText = current ? '진행 중' : (unlocked ? '지남' : '잠김');
         let reqText = getLoopAbyssRequirementText(seasonNum);
         let hiddenStyle = collapsePast && unlocked && !current ? 'display:none;' : '';
         return `<div style="${hiddenStyle}background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
@@ -10491,63 +10553,9 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'block';
-        document.getElementById('ui-selected-class-name').innerText = `[ ${CLASS_TEMPLATES[game.ascendClass].name} ]`;
-        let tree = getClassTreeDef(game.ascendClass);
-        let renderAscend = id => {
-            let node = tree[id];
-            if (!node) return '';
-            let active = game.ascendNodes.includes(id);
-            let reqMet = isAscendNodeRequirementMet(node);
-            let statLines = Array.isArray(node.stats) ? node.stats : [{ stat: node.stat, val: node.val }];
-            let desc = statLines.map(line => {
-                let statInfo = P_STATS[line.stat] || { name: getStatName(line.stat), isPct: false };
-                let text = line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
-                return `<span style="color:${getItemStatToneColor(line.stat)}">${text}</span>`;
-            }).join('<br>');
-            let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
-            let title = id === 'n10' ? '궁극기' : ((id === 'n11' || id === 'n12') ? '4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '재능특화' : ((id === 'n13c' || id === 'n13d') ? '전직특화' : titleText)));
-            let stateText = active ? '선택됨, 클릭하면 반환' : (reqMet ? '선택 가능' : '선행 노드 필요');
-            let action = active ? `askRefundAscendNode('${id}')` : (!reqMet ? '' : `buyAscend('${id}')`);
-            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" role="button" tabindex="${action ? '0' : '-1'}" aria-disabled="${action ? 'false' : 'true'}" ${action ? `onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action};}"` : ''}><div class="trait-title">${title}</div><div class="trait-desc">${desc}<span class="trait-card-state">${stateText}</span></div></div>`;
-        };
-        let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
-        let bloomRow = (tree.n13a || tree.n13c) ? `<div class="trait-row">${renderAscend('n13a')}${renderAscend('n13b')}</div><div class="trait-row">${renderAscend('n13c')}${renderAscend('n13d')}</div>` : '';
-        let bloomTalent = HERO_SELECTION_DEFS[game.bloomedTalentThisLoop];
-        let bloomStatus = game.bloomedClassThisLoop === game.ascendClass && bloomTalent
-            ? `5차 개화 · ${bloomTalent.label} 조합`
-            : ((game.completedTrials || []).includes('trial_4') ? '4차 핵심 노드 해금' : '시련 진행으로 추가 해금');
-        let ascendSummary = `<div class="trait-progress-summary"><div><strong>${game.ascendNodes.length}개 노드 선택</strong><span>${CLASS_TEMPLATES[game.ascendClass].name} 전직 패시브</span></div><div><strong>${Math.max(0, Math.floor(game.ascendPoints || 0))} 포인트</strong><span>${bloomStatus}</span></div></div>${getAscendancyPlanContinueHtml()}`;
-        document.getElementById('ui-ascend-tree-container').innerHTML = ascendSummary + `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}${bloomRow}`;
-        let kDefs = getClassKeystoneDefs(game.ascendClass);
-        if (kDefs.length > 0) {
-            game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-            // 선행 관계를 직관적으로 보여주기 위해 키스톤을 의존 깊이(티어)별 행으로 배치하고
-            // 각 카드에 선행 키스톤 라벨 + 호버 시 선행 체인 강조를 부여한다.
-            let kById = {};
-            kDefs.forEach(k => { kById[k.id] = k; });
-            let reqIdsOf = k => { let a = []; if (k.req) a.push(k.req); if (Array.isArray(k.reqAny)) a.push.apply(a, k.reqAny); return a.filter(id => kById[id]); };
-            let depthCache = {};
-            let depthOf = id => { if (depthCache[id] != null) return depthCache[id]; depthCache[id] = 0; let k = kById[id]; if (!k) return 0; if (k.fifthJobOnly) return depthCache[id] = kDefs.length; let rs = reqIdsOf(k); let d = rs.length ? 1 + Math.max.apply(null, rs.map(depthOf)) : 0; return depthCache[id] = d; };
-            let kTiers = [];
-            kDefs.forEach(k => { let d = depthOf(k.id); (kTiers[d] = kTiers[d] || []).push(k); });
-            let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
-            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:12px;">키스톤 초기화</button></div><div style="font-size:12px; color:var(--copy-bright); margin-top:4px;">해제 비용: 마름병 포자 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
-                let active = game.ascendKeystones.includes(k.id);
-                let reqMet = isAscendKeystoneRequirementMet(k);
-                let reqIds = reqIdsOf(k);
-                let reqLabel = '';
-                if (k.fifthJobOnly) {
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 해금: 5차 전직(재능 개화)</div>`;
-                } else if (reqIds.length > 0) {
-                    let names = reqIds.map(id => (kById[id] || {}).name || id);
-                    let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: ${names.join(joiner)}</div>`;
-                }
-                let clickAttr = active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`);
-                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${statToneText.markup(k.desc)}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
-            }).join('')}</div>`).join('');
-            document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
-        }
+        document.getElementById('ui-selected-class-name').innerText = '';
+        // 전직 트리 보기(2026-10-09): 선으로 이은 노드와 키스톤, 합계와 다음 포인트, 늘 보이는 설명 칸(js/ascendancy-tree-ui.js).
+        ascendancyTreeUi.render();
     } else if (game.ascendPoints > 0) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
@@ -11331,7 +11339,7 @@ function setupCanvasEvents() {
         const activationState = getPassiveNodeActivationState(node);
         if (node.activationRequirement && !activationState.active) {
             const requiredName = activationState.statId === 'devotion' ? '계시' : getStatName(activationState.statId);
-            effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,184,106,.48); border-radius:8px; color:#ffd0a2; background:rgba(91,52,20,.28);">${requiredName}가 ${activationState.required} 미만이면 이 노드의 모든 효과가 비활성화됩니다. 현재 ${activationState.available}</div>`;
+            effectHtml += `<div class="tooltip-line" style="margin-top:7px; padding:7px 9px; border:1px solid rgba(255,184,106,.48); border-radius:8px; color:#ffd0a2; background:rgba(91,52,20,.28);">${withSubjectParticle(requiredName)} ${activationState.required} 미만이면 이 노드의 모든 효과가 비활성화됩니다. 현재 ${activationState.available}</div>`;
         }
         let voidCraftHtml = '';
         if (node.kind === 'void' && (game.passives || []).includes(node.id)) {
@@ -11417,7 +11425,7 @@ function setupCanvasEvents() {
         let pointCost = activationPath.length;
         if (game.passivePoints < pointCost) {
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
-            return addLog(`패시브 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster", { toast: true });
+            return addLog(`스킬트리 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster", { toast: true });
         }
         if (options.fromTouch) {
             let now = Date.now();
@@ -11431,7 +11439,7 @@ function setupCanvasEvents() {
         }
         if (canActivate || canPathActivate) {
             const attributeNodeCount = activationPath.filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'attribute').length;
-            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
+            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 스킬트리 포인트 ${pointCost}점을 씁니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
                 title: '최단 경로 활성화',
                 confirmLabel: `${pointCost}포인트 사용`
             })) return;
@@ -11457,7 +11465,7 @@ function setupCanvasEvents() {
             if (!activationResult.activated) {
                 calculateReachableNodes();
                 let reason = activationResult.reason === 'points'
-                    ? `패시브 포인트가 부족합니다. (필요: ${activationResult.cost})`
+                    ? `스킬트리 포인트가 부족합니다. (필요: ${activationResult.cost})`
                     : (activationResult.message || '확인 중 패시브 트리 상태가 변경되었습니다. 노드를 다시 선택해 주세요.');
                 addLog(reason, 'attack-monster');
                 updateStaticUI();
@@ -12162,14 +12170,30 @@ function persistCloudSession(session) {
 function clearCloudSessionStorage() {
     try {
         localStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
+        getLegacyCloudSessionKeys().forEach(key => localStorage.removeItem(key));
     } catch (error) {
         console.warn('failed to clear cloud session storage:', error);
     }
 }
 
+/** Sessions kept under an earlier key name (data/constants.js LEGACY_CLOUD_SESSION_KEY_PATTERN). */
+function getLegacyCloudSessionKeys() {
+    return Object.keys(localStorage).filter(key => LEGACY_CLOUD_SESSION_KEY_PATTERN.test(key));
+}
+
+/** A session saved under an earlier key name moves to CLOUD_SESSION_STORAGE_KEY once, so an update keeps the player signed in. */
+function adoptLegacyCloudSession() {
+    const key = getLegacyCloudSessionKeys()[0];
+    if (!key) return null;
+    const raw = localStorage.getItem(key);
+    if (raw) localStorage.setItem(CLOUD_SESSION_STORAGE_KEY, raw);
+    localStorage.removeItem(key);
+    return raw;
+}
+
 function loadStoredCloudSession() {
     try {
-        let raw = localStorage.getItem(CLOUD_SESSION_STORAGE_KEY);
+        let raw = localStorage.getItem(CLOUD_SESSION_STORAGE_KEY) || adoptLegacyCloudSession();
         return raw ? JSON.parse(raw) : null;
     } catch (error) {
         console.warn('failed to load cloud session:', error);
@@ -14319,23 +14343,6 @@ function buyAscendKeystone(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-// 키스톤 카드 호버 시 해당 키스톤의 선행 체인(루트까지)을 파란 테두리로 연결 강조한다.
-function highlightKeystoneChain(id, on) {
-    let visited = {};
-    let stack = [id];
-    let first = true;
-    while (stack.length > 0) {
-        let cur = stack.pop();
-        if (visited[cur]) continue;
-        visited[cur] = true;
-        let card = document.getElementById('ks-card-' + cur);
-        if (!card) continue;
-        if (first) { card.classList.toggle('ks-self-hi', on); first = false; }
-        else card.classList.toggle('ks-prereq-hi', on);
-        (card.getAttribute('data-ks-req') || '').split(',').filter(Boolean).forEach(r => stack.push(r));
-    }
-}
-
 async function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
     if (!game.ascendKeystones.includes(id)) return;
@@ -14476,9 +14483,7 @@ function getAscendancyNodeFocus(key) {
 }
 
 function renderAscendancyPickCard(key) {
-    const template = CLASS_TEMPLATES[key];
-    const focus = getAscendancyNodeFocus(key).join(', ');
-    return `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${template.name}</span><span style="display:block;font-size:12px; color:#aaa;">${template.desc}</span><span class="class-card-focus" style="display:block;font-size:12px; color:#9fd3ff; margin-top:6px;">노드: ${focus}</span></button>`;
+    return ascendancyTreeUi.pickCardHtml(key);
 }
 
 /** 전직 고르기 화면: 지난 루프의 전직이 이 직업의 것이면 격자 위에 '지난 루프처럼' 카드, 격자에는 전직 셋. */
@@ -14490,7 +14495,7 @@ function fillAscendancyPickScreen() {
 
 function renderLastLoopPlanCard() {
     const plan = getUsableLastLoopAscendPlan();
-    return plan ? `<button type="button" class="class-card ascend-plan-card" style="width:100%; text-align:left;" onclick="chooseLastLoopAscendPlan()"><span style="display:block;font-weight:bold; color:#8fe7b0; margin-bottom:5px;">지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</span><span style="display:block;font-size:12px; color:#aaa;">노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 고릅니다.</span></button>` : '';
+    return plan ? `<button type="button" class="class-card ascend-plan-card" onclick="chooseLastLoopAscendPlan()"><strong>지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</strong><span>노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 고릅니다.</span></button>` : '';
 }
 
 /** 루프 초기화 때 기억한 전직 배치(state.js rememberLoopAscendancyPlan). 지금 직업이 고를 수 있는 전직일 때만 쓴다. */
@@ -14538,7 +14543,7 @@ function getAscendancyPlanContinueHtml() {
     if (!plan || plan.ascendClass !== game.ascendClass) return '';
     const nodesLeft = game.ascendPoints > 0 && plan.nodes.some(id => !game.ascendNodes.includes(id));
     const keystonesLeft = game.ascendKeystonePoints > 0 && plan.keystones.some(id => !game.ascendKeystones.includes(id));
-    return nodesLeft || keystonesLeft ? '<button type="button" class="ascend-plan-continue" style="font-size:12px; margin:0 0 10px;" onclick="continueLastLoopAscendPlan()">지난 루프 배치 이어 하기</button>' : '';
+    return nodesLeft || keystonesLeft ? '<button type="button" class="ascend-plan-continue" onclick="continueLastLoopAscendPlan()">지난 루프 배치 이어 하기</button>' : '';
 }
 
 function continueLastLoopAscendPlan() {

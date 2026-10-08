@@ -19,7 +19,14 @@ actExplorationProgress.objects = (() => {
         return {seed:Math.floor(Math.random()*4294967296),loop:game.season||1,allowEvent:zone.type!=='atlasMap',
             excludedRooms:run.packs.filter(p=>p.encounter).map(p=>p.roomId),
             quantity:Math.min(4,1+Math.max(0,zone.atlasLootQuantity||0)/100),
-            rarity:Math.min(500,Math.max(0,zone.atlasLootRarity||0))};
+            rarity:Math.min(500,Math.max(0,zone.atlasLootRarity||0)),chest:chestRules(zone)};
+    }
+    /** An atlas map's chest rules (js/atlas.js chestRules) plus the hero's 보급 상자 등급 확률 (보물 사냥꾼의 띠, stats.chestGrade) on the
+     * silver and gold odds. Null when neither applies, so an ordinary map keeps its exact draws. */
+    function chestRules(zone) {
+        const luck=Math.max(0,Number(getPlayerStats().chestGrade)||0),atlasRules=zone.atlasChest||null;
+        if(!luck)return atlasRules;
+        return {extra:0,min:0,...atlasRules,grade:(Number(atlasRules&&atlasRules.grade)||0)+luck};
     }
     function remember(run) {
         if(run.zoneId===ATLAS.zoneId&&game.atlas.run)game.atlas.run.objects=JSON.parse(JSON.stringify(run.objects));
@@ -88,12 +95,14 @@ actExplorationProgress.objects = (() => {
         }
         return cells.sort((a,b)=>distance(a,row)-distance(b,row)).slice(0,count);
     }
+    function waveSize(run,row) {return row.kind==='nest'?3:row.kind==='ambush'?4+(run.objects.seed%2):3+(run.objects.seed%2);}
+    function waveMarker(row,index) {return {at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null};}
     function spawn(run,row) {
-        const count=row.kind==='nest'?3:row.kind==='ambush'?4+(run.objects.seed%2):3+(run.objects.seed%2);
+        const count=waveSize(run,row);
         const cells=spawnCells(run,row,count);
         if(cells.length<count){row.remainingMs=200;return;}
         const key=`${row.id}:${row.wave+1}`,zone=getZone(run.zoneId);
-        const enemies=cells.map((cell,index)=>Object.assign(createEnemy(zone,{at:row.wave*11+index,count:1,boss:false,elite:false,storyStage:null},index),
+        const enemies=cells.map((cell,index)=>Object.assign(createEnemy(zone,waveMarker(row,index),index),
             cell,{explorationPack:key,gridMoveTimer:0,regenBank:0,spawnStamp:getBattleSpawnStamp()}));
         run.packs.push({key,roomId:row.roomId,stage:null,waiting:[],aliveIds:enemies.map(e=>e.id),eliteIds:[],objectId:row.id,objectWave:row.wave+1});
         game.enemies.push(...enemies);row.wave++;row.phase='active';row.remainingMs=0;
@@ -131,7 +140,7 @@ actExplorationProgress.objects = (() => {
         const prop=['pot','crate'].includes(row.kind),rng=state.random((run.objects.seed+Math.abs(hashSeed(row.id)))>>>0);
         const drop=state.solid({...row,phase:'spent'})?spillCell(run,row):row;
         const enemy={id:0,gx:drop.gx,gy:drop.gy,isBoss:false,isElite:false};
-        const items=prop?[]:rollItems(run,row,enemy,rng);
+        const items=prop?rollPropItems(run,enemy,rng):rollItems(run,row,enemy,rng);
         row.phase='spent';row.remainingMs=0;
         if(run.objects.pendingId===row.id){cancel(run);run.destination=null;}
         remember(run);
@@ -162,15 +171,41 @@ actExplorationProgress.objects = (() => {
         }
         return items;
     }
+    /** A pot or crate now and then holds one piece of equipment (data/maps.js EXPLORATION_PROP_LOOT), more with the map's item
+     * quantity. Before 2026-10-07 it held only currency, so a loop-1 pot was always empty. */
+    function rollPropItems(run,enemy,rng) {
+        if(rng()>=Math.min(1,EXPLORATION_PROP_LOOT.itemChance*run.objects.quantity))return [];
+        const item=generateEquipmentDrop(enemy,{zone:getZone(run.zoneId)});
+        return item?[item]:[];
+    }
     function pay(run,row,drop) {
         const {prop,items,enemy,rng}=drop;
         for(const item of items)keepEquipmentDrop(enemy,item);
-        if(prop&&rng()>=.3)return;
+        payChestContent(run,row,enemy,rng);
+        if(prop&&rng()>=EXPLORATION_PROP_LOOT.currencyChance)return;
         const key=contentProgression.canDropCurrency('magicBud')?'magicBud':'formlessDew';
         if(!contentProgression.canDropCurrency(key))return;
         const base=prop?1:state.isEvent(row)?3:state.grade(row).currency;
         const scaled=base*run.objects.quantity,amount=Math.floor(scaled)+Number(rng()<scaled%1);
         keepCurrencyDrop(enemy,key,amount);
     }
-    return {initialize,savedFacing,request,cancel,step,afterDeath,area,stage};
+    /** An atlas map's golden supply chest also holds one find of the map's content rooms (js/atlas-encounters.js chestReward). */
+    function payChestContent(run,row,enemy,rng) {
+        const zone=getZone(run.zoneId);
+        if(row.grade!=='gold'||!zone||zone.type!=='atlasMap')return;
+        const find=atlasEncounters.chestReward(zone,rng);
+        if(find)keepCurrencyDrop(enemy,find[0],find[1]);
+    }
+    /** Offline projection (js/combat-replay-projection.js): an object the measured route used. A sealed chest, an ambush or a
+     * nest first raises its waves on its cell, each monster resolved by `kill` on the real kill path; then its real reward. */
+    function settleProjected(run,row,kill) {
+        if(state.isEvent(row)) {
+            const zone=getZone(run.zoneId);
+            for(let wave=row.kind==='nest'?2:1;wave>0;wave--,row.wave++) {
+                for(let index=0;index<waveSize(run,row);index++)kill(Object.assign(createEnemy(zone,waveMarker(row,index),index),{gx:row.gx,gy:row.gy}));
+            }
+        }
+        reward(run,row);
+    }
+    return {initialize,savedFacing,request,cancel,step,afterDeath,area,stage,settleProjected};
 })();

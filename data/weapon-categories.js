@@ -11,7 +11,7 @@ const WEAPON_CATEGORIES = Object.freeze({
     censer: Object.freeze({ name: '향로', root: 'censer' })
 });
 
-// 무기 바탕(js/state.js BASE_ITEM_DB, slot '무기') → 대분류. 새 무기 바탕은 반드시 여기에 넣는다(scripts/smoke-weapon-categories.js).
+// 무기 바탕(js/state.js BASE_ITEM_DB, slot '무기') → 대분류. 새 무기 바탕은 반드시 여기에 넣는다.
 // 대검: 양손 대검과 장병기(창 · 글레이브 · 랜스). 곡도: 한손 검 · 도끼 · 송곳 · 곡도(전부 힘과 민첩). 단궁: 활 · 발사기 · 발리스타 · 레일건.
 // 바탕 승급은 같은 대분류 안에서만 한다(js/items.js getBaseUpgradeCandidates).
 // 오브: 주문 무기와 소환 무기 전부(완드 · 로드 · 홀 · 초점봉 · 지팡이 · 사역봉).
@@ -28,7 +28,11 @@ const WEAPON_BASE_CATEGORIES = Object.freeze({
     spiritbound_wand: 'orb', rift_scepter: 'orb', gravebind_scepter: 'orb', echo_focus: 'orb', ritual_familiar_staff: 'orb',
     void_archon_staff: 'orb', abyss_chant_staff: 'orb', astral_familiar_staff: 'orb', archon_familiar_staff: 'orb', genesis_void_staff: 'orb',
     cracked_flask: 'flask', catalyst_flask: 'flask', volatile_flask: 'flask', alchemist_retort: 'flask', philosopher_flask: 'flask',
-    tin_censer: 'censer', incense_censer: 'censer', ember_censer: 'censer', chapel_censer: 'censer', sunrise_censer: 'censer'
+    tin_censer: 'censer', incense_censer: 'censer', ember_censer: 'censer', chapel_censer: 'censer', sunrise_censer: 'censer',
+    // 수평 베이스(2026-10-09, js/state.js family): 같은 대분류의 다른 정체성.
+    bigtree_maul: 'greatsword', oak_maul: 'greatsword', worldbreaker_maul: 'greatsword', fang_kris: 'scimitar', venom_kris: 'scimitar', serpent_kris: 'scimitar',
+    hunting_longbow: 'shortbow', hawk_longbow: 'shortbow', skyhunter_longbow: 'shortbow', spark_rod: 'orb', storm_rod: 'orb', tempest_scepter: 'orb',
+    herb_toxin_flask: 'flask', toxin_flask: 'flask', plague_flask: 'flask', coal_censer: 'censer', pyre_censer: 'censer', phoenix_censer: 'censer'
 });
 
 safeExposeData({ WEAPON_CATEGORIES, WEAPON_BASE_CATEGORIES });
