@@ -309,7 +309,7 @@
                     </div>
                 </div>
                 <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
-                    <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
+                    <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)"></canvas>
                     <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기 · 탐험 방식" onclick="actExplorationUi.expand()" hidden>탐험 지도</button>
                     <button id="btn-act-exploration-auto" type="button" aria-pressed="true" aria-label="자동 이동 켜짐 · 눌러서 바꾸기" onclick="actExplorationUi.toggleAuto()" hidden><b>자동 켬</b><i class="combat-hud-key" aria-hidden="true" hidden></i></button>
                 </section>
@@ -366,7 +366,7 @@
 <div id="right-pane">
     <dialog id="act-exploration-dialog" aria-label="확대 탐험 지도">
         <div class="act-exploration-heading"><strong>탐험 지도</strong></div>
-        <canvas id="act-exploration-map-large" tabindex="0" aria-label="확대 탐험 지도. 클릭 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" onkeydown="actExplorationUi.key(event)"></canvas>
+        <canvas id="act-exploration-map-large" tabindex="0" aria-label="확대 탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)"></canvas>
         <div class="act-exploration-modes">
             <button type="button" data-exploration-mode="direct" onclick="actExplorationUi.mode('direct')">보스 직행</button>
             <button type="button" data-exploration-mode="full" onclick="actExplorationUi.mode('full')">전체 탐색</button>
@@ -1517,7 +1517,7 @@
 <script defer src="data/rewards.js?v=20260721-act2-support-reward1&records-review=20260914-1&aux=20261001-15&playtest=20261007-9"></script>
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1&treasure=20260907-1&aux=20260930-7&aux=20261002-5&aux=20261002-6&aux=20261002-15&aux=20261002-18"></script>
 <script defer src="data/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&flask-slots=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&unlock-path=20260908-1&world-tree-journey=20260913-1&first-journal=20260914-1&gem-forge=20260914-1&chat-dock=20260914-1&skill-delta2=20260930-10&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261002-1&aux=20261002-3&aux=20261002-8&realm=20261003-1&board=20261004-1&playtest=20261007-8"></script>
-<script defer src="data/hotkeys.js?v=20260930-6&aux=20261001-1&review=20261003-1"></script>
+<script defer src="data/hotkeys.js?v=20260930-6&aux=20261001-1&review=20261003-1&wasd=20261009-1"></script>
 <script defer src="data/pixel-icons.js?aux=20260930-8&goal=20261008-1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-7&aux=20261001-15&aux=20261001-17&font=20261006-1&goal=20261008-1&sight=20261009-1&uniq=20261009-1"></script>
 <script defer src="js/hotkeys.js"></script>
@@ -1580,7 +1580,7 @@
 <script defer src="js/skill-gem-casts.js?v=20260930-4&p2=20261003-1&balance=20261004-1"></script>
 <script defer src="js/act-exploration-progress.js?v=20260930-15&aux=20261001-1&aux=20261002-20&pickup=20261005-1&dmg=20261005-2&playtest=20261007-9&eff=20261008-1&sight=20261009-1&alert=20261009-1"></script>
 <script defer src="js/exploration-object-combat.js?v=20261005-1&objects=20261005-2&drops=20261005-2&drops=20261005-8&juice=20261005-1&review=20261005-1&pickup=20261005-1&dmg=20261005-2&audio=20261006-1&currency=20261006-1&hive=20261006-1&playtest=20261007-9&playtest=20261007-10&fruit=20261009-1&uniq=20261009-1"></script>
-<script defer src="js/act-exploration-ui.js?v=20260930-15&aux=20260930-3&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-14&aux=20261001-19&late=20261002-1&review=20261002-2&review=20261003-1&vis=20261004-1&ids=20261008-1"></script>
+<script defer src="js/act-exploration-ui.js?v=20260930-15&aux=20260930-3&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-14&aux=20261001-19&late=20261002-1&review=20261002-2&review=20261003-1&vis=20261004-1&ids=20261008-1&wasd=20261009-1"></script>
 <script defer src="js/currency-acquisition-ui.js?v=20260922-1&aux=20260930-5&aux=20260930-8&aux=20261001-1&aux=20261001-15&drops=20261005-8"></script>
 <script defer src="js/condition-patterns.js?v=20260820-es-guard1&choice-feedback=20260904-1&runtime=20260905-1&flow=20260906-1&condition-feedback=20260909-1&aux=20260930-7"></script>
 <script defer src="js/hidden-journal.js?v=20260820-boss-feats1&skill-delta2=20260930-15&aux=20261001-1"></script>
@@ -1710,7 +1710,7 @@
 <script defer src="js/player-exchange.js?v=20260819-hall-route3&loadout=20260820-1&aux=20261001-2&drops=20261005-3"></script>
 <script defer src="js/message-frames-ui.js?v=20261003-1&polish=20261003-1&freewin=20261004-1&playtest=20261007-2&names=20261008-1"></script>
     <script defer src="js/ui-window-manager.js?v=20260906-workspace1&interface-fixes=20260906-2&refinement=20260906-1&choice-tree=20260906-1&display=20260906-1&unlock-atlas=20260906-5&unlock-split=20260907-1&brand-logo=20260907-1&battle-controls=20260908-1&return-regions=20260908-1&rail-fit=20260908-1&popup-layer=20260911-1&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-3&aux=20261001-14&aux=20261001-15&aux=20261001-17&aux=20261001-19&review=20261003-1&dialog=20261003-1&frames=20261003-1&freewin=20261004-1&maxwin=20261004-1"></script>
-    <script defer src="js/hotkeys-ui.js?v=20260930-6&aux=20261001-1&review=20261003-1"></script>
+    <script defer src="js/hotkeys-ui.js?v=20260930-6&aux=20261001-1&review=20261003-1&wasd=20261009-1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/scroll-top.js?v=20260821-scrolltop1&release=20261003-1"></script>
 <script defer src="js/content-unlock-guide.js?v=20260831-next-major-unlock1&content-choice=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&aux=20260930-5&aux=20260930-7&aux=20261001-16&points=20261004-1"></script>

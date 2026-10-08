@@ -170,12 +170,54 @@ const actExplorationUi=(()=>{
             gy:view.y0+Math.floor((event.clientY-rect.top)/rect.height*view.rows)};
         commandMove(cell);
     }
-    function key(event) {
-        const offsets={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
-        const delta=offsets[event.key],run=actExplorationState.current(game);
-        if(!delta||!run||run.status!=='active')return;
-        event.preventDefault();
-        commandMove({gx:game.gridPlayer.gx+delta[0],gy:game.gridPlayer.gy+delta[1]});
+    // ── 키보드로 걷기(WASD와 방향키, js/hotkeys-ui.js가 누름과 뗌을 넘긴다, 2026-10-09) ──
+    // 누르는 동안 그쪽으로 곧게 WALK_REACH칸 앞까지 이동 명령을 다시 걸어 끊김 없이 걷고, 떼면 들어가던 칸에서 멈춘다(걸음은 반을 지나면
+    // 칸이 바뀌므로 지금 칸으로 돌리면 되돌아 걷는다). 여러 방향을 누르면 마지막에 누른 쪽이다. 벽이나 안개, 물건 앞에서는 선다.
+    const STEPS=Object.freeze({up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}),WALK_REACH=4,WALK_TICK_MS=90;
+    const held=[];let walkTimer=null;
+    function press(direction,down) {
+        const index=held.indexOf(direction);
+        if(index>=0)held.splice(index,1);
+        if(down&&STEPS[direction])held.push(direction);
+        if(!direction)held.length=0;
+    }
+    /** @param {?string} direction up/down/left/right; null with down false lets go of every key (window blur).
+     * @returns {boolean} whether an active exploration map took the key. */
+    function holdMove(direction,down) {
+        press(direction,down);
+        const run=actExplorationState.current(game);
+        if(!run||run.status!=='active'){held.length=0;stopWalking(null);return false;}
+        if(isForegroundGameplayPausedForBackground())return nudge(run,down&&direction);
+        if(!held.length){stopWalking(run);return true;}
+        steer();
+        walkTimer=walkTimer||setInterval(steer,WALK_TICK_MS);
+        return true;
+    }
+    /** Paused (the large map with "pause while a window is open"): nothing walks, so each press moves the destination one cell like a
+     * click on the map, and the hero walks there once the game runs again. */
+    function nudge(run,direction) {
+        held.length=0;
+        if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
+        if(!STEPS[direction])return true;
+        const [dx,dy]=STEPS[direction],from=run.destination||footing(run);
+        actExplorationState.selectDestination(run,{gx:from.gx+dx,gy:from.gy+dy});
+        render();
+        return true;
+    }
+    /** The cell the hero stands on, or the one it is stepping into. */
+    const footing=run=>(run.motion?run.motion.to:game.gridPlayer);
+    function steer() {
+        const run=actExplorationState.current(game),direction=held[held.length-1];
+        if(!run||run.status!=='active'||!direction){held.length=0;return stopWalking(run);}
+        const [dx,dy]=STEPS[direction],from=footing(run);
+        let reached=0;
+        while(reached<WALK_REACH&&actExplorationState.selectDestination(run,{gx:from.gx+dx*(reached+1),gy:from.gy+dy*(reached+1)}))reached++;
+        if(!reached)actExplorationState.selectDestination(run,from);
+        render();
+    }
+    function stopWalking(run) {
+        if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
+        if(run&&run.status==='active'&&run.destination)actExplorationState.selectDestination(run,footing(run));
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
     function hint(event) {
@@ -218,6 +260,6 @@ const actExplorationUi=(()=>{
         return '탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.';
     }
     document.addEventListener('click',departureClick,true);
-    return {render,mode,toggleAuto,commandMove,choose,key,expand,hint,departurePending:()=>departurePending};
+    return {render,mode,toggleAuto,commandMove,choose,holdMove,expand,hint,departurePending:()=>departurePending};
 })();
 safeExposeGlobals({actExplorationUi});

@@ -1,10 +1,12 @@
 // PC 단축키: 키 입력 처리, 메뉴·HUD 키 표시, 설정 > 전투 · 소리 > 단축키 화면.
 // 배정 해석은 js/hotkeys.js(hotkeyBindings), 창 열기/닫기는 ui-window-manager(toggleWindowFromHotkey),
-// 이동 스킬은 js/mobility-skill.js(request), 자동 이동은
-// js/act-exploration-ui.js(toggleAuto)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.
+// 이동 스킬은 js/mobility-skill.js(request), 자동 이동과 키보드 걷기는
+// js/act-exploration-ui.js(toggleAuto, holdMove)가 소유한다. Esc(창 닫기)는 ui-window-manager 고정.
 const hotkeysUi = (() => {
     'use strict';
     const DENIED_TOAST_GAP_MS = 1200;
+    // 걷기의 고정 키(바꿀 수 있는 WASD 배정과 함께, data/hotkeys.js move:*).
+    const ARROW_MOVES = Object.freeze({ ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right' });
     let capturing = null;
     let notice = '';
     let lastDenied = { reason: '', at: 0 };
@@ -47,8 +49,28 @@ const hotkeysUi = (() => {
         else actExplorationUi.toggleAuto();
     }
 
+    /** The walking direction of a key: the arrows always, letters as bound (move:* actions), else null. */
+    function moveDirection(code) {
+        if (Object.hasOwn(ARROW_MOVES, code)) return ARROW_MOVES[code];
+        const action = hotkeyBindings.actionForCode(overrides(), code);
+        return action && action.kind === 'move' ? action.target : null;
+    }
+
+    /** Walking keys work like the other hotkeys, but a held key repeats and the large exploration map (a modal dialog) still walks. */
+    function isMoveBlocked(event) {
+        if (event.ctrlKey || event.altKey || event.metaKey || document.body.classList.contains('startup-active')) return true;
+        if (event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]')) return true;
+        const modal = document.querySelector('dialog:modal');
+        return (!!modal && modal.id !== 'act-exploration-dialog') || !!document.querySelector('.tutorial-overlay.active, .selection-overlay');
+    }
+
     function onKeydown(event) {
         if (capturing) { captureKey(event); return; }
+        const direction = moveDirection(event.code);
+        if (direction) {
+            if (!isMoveBlocked(event) && actExplorationUi.holdMove(direction, true)) event.preventDefault();
+            return;
+        }
         if (isBlocked(event)) return;
         const action = hotkeyBindings.actionForCode(overrides(), event.code);
         if (!action) return;
@@ -115,6 +137,7 @@ const hotkeysUi = (() => {
         const group = kind => hotkeyBindings.actions.filter(action => action.kind === kind).map(action => rowHtml(action, bindings)).join('');
         host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">창 열고 닫기</div>${group('window')}</div>`
             + `<div class="hotkey-section"><div class="hotkey-section-title">전투와 이동</div>${group('combat')}</div>`
+            + `<div class="hotkey-section"><div class="hotkey-section-title">탐험 지도 걷기(방향키도 됨)</div>${group('move')}</div>`
             + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${escapeHTML(notice)}</span>`
             + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>기본값으로</button></div>`;
     }
@@ -159,8 +182,16 @@ const hotkeysUi = (() => {
         if (event.target.closest('[data-hotkey-reset]')) resetDefaults();
     }
 
+    /** Letting go of a walking key stops the walk; so does leaving the window (its keyup never arrives). */
+    function onKeyup(event) {
+        const direction = moveDirection(event.code);
+        if (direction) actExplorationUi.holdMove(direction, false);
+    }
+
     function init() {
         document.addEventListener('keydown', onKeydown, true);
+        document.addEventListener('keyup', onKeyup, true);
+        window.addEventListener('blur', () => actExplorationUi.holdMove(null, false));
         document.addEventListener('pointerdown', cancelCaptureOutside, true);
         document.getElementById('ui-hotkey-settings')?.addEventListener('click', onSettingsClick);
         refresh();
