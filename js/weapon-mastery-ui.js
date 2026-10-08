@@ -5,27 +5,32 @@ const weaponMasteryUi = (() => {
     const name = id => WEAPON_CATEGORIES[id].name;
     const lineText = (stat, val) => `${getStatName(stat)} ${val >= 0 ? '+' : ''}${formatValue(stat, val)}`;
     const stepText = step => step.map(([stat, val]) => lineText(stat, val)).join(', ');
+    /** A stat line in its stat's colour (the item affix colours), for the records cards. */
+    const lineHtml = (stat, val) => `<span style="color:${getItemStatToneColor(stat)}">${esc(lineText(stat, val))}</span>`;
+    const stepHtml = step => step.map(([stat, val]) => lineHtml(stat, val)).join(', ');
     const percent = rate => `${Math.round(rate * 100)}%p`;
-    /** The next milestone of a category at a level ('' at the top). */
-    function nextStepText(id, level) {
+    // 무기 갈래마다 색(2026-10-09 사용자 "기록 색감"): 대검 붉은색, 곡도 주황, 단궁 초록, 오브 파랑, 플라스크 보라, 향로 번개 노랑.
+    const TONES = Object.freeze({ greatsword: '#ff7a59', scimitar: '#ffb35c', shortbow: '#8fe07a', orb: '#8fb8ff', flask: '#c98cff', censer: '#f0d24a' });
+    /** The next milestone of a category at a level, coloured ('' at the top). */
+    function nextStepHtml(id, level) {
         const index = Math.floor(level / 10);
         const step = (M.milestones[id] || [])[index];
-        return step ? `다음 특전 레벨 ${(index + 1) * 10}: ${stepText(step)}` : '모든 특전을 열었습니다.';
+        return step ? `다음 특전 레벨 ${(index + 1) * 10}: ${stepHtml(step)}` : '모든 특전을 열었습니다.';
     }
     function cardHtml(id, wielded) {
         const row = weaponMastery.progress(game, id), fill = row.need ? Math.floor(row.into / row.need * 100) : 100;
-        const effects = [row.level > 1 ? lineText(M.perLevel.stat, weaponMastery.perLevel(row.level)) : '',
-            ...weaponMastery.opened(id, row.level).map(stepText)].filter(Boolean).join(', ');
-        return `<div class="mastery-card${id === wielded ? ' is-wielded' : ''}"><div class="mastery-card-head"><strong>${esc(name(id))}</strong>
-            <b>Lv.${row.level}</b>${id === wielded ? '<em>들고 있음</em>' : ''}</div>
+        const effects = [row.level > 1 ? lineHtml(M.perLevel.stat, weaponMastery.perLevel(row.level)) : '',
+            ...weaponMastery.opened(id, row.level).map(stepHtml)].filter(Boolean).join(', ');
+        return `<div class="mastery-card${id === wielded ? ' is-wielded' : ''}${row.level > 1 ? '' : ' is-new'}" style="--mastery-tone:${TONES[id] || '#e8c27a'}">`
+            + `<div class="mastery-card-head"><strong>${esc(name(id))}</strong><b>Lv.${row.level}</b>${id === wielded ? '<em>들고 있음</em>' : ''}</div>
             <div class="mastery-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}"><i style="width:${fill}%"></i></div>
-            <small>${esc(effects || '레벨 2부터 피해가 오릅니다.')}</small>
-            <small class="mastery-next">${esc(nextStepText(id, row.level))}</small></div>`;
+            <small>${effects || '레벨 2부터 피해가 오릅니다.'}</small>
+            <small class="mastery-next">${nextStepHtml(id, row.level)}</small></div>`;
     }
     /** The records window's mastery section. */
     function sectionHtml() {
         const total = weaponMastery.total(game), next = M.totalSteps.find(step => total < step), wielded = weaponMastery.wielded(game);
-        return `<details class="records-fold records-mastery" open><summary>무기 숙련<span>합계 ${total}, 방치 효율 +${percent(weaponMastery.offline(game))}</span></summary>
+        return `<details class="records-fold records-mastery" open><summary>무기 숙련<span>합계 ${total}, 방치 효율 <b class="records-gain">+${percent(weaponMastery.offline(game))}</b></span></summary>
             <div class="records-fold-body"><div class="mastery-grid">${weaponMastery.ids.map(id => cardHtml(id, wielded)).join('')}</div>
             <p class="records-fold-hint">들고 있는 무기로 잡을 때마다 오르고 루프를 넘어 남습니다. 합계 ${M.totalSteps.join(', ')}마다 방치 효율 +1%p${next ? ` (다음 ${next})` : ''}.</p></div></details>`;
     }
