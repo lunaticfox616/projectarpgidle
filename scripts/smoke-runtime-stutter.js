@@ -18,7 +18,7 @@ const savedGame = {
 const saveContext = {
   JSON, Math, Number, Date, Set, WeakSet, console,
   LOCAL_SAVE_KEY: 'project-arpg-save',
-  LEGACY_SAVE_KEYS: [],
+  LEGACY_SAVE_KEY_PATTERN: /^$/,
   game: savedGame,
   defaultGame: { saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null } },
   itemIdCounter: 0,

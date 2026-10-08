@@ -1,5 +1,5 @@
 @layer overrides {
-/* 전투 기록과 채팅 창(PC, js/message-frames-ui.js, 2026-10-03). 라그나로크와 마비노기 채팅창처럼 빈 공간 없이 탭 줄과 글만 둔다.
+/* 전투 기록과 채팅 창(PC, js/message-frames-ui.js, 2026-10-03). 빈 공간 없이 탭 줄과 글만 둔다.
    관리 창(z 1200 이상)보다 아래, 전장과 하단 HUD보다 위(HUD 위로 내려 겹쳐 둘 수 있다). 예전 전투 기록 판(.combat-feed)은 이 창이 대신한다. */
 body.message-frames-on .combat-feed { display: none; }
 

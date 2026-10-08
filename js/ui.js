@@ -12227,14 +12227,30 @@ function persistCloudSession(session) {
 function clearCloudSessionStorage() {
     try {
         localStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
+        getLegacyCloudSessionKeys().forEach(key => localStorage.removeItem(key));
     } catch (error) {
         console.warn('failed to clear cloud session storage:', error);
     }
 }
 
+/** Sessions kept under an earlier key name (data/constants.js LEGACY_CLOUD_SESSION_KEY_PATTERN). */
+function getLegacyCloudSessionKeys() {
+    return Object.keys(localStorage).filter(key => LEGACY_CLOUD_SESSION_KEY_PATTERN.test(key));
+}
+
+/** A session saved under an earlier key name moves to CLOUD_SESSION_STORAGE_KEY once, so an update keeps the player signed in. */
+function adoptLegacyCloudSession() {
+    const key = getLegacyCloudSessionKeys()[0];
+    if (!key) return null;
+    const raw = localStorage.getItem(key);
+    if (raw) localStorage.setItem(CLOUD_SESSION_STORAGE_KEY, raw);
+    localStorage.removeItem(key);
+    return raw;
+}
+
 function loadStoredCloudSession() {
     try {
-        let raw = localStorage.getItem(CLOUD_SESSION_STORAGE_KEY);
+        let raw = localStorage.getItem(CLOUD_SESSION_STORAGE_KEY) || adoptLegacyCloudSession();
         return raw ? JSON.parse(raw) : null;
     } catch (error) {
         console.warn('failed to load cloud session:', error);

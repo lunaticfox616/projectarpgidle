@@ -3771,8 +3771,8 @@ const PASSIVE_TREE_PRESET_SLOTS = 3;
 
 function getCurrentPassiveNodeId(rawId) {
     if (typeof rawId !== 'string') return rawId;
-    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object') return rawId;
-    return PASSIVE_NODE_ID_MIGRATIONS[rawId] || rawId;
+    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object' || !PASSIVE_NODE_ID_LEGACY_PREFIX.test(rawId)) return rawId;
+    return PASSIVE_NODE_ID_MIGRATIONS[rawId.replace(PASSIVE_NODE_ID_LEGACY_PREFIX, '')] || rawId;
 }
 
 function migratePassiveNodeIdList(rawIds) {

@@ -54,7 +54,7 @@ assert.strictEqual(upgraded.ok, true);
 assert.deepStrictEqual([upgraded.outputs[0].item.rarity, upgraded.outputs[0].item.baseId, upgraded.outputs[0].item.itemTier],
     ['rare', run('helm.baseId'), 8], 'a magic helmet and a grown seed make a rare helmet of the same base and tier');
 assert.deepStrictEqual(json('[game.inventory.includes(helm), game.stumpBox.items.filter(item => item.ripe).length]'), [false, 0], 'the ingredients are gone');
-assert.deepStrictEqual(json('cubeView()'), [['equipment', 0, 0, 2, 2]], 'the result waits in the cube like the Horadric Cube');
+assert.deepStrictEqual(json('cubeView()'), [['equipment', 0, 0, 2, 2]], 'the result waits in the cube until it is taken');
 
 // ── 비용 · 단련 티어 상한 · 나무꾼 잠금 ─────────────────────────────────────────
 run(`stumpCube.clear(game); game.inventory = []; game.level = 60; globalThis.boots = makeGear('신발', 'rare', 7);
