@@ -112,6 +112,13 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
 - 저장 shape 변경에는 기본값, 이전 저장 마이그레이션, 손상 데이터 처리, 중복 적용 방지가 함께 있어야
   한다. 단위(ms/초, 비율/퍼센트)와 nullable 필드는 JSDoc 또는 기존 typedef로 명확히 한다.
 - 파일 수정은 `apply_patch`를 사용한다. 파괴적 Git 명령과 광범위한 삭제는 명시적 요청 없이는 금지한다.
+- 능력치 계산(`getPlayerStats`)은 정산과 평소 플레이에서 다시 쓰인다(`js/player-stat-cache.js`). 계산에 새 입력을 더할 때
+  싸우는 동안 바뀌는 값은 `playerStatTick` 읽기 함수로 읽고(경계값과 비교만 하면 `tick.when`), 빌드 값은
+  `data/build-stat-inputs.js`의 `BUILD_STAT_FIELDS`나 `BUILD_STAT_PARTS`에, 그 밖의 값은 `PLAYER_STAT_CONTEXT_FIELDS`에 이유와
+  함께 넣는다. 계산 안에서 `game`에 쓰는 값은 `PLAYER_STAT_DERIVED_WRITES`만 되고, 매 호출 처리는 `finishPlayerStats`에 둔다.
+  플레이어 입력, 처치, 지도 완료 밖에서 빌드나 계산이 읽는 모듈 상태를 바꾸는 코드는 `playerStatCache.invalidate()`를 부른다.
+  받은 능력치의 안쪽 객체(`sSkill`, `breakdowns` 말고)는 복사한 뒤 고친다. `scripts/smoke-player-stat-cache*.js`가 이 규칙을
+  검사하고, 실패 메시지가 고칠 곳을 알려 준다.
 
 새 함수는 원칙적으로 60줄, 중첩 깊이 3, 순환 복잡도 10, 매개변수 5개를 넘지 않는다. 새 소스 파일은
 500줄 이하를 권장한다. 기존 거대 파일을 수정할 때는 작업과 무관한 대규모 분리를 섞지 않되, 수정한

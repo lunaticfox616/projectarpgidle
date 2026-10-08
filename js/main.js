@@ -159,6 +159,7 @@ function init() {
         });
     }
     initializeCloudSave();
+    watchBuildEditsForPlayerStats();
     if (!window.__cloudTokenRefreshBound) {
         window.__cloudTokenRefreshBound = true;
         setInterval(() => {
@@ -196,6 +197,26 @@ function init() {
         scheduleGameLoop();
     }
 }
+
+/**
+ * Player input may edit the build (gear, passives, gems, cards, the stump). Kept stat calculations (js/player-stat-cache.js) are
+ * dropped before the handlers run and once more after them, so a handler that reads stats before and after its edit sees both.
+ */
+const watchBuildEditsForPlayerStats = (() => {
+    const EVENTS = ['pointerdown', 'pointerup', 'click', 'keydown', 'change', 'input', 'drop', 'dragend'];
+    let watching = false;
+    return () => {
+        if (watching) return;
+        watching = true;
+        let later = 0;
+        const afterHandlers = () => { later = 0; playerStatCache.invalidate(); };
+        const drop = () => {
+            playerStatCache.invalidate();
+            if (!later) later = setTimeout(afterHandlers, 0);
+        };
+        EVENTS.forEach(type => document.addEventListener(type, drop, { capture: true, passive: true }));
+    };
+})();
 
 function runGameTick() {
     combatEquipmentStats.withinTick(runGameTickOnce);

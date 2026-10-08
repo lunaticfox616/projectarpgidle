@@ -3696,7 +3696,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (hasKeystone('w5')) {
         warriorPhysDamageMultiplier *= tick.get('warriorRageMultiplier');
     }
-    if (hasKeystone('w7') && (tick.get('playerHp') / Math.max(1, finalMaxHp)) <= 0.5) {
+    const lowLifeLimit = Math.max(1, finalMaxHp);
+    if (hasKeystone('w7') && tick.when('playerHp', hp => (hp / lowLifeLimit) <= 0.5)) {
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.w7.damageMorePct / 100));
         warriorTakenDamageMultiplier *= 0.85;
     }
@@ -3766,7 +3767,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalBaseDmg = Math.floor(finalBaseDmg * 0.92);
     }
     if (hasKeystone('a6')) {
-        if ((tick.get('playerHp') / Math.max(1, finalMaxHp)) > 0.66) finalCritDmg = Math.floor(finalCritDmg * 1.2);
+        const highLifeLimit = Math.max(1, finalMaxHp);
+        if (tick.when('playerHp', hp => (hp / highLifeLimit) > 0.66)) finalCritDmg = Math.floor(finalCritDmg * 1.2);
         else finalEvasion = Math.floor(finalEvasion * 1.2);
     }
     if (hasKeystone('a7')) finalCritDmg -= 200;
@@ -3922,7 +3924,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         dotDurationMultiplier *= 0.5;
     }
     if (hasKeystone('wlk7')) {
-        if (tick.get('playerEnergyShield') >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.esDamageMorePct / 100));
+        const shieldHalf = finalEnergyShield * 0.5;
+        if (tick.when('playerEnergyShield', shield => shield >= shieldHalf)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.esDamageMorePct / 100));
     }
     // 가디언
     if (hasKeystone('gd1')) {
@@ -3948,8 +3951,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalSpellLeech *= 0.65;
     }
     // The last stand cleanse happens on every call, so finishPlayerStats runs it against this life total.
-    let lastStandMaxHp = hasKeystone('gd7') ? finalMaxHp : null;
-    if (lastStandMaxHp !== null && (tick.get('playerHp') / Math.max(1, finalMaxHp)) <= 0.5) {
+    const lastStandMaxHp = hasKeystone('gd7') ? finalMaxHp : null;
+    if (lastStandMaxHp !== null && tick.when('playerHp', hp => (hp / Math.max(1, lastStandMaxHp)) <= 0.5)) {
         genericTakenDamageMultiplier *= 0.8;
         finalBaseDmg = Math.floor(finalBaseDmg * 1.3);
     }
