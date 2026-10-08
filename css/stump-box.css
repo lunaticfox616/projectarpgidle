@@ -11,7 +11,8 @@
   .stump-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 4px; }
   .stump-box-head .stump-line { margin: 0; color: var(--px-copy-muted, #a39883); }
   #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
-  /* 한 열(휴대폰 · 좁은 창): 판 → 고른 것 → 시작 선물 → 보관함(판 가까이 있어야 끌어 옮기기 쉽다) → 조합창 → 합계 */
+  /* 한 열(휴대폰 · 좁은 창): 판 → 고른 것 → 받을 선물 → 보관함(판 가까이 있어야 끌어 옮기기 쉽다) → 조합창 → 옵션 합계 → 탭(수확 일지,
+     함 해금, 부적). 넓은 창은 왼쪽 판, 조합창, 옵션 합계와 오른쪽 나머지(2026-10-09 사용자: 옵션 합계는 조합창 밑) */
   .stump-box-screen { display: flex; flex-direction: column; gap: 10px; }
   .stump-box-pane { display: contents; }
   #stump-box-board { order: 0; }
@@ -20,9 +21,8 @@
   #stump-box-storage { order: 3; }
   #stump-cube { order: 4; }
   #stump-box-summary { order: 5; }
-  #stump-box-unseal { order: 6; }
-  #stump-box-harvest { order: 7; }
-  .stump-box-summary, .stump-box-detail, .stump-box-starter, .stump-box-storage, .stump-box-unseal, .stump-box-harvest, .stump-cube {
+  #stump-box-more { order: 6; }
+  .stump-box-summary, .stump-box-detail, .stump-box-starter, .stump-box-storage, .stump-box-more, .stump-cube {
     padding: 8px 10px;
     border: 2px solid #050404;
     background: rgba(18, 16, 13, .82);
@@ -30,8 +30,16 @@
   }
   /* 고른 것이 없으면 설명 칸은 자리를 차지하지 않는다(마우스를 올리면 같은 내용이 툴팁으로 나온다) */
   .stump-box-detail:empty { display: none; }
-  .stump-box-starter:empty, .stump-box-unseal:empty, .stump-box-harvest:empty { display: none; }
-  /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게. 아래에 함 해금 목록 */
+  .stump-box-starter:empty, .stump-box-more:empty { display: none; }
+  .stump-box-summary h3, .stump-box-more h3 { margin: 0 0 4px; font-size: 15px; }
+  .stump-box-more h3 { margin-top: 8px; }
+  .stump-box-more h3:first-child { margin-top: 0; }
+  :is(.stump-box-summary, .stump-box-more, .stump-box-starter) h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; font-weight: 400; }
+  /* 탭: 고른 것만 밝게. 한 번에 하나만 보여 줘 줄지어 쌓이지 않는다 */
+  .stump-more-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #2a2218; }
+  #tab-stump .stump-more-tab { font-size: 12px; color: var(--px-copy-muted, #a39883); }
+  #tab-stump .stump-more-tab.is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게 */
   .stump-harvest-grid { display: grid; gap: 4px; margin: 4px 0 6px; }
   .stump-harvest-row { display: grid; grid-template-columns: 3.5em repeat(4, 36px); align-items: center; gap: 6px; }
   .stump-harvest-row > span { color: var(--px-copy-muted, #a39883); }
@@ -149,15 +157,20 @@
   .stump-detail-head img { flex: none; width: 48px; height: 48px; image-rendering: pixelated; }
   .stump-detail-head strong { display: block; color: var(--stump-tone); }
   .stump-detail-head small { color: var(--px-copy-muted, #a39883); }
-  .stump-path, .stump-actions, .stump-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  #tab-stump :is(.stump-path button, .stump-filter).is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  .stump-actions, .stump-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  #tab-stump .stump-filter.is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  /* 머리줄: 억제는 붉게, 접붙이기 점수는 잎색 */
+  .stump-box-head .stump-line .is-bad { color: #e0715f; }
+  .stump-box-head .stump-line .is-graft { color: #b4e07e; }
+  /* 아직 효과가 없는 옵션(자라는 중, 보관함, 막힘, 잠든 부적): 회색에 "(비활성)" */
+  :is(.stump-yield, .stump-extra, .stump-tip-yield, .stump-tip-extra).is-off, .stump-talisman-lines .is-off { color: #8a8174; }
 
   /* 시작 선물·보관함 */
   .stump-box-starter h3, .stump-storage-head h3 { margin: 0; font-size: 15px; }
   .stump-box-starter h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  /* 씨앗 · 수액 한 줄씩: 이름 + 색 단추 넷(그림 위, 글자 아래) */
-  .stump-starter-row { display: grid; grid-template-columns: 2.6em repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; margin-top: 6px; }
-  .stump-starter-row > span { font-size: 12px; }
+  /* 받을 선물 한 줄씩: 이름(아래 작은 글) + 색 단추 넷(그림 위, 글자 아래) */
+  .stump-starter-row { display: grid; grid-template-columns: 5.2em repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; margin-top: 6px; }
+  .stump-starter-row > span { display: grid; gap: 1px; font-size: 12px; line-height: 1.3; }
   #tab-stump .stump-starter-row button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     min-width: 0; padding: 3px 2px; color: var(--stump-tone); font-size: 12px; line-height: 1.1; }
   .stump-starter-row img { width: 24px; height: 24px; image-rendering: pixelated; }
@@ -188,7 +201,6 @@
   .stump-talisman-lines { display: grid; gap: 2px; margin: 4px 0; padding: 0; list-style: none; font-size: 12px; }
   :is(.stump-talisman-lines, .stump-stats) .is-condition { color: #c9b27a; }
   .stump-talisman-title { margin: 8px 0 2px; font-size: 13px; color: var(--px-copy, #e6dcc6); }
-  .stump-box-unseal h3 { margin: 0; font-size: 15px; }
   .stump-talisman-unseal { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
   /* 조합창(3×3): 판 바로 아래. 장비는 인벤토리 칸 크기대로 여러 칸을 차지하고, 빈 칸을 누르면 재료 고르기가 열린다 */
@@ -311,12 +323,15 @@
   .stump-tip-extra { padding-left: 8px; border-left: 2px solid #3b2f1e; }
   .stump-tip-seal { color: #e08a5a; }
   .stump-seal { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a2218; }
-  /* 거름 한꺼번에(보관함 머리 아래), 씨앗 주머니(선물 칸, 셋 가운데 하나), 부적 도감(수확 일지 아래, 펼쳐 보기) */
-  .stump-bulk { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; font-size: 12px; }
-  .stump-bulk small, .stump-starter-row small { color: var(--px-copy-muted, #a39883); }
-  .stump-bulk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
-  #tab-stump .stump-bulk-buttons button { color: var(--stump-tone); font-size: 12px; }
-  .stump-pouch-row { grid-template-columns: minmax(4.5em, auto) repeat(3, minmax(0, 1fr)); }
+  /* 일괄 거름 사용과 일괄 버리기(보관함 분류 아래, 누르면 쓸 것을 먼저 보여 준다), 씨앗 주머니(받을 선물, 셋 가운데 하나),
+     부적 도감(부적 탭, 펼쳐 보기) */
+  .stump-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  #tab-stump .stump-bulk button { font-size: 12px; }
+  #tab-stump .stump-bulk [data-kind="compost"]:not(.is-idle) { color: #b4e07e; }
+  #tab-stump .stump-bulk [data-kind="discard"]:not(.is-idle) { color: #e0915f; }
+  #tab-stump .stump-bulk .is-idle { color: var(--px-copy-muted, #a39883); opacity: .7; }
+  .stump-starter-row small { color: var(--px-copy-muted, #a39883); }
+  .stump-pouch-row { grid-template-columns: 5.2em repeat(3, minmax(0, 1fr)); }
   .stump-codex ul { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; padding: 0; list-style: none; font-size: 12px; }
   .stump-codex li { padding: 1px 6px; border: 1px solid #2a2218; color: var(--px-copy-muted, #a39883); }
   .stump-codex li.is-on { color: #ff9f43; }

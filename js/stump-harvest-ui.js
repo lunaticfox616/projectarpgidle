@@ -1,7 +1,8 @@
 // 수확 일지와 그루터기 함 해금(2026-10-07 해금 1차, docs/stump-box-unlocks-review-20261007.md): 처음 다 자란 꽃, 열매, 호박석 × 4색
 // 12칸, 줄을 채우면 받는 선물(색을 골라 씨앗이나 수액 1개), 해금 목록(보관함, 뿌리 기억), 새로 열린 해금과 조합법, 뿌리 기억의 알림.
-// 16번의 부적 도감(일지 아래)과 루프 전환 소식(포식, 번식, 봉인 칸)은 js/stump-ripening-ui.js가 준다.
-// 그리기와 클릭은 js/stump-box-ui.js가 맡고(#stump-box-harvest, 'harvest-gift'), 규칙과 계산은 js/stump-box.js와 js/stump-cube.js.
+// 수확 일지와 함 해금은 그루터기 함 아래 탭에 하나씩 보인다(2026-10-09). 16번의 부적 도감(부적 탭)과 루프 전환 소식(포식, 번식,
+// 봉인 칸)은 js/stump-ripening-ui.js가 준다.
+// 그리기와 클릭은 js/stump-box-ui.js가 맡고(#stump-box-more 탭, 'harvest-gift'), 규칙과 계산은 js/stump-box.js와 js/stump-cube.js.
 const stumpHarvestUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const ROWS = Object.keys(STUMP_BOX_HARVEST.rows);
@@ -34,13 +35,11 @@ const stumpHarvestUi = (() => {
         return '<ul class="stump-unlocks">' + STUMP_BOX_UNLOCKS.map(row => `<li class="${open.has(row.id) ? 'is-on' : ''}">`
             + `<strong>${esc(row.label)}</strong><small>${esc(unlockWhen(row, open.has(row.id)))}</small></li>`).join('') + '</ul>';
     }
-    /** The journal panel: 3 rows × 4 colours (grown ones lit) and the box's unlocks. */
+    /** The 수확 일지 tab: 3 rows × 4 colours (grown ones lit; the count is on the tab) and what a full row gives. */
     function journalHtml() {
         const grown = new Set(game.stumpBox.harvest.grown);
-        return `<h3>수확 일지 <small>${grown.size}/${ROWS.length * COLORS.length}</small></h3>`
-            + `<div class="stump-harvest-grid">${ROWS.map(row => journalRow(row, grown)).join('')}</div>`
-            + '<p class="stump-hint">처음 다 자란 것을 적습니다. 한 줄을 채우면 그 줄의 씨앗이나 수액 하나를 골라 받습니다.</p>'
-            + `<h3>함 해금</h3>${unlocksHtml()}${stumpRipeningUi.codexHtml()}`;
+        return `<div class="stump-harvest-grid">${ROWS.map(row => journalRow(row, grown)).join('')}</div>`
+            + '<p class="stump-hint">한 줄을 채우면 선물을 받습니다.</p>';
     }
 
     // ── 줄 선물 ─────────────────────────────────────────────
@@ -49,13 +48,11 @@ const stumpHarvestUi = (() => {
         const buttons = COLORS.map(color => `<button type="button" data-stump-action="harvest-gift" data-row="${row}" data-color="${color}"`
             + ` style="--stump-tone:${tone(color)}" aria-label="${STUMP_BOX_COLORS[color].label} ${kind} 받기">`
             + `<img src="assets/px/stump/${family}-${color}.png" alt="" draggable="false">${STUMP_BOX_COLORS[color].label}</button>`).join('');
-        return `<div class="stump-starter-row"><span>${ROW_LABELS[row]} 줄</span>${buttons}</div>`;
+        return `<div class="stump-starter-row"><span>${ROW_LABELS[row]} 줄 완성<small>품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%</small></span>${buttons}</div>`;
     }
-    /** Completed rows whose gift is waiting: pick a colour (the same buttons as the starter gift). */
+    /** Completed rows whose gift is waiting, one row each: pick a colour (the 받을 선물 card adds the heading). */
     function giftsHtml() {
-        const rows = stumpBox.pendingGifts(game);
-        if (!rows.length) return '';
-        return `<h3>수확 일지 선물 <small>품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%</small></h3>${rows.map(giftRow).join('')}`;
+        return stumpBox.pendingGifts(game).map(giftRow).join('');
     }
 
     // ── 알림 ───────────────────────────────────────────────
@@ -66,7 +63,7 @@ const stumpHarvestUi = (() => {
     const UNLOCK_TEXTS = Object.freeze([
         [row => row.storage, row => `보관함 +${row.storage}칸`],
         [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 새 루프에 다 자란 것이 ${row.keepPct}% 자란 채로 다시 자랍니다`],
-        [row => row.bulkCompost, () => `거름 한꺼번에: 고른 색의 씨앗과 수액을 한 번에 거름으로 씁니다(좋은 것 ${STUMP_BOX_BULK_COMPOST.keep}개와 황금은 남김)`],
+        [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗과 수액을 한 번에 거름으로 씁니다'],
         [row => row.breeding, () => '번식: 루프를 넘길 때 다 자란 열매마다 씨앗 하나가 보관함에 들어옵니다(가끔 다른 색이나 황금)'],
         [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 셋 가운데 하나를 고릅니다'],
         [row => row.devour, () => '봉인 칸 1과 포식: 봉인한 칸의 다 자란 것은 루프를 넘깁니다. 불씨의 흉터(보관함에 하나 넣음)는 루프를 넘길 때 둘레 한 칸을 먹고 그 능력치를 흡수합니다'],
@@ -116,6 +113,6 @@ const stumpHarvestUi = (() => {
         window.addEventListener('project-idle:stump-box-regressed', event => announceRegress(event.detail || {}));
     }
 
-    return Object.freeze({ journalHtml, giftsHtml, announceUnlocks, announceRecipes, announceGraftJournal, describeUnlock });
+    return Object.freeze({ journalHtml, unlocksHtml, giftsHtml, announceUnlocks, announceRecipes, announceGraftJournal, describeUnlock });
 })();
 safeExposeGlobals({ stumpHarvestUi });

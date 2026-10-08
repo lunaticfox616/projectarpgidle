@@ -144,7 +144,9 @@ const stumpCube = (() => {
     const SAME_KEYS = Object.freeze({
         slot: entry => stumpCubeRecipes.baseSlot(entry.item),
         color: entry => entry.item.color,
-        family: entry => entry.item.family
+        family: entry => entry.item.family,
+        // 씨앗이 자랄 길(꽃, 열매): 생길 때 정해지므로 합치기는 같은 길끼리만(2026-10-09).
+        path: entry => entry.item.path || ''
     });
 
     function oneOf(value, allowed) {

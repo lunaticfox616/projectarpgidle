@@ -68,7 +68,7 @@ const stumpCubeRecipes = (() => {
     function stumpMerge([group], state) {
         const list = items(group);
         const roll = Math.min(stumpBox.rollCap(state), Math.max(...list.map(item => Number(item.roll) || 1)) + STUMP_CUBE_STUMP_ROLL_STEP);
-        const spec = { family: list[0].family, color: list[0].color, roll, golden: list.some(item => item.golden === true) };
+        const spec = { family: list[0].family, color: list[0].color, path: list[0].path, roll, golden: list.some(item => item.golden === true) };
         return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec }] };
     }
 

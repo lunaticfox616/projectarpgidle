@@ -35,13 +35,13 @@ const stumpCubeUi = (() => {
         const name = itemName(entry.kind, entry.item);
         return `<button type="button" class="stump-cube-item" data-stump-action="cube-cell" data-cell="${entry.y * stumpCube.SIZE + entry.x}"`
             + ` style="grid-column:${entry.x + 1} / span ${entry.w};grid-row:${entry.y + 1} / span ${entry.h};--cube-tone:${itemTone(entry.kind, entry.item)}"`
-            + ` title="${esc(name)} · 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
+            + ` title="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
     }
 
     function gridHtml(list) {
         const cells = Array.from({ length: stumpCube.SIZE * stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell"`
             + ` data-stump-action="cube-open" style="grid-column:${cell % stumpCube.SIZE + 1};grid-row:${Math.floor(cell / stumpCube.SIZE) + 1}"`
-            + ` aria-label="빈 칸 · 재료 넣기"></button>`).join('');
+            + ` aria-label="빈 칸, 재료 넣기"></button>`).join('');
         return `<div class="stump-cube-grid" role="grid" aria-label="조합창 3×3">${cells}${list.map(entryHtml).join('')}</div>`;
     }
 
@@ -131,7 +131,7 @@ const stumpCubeUi = (() => {
         const result = stumpCube.transmute();
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
-        addLog(`🧩 조합창 · ${result.recipe.name}: ${names}`, 'loot-rare');
+        addLog(`🧩 조합창 ${result.recipe.name}: ${names}`, 'loot-rare');
         queueImportantSave(300);
         updateStaticUI();
         refreshCube();

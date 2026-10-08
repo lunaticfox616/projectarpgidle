@@ -7,7 +7,8 @@
 // 부적 줄은 talisman-effects.js가 graftMultiplier로 키운다.
 // 16번(2026-10-08): 다 자라는 순간 풍작, 황금, 추가 줄을 굴리고(item.harvest, 새 루프에 지우고 다시 굴린다), 봉인 칸(box.sealed)의 것은
 // 그대로 루프를 넘긴다. 불씨의 흉터(family 'scar', 색 없음, 포식이 열릴 때 하나 box.scarGift)는 루프를 넘길 때 둘레 8칸 하나를 먹고 흡수한다(포식). 번식, 씨앗 주머니,
-// 거름 한꺼번에, 부적 도감(box.codex)도 여기 있다. 수치는 data/stump-box.js.
+// 일괄 거름 사용과 일괄 버리기, 부적 도감(box.codex)도 여기 있다. 수치는 data/stump-box.js.
+// 씨앗이 꽃이 될지 열매가 될지는 생길 때 무작위로 정해진다(2026-10-09, 전에는 놓을 때 골랐다). 판 1 저장의 고르지 않은 씨앗은 id로 나눈다.
 // 성장량 필드 이름이 xp인 것은 의도다: 영구 빌드 서명(getPersistentBuildSignature)이 xp를 빼므로 처치마다
 // 장비 분석 캐시가 깨지지 않고, 다 자라 능력치가 바뀌는 순간만 ripe가 바뀌어 캐시가 새로 계산된다.
 const stumpBox = (() => {
@@ -26,15 +27,21 @@ const stumpBox = (() => {
     })();
     const HARVEST_ROWS = Object.keys(STUMP_BOX_HARVEST.rows);
     const HARVEST_KEYS = HARVEST_ROWS.flatMap(row => COLORS.map(color => `${row}-${color}`));
+    // 판 2(2026-10-09): 성장 필요량 8배(data/stump-box.js STUMP_BOX_GROWTH). 판 1 저장은 restore가 한 번 옮긴다(upgradeGrowth).
+    const BOX_VERSION = 2;
     let memo = { key: null, box: null, value: null };
 
     function emptyHarvest() {
         return { grown: [], gifts: Object.fromEntries(HARVEST_ROWS.map(row => [row, false])) };
     }
     function empty() {
-        return { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: Array(CELLS).fill(null),
+        return { version: BOX_VERSION, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: Array(CELLS).fill(null),
             graft: Array(CELLS).fill(0), harvest: emptyHarvest(), sealed: [], pouches: { opened: [], offers: {} }, codex: [], scarGift: false };
     }
+    /** What a new seed grows into (꽃, 열매), rolled when it is made (2026-10-09 사용자: 고르지 않고 무작위). */
+    function seedPath(random = Math.random) { return random() < STUMP_BOX_SEED_PATH.fruitShare ? 'fruit' : 'flower'; }
+    /** A seed saved before paths were rolled at birth and never planted: a fixed half by id (restore stays repeatable). */
+    function legacyPath(id) { return Number(id) % 2 ? 'fruit' : 'flower'; }
     /** @returns {object} The state's box, created empty when missing. */
     function of(state) {
         if (!state.stumpBox || typeof state.stumpBox !== 'object') state.stumpBox = empty();
@@ -64,7 +71,7 @@ const stumpBox = (() => {
     function targetStage(item) { return FIXED_TARGET[item.family] || item.path; }
     /** '황금 화염 꽃': colour and stage without the target (talismans and scars by name). */
     function shortName(item) {
-        if (item.family === 'talisman') return isMature(item) ? item.name : `${item.name} · 잠듦`;
+        if (item.family === 'talisman') return isMature(item) ? item.name : `${item.name} (잠듦)`;
         if (item.family === 'scar') return isMature(item) ? STUMP_BOX_SCAR.name : `${STUMP_BOX_SCAR.name} (잠듦)`;
         return `${goldenMul(item) > 1 ? '황금 ' : ''}${item.ancient ? '고대 ' : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
     }
@@ -93,12 +100,14 @@ const stumpBox = (() => {
     }
     /** Highest stored quality: 130%, raised by the box's unlocks (qualityCap, loops 35 and 45). */
     function rollCap(state) { return Math.max(STUMP_BOX_ROLL_LIMIT.max, ...openUnlocks(state).map(row => row.qualityCap || 0)); }
-    /** Adds a new item to storage; null when storage is full or the input is invalid. spec.golden makes a golden seed or sap. */
+    /** Adds a new item to storage; null when storage is full or the input is invalid. spec.golden makes a golden seed or sap.
+     * A seed grows into spec.path (꽃, 열매) when given, otherwise into one rolled now. */
     function createItem(state, spec) {
         const box = of(state);
         if (!FAMILIES.includes(spec.family) || !COLORS.includes(spec.color)) return null;
         if (storageFull(state)) return null;
-        const item = { id: box.nextId++, family: spec.family, color: spec.color, path: null, xp: 0, ripe: false, roll: clampRoll(spec.roll, rollCap(state)) };
+        const path = spec.family === 'seed' ? (PATHS.includes(spec.path) ? spec.path : seedPath()) : null;
+        const item = { id: box.nextId++, family: spec.family, color: spec.color, path, xp: 0, ripe: false, roll: clampRoll(spec.roll, rollCap(state)) };
         if (spec.golden === true) item.golden = true;
         if (spec.ancient === true && spec.family === 'seed') item.ancient = true;
         box.items.push(item);
@@ -158,14 +167,10 @@ const stumpBox = (() => {
 
     // ── 배치(나무꾼 전투 중에는 세팅을 바꾸지 않는다) ─────────────
     function editable(state) { return of(state).acquired && !state.woodsmanBuildLock; }
-    /** Places (or moves) an item onto an open, empty cell. A seed takes its path here if it has none yet. */
-    function place(state, id, cell, path) {
+    /** Places (or moves) an item onto an open, empty cell. */
+    function place(state, id, cell) {
         const box = of(state), item = findItem(box, id);
         if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null) return false;
-        if (item.family === 'seed' && !item.path) {
-            if (!PATHS.includes(path)) return false;
-            item.path = path;
-        }
         const from = box.board.indexOf(id);
         if (from >= 0) box.board[from] = null;
         box.board[cell] = id;
@@ -173,17 +178,13 @@ const stumpBox = (() => {
     }
     /**
      * Moves an item onto an open cell, empty or not. An item already there trades places: it takes the mover's old
-     * cell, or goes to storage when the mover came from storage (storage size stays the same). A seed without a path
-     * takes `path` as in place(). Returns false and changes nothing when the move is not allowed or goes nowhere.
+     * cell, or goes to storage when the mover came from storage (storage size stays the same). Returns false and
+     * changes nothing when the move is not allowed or goes nowhere.
      */
-    function move(state, id, cell, path) {
+    function move(state, id, cell) {
         const box = of(state), item = findItem(box, id), from = box.board.indexOf(id), occupant = box.board[cell];
         if (!editable(state) || !item || !isOpen(state, cell) || from === cell) return false;
-        if (occupant === null) return place(state, id, cell, path);
-        if (item.family === 'seed' && !item.path) {
-            if (!PATHS.includes(path)) return false;
-            item.path = path;
-        }
+        if (occupant === null) return place(state, id, cell);
         box.board[cell] = id;
         if (from >= 0) box.board[from] = occupant;
         return true;
@@ -192,13 +193,6 @@ const stumpBox = (() => {
         const box = of(state), from = box.board.indexOf(id);
         if (!editable(state) || from < 0 || storageFull(state)) return false;
         box.board[from] = null;
-        return true;
-    }
-    /** A seed may switch between flower and fruit until it starts growing. */
-    function setPath(state, id, path) {
-        const item = findItem(of(state), id);
-        if (!editable(state) || !item || item.family !== 'seed' || item.xp > 0 || !PATHS.includes(path)) return false;
-        item.path = path;
         return true;
     }
 
@@ -439,25 +433,43 @@ const stumpBox = (() => {
     }
 
     function bulkCompostOpen(state) { return openUnlocks(state).some(row => row.bulkCompost); }
-    /** What bulk compost spends of a colour: its stored seeds and saps but the best STUMP_BOX_BULK_COMPOST.keep of each family
-     * (merging material) and any golden one. */
-    function bulkCompostItems(state, color) {
-        return FAMILIES.flatMap(family => storage(state).filter(item => item.family === family && item.color === color)
-            .sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep)).filter(item => !item.golden && !item.ancient);
+    /** The colours a storage filter covers: one colour, or all four ('all'); none for the talisman filter. */
+    function filterColors(filter) { return COLORS.includes(filter) ? [filter] : filter === 'all' ? COLORS : []; }
+    /** What a bulk action (일괄 거름 사용, 일괄 버리기) takes of a storage filter: its stored seeds and saps but the best
+     * STUMP_BOX_BULK_COMPOST.keep of each colour and kind (merging material) and golden or ancient ones. */
+    function bulkItems(state, filter) {
+        const colors = filterColors(filter), groups = new Map();
+        storage(state).filter(item => FAMILIES.includes(item.family) && colors.includes(item.color)).forEach(item => {
+            const key = `${item.color}-${item.family}-${item.path || ''}`;
+            groups.set(key, (groups.get(key) || []).concat(item));
+        });
+        return [...groups.values()].flatMap(list => list.sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep))
+            .filter(item => !item.golden && !item.ancient);
     }
-    /** '' when bulk compost of this colour can run now, otherwise why not. */
-    function bulkCompostReason(state, color) {
-        if (!bulkCompostOpen(state)) return '수확 일지를 4칸 채우면 열립니다.';
+    /** The bulk-compost items in use order (lowest quality first), cut where everything growing has ripened as pressing them one by
+     * one would stop: each compost feeds every growing item alike, so the item furthest from ripe decides. */
+    function bulkCompostPlan(state, filter) {
+        const growing = growingItems(state), plan = [];
+        let left = growing.length ? Math.max(...growing.map(item => need(item) - item.xp)) : 0;
+        for (const item of bulkItems(state, filter).sort((a, b) => a.roll - b.roll || a.id - b.id)) {
+            if (left <= 0) break;
+            plan.push(item);
+            left -= compostGrowth(item);
+        }
+        return plan;
+    }
+    /** '' when bulk compost of this filter can run now, otherwise why not. */
+    function bulkCompostReason(state, filter) {
+        if (!bulkCompostOpen(state)) return `수확 일지를 ${STUMP_BOX_UNLOCKS.find(row => row.bulkCompost).when.harvestCells}칸 채우면 열립니다.`;
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
-        if (!COLORS.includes(color) || !bulkCompostItems(state, color).length) return '좋은 것 몇 개를 남기면 거름으로 쓸 씨앗이나 수액이 없습니다.';
-        return growingItems(state).length ? '' : '판에서 자라는 것이 없습니다.';
+        if (!growingItems(state).length) return '판에서 자라는 것이 없습니다.';
+        return bulkItems(state, filter).length ? '' : '거름으로 쓸 씨앗이나 수액이 없습니다.';
     }
-    /** Spreads the colour's bulk-compost items one by one, the lowest quality first, and stops once nothing grows (the rest
-     * stay, as pressing them one by one would). @returns {?{count, growth, fed, ripened}} null when not allowed. */
-    function compostMany(state, color) {
-        if (bulkCompostReason(state, color)) return null;
+    /** Spreads the filter's bulk-compost plan one by one. @returns {?{count, growth, fed, ripened}} null when not allowed. */
+    function compostMany(state, filter) {
+        if (bulkCompostReason(state, filter)) return null;
         const out = { count: 0, growth: 0, fed: growingItems(state).length, ripened: [] };
-        for (const item of bulkCompostItems(state, color).sort((a, b) => a.roll - b.roll || a.id - b.id)) {
+        for (const item of bulkCompostPlan(state, filter)) {
             const one = compost(state, item.id);
             if (!one) break;
             out.count++;
@@ -465,6 +477,18 @@ const stumpBox = (() => {
             out.ripened.push(...one.ripened);
         }
         return out;
+    }
+    /** '' when the filter's bulk items can be thrown away now (일괄 버리기), otherwise why not. */
+    function bulkDiscardReason(state, filter) {
+        if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
+        return bulkItems(state, filter).length ? '' : '버릴 씨앗이나 수액이 없습니다.';
+    }
+    /** 일괄 버리기: throws the filter's bulk items away. @returns {?object[]} what went, null when not allowed. */
+    function discardMany(state, filter) {
+        if (bulkDiscardReason(state, filter)) return null;
+        const box = of(state), gone = bulkItems(state, filter), ids = new Set(gone.map(item => item.id));
+        box.items = box.items.filter(item => !ids.has(item.id));
+        return gone;
     }
 
     // ── 드랍 ───────────────────────────────────────────────
@@ -484,6 +508,7 @@ const stumpBox = (() => {
         const family = random() < STUMP_BOX_DROPS.sapShare ? 'sap' : 'seed', color = dropColor(state, random);
         const spec = { family, color, roll: clampRoll(STUMP_BOX_DROPS.roll.min + random() * (STUMP_BOX_DROPS.roll.max - STUMP_BOX_DROPS.roll.min)) };
         spec.golden = random() < STUMP_BOX_RIPENING.golden.dropChance;
+        if (family === 'seed') spec.path = seedPath(random);
         const item = createItem(state, spec);
         if (item) return { item, compost: null };
         const growth = compostGrowth(spec), fed = growingItems(state).length;
@@ -519,11 +544,11 @@ const stumpBox = (() => {
         box.via = via;
         return true;
     }
-    /** One seed and one sap of the given colour, once each (the receipts are box.starter). */
-    function claimStarter(state, family, color) {
+    /** One seed and one sap of the given colour, once each (the receipts are box.starter). A seed grows into `path` when given. */
+    function claimStarter(state, family, color, path) {
         const box = of(state);
         if (!box.acquired || !FAMILIES.includes(family) || box.starter[family]) return null;
-        const item = createItem(state, { family, color, roll: 1 });
+        const item = createItem(state, { family, color, roll: 1, path });
         if (item) box.starter[family] = true;
         return item;
     }
@@ -543,8 +568,8 @@ const stumpBox = (() => {
     /** Gives the starter seed (with its path) and sap that are still owed. @returns {object[]} the new items. */
     function grantStarter(state, stats) {
         const choice = starterChoice(state, stats), given = [];
-        const seed = claimStarter(state, 'seed', choice.seed.color);
-        if (seed) { setPath(state, seed.id, choice.seed.path); given.push(seed); }
+        const seed = claimStarter(state, 'seed', choice.seed.color, choice.seed.path);
+        if (seed) given.push(seed);
         const sap = claimStarter(state, 'sap', choice.sap);
         if (sap) given.push(sap);
         return given;
@@ -559,7 +584,7 @@ const stumpBox = (() => {
         let placed = 0;
         for (const item of storage(state).filter(row => FAMILIES.includes(row.family))) {
             const cell = STUMP_BOX_CELL_ORDER.find(at => isOpen(state, at) && box.board[at] === null && !touchesOpposite(box, at, item.color));
-            if (cell !== undefined && place(state, item.id, cell, item.path || 'flower')) placed++;
+            if (cell !== undefined && place(state, item.id, cell)) placed++;
         }
         return placed;
     }
@@ -656,7 +681,7 @@ const stumpBox = (() => {
         const others = COLORS.filter(color => color !== fruit.color);
         const color = random() < odds.color ? others[Math.floor(random() * others.length)] : fruit.color;
         const roll = STUMP_BOX_DROPS.roll.min + random() * (STUMP_BOX_DROPS.roll.max - STUMP_BOX_DROPS.roll.min);
-        return { family: 'seed', color, roll, golden: random() < odds.golden, parent: fruit.color };
+        return { family: 'seed', color, roll, golden: random() < odds.golden, path: seedPath(random), parent: fruit.color };
     }
     /** Puts the bred seeds in storage (a full storage turns a seed into compost, as drops do). @returns {object[]} { spec, item, compost } */
     function breed(state, specs, random) {
@@ -712,7 +737,7 @@ const stumpBox = (() => {
         if (!pendingPouches(state).includes(id)) return [];
         if (!Array.isArray(box.pouches.offers[id])) {
             box.pouches.offers[id] = Array.from({ length: STUMP_BOX_SEED_POUCH.offers }, () => ({ family: 'seed',
-                color: COLORS[Math.floor(random() * COLORS.length)], roll: clampRoll(span.min + random() * (span.max - span.min)) }));
+                color: COLORS[Math.floor(random() * COLORS.length)], roll: clampRoll(span.min + random() * (span.max - span.min)), path: seedPath(random) }));
         }
         return box.pouches.offers[id];
     }
@@ -753,11 +778,12 @@ const stumpBox = (() => {
     function hasHarvested(state, kind) { return of(state).harvest.grown.some(key => key.startsWith(`${kind}-`)); }
     /** Completed rows whose gift has not been taken. */
     function pendingGifts(state) { const box = of(state); return harvestRows(state).filter(row => !box.harvest.gifts[row]); }
-    /** The gift of a completed row: one seed or sap of the chosen colour, once. null when not allowed or storage is full. */
+    /** The gift of a completed row: one seed or sap of the chosen colour, once (a flower or fruit row's seed grows into that row's
+     * kind). null when not allowed or storage is full. */
     function claimHarvestGift(state, row, color) {
         const box = of(state);
         if (!box.acquired || !pendingGifts(state).includes(row)) return null;
-        const item = createItem(state, { family: STUMP_BOX_HARVEST.rows[row], color, roll: STUMP_BOX_HARVEST.giftRoll });
+        const item = createItem(state, { family: STUMP_BOX_HARVEST.rows[row], color, roll: STUMP_BOX_HARVEST.giftRoll, path: row });
         if (item) box.harvest.gifts[row] = true;
         return item;
     }
@@ -819,9 +845,9 @@ const stumpBox = (() => {
     function cleanItem(raw, cap) {
         if (raw.family === 'talisman') return cleanTalisman(raw);
         if (raw.family === 'scar') return cleanScar(raw);
-        const path = raw.family === 'seed' && PATHS.includes(raw.path) ? raw.path : null;
+        const path = raw.family !== 'seed' ? null : PATHS.includes(raw.path) ? raw.path : legacyPath(raw.id);
         const xp = Math.min(STUMP_BOX_GROWTH.need[raw.family], Math.max(0, Math.floor(Number(raw.xp) || 0)));
-        const ripe = xp >= STUMP_BOX_GROWTH.need[raw.family] && (raw.family === 'sap' || path !== null);
+        const ripe = xp >= STUMP_BOX_GROWTH.need[raw.family];
         const item = { id: raw.id, family: raw.family, color: raw.color, path, xp, ripe, roll: clampRoll(raw.roll, cap) };
         cleanMarks(raw, item);
         const harvest = cleanHarvest(raw.harvest, item);
@@ -840,9 +866,19 @@ const stumpBox = (() => {
         }
         return ranks;
     }
+    /** A version-1 box (growth needs before 2026-10-09, STUMP_BOX_GROWTH.v1Need): growing items keep their share of the way,
+     * grown ones stay grown at the new need. A current box's items pass through. */
+    function upgradeGrowth(raw) {
+        const items = Array.isArray(raw.items) ? raw.items : [];
+        if (Number(raw.version) >= BOX_VERSION) return items;
+        return items.map(item => {
+            const old = item && STUMP_BOX_GROWTH.v1Need[item.family], now = item && STUMP_BOX_GROWTH.need[item.family], xp = Number(item && item.xp) || 0;
+            return old ? { ...item, xp: item.ripe === true || xp >= old ? now : Math.floor(xp * now / old) } : item;
+        });
+    }
     function restoreItems(raw, box, cap) {
         const seen = new Set();
-        (Array.isArray(raw.items) ? raw.items : []).filter(validItem).forEach(item => {
+        upgradeGrowth(raw).filter(validItem).forEach(item => {
             const clean = seen.has(item.id) ? null : cleanItem(item, cap);
             if (clean) { seen.add(clean.id); box.items.push(clean); }
         });
@@ -869,7 +905,8 @@ const stumpBox = (() => {
         const opened = [...new Set((Array.isArray(source.opened) ? source.opened : []).filter(id => rows.has(id)))], offers = {};
         Object.entries(source.offers && typeof source.offers === 'object' ? source.offers : {}).forEach(([id, list]) => {
             const valid = Array.isArray(list) ? list.filter(spec => spec && spec.family === 'seed' && COLORS.includes(spec.color)) : [];
-            if (rows.has(id) && !opened.includes(id) && valid.length) offers[id] = valid.map(spec => ({ family: 'seed', color: spec.color, roll: clampRoll(spec.roll) }));
+            if (rows.has(id) && !opened.includes(id) && valid.length) offers[id] = valid.map((spec, index) => ({ family: 'seed', color: spec.color, roll: clampRoll(spec.roll),
+                path: PATHS.includes(spec.path) ? spec.path : legacyPath(index) }));
         });
         return { opened, offers };
     }
@@ -903,13 +940,14 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace,
         evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
         rollCap, graftMaxRank, qualityOf, goldenMul, sealLimit, isSealed, sealReason, toggleSeal, devourOpen, addScar, grantScar, rollScarDrop, scarCaps: () => SCAR_CAPS,
-        breedingOpen, bulkCompostOpen, bulkCompostItems, bulkCompostReason, compostMany, pendingPouches, pouchOffers, choosePouch, codexIds: () => CODEX_IDS,
+        breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardReason, discardMany, pendingPouches, pouchOffers, choosePouch,
+        codexIds: () => CODEX_IDS,
         itemById: (state, id) => findItem(of(state), id)
     };
 })();
