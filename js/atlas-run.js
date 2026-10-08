@@ -162,7 +162,8 @@ const atlasRun = (() => {
         // 깨어난 뒤에는 제단의 잉걸 · 허기의 즙과 리그 조각도(보스를 잡을 때까지 런이 들고 있다, js/atlas-endgame.js).
         const late = room ? atlasEndgame.roomItems(game, zone, room) : [];
         if (!maps.length && !fragments.length && !room) return;
-        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards, late });
+        notify({ kind: 'drops', maps: maps.map(map => ({ node: map.node, tier: map.tier, rarity: map.rarity })), fragments, room, rewards, late,
+            golden: atlasEncounters.isGolden(zone, room) });
     }
     /** A kill that empties an ordinary room: the room stays empty for the rest of the map; a content room names its reward. */
     function emptyRoom(enemy) {
@@ -175,9 +176,14 @@ const atlasRun = (() => {
         const rewards = atlasEncounters.rewards(zone, room, game.atlas.run.bonus, Math.random);
         for (const [key, amount] of rewards) awardEnemyLootCurrency(key, amount);
         if (Math.random() < ATLAS.encounters[room].mapChance) maps.push(...atlas.extraMap(game));
-        // 묘목장(12번 루프 39): 그 지역 색의 씨앗이나 수액 하나(그루터기 함 보관함으로, 소식은 그 함이 알린다).
-        if (room === 'nursery' && typeof stumpNursery === 'object') stumpNursery.clearGift(game, zone);
+        // 묘목장(12번 루프 39): 그 지역 색의 씨앗이나 수액(그루터기 함 보관함으로, 소식은 그 함이 알린다). 묘목장 보상 패시브와
+        // 황금 방이 하나씩 더 준다(js/atlas-encounters.js nurseryGifts).
+        if (room === 'nursery' && typeof stumpNursery === 'object') giveNurseryGifts(zone);
         return rewards;
+    }
+    function giveNurseryGifts(zone) {
+        const gifts = atlasEncounters.nurseryGifts(zone, game.atlas.run.bonus, Math.random);
+        for (let i = 0; i < gifts; i++) stumpNursery.clearGift(game, zone);
     }
     /** 혼돈 20 · 심화 클리어(onChaos20Cleared): 아틀라스가 처음 열리거나 이번 루프의 첫 지도석이 들어온다. */
     function onChaos20() {

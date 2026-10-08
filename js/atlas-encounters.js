@@ -2,6 +2,7 @@
  * 아틀라스가 깨어난 뒤의 붉은 제단 · 푸른 제단(docs/atlas-pinnacles-20261002.md).
  * 지도를 열 때 어떤 방이 생길지 정하고(각인은 확정, 나머지는 확률), 맵이 만들어질 때 보통 방 하나에 그 콘텐츠의 무리를 둔다.
  * 무리는 정예가 이끌어 보스 관문을 함께 봉인하고, 방을 비우는 처치가 그 콘텐츠의 재화를 맵 전리품으로 준다(쓰러지면 잃는다).
+ * 황금 방(2026-10-09, data/atlas.js goldenRoom): 방이 지도마다 정해진 확률로 황금이 되어 더 세고 보상이 크다.
  */
 const atlasEncounters = (() => {
     const TYPES = Object.freeze(Object.keys(ATLAS.encounters));
@@ -54,7 +55,7 @@ const atlasEncounters = (() => {
         }
         return out;
     }
-    function tuneEnemy(enemy, type) {
+    function tuneEnemy(enemy, type, zone = null) {
         const rule = ATLAS.encounters[type], mul = rule.enemy;
         enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * mul.hp));
         enemy.hp = enemy.maxHp;
@@ -69,7 +70,24 @@ const atlasEncounters = (() => {
         if (rule.ele) enemy.ele = rule.ele;
         if (rule.outline) Object.assign(enemy, { encounterOutline: rule.outline, encounterSparks: rule.sparks || null });
         enemy.atlasEncounter = type;
+        dressGolden(enemy, zone, type);
         return enemy;
+    }
+    /** Golden rooms of a new map: each ordinary content room by goldenRoom.chance + the goldenRoom passive (%), fixed by the map uid
+     * and the type (a hash, no random draw). A late altar never is. */
+    function golden(types, bonus, seed) {
+        const chance = ATLAS.goldenRoom.chance + (Number(bonus.goldenRoom) || 0);
+        return types.filter(type => !ATLAS.encounters[type].late && Math.abs(hashSeed(`golden:${seed}:${type}`)) % 1000 < chance * 10);
+    }
+    const isGolden = (zone, type) => !!zone && Array.isArray(zone.atlasGolden) && zone.atlasGolden.includes(type);
+    /** A golden room's monsters (data/atlas.js goldenRoom): tougher, '황금' before the name, the gold rim and sparks. */
+    function dressGolden(enemy, zone, type) {
+        if (!isGolden(zone, type)) return;
+        const gold = ATLAS.goldenRoom;
+        enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * gold.hpMul));
+        enemy.hp = enemy.maxHp;
+        enemy.damageMul = (Number(enemy.damageMul) || 1) * gold.damageMul;
+        Object.assign(enemy, { name: `${gold.prefix} ${enemy.name}`, encounterOutline: gold.outline, encounterSparks: gold.sparks, atlasGolden: true });
     }
     /** A room with its own look (the hive's bees) rolls no act monster, root or wisp under it: a wisp's rolled defenses stayed on
      * the bees drawn over it (2026-10-07 review). Read by createEnemy through its spawn marker. */
@@ -83,15 +101,40 @@ const atlasEncounters = (() => {
         if (!pack || pack.waiting.length) return null;
         return pack.aliveIds.length === 1 && pack.aliveIds[0] === enemy.id ? pack : null;
     }
-    /** Room rewards: expected (base + perTier × tier) × (1 + reward passive %); the fraction rolls one more. A row with a key list
-     * (수액 상처's catalysts) gives one key of it at random. Locked currencies are skipped. */
+    /** One key of a list reward (수액 상처's catalysts, 시든 정원's oils): the map region's own (regionKeys) for encounterRegionShare
+     * of the picks, else any key at random. */
+    function pickKey(key, rule, zone, random) {
+        if (!Array.isArray(key)) return key;
+        const own = rule.regionKeys && zone ? rule.regionKeys[zone.atlasRegion] : null;
+        if (own && random() < ATLAS.encounterRegionShare) return own;
+        return key[Math.min(key.length - 1, Math.floor(random() * key.length))];
+    }
+    /** Room rewards: expected (base + perTier × tier) × (1 + reward passive %), in a golden room × rewardMul plus its golden rows; the
+     * fraction rolls one more. A list row gives one key of it (pickKey). Locked currencies are skipped. */
     function rewards(zone, type, bonus, random) {
-        const mul = 1 + (bonus[`${type}Reward`] || 0) / 100;
-        return ATLAS.encounters[type].rewards.map(([key, base, perTier]) => {
-            const expected = (base + perTier * zone.atlasTier) * mul, amount = Math.floor(expected) + Number(random() < expected % 1);
-            return [Array.isArray(key) ? key[Math.min(key.length - 1, Math.floor(random() * key.length))] : key, amount];
+        const rule = ATLAS.encounters[type], gold = isGolden(zone, type);
+        const mul = (1 + (bonus[`${type}Reward`] || 0) / 100) * (gold ? ATLAS.goldenRoom.rewardMul : 1);
+        const rows = rule.rewards.map(([key, base, perTier]) => [key, (base + perTier * zone.atlasTier) * mul]).concat(gold ? rule.golden || [] : []);
+        return rows.map(([key, expected]) => {
+            const amount = Math.floor(expected) + Number(random() < expected % 1);
+            return [pickKey(key, rule, zone, random), amount];
         }).filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key));
     }
-    return Object.freeze({ types: TYPES, roll, roomLimit, chance, isOpen, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards });
+    /** One find of the map's content rooms for an atlas map's golden supply chest (data/atlas.js encounters[].chest), or null. */
+    function chestReward(zone, random) {
+        const rooms = (zone && Array.isArray(zone.atlasEncounters) ? zone.atlasEncounters : []).filter(type => ATLAS.encounters[type].chest);
+        if (!rooms.length) return null;
+        const type = rooms[Math.min(rooms.length - 1, Math.floor(random() * rooms.length))], rule = ATLAS.encounters[type];
+        const key = pickKey(rule.chest[0], rule, zone, random);
+        return contentProgression.canDropCurrency(key) ? [key, rule.chest[1]] : null;
+    }
+    /** Seeds an emptied nursery gives (js/stump-nursery.js clearGift): one, more by the nurseryReward passive (%, the fraction by
+     * chance), and one more in a golden room. */
+    function nurseryGifts(zone, bonus, random) {
+        const expected = 1 + (Number(bonus.nurseryReward) || 0) / 100, part = expected % 1;
+        return Math.floor(expected) + (part ? Number(random() < part) : 0) + Number(isGolden(zone, 'nursery'));
+    }
+    return Object.freeze({ types: TYPES, roll, roomLimit, chance, isOpen, rooms, hostRooms, tuneEnemy, hasOwnLook, emptiedPack, rewards,
+        golden, isGolden, chestReward, nurseryGifts });
 })();
 safeExposeGlobals({ atlasEncounters });

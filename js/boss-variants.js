@@ -39,9 +39,14 @@ const bossVariants = (() => {
     function announce(enemy, recalled) {
         dispatchRuntimeEvent('boss-variant', { kind: 'spawn', name: enemy.name, variant: enemy.bossVariant, recalled });
     }
+    /** An atlas map's 되감긴 기억 passive (data/atlas-passives.js variantChance %p) makes its bosses vary more often. */
+    function atlasChance(zone) {
+        const run = zone && zone.type === 'atlasMap' && game.atlas ? game.atlas.run : null;
+        return (Number(run && run.bonus && run.bonus.variantChance) || 0) / 100;
+    }
     /** A boss just spawned (js/combat.js finishBossSpawn): from loop 33, by chance, it is a variant. */
     function maybeApply(enemy, zone, random = Math.random) {
-        if (!open(game) || !eligible(enemy, zone) || random() >= V.chance) return enemy;
+        if (!open(game) || !eligible(enemy, zone) || random() >= V.chance + atlasChance(zone)) return enemy;
         apply(enemy, pick(random));
         announce(enemy, false);
         return enemy;

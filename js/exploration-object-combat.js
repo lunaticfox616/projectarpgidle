@@ -19,7 +19,7 @@ actExplorationProgress.objects = (() => {
         return {seed:Math.floor(Math.random()*4294967296),loop:game.season||1,allowEvent:zone.type!=='atlasMap',
             excludedRooms:run.packs.filter(p=>p.encounter).map(p=>p.roomId),
             quantity:Math.min(4,1+Math.max(0,zone.atlasLootQuantity||0)/100),
-            rarity:Math.min(500,Math.max(0,zone.atlasLootRarity||0))};
+            rarity:Math.min(500,Math.max(0,zone.atlasLootRarity||0)),chest:zone.atlasChest||null};
     }
     function remember(run) {
         if(run.zoneId===ATLAS.zoneId&&game.atlas.run)game.atlas.run.objects=JSON.parse(JSON.stringify(run.objects));
@@ -174,12 +174,20 @@ actExplorationProgress.objects = (() => {
     function pay(run,row,drop) {
         const {prop,items,enemy,rng}=drop;
         for(const item of items)keepEquipmentDrop(enemy,item);
+        payChestContent(run,row,enemy,rng);
         if(prop&&rng()>=EXPLORATION_PROP_LOOT.currencyChance)return;
         const key=contentProgression.canDropCurrency('magicBud')?'magicBud':'formlessDew';
         if(!contentProgression.canDropCurrency(key))return;
         const base=prop?1:state.isEvent(row)?3:state.grade(row).currency;
         const scaled=base*run.objects.quantity,amount=Math.floor(scaled)+Number(rng()<scaled%1);
         keepCurrencyDrop(enemy,key,amount);
+    }
+    /** An atlas map's golden supply chest also holds one find of the map's content rooms (js/atlas-encounters.js chestReward). */
+    function payChestContent(run,row,enemy,rng) {
+        const zone=getZone(run.zoneId);
+        if(row.grade!=='gold'||!zone||zone.type!=='atlasMap')return;
+        const find=atlasEncounters.chestReward(zone,rng);
+        if(find)keepCurrencyDrop(enemy,find[0],find[1]);
     }
     /** Offline projection (js/combat-replay-projection.js): an object the measured route used. A sealed chest, an ambush or a
      * nest first raises its waves on its cell, each monster resolved by `kill` on the real kill path; then its real reward. */

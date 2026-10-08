@@ -6,12 +6,22 @@ const atlasPassives = (() => {
     const EFFECT_KEYS = new Set(Object.keys(ATLAS_PASSIVES.labels));
     const taken = state => state.atlas.passives;
     const supported = (node, has) => !node.requires.length || node.requires.some(has);
+    // The loop a node opens at (computed, never saved): its wheel's and its own minLoop, and the first loop one of the content rooms
+    // its effect names opens (data/atlas.js encounters minLoop: 잿불 터 30, 수액 상처 32, 시든 정원 36, 묘목장 39).
+    const ROOM_LOOPS = new Map(Object.entries(ATLAS.encounters).flatMap(([type, rule]) => [[type, rule.minLoop || 0], [`${type}Reward`, rule.minLoop || 0]]));
+    function loopOf(id) {
+        const node = NODES.get(id);
+        const rooms = node ? Object.keys(node.effect).filter(key => ROOM_LOOPS.has(key)).map(key => ROOM_LOOPS.get(key)) : [];
+        return node ? Math.max(node.minLoop || 0, rooms.length ? Math.min(...rooms) : 0) : 0;
+    }
+    const waits = (state, id) => (Number(state.season) || 1) < loopOf(id);
 
     function available(state) { return atlas.points(state) - taken(state).length; }
     function reason(state, id) {
         const node = NODES.get(id), list = taken(state);
         if (!node) return '없는 패시브입니다.';
         if (list.includes(id)) return '이미 찍은 패시브입니다.';
+        if (waits(state, id)) return `루프 ${loopOf(id)}부터 찍을 수 있습니다.`;
         if (available(state) < 1) return '아틀라스 포인트가 부족합니다. 노드를 완료하거나 보너스를 달성하세요.';
         return supported(node, req => list.includes(req)) ? '' : '이어진 패시브를 먼저 찍으세요.';
     }
@@ -34,6 +44,7 @@ const atlasPassives = (() => {
     }
     function status(state, id) {
         if (taken(state).includes(id)) return 'taken';
+        if (waits(state, id)) return 'locked';
         return supported(NODES.get(id), req => taken(state).includes(req)) ? 'open' : 'locked';
     }
     /** Summed effects of the given passive ids (and extra effect objects, e.g. fragments) — keys from ATLAS_PASSIVES.labels. */
@@ -60,6 +71,6 @@ const atlasPassives = (() => {
         }
         return list;
     }
-    return Object.freeze({ nodes: NODES, effectKeys: EFFECT_KEYS, available, reason, allocate, refundReason, refund, status, sum, effects, has, normalize });
+    return Object.freeze({ nodes: NODES, effectKeys: EFFECT_KEYS, loopOf, waits, available, reason, allocate, refundReason, refund, status, sum, effects, has, normalize });
 })();
 safeExposeGlobals({ atlasPassives });

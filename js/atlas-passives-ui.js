@@ -11,10 +11,12 @@ const atlasPassivesUi = (() => {
     const RANK_NAME = Object.freeze({ root: '뿌리', small: '작은 노드', notable: '주요 노드', keystone: '핵심 노드' });
     const STATE_TEXT = Object.freeze({ taken: '찍음 (다시 누르면 되돌립니다)', open: '누르면 찍습니다', locked: '이어진 노드를 먼저 찍으세요' });
     let focusId = null, wheelId = null;
-    const effectText = effect => Object.entries(effect).map(([key, value]) => labels[key][1] === 'on' ? labels[key][0] : `${labels[key][0]} +${value}${labels[key][1]}`).join(' · ');
+    const effectText = effect => Object.entries(effect).map(([key, value]) => labels[key][1] === 'on' ? labels[key][0] : `${labels[key][0]} +${value}${labels[key][1]}`).join(', ');
     const suffix = id => id.slice(id.indexOf('_') + 1);
     const rankOf = node => (suffix(node.id) === 'r' ? 'root' : node.rank);
     const status = id => atlasPassives.status(game, id);
+    /** What pressing does now; a node waiting for its loop names it (js/atlas-passives.js loopOf). */
+    const stateText = node => (atlasPassives.waits(game, node.id) ? `루프 ${atlasPassives.loopOf(node.id)}부터 찍을 수 있습니다` : STATE_TEXT[status(node.id)]);
     const radians = degrees => degrees * Math.PI / 180;
     const between = (p, q) => Math.atan2(Math.sin(radians(BRANCH[p])) + Math.sin(radians(BRANCH[q])), Math.cos(radians(BRANCH[p])) + Math.cos(radians(BRANCH[q])));
 
@@ -66,7 +68,7 @@ const atlasPassivesUi = (() => {
     const NOTE_INTRO = '가운데 뿌리에서 줄기를 따라 찍습니다. 핵심 노드는 양옆 주요 노드 중 하나로 열립니다.';
     function noteBody(node) {
         if (!node) return NOTE_INTRO;
-        return `<strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]} · ${STATE_TEXT[status(node.id)]}</small>
+        return `<strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]} · ${stateText(node)}</small>
             <br>${escapeHTML(effectText(node.effect))}`;
     }
     /** Pointer or keyboard on a passive: the note beside the wheel reads it; leaving shows the pressed one again. A floating card
@@ -78,7 +80,7 @@ const atlasPassivesUi = (() => {
     }
     function nodeHtml(node, at) {
         const state = status(node.id), rank = rankOf(node);
-        const label = `${node.name} · ${RANK_NAME[rank]} · ${effectText(node.effect)} · ${STATE_TEXT[state]}`;
+        const label = `${node.name}, ${RANK_NAME[rank]}, ${effectText(node.effect)}, ${stateText(node)}`;
         return `<button class="atlas-passive-node rank-${rank} is-${state}${node.id === focusId ? ' is-focus' : ''}" style="--x:${at.x}%;--y:${at.y}%"
             aria-pressed="${state === 'taken'}" aria-label="${escapeHTML(label)}" onclick="atlasPassivesUi.toggle('${node.id}')"
             onmouseenter="atlasPassivesUi.hint(event,'${node.id}')" onfocus="atlasPassivesUi.hint(event,'${node.id}')"

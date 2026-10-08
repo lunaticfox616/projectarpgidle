@@ -7831,7 +7831,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     cells.forEach((cell,index)=>{
         const marker={at,count:1,boss:stage!==null,elite:elite && index===0,storyStage:stage,ownLook:atlasEncounters.hasOwnLook(encounter)};
         const enemy=createEnemy(zone,marker,index);
-        if(encounter)atlasEncounters.tuneEnemy(enemy,encounter);
+        if(encounter)atlasEncounters.tuneEnemy(enemy,encounter,zone);
         if(stage!==null && zone.atlasStages)atlasEndgame.tuneStage(enemy,zone,stage);
         if(stage!==null && zone.memoryTier)memoryDungeon.tuneBoss(enemy,zone.memoryTier);
         if(stage!==null && typeof bossVariants==='object')bossVariants.dress(enemy);

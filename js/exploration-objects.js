@@ -20,13 +20,23 @@ actExplorationState.objects = (() => {
         return null;
     }
     /** A supply chest's grade (data/maps.js EXPLORATION_CHEST_GRADES), fixed from the map seed and the row id on its own stream,
-     * so placement draws stay as they were. */
-    function chestGrade(seed,id) {
+     * so placement draws stay as they were. chest: an atlas map's rules (js/atlas.js chestRules), null elsewhere. */
+    function chestGrade(seed,id,chest=null) {
         const next=random(hashSeed(`${seed}:${id}:grade`)>>>0);next();const roll=next();
+        // Outside the atlas the odds sum to 1 as drawn: dividing by 1 keeps every roll exactly where it fell before.
+        const rows=gradeWeights(chest),total=chest?rows.reduce((sum,row)=>sum+row.weight,0):1;
         let edge=0;
-        for(const row of EXPLORATION_CHEST_GRADES){edge+=row.weight;if(roll<edge)return row.id;}
-        return EXPLORATION_CHEST_GRADES[0].id;
+        for(const row of rows){edge+=row.weight/total;if(roll<edge)return row.id;}
+        return rows[rows.length-1].id;
     }
+    /** Grade odds: as drawn, or in an atlas map silver and gold × (1 + grade %) and, with min, no wooden chests (보급 각인). */
+    function gradeWeights(chest) {
+        if(!chest)return EXPLORATION_CHEST_GRADES;
+        const up=1+Math.max(0,Number(chest.grade)||0)/100;
+        return EXPLORATION_CHEST_GRADES.map((row,index)=>({id:row.id,weight:index<(chest.min||0)?0:row.weight*(index?up:1)}));
+    }
+    /** More supply chests from an atlas map's rules (보급 각인 chestExtra). */
+    const extraChests=chest=>chest?Math.max(0,Math.floor(Number(chest.extra)||0)):0;
     /** The grade row of a supply chest; null for every other kind. */
     function grade(row) {return row.kind==='chest'?EXPLORATION_CHEST_GRADES.find(g=>g.id===row.grade)||null:null;}
     /** What the player reads: the chest's grade name, else the kind's label. */
@@ -98,11 +108,11 @@ actExplorationState.objects = (() => {
             const at=pick(pool.filter(c=>c.spacious&&!config.excludedRooms.includes(c.roomId)),rng);
             if(at)put(entries,kind,at,plan);
         }
-        const roll=rng(),count=roll<.25?0:roll<.85?1:2;
+        const roll=rng(),count=(roll<.25?0:roll<.85?1:2)+extraChests(config.chest);
         for(let i=0;i<count;i++) {
             const at=pick(pool.filter(c=>entries.every(e=>near(e,c)>=6)),rng,true);
             const row=at&&put(entries,'chest',at,plan);
-            if(row)row.grade=chestGrade(config.seed,row.id);
+            if(row)row.grade=chestGrade(config.seed,row.id,config.chest);
         }
     }
     function props(entries,pool,rng,roomCount,plan) {
@@ -123,7 +133,7 @@ actExplorationState.objects = (() => {
         const map=actExplorationMap.forRun(run),rng=random(config.seed),entries=[];
         const pool=candidates(run,map),plan=wayPlan(run,map);
         const event=config.allowEvent?eventKind(config.loop,rng()):null;
-        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms,seed:config.seed},rng,plan);
+        specialObjects(entries,pool,{event,excludedRooms:config.excludedRooms,seed:config.seed,chest:config.chest||null},rng,plan);
         props(entries,pool,rng,actExplorationState.packRooms(map).length,plan);
         return {version:1,seed:config.seed,rotation:map.rotation,quantity:config.quantity,rarity:config.rarity,pendingId:null,entries};
     }

@@ -176,9 +176,10 @@ const atlas = (() => {
     function startRun(state, map, returnZoneId, random) {
         const rooms = encounterRooms(map), { used, spent } = useFragments(state, rooms, random), bonus = bonusOf(state, used);
         const forced = used.map(id => FRAGMENTS.get(id).encounter).filter(Boolean);
+        const encounters = atlasEncounters.roll(bonus, forced, random, rooms, { awake: atlasEndgame.awakened(state), loop: state.season,
+            region: (BY_ID.get(map.node) || {}).region });
         state.atlas.run = { map, portals: ATLAS.portals + bonus.portals, drops: [], found: [], fragments: used, spent, cleared: [], bonus,
-            encounters: atlasEncounters.roll(bonus, forced, random, rooms, { awake: atlasEndgame.awakened(state), loop: state.season,
-                region: (BY_ID.get(map.node) || {}).region }),
+            encounters, golden: atlasEncounters.golden(encounters, bonus, map.uid),
             returnZoneId: Number.isInteger(returnZoneId) ? returnZoneId : null, endgame: atlasEndgame.runExtra(state, BY_ID.get(map.node), random) };
     }
     /** 후반부 싸움(최종 보스 · 리그 우두머리): 재료는 js/atlas-endgame.js가 이미 받았다. 지도석 대신 그 노드의 투기장 지도를 연다. */
@@ -328,13 +329,19 @@ const atlas = (() => {
         if (map && run.drops.length < ATLAS.stashCap) run.drops.push(map);
         return map ? [map] : [];
     }
-    /** Elites and bosses in a map sometimes drop a fragment; like maps it waits in the run until the boss falls. */
+    /** A fragment drops and shows from its loop: its own minLoop, else its content room's (data/atlas.js fragments, encounters). */
+    function fragmentOpen(fragment, loop) {
+        const room = fragment.encounter ? ATLAS.encounters[fragment.encounter] : null;
+        return (Number(loop) || 1) >= Math.max(fragment.minLoop || 0, (room && room.minLoop) || 0);
+    }
+    /** Elites and bosses in a map sometimes drop a fragment (one open this loop); like maps it waits in the run until the boss falls. */
     function fragmentFromKill(state, zone, enemy, random = Math.random) {
         const run = state.atlas.run, rules = ATLAS.fragmentRules;
         if (!run || !zone || zone.type !== 'atlasMap' || run.found.length >= rules.held) return [];
         const base = enemy.isBoss ? rules.boss : (enemy.isElite ? rules.elite : 0);
         if (random() >= base * (1 + run.bonus.fragmentDrop / 100)) return [];
-        const id = ATLAS.fragments[Math.floor(random() * ATLAS.fragments.length)].id;
+        const pool = ATLAS.fragments.filter(fragment => fragmentOpen(fragment, state.season));
+        const id = pool[Math.floor(random() * pool.length)].id;
         run.found.push(id);
         return [id];
     }
@@ -360,6 +367,9 @@ const atlas = (() => {
     }
     /** Ordinary rooms of the map's layout: how many content rooms it can hold. */
     const encounterRooms = map => atlasEncounters.hostRooms(actExplorationMap.forRun({ source: explorationSpec(map) })).length;
+    /** The supply chests of a map (js/exploration-objects.js chestGrade): silver and gold odds up by chestGrade %, chestExtra more
+     * chests and, with chestMinGrade (보급 각인), no wooden ones. */
+    const chestRules = bonus => ({ grade: Number(bonus.chestGrade) || 0, extra: Number(bonus.chestExtra) || 0, min: Number(bonus.chestMinGrade) > 0 ? 1 : 0 });
     function buildZone(run) {
         const { map, bonus } = run, node = BY_ID.get(map.node), fx = atlasMaps.effects(map), depth = equivalentDepth(map.tier);
         const more = key => 1 + bonus[key] / 100, boss = rulesOf(node), boost = atlasEndgame.bossBoost(run), memory = memoryDungeon.boost(map);
@@ -374,6 +384,8 @@ const atlas = (() => {
             // 불타는 땅: 불길 웅덩이(옵션 문구 그대로 불 원소로 터진다).
             ...(fx.hazard ? { trialHazard: { ...ATLAS.burningGround }, trapElements: ['fire'] } : {}),
             atlasNode: node.id, atlasRegion: node.region, atlasTier: map.tier, atlasMapRarity: map.rarity, atlasEnemyMods: fx.enemy, atlasEncounters: run.encounters,
+            // 황금 방(data/atlas.js goldenRoom)과 보급 상자 규칙(열매 갈래의 황금 수확, 보급 각인).
+            atlasGolden: run.golden, atlasChest: chestRules(bonus),
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
             atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, atlasCleared: run.cleared,
@@ -381,13 +393,14 @@ const atlas = (() => {
         };
     }
     /** What a stash map would be with the current passives and loadout (the device card). */
-    const preview = (state, map) => buildZone({ map, bonus: bonusOf(state, activeFragments(state)), encounters: [] });
+    const preview = (state, map) => buildZone({ map, bonus: bonusOf(state, activeFragments(state)), encounters: [], golden: [] });
     /** Equipment base tier from the map tier: T15 at 1~3등급, one more every three tiers, T20 at 16등급. */
     const lootTier = tier => Math.min(20, 14 + Math.ceil(tier / 3));
 
     // ---------------------------------------------------------------- save boundary and the loop
     const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
     const roomIds = value => [...new Set(Array.isArray(value) ? value : [])].filter(id => typeof id === 'string' && id.length <= 64).slice(0, 100);
+    const roomTypes = value => [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(ATLAS.encounters, type));
     /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, and the equipment count. */
     function normalizeLoot(raw) {
         if (!raw || typeof raw !== 'object') return null;
@@ -414,7 +427,7 @@ const atlas = (() => {
             drops: (Array.isArray(raw.drops) ? raw.drops : []).map(validMap).filter(Boolean).slice(0, ATLAS.stashCap),
             found: fragmentIds(raw.found, ATLAS.fragmentRules.held), fragments: fragmentIds(raw.fragments, ATLAS.fragments.length),
             spent: fragmentIds(raw.spent, ATLAS.fragments.length), cleared: roomIds(raw.cleared), bonus,
-            encounters: [...new Set(Array.isArray(raw.encounters) ? raw.encounters : [])].filter(type => Object.hasOwn(ATLAS.encounters, type)),
+            encounters: roomTypes(raw.encounters), golden: roomTypes(raw.golden),
             returnZoneId: Number.isInteger(raw.returnZoneId) && raw.returnZoneId >= 0 ? raw.returnZoneId : null,
             endgame: atlasEndgame.normalizeRun(raw.endgame),
             objects: actExplorationState.objects.restoreAtlas(raw.objects,explorationSpec(map)) };
@@ -511,7 +524,7 @@ const atlas = (() => {
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, lateNodes: LATE_NODES,
-        slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill,
+        slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();

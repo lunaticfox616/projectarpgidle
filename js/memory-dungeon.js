@@ -64,11 +64,16 @@ const memoryDungeon = (() => {
     }
 
     // ---------------------------------------------------------------- a boss falls
+    /** The open map's 되감긴 기억 passive (data/atlas-passives.js memoryDrop %): first memories from ordinary fights fall more often. */
+    function memoryDropMul(state) {
+        const run = state.atlas && state.atlas.run;
+        return 1 + (Number(run && run.bonus && run.bonus.memoryDrop) || 0) / 100;
+    }
     /** The memory a fallen atlas boss leaves: tier 1 by chance after an ordinary fight, the next tier by the ladder after a memory fight. */
     function rollTicket(state, node, map, random) {
         const tier = validTier(map.memory) ? map.memory + 1 : 1;
         if (!open(state) || tier > maxTier(state)) return null;
-        const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0);
+        const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0) * memoryDropMul(state);
         return random() < chance && give(state, node.id, tier) ? { node: node.id, name: node.boss, tier } : null;
     }
     const ownUnique = node => (atlasEndgame.def(node.id) || {}).unique || null;

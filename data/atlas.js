@@ -94,6 +94,7 @@ const ATLAS = Object.freeze({
     ].map(Object.freeze)),
     // 각인: 지도 장치 홈(기본 2)에 끼워 두면 지도를 열 때 1개씩 쓴다. 지도 안 정예 · 보스가 떨어뜨리고 루프마다 비운다.
     // effect 키는 아틀라스 패시브와 같다(js/atlas-passives.js). encounter는 그 콘텐츠 방을 반드시 만든다.
+    // minLoop(또는 encounter 방의 minLoop) 전에는 떨어지지 않고 지도 장치에도 보이지 않는다(js/atlas.js fragmentOpen).
     fragments: Object.freeze([
         { id: 'packs', name: '무리 각인', effect: { packSize: 1, quantity: 8 } },
         { id: 'elites', name: '정예 각인', effect: { extraElite: 30, rarity: 10 } },
@@ -102,7 +103,13 @@ const ATLAS = Object.freeze({
         { id: 'breach', name: '균열 각인', encounter: 'breach' },
         { id: 'hive', name: '벌집 각인', encounter: 'hive' },
         { id: 'treasure', name: '보물 각인', encounter: 'treasure' },
-        { id: 'meteor', name: '운석 각인', encounter: 'meteor' }
+        { id: 'meteor', name: '운석 각인', encounter: 'meteor' },
+        // 열매 갈래(2026-10-09): 루프 30 뒤의 방 넷을 확정하는 각인과, 보급 상자를 하나 더 두고 모두 은빛 이상으로 만드는 보급 각인.
+        { id: 'emberField', name: '잿불 각인', encounter: 'emberField' },
+        { id: 'sapWound', name: '수액 각인', encounter: 'sapWound' },
+        { id: 'witheredGarden', name: '시든 각인', encounter: 'witheredGarden' },
+        { id: 'nursery', name: '묘목 각인', encounter: 'nursery' },
+        { id: 'supply', name: '보급 각인', effect: { chestExtra: 1, chestMinGrade: 1 }, minLoop: 30 }
     ].map(Object.freeze)),
     // held: fragments one open map keeps for its boss (like its map drops) — the save boundary uses the same cap.
     fragmentRules: Object.freeze({ slots: 2, elite: 0.03, boss: 0.25, cap: 99, held: 50 }),
@@ -111,24 +118,33 @@ const ATLAS = Object.freeze({
     // chance: 지도마다 그 방이 생길 기본 확률(%). 패시브 · 각인이 더한다. 지도마다 굴려 생기는 방은 encounterLimit개까지.
     encounters: Object.freeze({
         breach: Object.freeze({ name: '공허 균열', chance: 8, packExtra: 4, prefix: '공허의', enemy: Object.freeze({ hp: 2, damage: 1.3, attack: 1.25, exp: 2 }),
-            rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3 }),
+            rewards: Object.freeze([['voidChisel', 2, 0.15], ['jewelShard', 0, 0.12]]), mapChance: 0.3,
+            golden: Object.freeze([['voidChisel', 2], ['jewelShard', 2]]), chest: Object.freeze(['voidChisel', 1]) }),
         // 정예 수호벌은 벌집 세트에서 같은 이름의 그림(hive-guard)을 쓴다(2026-10-07 검토: 여왕 근위벌 그림이라 외형 기록의 이름이 달랐다).
         hive: Object.freeze({ name: '벌집', chance: 8, packExtra: 3, names: Object.freeze(['벌집 전투벌', '정예 수호벌']), visuals: Object.freeze(['hive-worker', 'hive-guard']), enemy: Object.freeze({ hp: 1.2, damage: 1, attack: 1.3, exp: 1.3 }),
-            rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15 }),
+            rewards: Object.freeze([['pollen', 6, 0.5], ['venomStinger', 0, 0.06], ['enchantedHoney', 0.08, 0]]), mapChance: 0.15,
+            golden: Object.freeze([['enchantedHoney', 1]]), chest: Object.freeze(['pollen', 6]) }),
         treasure: Object.freeze({ name: '보물 방', chance: 10, packExtra: 1, prefix: '보물 수호', enemy: Object.freeze({ hp: 1.5, damage: 1.1, attack: 1, exp: 1.5 }),
-            rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5 }),
+            rewards: Object.freeze([['magicBud', 4, 0.4], ['formlessDew', 2, 0.15], ['sapBud', 1, 0.08], ['goldenRule', 0.1, 0]]), mapChance: 0.5,
+            golden: Object.freeze([['goldenRule', 1]]), chest: Object.freeze(['sapBud', 1]) }),
         meteor: Object.freeze({ name: '운석 분화구', chance: 6, packExtra: 2, prefix: '별에 물든', enemy: Object.freeze({ hp: 1.6, damage: 1.2, attack: 1.1, exp: 1.6 }),
-            rewards: Object.freeze([['skyEssence', 0.8, 0.06]]), mapChance: 0.2 }),
+            rewards: Object.freeze([['skyEssence', 0.8, 0.06]]), mapChance: 0.2,
+            golden: Object.freeze([['skyEssence', 3]]), chest: Object.freeze(['skyEssence', 1]) }),
         // 잿불 터(12번 루프 30, data/ember-corruption.js): 잿불 무리(화염으로 치고, 잿불 테와 불씨가 보인다)가 잿불가지와 드물게
         // 타오른 잿불가지를 떨어뜨린다. 루프 30부터(minLoop), 잊힌 정원(화염 지역) 지도에서는 두 배로 자주(regionChance).
         emberField: Object.freeze({ name: '잿불 터', chance: 8, packExtra: 3, prefix: '잿불', minLoop: 30, regionChance: Object.freeze({ garden: 2 }),
             ele: 'fire', outline: '#ffb347', sparks: '#ff9a3c', enemy: Object.freeze({ hp: 1.5, damage: 1.25, attack: 1.15, exp: 1.6 }),
-            rewards: Object.freeze([['emberBranch', 2, 0.1], ['burningEmberBranch', 0.1, 0]]), mapChance: 0.15 }),
+            rewards: Object.freeze([['emberBranch', 2, 0.1], ['burningEmberBranch', 0.1, 0]]), mapChance: 0.15,
+            golden: Object.freeze([['burningEmberBranch', 1]]), chest: Object.freeze(['emberBranch', 2]) }),
         // 수액 상처(12번 루프 32, data/sap-catalysts.js): 세계수의 상처에서 굳은 수액 무리(단단하다, 호박 테와 수액 방울)가 기폭제를
         // 떨어뜨린다. 루프 32부터, 고목 줄기 지도에서 두 배. 방을 비우면 무작위 한 종류의 기폭제(키 목록이면 하나를 고른다).
         sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, regionChance: Object.freeze({ trunk: 2 }),
             outline: '#e8c15a', sparks: '#f2b33d', enemy: Object.freeze({ hp: 2, damage: 1.1, attack: 0.95, exp: 1.7 }),
-            rewards: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15 }),
+            rewards: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15,
+            golden: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 2]]),
+            chest: Object.freeze([Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1]),
+            // 지역 기폭제: 목록에서 고를 때 encounterRegionShare만큼 그 지도 지역의 것(줄기는 치명)이 나온다.
+            regionKeys: Object.freeze({ garden: 'catalystFire', sanctum: 'catalystCold', canopy: 'catalystLight', roots: 'catalystChaos', trunk: 'catalystCrit' }) }),
         // 시든 정원(12번 루프 36, data/garden-oils.js): 시든 무리(카오스로 친다, 마른 잎 테와 꽃잎)가 정원 기름을 떨어뜨린다. 루프 36부터,
         // 깊은 뿌리 지도에서 두 배. 방을 비우면 무작위 한 색의 기름 2 + 등급당 0.15.
         // 묘목장(12번 루프 39, data/stump-nursery.js): 묘목 무리(초록 테와 잎사귀)가 그 지도 지역 색의 씨앗과 수액을 떨어뜨리고, 방을 비우면
@@ -138,7 +154,10 @@ const ATLAS = Object.freeze({
             rewards: Object.freeze([['magicBud', 3, 0.2]]), mapChance: 0.15 }),
         witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, regionChance: Object.freeze({ roots: 2 }),
             ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
-            rewards: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2, 0.15]]), mapChance: 0.15 }),
+            rewards: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2, 0.15]]), mapChance: 0.15,
+            golden: Object.freeze([[Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 2]]), chest: Object.freeze([Object.freeze(['oilFire','oilCold','oilLight','oilChaos']), 1]),
+            // 지역 기름: 목록에서 고를 때 encounterRegionShare만큼 그 지도 지역의 색(줄기는 무작위)이 나온다.
+            regionKeys: Object.freeze({ garden: 'oilFire', sanctum: 'oilCold', canopy: 'oilLight', roots: 'oilChaos' }) }),
         // 깨어난 뒤(late): 붉은 제단(총주교)과 푸른 제단(포식자). 방을 비우면 잉걸 · 허기의 즙(data/atlas-endgame.js altars).
         redAltar: Object.freeze({ name: '붉은 제단', chance: 12, packExtra: 3, prefix: '성화의', late: true, enemy: Object.freeze({ hp: 1.8, damage: 1.3, attack: 1.15, exp: 1.8 }),
             rewards: Object.freeze([['magicBud', 2, 0.2]]), mapChance: 0.1 }),
@@ -146,6 +165,12 @@ const ATLAS = Object.freeze({
             rewards: Object.freeze([['formlessDew', 1, 0.1]]), mapChance: 0.1 })
     }),
     encounterLimit: 1,
+    // 황금 방(2026-10-09 사용자 "더 좋은 상자가 뜰 확률"): 지도의 콘텐츠 방이 chance %(+ 패시브 goldenRoom %p)로 황금 방이 된다.
+    // 몬스터가 hpMul, damageMul만큼 세고 금빛 테를 두르며, 방을 비우면 보상이 rewardMul배에 그 방의 golden 보상이 더해진다
+    // (묘목장은 선물 하나 더). 지도 uid와 방 종류의 해시로 정해 지도마다 고정이고 다른 굴림을 밀지 않는다. 제단(late)은 아니다.
+    goldenRoom: Object.freeze({ chance: 5, hpMul: 1.4, damageMul: 1.2, rewardMul: 3, outline: '#ffd75e', sparks: '#fff1a8', prefix: '황금' }),
+    // 목록 보상(기폭제, 기름)에서 그 지도 지역의 것(encounters[].regionKeys)이 나오는 몫. 나머지는 목록에서 무작위.
+    encounterRegionShare: 0.5,
     // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로).
     encounterLoopBonus: Object.freeze({ loop: 50, extra: 1 }),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
