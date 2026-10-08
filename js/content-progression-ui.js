@@ -257,9 +257,9 @@ const contentUnlockUi = {
     },
     pointBalanceHtml() {
         const points = contentProgression.points();
-        if (points.complete) return '<div class="content-unlock-balance">전체 해금 완료</div>';
-        const title = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다.'
-            : `루프 2부터 매 루프 최대 ${CONTENT_UNLOCK_POINTS_PER_LOOP}P · 남은 해금 비용까지만 지급`;
+        if (points.complete) return '<div class="content-unlock-balance" title="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다.">전체 해금 완료</div>';
+        const title = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
+            : `루프 2부터 매 루프 최대 ${CONTENT_UNLOCK_POINTS_PER_LOOP}P, 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수`;
         return `<div class="content-unlock-balance" title="${title}"><span>해금</span><strong>${points.balance}</strong><span>P</span></div>`;
     },
     render() {

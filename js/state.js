@@ -2498,7 +2498,7 @@ const defaultGame = {
     chaosRealm: createDefaultChaosRealmState(),
     skyTower: createDefaultSkyTowerState(),
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
-    underworldProgress: { highestFloor: 1, currentFloor: 1 },
+    underworldProgress: { highestFloor: 1, currentFloor: 1, deepRewardFloor: 0 },
     ocean: createDefaultOceanState(),
     /** @type {StumpBoxState} */
     stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],

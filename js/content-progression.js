@@ -87,18 +87,34 @@ const contentProgression = (() => {
         return !!feature && isUnlocked(feature, owner);
     }
 
+    /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). The record may still be
+     * the saved one: the stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger. */
+    function ledger(state, loop) {
+        const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
+        const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
+            sum + (def.cost > 0 && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
+        const spent = unlocked.reduce((sum, id) => sum + (Number((state.paidCosts || {})[id]) || 0), 0);
+        return { remaining, spent, earned: (Math.max(Number(state.highestLoop) || 1, loop) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP };
+    }
+
     /** Read-only point budget; future gated growth counts, automatic combat never costs points. */
     function points(owner = game) {
         const state = owner.contentProgression;
         if (!state) return { balance: 0, remaining: 0, nextAward: 0, complete: true };
-        const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
-            sum + (def.cost > 0 && !state.unlocked.includes(def.id) && !state.inherited.includes(def.id) ? def.cost : 0), 0);
-        const spent = state.unlocked.reduce((sum, id) => sum + state.paidCosts[id], 0);
-        const earned = (Math.max(state.highestLoop, owner.season) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+        const { remaining, spent, earned } = ledger(state, owner.season);
         const current = Math.min(remaining, Math.max(0, earned - spent));
-        const nextEarned = (Math.max(state.highestLoop, owner.season + 1) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+        const nextEarned = ledger(state, owner.season + 1).earned;
         const nextAward = Math.min(remaining, Math.max(0, nextEarned - spent)) - current;
         return { balance: current, remaining, nextAward, complete: remaining === 0 };
+    }
+
+    /** Points past what the catalog can still take. The balance never holds them, so the stump box counts them as graft points
+     * (js/stump-box.js graftEarned, 2026-10-09: once the catalog was bought, about loop 20, the 2 points a loop were lost). */
+    function overflow(owner = game) {
+        const state = owner.contentProgression;
+        if (!state) return 0;
+        const { remaining, spent, earned } = ledger(state, owner.season);
+        return Math.max(0, earned - spent - remaining);
     }
 
     function balance(owner = game) {
@@ -248,6 +264,6 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, balance, cheapestOpen, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canOpen, points, overflow, balance, cheapestOpen, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

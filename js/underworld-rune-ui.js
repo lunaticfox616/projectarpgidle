@@ -75,6 +75,9 @@ const underworldRuneUi = (() => {
         return {state,no,level,cost};
     }
 
+    // 지하계 층 보상(js/combat.js grantUnderworldFloorMilestone): 도메인은 이벤트만 내고 기록은 여기서 남긴다.
+    window.addEventListener('project-idle:underworld-milestone', ({ detail }) => addLog(detail.text, 'loot-unique'));
+
     return {updateMarkup,progressLabel,chooseGrowth,mountOverlay,closeOverlay,validSlot};
 })();
 safeExposeGlobals({underworldRuneUi});

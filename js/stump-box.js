@@ -313,8 +313,11 @@ const stumpBox = (() => {
         return Object.entries(STUMP_BOX_GRAFT.journalPoints).reduce((sum, [id, points]) => sum + (journal.includes(id) ? points : 0), 0);
     }
     function graftEarned(state) {
-        return Math.max(0, highestLoop(state) - STUMP_BOX_GRAFT.startLoop + 1) * STUMP_BOX_GRAFT.pointsPerLoop + graftJournalPoints(state);
+        return Math.max(0, highestLoop(state) - STUMP_BOX_GRAFT.startLoop + 1) * STUMP_BOX_GRAFT.pointsPerLoop + graftJournalPoints(state)
+            + graftOverflowPoints(state);
     }
+    /** 넘치는 해금 포인트(해금 카탈로그를 다 사고 남는 몫, contentProgression.overflow)도 접붙이기 점수가 된다(2026-10-09). */
+    function graftOverflowPoints(state) { return contentProgression.overflow(state); }
     /** @returns {{earned: number, spent: number, free: number}} graft points. */
     function graftPoints(state) {
         const earned = graftEarned(state), spent = of(state).graft.reduce((sum, rank) => sum + graftCost(rank), 0);
@@ -903,7 +906,7 @@ const stumpBox = (() => {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, unplace, setPath,
         evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
-        graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
+        graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
         rollCap, graftMaxRank, qualityOf, goldenMul, sealLimit, isSealed, sealReason, toggleSeal, devourOpen, addScar, grantScar, rollScarDrop, scarCaps: () => SCAR_CAPS,
         breedingOpen, bulkCompostOpen, bulkCompostItems, bulkCompostReason, compostMany, pendingPouches, pouchOffers, choosePouch, codexIds: () => CODEX_IDS,

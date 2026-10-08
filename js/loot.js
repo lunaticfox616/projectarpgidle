@@ -37,7 +37,9 @@ function isFirstActBossEquipmentDropThisLoop(zone, enemy) {
 function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMultiplier) {
     let currentFloor = Math.max(1, Math.floor(Number(floor) || 1));
     let commonMul = Math.max(0, Number(fossilDropMultiplier) || 0);
-    let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0);
+    // 깊은 층(data/items.js LABYRINTH_DEEP_FOSSIL): 원시와 고대가 상한에 닿은 뒤로는 심연 화석이 층마다 더 자주 나온다.
+    let deepMul = 1 + Math.max(0, currentFloor - LABYRINTH_DEEP_FOSSIL.fromFloor) * LABYRINTH_DEEP_FOSSIL.abyssalPerFloor;
+    let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0) * deepMul;
     return {
         base: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
         typed: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,

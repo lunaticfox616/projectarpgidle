@@ -4,8 +4,10 @@ const loopSettlementUi = {
     dismissedReadyLoop: 0,
     unlockRewardText() {
         const points = contentProgression.points();
-        if (points.complete) return '전체 해금 완료';
-        if (!points.nextAward) return '남은 해금에 필요한 포인트를 모두 모았습니다.';
+        // 넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 된다(contentProgression.overflow, js/stump-box.js graftEarned).
+        const overflow = `넘치는 해금 포인트는 루프마다 그루터기 함 접붙이기 점수 +${CONTENT_UNLOCK_POINTS_PER_LOOP}가 됩니다.`;
+        if (points.complete) return `전체 해금 완료. ${overflow}`;
+        if (!points.nextAward) return `남은 해금에 필요한 포인트를 모두 모았습니다. ${overflow}`;
         return `해금 포인트 +${points.nextAward}. 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
     },
     summaryHtml() {

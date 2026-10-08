@@ -8538,8 +8538,15 @@ function normalizeItem(item) {
     return levelProgression.stampItem(item);
 }
 
+/** 고유는 자기 등급(최대 20)이다. 17등급 이상 고유는 아틀라스와 우주계에서만 나오고, 그곳의 희귀 장비도 20까지 간다(2026-10-09:
+ * 예전에는 옵션 등급 정규화의 상한 10에 걸려 20등급 고유가 "등급 T10"으로 보이고 분해 황금률 확률도 8%에서 멈췄다). */
+function getUniqueCraftTier(item) {
+    return clampNumber(Math.floor(Number(item.hiddenTier || item.itemTier) || 1), 1, 20);
+}
+
 function getItemCraftTier(item) {
     if (!item) return 1;
+    if (item.rarity === 'unique') return getUniqueCraftTier(item);
     if (Number.isFinite(item.affixTierCap)) return clampNumber(Math.floor(item.affixTierCap), 1, item.affixTierCap >= 11 ? 20 : 10);
     const existingHighAffixTier = (Array.isArray(item.stats) ? item.stats : []).reduce((max, stat) => Math.max(max, Math.floor(Number(stat && stat.tier) || 0)), 0);
     if (existingHighAffixTier >= 11) return clampNumber(Math.max(existingHighAffixTier, Math.floor(Number(item.hiddenTier) || 1)), 11, 20);

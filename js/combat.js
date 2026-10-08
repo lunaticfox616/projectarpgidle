@@ -9270,6 +9270,34 @@ function getBeyondBoundaryCompletionRewardContext(result) {
     return { focus, intensity, tier, zone, rewardChanged: focus.id !== result.rewardFocusId };
 }
 
+/** Every 10 underworld floors: rune slots (to 6) and rune numbers (to 30) through floor 300; past it, rune growth materials. */
+function grantUnderworldFloorMilestone(floor, progress) {
+    if (floor > UNDERWORLD_DEEP_FLOOR_REWARD.fromFloor) return grantUnderworldDeepFloorReward(floor, progress);
+    if (floor % 10 !== 0) return;
+    let runeState = game.underworldRunes;
+    let unlockTier = Math.floor(floor / 10);
+    let prevSlots = Math.max(0, Math.floor(runeState.unlockedSlots || 0));
+    let prevMaxRuneNo = Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0));
+    runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
+    runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
+    if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
+        dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금` });
+    }
+}
+
+/** Past floor 300 (data/constants.js UNDERWORLD_DEEP_FLOOR_REWARD), each `every`-th floor pays rune materials once:
+ * progress.deepRewardFloor keeps the deepest paid floor, so repeating a floor pays nothing. */
+function grantUnderworldDeepFloorReward(floor, progress) {
+    const rule = UNDERWORLD_DEEP_FLOOR_REWARD, depth = floor - rule.fromFloor;
+    const paid = Math.max(rule.fromFloor, Math.floor(Number(progress.deepRewardFloor) || 0));
+    if (depth % rule.every !== 0 || floor <= paid) return;
+    progress.deepRewardFloor = floor;
+    const shards = Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth), gold = Math.floor(rule.underGold[0] + rule.underGold[1] * depth);
+    awardCurrency('runeShard', shards);
+    awardCurrency('underGold', gold);
+    dispatchRuntimeEvent('underworld-milestone', { floor, text: `🧿 지하계 ${floor}층 보상: 룬 조각 ${shards}, 금 ${gold}` });
+}
+
 function rollBeyondBoundaryRewardCount(rewardMul) {
     let multiplier = Math.max(1, Number(rewardMul) || 1);
     return 1 + (Math.random() < Math.min(0.9, multiplier - 1) ? 1 : 0);
@@ -9667,17 +9695,7 @@ function finishEncounterRun() {
         uw.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(uw.highestFloor, floor + 1);
         if (floor >= 10) uw.floor10Cleared = true;
         if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
-        if (floor % 10 === 0) {
-            let runeState = game.underworldRunes;
-            let unlockTier = Math.floor(floor / 10);
-            let prevSlots = Math.max(0, Math.floor(runeState.unlockedSlots || 0));
-            let prevMaxRuneNo = Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0));
-            runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
-            runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
-            if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
-                addLog(`🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금`, 'loot-unique');
-            }
-        }
+        grantUnderworldFloorMilestone(floor, uw);
         addLog(`🕳️ 지하계 ${floor}층 돌파! ${uw.highestFloor}층까지 하강 가능합니다.`, 'season-up');
         game.killsInZone = 0;
         if (mapAction === 'repeatZone') game.currentZoneId = UNDERWORLD_ZONE_ID;

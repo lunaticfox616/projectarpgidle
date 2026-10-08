@@ -121,6 +121,7 @@ const stumpBoxUi = (() => {
         if (contentProgression.isUnlocked('talisman')) rules.push('부적은 색이 없고 판에서 깨어납니다.');
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 칸마다 최대 ${stumpBox.graftMaxRank(game)}단계, 단계마다 +${STUMP_BOX_GRAFT.pctPerRank}% (칸 왼쪽 위 숫자)`);
         if (stumpBox.graftJournalPoints(game)) rules.push(`저널 접붙이기 점수 +${stumpBox.graftJournalPoints(game)} (정점 보스 +3, 버려진 날 +2)`);
+        if (stumpBox.graftOverflowPoints(game)) rules.push(`넘치는 해금 포인트로 받은 접붙이기 점수 +${stumpBox.graftOverflowPoints(game)} (해금을 다 산 뒤 루프마다 +${CONTENT_UNLOCK_POINTS_PER_LOOP})`);
         rules.push('수확 일지: 처음 다 자란 것을 적고, 한 줄(같은 것 네 색)을 채우면 선물을 줍니다.');
         if (stumpBox.rootMemoryPct(game)) rules.push(`뿌리 기억: 새 루프에 다 자란 것이 ${stumpBox.rootMemoryPct(game)}% 자란 채로 다시 자랍니다.`);
         rules.push(...stumpRipeningUi.rulesLines());
