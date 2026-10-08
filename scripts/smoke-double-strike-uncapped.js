@@ -21,7 +21,7 @@ const files = [
   'js/utils.js',
   'js/atlas-maps.js', 'js/atlas-passives.js', 'js/atlas-encounters.js', 'js/atlas-epoch.js', 'js/atlas.js', 'js/atlas-endgame.js', 'js/memory-dungeon.js',
   'data/ascendancies.js', 'js/state.js',
-  'js/level-progression.js', 'js/combat-equipment-stats.js',
+  'js/level-progression.js', 'js/combat-equipment-stats.js', 'js/player-stat-cache.js',
   'js/endgame-progression.js',
   'js/save.js',
   'js/items.js',

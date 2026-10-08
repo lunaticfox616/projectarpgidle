@@ -118,11 +118,13 @@ const combatEquipmentStats = (() => {
         const owner = game, status = evaluate(owner);
         const originalEquipment = owner.equipment;
         const equipment = status.active;
+        // The settlement memo of the real gear (the mask below would read as another revision).
+        const memo = getBackgroundBuildMemo(owner);
         try {
             // Keep ordinary runtime normalization on the real state while masking disabled slots synchronously.
             owner.equipment = equipment;
             evaluating.add(owner);
-            const result = equipmentStatCalculator(includeBreakdowns, false, true);
+            const result = playerStatCache.read(includeBreakdowns, memo, status);
             result.disabledEquipment = status.disabled;
             result.requirementAttributes = status.totals;
             return result;

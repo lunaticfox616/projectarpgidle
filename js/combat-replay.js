@@ -77,6 +77,7 @@ function createCombatReplay(elapsedMs, snapshot, startNowMs) {
     if (!Number.isFinite(elapsedMs) || elapsedMs < 0) throw new RangeError('Replay duration must be finite and non-negative');
     let state = cloneBackgroundCombatState(snapshot);
     state.isBackgroundCalculation = true;
+    playerStatCache.adopt(state);
     state.backgroundOverflowSalvageCount = 0;
     state.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
     state.backgroundStopReason = null;

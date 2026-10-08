@@ -30,7 +30,7 @@ const files = [
   'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/exploration-ground-loot.js',
   'data/ascendancies.js', 'js/state.js',
   'js/combat-loot-receipts.js',
-  'js/level-progression.js', 'js/combat-equipment-stats.js',
+  'js/level-progression.js', 'js/combat-equipment-stats.js', 'js/player-stat-cache.js',
   'js/content-progression.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',

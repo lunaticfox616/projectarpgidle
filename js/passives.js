@@ -2465,12 +2465,18 @@ function applyPassiveConditionalAilmentRules(passive, flags) {
     if (flags.blackDistill) passive.poisonChance += 20;
 }
 
+/** The stat calculator passes its tick; a direct caller (tests, tools) may pass `now` and read the live state. */
+function readPassiveRuleTickValue(options, name, live) {
+    return options.tick ? options.tick.get(name) : live();
+}
+
 function applyAuthoredPassiveStatRules(options) {
     const buckets = options.buckets, passive = buckets.passive, reward = buckets.reward;
     applyPassiveKeystoneBucketRules(buckets);
     const flags = getPassiveKeystoneCombatFlags(options.skillTags);
     applyPassiveConditionalAilmentRules(passive, flags);
-    const activeCycleBuffEffects = getActivePassiveCycleBuffEffects(options.now);
+    // Cycle buffs and fanaticism stacks change during a fight: the stat calculator's tick reads them (js/player-stat-cache.js).
+    const activeCycleBuffEffects = readPassiveRuleTickValue(options, 'cycleBuffEffects', () => getActivePassiveCycleBuffEffects(options.now));
     activeCycleBuffEffects.forEach(effect => addStatToBucket(reward, effect.stat, effect.val));
     const damageByElement = {
         phys: sumPassiveRuleStat(buckets, 'physPctDmg'), fire: sumPassiveRuleStat(buckets, 'firePctDmg'),
@@ -2507,7 +2513,7 @@ function applyAuthoredPassiveStatRules(options) {
         guardTakenLessPct: revelation === 'guard' ? Math.min(50, Math.floor(devotion / 5)) : (triple ? Math.min(20, Math.floor(devotion / 5) * 0.4) : 0),
         lifeBonusPct: revelation === 'life' ? devotion * 0.5 : (triple ? devotion * 0.2 : 0),
         cycleAddedFireFromPhysicalPct: findAllocatedPassiveKeystone('순환의 원석') ? cycle * 3 : 0,
-        fanaticismStacks: corrupted ? Math.min(devotion, Math.max(0, state.fanaticism.stacks)) : 0,
+        fanaticismStacks: corrupted ? Math.min(devotion, Math.max(0, readPassiveRuleTickValue(options, 'fanaticismStacks', () => state.fanaticism.stacks))) : 0,
         activeCycleBuffEffects, flags };
 }
 

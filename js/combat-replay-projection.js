@@ -216,7 +216,7 @@ const replayProjection = (() => {
         if (plan.dies) {
             game.playerHp = 0;
             handlePlayerDefeat(getZone(game.currentZoneId), pStats, null, { fatalElement: 'other', noToast: true });
-        } else if (actExplorationProgress.canFinish()) finishEncounterRun();
+        } else if (actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
     }
     /** A map takes the measured cycle time, stretched or shortened by how much life fell in it against the measured mean. A map
      * the hero falls in keeps the whole time: it fought until it fell (shortened, a dying build ran 9% more maps than real). */

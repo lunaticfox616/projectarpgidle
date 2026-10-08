@@ -48,6 +48,7 @@ assert.strictEqual(effects[0].params.pct, 12);
 vm.runInContext([
     readFunctionSource(combatSource, 'getPlayerHpCap'),
     readFunctionSource(combatSource, 'getPlayerRecoveryHpCap'),
+    readFunctionSource(combatSource, 'getMossRecoveryOccupied'),
     readFunctionSource(combatSource, 'getPlayerEnergyShieldRecoveryCap'),
     readFunctionSource(combatSource, 'applyInstantPlayerLeech')
 ].join('\n'), context, { filename: 'talent-overheal-combat.js' });

@@ -820,15 +820,20 @@ function getPlayerHpCap(pStats) {
     return (hasKeystone('w8')) ? (maxHp * 0.5) : maxHp;
 }
 
-function getPlayerRecoveryHpCap(pStats) {
+/** @param {{get: (name: string) => unknown}} [tick] The stat calculator's tick (js/player-stat-cache.js); others read live. */
+function getPlayerRecoveryHpCap(pStats, tick) {
     let baseCap = getPlayerHpCap(pStats);
     if (hasKeystone('w8')) return baseCap;
     let overhealPct = Math.max(0, Number(pStats && pStats.uniqueOverhealCapPct) || 0);
     let cap = baseCap * (100 + overhealPct) / 100;
+    let occupied = tick ? tick.get('mossRecoveryOccupied') : getMossRecoveryOccupied();
+    return Math.max(1, cap - occupied);
+}
+
+function getMossRecoveryOccupied() {
     let mossRows = game.talentCardRuntime && Array.isArray(game.talentCardRuntime.mossRecoveries)
         ? game.talentCardRuntime.mossRecoveries : [];
-    let occupied = mossRows.reduce((sum, row) => sum + Math.max(0, Number(row && row.amount) || 0), 0);
-    return Math.max(1, cap - occupied);
+    return mossRows.reduce((sum, row) => sum + Math.max(0, Number(row && row.amount) || 0), 0);
 }
 
 function getPlayerEnergyShieldRecoveryCap(pStats) {
@@ -2197,7 +2202,7 @@ function coreLoop(nowMs) {
     }
     syncCrowdPauseState();
 
-    if (!holdMapProgress && actExplorationProgress.canFinish()) finishEncounterRun();
+    if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
 }
 
 function processPendingSlamEchoHits() {
@@ -2737,8 +2742,9 @@ function isDeferredTalentProjectileTargetEffect(effect) {
 }
 
 
+/** @param {object|null} buff The active stolen trait; the stat calculator's tick drops it once it expires. */
 function applyEliteTraitBuffStats(buff, bucket) {
-    if (!buff || (buff.expiresAt || 0) <= getCombatTime()) return;
+    if (!buff) return;
     let trait = buff.trait || {};
     if (trait.atkMul) addStatToBucket(bucket, 'pctDmg', Math.max(0, (Number(trait.atkMul) - 1) * 100));
     if (trait.attackSpeedVarMul) addStatToBucket(bucket, 'aspd', Math.max(0, (Number(trait.attackSpeedVarMul) - 1) * 100));
@@ -2805,9 +2811,16 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
     };
 };
 
-/** @param {boolean} includeBreakdowns Build tooltip text for visible stats; replay only needs numeric results. */
-function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attributesOnly = false, equipmentView = false) {
+/**
+ * @param {boolean} includeBreakdowns Build tooltip text for visible stats; replay only needs numeric results.
+ * With equipmentView this is the calculation itself: it reads the clock, the hero's life and charges, timed buffs and the enemies
+ * only through `tick` (js/player-stat-cache.js). Given a tick (playerStatCache) it returns the part a settlement may keep, which
+ * finishPlayerStats completes on every call; without one it returns finished stats as before.
+ */
+function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attributesOnly = false, equipmentView = false, tick = null) {
     if (!equipmentView) return combatEquipmentStats.read(includeBreakdowns);
+    const keepCore = tick !== null;
+    tick = tick || playerStatTick.create();
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -2847,9 +2860,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
     getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val)));
     if (activeUniqueIds.has('uj_old_box')) {
-        let inv = Array.isArray(game.inventory) ? game.inventory : [];
-        let r = { normal: 0, magic: 0, rare: 0, unique: 0 };
-        inv.forEach(item => { let k = (item && item.rarity) || 'normal'; if (r[k] !== undefined) r[k]++; });
+        let r = tick.get('inventoryRarity');
         addStatToBucket(reward, 'aspd', Math.min(30, r.magic * 0.5));
         addStatToBucket(reward, 'pctDmg', Math.min(60, r.rare * 1.2));
         addStatToBucket(reward, 'dr', Math.min(12, r.unique * 1.5));
@@ -3062,7 +3073,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
     const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
         accumulateCombatRuneStats(reward, game.underworldRunes);
-    applyEliteTraitBuffStats(game.uniqueEliteTraitBuff, reward);
+    applyEliteTraitBuffStats(tick.get('eliteTraitBuff'), reward);
     applyAccountRewardStats(reward);
     if (typeof getCosmosBossRelicStatTotals === 'function') {
         let relicStats = getCosmosBossRelicStatTotals();
@@ -3128,7 +3139,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             buckets: { gearBase, gearExplicit, passive, support, season, ascend, reward, starBlessing },
             skillElement: skill.ele,
             skillTags: skill.tags,
-            now: getCombatTime()
+            tick
         })
         : { mystique: { ailment: 'bleed', damagePct: 0, potencyPct: 0 }, devotion: 0, cycle: 0,
             revelation: 'combat', revelationLabel: '전투의 계시', wisdomElement: 'fire',
@@ -3156,7 +3167,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     skillEffectExpansion.applyToSkill(skill, game.activeSkill); // 효과 확장 +N: more targets for target gems, the keystone's cost
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
-    if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
+    if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
     let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
 
     const damageSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
@@ -3343,8 +3354,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
     finalAspd = Math.min(12, finalAspd);
     finalAspd = scaleKeystoneAttackSpeed(finalAspd, authoredPassiveRules.flags);
-    if (authoredPassiveRules.flags.bloodAcceleration && Array.isArray(game.playerLeechInstances)
-        && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0)) {
+    if (authoredPassiveRules.flags.bloodAcceleration && tick.get('leechActive')) {
         finalAspd = Math.min(12, finalAspd * 1.15);
     }
 
@@ -3352,19 +3362,19 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
-    if (authoredPassiveRules.flags.bloodAcceleration && Array.isArray(game.playerLeechInstances)
-        && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0)) finalMove *= 1.15;
-    let danceState = game.uniqueEvasionDanceState || {};
-    let activeEvasionDanceStacks = uniqueEvasionDance && (danceState.expiresAt || 0) > getCombatTime()
-        ? Math.max(0, Math.min(uniqueEvasionDance.maxStacks, Math.floor(danceState.stacks || 0)))
+    if (authoredPassiveRules.flags.bloodAcceleration && tick.get('leechActive')) finalMove *= 1.15;
+    let danceStacks = uniqueEvasionDance ? tick.get('evasionDanceStacks') : null;
+    let activeEvasionDanceStacks = danceStacks !== null
+        ? Math.max(0, Math.min(uniqueEvasionDance.maxStacks, danceStacks))
         : 0;
     if (activeEvasionDanceStacks > 0) finalMove += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance.movePerStack);
     game.oceanOxygenMaxBonus = Math.max(0, gearBase.oxygenMax + gearExplicit.oxygenMax + passive.oxygenMax + season.oxygenMax + ascend.oxygenMax + reward.oxygenMax);
     game.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, gearBase.oxygenRegen + gearExplicit.oxygenRegen + passive.oxygenRegen + season.oxygenRegen + ascend.oxygenRegen + reward.oxygenRegen));
-    let activeShadowStealth = uniqueDeflectStealth && (game.shadowStealthExpiresAt || 0) > getCombatTime();
+    let activeShadowStealth = uniqueDeflectStealth && tick.get('shadowStealth');
     if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
-    if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > getCombatTime()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
-    finalMove += regionAffixEffects.moveBonus(getCombatTime());
+    let killMoveStacks = uniqueKillMoveStacks ? tick.get('killMoveStacks') : null;
+    if (killMoveStacks !== null) finalMove += killMoveStacks * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
+    finalMove += tick.get('regionMoveBonus');
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
     if (zonePenalty && (zonePenalty.type === 'underworld' || (zonePenalty.milestonePinnacle && zonePenalty.underworldPenaltyFloor))) {
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || zonePenalty.floor || 1));
@@ -3452,7 +3462,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalLeech = applyLeechSoftcap(rawLeech - wildnessLeech) + wildnessLeech;
     let finalSpellLeech = applyLeechSoftcap(sumStatAcrossBuckets('spellLeech') + (skill.spellLeech || 0));
     if (isSpellSkill) finalCritDmg += sumStatAcrossBuckets('spellCritDmg');
-    if (uniqueLeechEfficiencyOnKill && game.uniqueLeechEfficiencyUntil && getCombatTime() < game.uniqueLeechEfficiencyUntil) {
+    if (uniqueLeechEfficiencyOnKill && tick.get('leechEfficiency')) {
         finalLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
         finalSpellLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
     }
@@ -3524,8 +3534,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     finalRegen += (flatRegen / Math.max(1, finalMaxHp)) * 100;
     if (cosmosTideEsRegenToLife) { finalRegen += Math.max(0, finalEnergyShieldRegenRate); finalEnergyShieldRegenRate = 0; }
     if (activeUniqueIds.has('uj_hurried_mind')) {
-        let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
-        if (alive === 0) finalMove *= 1.5;
+        if (tick.get('aliveEnemies') === 0) finalMove *= 1.5;
     }
     let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
     let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
@@ -3547,8 +3556,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
     if (authoredPassiveRules.flags.maximumRoll) finalMinDmgRoll = finalMaxDmgRoll;
     if (uniqueMaxHpPct) finalMaxHp = Math.floor(finalMaxHp * (1 + Math.max(0, uniqueMaxHpPct) / 100));
-    if (uniqueMeleeArmorAmp && (game.uniqueMeleeArmorAmpExpiresAt || 0) > getCombatTime()) {
-        let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), Math.floor(game.uniqueMeleeArmorAmpStacks || 0)));
+    let meleeArmorAmpStacks = uniqueMeleeArmorAmp ? tick.get('meleeArmorAmpStacks') : null;
+    if (meleeArmorAmpStacks !== null) {
+        let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), meleeArmorAmpStacks));
         if (stacks > 0) finalArmor = Math.floor(finalArmor * Math.pow(1 + Math.max(0, Number(uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
     }
     if (uniqueMinRollEqualsMaxRoll) {
@@ -3635,7 +3645,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
     let dotDurationMultiplier = 1;
-    if (uniqueCurseCrownPerCursePct>0){ let e=(game.enemies||[]).find(x=>x&&x.hp>0); let n=0; if(e&&game.enemyConditionDebuffs&&Array.isArray(game.enemyConditionDebuffs[e.id])) n=game.enemyConditionDebuffs[e.id].length; if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
+    if (uniqueCurseCrownPerCursePct>0){ let n=tick.get('targetCurseCount'); if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
     if (cosmosVerdictSupportDamagePct > 0) finalDamageMultiplier *= (1 + (safeEquippedSupports.length * cosmosVerdictSupportDamagePct) / 100);
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     if (uniqueArmorToPhysicalDamagePctPer1000 > 0 && skill && skill.ele === 'phys') {
@@ -3678,18 +3688,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalArmor = Math.floor(finalArmor * (1 + ASCENDANCY_KEYSTONE_VALUES.w1.armorMorePct / 100));
     }
     if (hasKeystone('w2')) {
-        let now = getCombatTime();
-        let critStacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
-        let doubleStacks = (game.warriorRhythmDoubleExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
-        let stacks = critStacks + doubleStacks;
+        let stacks = tick.get('warriorRhythmStacks');
         if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1 + ASCENDANCY_KEYSTONE_VALUES.w2.aspdPctPerStack / 100, stacks));
     }
     if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
     if (hasKeystone('w4')) { finalPhysIgnore += ASCENDANCY_KEYSTONE_VALUES.w4.physIgnore; allowNegativePhysIgnore = true; }
     if (hasKeystone('w5')) {
-        warriorPhysDamageMultiplier *= getWarriorRagePhysicalDamageMultiplier(getCombatTime());
+        warriorPhysDamageMultiplier *= tick.get('warriorRageMultiplier');
     }
-    if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
+    if (hasKeystone('w7') && (tick.get('playerHp') / Math.max(1, finalMaxHp)) <= 0.5) {
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.w7.damageMorePct / 100));
         warriorTakenDamageMultiplier *= 0.85;
     }
@@ -3713,16 +3720,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else finalBaseDmg = Math.floor(finalBaseDmg * (1 - ASCENDANCY_KEYSTONE_VALUES.g1.otherLessPct / 100));
     }
     if (hasKeystone('g2')) {
-        let now = getCombatTime();
-        let stacks = (game.gladiatorFlurryExpiresAt || 0) > now ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
+        let stacks = tick.get('gladiatorFlurryStacks');
         if (stacks > 0) {
             finalAspd = Math.min(12, finalAspd * (1 + stacks * ASCENDANCY_KEYSTONE_VALUES.g2.aspdPctPerStack / 100));
             finalEvasion = Math.floor(finalEvasion * (1 + stacks * 0.03));
         }
     }
-    if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0)));
+    if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + tick.get('gladiatorVeteranCrit'));
     if (hasKeystone('g4')) {
-        let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        let crowdCount = tick.get('aliveEnemies');
         if (crowdCount >= 3) {
             finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
             rawDr += 20;
@@ -3730,7 +3736,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         }
     }
     if (hasKeystone('g5')) {
-        if (game.gladiatorSwiftGuardReady) swiftOpeningTakenMultiplier = 0.70;
+        if (tick.get('gladiatorSwiftGuard')) swiftOpeningTakenMultiplier = 0.70;
     }
     if (hasKeystone('g7')) {
         finalDs += Math.min(ASCENDANCY_KEYSTONE_VALUES.g7.dsMax, Math.floor(Math.max(0, finalEvasion) / ASCENDANCY_KEYSTONE_VALUES.g7.evasionPerDs));
@@ -3749,7 +3755,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalCrit = Math.max(0, finalCrit - 6);
         finalCritDmg += 66;
     }
-    if (hasKeystone('a2') && game.assassinBlurred) {
+    if (hasKeystone('a2') && tick.get('assassinBlurred')) {
         finalMove *= 1.2;
         finalCritDmg += 25;
         finalEvasion = Math.floor(finalEvasion * 1.2);
@@ -3760,7 +3766,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalBaseDmg = Math.floor(finalBaseDmg * 0.92);
     }
     if (hasKeystone('a6')) {
-        if ((game.playerHp / Math.max(1, finalMaxHp)) > 0.66) finalCritDmg = Math.floor(finalCritDmg * 1.2);
+        if ((tick.get('playerHp') / Math.max(1, finalMaxHp)) > 0.66) finalCritDmg = Math.floor(finalCritDmg * 1.2);
         else finalEvasion = Math.floor(finalEvasion * 1.2);
     }
     if (hasKeystone('a7')) finalCritDmg -= 200;
@@ -3798,9 +3804,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalMaxHp = Math.floor(finalMaxHp * 0.85);
     }
     if (hasKeystone('r7')) {
-        if (!Number.isFinite(game.playerLastHitAt) || game.playerLastHitAt <= 0) game.playerLastHitAt = getCombatTime();
-        let sinceHitSec = Math.max(0, (getCombatTime() - Math.floor(game.playerLastHitAt || 0)) / 1000);
-        finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * ASCENDANCY_KEYSTONE_VALUES.r7.critPerSecond);
+        finalCrit = Math.min(100, finalCrit + tick.get('sinceHitSeconds') * ASCENDANCY_KEYSTONE_VALUES.r7.critPerSecond);
     }
     // 헌터
     if (hasKeystone('h3')) finalEvasion = Math.floor(finalEvasion * (1 + Math.max(0, finalMove) * 0.002));
@@ -3856,7 +3860,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         crusaderHolyScaledDmg = Math.floor(crusaderHolyFlatDmg * baseDamageIncreaseMultiplier);
         finalBaseDmg = Math.max(1, finalBaseDmg + crusaderHolyScaledDmg);
     }
-    if (hasKeystone('cr8') && (game.crusaderLightningAegisUntil || 0) > getCombatTime()) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.75 : 1));
+    if (hasKeystone('cr8') && tick.get('crusaderAegis')) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.75 : 1));
     // 엘리멘탈리스트
     if (hasKeystone('e1')) {
         if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0;
@@ -3881,7 +3885,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     // 9) 절대 관통: 원소 저항 관통(ASCENDANCY_KEYSTONE_VALUES.e9), 관통 하한은 -300%까지(적용은 mitigation 계산부)
     if (hasKeystone('e9')) finalResPen += ASCENDANCY_KEYSTONE_VALUES.e9.resPen;
     if (hasKeystone('e8')) {
-        let stacks = getElementalistOverloadStacks();
+        let stacks = tick.get('elementalistOverload');
         finalDamageMultiplier *= (1 + stacks * ASCENDANCY_KEYSTONE_VALUES.e8.morePctPerStack / 100);
         finalCrit = Math.max(0, finalCrit - stacks);
     }
@@ -3918,7 +3922,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         dotDurationMultiplier *= 0.5;
     }
     if (hasKeystone('wlk7')) {
-        if ((game.playerEnergyShield || 0) >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.esDamageMorePct / 100));
+        if (tick.get('playerEnergyShield') >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.esDamageMorePct / 100));
     }
     // 가디언
     if (hasKeystone('gd1')) {
@@ -3934,7 +3938,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (hasKeystone('gd5')) {
         genericTakenDamageMultiplier *= 0.85;
     }
-    if (hasKeystone('gd6')) { let now = getCombatTime(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
+    if (hasKeystone('gd6')) { let stacks = tick.get('guardianEnduranceStacks'); if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
     if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(ASCENDANCY_KEYSTONE_VALUES.gd1.damagePctMax, Math.max(0, finalArmor) / 100 * ASCENDANCY_KEYSTONE_VALUES.gd1.damagePctPer100Armor) / 100));
     if (hasKeystone('gd8')) { guardianDamageNullifyChance += 30; ailmentResistBonusPct += 50; }
     if (hasKeystone('gd9')) {
@@ -3943,14 +3947,11 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalLeech *= 0.65;
         finalSpellLeech *= 0.65;
     }
-    if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
+    // The last stand cleanse happens on every call, so finishPlayerStats runs it against this life total.
+    let lastStandMaxHp = hasKeystone('gd7') ? finalMaxHp : null;
+    if (lastStandMaxHp !== null && (tick.get('playerHp') / Math.max(1, finalMaxHp)) <= 0.5) {
         genericTakenDamageMultiplier *= 0.8;
         finalBaseDmg = Math.floor(finalBaseDmg * 1.3);
-        let now = getCombatTime();
-        if ((game.guardianLastStandCleanseAt || 0) + 5000 <= now) {
-            game.playerAilments = [];
-            game.guardianLastStandCleanseAt = now;
-        }
     }
     // 인퀴지터
     if (hasKeystone('iq3')) {
@@ -4072,11 +4073,11 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     finalDs = Math.max(0, finalDs);
     // 스쳐가는 그림자: 주변 적이 일정 수 이상이면 회피 대폭 증폭
     if (uniqueCrowdEvasionMore) {
-        let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        let aliveCnt = tick.get('aliveEnemies');
         if (aliveCnt >= uniqueCrowdEvasionMore.minEnemies) finalEvasion = Math.floor(finalEvasion * (1 + uniqueCrowdEvasionMore.morePct / 100));
     }
     if (uniqueFewEnemyEvasionMore) {
-        let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        let aliveCnt = tick.get('aliveEnemies');
         if (aliveCnt >= uniqueFewEnemyEvasionMore.minEnemies && aliveCnt <= uniqueFewEnemyEvasionMore.maxEnemies) finalEvasion = Math.floor(finalEvasion * (1 + uniqueFewEnemyEvasionMore.morePct / 100));
     }
     if (uniqueFateTwinRollSync) {
@@ -4723,7 +4724,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 isProjectileSkillForDps && fanSpread.extraShotDpsMul > 1 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 확률 ${formatValue('projectileExtraChance', projectileExtraShotsForDps * 100)}%, 발사 상한 반영, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
                 skillSequenceDpsMultiplier > 1 ? `강타 여진 기대값 x${skillSequenceDpsMultiplier.toFixed(2)} (본 타격 후 독립 여진)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
-                warriorPhysicalDpsMultiplier > 1 ? `격노 순환 x${warriorPhysicalDpsMultiplier.toFixed(2)} (${getWarriorRageStacks(getCombatTime())}/${WARRIOR_RAGE_STACK_MAX}중첩)` : null,
+                warriorPhysicalDpsMultiplier > 1 ? `격노 순환 x${warriorPhysicalDpsMultiplier.toFixed(2)} (${tick.get('warriorRageStacks')}/${WARRIOR_RAGE_STACK_MAX}중첩)` : null,
                 (hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
             ].concat(getFanSpreadDpsLines(fanSpread, finalPlayerSkillDps), flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
@@ -4747,7 +4748,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         baseDmg: finalBaseDmg,
         damageIncreasePct: Math.max(0, generalPctDmg + taggedTotal),
         maxHp: finalMaxHp,
-        lifeRecoveryCap: getPlayerRecoveryHpCap({ maxHp: finalMaxHp, uniqueOverhealCapPct: uniqueOverhealCapPct }),
+        lifeRecoveryCap: getPlayerRecoveryHpCap({ maxHp: finalMaxHp, uniqueOverhealCapPct: uniqueOverhealCapPct }, tick),
         aspd: finalAspd || 1.0,
         crit: finalCrit,
         rawCrit: finalCrit,
@@ -4974,10 +4975,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         runeResonancePower: runeResonancePower + Math.max(0, Number(reward.runeResonancePower) || 0),
         supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
-        summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + (((game.summonDeathDamageBuffExpiresAt || 0) > getCombatTime()) ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0)),
+        summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + tick.get('summonDeathDamagePct')),
         summonSharedPctDmg: summonSharedGeneralPctDmg,
         summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))])),
-        summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus + (((game.summonCritAspdExpiresAt || 0) > getCombatTime()) ? Math.max(0, Math.floor(game.summonCritAspdStacks || 0)) * Math.max(0, Number(game.summonCritAspdPerStack || 0)) : 0)),
+        summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus + tick.get('summonCritAspd')),
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
         summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
         summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
@@ -5004,20 +5005,49 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         ? Math.max(0, enemy.summonCap - 1) : 0;
     enemy.talentSourceStats = talentSourceStats;
     if (typeof applyTalentPrecisePostStats === 'function') applyTalentPrecisePostStats(enemy);
-    let summonEstimate = estimateSummonDps(enemy, includeBreakdowns, gemEvaluation);
+    const core = { stats: enemy, gemEvaluation, lastStandMaxHp,
+        immunity: { ignite: uniqueImmuneIgnite, frostSentinel: uniqueFrostSentinel, freeze: uniqueImmuneFreeze,
+            shock: !!uniqueShockTracer, bleed: uniqueBleedBlockHelm || uniqueImmuneBleed, closedEyes: uniqueClosedEyes } };
+    return keepCore ? core : finishPlayerStats(core, includeBreakdowns);
+}
+
+/**
+ * The per-call end of getPlayerStats on a fresh copy: callers adjust the stats they get (condition buffs, chill, skill targets),
+ * and a settlement may answer many calls with one kept calculation (js/player-stat-cache.js). Then the guardian last stand
+ * cleanse, the summon DPS estimate against the current target and the immunity lines, in their old order. (The old end also
+ * added the shock tracer's shock effect to the reward bucket after the stats were built, which nothing read.)
+ */
+function finishPlayerStats(core, includeBreakdowns) {
+    const enemy = { ...core.stats };
+    if (enemy.sSkill) enemy.sSkill = { ...enemy.sSkill };
+    if (enemy.breakdowns) enemy.breakdowns = { ...enemy.breakdowns };
+    if (core.lastStandMaxHp !== null) cleanseGuardianLastStand(core.lastStandMaxHp);
+    let summonEstimate = estimateSummonDps(enemy, includeBreakdowns, core.gemEvaluation);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
     enemy.directDps = Math.max(0, enemy.dps || 0);
     enemy.totalDps = enemy.directDps + enemy.summonDps;
     appendPlayerDpsBreakdowns(enemy, summonEstimate);
-    if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
-    if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
-    if (uniqueImmuneFreeze) enemy.immuneFreeze = true;
-    if (uniqueShockTracer) {
-        enemy.immuneShock = true;
-        addStatToBucket(reward, 'shockEffect', Math.max(0, Number(uniqueShockTracer.shockEffectPct || 0)));
+    applyStatImmunities(enemy, core.immunity);
+    return enemy;
+}
+
+/** gd7 last stand: at half life or less, ailments are cleansed at most every 5 seconds. */
+function cleanseGuardianLastStand(maxHp) {
+    if (!((game.playerHp / Math.max(1, maxHp)) <= 0.5)) return;
+    let now = getCombatTime();
+    if ((game.guardianLastStandCleanseAt || 0) + 5000 <= now) {
+        game.playerAilments = [];
+        game.guardianLastStandCleanseAt = now;
     }
-    if (uniqueBleedBlockHelm || uniqueImmuneBleed) enemy.immuneBleed = true;
-    if (uniqueClosedEyes) {
+}
+
+function applyStatImmunities(enemy, immunity) {
+    if (immunity.ignite) enemy.immuneIgnite = true;
+    if (immunity.frostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
+    if (immunity.freeze) enemy.immuneFreeze = true;
+    if (immunity.shock) enemy.immuneShock = true;
+    if (immunity.bleed) enemy.immuneBleed = true;
+    if (immunity.closedEyes) {
         enemy.immuneIgnite = true;
         enemy.immuneChill = true;
         enemy.immuneFreeze = true;
@@ -5025,7 +5055,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         enemy.immuneBleed = true;
         enemy.immunePoison = true;
     }
-    return enemy;
 }
 
 function appendPlayerDpsBreakdowns(stats, summonEstimate) {
@@ -8758,6 +8787,8 @@ function handleEnemyDeath(enemy, pStats) {
     // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
     if (!liveRef || liveRef.hp > 0) return;
     enemy = liveRef;
+    // Rewards below change build inputs under one settlement memo revision: stats asked for until the end are not kept.
+    playerStatCache.beginEvent();
     // Retire the victim before rewards or corpse explosions can recursively report it again.
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     retireDeadEnemyAttacks(enemy);
@@ -8948,6 +8979,7 @@ function handleEnemyDeath(enemy, pStats) {
     if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
         pendingHeavyUiRefresh = true;
     }
+    playerStatCache.endEvent();
 }
 
 function transferSkillDotOnDeath(enemy) {
