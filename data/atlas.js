@@ -210,7 +210,10 @@ const ATLAS = Object.freeze({
             { id: 'slots', name: '넓은 장치', max: 1, effect: Object.freeze({ slots: 1 }) },
             { id: 'supply', name: '시작 보급', max: 3, supply: Object.freeze([['magicBud', 20], ['formlessDew', 5], ['sapBud', 1]]) },
             // 방치 효율 2(2026-10-08, data/offline-progress.js): 단계마다 방치 효율 +2%p.
-            { id: 'calm', name: '고요한 시대', max: 3, offline: 0.02 }
+            { id: 'calm', name: '고요한 시대', max: 3, offline: 0.02 },
+            // 남는 정수의 쓸 곳(2026-10-09, 루프 50 이후 레벨 디자인): 다른 특전을 다 사면(정수 64, 시대 셋쯤) 정수가 쌓이기만 했다.
+            // 20단계에 정수 210이라 시대를 열 번 넘게 돈다.
+            { id: 'ages', name: '쌓인 시대', max: 20, effect: Object.freeze({ rarity: 3 }) }
         ].map(Object.freeze))
     }),
     // 노드 지도 좌표(0~100): 칸 0~2는 바깥 고리, 3·4 / 5·6 / 7·8은 안쪽 고리들. 안쪽 고리는 10노드가 36°씩 고르게 선다.
