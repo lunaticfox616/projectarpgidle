@@ -339,7 +339,7 @@ body[data-ui-skin] {
 :root body[data-ui-skin] .player-exp-percent::before { content: none; }
 
 /* PC 단축키 표시(자동 이동 · 이동 스킬 칸): 8px 글씨는 도트 글꼴에서 뭉개져 12px, 칸은 16px */
-:root body[data-ui-skin] :is(.player-hud-skill-rack .player-hud-skill-slot, #act-exploration-panel #btn-act-exploration-auto) > .combat-hud-key {
+:root body[data-ui-skin] :is(.player-hud-skill-rack .player-hud-skill-slot, #btn-act-exploration-auto) > .combat-hud-key {
   min-width: 16px;
   height: 16px;
   font-size: 12px;
@@ -469,8 +469,19 @@ body[data-ui-skin] {
   box-shadow: 0 0 0 2px var(--px-ink), inset 0 0 0 2px #000;
   image-rendering: pixelated;
 }
-:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map { top: -6px; right: -6px; border-radius: 0; font-size: 12px; }
-:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-auto { top: -6px; left: -6px; border-radius: 0; font-size: 12px; }
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map { --px-icon: 21; top: auto; right: -4px; bottom: -4px; border-radius: 0; }
+/* 탐험 지도 크게 보기(2026-10-09 사용자: 글자 단추 대신 작은 돋보기): 메뉴 아이콘 21번, 13도트를 2배로 */
+:root body[data-ui-skin] #act-exploration-panel #btn-act-exploration-map::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 26px;
+  height: 26px;
+  background: var(--px-menu-icons) calc(var(--px-icon) * -26px) 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
 
 /* ─── 하단 HUD(2026-09-30): [생명 구슬] [이름] [미니맵] [젬] [경험치 구슬] ─────────────────────
    둥근 셋(생명 · 지도 · 경험치)이 낮은 돌판 위로 솟는다. 장식은 청동 테 하나(창과 같은 테).
@@ -581,28 +592,16 @@ body[data-ui-skin] {
   -webkit-mask: var(--px-map-window) center / 100% 100% no-repeat;
   mask: var(--px-map-window) center / 100% 100% no-repeat;
 }
+/* 돋보기 단추: 테 오른쪽 아래 귀퉁이(위아래 장식과 겹치지 않는 자리) */
 :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-map {
   top: auto;
-  right: auto;
-  bottom: -4px;
-  left: 50%;
+  right: 0;
+  bottom: 0;
+  left: auto;
   z-index: 3;
-  width: auto;
-  height: 22px;
-  padding: 0 10px;
-  transform: translateX(-50%);
-  line-height: 18px;
-  white-space: nowrap;
-}
-/* 자동 이동 단추: 테 위쪽 가운데("지도" 단추와 마주 보게) */
-:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-auto {
-  top: -10px;
-  left: 50%;
-  z-index: 3;
-  height: 20px;
-  padding: 0 8px;
-  transform: translateX(-50%);
-  line-height: 16px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
 }
 /* 젬(주 공격 · 소환 · 자동 사용): 돌판 위, 경험치 구슬 옆 */
 :root body[data-ui-skin] #battle-column .player-hud-shell .player-hud-skill-rack { grid-column: 4; grid-row: 1; align-self: end; justify-self: end; margin-bottom: 2px; }
@@ -698,9 +697,10 @@ body[data-ui-skin] {
   :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel { margin: 14px 0 13px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame #ui-exp-level-label { align-self: center; margin-bottom: calc(var(--px-orb-size) * .2); font-family: var(--font-pixel); font-size: 12px; }
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .player-exp-percent { align-self: center; margin-bottom: 0; margin-top: calc(var(--px-orb-size) * .3); }
-  /* 지도 · 자동 단추는 테에 맞춘 20 ~ 22px 띠라 손가락으로 누르기 어렵다: 보이지 않는 누름 자리를 위아래로 넓힌다(모양은 그대로) */
-  :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel :is(#btn-act-exploration-map, #btn-act-exploration-auto) { overflow: visible; }
-:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel :is(#btn-act-exploration-map, #btn-act-exploration-auto)::after { content: ''; position: absolute; inset: -17px -8px; }
+  /* 돋보기 단추(20px)는 손가락으로 누르기 작다: 보이지 않는 누름 자리를 사방 12px 넓힌다(모양은 그대로) */
+  :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-map { width: 20px; height: 20px; overflow: visible; }
+  :root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-map::before { width: 13px; height: 13px; background-position: calc(var(--px-icon) * -13px) 0; background-size: calc(var(--px-icon-count) * 13px) 13px; }
+:root body[data-ui-skin] #battle-column .player-hud-shell #act-exploration-panel #btn-act-exploration-map::after { content: ''; position: absolute; inset: -12px; }
   /* 작은 생명 구슬(유리 50px)에는 보호막 글자가 들어가지 않는다: 이름표를 빼면 파란 숫자가 무엇인지 알 수 없었고(검토 2026-10-01),
      넣으면 "보호막…"으로 잘렸다 → 구슬 오른쪽, 이름 · 직업 아래 빈자리에 "보호막 현재값" 한 줄. */
   :root body[data-ui-skin] #battle-column .player-hud-shell .player-health-frame .combat-es-text .combat-es-max { display: none; }

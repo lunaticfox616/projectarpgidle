@@ -275,6 +275,7 @@
                 </div>
             </div>
             <div class="combat-zone-actions">
+                <button id="btn-act-exploration-auto" class="combat-action-btn" type="button" aria-pressed="true" aria-label="자동 이동 켜짐, 눌러서 바꾸기" onclick="actExplorationUi.toggleAuto()" hidden><b>자동 켬</b><i class="combat-hud-key" aria-hidden="true" hidden></i></button>
                 <button id="btn-combat-loop-advance" class="combat-action-btn" onclick="handleCombatLoopAdvanceButton()">루프 진행</button>
                 <button id="btn-combat-return" class="combat-action-btn" data-exploration-departure onclick="returnToTown()">귀환</button>
             </div>
@@ -310,8 +311,7 @@
                 </div>
                 <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
                     <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)"></canvas>
-                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기 · 탐험 방식" onclick="actExplorationUi.expand()" hidden>탐험 지도</button>
-                    <button id="btn-act-exploration-auto" type="button" aria-pressed="true" aria-label="자동 이동 켜짐 · 눌러서 바꾸기" onclick="actExplorationUi.toggleAuto()" hidden><b>자동 켬</b><i class="combat-hud-key" aria-hidden="true" hidden></i></button>
+                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기" title="탐험 지도 크게 보기" onclick="actExplorationUi.expand()" hidden></button>
                 </section>
                 <div class="player-hud-skill-rack" aria-label="현재 장착 젬">
                     <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
@@ -1580,7 +1580,7 @@
 <script defer src="js/skill-gem-casts.js?v=20260930-4&p2=20261003-1&balance=20261004-1"></script>
 <script defer src="js/act-exploration-progress.js?v=20260930-15&aux=20261001-1&aux=20261002-20&pickup=20261005-1&dmg=20261005-2&playtest=20261007-9&eff=20261008-1&sight=20261009-1&alert=20261009-1"></script>
 <script defer src="js/exploration-object-combat.js?v=20261005-1&objects=20261005-2&drops=20261005-2&drops=20261005-8&juice=20261005-1&review=20261005-1&pickup=20261005-1&dmg=20261005-2&audio=20261006-1&currency=20261006-1&hive=20261006-1&playtest=20261007-9&playtest=20261007-10&fruit=20261009-1&uniq=20261009-1"></script>
-<script defer src="js/act-exploration-ui.js?v=20260930-15&aux=20260930-3&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-14&aux=20261001-19&late=20261002-1&review=20261002-2&review=20261003-1&vis=20261004-1&ids=20261008-1&wasd=20261009-1"></script>
+<script defer src="js/act-exploration-ui.js?v=20260930-15&aux=20260930-3&aux=20260930-8&aux=20261001-1&aux=20261001-2&aux=20261001-14&aux=20261001-19&late=20261002-1&review=20261002-2&review=20261003-1&vis=20261004-1&ids=20261008-1&wasd=20261009-1&hudbtn=20261009-1"></script>
 <script defer src="js/currency-acquisition-ui.js?v=20260922-1&aux=20260930-5&aux=20260930-8&aux=20261001-1&aux=20261001-15&drops=20261005-8"></script>
 <script defer src="js/condition-patterns.js?v=20260820-es-guard1&choice-feedback=20260904-1&runtime=20260905-1&flow=20260906-1&condition-feedback=20260909-1&aux=20260930-7"></script>
 <script defer src="js/hidden-journal.js?v=20260820-boss-feats1&skill-delta2=20260930-15&aux=20261001-1"></script>

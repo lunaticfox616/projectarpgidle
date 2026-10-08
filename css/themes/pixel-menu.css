@@ -7,7 +7,7 @@
 
 body[data-ui-skin] {
   --px-menu-icons: url('../../assets/ui/pixel/menu-icons.png');
-  --px-icon-count: 21;
+  --px-icon-count: 22;
   --px-key: 40px;
   /* PC HUD 메뉴 단추 한 칸: 아이콘 틀(40) + 그 아래 이름 한 줄(14). 폭은 네 글자(48px). */
   --px-key-slot: 48px;
