@@ -1456,7 +1456,6 @@ body .cfg-group {
 }
 .gem-forge-heading h2,
 .condition-gem-heading h2 { margin: 3px 0 0; color: #ffffff; font-size: 17px; }
-.gem-forge-heading p,
 .condition-gem-heading p { max-width: 470px; margin: 0; color: #eef2f6; font-size: 10px; line-height: 1.5; }
 .gem-application-note { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }
 #tab-skills .is-gem-selected { outline: 2px solid var(--color-accent-gold, #c8ad70); outline-offset: 2px; }
@@ -1667,11 +1666,6 @@ body .cfg-group {
 .gem-current-inscriptions strong { display: block; }
 .gem-current-inscriptions span { color: #eef2f6; font-size: 7px; }
 .gem-current-inscriptions strong { margin-top: 2px; color: #ffffff; font-size: 8px; line-height: 1.4; }
-.gem-growth-breakdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 7px; overflow: hidden; border: 1px solid rgba(55, 78, 101, .58); border-radius: 7px; background: rgba(5, 11, 18, .58); }
-.gem-growth-breakdown span { min-width: 0; padding: 5px; color: #eef2f6; border-left: 1px solid rgba(54, 75, 96, .48); font-size: 7px; text-align: center; }
-.gem-growth-breakdown span:first-child { border-left: 0; }
-.gem-growth-breakdown b { display: block; margin-top: 1px; color: #ffffff; font-size: 8px; }
-.gem-growth-output { padding: 5px 7px; color: #ffffff; border: 1px solid rgba(55, 78, 101, .52); border-top: 0; background: rgba(9, 18, 29, .72); font-size: 8px; text-align: center; }
 
 .gem-resource-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; border: 1px solid rgba(51, 75, 100, .7); border-radius: 8px; background: rgba(5, 12, 20, .76); }
 .gem-resource-strip > div { min-width: 0; padding: 7px; border-left: 1px solid rgba(48, 70, 93, .52); text-align: center; }
@@ -1688,7 +1682,6 @@ body .cfg-group {
 .gem-enhance-section-head > div:first-child { display: flex; align-items: center; gap: 8px; }
 .gem-section-index { display: grid; place-items: center; width: 26px; height: 26px; color: #eef2f6; border: 1px solid #36516a; border-radius: 50%; font-size: 8px; font-weight: 900; }
 #tab-skills .gem-enhance-section-title { margin: 0; color: #ffffff; font-size: 11px; }
-#tab-skills .gem-enhance-section-desc { margin: 2px 0 0; color: #eef2f6; font-size: 8px; }
 .gem-engrave-orbit { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 7px; margin: 8px 0 12px; padding: 12px 12px 9px; border: 1px solid rgba(107, 82, 145, .6); border-radius: 10px; background: radial-gradient(circle at 50% 44%, rgba(101, 68, 146, .2), transparent 39%), linear-gradient(180deg, rgba(10, 10, 22, .92), rgba(5, 7, 14, .82)); overflow: hidden; }
 .gem-orbit-stage { --gem-orbit-slot-size: 58px; position: relative; isolation: isolate; width: min(100%, 328px); aspect-ratio: 1; margin: 0 auto; }
 .gem-orbit-rings { position: absolute; inset: 35px; border: 1px solid rgba(155, 119, 203, .38); border-radius: 50%; box-shadow: inset 0 0 34px rgba(105, 64, 154, .13), 0 0 24px rgba(85, 55, 126, .1); pointer-events: none; }
@@ -1810,13 +1803,9 @@ body .cfg-group {
 #tab-skills .gem-target-profile p { color: #ffffff; font-size: 10px; }
 #tab-skills .gem-current-inscriptions span { color: #eef2f6; font-size: 9px; }
 #tab-skills .gem-current-inscriptions strong { color: #ffffff; font-size: 10px; }
-#tab-skills .gem-growth-breakdown span { color: #eef2f6; font-size: 8.5px; }
-#tab-skills .gem-growth-breakdown b,
-#tab-skills .gem-growth-output { color: #ffffff; font-size: 9.5px; }
 #tab-skills .gem-resource-strip span { color: #eef2f6; font-size: 11px; }
 #tab-skills .gem-resource-strip strong { color: #ffffff; font-size: 13px; }
 #tab-skills .gem-enhance-section-title { color: #ffffff; font-size: 13px; }
-#tab-skills .gem-enhance-section-desc { color: #eef2f6; font-size: 10px; line-height: 1.45; }
 #tab-skills .gem-orbit-copy strong { color: #f0e6fa; font-size: 11px; }
 #tab-skills .gem-orbit-copy span { color: #b1a3c1; font-size: 9.5px; }
 #tab-skills .gem-orbit-legend b { font-size: 8.5px; }

@@ -4144,21 +4144,22 @@ function renderSealedGemCard(name, highlightedName, isSupport) {
     return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></article>`;
 }
 
+/** 젬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
 function getGemGrowthSummaryHtml(name, presentation) {
     if (!presentation || !presentation.skill) return '';
-    let skill = presentation.skill;
-    let sourceBonus = formatValue('', Math.max(0, (presentation.totalLevel || 0) - (presentation.baseLevel || 0) - (presentation.materialBonus || 0)));
-    let parts = [
-        `<span>기본 Lv.<b>${presentation.baseLevel || 1}</b></span>`,
-        `<span>재료/각성 <b>+${presentation.materialBonus || 0}</b></span>`,
-        `<span>장비/패시브 <b>+${sourceBonus}</b></span>`,
-        `<span>최종 Lv.<b>${formatValue('', presentation.totalLevel || presentation.finalLevel || 1)}</b></span>`
-    ];
-    let combatParts = [];
-    if (Number.isFinite(skill.dmg)) combatParts.push(`피해 계수 ${skill.dmg.toFixed(2)}`);
-    if (Number.isFinite(skill.spd)) combatParts.push(`속도 ${skill.spd.toFixed(2)}`);
-    if (Number.isFinite(skill.crit)) combatParts.push(`치명타 ${skill.crit.toFixed(1)}%`);
-    return `<div class="gem-growth-breakdown">${parts.join('')}</div>${combatParts.length > 0 ? `<div class="gem-growth-output">${escapeHTML(combatParts.join(', '))}</div>` : ''}`;
+    const base = Number(presentation.baseLevel) || 1, material = Number(presentation.materialBonus) || 0;
+    const total = Number(presentation.totalLevel || presentation.finalLevel) || 1;
+    const parts = [['base', '기본', base], ['material', '재료/각성', material], ['source', '장비/패시브', Math.max(0, total - base - material)]];
+    const bar = parts.map(([key, , value]) => `<i class="is-${key}" style="flex-grow:${value}"></i>`).join('');
+    const legend = parts.map(([key, label, value]) => `<span class="is-${key}">${label} <b>${key === 'base' ? '' : '+'}${formatValue('', value)}</b></span>`).join('');
+    return `<div class="gem-level"><div class="gem-level-final"><small>최종</small><b>Lv.${formatValue('', total)}</b></div><div class="gem-level-bar" aria-hidden="true">${bar}</div>`
+        + `<div class="gem-level-legend">${legend}</div></div>${getGemCombatChipsHtml(presentation.skill)}`;
+}
+
+function getGemCombatChipsHtml(skill) {
+    const chips = [Number.isFinite(skill.dmg) ? ['피해 계수', skill.dmg.toFixed(2)] : null, Number.isFinite(skill.spd) ? ['속도', skill.spd.toFixed(2)] : null,
+        Number.isFinite(skill.crit) ? ['치명타', `${skill.crit.toFixed(1)}%`] : null].filter(Boolean);
+    return chips.length ? `<div class="gem-level-stats">${chips.map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join('')}</div>` : '';
 }
 
 function renderGemEnhanceTargetCard(name, selected, stats) {
@@ -4297,8 +4298,8 @@ function renderSkyEnhancementOption(enhancement, activeSlots, isGem) {
     let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
     let group = getSkyEnhancementGroup(enhancement);
     let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
-    let actionLabel = applied ? (removeCost > 0 ? `다시 눌러 해제, 창공 ${removeCost}` : '다시 눌러 무료 해제') : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '빈 슬롯에 각인, 창공 1';
-    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+    let actionLabel = applied ? `적용 중, 해제 창공 ${removeCost}` : !compatible ? '투사체 젬 전용' : locked ? '젬 각성 해금 필요' : '창공 1';
+    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
 }
 
 function closeGemEngraveSlotOverlay() {
@@ -4378,7 +4379,7 @@ function renderSupportGemProcessList() {
         let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, rec.unlockedTier || 1) : `${rec.unlockedTier || 1}등급`;
         let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '젬 레벨 +1';
         let disabled = !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
-        let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel}, ${state ? state.need : 0}`;
+        let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel}, 창공 ${state ? state.need : 0}`;
         return `<div class="gem-support-process-card"><div><small>${tierLabel}, Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${statToneText.html((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
     }).join('');
 }

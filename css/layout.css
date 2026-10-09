@@ -188,7 +188,6 @@
         .gem-enhance-section { margin-top: 12px; padding: 12px; border: 1px solid #29445f; border-radius: 10px; background: linear-gradient(180deg, rgba(20, 31, 45, 0.9), rgba(13, 19, 29, 0.9)); }
         .gem-enhance-section:first-of-type { margin-top: 8px; }
         .gem-enhance-section-title { color: var(--copy-bright); font-weight: 800; margin-bottom: 4px; }
-        .gem-enhance-section-desc { color: var(--copy-muted); font-size: 0.82em; margin-bottom: 10px; line-height: 1.45; }
         .gem-inscription-section { border-color: #4c426d; background: linear-gradient(180deg, rgba(31, 25, 45, 0.92), rgba(17, 16, 29, 0.92)); }
         .gem-enhance-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:0; }
         .gem-upgrade-btn { text-align:left; background:#2c3e50; border:1px solid #496584; border-radius:8px; padding:8px; }

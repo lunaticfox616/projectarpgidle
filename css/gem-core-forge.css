@@ -74,6 +74,29 @@ dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #1
 @keyframes gem-forge-impact { 0% { transform: scale(.8); } 30% { transform: scale(1.16); } 100% { transform: scale(1); } }
 @keyframes gem-forge-burst { from { transform: scale(.55); opacity: 1; border-color: var(--forge-accent); } to { transform: scale(1.65); opacity: 0; border-color: var(--forge-accent); } }
 @keyframes gem-forge-reward { 0% { transform: scale(.92); opacity: .4; } 35% { transform: scale(1.06); text-shadow: 0 0 18px var(--forge-accent); } 100% { transform: scale(1); opacity: 1; text-shadow: none; } }
+/* 젬 성장 왼쪽 레벨 구성(js/ui.js getGemGrowthSummaryHtml): 최종 레벨, 기본(금)/재료와 각성(파랑)/장비와 패시브(초록) 막대, 전투 수치 칩 */
+.gem-target-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.gem-target-kicker > i { padding: 0 6px; color: var(--gem-accent); font-style: normal; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gem-accent) 55%, transparent); }
+.gem-level { --lv-base: #d9b066; --lv-material: #6fa8d8; --lv-source: #8cc97a; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 14px;
+    margin-top: 8px; padding: 10px 12px; background: rgba(8, 5, 8, .45); box-shadow: inset 0 0 0 1px #3a2f20; }
+.gem-level-final { display: grid; grid-row: span 2; justify-items: start; }
+.gem-level-final small { color: #a39883; }
+.gem-level-final b { color: #f3d28c; font-size: 22px; line-height: 1.1; }
+.gem-level-bar { display: flex; height: 10px; overflow: hidden; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
+.gem-level-bar > i { flex: 0 1 0; min-width: 0; }
+.gem-level-bar > .is-base, .gem-level-legend > .is-base::before { background: var(--lv-base); }
+.gem-level-bar > .is-material, .gem-level-legend > .is-material::before { background: var(--lv-material); }
+.gem-level-bar > .is-source, .gem-level-legend > .is-source::before { background: var(--lv-source); }
+.gem-level-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; color: #a39883; font-size: 12px; }
+.gem-level-legend > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.gem-level-legend > span::before { content: ''; width: 8px; height: 8px; }
+.gem-level-legend > .is-base b { color: var(--lv-base); }
+.gem-level-legend > .is-material b { color: var(--lv-material); }
+.gem-level-legend > .is-source b { color: var(--lv-source); }
+.gem-level-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 4px; margin-top: 4px; }
+.gem-level-stats > span { display: grid; padding: 5px 8px; background: rgba(8, 5, 8, .45); box-shadow: inset 0 0 0 1px #2a2218; }
+.gem-level-stats small { color: #a39883; }
+.gem-level-stats b { color: #f3eddf; font-size: 14px; }
 @media (max-width: 560px) {
     #ui-gem-core-forge { gap: 8px; }
     button.gem-forge-track { padding: 12px; }

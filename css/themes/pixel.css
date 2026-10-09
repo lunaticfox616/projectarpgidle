@@ -494,7 +494,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(#tab-skills, .gem-engrave-slot-dialog) .gem-engrave-option.applied { border-radius: 0; box-shadow: var(--px-gold-rim); }
 :root body[data-ui-skin] .ghost-arena > header { background: var(--px-wood-dark), var(--px-stone-raised); }
 /* 공방의 7 ~ 10px 글씨(각인 꼬리표 · 층 · 안내)는 카드 폭이 넉넉해 도트 12px로 */
-:root body[data-ui-skin] :is(.gem-engrave-top :is(em, b), .gem-forge-heading p, .gem-process-empty button, .gem-engrave-slot-guide :is(strong, span)) { font-size: 12px; }
+:root body[data-ui-skin] :is(.gem-engrave-top :is(em, b), .gem-process-empty button, .gem-engrave-slot-guide :is(strong, span)) { font-size: 12px; }
 :root body[data-ui-skin] .gem-engrave-top em { border-radius: 0; }
 :root body[data-ui-skin] .gem-engrave-slot-guide strong { white-space: nowrap; }
 /* 패시브 트리 위 프리셋 서랍: 예전 파랑 유리 판 → 가벼운 판, 머리띠는 청동 선 아래 어두운 판 */
@@ -622,7 +622,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .records-stat-value, .journal-section-title, .gem-enhance-section-title,
     .map-zone-group-title, .craft-spores-title, .stat-value) { font-family: var(--font-pixel-read); font-size: 15px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(p, li, label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
-    .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .gem-enhance-section-desc) { font-family: var(--font-pixel); font-size: 12px; }
+    .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance) { font-family: var(--font-pixel); font-size: 12px; }
 /* 단추처럼 쓰는 접힘 제목(장비 '일괄 해체', 해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
    소제목 크기(갈무리 15)라 옆 단추와 글꼴 · 크기가 달랐다(검토 4차) */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.equipment-bulk-menu, .unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-stall details) > summary { font-family: var(--font-pixel); font-size: 12px; }
