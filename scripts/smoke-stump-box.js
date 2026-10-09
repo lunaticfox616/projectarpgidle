@@ -196,7 +196,7 @@ assert.strictEqual(run('Array.isArray(game.stumpBox.items) && game.stumpBox.boar
 // ── 거름은 자라는 것이 없으면 쓰지 않는다, 꽉 찬 보관함의 드랍도 그때는 놓친다 ─────────────────────
 fresh({ journalEntries: ['prologue', 'act_10'] });
 const idle = run('stumpBox.createItem(game, { family: "seed", color: "fire", roll: 1 }).id');
-assert.strictEqual(run(`stumpBox.compostReason(game, ${idle})`), '판에서 성장 중인 그루터기 아이템이 없습니다.', 'compost needs something growing');
+assert.strictEqual(run(`stumpBox.compostReason(game, ${idle})`), '그루터기 함에서 성장 중인 아이템이 없습니다.', 'compost needs something growing');
 assert.strictEqual(run(`stumpBox.compost(game, ${idle})`), null);
 assert.ok(run(`stumpBox.itemById(game, ${idle}) !== null`), 'a refused compost keeps the item');
 run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
@@ -211,7 +211,7 @@ run(`game.stumpBox.harvest.grown = ['flower-fire', 'flower-cold', 'flower-lightn
 assert.deepStrictEqual(json('stumpBox.bulkItems(game, "fire").map(item => item.roll).sort()'), [0.8, 0.85, 0.9], 'the best three of a kind and golden ones stay');
 assert.deepStrictEqual(json('stumpBox.bulkItems(game, "cold")'), [], 'another colour takes nothing');
 assert.strictEqual(run('stumpBox.bulkItems(game, "all").length'), 3, 'the all filter takes every colour');
-assert.strictEqual(run('stumpBox.bulkCompostReason(game, "fire")'), '판에서 성장 중인 그루터기 아이템이 없습니다.', 'bulk compost needs something growing');
+assert.strictEqual(run('stumpBox.bulkCompostReason(game, "fire")'), '그루터기 함에서 성장 중인 아이템이 없습니다.', 'bulk compost needs something growing');
 run("{ const sap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1 }); stumpBox.place(game, sap.id, 12); sap.xp = stumpBox.need(sap) - 60; }");
 assert.deepStrictEqual(json('stumpBox.bulkCompostPlan(game, "fire").map(item => item.roll)'), [0.8, 0.85], 'the plan stops once the growing sap would ripen (48 + 51 ≥ 60)');
 assert.deepStrictEqual(json('(() => { const result = stumpBox.compostMany(game, "fire"); return [result.count, result.growth, result.ripened.length]; })()'), [2, 99, 1]);

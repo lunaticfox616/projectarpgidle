@@ -121,7 +121,7 @@ const stumpRipeningUi = (() => {
     /** What growing items the plan feeds: all of them, by the plan's whole growth. */
     function compostOutcome(plan) {
         const growth = plan.reduce((sum, item) => sum + stumpBox.compostGrowth(item), 0);
-        return `판에서 성장 중인 그루터기 아이템 ${stumpBox.growingItems(game).length}개의 경험치가 ${growth} 증가합니다.`;
+        return `그루터기 함에서 성장 중인 아이템 ${stumpBox.growingItems(game).length}개의 경험치가 ${growth}만큼 증가합니다.`;
     }
     /** Asks before a bulk action, naming what it will use; a refusal is a toast. @returns {Promise<boolean>} */
     async function confirmBulk(kind, filter) {

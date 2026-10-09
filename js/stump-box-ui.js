@@ -111,13 +111,13 @@ const stumpBoxUi = (() => {
     /** 루프가 바뀔 때: 성장 완료된 그루터기 아이템의 경험치가 초기화된다(뿌리 기억은 그만큼 남긴다). */
     function stumpLoopRule() {
         const keep = stumpBox.rootMemoryPct(game);
-        return `루프가 바뀌면 성장 완료된 그루터기 아이템의 경험치가 초기화됩니다${keep ? `(뿌리 기억 ${keep}% 유지)` : ''}.`;
+        return `루프가 바뀌면 성장 완료된 아이템의 경험치가 초기화됩니다${keep ? `(뿌리 기억 ${keep}% 유지)` : ''}.`;
     }
     /** The ? card: only the rules a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만, 용어는 그루터기 아이템, 경험치,
      * 성장 완료, 비활성화로 통일하고 "것" 같은 지칭은 쓰지 않는다). */
     function stumpRulesTipHtml() {
-        const rules = ['판에 배치한 그루터기 아이템만 처치 시 경험치를 얻습니다.', `공명: 성장 완료된 같은 색 ${STUMP_BOX_RESONANCE.count}개 이상이면 그 색 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`,
-            '비활성화: 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', '거름: 보관함의 씨앗이나 수액을 소모해 판에서 성장 중인 그루터기 아이템의 경험치를 올립니다.',
+        const rules = ['그루터기 함에 있는 아이템만 처치 시 경험치를 얻습니다.', `공명: 성장 완료된 같은 색 ${STUMP_BOX_RESONANCE.count}개 이상이면 그 색 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`,
+            '비활성화: 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', '거름: 보관함의 씨앗이나 수액을 소모해 그루터기 함에서 성장 중인 아이템의 경험치를 올립니다.',
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
         rules.push(...stumpRipeningUi.rulesLines());
@@ -567,7 +567,7 @@ const stumpBoxUi = (() => {
         stumpHarvestUi.announceGraftJournal();
         if (sawIntro) return given.length && announceStumpStarter();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
-            '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗, 수액 1개씩)을 받았습니다.\n판에 배치한 그루터기 아이템만 처치 시 경험치를 얻습니다.\n'
+            '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗, 수액 1개씩)을 받았습니다.\n그루터기 함에 있는 아이템만 처치 시 경험치를 얻습니다.\n'
             + '성장 완료된 같은 색 3개 이상은 공명(+10%), 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', 'tab-stump');
     }
     /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 젬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
@@ -585,11 +585,11 @@ const stumpBoxUi = (() => {
         if (!scar) return;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🔥 그루터기 함: ${withObjectParticle(STUMP_BOX_SCAR.name)} 받았습니다. 판에 배치해 깨우세요.`, 'loot-unique');
+        addLog(`🔥 그루터기 함: ${withObjectParticle(STUMP_BOX_SCAR.name)} 받았습니다. 그루터기 함에 배치해 깨우세요.`, 'loot-unique');
     }
     /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
     function announceStumpStarter() {
-        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 보상', '씨앗, 수액 1개씩을 보관함에 넣었습니다.\n판에 배치해야 처치 시 경험치를 얻습니다.', 'tab-stump');
+        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 보상', '씨앗, 수액 1개씩을 보관함에 넣었습니다.\n그루터기 함에 배치해야 처치 시 경험치를 얻습니다.', 'tab-stump');
     }
     /** Once, when the reached loop opens grafting (loop 18; saves already past it see it after this update). */
     function announceStumpGraft() {
@@ -619,7 +619,7 @@ const stumpBoxUi = (() => {
     function stumpCompostDropText(compost) {
         const name = `${STUMP_BOX_COLORS[compost.color].label} ${STUMP_BOX_STAGES[compost.family].label}`;
         return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${name}이 거름이 됐습니다(성장 중인 ${compost.fed}개 경험치 +${compost.growth}).`
-            : `🌱 그루터기 함 보관함이 가득 찼고 판에 성장 중인 그루터기 아이템도 없어 ${name}을 놓쳤습니다.`;
+            : `🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 아이템도 없어 ${name}을 놓쳤습니다.`;
     }
     /** What a ripened item now gives (resonance and graft included), for the toast. */
     function stumpRipeGain(item) {
