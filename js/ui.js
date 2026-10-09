@@ -2099,6 +2099,8 @@ function switchTab(tabId) {
     // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
+    // 장비 창을 열면 현재 세팅 분석을 한 번 돌린다(js/equipment-triage.js autoStart).
+    if (tabId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
     document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && uiDisplay.matches('(max-width: 1080px)'));
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
@@ -2194,6 +2196,7 @@ function switchItemSubtab(subtabId) {
         subtabId = 'item-tab-equip';
     }
     game.itemSubtab = subtabId;
+    if (subtabId === 'item-tab-equip' && window.equipmentTriage) window.equipmentTriage.onOpen();
     document.querySelectorAll('#tab-items .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-items .subtab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(subtabId).classList.add('active');
@@ -9285,7 +9288,7 @@ function performUpdateStaticUI() {
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
     if (window.equipmentTriage) {
-        window.equipmentTriage.sync();
+        window.equipmentTriage.autoStart();
         window.equipmentTriage.render();
     }
     const equipInvRows = getSortedEquipmentInventoryRows(sf.equip);
