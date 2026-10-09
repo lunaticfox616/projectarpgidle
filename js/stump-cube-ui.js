@@ -95,7 +95,7 @@ const stumpCubeUi = (() => {
             + ` onclick="stumpCubeUi.openCubePicker('${kind}')">${KIND_LABELS[kind]} ${stumpCube.candidates(kind).length}</button>`).join('');
         const list = stumpCube.candidates(pickerKind).map((item, index) => candidateHtml(pickerKind, item, index)).join('');
         return `<p class="selection-overlay-help">누르면 조합창의 빈 자리에 들어갑니다. 재료는 조합하기 전까지 원래 보관 자리에 그대로 있습니다.
-                잠근 장비, 장비 세팅에 든 장비, 그루터기 함에 배치된 아이템은 넣을 수 없습니다.</p>
+                잠근 장비, 장비 세팅에 든 장비, 그루터기 함에 배치된 그루터기 아이템은 넣을 수 없습니다.</p>
             <div class="stump-cube-picker-tabs">${tabs}</div>
             <div class="stump-cube-candidates">${list || '<p class="selection-overlay-help">넣을 수 있는 아이템이 없습니다.</p>'}</div>`;
     }

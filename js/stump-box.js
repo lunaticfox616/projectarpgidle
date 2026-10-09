@@ -411,7 +411,7 @@ const stumpBox = (() => {
         const box = of(state), item = findItem(box, id);
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (!item || !FAMILIES.includes(item.family) || box.board.includes(id)) return '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.';
-        return growingItems(state).length ? '' : '그루터기 함에서 성장 중인 아이템이 없습니다.';
+        return growingItems(state).length ? '' : '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.';
     }
     /** Spreads a stored seed or sap: it is used up and every growing item gains its compost growth.
      * @returns {?{growth: number, fed: number, ripened: object[]}} null when not allowed. */
@@ -462,7 +462,7 @@ const stumpBox = (() => {
     function bulkCompostReason(state, filter) {
         if (!bulkCompostOpen(state)) return `수확 일지를 ${STUMP_BOX_UNLOCKS.find(row => row.bulkCompost).when.harvestCells}칸 채우면 열립니다.`;
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
-        if (!growingItems(state).length) return '그루터기 함에서 성장 중인 아이템이 없습니다.';
+        if (!growingItems(state).length) return '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.';
         return bulkItems(state, filter).length ? '' : '거름으로 쓸 씨앗이나 수액이 없습니다.';
     }
     /** Spreads the filter's bulk-compost plan one by one. @returns {?{count, growth, fed, ripened}} null when not allowed. */

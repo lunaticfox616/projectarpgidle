@@ -62,7 +62,7 @@ const stumpHarvestUi = (() => {
     // What each kind of unlock does, for its notice (the first match wins: 봉인 칸 1 also opens 포식).
     const UNLOCK_TEXTS = Object.freeze([
         [row => row.storage, row => `보관함 +${row.storage}칸`],
-        [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 루프가 바뀌어도 성장 완료된 아이템의 경험치 ${row.keepPct}% 유지`],
+        [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 루프가 바뀌어도 성장 완료된 그루터기 아이템의 경험치 ${row.keepPct}% 유지`],
         [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗, 수액을 한 번에 거름으로 사용'],
         [row => row.breeding, () => '번식: 루프가 바뀔 때 성장 완료된 열매마다 보관함에 씨앗 1개(가끔 다른 색, 황금)'],
         [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 3개 중 1개 선택'],
