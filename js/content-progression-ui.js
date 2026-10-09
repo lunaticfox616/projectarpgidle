@@ -219,8 +219,7 @@ const contentUnlockUi = {
     entryReward(def, status) {
         const reward = !status.unlocked && def.rewardText ? `<p class="unlock-reward">${escapeHTML(def.rewardText)}</p>` : '';
         const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(def.name)} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(row.label)}</option>`).join('')}</select></label>` : '';
-        const guide = def.id === 'craft' ? '<p class="unlock-craft-guide">일반 장비가 없다면 사냥에서 획득하세요. 제련하지 않아도 다음 루프는 진행할 수 있습니다.</p>' : '';
-        return reward + picker + guide;
+        return reward + picker;
     },
     lockAttribute(id) {
         return contentProgression.isUnlocked(id) ? '' : 'data-content-locked';

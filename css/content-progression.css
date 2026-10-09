@@ -138,3 +138,16 @@
 [data-content-locked]:not(.nav-locked){/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
 .content-craft-locked [data-content-action="craft"]{display:none}
 .content-choice-progression #season-content-section{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}}
+@layer features{
+/* 창 UI에서 해금 판이 창 높이를 채운다(2026-10-09: 연결도와 이정표가 390px에 묶여 창을 키우면 아래가 비었다). 연결도와 이정표가 남는 높이를
+   모두 쓰고 오른쪽 설명은 넘치면 따로 스크롤한다. 작은 창에서는 작업 칸이 470px(예전 연결도 높이)을 지키고 창 몸통이 스크롤한다. */
+body.desktop-windowed-ui #tab-unlocks>.ui-window-body{display:flex;flex-direction:column}
+body.desktop-windowed-ui #content-unlock-panel{flex:1 0 auto;display:flex;flex-direction:column;margin-bottom:0}
+body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
+@container(min-width:841px){
+ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 1 0;min-height:470px}
+ body.desktop-windowed-ui #content-unlock-panel .unlock-content{display:flex;flex-direction:column;min-height:0}
+ body.desktop-windowed-ui #content-unlock-panel :is(.unlock-map,.unlock-milestones){flex:1 1 0;min-height:0;max-height:none}
+ body.desktop-windowed-ui #content-unlock-panel .unlock-start{flex:1 0 auto}
+ body.desktop-windowed-ui #content-unlock-panel .unlock-detail{min-height:0;overflow-y:auto}
+}}
