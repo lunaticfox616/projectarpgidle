@@ -12,9 +12,10 @@ const ATLAS = Object.freeze({
     // 루프마다 이번 루프 혼돈 20을 처음 깨면 받는 지도석(최고 완료 등급 − belowBest).
     starter: Object.freeze({ count: 3, belowBest: 2 }),
     drops: Object.freeze({
-        regular: 0.015, elite: 0.08, bossExtra: 0.35,
+        // 2026-10-09 사용자: 지도석이 넘쳐 귀한 맛이 없다 → 16등급에서 같은 등급 이상이 판마다 1.3개 안팎(드랍 시뮬레이터, 패시브 없이).
+        regular: 0.004, elite: 0.03, bossExtra: 0.05,
         // 지도 안에서 떨어진 지도석의 등급: 한 등급 위 · 같은 등급 · 한~세 등급 아래.
-        tierUp: 0.2, tierSame: 0.55,
+        tierUp: 0.2, tierSame: 0.5,
         magic: 0.25, rare: 0.05, qualityChance: 0.3, quality: 10,
         // 지도 밖: 혼돈 20 이상 보스가 낮은 등급 지도석을 드물게 떨어뜨린다(지도석이 바닥났을 때의 입구).
         outsideDepth: 20, outsideBoss: 0.08, outsideTier: 3
@@ -83,7 +84,7 @@ const ATLAS = Object.freeze({
         { id: 'monsterCrit', kind: 'prefix', text: '몬스터 치명타 확률 +{v}%', min: 10, max: 20, quantity: [5, 8], rarity: [3, 4] },
         { id: 'extraElites', kind: 'prefix', text: '전투 방의 {v}%에 정예 추가', min: 20, max: 35, quantity: [8, 12], rarity: [6, 9] },
         { id: 'packSize', kind: 'prefix', text: '무리마다 몬스터 +{v}', min: 1, max: 2, integer: true, quantity: [8, 14], rarity: [3, 5] },
-        { id: 'bossEmpowered', kind: 'prefix', text: '보스 생명력 · 피해 {v}% 증가', min: 30, max: 50, quantity: [6, 10], rarity: [8, 12] },
+        { id: 'bossEmpowered', kind: 'prefix', text: '보스 생명력, 피해 {v}% 증가', min: 30, max: 50, quantity: [6, 10], rarity: [8, 12] },
         { id: 'lessLeech', kind: 'suffix', text: '몬스터에게서 흡수하는 생명력 {v}% 감소', min: 40, max: 60, quantity: [5, 8], rarity: [3, 4] },
         { id: 'penetration', kind: 'suffix', text: '몬스터 저항 관통 +{v}%', min: 8, max: 15, quantity: [6, 9], rarity: [3, 5] },
         { id: 'doubleStrike', kind: 'suffix', text: '몬스터 연속 타격 확률 +{v}%', min: 12, max: 20, quantity: [6, 9], rarity: [3, 5] },

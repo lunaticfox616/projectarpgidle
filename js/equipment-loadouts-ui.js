@@ -8,7 +8,7 @@ function renderEquipmentLoadoutPresetSlot(preset, index, selectedSlot) {
     let inspection = equipmentLoadoutRuntime.inspect(index);
     let blocked = inspection.missing.length + inspection.incompatible.length;
     let stateClass = !preset ? ' empty' : inspection.applied ? ' applied' : blocked ? ' missing' : '';
-    let meta = !preset ? '빈 세팅' : inspection.applied ? `현재 적용 · ${inspection.count}부위`
+    let meta = !preset ? '빈 세팅' : inspection.applied ? `현재 적용, ${inspection.count}부위`
         : inspection.missing.length > 0 ? `누락 ${inspection.missing.length}`
             : inspection.incompatible.length > 0 ? `장착 불가 ${inspection.incompatible.length}` : `${inspection.count}부위`;
     return `<button type="button" class="equipment-preset-slot${index === selectedSlot ? ' selected' : ''}${stateClass}"
@@ -30,7 +30,7 @@ function renderEquipmentLoadoutPresetPanel() {
             ? `<span class="equipment-preset-warning">현재 장착 불가: ${escapeHTML(inspection.incompatible.map(row => row.name).join(', '))}</span>`
             : '<span>프리셋에 저장된 장비는 일괄 해체에서 자동 보호됩니다.</span>';
     let html = `<section class="equipment-preset-panel">
-        <header><div><span>빠른 전환</span><strong>장비 세팅 프리셋</strong></div><small>사냥·보스·생존 세팅을 안전하게 전환</small></header>
+        <header><div><span>빠른 전환</span><strong>장비 세팅 프리셋</strong></div><small>사냥/보스/생존 세팅을 안전하게 전환</small></header>
         <div class="equipment-preset-slots">${state.presets.map((row, index) => renderEquipmentLoadoutPresetSlot(row, index, selected)).join('')}</div>
         <div class="equipment-preset-actions">
             <button type="button" onclick="equipmentLoadoutUi.save()">현재 장비 저장</button>
@@ -59,7 +59,7 @@ async function saveEquipmentLoadoutPresetFromUi() {
     })) return false;
     let result = equipmentLoadoutRuntime.save(index);
     if (!result.ok) { addLog(result.reason, 'attack-monster'); return false; }
-    addLog(`🧰 장비 세팅 [${result.preset.name}] 저장 · ${result.count}부위`, 'season-up');
+    addLog(`🧰 장비 세팅 [${result.preset.name}] 저장, ${result.count}부위`, 'season-up');
     if (typeof queueImportantSave === 'function') queueImportantSave(100);
     updateStaticUI();
     return true;
@@ -74,7 +74,7 @@ function applyEquipmentLoadoutPresetFromUi() {
     // 조용히 제작 대상이 될 수 있다. 성공한 전환에서만 선택을 명시적으로 해제한다.
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
     if (typeof hideItemTooltip === 'function') hideItemTooltip();
-    addLog(`🧰 장비 세팅 전환: [${result.preset.name}] · ${result.count}부위`, 'season-up');
+    addLog(`🧰 장비 세팅 전환: [${result.preset.name}], ${result.count}부위`, 'season-up');
     if (typeof queueImportantSave === 'function') queueImportantSave(100);
     updateStaticUI();
     return true;

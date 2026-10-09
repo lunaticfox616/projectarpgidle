@@ -23,7 +23,7 @@
 .loot-highlight-name { display: grid; gap: 3px; min-width: 0; }
 .loot-highlight-card strong { color: var(--color-text); font-size: 13px; overflow-wrap: anywhere; }
 .loot-highlight-card small { color: var(--color-text-tertiary); font-size: 11px; }
-.loot-highlight-reason { flex: 0 0 auto; color: var(--color-text-secondary); font-size: 11px; }
+.loot-highlight-reason { flex: 0 0 auto; color: var(--loot-reason, var(--color-text-secondary)); font-size: 11px; }
 @media (max-width: 600px) {
     .equipment-loot-panel { max-height: 94dvh; }
     .equipment-loot-body { padding: 8px 12px; }

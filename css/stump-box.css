@@ -11,18 +11,17 @@
   .stump-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 4px; }
   .stump-box-head .stump-line { margin: 0; color: var(--px-copy-muted, #a39883); }
   #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
-  /* 한 열(휴대폰 · 좁은 창): 판 → 고른 것 → 시작 선물 → 보관함(판 가까이 있어야 끌어 옮기기 쉽다) → 조합창 → 합계 */
+  /* 한 열(휴대폰 · 좁은 창): 판 → 고른 것 → 받을 선물 → 보관함(판 가까이 있어야 끌어 옮기기 쉽다) → 조합창 → 옵션 합계 → 탭(수확 일지,
+     함 해금, 부적). 넓은 창은 왼쪽 판, 조합창, 옵션 합계와 오른쪽 나머지(2026-10-09 사용자: 옵션 합계는 조합창 밑) */
   .stump-box-screen { display: flex; flex-direction: column; gap: 10px; }
   .stump-box-pane { display: contents; }
   #stump-box-board { order: 0; }
   #stump-box-detail { order: 1; }
-  #stump-box-starter { order: 2; }
   #stump-box-storage { order: 3; }
   #stump-cube { order: 4; }
   #stump-box-summary { order: 5; }
-  #stump-box-unseal { order: 6; }
-  #stump-box-harvest { order: 7; }
-  .stump-box-summary, .stump-box-detail, .stump-box-starter, .stump-box-storage, .stump-box-unseal, .stump-box-harvest, .stump-cube {
+  #stump-box-more { order: 6; }
+  .stump-box-summary, .stump-box-detail, .stump-box-storage, .stump-box-more, .stump-cube {
     padding: 8px 10px;
     border: 2px solid #050404;
     background: rgba(18, 16, 13, .82);
@@ -30,8 +29,16 @@
   }
   /* 고른 것이 없으면 설명 칸은 자리를 차지하지 않는다(마우스를 올리면 같은 내용이 툴팁으로 나온다) */
   .stump-box-detail:empty { display: none; }
-  .stump-box-starter:empty, .stump-box-unseal:empty, .stump-box-harvest:empty { display: none; }
-  /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게. 아래에 함 해금 목록 */
+  .stump-box-more:empty { display: none; }
+  .stump-box-summary h3, .stump-box-more h3 { margin: 0 0 4px; font-size: 15px; }
+  .stump-box-more h3 { margin-top: 8px; }
+  .stump-box-more h3:first-child { margin-top: 0; }
+  :is(.stump-box-summary, .stump-box-more) h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; font-weight: 400; }
+  /* 탭: 고른 것만 밝게. 한 번에 하나만 보여 줘 줄지어 쌓이지 않는다 */
+  .stump-more-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #2a2218; }
+  #tab-stump .stump-more-tab { font-size: 12px; color: var(--px-copy-muted, #a39883); }
+  #tab-stump .stump-more-tab.is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게 */
   .stump-harvest-grid { display: grid; gap: 4px; margin: 4px 0 6px; }
   .stump-harvest-row { display: grid; grid-template-columns: 3.5em repeat(4, 36px); align-items: center; gap: 6px; }
   .stump-harvest-row > span { color: var(--px-copy-muted, #a39883); }
@@ -39,10 +46,21 @@
   .stump-harvest-cell img { width: 28px; height: 28px; image-rendering: pixelated; opacity: .25; filter: grayscale(1); }
   .stump-harvest-cell.is-on { box-shadow: inset 0 0 0 1px var(--stump-tone); }
   .stump-harvest-cell.is-on img { opacity: 1; filter: none; }
-  .stump-unlocks { display: grid; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; }
-  .stump-unlocks li { display: flex; justify-content: space-between; gap: 10px; color: var(--px-copy-muted, #a39883); }
-  .stump-unlocks li.is-on { color: var(--px-copy, #e8dcc0); }
-  .stump-unlocks li.is-on strong::after { content: ' 열림'; color: #8fe0a8; font-weight: 400; }
+  /* 함 해금(2026-10-09 사용자: 조건 왼쪽, 보상 오른쪽): 줄마다 표식 | 조건 | → | 보상. 열린 줄은 잎색 표식과 금빛 보상, 잠긴 줄은 흐리게 */
+  .stump-unlocks-head, .stump-unlocks li { display: grid; grid-template-columns: 14px minmax(0, 1fr) 16px minmax(0, 1fr); align-items: center; gap: 0 8px; }
+  .stump-unlocks-head { padding: 0 8px 4px; color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  .stump-unlocks-head > span:first-child { grid-column: 2; }
+  .stump-unlocks-head > span:last-child { grid-column: 4; }
+  .stump-unlocks { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+  .stump-unlocks li { min-height: 28px; padding: 3px 8px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45); color: #6f6656; }
+  .stump-unlock-mark { width: 9px; height: 9px; border: 1px solid #4a3f2f; background: #0f0c09; }
+  .stump-unlock-arrow { color: #4a3f2f; text-align: center; }
+  .stump-unlock-when { overflow-wrap: anywhere; }
+  .stump-unlock-reward { font-weight: 400; overflow-wrap: anywhere; }
+  .stump-unlocks li.is-on { border-color: #3d4a26; background: linear-gradient(90deg, rgba(159, 212, 106, .1), rgba(10, 8, 6, .45) 60%); color: var(--px-copy, #e8dcc0); }
+  .stump-unlocks li.is-on .stump-unlock-mark { border-color: #9fd46a; background: #9fd46a; box-shadow: 0 0 4px rgba(159, 212, 106, .6); }
+  .stump-unlocks li.is-on .stump-unlock-arrow { color: #9fd46a; }
+  .stump-unlocks li.is-on .stump-unlock-reward { color: #f3d28c; }
 
   /* 판 */
   .stump-board {
@@ -149,18 +167,16 @@
   .stump-detail-head img { flex: none; width: 48px; height: 48px; image-rendering: pixelated; }
   .stump-detail-head strong { display: block; color: var(--stump-tone); }
   .stump-detail-head small { color: var(--px-copy-muted, #a39883); }
-  .stump-path, .stump-actions, .stump-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  #tab-stump :is(.stump-path button, .stump-filter).is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  .stump-actions, .stump-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  #tab-stump .stump-filter.is-on { box-shadow: inset 0 0 0 2px #f3d28c; color: #f3d28c; }
+  /* 머리줄: 억제는 붉게, 접붙이기 점수는 잎색 */
+  .stump-box-head .stump-line .is-bad { color: #e0715f; }
+  .stump-box-head .stump-line .is-graft { color: #b4e07e; }
+  /* 아직 효과가 없는 옵션(자라는 중, 보관함, 막힘, 잠든 부적): 회색에 "(비활성)" */
+  :is(.stump-yield, .stump-extra, .stump-tip-yield, .stump-tip-extra).is-off, .stump-talisman-lines .is-off { color: #8a8174; }
 
   /* 시작 선물·보관함 */
-  .stump-box-starter h3, .stump-storage-head h3 { margin: 0; font-size: 15px; }
-  .stump-box-starter h3 small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
-  /* 씨앗 · 수액 한 줄씩: 이름 + 색 단추 넷(그림 위, 글자 아래) */
-  .stump-starter-row { display: grid; grid-template-columns: 2.6em repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; margin-top: 6px; }
-  .stump-starter-row > span { font-size: 12px; }
-  #tab-stump .stump-starter-row button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    min-width: 0; padding: 3px 2px; color: var(--stump-tone); font-size: 12px; line-height: 1.1; }
-  .stump-starter-row img { width: 24px; height: 24px; image-rendering: pixelated; }
+  .stump-storage-head h3 { margin: 0; font-size: 15px; }
   .stump-storage-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
   /* 열 수는 화면 너비에 맞춰 stump-box-ui.js가 정한다(--stump-columns). 가진 것 + 줄 끝까지 + 빈 줄 하나만 그린다 */
   .stump-storage-grid { display: grid; grid-template-columns: repeat(var(--stump-columns, 8), minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
@@ -188,8 +204,33 @@
   .stump-talisman-lines { display: grid; gap: 2px; margin: 4px 0; padding: 0; list-style: none; font-size: 12px; }
   :is(.stump-talisman-lines, .stump-stats) .is-condition { color: #c9b27a; }
   .stump-talisman-title { margin: 8px 0 2px; font-size: 13px; color: var(--px-copy, #e6dcc6); }
-  .stump-box-unseal h3 { margin: 0; font-size: 15px; }
-  .stump-talisman-unseal { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  /* 부적 탭(2026-10-09 사용자 "고급스럽게"): 편린 카드 셋(나오는 부적의 격 색 테와 빛, 잠든 부적 그림), 모은 정도가 보이는 교환 줄 */
+  .stump-shard-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 10px; }
+  .stump-shard-card { display: grid; justify-items: center; gap: 3px; padding: 10px 8px 8px; border: 1px solid color-mix(in srgb, var(--shard-tone) 45%, #050404);
+    background: radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--shard-tone) 22%, transparent), transparent 62%), #120f0b;
+    box-shadow: inset 0 0 0 1px #050404, inset 0 -12px 18px rgba(0, 0, 0, .35); text-align: center; }
+  .stump-shard-card img { width: 48px; height: 48px; image-rendering: pixelated; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--shard-tone) 70%, transparent)); }
+  .stump-shard-card strong { color: var(--shard-tone); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
+  .stump-shard-count { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .stump-shard-count b { color: var(--px-copy, #e8dcc0); }
+  .stump-shard-card small { color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  #tab-stump .stump-shard-card button { width: 100%; margin-top: 4px; font-size: 12px; }
+  #tab-stump .stump-shard-card.is-ready button { color: var(--shard-tone); box-shadow: inset 0 0 0 1px var(--shard-tone); }
+  .stump-shard-card:not(.is-ready) img { opacity: .55; filter: grayscale(.5); }
+  .stump-exchange { display: grid; gap: 6px; margin: 2px 0 10px; }
+  .stump-exchange-row { display: grid; grid-template-columns: auto 14px auto minmax(40px, 1fr) auto auto; align-items: center; gap: 6px; padding: 5px 8px;
+    border: 1px solid #241d14; background: rgba(10, 8, 6, .45); font-size: 12px; }
+  .stump-exchange-from, .stump-exchange-to { color: var(--shard-tone); white-space: nowrap; }
+  .stump-exchange-arrow { color: #6f6656; text-align: center; }
+  .stump-exchange-bar { height: 5px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
+  .stump-exchange-bar > i { display: block; height: 100%; background: var(--shard-tone); }
+  .stump-exchange-row small { color: var(--px-copy-muted, #a39883); font-variant-numeric: tabular-nums; }
+  #tab-stump .stump-exchange-row button { font-size: 12px; }
+  .stump-exchange-row.is-ready { border-color: #3d4a26; }
+  @container (max-width: 520px) {
+    .stump-exchange-row { grid-template-columns: auto 14px minmax(0, 1fr) auto; }
+    .stump-exchange-bar { grid-column: 1 / 4; }
+  }
 
   /* 조합창(3×3): 판 바로 아래. 장비는 인벤토리 칸 크기대로 여러 칸을 차지하고, 빈 칸을 누르면 재료 고르기가 열린다 */
   /* 칸 격자는 왼쪽, 제목 · 상태 · 단추는 오른쪽에 쌓아 높이를 격자 하나로 줄인다. 조합법 목록은 아래 전체 폭 */
@@ -311,14 +352,44 @@
   .stump-tip-extra { padding-left: 8px; border-left: 2px solid #3b2f1e; }
   .stump-tip-seal { color: #e08a5a; }
   .stump-seal { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a2218; }
-  /* 거름 한꺼번에(보관함 머리 아래), 씨앗 주머니(선물 칸, 셋 가운데 하나), 부적 도감(수확 일지 아래, 펼쳐 보기) */
-  .stump-bulk { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; font-size: 12px; }
-  .stump-bulk small, .stump-starter-row small { color: var(--px-copy-muted, #a39883); }
-  .stump-bulk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
-  #tab-stump .stump-bulk-buttons button { color: var(--stump-tone); font-size: 12px; }
-  .stump-pouch-row { grid-template-columns: minmax(4.5em, auto) repeat(3, minmax(0, 1fr)); }
-  .stump-codex ul { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; padding: 0; list-style: none; font-size: 12px; }
-  .stump-codex li { padding: 1px 6px; border: 1px solid #2a2218; color: var(--px-copy-muted, #a39883); }
-  .stump-codex li.is-on { color: #ff9f43; }
+  /* 일괄 거름 사용과 일괄 버리기(보관함 분류 아래, 누르면 쓸 것을 먼저 보여 준다), 씨앗 주머니(받을 선물, 셋 가운데 하나),
+     부적 도감(부적 탭, 펼쳐 보기) */
+  .stump-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  #tab-stump .stump-bulk button { font-size: 12px; }
+  #tab-stump .stump-bulk [data-kind="compost"]:not(.is-idle) { color: #b4e07e; }
+  #tab-stump .stump-bulk [data-kind="discard"]:not(.is-idle) { color: #e0915f; }
+  #tab-stump .stump-bulk .is-idle { color: var(--px-copy-muted, #a39883); opacity: .7; }
+  /* 부적 도감: 진행 막대, 펼치면 고유 부적 칸(찾은 것은 깨어난 그림과 이름, 못 찾은 것은 잠든 그림과 ???) */
+  .stump-codex-bar { display: block; height: 6px; margin: 2px 0 6px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
+  .stump-codex-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #a8582a, #ffad5c); }
+  .stump-codex ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; margin: 4px 0; padding: 0; list-style: none; font-size: 11px; }
+  .stump-codex li { display: grid; justify-items: center; gap: 2px; padding: 5px 3px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45);
+    color: #5f574a; text-align: center; line-height: 1.25; overflow-wrap: anywhere; }
+  .stump-codex li img { width: 28px; height: 28px; image-rendering: pixelated; opacity: .35; filter: grayscale(1); }
+  .stump-codex li.is-on { border-color: #5a3a20; color: #ffad5c; }
+  .stump-codex li.is-on img { opacity: 1; filter: drop-shadow(0 0 4px rgba(255, 173, 92, .5)); }
   .stump-codex p { margin: 6px 0 0; font-size: 12px; }
+  /* 받을 보상: 머리줄의 금빛 단추 하나, 누르면 창(선택 창 틀)에서 보상마다 받는 까닭 한 줄과 고를 것 */
+  #tab-stump .stump-reward-button { min-height: 26px; padding: 0 10px; color: #f3d28c; font-size: 12px;
+    box-shadow: inset 0 0 0 2px #c9a45c, 0 0 8px rgba(243, 210, 140, .35); }
+  .stump-reward-panel { width: min(560px, calc(100vw - 24px)); }
+  .stump-reward { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid #2a2218; }
+  .stump-reward:first-of-type { border-top: 0; padding-top: 2px; }
+  .stump-reward h4 { margin: 0; color: #f3d28c; font-size: 14px; }
+  .stump-reward p { margin: 0; color: var(--px-copy-muted, #a39883); font-size: 12px; line-height: 1.5; }
+  .stump-reward-choices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .stump-reward-choices.is-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stump-reward-choice { display: grid; justify-items: center; gap: 3px; min-width: 0; min-height: 76px; padding: 8px 4px;
+    border: 1px solid color-mix(in srgb, var(--stump-tone) 45%, #050404); background: color-mix(in srgb, var(--stump-tone) 10%, #120f0b);
+    color: var(--stump-tone); font-size: 12px; line-height: 1.25; cursor: pointer; }
+  .stump-reward-choice:hover, .stump-reward-choice:focus-visible { background: color-mix(in srgb, var(--stump-tone) 22%, #120f0b); outline: 1px solid var(--stump-tone); }
+  .stump-reward-choice img { width: 32px; height: 32px; image-rendering: pixelated; }
+  .stump-reward-choice small { color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  @media (max-width: 520px) {
+    .stump-reward-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stump-shard-cards { grid-template-columns: minmax(0, 1fr); }
+    .stump-shard-card { grid-template-columns: 48px minmax(0, 1fr) auto; justify-items: start; text-align: left; column-gap: 10px; }
+    .stump-shard-card img { grid-row: 1 / span 3; }
+    #tab-stump .stump-shard-card button { grid-column: 3; grid-row: 1 / span 3; width: auto; margin: 0; }
+  }
 }

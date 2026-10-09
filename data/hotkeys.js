@@ -9,7 +9,14 @@ const HOTKEY_ACTIONS = Object.freeze([
     { id: 'window:tab-skills', kind: 'window', target: 'tab-skills', label: '스킬 젬', code: 'KeyG' },
     { id: 'window:tab-journal', kind: 'window', target: 'tab-journal', label: '기록', code: 'KeyJ' },
     { id: 'combat:mobility', kind: 'combat', target: 'mobility', label: '이동 스킬 사용', code: 'KeyE' },
-    { id: 'combat:autoMove', kind: 'combat', target: 'autoMove', label: '자동 이동 켜고 끄기', code: 'KeyA' }
+    // 2026-10-09: A는 걷기(WASD)가 쓰므로 자동 이동은 Q로 옮겼다(E 이동 스킬과 나란히).
+    { id: 'combat:autoMove', kind: 'combat', target: 'autoMove', label: '자동 이동 켜고 끄기', code: 'KeyQ' },
+    // 탐험 지도 걷기(2026-10-09 사용자 "wasd로도 움직일수있게해줘"): 누르는 동안 그쪽으로 걷고, 떼면 들어가던 칸에서 멈춘다.
+    // 방향키도 늘 같은 일을 한다(바꿀 수 없는 키, js/hotkeys-ui.js ARROW_MOVES).
+    { id: 'move:up', kind: 'move', target: 'up', label: '위로 걷기', code: 'KeyW' },
+    { id: 'move:left', kind: 'move', target: 'left', label: '왼쪽으로 걷기', code: 'KeyA' },
+    { id: 'move:down', kind: 'move', target: 'down', label: '아래로 걷기', code: 'KeyS' },
+    { id: 'move:right', kind: 'move', target: 'right', label: '오른쪽으로 걷기', code: 'KeyD' }
 ].map(Object.freeze));
 
 // 바꿀 수 있는 키: 글자·숫자·숫자패드와 기호 몇 개. 브라우저 동작과 겹치는 Esc·Tab·Enter·Space·F키는 제외.

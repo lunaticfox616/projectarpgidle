@@ -311,9 +311,9 @@ function getMapPrimaryContentEntryCondition(contentId, source) {
 
 
 const OCEAN_PERMANENT_UPGRADE_DEFS = {
-    oxygenMax: { label: '산소 최대치', maxLevel: 20, valuePerLevel: 10, unit: '', desc: '잠수 시작 산소와 최대 산소가 증가합니다.' },
-    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%', desc: '잠수 중 시간 경과로 소모되는 산소가 감소합니다.' },
-    pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%', desc: '심해 수압으로 인한 공속/피해/이속 감소가 완화됩니다.' }
+    oxygenMax: { label: '산소 최대치', maxLevel: 20, valuePerLevel: 10, unit: '' },
+    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%' },
+    pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%' }
 };
 const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
 const OCEAN_STATE_FISH_KEYS = Object.freeze(Object.keys(OCEAN_FISH_DB));
@@ -321,8 +321,8 @@ const OCEAN_COLLECTION_REQUIRED_COUNTS = Object.freeze(OCEAN_FISH_COLLECTION_MIL
 const OCEAN_NORMALIZED_FISHING_STATES = new WeakSet();
 
 const OCEAN_CURRENT_POOL = [
-    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현 · 냉기 저항 -12' },
-    { id: 'warm_current', name: '온수층', desc: '화염 적 출현 · 화염 저항 -12' },
+    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현, 냉기 저항 -12' },
+    { id: 'warm_current', name: '온수층', desc: '화염 적 출현, 화염 저항 -12' },
     { id: 'riptide', name: '역류', desc: '이동 속도 15% 감폭' },
     { id: 'bioluminescence', name: '발광 생물군', desc: '정확도 18% 감폭' },
     { id: 'still_water', name: '정체수', desc: '산소 시간 소모 35% 증가' },
@@ -762,7 +762,7 @@ function createBeyondBoundaryZone(state) {
         || BEYOND_BOUNDARY_INTENSITY_DB[0];
     const wave = run ? clampNumber(Math.floor(Number(run.wave) || 1), 1, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER) : 1;
     return {
-        id: BEYOND_BOUNDARY_ZONE_ID, name: `경계 너머 ${profile.tier}단계 · ${wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER}`,
+        id: BEYOND_BOUNDARY_ZONE_ID, name: `경계 너머 ${profile.tier}단계, ${wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER}`,
         type: 'beyondBoundary', tier: getUnderworldTier(30) + Math.floor((profile.difficultyTier - 1) / 2),
         maxKills: 1, ele: 'chaos', difficultyBenchmark: 'underworld30',
         boundaryTier: profile.tier, boundaryWave: wave,
@@ -851,7 +851,7 @@ function getZone(id) {
         let difficultyTier = getTimeRiftDifficultyTier(activePressure);
         // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
         let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
+        return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
@@ -945,7 +945,7 @@ function getLoopAbyssRequirementText(seasonValue) {
     let cap = getSeasonAbyssDepthCap(seasonValue);
     let base = `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
     if (Math.max(1, Math.floor(seasonValue || 1)) < LOOP_GATE_ALT_START_SEASON) return base;
-    return `${base} · 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
+    return `${base}, 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
 }
 
 function hasCurrentLoopChaosRequirementClear(seasonValue) {
@@ -2132,8 +2132,7 @@ let gameplayStarted = false;
 let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
-let lastRenderedMapListHtml = '';
-let lastRenderedChaosMapListHtml = '';
+
 
 safeExposeGlobals({
     getUnderworldGravityActionMultiplier, getUnderworldEntryLockReason,
@@ -2240,7 +2239,8 @@ const defaultGame = {
     // seeds: world-tree seeds 0..4 (pinnacle); epoch: {count, essence, perks} of the atlas rebirth layer (js/atlas-epoch.js).
     // endgame: the awakened late atlas (js/atlas-endgame.js) — kills, materials, blight, witness; survives loops, not the epoch.
     atlas: { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1, run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} },
-        endgame: { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] } },
+        endgame: { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] }, leaves: { counts: {}, seen: [], woven: {} },
+        tally: { maps: 0, treasure: 0, golden: 0 } },
     // Last map's committed combat receipts; display only, never a claimable reward.
     explorationLoot: null,
     cosmosRoute: null,

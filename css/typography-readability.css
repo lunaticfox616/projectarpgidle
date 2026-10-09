@@ -19,7 +19,6 @@
 
 /* Equipment names should match the readable item-copy font without affecting page headings. */
 
-#tab-skills .gem-enhance-section-desc,
 #tab-skills .gem-orbit-copy span {
   color: var(--color-reading);
   font-size: 13px;

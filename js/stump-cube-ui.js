@@ -35,13 +35,13 @@ const stumpCubeUi = (() => {
         const name = itemName(entry.kind, entry.item);
         return `<button type="button" class="stump-cube-item" data-stump-action="cube-cell" data-cell="${entry.y * stumpCube.SIZE + entry.x}"`
             + ` style="grid-column:${entry.x + 1} / span ${entry.w};grid-row:${entry.y + 1} / span ${entry.h};--cube-tone:${itemTone(entry.kind, entry.item)}"`
-            + ` title="${esc(name)} · 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
+            + ` title="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
     }
 
     function gridHtml(list) {
         const cells = Array.from({ length: stumpCube.SIZE * stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell"`
             + ` data-stump-action="cube-open" style="grid-column:${cell % stumpCube.SIZE + 1};grid-row:${Math.floor(cell / stumpCube.SIZE) + 1}"`
-            + ` aria-label="빈 칸 · 재료 넣기"></button>`).join('');
+            + ` aria-label="빈 칸, 재료 넣기"></button>`).join('');
         return `<div class="stump-cube-grid" role="grid" aria-label="조합창 3×3">${cells}${list.map(entryHtml).join('')}</div>`;
     }
 
@@ -60,7 +60,7 @@ const stumpCubeUi = (() => {
         const shown = stumpCube.revealed(game), hidden = STUMP_CUBE_RECIPES.length - shown.length;
         const rows = shown.map(recipe => `<li><strong>${esc(recipe.name)} (${esc(recipe.group)})</strong>`
             + `<span>${esc(recipe.need)} → ${esc(recipe.result)}</span><small>${esc(costText(recipe.cost))}</small></li>`).join('');
-        const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개(새 재료가 다 자라거나 해금되면 열립니다)</li>` : '';
+        const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)</li>` : '';
         return `<ul class="stump-cube-book">${rows}${more}</ul>`;
     }
 
@@ -95,7 +95,7 @@ const stumpCubeUi = (() => {
             + ` onclick="stumpCubeUi.openCubePicker('${kind}')">${KIND_LABELS[kind]} ${stumpCube.candidates(kind).length}</button>`).join('');
         const list = stumpCube.candidates(pickerKind).map((item, index) => candidateHtml(pickerKind, item, index)).join('');
         return `<p class="selection-overlay-help">누르면 조합창의 빈 자리에 들어갑니다. 재료는 조합하기 전까지 원래 보관 자리에 그대로 있습니다.
-                잠근 장비, 장비 세팅에 든 장비, 판에 놓인 그루터기 아이템은 넣을 수 없습니다.</p>
+                잠근 장비, 장비 세팅에 든 장비, 그루터기 함에 배치된 그루터기 아이템은 넣을 수 없습니다.</p>
             <div class="stump-cube-picker-tabs">${tabs}</div>
             <div class="stump-cube-candidates">${list || '<p class="selection-overlay-help">넣을 수 있는 아이템이 없습니다.</p>'}</div>`;
     }
@@ -131,7 +131,7 @@ const stumpCubeUi = (() => {
         const result = stumpCube.transmute();
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
-        addLog(`🧩 조합창 · ${result.recipe.name}: ${names}`, 'loot-rare');
+        addLog(`🧩 조합창 ${result.recipe.name}: ${names}`, 'loot-rare');
         queueImportantSave(300);
         updateStaticUI();
         refreshCube();

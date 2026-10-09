@@ -34,7 +34,7 @@ function getUniqueHuntSource(entry) {
     if (drop && UNIQUE_HUNT_SOURCE_IDS[drop.id]) return { ...UNIQUE_HUNT_SOURCE_IDS[drop.id] };
     if (drop && drop.type === 'cosmosBoss') {
         let boss = UNIQUE_HUNT_COSMOS_BOSSES[drop.bossId] || '은하 보스';
-        return { label: `우주계 · ${boss}`, mapSubtab: 'map-tab-cosmos' };
+        return { label: `우주계, ${boss}`, mapSubtab: 'map-tab-cosmos' };
     }
     let source = drop && UNIQUE_HUNT_SOURCE_TYPES[drop.type]
         ? { ...UNIQUE_HUNT_SOURCE_TYPES[drop.type] }
@@ -43,39 +43,29 @@ function getUniqueHuntSource(entry) {
     return source;
 }
 
+/** One hunt target: the unique's picture, name, where it drops (and whether the codex has it), go-to and stop buttons. */
 function renderUniqueHuntTargetCard(entry) {
     let key = uniqueHuntRuntime.getKey(entry);
     let encoded = encodeURIComponent(key).replace(/'/g, '%27');
-    let source = describeUniqueHuntSource(entry);
     let registered = !!(game.uniqueCodex && game.uniqueCodex[key]);
     let chase = entry.ultraRare || entry.cosmosChase;
-    return `<article class="unique-hunt-target${chase ? ' is-chase' : ''}">
-        <div class="unique-hunt-target-head"><span>${escapeHTML(entry.slots[0])}</span>${chase ? '<b>극희귀</b>' : '<b>추적 중</b>'}</div>
-        <strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(source.label)} · ${registered ? '도감 등록됨, 재획득 추적' : '도감 미등록'}</small>
-        <div><button type="button" onclick="uniqueHuntUi.navigate('${encoded}')">드랍처 보기</button><button type="button" onclick="uniqueHuntUi.toggle('${encoded}')">해제</button></div>
+    return `<article class="codex-hunt-target${chase ? ' is-chase' : ''}"><span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span>
+        <div><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(describeUniqueHuntSource(entry).label)}${registered ? ', 등록됨' : ''}${chase ? ', 극희귀' : ''}</small></div>
+        <div class="codex-hunt-actions"><button type="button" onclick="uniqueHuntUi.navigate('${encoded}')">드랍처</button><button type="button" onclick="uniqueHuntUi.toggle('${encoded}')">해제</button></div>
     </article>`;
 }
 
+/** The hunt row above the codex (2026-10-09 도감 다시 그림): three cells, a target card or an empty cell. */
 function renderUniqueHuntPanel() {
     let root = document.getElementById('ui-unique-hunt-tracker');
     if (!root) return;
     root.hidden = game.codexSubtab === 'realm';
     if (root.hidden) return;
     let targets = uniqueHuntRuntime.getTargets();
-    let cards = targets.map(renderUniqueHuntTargetCard);
-    if (!cards.length) cards.push('<p class="unique-hunt-empty-slot">도감 카드에서 파밍 목표를 최대 3개 지정할 수 있습니다.</p>');
-    root.innerHTML = `<section class="unique-hunt-panel">
-        <header><div><strong>고유 파밍 추적</strong><small>목표 장비는 자동해체에서 보호됩니다.</small></div><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
-        <div class="unique-hunt-targets">${cards.join('')}</div>
-    </section>`;
-}
-
-function renderUniqueHuntCardAction(entry) {
-    if (!entry || entry.realmCodexOnly) return '';
-    let key = uniqueHuntRuntime.getKey(entry);
-    let tracked = uniqueHuntRuntime.ensureState().includes(key);
-    let encoded = encodeURIComponent(key).replace(/'/g, '%27');
-    return `<button type="button" class="codex-hunt-toggle${tracked ? ' active' : ''}" aria-pressed="${tracked}" onclick="uniqueHuntUi.toggle('${encoded}')">${tracked ? '추적 중' : '＋ 파밍 추적'}</button>`;
+    let cells = targets.map(renderUniqueHuntTargetCard);
+    while (cells.length < uniqueHuntRuntime.limit) cells.push(`<div class="codex-hunt-empty">${cells.length ? '빈 칸' : '고유를 눌러 추적'}</div>`);
+    root.innerHTML = `<section class="codex-hunt"><header><strong>파밍 추적</strong><em>자동해체 보호</em><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
+        <div class="codex-hunt-row">${cells.join('')}</div></section>`;
 }
 
 function toggleUniqueHuntFromUi(encodedKey) {
@@ -113,13 +103,12 @@ function navigateToUniqueHuntSource(encodedKey) {
 
 function refreshUniqueHuntUi() {
     let codexTab = document.getElementById('tab-codex');
-    if (codexTab && codexTab.classList.contains('active')) renderUniqueCodexUI();
+    if (codexTab && codexTab.classList.contains('active')) uniqueCodexUi.render();
     else renderUniqueHuntPanel();
 }
 
 const uniqueHuntUi = Object.freeze({
     renderPanel: renderUniqueHuntPanel,
-    renderCardAction: renderUniqueHuntCardAction,
     getSource: describeUniqueHuntSource,
     toggle: toggleUniqueHuntFromUi,
     navigate: navigateToUniqueHuntSource

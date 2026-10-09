@@ -147,7 +147,7 @@
                 return buildTabAction({
                     id: 'first-skill-choice', type: 'progression', categoryLabel: '첫 빌드 선택',
                     title: `${g.starterGemTutorialPending} 젬을 장착해 보세요`,
-                    description: '기본 공격과 범위·발동 방식을 비교하세요. 장착하면 예상 능력치 변화도 표시됩니다.'
+                    description: '기본 공격과 범위/발동 방식을 비교하세요. 장착하면 예상 능력치 변화도 표시됩니다.'
                 }, '스킬 비교하기', 'tab-skills');
             }
         },
@@ -393,9 +393,9 @@
             build(g) {
                 let journey = getCosmosJourney(g);
                 if (journey.stage === 'unlock') {
-                    return buildNotice(`우주계 개방 목표 · 지하계 ${journey.highestFloor}/30층`, 'tab-map', 'map-tab-underworld');
+                    return buildNotice(`우주계 개방 목표, 지하계 ${journey.highestFloor}/30층`, 'tab-map', 'map-tab-underworld');
                 }
-                return buildNotice(`우주계 진행 목표 · ${journey.nextGalaxy}은하 관문`, 'tab-map', 'map-tab-cosmos');
+                return buildNotice(`우주계 진행 목표, ${journey.nextGalaxy}은하 관문`, 'tab-map', 'map-tab-cosmos');
             }
         },
         {
@@ -406,7 +406,7 @@
             build(g) {
                 let progress = getAstraProgress(g);
                 if (progress.canChallenge) return buildNotice('잔향체 아스트라 도전 가능', 'tab-map', 'map-explore-root-boss');
-                if (progress.ready) return buildNotice('아스트라 조건 완료 · 표식: 잔향 필요', 'tab-map', 'map-tab-cosmos');
+                if (progress.ready) return buildNotice('아스트라 조건 완료, 표식: 잔향 필요', 'tab-map', 'map-tab-cosmos');
                 return buildNotice(`아스트라 은하 보스 ${progress.clearedCount}/${progress.total}`, 'tab-map', 'map-tab-cosmos');
             }
         },
@@ -418,9 +418,9 @@
             },
             build(g) {
                 let journey = getPinnacleJourney(g);
-                let progress = journey.next.pinnacleCapstone ? '최종 관문 · 베일라' : `최종 관문으로 · 수호자 격파 ${journey.completeCount}/3`;
+                let progress = journey.next.pinnacleCapstone ? '최종 관문, 베일라' : `최종 관문으로, 수호자 격파 ${journey.completeCount}/3`;
                 let detail = journey.gate.met ? `${journey.next.name} 도전 가능` : journey.gate.label;
-                return buildNotice(`${progress} · ${detail}`, 'tab-map', getPinnacleJourneySubtab(journey, g));
+                return buildNotice(`${progress}, ${detail}`, 'tab-map', getPinnacleJourneySubtab(journey, g));
             }
         },
         {
@@ -465,7 +465,7 @@
             build(g) {
                 let used = getInventoryUsedCellCount(g);
                 let limit = Math.floor(getInventoryLimit(g));
-                return buildNotice(`인벤토리 ${used}/${limit}칸 · 장비 분석으로 추천 교체 후 자동 해체를 설정하세요`, 'tab-items', 'item-tab-equip');
+                return buildNotice(`인벤토리 ${used}/${limit}칸, 장비 분석으로 추천 교체 후 자동 해체를 설정하세요`, 'tab-items', 'item-tab-equip');
             }
         }
     ];

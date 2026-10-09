@@ -188,7 +188,6 @@
         .gem-enhance-section { margin-top: 12px; padding: 12px; border: 1px solid #29445f; border-radius: 10px; background: linear-gradient(180deg, rgba(20, 31, 45, 0.9), rgba(13, 19, 29, 0.9)); }
         .gem-enhance-section:first-of-type { margin-top: 8px; }
         .gem-enhance-section-title { color: var(--copy-bright); font-weight: 800; margin-bottom: 4px; }
-        .gem-enhance-section-desc { color: var(--copy-muted); font-size: 0.82em; margin-bottom: 10px; line-height: 1.45; }
         .gem-inscription-section { border-color: #4c426d; background: linear-gradient(180deg, rgba(31, 25, 45, 0.92), rgba(17, 16, 29, 0.92)); }
         .gem-enhance-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:0; }
         .gem-upgrade-btn { text-align:left; background:#2c3e50; border:1px solid #496584; border-radius:8px; padding:8px; }
@@ -219,7 +218,6 @@
         .class-card:hover { background: #2a1035; border-color: #9b59b6; transform: scale(1.05); }
 
         .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-        .map-grid.map-grid--split { display: block; }
         .map-zone-group { display: flex; flex-direction: column; gap: 10px; }
         .map-zone-group + .map-zone-group { margin-top: 10px; }
         .map-zone-group-header { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #3d3d5c; border-radius: 6px; background: #14141d; color: #f1c40f; font-weight: 800; cursor: pointer; }
@@ -274,4 +272,4 @@
 } }        @layer overrides {
         .trait-card.ks-prereq-hi { border-color: #4fc3f7; box-shadow: 0 0 14px rgba(79,195,247,0.7); }
         .trait-card.ks-self-hi { border-color: #f1c40f; box-shadow: 0 0 12px rgba(241,196,15,0.55); }
-        #tab-map img:not(.atlas-landscape) { display: none; } }
+        #tab-map img:not(.atlas-landscape, .map-act-img, .atlas-find-icon) { display: none; } }

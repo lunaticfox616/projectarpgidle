@@ -27,7 +27,7 @@
   .core-item-card.is-equipped { box-shadow: inset 0 0 0 1px #8a6a36; }
   .core-item-card strong { color: var(--px-gold, #c69f5e); }
   .core-item-lines { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.5; }
-  .core-item-lines li::before { content: '· '; color: var(--px-copy-muted, #a39883); }
+  .core-item-lines li::before { content: '▪ '; color: var(--px-copy-muted, #a39883); }
   .core-item-actions { display: grid; gap: 4px; }
   .core-item-actions button { min-width: 64px; }
 

@@ -51,13 +51,13 @@ const cosmosRouteUi = (() => {
     }
 
     function routeFooter(plan, unlocked) {
-        if (!unlocked) return '<p class="cosmos-route-notice">나무꾼 격파 · 지하계 30층 도달 후 해금</p>';
+        if (!unlocked) return '<p class="cosmos-route-notice">나무꾼 격파, 지하계 30층 도달 후 해금</p>';
         const retry = Math.ceil(cosmosRouteRuntime.retryRemaining(game) / 1000);
-        if (retry) return `<p class="cosmos-route-notice" role="status">재도전까지 <b data-route-retry>${retry}</b>초 · 일반 사냥 가능</p>`;
+        if (retry) return `<p class="cosmos-route-notice" role="status">재도전까지 <b data-route-retry>${retry}</b>초, 일반 사냥 가능</p>`;
         if (cosmosRouteRuntime.active(game)) return `<footer class="cosmos-route-footer"><span data-route-progress></span><div>
             <button type="button" data-route-action="retreat">종료</button><button type="button" class="primary" data-route-action="battle">전투 보기</button></div></footer>`;
         if (!cosmosRouteRuntime.unlocked(game,galaxy)) return `<p class="cosmos-route-notice">${galaxy-1}은하 보스 격파 후 탐사 가능</p>`;
-        return `<footer class="cosmos-route-footer"><span>${plan.plan.length}구간 · ${plan.plan.flat().length}곳</span>
+        return `<footer class="cosmos-route-footer"><span>${plan.plan.length}구간, ${plan.plan.flat().length}곳</span>
             <div>${currentStarBattle() ? '<button type="button" data-route-action="battle">전투 보기</button>' : ''}
             <button type="button" class="primary" data-exploration-departure data-route-action="start" data-route-value="${galaxy}">탐사 출발</button></div></footer>`;
     }
@@ -67,7 +67,7 @@ const cosmosRouteUi = (() => {
         if (!route || cosmosRouteRuntime.active(game)) return '';
         const node = nodes.find(row => row.id === route.failedNode);
         const title = route.phase === 'failed' ? `${escapeHTML(node ? node.name : '탐사')}에서 실패` : '탐사 종료';
-        return `<p class="cosmos-route-outcome">${title} · 창공의 정수 +${route.dust} 확보</p>`;
+        return `<p class="cosmos-route-outcome">${title}, 창공의 정수 +${route.dust} 확보</p>`;
     }
 
     function bindStarMapActions(host) {
@@ -135,7 +135,7 @@ const cosmosRouteUi = (() => {
         if (label) {
             const route = game.cosmosRoute;
             const name = lastView.nodes.find(node => node.id === route.queue[0])?.name || '탐사 중';
-            const text = `${route.stage+1}구간 · ${name} · ${route.history.length}/${route.plan.flat().length} · 창공의 정수 +${route.dust}`;
+            const text = `${route.stage+1}구간, ${name}, ${route.history.length}/${route.plan.flat().length}, 창공의 정수 +${route.dust}`;
             if (label.textContent !== text) label.textContent = text;
         }
         return true;

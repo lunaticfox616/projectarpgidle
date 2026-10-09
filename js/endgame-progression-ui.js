@@ -3,7 +3,7 @@ function formatBeyondBoundarySealStats(definition, level) {
         let value = Number((stat.val * level).toFixed(2));
         let suffix = P_STATS[stat.id] && P_STATS[stat.id].isPct ? '%' : '';
         return `${escapeHTML(getStatName(stat.id))} +${formatValue(stat.id, value)}${suffix}`;
-    }).join(' · ');
+    }).join(', ');
 }
 
 function renderBeyondBoundarySeal(definition, state) {
@@ -15,7 +15,7 @@ function renderBeyondBoundarySeal(definition, state) {
     return `<button type="button" class="beyond-seal ${selected ? 'selected' : ''}" onclick="chooseBeyondBoundarySeal('${definition.id}')" ${state.activeRun ? 'disabled' : ''}>
         <span>${escapeHTML(definition.name)}</span><strong>Lv.${progress.level}/${definition.maxLevel}</strong>
         <small>${escapeHTML(definition.description)}</small><i>${formatBeyondBoundarySealStats(definition, progress.level)}</i>
-        <em>${progressText}${selected ? ' · 성장 대상' : ''}</em>
+        <em>${progressText}${selected ? ', 성장 대상' : ''}</em>
     </button>`;
 }
 
@@ -46,7 +46,7 @@ function renderBeyondBoundaryRewardFocuses(state) {
 function renderBeyondBoundaryStartAction(state) {
     if (state.activeRun) return `<button class="primary" type="button" onclick="viewBeyondBoundaryCombat()">전투 보기</button><button class="danger" type="button" onclick="leaveBeyondBoundaryRun()">도전 포기</button>`;
     const status = getBeyondBoundaryRewardFocusStatus(state.selectedRewardFocusId);
-    const note = status.available ? '' : `<small>${escapeHTML(status.reason)} · 다른 보상을 선택하세요.</small>`;
+    const note = status.available ? '' : `<small>${escapeHTML(status.reason)}, 다른 보상을 선택하세요.</small>`;
     return `<button class="primary" type="button" data-exploration-departure onclick="enterBeyondBoundaryRun()" ${status.available ? '' : 'disabled'}>${state.selectedTier}단계 도전 시작</button>${note}`;
 }
 

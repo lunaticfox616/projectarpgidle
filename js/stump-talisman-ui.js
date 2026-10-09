@@ -19,31 +19,36 @@ const stumpTalismanUi = (() => {
         const text = talismans.describeLine(line), colour = lineTone(line, text);
         return `<li class="${line.kind === 'condition' ? 'is-condition' : ''}"${colour ? ` style="color:${colour}"` : ''}>${esc(text)}</li>`;
     }
-    function linesHtml(item) {
-        const rows = item.lines.map(lineRow);
-        if (item.special === 'moment') rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">보스에게 주는 최종 피해 +${item.moment}% · 생명력 5% 이하 보스 처형</li>`);
+    /** A line that does not work yet: grey with (비활성) (2026-10-09 사용자, the seeds' rule). */
+    function offRow(text) { return `<li class="is-off">${esc(text)} (비활성)</li>`; }
+    function linesHtml(item, active) {
+        const moment = item.special === 'moment' ? `보스에게 주는 최종 피해 +${item.moment}%, 생명력 5% 이하 보스 처형` : '';
+        const rows = active ? item.lines.map(lineRow) : item.lines.map(line => offRow(talismans.describeLine(line)));
+        if (moment) rows.push(active ? `<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">${moment}</li>` : offRow(moment));
         return rows.length ? `<ul class="stump-talisman-lines">${rows.join('')}</ul>` : '';
     }
+    /** Its lines work while it is awake on the board and not cancelled by a repulsion. */
+    function isActive(item, cell) {
+        return cell >= 0 && stumpBox.isMature(item) && !talismanEffects.summarize().suppressed.has(item.id);
+    }
 
-    /** The talisman's state in a few words; '' while it is simply growing on the board. */
+    /** Only what changes the talisman's effect on the board: cancelled or amplified by a repulsion. */
     function stateLine(item, cell) {
         const summary = talismanEffects.summarize();
-        if (cell < 0) return '<p class="stump-status">보관함 · 판에 놓아야 깨어남</p>';
-        if (!stumpBox.isMature(item)) return '';
-        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">척력과 맞닿아 효과 없음</p>';
-        if (summary.amplified.has(item.id)) return '<p class="stump-status is-good">척력으로 효과 +25%</p>';
-        return '<p class="stump-status is-good">깨어남 · 새 루프에 다시 잠듦</p>';
+        if (cell < 0 || !stumpBox.isMature(item)) return '';
+        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">비활성화: 척력 인접</p>';
+        return summary.amplified.has(item.id) ? '<p class="stump-status is-good">척력으로 효과 +25%</p>' : '';
     }
 
     function toolsHtml(item, cell) {
         const buttons = [];
         if (talismans.isDirectional(item)) {
-            buttons.push(`<button type="button" data-stump-action="talisman-turn">표식 돌리기 · 지금 ${talismans.directionName(item.dir)}</button>`);
+            buttons.push(`<button type="button" data-stump-action="talisman-turn">표식 돌리기, 지금 ${talismans.directionName(item.dir)}</button>`);
         }
         const wax = talismans.waxPreview(item);
         if (wax) {
             buttons.push(`<button type="button" data-stump-action="talisman-wax"${owned('beeswax') > 0 ? '' : ' disabled'}>`
-                + `밀랍 바르기 → ${esc(getStatName(wax.id))} +${esc(formatValue(wax.id, wax.value))} · 밀랍 ${owned('beeswax')}</button>`);
+                + `밀랍 바르기 → ${esc(getStatName(wax.id))} +${esc(formatValue(wax.id, wax.value))}, 밀랍 ${owned('beeswax')}</button>`);
         }
         if (cell < 0) buttons.push('<button type="button" data-stump-action="talisman-discard">버리기</button>');
         return buttons.length ? `<div class="stump-actions">${buttons.join('')}</div>` : '';
@@ -51,19 +56,20 @@ const stumpTalismanUi = (() => {
 
     /** Detail body for a selected talisman; the stump screen adds the head, growth bar and move buttons. */
     function detailHtml(item, cell) {
-        return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
-            + uniqueEffectHtml(item) + linesHtml(item) + stateLine(item, cell) + toolsHtml(item, cell);
+        return tooltipHtml(item, cell) + toolsHtml(item, cell);
     }
 
-    /** A unique talisman's own effect: free text, its keywords and numbers in the stat colours. */
-    function uniqueEffectHtml(item) {
-        return item.uniqueEffect ? `<p class="stump-yield">${statToneText.html(item.uniqueEffect)}</p>` : '';
+    /** A unique talisman's own effect: free text, its keywords and numbers in the stat colours (grey while it does not work). */
+    function uniqueEffectHtml(item, active) {
+        if (!item.uniqueEffect) return '';
+        return active ? `<p class="stump-yield">${statToneText.html(item.uniqueEffect)}</p>` : `<p class="stump-yield is-off">${esc(item.uniqueEffect)} (비활성)</p>`;
     }
 
     /** Hover card body for a talisman (rarity, effects, state) without the buttons the detail panel adds. */
     function tooltipHtml(item, cell) {
+        const active = isActive(item, cell);
         return `<p class="stump-talisman-rarity" style="--stump-tone:${tone(item)}">${RARITY_LABELS[item.rarity]} 부적</p>`
-            + uniqueEffectHtml(item) + linesHtml(item) + stateLine(item, cell);
+            + uniqueEffectHtml(item, active) + linesHtml(item, active) + stateLine(item, cell);
     }
 
     function statRow(stat, value) {
@@ -75,28 +81,41 @@ const stumpTalismanUi = (() => {
         const summary = talismanEffects.summarize();
         const rows = Object.keys(summary.stats).filter(stat => stat !== 'cosmosLightningVariance').map(stat => statRow(stat, summary.stats[stat]))
             .concat(summary.conditions.map(line => lineRow({ kind: 'condition', id: line.id, value: line.value })));
-        if (summary.bossFinalDmgBonusPct > 0) rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">보스 최종 피해 +${summary.bossFinalDmgBonusPct}% · 생명력 5% 이하 보스 처형</li>`);
+        if (summary.bossFinalDmgBonusPct > 0) rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('bossDamagePct')}">보스 최종 피해 +${summary.bossFinalDmgBonusPct}%, 생명력 5% 이하 보스 처형</li>`);
         if (summary.stats.cosmosLightningVariance > 0) rows.push(`<li class="is-condition" style="color:${getItemStatToneColor('lightPctDmg')}">번개 피해가 타격마다 0.8~1.5배</li>`);
         return rows.length ? `<h4 class="stump-talisman-title">깨어난 부적</h4><ul class="stump-stats">${rows.join('')}</ul>` : '';
     }
 
-    function unsealButton(key) {
-        const ready = owned(key) >= TALISMAN_UNSEAL_RULES[key].cost;
-        return `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>${shardName(key)} 풀기 (${owned(key)})</button>`;
+    // 부적 탭(2026-10-09 사용자 "너무 버튼밖에 없어서 이상해, 고급스럽게"): 편린마다 카드(잠든 부적 그림, 이름, 보유, 옵션 줄 수와 고유 확률,
+    // 풀기), 편린 교환은 모은 정도가 보이는 줄. 편린 셋은 나오는 부적의 격(마법, 희귀, 고유)의 색과 그림을 쓴다.
+    const SHARD_RARITY = Object.freeze({ sealShard: 'magic', strongSealShard: 'rare', radiantSealShard: 'unique' });
+    const shardTone = key => TALISMAN_RARITY_TONES[SHARD_RARITY[key]] || TALISMAN_RARITY_TONES.magic;
+    const linesText = range => (range[0] === range[1] ? `${range[0]}줄` : `${range[0]}~${range[1]}줄`);
+    const chanceText = chance => `${Math.round(chance * 1000) / 10}%`;
+    function shardCard(key) {
+        const rule = TALISMAN_UNSEAL_RULES[key], have = owned(key), ready = have >= rule.cost;
+        return `<div class="stump-shard-card${ready ? ' is-ready' : ''}" style="--shard-tone:${shardTone(key)}">`
+            + `<img src="assets/px/stump/sealed-${SHARD_RARITY[key] || 'magic'}.png" alt="" draggable="false">`
+            + `<strong>${esc(shardName(key))}</strong><span class="stump-shard-count">보유 <b>${have}</b></span>`
+            + `<small>옵션 ${linesText(rule.lines)}, 고유 ${chanceText(rule.uniqueChance)}</small>`
+            + `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>풀기</button></div>`;
+    }
+    function exchangeRow(row, index) {
+        const have = owned(row.from), ready = have >= row.cost, fill = Math.min(100, Math.floor(have / row.cost * 100));
+        return `<div class="stump-exchange-row${ready ? ' is-ready' : ''}">`
+            + `<span class="stump-exchange-from" style="--shard-tone:${shardTone(row.from)}">${esc(shardName(row.from))} ${row.cost}</span>`
+            + `<span class="stump-exchange-arrow" aria-hidden="true">→</span>`
+            + `<span class="stump-exchange-to" style="--shard-tone:${shardTone(row.to)}">${esc(shardName(row.to))} 1</span>`
+            + `<span class="stump-exchange-bar" style="--shard-tone:${shardTone(row.from)}"><i style="width:${fill}%"></i></span><small>${have}/${row.cost}</small>`
+            + `<button type="button" data-stump-action="talisman-exchange" data-index="${index}"${ready ? '' : ' disabled'}>교환</button></div>`;
     }
 
-    function exchangeButton(row, index) {
-        const ready = owned(row.from) >= row.cost;
-        return `<button type="button" data-stump-action="talisman-exchange" data-index="${index}"${ready ? '' : ' disabled'}>`
-            + `${shardName(row.from)} ${row.cost} → ${shardName(row.to)} 1</button>`;
-    }
-
-    /** 봉인 풀기 · 편린 교환 (해금 목록의 '부적'을 연 뒤). */
+    /** 부적 풀기와 편린 교환 (해금 목록의 '부적'을 연 뒤, 그루터기 함의 부적 탭). */
     function unsealHtml() {
         if (!contentProgression.isUnlocked('talisman')) return '';
-        return '<h3>부적 풀기</h3><p class="stump-hint">봉인편린 하나로 부적 하나를 풉니다. 편린은 고대 미궁에서 떨어집니다.</p>'
-            + `<div class="stump-talisman-unseal">${Object.keys(TALISMAN_UNSEAL_RULES).map(unsealButton).join('')}</div>`
-            + `<div class="stump-talisman-unseal">${TALISMAN_SHARD_EXCHANGE.map(exchangeButton).join('')}</div>`;
+        return '<h3>부적 풀기 <small>편린: 고대 미궁에서 획득</small></h3>'
+            + `<div class="stump-shard-cards">${Object.keys(TALISMAN_UNSEAL_RULES).map(shardCard).join('')}</div>`
+            + `<h3>편린 교환</h3><div class="stump-exchange">${TALISMAN_SHARD_EXCHANGE.map(exchangeRow).join('')}</div>`;
     }
 
     function refuse(reason) {

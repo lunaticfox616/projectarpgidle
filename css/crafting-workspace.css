@@ -70,4 +70,6 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 #item-tab-craft>#cl-materials{display:block}
 @media(max-width:600px){.cl-resource{padding:9px}}.cl-result p{margin-top:5px}
 /* 잿불가지 타락 결과: 결과 한 줄만 강조한다(별도 연출 없음). */
-.cl-result p.cl-outcome{padding:4px 8px;border-left:2px solid #c0504a;background:#c0504a24;color:#ffc2b8;font-weight:700}}
+.cl-result p.cl-outcome{padding:4px 8px;border-left:2px solid #c0504a;background:#c0504a24;color:#ffc2b8;font-weight:700}
+/* 고른 대상이 없을 때(2026-10-09): 안내 한 줄과 인벤토리 단추, 아래 착용 장비 칸. */
+.cl-empty{display:grid;gap:10px}.cl-empty-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #5a4630;background:linear-gradient(90deg,rgba(198,159,94,.12),transparent 70%)}.cl-empty-head strong{color:#f3d28c;font-weight:400}}

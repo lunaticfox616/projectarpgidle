@@ -61,7 +61,7 @@ const atlasMaps = (() => {
     /** Existing currencies keep their item roles (data/items.js ORB_DB): transmute/alter, regal/exalt, alch/chaos, scour,
      * annul, divine, quality and corrupt. */
     const CRAFTS = Object.freeze({
-        magicBud: { label: '변환 · 변경', can: map => map.rarity !== 'rare', apply: (map, random) => reroll(map, 'magic', random) },
+        magicBud: { label: '변환과 변경', can: map => map.rarity !== 'rare', apply: (map, random) => reroll(map, 'magic', random) },
         sapBud: { label: '옵션 추가', can: map => map.rarity === 'magic' || (map.rarity === 'rare' && hasRoom(map)),
             apply: (map, random) => { map.rarity = 'rare'; addMod(map, random); } },
         formlessDew: { label: '희귀 재굴림', can: map => map.rarity !== 'magic', apply: (map, random) => reroll(map, 'rare', random) },
@@ -123,6 +123,11 @@ const atlasMaps = (() => {
         for (const [id, v] of zone.atlasEnemyMods) EFFECTS[id].enemy(enemy, v);
         enemy.dropMul = (Number(enemy.dropMul) || 1) * (1 + zone.atlasLootQuantity / 100);
         enemy.lootRarityMul = 1 + (zone.atlasLootRarity + (enemy.isBoss ? zone.atlasBossRarity : 0)) / 100;
+        // 지도의 고유 배율과 장비 기운(js/loot-omens.js enemyMods): 장비 기대 개수와 고유 확률(js/loot.js getEquipmentDropChances,
+        // getEquipmentDropRarity). 상자도 같은 배율을 받는다(js/exploration-object-combat.js chestEnemy).
+        // 일반과 정예 처치는 장비가 더 나온다(data/loot-omens.js killGearMul). 보스는 따로 보상을 받는다(js/atlas-finds.js grantBossReward).
+        const omen = lootOmens.enemyMods(zone), kill = enemy.isBoss ? 1 : LOOT_OMENS.killGearMul;
+        if (omen) Object.assign(enemy, { equipmentDropMul: omen.equipmentMul * kill, uniqueChanceMul: omen.uniqueMul });
         return enemy;
     }
     function describe(entry) {
@@ -148,7 +153,7 @@ const atlasMaps = (() => {
         const seen = new Set(), mods = (Array.isArray(raw.mods) ? raw.mods : []).filter(entry => validEntry(entry, seen));
         const quality = Math.max(0, Math.min(ATLAS.quality.max, Math.floor(Number(raw.quality) || 0)));
         return { uid: raw.uid, node: raw.node, tier: raw.tier, rarity: raw.rarity, mods: mods.slice(0, 8).map(({ id, roll }) => ({ id, roll })),
-            quality, corrupted: raw.corrupted === true, ...memoryField(raw) };
+            quality, corrupted: raw.corrupted === true, ...memoryField(raw), ...(lootOmens.validId(raw.omen) ? { omen: raw.omen } : {}) };
     }
     return Object.freeze({ create, craft, craftReason, crafts: CRAFTS, corrupt, effects, applyEnemyMods, describe, normalize, reroll,
         chaseMul, mod: id => MODS.get(id) || null });

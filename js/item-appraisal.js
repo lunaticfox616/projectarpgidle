@@ -157,7 +157,7 @@ const itemAppraisal = (() => {
         return { ...price, tier: Math.max(1, Math.min(20, getItemCraftTier(item))),
             quality: rows.length ? Math.round(rows.reduce((total, row) => total + row.quality, 0) / rows.length) : 0,
             options: rows.length, fit: Math.round(Math.max(...PLAYER_STALL_CUSTOMERS.map(customer => affinity(item, customer))) * 100),
-            breakdown, affixes: rows, baseLabel: `${family ? family.label + ' · ' : ''}${base.name}` };
+            breakdown, affixes: rows, baseLabel: `${family ? family.label + ', ' : ''}${base.name}` };
     }
     return Object.freeze({ quote, affinity, unitValue });
 })();

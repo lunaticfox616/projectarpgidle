@@ -37,7 +37,7 @@
     }
 
     function cleanRoadmapFeature(text) {
-        return String(text || '').replace(/^(?:조건부 )?해금:\s*/, '').replace(/^전환점:\s*/, '').replace(/\s*\/\s*/g, ' · ');
+        return String(text || '').replace(/^(?:조건부 )?해금:\s*/, '').replace(/^전환점:\s*/, '').replace(/\s*\/\s*/g, ', ');
     }
 
     function highestChaosDepth(state) {
@@ -54,7 +54,7 @@
         return guide({
             id: `loop-${next.loop}`,
             title: titles[0],
-            description: `루프 ${next.loop}: ${titles.join(' · ')}`,
+            description: `루프 ${next.loop}: ${titles.join(', ')}`,
             requirements: [requirement(`루프 ${next.loop}`, false, loop, next.loop)],
             actionLabel: state.unlocks && state.unlocks.season ? '루프 보기' : '',
             actionTabId: state.unlocks && state.unlocks.season ? 'tab-season' : ''
@@ -194,7 +194,7 @@
         let isObserver = !!next.pinnacleCapstone;
         return guide({
             id: next.id, title: next.name,
-            description: isObserver ? '지하·심해·창공·우주의 네 수호자를 격파하면 최종 관문, 베일라에게 도전할 수 있습니다.'
+            description: isObserver ? '지하/심해/창공/우주의 네 수호자를 격파하면 최종 관문, 베일라에게 도전할 수 있습니다.'
                 : '경계의 수호자입니다. 대응하는 무한 콘텐츠 기록을 완성하세요.',
             requirements: [requirement(getPinnacleRequirementLabel(next), gate.met, gate.current, gate.target)],
             actionLabel: gate.met ? '보스 도전' : '진행 화면 보기', actionTabId: 'tab-map', actionSubtabId: gate.met ? 'map-explore-root-boss' : getPinnacleSubtab(next)

@@ -114,7 +114,7 @@ function renderProfileGhostResult(result) {
     let labels = { win: '승리', loss: '패배', draw: '무승부' };
     let tone = result.result === 'win' ? 'win' : (result.result === 'loss' ? 'loss' : 'draw');
     let pending = result.duel ? ' ghost-duel-result-pending' : '';
-    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>친선전 ${labels[result.result] || result.result}</strong><span>${ghostArenaEscape(result.opponent)} · 레이팅 변동 없음</span></div>`;
+    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>친선전 ${labels[result.result] || result.result}</strong><span>${ghostArenaEscape(result.opponent)}, 레이팅 변동 없음</span></div>`;
 }
 
 async function fightCurrentProfileGhost() {
@@ -170,12 +170,12 @@ function renderGhostResult(result) {
     let tone = result.result === 'win' ? 'win' : (result.result === 'loss' ? 'loss' : 'draw');
     let delta = Number(result.ratingDelta) || 0;
     let pending = result.duel ? ' ghost-duel-result-pending' : '';
-    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>${labels[result.result] || result.result}</strong> · ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
+    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>${labels[result.result] || result.result}</strong>, ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
 }
 
 function renderGhostLeaderboard(rows) {
     if (!rows.length) return '<p class="ghost-empty">등록된 고스트가 없습니다.</p>';
-    return `<div class="ghost-board">${rows.slice(0, 10).map(row => `<div class="ghost-rank"><b>${row.rank}</b><span>${ghostArenaEscape(row.nickname)}<small>${ghostArenaEscape(row.ascend_class || '미전직')} · ${ghostArenaEscape(row.active_skill)}</small></span><strong>${row.rating}${row.provisional ? '*' : ''}</strong><em>${row.wins}승 ${row.losses}패 ${row.draws}무</em></div>`).join('')}</div>`;
+    return `<div class="ghost-board">${rows.slice(0, 10).map(row => `<div class="ghost-rank"><b>${row.rank}</b><span>${ghostArenaEscape(row.nickname)}<small>${ghostArenaEscape(row.ascend_class || '미전직')}, ${ghostArenaEscape(row.active_skill)}</small></span><strong>${row.rating}${row.provisional ? '*' : ''}</strong><em>${row.wins}승 ${row.losses}패 ${row.draws}무</em></div>`).join('')}</div>`;
 }
 
 function renderFriendlyGhostChallenge() {
@@ -212,7 +212,7 @@ function renderGhostArena() {
     let host = document.getElementById('map-ghost-arena');
     if (!host) return;
     if (!socialCloudReady()) {
-        updateGhostArenaMarkup(host, `<section class="ghost-arena"><header><div><strong>고스트 대결</strong><small>보상 없음 · 점수는 서버가 판정</small></div></header><p class="ghost-help">대전은 클라우드 로그인이 필요합니다. 로그인한 뒤 다시 열어주세요.</p><button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></section>`);
+        updateGhostArenaMarkup(host, `<section class="ghost-arena"><header><div><strong>고스트 대결</strong><small>보상 없음, 점수는 서버가 판정</small></div></header><p class="ghost-help">대전은 클라우드 로그인이 필요합니다. 로그인한 뒤 다시 열어주세요.</p><button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></section>`);
         return;
     }
     let data = ghostArenaState.data || {};
@@ -221,9 +221,9 @@ function renderGhostArena() {
     let visibleMessage = ghostArenaState.message || (!serverReady && me
         ? '고스트 대결 서버를 준비 중입니다. 잠시 후 다시 시도해주세요.' : '');
     let status = me
-        ? `<span>내 레이팅 <strong>${me.rating}</strong> · ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ' · 배치 중' : ''}</span>`
+        ? `<span>내 레이팅 <strong>${me.rating}</strong>, ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ', 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 점수는 서버 모의 전투로 판정</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음, 점수는 서버 모의 전투로 판정</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초, 랭크 20회/24시간, 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
     updateGhostArenaMarkup(host, html);
     mountActiveGhostDuel();
     if (!ghostArenaState.data && !ghostArenaState.loading) Promise.resolve(loadGhostArena()).catch(() => {});

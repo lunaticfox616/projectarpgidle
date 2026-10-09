@@ -20,7 +20,7 @@ const underworldRuneUi = (() => {
         const slots = Math.max(0, Math.floor(state.unlockedSlots || 0));
         const max = Math.max(0, Math.floor(state.unlockedRunesMaxNumber || 0));
         if (!max) return '지하계 10층 격파 시 첫 룬과 슬롯 해금';
-        return `${slots}/6 슬롯 · 룬 ${max === 1 ? '1' : `1~${max}`} 해금`;
+        return `${slots}/6 슬롯, 룬 ${max === 1 ? '1' : `1~${max}`} 해금`;
     }
 
     function ownedNumbers(state) {
@@ -35,7 +35,7 @@ const underworldRuneUi = (() => {
 
     function costText(cost) {
         const names = {underCopper:'구리',underSilver:'은',underGold:'금',runeShard:'룬 조각'};
-        return Object.entries(cost).map(([key, value]) => `${names[key]} ${value}`).join(' · ');
+        return Object.entries(cost).map(([key, value]) => `${names[key]} ${value}`).join(', ');
     }
 
     function growthChoice(state, no, reroll) {
@@ -43,7 +43,7 @@ const underworldRuneUi = (() => {
         const cost = growthCost(level, reroll);
         const missing = Object.entries(cost).some(([key, amount]) => (game.currencies[key] || 0) < amount);
         const effect = `${getStatName(def.stat)} +${formatValue(def.stat, def.val*(1+level*0.01))}${P_STATS[def.stat]?.isPct ? '%' : ''}`;
-        return {value:no,label:`${def.name} · 룬 ${no} · +${level}${reroll ? '' : ` → +${level+1}`}`,
+        return {value:no,label:`${def.name}, 룬 ${no}, +${level}${reroll ? '' : ` → +${level+1}`}`,
             detail:`${effect}\n${costText(cost)}${missing ? '\n재료 부족' : ''}`};
     }
 
@@ -52,7 +52,7 @@ const underworldRuneUi = (() => {
         const state = ensureUnderworldRuneState();
         const numbers = ownedNumbers(state).filter(no => reroll ? state.enhanceLvByNo[no] >= 5 : (state.enhanceLvByNo[no] || 0) < 15);
         if (!numbers.length) {
-            addLog(reroll ? '보유 또는 장착한 +5 이상 룬이 필요합니다.' : '강화 가능한 보유·장착 룬이 없습니다. (최대 +15)', 'attack-monster');
+            addLog(reroll ? '보유 또는 장착한 +5 이상 룬이 필요합니다.' : '강화 가능한 보유/장착 룬이 없습니다. (최대 +15)', 'attack-monster');
             return null;
         }
         const levels = new Map(numbers.map(no => [no,state.enhanceLvByNo[no] || 0]));
@@ -70,7 +70,7 @@ const underworldRuneUi = (() => {
         }
         const cost = growthCost(level, reroll);
         if (Object.entries(cost).some(([key, value]) => (game.currencies[key] || 0) < value)) {
-            addLog(`재료 부족 · ${costText(cost)}`, 'attack-monster'); return null;
+            addLog(`재료 부족, ${costText(cost)}`, 'attack-monster'); return null;
         }
         return {state,no,level,cost};
     }

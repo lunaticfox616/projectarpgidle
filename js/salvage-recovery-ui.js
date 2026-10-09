@@ -3,7 +3,7 @@ let salvageRecoveryReturnFocus = null;
 function getSalvageRecoveryCurrencyText(rewards) {
     let rows = Object.entries(rewards || {}).filter(([, amount]) => Number(amount) > 0);
     if (rows.length === 0) return '반환 재화 없음';
-    return rows.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} ${Math.floor(amount)}개`).join(' · ');
+    return rows.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} ${Math.floor(amount)}개`).join(', ');
 }
 
 function getSalvageRecoveryRarityLabel(rarity) {
@@ -26,7 +26,7 @@ function renderSalvageRecoveryEntry(entry) {
     return `<article class="salvage-recovery-entry rarity-${item.rarity}" data-item-tooltip-anchor="1" tabindex="0" role="group" aria-label="${escapeHTML(item.name)}"
         onmouseenter="salvageRecoveryUi.showTooltip(event,${entry.id})" onmousemove="salvageRecoveryUi.showTooltip(event,${entry.id})" onmouseleave="salvageRecoveryUi.hideTooltip(event)" onfocus="salvageRecoveryUi.showTooltip(event,${entry.id})" onblur="salvageRecoveryUi.hideTooltip(event)">
         <div class="salvage-recovery-item-head"><strong>${escapeHTML(item.name)}</strong><span>${getSalvageRecoveryRarityLabel(item.rarity)}</span></div>
-        <div class="salvage-recovery-meta">${escapeHTML(item.slot)} · T${tier}</div>
+        <div class="salvage-recovery-meta">${escapeHTML(item.slot)}, T${tier}</div>
         <div class="salvage-recovery-cost"><span>반환 비용</span><strong>${escapeHTML(cost)}</strong></div>
         <button type="button" onclick="salvageRecoveryUi.restore(${entry.id})" ${disabled} title="${escapeHTML(status)}">${availability.canRestore ? '재화 반환 후 복구' : escapeHTML(status)}</button>
     </article>`;
@@ -89,7 +89,7 @@ function restoreSalvageRecoveryEntry(entryId) {
         refreshSalvageRecoveryOverlay();
         return false;
     }
-    addLog(`♻️ 해체 장비 복구: <span class='loot-${result.item.rarity}'>[${result.item.name}]</span> · ${getSalvageRecoveryCurrencyText(result.returned)} 반환`, 'loot-rare', { item: result.item });
+    addLog(`♻️ 해체 장비 복구: <span class='loot-${result.item.rarity}'>[${result.item.name}]</span>, ${getSalvageRecoveryCurrencyText(result.returned)} 반환`, 'loot-rare', { item: result.item });
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     updateStaticUI();
     refreshSalvageRecoveryOverlay();

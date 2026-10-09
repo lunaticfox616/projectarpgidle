@@ -51,7 +51,7 @@ const atlas = (() => {
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
             run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} }, endgame: atlasEndgame.defaults(),
-            memory: { tickets: {}, best: {}, variants: {} } };
+            memory: { tickets: {}, best: {}, variants: {} }, leaves: memoryLeaves.defaults(), tally: normalizeTally(null) };
     }
     /** 세계수 씨앗 하나마다 모든 노드가 2등급 오른다(24등급까지). */
     const effectiveTier = (state, node) => Math.min(ATLAS.tierCap, node.tier + state.atlas.seeds * ATLAS.seeds.tierStep);
@@ -99,8 +99,10 @@ const atlas = (() => {
         const rarity = roll < drops.rare * better ? 'rare' : (roll < (drops.rare + drops.magic) * better ? 'magic' : 'normal');
         return stamp(state, atlasMaps.create(node.id, effectiveTier(state, node), rarity, random), random, bonus);
     }
+    /** A dropped or starter map stone: quality now and then, its uid, and on a map node its omen (js/loot-omens.js). */
     function stamp(state, map, random, bonus) {
         if (random() < ATLAS.drops.qualityChance + bonus.mapQuality / 100) map.quality = 1 + Math.floor(random() * ATLAS.drops.quality);
+        if (BY_ID.get(map.node)?.kind === 'map') map.omen = lootOmens.roll(state, random);
         map.uid = state.atlas.nextUid++;
         return map;
     }
@@ -174,7 +176,7 @@ const atlas = (() => {
     }
     /** The last result stays on screen while the next map runs (자동 지도 chains maps). */
     function startRun(state, map, returnZoneId, random) {
-        const rooms = encounterRooms(map), { used, spent } = useFragments(state, rooms, random), bonus = bonusOf(state, used);
+        const rooms = encounterRooms(map), { used, spent } = useFragments(state, rooms, random), bonus = lootOmens.runBonus(bonusOf(state, used), map);
         const forced = used.map(id => FRAGMENTS.get(id).encounter).filter(Boolean);
         const encounters = atlasEncounters.roll(bonus, forced, random, rooms, { awake: atlasEndgame.awakened(state), loop: state.season,
             region: (BY_ID.get(map.node) || {}).region });
@@ -195,7 +197,7 @@ const atlas = (() => {
         const reason = lockReason(state);
         if (reason) return reason;
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
-        return hasTickets(state) ? '' : '뿌리 입장권 4종(화염 · 냉기 · 번개 · 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.';
+        return hasTickets(state) ? '' : '뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.';
     }
     /** 정점: 뿌리 입장권 4종을 하나씩 바치고 세계수의 그림자에 들어간다(씨앗마다 2등급 높다). */
     function beginPinnacle(state, returnZoneId, random = Math.random) {
@@ -254,6 +256,7 @@ const atlas = (() => {
         const stored = store(state, run.drops);
         addFragments(state, run.found);
         state.atlas.run = null;
+        state.atlas.tally.maps += 1;
         state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
             lost: run.drops.length - stored, fragments: run.found.length };
         // 기억 싸움은 그 보스의 기억 보상만(입장권, 씨앗, 후반부 보상과 처치 수는 원래 싸움의 몫), 다른 싸움은 기억을 남길 수 있다.
@@ -323,6 +326,21 @@ const atlas = (() => {
         run.drops.push(...maps.slice(0, Math.max(0, ATLAS.stashCap - run.drops.length)));
         return maps;
     }
+    /** A woven leaf's map stones (js/memory-leaves.js): `count` of `rarity` on the best node at or under the best tier + tierUp,
+     * stamped like drops (omen, quality). @returns {object[]} the ones the stash took */
+    function rewardMaps(state, rule, random = Math.random) {
+        const bonus = bonusOf(state), tier = Math.min(ATLAS.tierCap, Math.max(1, bestTier(state)) + (rule.tierUp || 0));
+        const maps = Array.from({ length: rule.count }, () => {
+            const node = nodeForTier(state, tier, random);
+            return node && stamp(state, atlasMaps.create(node.id, effectiveTier(state, node), rule.rarity, random), random, bonus);
+        }).filter(Boolean);
+        return maps.slice(0, store(state, maps));
+    }
+    /** The zone a normal map of the best tier reached would be (a woven leaf's gear rolls there). */
+    function rewardZone(state) {
+        const tier = Math.max(1, bestTier(state)), node = nodeForTier(state, tier, () => 0) || MAP_NODES[0];
+        return preview(state, atlasMaps.create(node.id, effectiveTier(state, node), 'normal', () => 0));
+    }
     /** One more map for the run (an emptied content room's find). */
     function extraMap(state, random = Math.random) {
         const run = state.atlas.run, map = run && rollMap(state, run.map.tier, random, run.bonus);
@@ -389,7 +407,8 @@ const atlas = (() => {
             atlasLootQuantity: fx.quantity + bonus.quantity, atlasLootRarity: fx.rarity + bonus.rarity, atlasBossRarity: bonus.bossRarity,
             packExtra: fx.packExtra + bonus.packSize, atlasExtraElite: fx.extraElite + bonus.extraElite / 100,
             atlasSeed: map.uid, bossName: node.boss, bossAct: node.bossAct, atlasCleared: run.cleared,
-            atlasKind: node.kind, memoryTier: map.memory || 0, exploration: explorationSpec(map), ...atlasEndgame.zoneExtras(run, node)
+            atlasKind: node.kind, memoryTier: map.memory || 0, exploration: explorationSpec(map), ...atlasEndgame.zoneExtras(run, node),
+            ...lootOmens.zoneFields(map)
         };
     }
     /** What a stash map would be with the current passives and loadout (the device card). */
@@ -401,7 +420,12 @@ const atlas = (() => {
     const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
     const roomIds = value => [...new Set(Array.isArray(value) ? value : [])].filter(id => typeof id === 'string' && id.length <= 64).slice(0, 100);
     const roomTypes = value => [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(ATLAS.encounters, type));
-    /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, and the equipment count. */
+    /** Lifetime counts the away result compares (js/ui.js getBackgroundAtlasGains): maps finished, treasure packs and golden ones. */
+    function normalizeTally(raw) {
+        const count = key => Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(Number(raw && raw[key]) || 0)));
+        return { maps: count('maps'), treasure: count('treasure'), golden: count('golden') };
+    }
+    /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, the equipment count, its finds and leaves. */
     function normalizeLoot(raw) {
         if (!raw || typeof raw !== 'object') return null;
         const currencies = {};
@@ -409,7 +433,8 @@ const atlas = (() => {
             const amount = Math.floor(Number(value));
             if (Object.hasOwn(ORB_DB, key) && amount > 0) currencies[key] = Math.min(Number.MAX_SAFE_INTEGER, amount);
         }
-        return { currencies, equipmentCount: Math.max(0, Math.min(1e6, Math.floor(Number(raw.equipmentCount) || 0))) };
+        return { currencies, equipmentCount: Math.max(0, Math.min(1e6, Math.floor(Number(raw.equipmentCount) || 0))),
+            items: combatLootReceipts.cleanItems(raw.items), leaves: combatLootReceipts.cleanLeaves(raw.leaves) };
     }
     function normalizeBonus(raw) {
         const bonus = ZERO();
@@ -500,7 +525,7 @@ const atlas = (() => {
             passives: atlasPassives.normalize(raw.passives, done.length + bonus.length + epochPoints), epoch,
             stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && NODES.includes(BY_ID.get(map.node)) && map.node !== PINNACLE.id).slice(0, ATLAS.stashCap),
             fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult), endgame: atlasEndgame.normalize(raw.endgame, done.includes(PINNACLE.id)),
-            memory: normalizeMemory(raw.memory),
+            memory: normalizeMemory(raw.memory), leaves: memoryLeaves.normalize(raw.leaves), tally: normalizeTally(raw.tally),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
             autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
         const savedNext = Math.floor(Number(raw.nextUid));
@@ -525,7 +550,7 @@ const atlas = (() => {
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
-        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason,
+        zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps, rewardZone,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();
 safeExposeGlobals({ atlas });

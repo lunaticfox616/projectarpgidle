@@ -60,11 +60,11 @@ const WORLD_MAP_HOTSPOTS = [
 ];
 
 const TRIAL_ZONES = [
-    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400, avoidThresholdMul: 1.1 }, trialDesc: '칼날 직선 함정 · 한 칸 회피와 방어도 점검' },
-    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialHazard: { pattern: 'doubleLine', warningMs: 1750, intervalMs: 6200, initialDelayMs: 2300, avoidThresholdMul: 1 }, trialDesc: '삼원 이중 함정 · 경고 속성과 저항 점검' },
-    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialHazard: { pattern: 'pool', warningMs: 1650, intervalMs: 5600, initialDelayMs: 2200, avoidThresholdMul: 0.9 }, trialDesc: '여신의 독무 · 오염 지대를 벗어나 회복할 자리 확보' },
-    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialHazard: { pattern: 'cross', warningMs: 1550, intervalMs: 5000, initialDelayMs: 2100, avoidThresholdMul: 0.8 }, trialDesc: '피와 공허의 십자 회랑 · 대각선 탈출과 복합 방어 점검' },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000, avoidThresholdMul: 0.7 }, trialDesc: '혹한 봉쇄 · 두 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, patternMode: 'slam', traitName: '백야의 심장 — 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
+    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400, avoidThresholdMul: 1.1 }, trialDesc: '칼날 직선 함정, 한 칸 회피와 방어도 점검' },
+    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialHazard: { pattern: 'doubleLine', warningMs: 1750, intervalMs: 6200, initialDelayMs: 2300, avoidThresholdMul: 1 }, trialDesc: '삼원 이중 함정, 경고 속성과 저항 점검' },
+    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialHazard: { pattern: 'pool', warningMs: 1650, intervalMs: 5600, initialDelayMs: 2200, avoidThresholdMul: 0.9 }, trialDesc: '여신의 독무, 오염 지대를 벗어나 회복할 자리 확보' },
+    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialHazard: { pattern: 'cross', warningMs: 1550, intervalMs: 5000, initialDelayMs: 2100, avoidThresholdMul: 0.8 }, trialDesc: '피와 공허의 십자 회랑, 대각선 탈출과 복합 방어 점검' },
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000, avoidThresholdMul: 0.7 }, trialDesc: '혹한 봉쇄, 두 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, patternMode: 'slam', traitName: '백야의 심장: 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
@@ -105,22 +105,22 @@ const MAP_PRIMARY_CONTENTS = Object.freeze([
 
 // 우주계 적 특성의 단일 정의. 전투 효과는 id로, 아틀라스의 사전 안내는 설명·대응법으로 소비한다.
 const COSMOS_MECHANIC_DB = Object.freeze([
-    { id: 'critResist', name: '성운 굴절', summary: '치명타 확률과 치명타 피해를 크게 억제합니다.', counter: '관통·비치명타 피해·저항 감소를 준비하세요.', element: 'light', tags: ['crit', 'toxiccrit', 'mirror', 'reflect', 'balance', 'judgement'] },
-    { id: 'critDamageResist', name: '항성 장갑', summary: '방어도와 피해 감소로 큰 한 방을 버팁니다.', counter: '방어 무시·저항 관통 또는 지속 피해가 효과적입니다.', element: 'phys', tags: ['guard', 'shield', 'relic', 'belt', 'tank', 'purify'] },
+    { id: 'critResist', name: '성운 굴절', summary: '치명타 확률과 치명타 피해를 크게 억제합니다.', counter: '관통/비치명타 피해/저항 감소를 준비하세요.', element: 'light', tags: ['crit', 'toxiccrit', 'mirror', 'reflect', 'balance', 'judgement'] },
+    { id: 'critDamageResist', name: '항성 장갑', summary: '방어도와 피해 감소로 큰 한 방을 버팁니다.', counter: '방어 무시/저항 관통 또는 지속 피해가 효과적입니다.', element: 'phys', tags: ['guard', 'shield', 'relic', 'belt', 'tank', 'purify'] },
     { id: 'comboGuard', name: '연속 타격 저항', summary: '짧은 시간에 반복 적중하는 공격의 피해를 줄입니다.', counter: '느리지만 강한 타격이나 지속 피해로 공략하세요.', element: 'cold', tags: ['projectile', 'bind', 'path', 'node', 'gate', 'loop', 'warp'] },
     { id: 'heavySlow', name: '중력 강타', summary: '느린 대신 강하고 저항을 관통하는 공격을 사용합니다.', counter: '직격 EHP와 최대 저항을 우선 확보하세요.', element: 'phys', tags: ['charge', 'impact', 'aoe', 'fire', 'physical', 'core', 'end', 'boss'] },
-    { id: 'fast', name: '광속 공세', summary: '빠른 연속 공격과 높은 치명타 확률로 압박합니다.', counter: '엔트로피 회피·막기·회복을 함께 준비하세요.', element: 'light', tags: ['speed', 'hunt', 'arcane', 'dual', 'companion', 'sting'] },
+    { id: 'fast', name: '광속 공세', summary: '빠른 연속 공격과 높은 치명타 확률로 압박합니다.', counter: '엔트로피 회피/막기/회복을 함께 준비하세요.', element: 'light', tags: ['speed', 'hunt', 'arcane', 'dual', 'companion', 'sting'] },
     { id: 'energyShield', name: '성간 보호막', summary: '생명력 위에 큰 에너지 보호막을 추가로 두릅니다.', counter: '지속 화력과 회복 억제로 전투가 길어지지 않게 하세요.', element: 'cold', tags: ['absorb', 'cold', 'vital', 'regen', 'seed', 'flower'] },
-    { id: 'evasion', name: '성간 회피', summary: '높은 회피로 명중이 낮은 공격을 흘려냅니다.', counter: '정확도·다단 타격·회피 무시 수단을 준비하세요.', element: 'chaos', tags: ['map', 'wealth', 'reward', 'gateway', 'outer', 'skill'] },
-    { id: 'armor', name: '운석 장갑', summary: '방어도와 피해 감소로 물리 타격을 억제합니다.', counter: '원소·카오스 피해나 방어 관통이 유리합니다.', element: 'chaos', tags: ['venom', 'poison', 'chaos', 'curse', 'sacrifice', 'asteroid'] }
+    { id: 'evasion', name: '성간 회피', summary: '높은 회피로 명중이 낮은 공격을 흘려냅니다.', counter: '정확도/다단 타격/회피 무시 수단을 준비하세요.', element: 'chaos', tags: ['map', 'wealth', 'reward', 'gateway', 'outer', 'skill'] },
+    { id: 'armor', name: '운석 장갑', summary: '방어도와 피해 감소로 물리 타격을 억제합니다.', counter: '원소/카오스 피해나 방어 관통이 유리합니다.', element: 'chaos', tags: ['venom', 'poison', 'chaos', 'curse', 'sacrifice', 'asteroid'] }
 ]);
 
 const COSMOS_GALAXY_ENVIRONMENT_DB = Object.freeze([
-    { galaxy: 1, name: '충돌권', summary: '무거운 물리 충돌과 운석 장갑이 중심인 은하입니다.', counter: '방어도·물리 피해 감소·방어 관통을 점검하세요.', armorMul: 1.12, attackSpeedMul: 0.95, damageMul: 0.06 },
+    { galaxy: 1, name: '충돌권', summary: '무거운 물리 충돌과 운석 장갑이 중심인 은하입니다.', counter: '방어도/물리 피해 감소/방어 관통을 점검하세요.', armorMul: 1.12, attackSpeedMul: 0.95, damageMul: 0.06 },
     { galaxy: 2, name: '심해권', summary: '모든 적이 생명력 위에 성간 보호막을 두르는 은하입니다.', counter: '지속 화력과 카오스 방어를 준비하세요.', hpMul: 0.08, energyShieldPct: 25, attackSpeedMul: 0.96 },
     { galaxy: 3, name: '쌍성권', summary: '주 피해와 카오스 피해가 겹치는 이중성 은하입니다.', counter: '한 속성만이 아니라 최저 EHP를 함께 보완하세요.', hybridElement: 'chaos', resAll: 3 },
     { galaxy: 4, name: '심판권', summary: '높은 치명타와 저항 관통으로 방어의 빈틈을 심판합니다.', counter: '치명타 저항과 초과 저항을 확보하세요.', critChanceBonus: 6, penetration: 4 },
-    { galaxy: 5, name: '혜성권', summary: '빠른 공격과 높은 회피로 완성 빌드를 추격하는 은하입니다.', counter: '정확도·회피 대응·회복 속도를 점검하세요.', attackSpeedMul: 1.12, evasionMul: 1.10 }
+    { galaxy: 5, name: '혜성권', summary: '빠른 공격과 높은 회피로 완성 빌드를 추격하는 은하입니다.', counter: '정확도/회피 대응/회복 속도를 점검하세요.', attackSpeedMul: 1.12, evasionMul: 1.10 }
 ]);
 
 // 각 우주계 노드에서 선택하는 탐사 신호. 안정 관측은 항상 제시되고, 나머지 두 칸은
@@ -267,20 +267,20 @@ const SEASON_CONTENT_ROADMAP = {
     7: { title: '루프 7', features: ['해금: 운석 낙하 지점'] },
     8: { title: '루프 8', features: ['해금: 벌집'] },
     9: { title: '루프 9', features: ['해금: 균열'] },
-    10: { title: '루프 10', features: ['해금: 심화 혼돈', '그루터기 함: 뿌리 기억 25% (다 자란 것이 새 루프에 25% 자란 채로)'] },
+    10: { title: '루프 10', features: ['해금: 심화 혼돈', '그루터기 함: 뿌리 기억 25% (루프가 바뀌어도 경험치 25% 유지)'] },
     11: { title: '루프 11', features: ['해금: 심해 / 낚시', '심화: 혼돈 단계 상승'] },
     12: { title: '루프 12', features: ['심화: 혼돈 단계 상승'] },
     13: { title: '루프 13', features: ['해금: 시간의 균열 (융합 제단)', '심화: 혼돈 단계 상승'] },
     14: { title: '루프 14', features: ['심화: 혼돈 단계 상승'] },
     15: { title: '루프 15', features: ['해금: 군락지 / 군락지 액막이', '조건부 해금: 창공의 탑 (혼돈 20층 클리어)', '전술 조건 해금: 최근 피격'] },
     16: { title: '루프 16', features: ['심화: 혼돈 단계 상승'] },
-    17: { title: '루프 17', features: ['그루터기 함: 25칸 · 판 완성', '심화: 혼돈 단계 상승'] },
+    17: { title: '루프 17', features: ['그루터기 함: 25칸 모두 열림', '심화: 혼돈 단계 상승'] },
     18: { title: '루프 18', features: ['그루터기 함: 접붙이기 (루프마다 3점)', '심화: 혼돈 단계 상승'] },
     19: { title: '루프 19', features: ['심화: 혼돈 단계 상승'] },
     20: { title: '루프 20', features: ['조건부 해금: 코어 (지하계 10층 클리어)', '심화: 혼돈 단계 상승'] },
     21: { title: '루프 21', features: ['아틀라스: 기억 던전 (보스가 남긴 기억으로 그 보스에게 다시 도전, 1~5단계)', '심화: 혼돈 단계 상승'] },
     22: { title: '루프 22', features: ['심화: 혼돈 단계 상승'] },
-    23: { title: '루프 23', features: ['그루터기 함: 봉인 칸 1 (다 자란 것이 루프를 넘김), 포식 (불씨의 흉터)', '심화: 혼돈 단계 상승'] },
+    23: { title: '루프 23', features: ['그루터기 함: 봉인 칸 1 (루프가 바뀌어도 성장 상태 유지), 포식 (불씨의 흉터)', '심화: 혼돈 단계 상승'] },
     24: { title: '루프 24', features: ['심화: 혼돈 단계 상승'] },
     25: { title: '루프 25', features: ['해금: 야생 부적 드랍 (적이 부적을 떨어뜨림)'] },
     26: { title: '루프 26', features: ['심화: 혼돈 단계 상승'] },
@@ -288,7 +288,7 @@ const SEASON_CONTENT_ROADMAP = {
     28: { title: '루프 28', features: ['심화: 혼돈 단계 상승'] },
     29: { title: '루프 29', features: ['그루터기 함: 봉인 칸 2', '심화: 혼돈 단계 상승'] },
     30: { title: '루프 30', features: ['아틀라스: 잿불 터 (타오른 잿불가지로 장비를 한 번 더 타락)', '전환점: 혼돈 루프 요구 심화 40층'] },
-    31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈·우주계 루프 경로 선택', '조건부 해금: 잔향체 아스트라 / 아틀라스 최종 관문'] },
+    31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈/우주계 루프 경로 선택', '조건부 해금: 잔향체 아스트라 / 아틀라스 최종 관문'] },
     32: { title: '루프 32', features: ['아틀라스: 수액 상처 (기폭제로 장비의 품질 속성을 고른 태그로)', '심화: 혼돈 단계 상승'] },
     33: { title: '루프 33', features: ['보스 변이체 (모든 보스가 드물게 변이체로, 처음 잡은 변이마다 보상, 기억 던전에서 다시 부르기)', '심화: 혼돈 단계 상승'] },
     34: { title: '루프 34', features: ['심화: 혼돈 단계 상승'] },
@@ -333,37 +333,37 @@ const SEASON_BOSS_ZONES = [
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.
     //  - 다섯 날을 한 루프 안에 모두 꺾으면 「완성작」이 모습을 드러낸다 (requiresRivals).
     { id: 'rival_overheat', name: '버려진 두 번째 날 「과열」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'fire', reward: 'goldenRule', journalId: 'rival_overheat', rivalBlade: true, difficultyBenchmark: 'rival31',
-      bossMods: { hpMul: 0.75, damageMul: 1.3, attackSpeedMul: 1.3, critChanceBonus: 14, patternMode: 'burst', traitName: '과열 — 먼저 베지 못하면 먼저 베인다' } },
+      bossMods: { hpMul: 0.75, damageMul: 1.3, attackSpeedMul: 1.3, critChanceBonus: 14, patternMode: 'burst', traitName: '과열: 먼저 베지 못하면 먼저 베인다' } },
     { id: 'rival_dull', name: '버려진 세 번째 날 「무딤」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'cold', reward: 'goldenRule', journalId: 'rival_dull', rivalBlade: true, difficultyBenchmark: 'rival31',
-      bossMods: { hpMul: 1.5, damageMul: 1.1, attackSpeedMul: 0.78, dr: 12, resAll: 12, armorMul: 1.6, firstHitGuard: 0.3, patternMode: 'slam', traitName: '무딤 — 부러지지 않는 것이 전부였던 날' } },
+      bossMods: { hpMul: 1.5, damageMul: 1.1, attackSpeedMul: 0.78, dr: 12, resAll: 12, armorMul: 1.6, firstHitGuard: 0.3, patternMode: 'slam', traitName: '무딤: 부러지지 않는 것이 전부였던 날' } },
     { id: 'rival_glutton', name: '버려진 네 번째 날 「탐식」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'rival_glutton', rivalBlade: true, difficultyBenchmark: 'rival31',
-      bossMods: { hpMul: 1.25, regenMul: 8, resChaos: 20, ailmentChanceBonus: 0.1, patternMode: 'ramp', traitName: '탐식 — 상처를 먹고 아무는 날' } },
+      bossMods: { hpMul: 1.25, regenMul: 8, resChaos: 20, ailmentChanceBonus: 0.1, patternMode: 'ramp', traitName: '탐식: 상처를 먹고 아무는 날' } },
     { id: 'rival_afterimage', name: '버려진 다섯 번째 날 「잔영」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'light', reward: 'goldenRule', journalId: 'rival_afterimage', rivalBlade: true, difficultyBenchmark: 'rival31',
-      bossMods: { hpMul: 0.85, attackSpeedMul: 1.18, evasionMul: 1.7, critChanceBonus: 8, firstHitGuard: 0.15, patternMode: 'burst', traitName: '잔영 — 스치는 것조차 허락하지 않는 날' } },
+      bossMods: { hpMul: 0.85, attackSpeedMul: 1.18, evasionMul: 1.7, critChanceBonus: 8, firstHitGuard: 0.15, patternMode: 'burst', traitName: '잔영: 스치는 것조차 허락하지 않는 날' } },
     { id: 'rival_backedge', name: '버려진 여섯 번째 날 「역린」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'phys', reward: 'goldenRule', journalId: 'rival_backedge', rivalBlade: true, difficultyBenchmark: 'rival31',
-      bossMods: { hpMul: 1.1, damageMul: 1.2, penetration: 12, dr: 8, resAll: 8, armorMul: 1.25, patternMode: 'slam', traitName: '역린 — 방어를 거꾸로 베는 날' } },
+      bossMods: { hpMul: 1.1, damageMul: 1.2, penetration: 12, dr: 8, resAll: 8, armorMul: 1.25, patternMode: 'slam', traitName: '역린: 방어를 거꾸로 베는 날' } },
     { id: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, difficultyBenchmark: 'rival31',
       requiresRivals: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'],
-      bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작 — 여섯 날의 모든 것' } },
+      bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작: 여섯 날의 모든 것' } },
     // 잔향체 아스트라 (루프 31+): 우주계 5개 은하의 보스(하말리스/디프다르/주베누비아/주벤샤말/에니프론)를
     // 같은 루프 안에 모두 격파해야 모습을 드러내는 우주계의 최종 관문. 다섯 보스의 정체성을 번갈아 두르며 싸운다.
     { id: 'cosmos_astra', name: '잔향체 아스트라', type: 'seasonBoss', tier: 82, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresCosmosBosses: ['planet-45', 'planet-46', 'planet-47', 'planet-48', 'planet-49'],
-      bossMods: { hpMul: 2.8, damageMul: 2.75, attackSpeedMul: 1.1, dr: 12, resAll: 14, armorMul: 1.45, evasionMul: 1.35, regenMul: 2, penetration: 12, critChanceBonus: 14, firstHitGuard: 0.3, patternMode: 'ramp', traitName: '잔향 — 다섯 별의 마지막 메아리' } },
+      bossMods: { hpMul: 2.8, damageMul: 2.75, attackSpeedMul: 1.1, dr: 12, resAll: 14, armorMul: 1.45, evasionMul: 1.35, regenMul: 2, penetration: 12, critChanceBonus: 14, firstHitGuard: 0.3, patternMode: 'ramp', traitName: '잔향: 다섯 별의 마지막 메아리' } },
     // 아틀라스 최종 관문: 기존 무한 콘텐츠의 명확한 종착 목표다. 진행 이정표로 영구 해금되며
     // 입장권은 요구하지 않는다. 무료 반복 파밍을 막기 위해 보상은 최초 격파에만 지급한다.
     { id: 'pinnacle_underking', name: '지핵군주 모르그란', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
       pinnacleRequirement: { kind: 'underworldFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
-      bossMods: { hpMul: 1.35, damageMul: 1.18, attackSpeedMul: 0.82, dr: 14, resAll: 10, armorMul: 1.8, penetration: 14, firstHitGuard: 0.32, patternMode: 'slam', traitName: '지핵 붕괴 — 느리지만 방어를 파쇄하는 강타' } },
+      bossMods: { hpMul: 1.35, damageMul: 1.18, attackSpeedMul: 0.82, dr: 14, resAll: 10, armorMul: 1.8, penetration: 14, firstHitGuard: 0.32, patternMode: 'slam', traitName: '지핵 붕괴: 느리지만 방어를 파쇄하는 강타' } },
     { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
       pinnacleRequirement: { kind: 'oceanDepth', target: 1000 }, firstClearReward: { key: 'goldenRule', amount: 2 },
-      bossMods: { hpMul: 1.3, damageMul: 1.22, attackSpeedMul: 1.04, energyShieldPct: 35, regenMul: 2.4, resC: 18, resChaos: 12, penetration: 10, ailmentChanceBonus: 0.12, patternMode: 'ramp', traitName: '무광해 역류 — 보호막과 냉각으로 장기전을 강요' } },
+      bossMods: { hpMul: 1.3, damageMul: 1.22, attackSpeedMul: 1.04, energyShieldPct: 35, regenMul: 2.4, resC: 18, resChaos: 12, penetration: 10, ailmentChanceBonus: 0.12, patternMode: 'ramp', traitName: '무광해 역류: 보호막과 냉각으로 장기전을 강요' } },
     { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
       pinnacleRequirement: { kind: 'skyFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
-      bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행 — 빠른 연격과 치명타로 빈틈을 추적' } },
+      bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행: 빠른 연격과 치명타로 빈틈을 추적' } },
     { id: 'pinnacle_observer', name: '경계의 관측자 베일라', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'], firstClearReward: { key: 'goldenRule', amount: 5 },
-      bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측 — 강습·강타·격앙을 순환하며 모든 성장축을 검증' } }
+      bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측: 강습, 강타, 격앙을 순환하며 모든 성장축을 검증' } }
 ];
 
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
@@ -402,7 +402,7 @@ const JOURNAL_DB = {
     rival_afterimage: { title: '버려진 날 - 잔영', lines: ['“맞지 않으면 지지 않는다고 믿었다.”', '“닿지 않는 날은, 아무것도 바꾸지 못했다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
     rival_backedge: { title: '버려진 날 - 역린', lines: ['“나는 갑옷 안쪽부터 베었다.”', '“그는 말했다. 방식이 아니라 방향이 틀렸다고.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
     rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 스킬트리 포인트 +1' }, requiresJournal: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'] },
-    cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 스킬트리 포인트 +2' } },
+    cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다. 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 스킬트리 포인트 +2' } },
     pinnacle_underking: { title: '지핵군주 - 모르그란', lines: ['“지하계의 끝은 바닥이 아니었다. 아래를 떠받치던 심장이었다.”', '“모르그란이 무너지자 뿌리 아래의 침묵이 처음으로 갈라졌다.”'] },
     pinnacle_leviathan: { title: '무광해의 포식자 - 탈라사', lines: ['“빛이 사라진 바다는 스스로 굶주림을 낳았다.”', '“천 미터 아래에서 돌아온 칼날에는 검은 조류의 기억이 남았다.”'] },
     pinnacle_sky: { title: '빈 왕좌의 집행자 - 카엘룸', lines: ['“하늘의 왕좌는 오래전부터 비어 있었다.”', '“왕이 없는 질서를 지키던 집행자만이 마지막 번개로 길을 막았다.”'] },

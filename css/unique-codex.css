@@ -1,0 +1,118 @@
+/* 고유 아이템 도감(js/unique-codex-ui.js)과 파밍 추적 칸(js/unique-hunt-ui.js), 2026-10-09 다시 그림. 위 줄 수치 칸과 막대, 새로 등록된
+   고유 칩, 부위 탭(부위 그림, 모은 수 막대), 카드 판(고유 그림: 미등록은 검은 그림자에 금빛 윤곽, 등록은 제 색), 고유 창. 고유의 색은
+   장비 툴팁의 고유 색과 같은 주황 금빛, 극희귀는 보라. */
+@layer features {
+  #tab-codex { container-type: inline-size; }
+  #tab-codex .vertical-tab-sidebar[hidden] { display: none; }
+  .codex-root { display: grid; gap: 10px; }
+  #ui-codex-summary { margin-bottom: 10px; }
+  .codex-bar { display: block; height: 5px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
+  .codex-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8a5a1e, #f0a85a); }
+  .codex-art { display: grid; place-items: center; width: 64px; height: 64px; border: 1px solid #2a2218;
+    background: radial-gradient(circle at 50% 40%, rgba(240, 168, 90, .14), transparent 68%), #0b0907; }
+  .codex-art img { max-width: 56px; max-height: 56px; image-rendering: pixelated; }
+
+  /* 위 줄 */
+  .codex-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .codex-stat { display: grid; align-content: start; gap: 5px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  .codex-stat > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .codex-stat > b { color: #f0a85a; font-size: 20px; font-weight: 400; line-height: 1; }
+  .codex-stat > b small { margin-left: 4px; color: var(--px-copy-muted, #a39883); }
+  .codex-stat > small { color: var(--px-copy-muted, #a39883); }
+  .codex-stat.is-done > b { color: #9fd46a; }
+  .codex-fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .codex-fresh > span { color: #f3d28c; font-size: 12px; }
+  #tab-codex .codex-fresh-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 2px 8px 2px 2px; border: 1px solid #8a5a1e; border-radius: 0;
+    background: rgba(240, 168, 90, .1); box-shadow: 0 0 6px rgba(240, 168, 90, .25); color: #f0a85a; font-size: 12px; }
+  .codex-fresh-chip img { width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; }
+
+  /* 부위 탭 */
+  .codex-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+  #tab-codex .codex-slot { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); grid-template-areas: 'art name' 'art count' 'bar bar';
+    align-items: center; gap: 2px 6px; min-height: 52px; padding: 5px 7px; border: 1px solid #2a2218; border-radius: 0; background: rgba(10, 8, 6, .5);
+    box-shadow: none; color: var(--px-copy, #e8dcc0); text-align: left; }
+  #tab-codex .codex-slot.is-active { border-color: #c69f5e; background: linear-gradient(180deg, rgba(198, 159, 94, .16), rgba(10, 8, 6, .5)); }
+  .codex-slot img { grid-area: art; width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; opacity: .8; }
+  .codex-slot > span { grid-area: name; font-size: 12px; }
+  .codex-slot > b { grid-area: count; color: var(--px-copy-muted, #a39883); font-size: 11px; font-weight: 400; }
+  .codex-slot.is-active > b, .codex-slot.is-done > b { color: #f0a85a; }
+  .codex-slot .codex-bar { grid-area: bar; height: 3px; margin-top: 2px; }
+  .codex-slot > em { position: absolute; top: -6px; right: -4px; padding: 0 3px; border: 1px solid #050404; background: #7a1f2b; color: #ffe1a1; font-size: 10px; font-style: normal; }
+
+  /* 카드 판 */
+  .codex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
+  #tab-codex .codex-tile { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 8px 6px;
+    border: 1px solid #241d14; border-radius: 0; background: rgba(10, 8, 6, .5); box-shadow: none; text-align: center; cursor: pointer; }
+  #tab-codex .codex-tile:hover, #tab-codex .codex-tile:focus-visible { border-color: #5a4630; background: rgba(240, 168, 90, .06); }
+  .codex-tile .codex-art { width: 66px; height: 74px; }
+  .codex-tile .codex-art img { max-width: 60px; max-height: 68px; }
+  .codex-tile strong { max-width: 100%; color: #6f6656; font-size: 12px; font-weight: 400; line-height: 1.3; overflow-wrap: anywhere; }
+  .codex-tile small { color: #5f574a; font-size: 11px; line-height: 1.3; }
+  .codex-tile.is-off .codex-art img { filter: brightness(0) drop-shadow(0 0 1px rgba(232, 194, 122, .55)); opacity: .85; }
+  .codex-tile.is-on { border-color: #4a3420; }
+  .codex-tile.is-on .codex-art { border-color: #6a4626; box-shadow: 0 0 8px rgba(240, 168, 90, .18); }
+  .codex-tile.is-on strong { color: #f0a85a; }
+  .codex-tile.is-on small { color: var(--px-copy-muted, #a39883); }
+  .codex-tile.is-chase.is-on strong { color: #d7a8ff; }
+  .codex-tile.is-chase .codex-art { background: radial-gradient(circle at 50% 40%, rgba(199, 140, 255, .16), transparent 68%), #0b0907; }
+  .codex-tile.is-new { border-color: #c06a2a; box-shadow: 0 0 10px rgba(240, 168, 90, .3); }
+  .codex-tile > em { position: absolute; top: 4px; right: 4px; padding: 0 4px; border: 1px solid; font-size: 10px; font-style: normal; line-height: 14px; }
+  .codex-tile > em.is-new { border-color: #c06a2a; background: #4a1e0e; color: #ffd4a0; }
+  .codex-tile > em.is-hunt { border-color: #8a6a2e; color: #f3d28c; }
+
+  /* 고유 창 */
+  .codex-sheet-panel { width: min(470px, calc(100vw - 24px)); }
+  .codex-sheet { display: grid; gap: 10px; }
+  .codex-sheet-head { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 12px; }
+  .codex-sheet-head .codex-art { width: 88px; height: 88px; }
+  .codex-sheet-head .codex-art img { max-width: 76px; max-height: 76px; }
+  .codex-sheet:not(.is-on) .codex-art img { filter: brightness(0) drop-shadow(0 0 1px rgba(232, 194, 122, .6)); }
+  .codex-sheet-head > div { display: grid; gap: 3px; min-width: 0; }
+  .codex-sheet-head strong { color: #8a7f6c; font-size: 18px; font-weight: 400; }
+  .codex-sheet.is-on .codex-sheet-head strong { color: #f0a85a; }
+  .codex-sheet.is-chase .codex-sheet-head strong { color: #d7a8ff; }
+  .codex-sheet-head span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .codex-sheet-head em { color: #6f6656; font-size: 12px; font-style: normal; }
+  .codex-sheet.is-on .codex-sheet-head em { color: #9fd46a; }
+  .codex-sheet-source { display: flex; align-items: baseline; gap: 10px; margin: 0; padding: 6px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); font-size: 12px; }
+  .codex-sheet-source span { color: var(--px-copy-muted, #a39883); }
+  .codex-sheet-source b { color: var(--px-copy, #e8dcc0); font-weight: 400; }
+  .codex-sheet-note { margin: 0; color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .codex-sheet-effect { margin: 0; padding: 6px 10px; border-left: 2px solid #b88ad8; background: rgba(184, 138, 216, .08); color: #d7b8ff; font-size: 12px; line-height: 1.5; }
+  .codex-sheet-lines { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+  .codex-sheet-lines li.is-base { opacity: .75; }
+  .codex-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .codex-hunt-button.is-tracked { color: #f3d28c; box-shadow: inset 0 0 0 1px #8a6a2e; }
+
+  /* 파밍 추적 칸 */
+  .codex-hunt { display: grid; gap: 6px; margin-bottom: 10px; }
+  .codex-hunt > header { display: flex; align-items: baseline; gap: 8px; }
+  #tab-codex .codex-hunt > header strong { color: var(--px-gold-bright, #e0c283); font-size: 15px; font-weight: 400; }
+  .codex-hunt > header em { padding: 0 4px; border: 1px solid #3d5a26; color: #9fd46a; font-size: 11px; font-style: normal; }
+  .codex-hunt > header b { margin-left: auto; color: #f3d28c; font-weight: 400; }
+  .codex-hunt-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .codex-hunt-target { display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: 'art text' 'act act'; align-items: center; gap: 6px 8px;
+    min-width: 0; padding: 6px; border: 1px solid #6a4626; background: rgba(240, 168, 90, .06); }
+  .codex-hunt-target.is-chase { border-color: #6b4a8f; background: rgba(199, 140, 255, .06); }
+  .codex-hunt-target .codex-art { grid-area: art; width: 44px; height: 44px; }
+  .codex-hunt-target .codex-art img { max-width: 38px; max-height: 38px; }
+  .codex-hunt-target > div:not(.codex-hunt-actions) { grid-area: text; display: grid; gap: 2px; min-width: 0; }
+  .codex-hunt-target strong { overflow: hidden; color: #f0a85a; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+  .codex-hunt-target.is-chase strong { color: #d7a8ff; }
+  .codex-hunt-target small { color: var(--px-copy-muted, #a39883); font-size: 11px; line-height: 1.3; }
+  .codex-hunt-actions { grid-area: act; display: grid; grid-template-columns: 1fr auto; gap: 4px; }
+  #tab-codex .codex-hunt-actions button { min-height: 28px; padding: 2px 8px; font-size: 12px; }
+  .codex-hunt-empty { display: grid; place-items: center; min-height: 86px; border: 1px dashed #3a3024; color: #6f6656; font-size: 12px; text-align: center; }
+
+  @container (max-width: 560px) {
+    .codex-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .codex-summary .is-count { grid-column: 1 / -1; }
+    .codex-hunt-row { grid-template-columns: minmax(0, 1fr); }
+    .codex-hunt-target { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: 'art text act'; }
+    .codex-hunt-target .codex-art { width: 40px; height: 40px; }
+    .codex-hunt-actions { grid-template-columns: auto auto; }
+    .codex-hunt-empty { min-height: 40px; }
+    .codex-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .codex-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+}

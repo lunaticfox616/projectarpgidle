@@ -81,8 +81,8 @@
         }
     }
     document.addEventListener('DOMContentLoaded', () => {
-        new SectionNavigation('map-tab-fishing', '#fishing-gather, #fishing-collection, #fishing-workshop', ['채집 · 전략', '도감', '제작'], '낚시 작업');
-        new SectionNavigation('tab-character', '#tab-character .character-stat-section', ['공격', '방어 · 회복', '기본 · 특수'], '능력치 분류');
+        new SectionNavigation('map-tab-fishing', '#fishing-gather, #fishing-collection, #fishing-workshop', ['채집 전략', '도감', '제작'], '낚시 작업');
+        new SectionNavigation('tab-character', '#tab-character .character-stat-section', ['공격', '방어와 회복', '기본과 특수'], '능력치 분류');
         new SectionNavigation('tab-season', '#trait-season-section, #ui-loop10-section', ['원환 패시브', '심화 성장'], '루프 성장 분류');
     }, { once: true });
 }());

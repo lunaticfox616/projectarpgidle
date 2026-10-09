@@ -8,7 +8,7 @@
     function application(name, stats) {
         const def = SUPPORT_GEM_DB[name];
         const tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === def.stat);
-        if (!tag) return isSummonGuardSupport(name) ? '소환형 보조 · 소환 한도 사용' : '캐릭터 효과 · 상세에서 확인';
+        if (!tag) return isSummonGuardSupport(name) ? '소환형 보조, 소환 한도 사용' : '캐릭터 효과, 상세에서 확인';
         const active = getUiGemPresentation(game.activeSkill || '기본 공격', false, stats).skill;
         const targets = [];
         if (getTaggedDamageBreakdown({ [def.stat]: 1 }, active).total > 0) targets.push('주 공격');
@@ -16,8 +16,8 @@
         if (mobility && getTaggedDamageBreakdown({ [def.stat]: 1 }, getUiGemPresentation(mobility, false, stats).skill).total > 0) targets.push('이동 스킬');
         const summons = (game.equippedSummonSkills || []).filter(gem => (SKILL_DB[gem]?.tags || []).includes(tag));
         targets.push(...summons);
-        if (targets.length) return `적용: ${targets.join(' · ')}`;
-        return '현재 주 공격·소환 젬에 적용되지 않음';
+        if (targets.length) return `적용: ${targets.join(', ')}`;
+        return '현재 주 공격/소환 젬에 적용되지 않음';
     }
 
     function close() {
@@ -75,7 +75,7 @@
         if (type === 'support') return tierButtons(name);
         const summon = (SKILL_DB[name].tags || []).includes('summon_attack');
         const enhance = game.gemEnhanceUnlocked && getEquippedEnhanceableGemNames().includes(name);
-        return (summon && worn ? summonCount(name) : '') + (enhance ? '<button type="button" data-gem-action="enhance">강화 · 각인</button>' : '');
+        return (summon && worn ? summonCount(name) : '') + (enhance ? '<button type="button" data-gem-action="enhance">강화와 각인</button>' : '');
     }
 
     function actions(type, name, anchor) {

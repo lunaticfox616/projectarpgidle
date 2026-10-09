@@ -27,11 +27,17 @@ const STUMP_BOX_OPENING = Object.freeze({ start: 9, everyLoops: 1 });
 
 // 성장: 판 위에서 억제되지 않은 미성숙품만 처치마다 자란다. 절반에서 새싹/송진, 다 차면 꽃·열매/호박석.
 // 부적은 절반 단계 없이 다 차면 깨어난다.
+// 2026-10-09 사용자 "씨앗/수액 등의 성장(거름 포함) 지금보다 훨씬 어렵게": 필요량 8배(v1Need가 그 전 값). 방치 정산 측정으로 시간당
+// 처치가 시작 무렵 약 1,200, 후반 약 2,500이고 처치 하나가 평균 약 2.7 자라게 하므로, 씨앗 하나가 처치만으로 시작 무렵 약 1시간,
+// 후반 약 30분 걸린다(전에는 7분과 4분쯤). 판 1 저장을 열면 자라던 비율은 그대로, 다 자란 것은 다 자란 채로 옮긴다(js/stump-box.js upgradeGrowth).
 const STUMP_BOX_GROWTH = Object.freeze({
-    need: Object.freeze({ seed: 400, sap: 500, talisman: 300, scar: 400 }),
+    need: Object.freeze({ seed: 3200, sap: 4000, talisman: 2400, scar: 3200 }),
+    v1Need: Object.freeze({ seed: 400, sap: 500, talisman: 300, scar: 400 }),
     perKill: Object.freeze({ normal: 1, elite: 6, boss: 30 }),
     sproutAt: 0.5
 });
+// 씨앗이 무엇으로 자랄지(꽃, 열매)는 생길 때 무작위로 정해진다(2026-10-09 사용자: 고르지 않고 무작위). 열매가 될 몫.
+const STUMP_BOX_SEED_PATH = Object.freeze({ fruitShare: 0.5 });
 
 // 전용 드랍: 함을 얻은 뒤 모든 처치에서 장비 드랍과 따로 굴린다. 계열은 씨앗 60% · 수액 40%.
 // 색(2026-10-06): 절반은 판에 놓인 것들의 색에서(놓인 개수만큼 무겁게), 나머지는 네 색에서 고르게 고른다.
@@ -45,8 +51,8 @@ const STUMP_BOX_DROPS = Object.freeze({
 // 거름(2026-10-06): 보관함의 씨앗 · 수액 하나를 판에 뿌리면 사라지고, 판에서 자라는 것(억제되지 않은 미성숙품과 잠든 부적)
 // 모두가 growth × 품질만큼 자란다. 보관함이 가득 찬 채 떨어진 씨앗 · 수액도 버려지지 않고 거름이 된다.
 // 쓸 데 없던 다른 색 드랍이 판을 앞당기는 재료가 되고, 새 루프에 다시 키우는 시간을 플레이어가 줄일 수 있다.
-// 100은 보통 처치 100번이다(씨앗 하나 400, 수액 500).
-const STUMP_BOX_COMPOST = Object.freeze({ growth: 100 });
+// 60은 보통 처치 60번이다(씨앗 하나 3,200, 수액 4,000). 2026-10-09에 100에서 줄였다(필요량은 8배라 거름 하나의 몫은 약 1/13).
+const STUMP_BOX_COMPOST = Object.freeze({ growth: 60 });
 // 보관된 씨앗 · 수액의 품질 범위. 드랍은 위 roll 범위로 굴리고, 조합창 합치기만 130%까지 올린다(data/stump-cube.js).
 const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 
@@ -67,7 +73,7 @@ const STUMP_BOX_UNLOCKS = Object.freeze([
     Object.freeze({ id: 'storage_labyrinth', label: '보관함 +25', when: Object.freeze({ journal: 'labyrinth_10' }), storage: 25 }),
     Object.freeze({ id: 'root_memory_loop', label: '뿌리 기억 25%', when: Object.freeze({ loop: 10 }), keepPct: 25 }),
     Object.freeze({ id: 'root_memory_echo', label: '뿌리 기억 50%', when: Object.freeze({ journal: 'woodsman_echo' }), keepPct: 50 }),
-    Object.freeze({ id: 'compost_bulk', label: '거름 한꺼번에', when: Object.freeze({ harvestCells: 4 }), bulkCompost: true }),
+    Object.freeze({ id: 'compost_bulk', label: '일괄 거름 사용', when: Object.freeze({ harvestCells: 4 }), bulkCompost: true }),
     Object.freeze({ id: 'breeding', label: '번식', when: Object.freeze({ harvestRow: 'fruit' }), breeding: true }),
     Object.freeze({ id: 'pouch_meteor_fall', label: '씨앗 주머니', when: Object.freeze({ journal: 'meteor_fall' }), pouch: true }),
     Object.freeze({ id: 'pouch_beehive_queen', label: '씨앗 주머니', when: Object.freeze({ journal: 'beehive_queen' }), pouch: true }),
@@ -147,7 +153,8 @@ const STUMP_BOX_SCAR = Object.freeze({ name: '불씨의 흉터', absorb: Object.
 const STUMP_BOX_BREEDING = Object.freeze({ mutation: Object.freeze({ color: 0.05, golden: 0.005, scar: 0.003 }) });
 // 씨앗 주머니(16번): 해금 줄의 저널마다 한 번. 열면 무작위 씨앗 offers개 가운데 하나를 고른다(고르기 전에는 저장해 두어 다시 굴리지 않는다).
 const STUMP_BOX_SEED_POUCH = Object.freeze({ offers: 3, roll: Object.freeze({ min: 0.9, max: 1.2 }) });
-// 거름 한꺼번에(16번): 고른 색의 보관된 씨앗과 수액을 한 번에 거름으로. 계열마다 품질이 가장 좋은 keep개는 남긴다(합치기 재료).
+// 일괄 거름 사용과 일괄 버리기(16번, 2026-10-09 이름과 버리기): 보관함 분류(전체나 한 색)의 씨앗과 수액을 한 번에. 색과 종류마다
+// 품질이 가장 좋은 keep개, 황금, 고대 씨앗은 남긴다(합치기 재료). 누르면 무엇을 쓰는지 먼저 보여 준다.
 const STUMP_BOX_BULK_COMPOST = Object.freeze({ keep: 3 });
 // 부적 도감(16번): 고유 부적과 야생 고유 부적의 첫 획득. every종마다 보관함 +storage.
 const STUMP_BOX_TALISMAN_CODEX = Object.freeze({ every: 5, storage: 2 });
@@ -206,7 +213,7 @@ const STUMP_BOX_ANCIENT = Object.freeze({ graftRanks: 1 });
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
-    STUMP_BOX_GROWTH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
+    STUMP_BOX_GROWTH, STUMP_BOX_SEED_PATH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
     STUMP_BOX_HARVEST, STUMP_BOX_UNLOCKS, STUMP_BOX_RIPENING, STUMP_BOX_EXTRA_LINES, STUMP_BOX_SCAR, STUMP_BOX_BREEDING, STUMP_BOX_SEED_POUCH,
     STUMP_BOX_BULK_COMPOST, STUMP_BOX_TALISMAN_CODEX, STUMP_BOX_ANCIENT
 });

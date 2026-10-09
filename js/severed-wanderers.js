@@ -88,7 +88,7 @@ function applySeveredWandererLoadout(enemy, loadout) {
         equipment: loadout.equipment.map(base => ({ id: base.id, slot: base.slot, name: base.name }))
     };
     let gearText = enemy.wandererLoadout.equipment.map(base => base.name).join(', ');
-    enemy.traitName = `단절된 방랑자 · ${loadout.skillName} · ${gearText}`;
+    enemy.traitName = `단절된 방랑자, ${loadout.skillName}, ${gearText}`;
     return enemy;
 }
 

@@ -244,7 +244,7 @@ var auditEmberMode = ${JSON.stringify(emberMode)};
 var auditMasteryLevel = ${masteryLevel};
 /** The build's weapon category at the audited mastery level, nothing else. */
 function auditMastery() {
-    game.weaponMastery = { xp: {} };
+    game.weaponMastery = { xp: {}, v: WEAPON_MASTERY.curveVersion };
     const id = weaponMastery.wielded(game);
     if (id && auditMasteryLevel > 1) game.weaponMastery.xp[id] = weaponMastery.reach(auditMasteryLevel);
 }

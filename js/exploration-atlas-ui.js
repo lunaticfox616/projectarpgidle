@@ -48,13 +48,13 @@ const explorationAtlasUi = (() => {
     }
     function routeLabel(route) {
         if (route === 'map-explore-worldtree') return '세계수 아틀라스';
-        if (route === 'map-explore-chaos') return '혼돈 · 심화';
+        if (route === 'map-explore-chaos') return '혼돈 심화';
         if (route === 'map-explore-beehive') return '벌집';
         return document.getElementById('btn-' + route).textContent.trim();
     }
     function regionHtml(region) {
         const name = region.id === 'tree' ? '탐험' : region.name;
-        const progress = region.id === 'tree' ? region.routes.filter(route => route !== 'map-explore-hunting' && available(route)).map(routeLabel).join(' · ') : regionProgress(region);
+        const progress = region.id === 'tree' ? region.routes.filter(route => route !== 'map-explore-hunting' && available(route)).map(routeLabel).join(', ') : regionProgress(region);
         const attention = region.id === 'tree' && available('map-explore-trials') && trialRouteSummary().attention;
         return `<button class="atlas-region atlas-theme-${region.id}${attention ? ' has-new-challenge' : ''}" aria-label="${name}"
             onclick="explorationAtlasUi.select('${region.id}')"><img class="atlas-landscape" src="${region.landscape}" alt="" loading="lazy" decoding="async">
@@ -63,10 +63,10 @@ const explorationAtlasUi = (() => {
     }
     function regionProgress(region) {
         if (region.id === 'tree') return getActZoneDisplayName(Math.min(STORY_ACTS.length-1,game.maxZoneId));
-        if (region.id === 'roots') return `혼돈계 ${game.chaosRealm.highestFloor}층 · 이번 루프 심화 ${game.loopProgressCurrent.bestAbyssDepth}층`;
+        if (region.id === 'roots') return `혼돈계 ${game.chaosRealm.highestFloor}층, 이번 루프 심화 ${game.loopProgressCurrent.bestAbyssDepth}층`;
         if (region.id === 'underworld') return floorProgress(Math.max(0,game.underworldProgress.highestFloor-1),game.loopProgressCurrent.bestUnderworldFloor);
         if (region.id === 'sky') return floorProgress(getClearedSkyTowerFloor(game),game.loopProgressCurrent.bestSkyFloor);
-        if (region.id === 'sea') return `현재 ${Math.floor(game.ocean.depthM)}m · 거점 ${Math.floor(game.ocean.checkpointM)}m`;
+        if (region.id === 'sea') return `현재 ${Math.floor(game.ocean.depthM)}m, 거점 ${Math.floor(game.ocean.checkpointM)}m`;
         return `보스 격파 기록 ${(game.cosmosAtlas?.bossClears || []).length}`;
     }
     function floorProgress(highest,current) {
@@ -118,7 +118,7 @@ const explorationAtlasUi = (() => {
         const steps = STORY_ACTS.slice(0,index+1).map((entry,i) => `<span class="${i === index ? 'is-current' : ''}">${entry.displayAct}</span>`).join('');
         return `<section class="atlas-hunting" data-atlas-route="map-explore-hunting" aria-label="나무">
             <img class="atlas-landscape" src="${ACT_BATTLE_MAP_SOURCES['bgAct'+act.order]}" alt="" decoding="async">
-            <button class="atlas-hunting-copy" aria-label="나무" onclick="explorationAtlasUi.enter('map-explore-hunting')"><strong>나무</strong><small>액트 ${act.displayAct} · ${act.title}</small>
+            <button class="atlas-hunting-copy" aria-label="나무" onclick="explorationAtlasUi.enter('map-explore-hunting')"><strong>나무</strong><small>액트 ${act.displayAct}, ${act.title}</small>
             <span class="atlas-act-steps" aria-label="열린 액트">${steps}</span>${trackedRewardHtml('map-explore-hunting')}</button>
             <div class="atlas-hunting-action">${huntingActionsHtml(index,rewards)}</div></section>`;
     }
@@ -134,7 +134,7 @@ const explorationAtlasUi = (() => {
         return targets.filter(entry => {
             const source = uniqueHuntUi.getSource(entry);
             return (source.exploreSubtab || source.mapSubtab) === route;
-        }).map(entry => `<span class="atlas-tracked-reward">추적 중 · ${escapeHTML(entry.name)}</span>`).join('');
+        }).map(entry => `<span class="atlas-tracked-reward">추적 중, ${escapeHTML(entry.name)}</span>`).join('');
     }
     // Read progression only; availability and payment remain in the existing entry handlers.
     function routeSummary(route) {
@@ -154,10 +154,10 @@ const explorationAtlasUi = (() => {
     }
     function hiveRouteSummary() {
         const step = game.beehive.queenActive ? '여왕벌 전투' : `갈림길 ${Math.min(10,game.beehive.branchStep)}/10`;
-        return {status:game.beehive.inRun ? `원정 중 · ${step}` : `벌집 열쇠 ${game.currencies.hiveKey}개`};
+        return {status:game.beehive.inRun ? `원정 중, ${step}` : `벌집 열쇠 ${game.currencies.hiveKey}개`};
     }
     function colonyRouteSummary() {
-        return {status:game.colony.inRun ? `방어 중 · ${game.colony.wave}웨이브` : `최고 도달 ${game.colony.highestWave}웨이브 · 흔적 ${game.currencies.colonyTrace}개`};
+        return {status:game.colony.inRun ? `방어 중, ${game.colony.wave}웨이브` : `최고 도달 ${game.colony.highestWave}웨이브, 흔적 ${game.currencies.colonyTrace}개`};
     }
     function bossSummary() {
         const zones = SEASON_BOSS_ZONES.filter(zone => game.season >= (zone.reqSeason || 2));
@@ -178,10 +178,10 @@ const explorationAtlasUi = (() => {
         if (zone.milestonePinnacle && game.clearedRootBosses.includes(zone.id)) return '첫 격파 보상 수령 완료';
         const key = getCanonicalCurrencyKey(zone.firstClearReward?.key || zone.reward);
         const equipment = key === 'bossCore';
-        if (!contentProgression.canDropCurrency(key)) return equipment ? '고유 장비 · 확률 획득' : '';
+        if (!contentProgression.canDropCurrency(key)) return equipment ? '고유 장비, 확률 획득' : '';
         const name = ORB_DB[key].name;
-        if (zone.firstClearReward) return `첫 격파 · ${name} ${zone.firstClearReward.amount}개`;
-        return equipment ? `고유 장비 · ${name} · 확률 획득` : name;
+        if (zone.firstClearReward) return `첫 격파, ${name} ${zone.firstClearReward.amount}개`;
+        return equipment ? `고유 장비, ${name}, 확률 획득` : name;
     }
     function currentHuntHtml() {
         const zone = getZone(game.currentZoneId);

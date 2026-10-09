@@ -298,7 +298,7 @@ async function run() {
   assert.deepStrictEqual(JSON.parse(JSON.stringify(choiceCase.confirmations[0].options)), {
     title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 사용', cancelLabel: '서버 기록 사용'
   });
-  assert.match(choiceCase.confirmations[0].message, /^현재 기기 기록\n루프 8 · 마지막 저장 .*\n\n서버 기록\n루프 8 · 마지막 저장 /,
+  assert.match(choiceCase.confirmations[0].message, /^현재 기기 기록\n루프 8, 마지막 저장 .*\n\n서버 기록\n루프 8, 마지막 저장 /,
     'save choices must show only each record loop and last-save time');
 
   const bootstrapOwnedLocal = { level: 1, season: 1, loopCount: 0, saveMeta: { lastModifiedAt: remoteStamp + 3000, cloudUserId: 'account-b' } };

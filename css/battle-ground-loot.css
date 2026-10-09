@@ -39,6 +39,30 @@
 .battle-loot-contact{position:absolute;left:-23px;top:-9px;width:46px;height:18px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 50%,transparent),transparent 70%);animation:loot-contact 450ms ease-out both}
 .battle-loot-drop[data-beam="true"] .battle-loot-contact{width:64px;height:25px;left:-32px;top:-12px;--loot-color:var(--beam-core,#fff1d2)}
 .battle-loot-drop.collected{opacity:0;transition:opacity 100ms}
+/* 체이싱 티어(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스, 체이싱 고유, 2026-10-09 사용자 "빛기둥을 더 강조"): 훨씬 넓고
+   높은 붉은 금빛 기둥이 숨 쉬듯 밝아지고, 발밑에서 빛살이 돌며, 이름표가 붉게 빛난다. 백 판에 한 번꼴이라 계속 움직여도 된다. */
+.battle-loot-drop[data-tier="jackpot"] .battle-loot-beam{left:-40px;width:80px;height:calc(var(--beam-height,145px) * 1.6)}
+.battle-loot-drop[data-tier="jackpot"] .battle-loot-beam::after{inset:0 30px;box-shadow:0 0 14px color-mix(in srgb,var(--beam-color,#ff5e6c) 60%,transparent)}
+.battle-loot-drop[data-tier="jackpot"].landed .battle-loot-beam{opacity:1;animation:loot-beam-arrival 950ms ease-out,loot-chase-breathe 1.6s ease-in-out 950ms infinite}
+.battle-loot-rays{position:absolute;left:-48px;top:-48px;width:96px;height:96px;pointer-events:none;opacity:0;background:repeating-conic-gradient(from 0deg,rgba(255,231,163,.6) 0deg 7deg,transparent 7deg 30deg);-webkit-mask-image:radial-gradient(circle,#000 16%,transparent 68%);mask-image:radial-gradient(circle,#000 16%,transparent 68%)}
+.battle-loot-drop.landed .battle-loot-rays{opacity:1;transition:opacity 400ms;animation:loot-rays-spin 7s linear infinite}
+.battle-loot-drop[data-tier="jackpot"] .battle-loot-name{border-color:#ff6b6b;background:#1a0b0b;color:#ffe7a3;box-shadow:0 0 0 1px #000,0 0 10px rgba(255,94,108,.6)}
+.battle-loot-drop[data-tier="jackpot"].landed .battle-loot-name{animation:loot-name-in 240ms cubic-bezier(.2,.9,.3,1.3) both,loot-chase-name 1.6s ease-in-out infinite;animation-delay:calc(var(--row,0) * 40ms),600ms}
+.battle-loot-drop[data-tier="jackpot"].landed::before{animation:loot-glow-pulse 760ms ease-out}
+/* 기억의 잎(data/memory-leaves.js): 잎 모양 문양과 옥빛 이름표. */
+.battle-loot-leaf{width:22px;height:22px;left:-11px;top:-15px}
+.battle-loot-leaf-icon{display:block;width:100%;height:100%}
+.battle-loot-leaf-icon .m{fill:#d6ffe6}
+.battle-loot-leaf-icon .f{fill:var(--loot-color,#9fe0c0)}
+.battle-loot-name[data-rarity="leaf"]{border-color:#3f8f6a;background:rgba(8,22,16,.95);color:#bdf0d6}
+/* 미확인 고유: 바닥에서는 그림이 그림자이고 이름표는 베이스 이름만. 주우면 이름이 영웅 위로 떠오른다(battle-loot-reveal). */
+.battle-loot-drop.is-unidentified .battle-loot-item{filter:brightness(0) drop-shadow(0 0 3px #ffb469) drop-shadow(1px 2px 1px #14130f)}
+.battle-loot-reveal{position:absolute;z-index:6;transform:translate(-50%,-100%);padding:4px 10px;border:1px solid #d0813f;background:rgba(28,18,10,.96);color:#ffb469;font:700 14px/1.3 sans-serif;white-space:nowrap;box-shadow:0 0 0 1px #000,0 0 14px rgba(255,180,105,.55);pointer-events:none;animation:loot-reveal 2400ms ease-out both}
+.battle-loot-reveal.is-jackpot{border-color:#ff6b6b;background:#1a0b0b;color:#ffe7a3;box-shadow:0 0 0 1px #000,0 0 18px rgba(255,94,108,.7)}
+/* 도감에 처음 오르는 고유: 이름 위에 초록 '새 고유' 표. 좋은 희귀(옵션 등급이 높은 희귀, data/loot-omens.js fineRare)는 이름표에 금빛 테. */
+.battle-loot-reveal b{display:block;width:max-content;margin:0 auto 3px;padding:0 6px;background:#2f6f50;color:#e6fff0;font-size:11px;line-height:1.5}
+.battle-loot-name[data-rarity="rare"]:is([data-moment="good"],[data-moment="great"]){border-color:#f3d28c;box-shadow:0 0 0 1px #000,0 0 8px rgba(243,210,140,.6)}
+@keyframes loot-reveal{0%{opacity:0;transform:translate(-50%,-60%) scale(.6)}12%{opacity:1;transform:translate(-50%,-110%) scale(1.15)}22%{transform:translate(-50%,-110%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-150%)}}
 /* Floor piles on an exploration map wait to be picked up: the picture and the names take a click or a tap (the layer itself stays
    click-through so the battlefield keeps its move commands). */
 .battle-loot-drop.is-floor :is(.battle-loot-item,.battle-loot-name){pointer-events:auto;cursor:pointer}
@@ -50,8 +74,11 @@
 .battle-loot-receive{position:absolute;z-index:5;width:30px;height:30px;margin:-15px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.9),color-mix(in srgb,var(--loot-color) 32%,transparent) 24%,transparent 65%);animation:loot-receive 280ms ease-out both}
 @keyframes loot-contact{0%{opacity:0;transform:scale(.4)}20%{opacity:.8}100%{opacity:0;transform:scale(1.45)}}
 @keyframes loot-beam-arrival{0%{transform:scale(.7,.25)}30%{transform:scale(1.1,1.03)}100%{transform:scale(1)}}
+@keyframes loot-chase-breathe{0%,100%{opacity:.82;transform:scale(1)}50%{opacity:1;transform:scale(1.12,1.04)}}
+@keyframes loot-rays-spin{to{transform:rotate(360deg)}}
+@keyframes loot-chase-name{0%,100%{box-shadow:0 0 0 1px #000,0 0 8px rgba(255,94,108,.5)}50%{box-shadow:0 0 0 1px #000,0 0 18px rgba(255,94,108,.95)}}
 @keyframes loot-name-in{0%{opacity:0;transform:translateY(7px) scale(.9)}100%{opacity:1;transform:none}}
 @keyframes loot-name-shine{0%{transform:translateX(-115%)}100%{transform:translateX(115%)}}
 @keyframes loot-glow-pulse{0%{transform:scale(1.8);opacity:0}30%{opacity:1}100%{transform:scale(1)}}
 @keyframes loot-receive{0%{opacity:0;transform:scale(.3)}22%{opacity:.75}100%{opacity:0;transform:scale(1.25)}}
-@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-drop.landed .battle-loot-name,.battle-loot-name::after,.battle-loot-drop.landed::before,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}
+@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-drop.landed .battle-loot-name,.battle-loot-name::after,.battle-loot-drop.landed::before,.battle-loot-beam,.battle-loot-reveal,.battle-loot-rays,.battle-loot-drop.landed .battle-loot-beam,.battle-loot-drop[data-tier="jackpot"].landed .battle-loot-name{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}

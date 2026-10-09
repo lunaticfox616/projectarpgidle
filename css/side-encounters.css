@@ -41,9 +41,20 @@
 .time-rift-stages .map-expedition-actions { margin-top:auto; padding-top:12px; }
 .time-rift-stages .map-expedition-actions button { flex:1 1 auto; padding:8px 10px; }
 .time-rift-stages .time-rift-selected { color:var(--color-text); }
-.time-rift-odds { display:flex; flex-wrap:wrap; gap:12px 28px; margin-top:12px; }
-.time-rift-odds b { margin-left:8px; color:var(--color-accent); }
-.time-rift-odds small { display:block; color:var(--color-text-secondary); }
+/* 융합 결과 확률(2026-10-09): 한 줄 막대(완벽 금빛, 보통 파랑, 불안정 빨강)와 손실 설명 */
+.time-rift-odds { display:grid; gap:8px; margin-top:12px; }
+.time-rift-oddsbar { display:flex; height:10px; overflow:hidden; background:#050404; box-shadow:0 0 0 1px #2a2218; }
+.time-rift-oddsbar > i { display:block; height:100%; }
+.time-rift-oddsbar > .is-perfect, .time-rift-legend .is-perfect::before { background:#e8c27a; }
+.time-rift-oddsbar > .is-normal, .time-rift-legend .is-normal::before { background:#5f9fd0; }
+.time-rift-oddsbar > .is-unstable, .time-rift-legend .is-unstable::before { background:#c0504a; }
+.time-rift-legend { display:flex; flex-wrap:wrap; gap:8px 24px; }
+.time-rift-legend > span { display:grid; grid-template-columns:10px auto; align-items:baseline; gap:2px 6px; }
+.time-rift-legend > span::before { content:''; width:10px; height:10px; grid-row:1 / span 2; align-self:center; }
+.time-rift-legend b { color:var(--color-text); font-weight:400; }
+.time-rift-legend .is-perfect b { color:#f3d28c; }
+.time-rift-legend small { color:var(--color-text-secondary); font-size:11px; }
+.time-rift-stepper > b { min-width:28px; color:#f3d28c; text-align:center; }
 @container time-rift (max-width:780px) { .time-rift-stages { grid-template-columns:1fr; } }
 .map-expedition-intro:has(.map-hive-choices) { container:hive-choices / inline-size; }
 .map-hive-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:12px; }

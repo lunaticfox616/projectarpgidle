@@ -12,19 +12,24 @@
     const HOUR = 60 * MINUTE;
     const DAY = 24 * HOUR;
 
+    // 값마다 뜻의 색(2026-10-09 사용자 "기록 색감이 하나도 없이 빠져 있음"): 루프 금빛, 시간 하늘색, 레벨 초록, 혼돈 보라,
+    // 그리고 콘텐츠마다 그 세계의 색. 카드는 값과 왼쪽 테가 그 색이다(statCard).
+    const TONE = Object.freeze({ loop: '#e8c27a', time: '#8fd8ff', level: '#8fe07a', chaos: '#b78bff', labyrinth: '#d9b066', sky: '#9fd0ff',
+        underworld: '#54b8a4', ocean: '#5ab8f0', colony: '#9fd46a', zone: '#eee7dc', damage: '#ff8a5c' });
+
     // 최고 도달 지점 표. 값이 0이면 아직 가보지 않은 콘텐츠라 행 자체를 숨긴다
     // (해보지 않은 콘텐츠를 "0층"으로 보여주면 스포일러이자 소음이다).
     const BEST_ROWS = [
-        { key: 'loop', label: '최고 루프', unit: '' },
-        { key: 'level', label: '최고 레벨', unit: '' },
-        { key: 'actZone', label: '최고 개방 사냥터', unit: '', format: getZoneLabel },
-        { key: 'abyssDepth', label: '혼돈 심화', unit: '층' },
-        { key: 'chaosRealmFloor', label: '혼돈계', unit: '층' },
-        { key: 'labyrinthFloor', label: '고대 미궁', unit: '층' },
-        { key: 'skyFloor', label: '창공의 탑', unit: '층' },
-        { key: 'underworldFloor', label: '지하계', unit: '층' },
-        { key: 'oceanBoundary', label: '심해', unit: 'm' },
-        { key: 'colonyWave', label: '군락지 방어', unit: '파도' }
+        { key: 'loop', label: '최고 루프', unit: '', tone: TONE.loop },
+        { key: 'level', label: '최고 레벨', unit: '', tone: TONE.level },
+        { key: 'actZone', label: '최고 개방 사냥터', unit: '', format: getZoneLabel, tone: TONE.zone },
+        { key: 'abyssDepth', label: '혼돈 심화', unit: '층', tone: TONE.chaos },
+        { key: 'chaosRealmFloor', label: '혼돈계', unit: '층', tone: TONE.chaos },
+        { key: 'labyrinthFloor', label: '고대 미궁', unit: '층', tone: TONE.labyrinth },
+        { key: 'skyFloor', label: '창공의 탑', unit: '층', tone: TONE.sky },
+        { key: 'underworldFloor', label: '지하계', unit: '층', tone: TONE.underworld },
+        { key: 'oceanBoundary', label: '심해', unit: 'm', tone: TONE.ocean },
+        { key: 'colonyWave', label: '군락지 방어', unit: '파도', tone: TONE.colony }
     ];
 
     function escape(value) {
@@ -61,10 +66,10 @@
         return `구역 ${id}`;
     }
 
-    function statCard(iconKind, label, value, sub) {
+    function statCard(iconKind, label, value, sub, tone) {
         let icon = ['attack', 'phys', 'fire', 'cold', 'light', 'chaos'].includes(iconKind)
             ? `<span class="records-stat-icon combat-log-icon combat-log-icon--${iconKind}" aria-hidden="true"></span>` : '';
-        return `<div class="records-stat">${icon}`
+        return `<div class="records-stat"${tone ? ` style="--record-tone:${tone}"` : ''}>${icon}`
             + `<span class="records-stat-label">${escape(label)}</span>`
             + `<strong class="records-stat-value">${escape(value)}</strong>`
             + (sub ? `<small class="records-stat-sub">${escape(sub)}</small>` : '')
@@ -76,11 +81,11 @@
         return `<section class="records-section records-header">
             <div class="records-section-title">진행 중인 루프</div>
             <div class="records-stat-row">
-                ${statCard('', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '')}
-                ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`)}
+                ${statCard('', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '', TONE.loop)}
+                ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`, TONE.time)}
             </div>
             <details class="records-time-note"><summary>시간 기록 안내</summary>
-            <p class="records-note">기록 시작 ${escape(formatDate(view.startedAt))} · ${escape(formatDuration(view.trackedForMs))} 동안 기록<br>
+            <p class="records-note">기록 시작 ${escape(formatDate(view.startedAt))}, ${escape(formatDuration(view.trackedForMs))} 동안 기록<br>
             시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 진행 시간은 실제 게임 계산 시간이며, 실제 경과는 자리를 비운 시간도 포함합니다.</p></details>
         </section>`;
     }
@@ -88,9 +93,9 @@
     function renderLoopSection(view) {
         let summary = view.loopSummary;
         let summaryRow = `<div class="records-stat-row">
-            ${statCard('', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후')}
-            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)} · 진행 시간` : '아직 없음')}
-            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간')}
+            ${statCard('', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후', TONE.loop)}
+            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}, 진행 시간` : '아직 없음', TONE.level)}
+            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간', TONE.time)}
         </div>`;
 
         if (!view.loops.length) {
@@ -101,13 +106,13 @@
         }
 
         let rows = view.loops.map(row => `<tr>
-            <td>${formatCount(row.loop)}</td>
+            <td class="records-loop">${formatCount(row.loop)}</td>
             <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escape(formatDuration(row.activeMs))}</td>
             <td class="records-num">${escape(formatDuration(row.durationMs))}</td>
             <td>${escape(getZoneLabel(row.maxZoneId))}</td>
-            <td class="records-num">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '—'}</td>
-            <td class="records-num">Lv.${formatCount(row.level)}</td>
-            <td class="records-num">${formatCount(row.deaths)}</td>
+            <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '—'}</td>
+            <td class="records-num records-level">Lv.${formatCount(row.level)}</td>
+            <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
         </tr>`).join('');
 
         return `<section class="records-section">
@@ -161,7 +166,7 @@
             .map(row => {
                 let value = Math.floor(Number(view.best[row.key]) || 0);
                 let text = row.format ? row.format(value) : `${value.toLocaleString()}${row.unit}`;
-                return statCard('', row.label, text, '');
+                return statCard('', row.label, text, '', row.tone);
             }).join('');
         if (!cards) {
             return `<section class="records-section">
@@ -170,7 +175,7 @@
             </section>`;
         }
         return `<section class="records-section">
-            <div class="records-section-title">최고 진행<span>루프를 넘겨도 유지됩니다 · 층수는 개방 기준</span></div>
+            <div class="records-section-title">최고 진행<span>루프를 넘겨도 유지됩니다, 층수는 개방 기준</span></div>
             <div class="records-stat-row">${cards}</div>
         </section>`;
     }
@@ -181,9 +186,9 @@
         return `<section class="records-section">
             <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
             <div class="records-stat-row">
-                ${statCard('attack', '최고 DPS', formatCount(echo.bestDps), '')}
-                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '30초 누적')}
-                ${statCard('', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`)}
+                ${statCard('attack', '최고 DPS', formatCount(echo.bestDps), '', TONE.damage)}
+                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '30초 누적', TONE.damage)}
+                ${statCard('', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`, TONE.time)}
             </div>
         </section>`;
     }
@@ -197,7 +202,7 @@
             + renderActSection(view)
             + renderBestSection(view)
             + renderLoopSection(view)
-            + `<details class="records-offline"><summary>영구 방치 성장<span>강화 · 방치 지시 · 보관함</span></summary>${offlineHtml}</details>`
+            + `<details class="records-offline"><summary>영구 방치 성장<span>강화, 방치 지시, 보관함</span></summary>${offlineHtml}</details>`
             + renderEchoSection(view);
     }
 

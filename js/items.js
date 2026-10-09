@@ -83,7 +83,13 @@ function getEquipmentInventoryFootprint(item) {
     return { columns: 1, rows: 3 };
 }
 
-safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint });
+/** A unique's picture from its definition, before one drops (the codex and the hunt targets, js/unique-codex-ui.js). */
+function getUniqueEntryVisualAsset(entry) {
+    const rule = UNIQUE_EQUIPMENT_RULES[entry.name];
+    return getEquipmentGridVisualAsset({ rarity: 'unique', name: entry.name, slot: entry.slots[0], baseId: rule ? rule.baseId : '' });
+}
+
+safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getUniqueEntryVisualAsset });
 
 function getAverageExplicitAffixTier(items) {
     let tiers = (Array.isArray(items) ? items : []).flatMap(item => {
@@ -192,7 +198,7 @@ function getBlackMarketBaseTooltipOptionLines(baseStats) {
     return rows.map(stat => {
         let range = getBlackMarketBaseRollRange(stat);
         let label = stat.statName || getStatName(stat.id);
-        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션 · ${escapeHTML(label)} +${formatValue(stat.id, range.min)}~+${formatValue(stat.id, range.max)}</div>`;
+        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션, ${escapeHTML(label)} +${formatValue(stat.id, range.min)}~+${formatValue(stat.id, range.max)}</div>`;
     }).join('');
 }
 
@@ -506,7 +512,7 @@ function equipItem(idx, preferredSlot) {
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
     const eligibility = combatEquipmentStats.inspect(item, targetSlot);
-    if (!eligibility.ok) return addLog('장착 실패 · ' + eligibility.reason, 'attack-monster', { toast: true });
+    if (!eligibility.ok) return addLog('장착 실패, ' + eligibility.reason, 'attack-monster', { toast: true });
     delete item.legacyRequirementGrace;
     let old = game.equipment[targetSlot];
     if (old) delete old.legacyRequirementGrace;
@@ -662,9 +668,9 @@ function setTimeRiftPressure(delta) {
 
 /** @returns {string|null} 시간의 균열 장비 융합 불가 사유. 가능하면 null. */
 function getTimeRiftFusionMismatchReason(altarItem, candidate) {
-    if (!altarItem || !candidate) return '제단에 고유 1개·희귀 1개가 필요합니다.';
+    if (!altarItem || !candidate) return '제단에 고유 1개/희귀 1개가 필요합니다.';
     if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
-        return `부위 불일치 (${altarItem.slot} / ${candidate.slot}) · 같은 부위로 맞춰주세요.`;
+        return `부위 불일치 (${altarItem.slot} / ${candidate.slot}), 같은 부위로 맞춰주세요.`;
     }
     return null;
 }
@@ -698,7 +704,7 @@ function placeItemOnTimeAltar() {
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
-    addLog(`⏳ [${item.name}]을(를) 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다 — 미래로 건너가세요.' : ''}`, 'season-up');
+    addLog(`⏳ [${item.name}]을(를) 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다. 미래로 건너가세요.' : ''}`, 'season-up');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -734,7 +740,7 @@ function resolveTimeRiftFusion() {
     // 제단을 비우기 전에 결과물이 들어갈 공간부터 확보한다 — 실패 시 제단을 그대로 유지하고
     // 재도전(공간 확보 후 미래 재클리어)할 수 있게 한다.
     if (!canStoreEquipmentItems([rift.altarUnique], game)) {
-        addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다 — 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
+        addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
         return null;
     }
     let odds = getTimeRiftFusionOdds(rift.pressure);
@@ -892,7 +898,7 @@ async function marketAnnulSelectedStat(statIdx) {
     if ((game.currencies.goldenRule || 0) < 2) return addLog('황금률이 부족합니다. (필요: 2)', 'attack-monster');
     let idx = Math.floor(Number(statIdx));
     let selected = removable.find(row => row.index === idx);
-    if (!selected) return addLog('제거할 수 있는 옵션을 선택하세요. 밀랍·균열·잠식으로 보호된 옵션은 유지됩니다.', 'attack-monster');
+    if (!selected) return addLog('제거할 수 있는 옵션을 선택하세요. 밀랍/균열/잠식으로 보호된 옵션은 유지됩니다.', 'attack-monster');
     let target = selected.stat;
     let targetName = target.statName || getStatName(target.id);
     if (!await requestGameConfirmation(`황금률 2개를 소모하여 [${item.name}]의 "${targetName}" 옵션을 제거합니다.`, {
@@ -1279,7 +1285,7 @@ function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
         let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
         let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
         let label = stat.statName || getStatName(statId);
-        return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션 · ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
+        return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션, ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
     });
     return effectLine + (statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>');
 }
@@ -1291,7 +1297,7 @@ function getBlackMarketOfferPurchaseState(offer) {
         let need = Math.max(1, Math.floor(Number(offer.need) || 1));
         return {
             canBuy: have >= need,
-            reason: have >= need ? `교환 가능 · ${have}/${need}` : `재화 부족 · ${have}/${need}`
+            reason: have >= need ? `교환 가능, ${have}/${need}` : `재화 부족, ${have}/${need}`
         };
     }
     let priceKey = offer.priceKey;
@@ -1301,11 +1307,11 @@ function getBlackMarketOfferPurchaseState(offer) {
         return { canBuy: false, reason: '이미 보유한 젬' };
     }
     if ((offer.type === 'baseItem' || offer.type === 'unique') && !canStoreEquipmentItems([offer], game)) {
-        return { canBuy: false, reason: `인벤토리 가득 참 · ${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸` };
+        return { canBuy: false, reason: `인벤토리 가득 참, ${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸` };
     }
     return {
         canBuy: have >= price,
-        reason: have >= price ? `구매 가능 · ${have}/${price}` : `재화 부족 · ${have}/${price}`
+        reason: have >= price ? `구매 가능, ${have}/${price}` : `재화 부족, ${have}/${price}`
     };
 }
 
@@ -1349,8 +1355,8 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let rareLine = offer.rareT20Base ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">T20 희귀 베이스</div>' : '';
         let exLine = offer.exceptionalBase ? '<div class="tooltip-line" style="color:#ffb454; font-weight:800;">특출난 베이스</div>' : '';
         let comparison = getBlackMarketBaseComparison(offer);
-        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">장착 비교 · ${escapeHTML(comparison.label)}</div>` : '';
-        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${comparisonLine}${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
+        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">장착 비교, ${escapeHTML(comparison.label)}</div>` : '';
+        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${comparisonLine}${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
     }
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
@@ -1361,10 +1367,10 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
         let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
-        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
+        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
         let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">체이싱 유니크 암거래 품목</div>' : '';
         let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">시장 정보로 확보한 표적 고유</div>' : '';
-        return `<div class="tooltip-title">도감 고유 정보 · ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
+        return `<div class="tooltip-title">도감 고유 정보, ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }
@@ -1592,7 +1598,7 @@ async function buyBlackMarketOffer(idx){
     if (!purchased) return;
     game.blackMarket.offers[offerIndex]=null;
     if (game.blackMarket && game.blackMarket.lockedOffers) delete game.blackMarket.lockedOffers[offerIndex];
-    addLog(`🕶️ 암거래 구매 완료${purchaseSummary ? ` · ${purchaseSummary}` : ''}`, offer.chase || offer.featured ? 'loot-unique' : 'loot-magic');
+    addLog(`🕶️ 암거래 구매 완료${purchaseSummary ? `, ${purchaseSummary}` : ''}`, offer.chase || offer.featured ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
 

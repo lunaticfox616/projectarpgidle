@@ -4,6 +4,12 @@
 #tab-map .map-explore-layout:has(#map-explore-worldtree.active)>.vertical-tab-sidebar{display:none}
 #map-tab-zones:has(#map-explore-worldtree.active)>#map-ready-destinations{display:none}
 #tab-map #map-explore-worldtree{padding:0;border:0;background:none}
+/* 지도 기운(js/loot-omens.js, 2026-10-09): 지도석 카드의 기운 줄과 보관함 줄의 기운 칩. 기운 색은 data/loot-omens.js tone. */
+#ui-atlas .atlas-omen{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 8px;margin:6px 0;padding:5px 8px;border:1px solid color-mix(in srgb,var(--omen) 45%,#2a2218);background:linear-gradient(90deg,color-mix(in srgb,var(--omen) 16%,transparent),rgba(10,8,6,.4))}
+#ui-atlas .atlas-omen b{color:var(--omen);font-weight:400}
+#ui-atlas .atlas-omen span{grid-column:1/-1;color:var(--atlas-ink);font-size:12px}
+#ui-atlas .atlas-omen small{color:var(--atlas-muted)}
+:is(#ui-atlas,#ui-atlas-combat) .atlas-omen-chip{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid color-mix(in srgb,var(--omen) 55%,#2a2218);color:var(--omen);font-size:11px;font-style:normal;vertical-align:middle}
 #ui-atlas{--atlas-gold:#d9b066;--atlas-gold-hi:#f3d28c;--atlas-muted:#a39883;--atlas-ink:#e6dcc6;--atlas-line:#3a2f20;--atlas-edge:#5d4a2e;--atlas-deep:#100d0a;--atlas-panel:#15120e;--atlas-raised:#1d1813;--atlas-normal:#d6cdb8;--atlas-magic:#86b2e2;--atlas-rare:#e2c466;color:var(--atlas-ink);container-type:inline-size}
 #ui-atlas .atlas-shell{border:1px solid var(--atlas-edge);background:var(--atlas-deep);box-shadow:inset 0 0 0 1px #000}
 #ui-atlas .atlas-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:14px 18px;border-bottom:1px solid var(--atlas-line);background:var(--atlas-panel)}
@@ -79,11 +85,27 @@
 #ui-atlas .atlas-stash-row span{color:var(--rarity);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #ui-atlas .atlas-stash-row small{color:var(--atlas-muted);font-size:10px}
 #ui-atlas .atlas-stash-row[aria-pressed="true"]{border-color:var(--atlas-gold-hi);background:#2a2217}
-#ui-atlas .atlas-result{padding:12px 18px;border-top:1px solid var(--atlas-line);background:var(--atlas-panel);font-size:12px}
-#ui-atlas .atlas-result>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;color:var(--atlas-gold)}
-#ui-atlas .atlas-result>summary::-webkit-details-marker{display:none}
-#ui-atlas .atlas-result>summary span{color:var(--atlas-muted)}
-#ui-atlas .atlas-result-currencies{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 0 0}
+#ui-atlas .atlas-result{display:grid;gap:8px;padding:12px 18px;border-top:1px solid var(--atlas-line);background:var(--atlas-panel);font-size:12px}
+#ui-atlas .atlas-result>h3{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin:0;font-size:13px;font-weight:600;color:var(--atlas-gold)}
+#ui-atlas .atlas-result>h3 span{color:var(--atlas-muted);font-weight:400}
+#ui-atlas .atlas-result.is-failed>h3{color:#d98a7a}
+#ui-atlas .atlas-result-finds{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+#ui-atlas :is(.atlas-result-finds,.atlas-result-currencies)>small{margin-right:4px;color:var(--atlas-muted)}
+#ui-atlas .atlas-find{display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:2px 9px;border:1px solid var(--atlas-line);background:var(--atlas-deep);color:#d8ccb2}
+#ui-atlas .atlas-find b{font-weight:500;color:#e5d2aa}
+#ui-atlas .atlas-find em{padding:0 4px;background:#2f6f50;color:#e6fff0;font-size:10px;font-style:normal}
+#ui-atlas .atlas-find-icon{width:20px;height:20px;object-fit:contain;image-rendering:pixelated}
+#ui-atlas .atlas-find-leaf{width:16px;height:16px;filter:drop-shadow(1px 1px 0 #000)}
+#ui-atlas .atlas-find-leaf .m{fill:#d6ffe6}
+#ui-atlas .atlas-find-leaf .f{fill:#9fe0c0}
+#ui-atlas .atlas-find.rarity-magic{color:var(--atlas-magic)}
+#ui-atlas .atlas-find.rarity-rare{color:var(--atlas-rare)}
+#ui-atlas .atlas-find.rarity-unique{border-color:#8a4a1e;color:#ffb469}
+#ui-atlas .atlas-find.is-leaf{border-color:#3f8f6a;color:#bdf0d6}
+#ui-atlas .atlas-find.moment-good{box-shadow:inset 0 0 0 1px rgba(232,194,122,.25)}
+#ui-atlas .atlas-find.moment-great{border-color:#b08a3e;box-shadow:0 0 6px rgba(243,210,140,.35)}
+#ui-atlas .atlas-find.moment-jackpot{border-color:#ff5e6c;background:#1a0b0b;box-shadow:0 0 8px rgba(255,94,108,.5);color:#ffe7a3}
+#ui-atlas .atlas-result-currencies{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px}
 #ui-atlas .atlas-result-currencies b{font-weight:500;color:#e5d2aa}
 @container (max-width:720px){#ui-atlas .atlas-main{grid-template-columns:minmax(0,1fr)}#ui-atlas .atlas-side{border-left:0;border-top:1px solid var(--atlas-line)}}
 @container (max-width:420px){#ui-atlas .atlas-node i{min-width:8px;width:8px;height:8px;padding:0;right:-2px;top:-2px;font-size:0}#ui-atlas .atlas-node{font-size:10px}}

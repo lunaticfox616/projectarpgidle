@@ -1,9 +1,21 @@
-// Currency state is committed in the domain; banners and logs cannot grant it again.
+// Currency state is committed in the domain; notices and logs cannot grant it again.
 (() => {
+    /** 을/를: the object particle after a Korean name (a final consonant or not). */
+    function objectParticle(name) {
+        const text=String(name),code=text.charCodeAt(text.length-1)-0xAC00;
+        return code>=0 && code<11172 && code%28 ? '을' : '를';
+    }
+    /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
+    function noticeCurrency(currencyKey,gain) {
+        if(!(gain>0))return;
+        const name=ORB_DB[currencyKey].name,chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
+        if(currencyKey!=='goldenRule' && !chase)return;
+        showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
+    }
     function announce(event) {
         const {currencyKey,gain,unlocked}=event.detail;
+        noticeCurrency(currencyKey,gain);
         if(currencyKey==='goldenRule' && gain>0) {
-            showDivineDropBanner(gain);
             addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`,'loot-unique');
         }
         if(['chaosKey','coreKey'].includes(currencyKey) && gain>0) {
@@ -34,7 +46,7 @@
         if(!game.settings.showLootLog)return;
         const {jewel,inventoryFull,protectOverflow,stored,shardGain}=receipt;
         if(!stored) {
-            if(!game.isBackgroundCalculation)addLog(`💠 ${inventoryFull?'주얼 인벤토리 초과':'주얼 자동해체'}: [${jewel.name}] · 주얼 결정 +${shardGain}`,inventoryFull?'attack-monster':'loot-normal');
+            if(!game.isBackgroundCalculation)addLog(`💠 ${inventoryFull?'주얼 인벤토리 초과':'주얼 자동해체'}: [${jewel.name}], 주얼 결정 +${shardGain}`,inventoryFull?'attack-monster':'loot-normal');
             return;
         }
         const lines=getJewelStats(jewel).map(stat=>`${isJewelPetiteStat(stat)?'쁘띠 ':''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id,stat.val)}${Number.isFinite(Number(stat.tier))&&!isJewelPetiteStat(stat)?` T${Math.floor(stat.tier)}`:''}`).join(' / ');
@@ -42,7 +54,7 @@
     }
     window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
     function announceCore(core) {
-        if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(' · ')})`,'loot-unique',{item:core,itemKind:'core'});
+        if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(', ')})`,'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
     // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.

@@ -12,6 +12,7 @@
     "test": "node scripts/run-smoke.js",
     "benchmark:balance": "node scripts/benchmark-loop-balance.js && node scripts/benchmark-loop-loot.js",
     "test:browser": "playwright test",
+    "drop:sim": "node scripts/drop-simulator-server.js",
     "pr:check": "node scripts/check-pr-state.js",
     "passive:edit": "node scripts/passive-tree-editor-server.js",
     "vfx:edit": "node scripts/skill-vfx-editor-server.js",

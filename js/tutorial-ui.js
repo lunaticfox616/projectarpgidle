@@ -65,7 +65,7 @@ const tutorialActionUi = {
             // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗이나 수액을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
             selector: ['#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
             title: '그루터기 함에 심기',
-            body: '보관함의 씨앗을 누르고 판의 빈 칸을 누르세요. 수액도 같은 방법으로 놓습니다.',
+            body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요. 수액도 같은 방법으로 배치합니다.',
             read: () => [game.stumpBox.board.filter(id => id !== null).length, stumpBox.storage(game).filter(item => item.family !== 'talisman').length],
             completed: ([placed, waiting], [placedBefore]) => waiting === 0 || placed >= placedBefore + 2
         }
@@ -588,7 +588,7 @@ function equipSkippedStarterGem(key) {
     const name = game.starterGemTutorialPending;
     if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string' || game.activeSkill !== '기본 공격') return;
     changeSkill(name);
-    if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다 · '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
+    if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다, '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
 }
 
 /** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬 젬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
@@ -599,7 +599,7 @@ function applySkippedGuide(key) {
 /** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗과 수액을 판의 가운데부터 대신 놓는다(첫 스킬 젬과 같은 이유). */
 function plantSkippedStumpStarter(key) {
     if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
-    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗과 수액을 판에 놓았습니다', { tone: 'success' });
+    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗, 수액을 배치했습니다', { tone: 'success' });
 }
 
 function dismissTutorial(openTarget) {

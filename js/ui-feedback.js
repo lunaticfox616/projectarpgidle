@@ -287,17 +287,24 @@
         return typeof stripDecorativeEmoji === 'function' ? stripDecorativeEmoji(message) : String(message);
     }
 
+    const TOAST_MARKS = Object.freeze({ success: '✓', danger: '!', warning: '△', chase: '★' });
+    /** Four notices at most: the oldest ordinary one goes first, a chase-tier one only when every notice is chase-tier. */
+    function trimToasts(region) {
+        while (region.children.length > 4) (region.querySelector('.game-toast:not(.game-toast-chase)') || region.firstElementChild).remove();
+    }
+    /** 살아 있는 문서인지(노드 검사 런타임의 가짜 문서에는 알림을 띄우지 않는다). */
+    const liveDocument = () => typeof document !== 'undefined' && !!document.body && document.body.isConnected === true;
     function showGameToast(message, options) {
-        if (!message) return null;
+        if (!message || !liveDocument()) return null;
         ensureFeedbackRoot();
         let opts = typeof options === 'string' ? { tone: options } : (options || {});
         let region = document.getElementById('game-toast-region');
         let toast = document.createElement('div');
         let tone = opts.tone || 'info';
         toast.className = `game-toast game-toast-${tone}`;
-        toast.innerHTML = `<span class="game-toast-mark">${tone === 'success' ? '✓' : tone === 'danger' ? '!' : tone === 'warning' ? '△' : '◆'}</span><span>${escapeFeedbackHtml(toastText(message))}</span>`;
+        toast.innerHTML = `<span class="game-toast-mark">${TOAST_MARKS[tone] || '◆'}</span><span>${escapeFeedbackHtml(toastText(message))}</span>`;
         region.appendChild(toast);
-        while (region.children.length > 4) region.firstElementChild.remove();
+        trimToasts(region);
         requestAnimationFrame(() => toast.classList.add('active'));
         let duration = Math.max(1600, Number(opts.duration) || (tone === 'danger' ? 4300 : 2800));
         // A click clears it at once; otherwise it fades out on its own.

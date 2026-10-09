@@ -45,14 +45,14 @@
             // 찬 칸은 각인 종류 그림(검 · 쌍갈매기 · 눈 · 핏방울 …), 빈 칸은 +. 마름모 색은 각인 묶음(기본 · 조율 · 각성)을 따른다.
             const glyph = slot.state === 'full' ? renderSkyEnhancementIcon(slot.def) : (slot.state === 'open' ? '+' : '');
             const group = slot.state === 'full' ? ` is-group-${getSkyEnhancementGroup(slot.def).className}` : '';
-            const title = slot.state === 'full' ? `${slot.def.name} · ${slot.def.desc}` : engraveLabel(slot);
+            const title = slot.state === 'full' ? `${slot.def.name}, ${slot.def.desc}` : engraveLabel(slot);
             return `<button type="button" class="skill-board-engrave is-${slot.state}${group}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" title="${escapeHTML(title)}" aria-label="각인 ${slot.index + 1}: ${escapeHTML(title)}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
         }).join('');
         return `<div class="skill-board-ring" aria-hidden="false">${marks}</div>`;
     }
 
     function renderSatellite(kind, label, name, extra) {
-        if (!name) return `<button type="button" class="skill-board-satellite is-empty" data-board-pick="${kind}" aria-label="${label} 칸 비어 있음 · 젬 고르기"><i>+</i><small>${label}</small><b>비어 있음</b></button>`;
+        if (!name) return `<button type="button" class="skill-board-satellite is-empty" data-board-pick="${kind}" aria-label="${label} 칸 비어 있음, 젬 고르기"><i>+</i><small>${label}</small><b>비어 있음</b></button>`;
         return `<button type="button" class="skill-board-satellite active element-${getGemCardMeta(SKILL_DB[name]).className}" data-board-pick="${kind}" data-board-gem="${escapeHTML(name)}" aria-label="${label}: ${escapeHTML(name)}">${gemArt(name, 'skill-board-satellite-art')}<small>${label}${extra || ''}</small><b>${escapeHTML(name)}</b></button>`;
     }
 
@@ -79,11 +79,11 @@
         const slots = engraveSlots(main);
         const filled = slots.filter(slot => slot.state === 'full').length, open = slots.filter(slot => slot.state === 'full' || slot.state === 'open').length;
         const engraveNote = slots.length ? `<em>각인 ${filled} / ${open}칸</em>` : '';
-        const level = info.totalLevel > info.baseLevel ? `<small class="is-boosted">Lv.${info.totalLevel}</small>` : `<small>Lv.${info.totalLevel || 1}</small>`;
+        const level = info.totalLevel > info.baseLevel ? `<small class="is-boosted">Lv.${formatValue('', info.totalLevel)}</small>` : `<small>Lv.${info.totalLevel || 1}</small>`;
         return `<div class="skill-board-head"><span>주 공격</span><b>${escapeHTML(main)}</b>${level}${engraveNote}</div>
             <div class="skill-board-stage element-${meta.className}${slots.length ? ' has-ring' : ''}">
                 ${renderEngraveRing(slots)}
-                <button type="button" class="skill-board-core active" data-board-pick="active" data-board-gem="${escapeHTML(main)}" aria-label="주 공격: ${escapeHTML(main)} · 바꿀 젬 고르기">${gemArt(main, 'skill-board-core-art')}</button>
+                <button type="button" class="skill-board-core active" data-board-pick="active" data-board-gem="${escapeHTML(main)}" aria-label="주 공격: ${escapeHTML(main)}, 바꿀 젬 고르기">${gemArt(main, 'skill-board-core-art')}</button>
             </div>
             ${renderSatellites(stats)}`;
     }
@@ -100,7 +100,7 @@
         const tier = getSupportActiveTier(name);
         const pips = '◆'.repeat(Math.max(1, Math.min(3, tier)));
         const target = shortTarget(gemSelectionUi.application(name, stats));
-        return `<button type="button" class="support-slot active" data-board-pick="support" data-board-gem="${escapeHTML(name)}" aria-label="보조 젬: ${escapeHTML(name)} · ${escapeHTML(target)}"><i>✚<em>${pips}</em></i><b>${escapeHTML(name)}</b><small>${escapeHTML(target)}</small></button>`;
+        return `<button type="button" class="support-slot active" data-board-pick="support" data-board-gem="${escapeHTML(name)}" aria-label="보조 젬: ${escapeHTML(name)}, ${escapeHTML(target)}"><i>✚<em>${pips}</em></i><b>${escapeHTML(name)}</b><small>${escapeHTML(target)}</small></button>`;
     }
 
     function renderSupports(stats) {
@@ -111,8 +111,8 @@
         const left = Math.max(0, resonanceCap - used);
         const fill = resonanceCap > 0 ? Math.round(Math.min(1, left / resonanceCap) * 100) : 0;
         const slots = worn.map(name => renderSupportSlot(name, stats));
-        for (let i = worn.length; i < cap; i++) slots.push('<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="빈 보조 젬 칸 · 젬 고르기"><i>+</i><b>빈 칸</b><small>&nbsp;</small></button>');
-        slots.push('<div class="support-slot is-lock" aria-label="다음 보조 젬 칸은 장비 · 패시브로 늘어납니다"><i></i><b>다음 칸</b><small>장비 · 패시브</small></div>');
+        for (let i = worn.length; i < cap; i++) slots.push('<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="빈 보조 젬 칸, 젬 고르기"><i>+</i><b>빈 칸</b><small>&nbsp;</small></button>');
+        slots.push('<div class="support-slot is-lock" aria-label="다음 보조 젬 칸은 장비, 패시브로 늘어납니다"><i></i><b>다음 칸</b><small>장비, 패시브</small></div>');
         return `<div class="support-slots-head"><span>보조 젬</span><em>${worn.length} / ${cap}칸</em>
                 <div class="support-resonance" title="장착 보조 젬이 쓰는 공명력"><small>공명력</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${left}</b><small>/ ${resonanceCap}</small></div></div>
             <div class="support-slots-row">${slots.join('')}</div>`;

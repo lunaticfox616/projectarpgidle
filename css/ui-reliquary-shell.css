@@ -2277,11 +2277,8 @@ body .hero-choice {
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
 }
 :root body :where(
-  .talent-card,
-  .talent-combo-cell,
   .craft-selected-summary,
   .craft-actions .craft-orb-card,
-  .codex-slot-tabs,
   .market-shell,
   .market-locked,
   .market-service-card,
@@ -2295,8 +2292,7 @@ body .hero-choice {
 
 :root body :where(
   #map-tab-zones h2,
-  #map-tab-zones .map-zone-group-header,
-  .codex-slot-tab
+  #map-tab-zones .map-zone-group-header
 ) {
   border-color: var(--skin-line);
   /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
@@ -2305,8 +2301,7 @@ body .hero-choice {
   box-shadow: inset 0 1px rgba(255, 255, 255, .03);
 }
 
-:root body #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header,:root 
-body .codex-slot-tab.active {
+:root body #map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header {
   border-color: var(--skin-line-strong);
   /* Selected headings must also outrank the inline heading-color exception above. */
   color: #fff0d2 !important;

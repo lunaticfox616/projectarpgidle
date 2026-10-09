@@ -7,7 +7,7 @@
 
 body[data-ui-skin] {
   --px-menu-icons: url('../../assets/ui/pixel/menu-icons.png');
-  --px-icon-count: 21;
+  --px-icon-count: 22;
   --px-key: 40px;
   /* PC HUD 메뉴 단추 한 칸: 아이콘 틀(40) + 그 아래 이름 한 줄(14). 폭은 네 글자(48px). */
   --px-key-slot: 48px;
@@ -64,7 +64,8 @@ body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
   /* 알림은 왼쪽 위 몬스터 수 줄 아래(전장 위)에서 쌓는다: 오른쪽 위는 귀환 · 목표 단추와 창 제목 줄(닫기 · 최대화)이 모이는 자리라
      알림이 창 닫기 단추를 덮었다. 두 개까지. */
   body[data-ui-skin].desktop-windowed-ui .game-toast-region { top: 108px; right: auto; left: calc(var(--stage-rail-width, 0px) + 24px); }
-  body[data-ui-skin].desktop-windowed-ui .game-toast-region > .game-toast:nth-last-child(n+3) { display: none; }
+  /* 최근 두 개만 보이되, 체이싱 티어 알림(css/ui-feedback.css)은 뒤에 온 알림에 밀려 숨지 않는다. */
+  body[data-ui-skin].desktop-windowed-ui .game-toast-region > .game-toast:nth-last-child(n+3):not(.game-toast-chase) { display: none; }
   /* 채팅 판은 전투 기록 자리를 그대로 이어받으므로 기록처럼 관리 창 아래에 둔다 — 창이 오른쪽에 붙으면(도킹) 채팅이
      창 위(z 1300)로 올라와 창 오른쪽 내용을 가렸다. 창을 닫거나 접으면 그 자리에 그대로 보인다. */
   :root body[data-ui-skin="rift"].desktop-windowed-ui.community-dock-open #tab-social.ui-community-dock { z-index: 1100; }

@@ -2,7 +2,7 @@
 /* PC 단축키: HUD 이동 스킬 칸 · 자동 이동 단추의 키 표시와 사용 반응, 설정 > 단축키 목록. 동작은 js/hotkeys-ui.js. */
 
 .player-hud-skill-rack .player-hud-skill-slot > .combat-hud-key,
-#act-exploration-panel #btn-act-exploration-auto > .combat-hud-key {
+#btn-act-exploration-auto > .combat-hud-key {
   position: absolute;
   top: -4px;
   left: -4px;
@@ -25,11 +25,11 @@
 /* 둥근 젬 칸은 바깥을 잘라 내므로 키 표시를 칸 안 아래 가운데에 둔다. */
 .player-hud-skill-rack .player-hud-skill-slot > .combat-hud-key { top: auto; bottom: 1px; left: 50%; transform: translateX(-50%); }
 /* 자동 이동 단추는 글자 옆(등불과 겹치지 않게)에 키를 적는다. */
-#act-exploration-panel #btn-act-exploration-auto > .combat-hud-key { position: static; margin-left: 1px; }
+#btn-act-exploration-auto > .combat-hud-key { position: static; margin-left: 1px; }
 /* 터치 화면은 키보드가 없으므로 키 표시를 숨긴다(누르는 동작은 그대로). */
 @media (hover: none) and (pointer: coarse) {
   .player-hud-skill-rack .player-hud-skill-slot > .combat-hud-key,
-  #act-exploration-panel #btn-act-exploration-auto > .combat-hud-key { display: none; }
+  #btn-act-exploration-auto > .combat-hud-key { display: none; }
 }
 
 .player-hud-skill-rack .player-hud-skill-slot.hud-key-used { animation: hud-key-used-pulse .32s ease-out; }

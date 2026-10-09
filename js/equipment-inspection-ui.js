@@ -51,7 +51,7 @@
         columns.className = 'equipment-inspection-columns';
         addItemColumn(columns, item, equippedSlot, equippedSlot ? '장착 중' : '선택한 장비', !!equippedSlot);
         if (!equippedSlot) getEquipCandidateSlots(item).forEach(slot => {
-            addItemColumn(columns, game.equipment[slot], slot, `현재 · ${getDualSlotDisplayLabel(slot)}`);
+            addItemColumn(columns, game.equipment[slot], slot, `현재, ${getDualSlotDisplayLabel(slot)}`);
         });
         details.append(columns);
         if (equippedSlot) return;

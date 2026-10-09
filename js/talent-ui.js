@@ -1,180 +1,228 @@
-// 카드는 전직마다 한 장(2026-10-02 재능 정리)이라 보기는 직업별 하나다: filterId는 직업 id(그 직업의 전직 카드 셋).
-let talentCardView = { filterId: null };
+/** 재능 개화 창(2026-10-09 사용자 "게임 전체에서 부족한 화면", 1순위). 글 상자뿐이던 화면을 카드 판으로 바꿨다.
+ * 위 줄: 모은 카드, 장착, 개화 점수 막대와 ? 창(점수 내역, 레벨 문턱).
+ * 가운데: 개화 시련 카드(지금 개화하면 얻는 카드와 레벨, 조건 표시, 도전 단추)와 장착 슬롯 여섯(빈 칸, 잠긴 칸, 다음 칸 막대).
+ * 아래: 직업 여섯의 카드 판(재능 그림, 모은 수, 전직 셋 줄과 레벨 눈금). 줄이나 슬롯을 누르면 카드 창(효과, 점수, 장착)이 열리고,
+ * PC에서는 가리키면 효과가 툴팁으로 보인다. 휴대폰도 같은 화면을 좁게 쌓는다(예전 휴대폰 전용 검색과 쪽 넘김은 카드 18장에 맞지 않았다).
+ * 카드, 슬롯, 점수 규칙은 js/talent-cards.js, 개화 시련 입장은 js/ui.js enterTalentBloomTrial. */
+const talentUi = (() => {
+    const CARD_DIALOG = 'talent-card-dialog', SCORE_DIALOG = 'talent-score-dialog';
+    const SCORE_PARTS = Object.freeze([
+        ['deepChaos', '혼돈 심화 최고 층'], ['labyrinth', '고대 미궁 최고 층'], ['chaosFloor', '혼돈계 최고 층'],
+        ['underFloor', '지하계 최고 층'], ['cosmos', '우주계 격파'], ['dpsTerm', '나무꾼의 잔상 DPS (2배마다 +1)']
+    ]);
+    let dialogKey = null, lastHtml = '', lastSheet = '', bound = false;
 
-function setTalentCardFilter(filterId) {
-    talentCardView.filterId = talentCardView.filterId === filterId ? null : filterId;
-    renderTalentTab();
-}
+    const esc = value => escapeTalentHtml(String(value ?? ''));
+    const owned = () => (game.talentCards && typeof game.talentCards === 'object' ? game.talentCards : {});
+    const levelOf = card => Math.max(1, Math.floor(Number(card && card.level) || 1));
+    const scoreLevel = () => getTalentCardLevel(getTalentBloomScore());
+    const toneOf = ascendId => getItemStatToneColor(CLASS_TEMPLATES[ascendId].m1);
+    const portraitOf = heroId => (HERO_SELECTION_DEFS[heroId] || {}).portrait || '';
+    const fill = (have, need) => Math.max(0, Math.min(100, need > 0 ? (have / need) * 100 : 100));
+    const bar = (have, need) => `<i class="talent-bar"><i style="width:${fill(have, need).toFixed(1)}%"></i></i>`;
+    const hintAttrs = key => `data-info-tooltip-anchor="1" onpointerenter="talentUi.hint(event,'${key}')" onpointermove="talentUi.hint(event,'${key}')" onpointerleave="hideInfoTooltip()"`;
 
-/** 전직을 직업 순서로(state.js getAscendancyOrder). 그 함수가 없는 좁은 실행 환경에서는 정의 순서. */
-function getTalentAscendancyOrder() {
-    return typeof getAscendancyOrder === 'function' ? getAscendancyOrder().filter(id => CLASS_TEMPLATES[id]) : Object.keys(CLASS_TEMPLATES);
-}
-
-/** 직업마다 카드 몇 장을 모았는지(직업 순서). */
-function getTalentCardClassRows(owned) {
-    return Object.entries(ASCENDANCIES_BY_PLAYER_CLASS).map(([classId, ascendIds]) => {
-        const keys = ascendIds.map(getTalentBloomCardKeyForAscendancy).filter(Boolean);
-        return { id: classId, label: PLAYER_CLASS_DEFS[classId].label, count: keys.filter(key => owned[key]).length, total: keys.length };
-    });
-}
-
-function getCurrentTalentBloomContext(owned) {
-    let classKey = game.ascendClass && CLASS_TEMPLATES[game.ascendClass] ? game.ascendClass : null;
-    let heroId = classKey ? getTalentBloomHeroIdForAscendancy(classKey) : null;
-    let key = classKey ? getTalentBloomCardKeyForAscendancy(classKey) : null;
-    let names = key ? getTalentCardName(heroId, classKey) : { heroLabel: '직업 재능', classLabel: '미전직', bloomName: '전직을 고르면 정해짐' };
-    return { heroId, classKey, key, names, card: key ? owned[key] : null };
-}
-
-function renderCurrentTalentBloomContext(owned) {
-    let current = getCurrentTalentBloomContext(owned);
-    let state = !current.key ? '전직을 고르면 카드가 정해집니다.'
-        : (current.card ? `개화 완료, Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '개화 시련을 클리어하면 얻습니다.');
-    return `<section class="talent-current-combo ${current.card ? 'unlocked' : 'locked'}">
-        <div><span>직업 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
-        <i aria-hidden="true">×</i>
-        <div><span>현재 전직</span><strong>${escapeTalentHtml(current.names.classLabel)}</strong></div>
-        <div class="talent-current-result"><span>개화 카드</span><strong>${escapeTalentHtml(current.names.bloomName)}</strong><small>${state}</small></div>
-    </section>`;
-}
-
-/** 고른 직업(없으면 지금 전직의 직업)의 전직 카드 셋. */
-function renderTalentCombinationStatus(owned) {
-    let current = getCurrentTalentBloomContext(owned);
-    let focusId = talentCardView.filterId || (current.classKey ? getTalentBloomClassOfAscendancy(current.classKey) : null) || Object.keys(ASCENDANCIES_BY_PLAYER_CLASS)[0];
-    let cells = ASCENDANCIES_BY_PLAYER_CLASS[focusId].map(classKey => {
-        let key = getTalentBloomCardKeyForAscendancy(classKey);
-        let card = key ? owned[key] : null;
-        let names = getTalentCardName(getTalentBloomHeroIdForAscendancy(classKey), classKey);
-        let classes = `talent-combo-cell ${card ? 'unlocked' : 'locked'}${current.key === key ? ' current' : ''}`;
-        let tooltip = card ? ` data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"` : '';
-        return `<div class="${classes}"${tooltip}><span>${escapeTalentHtml(names.classLabel)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
-    }).join('');
-    return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(PLAYER_CLASS_DEFS[focusId].label)} 카드</strong><span>밝은 카드는 개화 완료, 테두리는 지금 전직</span></div><div class="talent-combo-grid">${cells}</div></div>`;
-}
-
-/** A card's effect lines in the option colours (2026-10-06: they were one gold, one cream and one blue line): the labels keep
- * their colour, stat effects take their stat's colour, prose and unique effects colour their keywords. */
-function renderTalentCardEffectLines(heroId, classKey, level) {
-    const parts = getTalentCardEffectParts(heroId, classKey, level);
-    if (!parts) return [];
-    const item = part => (part.stat ? statToneText.statLine(part.stat, part.text) : statToneText.html(part.text));
-    const lines = [];
-    if (parts.surface) lines.push(`<span style="color:#ffd36b;">⭐ [표면]</span> ${statToneText.html(parts.surface)}`);
-    if (parts.applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${parts.level}]</span> ${parts.applied.map(item).join(', ')}`);
-    if (parts.hidden.length) lines.push(`<span style="color:#9fe0ff;">[이면]</span> ${parts.hidden.map(item).join(', ')}`);
-    return lines;
-}
-
-function buildTalentCombinationTooltipHtml(comboKey) {
-    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
-    let card = owned[comboKey];
-    if (!card) return '';
-    let { heroId, classKey } = parseTalentComboKey(comboKey);
-    let names = getTalentCardName(heroId, classKey);
-    let level = Math.max(1, Math.floor(card.level || 1));
-    let effects = renderTalentCardEffectLines(heroId, classKey, level);
-    return `<div class="tooltip-title" style="color:#fff1a8;">${escapeTalentHtml(names.bloomName)}</div>`
-        + `<div class="tooltip-line" style="color:#cdb8df;">${escapeTalentHtml(names.heroLabel)} × ${escapeTalentHtml(names.classLabel)} Lv.${level}</div>`
-        + `<div class="tooltip-line">${effects.join('<br>')}</div>`;
-}
-
-function showTalentCombinationTooltip(event, comboKey) {
-    if (!event || typeof showInfoTooltipHtml !== 'function') return;
-    let html = buildTalentCombinationTooltipHtml(comboKey);
-    if (html) showInfoTooltipHtml(event.clientX, event.clientY, html, '#dcaeff', `talent-combo:${comboKey}`);
-}
-
-function renderTalentBloomNavigator(owned) {
-    let rows = getTalentCardClassRows(owned);
-    let chips = rows.map(row => {
-        let active = talentCardView.filterId === row.id;
-        return `<button type="button" class="talent-bloom-filter${active ? ' active' : ''}" aria-pressed="${active}" onclick="setTalentCardFilter('${row.id}')"><strong>${escapeTalentHtml(row.label)}</strong><span>${row.count}/${row.total}</span></button>`;
-    }).join('');
-    return `<details class="talent-bloom-navigator" data-ui-disclosure="talent-bloom-progress" open><summary><span><strong>개화 현황</strong><small>직업마다 전직 카드 셋</small></span><b>${Object.keys(owned).length}/${TALENT_BLOOM_TOTAL_CARDS}</b></summary><div class="talent-bloom-navigator-body">
-        <div class="talent-bloom-navigator-head"><div><strong>직업</strong><span>누르면 그 직업의 카드만 봅니다.</span></div></div><div class="talent-bloom-filter-grid">${chips}</div>${renderTalentCombinationStatus(owned)}</div></details>`;
-}
-
-function matchesTalentCardView(key) {
-    if (!talentCardView.filterId) return true;
-    return (ASCENDANCIES_BY_PLAYER_CLASS[talentCardView.filterId] || []).includes(parseTalentComboKey(key).classKey);
-}
-
-function renderTalentLoadoutSlot(index, unlocked, key, owned) {
-    if (!unlocked) return `<div class="talent-slot locked">잠김<br><span>보유 ${TALENT_CARD_SLOT_UNLOCKS[index]}장</span></div>`;
-    if (!key || !owned[key]) return '<div class="talent-slot empty">빈 슬롯<br><span>카드를 눌러 장착</span></div>';
-    let { heroId, classKey } = parseTalentComboKey(key);
-    let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
-    let level = Math.max(1, Math.floor(owned[key].level || 1));
-    return `<div class="talent-slot filled" onclick="unequipTalentSlot(${index})" aria-label="${escapeTalentHtml(bloomName)} 장착 해제" data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"><strong>${escapeTalentHtml(bloomName)}</strong><span>${escapeTalentHtml(heroLabel)} × ${escapeTalentHtml(classLabel)} Lv.${level}</span></div>`;
-}
-
-function renderTalentCollectionCard(key, owned) {
-    let card = owned[key];
-    let { heroId, classKey } = parseTalentComboKey(key);
-    let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
-    let level = Math.max(1, Math.floor(card.level || 1));
-    let lines = renderTalentCardEffectLines(heroId, classKey, level);
-    let nextThreshold = level < TALENT_CARD_MAX_LEVEL ? TALENT_CARD_LEVEL_THRESHOLDS[level] : null;
-    let nextText = nextThreshold !== null ? `다음 레벨 점수 ${nextThreshold}` : '최대 레벨';
-    let equipped = getTalentCardSlotIndex(key) >= 0;
-    return `<div class="talent-card${equipped ? ' equipped' : ''}" onclick="equipTalentCard('${key}')" title="클릭하여 ${equipped ? '해제' : '장착'}">
-        <div class="talent-card-head">
-            <span class="talent-card-title">${bloomName}</span>
-            <span class="talent-card-level">Lv.${level}/${TALENT_CARD_MAX_LEVEL}</span>
-        </div>
-        <div class="talent-card-sub">재능 ${heroLabel}, 전직 ${classLabel}</div>
-        <div class="talent-card-effects">${lines.join('<br>')}</div>
-        <div class="talent-card-foot">${equipped ? '장착됨, ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))}, 개화 ${Math.max(0, Math.floor(card.count || 0))}회, ${nextText}</div>
-    </div>`;
-
-}
-
-function renderTalentScoreSummary(count) {
-    let bd = getTalentBloomScoreBreakdown();
-    let curScore = getTalentBloomScore();
-    return `보유 카드 <strong>${count}</strong> / ${TALENT_BLOOM_TOTAL_CARDS}, 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
-        + `<br><span style="font-size:12px; color:var(--copy-bright);">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
-        + `<br><span style="font-size:12px; color:#9fe2b1;">개화 카드는 루프가 지나도 사라지지 않습니다.</span>`;
-}
-
-function renderTalentTab() {
-    let summaryEl = document.getElementById('ui-talent-summary');
-    let gridEl = document.getElementById('ui-talent-card-grid');
-    if (!summaryEl || !gridEl) return;
-    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
-    let ownedKeys = Object.keys(owned);
-    if (uiDisplay.matches('(max-width: 1080px)')) { renderMobileTalentTab(owned); return; }
-    summaryEl.innerHTML = renderTalentScoreSummary(ownedKeys.length);
-
-    // 장착 슬롯 영역
-    ensureTalentCardLoadout();
-    let loadout = game.talentCardLoadout;
-    let unlockedSlots = getUnlockedTalentSlotCount();
-    let slotHtml = '';
-    for (let i = 0; i < TALENT_CARD_SLOT_COUNT; i++) {
-        let unlocked = i < unlockedSlots;
-        let key = loadout[i];
-        slotHtml += renderTalentLoadoutSlot(i, unlocked, key, owned);
+    /** One card's facts from its ascendancy (key is null when the card has no definition). */
+    function cardInfo(ascendId) {
+        const key = getTalentBloomCardKeyForAscendancy(ascendId), heroId = getTalentBloomHeroIdForAscendancy(ascendId);
+        return { ascendId, key, heroId, card: key ? owned()[key] : null, names: getTalentCardName(heroId, ascendId), tone: toneOf(ascendId),
+            current: game.ascendClass === ascendId, equipped: !!key && getTalentCardSlotIndex(key) >= 0 };
     }
-    let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);">, 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
-    let loadoutHtml = `${renderCurrentTalentBloomContext(owned)}${renderTalentBloomNavigator(owned)}<div class="talent-loadout-panel">
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
-            <strong>장착 슬롯</strong><span style="font-size:12px;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>
-        </div>
-        <div class="talent-slot-row">${slotHtml}</div>
-    </div>`;
 
-    if (ownedKeys.length === 0) {
-        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 지금 전직의 카드를 얻습니다.</div>`;
-        return;
+    function pipsHtml(level) {
+        const pips = Array.from({ length: TALENT_CARD_MAX_LEVEL }, (unused, index) => `<i${index < level ? ' class="is-on"' : ''}></i>`).join('');
+        return `<span class="talent-pips" aria-hidden="true">${pips}</span>`;
     }
-    // 레벨 내림차순 정렬
-    ownedKeys.sort((a, b) => (owned[b].level - owned[a].level) || (owned[b].score - owned[a].score));
-    let visibleKeys = ownedKeys.filter(matchesTalentCardView);
-    let cardsHtml = visibleKeys.map(key => renderTalentCollectionCard(key, owned)).join('');
-    gridEl.innerHTML = loadoutHtml + (cardsHtml || '<div class="talent-bloom-empty">이 항목으로 개화한 조합이 아직 없습니다.</div>');
-}
 
-safeExposeGlobals({ setTalentCardFilter, showTalentCombinationTooltip, renderTalentCardEffectLines });
+    // ── 위 줄: 모은 카드, 장착, 개화 점수 ─────────────────────────────
+    function scoreStatHtml() {
+        const score = getTalentBloomScore(), level = getTalentCardLevel(score);
+        const from = TALENT_CARD_LEVEL_THRESHOLDS[level - 1], next = TALENT_CARD_LEVEL_THRESHOLDS[level];
+        const note = next === undefined ? '최대 레벨' : `Lv.${level + 1}까지 ${next - score}`;
+        return `<div class="talent-stat is-score"><span>개화 점수</span><b>${score}<small>Lv.${level}</small></b>`
+            + `${next === undefined ? bar(1, 1) : bar(score - from, next - from)}<em>${note}</em></div>`;
+    }
+    function headHtml() {
+        const count = Object.keys(owned()).length, unlocked = getUnlockedTalentSlotCount();
+        const worn = ensureTalentCardLoadout().slice(0, unlocked).filter(Boolean).length;
+        return `<div class="talent-head">
+            <div class="talent-stat"><span>모은 카드</span><b>${count}<small>/${TALENT_BLOOM_TOTAL_CARDS}</small></b>${bar(count, TALENT_BLOOM_TOTAL_CARDS)}</div>
+            <div class="talent-stat"><span>장착</span><b>${worn}<small>/${unlocked}</small></b>${bar(worn, Math.max(1, unlocked))}</div>
+            ${scoreStatHtml()}
+            <button type="button" class="talent-help" data-talent-action="score" aria-label="개화 점수 내역">?</button></div>`;
+    }
+
+    // ── 개화 시련 카드 ─────────────────────────────────────────────
+    function trialNeeds(ascend) {
+        const keys = id => Math.floor(Number(game.currencies[id]) || 0);
+        return [
+            { ok: !!ascend, text: ascend ? `전직 ${CLASS_TEMPLATES[ascend].name}` : '전직 선택' },
+            { ok: isWoodsmanEchoUnlocked(), text: '나무꾼의 잔상' },
+            { ok: keys('chaosKey') >= 1, text: `카오스 키 ${keys('chaosKey')}/1` },
+            { ok: keys('coreKey') >= 1, text: `코어 키 ${keys('coreKey')}/1` }
+        ];
+    }
+    /** The card this clear would give: a new card at the score's level, or an owned one rising (or holding) its level. */
+    function trialCardHtml(info) {
+        const now = getTalentCardLevel(Math.max(getTalentBloomScore(), info.card ? Number(info.card.score) || 0 : 0));
+        const have = info.card ? levelOf(info.card) : 0;
+        const level = !info.card ? `Lv.${now}` : (now > have ? `Lv.${have} → Lv.${now}` : `Lv.${have} 유지`);
+        return `<div class="talent-trial-main"><small>지금 개화하면</small><strong>${esc(info.names.bloomName)}</strong>`
+            + `<b>${level}</b><span>${esc(info.names.heroLabel)} 재능, 전직 ${esc(info.names.classLabel)}</span></div>`;
+    }
+    /** The trial card's picture and title: the current ascendancy's card, or a prompt to pick an ascendancy first. */
+    function trialTopHtml(info) {
+        if (!info || !info.key) return '<span class="talent-trial-art is-empty"></span><div class="talent-trial-main"><small>개화 시련</small><strong>전직을 고르면 카드가 정해집니다</strong></div>';
+        return `<img class="talent-trial-art" src="${portraitOf(info.heroId)}" alt="">${trialCardHtml(info)}`;
+    }
+    function trialHtml() {
+        const ascend = game.ascendClass && CLASS_TEMPLATES[game.ascendClass] ? game.ascendClass : null;
+        const needs = trialNeeds(ascend), ready = needs.every(need => need.ok), info = ascend ? cardInfo(ascend) : null;
+        const list = needs.map(need => `<li class="${need.ok ? 'is-on' : 'is-off'}"><i></i>${esc(need.text)}</li>`).join('');
+        return `<section class="talent-trial${ready ? ' is-ready' : ''}"${info ? ` style="--tone:${info.tone}"` : ''}>${trialTopHtml(info)}`
+            + `<ul class="talent-needs">${list}</ul>`
+            + `<button type="button" class="talent-trial-go" data-talent-action="trial"${ready ? '' : ' disabled'}>개화 시련 도전</button></section>`;
+    }
+
+    // ── 장착 슬롯 ──────────────────────────────────────────────────
+    function slotCellHtml(key, index, open) {
+        if (!open) return `<div class="talent-slot is-locked"><span class="talent-lock" aria-hidden="true"></span><small>카드 ${TALENT_CARD_SLOT_UNLOCKS[index]}장</small></div>`;
+        const card = key ? owned()[key] : null;
+        if (!card) return '<div class="talent-slot is-empty"><span class="talent-plus" aria-hidden="true">+</span><small>빈 슬롯</small></div>';
+        const { heroId, classKey } = parseTalentComboKey(key);
+        return `<button type="button" class="talent-slot is-filled" style="--tone:${toneOf(classKey)}" data-talent-card="${key}" ${hintAttrs(key)}>`
+            + `<img src="${portraitOf(heroId)}" alt=""><strong>${esc(getTalentCardName(heroId, classKey).bloomName)}</strong><small>Lv.${levelOf(card)}</small></button>`;
+    }
+    function slotsHtml() {
+        const unlocked = getUnlockedTalentSlotCount(), count = Object.keys(owned()).length, need = TALENT_CARD_SLOT_UNLOCKS[unlocked];
+        const cells = ensureTalentCardLoadout().map((key, index) => slotCellHtml(key, index, index < unlocked)).join('');
+        const next = need === undefined ? '<p class="talent-next is-done">슬롯 6칸 모두 열림</p>'
+            : `<p class="talent-next"><span>다음 슬롯</span>${bar(count, need)}<b>카드 ${count}/${need}</b></p>`;
+        return `<section class="talent-slots"><h3>장착 슬롯</h3><div class="talent-slot-row">${cells}</div>${next}</section>`;
+    }
+
+    // ── 직업 여섯의 카드 판 ────────────────────────────────────────
+    function rowHtml(info) {
+        const level = info.card ? levelOf(info.card) : 0;
+        const state = info.card ? `<span class="talent-row-level">Lv.${level}</span>${pipsHtml(level)}` : '<span class="talent-row-level is-off">미개화</span>';
+        const flags = (info.current ? '<em class="is-current">현재 전직</em>' : '') + (info.equipped ? '<em class="is-worn">장착</em>' : '');
+        const glyph = renderPixelIcon(ascendancyTreeUi.icon(CLASS_TEMPLATES[info.ascendId].m1), 'talent-glyph');
+        return `<li><button type="button" class="talent-row${info.card ? ' is-owned' : ''}" style="--tone:${info.tone}" data-talent-card="${info.key}" ${hintAttrs(info.key)}>`
+            + `${glyph}<span class="talent-row-name"><strong>${esc(info.names.bloomName)}</strong><small>${esc(info.names.classLabel)}</small></span>`
+            + `<span class="talent-row-state">${flags ? `<span class="talent-row-flags">${flags}</span>` : ''}${state}</span></button></li>`;
+    }
+    function classBlockHtml(classId) {
+        const infos = ASCENDANCIES_BY_PLAYER_CLASS[classId].map(cardInfo).filter(info => info.key);
+        const have = infos.filter(info => info.card).length, current = infos.some(info => info.current);
+        const portrait = portraitOf(PLAYER_CLASS_DEFS[classId].recommendedTalentHeroId);
+        return `<article class="talent-class${current ? ' is-current' : ''}${have ? '' : ' is-new'}">`
+            + `<header><img src="${portrait}" alt=""><strong>${esc(PLAYER_CLASS_DEFS[classId].label)}</strong><b>${have}/${infos.length}</b>${bar(have, infos.length)}</header>`
+            + `<ul>${infos.map(rowHtml).join('')}</ul></article>`;
+    }
+    function boardHtml() {
+        return `<section class="talent-board">${Object.keys(ASCENDANCIES_BY_PLAYER_CLASS).map(classBlockHtml).join('')}</section>`;
+    }
+
+    // ── 카드 창 ────────────────────────────────────────────────────
+    function effectsHtml(heroId, classKey, level) {
+        const parts = getTalentCardEffectParts(heroId, classKey, level);
+        if (!parts) return '';
+        const line = part => (part.stat ? statToneText.statLine(part.stat, part.text) : statToneText.html(part.text));
+        const rows = [
+            parts.surface ? ['표면', statToneText.html(parts.surface)] : null,
+            parts.applied.length ? [`Lv.${parts.level} 수치`, parts.applied.map(line).join('<br>')] : null,
+            parts.hidden.length ? ['이면', parts.hidden.map(line).join('<br>')] : null
+        ].filter(Boolean);
+        return `<dl class="talent-effects">${rows.map(([label, body]) => `<dt>${label}</dt><dd>${body}</dd>`).join('')}</dl>`;
+    }
+    function sheetProgressHtml(card) {
+        const level = levelOf(card), score = Math.floor(Number(card.score) || 0), next = TALENT_CARD_LEVEL_THRESHOLDS[level];
+        const count = `개화 ${Math.max(0, Math.floor(Number(card.count) || 0))}회`;
+        if (next === undefined) return `<p class="talent-sheet-note">최대 레벨, ${count}</p>`;
+        const from = TALENT_CARD_LEVEL_THRESHOLDS[level - 1];
+        return `<p class="talent-sheet-progress"><span>점수 ${score}</span>${bar(score - from, next - from)}<span>Lv.${level + 1}: ${next}</span></p>`
+            + `<p class="talent-sheet-note">${count}. 더 높은 점수로 다시 개화하면 레벨이 오릅니다.</p>`;
+    }
+    function sheetPreviewHtml(classKey, level) {
+        const where = game.ascendClass === classKey ? '개화 시련을 클리어하면 얻습니다' : `${CLASS_TEMPLATES[classKey].name} 전직으로 개화 시련을 클리어하면 얻습니다`;
+        return `<p class="talent-sheet-note">${esc(where)} (지금 점수로 Lv.${level})</p>`;
+    }
+    function sheetButtonHtml(key) {
+        const worn = getTalentCardSlotIndex(key) >= 0, unlocked = getUnlockedTalentSlotCount();
+        const full = !worn && ensureTalentCardLoadout().slice(0, unlocked).every(Boolean);
+        const label = worn ? '장착 해제' : (full ? '장착 (마지막 슬롯과 교체)' : '장착');
+        return `<button type="button" class="talent-sheet-equip${worn ? ' is-worn' : ''}" data-talent-equip="${key}">${label}</button>`;
+    }
+    function sheetHtml(key) {
+        const { heroId, classKey } = parseTalentComboKey(key), card = owned()[key], names = getTalentCardName(heroId, classKey);
+        const level = card ? levelOf(card) : scoreLevel();
+        return `<div class="talent-sheet" style="--tone:${toneOf(classKey)}"><div class="talent-sheet-head"><img src="${portraitOf(heroId)}" alt="">`
+            + `<div><strong>${esc(names.bloomName)}</strong><span>${esc(names.heroLabel)} 재능, 전직 ${esc(names.classLabel)}</span>`
+            + `<span class="talent-sheet-level"><b>${card ? `Lv.${level}` : '미개화'}</b>${pipsHtml(card ? level : 0)}</span></div></div>`
+            + `${card ? sheetProgressHtml(card) : sheetPreviewHtml(classKey, level)}${effectsHtml(heroId, classKey, level)}${card ? sheetButtonHtml(key) : ''}</div>`;
+    }
+    /** Opens the card window, or redraws it when refresh is set and its text changed (a render after equipping). */
+    function openCard(key, refresh) {
+        if (!key || !TALENT_BLOOM_CARD_DEFS[key]) return;
+        const body = sheetHtml(key);
+        if (refresh && body === lastSheet) return;
+        dialogKey = key;
+        lastSheet = body;
+        if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
+        const panel = selectionDialog.show({ id: CARD_DIALOG, title: '재능 카드', panelClass: 'talent-sheet-panel', body });
+        const overlay = panel && panel.parentElement;
+        if (overlay && !overlay.dataset.talentBound) {
+            overlay.dataset.talentBound = '1';
+            overlay.addEventListener('click', onSheetClick);
+        }
+    }
+    function onSheetClick(event) {
+        const button = event.target.closest('[data-talent-equip]');
+        if (!button) return;
+        equipTalentCard(button.dataset.talentEquip);
+        openCard(button.dataset.talentEquip, true);
+    }
+
+    // ── 개화 점수 창 ───────────────────────────────────────────────
+    function scoreHtml() {
+        const parts = getTalentBloomScoreBreakdown(), score = getTalentBloomScore(), level = getTalentCardLevel(score);
+        const rows = SCORE_PARTS.map(([id, label]) => `<li><span>${label}</span><b>${parts[id]}</b></li>`).join('');
+        const steps = TALENT_CARD_LEVEL_THRESHOLDS.map((need, index) => {
+            const cls = (index < level ? 'is-on' : '') + (index === level - 1 ? ' is-now' : '');
+            return `<li${cls ? ` class="${cls.trim()}"` : ''}><b>Lv.${index + 1}</b><small>${need}</small></li>`;
+        }).join('');
+        return `<div class="talent-score"><p class="talent-score-total"><span>개화 점수</span><b>${score}</b></p><ul class="talent-score-parts">${rows}</ul>`
+            + `<ol class="talent-score-steps">${steps}</ol><p class="selection-overlay-help">개화할 때의 점수가 카드 레벨이 됩니다.</p></div>`;
+    }
+    function openScore() {
+        if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
+        selectionDialog.show({ id: SCORE_DIALOG, title: '개화 점수', panelClass: 'talent-score-panel', body: scoreHtml() });
+    }
+
+    // ── 그리기와 입력 ──────────────────────────────────────────────
+    function onClick(event) {
+        const action = event.target.closest('[data-talent-action]'), card = event.target.closest('[data-talent-card]');
+        if (action && action.dataset.talentAction === 'score') return openScore();
+        if (action && action.dataset.talentAction === 'trial' && !action.disabled) return enterTalentBloomTrial();
+        if (card) openCard(card.dataset.talentCard);
+    }
+    function render() {
+        const root = document.getElementById('ui-talent-root');
+        if (!root) return;
+        if (!bound) { bound = true; root.addEventListener('click', onClick); }
+        const html = headHtml() + `<div class="talent-top">${trialHtml()}${slotsHtml()}</div>` + boardHtml();
+        if (html !== lastHtml) { root.innerHTML = html; lastHtml = html; }
+        if (dialogKey && selectionDialog.isOpen(CARD_DIALOG)) openCard(dialogKey, true);
+    }
+    /** PC hover: the card's name, level (or the level it would bloom at) and effects. Touch opens the card window instead. */
+    function hint(event, key) {
+        if (!event || event.pointerType === 'touch' || typeof showInfoTooltipHtml !== 'function' || !TALENT_BLOOM_CARD_DEFS[key]) return;
+        const { heroId, classKey } = parseTalentComboKey(key), card = owned()[key], level = card ? levelOf(card) : scoreLevel();
+        const html = `<div class="tooltip-title" style="color:${toneOf(classKey)};">${esc(getTalentCardName(heroId, classKey).bloomName)}</div>`
+            + `<div class="tooltip-line">${card ? `Lv.${level}` : `미개화, 지금 점수로 Lv.${level}`}</div>${effectsHtml(heroId, classKey, level)}`;
+        showInfoTooltipHtml(event.clientX, event.clientY, html, toneOf(classKey), `talent:${key}`);
+    }
+    return Object.freeze({ render, hint });
+})();
+
+safeExposeGlobals({ talentUi });

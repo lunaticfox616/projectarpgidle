@@ -17,7 +17,7 @@ artifacts/audit-region-mobile.cjs에 보관했다.
 
 일반 사냥터 화면에서 정적 UI를 10회 갱신했을 때 숨겨진 ui-underworld-panel,
 ui-ocean-panel, ui-fishing-panel에 각각 10회 DOM 변경이 발생했다.
-현재 renderOceanDepthMapPanel·renderFishingPanel은 ensureOceanState를 호출하며,
+현재 oceanDiveUi.render(js/ocean-dive-ui.js)·fishingUi.render는 ensureOceanState를 호출하며,
 이 함수는 산소·수심 보정과 루프 조건에 따른 해금을 수행한다. 렌더 호출만 막기 전에
 이 상태 처리가 전투·저장·진행 경계에서 보장되는지 추적해야 한다.
 renderUnderworldMapPanel도 underworldProgress를 대입한다. 읽기 전용 표현으로
@@ -76,6 +76,10 @@ sea-gift-selection.spec.js는 실제 선택 후 재료 변경·정적 갱신·�
 재료 충족→제작 가능→소비 후 비활성화가 반영된다. 같은 상태 10회 갱신에서 대상 패널의
 childList·attributes 변경은 0회였다. HTML 문자열 생성 비용은 여전히 남아 있다.
 레시피 정의는 세션 중 고정이라는 계약을 모듈에 명시했다. 잠금으로 패널을 비우면 다시 생성한다.
+2026-10-09: 낚시 화면을 다시 그리며 ocean-collection-ui.js와 sea-gift-ui.js를 js/fishing-ui.js(fishingUi)로 합쳤다. 도감 호스트의
+선택 확인과, 레시피 id별로 대상, 재료, 단추만 바꾸고 선택창과 접기 영역을 유지하는 갱신은 그대로다.
+2026-10-09: 심해 잠수 화면을 js/ui.js에서 js/ocean-dive-ui.js(oceanDiveUi)로 옮겨 다시 그렸다(수심 게이지, 산소 막대, 강화 카드).
+심해 탭 아래 따로 있던 사냥터 카드(#ui-ocean-list)는 지우고 권장 전투력과 "심해로 돌아가기"를 머리줄에 넣었다.
 
 모바일 제작에는 재화 정제 / 장비 가공 / 심연의 비전 선택기를 추가했다. 선택한 분류만
 보여주며 재화 정제에서는 장비 대상 영역을 숨긴다. PC의 전체 분류·접기 배치는 유지한다.

@@ -1,5 +1,5 @@
 // 무기 숙련(data/weapon-mastery.js): 들고 있는 무기 대분류가 처치마다 경험치를 얻고, 레벨과 10단위 특전이 그 무기를 들었을 때의 능력치가
-// 된다. 상태는 game.weaponMastery {xp: {대분류: 누적 경험치}}로 루프를 넘어 남는다(js/combat.js triggerSeasonReset은 건드리지 않는다).
+// 된다. 상태는 game.weaponMastery {xp: {대분류: 누적 경험치}, v: 곡선 판}로 루프를 넘어 남는다(js/combat.js triggerSeasonReset은 건드리지 않는다).
 // 처치 기록은 js/combat.js recordKillProgress, 능력치는 getPlayerStats의 계정 보상 묶음(applyAccountRewardStats), 화면은
 // js/weapon-mastery-ui.js.
 const weaponMastery = (() => {
@@ -7,26 +7,47 @@ const weaponMastery = (() => {
     const IDS = Object.freeze(Object.keys(WEAPON_CATEGORIES));
     /** Experience from level to level + 1. */
     const need = level => Math.round(M.curve.base * M.curve.growth ** (level - 1));
-    // REACH[L]: total experience at which level L begins (REACH[1] = 0).
-    const REACH = [0, 0];
-    for (let level = 1; level < M.maxLevel; level++) REACH.push(REACH[level] + need(level));
+    /** reach[L]: total experience at which level L begins (reach[1] = 0) on a curve. */
+    function reachTable(curve) {
+        const reach = [0, 0];
+        for (let at = 1; at < M.maxLevel; at++) reach.push(reach[at] + Math.round(curve.base * curve.growth ** (at - 1)));
+        return reach;
+    }
+    const REACH = reachTable(M.curve), V1_REACH = reachTable(M.v1Curve);
     const CAP = REACH[M.maxLevel];
+    const levelOn = (reach, xp) => {
+        let at = 1;
+        while (at < M.maxLevel && xp >= reach[at + 1]) at++;
+        return at;
+    };
 
+    /** Experience on the v1 curve moved to the current one: the same level, the same share of the way to the next. */
+    function upgradeXp(xp) {
+        const at = levelOn(V1_REACH, xp);
+        if (at >= M.maxLevel) return CAP;
+        const share = (xp - V1_REACH[at]) / (V1_REACH[at + 1] - V1_REACH[at]);
+        return Math.round(REACH[at] + share * (REACH[at + 1] - REACH[at]));
+    }
+    /** A record kept before the harder curve (2026-10-09, data/weapon-mastery.js v1Curve) keeps its levels; once per save (book.v). */
+    function upgrade(book) {
+        Object.keys(book.xp).forEach(id => {
+            const xp = Number(book.xp[id]);
+            if (Number.isFinite(xp) && xp > 0) book.xp[id] = upgradeXp(xp);
+        });
+        book.v = M.curveVersion;
+    }
     /** The save's record, repaired on read: unknown categories and bad numbers never reach the levels. */
     function ledger(state) {
         const book = state.weaponMastery;
         if (!book || typeof book !== 'object' || !book.xp || typeof book.xp !== 'object' || Array.isArray(book.xp)) state.weaponMastery = { xp: {} };
+        if (state.weaponMastery.v !== M.curveVersion) upgrade(state.weaponMastery);
         return state.weaponMastery;
     }
     function xpOf(state, id) {
         const value = Number(ledger(state).xp[id]);
         return Number.isFinite(value) && value > 0 ? Math.min(CAP, value) : 0;
     }
-    function levelAt(xp) {
-        let level = 1;
-        while (level < M.maxLevel && xp >= REACH[level + 1]) level++;
-        return level;
-    }
+    function levelAt(xp) { return levelOn(REACH, xp); }
     const level = (state, id) => levelAt(xpOf(state, id));
     /** {level, xp, into, need}: need 0 at the top level. */
     function progress(state, id) {

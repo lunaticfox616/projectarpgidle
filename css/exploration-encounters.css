@@ -16,15 +16,15 @@
 #tab-map #map-ready-destinations details button{font-size:12px;padding:8px 10px}
 #tab-map .encounter-empty{padding:12px 14px;background:#172019;color:#c7cabb;border:1px solid #a9976d40;border-radius:4px;font-size:13px}
 #tab-map .encounter-pending-title{margin:18px 0 8px;font-size:13px;color:#b7b7a7;font-weight:500}
-#tab-map #ui-season-boss-list .map-zone-group-count::after{content:' · 펼치기'}
-#tab-map #ui-season-boss-list .map-zone-group:not(.collapsed) .map-zone-group-count::after{content:' · 접기'}
+#tab-map #ui-season-boss-list .map-zone-group-count::after{content:'펼치기';margin-left:.7em}
+#tab-map #ui-season-boss-list .map-zone-group:not(.collapsed) .map-zone-group-count::after{content:'접기'}
 #tab-map #ui-season-boss-list{display:block;container-type:inline-size}
 #tab-map #ui-season-boss-list .map-zone-group{margin:0 0 18px;padding:0;border:0;background:none}
 #tab-map #ui-season-boss-list .map-zone-group-header{width:100%;padding:8px 0;margin:0 0 8px;border-radius:0;color:#d8c497;font-size:15px;text-align:left;display:flex;justify-content:space-between}
 #tab-map #ui-season-boss-list .map-zone-group-icon{display:none}
 #tab-map #ui-season-boss-list .map-zone-group-count{font-size:11px;color:#a8aa9d}
 #tab-map #ui-season-boss-list .map-zone-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-#tab-map #ui-season-boss-list .map-zone-grid>.encounter-card:only-child{grid-column:1/-1}
+#tab-map #ui-season-boss-list .map-zone-grid>.map-boss-card:only-child{grid-column:1/-1}
 @container(max-width:650px){#tab-map #ui-season-boss-list .map-zone-grid{grid-template-columns:minmax(0,1fr)}}
 #tab-map #ui-trial-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px}
 #tab-map .encounter-card{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px;min-width:0;padding:18px;border:1px solid var(--color-line-strong);border-radius:5px;background:var(--color-surface);color:var(--color-text);cursor:default;box-shadow:none;line-height:1.6}
@@ -40,8 +40,6 @@
 #tab-map .encounter-card .map-power-estimate{display:flex;flex-wrap:wrap;gap:6px 16px;align-self:flex-start;font-size:14px;line-height:1.6;margin:0;padding:0}
 #tab-map .encounter-reward{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px;font-size:15px;font-weight:600;color:var(--color-accent)}
 #tab-map .encounter-reward small{font-size:12px;font-weight:400;color:var(--color-text-secondary)}
-#tab-map .encounter-entry-source{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:13px;color:var(--color-text-secondary);line-height:1.6}
-#tab-map .encounter-entry-source small{font-size:12px;color:var(--color-text-secondary);flex-shrink:0}
 #tab-map .encounter-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--color-line);padding-top:10px;margin-top:auto;font-size:14px;color:var(--color-text-secondary)}
 #tab-map .encounter-footer>span{min-width:0;overflow-wrap:anywhere;word-break:keep-all;line-height:1.6}
 #tab-map .encounter-footer button{flex-shrink:0;min-width:88px;min-height:44px;padding:9px 16px;border:1px solid var(--color-line-strong);border-radius:4px;background:var(--color-surface-raised);color:var(--color-accent);font:inherit;cursor:pointer}
@@ -54,16 +52,6 @@
 
 /* Act choices prioritize readable names and stable actions over narrow card density. */
 #tab-map #ui-map-list{container-type:inline-size}
-#tab-map #ui-map-list .map-zone-grid--hunting{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-#tab-map #ui-map-list .map-zone-group-header{padding:8px 0;border-radius:0;color:#c6c5b2;font-size:13px}
-#tab-map #ui-map-list .map-zone-group-icon{display:none}
-#tab-map #ui-map-list .map-item--act{min-width:0;gap:6px}
-#tab-map #ui-map-list .map-item--act .map-item-main{font-size:17px;line-height:1.6;font-weight:500}
-#tab-map #ui-map-list .map-item--act .map-zone-status{font-size:12px;color:#b8c0ac}
-#tab-map #ui-map-list .map-item--act .map-power-estimate{font-size:12px;line-height:1.7}
-#tab-map #ui-map-list .map-item--act .map-item-actions{padding-top:6px}
-#tab-map #ui-map-list .map-item--act .map-enter-btn,#tab-map #ui-map-list .map-item--act .map-reward-btn{font-size:12px;min-height:36px;padding:6px 12px}
-#tab-map #ui-map-list .map-item--act .map-state-badge{font-size:11px;min-height:26px}
 #tab-map #ui-map-route-summary{display:none}
 #exploration-region-banner>div{width:100%;min-width:0}
 #exploration-region-banner .atlas-hunt-destination{display:flex;align-items:center;gap:12px;justify-content:space-between}
@@ -71,7 +59,6 @@
 #exploration-region-banner .map-route-copy small{display:none}
 #exploration-region-banner .map-route-copy strong{font-size:13px;font-weight:500;white-space:normal;color:#e2ddc8}
 #exploration-region-banner .map-route-action{flex-shrink:0;min-height:36px;padding:6px 12px;border:1px solid #a9976d70;border-radius:3px;background:#75644250;color:#f4e4bd;font-size:12px}
-@container(max-width:600px){#tab-map #ui-map-list .map-zone-grid--hunting{grid-template-columns:minmax(0,1fr)}}
 
 /* Act rewards share exploration surfaces; other tutorial overlays retain their own layout. */
 #reward-overlay{padding:16px;box-sizing:border-box;background:#050908db}
@@ -103,8 +90,6 @@
 #tab-map #ui-season-boss-list{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */margin-top:0!important}
 #tab-map #ui-season-boss-list .map-zone-group-header{background:none;box-shadow:none;border:0;border-bottom:1px solid #b6a57844}
 #tab-map #ui-trial-list{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */margin-top:0!important}
-#tab-map #ui-map-list .map-zone-group-header{border:0;border-bottom:1px solid #b6a57844;background:none;box-shadow:none}
-#tab-map #ui-map-list .map-item--act{padding:12px}
 #reward-overlay .reward-choice{background:#182119;box-shadow:none}
 #reward-overlay .reward-choice:hover{background:#252d1d}
 #reward-overlay .tutorial-secondary{background:#22271c}}

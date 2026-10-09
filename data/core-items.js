@@ -61,7 +61,7 @@ const CORE_OPTION_POOL = Object.freeze([
     { group: 'utility', id: 'summon_dmg', stat: 'summonPctDmg', label: '소환수 피해', unit: '%', min: 10, max: 30 },
     { group: 'utility', id: 'summon_hp', stat: 'summonHpPct', label: '소환수 생명력', unit: '%', min: 10, max: 30 },
     { group: 'utility', id: 'summon_crit', stat: 'summonCrit', pairedStat: 'summonCritDmg', pairedMul: 4, min: 2, max: 7,
-        text: '소환수 치명타 확률 +{value}% · 치명타 피해 배율 +{paired}%' },
+        text: '소환수 치명타 확률 +{value}%, 치명타 피해 배율 +{paired}%' },
     { group: 'utility', id: 'projectile_shots', stat: 'projectileExtraShots', label: '투사체 추가 발사', unit: '', min: 1, max: 1 },
     { group: 'utility', id: 'spell_flat_pct', stat: 'spellFlatPct', label: '주문 내장 피해 증가', unit: '%', min: 8, max: 22 },
     { group: 'utility', id: 'slam_aftershock', stat: 'slamEchoChance', pairedStat: 'slamEchoDamagePct', min: 4, max: 12, extraMin: 35, extraMax: 90,

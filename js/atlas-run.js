@@ -156,6 +156,7 @@ const atlasRun = (() => {
      * 맵 안의 지도석 · 각인은 보스를 잡을 때까지 런이, 방 보상 재화는 넓은 맵 전리품 보관이 들고 있다. */
     function onKill(enemy) {
         const zone = getZone(game.currentZoneId);
+        atlasFinds.onAtlasKill(zone, enemy);
         const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);
         const room = zone && zone.type === 'atlasMap' && game.atlas.run ? emptyRoom(enemy) : null;
         const rewards = room ? clearRoom(zone, room, maps) : [];
