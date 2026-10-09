@@ -37,10 +37,10 @@
   html, body { width: 100%; max-width: 100%; }
   .sea-gift-group-picker { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin: 10px 0; font-size: 13px; }
   .sea-gift-group-picker select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
-  #fishing-workshop[data-recipe-group="supply"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-supply"]),
-  #fishing-workshop[data-recipe-group="forge"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-forge"]),
-  #fishing-workshop[data-recipe-group="chase"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-chase"]),
-  #fishing-workshop[data-recipe-group="supply"] .ocean-craft-target { display: none; }
+  #fishing-workshop[data-recipe-group="supply"] .fishing-group:not([data-ui-disclosure="sea-gift-supply"]),
+  #fishing-workshop[data-recipe-group="forge"] .fishing-group:not([data-ui-disclosure="sea-gift-forge"]),
+  #fishing-workshop[data-recipe-group="chase"] .fishing-group:not([data-ui-disclosure="sea-gift-chase"]),
+  #fishing-workshop[data-recipe-group="supply"] .fishing-target { display: none; }
   #tab-items > .subtab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
