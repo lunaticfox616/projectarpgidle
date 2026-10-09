@@ -98,7 +98,7 @@ const stumpBoxUi = (() => {
             const on = result.resonant.has(color);
             return `<span class="stump-chip${on ? ' is-on' : ''}" style="--stump-tone:${stumpTone(color)}">${STUMP_BOX_COLORS[color].label} ${result.counts[color]}${on ? ' 공명' : ''}</span>`;
         }).join('');
-        const notes = [`칸 ${stumpBox.openCount(game)}/25`, result.suppressed.size ? `<span class="is-bad">억제 ${result.suppressed.size}</span>` : '',
+        const notes = [`칸 ${stumpBox.openCount(game)}/25`, result.suppressed.size ? `<span class="is-bad">비활성 ${result.suppressed.size}</span>` : '',
             stumpBox.graftOpen(game) ? `<span class="is-graft">접붙이기 ${stumpBox.graftPoints(game).free}</span>` : ''].filter(Boolean);
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(', ')}</span>`
             + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙">?</button>';
@@ -108,12 +108,18 @@ const stumpBoxUi = (() => {
         const stats = Object.keys(result.stats).map(stat => `<li style="color:${getItemStatToneColor(stat)}">${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
         return `<h3>옵션 합계</h3><ul class="stump-stats">${stats || '<li class="is-empty">아직 없음</li>'}</ul>` + stumpTalismanUi.summaryHtml();
     }
-    /** The ? card: only the rules a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만). */
+    /** 루프가 바뀔 때: 성장 완료된 그루터기 아이템의 경험치가 초기화된다(뿌리 기억은 그만큼 남긴다). */
+    function stumpLoopRule() {
+        const keep = stumpBox.rootMemoryPct(game);
+        return `루프가 바뀌면 성장 완료된 그루터기 아이템의 경험치가 초기화됩니다${keep ? `(뿌리 기억 ${keep}% 유지)` : ''}.`;
+    }
+    /** The ? card: only the rules a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만, 용어는 그루터기 아이템, 경험치,
+     * 성장 완료, 비활성화로 통일하고 "것" 같은 지칭은 쓰지 않는다). */
     function stumpRulesTipHtml() {
-        const rules = ['판에 놓은 것만 처치로 자랍니다.', `다 자란 같은 색 ${STUMP_BOX_RESONANCE.count}개: 공명 +${STUMP_BOX_RESONANCE.bonusPct}%`,
-            '화염↔냉기, 번개↔카오스가 맞닿으면 둘 다 멈춥니다.', '거름: 보관함의 씨앗이나 수액을 써서 판에서 자라는 것을 모두 키웁니다.',
-            '새 루프에 다 자란 것은 다시 자랍니다.'];
-        if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 +${STUMP_BOX_GRAFT.pctPerRank}% (칸 왼쪽 위 숫자)`);
+        const rules = ['판에 배치한 그루터기 아이템만 처치 시 경험치를 얻습니다.', `공명: 성장 완료된 같은 색 ${STUMP_BOX_RESONANCE.count}개 이상이면 그 색 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`,
+            '비활성화: 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', '거름: 보관함의 씨앗이나 수액을 소모해 판에서 성장 중인 그루터기 아이템의 경험치를 올립니다.',
+            stumpLoopRule()];
+        if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
         rules.push(...stumpRipeningUi.rulesLines());
         return '<div class="tooltip-title">그루터기 함</div>' + rules.map(rule => `<div class="tooltip-line">${escStump(rule)}</div>`).join('');
     }
@@ -143,10 +149,10 @@ const stumpBoxUi = (() => {
     // ── 고른 것의 설명 · 툴팁 ───────────────────────────────
     // 2026-10-09 사용자 "꼭 필요한 정보만": 보관함, 자라지 않음, 다 자람, 새 루프에 몇 % 같은 줄은 없앴다. 자라는 중이면 성장 줄,
     // 효과는 지금 붙으면 그 능력치 색, 아직 붙지 않으면(자라는 중, 보관함, 막힘) 회색 "(비활성)"이다.
-    /** 성장 120 / 3200 (부적과 흉터는 '깨어남'); '' once grown. */
+    /** 경험치 120 / 3200; '' once grown. */
     function stumpGrowthText(item) {
         if (stumpBox.isMature(item)) return '';
-        return `${item.color ? '성장' : '깨어남'} ${item.xp} / ${stumpBox.need(item)}`;
+        return `경험치 ${item.xp} / ${stumpBox.need(item)}`;
     }
     /** What a seed or sap gives: in its stat's colour while it works on the board, otherwise grey with (비활성). */
     function stumpYieldLine(item, result) {
@@ -159,14 +165,14 @@ const stumpBoxUi = (() => {
     /** Only what changes the item's effect on the board: suppressed (red) or resonating. */
     function stumpStatus(item, result, cell) {
         if (cell < 0) return null;
-        if (result.suppressed.has(item.id)) return { text: `${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label}에 막혀 멈춤`, tone: 'is-bad' };
+        if (result.suppressed.has(item.id)) return { text: `비활성화: ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 인접`, tone: 'is-bad' };
         if (stumpBox.isMature(item) && result.resonant.has(item.color)) return { text: `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`, tone: 'is-good' };
         return null;
     }
     /** A stored seed or sap: compost (the button says the growth it gives) or throw it away. */
     function stumpStoredSeedButtons(item) {
         const reason = stumpBox.compostReason(game, item.id);
-        return `<button type="button" data-stump-action="compost"${reason ? ' disabled' : ''}>거름으로 쓰기 +${stumpBox.compostGrowth(item)}</button>`
+        return `<button type="button" data-stump-action="compost"${reason ? ' disabled' : ''}>거름 사용 (경험치 +${stumpBox.compostGrowth(item)})</button>`
             + '<button type="button" data-stump-action="discard">버리기</button>';
     }
     /** In storage, a seed or sap goes as compost or away and a scar can be thrown away (talismans have their own buttons). */
@@ -257,7 +263,7 @@ const stumpBoxUi = (() => {
     /** 받을 선물: 수확 일지의 줄 선물(색을 골라 받는다)과 씨앗 주머니(셋 가운데 하나). 시작 선물은 함을 얻으면 바로 준다(grantStumpStarter). */
     function stumpStarterHtml() {
         const rows = stumpHarvestUi.giftsHtml() + stumpRipeningUi.pouchHtml();
-        return rows ? `<h3>받을 선물</h3>${rows}` : '';
+        return rows ? `<h3>받을 보상</h3>${rows}` : '';
     }
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
@@ -431,9 +437,9 @@ const stumpBoxUi = (() => {
     }
     function claimHarvestGift(row, color) {
         const item = stumpBox.claimHarvestGift(game, row, color);
-        if (!item) return notifyStump('보관함이 가득 찼거나 이미 받은 선물입니다.');
+        if (!item) return notifyStump('보관함이 가득 찼거나 이미 받은 보상입니다.');
         selectedId = item.id;
-        notifyStump(`수확 일지 선물: ${stumpBox.label(item)}`);
+        notifyStump(`수확 일지 보상: ${stumpBox.label(item)}`);
         commitStumpChange();
     }
     function unsealTalisman(source) {
@@ -448,7 +454,7 @@ const stumpBoxUi = (() => {
         if (!item || reason) return reason && notifyStump(reason);
         const name = stumpItemName(item), result = stumpBox.compost(game, item.id);
         selectedId = null;
-        notifyStump(`거름: ${name}, 판에서 자라는 ${result.fed}개 +${result.growth}`);
+        notifyStump(`거름 사용: ${name} 소모, 성장 중인 ${result.fed}개 경험치 +${result.growth}`);
         announceStumpRipened(result.ripened);
         commitStumpChange();
     }
@@ -486,7 +492,7 @@ const stumpBoxUi = (() => {
     function runBulkCompost(filter) {
         const result = stumpBox.compostMany(game, filter);
         if (!result) return false;
-        notifyStump(`일괄 거름 사용: ${result.count}개, 판에서 자라는 ${result.fed}개 +${result.growth}`);
+        notifyStump(`일괄 거름 사용: ${result.count}개 소모, 성장 중인 ${result.fed}개 경험치 +${result.growth}`);
         announceStumpRipened(result.ripened);
         return true;
     }
@@ -561,8 +567,8 @@ const stumpBoxUi = (() => {
         stumpHarvestUi.announceGraftJournal();
         if (sawIntro) return given.length && announceStumpStarter();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
-            '액트 10을 넘어선 보상으로 그루터기 함과 시작 선물(씨앗과 수액 하나씩)을 받았습니다.\n씨앗과 수액은 판에 놓아야 처치할 때마다 자랍니다.\n'
-            + '같은 색이 셋 다 자라면 공명(+10%)하고, 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 멈춥니다.', 'tab-stump');
+            '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗, 수액 1개씩)을 받았습니다.\n판에 배치한 그루터기 아이템만 처치 시 경험치를 얻습니다.\n'
+            + '성장 완료된 같은 색 3개 이상은 공명(+10%), 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', 'tab-stump');
     }
     /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 젬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
     function grantStumpStarter() {
@@ -570,7 +576,7 @@ const stumpBoxUi = (() => {
         if (!given.length) return given;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🌱 그루터기 함 시작 선물: ${given.map(stumpBox.label).join(', ')}`, 'loot-magic');
+        addLog(`🌱 그루터기 함 시작 보상: ${given.map(stumpBox.label).join(', ')}`, 'loot-magic');
         return given;
     }
     /** The first 불씨의 흉터 comes with 포식 (loop 23, once): into storage, with a log line (the unlock notice explains it). */
@@ -579,11 +585,11 @@ const stumpBoxUi = (() => {
         if (!scar) return;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🔥 그루터기 함: ${withObjectParticle(STUMP_BOX_SCAR.name)} 받았습니다. 판에 놓아 깨우세요.`, 'loot-unique');
+        addLog(`🔥 그루터기 함: ${withObjectParticle(STUMP_BOX_SCAR.name)} 받았습니다. 판에 배치해 깨우세요.`, 'loot-unique');
     }
     /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
     function announceStumpStarter() {
-        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 선물', '씨앗과 수액을 하나씩 받아 보관함에 넣어 두었습니다.\n판에 놓아야 처치할 때마다 자랍니다.', 'tab-stump');
+        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 보상', '씨앗, 수액 1개씩을 보관함에 넣었습니다.\n판에 배치해야 처치 시 경험치를 얻습니다.', 'tab-stump');
     }
     /** Once, when the reached loop opens grafting (loop 18; saves already past it see it after this update). */
     function announceStumpGraft() {
@@ -591,8 +597,8 @@ const stumpBoxUi = (() => {
         game.noti.stump = true;
         queueTutorialNotice('unlock_stump_graft', '접붙이기',
             `루프 ${STUMP_BOX_GRAFT.startLoop}부터 루프마다 접붙이기 점수 ${STUMP_BOX_GRAFT.pointsPerLoop}점을 받습니다.\n`
-            + `‘그루터기 함’에서 칸을 누르고 [접붙이기]로 그 칸을 강화하세요. n단계에는 n점이 들고(최대 ${STUMP_BOX_GRAFT.maxRank}단계), `
-            + `단계마다 그 칸에 놓인 씨앗, 수액, 부적의 효과가 +${STUMP_BOX_GRAFT.pctPerRank}%입니다.\n마름병 포자로 한 단계씩 되돌리면 점수가 돌아옵니다.`,
+            + `그루터기 함에서 칸을 고르고 [접붙이기]로 강화합니다. n단계에 n점(최대 ${STUMP_BOX_GRAFT.maxRank}단계), `
+            + `단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%.\n마름병 포자로 한 단계씩 되돌리면 점수가 돌아옵니다.`,
             'tab-stump');
     }
     const STUMP_LOG_ICONS = Object.freeze({ talisman: '🧿', scar: '🔥' });
@@ -612,8 +618,8 @@ const stumpBoxUi = (() => {
     }
     function stumpCompostDropText(compost) {
         const name = `${STUMP_BOX_COLORS[compost.color].label} ${STUMP_BOX_STAGES[compost.family].label}`;
-        return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${name}이 거름이 됐습니다(자라는 ${compost.fed}개 +${compost.growth}).`
-            : `🌱 그루터기 함 보관함이 가득 차고 판에서 자라는 것도 없어 ${name}을 놓쳤습니다.`;
+        return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${name}이 거름이 됐습니다(성장 중인 ${compost.fed}개 경험치 +${compost.growth}).`
+            : `🌱 그루터기 함 보관함이 가득 찼고 판에 성장 중인 그루터기 아이템도 없어 ${name}을 놓쳤습니다.`;
     }
     /** What a ripened item now gives (resonance and graft included), for the toast. */
     function stumpRipeGain(item) {
@@ -622,14 +628,14 @@ const stumpBoxUi = (() => {
     }
     function stumpRipeName(item) {
         if (item.family === 'talisman') return `[${item.name}] 깨어남`;
-        return `${stumpItemName(item)} ${item.family === 'scar' ? '깨어남' : '다 자람'}`;
+        return `${stumpItemName(item)} ${item.family === 'scar' ? '깨어남' : '성장 완료'}`;
     }
     /** Ripening is the box's payoff: a toast (what it gives now) and a chime instead of one scrolling log line. */
     function announceStumpRipened(ripened) {
         if (!ripened.length) return;
         const gain = ripened.length === 1 ? stumpRipeGain(ripened[0]) : '';
-        const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 다 자람`;
-        const gift = stumpBox.pendingGifts(game).length ? ', 수확 일지 선물을 받으세요' : '', note = stumpRipeningUi.ripenNote(ripened);
+        const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 성장 완료`;
+        const gift = stumpBox.pendingGifts(game).length ? ', 수확 일지 보상을 받으세요' : '', note = stumpRipeningUi.ripenNote(ripened);
         if (gift) game.noti.stump = true;
         showGameToast(`그루터기 함: ${names}${gain ? `, ${gain}` : ''}${note ? ` (${note})` : ''}${gift}`, { tone: 'success' });
         playUiFeedbackSound('success');

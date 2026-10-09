@@ -39,7 +39,7 @@ const stumpHarvestUi = (() => {
     function journalHtml() {
         const grown = new Set(game.stumpBox.harvest.grown);
         return `<div class="stump-harvest-grid">${ROWS.map(row => journalRow(row, grown)).join('')}</div>`
-            + '<p class="stump-hint">한 줄을 채우면 선물을 받습니다.</p>';
+            + '<p class="stump-hint">한 줄을 채우면 보상을 받습니다.</p>';
     }
 
     // ── 줄 선물 ─────────────────────────────────────────────
@@ -62,12 +62,12 @@ const stumpHarvestUi = (() => {
     // What each kind of unlock does, for its notice (the first match wins: 봉인 칸 1 also opens 포식).
     const UNLOCK_TEXTS = Object.freeze([
         [row => row.storage, row => `보관함 +${row.storage}칸`],
-        [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 새 루프에 다 자란 것이 ${row.keepPct}% 자란 채로 다시 자랍니다`],
-        [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗과 수액을 한 번에 거름으로 씁니다'],
-        [row => row.breeding, () => '번식: 루프를 넘길 때 다 자란 열매마다 씨앗 하나가 보관함에 들어옵니다(가끔 다른 색이나 황금)'],
-        [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 셋 가운데 하나를 고릅니다'],
-        [row => row.devour, () => '봉인 칸 1과 포식: 봉인한 칸의 다 자란 것은 루프를 넘깁니다. 불씨의 흉터(보관함에 하나 넣음)는 루프를 넘길 때 둘레 한 칸을 먹고 그 능력치를 흡수합니다'],
-        [row => row.sealSlots, row => `봉인 칸 +${row.sealSlots}: 봉인한 칸의 다 자란 것은 줄까지 그대로 루프를 넘깁니다`],
+        [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 루프가 바뀌어도 성장 완료된 그루터기 아이템의 경험치 ${row.keepPct}% 유지`],
+        [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗, 수액을 한 번에 거름으로 사용'],
+        [row => row.breeding, () => '번식: 루프가 바뀔 때 성장 완료된 열매마다 보관함에 씨앗 1개(가끔 다른 색, 황금)'],
+        [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 3개 중 1개 선택'],
+        [row => row.devour, () => '봉인 칸 1, 포식: 봉인 칸은 루프가 바뀌어도 성장 상태 유지. 불씨의 흉터 1개 지급(루프가 바뀔 때 주변 1칸 흡수)'],
+        [row => row.sealSlots, row => `봉인 칸 +${row.sealSlots}: 루프가 바뀌어도 성장 상태 유지`],
         [row => row.qualityCap, row => `품질 상한 ${Math.round(row.qualityCap * 100)}%${row.graftRanks ? `, 접붙이기 ${graftRankAt(row)}단계` : ''}`]
     ]);
     function describeUnlock(row) {
@@ -106,8 +106,8 @@ const stumpHarvestUi = (() => {
     function announceRegress(detail) {
         stumpRipeningUi.regressLog(detail);
         if (!detail.count) return;
-        addLog(detail.keepPct > 0 ? `🌱 그루터기 함: 다 자란 ${detail.count}개가 뿌리 기억으로 ${detail.keepPct}% 자란 채 다시 자랍니다.`
-            : `🌱 그루터기 함: 다 자란 ${detail.count}개가 새 루프에 씨앗과 수액으로 돌아가 다시 자랍니다.`, 'season-up');
+        addLog(detail.keepPct > 0 ? `🌱 그루터기 함: 성장 완료된 ${detail.count}개의 경험치가 초기화됐습니다(뿌리 기억 ${detail.keepPct}% 유지).`
+            : `🌱 그루터기 함: 성장 완료된 ${detail.count}개의 경험치가 초기화됐습니다.`, 'season-up');
     }
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('project-idle:stump-box-regressed', event => announceRegress(event.detail || {}));

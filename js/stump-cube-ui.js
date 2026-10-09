@@ -60,7 +60,7 @@ const stumpCubeUi = (() => {
         const shown = stumpCube.revealed(game), hidden = STUMP_CUBE_RECIPES.length - shown.length;
         const rows = shown.map(recipe => `<li><strong>${esc(recipe.name)} (${esc(recipe.group)})</strong>`
             + `<span>${esc(recipe.need)} → ${esc(recipe.result)}</span><small>${esc(costText(recipe.cost))}</small></li>`).join('');
-        const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개(새 재료가 다 자라거나 해금되면 열립니다)</li>` : '';
+        const more = hidden ? `<li class="is-hidden">아직 모르는 조합법 ${hidden}개 (새 재료가 성장 완료되거나 해금되면 공개)</li>` : '';
         return `<ul class="stump-cube-book">${rows}${more}</ul>`;
     }
 

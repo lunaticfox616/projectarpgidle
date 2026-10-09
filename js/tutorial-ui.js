@@ -599,7 +599,7 @@ function applySkippedGuide(key) {
 /** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗과 수액을 판의 가운데부터 대신 놓는다(첫 스킬 젬과 같은 이유). */
 function plantSkippedStumpStarter(key) {
     if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
-    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗과 수액을 판에 놓았습니다', { tone: 'success' });
+    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗, 수액을 판에 배치했습니다', { tone: 'success' });
 }
 
 function dismissTutorial(openTarget) {

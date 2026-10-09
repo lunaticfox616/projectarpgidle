@@ -36,7 +36,7 @@ const stumpTalismanUi = (() => {
     function stateLine(item, cell) {
         const summary = talismanEffects.summarize();
         if (cell < 0 || !stumpBox.isMature(item)) return '';
-        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">척력과 맞닿아 효과 없음</p>';
+        if (summary.suppressed.has(item.id)) return '<p class="stump-status is-bad">비활성화: 척력 인접</p>';
         return summary.amplified.has(item.id) ? '<p class="stump-status is-good">척력으로 효과 +25%</p>' : '';
     }
 
@@ -100,7 +100,7 @@ const stumpTalismanUi = (() => {
     /** 봉인 풀기 · 편린 교환 (해금 목록의 '부적'을 연 뒤, 그루터기 함의 부적 탭). */
     function unsealHtml() {
         if (!contentProgression.isUnlocked('talisman')) return '';
-        return '<h3>부적 풀기 <small>편린은 고대 미궁에서 얻습니다</small></h3>'
+        return '<h3>부적 풀기 <small>편린: 고대 미궁에서 획득</small></h3>'
             + `<div class="stump-talisman-unseal">${Object.keys(TALISMAN_UNSEAL_RULES).map(unsealButton).join('')}</div>`
             + `<div class="stump-talisman-unseal">${TALISMAN_SHARD_EXCHANGE.map(exchangeButton).join('')}</div>`;
     }

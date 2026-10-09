@@ -42,7 +42,7 @@ const stumpRipeningUi = (() => {
     function scarBodyHtml(item, result, tooltip) {
         const caps = stumpBox.scarCaps(), active = !!result.extras[item.id];
         const lines = stumpBox.extraLinesOf(item, result).map(line => lineRow(line, tooltip, active, ` <small>(최대 ${number(caps[line.stat] || 0)})</small>`)).join('');
-        const none = tooltip ? '<div class="tooltip-line">아직 흡수한 것이 없습니다.</div>' : '<p class="stump-line">아직 흡수한 것이 없습니다.</p>';
+        const none = tooltip ? '<div class="tooltip-line">흡수한 능력치 없음</div>' : '<p class="stump-line">흡수한 능력치 없음</p>';
         return lines || none;
     }
     /** Throws a stored scar away after a confirmation (what it absorbed goes with it). */
@@ -86,7 +86,7 @@ const stumpRipeningUi = (() => {
         const ids = stumpBox.pendingPouches(game);
         if (!ids.length) return '';
         const fresh = ids.some(id => !game.stumpBox.pouches.offers[id]);
-        const html = ids.map(id => `<div class="stump-starter-row stump-pouch-row"><span>씨앗 주머니<small>하나 고르기</small></span>`
+        const html = ids.map(id => `<div class="stump-starter-row stump-pouch-row"><span>씨앗 주머니<small>1개 선택</small></span>`
             + `${stumpBox.pouchOffers(game, id).map((offer, index) => pouchOffer(id, offer, index)).join('')}</div>`).join('');
         if (fresh) queueImportantSave(300);
         return html;
@@ -121,7 +121,7 @@ const stumpRipeningUi = (() => {
     /** What growing items the plan feeds: all of them, by the plan's whole growth. */
     function compostOutcome(plan) {
         const growth = plan.reduce((sum, item) => sum + stumpBox.compostGrowth(item), 0);
-        return `판에서 자라는 ${stumpBox.growingItems(game).length}개가 +${growth} 자랍니다.`;
+        return `판에서 성장 중인 그루터기 아이템 ${stumpBox.growingItems(game).length}개의 경험치가 ${growth} 증가합니다.`;
     }
     /** Asks before a bulk action, naming what it will use; a refusal is a toast. @returns {Promise<boolean>} */
     async function confirmBulk(kind, filter) {
@@ -153,10 +153,10 @@ const stumpRipeningUi = (() => {
     // ── 규칙 툴팁 ─────────────────────────────────────────
     /** The rules card's lines for the ripening roll and the later unlocks (봉인 칸, 포식, 번식), one short line each. */
     function rulesLines() {
-        return ['다 자랄 때 추가 옵션, 풍작, 드물게 황금을 굴립니다.',
-            stumpBox.sealLimit(game) ? '봉인 칸: 다 자란 것이 그대로 루프를 넘깁니다.' : '',
-            stumpBox.devourOpen(game) ? '불씨의 흉터: 루프를 넘길 때 둘레 한 칸을 먹고 흡수합니다.' : '',
-            stumpBox.breedingOpen(game) ? '번식: 다 자란 열매가 루프를 넘길 때 씨앗을 남깁니다.' : ''].filter(Boolean);
+        return ['성장 완료 시 추가 옵션, 풍작, 황금 여부가 정해집니다.',
+            stumpBox.sealLimit(game) ? '봉인 칸: 루프가 바뀌어도 성장 상태가 유지됩니다.' : '',
+            stumpBox.devourOpen(game) ? '불씨의 흉터: 루프가 바뀔 때 주변 8칸 중 무작위 1칸이 씨앗이나 수액이면 흡수합니다.' : '',
+            stumpBox.breedingOpen(game) ? '번식: 성장 완료된 열매는 루프가 바뀔 때 보관함에 씨앗 1개를 남깁니다.' : ''].filter(Boolean);
     }
 
     // ── 알림 ───────────────────────────────────────────────
@@ -168,11 +168,11 @@ const stumpRipeningUi = (() => {
         return notes.join(', ');
     }
     function biteLog(row) {
-        if (!row.ate) return '🔥 불씨의 흉터가 먹을 것이 없는 칸을 골라 이번 포식 기회를 놓쳤습니다.';
+        if (!row.ate) return '🔥 불씨의 흉터: 고른 칸에 씨앗이나 수액이 없어 이번 포식에 실패했습니다.';
         return `🔥 불씨의 흉터가 ${withObjectParticle(row.ate)} 먹었습니다: ${row.gained.map(line => lineText(line.stat, line.value)).join(', ')}`;
     }
     function bredLog(row) {
-        if (row.spec.scar) return '🔥 번식 돌연변이: 다 자란 열매가 불씨의 흉터를 남겼습니다.';
+        if (row.spec.scar) return '🔥 번식 돌연변이: 성장 완료된 열매가 불씨의 흉터를 남겼습니다.';
         if (row.compost) return `🌱 번식: 보관함이 가득 차 ${STUMP_BOX_COLORS[row.spec.color].label} 씨앗이 거름이 됐습니다.`;
         const odd = [row.spec.color !== row.spec.parent ? '다른 색' : '', row.item && row.item.golden ? '황금' : ''].filter(Boolean);
         return `🌱 번식: ${seedName(row.spec)}${odd.length ? ` (돌연변이: ${odd.join(', ')})` : ''}`;
@@ -181,7 +181,7 @@ const stumpRipeningUi = (() => {
     function regressLog(detail) {
         (detail.eaten || []).forEach(row => addLog(biteLog(row), row.ate ? 'loot-rare' : 'season-up'));
         (detail.bred || []).forEach(row => addLog(bredLog(row), row.item && (row.item.golden || row.item.family === 'scar') ? 'loot-unique' : 'loot-magic'));
-        if (detail.sealed) addLog(`🔒 그루터기 함: 봉인 칸의 ${detail.sealed}개가 다 자란 채로 루프를 넘겼습니다.`, 'season-up');
+        if (detail.sealed) addLog(`🔒 그루터기 함: 봉인 칸 ${detail.sealed}개의 성장 상태가 유지됐습니다.`, 'season-up');
     }
 
     return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, sealHtml, pouchHtml, bulkHtml,
