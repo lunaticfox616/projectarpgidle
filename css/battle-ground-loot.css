@@ -53,6 +53,9 @@
 .battle-loot-drop.is-unidentified .battle-loot-item{filter:brightness(0) drop-shadow(0 0 3px #ffb469) drop-shadow(1px 2px 1px #14130f)}
 .battle-loot-reveal{position:absolute;z-index:6;transform:translate(-50%,-100%);padding:4px 10px;border:1px solid #d0813f;background:rgba(28,18,10,.96);color:#ffb469;font:700 14px/1.3 sans-serif;white-space:nowrap;box-shadow:0 0 0 1px #000,0 0 14px rgba(255,180,105,.55);pointer-events:none;animation:loot-reveal 2400ms ease-out both}
 .battle-loot-reveal.is-jackpot{border-color:#ff6b6b;background:#1a0b0b;color:#ffe7a3;box-shadow:0 0 0 1px #000,0 0 18px rgba(255,94,108,.7)}
+/* 도감에 처음 오르는 고유: 이름 위에 초록 '새 고유' 표. 좋은 희귀(옵션 등급이 높은 희귀, data/loot-omens.js fineRare)는 이름표에 금빛 테. */
+.battle-loot-reveal b{display:block;width:max-content;margin:0 auto 3px;padding:0 6px;background:#2f6f50;color:#e6fff0;font-size:11px;line-height:1.5}
+.battle-loot-name[data-rarity="rare"]:is([data-moment="good"],[data-moment="great"]){border-color:#f3d28c;box-shadow:0 0 0 1px #000,0 0 8px rgba(243,210,140,.6)}
 @keyframes loot-reveal{0%{opacity:0;transform:translate(-50%,-60%) scale(.6)}12%{opacity:1;transform:translate(-50%,-110%) scale(1.15)}22%{transform:translate(-50%,-110%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-150%)}}
 /* Floor piles on an exploration map wait to be picked up: the picture and the names take a click or a tap (the layer itself stays
    click-through so the battlefield keeps its move commands). */

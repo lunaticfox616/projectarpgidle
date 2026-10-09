@@ -93,6 +93,7 @@
 #ui-atlas :is(.atlas-result-finds,.atlas-result-currencies)>small{margin-right:4px;color:var(--atlas-muted)}
 #ui-atlas .atlas-find{display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:2px 9px;border:1px solid var(--atlas-line);background:var(--atlas-deep);color:#d8ccb2}
 #ui-atlas .atlas-find b{font-weight:500;color:#e5d2aa}
+#ui-atlas .atlas-find em{padding:0 4px;background:#2f6f50;color:#e6fff0;font-size:10px;font-style:normal}
 #ui-atlas .atlas-find-icon{width:20px;height:20px;object-fit:contain;image-rendering:pixelated}
 #ui-atlas .atlas-find-leaf{width:16px;height:16px;filter:drop-shadow(1px 1px 0 #000)}
 #ui-atlas .atlas-find-leaf .m{fill:#d6ffe6}

@@ -51,7 +51,7 @@ const atlas = (() => {
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
             run: null, lastResult: null, autoMap: false, starterSeason: 0, epoch: { count: 0, essence: 0, perks: {} }, endgame: atlasEndgame.defaults(),
-            memory: { tickets: {}, best: {}, variants: {} }, leaves: memoryLeaves.defaults() };
+            memory: { tickets: {}, best: {}, variants: {} }, leaves: memoryLeaves.defaults(), tally: normalizeTally(null) };
     }
     /** 세계수 씨앗 하나마다 모든 노드가 2등급 오른다(24등급까지). */
     const effectiveTier = (state, node) => Math.min(ATLAS.tierCap, node.tier + state.atlas.seeds * ATLAS.seeds.tierStep);
@@ -256,6 +256,7 @@ const atlas = (() => {
         const stored = store(state, run.drops);
         addFragments(state, run.found);
         state.atlas.run = null;
+        state.atlas.tally.maps += 1;
         state.atlas.lastResult = { nodeId: id, tier: run.map.tier, outcome: 'complete', first, bonus, drops: stored,
             lost: run.drops.length - stored, fragments: run.found.length };
         // 기억 싸움은 그 보스의 기억 보상만(입장권, 씨앗, 후반부 보상과 처치 수는 원래 싸움의 몫), 다른 싸움은 기억을 남길 수 있다.
@@ -419,6 +420,11 @@ const atlas = (() => {
     const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
     const roomIds = value => [...new Set(Array.isArray(value) ? value : [])].filter(id => typeof id === 'string' && id.length <= 64).slice(0, 100);
     const roomTypes = value => [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(ATLAS.encounters, type));
+    /** Lifetime counts the away result compares (js/ui.js getBackgroundAtlasGains): maps finished, treasure packs and golden ones. */
+    function normalizeTally(raw) {
+        const count = key => Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(Number(raw && raw[key]) || 0)));
+        return { maps: count('maps'), treasure: count('treasure'), golden: count('golden') };
+    }
     /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, the equipment count, its finds and leaves. */
     function normalizeLoot(raw) {
         if (!raw || typeof raw !== 'object') return null;
@@ -519,7 +525,7 @@ const atlas = (() => {
             passives: atlasPassives.normalize(raw.passives, done.length + bonus.length + epochPoints), epoch,
             stash: (Array.isArray(raw.stash) ? raw.stash : []).map(validMap).filter(map => map && NODES.includes(BY_ID.get(map.node)) && map.node !== PINNACLE.id).slice(0, ATLAS.stashCap),
             fragments: normalizeFragments(raw.fragments), run, lastResult: normalizeResult(raw.lastResult), endgame: atlasEndgame.normalize(raw.endgame, done.includes(PINNACLE.id)),
-            memory: normalizeMemory(raw.memory), leaves: memoryLeaves.normalize(raw.leaves),
+            memory: normalizeMemory(raw.memory), leaves: memoryLeaves.normalize(raw.leaves), tally: normalizeTally(raw.tally),
             seeds: Math.max(0, Math.min(ATLAS.seeds.max, Math.floor(Number(raw.seeds) || 0))),
             autoMap: raw.autoMap === true, starterSeason: Math.max(0, Math.floor(Number(raw.starterSeason) || 0)) };
         const savedNext = Math.floor(Number(raw.nextUid));

@@ -112,7 +112,14 @@ const memoryLeaves = (() => {
         if (source.treasure) return `보물 무리${tier}`;
         return `어느 지도나${tier}`;
     }
-    return Object.freeze({ defaults, normalize, rollKill, receive, momentOf, weaveReason, weaveLeafSet, rewardText, sourceText,
+    /** Leaves gained between two saves (the away result, js/ui.js): how many, and the names of the ones seen for the first time. */
+    function gainedBetween(before, after) {
+        const old = (before && before.counts) || {}, now = (after && after.counts) || {}, seen = new Set((before && before.seen) || []);
+        const total = Object.keys(now).reduce((sum, id) => sum + Math.max(0, (Number(now[id]) || 0) - (Number(old[id]) || 0)), 0);
+        const fresh = ((after && after.seen) || []).filter(id => !seen.has(id) && BY_ID.has(id)).map(id => BY_ID.get(id).name);
+        return { total, fresh };
+    }
+    return Object.freeze({ defaults, normalize, rollKill, receive, momentOf, weaveReason, weaveLeafSet, rewardText, sourceText, gainedBetween,
         leaf: id => BY_ID.get(id) || null, validId: id => BY_ID.has(id), list: MEMORY_LEAVES.list });
 })();
 safeExposeGlobals({ memoryLeaves });

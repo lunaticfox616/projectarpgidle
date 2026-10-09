@@ -31,7 +31,8 @@ const combatLootReceipts = (() => {
         if (kind === 'equipment') receipt.equipmentCount++;
         const moment = lootMoments.ofItem(found, kind);
         if (!moment && !['rare','unique'].includes(found.rarity)) return;
-        receipt.items.push({name:String(found.name),rarity:found.rarity,slot:kind === 'jewel' ? '주얼' : String(found.slot),moment});
+        receipt.items.push({name:String(found.name),rarity:found.rarity,slot:kind === 'jewel' ? '주얼' : String(found.slot),moment,
+            fresh:lootMoments.isNewUnique(found)});
         receipt.items.sort((a,b) => findRank(b) - findRank(a));
         receipt.items.length = Math.min(HELD_ITEMS,receipt.items.length);
     }
@@ -63,7 +64,8 @@ const combatLootReceipts = (() => {
     /** Saved find rows (also kept with the atlas map result, js/atlas.js): a known rarity and tier, bounded text. */
     function cleanItems(raw) {
         return (Array.isArray(raw) ? raw : []).filter(validItem).slice(0,HELD_ITEMS)
-            .map(({name,rarity,slot,moment}) => ({name:name.slice(0,100),rarity,slot:slot.slice(0,30),moment:Object.hasOwn(MOMENT_RANK,moment) ? moment : null}));
+            .map(({name,rarity,slot,moment,fresh}) => ({name:name.slice(0,100),rarity,slot:slot.slice(0,30),moment:Object.hasOwn(MOMENT_RANK,moment) ? moment : null,
+                fresh:fresh === true}));
     }
     function cleanLeaves(raw) {
         const leaves = {};

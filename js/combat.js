@@ -8548,9 +8548,11 @@ function collectExplorationFloorLoot(rows) {
     const currencies = rows.filter(row => kindOf(row) === 'currency');
     currencies.forEach(row => commitCurrencyGain(row.currency, row.count));
     rows.forEach(row => receiveFloorItem[kindOf(row)]?.(row));
+    // Uniques new to the codex, known before the pickup registers them (the reveal shows a 새 고유 badge).
+    const fresh = rows.filter(row => kindOf(row) === 'equipment' && lootMoments.isNewUnique(row.item)).map(row => row.item.id);
     const kept = rows.filter(row => kindOf(row) === 'equipment'
         && addItemToInventory(row.item, { ignoreFilter: true, guaranteedKeep: row.guaranteed })).map(row => row.item);
-    if (kept.length || currencies.length) dispatchRuntimeEvent('floor-loot-collected', { items: kept,
+    if (kept.length || currencies.length) dispatchRuntimeEvent('floor-loot-collected', { items: kept, fresh: fresh.filter(id => kept.some(item => item.id === id)),
         currencies: currencies.map(row => ({ key: row.currency, count: row.count })) }); // the loot log lines (js/battle-ground-loot-ui.js)
     return kept.length + currencies.length;
 }

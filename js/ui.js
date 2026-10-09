@@ -498,8 +498,19 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         stashItems: Math.max(0, afterStash - beforeStash),
         stashTotal: afterStash,
         overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0)),
-        masteryGains: getBackgroundMasteryGains(beforeState, afterState)
+        masteryGains: getBackgroundMasteryGains(beforeState, afterState),
+        atlas: getBackgroundAtlasGains(beforeState, afterState)
     };
+}
+
+/** 아틀라스(방치 중 지도): 끝낸 지도, 보물 무리(그중 황금 보물), 기억의 잎과 처음 본 잎 이름. 아무 일도 없으면 null. */
+function getBackgroundAtlasGains(beforeState, afterState) {
+    const before = beforeState && beforeState.atlas, after = afterState && afterState.atlas;
+    if (!before || !after || !after.tally || typeof memoryLeaves !== 'object') return null;
+    const tally = key => Math.max(0, (Number(after.tally[key]) || 0) - (Number((before.tally || {})[key]) || 0));
+    const leaves = memoryLeaves.gainedBetween(before.leaves, after.leaves);
+    const gains = { maps: tally('maps'), treasure: tally('treasure'), golden: tally('golden'), leaves: leaves.total, newLeaves: leaves.fresh };
+    return gains.maps || gains.treasure || gains.leaves ? gains : null;
 }
 
 /** The result line for those levels ('' when none rose). */
@@ -622,7 +633,7 @@ function showBackgroundCombatResult(result) {
     overlay.className = 'background-combat-result-overlay';
     const summary = result.summary || {};
     const limits = result.limits || getBackgroundProgressResultLimits(game);
-    const body = renderBackgroundStoryLine() + renderBackgroundResultTiles(summary) + renderBackgroundResultLoot(summary)
+    const body = renderBackgroundStoryLine() + renderBackgroundResultTiles(summary) + renderBackgroundResultLoot(summary) + renderBackgroundResultAtlas(summary.atlas)
         + renderBackgroundResultCurrencies(summary.currencies) + renderBackgroundResultGrowth(summary) + renderBackgroundResultNotes(result, summary, limits);
     const close = "hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()";
     overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title">${renderBackgroundResultHeader(result, limits)}`
@@ -676,6 +687,18 @@ function renderBackgroundResultLoot(summary) {
     if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" title="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
     const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
     return row + equipmentLootUi.renderHighlights(summary.highlights);
+}
+
+/** 아틀라스 칸: 끝낸 지도, 보물 무리(금테), 황금 보물(대박 색), 기억의 잎(잎 그림)과 처음 본 잎. */
+function renderBackgroundResultAtlas(atlas) {
+    if (!atlas) return '';
+    const chips = [];
+    if (atlas.maps) chips.push(`<span class="background-result-chip">지도 <b>${formatNumberKR(atlas.maps)}판</b></span>`);
+    if (atlas.treasure) chips.push(`<span class="background-result-chip major">보물 무리 <b>${formatNumberKR(atlas.treasure)}</b></span>`);
+    if (atlas.golden) chips.push(`<span class="background-result-chip jackpot">황금 보물 <b>${formatNumberKR(atlas.golden)}</b></span>`);
+    if (atlas.leaves) chips.push(`<span class="background-result-chip leaf">${renderPixelIcon('leaf', 'background-result-leaf')}기억의 잎 <b>+${formatNumberKR(atlas.leaves)}</b></span>`);
+    (atlas.newLeaves || []).forEach(name => chips.push(`<span class="background-result-chip leaf new"><em>새 잎</em>${escapeHTML(name)}</span>`));
+    return `<section class="background-result-section"><h3>아틀라스</h3><div class="background-result-chips">${chips.join('')}</div></section>`;
 }
 
 /** 재화 칩: 바닥에서 빛기둥을 세우는 재화(큰 발견 이상, js/loot.js lootMoments)는 금테로 맨 앞, 나머지는 지갑 순서. */

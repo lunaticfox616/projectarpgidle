@@ -17,7 +17,15 @@ const LOOT_OMENS = Object.freeze({
     // 보스는 stray.boss번 다른 처치 드랍 기운 하나에서 뽑는다. 기운이 처치 드랍이 아닌 지도도 판마다 재화의 색이 섞인다.
     stray: Object.freeze({ elite: 0.25, boss: 2 }),
     // 지도의 고유 배율(2026-10-09 사용자: 고유 20판에 하나 → 10판에 하나): 지도 몬스터와 상자의 고유 확률에 곱한다. 고유의 메아리는 그 위에 곱한다.
-    uniqueMul: 2,
+    uniqueMul: 1.5,
+    // 지도 몬스터의 장비(2026-10-09 사용자: 몬스터를 잡는 맛): 일반과 정예 처치의 장비 기대 개수 배율. 상자와 보스 몫은 그대로다.
+    killGearMul: 2.2,
+    // 지도 보스의 보상(2026-10-09 사용자: 보스가 클라이맥스가 아니다): 장비 items개(extraChance로 하나 더), 앞의 장비부터 minimum의 희귀도
+    // 이상. 고유 몫은 보물 무리와 상자에 있으므로 일반 몬스터의 희귀도 띠로 굴린다. 지도와 수호자 지도의 보스만(기억 싸움, 최종 싸움은 없다).
+    mapBoss: Object.freeze({ items: 2, extraChance: 0.5, minimum: Object.freeze(['rare', 'magic']) }),
+    // 좋은 희귀(2026-10-09): 그 장비가 가질 수 있는 가장 높은 band개 등급(affixTierCap에서 band − 1 아래까지) 안의 옵션이 good줄이면 좋은
+    // 발견, great줄이면 큰 발견(js/loot.js lootMoments). 16등급 지도에서 희귀의 약 10%가 좋은, 1%가 큰 발견이다.
+    fineRare: Object.freeze({ band: 4, good: 2, great: 3 }),
     list: Object.freeze([
         { id: 'fossil', name: '화석 광맥', note: '화석이 자주 나옵니다', kind: 'drops', weight: 8, tone: '#c9a46a', drops: Object.freeze([
             ['fossil', 40], ['fossilJagged', 6], ['fossilBound', 6], ['fossilGale', 6], ['fossilPrismatic', 5], ['fossilBulwark', 5],
@@ -74,7 +82,7 @@ const LOOT_OMENS = Object.freeze({
         { id: 'dreams', name: '보스의 꿈', note: '보스의 기억과 변이체가 잘 나옵니다', kind: 'bonus', weight: 3, tone: '#a8c0ff', minLoop: 33,
             bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 }) }
     ].map(Object.freeze)),
-    treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.15, prefix: '보물을 품은', outline: '#ffd75e',
+    treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.1, prefix: '보물을 품은', outline: '#ffd75e',
         sparks: '#fff1a8',
         // 황금 보물(대박의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리, 찬란한 봉인편린,
         // 체이싱 고유 '@chase')를 쏟는다. 무리 키의 해시로 정해진다(Math.random을 쓰지 않음).

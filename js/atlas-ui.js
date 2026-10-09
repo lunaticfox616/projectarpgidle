@@ -306,7 +306,7 @@ const atlasUi = (() => {
     const LEAF_RANK = 1.5;
     function itemFind(row) {
         const name = row.rarity === 'unique' ? `「${escapeHTML(row.name)}」` : escapeHTML(row.name);
-        return { rank: lootMoments.rank(row.moment), html: `<span class="atlas-find rarity-${row.rarity}${momentClass(row.moment)}" title="${escapeHTML(row.slot)}">${name}</span>` };
+        return { rank: lootMoments.rank(row.moment), html: `<span class="atlas-find rarity-${row.rarity}${momentClass(row.moment)}" title="${escapeHTML(row.slot)}">${row.fresh ? '<em>새</em>' : ''}${name}</span>` };
     }
     function leafFind([id, count]) {
         const leaf = memoryLeaves.leaf(id);

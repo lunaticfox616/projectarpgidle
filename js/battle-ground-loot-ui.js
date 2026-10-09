@@ -164,6 +164,7 @@ const battleGroundLoot = (() => {
         if (isMajor(receipt)) label.classList.add('is-major');
         label.style.setProperty('--row', String(index));
         label.dataset.rarity = receipt.item?.rarity || 'normal';
+        label.dataset.moment = momentOf(receipt) || '';
         label.style.setProperty('--loot-color', receipt.color || getRarityColor(label.dataset.rarity));
         if (receipt.currency && ORB_DB[receipt.currency]) currencyRow(label, receipt);
         else label.textContent = leadName(receipt);
@@ -388,15 +389,18 @@ const battleGroundLoot = (() => {
         clearTimeout(bannerTimer);
         bannerTimer = setTimeout(() => banner.classList.remove('show'), 2200);
     }
-    /** A floor unique picked up: its name rises over the hero (a chase unique also takes the banner). */
-    function revealUnique(item) {
+    /** A floor unique picked up: its name rises over the hero, with a 새 고유 badge when it opens a codex entry (a chase unique or a new
+     * one also takes the banner). */
+    function revealUnique(item, fresh) {
         const jackpot = lootMoments.ofItem(item) === 'jackpot';
         if (typeof playLootDropSound === 'function') playLootDropSound(true);
         if (jackpot) showJackpotBanner(`체이싱 고유: 「${item.name}」`);
+        else if (fresh) showJackpotBanner(`도감 새 고유: 「${item.name}」`);
         if (!air || !battleVisualState.playerPos) return;
         const label = document.createElement('span');
-        label.className = jackpot ? 'battle-loot-reveal is-jackpot' : 'battle-loot-reveal';
+        label.className = `battle-loot-reveal${jackpot ? ' is-jackpot' : ''}${fresh ? ' is-new' : ''}`;
         label.textContent = `「${item.name}」`;
+        if (fresh) label.prepend(Object.assign(document.createElement('b'), { textContent: '새 고유' }));
         label.style.left = battleVisualState.playerPos.x + 'px';
         label.style.top = (battleVisualState.playerPos.y - 40) + 'px';
         air.append(label);
@@ -503,13 +507,19 @@ const battleGroundLoot = (() => {
         if (detail.golden) showJackpotBanner('황금 보물');
         if (game.settings.showLootLog) addLog(`💰 ${detail.name}: 보물 ${detail.count}개`, detail.golden ? 'loot-unique' : 'loot-rare');
     });
+    /** ', 좋은 옵션 N줄' for a rare whose top-tier lines make it a find (data/loot-omens.js fineRare). */
+    function fineNote(item) {
+        const lines = item.rarity === 'rare' ? lootMoments.fineLines(item) : 0;
+        return lines >= LOOT_OMENS.fineRare.good ? `, 좋은 옵션 ${lines}줄` : '';
+    }
     addEventListener('project-idle:floor-loot-collected', ({ detail }) => {
-        detail.items.filter(item => item.rarity === 'unique').forEach(revealUnique);
+        const fresh = new Set(detail.fresh || []);
+        detail.items.filter(item => item.rarity === 'unique').forEach(item => revealUnique(item, fresh.has(item.id)));
         if (!game.settings.showLootLog) return;
         // The same lines a drop picked up at once writes (js/combat.js rollLootForEnemy).
         detail.currencies.forEach(({ key, count }) => addLog(`🪙 ${window.getStyledOrbName(key)} +${count}`,
             lootMoments.rank(lootMoments.ofCurrency(key)) >= 1 ? 'loot-unique' : 'loot-magic'));
-        detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`, '', { item }));
+        detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!${fineNote(item)}`, '', { item }));
     });
 
     return Object.freeze({ actorContext });

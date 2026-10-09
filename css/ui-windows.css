@@ -258,6 +258,14 @@
 .background-result-chip.currency { color: var(--color-text-secondary); }
 .background-result-chip.currency b { color: var(--color-reward-gold-bright); }
 .background-result-chip.major { border-color: var(--color-reward-gold); background: color-mix(in srgb, var(--color-reward-gold), transparent 84%); color: var(--color-text); }
+/* 아틀라스 칸(방치 중 지도): 황금 보물은 대박의 붉은 금빛, 기억의 잎은 잎의 초록과 잎 그림, 처음 본 잎은 '새 잎' 표. */
+.background-result-chip.jackpot { border-color: #ff6b6b; background: #1a0b0b; color: #ffe7a3; box-shadow: 0 0 8px rgba(255, 94, 108, .45); }
+.background-result-chip.leaf { border-color: #3f8f6a; background: rgba(8, 22, 16, .95); color: #bdf0d6; }
+.background-result-chip.leaf b { color: #e6fff0; }
+.background-result-chip.leaf em { padding: 0 4px; background: #2f6f50; color: #e6fff0; font-size: 10px; font-style: normal; }
+.background-result-leaf { width: 14px; height: 14px; filter: drop-shadow(1px 1px 0 #000); }
+.background-result-leaf .m { fill: #d6ffe6; }
+.background-result-leaf .f { fill: #9fe0c0; }
 .background-result-icon { flex: none; width: 16px; height: 16px; image-rendering: pixelated; }
 .background-result-section h3,
 .background-combat-result-card .loot-return-highlights h3 { margin: 0 0 6px; color: var(--color-text-tertiary); font-size: 12px; font-weight: 700; }

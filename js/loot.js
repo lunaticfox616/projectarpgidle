@@ -506,10 +506,21 @@ safeExposeGlobals({ getCurrencyDrops });
     const rank = tier => TIERS.indexOf(tier) + 1;
     const higher = (a, b) => (rank(a) >= rank(b) ? a : b);
 
+    /** Lines of an item within the top fineRare.band tiers it could roll (its affixTierCap). */
+    function fineLines(item) {
+        const cap = Number(item.affixTierCap) || 0, floor = cap - LOOT_OMENS.fineRare.band + 1;
+        return cap > 0 && Array.isArray(item.stats) ? item.stats.filter(stat => Number(stat.tier) >= floor).length : 0;
+    }
+    /** A rare with several top-tier lines: good, or great with even more (data/loot-omens.js fineRare). */
+    function ofRare(item) {
+        const lines = fineLines(item), rules = LOOT_OMENS.fineRare;
+        return lines >= rules.great ? 'great' : lines >= rules.good ? 'good' : null;
+    }
     function ofEquipment(item) {
         if (item.rarity === 'unique') return isChaseUniqueItem(item) ? 'jackpot' : 'great';
         if (item.exceptionalAllLines) return 'great';
-        return item.exceptionalBase || item.corrupted || item.voidSocket ? 'good' : null;
+        const base = item.exceptionalBase || item.corrupted || item.voidSocket ? 'good' : null;
+        return item.rarity === 'rare' ? higher(base, ofRare(item)) : base;
     }
     const ITEM_KINDS = Object.freeze({
         equipment: ofEquipment,
@@ -531,6 +542,13 @@ safeExposeGlobals({ getCurrencyDrops });
         const tier = ofItem(receipt.item, receipt.itemKind || 'equipment');
         return receipt.highlight ? higher(tier, 'great') : tier;
     }
-    const lootMoments = Object.freeze({ ofCurrency, ofItem, ofReceipt, rank, higher });
+    /** Whether picking this unique up opens a new codex entry (js/passives.js registerUniqueToCodexOnAcquire): the floor reveal and the
+     * map result mark it. */
+    function isNewUnique(item, state = game) {
+        if (!item || item.rarity !== 'unique') return false;
+        const key = getUniqueCodexKeyByItem(item), entry = key && state.uniqueCodex ? state.uniqueCodex[key] : null;
+        return !!key && !(entry && entry.baseName);
+    }
+    const lootMoments = Object.freeze({ ofCurrency, ofItem, ofReceipt, rank, higher, fineLines, isNewUnique });
     safeExposeGlobals({ lootMoments });
 })();
