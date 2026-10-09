@@ -350,7 +350,7 @@
   body.desktop-windowed-ui .ui-window-minimized { display: none; }
 
   @container (max-width: 520px) {
-    .stat-grid, .craft-layout, .cloud-actions, .talent-card-grid { grid-template-columns: 1fr; }
+    .stat-grid, .craft-layout, .cloud-actions { grid-template-columns: 1fr; }
     .inventory-grid, .currency-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   }
 }

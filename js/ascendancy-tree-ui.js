@@ -19,6 +19,8 @@ const ascendancyTreeUi = (() => {
     const NODE_TEXT = Object.freeze({ taken: '찍음', open: '찍을 수 있음', nopoint: '포인트 없음', locked: '이어진 노드가 먼저', closed: '짝 노드를 골라 닫힘', future: '아직 열리지 않음' });
     const KEYSTONE_TEXT = Object.freeze({ taken: '고름', open: '고를 수 있음', nopoint: '키스톤 포인트 없음', full: '다섯 개를 다 고름', locked: '선행 키스톤이 먼저', fifth: '5차 전직 뒤' });
     let focus = null; // { kind: 'node' | 'keystone', id } 마지막으로 누른 칸
+    /** The stat's dot picture (the talent window marks each ascendancy with its main stat's, js/talent-ui.js). */
+    const iconOf = stat => ICONS[stat] || 'star';
 
     const esc = value => escapeHTML(String(value));
     const statName = stat => String((P_STATS[stat] && P_STATS[stat].name) || getStatName(stat)).replace(/\s*\(%\)$/, '');
@@ -64,7 +66,7 @@ const ascendancyTreeUi = (() => {
     /** Both ends taken: gold; the way on from a taken node: lit; the rest waits dim. */
     const linkState = (a, b) => (a === 'taken' && b === 'taken' ? 'done' : (a === 'taken' ? 'lit' : 'dim'));
     function nodeButton(id, node, pos, state) {
-        const lines = linesOf(node), icon = ICONS[(lines[0] || {}).stat] || 'star', label = lines.length ? shortValue(lines[0]) : '?';
+        const lines = linesOf(node), icon = iconOf((lines[0] || {}).stat), label = lines.length ? shortValue(lines[0]) : '?';
         const name = `${RANK[id] || lines.map(line => statName(line.stat)).join(', ') || '재능 특화'}, ${NODE_TEXT[state]}`;
         const focused = focus && focus.kind === 'node' && focus.id === id ? ' is-focus' : '';
         return `<button type="button" class="ascend-node is-${state}${RANK[id] ? ' is-major' : ''}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
@@ -231,6 +233,6 @@ const ascendancyTreeUi = (() => {
             <span>${esc(template.desc)}</span><span class="ascend-pick-line">노드: ${esc(getAscendancyNodeFocus(key).join(', '))}</span>
             ${names.length ? `<span class="ascend-pick-line is-keystone">첫 키스톤: ${esc(names.join(', '))}</span>` : ''}</button>`;
     }
-    return Object.freeze({ render, hint, press, pickCardHtml });
+    return Object.freeze({ render, hint, press, pickCardHtml, icon: iconOf });
 })();
 safeExposeGlobals({ ascendancyTreeUi });

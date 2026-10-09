@@ -1949,7 +1949,7 @@ function getRenderingUiTabIds() {
 
 // Keep timed stock progression independent of whether its management panel is visible.
 function renderVisibleManagementPanels(tabIds) {
-    if (tabIds.has('tab-talent')) renderTalentTab();
+    if (tabIds.has('tab-talent')) talentUi.render();
     if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
     else refreshBlackMarket(false);
@@ -2170,7 +2170,7 @@ function switchTab(tabId) {
     lastActiveTabId = tabId;
     if (tabId === 'tab-social' && typeof renderSocialTab === 'function') renderSocialTab();
     else if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
-    if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
+    if (tabId === 'tab-talent') talentUi.render();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     // 탭 전환 직후 PiP가 보이면 한 번 즉시 갱신해, 적응형 루프 다음 주기를
@@ -5621,7 +5621,7 @@ window.addEventListener('project-idle:loop-rewrite-started', () => {
 
 window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
     let talentTab = document.getElementById('tab-talent');
-    if (typeof renderTalentTab === 'function' && talentTab && talentTab.classList.contains('active')) renderTalentTab();
+    if (talentTab && talentTab.classList.contains('active')) talentUi.render();
 });
 
 function togglePastLoopMilestones() {

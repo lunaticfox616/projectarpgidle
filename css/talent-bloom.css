@@ -1,0 +1,136 @@
+/* 재능 개화 창(js/talent-ui.js, 2026-10-09 사용자 "게임 전체에서 부족한 화면" 1순위). 위 줄 수치 칸과 막대, 개화 시련 카드(재능 그림,
+   조건 표시, 도전 단추), 장착 슬롯(빈 칸, 자물쇠 칸, 다음 칸 막대), 직업 여섯의 카드 판(재능 그림 머리, 전직 줄, 레벨 눈금), 카드 창과
+   점수 창. 전직마다의 색(--tone)은 그 전직 대표 능력치의 옵션 색(js/ui.js getItemStatToneColor)이다. */
+@layer features {
+  #tab-talent { container-type: inline-size; }
+  #tab-talent .talent-root { display: grid; gap: 10px; }
+  .talent-bar { display: block; height: 5px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
+  .talent-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8a6a2e, #e8c27a); }
+  .talent-pips { display: inline-flex; gap: 1px; }
+  .talent-pips > i { width: 4px; height: 7px; background: #2a2218; }
+  .talent-pips > i.is-on { background: var(--tone, #e8c27a); box-shadow: 0 0 3px color-mix(in srgb, var(--tone, #e8c27a) 60%, transparent); }
+
+  /* 위 줄 */
+  .talent-head { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; }
+  .talent-stat { display: grid; align-content: start; gap: 5px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  .talent-stat > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .talent-stat > b { color: #f3d28c; font-size: 20px; font-weight: 400; line-height: 1; }
+  .talent-stat > b small { margin-left: 4px; color: var(--px-copy-muted, #a39883); }
+  .talent-stat > em { color: var(--px-copy-muted, #a39883); font-size: 12px; font-style: normal; }
+  .talent-stat.is-score > b { color: #dcaeff; }
+  .talent-stat.is-score .talent-bar > i { background: linear-gradient(90deg, #5e3a80, #dcaeff); }
+  #tab-talent .talent-help { align-self: center; width: 32px; height: 32px; padding: 0; }
+
+  /* 개화 시련 카드와 장착 슬롯 */
+  .talent-top { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 10px; }
+  .talent-trial { display: grid; grid-template-columns: 80px minmax(0, 1fr); grid-template-areas: 'art main' 'art needs' 'go go'; gap: 8px 12px;
+    align-content: start; padding: 10px; border: 1px solid color-mix(in srgb, var(--tone, #6b5b45) 40%, #050404);
+    background: radial-gradient(circle at 14% 26%, color-mix(in srgb, var(--tone, #6b5b45) 20%, transparent), transparent 62%), #120f0b; }
+  .talent-trial-art { grid-area: art; display: block; width: 80px; height: 80px; object-fit: cover; object-position: 50% 12%;
+    border: 1px solid color-mix(in srgb, var(--tone, #6b5b45) 60%, #050404); box-shadow: 0 0 12px color-mix(in srgb, var(--tone, #000) 35%, transparent); }
+  .talent-trial-art.is-empty { background: #0b0907; }
+  .talent-trial-main { grid-area: main; display: grid; gap: 2px; min-width: 0; }
+  .talent-trial-main small { color: var(--px-copy-muted, #a39883); }
+  .talent-trial-main strong { color: var(--tone, #e8dcc0); font-size: 16px; font-weight: 400; line-height: 1.25; }
+  .talent-trial-main b { color: #f3d28c; font-weight: 400; }
+  .talent-trial-main span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .talent-needs { grid-area: needs; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; margin: 0; padding: 0; list-style: none; }
+  .talent-needs li { display: flex; align-items: center; gap: 6px; min-width: 0; color: #8a7f6c; }
+  .talent-needs li > i { flex: none; width: 8px; height: 8px; border: 1px solid #6a2e26; background: #2a1210; }
+  .talent-needs li.is-on { color: var(--px-copy, #e8dcc0); }
+  .talent-needs li.is-on > i { border-color: #9fd46a; background: #9fd46a; box-shadow: 0 0 4px rgba(159, 212, 106, .6); }
+  #tab-talent .talent-trial-go { grid-area: go; width: 100%; }
+  #tab-talent .talent-trial.is-ready .talent-trial-go { color: #f3d28c; box-shadow: inset 0 0 0 1px #c69f5e, 0 0 8px rgba(198, 159, 94, .35); }
+
+  .talent-slots { display: grid; align-content: start; gap: 8px; padding: 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  #tab-talent .talent-slots h3 { margin: 0; color: var(--px-gold-bright, #e0c283); }
+  .talent-slot-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .talent-slot { display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0; min-height: 70px; padding: 6px 4px;
+    border: 1px dashed #3a3024; background: #0d0b08; color: #6f6656; text-align: center; }
+  .talent-slot.is-empty { border-style: solid; border-color: #4a3f2f; color: var(--px-copy-muted, #a39883); }
+  .talent-plus { color: #c69f5e; font-size: 18px; line-height: 1; }
+  .talent-lock { position: relative; width: 10px; height: 8px; margin-top: 6px; background: #5a5040; }
+  .talent-lock::before { content: ''; position: absolute; left: 2px; top: -6px; box-sizing: border-box; width: 6px; height: 6px; border: 2px solid #5a5040; border-bottom: 0; }
+  #tab-talent .talent-slot.is-filled { border: 1px solid color-mix(in srgb, var(--tone) 60%, #050404); border-radius: 0; cursor: pointer;
+    background: radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--tone) 24%, transparent), transparent 70%), #120f0b; box-shadow: none; }
+  .talent-slot.is-filled img { width: 34px; height: 34px; object-fit: cover; object-position: 50% 12%; border: 1px solid color-mix(in srgb, var(--tone) 60%, #050404); }
+  .talent-slot.is-filled strong { max-width: 100%; overflow: hidden; color: var(--tone); font-size: 12px; font-weight: 400; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+  .talent-slot.is-filled small { color: #f3d28c; }
+  .talent-next { display: grid; grid-template-columns: auto minmax(40px, 1fr) auto; align-items: center; gap: 8px; margin: 0; color: var(--px-copy-muted, #a39883); }
+  .talent-next b { color: var(--px-copy, #e8dcc0); font-weight: 400; }
+  .talent-next.is-done { display: block; color: #9fd46a; }
+
+  /* 직업 여섯의 카드 판 */
+  .talent-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(214px, 1fr)); gap: 8px; }
+  .talent-class { display: grid; align-content: start; min-width: 0; border: 1px solid #2a2218; background: rgba(10, 8, 6, .5); }
+  .talent-class.is-current { border-color: #8a6a2e; box-shadow: 0 0 0 1px rgba(198, 159, 94, .3), 0 0 10px rgba(198, 159, 94, .12); }
+  .talent-class > header { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; grid-template-areas: 'art name count' 'art bar bar'; align-items: center;
+    gap: 6px 10px; padding: 8px; border-bottom: 1px solid #2a2218; background: linear-gradient(90deg, rgba(48, 36, 20, .85), rgba(10, 8, 6, .1)); }
+  .talent-class > header img { grid-area: art; width: 46px; height: 46px; object-fit: cover; object-position: 50% 12%; border: 1px solid #5a4630; }
+  .talent-class.is-new > header img { filter: grayscale(.75) brightness(.7); }
+  .talent-class > header strong { grid-area: name; color: #f3d28c; font-size: 15px; font-weight: 400; }
+  .talent-class > header b { grid-area: count; color: var(--px-copy, #e8dcc0); font-weight: 400; }
+  .talent-class > header .talent-bar { grid-area: bar; }
+  .talent-class > ul { display: grid; gap: 2px; margin: 0; padding: 4px; list-style: none; }
+  #tab-talent .talent-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 4px 6px;
+    border: 1px solid transparent; border-radius: 0; background: transparent; box-shadow: none; text-align: left; cursor: pointer; }
+  #tab-talent .talent-row:hover, #tab-talent .talent-row:focus-visible { border-color: color-mix(in srgb, var(--tone) 45%, #050404); background: color-mix(in srgb, var(--tone) 9%, transparent); }
+  .talent-glyph { display: block; width: 22px; height: 22px; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 #000); }
+  .talent-glyph .m { fill: #4a4236; }
+  .talent-glyph .f { fill: #2a241c; }
+  .talent-row.is-owned .talent-glyph .m { fill: #f6ead0; }
+  .talent-row.is-owned .talent-glyph .f { fill: var(--tone); }
+  .talent-row-name { display: grid; gap: 1px; min-width: 0; }
+  .talent-row-name strong { overflow: hidden; color: #8a7f6c; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+  .talent-row.is-owned .talent-row-name strong { color: var(--tone); }
+  .talent-row-name small { overflow: hidden; color: #6f6656; text-overflow: ellipsis; white-space: nowrap; }
+  .talent-row-state { display: grid; justify-items: end; gap: 3px; }
+  .talent-row-flags { display: flex; gap: 3px; }
+  .talent-row-flags em { padding: 0 4px; border: 1px solid; font-size: 11px; font-style: normal; line-height: 15px; white-space: nowrap; }
+  .talent-row-flags em.is-current { border-color: #8a6a2e; color: #f3d28c; }
+  .talent-row-flags em.is-worn { border-color: #3d5a26; color: #9fd46a; }
+  .talent-row-level { color: #f3d28c; font-size: 12px; }
+  .talent-row-level.is-off { color: #5f574a; }
+
+  /* 카드 창 */
+  .talent-sheet-panel { width: min(470px, calc(100vw - 24px)); }
+  .talent-sheet { display: grid; gap: 10px; }
+  .talent-sheet-head { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 12px; }
+  .talent-sheet-head img { width: 92px; height: 92px; object-fit: cover; object-position: 50% 12%; border: 1px solid color-mix(in srgb, var(--tone) 60%, #050404);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--tone) 40%, transparent); }
+  .talent-sheet-head > div { display: grid; gap: 3px; min-width: 0; }
+  .talent-sheet-head strong { color: var(--tone); font-size: 18px; font-weight: 400; }
+  .talent-sheet-head span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .talent-sheet-level { display: flex; align-items: center; gap: 8px; }
+  .talent-sheet-level b { color: #f3d28c; font-weight: 400; }
+  .talent-sheet-level .talent-pips > i { width: 7px; height: 10px; }
+  .talent-sheet-progress { display: grid; grid-template-columns: auto minmax(40px, 1fr) auto; align-items: center; gap: 8px; margin: 0; color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .talent-sheet-note { margin: 0; color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .talent-effects { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; margin: 0; padding: 8px 10px; border: 1px solid #2a2218;
+    background: rgba(10, 8, 6, .45); font-size: 12px; line-height: 1.55; }
+  .talent-effects dt { color: var(--px-gold-bright, #e0c283); white-space: nowrap; }
+  .talent-effects dd { margin: 0; color: var(--px-copy, #e8dcc0); }
+  .talent-sheet-equip { width: 100%; }
+  .talent-sheet-equip.is-worn { color: #9fd46a; }
+  #info-tooltip .talent-effects { max-width: 320px; margin-top: 6px; padding: 6px 8px; }
+
+  /* 개화 점수 창 */
+  .talent-score-panel { width: min(440px, calc(100vw - 24px)); }
+  .talent-score { display: grid; gap: 8px; }
+  .talent-score-total { display: flex; justify-content: space-between; align-items: baseline; margin: 0; color: var(--px-copy-muted, #a39883); }
+  .talent-score-total b { color: #dcaeff; font-size: 24px; font-weight: 400; }
+  .talent-score-parts { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+  .talent-score-parts li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45); }
+  .talent-score-parts b { color: #f3d28c; font-weight: 400; }
+  .talent-score-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .talent-score-steps li { display: grid; justify-items: center; gap: 1px; padding: 4px 2px; border: 1px solid #241d14; color: #5f574a; font-size: 11px; }
+  .talent-score-steps li b { font-weight: 400; }
+  .talent-score-steps li.is-on { border-color: #4a3360; color: #c9a8e8; }
+  .talent-score-steps li.is-now { background: rgba(220, 174, 255, .1); box-shadow: inset 0 0 0 1px #dcaeff; color: #f1e2ff; }
+
+  @container (max-width: 640px) {
+    .talent-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+    .talent-head .is-score { grid-column: 1 / 3; grid-row: 2; }
+    .talent-top { grid-template-columns: minmax(0, 1fr); }
+  }
+}

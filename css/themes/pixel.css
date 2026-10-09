@@ -192,13 +192,11 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .gem-card-range { white-space: normal; overflow: visible; text-overflow: clip; }
 /* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감) */
 :root body[data-ui-skin] :is(.equipment-aux-store,
-  #ui-season-tree strong, #ui-talent-card-grid :is(span, strong, .talent-slot), .talent-bloom-filter :is(strong, span),
-  .talent-bloom-summary, .talent-bloom-summary :is(span, strong), #ui-talent-summary :is(span, strong),
+  #ui-season-tree strong,
   .offline-progress-upgrade button, #ui-codex-list :is(.item-title, .codex-hunt-toggle, .codex-slot-heading span),
   #ui-records-body div > span) { font-size: 12px; }
 :root body[data-ui-skin] .loop-node-rank { font-size: 12px; line-height: 12px; }
 :root body[data-ui-skin] :is(.records-stat-value, #trait-season-section h2 span, #ui-season-text-tab span) { font-size: 15px; }
-:root body[data-ui-skin] :is(#tab-talent .ui-window-body > p, .talent-bloom-view-tabs > button) { font-size: 12px; }
 /* 전투 기록 · 툴팁 줄: overflow-wrap:anywhere(와 word-break:break-word)는 줄이 좁아지면 한글 낱말 한가운데서 끊었다
    ("[마법 / 의 들바람 장화]") — 띄어쓰기에서 끊고, 한 낱말이 줄보다 길 때만 쪼갠다. */
 :root body[data-ui-skin] :is(.log-msg, .tooltip-line, .item-description) { word-break: keep-all; overflow-wrap: break-word; }
@@ -475,14 +473,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .loop10-panel { padding: 12px; }
 :root body[data-ui-skin] .loop10-entry-box { margin-bottom: 8px; padding: 10px; background: var(--px-wood-dark), var(--px-stone-raised); }
 :root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
-/* 재능 개화: 남색 · 보라 유리 판 → 숯빛 판. 개화의 보라는 요약 왼쪽 띠에만 남긴다. */
-:root body[data-ui-skin] .talent-bloom-summary { border-radius: 0; border-left: 3px solid #b88ad8; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy); }
-:root body[data-ui-skin] :is(.talent-bloom-navigator, .talent-current-combo, .talent-loadout-panel) { border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-panel); box-shadow: inset 0 0 0 1px var(--px-bronze-lo); }
-:root body[data-ui-skin] .talent-current-combo { background: var(--px-wood-dark), var(--px-stone-raised); }
-:root body[data-ui-skin] .talent-bloom-navigator[open] > summary { border-bottom: 1px solid var(--px-bronze-lo); }
-:root body[data-ui-skin] :is(.talent-combo-status, .talent-bloom-empty) { border-color: var(--px-bronze-lo); border-radius: 0; }
-:root body[data-ui-skin] .talent-slot { border-radius: 0; border-color: var(--px-bronze-lo); background: #141216; }
-:root body[data-ui-skin] .talent-slot.filled { border-color: var(--px-gold); background: var(--px-stone-raised); }
 /* 젬 카드 꼬리표(분류 꼬리표도 근접 · 투사체 · 주문 · 범위마다 제 색 — 2026-10-06 사용자 요청, 모두 흰 글씨라 구분이 안 됐다) · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
 :root body[data-ui-skin] .gem-card-tags .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); color: var(--px-copy); }
 :root body[data-ui-skin] .gem-card-tags span { border-radius: 0; }
@@ -680,8 +670,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head > span, .gem-resource-strip :is(span, strong),
     .market-exchange-quote :is(span, strong), .codex-card .item-actions > span, .unique-hunt-panel > header > b, .content-unlock-heading > span,
-    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
-    .talent-current-combo > i) { font-family: var(--font-pixel); font-size: 12px; }
+    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked) { font-family: var(--font-pixel); font-size: 12px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) .map-item--act .map-item-main > span span { font-family: var(--font-pixel); font-size: 12px; }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
    숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */
