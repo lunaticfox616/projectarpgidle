@@ -172,6 +172,7 @@ const battleGroundLoot = (() => {
         if (receipt.currency && ORB_DB[receipt.currency]) currencyRow(label, receipt);
         else label.textContent = leadName(receipt);
         if (receipt.leaf) label.dataset.rarity = 'leaf';
+        itemInfluencesUi.markFrame(label, receipt.item);
         return label;
     }
 

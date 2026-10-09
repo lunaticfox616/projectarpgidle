@@ -54,6 +54,8 @@
 .tooltip-line:has(> .infl-chip.is-guardian) { border-left-color: #dfe9f6; background: linear-gradient(90deg, rgba(223, 233, 246, .13), transparent 75%); }
 .tooltip-line:has(> .infl-chip.is-blight) { border-left-color: #a6d44a; background: linear-gradient(90deg, rgba(166, 212, 74, .15), transparent 75%); }
 .tooltip-line:has(> .infl-chip.is-swapped) { border-left-color: #c792ff; background: linear-gradient(90deg, rgba(199, 146, 255, .2), transparent 80%); }
+/* 바닥 전리품 이름표(js/battle-ground-loot-ui.js nameRow): 영향을 띤 장비는 이름표에 영향 색 테. */
+.battle-loot-name[data-influence] { outline: 2px solid var(--infl-a); outline-offset: 1px; }
 /* 기억 던전 머리의 뒤바뀐 고유 안내(js/memory-dungeon-ui.js). */
 .memory-swap-note { margin: 4px 0 0; color: #c792ff; font-weight: 700; }
 }

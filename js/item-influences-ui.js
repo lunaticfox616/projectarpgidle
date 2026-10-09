@@ -21,8 +21,8 @@ const itemInfluencesUi = (() => {
         if (!keys.length) return '';
         return `--infl-a:${meta(keys[0]).tone};--infl-b:${meta(keys[1] || keys[0]).tone};`;
     }
-    /** The tooltip box (or an inline tooltip): its frame follows the item shown. */
-    function markTooltip(target, item) {
+    /** An element framed by the item it shows (the tooltip box, an inline tooltip, a floor loot name): data-influence and the colours. */
+    function markFrame(target, item) {
         if (!target || !target.dataset) return;
         const keys = itemInfluences.influenceKeys(item);
         if (!keys.length) {
@@ -77,6 +77,6 @@ const itemInfluencesUi = (() => {
         return true;
     }
 
-    return Object.freeze({ influenceClasses, influenceStyle, markTooltip, tooltipHtml, lineBadgeHtml, useState, use });
+    return Object.freeze({ influenceClasses, influenceStyle, markFrame, markTooltip: markFrame, tooltipHtml, lineBadgeHtml, useState, use });
 })();
 safeExposeGlobals({ itemInfluencesUi });
