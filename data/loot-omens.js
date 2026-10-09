@@ -72,14 +72,15 @@ const LOOT_OMENS = Object.freeze({
     treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.12, prefix: '보물을 품은', outline: '#ffd75e',
         sparks: '#fff1a8' }),
     // 발견 등급(js/loot.js lootMoments): 바닥 빛기둥과 소리(js/battle-ground-loot-ui.js), 지도 결과, 드랍 시뮬레이터가 같은 표를 쓴다.
-    // jackpot은 붉은 금빛 빛기둥과 배너, great는 빛기둥과 큰 소리, good은 반짝임. 재화는 아래 목록이고, 장비는 체이싱 고유 jackpot, 고유와
+    // jackpot은 붉은 금빛 빛기둥과 배너, great는 빛기둥과 큰 소리, good은 반짝임. 재화는 아래 목록이고(어느 콘텐츠에서나 드문 것만 jackpot과
+    // great: 깊은 미궁은 원시 고대 화석과 심연 화석을 처치마다 몇 %씩 떨어뜨리므로 화석은 good), 장비는 체이싱 고유 jackpot, 고유와
     // 모든 줄이 특출한 베이스 great, 특출 줄과 타락과 소켓 good. 주얼은 고유 great, 희귀 good. 야생 고유 부적 great. 보물 무리의 보물은 great.
     moments: Object.freeze({
-        jackpot: Object.freeze(['fairyRing', 'ouroboros', 'fossilPrimordial', 'fossilAbyssal', 'radiantSealShard']),
-        great: Object.freeze(['goldenRule', 'burningEmberBranch', 'enchantedHoney', 'fossilAncientPrimal', 'abyssCatalyst', 'beastKeyCerberus',
-            'rivalKey']),
-        good: Object.freeze(['sapBud', 'fossilPrimal', 'awakenedEcho', 'condensedSkyPower', 'chaosKey', 'coreKey', 'strongSealShard', 'underGold',
-            'venomStinger', 'hiveKey', 'pruningShears', 'trialKey3', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm'])
+        jackpot: Object.freeze(['fairyRing', 'ouroboros', 'radiantSealShard']),
+        great: Object.freeze(['goldenRule', 'burningEmberBranch', 'enchantedHoney', 'abyssCatalyst', 'beastKeyCerberus', 'rivalKey']),
+        good: Object.freeze(['sapBud', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilAbyssal', 'awakenedEcho', 'condensedSkyPower',
+            'chaosKey', 'coreKey', 'strongSealShard', 'underGold', 'venomStinger', 'hiveKey', 'pruningShears', 'trialKey3', 'bossKeyFlame', 'bossKeyFrost',
+            'bossKeyStorm'])
     })
 });
 safeExposeData({ LOOT_OMENS });

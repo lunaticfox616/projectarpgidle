@@ -55,10 +55,13 @@ const memoryLeaves = (() => {
     }
     /** A leaf on the floor: a first sighting is a great find (js/loot.js lootMoments), any other leaf a good one. */
     const momentOf = (state, id) => (store(state).seen.includes(id) ? 'good' : 'great');
+    /** Why a leaf cannot be woven now: unknown, not enough leaves, or no stash room for its map stones (the leaves would be spent). */
     function weaveReason(state, id) {
         const leaf = BY_ID.get(id);
         if (!leaf) return '없는 잎입니다.';
-        return (store(state).counts[id] || 0) >= leaf.set ? '' : `잎이 ${leaf.set}장 있어야 엮을 수 있습니다.`;
+        if ((store(state).counts[id] || 0) < leaf.set) return `잎이 ${leaf.set}장 있어야 엮을 수 있습니다.`;
+        const maps = leaf.reward.maps;
+        return maps && state.atlas.stash.length + maps.count > ATLAS.stashCap ? '지도석 보관함에 자리가 모자랍니다.' : '';
     }
     /** A unique of the general pool by name, or a random chase unique, at its own tier. */
     function rewardUnique(reward) {

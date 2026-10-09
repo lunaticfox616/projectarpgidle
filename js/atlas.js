@@ -419,7 +419,7 @@ const atlas = (() => {
     const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
     const roomIds = value => [...new Set(Array.isArray(value) ? value : [])].filter(id => typeof id === 'string' && id.length <= 64).slice(0, 100);
     const roomTypes = value => [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(ATLAS.encounters, type));
-    /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, and the equipment count. */
+    /** A result's loot receipt: wallet currencies (ORB_DB) with whole positive amounts, the equipment count, its finds and leaves. */
     function normalizeLoot(raw) {
         if (!raw || typeof raw !== 'object') return null;
         const currencies = {};
@@ -427,7 +427,8 @@ const atlas = (() => {
             const amount = Math.floor(Number(value));
             if (Object.hasOwn(ORB_DB, key) && amount > 0) currencies[key] = Math.min(Number.MAX_SAFE_INTEGER, amount);
         }
-        return { currencies, equipmentCount: Math.max(0, Math.min(1e6, Math.floor(Number(raw.equipmentCount) || 0))) };
+        return { currencies, equipmentCount: Math.max(0, Math.min(1e6, Math.floor(Number(raw.equipmentCount) || 0))),
+            items: combatLootReceipts.cleanItems(raw.items), leaves: combatLootReceipts.cleanLeaves(raw.leaves) };
     }
     function normalizeBonus(raw) {
         const bonus = ZERO();

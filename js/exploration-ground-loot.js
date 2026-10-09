@@ -23,20 +23,26 @@ actExplorationState.groundLoot = (() => {
     /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman' or 'leaf'. */
     const kindOf = row => row.kind || (typeof row.currency === 'string' ? 'currency' : 'equipment');
 
+    /** A row laid while an atlas map's kill or chest is settled also counts toward that map's result (js/combat-loot-receipts.js). */
+    function lay(run, row) {
+        floor(run).push(row);
+        combatLootReceipts.floorRow(game, row);
+    }
     /** Lays an already generated equipment item on a walkable cell of the run's map. */
     function place(run, cell, item, { highlight = false, guaranteed = false } = {}) {
-        floor(run).push({ gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed });
+        lay(run, { gx: cell.gx, gy: cell.gy, item, highlight: !!highlight, guaranteed: !!guaranteed });
     }
     /** Lays an already rolled jewel, core or wild talisman (with its overflow shard) on a walkable cell. */
     function placeItem(run, cell, kind, item, overflow) {
-        floor(run).push(kind === 'talisman' ? { gx: cell.gx, gy: cell.gy, kind, item, overflow } : { gx: cell.gx, gy: cell.gy, kind, item });
+        lay(run, kind === 'talisman' ? { gx: cell.gx, gy: cell.gy, kind, item, overflow } : { gx: cell.gx, gy: cell.gy, kind, item });
     }
     /** Lays a memory leaf (js/memory-leaves.js) on a walkable cell; each leaf is its own row. */
     function placeLeaf(run, cell, leaf) {
-        floor(run).push({ gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf });
+        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf });
     }
     /** Lays an already resolved currency gain on a walkable cell, joining the same currency already lying there. */
     function placeCurrency(run, cell, currency, count) {
+        combatLootReceipts.currency(game, currency, count);
         const row = floor(run).find(other => other.currency === currency && other.gx === cell.gx && other.gy === cell.gy);
         if (row) row.count += count;
         else run.groundLoot.push({ gx: cell.gx, gy: cell.gy, currency, count });

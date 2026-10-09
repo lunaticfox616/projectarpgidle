@@ -10206,6 +10206,7 @@ function generateJewelDrop(zoneOrTier) {
 
 /** Jewels enter the collection immediately; ordinary overflow is salvaged. */
 function receiveJewelDrop(jewel) {
+    combatLootReceipts.item(game,jewel,'jewel');
     const inventoryFull=game.jewelInventory.length>=getJewelInventoryLimit();
     const protectOverflow=inventoryFull&&['rare','unique'].includes(jewel.rarity);
     const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0};

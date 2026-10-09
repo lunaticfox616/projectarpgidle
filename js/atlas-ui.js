@@ -301,16 +301,45 @@ const atlasUi = (() => {
         return `<section class="atlas-stash" aria-label="지도석 보관함"><h3>지도석 보관함 <span>${maps.length}/${ATLAS.stashCap}</span></h3>
             ${maps.length ? `<div class="atlas-stash-list">${maps.map(stashRowHtml).join('')}</div>` : '<p class="atlas-muted">비어 있습니다. 보관함은 루프마다 비워집니다.</p>'}</section>`;
     }
+    // 이번 판의 발견: 바닥 빛기둥과 같은 판정(js/loot.js lootMoments)으로 좋은 것부터 칩 8개까지.
+    const momentClass = moment => (moment ? ` moment-${moment}` : '');
+    const LEAF_RANK = 1.5;
+    function itemFind(row) {
+        const name = row.rarity === 'unique' ? `「${escapeHTML(row.name)}」` : escapeHTML(row.name);
+        return { rank: lootMoments.rank(row.moment), html: `<span class="atlas-find rarity-${row.rarity}${momentClass(row.moment)}" title="${escapeHTML(row.slot)}">${name}</span>` };
+    }
+    function leafFind([id, count]) {
+        const leaf = memoryLeaves.leaf(id);
+        return { rank: LEAF_RANK, html: `<span class="atlas-find is-leaf">${renderPixelIcon('leaf', 'atlas-find-leaf')}${escapeHTML(leaf ? leaf.name : id)}${count > 1 ? ` <b>×${count}</b>` : ''}</span>` };
+    }
+    function currencyFind([key, count]) {
+        const moment = lootMoments.ofCurrency(key), src = pixelIconPath(ORB_DB[key] && ORB_DB[key].icon);
+        const icon = src ? `<img class="atlas-find-icon" src="${src}" alt="" aria-hidden="true">` : '';
+        return { rank: lootMoments.rank(moment), html: `<span class="atlas-find${momentClass(moment)}">${icon}${window.getStyledOrbName(key)} <b>×${count}</b></span>` };
+    }
+    function findsHtml(receipt) {
+        const currencies = Object.entries(receipt.currencies).filter(([key]) => lootMoments.ofCurrency(key));
+        const finds = [...receipt.items.map(itemFind), ...Object.entries(receipt.leaves).map(leafFind), ...currencies.map(currencyFind)];
+        return finds.sort((a, b) => b.rank - a.rank).slice(0, 8).map(find => find.html).join('');
+    }
+    function resultNotes(result) {
+        return [result.first && '첫 완료', result.bonus && '보너스 달성', result.drops && `지도석 ${result.drops}개`,
+            result.fragments && `각인 ${result.fragments}개`].filter(Boolean).join(', ');
+    }
+    function receiptHtml(receipt) {
+        const none = '<span class="atlas-muted">기록된 재화 없음</span>';
+        if (!receipt) return `<div class="atlas-result-currencies">${none}</div>`;
+        const finds = findsHtml(receipt);
+        const currencies = Object.entries(receipt.currencies).map(([key, n]) => `<span>${window.getStyledOrbName(key)} <b>+${n}</b></span>`).join('');
+        return `${finds ? `<div class="atlas-result-finds" aria-label="이번 판의 발견"><small>이번 판의 발견</small>${finds}</div>` : ''}
+            <div class="atlas-result-currencies"><small>재화 ${Object.keys(receipt.currencies).length}종, 장비 ${receipt.equipmentCount}개</small>${currencies || none}</div>`;
+    }
     function resultHtml() {
         const result = ledger().lastResult;
         if (!result) return '';
-        const receipt = result.loot;
-        const notes = [result.first && '첫 완료', result.bonus && '보너스 달성', result.drops && `지도석 ${result.drops}개`,
-            result.fragments && `각인 ${result.fragments}개`].filter(Boolean).join(', ');
-        const currencies = receipt ? Object.entries(receipt.currencies).map(([key, n]) => `<span>${window.getStyledOrbName(key)} <b>+${n}</b></span>`).join('') : '';
-        return `<details class="atlas-result"><summary>${escapeHTML(nodeName(result.nodeId))} ${result.tier}등급 ${result.outcome === 'complete' ? '완료' : '실패'}
-            <span>${notes}</span></summary><div class="atlas-result-currencies">${currencies || '<span class="atlas-muted">기록된 재화 없음</span>'}</div>
-            ${receipt ? `<p class="atlas-muted">장비 ${receipt.equipmentCount}개</p>` : ''}</details>`;
+        const done = result.outcome === 'complete';
+        return `<section class="atlas-result${done ? '' : ' is-failed'}" aria-label="지난 지도 결과"><h3>${escapeHTML(nodeName(result.nodeId))} ${result.tier}등급 ${done ? '완료' : '실패'}<span>${resultNotes(result)}</span></h3>
+            ${receiptHtml(result.loot)}</section>`;
     }
     function headerHtml() {
         // 깨어난 아틀라스는 최종 보스와 리그 우두머리만큼 넓어진다(그 처치도 완료이자 아틀라스 포인트).

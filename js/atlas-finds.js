@@ -37,7 +37,9 @@ const atlasFinds = (() => {
     /** A picked-up memory leaf (js/memory-leaves.js): counted, then announced ('memory-leaf', js/memory-leaves-ui.js). */
     function receiveMemoryLeaf(id) {
         const result = memoryLeaves.receive(game, id);
-        if (result) dispatchRuntimeEvent('memory-leaf', result);
+        if (!result) return result;
+        combatLootReceipts.leaf(game, id);
+        dispatchRuntimeEvent('memory-leaf', result);
         return result;
     }
     /** A leaf waits on the map floor like other drops (offline or off a map it is received at once). */
