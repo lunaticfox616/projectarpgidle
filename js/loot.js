@@ -65,7 +65,8 @@ function getEquipmentDropChances(zone, enemy) {
         multiplier *= 1 - 0.7 * progress;
     }
     return {
-        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment'),
+        equipment: isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : getEquipmentBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level, 'equipment')
+            * (Number(enemy.equipmentDropMul) || 1),
         talisman: getWildTalismanBaseDropChance(enemy) * multiplier * levelProgression.rewardMultiplier(zone, enemy, game.level)
     };
 }
@@ -89,12 +90,14 @@ function rollEquipmentDrop(zone, enemy, chance) {
 }
 
 /** Roll thresholds stay independent of minimum-rarity rewards and inventory filtering. An atlas map's item rarity
- * (enemy.lootRarityMul, js/atlas-maps.js) scales the roll down, so every rarer outcome grows by the same factor. */
+ * (enemy.lootRarityMul, js/atlas-maps.js) scales the roll down, so every rarer outcome grows by the same factor; the map's
+ * 고유의 메아리 omen (enemy.uniqueChanceMul, js/loot-omens.js) widens the unique band alone. */
 function getEquipmentDropRarity(enemy, roll) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
     let thresholds = EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
     let scaled = roll / Math.max(1, Number(enemy.lootRarityMul) || 1);
-    return ['unique', 'rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
+    if (scaled < thresholds.unique * Math.max(1, Number(enemy.uniqueChanceMul) || 1)) return 'unique';
+    return ['rare', 'magic'].find(rarity => scaled < thresholds[rarity]) || 'normal';
 }
 
 /** Extra realm-boss reward. Generate only; combat commits pickup, codex and visual feedback. */
@@ -443,8 +446,9 @@ safeExposeGlobals({ getCurrencyDrops });
         const rules = EQUIPMENT_DROP_VARIANTS;
         if (!item || item.rarity === 'unique' || item.corrupted || (Number(game.season) || 1) < rules.fromLoop) return null;
         let edge = 0;
+        const zone = getZone(game.currentZoneId);
         for (const [kind, chance] of rules.odds) {
-            edge += chance * scale;
+            edge += chance * scale * lootOmens.variantMul(zone, kind);
             if (roll < edge) return kind === 'corrupted' && !corruptionPlan(item).length ? null : kind;
         }
         return null;
@@ -491,4 +495,42 @@ safeExposeGlobals({ getCurrencyDrops });
 
     const equipmentDropVariants = Object.freeze({ expand });
     safeExposeGlobals({ equipmentDropVariants });
+})();
+
+// 발견 등급(2026-10-09, docs/endgame-loot-20261009.md, data/loot-omens.js moments): 바닥 빛기둥과 소리, 지도 결과, 드랍 시뮬레이터가
+// 같은 판정을 쓴다. 'jackpot' > 'great' > 'good' > null.
+(function () {
+    'use strict';
+    const TIERS = Object.freeze(['good', 'great', 'jackpot']);
+    const BY_CURRENCY = new Map(TIERS.flatMap(tier => LOOT_OMENS.moments[tier].map(key => [key, tier])));
+    const rank = tier => TIERS.indexOf(tier) + 1;
+    const higher = (a, b) => (rank(a) >= rank(b) ? a : b);
+
+    function ofEquipment(item) {
+        if (item.rarity === 'unique') return isChaseUniqueItem(item) ? 'jackpot' : 'great';
+        if (item.exceptionalAllLines) return 'great';
+        return item.exceptionalBase || item.corrupted || item.voidSocket ? 'good' : null;
+    }
+    const ITEM_KINDS = Object.freeze({
+        equipment: ofEquipment,
+        jewel: item => (item.rarity === 'unique' ? 'great' : item.rarity === 'rare' ? 'good' : null),
+        talisman: item => (item.rarity === 'unique' ? 'great' : null),
+        core: () => 'good'
+    });
+    /** @param {string} key a currency key @returns {'jackpot'|'great'|'good'|null} */
+    const ofCurrency = key => BY_CURRENCY.get(getCanonicalCurrencyKey(key)) || null;
+    /** @param {object} item @param {string} [kind] 'equipment' (default), 'jewel', 'talisman' or 'core' */
+    function ofItem(item, kind = 'equipment') {
+        const judge = ITEM_KINDS[kind];
+        return item && judge ? judge(item) : null;
+    }
+    /** A ground loot receipt ({currency}, {leaf} or {item, itemKind, highlight}): a protected or hunted drop is at least great. */
+    function ofReceipt(receipt) {
+        if (receipt.currency) return ofCurrency(receipt.currency);
+        if (receipt.leaf) return memoryLeaves.momentOf(game, receipt.leaf);
+        const tier = ofItem(receipt.item, receipt.itemKind || 'equipment');
+        return receipt.highlight ? higher(tier, 'great') : tier;
+    }
+    const lootMoments = Object.freeze({ ofCurrency, ofItem, ofReceipt, rank, higher });
+    safeExposeGlobals({ lootMoments });
 })();

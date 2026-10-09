@@ -678,12 +678,11 @@ function renderBackgroundResultLoot(summary) {
     return row + equipmentLootUi.renderHighlights(summary.highlights);
 }
 
-/** 재화 칩: 빛기둥을 세우는 재화(js/battle-ground-loot-ui.js BEAM_CURRENCIES)는 금테로 맨 앞, 나머지는 지갑 순서. */
-const BACKGROUND_RESULT_MAJOR_CURRENCIES = Object.freeze(['goldenRule', 'burningEmberBranch']);
+/** 재화 칩: 바닥에서 빛기둥을 세우는 재화(큰 발견 이상, js/loot.js lootMoments)는 금테로 맨 앞, 나머지는 지갑 순서. */
 function renderBackgroundResultCurrencies(currencies) {
     const rows = (Array.isArray(currencies) ? currencies : []).filter(entry => entry && entry.gain > 0);
     if (!rows.length) return '';
-    const major = entry => BACKGROUND_RESULT_MAJOR_CURRENCIES.includes(entry.key);
+    const major = entry => lootMoments.rank(lootMoments.ofCurrency(entry.key)) >= 2;
     const chips = rows.filter(major).concat(rows.filter(entry => !major(entry))).map(entry => `<span class="background-result-chip currency${major(entry) ? ' major' : ''}">`
         + `${backgroundResultCurrencyIcon(entry.key)}${escapeHTML(entry.name)} <b>+${formatNumberKR(entry.gain)}</b></span>`);
     return `<section class="background-result-section"><h3>재화</h3><div class="background-result-chips">${chips.join('')}</div></section>`;
@@ -4208,7 +4207,9 @@ const PIXEL_ICONS = Object.freeze({
     cloud: ['...........', '...........', '....###....', '...#ooo#...', '.###ooo##..', '#ooo#oooo#.', '#oooooooo##', '#ooooooooo#', '.#########.', '...........', '...........'],
     shard: ['.....#.....', '....#o#....', '...#oo##...', '...#oo#o#..', '..#ooo#oo#.', '..#ooo#oo#.', '..#ooo#oo#.', '...#oo#o#..', '...#oo##...', '....#o#....', '.....#.....'],
     coral: ['.#......#..', '#o#..#.#o#.', '#o#.#o##o#.', '.#o##o#o#..', '..#oo#o#.#.', '...#ooo##o#', '....#oo#o#.', '....#ooo#..', '...#ooo#...', '..#ooooo#..', '.#########.'],
-    gem: ['...........', '..#######..', '.#o#ooo#o#.', '#oo#ooo#oo#', '###########', '.#ooo#ooo#.', '..#oo#oo#..', '...#o#o#...', '....#o#....', '.....#.....', '...........']
+    gem: ['...........', '..#######..', '.#o#ooo#o#.', '#oo#ooo#oo#', '###########', '.#ooo#ooo#.', '..#oo#oo#..', '...#o#o#...', '....#o#....', '.....#.....', '...........'],
+    // 기억의 잎(js/memory-leaves-ui.js 도감 카드, js/battle-ground-loot-ui.js 바닥 더미): 잎맥이 있는 비스듬한 잎.
+    leaf: ['.......###.', '.....##ooo#', '....#oooo#.', '...#ooo#o#.', '..#oo#oo#..', '.#oo#ooo#..', '.#o#ooo#...', '..#oo##....', '.#.##......', '#..........', '...........']
 });
 const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
     pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',

@@ -181,6 +181,18 @@ const atlasUi = (() => {
     }
 
     // ---------------------------------------------------------------- side: open map, map device, node
+    /** 지도 기운(js/loot-omens.js): 이름, 무엇이 잘 나오는지, 세기(지도석 희귀도와 타락). 기운이 없는 예전 지도석은 빈칸. */
+    function omenHtml(map) {
+        const found = lootOmens.of(map);
+        if (!found) return '';
+        const omen = lootOmens.describe(found.omen.id);
+        return `<p class="atlas-omen" style="--omen:${omen.tone}"><b>${escapeHTML(omen.name)}</b><small>세기 ×${found.strength}</small>`
+            + `<span>${escapeHTML(omen.note)}</span></p>`;
+    }
+    function omenChipHtml(map) {
+        const omen = map.omen && lootOmens.describe(map.omen);
+        return omen ? `<i class="atlas-omen-chip" style="--omen:${omen.tone}">${escapeHTML(omen.name)}</i>` : '';
+    }
     function mapCardHtml(map, extra = '') {
         // 지도석 없이 연 싸움(정점, 최종 보스, 리그 우두머리)은 희귀도 · 옵션 · 수량 없이 무엇인지만.
         const special = RUN_KIND[atlas.node(map.node)?.kind];
@@ -190,7 +202,7 @@ const atlasUi = (() => {
         const tags = [`${map.tier}등급`, rule.name, map.quality ? `품질 ${map.quality}%` : '', map.corrupted ? '타락' : '',
             fx.overTiers ? `고등급 보상 ${fx.overTiers}단계` : ''].filter(Boolean).join(', ');
         return `<div class="atlas-map-card rarity-${map.rarity}${map.corrupted ? ' is-corrupted' : ''}"><strong>${escapeHTML(nodeName(map.node))}</strong>
-            <span class="atlas-map-tags">${tags}</span>${mods ? `<ul class="atlas-mods">${mods}</ul>` : '<p class="atlas-muted">옵션 없음</p>'}
+            <span class="atlas-map-tags">${tags}</span>${omenHtml(map)}${mods ? `<ul class="atlas-mods">${mods}</ul>` : '<p class="atlas-muted">옵션 없음</p>'}
             <p class="atlas-rewards">아이템 수량 +${fx.quantity}%, 희귀도 +${fx.rarity}%${fx.packExtra ? `, 무리 +${fx.packExtra}` : ''}</p>${extra}</div>`;
     }
     /** Late materials the open map holds until its boss falls (js/atlas-endgame.js roomItems), as "성화 잉걸 8, 공허 조각 3". */
@@ -282,7 +294,7 @@ const atlasUi = (() => {
     // ---------------------------------------------------------------- stash, result, header
     function stashRowHtml(map) {
         return `<button class="atlas-stash-row rarity-${map.rarity}" aria-pressed="${map.uid === selectedUid}" onclick="atlasUi.selectMap(${map.uid})">
-            <b>${map.tier}</b><span>${escapeHTML(nodeName(map.node))}</span><small>${ATLAS.rarities[map.rarity].name}${map.mods.length ? `, 옵션 ${map.mods.length}` : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? ', 타락' : ''}</small></button>`;
+            <b>${map.tier}</b><span>${escapeHTML(nodeName(map.node))}${omenChipHtml(map)}</span><small>${ATLAS.rarities[map.rarity].name}${map.mods.length ? `, 옵션 ${map.mods.length}` : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? ', 타락' : ''}</small></button>`;
     }
     function stashHtml() {
         const maps = [...ledger().stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid);
@@ -348,7 +360,7 @@ const atlasUi = (() => {
         const key = JSON.stringify([run.map.uid, run.portals, run.drops.length, run.found.length]);
         if (key === hudSignature) return;
         hudSignature = key;
-        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${hudTags(run)}</span></strong>
+        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${hudTags(run)}</span>${omenChipHtml(run.map)}</strong>
             <span>포털 ${run.portals}/${ATLAS.portals + run.bonus.portals}, 지도석 ${run.drops.length}, 각인 ${run.found.length} 보관 중</span></div>
             <div class="atlas-hud-actions"><button onclick="atlasUi.openPanel()">아틀라스</button></div>`;
     }

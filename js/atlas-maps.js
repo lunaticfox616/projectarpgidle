@@ -123,6 +123,9 @@ const atlasMaps = (() => {
         for (const [id, v] of zone.atlasEnemyMods) EFFECTS[id].enemy(enemy, v);
         enemy.dropMul = (Number(enemy.dropMul) || 1) * (1 + zone.atlasLootQuantity / 100);
         enemy.lootRarityMul = 1 + (zone.atlasLootRarity + (enemy.isBoss ? zone.atlasBossRarity : 0)) / 100;
+        // 장비 기운(js/loot-omens.js): 장비 기대 개수와 고유 확률(js/loot.js getEquipmentDropChances, getEquipmentDropRarity).
+        const omen = lootOmens.enemyMods(zone);
+        if (omen) Object.assign(enemy, { equipmentDropMul: omen.equipmentMul, uniqueChanceMul: omen.uniqueMul });
         return enemy;
     }
     function describe(entry) {
@@ -148,7 +151,7 @@ const atlasMaps = (() => {
         const seen = new Set(), mods = (Array.isArray(raw.mods) ? raw.mods : []).filter(entry => validEntry(entry, seen));
         const quality = Math.max(0, Math.min(ATLAS.quality.max, Math.floor(Number(raw.quality) || 0)));
         return { uid: raw.uid, node: raw.node, tier: raw.tier, rarity: raw.rarity, mods: mods.slice(0, 8).map(({ id, roll }) => ({ id, roll })),
-            quality, corrupted: raw.corrupted === true, ...memoryField(raw) };
+            quality, corrupted: raw.corrupted === true, ...memoryField(raw), ...(lootOmens.validId(raw.omen) ? { omen: raw.omen } : {}) };
     }
     return Object.freeze({ create, craft, craftReason, crafts: CRAFTS, corrupt, effects, applyEnemyMods, describe, normalize, reroll,
         chaseMul, mod: id => MODS.get(id) || null });

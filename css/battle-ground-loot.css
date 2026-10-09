@@ -39,6 +39,21 @@
 .battle-loot-contact{position:absolute;left:-23px;top:-9px;width:46px;height:18px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 50%,transparent),transparent 70%);animation:loot-contact 450ms ease-out both}
 .battle-loot-drop[data-beam="true"] .battle-loot-contact{width:64px;height:25px;left:-32px;top:-12px;--loot-color:var(--beam-core,#fff1d2)}
 .battle-loot-drop.collected{opacity:0;transition:opacity 100ms}
+/* 대박(js/loot.js lootMoments jackpot, 2026-10-09): 더 넓고 높은 붉은 금빛 빛기둥과 이름표. 계속 움직이지 않는다. */
+.battle-loot-drop[data-tier="jackpot"] .battle-loot-beam{left:-32px;width:64px;height:calc(var(--beam-height,145px) * 1.25)}
+.battle-loot-drop[data-tier="jackpot"] .battle-loot-name{border-color:#ff6b6b;background:#1a0b0b;color:#ffe7a3;box-shadow:0 0 0 1px #000,0 0 10px rgba(255,94,108,.6)}
+.battle-loot-drop[data-tier="jackpot"].landed::before{animation:loot-glow-pulse 760ms ease-out}
+/* 기억의 잎(data/memory-leaves.js): 잎 모양 문양과 옥빛 이름표. */
+.battle-loot-leaf{width:22px;height:22px;left:-11px;top:-15px}
+.battle-loot-leaf-icon{display:block;width:100%;height:100%}
+.battle-loot-leaf-icon .m{fill:#d6ffe6}
+.battle-loot-leaf-icon .f{fill:var(--loot-color,#9fe0c0)}
+.battle-loot-name[data-rarity="leaf"]{border-color:#3f8f6a;background:rgba(8,22,16,.95);color:#bdf0d6}
+/* 미확인 고유: 바닥에서는 그림이 그림자이고 이름표는 베이스 이름만. 주우면 이름이 영웅 위로 떠오른다(battle-loot-reveal). */
+.battle-loot-drop.is-unidentified .battle-loot-item{filter:brightness(0) drop-shadow(0 0 3px #ffb469) drop-shadow(1px 2px 1px #14130f)}
+.battle-loot-reveal{position:absolute;z-index:6;transform:translate(-50%,-100%);padding:4px 10px;border:1px solid #d0813f;background:rgba(28,18,10,.96);color:#ffb469;font:700 14px/1.3 sans-serif;white-space:nowrap;box-shadow:0 0 0 1px #000,0 0 14px rgba(255,180,105,.55);pointer-events:none;animation:loot-reveal 2400ms ease-out both}
+.battle-loot-reveal.is-jackpot{border-color:#ff6b6b;background:#1a0b0b;color:#ffe7a3;box-shadow:0 0 0 1px #000,0 0 18px rgba(255,94,108,.7)}
+@keyframes loot-reveal{0%{opacity:0;transform:translate(-50%,-60%) scale(.6)}12%{opacity:1;transform:translate(-50%,-110%) scale(1.15)}22%{transform:translate(-50%,-110%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-150%)}}
 /* Floor piles on an exploration map wait to be picked up: the picture and the names take a click or a tap (the layer itself stays
    click-through so the battlefield keeps its move commands). */
 .battle-loot-drop.is-floor :is(.battle-loot-item,.battle-loot-name){pointer-events:auto;cursor:pointer}
@@ -54,4 +69,4 @@
 @keyframes loot-name-shine{0%{transform:translateX(-115%)}100%{transform:translateX(115%)}}
 @keyframes loot-glow-pulse{0%{transform:scale(1.8);opacity:0}30%{opacity:1}100%{transform:scale(1)}}
 @keyframes loot-receive{0%{opacity:0;transform:scale(.3)}22%{opacity:.75}100%{opacity:0;transform:scale(1.25)}}
-@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-drop.landed .battle-loot-name,.battle-loot-name::after,.battle-loot-drop.landed::before,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}
+@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-drop.landed .battle-loot-name,.battle-loot-name::after,.battle-loot-drop.landed::before,.battle-loot-beam,.battle-loot-reveal{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}}

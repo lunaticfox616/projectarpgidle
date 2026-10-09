@@ -124,13 +124,25 @@ const uniqueCodexUi = (() => {
     }
 
     // ── 그리기와 입력 ──────────────────────────────────────────────
+    /** 나무 도감, 계 도감(계 고유를 하나라도 모으면), 기억의 잎(아틀라스가 열리면, js/memory-leaves-ui.js). 나무 도감 하나뿐이면 탭 줄이 없다. */
     function syncSubtabs() {
-        const hasRealm = UNIQUE_DB.some(entry => entry.realm && codex()[keyOf(entry)]);
-        game.codexSubtab = game.codexSubtab === 'realm' && hasRealm ? 'realm' : 'main';
-        const realmButton = document.getElementById('btn-codex-realm'), sidebar = document.querySelector('#tab-codex .vertical-tab-sidebar');
-        if (realmButton) realmButton.hidden = !hasRealm;
-        if (sidebar) sidebar.hidden = !hasRealm; // 나무 도감 하나뿐이면 고를 탭이 없다
-        ['main', 'realm'].forEach(tab => document.getElementById(`btn-codex-${tab}`)?.classList.toggle('active', tab === game.codexSubtab));
+        const tabs = { main: true, realm: UNIQUE_DB.some(entry => entry.realm && codex()[keyOf(entry)]),
+            leaves: !!(game.atlas && (game.atlas.unlocked || game.atlas.leaves.seen.length)) };
+        if (!tabs[game.codexSubtab]) game.codexSubtab = 'main';
+        const sidebar = document.querySelector('#tab-codex .vertical-tab-sidebar');
+        if (sidebar) sidebar.hidden = !tabs.realm && !tabs.leaves;
+        for (const [tab, open] of Object.entries(tabs)) {
+            const button = document.getElementById(`btn-codex-${tab}`);
+            if (button) Object.assign(button, { hidden: !open }).classList.toggle('active', tab === game.codexSubtab);
+        }
+    }
+    /** The leaf book replaces the unique codex panels while its tab is chosen. @returns {boolean} whether the leaves are shown */
+    function showLeaves(head, root) {
+        const shown = game.codexSubtab === 'leaves', book = document.getElementById('ui-leaf-book');
+        [head, root, document.getElementById('ui-unique-hunt-tracker')].forEach(el => { if (el) el.hidden = shown; });
+        if (book) book.hidden = !shown;
+        if (shown) memoryLeavesUi.render();
+        return shown;
     }
     function onClick(event) {
         const slot = event.target.closest('[data-codex-slot]'), card = event.target.closest('[data-codex-key]');
@@ -141,6 +153,7 @@ const uniqueCodexUi = (() => {
         if (!head || !root) return;
         if (!bound) { bound = true; head.addEventListener('click', onClick); root.addEventListener('click', onClick); }
         syncSubtabs();
+        if (showLeaves(head, root)) return;
         uniqueHuntUi.renderPanel();
         const entries = pool(), selected = shownSlot(entries);
         const tiles = entries.filter(entry => entry.slots[0] === selected).map(tileHtml).join('');
@@ -152,7 +165,7 @@ const uniqueCodexUi = (() => {
         if (dialogKey && selectionDialog.isOpen(DIALOG)) openEntry(dialogKey, true);
     }
     function setSubtab(tab) {
-        game.codexSubtab = tab === 'realm' ? 'realm' : 'main';
+        game.codexSubtab = ['realm', 'leaves'].includes(tab) ? tab : 'main';
         render();
     }
     return Object.freeze({ render, setSubtab });

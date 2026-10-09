@@ -15,11 +15,12 @@ actExplorationState.groundLoot = (() => {
      * @typedef {{gx:number, gy:number, kind:'jewel'|'core', item:object}} GroundLootStoreRow a rolled jewel or core.
      * @typedef {{gx:number, gy:number, kind:'talisman', item:object, overflow:string}} GroundLootTalismanRow a rolled wild
      *   talisman (its fields, no stump box id yet) and the shard currency given instead when the stump box storage is full.
-     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow} GroundLootRow
+     * @typedef {{gx:number, gy:number, kind:'leaf', leaf:string}} GroundLootLeafRow a memory leaf id (data/memory-leaves.js, 2026-10-09).
+     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootLeafRow} GroundLootRow
      */
     const rows = run => (run && Array.isArray(run.groundLoot) ? run.groundLoot : []);
     const floor = run => (Array.isArray(run.groundLoot) ? run.groundLoot : (run.groundLoot = []));
-    /** The kind of a row: 'equipment', 'currency', 'jewel', 'core' or 'talisman'. */
+    /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman' or 'leaf'. */
     const kindOf = row => row.kind || (typeof row.currency === 'string' ? 'currency' : 'equipment');
 
     /** Lays an already generated equipment item on a walkable cell of the run's map. */
@@ -29,6 +30,10 @@ actExplorationState.groundLoot = (() => {
     /** Lays an already rolled jewel, core or wild talisman (with its overflow shard) on a walkable cell. */
     function placeItem(run, cell, kind, item, overflow) {
         floor(run).push(kind === 'talisman' ? { gx: cell.gx, gy: cell.gy, kind, item, overflow } : { gx: cell.gx, gy: cell.gy, kind, item });
+    }
+    /** Lays a memory leaf (js/memory-leaves.js) on a walkable cell; each leaf is its own row. */
+    function placeLeaf(run, cell, leaf) {
+        floor(run).push({ gx: cell.gx, gy: cell.gy, kind: 'leaf', leaf });
     }
     /** Lays an already resolved currency gain on a walkable cell, joining the same currency already lying there. */
     function placeCurrency(run, cell, currency, count) {
@@ -76,7 +81,8 @@ actExplorationState.groundLoot = (() => {
         },
         jewel: (state, row) => { state.jewelInventory = (state.jewelInventory || []).concat(row.item); },
         core: (state, row) => { coreItems.keep(row.item, state); },
-        talisman: (state, row) => { talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); }
+        talisman: (state, row) => { talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); },
+        leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); }
     };
     function settleOnLoad(state, run) {
         for (const row of rows(run)) settleRow[kindOf(row)](state, row);
@@ -90,7 +96,7 @@ actExplorationState.groundLoot = (() => {
         const map = actExplorationMap.forRun(run), ids = new Set();
         for (const row of run.groundLoot) {
             if (!validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
-            if (kindOf(row) === 'talisman') continue; // a rolled talisman has no id until the stump box stores it
+            if (['talisman', 'leaf'].includes(kindOf(row))) continue; // a rolled talisman has no id until the stump box stores it; leaves repeat
             const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
             if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
             ids.add(key);
@@ -103,7 +109,8 @@ actExplorationState.groundLoot = (() => {
             && Number.isSafeInteger(row.count) && row.count > 0 && !row.item,
         jewel: row => loot.validJewel(row.item),
         core: row => loot.validCore(row.item),
-        talisman: row => !!talismans.normalizeTalisman(row.item) && loot.isCurrency(row.overflow)
+        talisman: row => !!talismans.normalizeTalisman(row.item) && loot.isCurrency(row.overflow),
+        leaf: row => memoryLeaves.validId(row.leaf) && !row.item
     };
     function validRow(map, row) {
         if (!row || !Number.isInteger(row.gx) || !Number.isInteger(row.gy) || !actExplorationMap.walkable(map, row, true)) return false;
@@ -111,5 +118,5 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { PICKUP_RANGE, kindOf, place, placeItem, placeCurrency, takeNear, takeAt, takeAll, nearest, piles, reservedItems, settleOnLoad, validate };
+    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeCurrency, takeNear, takeAt, takeAll, nearest, piles, reservedItems, settleOnLoad, validate };
 })();

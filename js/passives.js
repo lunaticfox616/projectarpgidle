@@ -9691,9 +9691,14 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     return item;
 }
 
-/** 정해 준 칸, 아니면 아무 칸. 뿌리촉수의 제 무기는 따로 굴린다(js/combat.js grantRootWeaponPick, data/bosses.js). */
-function getEquipmentDropSlot(options) {
-    return EQUIPMENT_DROP_SLOTS.includes(options?.slot) ? options.slot : rndChoice(EQUIPMENT_DROP_SLOTS);
+/** 정해 준 칸, 아니면 아무 칸(지도 기운이 부위 가중치를 주면 그 가중치로, js/loot-omens.js slotWeights). 뿌리촉수의 제 무기는 따로
+ * 굴린다(js/combat.js grantRootWeaponPick, data/bosses.js). */
+function getEquipmentDropSlot(options, zone) {
+    if (EQUIPMENT_DROP_SLOTS.includes(options?.slot)) return options.slot;
+    const weights = lootOmens.slotWeights(zone);
+    if (!weights) return rndChoice(EQUIPMENT_DROP_SLOTS);
+    let roll = Math.random() * EQUIPMENT_DROP_SLOTS.reduce((sum, slot) => sum + (weights[slot] || 1), 0);
+    return EQUIPMENT_DROP_SLOTS.find(slot => (roll -= weights[slot] || 1) < 0) || EQUIPMENT_DROP_SLOTS[EQUIPMENT_DROP_SLOTS.length - 1];
 }
 
 function generateEquipmentDrop(enemy, options) {
@@ -9703,7 +9708,7 @@ function generateEquipmentDrop(enemy, options) {
     let dropTier = Math.min(rollRealmItemDropTier(zone, enemy), levelProgression.maxDropTier(itemLevel));
     let affixTierCap = Math.min(levelProgression.affixCap(itemLevel), getRealmEquipmentAffixTierCap(zone, dropTier));
     let affixTierRange = getDroppedAffixTierRange(affixTierCap);
-    let slot = getEquipmentDropSlot(options);
+    let slot = getEquipmentDropSlot(options, zone);
     let base = chooseItemBase(slot, dropTier, zone, getRootMonsterWeapon(enemy));
     let rarity = getEquipmentDropRarity(enemy, Math.random());
     if (rarity === 'unique') return levelProgression.stampItem(generateUniqueItem(hiddenTierCap, slot, null, zone), itemLevel);

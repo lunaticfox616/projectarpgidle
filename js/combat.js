@@ -7842,6 +7842,7 @@ function createActExplorationPack(zone,room,stage,encounter=null,formation=null)
     if(encounter)pack.encounter=encounter;
     if(anchor)pack.anchor={...anchor};
     markExplorationAlertPack(pack);
+    atlasFinds.dressTreasurePack(zone,pack);
     return pack;
 }
 
@@ -8558,7 +8559,8 @@ function collectExplorationFloorLoot(rows) {
 const receiveFloorItem = {
     jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
-    talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow }))
+    talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow })),
+    leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf)
 };
 
 /** Jewels, cores and wild talismans wait on the exploration floor like equipment (2026-10-06 user request). Returns whether the

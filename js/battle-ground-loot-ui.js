@@ -11,11 +11,26 @@ const battleGroundLoot = (() => {
     // style and layout pass whenever anything had touched the page earlier in the frame (2026-10-07: about 8% of a frame with a window open).
     const narrow = () => canvasBox(canvas).width < 600;
     const displayLimit = () => narrow() ? 16 : 24;
-    // 빛기둥을 세우는 재화(타오른 잿불가지는 12번 루프 30)와 주황 기록으로 줍는 재화.
-    const BEAM_CURRENCIES = new Set(['goldenRule', 'burningEmberBranch']), MAJOR_LOG_CURRENCIES = new Set(['goldenRule', 'sapBud', 'burningEmberBranch']);
-    const isMajor = receipt => BEAM_CURRENCIES.has(receipt.currency) || receipt.item?.rarity === 'unique' || !!receipt.highlight;
-    /** A pile shows its most important drop: golden rule, uniques and highlighted items first, then by rarity. */
-    const importance = receipt => (isMajor(receipt) ? 100 : 0) + getRarityRank(receipt.item?.rarity || 'normal');
+    // 발견 등급(js/loot.js lootMoments, data/loot-omens.js moments, 2026-10-09): 큰 발견 이상은 빛기둥과 큰 소리, 대박은 붉은 금빛
+    // 빛기둥과 배너, 좋은 발견은 반짝임. 주황 기록도 큰 발견 이상.
+    const momentOf = receipt => lootMoments.ofReceipt(receipt);
+    const isMajor = receipt => lootMoments.rank(momentOf(receipt)) >= 2;
+    /** A pile shows its most important drop: jackpot, great (golden rule, uniques, hunted drops), good, then by rarity. */
+    const importance = receipt => lootMoments.rank(momentOf(receipt)) * 100 + getRarityRank(receipt.item?.rarity || 'normal');
+    /** 'jackpot', 'major' (great), 'rare' (good, or rare and better gear) or 'plain': the pile's glow, beam, pop and sound. */
+    function pileTier(lead, rarity) {
+        const rank = lootMoments.rank(momentOf(lead));
+        if (rank >= 3) return 'jackpot';
+        if (rank === 2) return 'major';
+        return rank === 1 || getRarityRank(rarity) >= 2 ? 'rare' : 'plain';
+    }
+    const pileKind = (lead, currency) => (currency ? 'currency' : lead.leaf ? 'leaf' : 'equipment');
+    /** A leaf shows the pixel leaf (PIXEL_ICONS.leaf); other items show their inventory art. */
+    const LEAF_ART = 'pixel:leaf';
+    const leadArt = lead => (lead.leaf ? LEAF_ART : getInventoryItemVisualAsset(lead.item, lead.itemKind));
+    const leadName = lead => (lead.leaf ? memoryLeaves.leaf(lead.leaf).name : shownName(lead));
+    /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
+    const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || receipt.item.slot || '고유'}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
      * down arms. Drops beyond every arm stay unnamed: never a "외 N개" row (user, 2026-10-03). */
     const ARM_ROWS = Object.freeze({ wide: { up: 6, right: 2, left: 2, down: 3 }, narrow: { up: 3, right: 1, left: 1, down: 2 } });
@@ -151,7 +166,8 @@ const battleGroundLoot = (() => {
         label.dataset.rarity = receipt.item?.rarity || 'normal';
         label.style.setProperty('--loot-color', receipt.color || getRarityColor(label.dataset.rarity));
         if (receipt.currency && ORB_DB[receipt.currency]) currencyRow(label, receipt);
-        else label.textContent = receipt.item.name;
+        else label.textContent = leadName(receipt);
+        if (receipt.leaf) label.dataset.rarity = 'leaf';
         return label;
     }
 
@@ -176,13 +192,15 @@ const battleGroundLoot = (() => {
     function appearance(marker, receipts) {
         const lead = receipts[0], item = lead.item, currency = lead.currency && ORB_DB[lead.currency];
         marker.dataset.rarity = item?.rarity || 'normal';
-        marker.dataset.kind = currency ? 'currency' : 'equipment';
-        marker.dataset.tier = isMajor(lead) ? 'major' : getRarityRank(marker.dataset.rarity) >= 2 ? 'rare' : 'plain';
+        marker.dataset.kind = pileKind(lead, currency);
+        marker.dataset.tier = pileTier(lead, marker.dataset.rarity);
+        marker.dataset.lead = currency ? currency.name : leadName(lead);
+        marker.classList.toggle('is-unidentified', !!lead.unidentified);
         if (currency) marker.dataset.currency = lead.currency;
         const arms = labelArms(receipts);
         marker.style.setProperty('--loot-color', arms[0].firstElementChild.style.getPropertyValue('--loot-color'));
         const flight = document.createElement('div'); flight.className = 'battle-loot-flight';
-        flight.append(lootArt(currency ? currency.icon : getInventoryItemVisualAsset(item, lead.itemKind), item));
+        flight.append(lootArt(currency ? currency.icon : leadArt(lead), item));
         marker.append(flight, ...arms);
         return flight;
     }
@@ -190,6 +208,11 @@ const battleGroundLoot = (() => {
     /** 그림이 없는 재화(56종)는 작은 보석 문양으로 날아간다 — src가 undefined인 그림이 /undefined 404를 냈고(검토 5차),
      * 그림을 빼자 날아가는 연출이 빈 자리를 읽다 게임 루프 오류가 났다(검토 6차). */
     function lootArt(src, item) {
+        if (src === LEAF_ART) {
+            const leaf = document.createElement('span'); leaf.className = 'battle-loot-item battle-loot-leaf';
+            leaf.innerHTML = renderPixelIcon('leaf', 'battle-loot-leaf-icon');
+            return leaf;
+        }
         if (!src) {
             const glyph = document.createElement('span'); glyph.className = 'battle-loot-item battle-loot-glyph';
             return glyph;
@@ -205,6 +228,11 @@ const battleGroundLoot = (() => {
         marker.dataset.beam = 'true';
         const pillar = document.createElement('div'); pillar.className = 'battle-loot-beam'; marker.prepend(pillar);
         marker.style.setProperty('--beam-height', Math.min(152, canvasBox(canvas).height * .36) + 'px');
+        if (marker.dataset.tier === 'jackpot') {
+            marker.style.setProperty('--beam-color', '#ff5e6c');
+            marker.style.setProperty('--beam-core', '#ffe7a3');
+            return;
+        }
         if (receipt.currency === 'burningEmberBranch') {
             marker.style.setProperty('--beam-color', EMBER_CORRUPTION_TONE);
             marker.style.setProperty('--beam-core', '#ffe2b8');
@@ -253,7 +281,8 @@ const battleGroundLoot = (() => {
         entry.marker.classList.add('landed');
         const contact = document.createElement('span'); contact.className = 'battle-loot-contact'; entry.marker.append(contact);
         const tier = entry.marker.dataset.tier;
-        if (tier !== 'plain' && typeof playLootDropSound === 'function') playLootDropSound(tier === 'major');
+        if (tier !== 'plain' && typeof playLootDropSound === 'function') playLootDropSound(tier === 'major' || tier === 'jackpot');
+        if (tier === 'jackpot') showJackpotBanner(`대박: ${entry.marker.dataset.lead}`);
         if (!reduced()) landingPop(entry.marker.querySelector('.battle-loot-item'), tier);
         later(entry, () => contact.remove(), 550);
     }
@@ -337,10 +366,11 @@ const battleGroundLoot = (() => {
     // The same receipts an immediate drop shows (js/combat.js queueEnemyGroundLoot), per floor row kind.
     const floorReceipt = {
         currency: row => ({ currency: row.currency, count: row.count }),
-        equipment: row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight }),
+        equipment: row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight, unidentified: row.item.rarity === 'unique' }),
         jewel: row => ({ item: row.item, itemKind: 'jewel', color: getJewelLootColor(row.item) }),
         core: row => ({ item: row.item, itemKind: 'core' }),
-        talisman: row => ({ item: row.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[row.item.rarity] })
+        talisman: row => ({ item: row.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[row.item.rarity] }),
+        leaf: row => ({ leaf: row.leaf, itemKind: 'leaf', color: MEMORY_LEAVES.tone })
     };
     const floorReceipts = pile => pile.rows.map(row => floorReceipt[actExplorationState.groundLoot.kindOf(row)](row))
         .sort((a, b) => importance(b) - importance(a));
@@ -348,8 +378,33 @@ const battleGroundLoot = (() => {
     // (no id until stored) a per-row number kept for the row's life.
     const talismanKeys = new WeakMap();
     let nextTalismanKey = 0;
+    /** The big banner over the battlefield (the golden rule's, index.html #divine-drop-banner) with a jackpot's or a reveal's text. */
+    let bannerTimer = 0;
+    function showJackpotBanner(text) {
+        const banner = document.getElementById('divine-drop-banner');
+        if (!banner) return;
+        banner.textContent = text;
+        banner.classList.add('show');
+        clearTimeout(bannerTimer);
+        bannerTimer = setTimeout(() => banner.classList.remove('show'), 2200);
+    }
+    /** A floor unique picked up: its name rises over the hero (a chase unique also takes the banner). */
+    function revealUnique(item) {
+        const jackpot = lootMoments.ofItem(item) === 'jackpot';
+        if (typeof playLootDropSound === 'function') playLootDropSound(true);
+        if (jackpot) showJackpotBanner(`체이싱 고유: 「${item.name}」`);
+        if (!air || !battleVisualState.playerPos) return;
+        const label = document.createElement('span');
+        label.className = jackpot ? 'battle-loot-reveal is-jackpot' : 'battle-loot-reveal';
+        label.textContent = `「${item.name}」`;
+        label.style.left = battleVisualState.playerPos.x + 'px';
+        label.style.top = (battleVisualState.playerPos.y - 40) + 'px';
+        air.append(label);
+        setTimeout(() => label.remove(), 2400);
+    }
+
     function floorRowKey(row) {
-        if (row.kind === 'talisman') {
+        if (row.kind === 'talisman' || row.kind === 'leaf') {
             if (!talismanKeys.has(row)) talismanKeys.set(row, `talisman#${++nextTalismanKey}`);
             return talismanKeys.get(row);
         }
@@ -364,7 +419,7 @@ const battleGroundLoot = (() => {
         const marker = entry.marker, receipts = floorReceipts(pile);
         marker.replaceChildren();
         const flight = appearance(marker, receipts); beam(marker, receipts[0]);
-        const names = receipts.map(receipt => receipt.item ? receipt.item.name : `${ORB_DB[receipt.currency]?.name || receipt.currency} ×${receipt.count}`);
+        const names = receipts.map(receipt => (receipt.currency ? `${ORB_DB[receipt.currency]?.name || receipt.currency} ×${receipt.count}` : leadName(receipt)));
         marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
         place(marker, originFor(entry.cell, projection)); yieldCrowdedArms(marker);
         if (fresh) launch(entry, flight, originFor(entry.cell, projection));
@@ -443,10 +498,11 @@ const battleGroundLoot = (() => {
     }
 
     addEventListener('project-idle:floor-loot-collected', ({ detail }) => {
+        detail.items.filter(item => item.rarity === 'unique').forEach(revealUnique);
         if (!game.settings.showLootLog) return;
         // The same lines a drop picked up at once writes (js/combat.js rollLootForEnemy).
         detail.currencies.forEach(({ key, count }) => addLog(`🪙 ${window.getStyledOrbName(key)} +${count}`,
-            MAJOR_LOG_CURRENCIES.has(key) ? 'loot-unique' : 'loot-magic'));
+            lootMoments.rank(lootMoments.ofCurrency(key)) >= 1 ? 'loot-unique' : 'loot-magic'));
         detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`, '', { item }));
     });
 
