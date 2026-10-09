@@ -8,17 +8,64 @@
         return `<div class="loot-filter-actions loot-pickup-presets"><span>빠른 설정</span>${buttons}</div><p class="loot-filter-note">${escapeHTML(notes)}</p>`;
     }
 
+    // 줍기 필터 세분화와 발견 연출(2026-10-10 사용자): 자동해체 칩과 같은 모양의 칩을 줄마다 둔다. 칩을 누르면 그 값만 뒤집는다.
+    const PICK_GROUPS = Object.freeze({
+        rarity: settings => settings.itemFilterRarities, slot: settings => settings.itemFilterSlots,
+        weapon: settings => settings.itemFilterWeaponCategories, always: settings => settings.itemFilterAlways,
+        beams: settings => settings.lootFx.beams, notices: settings => settings.lootFx.notices
+    });
+    const ALWAYS_CHIPS = Object.freeze([['exceptional', '특출난 베이스', '#9fe0c0'], ['fineRare', '좋은 희귀', '#f3d28c'], ['socket', '소켓', '#d7a6ff'],
+        ['corrupted', '타락', '#e7685c'], ['newUnique', '도감에 없는 고유', '#ffb469']]);
+    const BEAM_CHIPS = Object.freeze([['jackpot', '체이싱 티어', '#ff6b6b'], ['great', '큰 발견', '#f3d28c'], ['good', '좋은 발견 반짝임', '#e8c27a']]);
+    const NOTICE_CHIPS = Object.freeze([['chase', '체이싱 티어', '#ff6b6b'], ['goldenRule', '황금률', '#f7d66a'], ['treasure', '보물', '#ffd75e'],
+        ['codex', '도감 등록', '#ffb469'], ['leaf', '기억의 잎', '#9fe0c0']]);
+
+    function pickChip(group, key, label, tone) {
+        const on = PICK_GROUPS[group](game.settings)[key] !== false;
+        return `<button type="button" class="rarity-filter-chip loot-pick-chip${on ? ' active' : ''}"${tone ? ` style="--rarity-color:${tone}"` : ''} aria-pressed="${on}"`
+            + ` onclick="equipmentLootUi.togglePick('${group}','${escapeHTML(key)}')">${escapeHTML(label)}</button>`;
+    }
+    function pickRow(label, chips) {
+        return `<div class="loot-pick-row"><span class="loot-pick-label">${label}</span><div class="loot-pick-chips">${chips}</div></div>`;
+    }
+    /** A rarity chip with its own lowest tier (itemFilterMinTiers). */
+    function rarityTierChip([id, name]) {
+        const on = game.settings.itemFilterRarities[id] !== false, tier = game.settings.itemFilterMinTiers[id];
+        return `<span class="loot-pick-rarity"><button type="button" class="rarity-filter-chip rarity-${id}${on ? ' active' : ''}" aria-pressed="${on}" onclick="equipmentLootUi.togglePick('rarity','${id}')">${name}</button>`
+            + `<label class="loot-pick-tier">T<input type="number" min="1" max="20" value="${tier}" data-tier="${id}" aria-label="${name} 최소 티어" onchange="equipmentLootUi.updatePickup()"></label></span>`;
+    }
+
     function renderPickup(open = false) {
         const settings = game.settings;
-        const grades = Object.entries(rarityNames).map(([id, name]) => `<label><input type="checkbox" id="chk-item-filter-${id}" ${settings.itemFilterRarities[id] ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">${name}</label>`).join('');
+        const slots = EQUIPMENT_DROP_SLOTS.map(slot => pickChip('slot', slot, slot)).join('');
+        const weapons = Object.entries(WEAPON_CATEGORIES).map(([id, row]) => pickChip('weapon', id, row.name)).join('');
         return `<details class="loot-filter-section" id="loot-pickup-config" ${open ? 'open' : ''}><summary>습득 조건</summary>${renderPresets()}
             <label><input id="chk-item-filter-enabled" type="checkbox" ${settings.itemFilterEnabled ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">습득 조건 사용</label>
-            <p class="loot-filter-note">조건 밖 장비는 획득하지 않습니다. 목표 옵션과 추적 중인 고유 장비는 우선 보관합니다.</p>
-            <div class="loot-filter-grades">${grades}</div><div class="loot-filter-fields">
-            <label>장비 티어 최소<input id="inp-item-filter-hidden-tier" type="number" min="1" max="20" value="${settings.itemFilterMinHiddenTier}" onchange="equipmentLootUi.updatePickup()"></label>
+            <p class="loot-filter-note">조건 밖 장비는 줍지 않습니다. 목표 옵션과 추적 중인 고유, 항상 줍기에 맞는 장비는 줍습니다.</p>
+            ${pickRow('희귀도, 최소 티어', Object.entries(rarityNames).map(rarityTierChip).join(''))}
+            ${pickRow('부위', slots)}${pickRow('무기 종류', weapons)}
+            ${pickRow('항상 줍기', ALWAYS_CHIPS.map(([key, label, tone]) => pickChip('always', key, label, tone)).join(''))}
+            <div class="loot-filter-fields">
             <label>추가 옵션 티어 기준<input id="inp-item-filter-tier-threshold" type="number" min="1" max="20" value="${settings.itemFilterTierThreshold}" onchange="equipmentLootUi.updatePickup()"></label>
             <label>기준 이상 옵션 최소 개수<input id="inp-item-filter-tier-count" type="number" min="0" max="6" value="${settings.itemFilterMinTierCount}" onchange="equipmentLootUi.updatePickup()"></label></div>
             <label><input id="chk-item-filter-unique-new-codex" type="checkbox" ${settings.itemFilterOnlyNewCodexUnique ? 'checked' : ''} onchange="equipmentLootUi.updatePickup()">고유는 도감 미등록만 습득</label></details>`;
+    }
+
+    /** 발견 연출: the floor's beams and the loot notices, each on or off. */
+    function renderFx() {
+        return `<section class="loot-filter-section" id="loot-fx-config"><h3>발견 연출</h3>
+            ${pickRow('빛기둥', BEAM_CHIPS.map(([key, label, tone]) => pickChip('beams', key, label, tone)).join(''))}
+            ${pickRow('알림', NOTICE_CHIPS.map(([key, label, tone]) => pickChip('notices', key, label, tone)).join(''))}</section>`;
+    }
+
+    /** Flips one chip's setting and redraws its section (the pickup section stays open). */
+    function togglePick(group, key) {
+        const map = PICK_GROUPS[group] && PICK_GROUPS[group](game.settings);
+        if (!map || !Object.hasOwn(map, key)) return;
+        map[key] = map[key] === false;
+        const fx = group === 'beams' || group === 'notices', section = document.getElementById(fx ? 'loot-fx-config' : 'loot-pickup-config');
+        if (section) section.outerHTML = fx ? renderFx() : renderPickup(true);
+        saveAndPreview();
     }
 
     /** Tags first (a count of lines), then single options. */
@@ -67,7 +114,7 @@
             <section class="loot-filter-section"><h3>자동해체</h3><p class="loot-filter-note">우선 보관 대상은 제외하고, 습득 조건을 통과한 장비 중 아래 등급을 해체합니다.</p>
             <div id="auto-salvage-rarity-chips" class="loot-filter-grades">${rarityChips}</div>
             <div class="loot-filter-actions"><button type="button" id="auto-salvage-toggle-btn" onclick="toggleAutoSalvage();refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button><span id="auto-salvage-status">현재: ${enabled ? '켜짐' : '꺼짐'}</span></div></section>
-            ${renderPickup()}<p class="loot-filter-note">설정은 자동 저장됩니다. 기존 인벤토리 표시 필터는 목록 표시만 바꿉니다.</p></div></div>`;
+            ${renderPickup()}${renderFx()}<p class="loot-filter-note">설정은 자동 저장됩니다. 기존 인벤토리 표시 필터는 목록 표시만 바꿉니다.</p></div></div>`;
     }
 
     function saveAndPreview() {
@@ -84,8 +131,7 @@
         if ([...root.querySelectorAll('.loot-filter-section input[type="number"]')].some(input => !input.reportValidity())) return;
         const settings = game.settings;
         settings.itemFilterEnabled = root.querySelector('#chk-item-filter-enabled').checked;
-        Object.keys(rarityNames).forEach(id => { settings.itemFilterRarities[id] = root.querySelector(`#chk-item-filter-${id}`).checked; });
-        settings.itemFilterMinHiddenTier = Number(root.querySelector('#inp-item-filter-hidden-tier').value);
+        root.querySelectorAll('[data-tier]').forEach(input => { settings.itemFilterMinTiers[input.dataset.tier] = Number(input.value); });
         settings.itemFilterTierThreshold = Number(root.querySelector('#inp-item-filter-tier-threshold').value);
         settings.itemFilterMinTierCount = Number(root.querySelector('#inp-item-filter-tier-count').value);
         settings.itemFilterOnlyNewCodexUnique = root.querySelector('#chk-item-filter-unique-new-codex').checked;
@@ -175,7 +221,7 @@
         showCombatLogItemTooltip(pointer,token);
     }
 
-    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, applyPreset, updateTargets, addRule, addTagRule, removeRule, saveAndPreview,
+    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, togglePick, applyPreset, updateTargets, addRule, addTagRule, removeRule, saveAndPreview,
         renderHighlights, showHighlight });
     safeExposeGlobals({ equipmentLootUi });
 })();

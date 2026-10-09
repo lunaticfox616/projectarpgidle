@@ -10,7 +10,7 @@ const atlasFinds = (() => {
         return keepCurrencyDrop(enemy, key, count).gain > 0;
     }
     function grantOmenJewel(enemy, zone) {
-        const jewel = generateJewelDrop(zone);
+        const jewel = generateJewelDrop(zone, lootOmens.jewelOdds(zone));
         if (placeFloorItem(enemy, 'jewel', jewel)) return true;
         const receipt = receiveJewelDrop(jewel);
         if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });

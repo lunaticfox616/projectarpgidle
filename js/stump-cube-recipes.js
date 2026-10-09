@@ -54,6 +54,14 @@ const stumpCubeRecipes = (() => {
         return equipmentResult(groups, item ? levelProgression.stampItem(item, levelProgression.tierLevel(tier)) : null);
     }
 
+    /** 같은 고유 2: a fresh copy of that unique at the better tier, its lines rolled again, sometimes on an exceptional base line. */
+    function uniqueRemake([group], state, random) {
+        const gear = group[0].item, tier = topTier(items(group)), item = generateUniqueItem(tier, baseSlot(gear), gear.name, {});
+        const base = item && !item.exceptionalBase && Array.isArray(item.baseStats) ? item.baseStats.filter(Boolean) : [];
+        if (base.length && random() < STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE) boostExceptionalBaseLine(item, base[Math.floor(random() * base.length)]);
+        return equipmentResult([group], item ? levelProgression.stampItem(item, levelProgression.tierLevel(tier)) : null);
+    }
+
     function socketJewel([[equipment], [jewel]], state) {
         if (!equipmentSockets.openVoidSocket(equipment.item)) return { ok: false, reason: '이 장비에는 소켓을 더 뚫을 수 없습니다.' };
         const result = equipmentSockets.insert(equipment.item, jewel.item.id, state);
@@ -102,7 +110,8 @@ const stumpCubeRecipes = (() => {
     }
 
     const HANDLERS = Object.freeze({
-        equip_magic_upgrade: magicUpgrade, equip_rare_tier: rareTier, equip_unique_reroll: uniqueReroll, equip_socket_jewel: socketJewel,
+        equip_magic_upgrade: magicUpgrade, equip_rare_tier: rareTier, equip_unique_remake: uniqueRemake, equip_unique_reroll: uniqueReroll,
+        equip_socket_jewel: socketJewel,
         stump_merge: stumpMerge, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
         talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll,
         // 호박석 기폭제(12번 루프 32): 결과는 재화(stump-cube.js STORERS.currency).

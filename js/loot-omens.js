@@ -54,9 +54,14 @@ const lootOmens = (() => {
      * equipment count from a gear omen, unique chance from the map-wide uniqueMul times a gear omen's. Null outside atlas maps. */
     function enemyMods(zone) {
         if (!zone || zone.type !== 'atlasMap') return null;
-        const found = inZone(zone), gear = found && found.omen.gear;
+        const found = inZone(zone), gear = found && found.omen.gear, gems = found && found.omen.gemMul;
         return { equipmentMul: gear ? grow(gear.quantity, found.strength) : 1,
-            uniqueMul: LOOT_OMENS.uniqueMul * (gear ? grow(gear.unique, found.strength) : 1) };
+            uniqueMul: LOOT_OMENS.uniqueMul * (gear ? grow(gear.unique, found.strength) : 1), gemMul: gems ? grow(gems, found.strength) : 1 };
+    }
+    /** A jewels omen's odds for this map's '@jewel' draws ({rare, unique} × strength), or null for the ordinary odds. */
+    function jewelOdds(zone) {
+        const found = inZone(zone), odds = found && found.omen.jewel;
+        return odds ? { rare: Math.min(0.9, odds.rare * found.strength), unique: Math.min(0.5, odds.unique * found.strength) } : null;
     }
     /** Slot weights for an equipment drop in this zone (unlisted slots weigh 1), or null without a slot omen. */
     function slotWeights(zone) {
@@ -119,7 +124,7 @@ const lootOmens = (() => {
         return omen ? { id: omen.id, name: omen.name, note: omen.note, tone: omen.tone, kind: omen.kind } : null;
     };
     const validId = id => typeof id === 'string' && BY_ID.has(id);
-    return Object.freeze({ roll, of, inZone, runBonus, zoneFields, enemyMods, slotWeights, variantMul, killDrops, strayDrops, treasureDrops,
+    return Object.freeze({ roll, of, inZone, runBonus, zoneFields, enemyMods, jewelOdds, slotWeights, variantMul, killDrops, strayDrops, treasureDrops,
         goldenJackpot, isTreasurePack, isGoldenTreasure, describe, validId, strengthOf, isItemKind });
 })();
 safeExposeGlobals({ lootOmens });

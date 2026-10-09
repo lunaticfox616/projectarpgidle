@@ -10,6 +10,8 @@
         if(!(gain>0))return;
         const name=ORB_DB[currencyKey].name,chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
         if(currencyKey!=='goldenRule' && !chase)return;
+        // 장비 드랍 필터 창의 발견 연출에서 끈 알림은 띄우지 않는다(game.settings.lootFx.notices).
+        if(game.settings.lootFx?.notices?.[chase?'chase':'goldenRule']===false)return;
         showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
     }
     function announce(event) {

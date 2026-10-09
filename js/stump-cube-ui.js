@@ -42,7 +42,7 @@ const stumpCubeUi = (() => {
         const cells = Array.from({ length: stumpCube.SIZE * stumpCube.SIZE }, (_, cell) => `<button type="button" class="stump-cube-cell"`
             + ` data-stump-action="cube-open" style="grid-column:${cell % stumpCube.SIZE + 1};grid-row:${Math.floor(cell / stumpCube.SIZE) + 1}"`
             + ` aria-label="빈 칸, 재료 넣기"></button>`).join('');
-        return `<div class="stump-cube-grid" role="grid" aria-label="조합창 3×3">${cells}${list.map(entryHtml).join('')}</div>`;
+        return `<div class="stump-cube-grid" role="grid" aria-label="조합창 ${stumpCube.SIZE}×${stumpCube.SIZE}">${cells}${list.map(entryHtml).join('')}</div>`;
     }
 
     function statusHtml(found, list) {

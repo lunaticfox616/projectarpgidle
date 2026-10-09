@@ -311,6 +311,24 @@ safeExposeGlobals({ getCurrencyDrops });
         settings.itemFilterTierThreshold = clampNumber(Math.floor(Number(settings.itemFilterTierThreshold) || 10), 1, 20);
         settings.itemFilterMinTierCount = clampNumber(Math.floor(Number(settings.itemFilterMinTierCount) || 0), 0, 6);
         settings.equipmentTargets = normalizeTargets(settings.equipmentTargets);
+        normalizePickupDetail(settings);
+    }
+
+    /** On or off per key; an unknown or missing key takes the default. */
+    const boolMap = (keys, raw, fallback) => Object.fromEntries(keys.map(key => [key, typeof (raw && raw[key]) === 'boolean' ? raw[key] : fallback[key] !== false]));
+    /** The finer pickup filter (2026-10-10): tiers per rarity (an old single tier floor moves into them once), slots, weapon kinds, the
+     * always-keep exceptions, and the floor's beams and notices (lootFx). */
+    function normalizePickupDetail(settings) {
+        const defaults = defaultGame.settings, rarities = Object.keys(ITEM_RARITY_LABELS), tiers = settings.itemFilterMinTiers || {};
+        const legacy = rarities.every(key => !(Number(tiers[key]) > 1)) ? settings.itemFilterMinHiddenTier : null;
+        settings.itemFilterMinTiers = Object.fromEntries(rarities.map(key => [key, clampNumber(Math.floor(Number(legacy || tiers[key]) || 1), 1, 20)]));
+        settings.itemFilterMinHiddenTier = 1;
+        settings.itemFilterSlots = boolMap(EQUIPMENT_DROP_SLOTS, settings.itemFilterSlots, defaults.itemFilterSlots);
+        settings.itemFilterWeaponCategories = boolMap(Object.keys(WEAPON_CATEGORIES), settings.itemFilterWeaponCategories, defaults.itemFilterWeaponCategories);
+        settings.itemFilterAlways = boolMap(Object.keys(defaults.itemFilterAlways), settings.itemFilterAlways, defaults.itemFilterAlways);
+        const fx = settings.lootFx || {};
+        settings.lootFx = { beams: boolMap(Object.keys(defaults.lootFx.beams), fx.beams, defaults.lootFx.beams),
+            notices: boolMap(Object.keys(defaults.lootFx.notices), fx.notices, defaults.lootFx.notices) };
     }
 
     /** The pickup settings a quick preset sets (data/items.js ITEM_PICKUP_PRESETS), the late one relative to the zone's tier cap. */
@@ -318,7 +336,8 @@ safeExposeGlobals({ getCurrencyDrops });
         const preset = ITEM_PICKUP_PRESETS[key];
         if (!preset) return null;
         const tierFloor = preset.tierBelowZoneCap ? Math.max(1, getZoneEquipmentTierCap(zone) - preset.tierBelowZoneCap) : 1;
-        return { itemFilterEnabled: true, itemFilterRarities: { ...preset.rarities }, itemFilterMinHiddenTier: tierFloor, itemFilterMinTierCount: 0,
+        return { itemFilterEnabled: true, itemFilterRarities: { ...preset.rarities }, itemFilterMinHiddenTier: 1, itemFilterMinTierCount: 0,
+            itemFilterMinTiers: { normal: tierFloor, magic: tierFloor, rare: tierFloor, unique: tierFloor },
             itemFilterOnlyNewCodexUnique: !!preset.onlyNewCodexUnique };
     }
 
@@ -508,8 +527,8 @@ safeExposeGlobals({ getCurrencyDrops });
 
     /** Lines of an item within the top fineRare.band tiers it could roll (its affixTierCap). */
     function fineLines(item) {
-        const cap = Number(item.affixTierCap) || 0, floor = cap - LOOT_OMENS.fineRare.band + 1;
-        return cap > 0 && Array.isArray(item.stats) ? item.stats.filter(stat => Number(stat.tier) >= floor).length : 0;
+        const rules = LOOT_OMENS.fineRare, cap = Number(item.affixTierCap) || 0, floor = cap - rules.band + 1;
+        return cap >= rules.minCap && Array.isArray(item.stats) ? item.stats.filter(stat => Number(stat.tier) >= floor).length : 0;
     }
     /** A rare with several top-tier lines: good, or great with even more (data/loot-omens.js fineRare). */
     function ofRare(item) {

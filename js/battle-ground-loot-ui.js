@@ -22,8 +22,11 @@ const battleGroundLoot = (() => {
         const rank = lootMoments.rank(momentOf(lead));
         if (rank >= 3) return 'jackpot';
         if (rank === 2) return 'major';
-        return rank === 1 || getRarityRank(rarity) >= 2 ? 'rare' : 'plain';
+        return (rank === 1 && fxOn('beams', 'good')) || getRarityRank(rarity) >= 2 ? 'rare' : 'plain';
     }
+    /** 발견 연출(장비 드랍 필터 창, game.settings.lootFx): beams and notices the player switched off. */
+    const fxOn = (group, key) => !(game.settings.lootFx && game.settings.lootFx[group] && game.settings.lootFx[group][key] === false);
+    const notice = (kind, text, tone, duration) => { if (fxOn('notices', kind)) showGameToast(text, { tone, duration }); };
     const pileKind = (lead, currency) => (currency ? 'currency' : lead.leaf ? 'leaf' : 'equipment');
     /** A leaf shows the pixel leaf (PIXEL_ICONS.leaf); other items show their inventory art. */
     const LEAF_ART = 'pixel:leaf';
@@ -225,7 +228,7 @@ const battleGroundLoot = (() => {
     }
 
     function beam(marker, receipt) {
-        if (!isMajor(receipt)) return;
+        if (!isMajor(receipt) || !fxOn('beams', marker.dataset.tier === 'jackpot' ? 'jackpot' : 'great')) return;
         marker.dataset.beam = 'true';
         const pillar = document.createElement('div'); pillar.className = 'battle-loot-beam'; marker.prepend(pillar);
         marker.style.setProperty('--beam-height', Math.min(152, canvasBox(canvas).height * .36) + 'px');
@@ -383,8 +386,8 @@ const battleGroundLoot = (() => {
     function revealUnique(item, fresh) {
         const jackpot = lootMoments.ofItem(item) === 'jackpot';
         if (typeof playLootDropSound === 'function') playLootDropSound(true);
-        if (jackpot) showGameToast(`체이싱 고유 장비를 획득했습니다. 「${item.name}」`, { tone: 'chase', duration: 6000 });
-        if (fresh) showGameToast(`도감에 고유 장비를 등록했습니다. 「${item.name}」`, { tone: 'unique', duration: 4500 });
+        if (jackpot) notice('chase', `체이싱 고유 장비를 획득했습니다. 「${item.name}」`, 'chase', 6000);
+        if (fresh) notice('codex', `도감에 고유 장비를 등록했습니다. 「${item.name}」`, 'unique', 4500);
         if (!air || !battleVisualState.playerPos) return;
         const label = document.createElement('span');
         label.className = `battle-loot-reveal${jackpot ? ' is-jackpot' : ''}${fresh ? ' is-new' : ''}`;
@@ -493,7 +496,8 @@ const battleGroundLoot = (() => {
     // A treasure carrier fell (js/atlas-finds.js burstTreasure): a notice (golden treasure in the chase tier's colours) and one log line.
     addEventListener('project-idle:atlas-find', ({ detail }) => {
         if (detail.kind !== 'treasure') return;
-        showGameToast(detail.golden ? '황금 보물을 발견했습니다.' : '보물을 발견했습니다.', { tone: detail.golden ? 'chase' : 'reward', duration: detail.golden ? 6000 : 3600 });
+        if (detail.golden) notice('chase', '황금 보물을 발견했습니다.', 'chase', 6000);
+        else notice('treasure', '보물을 발견했습니다.', 'reward', 3600);
         if (game.settings.showLootLog) addLog(`💰 ${detail.name}: 보물 ${detail.count}개`, detail.golden ? 'loot-unique' : 'loot-rare');
     });
     /** ', 좋은 옵션 N줄' for a rare whose top-tier lines make it a find (data/loot-omens.js fineRare). */

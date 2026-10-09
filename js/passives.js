@@ -9723,23 +9723,23 @@ function boostItemStatValue(statId, value, factor) {
 
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
 // 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
+/** One base line raised to 120% of its best roll and marked exceptional; the item's exceptional fields then list every such line
+ * (a drop's 1% per line below, and the cube's 고유 장비 다시 빚기, js/stump-cube-recipes.js). */
+function boostExceptionalBaseLine(item, stat) {
+    let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
+        : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
+    stat.val = boostItemStatValue(stat.id, max, 1.2);
+    stat.exceptional = true;
+    let names = item.baseStats.filter(row => row && row.exceptional).map(row => row.statName || getStatName(row.id));
+    item.exceptionalBase = true;
+    item.exceptionalStatNames = names;
+    item.exceptionalStatName = names.join(', ');
+    item.exceptionalAllLines = names.length === item.baseStats.length;
+}
+
 function maybeApplyExceptionalBase(item) {
     if (!item || !Array.isArray(item.baseStats) || item.baseStats.length === 0) return item;
-    let names = [];
-    item.baseStats.forEach(stat => {
-        if (!stat || Math.random() >= 0.01) return;
-        let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
-            : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
-        stat.val = boostItemStatValue(stat.id, max, 1.2);
-        stat.exceptional = true;
-        names.push(stat.statName || getStatName(stat.id));
-    });
-    if (names.length > 0) {
-        item.exceptionalBase = true;
-        item.exceptionalStatNames = names;
-        item.exceptionalStatName = names.join(', ');
-        item.exceptionalAllLines = names.length === item.baseStats.length;
-    }
+    item.baseStats.forEach(stat => { if (stat && Math.random() < 0.01) boostExceptionalBaseLine(item, stat); });
     return item;
 }
 
@@ -9907,13 +9907,34 @@ function passesPickupTierCount(item, settings) {
     return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
 }
 
+/** 항상 줍기(2026-10-10): 특출난 베이스, 좋은 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
+const PICKUP_EXCEPTIONS = Object.freeze({
+    exceptional: item => !!item.exceptionalBase,
+    fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,
+    socket: item => !!item.voidSocket || (Array.isArray(item.sockets) && item.sockets.length > 0),
+    corrupted: item => !!item.corrupted,
+    newUnique: item => lootMoments.isNewUnique(item)
+});
+function isPickupException(item, always) {
+    return !!always && Object.entries(PICKUP_EXCEPTIONS).some(([key, test]) => always[key] === true && test(item));
+}
+
+/** 부위와 무기 종류(itemFilterSlots, itemFilterWeaponCategories). A ring's 반지1 or 반지2 counts as 반지. */
+function passesPickupSlot(item, settings) {
+    const slot = String(item.slot || '').replace(/[123]$/, '');
+    if (settings.itemFilterSlots && settings.itemFilterSlots[slot] === false) return false;
+    const category = slot === '무기' ? getWeaponCategoryId(item) : null;
+    return !category || !settings.itemFilterWeaponCategories || settings.itemFilterWeaponCategories[category] !== false;
+}
+
 function passesItemPickupFilter(item) {
     let settings = game.settings || {};
     if (!settings.itemFilterEnabled) return true;
+    if (isPickupException(item, settings.itemFilterAlways)) return true;
     let rarities = { normal: true, magic: true, rare: true, unique: true, ...(settings.itemFilterRarities || {}) };
-    if (!rarities[item.rarity]) return false;
-    let minHiddenTier = Math.max(1, Math.floor(settings.itemFilterMinHiddenTier || 1));
-    if ((item.hiddenTier || item.itemTier || 1) < minHiddenTier) return false;
+    if (!rarities[item.rarity] || !passesPickupSlot(item, settings)) return false;
+    let minTier = Math.max(1, Math.floor((settings.itemFilterMinTiers || {})[item.rarity] || settings.itemFilterMinHiddenTier || 1));
+    if ((item.hiddenTier || item.itemTier || 1) < minTier) return false;
     if (!passesPickupTierCount(item, settings)) return false;
     if (item.rarity === 'unique' && settings.itemFilterOnlyNewCodexUnique) {
         let key = getUniqueCodexKeyByItem(item);
@@ -10160,12 +10181,13 @@ function rollJewelPetiteStat(rarity, excludeIds) {
  * @param {number|{type?: string, storyOrder?: number, id?: number, depth?: number, equivalentChaosDepth?: number, tier?: number}} zoneOrTier
  * @returns {{id: number, name: string, rarity: string, hiddenTier: number, stats: Array<{id: string, val: number, valMin: number, valMax: number, tier: number}>}}
  */
-function generateJewelDrop(zoneOrTier) {
+/** odds: {rare, unique} chances in place of the ordinary ones (보석 광맥 omen, js/loot-omens.js jewelOdds). */
+function generateJewelDrop(zoneOrTier, odds = null) {
     let tier = zoneOrTier && typeof zoneOrTier === 'object'
         ? getRealmEquipmentHiddenTierCap(zoneOrTier)
         : Math.max(1, Number(zoneOrTier) || 1);
     let dropTierRange = getJewelDropTierRange(tier);
-    let uniqueChance = Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
+    let uniqueChance = odds ? odds.unique : Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
     if (Math.random() < uniqueChance) {
         let pool = UNIQUE_JEWEL_DB.filter(v => !v.ultra);
         let ultraPool = UNIQUE_JEWEL_DB.filter(v => v.ultra);
@@ -10184,7 +10206,7 @@ function generateJewelDrop(zoneOrTier) {
         return { id: ++itemIdCounter, uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
     // 주얼 제작이 없어졌으므로(2026-09-30) 옵션 없는 일반 주얼은 떨어지지 않는다: 마법 1~2줄 85%, 희귀 2~4줄 15%.
-    let rarity = Math.random() > 0.85 ? 'rare' : 'magic';
+    let rarity = Math.random() > (odds ? 1 - odds.rare : 0.85) ? 'rare' : 'magic';
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (1 + Math.floor(Math.random() * 2));
     let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;

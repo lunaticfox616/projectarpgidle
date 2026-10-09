@@ -2,7 +2,8 @@
 // 기운: 아틀라스 지도석(지도 노드의 것)마다 하나가 붙어 그 지도에서 무엇이 잘 나오는지 정한다(js/loot-omens.js). 지도석 희귀도가 세기를
 // 정한다(strength, 타락이면 corrupted만큼 더). weight는 뽑힐 비중이고, 그 기운이 줄 것이 아직 하나도 열리지 않았으면 뽑히지 않는다.
 //   drops: 처치마다 chance[등급] × 세기로 목록에서 가중치로 하나를 떨어뜨린다(보스는 bossRolls번 더). '@jewel'은 재화가 아니라 주얼
-//          한 개. [키, 가중치, 개수].
+//          한 개. [키, 가중치, 개수]. gemMul: 그 지도 몬스터의 젬 보상 확률 배율(세기만큼). jewel: 그 지도의 '@jewel'이 희귀(rare),
+//          고유(unique)일 확률(세기를 곱한다).
 //   gear: 장비 기대 개수 배율(quantity), 부위 가중치(slots), 고유 확률 배율(unique), 드랍 변형 배율(variant: 복제, 묶음, 타락).
 //          배율은 세기만큼 커진다: 1 + (값 − 1) × 세기.
 //   bonus: 그 지도 런의 아틀라스 효과(data/atlas-passives.js labels의 키)에 값 × 세기를 더한다.
@@ -24,8 +25,9 @@ const LOOT_OMENS = Object.freeze({
     // 이상. 고유 몫은 보물 무리와 상자에 있으므로 일반 몬스터의 희귀도 띠로 굴린다. 지도와 수호자 지도의 보스만(기억 싸움, 최종 싸움은 없다).
     mapBoss: Object.freeze({ items: 2, extraChance: 0.5, minimum: Object.freeze(['rare', 'magic']) }),
     // 좋은 희귀(2026-10-09): 그 장비가 가질 수 있는 가장 높은 band개 등급(affixTierCap에서 band − 1 아래까지) 안의 옵션이 good줄이면 좋은
-    // 발견, great줄이면 큰 발견(js/loot.js lootMoments). 16등급 지도에서 희귀의 약 10%가 좋은, 1%가 큰 발견이다.
-    fineRare: Object.freeze({ band: 4, good: 2, great: 3 }),
+    // 발견, great줄이면 큰 발견(js/loot.js lootMoments). 16등급 지도에서 희귀의 약 10%가 좋은, 1%가 큰 발견이다. 옵션 등급 상한이
+    // minCap보다 낮은 장비(초반 지역)는 상위 4등급이 거의 모든 등급이라 따지지 않는다.
+    fineRare: Object.freeze({ band: 4, good: 2, great: 3, minCap: 12 }),
     list: Object.freeze([
         { id: 'fossil', name: '화석 광맥', note: '화석이 자주 나옵니다', kind: 'drops', weight: 8, tone: '#c9a46a', drops: Object.freeze([
             ['fossil', 40], ['fossilJagged', 6], ['fossilBound', 6], ['fossilGale', 6], ['fossilPrismatic', 5], ['fossilBulwark', 5],
@@ -53,10 +55,11 @@ const LOOT_OMENS = Object.freeze({
         { id: 'orbs', name: '재화 소나기', note: '제작 재화가 쏟아집니다', kind: 'drops', weight: 4, tone: '#f3d28c', drops: Object.freeze([
             ['magicBud', 10, 2], ['formlessDew', 5], ['blightSpore', 3], ['sapBud', 1.5], ['pruningShears', 1], ['goldenRule', 0.15],
             ['fairyRing', 0.01]]) },
-        { id: 'gems', name: '젬의 정원', note: '젬 잔향과 각성 잔향이 나옵니다', kind: 'drops', weight: 5, tone: '#7fd99a', drops: Object.freeze([
-            ['gemShard', 8], ['awakenedEcho', 1.5]]) },
-        { id: 'jewels', name: '보석 광맥', note: '주얼과 주얼 결정이 나옵니다', kind: 'drops', weight: 5, tone: '#78cfff', drops: Object.freeze([
-            ['jewelShard', 6], ['@jewel', 4]]) },
+        // 2026-10-10 사용자: 젬의 정원, 보석 광맥, 지도 제작자가 밋밋하면 상향. 젬 보상, 좋은 주얼, 높고 희귀한 지도석이 눈에 띄게 늘었다.
+        { id: 'gems', name: '젬의 정원', note: '젬과 각성 잔향이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#7fd99a', drops: Object.freeze([
+            ['gemShard', 8], ['awakenedEcho', 3]]), gemMul: 4 },
+        { id: 'jewels', name: '보석 광맥', note: '주얼이 많이, 더 좋게 나옵니다', kind: 'drops', weight: 5, tone: '#78cfff', drops: Object.freeze([
+            ['jewelShard', 6], ['@jewel', 5]]), jewel: Object.freeze({ rare: 0.35, unique: 0.03 }) },
         { id: 'armory', name: '무기고', note: '무기가 많이 나옵니다', kind: 'gear', weight: 6, tone: '#e0a070',
             gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 무기: 6 }) }) },
         { id: 'jewelry', name: '장신구 함', note: '목걸이, 반지, 허리띠가 많이 나옵니다', kind: 'gear', weight: 6, tone: '#e8c27a',
@@ -69,8 +72,8 @@ const LOOT_OMENS = Object.freeze({
             gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ corrupted: 6 }) }) },
         { id: 'twins', name: '쌍둥이 그림자', note: '같은 장비가 겹쳐 나옵니다', kind: 'gear', weight: 4, tone: '#c8b0e8',
             gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ duplicate: 6, bundle: 6 }) }) },
-        { id: 'maps', name: '지도 제작자', note: '지도석이 많이, 더 좋게 나옵니다', kind: 'bonus', weight: 5, tone: '#d9b066',
-            bonus: Object.freeze({ mapDrop: 120, mapRarity: 50, mapQuality: 15 }) },
+        { id: 'maps', name: '지도 제작자', note: '지도석이 많이, 더 좋고 높게 나옵니다', kind: 'bonus', weight: 5, tone: '#d9b066',
+            bonus: Object.freeze({ mapDrop: 120, mapRarity: 120, mapQuality: 25, mapTierUp: 20 }) },
         { id: 'fragments', name: '각인 무덤', note: '각인이 자주 나옵니다', kind: 'bonus', weight: 4, tone: '#b8a1df',
             bonus: Object.freeze({ fragmentDrop: 250 }) },
         { id: 'chests', name: '보급 행렬', note: '보급 상자가 늘고 좋아집니다', kind: 'bonus', weight: 5, tone: '#e8c27a',

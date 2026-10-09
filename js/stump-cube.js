@@ -1,4 +1,4 @@
-// 조합창(2026-09-30, 그루터기 함 아래 3×3). 저장 game.stumpCube = { slots: [{ kind, id, x, y }] }.
+// 조합창(2026-09-30, 그루터기 함 아래 4×4, 2026-10-10까지 3×3). 저장 game.stumpCube = { slots: [{ kind, id, x, y }] }.
 // 칸에는 재료를 옮기지 않고 가리키기만 한다: 재료는 원래 보관 자리(장비 인벤토리 · 그루터기 함 보관함 · 주얼 보관함 · 코어
 // 보관함)에 그대로 있고, 그 자리를 떠나면(장착 · 해체 · 판에 놓기 · 루프 초기화) 칸에서도 빠진다. [조합]하면 맞는 조합법의
 // 재료를 없애고 결과를 원래 보관 자리에 넣은 뒤, 결과를 다시 칸에 보여 준다. 조합법 표는 data/stump-cube.js,
@@ -146,7 +146,9 @@ const stumpCube = (() => {
         color: entry => entry.item.color,
         family: entry => entry.item.family,
         // 씨앗이 자랄 길(꽃, 열매): 생길 때 정해지므로 합치기는 같은 길끼리만(2026-10-09).
-        path: entry => entry.item.path || ''
+        path: entry => entry.item.path || '',
+        // 고유 이름: 같은 고유 2개 다시 빚기(2026-10-10).
+        name: entry => entry.item.name
     });
 
     function oneOf(value, allowed) {

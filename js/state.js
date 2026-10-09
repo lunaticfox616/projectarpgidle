@@ -2328,6 +2328,13 @@ const defaultGame = {
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
+        // 줍기 필터 세분화(2026-10-10 사용자): 희귀도마다 최소 티어, 부위, 무기 종류, 항상 줍는 예외(js/passives.js passesItemPickupFilter).
+        itemFilterMinTiers: { normal: 1, magic: 1, rare: 1, unique: 1 },
+        itemFilterSlots: { 무기: true, 투구: true, 갑옷: true, 장갑: true, 신발: true, 목걸이: true, 반지: true, 허리띠: true, 방패: true },
+        itemFilterWeaponCategories: { greatsword: true, scimitar: true, shortbow: true, orb: true, flask: true, censer: true },
+        itemFilterAlways: { exceptional: true, fineRare: true, socket: true, corrupted: false, newUnique: true },
+        // 발견 연출(js/battle-ground-loot-ui.js 빛기둥, 알림창): 플레이어가 고른다.
+        lootFx: { beams: { jackpot: true, great: true, good: true }, notices: { chase: true, goldenRule: true, treasure: true, codex: true, leaf: true } },
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
@@ -2444,7 +2451,7 @@ const defaultGame = {
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
-    // 그루터기 함 아래 3×3 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
+    // 그루터기 함 아래 4×4 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
     stumpCube: { slots: [], known: null },
     equipmentTemporaryStorage: [],
     inventory: [],

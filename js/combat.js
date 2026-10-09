@@ -6096,8 +6096,10 @@ function getWispEnemyDefenseBonuses(monsterVariant) {
 }
 
 /** Wisps drop skill gems more often (data/bosses.js WISP_ENEMY_RULES). */
+/** Wisps drop gems more often, and so does an atlas map with the 젬의 정원 omen (enemy.gemDropMul, js/atlas-maps.js applyEnemyMods). */
 function getEnemyGemDropMul(enemy) {
-    return enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
+    const wisp = enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
+    return wisp * (Number(enemy && enemy.gemDropMul) || 1);
 }
 
 function createEnemy(zone, marker, groupIndex) {

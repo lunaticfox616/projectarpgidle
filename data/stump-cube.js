@@ -1,12 +1,16 @@
-// 조합창(2026-09-30, 그루터기 함 아래 3×3): 재료를 넣고 [조합]하면 맞는 조합법대로 바뀐다.
+// 조합창(2026-09-30, 그루터기 함 아래 4×4): 재료를 넣고 [조합]하면 맞는 조합법대로 바뀐다.
 // 재료는 장비(인벤토리 칸 크기 그대로, 무기는 가장 커도 대검의 2×3) · 그루터기 아이템(씨앗 · 수액 · 부적) ·
 // 주얼 · 코어. 조합법은 모양을 묻지 않는다(무엇이 몇 개인지만 본다). 재화 비용은 조합할 때 함께 낸다.
-// 3×3에는 2×2 장비가 하나만 들어가므로 장비 조합법은 "장비 1 + 촉매(다 자란 씨앗 · 호박석 · 주얼)"다.
+// 2026-10-10 사용자: 같은 고유 2개를 조합하려면 2×3 대검 둘이 나란히 들어가야 해서 3×3에서 4×4로 넓혔다.
+// 다른 장비 조합법은 "장비 1 + 촉매(다 자란 씨앗 · 호박석 · 주얼)"다.
 // inputs의 각 줄은 서로 겹치지 않는 조건이다. kind: equipment | stump | jewel | core.
 //   rarity: 희귀도(목록이면 그 가운데 하나) · family: 그루터기 계열 · ripe: 다 자란 것만 · socketable: 공허 소켓을 뚫을 수 있는 장신구
-//   same: 그 줄의 재료끼리 같아야 하는 것(slot 부위 · color 색 · family 계열 · path 씨앗이 자랄 길). need · result는 화면에 쓰는 문장.
-const STUMP_CUBE_SIZE = 3;
+//   same: 그 줄의 재료끼리 같아야 하는 것(slot 부위 · color 색 · family 계열 · path 씨앗이 자랄 길 · name 고유 이름).
+//   need · result는 화면에 쓰는 문장.
+const STUMP_CUBE_SIZE = 4;
 const STUMP_CUBE_STUMP_ROLL_STEP = 0.1;
+// 고유 장비 다시 빚기: 새 고유가 특출난 베이스(베이스 줄 하나가 최고 굴림의 120%)가 될 확률.
+const STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE = 0.15;
 const STUMP_CUBE_RECIPES = Object.freeze([
     { id: 'equip_magic_upgrade', reveal: { harvest: ['flower', 'fruit'] }, group: '장비', need: '마법 장비 1 + 성장 완료된 씨앗(꽃, 열매) 1', name: '마법 장비 승급',
         result: '같은 베이스와 티어의 희귀 장비 1(옵션 새로)',
@@ -14,6 +18,9 @@ const STUMP_CUBE_RECIPES = Object.freeze([
     { id: 'equip_rare_tier', reveal: { harvest: ['amber'] }, group: '장비', need: '희귀 장비 1 + 호박석(성장 완료된 수액) 2', name: '희귀 장비 단련',
         result: '같은 부위 희귀 장비 1, 티어 +1(지금 레벨에서 떨어지는 티어까지)',
         inputs: [{ kind: 'equipment', rarity: 'rare', count: 1 }, { kind: 'stump', family: 'sap', ripe: true, count: 2 }], cost: { formlessDew: 1 } },
+    { id: 'equip_unique_remake', group: '장비', need: '같은 고유 장비 2', name: '고유 장비 다시 빚기',
+        result: `같은 고유 장비 1(옵션 새로, ${Math.round(STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE * 100)}% 확률로 특출난 베이스)`,
+        inputs: [{ kind: 'equipment', rarity: 'unique', count: 2, same: ['name'] }], cost: {} },
     { id: 'equip_unique_reroll', reveal: { harvest: ['flower', 'fruit'] }, group: '장비', need: '고유 장비 1 + 성장 완료된 씨앗(꽃, 열매) 3', name: '고유 장비 순환',
         result: '같은 부위의 다른 고유 장비 1(같은 티어)',
         inputs: [{ kind: 'equipment', rarity: 'unique', count: 1 }, { kind: 'stump', family: 'seed', ripe: true, count: 3 }], cost: {} },
@@ -40,4 +47,4 @@ const STUMP_CUBE_RECIPES = Object.freeze([
         inputs: [{ kind: 'core', count: 3 }], cost: {} }
 ]);
 
-safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_STUMP_ROLL_STEP, STUMP_CUBE_RECIPES });
+safeExposeData({ STUMP_CUBE_SIZE, STUMP_CUBE_STUMP_ROLL_STEP, STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE, STUMP_CUBE_RECIPES });
