@@ -1,0 +1,45 @@
+/* 혼돈 심화 등반(js/loop-climb-ui.js, 2026-10-09 다시 그림). 머리 수치, 루프 조건 체크 목록, 단추, 다시 입장 줄, 예상 획득 칩,
+   영구 강화 단추(능력치 색 --stat-tone). */
+@layer features {
+  #ui-loop10-panel { display: grid; gap: 10px; }
+  .climb-head { display: flex; align-items: center; gap: 16px; }
+  .climb-emblem { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #5e3a80;
+    background: radial-gradient(circle at 50% 45%, rgba(199, 140, 255, .25), transparent 70%), #0d0a12; color: #dcaeff; font-size: 24px; }
+  .climb-head small { display: block; color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  .climb-head b { color: #c7a6ff; font-size: 22px; font-weight: 400; line-height: 1; }
+  .climb-head b.is-points { color: #f3d28c; }
+  .climb-gates { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); }
+  .climb-gates > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .climb-gates ul { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+  .climb-gates li { display: flex; align-items: center; gap: 8px; color: #8a7f6c; font-size: 12px; }
+  .climb-gates li > i { flex: none; width: 8px; height: 8px; border: 1px solid #6a2e26; background: #2a1210; }
+  .climb-gates li.is-on { color: var(--px-copy, #e8dcc0); }
+  .climb-gates li.is-on > i { border-color: #9fd46a; background: #9fd46a; box-shadow: 0 0 4px rgba(159, 212, 106, .6); }
+  .climb-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+  .climb-reentry { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid #2a2218; background: rgba(10, 8, 6, .45); font-size: 12px; }
+  .climb-reentry > span { color: var(--px-copy-muted, #a39883); }
+  .climb-reentry > b { color: #c7a6ff; font-weight: 400; }
+  .climb-reentry > button { justify-self: end; }
+  .climb-gains { display: grid; gap: 6px; }
+  .climb-gains > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .climb-gains > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .climb-gain { display: grid; justify-items: center; gap: 1px; padding: 6px 4px; border: 1px solid #241d14; background: rgba(10, 8, 6, .45); }
+  .climb-gain b { color: #6f6656; font-size: 16px; font-weight: 400; }
+  .climb-gain small { color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  .climb-gain.is-up { border-color: #3d5a26; }
+  .climb-gain.is-up b { color: #9fd46a; }
+  .climb-growth > summary { display: flex; align-items: baseline; gap: 10px; }
+  .climb-growth > summary b { margin-left: auto; color: #f3d28c; font-size: 12px; font-weight: 400; }
+  .climb-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 8px; }
+  #tab-season .climb-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name lv' 'sum sum' 'cost cost'; gap: 2px 8px; padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--stat-tone) 35%, #2a2218); border-radius: 0; background: rgba(10, 8, 6, .5); box-shadow: none; text-align: left; }
+  .climb-stat strong { grid-area: name; color: var(--stat-tone); font-size: 13px; font-weight: 400; }
+  .climb-stat b { grid-area: lv; color: #f3d28c; font-weight: 400; }
+  .climb-stat small { grid-area: sum; color: var(--px-copy-muted, #a39883); font-size: 11px; }
+  .climb-stat em { grid-area: cost; color: #8a7f6c; font-size: 11px; font-style: normal; }
+  @media (max-width: 560px) {
+    .climb-gains > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .climb-reentry { grid-template-columns: minmax(0, 1fr) auto; }
+    .climb-reentry > button { grid-column: 1 / -1; justify-self: stretch; }
+  }
+}

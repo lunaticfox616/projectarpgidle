@@ -460,7 +460,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 예전 스킨의 청회색이 박혀 있던 판도 따뜻한 판으로(패시브 트리 요약 · 검색 목록 · 전장 여백) */
 :root body[data-ui-skin] :is(.search-result-list, .passive-tree-gesture-hint, #passive-investment-summary) { background-color: var(--color-panel-bg); }
 /* 진행 판(루프 패시브 · 전직 · 재능 · 일괄 정리의 접는 판)과 트리 요약: 옛 남색 유리 → 숯빛 판, 먹선 안쪽 어두운 청동 선 */
-:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more, .trait-progress-summary, .loop10-panel, .loop10-entry-box) {
+:root body[data-ui-skin] :is(.progression-workbench, .progression-section, .bulk-manager, .item-card-more, .trait-progress-summary, .loop10-panel) {
   border: 1px solid var(--px-ink);
   border-radius: 0;
   background: var(--px-panel);
@@ -471,7 +471,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 접힌 머리(summary)가 없는 휴대폰에서 판 첫 제목의 도트 글자 윗부분이 판의 overflow에 잘렸다 — 위 여백 */
 :root body[data-ui-skin] .progression-section > h2 { padding-top: 10px; }
 :root body[data-ui-skin] .loop10-panel { padding: 12px; }
-:root body[data-ui-skin] .loop10-entry-box { margin-bottom: 8px; padding: 10px; background: var(--px-wood-dark), var(--px-stone-raised); }
 :root body[data-ui-skin] .loop-passive-orbit { background: radial-gradient(circle, rgba(30, 28, 34, .9) 0 31%, rgba(20, 18, 22, .74) 48%, rgba(8, 5, 8, .22) 70%, transparent 72%); }
 /* 젬 카드 꼬리표(분류 꼬리표도 근접 · 투사체 · 주문 · 범위마다 제 색 — 2026-10-06 사용자 요청, 모두 흰 글씨라 구분이 안 됐다) · 바닥 줄, 오프라인 성장 줄, 클라우드 상태(기본 상태만 — 연결 · 동기화 · 오류 색은 theme.css 그대로) */
 :root body[data-ui-skin] .gem-card-tags .gem-tag--neutral { border-color: var(--px-bronze-lo); background: rgba(8, 5, 8, .5); color: var(--px-copy); }

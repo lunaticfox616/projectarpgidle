@@ -252,11 +252,17 @@ const craftingWorkspaceUi = (() => {
         return root;
     }
 
+    /** 고른 대상이 없으면 착용 장비 칸을 바로 보여 준다(2026-10-09: 작은 단추 둘뿐인 빈 화면이었다). 같은 화면이면 다시 쓰지 않는다. */
+    function workspacePaintEmpty() {
+        const empty='<div class="cl-empty">'+adapter.emptyState()+'</div>';
+        if(renderKey!==empty){root.innerHTML=empty;renderKey=empty;}
+    }
+
     function workspaceRender(reveal=false, controls) {
         if(!workspaceMount(controls))return;
         const item=workspaceSyncTarget();
         if(!root.getClientRects().length){if(auto)workspaceStopAuto('');return;}
-        if(!item){root.innerHTML='<div class="cl-empty">'+adapter.targetControls()+'</div>';renderKey='';return;}
+        if(!item){workspacePaintEmpty();return;}
         const state=workspaceUseState(), stopped=held();
         const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">재화 인벤토리</button></div>
             <div class="cl-workspace">${workspaceItemHtml()}<div class="cl-controls">${workspaceMethodsHtml()}${workspaceGoalHtml()}<div class="cl-action"><small>${esc(workspaceCostText())}</small>

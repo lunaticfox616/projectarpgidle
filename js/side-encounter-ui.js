@@ -206,11 +206,17 @@ const sideEncounterUi = (() => {
         const locked = rift.altarOpen || [TIME_RIFT_PAST_ZONE_ID,TIME_RIFT_FUTURE_ZONE_ID].includes(game.currentZoneId);
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>시간압 ${pressure}</strong>
             <span>혼돈 ${getTimeRiftEquivalentChaosDepth(pressure)} 상당, 전투 난이도 ${getTimeRiftDifficultyTier(pressure)}</span></div>
-            <div class="time-rift-odds"><span>완벽 <b>${Math.round(odds.perfect*100)}%</b><small>옵션 손실 없음</small></span>
-            <span>보통 <b>${Math.round(odds.normal*100)}%</b><small>희귀 옵션 1개 손실</small></span>
-            <span>불안정 <b>${Math.round(odds.unstable*100)}%</b><small>희귀 옵션 2개 손실</small></span></div>
-            <div class="map-expedition-actions"><button type="button" aria-label="시간압 낮추기" onclick="setTimeRiftPressure(-1)" ${locked||pressure<=1?'disabled':''}>−</button>
-            <button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'시간압을 높이면 전투가 어려워지고 완벽 확률이 증가합니다.'}</span></div></div>`;
+            ${timeOddsHtml(odds)}
+            <div class="map-expedition-actions time-rift-stepper"><button type="button" aria-label="시간압 낮추기" onclick="setTimeRiftPressure(-1)" ${locked||pressure<=1?'disabled':''}>−</button>
+            <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 완벽 확률이 오릅니다.'}</span></div></div>`;
+    }
+
+    /** The three fusion outcomes as one stacked bar (gold, blue, red) and a legend with what each one loses (2026-10-09). */
+    function timeOddsHtml(odds) {
+        const rows = [['perfect', '완벽', odds.perfect, '옵션 손실 없음'], ['normal', '보통', odds.normal, '희귀 옵션 1개 손실'], ['unstable', '불안정', odds.unstable, '희귀 옵션 2개 손실']];
+        const bar = rows.map(([key, , value]) => `<i class="is-${key}" style="width:${(value * 100).toFixed(1)}%"></i>`).join('');
+        const legend = rows.map(([key, label, value, loss]) => `<span class="is-${key}"><b>${label} ${Math.round(value * 100)}%</b><small>${loss}</small></span>`).join('');
+        return `<div class="time-rift-odds"><div class="time-rift-oddsbar" aria-hidden="true">${bar}</div><div class="time-rift-legend">${legend}</div></div>`;
     }
 
     function timePast(rift) {

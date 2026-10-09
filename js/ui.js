@@ -9793,6 +9793,11 @@ function buildSporeSummaryHtml() {
 }
 
 
+/** 제작실 첫 화면: 착용 장비 칸(누르면 그 장비가 대상)과 인벤토리에서 고르기. */
+function getCraftEmptyStateHtml() {
+    return `<div class="cl-empty-head"><strong>제작할 장비를 고르세요</strong><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리에서 고르기</button></div>${getCraftPickerBodyHtml('equip')}`;
+}
+
 function getCraftTargetControlsHtml() {
     return `<div class="craft-target-actions"><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">장비</button><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">인벤토리</button></div>`;
 }
@@ -10007,7 +10012,7 @@ function buildCraftActionButtons(item) {
             : '';
             details=selectedUniqueEffectHtml+'<div class="craft-actions">'+equipSelectedButtonHtml+buildCraftActionButtons(selectedItem)+'</div>';
         }
-        craftingWorkspaceUi.render(false,{details,useState:getMobileCraftCurrencyUseState,targetControls:getCraftTargetControlsHtml});
+        craftingWorkspaceUi.render(false,{details,useState:getMobileCraftCurrencyUseState,targetControls:getCraftTargetControlsHtml,emptyState:getCraftEmptyStateHtml});
         document.getElementById('ui-craft-spore-actions').innerHTML=buildSporeSummaryHtml();
     }
     let marketTabBtn = document.getElementById('btn-item-tab-market');
@@ -10122,43 +10127,7 @@ function buildCraftActionButtons(item) {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
-    let loop10Panel = document.getElementById('ui-loop10-panel');
-    let loop10Section = document.getElementById('ui-loop10-section');
-    if (loop10Panel) {
-        let loop10Open = (game.season || 1) >= 10;
-        if (loop10Section) loop10Section.style.display = loop10Open ? 'block' : 'none';
-        if (loop10Open) {
-                game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
-                let deepChaosUnlocked = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
-                let loopRequirementMet = (typeof hasCurrentLoopAbyssRequirementClear === 'function') ? hasCurrentLoopAbyssRequirementClear(game.season || 1) : deepChaosUnlocked;
-                let chaosLoopReady = (typeof hasCurrentLoopChaosRequirementClear === 'function') ? hasCurrentLoopChaosRequirementClear(game.season || 1) : loopRequirementMet;
-                let cosmosLoopReady = (typeof hasCurrentLoopCosmosRequirementClear === 'function') ? hasCurrentLoopCosmosRequirementClear(game.season || 1) : false;
-                let loopRequirementText = getLoopAbyssRequirementText(game.season || 1);
-                let loopButtonsHtml = (game.season || 1) >= 31
-                    ? `<button onclick="chooseLoopAdvancePath('chaos')" ${loopSettlementUi.resetButtonAttr(chaosLoopReady)}>혼돈 루프</button><button onclick="chooseLoopAdvancePath('cosmos')" ${loopSettlementUi.resetButtonAttr(cosmosLoopReady)}>우주계 루프</button>`
-                    : `<button onclick="triggerSeasonReset()" ${loopSettlementUi.resetButtonAttr(loopRequirementMet)}>지금 즉시 루프</button>`;
-                let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
-                let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
-                let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
-                let woodsmanScore = Math.max(0, Math.floor(game.woodsmanPendingScore || 0));
-                let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
-                let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
-                let deepStats = game.loopDeepStats || {};
-                // 능력치마다 그 색(2026-10-06): 한 줄 전체가 같은 파란색이라 어느 능력치가 얼마인지 눈에 안 들어왔다. 곱연산 피해는 피해 색.
-                let deepTone = def => getItemStatToneColor(def.stat || 'pctDmg');
-                let deepTotalLine = `총합 보너스: ${LOOP_DEEP_STATS.map(def => `<span style="color:${deepTone(def)}">${def.label} +${formatLoopDeepValue(def, deepStats[def.key])}</span>`).join(', ')}`;
-                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:15px;">∞ 혼돈 심화 등반</div><div style="color:var(--copy-bright); font-size:12px;">${loopRequirementText} 이후 무한 등반, 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
-                <div class="loop10-entry-box">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}
-                    <div style="margin-top:6px; color:var(--copy-bright);">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button data-exploration-departure onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:var(--copy-bright);">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
-                </div>
-                <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
-                <details id="loop-deep-growth" class="progression-workbench" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화, 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${LOOP_DEEP_STATS.map(def => `<button onclick="allocateLoopDeepStat('${def.key}')">심화 <span style="color:${deepTone(def)}">${def.label}</span> Lv.${deepStats[def.key]||0}<br><small>레벨당 +${def.per}${def.unit}, 비용 ${getLoopDeepStatCost(def.key)}</small></button>`).join('')}</div></div></details>`;
-        }
-    }
+    loopClimbUi.render();
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     let collapsePast = game.settings.collapsePastLoopMilestones !== false;
     let roadmapToggle = document.getElementById('btn-toggle-past-loop-milestones');
