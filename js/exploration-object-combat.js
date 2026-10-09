@@ -139,7 +139,7 @@ actExplorationProgress.objects = (() => {
         if(row.phase==='spent')return;
         const prop=['pot','crate'].includes(row.kind),rng=state.random((run.objects.seed+Math.abs(hashSeed(row.id)))>>>0);
         const drop=state.solid({...row,phase:'spent'})?spillCell(run,row):row;
-        const enemy={id:0,gx:drop.gx,gy:drop.gy,isBoss:false,isElite:false};
+        const enemy=chestEnemy(run,drop);
         const items=prop?rollPropItems(run,enemy,rng):rollItems(run,row,enemy,rng);
         row.phase='spent';row.remainingMs=0;
         if(run.objects.pendingId===row.id){cancel(run);run.destination=null;}
@@ -148,6 +148,13 @@ actExplorationProgress.objects = (() => {
         dispatchRuntimeEvent('exploration-object',{kind:'reward',name:state.name(row),objectKind:row.kind,
             grade:row.grade,cell:{gx:row.gx,gy:row.gy}});
         if(!game.isBackgroundCalculation)queueImportantSave(220);
+    }
+    /** The chest's stand-in enemy carries an atlas map's per-enemy loot multipliers like its monsters (js/loot-omens.js enemyMods): a gear
+     * omen's equipment count and the unique chance. */
+    function chestEnemy(run,cell) {
+        const mods=lootOmens.enemyMods(getZone(run.zoneId));
+        const enemy={id:0,gx:cell.gx,gy:cell.gy,isBoss:false,isElite:false};
+        return mods?Object.assign(enemy,{equipmentDropMul:mods.equipmentMul,uniqueChanceMul:mods.uniqueMul}):enemy;
     }
     /** An opened chest still stands on its cell: its loot falls beside it (a free neighbour near the hero, not the hero's cell). */
     function spillCell(run,row) {
@@ -161,7 +168,7 @@ actExplorationProgress.objects = (() => {
      * `rare` of them at least rare; every item takes one drop-variant draw scaled by the grade (data/maps.js EXPLORATION_CHEST_GRADES). */
     function rollItems(run,row,enemy,rng) {
         const grade=state.grade(row)||{rolls:0,guaranteed:0,rare:0,variantScale:1};
-        const quantity=run.objects.quantity,count=Math.floor(quantity)+Number(rng()<quantity%1)+grade.rolls,items=[];
+        const quantity=run.objects.quantity*(enemy.equipmentDropMul||1),count=Math.floor(quantity)+Number(rng()<quantity%1)+grade.rolls,items=[];
         const zone=getZone(run.zoneId),always=state.isEvent(row)||!contentProgression.canDropCurrency('magicBud');
         for(let i=0;i<count;i++) {
             if(!always&&i>=grade.guaranteed&&rng()>=.45)continue;
@@ -174,7 +181,7 @@ actExplorationProgress.objects = (() => {
     /** A pot or crate now and then holds one piece of equipment (data/maps.js EXPLORATION_PROP_LOOT), more with the map's item
      * quantity. Before 2026-10-07 it held only currency, so a loop-1 pot was always empty. */
     function rollPropItems(run,enemy,rng) {
-        if(rng()>=Math.min(1,EXPLORATION_PROP_LOOT.itemChance*run.objects.quantity))return [];
+        if(rng()>=Math.min(1,EXPLORATION_PROP_LOOT.itemChance*run.objects.quantity*(enemy.equipmentDropMul||1)))return [];
         const item=generateEquipmentDrop(enemy,{zone:getZone(run.zoneId)});
         return item?[item]:[];
     }

@@ -497,6 +497,12 @@ const battleGroundLoot = (() => {
         return next;
     }
 
+    // A treasure carrier fell (js/atlas-finds.js burstTreasure): one log line; golden treasure also takes the banner.
+    addEventListener('project-idle:atlas-find', ({ detail }) => {
+        if (detail.kind !== 'treasure') return;
+        if (detail.golden) showJackpotBanner('황금 보물');
+        if (game.settings.showLootLog) addLog(`💰 ${detail.name}: 보물 ${detail.count}개`, detail.golden ? 'loot-unique' : 'loot-rare');
+    });
     addEventListener('project-idle:floor-loot-collected', ({ detail }) => {
         detail.items.filter(item => item.rarity === 'unique').forEach(revealUnique);
         if (!game.settings.showLootLog) return;

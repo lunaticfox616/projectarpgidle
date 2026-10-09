@@ -60,6 +60,8 @@ var dropSimulation = (() => {
         return roll < 0.35 ? 'rare' : roll < 0.75 ? 'magic' : 'normal';
     }
     function openMap(options) {
+        // 17등급 이상은 세계수 씨앗이 노드 등급을 올린 아틀라스다(js/atlas.js effectiveTier): 지도 안에서 떨어지는 지도석도 그 등급까지 나온다.
+        game.atlas.seeds = Math.max(0, Math.min(ATLAS.seeds.max, Math.ceil((options.tier - 16) / ATLAS.seeds.tierStep)));
         const map = atlasMaps.create(pickNode(options.tier), options.tier, rollRarity(options.rarity), Math.random);
         map.uid = game.atlas.nextUid++;
         // 'random': a dropped stone's roll (js/atlas.js stamp), 'none': an old stone without one, else that omen.
@@ -91,6 +93,7 @@ var dropSimulation = (() => {
             for (const enemy of [...pack.waiting]) {
                 counts[enemy.isBoss ? 'boss' : enemy.isElite ? 'elite' : 'regular']++;
                 if (enemy.treasureCarrier) counts.treasure++;
+                if (enemy.goldenTreasure) counts.golden++;
                 killEnemy(pack, enemy, pStats);
             }
         }
@@ -136,7 +139,7 @@ var dropSimulation = (() => {
     function runMap(options) {
         sink = [];
         const currencies = currencySnapshot(), fragments = { ...game.atlas.fragments }, leaves = leafSnapshot();
-        const counts = { regular: 0, elite: 0, boss: 0, objects: 0, treasure: 0 };
+        const counts = { regular: 0, elite: 0, boss: 0, objects: 0, treasure: 0, golden: 0 };
         const map = openMap(options);
         const run = game.atlas.run, encounters = [...run.encounters], golden = [...run.golden];
         clearMap(counts);

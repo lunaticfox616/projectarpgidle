@@ -62,7 +62,7 @@
     function mapHtml(map, index) {
         const omen = map.map.omen, node = catalog.nodes[map.map.node] || map.map.node;
         const rooms = map.map.encounters.length ? `<span class="sim-room">방 ${map.map.encounters.length}${map.map.golden.length ? ', 황금 방' : ''}</span>` : '';
-        const treasure = map.counts.treasure ? `<span class="sim-room">보물 무리 ${map.counts.treasure}</span>` : '';
+        const treasure = map.counts.treasure ? `<span class="sim-room${map.counts.golden ? ' is-golden' : ''}">${map.counts.golden ? '황금 보물' : '보물 무리'} ${map.counts.treasure}</span>` : '';
         return `<article class="sim-map"><header><b>#${index + 1} ${esc(node)}</b><small>${map.map.tier}등급, ${RARITY[map.map.rarity]}</small>`
             + `${omen ? `<span class="sim-omen" style="--omen:${omen.tone}">${esc(omen.name)} ×${map.map.omenStrength}</span>` : ''}${rooms}${treasure}`
             + `<small>처치 ${map.counts.regular + map.counts.elite + map.counts.boss}, 상자 ${map.counts.objects}</small></header><div class="sim-loot">${lootHtml(map)}</div></article>`;

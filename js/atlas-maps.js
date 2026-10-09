@@ -123,7 +123,8 @@ const atlasMaps = (() => {
         for (const [id, v] of zone.atlasEnemyMods) EFFECTS[id].enemy(enemy, v);
         enemy.dropMul = (Number(enemy.dropMul) || 1) * (1 + zone.atlasLootQuantity / 100);
         enemy.lootRarityMul = 1 + (zone.atlasLootRarity + (enemy.isBoss ? zone.atlasBossRarity : 0)) / 100;
-        // 장비 기운(js/loot-omens.js): 장비 기대 개수와 고유 확률(js/loot.js getEquipmentDropChances, getEquipmentDropRarity).
+        // 지도의 고유 배율과 장비 기운(js/loot-omens.js enemyMods): 장비 기대 개수와 고유 확률(js/loot.js getEquipmentDropChances,
+        // getEquipmentDropRarity). 상자도 같은 배율을 받는다(js/exploration-object-combat.js chestEnemy).
         const omen = lootOmens.enemyMods(zone);
         if (omen) Object.assign(enemy, { equipmentDropMul: omen.equipmentMul, uniqueChanceMul: omen.uniqueMul });
         return enemy;

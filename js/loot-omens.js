@@ -50,10 +50,13 @@ const lootOmens = (() => {
         return found ? { atlasOmen: Object.freeze({ id: found.omen.id, strength: found.strength }) } : {};
     };
     const grow = (value, strength) => 1 + (Number(value || 1) - 1) * strength;
-    /** Per-enemy multipliers of a gear omen (js/atlas-maps.js applyEnemyMods): equipment count and unique chance. */
+    /** Per-enemy multipliers in an atlas map (js/atlas-maps.js applyEnemyMods, and the chest stand-in in js/exploration-object-combat.js):
+     * equipment count from a gear omen, unique chance from the map-wide uniqueMul times a gear omen's. Null outside atlas maps. */
     function enemyMods(zone) {
+        if (!zone || zone.type !== 'atlasMap') return null;
         const found = inZone(zone), gear = found && found.omen.gear;
-        return gear ? { equipmentMul: grow(gear.quantity, found.strength), uniqueMul: grow(gear.unique, found.strength) } : null;
+        return { equipmentMul: gear ? grow(gear.quantity, found.strength) : 1,
+            uniqueMul: LOOT_OMENS.uniqueMul * (gear ? grow(gear.unique, found.strength) : 1) };
     }
     /** Slot weights for an equipment drop in this zone (unlisted slots weigh 1), or null without a slot omen. */
     function slotWeights(zone) {
@@ -80,25 +83,43 @@ const lootOmens = (() => {
         const rolls = Math.floor(chance) + Number(random() < chance % 1) + (enemy.isBoss ? LOOT_OMENS.bossRolls : 0);
         return Array.from({ length: rolls }, () => drawDrop(found.omen, state, random)).filter(Boolean);
     }
-    /** A treasure burst: rolls draws from one drops omen that can reach the hero (the map's own when it is one). */
-    function treasureDrops(zone, state, random) {
+    /** Stray draws: an elite (stray.elite chance, once) or the boss (stray.boss times) also draws from one other drops omen. */
+    function strayDrops(zone, enemy, state, random) {
+        if (!zone || zone.type !== 'atlasMap' || !(enemy.isElite || enemy.isBoss)) return [];
+        const rolls = enemy.isBoss ? LOOT_OMENS.stray.boss : Number(random() < LOOT_OMENS.stray.elite);
+        const own = inZone(zone), pool = LOOT_OMENS.list.filter(omen => omen.kind === 'drops' && available(omen, state) && (!own || omen !== own.omen));
+        return Array.from({ length: rolls }, () => pickWeighted(pool, row => row.weight, random)).filter(Boolean)
+            .map(omen => drawDrop(omen, state, random)).filter(Boolean);
+    }
+    /** A treasure burst: rolls draws from one drops omen that can reach the hero (the map's own when it is one); golden treasure rolls more. */
+    function treasureDrops(zone, state, random, golden = false) {
         const own = inZone(zone), pool = LOOT_OMENS.list.filter(omen => omen.kind === 'drops' && available(omen, state));
         const omen = own && own.omen.kind === 'drops' ? own.omen : pickWeighted(pool, row => row.weight, random);
         if (!omen) return { omen: null, drops: [] };
-        return { omen, drops: Array.from({ length: LOOT_OMENS.treasure.rolls }, () => drawDrop(omen, state, random)).filter(Boolean) };
+        const rolls = golden ? LOOT_OMENS.treasure.golden.rolls : LOOT_OMENS.treasure.rolls;
+        return { omen, drops: Array.from({ length: rolls }, () => drawDrop(omen, state, random)).filter(Boolean) };
     }
+    /** The jackpot of a golden treasure: a currency key that can reach the hero, or '@chase' (a chase unique). */
+    function goldenJackpot(state, random) {
+        const rows = LOOT_OMENS.treasure.golden.jackpot.filter(([key]) => key === '@chase' || contentProgression.canDropCurrency(key, state));
+        const row = pickWeighted(rows, entry => entry[1], random);
+        return row ? row[0] : '@chase';
+    }
+    const packRoll = (salt, pack) => (Math.abs(hashSeed(`${salt}:${pack.key}:${pack.aliveIds[0]}`)) % 10000) / 10000;
     /** Whether an ordinary pack of an atlas map carries treasure: fixed per pack from its key and first enemy, no Math.random draw. */
     function isTreasurePack(zone, pack) {
         if (!zone || zone.type !== 'atlasMap' || pack.stage !== null || pack.encounter || pack.anchor || !pack.waiting.length) return false;
-        return (Math.abs(hashSeed(`treasure:${pack.key}:${pack.aliveIds[0]}`)) % 10000) / 10000 < LOOT_OMENS.treasure.packChance;
+        return packRoll('treasure', pack) < LOOT_OMENS.treasure.packChance;
     }
+    /** Whether a treasure pack holds golden treasure (a second fixed roll of the same pack). */
+    const isGoldenTreasure = pack => packRoll('golden', pack) < LOOT_OMENS.treasure.golden.chance;
     /** @returns {{id:string,name:string,note:string,tone:string,kind:string}|null} */
     const describe = id => {
         const omen = BY_ID.get(id);
         return omen ? { id: omen.id, name: omen.name, note: omen.note, tone: omen.tone, kind: omen.kind } : null;
     };
     const validId = id => typeof id === 'string' && BY_ID.has(id);
-    return Object.freeze({ roll, of, inZone, runBonus, zoneFields, enemyMods, slotWeights, variantMul, killDrops, treasureDrops,
-        isTreasurePack, describe, validId, strengthOf, isItemKind });
+    return Object.freeze({ roll, of, inZone, runBonus, zoneFields, enemyMods, slotWeights, variantMul, killDrops, strayDrops, treasureDrops,
+        goldenJackpot, isTreasurePack, isGoldenTreasure, describe, validId, strengthOf, isItemKind });
 })();
 safeExposeGlobals({ lootOmens });

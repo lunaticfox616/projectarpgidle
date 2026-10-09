@@ -12,9 +12,10 @@ const ATLAS = Object.freeze({
     // 루프마다 이번 루프 혼돈 20을 처음 깨면 받는 지도석(최고 완료 등급 − belowBest).
     starter: Object.freeze({ count: 3, belowBest: 2 }),
     drops: Object.freeze({
-        regular: 0.015, elite: 0.08, bossExtra: 0.35,
+        // 2026-10-09 사용자: 지도석이 넘쳐 귀한 맛이 없다 → 16등급에서 같은 등급 이상이 판마다 1.3개 안팎(드랍 시뮬레이터, 패시브 없이).
+        regular: 0.004, elite: 0.03, bossExtra: 0.05,
         // 지도 안에서 떨어진 지도석의 등급: 한 등급 위 · 같은 등급 · 한~세 등급 아래.
-        tierUp: 0.2, tierSame: 0.55,
+        tierUp: 0.2, tierSame: 0.5,
         magic: 0.25, rare: 0.05, qualityChance: 0.3, quality: 10,
         // 지도 밖: 혼돈 20 이상 보스가 낮은 등급 지도석을 드물게 떨어뜨린다(지도석이 바닥났을 때의 입구).
         outsideDepth: 20, outsideBoss: 0.08, outsideTier: 3

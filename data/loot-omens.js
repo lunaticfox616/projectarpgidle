@@ -7,12 +7,17 @@
 //          배율은 세기만큼 커진다: 1 + (값 − 1) × 세기.
 //   bonus: 그 지도 런의 아틀라스 효과(data/atlas-passives.js labels의 키)에 값 × 세기를 더한다.
 // 보물 무리: 지도의 보통 무리가 treasure.packChance로 "보물을 품은" 무리가 되고, 금빛 테를 두른 그 무리의 일반 몬스터 하나가 쓰러지면
-// 기운 하나의 목록에서 rolls번, 희귀 장비 rareGear개, uniqueChance로 고유 하나를 쏟아낸다.
+// 기운 하나의 목록에서 rolls번, 희귀 장비 rareGear개, uniqueChance로 고유 하나를 쏟아낸다. 그중 golden.chance는 황금 보물이다.
 // 모든 수치는 첫 제안값이다(드랍 시뮬레이터 `npm run drop:sim`, 명령줄 `node scripts/drop-simulate.js`).
 const LOOT_OMENS = Object.freeze({
     strength: Object.freeze({ normal: 1, magic: 1.5, rare: 2, corrupted: 0.5 }),
     chance: Object.freeze({ regular: 0.05, elite: 0.3, boss: 1 }),
     bossRolls: 3,
+    // 떠도는 기운(2026-10-09 사용자: 마법의 새싹은 그대로, 다른 재화를 더): 지도의 기운과 상관없이 정예는 stray.elite 확률로 한 번,
+    // 보스는 stray.boss번 다른 처치 드랍 기운 하나에서 뽑는다. 기운이 처치 드랍이 아닌 지도도 판마다 재화의 색이 섞인다.
+    stray: Object.freeze({ elite: 0.25, boss: 2 }),
+    // 지도의 고유 배율(2026-10-09 사용자: 고유 20판에 하나 → 10판에 하나): 지도 몬스터와 상자의 고유 확률에 곱한다. 고유의 메아리는 그 위에 곱한다.
+    uniqueMul: 2,
     list: Object.freeze([
         { id: 'fossil', name: '화석 광맥', note: '화석이 자주 나옵니다', kind: 'drops', weight: 8, tone: '#c9a46a', drops: Object.freeze([
             ['fossil', 40], ['fossilJagged', 6], ['fossilBound', 6], ['fossilGale', 6], ['fossilPrismatic', 5], ['fossilBulwark', 5],
@@ -69,8 +74,12 @@ const LOOT_OMENS = Object.freeze({
         { id: 'dreams', name: '보스의 꿈', note: '보스의 기억과 변이체가 잘 나옵니다', kind: 'bonus', weight: 3, tone: '#a8c0ff', minLoop: 33,
             bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 }) }
     ].map(Object.freeze)),
-    treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.12, prefix: '보물을 품은', outline: '#ffd75e',
-        sparks: '#fff1a8' }),
+    treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.15, prefix: '보물을 품은', outline: '#ffd75e',
+        sparks: '#fff1a8',
+        // 황금 보물(대박의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리, 찬란한 봉인편린,
+        // 체이싱 고유 '@chase')를 쏟는다. 무리 키의 해시로 정해진다(Math.random을 쓰지 않음).
+        golden: Object.freeze({ chance: 0.04, rolls: 16, prefix: '황금 보물을 품은', outline: '#fff6d8', sparks: '#ffd75e',
+            jackpot: Object.freeze([['fairyRing', 1], ['radiantSealShard', 1], ['@chase', 1]]) }) }),
     // 발견 등급(js/loot.js lootMoments): 바닥 빛기둥과 소리(js/battle-ground-loot-ui.js), 지도 결과, 드랍 시뮬레이터가 같은 표를 쓴다.
     // jackpot은 붉은 금빛 빛기둥과 배너, great는 빛기둥과 큰 소리, good은 반짝임. 재화는 아래 목록이고(어느 콘텐츠에서나 드문 것만 jackpot과
     // great: 깊은 미궁은 원시 고대 화석과 심연 화석을 처치마다 몇 %씩 떨어뜨리므로 화석은 good), 장비는 체이싱 고유 jackpot, 고유와

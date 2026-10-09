@@ -37,7 +37,7 @@ const memoryLeaves = (() => {
     /** @returns {string|null} the leaf an atlas kill drops */
     function rollKill(zone, enemy, random) {
         if (!zone || zone.type !== 'atlasMap') return null;
-        const chance = MEMORY_LEAVES.chance[rankOf(enemy)] * (enemy.treasureCarrier ? MEMORY_LEAVES.treasureMul : 1);
+        const chance = MEMORY_LEAVES.chance[rankOf(enemy)] * (enemy.treasureCarrier ? MEMORY_LEAVES.treasureMul : enemy.atlasGolden ? MEMORY_LEAVES.goldenMul : 1);
         if (random() >= chance) return null;
         const pool = poolFor(zone, enemy), total = pool.reduce((sum, leaf) => sum + leaf.weight, 0);
         let roll = random() * total;

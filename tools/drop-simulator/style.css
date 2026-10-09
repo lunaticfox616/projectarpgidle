@@ -40,6 +40,7 @@ input, select { width: 100%; border: 1px solid var(--line); background: #0a0806;
 .sim-map header small { color: var(--muted); }
 .sim-omen { padding: 0 6px; border: 1px solid color-mix(in srgb, var(--omen) 55%, #2a2218); color: var(--omen); font-size: 12px; }
 .sim-room { color: #ffd75e; font-size: 12px; }
+.sim-room.is-golden { color: #ff9a5c; font-weight: 600; }
 .sim-loot { display: flex; flex-wrap: wrap; gap: 4px; }
 .sim-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 6px 2px 2px; border: 1px solid #2a2218; background: #0f0d0a; color: var(--muted); font-size: 12px; }
 .sim-chip img { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; }

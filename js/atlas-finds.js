@@ -17,22 +17,32 @@ const atlasFinds = (() => {
         dispatchRuntimeEvent('jewel-drop-received', receipt);
         return true;
     }
-    /** A unique of the zone's pools at the kill's item level (as an equipment drop rolling unique would make it). */
-    function grantTreasureUnique(enemy, zone) {
+    /** A unique of the zone's pools at the kill's item level (as an equipment drop rolling unique would make it), or the named one. */
+    function grantTreasureUnique(enemy, zone, name = null) {
         const itemLevel = levelProgression.itemLevel(zone, enemy);
         const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
-        const item = levelProgression.stampItem(generateUniqueItem(cap, null, null, zone), itemLevel);
+        const item = levelProgression.stampItem(generateUniqueItem(cap, null, name, zone), itemLevel);
         return keepEquipmentDrop(enemy, item, { guaranteedKeep: true }) ? [item] : [];
     }
-    /** The treasure carrier fell: rolls draws from one drops omen, rare gear and sometimes a unique, all on its cell. */
+    const chaseName = () => rndChoice(UNIQUE_DB.filter(row => row.ultraRare && !row.dropOnly).map(row => row.name));
+    /** A golden treasure's jackpot: one rare currency or a chase unique. @returns {object[]} the chase unique, if that was it */
+    function grantGoldenJackpot(enemy, zone) {
+        const key = lootOmens.goldenJackpot(game, Math.random);
+        if (key === '@chase') return grantTreasureUnique(enemy, zone, chaseName());
+        keepCurrencyDrop(enemy, key, 1);
+        return [];
+    }
+    /** The treasure carrier fell: rolls draws from one drops omen, rare gear and sometimes a unique, all on its cell. Golden treasure
+     * rolls more, always holds a unique and adds a jackpot. */
     function burstTreasure(enemy, zone) {
-        const rules = LOOT_OMENS.treasure, { omen, drops } = lootOmens.treasureDrops(zone, game, Math.random);
+        const rules = LOOT_OMENS.treasure, golden = !!enemy.goldenTreasure, { omen, drops } = lootOmens.treasureDrops(zone, game, Math.random, golden);
         const granted = drops.filter(drop => grantOmenDrop(enemy, zone, drop)).length;
         const items = [];
         for (let i = 0; i < rules.rareGear; i++) items.push(...grantEquipmentPick(enemy, zone, 'rare'));
-        if (Math.random() < rules.uniqueChance) items.push(...grantTreasureUnique(enemy, zone));
-        dispatchRuntimeEvent('atlas-find', { kind: 'treasure', omen: omen ? omen.id : null, name: enemy.name, count: granted + items.length,
-            unique: items.some(item => item.rarity === 'unique'), cell: { gx: enemy.gx, gy: enemy.gy } });
+        if (golden || Math.random() < rules.uniqueChance) items.push(...grantTreasureUnique(enemy, zone));
+        if (golden) items.push(...grantGoldenJackpot(enemy, zone));
+        dispatchRuntimeEvent('atlas-find', { kind: 'treasure', golden, omen: omen ? omen.id : null, name: enemy.name,
+            count: granted + items.length + Number(golden), unique: items.some(item => item.rarity === 'unique'), cell: { gx: enemy.gx, gy: enemy.gy } });
     }
     /** A picked-up memory leaf (js/memory-leaves.js): counted, then announced ('memory-leaf', js/memory-leaves-ui.js). */
     function receiveMemoryLeaf(id) {
@@ -52,6 +62,7 @@ const atlasFinds = (() => {
     function onAtlasKill(zone, enemy) {
         if (!zone || zone.type !== 'atlasMap') return;
         lootOmens.killDrops(zone, enemy, game, Math.random).forEach(drop => grantOmenDrop(enemy, zone, drop));
+        lootOmens.strayDrops(zone, enemy, game, Math.random).forEach(drop => grantOmenDrop(enemy, zone, drop));
         const leaf = memoryLeaves.rollKill(zone, enemy, Math.random);
         if (leaf) grantMemoryLeaf(enemy, leaf);
         if (enemy.treasureCarrier) burstTreasure(enemy, zone);
@@ -60,9 +71,10 @@ const atlasFinds = (() => {
      * its trait colour, js/ui.js getEnemyOutlineStyle, so it carries the treasure only in a pack of elites). */
     function dressTreasurePack(zone, pack) {
         if (pack.alert || !lootOmens.isTreasurePack(zone, pack)) return;
-        const rules = LOOT_OMENS.treasure, leader = pack.waiting.find(enemy => !enemy.isElite) || pack.waiting[0];
+        const golden = lootOmens.isGoldenTreasure(pack), rules = golden ? LOOT_OMENS.treasure.golden : LOOT_OMENS.treasure;
+        const leader = pack.waiting.find(enemy => !enemy.isElite) || pack.waiting[0];
         pack.treasure = true;
-        Object.assign(leader, { treasureCarrier: true, name: `${rules.prefix} ${leader.name}`, encounterOutline: rules.outline,
+        Object.assign(leader, { treasureCarrier: true, goldenTreasure: golden, name: `${rules.prefix} ${leader.name}`, encounterOutline: rules.outline,
             encounterSparks: rules.sparks });
     }
     return Object.freeze({ onAtlasKill, dressTreasurePack, receiveMemoryLeaf });
