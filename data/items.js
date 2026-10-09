@@ -425,6 +425,10 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
     })
 });
 
+// 바뀐 고유 이름(옛 이름 → 새 이름). 저장된 장비, 도감, 사냥 목표, 체이싱 기록은 불러올 때 새 이름으로 옮긴다(js/save-migrations.js
+// renameRetiredUniques). 2026-10-10 사용자: 붉은 제단, 푸른 제단 최종 보스 이름을 바꾸며 그 고유도 바꿨다.
+const RENAMED_UNIQUES = Object.freeze({ '총주교의 성화 장갑': '대사제의 성화 장갑', '포식자의 이빨띠': '갉는 자의 이빨띠' });
+
 // Phase-1 extracted data (global compatibility).
 const UNIQUE_DB = [
     { name: "첫 계약", slots: ["무기"], reqTier: 1, uniqueEffect: "소환수 최대 한도 +1", uniqueEffectKey: "summonCapBonus", uniqueEffectParams: { cap: 1 }, stats: [{ id: "summonFlatDmg", min: 4, max: 8 }, { id: "summonPctDmg", min: 12, max: 18 }, { id: "summonEfficiency", min: 6, max: 10 }, { id: 'summonResPen', min: 14.7, max: 16.8 }, { id: 'critDmg', min: 46.7, max: 53.1 }] },
@@ -550,8 +554,8 @@ const UNIQUE_DB = [
     { name: "정원사의 가지 왕관", slots: ["투구"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "모든 스킬 젬 레벨 +2", uniqueEffectKey: "uniqueGemLevelBonus", uniqueEffectParams: { level: 2 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "resAll", min: 14, max: 20 }, { id: "energyShieldPct", min: 28, max: 40 }, { id: "critDmg", min: 40, max: 60 }] },
     { name: "장로의 썩은 심장", slots: ["목걸이"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "타격 시 적 카오스 저항 -3% (최대 12중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 3, maxStacks: 12 }, stats: [{ id: "chaosPctDmg", min: 30, max: 45 }, { id: "resChaos", min: 20, max: 30 }, { id: "flatHp", min: 100, max: 150 }, { id: "leech", min: 0.8, max: 1.4 }] },
     { name: "엮인 나이테", slots: ["반지"], reqTier: 22, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "반대편 반지의 모든 효과를 복사", uniqueEffectKey: "mirrorOppositeRing", stats: [] },
-    { name: "총주교의 성화 장갑", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "firePctDmg", min: 30, max: 45 }, { id: "resF", min: 20, max: 30 }, { id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }] },
-    { name: "포식자의 이빨띠", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "흡혈의 15% 즉시 적용, 8% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 15, doubleDamageChance: 8 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "leech", min: 1, max: 1.6 }, { id: "resChaos", min: 15, max: 25 }, { id: "armorPct", min: 20, max: 30 }] },
+    { name: "대사제의 성화 장갑", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "firePctDmg", min: 30, max: 45 }, { id: "resF", min: 20, max: 30 }, { id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }] },
+    { name: "갉는 자의 이빨띠", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "흡혈의 15% 즉시 적용, 8% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 15, doubleDamageChance: 8 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "leech", min: 1, max: 1.6 }, { id: "resChaos", min: 15, max: 25 }, { id: "armorPct", min: 20, max: 30 }] },
     { name: "금고지기의 열쇠꾸러미", slots: ["반지"], reqTier: 16, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "resAll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 90 }] },
     // 플라스크 · 향로 고유 장비(2026-10-03).
     { name: "넘치는 시약병", slots: ["무기"], reqTier: 5, uniqueEffect: "적 처치 시 초과 피해를 주변 적에게 전달", uniqueEffectKey: "overkillSplash", stats: [{ id: "flatDmg", min: 18, max: 26 }, { id: "potionPctDmg", min: 20, max: 30 }, { id: "aoePctDmg", min: 15, max: 22 }, { id: "poisonChance", min: 8, max: 12 }] },
@@ -1132,4 +1136,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

@@ -253,7 +253,23 @@ function legacySocketStores(merged) {
 }
 
 /** Slot corrections preserve ownership, even when the inventory is already full. */
+/** Uniques renamed since the save was written (data/items.js RENAMED_UNIQUES): worn, carried, stashed, on the altar, in loadouts. */
+function renameRetiredUniques(state) {
+    const rename = item => {
+        if (item && item.rarity === 'unique' && RENAMED_UNIQUES[item.name]) item.name = RENAMED_UNIQUES[item.name];
+    };
+    Object.values(state.equipment).forEach(rename);
+    state.inventory.forEach(rename);
+    state.offlineProgress.stash.forEach(rename);
+    rename(state.timeRift.altarUnique);
+    state.seasonChaseUniqueDrops = state.seasonChaseUniqueDrops.map(name => RENAMED_UNIQUES[name] || name);
+    (state.equipmentLoadouts?.presets || []).forEach(preset => Object.values(preset?.slots || {}).forEach(ref => {
+        if (ref && RENAMED_UNIQUES[ref.name]) ref.name = RENAMED_UNIQUES[ref.name];
+    }));
+}
+
 function reconcileUniqueEquipmentSave(state) {
+    renameRetiredUniques(state);
     for (const [slot, item] of Object.entries(state.equipment)) {
         if (!item?.uniqueBaseLegacy || getEquipCandidateSlots(item, state).includes(slot)) continue;
         delete item.legacyRequirementGrace;
@@ -295,7 +311,10 @@ function normalizeGemEnhanceTargetSave(merged) {
 function migrateUniqueCodexKeys(records) {
     for (const [key, found] of Object.entries(records)) {
         const next = migrateUniqueCodexKey(key);
-        if (found && typeof found === 'object' && found.rarity === 'unique') normalizeItem(found);
+        if (found && typeof found === 'object' && found.rarity === 'unique') {
+            found.name = RENAMED_UNIQUES[found.name] || found.name;
+            normalizeItem(found);
+        }
         if (next === key) continue;
         if (found && typeof found === 'object') found.slot = next.split('|')[0];
         records[next] ||= found;
@@ -304,8 +323,11 @@ function migrateUniqueCodexKeys(records) {
 }
 
 function migrateUniqueCodexKey(key) {
-    const name = String(key).slice(String(key).indexOf('|') + 1);
-    const slot = UNIQUE_EQUIPMENT_RULES[name]?.slot;
+    const text = String(key), cut = text.indexOf('|');
+    const written = text.slice(cut + 1), name = RENAMED_UNIQUES[written] || written;
+    // A renamed unique keeps the slot its key already names unless its rule moved it.
+    const keptSlot = name !== written && cut > 0 ? text.slice(0, cut) : '';
+    const slot = UNIQUE_EQUIPMENT_RULES[name]?.slot || keptSlot;
     return slot ? `${slot}|${name}` : key;
 }
 
