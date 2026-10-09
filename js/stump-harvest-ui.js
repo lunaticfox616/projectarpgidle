@@ -1,8 +1,8 @@
-// 수확 일지와 그루터기 함 해금(2026-10-07 해금 1차, docs/stump-box-unlocks-review-20261007.md): 처음 다 자란 꽃, 열매, 호박석 × 4색
-// 12칸, 줄을 채우면 받는 선물(색을 골라 씨앗이나 수액 1개), 해금 목록(보관함, 뿌리 기억), 새로 열린 해금과 조합법, 뿌리 기억의 알림.
-// 수확 일지와 함 해금은 그루터기 함 아래 탭에 하나씩 보인다(2026-10-09). 16번의 부적 도감(부적 탭)과 루프 전환 소식(포식, 번식,
-// 봉인 칸)은 js/stump-ripening-ui.js가 준다.
-// 그리기와 클릭은 js/stump-box-ui.js가 맡고(#stump-box-more 탭, 'harvest-gift'), 규칙과 계산은 js/stump-box.js와 js/stump-cube.js.
+// 수확 일지와 그루터기 함 해금(2026-10-07 해금 1차, docs/stump-box-unlocks-review-20261007.md): 처음 성장 완료된 꽃, 열매, 호박석 × 4색
+// 12칸, 줄을 채우면 받는 보상(색을 골라 씨앗이나 수액 1개), 해금 목록(보관함, 뿌리 기억), 새로 열린 해금과 조합법, 뿌리 기억의 알림.
+// 수확 일지와 함 해금은 그루터기 함 아래 탭에 하나씩 보인다(2026-10-09). 받을 보상(줄 완성 보상과 씨앗 주머니)은 머리줄 단추 하나와
+// 그 단추가 여는 창이다. 16번의 부적 도감(부적 탭)과 루프 전환 소식(포식, 번식, 봉인 칸)은 js/stump-ripening-ui.js가 준다.
+// 탭 그리기와 클릭은 js/stump-box-ui.js가 맡고(#stump-box-more 탭, 'rewards'), 규칙과 계산은 js/stump-box.js와 js/stump-cube.js.
 const stumpHarvestUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
     const ROWS = Object.keys(STUMP_BOX_HARVEST.rows);
@@ -30,10 +30,16 @@ const stumpHarvestUi = (() => {
         const page = JOURNAL_DB[when.journal];
         return open || !page.hidden ? `저널 '${page.title}'` : '숨은 저널';
     }
+    /** One 함 해금 row: condition on the left, reward on the right (2026-10-09 사용자), open rows lit with a check mark. */
+    function unlockRow(row, open) {
+        return `<li class="${open ? 'is-on' : ''}"><span class="stump-unlock-mark" aria-label="${open ? '열림' : '잠김'}"></span>`
+            + `<span class="stump-unlock-when">${esc(unlockWhen(row, open))}</span><span class="stump-unlock-arrow" aria-hidden="true">→</span>`
+            + `<strong class="stump-unlock-reward">${esc(row.label)}</strong></li>`;
+    }
     function unlocksHtml() {
         const open = new Set(stumpBox.openUnlocks(game).map(row => row.id));
-        return '<ul class="stump-unlocks">' + STUMP_BOX_UNLOCKS.map(row => `<li class="${open.has(row.id) ? 'is-on' : ''}">`
-            + `<strong>${esc(row.label)}</strong><small>${esc(unlockWhen(row, open.has(row.id)))}</small></li>`).join('') + '</ul>';
+        return '<div class="stump-unlocks-head" aria-hidden="true"><span>조건</span><span>보상</span></div>'
+            + `<ul class="stump-unlocks">${STUMP_BOX_UNLOCKS.map(row => unlockRow(row, open.has(row.id))).join('')}</ul>`;
     }
     /** The 수확 일지 tab: 3 rows × 4 colours (grown ones lit; the count is on the tab) and what a full row gives. */
     function journalHtml() {
@@ -42,17 +48,64 @@ const stumpHarvestUi = (() => {
             + '<p class="stump-hint">한 줄을 채우면 보상을 받습니다.</p>';
     }
 
-    // ── 줄 선물 ─────────────────────────────────────────────
-    function giftRow(row) {
-        const family = STUMP_BOX_HARVEST.rows[row], kind = STUMP_BOX_STAGES[family].label;
-        const buttons = COLORS.map(color => `<button type="button" data-stump-action="harvest-gift" data-row="${row}" data-color="${color}"`
-            + ` style="--stump-tone:${tone(color)}" aria-label="${STUMP_BOX_COLORS[color].label} ${kind} 받기">`
-            + `<img src="assets/px/stump/${family}-${color}.png" alt="" draggable="false">${STUMP_BOX_COLORS[color].label}</button>`).join('');
-        return `<div class="stump-starter-row"><span>${ROW_LABELS[row]} 줄 완성<small>품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%</small></span>${buttons}</div>`;
+    // ── 받을 보상(2026-10-09 사용자: 단추 하나로 줄이고, 누르면 창에서 왜 받는지 한 줄과 함께 고른다) ──────────
+    // 수확 일지 줄 완성 보상(색을 골라 씨앗이나 수액 1개)과 씨앗 주머니(셋 가운데 하나). 고르면 js/stump-box-ui.js claimReward가 받는다.
+    const REWARD_DIALOG = 'stump-reward-dialog';
+    function pendingRewardCount() { return stumpBox.pendingGifts(game).length + stumpBox.pendingPouches(game).length; }
+    /** The head's one button (gold while something waits); '' when nothing does. */
+    function rewardButtonHtml() {
+        const count = pendingRewardCount();
+        return count ? `<button type="button" class="stump-reward-button" data-stump-action="rewards">받을 보상 ${count}</button>` : '';
     }
-    /** Completed rows whose gift is waiting, one row each: pick a colour (the 받을 선물 card adds the heading). */
-    function giftsHtml() {
-        return stumpBox.pendingGifts(game).map(giftRow).join('');
+    /** '화염 꽃 씨앗', '냉기 수액': what a choice gives. */
+    function rewardName(family, color, path) {
+        const colour = STUMP_BOX_COLORS[color].label;
+        return family === 'sap' ? `${colour} 수액` : `${colour} ${STUMP_BOX_STAGES[path || 'flower'].label} 씨앗`;
+    }
+    function rewardChoice(attrs, family, color, path, note) {
+        return `<button type="button" class="stump-reward-choice" ${attrs} style="--stump-tone:${tone(color)}">`
+            + `<img src="assets/px/stump/${family}-${color}.png" alt="" draggable="false"><span>${esc(rewardName(family, color, path))}</span><small>${note}</small></button>`;
+    }
+    function giftSection(row) {
+        const family = STUMP_BOX_HARVEST.rows[row], quality = `품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%`;
+        const choices = COLORS.map(color => rewardChoice(`data-reward-gift="${row}" data-color="${color}"`, family, color, row, quality)).join('');
+        return `<section class="stump-reward"><h4>${ROW_LABELS[row]} 줄 완성 보상</h4>`
+            + `<p>수확 일지의 ${ROW_LABELS[row]} 4색을 모두 성장 완료한 보상입니다. 색을 하나 고르세요.</p>`
+            + `<div class="stump-reward-choices">${choices}</div></section>`;
+    }
+    /** Why a seed pouch came: the journal page of its unlock row. */
+    function pouchReason(id) {
+        const row = STUMP_BOX_UNLOCKS.find(entry => entry.id === id), page = row && JOURNAL_DB[row.when.journal];
+        return page ? `저널 '${page.title}' 획득 보상입니다.` : '저널 획득 보상입니다.';
+    }
+    function pouchSection(id) {
+        const choices = stumpBox.pouchOffers(game, id).map((offer, index) => rewardChoice(`data-reward-pouch="${esc(id)}" data-index="${index}"`,
+            'seed', offer.color, offer.path, `품질 ${Math.round(offer.roll * 100)}%`)).join('');
+        return `<section class="stump-reward"><h4>씨앗 주머니</h4><p>${esc(pouchReason(id))} 3개 중 1개를 고르세요.</p>`
+            + `<div class="stump-reward-choices is-three">${choices}</div></section>`;
+    }
+    function rewardsBody() {
+        const sections = stumpBox.pendingGifts(game).map(giftSection).concat(stumpBox.pendingPouches(game).map(pouchSection));
+        return sections.join('') || '<p class="selection-overlay-help">받을 보상이 없습니다.</p>';
+    }
+    /** Opens (or redraws) the rewards window. Pouch offers rolled just now are saved at once, so a reload shows the same three. */
+    function openRewards() {
+        const fresh = stumpBox.pendingPouches(game).some(id => !game.stumpBox.pouches.offers[id]);
+        const panel = selectionDialog.show({ id: REWARD_DIALOG, title: '받을 보상', panelClass: 'stump-reward-panel', body: rewardsBody() });
+        if (fresh) queueImportantSave(300);
+        const overlay = panel && panel.parentElement;
+        if (overlay && !overlay.dataset.rewardBound) {
+            overlay.dataset.rewardBound = '1';
+            overlay.addEventListener('click', onRewardClick);
+        }
+    }
+    function onRewardClick(event) {
+        const gift = event.target.closest('[data-reward-gift]'), pouch = event.target.closest('[data-reward-pouch]');
+        if (gift) stumpBoxUi.claimReward('gift', gift.dataset.rewardGift, gift.dataset.color);
+        else if (pouch) stumpBoxUi.claimReward('pouch', pouch.dataset.rewardPouch, Number(pouch.dataset.index));
+        else return;
+        if (pendingRewardCount()) openRewards();
+        else selectionDialog.close(REWARD_DIALOG);
     }
 
     // ── 알림 ───────────────────────────────────────────────
@@ -113,6 +166,6 @@ const stumpHarvestUi = (() => {
         window.addEventListener('project-idle:stump-box-regressed', event => announceRegress(event.detail || {}));
     }
 
-    return Object.freeze({ journalHtml, unlocksHtml, giftsHtml, announceUnlocks, announceRecipes, announceGraftJournal, describeUnlock });
+    return Object.freeze({ journalHtml, unlocksHtml, rewardButtonHtml, openRewards, announceUnlocks, announceRecipes, announceGraftJournal, describeUnlock });
 })();
 safeExposeGlobals({ stumpHarvestUi });

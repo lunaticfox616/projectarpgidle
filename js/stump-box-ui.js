@@ -101,6 +101,7 @@ const stumpBoxUi = (() => {
         const notes = [`칸 ${stumpBox.openCount(game)}/25`, result.suppressed.size ? `<span class="is-bad">비활성 ${result.suppressed.size}</span>` : '',
             stumpBox.graftOpen(game) ? `<span class="is-graft">접붙이기 ${stumpBox.graftPoints(game).free}</span>` : ''].filter(Boolean);
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(', ')}</span>`
+            + stumpHarvestUi.rewardButtonHtml()
             + '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙">?</button>';
     }
     /** 옵션 합계 under the cube: what the working items add up to, each line in its stat's colour (the item affix colours, 2026-10-06). */
@@ -259,12 +260,7 @@ const stumpBoxUi = (() => {
         return html ? { html, tone: '#8a7a5c' } : null;
     }
 
-    // ── 선물·보관함 ─────────────────────────────────────────
-    /** 받을 선물: 수확 일지의 줄 선물(색을 골라 받는다)과 씨앗 주머니(셋 가운데 하나). 시작 선물은 함을 얻으면 바로 준다(grantStumpStarter). */
-    function stumpStarterHtml() {
-        const rows = stumpHarvestUi.giftsHtml() + stumpRipeningUi.pouchHtml();
-        return rows ? `<h3>받을 보상</h3>${rows}` : '';
-    }
+    // ── 보관함 ─────────────────────────────────────────────
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
         const classes = `stump-item${item.id === selectedId ? ' is-selected' : ''}${stumpRipeningUi.isGolden(item) ? ' is-golden' : ''}`;
@@ -351,7 +347,6 @@ const stumpBoxUi = (() => {
         paintStumpPart('stump-cube', stumpCubeUi.cubeHtml());
         paintStumpPart('stump-box-summary', stumpSummaryHtml(result));
         paintStumpPart('stump-box-detail', stumpDetailHtml(result));
-        paintStumpPart('stump-box-starter', stumpStarterHtml());
         paintStumpPart('stump-box-storage', stumpStorageHtml());
         paintStumpPart('stump-box-more', stumpMoreHtml());
         // 따라 하기(시작 선물 놓기)는 고를 때마다 가리키는 칸을 옮긴다: 보관함의 씨앗 → 판의 빈 칸(젬 고르기 창과 같은 방식).
@@ -524,7 +519,7 @@ const stumpBoxUi = (() => {
         bulk: data => bulkStump(data.kind),
         'more-tab': data => { moreTab = data.tab; renderStumpBoxTab(true); },
         deselect: () => selectStumpItem(null),
-        'harvest-gift': data => claimHarvestGift(data.row, data.color),
+        rewards: () => stumpHarvestUi.openRewards(),
         filter: data => { colorFilter = data.filter; renderStumpBoxTab(true); },
         'talisman-unseal': data => unsealTalisman(data.source),
         'talisman-exchange': data => { if (stumpTalismanUi.exchange(Number(data.index))) commitStumpChange(); },
@@ -534,7 +529,6 @@ const stumpBoxUi = (() => {
         'graft-raise': data => graftStumpCell(Number(data.cell), true),
         'graft-lower': data => graftStumpCell(Number(data.cell), false),
         seal: data => sealStumpCell(Number(data.cell)),
-        pouch: data => chooseStumpPouch(data.pouch, Number(data.index)),
         'scar-discard': () => discardScar(),
         'cube-cell': data => stumpCubeUi.takeOutCubeCell(Number(data.cell)),
         'cube-open': () => stumpCubeUi.openCubePicker(),
@@ -652,6 +646,12 @@ const stumpBoxUi = (() => {
         renderStumpBoxTab(true);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage };
+    /** A reward picked in the rewards window (js/stump-harvest-ui.js): a journal row's gift or a seed pouch's offer. */
+    function claimReward(kind, key, choice) {
+        if (kind === 'gift') claimHarvestGift(key, choice);
+        else chooseStumpPouch(key, choice);
+    }
+
+    return { renderStumpBoxTab, refreshStumpTabNow, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, claimReward };
 })();
 safeExposeGlobals({ stumpBoxUi });

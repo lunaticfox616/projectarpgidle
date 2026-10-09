@@ -86,23 +86,36 @@ const stumpTalismanUi = (() => {
         return rows.length ? `<h4 class="stump-talisman-title">깨어난 부적</h4><ul class="stump-stats">${rows.join('')}</ul>` : '';
     }
 
-    function unsealButton(key) {
-        const ready = owned(key) >= TALISMAN_UNSEAL_RULES[key].cost;
-        return `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>${shardName(key)} 풀기 (${owned(key)})</button>`;
+    // 부적 탭(2026-10-09 사용자 "너무 버튼밖에 없어서 이상해, 고급스럽게"): 편린마다 카드(잠든 부적 그림, 이름, 보유, 옵션 줄 수와 고유 확률,
+    // 풀기), 편린 교환은 모은 정도가 보이는 줄. 편린 셋은 나오는 부적의 격(마법, 희귀, 고유)의 색과 그림을 쓴다.
+    const SHARD_RARITY = Object.freeze({ sealShard: 'magic', strongSealShard: 'rare', radiantSealShard: 'unique' });
+    const shardTone = key => TALISMAN_RARITY_TONES[SHARD_RARITY[key]] || TALISMAN_RARITY_TONES.magic;
+    const linesText = range => (range[0] === range[1] ? `${range[0]}줄` : `${range[0]}~${range[1]}줄`);
+    const chanceText = chance => `${Math.round(chance * 1000) / 10}%`;
+    function shardCard(key) {
+        const rule = TALISMAN_UNSEAL_RULES[key], have = owned(key), ready = have >= rule.cost;
+        return `<div class="stump-shard-card${ready ? ' is-ready' : ''}" style="--shard-tone:${shardTone(key)}">`
+            + `<img src="assets/px/stump/sealed-${SHARD_RARITY[key] || 'magic'}.png" alt="" draggable="false">`
+            + `<strong>${esc(shardName(key))}</strong><span class="stump-shard-count">보유 <b>${have}</b></span>`
+            + `<small>옵션 ${linesText(rule.lines)}, 고유 ${chanceText(rule.uniqueChance)}</small>`
+            + `<button type="button" data-stump-action="talisman-unseal" data-source="${key}"${ready ? '' : ' disabled'}>풀기</button></div>`;
+    }
+    function exchangeRow(row, index) {
+        const have = owned(row.from), ready = have >= row.cost, fill = Math.min(100, Math.floor(have / row.cost * 100));
+        return `<div class="stump-exchange-row${ready ? ' is-ready' : ''}">`
+            + `<span class="stump-exchange-from" style="--shard-tone:${shardTone(row.from)}">${esc(shardName(row.from))} ${row.cost}</span>`
+            + `<span class="stump-exchange-arrow" aria-hidden="true">→</span>`
+            + `<span class="stump-exchange-to" style="--shard-tone:${shardTone(row.to)}">${esc(shardName(row.to))} 1</span>`
+            + `<span class="stump-exchange-bar" style="--shard-tone:${shardTone(row.from)}"><i style="width:${fill}%"></i></span><small>${have}/${row.cost}</small>`
+            + `<button type="button" data-stump-action="talisman-exchange" data-index="${index}"${ready ? '' : ' disabled'}>교환</button></div>`;
     }
 
-    function exchangeButton(row, index) {
-        const ready = owned(row.from) >= row.cost;
-        return `<button type="button" data-stump-action="talisman-exchange" data-index="${index}"${ready ? '' : ' disabled'}>`
-            + `${shardName(row.from)} ${row.cost} → ${shardName(row.to)} 1</button>`;
-    }
-
-    /** 봉인 풀기 · 편린 교환 (해금 목록의 '부적'을 연 뒤, 그루터기 함의 부적 탭). */
+    /** 부적 풀기와 편린 교환 (해금 목록의 '부적'을 연 뒤, 그루터기 함의 부적 탭). */
     function unsealHtml() {
         if (!contentProgression.isUnlocked('talisman')) return '';
         return '<h3>부적 풀기 <small>편린: 고대 미궁에서 획득</small></h3>'
-            + `<div class="stump-talisman-unseal">${Object.keys(TALISMAN_UNSEAL_RULES).map(unsealButton).join('')}</div>`
-            + `<div class="stump-talisman-unseal">${TALISMAN_SHARD_EXCHANGE.map(exchangeButton).join('')}</div>`;
+            + `<div class="stump-shard-cards">${Object.keys(TALISMAN_UNSEAL_RULES).map(shardCard).join('')}</div>`
+            + `<h3>편린 교환</h3><div class="stump-exchange">${TALISMAN_SHARD_EXCHANGE.map(exchangeRow).join('')}</div>`;
     }
 
     function refuse(reason) {
