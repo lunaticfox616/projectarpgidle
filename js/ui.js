@@ -4612,129 +4612,6 @@ function withdrawUniqueFromCodex(key) {
 }
 
 
-function getFirstNewCodexSlot(pool, newlyRegistered) {
-    let slots = getCodexSlotOrder();
-    for (let slot of slots) {
-        let found = pool.some(entry => {
-            let key = `${slot}|${entry.name}`;
-            return (entry.slots || [])[0] === slot && !!newlyRegistered[key] && !!game.uniqueCodex[key];
-        });
-        if (found) return slot;
-    }
-    return null;
-}
-
-function toggleCodexSlotCollapse(slot) {
-    game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
-    game.codexCollapsedSlots[slot] = !game.codexCollapsedSlots[slot];
-    updateStaticUI();
-}
-
-function setCodexSlotFilter(slot) {
-    if (!getCodexSlotOrder().includes(slot)) return;
-    game.codexSelectedSlot = slot;
-    updateStaticUI();
-}
-
-function renderCodexStatsHtml(entry, stored, codexKey) {
-    let statList = [];
-    if (stored && stored.baseName) {
-        if (stored.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(stored.uniqueEffect)}</span>`);
-        (stored.baseStats || []).forEach(stat => {
-            statList.push(`<span style="color:var(--copy-muted)">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`);
-        });
-        (stored.stats || []).forEach(stat => {
-            let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})` : '';
-            statList.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}${range}</span>`);
-        });
-    } else if (stored) {
-        if (entry.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(entry.uniqueEffect)}</span>`);
-        (entry.stats || []).forEach(stat => {
-            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
-            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
-            statList.push(`<span>${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}</span>`);
-        });
-    }
-    return statList.join('<br>');
-}
-
-function renderUniqueCodexUI() {
-    let summary = document.getElementById('ui-codex-summary');
-    let listEl = document.getElementById('ui-codex-list');
-    if (!summary || !listEl) return;
-    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let newlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
-    game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
-    game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
-    syncCodexSubtabButtons();
-    if (typeof uniqueHuntUi !== 'undefined') uniqueHuntUi.renderPanel();
-    let realmOnly = game.codexSubtab === 'realm';
-    let pool = UNIQUE_DB.filter(entry => realmOnly ? !!entry.realm : !entry.realmCodexOnly);
-    let keySet = new Set(pool.map(entry => `${entry.slots[0]}|${entry.name}`));
-    let storedCount = Object.keys(game.uniqueCodex).filter(key => !!game.uniqueCodex[key] && keySet.has(key)).length;
-    let progress = { stored: storedCount, total: keySet.size };
-    let bonusHtml = realmOnly ? '' : `<span>피해, 생명력, 드랍률 <strong>+${getCodexBonusPctFromCount(progress.stored).toFixed(1)}%</strong></span>`;
-    let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
-    let newCodexLines = Object.keys(newlyRegistered)
-        .filter(key => keySet.has(key) && game.uniqueCodex[key])
-        .map(key => {
-            let parts = key.split('|');
-            return `${parts[0] || '기타'} > ${parts.slice(1).join('|') || '이름 없음'}`;
-        });
-    let newCodexSummary = newCodexLines.length > 0
-        ? `<div class="codex-new-summary">신규 등록: ${newCodexLines.map(escapeHTML).join(', ')}</div>`
-        : '';
-    summary.innerHTML = `<div class="codex-progress"><span>등록 <strong>${progress.stored} / ${progress.total}</strong></span>${bonusHtml}<span>${rewardState}</span></div><progress max="${Math.max(1, progress.total)}" value="${progress.stored}" aria-label="도감 수집 진행"></progress>${newCodexSummary}`;
-    let bySlot = getCodexSlotOrder();
-    let availableSlots = bySlot.filter(slot => pool.some(entry => (entry.slots || [])[0] === slot));
-    let firstNewSlot = getFirstNewCodexSlot(pool, newlyRegistered);
-    if (firstNewSlot && game.codexFocusNewOnOpen) {
-        game.codexSelectedSlot = firstNewSlot;
-        game.codexFocusNewOnOpen = false;
-    }
-    let selectedSlot = availableSlots.includes(game.codexSelectedSlot) ? game.codexSelectedSlot : (firstNewSlot || availableSlots[0] || bySlot[0]);
-    game.codexSelectedSlot = selectedSlot;
-    let slotTabsHtml = availableSlots.map(slot => {
-        let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
-        let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
-        let hasNewInSlot = entries.some(entry => !!newlyRegistered[`${slot}|${entry.name}`] && !!game.uniqueCodex[`${slot}|${entry.name}`]);
-        let activeClass = slot === selectedSlot ? ' active' : '';
-        let newBadge = hasNewInSlot ? '<span class="codex-slot-new">신규</span>' : '';
-        return `<button class="codex-slot-tab${activeClass}" onclick="setCodexSlotFilter('${slot}')"><span>${slot}</span><small>${slotStored}/${entries.length}</small>${newBadge}</button>`;
-    }).join('');
-    let selectedEntries = pool.filter(entry => (entry.slots || [])[0] === selectedSlot);
-    let cardsHtml = selectedEntries.map(entry => {
-        let key = `${selectedSlot}|${entry.name}`;
-        let stored = game.uniqueCodex[key];
-        let source = typeof uniqueHuntUi !== 'undefined' ? uniqueHuntUi.getSource(entry) : null;
-        let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : `미등록${source ? `, ${escapeHTML(source.label)}` : ''}`;
-        let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
-        let isNew = stored && newlyRegistered[key];
-        let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:12px;">● NEW</span>` : '';
-        let statusHtml = stored ? `<span class="codex-registered">등록됨</span>` : `<span style="color:var(--copy-muted);">미등록</span>`;
-        let huntAction = typeof uniqueHuntUi !== 'undefined' ? uniqueHuntUi.renderCardAction(entry) : '';
-        return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${entry.name}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '획득하면 옵션 정보가 공개됩니다.'}</div></div><div class="item-actions">${statusHtml}${huntAction}</div></div>`;
-    }).join('');
-    listEl.innerHTML = `<div class="codex-layout"><div class="codex-slot-tabs">${slotTabsHtml}</div><div class="codex-slot-content"><div class="codex-slot-heading">${selectedSlot} <span>${selectedEntries.filter(entry => !!game.uniqueCodex[`${selectedSlot}|${entry.name}`]).length}/${selectedEntries.length}</span></div><div class="codex-card-grid">${cardsHtml}</div></div></div>`;
-}
-function syncCodexSubtabButtons() {
-    const hasRealm = UNIQUE_DB.some(entry => entry.realm && game.uniqueCodex?.[`${entry.slots[0]}|${entry.name}`]);
-    if (!hasRealm && game.codexSubtab === 'realm') game.codexSubtab = 'main';
-    const realmButton = document.getElementById('btn-codex-realm');
-    if (realmButton) realmButton.hidden = !hasRealm;
-    const activeTab = game.codexSubtab === 'realm' ? 'realm' : 'main';
-    ['main', 'realm'].forEach(tab => {
-        let btn = document.getElementById('btn-codex-' + tab);
-        if (btn) btn.classList.toggle('active', tab === activeTab);
-    });
-}
-
-function setCodexSubtab(tab) {
-    game.codexSubtab = (tab === 'realm') ? 'realm' : 'main';
-    syncCodexSubtabButtons();
-    updateStaticUI();
-}
-
 function grantCodexLegacyStarterUniques() {
     if (!game.uniqueCodexCompletedRewardClaimed) return;
     // 액트 1 일반 고유만(체이싱 고유 제외). 드롭과 같은 생성기로 만들어 고유 효과와 옵션 굴림이 붙는다(2026-10-09).
@@ -10623,7 +10500,7 @@ function buildCraftActionButtons(item) {
     }
 
     __mark('progressionTabs');
-    if (isTabRendering('tab-codex')) renderUniqueCodexUI();
+    if (isTabRendering('tab-codex')) uniqueCodexUi.render();
     if (isTabRendering('tab-records') && typeof renderRecordsTab === 'function') renderRecordsTab();
 
     if (isTabRendering('tab-skills') && typeof renderSkillGemScreen === 'function') renderSkillGemScreen({ pStats, searchFilters: sf });

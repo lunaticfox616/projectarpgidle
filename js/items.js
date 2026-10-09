@@ -83,7 +83,13 @@ function getEquipmentInventoryFootprint(item) {
     return { columns: 1, rows: 3 };
 }
 
-safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint });
+/** A unique's picture from its definition, before one drops (the codex and the hunt targets, js/unique-codex-ui.js). */
+function getUniqueEntryVisualAsset(entry) {
+    const rule = UNIQUE_EQUIPMENT_RULES[entry.name];
+    return getEquipmentGridVisualAsset({ rarity: 'unique', name: entry.name, slot: entry.slots[0], baseId: rule ? rule.baseId : '' });
+}
+
+safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getUniqueEntryVisualAsset });
 
 function getAverageExplicitAffixTier(items) {
     let tiers = (Array.isArray(items) ? items : []).flatMap(item => {

@@ -193,7 +193,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감) */
 :root body[data-ui-skin] :is(.equipment-aux-store,
   #ui-season-tree strong,
-  .offline-progress-upgrade button, #ui-codex-list :is(.item-title, .codex-hunt-toggle, .codex-slot-heading span),
+  .offline-progress-upgrade button,
   #ui-records-body div > span) { font-size: 12px; }
 :root body[data-ui-skin] .loop-node-rank { font-size: 12px; line-height: 12px; }
 :root body[data-ui-skin] :is(.records-stat-value, #trait-season-section h2 span, #ui-season-text-tab span) { font-size: 15px; }
@@ -400,7 +400,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.journal-section-title, .equipment-preset-panel > header strong) { font-size: 14px; }
 :root body[data-ui-skin] .journal-summary-main > b { font-size: 16px; }
 /* 작은 글(도감 카드 · 클라우드 계정 판 · 기록 · 해금 단계 · 루프 트리 요약)이 9.6~10.9px 소수 크기였다 — 도트 12px, 좁은 꼬리표는 11px */
-:root body[data-ui-skin] :is(.codex-card .item-base-line, .codex-card .item-stats, .cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
+:root body[data-ui-skin] :is(.cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
 :root body[data-ui-skin] :is(.records-stat-label, .records-note, .records-empty, .records-time-note summary, .records-section-title span, .unlock-depth-label, .unlock-lifetime-note, .trait-progress-summary span) { font-size: 12px; }
 :root body[data-ui-skin] .unlock-lifetime-tag { font-size: 11px; }
 :root body[data-ui-skin] :is(.records-stat-sub, .records-table, .records-offline > summary span, .records-fold > summary span, .records-fold-hint),
@@ -620,7 +620,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
    모은다. 창 안 제목에 DOS새물(넓은 글꼴)을 쓰면 "리"가 "ㄹ ㅣ"처럼 벌어져 읽혔다 — 제목과 소제목은 색 · 밑줄로 구분된다. */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) { font-family: var(--font-pixel-read); font-size: 15px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h1, h2) * { font-family: inherit; font-size: inherit; }
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .records-stat-value, .codex-slot-heading, .journal-section-title, .gem-enhance-section-title,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .records-stat-value, .journal-section-title, .gem-enhance-section-title,
     .map-zone-group-title, .craft-spores-title, .stat-value) { font-family: var(--font-pixel-read); font-size: 15px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(p, li, label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
     .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance, .gem-enhance-section-desc) { font-family: var(--font-pixel); font-size: 12px; }
@@ -661,15 +661,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.mobile-section-navigation, .equipment-mobile-switch) > button[aria-selected="true"],
 :root body[data-ui-skin] #act-exploration-dialog .act-exploration-modes > button[aria-pressed="true"] { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 소제목 · 접힘 제목 안의 보조 글(개수 · 설명 · 도구 이름)은 본문 크기 */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .codex-slot-heading, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
 /* 카드 · 판의 이름 줄은 소제목 크기 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong, .map-item--act .map-item-main > span, .equipment-preset-panel > header strong,
-    .passive-planner-primary > strong, .unique-hunt-panel > header strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
+    .passive-planner-primary > strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
     .character-ehp-stat strong) { font-family: var(--font-pixel-read); font-size: 15px; }
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head > span, .gem-resource-strip :is(span, strong),
-    .market-exchange-quote :is(span, strong), .codex-card .item-actions > span, .unique-hunt-panel > header > b, .content-unlock-heading > span,
+    .market-exchange-quote :is(span, strong), .content-unlock-heading > span,
     .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked) { font-family: var(--font-pixel); font-size: 12px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) .map-item--act .map-item-main > span span { font-family: var(--font-pixel); font-size: 12px; }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
@@ -715,8 +715,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 루프 패시브 노드 설명, 전투 미리보기 이름 */
 :root body[data-ui-skin] :is(.loop-node-tooltip b, .mobile-battle-dock-label) { font-size: 12px; }
 /* 도감 칸의 새 항목 표시: 둥근 알약 · 빛 번짐 · 0.68em(8px) 영어 "NEW" 대신 각진 꼬리표 "신규" */
-:root body[data-ui-skin] .codex-slot-new { padding: 0 3px; border: 1px solid var(--px-ink); border-radius: 0; background: #7a1f2b; box-shadow: none;
-    color: #ffe1a1; font-family: var(--font-pixel); font-size: 12px; font-weight: 400; }
 /* 큰 숫자(최대 생명 · 보호막 · 총 DPS)와 해금 상세 이름은 물마루 24 — 20 · 21px은 반 칸씩 번졌다. */
 :root body[data-ui-skin] :is(#tab-character :is(#ui-es, #ui-maxhp-stat, #ui-total-dps), .gem-research-resource > strong) { font-family: var(--font-pixel); font-size: 24px; }
 :root body[data-ui-skin] #content-unlock-panel .unlock-detail h3 { font-family: var(--font-pixel); font-size: 24px; }
