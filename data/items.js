@@ -1057,7 +1057,10 @@ const ORB_DB = {
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 줄이 둘인 더 강한 부적을 풉니다.' },
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 줄이 둘~셋인 부적을 풀고, 고유 부적 확률이 높습니다.' },
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
-    oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
+    oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' },
+    // 붉은 제단, 푸른 제단의 재료(2026-10-10 지갑 재화로): 최종 보스 입장 10개, 제작실에서 하나로 영향 줄 새기기(data/item-influences.js).
+    altarEmber: { name: '성화 잉걸', desc: '붉은 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 붉은 영향 줄로 바꿉니다. 10개를 모으면 검은 태양의 대사제에게 도전합니다.' },
+    altarIchor: { name: '허기의 즙', desc: '푸른 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 푸른 영향 줄로 바꿉니다. 10개를 모으면 세계수를 갉는 자에게 도전합니다.' }
 };
 
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.

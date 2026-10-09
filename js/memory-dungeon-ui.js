@@ -21,6 +21,12 @@ const memoryDungeonUi = (() => {
         return `<button class="memory-tier" data-exploration-departure onclick="memoryDungeonUi.challenge('${row.node.id}', ${step.tier})" aria-label="${esc(label)}"
             ${why ? `disabled title="${esc(why)}"` : ''}><strong>${step.tier}단계</strong><small>${step.have}개, ${step.mapTier}등급</small></button>`;
     }
+    /** The memory dungeon's own reward (data/memory-dungeon.js swap): its uniques may come with one line swapped. */
+    function swapNote() {
+        const chances = (M.swap || []).map(chance => Math.round(chance * 100));
+        if (!chances.length) return '';
+        return `<p class="memory-swap-note">⟲ 뒤바뀐 고유: 기억의 고유는 1단계 ${chances[0]}%에서 ${chances.length}단계 ${chances[chances.length - 1]}%까지 줄 하나가 바뀐 채로 나옵니다.</p>`;
+    }
     function cardHtml(row, block) {
         const where = row.node.region ? (ATLAS.regions.find(region => region.id === row.node.region) || {}).name : row.node.name;
         const unique = row.unique ? `<p class="atlas-late-unique">고유 장비 ${esc(row.unique)}</p>` : '';
@@ -34,7 +40,7 @@ const memoryDungeonUi = (() => {
             : `루프 ${M.minLoop}부터 아틀라스의 보스가 기억을 남깁니다.`;
         const list = rows.length ? `<div class="memory-cards">${rows.map(row => cardHtml(row, block)).join('')}</div>`
             : (memoryDungeon.open(game) ? '<p class="atlas-muted">아직 모은 기억이 없습니다.</p>' : '');
-        return `<div class="atlas-late memory-dungeon"><section class="atlas-late-head"><h3>기억 던전</h3><p class="atlas-muted">${head}</p>
+        return `<div class="atlas-late memory-dungeon"><section class="atlas-late-head"><h3>기억 던전</h3><p class="atlas-muted">${head}</p>${memoryDungeon.open(game) ? swapNote() : ''}
             ${rows.length && block ? `<p class="atlas-lock">${esc(block)}</p>` : ''}</section>${list}${bossVariantsUi.recordHtml()}</div>`;
     }
 

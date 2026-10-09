@@ -2,7 +2,7 @@
 const craftingWorkspaceState = (() => {
     const defaults = ['formlessDew', 'sapBud', 'goldenRule', 'blightSpore'];
     const basic = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'blightSpore', 'pruningShears', 'fairyRing'];
-    const special = ['emberBranch', 'burningEmberBranch', 'ouroboros', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos', 'catalystCrit', 'catalystSummon', 'enchantedHoney', 'venomStinger', 'voidChisel', 'oceanRerollShard'];
+    const special = ['emberBranch', 'burningEmberBranch', 'ouroboros', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos', 'catalystCrit', 'catalystSummon', 'enchantedHoney', 'venomStinger', 'voidChisel', 'oceanRerollShard', 'altarEmber', 'altarIchor'];
     const materials = ['fossil', 'fossilPrimal', 'fossilAncientPrimal', 'sporeFire', 'sporeCold', 'sporeLight'];
 
     function group(key) {

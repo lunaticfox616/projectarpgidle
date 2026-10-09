@@ -1,0 +1,74 @@
+/* 영향 장비와 뒤바뀐 고유(2026-10-10, js/item-influences-ui.js): 가방 칸, 장착 칸, 임시 보관, 장비 카드, 툴팁 상자, 장비 비교 칸의 테.
+   희귀도 색(왼쪽 위 삼각형과 바깥 테)은 그대로 두고 안쪽에 영향 색 테를 두른다. 영향이 둘이면 바깥이 첫째(--infl-a), 안쪽이 둘째(--infl-b).
+   툴팁에서는 영향 줄과 바뀐 줄의 표식(.infl-chip)이 그 줄 전체에 같은 색 띠를 깐다. */
+@layer features {
+.has-influence { --infl-a: #ff7a45; --infl-b: var(--infl-a); }
+
+/* 칸: ::after는 희귀도 삼각형이라 ::before로 테를 그린다. */
+.equipment-temporary-item.has-influence { position: relative; }
+.equipment-grid-item.has-influence::before,
+.equipment-slot.has-influence .equipment-slot-visual::before,
+.equipment-temporary-item.has-influence::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border: 2px solid var(--infl-a);
+    border-radius: 3px;
+    box-shadow: inset 0 0 10px color-mix(in srgb, var(--infl-a) 42%, transparent);
+    pointer-events: none;
+    z-index: 2;
+}
+.equipment-grid-item.has-influence-2::before,
+.equipment-slot.has-influence-2 .equipment-slot-visual::before,
+.equipment-temporary-item.has-influence-2::before {
+    box-shadow: inset 0 0 0 2px var(--infl-b), inset 0 0 12px color-mix(in srgb, var(--infl-b) 42%, transparent);
+}
+/* 칸 이름이 영향 색으로 물든다(가방 칸에서 고를 때 보이는 이름). */
+.equipment-grid-item.has-influence .equipment-grid-item-name { color: color-mix(in srgb, var(--infl-a) 65%, #ffffff); }
+
+/* 장비 카드: 카드의 ::before는 다른 장식이 쓰고 있어 안쪽으로 들어간 외곽선을 쓴다. */
+.equipment-item-card.has-influence { outline: 2px solid var(--infl-a); outline-offset: -3px; }
+.equipment-item-card.has-influence-2 { box-shadow: inset 0 0 0 5px var(--infl-b); }
+
+/* 툴팁의 영향 줄(머리 아래)과 줄 끝 표식. */
+.tooltip-line.infl-line { color: var(--infl); font-weight: 700; }
+.infl-chip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border: 1px solid color-mix(in srgb, var(--infl) 70%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--infl) 18%, transparent);
+    color: var(--infl);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.5;
+    vertical-align: 1px;
+    white-space: nowrap;
+}
+.infl-was { margin-left: 5px; color: var(--copy-muted, #9aa7b6); font-size: 11px; white-space: nowrap; }
+/* 표식이 있는 줄 전체에 같은 색 띠: 바뀐 줄과 영향 줄을 한눈에 찾는다. */
+.tooltip-line:has(> .infl-chip) { padding-left: 5px; border-left: 2px solid transparent; }
+.tooltip-line:has(> .infl-chip.is-red) { border-left-color: #ff7a45; background: linear-gradient(90deg, rgba(255, 122, 69, .16), transparent 75%); }
+.tooltip-line:has(> .infl-chip.is-blue) { border-left-color: #3fd6c6; background: linear-gradient(90deg, rgba(63, 214, 198, .15), transparent 75%); }
+.tooltip-line:has(> .infl-chip.is-guardian) { border-left-color: #dfe9f6; background: linear-gradient(90deg, rgba(223, 233, 246, .13), transparent 75%); }
+.tooltip-line:has(> .infl-chip.is-blight) { border-left-color: #a6d44a; background: linear-gradient(90deg, rgba(166, 212, 74, .15), transparent 75%); }
+.tooltip-line:has(> .infl-chip.is-swapped) { border-left-color: #c792ff; background: linear-gradient(90deg, rgba(199, 146, 255, .2), transparent 80%); }
+/* 기억 던전 머리의 뒤바뀐 고유 안내(js/memory-dungeon-ui.js). */
+.memory-swap-note { margin: 4px 0 0; color: #c792ff; font-weight: 700; }
+}
+
+/* 툴팁 상자와 장비 비교 칸: 피부(overrides)의 테두리 그림 바깥에 영향 색 테. 둘이면 그 바깥에 둘째 색 테(피부 그림자는 남긴다). */
+@layer overrides {
+:root body #item-tooltip-box[data-influence]:not(.item-compare-tooltip),
+:root body #item-tooltip-box[data-influence].item-compare-tooltip .item-tooltip-main,
+:root body .equipment-inspection-column > [data-influence] {
+    outline: 2px solid var(--infl-a);
+    outline-offset: 2px;
+}
+:root body #item-tooltip-box[data-influence][data-influence*=" "]:not(.item-compare-tooltip),
+:root body #item-tooltip-box[data-influence][data-influence*=" "].item-compare-tooltip .item-tooltip-main,
+:root body .equipment-inspection-column > [data-influence][data-influence*=" "] {
+    box-shadow: 0 0 0 6px var(--infl-b), var(--px-drop, 0 14px 34px rgba(0, 0, 0, .55));
+}
+}

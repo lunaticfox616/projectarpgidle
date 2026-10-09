@@ -6209,6 +6209,7 @@ function prepareItemTooltip(event, item, idx, isEquip, options) {
 function presentItemTooltip(context, event, item, html, isEquip) {
     let tt = context.target;
     tt.innerHTML = html;
+    itemInfluencesUi.markTooltip(tt, item);
     if (context.inline) return;
     // 스킨이 희귀도별 머리띠·테두리를 그릴 수 있도록 표시 중인 장비의 희귀도를 남긴다.
     tt.dataset.rarity = item.rarity || 'normal';
@@ -6275,7 +6276,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         let applicationHint = getUniqueEffectApplicationHint(item, !!isEquip, isEquip ? idx : null);
         if (applicationHint) html += `<div class="tooltip-line" style="color:#bda9d8; margin-top:3px;">◆ ${escapeHTML(applicationHint)}</div>`;
     }
-    html += equipmentSocketsUi.tooltipHtml(item) + getItemDropRegionLineHtml(item);
+    html += equipmentSocketsUi.tooltipHtml(item) + getItemDropRegionLineHtml(item) + itemInfluencesUi.tooltipHtml(item);
     if (item.fusedRelic) {
         let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
         html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? `, [${escapeHTML(item.fusedRareName)}]의 기억` : ''}, 황금률/잿불가지/축복의 꽃잎만 사용 가능</div>`;
@@ -6290,7 +6291,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
             let label = stat.statName || getStatName(statKey) || statKey;
             let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
-            let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '';
+            let exMark = (stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '') + itemInfluencesUi.lineBadgeHtml(item, stat);
             html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">+${formatValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
@@ -6321,7 +6322,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
-            let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat);
+            let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat) + itemInfluencesUi.lineBadgeHtml(item, stat);
             let label = stat.statName || getStatName(statKey) || statKey;
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {

@@ -1631,7 +1631,9 @@ const MOD_DB = [
     {"id":"censerLightGemLevel","statId":"lightGemLevel","type":"prefix","statName":"번개 스킬 젬 레벨","slots":["무기"],"weaponCategories":["censer"],"weight":0.2,"affixBalanceVersion":3,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[3,3],[3,3],[3,3],[3,3],[4,4]],"valueStep":1},
     {"id":"censerRegen","statId":"regen","type":"suffix","statName":"초당 재생(%)","slots":["무기"],"weaponCategories":["censer"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01},
     // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js, regions)은 그 지역 아틀라스 지도 장비에만 붙는다.
-    ...REGION_AFFIX_MODS
+    ...REGION_AFFIX_MODS,
+    // 영향 장비(2026-10-10): 수호자와 마름의 전용 줄(data/item-influences.js, influences)은 그 영향을 띤 장비에만 붙는다.
+    ...INFLUENCE_AFFIX_MODS
 ];
 
 const FOSSIL_DB = [
@@ -2332,7 +2334,7 @@ const defaultGame = {
         itemFilterMinTiers: { normal: 1, magic: 1, rare: 1, unique: 1 },
         itemFilterSlots: { 무기: true, 투구: true, 갑옷: true, 장갑: true, 신발: true, 목걸이: true, 반지: true, 허리띠: true, 방패: true },
         itemFilterWeaponCategories: { greatsword: true, scimitar: true, shortbow: true, orb: true, flask: true, censer: true },
-        itemFilterAlways: { exceptional: true, fineRare: true, socket: true, corrupted: false, newUnique: true },
+        itemFilterAlways: { exceptional: true, fineRare: true, socket: true, corrupted: false, newUnique: true, influenced: true },
         // 발견 연출(js/battle-ground-loot-ui.js 빛기둥, 알림창): 플레이어가 고른다.
         lootFx: { beams: { jackpot: true, great: true, good: true }, notices: { chase: true, goldenRule: true, treasure: true, codex: true, leaf: true } },
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },

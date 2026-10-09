@@ -112,7 +112,8 @@ const atlasRun = (() => {
     function grantMemorySpoils(spoils, tier, zone) {
         for (const [key, amount] of spoils.rewards) awardCurrency(key, amount);
         const items = [];
-        if (spoils.unique) items.push(generateUniqueItem(tier, null, spoils.unique === 'any' ? null : spoils.unique, zone || undefined));
+        // 뒤바뀐 고유: 기억의 단계만큼 줄 하나가 바뀐 채로 나온다(js/item-influences.js swapUnique).
+        if (spoils.unique) items.push(itemInfluences.swapUnique(generateUniqueItem(tier, null, spoils.unique === 'any' ? null : spoils.unique, zone || undefined), spoils.tier));
         if (spoils.gear) items.push(generateEquipmentDrop({ isBoss: true }, { zone, minimumRarity: 'rare' }));
         spoils.items = items.filter(Boolean);
         spoils.items.forEach(item => addItemToInventory(item, { guaranteedKeep: true }));

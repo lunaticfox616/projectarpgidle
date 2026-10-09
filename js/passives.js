@@ -9147,6 +9147,11 @@ function isModForDropRegion(mod, region) {
     return !mod.regions || mod.regions.includes(region);
 }
 
+/** 지역 전용 줄은 그 지역 장비에만, 수호자와 마름의 전용 줄은 그 영향을 띤 장비에만(영향 장비, js/item-influences.js). */
+function isModForOrigin(mod, item) {
+    return isModForDropRegion(mod, item.dropRegion) && itemInfluences.isModForInfluence(mod, item.influence);
+}
+
 /** A known atlas region id (data/atlas.js ATLAS.regions), otherwise null: what an item may remember as its drop region. */
 /** Save boundary for where an item came from and what burned it: its atlas region (loop 27) and the burning branch's mark and
  * lines (loop 30, js/ember-corruption.js). */
@@ -9154,6 +9159,7 @@ function normalizeItemOrigin(item) {
     item.dropRegion = normalizeDropRegion(item.dropRegion);
     if (typeof emberCorruption === 'object') emberCorruption.normalize(item);
     if (typeof gardenOils === 'object') gardenOils.normalize(item);
+    itemInfluences.normalizeInfluences(item);
 }
 
 function normalizeDropRegion(value) {
@@ -9187,11 +9193,12 @@ function hasSummonBaseStat(item) {
     return !!(item && Array.isArray(item.baseStats) && item.baseStats.some(stat => stat && AVAILABLE_MOD_SUMMON_STAT_IDS.has(stat.id)));
 }
 
-/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring), base defence types in base order and drop region. */
+/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring), base defence types in base order, drop region and
+ * influence (js/item-influences.js). */
 function getAvailableModPoolKey(item) {
     const summonSlot = item.slot === '무기' || item.slot === '반지';
     return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
-        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || ''].join('|');
+        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || '', item.influence || ''].join('|');
 }
 
 /** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
@@ -9207,7 +9214,7 @@ function getBlockedAvailableModStats(item) {
 /** Every row the item's kind can take, each with the stats it would occupy (dual defence parts included). */
 function buildAvailableModPool(item) {
     const allowedSlots = getAvailableModSlotsForItem(item), blocked = getBlockedAvailableModStats(item), weaponCategory = getWeaponCategoryId(item);
-    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForDropRegion(mod, item.dropRegion) && !blocked.has(mod.statId || mod.id)
+    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForOrigin(mod, item) && !blocked.has(mod.statId || mod.id)
         && isDefenseTypeStatAllowed(item, mod.statId || mod.id) && isPrimaryDualDefenseAffixMod(item, mod)
         && allowedSlots.some(slot => mod.slots.includes(slot))).map(mod => {
         const shaped = makeDualDefenseAffixMod(item, mod);
@@ -9431,7 +9438,7 @@ const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger,
 function getVenomStingerMods(item) {
     const occupiedIds = getItemOccupiedExplicitModIds(item);
     const room = equipmentCrafting.affixRoom(item, item.rarity, (item.stats || []).find(stat => stat && stat.venomStingerBonus) || null);
-    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id) && isModForDropRegion(mod, item.dropRegion)
+    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id) && isModForOrigin(mod, item)
         && !occupiedIds.has(mod.statId || mod.id) && equipmentCrafting.fitsRoom(room, mod));
 }
 
@@ -9712,7 +9719,7 @@ function generateEquipmentDrop(enemy, options) {
     maybeApplyExceptionalBase(item);
     equipmentSockets.rollDropSocket(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
-    return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
+    return levelProgression.stampItem(itemInfluences.onDrop(maybeApplyChaosRealmEncroachment(item, enemy, zone), enemy, zone), itemLevel);
 }
 
 /** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
@@ -9913,7 +9920,8 @@ const PICKUP_EXCEPTIONS = Object.freeze({
     fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,
     socket: item => !!item.voidSocket || (Array.isArray(item.sockets) && item.sockets.length > 0),
     corrupted: item => !!item.corrupted,
-    newUnique: item => lootMoments.isNewUnique(item)
+    newUnique: item => lootMoments.isNewUnique(item),
+    influenced: item => itemInfluences.influenceKeys(item).some(key => key !== 'swapped')
 });
 function isPickupException(item, always) {
     return !!always && Object.entries(PICKUP_EXCEPTIONS).some(([key, test]) => always[key] === true && test(item));
