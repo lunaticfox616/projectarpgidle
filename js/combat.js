@@ -5134,7 +5134,10 @@ function getGemPresentation(name, isSupport, statsOverride) {
 /** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
  * passes (getAttackTargets): they can be caught by the area, never aimed at. Checks and previews leave them out. */
 function getSkillTargets(pStats, dormant = []) {
-    let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
+    let living = (game.enemies || []).filter(enemy => enemy.hp > 0);
+    // 시야 밖 몬스터(2026-10-09 사용자): 영웅이 직접 노리지 못하고, 시야 안 몬스터를 친 범위, 연쇄, 부채꼴에만 휘말린다(알아채지 않은
+    // 몬스터와 같은 길, options.dormant). 노릴 몬스터가 없으면 영웅은 가장 가까운 몬스터 쪽으로 걸어간다(updatePlayerGridEngagement).
+    let alive = living.filter(enemy => actExplorationState.inSight(enemy));
     if (alive.length === 0) return [];
     ensureCombatGridRuntime();
     let skill = pStats.sSkill;
@@ -5149,7 +5152,8 @@ function getSkillTargets(pStats, dormant = []) {
         targetPriority: tactics.targetPriority,
         preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
     } : null;
-    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant });
+    let unseen = living.filter(enemy => !alive.includes(enemy));
+    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant: dormant.concat(unseen) });
     if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
         combatTacticsRuntime.targetId = targets[0].enemy.id;
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;

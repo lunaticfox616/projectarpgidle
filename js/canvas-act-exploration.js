@@ -111,18 +111,12 @@ const actExplorationView=(()=>{
         return (gx>0 && seen.has(i-1)) || (gx<map.columns-1 && seen.has(i+1)) || seen.has(i-map.columns) || seen.has(i+map.columns);
     }
     function tileFogAlpha(map,seen,i,lit,sight) {
-        const discovered=seen.has(i),alpha=fogAlpha(discovered,fogDistance(map,i,lit),sight);
+        const discovered=seen.has(i),alpha=fogAlpha(discovered,actExplorationState.fogDistance(map,i,lit),sight);
         return discovered || !touchesSeen(map,seen,i) ? alpha : Math.min(alpha,FOG_BORDER_ALPHA);
     }
     /** The act art's own darkness (data ACT_EXPLORATION_BACKDROPS shade): the fog and the canvas around the map use it,
      * so unexplored ground sinks into the same dark as the map's edges. */
     function shadeOf(map) { return ACT_EXPLORATION_BACKDROPS[map.id]?.shade||[8,14,12]; }
-    /** Tiles from the hero; while the hero is at the boss room, every tile of the room (and its walls) counts as right here. */
-    function fogDistance(map,i,lit) {
-        const gx=i%map.columns,gy=Math.floor(i/map.columns);
-        if(lit && Math.abs(gx-lit.gx)<=lit.radiusX+1 && Math.abs(gy-lit.gy)<=lit.radiusY+1)return 0;
-        return Math.hypot(gx-game.gridPlayer.gx,gy-game.gridPlayer.gy);
-    }
     function updateFog(run,map) {
         const sight=actExplorationState.sight(run),key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy+':'+sight;
         if(cache.fogKey===key)return;cache.fogKey=key;
@@ -149,26 +143,9 @@ const actExplorationView=(()=>{
             actors.push({kind:'gate',id:-2,y:box?box.base:point.y+p.actorGroundOffsetY,point});
         }
     }
-    // 시야 밖 몬스터(2026-10-09 사용자 "어그로 끌려서 다가오는 몬스터들이 시야 밖에서부터 보이지 않았으면"): 안개가 걷힌 땅(찾은 칸이면서
-    // 시야 반경 안, 또는 영웅이 선 보스 방)에 선 몬스터만 그린다. 안개는 반경 밖으로 서서히 짙어지므로 SIGHT_EDGE칸 더 본다(대각선 5칸에서
-    // 쏘는 원거리 몬스터가 보이게). 움직이지 않는 무리(waitingEnemies)는 예전처럼 찾은 방이면 보인다.
-    const SIGHT_EDGE=1.5;
-    let sightMemo={run:null,key:'',seen:null,lit:null,reach:0};
-    function sightFrame(run) {
-        const sight=actExplorationState.sight(run),key=run.discovered.length+':'+game.gridPlayer.gx+':'+game.gridPlayer.gy+':'+sight;
-        if(sightMemo.run!==run || sightMemo.key!==key)sightMemo={run,key,seen:new Set(run.discovered),lit:actExplorationState.bossRoomAt(run,game.gridPlayer),reach:sight+SIGHT_EDGE};
-        return sightMemo;
-    }
-    /** Whether an enemy stands where the fog is clear now (any cell of a big body counts); always true off an exploration map. */
-    function inSight(enemy) {
-        const run=actExplorationState.current(game);
-        if(!run || !hasGridCell(enemy))return true;
-        const map=actExplorationMap.forRun(run),view=sightFrame(run);
-        return getGridUnitCells(enemy).some(cell=>{
-            const i=actExplorationMap.index(map,cell),distance=fogDistance(map,i,view.lit);
-            return (!!view.lit && distance===0) || (view.seen.has(i) && distance<=view.reach);
-        });
-    }
+    // 시야 밖 몬스터(2026-10-09 사용자 "어그로 끌려서 다가오는 몬스터들이 시야 밖에서부터 보이지 않았으면"): 안개가 걷힌 땅에 선 몬스터만
+    // 그린다. 판정은 영웅의 조준과 같은 actExplorationState.inSight. 움직이지 않는 무리(waitingEnemies)는 예전처럼 찾은 방이면 보인다.
+    const inSight=enemy=>actExplorationState.inSight(enemy);
     function waitingEnemies() {
         const run=actExplorationState.current(game);if(!run)return [];
         const map=actExplorationMap.forRun(run),seen=new Set(run.discovered);

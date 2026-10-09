@@ -54,6 +54,32 @@ const actExplorationState = (() => {
     }
     /** The radius the run's last discovery used (the base radius before the first step). */
     function sight(run) {return (run && sights.get(run)) || ACT_EXPLORATION_VISION.radius;}
+    // 시야(2026-10-09 사용자): 안개가 걷힌 땅, 곧 찾은 칸이면서 시야 반경 + SIGHT_EDGE 안이거나 영웅이 선 보스 방에 선 몬스터만 보이고
+    // (js/canvas-act-exploration.js) 영웅이 직접 노릴 수 있다(js/combat.js getSkillTargets). 안개는 반경 밖으로 서서히 짙어지므로
+    // SIGHT_EDGE칸 더 본다(대각선 5칸에서 쏘는 원거리 몬스터가 보이게). 그림과 조준이 이 판정 하나를 쓴다.
+    const SIGHT_EDGE=1.5;
+    let sightMemo={run:null,key:'',seen:null,lit:null,reach:0};
+    function sightFrame(run) {
+        const radius=sight(run),hero=game.gridPlayer,key=run.discovered.length+':'+hero.gx+':'+hero.gy+':'+radius;
+        if(sightMemo.run!==run || sightMemo.key!==key)sightMemo={run,key,seen:new Set(run.discovered),lit:bossRoomAt(run,hero),reach:radius+SIGHT_EDGE};
+        return sightMemo;
+    }
+    /** Tiles from the hero; while the hero is at the boss room, every tile of the room (and its walls) counts as right here. */
+    function fogDistance(map,i,lit) {
+        const gx=i%map.columns,gy=Math.floor(i/map.columns);
+        if(lit && Math.abs(gx-lit.gx)<=lit.radiusX+1 && Math.abs(gy-lit.gy)<=lit.radiusY+1)return 0;
+        return Math.hypot(gx-game.gridPlayer.gx,gy-game.gridPlayer.gy);
+    }
+    /** Whether an enemy stands where the fog is clear now (any cell of a big body counts); always true off an exploration map. */
+    function inSight(enemy) {
+        const run=current(game);
+        if(!run || !hasGridCell(enemy))return true;
+        const map=actExplorationMap.forRun(run),view=sightFrame(run);
+        return getGridUnitCells(enemy).some(cell=>{
+            const i=actExplorationMap.index(map,cell),distance=fogDistance(map,i,view.lit);
+            return (!!view.lit && distance===0) || (view.seen.has(i) && distance<=view.reach);
+        });
+    }
     /** @returns {ReadonlyArray<number>} Current visibility; only this owner updates discovered/visited lists. radius: the hero's
      * sight (sightRadius), kept per run for the fog. */
     function discover(run,cell,radius=ACT_EXPLORATION_VISION.radius) {
@@ -382,6 +408,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
+    return {settlementMs,current,create,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,notice,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,selectDestination,destination,validate,restore,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});
