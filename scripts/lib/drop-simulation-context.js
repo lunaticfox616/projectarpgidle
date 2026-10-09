@@ -62,7 +62,8 @@ var dropSimulation = (() => {
     function openMap(options) {
         const map = atlasMaps.create(pickNode(options.tier), options.tier, rollRarity(options.rarity), Math.random);
         map.uid = game.atlas.nextUid++;
-        map.omen = options.omen && options.omen !== 'random' ? options.omen : lootOmens.roll(game, Math.random);
+        // 'random': a dropped stone's roll (js/atlas.js stamp), 'none': an old stone without one, else that omen.
+        if (options.omen !== 'none') map.omen = lootOmens.validId(options.omen) ? options.omen : lootOmens.roll(game, Math.random);
         if (options.quality) map.quality = options.quality;
         game.atlas.stash = [map];
         game.atlas.run = null;
@@ -167,5 +168,16 @@ var dropSimulation = (() => {
             art: getEquipmentGridVisualAsset(item), moment: lootMoments.ofItem(item) };
     }
 
-    return Object.freeze({ wrapCapturePoints, prepare, runMap });
+    /** Names, tones and pictures the simulator page shows (omens, currencies, leaves, regions). */
+    function catalog() {
+        const currencies = Object.fromEntries(Object.keys(ORB_DB).map(key => [key, { name: ORB_DB[key].name,
+            icon: pixelIconPath(ORB_DB[key].icon) || null, moment: lootMoments.ofCurrency(key) }]));
+        return { omens: LOOT_OMENS.list.map(({ id, name, note, tone, kind }) => ({ id, name, note, tone, kind })), currencies,
+            leaves: memoryLeaves.list.map(leaf => ({ id: leaf.id, name: leaf.name, set: leaf.set, source: memoryLeaves.sourceText(leaf),
+                reward: memoryLeaves.rewardText(leaf) })),
+            regions: ATLAS.regions.map(({ id, name, tint }) => ({ id, name, tint })),
+            fragments: Object.fromEntries(ATLAS.fragments.map(fragment => [fragment.id, fragment.name])),
+            nodes: Object.fromEntries(ATLAS.regions.flatMap(region => ATLAS.nodes[region.id].map((row, slot) => [`${region.id}_${slot}`, row[0]]))) };
+    }
+    return Object.freeze({ wrapCapturePoints, prepare, runMap, catalog });
 })();

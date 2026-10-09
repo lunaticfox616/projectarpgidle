@@ -40,7 +40,8 @@ function loadRuntime(seed) {
 }
 
 /**
- * @param {{tier?:number, loop?:number, maps?:number, rarity?:string, seed?:number}} options
+ * @param {{tier?:number, loop?:number, maps?:number, rarity?:string, omen?:string, seed?:number}} options omen: 'random' (default), 'none' or an
+ *   omen id (data/loot-omens.js)
  * @returns {{options:object, maps:object[], elapsedMs:number}} one row per map (scripts/lib/drop-simulation-context.js runMap)
  */
 function simulateMaps(options = {}) {
@@ -49,6 +50,7 @@ function simulateMaps(options = {}) {
         loop: Math.max(10, Math.min(300, Math.floor(Number(options.loop) || 60))),
         maps: Math.max(1, Math.min(2000, Math.floor(Number(options.maps) || 20))),
         rarity: ['normal', 'magic', 'rare', 'mixed'].includes(options.rarity) ? options.rarity : 'mixed',
+        omen: typeof options.omen === 'string' && /^[a-z]{2,20}$/.test(options.omen) ? options.omen : 'random',
         seed: Math.floor(Number(options.seed) || 1)
     };
     const started = Date.now(), runtime = loadRuntime(settings.seed);
@@ -60,4 +62,9 @@ function simulateMaps(options = {}) {
     return { options: settings, maps, elapsedMs: Date.now() - started };
 }
 
-module.exports = { simulateMaps };
+/** What the simulator page needs to name and draw things (scripts/lib/drop-simulation-context.js catalog). */
+function simulationCatalog() {
+    return JSON.parse(vm.runInContext('JSON.stringify(dropSimulation.catalog())', loadRuntime(1)));
+}
+
+module.exports = { simulateMaps, simulationCatalog };

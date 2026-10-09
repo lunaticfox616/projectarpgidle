@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Rignin 드랍 시뮬레이터</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="sim-header">
+        <div><strong>드랍 시뮬레이터</strong><span>실제 게임 코드로 아틀라스 지도를 끝까지 정리해(무리 전원, 상자, 보스, 지도 완료) 무엇이 떨어지는지 봅니다.</span></div>
+    </header>
+    <form id="sim-form" class="sim-controls" autocomplete="off">
+        <label>등급<input name="tier" type="number" min="1" max="24" value="16"></label>
+        <label>루프<input name="loop" type="number" min="10" max="300" value="60"></label>
+        <label>지도석<select name="rarity"><option value="mixed">섞기</option><option value="normal">일반</option><option value="magic">마법</option><option value="rare">희귀</option></select></label>
+        <label>기운<select name="omen" id="omen-select"><option value="random">무작위</option><option value="none">없음</option></select></label>
+        <label>판 수<select name="maps"><option>10</option><option selected>50</option><option>200</option><option>500</option></select></label>
+        <label>시드<input name="seed" type="number" min="1" value="1"></label>
+        <button type="submit" class="primary">굴리기</button>
+        <button type="button" id="reroll">시드 바꿔 다시</button>
+        <output id="sim-status" aria-live="polite">준비</output>
+    </form>
+    <section id="sim-summary" class="sim-summary" aria-label="요약"></section>
+    <main class="sim-main">
+        <section class="sim-maps" aria-label="지도 한 판씩"><h2>지도 한 판씩 <small>앞 40판</small></h2><div id="sim-map-list"></div></section>
+        <aside class="sim-side">
+            <section><h2>판마다 평균</h2><div id="sim-kinds"></div></section>
+            <section><h2>재화 (판마다)</h2><div id="sim-currencies"></div></section>
+            <section><h2>기운별</h2><div id="sim-omens"></div></section>
+            <section><h2>처음 본 순서</h2><ol id="sim-first" class="sim-first"></ol></section>
+        </aside>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>
