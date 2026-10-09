@@ -3283,62 +3283,6 @@ function updateCombatOxygenBar() {
     if (text) text.textContent = `${Math.ceil(cur)} / ${max}`;
 }
 
-function renderOceanUpgradeCost(cost) {
-    if (!cost) return '<small>최대 단계</small>';
-    return '<div class="ocean-upgrade-cost">' + Object.keys(cost).filter(key => cost[key] > 0).map(key => {
-        const owned = Math.max(0, Math.floor(game.currencies[key] || 0));
-        return `<span class="${owned < cost[key] ? 'short' : 'ready'}">${ORB_DB[key].name} <b>${owned} / ${cost[key]}</b></span>`;
-    }).join('') + '</div>';
-}
-function renderOceanPermanentUpgradeRows(st) {
-    if (typeof OCEAN_PERMANENT_UPGRADE_KEYS === 'undefined') return '';
-    return OCEAN_PERMANENT_UPGRADE_KEYS.map(key => {
-        let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
-        let level = getOceanPermanentUpgradeLevel(key);
-        let value = getOceanPermanentUpgradeEffect(key);
-        let cost = typeof getOceanPermanentUpgradeCost === 'function' ? getOceanPermanentUpgradeCost(key) : null;
-        let disabled = !cost || (typeof canPayOceanUpgradeCost === 'function' && !canPayOceanUpgradeCost(cost));
-        return `<div class="ocean-upgrade-card">
-            <div>
-                <div><b>${def.label}</b><br>Lv.${level}/${def.maxLevel}, +${value}${def.unit}</div>
-                <button aria-label="${def.label} 강화" onclick="upgradeOceanPermanent('${key}'); renderOceanDepthMapPanel(); fishingUi.render();" ${disabled ? 'disabled' : ''}>강화</button>
-            </div>
-            <small>${def.desc}</small>${renderOceanUpgradeCost(cost)}
-        </div>`;
-    }).join('');
-}
-
-function renderOceanDepthMapPanel() {
-    let panel = document.getElementById('ui-ocean-panel');
-    let list = document.getElementById('ui-ocean-list');
-    if (!panel || !list) return;
-    let st = ensureOceanState();
-    if (!st.unlocked) {
-        updateGamePanelMarkup(panel, `<h3>심해</h3><p>루프 ${OCEAN_UNLOCK_LOOP} 이후 해금됩니다.</p>`);
-        list.innerHTML = '';
-        return;
-    }
-    const oxygenPct = Math.round(st.oxygenCur / Math.max(1, st.oxygenMax) * 100);
-    const drainPerSec = getOceanOxygenDrainPerSec() * Math.max(.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
-    const secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
-    const depthTier = getOceanDepthTier(st.depthM);
-    const oceanZone = getZone(OCEAN_ZONE_ID);
-    const currents = Array.isArray(oceanZone.currents) ? oceanZone.currents : [];
-    const currentChips = currents.map(current => `<span class="sky-tower-chip">${current.name}, ${current.desc}</span>`).join('');
-    const nextGuardianM = (Math.floor(Math.max(0, st.bossClearM || 0) / getOceanBossBoundaryInterval()) + 1) * getOceanBossBoundaryInterval();
-    const upgradeRows = renderOceanPermanentUpgradeRows(st);
-    updateGamePanelMarkup(panel, `<div class="ocean-dashboard-head"><div><h3>심해 잠수</h3><p>다음 목표, ${nextGuardianM}m 가디언</p></div>
-        <div class="ocean-quick-actions">${st.diving ? `<button data-exploration-departure onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button data-exploration-departure onclick="if (enterOceanDive()) { changeZone(OCEAN_ZONE_ID); updateStaticUI(); }">잠수 시작, ${st.checkpointM}m</button>`}
-        <button onclick="switchMapSubtab('map-tab-fishing')">낚시와 제작</button></div></div>
-    <div class="ocean-dive-status"><span>현재 수심<b>${Math.floor(st.depthM)}m</b></span><span>복귀 체크포인트<b>${st.checkpointM}m</b></span><span>가디언까지<b>${Math.max(0, nextGuardianM-Math.floor(st.depthM))}m</b></span></div>
-    <div class="ocean-oxygen"><div><strong>산소 ${oxygenPct}%</strong><span>${Math.ceil(st.oxygenCur)} / ${st.oxygenMax}, 잔여 약 ${secsLeft}초</span></div><progress max="100" value="${Math.max(0,Math.min(100,oxygenPct))}" aria-label="남은 산소"></progress></div>
-    <div class="sky-tower-chips"><span class="sky-tower-chip">수압 단계 ${depthTier}</span>${currentChips}</div>
-    <section class="ocean-section"><div class="ocean-section-head"><div><strong>잠수 장비 강화</strong><span>영구 유지, 필요한 재료와 보유량을 확인하고 강화하세요.</span></div></div><div class="ocean-upgrade-grid">${upgradeRows}</div></section>
-    <details class="ocean-help"><summary>잠수 규칙</summary><p>산소가 떨어지기 전에 체크포인트를 확보하세요. ${getOceanBossBoundaryInterval()}m마다 가디언을 격파해야 더 내려갈 수 있습니다. 수면 복귀 시 확보한 체크포인트부터 다시 시작합니다. 산소는 초당 ${drainPerSec.toFixed(2)} 소모합니다.</p></details>`);
-
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `data-exploration-departure onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span><br>${buildMapPowerEstimateHtml(oceanZone)}</span></div></div>`;
-}
-
 function renderUnderworldMapPanel() {
     let panel = document.getElementById('ui-underworld-panel');
     let list = document.getElementById('ui-underworld-list');
@@ -3642,7 +3586,7 @@ function switchMapSubtab(subtabId) {
     if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
     const renderRegion = {
         'map-tab-underworld': renderUnderworldMapPanel,
-        'map-tab-ocean': renderOceanDepthMapPanel,
+        'map-tab-ocean': () => oceanDiveUi.render(),
         'map-tab-fishing': () => fishingUi.render()
     };
     renderRegion[subtabId]?.();
@@ -4259,7 +4203,12 @@ const PIXEL_ICONS = Object.freeze({
     shield: ['.#########.', '#ooooooooo#', '#ooo###ooo#', '#ooo#o#ooo#', '#ooo#o#ooo#', '.#oo#o#oo#.', '.#ooo#ooo#.', '..#ooooo#..', '...#ooo#...', '....#o#....', '.....#.....'],
     boot: ['...####....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo#....', '...#oo####.', '..#ooooooo#', '.#oooooooo#', '.##########', '...........'],
     // 낚시 창의 물고기(js/fishing-ui.js, 희귀도 색으로 칠한다).
-    fish: ['...........', '...........', '...####...#', '.##oooo#.##', '#o#ooooo#o#', '#oooooooo##', '#ooooooo#o#', '.##oooo#.##', '...####...#', '...........', '...........']
+    fish: ['...........', '...........', '...####...#', '.##oooo#.##', '#o#ooooo#o#', '#oooooooo##', '#ooooooo#o#', '.##oooo#.##', '...####...#', '...........', '...........'],
+    // 그림이 없는 재화(심해 잠수 강화 비용, js/ocean-dive-ui.js): 창공의 정수 구름, 심해의 파편 수정, 암초 조각 산호, 군주의 핵 보석.
+    cloud: ['...........', '...........', '....###....', '...#ooo#...', '.###ooo##..', '#ooo#oooo#.', '#oooooooo##', '#ooooooooo#', '.#########.', '...........', '...........'],
+    shard: ['.....#.....', '....#o#....', '...#oo##...', '...#oo#o#..', '..#ooo#oo#.', '..#ooo#oo#.', '..#ooo#oo#.', '...#oo#o#..', '...#oo##...', '....#o#....', '.....#.....'],
+    coral: ['.#......#..', '#o#..#.#o#.', '#o#.#o##o#.', '.#o##o#o#..', '..#oo#o#.#.', '...#ooo##o#', '....#oo#o#.', '....#ooo#..', '...#ooo#...', '..#ooooo#..', '.#########.'],
+    gem: ['...........', '..#######..', '.#o#ooo#o#.', '#oo#ooo#oo#', '###########', '.#ooo#ooo#.', '..#oo#oo#..', '...#o#o#...', '....#o#....', '.....#.....', '...........']
 });
 const SKY_ENHANCEMENT_ICON_BY_STAT = Object.freeze({
     pctDmg: 'sword', flatSkillDmgPct: 'sword', hybrid: 'sword', awakenedDamageMul: 'sword',
@@ -10102,7 +10051,7 @@ function buildCraftActionButtons(item) {
     if (game.mapSubtab === 'map-tab-underworld') renderUnderworldMapPanel();
     // Keep normalization/unlock timing independent from the selected map panel.
     ensureOceanState();
-    if (game.mapSubtab === 'map-tab-ocean') renderOceanDepthMapPanel();
+    if (game.mapSubtab === 'map-tab-ocean') oceanDiveUi.render();
     if (game.mapSubtab === 'map-tab-fishing') {
         fishingUi.render();
     }

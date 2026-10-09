@@ -1,5 +1,5 @@
 @layer components {
-/* 심해 잠수 화면(js/ui.js renderOceanDepthMapPanel). 낚시 화면은 css/fishing.css(2026-10-09 다시 그림). */
+/* 심해 탭과 낚시 탭이 함께 쓰는 판 테와 바다의 선물 제목, 낚시 도감 접힘. 심해 잠수 화면은 css/ocean-dive.css, 낚시 화면은 css/fishing.css(2026-10-09 다시 그림). */
 .ocean-panel-shell {
   margin-bottom: 10px;
   padding: 14px;
@@ -15,72 +15,15 @@
   color: var(--color-text-secondary);
 }
 
-.ocean-dashboard-head,
-.ocean-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.ocean-dashboard-head > div:first-child,
-.ocean-section-head > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.ocean-dashboard-head > div:first-child > span {
-  color: var(--color-text-secondary);
-  font-size: .68em;
-  font-weight: 900;
-  letter-spacing: .18em;
-}
-
-.ocean-dashboard-head h3 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: 1.18em;
-}
-
-.ocean-dashboard-head p,
-.ocean-section-head span {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: .8em;
-  line-height: 1.45;
-}
-
 .ocean-section {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--color-line);
 }
 
-.ocean-section-head strong { color: var(--color-text-secondary); }
-
 @media (max-width: 760px) {
   .ocean-panel-shell { padding: 11px; }
-  .ocean-dashboard-head,
-  .ocean-section-head { align-items: stretch; flex-direction: column; }
 }
 
-.ocean-upgrade-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); gap:10px; margin-top:12px; }
-.ocean-upgrade-card { padding:12px; border:1px solid var(--color-line); border-radius:6px; background:var(--color-surface); display:grid; gap:8px; }
-.ocean-upgrade-card > div { display:flex; justify-content:space-between; gap:10px; align-items:center; }
-.ocean-upgrade-card small { color:var(--color-text-secondary); line-height:1.5; }
-.ocean-upgrade-card .ocean-upgrade-cost { display:grid; gap:4px; font-size:13px; }
-.ocean-upgrade-cost > span { display:flex; justify-content:space-between; gap:8px; color:var(--color-text-secondary); }
-.ocean-upgrade-cost .short b { color:var(--color-accent); }
-.ocean-upgrade-cost .ready b { color:var(--color-text); }
-.ocean-dive-status { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
-.ocean-dive-status > span { display:grid; gap:5px; padding:10px 14px; border-left:2px solid var(--color-line-strong); color:var(--color-text-secondary); }
-.ocean-dive-status b { color:var(--color-text); font-size:18px; }
-.ocean-oxygen { margin:12px 0; }
-.ocean-oxygen > div { display:flex; justify-content:space-between; gap:8px; margin-bottom:6px; }
-.ocean-oxygen progress { width:100%; height:12px; accent-color:var(--color-accent); }
-.ocean-quick-actions { display:flex; gap:8px; flex-wrap:wrap; }
-.ocean-help { margin-top:12px; padding:10px; border-top:1px solid var(--color-line); color:var(--color-text-secondary); }
-.ocean-help summary { cursor:pointer; }
 .ocean-collection-disclosure > summary { padding:12px 0; cursor:pointer; color:var(--color-accent); }
 }

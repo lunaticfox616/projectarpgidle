@@ -1,0 +1,105 @@
+/* 심해 잠수(js/ocean-dive-ui.js, 2026-10-09 다시 그림). 머리(물방울 문장, 권장 전투력, 잠수 단추), 수심 게이지(물빛 채움, 100m 리프트 눈금,
+   금빛 체크포인트 핀, 가디언은 붉은 주황), 산소 막대(20% 이하 빨강), 수압과 해류 칩, 잠수 장비 강화 카드(레벨 막대, 지금과 다음, 재화 그림 칩,
+   모자란 재화는 빨강), 잠수 규칙. */
+@layer features {
+  #map-tab-ocean { container-type: inline-size; }
+  #ui-ocean-panel { --dive-water: #8fd3ff; --dive-deep: #2f6f8a; --dive-gold: #e8c27a; --dive-guard: #ff8a6a; --dive-pressure: #c58cff;
+    --dive-muted: #a39883; --dive-ink: #e8dcc0; --dive-line: #2a2218; --dive-bg: rgba(10, 8, 6, .45); }
+
+  .dive-head { display: flex; align-items: center; gap: 12px; }
+  .dive-emblem { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border: 1px solid #2f5a6e;
+    background: radial-gradient(circle at 50% 40%, rgba(143, 211, 255, .22), transparent 70%), #07090b; }
+  .dive-emblem-icon { width: 26px; height: 26px; filter: drop-shadow(1px 1px 0 #000); }
+  .dive-emblem-icon .m { fill: #d6f0ff; }
+  .dive-emblem-icon .f { fill: var(--dive-water); }
+  .dive-title { display: grid; justify-items: start; gap: 4px; min-width: 0; margin-right: auto; }
+  #ui-ocean-panel .dive-title h3 { margin: 0; color: var(--px-gold-bright, #e0c283); }
+  .dive-title small { color: var(--dive-muted); }
+  .dive-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  #ui-ocean-panel .dive-go { display: grid; justify-items: center; gap: 1px; border-color: #4f8fb0; color: var(--dive-water); }
+  .dive-go small { color: var(--dive-muted); }
+
+  /* 수심 게이지: 이번 가디언 구간, 눈금 하나가 리프트 하나(100m) */
+  .dive-depth { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }
+  .dive-depth-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .dive-depth-nums > span { display: grid; gap: 2px; }
+  .dive-depth-nums small { color: var(--dive-muted); }
+  .dive-depth-nums b { font-size: 20px; font-weight: 400; line-height: 1.1; }
+  .dive-depth-nums .is-depth b { color: var(--dive-water); }
+  .dive-depth-nums .is-check b { color: var(--dive-gold); }
+  .dive-depth-nums .is-guard { justify-items: end; }
+  .dive-depth-nums .is-guard b { color: var(--dive-guard); }
+  .dive-depth-bar { position: relative; height: 12px; background: #050404; box-shadow: 0 0 0 1px var(--dive-line); }
+  .dive-depth-bar > i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--dive-deep), var(--dive-water)); }
+  .dive-depth-bar::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, transparent calc(100% - 1px), #3a2f20 0) 0 0 / calc(100% / var(--lifts, 5)) 100% repeat-x; }
+  .dive-depth-bar > em { position: absolute; z-index: 1; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--dive-gold); box-shadow: 0 0 4px rgba(232, 194, 122, .6); }
+  .dive-depth-ends { display: flex; justify-content: space-between; color: var(--dive-muted); font-size: 12px; }
+  .dive-depth-ends > span:last-child { color: var(--dive-guard); }
+
+  .dive-oxygen { display: grid; gap: 5px; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }
+  .dive-oxygen > div:first-child { display: flex; align-items: baseline; gap: 8px; }
+  .dive-oxygen > div:first-child > span { color: var(--dive-muted); }
+  .dive-oxygen > div:first-child > b { color: var(--dive-water); font-size: 16px; font-weight: 400; }
+  .dive-oxygen > div:first-child > small { margin-left: auto; color: var(--dive-muted); }
+  .dive-oxygen-bar { height: 8px; background: #050404; box-shadow: 0 0 0 1px var(--dive-line); }
+  .dive-oxygen-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #1f9bd6, #4fd1ff); }
+  .dive-oxygen.is-low > div:first-child > b { color: #ff7675; }
+  .dive-oxygen.is-low .dive-oxygen-bar > i { background: linear-gradient(90deg, #d63031, #ff7675); }
+
+  .dive-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .dive-chips > span { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 8px; border: 1px solid var(--dive-line); background: var(--dive-bg); color: var(--dive-ink); font-size: 12px; }
+  .dive-chips b { color: var(--dive-water); font-weight: 400; }
+  .dive-chips .is-pressure b { color: var(--dive-pressure); }
+
+  /* 잠수 장비 강화 */
+  .dive-upgrades { margin-top: 14px; }
+  .dive-upgrades > header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  #ui-ocean-panel .dive-upgrades > header strong { color: var(--px-gold-bright, #e0c283); font-size: 15px; font-weight: 400; }
+  .dive-upgrades > header small { color: var(--dive-muted); }
+  .dive-upgrade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 8px; }
+  .dive-upgrade { display: grid; align-content: start; gap: 6px; padding: 10px 12px; border: 1px solid var(--dive-line); background: var(--dive-bg); }
+  .dive-upgrade > header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .dive-upgrade > header strong { color: var(--dive-ink); font-weight: 400; }
+  .dive-upgrade > header b { color: var(--dive-gold); font-size: 12px; font-weight: 400; }
+  .dive-upgrade-bar { display: block; height: 4px; background: #050404; box-shadow: 0 0 0 1px var(--dive-line); }
+  .dive-upgrade-bar > i { display: block; height: 100%; background: var(--dive-gold); }
+  .dive-upgrade.is-max .dive-upgrade-bar > i { background: #9fd46a; }
+  .dive-upgrade > p { display: flex; justify-content: space-between; gap: 8px; margin: 0; color: var(--dive-muted); }
+  .dive-upgrade > p b { color: var(--dive-ink); font-weight: 400; }
+  .dive-upgrade > p .is-next b { color: #9fd46a; }
+  .dive-costs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dive-costs > span { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px 1px 2px; border: 1px solid var(--dive-line); color: var(--dive-muted); font-size: 12px; }
+  .dive-costs img { width: 18px; height: 18px; image-rendering: pixelated; }
+  .dive-glyph { width: 18px; height: 18px; filter: drop-shadow(1px 1px 0 #000); }
+  .dive-glyph.is-cloud .m { fill: #ffffff; }
+  .dive-glyph.is-cloud .f { fill: #8fd3ff; }
+  .dive-glyph.is-shard .m { fill: #bfe8ff; }
+  .dive-glyph.is-shard .f { fill: #3f7fd0; }
+  .dive-glyph.is-coral .m { fill: #ffd0dc; }
+  .dive-glyph.is-coral .f { fill: #e0607e; }
+  .dive-glyph.is-gem .m { fill: #ffe9a8; }
+  .dive-glyph.is-gem .f { fill: #d9663a; }
+  .dive-costs b { margin-left: 2px; color: var(--dive-ink); font-weight: 400; }
+  .dive-costs .is-short { border-color: #6a2e26; }
+  .dive-costs .is-short b { color: #ff9a76; }
+  .dive-upgrade > button { width: 100%; }
+
+  .dive-rules { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--dive-line); }
+  .dive-rules summary { color: var(--dive-muted); cursor: pointer; }
+  .dive-rules ul { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .dive-rules li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; color: var(--dive-ink); }
+  .dive-rules li b { font-weight: 400; }
+  .dive-rules .is-check b { color: var(--dive-gold); }
+  .dive-rules .is-guard b { color: var(--dive-guard); }
+  .dive-rules .is-oxygen b { color: var(--dive-water); }
+  .dive-rules .is-pressure b { color: var(--dive-pressure); }
+
+  @container (max-width: 560px) {
+    .dive-head { flex-wrap: wrap; }
+    .dive-actions { justify-content: stretch; width: 100%; }
+    .dive-actions > button { flex: 1 1 0; }
+    .dive-depth-nums b { font-size: 16px; }
+    .dive-oxygen > div:first-child { flex-wrap: wrap; }
+  }
+}
