@@ -95,7 +95,7 @@ const combatEquipmentStats = (() => {
         for (const key of Object.keys(current.disabled)) equipment[key] = null;
         const totals = evaluate({ ...owner, equipment }).totals;
         const unmet = missing(item, totals, owner, false);
-        const result = { ok: unmet.length === 0, reason: unmet.length ? `장착 요구: ${unmet.join(' · ')}` : '' };
+        const result = { ok: unmet.length === 0, reason: unmet.length ? `장착 요구: ${unmet.join(', ')}` : '' };
         current.inspections.set(key, result);
         return result;
     }
@@ -108,7 +108,7 @@ const combatEquipmentStats = (() => {
         const pending = Object.entries(equipment).filter(([, item]) => item && !currentItems.has(item));
         while (pending.length) {
             const index = pending.findIndex(([slot, item]) => inspect(item, slot, { ...owner, equipment: view }).ok);
-            if (index < 0) return { ok: false, reason: '프리셋의 새 장비가 요구 레벨·능력치를 충족하지 않습니다.' };
+            if (index < 0) return { ok: false, reason: '프리셋의 새 장비가 요구 레벨/능력치를 충족하지 않습니다.' };
             const [[slot, item]] = pending.splice(index, 1); view[slot] = item;
         }
         const disabled = evaluate(candidate).disabled;

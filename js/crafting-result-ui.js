@@ -43,7 +43,7 @@ const craftingResultUi = (() => {
 
     function getStatText(entry) {
         let stat = entry.stat;
-        let groupLabels = { base: '베이스 · ', infusion: '주입 · ', encroached: '잠식 · ', explicit: '' };
+        let groupLabels = { base: '베이스, ', infusion: '주입, ', encroached: '잠식, ', explicit: '' };
         let name = stat.statName || getStatName(stat.id);
         let value = Number.isFinite(Number(stat.val)) ? ` +${formatValue(stat.id, stat.val)}` : '';
         let tier = Number.isFinite(Number(stat.tier)) ? ` T${Math.floor(Number(stat.tier))}` : '';
@@ -82,7 +82,7 @@ const craftingResultUi = (() => {
         const payment = getCraftPayment(result.meta.currencyKey);
         if (!payment) return '';
         const name = ORB_DB[payment.key].name;
-        const label = `${name} 다시 사용 · ${payment.have}`;
+        const label = `${name} 다시 사용, ${payment.have}`;
         const mode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[result.meta.currencyKey] || 'none') : 'none';
         const action = equipmentCrafting.resolveAction(result.meta.currencyKey, item.rarity);
         const reason = getSporeCraftBlockReason(item, action, mode);

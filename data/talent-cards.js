@@ -42,12 +42,12 @@ const TALENT_BLOOM_CARD_DEFS = {
     // hero7 (소환사)
     // hero8 (수호자)
     // hero9 (원소술사)
-    'hero9__elementalist': { name: "엘리멘탈 아티스트", surface: {"desc": "화염·냉기·번개 피해 +14%. 세 원소 피해 증가량 중 가장 낮은 값에 추가로 +10% 보정.", "ops": [{"stat": "elementalPctDmg", "perLevel": 2.4}]}, hidden: [{"stat": "elementalPctDmg", "lv10": 6}] },
+    'hero9__elementalist': { name: "엘리멘탈 아티스트", surface: {"desc": "화염/냉기/번개 피해 +14%. 세 원소 피해 증가량 중 가장 낮은 값에 추가로 +10% 보정.", "ops": [{"stat": "elementalPctDmg", "perLevel": 2.4}]}, hidden: [{"stat": "elementalPctDmg", "lv10": 6}] },
     'hero9__warlock': { name: "보이드", surface: {"desc": "카오스 피해 10% 증폭, 지속 피해 배율 10% 증폭 저항 관통 +5%. 적에게 원소 상태이상을 걸 때 그 대신 중독이 걸림", "ops": [{"stat": "chaosPctDmg", "perLevel": 1}, {"stat": "dotPctDmg", "perLevel": 1}, {"stat": "resPen", "perLevel": 0.5}, {"stat": "poisonChance", "perLevel": 2}]}, hidden: [{"stat": "chaosPctDmg", "lv10": 4}] },
     'hero9__soulbinder': { name: "별혼술사", surface: {"desc": "소환수 피해 증가량의 20%를 원소 피해 증가로도 적용. 원소 피해 증가량의 10%를 소환수 피해 증가로도 적용.", "ops": [{"stat": "summonPctDmg", "perLevel": 2}, {"stat": "elementalPctDmg", "perLevel": 1}]}, hidden: [{"stat": "summonPctDmg", "lv10": 4}] },
     'hero9__crusader': { name: "엘리멘탈 크루세이더", surface: {"desc": "생명력이 1로 고정되는 대신 받는 카오스 피해 50% 감소", "uniq": [{"key": "lifePctAsEnergyShield", "perLevelParams": {"pct": 9}}, {"key": "chaosTakenDamageReducePct", "perLevelParams": {"pct": 5}}]}, hidden: [{"stat": "resChaos", "lv10": 8}] },
     // hero10 (연금술사)
-    'hero10__catalyst': { name: "마그눔 오푸스", surface: {"desc": "점화·중독 피해 배율 +28%. 대신 점화·중독이 아닌 상태이상을 걸 수 없음", "uniq": [{"key": "igniteDamageMorePct", "perLevelParams": {"pct": 2.8}}, {"key": "poisonDamageMorePct", "perLevelParams": {"pct": 2.8}}], "runtime": {"key": "ailmentWhitelist", "allowed": ["ignite", "poison"]}}, hidden: [{"stat": "igniteChance", "lv10": 8}, {"stat": "poisonChance", "lv10": 8}] },
+    'hero10__catalyst': { name: "마그눔 오푸스", surface: {"desc": "점화/중독 피해 배율 +28%. 대신 점화/중독이 아닌 상태이상을 걸 수 없음", "uniq": [{"key": "igniteDamageMorePct", "perLevelParams": {"pct": 2.8}}, {"key": "poisonDamageMorePct", "perLevelParams": {"pct": 2.8}}], "runtime": {"key": "ailmentWhitelist", "allowed": ["ignite", "poison"]}}, hidden: [{"stat": "igniteChance", "lv10": 8}, {"stat": "poisonChance", "lv10": 8}] },
     // 2026-10-02에 더한 전직 여섯의 카드(직업의 대표 재능 × 전직)
     'hero1__stormarcher': { name: "천둥 화살비", surface: { desc: "투사체 피해 +25%, 번개 피해 +30%, 감전된 적에게 주는 피해 +12%" }, hidden: [{"stat":"move","lv10":3}] },
     'hero2__berserker': { name: "피의 함성", surface: { desc: "근접 피해 +25%, 공격 속도 +8%, 활성 함성마다 피해 +10%" }, hidden: [{"stat":"leech","lv10":0.3}] },

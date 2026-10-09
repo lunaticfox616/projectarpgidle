@@ -588,7 +588,7 @@ function equipSkippedStarterGem(key) {
     const name = game.starterGemTutorialPending;
     if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string' || game.activeSkill !== '기본 공격') return;
     changeSkill(name);
-    if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다 · '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
+    if (game.activeSkill === name) showGameToast(`[${name}] 젬을 장착했습니다, '스킬 젬'에서 바꿀 수 있습니다`, { tone: 'success' });
 }
 
 /** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬 젬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */

@@ -119,7 +119,7 @@ const craftingWorkspaceUi = (() => {
         return [stat.lockedByHoney?'벌꿀 고정':'',stat.lockedByRift?'균열 고정':'',kept?'다음 재굴림 보존':'',
             changed&&prior?`이전 +${workspaceAffixValue(prior,prior.val)}`:'',hit?'목표 일치':'',
             quality==='is-max-tier'?'최고 티어':'',emberCorruptionUi.scaleNote(stat)].filter(Boolean)
-            .map(note=>note==='목표 일치'?'<strong class="cl-goal-match">목표 일치</strong>':esc(note)).join(' · ');
+            .map(note=>note==='목표 일치'?'<strong class="cl-goal-match">목표 일치</strong>':esc(note)).join(', ');
     }
 
     function workspaceAffixHtml(stat,index) {
@@ -200,7 +200,7 @@ const craftingWorkspaceUi = (() => {
 
     function workspacePreviousOptionsHtml() {
         if(!last)return '';
-        return `<details><summary>이전 옵션 보기</summary>${last.before.stats.map(stat=>`<div>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))} · T${stat.tier||0} <small>${esc(workspaceAffixRange(stat))}</small></div>`).join('')}</details>`;
+        return `<details><summary>이전 옵션 보기</summary>${last.before.stats.map(stat=>`<div>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}, T${stat.tier||0} <small>${esc(workspaceAffixRange(stat))}</small></div>`).join('')}</details>`;
     }
 
     function workspaceAutoReason() {
@@ -231,7 +231,7 @@ const craftingWorkspaceUi = (() => {
             ${last?craftingResultUi.getMetaRows(last).map(text=>`<p>${esc(text)}</p>`).join(''):''}
             ${hit?'<p>목표 옵션을 확보했어요</p>':''}${notice?`<p>${esc(notice)}</p>`:''}
             ${workspacePreviousOptionsHtml()}</div>
-            <div class="cl-session"><b>${count}회 제작</b><small>${Object.entries(spent).map(([key,value])=>`${esc(ORB_DB[key]?.name||key)} ${value}`).join(' · ')||'소모 없음'}</small></div></section>`;
+            <div class="cl-session"><b>${count}회 제작</b><small>${Object.entries(spent).map(([key,value])=>`${esc(ORB_DB[key]?.name||key)} ${value}`).join(', ')||'소모 없음'}</small></div></section>`;
     }
 
     function workspaceSyncTarget() {
@@ -339,7 +339,7 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceAutomaticStopReason() {
         if(document.hidden||!root.getClientRects().length||selected()!==current||owner!==game)return '화면을 벗어나 자동 사용을 중지했어요.';
-        if(matches(selected()))return '목표 달성 · 자동 사용을 멈췄어요.';
+        if(matches(selected()))return '목표 달성, 자동 사용을 멈췄어요.';
         if(runCount>=limit)return `설정한 ${limit}회를 모두 사용했어요.`;
         const state=workspaceUseState();return state.enabled?workspaceAutoReason():state.reason;
     }

@@ -41,7 +41,7 @@
                 rows.forEach(row => {
                     const option = document.createElement('option');
                     option.value = row.id;
-                    option.textContent = row.label + (row.condition ? ' · ' + row.condition : '');
+                    option.textContent = row.label + (row.condition ? ', ' + row.condition : '');
                     option.disabled = row.disabled;
                     group.appendChild(option);
                 });

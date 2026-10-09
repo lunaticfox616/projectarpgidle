@@ -3,12 +3,12 @@
 const CONTENT_ROUTE_PATHS = Object.freeze({
     'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
     'item-tab-hall': '장비 → 장비 전당',
-    'skill-tab-equip': '스킬 젬 → 장착 · 보조', 'skill-tab-enhance': '스킬 젬 → 성장 · 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
+    'skill-tab-equip': '스킬 젬 → 장착, 보조', 'skill-tab-enhance': '스킬 젬 → 성장, 각인', 'skill-tab-research': '스킬 젬 → 젬 연구',
     'skill-tab-condition': '스킬 젬 → 전술 규칙',
     'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-talent': '재능',
     'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 탐험 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
-    'map-explore-voidrift': '지도 → 탐험 → 공허 균열 · 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
+    'map-explore-voidrift': '지도 → 탐험 → 공허 균열, 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
     'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-deep-chaos': '지도 → 탐험 → 혼돈 심화층', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
 });
 // 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
@@ -64,7 +64,7 @@ const contentUnlockUi = {
     },
     syncSkillCopy() {
         const label = document.querySelector('#btn-skill-tab-equip strong');
-        if (label) label.textContent = contentProgression.isUnlocked('support') ? '장착 · 보조' : '스킬 젬';
+        if (label) label.textContent = contentProgression.isUnlocked('support') ? '장착과 보조' : '스킬 젬';
     },
     syncRoute(route, locked) {
         // A merged launcher may remain available through another purchased child.
@@ -89,7 +89,7 @@ const contentUnlockUi = {
     node(def) {
         const status = contentProgression.status(def.id);
         const state = status.unlocked ? 'owned' : status.available ? 'ready' : 'locked';
-        const label = status.unlocked ? '해금 완료' : status.available ? `선택 가능 · ${def.cost}P` : status.reason;
+        const label = status.unlocked ? '해금 완료' : status.available ? `선택 가능, ${def.cost}P` : status.reason;
         return `<button type="button" class="unlock-node is-${state}" data-unlock-select="${def.id}" aria-pressed="${this.selectedId === def.id}">
             <span class="unlock-node-art"><img src="${this.art(def)}" alt="" loading="lazy"></span>
             <strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(label)}</small><span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></button>`;
@@ -132,7 +132,7 @@ const contentUnlockUi = {
             return `<section class="unlock-branch" aria-label="${escapeHTML(root.group)}"><span class="unlock-trunk" aria-hidden="true"></span><h3>${escapeHTML(root.group)}</h3><div class="unlock-path">${this.connections(nodes, depths)}${columns}</div></section>`;
         }).join('');
         return `<nav class="unlock-filters" aria-label="성장 분야"><button type="button" data-unlock-group="all" aria-pressed="${this.group === 'all'}">전체</button>${filters}</nav>
-            <div class="unlock-map" tabindex="0" aria-label="성장 해금 연결도"><button type="button" class="unlock-origin" data-unlock-select="craft" aria-pressed="${this.selectedId === 'craft'}"><span class="unlock-node-art"><img src="${this.art(starter)}" alt=""></span><span class="unlock-origin-label">장비 제련 <small>해금 완료 · 이어지는 성장 선택</small></span></button>${branches}</div>`;
+            <div class="unlock-map" tabindex="0" aria-label="성장 해금 연결도"><button type="button" class="unlock-origin" data-unlock-select="craft" aria-pressed="${this.selectedId === 'craft'}"><span class="unlock-node-art"><img src="${this.art(starter)}" alt=""></span><span class="unlock-origin-label">장비 제련 <small>해금 완료, 이어지는 성장 선택</small></span></button>${branches}</div>`;
     },
     /** A one-time visual transition from the existing starter; never stored in the progression ledger. */
     revealBranches(root, previous) {
@@ -185,14 +185,14 @@ const contentUnlockUi = {
     milestoneTeaser(loop) {
         if (loop === game.season) return '';
         const names = CONTENT_UNLOCK_CATALOG.filter(row => row.minLoop === loop).map(row => row.name);
-        const first = names.length ? names.slice(0, 2).join(' · ') + (names.length > 2 ? ` 외 ${names.length - 2}` : '')
+        const first = names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ` 외 ${names.length - 2}` : '')
             : (SEASON_CONTENT_ROADMAP[loop]?.features || [])[0];
-        return first ? ` · ${escapeHTML(first)}` : '';
+        return first ? `, ${escapeHTML(first)}` : '';
     },
     /** 진행 · 이정표에서 아직 고른 항목이 없을 때의 오른쪽 설명(앞 화면에서 고른 항목이 남아 있었다 — 검토 4차). */
     loopSummary() {
         const next = game.season + 1;
-        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">진행 · 이정표</span><h3>루프 ${game.season}</h3>
+        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">진행과 이정표</span><h3>루프 ${game.season}</h3>
             <p>루프마다 자동으로 열리는 전투 콘텐츠와 고를 수 있는 성장 수단입니다. 목록의 항목을 누르면 설명이 여기에 나옵니다.</p></div>
             <div class="unlock-requirements"><h4>다음 루프 ${next}</h4><div><span>${escapeHTML(getLoopAbyssRequirementText(next))}</span></div></div>`;
     },
@@ -204,14 +204,14 @@ const contentUnlockUi = {
         if (!rows.length) return '';
         return `<div class="unlock-milestone-group"><h4>${label}</h4>${rows.map(def => {
             const status = contentProgression.status(def.id);
-            const caption = status.unlocked ? '해금 완료' : status.available ? `선택 가능 · ${def.cost}P` : status.reason;
+            const caption = status.unlocked ? '해금 완료' : status.available ? `선택 가능, ${def.cost}P` : status.reason;
             return `<button type="button" data-unlock-select="${def.id}" class="unlock-milestone-item"><span>${escapeHTML(def.name)}<span class="unlock-lifetime-tag">${escapeHTML(def.lifecycle?.label || '해금 영구 유지')}</span></span><small>${escapeHTML(caption)}</small></button>`;
         }).join('')}</div>`;
     },
     progressionMap() {
         const loops = Object.keys(SEASON_CONTENT_ROADMAP).map(Number);
         const shown = this.showAllMilestones ? loops : loops.filter(loop => loop >= game.season && loop <= game.season + 4);
-        const toggle = this.showAllMilestones ? '현재·다음 이정표만' : '전체 이정표 보기';
+        const toggle = this.showAllMilestones ? '현재/다음 이정표만' : '전체 이정표 보기';
         return `<div class="unlock-milestone-intro"><p>전투는 진행에 따라 열리고, 성장 수단은 직접 선택합니다.</p>
             <button type="button" data-unlock-horizon="toggle">${toggle}</button></div>
             <div class="unlock-milestones">${this.milestoneRuns(shown).map(run => this.milestone(run.start, run.end)).join('') || this.milestone(game.season)}</div>`;
@@ -228,7 +228,7 @@ const contentUnlockUi = {
     lifecycle(def) {
         const life = def.lifecycle;
         if (!life) return '<p class="unlock-lifetime-note">기능 해금은 다음 루프에도 유지됩니다.</p>';
-        return `<details class="unlock-lifetime" id="unlock-lifetime-${def.id}"><summary>루프 전환 시 · ${escapeHTML(life.label)}</summary><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
+        return `<details class="unlock-lifetime" id="unlock-lifetime-${def.id}"><summary>루프 전환 시, ${escapeHTML(life.label)}</summary><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
             ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</details>`;
     },
     relatedFeatures(def) {
@@ -244,11 +244,11 @@ const contentUnlockUi = {
             : `<button type="button" data-unlock-content="${def.id}" ${status.available ? '' : 'disabled'}>${escapeHTML(status.reason)}</button>`;
         // 첫 보상은 설명 바로 아래, 해금 단추는 맨 아래에서 창 본문 아래쪽에 붙어(sticky) 늘 보인다 — 작은 창(1366×768 ·
         // HUD 위 작업 영역)에서 단추가 스크롤 밖으로 밀려났다.
-        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)} · ${def.cost ? '선택 해금' : '자동 개방'}</span>
+        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${def.cost ? '선택 해금' : '자동 개방'}</span>
             <div class="unlock-detail-art"><img src="${this.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3><p>${escapeHTML(def.description)}</p></div>
             <div class="unlock-detail-reward">${this.entryReward(def, status)}</div>
             ${this.lifecycle(def)}${this.relatedFeatures(def)}
-            <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ' · ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
+            <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${def.cost ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
             <div class="unlock-detail-action">${action}</div>`;
     },
     openButton(def) {
@@ -274,7 +274,7 @@ const contentUnlockUi = {
         captureUiDisclosureState(root);
         const selected = CONTENT_UNLOCK_CATALOG.find(row => row.id === this.selectedId);
         root.innerHTML = `<header class="content-unlock-heading"><span>루프 ${game.season}</span>${this.pointBalanceHtml()}</header>
-            <div class="unlock-toolbar"><nav aria-label="해금 방식"><button type="button" data-unlock-view="choice" aria-pressed="${this.view === 'choice'}">선택 해금</button><button type="button" data-unlock-view="progress" aria-pressed="${this.view === 'progress'}">진행 · 이정표</button></nav></div>
+            <div class="unlock-toolbar"><nav aria-label="해금 방식"><button type="button" data-unlock-view="choice" aria-pressed="${this.view === 'choice'}">선택 해금</button><button type="button" data-unlock-view="progress" aria-pressed="${this.view === 'progress'}">진행, 이정표</button></nav></div>
             <div class="unlock-workspace"><div class="unlock-content">${this.view === 'choice' ? this.choiceMap() : this.progressionMap()}</div>
             <aside class="unlock-detail" aria-label="선택한 콘텐츠">${selected ? this.detail(selected) : this.loopSummary()}</aside></div>`;
         restoreUiDisclosureState(root);

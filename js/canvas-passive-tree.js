@@ -874,7 +874,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span class="is-atk" title="공격 +${triageResult.dpsGainPct}%">+${Math.round(triageResult.dpsGainPct)}%</span>`;
     if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span class="is-def" title="생존 +${triageResult.ehpGainPct}%">+${Math.round(triageResult.ehpGainPct)}%</span>`;
     if (triageResult && triageResult.special) badges += '<span class="is-special" title="특수 효과">특수</span>';
-    let label = `${rarityLabel} ${item.name || item.baseName || '장비'} · ${footprint.columns}×${footprint.rows}`;
+    let label = `${rarityLabel} ${item.name || item.baseName || '장비'}, ${footprint.columns}×${footprint.rows}`;
     let preview = `if(window.matchMedia('(hover: hover)').matches&&!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)`;
     return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${carried ? 'is-carried' : ''} ${filterClass} ${sourceMeta ? sourceMeta.toneClass : ''}"
         style="grid-column:${footprint.column + 1}/span ${footprint.columns};grid-row:${footprint.row + 1}/span ${footprint.rows};--item-grid-columns:${footprint.columns};--item-grid-rows:${footprint.rows};" data-equipment-grid-key="${escapeHTML(itemKey)}"
@@ -954,8 +954,8 @@ function renderEquipmentInventoryInspector(rows) {
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
     let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
     let html = `<div class="equipment-grid-inspector-copy rarity-${item.rarity || 'normal'}">
-        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel} · ${escapeHTML(getItemSlotDisplayLabel(item, '장비'))} · ${footprint.columns}×${footprint.rows}칸</span>
-        <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
+        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel}, ${escapeHTML(getItemSlotDisplayLabel(item, '장비'))}, ${footprint.columns}×${footprint.rows}칸</span>
+        <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ', 세팅 보호' : ''}${item.locked ? ', 잠금' : ''}</small></div>
     </div><div class="equipment-grid-inspector-actions">
         ${renderEquipmentInspectorActions(item, slot, presetProtected)}
     </div><div class="equipment-inspection-details"></div><button type="button" class="equipment-grid-inspector-close" aria-label="선택 닫기" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
@@ -991,8 +991,8 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let optionSummary = explicitCount > 0 ? `추가 옵션 ${explicitCount}` : '추가 옵션 없음';
     let metaChips = `<span class="equipment-meta-chip">${optionSummary}</span>`;
     if (triageResult) {
-        let dpsSlot = triageResult.dpsSlot ? ` · ${String(triageResult.dpsSlot).replace(/[12]$/, '')} 교체 기준` : '';
-        let ehpSlot = triageResult.ehpSlot ? ` · ${String(triageResult.ehpSlot).replace(/[12]$/, '')} 교체 기준` : '';
+        let dpsSlot = triageResult.dpsSlot ? `, ${String(triageResult.dpsSlot).replace(/[12]$/, '')} 교체 기준` : '';
+        let ehpSlot = triageResult.ehpSlot ? `, ${String(triageResult.ehpSlot).replace(/[12]$/, '')} 교체 기준` : '';
         if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" title="${escapeHTML(`현재 세팅${dpsSlot}`)}">공격 +${triageResult.dpsGainPct}%</span>`;
         if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" title="${escapeHTML(`현재 세팅${ehpSlot}`)}">생존 +${triageResult.ehpGainPct}%</span>`;
         if (triageResult.kind === 'keep') metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-keep">현 세팅 유지</span>';

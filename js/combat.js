@@ -97,7 +97,7 @@ function cancelCombatChannel(reason) {
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
     game.passiveChannelPath = null;
-    if (reason) addBattleFx('statusText', { text: `집중 취소 · ${reason}`, color: '#d7b8ff', duration: 480 });
+    if (reason) addBattleFx('statusText', { text: `집중 취소, ${reason}`, color: '#d7b8ff', duration: 480 });
     return true;
 }
 
@@ -1662,13 +1662,13 @@ function describeSummonDps(rows, estimates, pStats, activeCount) {
         if (!groups.has(row.name)) groups.set(row.name, buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare));
         groups.get(row.name).count++;
     });
-    const lines = [`공격 소환수 ${activeCount}기 · 소환수별 공격 주기로 합산`];
+    const lines = [`공격 소환수 ${activeCount}기, 소환수별 공격 주기로 합산`];
     groups.forEach((group, name) => lines.push(...describeSummonDpsGroup(name, group, pStats, sbShare)));
     if (sbActive && sbShare > 0) {
         lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(sbShare)})가 소환수 타격마다 가산`);
     }
     if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
-    lines.push('소환수 공격력은 피해 증가가 적용된 값이며, 적 저항·최종 피해·보스 피해·관통은 소환수 제한 계수로 반영됩니다.');
+    lines.push('소환수 공격력은 피해 증가가 적용된 값이며, 적 저항/최종 피해/보스 피해/관통은 소환수 제한 계수로 반영됩니다.');
     if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
     return lines;
 }
@@ -1677,12 +1677,12 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     const lines = [];
     const eleLabel = ele => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
     let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
-    const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('·');
-    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${elements}`);
+    const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('/');
+    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span>, 젬 Lv.${g.gemLv}, ${elements}`);
     lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
     lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
-    lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
-    lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
+    lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}%, 공속 ${g.aps.toFixed(2)}/초, 저항 관통 ${Math.floor(g.penResPen)}%`));
+    lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항/제한 계수 반영)`));
     return lines;
 }
 /** Lowest (low roll, no crit) to highest (full roll, crit) hit; a wisp that rolls its element per attack spans them all. */
@@ -2184,7 +2184,7 @@ function coreLoop(nowMs) {
                     if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.', 'loot-unique');
                     if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
-                        queueTutorialNotice('void_grand_breach_ready_once', '대균열', '대균열이 열렸습니다.\n‘지도 → 탐험 → 공허 균열 · 대균열’에서 ‘대균열 입장’을 누르세요.', 'tab-map');
+                        queueTutorialNotice('void_grand_breach_ready_once', '대균열', '대균열이 열렸습니다.\n‘지도 → 탐험 → 공허 균열, 대균열’에서 ‘대균열 입장’을 누르세요.', 'tab-map');
                     }
                 }
             }
@@ -2782,15 +2782,15 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
     } else if (devotion > 0 && rules.revelation === 'guard') {
         revelationEffect = `받는 피해 ${rules.guardTakenLessPct}% 감폭`;
     } else if (devotion > 0 && rules.revelation === 'life') {
-        revelationEffect = `최대 생명력·에너지 보호막·초당 재생 각각 +${formatValue('regen', rules.lifeBonusPct)}%`;
+        revelationEffect = `최대 생명력/에너지 보호막/초당 재생 각각 +${formatValue('regen', rules.lifeBonusPct)}%`;
     } else if (devotion > 0 && rules.revelation === 'fanaticism') {
-        revelationEffect = `열광 ${rules.fanaticismStacks}/${Math.floor(devotion)} · 1당 피해 1.5%, 스킬 속도 0.5% 증가`;
+        revelationEffect = `열광 ${rules.fanaticismStacks}/${Math.floor(devotion)}, 1당 피해 1.5%, 스킬 속도 0.5% 증가`;
     }
     return {
         mystique: {
             title: '신비',
             lines: [`가장 높은 피해 속성에 대응하는 ${ailmentLabel} 강화`,
-                `${ailmentLabel} 피해 +${formatValue('mystique', mystique)}% · 위력 +${formatValue('mystique', mystique)}%`,
+                `${ailmentLabel} 피해 +${formatValue('mystique', mystique)}%, 위력 +${formatValue('mystique', mystique)}%`,
                 `${ailmentLabel} 유발 확률 +${Math.floor(mystique / 3)}%p`],
             final: formatValue('mystique', mystique)
         },
@@ -2902,7 +2902,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         else if (effect.key === 'projectilePatternMode' && PROJECTILE_PATTERN_MODE_DB[ep.mode] && !projectilePatternEffect) {
             projectilePatternEffect = {
                 mode: ep.mode,
-                source: effect.itemName ? `고유 장비 · ${effect.itemName}` : '재능',
+                source: effect.itemName ? `${effect.itemName} (고유 장비)` : '재능',
                 damageMultiplier: Number.isFinite(Number(ep.damageMultiplier)) ? Number(ep.damageMultiplier) : null
             };
         }
@@ -4175,7 +4175,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             `생명력 계수: 최대 생명력 ${Math.floor(finalMaxHp)} → 내장 피해 +${Math.floor(hpFlatBonus)}`,
             (skill.regenDmgScale || 0) > 0 ? `생명력 재생 계수: ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
             `초과 화염 저항 계수: ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(fireResForOvercap)}% / 최대 ${Math.floor(maxResFForOvercap)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)`,
-            `지속 피해 총 배율: ${totalDotDamageMultiplier.toFixed(2)}x (스킬 ${dotMultiplier.toFixed(2)}x · 스탯 ${dotStatMultiplier.toFixed(2)}x)`,
+            `지속 피해 총 배율: ${totalDotDamageMultiplier.toFixed(2)}x (스킬 ${dotMultiplier.toFixed(2)}x, 스탯 ${dotStatMultiplier.toFixed(2)}x)`,
             `화염 부패 대상 점화 피해 증폭: ${flameDecayIgniteTakenMultiplierPreview.toFixed(2)}x (생명력 100당 ${(Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1)}%, 최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)`,
             `실제 적별 화염 부패 DPS는 적 상태이상 툴팁에서 저항/심연 배율까지 반영해 표시됩니다.`
         ].filter(Boolean);
@@ -4204,7 +4204,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine(`${ailmentLabel} 방지 확률`, finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
                 `계산 기준: ${ailmentLabel} 방지 옵션 ${Number(ailmentResValue || 0).toFixed(1)}% + 공통 방지 ${Math.floor(ailmentResistBonusPct)}%`,
                 medicineResistanceAilmentBonus.ignite > 0 || medicineResistanceAilmentBonus.freeze > 0 || medicineResistanceAilmentBonus.shock > 0
-                    ? `약품 내성: 최고 비-제한 원소 저항 상태이상 방지 +100% (점화 ${medicineResistanceAilmentBonus.ignite}% / 냉각·동결 ${medicineResistanceAilmentBonus.freeze}% / 감전 ${medicineResistanceAilmentBonus.shock}%)`
+                    ? `약품 내성: 최고 비-제한 원소 저항 상태이상 방지 +100% (점화 ${medicineResistanceAilmentBonus.ignite}% / 냉각/동결 ${medicineResistanceAilmentBonus.freeze}% / 감전 ${medicineResistanceAilmentBonus.shock}%)`
                     : null,
                 ...(mitigationLines || []),
                 '피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 직접 합산되지 않습니다.'
@@ -4278,7 +4278,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         return [
             `지속 피해 배율 스탯: +${Math.max(0, dotPctDmg).toFixed(1)}%`,
             catalystAilmentSourceMultiplier > 1 ? `과잉 촉매 기준 피해: x${catalystAilmentSourceMultiplier.toFixed(2)}` : null,
-            totalDotDamageMultiplier !== dotStatMultiplier ? `키스톤·스킬 포함 지속 피해 배율: x${totalDotDamageMultiplier.toFixed(2)}` : null,
+            totalDotDamageMultiplier !== dotStatMultiplier ? `키스톤/스킬 포함 지속 피해 배율: x${totalDotDamageMultiplier.toFixed(2)}` : null,
             specificPct > 0 ? `${specificLabel}: +${Number(specificPct).toFixed(1)}%` : null,
             `해당 상태이상 피해 총 배율: x${totalMultiplier.toFixed(2)} (기본 대비 +${Math.max(0, (totalMultiplier - 1) * 100).toFixed(1)}%)`
         ].filter(Boolean);
@@ -4334,9 +4334,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 ...(extraLines || []),
                 formatResistanceSourceLine('캠페인 패널티', -resistPenalty),
                 `최대 저항: ${Math.floor(maxValue)}% (기본 75%)`,
-                formatResistanceSourceLine('최대 저항 · 장비', maxGear),
-                formatResistanceSourceLine('최대 저항 · 패시브', maxPassive),
-                formatResistanceSourceLine('최대 저항 · 보조 젬', support[maxStatId] || 0),
+                formatResistanceSourceLine('최대 저항, 장비', maxGear),
+                formatResistanceSourceLine('최대 저항, 패시브', maxPassive),
+                formatResistanceSourceLine('최대 저항, 보조 젬', support[maxStatId] || 0),
                 ...(extraMaxLines || [])
             ].filter(Boolean),
             final: `${Math.floor(finalValue)}%`
@@ -4424,7 +4424,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`),
                 talentLine('move'),
-                `전장 이동: 칸당 ${(COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / finalMove).toFixed(2)}초 · 초당 ${(finalMove / (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2)}칸`,
+                `전장 이동: 칸당 ${(COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / finalMove).toFixed(2)}초, 초당 ${(finalMove / (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2)}칸`,
                 `지도 진행도: 기본 대비 ${(finalMove / 100).toFixed(2)}배 (${finalMove >= 100 ? '+' : ''}${Math.floor(finalMove - 100)}%)`,
                 `구간 이동: ${Math.max(0.5, 1.2 * 100 / finalMove).toFixed(2)}초`
             ].filter(Boolean),
@@ -4471,8 +4471,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
                 skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
                 (hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
-                `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
-                `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
+                `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}%, 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
+                `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p, 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p, 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
@@ -4504,7 +4504,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
-            final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${PLAYER_PHYSICAL_REDUCTION_CAP_PCT}% 적용 · 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
+            final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${PLAYER_PHYSICAL_REDUCTION_CAP_PCT}% 적용, 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
         },
         armor: {
             title: '방어도',
@@ -4524,7 +4524,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('회피 증가', totalEvasionPct, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('기수의 나침반 증폭', riderCompassEvasionMorePct, '%', value => `${Math.floor(value)}%`),
                 `예상 회피 확률(동일 레벨 적 기준): ${evadeChance.toFixed(1)}%`,
-                `정확도: ${Math.floor(playerAccuracy)} (힘 ${Math.floor(totalStrength)} · 민첩 ${Math.floor(totalDexterity)} · 지능 ${Math.floor(totalIntelligence)})`
+                `정확도: ${Math.floor(playerAccuracy)} (힘 ${Math.floor(totalStrength)}, 민첩 ${Math.floor(totalDexterity)}, 지능 ${Math.floor(totalIntelligence)})`
             ].filter(Boolean),
             final: `${Math.floor(finalEvasion)}`
         },
@@ -4547,24 +4547,24 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비/기타 정확도', flatAccuracy),
                 makeSourceLine('정확도 보정', accuracyBonusPct, '%', value => `${Math.floor(value)}%`),
                 `효과: 적의 회피 수치와 대결해 명중을 판정합니다. 정확도가 높을수록 고회피 적에게 덜 빗나갑니다.`,
-                `예: 회피 500 적 상대 예상 명중률 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 500 }, playerAccuracy))}% · 회피 2000 적 상대 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 2000 }, playerAccuracy))}%`,
+                `예: 회피 500 적 상대 예상 명중률 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 500 }, playerAccuracy))}%, 회피 2000 적 상대 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 2000 }, playerAccuracy))}%`,
                 `적 회피 대비 빗나감은 최대 45%p, 적의 별도 회피 확률 옵션과 합쳐 총 70%가 상한입니다.`
             ].filter(Boolean),
             final: `${Math.floor(playerAccuracy)}`
         },
         strength: {
             title: '힘',
-            lines: ['1당 최대 생명력 +2 · 5당 물리 피해 +1%', `최대 생명력 +${Math.floor(totalStrength * 2)} · 물리 피해 +${Math.floor(totalStrength / 5)}%`],
+            lines: ['1당 최대 생명력 +2, 5당 물리 피해 +1%', `최대 생명력 +${Math.floor(totalStrength * 2)}, 물리 피해 +${Math.floor(totalStrength / 5)}%`],
             final: `${Math.floor(totalStrength)}`
         },
         dexterity: {
             title: '민첩',
-            lines: [`1당 회피 +3 · 정확도 +${PLAYER_ACCURACY_PER_DEXTERITY} · 5당 투사체 피해 +1%`, `회피 +${Math.floor(totalDexterity * 3)} · 정확도 +${Math.floor(totalDexterity * PLAYER_ACCURACY_PER_DEXTERITY)} · 투사체 피해 +${Math.floor(totalDexterity / 5)}%`],
+            lines: [`1당 회피 +3, 정확도 +${PLAYER_ACCURACY_PER_DEXTERITY}, 5당 투사체 피해 +1%`, `회피 +${Math.floor(totalDexterity * 3)}, 정확도 +${Math.floor(totalDexterity * PLAYER_ACCURACY_PER_DEXTERITY)}, 투사체 피해 +${Math.floor(totalDexterity / 5)}%`],
             final: `${Math.floor(totalDexterity)}`
         },
         intelligence: {
             title: '지능',
-            lines: ['1당 에너지 보호막 +2 · 5당 주문 피해 +1%', `에너지 보호막 +${Math.floor(totalIntelligence * 2)} · 주문 피해 +${Math.floor(totalIntelligence / 5)}%`],
+            lines: ['1당 에너지 보호막 +2, 5당 주문 피해 +1%', `에너지 보호막 +${Math.floor(totalIntelligence * 2)}, 주문 피해 +${Math.floor(totalIntelligence / 5)}%`],
             final: `${Math.floor(totalIntelligence)}`
         },
         blockChance: {
@@ -4637,34 +4637,34 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resF),
             formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
         ], [
-            formatResistanceSourceLine('최대 저항 · 공통 효과', sharedElementalMaxRes),
-            formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
-            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항 · 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
-            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResF || 0)
+            formatResistanceSourceLine('최대 저항, 공통 효과', sharedElementalMaxRes),
+            formatResistanceSourceLine('최대 저항, 영역 고유 효과', uniqueAllMaxRes),
+            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항, 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
+            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResF || 0)
         ]),
         resC: makeResistanceBreakdown('냉기 저항', 'resC', 'maxResC', finalResC, finalMaxResC, [
             formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resC),
             formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
         ], [
-            formatResistanceSourceLine('최대 저항 · 공통 효과', sharedElementalMaxRes),
-            formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
-            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항 · 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
-            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResC || 0)
+            formatResistanceSourceLine('최대 저항, 공통 효과', sharedElementalMaxRes),
+            formatResistanceSourceLine('최대 저항, 영역 고유 효과', uniqueAllMaxRes),
+            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항, 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
+            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResC || 0)
         ]),
         resL: makeResistanceBreakdown('번개 저항', 'resL', 'maxResL', finalResL, finalMaxResL, [
             formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resL),
             formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
         ], [
-            formatResistanceSourceLine('최대 저항 · 공통 효과', sharedElementalMaxRes),
-            formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
-            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항 · 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
-            formatResistanceSourceLine('최대 저항 · 전하 보루', crusaderLightningMaxResBonus),
-            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResL || 0)
+            formatResistanceSourceLine('최대 저항, 공통 효과', sharedElementalMaxRes),
+            formatResistanceSourceLine('최대 저항, 영역 고유 효과', uniqueAllMaxRes),
+            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항, 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
+            formatResistanceSourceLine('최대 저항, 전하 보루', crusaderLightningMaxResBonus),
+            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResL || 0)
         ]),
         resChaos: makeResistanceBreakdown('카오스 저항', 'resChaos', 'maxResChaos', finalResChaos, finalMaxResChaos, [
             formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
@@ -4673,8 +4673,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             formatResistanceSourceLine('공허 결합', elementalistChaosConversionBonus),
             formatResistanceSourceLine('군락 수호구', colonyWardBonus.resChaos || 0)
         ], [
-            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResChaos || 0)
+            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResChaos || 0)
         ]),
 
         ailmentResist: {
@@ -5367,7 +5367,7 @@ function applyChaosRealmAffixesToEnemy(enemy, zone) {
     let affixes = getChaosRealmAffixes(floor);
     enemy.chaosRealmFloor = floor;
     enemy.chaosRealmAffixes = affixes;
-    enemy.traitName = affixes.map(a => a.name).join(' · ');
+    enemy.traitName = affixes.map(a => a.name).join(', ');
     affixes.forEach(affix => {
         let s = affix.scale || scale;
         if (affix.id === 'elemental_wall') { enemy.resF += Math.floor(58 * s); enemy.resC += Math.floor(58 * s); enemy.resL += Math.floor(58 * s); }
@@ -5394,7 +5394,7 @@ function applyZoneEnemyMods(enemy, zone) {
 }
 function getChaosRealmBonusSummary() {
     let b = (ensureChaosRealmState().permanentBonuses || {});
-    return [`피해 +${(b.pctDmg||0).toFixed(1)}%`, `이속 +${(b.move||0).toFixed(1)}%`, `생명력 +${(b.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(b.resChaos||0)}%`, `치명 +${Math.floor(b.crit||0)}%`, `관통 +${Math.floor(b.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(b.armorPct||0)}%`, `치피 +${Math.floor(b.critDmg||0)}%`, `공속 +${Math.floor(b.aspd||0)}%`].join(' · ');
+    return [`피해 +${(b.pctDmg||0).toFixed(1)}%`, `이속 +${(b.move||0).toFixed(1)}%`, `생명력 +${(b.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(b.resChaos||0)}%`, `치명 +${Math.floor(b.crit||0)}%`, `관통 +${Math.floor(b.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(b.armorPct||0)}%`, `치피 +${Math.floor(b.critDmg||0)}%`, `공속 +${Math.floor(b.aspd||0)}%`].join(', ');
 }
 function grantChaosRealmFloorBonus(floor) {
     let st = ensureChaosRealmState();
@@ -5639,7 +5639,7 @@ function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
 
 function applyCosmosExclusiveTraitToEnemy(enemy, trait) {
     if (!enemy || !trait) return;
-    enemy.traitName = enemy.traitName ? `${enemy.traitName} · ${trait.name}` : trait.name;
+    enemy.traitName = enemy.traitName ? `${enemy.traitName}, ${trait.name}` : trait.name;
     if (Number.isFinite(trait.dr)) enemy.dr = Math.min(90, Math.max(0, enemy.dr + trait.dr));
     if (Number.isFinite(trait.resAll)) {
         enemy.resF = Math.min(95, enemy.resF + trait.resAll);
@@ -5791,7 +5791,7 @@ function applyCosmosDirectiveModifiers(modifiers, zone) {
     modifiers.damageMul *= Math.max(0.5, Math.min(3, Number(directive.enemyDamageMul) || 1));
     modifiers.attackSpeedMul *= Math.max(0.5, Math.min(2, Number(directive.enemyAttackSpeedMul) || 1));
     const name = String(directive.name || '').trim();
-    if (name) modifiers.traitName = `${modifiers.traitName} · 탐사:${name}`;
+    if (name) modifiers.traitName = `${modifiers.traitName}, 탐사:${name}`;
     return modifiers;
 }
 
@@ -6302,7 +6302,7 @@ function createEnemy(zone, marker, groupIndex) {
             enemy.energyShield = Math.max(enemy.energyShield || 0, enemy.maxEnergyShield);
         }
         // Shared encounter modifiers can adjust stats without adding a named trait.
-        enemy.traitName = [enemy.traitName, cosmosMods.traitName].filter(Boolean).join(' · ');
+        enemy.traitName = [enemy.traitName, cosmosMods.traitName].filter(Boolean).join(', ');
     }
     if (zone.id === 'cosmos_astra' && isBoss) {
         enemy.astraBase = {
@@ -6921,7 +6921,7 @@ function handleTalentBloomClear(zone) {
     if (isNewCombo) game.talentBloomCombos.push(comboKey);
     let heroLabel = HERO_SELECTION_DEFS[heroId]?.label || heroId;
     let classLabel = CLASS_TEMPLATES[classKey]?.name || '미전직';
-    addLog(`재능 개화 성공: [${heroLabel} × ${classLabel}]${isNewCombo ? ' · 신규 조합' : ''}`, 'loot-unique');
+    addLog(`재능 개화 성공: [${heroLabel} × ${classLabel}]${isNewCombo ? ', 신규 조합' : ''}`, 'loot-unique');
     game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
     let firstEverBloomOfClass = classKey !== 'none' && !game.bloomedClasses.includes(classKey);
     if (firstEverBloomOfClass) game.bloomedClasses.push(classKey);
@@ -6997,7 +6997,7 @@ function getSkillConditionalDamageMultiplier(skill, enemy, onCue) {
         multiplier *= 1 + pct / 100;
         if (typeof onCue === 'function') onCue({
             key: `ailment-${active.type}`,
-            text: `${getAilmentDisplayLabel(active.type)} 연계 · 피해 ${pct}% 증폭`,
+            text: `${getAilmentDisplayLabel(active.type)} 연계: 피해 ${pct}% 증폭`,
             color: getElementColor(skill.ele)
         });
     }
@@ -7012,7 +7012,7 @@ function getSkillConditionalDamageMultiplier(skill, enemy, onCue) {
         consumed = true;
         if (typeof onCue === 'function') onCue({
             key: `consume-${config.type}`,
-            text: `${getAilmentDisplayLabel(config.type)} 소모 · 피해 ${pct}% 증폭`,
+            text: `${getAilmentDisplayLabel(config.type)} 소모: 피해 ${pct}% 증폭`,
             color: getElementColor(skill.ele)
         });
     });
@@ -7021,7 +7021,7 @@ function getSkillConditionalDamageMultiplier(skill, enemy, onCue) {
     if ((enemy.hp || 0) >= Math.max(1, enemy.maxHp || 1)) {
         let pct = Math.max(0, Number(skill.fullLifeDamageMorePct) || 0);
         multiplier *= 1 + pct / 100;
-        if (pct > 0 && typeof onCue === 'function') onCue({ key:'full-life', text:`선제 · 피해 ${pct}% 증폭`, color:'#ffd27a' });
+        if (pct > 0 && typeof onCue === 'function') onCue({ key:'full-life', text:`선제: 피해 ${pct}% 증폭`, color:'#ffd27a' });
     }
     if (game.gridPlayer && hasGridCell(enemy)) {
         let distance = getGridUnitDistance(game.gridPlayer, enemy);
@@ -7029,14 +7029,14 @@ function getSkillConditionalDamageMultiplier(skill, enemy, onCue) {
         let cap = Math.max(0, Number(skill.distanceDamageMoreCapPct) || 0);
         let applied = Math.min(cap, distanceBonus);
         multiplier *= 1 + applied / 100;
-        if (cap > 0 && applied >= cap && typeof onCue === 'function') onCue({ key:'max-distance', text:`최대 거리 · 피해 ${cap}% 증폭`, color:'#bdeaff' });
+        if (cap > 0 && applied >= cap && typeof onCue === 'function') onCue({ key:'max-distance', text:`최대 거리: 피해 ${cap}% 증폭`, color:'#bdeaff' });
     }
     let nearbyEnemies = (game.enemies || []).filter(row => row && row.hp > 0).length;
     let crowdBonus = Math.max(0, nearbyEnemies - 1) * Math.max(0, Number(skill.crowdDamageMorePerEnemyPct) || 0);
     let crowdCap = Math.max(0, Number(skill.crowdDamageMoreCapPct) || 0);
     let appliedCrowdBonus = Math.min(crowdCap, crowdBonus);
     multiplier *= 1 + appliedCrowdBonus / 100;
-    if (crowdCap > 0 && appliedCrowdBonus >= crowdCap && typeof onCue === 'function') onCue({ key:'max-crowd', text:`최대 포위 · 피해 ${crowdCap}% 증폭`, color:'#f0c993' });
+    if (crowdCap > 0 && appliedCrowdBonus >= crowdCap && typeof onCue === 'function') onCue({ key:'max-crowd', text:`최대 포위: 피해 ${crowdCap}% 증폭`, color:'#f0c993' });
     return multiplier;
 }
 
@@ -7701,11 +7701,11 @@ function getWoodsmanPhaseProgress(enemy) {
 // 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
 // 그 다섯 보스의 정체성(견고/흡수/균형/심판/충격)을 4.5초 주기로 순환하며 방어·공격 프로필이 계속 바뀐다.
 const COSMOS_ASTRA_STANCES = [
-    { name: '하말리스의 메아리 — 견고', ele: 'phys', drAdd: 20, armorMul: 1.7 },
-    { name: '디프다르의 메아리 — 흡수', ele: 'chaos', regenMul: 8, resChaosAdd: 22 },
-    { name: '주베누비아의 메아리 — 균형', ele: 'phys', resAllAdd: 18, drAdd: 8 },
-    { name: '주벤샤말의 메아리 — 심판', ele: 'light', penetrationAdd: 26, critChanceAdd: 18, atkMulMul: 1.15 },
-    { name: '에니프론의 메아리 — 충격', ele: 'fire', atkMulMul: 1.75, attackSpeedVarMul: 1.4 }
+    { name: '하말리스의 메아리: 견고', ele: 'phys', drAdd: 20, armorMul: 1.7 },
+    { name: '디프다르의 메아리: 흡수', ele: 'chaos', regenMul: 8, resChaosAdd: 22 },
+    { name: '주베누비아의 메아리: 균형', ele: 'phys', resAllAdd: 18, drAdd: 8 },
+    { name: '주벤샤말의 메아리: 심판', ele: 'light', penetrationAdd: 26, critChanceAdd: 18, atkMulMul: 1.15 },
+    { name: '에니프론의 메아리: 충격', ele: 'fire', atkMulMul: 1.75, attackSpeedVarMul: 1.4 }
 ];
 const COSMOS_ASTRA_STANCE_CYCLE_MS = 4500;
 
@@ -8252,7 +8252,7 @@ function finishWoodsmanEchoRun() {
     game.combatHalted = true;
     game.currentZoneId = CHAOS_REALM_ZONE_ID;
     if (typeof recordWoodsmanEchoRun === 'function') recordWoodsmanEchoRun(run.totalDamage, dps);
-    addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()} · 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
+    addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()}, 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
     updateStaticUI();
 }
 function tickWoodsmanEchoRun() {
@@ -8340,7 +8340,7 @@ function tickGrandBreachRun(zone) {
             let boss = createEnemy(zone, { boss: true, count: 1 }, 0);
             let soul = Math.max(0, Math.floor(g.kills || 0));
             boss.name = '👿 균열 군주';
-            boss.traitName = `생존 구간 ${soul}처치 · 처치 수에 따라 격파 보상 증가`;
+            boss.traitName = `생존 구간 ${soul}처치, 처치 수에 따라 격파 보상 증가`;
             game.enemies = [boss];
             addLog(`🕳️ 생존 종료! 균열 군주가 출현합니다. ${soul}처치만큼 격파 보상이 증가합니다.`, 'loot-unique');
         }
@@ -8959,7 +8959,7 @@ function handleEnemyDeath(enemy, pStats) {
             game.colony.kills = 0;
             game.colony.requiredKills = getColonyWaveEnemyCount(game.colony.wave);
             if (typeof spawnColonyWave === 'function') spawnColonyWave();
-            addLog(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ' · 군락지 흔적 +1' : ''} · 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+            addLog(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ', 군락지 흔적 +1' : ''}, 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
             queueImportantSave(200);
         }
     }
@@ -8979,7 +8979,7 @@ function handleEnemyDeath(enemy, pStats) {
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         markLoopSpecialBossKill('void_grand_breach');
         unlockJournalEntry('void_grand_breach');
-        addLog(`🌌 대균열 보스를 격파했습니다! 생존 구간 ${rewards.kills}처치 정산${rewards.voidChisel ? ` · 공허의 끌 +${rewards.voidChisel}` : ''}`, 'level-up');
+        addLog(`🌌 대균열 보스를 격파했습니다! 생존 구간 ${rewards.kills}처치 정산${rewards.voidChisel ? `, 공허의 끌 +${rewards.voidChisel}` : ''}`, 'level-up');
         queueImportantSave(200);
     }
     // 시체폭발/연쇄 피해 등으로 동시에 0 이하가 된 적은
@@ -9199,7 +9199,7 @@ function grantGuaranteedTrialSkillGem() {
     game.gemData[skill] = { level: 1, exp: 0, awakened: false };
     game.noti.skills = true;
     let shardGain = grantGemResearchFragments(2, 'drop');
-    addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? ` · 젬 잔향 +${shardGain}` : ''}`, 'loot-magic');
+    addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? `, 젬 잔향 +${shardGain}` : ''}`, 'loot-magic');
     return true;
 }
 
@@ -9220,14 +9220,14 @@ function grantMilestonePinnacleClearRewards(zone, firstClear) {
     if (!zone || !zone.milestonePinnacle) return;
     if (zone.journalId && firstClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
     if (!firstClear) {
-        addLog(`♜ [${zone.name}] 재도전 완료 · 최초 격파 보상은 이미 획득했습니다.`, 'season-up');
+        addLog(`♜ [${zone.name}] 재도전 완료, 최초 격파 보상은 이미 획득했습니다.`, 'season-up');
         return;
     }
     const reward = zone.firstClearReward && typeof zone.firstClearReward === 'object' ? zone.firstClearReward : null;
     const amount = Math.max(0, Math.floor(Number(reward && reward.amount) || 0));
     if (reward && reward.key && amount > 0) awardCurrency(reward.key, amount);
     const rewardName = reward && ORB_DB[reward.key] ? ORB_DB[reward.key].name : '';
-    const rewardText = rewardName ? ` · ${rewardName} +${amount}` : '';
+    const rewardText = rewardName ? `, ${rewardName} +${amount}` : '';
     const prefix = zone.pinnacleCapstone ? '👁️ 모든 경계의 관측을 끝냈습니다.' : '♜ 새로운 최종 관문을 정복했습니다.';
     addLog(`${prefix} [${zone.name}] 최초 격파${rewardText}`, 'loot-unique');
 }
@@ -9332,7 +9332,7 @@ function grantBeyondBoundaryJewelRewards(context) {
     }
     let shards = Math.max(1, Math.round((3 + getBeyondBoundaryPayoutTier(context.tier) / 5) * context.intensity.rewardMul));
     awardCurrency('jewelShard', shards);
-    return `주얼 ${stored}개 · 주얼 결정 ${shards}개`;
+    return `주얼 ${stored}개, 주얼 결정 ${shards}개`;
 }
 
 function grantBeyondBoundaryGemRewards(context) {
@@ -9351,7 +9351,7 @@ function grantBeyondBoundaryCurrencyRewards(context) {
     awardCurrency('magicBud', buds);
     awardCurrency('formlessDew', dew);
     if (sap > 0) awardCurrency('sapBud', sap);
-    return `마법의 새싹 ${buds}개 · 형체 없는 이슬 ${dew}개${sap ? ` · 수액 새싹 ${sap}개` : ''}`;
+    return `마법의 새싹 ${buds}개, 형체 없는 이슬 ${dew}개${sap ? `, 수액 새싹 ${sap}개` : ''}`;
 }
 
 function grantBeyondBoundaryFocusedReward(result) {
@@ -9381,13 +9381,13 @@ function finishEncounterRun() {
         if (!result.ok) return;
         game.killsInZone = 0;
         if (!result.completed) {
-            addLog(`경계 너머 ${result.tier}단계 · ${result.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.`, 'season-up');
+            addLog(`경계 너머 ${result.tier}단계, ${result.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.`, 'season-up');
             startMoving(false);
         } else {
             let seal = BEYOND_BOUNDARY_SEAL_DB.find(row => row.id === result.sealId);
-            let levelText = result.sealResult.levelsGained > 0 ? ` · 인장 ${result.sealResult.level}레벨` : '';
+            let levelText = result.sealResult.levelsGained > 0 ? `, 인장 ${result.sealResult.level}레벨` : '';
             let focusedReward = grantBeyondBoundaryFocusedReward(result);
-            addLog(`경계 너머 ${result.tier}단계 돌파 · ${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText} · ${focusedReward.summary}`, 'loot-unique');
+            addLog(`경계 너머 ${result.tier}단계 돌파, ${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText}, ${focusedReward.summary}`, 'loot-unique');
             game.currentZoneId = result.returnZoneId !== null && result.returnZoneId !== undefined
                 ? result.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
             startMoving(false);
@@ -9509,7 +9509,7 @@ function finishEncounterRun() {
             let rewardText = firstClear
                 ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
                 : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
-            addLog(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText} · 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
+            addLog(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText}, 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
         } else {
             addLog(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
         }
@@ -9524,14 +9524,14 @@ function finishEncounterRun() {
         let rift = ensureTimeRiftState();
         if (zone.riftPhase === 'past') {
             rift.altarOpen = true;
-            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
+            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개/희귀 1개를 올리세요.`, 'loot-unique');
         } else {
             let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
             if (fusion) {
                 rift.fusionCount = Math.max(0, Math.floor(rift.fusionCount || 0)) + 1;
                 unlockJournalEntry('time_rift_fusion');
                 let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
-                addLog(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? ` · ${fusion.lost}개 유실` : ' · 유실 없음'})`, 'loot-unique');
+                addLog(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? `, ${fusion.lost}개 유실` : ', 유실 없음'})`, 'loot-unique');
             }
         }
         rift.activePressure = null;
@@ -10766,7 +10766,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
                     showAttackFeedback(targetEnemy, {
                         key: 'first-strike',
-                        text: `선제 타격 · 피해 ${Math.max(0, Number(pStats.firstStrikeDamagePct) || 0)}% 증폭`,
+                        text: `선제 타격: 피해 ${Math.max(0, Number(pStats.firstStrikeDamagePct) || 0)}% 증폭`,
                         color: '#ffd27a'
                     });
                 }
@@ -11952,7 +11952,7 @@ function performMonsterAttacks(pStats) {
                 grantTalentStoneShieldOnBlock(pStats);
                 let blockedTakenPct = Math.max(0, Math.min(100, Number(pStats.uniqueBlockedDamageTakenPct) || 0));
                 // 다 막으면 '막아냄!'(피해 없음), 일부만 막으면 받는 몫을 적는다.
-                let blockText = blockedTakenPct <= 0 ? '막아냄!' : `막아냄 · 피해 ${blockedTakenPct}%`;
+                let blockText = blockedTakenPct <= 0 ? '막아냄!' : `막아냄, 피해 ${blockedTakenPct}%`;
                 addBattleFx('statusText', { text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true });
                 if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic");
                 if (blockedTakenPct <= 0) continue;
@@ -12161,8 +12161,8 @@ function performMonsterAttacks(pStats) {
                         .sort((a, b) => b.amount - a.amount)
                         .map(row => `${getDamageElementLabel(row.ele)} ${formatNumberKR(row.amount)}`)
                         .join(' / ');
-                    let deflectText = deflected ? ` · 🪶비껴냄 -${deflectReducePct}%` : '';
-                    damageLog = `🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${formatNumberKR(dmg)} 피해 · ${breakdownText}${deflectText})`;
+                    let deflectText = deflected ? `, 🪶비껴냄 -${deflectReducePct}%` : '';
+                    damageLog = `🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${formatNumberKR(dmg)} 피해, ${breakdownText}${deflectText})`;
                 }
                 addLog(damageLog, "attack-monster", { element:topDamageEntry.ele });
             }
@@ -12615,13 +12615,13 @@ function triggerSeasonReset(options) {
     game.seasonPoints++;
     addLog(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염·냉기·번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
+        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 ‘해금’에서 화석 제작을 열면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
     Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
         if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);
     });
     if (game.season === 13 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개·희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
+        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개/희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
     }
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');

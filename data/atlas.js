@@ -83,7 +83,7 @@ const ATLAS = Object.freeze({
         { id: 'monsterCrit', kind: 'prefix', text: '몬스터 치명타 확률 +{v}%', min: 10, max: 20, quantity: [5, 8], rarity: [3, 4] },
         { id: 'extraElites', kind: 'prefix', text: '전투 방의 {v}%에 정예 추가', min: 20, max: 35, quantity: [8, 12], rarity: [6, 9] },
         { id: 'packSize', kind: 'prefix', text: '무리마다 몬스터 +{v}', min: 1, max: 2, integer: true, quantity: [8, 14], rarity: [3, 5] },
-        { id: 'bossEmpowered', kind: 'prefix', text: '보스 생명력 · 피해 {v}% 증가', min: 30, max: 50, quantity: [6, 10], rarity: [8, 12] },
+        { id: 'bossEmpowered', kind: 'prefix', text: '보스 생명력, 피해 {v}% 증가', min: 30, max: 50, quantity: [6, 10], rarity: [8, 12] },
         { id: 'lessLeech', kind: 'suffix', text: '몬스터에게서 흡수하는 생명력 {v}% 감소', min: 40, max: 60, quantity: [5, 8], rarity: [3, 4] },
         { id: 'penetration', kind: 'suffix', text: '몬스터 저항 관통 +{v}%', min: 8, max: 15, quantity: [6, 9], rarity: [3, 5] },
         { id: 'doubleStrike', kind: 'suffix', text: '몬스터 연속 타격 확률 +{v}%', min: 12, max: 20, quantity: [6, 9], rarity: [3, 5] },

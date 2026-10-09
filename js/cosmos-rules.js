@@ -36,7 +36,7 @@
             id: 'orbitalCollision', name: '궤도 충돌', specialEvery: 4, damageMul: 1.42,
             damageScale: 0.32, elementRule: 'physical', telegraphKind: 'lane',
             summary: '네 번째 공격마다 방어도로 줄일 수 있는 강한 물리 충돌을 일으킵니다.',
-            counter: '방어도·막기 또는 물리 피해 전환을 준비하세요.'
+            counter: '방어도/막기 또는 물리 피해 전환을 준비하세요.'
         }),
         'planet-47': Object.freeze({
             id: 'abyssalTide', name: '심해의 역류', specialEvery: 4, damageMul: 1.18,
@@ -48,7 +48,7 @@
             id: 'twinBalance', name: '쌍성의 균형', specialEvery: 2, damageMul: 1.30,
             elementRule: 'alternatingWeakest', telegraphKind: 'split', hpScale: 1.10, damageScale: 0.32,
             summary: '물리 타격과 가장 취약한 속성 타격을 번갈아 사용합니다.',
-            counter: '한 방어만 높이기보다 물리·속성 EHP의 최저점을 보완하세요.'
+            counter: '한 방어만 높이기보다 물리/속성 EHP의 최저점을 보완하세요.'
         }),
         'planet-49': Object.freeze({
             id: 'finalJudgment', name: '최저항 심판', specialEvery: 3, damageMul: 1.45,

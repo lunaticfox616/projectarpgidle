@@ -90,7 +90,7 @@
         if (bonus > 0) notes.push(`동형 장갑 세트 보너스 활성화: 기본 공속 +${bonus.toFixed(2)}`);
         notes.push(...getTalentNotes());
         if (min >= max) notes.push(`최소 피해 보정(${Math.floor(min)}%)이 최대 보정 이상이라 최대 피해 보정이 동일 값으로 조정됩니다.`);
-        setTextById('ui-unique-special-summary', notes.join(' · '));
+        setTextById('ui-unique-special-summary', notes.join(', '));
     }
 
     function renderCharacterStats(pStats) {

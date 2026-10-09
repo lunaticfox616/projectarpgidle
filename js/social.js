@@ -349,7 +349,7 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     return row;
 }
 
-/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 다 자라면 주는 것, 추가 줄, 황금, 억제와 공명.
+/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
  * 불씨의 흉터도 이 카드다(흡수한 줄이 추가 줄 자리에). */
 function buildStumpItemSnapshot(item, result) {
     let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
@@ -361,13 +361,11 @@ function buildStumpItemSnapshot(item, result) {
         golden: stumpBox.goldenMul(item) > 1 };
 }
 
-/** 게임 그루터기 함의 상태 줄(stumpStatusLine)과 같은 문장. 억제되었거나 공명할 때만. */
+/** 게임 그루터기 함의 상태 줄(js/stump-box-ui.js stumpStatus)과 같은 문장. 비활성화되었거나 공명할 때만. */
 function stumpItemNote(item, result) {
-    if (result.suppressed.has(item.id)) {
-        return `상하좌우로 맞닿은 ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 아이템에 억제되어 자라지 않고 능력치도 없습니다.`;
-    }
+    if (result.suppressed.has(item.id)) return `비활성화: ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 인접`;
     if (!stumpBox.isMature(item) || !result.resonant.has(item.color)) return '';
-    return `다 자란 ${STUMP_BOX_COLORS[item.color].label} ${result.counts[item.color]}개가 공명해 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`;
+    return `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`;
 }
 
 function buildProfileSnapshot() {
@@ -707,7 +705,7 @@ async function checkSocialChatNotification() {
         if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
             socialState.lastNotifiedChatId = incomingId;
             let nickname = String(incoming.nickname || '플레이어');
-            showGameToast(`새 채팅 · ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
+            showGameToast(`새 채팅, ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
         }
     } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
         socialState.bgNotiLoading = false;
@@ -962,7 +960,7 @@ function openItemPicker() {
     socialState.pickTips = {};
     let groups = getChatItemPickerGroups().map(renderChatItemPickerGroup).join('');
     modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
-        <div class="social-modal-content"><h3 style="color:var(--copy-bright);margin-top:0;">첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>${groups}</div></div>`;
+        <div class="social-modal-content"><h3 style="color:var(--copy-bright);margin-top:0;">첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개), 마우스를 올리면 옵션 표시</h3>${groups}</div></div>`;
     modal.style.display = 'flex';
 }
 function closeItemPicker() { hideSocialTip(); let m = document.getElementById('social-item-picker-modal'); if (m) m.style.display = 'none'; }
@@ -1409,39 +1407,46 @@ function profileJewelLineHtml(st) {
 }
 
 // ── 부적 카드: 게임 그루터기 함의 부적 설명과 같은 구성 ───────────────────────
+// 상태 줄은 게임(js/stump-talisman-ui.js stateLine)처럼 효과가 달라질 때만 적고, 효과가 없는 동안 줄은 회색 "(비활성)"이다.
 const PROFILE_TALISMAN_STATES = Object.freeze({
-    awake: '깨어나 효과를 주고 있습니다.', asleep: '판 위에서 처치할 때마다 깨어납니다.', suppressed: '척력과 맞닿아 효과가 없습니다.',
-    amplified: '깨어남, 척력으로 효과 +25%', stored: '보관함에 있습니다. 판에 놓아야 깨어납니다.'
+    awake: '', asleep: '', suppressed: '비활성화: 척력 인접', amplified: '척력으로 효과 +25%', stored: ''
 });
+const PROFILE_OFF_STYLE = ' style="color:#8d867a;"';
 const PROFILE_TALISMAN_RARITY = Object.freeze({ magic: '마법', rare: '희귀', unique: '고유' });
 const profileOwn = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : '');
 
-/** 부적 카드: 이름, 판 위에서 깨어나는 중이면 그 진행, 희귀도, 고유 효과, 줄(조건부는 보라색), 상태, 접붙이기. */
+/** 부적 카드: 이름, 그루터기 함에서 깨어나는 중이면 그 경험치, 희귀도, 고유 효과, 줄(조건부는 보라색), 상태, 접붙이기. */
 function renderProfileTalismanCard(t) {
     if (!Array.isArray(t.lines)) return renderSimpleCard(t);
-    let tone = profileTalismanTone(t);
-    let effect = t.uniqueEffect ? `<div class="social-item-unique">${socialEscape(t.uniqueEffect)}</div>` : '';
-    let lines = t.lines.map(line => `<div class="social-item-stat"${line && line.condition ? ' style="color:#d7b8ff;"' : ''}>${socialEscape(line && line.text)}</div>`).join('');
-    let growth = profileGrowthText(t, '깨어남');
+    let tone = profileTalismanTone(t), off = t.state !== 'awake' && t.state !== 'amplified';
+    let effect = t.uniqueEffect ? `<div class="social-item-unique"${off ? PROFILE_OFF_STYLE : ''}>${socialEscape(t.uniqueEffect)}${off ? ' (비활성)' : ''}</div>` : '';
+    let lines = t.lines.map(line => profileTalismanLineHtml(line, off)).join('');
+    let growth = profileGrowthText(t);
     let notes = [profileOwn(PROFILE_TALISMAN_STATES, t.state), profileGraftText(t)].filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
     return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(t.name || '부적')}</div>`
         + `${growth ? `<div class="social-item-base">${socialEscape(growth)}</div>` : ''}`
         + `<div class="social-item-base" style="color:${tone};">${profileOwn(PROFILE_TALISMAN_RARITY, t.rarity) || '마법'} 부적</div>${effect}${lines}${notes}</div>`;
 }
 
+/** One talisman line: purple for a condition line, grey with (비활성) while the talisman gives nothing (the game's rule). */
+function profileTalismanLineHtml(line, off) {
+    let style = off ? PROFILE_OFF_STYLE : (line && line.condition ? ' style="color:#d7b8ff;"' : '');
+    return `<div class="social-item-stat"${style}>${socialEscape(line && line.text)}${off ? ' (비활성)' : ''}</div>`;
+}
+
 function profileTalismanTone(t) {
     return socialSafeColor(typeof TALISMAN_RARITY_TONES === 'object' ? profileOwn(TALISMAN_RARITY_TONES, t.rarity) : null, socialRarityColor(t.rarity));
 }
 
-/** 판 위에서 자라는 중이면 "성장 120 / 400"(부적은 "깨어남"). 다 자랐거나 성장 정보가 없으면 빈 글. */
-function profileGrowthText(item, verb) {
+/** 그루터기 함에서 성장 중이면 게임과 같은 "경험치 120 / 400". 성장 완료되었거나 성장 정보가 없으면 빈 글. */
+function profileGrowthText(item) {
     let need = Math.floor(Number(item.need) || 0);
-    return item.ripe || need <= 0 ? '' : `${verb} ${Math.floor(Number(item.xp) || 0)} / ${need}`;
+    return item.ripe || need <= 0 ? '' : `경험치 ${Math.floor(Number(item.xp) || 0)} / ${need}`;
 }
 
 function profileGraftText(item) {
     let rank = Math.floor(Number(item.graft) || 0);
-    return rank > 0 ? `접붙이기 ${rank}단계, 이 칸에 놓인 것의 효과 +${Math.floor(Number(item.graftPct) || 0)}%` : '';
+    return rank > 0 ? `접붙이기 ${rank}단계, +${Math.floor(Number(item.graftPct) || 0)}%` : '';
 }
 
 // ── 코어 카드: 게임 코어 툴팁(core-items-ui.js)과 같은 이름과 줄 ─────────────
@@ -1454,19 +1459,14 @@ function renderProfileCoreCard(core) {
 // ── 씨앗과 수액 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
 function renderProfileStumpCard(item) {
     let tone = profileStumpTone(item), scar = item.family === 'scar';
-    let gain = item.yieldText ? `${item.ripe ? '' : '다 자라면 '}${item.yieldText}` : '';
-    let head = [scar ? '' : `품질 ${Math.floor(Number(item.quality) || 0)}%${item.golden === true ? ', 황금' : ''}`, profileStumpGrowth(item, scar), gain];
+    let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? '' : ' (비활성)'}` : '';
+    let head = [scar ? '' : `품질 ${Math.floor(Number(item.quality) || 0)}%${item.golden === true ? ', 황금' : ''}`, profileGrowthText(item), gain];
     let rows = list => list.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
     return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(item.name || '그루터기 아이템')}</div>`
         + rows(head) + profileStumpExtraHtml(item) + rows([item.note, profileGraftText(item)]) + '</div>';
 }
 
-function profileStumpGrowth(item, scar) {
-    if (item.ripe) return scar ? '깨어났습니다.' : '다 자랐습니다.';
-    return profileGrowthText(item, scar ? '깨어남' : '성장');
-}
-
-/** 다 자랄 때 굴린 추가 줄과 흉터가 흡수한 줄(게임과 같은 문장과 색). */
+/** 성장 완료 때 굴린 추가 줄과 흉터가 흡수한 줄(게임과 같은 문장과 색). */
 function profileStumpExtraHtml(item) {
     let rows = Array.isArray(item.extra) ? item.extra.slice(0, 40) : [];
     return rows.filter(row => row && typeof row.text === 'string')

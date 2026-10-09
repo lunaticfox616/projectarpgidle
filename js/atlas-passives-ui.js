@@ -68,7 +68,7 @@ const atlasPassivesUi = (() => {
     const NOTE_INTRO = '가운데 뿌리에서 줄기를 따라 찍습니다. 핵심 노드는 양옆 주요 노드 중 하나로 열립니다.';
     function noteBody(node) {
         if (!node) return NOTE_INTRO;
-        return `<strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]} · ${stateText(node)}</small>
+        return `<strong>${escapeHTML(node.name)}</strong> <small>${RANK_NAME[rankOf(node)]}, ${stateText(node)}</small>
             <br>${escapeHTML(effectText(node.effect))}`;
     }
     /** Pointer or keyboard on a passive: the note beside the wheel reads it; leaving shows the pressed one again. A floating card

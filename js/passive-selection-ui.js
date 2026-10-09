@@ -14,7 +14,7 @@ const passiveSelectionUi = (() => {
     /** 확인 단추 글씨: 가진 노드는 반환(공허는 제작), 직업 시작점은 늘 열린 출발점, 나머지는 드는 포인트. */
     function confirmLabel(node, owned, cost) {
         if (owned) return node.kind === 'void' ? '공허 제작' : '노드 반환';
-        return node.kind === 'start' ? '시작점 · 이미 열림' : `${cost}포인트 사용`;
+        return node.kind === 'start' ? '시작점, 이미 열림' : `${cost}포인트 사용`;
     }
 
     function canAct(node, cost) {

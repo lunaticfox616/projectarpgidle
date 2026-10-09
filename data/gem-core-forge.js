@@ -6,6 +6,6 @@ const GEM_CORE_FORGE = Object.freeze({
     pityBonusPct: Object.freeze([0, 10, 19.6, 28.6, 36.8, 44, 50, 55, 60, 65, 70, 75, 80, 85, 90]),
     tracks: Object.freeze({
         bossCore: Object.freeze({ name: '군주의 핵', levelKey: 'bossCoreLevel', pityKey: 'bossCoreFailures', effect: '피해', stepPct: 4, tone: 'core' }),
-        skyEssence: Object.freeze({ name: '창공의 정수', levelKey: 'skyCoreLevel', pityKey: 'skyCoreFailures', effect: '공격·시전 속도', stepPct: 2, tone: 'sky' })
+        skyEssence: Object.freeze({ name: '창공의 정수', levelKey: 'skyCoreLevel', pityKey: 'skyCoreFailures', effect: '공격/시전 속도', stepPct: 2, tone: 'sky' })
     })
 });

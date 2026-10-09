@@ -763,7 +763,7 @@
         let logo = document.createElement('button');
         logo.id = 'ui-rail-logo';
         logo.type = 'button';
-        logo.setAttribute('aria-label', 'RIGNIN · 열린 창 모두 닫기');
+        logo.setAttribute('aria-label', 'RIGNIN, 열린 창 모두 닫기');
         logo.title = '열린 창 모두 닫기';
         logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
         logo.addEventListener('click', closeAllWindows);

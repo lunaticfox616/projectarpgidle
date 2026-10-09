@@ -321,8 +321,8 @@ const OCEAN_COLLECTION_REQUIRED_COUNTS = Object.freeze(OCEAN_FISH_COLLECTION_MIL
 const OCEAN_NORMALIZED_FISHING_STATES = new WeakSet();
 
 const OCEAN_CURRENT_POOL = [
-    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현 · 냉기 저항 -12' },
-    { id: 'warm_current', name: '온수층', desc: '화염 적 출현 · 화염 저항 -12' },
+    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현, 냉기 저항 -12' },
+    { id: 'warm_current', name: '온수층', desc: '화염 적 출현, 화염 저항 -12' },
     { id: 'riptide', name: '역류', desc: '이동 속도 15% 감폭' },
     { id: 'bioluminescence', name: '발광 생물군', desc: '정확도 18% 감폭' },
     { id: 'still_water', name: '정체수', desc: '산소 시간 소모 35% 증가' },
@@ -762,7 +762,7 @@ function createBeyondBoundaryZone(state) {
         || BEYOND_BOUNDARY_INTENSITY_DB[0];
     const wave = run ? clampNumber(Math.floor(Number(run.wave) || 1), 1, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER) : 1;
     return {
-        id: BEYOND_BOUNDARY_ZONE_ID, name: `경계 너머 ${profile.tier}단계 · ${wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER}`,
+        id: BEYOND_BOUNDARY_ZONE_ID, name: `경계 너머 ${profile.tier}단계, ${wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER}`,
         type: 'beyondBoundary', tier: getUnderworldTier(30) + Math.floor((profile.difficultyTier - 1) / 2),
         maxKills: 1, ele: 'chaos', difficultyBenchmark: 'underworld30',
         boundaryTier: profile.tier, boundaryWave: wave,
@@ -851,7 +851,7 @@ function getZone(id) {
         let difficultyTier = getTimeRiftDifficultyTier(activePressure);
         // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
         let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
+        return { id: id, name: `시간의 균열, ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth, ...contentMaps.timeRift(phase, activePressure) };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
@@ -945,7 +945,7 @@ function getLoopAbyssRequirementText(seasonValue) {
     let cap = getSeasonAbyssDepthCap(seasonValue);
     let base = `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
     if (Math.max(1, Math.floor(seasonValue || 1)) < LOOP_GATE_ALT_START_SEASON) return base;
-    return `${base} · 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
+    return `${base}, 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
 }
 
 function hasCurrentLoopChaosRequirementClear(seasonValue) {

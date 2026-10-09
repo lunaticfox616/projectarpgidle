@@ -34,7 +34,7 @@
         if(!game.settings.showLootLog)return;
         const {jewel,inventoryFull,protectOverflow,stored,shardGain}=receipt;
         if(!stored) {
-            if(!game.isBackgroundCalculation)addLog(`💠 ${inventoryFull?'주얼 인벤토리 초과':'주얼 자동해체'}: [${jewel.name}] · 주얼 결정 +${shardGain}`,inventoryFull?'attack-monster':'loot-normal');
+            if(!game.isBackgroundCalculation)addLog(`💠 ${inventoryFull?'주얼 인벤토리 초과':'주얼 자동해체'}: [${jewel.name}], 주얼 결정 +${shardGain}`,inventoryFull?'attack-monster':'loot-normal');
             return;
         }
         const lines=getJewelStats(jewel).map(stat=>`${isJewelPetiteStat(stat)?'쁘띠 ':''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id,stat.val)}${Number.isFinite(Number(stat.tier))&&!isJewelPetiteStat(stat)?` T${Math.floor(stat.tier)}`:''}`).join(' / ');
@@ -42,7 +42,7 @@
     }
     window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
     function announceCore(core) {
-        if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(' · ')})`,'loot-unique',{item:core,itemKind:'core'});
+        if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(`🧊 코어 [${core.name}] 획득! (${core.lines.map(coreItems.describe).join(', ')})`,'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
     // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.

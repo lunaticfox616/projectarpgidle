@@ -195,7 +195,7 @@ const atlas = (() => {
         const reason = lockReason(state);
         if (reason) return reason;
         if (state.atlas.run) return '이미 열린 지도가 있습니다. 먼저 마치거나 닫으세요.';
-        return hasTickets(state) ? '' : '뿌리 입장권 4종(화염 · 냉기 · 번개 · 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.';
+        return hasTickets(state) ? '' : '뿌리 입장권 4종(화염, 냉기, 번개, 카오스)이 하나씩 필요합니다. 지역 수호자가 떨어뜨립니다.';
     }
     /** 정점: 뿌리 입장권 4종을 하나씩 바치고 세계수의 그림자에 들어간다(씨앗마다 2등급 높다). */
     function beginPinnacle(state, returnZoneId, random = Math.random) {

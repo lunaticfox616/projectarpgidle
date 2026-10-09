@@ -89,7 +89,7 @@ const hotkeysUi = (() => {
         if (event.code === 'Escape') { capturing = null; notice = ''; render(); return; }
         if (event.code === 'Backspace' || event.code === 'Delete') { commit(capturing, ''); return; }
         if (event.ctrlKey || event.altKey || event.metaKey || !hotkeyBindings.isAssignable(event.code)) {
-            notice = '글자·숫자·기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.';
+            notice = '글자/숫자/기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.';
             render();
             return;
         }

@@ -89,7 +89,7 @@ const cosmosRouteRuntime = (() => {
         modifiers.hpMul *= profile.hp;
         modifiers.damageMul *= profile.damage;
         modifiers.attackSpeedMul *= profile.speed;
-        modifiers.traitName = `${profile.name} · ${modifiers.traitName}`;
+        modifiers.traitName = `${profile.name}, ${modifiers.traitName}`;
         return modifiers;
     }
 

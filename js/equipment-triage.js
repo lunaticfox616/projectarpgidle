@@ -130,12 +130,12 @@
         if (state.status === 'running') return `${state.work.index}/${state.work.items.length} 분석 중`;
         if (state.status === 'ready') {
             const counts = getCounts();
-            return `${counts.all}개 완료 · 균형 ${counts.balanced} · 공격 ${counts.damage} · 생존 ${counts.defense}`;
+            return `${counts.all}개 완료, 균형 ${counts.balanced}, 공격 ${counts.damage}, 생존 ${counts.defense}`;
         }
         if (state.status === 'error') return '분석 중 오류가 발생했습니다. 다시 시도하세요.';
         if (state.status === 'stale') return '세팅이 변경되어 결과를 비웠습니다.';
         if (state.status === 'cancelled') return '분석을 중단했습니다.';
-        return '분석 시작 시점의 세팅·전투 상태로 비교합니다.';
+        return '분석 시작 시점의 세팅/전투 상태로 비교합니다.';
     }
 
     function getFilterOptionsHtml(counts) {
@@ -172,7 +172,7 @@
     function getRecommendTitle(recommendation) {
         if (recommendation) return state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.';
         if (state.status !== 'ready') return '현재 세팅으로 일괄 분석을 완료하면 추천을 확인할 수 있습니다.';
-        if (['all', 'balanced'].includes(state.filter)) return '공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승·생존 상승 필터로 각각 비교할 수 있습니다.';
+        if (['all', 'balanced'].includes(state.filter)) return '공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승/생존 상승 필터로 각각 비교할 수 있습니다.';
         if (['special', 'keep'].includes(state.filter)) return '이 목록에서는 장비를 직접 선택해 효과를 비교하세요.';
         return '선택한 판단 기준에서 상승하는 장비가 없습니다.';
     }
@@ -197,7 +197,7 @@
             ? '<button type="button" onclick="openAutoSalvageConfigOverlay()">자동 해체 설정</button>' : '';
         const fillable = countFillableEmptySlots();
         const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">빈 칸 채우기 ${fillable}</button>` : '';
-        const html = `<div class="equipment-triage-copy" title="분석 시작 시점의 세팅·전투 상태를 기준으로 비교합니다."><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
+        const html = `<div class="equipment-triage-copy" title="분석 시작 시점의 세팅/전투 상태를 기준으로 비교합니다."><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
             <div class="equipment-triage-controls">
                 <label>판단 <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
                 <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? '분석 중단' : (state.status === 'idle' ? '일괄 분석' : '다시 분석')}</button>
@@ -340,7 +340,7 @@
         const equipped = equipItemById(recommendation.item.id, recommendation.slot);
         if (!equipped) return false;
         if (typeof showGameToast === 'function') {
-            showGameToast(`${recommendation.item.name || '추천 장비'} 장착 · ${recommendation.slot}`, { tone: 'success' });
+            showGameToast(`${recommendation.item.name || '추천 장비'} 장착, ${recommendation.slot}`, { tone: 'success' });
         }
         start();
         return true;

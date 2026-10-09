@@ -828,12 +828,12 @@ Object.keys(context.SKILL_DB).forEach(name => {
   if (profile.shape) assert.ok(validShapes.has(profile.shape), `스킬 '${name}'의 shape가 유효하지 않다: ${profile.shape}`);
   if (profile.kind === 'summon') assert.strictEqual(profile.range, context.getSummonProfile(name).gridRange, `소환 젬 '${name}'의 표시 사거리는 실제 공격 사거리와 같아야 한다`);
 });
-assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸 · 원형');
-assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 3칸');
-assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통 · 사거리 3칸');
-assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
-assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격 · 사거리 3칸');
-assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사 · 사거리 6칸 · 5방향(20도 간격) · 발사 방식 변경 가능');
+assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발, 사거리 5칸, 반경 2칸, 원형');
+assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 3칸');
+assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통, 사거리 3칸');
+assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄, 사거리 5칸, 연쇄 2칸');
+assert.strictEqual(context.describeSkillGridProfile('물리 위습 소환', context.SKILL_DB['물리 위습 소환']), '공격 범위: 소환수 공격, 사거리 3칸');
+assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사, 사거리 6칸, 5방향(20도 간격), 발사 방식 변경 가능');
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
@@ -1309,7 +1309,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     context.game.equipment['무기'] = makeUniqueItem(name);
     const weaponStats = context.getPlayerStats();
     assert.strictEqual(weaponStats.sSkill.projectilePattern.mode, mode, `${name}은 실제 발사 방식을 ${mode}로 변경해야 한다`);
-    assert.strictEqual(weaponStats.sSkill.projectilePatternSource, `고유 장비 · ${name}`, `${name}의 발사 방식 출처를 표시해야 한다`);
+    assert.strictEqual(weaponStats.sSkill.projectilePatternSource, `${name} (고유 장비)`, `${name}의 발사 방식 출처를 표시해야 한다`);
     assert.strictEqual(weaponStats.sSkill.dmg, baseSkillDamage * damageMultiplier, `${name}은 각인보다 완화된 전용 피해 배율을 사용해야 한다`);
     assert.strictEqual(context.getGemPresentation('얼음 창').skill.dmg, weaponStats.sSkill.dmg, `${name}의 완화된 배율을 젬 상세 화면에도 보존해야 한다`);
   });
@@ -1520,19 +1520,19 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['암살자의 일격'], target), 1.35, '암살자의 일격은 생명력이 가득 찬 적에게 증폭돼야 한다');
   const openingCues = [];
   context.getSkillConditionalDamageMultiplier(context.SKILL_DB['암살자의 일격'], target, cue => openingCues.push(cue));
-  assert.deepStrictEqual(Array.from(openingCues, cue => cue.text), ['선제 · 피해 35% 증폭'],
+  assert.deepStrictEqual(Array.from(openingCues, cue => cue.text), ['선제: 피해 35% 증폭'],
     '선제 피해가 적용되면 전투 화면에 실제 발동 이유를 전달해야 한다');
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['번개 창'], target), 1.18, '번개 창은 첫 칸 이후 거리만큼 증폭돼야 한다');
   const distanceCues = [];
   const farTarget = makeEnemy(35, 7, 6);
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['번개 창'], farTarget, cue => distanceCues.push(cue)), 1.3,
     '번개 창은 최대 거리에서 기존 30% 상한을 유지해야 한다');
-  assert.deepStrictEqual(Array.from(distanceCues, cue => cue.text), ['최대 거리 · 피해 30% 증폭'],
+  assert.deepStrictEqual(Array.from(distanceCues, cue => cue.text), ['최대 거리: 피해 30% 증폭'],
     '거리 상한 달성은 전투 화면에 전달해야 한다');
   context.game.enemies = Array.from({ length: 8 }, (_, idx) => makeEnemy(100 + idx, 2 + (idx % 4), 2 + Math.floor(idx / 4)));
   const crowdCues = [];
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['회오리바람'], context.game.enemies[0], cue => crowdCues.push(cue)), 1.28, '회오리바람의 밀집 보너스는 28% 상한을 지켜야 한다');
-  assert.deepStrictEqual(Array.from(crowdCues, cue => cue.text), ['최대 포위 · 피해 28% 증폭'],
+  assert.deepStrictEqual(Array.from(crowdCues, cue => cue.text), ['최대 포위: 피해 28% 증폭'],
     '포위 상한 달성은 전투 화면에 전달해야 한다');
 
   const frozenTarget = makeEnemy(134, 4, 6, { ailments:[{ type:'freeze', time:2 }] });
@@ -1540,7 +1540,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['빙결 파열창'], frozenTarget, cue => consumeCues.push(cue)), 1.4,
     '빙결 파열창은 기존 동결 소모 피해를 유지해야 한다');
   assert.strictEqual(frozenTarget.ailments.length, 0, '소모된 동결은 대상에게 남지 않아야 한다');
-  assert.deepStrictEqual(Array.from(consumeCues, cue => cue.text), ['동결 소모 · 피해 40% 증폭'],
+  assert.deepStrictEqual(Array.from(consumeCues, cue => cue.text), ['동결 소모: 피해 40% 증폭'],
     '상태이상 소모 효과는 소모한 상태와 피해 증폭량을 전달해야 한다');
 
   context.game.enemies = [target];

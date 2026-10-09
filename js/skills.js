@@ -439,12 +439,12 @@ function processSupportGemWithSkyEssence(name) {
     let rec = processState.record;
     let improvingTier = processState.improvingTier;
     let need = processState.need;
-    if (processState.maxed) return addLog('해당 보조 젬은 이미 최대 등급·레벨입니다.', 'attack-monster');
+    if (processState.maxed) return addLog('해당 보조 젬은 이미 최대 등급/레벨입니다.', 'attack-monster');
     if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 정수가 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.skyEssence -= need;
     if (improvingTier) {
         rec.unlockedTier = Math.min(processState.tierCap, Math.floor(rec.unlockedTier || 1) + 1);
-        addLog(`☁️ 보조 젬 [${name}] 창공 가공 완료: ${rec.unlockedTier === 3 ? '상급' : '중급'} 해금 · 적용 등급은 현재 설정 유지 (소모 ${need})`, 'loot-unique');
+        addLog(`☁️ 보조 젬 [${name}] 창공 가공 완료: ${rec.unlockedTier === 3 ? '상급' : '중급'} 해금, 적용 등급은 현재 설정 유지 (소모 ${need})`, 'loot-unique');
     } else {
         rec.level = Math.min(30, Math.floor(rec.level || 1) + 1);
         addLog(`☁️ 보조 젬 [${name}] 숙련 가공 완료: Lv.${rec.level} (소모 ${need})`, 'loot-unique');

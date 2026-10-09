@@ -16,8 +16,8 @@
 #tab-map #map-ready-destinations details button{font-size:12px;padding:8px 10px}
 #tab-map .encounter-empty{padding:12px 14px;background:#172019;color:#c7cabb;border:1px solid #a9976d40;border-radius:4px;font-size:13px}
 #tab-map .encounter-pending-title{margin:18px 0 8px;font-size:13px;color:#b7b7a7;font-weight:500}
-#tab-map #ui-season-boss-list .map-zone-group-count::after{content:' · 펼치기'}
-#tab-map #ui-season-boss-list .map-zone-group:not(.collapsed) .map-zone-group-count::after{content:' · 접기'}
+#tab-map #ui-season-boss-list .map-zone-group-count::after{content:'펼치기';margin-left:.7em}
+#tab-map #ui-season-boss-list .map-zone-group:not(.collapsed) .map-zone-group-count::after{content:'접기'}
 #tab-map #ui-season-boss-list{display:block;container-type:inline-size}
 #tab-map #ui-season-boss-list .map-zone-group{margin:0 0 18px;padding:0;border:0;background:none}
 #tab-map #ui-season-boss-list .map-zone-group-header{width:100%;padding:8px 0;margin:0 0 8px;border-radius:0;color:#d8c497;font-size:15px;text-align:left;display:flex;justify-content:space-between}

@@ -34,7 +34,7 @@ function getUniqueHuntSource(entry) {
     if (drop && UNIQUE_HUNT_SOURCE_IDS[drop.id]) return { ...UNIQUE_HUNT_SOURCE_IDS[drop.id] };
     if (drop && drop.type === 'cosmosBoss') {
         let boss = UNIQUE_HUNT_COSMOS_BOSSES[drop.bossId] || '은하 보스';
-        return { label: `우주계 · ${boss}`, mapSubtab: 'map-tab-cosmos' };
+        return { label: `우주계, ${boss}`, mapSubtab: 'map-tab-cosmos' };
     }
     let source = drop && UNIQUE_HUNT_SOURCE_TYPES[drop.type]
         ? { ...UNIQUE_HUNT_SOURCE_TYPES[drop.type] }
@@ -51,7 +51,7 @@ function renderUniqueHuntTargetCard(entry) {
     let chase = entry.ultraRare || entry.cosmosChase;
     return `<article class="unique-hunt-target${chase ? ' is-chase' : ''}">
         <div class="unique-hunt-target-head"><span>${escapeHTML(entry.slots[0])}</span>${chase ? '<b>극희귀</b>' : '<b>추적 중</b>'}</div>
-        <strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(source.label)} · ${registered ? '도감 등록됨, 재획득 추적' : '도감 미등록'}</small>
+        <strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(source.label)}, ${registered ? '도감 등록됨, 재획득 추적' : '도감 미등록'}</small>
         <div><button type="button" onclick="uniqueHuntUi.navigate('${encoded}')">드랍처 보기</button><button type="button" onclick="uniqueHuntUi.toggle('${encoded}')">해제</button></div>
     </article>`;
 }

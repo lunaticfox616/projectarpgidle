@@ -38,8 +38,8 @@ const loopSettlementUi = {
     /** 루프가 무엇인지(2026-10-07 사용자: 루프 정산 카드와 함께): 처음부터 다시 하는 것과 남는 것. 첫 루프는 펼친다. */
     explainHtml(loop) {
         return `<details class="loop-settlement-explain"${loop <= 1 ? ' open' : ''}><summary>루프를 넘기면</summary><ul>
-            <li>처음부터: 레벨, 액트 진행, 장비와 가방, 재화, 스킬 젬, 스킬트리, 전직</li>
-            <li>남는 것: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
+            <li>초기화: 레벨, 액트 진행, 장비와 가방, 재화, 스킬 젬, 스킬트리, 전직</li>
+            <li>유지: 해금한 콘텐츠, 루프 패시브, 그루터기 함, 저널과 도감, 아틀라스, 혼돈계와 탑과 바다의 기록, 봉인한 장비</li>
             <li>해금 포인트와 루프 포인트로 더 강해진 채 다시 오릅니다.</li></ul></details>`;
     },
     /** A loop button that resets at once (loop-10 panel): disabled until ready, and while the stall still holds gear or dew. */

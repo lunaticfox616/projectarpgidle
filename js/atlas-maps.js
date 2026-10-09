@@ -61,7 +61,7 @@ const atlasMaps = (() => {
     /** Existing currencies keep their item roles (data/items.js ORB_DB): transmute/alter, regal/exalt, alch/chaos, scour,
      * annul, divine, quality and corrupt. */
     const CRAFTS = Object.freeze({
-        magicBud: { label: '변환 · 변경', can: map => map.rarity !== 'rare', apply: (map, random) => reroll(map, 'magic', random) },
+        magicBud: { label: '변환과 변경', can: map => map.rarity !== 'rare', apply: (map, random) => reroll(map, 'magic', random) },
         sapBud: { label: '옵션 추가', can: map => map.rarity === 'magic' || (map.rarity === 'rare' && hasRoom(map)),
             apply: (map, random) => { map.rarity = 'rare'; addMod(map, random); } },
         formlessDew: { label: '희귀 재굴림', can: map => map.rarity !== 'magic', apply: (map, random) => reroll(map, 'rare', random) },

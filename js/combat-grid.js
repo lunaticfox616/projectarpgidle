@@ -1243,7 +1243,7 @@ function describeGridFanRays(profile) {
 }
 
 function getSkillGridDescriptionText(skill,parts) {
-    return skill?.rangeText || parts.join(' · ');
+    return skill?.rangeText || parts.join(', ');
 }
 
 /**

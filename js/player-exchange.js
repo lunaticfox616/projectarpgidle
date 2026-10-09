@@ -18,7 +18,7 @@ function getPlayerExchangeError(error) {
         HALL_LISTING_LIMIT: '전당에는 동시에 장비를 3개까지만 전시할 수 있습니다.',
         HALL_RATE_LIMIT: '요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요.', HALL_LISTING_DAILY_LIMIT: '오늘의 전당 등록 한도에 도달했습니다.',
         HALL_DAILY_LIMIT: '오늘의 전당 구매 한도에 도달했습니다.',
-        HALL_ITEM_NOT_FOUND: '서버 저장에서 장비를 찾지 못했습니다.', HALL_ITEM_REJECTED: '희귀·고유 장비만 전당에 등록할 수 있습니다.',
+        HALL_ITEM_NOT_FOUND: '서버 저장에서 장비를 찾지 못했습니다.', HALL_ITEM_REJECTED: '희귀/고유 장비만 전당에 등록할 수 있습니다.',
         HALL_ITEM_KEY_CONFLICT: '같은 서버 식별자를 가진 장비가 둘 이상 발견되어 등록을 중단했습니다.',
         HALL_RELIST_BLOCKED: '한 번이라도 복제된 원본은 전당에 다시 등록할 수 없습니다.',
         HALL_SOCKET_NOT_EMPTY: '심연 주얼이 장착된 장비는 전당에 등록할 수 없습니다.', HALL_ITEM_OWNERSHIP: '장비의 서버 소유권을 확인할 수 없습니다.',
@@ -114,7 +114,7 @@ async function confirmHallListing(item, quote) {
     let price = Math.max(0, Math.floor(Number(quote.price) || 0));
     let score = Math.max(0, Math.floor(Number(quote.score) || 0));
     return requestGameConfirmation(
-        `[${item.name}] 감정 점수 ${score.toLocaleString()} · 복제품 구매가 황금률 ${price.toLocaleString()}개\n등록 중 원본은 전당이 보관하며, 회수 전까지 최대 5명이 귀속 복제품을 구매할 수 있습니다.`,
+        `[${item.name}] 감정 점수 ${score.toLocaleString()}, 복제품 구매가 황금률 ${price.toLocaleString()}개\n등록 중 원본은 전당이 보관하며, 회수 전까지 최대 5명이 귀속 복제품을 구매할 수 있습니다.`,
         { title: '장비 전당 감정', confirmText: '이 가격으로 전시' });
 }
 
@@ -137,7 +137,7 @@ async function createPlayerHallListing() {
             game.inventory = (game.inventory || []).filter(row => row && row.tradeKey !== appraisal.itemKey);
             playerExchangeState.selectedItemId = null;
         });
-        playerExchangeState.message = `감정 점수 ${Number(result.score).toLocaleString()} · 황금률 ${Number(result.price).toLocaleString()}개로 전시했습니다.`;
+        playerExchangeState.message = `감정 점수 ${Number(result.score).toLocaleString()}, 황금률 ${Number(result.price).toLocaleString()}개로 전시했습니다.`;
         await reloadPlayerExchangeData();
     } catch (error) {
         playerExchangeState.message = getPlayerExchangeError(error);
@@ -218,18 +218,18 @@ function renderHallItemCard(item, key, actionHtml, metaHtml) {
     playerExchangeState.itemTips.set(String(key), item);
     let color = getRarityColor(item.rarity);
     let tier = Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1));
-    return `<article class="player-trade-item hall-item" style="--trade-rarity:${color}" onmouseenter="showPlayerHallTooltip(event,'${escapeHTML(key)}')" onmousemove="showPlayerHallTooltip(event,'${escapeHTML(key)}')" onmouseleave="hideInfoTooltip()"><div><strong>${escapeHTML(item.name || '이름 없는 장비')}</strong><small>${escapeHTML(item.slot || '')} · ${item.rarity === 'unique' ? '고유' : '희귀'} · T${tier}</small>${metaHtml || ''}</div>${actionHtml}</article>`;
+    return `<article class="player-trade-item hall-item" style="--trade-rarity:${color}" onmouseenter="showPlayerHallTooltip(event,'${escapeHTML(key)}')" onmousemove="showPlayerHallTooltip(event,'${escapeHTML(key)}')" onmouseleave="hideInfoTooltip()"><div><strong>${escapeHTML(item.name || '이름 없는 장비')}</strong><small>${escapeHTML(item.slot || '')}, ${item.rarity === 'unique' ? '고유' : '희귀'}, T${tier}</small>${metaHtml || ''}</div>${actionHtml}</article>`;
 }
 
 function renderHallListingAction(row) {
     let disabled = row.isMine || row.alreadyCollected || playerExchangeState.loading;
     let buttonText = row.isMine ? '내 전시품' : (row.alreadyCollected ? '소장 완료' : '구매');
-    return `<div class="player-trade-price"><b>황금률 ${Number(row.price || 0).toLocaleString()}</b><span>${escapeHTML(row.curatorName || '익명')} · ${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)}</span><button onclick="buyPlayerHallReplica(${Number(row.id)})" ${disabled ? 'disabled' : ''}>${buttonText}</button></div>`;
+    return `<div class="player-trade-price"><b>황금률 ${Number(row.price || 0).toLocaleString()}</b><span>${escapeHTML(row.curatorName || '익명')}, ${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)}</span><button onclick="buyPlayerHallReplica(${Number(row.id)})" ${disabled ? 'disabled' : ''}>${buttonText}</button></div>`;
 }
 
 function renderHallPicker() {
     let owned = getHallEligibleItems();
-    if (!owned.length) return '<div class="player-exchange-empty">전시 가능한 희귀·고유 장비가 없습니다. 잠금·프리셋·심연 주얼 장착·복제 이력 장비는 제외됩니다.</div>';
+    if (!owned.length) return '<div class="player-exchange-empty">전시 가능한 희귀/고유 장비가 없습니다. 잠금/프리셋/심연 주얼 장착/복제 이력 장비는 제외됩니다.</div>';
     return owned.map(item => renderHallItemCard(item, `owned-${item.id}`,
         `<button class="${Number(item.id) === Number(playerExchangeState.selectedItemId) ? 'active' : ''}" onclick="selectPlayerHallItem(${Number(item.id)})">${Number(item.id) === Number(playerExchangeState.selectedItemId) ? '선택됨' : '전당 등록 선택'}</button>`)).join('');
 }
@@ -238,14 +238,14 @@ function renderHallMarket() {
     let listings = getPlayerHallListings();
     if (!listings.length) return '<div class="player-exchange-empty">현재 전시 중인 소장품이 없습니다.</div>';
     return listings.map(row => renderHallItemCard(row.item || {}, `hall-${row.id}`, renderHallListingAction(row),
-        `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()} · 전시자 명예 +${Number(row.honorPerCopy || 0)}</small>`)).join('');
+        `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}, 전시자 명예 +${Number(row.honorPerCopy || 0)}</small>`)).join('');
 }
 
 function renderMyHallListings() {
     let mine = Array.isArray(playerExchangeState.data && playerExchangeState.data.mine) ? playerExchangeState.data.mine : [];
     if (!mine.length) return '<div class="player-exchange-empty">보관 중인 전시 원본이 없습니다.</div>';
     return mine.map(row => renderHallItemCard(row.item || {}, `mine-${row.id}`,
-        `<div class="player-trade-price"><b>${row.status === 'sold_out' ? '복제 한도 완료' : `황금률 ${Number(row.price || 0).toLocaleString()}`}</b><span>${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)} 소장</span><button onclick="withdrawPlayerHallListing(${Number(row.id)})" ${playerExchangeState.loading ? 'disabled' : ''}>전시 종료·회수</button></div>`,
+        `<div class="player-trade-price"><b>${row.status === 'sold_out' ? '복제 한도 완료' : `황금률 ${Number(row.price || 0).toLocaleString()}`}</b><span>${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)} 소장</span><button onclick="withdrawPlayerHallListing(${Number(row.id)})" ${playerExchangeState.loading ? 'disabled' : ''}>전시 종료/회수</button></div>`,
         `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}</small>`)).join('');
 }
 
@@ -261,7 +261,7 @@ function renderPlayerHallPanel() {
     let data = playerExchangeState.data || {};
     let activeCount = (Array.isArray(data.mine) ? data.mine : [])
         .filter(row => ['open', 'sold_out'].includes(row.status)).length;
-    return `<section class="player-exchange-card hall-summary"><header><div><strong>장비 전당</strong><small>희귀·고유 원본 전시 · 서버 감정가 · 귀속 복제품 최대 5개</small></div><span>명예 ${Number(data.honor || 0).toLocaleString()} · 소장 ${Number(data.collectionCount || 0).toLocaleString()}</span></header><p>희귀는 베이스 종류·티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.</p></section><section class="player-exchange-card"><header><div><strong>전시 등록 ${activeCount}/3</strong><small>원본은 전시 종료 시 직접 회수할 수 있습니다.</small></div><span>보유 황금률 ${Math.floor(game.currencies.goldenRule || 0).toLocaleString()}</span></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div><button onclick="createPlayerHallListing()" ${playerExchangeState.loading || activeCount >= 3 ? 'disabled' : ''}>서버 감정 후 전시</button></div></section><section class="player-exchange-card"><header><strong>전당 소장품</strong><button onclick="loadPlayerExchange()" ${playerExchangeState.loading ? 'disabled' : ''}>새로고침</button></header><div class="player-trade-grid">${renderHallMarket()}</div></section><section class="player-exchange-card"><header><strong>내 전시 원본</strong><span>공유 ${Number(data.copiesShared || 0).toLocaleString()}회</span></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
+    return `<section class="player-exchange-card hall-summary"><header><div><strong>장비 전당</strong><small>희귀/고유 원본 전시, 서버 감정가, 귀속 복제품 최대 5개</small></div><span>명예 ${Number(data.honor || 0).toLocaleString()}, 소장 ${Number(data.collectionCount || 0).toLocaleString()}</span></header><p>희귀는 베이스 종류/티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.</p></section><section class="player-exchange-card"><header><div><strong>전시 등록 ${activeCount}/3</strong><small>원본은 전시 종료 시 직접 회수할 수 있습니다.</small></div><span>보유 황금률 ${Math.floor(game.currencies.goldenRule || 0).toLocaleString()}</span></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div><button onclick="createPlayerHallListing()" ${playerExchangeState.loading || activeCount >= 3 ? 'disabled' : ''}>서버 감정 후 전시</button></div></section><section class="player-exchange-card"><header><strong>전당 소장품</strong><button onclick="loadPlayerExchange()" ${playerExchangeState.loading ? 'disabled' : ''}>새로고침</button></header><div class="player-trade-grid">${renderHallMarket()}</div></section><section class="player-exchange-card"><header><strong>내 전시 원본</strong><span>공유 ${Number(data.copiesShared || 0).toLocaleString()}회</span></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
 }
 
 function renderPlayerExchange() {

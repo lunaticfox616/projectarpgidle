@@ -3050,7 +3050,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.fillStyle = '#f0c46a';
     ctx.fillText(name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
-    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(' · '), mid, cy + 25, '#d98a6a');
+    fillPixelToneText(ctx, [`${getElementLabel(banner.boss.ele)} 속성 보스`, ...getEnemyDefenseHighlights(banner.boss)].join(', '), mid, cy + 25, '#d98a6a');
     ctx.restore();
 }
 

@@ -40,7 +40,7 @@ const equipmentSocketsUi = (() => {
     function tooltipHtml(item) {
         const sockets = contentProgression.isUnlocked('jewel') ? equipmentSockets.list(item) : [];
         return sockets.map(row => row.jewel
-            ? `<div class="tooltip-line tooltip-socket-line">◆ ${socketLabel(row)}: <span class="${getJewelRarityClass(row.jewel.rarity)}">${escapeHTML(row.jewel.name || '주얼')}</span> · ${escapeHTML(jewelLines(row.jewel).join(' · '))}</div>`
+            ? `<div class="tooltip-line tooltip-socket-line">◆ ${socketLabel(row)}: <span class="${getJewelRarityClass(row.jewel.rarity)}">${escapeHTML(row.jewel.name || '주얼')}</span>, ${escapeHTML(jewelLines(row.jewel).join(', '))}</div>`
             : `<div class="tooltip-line tooltip-socket-line is-empty">◇ 빈 ${socketLabel(row)}</div>`).join('');
     }
 

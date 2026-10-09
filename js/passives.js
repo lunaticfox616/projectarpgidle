@@ -63,7 +63,7 @@ function getPassiveEffectLabel(node) {
             const state = getPassiveNodeActivationState(node);
             const statName = state.statId === 'devotion' ? '계시' : getStatName(state.statId);
             const color = state.active ? '#9fe5bb' : '#ffaaaa';
-            labels.push(`<span style="color:${color};">${state.active ? '활성' : '비활성'} · ${statName} ${state.available}/${state.required}</span>`);
+            labels.push(`<span style="color:${color};">${state.active ? '활성' : '비활성'}, ${statName} ${state.available}/${state.required}</span>`);
         }
         return labels.join('<br>');
     }
@@ -2590,8 +2590,8 @@ function unlockPassiveStarEvolution(options) {
             'passive_star_evolution',
             '성좌 각성',
             progress.mode === 'outer_void'
-                ? '외곽 공허 소켓 여섯이 모두 초월해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해·생명력·이동 속도가 오릅니다.'
-                : '별끝 특수 노드를 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해·생명력·이동 속도가 오릅니다.',
+                ? '외곽 공허 소켓 여섯이 모두 초월해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.'
+                : '별끝 특수 노드를 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.',
             'tab-char'
         );
     }
@@ -2707,7 +2707,7 @@ function getVoidPassiveEffectLabel(nodeId) {
 }
 
 const TRANSCENDENT_VOID_PASSIVE_DB = [
-    { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => `이 공허 패시브는 공허를 ${v}회 할당한 것으로 간주` },
+    { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => `이 공허 패시브는 공허 할당 ${v}회로 계산` },
     { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `스킬트리 포인트 ${v}점을 추가로 얻습니다.` },
     { id: 'overflowingVigor', name: '넘치는 활기', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 생명력 최대치 +${v}%` },
     { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
@@ -2723,11 +2723,11 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'seasoned', name: '노련함', min: 4, max: 5, desc: v => `경험한 루프 1회마다 치명타 피해 배율 +${v}%` },
     // 옛 고유 별쐐기 11종(2026-10-01). 트리를 바꾸던 변성 반경은 수치 효과로 옮겼다. 다섯의 수치는 data/passives.js
     // TRANSCENDENT_VOID_VALUES(9단계에서 맞춤).
-    { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => `공허 패시브를 ${v}개 더 할당한 것으로 간주 (5개 확률 1/625)` },
+    { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => `할당한 공허 패시브 수 +${v}로 계산 (5개 확률 1/625)` },
     { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조 스킬 젬 한도 +${v}` },
     { id: 'darkMatter', name: '암흑물질', desc: () => '옵션이 한 줄인 다른 공허 패시브의 효과 +100% (초월 공허 제외)' },
     { id: 'sun', name: '태양', desc: () => '초월 직전 이 공허 패시브의 옵션을 3배로 유지' },
-    { id: 'blackHole', name: '블랙홀', desc: () => '이 노드가 무료 연결 거점이 됩니다 — 시작점까지의 길을 되돌려도 이어진 패시브가 유지됩니다' },
+    { id: 'blackHole', name: '블랙홀', desc: () => '이 노드가 무료 연결 거점이 됩니다. 시작점까지의 길을 되돌려도 이어진 패시브가 유지됩니다' },
     { id: 'andromeda', name: '안드로메다', desc: () => `이 노드 반경 ${TRANSCENDENT_ANDROMEDA_RADIUS} 안의 패시브는 길이 이어지지 않아도 할당할 수 있습니다` },
     { id: 'comet', name: '혜성', ...TRANSCENDENT_VOID_VALUES.comet, desc: v => `이동 속도 +${v}%` },
     { id: 'asteroidBelt', name: '소행성대', ...TRANSCENDENT_VOID_VALUES.asteroidBelt, desc: v => `이 노드 반경 ${TRANSCENDENT_ASTEROID_RADIUS} 안에 할당한 패시브 하나당 모든 피해 +${v}%` },
@@ -2804,7 +2804,7 @@ function clampTranscendentValue(def, value) {
 function formatTranscendentVoidPassive(entry) {
     let def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === (entry && entry.id));
     if (!def) return '공허 옵션 없음';
-    return `<span style="color:#d8b4ff;">초월 · ${def.name}</span> — ${def.desc(entry.value, entry.value2)}`;
+    return `<span style="color:#d8b4ff;">${def.name} (초월)</span>: ${def.desc(entry.value, entry.value2)}`;
 }
 
 function rollVoidPassiveOption(existingStats) {
@@ -3174,7 +3174,7 @@ function catchOceanFish(depthTier) {
     addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, logType);
     let discoveredCount = getOceanFishCollectionProgress(st).discoveredCount;
     if (!wasDiscovered && OCEAN_FISH_COLLECTION_MILESTONES.some(row => row.required === discoveredCount)) {
-        addLog(`📘 심해 도감 ${discoveredCount}/${Object.keys(OCEAN_FISH_DB).length} — 수령 가능한 보상이 생겼습니다.`, 'loot-rare');
+        addLog(`📘 심해 도감 ${discoveredCount}/${Object.keys(OCEAN_FISH_DB).length}, 받을 보상이 있습니다.`, 'loot-rare');
         game.noti.map = true;
     }
     return picked;
@@ -3356,7 +3356,7 @@ function applyOceanDepthGain(st, meters) {
     st.pressureLevel = getOceanDepthTier(st.depthM);
     // 경계에 막 도달한 순간(이전엔 미달, 지금 도달) 가디언 등장을 알린다.
     if (curDepth < nextBoundary && st.depthM >= nextBoundary) {
-        addLog(`🌊 수심 ${nextBoundary}m — 심해 가디언이 길을 막습니다. 처치해야 더 깊이 내려갈 수 있습니다.`, 'loot-unique');
+        addLog(`🌊 수심 ${nextBoundary}m: 심해 가디언이 길을 막습니다. 처치해야 더 깊이 내려갈 수 있습니다.`, 'loot-unique');
     }
 }
 
@@ -3373,7 +3373,7 @@ function tickOceanDepth(st, dtSec) {
 }
 
 // The stats of each category come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.sea).
-const OCEAN_MOD_CATEGORY_RULES = [['공격', 'attack'], ['방어·생명', 'defense'], ['속도·치명', 'speed'], ['저항', 'resistance']]
+const OCEAN_MOD_CATEGORY_RULES = [['공격', 'attack'], ['방어/생명', 'defense'], ['속도/치명', 'speed'], ['저항', 'resistance']]
     .map(([category, key]) => ({ category, ids: resolveAffixTagList(AFFIX_TAG_LISTS.sea[key], MOD_DB) }));
 function getModCategory(mod) {
     let statId = (mod && (mod.statId || mod.id)) || '';
@@ -3693,7 +3693,7 @@ function grantMeteorEncounterRewards() {
     let st = ensureMeteorSiteState();
     let encounterTier = Math.max(1, Math.floor(st.activeMeteorTier || 1));
     const item = grantMeteorEquipmentReward();
-    addLog(`☄️ 운석 ${encounterTier}단계 정산${item ? ` · [${item.name}]` : ''}`, 'loot-rare', item ? { item } : {});
+    addLog(`☄️ 운석 ${encounterTier}단계 정산${item ? `, [${item.name}]` : ''}`, 'loot-rare', item ? { item } : {});
     unlockJournalEntry('meteor_fall');
     grantConstellationObservationReward();
 }
@@ -5166,9 +5166,9 @@ function isTutorialOpen() {
 const TUTORIAL_GUIDES = {
     tutorial_battle_basics: [
         { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
-        { title: '공격과 피해 구분', body: '밝은 흰색·금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
-        { title: '스킬 범위와 태그', body: '젬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 항상 강한 것은 아닙니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
-        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존·화력 축을 보완', '장비: 방어도·회피·보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
+        { title: '공격과 피해 구분', body: '밝은 흰색/금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
+        { title: '스킬 범위와 태그', body: '젬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 늘 강하지는 않습니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
+        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존/화력 축을 보완', '장비: 방어도/회피/보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
     ],
     unlock_char: [
         { title: '스킬트리란?', body: '스킬트리 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
@@ -5176,35 +5176,35 @@ const TUTORIAL_GUIDES = {
         { title: '첫 포인트 사용', body: '원하는 시작점을 고르고 연결된 경로 노드를 차례로 활성화하세요.', bullets: ['현재 부족한 생존 수단을 먼저 확인합니다.', '사용 중인 스킬 태그와 맞는 공격 효과를 고릅니다.', '큰 노드까지 필요한 포인트 수를 경로로 계산합니다.'], tip: '마지막 단계에서 패시브 화면을 바로 열 수 있습니다.' }
     ],
     unlock_items: [
-        { title: '장비와 제작', body: '획득한 장비를 비교·장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력·방어·저항의 균형이 중요합니다.' },
-        { title: '오브 사용 순서', body: '오브마다 사용할 수 있는 장비 등급과 역할이 다릅니다.', bullets: ['진화/확장 계열로 일반·마법 장비를 성장시킵니다.', '변화 계열은 옵션을 다시 굴립니다.', '희귀 장비는 빈 옵션과 현재 티어를 확인한 뒤 투자합니다.'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
-        { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색·보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
+        { title: '장비와 제작', body: '획득한 장비를 비교/장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력/방어/저항의 균형이 중요합니다.' },
+        { title: '오브 사용 순서', body: '오브마다 사용할 수 있는 장비 등급과 역할이 다릅니다.', bullets: ['진화/확장 계열로 일반/마법 장비를 성장시킵니다.', '변화 계열은 옵션을 다시 굴립니다.', '희귀 장비는 빈 옵션과 현재 티어를 확인한 뒤 투자합니다.'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
+        { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색/보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
     ],
     unlock_skills: [
         { title: '스킬 젬 구성', body: '공격 젬 하나를 중심으로 보조 젬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 젬은 기본 행동과 피해 태그를 정합니다.', '보조 젬은 연결 한도 안에서 효과를 추가합니다.', '젬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조 젬 설명에 현재 공격 젬과 맞지 않는 태그가 없는지 확인하세요.' },
-        { title: '태그와 전투 방식', body: '강타·관통·연쇄·범위·지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
+        { title: '태그와 전투 방식', body: '강타/관통/연쇄/범위/지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
         { title: '교체 전 확인', body: '새 스킬을 장착하면 보조 젬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
     ],
     unlock_map: [
         { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
-        { title: '지역 선택 기준', body: '내 빌드가 버틸 수 있는 난이도와 필요한 보상을 함께 비교합니다.', bullets: ['받는 피해가 급증하면 한 단계 낮춤', '원하는 재화·장비·열쇠의 드랍 지역 확인', '보스 전에 저항과 회복 수단 점검'], tip: '클리어 속도가 너무 느리면 높은 지역이 항상 효율적인 것은 아닙니다.' },
+        { title: '지역 선택 기준', body: '내 빌드가 버틸 수 있는 난이도와 필요한 보상을 함께 비교합니다.', bullets: ['받는 피해가 급증하면 한 단계 낮춤', '원하는 재화/장비/열쇠의 드랍 지역 확인', '보스 전에 저항과 회복 수단 점검'], tip: '클리어 속도가 너무 느리면 높은 지역이 오히려 비효율적입니다.' },
         { title: '후반 지도 콘텐츠', body: '루프가 진행되면 균열, 혼돈계, 심층 보스 같은 별도 등반 콘텐츠가 지도에 추가됩니다.', bullets: ['각 콘텐츠는 고유 입장 조건과 진행도를 가집니다.', '루프에 귀속되는 보상과 영구 보상을 구분하세요.', '특수 열쇠는 해당 보스 목록에서 사용합니다.'], tip: '새 콘텐츠가 열리면 지도 탭의 알림 표시를 먼저 확인하세요.' }
     ],
     unlock_jewel: [
-        { title: '주얼의 역할', body: '주얼은 장비 소켓에 끼워 세밀한 스탯을 보완하는 성장 수단입니다.', bullets: ['반지 · 목걸이 · 허리띠에는 소켓이 처음부터 있습니다.', '다른 장비는 공허의 끌로 소켓을 한 칸 뚫습니다.'] },
+        { title: '주얼의 역할', body: '주얼은 장비 소켓에 끼워 세밀한 스탯을 보완하는 성장 수단입니다.', bullets: ['반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.', '다른 장비는 공허의 끌로 소켓을 한 칸 뚫습니다.'] },
         { title: '끼우기와 빼기', body: '장비를 선택해 [소켓]을 누르면 보관함의 주얼을 끼우고 뺄 수 있습니다.', bullets: ['뺀 주얼은 보관함으로 돌아갑니다.', '쓰지 않는 주얼은 해체해 주얼 결정을 얻고, 결정 12개로 새 주얼을 뽑습니다.'] }
     ],
     unlock_codex: [
         { title: '고유 아이템 도감', body: '획득한 고유 아이템을 기록하고 수집 진행도에 따른 보너스를 받는 콘텐츠입니다.', bullets: ['새 고유는 처음 획득할 때 도감에 등록됩니다.', '등록 여부와 보유 여부는 서로 다를 수 있습니다.', '수집 보너스는 전체 성장에 누적됩니다.'], tip: '새 도감 전용 필터를 켜면 이미 등록한 고유를 걸러낼 수 있습니다.' },
-        { title: '무엇을 확인하나?', body: '도감에서 미등록 항목, 고유 효과, 획득 경로를 확인하세요.', bullets: ['빌드 핵심 고유의 획득 지역 확인', '중복 고유의 보관·해체 판단', '도감 보너스 달성 구간 확인'], tip: '고유 등급이라고 항상 현재 빌드에 강한 것은 아닙니다.' }
+        { title: '무엇을 확인하나?', body: '도감에서 미등록 항목, 고유 효과, 획득 경로를 확인하세요.', bullets: ['빌드 핵심 고유의 획득 지역 확인', '중복 고유의 보관/해체 판단', '도감 보너스 달성 구간 확인'], tip: '고유 등급이 늘 현재 빌드에 강하지는 않습니다.' }
     ],
     unlock_market: [
         { title: '거래소의 역할', body: '남는 재화를 필요한 재화로 교환하거나 특수 서비스를 이용하는 보조 성장 콘텐츠입니다.', bullets: ['교환 비율과 보유량을 먼저 확인합니다.', '제작 계획에 필요한 수량만 교환합니다.', '시장 기능은 장비/제작 탭의 하위 메뉴에 있습니다.'], tip: '주력 제작 재화를 전부 다른 재화로 바꾸지 마세요.' },
         { title: '안전한 사용 순서', body: '목표 장비와 필요한 제작 단계를 정한 뒤 부족한 재화만 보충하세요.', bullets: ['목표 옵션과 베이스 결정', '현재 재고 확인', '부족분만 교환 후 제작'], tip: '마지막 버튼으로 거래소 화면을 바로 엽니다.' }
     ],
     unlock_season_tab: [
-        { title: '루프와 영구 성장', body: '루프는 일부 진행을 다시 시작하는 대신 새로운 보너스와 콘텐츠를 여는 장기 진행 시스템입니다.', bullets: ['초기화되는 요소와 유지되는 요소가 다릅니다.', '루프 이정표에서 다음 해금 조건을 확인합니다.', '영구 노드는 이후 모든 루프에 영향을 줍니다.'], tip: '루프 직전에는 유지되는 장비·재화를 반드시 확인하세요.' },
-        { title: '다음 루프 준비', body: '현재 루프에서 얻을 수 있는 핵심 보상을 챙긴 뒤 전환하는 것이 좋습니다.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
+        { title: '루프와 영구 성장', body: '루프는 일부 진행을 다시 시작하는 대신 새로운 보너스와 콘텐츠를 여는 장기 진행 시스템입니다.', bullets: ['초기화되는 요소와 유지되는 요소가 다릅니다.', '루프 이정표에서 다음 해금 조건을 확인합니다.', '영구 노드는 이후 모든 루프에 영향을 줍니다.'], tip: '루프 직전에는 유지되는 장비/재화를 반드시 확인하세요.' },
+        { title: '다음 루프 준비', body: '현재 루프의 핵심 보상을 챙긴 뒤 전환하세요.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
     ],
     unlock_traits: [
         { title: '전직 화면 안내', body: '전직 화면에서는 전직을 고르고 두 종류의 전직 포인트를 씁니다.', bullets: ['전직 선택: 직업의 전직 셋 중 하나', '전직 패시브 포인트: 연결된 전직 노드 활성화', '키스톤 포인트: 빌드 규칙을 바꾸는 키스톤 활성화'], tip: '전직 패시브 포인트와 키스톤 포인트는 서로 다른 자원입니다.' }
@@ -5235,7 +5235,7 @@ function getTutorialVisualKind(key, stepIndex) {
 
 function buildTutorialBattlePreview(kind) {
     let grid = new Array(18).fill('<i></i>').join('');
-    let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중 · 3기');
+    let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중, 3기');
     return `<div class="tutorial-game-preview is-${kind}">
         <div class="tutorial-mini-status"><span>${status}</span><span class="tutorial-mini-hp"><i></i></span></div>
         <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">아군</div><div class="tutorial-mini-enemy">적</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
@@ -5247,7 +5247,7 @@ function getTutorialPanelModel(kind) {
     const models = {
         passive: { focus: '패시브', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
         items: { focus: '장비', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
-        'skills-panel': { focus: '스킬', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그 · 범위 확인'] },
+        'skills-panel': { focus: '스킬', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그, 범위 확인'] },
         map: { focus: '지도', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
         class: { focus: '전직', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
         system: { focus: '안내', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
@@ -5258,7 +5258,7 @@ function getTutorialPanelModel(kind) {
 function buildTutorialPanelPreview(kind, stepIndex) {
     let model = getTutorialPanelModel(kind);
     let tabs = model.tabs.map((label, index) => `<span class="${index === Math.min(1, stepIndex) ? 'active' : ''}">${label}</span>`).join('');
-    let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '·'}</b></div>`).join('');
+    let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '/'}</b></div>`).join('');
     return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.focus}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
 }
 
@@ -6140,7 +6140,7 @@ function grantActRewardEntry(zoneId, choice) {
             if (fallback.kind === 'points') game.passivePoints += fallback.amount;
             else awardCurrency(fallback.currency, fallback.amount);
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조 젬 대신 ${fallback.label} · 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조 젬 대신 ${fallback.label}, 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -9007,7 +9007,7 @@ function openEncroachmentLiberationOverlay(item, options) {
     }).join('');
     overlay.innerHTML = `<div style="width:min(520px,calc(95vw / var(--scale-display-factor, 1)));background:#120c1e;border:1px solid #6a47b3;border-radius:14px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.6);">`
         + `<div style="color:#caa6ff;font-size:19px;font-weight:700;margin-bottom:4px;">잠식 해방</div>`
-        + `<div style="color:#b9a7d8;font-size:13px;margin-bottom:14px;line-height:1.5;">[${item.name}] · 최고 티어 옵션 셋 중 <strong style="color:#e7d8ff;">반드시 하나</strong>를 선택해야 합니다.</div>`
+        + `<div style="color:#b9a7d8;font-size:13px;margin-bottom:14px;line-height:1.5;">[${item.name}], 최고 티어 옵션 셋 중 <strong style="color:#e7d8ff;">반드시 하나</strong>를 선택해야 합니다.</div>`
         + `<div style="display:grid;gap:10px;">${rows}</div>`
         + `<div id="encroach-hint" style="opacity:0;transition:opacity .5s ease;margin-top:12px;color:#9b86c4;font-size:12px;text-align:center;">옵션이 모두 드러나면 하나를 선택하세요.</div>`
         + `</div>`;
@@ -9417,7 +9417,7 @@ window.formatCurrencyCosts = formatCurrencyCosts;
 function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률·잿불가지·축복의 꽃잎만 받아들입니다.', 'attack-monster');
+    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률/잿불가지/축복의 꽃잎만 받아들입니다.', 'attack-monster');
     if ((game.currencies.enchantedHoney || 0) <= 0) return addLog('마력 깃든 벌꿀이 부족합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length < 4) return addLog('벌꿀 고정은 추가 옵션이 4개 이상일 때만 사용할 수 있습니다.', 'attack-monster');
@@ -9450,7 +9450,7 @@ function getVenomStingerMods(item) {
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률·잿불가지·축복의 꽃잎만 받아들입니다.', 'attack-monster');
+    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률/잿불가지/축복의 꽃잎만 받아들입니다.', 'attack-monster');
     if ((game.currencies.venomStinger || 0) <= 0) return addLog('독벌침이 부족합니다.', 'attack-monster');
     const refusal = getVenomStingerRefusal(item);
     if (refusal) return addLog(refusal, 'attack-monster');
@@ -9867,7 +9867,7 @@ function addItemToInventory(item, options) {
     if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
         const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
-        addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
+        addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
     }
     return result.accepted;
 }
@@ -9938,7 +9938,7 @@ const UNIQUE_JEWEL_DB = [
     { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
     { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1, 대상 저주당 최종 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
     { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'화염 최대저항/저항 연계 보너스', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
-    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 부적의 수호 · 함성 · 저주 줄 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
+    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 부적의 수호, 함성, 저주 줄 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
     { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
     { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },
     { id:'uj_storm_shard', name:'폭풍 조각', stats:[{id:'lightPctDmg',val:14},{id:'shockEffectReducePct',val:12}] },
@@ -10347,7 +10347,7 @@ function formatSalvageRewardSummary(rewards) {
     let normalized = mergeSalvageRewards({}, rewards);
     let entries = Object.entries(normalized).filter(([, amount]) => Number(amount) > 0);
     if (entries.length <= 0) return '회수 재화 없음';
-    return entries.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} +${Math.floor(amount)}`).join(' · ');
+    return entries.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} +${Math.floor(amount)}`).join(', ');
 }
 
 function getItemSalvagePreviewText(item, compact) {
@@ -10366,7 +10366,7 @@ function getItemSalvagePreviewText(item, compact) {
             : `${(ORB_DB[row.key] && ORB_DB[row.key].name) || row.key} ${Math.round(row.chance * 100)}%`)
         .filter(Boolean);
     if (compact && item && item.rarity === 'unique' && profile.chances.length > 0) chances.push('고급 재화 확률');
-    return `해체 ${guaranteed.concat(chances).join(' · ') || '보상 없음'}`;
+    return `해체 ${guaranteed.concat(chances).join(', ') || '보상 없음'}`;
 }
 
 function rollItemSalvageRewards(item, options) {
@@ -10392,7 +10392,7 @@ function salvageItemObject(item, silent, options) {
     let rewards = rollItemSalvageRewards(item, options);
     Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
-    if (!silent) addLog(`🧪 [${item.name}] 해체 · ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
+    if (!silent) addLog(`🧪 [${item.name}] 해체, ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
     return rewards;
 }
 
@@ -10428,7 +10428,7 @@ function syncSalvageControlsFromSettings() {
         let enabled = !!game.settings.autoSalvageEnabled;
         btn.textContent = '드랍 필터';
         btn.dataset.enabled = String(enabled);
-        btn.setAttribute('aria-label', `드랍 필터 · 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
+        btn.setAttribute('aria-label', `드랍 필터, 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
     }
 }
 
@@ -10466,7 +10466,7 @@ function bulkSalvage(maxRarity) {
     });
     game.inventory = kept;
     ensureCraftSelectionValid();
-    if (removed > 0) addLog(`🧪 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
+    if (removed > 0) addLog(`🧪 장비 ${removed}개 해체, ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
     updateStaticUI();
 }
 function getActiveRarityFilterSet() {
@@ -10512,7 +10512,7 @@ async function bulkSalvageSelected() {
     }
     game.inventory = kept;
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${removed}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageAllInventory() {
@@ -10535,7 +10535,7 @@ async function bulkSalvageAllInventory() {
     });
     game.inventory = kept;
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개) · ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? ` · 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -10560,7 +10560,7 @@ function getAvailableSporeCraftModes() {
 
 /** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
 function getSporeCraftBlockReason(item, actionKey, mode) {
-    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈 · 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
+    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 ‘해금’의 고급 홀씨를 열어야 쓸 수 있습니다.';
     return equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
 }
 
@@ -10778,7 +10778,7 @@ async function useCurrency(currencyKey) {
     if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
     let actionKey = equipmentCrafting.resolveAction(currencyKey, item.rarity);
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률·잿불가지·축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
+    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return addLog("융합 유물은 황금률/잿불가지/축복의 꽃잎만 사용할 수 있습니다.", "attack-monster");
 
     let explicitCap = EXPLICIT_AFFIX_LINE_CAP;
     let ok = false;
@@ -10991,7 +10991,7 @@ async function useCurrency(currencyKey) {
             stat.valMax = baseMax;
         });
     }
-    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
+    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '';
     craftingResultLedger.commit(craftResultToken, item);
     addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();

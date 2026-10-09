@@ -82,7 +82,7 @@ const devTestPanel = (() => {
         const colors = Object.keys(STUMP_BOX_COLORS);
         const made = Array.from({ length: 8 }, (_, i) => stumpBox.createItem(game, { family: i % 3 ? 'seed' : 'sap', color: colors[i % 4], roll: 0.8 + Math.random() * 0.4 }));
         refresh();
-        note(`씨앗·수액 ${made.filter(Boolean).length}개`);
+        note(`씨앗/수액 ${made.filter(Boolean).length}개`);
     }
     function growStumpBox() {
         for (let i = 0; i < 100; i++) stumpBox.grow(game, {});
@@ -161,11 +161,11 @@ const devTestPanel = (() => {
         ]);
     }
     function progressSection() {
-        const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct} · ${act.title}` })));
+        const acts = el('select', { id: 'dtp-act' }, STORY_ACTS.map(act => el('option', { value: String(act.order), textContent: `액트 ${act.displayAct}, ${act.title}` })));
         return section('진행', [
             row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
             row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
-            row([button('그루터기 함 받기', grantStumpBox), button('씨앗·수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
+            row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)])
         ]);
     }
     function status() {
@@ -173,7 +173,7 @@ const devTestPanel = (() => {
         if (!line) return;
         const sprite = game.settings.heroSpriteSet === 'legacy' ? '기존' : 'Hana';
         const fx = game.settings.skillFxStyle === 'original' ? '원본' : '리메이크';
-        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'} · ${game.activeSkill}${game.mobilitySkill ? ' + ' + game.mobilitySkill : ''} · ${weaponLabel()} · Lv.${game.level} · ${sprite} · 이펙트 ${fx} · ×${speed}`;
+        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'}, ${game.activeSkill}${game.mobilitySkill ? ' + ' + game.mobilitySkill : ''}, ${weaponLabel()}, Lv.${game.level}, ${sprite}, 이펙트 ${fx}, ×${speed}`;
     }
     function weaponLabel() {
         const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment['무기'], game.settings.heroWeaponMode || 'auto');
@@ -185,7 +185,7 @@ const devTestPanel = (() => {
             el('header', {}, [el('strong', { textContent: '🧪 테스트 패널' }), button('닫기', () => { panel.hidden = true; })]),
             el('p', { className: 'dtp-status' }),
             characterSection(), gemSection(), combatSection(), progressSection(),
-            el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용 · 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
+            el('p', { className: 'dtp-hint', textContent: '로컬 테스트 전용, 이 세이브에 바로 반영됩니다. 새 게임은 런처 2번(임시 세이브)으로.' })
         ]);
         const toggle = button('🧪 테스트', () => { panel.hidden = !panel.hidden; status(); }, { className: 'dtp-toggle' });
         root = el('div', { id: 'dev-test-panel' }, [el('style', { textContent: STYLE }), toggle, panel]);

@@ -85,7 +85,7 @@ const storyJournalUi = (() => {
     // 머리글이 이미 "액트 N"(프롤로그)이라 제목의 같은 머리말은 뺀다: "액트 2 · 다시 추락하다" → "다시 추락하다".
     function sceneHeading(scene) {
         const kicker = scene.act ? `액트 ${scene.act}` : '프롤로그';
-        const prefix = kicker + ' · ';
+        const prefix = kicker + ', ';
         return { kicker, title: scene.title.startsWith(prefix) ? scene.title.slice(prefix.length) : scene.title };
     }
     function renderTutorial(notice) {

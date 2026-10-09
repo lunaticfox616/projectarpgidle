@@ -76,7 +76,7 @@ const equipmentCrafting = (() => {
     function getRerollSpaceReason(item, required, cap, retainedMarker = '') {
         const locked = (item.stats || []).filter(stat => stat && stat.id !== retainedMarker && keptOnReroll(item, stat));
         const occupied = locked.length + (item.chaosInfusion ? 1 : 0);
-        return occupied + required > cap ? '잠금·주입 옵션 때문에 보장 옵션을 넣을 자리가 없습니다.' : '';
+        return occupied + required > cap ? '잠금/주입 옵션 때문에 보장 옵션을 넣을 자리가 없습니다.' : '';
     }
 
     /** MOD_DB 줄의 종류: 'prefix' | 'suffix'. 그 밖의 줄('special')은 종류 한도를 세지 않는다. */

@@ -8,7 +8,7 @@ function renderFossilWorkbench() {
         { key: 'fossilAncientPrimal', restore: true, label: '원시 고대 화석 복원', action: "restorePrimalFossil('ancient')" }
     ].filter(row => game.currencies[row.key] > 0).map(row => {
         const locked = row.restore && !restoreOpen;
-        return `<button type="button" onclick="${row.action}" ${locked ? 'disabled' : ''}>${row.label} · 보유 ${game.currencies[row.key]}${locked ? ' · 화석 복원 해금 필요' : ''}</button>`;
+        return `<button type="button" onclick="${row.action}" ${locked ? 'disabled' : ''}>${row.label}, 보유 ${game.currencies[row.key]}${locked ? ', 화석 복원 해금 필요' : ''}</button>`;
     });
     ['fossil', ...FOSSIL_DB.map(fossil => fossil.key)].forEach(fossilKey => {
         let surplusCost = typeof getFossilSurplusRefiningCost === 'function' ? getFossilSurplusRefiningCost(fossilKey) : null;

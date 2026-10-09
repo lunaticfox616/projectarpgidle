@@ -15,7 +15,7 @@
         burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다. 3번째 공격마다 영웅 자리에 충격파를 내고, 2단계부터는 매번 냅니다.',
-        cosmos: '연속 참격·파쇄 강타·격앙을 차례로 순환합니다.',
+        cosmos: '연속 참격/파쇄 강타/격앙을 차례로 순환합니다.',
         cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.',
         apex: '아틀라스 후반부 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.'
     });
@@ -138,7 +138,7 @@
             let state = buildPatternState(resolvedMode, enemy, attackNumber, true);
             if (!state) return null;
             state.patternMode = 'cosmos';
-            state.label = `성좌 순환 · ${state.label}`;
+            state.label = `성좌 순환, ${state.label}`;
             return state;
         }
         let state = buildPatternState(mode, enemy, attackNumber, false);

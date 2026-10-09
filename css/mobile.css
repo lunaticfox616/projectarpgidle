@@ -176,7 +176,7 @@
     overflow: hidden;
   }
   #btn-map-complete-action-picker::before {
-    content: '완료 · ' attr(data-mobile-label);
+    content: '완료: ' attr(data-mobile-label);
     overflow: hidden;
     font-size: 11px;
     line-height: 1.1;

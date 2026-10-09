@@ -25,23 +25,23 @@ const craftingCatalogUi = (() => {
     const keywordPattern=new RegExp(Object.keys(keywordTones).join('|'),'g');
     const summaries={
         magicBud:'일반 → 마법, 마법 옵션 재련',sapBud:'마법 → 희귀, 옵션 1줄 추가',
-        formlessDew:'일반 → 희귀 · 희귀 옵션 재련',goldenRule:'옵션 수치 재설정',
+        formlessDew:'일반 → 희귀, 희귀 옵션 재련',goldenRule:'옵션 수치 재설정',
         blessing:'베이스 옵션 수치 재설정',blightSpore:'일반 등급으로 초기화',
-        pruningShears:'무작위 옵션 1줄 제거',fairyRing:'고유 진화 · 25% 파괴',
-        emberBranch:'타락 옵션 시도 · 이후 제작 불가',burningEmberBranch:'한 번 더 타락, 25% 파괴',ouroboros:'장비 봉인 · 루프 후 유지',
+        pruningShears:'무작위 옵션 1줄 제거',fairyRing:'고유 진화, 25% 파괴',
+        emberBranch:'타락 옵션 시도, 이후 제작 불가',burningEmberBranch:'한 번 더 타락, 25% 파괴',ouroboros:'장비 봉인, 루프 후 유지',
         deepWhetstone:'무기 퀄리티 강화',rootIron:'방어구 퀄리티 강화',jewelPolish:'장신구 퀄리티 강화',
         abyssCatalyst:'퀄리티 속성 변경',
         catalystFire:'품질 속성 화염, 품질 +2%',catalystCold:'품질 속성 냉기, 품질 +2%',catalystLight:'품질 속성 번개, 품질 +2%',
         catalystChaos:'품질 속성 카오스, 품질 +2%',catalystCrit:'품질 속성 치명, 품질 +2%',catalystSummon:'품질 속성 소환, 품질 +2%',enchantedHoney:'옵션 1줄 영구 고정',
-        venomStinger:'무기 공격 옵션 추가·재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
+        venomStinger:'무기 공격 옵션 추가/재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
         oceanRerollShard:'베이스 옵션 1줄 재설정',
-        sporeFire:'화염 홀씨 · 함께 사용',sporeCold:'냉기 홀씨 · 함께 사용',sporeLight:'번개 홀씨 · 함께 사용',
-        fossil:'타입별 화석으로 정제',fossilPrimal:'복원 · 화석과 재화 획득',fossilAncientPrimal:'복원 · 전용 화석과 고급 재화',
-        fossilJagged:'물리/근접 1줄 확정 · 희귀 재련',fossilBound:'생명/방어 1줄 확정 · 희귀 재련',
-        fossilGale:'속도/치명 1줄 확정 · 희귀 재련',fossilPrismatic:'저항/원소 1줄 확정 · 희귀 재련',
-        fossilAbyssal:'카오스/흡혈/재생 1줄 확정 · 희귀 재련',fossilPrimordial:'관통/카오스 1줄 확정 · 희귀 재련',
-        fossilBulwark:'최대 원소 저항 확정 · 방어구 재련',fossilWedge:'투사체/치명 1줄 확정 · 희귀 재련',
-        fossilOld:'화석 전용 1줄 확정 · 희귀 재련',fossilRift:'균열 표식 · 추가 옵션 50% 증폭'
+        sporeFire:'화염 홀씨, 함께 사용',sporeCold:'냉기 홀씨, 함께 사용',sporeLight:'번개 홀씨, 함께 사용',
+        fossil:'타입별 화석으로 정제',fossilPrimal:'복원, 화석과 재화 획득',fossilAncientPrimal:'복원, 전용 화석과 고급 재화',
+        fossilJagged:'물리/근접 1줄 확정, 희귀 재련',fossilBound:'생명/방어 1줄 확정, 희귀 재련',
+        fossilGale:'속도/치명 1줄 확정, 희귀 재련',fossilPrismatic:'저항/원소 1줄 확정, 희귀 재련',
+        fossilAbyssal:'카오스/흡혈/재생 1줄 확정, 희귀 재련',fossilPrimordial:'관통/카오스 1줄 확정, 희귀 재련',
+        fossilBulwark:'최대 원소 저항 확정, 방어구 재련',fossilWedge:'투사체/치명 1줄 확정, 희귀 재련',
+        fossilOld:'화석 전용 1줄 확정, 희귀 재련',fossilRift:'균열 표식, 추가 옵션 50% 증폭'
     };
 
     function catalogDescription(key, compact=false) {
@@ -52,7 +52,7 @@ const craftingCatalogUi = (() => {
         if(editing)return `${pinSlot+1}번 칸에 지정`;
         const blocked=state&&!state.enabled;
         const reason=blocked?(state.reason==='방어구 전용'?state.reason:'사용 불가'):'';
-        return [key===(inspected||active)?'선택 중':'',pins().includes(key)?'주 재화':'',reason,game.currencies[key]?'':'보유 없음'].filter(Boolean).join(' · ');
+        return [key===(inspected||active)?'선택 중':'',pins().includes(key)?'주 재화':'',reason,game.currencies[key]?'':'보유 없음'].filter(Boolean).join(', ');
     }
 
     function catalogCard(key) {
@@ -93,7 +93,7 @@ const craftingCatalogUi = (() => {
         inspected=key;catalogList();
         const detail=dialog.querySelector('.cl-resource-detail');
         const available=recipes.some(row=>row.key===key)||/^(spore|fossil)/.test(key);
-        const label=['fossil','fossilPrimal','fossilAncientPrimal'].includes(key)?'정제·복원 열기':'제작실에서 선택';
+        const label=['fossil','fossilPrimal','fossilAncientPrimal'].includes(key)?'정제/복원 열기':'제작실에서 선택';
         const state=useState(key), blocked=state&&!state.enabled;
         detail.innerHTML=`<div><strong>${styledName(key)}</strong><p>${catalogDescription(key)}</p>${blocked?`<small class="cl-use-reason">${esc(state.reason)}</small>`:''}</div>${available?`<button type="button" data-apply ${blocked?'disabled':''}>${label}</button>`:''}`;
         detail.hidden=false;
@@ -146,7 +146,7 @@ const craftingCatalogUi = (() => {
         dialog.innerHTML=`<header><div><small>보관함</small><h2 id="cl-catalog-title">재화 인벤토리</h2></div><div><button type="button" data-edit>주 재화 편집</button><button type="button" data-close aria-label="재화 목록 닫기">닫기</button></div></header>
             <div class="cl-pin-editor" hidden></div>
             <nav aria-label="재화 분류">${groups.map(([key,label])=>`<button type="button" data-category="${key}" data-theme="${key}" aria-pressed="${key===category}">${label}</button>`).join('')}</nav>
-            <div class="cl-resource-tools"><input type="search" aria-label="재화 검색" placeholder="이름·효과 검색"><label><input type="checkbox"> 소진한 재화도 보기</label><small class="cl-resource-count"></small></div>
+            <div class="cl-resource-tools"><input type="search" aria-label="재화 검색" placeholder="이름/효과 검색"><label><input type="checkbox"> 소진한 재화도 보기</label><small class="cl-resource-count"></small></div>
             <div class="cl-resource-list"></div><aside class="cl-resource-detail" tabindex="-1" hidden></aside>`;
         document.body.append(dialog);
         dialog.addEventListener('click',catalogClick);

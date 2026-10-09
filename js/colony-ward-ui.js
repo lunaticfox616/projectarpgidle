@@ -26,7 +26,7 @@
             <div class="colony-ward-card-actions">
                 <button onclick="selectColonyWard(${id})" ${blocked ? 'disabled' : ''}>${full ? '교체' : '장착'}</button>
                 <button onclick="toggleColonyWardLock(${id})" aria-pressed="${locked}">${locked ? '잠금 해제' : '잠금'}</button>
-                <button onclick="dismantleColonyWardById(${id})" ${locked || blocked ? 'disabled' : ''}>해체 · 편린 +${getColonyWardDismantleReward(ward)}</button>
+                <button onclick="dismantleColonyWardById(${id})" ${locked || blocked ? 'disabled' : ''}>해체, 편린 +${getColonyWardDismantleReward(ward)}</button>
             </div></article>`;
     }
 
@@ -76,7 +76,7 @@
         }
         const c = normalizeColonyWardState();
         panel.querySelector('.colony-ward-locked').hidden = game.season >= 15;
-        refreshWardSection(panel, '.colony-ward-currency', `편린 <b>${game.currencies.colonyShard || 0}</b> · 흔적 <b>${game.currencies.colonyTrace || 0}</b>`);
+        refreshWardSection(panel, '.colony-ward-currency', `편린 <b>${game.currencies.colonyShard || 0}</b>, 흔적 <b>${game.currencies.colonyTrace || 0}</b>`);
         refreshWardSection(panel, '.colony-ward-actions', wardExpansion(c));
         refreshWardSection(panel, '.colony-ward-grid', c.wardEquipped.map((ward, i) => wardSlot(ward, i, i < c.wardSlots)).join(''));
         refreshWardSection(panel, '.colony-ward-total', wardTotals(c));

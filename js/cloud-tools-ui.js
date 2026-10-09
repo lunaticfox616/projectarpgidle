@@ -38,7 +38,7 @@ function renderCloudHistoryRows(rows) {
         let action = row.is_current
             ? '<span class="cloud-current-badge">현재</span>'
             : `<button type="button" onclick="restoreCloudSaveVersion(${Number(row.revision) || 0})">복구</button>`;
-        return `<div class="cloud-history-row"><div><strong>리비전 ${cloudToolsNumber(row.revision)}</strong><small>루프 ${cloudToolsNumber(row.loop_number)} · ${cloudToolsEscape(time)}</small></div>${action}</div>`;
+        return `<div class="cloud-history-row"><div><strong>리비전 ${cloudToolsNumber(row.revision)}</strong><small>루프 ${cloudToolsNumber(row.loop_number)}, ${cloudToolsEscape(time)}</small></div>${action}</div>`;
     }).join('')}</div><p class="cloud-tools-note">정상적으로 완료된 클라우드 저장의 이전 버전을 약 30분 간격으로 최대 2개 보관합니다.</p>`;
 }
 
@@ -91,7 +91,7 @@ function renderOpsDashboard(data) {
         { key: 'median_dps', label: 'DPS', render: row => cloudToolsNumber(row.median_dps) }, { key: 'median_ehp', label: 'EHP', render: row => cloudToolsNumber(row.median_ehp) },
         { key: 'p95_frame_ms', label: 'p95', render: row => `${row.p95_frame_ms || 0}ms` }, { key: 'peak_fx', label: '최대 FX' }
     ], Array.isArray(data.zones) ? data.zones : []);
-    html += renderOpsTable('직업·스킬 통계', [
+    html += renderOpsTable('직업/스킬 통계', [
         { key: 'ascend_class', label: '직업' }, { key: 'active_skill', label: '스킬' }, { key: 'runs', label: '전투' },
         { key: 'clear_rate_pct', label: '클리어율', render: row => `${row.clear_rate_pct || 0}%` },
         { key: 'median_dps', label: 'DPS', render: row => cloudToolsNumber(row.median_dps) }, { key: 'median_ehp', label: 'EHP', render: row => cloudToolsNumber(row.median_ehp) }
@@ -105,7 +105,7 @@ function renderOpsDashboard(data) {
 
 async function openOpsDashboard() {
     if (!cloudState || !cloudState.user) return showGameToast('관리자 로그인이 필요합니다.', 'warning');
-    openCloudToolsDialog('운영 통계 · 최근 30일', '<p class="cloud-tools-empty">집계 중…</p>');
+    openCloudToolsDialog('운영 통계, 최근 30일', '<p class="cloud-tools-empty">집계 중…</p>');
     try {
         let data = await cloudJsonRequest('/rest/v1/rpc/admin_get_ops_dashboard', { method: 'POST', body: {} });
         document.getElementById('cloud-tools-body').innerHTML = renderOpsDashboard(data || {});
