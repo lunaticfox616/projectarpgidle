@@ -664,14 +664,13 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
 /* 카드 · 판의 이름 줄은 소제목 크기 */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong, .map-item--act .map-item-main > span, .equipment-preset-panel > header strong,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong, .equipment-preset-panel > header strong,
     .passive-planner-primary > strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
     .character-ehp-stat strong) { font-family: var(--font-pixel-read); font-size: 15px; }
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head > span, .gem-resource-strip :is(span, strong),
     .market-exchange-quote :is(span, strong), .content-unlock-heading > span,
     .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked) { font-family: var(--font-pixel); font-size: 12px; }
-:root body[data-ui-skin] .tab-content:not(#tab-battle) .map-item--act .map-item-main > span span { font-family: var(--font-pixel); font-size: 12px; }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신
    숯빛 판 + 1px 테(효과 상자는 노드 색) — 마지막 남은 옛 모양(검토 2026-10-01) */
 :root body[data-ui-skin] .passive-effect-badge { flex: 1 1 160px; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--badge-edge, var(--px-bronze));

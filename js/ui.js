@@ -19,7 +19,7 @@ let tooltipPositionFrame = null;
 let pendingTooltipPositions = new Map();
 let tooltipSizeCache = new WeakMap();
 // Boss groups choose their initial state from entry readiness; explicit user choices take precedence.
-let mapZoneGroupCollapseState = { hunting: false, chaos: false, availableBosses: false, rootBosses: null, rivalBosses: null, pinnacleBosses: null, finalGate: null };
+let mapZoneGroupCollapseState = { availableBosses: false, rootBosses: null, rivalBosses: null, pinnacleBosses: null, finalGate: null };
 let pendingMapPrimaryTabReveals = new Set();
 
 let mobilePipCanvas = null;
@@ -44,8 +44,6 @@ function isMapZoneGroupCollapsed(groupKey, defaultCollapsed = false) {
 function toggleMapZoneGroup(groupKey, collapsed = isMapZoneGroupCollapsed(groupKey)) {
     if (!Object.prototype.hasOwnProperty.call(mapZoneGroupCollapseState, groupKey)) return;
     mapZoneGroupCollapseState[groupKey] = !collapsed;
-    lastRenderedMapListHtml = '';
-    lastRenderedChaosMapListHtml = '';
     updateStaticUI();
 }
 
@@ -76,15 +74,24 @@ function getMapPowerReadinessModel(estimate) {
     return cachedTooltipStats ? getMapPowerReadiness(cachedTooltipStats, estimate) : null;
 }
 
-function buildMapPowerEstimateHtml(zone) {
+/** What the 권장 전투력 tooltip reads (data-* attributes), whether the hero meets it and the hidden environment line; null without
+ * an estimate. The chaos tiles (js/map-list-ui.js) carry the same attributes on their own button. */
+function getMapPowerEstimateParts(zone) {
     let estimate = typeof estimateMapZonePowerRequirements === 'function' ? estimateMapZonePowerRequirements(zone) : null;
-    if (!estimate) return '';
-    let model = getMapPowerReadinessModel(estimate);
-    if (!model) return '';
-    let met = model.meetsRecommendation;
-    let environment = buildMapEnvironmentEstimateHtml(model.environment);
-    let label = `권장 전투력 ${met ? '달성' : '미달성'}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" ${levelProgressionUi.rewardData(zone)} data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : ''}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${met ? 'high' : 'low'}">${label}</span>${environment}<span class="map-power-grade grade-low">${levelProgressionUi.rewardHint(zone)}</span></span>`;
+    let model = estimate ? getMapPowerReadinessModel(estimate) : null;
+    if (!model) return null;
+    let bossElements = getChaosBossElements(zone) ? getChaosBossElements(zone).join(',') : '';
+    let attrs = `data-info-tooltip-anchor="1" ${levelProgressionUi.rewardData(zone)} data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" data-boss-elements="${bossElements}"`;
+    return { met: model.meetsRecommendation, attrs, environment: buildMapEnvironmentEstimateHtml(model.environment) };
+}
+
+/** The 권장 전투력 chip and, unless options.hideReward (a list that says it once), the 보상 감소 chip. */
+function buildMapPowerEstimateHtml(zone, options = {}) {
+    let parts = getMapPowerEstimateParts(zone);
+    if (!parts) return '';
+    let label = `권장 전투력 ${parts.met ? '달성' : '미달성'}`;
+    let reward = options.hideReward ? '' : levelProgressionUi.rewardHint(zone);
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" ${parts.attrs} onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span class="map-power-grade grade-${parts.met ? 'high' : 'low'}">${label}</span>${parts.environment}${reward ? `<span class="map-power-grade grade-low">${reward}</span>` : ''}</span>`;
 }
 
 function buildMapEnvironmentEstimateHtml(environment) {
@@ -142,78 +149,6 @@ function showMapPowerEstimateTooltip(event) {
         ${buildMapRewardRow(data)}</div>
         <div class="tooltip-line tooltip-muted">${elementLabel} 피해 기준, 지속 피해, 회복 제외</div>`;
     showInfoTooltipHtml(x, y, html, '#6ba7d8');
-}
-
-function getSeasonBossTrackLabel(zone) {
-    if (zone.pinnacleTrack === 'underworld') return '지하계 종착';
-    if (zone.pinnacleTrack === 'ocean') return '심해 종착';
-    if (zone.pinnacleTrack === 'sky') return '창공 종착';
-    if (zone.pinnacleTrack === 'convergence') return '아틀라스 종착';
-    if (zone.cosmosCapstone) return '우주계 종착';
-    return '';
-}
-
-function buildSeasonBossCardHtml(zone) {
-    const {gate,keyCount,hasEntry,current,travelBlocked,ready} = explorationAtlasUi.bossEntry(zone);
-    const firstClearDone = Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
-    const disabled = !ready;
-    const keyName = zone.key && ORB_DB[zone.key] ? ORB_DB[zone.key].name : '입장 열쇠';
-    const statusText = travelBlocked ? '현재 탐험 종료 후 이동 가능' : !gate.met ? gate.label
-        : (zone.milestonePinnacle ? (firstClearDone ? '최초 격파 완료, 재도전 가능' : '도전 가능') : `${keyName}: ${keyCount}`);
-    const track = getSeasonBossTrackLabel(zone);
-    const powerEstimate = buildMapPowerEstimateHtml(zone);
-    const reward = explorationAtlasUi.bossRewardLabel(zone);
-    const source = ORB_DB[zone.key]?.source;
-    const actionButton = buildSeasonBossEntryActionHtml(zone,{current,travelBlocked,gate,hasEntry});
-    return `<div class="map-item encounter-card ${disabled ? 'is-locked' : 'is-ready'} ${game.currentZoneId === zone.id ? 'current' : ''}" data-boss-id="${zone.id}">
-        <div class="encounter-heading"><strong>${zone.name}</strong><span class="encounter-state">${firstClearDone ? '격파 완료' : '미격파'}</span></div>
-        ${track ? `<span class="map-zone-status">${track}</span>` : ''}${powerEstimate}
-        ${reward ? `<div class="encounter-reward"><small>보상</small><span>${escapeHTML(reward)}</span></div>` : ''}
-        ${source ? `<div class="encounter-entry-source"><small>입장권 획득</small><span>${escapeHTML(source)}</span></div>` : ''}
-        <div class="encounter-footer"><span class="map-zone-status">${statusText}</span>${actionButton}</div>
-    </div>`;
-}
-
-function buildSeasonBossEntryActionHtml(zone, entry) {
-    if (entry.current) return '<button type="button" onclick="switchTab(\'tab-battle\')">전투로 돌아가기</button>';
-    if (entry.travelBlocked) return '<button type="button" disabled>이동 대기</button>';
-    if (!entry.gate.met) return '<button type="button" disabled>선행 조건 필요</button>';
-    if (!entry.hasEntry) return '';
-    return `<button type="button" data-exploration-departure onclick="changeZone('${zone.id}')">도전</button>`;
-}
-
-function buildSeasonBossGroupsHtml(zones) {
-    if (!zones.length) return '<p class="encounter-empty">아직 발견한 보스가 없습니다.</p>';
-    const cards = zoneList => zoneList.map(zone => ({ html: buildSeasonBossCardHtml(zone) }));
-    const ready = zones.filter(zone => explorationAtlasUi.bossEntry(zone).ready)
-        .sort((a,b) => Number(game.clearedRootBosses.includes(a.id)) - Number(game.clearedRootBosses.includes(b.id)));
-    const pending = zones.filter(zone => !ready.includes(zone));
-    const roots = pending.filter(zone => !zone.rivalBlade && !zone.cosmosCapstone && !zone.milestonePinnacle);
-    const rivals = pending.filter(zone => zone.rivalBlade);
-    const pinnacles = pending.filter(zone => (zone.cosmosCapstone || zone.milestonePinnacle) && !zone.pinnacleCapstone);
-    const finalGate = pending.filter(zone => zone.pinnacleCapstone);
-    const groups = [['rootBosses','뿌리 보스',roots],['rivalBosses','버려진 날붙이',rivals],
-        ['pinnacleBosses','경계의 수호자',pinnacles],['finalGate','최종 관문',finalGate]]
-        .filter(([, , entries]) => entries.length);
-    return [
-        ready.length ? buildMapZoneGroupHtml('availableBosses', '입장 가능', cards(ready)) : '',
-        pending.length ? '<h3 class="encounter-pending-title">준비가 필요한 보스</h3>' : '',
-        groups.map(([key,title,entries],index) => buildMapZoneGroupHtml(key,title,cards(entries),ready.length > 0 || index > 0)).join('')
-    ].join('');
-}
-
-function renderSeasonBossList(zones) {
-    const host = document.getElementById('ui-season-boss-list');
-    const html = buildSeasonBossGroupsHtml(zones);
-    if (host._bossMarkup === html) return;
-    const focused = host.contains(document.activeElement) ? document.activeElement : null;
-    const action = focused?.getAttribute('onclick');
-    const bossId = focused?.closest('[data-boss-id]')?.dataset.bossId;
-    host.innerHTML = html;
-    host._bossMarkup = html;
-    if (!action) return;
-    [...host.querySelectorAll('button')].find(button => button.getAttribute('onclick') === action
-        && button.closest('[data-boss-id]')?.dataset.bossId === bossId)?.focus({preventScroll:true});
 }
 
 function getRecommendedHuntingZone(zones) {
@@ -10217,65 +10152,8 @@ function buildCraftActionButtons(item) {
     let mapRouteSummary = document.getElementById('ui-map-route-summary');
     let routeSummaryHtml = buildMapRouteSummaryHtml(getZone(game.currentZoneId), recommendedHuntingZone);
     if (mapRouteSummary && mapRouteSummary.innerHTML !== routeSummaryHtml) mapRouteSummary.innerHTML = routeSummaryHtml;
-    let mapCards = mapZones.map(zone => {
-        let idx = Number(zone.id);
-        let isChaosMap = zone.type === 'abyss';
-        let isCurrent = idx === game.currentZoneId;
-        let current = isCurrent ? 'current' : '';
-        let recommended = idx === recommendedHuntingZoneId && !isChaosMap;
-        let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
-        let icon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
-        let rewardReady = (game.claimableActRewards || []).includes(idx);
-        let rewardClaimed = (game.claimedActRewards || []).includes(idx);
-        let isActRewardZone = zone.type === 'act' && idx <= 9;
-        let chaos20Conquered = (getAbyssDepthFromZoneId(idx) === 20) && (
-            !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared) ||
-            (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.includes(20)) ||
-            Math.floor(game.abyssEndlessDepth || 0) >= 21
-        );
-        let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed || chaos20Conquered;
-        let actionHtml = '';
-        let mapZoneText = zone.name;
-        if (zone.type === 'act') {
-            let storyAct = getStoryActByZoneId(idx);
-            if (storyAct) mapZoneText = `${zone.name}<br><span class="map-zone-status">보스: ${storyAct.bossName}</span>`;
-        }
-        let powerEstimateHtml = buildMapPowerEstimateHtml(zone);
-        if (powerEstimateHtml) mapZoneText += `<br>${powerEstimateHtml}`;
-        let state = getMapCardState(isCurrent, cleared, recommended);
-        let enterAction = isCurrent ? "switchTab('tab-battle')" : `changeZone(${idx})`;
-        actionHtml = buildMapCardActionsHtml({ state, isActRewardZone, rewardReady, rewardClaimed, zoneId: idx,
-            enterAction, enterLabel: isCurrent ? '전투 보기' : '이동' });
-        return {
-            isChaosMap,
-            html: `
-            <div class="map-item ${isChaosMap ? 'map-item--chaos' : ''} ${zone.type === 'act' ? 'map-item--act' : ''} ${current} ${cleared ? 'is-cleared' : ''} ${recommended ? 'is-recommended' : ''} ${unlockReveal}" role="group" ${isCurrent ? 'aria-current="true"' : ''}>
-                <div class="map-item-main"><span>${icon}</span><span>${mapZoneText}</span></div>
-                <div class="map-item-actions">${actionHtml}</div>
-            </div>
-        `
-        };
-    });
-    let huntingMapCards = mapCards.filter(card => !card.isChaosMap);
-    let chaosMapCards = mapCards.filter(card => card.isChaosMap);
-    let deepChaosCardHtml = getDeepChaosMapEntryHtml();
-    if (deepChaosCardHtml) chaosMapCards.push({ isChaosMap: true, html: deepChaosCardHtml });
-    // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 분리해 각각의 컨테이너에 렌더링한다.
-    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 나무', huntingMapCards);
-    let chaosListHtml = buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
-    if (lastRenderedMapListHtml !== mapListHtml) {
-        let mapListEl = document.getElementById('ui-map-list');
-        mapListEl.classList.add('map-grid--split');
-        mapListEl.innerHTML = mapListHtml;
-        lastRenderedMapListHtml = mapListHtml;
-    }
-    let chaosMapListEl = document.getElementById('ui-chaos-map-list');
-    if (chaosMapListEl && lastRenderedChaosMapListHtml !== chaosListHtml) {
-        chaosMapListEl.classList.add('map-grid--split');
-        chaosMapListEl.innerHTML = chaosListHtml;
-        lastRenderedChaosMapListHtml = chaosListHtml;
-    }
-    setExploreSubtabAvailable('map-explore-chaos', chaosMapCards.length > 0);
+    // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 나눠 그린다(js/map-list-ui.js: 액트 카드, 혼돈 층 타일).
+    setExploreSubtabAvailable('map-explore-chaos', mapListUi.render(mapZones, recommendedHuntingZoneId) > 0);
     setExploreSubtabAvailable('map-explore-beehive', (game.season || 1) >= 8);
     setExploreSubtabAvailable('map-explore-voidrift', (game.season || 1) >= 9);
     setExploreSubtabAvailable('map-explore-colony', (game.season || 1) >= 15);
@@ -10295,7 +10173,7 @@ function buildCraftActionButtons(item) {
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
         seasonBossRepeatBtn.style.minWidth = '0';
     }
-    renderSeasonBossList(seasonBosses);
+    mapListUi.renderBosses(seasonBosses);
 
     let timeRiftOpen = (game.season || 1) >= TIME_RIFT_UNLOCK_LOOP;
     setExploreSubtabAvailable('map-explore-timerift', timeRiftOpen);

@@ -2132,8 +2132,7 @@ let gameplayStarted = false;
 let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
-let lastRenderedMapListHtml = '';
-let lastRenderedChaosMapListHtml = '';
+
 
 safeExposeGlobals({
     getUnderworldGravityActionMultiplier, getUnderworldEntryLockReason,

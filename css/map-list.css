@@ -1,0 +1,87 @@
+/* 사냥터 목록(js/map-list-ui.js, 2026-10-09 다시 그림). 머리줄(완료 수, 막대, 모든 지역이 같을 때의 보상 감소), 액트 카드(보스 그림,
+   액트 번호와 이름, 보스, 권장 전투력, 상태와 단추), 혼돈 층 타일(층 번호, 보스 속성 점, 완료, 현재, 다음 색, 전투력이 모자라면 붉은 !). */
+@layer features {
+  #ui-chaos-map-list { container-type: inline-size; }
+  .map-list-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'title note count' 'bar bar bar'; align-items: baseline;
+    gap: 5px 10px; margin: 0 0 8px; }
+  #tab-map .map-list-head strong { grid-area: title; color: var(--px-gold-bright, #e0c283); font-size: 15px; font-weight: 400; }
+  .map-list-head em { grid-area: note; color: #ff9a76; font-size: 12px; font-style: normal; }
+  .map-list-head b { grid-area: count; color: var(--px-copy-muted, #a39883); font-size: 12px; font-weight: 400; }
+  .map-list-head .map-list-bar { grid-area: bar; }
+  .map-list-bar { display: block; height: 4px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
+  .map-list-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8a6a2e, #e8c27a); }
+
+  /* 액트 카드 */
+  .map-act-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+  .map-act-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); grid-template-areas: 'art body' 'art actions'; gap: 6px 12px; min-width: 0; padding: 8px;
+    border: 1px solid #2a2218; background: linear-gradient(90deg, rgba(40, 30, 18, .85), rgba(10, 8, 6, .55)); }
+  .map-act-card.is-recommended { border-color: #8a6a2e; }
+  .map-act-card.current { border-color: #c69f5e; box-shadow: 0 0 0 1px rgba(198, 159, 94, .3), 0 0 12px rgba(198, 159, 94, .16); }
+  .map-act-art { grid-area: art; display: grid; place-items: center; width: 88px; height: 88px; overflow: hidden; border: 1px solid #3a2e20;
+    background: radial-gradient(circle at 50% 62%, rgba(150, 56, 40, .26), transparent 70%), #0b0907; }
+  .map-act-art img { width: 88px; height: 88px; object-fit: contain; image-rendering: pixelated; }
+  .map-act-card.is-cleared:not(.current) .map-act-art img { filter: saturate(.6) brightness(.82); }
+  .map-act-body { grid-area: body; display: grid; align-content: start; gap: 2px; min-width: 0; }
+  .map-act-body small { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  #tab-map .map-act-body strong { color: var(--px-copy, #e8dcc0); font-size: 15px; font-weight: 400; }
+  #tab-map .map-act-card.current .map-act-body strong { color: #f3d28c; }
+  .map-act-boss { color: #d99a8a; font-size: 12px; }
+  #tab-map .map-act-body .map-power-estimate { margin-top: 3px; font-size: 12px; }
+  .map-act-actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin-top: auto; }
+  .map-act-actions .map-state-badge { margin-right: auto; }
+
+  /* 혼돈 층 타일 */
+  .map-chaos-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-bottom: 10px; }
+  #tab-map .map-chaos-tile { position: relative; display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0; min-height: 94px; padding: 6px 4px;
+    border: 1px solid #2a2218; border-radius: 0; background: rgba(10, 8, 6, .55); box-shadow: none; color: var(--px-copy, #e8dcc0); cursor: pointer; }
+  #tab-map .map-chaos-tile:hover, #tab-map .map-chaos-tile:focus-visible { border-color: #6b4a8f; background: rgba(199, 140, 255, .08); }
+  .map-chaos-tile small { color: #8a7f6c; font-size: 11px; }
+  #tab-map .map-chaos-tile b { color: #c7a6ff; font-size: 24px; font-weight: 400; line-height: 1; }
+  .map-chaos-dots { display: flex; gap: 4px; min-height: 8px; }
+  .map-chaos-dots .map-power-element { width: 8px; height: 8px; margin: 0; padding: 0; border: 0; background: currentColor; box-shadow: 0 0 3px currentColor; }
+  .map-chaos-tile em { color: #8a7f6c; font-size: 11px; font-style: normal; text-align: center; }
+  #tab-map .map-chaos-tile.is-cleared { border-color: #3a2e4a; background: rgba(48, 30, 64, .3); }
+  #tab-map .map-chaos-tile.is-cleared b { color: #9a86b8; }
+  #tab-map .map-chaos-tile.is-next { border-color: #8a6a2e; }
+  #tab-map .map-chaos-tile.is-current { border-color: #e0c283; box-shadow: 0 0 0 1px rgba(224, 194, 131, .35), 0 0 12px rgba(224, 194, 131, .2); }
+  .map-chaos-tile:is(.is-next, .is-current) em { color: #f3d28c; }
+  .map-chaos-tile.is-short::after { content: '!'; position: absolute; top: 3px; right: 6px; color: #ff877f; font-size: 13px; }
+
+  /* 강대한 적 카드: 피해 속성 문장(--boss-tone), 이름과 격파 표시, 종착 꼬리표, 권장 전투력, 보상 줄, 열쇠 줄(가진 수와 드랍처), 상태와 단추 */
+  .map-boss-card { --boss-tone: #e0d6c4; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'art body' 'reward reward' 'key key' 'foot foot';
+    gap: 6px 12px; min-width: 0; padding: 10px; border: 1px solid #2a2218; background: linear-gradient(135deg, color-mix(in srgb, var(--boss-tone) 9%, rgba(10, 8, 6, .7)), rgba(10, 8, 6, .55)); }
+  .map-boss-card.is-fire { --boss-tone: #ff9a76; } .map-boss-card.is-cold { --boss-tone: #8fd3ff; } .map-boss-card.is-light { --boss-tone: #ffe083; } .map-boss-card.is-chaos { --boss-tone: #c7a6ff; }
+  .map-boss-card.is-ready { border-color: color-mix(in srgb, var(--boss-tone) 45%, #2a2218); }
+  .map-boss-card.current { border-color: #e0c283; box-shadow: 0 0 0 1px rgba(224, 194, 131, .3); }
+  .map-boss-emblem { grid-area: art; display: grid; place-items: center; width: 64px; height: 64px; border: 1px solid color-mix(in srgb, var(--boss-tone) 55%, #050404);
+    background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--boss-tone) 26%, transparent), transparent 70%), #0b0907; }
+  .map-boss-glyph { width: 44px; height: 44px; image-rendering: pixelated; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--boss-tone) 60%, transparent)); }
+  .map-boss-glyph .m { fill: #f6ead0; }
+  .map-boss-glyph .f { fill: var(--boss-tone); }
+  .map-boss-card.is-locked .map-boss-glyph { opacity: .55; }
+  .map-boss-body { grid-area: body; display: grid; align-content: start; gap: 3px; min-width: 0; }
+  .map-boss-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  #tab-map .map-boss-title strong { color: var(--boss-tone); font-size: 16px; font-weight: 400; overflow-wrap: anywhere; }
+  .map-boss-title em { flex: none; color: #8a7f6c; font-size: 11px; font-style: normal; }
+  .map-boss-title em.is-done { color: #9fd46a; }
+  .map-boss-track { justify-self: start; padding: 0 5px; border: 1px solid #5a4630; color: #f3d28c; font-size: 11px; }
+  #tab-map .map-boss-body .map-power-estimate { font-size: 12px; }
+  .map-boss-row { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: baseline; gap: 2px 8px; margin: 0; font-size: 12px; }
+  .map-boss-row.is-reward { grid-area: reward; }
+  .map-boss-row:not(.is-reward) { grid-area: key; }
+  .map-boss-row > span { color: var(--px-copy-muted, #a39883); }
+  .map-boss-row > b { color: var(--px-copy, #e8dcc0); font-weight: 400; }
+  .map-boss-row.is-reward > b { color: #f0a85a; }
+  .map-boss-row.is-have > b { color: #9fd46a; }
+  .map-boss-row > small { grid-column: 2; color: #7d7464; font-size: 11px; }
+  .map-boss-foot { grid-area: foot; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 1px solid #2a2218; }
+  .map-boss-foot > span { color: var(--px-copy-muted, #a39883); font-size: 12px; }
+  .map-boss-foot button { flex: none; min-width: 88px; }
+
+  @container (max-width: 600px) {
+    .map-act-grid { grid-template-columns: minmax(0, 1fr); }
+    .map-act-card { grid-template-columns: 64px minmax(0, 1fr); }
+    .map-act-art, .map-act-art img { width: 64px; height: 64px; }
+    .map-chaos-board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+}

@@ -1113,8 +1113,7 @@
 .map-item[role="group"].is-recommended { border-color: #d8b45d; box-shadow: 0 0 0 1px rgba(216,180,93,.22), 0 8px 20px rgba(0,0,0,.22); }
 .map-item[role="group"] .map-item-actions { justify-content: flex-end; flex-wrap: wrap; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--color-line); }
 .map-item[role="group"] .map-item-main { align-items: flex-start; font-size: 14px; line-height: 1.5; }
-.map-item[role="group"] .map-state-badge,
-.map-item--act[role="group"] .map-reward-btn { margin-right: auto; }
+.map-item[role="group"] .map-state-badge { margin-right: auto; }
 .map-state-badge { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border: 1px solid #4c6177; border-radius: 999px; color: #e4edf5; background: #1a2837; font-size: 9px; font-weight: 900; }
 .map-state-badge.current { border-color: #73b8e8; color: #d9f2ff; background: #173d58; }
 .map-state-badge.cleared { border-color: #506779; color: #afbfcc; background: #18232d; }
