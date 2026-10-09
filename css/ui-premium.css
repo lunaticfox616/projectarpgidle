@@ -733,7 +733,7 @@
 }
 }
 @layer overrides {
-:root body button:disabled:not(.gem-engrave-option):not(.fishing-strategy-card) {
+:root body button:disabled:not(.gem-engrave-option):not(.fishing-strategy-card):not(.colony-ward-slot) {
   background: color-mix(in srgb, var(--skin-canvas), #000 18%);
   border-color: color-mix(in srgb, var(--skin-line), #000 24%);
   color: var(--color-text-tertiary);

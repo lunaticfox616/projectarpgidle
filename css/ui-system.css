@@ -18,7 +18,7 @@ body select:focus-visible { outline: 2px solid var(--color-accent-gold); outline
   outline: 0;
 }
 
-:root body :where(button, input, select, textarea):disabled:not(.fishing-strategy-card) {
+:root body :where(button, input, select, textarea):disabled:not(.fishing-strategy-card):not(.colony-ward-slot) {
   cursor: not-allowed;
   filter: saturate(.55);
   opacity: .48;

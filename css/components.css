@@ -807,15 +807,11 @@
 .colony-ward-hero{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .colony-ward-hero h3{margin:0;color:var(--color-text);font-size:20px}
 .colony-ward-hero p{margin:4px 0 0;color:var(--color-text-secondary)}
-.colony-ward-currency{color:var(--color-text-secondary);white-space:nowrap}.colony-ward-currency b,.colony-ward-actions b{color:var(--color-accent)}
+.colony-ward-currency{color:var(--color-text-secondary);white-space:nowrap}.colony-ward-currency b{color:var(--color-accent)}
 .colony-ward-locked{padding:10px;border:1px solid var(--color-line-strong);color:var(--color-accent)}
-.colony-ward-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0}
-.colony-ward-cost{color:var(--color-text-secondary);font-size:14px}
 .colony-ward-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .colony-ward-slot{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;padding:12px;border:1px solid var(--color-line-strong);border-radius:var(--radius-sm);background:var(--color-surface-raised)}
 .colony-ward-slot-label{color:var(--color-text-secondary);font-size:14px}.colony-ward-slot strong{word-break:keep-all;overflow-wrap:anywhere;font-size:16px;font-weight:600}
-.colony-ward-slot.locked{border-style:dashed;border-color:var(--color-line);background:var(--color-surface)}.colony-ward-slot.locked strong{color:var(--color-text-secondary);font-weight:400;word-break:keep-all}
-.colony-ward-slot button{margin-top:auto}
 .colony-ward-section{margin-top:16px;border-top:1px solid var(--color-line);padding-top:12px}.colony-ward-section h4{font-size:16px;color:var(--color-text);margin:0 0 10px}.colony-ward-section h4 span{color:var(--color-text-secondary);font-weight:400;margin-left:6px}
 .colony-ward-total{display:flex;flex-wrap:wrap;gap:6px 20px;margin:0;padding:0;list-style:none;color:var(--color-accent)}
 .colony-ward-inventory{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;min-width:0}
