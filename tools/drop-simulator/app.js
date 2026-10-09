@@ -78,7 +78,7 @@
             stat('판마다 종류', fixed(r.kindsPerMap, 1), `${r.maps}판 동안 ${r.distinctKinds}종`),
             stat('다음 판과 겹침', `${Math.round(r.overlapNext * 100)}%`, '낮을수록 판마다 다름'),
             stat('큰 발견', fixed(r.momentsPerMap.great), unique ? `판마다, 고유 ${fixed(unique)}` : '판마다', 'great'),
-            stat('대박', fixed(r.momentsPerMap.jackpot, 3), r.momentsPerMap.jackpot ? `${Math.round(1 / r.momentsPerMap.jackpot)}판에 한 번꼴` : '판마다', 'jackpot'),
+            stat('체이싱 티어', fixed(r.momentsPerMap.jackpot, 3), r.momentsPerMap.jackpot ? `${Math.round(1 / r.momentsPerMap.jackpot)}판에 한 번꼴` : '판마다', 'jackpot'),
             stat('보물 무리', fixed(r.treasurePerMap), '판마다'),
             stat('기억의 잎', fixed(r.leavesPerMap), `본 잎 ${r.leafSeen}/${catalog.leaves.length}`, 'leaf'),
             stat('재화 종류', fixed(r.currencyKindsPerMap, 1), '판마다'),

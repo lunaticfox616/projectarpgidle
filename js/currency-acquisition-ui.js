@@ -1,9 +1,21 @@
-// Currency state is committed in the domain; banners and logs cannot grant it again.
+// Currency state is committed in the domain; notices and logs cannot grant it again.
 (() => {
+    /** 을/를: the object particle after a Korean name (a final consonant or not). */
+    function objectParticle(name) {
+        const text=String(name),code=text.charCodeAt(text.length-1)-0xAC00;
+        return code>=0 && code<11172 && code%28 ? '을' : '를';
+    }
+    /** 알림창(js/ui-feedback.js): 황금률은 금빛, 체이싱 티어 재화(js/loot.js lootMoments jackpot: 요정의 고리, 우로보로스)는 붉은 금빛. */
+    function noticeCurrency(currencyKey,gain) {
+        if(!(gain>0))return;
+        const name=ORB_DB[currencyKey].name,chase=lootMoments.ofCurrency(currencyKey)==='jackpot';
+        if(currencyKey!=='goldenRule' && !chase)return;
+        showGameToast(`${name}${objectParticle(name)} 획득했습니다.`,{tone:chase?'chase':'reward',duration:chase?6000:3600});
+    }
     function announce(event) {
         const {currencyKey,gain,unlocked}=event.detail;
+        noticeCurrency(currencyKey,gain);
         if(currencyKey==='goldenRule' && gain>0) {
-            showDivineDropBanner(gain);
             addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`,'loot-unique');
         }
         if(['chaosKey','coreKey'].includes(currencyKey) && gain>0) {

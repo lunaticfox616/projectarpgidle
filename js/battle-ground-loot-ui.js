@@ -11,8 +11,8 @@ const battleGroundLoot = (() => {
     // style and layout pass whenever anything had touched the page earlier in the frame (2026-10-07: about 8% of a frame with a window open).
     const narrow = () => canvasBox(canvas).width < 600;
     const displayLimit = () => narrow() ? 16 : 24;
-    // 발견 등급(js/loot.js lootMoments, data/loot-omens.js moments, 2026-10-09): 큰 발견 이상은 빛기둥과 큰 소리, 대박은 붉은 금빛
-    // 빛기둥과 배너, 좋은 발견은 반짝임. 주황 기록도 큰 발견 이상.
+    // 발견 등급(js/loot.js lootMoments, data/loot-omens.js moments, 2026-10-09): 큰 발견 이상은 빛기둥과 큰 소리, 체이싱 티어(jackpot)는
+    // 더 크게 숨 쉬는 붉은 금빛 빛기둥과 발밑의 빛살, 좋은 발견은 반짝임. 주황 기록도 큰 발견 이상. 알림은 알림창(js/ui-feedback.js)에 뜬다.
     const momentOf = receipt => lootMoments.ofReceipt(receipt);
     const isMajor = receipt => lootMoments.rank(momentOf(receipt)) >= 2;
     /** A pile shows its most important drop: jackpot, great (golden rule, uniques, hunted drops), good, then by rarity. */
@@ -232,6 +232,7 @@ const battleGroundLoot = (() => {
         if (marker.dataset.tier === 'jackpot') {
             marker.style.setProperty('--beam-color', '#ff5e6c');
             marker.style.setProperty('--beam-core', '#ffe7a3');
+            const rays = document.createElement('div'); rays.className = 'battle-loot-rays'; marker.prepend(rays);
             return;
         }
         if (receipt.currency === 'burningEmberBranch') {
@@ -239,9 +240,8 @@ const battleGroundLoot = (() => {
             marker.style.setProperty('--beam-core', '#ffe2b8');
         }
         if (receipt.currency !== 'goldenRule') return;
-        const palette = getComputedStyle(document.getElementById('divine-drop-banner'));
-        marker.style.setProperty('--beam-color', palette.borderTopColor);
-        marker.style.setProperty('--beam-core', palette.color);
+        marker.style.setProperty('--beam-color', '#f7d66a');
+        marker.style.setProperty('--beam-core', '#fff7d1');
     }
 
     function room(important) {
@@ -283,7 +283,6 @@ const battleGroundLoot = (() => {
         const contact = document.createElement('span'); contact.className = 'battle-loot-contact'; entry.marker.append(contact);
         const tier = entry.marker.dataset.tier;
         if (tier !== 'plain' && typeof playLootDropSound === 'function') playLootDropSound(tier === 'major' || tier === 'jackpot');
-        if (tier === 'jackpot') showJackpotBanner(`대박: ${entry.marker.dataset.lead}`);
         if (!reduced()) landingPop(entry.marker.querySelector('.battle-loot-item'), tier);
         later(entry, () => contact.remove(), 550);
     }
@@ -379,23 +378,13 @@ const battleGroundLoot = (() => {
     // (no id until stored) a per-row number kept for the row's life.
     const talismanKeys = new WeakMap();
     let nextTalismanKey = 0;
-    /** The big banner over the battlefield (the golden rule's, index.html #divine-drop-banner) with a jackpot's or a reveal's text. */
-    let bannerTimer = 0;
-    function showJackpotBanner(text) {
-        const banner = document.getElementById('divine-drop-banner');
-        if (!banner) return;
-        banner.textContent = text;
-        banner.classList.add('show');
-        clearTimeout(bannerTimer);
-        bannerTimer = setTimeout(() => banner.classList.remove('show'), 2200);
-    }
-    /** A floor unique picked up: its name rises over the hero, with a 새 고유 badge when it opens a codex entry (a chase unique or a new
-     * one also takes the banner). */
+    /** A floor unique picked up: its name rises over the hero, with a 새 고유 badge when it opens a codex entry; a chase unique and a new
+     * one also get a notice (js/ui-feedback.js). */
     function revealUnique(item, fresh) {
         const jackpot = lootMoments.ofItem(item) === 'jackpot';
         if (typeof playLootDropSound === 'function') playLootDropSound(true);
-        if (jackpot) showJackpotBanner(`체이싱 고유: 「${item.name}」`);
-        else if (fresh) showJackpotBanner(`도감 새 고유: 「${item.name}」`);
+        if (jackpot) showGameToast(`체이싱 고유 장비를 획득했습니다. 「${item.name}」`, { tone: 'chase', duration: 6000 });
+        if (fresh) showGameToast(`도감에 고유 장비를 등록했습니다. 「${item.name}」`, { tone: 'unique', duration: 4500 });
         if (!air || !battleVisualState.playerPos) return;
         const label = document.createElement('span');
         label.className = `battle-loot-reveal${jackpot ? ' is-jackpot' : ''}${fresh ? ' is-new' : ''}`;
@@ -501,10 +490,10 @@ const battleGroundLoot = (() => {
         return next;
     }
 
-    // A treasure carrier fell (js/atlas-finds.js burstTreasure): one log line; golden treasure also takes the banner.
+    // A treasure carrier fell (js/atlas-finds.js burstTreasure): a notice (golden treasure in the chase tier's colours) and one log line.
     addEventListener('project-idle:atlas-find', ({ detail }) => {
         if (detail.kind !== 'treasure') return;
-        if (detail.golden) showJackpotBanner('황금 보물');
+        showGameToast(detail.golden ? '황금 보물을 발견했습니다.' : '보물을 발견했습니다.', { tone: detail.golden ? 'chase' : 'reward', duration: detail.golden ? 6000 : 3600 });
         if (game.settings.showLootLog) addLog(`💰 ${detail.name}: 보물 ${detail.count}개`, detail.golden ? 'loot-unique' : 'loot-rare');
     });
     /** ', 좋은 옵션 N줄' for a rare whose top-tier lines make it a find (data/loot-omens.js fineRare). */

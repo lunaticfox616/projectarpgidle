@@ -66,11 +66,28 @@ body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip
 .game-toast-success { --toast-tone: #7fcf95; }
 .game-toast-warning { --toast-tone: #e0b35a; }
 .game-toast-danger { --toast-tone: #e07a6a; }
+/* 전리품 알림(2026-10-09 사용자: 전장 위 큰 띠 대신 알림창): 황금률과 보물은 금빛, 도감 등록은 고유의 주황, 기억의 잎은 옥빛 판.
+   체이싱 티어(요정의 고리, 우로보로스, 체이싱 고유, 황금 보물)는 붉은 금빛 판이 숨 쉬듯 빛나고 빛이 두 번 훑고 지나간다. */
+.game-toast-reward { --toast-tone: #f3d28c; background: rgba(36, 28, 12, .88); color: #f6e7c0; }
+.game-toast-unique { --toast-tone: #ffb469; background: rgba(40, 22, 10, .88); color: #ffd9b0; }
+.game-toast-leaf { --toast-tone: #9fe0c0; background: rgba(10, 28, 21, .88); color: #d6ffe6; }
+.game-toast-chase { --toast-tone: #ff6b6b; position: relative; overflow: hidden; padding: 9px 12px 9px 11px; background: linear-gradient(90deg, rgba(96, 18, 24, .96), rgba(30, 10, 10, .94)); box-shadow: inset 0 0 0 1px #ff8a7a, inset 3px 0 0 var(--toast-tone), 0 0 12px rgba(255, 94, 108, .5), 3px 3px 0 rgba(0, 0, 0, .35); color: #ffe7a3; font-size: 14px; font-weight: 700; }
+.game-toast-chase .game-toast-mark { color: #ffe7a3; font-size: 13px; }
+.game-toast-chase::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 240, 200, .45) 50%, transparent 65%); transform: translateX(-120%); pointer-events: none; }
+.game-toast-chase.active { animation: toast-chase-glow 1.3s ease-in-out .3s infinite alternate; }
+.game-toast-chase.active::after { animation: toast-chase-shine 1.1s ease-out .25s 2; }
+.game-toast-chase:hover { background: linear-gradient(90deg, rgba(110, 22, 28, .98), rgba(40, 12, 12, .96)); }
+@keyframes toast-chase-shine { to { transform: translateX(120%); } }
+@keyframes toast-chase-glow {
+  from { box-shadow: inset 0 0 0 1px #ff8a7a, inset 3px 0 0 var(--toast-tone), 0 0 8px rgba(255, 94, 108, .4), 3px 3px 0 rgba(0, 0, 0, .35); }
+  to { box-shadow: inset 0 0 0 1px #ffd0c0, inset 3px 0 0 var(--toast-tone), 0 0 22px rgba(255, 94, 108, .9), 3px 3px 0 rgba(0, 0, 0, .35); }
+}
+@media (prefers-reduced-motion: reduce) { .game-toast-chase.active, .game-toast-chase.active::after { animation: none; } }
 
 @media (max-width: 640px) {
-  /* 전투 로그 알림(아래 84px) 위로 쌓아 두 알림이 겹치지 않게. 좁은 화면이라 가장 최근 두 개만 보인다. */
+  /* 전투 로그 알림(아래 84px) 위로 쌓아 두 알림이 겹치지 않게. 좁은 화면이라 가장 최근 두 개만 보인다(체이싱 티어 알림은 남는다). */
   .game-toast-region { top: auto; right: 10px; bottom: calc(132px + env(safe-area-inset-bottom)); width: calc(100vw - 20px); }
-  .game-toast-region > .game-toast:nth-last-child(n+3) { display: none; }
+  .game-toast-region > .game-toast:nth-last-child(n+3):not(.game-toast-chase) { display: none; }
 } }
 
 @layer overrides {

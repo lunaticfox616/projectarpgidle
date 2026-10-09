@@ -689,7 +689,7 @@ function renderBackgroundResultLoot(summary) {
     return row + equipmentLootUi.renderHighlights(summary.highlights);
 }
 
-/** 아틀라스 칸: 끝낸 지도, 보물 무리(금테), 황금 보물(대박 색), 기억의 잎(잎 그림)과 처음 본 잎. */
+/** 아틀라스 칸: 끝낸 지도, 보물 무리(금테), 황금 보물(체이싱 티어 색), 기억의 잎(잎 그림)과 처음 본 잎. */
 function renderBackgroundResultAtlas(atlas) {
     if (!atlas) return '';
     const chips = [];

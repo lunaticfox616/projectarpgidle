@@ -84,12 +84,13 @@ const LOOT_OMENS = Object.freeze({
     ].map(Object.freeze)),
     treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.1, prefix: '보물을 품은', outline: '#ffd75e',
         sparks: '#fff1a8',
-        // 황금 보물(대박의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리나 체이싱 고유
+        // 황금 보물(체이싱 티어의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리나 체이싱 고유
         // '@chase')를 쏟는다. 무리 키의 해시로 정해진다(Math.random을 쓰지 않음).
         golden: Object.freeze({ chance: 0.04, rolls: 16, prefix: '황금 보물을 품은', outline: '#fff6d8', sparks: '#ffd75e',
             jackpot: Object.freeze([['fairyRing', 1], ['@chase', 1]]) }) }),
     // 발견 등급(js/loot.js lootMoments): 바닥 빛기둥과 소리(js/battle-ground-loot-ui.js), 지도 결과, 드랍 시뮬레이터가 같은 표를 쓴다.
-    // jackpot은 붉은 금빛 빛기둥과 배너, great는 빛기둥과 큰 소리, good은 반짝임. 재화는 아래 목록이고(어느 콘텐츠에서나 드문 것만 jackpot과
+    // jackpot(화면 이름은 체이싱 티어)은 숨 쉬는 굵은 붉은 금빛 빛기둥과 빛살, 붉은 금빛 알림, great는 빛기둥과 큰 소리, good은 반짝임.
+    // 재화는 아래 목록이고(어느 콘텐츠에서나 드문 것만 jackpot과
     // great: 깊은 미궁은 원시 고대 화석과 심연 화석을 처치마다 몇 %씩 떨어뜨리므로 화석은 good. 찬란한 봉인편린은 사용자 결정으로 great),
     // 장비는 체이싱 고유 jackpot, 고유와 모든 줄이 특출한 베이스 great, 특출 줄과 타락과 소켓 good. 주얼은 고유 great, 희귀 good.
     // 야생 고유 부적 great. 보물 무리의 보물은 great, 황금 보물은 jackpot.

@@ -161,21 +161,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .battlefield-wrap,
 :root body[data-ui-skin].desktop-windowed-ui .battlefield-wrap { border-radius: 0; }
 
-/* 희귀 재화 알림 띠(황금률 획득!): 둥근 금빛 광택 대신 가벼운 HUD 판. 확대 애니메이션은 도트 글씨를 번지게 해 투명도만 남긴다.
-   테 색(border-color)과 글자색은 바닥 전리품 빛기둥이 읽어 가므로(js/battle-ground-loot-ui.js beam) 바꾸지 않는다. */
-:root body[data-ui-skin] .divine-drop-banner {
-  border-width: var(--px-light-border);
-  border-image: var(--px-light-frame);
-  border-radius: 0;
-  background: var(--px-panel);
-  background-clip: padding-box;
-  box-shadow: var(--px-drop);
-  font-size: 15px;
-  letter-spacing: 0;
-  text-shadow: var(--px-text-edge);
-  transform: translateX(-50%);
-}
-:root body[data-ui-skin] .divine-drop-banner.show { transform: translateX(-50%); }
 :root body[data-ui-skin].desktop-windowed-ui #btn-combat-log-toggle { font-size: 12px; }
 
 /* 스킬트리 필터(전체 · 공격 · …): 고른 필터는 탭처럼 금 테 · 금빛 글 */

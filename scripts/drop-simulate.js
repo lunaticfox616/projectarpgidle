@@ -17,7 +17,7 @@ const fixed = number => Number(number).toFixed(2);
 
 console.log(`등급 ${result.options.tier}, 루프 ${result.options.loop}, 지도 ${report.maps}판 (${(result.elapsedMs / 1000).toFixed(1)}초)`);
 console.log(`판마다 종류 ${fixed(report.kindsPerMap)} (전체 ${report.distinctKinds}), 다음 판과 겹침 ${(report.overlapNext * 100).toFixed(0)}%`);
-console.log(`판마다 드랍 ${fixed(report.dropsPerMap)}, 재화 종류 ${fixed(report.currencyKindsPerMap)}, 좋은 발견 ${fixed(report.momentsPerMap.good)}, 큰 발견 ${fixed(report.momentsPerMap.great)}, 대박 ${fixed(report.momentsPerMap.jackpot)}, 보물 무리 ${fixed(report.treasurePerMap)}, 잎 ${fixed(report.leavesPerMap)} (본 잎 ${report.leafSeen})`);
+console.log(`판마다 드랍 ${fixed(report.dropsPerMap)}, 재화 종류 ${fixed(report.currencyKindsPerMap)}, 좋은 발견 ${fixed(report.momentsPerMap.good)}, 큰 발견 ${fixed(report.momentsPerMap.great)}, 체이싱 티어 ${fixed(report.momentsPerMap.jackpot)}, 보물 무리 ${fixed(report.treasurePerMap)}, 잎 ${fixed(report.leavesPerMap)} (본 잎 ${report.leafSeen})`);
 console.log(`판마다 처치: 일반 ${fixed(report.kills.regular)}, 정예 ${fixed(report.kills.elite)}, 상자와 사건 ${fixed(report.kills.objects)}`);
 console.log('판마다 드랍 종류별:', Object.entries(report.totals).map(([key, count]) => `${key} ${fixed(count)}`).join(', '));
 console.log('판마다 재화:', Object.entries(report.currencies).map(([key, count]) => `${key} ${fixed(count)}`).join(', '));

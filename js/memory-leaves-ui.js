@@ -49,25 +49,19 @@ const memoryLeavesUi = (() => {
         const html = headHtml() + GROUPS.map(groupHtml).join('');
         if (html !== lastHtml) { root.innerHTML = html; lastHtml = html; }
     }
-    /** A leaf picked up: the banner and codex dot for a first sighting or a full set, and a log line (always for those two). */
+    /** A leaf picked up: a notice (js/ui-feedback.js) and codex dot for a first sighting or a full set, and a log line (always for those two). */
     function announceLeaf(result) {
         const notable = result.first || result.complete;
         if (notable) {
             game.noti.codex = true;
-            showLeafBanner(result.complete ? `기억의 잎을 다 모았습니다: 「${result.name}」` : `새 기억의 잎: 「${result.name}」`);
+            showGameToast(result.complete ? `기억의 잎을 다 모았습니다. 「${result.name}」` : `새 기억의 잎을 발견했습니다. 「${result.name}」`,
+                { tone: 'leaf', duration: 3600 });
         }
         if (notable || game.settings.showLootLog) logLeaf(result, notable);
     }
     function logLeaf(result, notable) {
         const label = result.first ? '새 기억의 잎' : '기억의 잎', ready = result.complete ? ', 도감에서 엮을 수 있습니다' : '';
         addLog(`🍃 ${label} 「${escapeHTML(result.name)}」 ${result.count}/${result.set}${ready}`, notable ? 'loot-unique' : 'loot-rare');
-    }
-    function showLeafBanner(text) {
-        const banner = document.getElementById('divine-drop-banner');
-        if (!banner || game.isBackgroundCalculation) return;
-        banner.textContent = text;
-        banner.classList.add('show');
-        setTimeout(() => banner.classList.remove('show'), 2200);
     }
     addEventListener('project-idle:memory-leaf', ({ detail }) => announceLeaf(detail));
     // 엮기 단추: 그리기 밖에서 한 번만 잇는다(그리기가 엮기를 부르지 않게).

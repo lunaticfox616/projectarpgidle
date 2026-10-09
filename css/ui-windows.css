@@ -258,7 +258,7 @@
 .background-result-chip.currency { color: var(--color-text-secondary); }
 .background-result-chip.currency b { color: var(--color-reward-gold-bright); }
 .background-result-chip.major { border-color: var(--color-reward-gold); background: color-mix(in srgb, var(--color-reward-gold), transparent 84%); color: var(--color-text); }
-/* 아틀라스 칸(방치 중 지도): 황금 보물은 대박의 붉은 금빛, 기억의 잎은 잎의 초록과 잎 그림, 처음 본 잎은 '새 잎' 표. */
+/* 아틀라스 칸(방치 중 지도): 황금 보물은 체이싱 티어의 붉은 금빛, 기억의 잎은 잎의 초록과 잎 그림, 처음 본 잎은 '새 잎' 표. */
 .background-result-chip.jackpot { border-color: #ff6b6b; background: #1a0b0b; color: #ffe7a3; box-shadow: 0 0 8px rgba(255, 94, 108, .45); }
 .background-result-chip.leaf { border-color: #3f8f6a; background: rgba(8, 22, 16, .95); color: #bdf0d6; }
 .background-result-chip.leaf b { color: #e6fff0; }

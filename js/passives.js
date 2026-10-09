@@ -4282,7 +4282,6 @@ let crowdPauseActive = false;
 let activeTutorial = null;
 let activeTutorialStep = 0;
 let activeRewardZoneId = null;
-let divineBannerTimer = null;
 let latestPlayerSwingImpactAt = 0;
 let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
@@ -5271,17 +5270,6 @@ function renderTutorialVisual() {
         : buildTutorialPanelPreview(kind, activeTutorialStep);
 }
 
-function showDivineDropBanner(amount) {
-    let el = document.getElementById('divine-drop-banner');
-    if (!el) return;
-    el.innerText = `${ORB_DB.goldenRule.name} 획득! +${amount}`;
-    el.classList.add('show');
-    if (divineBannerTimer) clearTimeout(divineBannerTimer);
-    divineBannerTimer = setTimeout(() => {
-        el.classList.remove('show');
-        divineBannerTimer = null;
-    }, 1700);
-}
 function isRewardOpen() {
     let overlay = document.getElementById('reward-overlay');
     return activeRewardZoneId !== null && !!overlay && overlay.classList.contains('active');
