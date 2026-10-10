@@ -46,7 +46,7 @@
   #tab-talent .talent-slots h3 { margin: 0; color: var(--px-gold-bright, #e0c283); }
   .talent-slot-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .talent-slot { display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0; min-height: 70px; padding: 6px 4px;
-    border: 1px dashed #3a3024; background: #0d0b08; color: #6f6656; text-align: center; }
+    border: 1px dashed #3a3024; background: #0d0b08; color: #948a75; text-align: center; }
   .talent-slot.is-empty { border-style: solid; border-color: #4a3f2f; color: var(--px-copy-muted, #a39883); }
   .talent-plus { color: #c69f5e; font-size: 18px; line-height: 1; }
   .talent-lock { position: relative; width: 10px; height: 8px; margin-top: 6px; background: #5a5040; }
@@ -81,16 +81,17 @@
   .talent-row.is-owned .talent-glyph .m { fill: #f6ead0; }
   .talent-row.is-owned .talent-glyph .f { fill: var(--tone); }
   .talent-row-name { display: grid; gap: 1px; min-width: 0; }
-  .talent-row-name strong { overflow: hidden; color: #8a7f6c; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+  /* 2026-10-11: 미개화 줄의 글이 대비 2.4~4.3으로 흐려 재능 이름을 읽기 어려웠다. 개화한 줄은 직업 색(--tone)이라 구분은 그대로 남는다. */
+  .talent-row-name strong { overflow: hidden; color: #cfc4ae; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
   .talent-row.is-owned .talent-row-name strong { color: var(--tone); }
-  .talent-row-name small { overflow: hidden; color: #6f6656; text-overflow: ellipsis; white-space: nowrap; }
+  .talent-row-name small { overflow: hidden; color: #a39883; text-overflow: ellipsis; white-space: nowrap; }
   .talent-row-state { display: grid; justify-items: end; gap: 3px; }
   .talent-row-flags { display: flex; gap: 3px; }
   .talent-row-flags em { padding: 0 4px; border: 1px solid; font-size: 11px; font-style: normal; line-height: 15px; white-space: nowrap; }
   .talent-row-flags em.is-current { border-color: #8a6a2e; color: #f3d28c; }
   .talent-row-flags em.is-worn { border-color: #3d5a26; color: #9fd46a; }
   .talent-row-level { color: #f3d28c; font-size: 12px; }
-  .talent-row-level.is-off { color: #5f574a; }
+  .talent-row-level.is-off { color: #8f8676; }
 
   /* 카드 창 */
   .talent-sheet-panel { width: min(470px, calc(100vw - 24px)); }

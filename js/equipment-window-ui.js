@@ -180,12 +180,12 @@ const equipmentWindowUi = (() => {
             game.cosmosTwinKeystones = twins;
         }
     }
-    function deltaRow(key, a, b) {
+    function deltaRow(key, a, b, rest) {
         const meta = COMPARE_STAT_META[key], d = b - a, sign = d > 0 ? '+' : '-';
         // DPS는 앞뒤 값이 이미 길어서 증감은 비율만 적는다(좁은 칸에서 "-473,651 (-24.7%)"가 네 줄로 꺾였다).
         const pct = key === 'dps' && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : '';
         const tint = COLOR[DELTA_TINT[key]];
-        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}"><span${tint ? ` style="color:${tint}"` : ''}>${meta.label}</span><b>${pretty(meta.format(a))}</b><i>→</i>`
+        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}${rest ? ' is-rest' : ''}"><span${tint ? ` style="color:${tint}"` : ''}>${meta.label}</span><b>${pretty(meta.format(a))}</b><i>→</i>`
             + `<b>${pretty(meta.format(b))}</b><em>${pct || `${sign}${pretty(meta.format(Math.abs(d)))}`}</em></div>`;
     }
     function uniqueRows(item, worn) {
@@ -199,11 +199,23 @@ const equipmentWindowUi = (() => {
         if (!change) return '';
         return `<div class="eqw-dl-note ${change.to > change.from ? 'is-gain' : 'is-loss'}">액막이 칸 ${change.from} → ${change.to}</div>`;
     }
+    /** 휴대폰의 바꾸면 표는 요약에 있는 능력치(DPS, 생명력, 보호막, 방어, 저항)만 먼저 보인다. 표가 열다섯 줄까지 길어져 그 아래 고른 장비의
+     * 옵션이 밀렸다(2026-10-11). 나머지 줄은 이 단추로 편다(css/equipment-window.css .eqw-dl-more, PC에서는 단추 없이 다 보인다). */
+    function restButton(count) {
+        return count ? `<button type="button" class="eqw-dl-more" data-rest="${count}" onclick="equipmentWindowUi.toggleDeltas(this)">나머지 변화 ${count}줄 보기</button>` : '';
+    }
+    function toggleDeltas(button) {
+        const open = button.closest('.eqw-dl-body').classList.toggle('is-open');
+        button.textContent = open ? '접기' : `나머지 변화 ${button.dataset.rest}줄 보기`;
+        equipmentInventoryInteraction.positionInspector();
+    }
     function deltaHtml(item, slot) {
         const [before, after] = swapStats(item, slot);
-        const rows = Object.keys(COMPARE_STAT_META).filter(key => Math.abs((Number(after[key]) || 0) - (Number(before[key]) || 0)) >= 0.001)
-            .map(key => deltaRow(key, Number(before[key]) || 0, Number(after[key]) || 0)).join('');
-        return (rows + wardRows(item, slot) + uniqueRows(item, game.equipment[slot])) || '<p class="eqw-none">능력치 변화 없음</p>';
+        const keys = Object.keys(COMPARE_STAT_META).filter(key => Math.abs((Number(after[key]) || 0) - (Number(before[key]) || 0)) >= 0.001);
+        const rest = keys.filter(key => !DELTA_TINT[key]);
+        const fold = rest.length < keys.length ? rest : []; // 요약 능력치가 하나도 안 바뀌면 접지 않는다
+        const rows = keys.map(key => deltaRow(key, Number(before[key]) || 0, Number(after[key]) || 0, fold.includes(key))).join('');
+        return (rows + restButton(fold.length) + wardRows(item, slot) + uniqueRows(item, game.equipment[slot])) || '<p class="eqw-none">능력치 변화 없음</p>';
     }
     const deltaCache = new Map();
     /** A short key for the long gear signature (FNV-1a). */
@@ -233,6 +245,6 @@ const equipmentWindowUi = (() => {
     }
 
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('pointerdown', closeMenus, true);
-    return Object.freeze({ COLOR, render, toggleLoadout, newDotHtml, isNew, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane });
+    return Object.freeze({ COLOR, render, toggleLoadout, newDotHtml, isNew, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas });
 })();
 safeExposeGlobals({ equipmentWindowUi });
