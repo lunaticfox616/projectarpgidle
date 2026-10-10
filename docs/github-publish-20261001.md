@@ -43,3 +43,13 @@ Hana Caraka 캐릭터 스프라이트는 팀 내부 전용(재배포 금지)이�
   `smoke-redrawn-skill-art` 전체)는 `CI` 환경 변수가 있고 그 폴더가 통째로 없을 때만 건너뛴다(`scripts/lib/private-assets.js`).
   로컬에서는 예전처럼 빠진 파일이 실패로 잡힌다. 2026-09-30 공개 CI 실패 두 건이 이것이었다(2026-10-02 고침).
   공개 상태를 미리 보려면 `git archive HEAD`에서 비공개 경로를 지운 복사본에서 `CI=true npm test`.
+
+## 새 배포 알림 (2026-10-11)
+사용자: "PR 올려서 github pages에 들어가고 나면 새로고침 하라고 떴으면 좋겠는데".
+- 웹 묶음을 만들 때(`scripts/build-web.js`) 배포 표식을 `dist/index.html`의 `<meta name="app-deploy">`와 `dist/version.json`에 적는다.
+  Actions에서는 커밋 앞 12자, 그 밖에서는 묶음을 만든 시각이다. 저장소의 index.html에는 `dev`로 남는다.
+- 열려 있는 게임(`js/app-update-ui.js`)은 5분마다, 탭으로 돌아올 때(1분에 한 번까지) `version.json`을 캐시 없이 읽어 제 표식과 다르면
+  화면 위 가운데에 "새 버전이 올라왔습니다. 새로고침하면 적용됩니다."와 새로고침, 나중에(30분 뒤 다시) 단추를 띄운다.
+  새로고침은 플레이어가 누를 때만 한다(떠날 때 저장은 js/main.js의 pagehide가 맡는다).
+- 표식이 `dev`인 개발 서버와 앱(네이티브)에서는 켜지지 않는다. 기존 `<meta name="app-build">`는 플레이 기록용 이름표라 그대로 둔다.
+- 읽는 파일은 수십 바이트이고 GitHub Pages에서 받는다(클라우드 서버 요청은 늘지 않는다).

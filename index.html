@@ -8,6 +8,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- 웹 묶음을 만들 때 배포 표식으로 바뀐다(scripts/build-web.js). 열려 있는 게임이 새 배포를 알아챈다(js/app-update-ui.js). -->
+    <meta name="app-deploy" content="dev">
     <title>Rignin</title>
     <script id="app-update-registration">
     (() => {
@@ -64,7 +66,7 @@
                     <div class="startup-summary-card">
                         <div class="startup-summary-head">
                             <div class="startup-summary-title">이 기기 저장</div>
-                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 10월 7일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(2026.10.07)</span></button>
+                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 10월 11일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(2026.10.11)</span></button>
                         </div>
                         <div class="startup-summary-grid">
                             <div class="startup-summary-item">
@@ -1529,6 +1531,7 @@
     <script defer src="js/app-platform.js?v=20260907-1"></script>
 <script defer src="js/ui-audio.js?v=20261006-boss-stage"></script>
 <script defer src="js/ui-feedback.js?v=20261006-audio1&drops=20261009-6"></script>
+<script defer src="js/app-update-ui.js?v=20261011-1"></script>
 <script defer src="js/selection-dialog-ui.js?v=20261003-1"></script>
 <script defer src="js/stat-tone-text-ui.js?v=20261006-3&review=20261007-1"></script>
 <script defer src="js/exploration-layouts.js?v=20260930-1&maps=20261002-1&trial-maps=20261006-1"></script>
