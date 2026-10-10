@@ -231,6 +231,8 @@
     width: auto; max-width: none; max-height: 62vh; margin: 0; padding: 10px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 -10px 24px rgba(0, 0, 0, .75); }
   :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 4px; right: 6px; min-height: 36px; }
+  /* 휴대폰의 닫기 단추는 손가락 크기(폭 44px, css/themes/pixel-mobile.css)라 제목 줄 오른쪽 글을 가렸다: 단추 왼쪽에 12px 틈이 남게 비운다. */
+  :root body #item-tab-equip #ui-equipment-inventory-inspector:popover-open .eqw-title { padding-right: 64px; }
   :root body #item-tab-equip #ui-equipment-inventory-inspector .equipment-grid-inspector-actions button { min-height: 44px; }
 }
 }
