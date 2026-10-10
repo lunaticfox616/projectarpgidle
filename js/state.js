@@ -1011,16 +1011,21 @@ function getHighestUnlockedEndlessChaosDepth(source) {
     return depths.length > 0 ? Math.max(...depths) : 0;
 }
 
+/** 심화 혼돈에서 이번 루프에 오를 다음 층: 이번 루프에 깬 가장 높은 층의 다음 층(혼돈 20을 막 깼으면 21). */
+function getLoopDeepChaosFrontierDepth(source) {
+    let state = source || game;
+    let best = Math.floor((state && state.loopProgressCurrent && state.loopProgressCurrent.bestAbyssDepth) || 0);
+    return Math.max(21, best + 1);
+}
+
+/** 자동 진행이 향할 지역. 루프 10부터 혼돈 20을 깬 뒤에는 심화 혼돈을 한 층씩 오른다(2026-10-11 사용자: 예전에는 지난 루프까지
+ * 기록한 가장 높은 층으로 바로 뛰어 계속 죽었다). 예전 기록 층은 심화층 목록에서 직접 고를 때만 간다(enterUnlockedEndlessDepth). */
 function getAutoProgressZoneId(fallbackZoneId) {
-    if ((game.season || 1) >= 10 && hasCurrentLoopChaos20Clear()) {
-        if (getAbyssDepthFromZoneId(fallbackZoneId) === 20) {
-            game.abyssEndlessDepth = 21;
-            return getAbyssZoneIdForDepth(21);
-        }
-        let highestDepth = getHighestUnlockedEndlessChaosDepth();
-        if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
-    }
-    return fallbackZoneId;
+    if ((game.season || 1) < 10 || !hasCurrentLoopChaos20Clear()) return fallbackZoneId;
+    let depth = getLoopDeepChaosFrontierDepth();
+    game.abyssEndlessDepth = depth;
+    ensureNextEndlessChaosDepthUnlocked(depth - 1);
+    return getAbyssZoneIdForDepth(depth);
 }
 
 
@@ -1030,10 +1035,9 @@ function getAbyssMonsterScales(zone) {
     if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth);
     if (!zone || zone.type !== 'abyss') return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
     let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-    // 심화 혼돈(21+) 기록은 심화 구간에서만 난이도에 반영한다.
-    // 새 루프의 혼돈 1~20에 과거 심화층 배율이 섞이면 난이도가 비정상적으로 급등한다.
-    let endlessDepth = depth <= 20 ? depth : Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
-    return getChaosDepthScales(endlessDepth);
+    // 난이도는 그 층의 깊이만 따른다(2026-10-11): 예전에는 심화층(21+)에 지난 루프의 기록(game.abyssEndlessDepth)을 겹쳐 읽어
+    // "혼돈 심화 21"이 기록한 최고 층의 난이도로 나왔다. 층마다 제 지역 id가 있어 기록을 겹칠 까닭이 없다.
+    return getChaosDepthScales(depth);
 }
 
 /** Monster scales at a chaos depth (21+ = deep chaos). The loop's share lives in the shared loop curves (js/combat.js), not here. */

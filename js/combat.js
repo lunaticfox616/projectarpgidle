@@ -9123,10 +9123,8 @@ function resolveNextLoopBestPlusOneZone(zone) {
     let currentAbyssDepth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     let currentLoopAbyssDepth = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), currentAbyssDepth);
     if (zone && (zone.type === 'abyss' || resolveAnyClimb) && currentLoopAbyssDepth >= 20) {
-        let nextDepth = Math.max(21, currentLoopAbyssDepth + 1);
-        let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
-        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) return null;
-        return getAbyssZoneIdForDepth(nextDepth);
+        // 이번 루프에 깬 최고 층의 다음 층(js/state.js getAutoProgressZoneId와 같은 한 층씩 규칙, 현재 심화층 기록도 맞춘다).
+        return getAutoProgressZoneId(getAbyssZoneIdForDepth(Math.max(21, currentLoopAbyssDepth + 1)));
     }
     if (zone && (zone.type === 'labyrinth' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
         game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
@@ -9786,8 +9784,9 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let recordedEndlessDepth = Math.floor(game.abyssEndlessDepth || depth);
-                let nowEndless = depth === 20 ? 20 : Math.max(20, depth, recordedEndlessDepth);
+                // 깬 층이 곧 지금 층이다(2026-10-11): 예전에는 21층부터 지난 루프의 기록(game.abyssEndlessDepth)과 견줘 더 큰 쪽을
+                // 써서, 루프 조건 층을 깨면 다음 층이 아니라 기록한 최고 층의 다음으로 뛰었다.
+                let nowEndless = Math.max(20, depth);
                 ensureNextEndlessChaosDepthUnlocked(nowEndless);
                 // Chaos 20 is the entrance to deep chaos, so continuing after that clear must start at 21
                 // even if the save has a higher recorded deep-chaos floor from a previous loop.
