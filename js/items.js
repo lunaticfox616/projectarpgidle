@@ -391,6 +391,7 @@ function getEquipCandidateSlots(item, targetGame = game) {
     if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
     if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
+    if (item.slot === COLONY_WARD_RULES.slot) return colonyWards.openSlots(targetGame);
     let warriorDualTrain = hasKeystone('w3', targetGame);
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
@@ -441,6 +442,7 @@ function pickEquipSlot(item, preferredSlot) {
     let candidates = getEquipCandidateSlots(item);
     if (candidates.length === 0) return null;
     if (preferredSlot && candidates.includes(preferredSlot)) return preferredSlot;
+    if (item.slot === COLONY_WARD_RULES.slot) return colonyWards.pickSlot(game);
     if (item.slot === '반지') {
         if (!game.equipment['반지1']) return '반지1';
         if (!game.equipment['반지2']) return '반지2';

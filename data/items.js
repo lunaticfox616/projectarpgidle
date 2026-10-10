@@ -144,6 +144,8 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
             '종말의 논리': 'assets/items/illustrated/unique_final_logic.webp',
         }),
         baseAssets: Object.freeze({
+            // 액막이(data/colony-wards.js baseId): 예전 군락지 액막이 그림 그대로.
+            "colony_ward": "assets/items/seed-talisman-v3.png",
             "gen__armor_t1": "assets/items/illustrated/gen__armor_t1.webp",
             "gen__armor_t16": "assets/items/illustrated/gen__armor_t16.webp",
             "gen__armor_t20": "assets/items/illustrated/gen__armor_t20.webp",
@@ -533,7 +535,7 @@ const UNIQUE_DB = [
     { name: "저주의 관", slots: ["투구"], reqTier: 13, uniqueEffect: "저주 최대치 +1, 적에게 걸린 저주 1개당 최종 피해 +6%", uniqueEffectKey: "curseCrown", uniqueEffectParams: { extraCurseCap: 1, finalDmgPerCursePct: 6 }, stats: [{ id: "chaosPctDmg", min: 20, max: 30 }, { id: "resPen", min: 8, max: 14 }, { id: "crit", min: 6, max: 10 }, { id: "resChaos", min: 10, max: 16 }, { id: 'resAll', min: 18, max: 20.1 }, { id: 'energyShieldPct', min: 36, max: 40.3 }] },
     { name: "수호 성갑", slots: ["갑옷"], reqTier: 14, uniqueEffect: "받는 피해 -8%, 보스에게 받는 피해 -12%", uniqueEffectKey: "guardianArmor", uniqueEffectParams: { takenLessPct: 8, bossTakenLessPct: 12 }, stats: [{ id: "flatHp", min: 140, max: 200 }, { id: "dr", min: 10, max: 14 }, { id: "resAll", min: 14, max: 20 }, { id: "regen", min: 1.4, max: 2.2 }, { id: 'armorPct', min: 36, max: 40.3 }, { id: 'evasionPct', min: 36, max: 40.3 }] },
     { name: "함성 공명 허리띠", slots: ["허리띠"], reqTier: 13, uniqueEffect: "플레이어에게 적용된 함성 1개당 피해 20% 증폭", uniqueEffectKey: "warcryResonanceBelt", uniqueEffectParams: { perWarcryAmpPct: 20 }, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "move", min: 8, max: 14 }, { id: "aspd", min: 8, max: 12 }, { id: "resAll", min: 8, max: 14 }, { id: 'dr', min: 17.3, max: 19.5 }, { id: 'energyShieldPct', min: 36, max: 40.3 }] },
-    { name: "천 개의 유리병", slots: ["허리띠"], reqTier: 16, ultraRare: true, syncEffectOnLoad: true, uniqueEffect: "방어도 +25%, 모든 저항 +12%, 공격 속도 +8%, 피해 +10%", uniqueEffectKey: "thousandBottles", stats: [{ id: "flatHp", min: 130, max: 190 }, { id: "regen", min: 1.3, max: 2.0 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 12, max: 16 }, { id: "leech", min: 0.8, max: 1.2 }] },
+    { name: "천 개의 유리병", slots: ["허리띠"], reqTier: 16, ultraRare: true, syncEffectOnLoad: true, uniqueEffect: "방어도 +25%, 모든 저항 +12%, 공격 속도 +8%, 피해 +10%, 액막이 칸 +1", uniqueEffectKey: "thousandBottles", stats: [{ id: "flatHp", min: 130, max: 190 }, { id: "regen", min: 1.3, max: 2.0 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 12, max: 16 }, { id: "leech", min: 0.8, max: 1.2 }] },
     { name: "저항 잠식 반지", slots: ["반지"], reqTier: 12, uniqueEffect: "동일 대상 연속 타격 시 원소저항 -2% 누적 (최대 -20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "resPen", min: 10, max: 16 }, { id: "elementalPctDmg", min: 18, max: 28 }, { id: "resAll", min: 8, max: 14 }, { id: "leech", min: 0.8, max: 1.3 }, { id: 'flatHp', min: 90, max: 100.7 }, { id: 'crit', min: 4.3, max: 4.9 }] },
     { name: "컨디션 교본", slots: ["목걸이"], reqTier: 14, uniqueEffect: "부적 저주 지속시간 +100%, 저주 간격 −20%", uniqueEffectKey: "conditionManual", uniqueEffectParams: { durationPct: 100, cdrPct: 20 }, stats: [{ id: "gemLevel", min: 2, max: 2 }, { id: "suppCap", min: 1, max: 1 }, { id: "regen", min: 1.1, max: 1.7 }, { id: "resAll", min: 10, max: 16 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'flatHp', min: 90, max: 100.7 }] },
 
@@ -1065,8 +1067,8 @@ const ORB_DB = {
 
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
 const WALLET_CURRENCY_INFO = Object.freeze({
-    colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻습니다. 군락지 수호 칸을 여는 데 씁니다.' }),
-    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지 수호 칸을 여는 데 씁니다.' })
+    colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻고 액막이를 해체해도 나옵니다. 30개로 군락지 화면에서 액막이를 만듭니다.' }),
+    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지에 들어갈 때 씁니다.' })
 });
 /** Name and description of any wallet currency: ORB_DB items first, then the wallet-only counters. */
 function getCurrencyInfo(key) {

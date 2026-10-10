@@ -157,6 +157,8 @@ function stripRemovedAuxSystems(merged) {
         delete choice.expertLevel;
         ['a', 'b', 'c'].forEach(key => { if (choice[key] && typeof choice[key] === 'object') delete choice[key].expertLevel; });
     }
+    // 2026-10-10: 군락지 액막이 보관함과 칸은 가방과 장비의 액막이 칸으로 옮긴다(js/colony-wards.js migrate).
+    colonyWards.migrate(merged);
 }
 
 /** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —

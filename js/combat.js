@@ -3616,10 +3616,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalResChaos = Math.min(finalMaxResChaos, rawResChaos + warlockElementalOvercapToChaos);
     // 액막이 부적(군락 수호구)의 원소 저항/최대 화염 저항도 초과 화염 저항 계수에 반영되도록
     // 화염 저항 오버캡 계산 전에 군락 수호구 보너스를 먼저 합산한다.
-    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
-    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
-    if (game && game.colony) game.colony.wardSlots = cwSlots;
-    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
+    // 2026-10-10부터 액막이는 장비의 액막이 칸(열린 칸만)에서 읽는다(js/colony-wards.js equippedLines).
+    let cw = typeof colonyWards === 'object' ? colonyWards.equippedLines(game) : [];
+    cw.forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
     let fireResForOvercap = rawResF + (colonyWardBonus.resAll || 0);
     let maxResFForOvercap = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     if (activeUniqueIds.has('uj_burning_will')) {
@@ -8627,7 +8626,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const kept = [];
     for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
-    kept.push(...grantRootWeaponPick(enemy, zone));
+    kept.push(...grantRootWeaponPick(enemy, zone), ...colonyWards.rollFieldDrop(enemy, zone));
     return kept[0] || null;
 };
 
@@ -8954,15 +8953,9 @@ function handleEnemyDeath(enemy, pStats) {
             awardCurrency('colonyShard', shardReward);
             if (Math.random() < 0.35) awardCurrency('formlessDew', 1, 'drop');
             if (completedWave % 10 === 0) awardCurrency('colonyTrace', 1);
-            if (completedWave % 5 === 0 || Math.random() < 0.28) {
-                let c = game.colony || (game.colony = {});
-                c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
-                if (typeof generateColonyWard === 'function') {
-                    let ward = generateColonyWard();
-                    c.wardInventory.push(ward);
-                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare', { item:ward, itemKind:'talisman' });
-                }
-            }
+            // 액막이는 가방으로(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave).
+            let ward = colonyWards.rollColonyWave(completedWave, zone);
+            if (ward) addLog(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(ward.baseStats[0].id)} +${formatValue(ward.baseStats[0].id, ward.baseStats[0].val)}`, 'loot-rare', { item:ward, itemKind:'talisman' });
             game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
             game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
             if (game.colony.highestWave >= 11) unlockJournalEntry('colony_wave_10');

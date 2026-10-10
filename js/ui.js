@@ -2520,141 +2520,7 @@ function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     sideEncounterUi.renderPanel(panel, html);
 }
 
-const COLONY_WARD_MAX_SLOTS = 4;
-const COLONY_WARD_SLOT_UNLOCK_COSTS = {
-    2: { colonyShard: 25 },
-    3: { colonyShard: 75 },
-    4: { colonyShard: 150, colonyTrace: 1 }
-};
-
-function normalizeColonyWardState() {
-    let c = game.colony || (game.colony = {});
-    c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
-    c.wardEquipped = Array.isArray(c.wardEquipped) ? c.wardEquipped.slice(0, COLONY_WARD_MAX_SLOTS) : [null, null, null, null];
-    while (c.wardEquipped.length < COLONY_WARD_MAX_SLOTS) c.wardEquipped.push(null);
-    let fixWardName = ward => {
-        if (ward && ward.stat === 'resAll' && typeof ward.name === 'string' && ward.name.includes('모든 저항') && !ward.name.includes('모든 원소 저항')) {
-            ward.name = ward.name.replace('모든 저항', '모든 원소 저항');
-        }
-        return ward;
-    };
-    c.wardInventory.forEach(fixWardName);
-    c.wardEquipped.forEach(fixWardName);
-    let highestEquipped = c.wardEquipped.reduce((max, ward, idx) => ward ? Math.max(max, idx + 1) : max, 1);
-    c.wardSlots = Math.max(1, Math.min(COLONY_WARD_MAX_SLOTS, Math.max(highestEquipped, Math.floor(c.wardSlots || 1))));
-    c.wardSlotVersion = 1;
-    return c;
-}
-
-function getColonyWardStatLabel(stat) {
-    const labels = {
-        flatHp: '최대 생명력', armor: '방어도', evasion: '회피', energyShield: '에너지 보호막', resAll: '모든 원소 저항',
-        maxResF: '최대 화염 저항', maxResC: '최대 냉기 저항', maxResL: '최대 번개 저항', resChaos: '카오스 저항',
-        ailResIgnite: '점화 저항', ailResFreeze: '냉각/동결 저항', ailResShock: '감전 저항', ailResPoison: '중독 저항', ailResBleed: '출혈 저항',
-        regenFlat: '초당 생명력 재생', energyShieldRegen: '에너지 보호막 회복속도', critResist: '치명타 저항', dr: '받는 물리 피해 감소',
-        fireTakenDamageReducePct: '받는 화염 피해 감소', coldTakenDamageReducePct: '받는 냉기 피해 감소', lightTakenDamageReducePct: '받는 번개 피해 감소', chaosTakenDamageReducePct: '받는 카오스 피해 감소',
-        dotTakenDamageReducePct: '받는 지속 피해 감소', takenDamageReduceWhen2EnemiesPct: '받는 피해 감소(2마리 이상)', takenDamageReduceWhen1EnemyPct: '받는 피해 감소(1마리)',
-        igniteDamageReducePct: '받는 점화 피해 감소', bleedDamageReducePct: '받는 출혈 피해 감소', poisonDamageReducePct: '받는 중독 피해 감소'
-    };
-    return labels[stat] || getStatName(stat || '');
-}
-
-function getColonyWardValueText(ward) {
-    if (!ward) return '';
-    const percent = P_STATS[ward.stat]?.isPct || ward.stat.endsWith('Pct');
-    return `${getColonyWardStatLabel(ward.stat)} +${formatValue(ward.stat, Number(ward.val || 0))}${percent ? '%' : ''}`;
-}
-
-function getColonyWardSearchText(ward) {
-    if (!ward) return '';
-    return `${ward.name || ''} ${ward.stat || ''} ${getColonyWardStatLabel(ward.stat)} ${getColonyWardValueText(ward)} ${ward.val || ''}`;
-}
-
-function matchColonyWardSearchQuery(raw, query) {
-    const q = String(query || '').trim().toLowerCase();
-    if (!q) return true;
-    const text = String(raw || '').toLowerCase();
-    return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
-}
-
-function highlightColonyWardSearchText(text, query) {
-    const raw = String(text || '');
-    const tokens = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length <= 0) return escapeHTML(raw);
-    let ranges = [];
-    const lower = raw.toLowerCase();
-    tokens.forEach(token => {
-        let from = 0;
-        while (from < lower.length) {
-            let idx = lower.indexOf(token, from);
-            if (idx < 0) break;
-            ranges.push([idx, idx + token.length]);
-            from = idx + Math.max(1, token.length);
-        }
-    });
-    if (ranges.length <= 0) return escapeHTML(raw);
-    ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    let merged = [];
-    ranges.forEach(range => {
-        let last = merged[merged.length - 1];
-        if (!last || range[0] > last[1]) merged.push(range.slice());
-        else last[1] = Math.max(last[1], range[1]);
-    });
-    let out = '';
-    let cursor = 0;
-    merged.forEach(([start, end]) => {
-        if (start > cursor) out += escapeHTML(raw.slice(cursor, start));
-        out += `<mark>${escapeHTML(raw.slice(start, end))}</mark>`;
-        cursor = end;
-    });
-    if (cursor < raw.length) out += escapeHTML(raw.slice(cursor));
-    return out;
-}
-
-function getColonyWardSearchQuery() {
-    return getSearchFilterState().colonyWard;
-}
-
-function getColonyWardDismantleReward(ward) {
-    if (!ward) return 1;
-    let value = Math.abs(Number(ward.val || 0));
-    return Math.max(1, Math.min(6, 1 + Math.floor(value / 40)));
-}
-
-
-function isLockedInventoryObject(obj) {
-    return !!(obj && obj.locked);
-}
-
-function getLockButtonLabel(obj) {
-    return isLockedInventoryObject(obj) ? '🔒 잠금' : '🔓 잠금';
-}
-
-function toggleColonyWardLock(id) {
-    let c = normalizeColonyWardState();
-    let ward = (c.wardInventory || []).find(w => w && w.id === id);
-    if (!ward) return;
-    ward.locked = !ward.locked;
-    addLog(`${ward.locked ? '🔒' : '🔓'} 액막이 부적 잠금 ${ward.locked ? '설정' : '해제'}: ${ward.name || '액막이'}`, 'loot-normal');
-    updateStaticUI();
-    queueImportantSave(200);
-}
-
-function getColonyWardSlotCost(slot) {
-    return COLONY_WARD_SLOT_UNLOCK_COSTS[Math.max(2, Math.min(COLONY_WARD_MAX_SLOTS, Math.floor(slot || 2)))] || null;
-}
-
-function formatColonyWardCost(cost) {
-    if (!cost) return '최대 해금';
-    return Object.keys(cost).map(key => `${getCurrencyInfo(key).name} ${Math.floor(game.currencies[key] || 0)}/${cost[key]}`).join(', ');
-}
-
-function canPayColonyWardCost(cost) {
-    if (!cost) return false;
-    return Object.keys(cost).every(key => Math.floor(game.currencies[key] || 0) >= cost[key]);
-}
-
-// 군락지 화면: 방어전 패널 아래에 액막이(2026-09-30에 부적 창에서 옮겨 옴)를 함께 그린다.
+// 군락지 화면: 방어전 패널 아래에 액막이 안내(2026-10-10부터 액막이는 가방과 장비창 액막이 칸, js/colony-wards-ui.js)를 함께 그린다.
 function renderLoop15ColonyPanel() {
     let open = (game.season || 1) >= 15;
     let header = document.getElementById('ui-colony-header');
@@ -2665,133 +2531,9 @@ function renderLoop15ColonyPanel() {
     panel.style.display = open ? 'block' : 'none';
     wardHost.hidden = !open;
     if (!open) return;
-    let c = normalizeColonyWardState();
+    let c = game.colony || (game.colony = {});
     sideEncounterUi.renderPanel(panel, sideEncounterUi.colonyPanel(c, getZone('colony_run')));
     renderColonyWardView('ui-colony-ward-panel');
-}
-
-function generateColonyWard(){
-    const pool = [
-        { id:'flatHp', min:40, max:120, label:'최대 생명력 +' },
-        { id:'armor', min:30, max:140, label:'방어도 +' },
-        { id:'evasion', min:30, max:140, label:'회피 +' },
-        { id:'energyShield', min:20, max:120, label:'에너지 보호막 +' },
-        { id:'resAll', min:4, max:12, label:'모든 원소 저항 +' },
-        { id:'maxResF', min:1, max:2, label:'최대 화염 저항 +' },
-        { id:'maxResC', min:1, max:2, label:'최대 냉기 저항 +' },
-        { id:'maxResL', min:1, max:2, label:'최대 번개 저항 +' },
-        { id:'resChaos', min:4, max:12, label:'카오스 저항 +' },
-        { id:'ailResIgnite', min:6, max:20, label:'점화 저항 +' },
-        { id:'ailResFreeze', min:6, max:20, label:'냉각/동결 저항 +' },
-        { id:'ailResShock', min:6, max:20, label:'감전 저항 +' },
-        { id:'ailResPoison', min:6, max:20, label:'중독 저항 +' },
-        { id:'ailResBleed', min:6, max:20, label:'출혈 저항 +' },
-        { id:'regenFlat', min:2, max:8, label:'생명력 재생 +' },
-        { id:'energyShieldRegen', min:2, max:10, label:'에너지 보호막 회복속도 +' },
-        { id:'critResist', min:4, max:18, label:'치명타 저항 +' },
-        { id:'dr', min:1, max:4, label:'받는 물리 피해 감소 +' },
-        { id:'fireTakenDamageReducePct', min:2, max:8, label:'받는 화염 피해 감소 +' },
-        { id:'coldTakenDamageReducePct', min:2, max:8, label:'받는 냉기 피해 감소 +' },
-        { id:'lightTakenDamageReducePct', min:2, max:8, label:'받는 번개 피해 감소 +' },
-        { id:'chaosTakenDamageReducePct', min:2, max:8, label:'받는 카오스 피해 감소 +' },
-        { id:'dotTakenDamageReducePct', min:2, max:8, label:'받는 지속 피해 감소 +' },
-        { id:'takenDamageReduceWhen2EnemiesPct', min:1, max:5, label:'받는 피해 감소(2마리 이상) +' },
-        { id:'takenDamageReduceWhen1EnemyPct', min:1, max:5, label:'받는 피해 감소(1마리) +' },
-        { id:'igniteDamageReducePct', min:3, max:10, label:'받는 점화 피해 감소 +' },
-        { id:'bleedDamageReducePct', min:3, max:10, label:'받는 출혈 피해 감소 +' },
-        { id:'poisonDamageReducePct', min:3, max:10, label:'받는 중독 피해 감소 +' }
-    ];
-    let pick = pool[Math.floor(Math.random()*pool.length)];
-    let val = pick.min + Math.floor(Math.random() * (pick.max-pick.min+1));
-    return { id: `colony_ward_${Date.now()}_${Math.floor(Math.random()*99999)}`, stat: pick.id, val: val, name: `액막이 부적, ${pick.label}${val}` };
-}
-function dismantleColonyWardById(id) {
-    if (!assertBuildEditable()) return;
-    let c = normalizeColonyWardState();
-    let idx = c.wardInventory.findIndex(w => w && w.id === id);
-    if (idx < 0) return addLog('해체할 액막이 부적을 찾을 수 없습니다.', 'attack-monster');
-    let ward = c.wardInventory[idx];
-    if (isLockedInventoryObject(ward)) return addLog('잠금된 액막이 부적은 해체할 수 없습니다.', 'attack-monster');
-    let gain = getColonyWardDismantleReward(ward);
-    c.wardInventory.splice(idx, 1);
-    game.currencies.colonyShard = Math.max(0, Math.floor(game.currencies.colonyShard || 0)) + gain;
-    addLog(`🛡️ 액막이 부적 해체 완료, 군락지 편린 +${gain}`, 'loot-normal');
-    updateStaticUI();
-    queueImportantSave(200);
-}
-
-async function bulkDismantleColonyWardsBySearch(salvageUnmatched) {
-    if (!assertBuildEditable()) return;
-    let c = normalizeColonyWardState();
-    let wardQuery = getColonyWardSearchQuery();
-    let targets = [];
-    let lockedSkipped = 0;
-    (c.wardInventory || []).forEach((ward, idx) => {
-        let matched = matchColonyWardSearchQuery(getColonyWardSearchText(ward), wardQuery);
-        if (!(salvageUnmatched ? !matched : matched)) return;
-        if (isLockedInventoryObject(ward)) { lockedSkipped++; return; }
-        targets.push({ ward, idx });
-    });
-    if (targets.length <= 0) return addLog(`해체 대상 액막이 부적이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
-    if (!await requestGameConfirmation(`액막이 부적 ${targets.length}개를 해체합니다.\n장착 중이거나 잠긴 액막이는 보호됩니다.`, {
-        title: '액막이 일괄 해체',
-        tone: 'danger',
-        confirmLabel: `${targets.length}개 해체`
-    })) return;
-    let targetIds = new Set(targets.map(row => row.ward && row.ward.id).filter(Boolean));
-    if (game.colony !== c || !assertBuildEditable()) return;
-    let gained = 0;
-    let removed = 0;
-    c.wardInventory = (c.wardInventory || []).filter(ward => {
-        if (!ward || !targetIds.has(ward.id) || isLockedInventoryObject(ward)) return true;
-        gained += getColonyWardDismantleReward(ward);
-        removed++;
-        return false;
-    });
-    game.currencies.colonyShard = Math.max(0, Math.floor(game.currencies.colonyShard || 0)) + gained;
-    addLog(`액막이 부적 ${removed}개 해체, 군락지 편린 +${gained}`, 'loot-normal');
-    updateStaticUI();
-    queueImportantSave(200);
-}
-
-function canReplaceColonyWardSlot(colony, slot, expectedWardId) {
-    if (!Number.isInteger(slot) || slot < 0 || slot >= colony.wardSlots) return false;
-    return expectedWardId === undefined || colony.wardEquipped[slot]?.id === expectedWardId;
-}
-
-function equipColonyWardById(id, slotIndex, expectedWardId){
-    if (!assertBuildEditable() || (game.season||1)<15) return;
-    let c = normalizeColonyWardState();
-    let idx = c.wardInventory.findIndex(w => w && w.id === id); if (idx < 0) return;
-    let slot = slotIndex === undefined ? c.wardEquipped.slice(0,c.wardSlots).findIndex(w=>!w) : slotIndex;
-    if (!canReplaceColonyWardSlot(c, slot, expectedWardId)) return;
-    let previous = c.wardEquipped[slot];
-    c.wardEquipped[slot] = c.wardInventory.splice(idx, 1)[0];
-    if (previous) c.wardInventory.push(previous);
-    updateStaticUI();
-    queueImportantSave(200);
-}
-function unequipColonyWard(slot){
-    if (!assertBuildEditable()) return;
-    let c = normalizeColonyWardState();
-    if (!Number.isInteger(slot) || !c.wardEquipped[slot]) return;
-    c.wardInventory.push(c.wardEquipped[slot]); c.wardEquipped[slot]=null;
-    updateStaticUI();
-    queueImportantSave(200);
-}
-function unlockColonyWardSlot(){
-    if (!assertBuildEditable() || (game.season||1)<15) return;
-    let c = normalizeColonyWardState();
-    let nextSlot = Math.max(2, Math.floor(c.wardSlots || 1) + 1);
-    if (nextSlot > COLONY_WARD_MAX_SLOTS) return addLog('🛡️ 액막이 부적 슬롯은 이미 4/4입니다.', 'level-up');
-    let cost = getColonyWardSlotCost(nextSlot);
-    if (!canPayColonyWardCost(cost)) return addLog(`액막이 슬롯 확장 재화가 부족합니다. 필요: ${formatColonyWardCost(cost)}`, 'attack-monster');
-    let paidLabel = formatColonyWardCost(cost);
-    Object.keys(cost).forEach(key => { game.currencies[key] = Math.max(0, Math.floor(game.currencies[key] || 0) - cost[key]); });
-    c.wardSlots = nextSlot;
-    addLog(`🛡️ 액막이 부적 슬롯 ${nextSlot}/4 해금 (${paidLabel})`, 'level-up');
-    updateStaticUI();
-    queueImportantSave(200);
 }
 
 function startColonyRun(){
@@ -6283,7 +6025,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     }
     let defenseView = itemTooltipRules.defenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>`;
+        html += `<div class="tooltip-line tooltip-section tooltip-section-base">베이스 옵션</div>${colonyWardsUi.beltLineHtml(item)}`;
         item.baseStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
@@ -6343,7 +6085,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             html += `<div class="tooltip-line"><span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}${honeyLockText}</div>`;
         });
     } else {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">일반 아이템: 추가 옵션 없음</div>`;
+        html += itemTooltipRules.emptyExplicitHtml(item);
     }
     if (item.encroached) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#b084ff;">잠식 특수 옵션</div>`;
@@ -9926,9 +9668,6 @@ function exposeUiRenderHelpersOnce() {
         refreshAutoSalvageConfigOverlay,
         toggleAutoSalvageRarity,
         bulkSalvageEquipBySearch,
-        bulkDismantleColonyWardsBySearch,
-        dismantleColonyWardById,
-        toggleColonyWardLock,
         openCraftItemPickerOverlay,
         closeCraftItemPickerOverlay,
         craftSelectInventoryItemById,

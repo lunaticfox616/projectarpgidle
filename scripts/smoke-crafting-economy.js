@@ -33,6 +33,7 @@ const salvageContext = {
     awardCurrency(key, amount) { awarded[key] = (awarded[key] || 0) + amount; },
     addLog() {},
     game: { jewelInventory: [] },
+    colonyWards: { isWard: () => false }, // 액막이 해체는 js/colony-wards.js가 따로 맡는다
     safeExposeGlobals(map) { Object.assign(salvageContext, map); },
     Math: Object.create(Math)
 };

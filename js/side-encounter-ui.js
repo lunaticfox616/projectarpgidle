@@ -285,7 +285,7 @@ const sideEncounterUi = (() => {
             <div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startColonyRun()" ${traces<=0||colony.inRun?'disabled':''}>군락지 입장</button>
             <button type="button" onclick="forfeitColonyRun()" ${colony.inRun?'':'disabled'}>철수</button>
             <button type="button" onclick="document.getElementById('ui-colony-ward-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })">액막이 관리</button>
-            <span>액막이 ${colony.wardSlots}/4칸, 편린 ${game.currencies.colonyShard||0}개</span></div></div>`;
+            <span>액막이 칸 ${colonyWards.slotCount()}/${COLONY_WARD_RULES.maxSlots}, 편린 ${game.currencies.colonyShard||0}개</span></div></div>`;
     }
 
     function skyPanel(tower) {

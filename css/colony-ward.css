@@ -1,36 +1,8 @@
-/* 군락지 액막이 슬롯(js/colony-ward-ui.js, 2026-10-09): 장착 칸은 그 능력치 색 테와 글자, 빈 칸은 점선, 다음 칸은 여는 단추(재화별 막대,
-   모자라면 빨강), 그 뒤 잠긴 칸은 자물쇠만. 적용 효과와 보유 액막이도 능력치 색이고, 머리줄 재화는 칩이다. */
+/* 군락지 액막이 안내(js/colony-ward-ui.js): 2026-10-10부터 액막이는 가방에 들어가고 장비창 액막이 칸에 끼운다(css/colony-wards.css).
+   여기에는 머리줄 재화 칩과 적용 효과 줄만 남는다. */
 @layer features {
   .colony-ward-currency { display: flex; gap: 6px; }
   .colony-ward-currency > span { padding: 2px 8px; border: 1px solid #3a2f20; background: rgba(10, 8, 6, .5); }
-  .colony-ward-slots-title { margin: 14px 0 8px; color: var(--color-text); }
-  .colony-ward-slots-title span { margin-left: 6px; color: var(--color-accent); }
-
-  .colony-ward-slot.is-worn { border-color: color-mix(in srgb, var(--ward-tone) 50%, #2a2218); box-shadow: inset 3px 0 0 var(--ward-tone); }
-  .colony-ward-slot.is-worn strong { color: var(--ward-tone); }
-  .colony-ward-slot.is-worn button { margin-top: auto; }
-  .colony-ward-slot.is-empty { border-style: dashed; }
-  .colony-ward-slot.is-empty strong { color: var(--color-text-secondary); font-weight: 400; }
-  .colony-ward-slot.is-locked { align-items: center; justify-content: center; border-style: dashed; border-color: var(--color-line); background: transparent; }
-  .colony-ward-slot.is-locked .colony-ward-slot-label { color: #6f6657; }
-  .colony-ward-lock { position: relative; width: 12px; height: 10px; margin-top: 8px; background: #5a5040; }
-  .colony-ward-lock::before { content: ''; position: absolute; left: 2px; top: -7px; box-sizing: border-box; width: 8px; height: 8px; border: 2px solid #5a5040; border-bottom: 0; }
-
-  /* 다음 칸: 누르면 연다. 모자라도 흐리게 하지 않고 모자란 수만 빨강. */
-  .colony-ward-panel button.colony-ward-slot.is-next { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-height: 0; padding: 12px;
-    border: 1px solid #6a5226; background: linear-gradient(180deg, rgba(232, 194, 122, .08), rgba(10, 8, 6, .5)); text-align: left; }
-  .colony-ward-panel button.colony-ward-slot.is-next:disabled { opacity: 1; cursor: default; }
-  .colony-ward-panel button.colony-ward-slot.is-next:not(:disabled):hover { border-color: #e8c27a; }
-  .colony-ward-slot.is-next .colony-ward-slot-label { color: #e8c27a; }
-  .colony-ward-need { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 3px 8px; }
-  .colony-ward-need small { color: var(--color-text-secondary); }
-  .colony-ward-need b { color: var(--color-text); font-weight: 400; }
-  .colony-ward-need.is-short b { color: #ff9a76; }
-  .colony-ward-bar { display: block; grid-column: 1 / -1; height: 4px; background: #050404; box-shadow: 0 0 0 1px #2a2218; }
-  .colony-ward-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8a6a2e, #e8c27a); }
-
   .colony-ward-total > li { color: var(--ward-tone, var(--color-accent)); }
   .colony-ward-total > li.is-none { color: var(--color-text-secondary); }
-  .colony-ward-chip { box-shadow: inset 3px 0 0 var(--ward-tone); }
-  .colony-ward-chip > strong { color: var(--ward-tone); }
 }

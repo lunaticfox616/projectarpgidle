@@ -2334,7 +2334,7 @@ const defaultGame = {
         itemFilterMinTiers: { normal: 1, magic: 1, rare: 1, unique: 1 },
         itemFilterSlots: { 무기: true, 투구: true, 갑옷: true, 장갑: true, 신발: true, 목걸이: true, 반지: true, 허리띠: true, 방패: true },
         itemFilterWeaponCategories: { greatsword: true, scimitar: true, shortbow: true, orb: true, flask: true, censer: true },
-        itemFilterAlways: { exceptional: true, fineRare: true, socket: true, corrupted: false, newUnique: true, influenced: true },
+        itemFilterAlways: { exceptional: true, fineRare: true, socket: true, corrupted: false, newUnique: true, influenced: true, ward: true },
         // 발견 연출(js/battle-ground-loot-ui.js 빛기둥, 알림창): 플레이어가 고른다.
         lootFx: { beams: { jackpot: true, great: true, good: true }, notices: { chase: true, goldenRule: true, treasure: true, codex: true, leaf: true } },
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
@@ -2450,7 +2450,9 @@ const defaultGame = {
     gemFoldInactiveSupport: false,
     gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
-    equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
+    // 액막이1~5: 액막이 칸(2026-10-10, js/colony-wards.js). 열린 칸 수는 허리띠, 초월 공허, 가디언, 고유가 정한다.
+    equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null,
+        '액막이1': null, '액막이2': null, '액막이3': null, '액막이4': null, '액막이5': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
     // 그루터기 함 아래 4×4 조합창: 재료를 가리키기만 한다(js/stump-cube.js).

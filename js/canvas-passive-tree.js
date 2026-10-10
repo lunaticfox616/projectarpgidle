@@ -846,7 +846,7 @@ function renderPaperdoll(targetId, forCrafting) {
             </div>`;
         }
     });
-    if (targetId === 'ui-equip-list') html += coreItemsUi.slotHtml();
+    if (targetId === 'ui-equip-list') html += coreItemsUi.slotHtml() + colonyWardsUi.slotsHtml();
     document.getElementById(targetId).innerHTML = html;
     if (targetId === 'ui-equip-list') equipmentAuxUi.render();
 }

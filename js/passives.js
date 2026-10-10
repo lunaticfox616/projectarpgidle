@@ -2716,6 +2716,7 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'chameleon', name: '카멜레온', desc: () => '모든 초월 패시브 중 하나로 변환 가능' },
     { id: 'thirdFinger', name: '세 번째 손가락', desc: () => '반지를 하나 더 장착 가능' },
     { id: 'greed', name: '재물욕', desc: () => '주얼을 하나 더 장착 가능' },
+    { id: 'wardKnot', name: '액막이 매듭', desc: () => '액막이를 하나 더 장착 가능' }, // 액막이 칸 +1(js/colony-wards.js slotCount)
     { id: 'innateTalent', name: '타고난 재능', min: 5, max: 15, min2: 1.5, max2: 2, step2: 0.1, desc: (v, v2) => `${v}% 확률로 ${v2}배 피해` },
     { id: 'wholehearted', name: '전심전력', min: 5, max: 15, desc: v => `할당한 공허 패시브 하나당 모든 피해 +${v}%` },
     { id: 'impatience', name: '조급함', min: 8, max: 16, desc: v => `할당한 공허 패시브 하나당 이동 속도 +${v}%` },
@@ -9813,7 +9814,8 @@ function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
 /** guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등)과 목표·보호 장비.
  * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. */
 function isGuaranteedEquipmentPickup(item, options) {
-    return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item);
+    return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item)
+        || colonyWards.keptOnPickup(item);
 }
 
 /** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
@@ -9921,7 +9923,8 @@ const PICKUP_EXCEPTIONS = Object.freeze({
     socket: item => !!item.voidSocket || (Array.isArray(item.sockets) && item.sockets.length > 0),
     corrupted: item => !!item.corrupted,
     newUnique: item => lootMoments.isNewUnique(item),
-    influenced: item => itemInfluences.influenceKeys(item).some(key => key !== 'swapped')
+    influenced: item => itemInfluences.influenceKeys(item).some(key => key !== 'swapped'),
+    ward: item => colonyWards.isWard(item)
 });
 function isPickupException(item, always) {
     return !!always && Object.entries(PICKUP_EXCEPTIONS).some(([key, test]) => always[key] === true && test(item));
@@ -10332,6 +10335,7 @@ function getUniqueDismantleDivineChance(item) {
 }
 
 function getItemSalvageRewardProfile(item, options) {
+    if (colonyWards.isWard(item)) return colonyWards.salvageProfile(item); // 액막이: 군락지 편린
     let noDivine = !!(options && options.noDivine);
     let rarity = item && item.rarity || 'normal';
     let guaranteed = {};
