@@ -1,37 +1,40 @@
-/* 영향 장비와 뒤바뀐 고유(2026-10-10, js/item-influences-ui.js): 가방 칸, 장착 칸, 임시 보관, 장비 카드, 툴팁 상자, 장비 비교 칸의 테.
-   희귀도 색(왼쪽 위 삼각형과 바깥 테)은 그대로 두고 안쪽에 영향 색 테를 두른다. 영향이 둘이면 바깥이 첫째(--infl-a), 안쪽이 둘째(--infl-b).
-   툴팁에서는 영향 줄과 바뀐 줄의 표식(.infl-chip)이 그 줄 전체에 같은 색 띠를 깐다. */
+/* 영향 장비와 뒤바뀐 고유(2026-10-10, js/item-influences-ui.js): 가방 칸, 장착 칸, 임시 보관, 장비 카드, 바닥 이름표, 툴팁 상자,
+   장비 비교 칸의 테두리. 왼쪽 절반은 첫째 영향(--infl-a), 오른쪽 절반은 둘째 영향(--infl-b) 색이다. 영향이 하나면 둘이 같은 색이고,
+   둘을 함께 받는 짝은 태양과 허기뿐이다(사용자 규칙). 희귀도 색(왼쪽 위 삼각형)은 그대로 둔다. */
 @layer features {
 .has-influence { --infl-a: #ff7a45; --infl-b: var(--infl-a); }
 
 /* 칸: ::after는 희귀도 삼각형이라 ::before로 테를 그린다. */
-.equipment-temporary-item.has-influence { position: relative; }
+.equipment-temporary-item.has-influence,
+.equipment-item-card.has-influence { position: relative; }
 .equipment-grid-item.has-influence::before,
 .equipment-slot.has-influence .equipment-slot-visual::before,
-.equipment-temporary-item.has-influence::before {
+.equipment-temporary-item.has-influence::before,
+.equipment-item-card.has-influence::after {
     content: '';
     position: absolute;
     inset: 1px;
-    border: 2px solid var(--infl-a);
-    border-radius: 3px;
-    box-shadow: inset 0 0 10px color-mix(in srgb, var(--infl-a) 42%, transparent);
+    border: 2px solid transparent;
+    border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;
+    box-shadow: inset 8px 0 10px -6px color-mix(in srgb, var(--infl-a) 60%, transparent),
+        inset -8px 0 10px -6px color-mix(in srgb, var(--infl-b) 60%, transparent);
     pointer-events: none;
     z-index: 2;
-}
-.equipment-grid-item.has-influence-2::before,
-.equipment-slot.has-influence-2 .equipment-slot-visual::before,
-.equipment-temporary-item.has-influence-2::before {
-    box-shadow: inset 0 0 0 2px var(--infl-b), inset 0 0 12px color-mix(in srgb, var(--infl-b) 42%, transparent);
 }
 /* 칸 이름이 영향 색으로 물든다(가방 칸에서 고를 때 보이는 이름). */
 .equipment-grid-item.has-influence .equipment-grid-item-name { color: color-mix(in srgb, var(--infl-a) 65%, #ffffff); }
 
-/* 장비 카드: 카드의 ::before는 다른 장식이 쓰고 있어 안쪽으로 들어간 외곽선을 쓴다. */
-.equipment-item-card.has-influence { outline: 2px solid var(--infl-a); outline-offset: -3px; }
-.equipment-item-card.has-influence-2 { box-shadow: inset 0 0 0 5px var(--infl-b); }
+/* 바닥 이름표(js/battle-ground-loot-ui.js nameRow): 이름표 테가 영향 색이 된다. */
+.battle-loot-name[data-influence] {
+    border-width: 2px;
+    border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;
+}
 
-/* 툴팁의 영향 줄(머리 아래)과 줄 끝 표식. */
-.tooltip-line.infl-line { color: var(--infl); font-weight: 700; }
+/* 장비 이름 아래 한 줄: 설명 없이 "태양 아이템" 같은 이름만, 영향마다 그 색으로. */
+.infl-tags { display: flex; flex-wrap: nowrap; gap: 10px; margin: 2px 0 4px; white-space: nowrap; }
+.infl-tags .infl-tag { color: var(--infl); font-weight: 700; }
+
+/* 줄 끝 표식과 바뀌기 전 줄. */
 .infl-chip {
     display: inline-block;
     margin-left: 6px;
@@ -54,23 +57,17 @@
 .tooltip-line:has(> .infl-chip.is-guardian) { border-left-color: #dfe9f6; background: linear-gradient(90deg, rgba(223, 233, 246, .13), transparent 75%); }
 .tooltip-line:has(> .infl-chip.is-blight) { border-left-color: #a6d44a; background: linear-gradient(90deg, rgba(166, 212, 74, .15), transparent 75%); }
 .tooltip-line:has(> .infl-chip.is-swapped) { border-left-color: #c792ff; background: linear-gradient(90deg, rgba(199, 146, 255, .2), transparent 80%); }
-/* 바닥 전리품 이름표(js/battle-ground-loot-ui.js nameRow): 영향을 띤 장비는 이름표에 영향 색 테. */
-.battle-loot-name[data-influence] { outline: 2px solid var(--infl-a); outline-offset: 1px; }
 /* 기억 던전 머리의 뒤바뀐 고유 안내(js/memory-dungeon-ui.js). */
 .memory-swap-note { margin: 4px 0 0; color: #c792ff; font-weight: 700; }
 }
 
-/* 툴팁 상자와 장비 비교 칸: 피부(overrides)의 테두리 그림 바깥에 영향 색 테. 둘이면 그 바깥에 둘째 색 테(피부 그림자는 남긴다). */
+/* 툴팁 상자와 장비 비교 칸: 피부(overrides)의 테두리 그림 대신 영향 색 테두리(왼쪽 반, 오른쪽 반). 상자 안이 스크롤돼도 테두리는 그대로다. */
 @layer overrides {
-:root body #item-tooltip-box[data-influence]:not(.item-compare-tooltip),
-:root body #item-tooltip-box[data-influence].item-compare-tooltip .item-tooltip-main,
-:root body .equipment-inspection-column > [data-influence] {
-    outline: 2px solid var(--infl-a);
-    outline-offset: 2px;
-}
-:root body #item-tooltip-box[data-influence][data-influence*=" "]:not(.item-compare-tooltip),
-:root body #item-tooltip-box[data-influence][data-influence*=" "].item-compare-tooltip .item-tooltip-main,
-:root body .equipment-inspection-column > [data-influence][data-influence*=" "] {
-    box-shadow: 0 0 0 6px var(--infl-b), var(--px-drop, 0 14px 34px rgba(0, 0, 0, .55));
+:root body #item-tooltip-box[data-influence][data-influence]:not(.item-compare-tooltip),
+:root body #item-tooltip-box[data-influence][data-influence].item-compare-tooltip .item-tooltip-main,
+:root body .equipment-inspection-column > [data-influence][data-influence] {
+    border-style: solid;
+    border-width: var(--px-light-border, 2px);
+    border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;
 }
 }

@@ -6,11 +6,14 @@
 // 지역 수호자와 마름 사도의 영향은 그 장비의 추가 옵션 풀에 전용 줄을 더한다(세계수 기운과 같은 방식, data/region-affixes.js):
 // 그 보스의 보상 장비는 모두, 그 싸움터의 장비는 가끔 영향을 띠고 떨어질 때 전용 줄 하나를 단다. 줄 수는 그대로다(사용자: 줄을
 // 더 다는 것은 밸붕). 규칙은 js/item-influences.js, 화면은 js/item-influences-ui.js와 css/item-influences.css.
+// name: 줄 끝 표식, label: 장비 이름 아래 한 줄(2026-10-10 사용자: "태양 아이템, 허기 아이템, 수호자 아이템, 마름 아이템, 뒤바뀐 아이템").
+// stack: 같은 stack끼리만 한 장비에 함께 받는다(태양 + 허기). stack이 없는 영향은 하나만 받고 다른 영향과 함께 받지 못한다
+// (사용자 규칙, 새로 생기는 영향도 이 규칙을 따른다). 함께 받으면 테두리는 왼쪽이 첫째, 오른쪽이 둘째 색(js/item-influences-ui.js).
 const ITEM_INFLUENCES = Object.freeze({
-    red: Object.freeze({ name: '붉은 영향', source: '검은 태양의 대사제', tone: '#ff7a45', icon: '🔥', line: 'base', currency: 'altarEmber', room: 'redAltar' }),
-    blue: Object.freeze({ name: '푸른 영향', source: '세계수를 갉는 자', tone: '#3fd6c6', icon: '🌀', line: 'base', currency: 'altarIchor', room: 'blueAltar' }),
-    guardian: Object.freeze({ name: '수호자 영향', source: '지역 수호자', tone: '#dfe9f6', icon: '🛡️', line: 'explicit' }),
-    blight: Object.freeze({ name: '마름 영향', source: '마름 사도', tone: '#a6d44a', icon: '🍂', line: 'explicit' })
+    red: Object.freeze({ name: '태양', label: '태양 아이템', source: '검은 태양의 대사제', tone: '#ff7a45', line: 'base', stack: 'altar', currency: 'altarEmber', room: 'redAltar' }),
+    blue: Object.freeze({ name: '허기', label: '허기 아이템', source: '세계수를 갉는 자', tone: '#3fd6c6', line: 'base', stack: 'altar', currency: 'altarIchor', room: 'blueAltar' }),
+    guardian: Object.freeze({ name: '수호자', label: '수호자 아이템', source: '지역 수호자', tone: '#dfe9f6', line: 'explicit' }),
+    blight: Object.freeze({ name: '마름', label: '마름 아이템', source: '마름 사도', tone: '#a6d44a', line: 'explicit' })
 });
 
 const ITEM_INFLUENCE_RULES = Object.freeze({
@@ -107,8 +110,8 @@ const SWAPPED_UNIQUE_LINES = Object.freeze([
     ['spellCritDmg', 20, 40], ['doubleDamageChance', 3, 8], ['firstStrikeDamagePct', 15, 45]
 ].map(([statId, min, max]) => Object.freeze({ statId, min, max })));
 
-// 뒤바뀐 고유의 화면 색(테두리, 툴팁의 줄 표식): 기억의 보스가 물드는 보랏빛.
-const SWAPPED_UNIQUE_TONE = '#c792ff';
+// 뒤바뀐 고유의 화면(테두리, 이름 아래 한 줄, 줄 표식): 기억의 보스가 물드는 보랏빛.
+const SWAPPED_UNIQUE_META = Object.freeze({ name: '뒤바뀐', label: '뒤바뀐 아이템', tone: '#c792ff' });
 
 if (typeof safeExposeData === 'function') safeExposeData({ ITEM_INFLUENCES, ITEM_INFLUENCE_RULES, ALTAR_INFLUENCE_LINES, INFLUENCE_AFFIX_MODS,
-    SWAPPED_UNIQUE_LINES, SWAPPED_UNIQUE_TONE });
+    SWAPPED_UNIQUE_LINES, SWAPPED_UNIQUE_META });

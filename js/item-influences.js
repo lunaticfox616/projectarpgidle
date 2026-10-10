@@ -29,6 +29,19 @@ const itemInfluences = (() => {
     const isModForInfluence = (mod, influence) => !mod.influences || mod.influences.includes(influence);
     /** The influence of a stored explicit line ('guardian', 'blight'), or null for an ordinary line. */
     const lineInfluence = stat => (stat && MOD_INFLUENCE.get(stat.sourceModId)) || null;
+    const stackOf = key => (ITEM_INFLUENCES[key] && ITEM_INFLUENCES[key].stack) || null;
+    /** Whether the item may take this influence too: none yet, the same one again, or only influences of its stack (태양 + 허기).
+     * Any other pair is refused (2026-10-10 사용자 규칙). */
+    function canTake(item, key) {
+        const held = influenceKeys(item).filter(other => other !== 'swapped' && other !== key);
+        return !held.length || (!!stackOf(key) && held.every(other => stackOf(other) === stackOf(key)));
+    }
+    /** '' when the item may take the influence, otherwise why not. */
+    function heldReason(item, key) {
+        if (canTake(item, key)) return '';
+        const held = influenceKeys(item).find(other => other !== 'swapped' && other !== key);
+        return `${ITEM_INFLUENCES[held].label}에는 ${ITEM_INFLUENCES[key].name} 줄을 새길 수 없습니다.`;
+    }
     const isAltarCurrency = key => Object.hasOwn(CURRENCY_ALTAR, key);
     const altarOfCurrency = key => CURRENCY_ALTAR[key] || null;
     const altarLines = (altar, item) => (ALTAR_INFLUENCE_LINES[altar] || {})[slotOf(item)] || null;
@@ -49,7 +62,7 @@ const itemInfluences = (() => {
         if (!altarLines(altar, item)) return '투구, 갑옷, 장갑, 신발, 방패, 허리띠에만 새깁니다.';
         if (item.rarity === 'unique') return '고유 장비에는 새길 수 없습니다.';
         if (item.corrupted || item.fusedRelic || item.hallReplica) return '이 장비는 옵션을 바꿀 수 없습니다.';
-        return replaceIndex(item, altar) < 0 ? '바꿀 베이스 옵션이 없습니다.' : '';
+        return replaceIndex(item, altar) < 0 ? '바꿀 베이스 옵션이 없습니다.' : heldReason(item, altar);
     }
     function rollTier(item, random) {
         const cap = Math.max(1, Math.min(20, Math.floor(Number(item.affixTierCap) || 1)));
@@ -107,7 +120,7 @@ const itemInfluences = (() => {
     /** Gives a piece an explicit influence; a magic or rare piece also takes one of its lines now. A normal piece keeps the influence
      * for the crafting that rolls its lines later. Uniques never take one. */
     function stampInfluence(item, influence, random = Math.random) {
-        if (!item || !EXPLICIT.includes(influence) || item.rarity === 'unique') return item;
+        if (!item || !EXPLICIT.includes(influence) || item.rarity === 'unique' || !canTake(item, influence)) return item;
         item.influence = influence;
         if (item.rarity === 'magic' || item.rarity === 'rare') ensureExclusiveLine(item, random);
         return item;
@@ -174,7 +187,7 @@ const itemInfluences = (() => {
         return item;
     }
 
-    return Object.freeze({ influenceKeys, isModForInfluence, lineInfluence, isAltarCurrency, altarOfCurrency, altarUseReason, applyAltar,
+    return Object.freeze({ influenceKeys, canTake, isModForInfluence, lineInfluence, isAltarCurrency, altarOfCurrency, altarUseReason, applyAltar,
         useAltarCurrency, bossInfluence, stampInfluence, onDrop, normalizeInfluences, swapChance, swapUnique });
 })();
 safeExposeGlobals({ itemInfluences });
