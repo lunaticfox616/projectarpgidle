@@ -176,7 +176,7 @@ body #death-overlay .deathlog-bar { background: var(--color-control); border-col
   background-size: 10% 100%, 10% 100%;
   clip-path: inset(0 calc(100% - var(--progress-fill, 0%)) 0 0);
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, .92));
-  transition: clip-path .1s linear;
+  transition: clip-path .1s steps(3);
   pointer-events: none;
 }
 

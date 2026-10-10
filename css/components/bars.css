@@ -2,9 +2,11 @@
 @layer components {
 
         .hp-bar-bg { width: 100%; box-sizing: border-box; background-color: #222; height: 16px; border-radius: 4px; overflow: hidden; margin-top: 2px; border: 1px solid #111; position: relative; }
-        .hp-bar-fill { background-color: #eb3b5a; height: 100%; transition: width 0.1s linear; }
+        /* 막대의 전환은 계단식(steps): 전투 중에는 틱마다(100ms) 값이 바뀌어 전환이 거의 계속 도는데, 매끄러운 전환(linear)은 도는 동안
+           화면을 모니터 주사율(240Hz면 초당 240번)로 다시 합성시킨다. 계단식은 값이 바뀌는 순간에만 그린다(2026-10-10 측정: 주사율 제한을 푼 조건에서 탭 전체 코어 1.8개에서 0.5개). */
+        .hp-bar-fill { background-color: #eb3b5a; height: 100%; transition: width 0.1s steps(3); }
         .hp-bar-fill.player { background-color: #20bf6b; position: relative; z-index: 3; }
-        .hp-bar-fill.player-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 1; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: width 0.18s linear; }
+        .hp-bar-fill.player-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 1; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: width 0.18s steps(4); }
         .hp-bar-fill.player-ailment-pending { position: absolute; top: 0; height: 100%; z-index: 4; background: linear-gradient(90deg, rgba(255, 138, 101, 0.38), rgba(255, 82, 82, 0.78)); box-shadow: inset 0 0 6px rgba(255, 214, 170, 0.45); pointer-events: none; }
         .hp-bar-fill.move { background-color: #2d98da; }
         .map-progress-row .hp-bar-bg { flex: 1 1 auto; min-width: 0; margin-top: 0; }
@@ -12,7 +14,7 @@
         .hp-bar-fill.enemy { background: linear-gradient(90deg, #ff6b6b 0%, #eb3b5a 55%, #c92c48 100%); }
         .hp-bar-bg .hp-bar-fill.enemy { position: relative; z-index: 1; }
         .hp-bar-fill.enemy-es { position: absolute; left: 0; top: 0; height: 35%; z-index: 3; background: linear-gradient(90deg, #80d7ff, #4da3ff); box-shadow: 0 0 6px rgba(77,163,255,.45); pointer-events: none; }
-        .hp-bar-fill.enemy-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 0; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: left 0.16s linear, width 0.18s linear; }
+        .hp-bar-fill.enemy-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 0; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: left 0.16s steps(4), width 0.18s steps(4); }
         .hp-bar-fill.enemy-pending { position: absolute; top: 0; height: 100%; z-index: 2; background: linear-gradient(90deg, rgba(255,180,110,0.85), rgba(255,112,67,0.78)); pointer-events: none; }
         .hp-text { position: absolute; z-index: 6; width: 100%; text-align: center; top: 0; left: 0; font-size: 10px; font-weight: bold; color: #ffffff; line-height: 16px; letter-spacing: 0.1px; text-shadow: 0 0 2px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.65); -webkit-text-stroke: 0.45px rgba(0,0,0,0.88); paint-order: stroke fill; pointer-events: none; }
 
@@ -378,7 +380,7 @@ body.desktop-windowed-ui .combat-hp-bar::after {
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
-  transition: clip-path .16s linear;
+  transition: clip-path .16s steps(4);
 }
 .player-health-frame #ui-hp-bar {
   background-color: #08753f;
@@ -410,7 +412,7 @@ body.desktop-windowed-ui .combat-hp-bar::after {
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
-  transition: clip-path .16s linear;
+  transition: clip-path .16s steps(4);
 }
 
 #enemy-area .enemy-card.enemy-mob .health-skin-track > .hp-bar-fill.enemy {
