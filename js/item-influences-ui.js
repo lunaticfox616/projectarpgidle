@@ -6,10 +6,9 @@
 const itemInfluencesUi = (() => {
     const meta = key => (key === 'swapped' ? SWAPPED_UNIQUE_META : ITEM_INFLUENCES[key]);
     const chip = (key, text) => `<span class="infl-chip is-${key}" style="--infl:${meta(key).tone}">${escapeHTML(text)}</span>`;
-    const statNameOf = replaced => escapeHTML(replaced.statName || getStatName(replaced.id));
-    const was = replaced => (replaced ? `<span class="infl-was">원래 ${statNameOf(replaced)}</span>` : '');
-    // 뒤바뀐 줄은 표식 없이 아래 한 줄에 "○○에서 뒤바뀜"(2026-10-10 사용자).
-    const swappedFrom = replaced => `<span class="infl-swap-from" style="--infl:${SWAPPED_UNIQUE_META.tone}">${replaced ? `${statNameOf(replaced)}에서 뒤바뀜` : '뒤바뀐 줄'}</span>`;
+    // 다른 줄을 바꾼 줄(태양, 허기, 뒤바뀐)은 그 줄 아래에 한 줄 더 "[표식] 기존 ○○"(2026-10-10 사용자: 셋을 같은 모양으로).
+    const replacedLine = (key, text, replaced) => `<span class="infl-replaced is-${key}" style="--infl:${meta(key).tone}">${chip(key, text)}${
+        replaced ? `기존 ${escapeHTML(replaced.statName || getStatName(replaced.id))}` : ''}</span>`;
 
     /** Classes for an item's frame: has-influence, and has-influence-2 when two colours share it. '' for an ordinary item. */
     function influenceClasses(item) {
@@ -50,8 +49,8 @@ const itemInfluencesUi = (() => {
      * replaced). '' for an ordinary line. */
     function lineBadgeHtml(item, stat) {
         if (!stat) return '';
-        if (stat.altar && ITEM_INFLUENCES[stat.altar]) return chip(stat.altar, ITEM_INFLUENCES[stat.altar].name) + was(stat.replaced);
-        if (stat.swapped) return swappedFrom(stat.replaced);
+        if (stat.altar && ITEM_INFLUENCES[stat.altar]) return replacedLine(stat.altar, ITEM_INFLUENCES[stat.altar].name, stat.replaced);
+        if (stat.swapped) return replacedLine('swapped', '뒤바뀜', stat.replaced);
         const influence = itemInfluences.lineInfluence(stat);
         return influence ? chip(influence, ITEM_INFLUENCES[influence].name) : '';
     }

@@ -49,17 +49,17 @@
     vertical-align: 1px;
     white-space: nowrap;
 }
-.infl-was { margin-left: 5px; color: var(--copy-muted, #9aa7b6); font-size: 11px; white-space: nowrap; }
-/* 표식이 있는 줄 전체에 같은 색 띠: 바뀐 줄과 영향 줄을 한눈에 찾는다. */
-.tooltip-line:has(> .infl-chip) { padding-left: 5px; border-left: 2px solid transparent; }
-.tooltip-line:has(> .infl-chip.is-red) { border-left-color: #ff7a45; background: linear-gradient(90deg, rgba(255, 122, 69, .16), transparent 75%); }
-.tooltip-line:has(> .infl-chip.is-blue) { border-left-color: #3fd6c6; background: linear-gradient(90deg, rgba(63, 214, 198, .15), transparent 75%); }
+/* 다른 줄을 바꾼 줄 아래 한 줄: "[태양] 기존 ○○", "[허기] 기존 ○○", "[뒤바뀜] 기존 ○○". 툴팁에서는 줄을 바꾸고, 제작실 줄에서는 옆에 붙는다. */
+.infl-replaced { margin-left: 6px; color: color-mix(in srgb, var(--infl) 55%, #c9d2dc); font-size: 11px; white-space: nowrap; }
+.infl-replaced .infl-chip { margin: 0 5px 0 0; }
+.tooltip-line > .infl-replaced { display: block; margin: 1px 0 0; }
+/* 표식이 있는 줄 전체에 같은 색 띠: 바뀐 줄(아래 한 줄까지)과 영향 줄을 한눈에 찾는다. */
+.tooltip-line:has(> .infl-chip, > .infl-replaced) { padding-left: 5px; border-left: 2px solid transparent; }
+.tooltip-line:has(> .infl-replaced.is-red) { border-left-color: #ff7a45; background: linear-gradient(90deg, rgba(255, 122, 69, .16), transparent 75%); }
+.tooltip-line:has(> .infl-replaced.is-blue) { border-left-color: #3fd6c6; background: linear-gradient(90deg, rgba(63, 214, 198, .15), transparent 75%); }
+.tooltip-line:has(> .infl-replaced.is-swapped) { border-left-color: #c792ff; background: linear-gradient(90deg, rgba(199, 146, 255, .2), transparent 80%); }
 .tooltip-line:has(> .infl-chip.is-guardian) { border-left-color: #dfe9f6; background: linear-gradient(90deg, rgba(223, 233, 246, .13), transparent 75%); }
 .tooltip-line:has(> .infl-chip.is-blight) { border-left-color: #a6d44a; background: linear-gradient(90deg, rgba(166, 212, 74, .15), transparent 75%); }
-.tooltip-line:has(> .infl-swap-from) { padding-left: 5px; border-left: 2px solid #c792ff; background: linear-gradient(90deg, rgba(199, 146, 255, .2), transparent 80%); }
-/* 뒤바뀐 줄 아래 한 줄: "○○에서 뒤바뀜". 툴팁에서는 줄을 바꾸고, 제작실 줄에서는 티어 옆에 붙는다. */
-.infl-swap-from { margin-left: 6px; color: var(--infl); font-size: 11px; font-weight: 700; white-space: nowrap; }
-.tooltip-line > .infl-swap-from { display: block; margin-left: 0; }
 /* 기억 던전 머리의 뒤바뀐 고유 안내(js/memory-dungeon-ui.js). */
 .memory-swap-note { margin: 4px 0 0; color: #c792ff; font-weight: 700; }
 }
