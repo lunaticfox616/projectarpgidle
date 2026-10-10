@@ -211,6 +211,7 @@ function buildItemSnapshot(item, slotOverride) {
 function buildItemMetaSnapshot(item) {
     let chain = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     return {
+        baseId: item.baseId, // 인형 배치의 장비 그림(profileItemArt)
         baseStep: chain && chain.total > 1 ? [chain.step, chain.total] : undefined,
         itemLevel: profileItemLevel(item),
         grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
@@ -302,6 +303,38 @@ function profileStatIconHtml(key) {
 /** 능력치 이름. 2026-10-11 전에 올린 프로필은 이름 앞에 이모티콘이 붙어 있어("⚔️ DPS") 떼고 쓴다. */
 function profileStatName(label) {
     return String(label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+}
+// 능력치 묶음(2026-10-11 고급 테마, 사용자: "더 고급화할 수 있나?"): 공격, 방어, 저항. 저항은 한 줄에 둘씩.
+const PROFILE_STAT_GROUPS = Object.freeze([
+    ['공격', ['dps', 'summonDps', 'baseDmg', 'aspd', 'crit', 'critDmg']],
+    ['방어', ['maxHp', 'energyShield', 'armor', 'evasion', 'deflectChance', 'blockChance', 'dr', 'regen']],
+    ['저항', ['resF', 'resC', 'resL', 'resChaos']]
+]);
+/** 큰 정수에는 자릿수 쉼표(프로필 값은 "1914607"처럼 올라온다). */
+function profileStatValue(value) {
+    let text = String(value == null ? '' : value);
+    return /^-?\d{4,}$/.test(text) ? Number(text).toLocaleString('en-US') : text;
+}
+function profileStatRowHtml(s) {
+    let tone = PROFILE_STAT_TONES[s.key];
+    return `<div class="social-stat-item"><span class="social-stat-label">${profileStatIconHtml(s.key)}${socialEscape(profileStatName(s.label))}</span>`
+        + `<span class="social-stat-value"${tone ? ` style="color:${tone};"` : ''}>${socialEscape(profileStatValue(s.value))}</span></div>`;
+}
+/** 능력치 판: 키가 있는 프로필은 공격, 방어, 저항 묶음으로(묶음에 없는 키는 기타), 키가 없는 예전 프로필은 올라온 순서 그대로. */
+function profileStatsHtml(stats) {
+    let rows = stats.filter(s => s && s.label != null);
+    if (!rows.length) return '<div class="social-profile-empty">스탯 정보 없음</div>';
+    let grouped = new Set(PROFILE_STAT_GROUPS.flatMap(([, keys]) => keys));
+    let groups = PROFILE_STAT_GROUPS.map(([title, keys]) => [title, keys.map(key => rows.find(s => s.key === key)).filter(Boolean)])
+        .concat([['기타', rows.filter(s => !grouped.has(s.key))]]).filter(([, list]) => list.length);
+    if (groups.length === 1) return `<div class="social-stat-grid">${rows.map(profileStatRowHtml).join('')}</div>`;
+    return groups.map(([title, list]) => `<div class="social-stat-group"><h4>${title}</h4>`
+        + `<div class="social-stat-grid${title === '저항' ? ' is-pair' : ''}">${list.map(profileStatRowHtml).join('')}</div></div>`).join('');
+}
+/** 머리 줄 오른쪽의 큰 총 DPS(예전 프로필은 전투력). */
+function profilePowerHtml(p) {
+    if (!p.power) return '';
+    return `<div class="social-profile-power"><span>${p.version >= 8 ? '총 DPS' : '전투력'}</span><b>${socialComma(p.power)}</b></div>`;
 }
 // 능력치 값의 색(2026-10-11 사용자: "프로필 보기에서 폰트에 색깔이 다 사라졌어"): 장비창 요약(js/equipment-window-ui.js)과 같은 색.
 const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e', baseDmg: '#ffcf9f', aspd: '#fff3a8', crit: '#ffd6f2', critDmg: '#ffd6f2',
@@ -1566,7 +1599,6 @@ async function openMyProfilePreview() {
 /** 머리 줄: 레벨, 직업, 전직, 루프, 총 DPS를 칩으로(가운뎃점 없이). 예전 프로필(직업 없음)은 전직만 나온다. */
 function renderProfileIdentityChips(p) {
     let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || '미전직', `루프 ${socialComma(p.loop || 0)}`];
-    if (p.power) chips.push(`${p.version >= 8 ? '총 DPS' : '전투력'} ${socialComma(p.power)}`);
     return chips.filter(Boolean).map(chip => `<span class="social-profile-chip">${socialEscape(chip)}</span>`).join('');
 }
 
@@ -1604,20 +1636,45 @@ function showProfileItemDetail(html) {
 }
 
 // 장비 탭: 끼고 있는 장비만 장비창의 제자리에 그린다(빈 칸은 그리지 않는다). 코어를 끼고 있으면 왼쪽 위 코어 칸도.
+/** 장비 탭(2026-10-11 고급 테마): 장비창과 같은 인형 배치에 장비 그림. 낀 칸은 등급 색 테, 비어 있는 기본 칸은 점선,
+ * 코어와 셋째 반지는 낀 때만 나온다. 이름과 옵션은 올리거나 누르면 뜨는 카드에 있다. */
 function renderProfileEquipPaperdoll(p) {
     let bySlot = new Map((p.equipment || []).filter(it => it && it.slot).map(it => [it.slot, it]));
-    let cards = SOCIAL_EQUIP_SLOTS.concat(['반지3']).filter(slot => bySlot.has(slot))
-        .map(slot => profileSlotHtml(slot, bySlot.get(slot), profileItemTag(bySlot.get(slot))));
-    if (p.core && typeof p.core === 'object' && p.core.name) cards.unshift(profileSlotHtml('코어', { ...p.core, kind: 'core' }, '코어'));
-    return cards.length ? `<div class="paperdoll social-paperdoll">${cards.join('')}</div>` : '<div class="social-profile-empty">장착한 장비 없음</div>';
+    let core = p.core && typeof p.core === 'object' && p.core.name ? { ...p.core, kind: 'core' } : null;
+    if (!bySlot.size && !core) return '<div class="social-profile-empty">장착한 장비 없음</div>';
+    let filled = slot => profileSlotHtml(slot, bySlot.get(slot), profileItemTag(bySlot.get(slot)));
+    let cards = SOCIAL_EQUIP_SLOTS.map(slot => (bySlot.has(slot) ? filled(slot) : profileEmptySlotHtml(slot)));
+    if (bySlot.has('반지3')) cards.push(filled('반지3'));
+    if (core) cards.push(profileSlotHtml('코어', core, '코어'));
+    return `<div class="social-doll">${cards.join('')}</div>`;
+}
+
+function profileEmptySlotHtml(slot) {
+    return `<div class="social-slot is-empty slot-${slot}"><span class="social-slot-tag">${socialEscape(slot.replace(/[123]$/, ''))}</span></div>`;
+}
+
+/** 코어 그림: 이름의 묶음 말(수호의 코어 ...)로 고른다. 프로필에는 코어의 줄 글만 올라온다. */
+function profileCoreArt(core) {
+    let names = typeof CORE_ITEM_RULES === 'object' ? CORE_ITEM_RULES.groupNames : {};
+    let group = Object.keys(names).find(key => String(core.name || '').startsWith(names[key]));
+    return `assets/px/cores/core-${group || 'empty'}.png`;
+}
+
+/** 장비 그림(게임 가방과 같은 그림). 베이스 id 없이 올라온 예전 프로필은 베이스 이름으로 찾는다. */
+function profileItemArt(it) {
+    if (it.kind === 'core') return profileCoreArt(it);
+    if (typeof getEquipmentGridVisualAsset !== 'function') return '';
+    let base = !it.baseId && typeof BASE_ITEM_DB !== 'undefined' ? BASE_ITEM_DB.find(row => row.name === it.baseName) : null;
+    return getEquipmentGridVisualAsset({ slot: it.slot, rarity: it.rarity, name: it.name, baseName: it.baseName, baseId: it.baseId || (base && base.id) });
 }
 
 function profileSlotHtml(slot, it, tag) {
     let key = `eq:${slot}`;
     socialState.profileTips[key] = renderProfileItemCard(it);
     let color = it.kind === 'core' ? PROFILE_CORE_TONE : socialRarityColor(it.rarity);
-    return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
-        + `<div class="social-slot-tag">[${socialEscape(tag)}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
+    let art = profileItemArt(it);
+    return `<div class="social-slot slot-${slot}" style="--r:${color};" role="button" tabindex="0" aria-label="${socialEscape(`[${tag}] ${it.name}`)}" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
+        + `${art ? `<img src="${socialEscape(art)}" alt="" draggable="false">` : ''}<span class="social-slot-tag">${socialEscape(tag)}</span></div>`;
 }
 
 /** 주얼 탭의 줄: 장비 소켓에 박힌 주얼과 그 자리([단궁] 심연 소켓 1). 소켓 정보가 없는 예전 프로필은 주얼 목록만. */
@@ -1729,30 +1786,31 @@ function renderProfileData(profile) {
     socialState.profileTab = 'equipment';
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
-    let statsHtml = stats.length
-        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${profileStatIconHtml(s.key)}${socialEscape(profileStatName(s.label))}</span><span class="social-stat-value"${PROFILE_STAT_TONES[s.key] ? ` style="color:${PROFILE_STAT_TONES[s.key]};"` : ''}>${socialEscape(s.value)}</span></div>`).join('')
-        : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId();
     let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
+    // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
         <div class="social-profile-header">
-            <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
-            <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
-            ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
-            ${duelAction}
-        </div>
-        <div class="social-profile-cols">
-            <div class="social-profile-col">
-                <h3>능력치</h3>
-                <div class="social-stat-grid">${statsHtml}</div>
+            <div class="social-profile-id">
+                <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
+                <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
+                ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
             </div>
-            <div class="social-profile-col">
+            ${profilePowerHtml(p)}
+        </div>
+        ${duelAction}
+        <div class="social-profile-cols">
+            <section class="social-profile-col social-profile-card">
+                <h3>능력치</h3>
+                ${profileStatsHtml(stats)}
+            </section>
+            <section class="social-profile-col social-profile-card">
                 <h3>장착 구성</h3>
                 <div id="social-profile-tabs" class="social-profile-tabs">${profileTabsHtml(p)}</div>
                 <div id="social-profile-items">${renderProfileItemsArea()}</div>
-            </div>
+            </section>
         </div>`;
 }
 async function openPlayerProfile(userId) {
