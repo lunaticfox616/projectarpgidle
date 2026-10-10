@@ -113,6 +113,34 @@ const equipmentWindowUi = (() => {
         const filled = slots.filter(slot => (game.equipment || {})[slot]);
         return filled.length ? filled : slots;
     }
+    /** 고른 가방 장비와 옵션을 견줄 지금 낀 장비의 칸(끼운 후보 칸, 셋까지). 주얼, 코어, 액막이는 견줄 옵션이 한두 줄이라 없다. */
+    const wornSlots = item => (bagItems.isSpecial(item) ? [] : compareSlots(item).filter(slot => (game.equipment || {})[slot]).slice(0, 3));
+    /** 고른 장비와 지금 낀 장비의 옵션(2026-10-11, 개편으로 낀 장비의 옵션이 사라져 확인하기 힘들다는 사용자 말): 칸이 넓으면 나란히,
+     * 좁으면(휴대폰, 좁게 뜬 칸) 탭으로 바꿔 본다(css/equipment-window.css .eqw-compare). @param {{ tab: string, label: string, node: Element }[]} panes */
+    function compareNode(panes) {
+        const wrap = document.createElement('div');
+        wrap.className = 'eqw-compare';
+        wrap.dataset.panes = String(panes.length);
+        const tabs = panes.map((pane, index) => `<button type="button" class="${index ? '' : 'active'}" onclick="equipmentWindowUi.showPane(this, ${index})">${escapeHTML(pane.tab)}</button>`);
+        wrap.innerHTML = `<div class="eqw-compare-tabs">${tabs.join('')}</div><div class="eqw-compare-panes"></div>`;
+        panes.forEach((pane, index) => {
+            const section = document.createElement('section');
+            section.className = `eqw-compare-pane${index ? '' : ' active'}`;
+            const head = document.createElement('h5');
+            head.textContent = pane.label;
+            section.append(head, pane.node);
+            wrap.lastElementChild.append(section);
+        });
+        return wrap;
+    }
+    /** 좁은 칸의 탭: 고른 장비와 지금 낀 장비 가운데 하나를 보여 준다. */
+    function showPane(button, index) {
+        const wrap = button.closest('.eqw-compare');
+        wrap.querySelectorAll('.eqw-compare-tabs > button, .eqw-compare-pane').forEach(node => node.classList.remove('active'));
+        wrap.querySelectorAll('.eqw-compare-tabs > button')[index].classList.add('active');
+        wrap.querySelectorAll('.eqw-compare-pane')[index].classList.add('active');
+        equipmentInventoryInteraction.positionInspector();
+    }
     function wornNames(slots) {
         const worn = slots.map(slot => game.equipment[slot]).filter(Boolean);
         if (!worn.length) return '비어 있음';
@@ -154,10 +182,11 @@ const equipmentWindowUi = (() => {
     }
     function deltaRow(key, a, b) {
         const meta = COMPARE_STAT_META[key], d = b - a, sign = d > 0 ? '+' : '-';
-        const pct = key === 'dps' && a > 0 ? ` (${sign}${Math.abs(100 * d / a).toFixed(1)}%)` : '';
+        // DPS는 앞뒤 값이 이미 길어서 증감은 비율만 적는다(좁은 칸에서 "-473,651 (-24.7%)"가 네 줄로 꺾였다).
+        const pct = key === 'dps' && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : '';
         const tint = COLOR[DELTA_TINT[key]];
         return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}"><span${tint ? ` style="color:${tint}"` : ''}>${meta.label}</span><b>${pretty(meta.format(a))}</b><i>→</i>`
-            + `<b>${pretty(meta.format(b))}</b><em>${sign}${pretty(meta.format(Math.abs(d)))}${pct}</em></div>`;
+            + `<b>${pretty(meta.format(b))}</b><em>${pct || `${sign}${pretty(meta.format(Math.abs(d)))}`}</em></div>`;
     }
     function uniqueRows(item, worn) {
         if ((worn && worn.uniqueEffect) === item.uniqueEffect) return '';
@@ -204,6 +233,6 @@ const equipmentWindowUi = (() => {
     }
 
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('pointerdown', closeMenus, true);
-    return Object.freeze({ COLOR, render, toggleLoadout, newDotHtml, isNew, inspectorDock, inspectorHtml, emptyHtml, fillDeltas });
+    return Object.freeze({ COLOR, render, toggleLoadout, newDotHtml, isNew, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane });
 })();
 safeExposeGlobals({ equipmentWindowUi });

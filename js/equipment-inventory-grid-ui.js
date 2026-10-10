@@ -53,7 +53,7 @@
         const rect = anchor.getBoundingClientRect();
         if (!inspector.matches(':popover-open')) inspector.showPopover();
         const bottom = fitInspector(inspector, rect);
-        const position = getInspectorPosition(rect, inspector.getBoundingClientRect(), bottom);
+        const position = getFloatingPosition(rect, inspector.getBoundingClientRect(), bottom);
         if (!position) { focus(null); return; }
         inspector.style.left = `${position.x / uiDisplay.factor}px`;
         inspector.style.top = `${position.y / uiDisplay.factor}px`;
@@ -76,6 +76,23 @@
         if (inspector.getBoundingClientRect().width > sideSpace) height = Math.max(rect.top - 16, bottom - rect.bottom - 16);
         inspector.style.maxHeight = `${Math.max(160, height) / uiDisplay.factor}px`;
         return bottom;
+    }
+
+    /** 떠서 나오는 선택한 장비(두 칸 창, 2026-10-11): 가방을 가리지 않는 자리를 먼저 찾는다. 가방 장비를 골랐으면 가방 왼쪽(장착 칸 위),
+     * 낀 장비를 골랐으면 장착 칸 왼쪽, 거기에 자리가 없으면 가방 오른쪽. 어디에도 없으면 예전처럼 고른 칸 옆. */
+    function getBesidePosition(size, bottom) {
+        const bag = document.querySelector('#item-tab-equip .equipment-inventory-panel');
+        const side = focusedEquipmentSlot ? document.querySelector('#item-tab-equip .equipment-loadout-panel') : bag;
+        if (!bag?.getClientRects().length || !side?.getClientRects().length) return null;
+        const gap = 8, left = side.getBoundingClientRect().left - gap - size.width, right = bag.getBoundingClientRect().right + gap;
+        const y = Math.max(gap, Math.min(bottom - size.height - gap, bag.getBoundingClientRect().top));
+        if (left >= gap) return { x: left, y };
+        return right + size.width <= innerWidth - gap ? { x: right, y } : null;
+    }
+
+    function getFloatingPosition(rect, size, bottom) {
+        if (rect.bottom <= 0 || rect.top >= bottom) return null;
+        return getBesidePosition(size, bottom) || getInspectorPosition(rect, size, bottom);
     }
 
     function getInspectorPosition(rect, size, bottom) {

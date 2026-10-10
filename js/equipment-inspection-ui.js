@@ -27,8 +27,16 @@
         return inactive;
     }
 
-    /** The selected item's tooltip under the panel's buttons; the 바꾸면 tables above them fill in through js/equipment-window-ui.js
-     * (2026-10-10: the side columns of the worn items and the comparison lines gave way to the 바꾸면 table). */
+    function tooltipBox(item, slot, equipped) {
+        const tip = document.createElement('div');
+        tip.className = 'equipment-inspection-tooltip';
+        showItemTooltip(null, slot, equipped, item, { target: tip });
+        return tip;
+    }
+
+    /** The selected item's tooltip under the panel's buttons, with the worn items it would replace next to it (2026-10-11: the
+     * 2026-10-10 redesign had dropped the worn items' options and they were hard to check). The 바꾸면 tables above the buttons
+     * fill in through js/equipment-window-ui.js. */
     function render(root, item, equippedSlot) {
         const details = root.querySelector('.equipment-inspection-details');
         const signature = JSON.stringify([item, game.equipment, cachedTooltipStats], (key, value) => key === 'breakdowns' ? undefined : value);
@@ -36,10 +44,14 @@
         activeDetails = details;
         activeSignature = signature;
         itemTooltipComparisonScheduler.cancel();
-        const tip = document.createElement('div');
-        tip.className = 'equipment-inspection-tooltip';
-        showItemTooltip(null, equippedSlot, !!equippedSlot, item, { target: tip });
-        details.replaceChildren(tip);
+        const worn = equippedSlot ? [] : equipmentWindowUi.wornSlots(item);
+        const panes = [{ tab: '선택한 장비', label: '선택한 장비', node: tooltipBox(item, equippedSlot, !!equippedSlot) }];
+        worn.forEach(slot => {
+            const name = getDualSlotDisplayLabel(slot);
+            panes.push({ tab: worn.length > 1 ? `지금 ${name}` : '지금 장착', label: `지금 장착, ${name}`, node: tooltipBox(game.equipment[slot], slot, true) });
+        });
+        root.dataset.eqwPanes = String(Math.min(2, panes.length));
+        details.replaceChildren(equipmentWindowUi.compareNode(panes));
         equipmentWindowUi.fillDeltas(root, item, signature);
     }
 
