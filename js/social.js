@@ -12,6 +12,8 @@ const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
 const SOCIAL_ONLINE_POLL_MS = 30000;
+// 새 채팅이 들어올 때 접속 인원을 다시 읽는 가장 짧은 간격(socialOnlineChat.refresh). 채팅이 몰려도 이 간격에 한 번만 읽는다.
+const SOCIAL_ONLINE_CHAT_REFRESH_MS = 10000;
 const SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1000;
 // 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
 const SOCIAL_BG_NOTI_POLL_MS = 15000;
@@ -45,6 +47,8 @@ let socialState = {
     chatMessages: [],
     lastChatFullSyncAt: 0,
     onlineLoading: false,
+    lastOnlineLoadAt: 0,
+    onlineChatTimer: null,
     lastChatRenderKey: '',
     lastOnlineRenderKey: '',
     profileUploadPromise: null,
@@ -654,7 +658,7 @@ function getSocialPresenceState(lastSeen, now = Date.now()) {
     return ageSeconds <= SOCIAL_RECENT_WINDOW_S ? 'recent' : '';
 }
 /** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 5분 안에 신호가 온 사람 수.
- * 접속자 목록과 같은 조회 결과를 쓰므로 요청은 늘지 않는다. 아직 모르거나 0명이면 숨긴다. */
+ * 접속자 목록과 같은 조회 결과를 쓴다(30초 주기, 새 채팅이 뜨면 socialOnlineChat.refresh가 한 번 더 읽는다). 아직 모르거나 0명이면 숨긴다. */
 function renderChatOnlineCount(visible) {
     let badge = document.getElementById('social-chat-online');
     if (!badge) return;
@@ -699,8 +703,23 @@ function renderOnlineUsers(users, now = Date.now()) {
 async function refreshOnlineUsers() {
     if (socialState.onlineLoading || !socialState.onlineSupported) return;
     socialState.onlineLoading = true;
+    socialState.lastOnlineLoadAt = Date.now();
     try { renderOnlineUsers(await loadOnlineUsers()); } catch (e) { /* 무시 */ } finally { socialState.onlineLoading = false; }
 }
+/** 새 채팅이 뜬 순간 접속 인원도 다시 읽는다(2026-10-11 사용자: "내가 채팅 쳤을때 혹은 다른 사람이 새로운 채팅을 쳤을 때 접속자 수 갱신이
+ * 필요해"). 남의 채팅은 SOCIAL_ONLINE_CHAT_REFRESH_MS에 한 번만 읽고 그 사이에 온 채팅은 간격 끝에 한 번 읽는다. 내가 보낸 뒤(force)에는
+ * 기다리지 않는다(보내기 자체가 1.5초에 한 번, 1분에 12번으로 막혀 있다). 30초 주기 조회는 그대로 돈다. */
+const socialOnlineChat = Object.freeze({
+    refresh(force) {
+        if (socialState.onlineChatTimer && !force) return;
+        clearTimeout(socialState.onlineChatTimer);
+        let wait = force ? 0 : Math.max(0, socialState.lastOnlineLoadAt + SOCIAL_ONLINE_CHAT_REFRESH_MS - Date.now());
+        socialState.onlineChatTimer = setTimeout(() => {
+            socialState.onlineChatTimer = null;
+            refreshOnlineUsers();
+        }, wait);
+    }
+});
 
 // ============================================================================
 // 채팅
@@ -925,15 +944,17 @@ async function sendChatMessage() {
     try {
         updateChatSendButton();
         if (!await prepareChatSender(senderId)) return;
-        await cloudJsonRequest('/rest/v1/chat_messages', {
+        // 접속 신호를 채팅과 함께 보낸다: 창을 오래 가려 뒀다가 돌아와 바로 쳐도 접속 인원에 내가 들어간다.
+        await Promise.all([cloudJsonRequest('/rest/v1/chat_messages', {
             method: 'POST', headers: { Prefer: 'return=minimal' },
             body: { user_id: senderId, nickname: getMyNickname(), body: body || '🔗', payload }
-        });
+        }), sendPresenceHeartbeat()]);
         if (socialLoggedInUserId() !== senderId) return;
         clearSubmittedChatDraft(inputEl, draft, items);
         socialState.sendTimestamps.push(Date.now());
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
+        socialOnlineChat.refresh(true);
     } catch (e) {
         reportChatSendFailure(e, senderId);
     } finally {
@@ -1115,18 +1136,21 @@ function renderChatMessages(messages, forceScroll) {
     if (shouldScroll) scrollSocialChatToLatest(listEl);
     socialState.scrollChatToLatestOnNextRender = false;
 }
+const socialChatMaxId = rows => rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
 async function refreshChatPanel(forceScroll) {
     if (socialState.chatLoading) return;
     socialState.chatLoading = true;
     try {
         let now = Date.now();
         let fullSync = !socialState.chatInitialized || now - socialState.lastChatFullSyncAt >= SOCIAL_CHAT_FULL_SYNC_MS;
-        let afterId = fullSync ? null : socialState.chatMessages.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
-        let incoming = await loadChatMessages(afterId, now);
+        let knownId = socialChatMaxId(socialState.chatMessages), wasReady = socialState.chatInitialized;
+        let incoming = await loadChatMessages(fullSync ? null : knownId, now);
         socialState.chatMessages = fullSync ? incoming : mergeSocialChatMessages(socialState.chatMessages, incoming, now);
         socialState.chatInitialized = true;
         if (fullSync) socialState.lastChatFullSyncAt = now;
         renderChatMessages(socialState.chatMessages, forceScroll);
+        // 처음 불러올 때는 startChatPolling이 접속 인원을 함께 읽는다. 그 뒤로 새 채팅이 오면 접속 인원도 다시 읽는다.
+        if (wasReady && socialChatMaxId(incoming) > knownId) socialOnlineChat.refresh(false);
     } catch (e) { console.warn('채팅 로드 실패:', e); } finally { socialState.chatLoading = false; }
 }
 function startChatPolling() {
@@ -1146,8 +1170,10 @@ function startChatPolling() {
 function stopChatPolling() {
     if (socialState.chatPollTimer) clearInterval(socialState.chatPollTimer);
     if (socialState.onlinePollTimer) clearInterval(socialState.onlinePollTimer);
+    clearTimeout(socialState.onlineChatTimer);
     socialState.chatPollTimer = null;
     socialState.onlinePollTimer = null;
+    socialState.onlineChatTimer = null;
 }
 // 다른 게임 창이 활성화돼도 화면에 남아 있는 채팅 도크의 수신은 유지한다.
 function syncSocialChatPolling() {
