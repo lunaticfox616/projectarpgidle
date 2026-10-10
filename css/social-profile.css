@@ -129,7 +129,7 @@
   box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #120e0a, inset 0 0 0 4px rgba(227, 189, 114, .32), 0 18px 40px rgba(0, 0, 0, .7);
 }
 #social-profile-modal .social-modal-content { padding: 4px 18px 18px; }
-#social-profile-modal .social-modal-close { top: 14px !important; right: 16px !important; border: 1px solid #6b5431; border-radius: 0;
+#social-profile-modal .social-modal-close { border: 1px solid #6b5431; border-radius: 0;
   background: linear-gradient(180deg, #241c14, #17120d); color: #e6dcc6; }
 #social-profile-modal .social-profile-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 -14px 14px;
   padding: 12px 62px 12px 14px; border-bottom: 1px solid rgba(227, 189, 114, .45);
