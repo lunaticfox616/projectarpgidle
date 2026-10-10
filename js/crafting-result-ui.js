@@ -54,6 +54,11 @@ const craftingResultUi = (() => {
         return after.sockets > before.sockets ? [`소켓 ${before.sockets} → ${after.sockets}`] : [];
     }
 
+    /** 허리띠의 액막이 칸 수가 바뀌었을 때 한 줄(축복의 꽃잎이 다시 굴린다, js/colony-wards.js rerollBelt). */
+    function getWardRows(before, after) {
+        return before.wardSlots !== after.wardSlots ? [`액막이 칸 ${before.wardSlots || 0} → ${after.wardSlots || 0}`] : [];
+    }
+
     function getMetaRows(result) {
         let before = result.before;
         let after = result.after;
@@ -63,7 +68,7 @@ const craftingResultUi = (() => {
         if (before.quality !== after.quality) rows.push(`품질 ${before.quality}% → ${after.quality}%`);
         if (before.baseName !== after.baseName) rows.push(`베이스 ${before.baseName || '없음'} → ${after.baseName || '없음'}`);
         if (!before.corrupted && after.corrupted) rows.push('타락됨');
-        rows.push(...getSocketRows(before, after));
+        rows.push(...getSocketRows(before, after), ...getWardRows(before, after));
         if (before.uniqueEffect !== after.uniqueEffect) rows.push('고유 효과 변경');
         return rows;
     }

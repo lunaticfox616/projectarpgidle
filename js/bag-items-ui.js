@@ -24,6 +24,13 @@ const bagItemsUi = (() => {
         hideItemTooltip();
         updateStaticUI();
     }
-    return Object.freeze({ presentTooltip, socket });
+    /** js/items.js equipItem for the kinds that do not simply go into a slot: a jewel goes into a socket, a ward with no open ward
+     * slot is told why. true when handled here. */
+    function equipSpecial(item, slot) {
+        if (!bagItems.isJewel(item)) return colonyWardsUi.refuseWithoutSlot(item);
+        socket(item, slot);
+        return true;
+    }
+    return Object.freeze({ presentTooltip, socket, equipSpecial });
 })();
 safeExposeGlobals({ bagItemsUi });

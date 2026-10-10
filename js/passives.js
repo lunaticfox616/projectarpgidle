@@ -8432,6 +8432,13 @@ function hasLegacyUniqueBaseUpgrade(item, slot) {
         && item.itemTier > item.hiddenTier && previous.reqTier === item.itemTier;
 }
 
+/** 허리띠를 불러올 때: 물약 삭제(2026-10-01)로 쓸 곳이 없는 '유틸리티 플라스크 슬롯' 베이스 옵션을 지우고, 제 액막이 칸 수(1~3)를
+ * 적어 둔다(2026-10-11, js/colony-wards.js stampBelt). */
+function normalizeBelt(item) {
+    item.baseStats = item.baseStats.filter(stat => !stat || stat.id !== 'flaskUtilSlots');
+    if (typeof colonyWards === 'object') colonyWards.stampBelt(item);
+}
+
 function normalizeItem(item) {
     if (!item) return null;
     if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
@@ -8507,8 +8514,7 @@ function normalizeItem(item) {
         item.affixTierCap,
         legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
     )), 1, legacyProgressionProvenance ? 20 : 10);
-    // 2026-10-01 물약 삭제: 허리띠의 '유틸리티 플라스크 슬롯' 베이스 옵션은 쓸 곳이 없어 불러올 때 지운다.
-    if (item.slot === '허리띠') item.baseStats = item.baseStats.filter(stat => !stat || stat.id !== 'flaskUtilSlots');
+    if (item.slot === '허리띠') normalizeBelt(item);
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
     syncStoredUniqueEffect(item);
@@ -11010,6 +11016,7 @@ async function useCurrency(currencyKey) {
             stat.valMin = baseMin;
             stat.valMax = baseMax;
         });
+        if (typeof colonyWards === 'object') colonyWards.rerollBelt(item); // 허리띠는 액막이 칸 수(1~3)도 다시 굴린다
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '';
     craftingResultLedger.commit(craftResultToken, item);

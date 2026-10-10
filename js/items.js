@@ -346,6 +346,12 @@ function copyCraftResultStat(stat) {
     };
 }
 
+/** 허리띠의 액막이 칸 수(js/colony-wards.js beltRoll): 축복의 꽃잎이 다시 굴리면 제작실의 제작 경과에 "액막이 칸 2 → 3"으로 나온다
+ * (js/crafting-result-ui.js getWardRows). 허리띠가 아니면 없다. */
+function craftResultWardSlots(item) {
+    return typeof colonyWards === 'object' ? colonyWards.beltRoll(item) : undefined;
+}
+
 function snapshotCraftResultItem(item) {
     if (!item) return null;
     return {
@@ -356,6 +362,7 @@ function snapshotCraftResultItem(item) {
         corrupted: !!item.corrupted,
         sockets: equipmentSockets.count(item),
         uniqueEffect: item.uniqueEffect || '',
+        wardSlots: craftResultWardSlots(item),
         baseStats: (item.baseStats || []).map(copyCraftResultStat).filter(Boolean),
         stats: (item.stats || []).map(copyCraftResultStat).filter(Boolean),
         chaosInfusion: copyCraftResultStat(item.chaosInfusion),
@@ -503,7 +510,7 @@ function equipItem(idx, preferredSlot) {
     if (!item) return;
     const restriction = getPassiveEquipmentRestriction(item);
     if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
-    if (bagItems.isJewel(item)) return bagItemsUi.socket(item, preferredSlot); // 주얼은 그 장비의 빈 소켓에
+    if (bagItemsUi.equipSpecial(item, preferredSlot)) return; // 주얼은 그 장비의 빈 소켓에, 액막이는 열린 칸이 없으면 이유를 알린다
     let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);

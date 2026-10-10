@@ -2264,13 +2264,6 @@ function syncEquipmentMobilePane() {
     game.settings.equipmentMobilePane = pane;
     let workspace = document.querySelector('#item-tab-equip .equipment-workspace');
     if (workspace) workspace.dataset.mobilePane = pane;
-    ['inventory', 'loadout'].forEach(key => {
-        let button = document.getElementById(`btn-equipment-mobile-${key}`);
-        if (!button) return;
-        let selected = key === pane;
-        button.classList.toggle('active', selected);
-        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
-    });
 }
 
 function setEquipmentMobilePane(pane) {
@@ -9035,7 +9028,7 @@ function performUpdateStaticUI() {
     renderEquipmentInventoryInspector(equipmentPageRows);
     // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
     if (!equipmentInventoryInteraction.isCarrying()) {
-        renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', getInventoryFilterToggleHtml());
+        renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
         let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
         if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
     }
@@ -11421,12 +11414,8 @@ async function tryRestoreSupabaseOAuthSession() {
 
 /** "45%를"이 "45%" / "를 줍니다."로 갈리지 않게: %와 뒤 한글 사이는 유니코드 줄바꿈 규칙상 끊어도 되는 자리라 keep-all로도
  * 막히지 않는다(검토 5차) — 사이에 줄바꿈 금지 문자(U+2060)를 넣는다. 화면에 보이는 글에만 쓴다(속성 · 비교 키에는 쓰지 않는다). */
-/** 휴대폰 장비 창의 '필터 · 정렬' 단추는 검색 줄 끝에 둔다(한 줄을 따로 써서 격자가 화면 아래로 밀렸다 — 검토 5차). PC에서는 숨긴다.
- * 펼침 상태는 인벤토리 판의 class가 기준이라, 검색 줄을 다시 그려도 단추 표시가 어긋나지 않는다. */
-function getInventoryFilterToggleHtml() {
-    const open = !!document.querySelector('.equipment-inventory-panel.filters-open');
-    return `<button type="button" class="inventory-filter-toggle" aria-expanded="${open}" onclick="toggleInventoryFilters(this)">필터와 정렬</button>`;
-}
+/** 휴대폰 장비창 가방 머리의 '필터' 단추(index.html .eqw-filter-toggle): 등급, 칸, 정렬 줄을 펼친다.
+ * 펼침 상태는 인벤토리 판의 class(filters-open)가 기준이다(css/equipment-window.css). */
 function toggleInventoryFilters(button) {
     const open = button.closest('.equipment-inventory-panel').classList.toggle('filters-open');
     button.setAttribute('aria-expanded', String(open));

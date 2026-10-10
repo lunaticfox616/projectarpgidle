@@ -6,7 +6,7 @@
 .ghost-duel-hud.left{left:14px}.ghost-duel-hud.right{right:14px;text-align:right}
 .ghost-duel-hud>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ghost-duel-hud>span{grid-row:2;color:#b7aacd;font-size:.72em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ghost-duel-hud>div{grid-column:1/-1;height:9px;border:1px solid rgba(232,221,255,.58);border-radius:5px;background:#170e19;overflow:hidden;box-shadow:0 1px 5px #000}
-.ghost-duel-hud>div>i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#a72c42,#ed5364);transition:width .12s linear}
+.ghost-duel-hud>div>i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#a72c42,#ed5364);transition:width .12s steps(3)}
 .ghost-duel-hud>em{position:absolute;top:38px;right:0;color:#fff;font-size:.68em;font-style:normal}.ghost-duel-hud.left>em{right:auto;left:0}
 .ghost-duel-status{position:absolute;z-index:2;left:50%;top:13px;transform:translateX(-50%);padding:3px 9px;border:1px solid rgba(202,180,244,.32);border-radius:999px;background:rgba(8,10,17,.72);color:#d9ccf2;font-size:.7em;font-weight:800;white-space:nowrap}
 .ghost-duel-controls{position:absolute;z-index:3;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:5px;padding:4px;border-radius:8px;background:rgba(6,8,14,.76);backdrop-filter:blur(4px)}

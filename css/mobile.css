@@ -61,19 +61,6 @@
   }
   img, canvas { max-width: 100%; }
   input, select, textarea { max-width: 100%; box-sizing: border-box; }
-  .equipment-mobile-switch {
-    grid-template-columns: 1fr 1fr;
-    gap: 5px;
-    margin-bottom: 8px;
-    padding: 5px;
-    border: 1px solid #314b64;
-    border-radius: 10px;
-    background: rgba(8, 16, 26, .96);
-  }
-  .equipment-mobile-switch button { min-height: 38px; border-color: #40566c; color: #bdcad6; background: #172330; }
-  .equipment-mobile-switch button.active { border-color: #d4ad59; color: #fff0ba; background: #5b431a; box-shadow: inset 0 0 0 1px rgba(255,226,151,.1); }
-  .equipment-workspace[data-mobile-pane="inventory"] .equipment-loadout-panel,
-  .equipment-workspace[data-mobile-pane="loadout"] .equipment-inventory-panel { display: none; }
   #mobile-battle-pip.mobile-battle-dock {
     position: relative;
     top: auto;
@@ -284,9 +271,6 @@
     min-width: 0;
   }
   .tab-content { overflow-x: clip; }
-  .equipment-mobile-switch {
-    display: grid;
-  }
   .responsive-split-grid,
   .equipment-workspace,
   .gem-forge-workspace {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }

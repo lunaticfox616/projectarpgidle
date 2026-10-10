@@ -76,7 +76,6 @@ body #info-tooltip {
 
 :where(
   .equipment-panel-hint,
-  .equipment-preset-note,
   .player-exchange-card,
   .player-trade-item,
   .hall-summary,
@@ -89,7 +88,6 @@ body #info-tooltip {
   overflow-wrap: anywhere;
   line-break: strict;
 }
-.equipment-inspection-column .tooltip-title { border-color: var(--color-line); }
 /* 권장 전투력 툴팁(js/ui.js showMapPowerEstimateTooltip): 항목 · 내 값 · 권장(비율) 세 칸, 달성 초록 · 미달 빨강 · 환경 주황 */
 .map-power-tip { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 10px; align-items: baseline; margin: 2px 0 6px; }
 .map-power-tip-row { display: contents; }

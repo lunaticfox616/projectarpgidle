@@ -370,8 +370,6 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
         updateStaticUI();
     }, initial);
     await expect(panel.locator('.equipment-preset-slot').first()).not.toHaveClass(/applied/);
-    const mobileInventoryButton = page.locator('#btn-equipment-mobile-inventory');
-    if (await mobileInventoryButton.isVisible()) await mobileInventoryButton.click();
     const inventoryItems = page.locator('#ui-inventory-list .equipment-grid-item');
     const protectedItem = inventoryItems.filter({ hasText:'세팅' });
     await expect(protectedItem).toHaveCount(1);

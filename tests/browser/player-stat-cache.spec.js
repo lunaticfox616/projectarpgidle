@@ -21,8 +21,6 @@ async function equipHelmetThroughInspector(page) {
         switchTab('tab-items'); switchItemSubtab('item-tab-equip'); updateStaticUI();
     });
     await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
-    const inventory = page.locator('#btn-equipment-mobile-inventory');
-    if (await inventory.isVisible()) await inventory.click();
     await page.locator('#ui-inventory-list .equipment-grid-item').first().click();
     await page.locator('#ui-equipment-inventory-inspector').getByRole('button', { name: '장착', exact: true }).click();
     await expect.poll(() => page.evaluate(() => (game.equipment['투구'] || {}).baseId)).toBeTruthy();

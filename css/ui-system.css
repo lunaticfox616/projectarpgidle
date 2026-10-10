@@ -168,18 +168,6 @@ body #item-tab-equip .equipment-inventory-panel {
   font-size: 13px;
 }
 
-#item-tab-equip .inventory-browse-toolbar {
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  padding: 0;
-}
-
-#item-tab-equip .inventory-browse-toolbar label {
-  color: var(--color-text-secondary);
-  font-size: 10px;
-}
-
-#item-tab-equip .inventory-browse-toolbar select,
 #item-tab-equip .equipment-triage-controls select {
   min-height: var(--size-control-sm);
   border-color: var(--color-line);
@@ -303,29 +291,6 @@ body #item-tab-equip .equipment-inventory-panel {
   .ui-goal-drawer:not(.expanded) .ui-goal-panel { width: 44px; }
   .ui-goal-drawer:not(.expanded) #ui-goal-toggle { width: 44px; min-height: 44px; }
 
-  #item-tab-equip .equipment-mobile-switch {
-    position: relative;
-    top: auto;
-    z-index: 20;
-    margin-bottom: var(--space-2);
-    border-color: var(--color-line);
-    background: rgba(8, 9, 8, .98);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, .24);
-  }
-
-  #item-tab-equip .equipment-mobile-switch button {
-    min-height: var(--size-control-touch);
-    border-radius: var(--radius-sm);
-  }
-
-  #item-tab-equip .equipment-mobile-switch button.active,
-  #item-tab-equip .equipment-mobile-switch button[aria-pressed="true"] {
-    border-color: rgba(229, 187, 97, .76);
-    color: #fff2c4;
-    background: #5a4118;
-    box-shadow: inset 0 -3px var(--color-accent-gold);
-  }
-
 :root body #item-tab-equip .equipment-loadout-panel,:root 
   body #item-tab-equip .equipment-inventory-panel {
   padding: 11px;
@@ -335,23 +300,6 @@ body #item-tab-equip .equipment-inventory-panel {
   #item-tab-equip .equipment-section-heading {
     margin-bottom: var(--space-2);
     padding-bottom: var(--space-2);
-  }
-
-  #item-tab-equip .inventory-browse-toolbar {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: end;
-  }
-
-  #item-tab-equip .inventory-browse-toolbar > label {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-1);
-  }
-
-  #item-tab-equip .inventory-browse-toolbar select {
-    width: 100%;
-    min-height: var(--size-control-touch);
   }
 
   #item-tab-equip .equipment-triage-host {
