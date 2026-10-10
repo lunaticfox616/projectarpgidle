@@ -284,6 +284,10 @@ const PROFILE_STAT_KEYS = Object.freeze([
     ['energyShield', '🔵'], ['armor', '🛡️'], ['evasion', '💨'], ['deflectChance', '🛡️'], ['blockChance', '🛑'], ['dr', '🧱'],
     ['regen', '🩹'], ['resF', '🔥'], ['resC', '❄️'], ['resL', '⚡'], ['resChaos', '☠️']
 ]);
+// 능력치 값의 색(2026-10-11 사용자: "프로필 보기에서 폰트에 색깔이 다 사라졌어"): 장비창 요약(js/equipment-window-ui.js)과 같은 색.
+const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e', baseDmg: '#ffcf9f', aspd: '#fff3a8', crit: '#ffd6f2', critDmg: '#ffd6f2',
+    maxHp: '#ff6b6b', regen: '#ff9c9c', energyShield: '#7fd3ff', armor: '#d2b98c', dr: '#d2b98c', evasion: '#8fe08f', deflectChance: '#8fe08f',
+    blockChance: '#b8c4cc', resF: '#ff8a50', resC: '#6cb8ff', resL: '#ffd54f', resChaos: '#c39bff' });
 
 function buildProfileStats() {
     let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
@@ -596,13 +600,28 @@ function getSocialPresenceState(lastSeen, now = Date.now()) {
     if (ageSeconds <= SOCIAL_ONLINE_WINDOW_S) return 'active';
     return ageSeconds <= SOCIAL_RECENT_WINDOW_S ? 'recent' : '';
 }
+/** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 5분 안에 신호가 온 사람 수.
+ * 접속자 목록과 같은 조회 결과를 쓰므로 요청은 늘지 않는다. 아직 모르거나 0명이면 숨긴다. */
+function renderChatOnlineCount(visible) {
+    let badge = document.getElementById('social-chat-online');
+    if (!badge) return;
+    let active = visible.filter(row => row.state === 'active').length;
+    badge.hidden = !socialState.onlineSupported || active <= 0;
+    let text = `접속 ${active}명`;
+    if (badge.dataset.text !== text) {
+        badge.dataset.text = text;
+        badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
+    }
+    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${visible.length - active}명`;
+}
 function renderOnlineUsers(users, now = Date.now()) {
+    let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
+    renderChatOnlineCount(visible);
     let host = document.getElementById('social-online');
     if (!host) return;
     if (!socialState.onlineSupported) { host.style.display = 'none'; return; }
     host.style.display = 'block';
     let myId = socialLoggedInUserId();
-    let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
     let key = visible.length
         ? visible.map(row => `${row.user.user_id}:${row.user.nickname || ''}:${row.state}`).join(',')
         : 'empty';
@@ -1579,7 +1598,7 @@ function profileSlotHtml(slot, it, tag) {
     socialState.profileTips[key] = renderProfileItemCard(it);
     let color = it.kind === 'core' ? PROFILE_CORE_TONE : socialRarityColor(it.rarity);
     return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
-        + `<div class="social-slot-tag">[${socialEscape(tag)}]</div><div class="social-slot-name" style="color:var(--color-text);">${socialEscape(it.name)}</div></div>`;
+        + `<div class="social-slot-tag">[${socialEscape(tag)}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
 }
 
 /** 주얼 탭의 줄: 장비 소켓에 박힌 주얼과 그 자리([단궁] 심연 소켓 1). 소켓 정보가 없는 예전 프로필은 주얼 목록만. */
@@ -1692,7 +1711,7 @@ function renderProfileData(profile) {
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let statsHtml = stats.length
-        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value">${socialEscape(s.value)}</span></div>`).join('')
+        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value"${PROFILE_STAT_TONES[s.key] ? ` style="color:${PROFILE_STAT_TONES[s.key]};"` : ''}>${socialEscape(s.value)}</span></div>`).join('')
         : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
@@ -1773,6 +1792,7 @@ function renderSocialTab() {
     root.innerHTML = `
         ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
         <div class="social-chat-wrap">
+            <span id="social-chat-online" class="social-chat-online" hidden></span>
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
@@ -1853,7 +1873,10 @@ function injectSocialStyles() {
     .social-online-chip:hover{filter:brightness(1.18);}
     .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
     .social-online-empty{color:var(--copy-muted);font-size:12px;}
-    .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}
+    .social-chat-wrap{position:relative;display:flex;flex-direction:column;gap:8px;}
+    .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:auto;}
+    .social-chat-online[hidden]{display:none;}
+    .social-chat-online:not([hidden]) + .social-chat-list{padding-top:28px;}
     .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
     .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:12px;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:12px;}
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
