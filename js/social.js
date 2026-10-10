@@ -212,6 +212,7 @@ function buildItemMetaSnapshot(item) {
     let chain = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     return {
         baseId: item.baseId, // 인형 배치의 장비 그림(profileItemArt)
+        wardSlots: typeof colonyWards === 'object' ? colonyWards.beltRoll(item) : undefined, // 허리띠의 액막이 칸 수(profileWardSlotsHtml)
         baseStep: chain && chain.total > 1 ? [chain.step, chain.total] : undefined,
         itemLevel: profileItemLevel(item),
         grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
@@ -1334,7 +1335,15 @@ function profileBaseOptionsHtml(item) {
     if (!base.length) return '';
     let defenseIds = typeof itemTooltipRules === 'object' ? itemTooltipRules.DEFENSE_IDS : [];
     let lines = base.filter(st => !defenseIds.includes(st.id)).map(profileBaseStatHtml).join('');
-    return `<div class="social-item-section">베이스 옵션</div>${lines}${profileDefenseLinesHtml(item, base)}`;
+    return `<div class="social-item-section">베이스 옵션</div>${profileWardSlotsHtml(item)}${lines}${profileDefenseLinesHtml(item, base)}`;
+}
+
+/** 허리띠의 액막이 칸 줄(게임 툴팁 js/colony-wards-ui.js beltLineHtml과 같다): 칸 수와 굴림 범위. */
+function profileWardSlotsHtml(item) {
+    const range = COLONY_WARD_RULES.beltSlots, slots = Math.floor(Number(item.wardSlots));
+    if (!(slots >= range.min && slots <= range.max)) return '';
+    return `<div class="social-item-stat"><span style="color:#c8b6ff;">액막이 칸 </span><span style="color:#e6dcc6;">+${slots}</span>`
+        + ` <span class="social-roll">(${range.min}~${range.max})</span></div>`;
 }
 
 /** 베이스 옵션 한 줄(게임과 같다): 이름 +값 (굴림 범위). 특출 베이스는 값이 주황이고 ✦+20%. */

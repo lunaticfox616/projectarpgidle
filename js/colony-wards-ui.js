@@ -1,12 +1,14 @@
 /**
  * 액막이 화면(js/colony-wards.js, data/colony-wards.js): 장비창 장착 칸 아래 액막이 칸 줄(js/canvas-passive-tree.js renderPaperdoll),
- * 허리띠 툴팁의 "액막이 칸 +2" 줄(js/ui.js showItemTooltip 베이스 옵션 머리), 군락지 화면의 안내와 편린으로 만들기(js/colony-ward-ui.js).
+ * 허리띠 툴팁의 "액막이 칸 +2 (1~3)" 줄(js/ui.js showItemTooltip 베이스 옵션 머리), 군락지 화면의 안내와 편린으로 만들기(js/colony-ward-ui.js).
  * 칸은 장착 칸과 같은 .equipment-slot이라 끌어 놓기, 누르기, 두 번 눌러 해제가 그대로 된다.
  */
 const colonyWardsUi = (() => {
     const R = COLONY_WARD_RULES;
     const NAMES = new Map(COLONY_WARD_POOL.map(row => [row.id, row.name]));
-    const LOCK_HINT = '허리띠 +2칸, 초월 공허 액막이 매듭, 가디언 수호 재생, 천 개의 유리병으로 열립니다';
+    const BELT_RANGE = `${R.beltSlots.min}~${R.beltSlots.max}`;
+    const LOCK_HINT = `허리띠(${BELT_RANGE}칸), 초월 공허 액막이 매듭, 가디언 수호 재생, 천 개의 유리병으로 열립니다`;
+    const NO_SLOT_HINT = '허리띠를 끼면 열립니다';
     const statName = id => NAMES.get(id) || getStatName(id);
     const lineText = (id, val) => `${statName(id)} +${formatValue(id, val)}`;
 
@@ -33,13 +35,19 @@ const colonyWardsUi = (() => {
             if (equipment[slot]) return equippedCell(slot, equipment[slot], index < count);
             return index < count ? emptyCell(slot) : lockedCell();
         }).join('');
-        return `<section class="ward-slot-row" aria-label="액막이 칸"><header><span>액막이</span><small>${count}/${R.maxSlots}칸</small></header>
+        return `<section class="ward-slot-row" aria-label="액막이 칸"><header><span>액막이</span><small>${count ? `${count}/${R.maxSlots}칸` : NO_SLOT_HINT}</small></header>
             <div class="ward-slot-cells">${cells}</div></section>`;
     }
-    /** 허리띠 툴팁의 베이스 옵션 머리 바로 아래 한 줄(군락지가 열린 뒤): 허리띠를 끼면 액막이 칸이 둘 늘어난다. */
+    /** 허리띠 툴팁의 베이스 옵션 머리 바로 아래 한 줄(군락지가 열린 뒤): 이 허리띠가 여는 액막이 칸 수와 굴림 범위. */
     function beltLineHtml(item) {
-        if (!item || String(item.slot || '').replace(/[123]$/, '') !== '허리띠' || !colonyWards.unlocked()) return '';
-        return `<div class="tooltip-line ward-belt-line"><span>액막이 칸 </span><b>+${R.beltSlots}</b></div>`;
+        const slots = colonyWards.beltRoll(item);
+        return slots ? `<div class="tooltip-line ward-belt-line"><span>액막이 칸 </span><b>+${slots}</b> <small>(${BELT_RANGE})</small></div>` : '';
+    }
+    /** js/bag-items-ui.js equipSpecial: 열린 칸이 하나도 없을 때 액막이를 끼우려 하면 이유를 알린다. true when told. */
+    function refuseWithoutSlot(item) {
+        if (!colonyWards.isWard(item) || colonyWards.slotCount() > 0) return false;
+        addLog(`액막이 칸이 없습니다. ${NO_SLOT_HINT}.`, 'attack-monster', { toast: true });
+        return true;
     }
 
     // ---------------------------------------------------------------- 군락지 화면
@@ -52,7 +60,7 @@ const colonyWardsUi = (() => {
     function colonyPanelHtml() {
         const shards = Math.floor(Number(game.currencies.colonyShard) || 0), traces = Math.floor(Number(game.currencies.colonyTrace) || 0);
         return `<section class="colony-ward-panel" aria-label="군락지 액막이">
-            <header class="colony-ward-hero"><div><h3>군락지 액막이</h3><p>가방에 들어가고, 장비창의 액막이 칸에 끼웁니다.</p></div>
+            <header class="colony-ward-hero"><div><h3>군락지 액막이</h3><p>가방에 들어가고, 장비창의 액막이 칸에 끼웁니다. 칸은 허리띠가 엽니다(허리띠마다 ${BELT_RANGE}칸).</p></div>
                 <div class="colony-ward-currency"><span>편린 <b>${shards}</b></span><span>흔적 <b>${traces}</b></span></div></header>
             <section class="colony-ward-section"><h4>적용 효과 <span>액막이 칸 ${colonyWards.slotCount()}/${R.maxSlots}</span></h4>
                 <ul class="colony-ward-total">${totalsHtml()}</ul></section>
@@ -73,6 +81,6 @@ const colonyWardsUi = (() => {
         switchItemSubtab('item-tab-equip');
     }
 
-    return Object.freeze({ slotsHtml, beltLineHtml, colonyPanelHtml, craft, openEquipment, statName });
+    return Object.freeze({ slotsHtml, beltLineHtml, refuseWithoutSlot, colonyPanelHtml, craft, openEquipment, statName });
 })();
 safeExposeGlobals({ colonyWardsUi });

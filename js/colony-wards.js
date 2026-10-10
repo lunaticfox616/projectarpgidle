@@ -11,18 +11,36 @@ const colonyWards = (() => {
     const keptOnPickup = item => isWard(item) && !!game.settings && (game.settings.itemFilterAlways || {}).ward !== false;
     const unlocked = (state = game) => typeof contentProgression === 'object' && contentProgression.isUnlocked(R.unlock, state);
 
-    /** 액막이 칸 수: 기본 1, 허리띠 +2, 초월 공허 '액막이 매듭' 하나마다 +1, 가디언 '수호 재생' +1, 고유 '천 개의 유리병' +1. 5칸까지. */
+    // ---------------------------------------------------------------- 허리띠의 액막이 칸
+    const isBelt = item => !!item && item.slot === '허리띠';
+    /** 허리띠 하나의 액막이 칸 수(1~3): 아이템에 wardSlotRoll로 적혀 있다. 아직 안 적힌 허리띠(2026-10-11 전의 저장, 막 만든 장비)는
+     * 제 id에서 나온 값이라 몇 번을 불러와도, 어디서 읽어도 같다. 허리띠가 아니면 0. */
+    function beltSlots(item) {
+        if (!isBelt(item)) return 0;
+        const { min, max } = R.beltSlots, stored = Math.floor(Number(item.wardSlotRoll));
+        if (stored >= min && stored <= max) return stored;
+        return min + hashSeed(`ward-belt:${item.id === undefined ? item.name : item.id}`) % (max - min + 1);
+    }
+    /** js/passives.js normalizeItem: 허리띠에 제 칸 수를 적어 둔다(거래와 복사에도 따라간다). */
+    function stampBelt(item) {
+        if (isBelt(item)) item.wardSlotRoll = beltSlots(item);
+        return item;
+    }
+    /** 허리띠 카드에 적는 칸 수(게임 툴팁과 프로필 카드): 허리띠가 아니거나 군락지가 아직 안 열렸으면 undefined. */
+    const beltRoll = (item, state = game) => isBelt(item) && unlocked(state) ? beltSlots(item) : undefined;
+
+    /** 액막이 칸 수: 기본 0, 낀 허리띠의 칸 수(1~3), 초월 공허 '액막이 매듭' 하나마다 +1, 가디언 '수호 재생' +1, 고유 '천 개의 유리병' +1. 5칸까지. */
     function slotCount(state = game) {
         const equipment = state.equipment || {};
-        const extra = [equipment['허리띠'] ? R.beltSlots : 0,
+        const extra = [beltSlots(equipment['허리띠']),
             typeof getTranscendentVoidPassiveCount === 'function' ? getTranscendentVoidPassiveCount(R.voidPassive, state) : 0,
             typeof hasKeystone === 'function' && hasKeystone(R.ascendNode, state) ? 1 : 0,
             Object.values(equipment).some(item => item && item.uniqueEffectKey === R.uniqueEffectKey) ? 1 : 0];
-        return Math.max(1, Math.min(R.maxSlots, R.baseSlots + extra.reduce((sum, value) => sum + value, 0)));
+        return Math.max(0, Math.min(R.maxSlots, R.baseSlots + extra.reduce((sum, value) => sum + value, 0)));
     }
     /** The open ward slots ('액막이1'..): a ward left beyond them (the belt came off) waits there, off. */
     const openSlots = (state = game) => R.slots.slice(0, slotCount(state));
-    /** Where a ward goes: the first open empty slot, else the first one (a full set swaps it). */
+    /** Where a ward goes: the first open empty slot, else the first one (a full set swaps it). undefined with no open slot. */
     function pickSlot(state = game) {
         const open = openSlots(state);
         return open.find(slot => !(state.equipment || {})[slot]) || open[0];
@@ -109,7 +127,7 @@ const colonyWards = (() => {
         Object.assign(colony, { wardInventory: [], wardEquipped: [null, null, null, null], wardSlots: 1 });
     }
 
-    return Object.freeze({ isWard, keptOnPickup, unlocked, slotCount, openSlots, pickSlot, equippedLines, create, rollFieldDrop, rollColonyWave, craft,
-        salvageShards, salvageProfile, migrate });
+    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, beltRoll, slotCount, openSlots, pickSlot, equippedLines, create,
+        rollFieldDrop, rollColonyWave, craft, salvageShards, salvageProfile, migrate });
 })();
 safeExposeGlobals({ colonyWards });

@@ -503,7 +503,7 @@ function equipItem(idx, preferredSlot) {
     if (!item) return;
     const restriction = getPassiveEquipmentRestriction(item);
     if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
-    if (bagItems.isJewel(item)) return bagItemsUi.socket(item, preferredSlot); // 주얼은 그 장비의 빈 소켓에
+    if (bagItemsUi.equipSpecial(item, preferredSlot)) return; // 주얼은 그 장비의 빈 소켓에, 액막이는 열린 칸이 없으면 이유를 알린다
     let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
