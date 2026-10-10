@@ -1,7 +1,7 @@
 /**
  * 영향 장비와 뒤바뀐 고유의 화면(규칙은 js/item-influences.js, 데이터는 data/item-influences.js, 모양은 css/item-influences.css).
  * 가방 칸, 장착 칸, 장비 카드, 툴팁 상자의 테두리 색(--infl-a 왼쪽, --infl-b 오른쪽), 장비 이름 아래 한 줄(태양 아이템, 허기 아이템
- * ...), 줄마다 붙는 표식, 제작실의 성화 잉걸과 허기의 즙.
+ * ...), 줄마다 붙는 표식, 제작실의 성화 잉걸과 허기의 즙, 아틀라스 카드의 출처 한 줄(어디서 얻는지).
  */
 const itemInfluencesUi = (() => {
     const meta = key => (key === 'swapped' ? SWAPPED_UNIQUE_META : ITEM_INFLUENCES[key]);
@@ -45,6 +45,17 @@ const itemInfluencesUi = (() => {
     }
     /** The same line in the item tooltip, right under its title (js/ui.js showItemTooltip). */
     const tooltipHtml = item => tagsHtml(item, ' tooltip-line');
+    /** Where an influence comes from, one line: "[태양 아이템] 붉은 제단 장비, 성화 잉걸로 새김" (data ITEM_INFLUENCES found). */
+    function sourceHtml(key) {
+        const row = ITEM_INFLUENCES[key];
+        if (!row || !row.found) return '';
+        return `<p class="infl-source"><span class="infl-tag" style="--infl:${row.tone}">${escapeHTML(row.label)}</span>${escapeHTML(row.found)}</p>`;
+    }
+    /** That line on a final boss's card (js/atlas-endgame-ui.js) when its offering comes from an influence's content. '' for the rest. */
+    function fightSourceHtml(id) {
+        const key = Object.keys(ITEM_INFLUENCES).find(name => ITEM_INFLUENCES[name].feeds === id);
+        return key ? sourceHtml(key) : '';
+    }
     /** The mark after a line's value: an altar line, an exclusive line of guardian or blight, a swapped unique line (with what it
      * replaced). '' for an ordinary line. */
     function lineBadgeHtml(item, stat) {
@@ -75,6 +86,7 @@ const itemInfluencesUi = (() => {
         return true;
     }
 
-    return Object.freeze({ influenceClasses, influenceStyle, markFrame, markTooltip: markFrame, tagsHtml, tooltipHtml, lineBadgeHtml, useState, use });
+    return Object.freeze({ influenceClasses, influenceStyle, markFrame, markTooltip: markFrame, tagsHtml, tooltipHtml, sourceHtml, fightSourceHtml,
+        lineBadgeHtml, useState, use });
 })();
 safeExposeGlobals({ itemInfluencesUi });

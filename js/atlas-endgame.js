@@ -233,7 +233,7 @@ const atlasEndgame = (() => {
         bossMaterial(state, node, run, out);
         fightSpoils(state, node, out, first);
         if (node.kind === 'apex') apexStumpDrops(state); // 그루터기 함 불씨의 흉터(포식이 열린 뒤)와 고대 씨앗(루프 42)
-        if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = spreadBlight(state, node.region);
+        if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = apostle ? cleanseBlight(state, node.region) : spreadBlight(state, node.region);
         if (!out.awakened) out.invite = witnessKill(state, node, apostle);
         return out;
     }
@@ -246,6 +246,12 @@ const atlasEndgame = (() => {
         const book = ledger(state).blight;
         book[region] = Math.min(E.blight.max, (book[region] || 0) + E.blight.perMap);
         return { region, level: book[region] };
+    }
+    /** A fallen apostle lifts its region's blight (2026-10-10): it builds up again map by map, so an apostle holds about one map in
+     * five instead of four in five, and the rot shards come about as fast as the other final bosses' offerings. */
+    function cleanseBlight(state, region) {
+        ledger(state).blight[region] = 0;
+        return { region, level: 0, cleansed: true };
     }
 
     // ---------------------------------------------------------------- save boundary, epoch, view

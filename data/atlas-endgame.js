@@ -74,7 +74,8 @@ const ATLAS_ENDGAME = Object.freeze({
             id: 'apex_gardener', name: '정원사의 메아리', domain: '정원사의 정원', act: 6, bossAct: 5, ele: 'phys', tier: 18,
             how: '깨어난 뒤 지역 수호자를 쓰러뜨리면 그 지역의 가위 조각을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['shearRoots', 1], ['shearTrunk', 1], ['shearCanopy', 1], ['shearGarden', 1], ['shearSanctum', 1]]),
-            hpMul: 5, damageMul: 1.6, hazard: Object.freeze({ pattern: 'line', warningMs: 1700, intervalMs: 6200 }),
+            // 피해 1.6이면 초당 받는 피해가 T20 장로, 갉는 자보다 컸다(2026-10-10 실측). 첫 최종 보스라 정점과 T20 사이로 내렸다.
+            hpMul: 5, damageMul: 1.4, hazard: Object.freeze({ pattern: 'line', warningMs: 1700, intervalMs: 6200 }),
             stages: Object.freeze([
                 Object.freeze({ name: '정원사의 메아리', bossAct: 5, mechanic: 'prune' }),
                 Object.freeze({ name: '접붙이는 정원사', bossAct: 5, mechanic: 'graft' }),

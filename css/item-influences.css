@@ -62,6 +62,9 @@
 .tooltip-line:has(> .infl-chip.is-blight) { border-left-color: #a6d44a; background: linear-gradient(90deg, rgba(166, 212, 74, .15), transparent 75%); }
 /* 기억 던전 머리의 뒤바뀐 고유 안내(js/memory-dungeon-ui.js). */
 .memory-swap-note { margin: 4px 0 0; color: #c792ff; font-weight: 700; }
+/* 아틀라스 최종 보기 카드와 수호자 노드의 출처 한 줄: 영향 이름은 그 색, 얻는 곳은 옅게(고유 장비 줄과 같은 크기). */
+.infl-source { margin: 0; font-size: 11px; line-height: 1.45; color: var(--atlas-muted, #a39883); }
+.infl-source .infl-tag { margin-right: 6px; color: var(--infl); font-weight: 700; }
 }
 
 /* 툴팁 상자와 장비 비교 칸: 피부(overrides)의 테두리 그림 대신 영향 색 테두리(왼쪽 반, 오른쪽 반). 상자 안이 스크롤돼도 테두리는 그대로다. */
