@@ -9277,21 +9277,6 @@ function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
     return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
 }
 
-/** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. */
-function getStyledOrbName(orbKey) {
-    let name = getCurrencyInfo(orbKey).name;
-    if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
-    const tones = {
-        magicBud: '--orb-tone:#9fd3ff;', sapBud: '--orb-tone:#ffe07a;', blightSpore: '--orb-tone:#ffe07a;', blessing: '--orb-tone:#ffe07a;',
-        formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
-        goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
-        emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
-        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);'
-    };
-    const tone = Object.hasOwn(tones, orbKey) ? tones[orbKey] : '';
-    return tone ? `<span class="orb-tone" style="${tone}">${name}</span>` : name;
-}
-
 /** 우주계 쌍둥이 주얼의 배정 키스톤 줄: 이름과 그 키스톤의 전직(쌍둥이 키스톤은 전직과 상관없이 켜진다), 할당 여부. */
 function getCosmosKeystoneTooltipLine(jewel) {
     if (!jewel.cosmosKeystoneJewel || !jewel.cosmosKeystone) return '';
@@ -9640,7 +9625,6 @@ function openCraftItemPickerOverlay(kind) {
 function exposeUiRenderHelpersOnce() {
     if (window.__uiRenderHelperGlobalsExposed) return;
     let helpers = {
-        getStyledOrbName,
         getItemStatToneColor,
         // Alternate crafting views reuse the same admission rules as the live currency buttons.
         getCraftOrbUseState,
@@ -11013,7 +10997,8 @@ function resizeCanvas() {
         if (resizePassiveTreeCanvas(false)) drawPassiveTree();
     }
     resizeBattlefieldCanvas();
-    renderBattlefield();
+    // A failed draw must not stop the caller: init calls this before it sets up cloud saves and login (2026-10-11).
+    try { renderBattlefield(); } catch (error) { console.error('renderBattlefield on resize failed:', error); }
 }
 
 function scheduleStableResize() {

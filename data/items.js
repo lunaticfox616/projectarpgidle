@@ -1074,7 +1074,25 @@ const WALLET_CURRENCY_INFO = Object.freeze({
 function getCurrencyInfo(key) {
     if (Object.hasOwn(ORB_DB, key)) return ORB_DB[key];
     return Object.hasOwn(WALLET_CURRENCY_INFO, key) ? WALLET_CURRENCY_INFO[key] : { name: String(key || ''), desc: '' };
-}// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
+}
+/** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. It lives with the
+ * currency data so that it exists from load: the floor loot labels (js/battle-ground-loot-ui.js) call it on the first battlefield
+ * draw of the boot, before any UI refresh. 2026-10-11: while it was nested in performUpdateStaticUI (js/ui.js) that draw threw,
+ * the rest of init (cloud save and login setup) never ran, and a save with currency on the exploration floor could not sign in. */
+function getStyledOrbName(orbKey) {
+    let name = getCurrencyInfo(orbKey).name;
+    if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
+    const tones = {
+        magicBud: '--orb-tone:#9fd3ff;', sapBud: '--orb-tone:#ffe07a;', blightSpore: '--orb-tone:#ffe07a;', blessing: '--orb-tone:#ffe07a;',
+        formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
+        goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
+        emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
+        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);'
+    };
+    const tone = Object.hasOwn(tones, orbKey) ? tones[orbKey] : '';
+    return tone ? `<span class="orb-tone" style="${tone}">${name}</span>` : name;
+}
+// Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
     ['craft', ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
@@ -1141,4 +1159,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, getStyledOrbName, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
