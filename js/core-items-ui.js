@@ -23,7 +23,6 @@ const coreItemsUi = (() => {
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
             <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
             <div class="item-title equipment-slot-name ${rarity}" title="${escapeHTML(core.name)}">${escapeHTML(core.name)}</div>
-            <button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${SLOT}')">장착 해제</button>
         </div>`;
     }
 

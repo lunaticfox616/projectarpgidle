@@ -826,9 +826,10 @@ function renderPaperdoll(targetId, forCrafting) {
                 ? `selectForCrafting('${slot}', true)`
                 : `equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')`;
             let doubleClick = `event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
+            // 장비창 장착 칸에는 단추가 없다(2026-10-10 개편): 빼기는 두 번 누르기, 끌어 놓기, 선택한 장비의 단추.
             let footer = forCrafting
                 ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
-                : `<button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${slot}')">장착 해제</button>`;
+                : '';
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
@@ -882,7 +883,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
         onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-        <img src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentGridSlotLabelHtml(item)}<span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
+        <img src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentGridSlotLabelHtml(item)}<span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>${equipmentWindowUi.newDotHtml(item)}
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
 }
@@ -920,16 +921,16 @@ function renderEquipmentInventoryGrid(layout, rows) {
 function renderEquipmentInspectorActions(item, slot, presetProtected) {
     let primaryAction = slot ? `equipmentInventoryInteraction.focus(null);unequipItem('${slot}')` : `equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})`;
     let craftAction = slot ? `equipmentInventoryInteraction.focus(null);switchItemSubtab('item-tab-craft');selectForCrafting('${slot}',true)` : `equipmentInventoryInteraction.focus(null);craftSelectInventoryItemById(${item.id})`;
-    return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : '장착'}</button>
-        ${contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작</button>` : ''}
-        ${chaosInfusionUi.actionHtml(item, slot)}
-        ${equipmentSocketsUi.actionHtml(item, slot)}${gardenOilsUi.actionHtml(item, slot)}
-        ${slot ? '' : renderEquipmentInventoryProtectionActions(item, presetProtected)}`;
+    // 단추 줄(2026-10-10 개편): 장착, 잠금, 제작실, 해체, 그다음 주입, 소켓, 기름. 주얼, 코어, 액막이는 제작실부터 받지 않는다(js/bag-items.js).
+    let craft = !bagItems.isSpecial(item) && contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작실</button>` : '';
+    let tools = bagItems.isSpecial(item) ? '' : `${chaosInfusionUi.actionHtml(item, slot)}${equipmentSocketsUi.actionHtml(item, slot)}${gardenOilsUi.actionHtml(item, slot)}`;
+    return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : bagItems.isJewel(item) ? '끼우기' : '장착'}</button>
+        ${slot ? craft : renderEquipmentInventoryProtectionActions(item, presetProtected, craft)}${tools}`;
 }
 
-function renderEquipmentInventoryProtectionActions(item, presetProtected) {
+function renderEquipmentInventoryProtectionActions(item, presetProtected, middle = '') {
     let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
-    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>
+    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>${middle}
         <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>`;
 }
 
@@ -944,21 +945,16 @@ function renderEquipmentInventoryInspector(rows) {
     if (item && equipmentInventoryGridRuntime.getItemKey(item) !== focusedKey) item = null;
     if (!item) {
         equipmentInventoryInteraction.setFocusedKey(null);
-        let message = visibleItems.length ? '장비를 선택하면 세부 작업을 할 수 있습니다.' : '표시할 장비가 없습니다.';
-        let emptyHtml = `<div class="equipment-grid-inspector-empty">${message}</div>`;
+        let message = visibleItems.length ? '가방에서 장비를 고르면 여기서 비교합니다.' : '표시할 장비가 없습니다.';
+        let emptyHtml = equipmentWindowUi.emptyHtml(message);
         if (root.__lastHtml !== emptyHtml) root.innerHTML = root.__lastHtml = emptyHtml;
         return;
     }
     equipmentInventoryInteraction.setFocusedKey(equipmentInventoryGridRuntime.getItemKey(item));
-    let footprint = getEquipmentInventoryFootprint(item);
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
-    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
-    let html = `<div class="equipment-grid-inspector-copy rarity-${item.rarity || 'normal'}">
-        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel}, ${escapeHTML(getItemSlotDisplayLabel(item, '장비'))}, ${footprint.columns}×${footprint.rows}칸</span>
-        <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ', 세팅 보호' : ''}${item.locked ? ', 잠금' : ''}</small></div>
-    </div><div class="equipment-grid-inspector-actions">
-        ${renderEquipmentInspectorActions(item, slot, presetProtected)}
-    </div><div class="equipment-inspection-details"></div><button type="button" class="equipment-grid-inspector-close" aria-label="선택 닫기" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
+    let flags = [presetProtected ? '세팅 보호' : '', item.locked ? '잠금' : ''].filter(Boolean).join(', ');
+    // 선택한 장비(2026-10-10 개편, js/equipment-window-ui.js): 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁.
+    let html = equipmentWindowUi.inspectorHtml(item, slot, renderEquipmentInspectorActions(item, slot, presetProtected), flags);
     if (root.__lastHtml !== html) root.innerHTML = root.__lastHtml = html;
     equipmentInspectionUi.render(root, item, slot);
     equipmentInventoryInteraction.positionInspector();

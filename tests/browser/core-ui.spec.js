@@ -346,13 +346,18 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
 
     const panel = page.locator('.equipment-preset-panel');
     expect(failures).toEqual([]);
-    const mobileLoadoutButton = page.locator('#btn-equipment-mobile-loadout');
-    if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
+    // 휴대폰은 요약의 "장착 장비 ▾"를 펼쳐야 장착 칸과 세팅이 보인다(2026-10-10 장비창 개편).
+    const loadoutToggle = page.locator('.eqw-mini-toggle');
+    const openLoadout = async () => {
+        if (await loadoutToggle.isVisible() && await loadoutToggle.getAttribute('aria-expanded') !== 'true') await loadoutToggle.click();
+    };
+    await openLoadout();
     await expect(panel).toBeVisible();
     await expect(panel.locator('.equipment-preset-slot')).toHaveCount(3);
-    await panel.getByRole('button', { name: '현재 장비 저장' }).click();
-    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('현재 적용');
-    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('2부위');
+    // 세팅 한 줄(2026-10-10 장비창 개편): 저장 단추, 적용 중인 세팅은 .applied, 부위 수는 title.
+    await panel.getByRole('button', { name: '저장', exact: true }).click();
+    await expect(panel.locator('.equipment-preset-slot').first()).toHaveClass(/applied/);
+    await expect(panel.locator('.equipment-preset-slot').first()).toHaveAttribute('title', /2부위/);
 
     await page.evaluate(ids => {
         const savedSword = game.equipment['무기'];
@@ -364,7 +369,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
         selectForCrafting('무기', true);
         updateStaticUI();
     }, initial);
-    await expect(panel.locator('.equipment-preset-slot').first()).not.toContainText('현재 적용');
+    await expect(panel.locator('.equipment-preset-slot').first()).not.toHaveClass(/applied/);
     const mobileInventoryButton = page.locator('#btn-equipment-mobile-inventory');
     if (await mobileInventoryButton.isVisible()) await mobileInventoryButton.click();
     const inventoryItems = page.locator('#ui-inventory-list .equipment-grid-item');
@@ -381,8 +386,8 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     await page.locator('#ui-equipment-inventory-inspector .equipment-card-danger:not(:disabled)').click();
     await expect(page.locator('#ui-inventory-list .equipment-grid-item')).toHaveCount(1);
     await dismissVisibleTutorials(page);
-    if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
-    await panel.getByRole('button', { name: '세팅 불러오기' }).click();
+    await openLoadout();
+    await panel.locator('.equipment-preset-slot').first().click(); // 저장된 세팅을 누르면 바로 바꾼다
 
     const applied = await page.evaluate(ids => ({
         weaponId: game.equipment['무기'] && game.equipment['무기'].id,
@@ -398,7 +403,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
         savedWeaponProtected: true,
         craftSelection: null
     });
-    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('현재 적용');
+    await expect(panel.locator('.equipment-preset-slot').first()).toHaveClass(/applied/);
 
     await page.setViewportSize({ width: 320, height: 800 });
     await page.evaluate(() => setEquipmentMobilePane('loadout'));

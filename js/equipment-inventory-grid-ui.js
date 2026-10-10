@@ -49,6 +49,7 @@
         const anchor = document.querySelector(selector);
         if (!anchor?.getClientRects().length) { focus(null); return; }
         anchor.classList.toggle('is-menu-selected', !!focusedEquipmentSlot);
+        if (placeDocked(inspector)) return;
         const rect = anchor.getBoundingClientRect();
         if (!inspector.matches(':popover-open')) inspector.showPopover();
         const bottom = fitInspector(inspector, rect);
@@ -56,6 +57,15 @@
         if (!position) { focus(null); return; }
         inspector.style.left = `${position.x / uiDisplay.factor}px`;
         inspector.style.top = `${position.y / uiDisplay.factor}px`;
+    }
+
+    /** 넓은 PC 창은 오른쪽 칸에 붙고(panel), 휴대폰은 아래에서 올라온다(sheet): css/equipment-window.css --eqw-dock.
+     * @returns {boolean} true when the panel needs no anchoring next to the item */
+    function placeDocked(inspector) {
+        const dock = equipmentWindowUi.inspectorDock(inspector);
+        if (dock === 'panel' && inspector.matches(':popover-open')) inspector.hidePopover();
+        if (dock === 'sheet' && !inspector.matches(':popover-open')) inspector.showPopover();
+        return dock === 'panel' || dock === 'sheet';
     }
 
     function fitInspector(inspector, rect) {

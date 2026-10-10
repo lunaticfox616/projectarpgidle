@@ -2254,7 +2254,7 @@ function syncEquipmentSlotFilterOptions(select, slots) {
     if (!select) return;
     let signature = JSON.stringify(slots);
     if (select.dataset.optionSignature === signature) return;
-    select.innerHTML = `<option value="all">전체</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
+    select.innerHTML = `<option value="all">모든 칸</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
     select.dataset.optionSignature = signature;
 }
 
@@ -8841,23 +8841,9 @@ const renderCharacterPassiveSpecialStats = function(pStats) {
     setTextById('ui-revelation-effect', revelationEffect);
 };
 
+/** 장비창의 요약, 가방 머리, 새 아이템 표시(js/equipment-window-ui.js, 2026-10-10 개편: 옵션 티어와 품질은 뺐다). */
 function renderEquipmentLoadoutSummary(pStats) {
-    let host = document.getElementById('ui-equipment-loadout-summary');
-    let equipment = game.equipment || {};
-    let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
-    if (equipment['반지3']) slots.push('반지3');
-    let equipped = slots.map(slot => equipment[slot]).filter(Boolean);
-    if (host) {
-        let qualityItems = equipped.filter(item => Number(item && item.quality) > 0);
-        let averageQuality = qualityItems.length
-            ? Math.round(qualityItems.reduce((sum, item) => sum + Number(item.quality || 0), 0) / qualityItems.length)
-            : 0;
-        let averageTier = typeof getAverageExplicitAffixTier === 'function' ? getAverageExplicitAffixTier(equipped) : 0;
-        let ehpCards = getPlayerEhpCardsHtml(pStats, 'equipment-summary-stat');
-        host.innerHTML = `${ehpCards}
-            <div class="equipment-summary-stat" title="장착 장비의 추가옵션 평균 티어"><span>옵션 티어</span><strong>${averageTier > 0 ? `T${averageTier.toFixed(1)}` : '—'}</strong></div>
-            <div class="equipment-summary-stat" title="품질이 있는 장착 장비의 평균 품질"><span>품질</span><strong>${averageQuality > 0 ? `${averageQuality}%` : '—'}</strong></div>`;
-    }
+    equipmentWindowUi.render(pStats);
 }
 
 function updateInventoryFullWarnings() {

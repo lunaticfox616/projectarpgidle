@@ -27,18 +27,8 @@
         return inactive;
     }
 
-    function addItemColumn(columns, item, slot, label, isEquipped = true) {
-        const column = document.createElement('section');
-        column.className = 'equipment-inspection-column';
-        const heading = document.createElement('h3');
-        heading.textContent = label;
-        const content = document.createElement('div');
-        if (item) showItemTooltip(null, slot, isEquipped, item, { target: content });
-        else content.textContent = '장착한 장비 없음';
-        column.append(heading, content);
-        columns.append(column);
-    }
-
+    /** The selected item's tooltip under the panel's buttons; the 바꾸면 tables above them fill in through js/equipment-window-ui.js
+     * (2026-10-10: the side columns of the worn items and the comparison lines gave way to the 바꾸면 table). */
     function render(root, item, equippedSlot) {
         const details = root.querySelector('.equipment-inspection-details');
         const signature = JSON.stringify([item, game.equipment, cachedTooltipStats], (key, value) => key === 'breakdowns' ? undefined : value);
@@ -46,27 +36,11 @@
         activeDetails = details;
         activeSignature = signature;
         itemTooltipComparisonScheduler.cancel();
-        details.replaceChildren();
-        const columns = document.createElement('div');
-        columns.className = 'equipment-inspection-columns';
-        addItemColumn(columns, item, equippedSlot, equippedSlot ? '장착 중' : '선택한 장비', !!equippedSlot);
-        if (!equippedSlot) getEquipCandidateSlots(item).forEach(slot => {
-            addItemColumn(columns, game.equipment[slot], slot, `현재, ${getDualSlotDisplayLabel(slot)}`);
-        });
-        details.append(columns);
-        if (equippedSlot) return;
-        const changes = document.createElement('section');
-        changes.className = 'equipment-inspection-changes';
-        changes.setAttribute('aria-live', 'polite');
-        changes.textContent = '착용 시 변화 계산 중…';
-        details.prepend(changes);
-        itemTooltipComparisonScheduler.schedule(item, signature, '', {
-            isActive: () => activeDetails === details && details.isConnected && equipmentInventoryInteraction.getFocusedKey() === equipmentInventoryGridRuntime.getItemKey(item),
-            apply: result => {
-                changes.innerHTML = result.markup || '<span>교체 시 능력치 변화 없음</span>';
-                equipmentInventoryInteraction.positionInspector();
-            }
-        });
+        const tip = document.createElement('div');
+        tip.className = 'equipment-inspection-tooltip';
+        showItemTooltip(null, equippedSlot, !!equippedSlot, item, { target: tip });
+        details.replaceChildren(tip);
+        equipmentWindowUi.fillDeltas(root, item, signature);
     }
 
     function decorateLoadout() {

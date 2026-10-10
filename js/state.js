@@ -2484,6 +2484,8 @@ const defaultGame = {
     seasonNodeLevels: {},
     labyrinthFloor: 1,
     jewelInventory: [],
+    // 가방의 새 아이템(빨간 점): id가 이보다 크면 새 것. 가방을 열었다가 닫으면 그때의 itemIdCounter가 된다(js/equipment-window-ui.js).
+    bagSeenId: null,
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     // grandRun is created on entry. rewardVoidChisel: number|null is the actual paid integer,
