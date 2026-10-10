@@ -1,6 +1,7 @@
 // 스킬 젬 보드 (2026-10-04 사용자 요청): 장착 화면 위쪽에 지금 낀 것을 한눈에 —
 // 가운데 주 공격 젬, 둘레에 그 젬의 각인 5칸, 아래 이동 · 소환 칸, 따로 보조 젬 칸 줄(장착 한도만큼 + 다음 칸 미리보기).
-// 칸을 누르면 아래 목록(js/skills-ui.js)이 그 칸에 낄 수 있는 젬만 보여 주고, 찬 칸은 그 젬의 상세(js/gem-selection-ui.js)를 연다.
+// 칸을 누르면 젬 칸 창(js/gem-slot-dialog-ui.js)이 바로 뜬다: 지금 낀 젬의 등급, 해제와 그 칸에 바꿔 낄 젬(2026-10-11 사용자 요청).
+// 옆 목록(js/skills-ui.js)도 그 칸에 낄 수 있는 젬으로 바뀐다. 낀 젬과 각인에 마우스를 올리면 수치가 든 툴팁이 뜬다.
 // 찬 · 빈 각인 칸은 각인 고르기 창을 바로 열고, 다음 · 잠긴 칸은 강화 · 각인 탭으로 간다. 표시 · 칸 고르기만 하며 장착 규칙은 기존 함수(changeSkill · toggleSupport)가 갖는다.
 (function () {
     'use strict';
@@ -9,6 +10,11 @@
     let pickerKind = 'active';
     const PICKER_TITLES = Object.freeze({ active: '주 공격 칸에 낄 젬', mobility: '이동 칸에 낄 젬', summon: '소환 칸에 낄 젬', support: '보조 젬 칸에 낄 젬' });
     const RING_RADIUS = 96;
+    /** What a click on an engraving slot without an engraving does (the hover tooltip's second line). */
+    const ENGRAVE_HINTS = Object.freeze({ open: '눌러서 넣을 각인을 고릅니다.', next: '강화와 각인에서 이 칸을 엽니다.', lock: '앞 칸부터 차례로 엽니다.' });
+    const GROUP_TONES = Object.freeze({ basic: '#7aa4d6', crafted: '#d9a650', awakened: '#b48ae6' });
+    // data-info-tooltip-anchor: 마우스가 이 칸 위에 있는 동안 툴팁을 지우지 않게 한다(js/ui.js의 mousemove 감시).
+    const hoverHint = (type, name) => `data-info-tooltip-anchor="1" onpointerenter="skillGemBoardUi.hint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()"`;
 
     /** @param {string} name skill gem name @returns {'active'|'mobility'|'summon'} the slot kind the gem is worn in (js/ui.js changeSkill) */
     function kindOf(name) {
@@ -46,14 +52,14 @@
             const glyph = slot.state === 'full' ? renderSkyEnhancementIcon(slot.def) : (slot.state === 'open' ? '+' : '');
             const group = slot.state === 'full' ? ` is-group-${getSkyEnhancementGroup(slot.def).className}` : '';
             const title = slot.state === 'full' ? `${slot.def.name}, ${slot.def.desc}` : engraveLabel(slot);
-            return `<button type="button" class="skill-board-engrave is-${slot.state}${group}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" title="${escapeHTML(title)}" aria-label="각인 ${slot.index + 1}: ${escapeHTML(title)}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
+            return `<button type="button" class="skill-board-engrave is-${slot.state}${group}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" data-info-tooltip-anchor="1" onpointerenter="skillGemBoardUi.engraveHint(event,${slot.index})" onpointerleave="hideInfoTooltip()" aria-label="각인 ${slot.index + 1}: ${escapeHTML(title)}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
         }).join('');
         return `<div class="skill-board-ring" aria-hidden="false">${marks}</div>`;
     }
 
     function renderSatellite(kind, label, name, extra) {
         if (!name) return `<button type="button" class="skill-board-satellite is-empty" data-board-pick="${kind}" aria-label="${label} 칸 비어 있음, 젬 고르기"><i>+</i><small>${label}</small><b>비어 있음</b></button>`;
-        return `<button type="button" class="skill-board-satellite active element-${getGemCardMeta(SKILL_DB[name]).className}" data-board-pick="${kind}" data-board-gem="${escapeHTML(name)}" aria-label="${label}: ${escapeHTML(name)}">${gemArt(name, 'skill-board-satellite-art')}<small>${label}${extra || ''}</small><b>${escapeHTML(name)}</b></button>`;
+        return `<button type="button" class="skill-board-satellite active element-${getGemCardMeta(SKILL_DB[name]).className}" data-board-pick="${kind}" data-board-gem="${escapeHTML(name)}" ${hoverHint('active', name)} aria-label="${label}: ${escapeHTML(name)}">${gemArt(name, 'skill-board-satellite-art')}<small>${label}${extra || ''}</small><b>${escapeHTML(name)}</b></button>`;
     }
 
     function ownsKind(kind) {
@@ -83,7 +89,7 @@
         return `<div class="skill-board-head"><span>주 공격</span><b>${escapeHTML(main)}</b>${level}${engraveNote}</div>
             <div class="skill-board-stage element-${meta.className}${slots.length ? ' has-ring' : ''}">
                 ${renderEngraveRing(slots)}
-                <button type="button" class="skill-board-core active" data-board-pick="active" data-board-gem="${escapeHTML(main)}" aria-label="주 공격: ${escapeHTML(main)}, 바꿀 젬 고르기">${gemArt(main, 'skill-board-core-art')}</button>
+                <button type="button" class="skill-board-core active" data-board-pick="active" data-board-gem="${escapeHTML(main)}" ${hoverHint('active', main)} aria-label="주 공격: ${escapeHTML(main)}, 바꿀 젬 고르기">${gemArt(main, 'skill-board-core-art')}</button>
             </div>
             ${renderSatellites(stats)}`;
     }
@@ -97,10 +103,8 @@
     }
 
     function renderSupportSlot(name, stats) {
-        const tier = getSupportActiveTier(name);
-        const pips = '◆'.repeat(Math.max(1, Math.min(3, tier)));
         const target = shortTarget(gemSelectionUi.application(name, stats));
-        return `<button type="button" class="support-slot active" data-board-pick="support" data-board-gem="${escapeHTML(name)}" aria-label="보조 젬: ${escapeHTML(name)}, ${escapeHTML(target)}"><i>✚<em>${pips}</em></i><b>${escapeHTML(name)}</b><small>${escapeHTML(target)}</small></button>`;
+        return `<button type="button" class="support-slot active" data-board-pick="support" data-board-gem="${escapeHTML(name)}" ${hoverHint('support', name)} aria-label="보조 젬: ${escapeHTML(name)}, ${escapeHTML(target)}">${supportGemSigil.html(name, 'support-slot-sigil', getSupportActiveTier(name))}<b>${escapeHTML(name)}</b><small>${escapeHTML(target)}</small></button>`;
     }
 
     function renderSupports(stats) {
@@ -137,14 +141,15 @@
         return pickerKind;
     }
 
-    /** @param {'active'|'mobility'|'summon'|'support'} kind the board slot whose gems the picker lists next */
-    function pick(kind) {
+    /** @param {'active'|'mobility'|'summon'|'support'} kind the board slot whose gems the picker lists next
+     * @param {boolean} [stay] the slot dialog opens over the board, so the phone does not scroll to the list */
+    function pick(kind, stay) {
         pickerKind = kind;
         document.getElementById('skill-tab-equip').dataset.picking = kind;
         updateStaticUI();
         // 휴대폰: 보드 아래의 목록이 화면 밖이면 그쪽으로 데려간다.
         const list = document.querySelector('#skill-tab-equip .skill-picker');
-        if (list && uiDisplay.matches('(max-width: 1080px)')) list.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        if (list && !stay && uiDisplay.matches('(max-width: 1080px)')) list.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
 
     function openEngrave(index) {
@@ -169,11 +174,34 @@
         const slot = event.target.closest('[data-board-pick]');
         if (!slot) return;
         const kind = slot.dataset.boardPick;
-        if (kind !== pickerKind) pick(kind);
-        const gem = slot.dataset.boardGem;
-        // 찬 칸은 그 젬의 상세(해제 · 강화 · 소환 수)를 연다.
-        if (gem && gem !== '기본 공격') gemSelectionUi.open(slot, kind === 'support' ? 'support' : 'active', gem);
+        // 칸을 누르면 젬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 젬 / 빈 칸: 낄 젬). 첫 젬 따라 하기 중에는 옆 목록의 표시를 따라가게 둔다.
+        const guided = !!getStarterGemTutorialTarget();
+        if (kind !== pickerKind) pick(kind, !guided);
+        if (!guided) gemSlotDialog.open(kind, slot.dataset.boardGem || '');
     });
 
-    safeExposeGlobals({ skillGemBoardUi: Object.freeze({ render, pick, currentKind, kindOf }) });
+    /** A real mouse on a device that can hover: after a tap the browser may fire a mouse-type enter on the redrawn slot. */
+    const hoversWithMouse = event => event.pointerType === 'mouse' && window.matchMedia('(hover: hover)').matches;
+
+    /** Hover on a worn gem, mouse only: the same tooltip with numbers as the picker tiles. */
+    function wornGemHint(event, type, name) {
+        if (hoversWithMouse(event)) showGemTooltip(event, type, name);
+    }
+
+    function boardEngraveTooltipHtml(slot) {
+        if (slot.state !== 'full') return `<div class="tooltip-title">${engraveLabel(slot)}</div><div class="tooltip-line">${ENGRAVE_HINTS[slot.state]}</div>`;
+        const group = getSkyEnhancementGroup(slot.def);
+        return `<div class="tooltip-title engrave-tone-${group.className}">${escapeHTML(slot.def.name)}</div><div class="tooltip-line engrave-tooltip-group">${group.label} 각인, ${slot.index + 1}번 칸</div>`
+            + `<div class="tooltip-line engrave-tooltip-effect">${statToneText.html(slot.def.desc)}</div><div class="tooltip-line gem-card-hint">누르면 다른 각인으로 바꿉니다</div>`;
+    }
+
+    /** Hover on an engraving slot, mouse only: the engraving's group and effect (the native title was small and slow). */
+    function boardEngraveHint(event, index) {
+        const slot = hoversWithMouse(event) ? engraveSlots(game.activeSkill)[index] : null;
+        if (!slot) return;
+        const tone = slot.state === 'full' ? GROUP_TONES[getSkyEnhancementGroup(slot.def).className] : GROUP_TONES.basic;
+        showInfoTooltipHtml(event.clientX, event.clientY, boardEngraveTooltipHtml(slot), tone, `engrave:${index}:${slot.state}`);
+    }
+
+    safeExposeGlobals({ skillGemBoardUi: Object.freeze({ render, pick, currentKind, kindOf, hint: wornGemHint, engraveHint: boardEngraveHint }) });
 }());

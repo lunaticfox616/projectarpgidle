@@ -82,7 +82,7 @@
         if (!tags && isSupport) {
             tags = `<span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || '') || '보조 효과')}</span>`;
         }
-        let art = isSupport ? '<span>보조</span>' : renderSkillGemArt(name, 'gem-research-card-art');
+        let art = isSupport ? supportGemSigil.html(name, 'gem-research-card-sigil', 0) : renderSkillGemArt(name, 'gem-research-card-art');
         return `<article class="gem-research-card element-${meta.className}" aria-label="${escapeHTML(name)}">
             <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조 젬' : `${meta.elementLabel}, ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
             <p>${statToneText.html(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>

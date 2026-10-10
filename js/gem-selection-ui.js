@@ -86,22 +86,29 @@
         return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="젬 상세 닫기">닫기</button>';
     }
 
-    /** Stats with this gem put on, against the current ones: the main attack swapped, a mobility gem worn, a summon gem
-     * added once, a support gem added. The build is restored exactly afterwards (the same pattern as the item tooltip). */
-    function previewStats(type, name) {
-        const saved = { active: game.activeSkill, mobility: game.mobilitySkill, supports: (game.equippedSupports || []).slice(),
-            summons: (game.equippedSummonSkills || []).slice(), counts: { ...(game.summonSkillCounts || {}) } };
+    /** The loadout fields with this gem put on. replaced: the gem it takes the place of (js/gem-slot-dialog-ui.js); a summon
+     * gem then keeps the replaced one's count. Without it the gem is added: once for a summon gem. */
+    function wornWith(kind, name, replaced, saved) {
+        const keep = list => list.filter(gem => gem !== replaced);
+        if (kind === 'support') return { equippedSupports: keep(saved.equippedSupports).concat(name) };
+        if (kind === 'mobility') return { mobilitySkill: name };
+        if (kind !== 'summon') return { activeSkill: name };
+        const counts = { ...saved.summonSkillCounts, [name]: saved.summonSkillCounts[replaced] || 1 };
+        if (replaced !== name) delete counts[replaced];
+        return { equippedSummonSkills: keep(saved.equippedSummonSkills).concat(name), summonSkillCounts: counts };
+    }
+
+    /** Stats with this gem put on, against the current ones: the main attack swapped, a mobility gem worn, a summon or
+     * support gem added (or put in place of `replaced`). The build is restored exactly afterwards (as the item tooltip does). */
+    function previewStats(type, name, replaced) {
+        const saved = { activeSkill: game.activeSkill, mobilitySkill: game.mobilitySkill, equippedSupports: (game.equippedSupports || []).slice(),
+            equippedSummonSkills: (game.equippedSummonSkills || []).slice(), summonSkillCounts: { ...(game.summonSkillCounts || {}) } };
         const before = getUiPlayerStats({}, false);
         try {
-            const kind = type === 'support' ? 'support' : skillGemBoardUi.kindOf(name);
-            if (kind === 'support') game.equippedSupports = saved.supports.concat(name);
-            else if (kind === 'summon') { game.equippedSummonSkills = saved.summons.concat(name); game.summonSkillCounts = { ...saved.counts, [name]: 1 }; }
-            else if (kind === 'mobility') game.mobilitySkill = name;
-            else game.activeSkill = name;
+            Object.assign(game, wornWith(type === 'support' ? 'support' : skillGemBoardUi.kindOf(name), name, replaced, saved));
             return { before, after: getUiPlayerStats({}, false) };
         } finally {
-            game.activeSkill = saved.active; game.mobilitySkill = saved.mobility; game.equippedSupports = saved.supports;
-            game.equippedSummonSkills = saved.summons; game.summonSkillCounts = saved.counts;
+            Object.assign(game, saved);
         }
     }
 
@@ -119,16 +126,21 @@
         return spreads(before) || spreads(after) ? [compareRow('무리 최대', packOf(before), packOf(after))] : [];
     }
 
-    /** "장착하면" block: DPS (and summon DPS when either side has one) before → after, for a gem not worn yet. */
-    function comparison(type, name, anchor) {
-        if (anchor.matches('.active, .equipment-blocked')) return null;
-        const { before, after } = previewStats(type, name);
+    /** "장착하면" / "바꾸면" block as HTML: DPS (and summon DPS when either side has one) before → after.
+     * @param {string} [replaced] the gem this one takes the place of (the slot dialog's tooltip, js/gem-slot-dialog-ui.js) */
+    function compareHtml(type, name, replaced) {
+        const { before, after } = previewStats(type, name, replaced);
         const rows = [compareRow('DPS', before.dps || 0, after.dps || 0)].concat(packRows(before, after));
         if ((before.summonDps || 0) > 0 || (after.summonDps || 0) > 0) rows.push(compareRow('소환 DPS', before.summonDps || 0, after.summonDps || 0));
-        const block = document.createElement('div');
-        block.className = 'gem-compare';
-        block.innerHTML = `<b>장착하면</b><div class="gem-compare-grid">${rows.join('')}</div>`;
-        return block;
+        return `<div class="gem-compare"><b>${replaced ? '바꾸면' : '장착하면'}</b><div class="gem-compare-grid">${rows.join('')}</div></div>`;
+    }
+
+    /** The detail's compare block, for a gem not worn yet. */
+    function comparison(type, name, anchor) {
+        if (anchor.matches('.active, .equipment-blocked')) return null;
+        const holder = document.createElement('div');
+        holder.innerHTML = compareHtml(type, name);
+        return holder.firstElementChild;
     }
 
     function open(anchor, type, name) {
@@ -236,5 +248,5 @@
     document.addEventListener('scroll', position, true);
     document.addEventListener('dblclick', quickEquip);
     window.addEventListener('resize', position);
-    safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, application, preview: previewStats }) });
+    safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, application, preview: previewStats, compareHtml }) });
 })();
