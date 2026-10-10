@@ -164,12 +164,11 @@ const equipmentWindowUi = (() => {
         const gain = item.uniqueEffect ? `<div class="eqw-dl-note is-gain">획득: ${escapeHTML(item.uniqueEffect)}</div>` : '';
         return gain + (worn && worn.uniqueEffect ? `<div class="eqw-dl-note is-loss">상실: ${escapeHTML(worn.uniqueEffect)}</div>` : '');
     }
-    /** 허리띠를 바꾸면 달라지는 액막이 칸 한 줄(2026-10-11, 허리띠마다 1~3칸이라): 줄면 꺼지는 액막이 수, 늘면 다시 켜지는 수까지. */
+    /** 허리띠를 바꾸면 달라지는 액막이 칸 한 줄(2026-10-11, 허리띠마다 1~3칸이라): 칸 수 변화만(사용자: "액막이 칸수 변화만 보여줘"). */
     function wardRows(item, slot) {
         const change = colonyWards.slotChange(item, slot);
         if (!change) return '';
-        const moved = change.off ? `, 액막이 ${change.off}개 비활성화` : change.on ? `, 액막이 ${change.on}개 활성화` : '';
-        return `<div class="eqw-dl-note ${change.to > change.from ? 'is-gain' : 'is-loss'}">액막이 칸 ${change.from} → ${change.to}${moved}</div>`;
+        return `<div class="eqw-dl-note ${change.to > change.from ? 'is-gain' : 'is-loss'}">액막이 칸 ${change.from} → ${change.to}</div>`;
     }
     function deltaHtml(item, slot) {
         const [before, after] = swapStats(item, slot);
