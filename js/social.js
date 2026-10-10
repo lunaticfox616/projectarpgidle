@@ -279,11 +279,30 @@ function talismanStateFor(item) {
 }
 
 // 프로필 능력치(2026-10-03): 게임의 비교 표(COMPARE_STAT_META, js/utils.js)와 같은 이름과 형식이다. 소환 DPS는 소환수가 있을 때만.
+// 아이콘(2026-10-11 사용자: "이모티콘 없애고 게임에서 원래 쓰는 아이콘으로"): 캐릭터 창이 그 능력치에 쓰는 전투 기록 아이콘(log: attack, phys,
+// fire, cold, light, chaos, css/layout.css .combat-log-icon)을 쓰고, 캐릭터 창에 아이콘이 없는 능력치는 패시브 트리가 그 능력치에 쓰는
+// 아이콘(tree: js/passives.js PASSIVE_ICON_ATLAS_CELL)을 쓴다.
 const PROFILE_STAT_KEYS = Object.freeze([
-    ['dps', '⚔️'], ['summonDps', '⚔️'], ['baseDmg', '💥'], ['aspd', '⚡'], ['crit', '🎯'], ['critDmg', '🔥'], ['maxHp', '❤️'],
-    ['energyShield', '🔵'], ['armor', '🛡️'], ['evasion', '💨'], ['deflectChance', '🛡️'], ['blockChance', '🛑'], ['dr', '🧱'],
-    ['regen', '🩹'], ['resF', '🔥'], ['resC', '❄️'], ['resL', '⚡'], ['resChaos', '☠️']
+    ['dps', 'log:attack'], ['summonDps', 'log:attack'], ['baseDmg', 'log:attack'], ['aspd', 'tree:precision'], ['crit', 'tree:precision'],
+    ['critDmg', 'log:attack'], ['maxHp', 'tree:life'], ['energyShield', 'tree:arcane'], ['armor', 'log:phys'], ['evasion', 'tree:wind'],
+    ['deflectChance', 'tree:shield'], ['blockChance', 'tree:shield'], ['dr', 'log:phys'], ['regen', 'tree:life'],
+    ['resF', 'log:fire'], ['resC', 'log:cold'], ['resL', 'log:light'], ['resChaos', 'log:chaos']
 ]);
+const PROFILE_STAT_ICONS = new Map(PROFILE_STAT_KEYS);
+
+/** 능력치 줄의 아이콘. 예전 프로필(키 없는 줄)은 자리만 비워 줄을 맞춘다. */
+function profileStatIconHtml(key) {
+    let [sheet, name] = String(PROFILE_STAT_ICONS.get(key) || '').split(':');
+    if (sheet === 'log') return `<span class="combat-log-icon combat-log-icon--${name}" aria-hidden="true"></span>`;
+    let cell = sheet === 'tree' && typeof PASSIVE_ICON_ATLAS_CELL === 'object' ? PASSIVE_ICON_ATLAS_CELL[name] : null;
+    if (!cell) return '<span class="social-stat-icon is-none" aria-hidden="true"></span>';
+    // 그림판 한 칸을 22px로 그리고 가운데 16px만 보인다(칸 가장자리의 빈 여백을 잘라 작은 크기에서도 그림이 보이게).
+    return `<span class="social-stat-icon" style="background-position:${-(cell[0] * 22 + 3)}px ${-(cell[1] * 22 + 3)}px;" aria-hidden="true"></span>`;
+}
+/** 능력치 이름. 2026-10-11 전에 올린 프로필은 이름 앞에 이모티콘이 붙어 있어("⚔️ DPS") 떼고 쓴다. */
+function profileStatName(label) {
+    return String(label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+}
 // 능력치 값의 색(2026-10-11 사용자: "프로필 보기에서 폰트에 색깔이 다 사라졌어"): 장비창 요약(js/equipment-window-ui.js)과 같은 색.
 const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e', baseDmg: '#ffcf9f', aspd: '#fff3a8', crit: '#ffd6f2', critDmg: '#ffd6f2',
     maxHp: '#ff6b6b', regen: '#ff9c9c', energyShield: '#7fd3ff', armor: '#d2b98c', dr: '#d2b98c', evasion: '#8fe08f', deflectChance: '#8fe08f',
@@ -293,7 +312,7 @@ function buildProfileStats() {
     let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
     if (!s) return { stats: [], power: 0 };
     let rows = PROFILE_STAT_KEYS.filter(([key]) => key !== 'summonDps' || Number(s.summonDps) > 0)
-        .map(([key, icon]) => ({ key, label: `${icon} ${COMPARE_STAT_META[key].label}`, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
+        .map(([key]) => ({ key, label: COMPARE_STAT_META[key].label, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
     // 총 DPS(직접 + 소환)는 게임의 권장 전투력 비교와 같은 값이다(js/combat-ehp.js getMapPowerReadiness).
     let power = Math.floor(Number(s.totalDps) || (Number(s.dps) || 0) + (Number(s.summonDps) || 0));
     return { stats: rows, power };
@@ -1711,7 +1730,7 @@ function renderProfileData(profile) {
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let statsHtml = stats.length
-        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value"${PROFILE_STAT_TONES[s.key] ? ` style="color:${PROFILE_STAT_TONES[s.key]};"` : ''}>${socialEscape(s.value)}</span></div>`).join('')
+        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${profileStatIconHtml(s.key)}${socialEscape(profileStatName(s.label))}</span><span class="social-stat-value"${PROFILE_STAT_TONES[s.key] ? ` style="color:${PROFILE_STAT_TONES[s.key]};"` : ''}>${socialEscape(s.value)}</span></div>`).join('')
         : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
@@ -1927,7 +1946,10 @@ function injectSocialStyles() {
     }
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
     .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:6px;padding:5px 9px;}
-    .social-stat-label{color:var(--copy-bright);font-size:12px;}
+    .social-stat-label{display:inline-flex;align-items:center;color:var(--copy-bright);font-size:12px;}
+    .social-stat-label .combat-log-icon,.social-stat-icon{flex:0 0 auto;width:16px;height:16px;margin-right:6px;}
+    .social-stat-icon{display:inline-block;background:url('assets/ui/passive-tree-icons-v3.webp') no-repeat;background-size:110px 88px;}
+    .social-stat-icon.is-none{background:none;}
     .social-stat-value{color:var(--color-text);font-weight:700;font-size:12px;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
     .social-mini-card{background:var(--color-surface-raised);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
