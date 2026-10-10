@@ -45,6 +45,12 @@ const colonyWards = (() => {
             Object.values(equipment).some(item => item && item.uniqueEffectKey === R.uniqueEffectKey) ? 1 : 0];
         return Math.max(0, Math.min(R.maxSlots, R.baseSlots + extra.reduce((sum, value) => sum + value, 0)));
     }
+    /** 장비창의 바꾸면 표(js/equipment-window-ui.js wardRows): `item`을 `slot`에 끼우면 달라지는 액막이 칸 수. 그대로면 null.
+     * @returns {{ from: number, to: number } | null} */
+    function slotChange(item, slot, state = game) {
+        const from = slotCount(state), to = slotCount({ ...state, equipment: { ...(state.equipment || {}), [slot]: item } });
+        return from === to ? null : { from, to };
+    }
     /** The open ward slots ('액막이1'..): a ward left beyond them (the belt came off) waits there, off. */
     const openSlots = (state = game) => R.slots.slice(0, slotCount(state));
     /** Where a ward goes: the first open empty slot, else the first one (a full set swaps it). undefined with no open slot. */
@@ -134,7 +140,7 @@ const colonyWards = (() => {
         Object.assign(colony, { wardInventory: [], wardEquipped: [null, null, null, null], wardSlots: 1 });
     }
 
-    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, openSlots, pickSlot, equippedLines, create,
+    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, slotChange, openSlots, pickSlot, equippedLines, create,
         rollFieldDrop, rollColonyWave, craft, salvageShards, salvageProfile, migrate });
 })();
 safeExposeGlobals({ colonyWards });

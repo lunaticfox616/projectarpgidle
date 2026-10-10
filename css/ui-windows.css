@@ -345,6 +345,10 @@
 @layer overrides {
 
 @media (min-width: 1081px) {
+  /* 루프 패시브의 원환은 폭만 보고 커져서(지름이 폭과 같다) 기본 창에서 아래 절반이 잘렸다(2026-10-11). 창 본문을 높이도 재는 컨테이너로
+     삼아 지름이 보이는 높이를 넘지 않게 한다: 본문 높이에서 위쪽 머리 줄들(약 250px)을 뺀 값, 노드가 겹치는 440px 밑으로는 줄이지 않는다. */
+  body.desktop-windowed-ui #tab-season > .ui-window-body { container-type: size; }
+  body.desktop-windowed-ui #tab-season .loop-passive-orbit { width: min(840px, calc(100% - 34px), max(440px, calc(100cqh - 250px))); }
   body.desktop-windowed-ui .combat-panel > h2 {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
   body.desktop-windowed-ui #move-area {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ margin: 0 !important; }
   body.desktop-windowed-ui .battlefield-wrap { height: min(100%, 680px); }

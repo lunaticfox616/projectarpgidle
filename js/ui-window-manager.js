@@ -33,10 +33,12 @@
         'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, dock: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
-        'tab-season': { title: '루프 패시브', x: 210, y: 70, width: 980, height: 800, minWidth: 500, minHeight: 380 },
-        'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 },
-        'tab-stump': { title: '그루터기 함', x: 240, y: 70, width: 940, height: 760, minWidth: 560, minHeight: 440 }
+        // 2026-10-11: 아래 네 창은 기본 높이가 낮아 1080p 화면에서 원환 아래 절반, 재능 직업 줄, 조합창 끝 줄, 연대기가 잘렸다.
+        // 높이는 작업 영역(HUD 위)까지만 쓰이므로 작은 화면에서는 전처럼 줄어든다. 사용자가 옮기거나 키운 창은 저장된 크기를 따른다.
+        'tab-season': { title: '루프 패시브', x: 210, y: 20, width: 980, height: 920, minWidth: 500, minHeight: 380 },
+        'tab-journal': { title: '기록', x: 300, y: 30, width: 820, height: 900, minWidth: 500, minHeight: 380 },
+        'tab-talent': { title: '재능', x: 260, y: 30, width: 760, height: 900, minWidth: 500, minHeight: 380 },
+        'tab-stump': { title: '그루터기 함', x: 240, y: 30, width: 940, height: 880, minWidth: 560, minHeight: 440 }
     };
 
     let layoutState = getDefaultLayoutState();
