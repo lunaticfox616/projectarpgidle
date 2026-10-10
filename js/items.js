@@ -346,6 +346,12 @@ function copyCraftResultStat(stat) {
     };
 }
 
+/** 허리띠의 액막이 칸 수(js/colony-wards.js beltRoll): 축복의 꽃잎이 다시 굴리면 제작실의 제작 경과에 "액막이 칸 2 → 3"으로 나온다
+ * (js/crafting-result-ui.js getWardRows). 허리띠가 아니면 없다. */
+function craftResultWardSlots(item) {
+    return typeof colonyWards === 'object' ? colonyWards.beltRoll(item) : undefined;
+}
+
 function snapshotCraftResultItem(item) {
     if (!item) return null;
     return {
@@ -356,6 +362,7 @@ function snapshotCraftResultItem(item) {
         corrupted: !!item.corrupted,
         sockets: equipmentSockets.count(item),
         uniqueEffect: item.uniqueEffect || '',
+        wardSlots: craftResultWardSlots(item),
         baseStats: (item.baseStats || []).map(copyCraftResultStat).filter(Boolean),
         stats: (item.stats || []).map(copyCraftResultStat).filter(Boolean),
         chaosInfusion: copyCraftResultStat(item.chaosInfusion),

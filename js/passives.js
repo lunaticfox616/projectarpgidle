@@ -11016,6 +11016,7 @@ async function useCurrency(currencyKey) {
             stat.valMin = baseMin;
             stat.valMax = baseMax;
         });
+        if (typeof colonyWards === 'object') colonyWards.rerollBelt(item); // 허리띠는 액막이 칸 수(1~3)도 다시 굴린다
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? `, 홀씨 보장: ${guaranteedMod.statName}` : '';
     craftingResultLedger.commit(craftResultToken, item);

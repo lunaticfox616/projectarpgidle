@@ -26,6 +26,13 @@ const colonyWards = (() => {
         if (isBelt(item)) item.wardSlotRoll = beltSlots(item);
         return item;
     }
+    /** 축복의 꽃잎(js/passives.js useCurrency): 허리띠의 칸 수를 1~3에서 고르게 다시 굴린다. 허리띠가 아니면 그대로 두고 0. */
+    function rerollBelt(item, random = Math.random) {
+        if (!isBelt(item)) return 0;
+        const { min, max } = R.beltSlots;
+        item.wardSlotRoll = min + Math.floor(random() * (max - min + 1));
+        return item.wardSlotRoll;
+    }
     /** 허리띠 카드에 적는 칸 수(게임 툴팁과 프로필 카드): 허리띠가 아니거나 군락지가 아직 안 열렸으면 undefined. */
     const beltRoll = (item, state = game) => isBelt(item) && unlocked(state) ? beltSlots(item) : undefined;
 
@@ -127,7 +134,7 @@ const colonyWards = (() => {
         Object.assign(colony, { wardInventory: [], wardEquipped: [null, null, null, null], wardSlots: 1 });
     }
 
-    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, beltRoll, slotCount, openSlots, pickSlot, equippedLines, create,
+    return Object.freeze({ isWard, keptOnPickup, unlocked, beltSlots, stampBelt, rerollBelt, beltRoll, slotCount, openSlots, pickSlot, equippedLines, create,
         rollFieldDrop, rollColonyWave, craft, salvageShards, salvageProfile, migrate });
 })();
 safeExposeGlobals({ colonyWards });
