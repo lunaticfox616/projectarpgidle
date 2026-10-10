@@ -14,11 +14,15 @@
      */
     const state = {
         status: 'idle', filter: 'all', results: new Map(), signature: '', token: 0, work: null,
-        lastSyncAt: 0, timer: null
+        lastSyncAt: 0, timer: null, autoTimer: null
     };
+    // result → the analyzed copy as JSON; a bag item whose JSON differs is analyzed again (changedIds).
+    const analyzedAs = new WeakMap();
 
+    // The bag is left out: picking up, crafting or salvaging keeps the results, and only the bag items added or changed are
+    // analyzed again (changedIds). The one stat that counts bag items (the old box jewel, js/combat.js) drifts until the next full run.
     function getBuildSignature() {
-        return getPersistentBuildSignature(game, true);
+        return getPersistentBuildSignature(game, false);
     }
 
     function getDamageScore(stats) {
@@ -34,6 +38,9 @@
             .map(row => Number(row && row.entropy) || 0).filter(value => value > 0);
         return values.length > 0 ? Math.min(...values) : Math.max(1, Number(profile.pool) || 1);
     }
+
+    /** Bag items the analysis tries on: not jewels (they go into sockets, not slots); cores and wards try their own slots. */
+    const analyzable = item => !!item && item.id !== undefined && !bagItems.isJewel(item);
 
     function getCandidateSlots(item) {
         if (!item) return [];
@@ -68,15 +75,16 @@
         return Object.freeze(value);
     }
 
-    function createAnalysisWork() {
+    /** @param {Set<string>|null} only ids of the bag items to analyze, null for all; the snapshot always holds the whole bag */
+    function createAnalysisWork(only = null) {
         // Stat providers only read inventory (e.g. the old-box jewel's rarity bonus).
         // Share its isolated, immutable copy; reparsing hundreds of full items per slot
         // would cost more than the numeric-only evaluation saves.
         const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(game.inventory)));
         const snapshot = { inventory, gameJson: JSON.stringify({ ...game,
             inventory: undefined, combatTimeMs: getCombatTime() }) };
-        const items = inventory.filter(item => item && item.id !== undefined)
-            .map(item => ({ item, slots: getCandidateSlots(item) }));
+        const items = inventory.filter(item => analyzable(item) && (!only || only.has(String(item.id))))
+            .map(item => ({ item, slots: getCandidateSlots(item), key: JSON.stringify(item) }));
         return { items, index: 0, snapshot, baseline: createBaseline(snapshot) };
     }
 
@@ -102,11 +110,13 @@
         const dpsGainPct = percentGain(bestDps.dpsRatio);
         const ehpGainPct = percentGain(bestEhp.ehpRatio);
         let kind = balanced ? 'balanced' : (dpsGainPct >= 1 ? 'damage' : (ehpGainPct >= 1 ? 'defense' : 'keep'));
-        return {
+        const result = {
             kind, dpsGainPct, ehpGainPct, special: isSpecialCandidate(item),
             dpsSlot: balanced ? balanced.slot : bestDps.slot,
             ehpSlot: balanced ? balanced.slot : bestEhp.slot
         };
+        analyzedAs.set(result, candidate.key);
+        return result;
     }
 
     function createBaseline(snapshot) {
@@ -133,7 +143,7 @@
             return `${counts.all}개 완료, 균형 ${counts.balanced}, 공격 ${counts.damage}, 생존 ${counts.defense}`;
         }
         if (state.status === 'error') return '분석 중 오류가 발생했습니다. 다시 시도하세요.';
-        if (state.status === 'stale') return '세팅이 변경되어 결과를 비웠습니다.';
+        if (state.status === 'stale') return '세팅이 바뀌어 다시 분석합니다.';
         if (state.status === 'cancelled') return '분석을 중단했습니다.';
         return '분석 시작 시점의 세팅/전투 상태로 비교합니다.';
     }
@@ -212,7 +222,9 @@
 
     function clearResults(status) {
         clearTimeout(state.timer);
+        clearTimeout(state.autoTimer);
         state.timer = null;
+        state.autoTimer = null;
         state.token += 1;
         state.status = status;
         state.filter = 'all';
@@ -279,15 +291,12 @@
         return true;
     }
 
-    function start() {
-        if (state.status === 'running') return false;
+    // ids: a top-up over these bag items while the results stay on screen (the status stays 'ready'); null: the whole bag.
+    function begin(ids) {
         state.token += 1;
-        state.status = 'running';
-        state.filter = 'all';
-        state.results = new Map();
         try {
-            state.signature = getBuildSignature();
-            state.work = createAnalysisWork();
+            if (!ids) state.signature = getBuildSignature();
+            state.work = createAnalysisWork(ids);
             state.lastSyncAt = Date.now();
         } catch (error) {
             failAnalysis(error);
@@ -301,6 +310,55 @@
         const token = state.token;
         state.timer = setTimeout(() => runChunk(token), 0);
         return true;
+    }
+
+    function start() {
+        if (state.status === 'running') return false;
+        clearTimeout(state.autoTimer);
+        state.autoTimer = null;
+        state.status = 'running';
+        state.filter = 'all';
+        state.results = new Map();
+        return begin(null);
+    }
+
+    // 자동 분석(2026-10-10 사용자): 장비 창을 열면 한 번, 창이 보이는 동안 장착이 바뀌어 결과가 낡으면 한 번 더 분석한다. 가방에 새로
+    // 들어오거나 바뀐 장비는 그것만 따로 분석하고 나머지 결과는 그대로 둔다. 직접 멈춘 분석과 실패한 분석은 창을 다시 열 때까지 다시 돌리지 않는다.
+    const AUTO_DELAY_MS = 300;
+    let autoArmed = false;
+    /** The equipment window was just opened (js/ui.js switchTab, switchItemSubtab). */
+    function onOpen() { autoArmed = true; }
+    const wantsFullRun = () => ['idle', 'stale'].includes(state.status) || (autoArmed && ['cancelled', 'error'].includes(state.status));
+
+    /** Drops the results of items that left the bag; returns the ids of bag items added or changed since their analysis. */
+    function changedIds() {
+        const live = new Map();
+        (game.inventory || []).forEach(item => { if (analyzable(item)) live.set(String(item.id), item); });
+        Array.from(state.results.keys()).forEach(id => { if (!live.has(id)) state.results.delete(id); });
+        const changed = Array.from(live).filter(([id, item]) => analyzedAs.get(state.results.get(id)) !== JSON.stringify(item));
+        return new Set(changed.map(([id]) => id));
+    }
+
+    function later(run) {
+        state.autoTimer = setTimeout(() => {
+            state.autoTimer = null;
+            if (!state.work) run();
+        }, AUTO_DELAY_MS);
+    }
+
+    /** The equipment window's refresh while it shows (js/ui.js updateStaticUI): one analysis when due, else a top-up of new bag items. */
+    function autoStart() {
+        sync(true);
+        if (game.itemSubtab !== 'item-tab-equip') return;
+        const full = wantsFullRun();
+        autoArmed = false;
+        if (state.autoTimer || state.work) return;
+        if (full) {
+            later(() => { if (state.status !== 'ready') start(); });
+            return;
+        }
+        const changed = state.status === 'ready' ? changedIds() : new Set();
+        if (changed.size) later(() => { sync(true); if (state.status === 'ready') begin(changed); });
     }
 
     function setFilter(filterId) {
@@ -346,6 +404,6 @@
         return true;
     }
 
-    const equipmentTriage = Object.freeze({ sync, render, start, cancel, setFilter, filterRows, getResult, equipRecommended });
+    const equipmentTriage = Object.freeze({ sync, render, start, cancel, autoStart, onOpen, setFilter, filterRows, getResult, equipRecommended });
     safeExposeGlobals({ equipmentTriage });
 }());

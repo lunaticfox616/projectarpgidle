@@ -10,7 +10,7 @@ const atlasFinds = (() => {
         return keepCurrencyDrop(enemy, key, count).gain > 0;
     }
     function grantOmenJewel(enemy, zone) {
-        const jewel = generateJewelDrop(zone);
+        const jewel = generateJewelDrop(zone, lootOmens.jewelOdds(zone));
         if (placeFloorItem(enemy, 'jewel', jewel)) return true;
         const receipt = receiveJewelDrop(jewel);
         if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });
@@ -51,7 +51,8 @@ const atlasFinds = (() => {
      * the listed rarities, so the boss pile always holds gear without drawing on the unique budget. */
     function grantBossReward(enemy, zone) {
         const rules = LOOT_OMENS.mapBoss, count = rules.items + Number(Math.random() < rules.extraChance);
-        const roller = { ...enemy, isBoss: false, isElite: false, uniqueChanceMul: 1 };
+        // 수호자와 사도의 보상 장비는 그 영향을 띤다(js/item-influences.js onDrop).
+        const roller = { ...enemy, isBoss: false, isElite: false, uniqueChanceMul: 1, atlasInfluence: itemInfluences.bossInfluence(zone) };
         for (let i = 0; i < count; i++) grantEquipmentPick(roller, zone, rules.minimum[i] || null);
     }
     /** A picked-up memory leaf (js/memory-leaves.js): counted, then announced ('memory-leaf', js/memory-leaves-ui.js). */

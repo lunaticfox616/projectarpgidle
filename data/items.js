@@ -144,6 +144,8 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
             '종말의 논리': 'assets/items/illustrated/unique_final_logic.webp',
         }),
         baseAssets: Object.freeze({
+            // 액막이(data/colony-wards.js baseId): 예전 군락지 액막이 그림 그대로.
+            "colony_ward": "assets/items/seed-talisman-v3.png",
             "gen__armor_t1": "assets/items/illustrated/gen__armor_t1.webp",
             "gen__armor_t16": "assets/items/illustrated/gen__armor_t16.webp",
             "gen__armor_t20": "assets/items/illustrated/gen__armor_t20.webp",
@@ -425,6 +427,10 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
     })
 });
 
+// 바뀐 고유 이름(옛 이름 → 새 이름). 저장된 장비, 도감, 사냥 목표, 체이싱 기록은 불러올 때 새 이름으로 옮긴다(js/save-migrations.js
+// renameRetiredUniques). 2026-10-10 사용자: 붉은 제단, 푸른 제단 최종 보스 이름을 바꾸며 그 고유도 바꿨다.
+const RENAMED_UNIQUES = Object.freeze({ '총주교의 성화 장갑': '대사제의 성화 장갑', '포식자의 이빨띠': '갉는 자의 이빨띠' });
+
 // Phase-1 extracted data (global compatibility).
 const UNIQUE_DB = [
     { name: "첫 계약", slots: ["무기"], reqTier: 1, uniqueEffect: "소환수 최대 한도 +1", uniqueEffectKey: "summonCapBonus", uniqueEffectParams: { cap: 1 }, stats: [{ id: "summonFlatDmg", min: 4, max: 8 }, { id: "summonPctDmg", min: 12, max: 18 }, { id: "summonEfficiency", min: 6, max: 10 }, { id: 'summonResPen', min: 14.7, max: 16.8 }, { id: 'critDmg', min: 46.7, max: 53.1 }] },
@@ -529,7 +535,7 @@ const UNIQUE_DB = [
     { name: "저주의 관", slots: ["투구"], reqTier: 13, uniqueEffect: "저주 최대치 +1, 적에게 걸린 저주 1개당 최종 피해 +6%", uniqueEffectKey: "curseCrown", uniqueEffectParams: { extraCurseCap: 1, finalDmgPerCursePct: 6 }, stats: [{ id: "chaosPctDmg", min: 20, max: 30 }, { id: "resPen", min: 8, max: 14 }, { id: "crit", min: 6, max: 10 }, { id: "resChaos", min: 10, max: 16 }, { id: 'resAll', min: 18, max: 20.1 }, { id: 'energyShieldPct', min: 36, max: 40.3 }] },
     { name: "수호 성갑", slots: ["갑옷"], reqTier: 14, uniqueEffect: "받는 피해 -8%, 보스에게 받는 피해 -12%", uniqueEffectKey: "guardianArmor", uniqueEffectParams: { takenLessPct: 8, bossTakenLessPct: 12 }, stats: [{ id: "flatHp", min: 140, max: 200 }, { id: "dr", min: 10, max: 14 }, { id: "resAll", min: 14, max: 20 }, { id: "regen", min: 1.4, max: 2.2 }, { id: 'armorPct', min: 36, max: 40.3 }, { id: 'evasionPct', min: 36, max: 40.3 }] },
     { name: "함성 공명 허리띠", slots: ["허리띠"], reqTier: 13, uniqueEffect: "플레이어에게 적용된 함성 1개당 피해 20% 증폭", uniqueEffectKey: "warcryResonanceBelt", uniqueEffectParams: { perWarcryAmpPct: 20 }, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "move", min: 8, max: 14 }, { id: "aspd", min: 8, max: 12 }, { id: "resAll", min: 8, max: 14 }, { id: 'dr', min: 17.3, max: 19.5 }, { id: 'energyShieldPct', min: 36, max: 40.3 }] },
-    { name: "천 개의 유리병", slots: ["허리띠"], reqTier: 16, ultraRare: true, syncEffectOnLoad: true, uniqueEffect: "방어도 +25%, 모든 저항 +12%, 공격 속도 +8%, 피해 +10%", uniqueEffectKey: "thousandBottles", stats: [{ id: "flatHp", min: 130, max: 190 }, { id: "regen", min: 1.3, max: 2.0 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 12, max: 16 }, { id: "leech", min: 0.8, max: 1.2 }] },
+    { name: "천 개의 유리병", slots: ["허리띠"], reqTier: 16, ultraRare: true, syncEffectOnLoad: true, uniqueEffect: "방어도 +25%, 모든 저항 +12%, 공격 속도 +8%, 피해 +10%, 액막이 칸 +1", uniqueEffectKey: "thousandBottles", stats: [{ id: "flatHp", min: 130, max: 190 }, { id: "regen", min: 1.3, max: 2.0 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 12, max: 16 }, { id: "leech", min: 0.8, max: 1.2 }] },
     { name: "저항 잠식 반지", slots: ["반지"], reqTier: 12, uniqueEffect: "동일 대상 연속 타격 시 원소저항 -2% 누적 (최대 -20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "resPen", min: 10, max: 16 }, { id: "elementalPctDmg", min: 18, max: 28 }, { id: "resAll", min: 8, max: 14 }, { id: "leech", min: 0.8, max: 1.3 }, { id: 'flatHp', min: 90, max: 100.7 }, { id: 'crit', min: 4.3, max: 4.9 }] },
     { name: "컨디션 교본", slots: ["목걸이"], reqTier: 14, uniqueEffect: "부적 저주 지속시간 +100%, 저주 간격 −20%", uniqueEffectKey: "conditionManual", uniqueEffectParams: { durationPct: 100, cdrPct: 20 }, stats: [{ id: "gemLevel", min: 2, max: 2 }, { id: "suppCap", min: 1, max: 1 }, { id: "regen", min: 1.1, max: 1.7 }, { id: "resAll", min: 10, max: 16 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'flatHp', min: 90, max: 100.7 }] },
 
@@ -550,8 +556,8 @@ const UNIQUE_DB = [
     { name: "정원사의 가지 왕관", slots: ["투구"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "모든 스킬 젬 레벨 +2", uniqueEffectKey: "uniqueGemLevelBonus", uniqueEffectParams: { level: 2 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "resAll", min: 14, max: 20 }, { id: "energyShieldPct", min: 28, max: 40 }, { id: "critDmg", min: 40, max: 60 }] },
     { name: "장로의 썩은 심장", slots: ["목걸이"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "타격 시 적 카오스 저항 -3% (최대 12중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 3, maxStacks: 12 }, stats: [{ id: "chaosPctDmg", min: 30, max: 45 }, { id: "resChaos", min: 20, max: 30 }, { id: "flatHp", min: 100, max: 150 }, { id: "leech", min: 0.8, max: 1.4 }] },
     { name: "엮인 나이테", slots: ["반지"], reqTier: 22, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "반대편 반지의 모든 효과를 복사", uniqueEffectKey: "mirrorOppositeRing", stats: [] },
-    { name: "총주교의 성화 장갑", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "firePctDmg", min: 30, max: 45 }, { id: "resF", min: 20, max: 30 }, { id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }] },
-    { name: "포식자의 이빨띠", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "흡혈의 15% 즉시 적용, 8% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 15, doubleDamageChance: 8 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "leech", min: 1, max: 1.6 }, { id: "resChaos", min: 15, max: 25 }, { id: "armorPct", min: 20, max: 30 }] },
+    { name: "대사제의 성화 장갑", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "firePctDmg", min: 30, max: 45 }, { id: "resF", min: 20, max: 30 }, { id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }] },
+    { name: "갉는 자의 이빨띠", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "흡혈의 15% 즉시 적용, 8% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 15, doubleDamageChance: 8 }, stats: [{ id: "flatHp", min: 120, max: 180 }, { id: "leech", min: 1, max: 1.6 }, { id: "resChaos", min: 15, max: 25 }, { id: "armorPct", min: 20, max: 30 }] },
     { name: "금고지기의 열쇠꾸러미", slots: ["반지"], reqTier: 16, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "resAll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 90 }] },
     // 플라스크 · 향로 고유 장비(2026-10-03).
     { name: "넘치는 시약병", slots: ["무기"], reqTier: 5, uniqueEffect: "적 처치 시 초과 피해를 주변 적에게 전달", uniqueEffectKey: "overkillSplash", stats: [{ id: "flatDmg", min: 18, max: 26 }, { id: "potionPctDmg", min: 20, max: 30 }, { id: "aoePctDmg", min: 15, max: 22 }, { id: "poisonChance", min: 8, max: 12 }] },
@@ -1053,13 +1059,16 @@ const ORB_DB = {
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 줄이 둘인 더 강한 부적을 풉니다.' },
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 줄이 둘~셋인 부적을 풀고, 고유 부적 확률이 높습니다.' },
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
-    oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
+    oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' },
+    // 붉은 제단, 푸른 제단의 재료(2026-10-10 지갑 재화로): 최종 보스 입장 10개, 제작실에서 하나로 영향 줄 새기기(data/item-influences.js).
+    altarEmber: { name: '성화 잉걸', desc: '붉은 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 태양 줄로 바꿉니다(수호자, 마름 아이템 제외). 10개를 모으면 검은 태양의 대사제에게 도전합니다.' },
+    altarIchor: { name: '허기의 즙', desc: '푸른 제단에서 얻습니다. 투구, 갑옷, 장갑, 신발, 방패, 허리띠의 베이스 옵션 한 줄을 허기 줄로 바꿉니다(수호자, 마름 아이템 제외). 10개를 모으면 세계수를 갉는 자에게 도전합니다.' }
 };
 
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
 const WALLET_CURRENCY_INFO = Object.freeze({
-    colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻습니다. 군락지 수호 칸을 여는 데 씁니다.' }),
-    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지 수호 칸을 여는 데 씁니다.' })
+    colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻고 액막이를 해체해도 나옵니다. 30개로 군락지 화면에서 액막이를 만듭니다.' }),
+    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지에 들어갈 때 씁니다.' })
 });
 /** Name and description of any wallet currency: ORB_DB items first, then the wallet-only counters. */
 function getCurrencyInfo(key) {
@@ -1132,4 +1141,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, WALLET_CURRENCY_INFO, getCurrencyInfo, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

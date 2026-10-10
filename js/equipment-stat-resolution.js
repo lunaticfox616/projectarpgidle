@@ -7,7 +7,7 @@ function getPlayerStatSourceItemEntries() {
     if (memo?.has('equipment-sources')) return memo.get('equipment-sources');
     let entries = [];
     Object.entries(combatEquipmentStats.activeEquipment(game) || {}).forEach(([slotKey, item]) => {
-        if (item) entries.push([slotKey, item]);
+        if (item && !bagItems.isSpecial(item)) entries.push([slotKey, item]); // 코어와 액막이는 따로 더한다(coreItems.stats, colonyWardBonus)
     });
     memo?.set('equipment-sources', entries);
     return entries;

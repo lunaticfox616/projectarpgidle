@@ -1,6 +1,7 @@
-// 코어(예전 코어 큐브): 지하계에서 떨어지는 4줄짜리 장비. 장비창 왼쪽 위 코어 칸에 하나를 끼고, 나머지는 보관함에 둔다.
-// 저장 game.cores = { equipped: Core|null, owned: Core[] }, Core = { id, name, lines: [{ id, value, extraValue?, pairedValue? }] }.
-// 루프를 넘기면 장비처럼 비운다. 줄 풀과 한도는 data/core-items.js. DOM · 로그는 core-items-ui.js가 맡는다.
+// 코어(예전 코어 큐브): 지하계에서 떨어지는 4줄짜리 장비. 2026-10-10부터 가방에 들어가고(js/bag-items.js, slot '코어') 장비 칸
+// '코어'에 하나를 낀다. Core = { id, name, lines: [{ id, value, extraValue?, pairedValue? }] }. 예전 저장의 game.cores
+// { equipped, owned }는 불러올 때 장비 칸과 가방으로 옮긴다(bagItems.migrate). 루프를 넘기면 장비처럼 비운다.
+// 줄 풀은 data/core-items.js, 장비창의 코어 칸은 core-items-ui.js, 툴팁은 bag-items-ui.js.
 const coreItems = (() => {
     const pool = new Map(CORE_OPTION_POOL.map(def => [def.id, def]));
 
@@ -41,7 +42,8 @@ const coreItems = (() => {
         return kept.length ? { id: raw.id, name: nameFor(kept), lines: kept } : null;
     }
 
-    /** Save boundary: unknown lines drop, values clamp to the pool, ids stay unique. Normalizing twice changes nothing. */
+    /** The store of saves from before 2026-10-10 (bagItems.migrate empties it): unknown lines drop, values clamp to the pool, ids
+     * stay unique. Normalizing twice changes nothing. */
     function normalize(raw) {
         const source = raw && typeof raw === 'object' ? raw : {};
         const equipped = normalizeCore(source.equipped);
@@ -51,11 +53,6 @@ const coreItems = (() => {
             if (core && !ids.has(core.id) && owned.length < CORE_ITEM_RULES.savedLimit) { ids.add(core.id); owned.push(core); }
         }
         return { equipped, owned };
-    }
-
-    function ensure(state = game) {
-        if (!state.cores || !Array.isArray(state.cores.owned)) state.cores = normalize(state.cores);
-        return state.cores;
     }
 
     function rollValue(min, max, decimals, random) {
@@ -87,11 +84,11 @@ const coreItems = (() => {
         return `${def.label} +${line.value}${def.unit}`;
     }
 
-    /** The equipped core's lines as stat rows; nothing else in the store counts. */
+    /** The worn core's lines (equipment slot '코어') as stat rows; cores in the bag do not count. */
     function stats(state = game) {
-        const core = state.cores && state.cores.equipped;
-        if (!core) return [];
-        return core.lines.flatMap(line => {
+        const core = (state.equipment || {})['코어'];
+        if (!core || !Array.isArray(core.lines)) return [];
+        return core.lines.filter(line => pool.has(line.id)).flatMap(line => {
             const def = pool.get(line.id);
             const rows = [{ id: def.stat, val: line.value, source: 'core' }];
             if (def.pairedStat) rows.push({ id: def.pairedStat, val: line.pairedValue, source: 'core' });
@@ -105,63 +102,22 @@ const coreItems = (() => {
         return contentProgression.isUnlocked('cube', state) && floor >= CORE_ITEM_RULES.underworldFloor;
     }
 
-    /** A dropped core while the store has room; null (nothing drops) when it is full. */
-    function rollDrop(state = game) {
-        return ensure(state).owned.length >= CORE_ITEM_RULES.capacity ? null : roll();
-    }
-
-    /** Keeps an already rolled core. A core picked up from the exploration floor is kept past the capacity, up to the saved limit,
-     * so the floor never loses one. @returns {boolean} false only at the saved limit */
+    /** Keeps a rolled core in the bag; a full bag sends it to the temporary storage, so a core is never lost. @returns {boolean} */
     function keep(core, state = game) {
-        const store = ensure(state);
-        if (store.owned.length >= CORE_ITEM_RULES.savedLimit) return false;
-        store.owned.push(core);
-        return true;
+        return bagItems.addCore(core, state);
     }
 
-    /** Keep a dropped core immediately while there is room. */
-    function receiveDrop(state = game) {
-        const core = rollDrop(state);
-        if (core) keep(core, state);
-        return core;
-    }
-
-    function equip(id, state = game) {
-        const store = ensure(state);
-        const index = store.owned.findIndex(core => core.id === id);
-        if (index < 0) return false;
-        const [core] = store.owned.splice(index, 1);
-        if (store.equipped) store.owned.push(store.equipped);
-        store.equipped = core;
-        return true;
-    }
-
-    function unequip(state = game) {
-        const store = ensure(state);
-        if (!store.equipped) return false;
-        store.owned.push(store.equipped);
-        store.equipped = null;
-        return true;
-    }
-
-    function discard(id, state = game) {
-        const store = ensure(state);
-        const before = store.owned.length;
-        store.owned = store.owned.filter(core => core.id !== id);
-        return store.owned.length < before;
-    }
-
-    /** Loop transition: cores reset like ordinary equipment. */
+    /** Loop transition: the old store empties (the worn core and the bag reset with the equipment). */
     function resetForLoop(state = game) {
         state.cores = defaultState();
     }
 
+    /** Cores still in the old store (a save from before 2026-10-10 that has not been migrated yet). */
     function ownedItems(state = game) {
         const store = state.cores || {};
         return [store.equipped, ...(Array.isArray(store.owned) ? store.owned : [])].filter(Boolean);
     }
 
-    return Object.freeze({ defaultState, normalize, normalizeCore, ensure, roll, describe, stats, canDrop, rollDrop, keep, receiveDrop, equip, unequip,
-        discard, resetForLoop, ownedItems, icon });
+    return Object.freeze({ defaultState, normalize, normalizeCore, roll, describe, stats, canDrop, keep, resetForLoop, ownedItems, icon });
 })();
 safeExposeGlobals({ coreItems });

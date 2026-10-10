@@ -273,7 +273,7 @@ const atlasUi = (() => {
         if (node.kind === 'pinnacle') return pinnacleHtml(node);
         const region = ATLAS.regions.find(row => row.id === node.region), status = atlas.status(game, node.id), tier = atlas.effectiveTier(game, node);
         const maps = ledger().stash.filter(map => map.node === node.id).sort((a, b) => b.tier - a.tier);
-        const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">지역 수호자, 처치마다 뿌리 입장권(${node.ticket ? TICKET(node.ticket) : '가장 적은 종류'}), 지도석은 이 지역 ${ATLAS.guardianRules.minTier}등급 이상 보스가 떨어뜨립니다</p>` : '';
+        const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">지역 수호자, 처치마다 뿌리 입장권(${node.ticket ? TICKET(node.ticket) : '가장 적은 종류'}), 지도석은 이 지역 ${ATLAS.guardianRules.minTier}등급 이상 보스가 떨어뜨립니다</p>${itemInfluencesUi.sourceHtml('guardian')}` : '';
         return `<section class="atlas-node-detail" style="--tint:${region.tint}"><small>${region.name}, ${STATUS[status]}</small><h3>${escapeHTML(node.name)}</h3>
             <p>${tier}등급, ${terrainOf(node)}, 보스 ${escapeHTML(node.boss)}</p>${kind}
             <p class="atlas-muted">장비 T${atlas.lootTier(tier)}까지, 혼돈 ${atlas.equivalentDepth(tier)} 상당</p>

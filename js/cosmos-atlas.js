@@ -1281,12 +1281,12 @@
 
     function grantCosmosBossJewel(spec, force) {
         if (!spec || !spec.jewel || (!force && Math.random() >= COSMOS_BOSS_JEWEL_DROP_CHANCE)) return false;
-        if (!game || !Array.isArray(game.jewelInventory)) return false;
+        if (!game) return false;
         const jewel = createCosmosBossJewel(spec.jewel);
         if (!jewel) return false;
-        const limit = typeof window.getJewelInventoryLimit === 'function' ? window.getJewelInventoryLimit() : 60;
-        const overflow = game.jewelInventory.length >= limit;
-        game.jewelInventory.push(jewel);
+        // 가방에(js/bag-items.js), 가방이 차면 임시 보관으로: 우주계 보스 주얼은 잃지 않는다.
+        const overflow = !bagItems.put(bagItems.asJewel(jewel), game);
+        if (overflow) bagItems.put(jewel, game, true);
         game.noti = game.noti || {};
         game.noti.items = true;
         if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}${overflow ? ' (공간 부족 보호)' : ''}`, 'loot-unique', { item:jewel, itemKind:'jewel' });

@@ -70,7 +70,7 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.deepStrictEqual([again.currencies.goldenRule, 'growthBoard' in again], [2, false], '두 번 불러와도 같다');
 }
 
-// ── 예전 코어 큐브 · 망가진 코어 저장 ────────────────────────────────────
+// ── 예전 코어 큐브 · 망가진 코어 저장(2026-10-10부터 끼운 코어는 장비 칸 '코어', 보관한 코어는 가방) ──────
 {
     const g = merge({
         level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
@@ -80,9 +80,9 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     });
     assert.ok(!('coreCube' in g) && !('cube' in g.unlocks) && !('cube' in g.noti), '예전 큐브 진행은 보상 없이 지워야 한다');
     const plain = value => JSON.parse(JSON.stringify(value));
-    assert.deepStrictEqual(plain(g.cores.owned), [], '망가진 보관함은 빈 배열이 되어야 한다');
-    assert.deepStrictEqual(plain(g.cores.equipped.lines), [{ id: 'pct_dmg', value: 24 }], '모르는 줄은 버리고 값은 범위 안으로 되돌린다');
-    assert.deepStrictEqual(plain(merge(plain(g)).cores), plain(g.cores), '다시 불러와도 같은 결과여야 한다');
+    assert.deepStrictEqual(plain(g.cores), { equipped: null, owned: [] }, '예전 코어 보관함은 비운다');
+    assert.deepStrictEqual(plain(g.equipment['코어'].lines), [{ id: 'pct_dmg', value: 24 }], '끼운 코어는 코어 칸으로, 모르는 줄은 버리고 값은 범위 안으로');
+    assert.deepStrictEqual(plain(merge(plain(g)).equipment['코어']), plain(g.equipment['코어']), '다시 불러와도 같은 결과여야 한다');
 }
 
 // ── 비정상적으로 큰/음수인 확장 레벨 ─────────────────────────────────────
@@ -99,18 +99,24 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         'legacy purchased equipment expansion state must be removed during migration');
 }
 
-// ── 보관 초과분은 불러오기에서 잘리지 않는다 ─────────────────────────────
-// 전투 드랍이 유실 방지로 한도를 넘겨 보관한 희귀·고유 주얼이 조용히 사라지던 회귀.
+// ── 예전 주얼 보관함은 가방으로, 한도를 넘긴 것까지 잘리지 않는다 ─────────────
+// 전투 드랍이 유실 방지로 한도를 넘겨 보관한 희귀·고유 주얼이 조용히 사라지던 회귀. 2026-10-10부터는 가방(넘치면 임시 보관)으로 옮기고
+// 보관함 확장에 쓴 황금률(1, 2, 3, ...)은 돌려준다.
 {
     const jewel = () => ({ id: 0, name: '주얼', rarity: 'rare', stats: [{ id: 'allRes', val: 5, tier: 3 }] });
-    const limit = 40;
-    const many = Array.from({ length: limit + 3 }, (_, i) => Object.assign(jewel(), { id: 800000 + i }));
+    const many = Array.from({ length: 43 }, (_, i) => Object.assign(jewel(), { id: 800000 + i }));
     const g = merge({
         level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
-        currencies: {}, unlocks: {}, settings: {}, jewelInventory: many
+        currencies: { goldenRule: 1 }, unlocks: {}, settings: {}, jewelInventory: many, jewelInventoryExpandLevel: 3
     });
-    assert.ok(g.jewelInventory.length > limit,
-        `한도를 넘긴 주얼을 불러오기에서 자르면 안 된다 (${many.length}개 → ${g.jewelInventory.length}개)`);
+    const plain = value => JSON.parse(JSON.stringify(value));
+    const moved = [...g.inventory, ...g.equipmentTemporaryStorage].filter(item => item.slot === '주얼');
+    assert.strictEqual(moved.length, many.length, `예전 주얼은 모두 가방으로 옮겨야 한다 (${many.length}개 → ${moved.length}개)`);
+    assert.deepStrictEqual([g.jewelInventory.length, g.jewelInventoryExpandLevel, g.currencies.goldenRule], [0, 0, 7], '보관함을 비우고 확장 황금률을 돌려준다');
+    const again = merge(plain(g));
+    assert.deepStrictEqual([[...again.inventory, ...again.equipmentTemporaryStorage].filter(item => item.slot === '주얼').length, again.currencies.goldenRule],
+        [many.length, 7], '두 번 불러와도 같다');
+    assert.deepStrictEqual(plain(again.inventory.find(item => item.id === 800000).stats).map(stat => [stat.id, stat.val]), [['allRes', 5]], '주얼 줄은 그대로');
 }
 
 // A legacy/incomplete in-combat save can omit both enemy health fields.

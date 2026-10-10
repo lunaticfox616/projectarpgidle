@@ -3616,10 +3616,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalResChaos = Math.min(finalMaxResChaos, rawResChaos + warlockElementalOvercapToChaos);
     // 액막이 부적(군락 수호구)의 원소 저항/최대 화염 저항도 초과 화염 저항 계수에 반영되도록
     // 화염 저항 오버캡 계산 전에 군락 수호구 보너스를 먼저 합산한다.
-    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
-    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
-    if (game && game.colony) game.colony.wardSlots = cwSlots;
-    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
+    // 2026-10-10부터 액막이는 장비의 액막이 칸(열린 칸만)에서 읽는다(js/colony-wards.js equippedLines).
+    let cw = typeof colonyWards === 'object' ? colonyWards.equippedLines(game) : [];
+    cw.forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
     let fireResForOvercap = rawResF + (colonyWardBonus.resAll || 0);
     let maxResFForOvercap = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     if (activeUniqueIds.has('uj_burning_will')) {
@@ -5134,7 +5133,10 @@ function getGemPresentation(name, isSupport, statsOverride) {
 /** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
  * passes (getAttackTargets): they can be caught by the area, never aimed at. Checks and previews leave them out. */
 function getSkillTargets(pStats, dormant = []) {
-    let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
+    let living = (game.enemies || []).filter(enemy => enemy.hp > 0);
+    // 시야 밖 몬스터(2026-10-09 사용자): 영웅이 직접 노리지 못하고, 시야 안 몬스터를 친 범위, 연쇄, 부채꼴에만 휘말린다(알아채지 않은
+    // 몬스터와 같은 길, options.dormant). 노릴 몬스터가 없으면 영웅은 가장 가까운 몬스터 쪽으로 걸어간다(updatePlayerGridEngagement).
+    let alive = living.filter(enemy => actExplorationState.inSight(enemy));
     if (alive.length === 0) return [];
     ensureCombatGridRuntime();
     let skill = pStats.sSkill;
@@ -5149,7 +5151,8 @@ function getSkillTargets(pStats, dormant = []) {
         targetPriority: tactics.targetPriority,
         preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
     } : null;
-    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant });
+    let unseen = living.filter(enemy => !alive.includes(enemy));
+    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant: dormant.concat(unseen) });
     if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
         combatTacticsRuntime.targetId = targets[0].enemy.id;
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
@@ -6092,8 +6095,10 @@ function getWispEnemyDefenseBonuses(monsterVariant) {
 }
 
 /** Wisps drop skill gems more often (data/bosses.js WISP_ENEMY_RULES). */
+/** Wisps drop gems more often, and so does an atlas map with the 젬의 정원 omen (enemy.gemDropMul, js/atlas-maps.js applyEnemyMods). */
 function getEnemyGemDropMul(enemy) {
-    return enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
+    const wisp = enemy && enemy.monsterArchetype === 'wisp' ? WISP_ENEMY_RULES.gemDropMul : 1;
+    return wisp * (Number(enemy && enemy.gemDropMul) || 1);
 }
 
 function createEnemy(zone, marker, groupIndex) {
@@ -8557,7 +8562,7 @@ function collectExplorationFloorLoot(rows) {
     return kept.length + currencies.length;
 }
 
-/** Floor jewels, cores and wild talismans reach the same stores, and raise the same notices, as an immediate drop. */
+/** Floor jewels, cores and wild talismans reach the same places (jewels and cores the bag), and raise the same notices, as an immediate drop. */
 const receiveFloorItem = {
     jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
@@ -8621,7 +8626,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const kept = [];
     for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
-    kept.push(...grantRootWeaponPick(enemy, zone));
+    kept.push(...grantRootWeaponPick(enemy, zone), ...colonyWards.rollFieldDrop(enemy, zone));
     return kept[0] || null;
 };
 
@@ -8688,8 +8693,8 @@ function rollLootForEnemy(enemy) {
     getCurrencyDrops(enemy).forEach(drop => {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'core') {
-            const core = coreItems.rollDrop();
-            if (!core || placeFloorItem(enemy, 'core', core)) return;
+            const core = coreItems.roll();
+            if (placeFloorItem(enemy, 'core', core)) return;
             coreItems.keep(core);
             queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
             dispatchRuntimeEvent('core-item-received', core);
@@ -8948,15 +8953,9 @@ function handleEnemyDeath(enemy, pStats) {
             awardCurrency('colonyShard', shardReward);
             if (Math.random() < 0.35) awardCurrency('formlessDew', 1, 'drop');
             if (completedWave % 10 === 0) awardCurrency('colonyTrace', 1);
-            if (completedWave % 5 === 0 || Math.random() < 0.28) {
-                let c = game.colony || (game.colony = {});
-                c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
-                if (typeof generateColonyWard === 'function') {
-                    let ward = generateColonyWard();
-                    c.wardInventory.push(ward);
-                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare', { item:ward, itemKind:'talisman' });
-                }
-            }
+            // 액막이는 가방으로(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave).
+            let ward = colonyWards.rollColonyWave(completedWave, zone);
+            if (ward) addLog(`🛡️ 군락지 액막이 부적 획득: ${colonyWardsUi.statName(ward.baseStats[0].id)} +${formatValue(ward.baseStats[0].id, ward.baseStats[0].val)}`, 'loot-rare', { item:ward, itemKind:'talisman' });
             game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
             game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
             if (game.colony.highestWave >= 11) unlockJournalEntry('colony_wave_10');
@@ -9124,10 +9123,8 @@ function resolveNextLoopBestPlusOneZone(zone) {
     let currentAbyssDepth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     let currentLoopAbyssDepth = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), currentAbyssDepth);
     if (zone && (zone.type === 'abyss' || resolveAnyClimb) && currentLoopAbyssDepth >= 20) {
-        let nextDepth = Math.max(21, currentLoopAbyssDepth + 1);
-        let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
-        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) return null;
-        return getAbyssZoneIdForDepth(nextDepth);
+        // 이번 루프에 깬 최고 층의 다음 층(js/state.js getAutoProgressZoneId와 같은 한 층씩 규칙, 현재 심화층 기록도 맞춘다).
+        return getAutoProgressZoneId(getAbyssZoneIdForDepth(Math.max(21, currentLoopAbyssDepth + 1)));
     }
     if (zone && (zone.type === 'labyrinth' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
         game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
@@ -9325,12 +9322,10 @@ function grantBeyondBoundaryJewelRewards(context) {
     let stored = 0;
     for (let index = 0; index < count; index++) {
         let jewel = generateJewelDrop(context.zone);
-        game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-        if (game.jewelInventory.length >= getJewelInventoryLimit()) {
+        if (!bagItems.put(bagItems.asJewel(jewel))) { // 가방이 차면 주얼 결정으로
             salvageJewelObject(jewel, true);
             continue;
         }
-        game.jewelInventory.push(jewel);
         stored++;
         addLog(`경계 완료 보상: [${jewel.name}]`, 'loot-rare', { item:jewel, itemKind:'jewel' });
     }
@@ -9789,8 +9784,9 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let recordedEndlessDepth = Math.floor(game.abyssEndlessDepth || depth);
-                let nowEndless = depth === 20 ? 20 : Math.max(20, depth, recordedEndlessDepth);
+                // 깬 층이 곧 지금 층이다(2026-10-11): 예전에는 21층부터 지난 루프의 기록(game.abyssEndlessDepth)과 견줘 더 큰 쪽을
+                // 써서, 루프 조건 층을 깨면 다음 층이 아니라 기록한 최고 층의 다음으로 뛰었다.
+                let nowEndless = Math.max(20, depth);
                 ensureNextEndlessChaosDepthUnlocked(nowEndless);
                 // Chaos 20 is the entrance to deep chaos, so continuing after that clear must start at 21
                 // even if the save has a higher recorded deep-chaos floor from a previous loop.

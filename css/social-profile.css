@@ -118,4 +118,89 @@
 .social-stump-graft { position: absolute; top: 1px; left: 3px; color: var(--px-gold-bright, #e0c283); font-size: 10px; line-height: 1.2; }
 .social-stump-bar { position: absolute; right: 5px; bottom: 3px; left: 5px; height: 3px; background: rgba(0, 0, 0, .65); }
 .social-stump-bar > i { display: block; height: 100%; background: var(--stump-tone); }
+
+/* 프로필 창 고급 테마(2026-10-11, 사용자: "더 고급화할 수 있나?", 장비창 개편 css/equipment-window.css와 같은 결): 금빛 테와 안쪽 한 줄,
+   머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판, 능력치는 공격, 방어, 저항 묶음, 장비는 그림이 들어간 인형 배치. */
+#social-profile-modal .social-modal-box {
+  width: min(780px, calc(96vw / var(--scale-display-factor, 1)));
+  border: 1px solid #8a6a36;
+  border-radius: 0;
+  background: linear-gradient(180deg, #1d1712 0%, #120e0a 100%);
+  box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #120e0a, inset 0 0 0 4px rgba(227, 189, 114, .32), 0 18px 40px rgba(0, 0, 0, .7);
+}
+#social-profile-modal .social-modal-content { padding: 4px 18px 18px; }
+#social-profile-modal .social-modal-close { border: 1px solid #6b5431; border-radius: 0;
+  background: linear-gradient(180deg, #241c14, #17120d); color: #e6dcc6; }
+#social-profile-modal .social-profile-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 -14px 14px;
+  padding: 12px 62px 12px 14px; border-bottom: 1px solid rgba(227, 189, 114, .45);
+  background: linear-gradient(90deg, rgba(227, 189, 114, .2), rgba(227, 189, 114, .04) 70%, transparent); }
+#social-profile-modal .social-profile-id { min-width: 0; }
+#social-profile-modal .social-profile-name { color: #ecc982; font-size: 22px; letter-spacing: .5px; text-shadow: 0 1px 0 #000, 0 0 12px rgba(227, 189, 114, .35); }
+#social-profile-modal .social-profile-sub { margin-top: 6px; }
+#social-profile-modal .social-profile-chip { border: 1px solid #6b5431; background: linear-gradient(180deg, #241c14, #17120d); color: #e6dcc6; }
+#social-profile-modal .social-profile-updated { color: #a39883; }
+#social-profile-modal .social-profile-power { flex: 0 0 auto; text-align: right; }
+#social-profile-modal .social-profile-power span { display: block; color: #c9b48a; font-size: 12px; letter-spacing: 1px; }
+#social-profile-modal .social-profile-power b { color: #ffcf6e; font-size: 26px; line-height: 1.1; text-shadow: 0 0 12px rgba(255, 207, 110, .45); }
+#social-profile-modal .social-profile-duel { margin: 0 0 12px; }
+#social-profile-modal .social-profile-cols { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 14px; align-items: start; }
+#social-profile-modal .social-profile-card { padding: 0 12px 12px; border: 1px solid #5a4528;
+  background: linear-gradient(180deg, rgba(29, 23, 18, .92), rgba(13, 10, 7, .92)); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 226, 160, .1); }
+#social-profile-modal .social-profile-card > h3 { margin: 0 -12px 10px; padding: 6px 12px 5px; color: #ecc982; font-size: 13px; letter-spacing: .5px; text-shadow: 0 1px 0 #000;
+  background: linear-gradient(90deg, rgba(227, 189, 114, .22), rgba(227, 189, 114, .04) 70%, transparent); border-bottom: 1px solid rgba(227, 189, 114, .45); }
+
+/* 능력치 묶음: 테 없는 줄과 가는 금빛 밑줄 */
+#social-profile-modal .social-stat-group + .social-stat-group { margin-top: 10px; }
+#social-profile-modal .social-stat-group > h4 { margin: 0 0 2px; color: #a39883; font-size: 11px; font-weight: 400; letter-spacing: 2px; }
+#social-profile-modal .social-stat-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+#social-profile-modal .social-stat-grid.is-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+#social-profile-modal .social-stat-item { align-items: center; padding: 4px 0; border: 0; border-bottom: 1px solid rgba(122, 95, 51, .35); border-radius: 0; background: none; }
+#social-profile-modal .social-stat-label { color: #cfc4ae; }
+#social-profile-modal .social-stat-value { font-size: 13px; }
+
+/* 탭: 이어 붙인 금빛 단추 */
+#social-profile-modal .social-profile-tabs { gap: 0; margin-bottom: 10px; }
+#social-profile-modal .social-profile-tabs button { min-height: 30px; border: 1px solid #6b5431; border-right-width: 0; border-radius: 0;
+  background: linear-gradient(180deg, #241c14, #17120d); color: #cfc4ae; }
+#social-profile-modal .social-profile-tabs button:last-child { border-right-width: 1px; }
+#social-profile-modal .social-profile-tabs button.active { border-color: #e3bd72; background: linear-gradient(180deg, #4a3618, #2c2010); color: #fff3d6;
+  box-shadow: inset -1px 0 0 #e3bd72; }
+
+/* 장비: 인형 배치(목걸이 투구 코어 / 무기 갑옷 방패 두 줄 / 장갑 허리띠 장갑 / 반지 신발 반지) */
+#social-profile-modal .social-doll { display: grid; justify-content: center; gap: 8px 10px; padding: 8px 0 4px;
+  grid-template-columns: 70px 90px 70px; grid-auto-rows: 62px;
+  grid-template-areas: "amulet helm core" "weapon body shield" "weapon body shield" "glove1 belt glove2" "ring1 boots ring2";
+  background: radial-gradient(ellipse 52% 58% at 50% 48%, rgba(227, 189, 114, .16), transparent 72%); }
+#social-profile-modal .social-doll .slot-목걸이 { grid-area: amulet; }
+#social-profile-modal .social-doll .slot-투구 { grid-area: helm; }
+#social-profile-modal .social-doll .slot-코어 { grid-area: core; }
+#social-profile-modal .social-doll .slot-무기 { grid-area: weapon; }
+#social-profile-modal .social-doll .slot-갑옷 { grid-area: body; }
+#social-profile-modal .social-doll .slot-방패 { grid-area: shield; }
+#social-profile-modal .social-doll .slot-장갑1 { grid-area: glove1; }
+#social-profile-modal .social-doll .slot-허리띠 { grid-area: belt; }
+#social-profile-modal .social-doll .slot-장갑2 { grid-area: glove2; }
+#social-profile-modal .social-doll .slot-반지1 { grid-area: ring1; }
+#social-profile-modal .social-doll .slot-신발 { grid-area: boots; }
+#social-profile-modal .social-doll .slot-반지2 { grid-area: ring2; }
+#social-profile-modal .social-doll .slot-반지3 { grid-column: 1; }
+#social-profile-modal .social-slot { --r: #3a2f20; position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--r) 75%, #000); background: radial-gradient(circle at 50% 38%, #2a2017 0%, #0b0907 72%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .9), inset 0 0 12px rgba(0, 0, 0, .8), 0 0 10px color-mix(in srgb, var(--r) 22%, transparent); }
+#social-profile-modal .social-slot:is(:hover, :focus-visible) { outline: 0;
+  box-shadow: 0 0 0 1px #000, 0 0 14px color-mix(in srgb, var(--r) 65%, transparent), inset 0 0 12px rgba(0, 0, 0, .8); }
+#social-profile-modal .social-slot.is-empty { border-style: dashed; cursor: default; box-shadow: inset 0 0 12px rgba(0, 0, 0, .8); }
+#social-profile-modal .social-slot img { width: 80%; height: 80%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+#social-profile-modal .social-slot-tag { position: absolute; left: 3px; bottom: 1px; color: #a39883; font-size: 10px; font-weight: 400; text-shadow: 1px 1px 0 #000; }
+
+/* 스킬, 주얼 줄도 같은 판 결 */
+#social-profile-modal .social-skill-row { border: 0; border-bottom: 1px solid rgba(122, 95, 51, .35); background: none; padding: 6px 2px; }
+#social-profile-modal .social-mini-card { border-radius: 0; background: linear-gradient(180deg, #1c1611, #100d09); }
+
+@media (max-width: 640px) {
+  #social-profile-modal .social-profile-cols { grid-template-columns: minmax(0, 1fr); }
+  #social-profile-modal .social-profile-header { flex-wrap: wrap; align-items: flex-start; }
+  #social-profile-modal .social-profile-power { text-align: left; }
+  #social-profile-modal .social-profile-power b { font-size: 22px; }
+}
 }

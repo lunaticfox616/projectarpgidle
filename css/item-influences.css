@@ -1,0 +1,79 @@
+/* 영향 장비와 뒤바뀐 고유(2026-10-10, js/item-influences-ui.js): 가방 칸, 장착 칸, 임시 보관, 장비 카드, 바닥 이름표, 툴팁 상자,
+   장비 비교 칸의 테두리. 왼쪽 절반은 첫째 영향(--infl-a), 오른쪽 절반은 둘째 영향(--infl-b) 색이다. 영향이 하나면 둘이 같은 색이고,
+   둘을 함께 받는 짝은 태양과 허기뿐이다(사용자 규칙). 희귀도 색(왼쪽 위 삼각형)은 그대로 둔다. */
+@layer features {
+.has-influence { --infl-a: #ff7a45; --infl-b: var(--infl-a); }
+
+/* 칸: ::after는 희귀도 삼각형이라 ::before로 테를 그린다. */
+.equipment-temporary-item.has-influence,
+.equipment-item-card.has-influence { position: relative; }
+.equipment-grid-item.has-influence::before,
+.equipment-slot.has-influence .equipment-slot-visual::before,
+.equipment-temporary-item.has-influence::before,
+.equipment-item-card.has-influence::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border: 2px solid transparent;
+    border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;
+    box-shadow: inset 8px 0 10px -6px color-mix(in srgb, var(--infl-a) 60%, transparent),
+        inset -8px 0 10px -6px color-mix(in srgb, var(--infl-b) 60%, transparent);
+    pointer-events: none;
+    z-index: 2;
+}
+/* 칸 이름이 영향 색으로 물든다(가방 칸에서 고를 때 보이는 이름). */
+.equipment-grid-item.has-influence .equipment-grid-item-name { color: color-mix(in srgb, var(--infl-a) 65%, #ffffff); }
+
+/* 바닥 이름표(js/battle-ground-loot-ui.js nameRow): 이름표 테가 영향 색이 된다. */
+.battle-loot-name[data-influence] {
+    border-width: 2px;
+    border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;
+}
+
+/* 장비 이름 아래 한 줄: 설명 없이 "태양 아이템" 같은 이름만, 영향마다 그 색으로. */
+.infl-tags { display: flex; flex-wrap: nowrap; gap: 10px; margin: 2px 0 4px; white-space: nowrap; }
+.infl-tags .infl-tag { color: var(--infl); font-weight: 700; }
+
+/* 줄 끝 표식과 바뀌기 전 줄. */
+.infl-chip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border: 1px solid color-mix(in srgb, var(--infl) 70%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--infl) 18%, transparent);
+    color: var(--infl);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.5;
+    vertical-align: 1px;
+    white-space: nowrap;
+}
+/* 다른 줄을 바꾼 줄 아래 한 줄: "[태양] 기존 ○○", "[허기] 기존 ○○", "[뒤바뀜] 기존 ○○". 툴팁에서는 줄을 바꾸고, 제작실 줄에서는 옆에 붙는다. */
+.infl-replaced { margin-left: 6px; color: color-mix(in srgb, var(--infl) 55%, #c9d2dc); font-size: 11px; white-space: nowrap; }
+.infl-replaced .infl-chip { margin: 0 5px 0 0; }
+.tooltip-line > .infl-replaced { display: block; margin: 1px 0 0; }
+/* 표식이 있는 줄 전체에 같은 색 띠: 바뀐 줄(아래 한 줄까지)과 영향 줄을 한눈에 찾는다. */
+.tooltip-line:has(> .infl-chip, > .infl-replaced) { padding-left: 5px; border-left: 2px solid transparent; }
+.tooltip-line:has(> .infl-replaced.is-red) { border-left-color: #ff7a45; background: linear-gradient(90deg, rgba(255, 122, 69, .16), transparent 75%); }
+.tooltip-line:has(> .infl-replaced.is-blue) { border-left-color: #3fd6c6; background: linear-gradient(90deg, rgba(63, 214, 198, .15), transparent 75%); }
+.tooltip-line:has(> .infl-replaced.is-swapped) { border-left-color: #c792ff; background: linear-gradient(90deg, rgba(199, 146, 255, .2), transparent 80%); }
+.tooltip-line:has(> .infl-chip.is-guardian) { border-left-color: #dfe9f6; background: linear-gradient(90deg, rgba(223, 233, 246, .13), transparent 75%); }
+.tooltip-line:has(> .infl-chip.is-blight) { border-left-color: #a6d44a; background: linear-gradient(90deg, rgba(166, 212, 74, .15), transparent 75%); }
+/* 기억 던전 머리의 뒤바뀐 고유 안내(js/memory-dungeon-ui.js). */
+.memory-swap-note { margin: 4px 0 0; color: #c792ff; font-weight: 700; }
+/* 아틀라스 최종 보기 카드와 수호자 노드의 출처 한 줄: 영향 이름은 그 색, 얻는 곳은 옅게(고유 장비 줄과 같은 크기). */
+.infl-source { margin: 0; font-size: 11px; line-height: 1.45; color: var(--atlas-muted, #a39883); }
+.infl-source .infl-tag { margin-right: 6px; color: var(--infl); font-weight: 700; }
+}
+
+/* 툴팁 상자와 장비 비교 칸: 피부(overrides)의 테두리 그림 대신 영향 색 테두리(왼쪽 반, 오른쪽 반). 상자 안이 스크롤돼도 테두리는 그대로다. */
+@layer overrides {
+:root body #item-tooltip-box[data-influence][data-influence]:not(.item-compare-tooltip),
+:root body #item-tooltip-box[data-influence][data-influence].item-compare-tooltip .item-tooltip-main,
+:root body .equipment-inspection-column > [data-influence][data-influence] {
+    border-style: solid;
+    border-width: var(--px-light-border, 2px);
+    border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;
+}
+}

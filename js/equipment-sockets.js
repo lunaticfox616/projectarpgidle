@@ -4,7 +4,7 @@
 // 처음부터 있던 소켓을 기록으로 남겨 그대로 쓴다(js/save-migrations.js keepLegacyAccessorySockets).
 // 타락 소켓(2026-10-05, 2026-10-07): 잿불가지 타락이 어느 부위에나 소켓을 하나 연다(item.corruptionSocket, 장비당 최대 1개).
 // 장신구가 아닌 부위에는 이것이 유일한 소켓이다. 주얼을 해금한 뒤에만 나오는 결과다(js/passives.js canApplyTaintedOutcome).
-// 뺀 주얼은 보관함으로 돌아간다(보관함이 가득 차면 뺄 수 없다). 능력치 합산은 combat-build-stats.js, 화면은 equipment-sockets-ui.js.
+// 뺀 주얼은 가방으로 돌아간다(가방에 자리가 없으면 뺄 수 없다, js/bag-items.js). 능력치 합산은 combat-build-stats.js, 화면은 equipment-sockets-ui.js.
 // 주얼을 읽는 곳은 모두 jewels(item)을 써서 소켓 종류가 늘어도 빠지는 곳이 없게 한다.
 const equipmentSockets = (() => {
     const ACCESSORY_SLOTS = new Set(['반지', '목걸이', '허리띠']);
@@ -54,15 +54,14 @@ const equipmentSockets = (() => {
     }
 
     /**
-     * Before an item is destroyed (salvage, a chance orb): every socketed jewel goes back to the jewel store, past its limit if
-     * need be, the way protected rare drops do — the player's jewel is never lost with the item.
+     * Before an item is destroyed (salvage, a chance orb): every socketed jewel goes back to the bag, past a full bag into the
+     * temporary storage, so the player's jewel is never lost with the item.
      * @returns {number} jewels returned
      */
     function returnJewels(item, state = game) {
         const rows = jewels(item);
-        state.jewelInventory = state.jewelInventory || [];
         rows.forEach(row => {
-            state.jewelInventory.push(row.jewel);
+            bagItems.put(bagItems.asJewel(row.jewel), state, true);
             socketRecord(item, row.kind, row.index).jewel = null;
         });
         return rows.length;
@@ -134,15 +133,14 @@ const equipmentSockets = (() => {
         return item.voidSocket && item.voidSocket.jewel ? item.voidSocket : null;
     }
 
-    /** Moves a stored jewel into the item's first empty socket. */
+    /** Moves a bag jewel into the item's first empty socket. */
     function insert(item, jewelId, state = game) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
-        const store = state.jewelInventory || [];
-        const index = store.findIndex(jewel => jewel && jewel.id === jewelId);
+        const jewel = bagItems.jewels(state).find(row => row.id === jewelId);
         const empty = list(item).find(row => !row.jewel);
-        if (index < 0) return { ok: false, reason: '보관함에 없는 주얼입니다.' };
+        if (!jewel) return { ok: false, reason: '가방에 없는 주얼입니다.' };
         if (!empty) return { ok: false, reason: '빈 소켓이 없습니다.' };
-        const [jewel] = store.splice(index, 1);
+        bagItems.take(jewel, state);
         socketRecord(item, empty.kind, empty.index).jewel = jewel;
         return { ok: true, jewel };
     }
@@ -151,11 +149,9 @@ const equipmentSockets = (() => {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const record = item ? socketRecord(item, kind, index) : null;
         if (!record || !record.jewel) return { ok: false, reason: '빈 소켓입니다.' };
-        state.jewelInventory = state.jewelInventory || [];
-        if (state.jewelInventory.length >= getJewelInventoryLimit()) return { ok: false, reason: '주얼 보관함이 가득 찼습니다.' };
         const jewel = record.jewel;
+        if (!bagItems.put(bagItems.asJewel(jewel), state)) return { ok: false, reason: '가방에 자리가 없습니다.' };
         record.jewel = null;
-        state.jewelInventory.push(jewel);
         return { ok: true, jewel };
     }
 

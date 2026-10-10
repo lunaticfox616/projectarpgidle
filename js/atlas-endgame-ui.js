@@ -3,6 +3,7 @@
  */
 const atlasEndgameUi = (() => {
     const E = ATLAS_ENDGAME;
+    const regionName = id => (ATLAS.regions.find(region => region.id === id) || {}).name || id;
     function challenge(id) {
         const reason = atlasRun.openEndgame(id);
         if (reason) return addLog(reason, 'attack-monster');
@@ -15,14 +16,15 @@ const atlasEndgameUi = (() => {
     }
     /** [who, where]: a league names its boss and its room, an apex its first stage and its domain. */
     const titleOf = row => (row.kind === 'league' ? [row.boss, row.name] : [row.stages[0].name, row.domain]);
-    /** One fight: who and where, the offering (have/need) and where it comes from, its unique, the unlock condition and the challenge.
+    /** One fight: who and where, the offering (have/need) and where it comes from (and the influenced gear that content gives), its unique,
+     * the unlock condition and the challenge.
      * block: why nothing can depart now (an open map, another content's run), said once above the cards. */
     function fightHtml(fight, block) {
         const row = fight.row, tier = atlas.effectiveTier(game, atlas.node(row.id)), why = fight.reason || block, [who, where] = titleOf(row);
         const lockId = `atlas-late-lock-${row.id}`;
         return `<div class="atlas-late-card${why ? '' : ' is-ready'}${fight.unlocked ? '' : ' is-locked'}">
             <strong>${escapeHTML(who)}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? `, 처치 ${fight.kills}회` : ''}</small>
-            <div class="atlas-late-entry">${entryHtml(fight.entry)}</div><p class="atlas-muted">${escapeHTML(row.how)}</p>
+            <div class="atlas-late-entry">${entryHtml(fight.entry)}</div><p class="atlas-muted">${escapeHTML(row.how)}</p>${itemInfluencesUi.fightSourceHtml(row.id)}
             <p class="atlas-late-unique">고유 장비 ${escapeHTML(row.unique)}</p>${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
             <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')" aria-label="${escapeHTML(who)} 도전"
                 ${fight.lock ? `aria-describedby="${lockId}"` : ''} ${why ? `disabled title="${escapeHTML(why)}"` : ''}>도전</button></div>`;
@@ -39,11 +41,11 @@ const atlasEndgameUi = (() => {
             <p class="atlas-muted">나이테가 목격한 처치 ${view.witness}회, 다음 초대장까지 ${view.witness % view.witnessPer}/${view.witnessPer}</p>
             ${block ? `<p class="atlas-lock">${escapeHTML(block)}</p>` : ''}</section>`;
     }
-    /** 마름: only once the gardener has fallen (it spreads from then on). */
+    /** 마름: only once the gardener has fallen (it spreads from then on; a fallen apostle lifts its region's). */
     function blightHtml(view) {
         if (!view.gardenerDown) return '';
         const chips = view.blight.map(({ region, level }) => `<span style="--tint:${region.tint}"><i></i>${region.name} ${level}/${E.blight.max}</span>`).join('');
-        return `<section class="atlas-late-group"><h3>마름</h3><p class="atlas-muted">지도를 마칠 때마다 그 지역에 번지고, 짙을수록 사도가 자주 나옵니다.</p>
+        return `<section class="atlas-late-group"><h3>마름</h3><p class="atlas-muted">지도를 마칠 때마다 그 지역에 번지고, 짙을수록 사도가 자주 나옵니다. 사도를 쓰러뜨리면 그 지역의 마름이 걷힙니다.</p>
             <div class="atlas-late-blight">${chips}</div></section>`;
     }
     function html() {
@@ -76,6 +78,7 @@ const atlasEndgameUi = (() => {
         const text = spoilsText(spoils);
         if (text) addLog(`🌳 후반부 보상: ${text}`, 'season-up');
         if (spoils.unique) addLog(`👑 고유 장비 <span class='loot-unique'>[${escapeHTML(spoils.unique)}]</span>`, 'loot-unique');
+        if (spoils.blight && spoils.blight.cleansed) addLog(`🌿 사도가 쓰러져 ${escapeHTML(regionName(spoils.blight.region))}의 마름이 걷혔습니다.`, 'season-up');
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     return Object.freeze({ html, challenge, noticeAwakened });

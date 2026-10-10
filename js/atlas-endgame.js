@@ -19,12 +19,28 @@ const atlasEndgame = (() => {
     const kills = (state, id) => ledger(state).kills[id] || 0;
     /** 세계수의 그림자를 한 번이라도 쓰러뜨리면 아틀라스가 깨어난다(후반부가 열린다). */
     const awakened = state => kills(state, 'pinnacle') > 0;
-    const count = (state, item) => ledger(state).items[item] || 0;
+    // 성화 잉걸과 허기의 즙은 지갑 재화다(2026-10-10): 최종 보스 입장과 함께 제작실에서 영향 줄을 새기는 데도 쓴다(data/item-influences.js).
+    const WALLET = Object.freeze({ ember: ITEM_INFLUENCES.red.currency, ichor: ITEM_INFLUENCES.blue.currency });
+    const count = (state, item) => Number(WALLET[item] ? state.currencies[WALLET[item]] : ledger(state).items[item]) || 0;
+    function store(state, item, value) {
+        if (WALLET[item]) state.currencies[WALLET[item]] = value;
+        else ledger(state).items[item] = value;
+    }
     function give(state, item, amount) {
         if (!(amount > 0) || !Object.hasOwn(E.items, item)) return 0;
         const before = count(state, item);
-        ledger(state).items[item] = Math.min(E.itemCap, before + Math.floor(amount));
-        return ledger(state).items[item] - before;
+        store(state, item, Math.min(E.itemCap, before + Math.floor(amount)));
+        return count(state, item) - before;
+    }
+    /** A save from before the altar materials became wallet currencies: the ledger's embers and ichors move to the wallet. */
+    function moveAltarMaterials(state, raw) {
+        const items = raw && raw.items && typeof raw.items === 'object' ? raw.items : null;
+        if (!items || !state.currencies) return;
+        for (const [item, key] of Object.entries(WALLET)) {
+            const held = Math.floor(Number(items[item]) || 0);
+            if (held > 0) state.currencies[key] = Math.min(E.itemCap, (Number(state.currencies[key]) || 0) + held);
+            delete items[item];
+        }
     }
     const def = id => DEFS.get(id) || null;
     const entryOf = row => (row.kind === 'league' ? [[row.item, row.need]] : row.entry);
@@ -54,7 +70,7 @@ const atlasEndgame = (() => {
         return missing.length ? `재료가 부족합니다: ${missing.map(([item, need]) => `${E.items[item].name} ${count(state, item)}/${need}`).join(', ')}` : '';
     }
     function spend(state, id) {
-        for (const [item, need] of entryOf(def(id))) ledger(state).items[item] = count(state, item) - need;
+        for (const [item, need] of entryOf(def(id))) store(state, item, count(state, item) - need);
     }
     /** Travel failed right after opening: the offering comes back. */
     function refund(state, id) {
@@ -217,7 +233,7 @@ const atlasEndgame = (() => {
         bossMaterial(state, node, run, out);
         fightSpoils(state, node, out, first);
         if (node.kind === 'apex') apexStumpDrops(state); // 그루터기 함 불씨의 흉터(포식이 열린 뒤)와 고대 씨앗(루프 42)
-        if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = spreadBlight(state, node.region);
+        if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = apostle ? cleanseBlight(state, node.region) : spreadBlight(state, node.region);
         if (!out.awakened) out.invite = witnessKill(state, node, apostle);
         return out;
     }
@@ -230,6 +246,12 @@ const atlasEndgame = (() => {
         const book = ledger(state).blight;
         book[region] = Math.min(E.blight.max, (book[region] || 0) + E.blight.perMap);
         return { region, level: book[region] };
+    }
+    /** A fallen apostle lifts its region's blight (2026-10-10): it builds up again map by map, so an apostle holds about one map in
+     * five instead of four in five, and the rot shards come about as fast as the other final bosses' offerings. */
+    function cleanseBlight(state, region) {
+        ledger(state).blight[region] = 0;
+        return { region, level: 0, cleansed: true };
     }
 
     // ---------------------------------------------------------------- save boundary, epoch, view
@@ -256,7 +278,7 @@ const atlasEndgame = (() => {
             blight: ATLAS.regions.map(region => ({ region, level: book.blight[region.id] || 0 })), witness: book.witness, witnessPer: E.witness.per,
             gardenerDown: kills(state, 'apex_gardener') > 0 };
     }
-    return Object.freeze({ defaults, normalize, normalizeRun, reset, awakened, kills, count, def, entryReason, spend, refund, runExtra,
+    return Object.freeze({ defaults, normalize, normalizeRun, moveAltarMaterials, reset, awakened, kills, count, def, entryReason, spend, refund, runExtra,
         bossBoost, zoneExtras, tuneStage, patternState, roomItems, onComplete, overview, isFight: id => DEFS.has(id),
         itemName: id => (E.items[id] ? E.items[id].name : id) });
 })();

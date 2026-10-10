@@ -1,9 +1,9 @@
 // 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 2-1, 3절): 세계수의 그림자(정점)를 처음 쓰러뜨리면 아틀라스가 깨어나 넓어진다.
-// 리그닌 이야기에 맞춘 최종 보스 다섯(정원사의 메아리, 밑거름의 장로, 나이테를 엮는 자, 황금 길의 총주교, 세계를 삼키는 포식자)과, 지도 속 콘텐츠 방마다의
+// 리그닌 이야기에 맞춘 최종 보스 다섯(정원사의 메아리, 밑거름의 장로, 나이테를 엮는 자, 검은 태양의 대사제, 세계수를 갉는 자)과, 지도 속 콘텐츠 방마다의
 // 리그 우두머리. 싸움은 아틀라스 지도 장치 런 그대로다(포털 · 보관 · 정산, js/atlas-run.js) — 다만 지도석 대신 재료를 바친다.
 // 재료(items)와 진행(처치, 마름, 목격)은 루프를 넘어 남고 시대 재생 때 사라진다. 수치는 모두 첫 제안값이다.
 const ATLAS_ENDGAME = Object.freeze({
-    // 후반부 재료. 지역 수호자 가위 조각 다섯(정원사), 마름 조각 넷(장로), 초대장(나이테), 잉걸(총주교), 허기의 즙(포식자),
+    // 후반부 재료. 지역 수호자 가위 조각 다섯(정원사), 마름 조각 넷(장로), 초대장(나이테), 잉걸(대사제), 허기의 즙(갉는 자),
     // 리그 조각 넷(지도 속 방에서).
     items: Object.freeze({
         shearRoots: Object.freeze({ name: '뿌리 가위 조각', from: '수호자 「검은 뿌리」' }),
@@ -74,7 +74,8 @@ const ATLAS_ENDGAME = Object.freeze({
             id: 'apex_gardener', name: '정원사의 메아리', domain: '정원사의 정원', act: 6, bossAct: 5, ele: 'phys', tier: 18,
             how: '깨어난 뒤 지역 수호자를 쓰러뜨리면 그 지역의 가위 조각을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['shearRoots', 1], ['shearTrunk', 1], ['shearCanopy', 1], ['shearGarden', 1], ['shearSanctum', 1]]),
-            hpMul: 5, damageMul: 1.6, hazard: Object.freeze({ pattern: 'line', warningMs: 1700, intervalMs: 6200 }),
+            // 피해 1.6이면 초당 받는 피해가 T20 장로, 갉는 자보다 컸다(2026-10-10 실측). 첫 최종 보스라 정점과 T20 사이로 내렸다.
+            hpMul: 5, damageMul: 1.4, hazard: Object.freeze({ pattern: 'line', warningMs: 1700, intervalMs: 6200 }),
             stages: Object.freeze([
                 Object.freeze({ name: '정원사의 메아리', bossAct: 5, mechanic: 'prune' }),
                 Object.freeze({ name: '접붙이는 정원사', bossAct: 5, mechanic: 'graft' }),
@@ -108,28 +109,28 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['goldenRule', 5], ['sapBud', 6], ['emberBranch', 4]]), unique: '엮인 나이테'
         }),
         Object.freeze({
-            id: 'apex_archbishop', name: '황금 길의 총주교', domain: '황금 길의 끝', act: 2, bossAct: 1, ele: 'fire', tier: 20,
+            id: 'apex_archbishop', name: '검은 태양의 대사제', domain: '황금 길의 끝', act: 2, bossAct: 1, ele: 'fire', tier: 20,
             how: '지도 속 붉은 제단을 비우면 성화 잉걸을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ember', 10]]),
             hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'cross', warningMs: 1550, intervalMs: 5000 }),
             stages: Object.freeze([
-                Object.freeze({ name: '황금 길의 총주교', bossAct: 1, mechanic: 'pyre' }),
+                Object.freeze({ name: '성화를 든 대사제', bossAct: 1, mechanic: 'pyre' }),
                 Object.freeze({ name: '부제들의 성가대', bossAct: 7, mechanic: 'hymn' }),
-                Object.freeze({ name: '검은 태양의 총주교', bossAct: 1, mechanic: 'blackSun' })
+                Object.freeze({ name: '검은 태양의 대사제', bossAct: 1, mechanic: 'blackSun' })
             ]),
-            rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30]]), unique: '총주교의 성화 장갑'
+            rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30]]), unique: '대사제의 성화 장갑'
         }),
         Object.freeze({
-            id: 'apex_devourer', name: '세계를 삼키는 포식자', domain: '허기의 둥지', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
+            id: 'apex_devourer', name: '세계수를 갉는 자', domain: '허기의 둥지', act: 3, bossAct: 2, ele: 'chaos', tier: 20,
             how: '지도 속 푸른 제단을 비우면 허기의 즙을 줍니다.',
             unlock: 'awakened', entry: Object.freeze([['ichor', 10]]),
             hpMul: 6, damageMul: 1.7, hazard: Object.freeze({ pattern: 'block', warningMs: 1550, intervalMs: 4800 }),
             stages: Object.freeze([
-                Object.freeze({ name: '세계를 삼키는 포식자', bossAct: 2, mechanic: 'gnaw' }),
+                Object.freeze({ name: '갉는 자', bossAct: 2, mechanic: 'gnaw' }),
                 Object.freeze({ name: '뿌리 촉수 무리', bossAct: 6, mechanic: 'tendril' }),
                 Object.freeze({ name: '끝없는 허기', bossAct: 2, mechanic: 'hunger' })
             ]),
-            rewards: Object.freeze([['goldenRule', 3], ['formlessDew', 16], ['sapBud', 4]]), unique: '포식자의 이빨띠'
+            rewards: Object.freeze([['goldenRule', 3], ['formlessDew', 16], ['sapBud', 4]]), unique: '갉는 자의 이빨띠'
         })
     ]),
     // 리그 우두머리: 지도 속 콘텐츠 방(data/atlas.js encounters)이 깨어난 뒤 그 리그의 조각도 준다. 조각 need개로 우두머리와 싸운다.
@@ -230,7 +231,7 @@ const ATLAS_ENDGAME = Object.freeze({
     // 나이테를 엮는 자는 깨어난 뒤의 후반부 보스(수호자 · 정점 · 사도 · 최종 보스 · 리그 우두머리) 처치를 목격한다.
     // per번마다 초대장 하나(재료 한도까지). 싸움의 메아리는 가장 최근에 목격한 보스들이다(keep개를 기억, 생명력 × echoHpMul).
     witness: Object.freeze({ per: 5, keep: 6, echoHpMul: 0.6 }),
-    // 제단: 깨어난 뒤 지도마다 chance %로 붉은 제단(총주교)과 푸른 제단(포식자) 방이 콘텐츠 방과 따로 altarLimit개까지 생긴다
+    // 제단: 깨어난 뒤 지도마다 chance %로 붉은 제단(대사제)과 푸른 제단(갉는 자) 방이 콘텐츠 방과 따로 altarLimit개까지 생긴다
     // (data/atlas.js encounters, js/atlas-encounters.js roll). 방을 비우면 그 재료.
     altars: Object.freeze({
         redAltar: Object.freeze({ item: 'ember', amount: Object.freeze([2, 0.12]) }),

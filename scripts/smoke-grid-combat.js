@@ -15,7 +15,7 @@ const files = [
   'data/gem-core-forge.js', 'data/skills.js', 'data/skill-effect-expansion.js', 'data/wisp-summons.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
-  'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/weapon-categories.js',
+  'data/items.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/item-influences.js', 'data/colony-wards.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
   'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
   'data/passives.js',
@@ -56,7 +56,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/combat.js', 'js/region-affix-effects.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/combat.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
 ];

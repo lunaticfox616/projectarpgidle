@@ -211,6 +211,7 @@ function buildItemSnapshot(item, slotOverride) {
 function buildItemMetaSnapshot(item) {
     let chain = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     return {
+        baseId: item.baseId, // 인형 배치의 장비 그림(profileItemArt)
         baseStep: chain && chain.total > 1 ? [chain.step, chain.total] : undefined,
         itemLevel: profileItemLevel(item),
         grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
@@ -279,17 +280,72 @@ function talismanStateFor(item) {
 }
 
 // 프로필 능력치(2026-10-03): 게임의 비교 표(COMPARE_STAT_META, js/utils.js)와 같은 이름과 형식이다. 소환 DPS는 소환수가 있을 때만.
+// 아이콘(2026-10-11 사용자: "이모티콘 없애고 게임에서 원래 쓰는 아이콘으로"): 캐릭터 창이 그 능력치에 쓰는 전투 기록 아이콘(log: attack, phys,
+// fire, cold, light, chaos, css/layout.css .combat-log-icon)을 쓰고, 캐릭터 창에 아이콘이 없는 능력치는 패시브 트리가 그 능력치에 쓰는
+// 아이콘(tree: js/passives.js PASSIVE_ICON_ATLAS_CELL)을 쓴다.
 const PROFILE_STAT_KEYS = Object.freeze([
-    ['dps', '⚔️'], ['summonDps', '⚔️'], ['baseDmg', '💥'], ['aspd', '⚡'], ['crit', '🎯'], ['critDmg', '🔥'], ['maxHp', '❤️'],
-    ['energyShield', '🔵'], ['armor', '🛡️'], ['evasion', '💨'], ['deflectChance', '🛡️'], ['blockChance', '🛑'], ['dr', '🧱'],
-    ['regen', '🩹'], ['resF', '🔥'], ['resC', '❄️'], ['resL', '⚡'], ['resChaos', '☠️']
+    ['dps', 'log:attack'], ['summonDps', 'log:attack'], ['baseDmg', 'log:attack'], ['aspd', 'tree:precision'], ['crit', 'tree:precision'],
+    ['critDmg', 'log:attack'], ['maxHp', 'tree:life'], ['energyShield', 'tree:arcane'], ['armor', 'log:phys'], ['evasion', 'tree:wind'],
+    ['deflectChance', 'tree:shield'], ['blockChance', 'tree:shield'], ['dr', 'log:phys'], ['regen', 'tree:life'],
+    ['resF', 'log:fire'], ['resC', 'log:cold'], ['resL', 'log:light'], ['resChaos', 'log:chaos']
 ]);
+const PROFILE_STAT_ICONS = new Map(PROFILE_STAT_KEYS);
+
+/** 능력치 줄의 아이콘. 예전 프로필(키 없는 줄)은 자리만 비워 줄을 맞춘다. */
+function profileStatIconHtml(key) {
+    let [sheet, name] = String(PROFILE_STAT_ICONS.get(key) || '').split(':');
+    if (sheet === 'log') return `<span class="combat-log-icon combat-log-icon--${name}" aria-hidden="true"></span>`;
+    let cell = sheet === 'tree' && typeof PASSIVE_ICON_ATLAS_CELL === 'object' ? PASSIVE_ICON_ATLAS_CELL[name] : null;
+    if (!cell) return '<span class="social-stat-icon is-none" aria-hidden="true"></span>';
+    // 그림판 한 칸을 22px로 그리고 가운데 16px만 보인다(칸 가장자리의 빈 여백을 잘라 작은 크기에서도 그림이 보이게).
+    return `<span class="social-stat-icon" style="background-position:${-(cell[0] * 22 + 3)}px ${-(cell[1] * 22 + 3)}px;" aria-hidden="true"></span>`;
+}
+/** 능력치 이름. 2026-10-11 전에 올린 프로필은 이름 앞에 이모티콘이 붙어 있어("⚔️ DPS") 떼고 쓴다. */
+function profileStatName(label) {
+    return String(label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+}
+// 능력치 묶음(2026-10-11 고급 테마, 사용자: "더 고급화할 수 있나?"): 공격, 방어, 저항. 저항은 한 줄에 둘씩.
+const PROFILE_STAT_GROUPS = Object.freeze([
+    ['공격', ['dps', 'summonDps', 'baseDmg', 'aspd', 'crit', 'critDmg']],
+    ['방어', ['maxHp', 'energyShield', 'armor', 'evasion', 'deflectChance', 'blockChance', 'dr', 'regen']],
+    ['저항', ['resF', 'resC', 'resL', 'resChaos']]
+]);
+/** 큰 정수에는 자릿수 쉼표(프로필 값은 "1914607"처럼 올라온다). */
+function profileStatValue(value) {
+    let text = String(value == null ? '' : value);
+    return /^-?\d{4,}$/.test(text) ? Number(text).toLocaleString('en-US') : text;
+}
+function profileStatRowHtml(s) {
+    let tone = PROFILE_STAT_TONES[s.key];
+    return `<div class="social-stat-item"><span class="social-stat-label">${profileStatIconHtml(s.key)}${socialEscape(profileStatName(s.label))}</span>`
+        + `<span class="social-stat-value"${tone ? ` style="color:${tone};"` : ''}>${socialEscape(profileStatValue(s.value))}</span></div>`;
+}
+/** 능력치 판: 키가 있는 프로필은 공격, 방어, 저항 묶음으로(묶음에 없는 키는 기타), 키가 없는 예전 프로필은 올라온 순서 그대로. */
+function profileStatsHtml(stats) {
+    let rows = stats.filter(s => s && s.label != null);
+    if (!rows.length) return '<div class="social-profile-empty">스탯 정보 없음</div>';
+    let grouped = new Set(PROFILE_STAT_GROUPS.flatMap(([, keys]) => keys));
+    let groups = PROFILE_STAT_GROUPS.map(([title, keys]) => [title, keys.map(key => rows.find(s => s.key === key)).filter(Boolean)])
+        .concat([['기타', rows.filter(s => !grouped.has(s.key))]]).filter(([, list]) => list.length);
+    if (groups.length === 1) return `<div class="social-stat-grid">${rows.map(profileStatRowHtml).join('')}</div>`;
+    return groups.map(([title, list]) => `<div class="social-stat-group"><h4>${title}</h4>`
+        + `<div class="social-stat-grid${title === '저항' ? ' is-pair' : ''}">${list.map(profileStatRowHtml).join('')}</div></div>`).join('');
+}
+/** 머리 줄 오른쪽의 큰 총 DPS(예전 프로필은 전투력). */
+function profilePowerHtml(p) {
+    if (!p.power) return '';
+    return `<div class="social-profile-power"><span>${p.version >= 8 ? '총 DPS' : '전투력'}</span><b>${socialComma(p.power)}</b></div>`;
+}
+// 능력치 값의 색(2026-10-11 사용자: "프로필 보기에서 폰트에 색깔이 다 사라졌어"): 장비창 요약(js/equipment-window-ui.js)과 같은 색.
+const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e', baseDmg: '#ffcf9f', aspd: '#fff3a8', crit: '#ffd6f2', critDmg: '#ffd6f2',
+    maxHp: '#ff6b6b', regen: '#ff9c9c', energyShield: '#7fd3ff', armor: '#d2b98c', dr: '#d2b98c', evasion: '#8fe08f', deflectChance: '#8fe08f',
+    blockChance: '#b8c4cc', resF: '#ff8a50', resC: '#6cb8ff', resL: '#ffd54f', resChaos: '#c39bff' });
 
 function buildProfileStats() {
     let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
     if (!s) return { stats: [], power: 0 };
     let rows = PROFILE_STAT_KEYS.filter(([key]) => key !== 'summonDps' || Number(s.summonDps) > 0)
-        .map(([key, icon]) => ({ key, label: `${icon} ${COMPARE_STAT_META[key].label}`, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
+        .map(([key]) => ({ key, label: COMPARE_STAT_META[key].label, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
     // 총 DPS(직접 + 소환)는 게임의 권장 전투력 비교와 같은 값이다(js/combat-ehp.js getMapPowerReadiness).
     let power = Math.floor(Number(s.totalDps) || (Number(s.dps) || 0) + (Number(s.summonDps) || 0));
     return { stats: rows, power };
@@ -318,13 +374,13 @@ function buildProfileIdentity(state) {
 function buildProfileGear(state) {
     let equipment = [];
     let eq = state.equipment || {};
-    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
+    Object.keys(eq).filter(slot => !bagItems.isSpecial(eq[slot])).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
     return { equipment: equipment.slice(0, 16), core: buildCoreSnapshot(state), stump: buildStumpSnapshot(state) };
 }
 
 /** 장비창 왼쪽 위 코어 칸: 코어를 열고 하나를 끼고 있을 때만. 게임 코어 툴팁과 같은 이름과 줄. */
 function buildCoreSnapshot(state) {
-    let core = state.cores && state.cores.equipped;
+    let core = (state.equipment || {})['코어'];
     if (!core || typeof coreItems !== 'object' || !contentProgression.isUnlocked('cube', state)) return undefined;
     return { kind: 'core', name: core.name, lines: core.lines.map(line => coreItems.describe(line)) };
 }
@@ -596,13 +652,28 @@ function getSocialPresenceState(lastSeen, now = Date.now()) {
     if (ageSeconds <= SOCIAL_ONLINE_WINDOW_S) return 'active';
     return ageSeconds <= SOCIAL_RECENT_WINDOW_S ? 'recent' : '';
 }
+/** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 5분 안에 신호가 온 사람 수.
+ * 접속자 목록과 같은 조회 결과를 쓰므로 요청은 늘지 않는다. 아직 모르거나 0명이면 숨긴다. */
+function renderChatOnlineCount(visible) {
+    let badge = document.getElementById('social-chat-online');
+    if (!badge) return;
+    let active = visible.filter(row => row.state === 'active').length;
+    badge.hidden = !socialState.onlineSupported || active <= 0;
+    let text = `접속 ${active}명`;
+    if (badge.dataset.text !== text) {
+        badge.dataset.text = text;
+        badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
+    }
+    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${visible.length - active}명`;
+}
 function renderOnlineUsers(users, now = Date.now()) {
+    let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
+    renderChatOnlineCount(visible);
     let host = document.getElementById('social-online');
     if (!host) return;
     if (!socialState.onlineSupported) { host.style.display = 'none'; return; }
     host.style.display = 'block';
     let myId = socialLoggedInUserId();
-    let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
     let key = visible.length
         ? visible.map(row => `${row.user.user_id}:${row.user.nickname || ''}:${row.state}`).join(',')
         : 'empty';
@@ -875,7 +946,7 @@ function getChatAttachSnapshot(source, key) {
     let state = typeof game !== 'undefined' && game ? game : {};
     if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
     if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
-    if (source === 'jewel') return buildJewelSnapshot((state.jewelInventory || [])[Number(key)]);
+    if (source === 'jewel') return buildJewelSnapshot(bagItems.jewels(state)[Number(key)]);
     if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
     return null;
 }
@@ -923,14 +994,16 @@ function updateChatCounter() {
 function getChatItemPickerGroups() {
     let state = typeof game !== 'undefined' && game ? game : {};
     let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
-    let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot]).map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
-    let jewels = entries('jewel', state.jewelInventory, () => '[보관]');
+    let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot] && !bagItems.isSpecial(state.equipment[slot]))
+        .map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
+    let jewels = entries('jewel', bagItems.jewels(state), () => '[가방]');
+    let gear = entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`).filter(entry => !bagItems.isSpecial(state.inventory[entry.key]));
     let stump = state.stumpBox || { items: [], board: [] };
     let talismanEntries = stump.items.filter(item => item.family === 'talisman')
         .map(item => ({ source: 'talisman', key: item.id, label: stump.board.includes(item.id) ? '[판]' : '[보관]' }));
     return [
         { title: '장착 장비', entries: equipment },
-        { title: '장비 인벤토리', entries: entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`) },
+        { title: '장비 인벤토리', entries: gear },
         { title: '주얼', entries: jewels.slice(0, 300) },
         { title: '부적', entries: talismanEntries.slice(0, 300) }
     ];
@@ -1526,7 +1599,6 @@ async function openMyProfilePreview() {
 /** 머리 줄: 레벨, 직업, 전직, 루프, 총 DPS를 칩으로(가운뎃점 없이). 예전 프로필(직업 없음)은 전직만 나온다. */
 function renderProfileIdentityChips(p) {
     let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || '미전직', `루프 ${socialComma(p.loop || 0)}`];
-    if (p.power) chips.push(`${p.version >= 8 ? '총 DPS' : '전투력'} ${socialComma(p.power)}`);
     return chips.filter(Boolean).map(chip => `<span class="social-profile-chip">${socialEscape(chip)}</span>`).join('');
 }
 
@@ -1564,20 +1636,45 @@ function showProfileItemDetail(html) {
 }
 
 // 장비 탭: 끼고 있는 장비만 장비창의 제자리에 그린다(빈 칸은 그리지 않는다). 코어를 끼고 있으면 왼쪽 위 코어 칸도.
+/** 장비 탭(2026-10-11 고급 테마): 장비창과 같은 인형 배치에 장비 그림. 낀 칸은 등급 색 테, 비어 있는 기본 칸은 점선,
+ * 코어와 셋째 반지는 낀 때만 나온다. 이름과 옵션은 올리거나 누르면 뜨는 카드에 있다. */
 function renderProfileEquipPaperdoll(p) {
     let bySlot = new Map((p.equipment || []).filter(it => it && it.slot).map(it => [it.slot, it]));
-    let cards = SOCIAL_EQUIP_SLOTS.concat(['반지3']).filter(slot => bySlot.has(slot))
-        .map(slot => profileSlotHtml(slot, bySlot.get(slot), profileItemTag(bySlot.get(slot))));
-    if (p.core && typeof p.core === 'object' && p.core.name) cards.unshift(profileSlotHtml('코어', { ...p.core, kind: 'core' }, '코어'));
-    return cards.length ? `<div class="paperdoll social-paperdoll">${cards.join('')}</div>` : '<div class="social-profile-empty">장착한 장비 없음</div>';
+    let core = p.core && typeof p.core === 'object' && p.core.name ? { ...p.core, kind: 'core' } : null;
+    if (!bySlot.size && !core) return '<div class="social-profile-empty">장착한 장비 없음</div>';
+    let filled = slot => profileSlotHtml(slot, bySlot.get(slot), profileItemTag(bySlot.get(slot)));
+    let cards = SOCIAL_EQUIP_SLOTS.map(slot => (bySlot.has(slot) ? filled(slot) : profileEmptySlotHtml(slot)));
+    if (bySlot.has('반지3')) cards.push(filled('반지3'));
+    if (core) cards.push(profileSlotHtml('코어', core, '코어'));
+    return `<div class="social-doll">${cards.join('')}</div>`;
+}
+
+function profileEmptySlotHtml(slot) {
+    return `<div class="social-slot is-empty slot-${slot}"><span class="social-slot-tag">${socialEscape(slot.replace(/[123]$/, ''))}</span></div>`;
+}
+
+/** 코어 그림: 이름의 묶음 말(수호의 코어 ...)로 고른다. 프로필에는 코어의 줄 글만 올라온다. */
+function profileCoreArt(core) {
+    let names = typeof CORE_ITEM_RULES === 'object' ? CORE_ITEM_RULES.groupNames : {};
+    let group = Object.keys(names).find(key => String(core.name || '').startsWith(names[key]));
+    return `assets/px/cores/core-${group || 'empty'}.png`;
+}
+
+/** 장비 그림(게임 가방과 같은 그림). 베이스 id 없이 올라온 예전 프로필은 베이스 이름으로 찾는다. */
+function profileItemArt(it) {
+    if (it.kind === 'core') return profileCoreArt(it);
+    if (typeof getEquipmentGridVisualAsset !== 'function') return '';
+    let base = !it.baseId && typeof BASE_ITEM_DB !== 'undefined' ? BASE_ITEM_DB.find(row => row.name === it.baseName) : null;
+    return getEquipmentGridVisualAsset({ slot: it.slot, rarity: it.rarity, name: it.name, baseName: it.baseName, baseId: it.baseId || (base && base.id) });
 }
 
 function profileSlotHtml(slot, it, tag) {
     let key = `eq:${slot}`;
     socialState.profileTips[key] = renderProfileItemCard(it);
     let color = it.kind === 'core' ? PROFILE_CORE_TONE : socialRarityColor(it.rarity);
-    return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
-        + `<div class="social-slot-tag">[${socialEscape(tag)}]</div><div class="social-slot-name" style="color:var(--color-text);">${socialEscape(it.name)}</div></div>`;
+    let art = profileItemArt(it);
+    return `<div class="social-slot slot-${slot}" style="--r:${color};" role="button" tabindex="0" aria-label="${socialEscape(`[${tag}] ${it.name}`)}" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
+        + `${art ? `<img src="${socialEscape(art)}" alt="" draggable="false">` : ''}<span class="social-slot-tag">${socialEscape(tag)}</span></div>`;
 }
 
 /** 주얼 탭의 줄: 장비 소켓에 박힌 주얼과 그 자리([단궁] 심연 소켓 1). 소켓 정보가 없는 예전 프로필은 주얼 목록만. */
@@ -1689,30 +1786,31 @@ function renderProfileData(profile) {
     socialState.profileTab = 'equipment';
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
-    let statsHtml = stats.length
-        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value">${socialEscape(s.value)}</span></div>`).join('')
-        : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId();
     let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
+    // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
         <div class="social-profile-header">
-            <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
-            <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
-            ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
-            ${duelAction}
-        </div>
-        <div class="social-profile-cols">
-            <div class="social-profile-col">
-                <h3>능력치</h3>
-                <div class="social-stat-grid">${statsHtml}</div>
+            <div class="social-profile-id">
+                <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
+                <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
+                ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
             </div>
-            <div class="social-profile-col">
+            ${profilePowerHtml(p)}
+        </div>
+        ${duelAction}
+        <div class="social-profile-cols">
+            <section class="social-profile-col social-profile-card">
+                <h3>능력치</h3>
+                ${profileStatsHtml(stats)}
+            </section>
+            <section class="social-profile-col social-profile-card">
                 <h3>장착 구성</h3>
                 <div id="social-profile-tabs" class="social-profile-tabs">${profileTabsHtml(p)}</div>
                 <div id="social-profile-items">${renderProfileItemsArea()}</div>
-            </div>
+            </section>
         </div>`;
 }
 async function openPlayerProfile(userId) {
@@ -1771,6 +1869,7 @@ function renderSocialTab() {
     root.innerHTML = `
         ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
         <div class="social-chat-wrap">
+            <span id="social-chat-online" class="social-chat-online" hidden></span>
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
@@ -1851,7 +1950,10 @@ function injectSocialStyles() {
     .social-online-chip:hover{filter:brightness(1.18);}
     .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
     .social-online-empty{color:var(--copy-muted);font-size:12px;}
-    .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}
+    .social-chat-wrap{position:relative;display:flex;flex-direction:column;gap:8px;}
+    .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:auto;}
+    .social-chat-online[hidden]{display:none;}
+    .social-chat-online:not([hidden]) + .social-chat-list{padding-top:28px;}
     .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
     .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:12px;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:12px;}
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
@@ -1902,7 +2004,10 @@ function injectSocialStyles() {
     }
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
     .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:6px;padding:5px 9px;}
-    .social-stat-label{color:var(--copy-bright);font-size:12px;}
+    .social-stat-label{display:inline-flex;align-items:center;color:var(--copy-bright);font-size:12px;}
+    .social-stat-label .combat-log-icon,.social-stat-icon{flex:0 0 auto;width:16px;height:16px;margin-right:6px;}
+    .social-stat-icon{display:inline-block;background:url('assets/ui/passive-tree-icons-v3.webp') no-repeat;background-size:110px 88px;}
+    .social-stat-icon.is-none{background:none;}
     .social-stat-value{color:var(--color-text);font-weight:700;font-size:12px;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
     .social-mini-card{background:var(--color-surface-raised);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}

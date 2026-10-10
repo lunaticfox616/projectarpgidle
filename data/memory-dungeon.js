@@ -30,6 +30,9 @@ const MEMORY_DUNGEON = Object.freeze({
     burning: Object.freeze([0, 0, 0.5, 1, 1.5]),
     // 고유 장비: 자기 고유가 있는 보스(최종 보스, 리그 우두머리)는 그 고유, 나머지는 그 지도 등급의 아무 고유. 단계별 확률.
     uniqueChance: Object.freeze({ own: Object.freeze([0.2, 0.3, 0.4, 0.55, 0.75]), other: Object.freeze([0.08, 0.12, 0.18, 0.25, 0.35]) }),
+    // 뒤바뀐 고유(2026-10-10 사용자: 기억 던전의 주요 보상): 기억의 고유가 줄 하나가 바뀐 채로 나올 확률, 단계별
+    // (js/item-influences.js swapUnique, 바뀔 줄은 data/item-influences.js SWAPPED_UNIQUE_LINES).
+    swap: Object.freeze([0.25, 0.35, 0.45, 0.55, 0.65]),
     // 2단계부터 투기장의 희귀 장비 하나를 더 준다(루프 27부터는 그 지역의 세계수 기운 장비).
     gearFrom: 2
 });

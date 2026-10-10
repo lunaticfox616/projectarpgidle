@@ -1,45 +1,13 @@
-/* 장비창의 보조 칸(2026-09-30 보조 콘텐츠 통합): 장비 그리드 왼쪽 위의 코어 칸과 코어 보관함 대화 상자.
-   코어 아이콘은 16도트 원본(scripts/build-core-icons.cjs)을 정수배로 키운다. */
+/* 장비창의 보조 칸(2026-09-30 보조 콘텐츠 통합): 장비 그리드 왼쪽 위의 코어 칸, 장착 칸의 소켓 표시, 소켓 대화 상자.
+   코어는 2026-10-10부터 가방에 들어가고 이 칸에 낀다. 코어 아이콘은 16도트 원본(scripts/build-core-icons.cjs)을 정수배로 키운다. */
 @layer features {
   .paperdoll .slot-코어 { grid-column: 1; grid-row: 1; }
-  .core-item-slot .equipment-slot-visual img,
-  .core-item-card > img {
+  .core-item-slot .equipment-slot-visual img {
     width: 32px;
     height: 32px;
     object-fit: contain;
     image-rendering: pixelated;
   }
-
-  .core-item-panel { display: grid; gap: 8px; }
-  .core-item-panel .selection-overlay-section-title { margin: 6px 0 0; }
-  .core-item-list { display: grid; gap: 6px; }
-  .core-item-empty { margin: 0; color: var(--px-copy-muted, #a39883); }
-  .core-item-card {
-    display: grid;
-    grid-template-columns: 32px minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 8px 10px;
-    border: 2px solid #050404;
-    background: rgba(18, 12, 8, .72);
-    box-shadow: inset 0 0 0 1px #3b2f1e;
-  }
-  .core-item-card.is-equipped { box-shadow: inset 0 0 0 1px #8a6a36; }
-  .core-item-card strong { color: var(--px-gold, #c69f5e); }
-  .core-item-lines { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.5; }
-  .core-item-lines li::before { content: '▪ '; color: var(--px-copy-muted, #a39883); }
-  .core-item-actions { display: grid; gap: 4px; }
-  .core-item-actions button { min-width: 64px; }
-
-  @media (max-width: 600px) {
-    .core-item-card { grid-template-columns: 32px minmax(0, 1fr); }
-    .core-item-actions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-
-  /* 장비 그리드 아래 보조 줄: 주얼 보관함 */
-  .equipment-aux:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
-  .equipment-aux-store { flex: 1 1 auto; min-height: 36px; }
-  .equipment-aux-store.is-full { color: #ffbd7e; }
 
   /* 장착 장비 칸의 소켓 표시(찬 칸 · 빈 칸) */
   .equipment-slot-head { justify-content: space-between; }
@@ -50,7 +18,7 @@
   .tooltip-socket-line.is-empty { color: var(--px-copy-muted, #a39883); }
 
   /* 긴 제목에도 닫기 단추는 한 줄 */
-  :is(.equipment-socket-panel, .core-item-panel, .chaos-infusion-panel) .selection-overlay-header > button { flex: 0 0 auto; white-space: nowrap; }
+  :is(.equipment-socket-panel, .chaos-infusion-panel) .selection-overlay-header > button { flex: 0 0 auto; white-space: nowrap; }
 
   /* 소켓 대화 상자 */
   .equipment-socket-panel { display: grid; gap: 8px; }

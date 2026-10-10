@@ -127,7 +127,7 @@ const atlasMaps = (() => {
         // getEquipmentDropRarity). 상자도 같은 배율을 받는다(js/exploration-object-combat.js chestEnemy).
         // 일반과 정예 처치는 장비가 더 나온다(data/loot-omens.js killGearMul). 보스는 따로 보상을 받는다(js/atlas-finds.js grantBossReward).
         const omen = lootOmens.enemyMods(zone), kill = enemy.isBoss ? 1 : LOOT_OMENS.killGearMul;
-        if (omen) Object.assign(enemy, { equipmentDropMul: omen.equipmentMul * kill, uniqueChanceMul: omen.uniqueMul });
+        if (omen) Object.assign(enemy, { equipmentDropMul: omen.equipmentMul * kill, uniqueChanceMul: omen.uniqueMul, gemDropMul: omen.gemMul });
         return enemy;
     }
     function describe(entry) {

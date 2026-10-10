@@ -52,8 +52,8 @@ const memoryLeavesUi = (() => {
     /** A leaf picked up: a notice (js/ui-feedback.js) and codex dot for a first sighting or a full set, and a log line (always for those two). */
     function announceLeaf(result) {
         const notable = result.first || result.complete;
-        if (notable) {
-            game.noti.codex = true;
+        if (notable) game.noti.codex = true;
+        if (notable && game.settings.lootFx?.notices?.leaf !== false) {
             showGameToast(result.complete ? `기억의 잎을 다 모았습니다. 「${result.name}」` : `새 기억의 잎을 발견했습니다. 「${result.name}」`,
                 { tone: 'leaf', duration: 3600 });
         }

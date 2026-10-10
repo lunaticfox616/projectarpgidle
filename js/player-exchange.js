@@ -39,7 +39,7 @@ function getHallEligibleItems() {
     return (game.inventory || []).filter(item => item && Number.isFinite(Number(item.id))
         && ['rare', 'unique'].includes(item.rarity) && (item.baseId || item.baseName) && !item.locked && !item.tradeLocked
         && !item.hallReplica && !item.hallRelistBlocked && !hasSocketedHallJewel(item)
-        && !(typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item)));
+        && !(typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item))).filter(item => !bagItems.isSpecial(item));
 }
 
 function createHallItemKey() {

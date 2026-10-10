@@ -2716,6 +2716,7 @@ const TRANSCENDENT_VOID_PASSIVE_DB = [
     { id: 'chameleon', name: '카멜레온', desc: () => '모든 초월 패시브 중 하나로 변환 가능' },
     { id: 'thirdFinger', name: '세 번째 손가락', desc: () => '반지를 하나 더 장착 가능' },
     { id: 'greed', name: '재물욕', desc: () => '주얼을 하나 더 장착 가능' },
+    { id: 'wardKnot', name: '액막이 매듭', desc: () => '액막이를 하나 더 장착 가능' }, // 액막이 칸 +1(js/colony-wards.js slotCount)
     { id: 'innateTalent', name: '타고난 재능', min: 5, max: 15, min2: 1.5, max2: 2, step2: 0.1, desc: (v, v2) => `${v}% 확률로 ${v2}배 피해` },
     { id: 'wholehearted', name: '전심전력', min: 5, max: 15, desc: v => `할당한 공허 패시브 하나당 모든 피해 +${v}%` },
     { id: 'impatience', name: '조급함', min: 8, max: 16, desc: v => `할당한 공허 패시브 하나당 이동 속도 +${v}%` },
@@ -8433,6 +8434,7 @@ function hasLegacyUniqueBaseUpgrade(item, slot) {
 
 function normalizeItem(item) {
     if (!item) return null;
+    if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
     function coerceFiniteNumber(value, fallback) {
         let num = Number(value);
         return Number.isFinite(num) ? num : fallback;
@@ -9147,6 +9149,11 @@ function isModForDropRegion(mod, region) {
     return !mod.regions || mod.regions.includes(region);
 }
 
+/** 지역 전용 줄은 그 지역 장비에만, 수호자와 마름의 전용 줄은 그 영향을 띤 장비에만(영향 장비, js/item-influences.js). */
+function isModForOrigin(mod, item) {
+    return isModForDropRegion(mod, item.dropRegion) && itemInfluences.isModForInfluence(mod, item.influence);
+}
+
 /** A known atlas region id (data/atlas.js ATLAS.regions), otherwise null: what an item may remember as its drop region. */
 /** Save boundary for where an item came from and what burned it: its atlas region (loop 27) and the burning branch's mark and
  * lines (loop 30, js/ember-corruption.js). */
@@ -9154,6 +9161,7 @@ function normalizeItemOrigin(item) {
     item.dropRegion = normalizeDropRegion(item.dropRegion);
     if (typeof emberCorruption === 'object') emberCorruption.normalize(item);
     if (typeof gardenOils === 'object') gardenOils.normalize(item);
+    itemInfluences.normalizeInfluences(item);
 }
 
 function normalizeDropRegion(value) {
@@ -9187,11 +9195,12 @@ function hasSummonBaseStat(item) {
     return !!(item && Array.isArray(item.baseStats) && item.baseStats.some(stat => stat && AVAILABLE_MOD_SUMMON_STAT_IDS.has(stat.id)));
 }
 
-/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring), base defence types in base order and drop region. */
+/** Slot, unique, kaleidoscope shield, weapon category, summon base (weapon and ring), base defence types in base order, drop region and
+ * influence (js/item-influences.js). */
 function getAvailableModPoolKey(item) {
     const summonSlot = item.slot === '무기' || item.slot === '반지';
     return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
-        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || ''].join('|');
+        summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'), item.dropRegion || '', item.influence || ''].join('|');
 }
 
 /** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
@@ -9207,7 +9216,7 @@ function getBlockedAvailableModStats(item) {
 /** Every row the item's kind can take, each with the stats it would occupy (dual defence parts included). */
 function buildAvailableModPool(item) {
     const allowedSlots = getAvailableModSlotsForItem(item), blocked = getBlockedAvailableModStats(item), weaponCategory = getWeaponCategoryId(item);
-    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForDropRegion(mod, item.dropRegion) && !blocked.has(mod.statId || mod.id)
+    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForOrigin(mod, item) && !blocked.has(mod.statId || mod.id)
         && isDefenseTypeStatAllowed(item, mod.statId || mod.id) && isPrimaryDualDefenseAffixMod(item, mod)
         && allowedSlots.some(slot => mod.slots.includes(slot))).map(mod => {
         const shaped = makeDualDefenseAffixMod(item, mod);
@@ -9431,7 +9440,7 @@ const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger,
 function getVenomStingerMods(item) {
     const occupiedIds = getItemOccupiedExplicitModIds(item);
     const room = equipmentCrafting.affixRoom(item, item.rarity, (item.stats || []).find(stat => stat && stat.venomStingerBonus) || null);
-    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id) && isModForDropRegion(mod, item.dropRegion)
+    return MOD_DB.filter(mod => mod.slots.includes('무기') && VENOM_STINGER_STAT_IDS.includes(mod.statId || mod.id) && isModForOrigin(mod, item)
         && !occupiedIds.has(mod.statId || mod.id) && equipmentCrafting.fitsRoom(room, mod));
 }
 
@@ -9712,7 +9721,7 @@ function generateEquipmentDrop(enemy, options) {
     maybeApplyExceptionalBase(item);
     equipmentSockets.rollDropSocket(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
-    return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
+    return levelProgression.stampItem(itemInfluences.onDrop(maybeApplyChaosRealmEncroachment(item, enemy, zone), enemy, zone), itemLevel);
 }
 
 /** A base stat value scaled by factor, kept on its own grid: 0.1 steps for leech/regen lines, whole numbers (at least 1) otherwise. */
@@ -9723,23 +9732,23 @@ function boostItemStatValue(statId, value, factor) {
 
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
 // 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
+/** One base line raised to 120% of its best roll and marked exceptional; the item's exceptional fields then list every such line
+ * (a drop's 1% per line below, and the cube's 고유 장비 다시 빚기, js/stump-cube-recipes.js). */
+function boostExceptionalBaseLine(item, stat) {
+    let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
+        : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
+    stat.val = boostItemStatValue(stat.id, max, 1.2);
+    stat.exceptional = true;
+    let names = item.baseStats.filter(row => row && row.exceptional).map(row => row.statName || getStatName(row.id));
+    item.exceptionalBase = true;
+    item.exceptionalStatNames = names;
+    item.exceptionalStatName = names.join(', ');
+    item.exceptionalAllLines = names.length === item.baseStats.length;
+}
+
 function maybeApplyExceptionalBase(item) {
     if (!item || !Array.isArray(item.baseStats) || item.baseStats.length === 0) return item;
-    let names = [];
-    item.baseStats.forEach(stat => {
-        if (!stat || Math.random() >= 0.01) return;
-        let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
-            : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
-        stat.val = boostItemStatValue(stat.id, max, 1.2);
-        stat.exceptional = true;
-        names.push(stat.statName || getStatName(stat.id));
-    });
-    if (names.length > 0) {
-        item.exceptionalBase = true;
-        item.exceptionalStatNames = names;
-        item.exceptionalStatName = names.join(', ');
-        item.exceptionalAllLines = names.length === item.baseStats.length;
-    }
+    item.baseStats.forEach(stat => { if (stat && Math.random() < 0.01) boostExceptionalBaseLine(item, stat); });
     return item;
 }
 
@@ -9806,7 +9815,8 @@ function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
 /** guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등)과 목표·보호 장비.
  * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. */
 function isGuaranteedEquipmentPickup(item, options) {
-    return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item);
+    return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item)
+        || bagItems.keptOnPickup(item);
 }
 
 /** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
@@ -9907,13 +9917,36 @@ function passesPickupTierCount(item, settings) {
     return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
 }
 
+/** 항상 줍기(2026-10-10): 특출난 베이스, 좋은 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
+const PICKUP_EXCEPTIONS = Object.freeze({
+    exceptional: item => !!item.exceptionalBase,
+    fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,
+    socket: item => !!item.voidSocket || (Array.isArray(item.sockets) && item.sockets.length > 0),
+    corrupted: item => !!item.corrupted,
+    newUnique: item => lootMoments.isNewUnique(item),
+    influenced: item => itemInfluences.influenceKeys(item).some(key => key !== 'swapped'),
+    ward: item => colonyWards.isWard(item)
+});
+function isPickupException(item, always) {
+    return !!always && Object.entries(PICKUP_EXCEPTIONS).some(([key, test]) => always[key] === true && test(item));
+}
+
+/** 부위와 무기 종류(itemFilterSlots, itemFilterWeaponCategories). A ring's 반지1 or 반지2 counts as 반지. */
+function passesPickupSlot(item, settings) {
+    const slot = String(item.slot || '').replace(/[123]$/, '');
+    if (settings.itemFilterSlots && settings.itemFilterSlots[slot] === false) return false;
+    const category = slot === '무기' ? getWeaponCategoryId(item) : null;
+    return !category || !settings.itemFilterWeaponCategories || settings.itemFilterWeaponCategories[category] !== false;
+}
+
 function passesItemPickupFilter(item) {
     let settings = game.settings || {};
     if (!settings.itemFilterEnabled) return true;
+    if (isPickupException(item, settings.itemFilterAlways)) return true;
     let rarities = { normal: true, magic: true, rare: true, unique: true, ...(settings.itemFilterRarities || {}) };
-    if (!rarities[item.rarity]) return false;
-    let minHiddenTier = Math.max(1, Math.floor(settings.itemFilterMinHiddenTier || 1));
-    if ((item.hiddenTier || item.itemTier || 1) < minHiddenTier) return false;
+    if (!rarities[item.rarity] || !passesPickupSlot(item, settings)) return false;
+    let minTier = Math.max(1, Math.floor((settings.itemFilterMinTiers || {})[item.rarity] || settings.itemFilterMinHiddenTier || 1));
+    if ((item.hiddenTier || item.itemTier || 1) < minTier) return false;
     if (!passesPickupTierCount(item, settings)) return false;
     if (item.rarity === 'unique' && settings.itemFilterOnlyNewCodexUnique) {
         let key = getUniqueCodexKeyByItem(item);
@@ -10160,12 +10193,13 @@ function rollJewelPetiteStat(rarity, excludeIds) {
  * @param {number|{type?: string, storyOrder?: number, id?: number, depth?: number, equivalentChaosDepth?: number, tier?: number}} zoneOrTier
  * @returns {{id: number, name: string, rarity: string, hiddenTier: number, stats: Array<{id: string, val: number, valMin: number, valMax: number, tier: number}>}}
  */
-function generateJewelDrop(zoneOrTier) {
+/** odds: {rare, unique} chances in place of the ordinary ones (보석 광맥 omen, js/loot-omens.js jewelOdds). */
+function generateJewelDrop(zoneOrTier, odds = null) {
     let tier = zoneOrTier && typeof zoneOrTier === 'object'
         ? getRealmEquipmentHiddenTierCap(zoneOrTier)
         : Math.max(1, Number(zoneOrTier) || 1);
     let dropTierRange = getJewelDropTierRange(tier);
-    let uniqueChance = Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
+    let uniqueChance = odds ? odds.unique : Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
     if (Math.random() < uniqueChance) {
         let pool = UNIQUE_JEWEL_DB.filter(v => !v.ultra);
         let ultraPool = UNIQUE_JEWEL_DB.filter(v => v.ultra);
@@ -10184,7 +10218,7 @@ function generateJewelDrop(zoneOrTier) {
         return { id: ++itemIdCounter, uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
     // 주얼 제작이 없어졌으므로(2026-09-30) 옵션 없는 일반 주얼은 떨어지지 않는다: 마법 1~2줄 85%, 희귀 2~4줄 15%.
-    let rarity = Math.random() > 0.85 ? 'rare' : 'magic';
+    let rarity = Math.random() > (odds ? 1 - odds.rare : 0.85) ? 'rare' : 'magic';
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (1 + Math.floor(Math.random() * 2));
     let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
@@ -10192,18 +10226,12 @@ function generateJewelDrop(zoneOrTier) {
     return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
-/** Jewels enter the collection immediately; ordinary overflow is salvaged. */
+/** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
+ * storage and the rest are salvaged into jewel shards. */
 function receiveJewelDrop(jewel) {
     combatLootReceipts.item(game,jewel,'jewel');
-    const inventoryFull=game.jewelInventory.length>=getJewelInventoryLimit();
-    const protectOverflow=inventoryFull&&['rare','unique'].includes(jewel.rarity);
-    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0};
-    if(inventoryFull&&!protectOverflow) {
-        result.shardGain=salvageJewelObject(jewel,true);
-        return result;
-    }
-    game.jewelInventory.push(jewel);game.noti.items=true;result.stored=true;
-    return result;
+    const added=bagItems.addJewel(jewel);
+    return {jewel,inventoryFull:added.protectOverflow||!added.stored,...added};
 }
 
 function getJewelStats(jewel) {
@@ -10241,7 +10269,7 @@ function salvageJewelObject(jewel, silent) {
     return shardGain;
 }
 
-/** @returns {number} socketed jewels returned to the jewel store before the item went away */
+/** @returns {number} socketed jewels returned to the bag before the item went away */
 function destroySelectedCraftItem(item) {
     if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return 0;
     const jewels = equipmentSockets.returnJewels(item);
@@ -10253,10 +10281,9 @@ function destroySelectedCraftItem(item) {
 }
 
 function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    game.jewelInventory = game.jewelInventory || [];
     let cost = 12;
     if ((game.currencies.jewelShard || 0) < cost) return addLog(`주얼 가공에 필요한 주얼 결정이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (game.jewelInventory.length >= getJewelInventoryLimit()) return addLog(`주얼 인벤토리가 가득 찼습니다. (최대 ${getJewelInventoryLimit()})`, 'attack-monster');
+    if (!equipmentInventoryGridRuntime.findAddPlacement({ slot: bagItems.JEWEL }, game).ok) return addLog('가방에 자리가 없습니다.', 'attack-monster');
     game.currencies.jewelShard -= cost;
     let zoneTier = Math.max(1, Math.floor(((getZone(game.currentZoneId) || {}).tier || 1)));
     let jewel = generateJewelDrop(zoneTier + 8);
@@ -10264,26 +10291,24 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ �
         awardCurrency('jewelShard', cost);
         return addLog('주얼 가공 결과를 생성하지 못했습니다. 소모 재화를 반환합니다.', 'attack-monster');
     }
-    game.jewelInventory.push(jewel);
+    bagItems.put(bagItems.asJewel(jewel), game, true);
     let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
     addLog(`🎰 주얼 가공: ${getJewelRarityLabel(jewel.rarity)} [${jewel.name}] 획득! (${lineText})`, jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
     updateStaticUI();
 }
 
 
-/** 주얼 보관함에서 한 개를 해체한다(고유는 확인을 거친다). 확인 사이에 보관함이 바뀌었으면 취소한다. */
+/** 가방의 주얼 한 개를 해체한다(고유는 확인을 거친다). 확인 사이에 주얼이 가방을 떠났으면(소켓 등) 취소한다. */
 async function salvageJewel(jewelId) {
-    let jewel = (game.jewelInventory || []).find(row => row && row.id === jewelId);
+    let jewel = bagItems.jewels().find(row => row.id === jewelId);
     if (!jewel) return false;
     if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]을 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
         title: '고유 주얼 해체',
         tone: 'danger',
         confirmLabel: '해체'
     })) return false;
-    let index = (game.jewelInventory || []).indexOf(jewel);
-    if (index < 0) return false;
+    if (!bagItems.take(jewel)) return false;
     salvageJewelObject(jewel, false);
-    game.jewelInventory.splice(index, 1);
     updateStaticUI();
     return true;
 }
@@ -10302,6 +10327,7 @@ function getUniqueDismantleDivineChance(item) {
 }
 
 function getItemSalvageRewardProfile(item, options) {
+    if (bagItems.isSpecial(item)) return bagItems.salvageProfile(item); // 주얼: 주얼 결정, 액막이: 군락지 편린, 코어: 없음
     let noDivine = !!(options && options.noDivine);
     let rarity = item && item.rarity || 'normal';
     let guaranteed = {};
@@ -10441,7 +10467,7 @@ function toggleAutoSalvage() {
 // 일괄 해체 보호: 잠금·장비 프리셋 아이템은 대상에서 제외한다.
 function isBulkSalvageProtectedItem(item) {
     if (!item) return true;
-    if (item.locked || equipmentLootPolicy.matches(item)) return true;
+    if (item.locked || bagItems.ownShape(item) || equipmentLootPolicy.matches(item)) return true; // 주얼과 코어는 하나씩 해체한다
     return typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
 }
 

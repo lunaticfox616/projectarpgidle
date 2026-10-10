@@ -33,6 +33,7 @@ const salvageContext = {
     awardCurrency(key, amount) { awarded[key] = (awarded[key] || 0) + amount; },
     addLog() {},
     game: { jewelInventory: [] },
+    bagItems: { isSpecial: () => false }, // 주얼, 코어, 액막이 해체는 js/bag-items.js가 따로 맡는다
     safeExposeGlobals(map) { Object.assign(salvageContext, map); },
     Math: Object.create(Math)
 };
@@ -61,7 +62,7 @@ assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, tr
 
 // Confirmation-time target changes are exercised against the full runtime below.
 
-const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'async function marketExpandJewelInventoryByDivine');
+const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'function getBaseDefenseProfile');
 const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(jewelId)', 'function isChaseUniqueItem');
 const protectedItem = {
     name: '보호 장비',
@@ -110,13 +111,21 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.strictEqual(annulContext.game.currencies.goldenRule, 0);
     assert(annulPrompt.includes('황금률 2개') && !annulPrompt.includes('오브'), 'market confirmation must name the currency that is actually spent');
 
-    // A unique jewel asks first; if it left the store while the question was open (for example into a socket), nothing is salvaged.
-    const uniqueJewel = { id: 7, name: '확인 대상', rarity: 'unique' };
+    // A unique jewel asks first; if it left the bag while the question was open (for example into a socket), nothing is salvaged.
+    const uniqueJewel = { id: 7, name: '확인 대상', rarity: 'unique', slot: '주얼' };
     const salvaged = [];
     const jewelSalvageContext = {
-        game: { jewelInventory: [uniqueJewel, { id: 8, name: '남는 주얼', rarity: 'magic' }] },
+        game: { inventory: [uniqueJewel, { id: 8, name: '남는 주얼', rarity: 'magic', slot: '주얼' }] },
+        bagItems: {
+            jewels: () => jewelSalvageContext.game.inventory.slice(),
+            take: jewel => {
+                const index = jewelSalvageContext.game.inventory.indexOf(jewel);
+                if (index >= 0) jewelSalvageContext.game.inventory.splice(index, 1);
+                return index >= 0;
+            }
+        },
         getJewelSalvageShardGain: () => 18,
-        requestGameConfirmation: async () => { jewelSalvageContext.game.jewelInventory.shift(); return true; },
+        requestGameConfirmation: async () => { jewelSalvageContext.game.inventory.shift(); return true; },
         salvageJewelObject: jewel => salvaged.push(jewel.id),
         updateStaticUI() {}
     };
@@ -126,7 +135,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     assert.deepStrictEqual(salvaged, []);
     assert.strictEqual(await jewelSalvageContext.salvageJewel(8), true, 'ordinary jewels salvage without a question');
     assert.deepStrictEqual(salvaged, [8]);
-    assert.deepStrictEqual(Array.from(jewelSalvageContext.game.jewelInventory), []);
+    assert.deepStrictEqual(Array.from(jewelSalvageContext.game.inventory), []);
 
     assert(uiSource.includes("return { enabled: false, reason: `홀씨 부족"), 'crafting UI should explain insufficient spore cost');
     // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.

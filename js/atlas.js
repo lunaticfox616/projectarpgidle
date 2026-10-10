@@ -510,6 +510,7 @@ const atlas = (() => {
     function normalize(state) {
         renameSavedIds([state.atlas, state.actExploration, state.enemies]);
         const raw = state.atlas && typeof state.atlas === 'object' ? state.atlas : {};
+        atlasEndgame.moveAltarMaterials(state, raw.endgame);
         const journeyUnlocked = !!(state.worldTreeJourney && state.worldTreeJourney.unlocked === true);
         delete state.worldTreeJourney;
         const uids = new Set(), validMap = entry => {

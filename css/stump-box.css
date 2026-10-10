@@ -240,12 +240,13 @@
   .stump-cube > .stump-cube-book { grid-column: 1 / -1; }
   .stump-cube h3 { margin: 0 0 4px; font-size: 15px; }
   .stump-cube .stump-actions { margin-top: 4px; }
+  /* 조합창 4×4(2026-10-10, 2×3 대검 둘이 나란히): 한 칸 크기는 3×3 때와 같다. */
   .stump-cube-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
     gap: 4px;
-    width: min(150px, 42vw);
+    width: min(198px, 52vw);
     aspect-ratio: 1;
     margin: 0;
     padding: 6px;

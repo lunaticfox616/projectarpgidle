@@ -213,8 +213,8 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['정원사의 가지 왕관','void_crown',70,0,0,110],
     ['장로의 썩은 심장','star_pendant',70,0,0,60],
     ['엮인 나이테','opal_ring',72,0,0,0],
-    ['총주교의 성화 장갑','ward_gauntlets',70,60,0,60],
-    ['포식자의 이빨띠','war_belt',70,80,0,0],
+    ['대사제의 성화 장갑','ward_gauntlets',70,60,0,60],
+    ['갉는 자의 이빨띠','war_belt',70,80,0,0],
     ['금고지기의 열쇠꾸러미','copper_ring',60,0,40,0],
     // 플라스크 · 향로(2026-10-03)
     ['넘치는 시약병','catalyst_flask',9,0,10,10],

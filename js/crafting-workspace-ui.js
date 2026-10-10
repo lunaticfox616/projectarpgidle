@@ -1,6 +1,6 @@
 const craftingWorkspaceUi = (() => {
     const recipes = [
-        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
+        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:({magicBud:'reroll',sapBud:'add',formlessDew:'reroll',goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
         ...FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
     let root, current=null, owner=null, goal, recipe=recipes[0], mode='none', extras='';
@@ -67,6 +67,7 @@ const craftingWorkspaceUi = (() => {
     /** Currencies with their own rules: the burning branch (loop 30) and the catalysts (loop 32). null for the rest. */
     function workspaceSpecialState(key) {
         if(key==='burningEmberBranch')return emberCorruptionUi.useState(selected());
+        if(itemInfluences.isAltarCurrency(key))return itemInfluencesUi.useState(key,selected());
         return sapCatalysts.isCatalyst(key)?sapCatalystsUi.useState(key,selected()):null;
     }
 
@@ -129,17 +130,17 @@ const craftingWorkspaceUi = (() => {
         const quality=workspaceAffixQuality(stat,changed);
         return `<li class="cl-affix ${hit?'is-target':''} ${changed?'is-changed':''} ${quality}" data-affix="${index}">
             <div><span style="--cl-affix-tone:${getItemStatToneColor(stat.id)}">${esc(stat.statName||getStatName(stat.id))} <span class="cl-affix-value"><b>+${esc(workspaceAffixValue(stat,stat.val))}</b> <span class="cl-affix-range">${esc(workspaceAffixRange(stat))}</span></span></span>
-            <span class="cl-tier">${getItemAffixTierHtml(stat)}</span></div>
+            <span class="cl-tier">${getItemAffixTierHtml(stat)}${itemInfluencesUi.lineBadgeHtml(selected(),stat)}</span></div>
             <small>${workspaceAffixNotes(stat,prior,changed,hit,quality)}</small></li>`;
     }
 
     function workspaceItemHtml() {
         const item=selected(), sources=new Set(item.stats.map(stat=>equipmentCrafting.getSource(stat)));
         return `<section id="forge-item-display" class="cl-item ${matches(item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(getEquipmentGridVisualAsset(item))}" alt="${esc(item.slot)}"></div>
-            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}</h2><span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
+            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
             <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">홀씨 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
             <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
-            <div class="cl-base">기본 옵션 &ensp; ${(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}`).join(' / ')}</div>${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
+            <div class="cl-base">기본 옵션 &ensp; ${(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}${itemInfluencesUi.lineBadgeHtml(item,stat)}`).join(' / ')}</div>${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
             ${extras}</section>`;
     }
 
@@ -334,6 +335,7 @@ const craftingWorkspaceUi = (() => {
         if(recipe.kind==='fossil')return applyFossilChaosCraft(recipe.key);
         const actions={enchantedHoney:applyEnchantedHoneyToSelectedItem,venomStinger:applyVenomStingerToSelectedItem,voidChisel:applyVoidChiselToSelectedItem,ouroboros:applyWoodsmanTouchToSelectedItem,burningEmberBranch:emberCorruptionUi.use};
         if(actions[recipe.key])return actions[recipe.key]();
+        if(itemInfluences.isAltarCurrency(recipe.key))return itemInfluencesUi.use(recipe.key);
         if(recipe.key==='oceanRerollShard')return rerollSingleBaseOption(selected(),'oceanRerollShard',1);
         if(sapCatalysts.isCatalyst(recipe.key))return sapCatalystsUi.use(recipe.key);
         return useCurrency(recipe.key);

@@ -49,6 +49,7 @@
         const anchor = document.querySelector(selector);
         if (!anchor?.getClientRects().length) { focus(null); return; }
         anchor.classList.toggle('is-menu-selected', !!focusedEquipmentSlot);
+        if (placeDocked(inspector)) return;
         const rect = anchor.getBoundingClientRect();
         if (!inspector.matches(':popover-open')) inspector.showPopover();
         const bottom = fitInspector(inspector, rect);
@@ -56,6 +57,15 @@
         if (!position) { focus(null); return; }
         inspector.style.left = `${position.x / uiDisplay.factor}px`;
         inspector.style.top = `${position.y / uiDisplay.factor}px`;
+    }
+
+    /** 넓은 PC 창은 오른쪽 칸에 붙고(panel), 휴대폰은 아래에서 올라온다(sheet): css/equipment-window.css --eqw-dock.
+     * @returns {boolean} true when the panel needs no anchoring next to the item */
+    function placeDocked(inspector) {
+        const dock = equipmentWindowUi.inspectorDock(inspector);
+        if (dock === 'panel' && inspector.matches(':popover-open')) inspector.hidePopover();
+        if (dock === 'sheet' && !inspector.matches(':popover-open')) inspector.showPopover();
+        return dock === 'panel' || dock === 'sheet';
     }
 
     function fitInspector(inspector, rect) {
@@ -181,7 +191,7 @@
         let cards = items.map(item => {
             let key = equipmentInventoryGridRuntime.getItemKey(item);
             let footprint = getEquipmentInventoryFootprint(item);
-            return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${footprint.columns}×${footprint.rows}, 회수</small></button>`;
+            return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${footprint.columns}×${footprint.rows}, 회수</small></button>`;
         }).join('');
         root.innerHTML = `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요. 루프가 끝나면 비워집니다.</p><div>${cards}</div>`;
     }

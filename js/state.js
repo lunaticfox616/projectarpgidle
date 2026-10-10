@@ -1011,16 +1011,21 @@ function getHighestUnlockedEndlessChaosDepth(source) {
     return depths.length > 0 ? Math.max(...depths) : 0;
 }
 
+/** 심화 혼돈에서 이번 루프에 오를 다음 층: 이번 루프에 깬 가장 높은 층의 다음 층(혼돈 20을 막 깼으면 21). */
+function getLoopDeepChaosFrontierDepth(source) {
+    let state = source || game;
+    let best = Math.floor((state && state.loopProgressCurrent && state.loopProgressCurrent.bestAbyssDepth) || 0);
+    return Math.max(21, best + 1);
+}
+
+/** 자동 진행이 향할 지역. 루프 10부터 혼돈 20을 깬 뒤에는 심화 혼돈을 한 층씩 오른다(2026-10-11 사용자: 예전에는 지난 루프까지
+ * 기록한 가장 높은 층으로 바로 뛰어 계속 죽었다). 예전 기록 층은 심화층 목록에서 직접 고를 때만 간다(enterUnlockedEndlessDepth). */
 function getAutoProgressZoneId(fallbackZoneId) {
-    if ((game.season || 1) >= 10 && hasCurrentLoopChaos20Clear()) {
-        if (getAbyssDepthFromZoneId(fallbackZoneId) === 20) {
-            game.abyssEndlessDepth = 21;
-            return getAbyssZoneIdForDepth(21);
-        }
-        let highestDepth = getHighestUnlockedEndlessChaosDepth();
-        if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
-    }
-    return fallbackZoneId;
+    if ((game.season || 1) < 10 || !hasCurrentLoopChaos20Clear()) return fallbackZoneId;
+    let depth = getLoopDeepChaosFrontierDepth();
+    game.abyssEndlessDepth = depth;
+    ensureNextEndlessChaosDepthUnlocked(depth - 1);
+    return getAbyssZoneIdForDepth(depth);
 }
 
 
@@ -1030,10 +1035,9 @@ function getAbyssMonsterScales(zone) {
     if (zone && zone.type === 'atlasMap') return getChaosDepthScales(zone.equivalentDepth);
     if (!zone || zone.type !== 'abyss') return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
     let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-    // 심화 혼돈(21+) 기록은 심화 구간에서만 난이도에 반영한다.
-    // 새 루프의 혼돈 1~20에 과거 심화층 배율이 섞이면 난이도가 비정상적으로 급등한다.
-    let endlessDepth = depth <= 20 ? depth : Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
-    return getChaosDepthScales(endlessDepth);
+    // 난이도는 그 층의 깊이만 따른다(2026-10-11): 예전에는 심화층(21+)에 지난 루프의 기록(game.abyssEndlessDepth)을 겹쳐 읽어
+    // "혼돈 심화 21"이 기록한 최고 층의 난이도로 나왔다. 층마다 제 지역 id가 있어 기록을 겹칠 까닭이 없다.
+    return getChaosDepthScales(depth);
 }
 
 /** Monster scales at a chaos depth (21+ = deep chaos). The loop's share lives in the shared loop curves (js/combat.js), not here. */
@@ -1306,7 +1310,6 @@ function getSeasonPassiveUnlockLoop(id) {
     return rowIndex >= 4 ? 5 : 1;
 }
 
-const JEWEL_INVENTORY_LIMIT = 40;
 const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
 
@@ -1631,7 +1634,9 @@ const MOD_DB = [
     {"id":"censerLightGemLevel","statId":"lightGemLevel","type":"prefix","statName":"번개 스킬 젬 레벨","slots":["무기"],"weaponCategories":["censer"],"weight":0.2,"affixBalanceVersion":3,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[3,3],[3,3],[3,3],[3,3],[4,4]],"valueStep":1},
     {"id":"censerRegen","statId":"regen","type":"suffix","statName":"초당 재생(%)","slots":["무기"],"weaponCategories":["censer"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01},
     // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js, regions)은 그 지역 아틀라스 지도 장비에만 붙는다.
-    ...REGION_AFFIX_MODS
+    ...REGION_AFFIX_MODS,
+    // 영향 장비(2026-10-10): 수호자와 마름의 전용 줄(data/item-influences.js, influences)은 그 영향을 띤 장비에만 붙는다.
+    ...INFLUENCE_AFFIX_MODS
 ];
 
 const FOSSIL_DB = [
@@ -2328,6 +2333,13 @@ const defaultGame = {
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
+        // 줍기 필터 세분화(2026-10-10 사용자): 희귀도마다 최소 티어, 부위, 무기 종류, 항상 줍는 예외(js/passives.js passesItemPickupFilter).
+        itemFilterMinTiers: { normal: 1, magic: 1, rare: 1, unique: 1 },
+        itemFilterSlots: { 무기: true, 투구: true, 갑옷: true, 장갑: true, 신발: true, 목걸이: true, 반지: true, 허리띠: true, 방패: true },
+        itemFilterWeaponCategories: { greatsword: true, scimitar: true, shortbow: true, orb: true, flask: true, censer: true },
+        itemFilterAlways: { exceptional: true, fineRare: true, socket: true, corrupted: false, newUnique: true, influenced: true, ward: true },
+        // 발견 연출(js/battle-ground-loot-ui.js 빛기둥, 알림창): 플레이어가 고른다.
+        lootFx: { beams: { jackpot: true, great: true, good: true }, notices: { chase: true, goldenRule: true, treasure: true, codex: true, leaf: true } },
         equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
@@ -2441,10 +2453,13 @@ const defaultGame = {
     gemFoldInactiveSupport: false,
     gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
-    equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
+    // 액막이1~5: 액막이 칸(2026-10-10, js/colony-wards.js). 열린 칸 수는 허리띠, 초월 공허, 가디언, 고유가 정한다.
+    // 코어: 코어 칸(2026-10-10, js/bag-items.js). 코어는 가방에 들어가고 이 칸에 하나를 낀다.
+    equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null,
+        '액막이1': null, '액막이2': null, '액막이3': null, '액막이4': null, '액막이5': null, '코어': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
-    // 그루터기 함 아래 3×3 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
+    // 그루터기 함 아래 4×4 조합창: 재료를 가리키기만 한다(js/stump-cube.js).
     stumpCube: { slots: [], known: null },
     equipmentTemporaryStorage: [],
     inventory: [],
@@ -2473,6 +2488,8 @@ const defaultGame = {
     seasonNodeLevels: {},
     labyrinthFloor: 1,
     jewelInventory: [],
+    // 가방의 새 아이템(빨간 점): id가 이보다 크면 새 것. 가방을 열었다가 닫으면 그때의 itemIdCounter가 된다(js/equipment-window-ui.js).
+    bagSeenId: null,
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     // grandRun is created on entry. rewardVoidChisel: number|null is the actual paid integer,

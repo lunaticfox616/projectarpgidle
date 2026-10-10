@@ -140,14 +140,14 @@ function auditAscendOptions() {
     return Object.entries(tree).filter(([id, node]) => !game.ascendNodes.includes(id) && node.stat && isAscendNodeRequirementMet(node))
         .map(([id]) => ({ cost: 1, apply() { game.ascendNodes.push(id); }, undo() { game.ascendNodes = game.ascendNodes.filter(row => row !== id); } }));
 }
-/** One core (loop 20+): the best four lines of the pool at their average roll. */
+/** One core (loop 20+) in the core slot: the best four lines of the pool at their average roll. */
 function auditCoreOptions() {
-    const lines = (game.cores.equipped && game.cores.equipped.lines) || [];
+    const lines = (game.equipment['코어'] && game.equipment['코어'].lines) || [];
     if (lines.length >= CORE_ITEM_RULES.lines) return [];
-    const make = rows => rows.length ? coreItems.normalizeCore({ id: 1, lines: rows }) : null;
+    const make = rows => rows.length ? bagItems.asCore(coreItems.normalizeCore({ id: 1, lines: rows })) : null;
     return CORE_OPTION_POOL.filter(def => !lines.some(line => line.id === def.id)).map(def => ({ cost: 1,
-        apply() { game.cores.equipped = make([...lines, { id: def.id, value: (def.min + def.max) / 2, extraValue: def.extraMin ? (def.extraMin + def.extraMax) / 2 : undefined }]); },
-        undo() { game.cores.equipped = make(lines); } }));
+        apply() { game.equipment['코어'] = make([...lines, { id: def.id, value: (def.min + def.max) / 2, extraValue: def.extraMin ? (def.extraMin + def.extraMax) / 2 : undefined }]); },
+        undo() { game.equipment['코어'] = make(lines); } }));
 }
 /** Unlock points (2 per loop from loop 2) bought power-first, as far as loop and order allow; a pick buys its missing
  * prerequisites (after/requires) first, or is skipped when they do not fit. */
@@ -279,7 +279,7 @@ function auditLoop(zone, season, deepPerLoop, stage) {
         }
         game.ascendClass = best.cls; game.ascendNodes = best.nodes;
     }
-    game.cores = { equipped: null, owned: [] };
+    game.equipment['코어'] = null;
     if (owned.includes('cube')) auditSpend(zone, auditCoreOptions, CORE_ITEM_RULES.lines);
     auditTalismanLines = [];
     stumpBox.sync(game, 'audit');

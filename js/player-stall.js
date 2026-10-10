@@ -40,7 +40,7 @@ const playerStall = (() => {
             || equipmentSockets.jewels(item).length > 0;
     }
     function eligible(item, owner) {
-        if (!item || !Number.isSafeInteger(item.id) || !itemAppraisal.quote(item)) return false;
+        if (!item || bagItems.isSpecial(item) || !Number.isSafeInteger(item.id) || !itemAppraisal.quote(item)) return false;
         return !restricted(item) && !Object.values(owner.equipment).some(equipped => equipped?.id === item.id)
             && !equipmentLoadoutRuntime.isReferenced(item, owner);
     }

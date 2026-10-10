@@ -142,7 +142,7 @@ const CLASS_KEYSTONE_DEFS = {
     guardian: [
         { id: 'gd1', name: '요새의 맹세', desc: '방어도 15% 증폭, 방어도 100당 피해 +2%(최대 +80%)', req: null },
         { id: 'gd2', name: '생명 성채', desc: '최대 생명력 20% 증폭, 에너지 보호막 20% 증폭', req: null },
-        { id: 'gd3', name: '수호 재생', desc: '생명력 재생 회복 속도 20% 증가, 에너지 보호막 재생 속도 20% 감폭', req: null },
+        { id: 'gd3', name: '수호 재생', desc: '생명력 재생 회복 속도 20% 증가, 에너지 보호막 재생 속도 20% 감폭, 액막이 칸 +1', req: null },
         { id: 'gd4', name: '철벽 전환', desc: '회피의 100%만큼 방어도 추가', req: 'gd1' },
         { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 15% 감폭', req: 'gd2' },
         { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +11% (최대 5중첩, 곱연산), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
