@@ -49,7 +49,7 @@ function renderInventoryItemVisual(item, kind, className) {
 safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
 
 function getEquipmentGridVisualAsset(item) {
-    return pixelIconPath(pickEquipmentGridVisualAsset(item));
+    return pixelIconPath(bagItems.artOf(item) || pickEquipmentGridVisualAsset(item));
 }
 
 function pickEquipmentGridVisualAsset(item) {
@@ -322,6 +322,10 @@ function selectForCrafting(ref, isEquip) {
         addLog('전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.', 'attack-monster');
         return false;
     }
+    if (bagItems.isSpecial(item)) {
+        addLog('주얼, 코어, 액막이는 제작할 수 없습니다.', 'attack-monster');
+        return false;
+    }
     craftingSelectionState.ref = ref;
     craftingSelectionState.isEquip = isEquip;
     updateStaticUI();
@@ -391,7 +395,8 @@ function getEquipCandidateSlots(item, targetGame = game) {
     if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
     if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
-    if (item.slot === COLONY_WARD_RULES.slot) return colonyWards.openSlots(targetGame);
+    const special = bagItems.candidateSlots(item, targetGame); // 주얼, 코어, 액막이(js/bag-items.js)
+    if (special) return special;
     let warriorDualTrain = hasKeystone('w3', targetGame);
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
@@ -498,6 +503,7 @@ function equipItem(idx, preferredSlot) {
     if (!item) return;
     const restriction = getPassiveEquipmentRestriction(item);
     if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
+    if (bagItems.isJewel(item)) return bagItemsUi.socket(item, preferredSlot); // 주얼은 그 장비의 빈 소켓에
     let warriorDualTrain = typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
@@ -537,7 +543,7 @@ function equipItemById(itemId, preferredSlot) {
     if (preferredSlot && !getEquipCandidateSlots(game.inventory[idx]).includes(preferredSlot)) return false;
     const targetItem = game.inventory[idx];
     equipItem(idx, preferredSlot);
-    return Object.values(game.equipment).includes(targetItem);
+    return Object.values(game.equipment).includes(targetItem) || !game.inventory.includes(targetItem); // 주얼은 소켓으로 가 가방에서만 빠진다
 }
 
 function equipSelectedCraftInventoryItem() {
@@ -930,22 +936,6 @@ function getAffixKeepServiceReason(item, kind) {
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;
-}
-
-async function marketExpandJewelInventoryByDivine() {
-    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('jewel')) return addLog('주얼 해금 후 이용할 수 있습니다.', 'attack-monster');
-    let cost = getJewelMarketExpandCost();
-    if (game.currencies.goldenRule < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 주얼 인벤토리를 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`), {
-        title: '주얼 인벤토리 영구 확장',
-        confirmLabel: '확장'
-    })) return;
-    if (!isMarketUnlocked() || !contentProgression.isUnlocked('jewel') || getJewelMarketExpandCost() !== cost || game.currencies.goldenRule < cost) return addLog('확인 중 확장 조건 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
-    game.currencies.goldenRule -= cost;
-    game.jewelInventoryExpandLevel = Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) + 1;
-    addLog(`💠 주얼 인벤토리 영구 확장 완료! 현재 최대 칸: ${getJewelInventoryLimit()}`, 'loot-unique');
-    updateStaticUI();
 }
 
 function getBaseDefenseProfile(base) {
@@ -1604,4 +1594,4 @@ async function buyBlackMarketOffer(idx){
     updateStaticUI();
 }
 
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandJewelInventoryByDivine, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

@@ -39,6 +39,9 @@
         return values.length > 0 ? Math.min(...values) : Math.max(1, Number(profile.pool) || 1);
     }
 
+    /** Bag items the analysis tries on: not jewels (they go into sockets, not slots); cores and wards try their own slots. */
+    const analyzable = item => !!item && item.id !== undefined && !bagItems.isJewel(item);
+
     function getCandidateSlots(item) {
         if (!item) return [];
         const slots = typeof getEquipCandidateSlots === 'function'
@@ -80,7 +83,7 @@
         const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(game.inventory)));
         const snapshot = { inventory, gameJson: JSON.stringify({ ...game,
             inventory: undefined, combatTimeMs: getCombatTime() }) };
-        const items = inventory.filter(item => item && item.id !== undefined && (!only || only.has(String(item.id))))
+        const items = inventory.filter(item => analyzable(item) && (!only || only.has(String(item.id))))
             .map(item => ({ item, slots: getCandidateSlots(item), key: JSON.stringify(item) }));
         return { items, index: 0, snapshot, baseline: createBaseline(snapshot) };
     }
@@ -330,7 +333,7 @@
     /** Drops the results of items that left the bag; returns the ids of bag items added or changed since their analysis. */
     function changedIds() {
         const live = new Map();
-        (game.inventory || []).forEach(item => { if (item && item.id !== undefined) live.set(String(item.id), item); });
+        (game.inventory || []).forEach(item => { if (analyzable(item)) live.set(String(item.id), item); });
         Array.from(state.results.keys()).forEach(id => { if (!live.has(id)) state.results.delete(id); });
         const changed = Array.from(live).filter(([id, item]) => analyzedAs.get(state.results.get(id)) !== JSON.stringify(item));
         return new Set(changed.map(([id]) => id));

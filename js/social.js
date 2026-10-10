@@ -318,13 +318,13 @@ function buildProfileIdentity(state) {
 function buildProfileGear(state) {
     let equipment = [];
     let eq = state.equipment || {};
-    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
+    Object.keys(eq).filter(slot => !bagItems.isSpecial(eq[slot])).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
     return { equipment: equipment.slice(0, 16), core: buildCoreSnapshot(state), stump: buildStumpSnapshot(state) };
 }
 
 /** 장비창 왼쪽 위 코어 칸: 코어를 열고 하나를 끼고 있을 때만. 게임 코어 툴팁과 같은 이름과 줄. */
 function buildCoreSnapshot(state) {
-    let core = state.cores && state.cores.equipped;
+    let core = (state.equipment || {})['코어'];
     if (!core || typeof coreItems !== 'object' || !contentProgression.isUnlocked('cube', state)) return undefined;
     return { kind: 'core', name: core.name, lines: core.lines.map(line => coreItems.describe(line)) };
 }
@@ -875,7 +875,7 @@ function getChatAttachSnapshot(source, key) {
     let state = typeof game !== 'undefined' && game ? game : {};
     if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
     if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
-    if (source === 'jewel') return buildJewelSnapshot((state.jewelInventory || [])[Number(key)]);
+    if (source === 'jewel') return buildJewelSnapshot(bagItems.jewels(state)[Number(key)]);
     if (source === 'talisman') return buildTalismanSnapshot(state.stumpBox ? stumpBox.itemById(state, Number(key)) : null);
     return null;
 }
@@ -923,14 +923,16 @@ function updateChatCounter() {
 function getChatItemPickerGroups() {
     let state = typeof game !== 'undefined' && game ? game : {};
     let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
-    let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot]).map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
-    let jewels = entries('jewel', state.jewelInventory, () => '[보관]');
+    let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot] && !bagItems.isSpecial(state.equipment[slot]))
+        .map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
+    let jewels = entries('jewel', bagItems.jewels(state), () => '[가방]');
+    let gear = entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`).filter(entry => !bagItems.isSpecial(state.inventory[entry.key]));
     let stump = state.stumpBox || { items: [], board: [] };
     let talismanEntries = stump.items.filter(item => item.family === 'talisman')
         .map(item => ({ source: 'talisman', key: item.id, label: stump.board.includes(item.id) ? '[판]' : '[보관]' }));
     return [
         { title: '장착 장비', entries: equipment },
-        { title: '장비 인벤토리', entries: entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`) },
+        { title: '장비 인벤토리', entries: gear },
         { title: '주얼', entries: jewels.slice(0, 300) },
         { title: '부적', entries: talismanEntries.slice(0, 300) }
     ];

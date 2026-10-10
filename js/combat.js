@@ -8562,7 +8562,7 @@ function collectExplorationFloorLoot(rows) {
     return kept.length + currencies.length;
 }
 
-/** Floor jewels, cores and wild talismans reach the same stores, and raise the same notices, as an immediate drop. */
+/** Floor jewels, cores and wild talismans reach the same places (jewels and cores the bag), and raise the same notices, as an immediate drop. */
 const receiveFloorItem = {
     jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
@@ -8693,8 +8693,8 @@ function rollLootForEnemy(enemy) {
     getCurrencyDrops(enemy).forEach(drop => {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'core') {
-            const core = coreItems.rollDrop();
-            if (!core || placeFloorItem(enemy, 'core', core)) return;
+            const core = coreItems.roll();
+            if (placeFloorItem(enemy, 'core', core)) return;
             coreItems.keep(core);
             queueEnemyGroundLoot(enemy, { item: core, itemKind: 'core' });
             dispatchRuntimeEvent('core-item-received', core);
@@ -9324,12 +9324,10 @@ function grantBeyondBoundaryJewelRewards(context) {
     let stored = 0;
     for (let index = 0; index < count; index++) {
         let jewel = generateJewelDrop(context.zone);
-        game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-        if (game.jewelInventory.length >= getJewelInventoryLimit()) {
+        if (!bagItems.put(bagItems.asJewel(jewel))) { // 가방이 차면 주얼 결정으로
             salvageJewelObject(jewel, true);
             continue;
         }
-        game.jewelInventory.push(jewel);
         stored++;
         addLog(`경계 완료 보상: [${jewel.name}]`, 'loot-rare', { item:jewel, itemKind:'jewel' });
     }

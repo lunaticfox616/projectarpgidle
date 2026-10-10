@@ -5929,7 +5929,13 @@ function schedule(item, tooltipToken, mainHtml, receiver = null) {
 return Object.freeze({ cancel, schedule, setPointer });
 })();
 
+/** The tooltip context; a jewel or a core draws its own card here and the equipment tooltip stops (js/bag-items-ui.js). */
 function prepareItemTooltip(event, item, idx, isEquip, options) {
+    const context = prepareItemTooltipContext(event, item, idx, isEquip, options);
+    return context && bagItemsUi.presentTooltip(context, event, item) ? null : context;
+}
+
+function prepareItemTooltipContext(event, item, idx, isEquip, options) {
     if (options.target) return { target: options.target, inline: true };
     if (equipmentInventoryInteraction.getFocusedKey()) return null;
     if (itemTooltipHideTimer) {
@@ -9601,7 +9607,8 @@ function renderCraftPickerPages(page, pages, count) {
 function renderCraftPickerInventory(currentRef, currentIsEquip, browse) {
     let totalInv = (game.inventory || []).length;
     const mobile = uiDisplay.matches('(max-width: 1080px)');
-    const candidates = browse.kind === 'altar' ? game.inventory.filter(item => !getTimeAltarItemIssue(item)) : game.inventory;
+    const plain = game.inventory.filter(item => !bagItems.isSpecial(item)); // 주얼, 코어, 액막이는 제작 대상이 아니다
+    const candidates = browse.kind === 'altar' ? plain.filter(item => !getTimeAltarItemIssue(item)) : plain;
     const matching = candidates.filter(item => item && isItemRarityVisible(item) && matchSearchQuery(getEquipmentSearchText(item), browse.query));
     const pages = Math.max(1, Math.ceil(matching.length / 6));
     const page = Math.min(browse.page || 0, pages - 1);
@@ -10517,7 +10524,7 @@ function openVoidPassiveCraftOverlay(nodeId, result = '') {
 function renderCraftTargetLibrary(isRarityVisible) {
     if (game.itemSubtab !== 'item-tab-craft' || !document.querySelector('#item-tab-craft > details.craft-target-library').open) return;
     renderPaperdoll('ui-craft-equip-list', true);
-    const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
+    const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item) && !bagItems.isSpecial(row.item));
     document.getElementById('ui-craft-inventory-list').innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
 }
 
@@ -13399,7 +13406,7 @@ function gameLoop(frameNow = performance.now()) {
 
 function isJewelTabUnlockReady() {
     return (game.season || 1) >= 5
-        || (Array.isArray(game.jewelInventory) && game.jewelInventory.length > 0)
+        || bagItems.jewels().length > 0
         || ((game.currencies || {}).jewelShard || 0) > 0;
 }
 

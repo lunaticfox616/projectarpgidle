@@ -85,7 +85,7 @@ actExplorationState.groundLoot = (() => {
             if (row.currency === 'condensedSkyPower') state.skyTower.condensedPower = (state.skyTower.condensedPower || 0) + row.count;
             else state.currencies[row.currency] = (state.currencies[row.currency] || 0) + row.count;
         },
-        jewel: (state, row) => { state.jewelInventory = (state.jewelInventory || []).concat(row.item); },
+        jewel: (state, row) => { bagItems.put(bagItems.asJewel(row.item), state, true); },
         core: (state, row) => { coreItems.keep(row.item, state); },
         talisman: (state, row) => { talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); },
         leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); }

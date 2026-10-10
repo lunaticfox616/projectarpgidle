@@ -1306,7 +1306,6 @@ function getSeasonPassiveUnlockLoop(id) {
     return rowIndex >= 4 ? 5 : 1;
 }
 
-const JEWEL_INVENTORY_LIMIT = 40;
 const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
 
@@ -2451,8 +2450,9 @@ const defaultGame = {
     gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
     // 액막이1~5: 액막이 칸(2026-10-10, js/colony-wards.js). 열린 칸 수는 허리띠, 초월 공허, 가디언, 고유가 정한다.
+    // 코어: 코어 칸(2026-10-10, js/bag-items.js). 코어는 가방에 들어가고 이 칸에 하나를 낀다.
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null,
-        '액막이1': null, '액막이2': null, '액막이3': null, '액막이4': null, '액막이5': null },
+        '액막이1': null, '액막이2': null, '액막이3': null, '액막이4': null, '액막이5': null, '코어': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
     equipmentInventoryPlacements: {},
     // 그루터기 함 아래 4×4 조합창: 재료를 가리키기만 한다(js/stump-cube.js).

@@ -68,8 +68,9 @@ const actExplorationLoot=(()=>{
         state.currencyDropVersion=Math.max(0,Math.floor(state.currencyDropVersion||0))+Object.keys(loot.currencies).length;
     }
     function prepareInventories(state,loot) {
-        const inventory=state.inventory.concat(loot.equipment);
-        const jewelInventory=(state.jewelInventory||[]).concat(loot.jewels);
+        // 2026-10-10부터 주얼과 코어도 가방에 들어간다(js/bag-items.js): 장비와 같은 가방 목록에 붙인다.
+        const inventory=state.inventory.concat(loot.equipment,loot.jewels.map(jewel=>bagItems.asJewel({...jewel})),
+            loot.cores.map(core=>bagItems.asCore({...core})));
         const owned=[...state.inventory,...(state.jewelInventory||[]),
             ...Object.values(state.equipment),...coreItems.ownedItems(state)].filter(Boolean);
         const ids=new Set(owned.map(item=>item.id));
@@ -77,11 +78,10 @@ const actExplorationLoot=(()=>{
             if(ids.has(item.id))throw Error('이미 소유한 탐험 장비 보상');
             ids.add(item.id);
         }
-        const store=coreItems.ensure(state);
-        return {inventory,jewelInventory,cores:{...store,owned:store.owned.concat(loot.cores)}};
+        return {inventory};
     }
     function markItemsReceived(state,loot) {
-        if(loot.jewels.length || loot.equipment.length)state.noti.items=true;
+        if(loot.jewels.length || loot.equipment.length || loot.cores.length)state.noti.items=true;
         for(const item of loot.equipment.filter(row=>row.rarity==='unique')) {
             registerUniqueToCodexOnAcquire(item,state);
             uniqueHuntRuntime.complete(item,state);

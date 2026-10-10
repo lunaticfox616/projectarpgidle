@@ -1,9 +1,9 @@
-// 장비 소켓 화면(2026-09-30, 주얼 창을 대신함): 장비 상세의 [소켓] 대화 상자에서 주얼을 끼우고 빼며, 같은 대화 상자가
-// 주얼 보관함(해체 · 뽑기)도 겸한다. 장비 칸의 소켓 표시와 장비 툴팁의 소켓 줄도 여기서 만든다. 규칙은 equipment-sockets.js.
+// 장비 소켓 화면(2026-09-30, 주얼 창을 대신함): 장비 상세의 [소켓] 대화 상자에서 주얼을 끼우고 빼며, 같은 대화 상자 아래에
+// 가방의 주얼(끼우기, 해체)과 주얼 뽑기가 있다(2026-10-10부터 주얼은 가방에 들어간다, js/bag-items.js). 장비 칸의 소켓 표시와
+// 장비 툴팁의 소켓 줄도 여기서 만든다. 규칙은 equipment-sockets.js.
 const equipmentSocketsUi = (() => {
     const OVERLAY_ID = 'equipment-socket-overlay';
     const REFINE_COST = 12;
-    let mode = 'item';
 
     function jewelLines(jewel) {
         return getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}`);
@@ -56,42 +56,30 @@ const equipmentSocketsUi = (() => {
         return `${rows || '<p class="selection-overlay-help">이 장비에는 아직 소켓이 없습니다.</p>'}${chisel}${bonusNote}`;
     }
 
-    /** 보관함 +5칸(황금률, 거래소가 열린 뒤): 예전 주얼 창의 확장 단추. 확인 · 지불은 marketExpandJewelInventoryByDivine. */
-    function expandHtml() {
-        const cost = getJewelMarketExpandCost(), owned = Math.floor(game.currencies.goldenRule || 0);
-        return `<button type="button" onclick="equipmentSocketsUi.expand()" ${owned >= cost ? '' : 'disabled'}>+5칸 (황금률 ${cost}, 보유 ${owned})</button>`;
-    }
-
+    /** The bag's jewels: socket one into this item or salvage it; jewel shards draw a new one into the bag. */
     function storeHtml(item) {
-        const store = game.jewelInventory || [];
-        const canInsert = !!item && equipmentSockets.list(item).some(row => !row.jewel);
+        const store = bagItems.jewels();
+        const canInsert = equipmentSockets.list(item).some(row => !row.jewel);
         const cards = store.map(jewel => `<article class="socket-jewel-card">${jewelHtml(jewel)}<div class="socket-jewel-actions">
             ${canInsert ? `<button type="button" onclick="equipmentSocketsUi.insert(${jewel.id})">끼우기</button>` : ''}
             <button type="button" onclick="equipmentSocketsUi.salvage(${jewel.id})">해체 +${getJewelSalvageShardGain(jewel)}</button></div></article>`).join('');
         const shards = game.currencies.jewelShard || 0;
-        const expand = isMarketUnlocked() ? expandHtml() : '';
-        return `<div class="selection-overlay-section-title">주얼 보관함 ${store.length}/${getJewelInventoryLimit()}</div>
-            <div class="socket-jewel-list">${cards || '<p class="selection-overlay-help">보관 중인 주얼이 없습니다. 정예와 보스가 가끔 떨어뜨립니다.</p>'}</div>
-            <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 (결정 ${REFINE_COST})</button>${expand}</div>`;
+        return `<div class="selection-overlay-section-title">가방의 주얼 ${store.length}개</div>
+            <div class="socket-jewel-list">${cards || '<p class="selection-overlay-help">가방에 주얼이 없습니다. 정예와 보스가 가끔 떨어뜨립니다.</p>'}</div>
+            <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 (결정 ${REFINE_COST})</button></div>`;
     }
 
-    /** Opens the dialog, or redraws it in place after a change. */
+    /** Opens the dialog for the selected item, or redraws it in place after a change. */
     function render() {
-        const item = mode === 'item' ? getSelectedCraftItem() : null;
-        if (mode === 'item' && !item) return close();
-        const title = item ? `소켓: [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}` : '주얼 보관함';
-        selectionDialog.show({ id: OVERLAY_ID, title, panelClass: 'equipment-socket-panel', body: `${item ? socketsHtml(item) : '<p class="selection-overlay-help">주얼은 장비의 소켓에 끼웁니다. 장비를 선택해 [소켓]을 누르세요. 반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.</p>'}
+        const item = getSelectedCraftItem();
+        if (!item) return close();
+        selectionDialog.show({ id: OVERLAY_ID, title: `소켓: [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}`,
+            panelClass: 'equipment-socket-panel', body: `${socketsHtml(item)}
             ${storeHtml(item)}` });
     }
 
     function open(ref, isEquip) {
-        mode = 'item';
         if (selectForCrafting(ref, isEquip)) render();
-    }
-
-    function openStore() {
-        mode = 'store';
-        render();
     }
 
     function close() {
@@ -129,16 +117,11 @@ const equipmentSocketsUi = (() => {
         if (await salvageJewel(jewelId)) render();
     }
 
-    async function expand() {
-        await marketExpandJewelInventoryByDivine();
-        render();
-    }
-
     function refine() {
         drawJewelRefine();
         render();
     }
 
-    return Object.freeze({ actionHtml, pipsHtml, tooltipHtml, open, openStore, close, insert, remove, chisel, salvage, refine, expand });
+    return Object.freeze({ actionHtml, pipsHtml, tooltipHtml, open, close, insert, remove, chisel, salvage, refine });
 })();
 safeExposeGlobals({ equipmentSocketsUi });

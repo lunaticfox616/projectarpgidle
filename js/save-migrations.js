@@ -157,8 +157,10 @@ function stripRemovedAuxSystems(merged) {
         delete choice.expertLevel;
         ['a', 'b', 'c'].forEach(key => { if (choice[key] && typeof choice[key] === 'object') delete choice[key].expertLevel; });
     }
-    // 2026-10-10: 군락지 액막이 보관함과 칸은 가방과 장비의 액막이 칸으로 옮긴다(js/colony-wards.js migrate).
+    // 2026-10-10: 군락지 액막이 보관함과 칸은 가방과 장비의 액막이 칸으로, 주얼 보관함과 코어 보관함은 가방으로, 끼운 코어는
+    // 장비 칸 '코어'로 옮긴다(js/colony-wards.js, js/bag-items.js migrate).
     colonyWards.migrate(merged);
+    bagItems.migrate(merged);
 }
 
 /** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
@@ -817,7 +819,7 @@ function mergeDefaults(save) {
     // 여기서 잘라내면 바로 그 아껴 둔 주얼이 다음 불러오기에 조용히 사라졌다.
     // 게다가 앞에서부터 40개를 남기므로 가장 최근에 지켜 낸 것이 먼저 지워진다.
     // 장비 보관함도 같은 이유로 자르지 않고 초과 보관을 허용한다(유실 방지).
-    // 새로 넣는 쪽은 각 push 지점이 getJewelInventoryLimit()으로 계속 막는다.
+    // 2026-10-10부터 주얼은 가방에 들어가고, 이 목록은 불러온 뒤 bagItems.migrate가 가방으로 옮긴다.
     // 주얼 슬롯은 2026-09-30에 없어졌다(주얼은 장비 소켓에만 낀다). 슬롯의 주얼은 보관함으로 옮기고, 증폭은 보상 없이 지운다.
     merged.jewelInventory.push(...(Array.isArray(merged.jewelSlots) ? merged.jewelSlots.map(normalizeJewelRecord).filter(Boolean) : []));
     delete merged.jewelSlots; delete merged.jewelSlotAmplify; delete merged.unlocks.jewel; delete merged.noti.jewel;

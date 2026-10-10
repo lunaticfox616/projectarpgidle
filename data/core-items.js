@@ -69,10 +69,9 @@ const CORE_OPTION_POOL = Object.freeze([
     { group: 'utility', id: 'double_damage', stat: 'doubleDamageChance', min: 2, max: 6, text: '{value}% 확률로 2배의 피해를 줌' }
 ]);
 
-// lines: 코어 한 개의 줄 수. capacity: 보관함 한도(새 드롭만 막는다). savedLimit: 망가진 저장을 자르는 상한.
+// lines: 코어 한 개의 줄 수. savedLimit: 예전 코어 보관함(2026-10-10 전 저장)을 불러올 때 자르는 상한. 코어는 이제 가방에 들어간다.
 const CORE_ITEM_RULES = Object.freeze({
     lines: 4,
-    capacity: 12,
     savedLimit: 60,
     underworldFloor: 11,
     groupNames: Object.freeze({ defense: '수호', resist: '저항', mitigation: '완화', offense: '파괴', utility: '기교' })

@@ -1,80 +1,32 @@
-// 장비창 왼쪽 위 코어 칸과 코어 보관함 대화 상자. 저장 · 규칙은 core-items.js.
+// 장비창의 코어 칸(장착 칸 왼쪽 위). 2026-10-10부터 코어는 가방에 들어가고 장비 칸 '코어'에 낀다(js/bag-items.js). 칸은 다른 장착
+// 칸과 같은 .equipment-slot이라 끌어 놓기, 누르기, 두 번 눌러 해제가 그대로 되고, 툴팁은 js/bag-items-ui.js가 코어 카드로 그린다.
 const coreItemsUi = (() => {
-    const OVERLAY_ID = 'core-item-overlay';
-    const LOCK_MESSAGE = '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
+    const SLOT = '코어';
 
-    function linesHtml(core) {
-        return `<ul class="core-item-lines">${core.lines.map(line => `<li>${escapeHTML(coreItems.describe(line))}</li>`).join('')}</ul>`;
-    }
-
-    /** Paperdoll card for the top-left cell; absent until the core unlock. */
-    function slotHtml() {
-        if (!contentProgression.isUnlocked('cube')) return '';
-        const store = coreItems.ensure();
-        const core = store.equipped;
-        const hover = core ? ` data-info-tooltip-anchor="1" onmouseenter="coreItemsUi.hover(event)" onmouseleave="hideInfoTooltip()"` : '';
-        return `<div class="slot-box equipment-slot slot-코어 core-item-slot${core ? '' : ' equipment-slot-empty'}" data-slot="코어" onclick="coreItemsUi.open()"${hover}>
-            <div class="equipment-slot-head"><span>코어</span></div>
-            <div class="equipment-slot-visual${core ? '' : ' empty'}"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true"></div>
-            <div class="item-title equipment-slot-name">${core ? escapeHTML(core.name) : '비어 있음'}</div>
-            <button type="button" class="equipment-slot-action" onclick="event.stopPropagation(); coreItemsUi.open()">보관 ${store.owned.length}/${CORE_ITEM_RULES.capacity}</button>
+    function emptyHtml() {
+        return `<div class="slot-box equipment-slot equipment-slot-empty slot-${SLOT} core-item-slot" data-slot="${SLOT}" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')">
+            <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual empty"><img src="${coreItems.icon(null)}" alt="" aria-hidden="true" draggable="false"></div>
+            <div class="equipment-empty-mark">＋</div>
+            <div class="equipment-empty-label">비어 있음</div>
         </div>`;
     }
 
-    function hover(event) {
-        const core = coreItems.ensure().equipped;
-        if (!core || !window.matchMedia('(hover: hover)').matches) return;
-        showInfoTooltipHtml(event.clientX, event.clientY, `<strong>${escapeHTML(core.name)}</strong>${linesHtml(core)}`, '#6d8fa8');
+    /** Paperdoll card for the core slot: absent until the core unlock, unless a core is still worn. */
+    function slotHtml() {
+        const core = (game.equipment || {})[SLOT];
+        if (!core) return contentProgression.isUnlocked('cube') ? emptyHtml() : '';
+        const hover = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${SLOT}', true)`;
+        const rarity = core.rarity || 'rare';
+        return `<div class="slot-box equipment-slot slot-${SLOT} core-item-slot rarity-${rarity}" data-slot="${SLOT}" data-item-tooltip-anchor="1"
+            onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')"
+            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${SLOT}', false)"
+            onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
+            <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
+            <div class="item-title equipment-slot-name ${rarity}" title="${escapeHTML(core.name)}">${escapeHTML(core.name)}</div>
+            <button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${SLOT}')">장착 해제</button>
+        </div>`;
     }
 
-    function cardHtml(core, equipped) {
-        const actions = equipped
-            ? '<button type="button" onclick="coreItemsUi.unequip()">해제</button>'
-            : `<button type="button" class="core-item-equip" onclick="coreItemsUi.equip(${core.id})">장착</button>
-               <button type="button" class="core-item-discard" onclick="coreItemsUi.discard(${core.id})">버리기</button>`;
-        return `<article class="core-item-card${equipped ? ' is-equipped' : ''}">
-            <img src="${coreItems.icon(core)}" alt="" aria-hidden="true">
-            <div><strong>${escapeHTML(core.name)}${equipped ? ' (장착 중)' : ''}</strong>${linesHtml(core)}</div>
-            <div class="core-item-actions">${actions}</div>
-        </article>`;
-    }
-
-    /** Opens the store, or redraws it in place after a change. */
-    function openStore() {
-        const store = coreItems.ensure();
-        const owned = store.owned.map(core => cardHtml(core, false)).join('')
-            || '<p class="selection-overlay-help">보관 중인 코어가 없습니다. 지하계 10층을 넘긴 뒤 지하계 적에게서 떨어집니다.</p>';
-        selectionDialog.show({ id: OVERLAY_ID, title: '코어', panelClass: 'core-item-panel', body: `<div class="selection-overlay-help">코어 칸에는 코어 하나를 낍니다. 코어는 옵션 네 줄을 가지며 루프를 넘기면 장비처럼 사라집니다.</div>
-            ${store.equipped ? cardHtml(store.equipped, true) : '<p class="core-item-empty">코어 칸이 비어 있습니다.</p>'}
-            <div class="selection-overlay-section-title">보관함 ${store.owned.length}/${CORE_ITEM_RULES.capacity}</div>
-            <div class="core-item-list">${owned}</div>` });
-    }
-
-    function close() {
-        selectionDialog.close(OVERLAY_ID);
-    }
-
-    function reopenStoreAfter(changed) {
-        if (!changed) return;
-        updateStaticUI();
-        openStore();
-    }
-
-    function equip(id) {
-        if (game.woodsmanBuildLock) return addLog(LOCK_MESSAGE, 'attack-monster');
-        reopenStoreAfter(coreItems.equip(id));
-    }
-
-    function unequip() {
-        if (game.woodsmanBuildLock) return addLog(LOCK_MESSAGE, 'attack-monster');
-        reopenStoreAfter(coreItems.unequip());
-    }
-
-    async function discard(id) {
-        if (!await requestGameConfirmation('이 코어를 버립니다. 되돌릴 수 없습니다.', { title: '코어 버리기', tone: 'danger', confirmLabel: '버리기' })) return;
-        reopenStoreAfter(coreItems.discard(id));
-    }
-
-    return Object.freeze({ slotHtml, hover, open: openStore, close, equip, unequip, discard });
+    return Object.freeze({ slotHtml });
 })();
 safeExposeGlobals({ coreItemsUi });

@@ -8434,6 +8434,7 @@ function hasLegacyUniqueBaseUpgrade(item, slot) {
 
 function normalizeItem(item) {
     if (!item) return null;
+    if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
     function coerceFiniteNumber(value, fallback) {
         let num = Number(value);
         return Number.isFinite(num) ? num : fallback;
@@ -9815,7 +9816,7 @@ function getAcquiredItemAutoEquipSlot(item, options, offlineStashEnabled) {
  * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. */
 function isGuaranteedEquipmentPickup(item, options) {
     return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item)
-        || colonyWards.keptOnPickup(item);
+        || bagItems.keptOnPickup(item);
 }
 
 /** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
@@ -10225,18 +10226,12 @@ function generateJewelDrop(zoneOrTier, odds = null) {
     return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
-/** Jewels enter the collection immediately; ordinary overflow is salvaged. */
+/** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
+ * storage and the rest are salvaged into jewel shards. */
 function receiveJewelDrop(jewel) {
     combatLootReceipts.item(game,jewel,'jewel');
-    const inventoryFull=game.jewelInventory.length>=getJewelInventoryLimit();
-    const protectOverflow=inventoryFull&&['rare','unique'].includes(jewel.rarity);
-    const result={jewel,inventoryFull,protectOverflow,stored:false,shardGain:0};
-    if(inventoryFull&&!protectOverflow) {
-        result.shardGain=salvageJewelObject(jewel,true);
-        return result;
-    }
-    game.jewelInventory.push(jewel);game.noti.items=true;result.stored=true;
-    return result;
+    const added=bagItems.addJewel(jewel);
+    return {jewel,inventoryFull:added.protectOverflow||!added.stored,...added};
 }
 
 function getJewelStats(jewel) {
@@ -10274,7 +10269,7 @@ function salvageJewelObject(jewel, silent) {
     return shardGain;
 }
 
-/** @returns {number} socketed jewels returned to the jewel store before the item went away */
+/** @returns {number} socketed jewels returned to the bag before the item went away */
 function destroySelectedCraftItem(item) {
     if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return 0;
     const jewels = equipmentSockets.returnJewels(item);
@@ -10286,10 +10281,9 @@ function destroySelectedCraftItem(item) {
 }
 
 function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    game.jewelInventory = game.jewelInventory || [];
     let cost = 12;
     if ((game.currencies.jewelShard || 0) < cost) return addLog(`주얼 가공에 필요한 주얼 결정이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (game.jewelInventory.length >= getJewelInventoryLimit()) return addLog(`주얼 인벤토리가 가득 찼습니다. (최대 ${getJewelInventoryLimit()})`, 'attack-monster');
+    if (!equipmentInventoryGridRuntime.findAddPlacement({ slot: bagItems.JEWEL }, game).ok) return addLog('가방에 자리가 없습니다.', 'attack-monster');
     game.currencies.jewelShard -= cost;
     let zoneTier = Math.max(1, Math.floor(((getZone(game.currentZoneId) || {}).tier || 1)));
     let jewel = generateJewelDrop(zoneTier + 8);
@@ -10297,26 +10291,24 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ �
         awardCurrency('jewelShard', cost);
         return addLog('주얼 가공 결과를 생성하지 못했습니다. 소모 재화를 반환합니다.', 'attack-monster');
     }
-    game.jewelInventory.push(jewel);
+    bagItems.put(bagItems.asJewel(jewel), game, true);
     let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
     addLog(`🎰 주얼 가공: ${getJewelRarityLabel(jewel.rarity)} [${jewel.name}] 획득! (${lineText})`, jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
     updateStaticUI();
 }
 
 
-/** 주얼 보관함에서 한 개를 해체한다(고유는 확인을 거친다). 확인 사이에 보관함이 바뀌었으면 취소한다. */
+/** 가방의 주얼 한 개를 해체한다(고유는 확인을 거친다). 확인 사이에 주얼이 가방을 떠났으면(소켓 등) 취소한다. */
 async function salvageJewel(jewelId) {
-    let jewel = (game.jewelInventory || []).find(row => row && row.id === jewelId);
+    let jewel = bagItems.jewels().find(row => row.id === jewelId);
     if (!jewel) return false;
     if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]을 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
         title: '고유 주얼 해체',
         tone: 'danger',
         confirmLabel: '해체'
     })) return false;
-    let index = (game.jewelInventory || []).indexOf(jewel);
-    if (index < 0) return false;
+    if (!bagItems.take(jewel)) return false;
     salvageJewelObject(jewel, false);
-    game.jewelInventory.splice(index, 1);
     updateStaticUI();
     return true;
 }
@@ -10335,7 +10327,7 @@ function getUniqueDismantleDivineChance(item) {
 }
 
 function getItemSalvageRewardProfile(item, options) {
-    if (colonyWards.isWard(item)) return colonyWards.salvageProfile(item); // 액막이: 군락지 편린
+    if (bagItems.isSpecial(item)) return bagItems.salvageProfile(item); // 주얼: 주얼 결정, 액막이: 군락지 편린, 코어: 없음
     let noDivine = !!(options && options.noDivine);
     let rarity = item && item.rarity || 'normal';
     let guaranteed = {};
@@ -10475,7 +10467,7 @@ function toggleAutoSalvage() {
 // 일괄 해체 보호: 잠금·장비 프리셋 아이템은 대상에서 제외한다.
 function isBulkSalvageProtectedItem(item) {
     if (!item) return true;
-    if (item.locked || equipmentLootPolicy.matches(item)) return true;
+    if (item.locked || bagItems.ownShape(item) || equipmentLootPolicy.matches(item)) return true; // 주얼과 코어는 하나씩 해체한다
     return typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
 }
 

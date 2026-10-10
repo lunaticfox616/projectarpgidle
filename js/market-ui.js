@@ -93,7 +93,7 @@ const marketUi = {
     targetOptions(item) {
         const equipped = Object.entries(game.equipment).filter(([, entry]) => entry).map(([slot, entry]) => ({value:'equip:' + slot, item:entry, label:'장착 ' + slot}));
         const inventory = game.inventory.map(entry => ({value:'inventory:' + entry.id, item:entry, label:'보관 ' + entry.slot}));
-        return '<option value="">장비 선택</option>' + [...equipped, ...inventory].filter(row => !row.item.hallReplica).map(row =>
+        return '<option value="">장비 선택</option>' + [...equipped, ...inventory].filter(row => !row.item.hallReplica && !bagItems.isSpecial(row.item)).map(row =>
             `<option value="${escapeHTML(row.value)}" ${row.item === item ? 'selected' : ''}>${escapeHTML(row.label + ': ' + row.item.name)}</option>`).join('');
     },
     renderAnnul() {
@@ -138,8 +138,7 @@ const marketUi = {
     },
     renderServices() {
         document.getElementById('market-service-balance').textContent = `황금률 ${(game.currencies.goldenRule || 0).toLocaleString()}개 보유`;
-        const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'keep', label:'옵션 보존', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true},
-            {id:'jewel-inv', label:'주얼 인벤토리 확장', open:contentProgression.isUnlocked('jewel')}];
+        const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'keep', label:'옵션 보존', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true}];
         const available = choices.filter(row => row.open);
         if (!available.some(row => row.id === this.service)) this.service = 'annul';
         const mobile = uiDisplay.matches('(max-width: 1080px)');
@@ -153,16 +152,7 @@ const marketUi = {
     renderService(id) {
         if (id === 'annul') return this.renderAnnul();
         if (id === 'keep') return this.renderKeep();
-        if (id === 'passive') return this.renderPassiveReset();
-        return this.renderExpansion('jewel', true, getJewelMarketExpandCost(), getJewelInventoryLimit());
-    },
-    renderExpansion(kind, open, cost, limit) {
-        const host = document.getElementById('ui-market-service-' + kind + '-inv');
-        host.hidden = !open;if (!open) return;
-        const name = '주얼 인벤토리';
-        const action = 'marketExpandJewelInventoryByDivine';
-        this.mount(host, `<div class="market-service-top"><h3>${name} 확장</h3><span>영구 유지</span></div><p>${limit}칸 → ${limit + 5}칸<br>루프가 바뀌어도 확장은 유지됩니다.</p>
-            <button onclick="${action}()" ${(game.currencies.goldenRule || 0) < cost ? 'disabled' : ''}>5칸 확장 (황금률 ${cost}개)</button>`);
+        return this.renderPassiveReset();
     },
     offerArt(offer) {
         if (offer.type === 'exchange') return this.icon(offer.to);
