@@ -1048,14 +1048,6 @@ body #item-tab-equip .equipment-card-slot {
   box-shadow: inset 0 1px rgba(255, 255, 255, .025);
 }
 
-:root body #item-tab-equip .equipment-preset-panel > header span {
-  color: #cda65e;
-}
-
-:root body #item-tab-equip .equipment-preset-panel > header strong {
-  color: #eadfce;
-}
-
 :root body #item-tab-equip .equipment-preset-slot {
   border-radius: 3px;
 }
@@ -1070,20 +1062,10 @@ body #item-tab-equip .equipment-card-slot {
   color: #b28a4c;
 }
 
-:root body #item-tab-equip .equipment-preset-slot > strong {
-  color: #ded3c3;
-}
-
 :root body #item-tab-equip .equipment-preset-slot.selected {
   border-color: #a3793f;
   background: #2a2115;
   box-shadow: inset 3px 0 #c99b53;
-}
-
-:root body #item-tab-equip .equipment-preset-actions button.primary {
-  border-color: #956f3b;
-  color: #f4dfbc;
-  background: linear-gradient(180deg, #5c421f, #281e12);
 }
 
 :root body #item-tab-equip .equipment-triage-host {
@@ -1363,12 +1345,6 @@ body #tab-map .map-state-badge.recommended {
     border-radius: 2px;
     color: #d9c9b0;
     background: linear-gradient(180deg, #272117, #10110e);
-  }
-
-  :root body #item-tab-equip .equipment-mobile-switch button {
-    border-color: #4d4233;
-    color: #bdb3a5;
-    background: #131411;
   }
 
   body.mobile-primary-navigation #tab-header-main > #btn-map-complete-action-picker {
@@ -1760,14 +1736,8 @@ body .selection-overlay-panel {
   margin: 12px 0 0;
 }
 
-:root body .equipment-preset-panel > header span,:root 
-body .equipment-preset-slot > span {
+:root body .equipment-preset-slot > span {
   color: var(--skin-accent);
-}
-
-:root body .equipment-preset-panel > header strong,:root 
-body .equipment-preset-slot > strong {
-  color: var(--color-text);
 }
 
 :root body .equipment-preset-slot {
@@ -2641,13 +2611,9 @@ body #tab-skills .gem-card-utility {
 :root body :where(
   .cfg-select,
   .cfg-number,
-  .inventory-browse-toolbar select,
-  .inventory-browse-toolbar button,
   .equipment-grid-inspector-actions button,
-  .equipment-preset-actions button,
   .equipment-triage-controls button,
   .equipment-triage-controls select,
-  .equipment-mobile-switch button,
   .bulk-manager button,
   .inventory-expand-shortcut,
   .selection-overlay-panel button,
@@ -2658,13 +2624,9 @@ body #tab-skills .gem-card-utility {
 :root body :where(
   .cfg-select,
   .cfg-number,
-  .inventory-browse-toolbar select,
-  .inventory-browse-toolbar button,
   .equipment-grid-inspector-actions button,
-  .equipment-preset-actions button,
   .equipment-triage-controls button,
   .equipment-triage-controls select,
-  .equipment-mobile-switch button,
   .bulk-manager button,
   .inventory-expand-shortcut,
   .selection-overlay-panel button,
@@ -2704,14 +2666,7 @@ body #tab-skills .gem-card-utility {
   background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
 }
 
-:root body #item-tab-equip .inventory-browse-toolbar {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-:root body :is(.bulk-manager, .equipment-grid-inspector-actions) button[aria-pressed="true"],:root 
-body .equipment-preset-actions button.primary {
+:root body :is(.bulk-manager, .equipment-grid-inspector-actions) button[aria-pressed="true"] {
   border-color: var(--skin-line-strong);
   color: var(--skin-accent);
   background: var(--skin-control);
@@ -2775,7 +2730,6 @@ body .equipment-preset-actions button.primary {
 }
 
 :root body :where(
-  .equipment-mobile-switch button[aria-pressed="true"],
   .selection-overlay-option.selected,
   .player-exchange-card button.active
 ) {
@@ -2803,12 +2757,6 @@ body .selection-overlay-panel {
     linear-gradient(135deg, color-mix(in srgb, var(--skin-accent), transparent 95%), transparent 38%),
     linear-gradient(180deg, var(--skin-panel-raised), var(--skin-panel));
   box-shadow: inset 0 1px rgba(255, 255, 255, .03), 0 12px 30px rgba(0, 0, 0, .26);
-}
-
-:root body .equipment-preset-actions button.primary {
-  border-color: var(--skin-line-strong);
-  color: #fff0d2;
-  background: linear-gradient(180deg, var(--skin-accent-strong), #2a1c10);
 }
 
 :root body :where(.map-item.current, .map-item[aria-current="true"]) {

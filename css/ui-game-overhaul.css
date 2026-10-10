@@ -699,8 +699,6 @@
 }
 
 /* ── Equipment command screen ─────────────────────────────── */
-.equipment-mobile-switch { display: none; }
-
 .equipment-workspace {
   display: grid;
   grid-template-columns: minmax(330px, .82fr) minmax(430px, 1.35fr);
@@ -895,7 +893,6 @@
   border-color: rgba(48, 72, 98, .7);
 }
 
-.equipment-inventory-toolbar .bulk-salvage-filters { align-items: center; justify-content: space-between; gap: 8px; }
 .equipment-salvage-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .equipment-salvage-actions button { min-width: 0; min-height: 29px; padding: 5px 7px; font-size: 10px; }
 
@@ -1970,20 +1967,6 @@ body .cfg-group {
 .progression-section > #ui-season-content-roadmap { margin-right: 10px; margin-left: 10px; }
 .bulk-manager > .bulk-salvage-bar,
 .bulk-manager > .equipment-salvage-actions { margin: 0; border: 0; border-radius: 0; }
-.inventory-browse-toolbar {
-  position: sticky;
-  z-index: 3;
-  top: 0;
-  display: flex;
-  gap: 8px;
-  margin-bottom: 7px;
-  padding: 7px;
-  border: 1px solid rgba(61, 88, 115, .48);
-  border-radius: 8px;
-  background: rgba(8, 16, 25, .94);
-}
-.inventory-browse-toolbar label { display: flex; align-items: center; gap: 5px; color: #eef2f6; font-size: 9px; }
-.inventory-browse-toolbar select { min-height: 29px; color: #fff; border: 1px solid #3d5872; border-radius: 6px; background: #101b29; }
 .equipment-triage-host {
   display: flex;
   flex: 1 1 390px;
@@ -2055,7 +2038,6 @@ body .cfg-group {
 @media (max-width: 760px) {
   .character-ehp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .passive-special-stat-grid { grid-template-columns: 1fr; }
-  .inventory-browse-toolbar { position: static; flex-wrap: wrap; }
   .equipment-triage-host { flex: 1 1 100%; width: 100%; padding: 7px 0 0; border-top: 1px solid rgba(78, 105, 132, .48); border-left: 0; }
   .equipment-triage-copy small { max-width: 46vw; }
   #tab-skills .skill-subtab-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }

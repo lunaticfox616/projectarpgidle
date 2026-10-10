@@ -67,11 +67,10 @@
 .infl-source .infl-tag { margin-right: 6px; color: var(--infl); font-weight: 700; }
 }
 
-/* 툴팁 상자와 장비 비교 칸: 피부(overrides)의 테두리 그림 대신 영향 색 테두리(왼쪽 반, 오른쪽 반). 상자 안이 스크롤돼도 테두리는 그대로다. */
+/* 툴팁 상자: 피부(overrides)의 테두리 그림 대신 영향 색 테두리(왼쪽 반, 오른쪽 반). 상자 안이 스크롤돼도 테두리는 그대로다. */
 @layer overrides {
 :root body #item-tooltip-box[data-influence][data-influence]:not(.item-compare-tooltip),
-:root body #item-tooltip-box[data-influence][data-influence].item-compare-tooltip .item-tooltip-main,
-:root body .equipment-inspection-column > [data-influence][data-influence] {
+:root body #item-tooltip-box[data-influence][data-influence].item-compare-tooltip .item-tooltip-main {
     border-style: solid;
     border-width: var(--px-light-border, 2px);
     border-image: linear-gradient(90deg, var(--infl-a) 0 50%, var(--infl-b) 50% 100%) 1;

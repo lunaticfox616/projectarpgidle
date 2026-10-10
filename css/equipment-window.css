@@ -3,7 +3,6 @@
    휴대폰은 요약 한 줄(장착 장비 ▾로 장착 칸과 세팅을 펼친다)과 가방, 선택한 장비는 아래에서 올라온다. 가방 칸은 PC 넓은 창에서 60px. */
 @layer overrides {
 :root body #item-tab-equip { --eqw-gold: #ecc982; --eqw-muted: #a39883; --eqw-ink: #e6dcc6; --eqw-edge: #8a6a36; container: eqw / inline-size; }
-:root body #item-tab-equip .equipment-mobile-switch { display: none; }
 :root body #item-tab-equip .equipment-window { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 :root body #item-tab-equip .equipment-window .equipment-loadout-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 0; border: 0;
   background: none; box-shadow: none; }

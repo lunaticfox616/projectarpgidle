@@ -122,14 +122,10 @@
     background: #e4a44b;
     box-shadow: none;
   }
-  /* 장비 창(좁은 화면): 등급 · 슬롯 · 정렬 줄은 '필터 · 정렬' 단추로 펼친다 — 그리드 전에 화면의 60%를 차지했다(검토 4차) */
-  :root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle { display: block; min-height: 44px; padding-inline: 10px; }
   /* 검색 줄 끝에 필터 단추가 붙으니, 지울 검색어가 없을 때는 '검색어 리셋'을 접는다(검토 5차 — 장비 격자를 위로) */
   :root body[data-ui-skin] #item-tab-equip .search-filter-input:placeholder-shown + .search-action-row > button:first-child { display: none; }
   /* 장비 창 · 제작실 · 거래소 · 장비 전당은 한 줄에: 세 칸 격자라 넷째가 혼자 둘째 줄을 썼다 */
   :root body[data-ui-skin] #tab-items > .subtab-row { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-  :root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle[aria-expanded="true"] { color: var(--px-gold-bright); box-shadow: var(--px-gold-rim); }
-  :root body[data-ui-skin] .equipment-inventory-panel:not(.filters-open) :is(.inventory-rarity-row, .inventory-browse-toolbar) { display: none; }
   /* 전체 메뉴 서랍의 알림 표시도 하단 메뉴와 같은 주황 네모(빨간 네모와 섞여 있었다 — 검토 4차) */
   :root body[data-ui-skin].mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main .tab-btn > .noti-dot {
     width: 8px;

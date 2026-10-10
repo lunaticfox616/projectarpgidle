@@ -141,8 +141,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.tutorial-kicker, .game-dialog-kicker) { letter-spacing: .12em; }
 /* 8~11px로 줄어 있던 글자는 물마루의 제 크기(12px)로. 그보다 작으면 도트가 뭉개져 읽히지 않는다. */
 :root body[data-ui-skin] :is(
-  .equipment-slot-head span, .equipment-empty-label, .equipment-summary-stat span, .equipment-preset-slot small,
-  .equipment-preset-note span, .equipment-triage-copy small, .inventory-view-filter-label,
+  .equipment-slot-head span, .equipment-empty-label, .equipment-summary-stat span,
+  .equipment-triage-copy small, .inventory-view-filter-label,
   .gem-tag, .gem-card-range, .gem-usage-state, .gem-card-utility, .starter-gem-equip-guide,
   #btn-skill-tab-equip small,
   .map-state-badge, .map-zone-group-count, .ui-goal-desc, .ui-goal-notice-action span, .ailment-stat-title,
@@ -155,7 +155,6 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 장비 세팅 칸: 도트 글꼴은 폭이 넓어 번호 배지를 빼고("세팅 1"에 이미 번호가 있다) 이름·상태를 한 줄씩 */
 :root body[data-ui-skin] .equipment-preset-slot { grid-template-columns: minmax(0, 1fr); padding: 4px 6px; }
 :root body[data-ui-skin] .equipment-preset-slot > span { display: none; }
-:root body[data-ui-skin] .equipment-preset-slot > :is(strong, small) { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 
 /* PC 전장 틀: 예전 둥근 모서리(6 ~ 14px)가 화면 모서리에 남던 것 */
 :root body[data-ui-skin] .battlefield-wrap,
@@ -176,7 +175,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 젬 카드의 공격 범위 줄: 한 줄 말줄임("인접 단일 · 사거리 1…")으로 잘려 사거리가 안 보였다 — 두 줄까지 감싼다 */
 :root body[data-ui-skin] .gem-card-range { white-space: normal; overflow: visible; text-overflow: clip; }
 /* 창마다 em 배율로 남은 소수 글씨(8.8 ~ 16.4px)를 도트 글꼴이 그려진 정수 크기로(재능 · 루프 패시브 · 전적 · 도감) */
-:root body[data-ui-skin] :is(.equipment-aux-store,
+:root body[data-ui-skin] :is(
   #ui-season-tree strong,
   .offline-progress-upgrade button,
   #ui-records-body div > span) { font-size: 12px; }
@@ -369,7 +368,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.ui-context-dock-tab, #death-overlay .deathlog-tab):not(.active) { box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy-muted); }
 :root body[data-ui-skin] :is(.ui-context-dock-tab, #death-overlay .deathlog-tab).active { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 작은 머리글(예전 영문 대문자 자리): 한글이 되었으니 넓은 자간을 풀고 도트 12px */
-:root body[data-ui-skin] :is(.skill-panel-kicker, .cosmos-kicker, .ghost-duel-stage-label, .map-pvp-heading span, .beyond-head span, .beyond-farming header span, .cosmos-mastery-card-head span, .gem-engrave-dialog-identity span, .equipment-preset-panel > header span) {
+:root body[data-ui-skin] :is(.skill-panel-kicker, .cosmos-kicker, .ghost-duel-stage-label, .map-pvp-heading span, .beyond-head span, .beyond-farming header span, .cosmos-mastery-card-head span, .gem-engrave-dialog-identity span) {
   color: var(--px-gold);
   font-size: 12px;
   letter-spacing: 0;
@@ -378,11 +377,11 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 도트 글꼴은 소수 크기에서 번진다: em · rem 배율로 소수가 되던 단추 · 수치 글씨를 정수 크기로 */
 :root body[data-ui-skin] :is(.combat-action-btn, .stat-unit, .stat-label, .rarity-filter-chip, .cfg-btn, .stump-filter, .passive-planner-toggle, .passive-planner-progress, .passive-tree-gesture-hint),
 :root body[data-ui-skin] :is(#ui-equipment-presets, #ui-skills-list, #ui-support-list, #passive-filter-row, #passive-tree-planner, #passive-search-clear, #loop-passive-locked) button,
-:root body[data-ui-skin] :is(.mobile-section-navigation, .equipment-mobile-switch, .social-mobile-sheet-header) > button,
+:root body[data-ui-skin] :is(.mobile-section-navigation, .social-mobile-sheet-header) > button,
 :root body[data-ui-skin] :is(.passive-preset-drawer, .passive-search-drawer) > summary strong,
 :root body[data-ui-skin] :is(#passive-search-clear, #passive-search-close, .passive-investment-summary-toggle span, #ui-equipment-inventory-pages button span, .journal-section-title span),
 :root body[data-ui-skin] .journal-summary-main > div > span { font-size: 12px; }
-:root body[data-ui-skin] :is(.journal-section-title, .equipment-preset-panel > header strong) { font-size: 14px; }
+:root body[data-ui-skin] .journal-section-title { font-size: 14px; }
 :root body[data-ui-skin] .journal-summary-main > b { font-size: 16px; }
 /* 작은 글(도감 카드 · 클라우드 계정 판 · 기록 · 해금 단계 · 루프 트리 요약)이 9.6~10.9px 소수 크기였다 — 도트 12px, 좁은 꼬리표는 11px */
 :root body[data-ui-skin] :is(.cloud-meta, .cloud-meta :is(div, strong), .cloud-policy-links a, .cloud-subtitle, .cloud-status-pill),
@@ -608,15 +607,13 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
     .map-zone-group-title, .craft-spores-title, .stat-value) { font-family: var(--font-pixel-read); font-size: 15px; }
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(p, li, label, button, select, input, textarea, small, td, th, h4, .subtab-btn strong, .equipment-slot-name, .equipment-slot-action,
     .unlock-eyebrow, .unlock-lifetime-tag, .unlock-origin-label, .content-unlock-balance) { font-family: var(--font-pixel); font-size: 12px; }
-/* 단추처럼 쓰는 접힘 제목(장비 '일괄 해체', 해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
+/* 단추처럼 쓰는 접힘 제목(해금 상세의 '루프 전환 시' · '포함된 성장 요소')은 옆 단추와 같은 본문 글꼴 —
    소제목 크기(갈무리 15)라 옆 단추와 글꼴 · 크기가 달랐다(검토 4차) */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.equipment-bulk-menu, .unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-stall details) > summary { font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.unlock-lifetime, .unlock-related, #map-ready-destinations > details, #market-panel-stall details) > summary { font-family: var(--font-pixel); font-size: 12px; }
 /* 가판대 구경 손님 줄: 앞에 HUD 메뉴의 사람 아이콘(캐릭터 메뉴와 같은 13도트 금빛 그림, 2배) */
 :root body[data-ui-skin] .stall-visitor-count::before { content: ''; flex: none; width: 26px; height: 26px; background: var(--px-menu-icons) -26px 0 / calc(var(--px-icon-count) * 26px) 26px no-repeat; image-rendering: pixelated; }
 /* 원정 입장 단추(벌집 입장 등)는 화면의 주 동작: 금 테 · 밝은 글(작고 흐린 단추라 눈에 띄지 않았다 — 검토 4차) */
 :root body[data-ui-skin] .map-expedition-actions > [data-exploration-departure]:not(:disabled) { padding: 9px 22px; box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
-/* 장비 창의 '필터 · 정렬' 단추는 좁은 화면에서만(아래 pixel-mobile.css) */
-:root body[data-ui-skin] .equipment-inventory-panel .inventory-filter-toggle { display: none; }
 /* 젬 설명은 어절 단위로 줄을 바꾼다 — "피해의 45%" / "를 줍니다."처럼 숫자와 조사가 갈렸다(검토 4차) */
 :root body[data-ui-skin] .gem-selection-content { word-break: keep-all; overflow-wrap: anywhere; }
 /* 젬 타일 호버 툴팁의 '눌러서 상세' 안내 줄(js/ui.js showGemCardHint) */
@@ -642,13 +639,13 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 /* 고른 쪽이 보이게: 휴대폰 구역 단추(판/보관함 등)와 탐험 지도의 방식(보스 직행 · 전체 탐색 · 직접 이동) — 도트 단추 재질이
    고른 표시를 덮어 고른 것과 아닌 것이 똑같았다(검토 4차) */
-:root body[data-ui-skin] :is(.mobile-section-navigation, .equipment-mobile-switch) > button[aria-selected="true"],
+:root body[data-ui-skin] .mobile-section-navigation > button[aria-selected="true"],
 :root body[data-ui-skin] #act-exploration-dialog .act-exploration-modes > button[aria-pressed="true"] { background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
 /* 소제목 · 접힘 제목 안의 보조 글(개수 · 설명 · 도구 이름)은 본문 크기 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(h3, summary, .records-section-title, .journal-section-title, .gem-enhance-section-title, .map-zone-group-title,
     .craft-spores-title) :is(span, strong, b, small, em, i) { font-family: var(--font-pixel); font-size: 12px; }
 /* 카드 · 판의 이름 줄은 소제목 크기 */
-:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong, .equipment-preset-panel > header strong,
+:root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-research-card-head strong, .journal-card-head strong,
     .passive-planner-primary > strong, .map-route-copy strong, .journal-summary-main :is(strong, b),
     .character-ehp-stat strong) { font-family: var(--font-pixel-read); font-size: 15px; }
 /* 작은 이름표 · 값 · 안내 글 */

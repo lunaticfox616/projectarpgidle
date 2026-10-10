@@ -28,8 +28,6 @@ test('requirements identify the usable glove slot and equip it in the real game'
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         return true;
     });
-    const inventory = page.locator('#btn-equipment-mobile-inventory');
-    if (await inventory.isVisible()) await inventory.click();
     await page.locator('#ui-inventory-list .equipment-grid-item').first().click();
     const inspector = page.locator('#ui-equipment-inventory-inspector');
     await expect(inspector).toContainText('장착 가능: 오른쪽 장갑');
