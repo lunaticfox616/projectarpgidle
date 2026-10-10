@@ -87,6 +87,7 @@ const battleGroundLoot = (() => {
 
     function place(marker, point) {
         const labels = marker.querySelector('.battle-loot-labels');
+        if (!labels) return; // a marker whose labels failed to build is rebuilt on the next frame (syncFloor)
         if (!marker.dataset.labelRow) {
             const row = labels.firstElementChild?.offsetHeight || 20;
             marker.dataset.labelRow = String(row);
@@ -444,10 +445,11 @@ const battleGroundLoot = (() => {
             live.add(key);
             const existing = floorPiles.get(key), entry = existing || addFloorPile(key, pile);
             if (entry.ids === ids) continue;
-            entry.ids = ids;
             const fresh = pile.rows.some(row => !landedFloorIds.has(floorRowKey(row)));
-            pile.rows.forEach(row => landedFloorIds.add(floorRowKey(row)));
             floorMarker(entry, pile, projection, fresh);
+            // Remembered only once the marker is built: a failed build is tried again instead of leaving an empty marker.
+            entry.ids = ids;
+            pile.rows.forEach(row => landedFloorIds.add(floorRowKey(row)));
         }
         for (const id of landedFloorIds) if (!liveRows.has(id)) landedFloorIds.delete(id);
         for (const [key, entry] of floorPiles) {
@@ -480,9 +482,22 @@ const battleGroundLoot = (() => {
         return false;
     }
 
+    const reported = new Set();
+    /** The loot layer only presents: a failure here is reported once and the battlefield frame goes on without the layer.
+     * (2026-10-11: an error while labelling floor currency on the first draw of the boot stopped init before cloud login.) */
+    function prepared(source, now, projection) {
+        try {
+            return prepare(source, now, projection);
+        } catch (error) {
+            const message = String(error && error.message);
+            if (!reported.has(message)) { reported.add(message); console.error('ground loot layer failed:', error); }
+            return false;
+        }
+    }
+
     /** Returns the actor-pass context, or the original context when there is no visible ground loot. */
     function actorContext(source, ctx, now, projection) {
-        if (!prepare(source, now, projection)) return ctx;
+        if (!prepared(source, now, projection)) return ctx;
         foreground.hidden = false;
         if (foreground.width !== canvas.width || foreground.height !== canvas.height) {
             foreground.width = canvas.width; foreground.height = canvas.height;

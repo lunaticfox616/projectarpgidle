@@ -78,3 +78,27 @@ test('a kill drops one floor pile that a click picks up exactly once', async ({ 
     expect(left.floor).toBe(0);
     expect(errors).toEqual([]);
 });
+
+// 2026-10-11: currency left on the floor is saved with the run. The first battlefield draw of the next boot labelled it with a helper
+// that only existed after the first UI refresh, the draw threw, and the rest of init (cloud save and login setup) never ran: a player
+// with currency on the floor could not sign in.
+test('a save with currency on the floor boots and reaches the cloud setup', async ({ page }) => {
+    const errors = await openMap(page);
+    await page.evaluate(() => {
+        const run = actExplorationState.current(game), map = actExplorationMap.forRun(run), hero = game.gridPlayer;
+        const cell = [[2, 0], [0, 2], [-2, 0], [0, -2], [2, 2]].map(([x, y]) => ({ gx: hero.gx + x, gy: hero.gy + y }))
+            .find(c => actExplorationMap.walkable(map, c, true));
+        const currency = Object.keys(ORB_DB).find(key => contentProgression.canDropCurrency(key));
+        actExplorationState.groundLoot.placeCurrency(run, cell, currency, 3);
+        saveGame({ skipCloudSync: true });
+    });
+    await page.reload();
+    // init binds the page-exit saves right after its first battlefield draw and sets the cloud save up next.
+    await page.waitForFunction(() => window.__cloudVisibilitySaveBound === true, { timeout: 30000 });
+    expect(await page.evaluate(() => actExplorationState.current(game).groundLoot.length)).toBe(1);
+    expect(await page.evaluate(() => typeof window.getStyledOrbName)).toBe('function');
+    await page.locator('#btn-startup-guest').click();
+    await expect(page.locator('#startup-overlay')).not.toHaveClass(/active/, { timeout: 30000 });
+    await page.waitForFunction(() => battleAssets.ready, { timeout: 30000 });
+    expect(errors).toEqual([]);
+});
