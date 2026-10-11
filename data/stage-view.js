@@ -5,8 +5,10 @@
 const STAGE_VIEW = Object.freeze({
     /** 깊이 한 칸의 화면 높이 ÷ 가로 한 칸의 화면 너비. */
     depth: 0.5,
-    /** 탐험 지도에서 가로로 적어도 이만큼의 칸이 보이게 칸 크기를 고른다(사거리 7칸 스킬의 대상이 화면 안에 든다). 좁은 화면(휴대폰)은 narrow. */
-    minColumns: Object.freeze({ wide: 15, narrow: 8, narrowBelow: 700 }),
+    /** 탐험 지도에서 가로로 적어도 이만큼의 칸이 보이게 칸 크기를 고른다. 좁은 화면(휴대폰)은 narrow.
+     * 2026-10-11 사용자 "보이는 캐릭터 사이즈 좀 작게": 넓은 화면 15 → 20칸. 1080p에서 캐릭터 도트 하나가 2px → 1.5px이 된다
+     * (반 걸음 배율은 js/canvas-stage-dots.js가 도트를 고르게 찍는다). */
+    minColumns: Object.freeze({ wide: 20, narrow: 8, narrowBelow: 700 }),
     /** 주인공이 서는 세로 자리(화면 높이의 비율). 아래쪽은 HUD가 덮으므로 가운데보다 조금 위다. */
     anchorY: 0.46,
     /** 칸 너비가 이 값일 때 캐릭터 도트 하나가 화면 1px이다. 칸은 캐릭터 도트가 캔버스 픽셀의 정수배가 되는 크기로만 잡는다. */
@@ -49,9 +51,15 @@ const STAGE_ROOMS = Object.freeze({
     /** 방 하나가 차지하는 가로 자리: 가장 넓은 방의 너비. */
     slot: 15,
     /** 방 놓는 법의 판 번호: 탐험 기록(run.rooms)에 적힌다. 방 크기나 자리를 바꾸면 올린다(옛 번호의 탐험은 불러올 때 버리고 다시 연다). */
-    version: 2,
-    /** 깊이 칸 수: 어느 방이나 5(화면 높이의 3할쯤). 뒤쪽에 배경 그림이 설 자리를 남긴다. */
+    version: 3,
+    /** 깊이 칸 수의 바탕: 여기에 덧칸(grow.deep)이 붙는다. */
     depth: 5,
+    /** 방을 넓히는 덧칸(사용자 2026-10-11: "좀 넓게 만들어봐 크기조절도 (위아래랑 양옆 둘다)"): 모든 방의 가로와 깊이에 더한다.
+     * 바탕값이 grow이고 테스트 패널에서 wideSteps, deepSteps 가운데 고를 수 있다(홀수 크기를 지키려고 두 칸씩이다).
+     * 고른 값은 탐험 기록의 열쇠 "판:가로 덧칸:깊이 덧칸"(run.rooms)에 적혀 그 탐험이 끝날 때까지 그대로다. */
+    grow: Object.freeze({ wide: 6, deep: 2 }),
+    wideSteps: Object.freeze([0, 2, 4, 6, 8, 10]),
+    deepSteps: Object.freeze([0, 2, 4]),
     /** 방 사이를 띄우는 칸 수: 경계하는 무리의 귀(12칸)와 튀는 피해(12칸)가 옆 방에 닿지 않게 그보다 넓다. */
     gap: 16,
     /** 방 위쪽의 벽 칸 수(뒷벽이 서는 자리)와 아래쪽 여백. */
@@ -73,19 +81,29 @@ const STAGE_ROOMS = Object.freeze({
 // 지형마다 그림 한 장: 위쪽은 배경, 아래쪽은 바닥이 놓일 빈 띠다. ground = 그림에서 바닥이 시작하는 줄(그림 높이의 비율).
 // 그 지형의 방은 벽돌 벽 없이 바닥과 길만 그린다: floor 바닥 판석, kerb 바닥 옆 턱, earth 바닥 밖의 어두운 땅(그림의 빈 띠 색),
 // rim과 hollow 뒷문이 되는 굴의 테와 속, moss 바닥 뒤쪽 끝에 번지는 이끼. 그림이 없는 지형과 그림 파일이 없는 판은 벽돌 뒷벽 그대로다.
+// theme: 그 지형의 방을 제 방식으로 그리는 테마(바닥, 문), objects: 그 지형의 탐험 물체 그림 묶음(STAGE_OBJECTS.themes). 없으면 공용이다.
 // 그림은 캐릭터 그림과 같은 폴더에 두고 아직 저장소에 넣지 않는다(사용자가 준 그림: 써도 되는지 확인 뒤에 넣는다).
 const STAGE_BACKDROPS = Object.freeze({
     path: 'assets/playable/stage/backdrops/',
     /** 방이 화면보다 넓어 카메라가 움직일 때 배경이 따라 움직이는 비율(바닥보다 느리게). */
     parallax: 0.3,
     biomes: Object.freeze({
-        root: Object.freeze({ file: 'root.webp', ground: 0.5996, floor: '#4d4035', kerb: '#2f2620', earth: '#1e1a17', rim: '#6f5e4c', hollow: '#0e0b09', moss: '#6e5a2a' })
+        root: Object.freeze({ file: 'root.webp', ground: 0.5996, floor: '#4d4035', kerb: '#2f2620', earth: '#1e1a17', rim: '#6f5e4c', hollow: '#0e0b09', moss: '#6e5a2a',
+            // 뿌리끝 성소(js/canvas-stage-sanctum.js): 다져진 흙, 빈터 밖의 어두운 땅, 돌, 풀(몸, 밝은 잎, 밑동), 뿌리(몸, 빛 받는 쪽, 테), 수액(몸, 빛, 테), 빛나는 버섯,
+            // 보스 방 문의 썩은 뿌리.
+            theme: 'sanctum', objects: 'root',
+            palette: Object.freeze({ dirt: '#5a4532', wild: '#241d16', stone: '#74665a', grass: '#56602b', grassLight: '#808a3e', grassDark: '#2c321a',
+                root: '#6d5845', rootLight: '#957a5c', rootDark: '#241a14',
+                sap: '#c58f2a', sapLight: '#f4d572', sapDark: '#7a5416', cap: '#8fe3c8',
+                rot: '#7a3f3a', rotLight: '#b3655a', rotDark: '#2c1414' }) })
     })
 });
 // 무대의 탐험 물체 그림(js/canvas-stage-objects.js): 한 장에 물체마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다
 // (scripts/stage-monsters/objects.cjs와 같아야 한다). 보급 상자의 은, 금 등급은 chestSilver, chestGold와 그 열린 모습이다.
 const STAGE_OBJECTS = Object.freeze({
     sheet: 'assets/objects/stage/objects.png',
+    /** 지형의 테마에 맞춘 그림 묶음(STAGE_BACKDROPS.biomes의 objects가 고른다): 칸과 이름 순서는 공용 그림과 같다. */
+    themes: Object.freeze({ root: 'assets/objects/stage/objects-root.png' }),
     cell: 96,
     feet: Object.freeze([48, 84]),
     /** 제 그림이 따로 있는 보급 상자 등급(나무 등급은 기본 그림 chest). */

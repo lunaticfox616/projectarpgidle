@@ -45,19 +45,26 @@ const stageRoomsView = (() => {
         return (top + bottom) / 2 + Math.max(0, Math.min(STAGE_ROOMS.lift, headroom));
     }
     /** 배경 그림이 준비된 지형이면 벽 없는 방(바닥과 길, 뒷문의 굴)을, 아니면 벽돌 뒷벽이 선 방을 그려 둔다. */
-    function prepare(map, room) {
+    function prepare(map, room, dot) {
         const open = stageBackdrop.ready(map);
-        if (picture && picture.map === map && picture.room === room && picture.open === open) return picture;
+        if (picture && picture.map === map && picture.room === room && picture.open === open && picture.dot === dot) return picture;
         const box = boxOf(map, room, open);
-        picture = { map, room, box, open, canvas: open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box) };
+        const painted = open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
+        // 도트 하나가 캔버스 픽셀의 정수배가 아닌 배율에서는 그 배율로 미리 옮겨 둔다(js/canvas-stage-dots.js).
+        picture = { map, room, box, open, dot, canvas: stageDots.fitted(painted, dot), gates: gatesOf(map, room, open) };
         return picture;
+    }
+    /** 테마가 있는 방의 문 그림(문 id → 잠긴 그림과 열린 그림). 없으면 쇠창살과 화살표로 그린다. */
+    function gatesOf(map, room, open) {
+        const look = open ? stageBackdrop.look(map) : null;
+        return look && look.theme === 'sanctum' ? stageSanctum.doorPictures(map, room, look) : null;
     }
     /** 방 뒤쪽: 배경 그림을 바닥선 위에 세우고 그 아래는 그림의 빈 띠와 같은 어둠으로 채운다. 방이 화면보다 넓으면 배경이 조금 따라 움직인다. */
     function drawBackdrop(ctx, view, p, area) {
         const room = view.room, look = stageBackdrop.look(view.map), span = (room.x1 - room.x0 + 3) * p.tileW;
         ctx.fillStyle = look.earth;
         ctx.fillRect(0, 0, area.width, area.height);
-        stageBackdrop.draw(ctx, view.map, { width: area.width, groundY: p.mapY + room.y0 * p.tileH, dot: p.tileW / WIDE,
+        stageBackdrop.draw(ctx, view.map, { width: area.width, groundY: p.mapY + room.y0 * p.tileH, dot: stageDots.wholeDot(p.tileW / WIDE),
             drift: p.mapX + (room.gx + .5) * p.tileW - area.width / 2, slack: Math.max(0, span - area.width) / 2 });
     }
     function drawWallDark(ctx, map, area) {
@@ -73,13 +80,13 @@ const stageRoomsView = (() => {
     function background(ctx, run, p, area) {
         const map = mapOf(run), room = map ? roomOf(run) : null;
         if (!room) return false;
-        const view = prepare(map, room), box = view.box;
+        const view = prepare(map, room, p.tileW / WIDE), box = view.box;
         noteRoom(run, room, performance.now());
         if (view.open) drawBackdrop(ctx, view, p, area);
         else drawWallDark(ctx, map, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, box.columns * p.tileW, box.rows * p.tileH);
-        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p);
+        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, view.gates && view.gates.get(row.door.id));
         return true;
     }
 
@@ -131,12 +138,18 @@ const stageRoomsView = (() => {
             }
         }
     }
-    function drawDoor(ctx, row, p) {
+    /** gate: 테마의 문 그림(잠긴 것과 열린 것). 있으면 그 그림을 문 칸에 세우고, 없으면 쇠창살을 친다. 열린 문에는 화살표가 깜빡인다. */
+    function drawDoor(ctx, row, p, gate) {
         const box = cellBox(row.door, p), dot = Math.max(1, Math.round(p.tileW / WIDE));
         ctx.save();
-        if (row.locked) drawBars(ctx, box, dot);
-        else drawArrows(ctx, box, row.door, dot);
+        if (gate) drawGate(ctx, row.locked ? gate.locked : gate.open, box, p.tileW / WIDE);
+        else if (row.locked) drawBars(ctx, box, dot);
+        if (!row.locked) drawArrows(ctx, box, row.door, dot);
         ctx.restore();
+    }
+    function drawGate(ctx, image, box, scale) {
+        const frame = stageSanctum.DOOR;
+        stageDots.blit(ctx, image, { x: 0, y: 0, w: frame.w, h: frame.h }, { x: Math.round(box.cx - frame.ax * scale), y: Math.round(box.cy - frame.ay * scale), scale });
     }
     /** 문 자리 바닥에 깔리는 빛(납작한 타원). */
     function glow(ctx, box, colour) {

@@ -3255,6 +3255,8 @@ function drawRiftCombatOccupants(ctx, layers) {
  * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
 function drawRiftPlayerRing(ctx, proj, feet) {
     if (!isBattleLightingEnabled() || !proj || !feet) return;
+    // 옆에서 보는 무대: 도트로 찍는 발밑 고리(js/canvas-stage-rings.js)
+    if (stageView.enabled()) return stageRings.ring(ctx, { x: feet.x, y: feet.y, dot: stageActors.scaleFor(proj.tileW) }, { tone: 'player', rx: 22, turning: true });
     const rx = proj.tileW * 0.4, ry = Math.max(4, rx * 0.34), tone = RIFT_CELL_TONES.player;
     ctx.save();
     ctx.globalAlpha = 1;
@@ -3284,6 +3286,10 @@ function drawRiftUnitRing(ctx, proj, unit, tone) {
     const rx = (box.right - box.left) * 0.4;
     const ry = Math.max(4, rx * 0.34);
     const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
+    if (stageView.enabled()) {
+        const dot = stageActors.scaleFor(proj.tileW);
+        return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: tone === RIFT_CELL_TONES.summon ? 'summon' : 'enemy', rx: Math.round(rx / dot * 0.86) });
+    }
     ctx.globalAlpha = 1;
     ctx.beginPath();
     ctx.ellipse(box.cx, cy, rx, ry, 0, 0, Math.PI * 2);

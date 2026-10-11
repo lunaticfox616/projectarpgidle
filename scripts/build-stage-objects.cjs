@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* 옆에서 보는 무대의 탐험 물체 그림을 그린다(docs/stage-view-20261011.md). 물체 하나가 칸 하나, 가로 한 줄.
  *
- *   node scripts/build-stage-objects.cjs            # 미리보기만: artifacts/stage-monsters/objects-preview.png
- *   node scripts/build-stage-objects.cjs --write    # assets/objects/stage/objects.png 교체
+ *   node scripts/build-stage-objects.cjs            # 미리보기만: artifacts/stage-monsters/objects-preview.png (공용, 그 아래 테마별)
+ *   node scripts/build-stage-objects.cjs --write    # assets/objects/stage/objects.png 과 테마별 objects-<테마>.png 교체
  *
  * 물체 정의는 scripts/stage-monsters/objects.cjs, 그리는 법은 scripts/stage-monsters/render.cjs(몬스터와 같다).
  * 게임 쪽 규격(칸 크기, 발 자리, 이름 순서)은 data/stage-view.js STAGE_OBJECTS: 여기 순서와 같아야 한다.
@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const R = require('./stage-monsters/render.cjs');
 const { encodePng } = require('./lib/png.cjs');
-const { objects, SIZE, FEET } = require('./stage-monsters/objects.cjs');
+const { objects, themes, SIZE, FEET } = require('./stage-monsters/objects.cjs');
 
 const root = path.resolve(__dirname, '..');
 const PREVIEW_SCALE = 3, PREVIEW_COLUMNS = 5;
@@ -33,16 +33,20 @@ function preview(cells) {
 }
 
 function main() {
-    const cells = objects.map(object => R.render(object.build(), object.mats, SIZE, FEET));
+    const sets = [['objects', objects], ...Object.entries(themes).map(([theme, list]) => ['objects-' + theme, list])];
+    const drawn = sets.map(([file, list]) => ({ file, cells: list.map(object => R.render(object.build(), object.mats, SIZE, FEET)) }));
     const previewDir = path.join(root, 'artifacts/stage-monsters');
     fs.mkdirSync(previewDir, { recursive: true });
-    fs.writeFileSync(path.join(previewDir, 'objects-preview.png'), preview(cells));
+    fs.writeFileSync(path.join(previewDir, 'objects-preview.png'), preview(drawn.flatMap(set => set.cells)));
     if (process.argv.includes('--write')) {
-        const sheet = R.strip(cells, SIZE), outDir = path.join(root, 'assets/objects/stage');
+        const outDir = path.join(root, 'assets/objects/stage');
         fs.mkdirSync(outDir, { recursive: true });
-        fs.writeFileSync(path.join(outDir, 'objects.png'), encodePng(sheet.width, sheet.height, sheet.data));
+        for (const set of drawn) {
+            const sheet = R.strip(set.cells, SIZE);
+            fs.writeFileSync(path.join(outDir, set.file + '.png'), encodePng(sheet.width, sheet.height, sheet.data));
+        }
     }
-    console.log(`${objects.length}개: ${objects.map(object => object.name).join(', ')}. 미리보기: artifacts/stage-monsters/objects-preview.png`);
+    console.log(`${objects.length}개씩 ${drawn.map(set => set.file).join(', ')}. 미리보기: artifacts/stage-monsters/objects-preview.png`);
 }
 
 main();

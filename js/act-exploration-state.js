@@ -33,7 +33,7 @@ const actExplorationState = (() => {
     function create(where,packs,now=0) {
         const run=where.source ? {version:1,act:null,source:explorationLayouts.normalize(where.source),bossStages:where.bossStages,zoneId:where.zoneId}
             : {version:1,act:where.act,zoneId:where.act-1};
-        if(where.rooms && !where.source)run.rooms=STAGE_ROOMS.version; // 방 단위 무대(js/act-exploration-rooms.js): 이 탐험이 끝날 때까지 그 지도를 걷는다
+        if(where.rooms && !where.source)run.rooms=where.rooms; // 방 단위 무대의 방 크기 열쇠(js/act-exploration-rooms.js): 이 탐험이 끝날 때까지 그 지도를 걷는다
         if(where.rotation!==undefined)run.rotation=where.rotation;
         const map=actExplorationMap.forRun(run);
         if(!map)throw Error('알 수 없는 액트 탐험: '+where.act);
@@ -385,10 +385,10 @@ const actExplorationState = (() => {
         return true;
     }
     /** A generated map this build no longer draws, or a room-by-room run (rooms) opened where the room stage is off or laid out
-     * by an older room plan (STAGE_ROOMS.version): its cells belong to a map this session does not have. */
+     * by a room plan this build does not lay out (an older STAGE_ROOMS.version): its cells belong to a map this session does not have. */
     function retired(run) {
         if(run.source)return !explorationLayouts.supports(run.source);
-        return !!run.rooms && (run.rooms!==STAGE_ROOMS.version || !actExplorationDoors.session());
+        return !!run.rooms && (!actExplorationRooms.supports(run.rooms) || !actExplorationDoors.session());
     }
     /** Saves before 2026-10-04 carry no facing: they keep walking the map as it was drawn, so their tile indices still hold.
      * The save boundary (mergeDefaults) calls this before it validates the run; a run that already has one is left alone. */

@@ -6,6 +6,11 @@
 const actExplorationDoors = (() => {
     /** 이 창에서 새 탐험을 방 단위 지도로 여는가. 그림이 없는 환경(검증 스크립트)에서는 언제나 아니다. */
     function session() { return typeof stageView === 'object' && stageView.rooms(); }
+    /** 새 탐험의 방 크기 열쇠: 테스트 패널에서 고른 가로, 깊이 덧칸(고르지 않았거나 없는 값이면 바탕값). */
+    function planKey() {
+        const rule = STAGE_ROOMS, pick = (value, steps, base) => (steps.includes(value) ? value : base);
+        return actExplorationRooms.key(pick(game.settings.stageRoomWide, rule.wideSteps, rule.grow.wide), pick(game.settings.stageRoomDeep, rule.deepSteps, rule.grow.deep));
+    }
     /** The run's room-by-room map, or null on a continuous map. */
     function stageMap(run) {
         const map = run ? actExplorationMap.forRun(run) : null;
@@ -53,6 +58,6 @@ const actExplorationDoors = (() => {
         if (!map || !here) return [];
         return map.doors.filter(door => door.room === here.index).map(door => ({ door, locked: locked(run, door) }));
     }
-    return Object.freeze({ session, stageMap, cross, toward, room, doorsHere });
+    return Object.freeze({ session, planKey, stageMap, cross, toward, room, doorsHere });
 })();
 safeExposeGlobals({ actExplorationDoors });

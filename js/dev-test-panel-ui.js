@@ -105,6 +105,13 @@ const devTestPanel = (() => {
         refresh();
         note(value === 'off' ? '지도: 이어진 지도' : '지도: 방 단위 이동');
     }
+    /** 방 크기 덧칸(data/stage-view.js STAGE_ROOMS.grow)을 바꾸고 지금 액트의 지도를 그 크기로 다시 연다. */
+    function setStageRoomSize(key, value, label) {
+        game.settings[key] = value;
+        if (getZone(game.currentZoneId)?.type === 'act') changeZone(game.currentZoneId);
+        refresh();
+        note(label);
+    }
     function travelToAct(order) {
         const zoneId = order - 1;
         game.maxZoneId = Math.max(game.maxZoneId || 0, zoneId);
@@ -164,6 +171,10 @@ const devTestPanel = (() => {
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             row([el('label', { textContent: '자세' }), stance]),
             row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))]),
+            row([el('label', { textContent: '방 가로' }), ...STAGE_ROOMS.wideSteps.map(step => button(step ? `+${step}` : '기본',
+                () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.bossWidth + step}칸까지`)))]),
+            row([el('label', { textContent: '방 깊이' }), ...STAGE_ROOMS.deepSteps.map(step => button(`${STAGE_ROOMS.depth + step}칸`,
+                () => setStageRoomSize('stageRoomDeep', step, `방 깊이: ${STAGE_ROOMS.depth + step}칸`)))]),
             row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
                 button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))])
         ]);

@@ -133,10 +133,19 @@ const monsterActors = (() => {
     function stagePlacement(pair, frame, row, p) {
         const cell = pair.kind.frame, dot = stageActors.scaleFor(p.tile) * (p.spawnScale || 1), feet = pair.spec.feet;
         const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
-        return { src: [frame.index * cell, 0, cell, cell], left, top, size: cell * dot, dot, mirror: row === 'left' ? p.x : null };
+        return { src: [frame.index * cell, 0, cell, cell], left, top, size: cell * dot, dot, mirror: row === 'left' ? p.x : null, stage: true };
     }
+    /** One frame at its place; a stage frame goes through stageDots so its dots stay even at any size. */
     function stamp(ctx, image, at, dx = 0, dy = 0) {
-        ctx.drawImage(image, ...at.src, at.left + dx, at.top + dy, at.size, at.size);
+        if (!at.stage) { ctx.drawImage(image, ...at.src, at.left + dx, at.top + dy, at.size, at.size); return; }
+        stageDots.blit(ctx, image, { x: at.src[0], y: at.src[1], w: at.src[2], h: at.src[3] }, { x: at.left + dx, y: at.top + dy, scale: at.dot });
+    }
+    /** A stage frame, and over it the hit flash as a pale silhouette. */
+    function drawStageFrame(ctx, image, at, flash) {
+        stamp(ctx, image, at);
+        if (!(flash > 0)) return;
+        ctx.globalAlpha *= Math.min(1, Number(flash));
+        stamp(ctx, silhouette(image, '#fff4df'), at);
     }
     function drawFrame(ctx, pair, frame, at, look) {
         const image = pair[frame.clip];
@@ -149,8 +158,15 @@ const monsterActors = (() => {
             for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stamp(ctx, rim, at, dx * at.dot, dy * at.dot);
             ctx.globalAlpha /= look.outline.alpha;
         }
-        drawBattleSpriteImage(ctx, image, at.src, [at.left, at.top, at.size, at.size], look.flash);
+        if (at.stage) drawStageFrame(ctx, image, at, look.flash);
+        else drawBattleSpriteImage(ctx, image, at.src, [at.left, at.top, at.size, at.size], look.flash);
         ctx.restore();
+    }
+    /** The shadow under a monster: a dot ellipse on the stage (js/canvas-stage-rings.js), the soft one elsewhere. */
+    function groundShadow(ctx, pair, p) {
+        const share = pair === 'loading' ? 0.3 : pair.kind.shadow;
+        if (pair !== 'loading' && pair.kind.stage) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
+        else drawPixelShadow(ctx, p.x, p.y + 2, p.tile * share, p.tile * 0.09, 0.2);
     }
     /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId).
      * p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these (or its sheet failed). */
@@ -158,7 +174,7 @@ const monsterActors = (() => {
         if (!enemy || !(p.tile > 0) || typeof Image !== 'function') return false;
         const pair = sheetFor(enemy.spriteVariantId || enemy.monsterVisualId);
         if (!pair) return false;
-        drawPixelShadow(ctx, p.x, p.y + 2, p.tile * (pair === 'loading' ? 0.3 : pair.kind.shadow), p.tile * 0.09, 0.2);
+        groundShadow(ctx, pair, p);
         if (pair === 'loading') return true;
         const frame = clipFrame(enemy, pair.kind, p.now, p.moving);
         const at = placement(pair, frame, FACING_ROW[stageView.facing(enemy, p.facing)] || 'down', p);

@@ -257,7 +257,6 @@ const stageTerrain = (() => {
     }
     /** The floor's back edge sinks into the backdrop's shadow, and a path beyond the room darkens as it leaves. */
     function paintOpenShade(ctx, scene, room, paths) {
-        paintMoss(ctx, scene, room);
         for (let i = 0; i < 12; i++) {
             ctx.fillStyle = `rgba(8,6,5,${(0.55 * (1 - i / 12)).toFixed(3)})`;
             ctx.fillRect(room.x0 * WIDE, room.y0 * DEEP + i, (room.x1 - room.x0 + 1) * WIDE, 1);
@@ -282,6 +281,8 @@ const stageTerrain = (() => {
      * @param {object} look colours of the biome's backdrop (data/stage-view.js STAGE_BACKDROPS)
      */
     function paintOpen(map, room, box, look) {
+        // 지형에 제 테마가 있으면 그 테마가 방을 그린다(뿌리끝 성소: js/canvas-stage-sanctum.js).
+        if (look.theme === 'sanctum') return stageSanctum.paint(map, room, box, look);
         const canvas = document.createElement('canvas'), paths = pathCells(map, room, box);
         const scene = { map, box, floor: (x, y) => isFloor(map, x, y) || paths.has(x + ',' + y),
             colours: { floor: rgbOf(look.floor), wall: rgbOf(look.kerb), earth: rgbOf(look.earth), rim: rgbOf(look.rim), hollow: rgbOf(look.hollow), moss: rgbOf(look.moss) } };
@@ -294,6 +295,7 @@ const stageTerrain = (() => {
         for (const door of map.doors.filter(row => row.room === room.index && row.side === 'north')) paintHollow(ctx, door, room, scene.colours);
         paintFloor(ctx, scene);
         paintEdges(ctx, scene);
+        paintMoss(ctx, scene, room);
         paintOpenShade(ctx, scene, room, paths);
         return canvas;
     }
@@ -303,6 +305,8 @@ const stageTerrain = (() => {
         return { floor: tone(look.floor, 1), wall: tone(look.wall, 1), dark: tone(look.wall, DARK) };
     }
 
-    return { paint, paintOpen, colours };
+    /** What a theme's own room painter borrows (js/canvas-stage-sanctum.js). */
+    const kit = Object.freeze({ WIDE, DEEP, noise, tone, rgbOf, dotsOf, isFloor, clipToFloor, pathCells, paintHollow, paintOpenShade });
+    return { paint, paintOpen, colours, kit };
 })();
 safeExposeGlobals({ stageTerrain });

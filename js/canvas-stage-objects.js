@@ -4,15 +4,24 @@
  * 무엇을 언제 그리는지는 js/canvas-exploration-objects.js가 정하고 여기는 그 그림을 찍기만 한다.
  */
 const stageObjects = (() => {
-    let sheet = null;
-    const rims = new Map();   // "칸|색" → 그 칸의 실루엣을 한 색으로 칠한 캔버스
+    const sheets = new Map(); // 그림 파일 → Image
+    const rims = new Map();   // "그림|칸|색" → 그 칸의 실루엣을 한 색으로 칠한 캔버스
 
+    /** 지금 걷는 지도의 지형에 맞춘 그림 묶음이 있으면 그 파일, 없으면 공용 그림. */
+    function sheetFile() {
+        const run = actExplorationState.current(game), map = run ? actExplorationMap.forRun(run) : null;
+        const look = map && typeof STAGE_BACKDROPS === 'object' ? STAGE_BACKDROPS.biomes[map.biome] : null;
+        return (look && STAGE_OBJECTS.themes[look.objects]) || STAGE_OBJECTS.sheet;
+    }
     function image() {
-        if (!sheet) {
-            sheet = new Image();
+        const file = sheetFile();
+        if (!sheets.has(file)) {
+            const sheet = new Image();
             sheet.decoding = 'async';
-            sheet.src = STAGE_OBJECTS.sheet;
+            sheet.src = file;
+            sheets.set(file, sheet);
         }
+        const sheet = sheets.get(file);
         return sheet.complete && sheet.naturalWidth > 0 ? sheet : null;
     }
     /** 무대가 켜져 있고 그림이 준비됐는가. 아니면 예전 16도트 그림으로 그린다. */
@@ -32,12 +41,12 @@ const stageObjects = (() => {
     function draw(ctx, look, at) {
         const index = cellOf(look), source = image();
         if (index < 0 || !source) return false;
-        const box = boxOf(index, at);
-        ctx.drawImage(source, box.sx, 0, STAGE_OBJECTS.cell, STAGE_OBJECTS.cell, box.x, box.y, box.size, box.size);
+        const box = boxOf(index, at), cell = STAGE_OBJECTS.cell;
+        stageDots.blit(ctx, source, { x: box.sx, y: 0, w: cell, h: cell }, { x: box.x, y: box.y, scale: at.dot });
         return true;
     }
     function silhouette(index, colour) {
-        const key = index + '|' + colour, cell = STAGE_OBJECTS.cell;
+        const key = sheetFile() + '|' + index + '|' + colour, cell = STAGE_OBJECTS.cell;
         if (rims.has(key)) return rims.get(key);
         const canvas = document.createElement('canvas');
         canvas.width = cell;
@@ -54,8 +63,10 @@ const stageObjects = (() => {
     function outline(ctx, look, at, colour) {
         const index = cellOf(look);
         if (index < 0 || !image()) return;
-        const box = boxOf(index, at), rim = silhouette(index, colour);
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.drawImage(rim, box.x + dx * at.dot, box.y + dy * at.dot, box.size, box.size);
+        const box = boxOf(index, at), rim = silhouette(index, colour), cell = STAGE_OBJECTS.cell;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            stageDots.blit(ctx, rim, { x: 0, y: 0, w: cell, h: cell }, { x: box.x + dx * at.dot, y: box.y + dy * at.dot, scale: at.dot });
+        }
     }
     return Object.freeze({ ready, draw, outline });
 })();

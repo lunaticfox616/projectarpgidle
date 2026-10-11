@@ -164,4 +164,70 @@ const objects = [
     ['nest', nest, NEST], ['nestSpent', nestSpent, NEST], ['tracks', tracks, NEST]
 ].map(([name, build, mats]) => ({ name, build, mats }));
 
-module.exports = { objects, SIZE, FEET };
+// ---------------------------------------------------------------- 뿌리끝 성소의 물체
+// 같은 물체가 오래 묵어 뿌리에 감기고 이끼가 앉았다: 나무는 어둡게 삭았고, 항아리에는 수액이 차 넘치고, 상자 위에는 빛나는 버섯이 돋았다.
+// 공용 그림과 이름, 순서가 같다(assets/objects/stage/objects-root.png).
+const AGED = { wood: { ramp: ramp('#6f4f30', { cool: 18, warm: 12 }) }, woodDark: { ramp: ramp('#3f2a1a', { cool: 14, warm: 8 }) },
+    beam: { ramp: ramp('#58391f', { cool: 16, warm: 12 }) }, lidWood: { ramp: ramp('#7a5733', { cool: 18, warm: 12 }) },
+    iron: { ramp: ramp('#4b4a4e', { cool: 10, warm: 4 }), gloss: true } };
+const GROWTH = { vine: { ramp: ramp('#6d5845', { cool: 16, warm: 14 }) }, moss: { ramp: ramp('#6b6a2c', { cool: 22, warm: 16 }) },
+    sap: { ramp: ramp('#d39a2e', { cool: 26, warm: 16 }), gloss: true, glow: true }, cap: { ramp: ramp('#8fe3c8', { cool: 20, warm: 10 }), glow: true },
+    stem: { ramp: ramp('#b9c6b4', { cool: 14, warm: 6 }) }, thorn: { ramp: ramp('#4a2a33', { cool: 12, warm: 10 }) } };
+function glowcap(m, at, size) {
+    m.add(S.limb(at, [at[0], at[1] + size * 1.3, at[2]], size * 0.3), 'stem');
+    m.add(S.ellipsoid([at[0], at[1] + size * 1.5, at[2]], [size, size * 0.62, size]), 'cap');
+}
+/** What grows on each object. open: the chest's lid is up (nothing lies over it). */
+const DRESS = {
+    crate(m) {
+        m.add(S.ellipsoid([-5, 34.4, 1], [14, 1.7, 10]), 'moss');
+        m.add(S.ellipsoid([-17, 31, 12.5], [5, 4, 3]), 'moss');
+        m.add(S.chain([[-22, 0, 15], [-12, 12, 16], [2, 22, 16], [14, 31, 15.4], [16, 36, 6], [8, 36.6, -6]], [3, 2.8, 2.5, 2.2, 1.8, 1.2]), 'vine');
+        m.add(S.chain([[2, 22, 16.4], [10, 14, 16.6], [16, 9, 16]], [1.5, 1.1, 0.7]), 'vine');
+        glowcap(m, [10, 35.2, 4], 3);
+        glowcap(m, [15, 35.2, -2], 2.2);
+    },
+    crateBroken(m) {
+        m.add(S.ellipsoid([-10, 3.4, 5], [7, 2, 4]), 'moss');
+        m.add(S.chain([[-26, 0.8, -2], [-12, 2.4, 2], [4, 1.4, 6], [20, 1, 12]], [1.8, 1.6, 1.3, 0.8]), 'vine');
+        glowcap(m, [6, 1, 12], 2.4);
+    },
+    pot(m) {
+        m.add(S.ellipsoid([0, 35.7, 0], [5.6, 1.7, 5]), 'sap');
+        m.add(S.chain([[4, 35, 5.5], [6.5, 30, 8], [7.6, 23, 12.7], [7, 16, 14.3]], [2.2, 1.9, 1.7, 1.3]), 'sap');
+        m.add(S.sphere([7, 11.4, 14.7], 1.9), 'sap');
+        m.add(S.torus([0, 27.2, 0], 7.7, 1.2), 'vine');
+        m.add(S.chain([[-17, 0, 8], [-13.6, 6, 10.4], [-9.6, 12, 12.8]], [2.4, 2, 1.2]), 'vine');
+    },
+    potBroken(m) {
+        m.add(S.ellipsoid([5, 0.7, 6], [14, 0.9, 8]), 'sap');
+        m.add(S.ellipsoid([-5, 3.2, 0], [9, 1.2, 8]), 'sap');
+    },
+    chest(m, open) {
+        if (open) { m.add(S.chain([[-25, 0, 12], [-21, 10, 14.6], [-14, 19, 14.4]], [3, 2.4, 1.4]), 'vine'); return; }
+        m.add(S.chain([[-25, 0, 12], [-21, 12, 14.6], [-11, 24, 12.4], [0, 33.4, 4], [9, 34, -5]], [3, 2.6, 2.3, 2, 1.3]), 'vine');
+        m.add(S.chain([[-11, 24, 12.6], [-4, 18, 14.6], [3, 14, 15]], [1.4, 1, 0.6]), 'vine');
+        m.add(S.ellipsoid([11, 33, 2], [8, 1.6, 6.4]), 'moss');
+        glowcap(m, [15, 33.4, 3], 2.4);
+    },
+    sealed(m, open) {
+        if (open) return;
+        m.add(S.chain([[-25, 0, 13], [-18, 14, 14.8], [-4, 27, 12], [8, 33.6, 3], [20, 30, -6]], [2.8, 2.5, 2.2, 1.9, 1.3]), 'thorn');
+        m.add(S.chain([[25, 0, 13], [19, 12, 14.8], [8, 22, 14.4], [-6, 33.6, 2], [-16, 31, -6]], [2.6, 2.3, 2, 1.7, 1.2]), 'thorn');
+        for (const [x, y, z] of [[-12, 20.5, 14.6], [14, 17, 15.4], [1, 31.4, 8.6]]) m.add(S.limb([x, y, z], [x + 1.4, y + 4.6, z + 1.2], 1, 0.2), 'thorn');
+    },
+    nest(m) { m.add(S.chain([[-27, 0.6, 9], [-16, 6, 14], [-2, 9.5, 15.4], [12, 7, 14.6]], [2, 1.8, 1.5, 0.9]), 'vine'); }
+};
+const ROOT_LOOKS = { ...LOOKS, wood: { ...LOOKS.wood, lock: 'sap' } };
+/** The root-sanctuary picture of each object: the same model, aged, with what grows on it. */
+function rooted(row) {
+    const kind = ['chest', 'sealed', 'nest', 'pot', 'crate'].find(name => row.name.startsWith(name)), open = row.name.endsWith('Open');
+    const dress = row.name === 'crateBroken' ? DRESS.crateBroken : row.name === 'potBroken' ? DRESS.potBroken : row.name === 'nestSpent' ? null : DRESS[kind];
+    const grade = row.name.includes('Silver') ? 'silver' : row.name.includes('Gold') ? 'gold' : row.name.startsWith('sealed') ? 'sealed' : 'wood';
+    const base = kind === 'chest' || kind === 'sealed' ? () => chest(open ? LID_OPEN : 0, ROOT_LOOKS[grade]) : row.build;
+    return { name: row.name, mats: { ...row.mats, ...AGED, ...GROWTH }, build() { const m = base(); if (dress) dress(m, open); return m; } };
+}
+/** 테마 이름 → 물체 목록. 테마마다 그림 한 장(assets/objects/stage/objects-<테마>.png)이고, 공용은 objects.png다. */
+const themes = { root: objects.map(rooted) };
+
+module.exports = { objects, themes, SIZE, FEET };

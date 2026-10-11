@@ -173,10 +173,11 @@ const stageActors = (() => {
         return headrooms.get(img.src);
     }
 
-    /** Screen px per art px for a cell width: a whole number of canvas pixels per art dot, so the dots stay even. */
+    /** Screen px per art px for a cell width: canvas pixels per art dot in half steps (1, 1.5, 2, …); js/canvas-stage-dots.js
+     * keeps the dots even at the half steps. */
     function scaleFor(tile) {
         const canvasPx = uiDisplay.battleRenderScale;
-        return Math.max(1, Math.round((Number(tile) || STAGE_VIEW.heroTile) / STAGE_VIEW.heroTile * canvasPx)) / canvasPx;
+        return Math.max(1, Math.round((Number(tile) || STAGE_VIEW.heroTile) / STAGE_VIEW.heroTile * canvasPx * 2) / 2) / canvasPx;
     }
     /** Left and right follow the pose; up and down keep the side the figure faced last. */
     function turn(direction) {
@@ -184,18 +185,13 @@ const stageActors = (() => {
         else if (direction === 'east') facingLeft = false;
         return facingLeft;
     }
+    /** 발밑 그림자: 도트로 찍는 납작한 타원(js/canvas-stage-rings.js). */
     function drawShadow(ctx, x, y, scale, alpha) {
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.ellipse(x, y + scale, 22 * scale, 6 * scale, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        stageRings.shadow(ctx, { x, y, dot: scale }, 15, alpha * 1.5);
     }
     function blit(ctx, source, sx, dest) {
         const cell = table().cell;
-        ctx.drawImage(source, sx, 0, cell, cell, Math.round(dest.x), Math.round(dest.y), cell * dest.scale, cell * dest.scale);
+        stageDots.blit(ctx, source, { x: sx, y: 0, w: cell, h: cell }, { x: Math.round(dest.x), y: Math.round(dest.y), scale: dest.scale });
     }
     function drawOutline(ctx, img, pose, dest, look) {
         if (!look || !look.outline) return;
@@ -236,7 +232,6 @@ const stageActors = (() => {
         const look = hitLook(state, now), pose = heldPose(look) || pickPose(set, state, now);
         const figure = placeFigure(x, y, state, look);
         ctx.save();
-        ctx.imageSmoothingEnabled = !Number.isInteger(figure.scale);
         drawShadow(ctx, x, y, figure.scale, 0.28 * figure.alpha);
         if (figure.left) { ctx.translate(figure.axis * 2, 0); ctx.scale(-1, 1); }
         ctx.globalAlpha = figure.alpha;
@@ -277,7 +272,8 @@ const stageView = Object.freeze({
     tile(width) {
         const canvasPx = uiDisplay.battleRenderScale, rule = STAGE_VIEW.minColumns;
         const columns = width < rule.narrowBelow ? rule.narrow : rule.wide;
-        const dots = Number(game.settings.stageZoom) || Math.max(1, Math.floor(width / (columns * STAGE_VIEW.heroTile) * canvasPx + 1e-6)) / canvasPx;
+        // 도트 하나의 캔버스 픽셀 수는 반 걸음(1, 1.5, 2, …)으로 고른다.
+        const dots = Number(game.settings.stageZoom) || Math.max(1, Math.floor(width / (columns * STAGE_VIEW.heroTile) * canvasPx * 2 + 1e-6) / 2) / canvasPx;
         return STAGE_VIEW.heroTile * dots;
     },
     /** Where the hero stands down the view (share of its height): the middle on the top-down field. */

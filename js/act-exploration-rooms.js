@@ -16,11 +16,18 @@ const actExplorationRooms = (() => {
         if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'east' : 'west';
         return dy > 0 ? 'south' : 'north';
     }
-    function sizeOf([, , , rx, ry, role]) {
+    /** 방 크기 열쇠 "판:가로 덧칸:깊이 덧칸"(탐험 기록의 rooms). */
+    const roomPlanKey = (wide, deep) => [STAGE_ROOMS.version, wide, deep].join(':');
+    /** 열쇠 → { wide, deep } 덧칸. 이 판이 놓을 수 없는 열쇠(옛 판 번호, 없는 덧칸)면 null. */
+    function roomGrowth(key) {
+        const [version, wide, deep] = String(key).split(':').map(Number), rule = STAGE_ROOMS;
+        return version === rule.version && rule.wideSteps.includes(wide) && rule.deepSteps.includes(deep) ? { wide, deep } : null;
+    }
+    function sizeOf([, , , rx, ry, role], grow) {
         const rule = STAGE_ROOMS, widest = rule.widthByRadius.length - 1;
         const byRole = { boss: rule.bossWidth, entry: rule.entryWidth };
         const width = byRole[role] || rule.widthByRadius[Math.min(widest, Math.max(rx, ry))];
-        return { width, depth: rule.depth };
+        return { width: width + grow.wide, depth: rule.depth + grow.deep };
     }
     /** 길 목록에 보스 방으로 가는 관문 길을 더한다. */
     function edgesOf(source) {
@@ -39,11 +46,11 @@ const actExplorationRooms = (() => {
         if (order.length !== source.rooms.length) throw Error('방 단위 지도에 닿지 않는 방이 있습니다: ' + source.id);
         return order;
     }
-    function placeRooms(source, order) {
-        const rule = STAGE_ROOMS;
+    function placeRooms(source, order, grow) {
+        const rule = STAGE_ROOMS, slot = rule.slot + grow.wide;
         return order.map((id, index) => {
-            const row = source.rooms.find(room => room[0] === id), { width, depth } = sizeOf(row);
-            const x0 = rule.gap / 2 + index * (rule.slot + rule.gap) + (rule.slot - width) / 2, y0 = rule.top;
+            const row = source.rooms.find(room => room[0] === id), { width, depth } = sizeOf(row, grow);
+            const x0 = rule.gap / 2 + index * (slot + rule.gap) + (slot - width) / 2, y0 = rule.top;
             return Object.freeze({ id, role: row[5], index, x0, y0, x1: x0 + width - 1, y1: y0 + depth - 1,
                 gx: x0 + (width - 1) / 2, gy: y0 + (depth - 1) / 2, radiusX: (width - 1) / 2, radiusY: (depth - 1) / 2,
                 at: Object.freeze([row[1], row[2]]), half: Object.freeze([row[3], row[4]]) });
@@ -132,9 +139,9 @@ const actExplorationRooms = (() => {
         return Object.freeze({ boxes: Object.freeze(boxes), lines: Object.freeze(lines),
             width: Math.max(...boxes.map(box => box.x + box.halfW)), height: Math.max(...boxes.map(box => box.y + box.halfH)) });
     }
-    function compileRooms(source) {
-        const rule = STAGE_ROOMS, edges = edgesOf(source), rooms = placeRooms(source, orderOf(source, edges));
-        const columns = rooms.length * (rule.slot + rule.gap), rows = rule.top + rule.depth + rule.bottom;
+    function compileRooms(source, grow) {
+        const rule = STAGE_ROOMS, edges = edgesOf(source), rooms = placeRooms(source, orderOf(source, edges), grow);
+        const columns = rooms.length * (rule.slot + grow.wide + rule.gap), rows = rule.top + rule.depth + grow.deep + rule.bottom;
         const doors = buildDoors(rooms, edges), { tiles, owner } = buildTiles(rooms, doors, columns, rows);
         const at = cell => cell.gy * columns + cell.gx;
         return Object.freeze({ id: source.id, act: source.act, biome: source.biome, columns, rows, tiles: Object.freeze(tiles),
@@ -143,11 +150,15 @@ const actExplorationRooms = (() => {
             portals: new Map(doors.map(door => [at(door.cell), door.exit])), doorAt: new Map(doors.map(door => [at(door.cell), door])),
             plan: buildPlan(rooms, edges) });
     }
-    /** @returns {?object} the room-by-room layout of a story act (compiled once), null where the act has no authored map. */
-    function stageLayout(act) {
-        if (cache.has(act)) return cache.get(act);
-        const source = ACT_EXPLORATION_MAPS.find(row => row.act === act), map = source ? compileRooms(source) : null;
-        cache.set(act, map);
+    /** @param {string} key the room plan key of the run (roomPlanKey)
+     * @returns {?object} the room-by-room layout of a story act at that size (compiled once), null where the act has no authored
+     *   map or the key is not one this build lays out. */
+    function stageLayout(act, key) {
+        const id = act + '|' + key;
+        if (cache.has(id)) return cache.get(id);
+        const source = ACT_EXPLORATION_MAPS.find(row => row.act === act), grow = roomGrowth(key);
+        const map = source && grow ? compileRooms(source, grow) : null;
+        cache.set(id, map);
         return map;
     }
     const inside = (map, cell) => cell.gx >= 0 && cell.gy >= 0 && cell.gx < map.columns && cell.gy < map.rows;
@@ -171,6 +182,6 @@ const actExplorationRooms = (() => {
         const next = waypoint(map, from, target);
         return map.far[here.index][there.index] * 100 + Math.abs(next.gx - from.gx) + Math.abs(next.gy - from.gy);
     }
-    return Object.freeze({ layout: stageLayout, roomAt, doorAt, waypoint, steps });
+    return Object.freeze({ layout: stageLayout, key: roomPlanKey, supports: key => !!roomGrowth(key), roomAt, doorAt, waypoint, steps });
 })();
 safeExposeGlobals({ actExplorationRooms });
