@@ -18,12 +18,33 @@ const monsterActors = (() => {
     }
     const ready = image => image.complete && image.naturalWidth > 0;
     const failed = image => image.complete && image.naturalWidth === 0;
+    /** The sheet a monster draws from: its side-view stage sheet while the stage is on (data MONSTER_STAGE_SHEETS), else its
+     * four-direction sheet. A stage sheet that failed to load is not asked for again. */
+    function sheetSource(id) {
+        const staged = stageView.enabled() && !sheets.get('stage:' + id)?.failed ? MONSTER_STAGE_SHEETS[id] : null;
+        if (staged) return { key: 'stage:' + id, spec: staged, kind: MONSTER_STAGE_KIND };
+        const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
+        return spec ? { key: id, spec, kind: MONSTER_SPRITE_KINDS[spec.kind] } : null;
+    }
+    /** The loaded (or loading) sheet pair of a source. A stage pair whose file is missing is marked, so the next look
+     * falls back to the four-direction sheet. */
+    function pairOf(source) {
+        const { key, spec } = source;
+        if (!sheets.has(key)) sheets.set(key, { spec, kind: source.kind, idle: load(spec.idle), attack: load(spec.attack) });
+        const pair = sheets.get(key);
+        if (source.kind.stage && (failed(pair.idle) || failed(pair.attack))) pair.failed = true;
+        return pair;
+    }
     /** { spec, kind, idle, attack } once both sheets decode; 'loading' meanwhile; null for other enemies or a failed load. */
     function sheetFor(id) {
-        const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
-        if (!spec) return null;
-        if (!sheets.has(id)) sheets.set(id, { spec, kind: MONSTER_SPRITE_KINDS[spec.kind], idle: load(spec.idle), attack: load(spec.attack) });
-        const pair = sheets.get(id);
+        let source = sheetSource(id);
+        if (!source) return null;
+        let pair = pairOf(source);
+        if (pair.failed) {
+            source = sheetSource(id);
+            if (!source) return null;
+            pair = pairOf(source);
+        }
         if (failed(pair.idle) || failed(pair.attack)) return null;
         return ready(pair.idle) && ready(pair.attack) ? pair : 'loading';
     }
@@ -94,11 +115,18 @@ const monsterActors = (() => {
     /** Where one frame lands: source rect in the sheet and destination box (feet on (x, y)). A sheet may set its own feet,
      * one pair for every direction or one per direction. */
     function placement(pair, frame, row, p) {
+        if (pair.kind.stage) return stagePlacement(pair, frame, row, p);
         const kind = pair.kind, cell = kind.frame, dot = p.tile / 16 * (p.spawnScale || 1), own = pair.spec.feet;
         const feet = (own && (own[row] || own)) || kind.feet;
         const src = [frame.index * cell, kind.rows.indexOf(row) * cell, cell, cell];
         const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
         return { src, left, top, size: cell * dot, dot };
+    }
+    /** A stage sheet: one row facing right at the character's dot size; facing left mirrors it about the feet (mirror = that x). */
+    function stagePlacement(pair, frame, row, p) {
+        const cell = pair.kind.frame, dot = stageActors.scaleFor(p.tile) * (p.spawnScale || 1), feet = pair.spec.feet;
+        const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
+        return { src: [frame.index * cell, 0, cell, cell], left, top, size: cell * dot, dot, mirror: row === 'left' ? p.x : null };
     }
     function stamp(ctx, image, at, dx = 0, dy = 0) {
         ctx.drawImage(image, ...at.src, at.left + dx, at.top + dy, at.size, at.size);
@@ -107,6 +135,7 @@ const monsterActors = (() => {
         const image = pair[frame.clip];
         ctx.save();
         ctx.imageSmoothingEnabled = false;
+        if (Number.isFinite(at.mirror)) { ctx.translate(at.mirror * 2, 0); ctx.scale(-1, 1); }
         if (look.outline) {
             const rim = silhouette(image, look.outline.color);
             ctx.globalAlpha *= look.outline.alpha;
